@@ -517,9 +517,86 @@ html.intro-skip #introOverlay{ display: none !important; }
   padding: 14px; margin-top: 10px;
   display: flex; flex-direction: column; align-items: stretch;
 }
-.heatmap-grid{ display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; gap: 3px; width: 100%; aspect-ratio: 12 / 7; }
-.heat-cell{ border-radius: 2px; width: 100%; height: 100%; }
-.heatmap-caption{ font-size: 10px; color: var(--text-faint); margin-top: 10px; letter-spacing: 0.04em; text-align: center; }
+/* ---- Consistency & Performance dashboard ---- */
+.cons-header{ text-align: center; padding: 4px 0 16px; }
+.cons-big{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 42px; line-height: 1; color: var(--text); }
+.cons-pct{ font-size: 22px; color: var(--text-dim); margin-left: 2px; }
+.cons-big-label{ font-size: 11.5px; color: var(--accent); font-weight: 600; margin-top: 6px; }
+.cons-big-sub{ font-size: 11px; color: var(--text-faint); margin-top: 3px; }
+
+.cons-grid-wrap{ margin-top: 4px; }
+.cons-grid{
+  display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(7, 1fr);
+  grid-auto-flow: column; gap: 3px; width: 100%; aspect-ratio: 12 / 7;
+}
+.cons-cell{
+  border-radius: 2px; width: 100%; height: 100%; cursor: pointer;
+  background: var(--surface-3);
+  animation: consFade 0.35s var(--ease) both;
+  transition: transform 0.12s var(--ease), box-shadow 0.15s var(--ease);
+}
+@keyframes consFade{ from{ opacity: 0; } to{ opacity: 1; } }
+.cons-rest{ background: var(--surface-3); }
+.cons-future{ background: var(--surface-3); opacity: 0.25; cursor: default; }
+.cons-missed{ background: transparent; border: 1px dashed rgba(189,146,96,0.55); }
+.cons-trained{ background: var(--success); }
+.cons-pr{ background: var(--accent); }
+.cons-day-sel{ box-shadow: 0 0 0 2px var(--text); transform: scale(1.15); position: relative; z-index: 2; }
+
+.cons-axis{ display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-faint); margin-top: 7px; }
+.cons-legend{ display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 12px; font-size: 9.5px; color: var(--text-faint); }
+.cons-key{ width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+.cons-weekbar-label{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin: 18px 0 7px; }
+.cons-weekbar{ display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; height: 34px; }
+.cons-wk{ cursor: pointer; display: flex; align-items: flex-end; }
+.cons-wk-bar{ width: 100%; height: 100%; background: var(--surface-3); border-radius: 2px; display: flex; align-items: flex-end; overflow: hidden; }
+.cons-wk-fill{ width: 100%; background: var(--success); border-radius: 2px; transition: height 0.4s var(--ease); }
+.cons-wk.sel .cons-wk-bar{ box-shadow: 0 0 0 1.5px var(--accent); }
+.cons-wk.sel .cons-wk-fill{ background: var(--accent); }
+
+.cons-detail{
+  margin-top: 14px; padding: 13px 14px; border-radius: var(--radius-md);
+  background: var(--surface-3); border: 1px solid var(--border);
+  animation: consFade 0.25s var(--ease) both;
+}
+.cons-detail-head{ display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cons-detail-title{ font-size: 13.5px; font-weight: 700; color: var(--text); }
+.cons-detail-date{ font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+.cons-detail-score{ position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.cons-ring-num{
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--text);
+}
+.cons-ring-num.sm{ font-size: 12px; }
+.cons-detail-stats{ display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.cons-detail-stats > div{ font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); display: flex; flex-direction: column; gap: 2px; }
+.cons-detail-stats span{ font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: 0; text-transform: none; }
+
+.score-ring{ display: block; transform: rotate(-90deg); }
+.score-ring-track{ fill: none; stroke: var(--surface-2); stroke-width: 6; }
+.score-ring-fill{ fill: none; stroke: var(--success); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.55s var(--ease); }
+
+.cons-foot{ display: flex; align-items: center; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.cons-foot-item{ flex: 1; display: flex; align-items: center; gap: 9px; min-width: 0; }
+.cons-foot-ring{ position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.cons-foot-num{ font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; color: var(--text); }
+.cons-foot-label{ font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); line-height: 1.35; }
+.cons-foot-label span{ color: var(--success); }
+.cons-trend-improving{ color: var(--success); font-size: 12px; }
+.cons-trend-steady{ color: var(--text-dim); font-size: 12px; }
+.cons-trend-declining{ color: var(--warning); font-size: 12px; }
+
+.cons-note{ font-size: 10.5px; color: var(--text-faint); text-align: center; margin-top: 12px; }
+.cons-empty{ text-align: center; padding: 22px 10px; }
+.cons-empty-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
+.cons-empty-sub{ font-size: 12px; color: var(--text-faint); margin-top: 6px; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce){
+  .cons-cell, .cons-detail{ animation: none; }
+  .cons-wk-fill, .score-ring-fill{ transition: none; }
+  .cons-day-sel{ transform: none; }
+}
 
 /* ---- Program carousel (swipeable, Instagram-style) ---- */
 .program-carousel{
@@ -1223,7 +1300,7 @@ body.page-locked{ overflow: hidden; }
     <div class="section-label" id="nextOptionsLabel">Pick a workout</div>
     <div class="tpl-grid" id="nextOptions"></div>
 
-    <div class="section-label">Consistency</div>
+    <div class="section-label">Consistency &amp; Performance</div>
     <div class="heatmap-card" id="heatmapCard"></div>
   </div>
 
@@ -2774,6 +2851,7 @@ async function persistPlanData(){
 async function persistLog(){
   invalidateSortedLogCache();
   invalidateXPTimelineCache();
+  invalidateConsistencyCache();
   try{
     await LOOPStore.set('workoutLog', JSON.stringify(workoutLog));
     return true;
@@ -2793,6 +2871,9 @@ async function loadSchedule(id){
   schedule = data;
 }
 async function persistSchedule(){
+  // The schedule defines the planned-session baseline the consistency % is
+  // measured against, so a schedule change must invalidate that cache too.
+  invalidateConsistencyCache();
   try{ await LOOPStore.set('schedule:' + selectedPlanId, JSON.stringify(schedule)); }catch(e){}
 }
 
@@ -3861,32 +3942,278 @@ function renderRecentPr(){
   `;
 }
 
-function renderHeatmap(){
-  const WEEKS = 12;
-  const catVarMap = { push:'push', pull:'pull', legs:'legs', core:'core', fullbody:'full' };
-  const dayMap = {};
-  workoutLog.forEach(l => { if(!dayMap[l.date]) dayMap[l.date] = l.category; });
+/* =========================================================
+   CONSISTENCY & PERFORMANCE
+   ---------------------------------------------------------
+   Reads only. Reuses existing systems rather than duplicating
+   them: sessionVolume, getSessionPRs, computeWorkoutQuality
+   (the same score shown on the completion screen),
+   computeWeekStreak, and the user's schedule for the planned
+   baseline.
+
+   Memoized because computeWorkoutQuality walks history per
+   exercise — recomputing 12 weeks of scores on every Today
+   render would be quadratic. Invalidated alongside the other
+   caches whenever workoutLog changes.
+   ========================================================= */
+const CONSISTENCY_WEEKS = 12;
+let _consistencyCache = null;
+function invalidateConsistencyCache(){ _consistencyCache = null; }
+
+function computeConsistencyData(){
+  if(_consistencyCache) return _consistencyCache;
 
   const now = new Date();
   const dayOffset = (now.getDay() + 6) % 7;
-  const thisMonday = new Date(now); thisMonday.setHours(0,0,0,0); thisMonday.setDate(now.getDate() - dayOffset);
+  const thisMonday = new Date(now); thisMonday.setHours(0,0,0,0);
+  thisMonday.setDate(now.getDate() - dayOffset);
 
-  let cells = '';
-  for(let w = WEEKS - 1; w >= 0; w--){
+  const byDate = {};
+  workoutLog.forEach(l => { if(!byDate[l.date]) byDate[l.date] = l; });
+
+  // Planned days come from the live schedule — the only planned baseline LOOP
+  // stores. Applied uniformly and labelled as a target, not presented as a
+  // historical record of what was scheduled at the time.
+  const plannedDayKeys = schedule ? Object.keys(schedule).filter(d => schedule[d] !== 'rest') : [];
+  const plannedPerWeek = plannedDayKeys.length;
+
+  let firstLogDate = null;
+  workoutLog.forEach(l => { if(!firstLogDate || l.date < firstLogDate) firstLogDate = l.date; });
+
+  const weeks = [];
+  for(let w = CONSISTENCY_WEEKS - 1; w >= 0; w--){
     const weekStart = new Date(thisMonday); weekStart.setDate(thisMonday.getDate() - w*7);
+    const days = [];
+    let workouts = 0, sets = 0, volume = 0, prs = 0, scoreSum = 0, scored = 0, missed = 0;
+
     for(let d = 0; d < 7; d++){
       const dt = new Date(weekStart); dt.setDate(weekStart.getDate() + d);
-      const key = dt.toISOString().slice(0,10);
+      const key = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
       const isFuture = dt > now;
-      const cat = dayMap[key];
-      const bg = cat ? `var(--${catVarMap[cat] || cat})` : 'var(--surface-3)';
-      const opacity = isFuture ? 0.18 : (cat ? 1 : 0.55);
-      cells += `<div class="heat-cell" style="background:${bg}; opacity:${opacity}" title="${key}${cat ? ' · ' + CAT_LABEL[cat] : ''}"></div>`;
+      const beforeHistory = firstLogDate && key < firstLogDate;
+      const entry = byDate[key];
+      const dayKey = JS_DAY_TO_KEY[dt.getDay()];
+      const wasPlanned = plannedDayKeys.indexOf(dayKey) !== -1;
+
+      let state = 'rest', dayPRs = 0, dayScore = null, daySets = 0, dayVol = 0;
+      if(entry){
+        workouts++;
+        daySets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
+        dayVol = sessionVolume(entry);
+        dayPRs = getSessionPRs(entry).length;
+        const q = computeWorkoutQuality(entry, new Array(dayPRs));
+        dayScore = q ? q.score : null;
+        sets += daySets; volume += dayVol; prs += dayPRs;
+        if(dayScore !== null){ scoreSum += dayScore; scored++; }
+        state = dayPRs > 0 ? 'pr' : 'trained';
+      } else if(isFuture){
+        state = 'future';
+      } else if(wasPlanned && !beforeHistory){
+        state = 'missed'; missed++;
+      }
+
+      days.push({ date: key, state, entry: entry || null, prs: dayPRs, score: dayScore, sets: daySets, volume: dayVol, planned: wasPlanned });
+    }
+
+    const target = plannedPerWeek || null;
+    weeks.push({
+      index: CONSISTENCY_WEEKS - w,
+      start: weekStart,
+      days, workouts, sets, volume, prs, missed,
+      avgScore: scored ? Math.round(scoreSum / scored) : null,
+      target,
+      consistency: target ? Math.min(100, Math.round((workouts / target) * 100)) : null
+    });
+  }
+
+  const totalWorkouts = weeks.reduce((n,w) => n + w.workouts, 0);
+  const totalPlanned = plannedPerWeek ? plannedPerWeek * CONSISTENCY_WEEKS : null;
+  const overallConsistency = totalPlanned ? Math.min(100, Math.round((totalWorkouts / totalPlanned) * 100)) : null;
+
+  const scoredWeeks = weeks.filter(w => w.avgScore !== null);
+  const overallScore = scoredWeeks.length
+    ? Math.round(scoredWeeks.reduce((n,w) => n + w.avgScore, 0) / scoredWeeks.length) : null;
+
+  const recent6 = weeks.slice(-6).reduce((n,w) => n + w.workouts, 0);
+  const prior6  = weeks.slice(0, 6).reduce((n,w) => n + w.workouts, 0);
+  let trend = 'steady';
+  if(prior6 > 0){
+    const delta = ((recent6 - prior6) / prior6) * 100;
+    if(delta >= 15) trend = 'improving';
+    else if(delta <= -15) trend = 'declining';
+  } else if(recent6 > 0) trend = 'improving';
+
+  _consistencyCache = {
+    weeks, totalWorkouts, totalPlanned, overallConsistency, overallScore,
+    plannedPerWeek, trend,
+    hasEnoughData: totalWorkouts >= 3,
+    rangeStart: weeks[0].start
+  };
+  return _consistencyCache;
+}
+
+let selectedConsistencyWeek = null;
+let selectedConsistencyDay = null;
+
+function scoreRingSvg(score, size){
+  const r = 26, circ = 2 * Math.PI * r;
+  const pct = score === null ? 0 : Math.max(0, Math.min(100, score)) / 100;
+  return `
+    <svg class="score-ring" viewBox="0 0 64 64" style="width:${size}px;height:${size}px">
+      <circle class="score-ring-track" cx="32" cy="32" r="${r}"/>
+      <circle class="score-ring-fill" cx="32" cy="32" r="${r}" style="stroke-dasharray:${circ.toFixed(2)}; stroke-dashoffset:${(circ*(1-pct)).toFixed(2)}"/>
+    </svg>`;
+}
+function scoreBand(score){
+  if(score === null) return '';
+  if(score >= 95) return 'Outstanding';
+  if(score >= 85) return 'Excellent';
+  if(score >= 70) return 'Good';
+  if(score >= 50) return 'Moderate';
+  return 'Building';
+}
+
+function selectConsistencyWeek(i){
+  selectedConsistencyWeek = (selectedConsistencyWeek === i) ? null : i;
+  selectedConsistencyDay = null;
+  renderHeatmap();
+}
+function selectConsistencyDay(dateStr){
+  selectedConsistencyDay = (selectedConsistencyDay === dateStr) ? null : dateStr;
+  selectedConsistencyWeek = null;
+  renderHeatmap();
+}
+
+function renderHeatmap(){
+  const el = document.getElementById('heatmapCard');
+  if(!el) return;
+
+  if(workoutLog.length === 0){
+    el.innerHTML = `
+      <div class="cons-empty">
+        <div class="cons-empty-title">Building your history</div>
+        <div class="cons-empty-sub">Log your first workout and your consistency, scores, and streaks will start appearing here.</div>
+      </div>`;
+    return;
+  }
+
+  const data = computeConsistencyData();
+  const fmt = d => d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+
+  const headline = data.overallConsistency !== null
+    ? `<div class="cons-big">${data.overallConsistency}<span class="cons-pct">%</span></div>
+       <div class="cons-big-label">of your ${data.plannedPerWeek}&times;/week target &middot; last 12 weeks</div>
+       <div class="cons-big-sub">${data.totalWorkouts} of ${data.totalPlanned} planned sessions completed</div>`
+    : `<div class="cons-big">${data.totalWorkouts}</div>
+       <div class="cons-big-label">workouts in the last 12 weeks</div>
+       <div class="cons-big-sub">Set training days in your schedule to track this against a target.</div>`;
+
+  let cells = '';
+  data.weeks.forEach(wk => {
+    wk.days.forEach(day => {
+      const selDay = selectedConsistencyDay === day.date;
+      cells += `<div class="cons-cell cons-${day.state}${selDay?' cons-day-sel':''}" onclick="selectConsistencyDay('${day.date}')"></div>`;
+    });
+  });
+
+  const weekBar = data.weeks.map(wk => {
+    const h = wk.target ? Math.min(100, (wk.workouts / wk.target) * 100) : (wk.workouts ? 100 : 0);
+    const sel = selectedConsistencyWeek === wk.index;
+    return `<div class="cons-wk ${sel?'sel':''}" onclick="selectConsistencyWeek(${wk.index})">
+      <div class="cons-wk-bar"><div class="cons-wk-fill" style="height:${h}%"></div></div>
+    </div>`;
+  }).join('');
+
+  let detail = '';
+  if(selectedConsistencyDay){
+    const day = data.weeks.reduce((acc,w) => acc.concat(w.days), []).find(d => d.date === selectedConsistencyDay);
+    if(day){
+      const dt = new Date(day.date + 'T00:00:00');
+      const label = dt.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+      if(day.entry){
+        const dur = estimateLoggedDuration(day.entry);
+        detail = `
+          <div class="cons-detail">
+            <div class="cons-detail-head">
+              <div><div class="cons-detail-title">${escapeHtml(day.entry.title)}</div><div class="cons-detail-date">${label}</div></div>
+              ${day.score !== null ? `<div class="cons-detail-score">${scoreRingSvg(day.score, 52)}<span class="cons-ring-num">${day.score}</span></div>` : ''}
+            </div>
+            <div class="cons-detail-stats">
+              <div><span>${day.sets}</span>Sets</div>
+              <div><span>${day.volume.toLocaleString()}</span>Volume</div>
+              <div><span>${day.prs}</span>PRs</div>
+              ${dur ? `<div><span>~${dur}</span>Min</div>` : ''}
+            </div>
+          </div>`;
+      } else {
+        const plannedCat = (day.planned && schedule) ? CAT_LABEL[schedule[JS_DAY_TO_KEY[dt.getDay()]]] : null;
+        detail = `
+          <div class="cons-detail">
+            <div class="cons-detail-title">${day.state === 'missed' ? 'Missed session' : 'Rest day'}</div>
+            <div class="cons-detail-date">${label}${plannedCat ? ` &middot; planned ${plannedCat}` : ''}</div>
+          </div>`;
+      }
+    }
+  } else if(selectedConsistencyWeek !== null){
+    const wk = data.weeks.find(w => w.index === selectedConsistencyWeek);
+    if(wk){
+      const end = new Date(wk.start); end.setDate(wk.start.getDate() + 6);
+      detail = `
+        <div class="cons-detail">
+          <div class="cons-detail-head">
+            <div><div class="cons-detail-title">${fmt(wk.start)} &ndash; ${fmt(end)}</div>
+              <div class="cons-detail-date">${wk.target ? `${wk.workouts} / ${wk.target} workouts` : `${wk.workouts} workout${wk.workouts===1?'':'s'}`}</div></div>
+            ${wk.avgScore !== null ? `<div class="cons-detail-score">${scoreRingSvg(wk.avgScore, 52)}<span class="cons-ring-num">${wk.avgScore}</span></div>` : ''}
+          </div>
+          <div class="cons-detail-stats">
+            <div><span>${wk.sets}</span>Sets</div>
+            <div><span>${wk.volume.toLocaleString()}</span>Volume</div>
+            <div><span>${wk.prs}</span>PRs</div>
+            ${wk.consistency !== null ? `<div><span>${wk.consistency}%</span>Consistency</div>` : ''}
+          </div>
+        </div>`;
     }
   }
-  document.getElementById('heatmapCard').innerHTML = `
-    <div class="heatmap-grid">${cells}</div>
-    <div class="heatmap-caption">Last ${WEEKS} weeks</div>
+
+  const streak = computeWeekStreak();
+  const trendLabel = { improving:'Improving', steady:'Steady', declining:'Easing off' }[data.trend];
+  const trendArrow = { improving:'&#8599;', steady:'&#8594;', declining:'&#8600;' }[data.trend];
+
+  el.innerHTML = `
+    <div class="cons-header">${headline}</div>
+
+    <div class="cons-grid-wrap">
+      <div class="cons-grid">${cells}</div>
+      <div class="cons-axis"><span>${fmt(data.rangeStart)}</span><span>Today</span></div>
+    </div>
+
+    <div class="cons-legend">
+      <span>Less</span>
+      <i class="cons-key cons-rest"></i><i class="cons-key cons-missed"></i><i class="cons-key cons-trained"></i><i class="cons-key cons-pr"></i>
+      <span>More</span>
+    </div>
+
+    <div class="cons-weekbar-label">Weekly completion &middot; tap a week</div>
+    <div class="cons-weekbar">${weekBar}</div>
+
+    ${detail}
+
+    <div class="cons-foot">
+      ${data.overallScore !== null ? `
+        <div class="cons-foot-item">
+          <div class="cons-foot-ring">${scoreRingSvg(data.overallScore, 46)}<span class="cons-ring-num sm">${data.overallScore}</span></div>
+          <div class="cons-foot-label">Avg score<br><span>${scoreBand(data.overallScore)}</span></div>
+        </div>` : ''}
+      <div class="cons-foot-item">
+        <div class="cons-foot-num">${streak}</div>
+        <div class="cons-foot-label">Week streak</div>
+      </div>
+      <div class="cons-foot-item">
+        <div class="cons-foot-num cons-trend-${data.trend}">${trendArrow} ${trendLabel}</div>
+        <div class="cons-foot-label">12-week trend</div>
+      </div>
+    </div>
+    ${!data.hasEnoughData ? `<div class="cons-note">Keep logging &mdash; trends sharpen after a few more sessions.</div>` : ''}
   `;
 }
 
