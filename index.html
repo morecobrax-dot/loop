@@ -94,9 +94,23 @@ button{ font-family: inherit; }
 @media (prefers-reduced-motion: reduce){
   *{ animation: none !important; transition: none !important; }
 }
-::-webkit-scrollbar{ width: 8px; height: 8px; }
-::-webkit-scrollbar-track{ background: transparent; }
-::-webkit-scrollbar-thumb{ background: var(--surface-3); border-radius: 8px; }
+/* ---- Scrollbars: hidden everywhere, scrolling fully intact ----
+   Purely visual. Nothing here affects the ability to scroll, pan, or
+   scroll-snap — only the browser's scrollbar chrome is suppressed so LOOP
+   reads as a native app rather than a page in Safari. */
+*::-webkit-scrollbar{ width: 0; height: 0; display: none; }
+*{ scrollbar-width: none; -ms-overflow-style: none; }
+html, body{ scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar{ width: 0; height: 0; display: none; }
+
+/* ---- Touch behavior ----
+   `manipulation` removes double-tap-to-zoom (and the legacy 300ms tap delay)
+   while leaving single taps, scrolling, panning, and pinch-to-zoom completely
+   intact. Pinch is deliberately preserved — it's an accessibility affordance,
+   and only the accidental double-tap zoom was the problem. */
+html{ touch-action: manipulation; }
+body{ touch-action: manipulation; }
+*{ touch-action: manipulation; }
 
 /* ---- Header ---- */
 header{ padding: 28px 20px 18px; border-bottom: 1px solid var(--border); position: relative; }
