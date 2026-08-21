@@ -11,6 +11,11 @@
 <meta name="theme-color" content="#0A0C10">
 <meta name="description" content="LOOP — training rotation, progression and personal records.">
 <link rel="manifest" href="manifest.webmanifest">
+<script>
+/* Runs before first paint: if the intro already played this session, hide it
+   immediately so a refresh never flashes the wordmark. Touches no user data. */
+try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.classList.add('intro-skip'); }catch(e){}
+</script>
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230A0C10'/%3E%3Ccircle cx='90' cy='90' r='44' fill='none' stroke='%235B8CFF' stroke-width='14'/%3E%3C/svg%3E">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
@@ -125,6 +130,92 @@ h1{
   color: #FFFFFF;
 }
 h1 .dot{ color: var(--accent); }
+
+/* =========================================================
+   LAUNCH INTRO
+   Sequence (~1.4s): wordmark settles → outer letters fade →
+   focal O slides to centre and hands off to the ring mark →
+   ring expands past the viewport → fades to reveal Today.
+   Everything animates on transform/opacity only, so it stays
+   on the compositor and holds 60fps on iPhone.
+   ========================================================= */
+html.intro-skip #introOverlay{ display: none !important; }
+#introOverlay{
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  will-change: opacity;
+}
+#introOverlay.intro-done{
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+.intro-stage{
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+.intro-wordmark{
+  display: flex; align-items: baseline; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  font-size: 44px; letter-spacing: -0.01em; color: #FFFFFF;
+  animation: introSettle 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.intro-ch{ display: inline-block; will-change: transform, opacity; }
+.intro-dot{ color: var(--accent); }
+
+/* The three non-focal glyphs recede first */
+.intro-l, .intro-o1, .intro-p, .intro-dot{
+  animation: introFade 0.34s cubic-bezier(0.4, 0, 1, 1) 0.34s both;
+}
+/* The focal O holds, then drifts to centre as the ring takes over */
+.intro-o2{
+  animation: introFocal 0.40s cubic-bezier(0.4, 0, 0.2, 1) 0.52s both;
+}
+
+.intro-ring{
+  position: absolute; top: 50%; left: 50%;
+  width: 46px; height: 46px; margin: -23px 0 0 -23px;
+  opacity: 0;
+  animation: introRing 0.74s cubic-bezier(0.5, 0, 0.2, 1) 0.60s both;
+  will-change: transform, opacity;
+}
+.intro-ring circle{
+  fill: none; stroke: var(--accent); stroke-width: 9;
+}
+
+@keyframes introSettle{
+  from{ opacity: 0; transform: scale(0.94); }
+  to{ opacity: 1; transform: scale(1); }
+}
+@keyframes introFade{
+  from{ opacity: 1; }
+  to{ opacity: 0; }
+}
+@keyframes introFocal{
+  0%{ opacity: 1; transform: scale(1); }
+  55%{ opacity: 1; transform: scale(1.06); }
+  100%{ opacity: 0; transform: scale(1.15); }
+}
+/* Expands well past the viewport so the ring's interior becomes the reveal */
+@keyframes introRing{
+  0%{   opacity: 0; transform: scale(0.7); }
+  18%{  opacity: 1; transform: scale(1); }
+  70%{  opacity: 1; }
+  100%{ opacity: 0; transform: scale(46); }
+}
+
+/* Reduced motion: same beats, no zoom — a plain fade instead. */
+@media (prefers-reduced-motion: reduce){
+  .intro-wordmark{ animation: introSettle 0.2s ease both; }
+  .intro-l, .intro-o1, .intro-p, .intro-dot, .intro-o2{
+    animation: introFade 0.25s ease 0.35s both;
+  }
+  .intro-ring{ animation: none; opacity: 0; }
+  #introOverlay.intro-done{ transition: opacity 0.2s ease; }
+}
 .header-actions{ display: flex; align-items: center; gap: 8px; }
 .plan-chip{
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
@@ -1016,6 +1107,24 @@ body.page-locked{ overflow: hidden; }
 </style>
 </head>
 <body>
+
+<!-- LAUNCH INTRO — purely visual, sits above the app while it boots behind.
+     Reuses the existing wordmark (Space Grotesk 700) and the existing ring
+     mark from the app icon. Removed from the DOM once done. -->
+<div id="introOverlay" aria-hidden="true">
+  <div class="intro-stage">
+    <div class="intro-wordmark" id="introWordmark">
+      <span class="intro-ch intro-l">L</span>
+      <span class="intro-ch intro-o1">O</span>
+      <span class="intro-ch intro-o2" id="introFocalO">O</span>
+      <span class="intro-ch intro-p">P</span>
+      <span class="intro-ch intro-dot">.</span>
+    </div>
+    <svg class="intro-ring" id="introRing" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="38" />
+    </svg>
+  </div>
+</div>
 
 <div id="planOnboard" style="display:none;">
   <div class="eyebrow">Training Rotation</div>
@@ -2503,6 +2612,10 @@ async function boot(){
   }
 
   renderStorageNotice(migrationResult);
+
+  // Tells the launch intro the app is loaded. Without this the overlay would
+  // sit there until the 6s failsafe fired instead of lifting at ~1.4s.
+  markAppReady();
 }
 
 /* Honest surfacing: if storage can't persist, or a migration needed attention,
@@ -5845,7 +5958,58 @@ window.addEventListener('popstate', () => {
 window.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') persistDraftNow(); });
 window.addEventListener('pagehide', () => { persistDraftNow(); });
 
-boot();
+/* ---------- LAUNCH INTRO CONTROLLER ----------
+   Visual only — writes one sessionStorage flag and nothing else. It never
+   reads, writes, or initializes user data.
+
+   The intro and boot() run concurrently. The overlay lifts only once BOTH the
+   animation has finished AND the app has finished loading, so the user never
+   sees the animation end into a loading state. A failsafe guarantees the
+   overlay can never trap the user regardless of what boot does. */
+const INTRO_SESSION_KEY = 'loop_intro_shown';
+let introAnimationDone = false;
+let introAppReady = false;
+let introDismissed = false;
+
+function initIntro(){
+  const el = document.getElementById('introOverlay');
+  if(!el) return;
+
+  let alreadyShown = false;
+  try{ alreadyShown = !!sessionStorage.getItem(INTRO_SESSION_KEY); }catch(e){}
+
+  if(alreadyShown){
+    introDismissed = true;
+    introAnimationDone = true;
+    if(el.parentNode) el.remove();
+    return;
+  }
+  try{ sessionStorage.setItem(INTRO_SESSION_KEY, '1'); }catch(e){}
+
+  const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  setTimeout(() => { introAnimationDone = true; maybeDismissIntro(); }, reduced ? 620 : 1400);
+
+  // Failsafe: if boot stalls for any reason, never leave the user stuck.
+  setTimeout(() => { introAppReady = true; introAnimationDone = true; maybeDismissIntro(); }, 6000);
+}
+
+function markAppReady(){ introAppReady = true; maybeDismissIntro(); }
+
+function maybeDismissIntro(){
+  if(introDismissed) return;
+  if(!introAnimationDone || !introAppReady) return;
+  introDismissed = true;
+  const el = document.getElementById('introOverlay');
+  if(!el) return;
+  el.classList.add('intro-done');
+  // Fully removed so it can never intercept a touch or cost a frame.
+  setTimeout(() => { if(el.parentNode) el.remove(); }, 340);
+}
+
+initIntro();
+// If boot fails for any reason, still release the intro promptly rather than
+// making the user wait out the failsafe behind a logo.
+boot().catch(err => { console.error('LOOP boot error:', err); markAppReady(); });
 
 /* Offline support: registers only when served over http(s) — a no-op when the
    file is opened directly or run inside the claude.ai artifact sandbox. */
