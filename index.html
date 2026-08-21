@@ -623,11 +623,19 @@ html.intro-skip #introOverlay{ display: none !important; }
 /* ---- Workout profile radar & muscle diagram ---- */
 .tpl-body{ display: flex; gap: 10px; margin-top: 12px; align-items: center; }
 .tpl-muscle-col{ flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.focus-block{ margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.focus-row{ display: flex; align-items: center; gap: 9px; }
+.focus-tag{ flex-shrink: 0; font-size: 8.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 7px; border-radius: var(--radius-sm); }
+.focus-primary{ background: rgba(224,42,36,0.16); color: #E8564E; }
+.focus-secondary{ background: var(--surface-3); color: var(--text-faint); }
+.focus-names{ font-size: 11.5px; font-weight: 600; color: var(--text); }
+.focus-names.dim{ color: var(--text-dim); font-weight: 500; }
+.muscle-svg{ transition: opacity 0.25s var(--ease); }
+@media (prefers-reduced-motion: reduce){ .muscle-svg{ transition: none; } }
 .muscle-svg{ width: 100%; max-width: 118px; height: auto; display: block; }
 .tpl-divider{ width: 1px; flex-shrink: 0; align-self: stretch; background: rgba(154,161,172,0.28); }
 .tpl-radar-col{ flex-shrink: 0; width: 100px; display: flex; align-items: center; justify-content: center; }
 .radar-svg{ width: 100px; height: 100px; }
-.tpl-legend{ text-align: center; font-size: 9.5px; color: var(--text-faint); margin-top: 6px; letter-spacing: 0.03em; }
 
 /* ---- Progress tab ---- */
 .pr-card{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
@@ -2629,7 +2637,6 @@ const LOOP_UPDATES = [
     title: 'Train With a Plan',
     date: '2026-06-15',
     summary: 'Your training plan, organized and ready every day.',
-    isFeatured: false,
     newFeatures: [
       'Five training plans to choose from, each with its own weekly schedule',
       'Push, Pull, Legs, Core, and Full Body workouts with multiple variations to rotate through',
@@ -2647,7 +2654,6 @@ const LOOP_UPDATES = [
     title: 'Smarter Every Session',
     date: '2026-07-03',
     summary: 'A smarter way to track progression and understand your training.',
-    isFeatured: false,
     newFeatures: [
       'Weight recommendations based on your actual training history, not just your last session',
       'Personal record tracking across heaviest weight, most reps, and estimated 1-rep max',
@@ -2666,7 +2672,6 @@ const LOOP_UPDATES = [
     title: 'Built for the Gym',
     date: '2026-08-01',
     summary: 'Redesigned for real workouts, in a real gym.',
-    isFeatured: false,
     newFeatures: [
       'A training calendar — browse any past workout by date',
       'Per-exercise history — every session for a single lift, in order',
@@ -2686,7 +2691,6 @@ const LOOP_UPDATES = [
     title: 'Polish & Performance',
     date: '2026-08-20',
     summary: 'Refined, faster, and easier on the eyes.',
-    isFeatured: true,
     newFeatures: [],
     improvements: [
       'Cleaner workout screen — less repeated information, more focus on what you\'re lifting right now',
@@ -2700,6 +2704,126 @@ const LOOP_UPDATES = [
     ],
     changes: [],
     detail: 'This update was mostly about getting out of your way — trimming duplicate information from the workout screen, making the small controls faster to use without looking at them, and fixing a couple of edge cases around rest timers and empty saves that only showed up with real, extended use.'
+  },
+  {
+    id: 'v1-4',
+    version: 'LOOP 1.4',
+    title: 'Levels & Progression',
+    date: '2026-08-20',
+    summary: 'Your training now builds toward something.',
+    newFeatures: [
+      'Levels and ranks, from Rookie through Legend, earned entirely from real training',
+      'XP for completed sessions, working sets, personal records, milestones, and consistency streaks',
+      'Achievements for meaningful milestones — first record, 50 workouts, 12 weeks unbroken',
+      'A profile view with lifetime XP, records, streaks, and full XP history'
+    ],
+    improvements: [
+      'Every workout now shows exactly where its XP came from'
+    ],
+    bugFixes: [],
+    changes: [],
+    detail: 'Levels are earned only from training you actually did, and the numbers are recalculated from your history rather than stored — so editing or deleting a workout adjusts your level correctly instead of leaving it inflated. Progression deliberately slows at higher levels: reaching Legend takes a consistent lifter around three years.'
+  },
+  {
+    id: 'v1-5',
+    version: 'LOOP 1.5',
+    title: 'Never Lose a Workout',
+    date: '2026-08-20',
+    summary: 'Your workout saves itself, continuously.',
+    newFeatures: [
+      'Workouts save automatically as you go — no Save button to remember',
+      'A workout in progress can be resumed from the Today screen, even days later',
+      'Discard is now an explicit choice, never something that happens by accident'
+    ],
+    improvements: [
+      'Completing a set is written immediately, so a crash can\'t cost you the set you just finished'
+    ],
+    bugFixes: [
+      'Fixed an issue where an unfinished workout could disappear after closing and reopening LOOP'
+    ],
+    changes: [
+      'Closing a workout no longer discards it — it stays available to resume'
+    ],
+    detail: 'An unfinished workout is now treated as seriously as a completed one. It survives closing the app, refreshing, switching apps, and leaving it overnight. It only ever goes away when you finish it or explicitly discard it — and a finished workout is only cleared after it has been safely written to your history.'
+  },
+  {
+    id: 'v1-6',
+    version: 'LOOP 1.6',
+    title: 'LOOP On Your Home Screen',
+    date: '2026-08-21',
+    summary: 'A real app, with a permanent home.',
+    newFeatures: [
+      'LOOP can be installed to your iPhone Home Screen and opens fullscreen, like any other app',
+      'Works offline — a gym with no signal is no longer a problem',
+      'Export a backup of your entire training history, and import it on another device'
+    ],
+    improvements: [
+      'Updating LOOP no longer touches your data — new versions arrive with your history intact'
+    ],
+    bugFixes: [],
+    changes: [],
+    detail: 'Your training data now lives independently of the app itself, with versioned storage and safe migrations. If a future update ever needs to reorganize how data is stored, it backs everything up first and restores it if anything goes wrong.'
+  },
+  {
+    id: 'v1-7',
+    version: 'LOOP 1.7',
+    title: 'The Workout Screen',
+    date: '2026-08-21',
+    summary: 'Training now gets the whole screen.',
+    newFeatures: [
+      'Workouts open as a dedicated fullscreen page instead of a panel over the app',
+      'A launch animation when you open LOOP from your Home Screen'
+    ],
+    improvements: [
+      'Completing a set now animates from grey to a green ring with a checkmark',
+      'Enter your weight once and it carries to the remaining sets automatically',
+      'Swipe or tap back to leave a workout — it stays saved either way',
+      'Double-tapping no longer zooms the interface mid-workout',
+      'Scrollbars are hidden throughout for a cleaner, more app-like feel'
+    ],
+    bugFixes: [],
+    changes: [],
+    detail: 'The workout screen is the part of LOOP you touch most, so it now behaves like a real app screen: it takes the full display, has its own back navigation, and responds instantly to every tap.'
+  },
+  {
+    id: 'v1-8',
+    version: 'LOOP 1.8',
+    title: 'Settings, Reorganized',
+    date: '2026-08-21',
+    summary: 'Everything where you\'d expect to find it.',
+    improvements: [
+      'Your current plan is now its own control in the header — one tap to switch',
+      'Settings is now a proper hub: Workout Plans, Backup & Data, and About',
+      'Backup, import, and reset live together under Backup & Data',
+      'Sheets can be dismissed by tapping outside them',
+      'Each tab remembers where you scrolled to'
+    ],
+    newFeatures: [],
+    bugFixes: [],
+    changes: [],
+    detail: 'Plan switching and app settings used to share one screen. They are now separate: the header chip is for quickly changing what you are training, and Settings is for configuring how LOOP behaves.'
+  },
+  {
+    id: 'v1-9',
+    version: 'LOOP 1.9',
+    title: 'Consistency & Performance',
+    date: '2026-08-21',
+    summary: 'See how consistently you train, and how well.',
+    newFeatures: [
+      'A redesigned consistency dashboard with a colour-coded 12-week activity map',
+      'Tap any day or week to see what you did, how it scored, and what you set',
+      'A session quality score after every workout, weighing completion, rep targets, progress, and records',
+      '"Next time" recommendations generated from what you just lifted',
+      'A weekly summary on Today: workouts, sets, volume, records, and volume trend'
+    ],
+    improvements: [
+      'Weight recommendations now use realistic jumps for the equipment — dumbbells, cables, and isolation work all progress differently',
+      'Muscle-group volume can be viewed for this week, not just all time',
+      'Each workout now names its primary and secondary muscles in plain text'
+    ],
+    bugFixes: [],
+    changes: [],
+    detail: 'The consistency section used to be twelve weeks of grey squares. It now answers real questions: how reliably am I training, how well have I been performing, and is that getting better or worse. The session score deliberately is not just weight moved — a hard, record-setting day still scores well even if total volume was lower.'
   }
 ];
 
@@ -2926,7 +3050,7 @@ function openSettings(){
   if(sub && plan) sub.textContent = 'Currently on ' + plan.name;
   const ver = document.getElementById('settingsVersion');
   if(ver){
-    const latest = [...LOOP_UPDATES].sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+    const latest = getLatestUpdate();
     ver.textContent = latest ? latest.version : '';
   }
   document.getElementById('settingsOverlay').classList.add('open');
@@ -3024,7 +3148,8 @@ function formatUpdateDate(d){
 
 function renderUpdatesList(){
   const wrap = document.getElementById('updatesList');
-  const sorted = [...LOOP_UPDATES].sort((a,b) => new Date(b.date) - new Date(a.date));
+  const sorted = updatesNewestFirst();
+  const latestId = sorted.length ? sorted[0].id : null;
   if(!sorted.length){
     wrap.innerHTML = `<div class="empty"><div class="mark">○</div><h3>No updates yet</h3><div>Check back after the next release.</div></div>`;
     return;
@@ -3035,7 +3160,7 @@ function renderUpdatesList(){
       <div class="update-entry">
         <div class="update-top">
           <div>
-            <div class="update-version">${escapeHtml(u.version)}${u.isFeatured ? ' <span class="update-current-tag">Current</span>' : ''}</div>
+            <div class="update-version">${escapeHtml(u.version)}${u.id === latestId ? ' <span class="update-current-tag">Current</span>' : ''}</div>
             <div class="update-title">${escapeHtml(u.title)}</div>
           </div>
           <div class="update-date">${formatUpdateDate(u.date)}</div>
@@ -3063,10 +3188,23 @@ function openUpdates(){
   document.getElementById('updatesOverlay').classList.add('open');
 }
 
+/* Newest-first ordering is derived, never hand-maintained. Everything that
+   needs to know "what's current" — the version label, the Current badge, the
+   unread dot — reads from here, so adding an entry is the only step required
+   to release. */
+function updatesNewestFirst(){
+  return [...LOOP_UPDATES].sort((a,b) => {
+    const d = new Date(b.date) - new Date(a.date);
+    return d !== 0 ? d : LOOP_UPDATES.indexOf(b) - LOOP_UPDATES.indexOf(a);
+  });
+}
+function getLatestUpdate(){
+  const s = updatesNewestFirst();
+  return s.length ? s[0] : null;
+}
 function getLatestUpdateId(){
-  if(!LOOP_UPDATES.length) return null;
-  const sorted = [...LOOP_UPDATES].sort((a,b) => new Date(b.date) - new Date(a.date));
-  return sorted[0].id;
+  const l = getLatestUpdate();
+  return l ? l.id : null;
 }
 
 function hasUnreadUpdate(){
@@ -3160,6 +3298,9 @@ function muscleFill(totals, maxVal, group){
   const b = Math.round(PINK[2] + (RED[2]-PINK[2])*t);
   return `rgb(${r},${g},${b})`;
 }
+/* Which view best represents a session. Anterior groups vs posterior groups —
+   a pull day shows the back, a push day shows the front, without the user
+   having to think about it. */
 function bodyDiagramSvg(t){
   const totals = computeMuscleTotals(t);
   const maxVal = Math.max(1, ...Object.values(totals));
@@ -3236,6 +3377,25 @@ function bodyDiagramSvg(t){
       <text x="29" y="159" font-size="7" fill="#5B616B" text-anchor="middle" font-family="JetBrains Mono, monospace">BACK</text>
     </g>
   </svg>`;
+}
+
+/* Text equivalent of the visual highlighting — muscle focus is never conveyed
+   by color alone. */
+function muscleFocusHtml(t){
+  const totals = computeMuscleTotals(t);
+  const entries = Object.keys(totals).filter(k => totals[k] > 0).sort((a,b) => totals[b] - totals[a]);
+  if(!entries.length) return '';
+  const max = totals[entries[0]];
+  const primary = entries.filter(k => totals[k] >= max * 0.75);
+  const secondary = entries.filter(k => totals[k] < max * 0.75).slice(0, 3);
+  const label = k => MUSCLE_LABELS[k] || k;
+  return `
+    <div class="focus-block">
+      <div class="focus-row"><span class="focus-tag focus-primary">Primary</span>
+        <span class="focus-names">${primary.map(label).join(' · ')}</span></div>
+      ${secondary.length ? `<div class="focus-row"><span class="focus-tag focus-secondary">Secondary</span>
+        <span class="focus-names dim">${secondary.map(label).join(' · ')}</span></div>` : ''}
+    </div>`;
 }
 
 /* ---------- DURATION & REST ESTIMATION ---------- */
@@ -4374,7 +4534,7 @@ function templateCardHtml(t, cat, lastWeights){
         <div class="tpl-divider"></div>
         <div class="tpl-radar-col">${radarSvg(profile)}</div>
       </div>
-      <div class="tpl-legend">Darker = more targeted</div>
+      ${muscleFocusHtml(t)}
       <button class="tpl-start" onclick='startTemplateLog(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})'>Start This Workout</button>
     </div>
   `;
