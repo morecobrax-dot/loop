@@ -842,12 +842,94 @@ textarea{ resize: vertical; min-height: 56px; }
 .set-row-top{ display: flex; align-items: center; justify-content: space-between; }
 .set-idx{ font-size: 11px; font-weight: 700; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.03em; }
 .set-row-top-actions{ display: flex; align-items: center; gap: 4px; }
+/* ---- Set completion control ----
+   Visual only. The completed state is driven entirely by the `.completed`
+   class that toggleSetComplete() sets synchronously, so the data is recorded
+   the instant you tap — the animation is decoration playing over an
+   already-saved fact, never a gate on it. */
 .set-complete-btn{
-  width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface-2);
-  color: var(--text-faint); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s var(--ease); flex-shrink: 0;
+  width: 44px; height: 44px; border-radius: 50%; border: none; background: none;
+  padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s var(--ease);
 }
-.set-row.completed .set-complete-btn{ background: var(--full); border-color: var(--full); color: #0C0E12; }
+.set-complete-btn:active{ transform: scale(0.90); }
+.scb-svg{ width: 34px; height: 34px; overflow: visible; }
+
+.scb-track{
+  fill: var(--surface-2); stroke: var(--border); stroke-width: 2;
+  transition: stroke 0.3s var(--ease), fill 0.3s var(--ease);
+}
+/* Ring draws itself around the circle rather than appearing all at once */
+.scb-ring{
+  fill: none; stroke: var(--success); stroke-width: 2.5; stroke-linecap: round;
+  stroke-dasharray: 94.25; stroke-dashoffset: 94.25;
+  transform: rotate(-90deg); transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.34s var(--ease);
+}
+/* Checkmark strokes in just behind the ring */
+.scb-check{
+  fill: none; stroke: var(--success); stroke-width: 2.6;
+  stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 22; stroke-dashoffset: 22;
+  transition: stroke-dashoffset 0.22s var(--ease) 0.14s;
+}
+
+.set-row.completed .set-complete-btn{ animation: scbSettle 0.34s var(--ease); }
+.set-row.completed .scb-track{ fill: var(--success-soft); stroke: transparent; }
+.set-row.completed .scb-ring{ stroke-dashoffset: 0; }
+.set-row.completed .scb-check{ stroke-dashoffset: 0; }
+
+/* Subtle settle — a small overshoot, no bounce */
+@keyframes scbSettle{
+  0%{ transform: scale(0.90); }
+  55%{ transform: scale(1.06); }
+  100%{ transform: scale(1); }
+}
+
+/* Reduced motion: same states, no drawing or scaling */
+@media (prefers-reduced-motion: reduce){
+  .scb-ring, .scb-check{ transition: stroke-dashoffset 0.01s linear; }
+  .set-row.completed .set-complete-btn{ animation: none; }
+  .set-complete-btn:active{ transform: none; }
+}
+
+/* ---- Full-screen workout page ----
+   Same overlay element, but presented as a page: opaque, edge to edge, no
+   backdrop or shadow, so nothing shows through from the screen behind it. */
+.overlay.overlay-page{
+  background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none;
+  align-items: stretch;
+}
+.sheet.sheet-page{
+  height: 100%; max-height: 100%;
+  border-radius: 0; border-top: none; box-shadow: none;
+  animation: pageIn 0.22s var(--ease) both;
+}
+@keyframes pageIn{
+  from{ transform: translateX(14px); opacity: 0; }
+  to{ transform: translateX(0); opacity: 1; }
+}
+.workout-topbar{
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 8px 10px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.workout-back{
+  width: 44px; height: 44px; flex-shrink: 0;
+  background: none; border: none; color: var(--accent);
+  font-size: 30px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.workout-back:active{ opacity: 0.6; }
+.workout-topbar-title{
+  flex: 1; text-align: center; font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700; font-size: 14.5px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.workout-topbar-spacer{ width: 44px; flex-shrink: 0; }
+body.page-locked{ overflow: hidden; }
 .set-row-controls{ display: flex; gap: 10px; }
 .stepper-group{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .unit-label{ font-size: 9px; color: var(--text-faint); letter-spacing: 0.06em; }
@@ -1079,8 +1161,13 @@ textarea{ resize: vertical; min-height: 56px; }
 </div>
 
 <!-- LOG WORKOUT SHEET -->
-<div class="overlay" id="logOverlay">
-  <div class="sheet">
+<div class="overlay overlay-page" id="logOverlay">
+  <div class="sheet sheet-page">
+    <div class="workout-topbar">
+      <button class="workout-back" onclick="closeLogSheet()" aria-label="Back">‹</button>
+      <div class="workout-topbar-title" id="logTopbarTitle">Workout</div>
+      <span class="workout-topbar-spacer"></span>
+    </div>
     <div class="sheet-scroll">
     <h2 id="logSheetTitle">Log Workout</h2>
     <div class="sheet-sub" id="logSheetSub">Record what you actually did today.</div>
@@ -1109,8 +1196,7 @@ textarea{ resize: vertical; min-height: 56px; }
     <textarea id="logNotes" placeholder="How'd it feel? PRs, form cues, anything worth remembering."></textarea>
     </div>
     <div class="sheet-actions">
-      <button class="btn-secondary" onclick="closeLogSheet()">Close</button>
-      <button class="btn-primary" onclick="saveLog(this)">Finish Workout</button>
+      <button class="btn-primary" style="width:100%" onclick="saveLog(this)">Finish Workout</button>
     </div>
   </div>
 </div>
@@ -4902,7 +4988,7 @@ function restoreDraftToSheet(draft){
       if(s.completed && setRows[j]){
         setRows[j].classList.add('completed');
         const btn = setRows[j].querySelector('.set-complete-btn');
-        if(btn) btn.textContent = '✓';
+        if(btn){ btn.setAttribute('aria-label','Completed'); btn.setAttribute('aria-pressed','true'); }
       }
     });
     if(ex.restRemaining){
@@ -4969,14 +5055,32 @@ async function renderResumeBanner(){
   `;
 }
 
-function openLogSheet(){ document.getElementById('logOverlay').classList.add('open'); }
+let workoutHistoryPushed = false;
+function openLogSheet(){
+  document.getElementById('logOverlay').classList.add('open');
+  document.body.classList.add('page-locked');
+  const t = document.getElementById('logTopbarTitle');
+  if(t) t.textContent = (CAT_LABEL[pendingLogCategory] || 'Workout');
+  // Give the workout its own history entry so the iPhone back gesture returns
+  // to the previous LOOP screen instead of leaving the app.
+  if(!workoutHistoryPushed){
+    try{ history.pushState({ loopWorkout: true }, ''); workoutHistoryPushed = true; }catch(e){}
+  }
+}
 function closeLogSheet(){
   persistDraftNow();
   document.querySelectorAll('.rest-panel').forEach(panel => {
     if(panel._interval){ clearInterval(panel._interval); panel._interval = null; }
   });
   document.getElementById('logOverlay').classList.remove('open');
+  document.body.classList.remove('page-locked');
   renderResumeBanner();
+  // Clearing the flag first means the resulting popstate is a no-op rather
+  // than re-entering this function.
+  if(workoutHistoryPushed){
+    workoutHistoryPushed = false;
+    try{ history.back(); }catch(e){}
+  }
 }
 
 function startTemplateLog(cat, tplId){
@@ -5143,7 +5247,13 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir){
     <div class="set-row-top">
       <span class="set-idx">Set ${idx}</span>
       <div class="set-row-top-actions">
-        <button class="set-complete-btn" type="button" onclick="toggleSetComplete(this)">○</button>
+        <button class="set-complete-btn" type="button" onclick="toggleSetComplete(this)" aria-label="Mark complete" aria-pressed="false">
+          <svg class="scb-svg" viewBox="0 0 36 36" aria-hidden="true">
+            <circle class="scb-track" cx="18" cy="18" r="15"/>
+            <circle class="scb-ring" cx="18" cy="18" r="15"/>
+            <path class="scb-check" d="M11.5 18.4 L16 22.8 L24.5 13.8"/>
+          </svg>
+        </button>
         <button class="rm-set" type="button" onclick="removeSetRow(this)">✕</button>
       </div>
     </div>
@@ -5269,8 +5379,8 @@ function toggleSetComplete(btn){
   const row = btn.closest('.set-row');
   const isDone = !row.classList.contains('completed');
   row.classList.toggle('completed', isDone);
-  btn.textContent = isDone ? '✓' : '○';
   btn.setAttribute('aria-label', isDone ? 'Completed' : 'Mark complete');
+  btn.setAttribute('aria-pressed', isDone ? 'true' : 'false');
   const exRow = row.closest('.ex-log-row');
   const panel = exRow ? exRow.querySelector('.rest-panel') : null;
   if(isDone){
@@ -5719,6 +5829,17 @@ function escapeAttr(str){ return escapeHtml(str).replace(/"/g, '&quot;'); }
   overlay.addEventListener('input', scheduleDraftSave);
   overlay.addEventListener('change', scheduleDraftSave);
 })();
+
+/* Device/browser back while the workout page is open closes the page and
+   returns to the previous LOOP screen, rather than leaving the app. The draft
+   is flushed on the way out, exactly as with the on-screen back arrow. */
+window.addEventListener('popstate', () => {
+  const ov = document.getElementById('logOverlay');
+  if(ov && ov.classList.contains('open')){
+    workoutHistoryPushed = false; // this pop consumed our entry
+    closeLogSheet();
+  }
+});
 
 /* Last-chance flush if the page is being torn down mid-workout. */
 window.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') persistDraftNow(); });
