@@ -125,14 +125,48 @@ h1{
   color: #FFFFFF;
 }
 h1 .dot{ color: var(--accent); }
-.plan-switch-btn{
+.header-actions{ display: flex; align-items: center; gap: 8px; }
+.plan-chip{
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
-  font-size: 11px; padding: 8px 12px; border-radius: 20px; cursor: pointer;
-  display: flex; align-items: center; gap: 6px; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transition: border-color 0.15s var(--ease), color 0.15s var(--ease), transform 0.12s var(--ease);
+  padding: 6px 12px; border-radius: 20px; cursor: pointer; text-align: left;
+  display: flex; flex-direction: column; gap: 1px; max-width: 150px; overflow: hidden;
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
 }
-.plan-switch-btn:hover{ border-color: var(--accent); color: var(--accent); }
-.plan-switch-btn:active{ transform: scale(0.96); }
+.plan-chip:hover{ border-color: var(--accent); }
+.plan-chip-label{ font-size: 8px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); line-height: 1.2; }
+.plan-chip-name{ font-size: 11.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
+.settings-gear{
+  position: relative; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+  font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.settings-gear:hover{ border-color: var(--accent); color: var(--accent); }
+.gear-dot{
+  position: absolute; top: 6px; right: 6px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); border: 1.5px solid var(--surface-2);
+}
+
+/* ---- Settings rows ---- */
+.settings-row-main{ display: flex; flex-direction: column; gap: 2px; text-align: left; min-width: 0; }
+.settings-row-title{ font-size: 13.5px; font-weight: 600; color: var(--text); }
+.settings-row-desc{ font-size: 11px; color: var(--text-faint); line-height: 1.4; }
+.settings-version{ text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-faint); margin-top: 20px; }
+.sheet-back{
+  background: none; border: none; color: var(--accent); font-size: 13px; font-weight: 600;
+  cursor: pointer; padding: 0 0 10px; margin: 0; display: inline-block;
+}
+.current-plan-card{
+  margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-lg);
+  background: linear-gradient(160deg, var(--accent-soft), var(--surface-2));
+  border: 1px solid var(--accent);
+}
+.current-plan-label{ font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.current-plan-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; color: var(--text); margin-top: 4px; }
+.current-plan-meta{ font-size: 11.5px; color: var(--text-dim); margin-top: 3px; }
+.plan-chip:active, .settings-gear:active{ transform: scale(0.96); }
 
 /* ---- Onboarding / plan select ---- */
 #planOnboard{ padding: 44px 20px 40px; max-width: 640px; margin: 0 auto; }
@@ -567,9 +601,10 @@ h1 .dot{ color: var(--accent); }
 
 /* ---- Settings row button (e.g. What's New) ---- */
 .settings-row-btn{
-  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
-  padding: 13px 14px; border-radius: var(--radius-md); font-weight: 600; font-size: 13.5px; cursor: pointer; margin-top: 6px;
+  padding: 13px 14px; border-radius: var(--radius-md); font-weight: 600; font-size: 13.5px;
+  cursor: pointer; margin-top: 8px; min-height: 52px; text-align: left;
 }
 .settings-row-btn:hover{ border-color: var(--accent); }
 .settings-row-arrow{ color: var(--text-faint); font-size: 16px; }
@@ -912,7 +947,15 @@ textarea{ resize: vertical; min-height: 56px; }
     <div class="eyebrow">Training Rotation</div>
     <div class="header-row">
       <h1>LOOP<span class="dot">.</span></h1>
-      <button class="plan-switch-btn" onclick="openPlanSwitcher()">⚙ <span id="currentPlanLabel">Plan</span></button>
+      <div class="header-actions">
+        <button class="plan-chip" onclick="openPlanSwitcher()" title="Switch plan">
+          <span class="plan-chip-label">Plan</span>
+          <span class="plan-chip-name" id="currentPlanLabel">Plan</span>
+        </button>
+        <button class="settings-gear" onclick="openSettings()" title="Settings">
+          ⚙<span class="gear-dot" id="updateUnreadDot" style="display:none"></span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -1092,33 +1135,113 @@ textarea{ resize: vertical; min-height: 56px; }
 </div>
 
 <!-- PLAN SWITCH / SETTINGS SHEET -->
+<!-- QUICK PLAN SWITCH — the top-right shortcut. Deliberately does one thing. -->
 <div class="overlay" id="planSwitchOverlay" onclick="backdropDismiss(event, closePlanSwitcher)">
   <div class="sheet">
     <div class="sheet-scroll">
-    <h2>Settings</h2>
-    <div class="sheet-sub">Your history and each plan's edits are kept, so you can switch back anytime.</div>
-    <label>Plan</label>
-    <div class="plan-grid" id="switchPlanGrid"></div>
-    <label style="margin-top:22px">About</label>
-    <button class="settings-row-btn" onclick="openUpdates()">
-      <span>What's New <span class="update-unread-dot" id="updateUnreadDot" style="display:none"></span></span>
-      <span class="settings-row-arrow">›</span>
-    </button>
-    <label style="margin-top:22px">Data</label>
-    <button class="settings-row-btn" onclick="exportAllData()">
-      <span>Export Backup</span>
-      <span class="settings-row-arrow">↓</span>
-    </button>
-    <button class="settings-row-btn" onclick="document.getElementById('importFileInput').click()">
-      <span>Import Backup</span>
-      <span class="settings-row-arrow">↑</span>
-    </button>
-    <input type="file" id="importFileInput" accept="application/json,.json" style="display:none" onchange="importAllData(this)">
-    <div class="settings-hint">Export moves your full training history to another device or browser. Importing merges it in — nothing is overwritten unless it's the same workout.</div>
-    <button class="reset-btn" onclick="resetAllData()">Reset All Data</button>
+      <h2>Switch Plan</h2>
+      <div class="sheet-sub">Your history and each plan's edits are kept, so you can switch back anytime.</div>
+      <div class="plan-grid" id="switchPlanGrid"></div>
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closePlanSwitcher()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS HUB -->
+<div class="overlay" id="settingsOverlay" onclick="backdropDismiss(event, closeSettings)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>Settings</h2>
+      <div class="sheet-sub">Manage your training setup, your data, and this app.</div>
+
+      <label>Training</label>
+      <button class="settings-row-btn" onclick="openPlansManager()">
+        <span class="settings-row-main">
+          <span class="settings-row-title">Workout Plans</span>
+          <span class="settings-row-desc" id="settingsPlanSub">Choose and manage your training plan</span>
+        </span>
+        <span class="settings-row-arrow">›</span>
+      </button>
+
+      <label style="margin-top:22px">Data &amp; Privacy</label>
+      <button class="settings-row-btn" onclick="openDataSettings()">
+        <span class="settings-row-main">
+          <span class="settings-row-title">Backup &amp; Data</span>
+          <span class="settings-row-desc">Export, import, or reset your training data</span>
+        </span>
+        <span class="settings-row-arrow">›</span>
+      </button>
+
+      <label style="margin-top:22px">About</label>
+      <button class="settings-row-btn" onclick="openUpdates()">
+        <span class="settings-row-main">
+          <span class="settings-row-title">What's New <span class="update-unread-dot" id="updateUnreadDotRow" style="display:none"></span></span>
+          <span class="settings-row-desc">Every update to LOOP, most recent first</span>
+        </span>
+        <span class="settings-row-arrow">›</span>
+      </button>
+      <div class="settings-version" id="settingsVersion"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeSettings()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS → WORKOUT PLANS -->
+<div class="overlay" id="plansOverlay" onclick="backdropDismiss(event, closePlansManager)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <button class="sheet-back" onclick="backToSettings('plansOverlay')">‹ Settings</button>
+      <h2>Workout Plans</h2>
+      <div class="sheet-sub">Your active plan decides your weekly split and which workouts you're offered.</div>
+      <div id="plansCurrent"></div>
+      <label style="margin-top:22px">Available plans</label>
+      <div class="plan-grid" id="plansGrid"></div>
+      <label style="margin-top:22px">Customize</label>
+      <div id="plansCustomize"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closePlansManager()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS → DATA & PRIVACY -->
+<div class="overlay" id="dataOverlay" onclick="backdropDismiss(event, closeDataSettings)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <button class="sheet-back" onclick="backToSettings('dataOverlay')">‹ Settings</button>
+      <h2>Backup &amp; Data</h2>
+      <div class="sheet-sub">Your training data lives on this device. Export it to keep a copy you control.</div>
+      <div id="dataStats"></div>
+
+      <label style="margin-top:22px">Backup</label>
+      <button class="settings-row-btn" onclick="exportAllData()">
+        <span class="settings-row-main">
+          <span class="settings-row-title">Export Backup</span>
+          <span class="settings-row-desc">Save everything to a file</span>
+        </span>
+        <span class="settings-row-arrow">↓</span>
+      </button>
+      <button class="settings-row-btn" onclick="document.getElementById('importFileInput').click()">
+        <span class="settings-row-main">
+          <span class="settings-row-title">Import Backup</span>
+          <span class="settings-row-desc">Merge a backup in — nothing is overwritten</span>
+        </span>
+        <span class="settings-row-arrow">↑</span>
+      </button>
+      <input type="file" id="importFileInput" accept="application/json,.json" style="display:none" onchange="importAllData(this)">
+      <div class="settings-hint">Importing merges by workout, so re-importing the same file changes nothing and an older backup can never delete newer sessions.</div>
+
+      <label style="margin-top:22px">Danger zone</label>
+      <div class="settings-hint">This permanently erases every workout, record, and level. It cannot be undone. Export a backup first.</div>
+      <button class="reset-btn" onclick="resetAllData()">Reset All Data</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeDataSettings()">Done</button>
     </div>
   </div>
 </div>
@@ -1127,6 +1250,7 @@ textarea{ resize: vertical; min-height: 56px; }
 <div class="overlay" id="updatesOverlay" onclick="backdropDismiss(event, closeUpdates)">
   <div class="sheet">
     <div class="sheet-scroll">
+      <button class="sheet-back" onclick="backToSettings('updatesOverlay')">‹ Settings</button>
       <h2>What's New</h2>
       <div class="sheet-sub">Everything that's changed in LOOP, most recent first.</div>
       <div id="updatesList"></div>
@@ -2440,12 +2564,12 @@ async function choosePlan(id){
   await loadSchedule(id);
   planStartDate = await ensurePlanStart(id);
   closePlanSwitcher();
+  closePlansManager();
   showMainApp();
   switchTab('today');
 }
 
 function openPlanSwitcher(){
-  renderUpdateIndicator();
   const grid = document.getElementById('switchPlanGrid');
   grid.innerHTML = Object.keys(DEFAULT_PLANS).map(id => {
     const p = DEFAULT_PLANS[id];
@@ -2455,6 +2579,104 @@ function openPlanSwitcher(){
   document.getElementById('planSwitchOverlay').classList.add('open');
 }
 function closePlanSwitcher(){ document.getElementById('planSwitchOverlay').classList.remove('open'); }
+
+/* ---------- SETTINGS ARCHITECTURE ----------
+   Four separate surfaces, none of them stacked on top of each other:
+     · Plan chip (header)   → quick switch only
+     · Settings             → hub
+     · Settings ▸ Plans     → deeper plan management
+     · Settings ▸ Data      → backup / import / reset
+   Sub-sheets close the hub when they open and reopen it on Back, so there is
+   never more than one sheet in the stack. All of these call the SAME existing
+   functions as before — this is a reorganization, not a reimplementation. */
+function openSettings(){
+  renderUpdateIndicator();
+  const plan = DEFAULT_PLANS[selectedPlanId];
+  const sub = document.getElementById('settingsPlanSub');
+  if(sub && plan) sub.textContent = 'Currently on ' + plan.name;
+  const ver = document.getElementById('settingsVersion');
+  if(ver){
+    const latest = [...LOOP_UPDATES].sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+    ver.textContent = latest ? latest.version : '';
+  }
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettings(){ document.getElementById('settingsOverlay').classList.remove('open'); }
+
+function backToSettings(fromOverlayId){
+  document.getElementById(fromOverlayId).classList.remove('open');
+  openSettings();
+}
+
+function openPlansManager(){
+  closeSettings();
+  const plan = DEFAULT_PLANS[selectedPlanId];
+  const trainingDays = schedule ? Object.keys(schedule).filter(d => schedule[d] !== 'rest').length : 0;
+
+  document.getElementById('plansCurrent').innerHTML = plan ? `
+    <div class="current-plan-card">
+      <div class="current-plan-label">Current plan</div>
+      <div class="current-plan-name">${escapeHtml(plan.name)}</div>
+      <div class="current-plan-meta">${escapeHtml(plan.builds || '')} · ${trainingDays} training day${trainingDays===1?'':'s'} a week</div>
+    </div>` : '';
+
+  document.getElementById('plansGrid').innerHTML = Object.keys(DEFAULT_PLANS).map(id => {
+    const p = DEFAULT_PLANS[id];
+    const active = id === selectedPlanId;
+    return `<div class="plan-card ${active?'plan-card-active':''}" onclick="choosePlan('${id}')">${planCardBody(id, p, active)}</div>`;
+  }).join('');
+
+  // Points at the real, existing editing surfaces rather than duplicating them
+  document.getElementById('plansCustomize').innerHTML = `
+    <button class="settings-row-btn" onclick="goToTrainFromSettings()">
+      <span class="settings-row-main">
+        <span class="settings-row-title">Edit Workouts &amp; Exercises</span>
+        <span class="settings-row-desc">Add or change the variations in each category</span>
+      </span>
+      <span class="settings-row-arrow">›</span>
+    </button>
+    <button class="settings-row-btn" onclick="goToScheduleFromSettings()">
+      <span class="settings-row-main">
+        <span class="settings-row-title">Edit Training Days</span>
+        <span class="settings-row-desc">Set which category falls on each day of the week</span>
+      </span>
+      <span class="settings-row-arrow">›</span>
+    </button>
+    <div class="settings-hint">Plan edits are saved per plan, so switching plans never loses the changes you made to another one.</div>
+  `;
+
+  document.getElementById('plansOverlay').classList.add('open');
+}
+function closePlansManager(){ document.getElementById('plansOverlay').classList.remove('open'); }
+
+function goToTrainFromSettings(){
+  closePlansManager();
+  switchTab('train');
+}
+function goToScheduleFromSettings(){
+  closePlansManager();
+  switchTab('today');
+  setTimeout(() => {
+    const strip = document.getElementById('weekStrip');
+    if(strip) strip.scrollIntoView({ behavior:'smooth', block:'center' });
+  }, 80);
+}
+
+function openDataSettings(){
+  closeSettings();
+  const totalSets = workoutLog.reduce((n,l) => n + l.exercises.reduce((m,ex) => m + (ex.sets||[]).length, 0), 0);
+  const p = getCurrentProgression();
+  document.getElementById('dataStats').innerHTML = `
+    <div class="stats-grid-2" style="margin-top:14px">
+      <div class="stat"><div class="stat-num">${workoutLog.length}</div><div class="stat-label">Workouts</div></div>
+      <div class="stat"><div class="stat-num">${totalSets.toLocaleString()}</div><div class="stat-label">Sets Logged</div></div>
+      <div class="stat"><div class="stat-num">${p.prCount}</div><div class="stat-label">Records</div></div>
+      <div class="stat"><div class="stat-num">${p.lifetimeXP.toLocaleString()}</div><div class="stat-label">Lifetime XP</div></div>
+    </div>
+  `;
+  document.getElementById('dataOverlay').classList.add('open');
+}
+function closeDataSettings(){ document.getElementById('dataOverlay').classList.remove('open'); }
 
 /* ---------- UPDATES / WHAT'S NEW ---------- */
 let lastSeenUpdateId = null;
@@ -2505,7 +2727,7 @@ function renderUpdatesList(){
 }
 
 function openUpdates(){
-  closePlanSwitcher();
+  closeSettings();
   renderUpdatesList();
   markUpdatesSeen();
   document.getElementById('updatesOverlay').classList.add('open');
@@ -2523,9 +2745,11 @@ function hasUnreadUpdate(){
 }
 
 function renderUpdateIndicator(){
-  const dot = document.getElementById('updateUnreadDot');
-  if(!dot) return;
-  dot.style.display = hasUnreadUpdate() ? 'inline-block' : 'none';
+  const show = hasUnreadUpdate() ? 'inline-block' : 'none';
+  ['updateUnreadDot','updateUnreadDotRow'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = show;
+  });
 }
 
 async function markUpdatesSeen(){
