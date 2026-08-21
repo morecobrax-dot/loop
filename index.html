@@ -581,6 +581,54 @@ html.intro-skip #introOverlay{ display: none !important; }
 .resume-btn{ flex: 1; }
 .resume-discard{ flex: 0 0 auto; padding-left: 16px; padding-right: 16px; color: var(--text-faint); }
 
+/* ---- Weekly summary (Today) ---- */
+#weekSummary:empty{ display: none; }
+.week-summary-card{
+  margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-lg);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.week-summary-empty{ text-align: left; }
+.week-summary-head{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.week-summary-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); }
+.week-summary-sub{ font-size: 12px; color: var(--text-dim); margin-top: 5px; line-height: 1.5; }
+.week-trend{ font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; }
+.week-trend.up{ color: var(--success); }
+.week-trend.down{ color: var(--text-faint); }
+.week-summary-stats{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.week-summary-stats > div{ display: flex; flex-direction: column; gap: 2px; }
+.wk-num{ font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; color: var(--text); }
+.wk-of{ font-size: 11px; color: var(--text-faint); font-weight: 400; }
+.wk-label{ font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.week-summary-foot{ font-size: 11px; color: var(--text-faint); margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+/* ---- Session quality score ---- */
+.quality-block{
+  grid-column: 1 / -1; text-align: center; padding: 16px 14px; border-radius: var(--radius-md);
+  background: linear-gradient(160deg, var(--accent-soft), var(--surface-2));
+  border: 1px solid var(--accent); margin-bottom: 2px;
+}
+.quality-score{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 38px; line-height: 1; color: var(--text); }
+.quality-label{ font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-top: 4px; font-weight: 700; }
+.quality-detail{ font-size: 11px; color: var(--text-dim); margin-top: 7px; line-height: 1.45; }
+
+/* ---- Next time notes ---- */
+#summaryNextTime:empty{ display: none; }
+.nexttime-card{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; margin-top: 8px; }
+.nexttime-row{ padding: 11px 14px; border-bottom: 1px solid var(--border); }
+.nexttime-row:last-child{ border-bottom: none; }
+.nexttime-name{ font-size: 12.5px; font-weight: 700; color: var(--text); }
+.nexttime-text{ font-size: 11.5px; color: var(--text-dim); margin-top: 3px; line-height: 1.45; }
+
+/* ---- Scope toggle (muscle breakdown) ---- */
+.scope-toggle{ display: flex; gap: 4px; background: var(--surface-3); border-radius: var(--radius-md); padding: 3px; margin-bottom: 14px; }
+.scope-btn{
+  flex: 1; background: none; border: none; color: var(--text-faint); padding: 7px 4px;
+  border-radius: var(--radius-sm); font-size: 11.5px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.scope-btn.active{ background: var(--accent); color: #0C0E12; }
+.muscle-foot{ font-size: 10.5px; color: var(--text-faint); margin-top: 10px; text-align: center; }
+
 /* ---- Level card (Today tab) ---- */
 .level-card{
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -1164,6 +1212,7 @@ body.page-locked{ overflow: hidden; }
     <div class="week-strip" id="weekStrip"></div>
     <div class="week-hint">Tap a day to change it</div>
 
+    <div id="weekSummary"></div>
     <div class="level-card" id="levelCard" onclick="openProfile()"></div>
 
     <div class="hero" id="heroCard"></div>
@@ -1507,6 +1556,7 @@ body.page-locked{ overflow: hidden; }
     <div class="summary-stats" id="summaryStats"></div>
     <div id="summaryPRs"></div>
     <div id="summaryXP"></div>
+    <div id="summaryNextTime"></div>
     <div id="summaryCoach"></div>
     </div>
     <div class="sheet-actions">
@@ -3230,6 +3280,27 @@ function exerciseSessionHistory(exerciseName, limit){
 
 /* The intelligent progression engine — analyzes multi-session history, rep-range position,
    RIR headroom, and plateau state to recommend a weight × reps target with a short "why". */
+/* Realistic load jumps by equipment type. A flat +5 is wrong for dumbbells
+   (sold in pairs, so a real jump is +10 total), wrong for small isolation
+   work, and too timid on heavy compounds. Also scales with the working
+   weight — +5 on a 315 squat is noise, +5 on a 30lb curl is a 17% jump. */
+function progressionIncrement(exerciseName, currentWeight){
+  const n = (exerciseName || '').toLowerCase();
+  const isDumbbell  = /dumbbell|\bdb\b|goblet/.test(n);
+  const isIsolation = /curl|raise|fly|flye|extension|kickback|shrug|pushdown|face pull|lateral/.test(n);
+  const isCable     = /cable|pulldown|pushdown|machine|pec deck|leg press/.test(n);
+  const isBigLift   = /squat|deadlift|bench press|overhead press|barbell row|hip thrust/.test(n);
+
+  // Light isolation first, regardless of implement — a +5 jump on a 15 lb
+  // lateral raise is a 33% increase, which nobody makes in one session.
+  if(isIsolation && currentWeight < 40) return 2.5;
+  if(isDumbbell)  return currentWeight >= 60  ? 10 : 5;
+  if(isIsolation) return currentWeight >= 60  ? 5  : 2.5;
+  if(isCable)     return currentWeight >= 120 ? 10 : 5;
+  if(isBigLift)   return currentWeight >= 225 ? 10 : 5;
+  return currentWeight >= 150 ? 10 : 5;
+}
+
 function buildProgressionRecommendation(exerciseName, templateReps, templateRecommended){
   const range = parseRepRange(templateReps);
   const sessions = exerciseSessionHistory(exerciseName, 5);
@@ -3264,7 +3335,7 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
   const atTop = range && last.topReps >= range.max;
   const hasHeadroom = last.avgRir === null || last.avgRir >= 1.5;
   if(atTop && hasHeadroom){
-    const newWeight = w + 5;
+    const newWeight = w + progressionIncrement(exerciseName, w);
     const rirNote = last.avgRir != null ? ` with ~${Math.round(last.avgRir)} RIR` : '';
     const prNote = prPeak && newWeight >= prPeak.weight ? ' — this would match or beat your best.' : '';
     return {
@@ -3866,6 +3937,7 @@ function logMissedWorkout(date, category){
 
 function renderToday(){
   renderProgramCarousel();
+  renderWeekSummary();
   renderLevelCard();
   const tKey = todayKey();
 
@@ -4783,24 +4855,43 @@ function renderMonthSummary(){
   `;
 }
 
+let muscleScope = 'week';
+function setMuscleScope(scope){
+  muscleScope = scope;
+  renderMuscleBreakdown();
+}
+
 function renderMuscleBreakdown(){
   const el = document.getElementById('muscleBreakdown');
-  const { totals, sum } = computeMuscleGroupBreakdown();
+  const weekly = muscleScope === 'week';
+  const totals = weekly ? computeMuscleVolumeSince(currentWeekStart()) : computeMuscleGroupBreakdown().totals;
+  const sum = Object.keys(totals).reduce((n,k) => n + totals[k], 0);
+
+  const toggle = `
+    <div class="scope-toggle">
+      <button class="scope-btn ${weekly?'active':''}" onclick="setMuscleScope('week')">This Week</button>
+      <button class="scope-btn ${!weekly?'active':''}" onclick="setMuscleScope('all')">All Time</button>
+    </div>`;
+
   if(sum === 0){
-    el.innerHTML = `<div class="empty"><div class="mark">○</div><h3>No data yet</h3><div>Log a few workouts to see where your training focus goes.</div></div>`;
+    el.innerHTML = toggle + `<div class="empty"><div class="mark">○</div><h3>${weekly ? 'Nothing logged this week yet' : 'No data yet'}</h3><div>${weekly ? 'Your muscle-group balance for the week will build as you train.' : 'Log a few workouts to see where your training focus goes.'}</div></div>`;
     return;
   }
+  const max = Math.max(...Object.keys(totals).map(k => totals[k]));
   const rows = Object.keys(totals)
-    .map(k => ({ label: MUSCLE_LABELS[k], val: totals[k], pct: (totals[k] / sum) * 100 }))
+    .map(k => ({ label: MUSCLE_LABELS[k], val: totals[k], pct: (totals[k] / sum) * 100, rel: (totals[k] / max) * 100 }))
     .filter(r => r.val > 0)
     .sort((a,b) => b.val - a.val);
-  el.innerHTML = `<div class="muscle-bar-list">` + rows.map(r => `
+
+  // Weekly view shows raw sets (actionable — "is 6 sets of biceps enough?");
+  // all-time shows share of total (which is the meaningful lens over months).
+  el.innerHTML = toggle + `<div class="muscle-bar-list">` + rows.map(r => `
     <div class="muscle-bar-row">
       <div class="muscle-bar-label">${r.label}</div>
-      <div class="muscle-bar-track"><div class="muscle-bar-fill" style="width:${r.pct.toFixed(1)}%"></div></div>
-      <div class="muscle-bar-pct">${Math.round(r.pct)}%</div>
+      <div class="muscle-bar-track"><div class="muscle-bar-fill" style="width:${(weekly ? r.rel : r.pct).toFixed(1)}%"></div></div>
+      <div class="muscle-bar-pct">${weekly ? r.val : Math.round(r.pct) + '%'}</div>
     </div>
-  `).join('') + `</div>`;
+  `).join('') + `</div>` + (weekly ? `<div class="muscle-foot">Sets trained this week</div>` : '');
 }
 
 function renderExerciseTrends(){
@@ -4856,6 +4947,108 @@ function renderPRHistory(){
       </div>
     `;
   }).join('');
+}
+
+/* Monday-start boundary for the current week, matching computeWeekStreak's
+   convention so the two never disagree. */
+function currentWeekStart(){
+  const now = new Date();
+  const d = new Date(now); d.setHours(0,0,0,0);
+  d.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  return d;
+}
+
+function computeWeekSummary(){
+  const start = currentWeekStart();
+  const prevStart = new Date(start); prevStart.setDate(start.getDate() - 7);
+
+  const inRange = (l, from, to) => {
+    const d = new Date(l.date + 'T00:00:00');
+    return d >= from && (!to || d < to);
+  };
+  const thisWeek = workoutLog.filter(l => inRange(l, start, null));
+  const lastWeek = workoutLog.filter(l => inRange(l, prevStart, start));
+
+  const sum = list => list.reduce((n,l) => n + sessionVolume(l), 0);
+  const setsOf = list => list.reduce((n,l) => n + l.exercises.reduce((m,ex) => m + (ex.sets||[]).length, 0), 0);
+
+  const volThis = sum(thisWeek), volLast = sum(lastWeek);
+  const volPct = volLast > 0 ? Math.round(((volThis - volLast) / volLast) * 100) : null;
+
+  // PRs earned this week, from the same engine the rest of the app uses
+  const prsThisWeek = computeAllPREvents().filter(ev => new Date(ev.date + 'T00:00:00') >= start).length;
+
+  // Most-trained movement this week
+  const freq = {};
+  thisWeek.forEach(l => l.exercises.forEach(ex => {
+    if(!ex.name) return;
+    const k = ex.name.trim();
+    freq[k] = (freq[k] || 0) + (ex.sets || []).length;
+  }));
+  const top = Object.keys(freq).sort((a,b) => freq[b] - freq[a])[0] || null;
+
+  const scheduledDays = schedule ? Object.keys(schedule).filter(d => schedule[d] !== 'rest').length : 0;
+
+  return {
+    workouts: thisWeek.length,
+    sets: setsOf(thisWeek),
+    volume: volThis,
+    volPct,
+    prs: prsThisWeek,
+    topMovement: top,
+    scheduled: scheduledDays,
+    hasLastWeek: lastWeek.length > 0
+  };
+}
+
+/* Same keyword classification as the all-time breakdown, scoped to a window.
+   Reuses MUSCLE_MAP so there is exactly one definition of what trains what. */
+function computeMuscleVolumeSince(fromDate){
+  const totals = {};
+  Object.keys(MUSCLE_MAP).forEach(k => totals[k] = 0);
+  workoutLog.forEach(l => {
+    if(new Date(l.date + 'T00:00:00') < fromDate) return;
+    l.exercises.forEach(ex => {
+      const n = (ex.name || '').toLowerCase();
+      const setCount = (ex.sets || []).length;
+      if(!setCount) return;
+      Object.keys(MUSCLE_MAP).forEach(group => {
+        if(MUSCLE_MAP[group].some(kw => n.includes(kw))) totals[group] += setCount;
+      });
+    });
+  });
+  return totals;
+}
+
+function renderWeekSummary(){
+  const el = document.getElementById('weekSummary');
+  if(!el) return;
+  const s = computeWeekSummary();
+  if(s.workouts === 0){
+    el.innerHTML = `
+      <div class="week-summary-card week-summary-empty">
+        <div class="week-summary-title">No workouts yet this week</div>
+        <div class="week-summary-sub">${s.scheduled ? `You've got ${s.scheduled} training day${s.scheduled===1?'':'s'} scheduled. Your next one's waiting below.` : 'Pick a workout below to get started.'}</div>
+      </div>`;
+    return;
+  }
+  const trend = (s.volPct !== null && s.hasLastWeek)
+    ? `<span class="week-trend ${s.volPct >= 0 ? 'up' : 'down'}">${s.volPct >= 0 ? '↗' : '↘'} ${s.volPct >= 0 ? '+' : ''}${s.volPct}% vs last week</span>`
+    : '';
+  el.innerHTML = `
+    <div class="week-summary-card">
+      <div class="week-summary-head">
+        <span class="week-summary-title">This Week</span>
+        ${trend}
+      </div>
+      <div class="week-summary-stats">
+        <div><span class="wk-num">${s.workouts}${s.scheduled ? `<span class="wk-of">/${s.scheduled}</span>` : ''}</span><span class="wk-label">Workouts</span></div>
+        <div><span class="wk-num">${s.sets}</span><span class="wk-label">Sets</span></div>
+        <div><span class="wk-num">${s.volume.toLocaleString()}</span><span class="wk-label">Volume lb</span></div>
+        <div><span class="wk-num">${s.prs}</span><span class="wk-label">PRs</span></div>
+      </div>
+      ${s.topMovement ? `<div class="week-summary-foot">Most trained · ${escapeHtml(s.topMovement)}</div>` : ''}
+    </div>`;
 }
 
 function renderProgress(){
@@ -5699,6 +5892,76 @@ function saveLog(btn){
 
 let lastLoggedEntryId = null;
 
+/* Quality score — deliberately NOT "more weight = better". Weights four
+   things a good session actually has: you finished what you set out to do,
+   you hit your rep targets, you moved forward versus last time, and you set
+   records. Capped contributions keep any single factor from dominating. */
+function computeWorkoutQuality(entry, newPREvents){
+  let completion = 0, repTargets = 0, progress = 0, records = 0;
+
+  const allSets = [];
+  entry.exercises.forEach(ex => (ex.sets || []).forEach(s => allSets.push({ ex, s })));
+  const filled = allSets.filter(x => parseFloat(x.s.reps) > 0);
+  if(allSets.length === 0) return null;
+
+  // 1. Completion — did the sets you planned actually get logged (40 pts)
+  completion = Math.round((filled.length / allSets.length) * 40);
+
+  // 2. Rep targets — sets landing in or above the intended range (25 pts)
+  let hit = 0, counted = 0;
+  entry.exercises.forEach(ex => {
+    const prev = getPreviousSets(ex.name);
+    (ex.sets || []).forEach(s => {
+      const r = parseFloat(s.reps);
+      if(isNaN(r) || r <= 0) return;
+      counted++;
+      if(!prev || !prev.sets.length){ hit++; return; }
+      const prevBest = Math.max(...prev.sets.map(p => parseFloat(p.reps) || 0));
+      if(r >= prevBest) hit++;
+    });
+  });
+  repTargets = counted ? Math.round((hit / counted) * 25) : 25;
+
+  // 3. Progress vs the comparable previous session (20 pts)
+  const prior = workoutLog
+    .filter(l => l.id !== entry.id && l.category === entry.category)
+    .sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+  let progressPct = null;
+  if(prior){
+    const volNow = sessionVolume(entry), volPrev = sessionVolume(prior);
+    if(volPrev > 0){
+      progressPct = Math.round(((volNow - volPrev) / volPrev) * 100);
+      progress = Math.max(0, Math.min(20, 10 + Math.round(progressPct / 2)));
+    } else progress = 10;
+  } else progress = 15; // no baseline yet — don't punish a first session
+
+  // 4. Records (15 pts)
+  records = Math.min(15, (newPREvents ? newPREvents.length : 0) * 8);
+
+  const score = Math.max(0, Math.min(100, completion + repTargets + progress + records));
+  return { score, progressPct, targetsHit: hit, targetsTotal: counted };
+}
+
+/* "Next time" guidance, generated from what actually happened this session.
+   Reuses the same progression engine that drives in-workout recommendations,
+   so the advice here can never contradict what you'll see next session. */
+function computeNextTimeNotes(entry){
+  const notes = [];
+  const seen = new Set();
+  entry.exercises.forEach(ex => {
+    if(!ex.name || ex.bodyweight) return;
+    const key = ex.name.trim().toLowerCase();
+    if(seen.has(key)) return;
+    seen.add(key);
+    const rec = buildProgressionRecommendation(ex.name, null, null);
+    if(!rec || !rec.why) return;
+    if(rec.tag === 'increase' || rec.tag === 'plateau' || rec.tag === 'build'){
+      notes.push({ name: ex.name, tag: rec.tag, text: rec.why });
+    }
+  });
+  return notes.slice(0, 4);
+}
+
 function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
   lastLoggedEntryId = entry.id;
   newPREvents = newPREvents || [];
@@ -5721,9 +5984,19 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
     levelUpEl.innerHTML = '';
   }
   document.getElementById('summaryTitle').textContent = entry.title;
+  const quality = computeWorkoutQuality(entry, newPREvents);
+  const durationMin = estimateLoggedDuration(entry);
+  const totalSets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
+
   document.getElementById('summaryStats').innerHTML = `
+    ${quality ? `<div class="quality-block">
+      <div class="quality-score">${quality.score}</div>
+      <div class="quality-label">Session Quality</div>
+      <div class="quality-detail">${quality.targetsTotal ? `${quality.targetsHit}/${quality.targetsTotal} sets matched or beat last time` : 'First time logging these movements'}${quality.progressPct !== null ? ` · ${quality.progressPct >= 0 ? '+' : ''}${quality.progressPct}% volume` : ''}</div>
+    </div>` : ''}
     <div class="stat"><div class="stat-num">${vol.toLocaleString()}</div><div class="stat-label">Volume (lb)</div></div>
-    <div class="stat"><div class="stat-num">${entry.exercises.length}</div><div class="stat-label">Exercises</div></div>
+    <div class="stat"><div class="stat-num">${totalSets}</div><div class="stat-label">Sets</div></div>
+    <div class="stat"><div class="stat-num">${durationMin ? '~'+durationMin : '—'}</div><div class="stat-label">Minutes</div></div>
     <div class="stat"><div class="stat-num">${streak}</div><div class="stat-label">Week Streak</div></div>
   `;
   const prsEl = document.getElementById('summaryPRs');
@@ -5757,6 +6030,20 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
     `;
   } else {
     xpEl.innerHTML = '';
+  }
+
+  const nextEl = document.getElementById('summaryNextTime');
+  if(nextEl){
+    const notes = computeNextTimeNotes(entry);
+    nextEl.innerHTML = notes.length ? `
+      <div class="section-label" style="margin-top:18px">Next Time</div>
+      <div class="nexttime-card">
+        ${notes.map(n => `
+          <div class="nexttime-row">
+            <div class="nexttime-name">${escapeHtml(n.name)}</div>
+            <div class="nexttime-text">${escapeHtml(n.text)}</div>
+          </div>`).join('')}
+      </div>` : '';
   }
 
   const coachEl = document.getElementById('summaryCoach');
