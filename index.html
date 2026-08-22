@@ -728,11 +728,17 @@ html.intro-skip #introOverlay{ display: none !important; }
 /* Segmented control */
 .seg{ display: flex; gap: 4px; background: var(--surface-3); border-radius: var(--radius-md); padding: 4px; margin-top: 14px; }
 .seg-btn{
-  flex: 1; min-height: 40px; background: none; border: none; color: var(--text-faint);
+  flex: 1; min-height: 44px; background: none; border: none; color: var(--text-faint);
   border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; cursor: pointer;
   transition: background 0.2s var(--ease), color 0.2s var(--ease);
 }
 .seg-btn.active{ background: var(--accent); color: #0C0E12; }
+/* P2: the 4-tab Progress control leaves only ~9px slack at 375px. Tighten type
+   and padding on the narrowest phones so a label can never clip or wrap. */
+@media (max-width: 389px){
+  .seg-btn{ font-size: 11.5px; padding-left: 2px; padding-right: 2px; }
+  .seg{ gap: 3px; padding: 3px; }
+}
 .seg-panel{ margin-top: 14px; animation: segIn 0.22s var(--ease) both; }
 @keyframes segIn{ from{ opacity: 0; transform: translateY(4px); } to{ opacity: 1; transform: translateY(0); } }
 .mini-label{ font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); margin: 18px 0 8px; }
@@ -750,7 +756,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .range-row{ display: flex; gap: 4px; }
 .range-btn{
   background: var(--surface-3); border: 1px solid transparent; color: var(--text-faint);
-  font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; padding: 5px 9px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; padding: 8px 10px; min-height: 32px;
   border-radius: var(--radius-sm); cursor: pointer;
 }
 .range-btn.active{ background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
@@ -2027,7 +2033,7 @@ async function exportAllData(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'loop-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = 'loop-backup-' + localDateStr() + '.json';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -3195,7 +3201,7 @@ async function ensurePlanStart(id){
     const r = await LOOPStore.get('planStart:' + id);
     if(r && r.value) return JSON.parse(r.value);
   }catch(e){}
-  const today = new Date().toISOString().slice(0,10);
+  const today = localDateStr();
   try{ await LOOPStore.set('planStart:' + id, JSON.stringify(today)); }catch(e){}
   return today;
 }
@@ -3421,7 +3427,10 @@ function closeUpdates(){ document.getElementById('updatesOverlay').classList.rem
 function resetAllData(){
   if(!confirm('This permanently deletes your workout history, plan edits, and schedule for every plan. Continue?')) return;
   (async () => {
-    const keys = ['selectedPlan', 'workoutLog'];
+    // Driven by DATA_KEYS so a reset can never miss a key that gets added later.
+    // Previously omitted activeWorkoutDraft, which left a phantom "workout in
+    // progress" banner alive after the user wiped everything.
+    const keys = DATA_KEYS.slice();
     Object.keys(DEFAULT_PLANS).forEach(id => {
       keys.push('planData:' + id, 'schedule:' + id, 'planStart:' + id);
     });
@@ -4522,7 +4531,7 @@ function checkMissedWorkout(){
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   const yKey = JS_DAY_TO_KEY[yesterday.getDay()];
-  const yDateStr = yesterday.toISOString().slice(0,10);
+  const yDateStr = localDateStr(yesterday);
 
   if(new Date(yDateStr + 'T00:00:00') < new Date(planStartDate + 'T00:00:00')) return null;
   const scheduledCat = schedule[yKey];
@@ -4589,7 +4598,7 @@ function renderTodayWorkout(){
   if(!el) return;
   const tKey = todayKey();
   const cat = schedule ? schedule[tKey] : 'rest';
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = localDateStr();
   const doneToday = workoutLog.find(l => l.date === todayStr);
 
   if(cat === 'rest'){
@@ -4935,7 +4944,7 @@ function renderHistoryCalendar(){
   const first = new Date(y, m-1, 1);
   const startOffset = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(y, m, 0).getDate();
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = localDateStr();
 
   const dayMap = {};
   workoutLog.forEach(l => { if(!dayMap[l.date]) dayMap[l.date] = l; });
@@ -5268,6 +5277,16 @@ const MILESTONES = [
 
 /* Monday-start week key, matching computeWeekStreak's own week-boundary
    convention exactly so the two systems never disagree with each other. */
+/* P0 FIX: toISOString() returns the UTC date. For anyone west of UTC (this
+   app's users train in US timezones), an evening workout would be stamped with
+   TOMORROW's date — landing in the wrong day, the wrong week, and breaking
+   streaks and "already trained today" checks. Always build dates from local
+   components. */
+function localDateStr(d){
+  const x = d || new Date();
+  return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0');
+}
+
 function weekStartKey(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
   const offset = (d.getDay() + 6) % 7;
@@ -5605,6 +5624,8 @@ function volumeBarSvg(buckets){
 
 function renderPRHistory(){
   const sel = document.getElementById('prHistoryFilter');
+  const wrap = document.getElementById('prHistoryList');
+  if(!sel || !wrap) return;   // only present on the Overview tab
   const names = getAllLoggedExerciseNames();
   const prevValue = sel.value;
   sel.innerHTML = `<option value="all">All Exercises</option>` + names.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
@@ -6279,7 +6300,7 @@ function restoreDraftToSheet(draft){
   document.getElementById('logSheetTitle').textContent = 'Resume ' + (CAT_LABEL[pendingLogCategory] || '') + ' Workout';
   document.getElementById('logSheetSub').textContent = 'Picking up exactly where you left off.';
   document.getElementById('logTitle').value = draft.title || '';
-  document.getElementById('logDate').value = draft.date || new Date().toISOString().slice(0,10);
+  document.getElementById('logDate').value = draft.date || localDateStr();
   document.getElementById('logNotes').value = draft.notes || '';
   document.getElementById('logExercises').innerHTML = '';
 
@@ -6396,7 +6417,24 @@ function closeLogSheet(){
   }
 }
 
-function startTemplateLog(cat, tplId){
+/* P1 FIX: starting a workout used to silently overwrite an in-progress one.
+   Two ways that happened: tapping a template from Train while a draft existed,
+   and the race on load where the CTA renders "Start" before the async draft
+   lookup resolves. Both now require an explicit choice before anything is
+   overwritten. Returns true if it's safe to proceed. */
+async function confirmOverwriteDraft(){
+  const draft = await loadActiveDraft();
+  if(!draft) return true;
+  hasActiveDraftNow = true;
+  renderTodayWorkout();
+  const done = (draft.exercises||[]).reduce((n,ex)=>n+ex.sets.filter(s=>s.completed).length,0);
+  const label = draft.title || 'a workout';
+  return confirm(`You have "${label}" already in progress (${done} set${done===1?'':'s'} logged).\n\nStarting a new workout will discard it. Continue?`);
+}
+
+async function startTemplateLog(cat, tplId){
+  if(!(await confirmOverwriteDraft())) return;
+
   const tpl = getTemplates(cat).find(t => t.id === tplId);
   if(!tpl) return;
   pendingLogCategory = cat;
@@ -6407,7 +6445,7 @@ function startTemplateLog(cat, tplId){
   document.getElementById('logSheetTitle').textContent = 'Log ' + CAT_LABEL[cat] + ' Workout';
   document.getElementById('logSheetSub').textContent = 'Prefilled from "' + tpl.name + '" (~' + duration + ' min) — tap +/- to log each set.';
   document.getElementById('logTitle').value = tpl.name;
-  document.getElementById('logDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('logDate').value = localDateStr();
   document.getElementById('logNotes').value = '';
 
   const wrap = document.getElementById('logExercises');
@@ -6426,7 +6464,8 @@ function startTemplateLog(cat, tplId){
   openLogSheet();
 }
 
-function openFreeformLog(){
+async function openFreeformLog(){
+  if(!(await confirmOverwriteDraft())) return;
   pendingLogCategory = 'push';
   pendingDraftStartedAt = new Date().toISOString();
   pendingDraftId = 'draft_' + Date.now();
@@ -6434,7 +6473,7 @@ function openFreeformLog(){
   document.getElementById('logSheetTitle').textContent = 'Log Workout';
   document.getElementById('logSheetSub').textContent = 'Record what you actually did today.';
   document.getElementById('logTitle').value = '';
-  document.getElementById('logDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('logDate').value = localDateStr();
   document.getElementById('logNotes').value = '';
   document.getElementById('logExercises').innerHTML = '';
   addLogExerciseRow();
@@ -6787,7 +6826,7 @@ function toggleBW(checkbox){
 function saveLog(btn){
   if(btn){ if(btn.disabled) return; btn.disabled = true; setTimeout(() => { if(btn) btn.disabled = false; }, 800); }
   const title = document.getElementById('logTitle').value.trim();
-  const date = document.getElementById('logDate').value || new Date().toISOString().slice(0,10);
+  const date = document.getElementById('logDate').value || localDateStr();
   const notes = document.getElementById('logNotes').value.trim();
   if(!title){ flagFieldError(document.getElementById('logTitle')); return; }
 
@@ -6841,6 +6880,7 @@ function saveLog(btn){
   // success gates whether the draft is released.
   invalidateSortedLogCache();
   invalidateXPTimelineCache();
+  invalidateConsistencyCache();
 
   const newPREvents = [];
   const seen = new Set();
@@ -6890,6 +6930,7 @@ function saveLog(btn){
       if(idx !== -1) workoutLog.splice(idx, 1);
       invalidateSortedLogCache();
       invalidateXPTimelineCache();
+      invalidateConsistencyCache();
       persistDraftNow();
       renderResumeBanner();
       alert("Couldn't save this workout. Nothing was lost — your workout is still in progress, so you can try finishing it again.");
