@@ -5635,7 +5635,6 @@ function renderPRHistory(){
   let events = filterVal === 'all' ? computeAllPREvents() : computeExercisePREvents(filterVal);
   events = events.slice(0, 25);
 
-  const wrap = document.getElementById('prHistoryList');
   if(!events.length){
     wrap.innerHTML = `<div class="empty"><div class="mark">○</div><h3>No PRs yet</h3><div>Keep logging — your first record will show up here.</div></div>`;
     return;
