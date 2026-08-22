@@ -666,6 +666,79 @@ html.intro-skip #introOverlay{ display: none !important; }
 .resume-btn{ flex: 1; }
 .resume-discard{ flex: 0 0 auto; padding-left: 16px; padding-right: 16px; color: var(--text-faint); }
 
+/* ---- Today: condensed dashboard ---- */
+.today-hdr{ padding: 4px 0 2px; }
+.today-greet{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 21px; color: var(--text); }
+.today-sub{ font-size: 12px; color: var(--text-faint); margin-top: 3px; display: flex; align-items: center; gap: 8px; }
+.today-focus{ color: var(--accent); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 10.5px; }
+
+/* Section heads use type + space instead of another card wrapper */
+.sec-head{
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-faint); margin: 26px 0 10px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.sec-hint{ font-size: 9.5px; letter-spacing: 0.03em; text-transform: none; font-weight: 500; color: var(--text-faint); opacity: 0.75; }
+
+/* Today's Workout — the one primary component */
+.tw{ margin-top: 14px; padding: 18px; border-radius: var(--radius-xl); background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); }
+.tw-push{ border-left-color: var(--push); } .tw-pull{ border-left-color: var(--pull); }
+.tw-legs{ border-left-color: var(--legs); } .tw-core{ border-left-color: var(--core); }
+.tw-fullbody{ border-left-color: var(--full); } .tw-rest{ border-left-color: var(--text-faint); }
+.tw-label{ font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
+.tw-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 27px; line-height: 1.1; color: var(--text); margin-top: 5px; }
+.tw-meta{ font-size: 11.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.45; }
+.tw-cta{
+  width: 100%; margin-top: 15px; min-height: 52px; border: none; border-radius: var(--radius-md);
+  background: var(--accent); color: #0C0E12; font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: var(--shadow-accent);
+  transition: transform 0.1s var(--ease);
+}
+.tw-cta:active{ transform: scale(0.985); }
+.tw-cta-done{ background: var(--success); }
+.tw-cta-ghost{ background: none; border: 1px solid var(--border); color: var(--text-dim); box-shadow: none; }
+.tw-change{
+  width: 100%; margin-top: 8px; padding: 10px; background: none; border: none;
+  color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.tw-picker{ margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.tw-catbtn{
+  padding: 13px; border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--surface-3); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+
+/* Training Snapshot — labeled, no per-stat card */
+.snapshot{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 12px; padding: 4px 2px; }
+.snap-label{ font-size: 9px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); line-height: 1.3; }
+.snap-num{ font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: var(--text); margin-top: 3px; }
+.snap-num.up{ color: var(--success); }
+.snap-of{ font-size: 13px; color: var(--text-faint); font-weight: 400; }
+@media (min-width: 420px){ .snapshot{ grid-template-columns: repeat(4, 1fr); } }
+
+/* Compact insight rows instead of a coach card */
+#todayInsights:empty{ display: none; }
+.insight-list{ margin-top: 16px; display: flex; flex-direction: column; gap: 1px; }
+.insight-row{ display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--border); }
+.insight-tag{ flex-shrink: 0; font-size: 8.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 7px; border-radius: var(--radius-sm); }
+.it-trend{ background: var(--accent-soft); color: var(--accent); }
+.it-ready{ background: var(--success-soft); color: var(--success); }
+.it-stalled{ background: var(--warning-soft); color: var(--warning); }
+
+/* Segmented control */
+.seg{ display: flex; gap: 4px; background: var(--surface-3); border-radius: var(--radius-md); padding: 4px; margin-top: 14px; }
+.seg-btn{
+  flex: 1; min-height: 40px; background: none; border: none; color: var(--text-faint);
+  border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+.seg-btn.active{ background: var(--accent); color: #0C0E12; }
+.seg-panel{ margin-top: 14px; animation: segIn 0.22s var(--ease) both; }
+@keyframes segIn{ from{ opacity: 0; transform: translateY(4px); } to{ opacity: 1; transform: translateY(0); } }
+.mini-label{ font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); margin: 18px 0 8px; }
+.mini-empty{ font-size: 11.5px; color: var(--text-faint); padding: 14px 0; text-align: center; }
+@media (prefers-reduced-motion: reduce){ .seg-panel{ animation: none; } }
+
 /* ---- Weekly summary (Today) ---- */
 #weekSummary:empty{ display: none; }
 .week-summary-card{
@@ -1284,32 +1357,44 @@ body.page-locked{ overflow: hidden; }
   </header>
 
   <div class="view active" id="view-today">
-    <div class="today-date" id="todayDateLine"></div>
+    <div class="today-hdr" id="todayDateLine"></div>
     <div id="storageNotice"></div>
     <div id="resumeBanner"></div>
     <div id="missedBanner"></div>
 
-    <div class="section-label">Program</div>
-    <div class="program-carousel" id="programCarousel" onscroll="onProgramCarouselScroll()"></div>
-    <div class="program-dots" id="programDots"></div>
+    <!-- LEVEL 1 — what am I doing today -->
+    <div id="todayWorkout"></div>
 
-    <div class="section-label">This Week</div>
+    <!-- LEVEL 2 — how am I doing -->
+    <div class="sec-head">Training Snapshot</div>
+    <div class="snapshot" id="todaySnapshot"></div>
+    <div id="todayInsights"></div>
+
+    <div class="sec-head">This Week<span class="sec-hint">tap a day to change it</span></div>
     <div class="week-strip" id="weekStrip"></div>
-    <div class="week-hint">Tap a day to change it</div>
 
-    <div id="weekSummary"></div>
-    <div class="level-card" id="levelCard" onclick="openProfile()"></div>
+    <!-- LEVEL 3 — what else can I learn -->
+    <div class="sec-head">Training Overview</div>
+    <div class="seg" id="todaySeg">
+      <button class="seg-btn active" data-t="progress" onclick="switchTodayTab('progress')">Progress</button>
+      <button class="seg-btn" data-t="consistency" onclick="switchTodayTab('consistency')">Consistency</button>
+      <button class="seg-btn" data-t="program" onclick="switchTodayTab('program')">Program</button>
+    </div>
 
-    <div class="hero" id="heroCard"></div>
-    <div class="dash-card" id="dashCard"></div>
-    <div id="recentPrCard"></div>
-    <div id="coachNote"></div>
+    <div class="seg-panel" id="tpanel-progress">
+      <div class="level-card" id="levelCard" onclick="openProfile()"></div>
+      <div id="recentPrCard"></div>
+      <div id="todayTrends"></div>
+    </div>
 
-    <div class="section-label" id="nextOptionsLabel">Pick a workout</div>
-    <div class="tpl-grid" id="nextOptions"></div>
+    <div class="seg-panel" id="tpanel-consistency" style="display:none">
+      <div class="heatmap-card" id="heatmapCard"></div>
+    </div>
 
-    <div class="section-label">Consistency &amp; Performance</div>
-    <div class="heatmap-card" id="heatmapCard"></div>
+    <div class="seg-panel" id="tpanel-program" style="display:none">
+      <div class="program-carousel" id="programCarousel" onscroll="onProgramCarouselScroll()"></div>
+      <div class="program-dots" id="programDots"></div>
+    </div>
   </div>
 
   <div class="view" id="view-train">
@@ -3882,21 +3967,6 @@ function getTopCoachInsight(){
   return insights[0];
 }
 
-function renderCoachNote(){
-  const el = document.getElementById('coachNote');
-  if(!el) return;
-  const insight = getTopCoachInsight();
-  if(!insight){ el.innerHTML = ''; return; }
-  el.innerHTML = `
-    <div class="coach-note coach-${insight.tag}" onclick="this.classList.toggle('expanded')">
-      <div class="coach-note-header">
-        <span class="coach-mark">●</span>
-        <span class="coach-text">${escapeHtml(insight.text)}</span>
-      </div>
-      <div class="coach-detail">${escapeHtml(insight.detail)}</div>
-    </div>
-  `;
-}
 
 /* ---------- TAB SWITCHING ---------- */
 let tabScrollPositions = {};
@@ -4044,42 +4114,6 @@ function getThisWeekLoggedDayCount(){
   return days.size;
 }
 
-function renderDashCard(){
-  const scheduled = Object.values(schedule).filter(v => v !== 'rest').length || 1;
-  const completed = getThisWeekLoggedDayCount();
-  const streak = computeWeekStreak();
-  const totalSessions = workoutLog.length;
-  const logs = sortedLog();
-  const lastDate = logs[0] ? formatDateShort(logs[0].date) : '—';
-
-  const R = 34, C = 2 * Math.PI * R;
-  const frac = Math.min(1, completed / scheduled);
-  const offset = C * (1 - frac);
-  const ringColor = frac >= 1 ? 'var(--full)' : 'var(--accent)';
-
-  document.getElementById('dashCard').innerHTML = `
-    <div class="dash-ring-col">
-      <svg viewBox="0 0 80 80" class="dash-ring">
-        <circle cx="40" cy="40" r="${R}" fill="none" stroke="var(--surface-3)" stroke-width="8"/>
-        <circle cx="40" cy="40" r="${R}" fill="none" stroke="${ringColor}" stroke-width="8" stroke-linecap="round"
-          stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}" transform="rotate(-90 40 40)"/>
-        <text x="40" y="37" text-anchor="middle" font-size="17" font-weight="700" fill="var(--text)" font-family="JetBrains Mono, monospace">${completed}/${scheduled}</text>
-        <text x="40" y="49" text-anchor="middle" font-size="6.5" fill="var(--text-faint)" letter-spacing="0.05em" font-family="JetBrains Mono, monospace">THIS WEEK</text>
-      </svg>
-    </div>
-    <div class="dash-stats-col">
-      <div class="dash-mini">
-        <div><div class="dash-mini-num">${streak}</div><div class="dash-mini-label">Week Streak</div></div>
-      </div>
-      <div class="dash-mini">
-        <div><div class="dash-mini-num">${totalSessions}</div><div class="dash-mini-label">Total Sessions</div></div>
-      </div>
-      <div class="dash-mini">
-        <div><div class="dash-mini-num">${lastDate}</div><div class="dash-mini-label">Last Session</div></div>
-      </div>
-    </div>
-  `;
-}
 
 function renderRecentPr(){
   const el = document.getElementById('recentPrCard');
@@ -4422,69 +4456,198 @@ function logMissedWorkout(date, category){
   pickLogCategory(category);
 }
 
-function renderToday(){
-  renderProgramCarousel();
-  renderWeekSummary();
-  renderLevelCard();
+let todayTab = 'progress';
+let todayPickerOpen = false;
+let hasActiveDraftNow = false;
+
+function switchTodayTab(t){
+  todayTab = t;
+  document.querySelectorAll('#todaySeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.t === t));
+  ['progress','consistency','program'].forEach(k => {
+    const p = document.getElementById('tpanel-' + k);
+    if(p) p.style.display = (k === t) ? 'block' : 'none';
+  });
+  // Carousel needs its scroll position set while visible
+  if(t === 'program') renderProgramCarousel();
+}
+
+function toggleTodayPicker(){
+  todayPickerOpen = !todayPickerOpen;
+  renderTodayWorkout();
+}
+
+/* One unified component answering "what am I doing today" — replaces the
+   separate hero card, dash card, and "Pick a workout" grid. The primary
+   action reflects actual state: resume an in-progress session, start
+   today's workout, or review one already done. */
+function renderTodayWorkout(){
+  const el = document.getElementById('todayWorkout');
+  if(!el) return;
   const tKey = todayKey();
+  const cat = schedule ? schedule[tKey] : 'rest';
+  const todayStr = new Date().toISOString().slice(0,10);
+  const doneToday = workoutLog.find(l => l.date === todayStr);
 
+  if(cat === 'rest'){
+    const nextDay = findNextTrainingDay(tKey);
+    el.innerHTML = `
+      <div class="tw tw-rest">
+        <div class="tw-label">Today</div>
+        <div class="tw-title">Rest Day</div>
+        <div class="tw-meta">${nextDay ? `Next up · ${DAY_LABEL_FULL[nextDay]} · ${CAT_LABEL[schedule[nextDay]]}` : 'No training days set yet'}</div>
+        <button class="tw-cta tw-cta-ghost" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
+        ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(null)}</div>` : ''}
+      </div>`;
+    return;
+  }
+
+  const templates = getTemplates(cat) || [];
+  const first = templates[0];
+  const lastDone = sortedLog().find(l => l.category === cat);
+  const daysAgo = lastDone ? Math.floor((new Date() - new Date(lastDone.date + 'T00:00:00')) / 86400000) : null;
+  const dur = first ? computeWorkoutDuration(first) : null;
+  const exCount = first ? first.exercises.length : 0;
+
+  const meta = [
+    exCount ? `${exCount} exercise${exCount===1?'':'s'}` : null,
+    dur ? `~${dur} min` : null,
+    daysAgo === null ? 'First time' : daysAgo === 0 ? 'Done today' : daysAgo === 1 ? 'Last done yesterday' : `Last done ${daysAgo}d ago`
+  ].filter(Boolean).join(' · ');
+
+  let cta;
+  if(hasActiveDraftNow){
+    cta = `<button class="tw-cta" onclick="resumeActiveWorkout()">Resume Workout</button>`;
+  } else if(doneToday){
+    cta = `<button class="tw-cta tw-cta-done" onclick="openDayDetail('${todayStr}')">View Today's Workout</button>`;
+  } else if(first){
+    cta = `<button class="tw-cta" onclick="startTemplateLog('${cat}','${first.id}')">Start Workout</button>`;
+  } else {
+    cta = `<button class="tw-cta tw-cta-ghost" onclick="goToTrainCategory('${cat}')">Add a ${CAT_LABEL[cat]} workout</button>`;
+  }
+
+  el.innerHTML = `
+    <div class="tw tw-${cat}">
+      <div class="tw-label">Today's Workout</div>
+      <div class="tw-title">${CAT_LABEL[cat]}</div>
+      <div class="tw-meta">${first ? escapeHtml(first.name) + ' · ' + meta : meta}</div>
+      ${cta}
+      ${templates.length > 1 || todayPickerOpen ? `
+        <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide options' : 'Change workout'}</button>` : ''}
+      ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat)}</div>` : ''}
+    </div>`;
+}
+
+function pickerGridHtml(cat){
+  const lw = lastWeightsMap();
+  if(cat){
+    const list = getTemplates(cat) || [];
+    return list.length
+      ? list.map(t => templateCardHtml(t, cat, lw)).join('')
+      : `<div class="empty"><div class="mark">○</div><h3>No workouts yet</h3><div>Add one from the ${CAT_LABEL[cat]} tab.</div></div>`;
+  }
+  return ORDER.map(c => `<button class="tw-catbtn" onclick="goToTrainCategory('${c}')">${CAT_LABEL[c]}</button>`).join('');
+}
+
+/* Labeled stat row — every number says what it is. Replaces the separate
+   week-summary card and progress-ring card. */
+function renderSnapshot(){
+  const el = document.getElementById('todaySnapshot');
+  if(!el) return;
+  const s = computeWeekSummary();
+  const cons = computeConsistencyData();
+  const thisWk = cons.weeks[cons.weeks.length - 1];
+  const avg = thisWk && thisWk.avgScore !== null ? thisWk.avgScore : (cons.overallScore !== null ? cons.overallScore : null);
+
+  const volText = (s.volPct !== null && s.hasLastWeek)
+    ? `${s.volPct >= 0 ? '+' : ''}${s.volPct}%`
+    : (s.volume ? s.volume.toLocaleString() : '—');
+  const volLabel = (s.volPct !== null && s.hasLastWeek) ? 'Volume vs last wk' : 'Volume this wk';
+
+  el.innerHTML = `
+    <div class="snap-item"><div class="snap-label">Workouts this wk</div><div class="snap-num">${s.workouts}${s.scheduled ? `<span class="snap-of">/${s.scheduled}</span>` : ''}</div></div>
+    <div class="snap-item"><div class="snap-label">${volLabel}</div><div class="snap-num ${s.volPct !== null && s.volPct >= 0 && s.hasLastWeek ? 'up' : ''}">${volText}</div></div>
+    <div class="snap-item"><div class="snap-label">PRs this wk</div><div class="snap-num">${s.prs}</div></div>
+    <div class="snap-item"><div class="snap-label">Avg workout score</div><div class="snap-num">${avg !== null ? avg : '—'}</div></div>`;
+}
+
+/* Compact one-line insight rows — replaces the standalone coach card. Only
+   renders when there is genuinely something worth saying. */
+function renderTodayInsights(){
+  const el = document.getElementById('todayInsights');
+  if(!el) return;
+  const rows = [];
+  const insight = getTopCoachInsight();
+  if(insight) rows.push({ tag:'Trend', text: insight.text });
+
+  // Surface at most two actionable exercise states from the existing engines
+  const names = getAllLoggedExerciseNames().slice(0, 40);
+  let ready = null, stalled = null;
+  for(const n of names){
+    if(ready && stalled) break;
+    const rec = buildProgressionRecommendation(n, null, null);
+    if(!rec) continue;
+    if(!ready && rec.tag === 'increase') ready = n;
+    if(!stalled && rec.tag === 'plateau') stalled = n;
+  }
+  if(ready) rows.push({ tag:'Ready', text:`${ready} — ready for more weight` });
+  if(stalled) rows.push({ tag:'Stalled', text:`${stalled} — progress has flattened` });
+
+  el.innerHTML = rows.length
+    ? `<div class="insight-list">${rows.slice(0,3).map(r => `
+        <div class="insight-row"><span class="insight-tag it-${r.tag.toLowerCase()}">${r.tag}</span><span>${escapeHtml(r.text)}</span></div>`).join('')}</div>`
+    : '';
+}
+
+function renderTodayTrends(){
+  const el = document.getElementById('todayTrends');
+  if(!el) return;
+  const trends = computeExerciseTrends().slice(0, 5);
+  if(!trends.length){
+    el.innerHTML = `<div class="mini-empty">Log an exercise a few times and its trend will appear here.</div>`;
+    return;
+  }
+  const A = { up:'↑', down:'↓', flat:'→' };
+  el.innerHTML = `<div class="mini-label">Exercise trends</div><div class="trend-list">` + trends.map(t => `
+    <div class="trend-row">
+      <div class="trend-name">${escapeHtml(t.name)}</div>
+      <div class="trend-meta">
+        <span class="trend-sessions">${t.sessions}×</span>
+        <span class="trend-pct trend-${t.dir}">${A[t.dir]} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</span>
+      </div>
+    </div>`).join('') + `</div>`;
+}
+
+function renderToday(){
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-  document.getElementById('todayDateLine').innerHTML = `${getGreeting()} <span class="year-part">· ${dateStr}</span>`;
+  const dateStr = now.toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
+  const tKey = todayKey();
+  const cat = schedule ? schedule[tKey] : 'rest';
+  document.getElementById('todayDateLine').innerHTML = `
+    <div class="today-greet">${getGreeting()}</div>
+    <div class="today-sub">${dateStr}<span class="today-focus">${cat === 'rest' ? 'Rest' : CAT_LABEL[cat]}</span></div>`;
 
-  renderResumeBanner();
+  renderResumeBanner();     // also refreshes the CTA via hasActiveDraftNow
   renderMissedBanner();
-  renderDashCard();
-  renderRecentPr();
-  renderCoachNote();
-  renderHeatmap();
+  renderTodayWorkout();
+  renderSnapshot();
+  renderTodayInsights();
 
   const strip = document.getElementById('weekStrip');
   strip.innerHTML = DAY_ORDER.map(key => {
-    const cat = schedule[key];
+    const c = schedule[key];
     const isToday = key === tKey;
     return `
-      <div class="day-card ${cat} ${isToday ? 'today' : ''}" onclick="openDayEdit('${key}')">
+      <div class="day-card ${c} ${isToday ? 'today' : ''}" onclick="openDayEdit('${key}')">
         <div class="d-label">${DAY_LABEL[key]}</div>
-        <div class="d-cat">${CAT_SHORT[cat]}</div>
+        <div class="d-cat">${CAT_SHORT[c]}</div>
       </div>`;
   }).join('');
 
-  const todayCat = schedule[tKey];
-  const hero = document.getElementById('heroCard');
-  const nextOptionsLabel = document.getElementById('nextOptionsLabel');
-  const nextOptionsEl = document.getElementById('nextOptions');
-
-  if(todayCat === 'rest'){
-    const nextDay = findNextTrainingDay(tKey);
-    hero.className = 'hero';
-    hero.innerHTML = `
-      <div class="rest-hero">
-        <div class="r-mark">◌</div>
-        <div class="hero-title">Rest Day</div>
-        <div class="hero-sub">${nextDay ? `Next up: ${DAY_LABEL_FULL[nextDay]} — ${CAT_LABEL[schedule[nextDay]]}` : 'No training days set yet'}</div>
-      </div>
-      <div class="next-train-links">
-        <button onclick="goToTrainCategory('push')">Browse Push</button>
-        <button onclick="goToTrainCategory('pull')">Browse Pull</button>
-        <button onclick="goToTrainCategory('fullbody')">Browse Full Body</button>
-      </div>
-    `;
-    nextOptionsLabel.style.display = 'none';
-    nextOptionsEl.innerHTML = '';
-  } else {
-    hero.className = 'hero cat-' + todayCat;
-    hero.innerHTML = `
-      <div class="hero-tag">Today</div>
-      <div class="hero-title">${CAT_LABEL[todayCat]} Day</div>
-      <div class="hero-sub">Pick a variation below, or edit today from the week strip.</div>
-    `;
-    nextOptionsLabel.style.display = 'block';
-    nextOptionsLabel.textContent = 'Pick a workout';
-    const lw = lastWeightsMap();
-    nextOptionsEl.innerHTML = getTemplates(todayCat).map(t => templateCardHtml(t, todayCat, lw)).join('') ||
-      `<div class="empty"><div class="mark">○</div><h3>No workouts yet</h3><div>Add one from the ${CAT_LABEL[todayCat]} tab.</div></div>`;
-  }
+  renderLevelCard();
+  renderRecentPr();
+  renderTodayTrends();
+  renderHeatmap();
+  if(todayTab === 'program') renderProgramCarousel();
 }
 
 /* ---------- DAY EDIT SHEET ---------- */
@@ -5507,36 +5670,6 @@ function computeMuscleVolumeSince(fromDate){
   return totals;
 }
 
-function renderWeekSummary(){
-  const el = document.getElementById('weekSummary');
-  if(!el) return;
-  const s = computeWeekSummary();
-  if(s.workouts === 0){
-    el.innerHTML = `
-      <div class="week-summary-card week-summary-empty">
-        <div class="week-summary-title">No workouts yet this week</div>
-        <div class="week-summary-sub">${s.scheduled ? `You've got ${s.scheduled} training day${s.scheduled===1?'':'s'} scheduled. Your next one's waiting below.` : 'Pick a workout below to get started.'}</div>
-      </div>`;
-    return;
-  }
-  const trend = (s.volPct !== null && s.hasLastWeek)
-    ? `<span class="week-trend ${s.volPct >= 0 ? 'up' : 'down'}">${s.volPct >= 0 ? '↗' : '↘'} ${s.volPct >= 0 ? '+' : ''}${s.volPct}% vs last week</span>`
-    : '';
-  el.innerHTML = `
-    <div class="week-summary-card">
-      <div class="week-summary-head">
-        <span class="week-summary-title">This Week</span>
-        ${trend}
-      </div>
-      <div class="week-summary-stats">
-        <div><span class="wk-num">${s.workouts}${s.scheduled ? `<span class="wk-of">/${s.scheduled}</span>` : ''}</span><span class="wk-label">Workouts</span></div>
-        <div><span class="wk-num">${s.sets}</span><span class="wk-label">Sets</span></div>
-        <div><span class="wk-num">${s.volume.toLocaleString()}</span><span class="wk-label">Volume lb</span></div>
-        <div><span class="wk-num">${s.prs}</span><span class="wk-label">PRs</span></div>
-      </div>
-      ${s.topMovement ? `<div class="week-summary-foot">Most trained · ${escapeHtml(s.topMovement)}</div>` : ''}
-    </div>`;
-}
 
 function renderProgress(){
   renderMonthSummary();
@@ -5831,8 +5964,10 @@ async function renderResumeBanner(){
   if(!el) return;
   const overlay = document.getElementById('logOverlay');
   if(overlay && overlay.classList.contains('open')){ el.innerHTML = ''; return; }
+  
   const draft = await loadActiveDraft();
-  if(!draft){ el.innerHTML = ''; return; }
+  hasActiveDraftNow = !!draft;
+  if(!draft){ el.innerHTML = ''; renderTodayWorkout(); return; }
   const started = draft.startedAt ? new Date(draft.startedAt) : null;
   const mins = started ? Math.max(1, Math.round((new Date() - started) / 60000)) : null;
   el.innerHTML = `
@@ -5846,6 +5981,7 @@ async function renderResumeBanner(){
       </div>
     </div>
   `;
+  renderTodayWorkout();
 }
 
 let workoutHistoryPushed = false;
