@@ -739,6 +739,78 @@ html.intro-skip #introOverlay{ display: none !important; }
 .mini-empty{ font-size: 11.5px; color: var(--text-faint); padding: 14px 0; text-align: center; }
 @media (prefers-reduced-motion: reduce){ .seg-panel{ animation: none; } }
 
+/* ---- Progress: analytics center ---- */
+.prog-hdr{ padding: 6px 0 4px; }
+.prog-trend-label{ font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
+.prog-trend{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 26px; margin-top: 5px; }
+.prog-improving{ color: var(--success); } .prog-steady{ color: var(--text); } .prog-declining{ color: var(--warning); }
+.prog-trend-sub{ font-size: 11.5px; color: var(--text-faint); margin-top: 4px; }
+.prog-stats{ margin-top: 18px; }
+
+.range-row{ display: flex; gap: 4px; }
+.range-btn{
+  background: var(--surface-3); border: 1px solid transparent; color: var(--text-faint);
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; padding: 5px 9px;
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.range-btn.active{ background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+.perf-svg{ width: 100%; height: auto; display: block; margin-top: 6px; overflow: visible; }
+.perf-line{ fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.perf-dot{ fill: var(--bg); stroke: var(--accent); stroke-width: 2; cursor: pointer; transition: r 0.15s var(--ease); }
+.perf-dot.sel{ fill: var(--accent); }
+.perf-axis{ font-family: 'JetBrains Mono', monospace; font-size: 8px; fill: var(--text-faint); }
+.perf-hint{ font-size: 10px; color: var(--text-faint); text-align: center; margin-top: 6px; }
+.perf-detail{ margin-top: 10px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--surface-2); border: 1px solid var(--border); }
+.perf-detail-title{ font-size: 12.5px; font-weight: 700; color: var(--text); }
+.perf-detail-stats{ display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
+.perf-detail-stats > div{ font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); display: flex; flex-direction: column; gap: 2px; }
+.perf-detail-stats span{ font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: 0; text-transform: none; }
+
+/* Ranked rows — used for improvements, plateaus, PRs, exercises */
+.rank-list{ display: flex; flex-direction: column; }
+.rank-row{
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; min-height: 52px;
+}
+.rank-row:last-child{ border-bottom: none; }
+.rank-row:active{ opacity: 0.6; }
+.rank-name{ font-size: 13px; font-weight: 600; color: var(--text); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rank-sub{ font-size: 10.5px; font-weight: 400; color: var(--text-faint); line-height: 1.35; }
+.rank-val{ flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--text); }
+.rank-val.up{ color: var(--success); }
+.rank-val.warn{ color: var(--warning); font-size: 11px; }
+
+/* This week vs last */
+.cmp-list{ display: flex; flex-direction: column; }
+.cmp-row{ display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.cmp-row:last-child{ border-bottom: none; }
+.cmp-label{ flex: 1; font-size: 12.5px; color: var(--text-dim); }
+.cmp-vals{ display: flex; align-items: baseline; gap: 8px; }
+.cmp-now{ font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: var(--text); }
+.cmp-prev{ font-size: 10.5px; color: var(--text-faint); }
+.cmp-delta{ width: 16px; text-align: center; font-size: 13px; color: var(--text-faint); }
+.cmp-delta.up{ color: var(--success); } .cmp-delta.down{ color: var(--warning); }
+
+/* Most trained */
+.most-trained{ display: flex; align-items: center; gap: 18px; padding: 6px 0; }
+.mt-body{ width: 84px; flex-shrink: 0; }
+.mt-info{ min-width: 0; }
+.mt-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; color: var(--text); }
+.mt-val{ font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; color: var(--accent); margin-top: 2px; }
+.mt-val span{ font-size: 11px; color: var(--text-faint); margin-left: 5px; font-weight: 400; }
+.mt-sub{ font-size: 11px; color: var(--text-faint); margin-top: 4px; }
+
+/* Push/pull/legs distribution */
+.dist-list{ display: flex; flex-direction: column; gap: 9px; }
+.dist-row{ display: flex; align-items: center; gap: 10px; }
+.dist-label{ width: 68px; flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--text-dim); }
+.dist-track{ flex: 1; height: 8px; background: var(--surface-3); border-radius: var(--radius-sm); overflow: hidden; }
+.dist-fill{ height: 100%; border-radius: var(--radius-sm); }
+.dist-push{ background: var(--push); } .dist-pull{ background: var(--pull); } .dist-legs{ background: var(--legs); }
+.dist-core{ background: var(--core); } .dist-fullbody{ background: var(--full); }
+.dist-val{ width: 30px; flex-shrink: 0; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text-faint); }
+
 /* ---- Weekly summary (Today) ---- */
 #weekSummary:empty{ display: none; }
 .week-summary-card{
@@ -1404,25 +1476,57 @@ body.page-locked{ overflow: hidden; }
   </div>
 
   <div class="view" id="view-progress">
-    <div class="section-label">This Month</div>
-    <div class="stats-grid-2" id="monthSummary"></div>
+    <div id="progHeader"></div>
 
-    <div class="section-label">Muscle Group Focus</div>
-    <div class="muscle-breakdown-card" id="muscleBreakdown"></div>
+    <div class="seg" id="progSeg">
+      <button class="seg-btn active" data-p="overview" onclick="switchProgTab('overview')">Overview</button>
+      <button class="seg-btn" data-p="strength" onclick="switchProgTab('strength')">Strength</button>
+      <button class="seg-btn" data-p="volume" onclick="switchProgTab('volume')">Volume</button>
+      <button class="seg-btn" data-p="muscles" onclick="switchProgTab('muscles')">Muscles</button>
+    </div>
 
-    <div class="section-label">Exercise Trends</div>
-    <div id="exerciseTrends"></div>
+    <div class="seg-panel" id="ppanel-overview">
+      <div id="progPerf"></div>
+      <div id="progImprovements"></div>
+      <div id="progAttention"></div>
+      <div id="progPRs"></div>
+    </div>
 
-    <div class="section-label">Personal Records</div>
-    <div id="prList"></div>
-    <div class="section-label">PR History</div>
-    <select id="prHistoryFilter" onchange="renderPRHistory()"></select>
-    <div id="prHistoryList"></div>
-    <div class="section-label">Strength Trend</div>
-    <select id="e1rmSelect" onchange="renderE1RMChart()"></select>
-    <div id="e1rmChartWrap"></div>
-    <div class="section-label">Weekly Volume</div>
-    <div id="volumeChart"></div>
+    <div class="seg-panel" id="ppanel-strength" style="display:none">
+      <div id="progReady"></div>
+      <div id="progExercises"></div>
+    </div>
+
+    <div class="seg-panel" id="ppanel-volume" style="display:none">
+      <div id="progVolCompare"></div>
+      <div id="progVolChart"></div>
+      <div id="progVolMuscle"></div>
+    </div>
+
+    <div class="seg-panel" id="ppanel-muscles" style="display:none">
+      <div id="progMuscles"></div>
+    </div>
+  </div>
+
+  <!-- EXERCISE DETAIL SHEET -->
+  <div class="overlay" id="exDetailOverlay" onclick="backdropDismiss(event, closeExDetail)">
+    <div class="sheet">
+      <div class="sheet-scroll">
+        <h2 id="exDetailName">Exercise</h2>
+        <div class="sheet-sub" id="exDetailTrend"></div>
+        <div id="exDetailStats"></div>
+        <div class="seg" id="exMetricSeg">
+          <button class="seg-btn active" data-m="1rm" onclick="setExMetric('1rm')">Est. 1RM</button>
+          <button class="seg-btn" data-m="weight" onclick="setExMetric('weight')">Weight</button>
+          <button class="seg-btn" data-m="volume" onclick="setExMetric('volume')">Volume</button>
+        </div>
+        <div id="exDetailChart"></div>
+        <div id="exDetailHistory"></div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn-secondary" onclick="closeExDetail()">Done</button>
+      </div>
+    </div>
   </div>
 
   <div class="view" id="view-history">
@@ -5495,73 +5599,9 @@ function volumeBarSvg(buckets){
   return `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:150px; display:block;">${bars}</svg>`;
 }
 
-function renderMonthSummary(){
-  const s = computeMonthSummary();
-  document.getElementById('monthSummary').innerHTML = `
-    <div class="stat"><div class="stat-num">${s.sessions}</div><div class="stat-label">Sessions</div></div>
-    <div class="stat"><div class="stat-num">${s.volume.toLocaleString()}</div><div class="stat-label">Volume (lb)</div></div>
-    <div class="stat"><div class="stat-num">${s.sets}</div><div class="stat-label">Total Sets</div></div>
-    <div class="stat"><div class="stat-num">${s.reps}</div><div class="stat-label">Total Reps</div></div>
-  `;
-}
 
-let muscleScope = 'week';
-function setMuscleScope(scope){
-  muscleScope = scope;
-  renderMuscleBreakdown();
-}
 
-function renderMuscleBreakdown(){
-  const el = document.getElementById('muscleBreakdown');
-  const weekly = muscleScope === 'week';
-  const totals = weekly ? computeMuscleVolumeSince(currentWeekStart()) : computeMuscleGroupBreakdown().totals;
-  const sum = Object.keys(totals).reduce((n,k) => n + totals[k], 0);
 
-  const toggle = `
-    <div class="scope-toggle">
-      <button class="scope-btn ${weekly?'active':''}" onclick="setMuscleScope('week')">This Week</button>
-      <button class="scope-btn ${!weekly?'active':''}" onclick="setMuscleScope('all')">All Time</button>
-    </div>`;
-
-  if(sum === 0){
-    el.innerHTML = toggle + `<div class="empty"><div class="mark">○</div><h3>${weekly ? 'Nothing logged this week yet' : 'No data yet'}</h3><div>${weekly ? 'Your muscle-group balance for the week will build as you train.' : 'Log a few workouts to see where your training focus goes.'}</div></div>`;
-    return;
-  }
-  const max = Math.max(...Object.keys(totals).map(k => totals[k]));
-  const rows = Object.keys(totals)
-    .map(k => ({ label: MUSCLE_LABELS[k], val: totals[k], pct: (totals[k] / sum) * 100, rel: (totals[k] / max) * 100 }))
-    .filter(r => r.val > 0)
-    .sort((a,b) => b.val - a.val);
-
-  // Weekly view shows raw sets (actionable — "is 6 sets of biceps enough?");
-  // all-time shows share of total (which is the meaningful lens over months).
-  el.innerHTML = toggle + `<div class="muscle-bar-list">` + rows.map(r => `
-    <div class="muscle-bar-row">
-      <div class="muscle-bar-label">${r.label}</div>
-      <div class="muscle-bar-track"><div class="muscle-bar-fill" style="width:${(weekly ? r.rel : r.pct).toFixed(1)}%"></div></div>
-      <div class="muscle-bar-pct">${weekly ? r.val : Math.round(r.pct) + '%'}</div>
-    </div>
-  `).join('') + `</div>` + (weekly ? `<div class="muscle-foot">Sets trained this week</div>` : '');
-}
-
-function renderExerciseTrends(){
-  const el = document.getElementById('exerciseTrends');
-  const trends = computeExerciseTrends().slice(0, 8);
-  if(!trends.length){
-    el.innerHTML = `<div class="empty"><div class="mark">○</div><h3>Not enough data yet</h3><div>Log an exercise at least twice to see whether it's progressing.</div></div>`;
-    return;
-  }
-  const ARROW = { up:'↑', down:'↓', flat:'→' };
-  el.innerHTML = `<div class="trend-list">` + trends.map(t => `
-    <div class="trend-row">
-      <div class="trend-name">${escapeHtml(t.name)}</div>
-      <div class="trend-meta">
-        <span class="trend-sessions">${t.sessions}×</span>
-        <span class="trend-pct trend-${t.dir}">${ARROW[t.dir]} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</span>
-      </div>
-    </div>
-  `).join('') + `</div>`;
-}
 
 function renderPRHistory(){
   const sel = document.getElementById('prHistoryFilter');
@@ -5671,54 +5711,419 @@ function computeMuscleVolumeSince(fromDate){
 }
 
 
-function renderProgress(){
-  renderMonthSummary();
-  renderMuscleBreakdown();
-  renderExerciseTrends();
-  renderPRHistory();
+/* =========================================================
+   PROGRESS — Training Analytics Center
+   ---------------------------------------------------------
+   Pure presentation over existing engines. Weekly performance
+   comes from computeConsistencyData (already memoized, already
+   scores each week with computeWorkoutQuality), trends from
+   computeExerciseTrends, recommendations from
+   buildProgressionRecommendation, records from
+   computeAllPREvents, volume from computeWeeklyVolume, muscle
+   data from computeMuscleVolumeSince. No new tracking.
+   ========================================================= */
+let progTab = 'overview';
+let progRange = 12;
+let progSelectedWeek = null;
+let exDetailName = null;
+let exDetailMetric = '1rm';
 
-  const prs = computePRs();
-  const prListEl = document.getElementById('prList');
-  if(prs.length === 0){
-    prListEl.innerHTML = `<div class="empty"><div class="mark">○</div><h3>No records yet</h3><div>Log a workout and your personal bests will show up here.</div></div>`;
-  } else {
-    prListEl.innerHTML = `<div class="pr-card">${prs.map(p => `
-      <div class="pr-row">
-        <div>
-          <div class="pr-name">${escapeHtml(p.name)}</div>
-          <div class="pr-date">${formatDateShort(p.date)}</div>
-        </div>
-        <div style="text-align:right">
-          <div class="pr-value">${p.isBW ? p.reps + ' reps' : p.weight + ' lb × ' + p.reps}</div>
-          ${!p.isBW ? `<div class="pr-e1rm">Est 1RM ${Math.round(estimate1RM(p.weight, p.reps))} lb</div>` : ''}
-        </div>
-      </div>
-    `).join('')}</div>`;
-  }
+function switchProgTab(t){
+  progTab = t;
+  document.querySelectorAll('#progSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.p === t));
+  ['overview','strength','volume','muscles'].forEach(k => {
+    const p = document.getElementById('ppanel-' + k);
+    if(p) p.style.display = (k === t) ? 'block' : 'none';
+  });
+  renderProgTab();
+}
+function setProgRange(w){ progRange = w; progSelectedWeek = null; renderProgTab(); }
 
-  renderE1RMSelect();
-  renderE1RMChart();
-
-  const buckets = computeWeeklyVolume(8);
-  const hasAny = buckets.some(b => b.volume > 0);
-  document.getElementById('volumeChart').innerHTML = hasAny
-    ? `<div class="volume-card">${volumeBarSvg(buckets)}</div>`
-    : `<div class="empty"><div class="mark">○</div><h3>No volume yet</h3><div>Log weighted sets to see your trend over time.</div></div>`;
+/* Absolute + relative change per exercise, derived from real first/last
+   working weights rather than an invented percentage. */
+function computeImprovements(){
+  const out = [];
+  getAllLoggedExerciseNames().forEach(name => {
+    const sessions = getExerciseFullHistory(name);
+    if(sessions.length < 2) return;
+    const topOf = s => {
+      const w = s.sets.map(x => parseFloat(x.weight)).filter(n => !isNaN(n));
+      const r = s.sets.map(x => parseFloat(x.reps)).filter(n => !isNaN(n));
+      return { w: w.length ? Math.max(...w) : null, r: r.length ? Math.max(...r) : null, bw: s.bodyweight };
+    };
+    const recent = topOf(sessions[0]);
+    const first = topOf(sessions[sessions.length - 1]);
+    // Ranked by RELATIVE gain, since pounds and reps aren't directly comparable —
+    // +6 pull-up reps and +20 lb on a bench can only be ordered as percentages.
+    if(recent.bw || first.bw){
+      if(recent.r != null && first.r != null && recent.r > first.r)
+        out.push({ name, deltaText: `+${recent.r - first.r} reps`, sortVal: ((recent.r - first.r) / first.r) * 100, sessions: sessions.length });
+      return;
+    }
+    if(recent.w == null || first.w == null) return;
+    const dW = recent.w - first.w;
+    if(dW > 0) out.push({ name, deltaText: `+${Math.round(dW)} lb`, sortVal: (dW / first.w) * 100, sessions: sessions.length });
+    else if(dW === 0 && recent.r != null && first.r != null && recent.r > first.r)
+      out.push({ name, deltaText: `+${recent.r - first.r} reps`, sortVal: ((recent.r - first.r) / first.r) * 100, sessions: sessions.length });
+  });
+  return out.sort((a,b) => b.sortVal - a.sortVal);
 }
 
-function renderE1RMSelect(){
-  const names = getLoggedExerciseNames();
-  const sel = document.getElementById('e1rmSelect');
-  const prevValue = sel.value;
-  if(names.length === 0){
-    sel.innerHTML = `<option value="">No exercises logged yet</option>`;
-    sel.disabled = true;
+/* Exercises the progression engine flags as ready / stalled. Same engine that
+   drives in-workout recommendations, so advice can never disagree. */
+function computeProgressionBuckets(){
+  const ready = [], stalled = [];
+  getAllLoggedExerciseNames().forEach(name => {
+    const rec = buildProgressionRecommendation(name, null, null);
+    if(!rec) return;
+    if(rec.tag === 'increase') ready.push({ name, rec });
+    else if(rec.tag === 'plateau') stalled.push({ name, rec });
+  });
+  return { ready, stalled };
+}
+
+/* Weekly performance line. Points come straight from the consistency engine. */
+function perfLineSvg(weeks){
+  const pts = weeks.map((w,i) => ({ i, score: w.avgScore, wk: w }));
+  const scored = pts.filter(p => p.score !== null);
+  if(scored.length < 2) return null;
+  const W = 320, H = 132, padL = 26, padR = 10, padT = 14, padB = 20;
+  const vals = scored.map(p => p.score);
+  let min = Math.min(...vals), max = Math.max(...vals);
+  if(max - min < 12){ const mid=(max+min)/2; min = Math.max(0, mid-6); max = Math.min(100, mid+6); }
+  const x = i => padL + (i / Math.max(1, pts.length - 1)) * (W - padL - padR);
+  const y = v => padT + (1 - (v - min) / (max - min || 1)) * (H - padT - padB);
+
+  const line = scored.map((p,k) => `${k?'L':'M'}${x(p.i).toFixed(1)},${y(p.score).toFixed(1)}`).join(' ');
+  const area = `${line} L${x(scored[scored.length-1].i).toFixed(1)},${H-padB} L${x(scored[0].i).toFixed(1)},${H-padB} Z`;
+  const dots = scored.map(p => `<circle class="perf-dot ${progSelectedWeek===p.i?'sel':''}" cx="${x(p.i).toFixed(1)}" cy="${y(p.score).toFixed(1)}" r="${progSelectedWeek===p.i?4.5:3}" onclick="selectPerfWeek(${p.i})"/>`).join('');
+  const gid = 'pg' + Math.random().toString(36).slice(2,7);
+
+  return `<svg viewBox="0 0 ${W} ${H}" class="perf-svg">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+    </linearGradient></defs>
+    <text x="4" y="${y(max)+4}" class="perf-axis">${Math.round(max)}</text>
+    <text x="4" y="${y(min)+4}" class="perf-axis">${Math.round(min)}</text>
+    <path d="${area}" fill="url(#${gid})"/>
+    <path d="${line}" class="perf-line"/>
+    ${dots}
+  </svg>`;
+}
+function selectPerfWeek(i){
+  progSelectedWeek = (progSelectedWeek === i) ? null : i;
+  renderProgTab();
+}
+
+function renderProgHeader(){
+  const el = document.getElementById('progHeader');
+  if(!el) return;
+  const cons = computeConsistencyData();
+  const totalPRs = computeAllPREvents().length;
+  const s = computeWeekSummary();
+  const trendLabel = { improving:'Improving', steady:'Holding steady', declining:'Easing off' }[cons.trend];
+  const trendArrow = { improving:'↗', steady:'→', declining:'↘' }[cons.trend];
+
+  el.innerHTML = `
+    <div class="prog-hdr">
+      <div class="prog-trend-label">Training trend</div>
+      <div class="prog-trend prog-${cons.trend}">${trendArrow} ${trendLabel}</div>
+      <div class="prog-trend-sub">${cons.totalWorkouts} workouts over the last 12 weeks</div>
+    </div>
+    <div class="snapshot prog-stats">
+      <div class="snap-item"><div class="snap-label">Total workouts</div><div class="snap-num">${workoutLog.length}</div></div>
+      <div class="snap-item"><div class="snap-label">Personal records</div><div class="snap-num">${totalPRs}</div></div>
+      <div class="snap-item"><div class="snap-label">Volume vs last wk</div><div class="snap-num ${s.volPct!==null&&s.volPct>=0&&s.hasLastWeek?'up':''}">${s.volPct!==null&&s.hasLastWeek?(s.volPct>=0?'+':'')+s.volPct+'%':'—'}</div></div>
+      <div class="snap-item"><div class="snap-label">Avg workout score</div><div class="snap-num">${cons.overallScore!==null?cons.overallScore:'—'}</div></div>
+    </div>`;
+}
+
+function rangeBtns(){
+  return `<div class="range-row">${[4,8,12].map(w =>
+    `<button class="range-btn ${progRange===w?'active':''}" onclick="setProgRange(${w})">${w}W</button>`).join('')}</div>`;
+}
+
+function renderProgOverview(){
+  const cons = computeConsistencyData();
+  const weeks = cons.weeks.slice(-progRange);
+  const chart = perfLineSvg(weeks);
+
+  let detail = '';
+  if(progSelectedWeek !== null && weeks[progSelectedWeek]){
+    const w = weeks[progSelectedWeek];
+    const end = new Date(w.start); end.setDate(w.start.getDate()+6);
+    const fmt = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    detail = `<div class="perf-detail">
+      <div class="perf-detail-title">${fmt(w.start)} – ${fmt(end)}</div>
+      <div class="perf-detail-stats">
+        <div><span>${w.avgScore!==null?w.avgScore:'—'}</span>Avg score</div>
+        <div><span>${w.workouts}</span>Workouts</div>
+        <div><span>${w.volume.toLocaleString()}</span>Volume</div>
+        <div><span>${w.prs}</span>PRs</div>
+      </div></div>`;
+  }
+
+  document.getElementById('progPerf').innerHTML = `
+    <div class="sec-head">Performance${rangeBtns()}</div>
+    ${chart ? chart + detail + `<div class="perf-hint">Tap a point for that week's detail</div>`
+      : `<div class="mini-empty">Complete workouts across a few weeks to see your performance trend.</div>`}`;
+
+  const imps = computeImprovements().slice(0, 4);
+  document.getElementById('progImprovements').innerHTML = imps.length ? `
+    <div class="sec-head">Biggest improvements</div>
+    <div class="rank-list">${imps.map(i => `
+      <div class="rank-row" onclick="openExDetail('${escapeAttr(i.name)}')">
+        <div class="rank-name">${escapeHtml(i.name)}<span class="rank-sub">${i.sessions} sessions</span></div>
+        <div class="rank-val up">${i.deltaText}</div>
+      </div>`).join('')}</div>` : '';
+
+  const { stalled } = computeProgressionBuckets();
+  document.getElementById('progAttention').innerHTML = stalled.length ? `
+    <div class="sec-head">Needs attention</div>
+    <div class="rank-list">${stalled.slice(0,2).map(s => `
+      <div class="rank-row" onclick="openExDetail('${escapeAttr(s.name)}')">
+        <div class="rank-name">${escapeHtml(s.name)}<span class="rank-sub">${escapeHtml(s.rec.why)}</span></div>
+        <div class="rank-val warn">Plateau</div>
+      </div>`).join('')}</div>` : '';
+
+  const events = computeAllPREvents();
+  document.getElementById('progPRs').innerHTML = `
+    <div class="sec-head">Personal records<span class="sec-hint">${events.length} total</span></div>
+    ${events.length ? `<div class="rank-list">${events.slice(0,3).map(ev => {
+      const f = formatPREventHeadline(ev);
+      return f ? `<div class="rank-row" onclick="openExDetail('${escapeAttr(ev.exerciseName)}')">
+        <div class="rank-name">${escapeHtml(ev.exerciseName)}<span class="rank-sub">${f.label} · ${formatDateShort(ev.date)}</span></div>
+        <div class="rank-val">${f.current}</div></div>` : '';
+    }).join('')}</div>
+    <select id="prHistoryFilter" onchange="renderPRHistory()"></select>
+    <div id="prHistoryList"></div>`
+    : `<div class="mini-empty">Your records will appear here as you start beating previous sessions.</div>`}`;
+  if(events.length) renderPRHistory();
+}
+
+function renderProgStrength(){
+  const { ready } = computeProgressionBuckets();
+  document.getElementById('progReady').innerHTML = ready.length ? `
+    <div class="sec-head">Ready to progress</div>
+    <div class="rank-list">${ready.slice(0,5).map(r => `
+      <div class="rank-row" onclick="openExDetail('${escapeAttr(r.name)}')">
+        <div class="rank-name">${escapeHtml(r.name)}<span class="rank-sub">${escapeHtml(r.rec.why)}</span></div>
+        <div class="rank-val up">${escapeHtml(r.rec.headline.split(' × ')[0])}</div>
+      </div>`).join('')}</div>` : '';
+
+  const trends = computeExerciseTrends();
+  const A = { up:'↑', down:'↓', flat:'→' };
+  document.getElementById('progExercises').innerHTML = `
+    <div class="sec-head">All exercises<span class="sec-hint">tap for detail</span></div>
+    ${trends.length ? `<div class="rank-list">${trends.map(t => `
+      <div class="rank-row" onclick="openExDetail('${escapeAttr(t.name)}')">
+        <div class="rank-name">${escapeHtml(t.name)}<span class="rank-sub">${t.sessions} sessions</span></div>
+        <div class="rank-val trend-${t.dir}">${A[t.dir]} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</div>
+      </div>`).join('')}</div>`
+    : `<div class="mini-empty">Log an exercise at least twice and its progression will appear here.</div>`}`;
+}
+
+function renderProgVolume(){
+  const s = computeWeekSummary();
+  const cons = computeConsistencyData();
+  const weeks = cons.weeks;
+  const thisW = weeks[weeks.length-1], lastW = weeks[weeks.length-2];
+
+  document.getElementById('progVolCompare').innerHTML = `
+    <div class="sec-head">This week vs last</div>
+    <div class="cmp-list">
+      ${cmpRow('Workouts', thisW?thisW.workouts:0, lastW?lastW.workouts:0)}
+      ${cmpRow('Volume', thisW?thisW.volume:0, lastW?lastW.volume:0, true)}
+      ${cmpRow('Sets', thisW?thisW.sets:0, lastW?lastW.sets:0)}
+      ${cmpRow('PRs', thisW?thisW.prs:0, lastW?lastW.prs:0)}
+    </div>`;
+
+  const buckets = computeWeeklyVolume(progRange);
+  const hasAny = buckets.some(b => b.volume > 0);
+  document.getElementById('progVolChart').innerHTML = `
+    <div class="sec-head">Weekly volume${rangeBtns()}</div>
+    ${hasAny ? volumeBarSvg(buckets) : `<div class="mini-empty">Log weighted sets to see your volume trend.</div>`}`;
+
+  const totals = computeMuscleVolumeSince(currentWeekStart());
+  document.getElementById('progVolMuscle').innerHTML = muscleBarsHtml(totals, 'Sets this week');
+}
+
+function cmpRow(label, now, prev, isVol){
+  const d = now - prev;
+  const arrow = d > 0 ? '↑' : d < 0 ? '↓' : '→';
+  const cls = d > 0 ? 'up' : d < 0 ? 'down' : '';
+  const fmt = v => isVol ? v.toLocaleString() : v;
+  return `<div class="cmp-row">
+    <div class="cmp-label">${label}</div>
+    <div class="cmp-vals"><span class="cmp-now">${fmt(now)}</span><span class="cmp-prev">vs ${fmt(prev)}</span></div>
+    <div class="cmp-delta ${cls}">${arrow}</div>
+  </div>`;
+}
+
+function muscleBarsHtml(totals, caption){
+  const sum = Object.keys(totals).reduce((n,k) => n + totals[k], 0);
+  if(!sum) return `<div class="mini-empty">No sets logged in this range yet.</div>`;
+  const max = Math.max(...Object.values(totals));
+  const rows = Object.keys(totals).map(k => ({ label: MUSCLE_LABELS[k], val: totals[k] }))
+    .filter(r => r.val > 0).sort((a,b) => b.val - a.val);
+  return `<div class="muscle-bar-list">${rows.map(r => `
+    <div class="muscle-bar-row">
+      <div class="muscle-bar-label">${r.label}</div>
+      <div class="muscle-bar-track"><div class="muscle-bar-fill" style="width:${((r.val/max)*100).toFixed(1)}%"></div></div>
+      <div class="muscle-bar-pct">${r.val}</div>
+    </div>`).join('')}</div><div class="muscle-foot">${caption}</div>`;
+}
+
+function renderProgMuscles(){
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 84);
+  const totals = computeMuscleVolumeSince(cutoff);
+  const sum = Object.keys(totals).reduce((n,k) => n + totals[k], 0);
+  const el = document.getElementById('progMuscles');
+
+  if(!sum){
+    el.innerHTML = `<div class="mini-empty">Log a few workouts and your training distribution will appear here.</div>`;
     return;
   }
-  sel.disabled = false;
-  sel.innerHTML = names.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
-  if(names.includes(prevValue)) sel.value = prevValue;
+  const rows = Object.keys(totals).map(k => ({ k, label: MUSCLE_LABELS[k], val: totals[k] }))
+    .filter(r => r.val > 0).sort((a,b) => b.val - a.val);
+  const top = rows[0];
+
+  // Reuses the existing anatomy renderer via a synthetic template shaped like
+  // the last 12 weeks of training, so there is only ever one body system.
+  const synthetic = { exercises: [] };
+  workoutLog.forEach(l => {
+    if(new Date(l.date + 'T00:00:00') < cutoff) return;
+    l.exercises.forEach(ex => synthetic.exercises.push({ name: ex.name, sets: (ex.sets||[]).length || 1 }));
+  });
+
+  // Push / pull / legs distribution from logged categories
+  const catSets = { push:0, pull:0, legs:0, core:0, fullbody:0 };
+  workoutLog.forEach(l => {
+    if(new Date(l.date + 'T00:00:00') < cutoff) return;
+    const n = l.exercises.reduce((m,ex) => m + (ex.sets||[]).length, 0);
+    if(catSets[l.category] !== undefined) catSets[l.category] += n;
+  });
+  const catTotal = Object.values(catSets).reduce((a,b)=>a+b,0) || 1;
+
+  el.innerHTML = `
+    <div class="sec-head">Most trained<span class="sec-hint">last 12 weeks</span></div>
+    <div class="most-trained">
+      <div class="mt-body">${bodyDiagramSvg(synthetic)}</div>
+      <div class="mt-info">
+        <div class="mt-name">${top.label}</div>
+        <div class="mt-val">${top.val}<span>sets</span></div>
+        <div class="mt-sub">${Math.round((top.val/sum)*100)}% of your logged sets</div>
+      </div>
+    </div>
+    <div class="sec-head">Muscle group volume</div>
+    ${muscleBarsHtml(totals, 'Sets over the last 12 weeks')}
+    <div class="sec-head">Training distribution</div>
+    <div class="dist-list">${ORDER.filter(c => catSets[c] > 0).map(c => `
+      <div class="dist-row">
+        <span class="dist-label">${CAT_LABEL[c]}</span>
+        <div class="dist-track"><div class="dist-fill dist-${c}" style="width:${((catSets[c]/catTotal)*100).toFixed(1)}%"></div></div>
+        <span class="dist-val">${catSets[c]}</span>
+      </div>`).join('')}</div>
+    <div class="muscle-foot">Distribution of logged sets, not a judgement about balance.</div>`;
 }
+
+function renderProgTab(){
+  renderProgHeader();
+  if(progTab === 'overview') renderProgOverview();
+  else if(progTab === 'strength') renderProgStrength();
+  else if(progTab === 'volume') renderProgVolume();
+  else if(progTab === 'muscles') renderProgMuscles();
+}
+function renderProgress(){ renderProgTab(); }
+
+/* ---------- EXERCISE DETAIL ---------- */
+function openExDetail(name){
+  exDetailName = name;
+  exDetailMetric = '1rm';
+  document.querySelectorAll('#exMetricSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.m === '1rm'));
+  renderExDetail();
+  document.getElementById('exDetailOverlay').classList.add('open');
+}
+function closeExDetail(){ document.getElementById('exDetailOverlay').classList.remove('open'); }
+function setExMetric(m){
+  exDetailMetric = m;
+  document.querySelectorAll('#exMetricSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.m === m));
+  renderExDetail();
+}
+
+function renderExDetail(){
+  if(!exDetailName) return;
+  const name = exDetailName;
+  const sessions = getExerciseFullHistory(name);
+  document.getElementById('exDetailName').textContent = name;
+
+  if(!sessions.length){
+    document.getElementById('exDetailTrend').textContent = '';
+    document.getElementById('exDetailStats').innerHTML = `<div class="mini-empty">Not enough data yet. Complete a few sessions to see progression.</div>`;
+    document.getElementById('exDetailChart').innerHTML = '';
+    document.getElementById('exDetailHistory').innerHTML = '';
+    return;
+  }
+
+  const isBW = sessions[0].bodyweight;
+  const best = { w:0, r:0 };
+  sessions.forEach(s => s.sets.forEach(st => {
+    const w = parseFloat(st.weight), r = parseFloat(st.reps);
+    if(isBW){ if(!isNaN(r) && r > best.r){ best.r = r; } }
+    else if(!isNaN(w) && (w > best.w || (w === best.w && r > best.r))){ best.w = w; best.r = r || best.r; }
+  }));
+  const topSet = s => {
+    const valid = s.sets.map(x => ({w:parseFloat(x.weight), r:parseFloat(x.reps)})).filter(x => !isNaN(x.r));
+    if(!valid.length) return null;
+    return isBW ? valid.reduce((a,b)=>b.r>a.r?b:a) : valid.filter(x=>!isNaN(x.w)).reduce((a,b)=>b.w>a.w?b:a, valid[0]);
+  };
+  const cur = topSet(sessions[0]);
+  const prev = sessions[1] ? topSet(sessions[1]) : null;
+  const trends = computeExerciseTrends().find(t => t.name === name);
+  const A = { up:'↗ Improving', down:'↘ Declining', flat:'→ Holding' };
+
+  document.getElementById('exDetailTrend').innerHTML = trends
+    ? `<span class="trend-pct trend-${trends.dir}">${A[trends.dir]}</span> · ${sessions.length} sessions logged`
+    : `${sessions.length} session${sessions.length===1?'':'s'} logged`;
+
+  const fmtSet = s => !s ? '—' : (isBW ? `${s.r} reps` : `${s.w} lb × ${s.r}`);
+  document.getElementById('exDetailStats').innerHTML = `
+    <div class="snapshot" style="margin-top:14px">
+      <div class="snap-item"><div class="snap-label">Most recent</div><div class="snap-num">${fmtSet(cur)}</div></div>
+      <div class="snap-item"><div class="snap-label">Previous session</div><div class="snap-num">${fmtSet(prev)}</div></div>
+      <div class="snap-item"><div class="snap-label">Best ever</div><div class="snap-num">${isBW ? best.r + ' reps' : best.w + ' lb × ' + best.r}</div></div>
+      <div class="snap-item"><div class="snap-label">Sessions</div><div class="snap-num">${sessions.length}</div></div>
+    </div>`;
+
+  // Chart: chronological, oldest first
+  const chrono = [...sessions].reverse();
+  let points = [];
+  if(exDetailMetric === '1rm' && !isBW){
+    points = compute1RMTrend(name);
+  } else {
+    points = chrono.map(s => {
+      const valid = s.sets.map(x => ({w:parseFloat(x.weight), r:parseFloat(x.reps)})).filter(x => !isNaN(x.r));
+      if(!valid.length) return null;
+      let v;
+      if(exDetailMetric === 'volume') v = valid.reduce((n,x) => n + ((isNaN(x.w)?0:x.w) * x.r), 0);
+      else v = isBW ? Math.max(...valid.map(x=>x.r)) : Math.max(...valid.filter(x=>!isNaN(x.w)).map(x=>x.w), 0);
+      return v > 0 ? { date: s.date, value: v } : null;
+    }).filter(Boolean);
+  }
+  document.getElementById('exDetailChart').innerHTML = points.length >= 2
+    ? e1rmLineSvg(points)
+    : `<div class="mini-empty">Not enough sessions yet for a ${exDetailMetric === '1rm' ? '1RM' : exDetailMetric} trend.</div>`;
+
+  document.getElementById('exDetailHistory').innerHTML = `
+    <div class="mini-label">Session history</div>` + sessions.slice(0, 12).map(s => `
+    <div class="ex-history-session">
+      <div class="ex-history-date">${formatDateShort(s.date)}</div>
+      <div class="ex-history-sets">${s.sets.map(set =>
+        `<span class="set-chip">${escapeHtml(set.weight||'—')}${s.bodyweight?'':' lb'} × ${escapeHtml(set.reps||'—')}${set.rir?' · RIR '+escapeHtml(String(set.rir)):''}</span>`).join('')}</div>
+    </div>`).join('');
+}
+
 
 function e1rmLineSvg(points){
   const w = 320, h = 140, padL = 34, padR = 12, padT = 16, padB = 22;
@@ -5739,27 +6144,6 @@ function e1rmLineSvg(points){
   </svg>`;
 }
 
-function renderE1RMChart(){
-  const sel = document.getElementById('e1rmSelect');
-  const wrap = document.getElementById('e1rmChartWrap');
-  const name = sel.value;
-  if(!name){
-    wrap.innerHTML = `<div class="empty"><div class="mark">○</div><h3>No strength data yet</h3><div>Log a weighted exercise to start a trend.</div></div>`;
-    return;
-  }
-  const points = compute1RMTrend(name);
-  if(points.length < 2){
-    wrap.innerHTML = `<div class="empty"><div class="mark">○</div><h3>Not enough data yet</h3><div>Log ${escapeHtml(name)} a couple more times to see a trend.</div></div>`;
-    return;
-  }
-  const current = points[points.length - 1].value;
-  wrap.innerHTML = `
-    <div class="volume-card">
-      <div class="e1rm-current">Est. 1RM: <span>${current} lb</span></div>
-      ${e1rmLineSvg(points)}
-    </div>
-  `;
-}
 
 function renderAll(){
   renderToday();
