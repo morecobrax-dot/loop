@@ -745,6 +745,83 @@ html.intro-skip #introOverlay{ display: none !important; }
 .mini-empty{ font-size: 11.5px; color: var(--text-faint); padding: 14px 0; text-align: center; }
 @media (prefers-reduced-motion: reduce){ .seg-panel{ animation: none; } }
 
+/* ---- Daily readiness ---- */
+#readinessCard:empty{ display: none; }
+.ready-prompt{
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 12px; padding: 13px 15px; border-radius: var(--radius-md);
+  background: var(--surface-2); border: 1px dashed var(--border); cursor: pointer;
+}
+.ready-prompt-text{ font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
+.ready-prompt-cta{ font-size: 12px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+
+.ready-summary{
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 12px; padding: 12px 15px; border-radius: var(--radius-md);
+  background: var(--surface-2); border: 1px solid var(--border); cursor: pointer;
+}
+.ready-dot{ width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.ready-dot-high{ background: var(--success); }
+.ready-dot-normal{ background: var(--accent); }
+.ready-dot-reduced{ background: var(--warning); }
+.ready-dot-low{ background: var(--error); }
+.ready-summary-text{ flex: 1; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.ready-summary-score{ font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-faint); margin-left: 4px; }
+.ready-summary-edit{ font-size: 11.5px; color: var(--accent); font-weight: 600; flex-shrink: 0; }
+
+.ready-expand{
+  margin-top: 12px; padding: 15px; border-radius: var(--radius-lg);
+  background: var(--surface-2); border: 1px solid var(--border);
+  animation: segIn 0.2s var(--ease) both;
+}
+.ready-expand-head{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.ready-expand-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); }
+.ready-expand-score{ font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent); }
+.ready-row{ margin-top: 13px; }
+.ready-row:first-of-type{ margin-top: 0; }
+.ready-row-label{ font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
+.ready-chips{ display: flex; gap: 6px; margin-top: 7px; }
+.ready-chips .pchip{ flex: 1; padding: 8px 6px; min-height: 38px; font-size: 11.5px; text-align: center; }
+.ready-done{
+  width: 100%; margin-top: 16px; padding: 11px; border-radius: var(--radius-md);
+  background: var(--accent); border: none; color: #0C0E12; font-weight: 700; font-size: 13px; cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce){ .ready-expand{ animation: none; } }
+
+/* ---- Shadow feedback chips (optional, one tap) ---- */
+.fb-strip{ display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.fb-label{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin-right: 2px; }
+.fb-chip{
+  flex: 1; min-height: 34px; padding: 7px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-faint);
+  font-size: 11px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.fb-chip.on{ border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+/* ---- Explicit set types ---- */
+.set-idx{ cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.set-row.set-warmup{ opacity: 0.72; }
+.set-row.set-warmup .set-idx{ color: var(--warning); font-weight: 700; letter-spacing: 0.03em; }
+
+/* ---- Recovery strip (minimal Today preview) ---- */
+.rec-strip{
+  margin-top: 8px; padding: 11px 15px; border-radius: var(--radius-md);
+  background: var(--surface-2); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.rec-strip-label{ font-size: 9px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); }
+.rec-item{ display: flex; align-items: center; gap: 9px; }
+.rec-name{ width: 74px; flex-shrink: 0; font-size: 11.5px; color: var(--text-dim); }
+.rec-bar{ flex: 1; height: 5px; background: var(--surface-3); border-radius: var(--radius-sm); overflow: hidden; }
+.rec-fill{ display: block; height: 100%; border-radius: var(--radius-sm); transition: width 0.5s var(--ease); }
+.rec-high, .rec-well{ background: var(--success); }
+.rec-moderate{ background: var(--accent); }
+.rec-low{ background: var(--warning); }
+.rec-verylow{ background: var(--error); }
+.rec-pct{ width: 34px; flex-shrink: 0; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text-faint); }
+@media (prefers-reduced-motion: reduce){ .rec-fill{ transition: none; } }
+
 /* ---- Athlete profile ---- */
 .pchips{ display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
 .pchip{
@@ -1551,6 +1628,7 @@ body.page-locked{ overflow: hidden; }
     <div id="storageNotice"></div>
     <div id="resumeBanner"></div>
     <div id="missedBanner"></div>
+    <div id="readinessCard"></div>
 
     <!-- LEVEL 1 — what am I doing today -->
     <div id="todayWorkout"></div>
@@ -2101,7 +2179,7 @@ const BACKUP_PREFIX = 'backup_v';
 
 const DATA_KEYS = [
   'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',
-  'athleteProfile', 'exercisePrefs'
+  'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog'
 ];
 
 /* Migrations upgrade FROM the keyed version TO the next one.
@@ -3194,6 +3272,8 @@ async function boot(){
   }
 
   await loadTrainerData();
+  await loadReadiness();
+  await loadTrainerLog();
 
   renderStorageNotice(migrationResult);
 
@@ -3312,6 +3392,8 @@ async function persistLog(){
   invalidateConsistencyCache();
   invalidateCapabilityCache();
   invalidateContextCache();
+  invalidateRecoveryCache();
+  invalidateShadowCache();
   try{
     await LOOPStore.set('workoutLog', JSON.stringify(workoutLog));
     return true;
@@ -4501,6 +4583,871 @@ function computeConsistencyData(){
   return _consistencyCache;
 }
 
+/* =========================================================
+   SHADOW ADAPTIVE TRAINING ENGINE  (Phase 5C)
+   ---------------------------------------------------------
+   SHADOW MODE ONLY. This engine produces recommendations that
+   are LOGGED and never applied. There is no code path from
+   here into a weight field, rep field, set count, exercise,
+   plan, XP, PR, recovery, readiness, or workoutLog.
+
+   Implements the gated architecture from Phase 5A:
+
+     · Only demonstrated performance earns progression.
+       Recovery and readiness are clamped to <= 0 and can only
+       constrain — they can never create a progression.
+     · Confidence scales MAGNITUDE, never direction.
+     · Evidence burden is asymmetric: progressing needs more
+       proof than holding; holding needs more than backing off.
+     · CONSOLIDATE is a first-class state, not a failed
+       PROGRESS.
+
+   When evidence is insufficient the engine returns null. It
+   never invents a weight, a confidence, or a reason.
+   ========================================================= */
+
+/* All thresholds live here. Nothing below hard-codes a number. */
+const TRAINER_CONFIG = {
+  evidence: {
+    minSessionsForAnyRecommendation: 2,
+    minSessionsToProgress: 2,      // consecutive sessions meeting target
+    staleDays: 45                  // beyond this, capability is not current
+  },
+  progression: {
+    requireRIRHeadroom: 1.5,       // avg RIR at/above this = room to spare
+    maxLoadStepPct: 0.10,          // never jump more than 10% in one session
+    repProgressionStep: 1
+  },
+  regression: {
+    missedTargetSessions: 2,       // consecutive misses before backing off
+    backOffPct: 0.07,
+    severeDeclinePct: -12          // capability trend % considered a real drop
+  },
+  recovery: {
+    vetoBelow: 25,                 // below this: cap at MAINTAIN
+    cautionBelow: 50               // below this: demote PROGRESS -> CONSOLIDATE
+  },
+  readiness: {
+    vetoBelow: 25,
+    cautionBelow: 50
+  },
+  confidence: {
+    // Magnitude scalars — confidence shrinks a change toward zero,
+    // it never flips its sign.
+    scalar: { high: 1.0, medium: 0.5, low: 0, unknown: 0 }
+  },
+  conflict: {
+    widenUncertaintyAt: 3          // signal disagreement that lowers confidence
+  }
+};
+
+/* Severity ladder. "Capping" always moves DOWN this list, never up. */
+const TRAINER_STATES = ['PROGRESS', 'CONSOLIDATE', 'MAINTAIN', 'BACK_OFF'];
+function stateRank(s){ return TRAINER_STATES.indexOf(s); }
+function capState(state, ceiling){
+  return stateRank(state) < stateRank(ceiling) ? ceiling : state;
+}
+
+/* ---------- SIGNAL EXTRACTION ---------- */
+
+/* Performance is the ONLY signal with proposal power for progression.
+   Derived from whether recent sessions actually met their rep target and
+   whether reps were left in reserve. */
+function extractPerformanceSignal(cap, targetRange){
+  const sessions = getExerciseFullHistory(cap.name).slice(0, 4);
+  if(!sessions.length) return { value: 0, detail: 'no sessions', metTarget: 0, missed: 0, avgRir: null, topReps: null };
+
+  const evaluated = sessions.map(s => {
+    const valid = (s.sets || [])
+      .map(x => ({ w: parseFloat(x.weight), r: parseFloat(x.reps), rir: parseFloat(x.rir), type: setTypeOf(x) }))
+      .filter(x => !isNaN(x.r) && x.r > 0 && x.type !== SET_TYPES.WARMUP);   // warm-ups excluded
+    if(!valid.length) return null;
+    const topReps = Math.max(...valid.map(x => x.r));
+    const rirs = valid.map(x => x.rir).filter(v => !isNaN(v));
+    return {
+      topReps,
+      hitTop: targetRange ? topReps >= targetRange.max : null,
+      missedBottom: targetRange ? topReps < targetRange.min : false,
+      avgRir: rirs.length ? rirs.reduce((a,b)=>a+b,0)/rirs.length : null
+    };
+  }).filter(Boolean);
+
+  if(!evaluated.length) return { value: 0, detail: 'no working sets', metTarget: 0, missed: 0, avgRir: null, topReps: null };
+
+  let metStreak = 0;
+  for(const e of evaluated){ if(e.hitTop) metStreak++; else break; }
+  let missStreak = 0;
+  for(const e of evaluated){ if(e.missedBottom) missStreak++; else break; }
+
+  const latest = evaluated[0];
+  let value = 0;
+  if(missStreak >= TRAINER_CONFIG.regression.missedTargetSessions) value = -2;
+  else if(missStreak === 1) value = -1;
+  else if(metStreak >= TRAINER_CONFIG.evidence.minSessionsToProgress) value = +2;
+  else if(latest.hitTop) value = +1;
+
+  return {
+    value,
+    detail: `${metStreak} session(s) at top of range, ${missStreak} missed`,
+    metTarget: metStreak, missed: missStreak,
+    avgRir: latest.avgRir, topReps: latest.topReps
+  };
+}
+
+function extractCapabilitySignal(cap){
+  if(cap.capabilityTrend === 'improving') return { value: +1, detail: 'capability trending up' };
+  if(cap.capabilityTrend === 'declining'){
+    const severe = cap.capabilityTrendPct !== null && cap.capabilityTrendPct <= TRAINER_CONFIG.regression.severeDeclinePct;
+    return { value: severe ? -2 : -1, detail: severe ? 'capability declining sharply' : 'capability trending down' };
+  }
+  return { value: 0, detail: 'capability stable' };
+}
+
+/* CLAMPED TO <= 0 BY CONSTRUCTION. This is the architectural expression of
+   "recovery cannot create a progression". */
+function extractRecoverySignal(primaryMuscles){
+  if(!primaryMuscles || !primaryMuscles.length) return { value: 0, detail: 'muscle unknown', score: null, veto: false };
+  let worst = null, worstMuscle = null;
+  primaryMuscles.forEach(m => {
+    const r = getMuscleRecovery(m);
+    if(r && r.score !== null && (worst === null || r.score < worst)){ worst = r.score; worstMuscle = m; }
+  });
+  if(worst === null) return { value: 0, detail: 'no recovery data', score: null, veto: false };
+  if(worst < TRAINER_CONFIG.recovery.vetoBelow)
+    return { value: -2, detail: `${MUSCLE_LABELS[worstMuscle]||worstMuscle} recovery is low`, score: worst, veto: true };
+  if(worst < TRAINER_CONFIG.recovery.cautionBelow)
+    return { value: -1, detail: `${MUSCLE_LABELS[worstMuscle]||worstMuscle} recovery is moderate`, score: worst, veto: false };
+  return { value: 0, detail: `${MUSCLE_LABELS[worstMuscle]||worstMuscle} recovery is good`, score: worst, veto: false };
+}
+
+/* Also clamped to <= 0. */
+function extractReadinessSignal(){
+  const r = getTodayReadiness();
+  const score = r ? calculateReadinessScore(r) : null;
+  if(score === null) return { value: 0, detail: 'no check-in today', score: null, veto: false, reported: false };
+  if(score < TRAINER_CONFIG.readiness.vetoBelow)
+    return { value: -2, detail: 'readiness is low today', score, veto: true, reported: true };
+  if(score < TRAINER_CONFIG.readiness.cautionBelow)
+    return { value: -1, detail: 'readiness is below normal', score, veto: false, reported: true };
+  return { value: 0, detail: 'readiness is normal', score, veto: false, reported: true };
+}
+
+/* ---------- STATE PROPOSAL (evidence only) ----------
+   Recovery and readiness are deliberately NOT arguments here. */
+function proposeTrainerState(perf, capSig, cap){
+  if(perf.value <= -2 || capSig.value <= -2) return 'BACK_OFF';
+
+  const hasHeadroom = perf.avgRir === null || perf.avgRir >= TRAINER_CONFIG.progression.requireRIRHeadroom;
+  if(perf.value >= 2 && hasHeadroom && capSig.value >= 0) return 'PROGRESS';
+
+  // At the right load but not yet owning the range — the classic consolidate case
+  if(perf.value >= 0 && perf.metTarget < TRAINER_CONFIG.evidence.minSessionsToProgress) return 'CONSOLIDATE';
+  if(perf.value >= 2 && !hasHeadroom) return 'CONSOLIDATE';   // hitting top but grinding
+
+  if(perf.value === -1) return 'MAINTAIN';   // one miss is not a decline
+  return 'MAINTAIN';
+}
+
+/* ---------- CONSTRAINTS (can only make the decision more conservative) ---------- */
+function applyTrainerConstraints(proposed, recSig, readySig, confidence){
+  let final = proposed, reasons = [];
+
+  if(recSig.veto){ final = capState(final, 'MAINTAIN'); reasons.push('recovery_veto'); }
+  if(readySig.veto){ final = capState(final, 'MAINTAIN'); reasons.push('readiness_veto'); }
+  if(!recSig.veto && recSig.value === -1 && final === 'PROGRESS'){ final = 'CONSOLIDATE'; reasons.push('recovery_caution'); }
+  if(!readySig.veto && readySig.value === -1 && final === 'PROGRESS'){ final = 'CONSOLIDATE'; reasons.push('readiness_caution'); }
+
+  // Both signals in veto territory is meaningful corroborated evidence
+  if(recSig.veto && readySig.veto && stateRank(final) < stateRank('BACK_OFF')){
+    final = 'BACK_OFF'; reasons.push('recovery_and_readiness_critical');
+  }
+  // Confidence gates magnitude: without confidence there is no load increase
+  if((confidence === 'low' || confidence === 'unknown') && final === 'PROGRESS'){
+    final = 'CONSOLIDATE'; reasons.push('insufficient_confidence');
+  }
+  return { final, overrideReason: reasons.length ? reasons.join(',') : null };
+}
+
+/* ---------- CONFIDENCE ---------- */
+function computeTrainerConfidence(cap, recSig, readySig, perf, capSig){
+  const order = ['unknown','low','medium','high'];
+  let level = cap.confidence ? cap.confidence.level : 'unknown';
+  if(level === 'none') level = 'unknown';
+  const penalties = [];
+
+  const demote = (why) => {
+    const i = order.indexOf(level);
+    if(i > 0){ level = order[i-1]; penalties.push(why); }
+  };
+
+  if(cap.daysSinceLast !== null && cap.daysSinceLast > TRAINER_CONFIG.evidence.staleDays) demote('stale_capability');
+  if(cap.variabilityBand === 'erratic') demote('erratic_performance');
+  if(recSig.score === null) demote('no_recovery_data');
+
+  /* Missing readiness CAPS confidence rather than demoting it (calibrated in
+     5D). Skipping the check-in is the normal state for most users; a full
+     demotion cascaded into blocking progression entirely — backtesting showed
+     it applied to 100% of events, and four clean top-of-range sessions were
+     still refused a load increase. Capping preserves the intent (don't be
+     maximally certain without knowing how they feel) without punishing
+     silence. */
+  if(!readySig.reported && order.indexOf(level) > order.indexOf('medium')){
+    level = 'medium'; penalties.push('no_readiness_checkin');
+  }
+
+  const conflict = Math.abs(perf.value - (recSig.value + readySig.value));
+  if(conflict >= TRAINER_CONFIG.conflict.widenUncertaintyAt) demote('conflicting_signals');
+
+  return { level, penalties, conflictMagnitude: conflict };
+}
+
+/* ---------- NUMBER RESOLUTION ----------
+   Exercise type decides the progression CURRENCY: load for loadable lifts,
+   reps for bodyweight/timed/cable-style work. */
+function resolveTrainerNumbers(state, cap, meta, targetRange, confidence, perf){
+  const scalar = TRAINER_CONFIG.confidence.scalar[confidence] !== undefined
+    ? TRAINER_CONFIG.confidence.scalar[confidence] : 0;
+
+  const history = getExerciseFullHistory(cap.name);
+  const lastWorking = (() => {
+    for(const s of history){
+      const w = (s.sets || [])
+        .filter(x => setTypeOf(x) !== SET_TYPES.WARMUP)
+        .map(x => parseFloat(x.weight)).filter(v => !isNaN(v) && v > 0);
+      if(w.length) return Math.max(...w);
+    }
+    return null;
+  })();
+
+  const usesLoad = !cap.isBodyweight && meta.exerciseType !== 'timed' && lastWorking !== null;
+  const out = { weight: null, repMin: targetRange.min, repMax: targetRange.max, sets: null, targetRIR: null, currency: usesLoad ? 'load' : 'reps' };
+
+  if(state === 'PROGRESS'){
+    if(usesLoad){
+      const rawStep = progressionIncrement(cap.name, lastWorking);
+      const capped = Math.min(rawStep, lastWorking * TRAINER_CONFIG.progression.maxLoadStepPct);
+      const step = capped * scalar;
+      out.weight = step > 0 ? Math.round((lastWorking + step) * 2) / 2 : lastWorking;
+      if(step <= 0) out.currency = 'reps';       // confidence removed the increase
+      out.repMin = targetRange.min;
+      out.repMax = Math.max(targetRange.min, targetRange.max - 1);
+    } else {
+      out.weight = lastWorking;
+      out.repMin = targetRange.min + TRAINER_CONFIG.progression.repProgressionStep;
+      out.repMax = targetRange.max + TRAINER_CONFIG.progression.repProgressionStep;
+    }
+    out.targetRIR = 2;
+  } else if(state === 'CONSOLIDATE'){
+    out.weight = lastWorking;
+    out.repMin = Math.min(targetRange.max, targetRange.min + 1);
+    out.repMax = targetRange.max;                // chase the top of the range
+    out.targetRIR = 2;
+  } else if(state === 'MAINTAIN'){
+    out.weight = lastWorking;
+    out.targetRIR = 2;
+  } else if(state === 'BACK_OFF'){
+    out.weight = usesLoad
+      ? Math.round(lastWorking * (1 - TRAINER_CONFIG.regression.backOffPct) * 2) / 2
+      : lastWorking;
+    out.repMin = targetRange.min;
+    out.repMax = targetRange.max;
+    out.targetRIR = 3;
+  }
+  return out;
+}
+
+/* ---------- EXPLANATION ----------
+   Composed strictly from signals that actually fired. Nothing invented. */
+function buildTrainerExplanation(state, perf, recSig, readySig, capSig, confidence, nums){
+  const bits = [];
+  if(state === 'PROGRESS') bits.push(`You've hit the top of your rep range ${perf.metTarget} session${perf.metTarget===1?'':'s'} running`);
+  else if(state === 'CONSOLIDATE') bits.push(`The load looks right, but you haven't consistently reached the top of your rep range yet`);
+  else if(state === 'MAINTAIN') bits.push(`Recent sessions have been steady`);
+  else if(state === 'BACK_OFF') bits.push(`Recent sessions have fallen short of target`);
+
+  if(recSig.value < 0) bits.push(recSig.detail);
+  if(readySig.value < 0) bits.push(readySig.detail);
+  if(state === 'PROGRESS' && recSig.value === 0 && readySig.value === 0) bits.push('recovery and readiness look fine');
+  if(confidence === 'low') bits.push('there is limited history on this lift, so this stays conservative');
+
+  const headline = nums.weight !== null
+    ? `${nums.weight} lb × ${nums.repMin}–${nums.repMax}`
+    : `${nums.repMin}–${nums.repMax} reps`;
+  return { headline, why: bits.join(', ') + '.' };
+}
+
+/* ---------- ENGINE ENTRY POINT ---------- */
+let _shadowCache = {};
+function invalidateShadowCache(){ _shadowCache = {}; }
+
+function computeShadowRecommendation(exerciseName, options){
+  const opts = options || {};
+  const name = (exerciseName || '').trim();
+  if(!name) return null;
+
+  const cacheKey = name.toLowerCase() + '|' + (opts.targetReps || '');
+  if(_shadowCache[cacheKey] !== undefined) return _shadowCache[cacheKey];
+
+  const result = (() => {
+    const cap = getExerciseCapability(name);
+    // INSUFFICIENT EVIDENCE -> no recommendation. Never a guess.
+    if(!cap) return null;
+    if(cap.sessions < TRAINER_CONFIG.evidence.minSessionsForAnyRecommendation) return null;
+
+    const meta = getExerciseMetadata(name);
+
+    /* Rep-range hierarchy (calibrated in 5D):
+         1. explicit program intent for this session
+         2. this exercise's own template range
+         3. the athlete's generic goal
+       A GENERIC GOAL MUST NOT OVERRIDE ACTUAL PROGRAMMING. Backtesting showed
+       an athlete succeeding at 315x5 being told to BACK_OFF to 293 purely
+       because their profile said "hypertrophy" (8-12) — every heavy session
+       read as a miss. */
+    const goalRange = athleteProfile.goal && TRAINING_GOALS[athleteProfile.goal]
+      ? TRAINING_GOALS[athleteProfile.goal].repRange : null;
+    let targetRange = parseRepRange(opts.targetReps || cap.typicalRepRange || goalRange);
+    if(!targetRange) return null;
+    let targetSource = opts.targetReps ? 'program' : (cap.typicalRepRange ? 'template' : 'goal');
+
+    /* Mismatch detection: if the last 3 sessions ALL sit outside the target in
+       the same direction, the target does not describe how this lift is
+       actually being trained. Trust observed behaviour over the assumed
+       target, and lower confidence because intent is being inferred. */
+    let targetMismatch = false;
+    const recentTops = getExerciseFullHistory(cap.name).slice(0, 3).map(s => {
+      const v = (s.sets || []).filter(x => setTypeOf(x) !== SET_TYPES.WARMUP)
+        .map(x => parseFloat(x.reps)).filter(r => !isNaN(r) && r > 0);
+      return v.length ? Math.max(...v) : null;
+    }).filter(v => v !== null);
+    if(recentTops.length >= 3 && recentTops.every(r => r < targetRange.min)){
+      const lo = Math.min(...recentTops), hi = Math.max(...recentTops);
+      targetRange = { min: lo, max: Math.max(hi, lo + 1) };
+      targetSource = 'observed';
+      targetMismatch = true;
+    }
+
+    const perf   = extractPerformanceSignal(cap, targetRange);
+    const capSig = extractCapabilitySignal(cap);
+    const primaryMuscles = meta.mapped && meta.primary.length ? meta.primary
+      : Object.keys(MUSCLE_MAP).filter(m => MUSCLE_MAP[m].some(kw => name.toLowerCase().includes(kw)));
+    const recSig   = extractRecoverySignal(primaryMuscles);
+    const readySig = extractReadinessSignal();
+
+    const conf = computeTrainerConfidence(cap, recSig, readySig, perf, capSig);
+    if(targetMismatch){
+      const order = ['unknown','low','medium','high'];
+      const i = order.indexOf(conf.level);
+      if(i > 0){ conf.level = order[i-1]; conf.penalties.push('inferred_rep_target'); }
+    }
+    const proposedState = proposeTrainerState(perf, capSig, cap);
+    const constrained = applyTrainerConstraints(proposedState, recSig, readySig, conf.level);
+    const finalState = constrained.final;
+
+    const nums = resolveTrainerNumbers(finalState, cap, meta, targetRange, conf.level, perf);
+    if(nums.weight === null && nums.repMin === null) return null;
+
+    const expl = buildTrainerExplanation(finalState, perf, recSig, readySig, capSig, conf.level, nums);
+
+    return {
+      engineVersion: TRAINER_ENGINE_VERSION,
+      mode: 'shadow',
+      exerciseId: resolveExerciseId(name),
+      exerciseName: name,
+      proposedState,
+      finalState,
+      overrideReason: constrained.overrideReason,
+      weight: nums.weight,
+      repMin: nums.repMin,
+      repMax: nums.repMax,
+      sets: opts.plannedSets || null,
+      targetRIR: nums.targetRIR,
+      confidence: conf.level,
+      reason: expl.why,
+      headline: expl.headline,
+      progressionCurrency: nums.currency,
+      trace: {
+        goalSignal: athleteProfile.goal || 'unknown',
+        exerciseType: meta.exerciseType || cap.exerciseType,
+        targetRange: `${targetRange.min}-${targetRange.max}`,
+        targetSource,
+        targetMismatch,
+        performanceSignal: perf.value,
+        performanceDetail: perf.detail,
+        capabilitySignal: capSig.value,
+        recoverySignal: recSig.value,
+        recoveryScore: recSig.score,
+        readinessSignal: readySig.value,
+        readinessScore: readySig.score,
+        vetoes: [recSig.veto ? 'recovery' : null, readySig.veto ? 'readiness' : null].filter(Boolean),
+        conflictMagnitude: conf.conflictMagnitude,
+        confidencePenalties: conf.penalties,
+        capabilitySessions: cap.sessions,
+        capabilityState: cap.capabilityState,
+        proposedState,
+        finalState
+      }
+    };
+  })();
+
+  _shadowCache[cacheKey] = result;
+  return result;
+}
+
+/* Replaces the Phase 5B stub. Still logged-only — nothing consumes the output. */
+function generateShadowRecommendation(context){
+  if(!context || !context.exerciseName) return null;
+  return computeShadowRecommendation(context.exerciseName, context);
+}
+
+/* Runs the engine across today's planned workout and logs each result.
+   Called explicitly, never on render. */
+async function runShadowForWorkout(category){
+  if(!SHADOW_MODE_ENABLED) return [];
+  const templates = getTemplates(category) || [];
+  const tpl = templates[0];
+  if(!tpl) return [];
+  const ids = [];
+  for(const ex of (tpl.exercises || [])){
+    const rec = computeShadowRecommendation(ex.name, { targetReps: ex.reps, plannedSets: ex.sets });
+    if(!rec) continue;                         // insufficient evidence -> silent
+    ids.push(await logRecommendation(rec));
+  }
+  return ids;
+}
+
+/* =========================================================
+   PERSONAL SHADOW OBSERVATION  (Phase 5E-A)
+   ---------------------------------------------------------
+   Lets the engine watch real training without touching it.
+
+   Sequence:
+     workout opens  -> recommendation generated and logged
+                       (BEFORE any set is performed)
+     workout saved  -> actual outcome linked to that record
+     optional       -> one-tap TOO EASY / RIGHT / TOO HARD
+
+   Strict non-enforcement: the recommendation is attached to
+   the exercise row as a data attribute only. No input value
+   is ever written from it, and the normal workout UI is
+   unchanged apart from the optional feedback chips.
+
+   All feedback and outcomes are written to trainerLog. NOTHING
+   here writes to workoutLog — user history stays byte-identical
+   in shape.
+   ========================================================= */
+
+const FEEDBACK_VALUES = { EASY:'too_easy', RIGHT:'right', HARD:'too_hard' };
+
+/* Called when a workout sheet is opened, before any set is logged.
+   Timestamped at generation so later checkpoints stay distinguishable. */
+async function captureShadowForOpenWorkout(){
+  if(!SHADOW_MODE_ENABLED) return 0;
+  const rows = document.querySelectorAll('#logExercises .ex-log-row');
+  let logged = 0;
+  for(const row of rows){
+    const nameEl = row.querySelector('.ex-name-in');
+    const name = nameEl ? nameEl.value.trim() : '';
+    if(!name) continue;
+    if(row.dataset.shadowRecId) continue;              // never duplicate per row
+
+    const meta = row.dataset.meta ? (()=>{ try{ return JSON.parse(row.dataset.meta); }catch(e){ return null; } })() : null;
+    const rec = computeShadowRecommendation(name, {
+      targetReps: meta && meta.targetReps ? meta.targetReps : null,
+      plannedSets: meta && meta.targetSets ? parseInt(meta.targetSets) : null
+    });
+    if(!rec) continue;                                  // ineligible -> silent, no guess
+
+    const id = await logRecommendation(Object.assign({}, rec, { mode:'shadow-live' }));
+    row.dataset.shadowRecId = id;
+    logged++;
+  }
+  return logged;
+}
+
+/* Called at save time. Records what actually happened against the prediction.
+   Makes no judgement — Phase 5F evaluates. */
+async function linkShadowOutcomes(workoutId){
+  /* TWO PHASES. Phase 1 reads every row SYNCHRONOUSLY — saveLog calls this
+     without awaiting and then immediately tears the sheet down, so any await
+     before the DOM is fully read would lose the remaining rows. Phase 2 does
+     the async writes against the captured snapshot. */
+  const snapshot = [];
+  document.querySelectorAll('#logExercises .ex-log-row').forEach(row => {
+    const recId = row.dataset.shadowRecId || null;
+    const feedback = row.dataset.shadowFeedback || null;
+    if(!recId && !feedback) return;
+    const nameEl = row.querySelector('.ex-name-in');
+    const bwEl = row.querySelector('.ex-bw-in');
+    const sets = [];
+    row.querySelectorAll('.set-row').forEach(sr => {
+      if(sr.dataset.setType === SET_TYPES.WARMUP) return;      // working sets only
+      const w = parseFloat(sr.querySelector('.set-weight-in').value);
+      const r = parseFloat(sr.querySelector('.set-reps-in').value);
+      const rir = parseFloat(sr.querySelector('.set-rir-in').value);
+      if(isNaN(r) || r <= 0) return;
+      sets.push({ weight: isNaN(w) ? null : w, reps: r, rir: isNaN(rir) ? null : rir,
+                  completed: sr.classList.contains('completed') });
+    });
+    snapshot.push({ recId, feedback, name: nameEl ? nameEl.value.trim() : '',
+                    bodyweight: bwEl ? bwEl.checked : false, sets });
+  });
+
+  for(const item of snapshot){
+    if(!item.sets.length && !item.feedback) continue;
+    const weights = item.sets.map(s => s.weight).filter(v => v !== null);
+    const rirs = item.sets.map(s => s.rir).filter(v => v !== null);
+    const topWeight = weights.length ? Math.max(...weights) : null;
+    const topReps = item.sets.length ? Math.max(...item.sets.map(s => s.reps)) : null;
+    const avgRir = rirs.length ? Math.round((rirs.reduce((a,b)=>a+b,0)/rirs.length)*10)/10 : null;
+
+    if(item.recId){
+      const rec = getRecommendation(item.recId);
+      let userAction = 'unknown';
+      if(rec && rec.recommended.weight !== null && topWeight !== null){
+        userAction = Math.abs(topWeight - rec.recommended.weight) < 0.01 ? 'accepted' : 'modified';
+      } else if(rec && rec.recommended.weight === null){
+        userAction = 'not_applicable';
+      }
+      await linkRecommendationOutcome(item.recId, {
+        workoutId, actualWeight: topWeight, actualReps: topReps, actualRIR: avgRir,
+        actualSets: item.sets.length, completed: item.sets.some(s => s.completed),
+        userAction,
+        /* RIR and explicit feedback kept SEPARATE — neither overwrites the
+           other, so aligned/conflicting signals stay visible. */
+        userFeedback: item.feedback, bodyweight: item.bodyweight, setDetail: item.sets
+      });
+    } else if(item.feedback){
+      // Feedback with no recommendation is still evidence about capability
+      const fid = await logRecommendation({
+        mode: 'feedback-only', exerciseName: item.name, exerciseId: resolveExerciseId(item.name)
+      });
+      await linkRecommendationOutcome(fid, {
+        workoutId, actualWeight: topWeight, actualReps: topReps, actualRIR: avgRir,
+        actualSets: item.sets.length, completed: true, userAction: 'no_recommendation',
+        userFeedback: item.feedback, bodyweight: item.bodyweight, setDetail: item.sets
+      });
+    }
+  }
+  return snapshot.length;
+}
+
+/* One tap, optional, skippable. Toggling the same chip clears it. */
+function setExerciseFeedback(el, value){
+  const row = el.closest('.ex-log-row');
+  if(!row) return;
+  const current = row.dataset.shadowFeedback || '';
+  const next = current === value ? '' : value;
+  if(next) row.dataset.shadowFeedback = next; else delete row.dataset.shadowFeedback;
+  row.querySelectorAll('.fb-chip').forEach(c => c.classList.toggle('on', c.dataset.fb === next));
+  persistDraftNow();
+}
+
+function feedbackStripHtml(current){
+  const c = current || '';
+  const chip = (v,l) => `<button type="button" class="fb-chip ${c===v?'on':''}" data-fb="${v}" onclick="setExerciseFeedback(this,'${v}')">${l}</button>`;
+  return `<div class="fb-strip" aria-label="How did that feel?">
+    <span class="fb-label">How'd it feel?</span>
+    ${chip(FEEDBACK_VALUES.EASY,'Too easy')}${chip(FEEDBACK_VALUES.RIGHT,'Right')}${chip(FEEDBACK_VALUES.HARD,'Too hard')}
+  </div>`;
+}
+
+/* Revealed only after a set is actually completed, so it never clutters an
+   untouched workout. */
+function revealFeedbackStrip(row){
+  if(!row || row.querySelector('.fb-strip')) return;
+  const anyComplete = row.querySelector('.set-row.completed');
+  if(!anyComplete) return;
+  const setsList = row.querySelector('.sets-list');
+  if(!setsList) return;
+  setsList.insertAdjacentHTML('afterend', feedbackStripHtml(row.dataset.shadowFeedback));
+}
+
+/* ---------- REAL-WORLD METRICS ----------
+   Multi-dimensional by design. Deliberately NOT reduced to one accuracy
+   percentage, and every dimension reports its own sample size so thin
+   evidence is visible rather than hidden behind a number. */
+function shadowLoadTolerance(recWeight, exerciseType){
+  /* Tolerance scales with load and equipment granularity: 5 lb on a 315 squat
+     is noise, 5 lb on a 40 lb curl is 12%. Provisional — thresholds should be
+     revisited once real evidence exists. */
+  if(recWeight === null) return null;
+  const pct = recWeight * 0.035;
+  const floorByType = { compound_barbell:5, compound_dumbbell:5, machine:5, cable:2.5, isolation:2.5 };
+  return Math.max(floorByType[exerciseType] !== undefined ? floorByType[exerciseType] : 2.5, pct);
+}
+
+function computeShadowMetrics(){
+  const entries = trainerLog.entries.filter(e => e.outcome !== null);
+  const withRec = entries.filter(e => e.recommended && e.recommended.weight !== null);
+
+  const tally = (arr, fn) => arr.reduce((a,x) => { const k = fn(x); if(k===null||k===undefined) return a; a[k]=(a[k]||0)+1; return a; }, {});
+
+  const loadAgreement = withRec.map(e => {
+    const tol = shadowLoadTolerance(e.recommended.weight, e.trace ? e.trace.exerciseType : null);
+    if(tol === null || e.outcome.actualWeight === null) return null;
+    const d = e.outcome.actualWeight - e.recommended.weight;
+    if(Math.abs(d) <= tol) return 'within_tolerance';
+    return d > 0 ? 'user_went_heavier' : 'user_went_lighter';
+  }).filter(Boolean);
+
+  return {
+    engineVersions: tally(trainerLog.entries, e => e.engineVersion),
+    totalRecommendations: trainerLog.entries.length,
+    withLinkedOutcome: entries.length,
+    pending: trainerLog.entries.length - entries.length,
+
+    stateDistribution: tally(trainerLog.entries, e => e.finalState),
+    confidenceDistribution: tally(trainerLog.entries, e => e.confidence),
+    overrideRate: (() => {
+      const withStates = trainerLog.entries.filter(e => e.proposedState && e.finalState);
+      if(!withStates.length) return null;
+      return Math.round(withStates.filter(e => e.proposedState !== e.finalState).length / withStates.length * 100);
+    })(),
+
+    userAction: tally(entries, e => e.outcome.userAction),
+    feedback: tally(entries, e => e.outcome.userFeedback),
+
+    loadAgreement: {
+      sample: loadAgreement.length,
+      counts: loadAgreement.reduce((a,k) => { a[k]=(a[k]||0)+1; return a; }, {})
+    },
+
+    /* Do the two effort signals agree? Neither overwrites the other. */
+    rirVsFeedback: (() => {
+      const both = entries.filter(e => e.outcome.userFeedback && e.outcome.actualRIR !== null);
+      return {
+        sample: both.length,
+        aligned: both.filter(e =>
+          (e.outcome.userFeedback === FEEDBACK_VALUES.EASY && e.outcome.actualRIR >= 3) ||
+          (e.outcome.userFeedback === FEEDBACK_VALUES.HARD && e.outcome.actualRIR <= 1) ||
+          (e.outcome.userFeedback === FEEDBACK_VALUES.RIGHT && e.outcome.actualRIR >= 1 && e.outcome.actualRIR <= 3)
+        ).length
+      };
+    })(),
+
+    byState: ['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF'].reduce((acc, st) => {
+      const rows = entries.filter(e => e.finalState === st);
+      acc[st] = {
+        sample: rows.length,
+        feedback: tally(rows, e => e.outcome.userFeedback),
+        userAction: tally(rows, e => e.outcome.userAction)
+      };
+      return acc;
+    }, {}),
+
+    note: 'Descriptive only. No accuracy claim is made or implied at this stage.'
+  };
+}
+
+/* =========================================================
+   TRAINER EVALUATION & REPLAY  (Phase 5D)
+   ---------------------------------------------------------
+   Analysis only. Runs the shadow engine retrospectively to
+   judge whether its decisions were sensible, using ONLY the
+   information that existed at each simulated moment.
+
+   LOOKAHEAD PREVENTION is the central design constraint. Every
+   derived system in LOOP (capability, recovery, PRs, trends,
+   readiness) reads the same two globals — workoutLog and
+   dailyReadiness. So rather than building replay-aware clones
+   of a dozen functions (each a chance to leak), replay
+   temporarily SUBSTITUTES those globals with a strictly
+   pre-cutoff slice and clears every cache. Nothing downstream
+   can see the future because the future is not in memory.
+
+   Read-only with respect to user data: originals are restored
+   in a finally block, and the replay never writes.
+   ========================================================= */
+
+/* Replay fidelity: derived systems compute "days since" against wall-clock
+   time, which makes every historical event look stale during a backtest.
+   trainerNow() returns the simulated date while replaying and the real date
+   otherwise, so live behaviour is bit-for-bit unchanged (_simulatedNow stays
+   null outside withHistoricalContext). */
+let _simulatedNow = null;
+function trainerNow(){ return _simulatedNow ? new Date(_simulatedNow) : new Date(); }
+
+const REPLAY_CONFIG = {
+  minPriorSessions: 2,        // matches engine's own evidence floor
+  magnitudeToleranceLb: 5,    // |recommended - actual| within this = aligned
+  consolidateFollowupWindow: 3 // sessions to look ahead when judging CONSOLIDATE
+};
+
+/* Runs fn() in a world where nothing after `cutoffDate` exists.
+   Strictly-before semantics: a workout ON the cutoff date is the event being
+   predicted, so it must not be visible to the prediction. */
+function withHistoricalContext(cutoffDate, fn){
+  const realLog = workoutLog;
+  const realReadiness = dailyReadiness;
+  const clearAll = () => {
+    invalidateSortedLogCache(); invalidateXPTimelineCache(); invalidateConsistencyCache();
+    invalidateCapabilityCache(); invalidateContextCache(); invalidateRecoveryCache();
+    invalidateShadowCache(); invalidateRepRangeCache(); invalidateExerciseIdCache();
+  };
+  try{
+    _simulatedNow = cutoffDate + 'T12:00:00';
+    workoutLog = realLog.filter(w => w.date < cutoffDate);
+    dailyReadiness = {};
+    Object.keys(realReadiness).forEach(d => { if(d < cutoffDate) dailyReadiness[d] = realReadiness[d]; });
+    clearAll();
+    return fn();
+  } finally {
+    _simulatedNow = null;
+    workoutLog = realLog;
+    dailyReadiness = realReadiness;
+    clearAll();
+  }
+}
+
+/* What the athlete actually did for one exercise in one session. */
+function actualPerformance(exercise){
+  const valid = (exercise.sets || [])
+    .map(s => ({ w: parseFloat(s.weight), r: parseFloat(s.reps), rir: parseFloat(s.rir), type: setTypeOf(s) }))
+    .filter(x => !isNaN(x.r) && x.r > 0 && x.type !== SET_TYPES.WARMUP);
+  if(!valid.length) return null;
+  const weighted = valid.filter(x => !isNaN(x.w) && x.w > 0);
+  const rirs = valid.map(x => x.rir).filter(v => !isNaN(v));
+  return {
+    topWeight: weighted.length ? Math.max(...weighted.map(x => x.w)) : null,
+    topReps: Math.max(...valid.map(x => x.r)),
+    sets: valid.length,
+    avgRir: rirs.length ? rirs.reduce((a,b)=>a+b,0)/rirs.length : null
+  };
+}
+
+/* Judgement is deliberately hedged. RIR and rep achievement are used to
+   distinguish "conservative" from "wrong", and UNCLEAR is a real verdict. */
+function classifyOutcome(rec, actual, priorWeight){
+  if(!rec || !actual) return { verdict:'UNCLEAR', note:'missing data' };
+  const recW = rec.weight, actW = actual.topWeight;
+  if(recW === null || actW === null) return { verdict:'UNCLEAR', note:'no load data' };
+
+  const diff = actW - recW;
+  const within = Math.abs(diff) <= REPLAY_CONFIG.magnitudeToleranceLb;
+  const hitReps = actual.topReps >= rec.repMin;
+  const hadHeadroom = actual.avgRir !== null && actual.avgRir >= 2;
+
+  if(within && hitReps) return { verdict:'LIKELY_APPROPRIATE', note:'load matched and reps met', diff };
+
+  if(diff > REPLAY_CONFIG.magnitudeToleranceLb){
+    // athlete used MORE than recommended and succeeded -> engine under-called
+    return hitReps
+      ? { verdict:'POSSIBLY_TOO_CONSERVATIVE', note:`athlete used ${diff} lb more and still hit reps`, diff }
+      : { verdict:'UNCLEAR', note:'athlete went heavier but missed reps', diff };
+  }
+  if(diff < -REPLAY_CONFIG.magnitudeToleranceLb){
+    // athlete used LESS than recommended
+    if(hitReps && hadHeadroom) return { verdict:'POSSIBLY_TOO_AGGRESSIVE', note:`athlete chose ${Math.abs(diff)} lb less, hit reps with RIR to spare`, diff };
+    return { verdict:'UNCLEAR', note:'athlete used less; intent unknown', diff };
+  }
+  if(!hitReps){
+    // Going HEAVIER than recommended and doing fewer reps is the athlete
+    // choosing a different rep target, not the engine over-reaching.
+    if(diff > 0) return { verdict:'UNCLEAR', note:'athlete went heavier for fewer reps', diff };
+    return { verdict:'POSSIBLY_TOO_AGGRESSIVE', note:'load matched but reps missed', diff };
+  }
+  return { verdict:'UNCLEAR', note:'no clear signal', diff };
+}
+
+/* Main backtest. Walks every historical session chronologically and asks the
+   engine what it would have said BEFORE that session happened. */
+function runHistoricalReplay(options){
+  const opts = options || {};
+  const chrono = [...workoutLog].sort((a,b) => a.date.localeCompare(b.date));
+  const events = [], skipped = { insufficientEvidence:0, noActual:0 };
+
+  chrono.forEach(session => {
+    (session.exercises || []).forEach(ex => {
+      const name = (ex.name || '').trim();
+      if(!name) return;
+      const actual = actualPerformance(ex);
+      if(!actual){ skipped.noActual++; return; }
+
+      const rec = withHistoricalContext(session.date, () =>
+        computeShadowRecommendation(name, { targetReps: opts.targetReps || null })
+      );
+      if(!rec){ skipped.insufficientEvidence++; return; }
+
+      events.push({
+        date: session.date,
+        workoutId: session.id,
+        exerciseName: name,
+        exerciseId: rec.exerciseId,
+        proposedState: rec.proposedState,
+        finalState: rec.finalState,
+        overrideReason: rec.overrideReason,
+        confidence: rec.confidence,
+        recommended: { weight: rec.weight, repMin: rec.repMin, repMax: rec.repMax },
+        actual,
+        outcome: classifyOutcome(rec, actual),
+        trace: rec.trace
+      });
+    });
+  });
+  return { events, skipped, totalSessions: chrono.length };
+}
+
+/* ---------- ANALYSIS ---------- */
+function analyzeReplay(replay){
+  const ev = replay.events;
+  const tally = (arr, key) => arr.reduce((a,x) => { const k = typeof key==='function'?key(x):x[key]; a[k]=(a[k]||0)+1; return a; }, {});
+
+  const byState = tally(ev, 'finalState');
+  const byVerdict = tally(ev, e => e.outcome.verdict);
+  const byConfidence = tally(ev, 'confidence');
+  const overrides = ev.filter(e => e.proposedState !== e.finalState);
+  const overrideReasons = tally(overrides, e => e.overrideReason || 'none');
+
+  /* Why did CONSOLIDATE fire? Grouping by cause is the only way to tell a
+     useful consolidation from a sticky one. */
+  const consolidates = ev.filter(e => e.finalState === 'CONSOLIDATE');
+  const consolidateCauses = tally(consolidates, e => {
+    if(e.overrideReason) return 'constrained:' + e.overrideReason;
+    if(e.confidence === 'low' || e.confidence === 'unknown') return 'low_confidence';
+    if(e.trace && e.trace.performanceSignal >= 2) return 'hitting_top_but_no_headroom';
+    return 'insufficient_top_of_range_evidence';
+  });
+
+  /* Did CONSOLIDATE actually precede progression? The key question for
+     judging whether the state earns its place. */
+  const consolidateFollowups = consolidates.map(c => {
+    const later = ev.filter(e => e.exerciseName === c.exerciseName && e.date > c.date)
+      .sort((a,b) => a.date.localeCompare(b.date))
+      .slice(0, REPLAY_CONFIG.consolidateFollowupWindow);
+    if(!later.length) return 'no_followup';
+    if(later.some(l => l.finalState === 'PROGRESS')) return 'led_to_progress';
+    if(later.some(l => l.actual.topWeight > c.actual.topWeight)) return 'athlete_progressed_anyway';
+    if(later.some(l => l.actual.topReps > c.actual.topReps)) return 'reps_improved';
+    if(later.every(l => l.finalState === 'CONSOLIDATE')) return 'stuck_consolidating';
+    return 'other';
+  });
+  const consolidateOutcomes = tally(consolidateFollowups.map(v => ({v})), 'v');
+
+  const progresses = ev.filter(e => e.finalState === 'PROGRESS');
+  const backoffs = ev.filter(e => e.finalState === 'BACK_OFF');
+
+  return {
+    eventCount: ev.length,
+    skipped: replay.skipped,
+    byState, byVerdict, byConfidence,
+    overrideCount: overrides.length,
+    overrideRate: ev.length ? Math.round(overrides.length/ev.length*100) : 0,
+    overrideReasons,
+    consolidate: { count: consolidates.length, causes: consolidateCauses, followups: consolidateOutcomes },
+    progress: {
+      count: progresses.length,
+      verdicts: tally(progresses, e => e.outcome.verdict),
+      avgIncreaseLb: progresses.length
+        ? Math.round(progresses.reduce((n,e)=> n + (e.recommended.weight && e.actual.topWeight ? e.recommended.weight - e.actual.topWeight : 0),0)/progresses.length*10)/10
+        : null
+    },
+    backOff: { count: backoffs.length, verdicts: tally(backoffs, e => e.outcome.verdict) },
+    conservatismRate: ev.length ? Math.round((byVerdict.POSSIBLY_TOO_CONSERVATIVE||0)/ev.length*100) : 0,
+    overreachRate: ev.length ? Math.round((byVerdict.POSSIBLY_TOO_AGGRESSIVE||0)/ev.length*100) : 0
+  };
+}
+
 let selectedConsistencyWeek = null;
 let selectedConsistencyDay = null;
 
@@ -4883,6 +5830,7 @@ function renderToday(){
 
   renderResumeBanner();     // also refreshes the CTA via hasActiveDraftNow
   renderMissedBanner();
+  renderReadinessCard();
   renderTodayWorkout();
   renderSnapshot();
   renderTodayInsights();
@@ -6031,6 +6979,387 @@ function selectPerfWeek(i){
    nothing existing is reshaped.
    ========================================================= */
 
+/* =========================================================
+   DAILY READINESS
+   ---------------------------------------------------------
+   Pure data collection and presentation. This layer NEVER
+   touches workoutLog, XP, PRs, plans, or the progression
+   engine — it only informs computeTrainingContext(), which is
+   itself read-only groundwork for a future adaptive engine
+   that does not exist yet.
+
+   Storage: one key, one JSON object keyed by date
+   ('YYYY-MM-DD' -> entry). Checking in again the same day
+   overwrites that day's entry rather than creating a new
+   record; every other date is untouched, so history is
+   preserved automatically by construction.
+   ========================================================= */
+/* =========================================================
+   MUSCLE RECOVERY ENGINE
+   ---------------------------------------------------------
+   OBSERVATIONAL ONLY. Estimates how much recent training
+   stress each muscle group has accumulated. It reads
+   workoutLog and nothing else, and it does not influence
+   weights, reps, sets, exercise selection, plans, XP, or PRs.
+
+   This is a TRAINING-LOAD ESTIMATE, not a physiological
+   measurement. It has no access to sleep, nutrition, age,
+   hormones, or actual tissue state, and it should never be
+   described as measuring real recovery.
+
+   Kept deliberately separate from Daily Readiness:
+     RECOVERY  = "how much stress has this muscle taken?"  (derived from logs)
+     READINESS = "how does the athlete feel today?"        (self-reported)
+   The future adaptive engine will combine them. Nothing here does.
+   ========================================================= */
+
+/* All tunables live here so a future engine can retune the model without
+   touching call sites. Nothing below hard-codes these numbers. */
+const RECOVERY_CONFIG = {
+  halfLifeDays: 2.0,       // accumulated stress halves every N days
+  windowDays: 14,          // sessions older than this contribute ~0 anyway
+  primaryWeight: 1.0,      // full contribution to the muscle a lift targets
+  secondaryWeight: 0.4,    // conservative contribution to assisting muscles
+  warmupRatio: 0.55,       // sets under this share of the session top load…
+  warmupWeight: 0.25,      // …count only fractionally (see note below)
+  saturationSets: 18,      // decayed set-equivalents mapping to ~0% recovery
+  thresholds: { high: 90, well: 75, moderate: 50, low: 25 }
+};
+
+/* EXTENDS the existing MUSCLE_MAP rather than replacing it. MUSCLE_MAP stays
+   the single source of truth for PRIMARY targeting; this adds the assisting
+   muscles it doesn't capture (e.g. bench press reaching triceps and front
+   delts). A muscle matched as primary always wins over a secondary match. */
+const SECONDARY_MUSCLE_MAP = {
+  triceps:    ['bench press','chest press','incline press','decline press','overhead press','shoulder press','push press','push-up','push up','floor press','landmine press'],
+  shoulders:  ['bench press','incline press','chest press','push-up','push up','floor press','dip'],
+  chest:      ['dip'],
+  biceps:     ['row','pulldown','pull-up','pull up','lat pull','chin'],
+  back:       ['romanian deadlift','rdl','good morning','shrug'],
+  hamstrings: ['squat','lunge','leg press','hip thrust','step-up','split squat'],
+  glutes:     ['romanian deadlift','rdl','good morning','leg press','step-up','split squat'],
+  quads:      ['deadlift'],
+  abs:        ['squat','deadlift','overhead press','front squat','farmer','carry'],
+  calves:     ['squat','lunge','leg press','box jump','step-up']
+};
+
+function musclesForExercise(name){
+  const n = (name || '').toLowerCase();
+  const primary = [], secondary = [];
+  Object.keys(MUSCLE_MAP).forEach(m => {
+    if(MUSCLE_MAP[m].some(kw => n.includes(kw))) primary.push(m);
+  });
+  Object.keys(SECONDARY_MUSCLE_MAP).forEach(m => {
+    if(primary.indexOf(m) !== -1) return;           // primary always wins
+    if(SECONDARY_MUSCLE_MAP[m].some(kw => n.includes(kw))) secondary.push(m);
+  });
+  return { primary, secondary };
+}
+
+/* LOOP does not record set type — warm-up sets shown during logging are
+   suggestions, not stored data. So warm-ups are INFERRED from relative load:
+   a set well below the session's top weight for that exercise is treated as
+   a ramp-up and contributes only fractionally. This is a heuristic, not a
+   fact about the set, and it deliberately errs toward counting sets fully. */
+function setLoadFactor(setObj, topWeight, isBodyweight){
+  const reps = parseFloat(setObj.reps);
+  if(isNaN(reps) || reps <= 0) return 0;            // unlogged set = no stress
+
+  /* Phase 5B: an EXPLICIT set type is ground truth and always wins. Only when
+     the type is unknown (all historical data) do we fall back to the relative-
+     load heuristic, so results for existing history are unchanged. */
+  const declared = typeof setTypeOf === 'function' ? setTypeOf(setObj) : null;
+  if(declared === 'warmup') return RECOVERY_CONFIG.warmupWeight;
+  if(declared === 'working') return 1;
+
+  if(isBodyweight || !topWeight) return 1;
+  const w = parseFloat(setObj.weight);
+  if(isNaN(w) || w <= 0) return 1;
+  return (w / topWeight) < RECOVERY_CONFIG.warmupRatio
+    ? RECOVERY_CONFIG.warmupWeight : 1;
+}
+
+/* Exponential decay: a session yesterday counts far more than one last week.
+   Deterministic, no randomness. */
+function recencyDecay(daysAgo){
+  return Math.pow(0.5, Math.max(0, daysAgo) / RECOVERY_CONFIG.halfLifeDays);
+}
+
+let _recoveryCache = null;
+function invalidateRecoveryCache(){ _recoveryCache = null; }
+
+/* Core model. Walks only COMPLETED workouts (workoutLog); an in-progress
+   draft is not part of workoutLog and therefore contributes nothing until
+   the session is actually finished. */
+function computeMuscleRecovery(){
+  if(_recoveryCache) return _recoveryCache;
+
+  const now = trainerNow();
+  const muscles = Object.keys(MUSCLE_MAP);
+  const acc = {};
+  muscles.forEach(m => { acc[m] = { load: 0, rawSets: 0, sessions: 0, lastTrainedDays: null, lastTrainedDate: null }; });
+
+  const cutoff = new Date(now); cutoff.setDate(now.getDate() - RECOVERY_CONFIG.windowDays);
+
+  workoutLog.forEach(entry => {
+    const d = new Date(entry.date + 'T00:00:00');
+    if(isNaN(d)) return;
+    const daysAgo = Math.max(0, (now - d) / 86400000);
+    const inWindow = d >= cutoff;
+    const decay = recencyDecay(daysAgo);
+    const touched = {};
+
+    (entry.exercises || []).forEach(ex => {
+      const { primary, secondary } = musclesForExercise(ex.name);
+      if(!primary.length && !secondary.length) return;
+
+      const sets = ex.sets || [];
+      const weights = sets.map(s => parseFloat(s.weight)).filter(v => !isNaN(v) && v > 0);
+      const topWeight = weights.length ? Math.max(...weights) : null;
+
+      let sessionLoad = 0, working = 0;
+      sets.forEach(s => {
+        const f = setLoadFactor(s, topWeight, !!ex.bodyweight);
+        if(f > 0){ sessionLoad += f; working += 1; }
+      });
+      if(sessionLoad === 0) return;
+
+      const applyTo = (list, weight) => list.forEach(m => {
+        if(inWindow) acc[m].load += sessionLoad * weight * decay;
+        acc[m].rawSets += working * weight;
+        touched[m] = true;
+        if(acc[m].lastTrainedDays === null || daysAgo < acc[m].lastTrainedDays){
+          acc[m].lastTrainedDays = daysAgo;
+          acc[m].lastTrainedDate = entry.date;
+        }
+      });
+      applyTo(primary,   RECOVERY_CONFIG.primaryWeight);
+      applyTo(secondary, RECOVERY_CONFIG.secondaryWeight);
+    });
+
+    Object.keys(touched).forEach(m => { if(inWindow) acc[m].sessions += 1; });
+  });
+
+  const out = {};
+  muscles.forEach(m => {
+    const a = acc[m];
+    const saturation = Math.min(1, a.load / RECOVERY_CONFIG.saturationSets);
+    const score = a.lastTrainedDays === null ? null : Math.round(100 * (1 - saturation));
+    out[m] = {
+      muscle: m,
+      label: MUSCLE_LABELS[m] || m,
+      score,
+      state: recoveryStateFromScore(score),
+      load: Math.round(a.load * 10) / 10,
+      recentSets: Math.round(a.rawSets),
+      sessions: a.sessions,
+      lastTrainedDays: a.lastTrainedDays === null ? null : Math.round(a.lastTrainedDays * 10) / 10,
+      lastTrainedDate: a.lastTrainedDate,
+      confidence: recoveryConfidence(a.sessions, a.lastTrainedDays)
+    };
+  });
+  _recoveryCache = out;
+  return out;
+}
+
+function recoveryStateFromScore(score){
+  if(score === null || score === undefined) return 'unknown';
+  const t = RECOVERY_CONFIG.thresholds;
+  if(score >= t.high) return 'high';
+  if(score >= t.well) return 'well';
+  if(score >= t.moderate) return 'moderate';
+  if(score >= t.low) return 'low';
+  return 'verylow';
+}
+const RECOVERY_STATE_LABEL = {
+  high:'Highly recovered', well:'Well recovered', moderate:'Moderately recovered',
+  low:'Low recovery', verylow:'Very low recovery', unknown:'Not enough data'
+};
+
+/* Confidence reflects how much evidence backs the estimate — never how
+   certain the model is that it's physiologically right. */
+function recoveryConfidence(sessionsInWindow, lastTrainedDays){
+  if(lastTrainedDays === null) return { level:'unknown', label:'No data' };
+  if(lastTrainedDays > RECOVERY_CONFIG.windowDays) return { level:'low', label:'Low — no recent training' };
+  if(sessionsInWindow >= 4) return { level:'high',   label:'High' };
+  if(sessionsInWindow >= 2) return { level:'medium', label:'Medium' };
+  return { level:'low', label:'Low' };
+}
+
+/* ---------- FUTURE TRAINER INTERFACE ----------
+   Clean read-only accessors. None of these mutate anything. */
+function getAllMuscleRecovery(){ return computeMuscleRecovery(); }
+function getMuscleRecovery(muscle){ return computeMuscleRecovery()[muscle] || null; }
+function getRecentTrainingLoad(muscle){ const r = getMuscleRecovery(muscle); return r ? r.load : null; }
+function getLastTrained(muscle){ const r = getMuscleRecovery(muscle); return r ? r.lastTrainedDays : null; }
+function getRecoveryConfidence(muscle){ const r = getMuscleRecovery(muscle); return r ? r.confidence : null; }
+function getMostFatiguedMuscles(n){
+  return Object.values(computeMuscleRecovery())
+    .filter(r => r.score !== null)
+    .sort((a,b) => a.score - b.score)
+    .slice(0, n || 3);
+}
+function getMostRecoveredMuscles(n){
+  return Object.values(computeMuscleRecovery())
+    .filter(r => r.score !== null)
+    .sort((a,b) => b.score - a.score)
+    .slice(0, n || 3);
+}
+
+const READINESS_KEY = 'dailyReadiness';
+let dailyReadiness = {};
+
+/* Each option carries a 0/1/2 value for scoring. Soreness and stress are
+   listed HIGH-first in the UI (matching how you'd naturally say them) but
+   scored so that HIGH soreness/stress = 0 (worse for readiness) — direction
+   matters, order of display doesn't have to match order of value. */
+const READINESS_OPTIONS = {
+  energy:       [{k:'low',l:'Low',v:0},   {k:'normal',l:'Normal',v:1}, {k:'high',l:'High',v:2}],
+  soreness:     [{k:'low',l:'Low',v:2},   {k:'moderate',l:'Moderate',v:1}, {k:'high',l:'High',v:0}],
+  sleep:        [{k:'poor',l:'Poor',v:0}, {k:'okay',l:'Okay',v:1},     {k:'good',l:'Good',v:2}],
+  stress:       [{k:'low',l:'Low',v:2},   {k:'normal',l:'Normal',v:1}, {k:'high',l:'High',v:0}],
+  trainingFeel: [{k:'easy',l:'Take It Easy',v:0}, {k:'normal',l:'Normal',v:1}, {k:'push',l:'Ready to Push',v:2}]
+};
+const READINESS_FIELDS = [
+  { key:'energy',       label:'Energy' },
+  { key:'soreness',     label:'Soreness' },
+  { key:'sleep',        label:'Sleep' },
+  { key:'stress',        label:'Stress' },
+  { key:'trainingFeel', label:'Training Feel' }
+];
+
+/* Weights sum to 1.0. Sleep and energy weighted highest as the most direct
+   proxies for today's physical capacity; soreness next as a localized
+   recovery signal; stress and the athlete's own gut-check weighted lower
+   since they're more diffuse / already partly reflected in the others.
+   Documented here deliberately — a future engine should be able to retune
+   these without touching anything else. */
+const READINESS_WEIGHTS = { sleep:0.25, energy:0.25, soreness:0.20, stress:0.15, trainingFeel:0.15 };
+
+/* Deterministic, no randomness. Only answered fields count, re-normalized
+   against just those fields' weights — so checking in on 2 of 5 questions
+   still produces an honest score for what was actually reported, rather
+   than one artificially dragged down by fields left blank. Returns null
+   if nothing was answered — never fabricates a number from silence. */
+function calculateReadinessScore(entry){
+  if(!entry) return null;
+  let weightedSum = 0, weightTotal = 0;
+  READINESS_FIELDS.forEach(f => {
+    const val = entry[f.key];
+    if(!val) return;
+    const opt = READINESS_OPTIONS[f.key].find(o => o.k === val);
+    if(!opt) return;
+    const normalized = (opt.v / 2) * 100;
+    weightedSum += normalized * READINESS_WEIGHTS[f.key];
+    weightTotal += READINESS_WEIGHTS[f.key];
+  });
+  if(weightTotal === 0) return null;
+  return Math.round(weightedSum / weightTotal);
+}
+function readinessStateFromScore(score){
+  if(score === null || score === undefined) return null;
+  if(score >= 75) return 'high';
+  if(score >= 50) return 'normal';
+  if(score >= 25) return 'reduced';
+  return 'low';
+}
+const READINESS_STATE_LABEL = { high:'High Readiness', normal:'Normal Readiness', reduced:'Reduced Readiness', low:'Low Readiness' };
+
+async function loadReadiness(){
+  try{
+    const r = await LOOPStore.get(READINESS_KEY);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      if(parsed && typeof parsed === 'object') dailyReadiness = parsed;
+    }
+  }catch(e){}
+}
+async function persistReadiness(){
+  try{ return await LOOPStore.set(READINESS_KEY, JSON.stringify(dailyReadiness)); }catch(e){ return false; }
+}
+function getReadinessFor(dateStr){ return dailyReadiness[dateStr] || null; }
+function getTodayReadiness(){ return getReadinessFor(localDateStr()); }
+
+/* Toggling the same value again clears that field, consistent with every
+   other chip picker already in LOOP (RIR, athlete-profile chips). */
+async function setReadinessField(field, value){
+  const today = localDateStr();
+  const existing = dailyReadiness[today] || { date: today };
+  existing[field] = (existing[field] === value) ? null : value;
+  existing.updatedAt = new Date().toISOString();
+  dailyReadiness[today] = existing;
+  invalidateContextCache();
+  invalidateShadowCache();
+  await persistReadiness();
+  renderReadinessCard();
+}
+
+let readinessExpanded = false;
+function toggleReadinessExpand(){ readinessExpanded = !readinessExpanded; renderReadinessCard(); }
+
+function renderReadinessCard(){
+  const el = document.getElementById('readinessCard');
+  if(!el) return;
+  const entry = getTodayReadiness();
+  const score = calculateReadinessScore(entry);
+  const state = readinessStateFromScore(score);
+
+  if(readinessExpanded){
+    el.innerHTML = `
+      <div class="ready-expand">
+        <div class="ready-expand-head">
+          <span class="ready-expand-title">Today's Readiness</span>
+          ${score !== null ? `<span class="ready-expand-score">${score}</span>` : ''}
+        </div>
+        ${READINESS_FIELDS.map(f => `
+          <div class="ready-row">
+            <span class="ready-row-label">${f.label}</span>
+            <div class="ready-chips">
+              ${READINESS_OPTIONS[f.key].map(o => `
+                <button class="pchip ${entry && entry[f.key]===o.k ? 'on' : ''}" onclick="setReadinessField('${f.key}','${o.k}')">${o.l}</button>
+              `).join('')}
+            </div>
+          </div>`).join('')}
+        <button class="ready-done" onclick="toggleReadinessExpand()">Done</button>
+      </div>`;
+    return;
+  }
+
+  if(score === null){
+    el.innerHTML = `
+      <div class="ready-prompt" onclick="toggleReadinessExpand()">
+        <span class="ready-prompt-text">How are you feeling today?</span>
+        <span class="ready-prompt-cta">Check in ›</span>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="ready-summary" onclick="toggleReadinessExpand()">
+      <span class="ready-dot ready-dot-${state}"></span>
+      <span class="ready-summary-text">${READINESS_STATE_LABEL[state]} <span class="ready-summary-score">${score}</span></span>
+      <span class="ready-summary-edit">Edit</span>
+    </div>` + recoveryStripHtml();
+}
+
+/* Minimal recovery preview — a single line inside the existing readiness
+   card, showing only the three muscles carrying the most recent load.
+   Deliberately small: the full model is for future systems, not this view. */
+function recoveryStripHtml(){
+  const fatigued = getMostFatiguedMuscles(3).filter(r => r.lastTrainedDays !== null && r.lastTrainedDays <= RECOVERY_CONFIG.windowDays);
+  if(!fatigued.length) return '';
+  return `
+    <div class="rec-strip">
+      <span class="rec-strip-label">Est. recovery</span>
+      ${fatigued.map(r => `
+        <span class="rec-item">
+          <span class="rec-name">${r.label}</span>
+          <span class="rec-bar"><span class="rec-fill rec-${r.state}" style="width:${r.score}%"></span></span>
+          <span class="rec-pct">${r.score}%</span>
+        </span>`).join('')}
+    </div>`;
+}
+
 const PROFILE_KEY = 'athleteProfile';
 const PREFS_KEY   = 'exercisePrefs';
 
@@ -6140,6 +7469,144 @@ function confidenceFromSessions(n){
    an exercise has never been logged. */
 let _capabilityCache = null;
 function invalidateCapabilityCache(){ _capabilityCache = null; }
+/* =========================================================
+   EXERCISE CAPABILITY ENGINE  (Phase 4)
+   ---------------------------------------------------------
+   EXTENDS the Phase 1 capability stub rather than replacing
+   it — every field the earlier version exposed is still
+   returned, with the deeper model added alongside.
+
+   OBSERVATIONAL ONLY. Derives what an athlete appears capable
+   of on a movement from completed sessions. It does not
+   recommend, does not write, and is deliberately kept
+   independent of Daily Readiness and Muscle Recovery so the
+   future adaptive engine can weigh all three separately.
+
+   Estimated 1RM here is a training-planning convenience, not
+   a measured maximum. Epley (w * (1 + r/30)) drifts high at
+   high rep counts and is only applied where it is meaningful.
+   ========================================================= */
+const CAPABILITY_CONFIG = {
+  recentSessions: 6,        // sessions considered "current capability"
+  recentDays: 60,           // beyond this, performances are treated as stale
+  halfLifeSessions: 3,      // recency weight halves every N sessions back
+  minSessionsForTrend: 4,   // below this, trend stays 'unknown'
+  trendThresholdPct: 3,     // % change needed to call improving/declining
+  maxRepsFor1RM: 15,        // above this, e1RM estimates get unreliable
+  variability: { low: 8, moderate: 18 },   // coefficient of variation, %
+  staleDays: 45             // no session in this long -> capability is stale
+};
+
+/* Reuses the same keyword approach as the rest of LOOP. Type drives whether
+   an estimated 1RM is meaningful at all. */
+function classifyExerciseType(name, isBodyweight){
+  const n = (name || '').toLowerCase();
+  if(isBodyweight) return 'bodyweight';
+  if(/plank|hold|carry|farmer|dead hang|isometric/.test(n)) return 'timed';
+  if(/cable|pushdown|pulldown|pull-down|crossover|face pull/.test(n)) return 'cable';
+  if(/machine|smith|pec deck|leg press|leg extension|leg curl|hack squat/.test(n)) return 'machine';
+  if(/curl|raise|fly|flye|extension|kickback|shrug|calf/.test(n)) return 'isolation';
+  if(/dumbbell|\bdb\b|goblet/.test(n)) return 'compound_dumbbell';
+  if(/squat|deadlift|bench|press|row|thrust|clean|snatch|lunge/.test(n)) return 'compound_barbell';
+  return 'other';
+}
+/* e1RM only means something for load-bearing rep work. For timed holds and
+   bodyweight movements a working-rep range is the honest representation. */
+function supports1RMEstimate(type){
+  return type === 'compound_barbell' || type === 'compound_dumbbell' ||
+         type === 'machine' || type === 'isolation';
+}
+
+/* Substitution FOUNDATION only — metadata a future engine could use to find
+   comparable movements. No substitution logic is implemented. */
+function movementPatternFor(name){
+  const n = (name || '').toLowerCase();
+  if(/bench|chest press|push-up|push up|fly|flye|pec deck|dip/.test(n)) return 'horizontal_push';
+  if(/overhead press|shoulder press|push press|arnold|pike|lateral raise|front raise/.test(n)) return 'vertical_push';
+  if(/row|face pull/.test(n)) return 'horizontal_pull';
+  if(/pulldown|pull-up|pull up|chin|lat pull|pullover/.test(n)) return 'vertical_pull';
+  if(/romanian|rdl|deadlift|good morning|hip thrust|glute|leg curl/.test(n)) return 'hinge';
+  if(/lunge|split squat|step-up|step up/.test(n)) return 'lunge';
+  if(/squat|leg press|leg extension|hack/.test(n)) return 'squat';
+  if(/carry|farmer/.test(n)) return 'carry';
+  if(/crunch|plank|sit-up|leg raise|twist|hollow|ab wheel|pallof/.test(n)) return 'core';
+  if(/curl|pushdown|extension|kickback|calf|shrug/.test(n)) return 'isolation';
+  return 'other';
+}
+function equipmentFor(type){
+  return { compound_barbell:'Barbell', compound_dumbbell:'Dumbbell', machine:'Machine',
+           cable:'Cable', isolation:'Mixed', bodyweight:'Bodyweight', timed:'Varies', other:'Unknown' }[type] || 'Unknown';
+}
+
+/* Per-session summary: the best single working effort in that session. */
+function summarizeCapabilitySession(session, use1RM){
+  const valid = (session.sets || [])
+    .map(s => ({ w: parseFloat(s.weight), r: parseFloat(s.reps), rir: parseFloat(s.rir) }))
+    .filter(x => !isNaN(x.r) && x.r > 0);
+  if(!valid.length) return null;
+
+  const weighted = valid.filter(x => !isNaN(x.w) && x.w > 0);
+  const topWeight = weighted.length ? Math.max(...weighted.map(x => x.w)) : null;
+  const topReps = Math.max(...valid.map(x => x.r));
+
+  let e1rm = null;
+  if(use1RM && weighted.length){
+    weighted.forEach(x => {
+      if(x.r > CAPABILITY_CONFIG.maxRepsFor1RM) return;   // estimate unreliable up here
+      const est = estimate1RM(x.w, x.r);
+      if(est > (e1rm || 0)) e1rm = est;
+    });
+  }
+  const rirs = valid.map(x => x.rir).filter(v => !isNaN(v));
+  return {
+    date: session.date,
+    topWeight, topReps,
+    e1rm,
+    workingSets: valid.length,
+    avgRir: rirs.length ? rirs.reduce((a,b)=>a+b,0)/rirs.length : null,
+    // metric used for trend/variability: e1RM when meaningful, else top reps
+    metric: e1rm !== null ? e1rm : (topWeight !== null ? topWeight : topReps)
+  };
+}
+
+/* Coefficient of variation — how consistent the athlete is on this movement.
+   Low CV means capability estimates deserve more confidence. */
+function coefficientOfVariation(values){
+  if(values.length < 2) return null;
+  const mean = values.reduce((a,b)=>a+b,0) / values.length;
+  if(mean === 0) return null;
+  const variance = values.reduce((n,v)=>n + Math.pow(v-mean,2), 0) / values.length;
+  return (Math.sqrt(variance) / mean) * 100;
+}
+function variabilityBand(cv){
+  if(cv === null) return 'unknown';
+  if(cv <= CAPABILITY_CONFIG.variability.low) return 'consistent';
+  if(cv <= CAPABILITY_CONFIG.variability.moderate) return 'variable';
+  return 'erratic';
+}
+
+/* Confidence weighs volume of evidence, recency, AND consistency — not just
+   session count, since erratic data shouldn't feel as certain. */
+function capabilityConfidence(sessionCount, daysSinceLast, cv){
+  if(sessionCount === 0) return { level:'unknown', label:'No data', reason:'never performed' };
+  if(daysSinceLast !== null && daysSinceLast > CAPABILITY_CONFIG.staleDays)
+    return { level:'low', label:'Low', reason:'no recent sessions' };
+  if(sessionCount < 2) return { level:'low', label:'Low', reason:'single session' };
+
+  let level;
+  if(sessionCount >= 10) level = 'high';
+  else if(sessionCount >= 4) level = 'medium';
+  else level = 'low';
+
+  // Erratic performance demotes confidence one step — the data exists but
+  // doesn't agree with itself.
+  if(variabilityBand(cv) === 'erratic'){
+    if(level === 'high') level = 'medium';
+    else if(level === 'medium') level = 'low';
+  }
+  const label = { high:'High', medium:'Medium', low:'Low' }[level];
+  return { level, label, reason: `${sessionCount} sessions, ${variabilityBand(cv)}` };
+}
 
 function computeExerciseCapability(name){
   if(!_capabilityCache) _capabilityCache = {};
@@ -6147,38 +7614,111 @@ function computeExerciseCapability(name){
   if(!key) return null;
   if(_capabilityCache[key]) return _capabilityCache[key];
 
-  const sessions = getExerciseFullHistory(name);   // newest first
+  const sessions = getExerciseFullHistory(name);   // newest first, completed only
   if(!sessions.length) return null;
 
   const isBW = !!sessions[0].bodyweight;
-  const recent = sessions.slice(0, 5);
+  const type = classifyExerciseType(name, isBW);
+  const use1RM = supports1RMEstimate(type);
 
-  let bestWeight = 0, bestReps = 0, best1RM = 0, bestPair = null;
-  sessions.forEach(s => s.sets.forEach(st => {
+  const now = trainerNow();
+  const daysSince = Math.floor((now - new Date(sessions[0].date + 'T00:00:00')) / 86400000);
+
+  // ---- LIFETIME (all history) ----
+  let lifetimeWeight = 0, lifetimeReps = 0, lifetimePair = null, lifetime1RM = 0;
+  sessions.forEach(s => (s.sets || []).forEach(st => {
     const w = parseFloat(st.weight), r = parseFloat(st.reps);
-    if(isNaN(r)) return;
-    if(r > bestReps) bestReps = r;
-    if(!isBW && !isNaN(w)){
-      if(w > bestWeight){ bestWeight = w; bestPair = { w, r }; }
-      const e = estimate1RM(w, r);
-      if(e > best1RM) best1RM = e;
+    if(isNaN(r) || r <= 0) return;
+    if(r > lifetimeReps) lifetimeReps = r;
+    if(!isNaN(w) && w > 0){
+      if(w > lifetimeWeight){ lifetimeWeight = w; lifetimePair = { w, r }; }
+      if(use1RM && r <= CAPABILITY_CONFIG.maxRepsFor1RM){
+        const e = estimate1RM(w, r);
+        if(e > lifetime1RM) lifetime1RM = e;
+      }
     }
   }));
 
-  const rw = [], rr = [], rir = [];
-  recent.forEach(s => s.sets.forEach(st => {
+  // ---- RECENT WINDOW (what the athlete can do NOW) ----
+  const cutoff = new Date(now); cutoff.setDate(now.getDate() - CAPABILITY_CONFIG.recentDays);
+  const recentSessions = sessions
+    .filter(s => new Date(s.date + 'T00:00:00') >= cutoff)
+    .slice(0, CAPABILITY_CONFIG.recentSessions);
+  const pool = recentSessions.length ? recentSessions : sessions.slice(0, CAPABILITY_CONFIG.recentSessions);
+
+  const summaries = pool.map(s => summarizeCapabilitySession(s, use1RM)).filter(Boolean);
+
+  // Recency-weighted current estimate: a session 3 back counts half as much.
+  let wSum = 0, wTotal = 0, wRepSum = 0, wRepTotal = 0;
+  summaries.forEach((s, i) => {
+    const w = Math.pow(0.5, i / CAPABILITY_CONFIG.halfLifeSessions);
+    if(s.metric !== null){ wSum += s.metric * w; wTotal += w; }
+    if(s.topReps !== null){ wRepSum += s.topReps * w; wRepTotal += w; }
+  });
+  const weightedCapability = wTotal ? wSum / wTotal : null;
+  const weightedReps = wRepTotal ? Math.round(wRepSum / wRepTotal) : null;
+
+  const recentWeights = summaries.map(s => s.topWeight).filter(v => v !== null && v > 0);
+  const recentRepsAll = summaries.map(s => s.topReps).filter(v => v !== null);
+  const recent1RMs = summaries.map(s => s.e1rm).filter(v => v !== null && v > 0);
+
+  const recentBestWeight = recentWeights.length ? Math.max(...recentWeights) : null;
+  const recentBestReps = recentRepsAll.length ? Math.max(...recentRepsAll) : null;
+  const recentBest1RM = recent1RMs.length ? Math.max(...recent1RMs) : null;
+
+  // ---- WORKING RANGE: loads actually used successfully, recently ----
+  let workingRange = null;
+  if(recentWeights.length){
+    const lo = Math.min(...recentWeights), hi = Math.max(...recentWeights);
+    workingRange = { min: Math.round(lo), max: Math.round(hi), unit:'lb' };
+  } else if(recentRepsAll.length){
+    workingRange = { min: Math.min(...recentRepsAll), max: Math.max(...recentRepsAll), unit:'reps' };
+  }
+  const repRange = recentRepsAll.length
+    ? { min: Math.min(...recentRepsAll), max: Math.max(...recentRepsAll) } : null;
+
+  // ---- VARIABILITY + TREND ----
+  const metrics = summaries.map(s => s.metric).filter(v => v !== null);
+  const cv = coefficientOfVariation(metrics);
+
+  let capTrend = 'unknown', capTrendPct = null;
+  if(summaries.length >= CAPABILITY_CONFIG.minSessionsForTrend){
+    const half = Math.floor(summaries.length / 2);
+    const recentHalf = metrics.slice(0, half);
+    const olderHalf  = metrics.slice(half);
+    if(recentHalf.length && olderHalf.length){
+      const rAvg = recentHalf.reduce((a,b)=>a+b,0)/recentHalf.length;
+      const oAvg = olderHalf.reduce((a,b)=>a+b,0)/olderHalf.length;
+      if(oAvg > 0){
+        capTrendPct = ((rAvg - oAvg) / oAvg) * 100;
+        if(capTrendPct >= CAPABILITY_CONFIG.trendThresholdPct) capTrend = 'improving';
+        else if(capTrendPct <= -CAPABILITY_CONFIG.trendThresholdPct) capTrend = 'declining';
+        else capTrend = 'stable';
+      }
+    }
+  }
+
+  const confidence = capabilityConfidence(sessions.length, daysSince, cv);
+  let capabilityState;
+  if(daysSince > CAPABILITY_CONFIG.staleDays) capabilityState = 'stale';
+  else if(sessions.length < 2) capabilityState = 'insufficient';
+  else if(confidence.level === 'high') capabilityState = 'established';
+  else capabilityState = 'developing';
+
+  // Preserved from the earlier averages (unchanged fields below depend on them)
+  const rw = [], rr = [], rirs = [];
+  pool.forEach(s => (s.sets || []).forEach(st => {
     const w = parseFloat(st.weight), r = parseFloat(st.reps), q = parseFloat(st.rir);
     if(!isBW && !isNaN(w)) rw.push(w);
     if(!isNaN(r)) rr.push(r);
-    if(!isNaN(q)) rir.push(q);
+    if(!isNaN(q)) rirs.push(q);
   }));
   const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
-
-  const trend = computeExerciseTrends().find(t => t.name === name) || null;
+  const legacyTrend = computeExerciseTrends().find(t => t.name === name) || null;
   const plateau = detectPlateau(name);
-  const daysSince = Math.floor((new Date() - new Date(sessions[0].date + 'T00:00:00')) / 86400000);
 
   const cap = {
+    // ---- fields preserved from Phase 1 (backwards compatible) ----
     name,
     isBodyweight: isBW,
     sessions: sessions.length,
@@ -6187,19 +7727,380 @@ function computeExerciseCapability(name){
     typicalWeight: rw.length ? Math.round(avg(rw)) : null,
     typicalReps: rr.length ? Math.round(avg(rr)) : null,
     typicalRepRange: repRangeForExercise(name),
-    typicalRIR: rir.length ? Math.round(avg(rir) * 10) / 10 : null,
-    bestWeight: isBW ? null : (bestWeight || null),
-    bestReps: bestReps || null,
-    bestSet: isBW ? (bestReps ? `${bestReps} reps` : null) : (bestPair ? `${bestPair.w} lb × ${bestPair.r}` : null),
-    estimated1RM: isBW ? null : (best1RM ? Math.round(best1RM) : null),
-    trend: trend ? trend.dir : 'unknown',
-    trendPct: trend ? Math.round(trend.pct) : null,
+    typicalRIR: rirs.length ? Math.round(avg(rirs) * 10) / 10 : null,
+    bestWeight: isBW ? null : (lifetimeWeight || null),
+    bestReps: lifetimeReps || null,
+    bestSet: isBW ? (lifetimeReps ? `${lifetimeReps} reps` : null)
+                  : (lifetimePair ? `${lifetimePair.w} lb × ${lifetimePair.r}` : null),
+    estimated1RM: use1RM && lifetime1RM ? Math.round(lifetime1RM) : null,
+    trend: legacyTrend ? legacyTrend.dir : 'unknown',
+    trendPct: legacyTrend ? Math.round(legacyTrend.pct) : null,
     plateauSessions: plateau ? plateau.sessions : 0,
     preference: inferredPreference(name),
-    confidence: confidenceFromSessions(sessions.length)
+
+    // ---- Phase 4 additions ----
+    exerciseType: type,
+    movementPattern: movementPatternFor(name),
+    equipment: equipmentFor(type),
+    supports1RM: use1RM,
+
+    recentSessionCount: summaries.length,
+    recentBestWeight,
+    recentBestReps,
+    recentBest1RM: recentBest1RM ? Math.round(recentBest1RM) : null,
+
+    /* LIFETIME BEST vs CURRENT CAPABILITY are deliberately distinct: a 275
+       single from a year ago does not mean 275 is available today. */
+    lifetimeBest: {
+      weight: isBW ? null : (lifetimeWeight || null),
+      reps: lifetimeReps || null,
+      estimated1RM: use1RM && lifetime1RM ? Math.round(lifetime1RM) : null,
+      display: isBW ? (lifetimeReps ? `${lifetimeReps} reps` : null)
+                    : (lifetimePair ? `${lifetimePair.w} lb × ${lifetimePair.r}` : null)
+    },
+    currentCapability: {
+      estimate: weightedCapability !== null ? Math.round(weightedCapability * 10) / 10 : null,
+      unit: use1RM ? 'est. 1RM lb' : (isBW || type === 'timed' ? 'reps' : 'lb'),
+      typicalReps: weightedReps,
+      basedOnSessions: summaries.length
+    },
+    workingRange,
+    repRange,
+
+    variability: cv === null ? null : Math.round(cv * 10) / 10,
+    variabilityBand: variabilityBand(cv),
+    capabilityTrend: capTrend,
+    capabilityTrendPct: capTrendPct === null ? null : Math.round(capTrendPct * 10) / 10,
+    capabilityState,
+    confidence
   };
   _capabilityCache[key] = cap;
   return cap;
+}
+
+/* ---------- CAPABILITY QUERY INTERFACE ----------
+   Read-only accessors for the future adaptive engine. None mutate state. */
+function getExerciseCapability(name){ return computeExerciseCapability(name); }
+function getExerciseTrend(name){ const c = getExerciseCapability(name); return c ? c.capabilityTrend : 'unknown'; }
+function getExerciseWorkingRange(name){ const c = getExerciseCapability(name); return c ? c.workingRange : null; }
+function getExerciseConfidence(name){ const c = getExerciseCapability(name); return c ? c.confidence : { level:'unknown', label:'No data' }; }
+function getExerciseEstimated1RM(name){ const c = getExerciseCapability(name); return c ? c.recentBest1RM : null; }
+function getExercisePerformanceVariability(name){ const c = getExerciseCapability(name); return c ? { cv: c.variability, band: c.variabilityBand } : null; }
+function getExerciseBestRecentPerformance(name){
+  const c = getExerciseCapability(name);
+  if(!c) return null;
+  return { weight: c.recentBestWeight, reps: c.recentBestReps, estimated1RM: c.recentBest1RM };
+}
+function getRecentExercisePerformance(name, limit){
+  return getExerciseFullHistory(name).slice(0, limit || CAPABILITY_CONFIG.recentSessions);
+}
+function getAllExerciseCapabilities(){
+  const out = {};
+  getAllLoggedExerciseNames().forEach(n => {
+    const c = computeExerciseCapability(n);
+    if(c) out[n] = c;
+  });
+  return out;
+}
+
+/* =========================================================
+   TRAINER INSTRUMENTATION  (Phase 5B)
+   ---------------------------------------------------------
+   Three foundations required before an adaptive engine can be
+   evaluated safely:
+
+     1. Canonical exercise identity  (stable IDs under free text)
+     2. Explicit set types           (warm-up vs working)
+     3. Recommendation/outcome log   (measurable predictions)
+
+   NOTHING HERE MAKES A TRAINING DECISION. There is no engine,
+   no recommendation generation, and no path by which any of
+   this can alter a weight, rep, set, exercise, or plan.
+
+   Design stance on identity: resolution is DERIVED, not stored.
+   Nothing rewrites workoutLog, so migration is idempotent by
+   construction — rerunning it cannot corrupt or duplicate
+   anything because there is nothing persisted to corrupt.
+   ========================================================= */
+
+const TRAINER_ENGINE_VERSION = '0.1.1-shadow';
+const TRAINER_LOG_KEY = 'trainerLog';
+const TRAINER_LOG_MAX = 500;          // retention cap; see §17
+
+/* ---------- 1. CANONICAL EXERCISE IDENTITY ----------
+   Aliases are matched on an exact normalized string, never fuzzily.
+   Fuzzy matching is precisely what would merge "Bench Press" with
+   "Smith Machine Bench Press", so it is deliberately absent. */
+const CANONICAL_EXERCISES = [
+  { id:'bench_press_barbell',   displayName:'Bench Press',            aliases:['bench press','barbell bench press','bb bench press','flat bench press','flat barbell bench press'], pattern:'horizontal_push', equipment:'Barbell',  primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
+  { id:'bench_press_incline_bb',displayName:'Incline Bench Press',    aliases:['incline bench press','incline barbell bench press','incline bench','incline barbell press'], pattern:'horizontal_push', equipment:'Barbell', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
+  { id:'bench_press_smith',     displayName:'Smith Machine Bench Press', aliases:['smith machine bench press','smith bench press','smith machine bench'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
+  { id:'bench_press_db',        displayName:'Dumbbell Bench Press',   aliases:['dumbbell bench press','db bench press','dumbbell chest press','db bench'], pattern:'horizontal_push', equipment:'Dumbbell', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
+  { id:'incline_press_db',      displayName:'Incline Dumbbell Press', aliases:['incline dumbbell press','incline db press','incline dumbbell bench press'], pattern:'horizontal_push', equipment:'Dumbbell', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
+  { id:'chest_press_machine',   displayName:'Machine Chest Press',    aliases:['machine chest press','chest press machine','seated chest press'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
+  { id:'chest_fly_cable',       displayName:'Cable Fly',              aliases:['cable fly','cable flye','cable crossover','cable chest fly'], pattern:'horizontal_push', equipment:'Cable', primary:['chest'], secondary:[], supports1RM:false },
+  { id:'pec_deck',              displayName:'Pec Deck',               aliases:['pec deck','pec deck fly','machine fly','machine chest fly'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:[], supports1RM:true },
+  { id:'pushup',                displayName:'Push-Up',                aliases:['push-up','push up','pushup','pushups','push-ups'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:false, bodyweight:true },
+  { id:'dip',                   displayName:'Dip',                    aliases:['dip','dips','chest dip','tricep dip','triceps dip'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:false, bodyweight:true },
+
+  { id:'overhead_press_bb',     displayName:'Overhead Press',         aliases:['overhead press','barbell overhead press','ohp','standing overhead press','military press','shoulder press barbell'], pattern:'vertical_push', equipment:'Barbell', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
+  { id:'shoulder_press_db',     displayName:'Dumbbell Shoulder Press',aliases:['dumbbell shoulder press','db shoulder press','seated dumbbell shoulder press','dumbbell overhead press'], pattern:'vertical_push', equipment:'Dumbbell', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
+  { id:'lateral_raise',         displayName:'Lateral Raise',          aliases:['lateral raise','side raise','dumbbell lateral raise','db lateral raise','side lateral raise'], pattern:'vertical_push', equipment:'Dumbbell', primary:['shoulders'], secondary:[], supports1RM:false },
+  { id:'front_raise',           displayName:'Front Raise',            aliases:['front raise','dumbbell front raise'], pattern:'vertical_push', equipment:'Dumbbell', primary:['shoulders'], secondary:[], supports1RM:false },
+  { id:'face_pull',             displayName:'Face Pull',              aliases:['face pull','face pulls','cable face pull'], pattern:'horizontal_pull', equipment:'Cable', primary:['shoulders'], secondary:['back'], supports1RM:false },
+
+  { id:'row_barbell',           displayName:'Barbell Row',            aliases:['barbell row','bent over row','bent-over row','bb row','barbell bent over row','pendlay row'], pattern:'horizontal_pull', equipment:'Barbell', primary:['back'], secondary:['biceps'], supports1RM:true },
+  { id:'row_dumbbell',          displayName:'Dumbbell Row',           aliases:['dumbbell row','db row','one arm dumbbell row','single arm dumbbell row','one-arm row'], pattern:'horizontal_pull', equipment:'Dumbbell', primary:['back'], secondary:['biceps'], supports1RM:true },
+  { id:'row_cable_seated',      displayName:'Seated Cable Row',       aliases:['seated cable row','cable row','seated row'], pattern:'horizontal_pull', equipment:'Cable', primary:['back'], secondary:['biceps'], supports1RM:false },
+  { id:'row_machine',           displayName:'Machine Row',            aliases:['machine row','chest supported row','chest-supported row','t-bar row','t bar row'], pattern:'horizontal_pull', equipment:'Machine', primary:['back'], secondary:['biceps'], supports1RM:true },
+  { id:'lat_pulldown',          displayName:'Lat Pulldown',           aliases:['lat pulldown','lat pull down','pulldown','lat pull-down','wide grip pulldown'], pattern:'vertical_pull', equipment:'Cable', primary:['back'], secondary:['biceps'], supports1RM:false },
+  { id:'pullup',                displayName:'Pull-Up',                aliases:['pull-up','pull up','pullup','pullups','pull-ups'], pattern:'vertical_pull', equipment:'Bodyweight', primary:['back'], secondary:['biceps'], supports1RM:false, bodyweight:true },
+  { id:'chinup',                displayName:'Chin-Up',                aliases:['chin-up','chin up','chinup','chinups'], pattern:'vertical_pull', equipment:'Bodyweight', primary:['back'], secondary:['biceps'], supports1RM:false, bodyweight:true },
+  { id:'shrug',                 displayName:'Shrug',                  aliases:['shrug','shrugs','barbell shrug','dumbbell shrug'], pattern:'isolation', equipment:'Barbell', primary:['back'], secondary:[], supports1RM:true },
+
+  { id:'squat_back',            displayName:'Back Squat',             aliases:['squat','back squat','barbell squat','barbell back squat','bb squat'], pattern:'squat', equipment:'Barbell', primary:['quads'], secondary:['glutes','hamstrings'], supports1RM:true },
+  { id:'squat_front',           displayName:'Front Squat',            aliases:['front squat','barbell front squat'], pattern:'squat', equipment:'Barbell', primary:['quads'], secondary:['glutes'], supports1RM:true },
+  { id:'squat_smith',           displayName:'Smith Machine Squat',    aliases:['smith machine squat','smith squat'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:['glutes'], supports1RM:true },
+  { id:'leg_press',             displayName:'Leg Press',              aliases:['leg press','machine leg press'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:['glutes'], supports1RM:true },
+  { id:'leg_extension',         displayName:'Leg Extension',          aliases:['leg extension','leg extensions','quad extension'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:[], supports1RM:false },
+  { id:'lunge',                 displayName:'Lunge',                  aliases:['lunge','lunges','walking lunge','dumbbell lunge'], pattern:'lunge', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
+  { id:'split_squat_bulgarian', displayName:'Bulgarian Split Squat',  aliases:['bulgarian split squat','split squat','rear foot elevated split squat'], pattern:'lunge', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
+
+  { id:'deadlift_conventional', displayName:'Deadlift',               aliases:['deadlift','conventional deadlift','barbell deadlift'], pattern:'hinge', equipment:'Barbell', primary:['back','hamstrings'], secondary:['glutes'], supports1RM:true },
+  { id:'deadlift_romanian',     displayName:'Romanian Deadlift',      aliases:['romanian deadlift','rdl','romanian dead lift','barbell rdl'], pattern:'hinge', equipment:'Barbell', primary:['hamstrings'], secondary:['glutes','back'], supports1RM:true },
+  { id:'leg_curl',              displayName:'Leg Curl',               aliases:['leg curl','leg curls','lying leg curl','seated leg curl','hamstring curl'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
+  { id:'hip_thrust',            displayName:'Hip Thrust',             aliases:['hip thrust','barbell hip thrust','glute bridge'], pattern:'hinge', equipment:'Barbell', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
+
+  { id:'curl_barbell',          displayName:'Barbell Curl',           aliases:['barbell curl','bb curl','ez bar curl','ez-bar curl'], pattern:'isolation', equipment:'Barbell', primary:['biceps'], secondary:[], supports1RM:false },
+  { id:'curl_dumbbell',         displayName:'Dumbbell Curl',          aliases:['dumbbell curl','db curl','bicep curl','biceps curl','alternating dumbbell curl'], pattern:'isolation', equipment:'Dumbbell', primary:['biceps'], secondary:[], supports1RM:false },
+  { id:'curl_hammer',           displayName:'Hammer Curl',            aliases:['hammer curl','hammer curls','dumbbell hammer curl'], pattern:'isolation', equipment:'Dumbbell', primary:['biceps'], secondary:[], supports1RM:false },
+  { id:'triceps_pushdown',      displayName:'Triceps Pushdown',       aliases:['triceps pushdown','tricep pushdown','cable pushdown','rope pushdown','pushdown'], pattern:'isolation', equipment:'Cable', primary:['triceps'], secondary:[], supports1RM:false },
+  { id:'skullcrusher',          displayName:'Skullcrusher',           aliases:['skullcrusher','skull crusher','lying triceps extension','ez bar skullcrusher'], pattern:'isolation', equipment:'Barbell', primary:['triceps'], secondary:[], supports1RM:false },
+  { id:'overhead_ext_triceps',  displayName:'Overhead Triceps Extension', aliases:['overhead triceps extension','overhead tricep extension','cable overhead extension'], pattern:'isolation', equipment:'Cable', primary:['triceps'], secondary:[], supports1RM:false },
+  { id:'calf_raise',            displayName:'Calf Raise',             aliases:['calf raise','calf raises','standing calf raise','seated calf raise'], pattern:'isolation', equipment:'Machine', primary:['calves'], secondary:[], supports1RM:false },
+
+  { id:'plank',                 displayName:'Plank',                  aliases:['plank','planks','front plank'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, timed:true },
+  { id:'crunch',                displayName:'Crunch',                 aliases:['crunch','crunches','ab crunch'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true },
+  { id:'leg_raise',             displayName:'Leg Raise',              aliases:['leg raise','leg raises','hanging leg raise'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true },
+  { id:'cable_crunch',          displayName:'Cable Crunch',           aliases:['cable crunch','kneeling cable crunch'], pattern:'core', equipment:'Cable', primary:['abs'], secondary:[], supports1RM:false }
+];
+
+/* Alias index built once. Any alias colliding across two entries is a data
+   bug, so it is reported rather than silently overwritten. */
+let _aliasIndex = null, _aliasCollisions = [];
+function buildAliasIndex(){
+  if(_aliasIndex) return _aliasIndex;
+  _aliasIndex = {}; _aliasCollisions = [];
+  CANONICAL_EXERCISES.forEach(ex => {
+    ex.aliases.forEach(a => {
+      const k = normalizeExerciseName(a);
+      if(_aliasIndex[k] && _aliasIndex[k] !== ex.id) _aliasCollisions.push({ alias:k, a:_aliasIndex[k], b:ex.id });
+      _aliasIndex[k] = ex.id;
+    });
+  });
+  return _aliasIndex;
+}
+function normalizeExerciseName(name){
+  return (name || '').toString().toLowerCase().trim()
+    .replace(/[_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[.,()]/g, '')
+    .trim();
+}
+
+/* Resolution is EXACT-MATCH ONLY on normalized aliases. Anything unrecognised
+   becomes a stable `unmapped:` id derived from its own name — so two different
+   unknown exercises stay distinct forever and are never merged by guesswork. */
+let _exIdCache = {};
+function invalidateExerciseIdCache(){ _exIdCache = {}; }
+function resolveExerciseId(name){
+  const key = normalizeExerciseName(name);
+  if(!key) return null;
+  if(_exIdCache[key]) return _exIdCache[key];
+  const idx = buildAliasIndex();
+  const id = idx[key] || ('unmapped:' + key);
+  _exIdCache[key] = id;
+  return id;
+}
+function isCanonicalId(id){ return !!id && id.indexOf('unmapped:') !== 0; }
+function getCanonicalExercise(id){
+  if(!isCanonicalId(id)) return null;
+  return CANONICAL_EXERCISES.find(e => e.id === id) || null;
+}
+function getExerciseMetadata(name){
+  const id = resolveExerciseId(name);
+  const canon = getCanonicalExercise(id);
+  if(canon) return Object.assign({ exerciseId:id, mapped:true, originalName:name }, canon);
+  return {
+    exerciseId: id, mapped: false, originalName: name,
+    displayName: name, pattern: movementPatternFor(name), equipment: 'Unknown',
+    primary: [], secondary: [], supports1RM: null   // null = unknown, never guessed
+  };
+}
+
+/* Non-destructive "migration": produces a REPORT of how existing history maps.
+   Nothing is written to workoutLog, which is what makes rerunning it safe and
+   idempotent by construction. */
+function buildExerciseIdReport(){
+  const seen = {};
+  workoutLog.forEach(l => (l.exercises || []).forEach(ex => {
+    const n = (ex.name || '').trim();
+    if(!n) return;
+    const id = resolveExerciseId(n);
+    if(!seen[id]) seen[id] = { exerciseId:id, mapped:isCanonicalId(id), names:[], sessions:0 };
+    if(seen[id].names.indexOf(n) === -1) seen[id].names.push(n);
+    seen[id].sessions += 1;
+  }));
+  const all = Object.keys(seen).map(k => seen[k]);
+  return {
+    total: all.length,
+    mapped: all.filter(e => e.mapped),
+    unmapped: all.filter(e => !e.mapped),
+    aliasCollisions: _aliasCollisions.slice(),
+    /* Names that resolved to the SAME id — proof of consolidation working */
+    consolidated: all.filter(e => e.mapped && e.names.length > 1)
+  };
+}
+/* Canonical-ID-aware history. Falls back to name matching for unmapped
+   exercises, so behaviour is unchanged for anything not in the registry. */
+function getExerciseHistoryById(exerciseId){
+  const out = [];
+  sortedLog().forEach(l => (l.exercises || []).forEach(ex => {
+    if(resolveExerciseId(ex.name) !== exerciseId) return;
+    out.push({ date:l.date, workoutId:l.id, name:ex.name, bodyweight:!!ex.bodyweight, sets:ex.sets || [] });
+  }));
+  return out;
+}
+
+/* ---------- 2. EXPLICIT SET TYPES ----------
+   `type` is OPTIONAL. Historical sets have no type and must stay valid;
+   they resolve to null = UNKNOWN, never to a fabricated label. */
+const SET_TYPES = { WARMUP:'warmup', WORKING:'working' };
+function setTypeOf(setObj){
+  const t = setObj && setObj.type;
+  return (t === SET_TYPES.WARMUP || t === SET_TYPES.WORKING) ? t : null;   // null = unknown
+}
+function isWorkingSet(setObj){
+  const t = setTypeOf(setObj);
+  if(t === SET_TYPES.WORKING) return true;
+  if(t === SET_TYPES.WARMUP) return false;
+  return null;    // unknown — caller decides its own fallback
+}
+function countWorkingSets(exercise){
+  let known = 0, unknown = 0;
+  (exercise.sets || []).forEach(s => {
+    const w = isWorkingSet(s);
+    if(w === true) known++;
+    else if(w === null) unknown++;
+  });
+  return { working: known, unknownType: unknown };
+}
+
+/* ---------- 3. RECOMMENDATION / OUTCOME LOG ----------
+   System metadata, stored under its own key. Never mixed into workoutLog. */
+let trainerLog = { version:1, entries:[] };
+
+async function loadTrainerLog(){
+  try{
+    const r = await LOOPStore.get(TRAINER_LOG_KEY);
+    if(r && r.value){
+      const p = JSON.parse(r.value);
+      if(p && Array.isArray(p.entries)) trainerLog = p;
+    }
+  }catch(e){}
+}
+async function persistTrainerLog(){
+  try{ return await LOOPStore.set(TRAINER_LOG_KEY, JSON.stringify(trainerLog)); }catch(e){ return false; }
+}
+
+/* Records a prediction. Every field is optional except identity, so partial
+   recommendations can still be logged as the engine matures. */
+function buildRecommendationRecord(input){
+  const now = new Date();
+  return {
+    recommendationId: 'rec_' + now.getTime() + '_' + Math.random().toString(36).slice(2,7),
+    createdAt: now.toISOString(),
+    date: localDateStr(now),
+    engineVersion: input.engineVersion || TRAINER_ENGINE_VERSION,
+    mode: input.mode || 'shadow',                 // shadow | live
+    exerciseId: input.exerciseId || null,
+    exerciseName: input.exerciseName || null,
+    proposedState: input.proposedState || null,   // pre-override  (§11)
+    finalState: input.finalState || null,         // post-override (§11)
+    overrideReason: input.overrideReason || null,
+    recommended: {
+      weight: input.weight === undefined ? null : input.weight,
+      repMin: input.repMin === undefined ? null : input.repMin,
+      repMax: input.repMax === undefined ? null : input.repMax,
+      sets: input.sets === undefined ? null : input.sets,
+      targetRIR: input.targetRIR === undefined ? null : input.targetRIR
+    },
+    confidence: input.confidence || null,
+    reason: input.reason || null,
+    trace: input.trace || null,
+    outcome: null                                  // filled in later (§10)
+  };
+}
+async function logRecommendation(input){
+  const rec = buildRecommendationRecord(input || {});
+  trainerLog.entries.push(rec);
+  if(trainerLog.entries.length > TRAINER_LOG_MAX){
+    trainerLog.entries = trainerLog.entries.slice(-TRAINER_LOG_MAX);   // retention cap
+  }
+  await persistTrainerLog();
+  return rec.recommendationId;
+}
+
+/* Links what actually happened back to the prediction. Deliberately records
+   only observations — no judgement about whether the recommendation was good.
+   That evaluation belongs to a later phase. */
+async function linkRecommendationOutcome(recommendationId, outcome){
+  const rec = trainerLog.entries.find(e => e.recommendationId === recommendationId);
+  if(!rec) return false;
+  rec.outcome = {
+    recordedAt: new Date().toISOString(),
+    workoutId: outcome.workoutId || null,
+    actualWeight: outcome.actualWeight === undefined ? null : outcome.actualWeight,
+    actualReps: outcome.actualReps === undefined ? null : outcome.actualReps,
+    actualRIR: outcome.actualRIR === undefined ? null : outcome.actualRIR,
+    actualSets: outcome.actualSets === undefined ? null : outcome.actualSets,
+    completed: outcome.completed === undefined ? null : outcome.completed,
+    userAction: outcome.userAction || null,     // accepted | modified | rejected | unknown
+    /* Phase 5E-A: explicit user feedback is kept SEPARATE from RIR — neither
+       overwrites the other, so aligned and conflicting signals stay visible. */
+    userFeedback: outcome.userFeedback || null, // too_easy | right | too_hard | null
+    bodyweight: outcome.bodyweight === undefined ? null : outcome.bodyweight,
+    setDetail: outcome.setDetail || null
+  };
+  await persistTrainerLog();
+  return true;
+}
+function getRecommendation(recommendationId){
+  return trainerLog.entries.find(e => e.recommendationId === recommendationId) || null;
+}
+function getRecommendationsForDate(dateStr){
+  return trainerLog.entries.filter(e => e.date === dateStr);
+}
+function getTrainerLogStats(){
+  const e = trainerLog.entries;
+  return {
+    total: e.length,
+    withOutcome: e.filter(x => x.outcome !== null).length,
+    pending: e.filter(x => x.outcome === null).length,
+    byEngineVersion: e.reduce((acc,x) => { acc[x.engineVersion] = (acc[x.engineVersion]||0)+1; return acc; }, {}),
+    capacity: TRAINER_LOG_MAX
+  };
+}
+
+/* ---------- SHADOW MODE ----------
+   The engine itself lives below (Phase 5C). Output is logged and never
+   applied — no UI or workout code path reads it. */
+const SHADOW_MODE_ENABLED = true;
+async function runShadowEvaluation(context){
+  if(!SHADOW_MODE_ENABLED) return null;
+  const rec = generateShadowRecommendation(context);
+  if(!rec) return null;                       // nothing to log; stays silent
+  return await logRecommendation(Object.assign({ mode:'shadow' }, rec));
 }
 
 /* ---------- TRAINING CONTEXT ----------
@@ -6285,7 +8186,46 @@ function computeTrainingContext(){
       || (athleteProfile.goal ? TRAINING_GOALS[athleteProfile.goal].repRange : null),
 
     profileComplete: !!(athleteProfile.goal && athleteProfile.experience && athleteProfile.equipment.length),
-    dataConfidence: confidenceFromSessions(workoutLog.length)
+    dataConfidence: confidenceFromSessions(workoutLog.length),
+
+    /* Three independent intelligence domains, deliberately NOT merged:
+       recovery (training stress), readinessToday (self-reported feel), and
+       capability (what the athlete can do). The future adaptive engine
+       combines them; nothing here does. */
+    capability: (() => {
+      const out = {};
+      getAllLoggedExerciseNames().slice(0, 40).forEach(n => {
+        const cap = computeExerciseCapability(n);
+        if(cap) out[n] = {
+          currentCapability: cap.currentCapability,
+          workingRange: cap.workingRange,
+          repRange: cap.repRange,
+          lifetimeBest: cap.lifetimeBest,
+          capabilityTrend: cap.capabilityTrend,
+          variabilityBand: cap.variabilityBand,
+          capabilityState: cap.capabilityState,
+          confidence: cap.confidence,
+          exerciseType: cap.exerciseType,
+          movementPattern: cap.movementPattern
+        };
+      });
+      return out;
+    })(),
+
+    recovery: computeMuscleRecovery(),
+    mostFatigued: getMostFatiguedMuscles(3).map(r => ({ muscle:r.muscle, label:r.label, score:r.score })),
+    mostRecovered: getMostRecoveredMuscles(3).map(r => ({ muscle:r.muscle, label:r.label, score:r.score })),
+
+    readinessToday: (() => {
+      const entry = getTodayReadiness();
+      const score = calculateReadinessScore(entry);
+      if(score === null) return null;
+      return {
+        energy: entry.energy || null, soreness: entry.soreness || null, sleep: entry.sleep || null,
+        stress: entry.stress || null, trainingFeel: entry.trainingFeel || null,
+        score, state: readinessStateFromScore(score)
+      };
+    })()
   };
   return _contextCache;
 }
@@ -6884,15 +8824,20 @@ function captureActiveDraft(){
     const panel = row.querySelector('.rest-panel');
     const sets = [];
     row.querySelectorAll('.set-row').forEach(sr => {
-      sets.push({
+      const st = sr.dataset.setType;
+      const setObj = {
         weight: sr.querySelector('.set-weight-in').value,
         reps: sr.querySelector('.set-reps-in').value,
         rir: sr.querySelector('.set-rir-in').value,
         completed: sr.classList.contains('completed')
-      });
+      };
+      if(st) setObj.type = st;          // omitted entirely when unknown
+      sets.push(setObj);
     });
     exercises.push({
       name,
+      shadowRecId: row.dataset.shadowRecId || null,
+      shadowFeedback: row.dataset.shadowFeedback || null,
       effort: effortEl ? effortEl.value : '',
       bodyweight: bwEl ? bwEl.checked : false,
       sets,
@@ -6992,6 +8937,11 @@ function restoreDraftToSheet(draft){
         if(btn){ btn.setAttribute('aria-label','Completed'); btn.setAttribute('aria-pressed','true'); }
       }
     });
+    if(ex.shadowRecId) row.dataset.shadowRecId = ex.shadowRecId;
+    if(ex.shadowFeedback){
+      row.dataset.shadowFeedback = ex.shadowFeedback;
+      try{ revealFeedbackStrip(row); }catch(e){}
+    }
     if(ex.restRemaining){
       const panel = row.querySelector('.rest-panel');
       if(panel){
@@ -7070,6 +9020,9 @@ function openLogSheet(){
   if(!workoutHistoryPushed){
     try{ history.pushState({ loopWorkout: true }, ''); workoutHistoryPushed = true; }catch(e){}
   }
+  /* Shadow observation: capture what the engine WOULD have advised, before
+     any set is performed. Fire-and-forget so it can never delay the sheet. */
+  try{ captureShadowForOpenWorkout(); }catch(e){}
 }
 function closeLogSheet(){
   persistDraftNow();
@@ -7213,7 +9166,15 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
   `;
   wrap.appendChild(row);
   const setsList = row.querySelector('.sets-list');
-  sets.forEach(s => appendSetRow(setsList, s.weight, s.reps, bodyweight, s.rir));
+  sets.forEach(s => appendSetRow(setsList, s.weight, s.reps, bodyweight, s.rir, s.type));
+  // Reapply the warm-up label/styling so a restored draft looks identical
+  Array.prototype.forEach.call(setsList.querySelectorAll('.set-row'), (sr, i) => {
+    if(sr.dataset.setType === SET_TYPES.WARMUP){
+      sr.classList.add('set-warmup');
+      const lbl = sr.querySelector('.set-idx');
+      if(lbl) lbl.textContent = 'Warm-up';
+    }
+  });
 }
 
 function swapLogExercise(selectEl){
@@ -7265,14 +9226,16 @@ function swapLogExercise(selectEl){
   selectEl.value = '';
 }
 
-function appendSetRow(setsListEl, weight, reps, bodyweight, rir){
+function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
   const idx = setsListEl.children.length + 1;
   const div = document.createElement('div');
   div.className = 'set-row';
+  // null/undefined = unknown type; only an explicit value is ever stored
+  if(setType === SET_TYPES.WARMUP || setType === SET_TYPES.WORKING) div.dataset.setType = setType;
   const rirVal = (rir === undefined || rir === null || rir === '') ? '' : rir;
   div.innerHTML = `
     <div class="set-row-top">
-      <span class="set-idx">Set ${idx}</span>
+      <span class="set-idx" role="button" tabindex="0" onclick="toggleSetType(this)" title="Tap to mark warm-up">Set ${idx}</span>
       <div class="set-row-top-actions">
         <button class="set-complete-btn" type="button" onclick="toggleSetComplete(this)" aria-label="Mark complete" aria-pressed="false">
           <svg class="scb-svg" viewBox="0 0 36 36" aria-hidden="true">
@@ -7402,11 +9365,27 @@ function formatMMSS(sec){
   return m + ':' + String(s).padStart(2, '0');
 }
 
+/* One tap on the "Set N" label cycles working -> warm-up -> working.
+   Untyped historical sets stay untyped until the user touches them. */
+function toggleSetType(el){
+  const row = el.closest('.set-row');
+  if(!row) return;
+  const current = row.dataset.setType || SET_TYPES.WORKING;
+  const next = current === SET_TYPES.WARMUP ? SET_TYPES.WORKING : SET_TYPES.WARMUP;
+  row.dataset.setType = next;
+  row.classList.toggle('set-warmup', next === SET_TYPES.WARMUP);
+  const idx = Array.prototype.indexOf.call(row.parentNode.children, row) + 1;
+  el.textContent = next === SET_TYPES.WARMUP ? 'Warm-up' : ('Set ' + idx);
+  el.setAttribute('title', next === SET_TYPES.WARMUP ? 'Tap to mark working set' : 'Tap to mark warm-up');
+  persistDraftNow();
+}
+
 function toggleSetComplete(btn){
   const row = btn.closest('.set-row');
   const isDone = !row.classList.contains('completed');
   row.classList.toggle('completed', isDone);
   btn.setAttribute('aria-label', isDone ? 'Completed' : 'Mark complete');
+  try{ revealFeedbackStrip(row.closest('.ex-log-row')); }catch(e){}
   btn.setAttribute('aria-pressed', isDone ? 'true' : 'false');
   const exRow = row.closest('.ex-log-row');
   const panel = exRow ? exRow.querySelector('.rest-panel') : null;
@@ -7517,7 +9496,12 @@ function saveLog(btn){
       const weight = bodyweight ? 'BW' : sr.querySelector('.set-weight-in').value.trim();
       const reps = sr.querySelector('.set-reps-in').value.trim();
       const rirRaw = sr.querySelector('.set-rir-in').value.trim();
-      if(weight || reps) sets.push({ weight, reps, rir: rirRaw });
+      if(weight || reps){
+        const setObj = { weight, reps, rir: rirRaw };
+        const st = sr.dataset.setType;
+        if(st) setObj.type = st;        // absent = unknown, never fabricated
+        sets.push(setObj);
+      }
       const rirNum = parseFloat(rirRaw);
       if(!isNaN(rirNum)) rirValues.push(rirNum);
     });
@@ -7585,6 +9569,16 @@ function saveLog(btn){
   });
 
   const volumeInsight = computeSessionVolumeInsight(newEntry);
+
+  /* Shadow observation: link real outcomes to the prediction WHILE the rows
+     still exist — closeLogSheet() below tears them down. Wrapped so a logging
+     failure can never interfere with saving the actual workout. */
+  /* Not awaited: saveLog is synchronous and the workout save must never wait
+     on instrumentation. linkShadowOutcomes reads the rows synchronously before
+     its first await, so it captures them before closeLogSheet() tears them
+     down. Errors are swallowed so logging can never break saving. */
+  try{ linkShadowOutcomes(newEntry.id).catch(e => console.error('shadow outcome link failed', e)); }
+  catch(e){ console.error('shadow outcome link failed', e); }
 
   // Suppress draft writes while finalizing, otherwise closeLogSheet's flush would
   // re-create the draft. draftSaveTimer is cleared so no queued write can fire later.
