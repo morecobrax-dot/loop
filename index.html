@@ -41,6 +41,10 @@ try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.cla
   --legs-soft: rgba(133,121,176,0.12);
   --core: #B8748C;
   --core-soft: rgba(184,116,140,0.12);
+  --upper: #4FA3C7;
+  --upper-soft: rgba(79,163,199,0.12);
+  --lower: #C77F4F;
+  --lower-soft: rgba(199,127,79,0.12);
   --danger: #E5675F;
 
   /* ---- Semantic status tokens (independent of category colors, same values by design) ---- */
@@ -348,6 +352,8 @@ html.intro-skip #introOverlay{ display: none !important; }
 .day-card.fullbody .d-cat{ color: var(--full); }
 .day-card.legs .d-cat{ color: var(--legs); }
 .day-card.core .d-cat{ color: var(--core); }
+.day-card.upper .d-cat{ color: var(--upper); }
+.day-card.lower .d-cat{ color: var(--lower); }
 .week-hint{ font-size: 10.5px; color: var(--text-faint); margin-top: 8px; text-align: center; }
 .rest-day-opt{
   margin-top: 8px; text-align: center; padding: 15px 4px; border-radius: var(--radius-md);
@@ -383,6 +389,8 @@ html.intro-skip #introOverlay{ display: none !important; }
 .cat-fullbody .hero-tag{ background: var(--full-soft); color: var(--full); }
 .cat-legs .hero-tag{ background: var(--legs-soft); color: var(--legs); }
 .cat-core .hero-tag{ background: var(--core-soft); color: var(--core); }
+.cat-upper .hero-tag{ background: var(--upper-soft); color: var(--upper); }
+.cat-lower .hero-tag{ background: var(--lower-soft); color: var(--lower); }
 
 /* ---- Dashboard card (ring + streak/total/last) ---- */
 .dash-card{
@@ -685,7 +693,8 @@ html.intro-skip #introOverlay{ display: none !important; }
 .tw{ margin-top: 14px; padding: 18px; border-radius: var(--radius-xl); background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); }
 .tw-push{ border-left-color: var(--push); } .tw-pull{ border-left-color: var(--pull); }
 .tw-legs{ border-left-color: var(--legs); } .tw-core{ border-left-color: var(--core); }
-.tw-fullbody{ border-left-color: var(--full); } .tw-rest{ border-left-color: var(--text-faint); }
+.tw-fullbody{ border-left-color: var(--full); }
+.tw-upper{ border-left-color: var(--upper); } .tw-lower{ border-left-color: var(--lower); } .tw-rest{ border-left-color: var(--text-faint); }
 .tw-label{ font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
 .tw-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 27px; line-height: 1.1; color: var(--text); margin-top: 5px; }
 .tw-meta{ font-size: 11.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.45; }
@@ -1003,6 +1012,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .dist-track{ flex: 1; height: 8px; background: var(--surface-3); border-radius: var(--radius-sm); overflow: hidden; }
 .dist-fill{ height: 100%; border-radius: var(--radius-sm); }
 .dist-push{ background: var(--push); } .dist-pull{ background: var(--pull); } .dist-legs{ background: var(--legs); }
+.dist-upper{ background: var(--upper); } .dist-lower{ background: var(--lower); }
 .dist-core{ background: var(--core); } .dist-fullbody{ background: var(--full); }
 .dist-val{ width: 30px; flex-shrink: 0; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text-faint); }
 
@@ -1375,6 +1385,8 @@ textarea{ resize: vertical; min-height: 56px; }
 .cat-opt.sel-fullbody.on{ border-color: var(--full); background: var(--full-soft); color: var(--full); }
 .cat-opt.sel-legs.on{ border-color: var(--legs); background: var(--legs-soft); color: var(--legs); }
 .cat-opt.sel-core.on{ border-color: var(--core); background: var(--core-soft); color: var(--core); }
+.cat-opt.sel-upper.on{ border-color: var(--upper); background: var(--upper-soft); color: var(--upper); }
+.cat-opt.sel-lower.on{ border-color: var(--lower); background: var(--lower-soft); color: var(--lower); }
 
 .ex-log-row{ border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin-top: 10px; }
 .swap-select{
@@ -1807,6 +1819,8 @@ body.page-locked{ overflow: hidden; }
         <div class="cat-opt sel-pull" data-cat="pull" onclick="pickLogCategory('pull')">Pull</div>
         <div class="cat-opt sel-legs" data-cat="legs" onclick="pickLogCategory('legs')">Legs</div>
         <div class="cat-opt sel-core" data-cat="core" onclick="pickLogCategory('core')">Core</div>
+        <div class="cat-opt sel-upper" data-cat="upper" onclick="pickLogCategory('upper')">Upper Body</div>
+        <div class="cat-opt sel-lower" data-cat="lower" onclick="pickLogCategory('lower')">Lower Body</div>
         <div class="cat-opt sel-fullbody" data-cat="fullbody" onclick="pickLogCategory('fullbody')">Full Body</div>
       </div>
     </div>
@@ -2027,6 +2041,8 @@ body.page-locked{ overflow: hidden; }
       <div class="cat-opt sel-pull" data-val="pull" onclick="setDayValue('pull')">Pull</div>
       <div class="cat-opt sel-legs" data-val="legs" onclick="setDayValue('legs')">Legs</div>
       <div class="cat-opt sel-core" data-val="core" onclick="setDayValue('core')">Core</div>
+      <div class="cat-opt sel-upper" data-val="upper" onclick="setDayValue('upper')">Upper Body</div>
+      <div class="cat-opt sel-lower" data-val="lower" onclick="setDayValue('lower')">Lower Body</div>
       <div class="cat-opt sel-fullbody" data-val="fullbody" onclick="setDayValue('fullbody')">Full Body</div>
     </div>
     <div class="cat-opt rest-day-opt" data-val="rest" onclick="setDayValue('rest')">Rest Day</div>
@@ -2349,8 +2365,8 @@ async function runMigrations(){
   }
 }
 
-const ORDER = ['push','pull','legs','core','fullbody'];
-const CAT_LABEL = { push:'Push', pull:'Pull', legs:'Legs', core:'Core', fullbody:'Full Body' };
+const ORDER = ['push','pull','legs','upper','lower','core','fullbody'];
+const CAT_LABEL = { push:'Push', pull:'Pull', legs:'Legs', upper:'Upper Body', lower:'Lower Body', core:'Core', fullbody:'Full Body' };
 
 function T(name, sets, reps, effort, recommended){ return {name, sets, reps, effort, recommended: recommended||'—'}; }
 
@@ -2914,6 +2930,61 @@ const DEFAULT_PLANS = {
         ]}
       ]
     }
+  },
+
+  /* Upper / Lower split. Sessions are ordered heaviest-compound-first, then
+     secondary compound, then accessories — the order a coach would actually
+     prescribe. Rep ranges vary by role: heavy compounds 5-8, moderate
+     compounds 8-12, isolation 10-20. */
+  upperlower: {
+    name: 'Upper / Lower Split',
+    tagline: 'Four focused sessions a week — upper and lower body trained twice each, with room to recover.',
+    builds: 'Balanced strength and size',
+    defaultSchedule: { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' },
+    templates: {
+      upper: [
+        { id:'ul-u1', name:'Upper A — Strength Emphasis', exercises:[
+          T('Bench Press',4,'5–8','8','Heaviest set last'),
+          T('Barbell Row',4,'6–8','8'),
+          T('Overhead Press',3,'6–10','7–8'),
+          T('Lat Pulldown',3,'8–12','7–8'),
+          T('Incline Dumbbell Press',3,'8–12','7'),
+          T('Cable Lateral Raise',3,'12–15','7'),
+          T('Barbell Curl',3,'8–12','7'),
+          T('Triceps Pushdown',3,'10–15','7')
+        ]},
+        { id:'ul-u2', name:'Upper B — Hypertrophy Emphasis', exercises:[
+          T('Incline Bench Press',4,'6–10','8'),
+          T('Chin-Up',4,'6–10','8','Add load when 10 reps is easy'),
+          T('Seated Cable Row',3,'8–12','7–8'),
+          T('Dumbbell Shoulder Press',3,'8–12','7–8'),
+          T('Cable Fly',3,'12–15','7'),
+          T('Rear Delt Fly',3,'12–20','7'),
+          T('Incline Dumbbell Curl',3,'10–15','7'),
+          T('Overhead Triceps Extension',3,'10–15','7')
+        ]}
+      ],
+      lower: [
+        { id:'ul-l1', name:'Lower A — Squat Emphasis', exercises:[
+          T('Back Squat',4,'5–8','8','Heaviest set last'),
+          T('Romanian Deadlift',3,'6–10','7–8'),
+          T('Leg Press',3,'10–15','7–8'),
+          T('Leg Curl',3,'10–15','7'),
+          T('Leg Extension',3,'12–15','7'),
+          T('Calf Raise',4,'12–20','7'),
+          T('Plank',3,'45–60s','7')
+        ]},
+        { id:'ul-l2', name:'Lower B — Hinge Emphasis', exercises:[
+          T('Deadlift',3,'4–6','8','Stop when bar speed drops'),
+          T('Bulgarian Split Squat',3,'8–12','7–8','Per leg'),
+          T('Hip Thrust',3,'8–12','7–8'),
+          T('Nordic Curl',3,'6–10','7','Assist as needed'),
+          T('Hack Squat',3,'10–15','7'),
+          T('Calf Raise',4,'12–20','7'),
+          T('Hanging Leg Raise',3,'10–15','7')
+        ]}
+      ]
+    }
   }
 };
 
@@ -2960,7 +3031,7 @@ const DAY_ORDER = ['mon','tue','wed','thu','fri','sat','sun'];
 const DAY_LABEL = { mon:'MON', tue:'TUE', wed:'WED', thu:'THU', fri:'FRI', sat:'SAT', sun:'SUN' };
 const DAY_LABEL_FULL = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday', sat:'Saturday', sun:'Sunday' };
 const JS_DAY_TO_KEY = ['sun','mon','tue','wed','thu','fri','sat'];
-const CAT_SHORT = { push:'PUSH', pull:'PULL', legs:'LEGS', core:'CORE', fullbody:'FULL', rest:'REST' };
+const CAT_SHORT = { push:'PUSH', pull:'PULL', legs:'LEGS', upper:'UPPER', lower:'LOWER', core:'CORE', fullbody:'FULL', rest:'REST' };
 
 const PROGRAM_PHASES = [
   { key:'foundation', weeks:[1,2], name:'Foundation', color:'#9AA1AC', colorSoft:'rgba(154,161,172,0.14)',
@@ -3364,18 +3435,25 @@ async function loadPlanData(id){
     const r = await LOOPStore.get('planData:' + id);
     if(r && r.value) data = JSON.parse(r.value);
   }catch(e){}
-  if(!data){
-    data = JSON.parse(JSON.stringify(DEFAULT_PLANS[id].templates));
-    try{ await LOOPStore.set('planData:' + id, JSON.stringify(data)); }catch(e){}
-  } else {
+  /* Both paths normalise against ORDER so every category — including ones
+     added in a later release — always has an array to hold templates. The
+     backfill is non-destructive: existing categories are never overwritten. */
+  const ensureCategories = (d) => {
     let changed = false;
     ORDER.forEach(cat => {
-      if(!data[cat]){
-        data[cat] = JSON.parse(JSON.stringify(DEFAULT_PLANS[id].templates[cat] || []));
+      if(!d[cat]){
+        d[cat] = JSON.parse(JSON.stringify((DEFAULT_PLANS[id].templates || {})[cat] || []));
         changed = true;
       }
     });
-    if(changed){
+    return changed;
+  };
+  if(!data){
+    data = JSON.parse(JSON.stringify(DEFAULT_PLANS[id].templates));
+    ensureCategories(data);
+    try{ await LOOPStore.set('planData:' + id, JSON.stringify(data)); }catch(e){}
+  } else {
+    if(ensureCategories(data)){
       try{ await LOOPStore.set('planData:' + id, JSON.stringify(data)); }catch(e){}
     }
   }
@@ -3665,7 +3743,10 @@ function resetAllData(){
   })();
 }
 
-function getTemplates(cat){ return planData[cat]; }
+/* Null-guard: planData is null until the plan loads during boot. Without this
+   any early/isolated call into capability (which resolves rep ranges from
+   templates) throws. Behaviour is otherwise identical. */
+function getTemplates(cat){ return planData ? planData[cat] : null; }
 
 /* ---------- WORKOUT PROFILE DIAGRAM ---------- */
 function repMidpoint(repsStr){
@@ -7043,7 +7124,33 @@ const SECONDARY_MUSCLE_MAP = {
   calves:     ['squat','lunge','leg press','box jump','step-up']
 };
 
+/* Keyword matching is right for the overwhelming majority of lifts, but a few
+   names contain a keyword that belongs to a different muscle — "Nordic Curl"
+   matches biceps via "curl" and never reaches hamstrings; "Rear Delt Fly"
+   matches chest via "fly". This override table is consulted FIRST and is keyed
+   on exact normalized names, so it can only ever affect the specific lifts
+   listed here. No existing exercise's recovery changes. */
+const MUSCLE_OVERRIDES = {
+  'nordic curl':            { primary:['hamstrings'], secondary:['glutes'] },
+  'nordic hamstring curl':  { primary:['hamstrings'], secondary:['glutes'] },
+  'glute ham raise':        { primary:['hamstrings'], secondary:['glutes'] },
+  'ghr':                    { primary:['hamstrings'], secondary:['glutes'] },
+  'rear delt fly':          { primary:['shoulders'], secondary:['back'] },
+  'reverse pec deck':       { primary:['shoulders'], secondary:['back'] },
+  'reverse fly':            { primary:['shoulders'], secondary:['back'] },
+  'rear delt raise':        { primary:['shoulders'], secondary:['back'] },
+  'machine rear delt':      { primary:['shoulders'], secondary:['back'] },
+  'bent over rear delt fly':{ primary:['shoulders'], secondary:['back'] },
+  'hip abduction':          { primary:['glutes'], secondary:[] },
+  'abduction machine':      { primary:['glutes'], secondary:[] },
+  'hip abductor':           { primary:['glutes'], secondary:[] },
+  'upright row':            { primary:['shoulders'], secondary:['back'] },
+  'cable upright row':      { primary:['shoulders'], secondary:['back'] }
+};
+
 function musclesForExercise(name){
+  const override = MUSCLE_OVERRIDES[normalizeExerciseName(name)];
+  if(override) return { primary: override.primary.slice(), secondary: (override.secondary || []).slice() };
   const n = (name || '').toLowerCase();
   const primary = [], secondary = [];
   Object.keys(MUSCLE_MAP).forEach(m => {
@@ -7878,6 +7985,24 @@ const CANONICAL_EXERCISES = [
   { id:'skullcrusher',          displayName:'Skullcrusher',           aliases:['skullcrusher','skull crusher','lying triceps extension','ez bar skullcrusher'], pattern:'isolation', equipment:'Barbell', primary:['triceps'], secondary:[], supports1RM:false },
   { id:'overhead_ext_triceps',  displayName:'Overhead Triceps Extension', aliases:['overhead triceps extension','overhead tricep extension','cable overhead extension'], pattern:'isolation', equipment:'Cable', primary:['triceps'], secondary:[], supports1RM:false },
   { id:'calf_raise',            displayName:'Calf Raise',             aliases:['calf raise','calf raises','standing calf raise','seated calf raise'], pattern:'isolation', equipment:'Machine', primary:['calves'], secondary:[], supports1RM:false },
+
+  { id:'rear_delt_fly',         displayName:'Rear Delt Fly',          aliases:['rear delt fly','reverse pec deck','reverse fly','rear delt raise','bent over rear delt fly','machine rear delt'], pattern:'horizontal_pull', equipment:'Machine', primary:['shoulders'], secondary:['back'], supports1RM:false },
+  { id:'lateral_raise_cable',   displayName:'Cable Lateral Raise',    aliases:['cable lateral raise','cable side raise'], pattern:'vertical_push', equipment:'Cable', primary:['shoulders'], secondary:[], supports1RM:false },
+  { id:'shoulder_press_arnold', displayName:'Arnold Press',           aliases:['arnold press','arnolds'], pattern:'vertical_push', equipment:'Dumbbell', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
+  { id:'upright_row',           displayName:'Upright Row',            aliases:['upright row','cable upright row'], pattern:'vertical_push', equipment:'Barbell', primary:['shoulders'], secondary:['back'], supports1RM:false },
+  { id:'landmine_press',        displayName:'Landmine Press',         aliases:['landmine press','half kneeling landmine press'], pattern:'vertical_push', equipment:'Barbell', primary:['shoulders'], secondary:['chest','triceps'], supports1RM:true },
+  { id:'straight_arm_pulldown', displayName:'Straight-Arm Pulldown',  aliases:['straight arm pulldown','straight-arm pulldown','cable pullover','lat pullover'], pattern:'vertical_pull', equipment:'Cable', primary:['back'], secondary:[], supports1RM:false },
+  { id:'row_meadows',           displayName:'Meadows Row',            aliases:['meadows row','landmine row'], pattern:'horizontal_pull', equipment:'Barbell', primary:['back'], secondary:['biceps'], supports1RM:true },
+  { id:'curl_incline_db',       displayName:'Incline Dumbbell Curl',  aliases:['incline dumbbell curl','incline db curl','incline curl'], pattern:'isolation', equipment:'Dumbbell', primary:['biceps'], secondary:[], supports1RM:false },
+  { id:'curl_preacher',         displayName:'Preacher Curl',          aliases:['preacher curl','ez bar preacher curl','machine preacher curl'], pattern:'isolation', equipment:'Barbell', primary:['biceps'], secondary:[], supports1RM:false },
+  { id:'curl_cable',            displayName:'Cable Curl',             aliases:['cable curl','cable bicep curl','rope curl'], pattern:'isolation', equipment:'Cable', primary:['biceps'], secondary:[], supports1RM:false },
+  { id:'bench_press_close_grip',displayName:'Close-Grip Bench Press', aliases:['close-grip bench press','close grip bench press','cgbp'], pattern:'horizontal_push', equipment:'Barbell', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:true },
+  { id:'chest_fly_incline_cable',displayName:'Incline Cable Fly',     aliases:['incline cable fly','low to high cable fly','low-to-high fly'], pattern:'horizontal_push', equipment:'Cable', primary:['chest'], secondary:[], supports1RM:false },
+  { id:'squat_hack',            displayName:'Hack Squat',             aliases:['hack squat','machine hack squat'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:['glutes'], supports1RM:true },
+  { id:'squat_goblet',          displayName:'Goblet Squat',           aliases:['goblet squat','dumbbell goblet squat','kettlebell goblet squat'], pattern:'squat', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
+  { id:'good_morning',          displayName:'Good Morning',           aliases:['good morning','good mornings','barbell good morning'], pattern:'hinge', equipment:'Barbell', primary:['hamstrings'], secondary:['glutes','back'], supports1RM:true },
+  { id:'nordic_curl',           displayName:'Nordic Curl',            aliases:['nordic curl','nordic hamstring curl','glute ham raise','ghr'], pattern:'hinge', equipment:'Bodyweight', primary:['hamstrings'], secondary:['glutes'], supports1RM:false, bodyweight:true },
+  { id:'hip_abduction',         displayName:'Hip Abduction',          aliases:['hip abduction','abduction machine','hip abductor'], pattern:'hinge', equipment:'Machine', primary:['glutes'], secondary:[], supports1RM:false },
 
   { id:'plank',                 displayName:'Plank',                  aliases:['plank','planks','front plank'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, timed:true },
   { id:'crunch',                displayName:'Crunch',                 aliases:['crunch','crunches','ab crunch'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true },
