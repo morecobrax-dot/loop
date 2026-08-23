@@ -745,6 +745,24 @@ html.intro-skip #introOverlay{ display: none !important; }
 .mini-empty{ font-size: 11.5px; color: var(--text-faint); padding: 14px 0; text-align: center; }
 @media (prefers-reduced-motion: reduce){ .seg-panel{ animation: none; } }
 
+/* ---- Athlete profile ---- */
+.pchips{ display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.pchip{
+  padding: 9px 13px; min-height: 40px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.pchip.on{ border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.pnote{ font-size: 11px; color: var(--text-faint); margin-top: 9px; line-height: 1.5; }
+.dlist{ margin-top: 8px; }
+.drow{ display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--border); }
+.drow:last-child{ border-bottom: none; }
+.dlabel{ font-size: 12px; color: var(--text-dim); }
+.dval{ font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700; color: var(--text); text-align: right; }
+.dunknown{ font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 500; color: var(--text-faint); font-style: italic; }
+
 /* ---- Progress: visual layer ---- */
 .prog-hero{ display: flex; align-items: center; gap: 18px; padding: 8px 0 4px; }
 .prog-hero-ring{ position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
@@ -1775,6 +1793,13 @@ body.page-locked{ overflow: hidden; }
       <div class="sheet-sub">Manage your training setup, your data, and this app.</div>
 
       <label>Training</label>
+      <button class="settings-row-btn" onclick="openAthleteProfile()">
+        <span class="settings-row-main">
+          <span class="settings-row-title">Athlete Profile</span>
+          <span class="settings-row-desc" id="settingsProfileSub">Goal, experience, and equipment</span>
+        </span>
+        <span class="settings-row-arrow">›</span>
+      </button>
       <button class="settings-row-btn" onclick="openPlansManager()">
         <span class="settings-row-main">
           <span class="settings-row-title">Workout Plans</span>
@@ -1823,6 +1848,22 @@ body.page-locked{ overflow: hidden; }
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closePlansManager()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS → ATHLETE PROFILE -->
+<div class="overlay" id="profileEditOverlay" onclick="backdropDismiss(event, closeAthleteProfile)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <button class="sheet-back" onclick="backToSettings('profileEditOverlay')">‹ Settings</button>
+      <h2>Athlete Profile</h2>
+      <div class="sheet-sub">A few things LOOP can't work out from your history. Everything here is optional — anything left blank stays unknown rather than guessed.</div>
+      <div id="athleteForm"></div>
+      <div id="athleteDerived"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeAthleteProfile()">Done</button>
     </div>
   </div>
 </div>
@@ -2059,7 +2100,8 @@ const SCHEMA_KEY = 'dataSchemaVersion';
 const BACKUP_PREFIX = 'backup_v';
 
 const DATA_KEYS = [
-  'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft'
+  'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',
+  'athleteProfile', 'exercisePrefs'
 ];
 
 /* Migrations upgrade FROM the keyed version TO the next one.
@@ -3151,6 +3193,8 @@ async function boot(){
     showOnboarding();
   }
 
+  await loadTrainerData();
+
   renderStorageNotice(migrationResult);
 
   // Tells the launch intro the app is loaded. Without this the overlay would
@@ -3266,6 +3310,8 @@ async function persistLog(){
   invalidateSortedLogCache();
   invalidateXPTimelineCache();
   invalidateConsistencyCache();
+  invalidateCapabilityCache();
+  invalidateContextCache();
   try{
     await LOOPStore.set('workoutLog', JSON.stringify(workoutLog));
     return true;
@@ -3338,6 +3384,7 @@ function openSettings(){
   const plan = DEFAULT_PLANS[selectedPlanId];
   const sub = document.getElementById('settingsPlanSub');
   if(sub && plan) sub.textContent = 'Currently on ' + plan.name;
+  refreshSettingsProfileLabel();
   const ver = document.getElementById('settingsVersion');
   if(ver){
     const latest = getLatestUpdate();
@@ -5962,6 +6009,381 @@ function selectPerfWeek(i){
   renderProgTab();
 }
 
+/* =========================================================
+   TRAINER FOUNDATION
+   ---------------------------------------------------------
+   Groundwork for future coaching. Three layers, deliberately
+   separated:
+
+     RAW          workoutLog / schedule / planData  (untouched)
+       ↓
+     DERIVED      training context, exercise capability
+                  — recalculated from raw, cached, never stored
+                  as the only copy
+       ↓
+     DECLARED     athleteProfile, exercisePrefs
+                  — the small set of facts that CANNOT be
+                    derived from history and must be told to us
+
+   Nothing here changes existing data. Two new storage keys are
+   added, both additive; absent keys mean "unknown", never a
+   fabricated default. No schema migration is required because
+   nothing existing is reshaped.
+   ========================================================= */
+
+const PROFILE_KEY = 'athleteProfile';
+const PREFS_KEY   = 'exercisePrefs';
+
+const TRAINING_GOALS = {
+  strength:    { label:'Strength',        repRange:'3-6',   note:'Heavier loads, lower reps, longer rest' },
+  hypertrophy: { label:'Muscle Growth',   repRange:'8-12',  note:'Moderate loads, higher volume' },
+  general:     { label:'General Fitness', repRange:'8-15',  note:'Balanced across strength and conditioning' },
+  recomp:      { label:'Recomposition',   repRange:'8-12',  note:'Maintain strength while managing bodyweight' },
+  endurance:   { label:'Endurance',       repRange:'15-20', note:'Lighter loads, higher reps, short rest' }
+};
+const TRAINING_PHASES_SIMPLE = {
+  base:        'Base',
+  hypertrophy: 'Hypertrophy',
+  strength:    'Strength',
+  deload:      'Deload',
+  maintenance: 'Maintenance'
+};
+const EQUIPMENT_OPTIONS = ['Barbell','Dumbbells','Cables','Machines','Bodyweight','Kettlebells','Bands'];
+
+/* Everything defaults to null = UNKNOWN. Nothing is guessed. */
+function defaultAthleteProfile(){
+  return {
+    version: 1,
+    goal: null,
+    experience: null,          // 'new' | 'intermediate' | 'advanced'
+    sessionMinutes: null,      // preferred session length
+    equipment: [],             // empty = unknown, not "none"
+    preferredRepRange: null,   // overrides goal default when set
+    phase: null,
+    excludedExercises: [],     // hard "never recommend"
+    updatedAt: null
+  };
+}
+let athleteProfile = defaultAthleteProfile();
+
+/* Preference memory. Learns only from REPEATED behaviour — a single swap
+   proves nothing. swappedAway counts how often an exercise was replaced;
+   swappedTo counts how often it was chosen as the replacement. */
+function defaultExercisePrefs(){ return { version:1, swappedAway:{}, swappedTo:{}, manual:{} }; }
+let exercisePrefs = defaultExercisePrefs();
+
+async function loadTrainerData(){
+  try{
+    const p = await LOOPStore.get(PROFILE_KEY);
+    if(p && p.value){
+      const parsed = JSON.parse(p.value);
+      if(parsed && typeof parsed === 'object') athleteProfile = Object.assign(defaultAthleteProfile(), parsed);
+    }
+  }catch(e){}
+  try{
+    const r = await LOOPStore.get(PREFS_KEY);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      if(parsed && typeof parsed === 'object') exercisePrefs = Object.assign(defaultExercisePrefs(), parsed);
+    }
+  }catch(e){}
+}
+async function persistAthleteProfile(){
+  athleteProfile.updatedAt = new Date().toISOString();
+  try{ return await LOOPStore.set(PROFILE_KEY, JSON.stringify(athleteProfile)); }catch(e){ return false; }
+}
+async function persistExercisePrefs(){
+  try{ return await LOOPStore.set(PREFS_KEY, JSON.stringify(exercisePrefs)); }catch(e){ return false; }
+}
+
+/* Called when the user swaps one exercise for another mid-workout. Two data
+   points, not a conclusion — inference happens later, and only on repetition. */
+function recordExerciseSwap(fromName, toName){
+  if(!fromName || !toName) return;
+  const a = fromName.trim().toLowerCase(), b = toName.trim().toLowerCase();
+  if(!a || !b || a === b) return;
+  exercisePrefs.swappedAway[a] = (exercisePrefs.swappedAway[a] || 0) + 1;
+  exercisePrefs.swappedTo[b]   = (exercisePrefs.swappedTo[b]   || 0) + 1;
+  persistExercisePrefs();
+}
+function setExercisePreference(name, value){   // 'more' | 'less' | 'never' | null
+  const k = (name || '').trim().toLowerCase();
+  if(!k) return;
+  if(value === null) delete exercisePrefs.manual[k];
+  else exercisePrefs.manual[k] = value;
+  persistExercisePrefs();
+}
+
+/* Inferred leaning for an exercise. Requires repetition (>=2 net swaps) before
+   claiming anything; otherwise returns 'unknown'. */
+function inferredPreference(name){
+  const k = (name || '').trim().toLowerCase();
+  if(exercisePrefs.manual[k]) return { level: exercisePrefs.manual[k], source: 'stated' };
+  const away = exercisePrefs.swappedAway[k] || 0;
+  const to   = exercisePrefs.swappedTo[k] || 0;
+  const net  = to - away;
+  if(net >= 2)  return { level:'more', source:'observed', net };
+  if(net <= -2) return { level:'less', source:'observed', net };
+  return { level:'unknown', source:'insufficient', net };
+}
+
+/* Confidence is purely a function of how much history backs a claim. */
+function confidenceFromSessions(n){
+  if(n >= 12) return { level:'high',   label:'High',   sessions:n };
+  if(n >= 5)  return { level:'medium', label:'Medium', sessions:n };
+  if(n >= 2)  return { level:'low',    label:'Low',    sessions:n };
+  return { level:'none', label:'Not enough data', sessions:n };
+}
+
+/* ---------- EXERCISE CAPABILITY ----------
+   Everything derived from workoutLog. Returns null rather than guessing when
+   an exercise has never been logged. */
+let _capabilityCache = null;
+function invalidateCapabilityCache(){ _capabilityCache = null; }
+
+function computeExerciseCapability(name){
+  if(!_capabilityCache) _capabilityCache = {};
+  const key = (name || '').trim().toLowerCase();
+  if(!key) return null;
+  if(_capabilityCache[key]) return _capabilityCache[key];
+
+  const sessions = getExerciseFullHistory(name);   // newest first
+  if(!sessions.length) return null;
+
+  const isBW = !!sessions[0].bodyweight;
+  const recent = sessions.slice(0, 5);
+
+  let bestWeight = 0, bestReps = 0, best1RM = 0, bestPair = null;
+  sessions.forEach(s => s.sets.forEach(st => {
+    const w = parseFloat(st.weight), r = parseFloat(st.reps);
+    if(isNaN(r)) return;
+    if(r > bestReps) bestReps = r;
+    if(!isBW && !isNaN(w)){
+      if(w > bestWeight){ bestWeight = w; bestPair = { w, r }; }
+      const e = estimate1RM(w, r);
+      if(e > best1RM) best1RM = e;
+    }
+  }));
+
+  const rw = [], rr = [], rir = [];
+  recent.forEach(s => s.sets.forEach(st => {
+    const w = parseFloat(st.weight), r = parseFloat(st.reps), q = parseFloat(st.rir);
+    if(!isBW && !isNaN(w)) rw.push(w);
+    if(!isNaN(r)) rr.push(r);
+    if(!isNaN(q)) rir.push(q);
+  }));
+  const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+
+  const trend = computeExerciseTrends().find(t => t.name === name) || null;
+  const plateau = detectPlateau(name);
+  const daysSince = Math.floor((new Date() - new Date(sessions[0].date + 'T00:00:00')) / 86400000);
+
+  const cap = {
+    name,
+    isBodyweight: isBW,
+    sessions: sessions.length,
+    lastPerformed: sessions[0].date,
+    daysSinceLast: daysSince,
+    typicalWeight: rw.length ? Math.round(avg(rw)) : null,
+    typicalReps: rr.length ? Math.round(avg(rr)) : null,
+    typicalRepRange: repRangeForExercise(name),
+    typicalRIR: rir.length ? Math.round(avg(rir) * 10) / 10 : null,
+    bestWeight: isBW ? null : (bestWeight || null),
+    bestReps: bestReps || null,
+    bestSet: isBW ? (bestReps ? `${bestReps} reps` : null) : (bestPair ? `${bestPair.w} lb × ${bestPair.r}` : null),
+    estimated1RM: isBW ? null : (best1RM ? Math.round(best1RM) : null),
+    trend: trend ? trend.dir : 'unknown',
+    trendPct: trend ? Math.round(trend.pct) : null,
+    plateauSessions: plateau ? plateau.sessions : 0,
+    preference: inferredPreference(name),
+    confidence: confidenceFromSessions(sessions.length)
+  };
+  _capabilityCache[key] = cap;
+  return cap;
+}
+
+/* ---------- TRAINING CONTEXT ----------
+   A single snapshot answering "where does this athlete stand right now",
+   assembled entirely from existing engines. No stored copy. */
+let _contextCache = null;
+function invalidateContextCache(){ _contextCache = null; }
+
+function computeTrainingContext(){
+  if(_contextCache) return _contextCache;
+
+  const cons = computeConsistencyData();
+  const week = computeWeekSummary();
+  const prog = getCurrentProgression();
+  const buckets = computeProgressionBuckets();
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 14);
+
+  const recentSessions = sortedLog().filter(l => new Date(l.date + 'T00:00:00') >= cutoff);
+  const recentExercises = {};
+  recentSessions.forEach(l => l.exercises.forEach(ex => {
+    const k = (ex.name || '').trim();
+    if(k) recentExercises[k] = (recentExercises[k] || 0) + (ex.sets || []).length;
+  }));
+
+  const muscles14 = computeMuscleVolumeSince(cutoff);
+  const trainedMuscles = Object.keys(muscles14).filter(m => muscles14[m] > 0)
+    .sort((a,b) => muscles14[b] - muscles14[a]);
+
+  const tKey = todayKey();
+  const scheduledToday = schedule ? schedule[tKey] : null;
+
+  // Days since each muscle group was last trained — the raw input a future
+  // recovery-aware planner needs. No recovery claims made here.
+  const lastTrained = {};
+  Object.keys(MUSCLE_MAP).forEach(m => { lastTrained[m] = null; });
+  sortedLog().forEach(l => {
+    const d = Math.floor((new Date() - new Date(l.date + 'T00:00:00')) / 86400000);
+    l.exercises.forEach(ex => {
+      const n = (ex.name || '').toLowerCase();
+      Object.keys(MUSCLE_MAP).forEach(m => {
+        if(lastTrained[m] === null && MUSCLE_MAP[m].some(kw => n.includes(kw))) lastTrained[m] = d;
+      });
+    });
+  });
+
+  _contextCache = {
+    plan: selectedPlanId ? (DEFAULT_PLANS[selectedPlanId] || {}).name || selectedPlanId : null,
+    scheduledToday: scheduledToday,
+    scheduledTodayLabel: scheduledToday ? (CAT_LABEL[scheduledToday] || scheduledToday) : null,
+    trainingDaysPerWeek: schedule ? Object.keys(schedule).filter(d => schedule[d] !== 'rest').length : null,
+
+    totalWorkouts: workoutLog.length,
+    workoutsThisWeek: week.workouts,
+    workoutsLast12Weeks: cons.totalWorkouts,
+    consistencyPct: cons.overallConsistency,
+    weekStreak: prog.currentStreakWeeks,
+    frequencyTrend: cons.trend,
+
+    recentSessionCount: recentSessions.length,
+    recentExercises,
+    recentMuscles: trainedMuscles,
+    daysSinceMuscleTrained: lastTrained,
+    volumeThisWeek: week.volume,
+    volumeChangePct: week.hasLastWeek ? week.volPct : null,
+
+    progressing: buckets.ready.map(r => r.name),
+    building: buckets.building.map(b => b.name),
+    stalling: buckets.stalled.map(s => s.name),
+
+    avgSessionScore: cons.overallScore,
+    totalPRs: computeAllPREvents().length,
+    level: prog.level,
+    rank: prog.rank,
+
+    goal: athleteProfile.goal,
+    goalLabel: athleteProfile.goal ? TRAINING_GOALS[athleteProfile.goal].label : null,
+    phase: athleteProfile.phase,
+    experience: athleteProfile.experience,
+    sessionMinutes: athleteProfile.sessionMinutes,
+    equipment: athleteProfile.equipment.slice(),
+    excludedExercises: athleteProfile.excludedExercises.slice(),
+    preferredRepRange: athleteProfile.preferredRepRange
+      || (athleteProfile.goal ? TRAINING_GOALS[athleteProfile.goal].repRange : null),
+
+    profileComplete: !!(athleteProfile.goal && athleteProfile.experience && athleteProfile.equipment.length),
+    dataConfidence: confidenceFromSessions(workoutLog.length)
+  };
+  return _contextCache;
+}
+
+
+/* ---------- ATHLETE PROFILE UI ----------
+   Deliberately small: only the facts that cannot be derived from history.
+   Everything else on this sheet is read-only, showing what LOOP has already
+   worked out on its own. */
+function openAthleteProfile(){
+  closeSettings();
+  renderAthleteForm();
+  document.getElementById('profileEditOverlay').classList.add('open');
+}
+function closeAthleteProfile(){ document.getElementById('profileEditOverlay').classList.remove('open'); }
+
+function athleteProfileSubLabel(){
+  return athleteProfile.goal
+    ? TRAINING_GOALS[athleteProfile.goal].label + (athleteProfile.experience ? ' · ' + athleteProfile.experience : '')
+    : 'Goal, experience, and equipment';
+}
+function refreshSettingsProfileLabel(){
+  const sub = document.getElementById('settingsProfileSub');
+  if(sub) sub.textContent = athleteProfileSubLabel();
+}
+function setProfileField(field, value){
+  athleteProfile[field] = (athleteProfile[field] === value) ? null : value;
+  invalidateContextCache();
+  persistAthleteProfile();
+  renderAthleteForm();
+  refreshSettingsProfileLabel();
+}
+function toggleProfileEquipment(item){
+  const i = athleteProfile.equipment.indexOf(item);
+  if(i === -1) athleteProfile.equipment.push(item); else athleteProfile.equipment.splice(i, 1);
+  invalidateContextCache();
+  persistAthleteProfile();
+  renderAthleteForm();
+}
+
+function renderAthleteForm(){
+  const el = document.getElementById('athleteForm');
+  if(!el) return;
+  const chip = (active, label, onclick) =>
+    `<button class="pchip ${active ? 'on' : ''}" onclick="${onclick}">${label}</button>`;
+
+  el.innerHTML = `
+    <label>Primary goal</label>
+    <div class="pchips">${Object.keys(TRAINING_GOALS).map(k =>
+      chip(athleteProfile.goal === k, TRAINING_GOALS[k].label, `setProfileField('goal','${k}')`)).join('')}</div>
+    ${athleteProfile.goal ? `<div class="pnote">${TRAINING_GOALS[athleteProfile.goal].note} · typical ${TRAINING_GOALS[athleteProfile.goal].repRange} reps</div>` : ''}
+
+    <label style="margin-top:20px">Experience</label>
+    <div class="pchips">${[['new','Newer'],['intermediate','Intermediate'],['advanced','Advanced']].map(([k,l]) =>
+      chip(athleteProfile.experience === k, l, `setProfileField('experience','${k}')`)).join('')}</div>
+
+    <label style="margin-top:20px">Preferred session length</label>
+    <div class="pchips">${[30,45,60,75,90].map(m =>
+      chip(athleteProfile.sessionMinutes === m, m + ' min', `setProfileField('sessionMinutes',${m})`)).join('')}</div>
+
+    <label style="margin-top:20px">Available equipment</label>
+    <div class="pchips">${EQUIPMENT_OPTIONS.map(item =>
+      chip(athleteProfile.equipment.indexOf(item) !== -1, item, `toggleProfileEquipment('${item}')`)).join('')}</div>
+
+    <label style="margin-top:20px">Training phase</label>
+    <div class="pchips">${Object.keys(TRAINING_PHASES_SIMPLE).map(k =>
+      chip(athleteProfile.phase === k, TRAINING_PHASES_SIMPLE[k], `setProfileField('phase','${k}')`)).join('')}</div>
+    <div class="pnote">Phase is yours to set — LOOP won't change it on you.</div>
+  `;
+  renderAthleteDerived();
+}
+
+/* Read-only mirror of what LOOP has already learned, so the split between
+   "you told us" and "we worked it out" is visible. */
+function renderAthleteDerived(){
+  const el = document.getElementById('athleteDerived');
+  if(!el) return;
+  const ctx = computeTrainingContext();
+  const row = (label, value) =>
+    `<div class="drow"><span class="dlabel">${label}</span><span class="dval">${value}</span></div>`;
+  const unknown = '<span class="dunknown">Unknown</span>';
+
+  const topMuscles = ctx.recentMuscles.slice(0,3).map(m => MUSCLE_LABELS[m] || m).join(', ');
+  el.innerHTML = `
+    <label style="margin-top:24px">What LOOP has worked out</label>
+    <div class="dlist">
+      ${row('Sessions logged', ctx.totalWorkouts)}
+      ${row('Training days / week', ctx.trainingDaysPerWeek != null ? ctx.trainingDaysPerWeek : unknown)}
+      ${row('12-week consistency', ctx.consistencyPct != null ? ctx.consistencyPct + '%' : unknown)}
+      ${row('Trained recently', topMuscles || unknown)}
+      ${row('Progressing', ctx.progressing.length ? ctx.progressing.length + ' exercise' + (ctx.progressing.length===1?'':'s') : unknown)}
+      ${row('Stalling', ctx.stalling.length ? ctx.stalling.length + ' exercise' + (ctx.stalling.length===1?'':'s') : 'None')}
+      ${row('Data confidence', ctx.dataConfidence.label)}
+    </div>
+    <div class="pnote">These are derived from your workout history and update on their own.</div>
+  `;
+}
+
 function renderProgHeader(){
   const el = document.getElementById('progHeader');
   if(!el) return;
@@ -6801,6 +7223,11 @@ function swapLogExercise(selectEl){
   if(!lib) return;
   const row = selectEl.closest('.ex-log-row');
   const isBW = lib.recommended === 'Bodyweight';
+
+  // Preference signal: what was replaced, and what replaced it. One swap proves
+  // nothing — inferredPreference() only draws a conclusion on repetition.
+  const previousName = row.querySelector('.ex-name-in').value;
+  recordExerciseSwap(previousName, lib.name);
 
   row.querySelector('.ex-name-in').value = lib.name;
   row.querySelector('.ex-effort-in').value = firstNumber(lib.effort);
