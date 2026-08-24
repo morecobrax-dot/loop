@@ -161,7 +161,8 @@ function loadApp(initialStore){
     'prepState','prepTimerId','prepCardDismissed','pendingLogCategory',
     'GYM_EQUIPMENT','GYM_CATEGORIES','EXERCISE_EQUIPMENT','GYM_STATUS','GYM_PROFILE_KEY',
     'gymProfile','EQUIPMENT_OPTIONS',
-    'SUBSTITUTION_CONFIG','substitutionTargetRow'];
+    'SUBSTITUTION_CONFIG','substitutionTargetRow',
+    'TIME_MODE_CONFIG','TIME_MODE_COMPOUND_PATTERNS','selectedWorkoutMinutes','timePickerOpen','pendingPlannedMinutes'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

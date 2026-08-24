@@ -1969,6 +1969,41 @@ body.page-locked{ overflow: hidden; }
 .sub-option-why{ font-size: 11.5px; color: var(--text-dim); line-height: 1.35; }
 .sub-option-arrow{ color: var(--text-faint); font-size: 18px; line-height: 1; flex-shrink: 0; }
 .sub-empty{ font-size: 13px; color: var(--text-dim); line-height: 1.5; padding: var(--space-4) 0; }
+
+/* ---------- WORKOUT TIME MODE (Phase D3) ---------- */
+/* The shared .tw-change control is 35px tall. Rather than restyle a
+   pre-existing button that other screens rely on, the time control gets a
+   modifier so this phase's own control clears the 44px thumb target. */
+.tw-change-time{ min-height: 44px; }
+.time-picker{ margin-top: 10px; }
+.time-picker-label{
+  font-size: 11px; font-weight: 600; color: var(--text-faint);
+  letter-spacing: 0.04em; margin-bottom: 8px;
+}
+.time-chips{ display: flex; flex-wrap: wrap; gap: 7px; }
+.time-chip{
+  min-width: 52px; min-height: 44px; padding: 0 12px;
+  border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.time-chip.on{ border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.time-chip-full{ font-family: 'Inter', sans-serif; font-size: 12.5px; }
+.time-note{
+  font-size: 11.5px; color: var(--accent); font-weight: 600; margin-top: 6px;
+}
+.dur-compare{
+  display: flex; gap: var(--space-3); margin-top: var(--space-3);
+  padding-top: var(--space-3); border-top: 1px solid var(--border);
+}
+.dur-cell{ flex: 1; text-align: center; }
+.dur-label{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 3px;
+}
+.dur-val{ font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; color: var(--text); }
 </style>
 </head>
 <body>
@@ -3454,6 +3489,31 @@ const DEFAULT_PLANS = {
           T('Rear Delt Fly',3,'12–20','7'),
           T('Incline Dumbbell Curl',3,'10–15','7'),
           T('Overhead Triceps Extension',3,'10–15','7')
+        ]},
+        /* Upper C leans on machines and cables. Same muscles as A and B, but
+           the loading is far easier to push close to failure without a
+           spotter, which is what makes it the volume day. */
+        { id:'ul-u3', name:'Upper C — Machines & Volume', exercises:[
+          T('Machine Chest Press',4,'8–12','8'),
+          T('Machine Row',4,'8–12','8'),
+          T('Incline Cable Fly',3,'12–15','7'),
+          T('Lat Pulldown',3,'10–15','7–8'),
+          T('Rear Delt Fly',3,'12–20','7'),
+          T('Lateral Raise',3,'12–20','7'),
+          T('Cable Curl',3,'10–15','7'),
+          T('Triceps Pushdown',3,'12–15','7')
+        ]},
+        /* Upper D shifts the emphasis to vertical pressing, upper back and
+           arms — but chest and back still get real compound work, so it stays
+           a complete upper session rather than an arms day. */
+        { id:'ul-u4', name:'Upper D — Shoulders & Arms', exercises:[
+          T('Dumbbell Shoulder Press',4,'6–10','8'),
+          T('Pull-Up',4,'6–10','8','Add load when 10 reps is easy'),
+          T('Dumbbell Bench Press',3,'8–12','7–8'),
+          T('Dumbbell Row',3,'8–12','7–8'),
+          T('Face Pull',3,'15–20','7'),
+          T('Hammer Curl',3,'10–15','7'),
+          T('Skullcrusher',3,'10–15','7')
         ]}
       ],
       lower: [
@@ -3474,6 +3534,31 @@ const DEFAULT_PLANS = {
           T('Hack Squat',3,'10–15','7'),
           T('Calf Raise',4,'12–20','7'),
           T('Hanging Leg Raise',3,'10–15','7')
+        ]},
+        /* Lower C is the hypertrophy day: a machine squat pattern as the
+           primary means the legs get the work instead of the lower back, so
+           the rep ranges sit higher than Lower A throughout. */
+        { id:'ul-l3', name:'Lower C — Balanced Hypertrophy', exercises:[
+          T('Front Squat',4,'6–10','8','Elbows high'),
+          T('Good Morning',3,'8–12','7','Light — this is a hinge, not a squat'),
+          T('Leg Press',3,'12–15','7–8'),
+          T('Leg Extension',4,'12–20','7'),
+          T('Leg Curl',3,'10–15','7'),
+          T('Calf Raise',4,'12–20','7'),
+          T('Cable Crunch',3,'12–15','7')
+        ]},
+        /* Lower D is glute and hamstring led. It deliberately avoids Lower B's
+           exercise choices — hip thrust rather than deadlift as the primary,
+           leg curl rather than nordic, lunge rather than split squat — so the
+           two posterior sessions complement instead of repeating each other. */
+        { id:'ul-l4', name:'Lower D — Glutes & Hamstrings', exercises:[
+          T('Hip Thrust',4,'8–12','8'),
+          T('Romanian Deadlift',4,'8–12','7–8'),
+          T('Leg Press',3,'12–15','7–8','Feet high for more hip'),
+          T('Leg Curl',4,'10–15','7'),
+          T('Lunge',3,'10–12','7','Per leg'),
+          T('Hip Abduction',3,'15–20','7'),
+          T('Calf Raise',4,'12–20','7')
         ]}
       ]
     }
@@ -3897,6 +3982,25 @@ const LOOP_UPDATES = [
     bugFixes: [],
     changes: [],
     detail: 'Replacements apply to today’s workout only. Your saved plan is never rewritten, past workouts keep the exercise you actually did, and records stay attached to the right lift. Weights are left blank rather than carried across, because a load you can handle on one exercise is not a load for another. Nothing is ever replaced automatically — you choose.'
+  },
+  {
+    id: 'v2-5',
+    version: 'LOOP 2.5',
+    title: 'Upper / Lower, Finished',
+    date: '2026-08-24',
+    summary: 'Four Upper and four Lower sessions, plus a way to fit a workout into the time you actually have.',
+    newFeatures: [
+      'Upper C and Upper D, and Lower C and Lower D — the Upper / Lower plan now has four distinct sessions of each',
+      'Upper C is machine and cable led for volume; Upper D leans on vertical pressing, upper back and arms',
+      'Lower C is a front squat and hinge hypertrophy day; Lower D is glute and hamstring led',
+      'Change time on the Today card — pick 15, 30, 45, 60 or 90 minutes and LOOP shortens the session for you'
+    ],
+    improvements: [
+      'Finished workouts now show planned time alongside how long you actually took'
+    ],
+    bugFixes: [],
+    changes: [],
+    detail: 'Shortening a workout keeps what the session is for. The main lift and the major opposing movement stay in, sets come off the smaller work first, and nothing new is ever added — a 30 minute Upper A is still Upper A. Your time choice applies to that session only; the plan itself is never rewritten and is back to full length next time.'
   }
 ];
 
@@ -7211,8 +7315,11 @@ function renderTodayWorkout(){
   const first = templates[0];
   const lastDone = sortedLog().find(l => l.category === cat);
   const daysAgo = lastDone ? Math.floor((new Date() - new Date(lastDone.date + 'T00:00:00')) / 86400000) : null;
-  const dur = first ? computeWorkoutDuration(first) : null;
-  const exCount = first ? first.exercises.length : 0;
+  /* Time Mode compresses the PLANNED workout for display and for starting.
+     The template itself is never modified — this is a derived copy. */
+  const shown = first ? applyTimeModeToTemplate(first) : null;
+  const dur = shown ? computeWorkoutDuration(shown) : null;
+  const exCount = shown ? shown.exercises.length : 0;
 
   const meta = [
     exCount ? `${exCount} exercise${exCount===1?'':'s'}` : null,
@@ -7236,7 +7343,10 @@ function renderTodayWorkout(){
       <div class="tw-label">Today's Workout</div>
       <div class="tw-title">${CAT_LABEL[cat]}</div>
       <div class="tw-meta">${first ? escapeHtml(first.name) + ' · ' + meta : meta}</div>
+      ${timeModeNoteHtml(first)}
       ${cta}
+      ${first ? `<button class="tw-change tw-change-time" onclick="toggleTimePicker()">${timePickerOpen ? 'Hide time options' : 'Change time'}</button>` : ''}
+      ${timePickerHtml(first)}
       ${templates.length > 1 || todayPickerOpen ? `
         <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide options' : 'Change workout'}</button>` : ''}
       <button class="today-cardio-link" onclick="switchTab('cardio')">
@@ -10384,6 +10494,263 @@ function renderAll(){
 
 /* ---------- LOG SHEET ---------- */
 /* =========================================================
+   WORKOUT TIME MODE  (Phase D3)
+   ---------------------------------------------------------
+   "How much time do you have?" — compresses TODAY'S PLANNED
+   workout to fit, and nothing more.
+
+   IT IS NOT A GENERATOR. The starting point is always the
+   planned template. Time Mode only ever removes sets and
+   exercises from it; it can never introduce an exercise the
+   programme did not contain, so a shortened Upper A still
+   reads as Upper A.
+
+   PLAN SAFETY. The selected time lives in memory for the
+   current session only. DEFAULT_PLANS and planData are never
+   written, so tomorrow the workout is back to full length
+   unless the athlete deliberately shortens it again.
+
+   TRAINER BOUNDARY. The engine stays 0.1.1-shadow and does not
+   consume any of this. The read-only accessors at the bottom
+   exist so a future phase can, without reaching into storage.
+   ========================================================= */
+
+const TIME_MODE_CONFIG = {
+  /* Offered in the UI. null = the full planned workout. */
+  options: [15, 30, 45, 60, 90],
+
+  /* Tiers, highest priority first. Time Mode strips from the bottom up.
+       1 primary movement            — the reason the session exists
+       2 major opposing compound     — what makes it a balanced session
+       3 secondary compound work
+       4 accessory / isolation
+       5 optional volume and core    — first to go */
+  protectedTiers: [1, 2],       // never removed entirely, only trimmed
+  minSets: {
+    primary: 2,                 // a tier-1 lift keeps at least this many sets
+    compound: 2,
+    accessory: 2
+  },
+  /* A session must keep at least this many exercises no matter how little
+     time there is — below this it stops being the planned workout. */
+  minExercises: 3
+};
+
+/* ---------- PRIORITY TIERS ----------
+   Derived from the template's own ordering and the existing canonical
+   metadata. Nothing is stored on the templates, so the plan data is
+   untouched, and the tiering is never shown to the athlete. */
+/* Patterns that represent a major multi-joint movement. Used with the type
+   classifier rather than instead of it: Lateral Raise is a vertical_push by
+   pattern but an isolation by type, while Pull-Up is a genuine compound the
+   name-based type classifier reports as 'other'. Requiring a compound pattern
+   AND a non-accessory type gets both cases right. */
+const TIME_MODE_COMPOUND_PATTERNS = ['horizontal_push','vertical_push','horizontal_pull','vertical_pull','squat','hinge','lunge'];
+
+function assignTimeTiers(exercises){
+  const meta = exercises.map((ex, i) => {
+    let id = null;
+    try{ id = resolveExerciseId(ex.name); }catch(e){}
+    const canon = id ? getCanonicalExercise(id) : null;
+    const pattern = canon ? canon.pattern : (typeof movementPatternFor === 'function' ? movementPatternFor(ex.name) : 'other');
+    const typeRole = substitutionRole(classifyExerciseType(ex.name, false));
+    const isCore = pattern === 'core';
+    const isCompound = !isCore &&
+      TIME_MODE_COMPOUND_PATTERNS.indexOf(pattern) !== -1 &&
+      typeRole !== 'accessory';
+    return { index:i, exercise:ex, pattern, role: isCompound ? 'compound' : typeRole, isCore };
+  });
+
+  const tiers = new Array(exercises.length).fill(4);
+
+  // Tier 1 — whatever the programme put first.
+  if(meta.length) tiers[0] = 1;
+  const primaryPattern = meta.length ? meta[0].pattern : null;
+
+  // Tier 2 — the first compound after it that trains a DIFFERENT pattern.
+  // That is what keeps a push/pull session balanced when it is cut down.
+  let tier2 = -1;
+  for(let i = 1; i < meta.length; i++){
+    if(meta[i].role === 'compound' && meta[i].pattern !== primaryPattern && !meta[i].isCore){ tier2 = i; break; }
+  }
+  if(tier2 === -1){
+    for(let i = 1; i < meta.length; i++){
+      if(meta[i].role === 'compound' && !meta[i].isCore){ tier2 = i; break; }
+    }
+  }
+  if(tier2 !== -1) tiers[tier2] = 2;
+
+  // Tier 3 — remaining compounds. Tier 5 — core and optional tail volume.
+  let accessorySeen = 0;
+  for(let i = 1; i < meta.length; i++){
+    if(tiers[i] === 2) continue;
+    if(meta[i].isCore){ tiers[i] = 5; continue; }
+    if(meta[i].role === 'compound'){ tiers[i] = 3; continue; }
+    accessorySeen++;
+    tiers[i] = accessorySeen <= 2 ? 4 : 5;   // beyond two accessories = optional
+  }
+  return tiers;
+}
+
+function templateSetTotal(tpl){
+  return (tpl.exercises || []).reduce((n, ex) => n + (parseInt(ex.sets) || 0), 0);
+}
+
+/* ---------- COMPRESSION ----------
+   Deterministic: the same template and the same target always produce the
+   same result, and a smaller target always applies a superset of the
+   reductions a larger one does, so workload is monotonic in time. */
+function compressWorkoutForTime(tpl, minutes){
+  if(!tpl) return tpl;
+  // FULL / DEFAULT — hand back an untouched copy.
+  const working = { ...tpl, exercises: (tpl.exercises || []).map(ex => ({ ...ex })) };
+  if(!minutes) return working;
+  if(computeWorkoutDuration(working) <= minutes) return working;
+
+  const C = TIME_MODE_CONFIG;
+  const tiers = assignTimeTiers(tpl.exercises || []);
+  // Carry the tier alongside each exercise while we work.
+  working.exercises.forEach((ex, i) => { ex._tier = tiers[i]; });
+
+  const over = () => computeWorkoutDuration(working) > minutes;
+  const minSetsFor = t => t === 1 ? C.minSets.primary : (t <= 3 ? C.minSets.compound : C.minSets.accessory);
+
+  /* Pass 1 — drop optional volume (tier 5), last first. */
+  for(let t = 5; t >= 4 && over(); t--){
+    for(let i = working.exercises.length - 1; i >= 1 && over(); i--){
+      if(working.exercises[i]._tier !== t) continue;
+      if(working.exercises.length <= C.minExercises) break;
+      working.exercises.splice(i, 1);
+    }
+  }
+
+  /* Pass 2 — trim sets from the bottom tier upward, never below the floor.
+     Sets come off accessories before compounds, and off the primary last. */
+  for(let t = 5; t >= 1 && over(); t--){
+    for(let i = working.exercises.length - 1; i >= 0 && over(); i--){
+      const ex = working.exercises[i];
+      if(ex._tier !== t) continue;
+      const floor = minSetsFor(t);
+      let sets = parseInt(ex.sets) || 0;
+      while(sets > floor && over()){ sets--; ex.sets = sets; }
+    }
+  }
+
+  /* Pass 3 — still over: drop tier-3 secondary compounds, last first.
+     Tiers 1 and 2 are protected, so the session keeps its primary movement
+     and its major opposing movement no matter how little time there is. */
+  for(let i = working.exercises.length - 1; i >= 1 && over(); i--){
+    if(working.exercises[i]._tier !== 3) continue;
+    if(working.exercises.length <= C.minExercises) break;
+    working.exercises.splice(i, 1);
+  }
+
+  /* Pass 4 — last resort: remaining unprotected exercises, last first. */
+  for(let i = working.exercises.length - 1; i >= 1 && over(); i--){
+    if(C.protectedTiers.indexOf(working.exercises[i]._tier) !== -1) continue;
+    if(working.exercises.length <= C.minExercises) break;
+    working.exercises.splice(i, 1);
+  }
+
+  working.exercises.forEach(ex => { delete ex._tier; });
+  return working;
+}
+
+/* ---------- SESSION STATE ----------
+   In memory only. Never persisted, never written to any plan. */
+let selectedWorkoutMinutes = null;
+
+function setWorkoutTime(minutes){
+  selectedWorkoutMinutes = minutes || null;
+  renderTodayWorkout();
+}
+function clearWorkoutTime(){ setWorkoutTime(null); }
+
+/* Applies whatever the athlete picked to a template about to be started. */
+function applyTimeModeToTemplate(tpl){
+  return compressWorkoutForTime(tpl, selectedWorkoutMinutes);
+}
+
+/* ---------- READ-ONLY INTERFACE (for a future trainer phase) ---------- */
+function getAvailableTime(){ return selectedWorkoutMinutes; }
+function getCurrentWorkoutTemplate(){
+  const cat = schedule ? schedule[todayKey()] : null;
+  if(!cat || cat === 'rest') return null;
+  const list = getTemplates(cat) || [];
+  return list.length ? list[0] : null;
+}
+function getTimeAdjustedWorkout(tpl, minutes){
+  const base = tpl || getCurrentWorkoutTemplate();
+  if(!base) return null;
+  return compressWorkoutForTime(base, minutes === undefined ? selectedWorkoutMinutes : minutes);
+}
+/* What Time Mode did, for display and for tests. */
+function timeModeSummary(tpl, minutes){
+  const base = tpl || getCurrentWorkoutTemplate();
+  if(!base) return null;
+  const adjusted = compressWorkoutForTime(base, minutes === undefined ? selectedWorkoutMinutes : minutes);
+  return {
+    sourceName: base.name,
+    requestedMinutes: minutes === undefined ? selectedWorkoutMinutes : minutes,
+    estimatedMinutes: computeWorkoutDuration(adjusted),
+    fullMinutes: computeWorkoutDuration(base),
+    exercisesKept: adjusted.exercises.length,
+    exercisesFull: base.exercises.length,
+    setsKept: templateSetTotal(adjusted),
+    setsFull: templateSetTotal(base),
+    compressed: templateSetTotal(adjusted) < templateSetTotal(base) ||
+                adjusted.exercises.length < base.exercises.length
+  };
+}
+
+/* PLANNED vs ACTUAL. Shown only when both are genuinely known — an entry
+   without the optional timing fields simply renders nothing, which is every
+   workout logged before this phase. The estimate is always marked as one. */
+function plannedVsActualHtml(entry){
+  if(!entry || !entry.startedAt || !entry.endedAt) return '';
+  const ms = new Date(entry.endedAt) - new Date(entry.startedAt);
+  if(!(ms > 0)) return '';
+  const totalSec = Math.round(ms / 1000);
+  const mm = Math.floor(totalSec / 60), ss = totalSec % 60;
+  const actual = mm + ':' + String(ss).padStart(2, '0');
+  return `
+    <div class="dur-compare">
+      ${entry.plannedMinutes ? `<div class="dur-cell"><div class="dur-label">Planned</div><div class="dur-val">~${entry.plannedMinutes} min</div></div>` : ''}
+      <div class="dur-cell"><div class="dur-label">Actual</div><div class="dur-val">${actual}</div></div>
+    </div>`;
+}
+
+/* ---------- UI ---------- */
+let timePickerOpen = false;
+function toggleTimePicker(){
+  timePickerOpen = !timePickerOpen;
+  renderTodayWorkout();
+}
+function timePickerHtml(tpl){
+  if(!timePickerOpen) return '';
+  const opts = TIME_MODE_CONFIG.options.map(m => {
+    const on = selectedWorkoutMinutes === m;
+    return `<button class="time-chip${on ? ' on' : ''}" onclick="setWorkoutTime(${m})">${m}</button>`;
+  }).join('');
+  const fullOn = selectedWorkoutMinutes === null;
+  return `
+    <div class="time-picker">
+      <div class="time-picker-label">How much time do you have?</div>
+      <div class="time-chips">
+        ${opts}
+        <button class="time-chip time-chip-full${fullOn ? ' on' : ''}" onclick="setWorkoutTime(null)">Full</button>
+      </div>
+    </div>`;
+}
+/* One short line describing the compression, shown only when it did something. */
+function timeModeNoteHtml(tpl){
+  if(!tpl || selectedWorkoutMinutes === null) return '';
+  const s = timeModeSummary(tpl, selectedWorkoutMinutes);
+  if(!s || !s.compressed) return '';
+  return `<div class="time-note">${s.requestedMinutes} min · optimized from ${escapeHtml(s.sourceName)}</div>`;
+}
+
+/* =========================================================
    EXERCISE SUBSTITUTION ENGINE  (Phase D2)
    ---------------------------------------------------------
    Answers: "what is the best available replacement for this
@@ -11860,6 +12227,9 @@ function dismissCooldownCard(){
    (e.g. weight saved but reps lost).
    ========================================================= */
 const DRAFT_KEY = 'activeWorkoutDraft';
+/* Planned duration of the session that was started, in minutes. Used only to
+   show PLANNED vs ACTUAL on the summary; null whenever it isn't known. */
+let pendingPlannedMinutes = null;
 let draftSaveTimer = null;
 let draftRestoring = false;
 let pendingDraftStartedAt = null;
@@ -12117,12 +12487,16 @@ async function confirmOverwriteDraft(){
 async function startTemplateLog(cat, tplId){
   if(!(await confirmOverwriteDraft())) return;
 
-  const tpl = getTemplates(cat).find(t => t.id === tplId);
-  if(!tpl) return;
+  const planned = getTemplates(cat).find(t => t.id === tplId);
+  if(!planned) return;
+  /* Time Mode works on a COPY. The saved template keeps every exercise and
+     set it was programmed with, whatever the athlete picked for today. */
+  const tpl = applyTimeModeToTemplate(planned);
   pendingLogCategory = cat;
   pendingDraftStartedAt = new Date().toISOString();
   pendingDraftId = 'draft_' + Date.now();
   const duration = computeWorkoutDuration(tpl);
+  pendingPlannedMinutes = duration;
   document.getElementById('logCategoryPicker').style.display = 'none';
   document.getElementById('logSheetTitle').textContent = 'Log ' + CAT_LABEL[cat] + ' Workout';
   document.getElementById('logSheetSub').textContent = 'Prefilled from "' + tpl.name + '" (~' + duration + ' min) — tap +/- to log each set.';
@@ -12593,6 +12967,15 @@ function saveLog(btn){
     notes,
     exercises: realExercises
   };
+  /* Duration foundation (Phase D3). Both fields are OPTIONAL and are written
+     only when genuinely known — every historical entry has neither, and every
+     reader must treat their absence as "unknown" rather than zero. Nothing
+     derives training data from them. */
+  if(pendingDraftStartedAt){
+    newEntry.startedAt = pendingDraftStartedAt;
+    newEntry.endedAt = new Date().toISOString();
+  }
+  if(pendingPlannedMinutes) newEntry.plannedMinutes = pendingPlannedMinutes;
   workoutLog.push(newEntry);
   // Caches must be invalidated now so the PR/XP computations below see the new
   // entry. The actual write to storage happens once, at the end, where its
@@ -12653,6 +13036,10 @@ function saveLog(btn){
   persistLog().then(ok => {
     if(ok){
       clearActiveDraft();
+      // Today's time choice applied to today only — the next session starts
+      // from the full planned workout again.
+      selectedWorkoutMinutes = null;
+      pendingPlannedMinutes = null;
       showWorkoutSummary(newEntry, newPREvents, matchedNames, volumeInsight);
     } else {
       const idx = workoutLog.findIndex(l => l.id === newEntry.id);
@@ -12778,7 +13165,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
     <div class="stat"><div class="stat-num">${totalSets}</div><div class="stat-label">Sets</div></div>
     <div class="stat"><div class="stat-num">${durationMin ? '~'+durationMin : '—'}</div><div class="stat-label">Minutes</div></div>
     <div class="stat"><div class="stat-num">${streak}</div><div class="stat-label">Week Streak</div></div>
-  `;
+  ` + plannedVsActualHtml(entry);
   const prsEl = document.getElementById('summaryPRs');
   if(newPREvents.length){
     prsEl.innerHTML = `<div class="section-label" style="margin-top:18px">New Records</div>` + newPREvents.map(ev => {

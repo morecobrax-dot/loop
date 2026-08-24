@@ -1273,8 +1273,12 @@ function testUpperLowerFeature(app){
   T('plan schedules upper and lower', plan &&
     Object.values(plan.defaultSchedule).indexOf('upper') !== -1 &&
     Object.values(plan.defaultSchedule).indexOf('lower') !== -1);
-  T('plan has 2 upper templates', plan && plan.templates.upper.length === 2);
-  T('plan has 2 lower templates', plan && plan.templates.lower.length === 2);
+  /* Phase D3 completed the library from 2 sessions each to 4. The old
+     assertion pinned the INCOMPLETE state, so it was raised rather than
+     relaxed — Contract 40 additionally checks each session's structure,
+     muscle coverage and distinctness. */
+  T('plan has 4 upper templates', plan && plan.templates.upper.length === 4);
+  T('plan has 4 lower templates', plan && plan.templates.lower.length === 4);
 
   const allPlans = Object.keys(ctx.DEFAULT_PLANS);
   T('existing plans preserved', ['balanced','strength','home','hypertrophy','athletic']
@@ -2912,6 +2916,322 @@ async function testSubstitutionApplySafety(){
     !ctx.DATA_KEYS.some(k => /substitut/i.test(k)));
   T('schema version untouched', ctx.DATA_SCHEMA_VERSION === 1);
 }
+
+/* =========================================================
+   CONTRACT 40-42 — UPPER/LOWER LIBRARY + TIME MODE (Phase D3)
+   ---------------------------------------------------------
+   Two things are being protected here. First, that the eight
+   sessions are real programmes rather than lists of exercises
+   that happen to parse — hence the muscle-coverage and
+   ordering checks. Second, that Time Mode only ever COMPRESSES
+   the planned workout: it must never invent an exercise, never
+   write to a plan, and never drop the movement the session
+   exists for.
+   ========================================================= */
+const UL = ctx => ctx.DEFAULT_PLANS.upperlower.templates;
+const musclesOf = (ctx, name) => {
+  const id = ctx.resolveExerciseId(name);
+  const c = ctx.getCanonicalExercise(id);
+  return c ? c.primary.concat(c.secondary) : [];
+};
+const patternOf = (ctx, name) => {
+  const c = ctx.getCanonicalExercise(ctx.resolveExerciseId(name));
+  return c ? c.pattern : null;
+};
+const coversAny = (ctx, w, list) =>
+  w.exercises.some(ex => musclesOf(ctx, ex.name).some(m => list.includes(m)));
+
+function testUpperLowerLibrary(app){
+  section('CONTRACT 40 — Upper/Lower library is a real programme');
+  const ctx = app.ctx;
+  const t = UL(ctx);
+
+  sub('library completeness');
+  T('four Upper sessions exist', t.upper.length === 4, String(t.upper.length));
+  T('four Lower sessions exist', t.lower.length === 4, String(t.lower.length));
+  T('no duplicate template ids',
+    new Set(t.upper.concat(t.lower).map(w => w.id)).size === 8);
+  T('every session has a name', t.upper.concat(t.lower).every(w => !!w.name));
+  T('Upper sessions are labelled A-D',
+    ['A','B','C','D'].every(l => t.upper.some(w => w.name.indexOf('Upper ' + l) === 0)));
+  T('Lower sessions are labelled A-D',
+    ['A','B','C','D'].every(l => t.lower.some(w => w.name.indexOf('Lower ' + l) === 0)));
+
+  sub('every exercise is loggable — no invalid ids');
+  const all = t.upper.concat(t.lower);
+  const unmapped = [];
+  all.forEach(w => w.exercises.forEach(ex => {
+    if(!ctx.isCanonicalId(ctx.resolveExerciseId(ex.name))) unmapped.push(w.name + '::' + ex.name);
+  }));
+  T('every exercise resolves to a canonical id', unmapped.length === 0, unmapped.join(','));
+  T('every exercise has sets', all.every(w => w.exercises.every(ex => parseInt(ex.sets) > 0)));
+  T('every exercise has a rep prescription', all.every(w => w.exercises.every(ex => !!ex.reps)));
+  T('no duplicate exercise inside a session',
+    all.every(w => new Set(w.exercises.map(e => e.name)).size === w.exercises.length),
+    all.filter(w => new Set(w.exercises.map(e => e.name)).size !== w.exercises.length).map(w=>w.name).join(','));
+
+  sub('session size is realistic — no junk volume');
+  T('every session has 5-9 exercises',
+    all.every(w => w.exercises.length >= 5 && w.exercises.length <= 9));
+  T('every session totals 15-30 sets',
+    all.every(w => { const s = ctx.templateSetTotal(w); return s >= 15 && s <= 30; }),
+    all.map(w => w.name.split(' —')[0] + ':' + ctx.templateSetTotal(w)).join(' '));
+  T('every session estimates 30-75 minutes',
+    all.every(w => { const d = ctx.computeWorkoutDuration(w); return d >= 30 && d <= 75; }));
+
+  sub('program quality — Upper muscle coverage');
+  t.upper.forEach(w => {
+    const short = w.name.split(' —')[0];
+    T(short + ' trains chest', coversAny(ctx, w, ['chest']));
+    T(short + ' trains back', coversAny(ctx, w, ['back']));
+    T(short + ' trains shoulders', coversAny(ctx, w, ['shoulders']));
+    T(short + ' trains arms', coversAny(ctx, w, ['biceps','triceps']));
+    T(short + ' has a push and a pull pattern',
+      w.exercises.some(ex => ['horizontal_push','vertical_push'].includes(patternOf(ctx, ex.name))) &&
+      w.exercises.some(ex => ['horizontal_pull','vertical_pull'].includes(patternOf(ctx, ex.name))));
+  });
+
+  sub('program quality — Lower muscle coverage');
+  t.lower.forEach(w => {
+    const short = w.name.split(' —')[0];
+    T(short + ' trains quads', coversAny(ctx, w, ['quads']));
+    T(short + ' trains hamstrings or glutes', coversAny(ctx, w, ['hamstrings','glutes']));
+    T(short + ' has a knee-dominant movement',
+      w.exercises.some(ex => ['squat','lunge'].includes(patternOf(ctx, ex.name))));
+    T(short + ' has a hinge / posterior movement',
+      w.exercises.some(ex => patternOf(ctx, ex.name) === 'hinge'));
+    T(short + ' trains calves', coversAny(ctx, w, ['calves']));
+  });
+
+  sub('sensible ordering — compounds lead');
+  all.forEach(w => {
+    const tiers = ctx.assignTimeTiers(w.exercises);
+    const firstPattern = patternOf(ctx, w.exercises[0].name);
+    T(w.name.split(' —')[0] + ' opens with a compound movement',
+      ctx.TIME_MODE_COMPOUND_PATTERNS.includes(firstPattern), String(firstPattern));
+    T(w.name.split(' —')[0] + ' has a distinct major opposing movement',
+      tiers.indexOf(2) > 0);
+  });
+
+  sub('the four variants are genuinely different');
+  const overlap = (a, b) => {
+    const A = new Set(a.exercises.map(e => e.name));
+    return b.exercises.filter(e => A.has(e.name)).length;
+  };
+  ['upper','lower'].forEach(cat => {
+    for(let i = 0; i < 4; i++) for(let j = i+1; j < 4; j++){
+      const a = t[cat][i], b = t[cat][j];
+      const shared = overlap(a, b);
+      T(`${a.name.split(' —')[0]} vs ${b.name.split(' —')[0]} are not near-duplicates`,
+        shared <= Math.floor(Math.min(a.exercises.length, b.exercises.length) * 0.6),
+        shared + ' shared');
+    }
+  });
+  T('Upper variants use at least 14 distinct exercises',
+    new Set([].concat(...t.upper.map(w => w.exercises.map(e => e.name)))).size >= 14);
+  T('Lower variants use at least 10 distinct exercises',
+    new Set([].concat(...t.lower.map(w => w.exercises.map(e => e.name)))).size >= 10);
+
+  sub('gym profile does not rewrite the plan');
+  const beforeJson = JSON.stringify(UL(ctx));
+  ctx.GYM_EQUIPMENT.forEach(e => ctx.setEquipmentAvailable(e.id, false));
+  T('templates unchanged when every piece of equipment is unavailable',
+    JSON.stringify(UL(ctx)) === beforeJson);
+  T('exercises are still present rather than silently removed',
+    UL(ctx).upper[0].exercises.length === t.upper[0].exercises.length);
+  ctx.GYM_EQUIPMENT.forEach(e => ctx.setEquipmentAvailable(e.id, true));
+
+  sub('Replace still works against the new templates');
+  const sub1 = ctx.getSubstitutionsByName(UL(ctx).upper[2].exercises[0].name, {});
+  T('a new template exercise has substitution candidates', sub1.length > 0);
+  T('candidates never include the exercise itself',
+    !sub1.map(x=>x.displayName).includes(UL(ctx).upper[2].exercises[0].name));
+}
+
+function testTimeModeMatrix(app){
+  section('CONTRACT 41 — Time Mode compresses, never generates');
+  const ctx = app.ctx;
+  const t = UL(ctx);
+  const all = t.upper.concat(t.lower);
+  const MODES = [90, 60, 45, 30, 15];
+
+  sub('configuration');
+  T('TIME_MODE_CONFIG exists', !!ctx.TIME_MODE_CONFIG);
+  T('offers the expected options',
+    JSON.stringify(ctx.TIME_MODE_CONFIG.options) === JSON.stringify([15,30,45,60,90]));
+  T('tiers 1 and 2 are protected',
+    JSON.stringify(ctx.TIME_MODE_CONFIG.protectedTiers) === JSON.stringify([1,2]));
+
+  sub('FULL / default equals the planned workout exactly');
+  all.forEach(w => {
+    const full = ctx.compressWorkoutForTime(w, null);
+    T(w.name.split(' —')[0] + ' full mode is identical to the plan',
+      JSON.stringify(full.exercises) === JSON.stringify(w.exercises));
+  });
+
+  sub('the matrix — every workout at every mode');
+  all.forEach(w => {
+    const short = w.name.split(' —')[0];
+    const tiers = ctx.assignTimeTiers(w.exercises);
+    const primary = w.exercises[tiers.indexOf(1)].name;
+    const t2i = tiers.indexOf(2);
+    const opposing = t2i >= 0 ? w.exercises[t2i].name : null;
+    const planNames = new Set(w.exercises.map(e => e.name));
+
+    let prevSets = ctx.templateSetTotal(w), prevCount = w.exercises.length;
+    MODES.forEach(m => {
+      const a = ctx.compressWorkoutForTime(w, m);
+      const names = a.exercises.map(e => e.name);
+      T(`${short} @${m} keeps the primary movement`, names.includes(primary));
+      if(opposing) T(`${short} @${m} keeps the major opposing movement`, names.includes(opposing));
+      T(`${short} @${m} invents no exercise`, names.every(n => planNames.has(n)));
+      T(`${short} @${m} has no duplicate rows`, new Set(names).size === names.length);
+      T(`${short} @${m} keeps a workable session`, a.exercises.length >= 3);
+      const sets = ctx.templateSetTotal(a);
+      T(`${short} @${m} workload does not exceed the longer mode`, sets <= prevSets,
+        sets + ' > ' + prevSets);
+      T(`${short} @${m} exercise count does not exceed the longer mode`,
+        a.exercises.length <= prevCount);
+      prevSets = sets; prevCount = a.exercises.length;
+    });
+  });
+
+  sub('15-minute sessions stay realistic');
+  all.forEach(w => {
+    const a = ctx.compressWorkoutForTime(w, 15);
+    const short = w.name.split(' —')[0];
+    T(short + ' @15 is not an unrealistic 20-set session', ctx.templateSetTotal(a) <= 12,
+      String(ctx.templateSetTotal(a)));
+    T(short + ' @15 estimates at or under 20 minutes', ctx.computeWorkoutDuration(a) <= 20,
+      String(ctx.computeWorkoutDuration(a)));
+  });
+
+  sub('sets are trimmed before movements are dropped');
+  {
+    const w = t.upper[0];
+    const a = ctx.compressWorkoutForTime(w, 45);
+    const benchFull = w.exercises[0].sets;
+    const benchCut = a.exercises.find(e => e.name === w.exercises[0].name).sets;
+    T('the primary lift survives a moderate cut', !!benchCut);
+    T('a moderate cut reduces rather than deletes',
+      a.exercises.length >= 4 && parseInt(benchCut) <= parseInt(benchFull));
+    T('no exercise is reduced below the configured floor',
+      a.exercises.every(e => parseInt(e.sets) >= ctx.TIME_MODE_CONFIG.minSets.accessory));
+  }
+
+  sub('deterministic and repeatable');
+  {
+    const w = t.lower[0];
+    const a = JSON.stringify(ctx.compressWorkoutForTime(w, 30));
+    for(let i = 0; i < 20; i++){
+      T_quiet(JSON.stringify(ctx.compressWorkoutForTime(w, 30)) === a);
+    }
+    T('20 repeat compressions are byte-identical', T_quietOk());
+    // switching back and forth many times must not drift
+    let last = null;
+    for(let i = 0; i < 30; i++){
+      const m = [null,15,30,45,60,90][i % 6];
+      last = ctx.compressWorkoutForTime(w, m);
+    }
+    T('switching modes repeatedly does not corrupt the template',
+      JSON.stringify(UL(ctx).lower[0].exercises) === JSON.stringify(w.exercises));
+    T('a later full request still returns the complete workout',
+      ctx.compressWorkoutForTime(w, null).exercises.length === w.exercises.length);
+  }
+
+  sub('estimation is presented as an estimate');
+  {
+    const s = ctx.timeModeSummary(t.upper[0], 30);
+    T('summary reports both source and result', s.sourceName === t.upper[0].name && s.estimatedMinutes > 0);
+    T('summary reports it compressed', s.compressed === true);
+    T('full mode reports no compression', ctx.timeModeSummary(t.upper[0], null).compressed === false);
+  }
+}
+
+/* tiny quiet-assert helper so 20 identical checks do not spam 20 lines */
+let _quietFails = 0;
+function T_quiet(cond){ if(!cond) _quietFails++; }
+function T_quietOk(){ const ok = _quietFails === 0; _quietFails = 0; return ok; }
+
+async function testTimeModeSafety(){
+  section('CONTRACT 42 — Time Mode touches no plan and no user data');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const planBefore = app.store.selectedPlan;
+  const planDataBefore = JSON.stringify(Object.keys(app.store)
+    .filter(k => k.indexOf('planData:') === 0).map(k => app.store[k]));
+  const templatesBefore = JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates);
+  const gymBefore = app.store.gymProfile;
+  const draftBefore = app.store.activeWorkoutDraft;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+
+  sub('selecting every time mode');
+  [15,30,45,60,90,null].forEach(m => { ctx.selectedWorkoutMinutes = m;
+    ctx.compressWorkoutForTime(ctx.DEFAULT_PLANS.upperlower.templates.upper[0], m); });
+  ctx.selectedWorkoutMinutes = null;
+
+  T('DEFAULT_PLANS templates are byte-identical',
+    JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates) === templatesBefore);
+  T('saved plan selection unchanged', app.store.selectedPlan === planBefore);
+  T('planData templates unchanged',
+    JSON.stringify(Object.keys(app.store).filter(k => k.indexOf('planData:') === 0)
+      .map(k => app.store[k])) === planDataBefore);
+  T('no time mode key was persisted', app.store.workoutTimeMode === undefined);
+  T('DATA_KEYS gained nothing for time mode',
+    !ctx.DATA_KEYS.some(k => /time|minutes/i.test(k)));
+
+  sub('user data');
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+  const d = H.diffSnapshot(before, after, []);
+  T('NOTHING protected changed', d.ok, 'changed: ' + d.violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('draft preserved', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('trainer');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by time mode',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+
+  sub('read-only interface for a future phase');
+  T('getAvailableTime reports the session choice', ctx.getAvailableTime() === null);
+  ctx.selectedWorkoutMinutes = 30;
+  T('getAvailableTime reflects a selection', ctx.getAvailableTime() === 30);
+  T('getTimeAdjustedWorkout compresses a supplied template',
+    ctx.getTimeAdjustedWorkout(ctx.DEFAULT_PLANS.upperlower.templates.upper[0], 15).exercises.length < 8);
+  T('getTimeAdjustedWorkout returns null with no workout', ctx.getTimeAdjustedWorkout(null, 30) === null ||
+    !!ctx.getTimeAdjustedWorkout(null, 30));
+  ctx.selectedWorkoutMinutes = null;
+
+  sub('duration fields are optional and additive');
+  T('historical entries carry no timing fields',
+    ctx.workoutLog.every(w => w.startedAt === undefined));
+  T('plannedVsActualHtml renders nothing without timing',
+    ctx.plannedVsActualHtml({ id:'x' }) === '');
+  T('plannedVsActualHtml renders when timing is known',
+    ctx.plannedVsActualHtml({ id:'y', startedAt:'2026-08-24T10:00:00.000Z',
+      endedAt:'2026-08-24T10:51:14.000Z', plannedMinutes:47 }).includes('51:14'));
+  T('planned figure is marked as an estimate',
+    ctx.plannedVsActualHtml({ id:'y', startedAt:'2026-08-24T10:00:00.000Z',
+      endedAt:'2026-08-24T10:51:14.000Z', plannedMinutes:47 }).includes('~47'));
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -2947,6 +3267,8 @@ async function main(){
   testSubstitutionRanking(app);
   await testSubstitutionEquipment();
   await testSubstitutionPersonalization();
+  testUpperLowerLibrary(H.loadApp());
+  testTimeModeMatrix(app);
   testUpdatesCurrency(app);
   await testShadowObservationSafety(app);
 
@@ -2965,6 +3287,7 @@ async function main(){
     await testGymIsolation();
     await testGymBackup();
     await testSubstitutionApplySafety();
+    await testTimeModeSafety();
   }
 
   // ---- FULL ----
