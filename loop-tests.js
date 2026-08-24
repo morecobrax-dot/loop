@@ -5691,6 +5691,509 @@ async function testOnboardingSafety(){
   }
 }
 /* =========================================================
+   CONTRACT 63 — exercise & muscle mastery
+   ========================================================= */
+
+/* n sessions of `name`, one every `everyDays` days, `setCount` working sets. */
+function masterySessions(name, n, everyDays, setCount, opts){
+  const o = opts || {};
+  const out = [];
+  for(let i = 0; i < n; i++){
+    const sets = [];
+    for(let k = 0; k < (setCount || 3); k++){
+      sets.push(S(o.weight == null ? 135 : o.weight, o.reps == null ? 8 : o.reps, 2, o.type || 'working'));
+    }
+    if(o.warmups) for(let k = 0; k < o.warmups; k++) sets.unshift(S(45, 10, 5, 'warmup'));
+    out.push(WK((o.prefix || 'ms') + i, i * (everyDays || 7), 'push', [EX(name, sets)]));
+  }
+  return out;
+}
+
+function testMastery(app){
+  section('CONTRACT 63 — exercise & muscle mastery');
+  const ctx = app.ctx;
+  const C = ctx.MASTERY_CONFIG;
+
+  sub('configuration is centralised');
+  T('MASTERY_CONFIG exists', !!C);
+  T('it owns the level ceiling', typeof C.maxLevel === 'number' && C.maxLevel > 1);
+  T('it owns the curve', !!C.curve && typeof C.curve.growth === 'number');
+  T('it owns session weights', typeof C.session.points === 'number' &&
+    typeof C.session.maxSetsCounted === 'number');
+  T('it owns longitudinal weights', typeof C.longitudinal.perDistinctWeek === 'number');
+  T('it owns PR + capability weights', typeof C.pr.points === 'number' &&
+    typeof C.capability.high === 'number');
+  T('it owns muscle weights', typeof C.muscle.primaryWeight === 'number' &&
+    typeof C.muscle.secondaryWeight === 'number');
+  {
+    // The engine must read the config, not repeat its numbers.
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    const a = src.indexOf('EXERCISE & MUSCLE MASTERY');
+    const b = src.indexOf('/* ---------- EXERCISE DETAIL ---------- */', a);
+    const cfgEnd = src.indexOf('function masteryPointsForLevel', a);
+    const body = src.slice(cfgEnd, b);
+    T('module located', a !== -1 && b > a);
+    T('scoring reads MASTERY_CONFIG', /MASTERY_CONFIG\./.test(body));
+    T('no bare numeric thresholds in scoring',
+      !/pts \+= [\d.]+|>= *(?:1[2-9]|[2-9]\d)\b/.test(body.replace(/\/\*[\s\S]*?\*\//g, '')));
+  }
+
+  sub('the level curve gets harder, never easier');
+  {
+    const base = C.curve.exerciseBase;
+    const cum = [];
+    for(let l = 1; l <= C.maxLevel; l++) cum.push(ctx.masteryPointsForLevel(l, base));
+    T('level 1 costs nothing', cum[0] === 0);
+    T('cumulative cost strictly increases', cum.every((v, i) => i === 0 || v > cum[i-1]));
+    const gaps = cum.slice(1).map((v, i) => v - cum[i]);
+    T('each level costs more than the one before',
+      gaps.every((g, i) => i === 0 || g > gaps[i-1]), gaps.join(','));
+    T('points below level 2 stay level 1',
+      ctx.masteryLevelFromPoints(cum[1] - 1, base) === 1);
+    T('points at a threshold reach that level',
+      ctx.masteryLevelFromPoints(cum[1], base) === 2);
+    T('absurd points cap at maxLevel',
+      ctx.masteryLevelFromPoints(9e9, base) === C.maxLevel);
+    T('percent stays within 0..100',
+      [0, 1, 50, 500, 5000, 9e9].every(p => {
+        const st = ctx.masteryStanding(p, base);
+        return st.percent >= 0 && st.percent <= 100;
+      }));
+    T('max level reports no next target',
+      ctx.masteryStanding(9e9, base).pointsForNext === null);
+  }
+
+  sub('a new exercise starts at Level 1 with nothing fabricated');
+  seedHistory(ctx, []);
+  {
+    const m = ctx.getExerciseMastery('bench_press_barbell');
+    T('level 1', m.level === 1);
+    T('zero points', m.points === 0);
+    T('zero sessions', m.sessions === 0);
+    T('flagged as having no history', m.hasHistory === false);
+    T('no invented PRs', m.prs === 0);
+    T('unknown id does not throw', ctx.getExerciseMastery('not_a_real_id').level === 1);
+    T('null id returns null', ctx.getExerciseMastery(null) === null);
+    T('every muscle starts at level 1',
+      Object.keys(ctx.MUSCLE_LABELS).every(k => ctx.getMuscleMasteryLevel(k) === 1));
+  }
+
+  sub('ANTI-FARMING — sessions over months beat volume in a day');
+  {
+    // 12 sessions across ~3 months, 4 working sets each.
+    seedHistory(ctx, masterySessions('Bench Press', 12, 7, 4));
+    const spread = ctx.getExerciseMastery('bench_press_barbell');
+    // One session, forty sets.
+    seedHistory(ctx, masterySessions('Bench Press', 1, 7, 40, { prefix:'farm' }));
+    const farmed = ctx.getExerciseMastery('bench_press_barbell');
+
+    console.log('    12 sessions / 3 months : ' + spread.points + ' pts, level ' + spread.level);
+    console.log('    1 session / 40 sets    : ' + farmed.points + ' pts, level ' + farmed.level);
+    T('the consistent athlete scores higher', spread.points > farmed.points);
+    T('and not marginally — at least 3x', spread.points >= farmed.points * 3,
+      spread.points + ' vs ' + farmed.points);
+    T('the farmer gains at least one clear level less', spread.level > farmed.level);
+    T('sets beyond the cap are ignored',
+      farmed.points === ctx.getExerciseMastery('bench_press_barbell').points);
+  }
+  {
+    seedHistory(ctx, masterySessions('Bench Press', 1, 7, C.session.maxSetsCounted, { prefix:'cap' }));
+    const atCap = ctx.getExerciseMastery('bench_press_barbell').points;
+    seedHistory(ctx, masterySessions('Bench Press', 1, 7, C.session.maxSetsCounted + 30, { prefix:'cap' }));
+    const overCap = ctx.getExerciseMastery('bench_press_barbell').points;
+    T('30 extra sets in one session add nothing', atCap === overCap, atCap + ' vs ' + overCap);
+  }
+
+  sub('warm-ups are not training volume');
+  {
+    seedHistory(ctx, masterySessions('Bench Press', 4, 7, 3, { prefix:'w' }));
+    const plain = ctx.getExerciseMastery('bench_press_barbell').points;
+    seedHistory(ctx, masterySessions('Bench Press', 4, 7, 3, { prefix:'w', warmups: 4 }));
+    const withWarmups = ctx.getExerciseMastery('bench_press_barbell').points;
+    T('adding 4 warm-up sets per session changes nothing',
+      plain === withWarmups, plain + ' vs ' + withWarmups);
+  }
+
+  sub('no bonus for advanced set types');
+  {
+    seedHistory(ctx, masterySessions('Bench Press', 6, 7, 3, { prefix:'st', type:'working' }));
+    const working = ctx.getExerciseMastery('bench_press_barbell').points;
+    ['drop','failure','amrap'].forEach(t => {
+      seedHistory(ctx, masterySessions('Bench Press', 6, 7, 3, { prefix:'st', type:t }));
+      const got = ctx.getExerciseMastery('bench_press_barbell').points;
+      T(t + ' sets earn exactly what working sets earn', got === working, got + ' vs ' + working);
+    });
+  }
+
+  sub('a single PR does not jump a level');
+  {
+    const flat = masterySessions('Bench Press', 8, 7, 3, { prefix:'pr', weight:135 });
+    seedHistory(ctx, flat);
+    const before = ctx.getExerciseMastery('bench_press_barbell');
+    // Same history, but the most recent session is a big all-time best.
+    const withPR = flat.map((w, i) => i === 0
+      ? WK('pr0', 0, 'push', [EX('Bench Press', [S(315, 8, 2, 'working'), S(315, 8, 2, 'working'), S(315, 8, 2, 'working')])])
+      : w);
+    seedHistory(ctx, withPR);
+    const after = ctx.getExerciseMastery('bench_press_barbell');
+    console.log('    without PR: ' + before.points + ' | with a 315 lb PR: ' + after.points);
+    T('a PR is worth something', after.points >= before.points);
+    T('but never more than the configured ceiling',
+      after.points - before.points <= C.pr.points * C.pr.maxCounted);
+    T('one session cannot leap more than one level',
+      after.level - before.level <= 1, before.level + ' -> ' + after.level);
+  }
+
+  sub('MONOTONIC — training more never lowers mastery');
+  {
+    let log = [];
+    let prevEx = -1, prevMus = -1, ok = true, muscleOk = true;
+    for(let i = 0; i < 40; i++){
+      log = log.concat(masterySessions('Bench Press', 1, 0, 3, { prefix:'mono' + i })
+        .map(w => Object.assign(w, { id:'mono'+i, date: D(200 - i * 5) })));
+      seedHistory(ctx, log);
+      const p = ctx.getExerciseMastery('bench_press_barbell').points;
+      const mp = ctx.getMuscleMastery('chest').points;
+      if(p < prevEx) ok = false;
+      if(mp < prevMus) muscleOk = false;
+      prevEx = p; prevMus = mp;
+    }
+    T('exercise mastery never decreased across 40 added sessions', ok);
+    T('muscle mastery never decreased either', muscleOk);
+  }
+
+  sub('DETERMINISTIC — same history, same answer');
+  {
+    seedHistory(ctx, masterySessions('Bench Press', 15, 5, 4, { prefix:'det' }));
+    const a = JSON.stringify(ctx.getExerciseMastery('bench_press_barbell'));
+    const b = JSON.stringify(ctx.getExerciseMastery('bench_press_barbell'));
+    ctx.invalidateAllMasteryCaches();
+    const c = JSON.stringify(ctx.getExerciseMastery('bench_press_barbell'));
+    T('two reads agree', a === b);
+    T('a cold recompute agrees with the cached read', a === c);
+    const m1 = JSON.stringify(ctx.getMuscleMastery('chest'));
+    ctx.invalidateAllMasteryCaches();
+    T('muscle mastery is equally deterministic', m1 === JSON.stringify(ctx.getMuscleMastery('chest')));
+  }
+
+  sub('CANONICAL ANCHORING — variants stay separate');
+  {
+    seedHistory(ctx, [].concat(
+      masterySessions('Bench Press', 10, 7, 3, { prefix:'bb' }),
+      masterySessions('Smith Machine Bench Press', 2, 7, 3, { prefix:'sm' }),
+      masterySessions('Dumbbell Bench Press', 1, 7, 3, { prefix:'db' })
+    ));
+    const bb = ctx.getExerciseMastery('bench_press_barbell');
+    const sm = ctx.getExerciseMastery('bench_press_smith');
+    const db = ctx.getExerciseMastery('bench_press_db');
+    T('barbell bench counted alone', bb.sessions === 10);
+    T('smith bench counted alone', sm.sessions === 2);
+    T('dumbbell bench counted alone', db.sessions === 1);
+    T('no variant inherited another variant\'s history',
+      bb.points > sm.points && sm.points > db.points);
+    T('three separate entries exist', ctx.getTopExerciseMastery().length === 3);
+  }
+  {
+    // An alias must land on the canonical entry, not create a second one.
+    seedHistory(ctx, [].concat(
+      masterySessions('Bench Press', 5, 7, 3, { prefix:'a1' }),
+      masterySessions('Barbell Bench Press', 5, 7, 3, { prefix:'a2' })
+    ));
+    const ids = ctx.getTopExerciseMastery().map(m => m.exerciseId);
+    T('an alias merges into the canonical id, exactly once',
+      ids.filter(i => i === 'bench_press_barbell').length === 1, ids.join(','));
+  }
+
+  sub('MUSCLE MASTERY reuses the existing taxonomy');
+  {
+    seedHistory(ctx, masterySessions('Bench Press', 12, 7, 4, { prefix:'mm' }));
+    const all = ctx.getTopMuscleMastery();
+    T('no muscle exists outside MUSCLE_LABELS',
+      all.every(m => ctx.MUSCLE_LABELS[m.muscleId] !== undefined));
+    T('every taxonomy muscle is represented',
+      all.length === Object.keys(ctx.MUSCLE_LABELS).length);
+    T('labels come from the shared taxonomy',
+      all.every(m => m.label === ctx.MUSCLE_LABELS[m.muscleId]));
+    const chest = ctx.getMuscleMastery('chest');
+    const tri = ctx.getMuscleMastery('triceps');
+    const quads = ctx.getMuscleMastery('quads');
+    T('bench trains chest (primary)', chest.points > 0);
+    T('bench trains triceps (secondary)', tri.points > 0);
+    T('primary outweighs secondary', chest.points > tri.points,
+      chest.points + ' vs ' + tri.points);
+    T('the secondary share matches the configured weight',
+      Math.abs(tri.points / chest.points - C.muscle.secondaryWeight) < 0.02,
+      (tri.points / chest.points).toFixed(3));
+    T('an untrained muscle stays empty', quads.points === 0 && quads.hasHistory === false);
+    T('unknown muscle id returns null', ctx.getMuscleMastery('spleen') === null);
+  }
+
+  sub('an unmapped exercise trains no muscle it cannot name');
+  {
+    seedHistory(ctx, masterySessions('Jacob Special Machine', 10, 7, 3, { prefix:'um' }));
+    const totals = ctx.getTopMuscleMastery().reduce((n, m) => n + m.points, 0);
+    T('unmapped work earns exercise mastery',
+      ctx.getTopExerciseMastery()[0].points > 0);
+    T('but is not attributed to a guessed muscle', totals === 0);
+  }
+
+  sub('read-only API surface');
+  {
+    seedHistory(ctx, masterySessions('Bench Press', 9, 7, 3, { prefix:'api' }));
+    const before = JSON.stringify(ctx.workoutLog);
+    const m = ctx.getExerciseMastery('bench_press_barbell');
+    ['level','points','pointsIntoLevel','pointsForNext','percent','sessions','prs','weeks','months']
+      .forEach(k => T('getExerciseMastery exposes ' + k, m[k] !== undefined));
+    T('getExerciseMasteryLevel agrees with getExerciseMastery',
+      ctx.getExerciseMasteryLevel('bench_press_barbell') === m.level);
+    T('getMuscleMasteryLevel agrees with getMuscleMastery',
+      ctx.getMuscleMasteryLevel('chest') === ctx.getMuscleMastery('chest').level);
+    T('getTopExerciseMastery honours its limit', ctx.getTopExerciseMastery(1).length === 1);
+    T('getTopExerciseMastery is sorted descending',
+      ctx.getTopExerciseMastery().every((x, i, a) => i === 0 || a[i-1].points >= x.points));
+    T('getTopMuscleMastery is sorted descending',
+      ctx.getTopMuscleMastery().every((x, i, a) => i === 0 || a[i-1].points >= x.points));
+    const prog = ctx.getMasteryProgress();
+    T('getMasteryProgress reports structure only',
+      typeof prog.exercisesTracked === 'number' && prog.topExercise &&
+      prog.score === undefined && prog.grade === undefined);
+    T('reading mastery never mutates the log', JSON.stringify(ctx.workoutLog) === before);
+  }
+
+  sub('cache invalidation follows the log');
+  {
+    seedHistory(ctx, masterySessions('Bench Press', 5, 7, 3, { prefix:'inv' }));
+    const first = ctx.getExerciseMastery('bench_press_barbell').sessions;
+    ctx.workoutLog = ctx.workoutLog.concat(masterySessions('Bench Press', 3, 7, 3, { prefix:'inv2' }));
+    ctx.invalidateSortedLogCache();          // the app's own hook, not a mastery-specific one
+    const second = ctx.getExerciseMastery('bench_press_barbell').sessions;
+    T('the shared log hook clears mastery too', second === first + 3, first + ' -> ' + second);
+    ctx.workoutLog = [];
+    ctx.invalidateSortedLogCache();
+    T('deleting history removes the mastery it supported',
+      ctx.getExerciseMastery('bench_press_barbell').hasHistory === false);
+  }
+
+  sub('PERFORMANCE at real history sizes');
+  {
+    const names = ['Bench Press','Back Squat','Barbell Row','Overhead Press','Deadlift','Lat Pulldown'];
+    [100, 500, 1000].forEach(size => {
+      const log = [];
+      for(let i = 0; i < size; i++){
+        log.push(WK('perf'+i, i, i%2 ? 'push':'pull', [
+          EX(names[i % names.length], [S(135,8,2,'working'), S(135,8,2,'working'), S(135,8,2,'working')]),
+          EX(names[(i+1) % names.length], [S(95,10,2,'working'), S(95,10,2,'working')])
+        ]));
+      }
+      seedHistory(ctx, log);
+      const t0 = Date.now();
+      ctx.getTopExerciseMastery();
+      ctx.getTopMuscleMastery();
+      const cold = Date.now() - t0;
+      const t1 = Date.now();
+      ctx.getTopExerciseMastery();
+      ctx.getTopMuscleMastery();
+      const warm = Date.now() - t1;
+      console.log('    ' + size + ' workouts: cold ' + cold + 'ms, cached ' + warm + 'ms');
+      T(size + ' workouts compute in under 400ms', cold < 400, cold + 'ms');
+      T(size + ' workouts read from cache in under 20ms', warm < 20, warm + 'ms');
+    });
+  }
+
+  sub('SYNTHETIC ATHLETES — observed, not tuned');
+  {
+    const scenarios = {
+      'beginner (3 sessions, 2 weeks)':      masterySessions('Bench Press', 3, 4, 3, { prefix:'s1' }),
+      'moderate (12 sessions, 3 months)':    masterySessions('Bench Press', 12, 7, 4, { prefix:'s2' }),
+      'consistent (52 sessions, 1 year)':    masterySessions('Bench Press', 52, 7, 4, { prefix:'s3' }),
+      'inconsistent (12 sessions, 2 years)': masterySessions('Bench Press', 12, 60, 4, { prefix:'s4' }),
+      'specialist (60 sessions, one lift)':  masterySessions('Bench Press', 60, 6, 5, { prefix:'s5' }),
+      'farmer (1 session, 40 sets)':         masterySessions('Bench Press', 1, 7, 40, { prefix:'s6' })
+    };
+    const observed = {};
+    Object.keys(scenarios).forEach(k => {
+      seedHistory(ctx, scenarios[k]);
+      const m = ctx.getExerciseMastery('bench_press_barbell');
+      observed[k] = m;
+      console.log('    ' + k.padEnd(38) + ' level ' + m.level + '  (' + m.points + ' pts, ' +
+        m.sessions + ' sessions, ' + m.months + ' months)');
+    });
+    // A variety athlete: same total work, spread across six movements.
+    const variety = [];
+    ['Bench Press','Back Squat','Barbell Row','Overhead Press','Deadlift','Lat Pulldown']
+      .forEach((nm, i) => variety.push.apply(variety,
+        masterySessions(nm, 10, 7, 3, { prefix:'v'+i })));
+    seedHistory(ctx, variety);
+    const varietyTop = ctx.getTopExerciseMastery()[0];
+    const varietyMuscles = ctx.getTopMuscleMastery().filter(m => m.hasHistory).length;
+    console.log('    variety (6 lifts x 10 sessions)        top exercise level ' +
+      varietyTop.level + ', ' + varietyMuscles + ' muscles with history');
+
+    T('a beginner is not handed a high level', observed['beginner (3 sessions, 2 weeks)'].level <= 2);
+    T('a year of consistency outranks three months',
+      observed['consistent (52 sessions, 1 year)'].points >
+      observed['moderate (12 sessions, 3 months)'].points);
+    T('same session count, better spread — consistency is not punished for it',
+      observed['inconsistent (12 sessions, 2 years)'].points >=
+      observed['moderate (12 sessions, 3 months)'].points * 0.8);
+    T('a specialist tops out high but not instantly',
+      observed['specialist (60 sessions, one lift)'].level >= 5);
+    T('the farmer stays near the bottom', observed['farmer (1 session, 40 sets)'].level <= 2);
+    T('variety spreads mastery across muscles', varietyMuscles >= 6);
+    T('no scenario exceeded the level ceiling',
+      Object.keys(observed).every(k => observed[k].level <= C.maxLevel));
+  }
+}
+
+/* =========================================================
+   CONTRACT 64 — mastery is inert
+   Mastery reads everything and reaches nothing.
+   ========================================================= */
+async function testMasterySafety(){
+  section('CONTRACT 64 — mastery touches nothing it reads');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const storeKeysBefore = Object.keys(app.store).sort().join(',');
+  const recoveryBefore = JSON.stringify(ctx.computeMuscleRecovery());
+  const capBefore = JSON.stringify(ctx.getExerciseCapability('Bench Press'));
+  const shadowBefore = JSON.stringify(ctx.computeShadowRecommendation
+    ? ctx.computeShadowRecommendation('Bench Press') : null);
+
+  sub('exercise every entry point against real history');
+  ctx.getTopExerciseMastery();
+  ctx.getTopMuscleMastery();
+  ctx.getMasteryProgress();
+  Object.keys(ctx.MUSCLE_LABELS).forEach(m => { ctx.getMuscleMastery(m); ctx.getMuscleMasteryLevel(m); });
+  ctx.CANONICAL_EXERCISES.forEach(e => { ctx.getExerciseMastery(e.id); ctx.getExerciseMasteryLevel(e.id); });
+  ctx.exerciseMasteryHtml('Bench Press');
+  ctx.muscleMasteryHtml();
+  ctx.exerciseMasteryListHtml();
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('XP unchanged', after.xp === before.xp);
+  T('level unchanged — mastery is not player progression', after.level === before.level);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('recovery model byte-identical', JSON.stringify(ctx.computeMuscleRecovery()) === recoveryBefore);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('capability model byte-identical',
+    JSON.stringify(ctx.getExerciseCapability('Bench Press')) === capBefore);
+
+  sub('no new storage');
+  T('no storage key was created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
+  T('mastery is absent from DATA_KEYS',
+    !ctx.DATA_KEYS.some(k => /mastery/i.test(k)), ctx.DATA_KEYS.join(','));
+  T('schema version untouched', ctx.DATA_SCHEMA_VERSION === before.schemaVersion ||
+    ctx.DATA_SCHEMA_VERSION === 1);
+
+  sub('trainer boundary');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created', ctx.trainerLog.entries.length === trainerBefore);
+  T('shadow recommendation unchanged',
+    JSON.stringify(ctx.computeShadowRecommendation
+      ? ctx.computeShadowRecommendation('Bench Press') : null) === shadowBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+
+  sub('source-level isolation');
+  {
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    const a = src.indexOf('EXERCISE & MUSCLE MASTERY');
+    const b = src.indexOf('/* ---------- EXERCISE DETAIL ---------- */', a);
+    const raw = src.slice(a, b);
+    const code = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    T('module located', a !== -1 && b > a);
+    T('it never persists anything',
+      code.indexOf('LOOPStore.set') === -1 && code.indexOf('localStorage') === -1);
+    T('it never writes workoutLog', !/workoutLog\s*(=[^=]|\.push|\.splice)/.test(code));
+    T('it never writes trainerLog', code.indexOf('trainerLog') === -1);
+    T('it calls no trainer function',
+      !/proposeTrainerState|applyTrainerConstraints|computeShadowRecommendation|logRecommendation/.test(code));
+    T('it does not touch the recovery model', !/computeMuscleRecovery|RECOVERY_CONFIG/.test(code));
+    T('it does not touch XP', !/computeXPTimeline|addXP|strengthXP/.test(code));
+    T('it defines no second muscle map', !/MUSCLE_MAP\s*=|SECONDARY_MUSCLE_MAP\s*=/.test(code));
+    T('it reuses the shared taxonomy', code.indexOf('MUSCLE_LABELS') !== -1);
+    T('it reads canonical identity rather than matching names fuzzily',
+      code.indexOf('resolveExerciseId') !== -1 && !/includes\(|indexOf\(.*name|startsWith\(/.test(
+        code.slice(code.indexOf('function buildMasteryIndex'), code.indexOf('function masteryPRCounts'))));
+
+    sub('nothing downstream consumes mastery');
+    const outside = src.slice(0, a) + src.slice(b);
+    const leaks = ['proposeTrainerState','applyTrainerConstraints','computeTrainerConfidence',
+      'resolveTrainerNumbers','computeMuscleRecovery','computeExerciseCapability',
+      'computeXPTimeline','computeShadowRecommendation','recommendNextSet']
+      .filter(fn => {
+        const at = outside.indexOf('function ' + fn);
+        if(at === -1) return false;
+        return /getExerciseMastery|getMuscleMastery|MASTERY_CONFIG/.test(outside.slice(at, at + 4000));
+      });
+    T('no trainer, recovery, capability or XP function reads mastery', leaks.length === 0, leaks.join(','));
+
+    sub('language makes no biological claim');
+    const copy = (raw.match(/>[^<>{}]{6,}</g) || []).join(' ') +
+      (src.slice(b).match(/(Muscle mastery|Movement mastery)[^`]{0,160}/g) || []).join(' ');
+    T('mastery is described as training history',
+      /based on your training history|from your history|Builds as you train/.test(copy));
+    T('it never claims strength',
+      !/\b(you are stronger|strength level|stronger than|muscle strength)\b/i.test(copy));
+    T('it never makes an anatomical or medical claim',
+      !/\b(hypertrophy|muscle fib|adaptation|growth|развит)\b/i.test(copy));
+    T('it disclaims the muscle view explicitly',
+      /not a measure of strength/.test(src));
+  }
+
+  sub('notes and metadata cannot move mastery');
+  {
+    const bench = ctx.getExerciseMastery('bench_press_barbell');
+    ctx.exerciseNotes = Object.assign({}, ctx.exerciseNotes, {
+      bench_press_barbell: { text: 'felt amazing, best session ever, PR PR PR', updated: Date.now() }
+    });
+    ctx.invalidateAllMasteryCaches();
+    T('writing a note changes nothing',
+      ctx.getExerciseMastery('bench_press_barbell').points === bench.points);
+  }
+
+  sub('the UI actually renders something, from real history');
+  {
+    const exHtml = ctx.exerciseMasteryListHtml();
+    const musHtml = ctx.muscleMasteryHtml();
+    const detail = ctx.exerciseMasteryHtml('Bench Press');
+    T('the exercise list names a real logged movement', exHtml.indexOf('Bench Press') !== -1);
+    T('the exercise list shows a level', /Level [1-9]/.test(exHtml));
+    T('the exercise list draws a bar', exHtml.indexOf('mastery-bar') !== -1);
+    T('the muscle list uses taxonomy labels', musHtml.indexOf('Chest') !== -1);
+    T('the muscle list shows a level', /Level [1-9]/.test(musHtml));
+    T('Exercise Detail shows mastery', /Level [1-9]/.test(detail) && /Mastery/.test(detail));
+    T('Exercise Detail cites the evidence', /session/.test(detail));
+    T('bar widths are real percentages',
+      (exHtml.match(/width:(\d+)%/g) || []).every(w => {
+        const v = parseInt(w.replace(/\D/g, ''), 10); return v >= 0 && v <= 100;
+      }));
+    T('exercise names are escaped', ctx.exerciseMasteryHtml('Bench Press').indexOf('<script') === -1);
+
+    ctx.progTab = 'strength'; ctx.renderProgTab();
+    ctx.progTab = 'muscles';  ctx.renderProgTab();
+    const post = H.snapshot(ctx);
+    T('a full Progress render changed nothing protected',
+      H.diffSnapshot(before, post, []).ok, H.diffSnapshot(before, post, []).violations.join(','));
+  }
+}
+
+/* =========================================================
    RUNNER
    ========================================================= */
 async function main(){
@@ -5734,6 +6237,7 @@ async function main(){
   testTrainingPhases(H.loadApp());
   testUXContracts(H.loadApp());
   testOnboarding(H.loadApp());
+  testMastery(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -5767,6 +6271,7 @@ async function main(){
     await testPhaseIsolation();
     await testWarmupReturnsToWorkout();
     await testOnboardingSafety();
+    await testMasterySafety();
   }
 
   // ---- FULL ----

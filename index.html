@@ -1182,6 +1182,22 @@ html.intro-skip #introOverlay{ display: none !important; }
 .cmp-delta.up{ color: var(--success); } .cmp-delta.down{ color: var(--warning); }
 
 /* Most trained */
+/* ---------- MASTERY (Phase D9) ---------- */
+.mastery-block{ margin-top: 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
+.mastery-head{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.mastery-label{ font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
+.mastery-level{ font-size: 13px; font-weight: 700; color: var(--text); }
+.mastery-bar{ height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.mastery-bar span{ display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width .3s ease; }
+.mastery-meta{ margin-top: 8px; font-size: 12px; color: var(--text-dim); }
+.mastery-empty-text{ font-size: 12.5px; color: var(--text-dim); }
+.mastery-row{ padding: 10px 0; border-bottom: 1px solid var(--border); }
+.mastery-row:last-child{ border-bottom: none; }
+.mastery-row-head{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
+.mastery-row-name{ font-size: 14px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mastery-row-level{ font-size: 12px; font-weight: 700; color: var(--text-dim); flex-shrink: 0; }
+.mastery-row-meta{ margin-top: 6px; font-size: 11.5px; color: var(--text-faint); }
+
 .most-trained{ display: flex; align-items: center; gap: 18px; padding: 6px 0; }
 .mt-body{ width: 84px; flex-shrink: 0; }
 .mt-info{ min-width: 0; }
@@ -5728,6 +5744,9 @@ function invalidateSortedLogCache(){
   _sortedLogCache = null;
   // Substitution ranking reads session history, so it must not outlive it.
   if(typeof invalidateSubstitutionCache === 'function') invalidateSubstitutionCache();
+  // Mastery is derived from the same log; a stale index would show a level the
+  // history no longer supports.
+  if(typeof invalidateAllMasteryCaches === 'function') invalidateAllMasteryCaches();
 }
 
 function getNextCategory(){
@@ -11396,6 +11415,8 @@ function renderProgStrength(){
   const trends = computeExerciseTrends();
   const A = { up:'↑', down:'↓', flat:'→' };
   document.getElementById('progExercises').innerHTML = `
+    <div class="sec-head">Movement mastery<span class="sec-hint">from your history</span></div>
+    ${exerciseMasteryListHtml()}
     <div class="sec-head">All exercises<span class="sec-hint">tap for detail</span></div>
     ${trends.length ? `<div class="rank-list">${trends.map(t => `
       <div class="rank-row" onclick="openExDetail('${escapeAttr(t.name)}')">
@@ -11506,7 +11527,10 @@ function renderProgMuscles(){
         <div class="dist-track"><div class="dist-fill dist-${c}" style="width:${((catSets[c]/catTotal)*100).toFixed(1)}%"></div></div>
         <span class="dist-val">${catSets[c]}</span>
       </div>`).join('')}</div>
-    <div class="muscle-foot">Distribution of logged sets, not a judgement about balance.</div>`;
+    <div class="muscle-foot">Distribution of logged sets, not a judgement about balance.</div>
+    <div class="sec-head">Muscle mastery<span class="sec-hint">based on your training history</span></div>
+    ${muscleMasteryHtml()}
+    <div class="muscle-foot">How much history LOOP has for each muscle group — not a measure of strength.</div>`;
 }
 
 function renderProgTab(){
@@ -11517,6 +11541,353 @@ function renderProgTab(){
   else if(progTab === 'muscles') renderProgMuscles();
 }
 function renderProgress(){ renderProgTab(); }
+
+/* =========================================================
+   EXERCISE & MUSCLE MASTERY  (Phase D9)
+   ---------------------------------------------------------
+   How much training history LOOP has with a movement, and with
+   a muscle. Not a judgement of the exercise, and not a claim
+   about the athlete's body.
+
+   DERIVED, NEVER STORED. Every value is recomputed from
+   workoutLog, the canonical registry and the existing muscle
+   maps. There is no mastery key, so editing or deleting a
+   workout corrects mastery by construction and no migration
+   can ever be needed.
+
+   BUILT TO RESIST FARMING. Sessions are the unit, not sets:
+   only a handful of sets per session count, and most of the
+   evidence comes from returning to a movement across weeks and
+   months. Twelve sessions over three months earns several
+   times what forty sets in one afternoon earns.
+
+   SEPARATE FROM EVERYTHING IT RESEMBLES:
+     mastery    = long-term familiarity        (this file)
+     capability = current demonstrated performance
+     recovery   = short-term training load
+     player XP  = overall account progression
+   None of them read each other, and mastery reaches none of
+   them. The trainer does not consume it; it stays 0.1.1-shadow.
+   ========================================================= */
+
+/* Every threshold and weight lives here. Nothing below hard-codes a number. */
+const MASTERY_CONFIG = {
+  maxLevel: 10,
+  /* Cumulative points to REACH a level. Level 1 is the starting point, so a
+     brand-new movement is Level 1 with no fabricated history. The exponent
+     makes each level cost more than the one before it. */
+  curve: { exerciseBase: 60, muscleBase: 190, growth: 1.55 },
+
+  session: {
+    points: 10,          // returning to the movement at all is the main signal
+    perWorkingSet: 1.5,  // real work inside that session
+    maxSetsCounted: 6    // ANTI-FARM: sets beyond this in one session are ignored
+  },
+  /* Longitudinal spread — the part a single big session cannot buy. */
+  longitudinal: {
+    perDistinctWeek: 6,  maxWeeks: 40,
+    perDistinctMonth: 12, maxMonths: 18
+  },
+  /* A record is evidence, but one lucky day must not jump a level. */
+  pr: { points: 8, maxCounted: 10 },
+  /* Confidence already reflects how much history exists; a small nudge only. */
+  capability: { high: 15, medium: 8, low: 3, none: 0 },
+  /* Muscle contribution. Mirrors the recovery model's intent WITHOUT reading
+     or altering it — recovery keeps its own weights entirely. */
+  muscle: { primaryWeight: 1.0, secondaryWeight: 0.35 }
+};
+
+/* Cumulative points needed to reach `level`. Level 1 costs nothing. */
+function masteryPointsForLevel(level, base){
+  const b = base || MASTERY_CONFIG.curve.exerciseBase;
+  if(level <= 1) return 0;
+  return Math.round(b * Math.pow(level - 1, MASTERY_CONFIG.curve.growth));
+}
+function masteryLevelFromPoints(points, base){
+  let level = 1;
+  for(let n = 2; n <= MASTERY_CONFIG.maxLevel; n++){
+    if(points >= masteryPointsForLevel(n, base)) level = n; else break;
+  }
+  return level;
+}
+/* Level plus how far into it, for a progress bar. */
+function masteryStanding(points, base){
+  const level = masteryLevelFromPoints(points, base);
+  const floor = masteryPointsForLevel(level, base);
+  const next = level >= MASTERY_CONFIG.maxLevel ? null : masteryPointsForLevel(level + 1, base);
+  const into = Math.max(0, points - floor);
+  const span = next === null ? 0 : (next - floor);
+  return {
+    level, points,
+    pointsIntoLevel: into,
+    pointsForNext: next === null ? null : span,
+    percent: next === null ? 100 : Math.max(0, Math.min(100, Math.round((into / span) * 100))),
+    isMax: level >= MASTERY_CONFIG.maxLevel
+  };
+}
+
+/* ---------- EVIDENCE ----------
+   One pass over the log builds every exercise's evidence at once, so opening
+   Progress does not walk lifetime history per exercise. */
+let _masteryIndex = null;
+function invalidateMasteryCache(){ _masteryIndex = null; }
+
+function weekKeyOf(dateStr){
+  try{ return weekStartKey(dateStr); }catch(e){ return dateStr; }
+}
+function monthKeyOf(dateStr){ return String(dateStr || '').slice(0, 7); }
+
+function buildMasteryIndex(){
+  if(_masteryIndex) return _masteryIndex;
+  const byExercise = {};
+
+  sortedLog().forEach(entry => {
+    const date = entry && entry.date;
+    if(!date) return;
+    // A session counts ONCE per exercise per workout, however many sets it had.
+    const seenThisWorkout = {};
+    (entry.exercises || []).forEach(ex => {
+      let id = null;
+      try{ id = resolveExerciseId(ex.name); }catch(e){}
+      if(!id) return;
+      const rec = byExercise[id] || (byExercise[id] = {
+        exerciseId: id, sessions: 0, countedSets: 0,
+        weeks: new Set(), months: new Set(), lastDate: null, firstDate: null, names: new Set()
+      });
+      rec.names.add(ex.name);
+      if(!seenThisWorkout[id]){
+        seenThisWorkout[id] = true;
+        rec.sessions++;
+        rec.weeks.add(weekKeyOf(date));
+        rec.months.add(monthKeyOf(date));
+        if(!rec.firstDate || date < rec.firstDate) rec.firstDate = date;
+        if(!rec.lastDate || date > rec.lastDate) rec.lastDate = date;
+      }
+      /* Only sets that actually happened, warm-ups excluded, and capped per
+         session so a 40-set afternoon cannot outrun months of training. */
+      let counted = 0;
+      (ex.sets || []).forEach(s => {
+        if(counted >= MASTERY_CONFIG.session.maxSetsCounted) return;
+        const reps = parseFloat(s && s.reps);
+        if(isNaN(reps) || reps <= 0) return;
+        // Legacy sets predate set types (setTypeOf -> null). Only an EXPLICIT
+        // warm-up is excluded; unknown counts, or years of history would vanish.
+        if(setTypeOf(s) === SET_TYPES.WARMUP) return;
+        counted++;
+      });
+      rec.countedSets += counted;
+    });
+  });
+
+  _masteryIndex = byExercise;
+  return _masteryIndex;
+}
+
+/* PR count per canonical exercise, from the existing PR engine. */
+let _masteryPRCounts = null;
+function masteryPRCounts(){
+  if(_masteryPRCounts) return _masteryPRCounts;
+  const out = {};
+  try{
+    computeAllPREvents().forEach(ev => {
+      let id = null;
+      try{ id = resolveExerciseId(ev.exerciseName); }catch(e){}
+      if(id) out[id] = (out[id] || 0) + 1;
+    });
+  }catch(e){}
+  _masteryPRCounts = out;
+  return out;
+}
+
+function masteryPointsFor(rec, prCount, confidenceLevel){
+  const C = MASTERY_CONFIG;
+  if(!rec) return 0;
+  let pts = 0;
+  pts += rec.sessions * C.session.points;
+  pts += rec.countedSets * C.session.perWorkingSet;
+  pts += Math.min(rec.weeks.size, C.longitudinal.maxWeeks) * C.longitudinal.perDistinctWeek;
+  pts += Math.min(rec.months.size, C.longitudinal.maxMonths) * C.longitudinal.perDistinctMonth;
+  pts += Math.min(prCount || 0, C.pr.maxCounted) * C.pr.points;
+  if(confidenceLevel && C.capability[confidenceLevel] !== undefined) pts += C.capability[confidenceLevel];
+  return Math.round(pts);
+}
+
+/* ---------- EXERCISE MASTERY API ---------- */
+function getExerciseMastery(exerciseId){
+  if(!exerciseId) return null;
+  const rec = buildMasteryIndex()[exerciseId];
+  const canon = getCanonicalExercise(exerciseId);
+  const displayName = canon ? canon.displayName
+    : (rec && rec.names.size ? Array.from(rec.names)[0] : exerciseId);
+  if(!rec){
+    // No history: Level 1, and explicitly flagged so the UI can say so
+    // rather than printing a wall of zeroes at a beginner.
+    return Object.assign(masteryStanding(0), {
+      exerciseId, displayName, sessions:0, prs:0, weeks:0, months:0,
+      hasHistory:false, firstDate:null, lastDate:null
+    });
+  }
+  /* Capability is cached under the literal logged name, so look it up with a name
+     that actually appears in the log — the canonical displayName can be a spelling
+     the athlete never typed, which would silently read as 'no history'. */
+  let confidence = null;
+  try{
+    const cap = getExerciseCapability(Array.from(rec.names)[0]);
+    confidence = cap && cap.confidence ? cap.confidence.level : null;
+  }catch(e){}
+  const prs = masteryPRCounts()[exerciseId] || 0;
+  const points = masteryPointsFor(rec, prs, confidence);
+  return Object.assign(masteryStanding(points), {
+    exerciseId, displayName,
+    sessions: rec.sessions, prs,
+    weeks: rec.weeks.size, months: rec.months.size,
+    hasHistory: true, firstDate: rec.firstDate, lastDate: rec.lastDate
+  });
+}
+function getExerciseMasteryLevel(exerciseId){
+  const m = getExerciseMastery(exerciseId);
+  return m ? m.level : 1;
+}
+function getExerciseMasteryByName(name){
+  let id = null;
+  try{ id = resolveExerciseId(name); }catch(e){ return null; }
+  return id ? getExerciseMastery(id) : null;
+}
+function getTopExerciseMastery(limit){
+  const all = Object.keys(buildMasteryIndex()).map(getExerciseMastery).filter(Boolean);
+  all.sort((a, b) => b.points - a.points || a.displayName.localeCompare(b.displayName));
+  return typeof limit === 'number' ? all.slice(0, limit) : all;
+}
+
+/* ---------- MUSCLE MASTERY ----------
+   Reuses the existing muscle taxonomy and the canonical registry's own
+   primary/secondary lists. No second muscle model is introduced. */
+let _muscleMasteryCache = null;
+function buildMuscleMastery(){
+  if(_muscleMasteryCache) return _muscleMasteryCache;
+  const C = MASTERY_CONFIG.muscle;
+  const totals = {};
+  Object.keys(MUSCLE_LABELS).forEach(m => { totals[m] = { points:0, exercises:new Set(), sessions:0 }; });
+
+  Object.keys(buildMasteryIndex()).forEach(id => {
+    const m = getExerciseMastery(id);
+    if(!m || !m.points) return;
+    const canon = getCanonicalExercise(id);
+    if(!canon) return;                       // unmapped exercises train no known muscle
+    (canon.primary || []).forEach(mus => {
+      if(!totals[mus]) return;
+      totals[mus].points += m.points * C.primaryWeight;
+      totals[mus].exercises.add(id);
+      totals[mus].sessions += m.sessions;
+    });
+    (canon.secondary || []).forEach(mus => {
+      if(!totals[mus]) return;
+      totals[mus].points += m.points * C.secondaryWeight;
+      totals[mus].exercises.add(id);
+    });
+  });
+
+  const out = {};
+  Object.keys(totals).forEach(mus => {
+    const pts = Math.round(totals[mus].points);
+    out[mus] = Object.assign(masteryStanding(pts, MASTERY_CONFIG.curve.muscleBase), {
+      muscleId: mus,
+      label: MUSCLE_LABELS[mus] || mus,
+      exercises: totals[mus].exercises.size,
+      sessions: totals[mus].sessions,
+      hasHistory: pts > 0
+    });
+  });
+  _muscleMasteryCache = out;
+  return out;
+}
+function getMuscleMastery(muscleId){ return buildMuscleMastery()[muscleId] || null; }
+function getMuscleMasteryLevel(muscleId){
+  const m = getMuscleMastery(muscleId);
+  return m ? m.level : 1;
+}
+function getTopMuscleMastery(limit){
+  const all = Object.keys(buildMuscleMastery()).map(getMuscleMastery).filter(Boolean);
+  all.sort((a, b) => b.points - a.points || a.label.localeCompare(b.label));
+  return typeof limit === 'number' ? all.slice(0, limit) : all;
+}
+
+/* Summary for the Progress header. Structural only — no score, no grade. */
+function getMasteryProgress(){
+  const ex = getTopExerciseMastery();
+  const mus = getTopMuscleMastery().filter(m => m.hasHistory);
+  return {
+    exercisesTracked: ex.length,
+    musclesTracked: mus.length,
+    topExercise: ex.length ? ex[0] : null,
+    topMuscle: mus.length ? mus[0] : null,
+    hasHistory: ex.length > 0
+  };
+}
+
+function invalidateAllMasteryCaches(){
+  _masteryIndex = null;
+  _masteryPRCounts = null;
+  _muscleMasteryCache = null;
+}
+
+/* ---------- UI ----------
+   Compact by design: a bar and a level, never a card per exercise. */
+function masteryBarHtml(standing){
+  const pct = standing.isMax ? 100 : standing.percent;
+  return `<div class="mastery-bar"><span style="width:${pct}%"></span></div>`;
+}
+/* Exercise Detail badge. */
+function exerciseMasteryHtml(name){
+  const m = getExerciseMasteryByName(name);
+  if(!m) return '';
+  if(!m.hasHistory){
+    return `<div class="mastery-block mastery-empty">
+      <div class="mastery-label">Mastery</div>
+      <div class="mastery-empty-text">Builds as you train this exercise.</div>
+    </div>`;
+  }
+  return `
+    <div class="mastery-block">
+      <div class="mastery-head">
+        <span class="mastery-label">Mastery</span>
+        <span class="mastery-level">Level ${m.level}</span>
+      </div>
+      ${masteryBarHtml(m)}
+      <div class="mastery-meta">${m.sessions} session${m.sessions===1?'':'s'} · ${m.months} month${m.months===1?'':'s'}${m.prs ? ' · ' + m.prs + ' record' + (m.prs===1?'':'s') : ''}</div>
+    </div>`;
+}
+/* Progress > Muscles section. */
+function muscleMasteryHtml(){
+  const list = getTopMuscleMastery().filter(m => m.hasHistory);
+  if(!list.length){
+    return `<div class="mastery-empty-text" style="padding:14px 0">Muscle mastery builds as you log training.</div>`;
+  }
+  return list.map(m => `
+    <div class="mastery-row">
+      <div class="mastery-row-head">
+        <span class="mastery-row-name">${escapeHtml(m.label)}</span>
+        <span class="mastery-row-level">Level ${m.level}</span>
+      </div>
+      ${masteryBarHtml(m)}
+    </div>`).join('');
+}
+/* Progress > Strength section — the movements LOOP knows best. */
+function exerciseMasteryListHtml(limit){
+  const list = getTopExerciseMastery(limit || 6).filter(m => m.hasHistory);
+  if(!list.length){
+    return `<div class="mastery-empty-text" style="padding:14px 0">Exercise mastery builds as you train.</div>`;
+  }
+  return list.map(m => `
+    <div class="mastery-row">
+      <div class="mastery-row-head">
+        <span class="mastery-row-name">${escapeHtml(m.displayName)}</span>
+        <span class="mastery-row-level">Level ${m.level}</span>
+      </div>
+      ${masteryBarHtml(m)}
+      <div class="mastery-row-meta">${m.sessions} session${m.sessions===1?'':'s'}</div>
+    </div>`).join('');
+}
 
 /* ---------- EXERCISE DETAIL ---------- */
 function openExDetail(name){
@@ -11575,7 +11946,7 @@ function renderExDetail(){
       <div class="snap-item"><div class="snap-label">Previous session</div><div class="snap-num">${fmtSet(prev)}</div></div>
       <div class="snap-item"><div class="snap-label">Best ever</div><div class="snap-num">${isBW ? best.r + ' reps' : best.w + ' lb × ' + best.r}</div></div>
       <div class="snap-item"><div class="snap-label">Sessions</div><div class="snap-num">${sessions.length}</div></div>
-    </div>`;
+    </div>` + exerciseMasteryHtml(name);
 
   // Chart: chronological, oldest first
   const chrono = [...sessions].reverse();

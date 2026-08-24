@@ -287,3 +287,78 @@ Working rules that follow from this:
   adjusts, or knows the right weight.
 - **Measure, don't assume.** Geometry claims (touch targets, overflow, font
   sizes) come from a real rendered browser, not from reading CSS.
+
+---
+
+## 12. Mastery (Phase D9)
+
+Mastery is a **third progression layer**, sitting beside the player and beneath
+nothing: `PLAYER → EXERCISE → MUSCLE`. It answers one question only — *how much
+training history does LOOP have here* — and it is deliberately inert.
+
+### What it is not
+
+| It is not | Which is |
+|---|---|
+| a strength score | capability |
+| a fatigue score | recovery |
+| account progression | player XP / level / rank |
+| a recommendation input | the shadow trainer |
+
+Mastery reads all four. **None of them read mastery**, and Contract 64 proves
+it by scanning every trainer, recovery, capability and XP function for a
+reference. Adding one is a regression, not a feature.
+
+### Derived, never stored
+
+There is no mastery storage key and `DATA_KEYS` is unchanged. Every value is
+recomputed from `workoutLog`, the canonical registry and the existing muscle
+taxonomy. Three consequences worth keeping:
+
+- Editing or deleting a workout corrects mastery automatically.
+- No migration can ever be needed for it.
+- The cache **must** stay chained to `invalidateSortedLogCache()`. It is derived
+  from the same log; if that hook stops clearing it, the UI will show a level the
+  history no longer supports.
+
+### Anti-farming is the design, not a filter
+
+Sessions are the unit, not sets. `MASTERY_CONFIG.session.maxSetsCounted` caps
+what a single session can contribute, and most points come from returning to a
+movement across distinct weeks and months. Observed on synthetic athletes:
+
+| Athlete | Level |
+|---|---|
+| 12 sessions over 3 months | 3 (323 pts) |
+| 1 session of 40 sets | 1 (48 pts) |
+| 52 sessions over a year | 8 |
+| 3 sessions over 2 weeks | 2 |
+
+**All thresholds live in `MASTERY_CONFIG`.** Contract 63 fails if the scoring
+code grows a bare numeric threshold, so tuning stays a one-place change.
+
+### Known characteristic — calendar span is weighted heavily
+
+At equal session counts, a longer calendar span scores higher: 12 sessions over
+two years (431 pts) outscores 12 sessions over three months (323 pts). That
+follows from `longitudinal.perDistinctMonth` and is consistent with mastery
+meaning *familiarity over time* — but it does mean sporadic training can
+outscore dense training at equal volume. **Reported, not tuned.** If it should
+change, change `MASTERY_CONFIG.longitudinal`, not the tests.
+
+### Identity rules
+
+- Anchored to canonical exercise ID. Barbell, Smith and dumbbell bench are three
+  separate masteries and must stay that way.
+- Aliases merge into their canonical entry exactly once.
+- An unmapped exercise earns exercise mastery but is attributed to **no** muscle
+  — LOOP does not guess anatomy it cannot resolve.
+- Muscle mastery uses `CANONICAL_EXERCISES[].primary` / `.secondary` weighted by
+  `MASTERY_CONFIG.muscle`. It does **not** read or alter the recovery model,
+  which keeps its own weights.
+
+### Language
+
+Mastery describes history, never biology. "Chest Mastery — based on your
+training history" is correct; anything implying strength, hypertrophy or
+adaptation is not. Contract 64 asserts this against the rendered copy.
