@@ -2471,6 +2471,447 @@ async function testGymBackup(){
     T('existing gym profile is NOT overwritten by import', owned.store.gymProfile === mine);
   }
 }
+
+/* =========================================================
+   CONTRACT 36-38 — EXERCISE SUBSTITUTION ENGINE (Phase D2)
+   ---------------------------------------------------------
+   The engine ranks; a person chooses. These tests hold three
+   lines: hard filters are genuinely hard (a soft preference
+   can never smuggle back an unavailable or incompatible
+   exercise), training intent outranks familiarity, and
+   choosing a replacement touches today's draft and nothing
+   else — not the plan, not history, not capability, not the
+   trainer.
+   ========================================================= */
+function testSubstitutionRanking(app){
+  section('CONTRACT 36 — substitution ranking & filters');
+  const ctx = app.ctx;
+  const ids = r => r.map(x => x.exerciseId);
+
+  sub('config is centralized');
+  T('SUBSTITUTION_CONFIG exists', !!ctx.SUBSTITUTION_CONFIG);
+  T('pattern weights configured', typeof ctx.SUBSTITUTION_CONFIG.pattern.same === 'number');
+  T('limits configured', ctx.SUBSTITUTION_CONFIG.limits.maxResults > 0);
+  T('surfaced list stays small (3-5 strong candidates)',
+    ctx.SUBSTITUTION_CONFIG.limits.maxResults <= 5);
+
+  sub('1. bench press -> best available substitutes');
+  const bench = ctx.rankSubstitutionCandidates('bench_press_barbell', {});
+  T('produces candidates', bench.length > 0);
+  T('never more than the configured maximum',
+    bench.length <= ctx.SUBSTITUTION_CONFIG.limits.maxResults);
+  T('every candidate is a horizontal push or related pattern',
+    bench.every(r => { const c = ctx.getCanonicalExercise(r.exerciseId);
+      return c.pattern === 'horizontal_push' || c.pattern === 'vertical_push'; }));
+  T('every candidate trains chest',
+    bench.every(r => { const c = ctx.getCanonicalExercise(r.exerciseId);
+      return c.primary.concat(c.secondary).includes('chest'); }));
+  T('offers a machine alternative for a taken bench',
+    ids(bench).some(id => ['bench_press_smith','chest_press_machine'].includes(id)));
+  T('every candidate carries an explanation', bench.every(r => r.reasons.length > 0));
+  T('explanations never expose scoring math',
+    bench.every(r => r.reasons.every(x => !/\d+\s*(pts|points|score)/i.test(x))));
+
+  sub('2. pull movement');
+  const pulldown = ctx.rankSubstitutionCandidates('lat_pulldown', {});
+  T('pulldown produces candidates', pulldown.length > 0);
+  T('pull candidates train back',
+    pulldown.every(r => { const c = ctx.getCanonicalExercise(r.exerciseId);
+      return c.primary.concat(c.secondary).includes('back'); }));
+  T('a pull never returns a pressing movement',
+    !ids(pulldown).some(id => ['bench_press_barbell','overhead_press_bb'].includes(id)));
+
+  sub('3. lower body');
+  const squat = ctx.rankSubstitutionCandidates('squat_back', {});
+  T('squat produces candidates', squat.length > 0);
+  T('squat candidates are squat or lunge patterns',
+    squat.every(r => ['squat','lunge'].includes(ctx.getCanonicalExercise(r.exerciseId).pattern)));
+  T('squat never returns an upper-body exercise',
+    !ids(squat).some(id => id.indexOf('bench') === 0 || id.indexOf('curl') === 0));
+
+  sub('4/5. machine and cable originals');
+  const pecdeck = ctx.rankSubstitutionCandidates('pec_deck', {});
+  T('machine exercise produces candidates', pecdeck.length > 0);
+  T('machine candidates stay chest-focused',
+    pecdeck.every(r => ctx.getCanonicalExercise(r.exerciseId).primary.includes('chest')));
+  const pushdown = ctx.rankSubstitutionCandidates('triceps_pushdown', {});
+  T('cable exercise produces candidates', pushdown.length > 0);
+  T('cable candidates actually train triceps',
+    pushdown.every(r => { const c = ctx.getCanonicalExercise(r.exerciseId);
+      return c.primary.concat(c.secondary).includes('triceps'); }));
+
+  sub('16. movement / muscle mismatch rejection');
+  T('a triceps movement never suggests calf raise', !ids(pushdown).includes('calf_raise'));
+  T('a triceps movement never suggests shrug', !ids(pushdown).includes('shrug'));
+  T('a triceps movement never suggests a biceps curl',
+    !ids(pushdown).some(id => id.indexOf('curl_') === 0));
+  T('leg curl never returns a bench press',
+    !ids(ctx.rankSubstitutionCandidates('leg_curl', {})).includes('bench_press_barbell'));
+  T('hard filter reports muscle mismatch',
+    ctx.substitutionHardReject('triceps_pushdown', ctx.getCanonicalExercise('calf_raise'),
+      ctx.substitutionContext('triceps_pushdown', {})) === 'no_muscle_overlap');
+  T('hard filter reports pattern mismatch',
+    ctx.substitutionHardReject('bench_press_barbell', ctx.getCanonicalExercise('leg_press'),
+      ctx.substitutionContext('bench_press_barbell', {})) === 'pattern_mismatch');
+
+  sub('6. exercise type / role is respected');
+  const legCurl = ctx.rankSubstitutionCandidates('leg_curl', {});
+  T('a machine accessory is not topped by a heavy barbell lift',
+    legCurl.length > 0 && !['deadlift_conventional','squat_back'].includes(legCurl[0].exerciseId),
+    legCurl.length ? legCurl[0].exerciseId : 'none');
+  T('barbell escalation is penalized, not silently allowed',
+    ctx.SUBSTITUTION_CONFIG.type.barbellEscalation < 0);
+
+  sub('17. the original exercise is never its own substitute');
+  const originals = ['bench_press_barbell','lat_pulldown','squat_back','leg_curl','pec_deck','curl_dumbbell'];
+  T('original never appears in its own results',
+    originals.every(id => !ids(ctx.rankSubstitutionCandidates(id, {})).includes(id)));
+  T('hard filter names the reason',
+    ctx.substitutionHardReject('bench_press_barbell', ctx.getCanonicalExercise('bench_press_barbell'),
+      ctx.substitutionContext('bench_press_barbell', {})) === 'same_exercise');
+
+  sub('18. duplicate variation suppression');
+  const fams = {};
+  bench.forEach(r => { const c = ctx.getCanonicalExercise(r.exerciseId);
+    const k = c.pattern + '|' + c.primary.join('+') + '|' + c.equipment;
+    fams[k] = (fams[k] || 0) + 1; });
+  T('no more than the configured number per variant family',
+    Object.keys(fams).every(k => fams[k] <= ctx.SUBSTITUTION_CONFIG.limits.maxPerVariantFamily));
+  T('equipment variety is preserved rather than collapsed',
+    new Set(bench.map(r => ctx.getCanonicalExercise(r.exerciseId).equipment)).size >= 2);
+
+  sub('candidate API surface');
+  T('getSubstitutionCandidates returns survivors of hard filters',
+    ctx.getSubstitutionCandidates('bench_press_barbell', {}).length >= bench.length);
+  T('getBestSubstitution returns the top candidate',
+    ctx.getBestSubstitution('bench_press_barbell', {}).exerciseId === bench[0].exerciseId);
+  T('getBestSubstitution returns null when nothing qualifies',
+    ctx.getBestSubstitution('unmapped:nonsense', {}) === null);
+  T('by-name lookup resolves canonically',
+    ctx.getSubstitutionsByName('Bench Press', {}).length === bench.length);
+  T('unknown name yields no candidates, never a guess',
+    ctx.getSubstitutionsByName('Zercher Wall Toss', {}).length === 0);
+
+  sub('28. performance — ranking is cached, not rescanned');
+  T('repeat call returns the cached array',
+    ctx.rankSubstitutionCandidates('bench_press_barbell', {}) ===
+    ctx.rankSubstitutionCandidates('bench_press_barbell', {}));
+  const t0 = Date.now();
+  for(let i = 0; i < 200; i++) ctx.rankSubstitutionCandidates('bench_press_barbell', {});
+  T('200 cached lookups are effectively free', Date.now() - t0 < 100, (Date.now()-t0) + 'ms');
+}
+
+async function testSubstitutionEquipment(){
+  section('CONTRACT 37 — substitution respects the three-state gym profile');
+
+  sub('6/23. unknown gym — nothing is ruled out');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    T('gym is unconfigured', ctx.isGymProfileConfigured() === false);
+    const r = ctx.rankSubstitutionCandidates('bench_press_barbell', {});
+    T('candidates are still produced', r.length > 0);
+    T('no candidate was filtered for equipment',
+      r.every(x => x.equipmentStatus !== 'unavailable'));
+    T('unknown equipment is not advertised as available',
+      r.every(x => !x.reasons.includes('Available at your gym')));
+    T('unknown equipment carries no ranking bonus',
+      ctx.SUBSTITUTION_CONFIG.equipment.unknown === 0);
+  }
+
+  sub('7. fully configured gym — available candidates are promoted');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    ['smith_machine','chest_press_machine','bench','dumbbells'].forEach(e => ctx.setEquipmentAvailable(e, true));
+    const r = ctx.rankSubstitutionCandidates('bench_press_barbell', {});
+    T('available candidates surface', r.some(x => x.equipmentStatus === 'available'));
+    T('available candidates are labelled',
+      r.filter(x => x.equipmentStatus === 'available').every(x => x.reasons.includes('Available at your gym')));
+    T('an available candidate outranks an unknown one of equal intent',
+      r[0].equipmentStatus === 'available');
+  }
+
+  sub('8. explicitly unavailable equipment is a HARD filter');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    ctx.setEquipmentAvailable('smith_machine', false);
+    ctx.setEquipmentAvailable('chest_press_machine', false);
+    const r = ctx.rankSubstitutionCandidates('bench_press_barbell', {});
+    T('unavailable smith bench is not offered',
+      !r.map(x=>x.exerciseId).includes('bench_press_smith'));
+    T('unavailable machine press is not offered',
+      !r.map(x=>x.exerciseId).includes('chest_press_machine'));
+    T('hard filter names the reason',
+      ctx.substitutionHardReject('bench_press_barbell', ctx.getCanonicalExercise('bench_press_smith'),
+        ctx.substitutionContext('bench_press_barbell', {})) === 'equipment_unavailable');
+    T('other candidates still available', r.length > 0);
+  }
+
+  sub('9. multi-equipment requirements are honoured');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    // Dumbbells yes, every bench no -> DB bench press needs both.
+    ctx.setEquipmentAvailable('dumbbells', true);
+    ctx.setEquipmentAvailable('bench', false);
+    ctx.setEquipmentAvailable('adjustable_bench', false);
+    T('exercise needing an unavailable second item is excluded',
+      !ctx.rankSubstitutionCandidates('bench_press_barbell', {})
+        .map(x=>x.exerciseId).includes('bench_press_db'));
+    ctx.setEquipmentAvailable('bench', true);
+    T('it returns once the second item is available',
+      ctx.rankSubstitutionCandidates('bench_press_barbell', {})
+        .map(x=>x.exerciseId).includes('bench_press_db'));
+  }
+
+  sub('10/24. custom equipment never unlocks an exercise');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    ctx.setEquipmentAvailable('chest_press_machine', false);
+    const before = ctx.rankSubstitutionCandidates('bench_press_barbell', {}).map(x=>x.exerciseId);
+    ctx.addCustomEquipment('Atlantis chest press');
+    ctx.invalidateSubstitutionCache();
+    const after = ctx.rankSubstitutionCandidates('bench_press_barbell', {}).map(x=>x.exerciseId);
+    T('custom equipment does not make a blocked exercise eligible',
+      !after.includes('chest_press_machine'));
+    T('custom equipment does not change the ranking at all',
+      JSON.stringify(before) === JSON.stringify(after));
+  }
+
+  sub('gym changes invalidate the ranking cache');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    const before = ctx.rankSubstitutionCandidates('bench_press_barbell', {}).map(x=>x.exerciseId);
+    ctx.setEquipmentAvailable('bench_press_smith', false);   // not a real id, no-op
+    ctx.setEquipmentAvailable('smith_machine', false);
+    const after = ctx.rankSubstitutionCandidates('bench_press_barbell', {}).map(x=>x.exerciseId);
+    T('stale rankings are not served after a gym change',
+      before.includes('bench_press_smith') ? !after.includes('bench_press_smith') : true);
+  }
+}
+
+async function testSubstitutionPersonalization(){
+  section('CONTRACT 38 — history, preference and workout context');
+
+  sub('11/22. brand-new user with no history at all');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    const r = ctx.rankSubstitutionCandidates('bench_press_barbell', {});
+    T('still produces useful substitutions from metadata alone', r.length > 0);
+    T('no candidate claims prior sessions', r.every(x => x.sessions === 0));
+    T('no candidate claims familiarity in its reasons',
+      r.every(x => !x.reasons.some(s => /used .* times|used once/i.test(s))));
+    T('no fabricated capability is attached', r.every(x => x.recommendedWeight === undefined));
+  }
+
+  sub('12/13/14. history gives a familiarity advantage');
+  {
+    const hist = [];
+    for(let i = 0; i < 14; i++){
+      hist.push(WK('h'+i, i*3, 'push', [EX('Machine Chest Press', [S(140,10,2,'working')])]));
+    }
+    const app = await H.loadAppBooted({ workoutLog: JSON.stringify(hist) });
+    const ctx = app.ctx;
+    const r = ctx.rankSubstitutionCandidates('bench_press_barbell', {});
+    const machine = r.find(x => x.exerciseId === 'chest_press_machine');
+    T('the familiar exercise is surfaced', !!machine);
+    T('its session count is real, not invented', machine && machine.sessions === 14);
+    T('familiarity is explained to the user',
+      machine && machine.reasons.some(s => /used 14 times/i.test(s)));
+    const unfamiliar = r.find(x => x.sessions === 0);
+    T('familiar outranks an equally-matched unfamiliar candidate',
+      !unfamiliar || machine.score > unfamiliar.score);
+    T('history bonus is capped so intent still wins',
+      ctx.SUBSTITUTION_CONFIG.history.maxBonus <= ctx.SUBSTITUTION_CONFIG.pattern.same);
+    T('a zero-history candidate is still offered', r.some(x => x.sessions === 0));
+  }
+
+  sub('15. preferences influence ranking');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    const baseline = ctx.rankSubstitutionCandidates('bench_press_barbell', {})
+      .find(x => x.exerciseId === 'bench_press_db').score;
+    ctx.setExercisePreference('Dumbbell Bench Press', 'more');
+    ctx.invalidateSubstitutionCache();
+    const boosted = ctx.rankSubstitutionCandidates('bench_press_barbell', {})
+      .find(x => x.exerciseId === 'bench_press_db');
+    T('a stated preference raises the score', boosted.score > baseline);
+    T('a preferred lift is explained as such',
+      boosted.reasons.includes('One of your preferred lifts'));
+
+    ctx.setExercisePreference('Dumbbell Bench Press', 'never');
+    ctx.invalidateSubstitutionCache();
+    T('a "never" preference is a HARD filter',
+      !ctx.rankSubstitutionCandidates('bench_press_barbell', {})
+        .map(x=>x.exerciseId).includes('bench_press_db'));
+    T('hard filter names the reason',
+      ctx.substitutionHardReject('bench_press_barbell', ctx.getCanonicalExercise('bench_press_db'),
+        ctx.substitutionContext('bench_press_barbell', {})) === 'never_preference');
+
+    ctx.setExercisePreference('Dumbbell Bench Press', null);
+    ctx.athleteProfile.excludedExercises = ['Dumbbell Bench Press'];
+    ctx.invalidateSubstitutionCache();
+    T('an excluded exercise is never recommended',
+      !ctx.rankSubstitutionCandidates('bench_press_barbell', {})
+        .map(x=>x.exerciseId).includes('bench_press_db'));
+    ctx.athleteProfile.excludedExercises = [];
+    ctx.invalidateSubstitutionCache();
+  }
+
+  sub('19. workout-context redundancy');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    const plain = ctx.rankSubstitutionCandidates('bench_press_barbell', {})
+      .find(x => x.exerciseId === 'incline_press_db');
+    const withRedundancy = ctx.rankSubstitutionCandidates('bench_press_barbell',
+      { workoutExerciseIds: ['incline_press_db'] })
+      .find(x => x.exerciseId === 'incline_press_db');
+    T('an exercise already in today\'s workout is penalized',
+      !withRedundancy || withRedundancy.score < plain.score);
+    T('redundancy is explained when surfaced',
+      !withRedundancy || withRedundancy.reasons.includes('Already in this workout'));
+    T('redundancy does not empty the list',
+      ctx.rankSubstitutionCandidates('bench_press_barbell',
+        { workoutExerciseIds: ['incline_press_db','bench_press_db'] }).length > 0);
+    T('context is part of the cache key',
+      ctx.rankSubstitutionCandidates('bench_press_barbell', {}) !==
+      ctx.rankSubstitutionCandidates('bench_press_barbell', { workoutExerciseIds:['incline_press_db'] }));
+  }
+}
+
+/* The replacement action itself: today's draft only, nothing else. */
+async function testSubstitutionApplySafety(){
+  section('CONTRACT 39 — replacing an exercise is non-destructive');
+
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx, dom = app.dom;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const planBefore = app.store.selectedPlan;
+  const planDataBefore = JSON.stringify(Object.keys(app.store).filter(k => k.indexOf('planData:') === 0)
+    .map(k => app.store[k]));
+  const gymBefore = app.store.gymProfile;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const capBefore = JSON.stringify(ctx.getExerciseCapability('Bench Press'));
+
+  sub('23. opening the substitution UI changes nothing');
+  const row = H.mkExRow('Bench Press', false, [{w:225,r:10,rir:2},{w:225,r:8,rir:1}], { targetReps:'8-10', targetSets:'3' });
+  dom.setRows([row]);
+  const btn = { closest: () => row };
+  for(let i = 0; i < 10; i++){ ctx.openSubstitutions(btn); ctx.closeSubstitutions(); }
+  T('rapid open/close leaves no dangling target', ctx.substitutionTargetRow === null);
+  T('opening created no trainerLog entries', ctx.trainerLog.entries.length === trainerBefore);
+  T('opening did not change workoutLog',
+    JSON.stringify(ctx.workoutLog) === before.rawWorkoutLog);
+  T('opening rendered options', (dom.els.subBody.innerHTML || '').includes('sub-option'));
+  T('the sheet states it is today-only',
+    (dom.els.subBody.innerHTML || '').toLowerCase().includes("today's workout only"));
+
+  sub('15/20. applying replaces IN PLACE and preserves programming');
+  ctx.openSubstitutions(btn);
+  const setsBefore = row._setRows.length;
+  const repsBefore = row._setRows.map(sr => sr.querySelector('.set-reps-in').value);
+  ctx.applySubstitution('chest_press_machine');
+  T('the exercise name changed', row.querySelector('.ex-name-in').value === 'Machine Chest Press');
+  T('set COUNT preserved', row._setRows.length === setsBefore);
+  T('reps preserved exactly',
+    JSON.stringify(row._setRows.map(sr => sr.querySelector('.set-reps-in').value)) === JSON.stringify(repsBefore));
+  T('no duplicate exercise row was added', dom.document.querySelectorAll('#logExercises .ex-log-row').length === 1);
+  T('the sheet closed', ctx.substitutionTargetRow === null);
+
+  sub('18. no capability is copied to the replacement');
+  T('weight fields cleared rather than carried over',
+    row._setRows.every(sr => sr.querySelector('.set-weight-in').value === ''));
+  T('original capability is unchanged',
+    JSON.stringify(ctx.getExerciseCapability('Bench Press')) === capBefore);
+  T('replacement has its own independent capability',
+    JSON.stringify(ctx.getExerciseCapability('Machine Chest Press')) !== capBefore);
+  T('shadow marker cleared so an outcome cannot link to the wrong prediction',
+    row.dataset.shadowRecId === undefined);
+
+  sub('24. rapid selection is safe');
+  ctx.applySubstitution('chest_press_machine');   // no target row now
+  T('applying with no open sheet is a no-op', ctx.substitutionTargetRow === null);
+  ctx.openSubstitutions(btn);
+  ctx.applySubstitution('not_a_real_exercise');
+  T('an invalid id is rejected without changing the row',
+    row.querySelector('.ex-name-in').value === 'Machine Chest Press');
+
+  sub('16/17/30. everything protected is untouched');
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+  /* capabilityBench is ALLOWED to differ in exactly one respect:
+     getExerciseCapability() embeds inferredPreference(), and replacing an
+     exercise records a swap via the existing recordExerciseSwap() — the same
+     preference signal the pre-existing swap dropdown has always written.
+     The training numbers must not move, which is asserted field by field
+     immediately below, so this is a narrower contract than a blanket pass. */
+  const d = H.diffSnapshot(before, after, ['capabilityBench']);
+  T('NOTHING protected changed except the documented preference signal',
+    d.ok, 'changed: ' + d.violations.join(','));
+
+  const capA = JSON.parse(before.capabilityBench), capB = JSON.parse(after.capabilityBench);
+  const stripPref = c => { const x = Object.assign({}, c); delete x.preference; return JSON.stringify(x); };
+  T('every capability training field is byte-identical', stripPref(capA) === stripPref(capB));
+  T('the ONLY capability difference is the preference signal',
+    JSON.stringify(capA.preference) !== JSON.stringify(capB.preference));
+  T('session count unchanged', capA.sessions === capB.sessions);
+  T('estimated 1RM unchanged', capA.estimated1RM === capB.estimated1RM);
+  T('current capability unchanged',
+    JSON.stringify(capA.currentCapability) === JSON.stringify(capB.currentCapability));
+  T('working range unchanged',
+    JSON.stringify(capA.workingRange) === JSON.stringify(capB.workingRange));
+  T('capability confidence unchanged',
+    JSON.stringify(capA.confidence) === JSON.stringify(capB.confidence));
+  T('the swap was recorded as a preference signal (existing behaviour)',
+    capB.preference.net < capA.preference.net);
+  T('historical workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('history still records the ORIGINAL exercise',
+    JSON.parse(app.store.workoutLog).some(w =>
+      (w.exercises||[]).some(e => e.name === 'Bench Press')));
+  T('histories were not merged',
+    !JSON.parse(app.store.workoutLog).some(w =>
+      (w.exercises||[]).some(e => e.name === 'Machine Chest Press')));
+  T('the saved plan is unchanged', app.store.selectedPlan === planBefore);
+  T('plan templates are unchanged',
+    JSON.stringify(Object.keys(app.store).filter(k => k.indexOf('planData:') === 0)
+      .map(k => app.store[k])) === planDataBefore);
+  T('gym profile unchanged', app.store.gymProfile === gymBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability training history unchanged (preference signal excluded)',
+    stripPref(JSON.parse(before.capabilityBench)) === stripPref(JSON.parse(after.capabilityBench)));
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+
+  sub('27. the trainer is untouched');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by substituting',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+  T('substitution creates no shadow recommendations',
+    ctx.trainerLog.entries.length === trainerBefore);
+
+  sub('29. no new persistent storage was introduced');
+  T('no substitutionLog key exists', app.store.substitutionLog === undefined);
+  T('DATA_KEYS gained nothing for substitution',
+    !ctx.DATA_KEYS.some(k => /substitut/i.test(k)));
+  T('schema version untouched', ctx.DATA_SCHEMA_VERSION === 1);
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -2503,6 +2944,9 @@ async function main(){
   testPrepRunner(app);
   testGymRegistry(app);
   await testGymProfileStates();
+  testSubstitutionRanking(app);
+  await testSubstitutionEquipment();
+  await testSubstitutionPersonalization();
   testUpdatesCurrency(app);
   await testShadowObservationSafety(app);
 
@@ -2520,6 +2964,7 @@ async function main(){
     await testBackupImportFlow();
     await testGymIsolation();
     await testGymBackup();
+    await testSubstitutionApplySafety();
   }
 
   // ---- FULL ----

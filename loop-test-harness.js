@@ -160,7 +160,8 @@ function loadApp(initialStore){
     'PREP_MOVEMENTS','COOLDOWN_STRETCHES','PREP_SEQUENCES','COOLDOWN_SEQUENCES','LIFT_PREP_GUIDANCE',
     'prepState','prepTimerId','prepCardDismissed','pendingLogCategory',
     'GYM_EQUIPMENT','GYM_CATEGORIES','EXERCISE_EQUIPMENT','GYM_STATUS','GYM_PROFILE_KEY',
-    'gymProfile','EQUIPMENT_OPTIONS'];
+    'gymProfile','EQUIPMENT_OPTIONS',
+    'SUBSTITUTION_CONFIG','substitutionTargetRow'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

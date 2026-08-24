@@ -1933,6 +1933,42 @@ body.page-locked{ overflow: hidden; }
 /* 16px keeps iOS from zooming the viewport when this field takes focus. */
 .gym-custom-add input{ flex: 1; min-width: 0; font-size: 16px; }
 .gym-custom-add button{ flex-shrink: 0; min-height: 44px; padding: 0 var(--space-4); }
+
+/* ---------- EXERCISE SUBSTITUTION (Phase D2) ----------
+   A quiet secondary action on the exercise row, and a one-tap
+   ranked list. Deliberately not a dominant button. */
+.ex-replace-btn{
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 44px; padding: 0 4px; margin-top: 2px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 11.5px; font-weight: 600;
+  font-family: 'Inter', sans-serif; letter-spacing: 0.02em;
+}
+.ex-replace-btn:active{ color: var(--accent); }
+
+.sub-note{
+  font-size: 11.5px; line-height: 1.5; color: var(--text-dim);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 9px 11px; margin-bottom: var(--space-3);
+}
+.sub-note-dim{ color: var(--text-faint); }
+.sub-label{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-faint); margin: var(--space-4) 0 var(--space-2);
+}
+.sub-option{
+  width: 100%; display: flex; align-items: center; gap: var(--space-3);
+  min-height: 56px; padding: 10px var(--space-3); margin-bottom: 7px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer; text-align: left;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.sub-option:active{ border-color: var(--accent); background: var(--accent-soft); }
+.sub-option-main{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sub-option-name{ font-size: 14px; font-weight: 600; color: var(--text); }
+.sub-option-why{ font-size: 11.5px; color: var(--text-dim); line-height: 1.35; }
+.sub-option-arrow{ color: var(--text-faint); font-size: 18px; line-height: 1; flex-shrink: 0; }
+.sub-empty{ font-size: 13px; color: var(--text-dim); line-height: 1.5; padding: var(--space-4) 0; }
 </style>
 </head>
 <body>
@@ -2359,6 +2395,19 @@ body.page-locked{ overflow: hidden; }
 </div>
 
 <!-- SETTINGS → DATA & PRIVACY -->
+<!-- REPLACE EXERCISE (Phase D2) — ranked alternatives, user-chosen only -->
+<div class="overlay" id="subOverlay" onclick="backdropDismiss(event, closeSubstitutions)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2 id="subTitle">Replace Exercise</h2>
+      <div id="subBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeSubstitutions()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- MY GYM / EQUIPMENT PROFILE (Phase D1) — data source only, no substitution -->
 <div class="overlay" id="gymOverlay" onclick="backdropDismiss(event, closeGymProfile)">
   <div class="sheet">
@@ -3829,6 +3878,25 @@ const LOOP_UPDATES = [
     bugFixes: [],
     changes: [],
     detail: 'This is groundwork. Setting up your gym changes nothing about how LOOP works today — no exercise is removed from a plan, no workout is hidden, and your history, records and progression are untouched. It gives a later update the information it needs to suggest sensible swaps when a machine is taken or you are training somewhere else.'
+  },
+  {
+    id: 'v2-4',
+    version: 'LOOP 2.4',
+    title: 'Smart Replacements',
+    date: '2026-08-24',
+    summary: 'Tap Replace on any exercise to get ranked alternatives that keep the same training intent.',
+    newFeatures: [
+      'A Replace action on every exercise in the workout screen',
+      'Alternatives are chosen by movement pattern and target muscle first, so a bench press offers other presses rather than anything that happens to hit chest',
+      'Exercises you have trained before are favoured, with the session count shown',
+      'If your gym is set up, equipment you do not have is filtered out and available options are marked'
+    ],
+    improvements: [
+      'Replacing keeps your sets and reps exactly as programmed'
+    ],
+    bugFixes: [],
+    changes: [],
+    detail: 'Replacements apply to today’s workout only. Your saved plan is never rewritten, past workouts keep the exercise you actually did, and records stay attached to the right lift. Weights are left blank rather than carried across, because a load you can handle on one exercise is not a load for another. Nothing is ever replaced automatically — you choose.'
   }
 ];
 
@@ -4490,7 +4558,11 @@ function sortedLog(){
   _sortedLogCache = [...workoutLog].sort((a,b)=> new Date(b.date) - new Date(a.date) || b.id.localeCompare(a.id));
   return _sortedLogCache;
 }
-function invalidateSortedLogCache(){ _sortedLogCache = null; }
+function invalidateSortedLogCache(){
+  _sortedLogCache = null;
+  // Substitution ranking reads session history, so it must not outlive it.
+  if(typeof invalidateSubstitutionCache === 'function') invalidateSubstitutionCache();
+}
 
 function getNextCategory(){
   const logs = sortedLog();
@@ -10312,6 +10384,466 @@ function renderAll(){
 
 /* ---------- LOG SHEET ---------- */
 /* =========================================================
+   EXERCISE SUBSTITUTION ENGINE  (Phase D2)
+   ---------------------------------------------------------
+   Answers: "what is the best available replacement for this
+   exercise that preserves as much of the intended training
+   stimulus as possible?"
+
+   USER-CONTROLLED ONLY. Nothing here ever replaces an exercise
+   on its own. It ranks candidates; a person taps one. There is
+   no automatic substitution, no plan rewriting, no weight or
+   set changes, and no trainer involvement — the engine stays
+   0.1.1-shadow and never calls into this file.
+
+   REUSES EXISTING METADATA, ADDS NO NEW TAXONOMY:
+     · movement pattern  -> CANONICAL_EXERCISES[].pattern
+       (falling back to movementPatternFor() for unmapped names)
+     · muscles           -> CANONICAL_EXERCISES[].primary/secondary
+     · exercise type     -> classifyExerciseType()
+     · equipment         -> Phase D1 canPerformExercise() and the
+                            three-state getEquipmentStatus()
+     · history           -> getExerciseHistoryById()
+     · capability        -> getExerciseCapability()
+     · preference        -> inferredPreference() / exercisePrefs
+     · exclusions        -> athleteProfile.excludedExercises
+
+   HARD FILTERS reject a candidate outright. SOFT RANKING only
+   reorders what survived. A soft preference can never promote a
+   candidate past a hard incompatibility.
+
+   DERIVED, NOT STORED. No new persistent key. The only thing
+   that ever persists is the replacement the athlete chooses,
+   through the existing draft/autosave path.
+   ========================================================= */
+
+/* Every tunable lives here. Nothing below hard-codes a score. */
+const SUBSTITUTION_CONFIG = {
+  pattern: {
+    same: 45,          // identical movement pattern — the strongest signal
+    related: 18        // adjacent role (see relatedPatterns); still plausible
+  },
+  muscle: {
+    primaryFullMatch: 30,   // every primary muscle of the original is trained
+    primaryPartial: 18,     // at least one primary muscle overlaps
+    secondaryPerMatch: 5,   // each overlapping secondary muscle
+    secondaryMax: 10
+  },
+  equipment: {
+    available: 20,     // gym profile confirms the athlete can use it
+    unknown: 0         // NOT a penalty — an unconfigured gym must not bias ranking
+  },
+  type: {
+    sameRole: 12,       // compound stays compound, accessory stays accessory
+    differentRole: -20, // heavy compound -> tiny isolation is a role change
+    /* The reverse of differentRole: an accessory/machine movement should not
+       be "upgraded" into a heavy barbell compound just because the muscle
+       overlaps. A leg curl is not a deadlift. */
+    barbellEscalation: -28
+  },
+  history: {
+    perSession: 1.5,   // familiarity advantage
+    maxBonus: 15       // capped so history can never outweigh training intent
+  },
+  capabilityConfidence: { high: 8, medium: 4, low: 1, none: 0 },
+  preference: {
+    stated_more: 14, stated_less: -22,
+    observed_more: 7, observed_less: -11
+  },
+  redundancy: {
+    alreadyInWorkout: -30   // today's session already contains this movement
+  },
+  limits: {
+    maxResults: 5,          // surface a few strong options, never a wall
+    minScore: 15,           // below this a candidate is not worth offering
+    maxPerVariantFamily: 2  // duplicate-variation suppression
+  },
+  /* Patterns close enough in role to be an honest fallback. Anything not
+     listed here is a HARD reject — a leg curl is never a bench press. */
+  relatedPatterns: {
+    horizontal_push: ['vertical_push'],
+    vertical_push:   ['horizontal_push'],
+    horizontal_pull: ['vertical_pull'],
+    vertical_pull:   ['horizontal_pull'],
+    squat:           ['lunge'],
+    lunge:           ['squat'],
+    hinge:           [],
+    isolation:       [],
+    core:            []
+  }
+};
+
+/* Broad training role. Keeps a barbell compound from being replaced by an
+   isolation movement purely because the target muscle overlaps. */
+function substitutionRole(type){
+  if(type === 'compound_barbell' || type === 'compound_dumbbell' ||
+     type === 'machine' || type === 'bodyweight') return 'compound';
+  if(type === 'cable' || type === 'isolation') return 'accessory';
+  return 'other';
+}
+
+/* Canonical pattern is authoritative; the name-based classifier is only a
+   fallback for exercises outside the registry. */
+function substitutionPatternFor(exerciseId, displayName){
+  const canon = getCanonicalExercise(exerciseId);
+  if(canon && canon.pattern) return canon.pattern;
+  return movementPatternFor(displayName || '');
+}
+
+/* One pass over the log builds every candidate's session count, rather than
+   re-scanning history per candidate while ranking. */
+let _subSessionTally = null;
+function substitutionSessionTally(){
+  if(_subSessionTally) return _subSessionTally;
+  const tally = {};
+  sortedLog().forEach(l => {
+    const seen = {};
+    (l.exercises || []).forEach(ex => {
+      const id = resolveExerciseId(ex.name);
+      if(!id || seen[id]) return;      // one session counts once
+      seen[id] = true;
+      tally[id] = (tally[id] || 0) + 1;
+    });
+  });
+  _subSessionTally = tally;
+  return tally;
+}
+
+let _subRankCache = {};
+function invalidateSubstitutionCache(){ _subSessionTally = null; _subRankCache = {}; }
+
+function overlapCount(a, b){
+  if(!a || !b) return 0;
+  let n = 0;
+  a.forEach(x => { if(b.indexOf(x) !== -1) n++; });
+  return n;
+}
+
+/* ---------- HARD FILTERS ----------
+   Each returns a reason string when the candidate must be rejected, or null
+   when it survives. Kept separate from scoring so the boundary between
+   "impossible" and "less preferred" can never blur. */
+function substitutionHardReject(originalId, candidate, context){
+  // 13. never recommend the exercise being replaced
+  if(candidate.id === originalId) return 'same_exercise';
+
+  // invalid identity
+  if(!candidate.id || !candidate.displayName) return 'invalid_identity';
+
+  // explicit user exclusions are absolute
+  const excluded = (athleteProfile.excludedExercises || []).map(s => String(s).toLowerCase());
+  if(excluded.indexOf(candidate.displayName.toLowerCase()) !== -1) return 'excluded_by_user';
+  const manual = exercisePrefs.manual[candidate.displayName.toLowerCase()];
+  if(manual === 'never') return 'never_preference';
+
+  // 5. equipment the gym profile says is explicitly missing.
+  // UNKNOWN deliberately survives — an unconfigured gym must not filter.
+  if(canPerformExercise(candidate.id) === GYM_STATUS.UNAVAILABLE) return 'equipment_unavailable';
+
+  // obviously incompatible movement role
+  const origPattern = context.originalPattern;
+  const candPattern = substitutionPatternFor(candidate.id, candidate.displayName);
+  if(origPattern && candPattern !== origPattern){
+    const related = SUBSTITUTION_CONFIG.relatedPatterns[origPattern];
+    if(!related || related.indexOf(candPattern) === -1) return 'pattern_mismatch';
+  }
+
+  /* A substitute that trains NONE of the original's primary muscles is not a
+     substitute. This matters most for 'isolation', which is a catch-all
+     pattern rather than a movement role — without this, a triceps pushdown
+     would happily offer a calf raise purely because both are isolation. */
+  const origPrimary = context.originalPrimary || [];
+  if(origPrimary.length){
+    const candMuscles = (candidate.primary || []).concat(candidate.secondary || []);
+    if(overlapCount(origPrimary, candMuscles) === 0) return 'no_muscle_overlap';
+  }
+  return null;
+}
+
+/* ---------- SOFT RANKING ----------
+   Returns { score, reasons } — reasons are short, human, and never expose
+   the arithmetic. */
+function scoreSubstitutionCandidate(original, candidate, context){
+  const C = SUBSTITUTION_CONFIG;
+  let score = 0;
+  const reasons = [];
+
+  // movement pattern
+  const candPattern = substitutionPatternFor(candidate.id, candidate.displayName);
+  if(candPattern === context.originalPattern){
+    score += C.pattern.same;
+    reasons.push('Same movement');
+  } else {
+    score += C.pattern.related;
+    reasons.push('Similar movement');
+  }
+
+  // primary muscles
+  const origPrimary = (original && original.primary) || [];
+  const candPrimary = candidate.primary || [];
+  const primaryHits = overlapCount(origPrimary, candPrimary);
+  if(origPrimary.length && primaryHits === origPrimary.length){
+    score += C.muscle.primaryFullMatch;
+    reasons.push(muscleLabelFor(origPrimary) + ' focused');
+  } else if(primaryHits > 0){
+    score += C.muscle.primaryPartial;
+    reasons.push('Similar target');
+  }
+
+  // secondary muscles
+  const secHits = overlapCount((original && original.secondary) || [], candidate.secondary || []);
+  if(secHits){
+    score += Math.min(secHits * C.muscle.secondaryPerMatch, C.muscle.secondaryMax);
+  }
+
+  // equipment — three-state, never punishing UNKNOWN
+  const perform = canPerformExercise(candidate.id);
+  if(perform === GYM_STATUS.AVAILABLE){
+    score += C.equipment.available;
+    reasons.push('Available at your gym');
+  } else {
+    score += C.equipment.unknown;
+  }
+
+  // training role
+  const origType = classifyExerciseType(original ? original.displayName : '', false);
+  const candType = classifyExerciseType(candidate.displayName, false);
+  const origRole = substitutionRole(origType);
+  const candRole = substitutionRole(candType);
+  if(origRole === candRole) score += C.type.sameRole;
+  else score += C.type.differentRole;
+  // Don't turn an accessory or machine movement into a heavy barbell lift.
+  if(candType === 'compound_barbell' && origType !== 'compound_barbell'){
+    score += C.type.barbellEscalation;
+  }
+
+  // personal history — familiarity, capped so it cannot outrank intent
+  const sessions = substitutionSessionTally()[candidate.id] || 0;
+  if(sessions > 0){
+    score += Math.min(sessions * C.history.perSession, C.history.maxBonus);
+    reasons.push(sessions === 1 ? 'Used once before' : `Used ${sessions} times before`);
+  }
+
+  // capability confidence — only where history already exists
+  if(sessions > 0){
+    let conf = null;
+    try{ const cap = getExerciseCapability(candidate.displayName); conf = cap && cap.confidence; }catch(e){}
+    const level = conf && (conf.level || conf);
+    if(level && C.capabilityConfidence[level] !== undefined) score += C.capabilityConfidence[level];
+  }
+
+  // stated / observed preference
+  let pref = null;
+  try{ pref = inferredPreference(candidate.displayName); }catch(e){}
+  if(pref && pref.level && pref.level !== 'unknown'){
+    const key = (pref.source === 'stated' ? 'stated_' : 'observed_') + pref.level;
+    if(C.preference[key] !== undefined) score += C.preference[key];
+    if(pref.source === 'stated' && pref.level === 'more') reasons.push('One of your preferred lifts');
+  }
+
+  // 21. redundancy with what today's session already contains
+  if(context.workoutExerciseIds && context.workoutExerciseIds.indexOf(candidate.id) !== -1){
+    score += C.redundancy.alreadyInWorkout;
+    reasons.push('Already in this workout');
+  }
+
+  return { score: Math.round(score), reasons: reasons.slice(0, 3), sessions, equipmentStatus: perform };
+}
+
+/* Readable muscle label without inventing a new vocabulary. */
+function muscleLabelFor(list){
+  if(!list || !list.length) return 'Similar';
+  const m = list[0];
+  return (typeof MUSCLE_LABELS === 'object' && MUSCLE_LABELS && MUSCLE_LABELS[m])
+    ? MUSCLE_LABELS[m]
+    : m.charAt(0).toUpperCase() + m.slice(1);
+}
+
+/* ---------- PUBLIC API ----------
+   The future trainer consumes these rather than reading storage. */
+function substitutionContext(exerciseId, context){
+  context = context || {};
+  const canon = getCanonicalExercise(exerciseId);
+  return {
+    originalPattern: substitutionPatternFor(exerciseId, canon ? canon.displayName : (context.name || '')),
+    originalPrimary: (canon && canon.primary) || [],
+    workoutExerciseIds: context.workoutExerciseIds || []
+  };
+}
+
+/* Survivors of the hard filters, unranked. */
+function getSubstitutionCandidates(exerciseId, context){
+  const ctx = substitutionContext(exerciseId, context);
+  const out = [];
+  CANONICAL_EXERCISES.forEach(cand => {
+    if(substitutionHardReject(exerciseId, cand, ctx) === null) out.push(cand);
+  });
+  return out;
+}
+
+/* Ranked, explained, diversity-filtered and trimmed to the surfaced few. */
+function rankSubstitutionCandidates(exerciseId, context){
+  context = context || {};
+  const cacheKey = exerciseId + '|' + (context.workoutExerciseIds || []).join(',');
+  if(_subRankCache[cacheKey]) return _subRankCache[cacheKey];
+
+  const ctx = substitutionContext(exerciseId, context);
+  const original = getCanonicalExercise(exerciseId);
+  const scored = [];
+  CANONICAL_EXERCISES.forEach(cand => {
+    if(substitutionHardReject(exerciseId, cand, ctx) !== null) return;
+    const s = scoreSubstitutionCandidate(original, cand, ctx);
+    if(s.score < SUBSTITUTION_CONFIG.limits.minScore) return;
+    scored.push({
+      exerciseId: cand.id,
+      displayName: cand.displayName,
+      score: s.score,
+      reasons: s.reasons,
+      sessions: s.sessions,
+      equipmentStatus: s.equipmentStatus
+    });
+  });
+
+  scored.sort((a, b) => b.score - a.score || a.displayName.localeCompare(b.displayName));
+  const result = applyVariationDiversity(scored).slice(0, SUBSTITUTION_CONFIG.limits.maxResults);
+  _subRankCache[cacheKey] = result;
+  return result;
+}
+
+/* 14. Duplicate-variation suppression. The ranking still knows about every
+   candidate; the surfaced list just refuses to be five flavours of the same
+   thing.
+
+   Family = pattern + primary muscles + REQUIRED EQUIPMENT. Equipment is part
+   of the key deliberately: a Smith bench and a dumbbell bench are not
+   redundant with each other, they are the answer to "the bench is taken".
+   Collapsing them would defeat the point of an equipment-aware engine. */
+function applyVariationDiversity(ranked){
+  const seen = {};
+  const out = [];
+  ranked.forEach(r => {
+    const canon = getCanonicalExercise(r.exerciseId);
+    const family = [
+      substitutionPatternFor(r.exerciseId, r.displayName),
+      ((canon && canon.primary) || []).join('+'),
+      (canon && canon.equipment) || 'unknown'
+    ].join('|');
+    seen[family] = (seen[family] || 0) + 1;
+    if(seen[family] <= SUBSTITUTION_CONFIG.limits.maxPerVariantFamily) out.push(r);
+  });
+  return out;
+}
+
+function getBestSubstitution(exerciseId, context){
+  const ranked = rankSubstitutionCandidates(exerciseId, context);
+  return ranked.length ? ranked[0] : null;
+}
+function getSubstitutionsByName(name, context){
+  let id = null;
+  try{ id = resolveExerciseId(name); }catch(e){ return []; }
+  if(!id) return [];
+  return rankSubstitutionCandidates(id, context);
+}
+
+/* ---------- UI ----------
+   One tap to open, one tap to replace. Never a wizard. */
+let substitutionTargetRow = null;
+
+function currentWorkoutExerciseIds(){
+  const ids = [];
+  document.querySelectorAll('#logExercises .ex-log-row').forEach(row => {
+    const el = row.querySelector('.ex-name-in');
+    const v = el && el.value.trim();
+    if(!v) return;
+    try{ const id = resolveExerciseId(v); if(id) ids.push(id); }catch(e){}
+  });
+  return ids;
+}
+
+function openSubstitutions(btn){
+  const row = btn.closest('.ex-log-row');
+  if(!row) return;
+  const nameEl = row.querySelector('.ex-name-in');
+  const name = nameEl ? nameEl.value.trim() : '';
+  if(!name){ return; }
+  substitutionTargetRow = row;
+
+  let id = null;
+  try{ id = resolveExerciseId(name); }catch(e){}
+  const ranked = id ? rankSubstitutionCandidates(id, { workoutExerciseIds: currentWorkoutExerciseIds() }) : [];
+
+  document.getElementById('subTitle').textContent = 'Replace ' + name;
+  const body = document.getElementById('subBody');
+  const gymKnown = isGymProfileConfigured();
+
+  body.innerHTML = ranked.length
+    ? `<div class="sub-note">Swaps this exercise for today's workout only. Your plan, history and records are untouched.</div>` +
+      (gymKnown ? '' : `<div class="sub-note sub-note-dim">Your gym isn't set up yet, so equipment availability is unknown. Nothing has been ruled out.</div>`) +
+      `<div class="sub-label">Recommended</div>` +
+      ranked.map(r => `
+        <button class="sub-option" onclick="applySubstitution('${escapeAttr(r.exerciseId)}')">
+          <span class="sub-option-main">
+            <span class="sub-option-name">${escapeHtml(r.displayName)}</span>
+            <span class="sub-option-why">${escapeHtml(r.reasons.join(' · '))}</span>
+          </span>
+          <span class="sub-option-arrow">›</span>
+        </button>`).join('')
+    : `<div class="sub-empty">No close alternative found for this exercise. You can still rename it or pick another from the swap list.</div>`;
+
+  document.getElementById('subOverlay').classList.add('open');
+}
+function closeSubstitutions(){
+  document.getElementById('subOverlay').classList.remove('open');
+  substitutionTargetRow = null;
+}
+
+/* Replaces the exercise IN PLACE. Set count and reps are inherited from the
+   original slot — the athlete's programming, not ours. Weight fields are
+   cleared rather than carried over: a load proven on one exercise is not a
+   load for another, and inventing one is exactly what Phase D2 must not do.
+   The plan, history, XP, PRs and trainer records are all untouched. */
+function applySubstitution(newExerciseId){
+  const row = substitutionTargetRow;
+  if(!row){ closeSubstitutions(); return; }
+  const canon = getCanonicalExercise(newExerciseId);
+  if(!canon){ closeSubstitutions(); return; }
+
+  const nameEl = row.querySelector('.ex-name-in');
+  const previousName = nameEl ? nameEl.value.trim() : '';
+
+  // Existing preference-learning signal. One swap proves nothing; the
+  // existing inferredPreference() only concludes on repetition.
+  try{ recordExerciseSwap(previousName, canon.displayName); }catch(e){}
+
+  if(nameEl) nameEl.value = canon.displayName;
+
+  // Weight is cleared, reps and set COUNT are preserved exactly.
+  row.querySelectorAll('.set-row').forEach(sr => {
+    const w = sr.querySelector('.set-weight-in');
+    if(w && !w.disabled) w.value = '';
+  });
+
+  // Refresh the panels that are specific to the exercise, each derived from
+  // the NEW exercise's own history — never copied from the old one.
+  const lastTimeWrap = row.querySelector('.last-time-wrap');
+  if(lastTimeWrap) lastTimeWrap.innerHTML = lastTimeHtml(canon.displayName);
+  const warmupWrap = row.querySelector('.warmup-wrap');
+  if(warmupWrap) warmupWrap.innerHTML = warmupBoxHtml(canon.displayName, '');
+  const recWrap = row.querySelector('.recommend-wrap');
+  if(recWrap) recWrap.innerHTML = '';
+
+  // A replacement invalidates any shadow record tied to the old exercise in
+  // this row: the prediction was for a different movement. Clearing the
+  // marker prevents the outcome being linked to the wrong recommendation.
+  delete row.dataset.shadowRecId;
+  delete row.dataset.shadowFeedback;
+
+  closeSubstitutions();
+  // Existing autosave path — the replacement is a draft edit like any other.
+  scheduleDraftSave();
+}
+
+/* =========================================================
    GYM / EQUIPMENT PROFILE  (Phase D1)
    ---------------------------------------------------------
    Answers one question for future systems: WHAT CAN THIS
@@ -10527,7 +11059,12 @@ const COARSE_EQUIPMENT_FALLBACK = {
 };
 
 let _exerciseReqCache = {};
-function invalidateGymCaches(){ _exerciseReqCache = {}; _availabilityCache = null; }
+function invalidateGymCaches(){
+  _exerciseReqCache = {}; _availabilityCache = null;
+  // Equipment availability is a ranking input — stale rankings would offer
+  // exercises the athlete just marked unavailable.
+  if(typeof invalidateSubstitutionCache === 'function') invalidateSubstitutionCache();
+}
 
 /* Normalized to an array of groups; each group is an array of acceptable
    equipment ids. Returns null when requirements genuinely aren't known. */
@@ -11664,6 +12201,7 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
       <input type="text" placeholder="Exercise name" class="ex-name-in" value="${name ? escapeAttr(name) : ''}">
       <button class="rm-ex" onclick="removeLogExerciseRow(this)">✕</button>
     </div>
+    <button type="button" class="ex-replace-btn" onclick="openSubstitutions(this)">↔ Replace</button>
     <div class="last-time-wrap">${name ? lastTimeHtml(name) : ''}</div>
     <div class="recommend-wrap">${recommendCardHtml(rec, meta.targetSets, meta.targetReps, bodyweight)}</div>
     <div class="ex-log-controls">
