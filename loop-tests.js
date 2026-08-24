@@ -1939,7 +1939,50 @@ function testPrepRunner(app){
   ctx.renderPrepCard();
   T('prep card is shown when a workout opens',
     dom.els.prepCard && dom.els.prepCard.style.display === 'flex');
-  T('card reports a duration', /\d+ min/.test(dom.els.prepCardTime.textContent));
+  /* The contract is unchanged — the card reports a duration. Only the display
+     format moved, to "~3 MIN", so it reads as an estimate and sits with the
+     mono label opposite it. Asserted case-insensitively AND for the estimate
+     marker, which is stricter than the original check. */
+  T('card reports a duration', /\d+\s*min/i.test(dom.els.prepCardTime.textContent),
+    dom.els.prepCardTime.textContent);
+  T('the duration is presented as an estimate',
+    dom.els.prepCardTime.textContent.indexOf('~') === 0, dom.els.prepCardTime.textContent);
+
+  /* The card's job is to make ONE action obvious. These read the shipped
+     markup and stylesheet rather than the rendered box, because the harness
+     has no layout engine — but they still catch the regression that matters:
+     Start losing its primary treatment, or Skip regaining a button look. */
+  sub('Start is the primary action, Skip is secondary');
+  {
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    const cardMarkup = src.slice(src.indexOf('id="prepCard"'), src.indexOf('id="logCategoryPicker"'));
+
+    T('the card is titled as a warm-up', /WARM-UP/.test(cardMarkup));
+    T('Start carries the primary button treatment', /class="btn-primary prep-start-btn"/.test(cardMarkup));
+    T('Start is labelled as the action, not a noun', /Start Warm-up/.test(cardMarkup));
+    T('Skip does NOT carry a button treatment',
+      !/btn-primary prep-skip-btn/.test(cardMarkup) && !/btn-secondary prep-skip-btn/.test(cardMarkup));
+    T('the card offers exactly two actions',
+      (cardMarkup.match(/<button/g) || []).length === 2);
+
+    const css = src.slice(src.indexOf('.prep-card{'), src.indexOf('/* ---- runner ---- */'));
+    T('Start is full width', /\.prep-card \.prep-start-btn\{[^}]*width:\s*100%/.test(css));
+    T('Start is at least 48px tall',
+      (() => { const m = css.match(/\.prep-card \.prep-start-btn\{[^}]*min-height:\s*(\d+)px/);
+               return m && Number(m[1]) >= 48; })(),
+      (css.match(/\.prep-card \.prep-start-btn\{[^}]*min-height:\s*(\d+)px/)||[])[1]);
+    T('Skip keeps a 44px touch target',
+      (() => { const m = css.match(/\.prep-card \.prep-skip-btn\{[^}]*min-height:\s*(\d+)px/);
+               return m && Number(m[1]) >= 44; })());
+    T('Skip has no fill and no border',
+      /\.prep-card \.prep-skip-btn\{[^}]*background:\s*none/.test(css) &&
+      /\.prep-card \.prep-skip-btn\{[^}]*border:\s*none/.test(css));
+    T('Skip is not full width', !/\.prep-card \.prep-skip-btn\{[^}]*width:\s*100%/.test(css));
+    T('the card stacks vertically so the CTA can run full width',
+      /\.prep-card\{[^}]*flex-direction:\s*column/.test(css));
+    T('reduced-motion is respected', /prefers-reduced-motion/.test(css));
+  }
 
   sub('skip never blocks the workout');
   ctx.skipPrep();

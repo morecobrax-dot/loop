@@ -1777,30 +1777,59 @@ body.page-locked{ overflow: hidden; }
    Compact entry cards inside the existing workout and summary sheets, plus a
    one-movement-at-a-time runner. Uses only existing design tokens so this
    reads as part of LOOP rather than bolted on. */
+/* Vertical stack so the call to action can run the full width of the card.
+   The previous horizontal layout gave Start and Skip identical 96x44 boxes,
+   which made skipping look like an equally recommended choice. */
 .prep-card{
-  display: flex; align-items: center; gap: var(--space-3);
+  display: flex; flex-direction: column;
   background: var(--surface-gradient); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg); padding: var(--space-4);
   margin-bottom: var(--space-4);
+  animation: prepCardIn 0.32s var(--ease) both;
 }
-.prep-card-main{ flex: 1; min-width: 0; }
+/* Enters the way sheets already do in LOOP — a short rise and fade, once. */
+@keyframes prepCardIn{
+  from{ opacity: 0; transform: translateY(6px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce){
+  .prep-card{ animation: none; }
+}
+
+/* Title and duration share one row: the two facts the athlete needs first,
+   without spending two lines on them. */
+.prep-card-head{ display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
 .prep-card-label{
-  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
   color: var(--accent); font-family: 'JetBrains Mono', monospace;
 }
 .prep-card-time{
-  font-size: 15px; font-weight: 600; color: var(--text); margin-top: 1px;
-  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px; font-weight: 700; color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em;
+  white-space: nowrap;
 }
-.prep-card-sub{ font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-.prep-card-actions{ display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
-/* 44px minimum on both — Skip is a small, low-frequency control but it still
-   has to be reliably tappable with a thumb mid-session. */
-.prep-card-actions button{
-  min-height: 44px; padding: 0 var(--space-4); font-size: 13px;
-  border-radius: var(--radius-md); white-space: nowrap;
+.prep-card-sub{
+  font-size: 13px; line-height: 1.4; color: var(--text-dim);
+  margin-top: 5px; margin-bottom: var(--space-3);
 }
-.prep-card-actions .prep-skip-btn{ font-size: 12px; }
+
+/* THE primary action: full width, taller than any other control on the sheet. */
+.prep-card .prep-start-btn{
+  width: 100%; min-height: 52px; font-size: 15px; font-weight: 700;
+  border-radius: var(--radius-md);
+}
+/* Quiet by design — no fill, no border, faint text, and only as wide as the
+   word so it never competes with the full-width CTA above it. Still a real
+   44px-tall touch target, and centred so a thumb reaching for Start does not
+   land on it. */
+.prep-card .prep-skip-btn{
+  align-self: center; min-height: 44px; padding: 0 var(--space-5);
+  background: none; border: none; box-shadow: none;
+  color: var(--text-faint); font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: 'Inter', sans-serif;
+  transition: color 0.15s var(--ease);
+}
+.prep-card .prep-skip-btn:active{ color: var(--text-dim); }
 
 /* ---- runner ---- */
 #prepOverlay .sheet{ display: flex; flex-direction: column; }
@@ -2309,15 +2338,13 @@ body.page-locked{ overflow: hidden; }
     <!-- Optional prep. Never blocks the workout — the sheet below is fully
          usable whether this is started, skipped, or ignored entirely. -->
     <div class="prep-card" id="prepCard" style="display:none">
-      <div class="prep-card-main">
-        <div class="prep-card-label">PREP</div>
-        <div class="prep-card-time" id="prepCardTime">3–5 min</div>
-        <div class="prep-card-sub" id="prepCardSub">Prepare for today's session</div>
+      <div class="prep-card-head">
+        <span class="prep-card-label">WARM-UP</span>
+        <span class="prep-card-time" id="prepCardTime">~3 MIN</span>
       </div>
-      <div class="prep-card-actions">
-        <button class="btn-primary prep-start-btn" onclick="startPrep()">Start Prep</button>
-        <button class="btn-secondary prep-skip-btn" onclick="skipPrep()">Skip</button>
-      </div>
+      <div class="prep-card-sub" id="prepCardSub">Prepare your body for today's workout.</div>
+      <button class="btn-primary prep-start-btn" onclick="startPrep()">Start Warm-up</button>
+      <button class="prep-skip-btn" onclick="skipPrep()">Skip</button>
     </div>
 
     <div id="logCategoryPicker" style="display:none">
@@ -12459,7 +12486,8 @@ function renderPrepCard(){
   if(!seq.length){ card.style.display = 'none'; return; }
   const mins = prepSequenceMinutes(seq);
   const timeEl = document.getElementById('prepCardTime');
-  if(timeEl) timeEl.textContent = mins + ' min';
+  // Marked as an estimate, and uppercased to sit with the mono label opposite.
+  if(timeEl) timeEl.textContent = '~' + mins + ' MIN';
   card.style.display = 'flex';
 }
 function skipPrep(){
@@ -12654,16 +12682,16 @@ function renderCooldownCard(entry){
   const mins = prepSequenceMinutes(seq);
   const arg = cat ? "'" + escapeHtml(String(cat)) + "'" : 'null';
   el.innerHTML =
+    /* Same component as the warm-up card, so it inherits the same hierarchy:
+       one primary full-width action, one quiet skip. */
     '<div class="prep-card" style="margin-top:18px;margin-bottom:0">' +
-      '<div class="prep-card-main">' +
-        '<div class="prep-card-label">COOLDOWN</div>' +
-        '<div class="prep-card-time">' + mins + ' min</div>' +
-        '<div class="prep-card-sub">' + seq.length + ' stretches for what you trained</div>' +
+      '<div class="prep-card-head">' +
+        '<span class="prep-card-label">COOLDOWN</span>' +
+        '<span class="prep-card-time">~' + mins + ' MIN</span>' +
       '</div>' +
-      '<div class="prep-card-actions">' +
-        '<button class="btn-primary prep-start-btn" onclick="startCooldown(' + arg + ')">Start</button>' +
-        '<button class="btn-secondary prep-skip-btn" onclick="dismissCooldownCard()">Skip</button>' +
-      '</div>' +
+      '<div class="prep-card-sub">' + seq.length + ' stretches for what you trained.</div>' +
+      '<button class="btn-primary prep-start-btn" onclick="startCooldown(' + arg + ')">Start Cooldown</button>' +
+      '<button class="prep-skip-btn" onclick="dismissCooldownCard()">Skip</button>' +
     '</div>';
 }
 function dismissCooldownCard(){
