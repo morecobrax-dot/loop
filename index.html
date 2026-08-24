@@ -2575,6 +2575,27 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 /* Today's empty-program row: names the feature and offers the way in. */
 .tw-program-empty .tw-program-name{ color: var(--text-faint); }
 .tw-program-empty .tw-program-meta{ color: var(--accent); }
+
+/* ---------- ONBOARDING DEMONSTRATIONS (Phase D8.1) ---------- */
+/* Carousel: a short cross-fade, nothing that draws attention to itself. */
+.ob-cycle{ transition: opacity 0.18s var(--ease); }
+.ob-cycle.ob-fade{ opacity: 0; }
+
+/* Timer demo reuses the warm-up runner's ring so it reads as the real app.
+   Smaller here — it is a demonstration, not the hero of the screen. */
+.ob-timer-demo{
+  text-align: center; padding-bottom: var(--space-3);
+  margin-bottom: var(--space-2); border-bottom: 1px solid var(--border);
+}
+.ob-timer-ring{ width: 116px; height: 116px; margin: 0 auto var(--space-2); }
+.ob-timer-ring .prep-metric{ font-size: 28px; }
+.ob-timer-cap{
+  font-size: 11px; letter-spacing: 0.04em; color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace; text-transform: uppercase;
+}
+@media (prefers-reduced-motion: reduce){
+  .ob-cycle{ transition: none; }
+}
 </style>
 </head>
 <body>
@@ -11951,13 +11972,16 @@ const ONBOARDING_STEPS = [
     id: 'today',
     title: 'Today',
     body: 'Your starting point. Today shows the workout you have scheduled, how you are feeling, and where you are in your program.',
-    visual: () => `
+    visual: () => {
+      const first = onboardingWorkoutSamples()[0];
+      return `
       <div class="ob-mock">
         <div class="ob-mock-label">TODAY'S WORKOUT</div>
-        <div class="ob-mock-title">Upper Body</div>
-        <div class="ob-mock-meta">Upper A · 8 exercises · ~50 min</div>
+        <div class="ob-mock-title ob-cycle" id="obCarouselTitle">${escapeHtml(first.cat)}</div>
+        <div class="ob-mock-meta ob-cycle" id="obCarouselMeta">${escapeHtml(first.name)}</div>
         <div class="ob-mock-cta ob-spot">Start Workout</div>
-      </div>`
+      </div>`;
+    }
   },
   {
     id: 'start',
@@ -11991,6 +12015,17 @@ const ONBOARDING_STEPS = [
     body: 'Warm-up prepares you for the session. Short on time? Change the time and LOOP trims today’s workout. Machine taken? Replace swaps in a sensible alternative.',
     visual: () => `
       <div class="ob-mock">
+        <div class="ob-timer-demo">
+          <div class="prep-ring ob-timer-ring">
+            <svg class="prep-ring-svg" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="prep-ring-track" cx="60" cy="60" r="54"/>
+              <circle class="prep-ring-fill" id="obTimerFill" cx="60" cy="60" r="54"
+                stroke-dasharray="339.3" stroke-dashoffset="0"/>
+            </svg>
+            <div class="prep-metric" id="obTimerMetric">1:42</div>
+          </div>
+          <div class="ob-timer-cap">Built-in timing while you train</div>
+        </div>
         <div class="ob-tool"><span class="ob-tool-name">Warm-up</span><span class="ob-tool-desc">3–5 min, built for today’s session</span></div>
         <div class="ob-tool"><span class="ob-tool-name">Change time</span><span class="ob-tool-desc">Fit the session into 15–90 min</span></div>
         <div class="ob-tool"><span class="ob-tool-name">Replace exercise</span><span class="ob-tool-desc">Ranked alternatives that keep the intent</span></div>
@@ -12032,6 +12067,89 @@ const ONBOARDING_STEPS = [
   }
 ];
 
+/* ---------- STEP ANIMATIONS ----------
+   Two ambient demonstrations, both living inside existing steps so the tour
+   gains no extra slides and no extra time.
+
+   Every interval is registered here and cleared on ANY step change, skip,
+   finish or close. Nothing can outlive the sheet, and a step cannot stack a
+   second interval on top of its own. */
+let onboardingTimers = [];
+function clearOnboardingAnimations(){
+  onboardingTimers.forEach(id => clearInterval(id));
+  onboardingTimers = [];
+}
+function onboardingReducedMotion(){
+  try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch(e){ return false; }
+}
+
+/* Representative REAL workouts, read from the plan the athlete is actually
+   on — never a hard-coded list that could go stale. */
+function onboardingWorkoutSamples(){
+  const out = [];
+  try{
+    const plan = DEFAULT_PLANS[selectedPlanId] || DEFAULT_PLANS.upperlower || null;
+    const templates = (plan && plan.templates) || {};
+    ORDER.forEach(cat => {
+      const list = templates[cat];
+      if(list && list.length) out.push({ cat: CAT_LABEL[cat] || cat, name: list[0].name });
+    });
+  }catch(e){}
+  if(!out.length) out.push({ cat:'Full Body', name:'Full Body A' });
+  const picked = out.slice(0, 4);
+  picked.push({ cat:'Cardio', name:'Run, walk, row or ride' });   // a real LOOP mode
+  return picked;
+}
+
+/* Step 2 — cycles through real workouts so "multiple ways to train" is shown
+   rather than stated. Ambient: it costs the athlete no extra time. */
+function startWorkoutCarousel(){
+  const titleEl = document.getElementById('obCarouselTitle');
+  const metaEl = document.getElementById('obCarouselMeta');
+  if(!titleEl || !metaEl) return;
+  const samples = onboardingWorkoutSamples();
+  if(onboardingReducedMotion() || samples.length < 2) return;   // static first frame
+  let i = 0;
+  const id = setInterval(() => {
+    if(!document.getElementById('obCarouselTitle')){ clearInterval(id); return; }
+    i = (i + 1) % samples.length;
+    titleEl.classList.add('ob-fade');
+    metaEl.classList.add('ob-fade');
+    setTimeout(() => {
+      titleEl.textContent = samples[i].cat;
+      metaEl.textContent = samples[i].name;
+      titleEl.classList.remove('ob-fade');
+      metaEl.classList.remove('ob-fade');
+    }, 180);
+  }, 1900);
+  onboardingTimers.push(id);
+}
+
+/* Step 5 — a real countdown in the same ring the warm-up runner uses, so the
+   timer reads as the actual app rather than an illustration. */
+function startTimerDemo(){
+  const metric = document.getElementById('obTimerMetric');
+  const fill = document.getElementById('obTimerFill');
+  if(!metric || !fill) return;
+  const TOTAL = 102;                               // 1:42
+  const circ = 2 * Math.PI * 54;
+  const paint = left => {
+    const m = Math.floor(left / 60), s = left % 60;
+    metric.textContent = m + ':' + String(s).padStart(2, '0');
+    fill.setAttribute('stroke-dashoffset', String((circ * (1 - left / TOTAL)).toFixed(1)));
+  };
+  paint(TOTAL);
+  if(onboardingReducedMotion()) return;            // static, fully drawn ring
+  let left = TOTAL;
+  const id = setInterval(() => {
+    if(!document.getElementById('obTimerMetric')){ clearInterval(id); return; }
+    left = left <= 0 ? TOTAL : left - 1;           // loops cleanly
+    paint(left);
+  }, 1000);
+  onboardingTimers.push(id);
+}
+
 /* ---------- RUNNER ---------- */
 let onboardingIndex = 0;
 
@@ -12056,6 +12174,9 @@ function finishOnboarding(){
   closeOnboarding();
 }
 function closeOnboarding(){
+  // Single exit path, so no demonstration interval can outlive the sheet —
+  // skip, finish and close all route through here.
+  clearOnboardingAnimations();
   const ov = document.getElementById('onboardingOverlay');
   if(ov) ov.classList.remove('open');
   document.body.classList.remove('page-locked');
@@ -12074,6 +12195,8 @@ function onboardingBack(){
 function renderOnboardingStep(){
   const body = document.getElementById('onboardingBody');
   if(!body) return;
+  // Any animation from the step being left stops before the next one starts.
+  clearOnboardingAnimations();
   const step = ONBOARDING_STEPS[onboardingIndex];
   const total = ONBOARDING_STEPS.length;
   const isLast = onboardingIndex === total - 1;
@@ -12093,6 +12216,10 @@ function renderOnboardingStep(){
   if(backBtn) backBtn.style.visibility = onboardingIndex === 0 ? 'hidden' : 'visible';
   const nextBtn = document.getElementById('onboardingNext');
   if(nextBtn) nextBtn.textContent = isLast ? 'Start training' : 'Continue';
+
+  // Ambient demonstrations for the two steps that have them.
+  if(step.id === 'today') startWorkoutCarousel();
+  if(step.id === 'tools') startTimerDemo();
 }
 
 /* ---------- CONTEXTUAL HINTS ----------
