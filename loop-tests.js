@@ -1618,6 +1618,363 @@ function testUpdatesCurrency(app){
 }
 
 /* =========================================================
+   CONTRACT 27 — PREP & COOLDOWN  (Phase C)
+   ---------------------------------------------------------
+   The prep/cooldown system is guidance only. These tests exist
+   to prove it stays that way: correct sequences per category,
+   a real fallback when metadata is missing, working runner
+   controls, timers that always clean up, and — most
+   importantly — total invisibility to every protected system.
+   ========================================================= */
+function testPrepSystem(app){
+  section('CONTRACT 27 — prep & cooldown system');
+  const ctx = app.ctx, dom = app.dom;
+
+  sub('movement registry');
+  T('prep registry populated', ctx.PREP_MOVEMENTS.length >= 15);
+  T('no duplicate prep ids',
+    new Set(ctx.PREP_MOVEMENTS.map(m=>m.id)).size === ctx.PREP_MOVEMENTS.length);
+  T('every movement has an instruction', ctx.PREP_MOVEMENTS.every(m => !!m.instruction));
+  T('every movement has a purpose', ctx.PREP_MOVEMENTS.every(m => !!m.purpose));
+  T('every movement has a category', ctx.PREP_MOVEMENTS.every(m => !!m.category));
+  T('every movement has a target area', ctx.PREP_MOVEMENTS.every(m => !!m.targetArea));
+  T('every movement is timed OR counted, never both',
+    ctx.PREP_MOVEMENTS.every(m => (!!m.duration) !== (!!m.reps)));
+  T('categories stay within the declared set',
+    ctx.PREP_MOVEMENTS.every(m => ['dynamic_mobility','activation','movement_prep'].includes(m.category)));
+  T('registry stays curated, not a library', ctx.PREP_MOVEMENTS.length <= 40);
+
+  sub('no medical claims in copy');
+  const allCopy = JSON.stringify(ctx.PREP_MOVEMENTS) + JSON.stringify(ctx.COOLDOWN_STRETCHES);
+  const banned = ['prevent injury','prevents injury','injury prevention','avoid injury',
+                  'cure','treat','diagnos','heal ','guarantee','eliminates soreness','prevents soreness'];
+  T('no injury-prevention or medical claims',
+    banned.every(b => !allCopy.toLowerCase().includes(b)),
+    banned.filter(b => allCopy.toLowerCase().includes(b)).join(','));
+
+  sub('workout-specific selection');
+  const ids = cat => ctx.buildPrepSequence(cat).map(m => m.id);
+  const area = cat => ctx.buildPrepSequence(cat).map(m => m.targetArea);
+  T('push prep targets shoulders/chest/upper back',
+    area('push').some(a => ['shoulders','chest','upper_back','scapula'].includes(a)));
+  T('push prep includes a pressing rehearsal',
+    ctx.buildPrepSequence('push').some(m => m.movementPattern === 'horizontal_push'));
+  T('pull prep targets lats / upper back',
+    area('pull').some(a => ['lats','upper_back','rear_delts'].includes(a)));
+  T('pull prep includes scapular or pulling work',
+    ctx.buildPrepSequence('pull').some(m => String(m.movementPattern).includes('pull')));
+  T('lower prep covers hips', area('lower').includes('hips'));
+  T('lower prep covers glutes', area('lower').includes('glutes'));
+  T('lower prep covers ankles', area('lower').includes('ankles'));
+  T('lower prep includes bodyweight squatting',
+    ctx.buildPrepSequence('lower').some(m => m.movementPattern === 'squat'));
+  T('legs and lower share the lower-body sequence',
+    JSON.stringify(ids('legs')) === JSON.stringify(ids('lower')));
+  T('upper prep covers shoulders and upper back',
+    area('upper').includes('shoulders') && area('upper').includes('upper_back'));
+  T('full body prep is general and multi-area',
+    new Set(area('fullbody')).size >= 3);
+  T('push and pull sequences are genuinely different',
+    JSON.stringify(ids('push')) !== JSON.stringify(ids('pull')));
+  T('every category yields 3-5 movements',
+    ['push','pull','legs','lower','upper','core','fullbody']
+      .every(c => ctx.buildPrepSequence(c).length >= 3 && ctx.buildPrepSequence(c).length <= 5));
+  T('prep lands in the 3-5 minute window',
+    ['push','pull','legs','lower','upper','core','fullbody'].every(c => {
+      const m = ctx.prepSequenceMinutes(ctx.buildPrepSequence(c));
+      return m >= 2 && m <= 6;
+    }));
+
+  sub('missing workout metadata falls back, never guesses');
+  T('null category returns the general sequence', ctx.buildPrepSequence(null).length >= 3);
+  T('unknown category returns the general sequence', ctx.buildPrepSequence('nonsense_xyz').length >= 3);
+  T('fallback is the same for null and unknown',
+    JSON.stringify(ids(null)) === JSON.stringify(ids('nonsense_xyz')));
+  T('fallback movements all resolve', ctx.buildPrepSequence(null).every(m => !!m && !!m.id));
+  T('every referenced id exists in the registry',
+    Object.keys(ctx.PREP_SEQUENCES).every(c =>
+      ctx.PREP_SEQUENCES[c].every(id => !!ctx.getPrepMovement(id))));
+
+  sub('sequences are memoised (opening a workout stays fast)');
+  T('same category returns the identical cached array',
+    ctx.buildPrepSequence('push') === ctx.buildPrepSequence('push'));
+  T('cooldown is memoised too',
+    ctx.buildCooldownSequence('push') === ctx.buildCooldownSequence('push'));
+
+  sub('cooldown selection');
+  const cIds = cat => ctx.buildCooldownSequence(cat).map(s => s.id);
+  const cArea = cat => ctx.buildCooldownSequence(cat).map(s => s.targetArea);
+  T('cooldown registry populated', ctx.COOLDOWN_STRETCHES.length >= 10);
+  T('no duplicate stretch ids',
+    new Set(ctx.COOLDOWN_STRETCHES.map(s=>s.id)).size === ctx.COOLDOWN_STRETCHES.length);
+  T('every stretch has a duration', ctx.COOLDOWN_STRETCHES.every(s => s.suggestedDuration > 0));
+  T('every stretch has an instruction', ctx.COOLDOWN_STRETCHES.every(s => !!s.instruction));
+  T('push cooldown stretches chest', cArea('push').includes('chest'));
+  T('push cooldown stretches shoulders and triceps',
+    cArea('push').includes('shoulders') && cArea('push').includes('triceps'));
+  T('pull cooldown stretches lats', cArea('pull').includes('lats'));
+  T('pull cooldown stretches upper back and rear delts',
+    cArea('pull').includes('upper_back') && cArea('pull').includes('rear_delts'));
+  T('lower cooldown stretches quads, hamstrings, hip flexors, calves',
+    ['quads','hamstrings','hip_flexors','calves'].every(a => cArea('lower').includes(a)));
+  T('every category yields 2-4 stretches',
+    ['push','pull','legs','lower','upper','core','fullbody']
+      .every(c => ctx.buildCooldownSequence(c).length >= 2 && ctx.buildCooldownSequence(c).length <= 4));
+  T('cooldown falls back for unknown category', ctx.buildCooldownSequence('nope').length >= 2);
+  T('every referenced stretch id exists',
+    Object.keys(ctx.COOLDOWN_SEQUENCES).every(c =>
+      ctx.COOLDOWN_SEQUENCES[c].every(id => !!ctx.getCooldownStretch(id))));
+  T('cooldown is not a giant searchable database', ctx.COOLDOWN_STRETCHES.length <= 30);
+
+  sub('exercise-specific guidance is guidance only');
+  const g = ctx.collectMainLiftGuidance(['Bench Press','Lateral Raise']);
+  T('major lift produces guidance', g.length === 1 && g[0].exerciseId === 'bench_press_barbell');
+  T('guidance is text steps', Array.isArray(g[0].steps) && typeof g[0].steps[0] === 'string');
+  T('accessory lift produces none', !g.some(x => x.exerciseId === 'lateral_raise'));
+  T('unknown exercise produces none', ctx.collectMainLiftGuidance(['Zercher Wall Toss']).length === 0);
+  T('empty input produces none', ctx.collectMainLiftGuidance([]).length === 0);
+  T('null input is safe', ctx.collectMainLiftGuidance(null).length === 0);
+  T('squat guidance resolves canonically',
+    ctx.collectMainLiftGuidance(['Back Squat']).length === 1);
+  T('deadlift guidance resolves canonically',
+    ctx.collectMainLiftGuidance(['Deadlift']).length === 1);
+  T('duplicate names are not duplicated',
+    ctx.collectMainLiftGuidance(['Bench Press','bench press']).length === 1);
+  T('guidance keys are all real canonical ids',
+    Object.keys(ctx.LIFT_PREP_GUIDANCE).every(id => !!ctx.getCanonicalExercise(id)));
+
+  sub('a PREP MOVEMENT is not a WARM-UP SET');
+  T('set types remain exactly warmup/working',
+    JSON.stringify(ctx.SET_TYPES) === JSON.stringify({ WARMUP:'warmup', WORKING:'working' }));
+  const prepIds = new Set(ctx.PREP_MOVEMENTS.map(m => m.id));
+  T('no prep movement claims a set type',
+    ctx.PREP_MOVEMENTS.every(m => m.type === undefined && m.setType === undefined));
+  T('prep ids never collide with set type values',
+    !prepIds.has('warmup') && !prepIds.has('working'));
+}
+
+/* Runner behaviour — skip, complete, pause, timer cleanup, rapid taps. */
+function testPrepRunner(app){
+  section('CONTRACT 28 — prep runner behaviour');
+  const ctx = app.ctx, dom = app.dom;
+  ctx.pendingLogCategory = 'push';
+
+  sub('entry point');
+  ctx.prepCardDismissed = false;
+  ctx.renderPrepCard();
+  T('prep card is shown when a workout opens',
+    dom.els.prepCard && dom.els.prepCard.style.display === 'flex');
+  T('card reports a duration', /\d+ min/.test(dom.els.prepCardTime.textContent));
+
+  sub('skip never blocks the workout');
+  ctx.skipPrep();
+  T('skip hides the card', dom.els.prepCard.style.display === 'none');
+  T('skip records dismissal', ctx.prepCardDismissed === true);
+  ctx.renderPrepCard();
+  T('card stays hidden once skipped', dom.els.prepCard.style.display === 'none');
+  T('no prep state was created by skipping', ctx.prepState === null);
+  ctx.resetPrepCardForNewWorkout();
+  T('a new workout offers prep again', ctx.prepCardDismissed === false);
+
+  sub('running the sequence');
+  ctx.startPrep();
+  const total = ctx.buildPrepSequence('push').length;
+  T('prep state created', !!ctx.prepState && ctx.prepState.mode === 'prep');
+  T('starts at the first movement', ctx.prepState.idx === 0);
+  T('overlay opened', dom.els.prepOverlay._cls.has('open'));
+  T('first movement rendered', dom.els.prepRun.innerHTML.includes('1 OF ' + total));
+  T('instruction rendered', dom.els.prepRun.innerHTML.length > 100);
+  T('timed movement starts a timer', ctx.prepTimerId !== null);
+
+  sub('pause');
+  ctx.togglePrepPause();
+  T('pause sets the flag', ctx.prepState.paused === true);
+  T('pause is reflected in the UI', dom.els.prepActions.innerHTML.includes('Resume'));
+  const heldAt = ctx.prepState.remaining;
+  ctx.tickPrep();
+  T('paused timer does not advance', ctx.prepState.remaining === heldAt);
+  ctx.togglePrepPause();
+  T('resume clears the flag', ctx.prepState.paused === false);
+  T('resume re-anchors the deadline', ctx.prepState.endsAt > Date.now());
+
+  sub('completing early and stepping through');
+  for(let i = 0; i < total; i++) ctx.nextPrepStep();
+  T('reaching the end shows completion', dom.els.prepRun.innerHTML.includes('Prep Complete'));
+  T('completion offers the workout', dom.els.prepActions.innerHTML.includes('Start Workout'));
+  T('timer cleared at completion', ctx.prepTimerId === null);
+
+  sub('timer cleanup — no interval outlives the screen');
+  ctx.exitPrep();
+  T('exit clears the timer', ctx.prepTimerId === null);
+  T('exit clears the state', ctx.prepState === null);
+  T('exit closes the overlay', !dom.els.prepOverlay._cls.has('open'));
+  ctx.startPrep();
+  T('restart creates a fresh timer', ctx.prepTimerId !== null);
+  const firstTimer = ctx.prepTimerId;
+  ctx.nextPrepStep();
+  T('advancing replaces rather than stacks timers', ctx.prepTimerId !== firstTimer);
+  ctx.exitPrep();
+  T('final exit leaves no timer', ctx.prepTimerId === null);
+
+  sub('rapid interaction cannot corrupt state');
+  ctx.startPrep();
+  for(let i = 0; i < 50; i++) ctx.nextPrepStep();
+  T('rapid Next stops at completion', ctx.prepState.idx <= total);
+  T('rapid Next does not throw', true);
+  for(let i = 0; i < 20; i++) ctx.togglePrepPause();
+  T('rapid pause toggling is stable', typeof ctx.prepState.paused === 'boolean');
+  ctx.exitPrep();
+  for(let i = 0; i < 10; i++) ctx.exitPrep();
+  T('repeated exit is safe', ctx.prepState === null && ctx.prepTimerId === null);
+  ctx.tickPrep();
+  T('tick after exit is a no-op', ctx.prepState === null);
+  ctx.nextPrepStep();
+  T('next after exit is a no-op', ctx.prepState === null);
+
+  sub('cooldown runner');
+  ctx.startCooldown('push');
+  T('cooldown state created', ctx.prepState.mode === 'cooldown');
+  T('cooldown uses the push stretches',
+    ctx.prepState.seq.length === ctx.buildCooldownSequence('push').length);
+  const ctotal = ctx.prepState.seq.length;
+  for(let i = 0; i < ctotal; i++) ctx.nextPrepStep();
+  T('cooldown completes', dom.els.prepRun.innerHTML.includes('Cooldown Complete'));
+  T('cooldown does not offer to start a workout',
+    !dom.els.prepActions.innerHTML.includes('Start Workout'));
+  ctx.exitPrep();
+  T('cooldown exit cleans up', ctx.prepState === null && ctx.prepTimerId === null);
+
+  sub('cooldown card');
+  ctx.renderCooldownCard({ id:'x', category:'pull', title:'Pull A', exercises:[] });
+  T('cooldown card rendered', dom.els.summaryCooldown.innerHTML.includes('COOLDOWN'));
+  T('cooldown card is skippable', dom.els.summaryCooldown.innerHTML.includes('Skip'));
+  ctx.dismissCooldownCard();
+  T('skip removes the card', dom.els.summaryCooldown.innerHTML === '');
+  ctx.renderCooldownCard({ id:'y', category:null, title:'Untitled', exercises:[] });
+  T('missing category still yields a cooldown', dom.els.summaryCooldown.innerHTML.includes('COOLDOWN'));
+}
+
+/* The whole point of the phase: none of this may touch protected systems. */
+function testPrepIsolation(app){
+  section('CONTRACT 29 — prep is invisible to every protected system');
+  const ctx = app.ctx, dom = app.dom;
+
+  seedHistory(ctx, [0,1,2,3].map(i =>
+    WK('iso'+i, i*4, 'push', [EX('Bench Press',[S(225,10,2,'working'),S(225,8,1,'working')])])));
+  ctx.dailyReadiness = { [D(0)]: { energy:4, soreness:3, sleep:4, stress:2, feel:4 } };
+  clearCaches(ctx);
+
+  const before = H.snapshot(ctx);
+  const storeKeysBefore = Object.keys(app.store).slice().sort();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const progBefore = ctx.getCurrentProgression();
+  const strengthXPBefore = progBefore.strengthXP;
+  const cardioXPBefore = progBefore.cardioXP;
+  const draftBefore = app.store.activeWorkoutDraft;
+  const recBefore = JSON.stringify(ctx.computeShadowRecommendation('Bench Press', {}));
+
+  // Run a complete prep AND a complete cooldown.
+  ctx.pendingLogCategory = 'push';
+  ctx.startPrep();
+  for(let i = 0; i < 10; i++) ctx.nextPrepStep();
+  ctx.exitPrep();
+  ctx.startCooldown('push');
+  for(let i = 0; i < 10; i++) ctx.nextPrepStep();
+  ctx.exitPrep();
+  ctx.renderPrepCard();
+  ctx.skipPrep();
+  clearCaches(ctx);
+
+  const after = H.snapshot(ctx);
+  const d = H.diffSnapshot(before, after, []);
+
+  sub('protected data');
+  T('NOTHING protected changed', d.ok, 'changed: ' + d.violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('set count unchanged', after.setCount === before.setCount);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+
+  sub('XP isolation');
+  T('lifetime XP unchanged', after.xp === before.xp);
+  T('level unchanged', after.level === before.level);
+  T('rank unchanged', after.rank === before.rank);
+  T('strength XP component unchanged',
+    ctx.getCurrentProgression().strengthXP === strengthXPBefore);
+  T('cardio XP component unchanged',
+    ctx.getCurrentProgression().cardioXP === cardioXPBefore);
+  T('no XP awarded for prep or stretching', after.xp === before.xp);
+  T('PR count unchanged', after.prCount === before.prCount);
+
+  sub('trainer isolation');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainer records created', ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+  T('shadow recommendation identical before and after prep',
+    JSON.stringify(ctx.computeShadowRecommendation('Bench Press', {})) === recBefore);
+
+  sub('recovery / capability / readiness isolation');
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('prep movements contribute no training load', after.recovery === before.recovery);
+
+  sub('storage');
+  T('no new storage key was created',
+    JSON.stringify(Object.keys(app.store).slice().sort()) === JSON.stringify(storeKeysBefore),
+    'added: ' + Object.keys(app.store).filter(k => !storeKeysBefore.includes(k)).join(','));
+  T('DATA_KEYS gained nothing for prep',
+    !ctx.DATA_KEYS.some(k => /prep|cooldown|stretch|mobility|warmup/i.test(k)));
+  T('prep state is in-memory only', ctx.prepState === null);
+  T('schema version untouched', ctx.DATA_SCHEMA_VERSION === 1);
+
+  sub('the strength draft is untouchable');
+  T('draft remains a registered protected key', ctx.DATA_KEYS.includes('activeWorkoutDraft'));
+  T('prep never wrote the draft key', app.store.activeWorkoutDraft === draftBefore);
+}
+
+/* Closing the app mid-prep must never cost a logged set. */
+async function testPrepDraftSurvival(){
+  section('CONTRACT 30 — closing the app mid-prep never costs a set');
+  const draft = { id:'d1', title:'Push A', category:'push', startedAt:new Date().toISOString(),
+    exercises:[ { name:'Bench Press', bodyweight:false,
+      sets:[ { weight:'225', reps:'10', rir:'2', completed:true, type:'working' },
+             { weight:'225', reps:'8',  rir:'1', completed:true, type:'working' } ] } ] };
+  const store = {
+    workoutLog: JSON.stringify([]),
+    activeWorkoutDraft: JSON.stringify(draft),
+    selectedPlan: JSON.stringify('balanced'),
+    dataSchemaVersion: '1'
+  };
+
+  const app = await H.loadAppBooted(store);
+  const ctx = app.ctx;
+
+  // Start prep, then simulate the app being closed and reopened.
+  ctx.pendingLogCategory = 'push';
+  ctx.startPrep();
+  ctx.nextPrepStep();
+  T('prep was mid-sequence', ctx.prepState && ctx.prepState.idx === 1);
+
+  const reopened = await H.loadAppBooted(app.store);
+  const restored = JSON.parse(reopened.store.activeWorkoutDraft || 'null');
+
+  T('draft survived the reopen', !!restored);
+  T('every logged set survived', restored.exercises[0].sets.length === 2);
+  T('weights survived', restored.exercises[0].sets[0].weight === '225');
+  T('reps survived', restored.exercises[0].sets[1].reps === '8');
+  T('set types survived', restored.exercises[0].sets[0].type === 'working');
+  T('completion flags survived', restored.exercises[0].sets[0].completed === true);
+  T('draft is byte-identical', reopened.store.activeWorkoutDraft === JSON.stringify(draft));
+  T('prep did not persist itself', reopened.ctx.prepState === null);
+  T('no prep key in storage',
+    !Object.keys(reopened.store).some(k => /prep|cooldown|stretch/i.test(k)));
+  T('workoutLog still empty (prep logged nothing)',
+    JSON.parse(reopened.store.workoutLog || '[]').length === 0);
+}
+
+/* =========================================================
    RUNNER
    ========================================================= */
 async function main(){
@@ -1645,11 +2002,15 @@ async function main(){
   await testCardioPersistence();
   testCardioXPModel(app);
   await testFirstImpression();
+  testPrepSystem(app);
+  testPrepRunner(app);
   testUpdatesCurrency(app);
   await testShadowObservationSafety(app);
 
   // ---- CONTRACT (protection layer, Phase 5E-C.5) ----
   if(TIER === 'contract' || TIER === 'full' || TIER === 'trainer' || TIER === 'verify'){
+    testPrepIsolation(H.loadApp());
+    await testPrepDraftSurvival();
     const fx = await testTrainerIntegrity();
     await testUpdateCompatibility();
     testProtectedWriteAudit();

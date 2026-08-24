@@ -1765,6 +1765,104 @@ body.page-locked{ overflow: hidden; }
   .sheet{ max-width: 540px; margin: auto; border-radius: var(--radius-xl); }
   .overlay{ align-items: center; justify-content: center; }
 }
+
+/* ---------- PREP & COOLDOWN (Phase C) ----------
+   Compact entry cards inside the existing workout and summary sheets, plus a
+   one-movement-at-a-time runner. Uses only existing design tokens so this
+   reads as part of LOOP rather than bolted on. */
+.prep-card{
+  display: flex; align-items: center; gap: var(--space-3);
+  background: var(--surface-gradient); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.prep-card-main{ flex: 1; min-width: 0; }
+.prep-card-label{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--accent); font-family: 'JetBrains Mono', monospace;
+}
+.prep-card-time{
+  font-size: 15px; font-weight: 600; color: var(--text); margin-top: 1px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.prep-card-sub{ font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.prep-card-actions{ display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+/* 44px minimum on both — Skip is a small, low-frequency control but it still
+   has to be reliably tappable with a thumb mid-session. */
+.prep-card-actions button{
+  min-height: 44px; padding: 0 var(--space-4); font-size: 13px;
+  border-radius: var(--radius-md); white-space: nowrap;
+}
+.prep-card-actions .prep-skip-btn{ font-size: 12px; }
+
+/* ---- runner ---- */
+#prepOverlay .sheet{ display: flex; flex-direction: column; }
+.prep-run{
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: var(--space-6) var(--space-4);
+  min-height: 340px;
+}
+.prep-step-count{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace; margin-bottom: var(--space-4);
+}
+.prep-dots{ display: flex; gap: 6px; justify-content: center; margin-bottom: var(--space-5); }
+.prep-dot{ width: 6px; height: 6px; border-radius: 50%; background: var(--surface-3); }
+.prep-dot.done{ background: var(--text-faint); }
+.prep-dot.now{ background: var(--accent); transform: scale(1.35); }
+.prep-move-name{
+  font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;
+  line-height: 1.15; color: var(--text); margin-bottom: var(--space-3);
+}
+.prep-metric{
+  font-family: 'JetBrains Mono', monospace; font-size: 40px; font-weight: 700;
+  color: var(--accent); line-height: 1; margin-bottom: var(--space-4);
+  font-variant-numeric: tabular-nums;
+}
+.prep-metric.paused{ color: var(--text-faint); }
+.prep-instruction{
+  font-size: 14px; line-height: 1.5; color: var(--text-dim);
+  max-width: 320px; margin: 0 auto var(--space-3);
+}
+.prep-purpose{
+  font-size: 12px; line-height: 1.45; color: var(--text-faint);
+  max-width: 320px; margin: 0 auto;
+}
+.prep-tag{
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  font-family: 'JetBrains Mono', monospace; color: var(--text-dim);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 3px 7px; margin-bottom: var(--space-4);
+}
+.prep-actions{ display: flex; gap: var(--space-2); padding: 0 var(--space-4) var(--space-4); }
+.prep-actions button{ flex: 1; min-height: 48px; }
+.prep-actions .prep-secondary{ flex: 0 0 auto; padding: 0 var(--space-5); }
+
+/* ---- completion ---- */
+.prep-done{ text-align: center; padding: var(--space-6) var(--space-4); }
+.prep-done-mark{
+  font-size: 34px; color: var(--success); line-height: 1; margin-bottom: var(--space-3);
+}
+.prep-done-title{
+  font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 700;
+  color: var(--text); margin-bottom: var(--space-2);
+}
+.prep-done-sub{ font-size: 13px; color: var(--text-dim); }
+
+/* ---- optional lift guidance (text only, never logged) ---- */
+.prep-guide{
+  text-align: left; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: var(--space-3) var(--space-4);
+  margin: var(--space-5) auto 0; max-width: 340px;
+}
+.prep-guide-head{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace; margin-bottom: var(--space-2);
+}
+.prep-guide-lift{ font-size: 13px; font-weight: 600; color: var(--text); margin-top: var(--space-3); }
+.prep-guide-lift:first-of-type{ margin-top: 0; }
+.prep-guide-steps{ font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-top: 2px; }
+.prep-guide-note{ font-size: 11px; color: var(--text-faint); margin-top: var(--space-3); line-height: 1.45; }
 </style>
 </head>
 <body>
@@ -2021,6 +2119,20 @@ body.page-locked{ overflow: hidden; }
     <h2 id="logSheetTitle">Log Workout</h2>
     <div class="sheet-sub" id="logSheetSub">Record what you actually did today.</div>
 
+    <!-- Optional prep. Never blocks the workout — the sheet below is fully
+         usable whether this is started, skipped, or ignored entirely. -->
+    <div class="prep-card" id="prepCard" style="display:none">
+      <div class="prep-card-main">
+        <div class="prep-card-label">PREP</div>
+        <div class="prep-card-time" id="prepCardTime">3–5 min</div>
+        <div class="prep-card-sub" id="prepCardSub">Prepare for today's session</div>
+      </div>
+      <div class="prep-card-actions">
+        <button class="btn-primary prep-start-btn" onclick="startPrep()">Start Prep</button>
+        <button class="btn-secondary prep-skip-btn" onclick="skipPrep()">Skip</button>
+      </div>
+    </div>
+
     <div id="logCategoryPicker" style="display:none">
       <label>Category</label>
       <div class="cat-select">
@@ -2276,10 +2388,24 @@ body.page-locked{ overflow: hidden; }
     <div id="summaryXP"></div>
     <div id="summaryNextTime"></div>
     <div id="summaryCoach"></div>
+    <div id="summaryCooldown"></div>
     </div>
     <div class="sheet-actions">
       <button class="btn-primary" style="width:100%;" onclick="closeSummary()">Done</button>
     </div>
+  </div>
+</div>
+
+<!-- PREP / COOLDOWN RUNNER — one movement at a time, no data written -->
+<div class="overlay overlay-page" id="prepOverlay">
+  <div class="sheet sheet-page">
+    <div class="workout-topbar">
+      <button class="workout-back" onclick="exitPrep()" aria-label="Exit">‹</button>
+      <div class="workout-topbar-title" id="prepTopbarTitle">Prep</div>
+      <span class="workout-topbar-spacer"></span>
+    </div>
+    <div class="prep-run" id="prepRun"></div>
+    <div class="prep-actions" id="prepActions"></div>
   </div>
 </div>
 
@@ -3559,6 +3685,25 @@ const LOOP_UPDATES = [
     ],
     changes: [],
     detail: 'Upper and Lower behave exactly like Push, Pull and Legs — same logging, same history, same records, same progression. Existing plans are untouched; you can add Upper or Lower days to any plan you are already using.'
+  },
+  {
+    id: 'v2-2',
+    version: 'LOOP 2.2',
+    title: 'Prep & Cooldown',
+    date: '2026-08-24',
+    summary: 'Optional warm-up before a session and optional stretching after it.',
+    newFeatures: [
+      'A Prep card when you open a workout — three to five movements chosen for what you are training that day',
+      'One movement at a time with a timer you can pause, skip or finish early',
+      'An optional Cooldown after you finish, with two to four stretches for the muscles you just trained',
+      'Working-set guidance for the big lifts — Bench, Squat, Deadlift, Overhead Press and more'
+    ],
+    improvements: [
+      'Prep and Cooldown are always optional and can be skipped in one tap'
+    ],
+    bugFixes: [],
+    changes: [],
+    detail: 'Prep and Cooldown are guidance only. Nothing you do in either one is logged: no sets, no XP, no records, and no effect on recovery, readiness or your training history. Skipping is always one tap, and the workout screen works exactly as it did before.'
   }
 ];
 
@@ -10039,6 +10184,491 @@ function renderAll(){
 
 /* ---------- LOG SHEET ---------- */
 /* =========================================================
+   PREP & COOLDOWN  (Phase C)
+   ---------------------------------------------------------
+   Optional preparation before a strength workout and optional
+   stretching after it. Guidance only.
+
+   ISOLATION — this module is deliberately inert with respect
+   to every protected system. It NEVER writes to workoutLog,
+   cardioLog, trainerLog, dailyReadiness, athleteProfile, the
+   active workout draft, or any storage key at all. It awards
+   no XP, creates no PRs, produces no sets, and is invisible to
+   recovery, capability, readiness and the shadow engine.
+
+   A PREP MOVEMENT (band pull-apart, leg swing) is NOT a
+   WARM-UP SET. Warm-up sets remain the existing optional
+   sets[].type === 'warmup' system inside workoutLog and are
+   untouched by anything here.
+
+   STATE — deliberately in-memory only. A prep sequence runs
+   3-5 minutes; persisting it would add a storage key, a backup
+   surface and a migration risk to save a few seconds of replay.
+   Closing the app mid-prep simply drops the prep. It cannot
+   affect the strength draft, which is written by a completely
+   separate mechanism.
+   ========================================================= */
+
+/* ---------- 1. PREP MOVEMENT REGISTRY ----------
+   Curated, not exhaustive. Every entry is either timed
+   (duration, seconds) or counted (reps) — never both. */
+const PREP_MOVEMENTS = [
+  { id:'arm_circles', displayName:'Arm Circles', category:'dynamic_mobility', targetArea:'shoulders',
+    movementPattern:'circular', equipment:'none', duration:30, reps:null,
+    instruction:'Small circles forward, then larger. Reverse halfway through.',
+    purpose:'Get the shoulders moving through their full range.' },
+  { id:'band_pull_apart', displayName:'Band Pull-Apart', category:'activation', targetArea:'upper_back',
+    movementPattern:'horizontal_pull', equipment:'band', duration:null, reps:15,
+    instruction:'Arms straight, pull the band apart to your chest. Slow on the way back.',
+    purpose:'Wake up the upper back before pressing or pulling.' },
+  { id:'scap_pushup', displayName:'Scapular Push-Up', category:'activation', targetArea:'scapula',
+    movementPattern:'horizontal_push', equipment:'bodyweight', duration:null, reps:10,
+    instruction:'Push-up position, arms locked. Pinch the shoulder blades, then push them apart.',
+    purpose:'Prepare the shoulder blades to move under load.' },
+  { id:'wall_slide', displayName:'Wall Slide', category:'dynamic_mobility', targetArea:'shoulders',
+    movementPattern:'vertical_push', equipment:'none', duration:null, reps:10,
+    instruction:'Back to a wall, forearms flat. Slide the arms overhead and back down.',
+    purpose:'Open up the overhead position before pressing.' },
+  { id:'thoracic_rotation', displayName:'Thoracic Rotation', category:'dynamic_mobility', targetArea:'thoracic_spine',
+    movementPattern:'rotation', equipment:'none', duration:40, reps:null,
+    instruction:'On all fours, hand behind the head. Rotate the elbow up and open. Both sides.',
+    purpose:'Free up upper-back rotation.' },
+  { id:'cat_cow', displayName:'Cat-Cow', category:'dynamic_mobility', targetArea:'spine',
+    movementPattern:'flexion_extension', equipment:'none', duration:30, reps:null,
+    instruction:'On all fours. Round the back, then arch it. Slow and controlled.',
+    purpose:'Move the spine through its range before training.' },
+  { id:'push_up_slow', displayName:'Slow Push-Up', category:'movement_prep', targetArea:'chest',
+    movementPattern:'horizontal_push', equipment:'bodyweight', duration:null, reps:8,
+    instruction:'Three seconds down, one second up. Full range.',
+    purpose:'Rehearse the pressing pattern before adding load.' },
+  { id:'band_row', displayName:'Band Row', category:'activation', targetArea:'upper_back',
+    movementPattern:'horizontal_pull', equipment:'band', duration:null, reps:15,
+    instruction:'Anchor the band at chest height. Row to the ribs, squeeze, release slowly.',
+    purpose:'Switch on the mid-back before pulling.' },
+  { id:'dead_hang', displayName:'Dead Hang', category:'dynamic_mobility', targetArea:'lats',
+    movementPattern:'vertical_pull', equipment:'bar', duration:30, reps:null,
+    instruction:'Hang from the bar, shoulders relaxed, then pull them down and hold.',
+    purpose:'Lengthen the lats and settle the shoulders.' },
+  { id:'straight_arm_pulldown', displayName:'Straight-Arm Pulldown', category:'activation', targetArea:'lats',
+    movementPattern:'vertical_pull', equipment:'band', duration:null, reps:12,
+    instruction:'Arms straight, pull the band down to the hips. Light resistance only.',
+    purpose:'Find the lats before heavier pulling.' },
+  { id:'face_pull_light', displayName:'Light Face Pull', category:'activation', targetArea:'rear_delts',
+    movementPattern:'horizontal_pull', equipment:'band', duration:null, reps:15,
+    instruction:'Pull to the forehead, elbows high. Keep it light.',
+    purpose:'Prepare the rear shoulders and upper back.' },
+  { id:'leg_swing_front', displayName:'Front Leg Swing', category:'dynamic_mobility', targetArea:'hips',
+    movementPattern:'hinge', equipment:'none', duration:30, reps:null,
+    instruction:'Hold something steady. Swing one leg forward and back, then switch.',
+    purpose:'Get the hips moving before lower-body training.' },
+  { id:'leg_swing_side', displayName:'Side Leg Swing', category:'dynamic_mobility', targetArea:'hips',
+    movementPattern:'abduction', equipment:'none', duration:30, reps:null,
+    instruction:'Swing one leg across the body and out to the side. Then switch.',
+    purpose:'Open the hips laterally.' },
+  { id:'glute_bridge', displayName:'Glute Bridge', category:'activation', targetArea:'glutes',
+    movementPattern:'hinge', equipment:'bodyweight', duration:null, reps:12,
+    instruction:'On your back, feet flat. Drive the hips up, squeeze, lower slowly.',
+    purpose:'Switch on the glutes before squatting or hinging.' },
+  { id:'bodyweight_squat', displayName:'Bodyweight Squat', category:'movement_prep', targetArea:'quads',
+    movementPattern:'squat', equipment:'bodyweight', duration:null, reps:10,
+    instruction:'Full depth, controlled. Knees tracking over the toes.',
+    purpose:'Rehearse the squat pattern before loading it.' },
+  { id:'ankle_rock', displayName:'Ankle Rock', category:'dynamic_mobility', targetArea:'ankles',
+    movementPattern:'dorsiflexion', equipment:'none', duration:30, reps:null,
+    instruction:'Half-kneeling, front foot flat. Rock the knee forward over the toes. Both sides.',
+    purpose:'Free up the ankles for squatting depth.' },
+  { id:'hip_hinge_bw', displayName:'Bodyweight Hinge', category:'movement_prep', targetArea:'hamstrings',
+    movementPattern:'hinge', equipment:'bodyweight', duration:null, reps:10,
+    instruction:'Hands on the hips. Push the hips back, soft knees, flat back. Stand tall.',
+    purpose:'Rehearse the hinge before deadlifting.' },
+  { id:'monster_walk', displayName:'Banded Side Walk', category:'activation', targetArea:'glutes',
+    movementPattern:'abduction', equipment:'band', duration:30, reps:null,
+    instruction:'Band above the knees, quarter squat. Step side to side.',
+    purpose:'Switch on the hips before lower-body work.' },
+  { id:'world_greatest', displayName:'Deep Lunge with Rotation', category:'dynamic_mobility', targetArea:'full_body',
+    movementPattern:'lunge_rotation', equipment:'none', duration:45, reps:null,
+    instruction:'Deep lunge, hand inside the foot, rotate the top arm to the ceiling. Both sides.',
+    purpose:'Cover hips, trunk and shoulders in one movement.' },
+  { id:'march_in_place', displayName:'March in Place', category:'dynamic_mobility', targetArea:'general',
+    movementPattern:'general', equipment:'none', duration:45, reps:null,
+    instruction:'Drive the knees up, swing the arms. Build the pace gradually.',
+    purpose:'Light movement before today’s workout.' },
+  { id:'torso_twist', displayName:'Standing Torso Twist', category:'dynamic_mobility', targetArea:'trunk',
+    movementPattern:'rotation', equipment:'none', duration:30, reps:null,
+    instruction:'Feet planted, arms relaxed. Rotate side to side, letting the arms follow.',
+    purpose:'Loosen the trunk before training.' },
+  { id:'dead_bug', displayName:'Dead Bug', category:'activation', targetArea:'trunk',
+    movementPattern:'anti_extension', equipment:'bodyweight', duration:null, reps:10,
+    instruction:'On your back, arms up, knees at 90. Lower opposite arm and leg, then switch.',
+    purpose:'Engage the trunk before loaded work.' }
+];
+
+/* ---------- 2. COOLDOWN STRETCH REGISTRY ---------- */
+const COOLDOWN_STRETCHES = [
+  { id:'chest_doorway', displayName:'Doorway Chest Stretch', targetArea:'chest', category:'static_stretch',
+    suggestedDuration:30, instruction:'Forearm on the frame, elbow at shoulder height. Step through gently. Both sides.' },
+  { id:'shoulder_cross_body', displayName:'Cross-Body Shoulder Stretch', targetArea:'shoulders', category:'static_stretch',
+    suggestedDuration:30, instruction:'Pull one arm across the chest with the other. Both sides.' },
+  { id:'triceps_overhead', displayName:'Overhead Triceps Stretch', targetArea:'triceps', category:'static_stretch',
+    suggestedDuration:30, instruction:'Elbow up and bent, hand behind the head. Ease it back. Both sides.' },
+  { id:'lat_stretch', displayName:'Lat Stretch', targetArea:'lats', category:'static_stretch',
+    suggestedDuration:30, instruction:'Hold a rack at hip height, hips back, let the chest drop. Both sides.' },
+  { id:'upper_back_round', displayName:'Upper-Back Stretch', targetArea:'upper_back', category:'static_stretch',
+    suggestedDuration:30, instruction:'Clasp the hands in front, round the upper back, push the hands away.' },
+  { id:'rear_delt_stretch', displayName:'Rear Shoulder Stretch', targetArea:'rear_delts', category:'static_stretch',
+    suggestedDuration:30, instruction:'Arm across the body at chest height, ease it in. Both sides.' },
+  { id:'quad_stretch', displayName:'Quad Stretch', targetArea:'quads', category:'static_stretch',
+    suggestedDuration:30, instruction:'Heel to the glute, knees together. Hold something for balance. Both sides.' },
+  { id:'hamstring_stretch', displayName:'Hamstring Stretch', targetArea:'hamstrings', category:'static_stretch',
+    suggestedDuration:30, instruction:'One heel forward, hips back, flat back. Both sides.' },
+  { id:'hip_flexor_stretch', displayName:'Hip-Flexor Stretch', targetArea:'hip_flexors', category:'static_stretch',
+    suggestedDuration:30, instruction:'Half-kneeling, tuck the hips under, ease forward. Both sides.' },
+  { id:'calf_stretch', displayName:'Calf Stretch', targetArea:'calves', category:'static_stretch',
+    suggestedDuration:30, instruction:'Hands on a wall, back leg straight, heel down. Both sides.' },
+  { id:'glute_figure4', displayName:'Figure-4 Glute Stretch', targetArea:'glutes', category:'static_stretch',
+    suggestedDuration:30, instruction:'On your back, ankle over the opposite knee, pull the thigh in. Both sides.' },
+  { id:'child_pose', displayName:'Child Pose', targetArea:'spine', category:'decompression',
+    suggestedDuration:45, instruction:'Knees wide, hips back to the heels, arms long. Breathe slowly.' },
+  { id:'spinal_twist', displayName:'Lying Spinal Twist', targetArea:'spine', category:'decompression',
+    suggestedDuration:40, instruction:'On your back, drop both knees to one side, arms wide. Both sides.' }
+];
+
+/* ---------- 3. SELECTION ----------
+   Keyed off the EXISTING workout category (CAT_LABEL). No new
+   classification system is introduced. An unrecognised or
+   missing category falls back to a general sequence rather
+   than guessing. */
+const PREP_SEQUENCES = {
+  push:     ['arm_circles','band_pull_apart','scap_pushup','wall_slide','push_up_slow'],
+  pull:     ['arm_circles','band_pull_apart','dead_hang','straight_arm_pulldown','face_pull_light'],
+  legs:     ['leg_swing_front','leg_swing_side','ankle_rock','glute_bridge','bodyweight_squat'],
+  lower:    ['leg_swing_front','leg_swing_side','ankle_rock','glute_bridge','bodyweight_squat'],
+  upper:    ['arm_circles','band_pull_apart','scap_pushup','thoracic_rotation','wall_slide'],
+  core:     ['cat_cow','torso_twist','dead_bug','glute_bridge'],
+  fullbody: ['march_in_place','world_greatest','leg_swing_front','arm_circles','bodyweight_squat']
+};
+const PREP_SEQUENCE_FALLBACK = ['march_in_place','arm_circles','leg_swing_front','cat_cow'];
+
+const COOLDOWN_SEQUENCES = {
+  push:     ['chest_doorway','shoulder_cross_body','triceps_overhead'],
+  pull:     ['lat_stretch','upper_back_round','rear_delt_stretch'],
+  legs:     ['quad_stretch','hamstring_stretch','hip_flexor_stretch','calf_stretch'],
+  lower:    ['quad_stretch','hamstring_stretch','hip_flexor_stretch','calf_stretch'],
+  upper:    ['chest_doorway','lat_stretch','shoulder_cross_body'],
+  core:     ['child_pose','spinal_twist'],
+  fullbody: ['hamstring_stretch','hip_flexor_stretch','chest_doorway','child_pose']
+};
+const COOLDOWN_SEQUENCE_FALLBACK = ['child_pose','spinal_twist','hamstring_stretch'];
+
+function getPrepMovement(id){ return PREP_MOVEMENTS.find(m => m.id === id) || null; }
+function getCooldownStretch(id){ return COOLDOWN_STRETCHES.find(s => s.id === id) || null; }
+
+/* Sequences are pure functions of the category, so they are memoised.
+   Opening a workout must stay fast — this never recomputes per render. */
+const _prepSeqCache = {}, _cooldownSeqCache = {};
+function buildPrepSequence(category){
+  const key = category || '_none';
+  if(_prepSeqCache[key]) return _prepSeqCache[key];
+  const ids = PREP_SEQUENCES[category] || PREP_SEQUENCE_FALLBACK;
+  const seq = ids.map(getPrepMovement).filter(Boolean);
+  _prepSeqCache[key] = seq;
+  return seq;
+}
+function buildCooldownSequence(category){
+  const key = category || '_none';
+  if(_cooldownSeqCache[key]) return _cooldownSeqCache[key];
+  const ids = COOLDOWN_SEQUENCES[category] || COOLDOWN_SEQUENCE_FALLBACK;
+  const seq = ids.map(getCooldownStretch).filter(Boolean);
+  _cooldownSeqCache[key] = seq;
+  return seq;
+}
+
+/* Estimated minutes, including a few seconds of transition per movement.
+   Counted movements are estimated at ~3s per rep. */
+function prepSequenceMinutes(seq){
+  if(!seq || !seq.length) return 0;
+  const secs = seq.reduce((n, m) => {
+    const own = m.duration || m.suggestedDuration || (m.reps ? m.reps * 3 : 30);
+    return n + own + 8;
+  }, 0);
+  return Math.max(1, Math.round(secs / 60));
+}
+
+/* ---------- 4. EXERCISE-SPECIFIC GUIDANCE ----------
+   Text only. These are never logged, never become sets, never
+   award XP and never reach the trainer. Keyed by canonical
+   exercise id so the existing exact-match identity system is
+   reused rather than duplicated. */
+const LIFT_PREP_GUIDANCE = {
+  bench_press_barbell: ['Empty bar × 10','~50% × 5','~70% × 3','~85% × 1'],
+  bench_press_incline_bb: ['Empty bar × 10','~50% × 5','~75% × 3'],
+  overhead_press_bb: ['Empty bar × 10','~50% × 5','~75% × 3'],
+  squat_back: ['Bodyweight squats × 10','Empty bar × 8','~50% × 5','~70% × 3','~85% × 1'],
+  squat_front: ['Bodyweight squats × 10','Empty bar × 8','~55% × 5','~75% × 3'],
+  deadlift_conventional: ['Bodyweight hinge × 10','~40% × 5','~60% × 3','~80% × 1'],
+  deadlift_romanian: ['Bodyweight hinge × 10','Empty bar × 8','~60% × 5'],
+  row_barbell: ['Empty bar × 10','~55% × 5','~75% × 3'],
+  hip_thrust: ['Glute bridge × 12','Empty bar × 8','~60% × 5']
+};
+
+/* Returns guidance for any major lift among the given names. Returns [] when
+   nothing matches — it never invents guidance for an exercise it does not know. */
+function collectMainLiftGuidance(names){
+  const out = [];
+  const seen = {};
+  (names || []).forEach(name => {
+    if(!name) return;
+    let id = null;
+    try{ id = resolveExerciseId(name); }catch(e){ id = null; }
+    if(!id || seen[id]) return;
+    const steps = LIFT_PREP_GUIDANCE[id];
+    if(!steps) return;
+    seen[id] = true;
+    out.push({ exerciseId:id, name:name, steps:steps });
+  });
+  return out;
+}
+function logSheetExerciseNames(){
+  const names = [];
+  document.querySelectorAll('#logExercises .ex-log-row').forEach(row => {
+    const el = row.querySelector('.ex-name-in');
+    if(el && el.value.trim()) names.push(el.value.trim());
+  });
+  return names;
+}
+
+/* ---------- 5. RUNNER ----------
+   In-memory only. prepState is null whenever the runner is closed. */
+let prepState = null;
+let prepTimerId = null;
+let prepCardDismissed = false;
+
+function clearPrepTimer(){
+  if(prepTimerId){ clearInterval(prepTimerId); prepTimerId = null; }
+}
+
+/* Called when the workout sheet opens. Cheap: one memoised lookup. */
+function renderPrepCard(){
+  const card = document.getElementById('prepCard');
+  if(!card) return;
+  if(prepCardDismissed){ card.style.display = 'none'; return; }
+  const seq = buildPrepSequence(pendingLogCategory);
+  if(!seq.length){ card.style.display = 'none'; return; }
+  const mins = prepSequenceMinutes(seq);
+  const timeEl = document.getElementById('prepCardTime');
+  if(timeEl) timeEl.textContent = mins + ' min';
+  card.style.display = 'flex';
+}
+function skipPrep(){
+  prepCardDismissed = true;
+  const card = document.getElementById('prepCard');
+  if(card) card.style.display = 'none';
+}
+function resetPrepCardForNewWorkout(){ prepCardDismissed = false; }
+
+function startPrep(){
+  const seq = buildPrepSequence(pendingLogCategory);
+  if(!seq.length) return;
+  prepState = {
+    mode: 'prep',
+    seq: seq,
+    idx: 0,
+    remaining: 0,
+    paused: false,
+    guidance: collectMainLiftGuidance(logSheetExerciseNames())
+  };
+  openPrepOverlay('Prep');
+  enterPrepStep();
+}
+function startCooldown(category){
+  const seq = buildCooldownSequence(category);
+  if(!seq.length) return;
+  prepState = { mode:'cooldown', seq:seq, idx:0, remaining:0, paused:false, guidance:[] };
+  openPrepOverlay('Cooldown');
+  enterPrepStep();
+}
+
+let prepHistoryPushed = false;
+function openPrepOverlay(title){
+  const ov = document.getElementById('prepOverlay');
+  if(!ov) return;
+  const t = document.getElementById('prepTopbarTitle');
+  if(t) t.textContent = title;
+  ov.classList.add('open');
+  document.body.classList.add('page-locked');
+  if(!prepHistoryPushed){
+    try{ history.pushState({ loopPrep:true }, ''); prepHistoryPushed = true; }catch(e){}
+  }
+}
+
+/* Single exit path. Always clears the timer — there is no way to leave the
+   runner without this running, so no interval can outlive the screen. */
+function exitPrep(){
+  clearPrepTimer();
+  prepState = null;
+  const ov = document.getElementById('prepOverlay');
+  if(ov) ov.classList.remove('open');
+  const logOverlayEl = document.getElementById('logOverlay');
+  if(!logOverlayEl || !logOverlayEl.classList.contains('open')){
+    document.body.classList.remove('page-locked');
+  }
+  if(prepHistoryPushed){
+    prepHistoryPushed = false;
+    try{ history.back(); }catch(e){}
+  }
+}
+
+function enterPrepStep(){
+  clearPrepTimer();
+  if(!prepState) return;
+  const move = prepState.seq[prepState.idx];
+  if(!move){ renderPrepComplete(); return; }
+  const secs = move.duration || move.suggestedDuration || null;
+  prepState.remaining = secs || 0;
+  prepState.paused = false;
+  /* Deadline-based rather than decrement-based. iOS throttles timers in a
+     backgrounded tab, so counting ticks would drift; deriving the remaining
+     time from a wall-clock deadline stays correct however the interval fires. */
+  prepState.endsAt = secs ? (Date.now() + secs * 1000) : null;
+  renderPrepStep();
+  if(secs) prepTimerId = setInterval(tickPrep, 250);
+}
+function tickPrep(){
+  if(!prepState || prepState.paused || !prepState.endsAt) return;
+  const left = Math.ceil((prepState.endsAt - Date.now()) / 1000);
+  if(left <= 0){
+    clearPrepTimer();
+    nextPrepStep();
+    return;
+  }
+  if(left === prepState.remaining) return;   // only touch the DOM on a real change
+  prepState.remaining = left;
+  const el = document.getElementById('prepMetric');
+  if(el) el.textContent = formatPrepClock(left);
+}
+function formatPrepClock(s){
+  const m = Math.floor(s / 60), r = s % 60;
+  return m > 0 ? m + ':' + String(r).padStart(2,'0') : String(r);
+}
+function togglePrepPause(){
+  if(!prepState) return;
+  // Nothing to pause once the sequence is done — re-render completion instead
+  // of stepping into a movement that no longer exists.
+  if(prepFinished()){ renderPrepComplete(); return; }
+  prepState.paused = !prepState.paused;
+  // Resuming re-anchors the deadline to whatever was left when it was paused.
+  if(!prepState.paused && prepState.remaining > 0){
+    prepState.endsAt = Date.now() + prepState.remaining * 1000;
+  }
+  renderPrepStep();
+}
+function prepFinished(){ return !!prepState && prepState.idx >= prepState.seq.length; }
+
+function nextPrepStep(){
+  if(!prepState) return;
+  clearPrepTimer();
+  // Idempotent at the end: rapid taps on Finish must not run the index past
+  // the sequence, which would leave prepState pointing at nothing.
+  if(prepFinished()){ renderPrepComplete(); return; }
+  prepState.idx++;
+  if(prepFinished()){ renderPrepComplete(); return; }
+  enterPrepStep();
+}
+
+function renderPrepStep(){
+  if(!prepState) return;
+  const run = document.getElementById('prepRun');
+  const actions = document.getElementById('prepActions');
+  if(!run || !actions) return;
+  const move = prepState.seq[prepState.idx];
+  const total = prepState.seq.length;
+  const timed = !!(move.duration || move.suggestedDuration);
+  const metric = timed ? formatPrepClock(prepState.remaining) : (move.reps + ' reps');
+  const dots = prepState.seq.map((_, i) =>
+    '<span class="prep-dot ' + (i < prepState.idx ? 'done' : (i === prepState.idx ? 'now' : '')) + '"></span>'
+  ).join('');
+  const tag = (move.category || '').replace(/_/g, ' ');
+
+  run.innerHTML =
+    '<div class="prep-step-count">' + (prepState.idx + 1) + ' OF ' + total + '</div>' +
+    '<div class="prep-dots">' + dots + '</div>' +
+    (tag ? '<div class="prep-tag">' + escapeHtml(tag.toUpperCase()) + '</div>' : '') +
+    '<div class="prep-move-name">' + escapeHtml(move.displayName) + '</div>' +
+    '<div class="prep-metric' + (prepState.paused ? ' paused' : '') + '" id="prepMetric">' + escapeHtml(metric) + '</div>' +
+    '<div class="prep-instruction">' + escapeHtml(move.instruction) + '</div>' +
+    (move.purpose ? '<div class="prep-purpose">' + escapeHtml(move.purpose) + '</div>' : '');
+
+  actions.innerHTML =
+    (timed ? '<button class="btn-secondary prep-secondary" onclick="togglePrepPause()">' +
+             (prepState.paused ? 'Resume' : 'Pause') + '</button>' : '') +
+    '<button class="btn-primary" onclick="nextPrepStep()">' +
+      (prepState.idx + 1 >= total ? 'Finish' : 'Next') + '</button>';
+}
+
+function renderPrepComplete(){
+  clearPrepTimer();
+  if(!prepState) return;
+  const run = document.getElementById('prepRun');
+  const actions = document.getElementById('prepActions');
+  if(!run || !actions) return;
+  const isPrep = prepState.mode === 'prep';
+  const guidance = prepState.guidance || [];
+
+  run.innerHTML =
+    '<div class="prep-done">' +
+      '<div class="prep-done-mark">✓</div>' +
+      '<div class="prep-done-title">' + (isPrep ? 'Prep Complete' : 'Cooldown Complete') + '</div>' +
+      '<div class="prep-done-sub">' + (isPrep ? 'Ready when you are.' : 'Nice work today.') + '</div>' +
+      (isPrep && guidance.length ? renderLiftGuidanceHtml(guidance) : '') +
+    '</div>';
+
+  actions.innerHTML =
+    '<button class="btn-primary" onclick="exitPrep()">' + (isPrep ? 'Start Workout' : 'Done') + '</button>';
+}
+
+/* Guidance is displayed as plain text. Nothing here creates a set row, and
+   none of these numbers are ever written anywhere. */
+function renderLiftGuidanceHtml(guidance){
+  return '<div class="prep-guide">' +
+    '<div class="prep-guide-head">BEFORE YOUR MAIN LIFTS</div>' +
+    guidance.map(g =>
+      '<div class="prep-guide-lift">' + escapeHtml(g.name) + '</div>' +
+      '<div class="prep-guide-steps">' + g.steps.map(escapeHtml).join(' · ') + '</div>'
+    ).join('') +
+    '<div class="prep-guide-note">Working up to your first set. These are not logged — log the sets you actually count.</div>' +
+  '</div>';
+}
+
+/* ---------- 6. COOLDOWN ENTRY POINT ----------
+   Rendered into the existing workout summary. Optional, skippable,
+   and reads only the category already stored on the saved entry. */
+function renderCooldownCard(entry){
+  const el = document.getElementById('summaryCooldown');
+  if(!el) return;
+  const cat = entry && entry.category;
+  const seq = buildCooldownSequence(cat);
+  if(!seq.length){ el.innerHTML = ''; return; }
+  const mins = prepSequenceMinutes(seq);
+  const arg = cat ? "'" + escapeHtml(String(cat)) + "'" : 'null';
+  el.innerHTML =
+    '<div class="prep-card" style="margin-top:18px;margin-bottom:0">' +
+      '<div class="prep-card-main">' +
+        '<div class="prep-card-label">COOLDOWN</div>' +
+        '<div class="prep-card-time">' + mins + ' min</div>' +
+        '<div class="prep-card-sub">' + seq.length + ' stretches for what you trained</div>' +
+      '</div>' +
+      '<div class="prep-card-actions">' +
+        '<button class="btn-primary prep-start-btn" onclick="startCooldown(' + arg + ')">Start</button>' +
+        '<button class="btn-secondary prep-skip-btn" onclick="dismissCooldownCard()">Skip</button>' +
+      '</div>' +
+    '</div>';
+}
+function dismissCooldownCard(){
+  const el = document.getElementById('summaryCooldown');
+  if(el) el.innerHTML = '';
+}
+
+/* =========================================================
    ACTIVE WORKOUT AUTO-SAVE
    ---------------------------------------------------------
    The log sheet's DOM is the source of truth while a workout
@@ -10275,12 +10905,17 @@ function openLogSheet(){
   /* Shadow observation: capture what the engine WOULD have advised, before
      any set is performed. Fire-and-forget so it can never delay the sheet. */
   try{ captureShadowForOpenWorkout(); }catch(e){}
+  /* Optional prep entry point. Wrapped so a failure here can never stop a
+     workout from opening — the sheet is fully usable without it. */
+  try{ renderPrepCard(); }catch(e){}
 }
 function closeLogSheet(){
   persistDraftNow();
   document.querySelectorAll('.rest-panel').forEach(panel => {
     if(panel._interval){ clearInterval(panel._interval); panel._interval = null; }
   });
+  // Leaving the workout must not leave a prep timer running behind it.
+  try{ clearPrepTimer(); resetPrepCardForNewWorkout(); }catch(e){}
   document.getElementById('logOverlay').classList.remove('open');
   document.body.classList.remove('page-locked');
   renderResumeBanner();
@@ -10953,6 +11588,9 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
     levelUpEl.innerHTML = '';
   }
   document.getElementById('summaryTitle').textContent = entry.title;
+  /* Optional cooldown. Reads only the category already on the saved entry and
+     writes nothing; wrapped so it can never interfere with the summary. */
+  try{ renderCooldownCard(entry); }catch(e){}
   const quality = computeWorkoutQuality(entry, newPREvents);
   const durationMin = estimateLoggedDuration(entry);
   const totalSets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
@@ -11203,6 +11841,14 @@ function escapeAttr(str){ return escapeHtml(str).replace(/"/g, '&quot;'); }
    returns to the previous LOOP screen, rather than leaving the app. The draft
    is flushed on the way out, exactly as with the on-screen back arrow. */
 window.addEventListener('popstate', () => {
+  // Prep sits ON TOP of the workout, so it consumes the back gesture first —
+  // otherwise the workout would close underneath a still-open prep screen.
+  const prepOv = document.getElementById('prepOverlay');
+  if(prepOv && prepOv.classList.contains('open')){
+    prepHistoryPushed = false; // this pop consumed our entry
+    exitPrep();
+    return;
+  }
   const ov = document.getElementById('logOverlay');
   if(ov && ov.classList.contains('open')){
     workoutHistoryPushed = false; // this pop consumed our entry
