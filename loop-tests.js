@@ -5349,6 +5349,131 @@ async function testPhaseIsolation(){
                return ctx.getActiveProgram().status === 'paused'; })());
   }
 }
+
+/* =========================================================
+   CONTRACT 59 — UX REFINEMENT CONTRACTS (discoverability)
+   ---------------------------------------------------------
+   These pin the discoverability decisions so a later change
+   cannot quietly hide a feature behind a glyph again, and pin
+   the warm-up navigation fix so the workout can never be
+   closed by finishing a warm-up.
+
+   The harness has no layout engine, so geometry was measured
+   in a real browser and recorded in the phase report; what is
+   asserted here is the shipped markup, the stylesheet, and
+   actual navigation state.
+   ========================================================= */
+function testUXContracts(app){
+  section('CONTRACT 59 — feature discoverability and control hierarchy');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+
+  sub('set type is a labelled control, not a hidden menu');
+  const rowMarkup = src.slice(src.indexOf('function appendSetRow'), src.indexOf('function renumberSets'));
+  T('the set row carries a SET TYPE label', /SET TYPE/.test(rowMarkup));
+  T('the control names the current classification',
+    /class="set-type-value"/.test(rowMarkup));
+  T('it shows a disclosure caret', /set-type-caret/.test(rowMarkup));
+  T('the bare three-dot affordance is gone', rowMarkup.indexOf('⋯') === -1);
+  T('it is grouped with the weight and reps controls',
+    /stepper-group set-type-group/.test(rowMarkup));
+  T('weight still labelled', /LB/.test(rowMarkup));
+  T('reps still labelled', /REPS/.test(rowMarkup));
+  T('all five types remain reachable from the picker',
+    ctx.SET_TYPE_REGISTRY.length === 5);
+
+  sub('set type does not fabricate stored data');
+  T('an untyped set still reads as UNKNOWN in the data',
+    ctx.setTypeOf({ weight:'225', reps:'8' }) === null);
+  T('displaying "Working" writes nothing',
+    (() => { const s = { weight:'225', reps:'8' }; ctx.setTypeOf(s); return s.type === undefined; })());
+
+  sub('exercise replacement is named, not a glyph');
+  T('the replace control carries a word label', /Replace exercise/.test(src));
+  T('it no longer relies on a bare arrow glyph',
+    !/>↔ Replace</.test(src));
+
+  sub('warm-up start vs skip hierarchy is unchanged');
+  const css = src.slice(src.indexOf('.prep-card{'), src.indexOf('/* ---- runner ---- */'));
+  T('Start is still full width', /\.prep-card \.prep-start-btn\{[^}]*width:\s*100%/.test(css));
+  T('Start is still >= 48px', (() => {
+    const m = css.match(/\.prep-card \.prep-start-btn\{[^}]*min-height:\s*(\d+)px/);
+    return m && Number(m[1]) >= 48; })());
+  T('Skip still has no fill or border',
+    /\.prep-card \.prep-skip-btn\{[^}]*background:\s*none/.test(css));
+
+  sub('timers are contained, and only where a duration exists');
+  T('a ring timer exists', /class="prep-ring/.test(src));
+  T('the countdown sits inside the ring', /prep-ring[\s\S]{0,400}id="prepMetric"/.test(src));
+  T('the ring sweeps from a real duration', /totalForRing/.test(src));
+  T('counted movements use a plain number, not a ring',
+    /prep-metric prep-metric-plain/.test(src));
+  T('the number is the hero',
+    (() => { const m = src.match(/\.prep-ring \.prep-metric\{[^}]*font-size:\s*(\d+)px/);
+             return m && Number(m[1]) >= 36; })());
+  T('reduced motion is respected for the ring',
+    /prefers-reduced-motion[\s\S]{0,200}prep-ring-fill/.test(src));
+
+  sub('rotation safety');
+  T('a landscape media query exists', /@media \(orientation: landscape\)/.test(src));
+  T('sideways scroll is prevented globally', /overflow-x:\s*hidden/.test(src));
+  T('sheets are constrained to the viewport', /\.overlay \.sheet\{[^}]*max-height/.test(src));
+  T('the viewport still allows user zoom (no user-scalable=no)',
+    !/user-scalable\s*=\s*no/.test(src) && !/maximum-scale/.test(src));
+
+  sub('self-inflicted history pops are counted, not flagged');
+  T('a counter is used so rapid cycles cannot desync', /pendingSelfPops/.test(src));
+  T('the boolean one-shot flag is gone', !/suppressPopstateOnce/.test(src));
+}
+
+/* The navigation bug this pass existed to fix. */
+async function testWarmupReturnsToWorkout(){
+  section('CONTRACT 60 — finishing a warm-up returns to the same workout');
+  const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('upperlower') });
+  await H.settle(300);
+  const ctx = app.ctx, dom = app.dom;
+
+  const logOverlay = dom.document.getElementById('logOverlay');
+  logOverlay.classList.add('open');            // a workout is in progress
+  ctx.pendingLogCategory = 'upper';
+
+  sub('completing a warm-up');
+  ctx.startPrep();
+  T('the runner opened', ctx.prepState !== null);
+  T('the workout is still open underneath', logOverlay.classList.contains('open'));
+  const total = ctx.prepState.seq.length;
+  for(let i = 0; i < total; i++) ctx.nextPrepStep();
+  T('the completion screen is reached', ctx.prepState.idx >= total);
+  ctx.exitPrep();
+  T('THE WORKOUT IS STILL OPEN', logOverlay.classList.contains('open'));
+  T('the runner closed', ctx.prepState === null);
+  T('no timer was left running', ctx.prepTimerId === null);
+
+  sub('exiting midway');
+  ctx.startPrep();
+  ctx.nextPrepStep();
+  ctx.exitPrep();
+  T('the workout survives a mid-warm-up exit', logOverlay.classList.contains('open'));
+
+  sub('skipping');
+  ctx.prepCardDismissed = false;
+  ctx.skipPrep();
+  T('the workout survives a skip', logOverlay.classList.contains('open'));
+  T('skipping created no runner state', ctx.prepState === null);
+
+  sub('rapid cycles cannot close the workout');
+  for(let i = 0; i < 20; i++){ ctx.startPrep(); ctx.exitPrep(); }
+  T('the workout is still open after 20 start/exit cycles',
+    logOverlay.classList.contains('open'));
+  T('no runner state leaked', ctx.prepState === null);
+  T('no timer leaked', ctx.prepTimerId === null);
+
+  sub('nothing was written by any of it');
+  T('workoutLog untouched', ctx.workoutLog.length === 0);
+  T('no trainer records created', ctx.trainerLog.entries.length === 0);
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -5391,6 +5516,7 @@ async function main(){
   testExerciseNotes(H.loadApp());
   testProgramModel(H.loadApp());
   testTrainingPhases(H.loadApp());
+  testUXContracts(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -5422,6 +5548,7 @@ async function main(){
     await testProgramIntegration();
     await testProgramSafety();
     await testPhaseIsolation();
+    await testWarmupReturnsToWorkout();
   }
 
   // ---- FULL ----

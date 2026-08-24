@@ -1966,14 +1966,19 @@ body.page-locked{ overflow: hidden; }
 /* ---------- EXERCISE SUBSTITUTION (Phase D2) ----------
    A quiet secondary action on the exercise row, and a one-tap
    ranked list. Deliberately not a dominant button. */
+/* A named secondary action rather than a bare glyph: the label says what it
+   does before it is tapped, but the surface stays quiet so it never competes
+   with the set controls. */
 .ex-replace-btn{
   display: inline-flex; align-items: center; gap: 5px;
-  min-height: 44px; padding: 0 4px; margin-top: 2px;
-  background: none; border: none; cursor: pointer;
-  color: var(--text-faint); font-size: 11.5px; font-weight: 600;
+  min-height: 44px; padding: 0 12px; margin-top: 2px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer;
+  color: var(--text-dim); font-size: 12px; font-weight: 600;
   font-family: 'Inter', sans-serif; letter-spacing: 0.02em;
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
 }
-.ex-replace-btn:active{ color: var(--accent); }
+.ex-replace-btn:active{ border-color: var(--accent); color: var(--accent); }
 
 .sub-note{
   font-size: 11.5px; line-height: 1.5; color: var(--text-dim);
@@ -2038,13 +2043,46 @@ body.page-locked{ overflow: hidden; }
    Subtle by design: a thin left accent on the row and a small badge in
    history. The type should be noticeable without competing with the numbers
    the athlete is actually reading mid-set. */
+/* Set type reads as a peer of the weight and reps steppers: same group, same
+   label treatment, same height — so the three controls form one family. */
+.set-type-group{ min-width: 0; margin-top: 10px; }
 .set-type-btn{
-  min-width: 44px; min-height: 44px; padding: 0 6px;
-  background: none; border: none; cursor: pointer;
-  color: var(--text-faint); font-family: 'Inter', sans-serif;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  width: 100%; min-height: 44px; padding: 0 10px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer;
+  color: var(--text); font-family: 'Inter', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.01em;
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease), background 0.15s var(--ease);
 }
-.set-type-btn.on{ color: var(--accent); }
+.set-type-value{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-type-caret{ color: var(--text-faint); font-size: 10px; flex-shrink: 0; }
+.set-type-btn:active{ transform: scale(0.98); }
+/* A non-default classification is worth seeing at a glance. Scoped through the
+   row's own type class — the same mechanism that already tints the row border —
+   rather than an attribute on the button, so there is one source of truth for
+   "what type is this set" and one place that styles it. */
+/* A working set carries no row class by design, so it keeps the base
+   treatment above. Only a non-default classification is tinted.
+
+   The tint is an inset bar plus text colour rather than a border: on this
+   control `border-color` would not take even as `!important` at the end of
+   the sheet, while `box-shadow` applies cleanly. An inset accent bar reads
+   just as clearly and matches the left-edge marker the row already uses. */
+.set-row.set-type-drop .set-type-btn,
+.set-row.set-type-amrap .set-type-btn{
+  box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); color: var(--accent);
+}
+.set-row.set-type-drop .set-type-caret,
+.set-row.set-type-amrap .set-type-caret{ color: var(--accent); }
+.set-row.set-type-failure .set-type-btn{
+  box-shadow: inset 3px 0 0 var(--error); background: var(--error-soft); color: var(--error);
+}
+.set-row.set-type-failure .set-type-caret{ color: var(--error); }
+.set-row.set-warmup .set-type-btn{
+  box-shadow: inset 3px 0 0 var(--warning); background: var(--warning-soft); color: var(--warning);
+}
+.set-row.set-warmup .set-type-caret{ color: var(--warning); }
 
 .set-row.set-type-drop{ border-left: 2px solid var(--accent); }
 .set-row.set-type-failure{ border-left: 2px solid var(--error); }
@@ -2375,6 +2413,55 @@ body.page-locked{ overflow: hidden; }
   font-family: 'JetBrains Mono', monospace; color: var(--text-faint);
   margin: -8px 0 14px;
 }
+
+/* ---------- RING TIMER (UX pass) ----------
+   The number is the hero, held inside a ring that sweeps down as the time
+   runs out. Used only where there is a real duration to represent. */
+.prep-ring{ position: relative; width: 168px; height: 168px; margin: 0 auto var(--space-4); }
+.prep-ring-svg{ width: 100%; height: 100%; transform: rotate(-90deg); }
+.prep-ring-track{ fill: none; stroke: var(--surface-3); stroke-width: 6; }
+.prep-ring-fill{
+  fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s linear;
+}
+.prep-ring.paused .prep-ring-fill{ stroke: var(--text-faint); }
+.prep-ring .prep-metric{
+  position: absolute; inset: 0; margin: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 44px; letter-spacing: -0.01em;
+}
+.prep-metric-plain{ margin-bottom: var(--space-4); }
+@media (prefers-reduced-motion: reduce){
+  .prep-ring-fill{ transition: none; }
+}
+
+/* ---------- LANDSCAPE / ROTATION SAFETY ----------
+   LOOP is designed portrait-first. Rotating must not break it: sheets stay
+   within the viewport, nothing overflows horizontally, and tall fixed
+   elements shrink instead of being clipped. */
+.sheet{ max-width: 100%; }
+.overlay .sheet{ max-height: 100vh; max-height: 100dvh; }
+.sheet-scroll{ overscroll-behavior: contain; }
+
+@media (orientation: landscape) and (max-height: 500px){
+  /* Reclaim vertical space rather than letting content be cut off. */
+  .overlay .sheet{ max-height: 100dvh; }
+  .sheet-scroll{ padding-top: 14px; padding-bottom: 12px; }
+  .sheet h2{ font-size: 17px; }
+  .prep-ring{ width: 108px; height: 108px; margin-bottom: var(--space-3); }
+  .prep-ring .prep-metric{ font-size: 28px; }
+  .prep-run{ min-height: 0; padding: var(--space-3) var(--space-4); }
+  .prep-move-name{ font-size: 20px; margin-bottom: var(--space-2); }
+  .prep-instruction{ font-size: 13px; }
+  .prep-purpose{ display: none; }          /* least essential line first */
+  .prep-dots{ margin-bottom: var(--space-3); }
+  .prep-actions button{ min-height: 44px; }
+  .tw-cta{ min-height: 46px; }
+  .prep-card{ padding: var(--space-3) var(--space-4); }
+  .prep-card .prep-start-btn{ min-height: 46px; }
+}
+/* Never let a rotation produce sideways scroll. */
+html, body{ max-width: 100%; overflow-x: hidden; }
 </style>
 </head>
 <body>
@@ -14188,6 +14275,11 @@ function startCooldown(category){
 }
 
 let prepHistoryPushed = false;
+/* Counts popstates this app triggered itself. A counter rather than a boolean
+   because history.back() resolves asynchronously: rapid open/close cycles can
+   have more than one of our own pops in flight, and a one-shot flag would let
+   a later pop through and close the workout underneath. */
+let pendingSelfPops = 0;
 function openPrepOverlay(title){
   const ov = document.getElementById('prepOverlay');
   if(!ov) return;
@@ -14211,9 +14303,16 @@ function exitPrep(){
   if(!logOverlayEl || !logOverlayEl.classList.contains('open')){
     document.body.classList.remove('page-locked');
   }
+  /* Releasing our own history entry fires a popstate. By this point the prep
+     overlay is already closed, so without a guard that popstate falls through
+     to the workout branch and closes the workout — which is exactly how
+     finishing a warm-up used to dump the athlete back on Today. The flag
+     makes our self-inflicted pop a single no-op; a real back gesture is
+     unaffected. */
   if(prepHistoryPushed){
     prepHistoryPushed = false;
-    try{ history.back(); }catch(e){}
+    pendingSelfPops++;
+    try{ history.back(); }catch(e){ pendingSelfPops = Math.max(0, pendingSelfPops - 1); }
   }
 }
 
@@ -14229,6 +14328,7 @@ function enterPrepStep(){
      backgrounded tab, so counting ticks would drift; deriving the remaining
      time from a wall-clock deadline stays correct however the interval fires. */
   prepState.endsAt = secs ? (Date.now() + secs * 1000) : null;
+  prepState.totalForRing = secs || null;      // full duration the ring sweeps
   renderPrepStep();
   if(secs) prepTimerId = setInterval(tickPrep, 250);
 }
@@ -14239,6 +14339,13 @@ function tickPrep(){
     clearPrepTimer();
     nextPrepStep();
     return;
+  }
+  // The ring sweeps every tick; the number only redraws on a whole second.
+  const ring = document.getElementById('prepRingFill');
+  if(ring && prepState.totalForRing){
+    const frac = Math.max(0, Math.min(1, (prepState.endsAt - Date.now()) / (prepState.totalForRing * 1000)));
+    const circ = 2 * Math.PI * 54;
+    ring.setAttribute('stroke-dashoffset', String((circ * (1 - frac)).toFixed(1)));
   }
   if(left === prepState.remaining) return;   // only touch the DOM on a real change
   prepState.remaining = left;
@@ -14293,7 +14400,21 @@ function renderPrepStep(){
     '<div class="prep-dots">' + dots + '</div>' +
     (tag ? '<div class="prep-tag">' + escapeHtml(tag.toUpperCase()) + '</div>' : '') +
     '<div class="prep-move-name">' + escapeHtml(move.displayName) + '</div>' +
-    '<div class="prep-metric' + (prepState.paused ? ' paused' : '') + '" id="prepMetric">' + escapeHtml(metric) + '</div>' +
+    /* Timed movements get a ring the countdown sits inside, so the number is
+       the hero and the remaining time is readable at a glance. Counted
+       movements keep the plain number — a ring with no duration to sweep
+       would be decoration. */
+    (timed
+      ? '<div class="prep-ring' + (prepState.paused ? ' paused' : '') + '">' +
+          '<svg class="prep-ring-svg" viewBox="0 0 120 120" aria-hidden="true">' +
+            '<circle class="prep-ring-track" cx="60" cy="60" r="54"/>' +
+            '<circle class="prep-ring-fill" id="prepRingFill" cx="60" cy="60" r="54"' +
+              ' stroke-dasharray="' + (2 * Math.PI * 54).toFixed(1) + '"' +
+              ' stroke-dashoffset="0"/>' +
+          '</svg>' +
+          '<div class="prep-metric" id="prepMetric">' + escapeHtml(metric) + '</div>' +
+        '</div>'
+      : '<div class="prep-metric prep-metric-plain" id="prepMetric">' + escapeHtml(metric) + '</div>') +
     '<div class="prep-instruction">' + escapeHtml(move.instruction) + '</div>' +
     (move.purpose ? '<div class="prep-purpose">' + escapeHtml(move.purpose) + '</div>' : '');
 
@@ -14741,7 +14862,7 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
       <input type="text" placeholder="Exercise name" class="ex-name-in" value="${name ? escapeAttr(name) : ''}">
       <button class="rm-ex" onclick="removeLogExerciseRow(this)">✕</button>
     </div>
-    <button type="button" class="ex-replace-btn" onclick="openSubstitutions(this)">↔ Replace</button>
+    <button type="button" class="ex-replace-btn" onclick="openSubstitutions(this)">Replace exercise</button>
     <div class="last-time-wrap">${name ? lastTimeHtml(name) : ''}</div>
     <div class="ex-note-wrap">${name ? exerciseNoteBlockHtml(name) : ''}</div>
     <div class="recommend-wrap">${recommendCardHtml(rec, meta.targetSets, meta.targetReps, bodyweight)}</div>
@@ -14836,7 +14957,6 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
     <div class="set-row-top">
       <span class="set-idx" role="button" tabindex="0" onclick="toggleSetType(this)" title="Tap to mark warm-up">Set ${idx}</span>
       <div class="set-row-top-actions">
-        <button class="set-type-btn" type="button" onclick="openSetTypePicker(this)" aria-label="Set type" title="Set type">⋯</button>
         <button class="set-complete-btn" type="button" onclick="toggleSetComplete(this)" aria-label="Mark complete" aria-pressed="false">
           <svg class="scb-svg" viewBox="0 0 36 36" aria-hidden="true">
             <circle class="scb-track" cx="18" cy="18" r="15"/>
@@ -14864,6 +14984,15 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
           <button type="button" onclick="stepValue(this,1)">+</button>
         </div>
       </div>
+    </div>
+    <!-- Set type is a labelled peer of weight and reps, not a hidden menu. It
+         takes its own full-width row so no classification ever clips: at 375px
+         a third column left only 89px, which cut off "Warm-up" and "Working". -->
+    <div class="stepper-group set-type-group">
+      <span class="unit-label">SET TYPE</span>
+      <button class="set-type-btn" type="button" onclick="openSetTypePicker(this)" aria-label="Change set type">
+        <span class="set-type-value">Working</span><span class="set-type-caret">▾</span>
+      </button>
     </div>
     <div class="rir-row">
       <span class="unit-label">RIR</span>
@@ -15041,12 +15170,19 @@ function applySetTypeToRow(row, typeId){
     idxEl.textContent = (typeId === SET_TYPES.WARMUP) ? 'Warm-up' : ('Set ' + idx);
     idxEl.setAttribute('title', typeId === SET_TYPES.WARMUP ? 'Tap to mark working set' : 'Tap to mark warm-up');
   }
+  /* The control always names the current classification. An untyped set reads
+     as "Working" because that is how the logger has always treated absence —
+     the STORED value stays absent, so an untyped historical set is still
+     UNKNOWN in the data. Nothing here writes a type. */
+  const valueEl = row.querySelector('.set-type-value');
+  if(valueEl){
+    const effective = known ? typeId : SET_TYPES.WORKING;
+    valueEl.textContent = setTypeShortLabel(effective) || 'Working';
+  }
   const btn = row.querySelector('.set-type-btn');
   if(btn){
-    const label = (known && typeId !== SET_TYPES.WORKING && typeId !== SET_TYPES.WARMUP)
-      ? setTypeShortLabel(typeId) : '⋯';
-    btn.textContent = label;
-    btn.classList.toggle('on', label !== '⋯');
+    btn.classList.toggle('on', known && typeId !== SET_TYPES.WORKING);
+    btn.setAttribute('data-type', known ? typeId : '');
   }
 }
 
@@ -15670,6 +15806,9 @@ function escapeAttr(str){ return escapeHtml(str).replace(/"/g, '&quot;'); }
    returns to the previous LOOP screen, rather than leaving the app. The draft
    is flushed on the way out, exactly as with the on-screen back arrow. */
 window.addEventListener('popstate', () => {
+  // A pop we caused ourselves (releasing the prep history entry) must not be
+  // read as the athlete pressing back.
+  if(pendingSelfPops > 0){ pendingSelfPops--; return; }
   // Prep sits ON TOP of the workout, so it consumes the back gesture first —
   // otherwise the workout would close underneath a still-open prep screen.
   const prepOv = document.getElementById('prepOverlay');
