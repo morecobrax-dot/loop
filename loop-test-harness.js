@@ -184,7 +184,7 @@ function loadApp(initialStore){
     'GYM_EQUIPMENT','GYM_CATEGORIES','EXERCISE_EQUIPMENT','GYM_STATUS','GYM_PROFILE_KEY',
     'gymProfile','EQUIPMENT_OPTIONS',
     'SUBSTITUTION_CONFIG','substitutionTargetRow',
-    'PROGRAMS_KEY','programsStore','PROGRAM_PHASE_TYPES','PROGRAM_DAY_KEYS','PROGRAM_LIMITS','EXERCISE_NOTES_KEY','exerciseNotes','NOTE_MAX_LENGTH','REP_STEP_BOUNDS','TIME_MODE_CONFIG','TIME_MODE_COMPOUND_PATTERNS','selectedWorkoutMinutes','timePickerOpen','pendingPlannedMinutes',
+    'editingPhaseId','detailProgramId','PROGRAMS_KEY','programsStore','PROGRAM_PHASE_TYPES','PROGRAM_DAY_KEYS','PROGRAM_LIMITS','EXERCISE_NOTES_KEY','exerciseNotes','NOTE_MAX_LENGTH','REP_STEP_BOUNDS','TIME_MODE_CONFIG','TIME_MODE_COMPOUND_PATTERNS','selectedWorkoutMinutes','timePickerOpen','pendingPlannedMinutes',
     'SET_TYPE_REGISTRY','setTypePickerRow'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +

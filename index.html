@@ -2273,6 +2273,108 @@ body.page-locked{ overflow: hidden; }
   font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer;
 }
 .prog-delete:active{ color: var(--danger); }
+
+/* ---------- TRAINING PHASES (Phase D7B) ---------- */
+.tw-phase-row{ display: flex; align-items: baseline; gap: var(--space-2); margin: -4px 0 10px; flex-wrap: wrap; }
+.tw-phase{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
+  font-family: 'JetBrains Mono', monospace; color: var(--accent);
+  background: var(--accent-soft); border-radius: var(--radius-sm); padding: 3px 7px;
+}
+.tw-phase-deload{ color: var(--warning); background: var(--warning-soft); }
+.tw-phase-none{ color: var(--text-faint); background: var(--surface-3); letter-spacing: 0.06em; }
+.tw-phase-sub{ font-size: 11px; color: var(--text-faint); }
+
+/* current-phase summary */
+.phase-current{
+  background: var(--surface-gradient); border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-lg); padding: var(--space-4); margin-top: var(--space-4);
+}
+.phase-current-deload{ border-left-color: var(--warning); }
+.phase-current-none{ border-left-color: var(--border); }
+.phase-current-label{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-faint); font-family: 'JetBrains Mono', monospace;
+}
+.phase-current-name{
+  font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 700;
+  color: var(--text); margin-top: 2px;
+}
+.phase-current-sub{ font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+.phase-current-purpose{ font-size: 12.5px; line-height: 1.45; color: var(--text-dim); margin-top: var(--space-3); }
+.phase-next{
+  font-size: 11.5px; color: var(--text-faint); margin-top: var(--space-3);
+  padding-top: var(--space-3); border-top: 1px solid var(--border);
+}
+
+/* progress bar */
+.phase-bar{
+  height: 5px; border-radius: 3px; background: var(--surface-3);
+  overflow: hidden; margin-top: 10px;
+}
+.phase-bar span{
+  display: block; height: 100%; background: var(--accent);
+  border-radius: 3px; transition: width 0.3s var(--ease);
+}
+.phase-deload .phase-bar span, .phase-current-deload .phase-bar span{ background: var(--warning); }
+.phase-bar-cap{ font-size: 11px; color: var(--text-faint); margin-top: 5px; }
+
+/* phase rows */
+.prog-phases{ margin-top: 8px; }
+.phase-row{
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-3) 0; border-bottom: 1px solid var(--border);
+}
+.phase-row:last-child{ border-bottom: none; }
+.phase-index{
+  width: 22px; flex-shrink: 0; font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700; color: var(--text-faint); padding-top: 2px;
+}
+.phase-main{ flex: 1; min-width: 0; }
+.phase-name{ font-size: 14px; font-weight: 600; color: var(--text); }
+.phase-weeks{ font-size: 11.5px; color: var(--text-dim); margin-top: 1px; }
+.phase-purpose{ font-size: 11.5px; line-height: 1.45; color: var(--text-faint); margin-top: 4px; }
+.phase-side{ display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.phase-status{
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace; color: var(--text-faint);
+}
+.phase-current-row .phase-status{ color: var(--accent); }
+.phase-past{ opacity: 0.62; }
+.phase-current .phase-status, .phase-row.phase-current .phase-status{ color: var(--accent); }
+.phase-row.phase-deload .phase-name{ color: var(--warning); }
+.phase-move{ display: flex; gap: 2px; }
+.phase-move-btn{
+  min-width: 44px; min-height: 44px; background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif;
+}
+.phase-move-btn:active{ color: var(--accent); }
+.phase-edit-btn{ font-size: 12px; }
+.phase-add-btn{
+  width: 100%; min-height: 48px; margin-top: var(--space-3);
+  background: var(--surface-2); border: 1px dashed var(--border);
+  border-radius: var(--radius-md); color: var(--text-dim);
+  font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer;
+}
+.phase-week-row{ display: flex; gap: var(--space-3); margin-top: 8px; }
+.phase-week-row > div{ flex: 1; }
+/* 16px keeps iOS from zooming the viewport when any of these take focus. */
+#phaseEditorBody input, #phaseEditorBody textarea{ font-size: 16px; }
+.label-opt{ font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-faint); }
+.phase-delete{
+  width: 100%; min-height: 48px; margin-top: var(--space-5); background: none; border: none;
+  color: var(--text-faint); font-size: 13px; font-weight: 600;
+  font-family: 'Inter', sans-serif; cursor: pointer;
+}
+.phase-delete:active{ color: var(--danger); }
+
+/* workout sheet context label */
+.log-phase-context{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
+  font-family: 'JetBrains Mono', monospace; color: var(--text-faint);
+  margin: -8px 0 14px;
+}
 </style>
 </head>
 <body>
@@ -2528,6 +2630,8 @@ body.page-locked{ overflow: hidden; }
     <div class="sheet-scroll">
     <h2 id="logSheetTitle">Log Workout</h2>
     <div class="sheet-sub" id="logSheetSub">Record what you actually did today.</div>
+    <!-- Phase context only. The workout is not altered by which phase it falls in. -->
+    <div id="logPhaseContext"></div>
 
     <!-- Optional prep. Never blocks the workout — the sheet below is fully
          usable whether this is started, skipped, or ignored entirely. -->
@@ -2743,6 +2847,20 @@ body.page-locked{ overflow: hidden; }
     <div class="sheet-actions">
       <button class="btn-primary" style="flex:1" onclick="submitProgramBuilder()">Create program</button>
       <button class="btn-secondary" onclick="closeProgramBuilder()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="phaseEditorOverlay" onclick="backdropDismiss(event, closePhaseEditor)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>Phase</h2>
+      <div class="sheet-sub">Phases describe how you have planned this stretch of training. Nothing changes your workouts automatically.</div>
+      <div id="phaseEditorBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-primary" style="flex:1" onclick="submitPhaseEditor()">Save phase</button>
+      <button class="btn-secondary" onclick="closePhaseEditor()">Cancel</button>
     </div>
   </div>
 </div>
@@ -11556,13 +11674,23 @@ const PROGRAMS_KEY = 'programs';
    the athlete's own current-phase marker on their profile — a different idea
    from the phase of a block inside one program. Extensible: a later phase can
    append here without touching the builder or the UI. */
+/* `purpose` is PROGRAMMING context — what the phase is for — and is
+   deliberately factual rather than physiological. Nothing here claims an
+   athlete is overtrained, needs recovery, or should change what they are
+   doing; a phase describes the plan the athlete wrote, nothing more. */
 const PROGRAM_PHASE_TYPES = [
-  { id:'accumulation',   label:'Accumulation',   note:'Building volume' },
-  { id:'intensification',label:'Intensification',note:'Heavier, lower volume' },
-  { id:'deload',         label:'Deload',         note:'Planned lighter week' },
-  { id:'rebuild',        label:'Rebuild',        note:'Returning after a break' },
-  { id:'peak',           label:'Peak',           note:'Expressing top-end strength' },
-  { id:'custom',         label:'Custom',         note:'Your own label' }
+  { id:'accumulation',   label:'Accumulation',   note:'Building volume',
+    purpose:'Build volume and establish repeatable performance.' },
+  { id:'intensification',label:'Intensification',note:'Heavier, lower volume',
+    purpose:'Prioritise heavier loading and performance quality.' },
+  { id:'deload',         label:'Deload',         note:'Planned lighter week',
+    purpose:'A planned reduction in training stress.' },
+  { id:'rebuild',        label:'Rebuild',        note:'Returning after a break',
+    purpose:'Return from a lower-load period and rebuild normal training.' },
+  { id:'peak',           label:'Peak',           note:'Expressing top-end strength',
+    purpose:'Short-term, high-specificity emphasis.' },
+  { id:'custom',         label:'Custom',         note:'Your own label',
+    purpose:'Your own purpose for this stretch of training.' }
 ];
 function getProgramPhase(id){ return PROGRAM_PHASE_TYPES.find(p => p.id === id) || null; }
 
@@ -11913,6 +12041,343 @@ function getProgramCompletionSummary(programId){
   };
 }
 
+
+/* ---------- TRAINING PHASES  (Phase D7B) ----------
+   Makes the blocks D7A stored structurally into something the athlete can
+   actually read: which phase they are in, how far through it they are, and
+   what comes next.
+
+   NOTHING HERE DECIDES ANYTHING. A deload phase means "the athlete planned a
+   lighter stretch here", never "LOOP determined you need a deload". Phases do
+   not transition on their own, do not alter volume, weights, reps or
+   exercises, and are not consumed by the trainer, which stays 0.1.1-shadow.
+
+   Derived, not stored: past/current/upcoming come from the program definition
+   plus the current week, so there is no second source of truth to drift and
+   no phaseLog to keep in sync. */
+
+function sortedProgramPhases(program){
+  const p = program || getActiveProgram();
+  if(!p || !Array.isArray(p.blocks)) return [];
+  return p.blocks.slice().sort((a,b) => (a.startWeek - b.startWeek) || (a.order - b.order));
+}
+function phaseDurationWeeks(block){
+  if(!block) return 0;
+  return Math.max(0, (block.endWeek - block.startWeek) + 1);
+}
+function phaseTypeLabel(block){
+  if(!block) return null;
+  const t = getProgramPhase(block.phaseType);
+  return t ? t.label : null;
+}
+/* An explicit per-block description wins; otherwise the phase type's own
+   purpose is shown. A block with neither simply has no description. */
+function phasePurposeText(block){
+  if(!block) return '';
+  if(block.description) return block.description;
+  const t = getProgramPhase(block.phaseType);
+  return t ? t.purpose : '';
+}
+
+/* ---------- RESOLUTION ---------- */
+function getCurrentTrainingPhase(program, todayStr){
+  const p = program || getActiveProgram();
+  if(!p) return null;
+  const week = getCurrentProgramWeek(p, todayStr);
+  if(week === null) return null;
+  return getBlockForWeek(p, week);            // null when the week sits in a gap
+}
+function getCurrentPhaseType(program, todayStr){
+  const b = getCurrentTrainingPhase(program, todayStr);
+  return b ? b.phaseType : null;
+}
+function getCurrentPhaseWeeks(program, todayStr){
+  const b = getCurrentTrainingPhase(program, todayStr);
+  if(!b) return null;
+  return { startWeek:b.startWeek, endWeek:b.endWeek, durationWeeks:phaseDurationWeeks(b) };
+}
+/* The next phase by week order — the one the athlete will reach, not merely
+   the next array entry. Returns null in the final phase. */
+function getNextTrainingPhase(program, todayStr){
+  const p = program || getActiveProgram();
+  if(!p) return null;
+  const week = getCurrentProgramWeek(p, todayStr);
+  if(week === null) return null;
+  return sortedProgramPhases(p).find(b => b.startWeek > week) || null;
+}
+function getProgramPhaseSchedule(program, todayStr){
+  const p = program || getActiveProgram();
+  if(!p) return [];
+  const week = getCurrentProgramWeek(p, todayStr);
+  return sortedProgramPhases(p).map(b => ({
+    block: b,
+    status: week === null ? 'upcoming'
+          : (week > b.endWeek ? 'past' : (week >= b.startWeek ? 'current' : 'upcoming')),
+    durationWeeks: phaseDurationWeeks(b),
+    typeLabel: phaseTypeLabel(b),
+    purpose: phasePurposeText(b)
+  }));
+}
+
+/* How far through the CURRENT phase, in whole weeks. weekInPhase is 1-based:
+   the first week of a phase reads as week 1 of N, not 0. */
+function getPhaseProgress(program, todayStr){
+  const p = program || getActiveProgram();
+  if(!p) return null;
+  const week = getCurrentProgramWeek(p, todayStr);
+  if(week === null) return null;
+  const block = getBlockForWeek(p, week);
+  if(!block) return { inPhase:false, week:week, block:null };   // a deliberate gap
+  const total = phaseDurationWeeks(block);
+  const weekInPhase = Math.min(total, Math.max(1, week - block.startWeek + 1));
+  const next = getNextTrainingPhase(p, todayStr);
+  return {
+    inPhase: true,
+    week: week,
+    block: block,
+    name: block.name,
+    phaseType: block.phaseType,
+    typeLabel: phaseTypeLabel(block),
+    purpose: phasePurposeText(block),
+    weekInPhase: weekInPhase,
+    totalWeeks: total,
+    weeksRemaining: Math.max(0, block.endWeek - week),
+    percent: total > 0 ? Math.round((weekInPhase / total) * 100) : 0,
+    isFinalWeek: week === block.endWeek,
+    nextPhase: next ? { name:next.name, phaseType:next.phaseType,
+      typeLabel:phaseTypeLabel(next), startWeek:next.startWeek, endWeek:next.endWeek } : null
+  };
+}
+
+/* ---------- EDITING ----------
+   Phases live inside the program's own blocks array, so every edit goes
+   through updateProgram() and inherits its validation. No second store. */
+function addProgramPhase(programId, input){
+  const p = getProgram(programId);
+  if(!p) return { ok:false, errors:['Program not found'] };
+  const blocks = sortedProgramPhases(p).slice();
+  const start = parseInt((input && input.startWeek), 10) || 1;
+  const end = parseInt((input && input.endWeek), 10) || start;
+  blocks.push({
+    id: newBlockId(),
+    name: String((input && input.name) || 'New phase').slice(0, 40),
+    order: blocks.length + 1,
+    phaseType: (input && input.phaseType) || 'custom',
+    startWeek: start, endWeek: end,
+    description: String((input && input.description) || '')
+  });
+  return updateProgram(programId, { blocks: renumberPhases(blocks) });
+}
+function updateProgramPhase(programId, blockId, patch){
+  const p = getProgram(programId);
+  if(!p) return { ok:false, errors:['Program not found'] };
+  const blocks = sortedProgramPhases(p).map(b => b.id === blockId ? Object.assign({}, b, patch || {}) : Object.assign({}, b));
+  const target = blocks.find(b => b.id === blockId);
+  if(!target) return { ok:false, errors:['Phase not found'] };
+  target.startWeek = parseInt(target.startWeek, 10);
+  target.endWeek = parseInt(target.endWeek, 10);
+  return updateProgram(programId, { blocks: renumberPhases(blocks) });
+}
+function deleteProgramPhase(programId, blockId){
+  const p = getProgram(programId);
+  if(!p) return { ok:false, errors:['Program not found'] };
+  const blocks = sortedProgramPhases(p).filter(b => b.id !== blockId);
+  return updateProgram(programId, { blocks: renumberPhases(blocks) });
+}
+/* Order is derived from week position, so moving a phase can never leave two
+   phases claiming the same slot. */
+function renumberPhases(blocks){
+  return blocks.slice()
+    .sort((a,b) => (a.startWeek - b.startWeek) || (a.order - b.order))
+    .map((b, i) => Object.assign({}, b, { order: i + 1 }));
+}
+/* Moving a phase swaps its week range with its neighbour's, keeping every
+   phase the same length and the program continuous. */
+function moveProgramPhase(programId, blockId, direction){
+  const p = getProgram(programId);
+  if(!p) return { ok:false, errors:['Program not found'] };
+  const blocks = sortedProgramPhases(p);
+  const idx = blocks.findIndex(b => b.id === blockId);
+  const swapWith = idx + (direction === 'up' ? -1 : 1);
+  if(idx === -1 || swapWith < 0 || swapWith >= blocks.length){
+    return { ok:false, errors:['Cannot move further'] };
+  }
+  const a = blocks[idx], b = blocks[swapWith];
+  const aLen = phaseDurationWeeks(a), bLen = phaseDurationWeeks(b);
+  const first = Math.min(a.startWeek, b.startWeek);
+  const moved = blocks.map(x => Object.assign({}, x));
+  const A = moved[idx], B = moved[swapWith];
+  if(direction === 'up'){
+    A.startWeek = first;            A.endWeek = first + aLen - 1;
+    B.startWeek = A.endWeek + 1;    B.endWeek = B.startWeek + bLen - 1;
+  } else {
+    B.startWeek = first;            B.endWeek = first + bLen - 1;
+    A.startWeek = B.endWeek + 1;    A.endWeek = A.startWeek + aLen - 1;
+  }
+  return updateProgram(programId, { blocks: renumberPhases(moved) });
+}
+
+/* ---------- UI ---------- */
+/* Compact phase line for Today. Renders nothing without a program, and says
+   so plainly when a program has no phase covering this week rather than
+   inventing one. */
+function programPhaseLineHtml(){
+  let p = null;
+  try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ return ''; }
+  if(!p) return '';
+  const ph = getPhaseProgress(p);
+  if(!ph) return '';
+  if(!ph.inPhase){
+    return `<span class="tw-phase tw-phase-none">No structured phase</span>`;
+  }
+  const cls = ph.phaseType === 'deload' ? ' tw-phase-deload' : '';
+  return `<span class="tw-phase${cls}">${escapeHtml((ph.typeLabel || ph.name).toUpperCase())}</span>
+          <span class="tw-phase-sub">Week ${ph.weekInPhase} of ${ph.totalWeeks}</span>`;
+}
+
+/* The subtle label shown on the workout sheet. Context only — the workout
+   itself is completely unaffected by which phase it falls in. */
+function workoutPhaseContextHtml(){
+  let p = null;
+  try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ return ''; }
+  if(!p) return '';
+  const ph = getPhaseProgress(p);
+  if(!ph || !ph.inPhase) return '';
+  return `<div class="log-phase-context">WEEK ${ph.week} · ${escapeHtml((ph.typeLabel || ph.name).toUpperCase())}</div>`;
+}
+
+function phaseStatusLabel(status){
+  return status === 'past' ? 'Completed' : (status === 'current' ? 'Current' : 'Upcoming');
+}
+/* Past / current / upcoming, derived. Completed phases are never removed. */
+function programPhasesHtml(program){
+  const rows = getProgramPhaseSchedule(program);
+  if(!rows.length){
+    return `<div class="pnote">No phases yet. Add one to split this program into blocks.</div>`;
+  }
+  const ph = getPhaseProgress(program);
+  return rows.map((r, i) => {
+    const b = r.block;
+    const isDeload = b.phaseType === 'deload';
+    const showBar = r.status === 'current' && ph && ph.inPhase;
+    return `
+      <div class="phase-row phase-${r.status}${isDeload ? ' phase-deload' : ''}">
+        <div class="phase-index">${String(i+1).padStart(2,'0')}</div>
+        <div class="phase-main">
+          <div class="phase-name">${escapeHtml(b.name)}</div>
+          <div class="phase-weeks">Week ${b.startWeek}${b.endWeek !== b.startWeek ? '–' + b.endWeek : ''} · ${r.durationWeeks} week${r.durationWeeks===1?'':'s'}</div>
+          ${r.purpose ? `<div class="phase-purpose">${escapeHtml(r.purpose)}</div>` : ''}
+          ${showBar ? `
+            <div class="phase-bar"><span style="width:${ph.percent}%"></span></div>
+            <div class="phase-bar-cap">Week ${ph.weekInPhase} of ${ph.totalWeeks}${ph.isFinalWeek ? ' · final week' : ''}</div>` : ''}
+        </div>
+        <div class="phase-side">
+          <span class="phase-status">${phaseStatusLabel(r.status)}</span>
+          <div class="phase-move">
+            <button class="phase-move-btn" onclick="doMovePhase('${escapeAttr(b.id)}','up')" aria-label="Move earlier">↑</button>
+            <button class="phase-move-btn" onclick="doMovePhase('${escapeAttr(b.id)}','down')" aria-label="Move later">↓</button>
+            <button class="phase-move-btn phase-edit-btn" onclick="openPhaseEditor('${escapeAttr(b.id)}')" aria-label="Edit phase">Edit</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* Current-phase summary for the detail header, including what comes next. */
+function currentPhaseSummaryHtml(program){
+  const ph = getPhaseProgress(program);
+  if(!ph) return '';
+  if(!ph.inPhase){
+    return `<div class="phase-current phase-current-none">
+      <div class="phase-current-label">Current</div>
+      <div class="phase-current-name">No structured phase</div>
+      <div class="phase-current-sub">Week ${ph.week} sits outside every phase you have defined.</div>
+    </div>`;
+  }
+  return `
+    <div class="phase-current${ph.phaseType === 'deload' ? ' phase-current-deload' : ''}">
+      <div class="phase-current-label">Current phase</div>
+      <div class="phase-current-name">${escapeHtml(ph.name)}</div>
+      <div class="phase-current-sub">Week ${ph.weekInPhase} of ${ph.totalWeeks}${ph.weeksRemaining ? ` · ${ph.weeksRemaining} to go` : ' · final week'}</div>
+      <div class="phase-bar"><span style="width:${ph.percent}%"></span></div>
+      ${ph.purpose ? `<div class="phase-current-purpose">${escapeHtml(ph.purpose)}</div>` : ''}
+      ${ph.nextPhase ? `<div class="phase-next">Next · ${escapeHtml(ph.nextPhase.name)} · week ${ph.nextPhase.startWeek}</div>` : ''}
+    </div>`;
+}
+
+/* ---- phase editor ---- */
+let editingPhaseId = null;
+function openPhaseEditor(blockId){
+  editingPhaseId = blockId || null;
+  renderPhaseEditor();
+  document.getElementById('phaseEditorOverlay').classList.add('open');
+}
+function closePhaseEditor(){
+  document.getElementById('phaseEditorOverlay').classList.remove('open');
+  editingPhaseId = null;
+  renderProgramDetail();
+}
+function renderPhaseEditor(){
+  const el = document.getElementById('phaseEditorBody');
+  const p = getProgram(detailProgramId);
+  if(!el || !p) return;
+  const b = editingPhaseId ? (p.blocks || []).find(x => x.id === editingPhaseId) : null;
+  const cur = b || { name:'New phase', phaseType:'custom', startWeek:1, endWeek:1, description:'' };
+  el.innerHTML = `
+    <label>Phase name</label>
+    <input type="text" id="phaseName" value="${escapeAttr(cur.name)}" maxlength="40">
+    <label style="margin-top:16px">Type</label>
+    <div class="pchips">${PROGRAM_PHASE_TYPES.map(t =>
+      `<button class="pchip${cur.phaseType===t.id?' on':''}" onclick="setPhaseType('${t.id}')">${escapeHtml(t.label)}</button>`).join('')}</div>
+    <input type="hidden" id="phaseType" value="${escapeAttr(cur.phaseType)}">
+    <div class="phase-week-row">
+      <div><label>Start week</label>
+        <input type="text" inputmode="numeric" id="phaseStart" value="${escapeAttr(String(cur.startWeek))}"></div>
+      <div><label>End week</label>
+        <input type="text" inputmode="numeric" id="phaseEnd" value="${escapeAttr(String(cur.endWeek))}"></div>
+    </div>
+    <label style="margin-top:16px">Purpose <span class="label-opt">optional</span></label>
+    <textarea id="phaseDesc" rows="2" maxlength="160" placeholder="${escapeAttr((getProgramPhase(cur.phaseType)||{}).purpose || '')}">${escapeHtml(cur.description || '')}</textarea>
+    <div class="pnote" id="phaseError"></div>
+    ${b ? `<button class="phase-delete" onclick="doDeletePhase()">Delete phase</button>` : ''}`;
+}
+function setPhaseType(id){
+  const el = document.getElementById('phaseType');
+  if(el) el.value = id;
+  document.querySelectorAll('#phaseEditorBody .pchip').forEach(c =>
+    c.classList.toggle('on', c.textContent.trim() === (getProgramPhase(id)||{}).label));
+  const desc = document.getElementById('phaseDesc');
+  if(desc) desc.placeholder = (getProgramPhase(id)||{}).purpose || '';
+}
+function submitPhaseEditor(){
+  const p = getProgram(detailProgramId);
+  if(!p) return;
+  const patch = {
+    name: document.getElementById('phaseName').value,
+    phaseType: document.getElementById('phaseType').value,
+    startWeek: parseInt(document.getElementById('phaseStart').value, 10),
+    endWeek: parseInt(document.getElementById('phaseEnd').value, 10),
+    description: document.getElementById('phaseDesc').value
+  };
+  const res = editingPhaseId
+    ? updateProgramPhase(detailProgramId, editingPhaseId, patch)
+    : addProgramPhase(detailProgramId, patch);
+  const err = document.getElementById('phaseError');
+  if(!res.ok){ if(err) err.textContent = res.errors.join(' · '); return; }
+  closePhaseEditor();
+}
+function doDeletePhase(){
+  if(!editingPhaseId) return;
+  if(!confirm('Delete this phase? The program and your history are not affected.')) return;
+  deleteProgramPhase(detailProgramId, editingPhaseId);
+  closePhaseEditor();
+}
+function doMovePhase(blockId, dir){
+  moveProgramPhase(detailProgramId, blockId, dir);
+  renderProgramDetail();
+}
+function doAddPhase(){ openPhaseEditor(null); }
+
 /* ---------- PROGRAM UI ----------
    A compact strip on Today, and one sheet each for the list, the builder and
    the detail view. No new main tab: programs live under Settings > Training. */
@@ -11925,12 +12390,13 @@ function programContextHtml(){
   if(!p) return '';
   const prog = getProgramProgress(p);
   if(!prog) return '';
-  const block = prog.blockName ? ` · ${escapeHtml(prog.blockName)}` : '';
+  // The phase itself is rendered by programPhaseLineHtml() on its own row.
   return `
     <button class="tw-program" onclick="openProgramDetail('${escapeAttr(p.id)}')">
       <span class="tw-program-name">${escapeHtml(p.name)}</span>
-      <span class="tw-program-meta">Week ${prog.week} / ${prog.totalWeeks}${block}</span>
-    </button>`;
+      <span class="tw-program-meta">Week ${prog.week} / ${prog.totalWeeks}</span>
+    </button>
+    <div class="tw-phase-row">${programPhaseLineHtml()}</div>`;
 }
 
 /* ---- list ---- */
@@ -12104,18 +12570,8 @@ function renderProgramDetail(){
         <span class="prog-day-name">${tpl ? escapeHtml(tpl.name) : '<span class="prog-day-missing">Workout no longer available</span>'}</span></div>`;
   }).join('');
 
-  const blockRows = (p.blocks || []).slice().sort((a,b)=>a.startWeek-b.startWeek).map(b => {
-    const phase = getProgramPhase(b.phaseType);
-    const current = prog && prog.week >= b.startWeek && prog.week <= b.endWeek;
-    return `
-      <div class="prog-block${current?' current':''}">
-        <div class="prog-block-main">
-          <div class="prog-block-name">${escapeHtml(b.name)}${phase && phase.id!=='custom' ? ` · ${escapeHtml(phase.label)}` : ''}</div>
-          <div class="prog-block-weeks">Week ${b.startWeek}${b.endWeek!==b.startWeek?'–'+b.endWeek:''}</div>
-        </div>
-        ${current ? '<span class="prog-block-now">NOW</span>' : ''}
-      </div>`;
-  }).join('');
+  /* The block list D7A rendered here is superseded by the phase section
+     below, which shows the same data plus status, purpose and progress. */
 
   el.innerHTML = `
     <div class="prog-detail-head">
@@ -12136,8 +12592,10 @@ function renderProgramDetail(){
       </div>` : ''}
     <div class="section-label" style="margin-top:20px">Weekly schedule</div>
     <div class="prog-days">${scheduleRows}</div>
-    <div class="section-label" style="margin-top:20px">Blocks</div>
-    <div class="prog-blocks">${blockRows || '<div class="pnote">No blocks yet.</div>'}</div>
+    ${currentPhaseSummaryHtml(p)}
+    <div class="section-label" style="margin-top:20px">Phases</div>
+    <div class="prog-phases">${programPhasesHtml(p)}</div>
+    <button class="phase-add-btn" onclick="doAddPhase()">+ Add phase</button>
     <div class="prog-actions">
       ${p.status === 'active' ? `<button class="btn-secondary" onclick="doPauseProgram()">Pause program</button>` : ''}
       ${p.status === 'paused' ? `<button class="btn-secondary" onclick="doResumeProgram()">Resume program</button>` : ''}
@@ -14152,6 +14610,12 @@ function openLogSheet(){
   /* Optional prep entry point. Wrapped so a failure here can never stop a
      workout from opening — the sheet is fully usable without it. */
   try{ renderPrepCard(); }catch(e){}
+  /* Phase context label. Purely informational, and wrapped for the same
+     reason — a program problem must never block logging. */
+  try{
+    const pc = document.getElementById('logPhaseContext');
+    if(pc) pc.innerHTML = workoutPhaseContextHtml();
+  }catch(e){}
 }
 function closeLogSheet(){
   persistDraftNow();

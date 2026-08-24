@@ -4962,6 +4962,393 @@ async function testProgramSafety(){
     T('its id is stable', reopened.ctx.getActiveProgram().id === made.program.id);
   }
 }
+
+/* =========================================================
+   CONTRACT 57-58 — FUNCTIONAL TRAINING PHASES (Phase D7B)
+   ---------------------------------------------------------
+   Phases became readable: which one you are in, how far
+   through, what is next. The line these tests hold is that
+   "functional" never became "automatic" — a deload phase is
+   a label the athlete wrote, and nothing in LOOP decides one
+   is needed, transitions between phases, or changes a workout
+   because of one.
+   ========================================================= */
+function fourPhaseBlocks(){
+  return [
+    { id:'ph1', name:'Accumulation',  order:1, phaseType:'accumulation',    startWeek:1,  endWeek:4  },
+    { id:'ph2', name:'Progressive Overload', order:2, phaseType:'intensification', startWeek:5,  endWeek:8  },
+    { id:'ph3', name:'Deload',        order:3, phaseType:'deload',          startWeek:9,  endWeek:9  },
+    { id:'ph4', name:'Rebuild',       order:4, phaseType:'rebuild',         startWeek:10, endWeek:12 }
+  ];
+}
+function makePhasedProgram(ctx, weeksAgo){
+  ctx.programsStore = { version:1, activeProgramId:null, programs:[] };
+  ctx.invalidateProgramCache();
+  const r = ctx.createProgram({ name:'Summer Hypertrophy', goal:'hypertrophy', durationWeeks:12,
+    schedule: sampleSchedule(ctx), startDate: DSTR(weeksAgo * 7) });
+  ctx.updateProgram(r.program.id, { blocks: fourPhaseBlocks() });
+  return ctx.getProgram(r.program.id);
+}
+
+function testTrainingPhases(app){
+  section('CONTRACT 57 — training phases resolve, progress and never decide');
+  const ctx = app.ctx;
+
+  sub('phase registry carries programming purpose');
+  T('all six types remain', ctx.PROGRAM_PHASE_TYPES.length === 6);
+  T('every type has a purpose', ctx.PROGRAM_PHASE_TYPES.every(t => !!t.purpose));
+  T('deload purpose is factual, not physiological',
+    /planned reduction in training stress/i.test(ctx.getProgramPhase('deload').purpose));
+  const allCopy = JSON.stringify(ctx.PROGRAM_PHASE_TYPES).toLowerCase();
+  const banned = ['overtrain','your body needs','recover from injury','fatigued athlete','burnout','cortisol'];
+  T('no medical or physiological claims in phase copy',
+    banned.every(b => allCopy.indexOf(b) === -1),
+    banned.filter(b => allCopy.indexOf(b) !== -1).join(','));
+
+  sub('current phase resolution — week 6 of a four-phase program');
+  const p = makePhasedProgram(ctx, 5);            // started 5 weeks ago => week 6
+  T('program is at week 6', ctx.getCurrentProgramWeek(p) === 6);
+  const cur = ctx.getCurrentTrainingPhase(p);
+  T('current phase resolves', !!cur && cur.name === 'Progressive Overload');
+  T('current phase type resolves', ctx.getCurrentPhaseType(p) === 'intensification');
+  const weeks = ctx.getCurrentPhaseWeeks(p);
+  T('phase week range resolves', weeks.startWeek === 5 && weeks.endWeek === 8);
+  T('phase duration resolves', weeks.durationWeeks === 4);
+
+  sub('phase progress');
+  const ph = ctx.getPhaseProgress(p);
+  T('reports being in a phase', ph.inPhase === true);
+  T('week within the phase is 1-based', ph.weekInPhase === 2);
+  T('total phase weeks correct', ph.totalWeeks === 4);
+  T('weeks remaining correct', ph.weeksRemaining === 2);
+  T('percent is week-based', ph.percent === 50);
+  T('not flagged as the final week', ph.isFinalWeek === false);
+  T('carries the phase purpose', !!ph.purpose);
+  T('no training score is produced', ph.score === undefined && ph.rating === undefined);
+
+  sub('next phase');
+  T('next phase resolves by week order', ph.nextPhase && ph.nextPhase.name === 'Deload');
+  T('next phase reports its start week', ph.nextPhase.startWeek === 9);
+  const last = makePhasedProgram(ctx, 11);        // week 12 = final phase
+  T('the final phase reports no next phase', ctx.getNextTrainingPhase(last) === null);
+  T('the final week is flagged', ctx.getPhaseProgress(last).isFinalWeek === true);
+
+  sub('past / current / upcoming derive from position');
+  const sched = ctx.getProgramPhaseSchedule(makePhasedProgram(ctx, 5));
+  T('four phases listed', sched.length === 4);
+  T('earlier phase reads as past', sched[0].status === 'past');
+  T('the containing phase reads as current', sched[1].status === 'current');
+  T('later phases read as upcoming',
+    sched[2].status === 'upcoming' && sched[3].status === 'upcoming');
+  T('completed phases are NOT deleted', sched[0].block.name === 'Accumulation');
+  T('each row carries a type label and purpose',
+    sched.every(r => !!r.typeLabel && typeof r.purpose === 'string'));
+
+  sub('a deload phase is a LABEL, never a decision');
+  const dl = makePhasedProgram(ctx, 8);           // week 9 = the deload week
+  const dlp = ctx.getPhaseProgress(dl);
+  T('the athlete is in their planned deload', dlp.phaseType === 'deload');
+  T('it is a single week', dlp.totalWeeks === 1);
+  const tplBefore = JSON.stringify(ctx.resolveProgramWorkout(dl.schedule.mon));
+  const schedBefore = JSON.stringify(dl.schedule);
+  const trainerBefore = ctx.trainerLog.entries.length;
+  ctx.getPhaseProgress(dl); ctx.getNextTrainingPhase(dl); ctx.getProgramPhaseSchedule(dl);
+  T('the scheduled workout is byte-identical inside a deload',
+    JSON.stringify(ctx.resolveProgramWorkout(dl.schedule.mon)) === tplBefore);
+  T('no sets or reps were reduced automatically',
+    ctx.resolveProgramWorkout(dl.schedule.mon).exercises
+      .every((e,i) => e.sets === JSON.parse(tplBefore).exercises[i].sets));
+  T('no exercise was removed automatically',
+    ctx.resolveProgramWorkout(dl.schedule.mon).exercises.length === JSON.parse(tplBefore).exercises.length);
+  T('the schedule was not rewritten', JSON.stringify(ctx.getProgram(dl.id).schedule) === schedBefore);
+  T('no trainer record was created by a deload phase',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('LOOP never claims the athlete NEEDS a deload',
+    !/you (need|should)|overtrained|your body/i.test(ctx.getProgramPhase('deload').purpose));
+
+  sub('phases never transition on their own');
+  {
+    const prog = makePhasedProgram(ctx, 3);       // week 4 = last week of phase 1
+    const before = ctx.getCurrentTrainingPhase(prog).name;
+    for(let i = 0; i < 30; i++){ ctx.getPhaseProgress(prog); ctx.getNextTrainingPhase(prog); }
+    T('reading a phase 30 times does not advance it',
+      ctx.getCurrentTrainingPhase(prog).name === before);
+    T('the final week of a phase is flagged, not auto-advanced',
+      ctx.getPhaseProgress(prog).isFinalWeek === true &&
+      ctx.getCurrentTrainingPhase(prog).name === 'Accumulation');
+    T('the next phase is offered as information only',
+      ctx.getNextTrainingPhase(prog).name === 'Progressive Overload');
+  }
+
+  sub('editing phases');
+  const ep = makePhasedProgram(ctx, 5);
+  T('rename a phase',
+    ctx.updateProgramPhase(ep.id, 'ph2', { name:'Heavy Block' }).ok === true &&
+    ctx.getProgram(ep.id).blocks.find(b => b.id === 'ph2').name === 'Heavy Block');
+  T('change a phase type',
+    ctx.updateProgramPhase(ep.id, 'ph4', { phaseType:'peak' }).ok === true &&
+    ctx.getProgram(ep.id).blocks.find(b => b.id === 'ph4').phaseType === 'peak');
+  T('set a custom description',
+    ctx.updateProgramPhase(ep.id, 'ph1', { description:'Build the base.' }).ok === true);
+  T('a custom description overrides the type purpose',
+    ctx.phasePurposeText(ctx.getProgram(ep.id).blocks.find(b => b.id === 'ph1')) === 'Build the base.');
+  T('a phase with no description falls back to its type purpose',
+    ctx.phasePurposeText({ phaseType:'peak', description:'' }) === ctx.getProgramPhase('peak').purpose);
+
+  sub('adding and deleting phases');
+  {
+    const prog = makePhasedProgram(ctx, 0);
+    const addRes = ctx.addProgramPhase(prog.id, { name:'Extra', phaseType:'custom', startWeek:13, endWeek:14 });
+    T('a phase beyond the program length is refused', addRes.ok === false);
+    T('the program still has four phases', ctx.getProgram(prog.id).blocks.length === 4);
+    const del = ctx.deleteProgramPhase(prog.id, 'ph3');
+    T('delete succeeds', del.ok === true);
+    T('only that phase was removed',
+      ctx.getProgram(prog.id).blocks.length === 3 &&
+      !ctx.getProgram(prog.id).blocks.some(b => b.id === 'ph3'));
+    T('the other phases keep their ranges',
+      ctx.getProgram(prog.id).blocks.find(b => b.id === 'ph2').startWeek === 5);
+    T('a gap left by a deleted phase is allowed, not auto-filled',
+      ctx.getBlockForWeek(ctx.getProgram(prog.id), 9) === null);
+    T('a week inside a gap reports no structured phase',
+      (() => { const g = ctx.getPhaseProgress(ctx.getProgram(prog.id), DSTR(-56));
+               return g === null || g.inPhase === false; })());
+  }
+
+  sub('reordering keeps the program continuous');
+  {
+    const prog = makePhasedProgram(ctx, 0);
+    const res = ctx.moveProgramPhase(prog.id, 'ph3', 'up');   // deload before intensification
+    T('move succeeds', res.ok === true);
+    const after = ctx.sortedProgramPhases(ctx.getProgram(prog.id));
+    T('the moved phase now starts earlier', after[1].id === 'ph3');
+    T('phase lengths are preserved',
+      ctx.phaseDurationWeeks(after.find(b => b.id === 'ph3')) === 1 &&
+      ctx.phaseDurationWeeks(after.find(b => b.id === 'ph2')) === 4);
+    T('weeks remain contiguous',
+      after.every((b, i) => i === 0 || b.startWeek === after[i-1].endWeek + 1));
+    T('order is renumbered', after.every((b, i) => b.order === i + 1));
+    T('no phase runs past the program',
+      after.every(b => b.endWeek <= ctx.getProgram(prog.id).durationWeeks));
+    T('moving past the end is refused',
+      ctx.moveProgramPhase(prog.id, after[0].id, 'up').ok === false);
+    T('workout history untouched by reordering',
+      (() => { const logBefore = JSON.stringify(ctx.workoutLog);
+               ctx.moveProgramPhase(prog.id, 'ph2', 'down');
+               ctx.moveProgramPhase(prog.id, 'ph2', 'up');
+               return JSON.stringify(ctx.workoutLog) === logBefore; })());
+  }
+
+  sub('malformed and legacy phase data is handled gracefully');
+  {
+    const prog = makePhasedProgram(ctx, 0);
+    T('overlapping phases are refused',
+      ctx.updateProgramPhase(prog.id, 'ph2', { startWeek:3 }).ok === false);
+    T('inverted ranges are refused',
+      ctx.updateProgramPhase(prog.id, 'ph2', { startWeek:8, endWeek:5 }).ok === false);
+    T('a phase past the program is refused',
+      ctx.updateProgramPhase(prog.id, 'ph4', { endWeek:99 }).ok === false);
+    T('an unknown phase type is refused',
+      ctx.updateProgramPhase(prog.id, 'ph1', { phaseType:'not_a_phase' }).ok === false);
+    T('editing an unknown phase id is refused',
+      ctx.updateProgramPhase(prog.id, 'nope', { name:'x' }).ok === false);
+    T('a refused edit leaves the program unchanged',
+      ctx.getProgram(prog.id).blocks.find(b => b.id === 'ph2').startWeek === 5);
+    T('a program with NO blocks does not crash',
+      (() => { const r = ctx.createProgram({ name:'NoPhases', durationWeeks:4,
+                 schedule: sampleSchedule(ctx), startDate: DSTR(0) });
+               ctx.updateProgram(r.program.id, { blocks: [] });
+               const prg = ctx.getProgram(r.program.id);
+               return ctx.getProgramPhaseSchedule(prg).length === 0 &&
+                      ctx.getCurrentTrainingPhase(prg) === null; })());
+    T('phase helpers are safe with no program at all',
+      (() => { ctx.programsStore = { version:1, activeProgramId:null, programs:[] };
+               ctx.invalidateProgramCache();
+               return ctx.getCurrentTrainingPhase() === null &&
+                      ctx.getCurrentPhaseType() === null &&
+                      ctx.getCurrentPhaseWeeks() === null &&
+                      ctx.getNextTrainingPhase() === null &&
+                      ctx.getPhaseProgress() === null &&
+                      ctx.getProgramPhaseSchedule().length === 0; })());
+    T('the Today phase line renders nothing without a program',
+      ctx.programPhaseLineHtml() === '');
+    T('the workout phase label renders nothing without a program',
+      ctx.workoutPhaseContextHtml() === '');
+  }
+
+  sub('pause behaviour from D7A is not regressed');
+  {
+    const prog = makePhasedProgram(ctx, 5);       // week 6, intensification
+    T('starts in the intensification phase',
+      ctx.getCurrentPhaseType(prog) === 'intensification');
+    ctx.pauseProgram(prog.id);
+    T('the phase freezes while paused',
+      ctx.getCurrentPhaseType(ctx.getProgram(prog.id)) === 'intensification');
+    ctx.getProgram(prog.id).pausedOnDate = DSTR(21);
+    ctx.resumeProgram(prog.id);
+    T('paused time did not advance the phase',
+      ctx.getCurrentProgramWeek(ctx.getProgram(prog.id)) === 3);
+    T('the athlete is back in the phase covering that week',
+      ctx.getCurrentPhaseType(ctx.getProgram(prog.id)) === 'accumulation');
+    T('pausing created no trainer record', ctx.trainerLog.entries.length === 0);
+  }
+
+  sub('rapid editing stays consistent');
+  {
+    const prog = makePhasedProgram(ctx, 0);
+    for(let i = 0; i < 40; i++) ctx.updateProgramPhase(prog.id, 'ph1', { name:'Rapid ' + i });
+    T('40 rapid edits land deterministically',
+      ctx.getProgram(prog.id).blocks.find(b => b.id === 'ph1').name === 'Rapid 39');
+    T('rapid edits create no duplicate phases',
+      ctx.getProgram(prog.id).blocks.length === 4);
+    T('phase ids stay unique',
+      new Set(ctx.getProgram(prog.id).blocks.map(b => b.id)).size === 4);
+    for(let i = 0; i < 10; i++){ ctx.moveProgramPhase(prog.id,'ph2','down'); ctx.moveProgramPhase(prog.id,'ph2','up'); }
+    T('rapid reordering keeps weeks contiguous',
+      (() => { const a = ctx.sortedProgramPhases(ctx.getProgram(prog.id));
+               return a.every((b,i) => i === 0 || b.startWeek === a[i-1].endWeek + 1); })());
+  }
+}
+
+async function testPhaseIsolation(){
+  section('CONTRACT 58 — phases change nothing outside the program');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const recBefore = JSON.stringify(ctx.computeMuscleRecovery());
+  const capBefore = JSON.stringify(ctx.getExerciseCapability('Bench Press'));
+  const readyBefore = JSON.stringify(ctx.dailyReadiness);
+  const notesBefore = app.store.exerciseNotes;
+  const gymBefore = app.store.gymProfile;
+  const draftBefore = app.store.activeWorkoutDraft;
+  const planTplBefore = JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates);
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+
+  sub('build a full phase structure and read it repeatedly');
+  const prog = makePhasedProgram(ctx, 5);
+  ctx.updateProgramPhase(prog.id, 'ph3', { description:'Planned lighter week.' });
+  ctx.moveProgramPhase(prog.id, 'ph4', 'up');
+  for(let i = 0; i < 25; i++){
+    ctx.getPhaseProgress(); ctx.getNextTrainingPhase(); ctx.getProgramPhaseSchedule();
+    ctx.programPhaseLineHtml(); ctx.workoutPhaseContextHtml();
+  }
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('exercise notes unchanged', app.store.exerciseNotes === notesBefore);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('drafts preserved', app.store.activeWorkoutDraft === draftBefore);
+  T('plan templates unchanged',
+    JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates) === planTplBefore);
+
+  sub('readiness, recovery and capability are not phase inputs');
+  T('readiness unchanged', JSON.stringify(ctx.dailyReadiness) === readyBefore);
+  T('recovery unchanged', JSON.stringify(ctx.computeMuscleRecovery()) === recBefore);
+  T('capability unchanged', JSON.stringify(ctx.getExerciseCapability('Bench Press')) === capBefore);
+  T('a low-readiness day does not change the phase',
+    (() => { const phaseBefore = ctx.getCurrentPhaseType();
+             ctx.dailyReadiness[DSTR(0)] = { energy:1, soreness:1, sleep:1, stress:1, feel:1 };
+             clearCaches(ctx);
+             const same = ctx.getCurrentPhaseType() === phaseBefore;
+             delete ctx.dailyReadiness[DSTR(0)]; clearCaches(ctx);
+             return same; })());
+
+  sub('exercise notes are not phase triggers');
+  {
+    const phaseBefore = ctx.getCurrentPhaseType();
+    ctx.saveExerciseNote('bench_press_barbell', 'Felt exhausted.');
+    ctx.saveExerciseNote('bench_press_barbell', 'Ready to push heavier.');
+    T('an "exhausted" note does not start a deload',
+      ctx.getCurrentPhaseType() === phaseBefore);
+    T('a "ready to push" note does not skip a phase',
+      ctx.getCurrentPhaseType() === phaseBefore);
+    T('notes still stored independently',
+      ctx.getExerciseNotes('bench_press_barbell').length === 2);
+  }
+
+  sub('missed workouts do not alter phase state');
+  {
+    const phaseBefore = ctx.getCurrentPhaseType();
+    const weekBefore = ctx.getCurrentProgramWeek();
+    const missed = ctx.getMissedProgramDays();
+    T('missed sessions are visible', Array.isArray(missed));
+    T('the phase is unchanged by missed sessions', ctx.getCurrentPhaseType() === phaseBefore);
+    T('the week is unchanged by missed sessions', ctx.getCurrentProgramWeek() === weekBefore);
+  }
+
+  sub('Time Mode and substitution do not touch phases');
+  {
+    const p = ctx.getActiveProgram();
+    const phaseBefore = JSON.stringify(ctx.getProgramPhaseSchedule(p));
+    const tpl = ctx.resolveProgramWorkout(p.schedule.mon);
+    ctx.compressWorkoutForTime(tpl, 30);
+    ctx.getSubstitutionsByName(tpl.exercises[0].name, {});
+    T('phase structure unchanged by Time Mode and substitution',
+      JSON.stringify(ctx.getProgramPhaseSchedule(ctx.getActiveProgram())) === phaseBefore);
+    T('the phase still references the original template',
+      ctx.resolveProgramWorkout(ctx.getActiveProgram().schedule.mon).exercises[0].name === tpl.exercises[0].name);
+  }
+
+  sub('trainer');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by any phase action',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+  T('no recommendation was produced from a phase',
+    ctx.trainerLog.entries.length === trainerBefore);
+
+  sub('storage: phases live inside the program, with no second key');
+  T('no phaseLog key exists', app.store.phaseLog === undefined);
+  T('no phases key exists', app.store.phases === undefined);
+  T('DATA_KEYS gained nothing for phases',
+    !ctx.DATA_KEYS.some(k => /phase/i.test(k)));
+  T('phases are stored on the program itself',
+    JSON.parse(app.store.programs).programs[0].blocks.length >= 3);
+  T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
+
+  sub('backup and restore reconstruct the phase structure exactly');
+  {
+    const keys = await ctx.allDataKeys();
+    const exported = {};
+    for(const k of keys){
+      const rr = await ctx.LOOPStore.get(k);
+      if(rr && rr.value !== undefined && rr.value !== null) exported[k] = rr.value;
+    }
+    const restored = await H.loadAppBooted(exported);
+    await H.settle(300);
+    const rp = restored.ctx.getActiveProgram();
+    T('the program restored', !!rp);
+    const rows = restored.ctx.getProgramPhaseSchedule(rp);
+    T('every phase restored', rows.length === 4);
+    T('phase names survived', rows.some(r => r.block.name === 'Accumulation'));
+    T('phase types survived', rows.some(r => r.block.phaseType === 'deload'));
+    T('phase descriptions survived',
+      rows.some(r => r.block.description === 'Planned lighter week.'));
+    T('phase ordering survived',
+      rows.every((r,i) => i === 0 || r.block.startWeek > rows[i-1].block.startWeek));
+    T('the current phase still resolves after restore',
+      !!restored.ctx.getCurrentTrainingPhase(rp));
+    T('the current week still resolves after restore',
+      restored.ctx.getCurrentProgramWeek(rp) === ctx.getCurrentProgramWeek(ctx.getActiveProgram()));
+    T('a paused program restores paused',
+      (() => { ctx.pauseProgram(ctx.getActiveProgram().id);
+               return ctx.getActiveProgram().status === 'paused'; })());
+  }
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -5003,6 +5390,7 @@ async function main(){
   testRepAdjustment(app);
   testExerciseNotes(H.loadApp());
   testProgramModel(H.loadApp());
+  testTrainingPhases(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -5033,6 +5421,7 @@ async function main(){
     await testExerciseNotesPersistence();
     await testProgramIntegration();
     await testProgramSafety();
+    await testPhaseIsolation();
   }
 
   // ---- FULL ----
