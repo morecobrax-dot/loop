@@ -2471,6 +2471,110 @@ body.page-locked{ overflow: hidden; }
 }
 /* Never let a rotation produce sideways scroll. */
 html, body{ max-width: 100%; overflow-x: hidden; }
+
+/* ---------- ONBOARDING (Phase D8) ----------
+   Full-height sheet, safe-area aware, with Skip always reachable. */
+.ob-sheet{ display: flex; flex-direction: column; }
+.ob-top{
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: calc(14px + env(safe-area-inset-top, 0px)) var(--space-5) 10px;
+  flex-shrink: 0;
+}
+.ob-dots{ display: flex; gap: 5px; }
+.ob-dot{ width: 6px; height: 6px; border-radius: 50%; background: var(--surface-3); transition: background 0.2s var(--ease), transform 0.2s var(--ease); }
+.ob-dot.done{ background: var(--text-faint); }
+.ob-dot.now{ background: var(--accent); transform: scale(1.3); }
+/* Always visible, never hidden behind a menu — escape must be one tap. */
+.ob-skip{
+  min-height: 44px; padding: 0 4px; background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif;
+}
+.ob-skip:active{ color: var(--text-dim); }
+
+.ob-scroll{ flex: 1; overflow-y: auto; padding: 0 var(--space-5); min-height: 0; -webkit-overflow-scrolling: touch; }
+.ob-step{ animation: obIn 0.28s var(--ease) both; }
+@keyframes obIn{ from{ opacity: 0; transform: translateY(8px); } to{ opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce){ .ob-step{ animation: none; } }
+
+.ob-visual{ margin: var(--space-3) 0 var(--space-5); }
+.ob-title{
+  font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700;
+  color: var(--text); line-height: 1.15; margin-bottom: var(--space-3);
+}
+.ob-body{ font-size: 14.5px; line-height: 1.55; color: var(--text-dim); }
+
+.ob-actions{
+  display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0;
+  padding: var(--space-4) var(--space-5) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+}
+.ob-back{
+  min-height: 52px; padding: 0 var(--space-4); background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif;
+}
+.ob-next{ flex: 1; min-height: 52px; font-size: 15px; font-weight: 700; }
+
+/* ---- lightweight, accurate mockups (no live DOM cloning) ---- */
+.ob-hero{
+  text-align: center; padding: var(--space-6) 0;
+  background: var(--surface-gradient); border: 1px solid var(--border); border-radius: var(--radius-xl);
+}
+.ob-hero-mark{ font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+.ob-hero-dot{ color: var(--accent); }
+.ob-hero-sub{ font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em; color: var(--text-faint); margin-top: 6px; text-transform: uppercase; }
+
+.ob-mock{
+  background: var(--surface-gradient); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: var(--space-4);
+}
+.ob-mock-label{ font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; }
+.ob-mock-title{ font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text); margin-top: 3px; }
+.ob-mock-meta{ font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.ob-mock-cta{
+  margin-top: var(--space-4); min-height: 46px; display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #0C0E12; border-radius: var(--radius-md); font-size: 14px; font-weight: 700;
+}
+.ob-mock-row{ display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: 7px 0; border-bottom: 1px solid var(--border); }
+.ob-mock-row:last-of-type{ border-bottom: none; }
+.ob-mock-key{ font-size: 12.5px; color: var(--text-dim); }
+.ob-mock-val{ font-size: 12.5px; font-weight: 600; color: var(--text); text-align: right; }
+.ob-mock-controls{ display: flex; gap: 10px; }
+.ob-mock-ctrl{ flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.ob-mock-unit{ font-size: 9px; letter-spacing: 0.06em; color: var(--text-faint); }
+.ob-mock-stepper, .ob-mock-select{
+  min-height: 42px; display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--text);
+}
+.ob-mock-select{ font-family: 'Inter', sans-serif; font-size: 13px; }
+.ob-mock-week{ font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; margin-top: 4px; }
+.ob-mock-week span{ font-size: 15px; color: var(--text-faint); }
+.ob-mock-phase{ font-size: 12.5px; font-weight: 600; color: var(--accent); margin-top: 4px; }
+.ob-mock-bar{ height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; margin-top: 10px; }
+.ob-mock-bar span{ display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.ob-tool{ padding: 9px 0; border-bottom: 1px solid var(--border); }
+.ob-tool:last-child{ border-bottom: none; }
+.ob-tool-name{ display: block; font-size: 13.5px; font-weight: 600; color: var(--text); }
+.ob-tool-desc{ display: block; font-size: 11.5px; color: var(--text-dim); margin-top: 1px; }
+.ob-note{ font-size: 11.5px; line-height: 1.45; color: var(--text-faint); margin-top: var(--space-3); }
+/* The one element a step wants the eye to land on. */
+.ob-spot{ box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 1px var(--accent); }
+
+/* ---- contextual hints ---- */
+.ob-hint{
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  background: var(--accent-soft); border: 1px solid var(--border); border-left: 2px solid var(--accent);
+  border-radius: var(--radius-md); padding: 9px 6px 9px 11px; margin-bottom: var(--space-3);
+}
+.ob-hint-text{ flex: 1; font-size: 12px; line-height: 1.45; color: var(--text-dim); }
+.ob-hint-x{
+  width: 44px; min-height: 44px; margin: -9px -6px -9px 0; flex-shrink: 0;
+  background: none; border: none; cursor: pointer; color: var(--text-faint); font-size: 13px;
+}
+
+/* Today's empty-program row: names the feature and offers the way in. */
+.tw-program-empty .tw-program-name{ color: var(--text-faint); }
+.tw-program-empty .tw-program-meta{ color: var(--accent); }
 </style>
 </head>
 <body>
@@ -2853,6 +2957,13 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       </button>
 
       <label style="margin-top:22px">About</label>
+      <button class="settings-row-btn" onclick="replayOnboarding()">
+        <span class="settings-row-main">
+          <span class="settings-row-title">Getting Started</span>
+          <span class="settings-row-desc">A short tour of how LOOP works</span>
+        </span>
+        <span class="settings-row-arrow">›</span>
+      </button>
       <button class="settings-row-btn" onclick="openUpdates()">
         <span class="settings-row-main">
           <span class="settings-row-title">What's New <span class="update-unread-dot" id="updateUnreadDotRow" style="display:none"></span></span>
@@ -2914,6 +3025,21 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeSetTypePicker()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ONBOARDING (Phase D8) — short, skippable, replayable from Settings -->
+<div class="overlay overlay-page" id="onboardingOverlay">
+  <div class="sheet sheet-page ob-sheet">
+    <div class="ob-top">
+      <div class="ob-dots" id="onboardingDots"></div>
+      <button class="ob-skip" onclick="skipOnboarding()">Skip</button>
+    </div>
+    <div class="ob-scroll" id="onboardingBody"></div>
+    <div class="ob-actions">
+      <button class="ob-back" id="onboardingBack" onclick="onboardingBack()">Back</button>
+      <button class="btn-primary ob-next" id="onboardingNext" onclick="onboardingNext()">Continue</button>
     </div>
   </div>
 </div>
@@ -3269,7 +3395,7 @@ const BACKUP_PREFIX = 'backup_v';
 const DATA_KEYS = [
   'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',
   'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog',
-  'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes', 'programs'
+  'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes', 'programs', 'onboarding'
 ];
 
 /* Migrations upgrade FROM the keyed version TO the next one.
@@ -5020,6 +5146,14 @@ function showMainApp(){
   document.getElementById('currentPlanLabel').textContent = DEFAULT_PLANS[selectedPlanId].name;
   renderAll();
   renderUpdateIndicator();
+  /* The tour is offered ONCE, after the real app is on screen — never as a
+     gate in front of it. Wrapped so a problem here can never stop LOOP from
+     opening, and deferred a beat so the first paint is not delayed. */
+  try{
+    if(shouldOfferOnboarding()){
+      setTimeout(() => { try{ startOnboarding(); }catch(e){} }, 450);
+    }
+  }catch(e){}
 }
 
 async function loadPlanData(id){
@@ -10011,6 +10145,8 @@ async function loadTrainerData(){
   await loadExerciseNotes();
   // Programs. Absent = an athlete using plans directly, which stays valid.
   await loadPrograms();
+  // Onboarding state. Absent = someone who has not been offered the tour.
+  await loadOnboarding();
 }
 async function persistAthleteProfile(){
   athleteProfile.updatedAt = new Date().toISOString();
@@ -11712,6 +11848,7 @@ let timePickerOpen = false;
 function toggleTimePicker(){
   timePickerOpen = !timePickerOpen;
   renderTodayWorkout();
+  if(timePickerOpen) showHintIn('todayWorkout', 'timeMode');
 }
 function timePickerHtml(tpl){
   if(!timePickerOpen) return '';
@@ -11735,6 +11872,272 @@ function timeModeNoteHtml(tpl){
   const s = timeModeSummary(tpl, selectedWorkoutMinutes);
   if(!s || !s.compressed) return '';
   return `<div class="time-note">${s.requestedMinutes} min · optimized from ${escapeHtml(s.sourceName)}</div>`;
+}
+
+/* =========================================================
+   ONBOARDING & CONTEXTUAL DISCOVERY  (Phase D8)
+   ---------------------------------------------------------
+   A short, skippable tour that teaches the MENTAL MODEL rather
+   than every feature, plus one-time contextual hints for the
+   tools that are only meaningful once you are already in a
+   workout.
+
+   NEVER BLOCKS. Skip exits immediately with no confirmation
+   and no nagging: the tour is offered once, and after that it
+   lives in Settings. Nothing here requires an account, a gym,
+   a program or a readiness check-in before LOOP can be used.
+
+   STORAGE IS MINIMAL — one key holding a completed version and
+   a set of seen hint ids. Versioned so a future tour can be
+   offered to existing athletes without treating them as new
+   accounts, and replaying never resets a single piece of
+   training data.
+
+   HONEST ABOUT THE TRAINER. The engine is shadow-only; the
+   copy says LOOP is learning and records what it would suggest,
+   never that it decides anything for the athlete today.
+   ========================================================= */
+
+const ONBOARDING_KEY = 'onboarding';
+const ONBOARDING_VERSION = 1;
+
+function defaultOnboardingState(){
+  return { version:1, completedVersion:null, completedAt:null, skipped:false, hintsSeen:{} };
+}
+let onboardingState = defaultOnboardingState();
+
+async function loadOnboarding(){
+  try{
+    const r = await LOOPStore.get(ONBOARDING_KEY);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      if(parsed && typeof parsed === 'object'){
+        onboardingState = Object.assign(defaultOnboardingState(), parsed);
+        if(!onboardingState.hintsSeen || typeof onboardingState.hintsSeen !== 'object'){
+          onboardingState.hintsSeen = {};
+        }
+      }
+    }
+  }catch(e){ /* absent = an athlete who has not seen the tour yet */ }
+}
+async function persistOnboarding(){
+  try{ return await LOOPStore.set(ONBOARDING_KEY, JSON.stringify(onboardingState)); }
+  catch(e){ return false; }
+}
+
+/* Offered only when this athlete has never finished OR skipped the current
+   version. An established athlete is never interrupted again. */
+function shouldOfferOnboarding(){
+  if(onboardingState.completedVersion === ONBOARDING_VERSION) return false;
+  if(onboardingState.skipped) return false;
+  return true;
+}
+
+/* ---------- CONTENT ----------
+   Kept as data so a later UI change means editing one entry rather than
+   rewriting the tour. Each step names the real controls that exist today. */
+const ONBOARDING_STEPS = [
+  {
+    id: 'welcome',
+    title: 'Welcome to LOOP',
+    body: 'Your personal training system. Log what you actually do, and LOOP builds a picture of your training over time.',
+    visual: () => `
+      <div class="ob-hero">
+        <div class="ob-hero-mark">LOOP<span class="ob-hero-dot">.</span></div>
+        <div class="ob-hero-sub">Train · Log · Progress</div>
+      </div>`
+  },
+  {
+    id: 'today',
+    title: 'Today',
+    body: 'Your starting point. Today shows the workout you have scheduled, how you are feeling, and where you are in your program.',
+    visual: () => `
+      <div class="ob-mock">
+        <div class="ob-mock-label">TODAY'S WORKOUT</div>
+        <div class="ob-mock-title">Upper Body</div>
+        <div class="ob-mock-meta">Upper A · 8 exercises · ~50 min</div>
+        <div class="ob-mock-cta ob-spot">Start Workout</div>
+      </div>`
+  },
+  {
+    id: 'start',
+    title: 'Start a workout',
+    body: 'One tap opens your session. LOOP saves every set as you go, so closing the app or locking your phone never loses your workout.',
+    visual: () => `
+      <div class="ob-mock">
+        <div class="ob-mock-row"><span class="ob-mock-key">Autosaved</span><span class="ob-mock-val">every set</span></div>
+        <div class="ob-mock-row"><span class="ob-mock-key">Phone locks</span><span class="ob-mock-val">nothing lost</span></div>
+        <div class="ob-mock-row"><span class="ob-mock-key">Come back later</span><span class="ob-mock-val">resume where you left</span></div>
+      </div>`
+  },
+  {
+    id: 'logging',
+    title: 'Logging a set',
+    body: 'Set the weight and reps, then mark the set complete. Set Type records how the set was performed — working, warm-up, drop, failure or AMRAP.',
+    visual: () => `
+      <div class="ob-mock">
+        <div class="ob-mock-controls">
+          <div class="ob-mock-ctrl"><span class="ob-mock-unit">LB</span><span class="ob-mock-stepper">– 225 +</span></div>
+          <div class="ob-mock-ctrl"><span class="ob-mock-unit">REPS</span><span class="ob-mock-stepper">– 8 +</span></div>
+        </div>
+        <div class="ob-mock-ctrl ob-spot" style="margin-top:8px">
+          <span class="ob-mock-unit">SET TYPE</span><span class="ob-mock-select">Working ▾</span>
+        </div>
+      </div>`
+  },
+  {
+    id: 'tools',
+    title: 'Tools while you train',
+    body: 'Warm-up prepares you for the session. Short on time? Change the time and LOOP trims today’s workout. Machine taken? Replace swaps in a sensible alternative.',
+    visual: () => `
+      <div class="ob-mock">
+        <div class="ob-tool"><span class="ob-tool-name">Warm-up</span><span class="ob-tool-desc">3–5 min, built for today’s session</span></div>
+        <div class="ob-tool"><span class="ob-tool-name">Change time</span><span class="ob-tool-desc">Fit the session into 15–90 min</span></div>
+        <div class="ob-tool"><span class="ob-tool-name">Replace exercise</span><span class="ob-tool-desc">Ranked alternatives that keep the intent</span></div>
+      </div>`
+  },
+  {
+    id: 'readiness',
+    title: 'Readiness and recovery',
+    body: 'Tell LOOP how you feel each day. That is kept separate from muscle recovery, which is estimated from the training you have actually logged.',
+    visual: () => `
+      <div class="ob-mock">
+        <div class="ob-mock-row"><span class="ob-mock-key">Readiness</span><span class="ob-mock-val">what you report</span></div>
+        <div class="ob-mock-row"><span class="ob-mock-key">Recovery</span><span class="ob-mock-val">estimated from your logs</span></div>
+        <div class="ob-note">Both are training context, not medical advice.</div>
+      </div>`
+  },
+  {
+    id: 'programs',
+    title: 'Programs and progress',
+    body: 'Plans hold your workouts. Programs organise them into weeks and blocks over a longer cycle. Progress shows how your training is actually going.',
+    visual: () => `
+      <div class="ob-mock">
+        <div class="ob-mock-label">SUMMER HYPERTROPHY</div>
+        <div class="ob-mock-week">Week 6 <span>/ 12</span></div>
+        <div class="ob-mock-phase">Progressive Overload</div>
+        <div class="ob-mock-bar"><span style="width:50%"></span></div>
+      </div>`
+  },
+  {
+    id: 'intelligence',
+    title: 'LOOP is learning',
+    body: 'As you log training, LOOP builds up your capability, recovery and history. It records what it would suggest so the guidance can be checked against real training before it ever changes your workout.',
+    visual: () => `
+      <div class="ob-mock">
+        <div class="ob-mock-row"><span class="ob-mock-key">Learns from</span><span class="ob-mock-val">your logged training</span></div>
+        <div class="ob-mock-row"><span class="ob-mock-key">Right now</span><span class="ob-mock-val">observing, not deciding</span></div>
+        <div class="ob-note">You stay in control of every workout.</div>
+      </div>`
+  }
+];
+
+/* ---------- RUNNER ---------- */
+let onboardingIndex = 0;
+
+function startOnboarding(){
+  onboardingIndex = 0;
+  renderOnboardingStep();
+  const ov = document.getElementById('onboardingOverlay');
+  if(ov) ov.classList.add('open');
+  document.body.classList.add('page-locked');
+}
+/* Skip exits immediately — no confirmation, no second chance prompt. */
+function skipOnboarding(){
+  onboardingState.skipped = true;
+  persistOnboarding();
+  closeOnboarding();
+}
+function finishOnboarding(){
+  onboardingState.completedVersion = ONBOARDING_VERSION;
+  onboardingState.completedAt = new Date().toISOString();
+  onboardingState.skipped = false;
+  persistOnboarding();
+  closeOnboarding();
+}
+function closeOnboarding(){
+  const ov = document.getElementById('onboardingOverlay');
+  if(ov) ov.classList.remove('open');
+  document.body.classList.remove('page-locked');
+}
+function onboardingNext(){
+  if(onboardingIndex >= ONBOARDING_STEPS.length - 1){ finishOnboarding(); return; }
+  onboardingIndex++;
+  renderOnboardingStep();
+}
+function onboardingBack(){
+  if(onboardingIndex === 0) return;
+  onboardingIndex--;
+  renderOnboardingStep();
+}
+
+function renderOnboardingStep(){
+  const body = document.getElementById('onboardingBody');
+  if(!body) return;
+  const step = ONBOARDING_STEPS[onboardingIndex];
+  const total = ONBOARDING_STEPS.length;
+  const isLast = onboardingIndex === total - 1;
+  const dots = ONBOARDING_STEPS.map((_, i) =>
+    `<span class="ob-dot${i === onboardingIndex ? ' now' : (i < onboardingIndex ? ' done' : '')}"></span>`).join('');
+
+  body.innerHTML = `
+    <div class="ob-step" data-step="${escapeAttr(step.id)}">
+      <div class="ob-visual">${step.visual()}</div>
+      <div class="ob-title">${escapeHtml(step.title)}</div>
+      <div class="ob-body">${escapeHtml(step.body)}</div>
+    </div>`;
+
+  const dotsEl = document.getElementById('onboardingDots');
+  if(dotsEl) dotsEl.innerHTML = dots;
+  const backBtn = document.getElementById('onboardingBack');
+  if(backBtn) backBtn.style.visibility = onboardingIndex === 0 ? 'hidden' : 'visible';
+  const nextBtn = document.getElementById('onboardingNext');
+  if(nextBtn) nextBtn.textContent = isLast ? 'Start training' : 'Continue';
+}
+
+/* ---------- CONTEXTUAL HINTS ----------
+   One line, once, only where the feature actually is. A hint never blocks
+   the control it describes. */
+const ONBOARDING_HINTS = {
+  setType:  'Set Type records how a set was performed — warm-up, working, drop, failure or AMRAP.',
+  timeMode: 'Short on time? Pick how long you have and LOOP trims today’s session, not your plan.',
+  replace:  'Can’t use this exercise? LOOP ranks alternatives that keep the same training intent.',
+  programs: 'Programs organise your plan into weeks and blocks over a longer training cycle.',
+  notes:    'Notes are your own memory for an exercise. LOOP shows them again next time.'
+};
+function hasSeenHint(id){ return !!(onboardingState.hintsSeen && onboardingState.hintsSeen[id]); }
+function markHintSeen(id){
+  onboardingState.hintsSeen[id] = new Date().toISOString();
+  persistOnboarding();
+}
+/* Returns the markup for a hint the first time only; '' afterwards. */
+function hintHtml(id){
+  if(!ONBOARDING_HINTS[id] || hasSeenHint(id)) return '';
+  return `
+    <div class="ob-hint" id="hint-${escapeAttr(id)}">
+      <span class="ob-hint-text">${escapeHtml(ONBOARDING_HINTS[id])}</span>
+      <button class="ob-hint-x" onclick="dismissHint('${escapeAttr(id)}')" aria-label="Dismiss">✕</button>
+    </div>`;
+}
+function dismissHint(id){
+  markHintSeen(id);
+  const el = document.getElementById('hint-' + id);
+  if(el) el.remove();
+}
+/* Renders a hint into a container if it has not been seen. */
+function showHintIn(containerId, hintId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  const html = hintHtml(hintId);
+  if(html) el.innerHTML = html + el.innerHTML;
+}
+
+/* ---------- SETTINGS REPLAY ----------
+   Replaying only re-opens the tour. It never resets training data, and it
+   does not clear hints the athlete has already dismissed. */
+function replayOnboarding(){
+  closeSettings();
+  startOnboarding();
 }
 
 /* =========================================================
@@ -12483,7 +12886,19 @@ function doAddPhase(){ openPhaseEditor(null); }
 function programContextHtml(){
   let p = null;
   try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ return ''; }
-  if(!p) return '';
+  /* With no program, Today still names the feature and offers the way in —
+     Programs used to be reachable only by digging through Settings. Quiet
+     enough that it never competes with Start Workout. */
+  if(!p){
+    let none = false;
+    try{ none = getPrograms().length === 0; }catch(e){ return ''; }
+    if(!none) return '';
+    return `
+      <button class="tw-program tw-program-empty" onclick="openPrograms()">
+        <span class="tw-program-name">No active program</span>
+        <span class="tw-program-meta">Set one up ›</span>
+      </button>`;
+  }
   const prog = getProgramProgress(p);
   if(!prog) return '';
   // The phase itself is rendered by programPhaseLineHtml() on its own row.
@@ -12500,6 +12915,7 @@ function openPrograms(){
   closeSettings();
   renderProgramsList();
   document.getElementById('programsOverlay').classList.add('open');
+  showHintIn('programsBody', 'programs');
 }
 function closePrograms(){ document.getElementById('programsOverlay').classList.remove('open'); }
 
@@ -13410,6 +13826,7 @@ function openSubstitutions(btn){
     : `<div class="sub-empty">No close alternative found for this exercise. You can still rename it or pick another from the swap list.</div>`;
 
   document.getElementById('subOverlay').classList.add('open');
+  showHintIn('subBody', 'replace');
 }
 function closeSubstitutions(){
   document.getElementById('subOverlay').classList.remove('open');
@@ -15213,6 +15630,7 @@ function openSetTypePicker(btn){
       </button>`).join('');
   }
   document.getElementById('setTypeOverlay').classList.add('open');
+  showHintIn('setTypeBody', 'setType');
 }
 function closeSetTypePicker(){
   document.getElementById('setTypeOverlay').classList.remove('open');

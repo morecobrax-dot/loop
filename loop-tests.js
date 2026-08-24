@@ -4744,8 +4744,16 @@ async function testProgramIntegration(){
       ctx.getCurrentProgramWeek() === null && ctx.getCurrentTrainingBlock() === null);
     T('progress is null rather than fabricated', ctx.getProgramProgress() === null);
     T('missed days are empty rather than invented', ctx.getMissedProgramDays().length === 0);
-    T('the Today program strip renders nothing', ctx.programContextHtml() === '');
-    T('no programs key is written until a program exists', app.store.programs === undefined);
+    /* Behaviour intentionally changed in D8. Programs used to be reachable
+       only through Settings, so Today now NAMES the feature and offers the
+       way in when the athlete has none. It still shows no program state and
+       still fabricates nothing — it is an entry point, not a fake program. */
+    const strip = ctx.programContextHtml();
+    T('Today surfaces Programs when the athlete has none', strip.indexOf('No active program') !== -1);
+    T('it offers a way in', strip.indexOf('openPrograms()') !== -1);
+    T('it invents no week, phase or program name',
+      strip.indexOf('Week') === -1 && strip.indexOf('Phase') === -1);
+    T('no programs key is written just by rendering it', app.store.programs === undefined);
   }
 
   sub('a program schedules Today without breaking Time Mode');
@@ -5474,6 +5482,214 @@ async function testWarmupReturnsToWorkout(){
   T('no trainer records created', ctx.trainerLog.entries.length === 0);
   T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
+
+/* =========================================================
+   CONTRACT 61-62 — ONBOARDING & DISCOVERY  (Phase D8)
+   ---------------------------------------------------------
+   The tour must teach without trapping: skippable in one tap,
+   never shown twice unasked, replayable from Settings, and
+   incapable of touching a single piece of training data.
+   ========================================================= */
+function testOnboarding(app){
+  section('CONTRACT 61 — onboarding content, flow and honesty');
+  const ctx = app.ctx;
+  ctx.onboardingState = ctx.defaultOnboardingState();
+
+  sub('storage is minimal and versioned');
+  T('onboarding has its own key', ctx.ONBOARDING_KEY === 'onboarding');
+  T('registered in DATA_KEYS', ctx.DATA_KEYS.includes('onboarding'));
+  T('a version is declared', ctx.ONBOARDING_VERSION >= 1);
+  T('default state stores no training data',
+    JSON.stringify(Object.keys(ctx.defaultOnboardingState()).sort()) ===
+    JSON.stringify(['completedAt','completedVersion','hintsSeen','skipped','version']));
+  T('schema version untouched', ctx.DATA_SCHEMA_VERSION === 1);
+
+  sub('the tour is short and teaches a mental model');
+  T('between 6 and 8 steps',
+    ctx.ONBOARDING_STEPS.length >= 6 && ctx.ONBOARDING_STEPS.length <= 8,
+    String(ctx.ONBOARDING_STEPS.length));
+  T('every step has a title', ctx.ONBOARDING_STEPS.every(s => !!s.title));
+  T('every step has one concise explanation',
+    ctx.ONBOARDING_STEPS.every(s => !!s.body && s.body.length <= 260));
+  T('every step has a visual', ctx.ONBOARDING_STEPS.every(s => typeof s.visual === 'function'));
+  T('every visual renders markup',
+    ctx.ONBOARDING_STEPS.every(s => s.visual().trim().indexOf('<') === 0));
+  T('step ids are unique',
+    new Set(ctx.ONBOARDING_STEPS.map(s => s.id)).size === ctx.ONBOARDING_STEPS.length);
+
+  sub('it teaches controls that actually exist');
+  const all = ctx.ONBOARDING_STEPS.map(s => s.title + ' ' + s.body + ' ' + s.visual()).join(' ');
+  T('mentions Set Type', /set type/i.test(all));
+  T('mentions warm-up', /warm-up/i.test(all));
+  T('mentions replace', /replace/i.test(all));
+  T('mentions readiness', /readiness/i.test(all));
+  T('mentions programs', /program/i.test(all));
+  T('mentions autosave', /saves|autosaved/i.test(all));
+  /* Membership, not order — the copy lists them in reading order
+     ("working, warm-up, drop, failure or AMRAP"), which is a writing choice,
+     not a contract. What matters is that all five real types are named. */
+  T('the set types named are the real five',
+    ['warm-up','working','drop','failure','AMRAP'].every(t => new RegExp(t, 'i').test(all)));
+
+  sub('it is honest about the trainer');
+  T('never claims LOOP picks weights for you',
+    !/perfect weight|chooses your weight|decides your/i.test(all));
+  T('never claims autonomous coaching',
+    !/automatically adjusts your workout|coaches you automatically/i.test(all));
+  T('states LOOP is observing rather than deciding',
+    /observing, not deciding/i.test(all));
+  /* Ban the CLAIM, not the word. The only "medical" in the copy is the
+     disclaimer "not medical advice", which is exactly the wording we want —
+     the earlier version of this assertion failed on its own disclaimer. */
+  T('makes no medical or physiological claim',
+    !/overtrain|diagnos|heals|treats|prevents injury|your body needs/i.test(all));
+  T('and explicitly disclaims medical advice', /not medical advice/i.test(all));
+  T('readiness copy stays context, not diagnosis',
+    /not medical advice/i.test(all));
+
+  sub('flow: continue, back, and finishing');
+  ctx.onboardingIndex = 0;
+  ctx.onboardingNext();
+  T('continue advances', ctx.onboardingIndex === 1);
+  ctx.onboardingBack();
+  T('back returns', ctx.onboardingIndex === 0);
+  ctx.onboardingBack();
+  T('back on the first step is a safe no-op', ctx.onboardingIndex === 0);
+  for(let i = 0; i < ctx.ONBOARDING_STEPS.length + 5; i++) ctx.onboardingNext();
+  T('running past the end completes rather than overflowing',
+    ctx.onboardingState.completedVersion === ctx.ONBOARDING_VERSION);
+  T('completion is timestamped', !!ctx.onboardingState.completedAt);
+  T('a completed tour is not offered again', ctx.shouldOfferOnboarding() === false);
+
+  sub('skip exits immediately and never nags');
+  ctx.onboardingState = ctx.defaultOnboardingState();
+  T('offered to a brand-new athlete', ctx.shouldOfferOnboarding() === true);
+  ctx.skipOnboarding();
+  T('skip is recorded', ctx.onboardingState.skipped === true);
+  T('skip does NOT mark it completed', ctx.onboardingState.completedVersion === null);
+  T('a skipped tour is not offered again', ctx.shouldOfferOnboarding() === false);
+
+  sub('versioning lets a future tour be offered without resetting anyone');
+  ctx.onboardingState = ctx.defaultOnboardingState();
+  ctx.onboardingState.completedVersion = ctx.ONBOARDING_VERSION - 1;
+  T('an older completed version can be offered the new tour',
+    ctx.shouldOfferOnboarding() === true);
+  ctx.onboardingState.completedVersion = ctx.ONBOARDING_VERSION;
+  T('the current version is not re-offered', ctx.shouldOfferOnboarding() === false);
+
+  sub('contextual hints appear once and are dismissible');
+  ctx.onboardingState = ctx.defaultOnboardingState();
+  T('a hint renders the first time', ctx.hintHtml('setType').indexOf('ob-hint') !== -1);
+  T('it carries a dismiss control', ctx.hintHtml('setType').indexOf('dismissHint') !== -1);
+  ctx.markHintSeen('setType');
+  T('it never renders again', ctx.hintHtml('setType') === '');
+  T('other hints are unaffected', ctx.hintHtml('replace').indexOf('ob-hint') !== -1);
+  T('an unknown hint id renders nothing', ctx.hintHtml('nope') === '');
+  T('hints exist for the tools that need them',
+    ['setType','timeMode','replace','programs','notes'].every(k => !!ctx.ONBOARDING_HINTS[k]));
+  T('hint copy is one short line',
+    Object.keys(ctx.ONBOARDING_HINTS).every(k => ctx.ONBOARDING_HINTS[k].length <= 140));
+
+  sub('rapid navigation stays consistent');
+  ctx.onboardingState = ctx.defaultOnboardingState();
+  ctx.onboardingIndex = 0;
+  for(let i = 0; i < 60; i++){ ctx.onboardingNext(); ctx.onboardingBack(); }
+  T('60 rapid next/back cycles leave a valid index',
+    ctx.onboardingIndex >= 0 && ctx.onboardingIndex < ctx.ONBOARDING_STEPS.length);
+  for(let i = 0; i < 30; i++) ctx.skipOnboarding();
+  T('repeated skips are idempotent', ctx.onboardingState.skipped === true);
+}
+
+async function testOnboardingSafety(){
+  section('CONTRACT 62 — onboarding touches no training data');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const notesBefore = app.store.exerciseNotes;
+  const gymBefore = app.store.gymProfile;
+  const programsBefore = app.store.programs;
+  const draftBefore = app.store.activeWorkoutDraft;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const planDataBefore = JSON.stringify(Object.keys(app.store)
+    .filter(k => k.indexOf('planData:') === 0).map(k => app.store[k]));
+
+  sub('run the whole tour, skip it, and replay it');
+  ctx.onboardingState = ctx.defaultOnboardingState();
+  ctx.onboardingIndex = 0;
+  for(let i = 0; i < ctx.ONBOARDING_STEPS.length; i++) ctx.onboardingNext();
+  ctx.skipOnboarding();
+  ctx.startOnboarding();                       // replay
+  for(let i = 0; i < ctx.ONBOARDING_STEPS.length; i++) ctx.onboardingNext();
+  ['setType','timeMode','replace','programs','notes'].forEach(h => { ctx.hintHtml(h); ctx.markHintSeen(h); });
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('exercise notes unchanged', app.store.exerciseNotes === notesBefore);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('programs unchanged', app.store.programs === programsBefore);
+  T('plans unchanged',
+    JSON.stringify(Object.keys(app.store).filter(k => k.indexOf('planData:') === 0)
+      .map(k => app.store[k])) === planDataBefore);
+  T('drafts preserved', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('replaying is not a reset');
+  T('replay did not clear completion',
+    ctx.onboardingState.completedVersion === ctx.ONBOARDING_VERSION);
+  T('replay did not clear dismissed hints',
+    Object.keys(ctx.onboardingState.hintsSeen).length >= 5);
+
+  sub('trainer');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by the tour',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+  T('no shadow recommendation is exposed in tour copy',
+    !ctx.ONBOARDING_STEPS.map(s => s.body).join(' ').match(/recommend(s|ed)? \d|suggests \d/));
+
+  sub('source-level isolation');
+  {
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    const titleAt = src.indexOf('ONBOARDING & CONTEXTUAL DISCOVERY');
+    const start = src.lastIndexOf('/*', titleAt);
+    const end = src.indexOf('PROGRAM BUILDER & TRAINING BLOCKS');
+    const code = src.slice(start, end).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    T('module located', titleAt !== -1 && end > start);
+    T('it writes only its own key',
+      (code.match(/LOOPStore\.set\(/g) || []).length === 1 &&
+      code.indexOf('LOOPStore.set(ONBOARDING_KEY') !== -1);
+    T('it never mentions workoutLog or trainerLog in code',
+      code.indexOf('workoutLog') === -1 && code.indexOf('trainerLog') === -1);
+    T('it calls no trainer or recovery function',
+      !/proposeTrainerState|computeShadowRecommendation|computeMuscleRecovery\(/.test(code));
+
+    sub('discoverability contracts');
+    T('Settings offers a replayable tour', /Getting Started/.test(src));
+    T('the replay action is wired', /replayOnboarding\(\)/.test(src));
+    T('Today surfaces Programs when there is none', /No active program/.test(src));
+    T('the tour never blocks the app — it is offered after showMainApp',
+      /showMainApp[\s\S]{0,600}shouldOfferOnboarding/.test(src));
+    T('skip has no confirmation dialog',
+      !/skipOnboarding[\s\S]{0,200}confirm\(/.test(src));
+  }
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -5517,6 +5733,7 @@ async function main(){
   testProgramModel(H.loadApp());
   testTrainingPhases(H.loadApp());
   testUXContracts(H.loadApp());
+  testOnboarding(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -5549,6 +5766,7 @@ async function main(){
     await testProgramSafety();
     await testPhaseIsolation();
     await testWarmupReturnsToWorkout();
+    await testOnboardingSafety();
   }
 
   // ---- FULL ----

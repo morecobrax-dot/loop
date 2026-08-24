@@ -248,3 +248,42 @@ When a protected contract breaks, the suite prints the **system**, the
    wrong, not the app.
 
 **Never make a failing test pass by loosening it without explanation.**
+
+---
+
+## 11. Product quality gate (from Phase D8)
+
+Functional correctness is no longer the bar. A feature that works but cannot
+be found has not shipped. Before considering any future change complete, answer:
+
+| | |
+|---|---|
+| **Discoverability** | Can a new user find it without being told? |
+| **Clarity** | Do they understand what it does before tapping? |
+| **Context** | Does it appear where it is actually needed? |
+| **Hierarchy** | Is its importance obvious from the layout? |
+| **Friction** | How many taps does the common path take? |
+| **Learnability** | Would a first-time user work it out unaided? |
+| **Recovery** | Can they escape or undo? |
+| **Consistency** | Does it behave like similar features in LOOP? |
+| **Mobile** | Verified at 375×812 and 390×844, portrait and landscape? |
+
+Working rules that follow from this:
+
+- **A label beats an icon** for anything non-universal. `SET TYPE / Working ▾`
+  rather than `⋯`. Back, close and settings icons are fine as-is.
+- **Don't add a button because a feature exists.** Ask where a user would
+  naturally look for it, and put it there. Programs living only in Settings
+  was the example that motivated this rule.
+- **Don't make everything louder — make everything clearer.** Solve
+  discoverability with hierarchy and progressive disclosure, not by surfacing
+  every control at once. A beginner should see simplicity; depth should be
+  discoverable.
+- **Onboarding must stay true.** `ONBOARDING_STEPS` teaches real controls. If
+  a control is renamed or removed, update the step in the same commit — the
+  tour is data, so this is a one-line change.
+- **Never overstate the trainer.** It is shadow-only. Copy may say LOOP is
+  learning and records what it would suggest; it may not say LOOP decides,
+  adjusts, or knows the right weight.
+- **Measure, don't assume.** Geometry claims (touch targets, overflow, font
+  sizes) come from a real rendered browser, not from reading CSS.
