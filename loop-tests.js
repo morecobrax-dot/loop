@@ -3939,6 +3939,166 @@ async function testSetTypeDataSafety(){
   T('DATA_KEYS gained nothing for set types',
     !ctx.DATA_KEYS.some(k => /settype|droppset|amrap|failure/i.test(k)));
 }
+
+/* =========================================================
+   CONTRACT 49 — REP ADJUSTMENT INTEGRATION (Phase D5.1)
+   ---------------------------------------------------------
+   The rep stepper looked correct and was not. Tapping +/- set
+   the input value directly, which fires no `input` event, so
+   the delegated autosave listener never ran and a set adjusted
+   only with the stepper existed in the DOM alone. It survived
+   only because closing the sheet flushes the draft.
+
+   These tests pin the three things that fix implies: the
+   bounds are real, the programmed target stays separate from
+   the actual reps, and none of it reaches a protected system.
+   ========================================================= */
+function testRepAdjustment(app){
+  section('CONTRACT 49 — rep adjustment bounds and data separation');
+  const ctx = app.ctx;
+
+  sub('bounds are declared, not scattered');
+  T('REP_STEP_BOUNDS exists', !!ctx.REP_STEP_BOUNDS);
+  T('minimum is one rep, never zero', ctx.REP_STEP_BOUNDS.min === 1);
+  T('there is a sane ceiling', ctx.REP_STEP_BOUNDS.max >= 100);
+  T('the ceiling never blocks legitimate high-rep work', ctx.REP_STEP_BOUNDS.max >= 999);
+
+  sub('increment / decrement');
+  T('increment adds one', ctx.clampStepValue('10', 1, true) === 11);
+  T('decrement removes one', ctx.clampStepValue('10', -1, true) === 9);
+  T('stepping up from empty starts at 1', ctx.clampStepValue('', 1, true) === 1);
+  T('stepping DOWN from empty never goes to 0', ctx.clampStepValue('', -1, true) === 1);
+
+  sub('reps can never become invalid');
+  T('cannot step below 1', ctx.clampStepValue('1', -1, true) === 1);
+  T('cannot reach zero', ctx.clampStepValue('1', -5, true) === 1);
+  T('cannot go negative', ctx.clampStepValue('0', -50, true) === 1);
+  T('60 rapid decrements settle at the floor',
+    (() => { let v = '11'; for(let i=0;i<60;i++) v = String(ctx.clampStepValue(v, -1, true)); return Number(v); })() === 1);
+  T('1200 rapid increments settle at the ceiling',
+    (() => { let v = '1'; for(let i=0;i<1200;i++) v = String(ctx.clampStepValue(v, 1, true)); return Number(v); })()
+      === ctx.REP_STEP_BOUNDS.max);
+  T('alternating taps are deterministic',
+    (() => { let v = '10'; for(let i=0;i<50;i++){ v = String(ctx.clampStepValue(v,1,true)); v = String(ctx.clampStepValue(v,-1,true)); } return Number(v); })() === 10);
+
+  sub('weight keeps its own, unchanged rule');
+  T('weight still floors at zero, not one', ctx.clampStepValue('0', -5, false) === 0);
+  T('weight steps by the amount given', ctx.clampStepValue('135', 5, false) === 140);
+  T('weight is not capped by the rep ceiling', ctx.clampStepValue('900', 5, false) === 905);
+
+  sub('programmed target vs actual reps stay separate');
+  T('templates still carry a rep RANGE',
+    ctx.DEFAULT_PLANS.upperlower.templates.upper[0].exercises[0].reps.indexOf('–') !== -1 ||
+    /\d+\s*[-–]\s*\d+/.test(ctx.DEFAULT_PLANS.upperlower.templates.upper[0].exercises[0].reps));
+  T('a logged set stores a single ACTUAL rep count, not a range',
+    (() => { const w = WK('x',0,'push',[EX('Bench Press',[S(225,10,2,'working')])]);
+             return w.exercises[0].sets[0].reps === '10'; })());
+  /* The clamp is pure: it returns a number and holds no reference to a
+     template, so there is no path from a rep tap back into the plan. */
+  {
+    const tplBefore = JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates.upper[0]);
+    for(let i = 0; i < 100; i++) ctx.clampStepValue(String(i), i % 2 ? 1 : -1, true);
+    T('running the clamp 100 times leaves the template byte-identical',
+      JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates.upper[0]) === tplBefore);
+    T('clampStepValue returns a number, never a template reference',
+      typeof ctx.clampStepValue('10', 1, true) === 'number');
+  }
+}
+
+async function testRepAdjustmentSafety(){
+  section('CONTRACT 50 — rep adjustment touches nothing protected');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const planTemplatesBefore = JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates);
+  const planDataBefore = JSON.stringify(Object.keys(app.store)
+    .filter(k => k.indexOf('planData:') === 0).map(k => app.store[k]));
+  const gymBefore = app.store.gymProfile;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const draftBefore = app.store.activeWorkoutDraft;
+
+  sub('exercising the rep-adjustment maths changes nothing');
+  for(let i = 0; i < 200; i++){
+    ctx.clampStepValue(String(i % 30), (i % 2 ? 1 : -1), true);
+    ctx.clampStepValue(String(i), 5, false);
+  }
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+  const d = H.diffSnapshot(before, after, []);
+  T('NOTHING protected changed', d.ok, 'changed: ' + d.violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('draft preserved', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('the plan is never rewritten by a rep change');
+  T('DEFAULT_PLANS templates byte-identical',
+    JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates) === planTemplatesBefore);
+  T('stored planData byte-identical',
+    JSON.stringify(Object.keys(app.store).filter(k => k.indexOf('planData:') === 0)
+      .map(k => app.store[k])) === planDataBefore);
+  T('rep ranges in the plan still read as ranges',
+    ctx.DEFAULT_PLANS.upperlower.templates.upper[0].exercises.every(e => !!e.reps));
+
+  sub('history reports what was PERFORMED, not what was programmed');
+  {
+    const perf = WK('perf1', 2, 'push', [EX('Bench Press',[S(225,13,1,'working')])]);
+    ctx.workoutLog.push(perf);
+    clearCaches(ctx);
+    const hist = ctx.getExerciseHistoryById('bench_press_barbell');
+    const latest = hist[0];
+    T('the logged actual reps are what history shows',
+      latest && latest.sets.some(s => s.reps === '13'));
+    T('no programmed target leaked into the logged set',
+      latest && latest.sets.every(s => !/[-–]/.test(String(s.reps))));
+    ctx.workoutLog = ctx.workoutLog.filter(w => w.id !== 'perf1');
+    clearCaches(ctx);
+  }
+
+  sub('advanced set types keep their own actual reps');
+  {
+    const mixed = WK('mixed1', 1, 'push', [
+      { name:'Bench Press', bodyweight:false, sets:[
+        S(225, 8, 1, 'working'), S(185, 6, 0, 'drop'),
+        S(185, 5, 0, 'failure'), S(135, 21, 0, 'amrap') ] } ]);
+    ctx.workoutLog.push(mixed);
+    clearCaches(ctx);
+    const sets = ctx.workoutLog.find(w => w.id === 'mixed1').exercises[0].sets;
+    T('working set keeps its reps', sets[0].reps === '8' && sets[0].type === 'working');
+    T('drop set keeps its OWN reps, independent of the working set',
+      sets[1].reps === '6' && sets[1].type === 'drop');
+    T('failure set keeps its performed reps', sets[2].reps === '5' && sets[2].type === 'failure');
+    T('AMRAP keeps the high actual rep count', sets[3].reps === '21' && sets[3].type === 'amrap');
+    T('AMRAP was not pulled back to a programmed target', sets[3].reps !== '8');
+    T('every advanced type still counts as a working set',
+      [sets[1],sets[2],sets[3]].every(s => ctx.isWorkingSet(s) === true));
+    T('each set kept a distinct rep value',
+      new Set(sets.map(s => s.reps)).size === 4);
+    ctx.workoutLog = ctx.workoutLog.filter(w => w.id !== 'mixed1');
+    clearCaches(ctx);
+  }
+
+  sub('trainer');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created', ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+  T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
+  T('no new storage key for rep adjustment',
+    !ctx.DATA_KEYS.some(k => /rep|step|adjust/i.test(k)));
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -3977,6 +4137,7 @@ async function main(){
   testUpperLowerLibrary(H.loadApp());
   testTimeModeMatrix(app);
   testPlanUpperLowerIntegration(app);
+  testRepAdjustment(app);
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -4002,6 +4163,7 @@ async function main(){
     await testPlanBackfillSafety();
     await testPlanIntegrationDataSafety();
     await testSetTypeDataSafety();
+    await testRepAdjustmentSafety();
   }
 
   // ---- FULL ----

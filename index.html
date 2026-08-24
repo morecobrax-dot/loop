@@ -13209,20 +13209,40 @@ function renumberSets(setsList){
   setsList.querySelectorAll('.set-row').forEach((r,i)=> r.querySelector('.set-idx').textContent = 'Set '+(i+1));
 }
 
+/* Reps are whole efforts, so the stepper never walks one to zero — a logged
+   set of 0 reps is not a set. The ceiling only exists to stop a stuck finger
+   producing nonsense; it is high enough that genuine high-rep and bodyweight
+   work is never blocked. Typing is left unclamped so entry is never fought
+   mid-keystroke. */
+const REP_STEP_BOUNDS = { min: 1, max: 999 };
+
+/* Pure so the bounds can be asserted directly rather than only through the
+   DOM. `current` is the raw input string, which may be empty. */
+function clampStepValue(current, delta, isReps){
+  const val = (parseFloat(current) || 0) + delta;
+  return isReps
+    ? Math.min(REP_STEP_BOUNDS.max, Math.max(REP_STEP_BOUNDS.min, val))
+    : Math.max(0, val);
+}
+
 function stepValue(btn, delta){
   const stepper = btn.closest('.stepper');
   const input = stepper.querySelector('input');
-  let val = parseFloat(input.value) || 0;
-  val = Math.max(0, val + delta);
-  input.value = val;
+  const isReps = input.classList.contains('set-reps-in');
+  input.value = clampStepValue(input.value, delta, isReps);
   // The stepper sets .value directly, which does not fire `oninput`, so the
   // same propagation the typed path gets has to be triggered here too.
   if(input.classList.contains('set-weight-in')){
     maybeRefreshWarmup(input);
     propagateWeightForward(input);
-  } else if(input.classList.contains('set-reps-in')){
+  } else if(isReps){
     propagateRepsForward(input);
   }
+  /* ...and for the same reason the delegated autosave listener never sees a
+     stepper tap. Without this a set adjusted only with +/- lives in the DOM
+     alone, and is lost if the app is killed before any other event fires.
+     Uses the existing debounced draft save, not a second save path. */
+  scheduleDraftSave();
 }
 
 function maybeRefreshWarmup(weightInput){
