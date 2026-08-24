@@ -797,6 +797,182 @@ html.intro-skip #introOverlay{ display: none !important; }
 }
 @media (prefers-reduced-motion: reduce){ .ready-expand{ animation: none; } }
 
+.snap-empty{ grid-column: 1 / -1; font-size: 12px; color: var(--text-faint); line-height: 1.55; padding: 4px 0; }
+
+/* ---- Cardio ---- */
+/* Activity tones. Presentation only — these carry no data meaning. */
+.cd-glyph{
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; line-height: 1;
+}
+.cd-glyph-lg{ width: 44px; height: 44px; font-size: 17px; }
+.cd-tone-run{     background: rgba(91,140,255,0.14);  color: #5B8CFF; }
+.cd-tone-walk{    background: rgba(75,156,129,0.14);  color: #4B9C81; }
+.cd-tone-cycle{   background: rgba(189,146,96,0.14);  color: #BD9260; }
+.cd-tone-climb{   background: rgba(199,127,79,0.14);  color: #C77F4F; }
+.cd-tone-machine{ background: rgba(133,121,176,0.14); color: #8579B0; }
+.cd-tone-water{   background: rgba(79,163,199,0.14);  color: #4FA3C7; }
+.cd-tone-outdoor{ background: rgba(184,116,140,0.14); color: #B8748C; }
+.cd-tone-other{   background: var(--surface-3);       color: var(--text-dim); }
+
+/* Hero — one number that matters, with the primary action attached */
+.cd-hero{
+  margin-top: 10px; padding: 20px; border-radius: var(--radius-xl);
+  background: linear-gradient(160deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border);
+}
+.cd-hero-top{ display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.cd-hero-label{ font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
+.cd-hero-num{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; color: var(--text); margin-top: 6px; }
+.cd-hero-num span{ font-size: 16px; color: var(--text-faint); margin-left: 6px; font-weight: 500; }
+.cd-hero-sub{ font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+.cd-streak{ flex-shrink: 0; text-align: center; padding: 10px 14px; border-radius: var(--radius-lg);
+  background: var(--success-soft); border: 1px solid var(--success); }
+.cd-streak-num{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 26px; line-height: 1; color: var(--success); }
+.cd-streak-lbl{ font-size: 8.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--success); margin-top: 4px; line-height: 1.3; }
+.cd-start{
+  width: 100%; margin-top: 18px; min-height: 52px; border: none; border-radius: var(--radius-md);
+  background: var(--accent); color: #0C0E12; font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: var(--shadow-accent);
+  transition: transform 0.1s var(--ease);
+}
+.cd-start:active{ transform: scale(0.985); }
+
+.cd-hero-empty{ text-align: center; padding: 34px 22px; }
+.cd-hero-glyph{ font-size: 34px; color: var(--accent); opacity: 0.65; }
+.cd-hero-empty-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 19px; color: var(--text); margin-top: 12px; }
+.cd-hero-empty-sub{ font-size: 12.5px; color: var(--text-faint); margin-top: 8px; line-height: 1.55; }
+
+/* Activity picker */
+.cd-act-grid{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+.cd-act{
+  min-height: 58px; padding: 11px 12px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.cd-act:hover{ border-color: var(--accent); }
+.cd-act:active{ transform: scale(0.98); }
+.cd-act-name{ font-size: 12.5px; font-weight: 600; line-height: 1.25; }
+
+/* Selected activity header */
+.cd-selected{
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 15px; border-radius: var(--radius-lg);
+  background: var(--surface-2); border: 1px solid var(--border); margin-top: 6px;
+}
+.cd-selected-label{ font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.cd-selected-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; color: var(--text); margin-top: 2px; }
+.cd-change{ background: none; border: none; color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 10px 4px; flex-shrink: 0; }
+
+/* Form */
+.cd-grid{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.cd-field{ display: flex; flex-direction: column; gap: 6px; }
+.cd-field-label{ font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
+.cd-unit{ color: var(--text-faint); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.cd-input{
+  width: 100%; min-height: 50px; padding: 12px 13px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  font-family: 'JetBrains Mono', monospace; font-size: 16px; -webkit-appearance: none;
+  transition: border-color 0.15s var(--ease);
+}
+.cd-input:focus{ outline: none; border-color: var(--accent); background: var(--surface-3); }
+.cd-more{
+  width: 100%; margin-top: 14px; min-height: 44px; padding: 11px; border-radius: var(--radius-md);
+  background: none; border: 1px solid var(--border); color: var(--text-dim);
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.cd-more span{ color: var(--text-faint); margin-left: 4px; }
+
+/* Recent list */
+.cd-list{ display: flex; flex-direction: column; }
+.cd-row{
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 0; border-bottom: 1px solid var(--border); cursor: pointer; min-height: 62px;
+}
+.cd-row:last-child{ border-bottom: none; }
+.cd-row:active{ opacity: 0.6; }
+.cd-row-main{ flex: 1; min-width: 0; }
+.cd-row-name{ font-size: 13.5px; font-weight: 600; color: var(--text); }
+.cd-row-meta{ font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.cd-row-right{ flex-shrink: 0; text-align: right; }
+.cd-row-date{ font-size: 10.5px; color: var(--text-faint); }
+.cd-row-rpe{ font-size: 9.5px; color: var(--text-faint); margin-top: 3px; }
+.cd-more-note{ font-size: 10.5px; color: var(--text-faint); text-align: center; margin-top: 12px; }
+.cd-inline-note{ font-size: 11px; color: var(--text-faint); margin-top: 12px; line-height: 1.5; }
+.cd-inline-note b{ color: var(--text-dim); }
+
+/* Personal bests */
+.cd-pr-list{ display: flex; flex-direction: column; }
+.cd-pr-row{ display: flex; align-items: center; gap: 11px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.cd-pr-row:last-child{ border-bottom: none; }
+.cd-pr-name{ flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.cd-pr-vals{ display: flex; gap: 14px; flex-shrink: 0; }
+.cd-pr-vals span{ display: flex; flex-direction: column; align-items: flex-end;
+  font-size: 8.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
+.cd-pr-vals b{ font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text);
+  letter-spacing: 0; text-transform: none; margin-bottom: 2px; }
+
+/* XP contribution */
+.cd-contrib-bar{ display: flex; gap: 4px; height: 8px; }
+.cd-contrib-seg{ border-radius: var(--radius-sm); }
+.cd-contrib-strength{ background: var(--accent); }
+.cd-contrib-cardio{ background: var(--success); }
+.cd-contrib-legend{ display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 10.5px; color: var(--text-faint); }
+.cd-contrib-legend i{ width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+.cd-note{ font-size: 11px; color: var(--text-faint); line-height: 1.5; margin-top: 12px; }
+
+/* Achievements */
+.cd-ach-list{ display: flex; flex-direction: column; gap: 8px; }
+.cd-ach{ display: flex; align-items: flex-start; gap: 11px; padding: 12px 13px;
+  border-radius: var(--radius-md); background: var(--surface-2); border: 1px solid var(--border); }
+.cd-ach.on{ border-color: var(--success); background: var(--success-soft); }
+.cd-ach-tick{ flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 11px;
+  background: var(--success); color: #0C0E12; }
+.cd-ach-pending{ background: var(--surface-3); color: var(--text-faint); }
+.cd-ach-name{ font-size: 12.5px; font-weight: 700; color: var(--text); }
+.cd-ach-desc{ font-size: 10.5px; color: var(--text-faint); margin-top: 3px; line-height: 1.35; }
+.cd-ach-bar{ height: 4px; background: var(--surface-3); border-radius: var(--radius-sm); margin: 7px 0 5px; overflow: hidden; }
+.cd-ach-fill{ height: 100%; background: var(--accent); border-radius: var(--radius-sm); transition: width 0.5s var(--ease); }
+
+/* Detail sheet */
+.cd-detail-head{ display: flex; align-items: center; gap: 13px; margin-bottom: 18px; }
+.cd-detail-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; color: var(--text); }
+.cd-detail-date{ font-size: 12px; color: var(--text-faint); margin-top: 3px; }
+.cd-detail-stats{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 10px; }
+.cd-detail-stats > div{ font-size: 8.5px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-faint); display: flex; flex-direction: column; gap: 3px; }
+.cd-detail-stats span{ font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700;
+  color: var(--text); letter-spacing: 0; text-transform: none; }
+.cd-detail-notes{ margin-top: 18px; padding: 12px 14px; border-radius: var(--radius-md);
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 12.5px;
+  color: var(--text-dim); line-height: 1.5; }
+.cd-detail-actions{ display: flex; gap: 10px; margin-top: 22px; }
+.cd-detail-actions > *{ flex: 1; }
+
+/* Today entry point */
+.today-cardio-link{
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  margin-top: 10px; padding: 12px 14px; border-radius: var(--radius-md);
+  background: var(--surface-3); border: 1px solid var(--border);
+  color: var(--text-dim); cursor: pointer; text-align: left;
+}
+.today-cardio-link:active{ opacity: 0.7; }
+.tcl-glyph{ flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(75,156,129,0.14); color: var(--success);
+  display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.tcl-text{ flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
+  display: flex; flex-direction: column; gap: 2px; }
+.tcl-text span{ font-size: 10.5px; font-weight: 400; color: var(--text-faint); }
+.tcl-go{ flex-shrink: 0; color: var(--accent); font-size: 16px; font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce){
+  .cd-ach-fill{ transition: none; }
+  .cd-start:active{ transform: none; }
+}
+
 /* ---- Shadow feedback chips (optional, one tap) ---- */
 .fb-strip{ display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .fb-label{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin-right: 2px; }
@@ -1646,7 +1822,7 @@ body.page-locked{ overflow: hidden; }
     <div id="todayWorkout"></div>
 
     <!-- LEVEL 2 — how am I doing -->
-    <div class="sec-head">Training Snapshot</div>
+    <div class="sec-head" id="todaySnapshotHead">Training Snapshot</div>
     <div class="snapshot" id="todaySnapshot"></div>
     <div id="todayInsights"></div>
 
@@ -1737,6 +1913,11 @@ body.page-locked{ overflow: hidden; }
     </div>
   </div>
 
+  <div class="view" id="view-cardio">
+    <div class="sec-head" style="margin-top:6px">Cardio</div>
+    <div id="cardioBody"></div>
+  </div>
+
   <div class="view" id="view-history">
     <button class="custom-log-btn" onclick="openFreeformLog()">+ Log a freeform workout</button>
 
@@ -1794,9 +1975,37 @@ body.page-locked{ overflow: hidden; }
 
   <div class="tabbar">
     <button class="tab-btn active" data-tab="today" onclick="switchTab('today')"><span class="glyph">◆</span>Today</button>
-    <button class="tab-btn" data-tab="train" onclick="switchTab('train')"><span class="glyph">TR</span>Train</button>
-    <button class="tab-btn" data-tab="progress" onclick="switchTab('progress')"><span class="glyph">PR</span>Progress</button>
+    <button class="tab-btn" data-tab="train" onclick="switchTab('train')"><span class="glyph">▤</span>Train</button>
+    <button class="tab-btn" data-tab="progress" onclick="switchTab('progress')"><span class="glyph">▲</span>Progress</button>
+    <button class="tab-btn" data-tab="cardio" onclick="switchTab('cardio')"><span class="glyph">◉</span>Cardio</button>
     <button class="tab-btn" data-tab="history" onclick="switchTab('history')"><span class="glyph">≡</span>Log</button>
+  </div>
+</div>
+
+<!-- CARDIO LOGGER -->
+<div class="overlay" id="cardioOverlay">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>Log Cardio</h2>
+      <div id="cardioLoggerBody"></div>
+    </div>
+    <div class="sheet-actions" id="cardioSaveRow" style="display:none">
+      <button class="btn-secondary" onclick="closeCardioLogger()">Close</button>
+      <button class="btn-primary" id="cardioSaveBtn" onclick="saveCardioSession(this)">Save Session</button>
+    </div>
+  </div>
+</div>
+
+<!-- CARDIO DETAIL -->
+<div class="overlay" id="cardioDetailOverlay" onclick="backdropDismiss(event, closeCardioDetail)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>Session</h2>
+      <div id="cardioDetailBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeCardioDetail()">Done</button>
+    </div>
   </div>
 </div>
 
@@ -2195,7 +2404,8 @@ const BACKUP_PREFIX = 'backup_v';
 
 const DATA_KEYS = [
   'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',
-  'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog'
+  'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog',
+  'cardioLog', 'cardioDraft'
 ];
 
 /* Migrations upgrade FROM the keyed version TO the next one.
@@ -3304,6 +3514,51 @@ const LOOP_UPDATES = [
     bugFixes: [],
     changes: [],
     detail: 'The consistency section used to be twelve weeks of grey squares. It now answers real questions: how reliably am I training, how well have I been performing, and is that getting better or worse. The session score deliberately is not just weight moved — a hard, record-setting day still scores well even if total volume was lower.'
+  },
+  {
+    id: 'v2-0',
+    version: 'LOOP 2.0',
+    title: 'Cardio',
+    date: '2026-08-24',
+    summary: 'Cardio is now tracked properly — and it counts.',
+    newFeatures: [
+      'A dedicated Cardio tab for runs, walks, rides, rowing, stairs, swimming and more',
+      '17 activities, each showing only the fields it actually uses — a stair session never asks for distance',
+      'Cardio earns XP toward your level, with a weekly ceiling so consistency beats one long session',
+      'Cardio streaks and achievements, tracked separately from lifting',
+      'Personal bests per activity — a run is never compared against a stair session'
+    ],
+    improvements: [
+      'Log a simple session in seconds; extra fields stay tucked behind "More details"',
+      'Your most-used activities appear first once LOOP has seen a few sessions',
+      'An unfinished cardio entry survives closing the app, like workouts already did'
+    ],
+    bugFixes: [],
+    changes: [
+      'Your level now reflects both lifting and cardio — the Progress tab shows the split'
+    ],
+    detail: 'Cardio is stored completely separately from lifting, so it can never affect your strength records, exercise history or training recommendations. It contributes to your level and nothing else. A hard 90-minute cardio session is deliberately worth less XP than a normal lifting session, and there is a weekly cap so long easy sessions cannot be farmed for levels.'
+  },
+  {
+    id: 'v2-1',
+    version: 'LOOP 2.1',
+    title: 'Upper / Lower Training',
+    date: '2026-08-24',
+    summary: 'Two new training categories and a new plan built around them.',
+    newFeatures: [
+      'Upper Body and Lower Body are now full training categories, schedulable on any day',
+      'A new Upper / Lower Split plan with four programmed sessions a week',
+      '17 more exercises including Rear Delt Fly, Hack Squat, Nordic Curl, Preacher Curl and Close-Grip Bench'
+    ],
+    improvements: [
+      'Recovery tracking corrected for several movements that were being attributed to the wrong muscle'
+    ],
+    bugFixes: [
+      'Nordic Curl was being counted as biceps work instead of hamstrings',
+      'Rear delt work was being counted toward chest recovery'
+    ],
+    changes: [],
+    detail: 'Upper and Lower behave exactly like Push, Pull and Legs — same logging, same history, same records, same progression. Existing plans are untouched; you can add Upper or Lower days to any plan you are already using.'
   }
 ];
 
@@ -3345,6 +3600,7 @@ async function boot(){
   await loadTrainerData();
   await loadReadiness();
   await loadTrainerLog();
+  await loadCardioLog();
 
   renderStorageNotice(migrationResult);
 
@@ -4477,7 +4733,10 @@ function scrollProgramToWeek(pos){
 /* ---------- RENDER: TODAY ---------- */
 function todayKey(){ return JS_DAY_TO_KEY[new Date().getDay()]; }
 
+/* Null-guard: schedule is null until the plan loads during boot. Without this,
+   any early render throws — and it makes the function untestable in isolation. */
 function findNextTrainingDay(fromKey){
+  if(!schedule) return null;
   const startIdx = DAY_ORDER.indexOf(fromKey);
   for(let i=1; i<=7; i++){
     const key = DAY_ORDER[(startIdx + i) % 7];
@@ -5530,6 +5789,828 @@ function analyzeReplay(replay){
 }
 
 let selectedConsistencyWeek = null;
+
+/* =========================================================
+   CARDIO SYSTEM  (Phase A)
+   ---------------------------------------------------------
+   Fully self-contained. Cardio lives in its own storage key
+   (`cardioLog`) and never enters workoutLog, XP, PRs,
+   capability, recovery, readiness, or the trainer.
+
+   CARDIO = DATA SOURCE, not a trainer input. A future phase
+   can decide how (or whether) it should influence coaching.
+
+   Records store ONLY the fields that apply to the activity —
+   a 30-minute stair session never carries a null `distance`.
+   ========================================================= */
+
+const CARDIO_KEY = 'cardioLog';
+const CARDIO_DRAFT_KEY = 'cardioDraft';
+
+/* Metric flags drive the logger UI. An activity only ever shows fields it
+   logically uses, which is what keeps logging fast. */
+const CARDIO_ACTIVITIES = [
+  { id:'run_outdoor',    name:'Outdoor Run',     group:'Running',   aliases:['outdoor run','run','running','road run'],
+    primary:'distance', metrics:['duration','distance','pace','heartRate','calories','rpe'] },
+  { id:'run_treadmill',  name:'Treadmill Run',   group:'Running',   aliases:['treadmill run','treadmill running'],
+    primary:'distance', metrics:['duration','distance','speed','incline','heartRate','calories','rpe'] },
+  { id:'walk_outdoor',   name:'Outdoor Walk',    group:'Walking',   aliases:['outdoor walk','walk','walking'],
+    primary:'distance', metrics:['duration','distance','pace','heartRate','calories','rpe'] },
+  { id:'walk_treadmill', name:'Treadmill Walk',  group:'Walking',   aliases:['treadmill walk'],
+    primary:'distance', metrics:['duration','distance','speed','incline','heartRate','calories','rpe'] },
+  { id:'walk_incline',   name:'Incline Walk',    group:'Walking',   aliases:['incline walk','incline treadmill walk','12-3-30'],
+    primary:'duration', metrics:['duration','distance','speed','incline','heartRate','calories','rpe'] },
+  { id:'cycle_outdoor',  name:'Outdoor Cycling', group:'Cycling',   aliases:['outdoor cycling','cycling','bike ride','road cycling'],
+    primary:'distance', metrics:['duration','distance','speed','heartRate','calories','rpe'] },
+  { id:'cycle_stationary',name:'Stationary Bike',group:'Cycling',   aliases:['stationary bike','exercise bike','spin bike','spin'],
+    primary:'duration', metrics:['duration','distance','resistance','heartRate','calories','rpe'] },
+  { id:'stair_climber',  name:'Stair Climber',   group:'Climbing',  aliases:['stair climber','stairmaster','stair master'],
+    primary:'duration', metrics:['duration','level','floors','heartRate','calories','rpe'] },
+  { id:'stepmill',       name:'StepMill',        group:'Climbing',  aliases:['stepmill','step mill'],
+    primary:'duration', metrics:['duration','level','floors','heartRate','calories','rpe'] },
+  { id:'elliptical',     name:'Elliptical',      group:'Machine',   aliases:['elliptical','cross trainer'],
+    primary:'duration', metrics:['duration','distance','resistance','heartRate','calories','rpe'] },
+  { id:'rowing',         name:'Rowing Machine',  group:'Machine',   aliases:['rowing machine','rower','erg','row erg','concept2'],
+    primary:'distance', metrics:['duration','distance','pace','resistance','heartRate','calories','rpe'] },
+  { id:'swimming',       name:'Swimming',        group:'Water',     aliases:['swimming','swim','laps'],
+    primary:'distance', metrics:['duration','distance','pace','heartRate','calories','rpe'] },
+  { id:'jump_rope',      name:'Jump Rope',       group:'Other',     aliases:['jump rope','skipping','skip rope'],
+    primary:'duration', metrics:['duration','heartRate','calories','rpe'] },
+  { id:'hiking',         name:'Hiking',          group:'Outdoor',   aliases:['hiking','hike','trail hike'],
+    primary:'duration', metrics:['duration','distance','elevation','heartRate','calories','rpe'] },
+  { id:'rucking',        name:'Rucking',         group:'Outdoor',   aliases:['rucking','ruck','weighted walk'],
+    primary:'duration', metrics:['duration','distance','load','heartRate','calories','rpe'] },
+  { id:'hiit',           name:'HIIT',            group:'Other',     aliases:['hiit','intervals','interval training','circuit'],
+    primary:'duration', metrics:['duration','rounds','heartRate','calories','rpe'] },
+  { id:'cardio_other',   name:'Other Cardio',    group:'Other',     aliases:['other cardio','custom cardio','cardio'],
+    primary:'duration', metrics:['duration','distance','heartRate','calories','rpe'] }
+];
+
+/* Field definitions — label, unit, input mode, and step. Shared so the logger
+   and the history detail render the same way. */
+const CARDIO_FIELDS = {
+  duration:  { label:'Duration',   unit:'min',   step:'1',    mode:'numeric' },
+  distance:  { label:'Distance',   unit:'mi',    step:'0.01', mode:'decimal' },
+  pace:      { label:'Pace',       unit:'/mi',   step:'',     mode:'text', placeholder:'8:30' },
+  speed:     { label:'Speed',      unit:'mph',   step:'0.1',  mode:'decimal' },
+  incline:   { label:'Incline',    unit:'%',     step:'0.5',  mode:'decimal' },
+  resistance:{ label:'Resistance', unit:'',      step:'1',    mode:'numeric' },
+  level:     { label:'Level',      unit:'',      step:'1',    mode:'numeric' },
+  floors:    { label:'Floors',     unit:'',      step:'1',    mode:'numeric' },
+  elevation: { label:'Elevation',  unit:'ft',    step:'10',   mode:'numeric' },
+  load:      { label:'Pack Weight',unit:'lb',    step:'5',    mode:'numeric' },
+  rounds:    { label:'Rounds',     unit:'',      step:'1',    mode:'numeric' },
+  heartRate: { label:'Avg HR',     unit:'bpm',   step:'1',    mode:'numeric' },
+  calories:  { label:'Calories',   unit:'kcal',  step:'10',   mode:'numeric' },
+  rpe:       { label:'RPE',        unit:'/10',   step:'1',    mode:'numeric' }
+};
+/* Shown immediately; everything else sits behind "More details" so a simple
+   session takes seconds to log. */
+const CARDIO_CORE_FIELDS = ['duration','distance','rpe'];
+
+let cardioLog = [];
+let _cardioCache = null;
+function invalidateCardioCache(){
+  _cardioCache = null;
+  if(typeof _cardioXPCache !== 'undefined') _cardioXPCache = null;
+}
+
+function getCardioActivity(id){ return CARDIO_ACTIVITIES.find(a => a.id === id) || null; }
+function resolveCardioActivity(name){
+  const n = (name || '').toString().toLowerCase().trim();
+  if(!n) return null;
+  return CARDIO_ACTIVITIES.find(a => a.id === n || a.aliases.indexOf(n) !== -1
+    || a.name.toLowerCase() === n) || null;
+}
+
+async function loadCardioLog(){
+  try{
+    const r = await LOOPStore.get(CARDIO_KEY);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      if(Array.isArray(parsed)) cardioLog = parsed;
+    }
+  }catch(e){}
+  /* Loading cardio CHANGES the data XP derives from. Without this, anything
+     that computed progression earlier in boot leaves cardio XP cached at 0
+     and it never recovers — the level would silently omit all cardio XP. */
+  invalidateCardioCache();
+}
+async function persistCardioLog(){
+  invalidateCardioCache();
+  try{ await LOOPStore.set(CARDIO_KEY, JSON.stringify(cardioLog)); return true; }
+  catch(e){ return false; }
+}
+
+function sortedCardio(){
+  return [...cardioLog].sort((a,b) => b.date.localeCompare(a.date) ||
+    (b.createdAt||'').localeCompare(a.createdAt||''));
+}
+
+/* ---------- STATS ---------- */
+function computeCardioStats(){
+  if(_cardioCache) return _cardioCache;
+  const now = new Date();
+  const weekStart = currentWeekStart();
+  const monthCut = new Date(now); monthCut.setDate(now.getDate() - 30);
+
+  const inWeek = cardioLog.filter(c => new Date(c.date + 'T00:00:00') >= weekStart);
+  const inMonth = cardioLog.filter(c => new Date(c.date + 'T00:00:00') >= monthCut);
+  const sum = (arr, k) => arr.reduce((n,c) => n + (parseFloat(c[k]) || 0), 0);
+
+  const freq = {};
+  cardioLog.forEach(c => { freq[c.activityId] = (freq[c.activityId] || 0) + 1; });
+  const topId = Object.keys(freq).sort((a,b) => freq[b] - freq[a])[0] || null;
+
+  const longest = cardioLog.reduce((best,c) =>
+    (parseFloat(c.duration)||0) > (parseFloat(best && best.duration)||0) ? c : best, null);
+
+  _cardioCache = {
+    total: cardioLog.length,
+    weekSessions: inWeek.length,
+    weekMinutes: Math.round(sum(inWeek,'duration')),
+    weekDistance: Math.round(sum(inWeek,'distance') * 100) / 100,
+    monthSessions: inMonth.length,
+    monthMinutes: Math.round(sum(inMonth,'duration')),
+    lifetimeMinutes: Math.round(sum(cardioLog,'duration')),
+    topActivity: topId ? (getCardioActivity(topId) || {}).name || topId : null,
+    topActivityCount: topId ? freq[topId] : 0,
+    longestSession: longest ? { minutes: Math.round(parseFloat(longest.duration)||0),
+      activity: longest.activityName, date: longest.date } : null
+  };
+  return _cardioCache;
+}
+
+/* Activity-specific bests only. A 5-mile run is never compared against a
+   stair session — records are scoped to one activity and one metric. */
+function computeCardioPRs(activityId){
+  const rows = cardioLog.filter(c => c.activityId === activityId);
+  if(rows.length < 2) return null;   // one session isn't a record
+  const best = (k) => rows.reduce((b,c) => {
+    const v = parseFloat(c[k]);
+    return (!isNaN(v) && v > 0 && (!b || v > b.value)) ? { value:v, date:c.date } : b;
+  }, null);
+  const act = getCardioActivity(activityId);
+  const out = {};
+  if(act && act.metrics.indexOf('distance') !== -1){ const d = best('distance'); if(d) out.longestDistance = d; }
+  const dur = best('duration'); if(dur) out.longestDuration = dur;
+  if(act && act.metrics.indexOf('speed') !== -1){ const s = best('speed'); if(s) out.fastestSpeed = s; }
+  return Object.keys(out).length ? out : null;
+}
+
+/* ---------- LOGGER ---------- */
+let cardioEditingId = null;
+let cardioSelectedActivity = null;
+let cardioAdvancedOpen = false;
+let cardioDraftTimer = null;
+
+function openCardioLogger(activityId, editId){
+  cardioEditingId = editId || null;
+  cardioAdvancedOpen = false;
+  cardioSelectedActivity = activityId || null;
+  renderCardioLogger();
+  document.getElementById('cardioOverlay').classList.add('open');
+}
+function closeCardioLogger(){
+  if(cardioDraftTimer){ clearTimeout(cardioDraftTimer); cardioDraftTimer = null; }
+  persistCardioDraftNow();
+  document.getElementById('cardioOverlay').classList.remove('open');
+  cardioEditingId = null;
+}
+function pickCardioActivity(id){
+  cardioSelectedActivity = id;
+  renderCardioLogger();
+  persistCardioDraftNow();
+}
+function toggleCardioAdvanced(){ cardioAdvancedOpen = !cardioAdvancedOpen; renderCardioLogger(); }
+
+function cardioFieldHtml(key, value){
+  const f = CARDIO_FIELDS[key];
+  if(!f) return '';
+  return `
+    <label class="cd-field">
+      <span class="cd-field-label">${f.label}${f.unit ? ' <span class="cd-unit">' + f.unit + '</span>' : ''}</span>
+      <input type="${f.mode === 'text' ? 'text' : 'number'}"
+        ${f.mode !== 'text' ? 'inputmode="' + f.mode + '" step="' + f.step + '" min="0"' : ''}
+        ${f.placeholder ? 'placeholder="' + f.placeholder + '"' : ''}
+        class="cd-input" data-field="${key}" value="${value === undefined || value === null ? '' : escapeAttr(String(value))}"
+        oninput="scheduleCardioDraft()">
+    </label>`;
+}
+
+function renderCardioLogger(){
+  const el = document.getElementById('cardioLoggerBody');
+  if(!el) return;
+  const existing = cardioEditingId ? cardioLog.find(c => c.id === cardioEditingId) : null;
+  const act = cardioSelectedActivity ? getCardioActivity(cardioSelectedActivity) : null;
+
+  if(!act){
+    /* Your own most-used activities surface first — after a few sessions the
+       thing you actually do is one tap away instead of buried in a list. */
+    const freq = {};
+    cardioLog.forEach(c => { freq[c.activityId] = (freq[c.activityId] || 0) + 1; });
+    const recentIds = Object.keys(freq).sort((a,b) => freq[b] - freq[a]).slice(0, 4);
+
+    const tile = a => {
+      const st = cardioStyleFor(a.id);
+      return `<button class="cd-act" onclick="pickCardioActivity('${a.id}')">
+        <span class="cd-glyph cd-tone-${st.tone}">${st.glyph}</span>
+        <span class="cd-act-name">${a.name}</span>
+      </button>`;
+    };
+
+    const groups = {};
+    CARDIO_ACTIVITIES.forEach(a => { (groups[a.group] = groups[a.group] || []).push(a); });
+
+    el.innerHTML = `
+      <div class="sheet-sub">Pick an activity — you'll only see the fields it actually uses.</div>
+      ${recentIds.length ? `
+        <label style="margin-top:18px">Your usual</label>
+        <div class="cd-act-grid">
+          ${recentIds.map(id => getCardioActivity(id)).filter(Boolean).map(tile).join('')}
+        </div>` : ''}
+      ${Object.keys(groups).map(g => `
+        <label style="margin-top:18px">${g}</label>
+        <div class="cd-act-grid">${groups[g].map(tile).join('')}</div>`).join('')}`;
+    document.getElementById('cardioSaveRow').style.display = 'none';
+    return;
+  }
+
+  const core = act.metrics.filter(m => CARDIO_CORE_FIELDS.indexOf(m) !== -1);
+  const advanced = act.metrics.filter(m => CARDIO_CORE_FIELDS.indexOf(m) === -1);
+  const val = k => existing ? existing[k] : undefined;
+
+  const st = cardioStyleFor(act.id);
+  el.innerHTML = `
+    <div class="cd-selected">
+      <span class="cd-glyph cd-glyph-lg cd-tone-${st.tone}">${st.glyph}</span>
+      <div style="flex:1;min-width:0">
+        <div class="cd-selected-label">${cardioEditingId ? 'Editing' : act.group}</div>
+        <div class="cd-selected-name">${act.name}</div>
+      </div>
+      <button class="cd-change" onclick="pickCardioActivity(null)">Change</button>
+    </div>
+
+    <label style="margin-top:18px">Date</label>
+    <input type="date" id="cardioDate" class="cd-input" value="${existing ? existing.date : localDateStr()}" onchange="scheduleCardioDraft()">
+
+    <div class="cd-grid" style="margin-top:14px">
+      ${core.map(k => cardioFieldHtml(k, val(k))).join('')}
+    </div>
+
+    ${advanced.length ? `
+      <button class="cd-more" onclick="toggleCardioAdvanced()">
+        ${cardioAdvancedOpen ? 'Hide details' : 'More details'} <span>${cardioAdvancedOpen ? '▴' : '▾'}</span>
+      </button>
+      ${cardioAdvancedOpen ? `<div class="cd-grid">${advanced.map(k => cardioFieldHtml(k, val(k))).join('')}</div>` : ''}
+    ` : ''}
+
+    <label style="margin-top:16px">Notes</label>
+    <textarea id="cardioNotes" placeholder="Route, how it felt, anything worth remembering." oninput="scheduleCardioDraft()">${existing && existing.notes ? escapeHtml(existing.notes) : ''}</textarea>
+  `;
+  const saveRow = document.getElementById('cardioSaveRow');
+  saveRow.style.display = 'flex';
+  document.getElementById('cardioSaveBtn').textContent = cardioEditingId ? 'Update Session' : 'Save Session';
+}
+
+/* Captures ONLY fields that apply and were actually filled in — no null-heavy
+   records. */
+function captureCardioForm(){
+  if(!cardioSelectedActivity) return null;
+  const act = getCardioActivity(cardioSelectedActivity);
+  if(!act) return null;
+  const dateEl = document.getElementById('cardioDate');
+  const notesEl = document.getElementById('cardioNotes');
+  const rec = {
+    activityId: act.id,
+    activityName: act.name,
+    date: dateEl ? dateEl.value : localDateStr()
+  };
+  document.querySelectorAll('#cardioLoggerBody .cd-input[data-field]').forEach(inp => {
+    const v = inp.value.trim();
+    if(v !== '') rec[inp.dataset.field] = v;
+  });
+  if(notesEl && notesEl.value.trim()) rec.notes = notesEl.value.trim();
+  return rec;
+}
+
+/* ---------- DRAFT SAFETY ----------
+   Mirrors the strength-logger philosophy: an unfinished session survives a
+   close or refresh, and is only cleared on save or explicit discard. */
+function scheduleCardioDraft(){
+  if(cardioDraftTimer) clearTimeout(cardioDraftTimer);
+  cardioDraftTimer = setTimeout(persistCardioDraftNow, 250);
+}
+async function persistCardioDraftNow(){
+  const overlay = document.getElementById('cardioOverlay');
+  if(!overlay || !overlay.classList.contains('open')) return;
+  const rec = captureCardioForm();
+  // Never write an empty draft over a real one
+  if(!rec || (!rec.duration && !rec.distance && !rec.notes)) return;
+  try{ await LOOPStore.set(CARDIO_DRAFT_KEY, JSON.stringify({ ...rec, editingId: cardioEditingId })); }catch(e){}
+}
+async function clearCardioDraft(){
+  try{ await LOOPStore.remove(CARDIO_DRAFT_KEY); }catch(e){
+    try{ await LOOPStore.set(CARDIO_DRAFT_KEY, 'null'); }catch(e2){}
+  }
+}
+async function loadCardioDraft(){
+  try{
+    const r = await LOOPStore.get(CARDIO_DRAFT_KEY);
+    if(!r || !r.value || r.value === 'null') return null;
+    const d = JSON.parse(r.value);
+    return d && d.activityId ? d : null;
+  }catch(e){ return null; }
+}
+async function resumeCardioDraft(){
+  const d = await loadCardioDraft();
+  if(!d) return;
+  cardioEditingId = d.editingId || null;
+  cardioSelectedActivity = d.activityId;
+  openCardioLogger(d.activityId, d.editingId);
+  // Repopulate after render
+  setTimeout(() => {
+    const dateEl = document.getElementById('cardioDate');
+    if(dateEl && d.date) dateEl.value = d.date;
+    document.querySelectorAll('#cardioLoggerBody .cd-input[data-field]').forEach(inp => {
+      if(d[inp.dataset.field] !== undefined) inp.value = d[inp.dataset.field];
+    });
+    const n = document.getElementById('cardioNotes');
+    if(n && d.notes) n.value = d.notes;
+  }, 0);
+}
+
+async function saveCardioSession(btn){
+  const rec = captureCardioForm();
+  if(!rec){ alert('Pick an activity first.'); return; }
+  if(!rec.duration && !rec.distance){ alert('Add at least a duration or a distance.'); return; }
+  if(btn) btn.disabled = true;
+
+  const now = new Date().toISOString();
+  if(cardioEditingId){
+    const i = cardioLog.findIndex(c => c.id === cardioEditingId);
+    if(i !== -1) cardioLog[i] = { ...cardioLog[i], ...rec, updatedAt: now };
+  } else {
+    cardioLog.push({ id: 'cardio_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+      ...rec, createdAt: now, updatedAt: now });
+  }
+  const ok = await persistCardioLog();
+  if(!ok){
+    if(btn) btn.disabled = false;
+    alert("That didn't save. Nothing was lost — try again.");
+    return;
+  }
+  await clearCardioDraft();
+  if(btn) btn.disabled = false;
+  cardioEditingId = null;
+  cardioSelectedActivity = null;
+  document.getElementById('cardioOverlay').classList.remove('open');
+  renderCardioView();
+}
+
+async function deleteCardioSession(id){
+  const rec = cardioLog.find(c => c.id === id);
+  if(!rec) return;
+  if(!confirm('Delete this ' + rec.activityName + ' session? This cannot be undone.')) return;
+  cardioLog = cardioLog.filter(c => c.id !== id);
+  await persistCardioLog();
+  closeCardioDetail();
+  renderCardioView();
+}
+
+/* Visual identity per activity group. Presentation only — no data meaning. */
+const CARDIO_GROUP_STYLE = {
+  Running:  { glyph:'▶', tone:'run' },
+  Walking:  { glyph:'▲', tone:'walk' },
+  Cycling:  { glyph:'◉', tone:'cycle' },
+  Climbing: { glyph:'▲', tone:'climb' },
+  Machine:  { glyph:'◆', tone:'machine' },
+  Water:    { glyph:'≈', tone:'water' },
+  Outdoor:  { glyph:'△', tone:'outdoor' },
+  Other:    { glyph:'●', tone:'other' }
+};
+function cardioStyleFor(activityId){
+  const act = getCardioActivity(activityId);
+  return (act && CARDIO_GROUP_STYLE[act.group]) || CARDIO_GROUP_STYLE.Other;
+}
+
+/* One-line metric summary, ordered so the activity's PRIMARY metric leads. */
+function cardioMetricLine(c){
+  const act = getCardioActivity(c.activityId);
+  const bits = [];
+  const push = (v, suffix) => { if(v !== undefined && v !== '' && v !== null) bits.push(v + suffix); };
+  if(act && act.primary === 'distance'){ push(c.distance, ' mi'); push(c.duration, ' min'); }
+  else { push(c.duration, ' min'); push(c.distance, ' mi'); }
+  if(c.pace) bits.push(c.pace + '/mi');
+  else if(c.speed) push(c.speed, ' mph');
+  if(c.floors) push(c.floors, ' floors');
+  if(c.elevation) push(c.elevation, ' ft');
+  if(c.heartRate) push(c.heartRate, ' bpm');
+  return bits.slice(0, 4).join('  ·  ');
+}
+
+function renderCardioView(){
+  const el = document.getElementById('cardioBody');
+  if(!el) return;
+
+  if(!cardioLog.length){
+    el.innerHTML = `
+      <div class="cd-hero cd-hero-empty">
+        <div class="cd-hero-glyph">◉</div>
+        <div class="cd-hero-empty-title">Track your cardio</div>
+        <div class="cd-hero-empty-sub">Runs, walks, rides, rowing, stairs — anything that gets your heart going. LOOP will build your time, distance and streaks from here.</div>
+        <button class="cd-start" onclick="openCardioLogger()">Log your first session</button>
+      </div>`;
+    return;
+  }
+
+  const s = computeCardioStats();
+  const p = getCombinedProgression();
+  const recent = sortedCardio().slice(0, 8);
+  const streak = p.cardioStreakWeeks;
+
+  /* HERO — one number that matters, with the primary action attached. */
+  el.innerHTML = `
+    <div class="cd-hero">
+      <div class="cd-hero-top">
+        <div>
+          <div class="cd-hero-label">This week</div>
+          <div class="cd-hero-num">${s.weekMinutes}<span>min</span></div>
+          <div class="cd-hero-sub">${s.weekSessions} session${s.weekSessions===1?'':'s'}${s.weekDistance ? '  ·  ' + s.weekDistance + ' mi' : ''}</div>
+        </div>
+        ${streak > 0 ? `<div class="cd-streak"><div class="cd-streak-num">${streak}</div><div class="cd-streak-lbl">week${streak===1?'':'s'}<br>running</div></div>` : ''}
+      </div>
+      <button class="cd-start" onclick="openCardioLogger()">Start Cardio</button>
+    </div>
+
+    <div class="sec-head">Recent<span class="sec-hint">tap for detail</span></div>
+    <div class="cd-list">
+      ${recent.map(c => {
+        const st = cardioStyleFor(c.activityId);
+        return `
+        <div class="cd-row" onclick="openCardioDetail('${c.id}')">
+          <span class="cd-glyph cd-tone-${st.tone}">${st.glyph}</span>
+          <div class="cd-row-main">
+            <div class="cd-row-name">${escapeHtml(c.activityName)}</div>
+            <div class="cd-row-meta">${cardioMetricLine(c)}</div>
+          </div>
+          <div class="cd-row-right">
+            <div class="cd-row-date">${formatDateShort(c.date)}</div>
+            ${c.rpe ? `<div class="cd-row-rpe">RPE ${escapeHtml(String(c.rpe))}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${cardioLog.length > 8 ? `<div class="cd-more-note">${cardioLog.length - 8} earlier session${cardioLog.length-8===1?'':'s'}</div>` : ''}
+
+    <div class="sec-head">Totals</div>
+    <div class="snapshot">
+      <div class="snap-item"><div class="snap-label">Sessions</div><div class="snap-num">${s.total}</div></div>
+      <div class="snap-item"><div class="snap-label">Lifetime min</div><div class="snap-num">${s.lifetimeMinutes.toLocaleString()}</div></div>
+      <div class="snap-item"><div class="snap-label">Last 30 days</div><div class="snap-num">${s.monthSessions}</div></div>
+      <div class="snap-item"><div class="snap-label">Cardio XP</div><div class="snap-num">${p.cardioXP.toLocaleString()}</div></div>
+    </div>
+    ${s.topActivity ? `<div class="cd-inline-note">Most frequent · <b>${escapeHtml(s.topActivity)}</b> (${s.topActivityCount})${s.longestSession ? `  ·  Longest · <b>${s.longestSession.minutes} min</b>` : ''}</div>` : ''}
+
+    ${renderCardioPRs()}
+    ${cardioXPSummaryHtml()}
+    ${cardioAchievementsHtml()}`;
+}
+
+function renderCardioPRs(){
+  const ids = [...new Set(cardioLog.map(c => c.activityId))];
+  const rows = ids.map(id => {
+    const prs = computeCardioPRs(id);
+    if(!prs) return '';
+    const act = getCardioActivity(id);
+    const st = cardioStyleFor(id);
+    const bits = [];
+    if(prs.longestDistance) bits.push({ v: prs.longestDistance.value + ' mi', l:'Longest' });
+    if(prs.longestDuration) bits.push({ v: prs.longestDuration.value + ' min', l:'Longest' });
+    if(prs.fastestSpeed)    bits.push({ v: prs.fastestSpeed.value + ' mph', l:'Fastest' });
+    if(!bits.length) return '';
+    return `
+      <div class="cd-pr-row">
+        <span class="cd-glyph cd-tone-${st.tone}">${st.glyph}</span>
+        <div class="cd-pr-name">${escapeHtml(act ? act.name : id)}</div>
+        <div class="cd-pr-vals">${bits.map(b => `<span><b>${b.v}</b>${b.l}</span>`).join('')}</div>
+      </div>`;
+  }).filter(Boolean);
+  if(!rows.length) return '';
+  return `<div class="sec-head">Personal Bests<span class="sec-hint">per activity</span></div>
+    <div class="cd-pr-list">${rows.join('')}</div>`;
+}
+
+function cardioXPSummaryHtml(){
+  const p = getCombinedProgression();
+  if(!cardioLog.length) return '';
+  const pct = p.lifetimeXP > 0 ? Math.round(p.cardioXP / p.lifetimeXP * 100) : 0;
+  return `
+    <div class="sec-head">Contribution<span class="sec-hint">to your level</span></div>
+    <div class="cd-contrib">
+      <div class="cd-contrib-bar">
+        <div class="cd-contrib-seg cd-contrib-strength" style="flex:${Math.max(1,p.strengthXP)}"></div>
+        <div class="cd-contrib-seg cd-contrib-cardio" style="flex:${Math.max(1,p.cardioXP)}"></div>
+      </div>
+      <div class="cd-contrib-legend">
+        <span><i class="cd-contrib-strength"></i>Strength ${p.strengthXP.toLocaleString()}</span>
+        <span><i class="cd-contrib-cardio"></i>Cardio ${p.cardioXP.toLocaleString()} (${pct}%)</span>
+      </div>
+    </div>
+    <div class="cd-note">Cardio XP counts toward your level alongside lifting, with a weekly ceiling — consistency matters more than one long session.</div>`;
+}
+
+function cardioAchievementsHtml(){
+  const list = getCardioAchievements();
+  if(!cardioLog.length) return '';
+  const unlocked = list.filter(a => a.unlocked);
+  const next = list.filter(a => !a.unlocked).slice(0, 3);
+  return `
+    <div class="sec-head">Achievements<span class="sec-hint">${unlocked.length}/${list.length}</span></div>
+    <div class="cd-ach-list">
+      ${unlocked.slice(-3).reverse().map(a => `
+        <div class="cd-ach on">
+          <span class="cd-ach-tick">✓</span>
+          <div><div class="cd-ach-name">${a.name}</div><div class="cd-ach-desc">${a.desc}</div></div>
+        </div>`).join('')}
+      ${next.map(a => {
+        const pct = Math.round(a.progress / a.threshold * 100);
+        return `
+        <div class="cd-ach">
+          <span class="cd-ach-tick cd-ach-pending">○</span>
+          <div style="flex:1;min-width:0">
+            <div class="cd-ach-name">${a.name}</div>
+            <div class="cd-ach-bar"><div class="cd-ach-fill" style="width:${pct}%"></div></div>
+            <div class="cd-ach-desc">${a.progress} of ${a.threshold}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ---------- DETAIL ---------- */
+let cardioDetailId = null;
+function openCardioDetail(id){
+  cardioDetailId = id;
+  const rec = cardioLog.find(c => c.id === id);
+  if(!rec) return;
+  const act = getCardioActivity(rec.activityId);
+  const shown = (act ? act.metrics : Object.keys(CARDIO_FIELDS))
+    .filter(k => rec[k] !== undefined && rec[k] !== '');
+  document.getElementById('cardioDetailBody').innerHTML = `
+    <div class="cd-detail-head">
+      <span class="cd-glyph cd-glyph-lg cd-tone-${cardioStyleFor(rec.activityId).tone}">${cardioStyleFor(rec.activityId).glyph}</span>
+      <div>
+        <div class="cd-detail-name">${escapeHtml(rec.activityName)}</div>
+        <div class="cd-detail-date">${formatDateShort(rec.date)}</div>
+      </div>
+    </div>
+    <div class="cd-detail-stats">
+      ${shown.map(k => `<div><span>${escapeHtml(String(rec[k]))}</span>${CARDIO_FIELDS[k].label}${CARDIO_FIELDS[k].unit ? ' (' + CARDIO_FIELDS[k].unit + ')' : ''}</div>`).join('')}
+    </div>
+    ${rec.notes ? `<div class="cd-detail-notes">${escapeHtml(rec.notes)}</div>` : ''}
+    <div class="cd-detail-actions">
+      <button class="btn-secondary" onclick="editCardioSession('${rec.id}')">Edit</button>
+      <button class="reset-btn" style="margin-top:0" onclick="deleteCardioSession('${rec.id}')">Delete</button>
+    </div>`;
+  document.getElementById('cardioDetailOverlay').classList.add('open');
+}
+function closeCardioDetail(){
+  document.getElementById('cardioDetailOverlay').classList.remove('open');
+  cardioDetailId = null;
+}
+function editCardioSession(id){
+  const rec = cardioLog.find(c => c.id === id);
+  if(!rec) return;
+  closeCardioDetail();
+  openCardioLogger(rec.activityId, id);
+}
+
+/* ---------- VIEW ---------- */
+
+
+/* =========================================================
+   CARDIO PROGRESSION  (Phase B)
+   ---------------------------------------------------------
+   Cardio now contributes to overall progression, but the
+   strength XP engine is NOT modified. computeXPTimeline()
+   still walks workoutLog alone and returns strength XP
+   unchanged; cardio XP is derived separately from cardioLog
+   and the two are summed at the progression layer.
+
+   That separation is deliberate:
+     · a bug here cannot corrupt strength XP
+     · strength XP remains independently verifiable
+     · either source can be inspected on its own
+
+   Like strength XP, cardio XP is RECALCULATED from logged
+   sessions every time. Nothing is stored as a mutable total.
+
+   Design intent: cardio is rewarded honestly but is worth
+   meaningfully LESS per session than lifting, and is capped
+   weekly so long easy sessions cannot be farmed for levels.
+   ========================================================= */
+
+const CARDIO_XP_CONFIG = {
+  /* Diminishing returns by duration band (XP per minute). An hour of steady
+     work is worth more than 30 minutes, but not twice as much. */
+  bands: [
+    { upTo: 30,       perMin: 1.2 },
+    { upTo: 60,       perMin: 0.6 },
+    { upTo: Infinity, perMin: 0.3 }
+  ],
+  /* Effort adjusts the total modestly. Deliberately narrow — self-reported
+     RPE is soft evidence, so it nudges rather than dominates. */
+  intensity: { veryLow: 0.85, low: 0.95, moderate: 1.0, hard: 1.15, veryHard: 1.25 },
+  sessionCap: 70,          // a single cardio session can never beat a lift
+  weeklyCap: 250,          // anti-farming ceiling
+  minMinutes: 5,           // below this, no XP (avoids trivial entries)
+  firstSessionBonus: 25,   // one-time, mirrors the strength first-workout bonus
+  streakTiers: [ {weeks:3,xp:20}, {weeks:6,xp:40}, {weeks:12,xp:90} ]
+};
+
+function cardioIntensityMultiplier(session){
+  const rpe = parseFloat(session.rpe);
+  if(!isNaN(rpe)){
+    if(rpe <= 3) return CARDIO_XP_CONFIG.intensity.veryLow;
+    if(rpe <= 5) return CARDIO_XP_CONFIG.intensity.low;
+    if(rpe <= 6) return CARDIO_XP_CONFIG.intensity.moderate;
+    if(rpe <= 8) return CARDIO_XP_CONFIG.intensity.hard;
+    return CARDIO_XP_CONFIG.intensity.veryHard;
+  }
+  /* No RPE: fall back to heart rate if present, otherwise assume moderate.
+     Never assume a hard session from missing data. */
+  const hr = parseFloat(session.heartRate);
+  if(!isNaN(hr)){
+    if(hr < 110) return CARDIO_XP_CONFIG.intensity.veryLow;
+    if(hr < 130) return CARDIO_XP_CONFIG.intensity.low;
+    if(hr < 150) return CARDIO_XP_CONFIG.intensity.moderate;
+    if(hr < 170) return CARDIO_XP_CONFIG.intensity.hard;
+    return CARDIO_XP_CONFIG.intensity.veryHard;
+  }
+  return CARDIO_XP_CONFIG.intensity.moderate;
+}
+
+/* XP for a single session, before weekly capping. Deterministic. */
+function computeCardioSessionXP(session){
+  const mins = parseFloat(session.duration);
+  if(isNaN(mins) || mins < CARDIO_XP_CONFIG.minMinutes) return 0;
+
+  let remaining = mins, prev = 0, base = 0;
+  CARDIO_XP_CONFIG.bands.forEach(b => {
+    if(remaining <= 0) return;
+    const span = Math.min(remaining, b.upTo - prev);
+    base += span * b.perMin;
+    remaining -= span;
+    prev = b.upTo;
+  });
+
+  const xp = base * cardioIntensityMultiplier(session);
+  return Math.min(CARDIO_XP_CONFIG.sessionCap, Math.round(xp));
+}
+
+/* Chronological walk with weekly caps applied in order — same philosophy as
+   the strength timeline. Returns per-session detail so the UI can explain
+   where XP came from. */
+let _cardioXPCache = null;
+function invalidateCardioXPCache(){ _cardioXPCache = null; }
+
+function computeCardioXPTimeline(){
+  if(_cardioXPCache) return _cardioXPCache;
+
+  const chrono = [...cardioLog].sort((a,b) =>
+    a.date.localeCompare(b.date) || (a.createdAt||'').localeCompare(b.createdAt||''));
+
+  const timeline = [];
+  let lifetimeXP = 0, sessionCount = 0;
+  const weekTotals = {};
+  const weekKey = (d) => {
+    const dt = new Date(d + 'T00:00:00');
+    const monday = new Date(dt);
+    monday.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+    return monday.toISOString().slice(0,10);
+  };
+
+  chrono.forEach(s => {
+    const raw = computeCardioSessionXP(s);
+    if(raw <= 0){
+      timeline.push({ id:s.id, date:s.date, activity:s.activityName, xp:0, capped:false, reason:'too short' });
+      return;
+    }
+    sessionCount++;
+    const wk = weekKey(s.date);
+    const used = weekTotals[wk] || 0;
+    const room = Math.max(0, CARDIO_XP_CONFIG.weeklyCap - used);
+    let awarded = Math.min(raw, room);
+    const capped = awarded < raw;
+
+    let bonus = 0;
+    if(sessionCount === 1) bonus = CARDIO_XP_CONFIG.firstSessionBonus;
+
+    weekTotals[wk] = used + awarded;
+    lifetimeXP += awarded + bonus;
+    timeline.push({ id:s.id, date:s.date, activity:s.activityName,
+      xp: awarded + bonus, base: raw, bonus, capped, week: wk });
+  });
+
+  // Streak bonuses, awarded once per tier reached
+  const streak = computeCardioStreakWeeks(chrono);
+  let streakXP = 0;
+  CARDIO_XP_CONFIG.streakTiers.forEach(t => { if(streak.maxEver >= t.weeks) streakXP += t.xp; });
+  lifetimeXP += streakXP;
+
+  _cardioXPCache = { timeline, lifetimeXP, sessionCount, streakXP,
+    currentStreakWeeks: streak.current, maxStreakWeeks: streak.maxEver,
+    weeklyTotals: weekTotals };
+  return _cardioXPCache;
+}
+function computeCardioXPTotal(){ return computeCardioXPTimeline().lifetimeXP; }
+
+/* Cardio consistency is tracked SEPARATELY from strength — a cardio week does
+   not extend a lifting streak, and vice versa. */
+function computeCardioStreakWeeks(sortedAsc){
+  const rows = sortedAsc || [...cardioLog].sort((a,b) => a.date.localeCompare(b.date));
+  if(!rows.length) return { current:0, maxEver:0 };
+  const weeks = new Set();
+  rows.forEach(s => {
+    const dt = new Date(s.date + 'T00:00:00');
+    const monday = new Date(dt);
+    monday.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+    weeks.add(monday.toISOString().slice(0,10));
+  });
+  const sorted = [...weeks].sort();
+  let maxEver = 1, run = 1;
+  for(let i=1;i<sorted.length;i++){
+    const prev = new Date(sorted[i-1]), cur = new Date(sorted[i]);
+    const gap = Math.round((cur - prev) / (7*86400000));
+    if(gap === 1){ run++; maxEver = Math.max(maxEver, run); }
+    else run = 1;
+  }
+  // Current streak counts back from this week or last
+  const thisMonday = currentWeekStart().toISOString().slice(0,10);
+  const lastMonday = new Date(currentWeekStart()); lastMonday.setDate(lastMonday.getDate()-7);
+  const lastKey = lastMonday.toISOString().slice(0,10);
+  let current = 0;
+  if(weeks.has(thisMonday) || weeks.has(lastKey)){
+    let cursor = weeks.has(thisMonday) ? new Date(currentWeekStart()) : lastMonday;
+    while(weeks.has(cursor.toISOString().slice(0,10))){
+      current++;
+      cursor.setDate(cursor.getDate() - 7);
+    }
+  }
+  return { current, maxEver: Math.max(maxEver, current) };
+}
+
+/* Cardio achievements are their own set. Strength MILESTONES are untouched. */
+const CARDIO_MILESTONES = [
+  { id:'c_first',    name:'First Steps',      desc:'Log your first cardio session',      category:'sessions', threshold:1 },
+  { id:'c_10',       name:'Getting Consistent',desc:'10 cardio sessions',                category:'sessions', threshold:10 },
+  { id:'c_50',       name:'Engine Building',  desc:'50 cardio sessions',                 category:'sessions', threshold:50 },
+  { id:'c_100',      name:'Cardio Century',   desc:'100 cardio sessions',                category:'sessions', threshold:100 },
+  { id:'c_min_500',  name:'500 Minutes',      desc:'500 lifetime cardio minutes',        category:'minutes',  threshold:500 },
+  { id:'c_min_2000', name:'2,000 Minutes',    desc:'2,000 lifetime cardio minutes',      category:'minutes',  threshold:2000 },
+  { id:'c_min_5000', name:'5,000 Minutes',    desc:'5,000 lifetime cardio minutes',      category:'minutes',  threshold:5000 },
+  { id:'c_streak_3', name:'Three Weeks',      desc:'Cardio 3 weeks running',             category:'streak',   threshold:3 },
+  { id:'c_streak_6', name:'Six Weeks',        desc:'Cardio 6 weeks running',             category:'streak',   threshold:6 },
+  { id:'c_streak_12',name:'A Season',         desc:'Cardio 12 weeks running',            category:'streak',   threshold:12 }
+];
+function getCardioAchievements(){
+  const xp = computeCardioXPTimeline();
+  const stats = computeCardioStats();
+  return CARDIO_MILESTONES.map(m => {
+    const count = m.category === 'sessions' ? xp.sessionCount
+                : m.category === 'minutes'  ? stats.lifetimeMinutes
+                : xp.maxStreakWeeks;
+    return Object.assign({}, m, { unlocked: count >= m.threshold,
+      progress: Math.min(count, m.threshold) });
+  });
+}
+
+/* Combined view for the UI — makes the split explicit rather than hiding it. */
+function getCombinedProgression(){
+  const strength = getXPTimelineCached();
+  const cardio = computeCardioXPTimeline();
+  const total = strength.lifetimeXP + cardio.lifetimeXP;
+  const lv = calculateLevelFromXP(total);
+  return {
+    strengthXP: strength.lifetimeXP,
+    cardioXP: cardio.lifetimeXP,
+    lifetimeXP: total,
+    level: lv.level, rank: calculateRankFromLevel(lv.level),
+    currentXP: lv.currentXP, xpForNext: lv.xpForNext,
+    cardioSessions: cardio.sessionCount,
+    cardioStreakWeeks: cardio.currentStreakWeeks,
+    strengthStreakWeeks: computeWeekStreak()
+  };
+}
+
+
+
+
+
+
+
+
 let selectedConsistencyDay = null;
 
 function scoreRingSvg(score, size){
@@ -5816,6 +6897,11 @@ function renderTodayWorkout(){
       ${cta}
       ${templates.length > 1 || todayPickerOpen ? `
         <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide options' : 'Change workout'}</button>` : ''}
+      <button class="today-cardio-link" onclick="switchTab('cardio')">
+        <span class="tcl-glyph">◉</span>
+        <span class="tcl-text">Cardio today?<span>${cardioLog.length ? computeCardioStats().weekSessions + ' logged this week' : 'Log a run, walk or ride'}</span></span>
+        <span class="tcl-go">›</span>
+      </button>
       ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat)}</div>` : ''}
     </div>`;
 }
@@ -5836,6 +6922,10 @@ function pickerGridHtml(cat){
 function renderSnapshot(){
   const el = document.getElementById('todaySnapshot');
   if(!el) return;
+  if(!workoutLog.length && !cardioLog.length){
+    el.innerHTML = `<div class="snap-empty">Your weekly numbers appear here once you log your first session.</div>`;
+    return;
+  }
   const s = computeWeekSummary();
   const cons = computeConsistencyData();
   const thisWk = cons.weeks[cons.weeks.length - 1];
@@ -5850,7 +6940,10 @@ function renderSnapshot(){
     <div class="snap-item"><div class="snap-label">Workouts this wk</div><div class="snap-num">${s.workouts}${s.scheduled ? `<span class="snap-of">/${s.scheduled}</span>` : ''}</div></div>
     <div class="snap-item"><div class="snap-label">${volLabel}</div><div class="snap-num ${s.volPct !== null && s.volPct >= 0 && s.hasLastWeek ? 'up' : ''}">${volText}</div></div>
     <div class="snap-item"><div class="snap-label">PRs this wk</div><div class="snap-num">${s.prs}</div></div>
-    <div class="snap-item"><div class="snap-label">Avg workout score</div><div class="snap-num">${avg !== null ? avg : '—'}</div></div>`;
+    <div class="snap-item"><div class="snap-label">Avg workout score</div><div class="snap-num">${avg !== null ? avg : '—'}</div></div>`
+    + (cardioLog.length ? `
+    <div class="snap-item"><div class="snap-label">Cardio this wk</div><div class="snap-num">${computeCardioStats().weekSessions}</div></div>
+    <div class="snap-item"><div class="snap-label">Cardio minutes</div><div class="snap-num">${computeCardioStats().weekMinutes}</div></div>` : '');
 }
 
 /* Compact one-line insight rows — replaces the standalone coach card. Only
@@ -6611,10 +7704,16 @@ function invalidateXPTimelineCache(){ _xpTimelineCache = null; }
 
 function getCurrentProgression(){
   const result = getXPTimelineCached();
-  const lv = calculateLevelFromXP(result.lifetimeXP);
+  /* Cardio XP is derived independently from cardioLog and ADDED here. The
+     strength timeline above is not modified in any way — strengthXP remains
+     separately inspectable, and a cardio bug cannot corrupt it. */
+  const cardioXP = (typeof computeCardioXPTotal === 'function') ? computeCardioXPTotal() : 0;
+  const lifetimeXP = result.lifetimeXP + cardioXP;
+  const lv = calculateLevelFromXP(lifetimeXP);
   return {
     level: lv.level, rank: calculateRankFromLevel(lv.level),
-    currentXP: lv.currentXP, xpForNext: lv.xpForNext, lifetimeXP: result.lifetimeXP,
+    currentXP: lv.currentXP, xpForNext: lv.xpForNext, lifetimeXP,
+    strengthXP: result.lifetimeXP, cardioXP,
     workoutCount: result.workoutCount, prCount: result.prCount,
     currentStreakWeeks: computeWeekStreak(), maxStreakEver: result.maxStreakEver
   };
@@ -8458,6 +9557,10 @@ function renderProgHeader(){
   const trendLabel = { improving:'Improving', steady:'Holding steady', declining:'Easing off' }[cons.trend];
   const trendArrow = { improving:'↗', steady:'→', declining:'↘' }[cons.trend];
 
+  if(!workoutLog.length){
+    el.innerHTML = '';
+    return;
+  }
   el.innerHTML = `
     <div class="prog-hdr">
       <div class="prog-trend-label">Training trend</div>
@@ -8493,6 +9596,20 @@ function barHtml(pct, cls){
 }
 
 function renderProgOverview(){
+  /* A brand-new user was shown "Holding steady - 0 workouts" above a row of
+     zeros and dashes, which reads as broken rather than empty. Show what
+     Progress will contain instead. */
+  if(!workoutLog.length){
+    document.getElementById('progPerf').innerHTML = `
+      <div class="prog-empty">
+        <div class="prog-empty-title">Your progress starts here</div>
+        <div class="prog-empty-sub">Log a workout and this becomes your training trend, strength progression, weekly volume and personal records.</div>
+      </div>`;
+    ['progImprovements','progAttention','progPRs'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.innerHTML = '';
+    });
+    return;
+  }
   const cons = computeConsistencyData();
   const s = computeWeekSummary();
   const prog = getCurrentProgression();
@@ -8540,7 +9657,16 @@ function renderProgOverview(){
         ${barHtml((prog.currentXP / prog.xpForNext) * 100, 'vbar-accent')}
         <div class="lvl-cap">${prog.currentXP.toLocaleString()} / ${prog.xpForNext.toLocaleString()} XP · ${(prog.xpForNext - prog.currentXP).toLocaleString()} to Level ${prog.level + 1}</div>
       </div>
-    </div>`;
+    </div>
+    ${prog.cardioXP > 0 ? `
+      <div class="xp-split">
+        <div class="xp-split-seg xp-split-strength" style="flex:${prog.strengthXP}"></div>
+        <div class="xp-split-seg xp-split-cardio" style="flex:${prog.cardioXP}"></div>
+      </div>
+      <div class="xp-split-legend">
+        <span><i class="xp-split-strength"></i>Strength ${prog.strengthXP.toLocaleString()}</span>
+        <span><i class="xp-split-cardio"></i>Cardio ${prog.cardioXP.toLocaleString()}</span>
+      </div>` : ''}`;
 
   /* ---- 2. NEXT MILESTONE: closest lift to earning a weight increase ---- */
   let milestoneHtml = '';
@@ -8903,6 +10029,7 @@ function e1rmLineSvg(points){
 
 function renderAll(){
   renderToday();
+  renderCardioView();
   renderTrainView();
   renderHistory();
   if(historySubView === 'calendar') renderHistoryCalendar();

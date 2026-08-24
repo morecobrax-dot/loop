@@ -1,0 +1,17 @@
+{
+  "name": "loop-training",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LOOP — development tooling. The app itself is a single index.html with no build step and no dependencies.",
+  "scripts": {
+    "test": "node loop-tests.js quick",
+    "verify": "node loop-tests.js verify",
+    "test:quick": "node loop-tests.js quick",
+    "test:contract": "node loop-tests.js contract",
+    "test:full": "node loop-tests.js full",
+    "test:trainer": "node loop-tests.js trainer",
+    "evaluate": "node loop-evaluate.js synthetic",
+    "evaluate:real": "node loop-evaluate.js real"
+  },
+  "engines": { "node": ">=18" }
+}
