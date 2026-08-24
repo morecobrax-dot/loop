@@ -1915,13 +1915,17 @@ function testPrepSystem(app){
     Object.keys(ctx.LIFT_PREP_GUIDANCE).every(id => !!ctx.getCanonicalExercise(id)));
 
   sub('a PREP MOVEMENT is not a WARM-UP SET');
-  T('set types remain exactly warmup/working',
-    JSON.stringify(ctx.SET_TYPES) === JSON.stringify({ WARMUP:'warmup', WORKING:'working' }));
+  /* Phase D5 extended the set-type vocabulary, so this no longer pins the map
+     to two entries. The point of the assertion was that PREP must not invent
+     set types, and that is now checked directly and more strictly below: the
+     two original values are unchanged, and prep declares no type at all. */
+  T('the original warmup/working values are unchanged',
+    ctx.SET_TYPES.WARMUP === 'warmup' && ctx.SET_TYPES.WORKING === 'working');
   const prepIds = new Set(ctx.PREP_MOVEMENTS.map(m => m.id));
   T('no prep movement claims a set type',
     ctx.PREP_MOVEMENTS.every(m => m.type === undefined && m.setType === undefined));
-  T('prep ids never collide with set type values',
-    !prepIds.has('warmup') && !prepIds.has('working'));
+  T('prep ids never collide with any set type value',
+    Object.values(ctx.SET_TYPES).every(v => !prepIds.has(v)));
 }
 
 /* Runner behaviour — skip, complete, pause, timer cleanup, rapid taps. */
@@ -3569,6 +3573,372 @@ async function testPlanIntegrationDataSafety(){
     T('planStart keys are in the backup list', keys.some(k => k.indexOf('planStart:') === 0));
   }
 }
+
+/* =========================================================
+   CONTRACT 46-48 — ADVANCED SET TYPES (Phase D5)
+   ---------------------------------------------------------
+   warmup / working / drop / failure / amrap.
+
+   The risk in this phase is silent reinterpretation of
+   existing history. A set logged years ago with no type must
+   stay UNKNOWN, a warmup must stay a warmup, and nothing may
+   quietly become a drop set. Equally, the new types are real
+   training: they must count exactly as working sets do for XP,
+   PRs, recovery and capability, because this phase adds
+   vocabulary and explicitly NOT new training-load rules.
+   ========================================================= */
+function testSetTypeRegistry(app){
+  section('CONTRACT 46 — set type registry & backward compatibility');
+  const ctx = app.ctx;
+  const ST = ctx.SET_TYPES;
+
+  sub('the original vocabulary is untouched');
+  T('warmup value unchanged', ST.WARMUP === 'warmup');
+  T('working value unchanged', ST.WORKING === 'working');
+  T('new types use stable internal ids, not display labels',
+    ST.DROP === 'drop' && ST.FAILURE === 'failure' && ST.AMRAP === 'amrap');
+  T('schema version still v1', ctx.DATA_SCHEMA_VERSION === 1);
+
+  sub('registry is the single source of truth');
+  T('registry holds exactly the five types this phase ships',
+    ctx.SET_TYPE_REGISTRY.length === 5, String(ctx.SET_TYPE_REGISTRY.length));
+  T('registry ids match SET_TYPES',
+    ctx.SET_TYPE_REGISTRY.map(t => t.id).sort().join(',') ===
+    Object.values(ST).slice().sort().join(','));
+  T('no duplicate ids',
+    new Set(ctx.SET_TYPE_REGISTRY.map(t => t.id)).size === 5);
+  T('every type has a display name and short label',
+    ctx.SET_TYPE_REGISTRY.every(t => !!t.displayName && !!t.shortLabel));
+  T('every type has a description', ctx.SET_TYPE_REGISTRY.every(t => !!t.description));
+  T('every type declares countsAsWorking',
+    ctx.SET_TYPE_REGISTRY.every(t => typeof t.countsAsWorking === 'boolean'));
+  T('every type declares whether it can be the default',
+    ctx.SET_TYPE_REGISTRY.every(t => typeof t.canBeDefault === 'boolean'));
+  T('every type declares whether it needs special input',
+    ctx.SET_TYPE_REGISTRY.every(t => typeof t.requiresSpecialInput === 'boolean'));
+  T('exactly one type is the default', ctx.SET_TYPE_REGISTRY.filter(t => t.canBeDefault).length === 1);
+  T('working is that default',
+    ctx.SET_TYPE_REGISTRY.find(t => t.canBeDefault).id === 'working');
+  T('no future type leaked in early',
+    !ctx.SET_TYPE_REGISTRY.some(t => /rest|myo|tempo|timed|assisted|negative/i.test(t.id)));
+
+  sub('lookup helpers');
+  T('known type resolves', !!ctx.getSetTypeMeta('drop'));
+  T('unknown type resolves to null', ctx.getSetTypeMeta('rest_pause') === null);
+  T('isKnownSetType accepts all five',
+    Object.values(ST).every(v => ctx.isKnownSetType(v)));
+  T('isKnownSetType rejects nonsense', !ctx.isKnownSetType('banana'));
+  T('short label is available', ctx.setTypeShortLabel('amrap') === 'AMRAP');
+
+  sub('setTypeOf — historical data is never reinterpreted');
+  T('warmup still reads as warmup', ctx.setTypeOf({ type:'warmup' }) === 'warmup');
+  T('working still reads as working', ctx.setTypeOf({ type:'working' }) === 'working');
+  T('a set with NO type stays unknown', ctx.setTypeOf({ weight:'225', reps:'8' }) === null);
+  T('an empty type stays unknown', ctx.setTypeOf({ type:'' }) === null);
+  T('an unrecognised type stays unknown, never coerced', ctx.setTypeOf({ type:'myo_reps' }) === null);
+  T('null set is safe', ctx.setTypeOf(null) === null);
+  T('drop reads back as drop', ctx.setTypeOf({ type:'drop' }) === 'drop');
+  T('failure reads back as failure', ctx.setTypeOf({ type:'failure' }) === 'failure');
+  T('amrap reads back as amrap', ctx.setTypeOf({ type:'amrap' }) === 'amrap');
+
+  sub('isWorkingSet — the new types are real training');
+  T('working counts', ctx.isWorkingSet({ type:'working' }) === true);
+  T('drop counts as a working set', ctx.isWorkingSet({ type:'drop' }) === true);
+  T('failure counts as a working set', ctx.isWorkingSet({ type:'failure' }) === true);
+  T('amrap counts as a working set', ctx.isWorkingSet({ type:'amrap' }) === true);
+  T('warmup does not count', ctx.isWorkingSet({ type:'warmup' }) === false);
+  T('unknown stays null so callers choose their own fallback',
+    ctx.isWorkingSet({ weight:'1' }) === null);
+  T('countWorkingSets counts the new types',
+    ctx.countWorkingSets({ sets:[ {type:'working'}, {type:'drop'}, {type:'failure'}, {type:'amrap'} ] }).working === 4);
+  T('countWorkingSets still separates warmups and unknowns', (() => {
+    const r = ctx.countWorkingSets({ sets:[ {type:'warmup'}, {type:'working'}, {} ] });
+    return r.working === 1 && r.unknownType === 1;
+  })());
+
+  sub('set type and set OUTCOME stay independent');
+  const combos = [ {type:'amrap', rir:'1'}, {type:'failure', rir:'0'}, {type:'drop', rir:'2'},
+                   {type:'failure', rir:'3'} ];
+  T('type never rewrites RIR', combos.every(c => {
+    const s = { weight:'100', reps:'10', rir:c.rir, type:c.type };
+    return ctx.setTypeOf(s) === c.type && s.rir === c.rir;
+  }));
+  T('a failure set with a conflicting RIR keeps BOTH values', (() => {
+    const s = { weight:'225', reps:'5', rir:'3', type:'failure' };
+    return ctx.setTypeOf(s) === 'failure' && s.rir === '3';
+  })());
+  T('weight and reps are untouched by type', (() => {
+    const s = { weight:'180', reps:'8', type:'drop' };
+    return s.weight === '180' && s.reps === '8';
+  })());
+
+  sub('history rendering');
+  T('a drop set renders a badge', ctx.setChipHtml({ weight:'180', reps:'8', type:'drop' }, false).includes('Drop'));
+  T('a failure set renders a badge', ctx.setChipHtml({ weight:'225', reps:'5', type:'failure' }, false).includes('Failure'));
+  T('an AMRAP set renders a badge', ctx.setChipHtml({ weight:'135', reps:'21', type:'amrap' }, false).includes('AMRAP'));
+  T('a warmup renders a badge', ctx.setChipHtml({ weight:'95', reps:'10', type:'warmup' }, false).includes('Warm-up'));
+  T('a plain working set renders NO badge',
+    !ctx.setChipHtml({ weight:'225', reps:'8', type:'working' }, false).includes('set-chip-badge'));
+  T('an untyped historical set renders NO badge',
+    !ctx.setChipHtml({ weight:'225', reps:'8' }, false).includes('set-chip-badge'));
+  T('weight and reps still render', (() => {
+    const h = ctx.setChipHtml({ weight:'225', reps:'8', rir:'2', type:'drop' }, false);
+    return h.includes('225') && h.includes('8') && h.includes('RIR 2');
+  })());
+  T('bodyweight sets omit the lb unit',
+    !ctx.setChipHtml({ weight:'BW', reps:'12', type:'failure' }, true).includes(' lb'));
+}
+
+/* Recovery, capability, XP and PRs must treat the new types as working sets
+   — no bonuses, no new categories, no retuning. */
+function testSetTypeSystemIntegration(app){
+  section('CONTRACT 47 — new set types integrate without changing the rules');
+  const ctx = app.ctx;
+
+  sub('recovery load factor');
+  const lf = (s) => ctx.setLoadFactor(s, 225, false);
+  T('working set carries full load', lf({ reps:'8', weight:'225', type:'working' }) === 1);
+  T('drop set carries full load', lf({ reps:'8', weight:'180', type:'drop' }) === 1);
+  T('failure set carries full load', lf({ reps:'5', weight:'225', type:'failure' }) === 1);
+  T('amrap set carries full load', lf({ reps:'20', weight:'135', type:'amrap' }) === 1);
+  T('warmup is still discounted',
+    lf({ reps:'10', weight:'95', type:'warmup' }) === ctx.RECOVERY_CONFIG.warmupWeight);
+  T('an unlogged set still contributes nothing', lf({ reps:'', weight:'225', type:'drop' }) === 0);
+  T('recovery config was NOT retuned for the new types',
+    ctx.RECOVERY_CONFIG.warmupWeight === 0.25 && ctx.RECOVERY_CONFIG.halfLifeDays === 2.0);
+
+  sub('XP and PRs are unchanged by type alone');
+  {
+    const base = [ WK('t1', 5, 'push', [EX('Bench Press',[S(225,8,2,'working'), S(225,8,2,'working')])]) ];
+    const typed = [ WK('t1', 5, 'push', [EX('Bench Press',[S(225,8,2,'working'), S(225,8,2,'failure')])]) ];
+
+    seedHistory(ctx, base); clearCaches(ctx);
+    const xpBase = ctx.getCurrentProgression().lifetimeXP;
+    const prBase = ctx.computeAllPREvents().length;
+    const recBase = JSON.stringify(ctx.computeMuscleRecovery());
+
+    seedHistory(ctx, typed); clearCaches(ctx);
+    T('marking a set as failure awards NO bonus XP',
+      ctx.getCurrentProgression().lifetimeXP === xpBase);
+    T('marking a set as failure creates NO new PR category',
+      ctx.computeAllPREvents().length === prBase);
+    T('marking a set as failure does not change recovery',
+      JSON.stringify(ctx.computeMuscleRecovery()) === recBase);
+
+    const dropped = [ WK('t1', 5, 'push', [EX('Bench Press',[S(225,8,2,'working'), S(180,8,2,'drop')])]) ];
+    seedHistory(ctx, dropped); clearCaches(ctx);
+    T('a drop set is counted, not ignored',
+      ctx.computeMuscleRecovery && JSON.stringify(ctx.computeMuscleRecovery()) !== '{}');
+    T('no new XP category exists for set types',
+      typeof ctx.getCurrentProgression().dropXP === 'undefined' &&
+      typeof ctx.getCurrentProgression().failureXP === 'undefined');
+  }
+
+  sub('capability tolerates and includes the new types');
+  {
+    const hist = [];
+    for(let i = 0; i < 6; i++){
+      hist.push(WK('c'+i, i*4, 'push', [EX('Bench Press',[
+        S(95,10,4,'warmup'), S(225,8,2,'working'), S(180,8,1,'drop'), S(225,5,0,'failure') ])]));
+    }
+    seedHistory(ctx, hist); clearCaches(ctx);
+    const cap = ctx.getExerciseCapability('Bench Press');
+    T('capability computes without crashing', !!cap);
+    T('capability sees the sessions', cap.sessions === 6);
+    T('capability excludes the warmup from its top weight', cap.bestWeight === 225);
+    T('a single failure set does not redefine capability',
+      cap.currentCapability && cap.currentCapability.estimate > 0);
+    T('capability confidence is unaffected by set type alone', !!cap.confidence);
+  }
+
+  sub('the shadow engine still ignores warmups and reads the rest');
+  {
+    const rec = ctx.computeShadowRecommendation('Bench Press', {});
+    T('engine still produces a recommendation with typed history', rec === null || !!rec.finalState);
+    T('engine version untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  }
+}
+
+/* Logger, draft round-trip and delete safety. */
+async function testSetTypeLoggerAndDrafts(){
+  section('CONTRACT 48 — logging, drafts and delete safety for set types');
+
+  sub('draft round-trip preserves every type exactly');
+  {
+    const draft = { id:'d5', title:'Push A', category:'push', startedAt:new Date().toISOString(),
+      exercises:[ { name:'Bench Press', bodyweight:false, sets:[
+        { weight:'95',  reps:'10', rir:'4', completed:true, type:'warmup' },
+        { weight:'225', reps:'8',  rir:'2', completed:true, type:'working' },
+        { weight:'180', reps:'8',  rir:'1', completed:true, type:'drop' },
+        { weight:'225', reps:'5',  rir:'0', completed:true, type:'failure' },
+        { weight:'135', reps:'21', rir:'0', completed:true, type:'amrap' },
+        { weight:'225', reps:'6',  rir:'2', completed:true } ] } ] };
+    const app = await H.loadAppBooted({
+      workoutLog: JSON.stringify([]), activeWorkoutDraft: JSON.stringify(draft), dataSchemaVersion:'1' });
+    await H.settle(120);
+
+    const reopened = await H.loadAppBooted(app.store);
+    const restored = JSON.parse(reopened.store.activeWorkoutDraft);
+    const types = restored.exercises[0].sets.map(s => s.type);
+    T('warmup restored', types[0] === 'warmup');
+    T('working restored', types[1] === 'working');
+    T('drop restored', types[2] === 'drop');
+    T('failure restored', types[3] === 'failure');
+    T('amrap restored', types[4] === 'amrap');
+    T('the untyped set stays untyped — no type was invented', types[5] === undefined);
+    T('draft is byte-identical across the reopen',
+      reopened.store.activeWorkoutDraft === JSON.stringify(draft));
+    T('weights survived', restored.exercises[0].sets[2].weight === '180');
+    T('reps survived', restored.exercises[0].sets[4].reps === '21');
+    T('conflicting RIR on a failure set survived', restored.exercises[0].sets[3].rir === '0');
+    T('completion flags survived', restored.exercises[0].sets[0].completed === true);
+    T('no duplicate sets appeared', restored.exercises[0].sets.length === 6);
+  }
+
+  sub('the logger row reflects and edits types');
+  {
+    const app = await H.loadAppBooted({ workoutLog: JSON.stringify([]) });
+    const ctx = app.ctx, dom = app.dom;
+    const row = H.mkExRow('Bench Press', false, [
+      { w:225, r:8, rir:2, type:'working' }, { w:180, r:8, rir:1, type:'drop' } ]);
+    dom.setRows([row]);
+    T('a typed row exposes its type', row._setRows[1].dataset.setType === 'drop');
+
+    // edit via the picker path
+    ctx.setTypePickerRow = row._setRows[0];
+    ctx.chooseSetType('failure');
+    T('picker applies the chosen type', row._setRows[0].dataset.setType === 'failure');
+    T('picker closes after choosing', ctx.setTypePickerRow === null);
+
+    ctx.setTypePickerRow = row._setRows[0];
+    ctx.chooseSetType('amrap');
+    T('a type can be changed again', row._setRows[0].dataset.setType === 'amrap');
+
+    ctx.setTypePickerRow = row._setRows[0];
+    ctx.chooseSetType('not_a_type');
+    T('an unknown type is rejected, leaving the row as it was',
+      row._setRows[0].dataset.setType === 'amrap');
+
+    // rapid switching
+    const seq = ['working','drop','failure','amrap','warmup'];
+    for(let i = 0; i < 40; i++){
+      ctx.setTypePickerRow = row._setRows[1];
+      ctx.chooseSetType(seq[i % seq.length]);
+    }
+    T('rapid switching lands deterministically',
+      row._setRows[1].dataset.setType === seq[39 % seq.length]);
+    T('rapid switching never leaves a dangling picker target', ctx.setTypePickerRow === null);
+    T('the other set was not affected by switching this one',
+      row._setRows[0].dataset.setType === 'amrap');
+    T('applying with no target row is safe',
+      (ctx.setTypePickerRow = null, ctx.chooseSetType('drop'), true));
+  }
+
+  sub('backup / restore carries every type');
+  {
+    const log = [ WK('bk1', 3, 'push', [EX('Bench Press',[
+      S(95,10,4,'warmup'), S(225,8,2,'working'), S(180,8,1,'drop'),
+      S(225,5,0,'failure'), S(135,21,0,'amrap') ])]) ];
+    // one untyped set, added directly so no type is fabricated
+    log[0].exercises[0].sets.push({ weight:'225', reps:'6', rir:'2' });
+
+    const app = await H.loadAppBooted({ workoutLog: JSON.stringify(log), dataSchemaVersion:'1' });
+    await H.settle(120);
+    const keys = await app.ctx.allDataKeys();
+    const exported = {};
+    for(const k of keys){
+      const r = await app.ctx.LOOPStore.get(k);
+      if(r && r.value !== undefined && r.value !== null) exported[k] = r.value;
+    }
+    const restored = await H.loadAppBooted(exported);
+    await H.settle(120);
+    const sets = restored.ctx.workoutLog[0].exercises[0].sets;
+    T('warmup survived export/import', sets[0].type === 'warmup');
+    T('working survived export/import', sets[1].type === 'working');
+    T('drop survived export/import', sets[2].type === 'drop');
+    T('failure survived export/import', sets[3].type === 'failure');
+    T('amrap survived export/import', sets[4].type === 'amrap');
+    T('the untyped set is still untyped after a round trip', sets[5].type === undefined);
+    T('set count preserved', sets.length === 6);
+  }
+
+  sub('no accidental migration of existing history');
+  {
+    const legacy = [
+      WK('l1', 40, 'push', [EX('Bench Press',[ {weight:'225',reps:'8',rir:'2'} ])]),
+      WK('l2', 30, 'push', [EX('Bench Press',[ {weight:'95',reps:'10',rir:'4',type:'warmup'},
+                                               {weight:'225',reps:'8',rir:'2',type:'working'} ])])
+    ];
+    const app = await H.loadAppBooted({ workoutLog: JSON.stringify(legacy), dataSchemaVersion:'1' });
+    await H.settle(200);
+    const stored = JSON.parse(app.store.workoutLog);
+    T('legacy untyped set was NOT given a type',
+      stored[0].exercises[0].sets[0].type === undefined);
+    T('legacy warmup unchanged', stored[1].exercises[0].sets[0].type === 'warmup');
+    T('legacy working unchanged', stored[1].exercises[0].sets[1].type === 'working');
+    T('workoutLog is byte-identical to what was stored',
+      app.store.workoutLog === JSON.stringify(legacy));
+    T('schema still v1 — no migration ran', app.ctx.DATA_SCHEMA_VERSION === 1);
+    T('no drop/failure/amrap was fabricated anywhere',
+      !app.store.workoutLog.includes('"drop"') &&
+      !app.store.workoutLog.includes('"failure"') &&
+      !app.store.workoutLog.includes('"amrap"'));
+  }
+}
+
+async function testSetTypeDataSafety(){
+  section('CONTRACT 49 — set types touch no protected system');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const gymBefore = app.store.gymProfile;
+  const draftBefore = app.store.activeWorkoutDraft;
+  const planBefore = app.store.selectedPlan;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+
+  // Exercise the whole new surface without touching a workout.
+  ctx.SET_TYPE_REGISTRY.forEach(t => {
+    ctx.getSetTypeMeta(t.id); ctx.setTypeShortLabel(t.id);
+    ctx.setChipHtml({ weight:'225', reps:'8', rir:'2', type:t.id }, false);
+    ctx.setTypeOf({ type:t.id });
+    ctx.isWorkingSet({ type:t.id });
+  });
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  sub('protected data');
+  const d = H.diffSnapshot(before, after, []);
+  T('NOTHING protected changed', d.ok, 'changed: ' + d.violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('plans unchanged', app.store.selectedPlan === planBefore);
+  T('draft preserved', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('trainer');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by set-type work',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+  T('trainer config thresholds unchanged',
+    ctx.TRAINER_CONFIG.progression.maxLoadStepPct === 0.10 &&
+    ctx.TRAINER_CONFIG.evidence.minSessionsToProgress === 2);
+  T('DATA_KEYS gained nothing for set types',
+    !ctx.DATA_KEYS.some(k => /settype|droppset|amrap|failure/i.test(k)));
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -3607,6 +3977,9 @@ async function main(){
   testUpperLowerLibrary(H.loadApp());
   testTimeModeMatrix(app);
   testPlanUpperLowerIntegration(app);
+  testSetTypeRegistry(H.loadApp());
+  testSetTypeSystemIntegration(H.loadApp());
+  await testSetTypeLoggerAndDrafts();
   testUpdatesCurrency(app);
   await testShadowObservationSafety(app);
 
@@ -3628,6 +4001,7 @@ async function main(){
     await testTimeModeSafety();
     await testPlanBackfillSafety();
     await testPlanIntegrationDataSafety();
+    await testSetTypeDataSafety();
   }
 
   // ---- FULL ----

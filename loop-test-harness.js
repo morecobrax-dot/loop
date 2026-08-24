@@ -39,7 +39,7 @@ function buildDomStub(){
   let rows = [];
   const mkEl = (id) => {
     const e = {
-      id, style:{}, dataset:{}, innerHTML:'', textContent:'', value:'', checked:false, files:[],
+      id, style:{}, dataset:{}, value:'', checked:false, files:[],
       _cls:new Set(),
       classList:{
         add:c=>e._cls.add(c), remove:c=>e._cls.delete(c),
@@ -53,6 +53,27 @@ function buildDomStub(){
       scrollIntoView(){}, scrollTo(){}, click(){},
       offsetLeft:0, offsetWidth:100, clientWidth:100, parentNode:{}
     };
+    /* textContent and innerHTML are linked the way a real element links them.
+       escapeHtml() in the app works by assigning textContent to a detached div
+       and reading innerHTML back; with plain string properties that returned
+       '' and every escaped value in the app rendered empty under test. */
+    let _text = '', _html = '';
+    Object.defineProperty(e, 'textContent', {
+      enumerable: true, configurable: true,
+      get(){ return _text; },
+      set(v){
+        _text = v == null ? '' : String(v);
+        _html = _text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      }
+    });
+    Object.defineProperty(e, 'innerHTML', {
+      enumerable: true, configurable: true,
+      get(){ return _html; },
+      set(v){
+        _html = v == null ? '' : String(v);
+        _text = _html.replace(/<[^>]*>/g, '');
+      }
+    });
     return e;
   };
   return {
@@ -163,7 +184,8 @@ function loadApp(initialStore){
     'GYM_EQUIPMENT','GYM_CATEGORIES','EXERCISE_EQUIPMENT','GYM_STATUS','GYM_PROFILE_KEY',
     'gymProfile','EQUIPMENT_OPTIONS',
     'SUBSTITUTION_CONFIG','substitutionTargetRow',
-    'TIME_MODE_CONFIG','TIME_MODE_COMPOUND_PATTERNS','selectedWorkoutMinutes','timePickerOpen','pendingPlannedMinutes'];
+    'TIME_MODE_CONFIG','TIME_MODE_COMPOUND_PATTERNS','selectedWorkoutMinutes','timePickerOpen','pendingPlannedMinutes',
+    'SET_TYPE_REGISTRY','setTypePickerRow'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

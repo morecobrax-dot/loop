@@ -2004,6 +2004,52 @@ body.page-locked{ overflow: hidden; }
   color: var(--text-faint); margin-bottom: 3px;
 }
 .dur-val{ font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; color: var(--text); }
+
+/* ---------- ADVANCED SET TYPES (Phase D5) ----------
+   Subtle by design: a thin left accent on the row and a small badge in
+   history. The type should be noticeable without competing with the numbers
+   the athlete is actually reading mid-set. */
+.set-type-btn{
+  min-width: 44px; min-height: 44px; padding: 0 6px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-family: 'Inter', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+}
+.set-type-btn.on{ color: var(--accent); }
+
+.set-row.set-type-drop{ border-left: 2px solid var(--accent); }
+.set-row.set-type-failure{ border-left: 2px solid var(--error); }
+.set-row.set-type-amrap{ border-left: 2px solid var(--success); }
+.set-row.set-type-drop .set-idx{ color: var(--accent); }
+.set-row.set-type-failure .set-idx{ color: var(--error); }
+.set-row.set-type-amrap .set-idx{ color: var(--success); }
+
+/* history badges */
+.set-chip-badge{
+  margin-left: 6px; padding: 1px 5px; border-radius: var(--radius-sm);
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; vertical-align: 1px;
+}
+.stb-warmup{ background: var(--warning-soft); color: var(--warning); }
+.stb-drop{ background: var(--accent-soft); color: var(--accent); }
+.stb-failure{ background: var(--error-soft); color: var(--error); }
+.stb-amrap{ background: var(--success-soft); color: var(--success); }
+.set-chip-warmup{ opacity: 0.72; }
+
+/* picker */
+.stp-option{
+  width: 100%; display: flex; align-items: center; gap: var(--space-3);
+  min-height: 56px; padding: 10px var(--space-3); margin-bottom: 7px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer; text-align: left;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.stp-option.on{ border-color: var(--accent); background: var(--accent-soft); }
+.stp-option:active{ border-color: var(--accent); }
+.stp-main{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.stp-name{ font-size: 14px; font-weight: 600; color: var(--text); }
+.stp-desc{ font-size: 11.5px; color: var(--text-dim); line-height: 1.35; }
+.stp-mark{ color: var(--accent); font-size: 15px; flex-shrink: 0; width: 16px; text-align: center; }
 </style>
 </head>
 <body>
@@ -2430,6 +2476,20 @@ body.page-locked{ overflow: hidden; }
 </div>
 
 <!-- SETTINGS → DATA & PRIVACY -->
+<!-- SET TYPE PICKER (Phase D5) — logging vocabulary, never coaching -->
+<div class="overlay" id="setTypeOverlay" onclick="backdropDismiss(event, closeSetTypePicker)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>Set Type</h2>
+      <div class="sheet-sub">What kind of set was this? Your weight, reps and RIR are kept exactly as logged.</div>
+      <div id="setTypeBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeSetTypePicker()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- REPLACE EXERCISE (Phase D2) — ranked alternatives, user-chosen only -->
 <div class="overlay" id="subOverlay" onclick="backdropDismiss(event, closeSubstitutions)">
   <div class="sheet">
@@ -4316,6 +4376,24 @@ const LOOP_UPDATES = [
     ],
     changes: [],
     detail: 'These are additions, not replacements. Every existing Push, Pull, Legs, Core and Full Body workout is untouched, your schedule is not rewritten, and your history, records and progression are unaffected. Athletic keeps its own structure — its conditioning and power emphasis is not an Upper/Lower programme and converting it would have made it worse.'
+  },
+  {
+    id: 'v2-7',
+    version: 'LOOP 2.7',
+    title: 'Drop Sets, Failure & AMRAP',
+    date: '2026-08-24',
+    summary: 'Three new set types so what you actually did is what gets logged.',
+    newFeatures: [
+      'Mark any set as a Drop Set, taken To Failure, or AMRAP',
+      'Tap the ⋯ on a set to change its type — warm-up still toggles with one tap on the set label',
+      'History shows the type on each set, so a drop set reads as a drop set months later'
+    ],
+    improvements: [
+      'Set type and RIR are kept separately, so marking a set to failure never rewrites the effort you logged'
+    ],
+    bugFixes: [],
+    changes: [],
+    detail: 'These are labels for what happened, not new scoring. A drop, failure or AMRAP set counts exactly like a working set for XP, records, recovery and capability — there is no bonus and nothing is inflated. Sets you logged before this update are untouched: an old set with no type stays untyped rather than being guessed at.'
   }
 ];
 
@@ -7910,7 +7988,7 @@ function renderHistory(){
             <span>${escapeHtml(ex.name)}</span>
           </div>
           <div class="log-ex-sets">
-            ${(ex.sets||[]).map(s => `<span class="set-chip">${escapeHtml(s.weight||'—')}${ex.bodyweight?'':' lb'} × ${escapeHtml(s.reps||'—')}${s.rir?' · RIR '+escapeHtml(String(s.rir)):''}</span>`).join('')}
+            ${(ex.sets||[]).map(s => setChipHtml(s, ex.bodyweight)).join('')}
           </div>
         </div>
       `).join('')}
@@ -8055,7 +8133,7 @@ function openDayDetail(dateStr){
     <div class="log-ex-block">
       <div class="log-ex-name-line"><span>${escapeHtml(ex.name)}</span></div>
       <div class="log-ex-sets">
-        ${(ex.sets||[]).map(s => `<span class="set-chip">${escapeHtml(s.weight||'—')}${ex.bodyweight?'':' lb'} × ${escapeHtml(s.reps||'—')}${s.rir?' · RIR '+escapeHtml(String(s.rir)):''}</span>`).join('')}
+        ${(ex.sets||[]).map(s => setChipHtml(s, ex.bodyweight)).join('')}
       </div>
     </div>
   `).join('');
@@ -8118,7 +8196,7 @@ function renderExerciseHistoryList(){
     <div class="ex-history-session">
       <div class="ex-history-date">${formatDateShort(s.date)}</div>
       <div class="ex-history-sets">
-        ${s.sets.map(set => `<span class="set-chip">${escapeHtml(set.weight||'—')}${s.bodyweight?'':' lb'} × ${escapeHtml(set.reps||'—')}${set.rir?' · RIR '+escapeHtml(String(set.rir)):''}</span>`).join('')}
+        ${s.sets.map(set => setChipHtml(set, s.bodyweight)).join('')}
       </div>
     </div>
   `).join('');
@@ -9055,7 +9133,13 @@ function setLoadFactor(setObj, topWeight, isBodyweight){
      load heuristic, so results for existing history are unchanged. */
   const declared = typeof setTypeOf === 'function' ? setTypeOf(setObj) : null;
   if(declared === 'warmup') return RECOVERY_CONFIG.warmupWeight;
-  if(declared === 'working') return 1;
+  /* Any declared non-warm-up type counts fully, so a drop / failure / AMRAP
+     set carries exactly the load a working set does. Phase D5 adds vocabulary,
+     not new training-load rules — recovery is deliberately NOT retuned here. */
+  if(declared !== null){
+    const meta = typeof getSetTypeMeta === 'function' ? getSetTypeMeta(declared) : null;
+    if(meta && meta.countsAsWorking) return 1;
+  }
 
   if(isBodyweight || !topWeight) return 1;
   const w = parseFloat(setObj.weight);
@@ -9981,16 +10065,69 @@ function getExerciseHistoryById(exerciseId){
 /* ---------- 2. EXPLICIT SET TYPES ----------
    `type` is OPTIONAL. Historical sets have no type and must stay valid;
    they resolve to null = UNKNOWN, never to a fabricated label. */
-const SET_TYPES = { WARMUP:'warmup', WORKING:'working' };
+/* The two original values are UNCHANGED so every historical set keeps working
+   byte for byte. Phase D5 extends the vocabulary rather than replacing it. */
+const SET_TYPES = { WARMUP:'warmup', WORKING:'working', DROP:'drop', FAILURE:'failure', AMRAP:'amrap' };
+
+/* Single source of truth for set types. A future phase can add rest-pause,
+   myo-reps, tempo, timed, assisted or negatives by appending one entry here —
+   the logger, the picker, the history badges and the working-set arithmetic
+   all read this registry rather than hard-coding a list.
+
+   countsAsWorking is the important flag: everything except a warm-up is real
+   training, so drop / failure / AMRAP sets are counted exactly like a working
+   set by XP, PRs, recovery and capability. That is deliberate — this phase
+   adds VOCABULARY, not new training-load rules. */
+const SET_TYPE_REGISTRY = [
+  { id:'warmup',  displayName:'Warm-up',     shortLabel:'Warm-up',
+    description:'Preparing for the working sets. Left out of records and training load.',
+    countsAsWorking:false, canBeDefault:false, requiresSpecialInput:false, tone:'warmup' },
+  { id:'working', displayName:'Working Set', shortLabel:'Working',
+    description:'A normal working set.',
+    countsAsWorking:true,  canBeDefault:true,  requiresSpecialInput:false, tone:'neutral' },
+  { id:'drop',    displayName:'Drop Set',    shortLabel:'Drop',
+    description:'Load dropped straight after the previous set, then taken again.',
+    countsAsWorking:true,  canBeDefault:false, requiresSpecialInput:false, tone:'accent' },
+  { id:'failure', displayName:'To Failure',  shortLabel:'Failure',
+    description:'Taken to the point another rep was not possible.',
+    countsAsWorking:true,  canBeDefault:false, requiresSpecialInput:false, tone:'error' },
+  { id:'amrap',   displayName:'AMRAP',       shortLabel:'AMRAP',
+    description:'As many reps as possible. Your programmed target is left alone.',
+    countsAsWorking:true,  canBeDefault:false, requiresSpecialInput:false, tone:'success' }
+];
+
+let _setTypeIndex = null;
+function setTypeIndex(){
+  if(_setTypeIndex) return _setTypeIndex;
+  _setTypeIndex = {};
+  SET_TYPE_REGISTRY.forEach(t => { _setTypeIndex[t.id] = t; });
+  return _setTypeIndex;
+}
+function getSetTypeMeta(id){ return setTypeIndex()[id] || null; }
+
+/* One renderer for every history surface, so a drop / failure / AMRAP set
+   reads the same wherever it appears. A set with no type renders exactly as
+   it always did — no badge, nothing inferred. */
+function setChipHtml(set, isBodyweight){
+  const t = setTypeOf(set);
+  const badge = (t && t !== SET_TYPES.WORKING)
+    ? `<span class="set-chip-badge stb-${t}">${escapeHtml(setTypeShortLabel(t))}</span>` : '';
+  return `<span class="set-chip${t && t !== SET_TYPES.WORKING ? ' set-chip-' + t : ''}">` +
+    `${escapeHtml(set.weight||'—')}${isBodyweight?'':' lb'} × ${escapeHtml(set.reps||'—')}` +
+    `${set.rir?' · RIR '+escapeHtml(String(set.rir)):''}${badge}</span>`;
+}
+function isKnownSetType(id){ return !!getSetTypeMeta(id); }
+function setTypeShortLabel(id){ const m = getSetTypeMeta(id); return m ? m.shortLabel : null; }
+
 function setTypeOf(setObj){
   const t = setObj && setObj.type;
-  return (t === SET_TYPES.WARMUP || t === SET_TYPES.WORKING) ? t : null;   // null = unknown
+  return isKnownSetType(t) ? t : null;   // null = unknown, never fabricated
 }
 function isWorkingSet(setObj){
   const t = setTypeOf(setObj);
-  if(t === SET_TYPES.WORKING) return true;
-  if(t === SET_TYPES.WARMUP) return false;
-  return null;    // unknown — caller decides its own fallback
+  if(t === null) return null;            // unknown — caller decides its own fallback
+  const meta = getSetTypeMeta(t);
+  return !!(meta && meta.countsAsWorking);
 }
 function countWorkingSets(exercise){
   let known = 0, unknown = 0;
@@ -10784,7 +10921,7 @@ function renderExDetail(){
     <div class="ex-history-session">
       <div class="ex-history-date">${formatDateShort(s.date)}</div>
       <div class="ex-history-sets">${s.sets.map(set =>
-        `<span class="set-chip">${escapeHtml(set.weight||'—')}${s.bodyweight?'':' lb'} × ${escapeHtml(set.reps||'—')}${set.rir?' · RIR '+escapeHtml(String(set.rir)):''}</span>`).join('')}</div>
+        setChipHtml(set, s.bodyweight)).join('')}</div>
     </div>`).join('');
 }
 
@@ -12928,13 +13065,10 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
   wrap.appendChild(row);
   const setsList = row.querySelector('.sets-list');
   sets.forEach(s => appendSetRow(setsList, s.weight, s.reps, bodyweight, s.rir, s.type));
-  // Reapply the warm-up label/styling so a restored draft looks identical
-  Array.prototype.forEach.call(setsList.querySelectorAll('.set-row'), (sr, i) => {
-    if(sr.dataset.setType === SET_TYPES.WARMUP){
-      sr.classList.add('set-warmup');
-      const lbl = sr.querySelector('.set-idx');
-      if(lbl) lbl.textContent = 'Warm-up';
-    }
+  // Reapply the label/styling for EVERY set type so a restored draft looks
+  // identical — a drop or AMRAP set must come back marked, not just warm-ups.
+  Array.prototype.forEach.call(setsList.querySelectorAll('.set-row'), sr => {
+    if(sr.dataset.setType) applySetTypeToRow(sr, sr.dataset.setType);
   });
 }
 
@@ -12991,13 +13125,14 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
   const idx = setsListEl.children.length + 1;
   const div = document.createElement('div');
   div.className = 'set-row';
-  // null/undefined = unknown type; only an explicit value is ever stored
-  if(setType === SET_TYPES.WARMUP || setType === SET_TYPES.WORKING) div.dataset.setType = setType;
+  // null/undefined = unknown type; only an explicit, registered value is stored
+  if(isKnownSetType(setType)) div.dataset.setType = setType;
   const rirVal = (rir === undefined || rir === null || rir === '') ? '' : rir;
   div.innerHTML = `
     <div class="set-row-top">
       <span class="set-idx" role="button" tabindex="0" onclick="toggleSetType(this)" title="Tap to mark warm-up">Set ${idx}</span>
       <div class="set-row-top-actions">
+        <button class="set-type-btn" type="button" onclick="openSetTypePicker(this)" aria-label="Set type" title="Set type">⋯</button>
         <button class="set-complete-btn" type="button" onclick="toggleSetComplete(this)" aria-label="Mark complete" aria-pressed="false">
           <svg class="scb-svg" viewBox="0 0 36 36" aria-hidden="true">
             <circle class="scb-track" cx="18" cy="18" r="15"/>
@@ -13128,16 +13263,80 @@ function formatMMSS(sec){
 
 /* One tap on the "Set N" label cycles working -> warm-up -> working.
    Untyped historical sets stay untyped until the user touches them. */
+/* The original one-tap warm-up toggle, unchanged. It stays the fastest path
+   for the only type most sets ever need to switch to. */
 function toggleSetType(el){
   const row = el.closest('.set-row');
   if(!row) return;
   const current = row.dataset.setType || SET_TYPES.WORKING;
   const next = current === SET_TYPES.WARMUP ? SET_TYPES.WORKING : SET_TYPES.WARMUP;
-  row.dataset.setType = next;
-  row.classList.toggle('set-warmup', next === SET_TYPES.WARMUP);
-  const idx = Array.prototype.indexOf.call(row.parentNode.children, row) + 1;
-  el.textContent = next === SET_TYPES.WARMUP ? 'Warm-up' : ('Set ' + idx);
-  el.setAttribute('title', next === SET_TYPES.WARMUP ? 'Tap to mark working set' : 'Tap to mark warm-up');
+  applySetTypeToRow(row, next);
+  persistDraftNow();
+}
+
+/* ---------- ADVANCED SET TYPES (Phase D5) ----------
+   One shared place that puts a row into a given type: the dataset value, the
+   visual state and the index label. Everything — the warm-up toggle, the
+   picker, and draft restore — goes through here so the three can never
+   disagree about what a row is. */
+function applySetTypeToRow(row, typeId){
+  if(!row) return;
+  const known = isKnownSetType(typeId);
+  if(known) row.dataset.setType = typeId;
+  else delete row.dataset.setType;
+
+  SET_TYPE_REGISTRY.forEach(t => row.classList.remove('set-type-' + t.id));
+  row.classList.remove('set-warmup');
+  if(known && typeId !== SET_TYPES.WORKING){
+    row.classList.add('set-type-' + typeId);
+    if(typeId === SET_TYPES.WARMUP) row.classList.add('set-warmup');   // original class kept
+  }
+
+  const idxEl = row.querySelector('.set-idx');
+  if(idxEl){
+    const idx = Array.prototype.indexOf.call(row.parentNode ? row.parentNode.children : [], row) + 1;
+    idxEl.textContent = (typeId === SET_TYPES.WARMUP) ? 'Warm-up' : ('Set ' + idx);
+    idxEl.setAttribute('title', typeId === SET_TYPES.WARMUP ? 'Tap to mark working set' : 'Tap to mark warm-up');
+  }
+  const btn = row.querySelector('.set-type-btn');
+  if(btn){
+    const label = (known && typeId !== SET_TYPES.WORKING && typeId !== SET_TYPES.WARMUP)
+      ? setTypeShortLabel(typeId) : '⋯';
+    btn.textContent = label;
+    btn.classList.toggle('on', label !== '⋯');
+  }
+}
+
+let setTypePickerRow = null;
+function openSetTypePicker(btn){
+  const row = btn.closest('.set-row');
+  if(!row) return;
+  setTypePickerRow = row;
+  const current = row.dataset.setType || SET_TYPES.WORKING;
+  const body = document.getElementById('setTypeBody');
+  if(body){
+    body.innerHTML = SET_TYPE_REGISTRY.map(t => `
+      <button class="stp-option${t.id === current ? ' on' : ''}" onclick="chooseSetType('${t.id}')">
+        <span class="stp-main">
+          <span class="stp-name">${escapeHtml(t.displayName)}</span>
+          <span class="stp-desc">${escapeHtml(t.description)}</span>
+        </span>
+        <span class="stp-mark">${t.id === current ? '✓' : ''}</span>
+      </button>`).join('');
+  }
+  document.getElementById('setTypeOverlay').classList.add('open');
+}
+function closeSetTypePicker(){
+  document.getElementById('setTypeOverlay').classList.remove('open');
+  setTypePickerRow = null;
+}
+/* Editing a type is an ordinary draft edit — it rides the existing autosave
+   path rather than introducing a second save mechanism. */
+function chooseSetType(typeId){
+  const row = setTypePickerRow;
+  if(!row || !isKnownSetType(typeId)){ closeSetTypePicker(); return; }
+  applySetTypeToRow(row, typeId);
+  closeSetTypePicker();
   persistDraftNow();
 }
 
