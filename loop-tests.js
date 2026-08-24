@@ -3232,6 +3232,343 @@ async function testTimeModeSafety(){
     ctx.plannedVsActualHtml({ id:'y', startedAt:'2026-08-24T10:00:00.000Z',
       endedAt:'2026-08-24T10:51:14.000Z', plannedMinutes:47 }).includes('~47'));
 }
+
+/* =========================================================
+   CONTRACT 43-45 — UPPER/LOWER PLAN INTEGRATION (Phase D4)
+   ---------------------------------------------------------
+   Upper/Lower became available inside Balanced, Strength,
+   Hypertrophy and Home. Athletic was deliberately left alone.
+
+   The risk in this phase is not the templates — it is the
+   backfill that delivers them. An existing athlete already has
+   `upper: []` persisted in planData, so the tests below check
+   hard that filling it never touches a category they have
+   customised, never rewrites their schedule, and never so much
+   as looks at their history.
+   ========================================================= */
+const UL_PLANS = ['balanced','strength','hypertrophy','home'];
+const ALL_UL_PLANS = UL_PLANS.concat(['upperlower']);
+
+function testPlanUpperLowerIntegration(app){
+  section('CONTRACT 43 — Upper/Lower is available across the plan library');
+  const ctx = app.ctx;
+
+  sub('which plans gained Upper/Lower');
+  UL_PLANS.forEach(p => {
+    const t = ctx.DEFAULT_PLANS[p].templates;
+    T(p + ' has 4 Upper sessions', (t.upper || []).length === 4, String((t.upper||[]).length));
+    T(p + ' has 4 Lower sessions', (t.lower || []).length === 4, String((t.lower||[]).length));
+  });
+  T('upperlower plan still has its own 4+4',
+    ctx.DEFAULT_PLANS.upperlower.templates.upper.length === 4 &&
+    ctx.DEFAULT_PLANS.upperlower.templates.lower.length === 4);
+  T('Athletic was deliberately NOT converted',
+    !(ctx.DEFAULT_PLANS.athletic.templates.upper || []).length &&
+    !(ctx.DEFAULT_PLANS.athletic.templates.lower || []).length);
+
+  sub('existing plan structures were preserved, not replaced');
+  ['balanced','strength','hypertrophy','home','athletic'].forEach(p => {
+    const t = ctx.DEFAULT_PLANS[p].templates;
+    ['push','pull','legs','core','fullbody'].forEach(cat => {
+      T(`${p}.${cat} still has its 4 workouts`, (t[cat] || []).length === 4,
+        p + '.' + cat + '=' + (t[cat]||[]).length);
+    });
+  });
+  T('no plan lost its default schedule',
+    ['balanced','strength','hypertrophy','home','athletic'].every(p =>
+      Object.keys(ctx.DEFAULT_PLANS[p].defaultSchedule).length === 7));
+  T('default schedules were NOT rewritten to Upper/Lower',
+    ['balanced','strength','hypertrophy','home','athletic'].every(p =>
+      !Object.values(ctx.DEFAULT_PLANS[p].defaultSchedule).some(v => v === 'upper' || v === 'lower')));
+
+  sub('template integrity');
+  const ids = [];
+  ALL_UL_PLANS.forEach(p => ['upper','lower'].forEach(cat =>
+    (ctx.DEFAULT_PLANS[p].templates[cat] || []).forEach(w => ids.push(w.id))));
+  T('every Upper/Lower template id is unique across plans',
+    new Set(ids).size === ids.length, ids.length + ' ids');
+  ALL_UL_PLANS.forEach(p => ['upper','lower'].forEach(cat => {
+    (ctx.DEFAULT_PLANS[p].templates[cat] || []).forEach(w => {
+      T(`${p}/${w.id} has 5-9 exercises`, w.exercises.length >= 5 && w.exercises.length <= 9,
+        String(w.exercises.length));
+      T(`${p}/${w.id} has no duplicate exercise`,
+        new Set(w.exercises.map(e => e.name)).size === w.exercises.length);
+      T(`${p}/${w.id} prescribes sets and reps everywhere`,
+        w.exercises.every(e => parseInt(e.sets) > 0 && !!e.reps));
+    });
+  }));
+
+  sub('exercises resolve — canonical for gym plans');
+  const bad = [];
+  ['balanced','strength','hypertrophy','upperlower'].forEach(p =>
+    ['upper','lower'].forEach(cat => (ctx.DEFAULT_PLANS[p].templates[cat] || []).forEach(w =>
+      w.exercises.forEach(e => {
+        if(!ctx.isCanonicalId(ctx.resolveExerciseId(e.name))) bad.push(p + '/' + w.id + '::' + e.name);
+      }))));
+  T('every gym-plan Upper/Lower exercise is canonical', bad.length === 0, bad.join(','));
+
+  sub('Home stays home — equipment appropriateness by construction');
+  {
+    const home = ctx.DEFAULT_PLANS.home.templates;
+    const vocab = new Set();
+    ['push','pull','legs','core','fullbody'].forEach(cat =>
+      home[cat].forEach(w => w.exercises.forEach(e => vocab.add(e.name))));
+    const outside = [];
+    ['upper','lower'].forEach(cat => home[cat].forEach(w => w.exercises.forEach(e => {
+      if(!vocab.has(e.name)) outside.push(w.id + '::' + e.name);
+    })));
+    T('Home Upper/Lower uses only exercises the Home plan already used',
+      outside.length === 0, outside.join(','));
+    /* Canonical equipment is NOT a reliable proxy here: "Glute Bridge"
+       aliases to Hip Thrust, which the registry marks Barbell, yet it is a
+       bodyweight movement this plan has always used. The Home plan's own
+       vocabulary is the authority for what is home-appropriate, so the
+       meaningful check is that none of the gym-only staples leaked in. */
+    const GYM_ONLY = ['Bench Press','Incline Bench Press','Back Squat','Front Squat','Deadlift',
+      'Romanian Deadlift','Leg Press','Hack Squat','Lat Pulldown','Seated Cable Row',
+      'Machine Chest Press','Machine Row','Pec Deck','Leg Curl','Leg Extension','Smith Machine Squat',
+      'Cable Fly','Triceps Pushdown','Cable Curl','Overhead Press','Barbell Row','Barbell Curl'];
+    const leaked = [];
+    ['upper','lower'].forEach(cat => home[cat].forEach(w => w.exercises.forEach(e => {
+      if(GYM_ONLY.includes(e.name)) leaked.push(w.id + '::' + e.name);
+    })));
+    T('no gym-only exercise leaked into Home Upper/Lower', leaked.length === 0, leaked.join(','));
+    T('Home Upper/Lower is dumbbell, band or bodyweight throughout',
+      ['upper','lower'].every(cat => home[cat].every(w => w.exercises.every(e =>
+        /^(DB |Band |Bodyweight |Single-Leg |Single-Arm |Slow Tempo |Incline Push|Pike |Diamond |Push-Up|Towel |Chair |Bench Dips|Wall Sit|Goblet|Walking Lunge|Glute Bridge|Calf Raise|Reverse Fly|Superman|Plank)/.test(e.name)))));
+  }
+
+  sub('program quality — Upper coverage (gym plans)');
+  const musclesOfEx = (name) => {
+    const c = ctx.getCanonicalExercise(ctx.resolveExerciseId(name));
+    return c ? c.primary.concat(c.secondary) : [];
+  };
+  const patternOfEx = (name) => {
+    const c = ctx.getCanonicalExercise(ctx.resolveExerciseId(name));
+    return c ? c.pattern : null;
+  };
+  ['balanced','strength','hypertrophy'].forEach(p => {
+    ctx.DEFAULT_PLANS[p].templates.upper.forEach(w => {
+      const all = [].concat(...w.exercises.map(e => musclesOfEx(e.name)));
+      T(`${p}/${w.id} trains chest`, all.includes('chest'));
+      T(`${p}/${w.id} trains back`, all.includes('back'));
+      T(`${p}/${w.id} trains shoulders`, all.includes('shoulders'));
+      T(`${p}/${w.id} trains arms`, all.includes('biceps') || all.includes('triceps'));
+      T(`${p}/${w.id} has both a push and a pull pattern`,
+        w.exercises.some(e => ['horizontal_push','vertical_push'].includes(patternOfEx(e.name))) &&
+        w.exercises.some(e => ['horizontal_pull','vertical_pull'].includes(patternOfEx(e.name))));
+    });
+    ctx.DEFAULT_PLANS[p].templates.lower.forEach(w => {
+      const all = [].concat(...w.exercises.map(e => musclesOfEx(e.name)));
+      T(`${p}/${w.id} trains quads`, all.includes('quads'));
+      T(`${p}/${w.id} trains hamstrings or glutes`,
+        all.includes('hamstrings') || all.includes('glutes'));
+      T(`${p}/${w.id} has a knee-dominant movement`,
+        w.exercises.some(e => ['squat','lunge'].includes(patternOfEx(e.name))));
+      T(`${p}/${w.id} has a hinge movement`,
+        w.exercises.some(e => patternOfEx(e.name) === 'hinge'));
+      T(`${p}/${w.id} trains calves`, all.includes('calves'));
+    });
+  });
+
+  sub('variety — a rotation is not the same session four times');
+  UL_PLANS.forEach(p => ['upper','lower'].forEach(cat => {
+    const list = ctx.DEFAULT_PLANS[p].templates[cat];
+    for(let i = 0; i < list.length; i++) for(let j = i+1; j < list.length; j++){
+      const A = new Set(list[i].exercises.map(e => e.name));
+      const shared = list[j].exercises.filter(e => A.has(e.name)).length;
+      const cap = Math.floor(Math.min(list[i].exercises.length, list[j].exercises.length) * 0.7);
+      T(`${p}/${cat} ${list[i].id} vs ${list[j].id} are not near-duplicates`,
+        shared <= cap, shared + '>' + cap);
+    }
+    T(`${p}/${cat} variants have distinct names`,
+      new Set(list.map(w => w.name)).size === list.length);
+  }));
+
+  sub('Time Mode works with every new session');
+  ALL_UL_PLANS.forEach(p => ['upper','lower'].forEach(cat => {
+    (ctx.DEFAULT_PLANS[p].templates[cat] || []).forEach(w => {
+      const planNames = new Set(w.exercises.map(e => e.name));
+      let prev = ctx.templateSetTotal(w);
+      let ok = true, invented = false, tooBig = false;
+      [90,60,45,30,15].forEach(m => {
+        const a = ctx.compressWorkoutForTime(w, m);
+        const sets = ctx.templateSetTotal(a);
+        if(sets > prev) ok = false;
+        if(!a.exercises.every(e => planNames.has(e.name))) invented = true;
+        if(m === 15 && sets > 12) tooBig = true;
+        prev = sets;
+      });
+      T(`${p}/${w.id} compresses monotonically`, ok);
+      T(`${p}/${w.id} never invents an exercise`, !invented);
+      T(`${p}/${w.id} 15-minute version stays realistic`, !tooBig);
+      T(`${p}/${w.id} full mode equals the plan`,
+        JSON.stringify(ctx.compressWorkoutForTime(w, null).exercises) === JSON.stringify(w.exercises));
+    });
+  }));
+
+  sub('substitution works against the new templates');
+  {
+    const w = ctx.DEFAULT_PLANS.balanced.templates.upper[0];
+    const cands = ctx.getSubstitutionsByName(w.exercises[0].name, {});
+    T('a new template exercise has substitution candidates', cands.length > 0);
+    T('it is never offered as its own replacement',
+      !cands.map(x => x.displayName).includes(w.exercises[0].name));
+  }
+}
+
+/* The delivery mechanism — this is where an existing athlete could get hurt. */
+async function testPlanBackfillSafety(){
+  section('CONTRACT 44 — backfill reaches existing users without touching their data');
+
+  sub('an existing user who already has planData with EMPTY upper/lower');
+  {
+    const custom = { id:'MY-CUSTOM', name:'My Own Push Day', exercises:[
+      { name:'Bench Press', sets:3, reps:'8–12', effort:'7', recommended:'—' } ] };
+    const oldPlanData = { push:[custom], pull:[], legs:[], core:[], fullbody:[], upper:[], lower:[] };
+    const sched = { mon:'push', tue:'pull', wed:'rest', thu:'legs', fri:'push', sat:'rest', sun:'rest' };
+    const store = {
+      selectedPlan: JSON.stringify('balanced'),
+      'planData:balanced': JSON.stringify(oldPlanData),
+      'schedule:balanced': JSON.stringify(sched),
+      'planStart:balanced': JSON.stringify('2026-01-15'),
+      workoutLog: JSON.stringify([
+        WK('old1', 30, 'push', [EX('Bench Press',[S(225,8,2,'working')])]) ]),
+      dataSchemaVersion: '1'
+    };
+    const app = await H.loadAppBooted(store);
+    await H.settle(250);
+    const after = JSON.parse(app.store['planData:balanced']);
+
+    T('empty upper was backfilled', after.upper.length === 4);
+    T('empty lower was backfilled', after.lower.length === 4);
+    T('their CUSTOM push category is untouched',
+      after.push.length === 1 && after.push[0].id === 'MY-CUSTOM');
+    T('their custom workout name survives', after.push[0].name === 'My Own Push Day');
+    T('their schedule was NOT rewritten', app.store['schedule:balanced'] === JSON.stringify(sched));
+    T('their plan start date was NOT reset', JSON.parse(app.store['planStart:balanced']) === '2026-01-15');
+    T('their selected plan is unchanged', JSON.parse(app.store.selectedPlan) === 'balanced');
+    T('their workout history is untouched', JSON.parse(app.store.workoutLog).length === 1);
+    T('their history still names the original exercise',
+      JSON.parse(app.store.workoutLog)[0].exercises[0].name === 'Bench Press');
+
+    sub('backfill is idempotent');
+    const app2 = await H.loadAppBooted(app.store);
+    await H.settle(250);
+    T('a second boot changes nothing',
+      app2.store['planData:balanced'] === app.store['planData:balanced']);
+    const app3 = await H.loadAppBooted(app2.store);
+    await H.settle(250);
+    T('a third boot changes nothing',
+      app3.store['planData:balanced'] === app2.store['planData:balanced']);
+  }
+
+  sub('a category the user has customised is NEVER overwritten');
+  {
+    const mine = { id:'MY-UPPER', name:'My Upper', exercises:[
+      { name:'Bench Press', sets:3, reps:'8–12', effort:'7', recommended:'—' } ] };
+    const store = {
+      selectedPlan: JSON.stringify('balanced'),
+      'planData:balanced': JSON.stringify({ push:[], pull:[], legs:[], core:[], fullbody:[], upper:[mine], lower:[] })
+    };
+    const app = await H.loadAppBooted(store);
+    await H.settle(250);
+    const after = JSON.parse(app.store['planData:balanced']);
+    T('a non-empty upper category is left exactly as the user had it',
+      after.upper.length === 1 && after.upper[0].id === 'MY-UPPER');
+    T('the empty lower category beside it is still backfilled', after.lower.length === 4);
+  }
+
+  sub('Athletic gains nothing, because it ships nothing');
+  {
+    const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('athletic') });
+    await H.settle(250);
+    const after = JSON.parse(app.store['planData:athletic']);
+    T('athletic upper stays empty', (after.upper || []).length === 0);
+    T('athletic lower stays empty', (after.lower || []).length === 0);
+    T('athletic keeps its own categories', after.push.length === 4 && after.legs.length === 4);
+  }
+
+  sub('switching plans keeps history and only affects future planning');
+  {
+    const store = {
+      selectedPlan: JSON.stringify('balanced'),
+      workoutLog: JSON.stringify([
+        WK('h1', 20, 'push', [EX('Bench Press',[S(225,8,2,'working')])]),
+        WK('h2', 10, 'legs', [EX('Back Squat',[S(315,5,2,'working')])]) ])
+    };
+    const app = await H.loadAppBooted(store);
+    await H.settle(250);
+    const logBefore = app.store.workoutLog;
+    const xpBefore = app.ctx.getCurrentProgression().lifetimeXP;
+
+    await app.ctx.choosePlan('upperlower');
+    await H.settle(250);
+
+    T('history survived the plan switch', app.store.workoutLog === logBefore);
+    T('XP survived the plan switch', app.ctx.getCurrentProgression().lifetimeXP === xpBefore);
+    T('the new plan is selected', JSON.parse(app.store.selectedPlan) === 'upperlower');
+    T('the new plan has a schedule', !!app.store['schedule:upperlower']);
+    T('the new schedule uses upper/lower',
+      Object.values(JSON.parse(app.store['schedule:upperlower'])).some(v => v === 'upper'));
+    T('the previous plan\'s schedule is still stored', !!app.store['schedule:balanced']);
+  }
+}
+
+async function testPlanIntegrationDataSafety(){
+  section('CONTRACT 45 — plan integration touches no protected system');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const gymBefore = app.store.gymProfile;
+  const draftBefore = app.store.activeWorkoutDraft;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+
+  // Exercise the new surface: read every plan's upper/lower and compress them.
+  ALL_UL_PLANS.forEach(p => ['upper','lower'].forEach(cat =>
+    (ctx.DEFAULT_PLANS[p].templates[cat] || []).forEach(w => {
+      ctx.computeWorkoutDuration(w);
+      ctx.compressWorkoutForTime(w, 30);
+    })));
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  sub('protected data');
+  const d = H.diffSnapshot(before, after, []);
+  T('NOTHING protected changed', d.ok, 'changed: ' + d.violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('draft preserved', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('trainer');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created', ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+  T('schema version untouched', ctx.DATA_SCHEMA_VERSION === 1);
+  T('DATA_KEYS unchanged by this phase',
+    ctx.DATA_KEYS.includes('gymProfile') && !ctx.DATA_KEYS.some(k => /plan_v2|upperlower/i.test(k)));
+
+  sub('backup still covers plan data');
+  {
+    const keys = await ctx.allDataKeys();
+    T('planData keys are in the backup list', keys.some(k => k.indexOf('planData:') === 0));
+    T('schedule keys are in the backup list', keys.some(k => k.indexOf('schedule:') === 0));
+    T('planStart keys are in the backup list', keys.some(k => k.indexOf('planStart:') === 0));
+  }
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -3269,6 +3606,7 @@ async function main(){
   await testSubstitutionPersonalization();
   testUpperLowerLibrary(H.loadApp());
   testTimeModeMatrix(app);
+  testPlanUpperLowerIntegration(app);
   testUpdatesCurrency(app);
   await testShadowObservationSafety(app);
 
@@ -3288,6 +3626,8 @@ async function main(){
     await testGymBackup();
     await testSubstitutionApplySafety();
     await testTimeModeSafety();
+    await testPlanBackfillSafety();
+    await testPlanIntegrationDataSafety();
   }
 
   // ---- FULL ----

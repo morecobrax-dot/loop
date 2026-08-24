@@ -143,6 +143,7 @@ function loadApp(initialStore){
       list: async () => ({ keys: Object.keys(store) })
     },
     addEventListener(){},
+    scrollTo(){}, scrollBy(){},
     localStorage: { getItem:()=>null, setItem(){}, removeItem(){}, key:()=>null, length:0 },
     matchMedia: () => ({ matches:false, addEventListener(){} })
   };

@@ -3038,6 +3038,84 @@ const DEFAULT_PLANS = {
           T('Goblet Squat',3,'10–12','7'), T('Lat Pulldown',3,'10–12','7'),
           T('DB Shoulder Press',3,'10–12','7'), T('Hip Thrust',3,'10–12','7–8')
         ]}
+      ],
+      /* Upper/Lower for Balanced: machine and cable led, matching this plan's
+         "approachable, machines first" intent rather than the barbell work
+         used by the dedicated Upper/Lower split. */
+      upper: [
+        { id:'b-u1', name:'Upper A — Machine Press & Row', exercises:[
+          T('Machine Chest Press',4,'8–12','7–8'),
+          T('Machine Row',4,'8–12','7–8'),
+          T('Lat Pulldown',3,'10–15','7'),
+          T('Dumbbell Shoulder Press',3,'10–12','7'),
+          T('Pec Deck',3,'12–15','7'),
+          T('Lateral Raise',3,'12–15','7'),
+          T('Cable Curl',3,'12–15','7'),
+          T('Triceps Pushdown',3,'12–15','7')
+        ]},
+        { id:'b-u2', name:'Upper B — Dumbbell & Cable', exercises:[
+          T('Incline Dumbbell Press',4,'8–12','7–8'),
+          T('Seated Cable Row',4,'10–12','7–8'),
+          T('Dumbbell Bench Press',3,'10–12','7'),
+          T('Lat Pulldown',3,'10–15','7'),
+          T('Rear Delt Fly',3,'12–20','7'),
+          T('Cable Lateral Raise',3,'12–20','7'),
+          T('Dumbbell Curl',3,'10–15','7'),
+          T('Overhead Triceps Extension',3,'12–15','7')
+        ]},
+        { id:'b-u3', name:'Upper C — Chest & Back Volume', exercises:[
+          T('Pec Deck',4,'12–15','7'),
+          T('Machine Row',4,'10–15','7–8'),
+          T('Machine Chest Press',3,'10–15','7'),
+          T('Straight-Arm Pulldown',3,'12–15','7'),
+          T('Face Pull',3,'15–20','7'),
+          T('Lateral Raise',3,'12–20','7'),
+          T('Hammer Curl',3,'10–15','7'),
+          T('Triceps Pushdown',3,'12–20','7')
+        ]},
+        { id:'b-u4', name:'Upper D — Shoulders & Arms', exercises:[
+          T('Dumbbell Shoulder Press',4,'8–12','7–8'),
+          T('Lat Pulldown',4,'10–12','7–8'),
+          T('Machine Chest Press',3,'10–15','7'),
+          T('Seated Cable Row',3,'10–15','7'),
+          T('Rear Delt Fly',3,'15–20','7'),
+          T('Cable Curl',3,'12–15','7'),
+          T('Overhead Triceps Extension',3,'12–15','7')
+        ]}
+      ],
+      lower: [
+        { id:'b-l1', name:'Lower A — Machine Quads', exercises:[
+          T('Leg Press',4,'10–15','7–8'),
+          T('Romanian Deadlift',3,'8–12','7'),
+          T('Leg Extension',3,'12–15','7'),
+          T('Leg Curl',3,'10–15','7'),
+          T('Calf Raise',4,'12–20','7'),
+          T('Plank',3,'45–60s','7')
+        ]},
+        { id:'b-l2', name:'Lower B — Posterior Focus', exercises:[
+          T('Romanian Deadlift',4,'8–12','7–8'),
+          T('Hip Thrust',3,'10–12','7–8'),
+          T('Leg Curl',4,'10–15','7'),
+          T('Leg Press',3,'12–15','7'),
+          T('Hip Abduction',3,'15–20','7'),
+          T('Calf Raise',4,'12–20','7')
+        ]},
+        { id:'b-l3', name:'Lower C — Balanced Machines', exercises:[
+          T('Hack Squat',4,'8–12','7–8'),
+          T('Leg Curl',3,'10–15','7'),
+          T('Leg Press',3,'12–15','7'),
+          T('Leg Extension',3,'12–20','7'),
+          T('Calf Raise',4,'12–20','7'),
+          T('Cable Crunch',3,'12–15','7')
+        ]},
+        { id:'b-l4', name:'Lower D — Glute Emphasis', exercises:[
+          T('Hip Thrust',4,'8–12','7–8'),
+          T('Bulgarian Split Squat',3,'10–12','7–8','Per leg'),
+          T('Lunge',3,'12–15','7','Per leg'),
+          T('Leg Curl',3,'10–15','7'),
+          T('Hip Abduction',3,'15–20','7'),
+          T('Calf Raise',4,'12–20','7')
+        ]}
       ]
     }
   },
@@ -3142,6 +3220,74 @@ const DEFAULT_PLANS = {
           T('Romanian Deadlift',3,'6–8','7–8'), T('Overhead Press',3,'6–8','7–8'),
           T('Barbell Row',3,'6–8','7–8'), T('Plank',3,'40–45s','7','Bodyweight')
         ]}
+      ],
+      /* Upper/Lower for Strength: the heavy barbell lift leads every session
+         at the low rep ranges this plan is built around, with accessories
+         kept deliberately short. */
+      upper: [
+        { id:'s-u1', name:'Upper A — Bench Strength', exercises:[
+          T('Bench Press',5,'3–5','8–9','Heaviest set last'),
+          T('Barbell Row',4,'5–6','8'),
+          T('Overhead Press',3,'5–6','8'),
+          T('Pull-Up',3,'6–8','7–8'),
+          T('Close-Grip Bench Press',3,'6–8','7'),
+          T('Barbell Curl',3,'8–10','7')
+        ]},
+        { id:'s-u2', name:'Upper B — Press Strength', exercises:[
+          T('Overhead Press',5,'3–5','8–9','Heaviest set last'),
+          T('Pull-Up',4,'5–8','8','Add load when 8 reps is easy'),
+          T('Incline Bench Press',3,'5–8','7–8'),
+          T('Barbell Row',3,'6–8','7'),
+          T('Skullcrusher',3,'8–10','7'),
+          T('Barbell Curl',3,'8–10','7')
+        ]},
+        { id:'s-u3', name:'Upper C — Volume Bench', exercises:[
+          T('Bench Press',4,'6–8','7–8'),
+          T('Barbell Row',4,'6–8','7–8'),
+          T('Dumbbell Shoulder Press',3,'8–10','7'),
+          T('Lat Pulldown',3,'8–12','7'),
+          T('Dip',3,'6–10','7'),
+          T('Hammer Curl',3,'10–12','7')
+        ]},
+        { id:'s-u4', name:'Upper D — Accessory Upper', exercises:[
+          T('Incline Bench Press',4,'6–10','7–8'),
+          T('Seated Cable Row',4,'8–12','7'),
+          T('Dumbbell Bench Press',3,'8–12','7'),
+          T('Face Pull',3,'12–20','7'),
+          T('Lateral Raise',3,'12–15','7'),
+          T('Cable Curl',3,'10–15','7'),
+          T('Triceps Pushdown',3,'10–15','7')
+        ]}
+      ],
+      lower: [
+        { id:'s-l1', name:'Lower A — Squat Strength', exercises:[
+          T('Back Squat',5,'3–5','8–9','Heaviest set last'),
+          T('Romanian Deadlift',3,'5–8','7–8'),
+          T('Leg Press',3,'8–12','7'),
+          T('Leg Curl',3,'8–12','7'),
+          T('Calf Raise',4,'10–15','7')
+        ]},
+        { id:'s-l2', name:'Lower B — Deadlift Strength', exercises:[
+          T('Deadlift',4,'3–5','8–9','Stop when bar speed drops'),
+          T('Front Squat',3,'5–8','7–8'),
+          T('Good Morning',3,'8–10','7','Light — this is a hinge'),
+          T('Leg Curl',3,'8–12','7'),
+          T('Calf Raise',4,'10–15','7')
+        ]},
+        { id:'s-l3', name:'Lower C — Squat Volume', exercises:[
+          T('Back Squat',4,'6–8','7–8'),
+          T('Hip Thrust',3,'8–12','7'),
+          T('Bulgarian Split Squat',3,'8–10','7','Per leg'),
+          T('Leg Curl',3,'10–12','7'),
+          T('Calf Raise',4,'12–15','7')
+        ]},
+        { id:'s-l4', name:'Lower D — Posterior Strength', exercises:[
+          T('Romanian Deadlift',4,'5–8','8'),
+          T('Hack Squat',3,'8–12','7'),
+          T('Nordic Curl',3,'6–10','7','Assist as needed'),
+          T('Leg Extension',3,'10–15','7'),
+          T('Calf Raise',4,'12–20','7')
+        ]}
       ]
     }
   },
@@ -3244,6 +3390,77 @@ const DEFAULT_PLANS = {
         { id:'h-fb4', name:'Home Full Body D — Band Full Body', exercises:[
           T('Band Squat',3,'15','7'), T('Band Row',3,'12–15','7'),
           T('Band Chest Press',3,'12–15','7'), T('Glute Bridge',3,'15','7','Bodyweight')
+        ]}
+      ],
+      /* Upper/Lower for Home. Built ONLY from exercises this plan already
+         uses elsewhere, so nothing here can quietly require a barbell, a
+         rack or a machine the athlete does not have. */
+      upper: [
+        { id:'hm-u1', name:'Upper A — Dumbbell', exercises:[
+          T('DB Floor Press',4,'8–12','7–8'),
+          T('Single-Arm DB Row',4,'8–12','7–8','Per side'),
+          T('DB Shoulder Press',3,'10–12','7'),
+          T('DB Pullover',3,'12–15','7'),
+          T('DB Lateral Raise',3,'12–20','7'),
+          T('DB Curl',3,'10–15','7'),
+          T('Chair Triceps Dips',3,'10–15','7')
+        ]},
+        { id:'hm-u2', name:'Upper B — Bodyweight & Band', exercises:[
+          T('Push-Up',4,'10–20','7–8'),
+          T('Band Row',4,'12–15','7–8'),
+          T('Pike Push-Up',3,'8–12','7'),
+          T('Band Pull-Apart',3,'15–20','7'),
+          T('Band Face Pull',3,'15–20','7'),
+          T('Band Curl',3,'12–20','7'),
+          T('Band Triceps Pushdown',3,'12–20','7')
+        ]},
+        { id:'hm-u3', name:'Upper C — Tempo & Volume', exercises:[
+          T('Slow Tempo Push-Up',4,'8–12','7–8'),
+          T('Towel Door Row',4,'10–15','7–8'),
+          T('DB Floor Fly',3,'12–15','7'),
+          T('DB Renegade Row',3,'8–12','7','Per side'),
+          T('DB Arnold Press',3,'10–12','7'),
+          T('DB Curl',3,'12–15','7'),
+          T('Band Triceps Extension',3,'12–20','7')
+        ]},
+        { id:'hm-u4', name:'Upper D — Shoulders & Arms', exercises:[
+          T('DB Shoulder Press',4,'8–12','7–8'),
+          T('Single-Arm DB Row',4,'10–12','7–8','Per side'),
+          T('Incline Push-Up',3,'10–15','7'),
+          T('Reverse Fly',3,'12–20','7'),
+          T('DB Lateral Raise',3,'15–20','7'),
+          T('DB Curl',3,'10–15','7'),
+          T('Bench Dips',3,'10–15','7')
+        ]}
+      ],
+      lower: [
+        { id:'hm-l1', name:'Lower A — Dumbbell', exercises:[
+          T('Goblet Squat',4,'10–15','7–8'),
+          T('DB Romanian Deadlift',4,'10–12','7–8'),
+          T('Walking Lunge',3,'10–12','7','Per leg'),
+          T('Glute Bridge',3,'12–20','7'),
+          T('Calf Raise',4,'15–20','7')
+        ]},
+        { id:'hm-l2', name:'Lower B — Posterior', exercises:[
+          T('DB Romanian Deadlift',4,'8–12','7–8'),
+          T('Single-Leg Glute Bridge',3,'12–15','7','Per leg'),
+          T('DB Bulgarian Split Squat',3,'10–12','7–8','Per leg'),
+          T('Single-Leg Deadlift',3,'10–12','7','Per leg'),
+          T('Calf Raise',4,'15–20','7')
+        ]},
+        { id:'hm-l3', name:'Lower C — Bodyweight', exercises:[
+          T('Bodyweight Squat',4,'15–25','7'),
+          T('DB Step-Up',3,'10–12','7','Per leg'),
+          T('Glute Bridge',3,'15–20','7'),
+          T('Wall Sit',3,'45–60s','7'),
+          T('Calf Raise',4,'15–25','7')
+        ]},
+        { id:'hm-l4', name:'Lower D — Band & Unilateral', exercises:[
+          T('Band Squat',4,'15–20','7'),
+          T('DB Bulgarian Split Squat',3,'10–12','7–8','Per leg'),
+          T('Band Lateral Walk',3,'15–20','7'),
+          T('Single-Leg Deadlift',3,'10–12','7','Per leg'),
+          T('Calf Raise',4,'15–25','7')
         ]}
       ]
     }
@@ -3351,6 +3568,83 @@ const DEFAULT_PLANS = {
         { id:'y-fb4', name:'Hyper Full Body D — Metabolic', exercises:[
           T('Goblet Squat',3,'12–15','7'), T('DB Row',3,'12–15','7'),
           T('DB Shoulder Press',3,'12–15','7'), T('Plank',3,'40s','7','Bodyweight')
+        ]}
+      ],
+      /* Upper/Lower for Hypertrophy: higher rep ranges, more isolation, and
+         a priority muscle in each session — matching this plan's volume
+         intent rather than the strength split's low-rep barbell work. */
+      upper: [
+        { id:'h-u1', name:'Upper A — Chest & Back Volume', exercises:[
+          T('Incline Bench Press',4,'8–12','7–8'),
+          T('Seated Cable Row',4,'10–12','7–8'),
+          T('Machine Chest Press',3,'10–15','7'),
+          T('Lat Pulldown',3,'10–15','7'),
+          T('Cable Fly',3,'12–15','7'),
+          T('Rear Delt Fly',3,'15–20','7'),
+          T('Incline Dumbbell Curl',3,'10–15','7'),
+          T('Triceps Pushdown',3,'12–15','7')
+        ]},
+        { id:'h-u2', name:'Upper B — Delts & Arms', exercises:[
+          T('Dumbbell Shoulder Press',4,'8–12','7–8'),
+          T('Pull-Up',3,'8–12','7–8'),
+          T('Pec Deck',3,'12–15','7'),
+          T('Machine Row',3,'10–15','7'),
+          T('Lateral Raise',4,'12–20','7'),
+          T('Face Pull',3,'15–20','7'),
+          T('Preacher Curl',3,'10–15','7'),
+          T('Overhead Triceps Extension',3,'12–15','7')
+        ]},
+        { id:'h-u3', name:'Upper C — Chest Priority', exercises:[
+          T('Bench Press',4,'8–12','7–8'),
+          T('Machine Row',4,'10–12','7–8'),
+          T('Incline Cable Fly',3,'12–15','7'),
+          T('Lat Pulldown',3,'10–15','7'),
+          T('Cable Lateral Raise',3,'15–20','7'),
+          T('Cable Curl',3,'12–15','7'),
+          T('Skullcrusher',3,'10–15','7')
+        ]},
+        { id:'h-u4', name:'Upper D — Back Priority', exercises:[
+          T('Lat Pulldown',4,'10–12','7–8'),
+          T('Incline Dumbbell Press',4,'8–12','7–8'),
+          T('Seated Cable Row',4,'10–15','7'),
+          T('Straight-Arm Pulldown',3,'12–15','7'),
+          T('Rear Delt Fly',3,'15–20','7'),
+          T('Hammer Curl',3,'10–15','7'),
+          T('Triceps Pushdown',3,'12–20','7')
+        ]}
+      ],
+      lower: [
+        { id:'h-l1', name:'Lower A — Quad Volume', exercises:[
+          T('Hack Squat',4,'10–12','7–8'),
+          T('Romanian Deadlift',3,'10–12','7'),
+          T('Leg Press',4,'12–15','7'),
+          T('Leg Extension',4,'15–20','7'),
+          T('Leg Curl',3,'12–15','7'),
+          T('Calf Raise',4,'15–20','7')
+        ]},
+        { id:'h-l2', name:'Lower B — Glutes & Hamstrings', exercises:[
+          T('Hip Thrust',4,'10–12','7–8'),
+          T('Romanian Deadlift',4,'10–12','7–8'),
+          T('Leg Curl',4,'12–15','7'),
+          T('Bulgarian Split Squat',3,'10–12','7','Per leg'),
+          T('Hip Abduction',3,'15–20','7'),
+          T('Calf Raise',4,'15–20','7')
+        ]},
+        { id:'h-l3', name:'Lower C — Full Sweep', exercises:[
+          T('Back Squat',4,'8–12','7–8'),
+          T('Leg Curl',4,'12–15','7'),
+          T('Leg Press',3,'15–20','7'),
+          T('Leg Extension',3,'15–20','7'),
+          T('Hip Abduction',3,'15–20','7'),
+          T('Calf Raise',4,'15–20','7')
+        ]},
+        { id:'h-l4', name:'Lower D — Quad Sweep', exercises:[
+          T('Front Squat',4,'8–12','7–8'),
+          T('Good Morning',3,'10–12','7'),
+          T('Leg Extension',4,'15–20','7'),
+          T('Leg Curl',3,'12–15','7'),
+          T('Lunge',3,'12–15','7','Per leg'),
+          T('Calf Raise',4,'15–20','7')
         ]}
       ]
     }
@@ -4001,6 +4295,27 @@ const LOOP_UPDATES = [
     bugFixes: [],
     changes: [],
     detail: 'Shortening a workout keeps what the session is for. The main lift and the major opposing movement stay in, sets come off the smaller work first, and nothing new is ever added — a 30 minute Upper A is still Upper A. Your time choice applies to that session only; the plan itself is never rewritten and is back to full length next time.'
+  },
+  {
+    id: 'v2-6',
+    version: 'LOOP 2.6',
+    title: 'Upper / Lower Everywhere',
+    date: '2026-08-24',
+    summary: 'Upper and Lower days are now available inside Balanced, Strength, Hypertrophy and Home.',
+    newFeatures: [
+      'Balanced gains four machine-led Upper and four Lower sessions',
+      'Strength gains barbell Upper/Lower built around low-rep main lifts',
+      'Hypertrophy gains higher-rep Upper/Lower with a priority muscle each session',
+      'Home gains Upper/Lower built only from dumbbell, band and bodyweight work'
+    ],
+    improvements: [
+      'Set any day to Upper Body or Lower Body and your plan now has real workouts ready for it'
+    ],
+    bugFixes: [
+      'Plans that were already in use now correctly receive newly added workout categories instead of staying empty'
+    ],
+    changes: [],
+    detail: 'These are additions, not replacements. Every existing Push, Pull, Legs, Core and Full Body workout is untouched, your schedule is not rewritten, and your history, records and progression are unaffected. Athletic keeps its own structure — its conditioning and power emphasis is not an Upper/Lower programme and converting it would have made it worse.'
   }
 ];
 
@@ -4139,8 +4454,20 @@ async function loadPlanData(id){
   const ensureCategories = (d) => {
     let changed = false;
     ORDER.forEach(cat => {
-      if(!d[cat]){
-        d[cat] = JSON.parse(JSON.stringify((DEFAULT_PLANS[id].templates || {})[cat] || []));
+      const defaults = (DEFAULT_PLANS[id].templates || {})[cat] || [];
+      /* Two cases, both non-destructive:
+           - the category is missing entirely (a brand new category)
+           - the category exists but is EMPTY while the plan now ships
+             templates for it. That is every user who was already on this
+             plan when Upper/Lower had nothing in it: a previous release
+             backfilled `upper: []`, and an empty array is truthy, so the
+             missing-key check alone would never reach them again.
+         A category that already holds ANY template is never touched, so a
+         customised plan cannot be overwritten. */
+      const missing = !d[cat];
+      const emptyButAvailable = Array.isArray(d[cat]) && d[cat].length === 0 && defaults.length > 0;
+      if(missing || emptyButAvailable){
+        d[cat] = JSON.parse(JSON.stringify(defaults));
         changed = true;
       }
     });
