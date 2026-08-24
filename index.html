@@ -1541,6 +1541,13 @@ input, textarea, select{
 }
 input:focus, textarea:focus, select:focus{ outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 textarea{ resize: vertical; min-height: 56px; }
+/* iOS Safari auto-zooms the viewport when a focused control's font-size is
+   under 16px. The base rule above is 14.5px everywhere; rather than raise it
+   globally, these are raised to the 16px floor individually — the direct-
+   entry fields most exposed to that zoom. Everything else (padding, colors,
+   borders) is untouched. */
+#logTitle, #logDate, #logNotes, #tplName,
+#prHistoryFilter, #exHistorySelect, #importFileInput{ font-size: 16px; }
 @keyframes fieldShake{
   0%,100%{ transform: translateX(0); }
   20%{ transform: translateX(-4px); }
@@ -2633,27 +2640,42 @@ async function importAllData(input){
   try{
     const incoming = payload.data;
 
-    // Workout history merges by id so neither side loses sessions
-    if(incoming.workoutLog){
+    // Workout history merges by id so neither side loses sessions. A backup
+    // legitimately has no workoutLog key at all if it came from a device that
+    // never logged a strength workout (cardio-only use, for instance) — that
+    // is not an error, just nothing to merge here.
+    const hasWorkoutLog = !!incoming.workoutLog;
+    let added = 0;
+    if(hasWorkoutLog){
       const theirs = JSON.parse(incoming.workoutLog) || [];
       const mineRaw = await LOOPStore.get('workoutLog');
       const mine = mineRaw && mineRaw.value ? (JSON.parse(mineRaw.value) || []) : [];
       const byId = {};
       mine.forEach(w => { if(w && w.id) byId[w.id] = w; });
-      let added = 0;
       theirs.forEach(w => { if(w && w.id && !byId[w.id]){ byId[w.id] = w; added++; } });
       const merged = Object.keys(byId).map(k => byId[k]);
       await LOOPStore.set('workoutLog', JSON.stringify(merged));
-
-      // Everything else is per-plan config or app state — only fill gaps
-      for(const k of Object.keys(incoming)){
-        if(k === 'workoutLog' || k === SCHEMA_KEY || k.startsWith(BACKUP_PREFIX)) continue;
-        const existing = await LOOPStore.get(k);
-        const isEmpty = !existing || !existing.value || existing.value === 'null';
-        if(isEmpty) await LOOPStore.set(k, incoming[k]);
-      }
-      alert(`Import complete — ${added} new workout${added===1?'':'s'} added. LOOP will reload.`);
     }
+
+    // Everything else is per-plan config or app state — only fill gaps. This
+    // runs regardless of whether the backup had a workoutLog, so a
+    // cardio-only or trainer-only backup still restores what it actually has
+    // instead of silently importing nothing.
+    let filled = 0;
+    for(const k of Object.keys(incoming)){
+      if(k === 'workoutLog' || k === SCHEMA_KEY || k.startsWith(BACKUP_PREFIX)) continue;
+      const existing = await LOOPStore.get(k);
+      const isEmpty = !existing || !existing.value || existing.value === 'null';
+      if(isEmpty){ await LOOPStore.set(k, incoming[k]); filled++; }
+    }
+
+    // Success handling no longer depends on workoutLog being present — every
+    // completed import reports what actually happened, never silently.
+    const parts = [];
+    if(hasWorkoutLog) parts.push(`${added} new workout${added===1?'':'s'} added`);
+    if(filled) parts.push(`${filled} setting${filled===1?'':'s'} restored`);
+    const summary = parts.length ? parts.join(', ') : 'nothing new to import — you already have this data';
+    alert(`Import complete — ${summary}. LOOP will reload.`);
     location.reload();
   }catch(e){
     await restoreBackup('preimport');

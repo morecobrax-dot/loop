@@ -1090,6 +1090,173 @@ async function testBackupRestoreProtection(){
 }
 
 
+/* =========================================================
+   CONTRACT 31 — backup import: gap-fill independent of workoutLog
+   ---------------------------------------------------------
+   Fixed 2026-08-24. Gap-fill of non-workout keys, and the success
+   report, used to live entirely inside `if(incoming.workoutLog)`.
+   A backup with no workoutLog key at all (cardio-only or
+   trainer-only use) therefore imported nothing and said nothing —
+   a silent no-op that looked like success. These tests pin the
+   fixed control flow in place: A-C prove the good paths still
+   work, D-F prove nothing is silently accepted or lost on
+   failure, and G proves existing data is still never overwritten.
+   ========================================================= */
+function mkImportFile(payloadOrText){
+  const text = typeof payloadOrText === 'string' ? payloadOrText : JSON.stringify(payloadOrText);
+  return { value:'', files:[ { text: async () => text } ] };
+}
+function mkBackupPayload(data, schemaVersion){
+  return { app:'LOOP', schemaVersion: schemaVersion === undefined ? 1 : schemaVersion,
+    exportedAt: new Date().toISOString(), data: data };
+}
+/* Excludes the preimport safety-net key itself, which a successful OR a
+   rolled-back import legitimately leaves behind — comparing it would make
+   every "store unchanged" assertion fail for the wrong reason. */
+function storeSnapshotIgnoringBackups(store){
+  const copy = {};
+  Object.keys(store).forEach(k => { if(!k.startsWith('backup_v')) copy[k] = store[k]; });
+  return JSON.stringify(copy);
+}
+
+async function testBackupImportFlow(){
+  section('CONTRACT 31 — backup import: gap-fill independent of workoutLog');
+
+  sub('CASE A — workoutLog + other keys both import');
+  {
+    const app = await H.loadAppBooted({ workoutLog: JSON.stringify([]) });
+    const ctx = app.ctx;
+    let lastAlert = null; ctx.alert = m => { lastAlert = m; };
+    const incoming = {
+      workoutLog: JSON.stringify([ WK('imp1', 0, 'push', [EX('Bench Press',[S(225,10,2,'working')])]) ]),
+      trainerLog: JSON.stringify({ version:1, entries:[{ id:'r1' }] })
+    };
+    await ctx.importAllData(mkImportFile(mkBackupPayload(incoming)));
+    // location.reload() is a no-op stub in this harness, so the live
+    // workoutLog binding stays stale — read the persisted store instead,
+    // which is what a real reload would hydrate from.
+    T('workout merged in', JSON.parse(app.store.workoutLog).some(w => w.id === 'imp1'));
+    T('trainerLog gap-filled', app.store.trainerLog === incoming.trainerLog);
+    T('alert reports the workout', /1 new workout/.test(lastAlert || ''));
+    T('alert reports the gap-filled setting', /1 setting/.test(lastAlert || ''));
+    T('no silent success', !!lastAlert);
+  }
+
+  sub('CASE B — no workoutLog key at all, other keys still import (the actual bug)');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    let lastAlert = null; ctx.alert = m => { lastAlert = m; };
+    const originalWorkoutLog = app.store.workoutLog;
+    const incoming = {
+      cardioLog: JSON.stringify([{ id:'c1', activity:'run_outdoor' }]),
+      trainerLog: JSON.stringify({ version:1, entries:[{ id:'r2' }] })
+      // deliberately no workoutLog key — this is exactly the shape a
+      // cardio-only or trainer-only export produces.
+    };
+    await ctx.importAllData(mkImportFile(mkBackupPayload(incoming)));
+    T('cardioLog gap-filled despite no workoutLog in the backup', app.store.cardioLog === incoming.cardioLog);
+    T('trainerLog gap-filled despite no workoutLog in the backup', app.store.trainerLog === incoming.trainerLog);
+    T('success path executed — an alert was shown', !!lastAlert);
+    T('alert does not falsely claim a workout was added', !/new workout/.test(lastAlert || ''));
+    T('alert reports what was actually restored', /2 settings/.test(lastAlert || ''));
+    T('local workoutLog left untouched', app.store.workoutLog === originalWorkoutLog);
+  }
+
+  sub('CASE C — empty workoutLog array still gap-fills (regression guard)');
+  {
+    const existing = WK('mine', 0, 'push', [EX('Squat',[S(315,5,2,'working')])]);
+    const app = await H.loadAppBooted({ workoutLog: JSON.stringify([existing]) });
+    const ctx = app.ctx;
+    const incoming = { workoutLog: JSON.stringify([]), athleteProfile: JSON.stringify({ goal:'strength' }) };
+    await ctx.importAllData(mkImportFile(mkBackupPayload(incoming)));
+    const persisted = JSON.parse(app.store.workoutLog);
+    T('existing workout preserved', persisted.some(w => w.id === 'mine'));
+    T('nothing spuriously added', persisted.length === 1);
+    T('gap-fill still ran for an empty-array backup', app.store.athleteProfile === incoming.athleteProfile);
+  }
+
+  sub('CASE D — invalid backup rejected before any mutation');
+  {
+    const app = await H.loadAppBooted({ workoutLog: JSON.stringify([WK('keep',0,'push',[])]), trainerLog:'ORIG' });
+
+    let before = storeSnapshotIgnoringBackups(app.store);
+    await app.ctx.importAllData(mkImportFile('{not valid json'));
+    T('malformed JSON leaves the store untouched', storeSnapshotIgnoringBackups(app.store) === before);
+
+    before = storeSnapshotIgnoringBackups(app.store);
+    await app.ctx.importAllData(mkImportFile({ app:'NOT_LOOP', data:{} }));
+    T('wrong app field leaves the store untouched', storeSnapshotIgnoringBackups(app.store) === before);
+
+    before = storeSnapshotIgnoringBackups(app.store);
+    await app.ctx.importAllData(mkImportFile({ app:'LOOP' }));
+    T('missing data field leaves the store untouched', storeSnapshotIgnoringBackups(app.store) === before);
+  }
+
+  sub('CASE E — newer-schema backup rejected before any mutation');
+  {
+    const app = await H.loadAppBooted({ workoutLog: JSON.stringify([WK('keep',0,'push',[])]) });
+    const before = storeSnapshotIgnoringBackups(app.store);
+    const incoming = { workoutLog: JSON.stringify([WK('future',0,'push',[])]) };
+    await app.ctx.importAllData(mkImportFile(mkBackupPayload(incoming, app.ctx.DATA_SCHEMA_VERSION + 1)));
+    T('newer schema leaves the store byte-identical', storeSnapshotIgnoringBackups(app.store) === before);
+    T('the future workout was never merged in', !app.ctx.workoutLog.some(w => w.id === 'future'));
+  }
+
+  sub('CASE F — failure midway restores the pre-import state');
+  {
+    const originalTrainerLog = JSON.stringify({ version:1, entries:[{ id:'original' }] });
+    const app = await H.loadAppBooted({
+      workoutLog: JSON.stringify([WK('safe',0,'push',[])]),
+      trainerLog: originalTrainerLog
+    });
+    const ctx = app.ctx;
+    let lastAlert = null; ctx.alert = m => { lastAlert = m; };
+    const before = storeSnapshotIgnoringBackups(app.store);
+    const incoming = {
+      // Truthy so the merge path is entered, but not parseable — throws
+      // partway through the try block, after the safety backup was taken.
+      workoutLog: '{not valid json, forces a mid-import throw',
+      trainerLog: JSON.stringify({ version:1, entries:[{ id:'from_bad_backup' }] })
+    };
+    await ctx.importAllData(mkImportFile(mkBackupPayload(incoming)));
+    T('failure alert shown', /problem/i.test(lastAlert || ''));
+    T("trainerLog restored to its pre-import value, not the bad backup's",
+      app.store.trainerLog === originalTrainerLog);
+    T('workoutLog restored to its pre-import value',
+      JSON.parse(app.store.workoutLog).length === 1 && JSON.parse(app.store.workoutLog)[0].id === 'safe');
+    T('store fully back to its pre-import snapshot (ignoring the backup key itself)',
+      storeSnapshotIgnoringBackups(app.store) === before);
+  }
+
+  sub('CASE G — existing gap-fill data is never overwritten');
+  {
+    const mineTrainerLog = JSON.stringify({ version:1, entries:[{ id:'mine' }] });
+    const mineReadiness = JSON.stringify({ '2026-08-01': { energy:3 } });
+    const mineProfile = JSON.stringify({ goal:'mine' });
+    const mineCardio = JSON.stringify([{ id:'mine_cardio' }]);
+    const app = await H.loadAppBooted({
+      workoutLog: JSON.stringify([]),
+      trainerLog: mineTrainerLog, dailyReadiness: mineReadiness,
+      athleteProfile: mineProfile, cardioLog: mineCardio
+    });
+    const incoming = {
+      workoutLog: JSON.stringify([ WK('theirs',0,'pull',[]) ]),
+      trainerLog: JSON.stringify({ version:1, entries:[{ id:'theirs' }] }),
+      dailyReadiness: JSON.stringify({ '2026-08-02': { energy:5 } }),
+      athleteProfile: JSON.stringify({ goal:'theirs' }),
+      cardioLog: JSON.stringify([{ id:'theirs_cardio' }])
+    };
+    await app.ctx.importAllData(mkImportFile(mkBackupPayload(incoming)));
+    T('existing trainerLog preserved, not overwritten', app.store.trainerLog === mineTrainerLog);
+    T('existing readiness preserved, not overwritten', app.store.dailyReadiness === mineReadiness);
+    T('existing athlete profile preserved, not overwritten', app.store.athleteProfile === mineProfile);
+    T('existing cardioLog preserved, not overwritten', app.store.cardioLog === mineCardio);
+    T('workoutLog still merges by id regardless of gap-fill gating',
+      JSON.parse(app.store.workoutLog).some(w => w.id === 'theirs'));
+  }
+}
+
 function testUpperLowerFeature(app){
   section('CONTRACT 19 — Upper / Lower categories are native');
   const ctx = app.ctx;
@@ -2018,6 +2185,7 @@ async function main(){
     await testEngineVersionProtection(fx);
     testCacheSafetyMatrix(fx);
     await testBackupRestoreProtection();
+    await testBackupImportFlow();
   }
 
   // ---- FULL ----

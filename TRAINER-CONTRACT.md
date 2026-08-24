@@ -208,6 +208,12 @@ No migration is required today (schema v1). If one ever is, it must:
 - That is a deliberate safety property (import can't destroy local data), but
   it means a backup is not a full two-way sync for trainer records. Worth
   revisiting if cross-device trainer history ever matters.
+- **Fixed 2026-08-24:** gap-fill used to run only inside an `if(incoming.workoutLog)`
+  block, so a backup with no workout history (cardio-only or trainer-only use)
+  silently imported nothing — no error, no message, just a reload. Gap-fill and
+  the success report now run independently of whether the backup has a
+  `workoutLog`. Workout merge-by-ID, schema/invalid-file rejection, and
+  pre-import rollback are unchanged.
 
 ---
 
