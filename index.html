@@ -1870,6 +1870,69 @@ body.page-locked{ overflow: hidden; }
 .prep-guide-lift:first-of-type{ margin-top: 0; }
 .prep-guide-steps{ font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-top: 2px; }
 .prep-guide-note{ font-size: 11px; color: var(--text-faint); margin-top: var(--space-3); line-height: 1.45; }
+
+/* ---------- MY GYM / EQUIPMENT PROFILE (Phase D1) ----------
+   Collapsed categories by default so this is never a wall of toggles.
+   Every tappable control is >= 44px for thumb use mid-session. */
+.gym-summary{
+  font-size: 12px; color: var(--text-dim); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 10px 12px; margin-bottom: var(--space-4);
+}
+.gym-cat{ border-bottom: 1px solid var(--border); }
+.gym-cat:last-of-type{ border-bottom: none; }
+.gym-cat-head{
+  width: 100%; display: flex; align-items: center; gap: var(--space-3);
+  min-height: 52px; padding: 0; background: none; border: none; cursor: pointer;
+  color: var(--text); text-align: left;
+}
+.gym-cat-label{ flex: 1; font-size: 14px; font-weight: 600; }
+.gym-cat-count{
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  color: var(--text-faint);
+}
+.gym-cat-arrow{
+  color: var(--text-faint); font-size: 18px; line-height: 1; width: 14px; text-align: center;
+  transition: transform 0.18s var(--ease);
+}
+.gym-cat-arrow.open{ transform: rotate(90deg); }
+.gym-cat-body{ padding-bottom: var(--space-3); }
+
+.gym-item{
+  width: 100%; display: flex; align-items: center; gap: var(--space-3);
+  min-height: 44px; padding: 0 var(--space-3); margin-bottom: 6px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text-dim);
+  font-size: 13px; font-weight: 500; cursor: pointer; text-align: left;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.gym-item:active{ transform: scale(0.99); }
+.gym-item-box{
+  width: 20px; height: 20px; flex-shrink: 0; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--text-faint);
+}
+.gym-item-name{ flex: 1; min-width: 0; }
+.gym-item.on{ border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.gym-item.on .gym-item-box{ border-color: var(--accent); background: var(--accent); color: #0C0E12; }
+.gym-item.off{ opacity: 0.55; }
+.gym-item.off .gym-item-box{ border-style: dashed; }
+
+.gym-custom{ margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.gym-custom-row{
+  display: flex; align-items: center; gap: var(--space-2);
+  min-height: 44px; border-bottom: 1px solid var(--border);
+}
+.gym-custom-row:last-child{ border-bottom: none; }
+.gym-custom-label{ flex: 1; min-width: 0; font-size: 13px; color: var(--text); }
+.gym-custom-x{
+  width: 44px; height: 44px; flex-shrink: 0; background: none; border: none;
+  color: var(--text-faint); font-size: 20px; line-height: 1; cursor: pointer;
+}
+.gym-custom-add{ display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+/* 16px keeps iOS from zooming the viewport when this field takes focus. */
+.gym-custom-add input{ flex: 1; min-width: 0; font-size: 16px; }
+.gym-custom-add button{ flex-shrink: 0; min-height: 44px; padding: 0 var(--space-4); }
 </style>
 </head>
 <body>
@@ -2220,6 +2283,13 @@ body.page-locked{ overflow: hidden; }
         </span>
         <span class="settings-row-arrow">›</span>
       </button>
+      <button class="settings-row-btn" onclick="openGymProfile()">
+        <span class="settings-row-main">
+          <span class="settings-row-title">My Gym</span>
+          <span class="settings-row-desc" id="settingsGymSub">What equipment you can actually use</span>
+        </span>
+        <span class="settings-row-arrow">›</span>
+      </button>
       <button class="settings-row-btn" onclick="openPlansManager()">
         <span class="settings-row-main">
           <span class="settings-row-title">Workout Plans</span>
@@ -2289,6 +2359,21 @@ body.page-locked{ overflow: hidden; }
 </div>
 
 <!-- SETTINGS → DATA & PRIVACY -->
+<!-- MY GYM / EQUIPMENT PROFILE (Phase D1) — data source only, no substitution -->
+<div class="overlay" id="gymOverlay" onclick="backdropDismiss(event, closeGymProfile)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <button class="sheet-back" onclick="backToSettings('gymOverlay')">‹ Settings</button>
+      <h2>My Gym</h2>
+      <div class="sheet-sub">Tell LOOP what you can actually train with. Anything you leave alone stays unknown rather than assumed unavailable — nothing is removed from your plans or history either way.</div>
+      <div id="gymBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeGymProfile()">Done</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="dataOverlay" onclick="backdropDismiss(event, closeDataSettings)">
   <div class="sheet">
     <div class="sheet-scroll">
@@ -2538,7 +2623,7 @@ const BACKUP_PREFIX = 'backup_v';
 const DATA_KEYS = [
   'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',
   'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog',
-  'cardioLog', 'cardioDraft'
+  'cardioLog', 'cardioDraft', 'gymProfile'
 ];
 
 /* Migrations upgrade FROM the keyed version TO the next one.
@@ -3726,6 +3811,24 @@ const LOOP_UPDATES = [
     bugFixes: [],
     changes: [],
     detail: 'Prep and Cooldown are guidance only. Nothing you do in either one is logged: no sets, no XP, no records, and no effect on recovery, readiness or your training history. Skipping is always one tap, and the workout screen works exactly as it did before.'
+  },
+  {
+    id: 'v2-3',
+    version: 'LOOP 2.3',
+    title: 'My Gym',
+    date: '2026-08-24',
+    summary: 'Tell LOOP what equipment you can actually train with.',
+    newFeatures: [
+      'A new My Gym screen in Settings covering free weights, racks, cables, machines, cardio and specialized equipment',
+      'Categories stay collapsed until you open them, so setup is quick rather than a wall of switches',
+      'Room to note custom equipment your gym has that LOOP does not recognise'
+    ],
+    improvements: [
+      'Anything you leave alone stays unknown rather than being treated as unavailable'
+    ],
+    bugFixes: [],
+    changes: [],
+    detail: 'This is groundwork. Setting up your gym changes nothing about how LOOP works today — no exercise is removed from a plan, no workout is hidden, and your history, records and progression are untouched. It gives a later update the information it needs to suggest sensible swaps when a machine is taken or you are training somewhere else.'
   }
 ];
 
@@ -8789,6 +8892,9 @@ async function loadTrainerData(){
       if(parsed && typeof parsed === 'object') exercisePrefs = Object.assign(defaultExercisePrefs(), parsed);
     }
   }catch(e){}
+  // Gym profile. Absent = a user who has never configured it, which stays
+  // UNKNOWN rather than being filled in with defaults.
+  await loadGymProfile();
 }
 async function persistAthleteProfile(){
   athleteProfile.updatedAt = new Date().toISOString();
@@ -10205,6 +10311,513 @@ function renderAll(){
 }
 
 /* ---------- LOG SHEET ---------- */
+/* =========================================================
+   GYM / EQUIPMENT PROFILE  (Phase D1)
+   ---------------------------------------------------------
+   Answers one question for future systems: WHAT CAN THIS
+   ATHLETE ACTUALLY USE?
+
+   This phase creates the DATA SOURCE ONLY. Nothing here
+   substitutes an exercise, changes a recommendation, alters a
+   plan, or reaches the trainer. The engine stays 0.1.1-shadow
+   and never reads this file's output.
+
+   THREE STATES, NEVER TWO. Equipment is AVAILABLE,
+   UNAVAILABLE, or UNKNOWN. "Unknown" is not "unavailable" —
+   an athlete who has never opened this screen must keep using
+   LOOP exactly as before, with every exercise still offered.
+   Every helper below preserves that distinction, including for
+   equipment added to the registry by a future update that an
+   existing profile has simply never seen.
+
+   TAXONOMY. LOOP already had two coarse equipment vocabularies
+   before this phase and this module deliberately adds no third
+   competing one:
+     1. CANONICAL_EXERCISES[].equipment — 'Barbell' | 'Dumbbell'
+        | 'Cable' | 'Machine' | 'Bodyweight'
+     2. EQUIPMENT_OPTIONS on athleteProfile — the coarse chips
+        the athlete already sets in Athlete Profile
+   GYM_EQUIPMENT below is the granular layer, and every item
+   declares `coarse` so it rolls back up to (2), while
+   EXERCISE_EQUIPMENT maps canonical ids down from (1). The
+   existing athleteProfile.equipment array is READ ONLY here —
+   it feeds computeTrainingContext() and profileComplete, so
+   this module never writes it.
+   ========================================================= */
+
+const GYM_PROFILE_KEY = 'gymProfile';
+
+/* Granular equipment. `coarse` bridges to EQUIPMENT_OPTIONS so the two
+   vocabularies can never drift apart; null means the item has no coarse
+   equivalent (cardio machines are not part of the strength chips). */
+const GYM_EQUIPMENT = [
+  // ---- FREE WEIGHTS ----
+  { id:'barbell',              displayName:'Barbell',              category:'free_weights', coarse:'Barbell' },
+  { id:'ez_curl_bar',          displayName:'EZ Curl Bar',          category:'free_weights', coarse:'Barbell' },
+  { id:'plates',               displayName:'Weight Plates',        category:'free_weights', coarse:'Barbell' },
+  { id:'dumbbells',            displayName:'Dumbbells',            category:'free_weights', coarse:'Dumbbells' },
+  { id:'adjustable_dumbbells', displayName:'Adjustable Dumbbells', category:'free_weights', coarse:'Dumbbells' },
+  { id:'kettlebells',          displayName:'Kettlebells',          category:'free_weights', coarse:'Kettlebells' },
+  { id:'bands',                displayName:'Resistance Bands',     category:'free_weights', coarse:'Bands' },
+
+  // ---- RACK / STATION ----
+  { id:'power_rack',      displayName:'Power Rack',      category:'rack', coarse:'Barbell' },
+  { id:'squat_rack',      displayName:'Squat Rack',      category:'rack', coarse:'Barbell' },
+  { id:'bench',           displayName:'Flat Bench',      category:'rack', coarse:'Barbell' },
+  { id:'adjustable_bench',displayName:'Adjustable Bench',category:'rack', coarse:'Barbell' },
+  { id:'pullup_bar',      displayName:'Pull-Up Bar',     category:'rack', coarse:'Bodyweight' },
+  { id:'dip_station',     displayName:'Dip Station',     category:'rack', coarse:'Bodyweight' },
+
+  // ---- CABLE ----
+  { id:'cable_crossover',   displayName:'Cable Crossover',   category:'cable', coarse:'Cables' },
+  { id:'functional_trainer',displayName:'Functional Trainer',category:'cable', coarse:'Cables' },
+  { id:'lat_pulldown',      displayName:'Lat Pulldown',      category:'cable', coarse:'Cables' },
+  { id:'seated_cable_row',  displayName:'Seated Cable Row',  category:'cable', coarse:'Cables' },
+
+  // ---- MACHINES ----
+  { id:'smith_machine',          displayName:'Smith Machine',        category:'machines', coarse:'Machines' },
+  { id:'chest_press_machine',    displayName:'Chest Press',          category:'machines', coarse:'Machines' },
+  { id:'pec_deck',               displayName:'Pec Deck',             category:'machines', coarse:'Machines' },
+  { id:'shoulder_press_machine', displayName:'Shoulder Press',       category:'machines', coarse:'Machines' },
+  { id:'machine_row',            displayName:'Row Machine',          category:'machines', coarse:'Machines' },
+  { id:'leg_press',              displayName:'Leg Press',            category:'machines', coarse:'Machines' },
+  { id:'hack_squat',             displayName:'Hack Squat',           category:'machines', coarse:'Machines' },
+  { id:'leg_extension',          displayName:'Leg Extension',        category:'machines', coarse:'Machines' },
+  { id:'leg_curl',               displayName:'Leg Curl',             category:'machines', coarse:'Machines' },
+  { id:'calf_raise_machine',     displayName:'Calf Raise',           category:'machines', coarse:'Machines' },
+  { id:'hip_abduction_machine',  displayName:'Hip Abduction',        category:'machines', coarse:'Machines' },
+
+  // ---- CARDIO ----
+  { id:'treadmill',      displayName:'Treadmill',            category:'cardio', coarse:null },
+  { id:'stair_climber',  displayName:'Stair Climber',        category:'cardio', coarse:null },
+  { id:'stationary_bike',displayName:'Bike',                 category:'cardio', coarse:null },
+  { id:'rowing_machine', displayName:'Rowing Machine',       category:'cardio', coarse:null },
+  { id:'elliptical',     displayName:'Elliptical',           category:'cardio', coarse:null },
+
+  // ---- SPECIALIZED ----
+  { id:'hip_thrust_machine',    displayName:'Hip Thrust Machine',  category:'specialized', coarse:'Machines' },
+  { id:'assisted_pullup',       displayName:'Assisted Pull-Up/Dip', category:'specialized', coarse:'Machines' },
+  { id:'landmine',              displayName:'Landmine',            category:'specialized', coarse:'Barbell' },
+  { id:'sled',                  displayName:'Sled',                category:'specialized', coarse:null },
+  { id:'ghd',                   displayName:'GHD',                 category:'specialized', coarse:null },
+  { id:'reverse_hyper',         displayName:'Reverse Hyper',       category:'specialized', coarse:null }
+];
+
+const GYM_CATEGORIES = [
+  { id:'free_weights', label:'Free Weights' },
+  { id:'rack',         label:'Rack & Bench' },
+  { id:'cable',        label:'Cable' },
+  { id:'machines',     label:'Machines' },
+  { id:'cardio',       label:'Cardio' },
+  { id:'specialized',  label:'Specialized' }
+];
+
+/* Built once. Equipment lookups happen per exercise row, so they must not
+   scan the registry each time. */
+let _gymIndex = null;
+function gymEquipmentIndex(){
+  if(_gymIndex) return _gymIndex;
+  _gymIndex = {};
+  GYM_EQUIPMENT.forEach(e => { _gymIndex[e.id] = e; });
+  return _gymIndex;
+}
+function getGymEquipment(id){ return gymEquipmentIndex()[id] || null; }
+function gymEquipmentByCategory(categoryId){
+  return GYM_EQUIPMENT.filter(e => e.category === categoryId);
+}
+
+/* ---------- EXERCISE -> REQUIRED EQUIPMENT ----------
+   A required entry is either a string (this exact item is needed) or an
+   array (ANY ONE of these will do). That covers the two real shapes without
+   inventing a rules engine: "barbell AND a bench", and "some kind of high
+   pulley". An exercise absent from this map falls back to the canonical
+   registry's coarse `equipment` field; an exercise needing nothing at all
+   maps to [] and is always performable. */
+const ANY_CABLE = ['cable_crossover','functional_trainer','lat_pulldown'];
+const ANY_BENCH = ['bench','adjustable_bench'];
+const ANY_RACK  = ['power_rack','squat_rack'];
+
+const EXERCISE_EQUIPMENT = {
+  // horizontal push
+  bench_press_barbell:    ['barbell', ANY_BENCH],
+  bench_press_incline_bb: ['barbell', 'adjustable_bench'],
+  bench_press_close_grip: ['barbell', ANY_BENCH],
+  bench_press_smith:      ['smith_machine', ANY_BENCH],
+  bench_press_db:         ['dumbbells', ANY_BENCH],
+  incline_press_db:       ['dumbbells', 'adjustable_bench'],
+  chest_press_machine:    ['chest_press_machine'],
+  pec_deck:               ['pec_deck'],
+  chest_fly_cable:        [['cable_crossover','functional_trainer']],
+  chest_fly_incline_cable:[['cable_crossover','functional_trainer'], 'adjustable_bench'],
+  pushup:                 [],
+  dip:                    [['dip_station','assisted_pullup']],
+
+  // vertical push
+  overhead_press_bb:      ['barbell'],
+  shoulder_press_db:      ['dumbbells'],
+  shoulder_press_arnold:  ['dumbbells'],
+  lateral_raise:          ['dumbbells'],
+  front_raise:            ['dumbbells'],
+  lateral_raise_cable:    [ANY_CABLE],
+  upright_row:            ['barbell'],
+  landmine_press:         ['barbell','landmine'],
+
+  // pulls
+  row_barbell:            ['barbell'],
+  row_meadows:            ['barbell','landmine'],
+  row_dumbbell:           ['dumbbells'],
+  row_cable_seated:       ['seated_cable_row'],
+  row_machine:            ['machine_row'],
+  lat_pulldown:           ['lat_pulldown'],
+  pullup:                 [['pullup_bar','assisted_pullup']],
+  chinup:                 [['pullup_bar','assisted_pullup']],
+  face_pull:              [ANY_CABLE],
+  straight_arm_pulldown:  [ANY_CABLE],
+  rear_delt_fly:          ['pec_deck'],           // reverse pec deck
+  shrug:                  ['barbell'],
+
+  // squat / lunge
+  squat_back:             ['barbell', ANY_RACK],
+  squat_front:            ['barbell', ANY_RACK],
+  squat_smith:            ['smith_machine'],
+  squat_hack:             ['hack_squat'],
+  squat_goblet:           [['dumbbells','kettlebells']],
+  leg_press:              ['leg_press'],
+  leg_extension:          ['leg_extension'],
+  lunge:                  ['dumbbells'],
+  split_squat_bulgarian:  ['dumbbells', ANY_BENCH],
+
+  // hinge
+  deadlift_conventional:  ['barbell'],
+  deadlift_romanian:      ['barbell'],
+  good_morning:           ['barbell', ANY_RACK],
+  hip_thrust:             [['barbell','hip_thrust_machine'], ANY_BENCH],
+  leg_curl:               ['leg_curl'],
+  hip_abduction:          ['hip_abduction_machine'],
+  nordic_curl:            [],
+
+  // isolation
+  curl_barbell:           [['barbell','ez_curl_bar']],
+  curl_preacher:          [['barbell','ez_curl_bar']],
+  curl_dumbbell:          ['dumbbells'],
+  curl_hammer:            ['dumbbells'],
+  curl_incline_db:        ['dumbbells','adjustable_bench'],
+  curl_cable:             [ANY_CABLE],
+  triceps_pushdown:       [ANY_CABLE],
+  overhead_ext_triceps:   [ANY_CABLE],
+  skullcrusher:           [['barbell','ez_curl_bar'], ANY_BENCH],
+  calf_raise:             ['calf_raise_machine'],
+
+  // core
+  plank:                  [],
+  crunch:                 [],
+  leg_raise:              [],
+  cable_crunch:           [ANY_CABLE]
+};
+
+/* Fallback for any canonical exercise not explicitly mapped above, derived
+   from the registry's own coarse field so the two stay consistent. 'Machine'
+   is deliberately absent: there is no honest way to guess WHICH machine, so
+   such an exercise resolves to unknown rather than a fabricated requirement. */
+const COARSE_EQUIPMENT_FALLBACK = {
+  Barbell:    ['barbell'],
+  Dumbbell:   ['dumbbells'],
+  Cable:      [ANY_CABLE],
+  Bodyweight: []
+};
+
+let _exerciseReqCache = {};
+function invalidateGymCaches(){ _exerciseReqCache = {}; _availabilityCache = null; }
+
+/* Normalized to an array of groups; each group is an array of acceptable
+   equipment ids. Returns null when requirements genuinely aren't known. */
+function getExerciseEquipmentRequirements(exerciseId){
+  if(!exerciseId) return null;
+  if(Object.prototype.hasOwnProperty.call(_exerciseReqCache, exerciseId)) return _exerciseReqCache[exerciseId];
+  let req = null;
+  if(Object.prototype.hasOwnProperty.call(EXERCISE_EQUIPMENT, exerciseId)){
+    req = EXERCISE_EQUIPMENT[exerciseId].map(g => Array.isArray(g) ? g.slice() : [g]);
+  } else {
+    const canon = getCanonicalExercise(exerciseId);
+    const coarse = canon && canon.equipment;
+    if(coarse && Object.prototype.hasOwnProperty.call(COARSE_EQUIPMENT_FALLBACK, coarse)){
+      req = COARSE_EQUIPMENT_FALLBACK[coarse].map(g => Array.isArray(g) ? g.slice() : [g]);
+    }
+  }
+  _exerciseReqCache[exerciseId] = req;
+  return req;
+}
+
+/* ---------- PROFILE STATE ---------- */
+function defaultGymProfile(){
+  return { version:1, configuredAt:null, equipment:{}, custom:[] };
+}
+let gymProfile = defaultGymProfile();
+
+async function loadGymProfile(){
+  try{
+    const r = await LOOPStore.get(GYM_PROFILE_KEY);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      if(parsed && typeof parsed === 'object'){
+        gymProfile = Object.assign(defaultGymProfile(), parsed);
+        if(!gymProfile.equipment || typeof gymProfile.equipment !== 'object') gymProfile.equipment = {};
+        if(!Array.isArray(gymProfile.custom)) gymProfile.custom = [];
+      }
+    }
+  }catch(e){ /* absent or unreadable = a new user, never "repaired" with defaults */ }
+  invalidateGymCaches();
+}
+async function persistGymProfile(){
+  try{ return await LOOPStore.set(GYM_PROFILE_KEY, JSON.stringify(gymProfile)); }
+  catch(e){ return false; }
+}
+
+function isGymProfileConfigured(){ return !!gymProfile.configuredAt; }
+
+/* ---------- THREE-STATE READ API ----------
+   These are the functions the future substitution engine consumes. It should
+   call these rather than reading storage directly. */
+const GYM_STATUS = { AVAILABLE:'available', UNAVAILABLE:'unavailable', UNKNOWN:'unknown' };
+
+function getEquipmentStatus(equipmentId){
+  if(!isGymProfileConfigured()) return GYM_STATUS.UNKNOWN;
+  const v = gymProfile.equipment[equipmentId];
+  // Absent from a configured profile means the athlete has never seen this
+  // item — a registry addition from a later update, say. Still unknown.
+  if(v === undefined) return GYM_STATUS.UNKNOWN;
+  return v ? GYM_STATUS.AVAILABLE : GYM_STATUS.UNAVAILABLE;
+}
+function isEquipmentAvailable(equipmentId){
+  return getEquipmentStatus(equipmentId) === GYM_STATUS.AVAILABLE;
+}
+
+let _availabilityCache = null;
+function gymAvailabilityLists(){
+  if(_availabilityCache) return _availabilityCache;
+  const available = [], unavailable = [], unknown = [];
+  GYM_EQUIPMENT.forEach(e => {
+    const s = getEquipmentStatus(e.id);
+    if(s === GYM_STATUS.AVAILABLE) available.push(e.id);
+    else if(s === GYM_STATUS.UNAVAILABLE) unavailable.push(e.id);
+    else unknown.push(e.id);
+  });
+  _availabilityCache = { available, unavailable, unknown };
+  return _availabilityCache;
+}
+function getAvailableEquipment(){ return gymAvailabilityLists().available.slice(); }
+function getUnavailableEquipment(){ return gymAvailabilityLists().unavailable.slice(); }
+function getUnknownEquipment(){ return gymAvailabilityLists().unknown.slice(); }
+
+/* A group is satisfied if ANY member is available; blocked only if EVERY
+   member is explicitly unavailable; otherwise unknown. */
+function groupStatus(group){
+  let anyUnknown = false;
+  for(const id of group){
+    const s = getEquipmentStatus(id);
+    if(s === GYM_STATUS.AVAILABLE) return GYM_STATUS.AVAILABLE;
+    if(s === GYM_STATUS.UNKNOWN) anyUnknown = true;
+  }
+  return anyUnknown ? GYM_STATUS.UNKNOWN : GYM_STATUS.UNAVAILABLE;
+}
+
+/* 'yes' | 'no' | 'unknown'. Never 'no' on missing information — that is the
+   difference between a constraint and a guess. */
+function canPerformExercise(exerciseId){
+  const req = getExerciseEquipmentRequirements(exerciseId);
+  if(req === null) return GYM_STATUS.UNKNOWN;
+  if(!req.length) return GYM_STATUS.AVAILABLE;      // needs nothing at all
+  let anyUnknown = false;
+  for(const group of req){
+    const s = groupStatus(group);
+    if(s === GYM_STATUS.UNAVAILABLE) return GYM_STATUS.UNAVAILABLE;
+    if(s === GYM_STATUS.UNKNOWN) anyUnknown = true;
+  }
+  return anyUnknown ? GYM_STATUS.UNKNOWN : GYM_STATUS.AVAILABLE;
+}
+/* Convenience for callers that hold a display name rather than an id. */
+function canPerformExerciseByName(name){
+  let id = null;
+  try{ id = resolveExerciseId(name); }catch(e){ return GYM_STATUS.UNKNOWN; }
+  return canPerformExercise(id);
+}
+
+/* Which coarse EQUIPMENT_OPTIONS buckets the configured gym implies. Read
+   only — this never writes athleteProfile.equipment, which stays the
+   athlete's own answer and continues to feed computeTrainingContext(). */
+function coarseEquipmentFromGym(){
+  const out = [];
+  getAvailableEquipment().forEach(id => {
+    const e = getGymEquipment(id);
+    if(e && e.coarse && out.indexOf(e.coarse) === -1) out.push(e.coarse);
+  });
+  return out;
+}
+
+function gymProfileSummary(){
+  const lists = gymAvailabilityLists();
+  return {
+    configured: isGymProfileConfigured(),
+    configuredAt: gymProfile.configuredAt,
+    availableCount: lists.available.length,
+    unavailableCount: lists.unavailable.length,
+    unknownCount: lists.unknown.length,
+    customCount: (gymProfile.custom || []).length,
+    totalRegistry: GYM_EQUIPMENT.length
+  };
+}
+
+/* ---------- MUTATION ---------- */
+function setEquipmentAvailable(equipmentId, available){
+  if(!getGymEquipment(equipmentId)) return false;
+  gymProfile.equipment[equipmentId] = !!available;
+  if(!gymProfile.configuredAt) gymProfile.configuredAt = new Date().toISOString();
+  invalidateGymCaches();
+  persistGymProfile();
+  return true;
+}
+function toggleGymEquipment(equipmentId){
+  const current = getEquipmentStatus(equipmentId);
+  setEquipmentAvailable(equipmentId, current !== GYM_STATUS.AVAILABLE);
+  renderGymCategory(getGymEquipment(equipmentId).category);
+  refreshGymSummary();
+}
+
+/* Custom equipment is recorded as free text and deliberately carries NO
+   exercise compatibility. Nothing downstream may infer what an arbitrary
+   label can perform — it is a note to the athlete until a future phase maps
+   it explicitly. */
+function addCustomEquipment(label){
+  const clean = String(label || '').trim().slice(0, 60);
+  if(!clean) return null;
+  const entry = { id: 'custom:' + clean.toLowerCase().replace(/\s+/g,'_'), label: clean, addedAt: new Date().toISOString(), mapped: false };
+  if((gymProfile.custom || []).some(c => c.id === entry.id)) return null;
+  gymProfile.custom.push(entry);
+  if(!gymProfile.configuredAt) gymProfile.configuredAt = new Date().toISOString();
+  persistGymProfile();
+  return entry;
+}
+function removeCustomEquipment(id){
+  const before = (gymProfile.custom || []).length;
+  gymProfile.custom = (gymProfile.custom || []).filter(c => c.id !== id);
+  if(gymProfile.custom.length !== before) persistGymProfile();
+  return gymProfile.custom.length !== before;
+}
+/* Custom entries are never trusted as equipment for compatibility purposes. */
+function isCustomEquipmentId(id){ return typeof id === 'string' && id.indexOf('custom:') === 0; }
+
+/* ---------- UI ---------- */
+let gymExpandedCategory = null;
+
+function openGymProfile(){
+  closeSettings();
+  renderGymProfile();
+  document.getElementById('gymOverlay').classList.add('open');
+}
+function closeGymProfile(){ document.getElementById('gymOverlay').classList.remove('open'); }
+
+function gymSummaryLine(){
+  const s = gymProfileSummary();
+  if(!s.configured) return 'Not set up — LOOP assumes nothing';
+  return `${s.availableCount} available · ${s.unavailableCount} not available` +
+         (s.customCount ? ` · ${s.customCount} custom` : '');
+}
+function refreshGymSummary(){
+  const el = document.getElementById('gymSummaryLine');
+  if(el) el.textContent = gymSummaryLine();
+  const sub = document.getElementById('settingsGymSub');
+  if(sub) sub.textContent = gymSummaryLine();
+}
+
+function renderGymProfile(){
+  const host = document.getElementById('gymBody');
+  if(!host) return;
+  host.innerHTML =
+    `<div class="gym-summary" id="gymSummaryLine">${escapeHtml(gymSummaryLine())}</div>` +
+    GYM_CATEGORIES.map(c => {
+      const items = gymEquipmentByCategory(c.id);
+      const on = items.filter(i => getEquipmentStatus(i.id) === GYM_STATUS.AVAILABLE).length;
+      return `
+      <div class="gym-cat" data-cat="${c.id}">
+        <button class="gym-cat-head" onclick="toggleGymCategory('${c.id}')" aria-expanded="false">
+          <span class="gym-cat-label">${escapeHtml(c.label)}</span>
+          <span class="gym-cat-count" id="gymCount-${c.id}">${on}/${items.length}</span>
+          <span class="gym-cat-arrow" id="gymArrow-${c.id}">›</span>
+        </button>
+        <div class="gym-cat-body" id="gymBody-${c.id}" style="display:none"></div>
+      </div>`;
+    }).join('') +
+    `<div class="gym-custom">
+       <div class="gym-cat-label" style="margin-bottom:8px">Other Equipment</div>
+       <div id="gymCustomList"></div>
+       <div class="gym-custom-add">
+         <input type="text" id="gymCustomInput" placeholder="e.g. Atlantis chest press" maxlength="60">
+         <button class="btn-secondary" onclick="submitCustomEquipment()">Add</button>
+       </div>
+       <div class="pnote">Listed for your own reference. LOOP will not guess what a custom machine can do, so it does not affect exercise compatibility.</div>
+     </div>`;
+  renderGymCustomList();
+}
+
+function toggleGymCategory(catId){
+  const body = document.getElementById('gymBody-' + catId);
+  const arrow = document.getElementById('gymArrow-' + catId);
+  if(!body) return;
+  const isOpen = body.style.display !== 'none';
+  if(isOpen){
+    body.style.display = 'none';
+    if(arrow) arrow.classList.remove('open');
+    gymExpandedCategory = null;
+  } else {
+    renderGymCategory(catId);
+    body.style.display = 'block';
+    if(arrow) arrow.classList.add('open');
+    gymExpandedCategory = catId;
+  }
+}
+
+function renderGymCategory(catId){
+  const body = document.getElementById('gymBody-' + catId);
+  if(!body) return;
+  body.innerHTML = gymEquipmentByCategory(catId).map(item => {
+    const status = getEquipmentStatus(item.id);
+    const cls = status === GYM_STATUS.AVAILABLE ? 'on' : (status === GYM_STATUS.UNAVAILABLE ? 'off' : '');
+    const mark = status === GYM_STATUS.AVAILABLE ? '✓' : (status === GYM_STATUS.UNAVAILABLE ? '' : '·');
+    return `<button class="gym-item ${cls}" onclick="toggleGymEquipment('${item.id}')">
+        <span class="gym-item-box">${mark}</span>
+        <span class="gym-item-name">${escapeHtml(item.displayName)}</span>
+      </button>`;
+  }).join('');
+  const items = gymEquipmentByCategory(catId);
+  const countEl = document.getElementById('gymCount-' + catId);
+  if(countEl) countEl.textContent =
+    items.filter(i => getEquipmentStatus(i.id) === GYM_STATUS.AVAILABLE).length + '/' + items.length;
+}
+
+function renderGymCustomList(){
+  const el = document.getElementById('gymCustomList');
+  if(!el) return;
+  const list = gymProfile.custom || [];
+  el.innerHTML = list.length
+    ? list.map(c => `<div class="gym-custom-row">
+        <span class="gym-custom-label">${escapeHtml(c.label)}</span>
+        <button class="gym-custom-x" onclick="deleteCustomEquipment('${escapeHtml(c.id)}')" aria-label="Remove">×</button>
+      </div>`).join('')
+    : '';
+}
+function submitCustomEquipment(){
+  const input = document.getElementById('gymCustomInput');
+  if(!input) return;
+  if(addCustomEquipment(input.value)){
+    input.value = '';
+    renderGymCustomList();
+    refreshGymSummary();
+  }
+}
+function deleteCustomEquipment(id){
+  if(removeCustomEquipment(id)){ renderGymCustomList(); refreshGymSummary(); }
+}
+
 /* =========================================================
    PREP & COOLDOWN  (Phase C)
    ---------------------------------------------------------

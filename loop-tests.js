@@ -2141,6 +2141,336 @@ async function testPrepDraftSurvival(){
     JSON.parse(reopened.store.workoutLog || '[]').length === 0);
 }
 
+
+/* =========================================================
+   CONTRACT 32 — gym / equipment profile (Phase D1)
+   ---------------------------------------------------------
+   The whole value of this system is that UNKNOWN is a real
+   third state. If it ever collapses into UNAVAILABLE, an
+   athlete who never opened the screen starts losing exercises
+   — so most of these tests exist to hold that line, alongside
+   proving the profile stays isolated from every protected
+   system and survives a backup round trip.
+   ========================================================= */
+function testGymRegistry(app){
+  section('CONTRACT 32 — gym equipment registry & taxonomy');
+  const ctx = app.ctx;
+
+  sub('registry shape');
+  T('registry populated', ctx.GYM_EQUIPMENT.length >= 30);
+  T('no duplicate equipment ids',
+    new Set(ctx.GYM_EQUIPMENT.map(e=>e.id)).size === ctx.GYM_EQUIPMENT.length);
+  T('every item has a display name', ctx.GYM_EQUIPMENT.every(e => !!e.displayName));
+  T('every item has a category', ctx.GYM_EQUIPMENT.every(e => !!e.category));
+  T('every category is declared in GYM_CATEGORIES',
+    ctx.GYM_EQUIPMENT.every(e => ctx.GYM_CATEGORIES.some(c => c.id === e.category)));
+  T('every declared category has at least one item',
+    ctx.GYM_CATEGORIES.every(c => ctx.GYM_EQUIPMENT.some(e => e.category === c.id)));
+  T('registry stays curated, not an inventory', ctx.GYM_EQUIPMENT.length <= 60);
+  T('lookup by id works', !!ctx.getGymEquipment('barbell'));
+  T('unknown id returns null, never a guess', ctx.getGymEquipment('nope_xyz') === null);
+
+  sub('no second incompatible taxonomy — coarse bridge to EQUIPMENT_OPTIONS');
+  const coarseValues = ctx.GYM_EQUIPMENT.map(e => e.coarse).filter(Boolean);
+  T('every coarse value is a real EQUIPMENT_OPTIONS entry',
+    coarseValues.every(v => ctx.EQUIPMENT_OPTIONS.includes(v)),
+    [...new Set(coarseValues.filter(v => !ctx.EQUIPMENT_OPTIONS.includes(v)))].join(','));
+  T('cardio items carry no coarse strength bucket',
+    ctx.GYM_EQUIPMENT.filter(e => e.category === 'cardio').every(e => e.coarse === null));
+
+  sub('exercise requirements reuse canonical ids');
+  T('every mapped exercise id is a real canonical exercise',
+    Object.keys(ctx.EXERCISE_EQUIPMENT).every(id => !!ctx.getCanonicalExercise(id)),
+    Object.keys(ctx.EXERCISE_EQUIPMENT).filter(id => !ctx.getCanonicalExercise(id)).join(','));
+  T('every required equipment id exists in the gym registry',
+    Object.keys(ctx.EXERCISE_EQUIPMENT).every(id =>
+      ctx.EXERCISE_EQUIPMENT[id].every(g =>
+        (Array.isArray(g) ? g : [g]).every(e => !!ctx.getGymEquipment(e)))));
+
+  sub('multi-equipment exercises');
+  const bench = ctx.getExerciseEquipmentRequirements('bench_press_barbell');
+  T('barbell bench needs more than one thing', bench.length === 2);
+  T('barbell bench requires a barbell', bench.some(g => g.includes('barbell')));
+  T('barbell bench requires a bench', bench.some(g => g.includes('bench')));
+  const smith = ctx.getExerciseEquipmentRequirements('bench_press_smith');
+  T('smith bench needs smith machine + bench',
+    smith.some(g => g.includes('smith_machine')) && smith.some(g => g.includes('bench')));
+  T('requirements are normalized to groups',
+    bench.every(g => Array.isArray(g)));
+  T('an any-of group offers alternatives',
+    ctx.getExerciseEquipmentRequirements('pullup')[0].length > 1);
+  T('bodyweight exercise requires nothing',
+    ctx.getExerciseEquipmentRequirements('pushup').length === 0);
+  T('unmapped exercise falls back to the canonical coarse field',
+    (ctx.getExerciseEquipmentRequirements('curl_barbell') || []).length > 0);
+  T('unknown exercise id yields null, not a fabricated requirement',
+    ctx.getExerciseEquipmentRequirements('unmapped:something') === null);
+  T('requirements are memoised',
+    ctx.getExerciseEquipmentRequirements('bench_press_barbell') ===
+    ctx.getExerciseEquipmentRequirements('bench_press_barbell'));
+}
+
+async function testGymProfileStates(){
+  section('CONTRACT 33 — gym profile: three states, never two');
+
+  sub('brand-new user — nothing configured, nothing assumed');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    T('profile reports not configured', ctx.isGymProfileConfigured() === false);
+    T('every item is UNKNOWN, not unavailable',
+      ctx.GYM_EQUIPMENT.every(e => ctx.getEquipmentStatus(e.id) === 'unknown'));
+    T('nothing is reported available', ctx.getAvailableEquipment().length === 0);
+    T('nothing is reported unavailable', ctx.getUnavailableEquipment().length === 0);
+    T('everything is reported unknown', ctx.getUnknownEquipment().length === ctx.GYM_EQUIPMENT.length);
+    T('isEquipmentAvailable is false for unknown', ctx.isEquipmentAvailable('barbell') === false);
+
+    sub('a new user must still be able to do every exercise');
+    const verdicts = Object.keys(ctx.EXERCISE_EQUIPMENT).map(id => ctx.canPerformExercise(id));
+    T('no exercise is ever ruled OUT for an unconfigured user',
+      verdicts.every(v => v !== 'unavailable'),
+      verdicts.filter(v => v === 'unavailable').length + ' ruled out');
+    T('equipment-free exercises are still performable',
+      ctx.canPerformExercise('pushup') === 'available');
+    T('equipment-needing exercises are unknown, not blocked',
+      ctx.canPerformExercise('bench_press_barbell') === 'unknown');
+    T('no gymProfile key written just by loading', app.store.gymProfile === undefined);
+  }
+
+  sub('user configures the gym');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    ctx.setEquipmentAvailable('barbell', true);
+    T('configuring stamps configuredAt', ctx.isGymProfileConfigured() === true);
+    T('barbell now available', ctx.getEquipmentStatus('barbell') === 'available');
+    T('isEquipmentAvailable agrees', ctx.isEquipmentAvailable('barbell') === true);
+    T('untouched item stays UNKNOWN, not unavailable',
+      ctx.getEquipmentStatus('hack_squat') === 'unknown');
+
+    ctx.setEquipmentAvailable('bench', false);
+    T('explicit false is UNAVAILABLE', ctx.getEquipmentStatus('bench') === 'unavailable');
+    T('available list reflects the choice', ctx.getAvailableEquipment().includes('barbell'));
+    T('unavailable list reflects the choice', ctx.getUnavailableEquipment().includes('bench'));
+
+    sub('canPerformExercise across the three states');
+    T('all requirements available -> available',
+      (ctx.setEquipmentAvailable('bench', true), ctx.canPerformExercise('bench_press_barbell')) === 'available');
+    T('a required item explicitly missing -> unavailable',
+      (ctx.setEquipmentAvailable('bench', false),
+       ctx.setEquipmentAvailable('adjustable_bench', false),
+       ctx.canPerformExercise('bench_press_barbell')) === 'unavailable');
+    T('an unset requirement -> unknown, never unavailable',
+      ctx.canPerformExercise('squat_hack') === 'unknown');
+    T('any-of group satisfied by one member',
+      (ctx.setEquipmentAvailable('adjustable_bench', true),
+       ctx.canPerformExercise('bench_press_barbell')) === 'available');
+    T('rejecting the whole registry never breaks equipment-free work',
+      ctx.canPerformExercise('plank') === 'available');
+  }
+
+  sub('rapid toggling stays consistent');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    for(let i = 0; i < 40; i++) ctx.setEquipmentAvailable('dumbbells', i % 2 === 0);
+    T('final state matches the last toggle', ctx.getEquipmentStatus('dumbbells') === 'unavailable');
+    for(let i = 0; i < 41; i++) ctx.setEquipmentAvailable('dumbbells', i % 2 === 0);
+    T('odd count lands on available', ctx.getEquipmentStatus('dumbbells') === 'available');
+    T('derived lists stay in sync after rapid toggling',
+      ctx.getAvailableEquipment().includes('dumbbells') &&
+      !ctx.getUnavailableEquipment().includes('dumbbells'));
+    T('toggling an unknown id is rejected safely',
+      ctx.setEquipmentAvailable('not_a_real_thing', true) === false);
+  }
+
+  sub('registry growth — an item a saved profile has never seen');
+  {
+    const saved = JSON.stringify({ version:1, configuredAt:'2026-01-01T00:00:00.000Z',
+      equipment:{ barbell:true }, custom:[] });
+    const app = await H.loadAppBooted({ gymProfile: saved });
+    const ctx = app.ctx;
+    T('configured profile loads', ctx.isGymProfileConfigured() === true);
+    T('known choice preserved', ctx.getEquipmentStatus('barbell') === 'available');
+    T('an item absent from the saved profile is UNKNOWN, not unavailable',
+      ctx.getEquipmentStatus('reverse_hyper') === 'unknown');
+    T('a future registry addition cannot silently block exercises',
+      ctx.canPerformExercise('squat_hack') === 'unknown');
+  }
+
+  sub('save and reload');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    ctx.setEquipmentAvailable('barbell', true);
+    ctx.setEquipmentAvailable('hack_squat', false);
+    ctx.addCustomEquipment('Atlantis chest press');
+    await H.settle(60);
+    T('profile persisted to its own key', !!app.store.gymProfile);
+    const reopened = await H.loadAppBooted(app.store);
+    T('available choice survived reload', reopened.ctx.getEquipmentStatus('barbell') === 'available');
+    T('unavailable choice survived reload', reopened.ctx.getEquipmentStatus('hack_squat') === 'unavailable');
+    T('unknown stayed unknown after reload', reopened.ctx.getEquipmentStatus('sled') === 'unknown');
+    T('custom equipment survived reload', reopened.ctx.gymProfile.custom.length === 1);
+    T('configuredAt survived reload', !!reopened.ctx.gymProfile.configuredAt);
+  }
+
+  sub('custom equipment is never trusted for compatibility');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    const e = ctx.addCustomEquipment('  Atlantis chest press  ');
+    T('custom entry created', !!e);
+    T('label trimmed', e.label === 'Atlantis chest press');
+    T('custom ids are namespaced', ctx.isCustomEquipmentId(e.id));
+    T('custom entry is explicitly unmapped', e.mapped === false);
+    T('custom equipment is not in the trusted registry', ctx.getGymEquipment(e.id) === null);
+    T('custom equipment reports UNKNOWN status, never available',
+      ctx.getEquipmentStatus(e.id) === 'unknown');
+    T('custom equipment never appears in available list',
+      !ctx.getAvailableEquipment().includes(e.id));
+    T('duplicate custom is rejected', ctx.addCustomEquipment('Atlantis chest press') === null);
+    T('empty custom is rejected', ctx.addCustomEquipment('   ') === null);
+    T('custom can be removed', ctx.removeCustomEquipment(e.id) === true);
+    T('removing a missing custom is safe', ctx.removeCustomEquipment('custom:nope') === false);
+  }
+
+  sub('coarse bridge is read-only');
+  {
+    const app = await H.loadAppBooted({});
+    const ctx = app.ctx;
+    const profileBefore = JSON.stringify(ctx.athleteProfile.equipment);
+    ctx.setEquipmentAvailable('barbell', true);
+    ctx.setEquipmentAvailable('treadmill', true);
+    T('coarse derivation reports Barbell', ctx.coarseEquipmentFromGym().includes('Barbell'));
+    T('cardio contributes no coarse bucket', !ctx.coarseEquipmentFromGym().includes('Cardio'));
+    T('athleteProfile.equipment is NOT written by the gym profile',
+      JSON.stringify(ctx.athleteProfile.equipment) === profileBefore);
+  }
+}
+
+/* Existing users, existing data, and every protected system. */
+async function testGymIsolation(){
+  section('CONTRACT 34 — gym profile is isolated from every protected system');
+
+  sub('an existing user with real history and no gym profile');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  T('existing user has no gym profile', ctx.isGymProfileConfigured() === false);
+  T('their history is intact', ctx.workoutLog.length === 104);
+  T('their trainerLog is intact', ctx.trainerLog.entries.length === 24);
+  T('their plan is intact', !!ctx.selectedPlanId);
+  T('no exercise is hidden from them', Object.keys(ctx.EXERCISE_EQUIPMENT)
+    .every(id => ctx.canPerformExercise(id) !== 'unavailable'));
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const draftBefore = app.store.activeWorkoutDraft;
+  const plansBefore = app.store.selectedPlan;
+  const recBefore = JSON.stringify(ctx.computeShadowRecommendation('Bench Press', {}));
+
+  // Configure a full gym — the loudest possible use of this system.
+  ctx.GYM_EQUIPMENT.forEach((e, i) => ctx.setEquipmentAvailable(e.id, i % 2 === 0));
+  ctx.addCustomEquipment('Atlantis chest press');
+  await H.settle(60);
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  sub('protected data');
+  const d = H.diffSnapshot(before, after, []);
+  T('NOTHING protected changed', d.ok, 'changed: ' + d.violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('plans unchanged', app.store.selectedPlan === plansBefore);
+  T('drafts unchanged', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('XP / PRs');
+  T('lifetime XP unchanged', after.xp === before.xp);
+  T('level unchanged', after.level === before.level);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('PR count unchanged', after.prCount === before.prCount);
+
+  sub('trainer');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by equipment changes',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('shadow recommendation identical before and after configuring a gym',
+    JSON.stringify(ctx.computeShadowRecommendation('Bench Press', {})) === recBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+
+  sub('recovery / capability / readiness');
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('readiness unchanged', after.readiness === before.readiness);
+
+  sub('storage isolation');
+  T('gym data lives in its own key', !!app.store.gymProfile);
+  T('gymProfile registered for backup', ctx.DATA_KEYS.includes('gymProfile'));
+  T('gym data is NOT inside athleteProfile',
+    !JSON.stringify(JSON.parse(app.store.athleteProfile)).includes('hack_squat'));
+  T('gym data is NOT inside workoutLog', !app.store.workoutLog.includes('hack_squat'));
+  T('gym data is NOT inside trainerLog', !app.store.trainerLog.includes('hack_squat'));
+  T('schema version untouched', ctx.DATA_SCHEMA_VERSION === 1);
+}
+
+/* Backup must carry the gym profile, under the existing gap-fill semantics. */
+async function testGymBackup(){
+  section('CONTRACT 35 — gym profile survives backup / restore');
+
+  sub('export captures the gym profile');
+  const app = await H.loadAppBooted({ workoutLog: JSON.stringify([]) });
+  const ctx = app.ctx;
+  ctx.setEquipmentAvailable('barbell', true);
+  ctx.setEquipmentAvailable('hack_squat', false);
+  ctx.addCustomEquipment('Atlantis chest press');
+  await H.settle(60);
+
+  const keys = await ctx.allDataKeys();
+  T('gymProfile is in the backup key list', keys.includes('gymProfile'));
+  const exported = {};
+  for(const k of keys){
+    const r = await ctx.LOOPStore.get(k);
+    if(r && r.value !== undefined && r.value !== null) exported[k] = r.value;
+  }
+  T('export contains the gym profile', !!exported.gymProfile);
+  T('export preserves availability', JSON.parse(exported.gymProfile).equipment.barbell === true);
+  T('export preserves unavailability', JSON.parse(exported.gymProfile).equipment.hack_squat === false);
+  T('export preserves custom equipment', JSON.parse(exported.gymProfile).custom.length === 1);
+
+  sub('restore into a fresh device');
+  const restored = await H.loadAppBooted(exported);
+  T('restore rebuilds configured state', restored.ctx.isGymProfileConfigured() === true);
+  T('restore rebuilds available equipment', restored.ctx.getEquipmentStatus('barbell') === 'available');
+  T('restore rebuilds unavailable equipment', restored.ctx.getEquipmentStatus('hack_squat') === 'unavailable');
+  T('restore leaves unseen equipment UNKNOWN', restored.ctx.getEquipmentStatus('sled') === 'unknown');
+  T('restore rebuilds custom equipment', restored.ctx.gymProfile.custom.length === 1);
+
+  sub('import gap-fill semantics preserved');
+  {
+    // Fresh device with no gym profile — import should fill the gap.
+    const fresh = await H.loadAppBooted({ workoutLog: JSON.stringify([]) });
+    const payload = { app:'LOOP', schemaVersion:1, exportedAt:new Date().toISOString(),
+      data: { gymProfile: exported.gymProfile } };
+    await fresh.ctx.importAllData(mkImportFile(payload));
+    T('gym profile imported into an empty slot', fresh.store.gymProfile === exported.gymProfile);
+  }
+  {
+    // Device that already has its own gym profile — must NOT be overwritten.
+    const mine = JSON.stringify({ version:1, configuredAt:'2026-02-02T00:00:00.000Z',
+      equipment:{ dumbbells:true }, custom:[] });
+    const owned = await H.loadAppBooted({ workoutLog: JSON.stringify([]), gymProfile: mine });
+    const payload = { app:'LOOP', schemaVersion:1, exportedAt:new Date().toISOString(),
+      data: { gymProfile: exported.gymProfile } };
+    await owned.ctx.importAllData(mkImportFile(payload));
+    T('existing gym profile is NOT overwritten by import', owned.store.gymProfile === mine);
+  }
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -2171,6 +2501,8 @@ async function main(){
   await testFirstImpression();
   testPrepSystem(app);
   testPrepRunner(app);
+  testGymRegistry(app);
+  await testGymProfileStates();
   testUpdatesCurrency(app);
   await testShadowObservationSafety(app);
 
@@ -2186,6 +2518,8 @@ async function main(){
     testCacheSafetyMatrix(fx);
     await testBackupRestoreProtection();
     await testBackupImportFlow();
+    await testGymIsolation();
+    await testGymBackup();
   }
 
   // ---- FULL ----

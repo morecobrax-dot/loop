@@ -158,7 +158,9 @@ function loadApp(initialStore){
     'CAPABILITY_CONFIG','REPLAY_CONFIG','TRAINING_GOALS','MUSCLE_MAP','MUSCLE_LABELS',
     'CANONICAL_EXERCISES','TRAINER_STATES','READINESS_OPTIONS','DEFAULT_PLANS','ORDER','CAT_LABEL','LOOPStore','SCHEMA_KEY','BACKUP_PREFIX','CARDIO_ACTIVITIES','CARDIO_FIELDS','CARDIO_KEY','CARDIO_DRAFT_KEY','cardioLog','CARDIO_XP_CONFIG','CARDIO_MILESTONES','LOOP_UPDATES',
     'PREP_MOVEMENTS','COOLDOWN_STRETCHES','PREP_SEQUENCES','COOLDOWN_SEQUENCES','LIFT_PREP_GUIDANCE',
-    'prepState','prepTimerId','prepCardDismissed','pendingLogCategory'];
+    'prepState','prepTimerId','prepCardDismissed','pendingLogCategory',
+    'GYM_EQUIPMENT','GYM_CATEGORIES','EXERCISE_EQUIPMENT','GYM_STATUS','GYM_PROFILE_KEY',
+    'gymProfile','EQUIPMENT_OPTIONS'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +
