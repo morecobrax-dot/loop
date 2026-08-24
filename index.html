@@ -2079,6 +2079,78 @@ body.page-locked{ overflow: hidden; }
 .stp-name{ font-size: 14px; font-weight: 600; color: var(--text); }
 .stp-desc{ font-size: 11.5px; color: var(--text-dim); line-height: 1.35; }
 .stp-mark{ color: var(--accent); font-size: 15px; flex-shrink: 0; width: 16px; text-align: center; }
+
+/* ---------- EXERCISE NOTES (Phase D6) ----------
+   Quiet on the row until there is something to remember, then a single
+   compact line of the athlete's own words. */
+.ex-note-wrap:empty{ display: none; }
+.ex-note-btn{
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 11.5px; font-weight: 600;
+  font-family: 'Inter', sans-serif; letter-spacing: 0.02em;
+}
+.ex-note-btn:active{ color: var(--accent); }
+
+.ex-note-memory{
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-md); padding: 8px 10px; margin-top: 8px;
+}
+.ex-note-memory-head{ display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.ex-note-label{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-faint); font-family: 'JetBrains Mono', monospace;
+}
+.ex-note-view{
+  min-height: 44px; padding: 0 2px; background: none; border: none; cursor: pointer;
+  color: var(--accent); font-size: 11.5px; font-weight: 600; font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+.ex-note-text{
+  font-size: 12.5px; line-height: 1.45; color: var(--text-dim);
+  margin-top: 1px; word-break: break-word;
+}
+
+/* ---- notes sheet ---- */
+/* 16px keeps iOS from zooming the viewport when the composer takes focus. */
+.note-input{
+  width: 100%; font-size: 16px; line-height: 1.45; min-height: 76px;
+  resize: vertical; margin-top: var(--space-3);
+}
+.note-compose-actions{ display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
+.note-save-btn{ flex: 1; min-height: 48px; font-size: 14px; font-weight: 700; }
+.note-cancel-edit{
+  min-height: 48px; padding: 0 var(--space-3); background: none; border: none;
+  color: var(--text-faint); font-size: 13px; font-weight: 600;
+  font-family: 'Inter', sans-serif; cursor: pointer;
+}
+
+.notes-list{ margin-top: var(--space-5); }
+.note-row{
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-3) 0; border-bottom: 1px solid var(--border);
+}
+.note-row:last-child{ border-bottom: none; }
+.note-row.editing{ background: var(--accent-soft); border-radius: var(--radius-md); padding-left: 8px; padding-right: 8px; }
+.note-row-main{ flex: 1; min-width: 0; }
+.note-row-date{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--text-faint); font-family: 'JetBrains Mono', monospace;
+}
+.note-row-text{
+  font-size: 13.5px; line-height: 1.5; color: var(--text); margin-top: 3px;
+  white-space: pre-wrap; word-break: break-word;
+}
+.note-row-actions{ display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.note-act{
+  min-width: 44px; min-height: 44px; background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif;
+}
+.note-act:active{ color: var(--accent); }
+.note-act-del{ font-size: 15px; }
+.note-act-del:active{ color: var(--danger); }
+.notes-empty{ font-size: 13px; color: var(--text-faint); padding: var(--space-4) 0; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -2517,6 +2589,26 @@ body.page-locked{ overflow: hidden; }
   </div>
 </div>
 
+<!-- EXERCISE NOTES (Phase D6) — personal memory; never changes training data -->
+<div class="overlay" id="notesOverlay" onclick="backdropDismiss(event, closeExerciseNotes)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>Exercise Notes</h2>
+      <div class="sheet-sub" id="notesSubtitle"></div>
+      <textarea id="noteInput" class="note-input" rows="3" maxlength="500"
+        placeholder="How did it feel? Anything worth remembering next time."></textarea>
+      <div class="note-compose-actions">
+        <button class="btn-primary note-save-btn" id="noteSaveBtn" onclick="submitExerciseNote()">Save note</button>
+        <button class="note-cancel-edit" id="noteCancelEdit" style="display:none" onclick="cancelEditExerciseNote()">Cancel edit</button>
+      </div>
+      <div id="notesList" class="notes-list"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeExerciseNotes()">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- REPLACE EXERCISE (Phase D2) — ranked alternatives, user-chosen only -->
 <div class="overlay" id="subOverlay" onclick="backdropDismiss(event, closeSubstitutions)">
   <div class="sheet">
@@ -2794,7 +2886,7 @@ const BACKUP_PREFIX = 'backup_v';
 const DATA_KEYS = [
   'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',
   'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog',
-  'cardioLog', 'cardioDraft', 'gymProfile'
+  'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes'
 ];
 
 /* Migrations upgrade FROM the keyed version TO the next one.
@@ -9515,6 +9607,8 @@ async function loadTrainerData(){
   // Gym profile. Absent = a user who has never configured it, which stays
   // UNKNOWN rather than being filled in with defaults.
   await loadGymProfile();
+  // Exercise notes. Absent = an athlete who has not written anything yet.
+  await loadExerciseNotes();
 }
 async function persistAthleteProfile(){
   athleteProfile.updatedAt = new Date().toISOString();
@@ -11242,6 +11336,293 @@ function timeModeNoteHtml(tpl){
 }
 
 /* =========================================================
+   EXERCISE NOTES — PERSONAL TRAINING MEMORY  (Phase D6)
+   ---------------------------------------------------------
+   What the athlete deliberately tells LOOP about an exercise,
+   stored verbatim and handed back the next time that exercise
+   comes up.
+
+   PASSIVE MEMORY, NOTHING MORE. A note never changes a weight,
+   a rep, a set, an exercise, a plan, recovery, readiness,
+   capability, XP or a PR, and the trainer does not read it.
+   "Very sore today" is recorded as a sentence the athlete
+   wrote — it is not a readiness entry. "I hate this machine"
+   is not a substitution. Writing it down is the whole feature.
+
+   SEPARATE FROM TRAINER FEEDBACK. Too Easy / Right / Too Hard
+   is structured evaluation living in trainerLog. A note is
+   free text living here. They coexist and neither overwrites
+   the other.
+
+   VERBATIM. The athlete's words are stored exactly as typed —
+   never summarised, classified, scored or rewritten. A later
+   phase can look for patterns; it will find the raw statement
+   waiting for it, which is why nothing here needs a
+   destructive migration to become useful.
+
+   IDENTITY. Notes attach to the CANONICAL exercise id, so
+   renaming a display name never orphans them. An exercise
+   outside the registry keeps its stable `unmapped:` id rather
+   than being fuzzy-matched into a neighbour.
+   ========================================================= */
+
+const EXERCISE_NOTES_KEY = 'exerciseNotes';
+const NOTE_MAX_LENGTH = 500;
+
+function defaultExerciseNotes(){ return { version:1, notes:[] }; }
+let exerciseNotes = defaultExerciseNotes();
+
+async function loadExerciseNotes(){
+  try{
+    const r = await LOOPStore.get(EXERCISE_NOTES_KEY);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      if(parsed && Array.isArray(parsed.notes)){
+        exerciseNotes = Object.assign(defaultExerciseNotes(), parsed);
+      }
+    }
+  }catch(e){ /* absent or unreadable = no memory yet, never "repaired" */ }
+  invalidateNoteIndex();
+}
+async function persistExerciseNotes(){
+  try{ return await LOOPStore.set(EXERCISE_NOTES_KEY, JSON.stringify(exerciseNotes)); }
+  catch(e){ return false; }
+}
+
+/* ---------- INDEX ----------
+   Built once and reused. Note lookup happens per exercise row, so it must
+   not walk every note on every render. */
+let _noteIndex = null;
+function invalidateNoteIndex(){ _noteIndex = null; }
+function noteIndex(){
+  if(_noteIndex) return _noteIndex;
+  _noteIndex = {};
+  (exerciseNotes.notes || []).forEach(n => {
+    if(!n || n.archived || !n.exerciseId) return;
+    (_noteIndex[n.exerciseId] = _noteIndex[n.exerciseId] || []).push(n);
+  });
+  // Newest first, so "the latest note" is always index 0.
+  Object.keys(_noteIndex).forEach(k => {
+    _noteIndex[k].sort((a,b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  });
+  return _noteIndex;
+}
+
+/* ---------- READ API ----------
+   The surface a future memory-aware system consumes. Callers use these
+   rather than reaching into storage. */
+function getExerciseNotes(exerciseId){
+  if(!exerciseId) return [];
+  return (noteIndex()[exerciseId] || []).slice();
+}
+function getRecentExerciseNotes(exerciseId, limit){
+  const all = getExerciseNotes(exerciseId);
+  return typeof limit === 'number' ? all.slice(0, Math.max(0, limit)) : all;
+}
+function getLatestExerciseNote(exerciseId){
+  const all = getExerciseNotes(exerciseId);
+  return all.length ? all[0] : null;
+}
+function hasExerciseNotes(exerciseId){ return getExerciseNotes(exerciseId).length > 0; }
+function getExerciseNoteById(noteId){
+  return (exerciseNotes.notes || []).find(n => n && n.id === noteId) || null;
+}
+/* Convenience for callers holding a display name rather than an id. */
+function resolveNoteExerciseId(name){
+  if(!name) return null;
+  try{ return resolveExerciseId(name); }catch(e){ return null; }
+}
+function getExerciseNotesByName(name){
+  const id = resolveNoteExerciseId(name);
+  return id ? getExerciseNotes(id) : [];
+}
+function getLatestExerciseNoteByName(name){
+  const id = resolveNoteExerciseId(name);
+  return id ? getLatestExerciseNote(id) : null;
+}
+
+/* ---------- WRITE API ----------
+   Every mutation touches exerciseNotes and nothing else. */
+function newNoteId(){
+  return 'n_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+function normalizeNoteText(text){
+  return String(text == null ? '' : text).trim().slice(0, NOTE_MAX_LENGTH);
+}
+
+function saveExerciseNote(exerciseId, text){
+  const clean = normalizeNoteText(text);
+  if(!exerciseId || !clean) return null;      // empty notes are not stored
+  const now = new Date().toISOString();
+  const note = {
+    id: newNoteId(),
+    exerciseId: exerciseId,
+    text: clean,                              // verbatim, never rewritten
+    createdAt: now,
+    updatedAt: now,
+    archived: false
+  };
+  exerciseNotes.notes.push(note);
+  invalidateNoteIndex();
+  persistExerciseNotes();
+  return note;
+}
+function saveExerciseNoteByName(name, text){
+  const id = resolveNoteExerciseId(name);
+  return id ? saveExerciseNote(id, text) : null;
+}
+
+/* Updates ONLY the note named. createdAt is preserved so the timeline keeps
+   its original order. */
+function updateExerciseNote(noteId, text){
+  const clean = normalizeNoteText(text);
+  const note = getExerciseNoteById(noteId);
+  if(!note || !clean) return null;
+  note.text = clean;
+  note.updatedAt = new Date().toISOString();
+  invalidateNoteIndex();
+  persistExerciseNotes();
+  return note;
+}
+
+/* Removes ONLY the note named. Nothing else in the store is touched. */
+function deleteExerciseNote(noteId){
+  const before = exerciseNotes.notes.length;
+  exerciseNotes.notes = exerciseNotes.notes.filter(n => !n || n.id !== noteId);
+  const removed = exerciseNotes.notes.length !== before;
+  if(removed){ invalidateNoteIndex(); persistExerciseNotes(); }
+  return removed;
+}
+
+function exerciseNotesSummary(){
+  const all = (exerciseNotes.notes || []).filter(n => n && !n.archived);
+  return {
+    total: all.length,
+    exercisesWithNotes: Object.keys(noteIndex()).length
+  };
+}
+
+/* ---------- UI ----------
+   One compact sheet: composer on top, history beneath. Opening it is one
+   tap from the exercise row; writing a note is type-and-save. */
+let notesTargetExerciseId = null;
+let notesTargetName = '';
+let notesEditingId = null;
+
+/* The memory preview that sits on the exercise row. Renders nothing at all
+   when the exercise has no notes, so a first-time exercise stays clean. */
+function exerciseNoteBlockHtml(name){
+  const id = resolveNoteExerciseId(name);
+  const latest = id ? getLatestExerciseNote(id) : null;
+  const count = id ? getExerciseNotes(id).length : 0;
+  if(!latest){
+    return `<button type="button" class="ex-note-btn" onclick="openExerciseNotesFromRow(this)">+ Note</button>`;
+  }
+  return `
+    <div class="ex-note-memory">
+      <div class="ex-note-memory-head">
+        <span class="ex-note-label">Last note</span>
+        <button type="button" class="ex-note-view" onclick="openExerciseNotesFromRow(this)">${count > 1 ? count + ' notes' : 'View'} ›</button>
+      </div>
+      <div class="ex-note-text">${escapeHtml(latest.text)}</div>
+    </div>`;
+}
+
+function refreshExerciseNoteBlock(row){
+  if(!row) return;
+  const wrap = row.querySelector('.ex-note-wrap');
+  if(!wrap) return;
+  const nameEl = row.querySelector('.ex-name-in');
+  const name = nameEl ? nameEl.value.trim() : '';
+  wrap.innerHTML = name ? exerciseNoteBlockHtml(name) : '';
+}
+
+function openExerciseNotesFromRow(el){
+  const row = el.closest('.ex-log-row');
+  if(!row) return;
+  const nameEl = row.querySelector('.ex-name-in');
+  const name = nameEl ? nameEl.value.trim() : '';
+  if(!name) return;
+  openExerciseNotes(name);
+}
+
+function openExerciseNotes(name){
+  notesTargetName = name;
+  notesTargetExerciseId = resolveNoteExerciseId(name);
+  notesEditingId = null;
+  if(!notesTargetExerciseId) return;
+  const sub = document.getElementById('notesSubtitle');
+  if(sub) sub.textContent = name;
+  renderExerciseNotesSheet();
+  const ov = document.getElementById('notesOverlay');
+  if(ov) ov.classList.add('open');
+  const input = document.getElementById('noteInput');
+  if(input){ input.value = ''; try{ input.focus(); }catch(e){} }
+}
+function closeExerciseNotes(){
+  const ov = document.getElementById('notesOverlay');
+  if(ov) ov.classList.remove('open');
+  notesEditingId = null;
+  // Put the row's preview back in sync with whatever just changed.
+  document.querySelectorAll('#logExercises .ex-log-row').forEach(refreshExerciseNoteBlock);
+}
+
+function renderExerciseNotesSheet(){
+  const list = document.getElementById('notesList');
+  if(!list) return;
+  const notes = notesTargetExerciseId ? getExerciseNotes(notesTargetExerciseId) : [];
+  list.innerHTML = notes.length
+    ? notes.map(n => `
+        <div class="note-row${notesEditingId === n.id ? ' editing' : ''}">
+          <div class="note-row-main">
+            <div class="note-row-date">${escapeHtml(formatDateShort(n.createdAt.slice(0,10)))}${n.updatedAt !== n.createdAt ? ' · edited' : ''}</div>
+            <div class="note-row-text">${escapeHtml(n.text)}</div>
+          </div>
+          <div class="note-row-actions">
+            <button type="button" class="note-act" onclick="beginEditExerciseNote('${escapeAttr(n.id)}')" aria-label="Edit note">Edit</button>
+            <button type="button" class="note-act note-act-del" onclick="removeExerciseNote('${escapeAttr(n.id)}')" aria-label="Delete note">✕</button>
+          </div>
+        </div>`).join('')
+    : `<div class="notes-empty">Nothing noted for this exercise yet.</div>`;
+
+  const btn = document.getElementById('noteSaveBtn');
+  if(btn) btn.textContent = notesEditingId ? 'Update note' : 'Save note';
+  const cancel = document.getElementById('noteCancelEdit');
+  if(cancel) cancel.style.display = notesEditingId ? 'block' : 'none';
+}
+
+function submitExerciseNote(){
+  const input = document.getElementById('noteInput');
+  if(!input) return;
+  const text = input.value;
+  if(!normalizeNoteText(text)) return;          // nothing to save
+  if(notesEditingId) updateExerciseNote(notesEditingId, text);
+  else saveExerciseNote(notesTargetExerciseId, text);
+  notesEditingId = null;
+  input.value = '';
+  renderExerciseNotesSheet();
+}
+function beginEditExerciseNote(noteId){
+  const note = getExerciseNoteById(noteId);
+  if(!note) return;
+  notesEditingId = noteId;
+  const input = document.getElementById('noteInput');
+  if(input){ input.value = note.text; try{ input.focus(); }catch(e){} }
+  renderExerciseNotesSheet();
+}
+function cancelEditExerciseNote(){
+  notesEditingId = null;
+  const input = document.getElementById('noteInput');
+  if(input) input.value = '';
+  renderExerciseNotesSheet();
+}
+function removeExerciseNote(noteId){
+  if(notesEditingId === noteId) cancelEditExerciseNote();
+  deleteExerciseNote(noteId);
+  renderExerciseNotesSheet();
+}
+
+/* =========================================================
    EXERCISE SUBSTITUTION ENGINE  (Phase D2)
    ---------------------------------------------------------
    Answers: "what is the best available replacement for this
@@ -11685,6 +12066,9 @@ function applySubstitution(newExerciseId){
   // the NEW exercise's own history — never copied from the old one.
   const lastTimeWrap = row.querySelector('.last-time-wrap');
   if(lastTimeWrap) lastTimeWrap.innerHTML = lastTimeHtml(canon.displayName);
+  // Memory follows the exercise: the replacement shows ITS notes, not the
+  // notes written about the exercise that was swapped out.
+  refreshExerciseNoteBlock(row);
   const warmupWrap = row.querySelector('.warmup-wrap');
   if(warmupWrap) warmupWrap.innerHTML = warmupBoxHtml(canon.displayName, '');
   const recWrap = row.querySelector('.recommend-wrap');
@@ -13069,6 +13453,7 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
     </div>
     <button type="button" class="ex-replace-btn" onclick="openSubstitutions(this)">↔ Replace</button>
     <div class="last-time-wrap">${name ? lastTimeHtml(name) : ''}</div>
+    <div class="ex-note-wrap">${name ? exerciseNoteBlockHtml(name) : ''}</div>
     <div class="recommend-wrap">${recommendCardHtml(rec, meta.targetSets, meta.targetReps, bodyweight)}</div>
     <div class="ex-log-controls">
       <label class="bw-toggle"><input type="checkbox" class="ex-bw-in" ${bodyweight?'checked':''} onchange="toggleBW(this)"> Bodyweight</label>
@@ -13128,6 +13513,7 @@ function swapLogExercise(selectEl){
 
   const lastTimeWrap = row.querySelector('.last-time-wrap');
   if(lastTimeWrap) lastTimeWrap.innerHTML = lastTimeHtml(lib.name);
+  refreshExerciseNoteBlock(row);
 
   const recWrap = row.querySelector('.recommend-wrap');
   if(recWrap) recWrap.innerHTML = recommendCardHtml(rec, lib.sets, lib.reps, isBW);

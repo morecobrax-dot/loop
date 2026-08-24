@@ -4142,6 +4142,353 @@ async function testRepAdjustmentSafety(){
   T('no new storage key for rep adjustment',
     !ctx.DATA_KEYS.some(k => /rep|step|adjust/i.test(k)));
 }
+
+/* =========================================================
+   CONTRACT 51-53 — EXERCISE NOTES / TRAINING MEMORY (D6)
+   ---------------------------------------------------------
+   Notes are passive memory. The whole risk of this phase is
+   that a free-text sentence quietly becomes training input —
+   "very sore" nudging recovery, "felt amazing" nudging
+   capability, "I hate this machine" nudging substitution.
+   Contract 52 exists to prove none of that happens, and
+   Contract 53 proves the athlete's words survive a backup
+   round trip exactly as typed.
+   ========================================================= */
+function testExerciseNotes(app){
+  section('CONTRACT 51 — exercise notes: model and API');
+  const ctx = app.ctx;
+  ctx.exerciseNotes = { version:1, notes:[] };
+  ctx.invalidateNoteIndex();
+
+  sub('storage is registered like every other protected key');
+  T('exerciseNotes is a dedicated key', ctx.EXERCISE_NOTES_KEY === 'exerciseNotes');
+  T('registered in DATA_KEYS', ctx.DATA_KEYS.includes('exerciseNotes'));
+  T('note text is NOT stored in workoutLog',
+    !ctx.DATA_KEYS.some(k => k === 'workoutNotesText'));
+  T('schema version unchanged by adding notes', ctx.DATA_SCHEMA_VERSION === 1);
+
+  sub('create');
+  const n1 = ctx.saveExerciseNote('bench_press_barbell', '225 felt unusually heavy today.');
+  T('a note is created', !!n1 && !!n1.id);
+  T('it carries the canonical exercise id', n1.exerciseId === 'bench_press_barbell');
+  T('the text is stored verbatim', n1.text === '225 felt unusually heavy today.');
+  T('it is timestamped', !!n1.createdAt && !!n1.updatedAt);
+  T('it starts unarchived', n1.archived === false);
+  T('ids are unique',
+    ctx.saveExerciseNote('bench_press_barbell', 'second').id !== n1.id);
+
+  sub('empty and oversized input');
+  T('an empty note is not stored', ctx.saveExerciseNote('bench_press_barbell', '') === null);
+  T('whitespace only is not stored', ctx.saveExerciseNote('bench_press_barbell', '   \n  ') === null);
+  T('a missing exercise id is refused', ctx.saveExerciseNote(null, 'orphan') === null);
+  T('text is capped at the declared maximum',
+    ctx.saveExerciseNote('bench_press_barbell', 'x'.repeat(2000)).text.length === ctx.NOTE_MAX_LENGTH);
+  T('surrounding whitespace is trimmed',
+    ctx.saveExerciseNote('bench_press_barbell', '   trimmed   ').text === 'trimmed');
+
+  sub('multiple notes build longitudinal memory');
+  ctx.exerciseNotes = { version:1, notes:[] }; ctx.invalidateNoteIndex();
+  const a = ctx.saveExerciseNote('bench_press_barbell', '225 felt heavy.');
+  a.createdAt = '2026-08-20T10:00:00.000Z';
+  const b = ctx.saveExerciseNote('bench_press_barbell', '225 moved better.');
+  b.createdAt = '2026-08-22T10:00:00.000Z';
+  const c = ctx.saveExerciseNote('bench_press_barbell', '230 felt strong.');
+  c.createdAt = '2026-08-24T10:00:00.000Z';
+  ctx.invalidateNoteIndex();
+  T('all three are kept — nothing overwrites', ctx.getExerciseNotes('bench_press_barbell').length === 3);
+  T('newest is first', ctx.getExerciseNotes('bench_press_barbell')[0].text === '230 felt strong.');
+  T('getLatestExerciseNote returns the newest',
+    ctx.getLatestExerciseNote('bench_press_barbell').text === '230 felt strong.');
+  T('getRecentExerciseNotes honours a limit',
+    ctx.getRecentExerciseNotes('bench_press_barbell', 2).length === 2);
+  T('hasExerciseNotes is true', ctx.hasExerciseNotes('bench_press_barbell') === true);
+
+  sub('per-exercise isolation');
+  ctx.saveExerciseNote('lat_pulldown', 'Neutral grip felt much better.');
+  T('a note lands only on its own exercise',
+    ctx.getExerciseNotes('lat_pulldown').length === 1);
+  T('the other exercise is unaffected',
+    ctx.getExerciseNotes('bench_press_barbell').length === 3);
+  T('an exercise with no notes returns an empty list',
+    ctx.getExerciseNotes('squat_back').length === 0);
+  T('hasExerciseNotes is false for an unnoted exercise',
+    ctx.hasExerciseNotes('squat_back') === false);
+  T('an unknown id returns empty rather than throwing',
+    ctx.getExerciseNotes('does_not_exist').length === 0);
+  T('a null id is safe', ctx.getExerciseNotes(null).length === 0);
+
+  sub('canonical identity, including unmapped exercises');
+  T('by-name lookup resolves canonically',
+    ctx.getExerciseNotesByName('Bench Press').length === 3);
+  T('an alias resolves to the same memory',
+    ctx.getExerciseNotesByName('barbell bench press').length === 3);
+  const un = ctx.saveExerciseNoteByName('Zercher Wall Toss', 'Odd but fun.');
+  T('an unmapped exercise gets a stable unmapped id',
+    !!un && un.exerciseId.indexOf('unmapped:') === 0);
+  T('the unmapped note is retrievable',
+    ctx.getExerciseNotesByName('Zercher Wall Toss').length === 1);
+  T('unmapped notes are NOT fuzzy-merged into a canonical exercise',
+    ctx.getExerciseNotes('bench_press_barbell').length === 3);
+
+  sub('edit');
+  const target = ctx.getLatestExerciseNote('bench_press_barbell');
+  const otherBefore = ctx.getExerciseNotes('bench_press_barbell')[1].text;
+  const createdBefore = target.createdAt;
+  const updated = ctx.updateExerciseNote(target.id, '230 felt strong — best in weeks.');
+  T('the note text is updated', updated.text === '230 felt strong — best in weeks.');
+  T('createdAt is preserved so the timeline holds', updated.createdAt === createdBefore);
+  T('updatedAt is at or after createdAt',
+    String(updated.updatedAt) >= String(updated.createdAt));
+  T('only that note changed',
+    ctx.getExerciseNotes('bench_press_barbell')[1].text === otherBefore);
+  T('note count unchanged by an edit', ctx.getExerciseNotes('bench_press_barbell').length === 3);
+  T('editing an unknown id is a no-op', ctx.updateExerciseNote('nope', 'x') === null);
+  T('an edit to empty text is refused', ctx.updateExerciseNote(target.id, '   ') === null);
+
+  sub('delete');
+  const before = ctx.getExerciseNotes('bench_press_barbell').length;
+  const doomed = ctx.getExerciseNotes('bench_press_barbell')[0];
+  const survivor = ctx.getExerciseNotes('bench_press_barbell')[1].text;
+  T('delete reports success', ctx.deleteExerciseNote(doomed.id) === true);
+  T('only that note was removed',
+    ctx.getExerciseNotes('bench_press_barbell').length === before - 1);
+  T('the neighbouring note survives untouched',
+    ctx.getExerciseNotes('bench_press_barbell')[0].text === survivor);
+  T('other exercises are untouched by a delete',
+    ctx.getExerciseNotes('lat_pulldown').length === 1);
+  T('deleting an unknown id reports false', ctx.deleteExerciseNote('nope') === false);
+
+  sub('rapid interaction stays consistent');
+  ctx.exerciseNotes = { version:1, notes:[] }; ctx.invalidateNoteIndex();
+  for(let i = 0; i < 100; i++) ctx.saveExerciseNote('squat_back', 'note ' + i);
+  T('100 rapid creates all land', ctx.getExerciseNotes('squat_back').length === 100);
+  T('every id is unique',
+    new Set(ctx.getExerciseNotes('squat_back').map(n => n.id)).size === 100);
+  const ids = ctx.getExerciseNotes('squat_back').map(n => n.id);
+  for(let i = 0; i < 50; i++) ctx.deleteExerciseNote(ids[i]);
+  T('50 rapid deletes leave exactly 50', ctx.getExerciseNotes('squat_back').length === 50);
+  for(let i = 50; i < 70; i++) ctx.updateExerciseNote(ids[i], 'edited ' + i);
+  T('rapid edits do not change the count', ctx.getExerciseNotes('squat_back').length === 50);
+  T('rapid edits applied', ctx.getExerciseNoteById(ids[60]).text === 'edited 60');
+
+  sub('lookup stays cheap as memory grows');
+  const t0 = Date.now();
+  for(let i = 0; i < 2000; i++) ctx.getLatestExerciseNote('squat_back');
+  T('2000 lookups over 50 notes are effectively free', Date.now() - t0 < 120, (Date.now()-t0)+'ms');
+  T('a new note is visible immediately after the index invalidates',
+    (() => { const n = ctx.saveExerciseNote('squat_back', 'fresh');
+             const seen = ctx.getLatestExerciseNote('squat_back').id === n.id;
+             ctx.deleteExerciseNote(n.id);
+             return seen; })());
+
+  sub('UI surfaces memory only when it exists');
+  ctx.exerciseNotes = { version:1, notes:[] }; ctx.invalidateNoteIndex();
+  T('no memory block before any note is written',
+    ctx.exerciseNoteBlockHtml('Bench Press').indexOf('ex-note-memory') === -1);
+  T('an add-note affordance is still offered',
+    ctx.exerciseNoteBlockHtml('Bench Press').indexOf('ex-note-btn') !== -1);
+  ctx.saveExerciseNote('bench_press_barbell', 'Felt heavy.');
+  const html = ctx.exerciseNoteBlockHtml('Bench Press');
+  T('the memory block appears once a note exists', html.indexOf('ex-note-memory') !== -1);
+  T('it shows the note text', html.indexOf('Felt heavy.') !== -1);
+  T('it is labelled as the last note', html.indexOf('Last note') !== -1);
+  T('note text is HTML-escaped',
+    (() => { ctx.exerciseNotes = { version:1, notes:[] }; ctx.invalidateNoteIndex();
+             ctx.saveExerciseNote('bench_press_barbell', '<img src=x onerror=alert(1)>');
+             const h = ctx.exerciseNoteBlockHtml('Bench Press');
+             return h.indexOf('<img') === -1 && h.indexOf('&lt;img') !== -1; })());
+}
+
+async function testExerciseNotesIsolation(){
+  section('CONTRACT 52 — notes are memory, never training input');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const recBefore = JSON.stringify(ctx.computeMuscleRecovery());
+  const capBefore = JSON.stringify(ctx.getExerciseCapability('Bench Press'));
+  const readyBefore = JSON.stringify(ctx.dailyReadiness);
+  const subsBefore = JSON.stringify(ctx.getSubstitutionsByName('Bench Press', {}));
+  const planBefore = JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates);
+  const gymBefore = app.store.gymProfile;
+  const draftBefore = app.store.activeWorkoutDraft;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+
+  sub('write the kinds of notes most likely to look like training input');
+  ctx.saveExerciseNote('bench_press_barbell', 'Very sore today, terrible sleep.');
+  ctx.saveExerciseNote('bench_press_barbell', 'Bench felt amazing, strongest ever.');
+  ctx.saveExerciseNote('squat_back', 'I hate this machine, use dumbbells instead.');
+  ctx.saveExerciseNote('lat_pulldown', 'Lower back fatigued — watch form.');
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('drafts preserved', app.store.activeWorkoutDraft === draftBefore);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+
+  sub('"very sore / terrible sleep" does not become readiness or recovery');
+  T('readiness unchanged', JSON.stringify(ctx.dailyReadiness) === readyBefore);
+  T('no readiness entry was created', after.readiness === before.readiness);
+  T('recovery unchanged', JSON.stringify(ctx.computeMuscleRecovery()) === recBefore);
+
+  sub('"felt amazing" does not become capability');
+  T('capability unchanged', JSON.stringify(ctx.getExerciseCapability('Bench Press')) === capBefore);
+  T('capability snapshot unchanged', after.capabilityBench === before.capabilityBench);
+
+  sub('"I hate this machine, use dumbbells" does not substitute or edit the plan');
+  T('substitution ranking unchanged',
+    JSON.stringify(ctx.getSubstitutionsByName('Bench Press', {})) === subsBefore);
+  T('plan templates unchanged',
+    JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates) === planBefore);
+
+  sub('trainer');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by writing notes',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+
+  sub('notes and trainer feedback coexist without merging');
+  T('trainerLog holds structured feedback, not note text',
+    !JSON.stringify(ctx.trainerLog).includes('Very sore today'));
+  T('notes hold free text, not trainer verdicts',
+    !JSON.stringify(ctx.exerciseNotes).includes('too_hard'));
+  T('both stores are populated independently',
+    ctx.trainerLog.entries.length > 0 && ctx.exerciseNotes.notes.length > 0);
+
+  sub('source-level isolation of the note module');
+  {
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    const titleAt = src.indexOf('EXERCISE NOTES — PERSONAL TRAINING MEMORY');
+    // Back up to the opening /* so the header comment can actually be stripped —
+    // slicing from the title left the comment unterminated at the front.
+    const start = src.lastIndexOf('/*', titleAt);
+    const end = src.indexOf('EXERCISE SUBSTITUTION ENGINE  (Phase D2)');
+    const mod = src.slice(start, end);
+    T('module located', titleAt !== -1 && start !== -1 && end > start);
+    const forbidden = ['computeShadowRecommendation','proposeTrainerState','applyTrainerConstraints',
+      'logRecommendation','computeMuscleRecovery','calculateReadinessScore','computeExerciseCapability',
+      'persistLog(','persistReadiness','persistTrainerLog','computeXPTimeline','computeAllPREvents'];
+    const hits = forbidden.filter(f => mod.indexOf(f) !== -1);
+    T('the note module calls no trainer, recovery, readiness, capability, XP or PR function',
+      hits.length === 0, hits.join(','));
+    T('it writes only its own storage key',
+      (mod.match(/LOOPStore\.set\(/g) || []).length === 1 &&
+      mod.indexOf('LOOPStore.set(EXERCISE_NOTES_KEY') !== -1);
+    /* Comments are stripped first: the module's header deliberately DISCUSSES
+       trainerLog to explain that notes are separate from it, and grepping raw
+       source counted that prose as a write. Only executable code is audited. */
+    const code = mod.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    T('no executable line in the module mentions workoutLog', code.indexOf('workoutLog') === -1);
+    T('no executable line in the module mentions trainerLog', code.indexOf('trainerLog') === -1);
+    T('it performs no assignment into a protected store',
+      !/\b(workoutLog|trainerLog|cardioLog|dailyReadiness|planData)\s*(=|\.push|\.splice)/.test(code));
+  }
+}
+
+async function testExerciseNotesPersistence(){
+  section('CONTRACT 53 — notes survive reload, backup and restore');
+
+  sub('a new athlete starts with no memory');
+  {
+    const app = await H.loadAppBooted({});
+    await H.settle(250);
+    T('no notes for a new user', app.ctx.exerciseNotes.notes.length === 0);
+    T('no memory block is shown',
+      app.ctx.exerciseNoteBlockHtml('Bench Press').indexOf('ex-note-memory') === -1);
+    T('the store holds no notes key until something is written',
+      app.store.exerciseNotes === undefined || JSON.parse(app.store.exerciseNotes).notes.length === 0);
+  }
+
+  sub('notes survive an app reload');
+  {
+    const app = await H.loadAppBooted({});
+    await H.settle(250);
+    app.ctx.saveExerciseNote('bench_press_barbell', '225 felt unusually heavy today.');
+    app.ctx.saveExerciseNote('lat_pulldown', 'Neutral grip felt much better.');
+    await H.settle(250);
+
+    const reopened = await H.loadAppBooted(app.store);
+    await H.settle(250);
+    T('notes are restored on reload', reopened.ctx.exerciseNotes.notes.length === 2);
+    T('the text is byte-identical after reload',
+      reopened.ctx.getLatestExerciseNote('bench_press_barbell').text === '225 felt unusually heavy today.');
+    T('exercise attachment survives',
+      reopened.ctx.getExerciseNotes('lat_pulldown').length === 1);
+    T('ids survive', !!reopened.ctx.exerciseNotes.notes[0].id);
+  }
+
+  sub('export / import round trip');
+  {
+    const app = await H.loadAppBooted({ workoutLog: JSON.stringify([
+      WK('w1', 3, 'push', [EX('Bench Press',[S(225,8,2,'working')])]) ]) });
+    await H.settle(250);
+    const ctx = app.ctx;
+    ctx.saveExerciseNote('bench_press_barbell', 'Verbatim — with "quotes", <tags> & symbols.');
+    ctx.saveExerciseNote('bench_press_barbell', 'Second note.');
+    await H.settle(250);
+
+    const keys = await ctx.allDataKeys();
+    T('exerciseNotes is included in the backup key list', keys.indexOf('exerciseNotes') !== -1);
+
+    const exported = {};
+    for(const k of keys){
+      const r = await ctx.LOOPStore.get(k);
+      if(r && r.value !== undefined && r.value !== null) exported[k] = r.value;
+    }
+    T('the export captures the notes', !!exported.exerciseNotes);
+    T('it captures both', JSON.parse(exported.exerciseNotes).notes.length === 2);
+
+    const restored = await H.loadAppBooted(exported);
+    await H.settle(250);
+    T('restore rebuilds the notes', restored.ctx.exerciseNotes.notes.length === 2);
+    T('the athlete\'s exact words survive the round trip',
+      restored.ctx.getExerciseNotes('bench_press_barbell')
+        .some(n => n.text === 'Verbatim — with "quotes", <tags> & symbols.'));
+    T('workouts still restore alongside notes', restored.ctx.workoutLog.length === 1);
+    T('notes did not leak into workoutLog',
+      !JSON.stringify(restored.ctx.workoutLog).includes('Verbatim'));
+    T('notes did not leak into trainerLog',
+      !JSON.stringify(restored.ctx.trainerLog).includes('Verbatim'));
+  }
+
+  sub('notes stay separate from every other store');
+  {
+    const app = await H.loadAppBooted({});
+    await H.settle(250);
+    const ctx = app.ctx;
+    ctx.saveExerciseNote('bench_press_barbell', 'A note.');
+    ctx.setEquipmentAvailable('barbell', true);
+    await H.settle(250);
+    T('gymProfile holds equipment, not notes',
+      !String(app.store.gymProfile || '').includes('A note.'));
+    /* Substring matching is wrong here — a note on Bench Press legitimately
+       carries the exerciseId "bench_press_barbell". Compare SHAPE instead:
+       the notes store must not carry the gym profile's fields. */
+    {
+      const notesObj = JSON.parse(app.store.exerciseNotes || '{}');
+      T('exerciseNotes carries no equipment map', notesObj.equipment === undefined);
+      T('exerciseNotes carries no gym configuration marker', notesObj.configuredAt === undefined);
+      T('exerciseNotes holds only note records',
+        Array.isArray(notesObj.notes) &&
+        notesObj.notes.every(n => 'text' in n && 'exerciseId' in n && !('available' in n)));
+    }
+    T('both persisted independently',
+      !!app.store.gymProfile && !!app.store.exerciseNotes);
+  }
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -4181,6 +4528,7 @@ async function main(){
   testTimeModeMatrix(app);
   testPlanUpperLowerIntegration(app);
   testRepAdjustment(app);
+  testExerciseNotes(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -4207,6 +4555,8 @@ async function main(){
     await testPlanIntegrationDataSafety();
     await testSetTypeDataSafety();
     await testRepAdjustmentSafety();
+    await testExerciseNotesIsolation();
+    await testExerciseNotesPersistence();
   }
 
   // ---- FULL ----
