@@ -2151,6 +2151,128 @@ body.page-locked{ overflow: hidden; }
 .note-act-del{ font-size: 15px; }
 .note-act-del:active{ color: var(--danger); }
 .notes-empty{ font-size: 13px; color: var(--text-faint); padding: var(--space-4) 0; line-height: 1.5; }
+
+/* ---------- PROGRAMS (Phase D7A) ---------- */
+.tw-program{
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3);
+  width: 100%; min-height: 44px; margin-bottom: 10px; padding: 0;
+  background: none; border: none; border-bottom: 1px solid var(--border);
+  cursor: pointer; text-align: left;
+}
+.tw-program-name{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent); font-family: 'JetBrains Mono', monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tw-program-meta{ font-size: 11.5px; color: var(--text-faint); white-space: nowrap; flex-shrink: 0; }
+
+.prog-list{ margin-top: var(--space-3); }
+.prog-card{
+  display: flex; align-items: center; gap: var(--space-3); width: 100%;
+  min-height: 60px; padding: 10px var(--space-3); margin-bottom: 8px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer; text-align: left;
+}
+.prog-card-main{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.prog-card-name{ font-size: 14px; font-weight: 600; color: var(--text); }
+.prog-card-meta{ font-size: 11.5px; color: var(--text-dim); }
+.prog-status{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace; padding: 3px 7px; border-radius: var(--radius-sm);
+  color: var(--text-faint); background: var(--surface-3); flex-shrink: 0;
+}
+.prog-status-active{ color: var(--accent); background: var(--accent-soft); }
+.prog-status-completed{ color: var(--success); background: var(--success-soft); }
+.prog-new-btn{ width: 100%; min-height: 48px; margin-top: var(--space-3); }
+.prog-plan-btn{
+  width: 100%; min-height: 44px; margin-top: 8px; background: none; border: none;
+  color: var(--text-faint); font-size: 13px; font-weight: 600;
+  font-family: 'Inter', sans-serif; cursor: pointer;
+}
+.prog-none{ text-align: center; padding: var(--space-5) 0; }
+.prog-none-title{ font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; color: var(--text); }
+.prog-none-sub{ font-size: 13px; line-height: 1.5; color: var(--text-dim); margin: 8px auto var(--space-4); max-width: 300px; }
+
+/* ---- builder ---- */
+.builder-weeks{ display: flex; align-items: center; gap: var(--space-3); margin-top: 8px; }
+.builder-step{
+  width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  font-size: 18px; font-weight: 700; cursor: pointer;
+}
+.builder-weeks-val{
+  flex: 1; text-align: center; font-family: 'JetBrains Mono', monospace;
+  font-size: 15px; font-weight: 700; color: var(--text);
+}
+.builder-structs{ display: flex; flex-direction: column; gap: 7px; margin-top: 8px; }
+.builder-struct{
+  width: 100%; min-height: 48px; padding: 0 var(--space-3); text-align: left;
+  border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-dim);
+  font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+.builder-struct.on{ border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+/* ---- detail ---- */
+.prog-detail-head{ margin-bottom: var(--space-4); }
+.prog-detail-name{ font-family: 'Space Grotesk', sans-serif; font-size: 21px; font-weight: 700; color: var(--text); }
+.prog-detail-meta{ font-size: 12.5px; color: var(--text-dim); margin-top: 3px; }
+.prog-progress{
+  background: var(--surface-gradient); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: var(--space-4);
+}
+.prog-progress-week{ font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+.prog-progress-week span{ font-size: 16px; color: var(--text-faint); }
+.prog-progress-block{ font-size: 12.5px; font-weight: 600; color: var(--accent); margin-top: 5px; }
+.prog-progress-sessions{ font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+
+.prog-missed{
+  margin-top: var(--space-4); padding: var(--space-3);
+  border: 1px solid var(--border); border-left: 2px solid var(--warning);
+  border-radius: var(--radius-md); background: var(--surface-2);
+}
+.prog-missed-label{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--warning); font-family: 'JetBrains Mono', monospace; margin-bottom: 5px;
+}
+.prog-missed-row{ font-size: 12.5px; color: var(--text-dim); line-height: 1.6; }
+.prog-missed-note{ font-size: 11px; color: var(--text-faint); margin-top: 6px; line-height: 1.45; }
+
+.prog-days{ margin-top: 8px; }
+.prog-day{
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: 44px; border-bottom: 1px solid var(--border);
+}
+.prog-day:last-child{ border-bottom: none; }
+.prog-day-key{
+  width: 34px; flex-shrink: 0; font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase;
+}
+.prog-day-name{ flex: 1; min-width: 0; font-size: 13px; color: var(--text); }
+.prog-day-rest{ flex: 1; font-size: 13px; color: var(--text-faint); }
+.prog-day-missing{ color: var(--warning); }
+
+.prog-blocks{ margin-top: 8px; }
+.prog-block{
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: 52px; padding: 0 var(--space-3); margin-bottom: 7px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.prog-block.current{ border-color: var(--accent); background: var(--accent-soft); }
+.prog-block-main{ flex: 1; min-width: 0; }
+.prog-block-name{ font-size: 13.5px; font-weight: 600; color: var(--text); }
+.prog-block-weeks{ font-size: 11.5px; color: var(--text-dim); margin-top: 1px; }
+.prog-block-now{
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  font-family: 'JetBrains Mono', monospace; color: var(--accent); flex-shrink: 0;
+}
+.prog-actions{ display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-5); }
+.prog-actions button{ width: 100%; min-height: 48px; }
+.prog-delete{
+  min-height: 48px; background: none; border: none; color: var(--text-faint);
+  font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer;
+}
+.prog-delete:active{ color: var(--danger); }
 </style>
 </head>
 <body>
@@ -2499,6 +2621,13 @@ body.page-locked{ overflow: hidden; }
         </span>
         <span class="settings-row-arrow">›</span>
       </button>
+      <button class="settings-row-btn" onclick="openPrograms()">
+        <span class="settings-row-main">
+          <span class="settings-row-title">Programs</span>
+          <span class="settings-row-desc" id="settingsProgramSub">Training blocks, weeks, and your current program</span>
+        </span>
+        <span class="settings-row-arrow">›</span>
+      </button>
       <button class="settings-row-btn" onclick="openGymProfile()">
         <span class="settings-row-main">
           <span class="settings-row-title">My Gym</span>
@@ -2585,6 +2714,46 @@ body.page-locked{ overflow: hidden; }
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeSetTypePicker()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRAMS (Phase D7A) — structural planning layer above the plan system -->
+<div class="overlay" id="programsOverlay" onclick="backdropDismiss(event, closePrograms)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <button class="sheet-back" onclick="backToSettings('programsOverlay')">‹ Settings</button>
+      <h2>Programs</h2>
+      <div class="sheet-sub">A program organises your training into blocks and weeks. Your plans and history are untouched by anything here.</div>
+      <div id="programsBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closePrograms()">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="programBuilderOverlay" onclick="backdropDismiss(event, closeProgramBuilder)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>New Program</h2>
+      <div class="sheet-sub">Name it, pick a length and a structure. Everything else can be adjusted afterwards.</div>
+      <div id="programBuilderBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-primary" style="flex:1" onclick="submitProgramBuilder()">Create program</button>
+      <button class="btn-secondary" onclick="closeProgramBuilder()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="programDetailOverlay" onclick="backdropDismiss(event, closeProgramDetail)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <div id="programDetailBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeProgramDetail()">Done</button>
     </div>
   </div>
 </div>
@@ -2886,7 +3055,7 @@ const BACKUP_PREFIX = 'backup_v';
 const DATA_KEYS = [
   'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',
   'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog',
-  'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes'
+  'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes', 'programs'
 ];
 
 /* Migrations upgrade FROM the keyed version TO the next one.
@@ -7818,9 +7987,17 @@ function renderTodayWorkout(){
   const el = document.getElementById('todayWorkout');
   if(!el) return;
   const tKey = todayKey();
-  const cat = schedule ? schedule[tKey] : 'rest';
   const todayStr = localDateStr();
   const doneToday = workoutLog.find(l => l.date === todayStr);
+
+  /* An ACTIVE program owns today's slot; without one, the existing plan
+     schedule is used exactly as before. Wrapped so a malformed program can
+     never stop Today from rendering. */
+  let programDay = null;
+  try{ programDay = hasActiveProgram() ? getProgramWorkoutForDate(todayStr) : null; }catch(e){ programDay = null; }
+  const cat = programDay
+    ? (programDay.entry.type === 'workout' ? programDay.category : 'rest')
+    : (schedule ? schedule[tKey] : 'rest');
 
   if(cat === 'rest'){
     const nextDay = findNextTrainingDay(tKey);
@@ -7836,7 +8013,10 @@ function renderTodayWorkout(){
   }
 
   const templates = getTemplates(cat) || [];
-  const first = templates[0];
+  /* When a program schedules today, it names the exact workout. Falling back
+     to the category's first template keeps behaviour identical without one,
+     and also covers a program reference that no longer resolves. */
+  const first = (programDay && programDay.template) ? programDay.template : templates[0];
   const lastDone = sortedLog().find(l => l.category === cat);
   const daysAgo = lastDone ? Math.floor((new Date() - new Date(lastDone.date + 'T00:00:00')) / 86400000) : null;
   /* Time Mode compresses the PLANNED workout for display and for starting.
@@ -7864,6 +8044,7 @@ function renderTodayWorkout(){
 
   el.innerHTML = `
     <div class="tw tw-${cat}">
+      ${programContextHtml()}
       <div class="tw-label">Today's Workout</div>
       <div class="tw-title">${CAT_LABEL[cat]}</div>
       <div class="tw-meta">${first ? escapeHtml(first.name) + ' · ' + meta : meta}</div>
@@ -7986,8 +8167,11 @@ function renderToday(){
   renderTodayInsights();
 
   const strip = document.getElementById('weekStrip');
+  /* Same null-guard the rest of the file uses: `schedule` is null until the
+     plan loads during boot, and renderAll() can now be reached from a program
+     action, so an early render must degrade to rest rather than throw. */
   strip.innerHTML = DAY_ORDER.map(key => {
-    const c = schedule[key];
+    const c = (schedule && schedule[key]) || 'rest';
     const isToday = key === tKey;
     return `
       <div class="day-card ${c} ${isToday ? 'today' : ''}" onclick="openDayEdit('${key}')">
@@ -8062,7 +8246,9 @@ function renderTrainView(){
   `).join('');
 
   const lw = lastWeightsMap();
-  document.getElementById('trainGrid').innerHTML = getTemplates(activeTrainCategory).map(t => templateCardHtml(t, activeTrainCategory, lw)).join('') ||
+  // getTemplates() returns null before a plan is chosen; render the empty
+  // state rather than throwing if a render is reached in that window.
+  document.getElementById('trainGrid').innerHTML = (getTemplates(activeTrainCategory) || []).map(t => templateCardHtml(t, activeTrainCategory, lw)).join('') ||
     `<div class="empty"><div class="mark">○</div><h3>No ${CAT_LABEL[activeTrainCategory]} workouts yet</h3><div>Add your first variation below.</div></div>`;
 
   const addBtn = document.getElementById('trainAddBtn');
@@ -9609,6 +9795,8 @@ async function loadTrainerData(){
   await loadGymProfile();
   // Exercise notes. Absent = an athlete who has not written anything yet.
   await loadExerciseNotes();
+  // Programs. Absent = an athlete using plans directly, which stays valid.
+  await loadPrograms();
 }
 async function persistAthleteProfile(){
   athleteProfile.updatedAt = new Date().toISOString();
@@ -11335,6 +11523,644 @@ function timeModeNoteHtml(tpl){
   return `<div class="time-note">${s.requestedMinutes} min · optimized from ${escapeHtml(s.sourceName)}</div>`;
 }
 
+/* =========================================================
+   PROGRAM BUILDER & TRAINING BLOCKS  (Phase D7A)
+   ---------------------------------------------------------
+   The longitudinal layer above the existing plan system:
+
+     PROGRAM -> BLOCK -> WEEK -> SCHEDULE -> WORKOUT
+
+   A program describes INTENT. workoutLog stays the record of
+   what actually happened, and the two are never mixed.
+
+   REFERENCES, NEVER COPIES. A scheduled day stores
+   { planId, category, templateId } and resolves through the
+   existing template system at read time. Editing a template
+   is therefore reflected by every program that points at it,
+   and no exercise data is duplicated.
+
+   STRUCTURAL ONLY. Blocks are labels the athlete writes. This
+   phase never transitions a phase, never triggers a deload,
+   never rewrites a schedule and never touches the trainer,
+   which stays 0.1.1-shadow. A future coach will read this
+   context; nothing here acts on it.
+
+   ADDITIVE. An athlete with no program keeps the existing
+   plan behaviour untouched — Today, Time Mode, Substitution,
+   Notes and Cardio all work exactly as before.
+   ========================================================= */
+
+const PROGRAMS_KEY = 'programs';
+
+/* Block phases. Deliberately separate from TRAINING_PHASES_SIMPLE, which is
+   the athlete's own current-phase marker on their profile — a different idea
+   from the phase of a block inside one program. Extensible: a later phase can
+   append here without touching the builder or the UI. */
+const PROGRAM_PHASE_TYPES = [
+  { id:'accumulation',   label:'Accumulation',   note:'Building volume' },
+  { id:'intensification',label:'Intensification',note:'Heavier, lower volume' },
+  { id:'deload',         label:'Deload',         note:'Planned lighter week' },
+  { id:'rebuild',        label:'Rebuild',        note:'Returning after a break' },
+  { id:'peak',           label:'Peak',           note:'Expressing top-end strength' },
+  { id:'custom',         label:'Custom',         note:'Your own label' }
+];
+function getProgramPhase(id){ return PROGRAM_PHASE_TYPES.find(p => p.id === id) || null; }
+
+const PROGRAM_DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
+const PROGRAM_LIMITS = { minWeeks:1, maxWeeks:104, maxPrograms:50, maxNameLength:60 };
+
+function defaultProgramsStore(){ return { version:1, activeProgramId:null, programs:[] }; }
+let programsStore = defaultProgramsStore();
+
+async function loadPrograms(){
+  try{
+    const r = await LOOPStore.get(PROGRAMS_KEY);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      if(parsed && Array.isArray(parsed.programs)){
+        programsStore = Object.assign(defaultProgramsStore(), parsed);
+      }
+    }
+  }catch(e){ /* absent = an athlete with no program, which is a valid state */ }
+  invalidateProgramCache();
+}
+async function persistPrograms(){
+  try{ return await LOOPStore.set(PROGRAMS_KEY, JSON.stringify(programsStore)); }
+  catch(e){ return false; }
+}
+
+/* ---------- READ API ---------- */
+function getPrograms(){ return (programsStore.programs || []).slice(); }
+function getProgram(programId){
+  return (programsStore.programs || []).find(p => p && p.id === programId) || null;
+}
+function getActiveProgram(){
+  const id = programsStore.activeProgramId;
+  if(!id) return null;
+  const p = getProgram(id);
+  return (p && p.status === 'active') ? p : (p || null);
+}
+function hasActiveProgram(){
+  const p = getActiveProgram();
+  return !!(p && p.status === 'active');
+}
+function getProgramsByStatus(status){ return getPrograms().filter(p => p.status === status); }
+
+/* ---------- WEEK / BLOCK ----------
+   Week comes from the program's own start date, never from workout history,
+   so missing a session never shifts which week the athlete is in. Paused
+   days are subtracted, which is what keeps a resumed program honest. */
+function daysBetweenDates(fromStr, toStr){
+  const a = new Date(fromStr + 'T00:00:00'), b = new Date(toStr + 'T00:00:00');
+  if(isNaN(a) || isNaN(b)) return null;
+  return Math.floor((b - a) / 86400000);
+}
+function getCurrentProgramWeek(program, todayStr){
+  const p = program || getActiveProgram();
+  if(!p || !p.startDate) return null;
+  // While paused the week freezes at the day it was paused.
+  const ref = (p.status === 'paused' && p.pausedOnDate) ? p.pausedOnDate : (todayStr || localDateStr());
+  const raw = daysBetweenDates(p.startDate, ref);
+  if(raw === null) return null;
+  const elapsed = raw - (p.pausedDays || 0);
+  if(elapsed < 0) return 1;                       // starts in the future
+  return Math.min(p.durationWeeks, Math.floor(elapsed / 7) + 1);
+}
+function getCurrentTrainingBlock(program, todayStr){
+  const p = program || getActiveProgram();
+  if(!p) return null;
+  const week = getCurrentProgramWeek(p, todayStr);
+  if(week === null) return null;
+  return getBlockForWeek(p, week);
+}
+function getBlockForWeek(program, week){
+  if(!program || !Array.isArray(program.blocks)) return null;
+  return program.blocks.find(b => week >= b.startWeek && week <= b.endWeek) || null;
+}
+
+/* ---------- SCHEDULE ---------- */
+function getProgramSchedule(program){
+  const p = program || getActiveProgram();
+  return p ? (p.schedule || {}) : {};
+}
+function programEntryForDay(program, dayKey){
+  const s = getProgramSchedule(program);
+  return s[dayKey] || { type:'rest' };
+}
+/* Resolves a scheduled reference into the actual template. Returns null when
+   the reference no longer resolves — a deleted template must not crash the
+   app, it simply reads as unresolved. */
+function resolveProgramWorkout(entry){
+  if(!entry || entry.type !== 'workout') return null;
+  const plan = DEFAULT_PLANS[entry.planId];
+  if(!plan) return null;
+  // Prefer the athlete's own edited copy when this is the plan they're on.
+  const source = (entry.planId === selectedPlanId && planData) ? planData : plan.templates;
+  const list = (source && source[entry.category]) || (plan.templates || {})[entry.category] || [];
+  return list.find(t => t.id === entry.templateId) || null;
+}
+function getProgramWorkoutForDate(dateStr, program){
+  const p = program || getActiveProgram();
+  if(!p) return null;
+  const d = new Date((dateStr || localDateStr()) + 'T00:00:00');
+  if(isNaN(d)) return null;
+  const key = JS_DAY_TO_KEY[d.getDay()];
+  const entry = programEntryForDay(p, key);
+  if(entry.type !== 'workout') return { entry, template:null, category:entry.type };
+  return { entry, template: resolveProgramWorkout(entry), category: entry.category };
+}
+function programTrainingDayCount(program){
+  const s = getProgramSchedule(program);
+  return PROGRAM_DAY_KEYS.filter(k => s[k] && s[k].type === 'workout').length;
+}
+
+/* ---------- PROGRESS ----------
+   Structural only. Counts sessions that already exist in workoutLog; it does
+   not judge them, and there is deliberately no "program score". */
+let _programProgressCache = null;
+function invalidateProgramCache(){ _programProgressCache = null; }
+
+function getProgramProgress(program, todayStr){
+  const p = program || getActiveProgram();
+  if(!p || !p.startDate) return null;
+  const today = todayStr || localDateStr();
+  const key = p.id + '|' + today + '|' + p.status + '|' + (workoutLog ? workoutLog.length : 0);
+  if(_programProgressCache && _programProgressCache.key === key) return _programProgressCache.value;
+
+  const week = getCurrentProgramWeek(p, today);
+  const block = getBlockForWeek(p, week);
+  const endStr = programEndDate(p);
+  const completed = (workoutLog || []).filter(w =>
+    w && w.date >= p.startDate && w.date <= today && (!endStr || w.date <= endStr)).length;
+  const perWeek = programTrainingDayCount(p);
+  const weeksElapsed = Math.max(0, Math.min(week === null ? 0 : week, p.durationWeeks));
+  const value = {
+    week, totalWeeks: p.durationWeeks,
+    blockName: block ? block.name : null,
+    blockPhase: block ? block.phaseType : null,
+    completedSessions: completed,
+    plannedSessions: perWeek * weeksElapsed,
+    totalPlannedSessions: perWeek * p.durationWeeks,
+    status: p.status
+  };
+  _programProgressCache = { key, value };
+  return value;
+}
+function programEndDate(program){
+  if(!program || !program.startDate) return null;
+  const d = new Date(program.startDate + 'T00:00:00');
+  if(isNaN(d)) return null;
+  d.setDate(d.getDate() + program.durationWeeks * 7 - 1 + (program.pausedDays || 0));
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+/* Scheduled training days already in the past with nothing logged that date.
+   Reported only — the schedule is never rewritten and nothing is doubled up. */
+function getMissedProgramDays(program, limit){
+  const p = program || getActiveProgram();
+  if(!p || !p.startDate || p.status !== 'active') return [];
+  const today = localDateStr();
+  const logged = new Set((workoutLog || []).map(w => w && w.date));
+  const out = [];
+  const cursor = new Date(p.startDate + 'T00:00:00');
+  const end = new Date(today + 'T00:00:00');
+  let guard = 0;
+  while(cursor < end && guard++ < 400){
+    const ds = cursor.getFullYear() + '-' + String(cursor.getMonth()+1).padStart(2,'0') + '-' + String(cursor.getDate()).padStart(2,'0');
+    const entry = programEntryForDay(p, JS_DAY_TO_KEY[cursor.getDay()]);
+    if(entry.type === 'workout' && !logged.has(ds)){
+      const tpl = resolveProgramWorkout(entry);
+      out.push({ date: ds, category: entry.category, name: tpl ? tpl.name : null });
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  const recent = out.reverse();
+  return typeof limit === 'number' ? recent.slice(0, limit) : recent;
+}
+
+/* ---------- VALIDATION ----------
+   Malformed input is refused with reasons rather than being stored and
+   crashing a render later. */
+function validateProgram(input){
+  const errors = [];
+  if(!input || typeof input !== 'object') return { valid:false, errors:['No program supplied'] };
+  const name = String(input.name || '').trim();
+  if(!name) errors.push('Give the program a name');
+  if(name.length > PROGRAM_LIMITS.maxNameLength) errors.push('Name is too long');
+  const weeks = parseInt(input.durationWeeks, 10);
+  if(!(weeks >= PROGRAM_LIMITS.minWeeks && weeks <= PROGRAM_LIMITS.maxWeeks)){
+    errors.push('Length must be between ' + PROGRAM_LIMITS.minWeeks + ' and ' + PROGRAM_LIMITS.maxWeeks + ' weeks');
+  }
+  if(input.goal && !TRAINING_GOALS[input.goal]) errors.push('Unknown goal');
+  const sched = input.schedule || {};
+  const badDay = Object.keys(sched).find(k => PROGRAM_DAY_KEYS.indexOf(k) === -1);
+  if(badDay) errors.push('Unknown day: ' + badDay);
+  const trainingDays = PROGRAM_DAY_KEYS.filter(k => sched[k] && sched[k].type === 'workout');
+  if(!trainingDays.length) errors.push('Schedule at least one training day');
+  trainingDays.forEach(k => {
+    const e = sched[k];
+    if(!e.planId || !e.category || !e.templateId) errors.push('Incomplete workout on ' + k);
+  });
+  (input.blocks || []).forEach((b, i) => {
+    const s = parseInt(b.startWeek, 10), en = parseInt(b.endWeek, 10);
+    if(!(s >= 1) || !(en >= 1)) errors.push('Block ' + (i+1) + ' has an invalid week range');
+    else if(s > en) errors.push('Block ' + (i+1) + ' ends before it starts');
+    else if(weeks >= 1 && en > weeks) errors.push('Block ' + (i+1) + ' runs past the program');
+    if(b.phaseType && !getProgramPhase(b.phaseType)) errors.push('Block ' + (i+1) + ' has an unknown phase');
+  });
+  const sorted = (input.blocks || []).slice().sort((a,b) => a.startWeek - b.startWeek);
+  for(let i = 1; i < sorted.length; i++){
+    if(sorted[i].startWeek <= sorted[i-1].endWeek){ errors.push('Blocks overlap'); break; }
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+/* ---------- WRITE API ---------- */
+function newProgramId(){ return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7); }
+function newBlockId(){ return 'b_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7); }
+
+function createProgram(input){
+  const draft = Object.assign({
+    name:'', goal:null, durationWeeks:8, schedule:{}, blocks:[], startDate: localDateStr()
+  }, input || {});
+  // A program with no blocks gets one spanning its whole length, so the
+  // block layer is never empty and the athlete can split it later.
+  if(!draft.blocks.length){
+    draft.blocks = [{ id:newBlockId(), name:'Block 1', order:1, phaseType:'custom',
+      startWeek:1, endWeek:parseInt(draft.durationWeeks,10) || 1, description:'' }];
+  }
+  const check = validateProgram(draft);
+  if(!check.valid) return { ok:false, errors:check.errors, program:null };
+  if((programsStore.programs || []).length >= PROGRAM_LIMITS.maxPrograms){
+    return { ok:false, errors:['Too many programs'], program:null };
+  }
+  const now = new Date().toISOString();
+  const program = {
+    id: newProgramId(),
+    name: String(draft.name).trim(),
+    description: String(draft.description || ''),
+    goal: draft.goal || null,
+    durationWeeks: parseInt(draft.durationWeeks, 10),
+    schedule: draft.schedule,
+    blocks: draft.blocks,
+    startDate: draft.startDate,
+    status: 'active',
+    pausedOnDate: null,
+    pausedDays: 0,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: null
+  };
+  programsStore.programs.push(program);
+  programsStore.activeProgramId = program.id;      // a new program becomes active
+  invalidateProgramCache();
+  persistPrograms();
+  return { ok:true, errors:[], program };
+}
+
+/* Edits affect FUTURE planning only. No workout in workoutLog is touched,
+   and no completed session is reinterpreted. */
+function updateProgram(programId, patch){
+  const p = getProgram(programId);
+  if(!p) return { ok:false, errors:['Program not found'], program:null };
+  const merged = Object.assign({}, p, patch || {});
+  const check = validateProgram(merged);
+  if(!check.valid) return { ok:false, errors:check.errors, program:null };
+  ['name','description','goal','durationWeeks','schedule','blocks','startDate'].forEach(k => {
+    if(patch && Object.prototype.hasOwnProperty.call(patch, k)) p[k] = merged[k];
+  });
+  p.durationWeeks = parseInt(p.durationWeeks, 10);
+  p.updatedAt = new Date().toISOString();
+  invalidateProgramCache();
+  persistPrograms();
+  return { ok:true, errors:[], program:p };
+}
+
+function setActiveProgram(programId){
+  const p = getProgram(programId);
+  if(!p) return false;
+  programsStore.activeProgramId = programId;
+  if(p.status === 'paused') resumeProgram(programId);
+  invalidateProgramCache();
+  persistPrograms();
+  return true;
+}
+function pauseProgram(programId){
+  const p = getProgram(programId || programsStore.activeProgramId);
+  if(!p || p.status !== 'active') return false;
+  p.status = 'paused';
+  p.pausedOnDate = localDateStr();
+  p.updatedAt = new Date().toISOString();
+  invalidateProgramCache();
+  persistPrograms();
+  return true;
+}
+function resumeProgram(programId){
+  const p = getProgram(programId || programsStore.activeProgramId);
+  if(!p || p.status !== 'paused') return false;
+  // Time spent paused is added on, so the athlete resumes at the week they
+  // left rather than being pushed forward by the calendar.
+  if(p.pausedOnDate){
+    const away = daysBetweenDates(p.pausedOnDate, localDateStr());
+    if(away && away > 0) p.pausedDays = (p.pausedDays || 0) + away;
+  }
+  p.pausedOnDate = null;
+  p.status = 'active';
+  p.updatedAt = new Date().toISOString();
+  invalidateProgramCache();
+  persistPrograms();
+  return true;
+}
+function completeProgram(programId){
+  const p = getProgram(programId || programsStore.activeProgramId);
+  if(!p || p.status === 'completed') return false;
+  p.status = 'completed';
+  p.completedAt = new Date().toISOString();
+  p.updatedAt = p.completedAt;
+  if(programsStore.activeProgramId === p.id) programsStore.activeProgramId = null;
+  invalidateProgramCache();
+  persistPrograms();
+  return true;
+}
+/* Programs are never removed as a side effect of anything — only an explicit
+   delete removes one, and completed programs stay in history by default. */
+function deleteProgram(programId){
+  const before = (programsStore.programs || []).length;
+  programsStore.programs = (programsStore.programs || []).filter(p => p && p.id !== programId);
+  const removed = programsStore.programs.length !== before;
+  if(removed){
+    if(programsStore.activeProgramId === programId) programsStore.activeProgramId = null;
+    invalidateProgramCache();
+    persistPrograms();
+  }
+  return removed;
+}
+
+/* Structural summary shown when the last week is done. Uses only metrics that
+   already exist — no new scoring engine. */
+function getProgramCompletionSummary(programId){
+  const p = getProgram(programId);
+  if(!p || !p.startDate) return null;
+  const end = programEndDate(p);
+  const sessions = (workoutLog || []).filter(w => w && w.date >= p.startDate && (!end || w.date <= end));
+  let prs = 0;
+  try{ prs = computeAllPREvents().filter(e => e.date >= p.startDate && (!end || e.date <= end)).length; }catch(e){ prs = 0; }
+  return {
+    name: p.name, weeks: p.durationWeeks,
+    workouts: sessions.length,
+    prs: prs,
+    plannedSessions: programTrainingDayCount(p) * p.durationWeeks
+  };
+}
+
+/* ---------- PROGRAM UI ----------
+   A compact strip on Today, and one sheet each for the list, the builder and
+   the detail view. No new main tab: programs live under Settings > Training. */
+
+/* The Today strip. Renders nothing at all without an active program, so an
+   athlete on plans alone sees exactly what they saw before. */
+function programContextHtml(){
+  let p = null;
+  try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ return ''; }
+  if(!p) return '';
+  const prog = getProgramProgress(p);
+  if(!prog) return '';
+  const block = prog.blockName ? ` · ${escapeHtml(prog.blockName)}` : '';
+  return `
+    <button class="tw-program" onclick="openProgramDetail('${escapeAttr(p.id)}')">
+      <span class="tw-program-name">${escapeHtml(p.name)}</span>
+      <span class="tw-program-meta">Week ${prog.week} / ${prog.totalWeeks}${block}</span>
+    </button>`;
+}
+
+/* ---- list ---- */
+function openPrograms(){
+  closeSettings();
+  renderProgramsList();
+  document.getElementById('programsOverlay').classList.add('open');
+}
+function closePrograms(){ document.getElementById('programsOverlay').classList.remove('open'); }
+
+function programStatusLabel(p){
+  if(p.status === 'completed') return 'Completed';
+  if(p.status === 'paused') return 'Paused';
+  return programsStore.activeProgramId === p.id ? 'Active' : 'Inactive';
+}
+function renderProgramsList(){
+  const el = document.getElementById('programsBody');
+  if(!el) return;
+  const all = getPrograms();
+  const card = p => {
+    const prog = getProgramProgress(p);
+    const status = programStatusLabel(p);
+    return `
+      <button class="prog-card" onclick="openProgramDetail('${escapeAttr(p.id)}')">
+        <span class="prog-card-main">
+          <span class="prog-card-name">${escapeHtml(p.name)}</span>
+          <span class="prog-card-meta">${prog ? `Week ${prog.week} / ${prog.totalWeeks}` : p.durationWeeks + ' weeks'}${p.goal && TRAINING_GOALS[p.goal] ? ' · ' + escapeHtml(TRAINING_GOALS[p.goal].label) : ''}</span>
+        </span>
+        <span class="prog-status prog-status-${status.toLowerCase()}">${status}</span>
+      </button>`;
+  };
+  el.innerHTML = all.length
+    ? `<div class="prog-list">${all.map(card).join('')}</div>
+       <button class="btn-secondary prog-new-btn" onclick="openProgramBuilder()">Create program</button>`
+    : `<div class="prog-none">
+         <div class="prog-none-title">No active program</div>
+         <div class="prog-none-sub">A program organises your training into blocks and weeks. Your existing plans keep working either way.</div>
+         <button class="btn-primary prog-new-btn" onclick="openProgramBuilder()">Create program</button>
+         <button class="prog-plan-btn" onclick="closePrograms(); openPlansManager();">Use an existing plan</button>
+       </div>`;
+}
+
+/* ---- builder ----
+   One screen: name, goal, length, and a structure to start from. Everything
+   else is edited afterwards in the detail view. */
+let builderDraft = null;
+function openProgramBuilder(){
+  closePrograms();
+  builderDraft = { name:'', goal:athleteProfile.goal || null, durationWeeks:8, planId:selectedPlanId || 'upperlower', structure:null };
+  renderProgramBuilder();
+  document.getElementById('programBuilderOverlay').classList.add('open');
+}
+function closeProgramBuilder(){
+  document.getElementById('programBuilderOverlay').classList.remove('open');
+  builderDraft = null;
+}
+function setBuilderField(field, value){
+  if(!builderDraft) return;
+  builderDraft[field] = value;
+  renderProgramBuilder();
+}
+/* Structures are derived from whichever plan the athlete picks, so this never
+   hard-codes a list that would block a custom program later. */
+function builderStructures(planId){
+  const plan = DEFAULT_PLANS[planId];
+  if(!plan) return [];
+  const cats = Object.keys(plan.templates || {}).filter(c => (plan.templates[c] || []).length);
+  const out = [];
+  if(cats.indexOf('upper') !== -1 && cats.indexOf('lower') !== -1){
+    out.push({ id:'ul4', label:'Upper / Lower · 4 days', days:['upper','lower','rest','upper','lower','rest','rest'] });
+  }
+  if(cats.indexOf('push') !== -1 && cats.indexOf('pull') !== -1 && cats.indexOf('legs') !== -1){
+    out.push({ id:'ppl3', label:'Push / Pull / Legs · 3 days', days:['push','pull','rest','legs','rest','rest','rest'] });
+    out.push({ id:'ppl6', label:'Push / Pull / Legs · 6 days', days:['push','pull','legs','push','pull','legs','rest'] });
+  }
+  if(cats.indexOf('fullbody') !== -1){
+    out.push({ id:'fb3', label:'Full Body · 3 days', days:['fullbody','rest','fullbody','rest','fullbody','rest','rest'] });
+  }
+  return out;
+}
+function renderProgramBuilder(){
+  const el = document.getElementById('programBuilderBody');
+  if(!el || !builderDraft) return;
+  const planOptions = Object.keys(DEFAULT_PLANS).map(id =>
+    `<option value="${escapeAttr(id)}"${builderDraft.planId===id?' selected':''}>${escapeHtml(DEFAULT_PLANS[id].name)}</option>`).join('');
+  const structures = builderStructures(builderDraft.planId);
+  el.innerHTML = `
+    <label>Program name</label>
+    <input type="text" id="builderName" value="${escapeAttr(builderDraft.name)}" placeholder="e.g. Summer Hypertrophy"
+      oninput="builderDraft.name=this.value">
+    <label style="margin-top:16px">Goal</label>
+    <div class="pchips">${Object.keys(TRAINING_GOALS).map(k =>
+      `<button class="pchip${builderDraft.goal===k?' on':''}" onclick="setBuilderField('goal','${k}')">${escapeHtml(TRAINING_GOALS[k].label)}</button>`).join('')}</div>
+    <label style="margin-top:16px">Length</label>
+    <div class="builder-weeks">
+      <button class="builder-step" onclick="setBuilderField('durationWeeks', Math.max(1, builderDraft.durationWeeks-1))">–</button>
+      <span class="builder-weeks-val">${builderDraft.durationWeeks} week${builderDraft.durationWeeks===1?'':'s'}</span>
+      <button class="builder-step" onclick="setBuilderField('durationWeeks', Math.min(104, builderDraft.durationWeeks+1))">+</button>
+    </div>
+    <label style="margin-top:16px">Workouts from</label>
+    <select id="builderPlan" onchange="setBuilderField('planId', this.value)">${planOptions}</select>
+    <label style="margin-top:16px">Structure</label>
+    ${structures.length ? `<div class="builder-structs">${structures.map(s =>
+        `<button class="builder-struct${builderDraft.structure===s.id?' on':''}" onclick="setBuilderField('structure','${s.id}')">${escapeHtml(s.label)}</button>`).join('')}</div>`
+      : `<div class="pnote">This plan has no multi-day structure to start from. Pick another plan.</div>`}
+    <div class="pnote" id="builderError"></div>`;
+}
+function submitProgramBuilder(){
+  if(!builderDraft) return;
+  const nameEl = document.getElementById('builderName');
+  if(nameEl) builderDraft.name = nameEl.value;
+  const structs = builderStructures(builderDraft.planId);
+  const struct = structs.find(s => s.id === builderDraft.structure) || structs[0];
+  const err = document.getElementById('builderError');
+  if(!struct){ if(err) err.textContent = 'Choose a structure to start from.'; return; }
+
+  // Turn the chosen structure into concrete template references, cycling the
+  // category's variants so a 4-day week is A/B rather than the same session.
+  const plan = DEFAULT_PLANS[builderDraft.planId];
+  const used = {};
+  const schedule = {};
+  PROGRAM_DAY_KEYS.forEach((day, i) => {
+    const cat = struct.days[i];
+    if(cat === 'rest'){ schedule[day] = { type:'rest' }; return; }
+    const list = (plan.templates || {})[cat] || [];
+    if(!list.length){ schedule[day] = { type:'rest' }; return; }
+    const idx = (used[cat] || 0) % list.length;
+    used[cat] = idx + 1;
+    schedule[day] = { type:'workout', planId:builderDraft.planId, category:cat, templateId:list[idx].id };
+  });
+
+  const res = createProgram({
+    name: builderDraft.name, goal: builderDraft.goal,
+    durationWeeks: builderDraft.durationWeeks, schedule: schedule
+  });
+  if(!res.ok){ if(err) err.textContent = res.errors.join(' · '); return; }
+  closeProgramBuilder();
+  openProgramDetail(res.program.id);
+  renderAll();
+}
+
+/* ---- detail ---- */
+let detailProgramId = null;
+function openProgramDetail(programId){
+  detailProgramId = programId;
+  closePrograms();
+  renderProgramDetail();
+  document.getElementById('programDetailOverlay').classList.add('open');
+}
+function closeProgramDetail(){
+  document.getElementById('programDetailOverlay').classList.remove('open');
+  detailProgramId = null;
+  renderAll();
+}
+function renderProgramDetail(){
+  const el = document.getElementById('programDetailBody');
+  const p = getProgram(detailProgramId);
+  if(!el || !p) return;
+  const prog = getProgramProgress(p);
+  const missed = getMissedProgramDays(p, 3);
+  const status = programStatusLabel(p);
+
+  const scheduleRows = PROGRAM_DAY_KEYS.map(day => {
+    const e = programEntryForDay(p, day);
+    if(e.type !== 'workout') return `
+      <div class="prog-day"><span class="prog-day-key">${escapeHtml(DAY_LABEL_FULL[day].slice(0,3))}</span>
+        <span class="prog-day-rest">Rest</span></div>`;
+    const tpl = resolveProgramWorkout(e);
+    return `
+      <div class="prog-day"><span class="prog-day-key">${escapeHtml(DAY_LABEL_FULL[day].slice(0,3))}</span>
+        <span class="prog-day-name">${tpl ? escapeHtml(tpl.name) : '<span class="prog-day-missing">Workout no longer available</span>'}</span></div>`;
+  }).join('');
+
+  const blockRows = (p.blocks || []).slice().sort((a,b)=>a.startWeek-b.startWeek).map(b => {
+    const phase = getProgramPhase(b.phaseType);
+    const current = prog && prog.week >= b.startWeek && prog.week <= b.endWeek;
+    return `
+      <div class="prog-block${current?' current':''}">
+        <div class="prog-block-main">
+          <div class="prog-block-name">${escapeHtml(b.name)}${phase && phase.id!=='custom' ? ` · ${escapeHtml(phase.label)}` : ''}</div>
+          <div class="prog-block-weeks">Week ${b.startWeek}${b.endWeek!==b.startWeek?'–'+b.endWeek:''}</div>
+        </div>
+        ${current ? '<span class="prog-block-now">NOW</span>' : ''}
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="prog-detail-head">
+      <div class="prog-detail-name">${escapeHtml(p.name)}</div>
+      <div class="prog-detail-meta">${p.goal && TRAINING_GOALS[p.goal] ? escapeHtml(TRAINING_GOALS[p.goal].label) + ' · ' : ''}${p.durationWeeks} weeks · ${status}</div>
+    </div>
+    ${prog ? `
+      <div class="prog-progress">
+        <div class="prog-progress-week">Week ${prog.week} <span>/ ${prog.totalWeeks}</span></div>
+        ${prog.blockName ? `<div class="prog-progress-block">${escapeHtml(prog.blockName)}</div>` : ''}
+        <div class="prog-progress-sessions">${prog.completedSessions} of ${prog.plannedSessions} planned sessions logged</div>
+      </div>` : ''}
+    ${missed.length ? `
+      <div class="prog-missed">
+        <div class="prog-missed-label">Missed</div>
+        ${missed.map(m => `<div class="prog-missed-row">${escapeHtml(formatDateShort(m.date))} · ${escapeHtml(m.name || CAT_LABEL[m.category] || 'Workout')}</div>`).join('')}
+        <div class="prog-missed-note">Nothing was rescheduled — it is up to you what to do with these.</div>
+      </div>` : ''}
+    <div class="section-label" style="margin-top:20px">Weekly schedule</div>
+    <div class="prog-days">${scheduleRows}</div>
+    <div class="section-label" style="margin-top:20px">Blocks</div>
+    <div class="prog-blocks">${blockRows || '<div class="pnote">No blocks yet.</div>'}</div>
+    <div class="prog-actions">
+      ${p.status === 'active' ? `<button class="btn-secondary" onclick="doPauseProgram()">Pause program</button>` : ''}
+      ${p.status === 'paused' ? `<button class="btn-secondary" onclick="doResumeProgram()">Resume program</button>` : ''}
+      ${p.status !== 'completed' && programsStore.activeProgramId !== p.id ? `<button class="btn-secondary" onclick="doActivateProgram()">Make active</button>` : ''}
+      ${p.status !== 'completed' ? `<button class="btn-secondary" onclick="doCompleteProgram()">Mark complete</button>` : ''}
+      <button class="prog-delete" onclick="doDeleteProgram()">Delete program</button>
+    </div>`;
+}
+function doPauseProgram(){ pauseProgram(detailProgramId); renderProgramDetail(); }
+function doResumeProgram(){ resumeProgram(detailProgramId); renderProgramDetail(); }
+function doActivateProgram(){ setActiveProgram(detailProgramId); renderProgramDetail(); }
+function doCompleteProgram(){
+  const s = getProgramCompletionSummary(detailProgramId);
+  completeProgram(detailProgramId);
+  renderProgramDetail();
+  if(s) alert(`Program complete — ${s.name}\n\n${s.weeks} weeks\n${s.workouts} workouts\n${s.prs} record${s.prs===1?'':'s'}`);
+}
+function doDeleteProgram(){
+  if(!confirm('Delete this program? Your workout history is not affected.')) return;
+  deleteProgram(detailProgramId);
+  closeProgramDetail();
+  openPrograms();
+}
 /* =========================================================
    EXERCISE NOTES — PERSONAL TRAINING MEMORY  (Phase D6)
    ---------------------------------------------------------

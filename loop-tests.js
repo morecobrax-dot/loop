@@ -4489,6 +4489,479 @@ async function testExerciseNotesPersistence(){
       !!app.store.gymProfile && !!app.store.exerciseNotes);
   }
 }
+
+/* =========================================================
+   CONTRACT 54-56 — PROGRAM BUILDER / TRAINING BLOCKS (D7A)
+   ---------------------------------------------------------
+   Programs describe INTENT; workoutLog remains the record of
+   what happened. The risks worth pinning are that a program
+   never rewrites history, never clones workout data, and
+   never becomes mandatory for an athlete who just wants to
+   use a plan.
+   ========================================================= */
+const PROG_SCHED = (planId, cat, tplId) => ({ type:'workout', planId, category:cat, templateId:tplId });
+
+function sampleSchedule(ctx){
+  const ul = ctx.DEFAULT_PLANS.upperlower.templates;
+  return {
+    mon: PROG_SCHED('upperlower','upper', ul.upper[0].id),
+    tue: PROG_SCHED('upperlower','lower', ul.lower[0].id),
+    wed: { type:'rest' },
+    thu: PROG_SCHED('upperlower','upper', ul.upper[1].id),
+    fri: PROG_SCHED('upperlower','lower', ul.lower[1].id),
+    sat: { type:'rest' }, sun: { type:'rest' }
+  };
+}
+const DSTR = n => { const d = new Date(Date.now() - n*86400000);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+
+function testProgramModel(app){
+  section('CONTRACT 54 — program model, blocks and weeks');
+  const ctx = app.ctx;
+  ctx.programsStore = { version:1, activeProgramId:null, programs:[] };
+  ctx.invalidateProgramCache();
+
+  sub('storage registration');
+  T('programs has its own key', ctx.PROGRAMS_KEY === 'programs');
+  T('registered in DATA_KEYS', ctx.DATA_KEYS.includes('programs'));
+  T('schema unchanged by adding programs', ctx.DATA_SCHEMA_VERSION === 1);
+  T('phase registry is extensible', ctx.PROGRAM_PHASE_TYPES.length >= 6);
+  T('phase registry has the declared types',
+    ['accumulation','intensification','deload','rebuild','peak','custom']
+      .every(id => !!ctx.getProgramPhase(id)));
+
+  sub('creation');
+  const res = ctx.createProgram({ name:'Summer Hypertrophy', goal:'hypertrophy',
+    durationWeeks:12, schedule:sampleSchedule(ctx), startDate: DSTR(0) });
+  T('a program is created', res.ok === true && !!res.program);
+  const p = res.program;
+  T('it has a stable id', !!p.id);
+  T('name stored', p.name === 'Summer Hypertrophy');
+  T('goal reuses the existing taxonomy', !!ctx.TRAINING_GOALS[p.goal]);
+  T('duration stored', p.durationWeeks === 12);
+  T('it starts active', p.status === 'active');
+  T('it becomes the active program', ctx.getActiveProgram().id === p.id);
+  T('hasActiveProgram is true', ctx.hasActiveProgram() === true);
+  T('a default block spans the whole program',
+    p.blocks.length === 1 && p.blocks[0].startWeek === 1 && p.blocks[0].endWeek === 12);
+  T('timestamps set', !!p.createdAt && !!p.updatedAt);
+
+  sub('references templates rather than cloning them');
+  const entry = p.schedule.mon;
+  T('a scheduled day stores a reference, not exercises',
+    !!entry.planId && !!entry.category && !!entry.templateId && entry.exercises === undefined);
+  T('the reference resolves to a real template',
+    !!ctx.resolveProgramWorkout(entry) && !!ctx.resolveProgramWorkout(entry).exercises);
+  T('resolved template still carries its exercises',
+    ctx.resolveProgramWorkout(entry).exercises.length > 0);
+  T('the program stores no exercise data of its own',
+    JSON.stringify(p.schedule).indexOf('Bench Press') === -1);
+  T('an unresolvable reference returns null rather than throwing',
+    ctx.resolveProgramWorkout({ type:'workout', planId:'nope', category:'upper', templateId:'x' }) === null);
+
+  sub('week calculation comes from the program, not from history');
+  T('week 1 on the start date',
+    ctx.getCurrentProgramWeek(p, DSTR(0)) === 1);
+  ctx.updateProgram(p.id, { startDate: DSTR(35) });          // started 5 weeks ago
+  T('five weeks in reads as week 6', ctx.getCurrentProgramWeek(p) === 6);
+  T('week is capped at the program length',
+    ctx.getCurrentProgramWeek(p, DSTR(-400)) === 12);
+  T('a future start date reads as week 1',
+    ctx.getCurrentProgramWeek(Object.assign({}, p, { startDate: DSTR(-30) })) === 1);
+  T('logging more workouts does not move the week',
+    (() => { const before = ctx.getCurrentProgramWeek(p);
+             ctx.workoutLog.push(WK('prog_x', 1, 'upper', [EX('Bench Press',[S(225,8,2,'working')])]));
+             clearCaches(ctx); ctx.invalidateProgramCache();
+             const after = ctx.getCurrentProgramWeek(p);
+             ctx.workoutLog = ctx.workoutLog.filter(w => w.id !== 'prog_x');
+             clearCaches(ctx); ctx.invalidateProgramCache();
+             return before === after; })());
+
+  sub('blocks');
+  ctx.updateProgram(p.id, { blocks:[
+    { id:'b1', name:'Accumulation', order:1, phaseType:'accumulation', startWeek:1,  endWeek:4 },
+    { id:'b2', name:'Progressive Overload', order:2, phaseType:'intensification', startWeek:5, endWeek:8 },
+    { id:'b3', name:'Deload', order:3, phaseType:'deload', startWeek:9, endWeek:9 },
+    { id:'b4', name:'Intensification', order:4, phaseType:'intensification', startWeek:10, endWeek:12 }
+  ]});
+  T('four blocks stored', ctx.getProgram(p.id).blocks.length === 4);
+  T('week 6 resolves to the second block',
+    ctx.getBlockForWeek(ctx.getProgram(p.id), 6).name === 'Progressive Overload');
+  T('week 1 resolves to the first block',
+    ctx.getBlockForWeek(ctx.getProgram(p.id), 1).name === 'Accumulation');
+  T('week 9 resolves to the deload block',
+    ctx.getBlockForWeek(ctx.getProgram(p.id), 9).phaseType === 'deload');
+  T('getCurrentTrainingBlock uses the current week',
+    ctx.getCurrentTrainingBlock(ctx.getProgram(p.id)).name === 'Progressive Overload');
+  T('a week outside every block returns null',
+    ctx.getBlockForWeek(ctx.getProgram(p.id), 99) === null);
+  /* A deload block is a label the athlete wrote. Defining one must not make
+     the app behave differently — no recommendation, no schedule change. */
+  {
+    const trainerCount = ctx.trainerLog.entries.length;
+    const schedBefore = JSON.stringify(ctx.getProgram(p.id).schedule);
+    ctx.getCurrentTrainingBlock(ctx.getProgram(p.id));
+    T('defining a deload block creates no trainer record',
+      ctx.trainerLog.entries.length === trainerCount);
+    T('defining a deload block does not alter the schedule',
+      JSON.stringify(ctx.getProgram(p.id).schedule) === schedBefore);
+  }
+
+  sub('schedule resolution by date');
+  const prog = ctx.getProgram(p.id);
+  const monday = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay()+6)%7));
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })();
+  const mon = ctx.getProgramWorkoutForDate(monday, prog);
+  T('Monday resolves to a workout', mon.entry.type === 'workout' && !!mon.template);
+  T('it is the scheduled template', mon.entry.templateId === prog.schedule.mon.templateId);
+  const wedDate = (() => { const d = new Date(monday+'T00:00:00'); d.setDate(d.getDate()+2);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })();
+  T('Wednesday resolves to rest', ctx.getProgramWorkoutForDate(wedDate, prog).entry.type === 'rest');
+  T('training day count is correct', ctx.programTrainingDayCount(prog) === 4);
+
+  sub('progress is structural only');
+  const pr = ctx.getProgramProgress(prog);
+  T('progress reports the week', pr.week === 6 && pr.totalWeeks === 12);
+  T('progress names the block', pr.blockName === 'Progressive Overload');
+  T('planned sessions derive from the schedule', pr.plannedSessions === 4 * 6);
+  T('no program score is produced', pr.score === undefined && pr.rating === undefined);
+
+  sub('pause and resume keep the week honest');
+  T('pause works', ctx.pauseProgram(p.id) === true);
+  T('status is paused', ctx.getProgram(p.id).status === 'paused');
+  T('a paused program is not deleted', !!ctx.getProgram(p.id));
+  const frozen = ctx.getCurrentProgramWeek(ctx.getProgram(p.id));
+  T('the week freezes while paused', frozen === 6);
+  /* Rewind the pause to two weeks ago: the athlete paused on program day 21,
+     which is week 4, and has been away since. Resuming must put them back at
+     week 4 — the week they left — NOT week 6, which is where the calendar
+     alone would have carried them. Paused time is not training time. */
+  ctx.getProgram(p.id).pausedOnDate = DSTR(14);
+  const weekAtPause = Math.floor((35 - 14) / 7) + 1;         // = 4
+  const calendarWeek = Math.floor(35 / 7) + 1;               // = 6
+  T('resume works', ctx.resumeProgram(p.id) === true);
+  T('paused days were banked', ctx.getProgram(p.id).pausedDays >= 14);
+  T('resuming returns to the week left off',
+    ctx.getCurrentProgramWeek(ctx.getProgram(p.id)) === weekAtPause,
+    String(ctx.getCurrentProgramWeek(ctx.getProgram(p.id))));
+  T('resuming does NOT jump to the calendar week',
+    ctx.getCurrentProgramWeek(ctx.getProgram(p.id)) < calendarWeek);
+  T('status is active again', ctx.getProgram(p.id).status === 'active');
+
+  sub('completion');
+  T('complete works', ctx.completeProgram(p.id) === true);
+  T('status is completed', ctx.getProgram(p.id).status === 'completed');
+  T('a completed program stays in history', getProgramCount(ctx) === 1);
+  T('it is no longer the active program', ctx.getActiveProgram() === null || ctx.hasActiveProgram() === false);
+  const sum = ctx.getProgramCompletionSummary(p.id);
+  T('completion summary uses existing metrics only',
+    sum && typeof sum.workouts === 'number' && typeof sum.prs === 'number' && sum.score === undefined);
+
+  sub('multiple programs coexist');
+  const second = ctx.createProgram({ name:'Strength Block', goal:'strength',
+    durationWeeks:6, schedule:sampleSchedule(ctx), startDate: DSTR(0) });
+  T('a second program is created', second.ok === true);
+  T('both are retained', getProgramCount(ctx) === 2);
+  T('the completed one is still there',
+    ctx.getPrograms().some(x => x.status === 'completed'));
+  T('the new one is active', ctx.getActiveProgram().id === second.program.id);
+  T('switching active does not delete the other',
+    (() => { ctx.setActiveProgram(p.id); return getProgramCount(ctx) === 2; })());
+  ctx.setActiveProgram(second.program.id);
+
+  sub('validation refuses malformed programs instead of storing them');
+  const bad = [
+    [{ name:'', durationWeeks:8, schedule:sampleSchedule(ctx) }, 'no name'],
+    [{ name:'X', durationWeeks:0, schedule:sampleSchedule(ctx) }, 'zero weeks'],
+    [{ name:'X', durationWeeks:-4, schedule:sampleSchedule(ctx) }, 'negative weeks'],
+    [{ name:'X', durationWeeks:9999, schedule:sampleSchedule(ctx) }, 'absurd length'],
+    [{ name:'X', durationWeeks:8, schedule:{} }, 'no training day'],
+    [{ name:'X', durationWeeks:8, schedule:{ mon:{type:'rest'} } }, 'rest only'],
+    [{ name:'X', durationWeeks:8, goal:'not_a_goal', schedule:sampleSchedule(ctx) }, 'unknown goal'],
+    [{ name:'X', durationWeeks:8, schedule:{ mon:{type:'workout', planId:'upperlower'} } }, 'incomplete reference'],
+    [{ name:'X', durationWeeks:8, schedule:sampleSchedule(ctx),
+       blocks:[{id:'b',name:'B',startWeek:5,endWeek:2}] }, 'inverted block range'],
+    [{ name:'X', durationWeeks:8, schedule:sampleSchedule(ctx),
+       blocks:[{id:'b',name:'B',startWeek:1,endWeek:99}] }, 'block past the program'],
+    [{ name:'X', durationWeeks:8, schedule:sampleSchedule(ctx),
+       blocks:[{id:'a',name:'A',startWeek:1,endWeek:4},{id:'b',name:'B',startWeek:3,endWeek:6}] }, 'overlapping blocks']
+  ];
+  const countBefore = getProgramCount(ctx);
+  bad.forEach(([input, why]) => {
+    const r = ctx.createProgram(input);
+    T('refused: ' + why, r.ok === false && r.errors.length > 0);
+  });
+  T('no malformed program was stored', getProgramCount(ctx) === countBefore);
+  T('validation never throws on junk',
+    (() => { try{ ctx.validateProgram(null); ctx.validateProgram(undefined);
+                   ctx.validateProgram({}); return true; }catch(e){ return false; } })());
+
+  sub('editing affects planning, never history');
+  const editable = ctx.getActiveProgram();
+  const logBefore = JSON.stringify(ctx.workoutLog);
+  const up = ctx.updateProgram(editable.id, { name:'Renamed', durationWeeks:10 });
+  T('edit succeeds', up.ok === true);
+  T('name changed', ctx.getProgram(editable.id).name === 'Renamed');
+  T('duration changed', ctx.getProgram(editable.id).durationWeeks === 10);
+  T('workout history untouched by an edit', JSON.stringify(ctx.workoutLog) === logBefore);
+  T('an invalid edit is refused and changes nothing',
+    (() => { const before = ctx.getProgram(editable.id).name;
+             const r = ctx.updateProgram(editable.id, { name:'' });
+             return r.ok === false && ctx.getProgram(editable.id).name === before; })());
+  T('editing an unknown program is refused',
+    ctx.updateProgram('nope', { name:'x' }).ok === false);
+
+  sub('rapid editing stays consistent');
+  for(let i = 0; i < 60; i++) ctx.updateProgram(editable.id, { name:'Rapid ' + i });
+  T('60 rapid edits land deterministically', ctx.getProgram(editable.id).name === 'Rapid 59');
+  T('rapid edits created no duplicate programs', getProgramCount(ctx) === countBefore);
+  for(let i = 0; i < 20; i++){ ctx.pauseProgram(editable.id); ctx.resumeProgram(editable.id); }
+  T('rapid pause/resume ends active', ctx.getProgram(editable.id).status === 'active');
+
+  sub('delete removes only that program');
+  const keepId = ctx.getPrograms().find(x => x.id !== editable.id).id;
+  T('delete reports success', ctx.deleteProgram(editable.id) === true);
+  T('the other program survives', !!ctx.getProgram(keepId));
+  T('deleting an unknown id reports false', ctx.deleteProgram('nope') === false);
+  T('workout history survives a program delete', JSON.stringify(ctx.workoutLog) === logBefore);
+}
+function getProgramCount(ctx){ return ctx.getPrograms().length; }
+
+async function testProgramIntegration(){
+  section('CONTRACT 55 — programs coexist with plans, Time Mode and substitution');
+
+  sub('an athlete with NO program keeps every existing behaviour');
+  {
+    const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('upperlower') });
+    await H.settle(300);
+    const ctx = app.ctx;
+    T('no program exists', ctx.getPrograms().length === 0);
+    T('hasActiveProgram is false', ctx.hasActiveProgram() === false);
+    T('getActiveProgram returns null', ctx.getActiveProgram() === null);
+    T('plan templates still resolve', (ctx.getTemplates('upper') || []).length === 4);
+    T('the plan schedule is still intact', !!ctx.schedule && Object.keys(ctx.schedule).length === 7);
+    T('program helpers are safe with no program',
+      ctx.getCurrentProgramWeek() === null && ctx.getCurrentTrainingBlock() === null);
+    T('progress is null rather than fabricated', ctx.getProgramProgress() === null);
+    T('missed days are empty rather than invented', ctx.getMissedProgramDays().length === 0);
+    T('the Today program strip renders nothing', ctx.programContextHtml() === '');
+    T('no programs key is written until a program exists', app.store.programs === undefined);
+  }
+
+  sub('a program schedules Today without breaking Time Mode');
+  {
+    const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('upperlower') });
+    await H.settle(300);
+    const ctx = app.ctx;
+    const created = ctx.createProgram({ name:'P', goal:'hypertrophy', durationWeeks:8,
+      schedule: sampleSchedule(ctx), startDate: DSTR(0) });
+    T('program created', created.ok === true);
+    const tpl = ctx.resolveProgramWorkout(created.program.schedule.mon);
+    T('the program names an exact workout', !!tpl);
+
+    const fullSets = ctx.templateSetTotal(tpl);
+    const short = ctx.compressWorkoutForTime(tpl, 30);
+    T('Time Mode still compresses a program workout',
+      ctx.templateSetTotal(short) < fullSets);
+    T('the compression is a COPY — the template is untouched',
+      ctx.templateSetTotal(ctx.resolveProgramWorkout(created.program.schedule.mon)) === fullSets);
+    T('the program schedule is unchanged by Time Mode',
+      ctx.getProgram(created.program.id).schedule.mon.templateId === created.program.schedule.mon.templateId);
+    T('full mode still equals the program workout',
+      JSON.stringify(ctx.compressWorkoutForTime(tpl, null).exercises) === JSON.stringify(tpl.exercises));
+  }
+
+  sub('substitution stays compatible and never edits the program');
+  {
+    const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('upperlower') });
+    await H.settle(300);
+    const ctx = app.ctx;
+    const created = ctx.createProgram({ name:'P', durationWeeks:8,
+      schedule: sampleSchedule(ctx), startDate: DSTR(0) });
+    const tpl = ctx.resolveProgramWorkout(created.program.schedule.mon);
+    const firstExercise = tpl.exercises[0].name;
+    const before = JSON.stringify(ctx.getProgram(created.program.id));
+    const cands = ctx.getSubstitutionsByName(firstExercise, {});
+    T('a program workout exercise has substitutes', cands.length > 0);
+    T('reading substitutions does not modify the program',
+      JSON.stringify(ctx.getProgram(created.program.id)) === before);
+    T('the template still holds its original exercise',
+      ctx.resolveProgramWorkout(created.program.schedule.mon).exercises[0].name === firstExercise);
+  }
+
+  sub('gym profile is not required to build a program');
+  {
+    const app = await H.loadAppBooted({});
+    await H.settle(300);
+    const ctx = app.ctx;
+    T('gym is unconfigured', ctx.isGymProfileConfigured() === false);
+    const r = ctx.createProgram({ name:'No Gym', durationWeeks:4,
+      schedule: sampleSchedule(ctx), startDate: DSTR(0) });
+    T('a program can still be created', r.ok === true);
+    const tpl = ctx.resolveProgramWorkout(r.program.schedule.mon);
+    T('no exercise was removed for unknown equipment',
+      tpl.exercises.length === ctx.DEFAULT_PLANS.upperlower.templates.upper[0].exercises.length);
+  }
+
+  sub('missed days are reported, never rescheduled');
+  {
+    const app = await H.loadAppBooted({});
+    await H.settle(300);
+    const ctx = app.ctx;
+    const r = ctx.createProgram({ name:'M', durationWeeks:4,
+      schedule: sampleSchedule(ctx), startDate: DSTR(21) });
+    const before = JSON.stringify(r.program.schedule);
+    const missed = ctx.getMissedProgramDays(r.program);
+    T('missed sessions are reported', missed.length > 0);
+    T('each names a date', missed.every(m => /^\d{4}-\d{2}-\d{2}$/.test(m.date)));
+    T('the schedule was NOT rewritten',
+      JSON.stringify(ctx.getProgram(r.program.id).schedule) === before);
+    T('no workout was doubled up — nothing was added to history',
+      ctx.workoutLog.length === 0);
+    T('the week did not skip because sessions were missed',
+      ctx.getCurrentProgramWeek(ctx.getProgram(r.program.id)) === 4);
+  }
+}
+
+async function testProgramSafety(){
+  section('CONTRACT 56 — programs touch no protected system');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const planTemplatesBefore = JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates);
+  const planDataBefore = JSON.stringify(Object.keys(app.store).filter(k => k.indexOf('planData:') === 0).map(k => app.store[k]));
+  const scheduleBefore = JSON.stringify(Object.keys(app.store).filter(k => k.indexOf('schedule:') === 0).map(k => app.store[k]));
+  const gymBefore = app.store.gymProfile;
+  const notesBefore = app.store.exerciseNotes;
+  const draftBefore = app.store.activeWorkoutDraft;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+
+  sub('create, edit, pause, resume, complete a program');
+  const r = ctx.createProgram({ name:'Safety', goal:'strength', durationWeeks:8,
+    schedule: sampleSchedule(ctx), startDate: DSTR(7) });
+  ctx.updateProgram(r.program.id, { name:'Safety 2' });
+  ctx.pauseProgram(r.program.id); ctx.resumeProgram(r.program.id);
+  ctx.getProgramProgress(); ctx.getMissedProgramDays();
+  ctx.completeProgram(r.program.id);
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('exercise notes unchanged', app.store.exerciseNotes === notesBefore);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('drafts preserved', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('the existing plan system is untouched');
+  T('DEFAULT_PLANS templates byte-identical',
+    JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates) === planTemplatesBefore);
+  T('stored planData byte-identical',
+    JSON.stringify(Object.keys(app.store).filter(k => k.indexOf('planData:') === 0).map(k => app.store[k])) === planDataBefore);
+  T('stored schedules byte-identical',
+    JSON.stringify(Object.keys(app.store).filter(k => k.indexOf('schedule:') === 0).map(k => app.store[k])) === scheduleBefore);
+  T('every original plan still exists',
+    ['balanced','strength','home','hypertrophy','athletic','upperlower'].every(id => !!ctx.DEFAULT_PLANS[id]));
+  T('no plan was deleted', Object.keys(ctx.DEFAULT_PLANS).length >= 6);
+
+  sub('trainer');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by program actions',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+  T('a deload block generated no recommendation',
+    ctx.trainerLog.entries.length === trainerBefore);
+
+  sub('source-level isolation of the program module');
+  {
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    const titleAt = src.indexOf('PROGRAM BUILDER & TRAINING BLOCKS  (Phase D7A)');
+    const start = src.lastIndexOf('/*', titleAt);
+    const end = src.indexOf('/* ---------- PROGRAM UI ----------');
+    const code = src.slice(start, end).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    T('module located', titleAt !== -1 && end > start);
+    const forbidden = ['proposeTrainerState','applyTrainerConstraints','computeShadowRecommendation',
+      'logRecommendation','persistTrainerLog','persistLog(','persistReadiness','computeMuscleRecovery('];
+    const hits = forbidden.filter(f => code.indexOf(f) !== -1);
+    T('it calls no trainer, recovery, readiness or workout-persistence function',
+      hits.length === 0, hits.join(','));
+    T('it writes only its own storage key',
+      (code.match(/LOOPStore\.set\(/g) || []).length === 1 &&
+      code.indexOf('LOOPStore.set(PROGRAMS_KEY') !== -1);
+    T('it never assigns into workoutLog',
+      !/\bworkoutLog\s*(=|\.push|\.splice)/.test(code));
+  }
+
+  sub('backup, export and restore');
+  {
+    const app2 = await H.loadAppBooted({});
+    await H.settle(300);
+    const c2 = app2.ctx;
+    const made = c2.createProgram({ name:'Backup Program', goal:'hypertrophy', durationWeeks:12,
+      schedule: sampleSchedule(c2), startDate: DSTR(14) });
+    c2.updateProgram(made.program.id, { blocks:[
+      { id:'b1', name:'Accumulation', order:1, phaseType:'accumulation', startWeek:1, endWeek:6 },
+      { id:'b2', name:'Peak', order:2, phaseType:'peak', startWeek:7, endWeek:12 } ]});
+    await H.settle(300);
+
+    const keys = await c2.allDataKeys();
+    T('programs is in the backup key list', keys.indexOf('programs') !== -1);
+    const exported = {};
+    for(const k of keys){
+      const rr = await c2.LOOPStore.get(k);
+      if(rr && rr.value !== undefined && rr.value !== null) exported[k] = rr.value;
+    }
+    T('export captures the programs', !!exported.programs);
+
+    const restored = await H.loadAppBooted(exported);
+    await H.settle(300);
+    const rp = restored.ctx.getPrograms()[0];
+    T('restore rebuilds the program', !!rp && rp.name === 'Backup Program');
+    T('duration survives', rp.durationWeeks === 12);
+    T('goal survives', rp.goal === 'hypertrophy');
+    T('the schedule references survive',
+      rp.schedule.mon.templateId === made.program.schedule.mon.templateId);
+    T('blocks survive with their phases',
+      rp.blocks.length === 2 && rp.blocks[1].phaseType === 'peak');
+    T('the active program id survives',
+      restored.ctx.getActiveProgram() && restored.ctx.getActiveProgram().id === rp.id);
+    T('the week still computes after restore',
+      restored.ctx.getCurrentProgramWeek(rp) === 3);
+    T('programs did not leak into workoutLog',
+      !JSON.stringify(restored.ctx.workoutLog).includes('Backup Program'));
+    T('programs did not leak into trainerLog',
+      !JSON.stringify(restored.ctx.trainerLog).includes('Backup Program'));
+  }
+
+  sub('reload persistence');
+  {
+    const app3 = await H.loadAppBooted({});
+    await H.settle(300);
+    const made = app3.ctx.createProgram({ name:'Persisted', durationWeeks:6,
+      schedule: sampleSchedule(app3.ctx), startDate: DSTR(0) });
+    await H.settle(300);
+    const reopened = await H.loadAppBooted(app3.store);
+    await H.settle(300);
+    T('the program survives a reload', reopened.ctx.getPrograms().length === 1);
+    T('it is still active', reopened.ctx.hasActiveProgram() === true);
+    T('its id is stable', reopened.ctx.getActiveProgram().id === made.program.id);
+  }
+}
 /* =========================================================
    RUNNER
    ========================================================= */
@@ -4529,6 +5002,7 @@ async function main(){
   testPlanUpperLowerIntegration(app);
   testRepAdjustment(app);
   testExerciseNotes(H.loadApp());
+  testProgramModel(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -4557,6 +5031,8 @@ async function main(){
     await testRepAdjustmentSafety();
     await testExerciseNotesIsolation();
     await testExerciseNotesPersistence();
+    await testProgramIntegration();
+    await testProgramSafety();
   }
 
   // ---- FULL ----
