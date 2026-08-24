@@ -13156,7 +13156,7 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
         <span class="unit-label">REPS</span>
         <div class="stepper">
           <button type="button" onclick="stepValue(this,-1)">–</button>
-          <input type="text" inputmode="numeric" class="set-reps-in" value="${reps||''}">
+          <input type="text" inputmode="numeric" class="set-reps-in" value="${reps||''}" oninput="propagateRepsForward(this);">
           <button type="button" onclick="stepValue(this,1)">+</button>
         </div>
       </div>
@@ -13215,9 +13215,13 @@ function stepValue(btn, delta){
   let val = parseFloat(input.value) || 0;
   val = Math.max(0, val + delta);
   input.value = val;
+  // The stepper sets .value directly, which does not fire `oninput`, so the
+  // same propagation the typed path gets has to be triggered here too.
   if(input.classList.contains('set-weight-in')){
     maybeRefreshWarmup(input);
     propagateWeightForward(input);
+  } else if(input.classList.contains('set-reps-in')){
+    propagateRepsForward(input);
   }
 }
 
@@ -13238,19 +13242,34 @@ function maybeRefreshWarmup(weightInput){
 
 /* Dial in the weight on any set and it carries forward to the sets after it —
    as long as they're not already completed, so nothing you've locked in gets
-   silently overwritten. Reps and RIR are untouched since those naturally
-   change set to set even at the same weight. */
+   silently overwritten. Reps carry forward the same way (see
+   propagateRepsForward). RIR is deliberately left alone: it is a report of how
+   a specific set actually felt, not a prescription to copy. */
 function propagateWeightForward(weightInput){
-  const setRow = weightInput.closest('.set-row');
-  const setsList = weightInput.closest('.sets-list');
+  propagateSetValueForward(weightInput, '.set-weight-in');
+}
+
+/* Reps carry forward the same way. Adjusting a set updates the sets after it,
+   so changing a prescription mid-exercise takes one edit instead of one per
+   set. Completed sets are never touched — what you've already logged is a
+   record of what happened, not a value to be rewritten. */
+function propagateRepsForward(repsInput){
+  propagateSetValueForward(repsInput, '.set-reps-in');
+}
+
+/* Shared walk: copy this input's value into the same field on every LATER set
+   in the same exercise, skipping completed rows and disabled inputs. */
+function propagateSetValueForward(sourceInput, selector){
+  const setRow = sourceInput.closest('.set-row');
+  const setsList = sourceInput.closest('.sets-list');
   if(!setRow || !setsList) return;
   const allRows = [...setsList.querySelectorAll('.set-row')];
   const idx = allRows.indexOf(setRow);
   if(idx === -1) return;
-  const newVal = weightInput.value;
+  const newVal = sourceInput.value;
   allRows.slice(idx + 1).forEach(row => {
     if(row.classList.contains('completed')) return;
-    const laterInput = row.querySelector('.set-weight-in');
+    const laterInput = row.querySelector(selector);
     if(laterInput && !laterInput.disabled) laterInput.value = newVal;
   });
 }
