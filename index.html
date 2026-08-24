@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>LOOP — Training Rotation</title>
+<title>LOOP — Training Log</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LOOP">
 <meta name="theme-color" content="#0A0C10">
-<meta name="description" content="LOOP — training rotation, progression and personal records.">
+<meta name="description" content="LOOP — training log, progression and personal records.">
 <link rel="manifest" href="manifest.webmanifest">
 <script>
 /* Runs before first paint: if the intro already played this session, hide it
@@ -986,7 +986,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .fb-strip{ display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .fb-label{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin-right: 2px; }
 .fb-chip{
-  flex: 1; min-height: 34px; padding: 7px 8px; border-radius: var(--radius-sm);
+  flex: 1; min-height: 44px; padding: 7px 8px; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: var(--surface-2); color: var(--text-faint);
   font-size: 11px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: border-color 0.15s var(--ease), color 0.15s var(--ease), background 0.15s var(--ease);
@@ -1182,6 +1182,10 @@ html.intro-skip #introOverlay{ display: none !important; }
 .cmp-delta.up{ color: var(--success); } .cmp-delta.down{ color: var(--warning); }
 
 /* Most trained */
+/* ---------- D10: the logging column stops stretching ---------- */
+@media (min-width: 560px){
+  .sheet-page .sheet-scroll > *{ max-width: 560px; margin-left: auto; margin-right: auto; }
+}
 /* ---------- MASTERY (Phase D9) ---------- */
 .mastery-block{ margin-top: 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
 .mastery-head{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
@@ -1197,6 +1201,14 @@ html.intro-skip #introOverlay{ display: none !important; }
 .mastery-row-name{ font-size: 14px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mastery-row-level{ font-size: 12px; font-weight: 700; color: var(--text-dim); flex-shrink: 0; }
 .mastery-row-meta{ margin-top: 6px; font-size: 11.5px; color: var(--text-faint); }
+.mastery-rest{ display: none; }
+.mastery-list.show-all .mastery-rest{ display: block; }
+.mastery-more{
+  width: 100%; min-height: 44px; margin-top: 10px;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.mastery-more:hover{ color: var(--accent); border-color: var(--accent); }
 
 .most-trained{ display: flex; align-items: center; gap: 18px; padding: 6px 0; }
 .mt-body{ width: 84px; flex-shrink: 0; }
@@ -1263,6 +1275,13 @@ html.intro-skip #introOverlay{ display: none !important; }
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
 .scope-btn.active{ background: var(--accent); color: #0C0E12; }
+.filter-chip.is-empty{ opacity: 0.45; }
+.filter-chip.is-empty.active{ opacity: 1; }
+.empty-cta{
+  margin-top: 14px; min-height: 44px; padding: 0 18px;
+  background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius-md);
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+}
 .muscle-foot{ font-size: 10.5px; color: var(--text-faint); margin-top: 10px; text-align: center; }
 
 /* ---- Level card (Today tab) ---- */
@@ -1604,27 +1623,110 @@ textarea{ resize: vertical; min-height: 56px; }
 }
 .swap-select:hover, .swap-select:focus{ outline: none; border-color: var(--accent); color: var(--accent); }
 .ex-log-name-row{ display:flex; gap:8px; align-items:center; }
-.ex-log-name-row input{ font-weight: 600; }
+.ex-log-name-row input{ font-weight: 600; min-height: 44px; }
+.ex-log-name-row .swap-select{ min-height: 44px; }
 .last-time-wrap:empty{ display: none; }
 .last-time-block{ margin-top: 10px; background: var(--surface-3); border-radius: var(--radius-sm); padding: 8px 10px; }
 .last-time-label{ font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); display: block; margin-bottom: 6px; }
 .last-time-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
 .last-time-chip{ font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 700; color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border); padding: 3px 8px; border-radius: var(--radius-sm); }
 .ex-log-controls{ display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 10px; }
+/* ---- D10: exercise context ----
+   The recommendation and last-time blocks are unchanged and still rendered —
+   they are simply summarised on one line until asked for, so informational
+   content stops pushing the logging controls down the page. */
+.ex-context{ margin-top: 8px; }
+.ex-context.is-empty{ display: none; }
+.ex-context-btn{
+  width: 100%; min-height: 44px; display: flex; align-items: center; gap: 8px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 0 12px; cursor: pointer; color: var(--text-dim);
+  font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; text-align: left;
+}
+.ex-context-btn:hover{ border-color: var(--accent); }
+.exc-summary{ flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exc-caret{ font-size: 10px; flex-shrink: 0; color: var(--text-faint); transition: transform 0.18s var(--ease); }
+.ex-context.open .exc-caret{ transform: rotate(180deg); }
+.ex-context-detail{ display: none; padding-top: 8px; }
+.ex-context.open .ex-context-detail{ display: block; }
+/* Exercise-level actions are compact labelled controls on one line rather than
+   three stacked full-width buttons. Labels are kept — no bare glyphs. */
+.ex-actions{ display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.ex-actions .ex-act,
+.ex-actions .ex-note-btn{
+  height: 44px; padding: 0 14px; flex: 0 0 auto;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.ex-actions .ex-act:hover,
+.ex-actions .ex-note-btn:hover{ border-color: var(--accent); color: var(--accent); }
+.ex-actions .ex-note-wrap{ flex: 0 0 auto; }
+.ex-actions .bw-toggle{ margin-left: auto; height: 44px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+/* Add-set and rest share a line instead of stacking two full-width buttons. */
+.ex-log-foot{ display: flex; gap: 8px; margin-top: 10px; }
+.ex-log-foot .add-set-btn{ flex: 1; margin-top: 0; height: 44px; }
+.ex-log-foot .rest-start-btn{ flex: 1; margin-top: 0; height: 44px; }
 .bw-toggle{ display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-dim); padding: 8px 0; cursor: pointer; }
 .bw-toggle input{ width: 20px; height: 20px; }
 .sets-list{ display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .set-row{
-  display: flex; flex-direction: column; gap: 8px;
+  display: flex; flex-direction: column; gap: 6px;
   background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 10px 10px 12px;
+  padding: 6px 8px 8px;
   transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 .set-row.completed{ background: var(--full-soft); border-color: rgba(75,156,129,0.4); }
 @keyframes setpulse{ 0%,100%{ box-shadow: 0 0 0 0 rgba(91,140,255,0); } 30%{ box-shadow: 0 0 0 3px var(--accent-soft); } }
 .set-row.pulse{ animation: setpulse 1.2s var(--ease); border-color: var(--accent); }
-.set-row-top{ display: flex; align-items: center; justify-content: space-between; }
-.set-idx{ font-size: 11px; font-weight: 700; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.03em; }
+.set-row-top{ display: flex; align-items: center; gap: 6px; }
+.set-idx{
+  font-size: 11px; font-weight: 700; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.03em; flex-shrink: 0; min-width: 44px; height: 44px;
+  display: flex; align-items: center; cursor: pointer;
+}
+/* ---- D10: the row always names its own classification ----
+   D8 established that the set type must be readable at a glance rather than
+   hidden behind a glyph. That still holds — this chip states the current type
+   and RIR without opening anything. What moved is the CONTROL, not the label. */
+.set-meta-btn{
+  flex: 1; min-width: 0; height: 44px; display: flex; align-items: center; gap: 6px;
+  background: none; border: none; padding: 0 4px; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 12px; color: var(--text-faint);
+  overflow: hidden; -webkit-tap-highlight-color: transparent;
+}
+.set-meta-type{ font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+.set-meta-type.nondefault{ color: var(--accent); }
+.set-meta-rir{ font-family: 'JetBrains Mono', monospace; font-size: 11px; white-space: nowrap; }
+.set-meta-rir.set{ color: var(--text-dim); }
+.set-meta-caret{ margin-left: auto; font-size: 10px; flex-shrink: 0; transition: transform 0.18s var(--ease); }
+.set-row.more-open .set-meta-caret{ transform: rotate(180deg); }
+.set-row-more{ display: none; flex-direction: column; gap: 8px; padding-top: 2px; }
+.set-row.more-open .set-row-more{ display: flex; }
+/* Removing a set is a labelled action inside the expanded area rather than a
+   36px glyph sitting next to the completion control it was easy to mistake for. */
+.set-row-more .rm-set{
+  width: 100%; height: 44px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-faint);
+}
+.set-row-more .rm-set:hover{ color: var(--danger); border-color: var(--danger); }
+.rir-help{
+  position: relative; width: 20px; height: 20px; padding: 0; margin-left: 5px; vertical-align: middle;
+  border-radius: 50%; border: 1px solid var(--border); background: none;
+  color: var(--text-faint); font-size: 10px; font-weight: 700; cursor: pointer; line-height: 1;
+}
+/* Visually a 20px dot, but a 44px target — the hit area is expanded rather than
+   the glyph, so the label line does not grow. */
+.rir-help::after{
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 44px; height: 44px; transform: translate(-50%, -50%);
+}
+.rir-help:hover{ color: var(--accent); border-color: var(--accent); }
+.rir-explain{
+  display: none; margin: 6px 0 0; font-size: 11.5px; line-height: 1.45;
+  color: var(--text-faint); max-width: 46ch;
+}
+.rir-row.explain-open .rir-explain{ display: block; }
 .set-row-top-actions{ display: flex; align-items: center; gap: 4px; }
 /* ---- Set completion control ----
    Visual only. The completed state is driven entirely by the `.completed`
@@ -1714,7 +1816,13 @@ textarea{ resize: vertical; min-height: 56px; }
 }
 .workout-topbar-spacer{ width: 44px; flex-shrink: 0; }
 body.page-locked{ overflow: hidden; }
-.set-row-controls{ display: flex; gap: 10px; }
+.set-row-controls{ display: flex; gap: 8px; }
+.set-row-controls > .stepper{ flex: 1; min-width: 0; }
+.set-row-controls > .stepper > input{ min-width: 46px; }
+/* Column headings for the two stepper columns below. Printed once per exercise
+   rather than once per set — same information, 25 fewer repetitions. */
+.sets-head{ display: flex; gap: 8px; padding: 6px 9px 0; }
+.sets-head .unit-label{ flex: 1; text-align: center; font-weight: 700; letter-spacing: 0.08em; }
 .stepper-group{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .unit-label{ font-size: 9px; color: var(--text-faint); letter-spacing: 0.06em; }
 .stepper{ display: flex; align-items: stretch; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
@@ -1726,7 +1834,7 @@ body.page-locked{ overflow: hidden; }
 .rir-row{ display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
 .rir-picker{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
 .rir-opt{
-  height: 26px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: none;
+  height: 44px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: none;
   color: var(--text-faint); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; cursor: pointer;
   transition: all 0.15s var(--ease); opacity: 0.7;
 }
@@ -1760,7 +1868,7 @@ body.page-locked{ overflow: hidden; }
 .rest-panel.done .rest-panel-time{ color: var(--full); }
 .rest-panel-controls{ display: flex; gap: 6px; }
 .rest-panel-btn{
-  width: 40px; height: 40px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-2);
+  width: 44px; height: 44px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-2);
   color: var(--text-dim); font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .rest-skip-btn{ width: auto; padding: 0 12px; font-size: 11.5px; }
@@ -1770,7 +1878,7 @@ body.page-locked{ overflow: hidden; }
 .ex-grid div{ display: flex; flex-direction: column; }
 .ex-grid label{ margin: 0 0 4px; font-size: 8.5px; }
 .ex-grid input{ padding: 8px; font-size: 12.5px; }
-.rm-ex{ background: none; border: 1px solid var(--border); color: var(--text-faint); width: 36px; height: 36px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; flex-shrink: 0; }
+.rm-ex{ background: none; border: 1px solid var(--border); color: var(--text-faint); width: 44px; height: 44px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; flex-shrink: 0; }
 .rm-ex:hover{ border-color: var(--danger); color: var(--danger); }
 
 .add-ex-btn{
@@ -2635,7 +2743,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 </div>
 
 <div id="planOnboard" style="display:none;">
-  <div class="eyebrow">Training Rotation</div>
+  <div class="eyebrow">LOOP</div>
   <div class="onboard-title">Choose your plan</div>
   <div class="onboard-sub">Pick the training style that fits you. You can edit every workout afterward, and switch plans anytime without losing your history.</div>
   <div class="plan-grid" id="onboardPlanGrid"></div>
@@ -2643,7 +2751,6 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 
 <div id="mainApp" style="display:none;">
   <header>
-    <div class="eyebrow">Training Rotation</div>
     <div class="header-row">
       <h1>LOOP<span class="dot">.</span></h1>
       <div class="header-actions">
@@ -2703,7 +2810,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   <div class="view" id="view-train">
     <div class="hist-filters" id="trainChips"></div>
     <div class="tpl-grid" id="trainGrid"></div>
-    <button class="add-tpl-btn" id="trainAddBtn" onclick="openAddTemplate(activeTrainCategory)">+ Add a variation</button>
+    <button class="add-tpl-btn" id="trainAddBtn" onclick="openAddTemplate(activeTrainCategory)">+ Add a workout</button>
   </div>
 
   <div class="view" id="view-progress">
@@ -2713,7 +2820,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <button class="seg-btn active" data-p="overview" onclick="switchProgTab('overview')">Overview</button>
       <button class="seg-btn" data-p="strength" onclick="switchProgTab('strength')">Strength</button>
       <button class="seg-btn" data-p="volume" onclick="switchProgTab('volume')">Volume</button>
-      <button class="seg-btn" data-p="muscles" onclick="switchProgTab('muscles')">Muscles</button>
+      <button class="seg-btn" data-p="muscles" onclick="switchProgTab('muscles')">Mastery</button>
     </div>
 
     <div class="seg-panel" id="ppanel-overview">
@@ -2918,7 +3025,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   <div class="sheet">
     <div class="sheet-scroll">
     <h2 id="tplSheetTitle">New Variation</h2>
-    <div class="sheet-sub" id="tplSheetSub">Add a rotation option for this lift.</div>
+    <div class="sheet-sub" id="tplSheetSub">Add another way to train this lift.</div>
     <label>Workout name</label>
     <input type="text" id="tplName" placeholder="e.g. Pull C — Rows Focus">
     <label style="margin-top:18px">Exercises</label>
@@ -2965,7 +3072,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <button class="settings-row-btn" onclick="openPrograms()">
         <span class="settings-row-main">
           <span class="settings-row-title">Programs</span>
-          <span class="settings-row-desc" id="settingsProgramSub">Training blocks, weeks, and your current program</span>
+          <span class="settings-row-desc" id="settingsProgramSub">Phases, weeks, and your current program</span>
         </span>
         <span class="settings-row-arrow">›</span>
       </button>
@@ -3087,7 +3194,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="sheet-scroll">
       <button class="sheet-back" onclick="backToSettings('programsOverlay')">‹ Settings</button>
       <h2>Programs</h2>
-      <div class="sheet-sub">A program organises your training into blocks and weeks. Your plans and history are untouched by anything here.</div>
+      <div class="sheet-sub">A program organises your training into phases and weeks. Your plans and history are untouched by anything here.</div>
       <div id="programsBody"></div>
     </div>
     <div class="sheet-actions">
@@ -4622,6 +4729,9 @@ let pendingTplCategory = null;
 let editingTemplateId = null;
 let currentEditDay = null;
 let activeTrainCategory = 'push';
+/* Set once the athlete picks a category themselves; until then Train resolves
+   its own starting point from their plan on every open. */
+let trainCategoryChosen = false;
 
 const DAY_ORDER = ['mon','tue','wed','thu','fri','sat','sun'];
 const DAY_LABEL = { mon:'MON', tue:'TUE', wed:'WED', thu:'THU', fri:'FRI', sat:'SAT', sun:'SUN' };
@@ -4715,7 +4825,7 @@ const LOOP_UPDATES = [
     summary: 'Your training plan, organized and ready every day.',
     newFeatures: [
       'Five training plans to choose from, each with its own weekly schedule',
-      'Push, Pull, Legs, Core, and Full Body workouts with multiple variations to rotate through',
+      'Push, Pull, Legs, Core, and Full Body sessions, with several workouts in each to rotate through',
       'A weekly schedule you can edit any time, day by day',
       'Muscle-target diagrams and an estimated duration on every workout',
       'Built-in rest timer'
@@ -5358,7 +5468,7 @@ function openPlansManager(){
     <button class="settings-row-btn" onclick="goToTrainFromSettings()">
       <span class="settings-row-main">
         <span class="settings-row-title">Edit Workouts &amp; Exercises</span>
-        <span class="settings-row-desc">Add or change the variations in each category</span>
+        <span class="settings-row-desc">Add or change the workouts in each category</span>
       </span>
       <span class="settings-row-arrow">›</span>
     </button>
@@ -5853,7 +5963,7 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
     return {
       weight: w,
       headline: `${w} lb × ${templateReps}`,
-      why: `Performance has stalled for ${plateau.sessions} sessions — hold the weight, or try a different variation.`,
+      why: `Performance has stalled for ${plateau.sessions} sessions — hold the weight, or switch to a similar exercise.`,
       tag: 'plateau'
     };
   }
@@ -8628,22 +8738,87 @@ function templateCardHtml(t, cat, lastWeights){
   `;
 }
 
+/* How many workouts this athlete actually has in a category. */
+function articleFor(word){ return /^[AEIOU]/i.test(String(word || '')) ? 'an' : 'a'; }
+function trainCategoryCount(cat){
+  try{ return (getTemplates(cat) || []).length; }catch(e){ return 0; }
+}
+/* Categories this athlete's week actually uses, in the order the week runs. */
+function scheduledTrainCategories(){
+  if(!schedule) return [];
+  const seen = [];
+  PROGRAM_DAY_KEYS.forEach(d => {
+    const c = schedule[d];
+    if(c && c !== 'rest' && seen.indexOf(c) === -1) seen.push(c);
+  });
+  return seen;
+}
+/* Train opens where the athlete's own training is. Today's session first,
+   then the rest of their week, then anything they have built — and only if
+   none of that exists does it fall back to a fixed category. */
+function defaultTrainCategory(){
+  const today = (typeof JS_DAY_TO_KEY !== 'undefined') ? JS_DAY_TO_KEY[new Date().getDay()] : null;
+  const todayCat = (schedule && today) ? schedule[today] : null;
+  if(todayCat && todayCat !== 'rest' && trainCategoryCount(todayCat)) return todayCat;
+  const scheduled = scheduledTrainCategories().filter(trainCategoryCount);
+  if(scheduled.length) return scheduled[0];
+  const anyPopulated = ORDER.filter(trainCategoryCount);
+  if(anyPopulated.length) return anyPopulated[0];
+  const planned = scheduledTrainCategories();
+  return planned.length ? planned[0] : activeTrainCategory;
+}
+
 function renderTrainView(){
-  document.getElementById('trainChips').innerHTML = ORDER.map(cat => `
-    <button class="filter-chip ${cat===activeTrainCategory?'active':''}" onclick="setTrainCategory('${cat}')">${CAT_LABEL[cat]}</button>
+  if(!trainCategoryChosen) activeTrainCategory = defaultTrainCategory();
+  const inPlan = scheduledTrainCategories();
+  // The athlete's own categories lead; the rest stay reachable but recede.
+  const ordered = ORDER.slice().sort((a, b) => {
+    const ai = inPlan.indexOf(a), bi = inPlan.indexOf(b);
+    if(ai !== -1 && bi !== -1) return ai - bi;
+    if(ai !== -1) return -1;
+    if(bi !== -1) return 1;
+    return ORDER.indexOf(a) - ORDER.indexOf(b);
+  });
+  document.getElementById('trainChips').innerHTML = ordered.map(cat => `
+    <button class="filter-chip ${cat===activeTrainCategory?'active':''}${trainCategoryCount(cat)?'':' is-empty'}" onclick="setTrainCategory('${cat}')">${CAT_LABEL[cat]}</button>
   `).join('');
 
   const lw = lastWeightsMap();
   // getTemplates() returns null before a plan is chosen; render the empty
   // state rather than throwing if a render is reached in that window.
-  document.getElementById('trainGrid').innerHTML = (getTemplates(activeTrainCategory) || []).map(t => templateCardHtml(t, activeTrainCategory, lw)).join('') ||
-    `<div class="empty"><div class="mark">○</div><h3>No ${CAT_LABEL[activeTrainCategory]} workouts yet</h3><div>Add your first variation below.</div></div>`;
+  document.getElementById('trainGrid').innerHTML =
+    (getTemplates(activeTrainCategory) || []).map(t => templateCardHtml(t, activeTrainCategory, lw)).join('') ||
+    trainEmptyStateHtml();
 
   const addBtn = document.getElementById('trainAddBtn');
-  addBtn.textContent = '+ Add a ' + CAT_LABEL[activeTrainCategory] + ' variation';
+  addBtn.textContent = '+ Add ' + articleFor(CAT_LABEL[activeTrainCategory]) + ' ' + CAT_LABEL[activeTrainCategory] + ' workout';
   addBtn.setAttribute('onclick', `openAddTemplate('${activeTrainCategory}')`);
 }
-function setTrainCategory(cat){ activeTrainCategory = cat; renderTrainView(); }
+/* Says what this screen is, why it matters, and what to do — and never tells an
+   athlete who has eight workouts that they have none. */
+function trainEmptyStateHtml(){
+  const populated = ORDER.filter(c => c !== activeTrainCategory && trainCategoryCount(c));
+  if(populated.length){
+    const names = populated.map(c => CAT_LABEL[c]);
+    const list = names.length > 1
+      ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]
+      : names[0];
+    return `<div class="empty"><div class="mark">○</div>
+      <h3>No ${escapeHtml(CAT_LABEL[activeTrainCategory])} workouts</h3>
+      <div>Your plan trains ${escapeHtml(list)}. Pick one of those above, or add ${articleFor(CAT_LABEL[activeTrainCategory])} ${escapeHtml(CAT_LABEL[activeTrainCategory])} workout below.</div>
+    </div>`;
+  }
+  return `<div class="empty"><div class="mark">○</div>
+    <h3>Your workout library</h3>
+    <div>Every workout you can start from Today lives here, grouped by the kind of session. Choosing a plan fills this in — or add your own below.</div>
+    <button class="empty-cta" type="button" onclick="openPlansManager()">Choose a plan</button>
+  </div>`;
+}
+function setTrainCategory(cat){
+  activeTrainCategory = cat;
+  trainCategoryChosen = true;    // an explicit choice is never overridden
+  renderTrainView();
+}
 
 /* ---------- RENDER: HISTORY ---------- */
 function renderHistory(){
@@ -11415,8 +11590,6 @@ function renderProgStrength(){
   const trends = computeExerciseTrends();
   const A = { up:'↑', down:'↓', flat:'→' };
   document.getElementById('progExercises').innerHTML = `
-    <div class="sec-head">Movement mastery<span class="sec-hint">from your history</span></div>
-    ${exerciseMasteryListHtml()}
     <div class="sec-head">All exercises<span class="sec-hint">tap for detail</span></div>
     ${trends.length ? `<div class="rank-list">${trends.map(t => `
       <div class="rank-row" onclick="openExDetail('${escapeAttr(t.name)}')">
@@ -11484,7 +11657,9 @@ function renderProgMuscles(){
   const el = document.getElementById('progMuscles');
 
   if(!sum){
-    el.innerHTML = `<div class="mini-empty">Log a few workouts and your training distribution will appear here.</div>`;
+    el.innerHTML = `
+      <div class="sec-head">Mastery<span class="sec-hint">from your training history</span></div>
+      <div class="mini-empty">Mastery grows as you repeat a movement across weeks and months. Log a few workouts and your strongest movements and muscle groups will appear here.</div>`;
     return;
   }
   const rows = Object.keys(totals).map(k => ({ k, label: MUSCLE_LABELS[k], val: totals[k] }))
@@ -11509,6 +11684,11 @@ function renderProgMuscles(){
   const catTotal = Object.values(catSets).reduce((a,b)=>a+b,0) || 1;
 
   el.innerHTML = `
+    <div class="sec-head">Exercise mastery<span class="sec-hint">from your training history</span></div>
+    ${exerciseMasteryListHtml(5)}
+    <div class="sec-head">Muscle mastery<span class="sec-hint">primary and secondary work</span></div>
+    ${muscleMasteryHtml()}
+    <div class="muscle-foot">How much history LOOP has for each muscle group — not a measure of strength.</div>
     <div class="sec-head">Most trained<span class="sec-hint">last 12 weeks</span></div>
     <div class="most-trained">
       <div class="mt-body">${bodyDiagramSvg(synthetic)}</div>
@@ -11527,10 +11707,7 @@ function renderProgMuscles(){
         <div class="dist-track"><div class="dist-fill dist-${c}" style="width:${((catSets[c]/catTotal)*100).toFixed(1)}%"></div></div>
         <span class="dist-val">${catSets[c]}</span>
       </div>`).join('')}</div>
-    <div class="muscle-foot">Distribution of logged sets, not a judgement about balance.</div>
-    <div class="sec-head">Muscle mastery<span class="sec-hint">based on your training history</span></div>
-    ${muscleMasteryHtml()}
-    <div class="muscle-foot">How much history LOOP has for each muscle group — not a measure of strength.</div>`;
+    <div class="muscle-foot">Distribution of logged sets, not a judgement about balance.</div>`;
 }
 
 function renderProgTab(){
@@ -11872,13 +12049,10 @@ function muscleMasteryHtml(){
       ${masteryBarHtml(m)}
     </div>`).join('');
 }
-/* Progress > Strength section — the movements LOOP knows best. */
-function exerciseMasteryListHtml(limit){
-  const list = getTopExerciseMastery(limit || 6).filter(m => m.hasHistory);
-  if(!list.length){
-    return `<div class="mastery-empty-text" style="padding:14px 0">Exercise mastery builds as you train.</div>`;
-  }
-  return list.map(m => `
+/* The movements LOOP knows best. Shows the top few and keeps the rest one tap
+   away, so this never becomes a second copy of the All Exercises directory. */
+function masteryRowHtml(m){
+  return `
     <div class="mastery-row">
       <div class="mastery-row-head">
         <span class="mastery-row-name">${escapeHtml(m.displayName)}</span>
@@ -11886,7 +12060,28 @@ function exerciseMasteryListHtml(limit){
       </div>
       ${masteryBarHtml(m)}
       <div class="mastery-row-meta">${m.sessions} session${m.sessions===1?'':'s'}</div>
-    </div>`).join('');
+    </div>`;
+}
+function exerciseMasteryListHtml(limit){
+  const all = getTopExerciseMastery().filter(m => m.hasHistory);
+  if(!all.length){
+    return `<div class="mastery-empty-text" style="padding:14px 0">Exercise mastery builds as you train.</div>`;
+  }
+  const top = typeof limit === 'number' ? limit : 5;
+  const shown = all.slice(0, top);
+  const rest = all.slice(top);
+  return `<div class="mastery-list">
+    ${shown.map(masteryRowHtml).join('')}
+    ${rest.length ? `<div class="mastery-rest">${rest.map(masteryRowHtml).join('')}</div>
+    <button type="button" class="mastery-more" onclick="toggleAllMastery(this)" aria-expanded="false">View all ${all.length}</button>` : ''}
+  </div>`;
+}
+function toggleAllMastery(btn){
+  const list = btn.closest('.mastery-list');
+  if(!list) return;
+  const open = list.classList.toggle('show-all');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  btn.textContent = open ? 'Show fewer' : ('View all ' + list.querySelectorAll('.mastery-row').length);
 }
 
 /* ---------- EXERCISE DETAIL ---------- */
@@ -12416,7 +12611,7 @@ const ONBOARDING_STEPS = [
   {
     id: 'programs',
     title: 'Programs and progress',
-    body: 'Plans hold your workouts. Programs organise them into weeks and blocks over a longer cycle. Progress shows how your training is actually going.',
+    body: 'Your plan holds your workouts and which days you train. A program is optional — it groups those weeks into phases with a start and an end. Progress shows how it is actually going.',
     visual: () => `
       <div class="ob-mock">
         <div class="ob-mock-label">SUMMER HYPERTROPHY</div>
@@ -12600,8 +12795,9 @@ const ONBOARDING_HINTS = {
   setType:  'Set Type records how a set was performed — warm-up, working, drop, failure or AMRAP.',
   timeMode: 'Short on time? Pick how long you have and LOOP trims today’s session, not your plan.',
   replace:  'Can’t use this exercise? LOOP ranks alternatives that keep the same training intent.',
-  programs: 'Programs organise your plan into weeks and blocks over a longer training cycle.',
-  notes:    'Notes are your own memory for an exercise. LOOP shows them again next time.'
+  programs: 'A program groups your plan into phases and weeks, with a start and an end date.',
+  notes:    'Notes are your own memory for an exercise. LOOP shows them again next time.',
+  rir:      'RIR is Reps in Reserve — the number of good reps you could have done before stopping.'
 };
 function hasSeenHint(id){ return !!(onboardingState.hintsSeen && onboardingState.hintsSeen[id]); }
 function markHintSeen(id){
@@ -12888,14 +13084,14 @@ function validateProgram(input){
   });
   (input.blocks || []).forEach((b, i) => {
     const s = parseInt(b.startWeek, 10), en = parseInt(b.endWeek, 10);
-    if(!(s >= 1) || !(en >= 1)) errors.push('Block ' + (i+1) + ' has an invalid week range');
-    else if(s > en) errors.push('Block ' + (i+1) + ' ends before it starts');
-    else if(weeks >= 1 && en > weeks) errors.push('Block ' + (i+1) + ' runs past the program');
-    if(b.phaseType && !getProgramPhase(b.phaseType)) errors.push('Block ' + (i+1) + ' has an unknown phase');
+    if(!(s >= 1) || !(en >= 1)) errors.push('Phase ' + (i+1) + ' has an invalid week range');
+    else if(s > en) errors.push('Phase ' + (i+1) + ' ends before it starts');
+    else if(weeks >= 1 && en > weeks) errors.push('Phase ' + (i+1) + ' runs past the program');
+    if(b.phaseType && !getProgramPhase(b.phaseType)) errors.push('Phase ' + (i+1) + ' has an unknown phase');
   });
   const sorted = (input.blocks || []).slice().sort((a,b) => a.startWeek - b.startWeek);
   for(let i = 1; i < sorted.length; i++){
-    if(sorted[i].startWeek <= sorted[i-1].endWeek){ errors.push('Blocks overlap'); break; }
+    if(sorted[i].startWeek <= sorted[i-1].endWeek){ errors.push('Phases overlap'); break; }
   }
   return { valid: errors.length === 0, errors };
 }
@@ -12911,7 +13107,7 @@ function createProgram(input){
   // A program with no blocks gets one spanning its whole length, so the
   // block layer is never empty and the athlete can split it later.
   if(!draft.blocks.length){
-    draft.blocks = [{ id:newBlockId(), name:'Block 1', order:1, phaseType:'custom',
+    draft.blocks = [{ id:newBlockId(), name:'Phase 1', order:1, phaseType:'custom',
       startWeek:1, endWeek:parseInt(draft.durationWeeks,10) || 1, description:'' }];
   }
   const check = validateProgram(draft);
@@ -13393,8 +13589,8 @@ function programContextHtml(){
     if(!none) return '';
     return `
       <button class="tw-program tw-program-empty" onclick="openPrograms()">
-        <span class="tw-program-name">No active program</span>
-        <span class="tw-program-meta">Set one up ›</span>
+        <span class="tw-program-name">Add a training program</span>
+        <span class="tw-program-meta">Optional — phases, weeks and an end date ›</span>
       </button>`;
   }
   const prog = getProgramProgress(p);
@@ -13443,7 +13639,7 @@ function renderProgramsList(){
        <button class="btn-secondary prog-new-btn" onclick="openProgramBuilder()">Create program</button>`
     : `<div class="prog-none">
          <div class="prog-none-title">No active program</div>
-         <div class="prog-none-sub">A program organises your training into blocks and weeks. Your existing plans keep working either way.</div>
+         <div class="prog-none-sub">Optional. Your plan already works on its own — a program adds phases and a start and end date on top of it.</div>
          <button class="btn-primary prog-new-btn" onclick="openProgramBuilder()">Create program</button>
          <button class="prog-plan-btn" onclick="closePrograms(); openPlansManager();">Use an existing plan</button>
        </div>`;
@@ -14368,6 +14564,7 @@ function applySubstitution(newExerciseId){
   if(warmupWrap) warmupWrap.innerHTML = warmupBoxHtml(canon.displayName, '');
   const recWrap = row.querySelector('.recommend-wrap');
   if(recWrap) recWrap.innerHTML = '';
+  refreshExContext(row);
 
   // A replacement invalidates any shadow record tied to the old exercise in
   // this row: the prediction was for a different movement. Clearing the
@@ -15786,17 +15983,28 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
       <input type="text" placeholder="Exercise name" class="ex-name-in" value="${name ? escapeAttr(name) : ''}">
       <button class="rm-ex" onclick="removeLogExerciseRow(this)">✕</button>
     </div>
-    <button type="button" class="ex-replace-btn" onclick="openSubstitutions(this)">Replace exercise</button>
-    <div class="last-time-wrap">${name ? lastTimeHtml(name) : ''}</div>
-    <div class="ex-note-wrap">${name ? exerciseNoteBlockHtml(name) : ''}</div>
-    <div class="recommend-wrap">${recommendCardHtml(rec, meta.targetSets, meta.targetReps, bodyweight)}</div>
-    <div class="ex-log-controls">
-      <label class="bw-toggle"><input type="checkbox" class="ex-bw-in" ${bodyweight?'checked':''} onchange="toggleBW(this)"> Bodyweight</label>
+    <div class="ex-context">
+      <button type="button" class="ex-context-btn" onclick="toggleExContext(this)" aria-expanded="false">
+        <span class="exc-summary"></span><span class="exc-caret">▾</span>
+      </button>
+      <div class="ex-context-detail">
+        <div class="recommend-wrap">${recommendCardHtml(rec, meta.targetSets, meta.targetReps, bodyweight)}</div>
+        <div class="last-time-wrap">${name ? lastTimeHtml(name) : ''}</div>
+      </div>
+    </div>
+    <div class="ex-actions">
+      <button type="button" class="ex-act ex-replace-btn" onclick="openSubstitutions(this)">Replace</button>
+      <div class="ex-note-wrap">${name ? exerciseNoteBlockHtml(name) : ''}</div>
+      <label class="bw-toggle" title="Bodyweight exercise"><input type="checkbox" class="ex-bw-in" ${bodyweight?'checked':''} onchange="toggleBW(this)"> Bodyweight</label>
       <input type="hidden" class="ex-effort-in" value="${effort||''}">
     </div>
     <div class="warmup-wrap">${warmupBoxHtml(name || '', initialWeight)}</div>
+    <div class="sets-head" aria-hidden="true"><span class="unit-label">LB</span><span class="unit-label">REPS</span></div>
     <div class="sets-list"></div>
-    <button class="add-set-btn" type="button" onclick="addSetRow(this)">+ Add Set</button>
+    <div class="ex-log-foot">
+      <button class="add-set-btn" type="button" onclick="addSetRow(this)">+ Add Set</button>
+      <button type="button" class="rest-start-btn" onclick="startRestPanel(this.closest('.ex-log-row').querySelector('.rest-panel'), parseInt(this.closest('.ex-log-row').querySelector('.rest-panel').dataset.defaultRest))">${clockIconSvg()}Rest ${formatMMSS(restSec)}</button>
+    </div>
     <div class="rest-panel" data-default-rest="${restSec}" data-remaining="${restSec}" style="display:none">
       <div class="rest-panel-info">
         <div class="rest-panel-label">Resting</div>
@@ -15808,9 +16016,9 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
         <button type="button" class="rest-panel-btn rest-skip-btn" onclick="skipRest(this)">Skip</button>
       </div>
     </div>
-    <button type="button" class="rest-start-btn" onclick="startRestPanel(this.closest('.ex-log-row').querySelector('.rest-panel'), parseInt(this.closest('.ex-log-row').querySelector('.rest-panel').dataset.defaultRest))">${clockIconSvg()}Start Rest — ${formatMMSS(restSec)}</button>
   `;
   wrap.appendChild(row);
+  refreshExContext(row);
   const setsList = row.querySelector('.sets-list');
   sets.forEach(s => appendSetRow(setsList, s.weight, s.reps, bodyweight, s.rir, s.type));
   // Reapply the label/styling for EVERY set type so a restored draft looks
@@ -15818,6 +16026,31 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
   Array.prototype.forEach.call(setsList.querySelectorAll('.set-row'), sr => {
     if(sr.dataset.setType) applySetTypeToRow(sr, sr.dataset.setType);
   });
+}
+
+/* The context line is derived from the blocks it summarises rather than from a
+   second copy of the data, so the summary cannot drift from the detail it hides.
+   Everything the athlete used to read in two large cards is still one tap away. */
+function refreshExContext(row){
+  if(!row) return;
+  const wrap = row.querySelector('.ex-context');
+  const out  = row.querySelector('.exc-summary');
+  if(!wrap || !out) return;
+  const parts = [];
+  const sets = row.querySelector('.recommend-sets');
+  const head = row.querySelector('.recommend-headline');
+  if(sets && head) parts.push(sets.textContent.replace(/\s*sets?$/i, '') + ' × ' + head.textContent.trim());
+  else if(head) parts.push(head.textContent.trim());
+  const lastChip = row.querySelector('.last-time-chip');
+  if(lastChip) parts.push('Last ' + lastChip.textContent.trim());
+  out.textContent = parts.join('  ·  ');
+  wrap.classList.toggle('is-empty', parts.length === 0);
+}
+function toggleExContext(btn){
+  const wrap = btn.closest('.ex-context');
+  if(!wrap) return;
+  const open = wrap.classList.toggle('open');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 function swapLogExercise(selectEl){
@@ -15852,6 +16085,7 @@ function swapLogExercise(selectEl){
 
   const recWrap = row.querySelector('.recommend-wrap');
   if(recWrap) recWrap.innerHTML = recommendCardHtml(rec, lib.sets, lib.reps, isBW);
+  refreshExContext(row);
 
   const warmupWrap = row.querySelector('.warmup-wrap');
   if(warmupWrap) warmupWrap.innerHTML = warmupBoxHtml(lib.name, weightVal);
@@ -15877,57 +16111,101 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
   // null/undefined = unknown type; only an explicit, registered value is stored
   if(isKnownSetType(setType)) div.dataset.setType = setType;
   const rirVal = (rir === undefined || rir === null || rir === '') ? '' : rir;
+  // Shown by default until the athlete has actually used RIR once, then it
+  // steps back to the "?" affordance. Reuses the existing hint record.
+  const rirExplained = (typeof hasSeenHint === 'function') ? hasSeenHint('rir') : true;
+  /* Two lines by default: identity + completion, then the two numbers that get
+     typed every set. Set type and RIR are real controls, not buried ones — the
+     row always NAMES its current classification in the meta chip, and one tap
+     opens the full labelled controls. D8 required the classification be visible;
+     D10 keeps it visible while giving the height back to logging. */
   div.innerHTML = `
     <div class="set-row-top">
       <span class="set-idx" role="button" tabindex="0" onclick="toggleSetType(this)" title="Tap to mark warm-up">Set ${idx}</span>
-      <div class="set-row-top-actions">
-        <button class="set-complete-btn" type="button" onclick="toggleSetComplete(this)" aria-label="Mark complete" aria-pressed="false">
-          <svg class="scb-svg" viewBox="0 0 36 36" aria-hidden="true">
-            <circle class="scb-track" cx="18" cy="18" r="15"/>
-            <circle class="scb-ring" cx="18" cy="18" r="15"/>
-            <path class="scb-check" d="M11.5 18.4 L16 22.8 L24.5 13.8"/>
-          </svg>
-        </button>
-        <button class="rm-set" type="button" onclick="removeSetRow(this)">✕</button>
-      </div>
-    </div>
-    <div class="set-row-controls">
-      <div class="stepper-group">
-        <span class="unit-label">LB</span>
-        <div class="stepper">
-          <button type="button" onclick="stepValue(this,-5)">–</button>
-          <input type="text" inputmode="decimal" class="set-weight-in" value="${weight||''}" ${bodyweight?'disabled':''} oninput="maybeRefreshWarmup(this); propagateWeightForward(this);">
-          <button type="button" onclick="stepValue(this,5)">+</button>
-        </div>
-      </div>
-      <div class="stepper-group">
-        <span class="unit-label">REPS</span>
-        <div class="stepper">
-          <button type="button" onclick="stepValue(this,-1)">–</button>
-          <input type="text" inputmode="numeric" class="set-reps-in" value="${reps||''}" oninput="propagateRepsForward(this);">
-          <button type="button" onclick="stepValue(this,1)">+</button>
-        </div>
-      </div>
-    </div>
-    <!-- Set type is a labelled peer of weight and reps, not a hidden menu. It
-         takes its own full-width row so no classification ever clips: at 375px
-         a third column left only 89px, which cut off "Warm-up" and "Working". -->
-    <div class="stepper-group set-type-group">
-      <span class="unit-label">SET TYPE</span>
-      <button class="set-type-btn" type="button" onclick="openSetTypePicker(this)" aria-label="Change set type">
-        <span class="set-type-value">Working</span><span class="set-type-caret">▾</span>
+      <button class="set-meta-btn" type="button" onclick="toggleSetMore(this)" aria-expanded="false" aria-label="Set type and RIR">
+        <span class="set-meta-type">Working</span><span class="set-meta-rir">RIR —</span><span class="set-meta-caret">▾</span>
+      </button>
+      <button class="set-complete-btn" type="button" onclick="toggleSetComplete(this)" aria-label="Mark complete" aria-pressed="false">
+        <svg class="scb-svg" viewBox="0 0 36 36" aria-hidden="true">
+          <circle class="scb-track" cx="18" cy="18" r="15"/>
+          <circle class="scb-ring" cx="18" cy="18" r="15"/>
+          <path class="scb-check" d="M11.5 18.4 L16 22.8 L24.5 13.8"/>
+        </svg>
       </button>
     </div>
-    <div class="rir-row">
-      <span class="unit-label">RIR</span>
-      <div class="rir-picker">
-        ${['0','1','2','3','4','5+'].map(v => `<button type="button" class="rir-opt ${rirVal==v?'on':''}" onclick="setRIR(this,'${v}')">${v}</button>`).join('')}
+    <div class="set-row-controls">
+      <div class="stepper">
+        <button type="button" onclick="stepValue(this,-5)">–</button>
+        <input type="text" inputmode="decimal" class="set-weight-in" aria-label="Weight in pounds" value="${weight||''}" ${bodyweight?'disabled':''} oninput="maybeRefreshWarmup(this); propagateWeightForward(this);">
+        <button type="button" onclick="stepValue(this,5)">+</button>
       </div>
-      <input type="hidden" class="set-rir-in" value="${rirVal}">
+      <div class="stepper">
+        <button type="button" onclick="stepValue(this,-1)">–</button>
+        <input type="text" inputmode="numeric" class="set-reps-in" aria-label="Reps" value="${reps||''}" oninput="propagateRepsForward(this);">
+        <button type="button" onclick="stepValue(this,1)">+</button>
+      </div>
+    </div>
+    <div class="set-row-more">
+      <div class="stepper-group set-type-group">
+        <span class="unit-label">SET TYPE</span>
+        <button class="set-type-btn" type="button" onclick="openSetTypePicker(this)" aria-label="Change set type">
+          <span class="set-type-value">Working</span><span class="set-type-caret">▾</span>
+        </button>
+      </div>
+      <div class="rir-row${rirExplained ? '' : ' explain-open'}">
+        <span class="unit-label">RIR <button type="button" class="rir-help" onclick="openRirHelp(this)" aria-label="What does RIR mean?">?</button></span>
+        <div class="rir-picker">
+          ${['0','1','2','3','4','5+'].map(v => `<button type="button" class="rir-opt ${rirVal==v?'on':''}" onclick="setRIR(this,'${v}')">${v}</button>`).join('')}
+        </div>
+        <input type="hidden" class="set-rir-in" value="${rirVal}">
+        <p class="rir-explain">${escapeHtml(ONBOARDING_HINTS.rir)}</p>
+      </div>
+      <button class="rm-set" type="button" onclick="removeSetRow(this)">Remove set</button>
     </div>
   `;
   setsListEl.appendChild(div);
+  refreshSetMeta(div);
 }
+/* The collapsed row must always say what it is. One place writes that chip so
+   the warm-up toggle, the picker and draft restore can never disagree with it. */
+function refreshSetMeta(row){
+  if(!row) return;
+  const typeEl = row.querySelector('.set-meta-type');
+  const rirEl  = row.querySelector('.set-meta-rir');
+  if(typeEl){
+    const t = row.dataset.setType || SET_TYPES.WORKING;
+    typeEl.textContent = setTypeShortLabel(t) || 'Working';
+    typeEl.classList.toggle('nondefault', t !== SET_TYPES.WORKING);
+  }
+  if(rirEl){
+    const inp = row.querySelector('.set-rir-in');
+    const v = inp ? inp.value : '';
+    rirEl.textContent = 'RIR ' + (v === '' ? '—' : v);
+    rirEl.classList.toggle('set', v !== '');
+  }
+}
+/* On-demand definition. Always available from the "?", regardless of whether the
+   first-use explanation has already been dismissed by using the control. */
+function openRirHelp(btn){
+  const rowEl = btn && btn.closest ? btn.closest('.rir-row') : null;
+  if(rowEl) rowEl.classList.toggle('explain-open');
+}
+/* Using RIR is the proof the athlete understood it, so that is what retires the
+   first-use explanation — not a dismiss button they have to find. */
+function markRirUnderstood(){
+  if(typeof hasSeenHint !== 'function' || hasSeenHint('rir')) return;
+  markHintSeen('rir');
+  document.querySelectorAll('.rir-row.explain-open')
+    .forEach(r => r.classList.remove('explain-open'));
+}
+
+function toggleSetMore(btn){
+  const row = btn.closest('.set-row');
+  if(!row) return;
+  const open = row.classList.toggle('more-open');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function removeLogExerciseRow(btn){
   const row = btn.closest('.ex-log-row');
   if(!row) return;
@@ -15941,6 +16219,8 @@ function setRIR(btn, v){
   const picker = btn.closest('.rir-picker');
   picker.querySelectorAll('.rir-opt').forEach(b => b.classList.toggle('on', b === btn));
   picker.parentElement.querySelector('.set-rir-in').value = v;
+  refreshSetMeta(btn.closest('.set-row'));
+  markRirUnderstood();
   persistDraftNow();
 }
 
@@ -16108,6 +16388,7 @@ function applySetTypeToRow(row, typeId){
     btn.classList.toggle('on', known && typeId !== SET_TYPES.WORKING);
     btn.setAttribute('data-type', known ? typeId : '');
   }
+  refreshSetMeta(row);
 }
 
 let setTypePickerRow = null;
@@ -16687,7 +16968,7 @@ function saveTemplate(btn){
 }
 
 function deleteTemplate(cat, id){
-  if(!confirm("Delete this workout variation? This can't be undone.")) return;
+  if(!confirm("Delete this workout? This can't be undone.")) return;
   planData[cat] = planData[cat].filter(t => t.id !== id);
   persistPlanData();
   renderAll();

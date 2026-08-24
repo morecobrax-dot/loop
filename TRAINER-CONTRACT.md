@@ -362,3 +362,91 @@ change, change `MASTERY_CONFIG.longitudinal`, not the tests.
 Mastery describes history, never biology. "Chest Mastery — based on your
 training history" is correct; anything implying strength, hypertrophy or
 adaptation is not. Contract 64 asserts this against the rendered copy.
+
+---
+
+## 13. Consolidation (Phase D10)
+
+The first phase since D1 that **removed and combined rather than added**. No new
+feature, no new tab, no new storage key, no schema change. Every capability that
+existed before D10 still exists after it.
+
+### The workout screen
+
+Measured in a real browser at 375×812, same eight-exercise session before and after:
+
+| | Before | After |
+|---|---|---|
+| Scroll distance | 16.4 screens | **8.9 screens** |
+| Content height | 11,112px | **5,999px** |
+| Set row | 265px | **112px** |
+| Exercise block | 1,507 / 1,233px | **753 / 631px** |
+| Set-row controls under 44px | 4 kinds | **none** |
+
+Nothing was deleted to get there. Weight, reps, set type, RIR, completion,
+notes, replace, warm-up, timers, last-time and the recommendation all still
+ship — they are **disclosed** rather than permanently expanded:
+
+- The set row is two lines: identity + completion, then the two numbers.
+  Set type, RIR and remove live one tap away in `.set-row-more`.
+- **The collapsed row still names its own classification.** D8 required the set
+  type be readable at a glance rather than hidden behind a glyph; that still
+  holds via the meta chip (`Working · RIR 2`). What moved is the *control*, not
+  the label — and `refreshSetMeta()` is the single place that writes it, so the
+  warm-up toggle, the picker and draft restore cannot disagree.
+- The recommendation and last-time blocks are still rendered in full; a derived
+  one-line summary sits in front of them. `refreshExContext()` reads the
+  rendered blocks rather than keeping a second copy, so the summary cannot
+  drift from the detail it hides.
+- The unit label is a column header printed once per exercise, not 26 times.
+
+**Do not "simplify" this by deleting the collapsed state.** The height is the
+feature; a beginner sees weight, reps and a checkmark, and depth is one tap
+away. That is §11's rule applied to the screen that was breaking it.
+
+### Train no longer opens on an empty category
+
+`activeTrainCategory` used to be hard-coded to `'push'`, so an Upper/Lower
+athlete opened their own library and was told it was empty while eight real
+workouts sat two taps away. `defaultTrainCategory()` now resolves: today's
+scheduled session → the rest of this athlete's week → anything they have built →
+a fixed fallback. An explicit choice sets `trainCategoryChosen` and is never
+overridden. Categories the plan does not use recede rather than disappearing.
+
+### Terminology — one noun per concept
+
+| Retired | Now | Why |
+|---|---|---|
+| Block | **Phase** | They were the same object: `blocks[]`, each with a `phaseType`. The data model is unchanged; only the vocabulary collapsed. |
+| Variation | **Workout** | The athlete sees "Upper A", not "a variation". |
+| Rotation | *(nothing)* | It named nothing the athlete does. Removed from the masthead, title and copy. |
+
+The mental model is now one sentence: **a program organises your training into
+phases, weeks and workouts.** Programs is described as optional, because a plan
+already works on its own — Today offers a program instead of reporting a
+missing one.
+
+### RIR
+
+Explained where it is used, via the **existing hint record** — no new key. The
+definition shows by default until the athlete actually uses RIR
+(`markRirUnderstood()`), then recedes to a permanent "?" affordance with a 44px
+hit area. Using the control is what retires the explanation, not a dismiss
+button they have to find.
+
+### Mastery
+
+D9 put mastery directly above All Exercises on the Strength tab; the audit found
+the same lifts listed twice, seven rows apart. Mastery now leads the tab named
+for it, shows the top five with the rest disclosed behind **View all**, and
+Strength keeps a single exercise directory. Exercise Detail still shows a level.
+The scoring is untouched — Contract 66 asserts mastery values are byte-identical
+across D10.
+
+### Guardrails
+
+Contracts 65 and 66 (+82 assertions) hold the line: the compressed row still
+carries every capability, no set-row control drops below 44px, the context
+summary stays derived, Train never lands on an empty category, the retired nouns
+stay retired, and D10 created no storage key, no migration and no trainer record.
+Engine remains `0.1.1-shadow`.
