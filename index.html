@@ -122,7 +122,16 @@ body{ touch-action: manipulation; }
 *{ touch-action: manipulation; }
 
 /* ---- Header ---- */
-header{ padding: 28px 20px 18px; border-bottom: 1px solid var(--border); position: relative; }
+/* Top padding adds the device safe-area inset on top of the existing 28px,
+   the same pattern body already uses for the bottom inset. On a device with
+   no inset (or in a browser that doesn't support env()) this is exactly the
+   original 28px — nothing changes there. */
+header{
+  padding: 28px 20px 18px;
+  padding-top: calc(28px + env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
 .eyebrow{
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px; letter-spacing: 0.2em; color: var(--text-faint);
