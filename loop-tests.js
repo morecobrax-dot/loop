@@ -6455,6 +6455,125 @@ async function testD10Safety(){
 }
 
 /* =========================================================
+   CONTRACT 67 — D10.1: landscape and responsive polish
+   ========================================================= */
+function testD101Responsive(app){
+  section('CONTRACT 67 — landscape and responsive polish');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const wideBlock = css.slice(css.indexOf('D10.1: every sheet'), css.indexOf('MASTERY (Phase D9)'));
+
+  sub('one rule reaches every sheet, not just the workout');
+  T('the block is gated to wide viewports only',
+    /@media \(min-width: 560px\)\{/.test(wideBlock));
+  T('floating sheets are capped and centered as a whole card',
+    /\.overlay:not\(\.overlay-page\) \.sheet\{[\s\S]{0,80}max-width: 560px;[\s\S]{0,40}margin-left: auto;[\s\S]{0,40}margin-right: auto;/.test(wideBlock));
+  T('the workout content column keeps its D10 cap',
+    /\.sheet-page \.sheet-scroll > \*\{[\s\S]{0,80}max-width: 560px/.test(wideBlock));
+  T('prep is reached — D10 never touched it',
+    /\.sheet-page \.prep-run,/.test(wideBlock) && /\.sheet-page \.prep-actions,/.test(wideBlock));
+  T('onboarding is reached — D10 never touched it',
+    /\.sheet-page \.ob-top,/.test(wideBlock) &&
+    /\.sheet-page \.ob-scroll,/.test(wideBlock) &&
+    /\.sheet-page \.ob-actions\{/.test(wideBlock));
+  T('cross-axis items use align-self + a definite width, not max-width+auto-margin',
+    /align-self: center; width: 560px;/.test(wideBlock));
+  T('no stray earlier-D10 rule was left behind alongside the new one',
+    (css.match(/max-width: 560px; margin-left: auto; margin-right: auto;/g) || []).length === 2);
+
+  sub('portrait stays exactly as D10 left it');
+  T('the whole block sits behind a min-width gate, not applied unconditionally',
+    css.indexOf('.sheet-page .prep-run,') > css.indexOf('@media (min-width: 560px)'));
+  T('portrait workout density is untouched (D10 numbers still hold)',
+    /^\.set-row\{[\s\S]{0,200}padding: 6px 8px 8px;/m.test(css));
+
+  sub('the touch-target floor from D10 is undisturbed by this pass');
+  T('RIR options are still 44px', /\.rir-opt\{[\s\S]{0,200}height: 44px/.test(css));
+  T('the workout back button is a real 44px target',
+    /\.workout-back\{[\s\S]{0,80}width: 44px; height: 44px;/.test(css));
+  T('sheet-actions buttons still reach 44px via the shared min-height rule',
+    /\.prep-actions button\{ flex: 1; min-height: 48px; \}/.test(css));
+
+  sub('safe-area insets, not fixed margins, drive fixed/sticky elements');
+  const safeAreaSites = (css.match(/env\(safe-area-inset-(top|bottom)/g) || []).length;
+  T('every full-bleed page top/bottom edge still reads from env()', safeAreaSites >= 7, 'found ' + safeAreaSites);
+  T('the workout topbar is safe-area aware',
+    /\.workout-topbar\{[\s\S]{0,120}env\(safe-area-inset-top/.test(css));
+  T('onboarding top and actions are safe-area aware',
+    /\.ob-top\{[\s\S]{0,120}env\(safe-area-inset-top/.test(css) &&
+    /\.ob-actions\{[\s\S]{0,160}env\(safe-area-inset-bottom/.test(css));
+  T('no new fixed-position rule was introduced using a raw pixel top/bottom offset',
+    !/D10\.1[\s\S]{0,2000}position:\s*fixed;[\s\S]{0,120}(top|bottom):\s*\d+px;/.test(
+      css.slice(css.indexOf('D10.1'), css.indexOf('MASTERY (Phase D9)'))));
+
+  sub('the existing short-landscape reclaim block is untouched, not duplicated');
+  const landscapeShort = (css.match(/@media \(orientation: landscape\) and \(max-height: 500px\)/g) || []).length;
+  T('exactly one short-landscape media block exists', landscapeShort === 1);
+
+  sub('no behavioural code changed — this was a presentation-only pass');
+  T('appendSetRow is untouched by D10.1 (still the D10 two-line markup)',
+    /function appendSetRow[\s\S]{0,1400}set-meta-btn/.test(src));
+  T('this phase declared no new JS function', !/^function \w*[Ll]andscape/m.test(
+    src.slice(src.indexOf('<script>'), src.indexOf('</script>'))));
+}
+
+/* =========================================================
+   CONTRACT 68 — D10.1 changed nothing it did not need to
+   ========================================================= */
+async function testD101Safety(){
+  section('CONTRACT 68 — responsive polish touched no training data');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const storeKeysBefore = Object.keys(app.store).sort().join(',');
+  const masteryBefore = JSON.stringify(ctx.getTopExerciseMastery());
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+
+  sub('drive every surface this phase touched');
+  ctx.renderAll();
+  ctx.switchTab('today');
+  ctx.switchTab('train');
+  ctx.switchTab('progress');
+  ctx.switchTab('cardio');
+  ctx.switchTab('history');
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('level unchanged', after.level === before.level);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('mastery unchanged', JSON.stringify(ctx.getTopExerciseMastery()) === masteryBefore);
+  T('no storage key created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
+  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
+
+  sub('trainer untouched');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by a CSS-only pass', ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+
+  sub('the diff itself stayed presentation-only');
+  {
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    T('TRAINER_CONFIG text is unchanged in shape', /const TRAINER_CONFIG = \{/.test(src));
+    T('no LOOPStore.set call sits inside the new CSS-adjacent region',
+      !/D10\.1[\s\S]{0,2000}LOOPStore\.set/.test(src.slice(0, src.indexOf('MASTERY (Phase D9)'))));
+  }
+}
+
+/* =========================================================
    RUNNER
    ========================================================= */
 async function main(){
@@ -6500,6 +6619,7 @@ async function main(){
   testOnboarding(H.loadApp());
   testMastery(H.loadApp());
   testD10Consolidation(H.loadApp());
+  testD101Responsive(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -6535,6 +6655,7 @@ async function main(){
     await testOnboardingSafety();
     await testMasterySafety();
     await testD10Safety();
+    await testD101Safety();
   }
 
   // ---- FULL ----

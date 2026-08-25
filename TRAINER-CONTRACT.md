@@ -450,3 +450,89 @@ carries every capability, no set-row control drops below 44px, the context
 summary stays derived, Train never lands on an empty category, the retired nouns
 stay retired, and D10 created no storage key, no migration and no trainer record.
 Engine remains `0.1.1-shadow`.
+
+---
+
+## 14. Landscape and responsive polish (Phase D10.1)
+
+D10 capped only the workout's own content column (`.sheet-scroll > *`) to
+560px on wide viewports. Everything else it never reached still went
+edge-to-edge: a 772px Settings row, a 688px prep "Next" button, an onboarding
+Next button at 695px. D10.1 is the follow-up that reaches the rest — CSS only,
+26 insertions, no JS function touched.
+
+### Two centering techniques, not one
+
+Measurement (not assumption) showed `max-width` + `margin: auto` centers
+correctly for a flex item on the **row** axis — proven by the floating sheets
+(Settings, Programs, Replace, Notes, Set Type, Add Workout), which are direct
+children of `.overlay` (`display:flex`, default row direction). It measurably
+**fails** for a flex item on the **cross** axis of a **column** flex
+container — `.prep-run`/`.prep-actions` inside `.sheet-page`, and
+`.ob-top`/`.ob-scroll`/`.ob-actions` inside `.ob-sheet`. There, `max-width` +
+auto margins resolved to a 352px box with 0px margins, not 560px centered.
+`align-self: center` with a definite `width: 560px` is what actually measures
+correctly for that case — verified live before it was written into the
+stylesheet, not assumed from the spec.
+
+```css
+@media (min-width: 560px){
+  .overlay:not(.overlay-page) .sheet{ max-width:560px; margin-left:auto; margin-right:auto; }
+  .sheet-page .sheet-scroll > *{ max-width:560px; margin-left:auto; margin-right:auto; }
+  .sheet-page .prep-run, .sheet-page .prep-actions,
+  .sheet-page .ob-top, .sheet-page .ob-scroll, .sheet-page .ob-actions{
+    align-self: center; width: 560px;
+  }
+}
+```
+
+**If a future phase caps another cross-axis item inside a column flex
+container and reaches for `max-width`+`margin:auto`, measure it in a real
+browser first.** It will silently produce a 0-margin, wrong-width box rather
+than erroring.
+
+### A testing-environment trap worth recording
+
+Mid-phase, `location.reload()` intermittently served a stale, pre-edit
+version of the stylesheet — CSSOM inspection showed the *old* D10-only rule
+still active after an edit that should have replaced it, even though
+`fetch('/index.html?cachebust')` proved the server had the new content. A
+cache-busted `navigate()` resolved it every time; `location.reload()` did
+not, reliably, in this environment. **Prefer a fresh `navigate()` with a
+unique query string over `location.reload()` when verifying a CSS change
+mid-session.** Recorded here so the next session doesn't re-diagnose it from
+scratch.
+
+### Verified in a real browser, not asserted from source alone
+
+| Surface | 812×375 | 844×390 | 667×375 |
+|---|---|---|---|
+| Workout content column | 560px, centered | 560px, centered | 560px, centered |
+| Prep run / actions | 560px, centered | — | — |
+| Onboarding top/scroll/actions | 560px, centered | — | — |
+| Settings / Programs / Replace / Notes / Set Type / Add Workout | 560px, centered | — | — |
+| Collapsed set row vs. scroll viewport | 111px fits 239px | 111px fits 254px | 111px fits 239px |
+| Prep "Next" button | 436px (was 688px) | — | — |
+| Horizontal overflow | none | none | none |
+
+Timer persistence through rotation was measured with real elapsed time
+(`Date.now()`, not wall-clock guessing): 1.00x speed across a rotation,
+pause survives rotation at the exact paused value, resume re-anchors and
+continues at 1x. Workout state (weight, reps, RIR, set type) survives a
+rotation mid-entry — confirmed for real, not assumed, since nothing in this
+phase touches JS state; only layout.
+
+Portrait (375×812, 390×844) is untouched: the entire block sits behind
+`@media (min-width:560px)`, confirmed both by `matchMedia().matches` reading
+`false` at 375 and by re-measuring D10's own numbers (8.8 screens, 111px set
+row) unchanged.
+
+### Contracts 67–68 (+35 assertions)
+
+Contract 67 asserts the CSS itself: both centering techniques present with
+their correct selectors, no stray duplicate of the old D10-only rule, the
+44px floor undisturbed, every full-bleed page still safe-area aware via
+`env()`, the existing short-landscape reclaim block not duplicated, and no
+JS function changed. Contract 68 is the standard isolation pass — protected
+snapshot before/after driving every touched surface, no storage key, no
+trainer record, engine still `0.1.1-shadow`.

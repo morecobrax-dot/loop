@@ -1182,9 +1182,33 @@ html.intro-skip #introOverlay{ display: none !important; }
 .cmp-delta.up{ color: var(--success); } .cmp-delta.down{ color: var(--warning); }
 
 /* Most trained */
-/* ---------- D10: the logging column stops stretching ---------- */
+/* ---------- D10.1: every sheet stops stretching on a wide viewport ----------
+   D10 capped only the workout's own content column. Landscape phones are wide
+   enough to trigger the same rule everywhere else — Settings, Replace, Set
+   Type, prep and onboarding all went edge-to-edge (a 772px settings row, a
+   688px "Next" button). One rule now reaches all of it. */
 @media (min-width: 560px){
-  .sheet-page .sheet-scroll > *{ max-width: 560px; margin-left: auto; margin-right: auto; }
+  /* Floating bottom sheets: cap the whole card, keep it centered over the
+     backdrop that is already visible on either side. */
+  .overlay:not(.overlay-page) .sheet{
+    max-width: 560px; margin-left: auto; margin-right: auto;
+  }
+  /* Full-bleed pages: the topbar/background stays edge to edge on purpose —
+     a back button belongs at the true screen edge — only the content column
+     inside is capped and centered. */
+  .sheet-page .sheet-scroll > *{
+    max-width: 560px; margin-left: auto; margin-right: auto;
+  }
+  /* Cross-axis items of a column flex container (prep-run/prep-actions inside
+     .sheet-page; ob-top/ob-scroll/ob-actions inside .ob-sheet) need align-self
+     + a definite width rather than max-width+auto-margin — see above. */
+  .sheet-page .prep-run,
+  .sheet-page .prep-actions,
+  .sheet-page .ob-top,
+  .sheet-page .ob-scroll,
+  .sheet-page .ob-actions{
+    align-self: center; width: 560px;
+  }
 }
 /* ---------- MASTERY (Phase D9) ---------- */
 .mastery-block{ margin-top: 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
