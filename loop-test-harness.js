@@ -201,7 +201,8 @@ function loadApp(initialStore){
     'CARDIO_QUICK_IDS','CARDIO_ICONS','cardioStatsOpen','cardioEntryField','CARDIO_ENTRY_SPECS','METRES_PER_MILE',
     'CARDIO_DISTANCE_UNIT','CARDIO_GROUP_STYLE',
     'selectedDayKey','WEEK_DRAG','DAY_SWIPE','DAY_LABEL_FULL','PR_PRIORITY','PR_SET_ATTRIBUTABLE',
-    '_prSetCache','_wkDrag','_weekUndo','_lockDepth','builderDraft','programsStore','CATEGORY_DISPLAY_ORDER','PHASE_INTENT','TRAJECTORY_MIN_WEEKS','TREND_WORD'];
+    '_prSetCache','_wkDrag','_weekUndo','_lockDepth','builderDraft','programsStore','CATEGORY_DISPLAY_ORDER','PHASE_INTENT','TRAJECTORY_MIN_WEEKS','TREND_WORD',
+    'OUTCOME_MATCH','OUTCOME_MATCH_LEGACY','shadowEvidenceOpen','TRAINER_LOG_MAX','SHADOW_CAVEAT'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

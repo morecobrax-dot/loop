@@ -1127,6 +1127,60 @@ html.intro-skip #introOverlay{ display: none !important; }
   display: inline-flex; align-items: center; justify-content: center;
 }
 
+/* ---------- SHADOW EVIDENCE PANEL (Phase D15B) ----------
+   Deliberately quiet. This is an observation surface, not a scoreboard, and
+   nothing here should read as a result. */
+.ev-body{ display: none; }
+.ev-body.open{ display: block; margin-top: var(--space-3); }
+.ev-caveat{
+  font-size: 12px; line-height: 1.55; color: var(--text-dim);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-md); padding: var(--space-3);
+}
+.ev-tier{ display: flex; align-items: baseline; gap: 8px; margin-top: var(--space-4); }
+.ev-tier-l{
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+  color: var(--text); letter-spacing: 0.04em;
+}
+.ev-tier-s{ font-size: 11px; color: var(--text-faint); }
+.ev-grid{ display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); margin-top: var(--space-3); }
+.ev-stat{
+  display: flex; flex-direction: column; gap: 1px; padding: var(--space-3);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.ev-stat b{
+  font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 700;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.ev-stat span{ font-size: 10.5px; color: var(--text-faint); }
+.ev-sec{ margin-top: var(--space-4); }
+.ev-sec-h{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: var(--space-2);
+}
+.ev-row{ display: grid; grid-template-columns: 1fr 64px 34px; align-items: center; gap: 8px; min-height: 24px; }
+.ev-row-k{ font-size: 12px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-row-bar{ height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.ev-row-fill{ display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.ev-row-v{
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  color: var(--text); text-align: right; font-variant-numeric: tabular-nums;
+}
+.ev-line{ font-size: 12.5px; color: var(--text); }
+.ev-dim{ color: var(--text-faint); font-size: 11.5px; margin-top: 2px; }
+.ev-warn{
+  font-size: 11.5px; line-height: 1.5; color: var(--warning); margin-top: 4px;
+}
+.ev-empty{
+  margin-top: var(--space-3); padding: var(--space-4);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.ev-empty-t{ font-size: 14px; font-weight: 700; color: var(--text); }
+.ev-empty-s{ font-size: 12.5px; line-height: 1.55; color: var(--text-dim); margin-top: 5px; }
+.ev-meta{ font-size: 11px; line-height: 1.5; color: var(--text-faint); margin-top: var(--space-4); }
+.ev-meta code{ font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
+
 /* ---------- PROGRESS LEVEL + TRENDS (Phase D14) ----------
    Colour is used to scan, not to decorate: accent for the athlete's own
    progression, and the semantic trio only on trend state. Every trend also
@@ -4479,6 +4533,17 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <input type="file" id="importFileInput" accept="application/json,.json" style="display:none" onchange="importAllData(this)">
       <div class="settings-hint">Importing merges by workout, so re-importing the same file changes nothing and an older backup can never delete newer sessions.</div>
 
+      <label style="margin-top:22px">Advanced</label>
+      <button class="settings-row-btn" id="shadowEvidenceToggle"
+        onclick="toggleShadowEvidence()" aria-expanded="false" aria-controls="shadowEvidenceBody">
+        <span class="settings-row-main">
+          <span class="settings-row-title">Shadow Trainer Evidence</span>
+          <span class="settings-row-desc">What LOOP's hidden engine has observed — read only</span>
+        </span>
+        <span class="settings-row-arrow" id="shadowEvidenceCaret"></span>
+      </button>
+      <div id="shadowEvidenceBody" class="ev-body"></div>
+
       <label style="margin-top:22px">Danger zone</label>
       <div class="settings-hint">This permanently erases every workout, record, and level. It cannot be undone. Export a backup first.</div>
       <button class="reset-btn" onclick="resetAllData()">Reset All Data</button>
@@ -6743,6 +6808,10 @@ function goToScheduleFromSettings(){
 }
 
 function openDataSettings(){
+  try{
+    const c = document.getElementById('shadowEvidenceCaret');
+    if(c && !c.innerHTML) c.innerHTML = chevronDownSvg(13);
+  }catch(e){}
   closeSettings();
   const totalSets = workoutLog.reduce((n,l) => n + l.exercises.reduce((m,ex) => m + (ex.sets||[]).length, 0), 0);
   const p = getCurrentProgression();
@@ -8434,7 +8503,10 @@ async function linkShadowOutcomes(workoutId){
       const rec = getRecommendation(item.recId);
       let userAction = 'unknown';
       if(rec && rec.recommended.weight !== null && topWeight !== null){
-        userAction = Math.abs(topWeight - rec.recommended.weight) < 0.01 ? 'accepted' : 'modified';
+        /* MATCHED / DIVERGED, not accepted / modified: the athlete never saw
+           the recommendation, so this records coincidence, not agreement. */
+        userAction = Math.abs(topWeight - rec.recommended.weight) < 0.01
+          ? OUTCOME_MATCH.MATCHED : OUTCOME_MATCH.DIVERGED;
       } else if(rec && rec.recommended.weight === null){
         userAction = 'not_applicable';
       }
@@ -8506,6 +8578,187 @@ function shadowLoadTolerance(recWeight, exerciseType){
   return Math.max(floorByType[exerciseType] !== undefined ? floorByType[exerciseType] : 2.5, pct);
 }
 
+
+/* =========================================================
+   SHADOW OUTCOME SEMANTICS  (Phase D15B)
+   ---------------------------------------------------------
+   The outcome field recorded "accepted" or "modified". The
+   athlete never sees a shadow recommendation, so neither word
+   was true: nothing was accepted and nothing was modified. All
+   that happened is that the load actually performed either did
+   or did not coincide with a number the engine kept to itself.
+
+   New records say MATCHED and DIVERGED. Records written before
+   this phase are left exactly as they are — history is not
+   rewritten to make a report tidier — and are translated at
+   read time by the map below.
+
+   The distinction matters because "62% accepted" reads as
+   endorsement, and would be the most quotable and most wrong
+   number in the entire dataset.
+   ========================================================= */
+const OUTCOME_MATCH = { MATCHED:'matched', DIVERGED:'diverged' };
+
+/* Legacy value -> current value. Raw records keep their original strings. */
+const OUTCOME_MATCH_LEGACY = { accepted:'matched', modified:'diverged' };
+
+function normalizeOutcomeMatch(v){
+  if(!v) return null;
+  return OUTCOME_MATCH_LEGACY[v] || v;
+}
+function outcomeMatchLabel(v){
+  const k = normalizeOutcomeMatch(v);
+  return { matched:'Matched', diverged:'Diverged', not_applicable:'No load target',
+           no_recommendation:'No recommendation', unknown:'Unknown' }[k] || k;
+}
+
+/* =========================================================
+   EVIDENCE PANEL  (Phase D15B)
+   ---------------------------------------------------------
+   Read-only. Consumes computeShadowMetrics() — the numbers are
+   not recomputed here, and nothing on this screen writes.
+
+   Every percentage carries its denominator, and a metric with
+   no sample is not drawn at all. Both rules exist so the panel
+   cannot imply a result it does not have.
+   ========================================================= */
+/* Stated in the panel itself, not buried in a tooltip. */
+const SHADOW_CAVEAT = 'The trainer is hidden during workouts. "Matched" means the load you performed ' +
+  'happened to coincide with its private recommendation — it does not mean you saw, accepted or ' +
+  'approved anything. None of this affects your workouts.';
+
+let shadowEvidenceOpen = false;
+
+function shadowEvidenceTier(n){
+  if(n === 0) return { t:0, label:'TIER 0', sub:'no evidence yet' };
+  if(n <= 4)  return { t:1, label:'TIER 1', sub:'1–4 records' };
+  if(n <= 9)  return { t:2, label:'TIER 2', sub:'5–9 records' };
+  if(n <= 24) return { t:3, label:'TIER 3', sub:'10–24 records' };
+  if(n <= 49) return { t:4, label:'TIER 4', sub:'25–49 records' };
+  return { t:5, label:'TIER 5', sub:'50+ records' };
+}
+
+/* n/a rather than 0% when there is nothing to divide by, and never a bare
+   percentage. */
+function evPct(count, total){
+  if(!total) return 'n/a (n=0)';
+  return Math.round(count / total * 100) + '% (' + count + '/' + total + ')';
+}
+function evRows(obj, labelFn){
+  const keys = Object.keys(obj || {}).filter(k => obj[k] > 0);
+  if(!keys.length) return '';
+  const total = keys.reduce((a,k) => a + obj[k], 0);
+  return keys.sort((a,b) => obj[b] - obj[a]).map(k => `
+    <div class="ev-row">
+      <span class="ev-row-k">${escapeHtml(labelFn ? labelFn(k) : k)}</span>
+      <span class="ev-row-bar"><span class="ev-row-fill" style="width:${Math.round(obj[k]/total*100)}%"></span></span>
+      <span class="ev-row-v">${obj[k]}</span>
+    </div>`).join('');
+}
+function evSection(title, body){
+  return body ? `<div class="ev-sec"><div class="ev-sec-h">${escapeHtml(title)}</div>${body}</div>` : '';
+}
+
+function toggleShadowEvidence(){
+  shadowEvidenceOpen = !shadowEvidenceOpen;
+  renderShadowEvidence();
+}
+
+/* Recomputed only when the panel is actually open, so Settings never pays for
+   a metric nobody asked to see. */
+function renderShadowEvidence(){
+  const el = document.getElementById('shadowEvidenceBody');
+  const btn = document.getElementById('shadowEvidenceToggle');
+  if(!el) return;
+  if(btn) btn.setAttribute('aria-expanded', shadowEvidenceOpen ? 'true' : 'false');
+  if(!shadowEvidenceOpen){ el.innerHTML = ''; el.classList.remove('open'); return; }
+  el.classList.add('open');
+
+  let m = null;
+  try{ m = computeShadowMetrics(); }catch(e){ m = null; }
+  if(!m){ el.innerHTML = `<div class="ev-empty">Evidence could not be read.</div>`; return; }
+
+  const total = m.totalRecommendations;
+  const tier = shadowEvidenceTier(total);
+
+  if(total === 0){
+    el.innerHTML = `
+      <div class="ev-caveat">${escapeHtml(SHADOW_CAVEAT)}</div>
+      <div class="ev-empty">
+        <div class="ev-empty-t">No real shadow evidence yet</div>
+        <div class="ev-empty-s">Use LOOP normally. Recommendations are recorded silently during
+          workouts and can be reviewed here later.</div>
+      </div>
+      <div class="ev-meta">Engine ${escapeHtml(TRAINER_ENGINE_VERSION)} · ${escapeHtml(tier.label)} · ${escapeHtml(tier.sub)}</div>`;
+    return;
+  }
+
+  /* Dates and coverage come from the raw log, which the panel only reads. */
+  const dated = trainerLog.entries.filter(e => e.createdAt).map(e => e.createdAt).sort();
+  const exercises = new Set(trainerLog.entries.map(e => e.exerciseId || e.exerciseName).filter(Boolean));
+  const sessions = new Set(trainerLog.entries.filter(e => e.outcome && e.outcome.workoutId)
+    .map(e => e.outcome.workoutId));
+
+  /* Legacy and current values are counted together, under current wording. */
+  const matchTally = {};
+  Object.keys(m.userAction || {}).forEach(k => {
+    const norm = normalizeOutcomeMatch(k);
+    matchTally[norm] = (matchTally[norm] || 0) + m.userAction[k];
+  });
+
+  const evicted = (trainerLog.evicted || 0);
+  const la = m.loadAgreement;
+
+  el.innerHTML = `
+    <div class="ev-caveat">${escapeHtml(SHADOW_CAVEAT)}</div>
+
+    <div class="ev-tier">
+      <span class="ev-tier-l">${escapeHtml(tier.label)}</span>
+      <span class="ev-tier-s">${escapeHtml(tier.sub)} · quantity of evidence only, not accuracy</span>
+    </div>
+
+    <div class="ev-grid">
+      <div class="ev-stat"><b>${total}</b><span>recommendations</span></div>
+      <div class="ev-stat"><b>${m.withLinkedOutcome}</b><span>with outcome</span></div>
+      <div class="ev-stat"><b>${exercises.size}</b><span>exercises</span></div>
+      <div class="ev-stat"><b>${sessions.size}</b><span>sessions</span></div>
+    </div>
+
+    ${evSection('Recommendation state', evRows(m.stateDistribution))}
+    ${evSection('Confidence', evRows(m.confidenceDistribution))}
+    ${evSection('Performed load vs hidden recommendation', evRows(matchTally, outcomeMatchLabel))}
+    ${la && la.sample ? evSection('Load agreement',
+      evRows(la.counts, k => ({ within_tolerance:'Within tolerance',
+        user_went_heavier:'Went heavier', user_went_lighter:'Went lighter' }[k] || k))) : ''}
+    ${evSection('Your feedback', evRows(m.feedback, k =>
+      ({ too_easy:'Too easy', right:'Right', too_hard:'Too hard' }[k] || k)))}
+    ${m.rirVsFeedback && m.rirVsFeedback.sample
+      ? evSection('RIR agrees with feedback',
+          `<div class="ev-line">${evPct(m.rirVsFeedback.aligned, m.rirVsFeedback.sample)}</div>`)
+      : ''}
+    ${m.overrideRate !== null && m.overrideSample.sample
+      ? evSection('Readiness or confidence changed the state',
+          `<div class="ev-line">${evPct(m.overrideSample.overridden, m.overrideSample.sample)}</div>
+           <div class="ev-line ev-dim">of recommendations where a state was proposed</div>`)
+      : ''}
+    ${evSection('Engine version', evRows(m.engineVersions))}
+
+    <div class="ev-sec">
+      <div class="ev-sec-h">Retention</div>
+      <div class="ev-line">${total} / ${TRAINER_LOG_MAX} records retained</div>
+      ${dated.length ? `<div class="ev-line ev-dim">Oldest ${escapeHtml(formatDateShort(dated[0].slice(0,10)))}
+        · newest ${escapeHtml(formatDateShort(dated[dated.length-1].slice(0,10)))}</div>` : ''}
+      ${evicted > 0
+        ? `<div class="ev-warn">${evicted} older record${evicted===1?'':'s'} passed the retention limit and
+             were removed. What you see here is not your complete history.</div>`
+        : `<div class="ev-line ev-dim">Nothing has been evicted — this is your complete shadow history.</div>`}
+    </div>
+
+    <div class="ev-meta">${escapeHtml(m.note)}
+      For full analysis, export a backup and run <code>loop-evaluate.js real</code>.</div>`;
+}
+
+
 function computeShadowMetrics(){
   const entries = trainerLog.entries.filter(e => e.outcome !== null);
   const withRec = entries.filter(e => e.recommended && e.recommended.weight !== null);
@@ -8532,6 +8785,13 @@ function computeShadowMetrics(){
       const withStates = trainerLog.entries.filter(e => e.proposedState && e.finalState);
       if(!withStates.length) return null;
       return Math.round(withStates.filter(e => e.proposedState !== e.finalState).length / withStates.length * 100);
+    })(),
+    /* The denominator the rate above was actually divided by, so a reader is
+       never left to assume it was the total. */
+    overrideSample: (() => {
+      const withStates = trainerLog.entries.filter(e => e.proposedState && e.finalState);
+      return { overridden: withStates.filter(e => e.proposedState !== e.finalState).length,
+               sample: withStates.length };
     })(),
 
     userAction: tally(entries, e => e.outcome.userAction),
@@ -14071,7 +14331,13 @@ function getAllExerciseCapabilities(){
 
 const TRAINER_ENGINE_VERSION = '0.1.1-shadow';
 const TRAINER_LOG_KEY = 'trainerLog';
-const TRAINER_LOG_MAX = 500;          // retention cap; see §17
+/* Retention. Measured: one full record with its outcome and set detail is
+   ~945 bytes, so this bound is ~1.8MB — roughly nineteen months at four
+   sessions a week, which spans several programs and their phases. The cap
+   stays FINITE on purpose; an unbounded log is a storage failure waiting for
+   the athlete who trains for five years. Evictions are counted rather than
+   silent, so the evidence panel can say the history is incomplete. */
+const TRAINER_LOG_MAX = 2000;         // retention cap; see §17
 
 /* ---------- 1. CANONICAL EXERCISE IDENTITY ----------
    Aliases are matched on an exact normalized string, never fuzzily.
@@ -14367,7 +14633,11 @@ async function logRecommendation(input){
   const rec = buildRecommendationRecord(input || {});
   trainerLog.entries.push(rec);
   if(trainerLog.entries.length > TRAINER_LOG_MAX){
+    const dropped = trainerLog.entries.length - TRAINER_LOG_MAX;
     trainerLog.entries = trainerLog.entries.slice(-TRAINER_LOG_MAX);   // retention cap
+    /* Counted so the panel can say the visible history is not the whole
+       history. A log that quietly forgets is worse than one that admits it. */
+    trainerLog.evicted = (trainerLog.evicted || 0) + dropped;
   }
   await persistTrainerLog();
   return rec.recommendationId;

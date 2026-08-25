@@ -1352,3 +1352,67 @@ out to be defined **twice**, byte-identical, from D12; the duplicate is gone.
 coherent set of their own, always on screen, and swapping them one at a time
 would produce a mixed bar. They need designing as a set — different work from
 an audit.
+
+---
+
+## 25. Closing the evidence loop (Phase D15B)
+
+The D15A audit returned **n = 0**. Not because the trainer had failed, but
+because nothing had ever read it: the evidence sat in `localStorage` on one
+phone with no route out except a manual export nobody had run. This phase
+builds the route.
+
+### "Accepted" was never true
+
+The outcome field recorded `accepted` or `modified`. **The athlete never sees
+a shadow recommendation**, so neither word described anything that happened.
+All that occurred is that the load actually performed either did or did not
+coincide with a number the engine kept to itself.
+
+New records say **MATCHED** and **DIVERGED**. Records written before this phase
+keep their original strings — history is not rewritten to make a report tidier
+— and are translated at read time by a one-way legacy map, so both vocabularies
+count into one honest figure.
+
+> "62% accepted" would have been the most quotable number in the dataset and
+> the most wrong. It reads as endorsement of a recommendation the athlete was
+> never shown.
+
+### Retention: a bigger bound, not no bound
+
+Measured: one full record with its outcome and set detail is **945 bytes**. The
+old cap of 500 was ~4.8 months at four sessions a week — the oldest records,
+which establish the baseline, were the first destroyed.
+
+The cap is now **2000** (~1.8MB, ~19 months), which spans several programs and
+their phases. It stays **finite on purpose**: an unbounded log is a storage
+failure waiting for the athlete who trains for five years. Evictions are
+**counted**, and the panel says plainly when the visible history is not the
+whole history. A log that quietly forgets is worse than one that admits it.
+
+### A panel that cannot imply a result
+
+`computeShadowMetrics()` existed and was rendered nowhere. It now backs a
+read-only panel in Settings → Backup & Data, collapsed by default, consuming
+that function's output rather than recomputing anything.
+
+Three rules make the panel unable to overclaim:
+
+- **Every percentage carries its denominator.** `evPct(0, 0)` returns
+  `n/a (n=0)`, never `0%`.
+- **A metric with no sample is not drawn at all.**
+- **The caveat is a visible block**, not a tooltip: the trainer is hidden, a
+  match is coincidence, and none of it affects the workout.
+
+The tier is labelled *quantity of evidence only, not accuracy*. The word
+"accuracy" appears exactly once in the panel, negated — a contract asserts that
+every occurrence is preceded by a negation.
+
+One bug found while wiring it: the override rate is computed over entries
+having **both** a proposed and a final state, but the panel labelled it "of N
+recommendations" — naming a denominator it did not have. The metrics function
+now returns the sample it actually divided by.
+
+`loop-evaluate.js real <backup.json>` remains the authoritative analysis path;
+the panel is for a glance. Verified end to end: export → restore keeps entries,
+both engine versions, both vocabularies, feedback, RIR and the eviction count.

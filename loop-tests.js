@@ -9595,6 +9595,222 @@ function testIconSystemD14(app){
   })());
 }
 
+/* =========================================================
+   CONTRACT 96 — shadow outcome semantics
+   ========================================================= */
+function testShadowSemantics(app){
+  section('CONTRACT 96 — matched / diverged, not accepted / modified');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+
+  sub('new records describe coincidence, not agreement');
+  T('the vocabulary is matched / diverged',
+    ctx.OUTCOME_MATCH.MATCHED === 'matched' && ctx.OUTCOME_MATCH.DIVERGED === 'diverged');
+  T('the outcome writer uses it', (() => {
+    const fn = src.slice(src.indexOf('async function linkShadowOutcomes'), src.indexOf('function shadowLoadTolerance'));
+    return /OUTCOME_MATCH\.MATCHED : OUTCOME_MATCH\.DIVERGED/.test(fn) &&
+           !/'accepted' : 'modified'/.test(fn);
+  })());
+  /* The engine is hidden, so "accepted" would claim something that never
+     happened. The words must not come back for this field. */
+  T('no new record can be written as accepted or modified', (() => {
+    const fn = src.slice(src.indexOf('async function linkShadowOutcomes'), src.indexOf('function shadowLoadTolerance'));
+    return !/userAction = '(accepted|modified)'/.test(fn);
+  })());
+
+  sub('history is translated, never rewritten');
+  T('legacy accepted reads as matched', ctx.normalizeOutcomeMatch('accepted') === 'matched');
+  T('legacy modified reads as diverged', ctx.normalizeOutcomeMatch('modified') === 'diverged');
+  T('current values pass through unchanged',
+    ctx.normalizeOutcomeMatch('matched') === 'matched' &&
+    ctx.normalizeOutcomeMatch('diverged') === 'diverged');
+  T('values with no load target are left alone',
+    ctx.normalizeOutcomeMatch('not_applicable') === 'not_applicable' &&
+    ctx.normalizeOutcomeMatch('no_recommendation') === 'no_recommendation');
+  T('nothing migrates stored records', !/migrateUserAction|rewriteTrainerLog/.test(src));
+  T('a stored legacy record keeps its original string', (() => {
+    ctx.trainerLog = { version:1, entries:[{ recommendationId:'x', engineVersion:'0.1.0-shadow',
+      finalState:'CONSOLIDATE', confidence:'low', recommended:{ weight:100 },
+      outcome:{ userAction:'accepted', userFeedback:'right', actualWeight:100, actualRIR:2, workoutId:'w' } }] };
+    try{ ctx.computeShadowMetrics(); }catch(e){}
+    return ctx.trainerLog.entries[0].outcome.userAction === 'accepted';
+  })());
+  T('both vocabularies count into one figure', (() => {
+    ctx.trainerLog = { version:1, entries:[
+      { finalState:'CONSOLIDATE', recommended:{weight:100}, outcome:{ userAction:'accepted', actualWeight:100 } },
+      { finalState:'CONSOLIDATE', recommended:{weight:100}, outcome:{ userAction:'matched', actualWeight:100 } },
+      { finalState:'CONSOLIDATE', recommended:{weight:100}, outcome:{ userAction:'modified', actualWeight:120 } }
+    ]};
+    const m = ctx.computeShadowMetrics();
+    const tal = {};
+    Object.keys(m.userAction).forEach(k => {
+      const n = ctx.normalizeOutcomeMatch(k); tal[n] = (tal[n]||0) + m.userAction[k];
+    });
+    return tal.matched === 2 && tal.diverged === 1;
+  })());
+  T('the display label never says accepted',
+    ctx.outcomeMatchLabel('accepted') === 'Matched' && ctx.outcomeMatchLabel('modified') === 'Diverged');
+}
+
+/* =========================================================
+   CONTRACT 97 — the evidence panel
+   ========================================================= */
+function testEvidencePanel(app){
+  section('CONTRACT 97 — shadow evidence panel');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('it lives in Backup & Data, and nowhere louder');
+  T('the control is inside the data sheet',
+    /id="dataOverlay"[\s\S]*?shadowEvidenceToggle[\s\S]*?Danger zone/.test(src));
+  T('no navigation tab was added', (src.match(/<button class="tab-btn/g) || []).length === 5);
+  T('it is not on Today, Progress or the workout screen',
+    !/view-today[\s\S]{0,4000}shadowEvidence/.test(src) &&
+    !/ppanel-overview[\s\S]{0,2000}shadowEvidence/.test(src));
+  T('it is collapsed until asked for', /\.ev-body\{ display: none; \}/.test(css));
+
+  sub('it never claims accuracy');
+  T('the caveat states the engine is hidden', /The trainer is hidden during workouts/.test(src));
+  T('and that matching is coincidence, not approval',
+    /does not mean you saw, accepted or\s*'\s*\+\s*'approved anything/.test(src) ||
+    /does not mean you saw, accepted or approved anything/.test(src.replace(/'\s*\+\s*'/g, '')));
+  T('the caveat is a visible block, not a tooltip', /\.ev-caveat\{/.test(css) && !/title="The trainer is hidden/.test(src));
+  T('no score or rating is presented', (() => {
+    const panel = src.slice(src.indexOf('EVIDENCE PANEL  (Phase D15B)'), src.indexOf('function computeShadowMetrics'));
+    return !/trainer score|coach rating|ai accuracy|accuracy score|score:/i.test(panel);
+  })());
+  T('accuracy is only ever denied, never asserted', (() => {
+    const panel = src.slice(src.indexOf('EVIDENCE PANEL  (Phase D15B)'), src.indexOf('function computeShadowMetrics'));
+    /* Every mention of the word must be preceded by a negation. */
+    return [...panel.matchAll(/.{0,30}accuracy/gi)].every(m => /(not|no|never)\s+$/i.test(m[0].slice(0, -8)));
+  })());
+  T('the descriptive note from the metrics is shown', /\$\{escapeHtml\(m\.note\)\}/.test(src));
+
+  sub('empty state says what to do');
+  ctx.trainerLog = { version:1, entries:[] };
+  ctx.shadowEvidenceOpen = true;
+  ctx.renderShadowEvidence();
+  const empty = doc.getElementById('shadowEvidenceBody').innerHTML;
+  T('it says there is no evidence yet', /No real shadow evidence yet/.test(empty));
+  T('it explains how evidence appears', /Use LOOP normally/.test(empty));
+  T('it still shows the engine version', empty.indexOf(ctx.TRAINER_ENGINE_VERSION) !== -1);
+  T('it shows TIER 0', /TIER 0/.test(empty));
+  T('it draws no metric with no sample', !/ev-row/.test(empty));
+
+  sub('percentages always carry their denominator');
+  T('a zero denominator reads n/a, not 0%', ctx.evPct(0, 0) === 'n/a (n=0)');
+  T('a real ratio shows both numbers', ctx.evPct(13, 21) === '62% (13/21)');
+  T('no bare percentage is produced anywhere', (() => {
+    const panel = src.slice(src.indexOf('function renderShadowEvidence'), src.indexOf('/* Stated in the panel'));
+    /* Every % printed by the panel comes from evPct or carries its own count. */
+    return !/\$\{[a-zA-Z.]+\}%/.test(panel.replace(/\$\{evPct\([^)]*\)\}/g, ''));
+  })());
+
+  sub('evidence tiers report quantity, not quality');
+  T('tier 0 is empty', ctx.shadowEvidenceTier(0).t === 0);
+  T('tier boundaries match the evaluator',
+    ctx.shadowEvidenceTier(4).t === 1 && ctx.shadowEvidenceTier(9).t === 2 &&
+    ctx.shadowEvidenceTier(24).t === 3 && ctx.shadowEvidenceTier(49).t === 4 &&
+    ctx.shadowEvidenceTier(50).t === 5);
+  T('the tier is labelled as quantity only', /quantity of evidence only, not accuracy/.test(src));
+
+  sub('engine versions are shown separately');
+  ctx.trainerLog = { version:1, entries:[
+    { engineVersion:'0.1.0-shadow', finalState:'CONSOLIDATE', confidence:'low', createdAt:'2026-01-01T00:00:00Z', recommended:{weight:100}, outcome:{ userAction:'accepted', actualWeight:100, workoutId:'a' } },
+    { engineVersion:'0.1.1-shadow', finalState:'PROGRESS', confidence:'high', createdAt:'2026-02-01T00:00:00Z', recommended:{weight:105}, outcome:{ userAction:'matched', actualWeight:105, workoutId:'b' } }
+  ]};
+  ctx.renderShadowEvidence();
+  const two = doc.getElementById('shadowEvidenceBody').innerHTML;
+  T('both versions appear', /0\.1\.0-shadow/.test(two) && /0\.1\.1-shadow/.test(two));
+  T('they are not merged into one figure', /Engine version/.test(two));
+
+  sub('retention is reported honestly');
+  T('the panel names the cap', two.indexOf(String(ctx.TRAINER_LOG_MAX)) !== -1);
+  T('an eviction is disclosed, not hidden', (() => {
+    ctx.trainerLog.evicted = 7;
+    ctx.renderShadowEvidence();
+    const h = doc.getElementById('shadowEvidenceBody').innerHTML;
+    return /7 older records? passed the retention limit/.test(h) &&
+           /not your complete history/.test(h);
+  })());
+  T('a complete history is stated as complete', (() => {
+    ctx.trainerLog.evicted = 0;
+    ctx.renderShadowEvidence();
+    return /complete shadow history/.test(doc.getElementById('shadowEvidenceBody').innerHTML);
+  })());
+  T('the external evaluator is named as the real analysis path',
+    /loop-evaluate\.js real/.test(two));
+  ctx.shadowEvidenceOpen = false;
+}
+
+/* =========================================================
+   CONTRACT 98 — retention, and the panel writes nothing
+   ========================================================= */
+async function testEvidenceSafety(){
+  section('CONTRACT 98 — retention bound and read-only panel');
+  const app = await H.loadAppBooted(buildProtectionFixture());
+  const ctx = app.ctx;
+
+  sub('the bound is larger, and still a bound');
+  T('the cap grew', ctx.TRAINER_LOG_MAX === 2000);
+  T('it is still finite, not removed', Number.isFinite(ctx.TRAINER_LOG_MAX));
+  T('a full log stays within a sane storage budget', (() => {
+    /* ~945 bytes per full record, measured. The cap must not let the log
+       approach the few megabytes localStorage realistically allows. */
+    return (ctx.TRAINER_LOG_MAX * 945) < 3 * 1024 * 1024;
+  })());
+
+  sub('eviction is counted, not silent');
+  ctx.trainerLog = { version:1, entries:[] };
+  for(let i = 0; i < ctx.TRAINER_LOG_MAX + 5; i++){
+    await ctx.logRecommendation({ exerciseName:'Bench Press', finalState:'CONSOLIDATE' });
+  }
+  T('the log is capped', ctx.trainerLog.entries.length === ctx.TRAINER_LOG_MAX);
+  T('the evictions are counted', ctx.trainerLog.evicted === 5);
+  T('the newest records are the ones kept',
+    ctx.trainerLog.entries[ctx.trainerLog.entries.length - 1].exerciseName === 'Bench Press');
+
+  sub('opening the panel changes nothing');
+  const app2 = await H.loadAppBooted(buildProtectionFixture());
+  const ctx2 = app2.ctx;
+  const before = H.snapshot(ctx2);
+  const storeBefore = {};
+  Object.keys(app2.store).forEach(k => { storeBefore[k] = app2.store[k]; });
+  const trainerBefore = JSON.stringify(ctx2.trainerLog);
+
+  ctx2.shadowEvidenceOpen = true;
+  ctx2.renderShadowEvidence();
+  ctx2.renderShadowEvidence();
+  ctx2.computeShadowMetrics();
+  clearCaches(ctx2);
+  const after = H.snapshot(ctx2);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('the trainer log itself is untouched', JSON.stringify(ctx2.trainerLog) === trainerBefore);
+  T('no storage key was written', Object.keys(app2.store).every(k =>
+    JSON.stringify(app2.store[k]) === JSON.stringify(storeBefore[k])));
+  T('no new storage key exists', ctx2.DATA_KEYS.length === 15);
+  T('trainerLog is still exported', ctx2.DATA_KEYS.indexOf('trainerLog') !== -1);
+
+  sub('the engine itself was not touched');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  T('engine version unchanged', ctx2.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('proposeTrainerState is intact', typeof ctx2.proposeTrainerState === 'function');
+  T('applyTrainerConstraints is intact', typeof ctx2.applyTrainerConstraints === 'function');
+  T('no threshold was edited in this phase', (() => {
+    /* The panel and semantics live outside the decision path entirely. */
+    const panel = src.slice(src.indexOf('SHADOW OUTCOME SEMANTICS  (Phase D15B)'),
+                            src.indexOf('function computeShadowMetrics'));
+    return !/TRAINER_CONFIG|proposeTrainerState|applyTrainerConstraints|RECOVERY_CONFIG|CAPABILITY_CONFIG/.test(panel);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -9657,6 +9873,8 @@ async function main(){
   testTrajectory(H.loadApp());
   testProgressDashboardD14(H.loadApp());
   testIconSystemD14(H.loadApp());
+  testShadowSemantics(H.loadApp());
+  testEvidencePanel(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
@@ -9702,6 +9920,7 @@ async function main(){
     await testCardioSessionLifecycle();
     await testCardio2Safety();
     await testProgramBuilderStress();
+    await testEvidenceSafety();
   }
 
   // ---- FULL ----
