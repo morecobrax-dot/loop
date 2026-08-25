@@ -1733,12 +1733,16 @@ async function testFirstImpression(){
 
   T('brand new user has no workouts', ctx.workoutLog.length === 0);
   ctx.renderProgTab();
-  const head = doc.getElementById('progHeader').innerHTML;
   const body = doc.getElementById('progPerf').innerHTML;
-  T('Progress shows no zero stat values', !/snap-num">0</.test(head));
-  T('Progress does not claim a training trend', !head.includes('Holding steady'));
-  T('Progress explains what will appear', body.includes('Your progress starts here'));
-  T('Progress sub-sections cleared', doc.getElementById('progImprovements').innerHTML === '');
+  T('Progress shows no zero stat values', !/pd-tile-v">0</.test(body));
+  T('Progress does not claim a training trend',
+    !body.includes('Holding steady') && !body.includes('Getting stronger'));
+  T('Progress explains what will appear',
+    /this becomes your strength trend/.test(body));
+  T('it names each section that will fill in',
+    /Strength/.test(body) && /Muscle development/.test(body) && /Exercise mastery/.test(body));
+  T('no record directory is rendered to a new athlete',
+    doc.getElementById('progAllRecords').innerHTML === '');
 
   ctx.renderToday();
   const snap = doc.getElementById('todayMomentum').innerHTML;
@@ -1760,7 +1764,8 @@ async function testFirstImpression(){
    'invalidateCapabilityCache','invalidateContextCache','invalidateRecoveryCache','invalidateShadowCache']
     .forEach(f => ctx[f] && ctx[f]());
   ctx.renderProgTab(); ctx.renderToday();
-  T('Progress header returns with data', doc.getElementById('progHeader').innerHTML.includes('Training trend'));
+  T('Progress returns a real reading with data',
+    /pd-hero-read/.test(doc.getElementById('progPerf').innerHTML));
   T('Today momentum returns with data', doc.getElementById('todayMomentum').innerHTML.includes('mo-val'));
 }
 
@@ -6728,10 +6733,13 @@ function testD11Consolidation(app){
 
   sub('PROGRESS — each fact appears once');
   {
-    const hdr = src.slice(src.indexOf('function renderProgHeader(){'), src.indexOf('function rangeBtns()'));
-    T('the header no longer shows volume-vs-last-week', hdr.indexOf('Volume vs last wk') === -1);
-    T('the undefined "avg workout score" is gone from the header', hdr.indexOf('Avg workout score') === -1);
-    T('it keeps interpretable totals', hdr.indexOf('Total workouts') !== -1 && hdr.indexOf('Personal records') !== -1);
+    /* The stat strip this once described was replaced by the dashboard hero in
+       D12.1; the same two exclusions are now asserted against the whole file,
+       and the "interpretable figure" contract against the hero's own tiles. */
+    T('volume-vs-last-week is gone from the summary', src.indexOf('Volume vs last wk') === -1);
+    T('the undefined "avg workout score" is gone', src.indexOf('Avg workout score') === -1);
+    T('the summary keeps figures an athlete can interpret',
+      /pd-tile-k">Strength</.test(src) && /pd-tile-k">Consistency</.test(src));
     T('"avg session score" is gone from the hero too', src.indexOf('Avg session score') === -1);
     /* Counted against code only — a comment elsewhere quotes the old
        "Holding steady - 0 workouts" state it describes fixing. */
@@ -7152,6 +7160,265 @@ async function testLogSafety(){
 }
 
 /* =========================================================
+   CONTRACT 73 — Progress dashboard
+   ========================================================= */
+function testProgressDashboard(app){
+  section('CONTRACT 73 — Progress: summary, interpretation, detail');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  const D = n => { const d = new Date(Date.now() - n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  const S = (w,r) => ({weight:String(w),reps:String(r),rir:'2',type:'working'});
+  const sess = (i, cat, daysAgo, w) => ({ id:'pd'+i, date:D(daysAgo), category:cat, title:'S', notes:'',
+    exercises:[{ name: cat==='upper'?'Bench Press':'Back Squat', bodyweight:false,
+      sets:[S(45,10), S(w,8), S(w,8)] }] });
+  const longHistory = () => {
+    const out = []; let i = 0;
+    for(let wk = 0; wk < 13; wk++){
+      [0,1,3,4].forEach((dof,k) => out.push(sess(i++, k%2?'upper':'lower', wk*7+(6-dof), 100+(12-wk)*3)));
+    }
+    return out;
+  };
+  const render = log => {
+    ctx.workoutLog = log;
+    ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
+    clearCaches(ctx);
+    ctx.progTab = 'overview';
+    ctx.renderProgTab();
+    return doc.getElementById('progPerf').innerHTML;
+  };
+
+  sub('renders at every history size');
+  {
+    const empty = render([]);
+    T('renders with no history at all', empty.length > 0);
+    T('renders with a single session', render([sess(0,'upper',1,135)]).length > 0);
+    T('renders with two weeks', render([0,3,7,10].map((d,i)=>sess(i,i%2?'upper':'lower',d,135))).length > 0);
+    T('renders with a long history', render(longHistory()).length > 0);
+  }
+
+  sub('a new athlete sees intent, not zeroes');
+  {
+    const html = render([]);
+    const text = html.replace(/<[^>]+>/g, ' ');
+    T('the page still names itself', html.indexOf('Your Progress') !== -1);
+    T('it says what will appear', /this becomes your strength trend/.test(html));
+    T('each section explains what it will become',
+      /Your trend appears after a few workouts/.test(html) &&
+      /Train consistently to build your profile/.test(html) &&
+      /Levels grow as you repeat exercises/.test(html));
+    T('no zero statistic is rendered', !/pd-tile-v">0</.test(html));
+    T('no "no data" filler', !/no data/i.test(text));
+    T('no trend is claimed', !/Getting stronger|Holding steady|eased off/.test(html));
+  }
+
+  sub('never fabricates a window it does not have');
+  {
+    const html = render([0,3,7,10].map((d,i)=>sess(i,i%2?'upper':'lower',d,135)));
+    T('coverage is stated when short of the full window', /pd-cov/.test(html));
+    T('it says how much is actually tracked', /weeks? tracked/.test(html));
+    T('the reading admits it is early', /Getting started/.test(html));
+    /* overallConsistency divides by twelve weeks of planned sessions. Showing
+       that to a two-week-old account reads as failure when they have in fact
+       hit every session they planned. */
+    T('a 12-week consistency percentage is NOT shown to a 2-week account',
+      html.indexOf('of planned sessions') === -1);
+    T('it reports what actually happened instead', /sessions? logged/.test(html));
+  }
+  {
+    const html = render(longHistory());
+    T('the percentage returns once the window is real', /of planned sessions/.test(html));
+    T('and coverage is no longer flagged', !/pd-cov/.test(html));
+  }
+
+  sub('the hero interprets rather than listing');
+  {
+    const html = render(longHistory());
+    T('there is a single headline reading', (html.match(/pd-hero-read/g) || []).length === 1);
+    T('it is backed by a sentence', /pd-hero-line/.test(html));
+    T('the reading carries a trend icon, not a character',
+      /pd-hero-read[\s\S]{0,120}<svg/.test(html));
+    T('exactly three supporting indicators', (html.match(/class="pd-tile"/g) || []).length === 3);
+    T('they are Strength, Consistency and Muscle',
+      /pd-tile-k">Strength</.test(html) && /pd-tile-k">Consistency</.test(html) && /pd-tile-k">Muscle</.test(html));
+  }
+
+  sub('every figure comes from a calculation that already existed');
+  {
+    const mod = src.slice(src.indexOf('function progressCoverage(){'), src.indexOf('function trophyIconSvg(){'));
+    ['computeConsistencyData','computeImprovements','computeWeeklyVolume','computeAllPREvents',
+     'getTopMuscleMastery','getTopExerciseMastery'].forEach(fn =>
+      T('reuses ' + fn + '()', mod.indexOf(fn + '(') !== -1));
+    T('no new stored score was introduced',
+      !ctx.DATA_KEYS.some(k => /score|progress/i.test(k)));
+    T('the dashboard writes nothing',
+      mod.indexOf('LOOPStore.set') === -1 && mod.indexOf('localStorage') === -1);
+    T('it never writes workoutLog', !/workoutLog\s*(=[^=]|\.push|\.splice)/.test(mod));
+  }
+
+  sub('strength is labelled, not a mystery score');
+  {
+    const html = render(longHistory());
+    T('the strength card names its metric', /Total weight lifted per week/.test(html));
+    T('a timeframe control is offered', /range-btn/.test(html));
+    T('no unexplained "strength score" is invented', !/strength score/i.test(html));
+    T('the delta states what it compares against',
+      !/pd-delta/.test(html) || /vs the first half of this window/.test(html));
+  }
+
+  sub('muscle development is promoted, and honest about what it is');
+  {
+    const html = render(longHistory());
+    T('it appears on the dashboard', /Muscle development/.test(html));
+    T('it is ranked visually', (html.match(/pd-mus-row/g) || []).length > 0);
+    T('it shows a level per group', /pd-mus-lvl/.test(html));
+    T('it does not imply a body measurement',
+      /not a body measurement/.test(html) && !/muscle mass|body fat|composition/i.test(html));
+    T('it routes to the full ranking', /switchProgTab\('muscles'\)/.test(html));
+  }
+
+  sub('consistency and records read as achievement, not analytics');
+  {
+    const html = render(longHistory());
+    T('consistency is a visual, one column per week', (html.match(/pd-wk/g) || []).length > 0);
+    T('it routes into the training history', /switchTab\('history'\)/.test(html));
+    T('records celebrate a few, not a database', (html.match(/pd-pr-row/g) || []).length <= 3);
+    T('the record icon is drawn, not an emoji', /pd-pr-mark[^>]*>\s*<svg/.test(html) && !/🏆/.test(html));
+    T('the full record directory is one tap deeper', /openAllRecords\(\)/.test(html));
+  }
+
+  sub('mastery is curated, not a second directory');
+  {
+    const html = render(longHistory());
+    T('a few movements are shown', (html.match(/pd-mas-row/g) || []).length <= 3);
+    T('it routes to the full mastery view', /switchProgTab\('muscles'\)/.test(html));
+    T('the all-exercises directory is NOT duplicated onto the dashboard',
+      html.indexOf('All exercises') === -1);
+    T('but still exists on its own tab', /All exercises<span class="sec-hint">tap for detail/.test(src));
+  }
+
+  sub('what the old Overview piled on is gone from the dashboard');
+  {
+    const html = render(longHistory());
+    T('the XP / level block left Progress overview', !/Next level/.test(html) && !/xp-split/.test(html));
+    T('"getting stronger" list is gone', !/gs-row/.test(html));
+    T('training distribution is no longer duplicated here', !/dist-row/.test(html));
+    T('the needs-attention block is gone', !/class="attn"/.test(html));
+    T('the PR timeline is gone', !/pr-node/.test(html));
+    T('the record directory is not rendered inline', html.indexOf('prHistoryFilter') === -1);
+    T('their renderers went with them',
+      src.indexOf('function renderProgOverview(') === -1 &&
+      src.indexOf('function renderProgHeader(') === -1);
+  }
+
+  sub('no character stands in for an icon');
+  {
+    const html = render(longHistory());
+    T('no arrow or tick characters', !/[✓✗→←↑↓★]/.test(html.replace(/<[^>]*>/g, '')));
+    T('no emoji', !/[\u{1F300}-\u{1FAFF}]/u.test(html));
+    T('trend direction is an inline svg', /class="ti ti-/.test(html));
+  }
+
+  sub('layout and touch targets');
+  {
+    T('the timeframe control reaches 44px',
+      /\.range-btn\{[^}]*min-height: 44px/.test(css) && /\.range-btn\{[^}]*min-width: 44px/.test(css));
+    T('the record disclosure reaches 44px', /\.pd-more\{[^}]*min-height: 44px/.test(css));
+    T('tappable cards say so', /\.pd-card-tap\{ cursor: pointer/.test(css));
+    T('bars cannot overflow their row',
+      /\.pd-mus-bar, \.pd-mas-bar\{[^}]*min-width: 0/.test(css));
+  }
+
+  sub('Progress does not prescribe — the trainer stays out of it');
+  {
+    const mod = src.slice(src.indexOf('function progressCoverage(){'), src.indexOf('function trophyIconSvg(){'));
+    T('no trainer call', !/proposeTrainerState|computeShadowRecommendation|logRecommendation|computeTrainingContext/.test(mod));
+    T('no recommendation is rendered', !/buildProgressionRecommendation/.test(mod));
+  }
+}
+
+/* =========================================================
+   CONTRACT 74 — the Progress overhaul changed presentation only
+   ========================================================= */
+async function testProgressSafety(){
+  section('CONTRACT 74 — Progress overhaul touched no training data');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const storeKeysBefore = Object.keys(app.store).sort().join(',');
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const masteryBefore = JSON.stringify(ctx.getTopExerciseMastery());
+  const muscleBefore = JSON.stringify(ctx.getTopMuscleMastery());
+  const consBefore = JSON.stringify(ctx.computeConsistencyData());
+  const impsBefore = JSON.stringify(ctx.computeImprovements());
+  const prsBefore = ctx.computeAllPREvents().length;
+  const scheduleBefore = JSON.stringify(ctx.schedule);
+  const notesBefore = app.store.exerciseNotes;
+  const gymBefore = app.store.gymProfile;
+  const programsBefore = app.store.programs;
+  const draftBefore = app.store.activeWorkoutDraft;
+
+  sub('drive the dashboard and every timeframe');
+  ctx.progTab = 'overview';
+  [4, 8, 12].forEach(w => { ctx.setProgRange(w); });
+  ctx.renderProgDashboard();
+  ctx.progressCoverage();
+  ctx.progressInterpretation();
+  ctx.muscleBalanceSummary();
+  ctx.openAllRecords();
+  ctx.openAllRecords();
+  ['strength','volume','muscles','overview'].forEach(t => { ctx.progTab = t; ctx.renderProgTab(); });
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('PR events unchanged', ctx.computeAllPREvents().length === prsBefore);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+
+  sub('the calculations the dashboard reads are themselves unchanged');
+  T('consistency calculation unchanged', JSON.stringify(ctx.computeConsistencyData()) === consBefore);
+  T('improvements calculation unchanged', JSON.stringify(ctx.computeImprovements()) === impsBefore);
+  T('exercise mastery unchanged', JSON.stringify(ctx.getTopExerciseMastery()) === masteryBefore);
+  T('muscle ranking unchanged', JSON.stringify(ctx.getTopMuscleMastery()) === muscleBefore);
+  T('schedule unchanged', JSON.stringify(ctx.schedule) === scheduleBefore);
+  T('exercise notes unchanged', app.store.exerciseNotes === notesBefore);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('programs unchanged', app.store.programs === programsBefore);
+  T('an unfinished workout is preserved', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('no storage, no migration');
+  T('no storage key created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
+  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
+  T('no progress score was stored', !ctx.DATA_KEYS.some(k => /score/i.test(k)));
+
+  sub('trainer isolation');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by viewing Progress',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+}
+
+/* =========================================================
    RUNNER
    ========================================================= */
 async function main(){
@@ -7200,6 +7467,7 @@ async function main(){
   testD101Responsive(H.loadApp());
   testD11Consolidation(H.loadApp());
   testLogRedesign(H.loadApp());
+  testProgressDashboard(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -7238,6 +7506,7 @@ async function main(){
     await testD101Safety();
     await testD11Safety();
     await testLogSafety();
+    await testProgressSafety();
   }
 
   // ---- FULL ----

@@ -708,3 +708,63 @@ not a percentage wall — and caught `height:NN%` on the bars, a style value, no
 copy. **Assert against the string the athlete reads, not the markup that
 contains it.** This is the third phase in a row where a source-grep proxy was
 wrong in a new way; prefer extracting the rendered text.
+
+---
+
+## 17. Progress dashboard (Phase D12.1)
+
+Visual summary → interpretation → detail. The Overview was nine stacked blocks
+over **4.34 screens**; it is now a hero reading plus five equal cards over
+**1.68 screens** — a 61% reduction that *gained* a strength chart, muscle
+development and a written interpretation.
+
+**Every figure reuses a calculation that already existed.** No new score, no new
+storage key, and Contract 73 asserts the module calls
+`computeConsistencyData`, `computeImprovements`, `computeWeeklyVolume`,
+`computeAllPREvents`, `getTopMuscleMastery` and `getTopExerciseMastery` rather
+than recomputing anything. Contract 74 asserts each of those calculations
+returns byte-identical results before and after.
+
+### Removed from the dashboard
+
+The XP/level row, the "getting stronger" list, a duplicated training-distribution
+block, needs-attention, the PR timeline, and an inline record directory —
+together with `renderProgOverview`, `renderProgHeader`, `heroRingSvg` and
+**54 dead CSS rules**. The record directory survives one tap deeper behind a
+disclosure; the all-exercises directory stays on its own tab and is explicitly
+asserted *not* to be duplicated onto the dashboard.
+
+### Two honesty rules the dashboard enforces
+
+**It states its own coverage.** `progressCoverage()` reports weeks actually
+tracked, and the hero says "2 weeks tracked" rather than drawing a 12-week trend
+across two weeks of data.
+
+**It will not show a 12-week percentage to a 2-week account.**
+`overallConsistency` divides completed sessions by twelve weeks of planned ones.
+Shown to someone two weeks in, that reads "8%" — which looks like failure when
+they have in fact hit every session they planned. The calculation is correct for
+its own window and is **not changed**; below four weeks the tile reports sessions
+logged instead. Contract 73 asserts both halves of this.
+
+> Promoting a metric to a hero position changes what it has to be honest about.
+> A figure that was fine buried on a sub-tab can mislead once it is the first
+> thing an athlete reads.
+
+### Muscle development
+
+The existing muscle-mastery ranking, promoted to the dashboard as a ranked bar
+list. Its subtitle says *"From what you have trained, not a body measurement"*,
+and Contract 73 asserts the card never uses the words muscle mass, body fat or
+composition — LOOP knows training history, not body composition.
+
+### Interaction
+
+Muscle development and Exercise mastery route to the Mastery tab; Consistency
+routes to Log; Records disclose in place. Cards that are tappable carry
+`pd-card-tap` and a chevron; cards that are not, do not.
+
+### Trainer
+
+Progress remains observational. Contract 73 asserts the dashboard calls no
+trainer function and renders no recommendation. Engine stays `0.1.1-shadow`.

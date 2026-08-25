@@ -1034,22 +1034,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .dval{ font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700; color: var(--text); text-align: right; }
 .dunknown{ font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 500; color: var(--text-faint); font-style: italic; }
 
-/* ---- Progress: visual layer ---- */
-.prog-hero{ display: flex; align-items: center; gap: 18px; padding: 8px 0 4px; }
-.prog-hero-ring{ position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.hero-ring{ transform: rotate(-90deg); display: block; }
-.hero-ring-track{ fill: none; stroke: var(--surface-3); stroke-width: 8; }
-.hero-ring-fill{ fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round;
-  transition: stroke-dashoffset 0.7s cubic-bezier(0.16,1,0.3,1); }
-.prog-hero-center{ position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.prog-hero-num{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; line-height: 1; color: var(--text); }
-.prog-hero-num span{ font-size: 15px; color: var(--text-dim); }
-.prog-hero-cap{ font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
-.prog-hero-side{ min-width: 0; }
 .prog-hero-trend{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; }
-.prog-hero-sub{ font-size: 11.5px; color: var(--text-dim); margin-top: 5px; line-height: 1.5; }
-.prog-hero-score{ font-size: 11px; color: var(--text-faint); margin-top: 7px; }
-.prog-hero-score strong{ color: var(--text); font-family: 'JetBrains Mono', monospace; }
 
 /* Generic visual bar — only used where a real denominator exists */
 .vbar{ height: 8px; background: var(--surface-3); border-radius: var(--radius-sm); overflow: hidden; }
@@ -1066,59 +1051,16 @@ html.intro-skip #introOverlay{ display: none !important; }
 .week-dots-label{ font-size: 11.5px; color: var(--text-dim); margin-left: 4px; }
 
 /* Level row */
-.lvl-row{ display: flex; align-items: center; gap: 14px; }
-.lvl-badge{ flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
-  color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent);
-  padding: 6px 10px; border-radius: var(--radius-sm); }
-.lvl-bar-wrap{ flex: 1; min-width: 0; }
-.lvl-cap{ font-size: 10.5px; color: var(--text-faint); margin-top: 6px; }
 
 /* Next milestone */
-.milestone{ padding: 14px 16px; border-radius: var(--radius-lg); background: var(--surface-2);
-  border: 1px solid var(--border); border-left: 3px solid var(--accent); cursor: pointer; }
-.ms-name{ font-size: 13px; font-weight: 700; color: var(--text); }
-.ms-jump{ font-family: 'JetBrains Mono', monospace; font-size: 21px; font-weight: 700; color: var(--text); margin: 5px 0 10px; }
-.ms-jump span{ color: var(--text-faint); margin: 0 4px; }
-.ms-cap{ font-size: 11px; color: var(--text-dim); margin-top: 8px; line-height: 1.45; }
 
 /* Getting stronger */
-.gs-list{ display: flex; flex-direction: column; gap: 16px; }
-.gs-row{ cursor: pointer; }
-.gs-top{ display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
-.gs-rank{ flex-shrink: 0; width: 19px; height: 19px; border-radius: 50%; background: var(--surface-3);
-  color: var(--text-faint); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center; }
-.gs-row:first-child .gs-rank{ background: var(--success-soft); color: var(--success); }
-.gs-name{ flex: 1; font-size: 12.5px; font-weight: 600; color: var(--text); min-width: 0; }
-.gs-delta{ flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700; color: var(--success); }
-.gs-cap{ font-size: 10px; color: var(--text-faint); margin-top: 5px; }
 
 /* Needs attention */
-.attn{ padding: 13px 15px; border-radius: var(--radius-md); background: var(--warning-soft);
-  border: 1px solid rgba(189,146,96,0.35); margin-bottom: 9px; cursor: pointer; }
-.attn-top{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-.attn-name{ font-size: 12.5px; font-weight: 700; color: var(--text); }
-.attn-tag{ flex-shrink: 0; font-size: 8.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
-  color: var(--warning); }
-.attn-cap{ font-size: 11px; color: var(--text-dim); margin-top: 8px; line-height: 1.45; }
 
 /* PR hero + timeline */
-.pr-hero{ text-align: center; padding: 10px 0 4px; }
-.pr-hero-num{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 40px; line-height: 1; color: var(--success); }
-.pr-hero-cap{ font-size: 11px; color: var(--text-faint); margin-top: 4px; }
-.pr-timeline{ display: flex; align-items: center; justify-content: center; margin-top: 14px; }
-.pr-node{ width: 9px; height: 9px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
-.pr-link{ flex: 1; max-width: 22px; height: 2px; background: var(--border); }
 
 /* Recent wins */
-.wins-list{ display: flex; flex-direction: column; }
-.win-row{ display: flex; align-items: center; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--border); }
-.win-row:last-child{ border-bottom: none; }
-.win-check{ flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--success-soft);
-  color: var(--success); font-size: 12px; display: flex; align-items: center; justify-content: center; }
-.win-body{ display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.win-text{ font-size: 12.5px; font-weight: 600; color: var(--text); }
-.win-sub{ font-size: 10.5px; color: var(--text-faint); }
 
 .prog-empty{ text-align: center; padding: 26px 12px; }
 .prog-empty-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
@@ -1128,19 +1070,14 @@ html.intro-skip #introOverlay{ display: none !important; }
   .hero-ring-fill, .vbar-fill{ transition: none; }
 }
 
-/* ---- Progress: analytics center ---- */
-.prog-hdr{ padding: 6px 0 4px; }
-.prog-trend-label{ font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
-.prog-trend{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 26px; margin-top: 5px; }
-.prog-improving{ color: var(--success); } .prog-steady{ color: var(--text); } .prog-declining{ color: var(--warning); }
-.prog-trend-sub{ font-size: 11.5px; color: var(--text-faint); margin-top: 4px; }
-.prog-stats{ margin-top: 18px; }
+ .prog-steady{ color: var(--text); } .prog-declining{ color: var(--warning); }
 
 .range-row{ display: flex; gap: 4px; }
 .range-btn{
   background: var(--surface-3); border: 1px solid transparent; color: var(--text-faint);
-  font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; padding: 8px 10px; min-height: 32px;
-  border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; padding: 0 12px;
+  min-height: 44px; min-width: 44px;
+  border-radius: var(--radius-sm); cursor: pointer; font-family: 'Inter', sans-serif;
 }
 .range-btn.active{ background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 
@@ -1609,6 +1546,96 @@ html.intro-skip #introOverlay{ display: none !important; }
 
 /* ---- History sub-view toggle ---- */
 .history-subview{ margin-top: 4px; }
+
+/* ---------- PROGRESS DASHBOARD (Phase D12.1) ----------
+   One reading, three indicators, then five cards of equal weight. Colour is
+   reserved for state — improving, on target, attention — and is never used to
+   decorate a card. */
+.pd-hero{ padding: 4px 0 2px; }
+.pd-hero-head{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 26px;
+  letter-spacing: -0.01em; color: var(--text);
+}
+.pd-hero-read{
+  display: flex; align-items: center; gap: 7px; margin-top: 10px;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px;
+}
+.pd-up{ color: var(--success); } .pd-down{ color: var(--warning); } .pd-flat{ color: var(--text-dim); }
+.pd-hero-line{ font-size: 13px; line-height: 1.5; color: var(--text-dim); margin-top: 7px; max-width: 46ch; }
+.pd-cov{ font-size: 10.5px; color: var(--text-faint); margin-top: 10px; font-family: 'JetBrains Mono', monospace; }
+
+.pd-tiles{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+.pd-tile{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 13px 10px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+.pd-tile-k{ font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.pd-tile-v{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px; line-height: 1.05; color: var(--text); }
+.pd-tile-v i{ font-style: normal; font-size: 14px; color: var(--text-dim); }
+.pd-tile-word{ font-size: 17px; }
+.pd-tile-s{ font-size: 10px; color: var(--text-faint); line-height: 1.35; }
+
+.pd-card{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px; margin-top: 12px;
+}
+.pd-card-tap{ cursor: pointer; }
+.pd-card-tap:hover{ border-color: var(--accent); }
+.pd-card-top{ display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.pd-card-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15.5px; margin: 0; color: var(--text); }
+.pd-card-sub{ font-size: 11.5px; color: var(--text-faint); margin: 4px 0 0; line-height: 1.4; }
+.pd-go{ display: flex; color: var(--text-faint); flex-shrink: 0; margin-top: 2px; }
+.pd-note{ font-size: 12.5px; color: var(--text-dim); margin-top: 12px; line-height: 1.5; }
+.pd-foot{ font-size: 12px; color: var(--text-dim); margin-top: 12px; }
+.pd-foot b{ color: var(--text); font-weight: 700; }
+.pd-delta{ display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 12px; font-weight: 600; }
+
+/* muscle development + exercise mastery share one row shape */
+.pd-mus, .pd-mas{ display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
+.pd-mus-row, .pd-mas-row{ display: flex; align-items: center; gap: 10px; }
+.pd-mus-name, .pd-mas-name{
+  flex: 0 0 92px; font-size: 12.5px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pd-mus-bar, .pd-mas-bar{ flex: 1; height: 7px; border-radius: 4px; background: var(--surface-3); overflow: hidden; min-width: 0; }
+.pd-mus-bar span, .pd-mas-bar span{ display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.pd-mus-lvl, .pd-mas-lvl{
+  flex: 0 0 auto; font-size: 10.5px; font-weight: 700; color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* consistency: one column per week */
+.pd-wks{ display: flex; align-items: flex-end; gap: 4px; height: 48px; margin-top: 14px; }
+.pd-wk{ flex: 1; height: 100%; display: flex; align-items: flex-end; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.pd-wk span{ display: block; width: 100%; background: var(--text-faint); border-radius: 3px; }
+.pd-wk.on span{ background: var(--success); }
+
+.pd-prs{ display: flex; flex-direction: column; gap: 2px; margin-top: 12px; }
+.pd-pr-row{ display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.pd-pr-row:last-child{ border-bottom: none; }
+.pd-pr-mark{ display: flex; color: var(--success); flex-shrink: 0; }
+.pd-pr-body{ display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pd-pr-name{ font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-pr-val{ font-size: 11px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
+.pd-more{
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  width: 100%; min-height: 44px; margin-top: 12px; background: none;
+  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-dim);
+  font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.pd-more:hover{ color: var(--accent); border-color: var(--accent); }
+#progAllRecords{ display: none; }
+#progAllRecords.open{ display: block; margin-top: 8px; }
+
+/* empty dashboard: describes what will appear, never a grid of zeroes */
+.pd-hero-empty .pd-hero-line{ margin-top: 10px; }
+.pd-empty-grid{ display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.pd-empty-card{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 5px;
+}
+.pd-empty-t{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); }
+.pd-empty-s{ font-size: 12px; color: var(--text-faint); line-height: 1.45; }
 
 /* ---------- LOG (Phase D12) ---------- */
 .log-hdr{ display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
@@ -3047,7 +3074,6 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 
   <div class="view" id="view-progress">
-    <div id="progHeader"></div>
 
     <div class="seg" id="progSeg">
       <button class="seg-btn active" data-p="overview" onclick="switchProgTab('overview')">Overview</button>
@@ -3058,9 +3084,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 
     <div class="seg-panel" id="ppanel-overview">
       <div id="progPerf"></div>
-      <div id="progImprovements"></div>
-      <div id="progAttention"></div>
-      <div id="progPRs"></div>
+      <div id="progAllRecords"></div>
     </div>
 
     <div class="seg-panel" id="ppanel-strength" style="display:none">
@@ -11948,226 +11972,307 @@ function renderAthleteDerived(){
   `;
 }
 
-function renderProgHeader(){
-  const el = document.getElementById('progHeader');
-  if(!el) return;
-  const cons = computeConsistencyData();
-  const totalPRs = computeAllPREvents().length;
-  const s = computeWeekSummary();
-  const trendLabel = { improving:'Improving', steady:'Holding steady', declining:'Easing off' }[cons.trend];
-  const trendArrow = trendIconSvg(trendDirOf(cons.trend));
-
-  if(!workoutLog.length){
-    el.innerHTML = '';
-    return;
-  }
-  el.innerHTML = `
-    <div class="prog-hdr">
-      <div class="prog-trend-label">Training trend</div>
-      <div class="prog-trend prog-${cons.trend}">${trendArrow} ${trendLabel}</div>
-      <div class="prog-trend-sub">${cons.totalWorkouts} workouts over the last 12 weeks</div>
-    </div>
-    <div class="snapshot prog-stats">
-      <div class="snap-item"><div class="snap-label">Total workouts</div><div class="snap-num">${workoutLog.length}</div></div>
-      <div class="snap-item"><div class="snap-label">Personal records</div><div class="snap-num">${totalPRs}</div></div>
-      <div class="snap-item"><div class="snap-label">Week streak</div><div class="snap-num">${computeWeekStreak()}</div></div>
-    </div>`;
-}
-
 function rangeBtns(){
   return `<div class="range-row">${[4,8,12].map(w =>
     `<button class="range-btn ${progRange===w?'active':''}" onclick="setProgRange(${w})">${w}W</button>`).join('')}</div>`;
 }
 
-/* Big progress ring. Used sparingly — one hero ring only. */
-function heroRingSvg(pct, size){
-  const r = 44, circ = 2 * Math.PI * r;
-  const p = Math.max(0, Math.min(100, pct)) / 100;
-  return `<svg class="hero-ring" viewBox="0 0 104 104" style="width:${size}px;height:${size}px">
-    <circle class="hero-ring-track" cx="52" cy="52" r="${r}"/>
-    <circle class="hero-ring-fill" cx="52" cy="52" r="${r}"
-      style="stroke-dasharray:${circ.toFixed(2)}; stroke-dashoffset:${(circ*(1-p)).toFixed(2)}"/>
-  </svg>`;
-}
 /* Labelled bar. Only ever rendered where a genuine denominator exists. */
 function barHtml(pct, cls){
   return `<div class="vbar ${cls||''}"><div class="vbar-fill" style="width:${Math.max(0,Math.min(100,pct)).toFixed(1)}%"></div></div>`;
 }
 
-function renderProgOverview(){
-  /* A brand-new user was shown "Holding steady - 0 workouts" above a row of
-     zeros and dashes, which reads as broken rather than empty. Show what
-     Progress will contain instead. */
+/* =========================================================
+   PROGRESS DASHBOARD  (Phase D12.1)
+   ---------------------------------------------------------
+   Visual summary -> interpretation -> detail.
+
+   Every number here comes from a calculation that already
+   existed: computeConsistencyData, computeImprovements,
+   computeWeeklyVolume, computeAllPREvents, getTopMuscleMastery
+   and getTopExerciseMastery. No new score is invented, nothing
+   is stored, and nothing is written.
+   ========================================================= */
+
+/* How much history actually backs the window being asked for. The dashboard
+   states this rather than drawing a 12-week trend over two weeks of data. */
+function progressCoverage(){
+  let weeksTracked = 0, firstDate = null;
+  workoutLog.forEach(l => { if(!firstDate || l.date < firstDate) firstDate = l.date; });
+  if(firstDate){
+    const days = Math.floor((Date.now() - new Date(firstDate + 'T00:00:00')) / 86400000);
+    weeksTracked = Math.max(1, Math.ceil((days + 1) / 7));
+  }
+  return { weeksTracked, firstDate, sessions: workoutLog.length };
+}
+
+/* One sentence, derived — never a template with an invented number in it. */
+function progressInterpretation(){
+  const cov = progressCoverage();
+  if(!cov.sessions) return null;
+
+  const cons = computeConsistencyData();
+  const imps = computeImprovements();
+  const gaining = imps.length;
+
+  if(cov.weeksTracked < 3){
+    return { dir:'flat', head:'Getting started',
+      line:`${cov.sessions} session${cov.sessions===1?'':'s'} logged over ${cov.weeksTracked} week${cov.weeksTracked===1?'':'s'}. Your trend appears once there is more to compare.` };
+  }
+  if(gaining && cons.trend !== 'declining'){
+    return { dir:'up', head:'Getting stronger',
+      line:`${gaining} lift${gaining===1?' has':'s have'} added weight recently, and you are training ${cons.trend === 'improving' ? 'more often than before' : 'at a steady rate'}.` };
+  }
+  if(cons.trend === 'improving'){
+    return { dir:'up', head:'Building momentum',
+      line:`You are training more often than you were — ${cons.totalWorkouts} sessions over the last 12 weeks.` };
+  }
+  if(cons.trend === 'declining'){
+    return { dir:'down', head:'Training has eased off',
+      line:`Fewer sessions than earlier in the period${gaining ? `, though ${gaining} lift${gaining===1?' is':'s are'} still moving up` : ''}.` };
+  }
+  return { dir:'flat', head:'Holding steady',
+    line:`${cons.totalWorkouts} sessions over the last 12 weeks, at a consistent rate.` };
+}
+
+/* Balance across the muscles this athlete actually trains. A descriptor, not a
+   measurement — LOOP knows training history, not body composition. */
+function muscleBalanceSummary(){
+  let trained = [];
+  try{ trained = getTopMuscleMastery().filter(m => m.hasHistory); }catch(e){ return null; }
+  if(trained.length < 3) return { label:'Building', detail:`${trained.length} muscle group${trained.length===1?'':'s'} trained so far` };
+  const levels = trained.map(m => m.level);
+  const spread = Math.max(...levels) - Math.min(...levels);
+  if(spread <= 1) return { label:'Balanced', detail:`${trained.length} groups within one level` };
+  if(spread <= 3) return { label:'Developing', detail:`${trained.length} groups, ${spread} levels apart` };
+  return { label:'Uneven', detail:`${trained.length} groups, ${spread} levels apart` };
+}
+
+function renderProgDashboard(){
+  const host = document.getElementById('progPerf');
+  if(!host) return;
+
+  /* Before any history, the dashboard describes what it will hold rather than
+     rendering a grid of zeroes. */
   if(!workoutLog.length){
-    document.getElementById('progPerf').innerHTML = `
-      <div class="prog-empty">
-        <div class="prog-empty-title">Your progress starts here</div>
-        <div class="prog-empty-sub">Log a workout and this becomes your training trend, strength progression, weekly volume and personal records.</div>
+    host.innerHTML = `
+      <div class="pd-hero pd-hero-empty">
+        <div class="pd-hero-head">Your Progress</div>
+        <div class="pd-hero-line">Log a few sessions and this becomes your strength trend, muscle development, consistency and records.</div>
+      </div>
+      <div class="pd-empty-grid">
+        <div class="pd-empty-card"><span class="pd-empty-t">Strength</span><span class="pd-empty-s">Your trend appears after a few workouts.</span></div>
+        <div class="pd-empty-card"><span class="pd-empty-t">Muscle development</span><span class="pd-empty-s">Train consistently to build your profile.</span></div>
+        <div class="pd-empty-card"><span class="pd-empty-t">Exercise mastery</span><span class="pd-empty-s">Levels grow as you repeat exercises.</span></div>
       </div>`;
-    ['progImprovements','progAttention','progPRs'].forEach(id => {
-      const el = document.getElementById(id); if(el) el.innerHTML = '';
-    });
     return;
   }
+
+  const interp = progressInterpretation();
   const cons = computeConsistencyData();
-  const s = computeWeekSummary();
-  const prog = getCurrentProgression();
-  const events = computeAllPREvents();
-  const { ready, stalled } = computeProgressionBuckets();
+  const cov = progressCoverage();
   const imps = computeImprovements();
+  const balance = muscleBalanceSummary();
 
-  /* ---- 1. HERO: 12-week consistency ring (real: completed / planned) ---- */
-  const hasTarget = cons.overallConsistency !== null;
-  const onTargetWeeks = cons.weeks.filter(w => w.target && w.workouts >= w.target).length;
+  /* ---- HERO: one reading, three supporting indicators ---- */
+  const tiles = [
+    `<div class="pd-tile">
+       <span class="pd-tile-k">Strength</span>
+       <span class="pd-tile-v">${imps.length ? imps.length : '—'}</span>
+       <span class="pd-tile-s">${imps.length ? `lift${imps.length===1?'':'s'} gaining` : 'no gains yet'}</span>
+     </div>`,
+    (function(){
+       const enoughWindow = cov.weeksTracked >= 4 && cons.overallConsistency !== null;
+       return `<div class="pd-tile">
+       <span class="pd-tile-k">Consistency</span>
+       <span class="pd-tile-v">${enoughWindow ? cons.overallConsistency + '<i>%</i>' : cons.totalWorkouts}</span>
+       <span class="pd-tile-s">${enoughWindow ? 'of planned sessions' : `session${cons.totalWorkouts===1?'':'s'} logged`}</span>
+     </div>`;
+     })(),
+    balance ? `<div class="pd-tile">
+       <span class="pd-tile-k">Muscle</span>
+       <span class="pd-tile-v pd-tile-word">${escapeHtml(balance.label)}</span>
+       <span class="pd-tile-s">${escapeHtml(balance.detail)}</span>
+     </div>` : ''
+  ].join('');
 
-  document.getElementById('progPerf').innerHTML = `
-    <div class="prog-hero">
-      <div class="prog-hero-ring">
-        ${heroRingSvg(hasTarget ? cons.overallConsistency : (cons.totalWorkouts ? 100 : 0), 108)}
-        <div class="prog-hero-center">
-          <div class="prog-hero-num">${hasTarget ? cons.overallConsistency + '<span>%</span>' : cons.totalWorkouts}</div>
-          <div class="prog-hero-cap">${hasTarget ? 'on target' : 'workouts'}</div>
-        </div>
-      </div>
-      <div class="prog-hero-side">
-        <div class="prog-hero-sub">${hasTarget
-          ? `${cons.totalWorkouts} of ${cons.totalPlanned} planned sessions<br>${onTargetWeeks} of 12 weeks fully on target`
-          : `over the last 12 weeks`}</div>
-      </div>
+  host.innerHTML = `
+    <div class="pd-hero">
+      <div class="pd-hero-head">Your Progress</div>
+      ${interp ? `<div class="pd-hero-read pd-${interp.dir}">${trendIconSvg(interp.dir, 18)}<span>${escapeHtml(interp.head)}</span></div>
+      <div class="pd-hero-line">${escapeHtml(interp.line)}</div>` : ''}
+      <div class="pd-tiles">${tiles}</div>
+      ${cov.weeksTracked < 12 ? `<div class="pd-cov">${cov.weeksTracked} week${cov.weeksTracked===1?'':'s'} tracked</div>` : ''}
     </div>
+    ${progStrengthCardHtml()}
+    ${progMuscleCardHtml()}
+    ${progConsistencyCardHtml()}
+    ${progPRCardHtml()}
+    ${progMasteryCardHtml()}`;
+}
 
-    <div class="sec-head">Next level</div>
-    <div class="lvl-row">
-      <div class="lvl-badge">LV ${prog.level}</div>
-      <div class="lvl-bar-wrap">
-        ${barHtml((prog.currentXP / prog.xpForNext) * 100, 'vbar-accent')}
-        <div class="lvl-cap">${prog.currentXP.toLocaleString()} / ${prog.xpForNext.toLocaleString()} XP · ${(prog.xpForNext - prog.currentXP).toLocaleString()} to Level ${prog.level + 1}</div>
-      </div>
-    </div>
-    ${prog.cardioXP > 0 ? `
-      <div class="xp-split">
-        <div class="xp-split-seg xp-split-strength" style="flex:${prog.strengthXP}"></div>
-        <div class="xp-split-seg xp-split-cardio" style="flex:${prog.cardioXP}"></div>
-      </div>
-      <div class="xp-split-legend">
-        <span><i class="xp-split-strength"></i>Strength ${prog.strengthXP.toLocaleString()}</span>
-        <span><i class="xp-split-cardio"></i>Cardio ${prog.cardioXP.toLocaleString()}</span>
-      </div>` : ''}`;
-
-  /* ---- 2. NEXT MILESTONE: closest lift to earning a weight increase ---- */
-  let milestoneHtml = '';
-  if(ready.length){
-    const r = ready[0];
-    const rp = repProgressToward(r.name);
-    milestoneHtml = `
-      <div class="sec-head">Next milestone</div>
-      <div class="milestone" onclick="openExDetail('${escapeAttr(r.name)}')">
-        <div class="ms-name">${escapeHtml(r.name)}</div>
-        <div class="ms-jump">${rp ? rp.weight : ''} <span>→</span> ${r.rec.weight} lb</div>
-        ${barHtml(100, 'vbar-success')}
-        <div class="ms-cap">Ready now — you hit the top of your rep range with reps left over.</div>
-      </div>`;
-  } else {
-    // Nearest lift still climbing through its range — genuine, checkable progress
-    const climbing = getAllLoggedExerciseNames()
-      .map(n => ({ n, rp: repProgressToward(n) }))
-      .filter(x => x.rp && x.rp.pct > 0 && x.rp.pct < 100)
-      .sort((a,b) => b.rp.pct - a.rp.pct)[0];
-    if(climbing){
-      const inc = progressionIncrement(climbing.n, climbing.rp.weight);
-      milestoneHtml = `
-        <div class="sec-head">Next milestone</div>
-        <div class="milestone" onclick="openExDetail('${escapeAttr(climbing.n)}')">
-          <div class="ms-name">${escapeHtml(climbing.n)}</div>
-          <div class="ms-jump">${climbing.rp.weight} <span>→</span> ${climbing.rp.weight + inc} lb</div>
-          ${barHtml(climbing.rp.pct, 'vbar-accent')}
-          <div class="ms-cap">${climbing.rp.reps} of ${climbing.rp.max} reps at ${climbing.rp.weight} lb — reach ${climbing.rp.max} to earn the increase.</div>
-        </div>`;
-    }
+/* ---- STRENGTH: the existing weekly-volume series, labelled for what it is ---- */
+function progStrengthCardHtml(){
+  const buckets = computeWeeklyVolume(progRange);
+  const hasAny = buckets.some(b => b.volume > 0);
+  const withVol = buckets.filter(b => b.volume > 0);
+  let delta = null;
+  if(withVol.length >= 4){
+    const half = Math.floor(withVol.length / 2);
+    const early = withVol.slice(0, half).reduce((n,b)=>n+b.volume,0) / half;
+    const late = withVol.slice(-half).reduce((n,b)=>n+b.volume,0) / half;
+    if(early > 0) delta = Math.round(((late - early) / early) * 100);
   }
-  document.getElementById('progImprovements').innerHTML = milestoneHtml + (imps.length ? `
-    <div class="sec-head">Getting stronger</div>
-    <div class="gs-list">${imps.slice(0,3).map((i,idx) => {
-      const rel = Math.min(100, Math.max(18, i.sortVal));
-      return `
-      <div class="gs-row" onclick="openExDetail('${escapeAttr(i.name)}')">
-        <div class="gs-top">
-          <span class="gs-rank">${idx+1}</span>
-          <span class="gs-name">${escapeHtml(i.name)}</span>
-          <span class="gs-delta">${i.deltaText}</span>
+  return `
+    <section class="pd-card">
+      <div class="pd-card-top">
+        <div>
+          <h3 class="pd-card-title">Strength</h3>
+          <p class="pd-card-sub">Total weight lifted per week</p>
         </div>
-        ${barHtml(rel, 'vbar-success')}
-        <div class="gs-cap">${i.sessions} sessions tracked</div>
-      </div>`;
-    }).join('')}</div>` : '');
-
-  /* ---- 3. TRAINING DISTRIBUTION + NEEDS ATTENTION ---- */
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 84);
-  const catSets = {}; ORDER.forEach(c => catSets[c] = 0);
-  workoutLog.forEach(l => {
-    if(new Date(l.date + 'T00:00:00') < cutoff) return;
-    const n = l.exercises.reduce((m,ex) => m + (ex.sets||[]).length, 0);
-    if(catSets[l.category] !== undefined) catSets[l.category] += n;
-  });
-  const catMax = Math.max(1, ...Object.values(catSets));
-  const anyCat = Object.values(catSets).some(v => v > 0);
-
-  document.getElementById('progAttention').innerHTML = `
-    ${anyCat ? `<div class="sec-head">Training distribution<span class="sec-hint">last 12 weeks</span></div>
-    <div class="dist-list">${ORDER.filter(c => catSets[c] > 0).map(c => `
-      <div class="dist-row">
-        <span class="dist-label">${CAT_LABEL[c]}</span>
-        <div class="dist-track"><div class="dist-fill dist-${c}" style="width:${((catSets[c]/catMax)*100).toFixed(1)}%"></div></div>
-        <span class="dist-val">${catSets[c]}</span>
-      </div>`).join('')}</div>
-    <div class="muscle-foot">Sets logged by category — a picture of where your time goes, not a verdict on balance.</div>` : ''}
-
-    ${stalled.length ? `<div class="sec-head">Needs attention</div>
-    ${stalled.slice(0,2).map(st => {
-      const p = detectPlateau(st.name);
-      const sess = p ? p.sessions : 3;
-      return `<div class="attn" onclick="openExDetail('${escapeAttr(st.name)}')">
-        <div class="attn-top"><span class="attn-name">${escapeHtml(st.name)}</span><span class="attn-tag">Plateau</span></div>
-        ${barHtml(Math.min(100, sess * 20), 'vbar-warn')}
-        <div class="attn-cap">${escapeHtml(st.rec.why)}</div>
-      </div>`;
-    }).join('')}` : ''}`;
-
-  /* ---- 4. RECENT WINS + PR count ---- */
-  const wins = [];
-  events.slice(0,3).forEach(ev => {
-    const f = formatPREventHeadline(ev);
-    if(f) wins.push({ text: `${ev.exerciseName} — ${f.current}`, sub: `${f.label} · ${f.delta}` });
-  });
-  const recentPRs = events.filter(ev => {
-    const d = new Date(ev.date + 'T00:00:00');
-    const cut = new Date(); cut.setDate(cut.getDate() - 30);
-    return d >= cut;
-  }).length;
-
-  document.getElementById('progPRs').innerHTML = `
-    <div class="sec-head">Personal records<span class="sec-hint">${events.length} total</span></div>
-    ${events.length ? `
-      <div class="pr-hero">
-        <div class="pr-hero-num">${recentPRs}</div>
-        <div class="pr-hero-cap">set in the last 30 days</div>
-        <div class="pr-timeline">${events.slice(0,10).reverse().map(ev =>
-          `<span class="pr-node" title="${escapeAttr(ev.exerciseName)}"></span>`).join('<span class="pr-link"></span>')}</div>
+        ${rangeBtns()}
       </div>
-      <div class="sec-head">Recent wins</div>
-      <div class="wins-list">${wins.map(w => `
-        <div class="win-row">
-          <span class="win-check">✓</span>
-          <span class="win-body"><span class="win-text">${escapeHtml(w.text)}</span><span class="win-sub">${escapeHtml(w.sub)}</span></span>
+      ${hasAny ? `
+        ${delta !== null ? `<div class="pd-delta pd-${delta > 2 ? 'up' : delta < -2 ? 'down' : 'flat'}">
+          ${trendIconSvg(delta > 2 ? 'up' : delta < -2 ? 'down' : 'flat', 15)}
+          <span>${delta > 0 ? '+' : ''}${delta}% vs the first half of this window</span></div>` : ''}
+        ${volumeBarSvg(buckets)}`
+      : `<div class="pd-note">Log weighted sets and your weekly volume appears here.</div>`}
+    </section>`;
+}
+
+/* ---- MUSCLE DEVELOPMENT: the existing muscle mastery ranking, promoted ---- */
+function progMuscleCardHtml(){
+  let list = [];
+  try{ list = getTopMuscleMastery().filter(m => m.hasHistory); }catch(e){}
+  if(!list.length){
+    return `<section class="pd-card"><h3 class="pd-card-title">Muscle development</h3>
+      <div class="pd-note">Train consistently and your development profile builds here.</div></section>`;
+  }
+  const top = list.slice(0, 5);
+  const maxLvl = Math.max(...list.map(m => m.level), 1);
+  return `
+    <section class="pd-card pd-card-tap" onclick="switchProgTab('muscles')" role="button" tabindex="0">
+      <div class="pd-card-top">
+        <div>
+          <h3 class="pd-card-title">Muscle development</h3>
+          <p class="pd-card-sub">From what you have trained, not a body measurement</p>
+        </div>
+        <span class="pd-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </div>
+      <div class="pd-mus">${top.map(m => `
+        <div class="pd-mus-row">
+          <span class="pd-mus-name">${escapeHtml(m.label)}</span>
+          <span class="pd-mus-bar"><span style="width:${Math.round((m.level / maxLvl) * 100)}%"></span></span>
+          <span class="pd-mus-lvl">Lv ${m.level}</span>
         </div>`).join('')}</div>
-      <div class="sec-head">All records</div>
+    </section>`;
+}
+
+/* ---- CONSISTENCY: the existing weekly series as an activity strip ---- */
+function progConsistencyCardHtml(){
+  const cons = computeConsistencyData();
+  const weeks = (cons.weeks || []).slice(-12);
+  if(!weeks.length) return '';
+  const peak = Math.max(1, ...weeks.map(w => Math.max(w.workouts, w.target || 0)));
+  const cells = weeks.map(w => {
+    const onTarget = w.target ? w.workouts >= w.target : w.workouts > 0;
+    const h = Math.round((w.workouts / peak) * 100);
+    return `<span class="pd-wk${onTarget ? ' on' : ''}" role="img" aria-label="${w.workouts} session${w.workouts===1?'':'s'}"><span style="height:${Math.max(h, w.workouts?14:5)}%"></span></span>`;
+  }).join('');
+  return `
+    <section class="pd-card pd-card-tap" onclick="switchTab('history')" role="button" tabindex="0">
+      <div class="pd-card-top">
+        <div>
+          <h3 class="pd-card-title">Consistency</h3>
+          <p class="pd-card-sub">Sessions per week, last 12 weeks</p>
+        </div>
+        <span class="pd-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </div>
+      <div class="pd-wks">${cells}</div>
+      <div class="pd-foot"><b>${cons.totalWorkouts}</b> session${cons.totalWorkouts===1?'':'s'}${
+        (progressCoverage().weeksTracked >= 4 && cons.overallConsistency !== null)
+          ? ` · ${cons.overallConsistency}% of planned` : ''}</div>
+    </section>`;
+}
+
+/* ---- RECORDS: recent achievements, not a directory ---- */
+function progPRCardHtml(){
+  const events = computeAllPREvents();
+  if(!events.length){
+    return `<section class="pd-card"><h3 class="pd-card-title">Records</h3>
+      <div class="pd-note">Your records appear here once you beat a previous session.</div></section>`;
+  }
+  const cut = new Date(); cut.setDate(cut.getDate() - 30);
+  const recent = events.filter(ev => new Date(ev.date + 'T00:00:00') >= cut).length;
+  const rows = events.slice(0, 3).map(ev => {
+    const f = formatPREventHeadline(ev);
+    if(!f) return '';
+    return `<div class="pd-pr-row">
+      <span class="pd-pr-mark" aria-hidden="true">${trophyIconSvg()}</span>
+      <span class="pd-pr-body">
+        <span class="pd-pr-name">${escapeHtml(ev.exerciseName)}</span>
+        <span class="pd-pr-val">${escapeHtml(f.current)} · ${escapeHtml(f.label)}</span>
+      </span>
+    </div>`;
+  }).join('');
+  return `
+    <section class="pd-card">
+      <div class="pd-card-top">
+        <div>
+          <h3 class="pd-card-title">Records</h3>
+          <p class="pd-card-sub">${recent ? `${recent} set in the last 30 days` : `${events.length} all time`}</p>
+        </div>
+      </div>
+      <div class="pd-prs">${rows}</div>
+      <button type="button" class="pd-more" onclick="event.stopPropagation(); openAllRecords()">All records ${chevronRightSvg()}</button>
+    </section>`;
+}
+
+/* ---- MASTERY: a curated few, with the full directory one tap deeper ---- */
+function progMasteryCardHtml(){
+  let list = [];
+  try{ list = getTopExerciseMastery(3).filter(m => m.hasHistory); }catch(e){}
+  if(!list.length){
+    return `<section class="pd-card"><h3 class="pd-card-title">Exercise mastery</h3>
+      <div class="pd-note">Levels grow as you repeat an exercise across weeks and months.</div></section>`;
+  }
+  return `
+    <section class="pd-card pd-card-tap" onclick="switchProgTab('muscles')" role="button" tabindex="0">
+      <div class="pd-card-top">
+        <div>
+          <h3 class="pd-card-title">Exercise mastery</h3>
+          <p class="pd-card-sub">The movements you have trained most</p>
+        </div>
+        <span class="pd-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </div>
+      <div class="pd-mas">${list.map(m => `
+        <div class="pd-mas-row">
+          <span class="pd-mas-name">${escapeHtml(m.displayName)}</span>
+          <span class="pd-mas-bar"><span style="width:${m.percent}%"></span></span>
+          <span class="pd-mas-lvl">Lv ${m.level}</span>
+        </div>`).join('')}</div>
+    </section>`;
+}
+
+/* The full record directory kept its behaviour and moved one tap deeper. */
+function openAllRecords(){
+  const el = document.getElementById('progAllRecords');
+  if(!el) return;
+  const open = el.classList.toggle('open');
+  if(open){
+    el.innerHTML = `<div class="sec-head">All records</div>
       <select id="prHistoryFilter" onchange="renderPRHistory()"></select>
-      <div id="prHistoryList"></div>`
-    : `<div class="prog-empty">
-        <div class="prog-empty-title">Building your base</div>
-        <div class="prog-empty-sub">Your records will start appearing here once you beat a previous session.</div>
-      </div>`}`;
-  if(events.length) renderPRHistory();
+      <div id="prHistoryList"></div>`;
+    renderPRHistory();
+    el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+function trophyIconSvg(){
+  return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4.5 2.5h7v3a3.5 3.5 0 0 1-7 0v-3Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M4.5 3.5h-2v1a2 2 0 0 0 2 2M11.5 3.5h2v1a2 2 0 0 1-2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 9v3M5.5 13.5h5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 }
 
 function renderProgStrength(){
@@ -12303,8 +12408,7 @@ function renderProgMuscles(){
 }
 
 function renderProgTab(){
-  renderProgHeader();
-  if(progTab === 'overview') renderProgOverview();
+  if(progTab === 'overview') renderProgDashboard();
   else if(progTab === 'strength') renderProgStrength();
   else if(progTab === 'volume') renderProgVolume();
   else if(progTab === 'muscles') renderProgMuscles();
