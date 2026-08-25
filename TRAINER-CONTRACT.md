@@ -1209,3 +1209,85 @@ per exercise.
 
 The badge is a border, a tint **and** the word "PR", with an aria-label naming
 which record it was — three signals, one of them colour.
+
+---
+
+## 23. Premium polish, honest visualisation (Phase D13)
+
+### A gesture the browser does not argue with
+
+Holding a day was raising the browser's own text-selection machinery —
+highlight boxes, the iOS callout, and a native drag ghost running a second
+competing drag. All three are suppressed, **on the week strip only**: selection
+stays available everywhere else, and a contract checks that every rule which
+disables it names `.wk-day` or `.wk-days`. A selection that began during the
+hold is cleared as the lift starts, and the slot the workout left now holds
+its shape with a real placeholder element rather than becoming a gap.
+
+### A scheduled day is a scheduled day
+
+D12 gave every non-today card the rest-day action, so a Thursday that already
+had Upper C offered *"Train anyway"* — which reads as though nothing was
+planned. That was a regression introduced by the previous phase, not an
+original defect.
+
+A planned day now names its workout, shows what is in it, and starts it.
+*"Train anyway"* belongs to rest days, and a contract asserts it appears in the
+rest branch and **not** in the planned branch, so the two cannot merge again.
+
+### Order that helps, without changing behaviour
+
+`ORDER` is not just a list — `nextCategory()` rotates through it, so reordering
+the array would silently change which workout every athlete is offered next.
+The offered order is therefore its own constant, and `ORDER` keeps its job.
+
+Presentation runs most-complete to most-specialised — Full Body, Upper/Lower,
+Push/Pull/Legs, Core — with the categories the athlete's own week actually uses
+promoted ahead of it. Insertion order had it exactly backwards.
+
+### The time fits its ring
+
+`.rest-panel-time` carried a 20px size from before the dial existed, and being
+declared later in the stylesheet it beat the 14px the dial asked for. Measured:
+"3:00" left **2px** of clearance and "10:00" **overflowed the ring**. The dial
+owns the size now; every value from `0:05` to `10:00` clears the stroke.
+
+### One replacement, and a real answer when nothing fits
+
+There was only ever one action; the copy called it two things, saying "Swaps
+this exercise" under a button labelled Replace and pointing at a "swap list"
+that does not exist by that name.
+
+The substantive change is the dead end. "No close alternative found" left the
+athlete with nothing to do. The **same engine** now runs a second pass with a
+lower score floor — `substitutionHardReject` is untouched, so a fallback can
+still never be an exercise already in today's workout, one needing equipment
+the gym lacks, or one the movement rules forbid. Only the floor moves.
+
+### Actual vs planned, and nothing more
+
+Two series, drawn differently on purpose:
+
+- **Actual** — solid. Working sets really logged, counted from `workoutLog`.
+- **Planned** — outlined. What the cycle *intends* for that week, from its phase.
+
+The planned height is the athlete's own **median** weekly volume scaled by the
+phase's stated purpose. A deload is drawn lower because the programme says a
+deload is lighter — not because LOOP predicts anything. The footnote says so in
+the product, not just here: *a plan, not a prediction*.
+
+Below three logged weeks there is no honest baseline, so no shape is drawn at
+all and the card says **"Not enough history yet"**. Without a cycle there is no
+planned series — the chart shows real weeks only and says what would give it a
+path to compare against. No future week ever carries an actual value.
+
+> A graph is not premium because it is a graph. Drawing a confident line
+> through data that cannot support one is the least premium thing an app can do.
+
+### Tabs open at their top
+
+Restoring per-tab scroll left the athlete halfway down a screen they had just
+asked to see, and made the same tap give a different result each time. The five
+bottom tabs now open at their top; the per-tab memory is deleted rather than
+left unused. The workout is an overlay and never passes through `switchTab`, so
+nothing about draft state is touched.

@@ -232,14 +232,15 @@ html.intro-skip #introOverlay{ display: none !important; }
 .header-actions{ display: flex; align-items: center; gap: 8px; }
 .plan-chip{
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
-  padding: 6px 12px; border-radius: 20px; cursor: pointer; text-align: left;
+  padding: 6px 12px; min-height: 44px; justify-content: center;
+  border-radius: 20px; cursor: pointer; text-align: left;
   display: flex; flex-direction: column; gap: 1px; max-width: 150px; overflow: hidden;
   transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
 }
 .plan-chip:hover{ border-color: var(--accent); }
 .plan-chip-label{ font-size: 8px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); line-height: 1.2; }
 .plan-chip-name{ font-size: 11.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
-.settings-gear{
+.settings-gear{ min-width: 44px; min-height: 44px;
   position: relative; flex-shrink: 0;
   width: 40px; height: 40px; border-radius: 50%;
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
@@ -1118,6 +1119,78 @@ html.intro-skip #introOverlay{ display: none !important; }
 .cmp-delta{ width: 16px; text-align: center; font-size: 13px; color: var(--text-faint); }
 .cmp-delta.up{ color: var(--success); } .cmp-delta.down{ color: var(--warning); }
 
+/* ---------- MY TRAINING SUMMARY (Phase D13) ---------- */
+.mt-stats{ display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); margin-top: var(--space-4); }
+.mt-stat{
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-3); background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); min-width: 0;
+}
+.mt-stat-wide{ grid-column: 1 / -1; }
+.mt-stat-v{
+  font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mt-stat-wide .mt-stat-v{ font-family: 'Inter', sans-serif; font-size: 16px; }
+.mt-stat-l{ font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-faint); }
+.mt-stat-s{ font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- TRAJECTORY (Phase D13) ----------
+   Solid is what happened; outlined is what the cycle intends. The two are
+   told apart by fill and border, not by hue, so the distinction survives
+   without colour vision. */
+.trj{ margin-top: var(--space-2); }
+.trj-key{ display: flex; gap: var(--space-4); margin-bottom: var(--space-3); }
+.trj-key-item{ display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
+.trj-swatch{ width: 12px; height: 12px; border-radius: 3px; }
+.trj-swatch-actual{ background: var(--accent); }
+.trj-swatch-planned{ border: 1px dashed var(--text-faint); background: none; }
+.trj-chart{
+  display: flex; align-items: flex-end; gap: 4px; height: 132px;
+  overflow-x: auto; overflow-y: hidden; padding-bottom: 2px;
+  overscroll-behavior-x: contain;
+}
+.trj-col{ flex: 1 0 26px; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 26px; }
+.trj-stack{ position: relative; width: 100%; height: 100px; display: flex; align-items: flex-end; justify-content: center; }
+.trj-planned{
+  position: absolute; bottom: 0; left: 0; right: 0;
+  border: 1px dashed var(--text-faint); border-radius: 3px 3px 0 0; background: none;
+}
+.trj-deload{ border-style: dotted; }
+.trj-actual{
+  position: relative; width: 68%; background: var(--accent);
+  border-radius: 3px 3px 0 0; min-height: 2px;
+}
+.trj-col.trj-now .trj-actual{ background: var(--success); }
+.trj-label{ font-size: 9px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
+.trj-tag{
+  font-size: 8px; font-weight: 800; letter-spacing: 0.06em; color: var(--warning);
+}
+.trj-foot{ font-size: 11.5px; line-height: 1.5; color: var(--text-faint); margin-top: var(--space-3); }
+.trj-empty{
+  padding: var(--space-4); background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); margin-top: var(--space-2);
+}
+.trj-empty-title{ font-size: 14px; font-weight: 700; color: var(--text); }
+.trj-empty-sub{ font-size: 12.5px; line-height: 1.55; color: var(--text-dim); margin-top: 5px; }
+
+/* Most trained exercises — a ranked summary, not a directory */
+.mtx-list{ display: flex; flex-direction: column; gap: 7px; }
+.mtx-row{ display: grid; grid-template-columns: 1fr 72px auto; align-items: center; gap: 10px; }
+.mtx-name{
+  font-size: 13px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mtx-bar{ height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.mtx-fill{ display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.mtx-n{
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+  color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.mtx-n span{ font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 500; color: var(--text-faint); margin-left: 3px; }
+.mt-empty{ font-size: 12.5px; line-height: 1.55; color: var(--text-dim); }
+
 /* Most trained */
 /* ---------- D10.1: every sheet stops stretching on a wide viewport ----------
    D10 capped only the workout's own content column. Landscape phones are wide
@@ -1522,14 +1595,14 @@ html.intro-skip #introOverlay{ display: none !important; }
 .tpl-actions{ display: flex; gap: 10px; flex-shrink: 0; }
 .tpl-edit, .tpl-del{
   background: none; border: 1px solid var(--border); color: var(--text-faint);
-  width: 36px; height: 36px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
+  width: 44px; height: 44px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
   transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
 }
 .tpl-edit:hover{ border-color: var(--accent); color: var(--accent); }
 .tpl-del:hover{ border-color: var(--danger); color: var(--danger); }
 .tpl-start{
   width: 100%; margin-top: 14px; background: var(--accent); color: #0C0E12; border: none;
-  padding: 11px; border-radius: var(--radius-md); font-weight: 700; font-size: 13.5px; cursor: pointer;
+  padding: 11px; min-height: 44px; border-radius: var(--radius-md); font-weight: 700; font-size: 13.5px; cursor: pointer;
   box-shadow: var(--shadow-accent); transition: transform 0.12s var(--ease), box-shadow 0.18s var(--ease), opacity 0.15s var(--ease);
 }
 .tpl-start:hover{ opacity: 0.94; }
@@ -1938,7 +2011,17 @@ button.cal-cell:active{ transform: scale(0.92); }
    Selection is a ring and a raised label, not a colour swap — the strip
    already uses colour for training category, so selection had to speak in a
    different channel. */
-.wk-day{ touch-action: pan-y; }
+.wk-day{
+  touch-action: pan-y;
+  /* Scoped to the strip: a long press here is a gesture, so none of the
+     browser's selection behaviour should answer it. */
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.wk-days.wk-drag-mode, .wk-days.wk-drag-mode *{
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
 .wk-day.wk-selected{
   box-shadow: inset 0 0 0 2px var(--accent);
   border-radius: var(--radius-md);
@@ -1955,6 +2038,14 @@ button.cal-cell:active{ transform: scale(0.92); }
   opacity: 0.96;
   transition: none;
 }
+/* Where it came from. A transform leaves the layout box behind, so the slot
+   is really still there — this makes it read as a slot rather than a gap. */
+.wk-placeholder{
+  position: absolute; pointer-events: none; z-index: 1;
+  border: 1px dashed var(--text-faint); border-radius: var(--radius-md);
+  background: var(--surface-3); opacity: 0.35;
+}
+.wk-days{ position: relative; }
 /* Where it may land. A dashed edge as well as a tint, so the drop targets do
    not depend on seeing the accent. */
 .wk-day.wk-drop-ok{
@@ -2003,6 +2094,12 @@ button.cal-cell:active{ transform: scale(0.92); }
   color: var(--accent); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
 }
 .tw-other{ touch-action: pan-y; }
+.tw-exlist{ display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.tw-ex{
+  font-size: 11px; color: var(--text-dim); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 3px 7px;
+}
+.tw-ex-more{ color: var(--text-faint); background: none; border-style: dashed; }
 
 @media (prefers-reduced-motion: reduce){
   .wk-day.wk-reject{ animation: none; outline: 2px solid var(--danger); }
@@ -2714,7 +2811,12 @@ body.page-locked{ overflow: hidden; }
 }
 .rest-dial-time{
   position: relative; font-family: 'JetBrains Mono', monospace;
-  font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.02em;
+  /* Sized so the longest value a rest timer realistically shows still clears
+     the stroke: 5 characters at this size measure under the 48px the ring
+     leaves inside itself. */
+  font-size: 15px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.04em; font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 .rest-dial-check{
   position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
@@ -2757,7 +2859,9 @@ body.page-locked{ overflow: hidden; }
 .rest-panel.done{ background: var(--full-soft); border-color: var(--full); }
 .rest-panel-info{ display: flex; flex-direction: column; }
 .rest-panel-label{ font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
-.rest-panel-time{ font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--text); }
+/* Size belongs to the dial now — this rule kept overriding it from further
+   down the stylesheet. Colour and family stay; the dial owns the scale. */
+.rest-panel-time{ font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text); }
 .rest-panel.done .rest-panel-time{ color: var(--full); }
 .rest-panel-controls{ display: flex; gap: 6px; flex-shrink: 0; }
 .rest-panel-btn{
@@ -3028,6 +3132,12 @@ body.page-locked{ overflow: hidden; }
 .sub-option-name{ font-size: 14px; font-weight: 600; color: var(--text); }
 .sub-option-why{ font-size: 11.5px; color: var(--text-dim); line-height: 1.35; }
 .sub-option-arrow{ color: var(--text-faint); font-size: 18px; line-height: 1; flex-shrink: 0; }
+.sub-none{
+  padding: var(--space-4) var(--space-3); margin-top: var(--space-3);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.sub-none-title{ font-size: 14px; font-weight: 700; color: var(--text); }
+.sub-none-sub{ font-size: 12.5px; line-height: 1.5; color: var(--text-dim); margin-top: 5px; }
 .sub-empty{ font-size: 13px; color: var(--text-dim); line-height: 1.5; padding: var(--space-4) 0; }
 
 /* ---------- WORKOUT TIME MODE (Phase D3) ---------- */
@@ -4706,6 +4816,24 @@ async function runMigrations(){
 }
 
 const ORDER = ['push','pull','legs','upper','lower','core','fullbody'];
+/* Presentation only. ORDER stays the canonical sequence because
+   nextCategory() rotates through it — changing that would change which
+   workout an athlete is offered next, which is not a display decision. */
+const CATEGORY_DISPLAY_ORDER = ['fullbody','upper','lower','push','pull','legs','core'];
+/* The categories this athlete's own week actually uses come first, because a
+   list that opens with something they never train is a list they have to read
+   past. Everything else follows in the standard order, so nothing disappears. */
+function categoriesForDisplay(){
+  const mine = [];
+  try{
+    DAY_ORDER.forEach(k => {
+      const c = schedule && schedule[k];
+      if(c && c !== 'rest' && mine.indexOf(c) === -1 && CATEGORY_DISPLAY_ORDER.indexOf(c) !== -1) mine.push(c);
+    });
+  }catch(e){}
+  mine.sort((a, b) => CATEGORY_DISPLAY_ORDER.indexOf(a) - CATEGORY_DISPLAY_ORDER.indexOf(b));
+  return mine.concat(CATEGORY_DISPLAY_ORDER.filter(c => mine.indexOf(c) === -1));
+}
 const CAT_LABEL = { push:'Push', pull:'Pull', legs:'Legs', upper:'Upper Body', lower:'Lower Body', core:'Core', fullbody:'Full Body' };
 
 function T(name, sets, reps, effort, recommended){ return {name, sets, reps, effort, recommended: recommended||'—'}; }
@@ -7344,15 +7472,18 @@ function getTopCoachInsight(){
 
 
 /* ---------- TAB SWITCHING ---------- */
-let tabScrollPositions = {};
 let currentTab = 'today';
 function switchTab(tab){
-  tabScrollPositions[currentTab] = window.scrollY;
   currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + tab).classList.add('active');
-  window.scrollTo(0, tabScrollPositions[tab] || 0);
+  /* A top-level tab opens at its top. Restoring where the athlete happened to
+     be left them halfway down a screen they had just asked to see, and made
+     the same tap give a different result each time. Nothing inside a workflow
+     is affected — this is only the five bottom tabs, and the workout page is
+     an overlay that never passes through here. */
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 /* Tap the dimmed backdrop to dismiss a sheet — but only wired onto sheets
@@ -10561,7 +10692,9 @@ function renderHeatmap(){
 
   const streak = computeWeekStreak();
   const trendLabel = { improving:'Improving', steady:'Steady', declining:'Easing off' }[data.trend];
-  const trendArrow = { improving:'&#8599;', steady:'&#8594;', declining:'&#8600;' }[data.trend];
+  /* The same drawn mark the rest of the app uses. The label beside it says the
+   same thing in words, so neither the shape nor the colour stands alone. */
+const trendArrow = trendIconSvg(trendDirOf(data.trend), 13);
 
   el.innerHTML = `
     <div class="cons-header">${headline}</div>
@@ -10774,6 +10907,17 @@ function beginWeekDrag(cell, ev){
   _wkDrag.stripRect = strip.getBoundingClientRect();
   cell.classList.add('wk-dragging');
   strip.classList.add('wk-drag-mode');
+  /* A selection may already have begun during the hold; drop it so no blue
+     box survives into the drag. */
+  try{ const sel = window.getSelection && window.getSelection(); if(sel && sel.removeAllRanges) sel.removeAllRanges(); }catch(e){}
+  const ph = document.createElement('div');
+  ph.className = 'wk-placeholder';
+  ph.style.left   = (rect.left - _wkDrag.stripRect.left) + 'px';
+  ph.style.top    = (rect.top - _wkDrag.stripRect.top) + 'px';
+  ph.style.width  = rect.width + 'px';
+  ph.style.height = rect.height + 'px';
+  strip.appendChild(ph);
+  _wkDrag.placeholder = ph;
   /* Every day the workout could land on is marked, so the athlete is never
      guessing where a drop is allowed. */
   [...strip.querySelectorAll('.wk-day')].forEach(c => {
@@ -10803,6 +10947,7 @@ function endWeekDrag(commit){
   if(d.holdTimer){ clearTimeout(d.holdTimer); d.holdTimer = null; }
   if(d.active && d.cell){
     const strip = d.cell.parentElement;
+    if(d.placeholder && d.placeholder.parentElement) d.placeholder.remove();
     d.cell.classList.remove('wk-dragging');
     d.cell.style.transform = '';
     strip.classList.remove('wk-drag-mode');
@@ -10920,6 +11065,11 @@ function attachWeekGestures(){
     if(!wasDrag && !moved && key) setSelectedDay(key);   // a plain tap selects
   });
   strip.addEventListener('pointercancel', () => endWeekDrag(false));
+  /* Chrome will otherwise draw its own translucent copy of the cell and run a
+     second, competing drag. */
+  strip.addEventListener('dragstart', ev => ev.preventDefault());
+  strip.addEventListener('selectstart', ev => { if(_wkDrag) ev.preventDefault(); });
+  strip.addEventListener('contextmenu', ev => { if(_wkDrag && _wkDrag.active) ev.preventDefault(); });
 }
 
 /* ---------- the selected day, when it is not today ----------
@@ -10985,18 +11135,47 @@ function renderOtherDayCard(el){
     return;
   }
 
-  /* A planned day. Starting it is the normal path — the schedule is not
-     rewritten just because the athlete looked at another day. */
+  /* A planned day behaves like a planned day: it names its workout, says what
+     is in it, and starts it. The schedule is not rewritten just because the
+     athlete looked ahead. */
+  const tpl = dayTemplateFor(cat, dateStr);
+  const shown = tpl ? applyTimeModeToTemplate(tpl) : null;
+  const dur = shown ? computeWorkoutDuration(shown) : null;
+  const exCount = shown ? shown.exercises.length : 0;
+  const meta = [
+    exCount ? exCount + ' exercise' + (exCount === 1 ? '' : 's') : null,
+    dur ? '~' + dur + ' min' : null
+  ].filter(Boolean).join(' · ');
+  const alts = (getTemplates(cat) || []).filter(t => !tpl || t.id !== tpl.id);
+
   el.innerHTML = `
     <div class="tw tw-other">
       ${nav}
       <span class="cat-chip ${cat}">${CAT_LABEL[cat]}</span>
       <div class="tw-title">${escapeHtml(workoutName || CAT_LABEL[cat])}</div>
-      <div class="tw-meta">Planned for ${escapeHtml(DAY_LABEL_FULL[key])}</div>
-      <button class="tw-cta tw-cta-ghost" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
+      <div class="tw-meta">${meta ? escapeHtml(meta) : 'Planned for ' + escapeHtml(DAY_LABEL_FULL[key])}</div>
+      ${shown ? `<div class="tw-exlist">${shown.exercises.slice(0, 4).map(e =>
+        `<span class="tw-ex">${escapeHtml(e.name)}</span>`).join('')}${
+        shown.exercises.length > 4 ? `<span class="tw-ex tw-ex-more">+${shown.exercises.length - 4} more</span>` : ''}</div>` : ''}
+      ${tpl ? `<button class="tw-cta" onclick="startTemplateLog('${escapeAttr(cat)}','${escapeAttr(tpl.id)}')">Start ${escapeHtml(tpl.name)}</button>` : ''}
+      ${alts.length ? `<button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide other workouts' : 'Choose a different workout'}</button>` : ''}
       ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat)}</div>` : ''}
       <button type="button" class="tw-change" onclick="openDayEdit('${key}')">Change this day</button>
     </div>`;
+}
+
+/* The exact template a day is scheduled to run: the program names it when one
+   is active, otherwise the category's first variant — the same precedence
+   Today uses, so the two can never name different workouts for one day. */
+function dayTemplateFor(cat, dateStr){
+  if(!cat || cat === 'rest') return null;
+  try{
+    if(hasActiveProgram()){
+      const pd = getProgramWorkoutForDate(dateStr);
+      if(pd && pd.template) return pd.template;
+    }
+  }catch(e){}
+  return (getTemplates(cat) || [])[0] || null;
 }
 
 /* ---------- swipe between days (Fix 4A) ----------
@@ -11126,7 +11305,8 @@ function pickerGridHtml(cat){
       ? list.map(t => templateCardHtml(t, cat, lw)).join('')
       : `<div class="empty"><div class="mark">○</div><h3>No workouts yet</h3><div>Add one from the ${CAT_LABEL[cat]} tab.</div></div>`;
   }
-  return ORDER.map(c => `<button class="tw-catbtn" onclick="goToTrainCategory('${c}')">${CAT_LABEL[c]}</button>`).join('');
+  return categoriesForDisplay().map(c =>
+    `<button class="tw-catbtn" onclick="goToTrainCategory('${c}')">${CAT_LABEL[c]}</button>`).join('');
 }
 
 /* Labeled stat row — every number says what it is. Replaces the separate
@@ -14781,12 +14961,14 @@ function renderProgMuscles(){
   const catTotal = Object.values(catSets).reduce((a,b)=>a+b,0) || 1;
 
   el.innerHTML = `
+    <div class="sec-head">Most trained<span class="sec-hint">sessions logged</span></div>
+    ${mostTrainedHtml(5)}
     <div class="sec-head">Exercise mastery<span class="sec-hint">from your training history</span></div>
     ${exerciseMasteryListHtml(5)}
     <div class="sec-head">Muscle mastery<span class="sec-hint">primary and secondary work</span></div>
     ${muscleMasteryHtml()}
     <div class="muscle-foot">How much history LOOP has for each muscle group — not a measure of strength.</div>
-    <div class="sec-head">Most trained<span class="sec-hint">last 12 weeks</span></div>
+    <div class="sec-head">Most worked muscle<span class="sec-hint">last 12 weeks</span></div>
     <div class="most-trained">
       <div class="mt-body">${bodyDiagramSvg(synthetic)}</div>
       <div class="mt-info">
@@ -14958,6 +15140,47 @@ function buildMasteryIndex(){
 
 /* PR count per canonical exercise, from the existing PR engine. */
 let _masteryPRCounts = null;
+function mostTrainedExercises(limit){
+  const byId = {};
+  workoutLog.forEach(l => {
+    const seen = new Set();
+    (l.exercises || []).forEach(ex => {
+      if(!ex.name || !(ex.sets || []).length) return;
+      let id = null;
+      try{ id = resolveExerciseId(ex.name); }catch(e){}
+      const key = id || ('raw:' + ex.name.trim().toLowerCase());
+      /* One session counts once for an exercise however many times it appears
+         in that session. */
+      if(seen.has(key)) return;
+      seen.add(key);
+      if(!byId[key]){
+        let label = ex.name.trim();
+        try{ const c = id && getCanonicalExercise(id); if(c && c.displayName) label = c.displayName; }catch(e){}
+        byId[key] = { key, label, sessions: 0, lastDate: null };
+      }
+      byId[key].sessions++;
+      if(!byId[key].lastDate || l.date > byId[key].lastDate) byId[key].lastDate = l.date;
+    });
+  });
+  return Object.values(byId)
+    .sort((a, b) => b.sessions - a.sessions || a.label.localeCompare(b.label))
+    .slice(0, limit || 5);
+}
+
+function mostTrainedHtml(limit){
+  const rows = mostTrainedExercises(limit || 5);
+  if(!rows.length){
+    return `<div class="mt-empty">Once you have logged a few sessions, the exercises you train most often appear here.</div>`;
+  }
+  const top = rows[0].sessions || 1;
+  return `<div class="mtx-list">` + rows.map(r => `
+    <div class="mtx-row">
+      <span class="mtx-name">${escapeHtml(r.label)}</span>
+      <span class="mtx-bar"><span class="mtx-fill" style="width:${Math.round((r.sessions / top) * 100)}%"></span></span>
+      <span class="mtx-n">${r.sessions}<span> session${r.sessions === 1 ? '' : 's'}</span></span>
+    </div>`).join('') + `</div>`;
+}
+
 function masteryPRCounts(){
   if(_masteryPRCounts) return _masteryPRCounts;
   const out = {};
@@ -17019,8 +17242,13 @@ function renderMyTraining(){
       ${progressLine}
     </div>
 
+    ${myTrainingStatsHtml(t)}
+
     <div class="sec-head">This week</div>
     <div class="mt-days">${dayRows}</div>
+
+    <div class="sec-head">Training volume<span class="sec-hint">logged vs planned</span></div>
+    ${trajectoryHtml()}
 
     <div class="sec-head">Your workouts</div>
     ${myTrainingVariantsHtml()}
@@ -17055,8 +17283,192 @@ function renderMyTraining(){
     <p class="mt-note">Changing your training only affects what comes next. Everything you have already logged stays exactly as it is.</p>`;
 }
 
+/* Three numbers, from state My Training already computes: where you are in
+   the cycle, how this week is going, and what is next. */
+function myTrainingStatsHtml(t){
+  const wk = weekOverview();
+  const next = wk.next && wk.next.cat !== 'rest' ? wk.next : null;
+  const cells = [];
+  if(t.hasProgram && t.week && t.totalWeeks){
+    cells.push({ v: t.week + ' / ' + t.totalWeeks, l: 'Week', sub: t.phase || '' });
+  }
+  cells.push({ v: wk.done + ' / ' + wk.planned, l: 'This week',
+    sub: wk.planned && wk.done >= wk.planned ? 'complete' : 'sessions done' });
+  cells.push({ v: next ? (next.workoutName || CAT_LABEL[next.cat]) : '—',
+    l: 'Next', sub: next ? (next.isToday ? 'today' : next.fullLabel) : 'nothing scheduled', wide: true });
+  return `<div class="mt-stats">` + cells.map(c => `
+    <div class="mt-stat${c.wide ? ' mt-stat-wide' : ''}">
+      <span class="mt-stat-v">${escapeHtml(String(c.v))}</span>
+      <span class="mt-stat-l">${escapeHtml(c.l)}</span>
+      ${c.sub ? `<span class="mt-stat-s">${escapeHtml(c.sub)}</span>` : ''}
+    </div>`).join('') + `</div>`;
+}
+
 /* §11 — the four variants per category are a real asset, so name them as
    versions of the same session rather than hiding them as "templates". */
+
+/* =========================================================
+   TRAINING TRAJECTORY  (Phase D13 · Fix 11)
+   ---------------------------------------------------------
+   Two series, drawn differently on purpose:
+
+     ACTUAL   solid. Working sets the athlete really logged,
+              counted from workoutLog. Measured.
+     PLANNED  outlined. What the cycle INTENDS for that week,
+              from its phase. An intention, not a forecast.
+
+   The planned height is the athlete's own median weekly volume
+   scaled by the phase's stated purpose — a deload week is
+   drawn lower because the programme says a deload is lighter,
+   not because LOOP predicts anything. Nothing here claims a
+   future result, and no number is invented from nothing: with
+   no history there is no median, and the chart says so instead
+   of drawing a shape.
+
+   This is presentation only. It reads workoutLog and the
+   program; it never writes, and it never touches the trainer.
+   ========================================================= */
+
+/* How each phase intends to sit against a normal week. Taken from the phase
+   definitions themselves — "Building volume", "Planned lighter week" — not
+   invented for the chart. */
+const PHASE_INTENT = {
+  accumulation:    1.10,
+  intensification: 0.92,
+  deload:          0.55,
+  rebuild:         0.75,
+  peak:            0.80,
+  custom:          1.00
+};
+const TRAJECTORY_MIN_WEEKS = 3;   // below this there is no honest baseline
+
+/* Working sets per ISO week, from real logged sessions. */
+function actualWeeklyVolume(){
+  const byWeek = {};
+  workoutLog.forEach(l => {
+    const d = new Date(l.date + 'T00:00:00');
+    if(isNaN(d)) return;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const key = localDateStr(monday);
+    let sets = 0;
+    (l.exercises || []).forEach(ex => { sets += (ex.sets || []).length; });
+    byWeek[key] = (byWeek[key] || 0) + sets;
+  });
+  return byWeek;
+}
+
+/* The cycle's weeks, each labelled with the phase that governs it. */
+function cycleWeeks(program){
+  if(!program) return [];
+  const start = new Date((program.startDate || localDateStr()) + 'T00:00:00');
+  const weeks = [];
+  const total = Math.max(1, Math.min(104, program.durationWeeks || 0));
+  for(let i = 0; i < total; i++){
+    const ws = new Date(start);
+    ws.setDate(start.getDate() + i * 7);
+    const monday = new Date(ws);
+    monday.setDate(ws.getDate() - ((ws.getDay() + 6) % 7));
+    let phase = null;
+    try{
+      const p = (program.phases || []).find(ph =>
+        (i + 1) >= (ph.startWeek || 1) && (i + 1) <= (ph.endWeek || total));
+      phase = p || null;
+    }catch(e){}
+    weeks.push({ index: i + 1, weekStart: localDateStr(monday),
+      phaseType: phase ? (phase.type || 'custom') : null,
+      phaseName: phase ? (phase.name || '') : '' });
+  }
+  return weeks;
+}
+
+/* The whole model in one object, so the view has nothing to decide. */
+function trainingTrajectory(){
+  const program = (typeof hasActiveProgram === 'function' && hasActiveProgram())
+    ? getActiveProgram() : null;
+  const actual = actualWeeklyVolume();
+  const keys = Object.keys(actual).sort();
+  const values = keys.map(k => actual[k]).filter(v => v > 0);
+
+  if(values.length < TRAJECTORY_MIN_WEEKS){
+    return { ok: false, reason: 'history', weeksLogged: values.length,
+             needed: TRAJECTORY_MIN_WEEKS };
+  }
+  /* The athlete's own normal week. Median, so one enormous or one abandoned
+     week does not set the baseline for everything else. */
+  const sorted = values.slice().sort((a, b) => a - b);
+  const median = sorted.length % 2
+    ? sorted[(sorted.length - 1) / 2]
+    : Math.round((sorted[sorted.length/2 - 1] + sorted[sorted.length/2]) / 2);
+
+  const thisMonday = localDateStr(currentWeekStart());
+  let weeks;
+  if(program){
+    weeks = cycleWeeks(program).map(w => ({
+      label: 'W' + w.index,
+      weekStart: w.weekStart,
+      phaseType: w.phaseType,
+      phaseName: w.phaseName,
+      actual: actual[w.weekStart] !== undefined ? actual[w.weekStart] : null,
+      planned: Math.round(median * (PHASE_INTENT[w.phaseType] !== undefined
+        ? PHASE_INTENT[w.phaseType] : 1)),
+      isPast: w.weekStart < thisMonday,
+      isNow: w.weekStart === thisMonday
+    }));
+  } else {
+    /* No cycle means no planned path — the last eight real weeks only, and
+       the view says plainly that there is nothing planned to compare to. */
+    weeks = keys.slice(-8).map((k, i) => ({
+      label: 'W' + (i + 1), weekStart: k, phaseType: null, phaseName: '',
+      actual: actual[k], planned: null,
+      isPast: k < thisMonday, isNow: k === thisMonday
+    }));
+  }
+  const scale = Math.max(1, ...weeks.map(w => Math.max(w.actual || 0, w.planned || 0)));
+  return { ok: true, hasPlan: !!program, median, scale, weeks,
+           programName: program ? program.name : null };
+}
+
+function trajectoryHtml(){
+  const t = trainingTrajectory();
+  if(!t.ok){
+    /* §11E — no shape is drawn from data that cannot support one. */
+    return `<div class="trj-empty">
+      <div class="trj-empty-title">Not enough history yet</div>
+      <div class="trj-empty-sub">${t.weeksLogged} week${t.weeksLogged === 1 ? '' : 's'} logged.
+        After ${t.needed}, LOOP can show how your training volume is actually moving.</div>
+    </div>`;
+  }
+  const bars = t.weeks.map(w => {
+    const aH = w.actual !== null ? Math.round((w.actual / t.scale) * 100) : 0;
+    const pH = w.planned !== null ? Math.round((w.planned / t.scale) * 100) : 0;
+    const deload = w.phaseType === 'deload';
+    const aria = w.actual !== null
+      ? `${w.label}: ${w.actual} sets logged${w.planned !== null ? ', ' + w.planned + ' planned' : ''}`
+      : `${w.label}: ${w.planned} sets planned`;
+    return `<div class="trj-col${w.isNow ? ' trj-now' : ''}" role="img" aria-label="${escapeAttr(aria)}">
+      <div class="trj-stack">
+        ${w.planned !== null ? `<span class="trj-planned${deload ? ' trj-deload' : ''}" style="height:${pH}%"></span>` : ''}
+        ${w.actual !== null ? `<span class="trj-actual" style="height:${aH}%"></span>` : ''}
+      </div>
+      <span class="trj-label">${escapeHtml(w.label)}</span>
+      ${deload ? `<span class="trj-tag">DL</span>` : ''}
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="trj">
+      <div class="trj-key">
+        <span class="trj-key-item"><span class="trj-swatch trj-swatch-actual"></span>Logged</span>
+        ${t.hasPlan ? `<span class="trj-key-item"><span class="trj-swatch trj-swatch-planned"></span>Planned</span>` : ''}
+      </div>
+      <div class="trj-chart">${bars}</div>
+      <div class="trj-foot">${t.hasPlan
+        ? `Solid bars are working sets you logged. Outlined bars are what this cycle intends for that week, scaled to your own typical ${t.median} sets — a plan, not a prediction.`
+        : `Working sets per week, from your logged sessions. Start a training cycle to compare them against a planned path.`}</div>
+    </div>`;
+}
+
 function myTrainingVariantsHtml(){
   const plan = DEFAULT_PLANS[selectedPlanId];
   if(!plan) return `<div class="mt-note">Choose a plan to see your workouts.</div>`;
@@ -17854,7 +18266,13 @@ function getSubstitutionCandidates(exerciseId, context){
 /* Ranked, explained, diversity-filtered and trimmed to the surfaced few. */
 function rankSubstitutionCandidates(exerciseId, context){
   context = context || {};
-  const cacheKey = exerciseId + '|' + (context.workoutExerciseIds || []).join(',');
+  /* A relaxed pass lowers the score floor and nothing else. Hard rejections
+     are untouched, so "similar" can never mean "unsafe" or "already in this
+     workout" — it only means the match is looser than a first-choice one. */
+  const floor = context.relaxed
+    ? SUBSTITUTION_CONFIG.limits.minScore * 0.45
+    : SUBSTITUTION_CONFIG.limits.minScore;
+  const cacheKey = exerciseId + '|' + (context.workoutExerciseIds || []).join(',') + (context.relaxed ? '|r' : '');
   if(_subRankCache[cacheKey]) return _subRankCache[cacheKey];
 
   const ctx = substitutionContext(exerciseId, context);
@@ -17863,7 +18281,7 @@ function rankSubstitutionCandidates(exerciseId, context){
   CANONICAL_EXERCISES.forEach(cand => {
     if(substitutionHardReject(exerciseId, cand, ctx) !== null) return;
     const s = scoreSubstitutionCandidate(original, cand, ctx);
-    if(s.score < SUBSTITUTION_CONFIG.limits.minScore) return;
+    if(s.score < floor) return;
     scored.push({
       exerciseId: cand.id,
       displayName: cand.displayName,
@@ -17946,19 +18364,33 @@ function openSubstitutions(btn){
   const body = document.getElementById('subBody');
   const gymKnown = isGymProfileConfigured();
 
-  body.innerHTML = ranked.length
-    ? `<div class="sub-note">Swaps this exercise for today's workout only. Your plan, history and records are untouched.</div>` +
-      (gymKnown ? '' : `<div class="sub-note sub-note-dim">Your gym isn't set up yet, so equipment availability is unknown. Nothing has been ruled out.</div>`) +
-      `<div class="sub-label">Recommended</div>` +
-      ranked.map(r => `
-        <button class="sub-option" onclick="applySubstitution('${escapeAttr(r.exerciseId)}')">
-          <span class="sub-option-main">
-            <span class="sub-option-name">${escapeHtml(r.displayName)}</span>
-            <span class="sub-option-why">${escapeHtml(r.reasons.join(' · '))}</span>
-          </span>
-          <span class="sub-option-arrow">›</span>
-        </button>`).join('')
-    : `<div class="sub-empty">No close alternative found for this exercise. You can still rename it or pick another from the swap list.</div>`;
+  const optionHtml = r => `
+    <button class="sub-option" onclick="applySubstitution('${escapeAttr(r.exerciseId)}')">
+      <span class="sub-option-main">
+        <span class="sub-option-name">${escapeHtml(r.displayName)}</span>
+        <span class="sub-option-why">${escapeHtml(r.reasons.join(' · '))}</span>
+      </span>
+      <span class="sub-option-arrow">›</span>
+    </button>`;
+  const note = `<div class="sub-note">Replaces this exercise for today's workout only. Your plan, history and records are untouched.</div>` +
+    (gymKnown ? '' : `<div class="sub-note sub-note-dim">Your gym isn't set up yet, so equipment availability is unknown. Nothing has been ruled out.</div>`);
+
+  if(ranked.length){
+    body.innerHTML = note + `<div class="sub-label">Recommended</div>` + ranked.map(optionHtml).join('');
+  } else {
+    /* Nothing cleared the normal bar. Say so plainly, then run the same engine
+       with a lower floor rather than leaving the athlete at a dead end. */
+    const similar = id ? rankSubstitutionCandidates(id, {
+      workoutExerciseIds: currentWorkoutExerciseIds(), relaxed: true }) : [];
+    body.innerHTML = note +
+      `<div class="sub-none">
+         <div class="sub-none-title">No direct substitute found</div>
+         <div class="sub-none-sub">${similar.length
+           ? 'Here are similar exercises that fit your training plan.'
+           : 'Nothing similar is available with your current equipment. You can rename this exercise instead.'}</div>
+       </div>` +
+      (similar.length ? `<div class="sub-label">Similar options</div>` + similar.map(optionHtml).join('') : '');
+  }
 
   document.getElementById('subOverlay').classList.add('open');
   showHintIn('subBody', 'replace');

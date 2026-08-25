@@ -6344,9 +6344,17 @@ function testD10Consolidation(app){
   T('the Strength tab no longer lists mastery above the same exercises',
     !/Movement mastery/.test(src));
   T('the segment is named for what leads it', />Mastery<\/button>/.test(src));
-  T('exercise mastery leads that tab',
+  T('exercise mastery still leads the mastery content',
     src.indexOf('Exercise mastery<span class="sec-hint">from your training history')
-      < src.indexOf('Most trained<span class="sec-hint">last 12 weeks'));
+      < src.indexOf('Muscle mastery<span class="sec-hint">primary and secondary work'));
+  T('the muscle diagram does not outrank exercise mastery',
+    src.indexOf('Exercise mastery<span class="sec-hint">from your training history')
+      < src.indexOf('Most worked muscle<span class="sec-hint">last 12 weeks'));
+  T('the most-trained summary leads the tab',
+    src.indexOf('Most trained<span class="sec-hint">sessions logged')
+      < src.indexOf('Exercise mastery<span class="sec-hint">from your training history'));
+  T('two different things are not both called "Most trained"',
+    (src.match(/>Most trained</g) || []).length <= 1);
   T('muscle mastery sits with it',
     /Muscle mastery<span class="sec-hint">primary and secondary work/.test(src));
   T('the full list is disclosed, not duplicated', /function toggleAllMastery/.test(src));
@@ -9175,6 +9183,249 @@ async function testProgramBuilderStress(){
   T('the trainer wrote nothing', ctx.trainerLog.entries.length === trainerBefore);
 }
 
+/* =========================================================
+   CONTRACT 91 — the drag is a gesture, and a day is what it is
+   ========================================================= */
+function testD13Interaction(app){
+  section('CONTRACT 91 — drag polish and scheduled days');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('the browser does not answer a long press with a text selection');
+  T('selection is suppressed on the day cells', /\.wk-day\{[\s\S]{0,240}user-select: none/.test(css));
+  T('the iOS callout is suppressed there too', /\.wk-day\{[\s\S]{0,300}-webkit-touch-callout: none/.test(css));
+  T('the tap highlight is suppressed', /\.wk-day\{[\s\S]{0,340}-webkit-tap-highlight-color: transparent/.test(css));
+  T('the native drag image is refused', /addEventListener\('dragstart', ev => ev\.preventDefault\(\)\)/.test(src));
+  T('a selection begun during the hold is cleared', /sel\.removeAllRanges/.test(src));
+  /* Suppression has to be local: an athlete must still be able to select the
+     text of a note, a workout name or anything else in the app. */
+  T('suppression is scoped to the strip, not global', (() => {
+    /* Every rule that suppresses selection must name the week strip. A
+       selector ending in "*" is not global when it is scoped by what precedes
+       it — .wk-days.wk-drag-mode * is exactly that. */
+    const rules = css.match(/[^{}]+\{[^}]*user-select:\s*none[^}]*\}/g) || [];
+    return rules.length > 0 && rules.every(r => {
+      const sel = r.split('{')[0].replace(/\/\*[\s\S]*?\*\//g, '').trim();
+      return /\.wk-day|\.wk-days/.test(sel);
+    });
+  })());
+
+  sub('the slot a workout left reads as a slot');
+  T('a placeholder is created on lift', /className = 'wk-placeholder'/.test(src));
+  T('and removed on release', /d\.placeholder[\s\S]{0,60}\.remove\(\)/.test(src));
+  T('it is styled as an empty slot, not a gap',
+    /\.wk-placeholder\{[\s\S]{0,200}border: 1px dashed/.test(css));
+
+  sub('a scheduled day is not a rest day');
+  const fn = src.slice(src.indexOf('function renderOtherDayCard'), src.indexOf('function dayTemplateFor'));
+  T('a planned day starts its own workout', /startTemplateLog\('\$\{escapeAttr\(cat\)\}'/.test(fn));
+  T('a planned day names the workout it will run', /Start \$\{escapeHtml\(tpl\.name\)\}/.test(fn));
+  T('a planned day shows what is in it', /tw-exlist/.test(fn));
+  T('"Train anyway" belongs to rest days only', (() => {
+    /* It must appear exactly once in this renderer, inside the rest branch. */
+    const restBranch = fn.slice(fn.indexOf("if(cat === 'rest')"), fn.indexOf('/* A planned day'));
+    const planned = fn.slice(fn.indexOf('/* A planned day'));
+    return /Train anyway/.test(restBranch) && !/Train anyway/.test(planned);
+  })());
+  T('a rest day still says Rest Day', /Rest Day/.test(fn));
+  T('the day uses the same template precedence Today uses', (() => {
+    const dt = src.slice(src.indexOf('function dayTemplateFor'), src.indexOf('/* ---------- swipe between days'));
+    return /hasActiveProgram\(\)/.test(dt) && /getProgramWorkoutForDate/.test(dt);
+  })());
+  T('looking at a future day writes nothing', (() => {
+    const before = JSON.stringify(ctx.schedule);
+    const other = ctx.DAY_ORDER.find(k => k !== ctx.todayKey());
+    ctx.setSelectedDay(other);
+    try{ ctx.renderTodayWorkout(); }catch(e){}
+    const ok = JSON.stringify(ctx.schedule) === before;
+    ctx.setSelectedDay(ctx.todayKey());
+    return ok;
+  })());
+
+  sub('a top-level tab opens at its top');
+  T('the tab switch scrolls to the top', /window\.scrollTo\(\{ top: 0, behavior: 'instant' \}\)/.test(src));
+  T('the per-tab scroll memory is gone, not just unused', !/tabScrollPositions/.test(src));
+  T('the workout is an overlay and never passes through switchTab',
+    !/function switchTab[\s\S]{0,400}logOverlay/.test(src));
+
+  sub('the rest time fits inside its ring');
+  const cssBare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  T('the dial owns the size', /\.rest-dial-time\{[^}]*font-size:\s*15px/.test(cssBare));
+  T('the old panel rule no longer overrides it',
+    !/\.rest-panel-time\{[^}]*font-size/.test(css));
+  T('the digits do not reflow as they count',
+    /\.rest-dial-time\{[^}]*tabular-nums/.test(cssBare));
+}
+
+/* =========================================================
+   CONTRACT 92 — order, replacement, and what is shown first
+   ========================================================= */
+function testD13Presentation(app){
+  section('CONTRACT 92 — category order, replacement, Most Trained');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+
+  sub('categories are offered most-useful first');
+  T('there is a display order distinct from the canonical one',
+    Array.isArray(ctx.CATEGORY_DISPLAY_ORDER));
+  T('it opens with the most complete way to train',
+    ctx.CATEGORY_DISPLAY_ORDER[0] === 'fullbody');
+  T('the two-way split precedes the three-way split',
+    ctx.CATEGORY_DISPLAY_ORDER.indexOf('upper') < ctx.CATEGORY_DISPLAY_ORDER.indexOf('push'));
+  T('the accessory category comes last',
+    ctx.CATEGORY_DISPLAY_ORDER[ctx.CATEGORY_DISPLAY_ORDER.length - 1] === 'core');
+  T('every category is still offered',
+    ctx.CATEGORY_DISPLAY_ORDER.length === ctx.ORDER.length &&
+    ctx.ORDER.every(c => ctx.CATEGORY_DISPLAY_ORDER.indexOf(c) !== -1));
+  /* ORDER also drives nextCategory() rotation, so reordering it would change
+     which workout an athlete is offered next — not a display decision. */
+  T('the canonical order was NOT reordered',
+    JSON.stringify(ctx.ORDER) === JSON.stringify(['push','pull','legs','upper','lower','core','fullbody']));
+  T('rotation still reads the canonical order',
+    /const idx = ORDER\.indexOf\(last\)/.test(src));
+  T('the athlete\'s own categories are promoted', (() => {
+    ctx.schedule = { mon:'legs', tue:'rest', wed:'rest', thu:'rest', fri:'rest', sat:'rest', sun:'rest' };
+    const d = ctx.categoriesForDisplay();
+    return d[0] === 'legs' && d.length === ctx.ORDER.length && new Set(d).size === d.length;
+  })());
+
+  sub('one replacement action, and a real answer when nothing fits');
+  T('the copy says replace, matching the button', /Replaces this exercise for today's workout only/.test(src));
+  T('the old "swap list" dead end is gone', !/pick another from the swap list/.test(src));
+  T('a dead end is replaced by a stated result', /No direct substitute found/.test(src));
+  T('and by similar options', /Similar options/.test(src));
+  T('the fallback is the same engine, relaxed — not a second one',
+    /rankSubstitutionCandidates\(id, \{[\s\S]{0,90}relaxed: true \}\)/.test(src) &&
+    !/secondSwapEngine|newExerciseMatchSystem|duplicateRankingSystem/.test(src));
+  T('only the score floor is relaxed', /const floor = context\.relaxed/.test(src));
+  T('hard rejections still apply to the fallback', (() => {
+    const fn = src.slice(src.indexOf('function rankSubstitutionCandidates'), src.indexOf('function applyVariationDiversity'));
+    return /substitutionHardReject\(exerciseId, cand, ctx\) !== null\) return;/.test(fn);
+  })());
+  T('the relaxed pass is cached separately', /\(context\.relaxed \? '\|r' : ''\)/.test(src));
+  T('when nothing similar exists either, it says so plainly',
+    /Nothing similar is available with your current equipment/.test(src));
+
+  sub('trend is a drawn mark plus a word');
+  T('no arrow characters remain in the trend', !/&#8599;|&#8594;|&#8600;/.test(src));
+  T('the existing icon is used', /trendIconSvg\(trendDirOf\(data\.trend\), 13\)/.test(src));
+  T('the word carries the meaning alongside it',
+    /trendLabel = \{ improving:'Improving', steady:'Steady', declining:'Easing off' \}/.test(src));
+
+  sub('Most Trained counts real sessions, and stays a summary');
+  ctx.workoutLog.length = 0;
+  const mk = (d, names) => ({ id:'w'+d, date:d, category:'push', title:'P',
+    exercises: names.map(nm => ({ name:nm, sets:[{weight:'100',reps:'8'}] })) });
+  ctx.workoutLog.push(
+    mk('2026-08-01', ['Bench Press','Lat Pulldown']),
+    mk('2026-08-03', ['Bench Press']),
+    mk('2026-08-05', ['Bench Press','Lat Pulldown','Squat'])
+  );
+  ctx.invalidateSortedLogCache();
+  const top = ctx.mostTrainedExercises(5);
+  T('it ranks by sessions logged', top[0].label === 'Bench Press' && top[0].sessions === 3);
+  T('a second exercise is counted correctly',
+    top.find(r => r.label === 'Lat Pulldown').sessions === 2);
+  T('one session counts once however often the exercise appears', (() => {
+    ctx.workoutLog.push({ id:'dup', date:'2026-08-07', category:'push', title:'P',
+      exercises:[{ name:'Squat', sets:[{weight:'1',reps:'1'}] },
+                 { name:'Squat', sets:[{weight:'1',reps:'1'}] }] });
+    ctx.invalidateSortedLogCache();
+    const r = ctx.mostTrainedExercises(9).find(x => /squat/i.test(x.label));
+    ctx.workoutLog.pop(); ctx.invalidateSortedLogCache();
+    return r.sessions === 2;
+  })());
+  T('it is capped, not a second directory', ctx.mostTrainedExercises(3).length <= 3);
+  T('an exercise with no sets is not counted', (() => {
+    ctx.workoutLog.push({ id:'empty', date:'2026-08-09', category:'push', title:'P',
+      exercises:[{ name:'Overhead Press', sets:[] }] });
+    ctx.invalidateSortedLogCache();
+    const r = ctx.mostTrainedExercises(9).find(x => /overhead press/i.test(x.label));
+    ctx.workoutLog.pop(); ctx.invalidateSortedLogCache();
+    return !r;
+  })());
+  T('with no history it explains rather than showing an empty box', (() => {
+    ctx.workoutLog.length = 0; ctx.invalidateSortedLogCache();
+    return /appear here/.test(ctx.mostTrainedHtml(5));
+  })());
+}
+
+/* =========================================================
+   CONTRACT 93 — the trajectory says only what it knows
+   ========================================================= */
+function testTrajectory(app){
+  section('CONTRACT 93 — actual vs planned');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('with too little history it draws nothing');
+  ctx.workoutLog.length = 0;
+  ctx.invalidateSortedLogCache();
+  let t = ctx.trainingTrajectory();
+  T('it refuses to plot an empty history', t.ok === false && t.reason === 'history');
+  T('and says so in words', /Not enough history yet/.test(ctx.trajectoryHtml()));
+  T('it names how much more is needed', /After \$\{t\.needed\}/.test(src));
+  T('no chart markup is produced', ctx.trajectoryHtml().indexOf('trj-chart') === -1);
+
+  sub('actual volume is counted, not estimated');
+  const mon = ctx.currentWeekStart();
+  const dstr = off => { const d = new Date(mon); d.setDate(mon.getDate() + off); return ctx.localDateStr(d); };
+  for(let w = 0; w < 5; w++){
+    ctx.workoutLog.push({ id:'t'+w, date: dstr(-7 * w), category:'push', title:'P',
+      exercises:[{ name:'Bench Press', sets: Array.from({length: 4}, () => ({weight:'100',reps:'8'})) }] });
+  }
+  ctx.invalidateSortedLogCache();
+  const vol = ctx.actualWeeklyVolume();
+  T('sets are counted per week from the log', vol[ctx.localDateStr(mon)] === 4);
+  T('every logged week is represented', Object.keys(vol).length === 5);
+  t = ctx.trainingTrajectory();
+  T('the chart can now be drawn', t.ok === true);
+  T('the baseline is the athlete\'s own median week', t.median === 4);
+
+  sub('planned is an intention, drawn differently and labelled as one');
+  T('phase intent comes from the phase definitions', (() => {
+    return ctx.PHASE_INTENT.deload < 1 && ctx.PHASE_INTENT.accumulation > 1;
+  })());
+  T('a deload is drawn lower, because the programme says it is lighter',
+    ctx.PHASE_INTENT.deload < ctx.PHASE_INTENT.intensification);
+  T('actual and planned are told apart by fill, not only colour',
+    /\.trj-planned\{[\s\S]{0,180}border: 1px dashed/.test(css) &&
+    /\.trj-actual\{[\s\S]{0,140}background: var\(--accent\)/.test(css));
+  T('the key names both series', /trj-key-item[\s\S]{0,200}Logged[\s\S]{0,200}Planned/.test(src));
+  T('every column is described for a screen reader', /role="img" aria-label="\$\{escapeAttr\(aria\)\}"/.test(src));
+  T('the description distinguishes logged from planned',
+    /sets logged[\s\S]{0,60}planned/.test(src));
+
+  sub('it never claims to predict');
+  T('the footnote says plainly that it is not a prediction',
+    /a plan, not a prediction/.test(src));
+  T('planned bars are called planned, never expected or guaranteed',
+    !/guaranteed|you will be|expect to be/i.test(src.slice(src.indexOf('TRAINING TRAJECTORY'), src.indexOf('function myTrainingVariantsHtml'))));
+  T('no future ACTUAL value is ever invented', (() => {
+    const future = t.weeks.filter(w => !w.isPast && !w.isNow);
+    return future.every(w => w.actual === null);
+  })());
+  T('without a cycle there is no planned path at all', (() => {
+    const noPlan = t.hasPlan ? null : t;
+    return t.hasPlan ? true : noPlan.weeks.every(w => w.planned === null);
+  })());
+
+  sub('it reads history and writes nothing');
+  const before = JSON.stringify(ctx.workoutLog);
+  ctx.trainingTrajectory(); ctx.trajectoryHtml();
+  T('workoutLog is untouched', JSON.stringify(ctx.workoutLog) === before);
+  T('no storage key was added for it', ctx.DATA_KEYS.length === 15);
+  T('the trainer is not involved',
+    !/trainerLog|proposeTrainerState|TRAINER_CONFIG/.test(
+      src.slice(src.indexOf('TRAINING TRAJECTORY'), src.indexOf('function myTrainingVariantsHtml'))));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -9232,6 +9483,9 @@ async function main(){
   testPageIsolation(H.loadApp());
   testPRSetHighlight(H.loadApp());
   testPlanVocabulary(H.loadApp());
+  testD13Interaction(H.loadApp());
+  testD13Presentation(H.loadApp());
+  testTrajectory(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
