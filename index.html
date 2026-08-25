@@ -1210,6 +1210,117 @@ html.intro-skip #introOverlay{ display: none !important; }
     align-self: center; width: 560px;
   }
 }
+/* Trend icons carry direction in their shape; colour is reinforcement only. */
+.ti{ vertical-align: -2px; flex-shrink: 0; }
+.rank-val .ti, .cmp-delta .ti, .trend-pct .ti{ vertical-align: -2px; }
+.cmp-delta{ display: flex; align-items: center; justify-content: flex-end; }
+.ti-up{ color: var(--success); }
+.ti-down{ color: var(--warning); }
+.ti-flat{ color: var(--text-faint); }
+
+.plan-card-custom{ border-style: dashed; }
+.plan-card-custom .plan-card-name{ color: var(--accent); }
+.plan-chip-custom{ color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+.day-move{ margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.day-move-label{ font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.day-move-sub{ font-size: 11.5px; color: var(--text-dim); margin-top: 4px; }
+.day-move-grid{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+.day-move-opt{
+  min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; font-family: 'Inter', sans-serif;
+}
+.day-move-opt:hover{ border-color: var(--accent); }
+.dm-day{ font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim); }
+.dm-cat{ font-size: 9px; font-weight: 700; color: var(--text-faint); }
+.day-move-opt.upper .dm-cat{ color: var(--upper); }
+.day-move-opt.lower .dm-cat{ color: var(--lower); }
+.day-move-opt.push .dm-cat{ color: var(--push); }
+.day-move-opt.pull .dm-cat{ color: var(--pull); }
+.day-move-opt.legs .dm-cat{ color: var(--legs); }
+.day-move-opt.core .dm-cat{ color: var(--core); }
+.day-move-opt.fullbody .dm-cat{ color: var(--full); }
+
+/* ---------- THIS WEEK + MOMENTUM (Phase D11) ---------- */
+.wk-card{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 14px 14px 12px; margin-top: 14px;
+}
+.wk-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.wk-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
+.wk-count{ font-size: 12px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.wk-count b{ color: var(--text); font-weight: 700; }
+/* One segment per planned session — the shape of the week, not a second copy
+   of the number beside it. */
+.wk-bar{ display: flex; gap: 3px; margin-top: 10px; }
+.wk-seg{ flex: 1; height: 4px; border-radius: 2px; background: var(--surface-3); }
+.wk-seg.on{ background: var(--success); }
+.wk-days{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin: 12px -7px 0; }
+.wk-day{
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  min-height: 62px; padding: 7px 1px 6px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  transition: border-color 0.16s var(--ease), transform 0.12s var(--ease);
+}
+.wk-day:active{ transform: scale(0.94); }
+.wk-dl{ font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--text-faint); }
+.wk-dc{ font-size: 8px; font-weight: 700; letter-spacing: 0.03em; color: var(--text-faint); text-transform: uppercase; }
+/* The state mark carries the meaning; colour supports it but is never alone —
+   a filled disc, a ring and a dash are distinguishable without hue. */
+.wk-mark{ width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--text-faint); }
+.wk-done .wk-mark, .wk-done-today .wk-mark{ background: var(--success); border-color: var(--success); }
+.wk-done .wk-dc, .wk-done-today .wk-dc{ color: var(--success); }
+.wk-today{ border-color: var(--accent); background: var(--accent-soft); }
+.wk-today .wk-mark{ border-color: var(--accent); border-width: 3px; }
+.wk-today .wk-dl{ color: var(--text); }
+.wk-done-today{ border-color: var(--accent); background: var(--accent-soft); }
+.wk-missed .wk-mark{ border-color: var(--warning); background: transparent; }
+.wk-missed .wk-dc{ color: var(--warning); }
+.wk-rest .wk-mark{ width: 10px; height: 2px; border-radius: 1px; background: var(--surface-3); border: none; }
+.wk-upcoming .wk-mark{ border-color: var(--text-faint); background: transparent; }
+.wk-foot{
+  display: flex; align-items: center; gap: 7px; margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim);
+}
+.wk-foot-k{
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-soft); padding: 3px 6px; border-radius: var(--radius-sm);
+}
+.wk-foot-done .wk-foot-k{ color: var(--success); background: var(--success-soft); }
+.wk-hint{ font-size: 10px; color: var(--text-faint); margin-top: 8px; text-align: center; }
+
+.mo-row{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.mo-tile{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 12px 8px; text-align: center;
+}
+.mo-val{ display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; line-height: 1; color: var(--text); }
+.mo-lbl{ display: block; margin-top: 6px; font-size: 9.5px; letter-spacing: 0.04em; color: var(--text-faint); }
+.mo-good .mo-val{ color: var(--success); }
+.mo-good{ border-color: rgba(75,156,129,0.32); }
+.mo-warn .mo-val{ color: var(--warning); }
+.mo-warn{ border-color: rgba(189,146,96,0.32); }
+.mo-empty{ font-size: 12.5px; color: var(--text-dim); padding: 14px 0; }
+.mo-level{
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin-top: 8px;
+  padding: 0 12px; background: none; border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; font-family: 'Inter', sans-serif;
+}
+.mo-level-k{ font-size: 12px; font-weight: 700; color: var(--text-dim); flex-shrink: 0; }
+.mo-level-bar{ flex: 1; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.mo-level-bar span{ display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.mo-level-v{ font-size: 10.5px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+
+.prog-jump{
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; margin-top: 10px;
+  padding: 0 14px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer; text-align: left; font-family: 'Inter', sans-serif;
+}
+.prog-jump-main{ font-size: 13.5px; font-weight: 600; color: var(--text); }
+.prog-jump-sub{ font-size: 11px; color: var(--text-faint); margin-left: auto; }
+.prog-jump-arrow{ display: flex; color: var(--text-faint); flex-shrink: 0; }
+
 /* ---------- MASTERY (Phase D9) ---------- */
 .mastery-block{ margin-top: 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
 .mastery-head{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
@@ -2794,20 +2905,21 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div id="storageNotice"></div>
     <div id="resumeBanner"></div>
     <div id="missedBanner"></div>
-    <div id="readinessCard"></div>
-
-    <!-- LEVEL 1 — what am I doing today -->
+    <!-- 1 — what am I doing today -->
     <div id="todayWorkout"></div>
 
-    <!-- LEVEL 2 — how am I doing -->
-    <div class="sec-head" id="todaySnapshotHead">Training Snapshot</div>
-    <div class="snapshot" id="todaySnapshot"></div>
+    <!-- 2 — how is my week going -->
+    <div id="weekCard"></div>
+
+    <!-- 3 — today's context -->
+    <div id="readinessCard"></div>
+
+    <!-- 4 — momentum -->
+    <div class="sec-head">Momentum</div>
+    <div id="todayMomentum"></div>
     <div id="todayInsights"></div>
 
-    <div class="sec-head">This Week<span class="sec-hint">tap a day to change it</span></div>
-    <div class="week-strip" id="weekStrip"></div>
-
-    <!-- LEVEL 3 — what else can I learn -->
+    <!-- 5 — secondary -->
     <div class="sec-head">Training Overview</div>
     <div class="seg" id="todaySeg">
       <button class="seg-btn active" data-t="progress" onclick="switchTodayTab('progress')">Progress</button>
@@ -2816,9 +2928,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     </div>
 
     <div class="seg-panel" id="tpanel-progress">
-      <div class="level-card" id="levelCard" onclick="openProfile()"></div>
       <div id="recentPrCard"></div>
-      <div id="todayTrends"></div>
+      <div id="progressJump"></div>
     </div>
 
     <div class="seg-panel" id="tpanel-consistency" style="display:none">
@@ -3096,7 +3207,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <button class="settings-row-btn" onclick="openPrograms()">
         <span class="settings-row-main">
           <span class="settings-row-title">Programs</span>
-          <span class="settings-row-desc" id="settingsProgramSub">Phases, weeks, and your current program</span>
+          <span class="settings-row-desc" id="settingsProgramSub">Your custom plans — phases, weeks and dates</span>
         </span>
         <span class="settings-row-arrow">›</span>
       </button>
@@ -3218,7 +3329,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="sheet-scroll">
       <button class="sheet-back" onclick="backToSettings('programsOverlay')">‹ Settings</button>
       <h2>Programs</h2>
-      <div class="sheet-sub">A program organises your training into phases and weeks. Your plans and history are untouched by anything here.</div>
+      <div class="sheet-sub">A program is a custom plan: the same workouts, organised into phases and weeks with a start and an end. Your ready-made plans and your history are untouched.</div>
       <div id="programsBody"></div>
     </div>
     <div class="sheet-actions">
@@ -3399,6 +3510,11 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <div class="cat-opt sel-fullbody" data-val="fullbody" onclick="setDayValue('fullbody')">Full Body</div>
     </div>
     <div class="cat-opt rest-day-opt" data-val="rest" onclick="setDayValue('rest')">Rest Day</div>
+    <div class="day-move" id="dayMoveBlock">
+      <div class="day-move-label">Move this day</div>
+      <div class="day-move-sub">Swaps the two days. Do it again to put the week back.</div>
+      <div class="day-move-grid" id="dayMoveGrid"></div>
+    </div>
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeDayEdit()">Close</button>
@@ -5222,6 +5338,12 @@ async function boot(){
     if(sp && sp.value) selectedPlanId = JSON.parse(sp.value);
   }catch(e){}
 
+  /* Must precede showMainApp(): it decides synchronously whether to offer the
+     tour, and that decision is only correct once this athlete's own record has
+     been read. Loading it later meant the decision was always made against the
+     default state. */
+  await loadOnboarding();
+
   if(selectedPlanId && DEFAULT_PLANS[selectedPlanId]){
     await loadPlanData(selectedPlanId);
     await loadSchedule(selectedPlanId);
@@ -5306,7 +5428,7 @@ function showOnboarding(){
   grid.innerHTML = Object.keys(DEFAULT_PLANS).map(id => {
     const p = DEFAULT_PLANS[id];
     return `<div class="plan-card" onclick="choosePlan('${id}')">${planCardBody(id, p, false)}</div>`;
-  }).join('');
+  }).join('') + customPlanCardHtml();
   document.getElementById('planOnboard').style.display = 'block';
   document.getElementById('mainApp').style.display = 'none';
 }
@@ -5429,13 +5551,49 @@ async function choosePlan(id){
   switchTab('today');
 }
 
+/* The base plan a custom build starts from when the athlete has not chosen
+   one yet. Upper/Lower is the most broadly applicable structure in the
+   library; the builder immediately lets them change it. */
+function defaultBasePlanId(){
+  if(DEFAULT_PLANS.upperlower) return 'upperlower';
+  return Object.keys(DEFAULT_PLANS)[0];
+}
+/* Offered beside the ready-made plans, so "custom" is a kind of plan rather
+   than a second system found somewhere else. */
+function customPlanCardHtml(){
+  return `
+    <div class="plan-card plan-card-custom" onclick="startCustomPlan()">
+      <div class="plan-card-top">
+        <div class="plan-card-main">
+          <div class="plan-card-name">Build my own</div>
+          <div class="plan-card-tag">A custom plan shaped around your goal, your training days and the equipment you actually have.</div>
+          <div class="plan-card-builds"><span>Builds:</span> Whatever you are training for</div>
+        </div>
+      </div>
+      <div class="plan-card-meta-row">
+        <span class="plan-card-meta-chip plan-chip-custom">Customize</span>
+      </div>
+    </div>`;
+}
+/* An athlete with no plan yet gets a valid one first, so the app is never left
+   without a schedule underneath the builder. Existing athletes go straight in
+   and their current plan stays exactly as it was unless they finish a build. */
+async function startCustomPlan(){
+  if(!selectedPlanId || !DEFAULT_PLANS[selectedPlanId]){
+    await choosePlan(defaultBasePlanId());
+  }
+  closePlanSwitcher();
+  closePlansManager();
+  openProgramBuilder();
+}
+
 function openPlanSwitcher(){
   const grid = document.getElementById('switchPlanGrid');
   grid.innerHTML = Object.keys(DEFAULT_PLANS).map(id => {
     const p = DEFAULT_PLANS[id];
     const active = id === selectedPlanId;
     return `<div class="plan-card ${active?'plan-card-active':''}" onclick="choosePlan('${id}')">${planCardBody(id, p, active)}</div>`;
-  }).join('');
+  }).join('') + customPlanCardHtml();
   document.getElementById('planSwitchOverlay').classList.add('open');
 }
 function closePlanSwitcher(){ document.getElementById('planSwitchOverlay').classList.remove('open'); }
@@ -5485,7 +5643,7 @@ function openPlansManager(){
     const p = DEFAULT_PLANS[id];
     const active = id === selectedPlanId;
     return `<div class="plan-card ${active?'plan-card-active':''}" onclick="choosePlan('${id}')">${planCardBody(id, p, active)}</div>`;
-  }).join('');
+  }).join('') + customPlanCardHtml();
 
   // Points at the real, existing editing surfaces rather than duplicating them
   document.getElementById('plansCustomize').innerHTML = `
@@ -5518,7 +5676,7 @@ function goToScheduleFromSettings(){
   closePlansManager();
   switchTab('today');
   setTimeout(() => {
-    const strip = document.getElementById('weekStrip');
+    const strip = document.getElementById('weekCard');
     if(strip) strip.scrollIntoView({ behavior:'smooth', block:'center' });
   }, 80);
 }
@@ -5829,6 +5987,28 @@ function computeWorkoutDuration(t){
   });
   const minutes = Math.max(15, Math.round(totalSec / 60 / 5) * 5);
   return minutes;
+}
+/* trend: 'up' | 'down' | 'flat' — the three states the analytics use. */
+function trendIconSvg(dir, size){
+  const px = size || 14;
+  const open = `<svg class="ti ti-${dir}" width="${px}" height="${px}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">`;
+  if(dir === 'up'){
+    return open + '<path d="M2.5 11.5L6.5 7l3 3 4.5-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 5.5H14V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  if(dir === 'down'){
+    return open + '<path d="M2.5 4.5L6.5 9l3-3 4.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 10.5H14V7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  return open + '<path d="M2.5 8h11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+}
+/* Maps the vocabularies already in use ('improving'/'up', 'declining'/'down') */
+function trendDirOf(v){
+  const t = String(v || '').toLowerCase();
+  if(t === 'up' || t === 'improving' || t === 'increase') return 'up';
+  if(t === 'down' || t === 'declining' || t === 'decrease') return 'down';
+  return 'flat';
+}
+function chevronRightSvg(){
+  return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 function clockIconSvg(){
   return `<svg width="11" height="11" viewBox="0 0 16 16" style="vertical-align:-1px; margin-right:4px; flex-shrink:0;"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5V8l2.8 1.8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -8598,33 +8778,6 @@ function pickerGridHtml(cat){
 
 /* Labeled stat row — every number says what it is. Replaces the separate
    week-summary card and progress-ring card. */
-function renderSnapshot(){
-  const el = document.getElementById('todaySnapshot');
-  if(!el) return;
-  if(!workoutLog.length && !cardioLog.length){
-    el.innerHTML = `<div class="snap-empty">Your weekly numbers appear here once you log your first session.</div>`;
-    return;
-  }
-  const s = computeWeekSummary();
-  const cons = computeConsistencyData();
-  const thisWk = cons.weeks[cons.weeks.length - 1];
-  const avg = thisWk && thisWk.avgScore !== null ? thisWk.avgScore : (cons.overallScore !== null ? cons.overallScore : null);
-
-  const volText = (s.volPct !== null && s.hasLastWeek)
-    ? `${s.volPct >= 0 ? '+' : ''}${s.volPct}%`
-    : (s.volume ? s.volume.toLocaleString() : '—');
-  const volLabel = (s.volPct !== null && s.hasLastWeek) ? 'Volume vs last wk' : 'Volume this wk';
-
-  el.innerHTML = `
-    <div class="snap-item"><div class="snap-label">Workouts this wk</div><div class="snap-num">${s.workouts}${s.scheduled ? `<span class="snap-of">/${s.scheduled}</span>` : ''}</div></div>
-    <div class="snap-item"><div class="snap-label">${volLabel}</div><div class="snap-num ${s.volPct !== null && s.volPct >= 0 && s.hasLastWeek ? 'up' : ''}">${volText}</div></div>
-    <div class="snap-item"><div class="snap-label">PRs this wk</div><div class="snap-num">${s.prs}</div></div>
-    <div class="snap-item"><div class="snap-label">Avg workout score</div><div class="snap-num">${avg !== null ? avg : '—'}</div></div>`
-    + (cardioLog.length ? `
-    <div class="snap-item"><div class="snap-label">Cardio this wk</div><div class="snap-num">${computeCardioStats().weekSessions}</div></div>
-    <div class="snap-item"><div class="snap-label">Cardio minutes</div><div class="snap-num">${computeCardioStats().weekMinutes}</div></div>` : '');
-}
-
 /* Compact one-line insight rows — replaces the standalone coach card. Only
    renders when there is genuinely something worth saying. */
 function renderTodayInsights(){
@@ -8653,23 +8806,189 @@ function renderTodayInsights(){
     : '';
 }
 
-function renderTodayTrends(){
-  const el = document.getElementById('todayTrends');
+/* =========================================================
+   THIS WEEK  (Phase D11)
+   ---------------------------------------------------------
+   One compact answer to "how is my week going". Every value is
+   derived from systems that already exist — the plan schedule,
+   the active program if there is one, and computeConsistencyData()
+   for what actually happened. Nothing here stores a second
+   schedule, and nothing here writes.
+   ========================================================= */
+
+/* Per-day view of the current week: what was planned, what happened, and
+   what the athlete should read into it. Order is Mon..Sun, matching both
+   DAY_ORDER and the day array computeConsistencyData() builds. */
+function weekOverview(){
+  const tKey = todayKey();
+  const todayIdx = DAY_ORDER.indexOf(tKey);
+  let consDays = [];
+  try{
+    const cons = computeConsistencyData();
+    const wk = cons.weeks[cons.weeks.length - 1];
+    consDays = (wk && wk.days) ? wk.days : [];
+  }catch(e){ consDays = []; }
+
+  const days = DAY_ORDER.map((key, i) => {
+    const cd = consDays[i] || null;
+    /* An active program owns the day if it has one; otherwise the plan
+       schedule does — the same precedence renderTodayWorkout() uses, so
+       Today and This Week can never disagree about what is planned. */
+    let cat = (schedule && schedule[key]) || 'rest';
+    let workoutName = null;
+    if(cd && cd.date){
+      try{
+        if(hasActiveProgram()){
+          const pd = getProgramWorkoutForDate(cd.date);
+          if(pd){
+            cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
+            if(pd.template && pd.template.name) workoutName = pd.template.name;
+          }
+        }
+      }catch(e){ /* a malformed program must never break Today */ }
+    }
+    if(!workoutName && cat !== 'rest'){
+      try{
+        const tpl = (getTemplates(cat) || [])[0];
+        if(tpl && tpl.name) workoutName = tpl.name;
+      }catch(e){}
+    }
+
+    // What the athlete sees. `trained`/`pr` both read as done; the day the
+    // athlete is standing in always reads as today, whatever else is true.
+    let state;
+    if(i === todayIdx) state = (cd && (cd.state === 'trained' || cd.state === 'pr')) ? 'done-today' : 'today';
+    else if(cd && (cd.state === 'trained' || cd.state === 'pr')) state = 'done';
+    else if(cd && cd.state === 'missed') state = 'missed';
+    else if(cat === 'rest') state = 'rest';
+    else if(i > todayIdx) state = 'upcoming';
+    else state = 'rest';
+
+    return {
+      key, label: DAY_LABEL[key].slice(0,1), fullLabel: DAY_LABEL_FULL[key],
+      date: cd ? cd.date : null,
+      cat, catShort: CAT_SHORT[cat] || '', workoutName,
+      state, isToday: i === todayIdx,
+      prs: cd ? cd.prs : 0
+    };
+  });
+
+  const planned = days.filter(d => d.cat !== 'rest').length;
+  const done = days.filter(d => d.state === 'done' || d.state === 'done-today').length;
+  const next = days.find(d => d.state === 'today' || d.state === 'upcoming');
+
+  return { days, planned, done, next };
+}
+
+/* The week, as one card: how much is done, which days, and what is next.
+   Each cell opens the existing day editor — no second editing path. */
+function renderWeekCard(){
+  const el = document.getElementById('weekCard');
   if(!el) return;
-  const trends = computeExerciseTrends().slice(0, 5);
-  if(!trends.length){
-    el.innerHTML = `<div class="mini-empty">Log an exercise a few times and its trend will appear here.</div>`;
+  const wk = weekOverview();
+
+  // One segment per planned session. A visual the athlete can read without
+  // parsing the number next to it, rather than the number three times over.
+  const segs = wk.planned
+    ? `<div class="wk-bar" role="img" aria-label="${wk.done} of ${wk.planned} sessions completed">${
+        Array.from({length: wk.planned}, (_, i) =>
+          `<span class="wk-seg${i < wk.done ? ' on' : ''}"></span>`).join('')
+      }</div>`
+    : '';
+
+  const cells = wk.days.map(d => `
+    <button type="button" class="wk-day wk-${d.state} ${d.cat}" onclick="openDayEdit('${d.key}')"
+            aria-label="${escapeAttr(d.fullLabel)} — ${escapeAttr(d.workoutName || CAT_LABEL[d.cat] || 'Rest')}">
+      <span class="wk-dl">${d.label}</span>
+      <span class="wk-mark"></span>
+      <span class="wk-dc">${d.cat === 'rest' ? '' : escapeHtml(d.catShort)}</span>
+    </button>`).join('');
+
+  /* The foot answers "what is next" rather than restating the count that is
+     already in the header and the bar. */
+  let foot = '';
+  if(wk.next && wk.next.cat !== 'rest'){
+    const when = wk.next.isToday ? 'Today' : wk.next.fullLabel;
+    foot = `<div class="wk-foot"><span class="wk-foot-k">Next</span>${when} · ${escapeHtml(wk.next.workoutName || CAT_LABEL[wk.next.cat])}</div>`;
+  } else if(wk.planned && wk.done >= wk.planned){
+    foot = `<div class="wk-foot wk-foot-done"><span class="wk-foot-k">Done</span>Every planned session this week is logged.</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="wk-card">
+      <div class="wk-top">
+        <span class="wk-title">This Week</span>
+        <span class="wk-count">${wk.planned ? `<b>${wk.done}</b> of ${wk.planned}` : 'No days set'}</span>
+      </div>
+      ${segs}
+      <div class="wk-days">${cells}</div>
+      ${foot}
+      <div class="wk-hint">Tap a day to change it</div>
+    </div>`;
+}
+
+/* ---------- MOMENTUM (Phase D11) ----------
+   Replaces the Training Snapshot's wall of numbers. Three readings an athlete
+   can actually act on, plus the progression line the old level card used to
+   spend a whole card on. Volume-vs-last-week and "avg workout score" are
+   deliberately gone: the audit found neither was interpretable without an
+   explanation the product never gave. */
+function renderTodayMomentum(){
+  const el = document.getElementById('todayMomentum');
+  if(!el) return;
+  if(!workoutLog.length && !cardioLog.length){
+    el.innerHTML = `<div class="mo-empty">Your training momentum appears here once you log your first session.</div>`;
     return;
   }
-  const A = { up:'↑', down:'↓', flat:'→' };
-  el.innerHTML = `<div class="mini-label">Exercise trends</div><div class="trend-list">` + trends.map(t => `
-    <div class="trend-row">
-      <div class="trend-name">${escapeHtml(t.name)}</div>
-      <div class="trend-meta">
-        <span class="trend-sessions">${t.sessions}×</span>
-        <span class="trend-pct trend-${t.dir}">${A[t.dir]} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</span>
-      </div>
-    </div>`).join('') + `</div>`;
+
+  let streak = 0, onTarget = null, prs = 0;
+  try{ streak = computeWeekStreak(); }catch(e){}
+  try{
+    const cons = computeConsistencyData();
+    onTarget = (cons.overallConsistency !== null && cons.overallConsistency !== undefined)
+      ? cons.overallConsistency : null;
+  }catch(e){}
+  try{ prs = computeWeekSummary().prs || 0; }catch(e){}
+
+  const tile = (val, lbl, tone) =>
+    `<div class="mo-tile${tone ? ' mo-' + tone : ''}"><span class="mo-val">${val}</span><span class="mo-lbl">${lbl}</span></div>`;
+
+  const tiles = [
+    tile(streak, streak === 1 ? 'Week streak' : 'Week streak', streak >= 2 ? 'good' : null),
+    onTarget !== null ? tile(onTarget + '%', 'On target', onTarget >= 80 ? 'good' : (onTarget < 50 ? 'warn' : null)) : '',
+    tile(prs, prs === 1 ? 'PR this week' : 'PRs this week', prs > 0 ? 'good' : null)
+  ].filter(Boolean).join('');
+
+  /* Player progression, reduced from a full card to one line. The system is
+     unchanged and Progress still presents it properly — Today only needs to
+     say where the athlete stands, not celebrate it. */
+  let levelLine = '';
+  try{
+    const p = getCurrentProgression();
+    // Same arithmetic as levelBarHtml(), so the two can never disagree.
+    const pct = p.xpForNext > 0 ? Math.min(100, Math.round((p.currentXP / p.xpForNext) * 100)) : 0;
+    levelLine = `
+      <button type="button" class="mo-level" onclick="openProfile()" aria-label="Level ${p.level}, ${pct}% to level ${p.level + 1}">
+        <span class="mo-level-k">Level ${p.level}</span>
+        <span class="mo-level-bar"><span style="width:${pct}%"></span></span>
+        <span class="mo-level-v">${pct}% to ${p.level + 1}</span>
+      </button>`;
+  }catch(e){ levelLine = ''; }
+
+  el.innerHTML = `<div class="mo-row">${tiles}</div>${levelLine}`;
+}
+
+/* A one-line route into the full progression view, replacing the exercise
+   trend list that duplicated Progress > Strength without adding to it. */
+function renderProgressJump(){
+  const el = document.getElementById('progressJump');
+  if(!el) return;
+  el.innerHTML = `
+    <button type="button" class="prog-jump" onclick="switchTab('progress')">
+      <span class="prog-jump-main">Full progress</span>
+      <span class="prog-jump-sub">Strength, mastery and consistency</span>
+      <span class="prog-jump-arrow" aria-hidden="true">${chevronRightSvg()}</span>
+    </button>`;
 }
 
 function renderToday(){
@@ -8685,26 +9004,12 @@ function renderToday(){
   renderMissedBanner();
   renderReadinessCard();
   renderTodayWorkout();
-  renderSnapshot();
+  renderWeekCard();
+  renderTodayMomentum();
   renderTodayInsights();
 
-  const strip = document.getElementById('weekStrip');
-  /* Same null-guard the rest of the file uses: `schedule` is null until the
-     plan loads during boot, and renderAll() can now be reached from a program
-     action, so an early render must degrade to rest rather than throw. */
-  strip.innerHTML = DAY_ORDER.map(key => {
-    const c = (schedule && schedule[key]) || 'rest';
-    const isToday = key === tKey;
-    return `
-      <div class="day-card ${c} ${isToday ? 'today' : ''}" onclick="openDayEdit('${key}')">
-        <div class="d-label">${DAY_LABEL[key]}</div>
-        <div class="d-cat">${CAT_SHORT[c]}</div>
-      </div>`;
-  }).join('');
-
-  renderLevelCard();
   renderRecentPr();
-  renderTodayTrends();
+  renderProgressJump();
   renderHeatmap();
   if(todayTab === 'program') renderProgramCarousel();
 }
@@ -8716,7 +9021,35 @@ function openDayEdit(key){
   const current = schedule[key];
   document.querySelectorAll('#dayEditOverlay .cat-opt').forEach(el => el.classList.toggle('on', el.dataset.val === current));
   document.querySelector('#dayEditOverlay .rest-day-opt').classList.toggle('on', current === 'rest');
+  renderDayMoveOptions(key);
   document.getElementById('dayEditOverlay').classList.add('open');
+}
+/* The other six days, each showing what it currently holds so the athlete can
+   see what they are trading before they tap. */
+function renderDayMoveOptions(key){
+  const grid = document.getElementById('dayMoveGrid');
+  const block = document.getElementById('dayMoveBlock');
+  if(!grid || !block) return;
+  // Nothing to move off a rest day — the category picker above is the tool for that.
+  if(!schedule || schedule[key] === 'rest'){ block.style.display = 'none'; return; }
+  block.style.display = '';
+  grid.innerHTML = DAY_ORDER.filter(d => d !== key).map(d => {
+    const c = schedule[d] || 'rest';
+    return `<button type="button" class="day-move-opt ${c}" onclick="moveDayTo('${d}')">
+      <span class="dm-day">${DAY_LABEL[d]}</span>
+      <span class="dm-cat">${CAT_SHORT[c] || 'REST'}</span>
+    </button>`;
+  }).join('');
+}
+/* Swap, never overwrite — so nothing is silently lost and the action reverses. */
+function moveDayTo(targetKey){
+  if(!currentEditDay || !schedule || targetKey === currentEditDay) return;
+  const from = schedule[currentEditDay];
+  schedule[currentEditDay] = schedule[targetKey];
+  schedule[targetKey] = from;
+  persistSchedule();
+  renderAll();
+  closeDayEdit();
 }
 function closeDayEdit(){ document.getElementById('dayEditOverlay').classList.remove('open'); }
 function setDayValue(val){
@@ -9483,19 +9816,6 @@ function levelBarHtml(p){
   return `
     <div class="level-bar-track"><div class="level-bar-fill" style="width:${pct}%"></div></div>
     <div class="level-bar-label">${p.currentXP.toLocaleString()} / ${p.xpForNext.toLocaleString()} XP · ${(p.xpForNext - p.currentXP).toLocaleString()} XP to Level ${p.level + 1}</div>
-  `;
-}
-
-function renderLevelCard(){
-  const el = document.getElementById('levelCard');
-  if(!el) return;
-  const p = getCurrentProgression();
-  el.innerHTML = `
-    <div class="level-card-top">
-      <div class="level-badge">LEVEL ${p.level}</div>
-      <div class="level-rank">${p.rank}</div>
-    </div>
-    ${levelBarHtml(p)}
   `;
 }
 
@@ -10384,8 +10704,9 @@ async function loadTrainerData(){
   await loadExerciseNotes();
   // Programs. Absent = an athlete using plans directly, which stays valid.
   await loadPrograms();
-  // Onboarding state. Absent = someone who has not been offered the tour.
-  await loadOnboarding();
+  /* Onboarding state is deliberately NOT read here. boot() reads it before
+     showMainApp(), because that is where the offer decision is made — reading
+     it at this point is too late and is what made the tour replay forever. */
 }
 async function persistAthleteProfile(){
   athleteProfile.updatedAt = new Date().toISOString();
@@ -11372,7 +11693,7 @@ function renderProgHeader(){
   const totalPRs = computeAllPREvents().length;
   const s = computeWeekSummary();
   const trendLabel = { improving:'Improving', steady:'Holding steady', declining:'Easing off' }[cons.trend];
-  const trendArrow = { improving:'↗', steady:'→', declining:'↘' }[cons.trend];
+  const trendArrow = trendIconSvg(trendDirOf(cons.trend));
 
   if(!workoutLog.length){
     el.innerHTML = '';
@@ -11387,8 +11708,7 @@ function renderProgHeader(){
     <div class="snapshot prog-stats">
       <div class="snap-item"><div class="snap-label">Total workouts</div><div class="snap-num">${workoutLog.length}</div></div>
       <div class="snap-item"><div class="snap-label">Personal records</div><div class="snap-num">${totalPRs}</div></div>
-      <div class="snap-item"><div class="snap-label">Volume vs last wk</div><div class="snap-num ${s.volPct!==null&&s.volPct>=0&&s.hasLastWeek?'up':''}">${s.volPct!==null&&s.hasLastWeek?(s.volPct>=0?'+':'')+s.volPct+'%':'—'}</div></div>
-      <div class="snap-item"><div class="snap-label">Avg workout score</div><div class="snap-num">${cons.overallScore!==null?cons.overallScore:'—'}</div></div>
+      <div class="snap-item"><div class="snap-label">Week streak</div><div class="snap-num">${computeWeekStreak()}</div></div>
     </div>`;
 }
 
@@ -11437,8 +11757,6 @@ function renderProgOverview(){
   /* ---- 1. HERO: 12-week consistency ring (real: completed / planned) ---- */
   const hasTarget = cons.overallConsistency !== null;
   const onTargetWeeks = cons.weeks.filter(w => w.target && w.workouts >= w.target).length;
-  const trendLabel = { improving:'Improving', steady:'Holding steady', declining:'Easing off' }[cons.trend];
-  const trendArrow = { improving:'↗', steady:'→', declining:'↘' }[cons.trend];
 
   document.getElementById('progPerf').innerHTML = `
     <div class="prog-hero">
@@ -11450,21 +11768,10 @@ function renderProgOverview(){
         </div>
       </div>
       <div class="prog-hero-side">
-        <div class="prog-hero-trend prog-${cons.trend}">${trendArrow} ${trendLabel}</div>
         <div class="prog-hero-sub">${hasTarget
           ? `${cons.totalWorkouts} of ${cons.totalPlanned} planned sessions<br>${onTargetWeeks} of 12 weeks fully on target`
           : `over the last 12 weeks`}</div>
-        ${cons.overallScore !== null ? `<div class="prog-hero-score">Avg session score <strong>${cons.overallScore}</strong></div>` : ''}
       </div>
-    </div>
-
-    <div class="sec-head">This week</div>
-    <div class="week-dots">
-      ${s.scheduled
-        ? Array.from({length: s.scheduled}, (_,i) =>
-            `<span class="wdot ${i < s.workouts ? 'done' : ''}"></span>`).join('') +
-          `<span class="week-dots-label">${s.workouts} / ${s.scheduled} workouts</span>`
-        : `<span class="week-dots-label">${s.workouts} workout${s.workouts===1?'':'s'} logged</span>`}
     </div>
 
     <div class="sec-head">Next level</div>
@@ -11612,13 +11919,12 @@ function renderProgStrength(){
       </div>`).join('')}</div>` : '';
 
   const trends = computeExerciseTrends();
-  const A = { up:'↑', down:'↓', flat:'→' };
   document.getElementById('progExercises').innerHTML = `
     <div class="sec-head">All exercises<span class="sec-hint">tap for detail</span></div>
     ${trends.length ? `<div class="rank-list">${trends.map(t => `
       <div class="rank-row" onclick="openExDetail('${escapeAttr(t.name)}')">
         <div class="rank-name">${escapeHtml(t.name)}<span class="rank-sub">${t.sessions} sessions</span></div>
-        <div class="rank-val trend-${t.dir}">${A[t.dir]} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</div>
+        <div class="rank-val trend-${t.dir}">${trendIconSvg(trendDirOf(t.dir))} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</div>
       </div>`).join('')}</div>`
     : `<div class="mini-empty">Log an exercise at least twice and its progression will appear here.</div>`}`;
 }
@@ -11650,7 +11956,7 @@ function renderProgVolume(){
 
 function cmpRow(label, now, prev, isVol){
   const d = now - prev;
-  const arrow = d > 0 ? '↑' : d < 0 ? '↓' : '→';
+  const arrow = trendIconSvg(d > 0 ? 'up' : d < 0 ? 'down' : 'flat');
   const cls = d > 0 ? 'up' : d < 0 ? 'down' : '';
   const fmt = v => isVol ? v.toLocaleString() : v;
   return `<div class="cmp-row">
@@ -12152,10 +12458,10 @@ function renderExDetail(){
   const cur = topSet(sessions[0]);
   const prev = sessions[1] ? topSet(sessions[1]) : null;
   const trends = computeExerciseTrends().find(t => t.name === name);
-  const A = { up:'↗ Improving', down:'↘ Declining', flat:'→ Holding' };
+  const A = { up:'Improving', down:'Declining', flat:'Holding' };
 
   document.getElementById('exDetailTrend').innerHTML = trends
-    ? `<span class="trend-pct trend-${trends.dir}">${A[trends.dir]}</span> · ${sessions.length} sessions logged`
+    ? `<span class="trend-pct trend-${trends.dir}">${trendIconSvg(trendDirOf(trends.dir))} ${A[trends.dir]}</span> · ${sessions.length} sessions logged`
     : `${sessions.length} session${sessions.length===1?'':'s'} logged`;
 
   const fmtSet = s => !s ? '—' : (isBW ? `${s.r} reps` : `${s.w} lb × ${s.r}`);

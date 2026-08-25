@@ -536,3 +536,99 @@ their correct selectors, no stray duplicate of the old D10-only rule, the
 JS function changed. Contract 68 is the standard isolation pass — protected
 snapshot before/after driving every touched surface, no storage key, no
 trainer record, engine still `0.1.1-shadow`.
+
+---
+
+## 15. Today, plan and progress consolidation (Phase D11)
+
+### The onboarding replay bug — an ordering defect, not a logic one
+
+`showMainApp()` decides **synchronously** whether to offer the tour. The
+athlete's saved onboarding record was not read until `loadTrainerData()`, five
+lines later in `boot()`. So `shouldOfferOnboarding()` always inspected the
+default state (`completedVersion:null`, `skipped:false`) and always returned
+true. **The tour reappeared on every launch, for every returning athlete,
+deterministically** — while their completion sat correctly on disk the whole
+time.
+
+Reproduced in a browser before the fix: overlay open, storage reading
+`completedVersion: 1`, and `shouldOfferOnboarding()` returning `false` *when
+asked afterwards*. The function was right; it was asked too early.
+
+`await loadOnboarding()` now runs in `boot()` before the branch that can call
+`showMainApp()`, and no longer runs inside `loadTrainerData()`. **The guardian
+test asserts the ORDERING, not the logic** — a logic-only assertion passed
+throughout the bug's entire life.
+
+> If a decision is computed synchronously during boot, assert that its inputs
+> are loaded *before* it, not merely that the function is correct.
+
+### Today — hierarchy
+
+The week sat at y=956 on an 812px screen: an athlete had to scroll to see their
+own week. Order is now **workout → week → context → momentum → secondary**, and
+both "what am I doing today" and "how is my week going" are answerable without
+scrolling (verified for a brand-new athlete at 375×812).
+
+| Removed | Why |
+|---|---|
+| Training Snapshot | Volume-vs-last-week and "avg workout score" were the two figures the D-audit found uninterpretable. Replaced by Momentum: streak, on-target, PRs. |
+| Exercise Trends | Duplicated Progress ▸ Strength without adding to it. Replaced by a one-line route into Progress. |
+| Full-size level card | Progression is now one compact line (`.mo-level`) that still opens the profile. The system is unchanged; Progress still presents it properly. |
+
+`renderSnapshot`, `renderTodayTrends` and `renderLevelCard` were **deleted**,
+not left orphaned.
+
+**The week card is derived, never stored.** `weekOverview()` reads
+`computeConsistencyData()` for what happened, honours an active program via
+`getProgramWorkoutForDate()` with the same precedence `renderTodayWorkout()`
+uses — so Today and This Week can never disagree — and falls back to the plan
+schedule. It writes nothing.
+
+State is carried by **shape**, not colour alone: done is a filled disc, upcoming
+a ring, rest a dash. The count appears **once**; the segmented bar and the day
+marks show the same fact in different registers rather than repeating the number.
+
+### Adjusting the week
+
+Moving a session is a **swap**, not an overwrite — so the operation is its own
+undo, which is why no undo stack exists. Verified: move Tue→Wed then Wed→Tue
+restores the week exactly, and `workoutLog` is never involved. Schedule intent
+and training history stay separate.
+
+### Plan and Program are one decision
+
+Plan and Program read as two products an athlete had to learn in order. They are
+now **one choice on one screen**: pick a ready-made plan, or *Build my own*. The
+program architecture is completely untouched — it is simply presented as what it
+already was, **the custom kind of plan**.
+
+The custom card appears in all three places plans are listed (first-run chooser,
+plan switcher, plans manager), so "custom" is never the hidden option.
+`startCustomPlan()` gives a planless athlete a valid base plan first, so the app
+is never left without a schedule underneath the builder; an athlete who already
+has a plan keeps it untouched unless they finish a build.
+
+**No existing athlete is migrated.** Nothing in `boot()` creates a program, and
+Contract 70 asserts it.
+
+### Progress — each fact once
+
+Trend was stated in the header *and* the hero; an average score appeared in both
+under two different names; Progress kept its own copy of this week that Today now
+owns. Each survives exactly once, or not at all.
+
+**Analytical state is an icon, not punctuation.** `trendIconSvg()` covers
+up/down/flat with direction carried by the **shape**; `.ti-up/.ti-down/.ti-flat`
+add tone as reinforcement only. Zero `↗ ↘ ↑ ↓ →` characters remain in the app.
+
+### A testing lesson worth keeping
+
+Two D11 assertions failed against **their own explanatory comments** —
+`indexOf('showMainApp()')` matched a sentence describing the ordering, and a
+`Holding steady` count matched a comment quoting the old copy. Both now strip
+comments before measuring.
+
+> When an assertion greps the source for a UI string or a call, strip comments
+> first. This file explains itself in prose that names the very symbols the
+> tests look for.

@@ -1741,9 +1741,10 @@ async function testFirstImpression(){
   T('Progress sub-sections cleared', doc.getElementById('progImprovements').innerHTML === '');
 
   ctx.renderToday();
-  const snap = doc.getElementById('todaySnapshot').innerHTML;
-  T('Today snapshot shows no zeros', !/snap-num">0</.test(snap));
-  T('Today snapshot explains itself', snap.includes('appear here'));
+  const snap = doc.getElementById('todayMomentum').innerHTML;
+  T('Today momentum shows no zeros', !/mo-val">0</.test(snap));
+  T('Today momentum explains itself', snap.includes('appears here'));
+  T('Today momentum shows no stat tiles to a new athlete', snap.indexOf('mo-tile') === -1);
 
   ctx.renderCardioView();
   const cardio = doc.getElementById('cardioBody').innerHTML;
@@ -1760,7 +1761,7 @@ async function testFirstImpression(){
     .forEach(f => ctx[f] && ctx[f]());
   ctx.renderProgTab(); ctx.renderToday();
   T('Progress header returns with data', doc.getElementById('progHeader').innerHTML.includes('Training trend'));
-  T('Today snapshot returns with data', doc.getElementById('todaySnapshot').innerHTML.includes('snap-num'));
+  T('Today momentum returns with data', doc.getElementById('todayMomentum').innerHTML.includes('mo-val'));
 }
 
 function testUpdatesCurrency(app){
@@ -6574,6 +6575,285 @@ async function testD101Safety(){
 }
 
 /* =========================================================
+   CONTRACT 69 — D11: Today, onboarding, plan and progress
+   ========================================================= */
+function testD11Consolidation(app){
+  section('CONTRACT 69 — Today / plan / progress consolidation');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+
+  sub('ONBOARDING — the replay bug cannot come back');
+  {
+    /* The bug was ORDERING, not logic: showMainApp() decides synchronously
+       whether to offer the tour, but the athlete's saved state was not read
+       until loadTrainerData() five lines later, so the decision always saw the
+       default and always said yes. Asserted as an ordering invariant, because
+       asserting shouldOfferOnboarding() alone would have passed throughout. */
+    const bootStart = src.indexOf('async function boot(){');
+    const bootEnd = src.indexOf('async function loadPlanData', bootStart);
+    // Comments are stripped first: this file explains the ordering in prose
+    // that also names showMainApp(), which would otherwise match before the call.
+    const boot = src.slice(bootStart, bootEnd)
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const loadAt = boot.indexOf('await loadOnboarding()');
+    const showAt = boot.indexOf('showMainApp()');
+    T('boot reads the tour state', loadAt !== -1);
+    T('boot shows the app', showAt !== -1);
+    T('the state is read BEFORE the offer decision — this is the bug', loadAt < showAt);
+    T('it is not also read later, where it was too late to matter',
+      src.indexOf('await loadOnboarding()', bootEnd) === -1 ||
+      !/loadTrainerData\(\)\{[\s\S]{0,4000}await loadOnboarding\(\)/.test(src));
+
+    ctx.onboardingState = ctx.defaultOnboardingState();
+    T('a brand-new athlete is offered the tour', ctx.shouldOfferOnboarding() === true);
+    ctx.onboardingState.completedVersion = ctx.ONBOARDING_VERSION;
+    T('a completed athlete is never offered it again', ctx.shouldOfferOnboarding() === false);
+    ctx.onboardingState = ctx.defaultOnboardingState();
+    ctx.onboardingState.skipped = true;
+    T('an athlete who skipped is never offered it again', ctx.shouldOfferOnboarding() === false);
+    T('replay stays available on purpose', typeof ctx.replayOnboarding === 'function');
+    T('replay does not clear the completion record',
+      !/function replayOnboarding[\s\S]{0,220}(completedVersion\s*=|skipped\s*=)/.test(src));
+  }
+
+  sub('TODAY — hierarchy puts the week where it can be seen');
+  {
+    const view = src.slice(src.indexOf('<div class="view active" id="view-today">'),
+                           src.indexOf('<div class="view" id="view-train">'));
+    const order = ['todayWorkout','weekCard','readinessCard','todayMomentum'];
+    const idx = order.map(id => view.indexOf('id="' + id + '"'));
+    T('every hierarchy block is present', idx.every(i => i !== -1));
+    T('workout, then week, then context, then momentum',
+      idx[0] < idx[1] && idx[1] < idx[2] && idx[2] < idx[3], idx.join(','));
+    T('the analytics wall is gone', view.indexOf('id="todaySnapshot"') === -1);
+    T('its renderer went with it', src.indexOf('function renderSnapshot(') === -1);
+    T('exercise trends left Today', view.indexOf('id="todayTrends"') === -1 &&
+      src.indexOf('function renderTodayTrends(') === -1);
+    T('the full-size level card left Today', src.indexOf('function renderLevelCard(') === -1);
+    T('progression survives as one compact line', /class="mo-level"/.test(src));
+    T('and still routes to the full profile', /mo-level[\s\S]{0,120}openProfile\(\)/.test(src));
+  }
+
+  sub('TODAY — the week is derived, never a second schedule');
+  {
+    T('weekOverview exists', typeof ctx.weekOverview === 'function');
+    const fnStart = src.indexOf('function weekOverview(){');
+    const fnEnd = src.indexOf('function renderWeekCard(){');
+    const fn = src.slice(fnStart, fnEnd);
+    T('it reads the existing consistency engine', fn.indexOf('computeConsistencyData()') !== -1);
+    T('it honours an active program the same way Today does',
+      fn.indexOf('hasActiveProgram()') !== -1 && fn.indexOf('getProgramWorkoutForDate') !== -1);
+    T('it falls back to the plan schedule', fn.indexOf('schedule[key]') !== -1);
+    T('it writes nothing', !/schedule\s*\[[^\]]+\]\s*=/.test(fn) && fn.indexOf('persist') === -1);
+  }
+  {
+    ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
+    const wk = ctx.weekOverview();
+    T('seven days, always', wk.days.length === 7);
+    T('planned counts only training days', wk.planned === 4);
+    T('exactly one day is today', wk.days.filter(d => d.isToday).length === 1);
+    T('rest days are marked rest', wk.days.filter(d => d.cat === 'rest').every(d => d.state === 'rest'));
+    T('every day carries a state', wk.days.every(d => !!d.state));
+    T('done never exceeds planned', wk.done <= wk.planned);
+  }
+
+  sub('TODAY — completion is shown, not just counted');
+  {
+    ctx.renderWeekCard();
+    const html = doc.getElementById('weekCard').innerHTML;
+    T('a segmented bar represents the week', html.indexOf('wk-seg') !== -1);
+    T('each day renders a state mark', (html.match(/wk-mark/g) || []).length === 7);
+    T('the count appears once, not three times',
+      (html.match(/wk-count/g) || []).length === 1);
+    T('state is not carried by colour alone — rest, done and upcoming differ in shape',
+      /\.wk-rest \.wk-mark\{[^}]*width: 10px/.test(src) &&
+      /\.wk-done \.wk-mark[^{]*\{[^}]*background: var\(--success\)/.test(src) &&
+      /\.wk-upcoming \.wk-mark\{[^}]*background: transparent/.test(src));
+    T('the foot says what is next rather than restating the count',
+      html.indexOf('wk-foot') === -1 || /wk-foot-k">(Next|Done)</.test(html));
+  }
+
+  sub('TODAY — the week can be adjusted without leaving Today');
+  {
+    T('a day opens the existing editor', /class="wk-day[\s\S]{0,160}openDayEdit\(/.test(src));
+    T('moving a day exists', typeof ctx.moveDayTo === 'function');
+    const mv = src.slice(src.indexOf('function moveDayTo('), src.indexOf('function templateCardHtml'));
+    T('it swaps rather than overwrites — so it is its own undo',
+      /schedule\[currentEditDay\] = schedule\[targetKey\]/.test(mv) &&
+      /schedule\[targetKey\] = from/.test(mv));
+    T('it persists through the existing schedule path', mv.indexOf('persistSchedule()') !== -1);
+    T('it never touches workoutLog', mv.indexOf('workoutLog') === -1);
+  }
+  {
+    ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
+    const before = JSON.stringify(ctx.schedule);
+    const logBefore = JSON.stringify(ctx.workoutLog);
+    ctx.currentEditDay = 'tue';
+    ctx.moveDayTo('wed');
+    const moved = JSON.stringify(ctx.schedule);
+    ctx.currentEditDay = 'wed';
+    ctx.moveDayTo('tue');
+    T('a move changes the week', moved !== before);
+    T('moving back restores it exactly — undo is structural', JSON.stringify(ctx.schedule) === before);
+    T('training history was never involved', JSON.stringify(ctx.workoutLog) === logBefore);
+  }
+
+  sub('PLAN — one decision, ready-made or custom');
+  {
+    T('a custom plan card exists', typeof ctx.customPlanCardHtml === 'function');
+    const card = ctx.customPlanCardHtml();
+    T('it reads as a plan, not a second system', /Build my own/.test(card) && /custom plan/i.test(card));
+    T('it enters the existing builder', /startCustomPlan\(\)/.test(card));
+    T('the entry point exists', typeof ctx.startCustomPlan === 'function');
+    const sc = src.slice(src.indexOf('async function startCustomPlan()'), src.indexOf('function openPlanSwitcher()'));
+    T('an athlete with no plan gets a valid one first, so the app is never planless',
+      sc.indexOf('choosePlan(defaultBasePlanId())') !== -1);
+    T('an athlete who already has a plan keeps it — no silent migration',
+      /if\(!selectedPlanId \|\| !DEFAULT_PLANS\[selectedPlanId\]\)/.test(sc));
+    T('it opens the existing program builder, not a new one', sc.indexOf('openProgramBuilder()') !== -1);
+  }
+  {
+    // offered everywhere plans are listed, so "custom" is never the hidden option
+    T('offered on the first-run chooser', /function showOnboarding\(\)[\s\S]{0,420}customPlanCardHtml\(\)/.test(src));
+    T('offered in the plan switcher', /function openPlanSwitcher\(\)[\s\S]{0,520}customPlanCardHtml\(\)/.test(src));
+    T('offered in the plans manager', /plansGrid'\)\.innerHTML[\s\S]{0,400}customPlanCardHtml\(\)/.test(src));
+    T('the program architecture was not duplicated',
+      (src.match(/function createProgram\(/g) || []).length === 1);
+    T('programs remain reachable from Settings', /openPrograms\(\)/.test(src));
+    T('no new navigation tab was added',
+      (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === 5);
+  }
+
+  sub('PROGRESS — each fact appears once');
+  {
+    const hdr = src.slice(src.indexOf('function renderProgHeader(){'), src.indexOf('function rangeBtns()'));
+    T('the header no longer shows volume-vs-last-week', hdr.indexOf('Volume vs last wk') === -1);
+    T('the undefined "avg workout score" is gone from the header', hdr.indexOf('Avg workout score') === -1);
+    T('it keeps interpretable totals', hdr.indexOf('Total workouts') !== -1 && hdr.indexOf('Personal records') !== -1);
+    T('"avg session score" is gone from the hero too', src.indexOf('Avg session score') === -1);
+    /* Counted against code only — a comment elsewhere quotes the old
+       "Holding steady - 0 workouts" state it describes fixing. */
+    const srcCode = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    T('the training trend is stated once',
+      (srcCode.match(/Holding steady/g) || []).length === 1);
+    T('Progress no longer keeps its own copy of this week — Today owns it',
+      src.indexOf('<div class="sec-head">This week</div>') === -1);
+  }
+
+  sub('PROGRESS — analytical state is an icon, not punctuation');
+  {
+    T('a trend icon set exists', typeof ctx.trendIconSvg === 'function');
+    T('it covers all three states',
+      ['up','down','flat'].every(d => (ctx.trendIconSvg(d) || '').indexOf('<svg') === 0));
+    T('direction is carried by the shape, not only by colour',
+      ctx.trendIconSvg('up') !== ctx.trendIconSvg('down') &&
+      ctx.trendIconSvg('up') !== ctx.trendIconSvg('flat'));
+    T('it maps the vocabularies already in use',
+      ctx.trendDirOf('improving') === 'up' && ctx.trendDirOf('declining') === 'down' &&
+      ctx.trendDirOf('steady') === 'flat' && ctx.trendDirOf('up') === 'up');
+    T('no text arrow survives anywhere in the app', !/[↗↘]/.test(src));
+    T('the analytics no longer draw arrows as characters',
+      src.indexOf("{ up:'↑', down:'↓', flat:'→' }") === -1);
+    T('each state has its own tone token',
+      /\.ti-up\{ color: var\(--success\)/.test(src) &&
+      /\.ti-down\{ color: var\(--warning\)/.test(src) &&
+      /\.ti-flat\{ color: var\(--text-faint\)/.test(src));
+  }
+
+  sub('PROGRESS — mastery kept its D10 shape');
+  {
+    T('mastery still leads its own tab', />Mastery<\/button>/.test(src));
+    T('the exercise directory is still not duplicated', !/Movement mastery/.test(src));
+    T('top-few plus disclosure is intact', typeof ctx.toggleAllMastery === 'function');
+  }
+}
+
+/* =========================================================
+   CONTRACT 70 — D11 changed presentation, not training data
+   ========================================================= */
+async function testD11Safety(){
+  section('CONTRACT 70 — consolidation touched no training data');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const storeKeysBefore = Object.keys(app.store).sort().join(',');
+  const masteryBefore = JSON.stringify(ctx.getTopExerciseMastery());
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const recoveryBefore = JSON.stringify(ctx.computeMuscleRecovery());
+  const capBefore = JSON.stringify(ctx.getExerciseCapability('Bench Press'));
+  const scheduleBefore = JSON.stringify(ctx.schedule);
+  const programsBefore = app.store.programs;
+
+  sub('drive every surface D11 touched');
+  ctx.renderAll();
+  ctx.renderWeekCard();
+  ctx.renderTodayMomentum();
+  ctx.weekOverview();
+  ctx.customPlanCardHtml();
+  ctx.progTab = 'overview'; ctx.renderProgTab();
+  ctx.progTab = 'strength'; ctx.renderProgTab();
+  ctx.progTab = 'volume';   ctx.renderProgTab();
+  ctx.progTab = 'muscles';  ctx.renderProgTab();
+  ['up','down','flat'].forEach(d => ctx.trendIconSvg(d));
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', JSON.stringify(ctx.computeMuscleRecovery()) === recoveryBefore);
+  T('capability unchanged', JSON.stringify(ctx.getExerciseCapability('Bench Press')) === capBefore);
+  T('mastery unchanged', JSON.stringify(ctx.getTopExerciseMastery()) === masteryBefore);
+  T('the schedule was not rewritten by rendering', JSON.stringify(ctx.schedule) === scheduleBefore);
+  T('programs were not rewritten by rendering', app.store.programs === programsBefore);
+
+  sub('no migration, no new storage');
+  T('no storage key created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
+  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
+  T('no migration introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
+  T('an existing athlete is never auto-migrated into a program',
+    !/function boot\(\)[\s\S]{0,3000}createProgram\(/.test(
+      require('fs').readFileSync(H.APP_PATH, 'utf8')));
+
+  sub('trainer untouched');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by UX', ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+  {
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    const d11 = [
+      src.slice(src.indexOf('function weekOverview(){'), src.indexOf('function renderTodayMomentum(){')),
+      src.slice(src.indexOf('function renderTodayMomentum(){'), src.indexOf('function renderProgressJump(){')),
+      src.slice(src.indexOf('async function startCustomPlan()'), src.indexOf('function openPlanSwitcher()'))
+    ].join('\n');
+    T('the new code writes no storage directly',
+      d11.indexOf('LOOPStore.set') === -1 && d11.indexOf('localStorage') === -1);
+    T('it calls no trainer function',
+      !/proposeTrainerState|computeShadowRecommendation|logRecommendation/.test(d11));
+    T('it never writes workoutLog', !/workoutLog\s*(=[^=]|\.push|\.splice)/.test(d11));
+    T('plan generation is deterministic assembly, not a recommendation',
+      !/computeShadowRecommendation|proposeTrainerState/.test(
+        src.slice(src.indexOf('function submitProgramBuilder()'), src.indexOf('function submitProgramBuilder()') + 2600)));
+  }
+}
+
+/* =========================================================
    RUNNER
    ========================================================= */
 async function main(){
@@ -6620,6 +6900,7 @@ async function main(){
   testMastery(H.loadApp());
   testD10Consolidation(H.loadApp());
   testD101Responsive(H.loadApp());
+  testD11Consolidation(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -6656,6 +6937,7 @@ async function main(){
     await testMasterySafety();
     await testD10Safety();
     await testD101Safety();
+    await testD11Safety();
   }
 
   // ---- FULL ----
