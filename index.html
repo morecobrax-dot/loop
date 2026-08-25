@@ -716,7 +716,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .tw-cta:active{ transform: scale(0.985); }
 .tw-cta-done{ background: var(--success); }
 .tw-cta-ghost{ background: none; border: 1px solid var(--border); color: var(--text-dim); box-shadow: none; }
-.tw-change{
+.tw-change{ min-height: 44px;
   width: 100%; margin-top: 8px; padding: 10px; background: none; border: none;
   color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
@@ -1558,6 +1558,9 @@ html.intro-skip #introOverlay{ display: none !important; }
 /* The scroll surface owns the top inset on a page — there is no sheet lip above
    it to absorb the notch. */
 .sheet-page .sheet-scroll{ padding-top: calc(18px + env(safe-area-inset-top, 0px)); }
+/* A bottom sheet tall enough to reach the top of the screen needs the inset
+   too — otherwise its first line sits under the clock on a notched device. */
+.overlay:not(.overlay-page) .sheet{ max-height: calc(92dvh - env(safe-area-inset-top, 0px)); }
 .overlay-page .sheet-page{ width: 100%; }
 
 /* ---------- MY TRAINING (Phase D13) ----------
@@ -1926,7 +1929,119 @@ button.cal-cell:active{ transform: scale(0.92); }
 .overlay{
   position: fixed; inset: 0; background: rgba(6,7,9,0.72); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
   display: none; align-items: flex-end; z-index: 60;
+  /* A flick that runs out of sheet must stop, not hand itself to the page
+     underneath — that is what made two screens feel simultaneously alive. */
+  overscroll-behavior: contain;
 }
+
+/* ---------- WEEK: SELECTION, DRAG, UNDO (Phase D12) ----------
+   Selection is a ring and a raised label, not a colour swap — the strip
+   already uses colour for training category, so selection had to speak in a
+   different channel. */
+.wk-day{ touch-action: pan-y; }
+.wk-day.wk-selected{
+  box-shadow: inset 0 0 0 2px var(--accent);
+  border-radius: var(--radius-md);
+}
+.wk-day.wk-selected .wk-dl{ color: var(--text); font-weight: 800; }
+
+/* Lifted: bigger, raised, and above its neighbours. */
+.wk-days.wk-drag-mode{ touch-action: none; }
+.wk-day.wk-dragging{
+  z-index: 3; position: relative;
+  box-shadow: var(--shadow-lg);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  opacity: 0.96;
+  transition: none;
+}
+/* Where it may land. A dashed edge as well as a tint, so the drop targets do
+   not depend on seeing the accent. */
+.wk-day.wk-drop-ok{
+  outline: 1px dashed var(--text-faint); outline-offset: -3px; border-radius: var(--radius-md);
+}
+.wk-day.wk-drop-over{
+  outline: 2px dashed var(--accent); background: var(--accent-soft);
+}
+.wk-day.wk-reject{ animation: wkReject 0.3s var(--ease); }
+@keyframes wkReject{
+  0%,100%{ transform: translateX(0); }
+  30%{ transform: translateX(-4px); }
+  70%{ transform: translateX(4px); }
+}
+.wk-day:not(.wk-dragging){ transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease); }
+
+.wk-undo-host{ display: none; }
+.wk-undo-host.open{ display: block; margin-top: var(--space-2); }
+.wk-undo{
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: 9px var(--space-3); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.wk-undo-text{ font-size: 12px; color: var(--text-dim); min-width: 0; }
+.wk-undo-btn{
+  flex-shrink: 0; min-height: 44px; padding: 0 var(--space-3);
+  background: none; border: none; cursor: pointer;
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 700;
+}
+
+/* ---------- the selected day card ---------- */
+.tw-daynav{ display: flex; align-items: center; gap: 4px; margin-bottom: 10px; }
+.tw-daynav-btn{
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text-dim); border-radius: var(--radius-sm);
+  margin: -6px 0;
+}
+.tw-daynav-btn:active{ background: var(--surface-3); }
+.tw-daynav-label{
+  flex: 1; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.tw-daynav-today{
+  flex-shrink: 0; min-height: 44px; padding: 0 10px;
+  background: none; border: none; cursor: pointer;
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+}
+.tw-other{ touch-action: pan-y; }
+
+@media (prefers-reduced-motion: reduce){
+  .wk-day.wk-reject{ animation: none; outline: 2px solid var(--danger); }
+  .wk-day:not(.wk-dragging){ transition: none; }
+  .wk-day.wk-dragging{ transform: none !important; }
+}
+
+/* ---------- PR SET HIGHLIGHT (Phase D12) ----------
+   Restrained on purpose: the set is already small, and a loud badge would
+   make a workout of ten sets look like a scoreboard. Border, tint and the
+   word "PR" — three signals, only one of them colour. */
+.set-chip-record{
+  border-color: var(--success) !important;
+  background: var(--success-soft) !important;
+  color: var(--text);
+}
+.set-chip-pr{
+  margin-left: 6px; padding: 1px 4px; border-radius: 3px;
+  background: var(--success); color: #0A0C10;
+  font-size: 8.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.log-ex-pr{
+  display: inline-flex; align-items: center; gap: 3px; margin-left: 7px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--success);
+}
+
+/* ---------- PAGE ISOLATION (Phase D12) ----------
+   While any page or sheet is open the document behind it stops being a
+   scrollable document. overflow:hidden alone is not enough on iOS, so the
+   body is pinned and its offset restored on close. */
+body.scroll-locked{
+  position: fixed;
+  left: 0; right: 0; width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+/* Every scrolling surface inside an overlay keeps its own scroll to itself. */
+.sheet-scroll, .cs-body, .prep-run, .ob-scroll{ overscroll-behavior: contain; }
 .overlay.open{ display: flex; }
 .sheet{
   background: var(--surface); width: 100%; max-height: 92vh;
@@ -3542,7 +3657,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 
 <div id="planOnboard" style="display:none;">
   <div class="eyebrow">LOOP</div>
-  <div class="onboard-title">Choose your plan</div>
+  <div class="onboard-title">Choose how you train</div>
   <div class="onboard-sub">Pick the training style that fits you. You can edit every workout afterward, and switch plans anytime without losing your history.</div>
   <div class="plan-grid" id="onboardPlanGrid"></div>
 </div>
@@ -3587,7 +3702,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="seg" id="todaySeg">
       <button class="seg-btn active" data-t="progress" onclick="switchTodayTab('progress')">Progress</button>
       <button class="seg-btn" data-t="consistency" onclick="switchTodayTab('consistency')">Consistency</button>
-      <button class="seg-btn" data-t="program" onclick="switchTodayTab('program')">Program</button>
+      <button class="seg-btn" data-t="program" onclick="switchTodayTab('program')">Plan</button>
     </div>
 
     <div class="seg-panel" id="tpanel-progress">
@@ -4054,8 +4169,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <button class="sheet-back" onclick="backToSettings('programsOverlay')">‹ Settings</button>
-      <h2>Programs</h2>
-      <div class="sheet-sub">A program is a custom plan: the same workouts, organised into phases and weeks with a start and an end. Your ready-made plans and your history are untouched.</div>
+      <h2>Training Cycles</h2>
+      <div class="sheet-sub">A cycle runs your plan for a set number of weeks, through phases that build and then deload. Optional — your plan already works without one, and nothing you have logged is affected.</div>
       <div id="programsBody"></div>
     </div>
     <div class="sheet-actions">
@@ -4067,12 +4182,12 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 <div class="overlay" id="programBuilderOverlay" onclick="backdropDismiss(event, closeProgramBuilder)">
   <div class="sheet">
     <div class="sheet-scroll">
-      <h2>New Program</h2>
+      <h2>New Training Cycle</h2>
       <div class="sheet-sub">Name it, pick a length and a structure. Everything else can be adjusted afterwards.</div>
       <div id="programBuilderBody"></div>
     </div>
     <div class="sheet-actions">
-      <button class="btn-primary" style="flex:1" onclick="submitProgramBuilder()">Create program</button>
+      <button class="btn-primary" style="flex:1" onclick="submitProgramBuilder()">Create cycle</button>
       <button class="btn-secondary" onclick="closeProgramBuilder()">Cancel</button>
     </div>
   </div>
@@ -6091,6 +6206,9 @@ async function boot(){
   // Tells the launch intro the app is loaded. Without this the overlay would
   // sit there until the 6s failsafe fired instead of lifting at ~1.4s.
   markAppReady();
+  /* One observer owns the background lock for every overlay, including any
+     restored during boot. */
+  initPageIsolation();
 }
 
 /* Honest surfacing: if storage can't persist, or a migration needed attention,
@@ -6742,6 +6860,12 @@ function trendDirOf(v){
 function chevronLeftSvg(){
   return `<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8L10 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
+function chevronLeftSvg(){
+  return `<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8L10 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function chevronPRSvg(){
+  return `<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.8l1.9 4 4.3.6-3.1 3 .7 4.3L8 11.7 4.2 13.7l.7-4.3-3.1-3 4.3-.6z" fill="currentColor"/></svg>`;
+}
 function chevronRightSvg(){
   return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
@@ -6790,6 +6914,7 @@ function sortedLog(){
   return _sortedLogCache;
 }
 function invalidateSortedLogCache(){
+  if(typeof invalidatePRSetCache === 'function') invalidatePRSetCache();
   _sortedLogCache = null;
   // Substitution ranking reads session history, so it must not outlive it.
   if(typeof invalidateSubstitutionCache === 'function') invalidateSubstitutionCache();
@@ -7234,6 +7359,69 @@ function switchTab(tab){
    that are safe to dismiss (read-only or already-saved content). Sheets with
    unsaved input (active workout logging, template editing) keep explicit
    buttons only, so a stray tap can never destroy in-progress work. */
+/* =========================================================
+   PAGE ISOLATION  (Phase D12 · Fix 3)
+   ---------------------------------------------------------
+   When a page or sheet is open, the document behind it must
+   stop behaving like a scrollable document. Before this, it
+   did not: the background scrolled under an open workout, a
+   flick inside a sheet chained through to the page beneath,
+   and closing the sheet returned you somewhere else.
+
+   This is deliberately ONE mechanism rather than a lock/unlock
+   pair added to each of the twenty-seven open/close functions.
+   Those pair up by hand, and a future overlay that forgets one
+   half reintroduces the bug silently. An observer watching for
+   `.overlay.open` cannot be forgotten, and it is correct for
+   overlays opened from anywhere — including draft restore and
+   boot, which do not go through an open* function at all.
+
+   iOS needs position:fixed, not just overflow:hidden, which is
+   why the scroll offset is captured and restored by hand.
+   ========================================================= */
+let _lockedScrollY = 0;
+let _lockDepth = 0;
+
+function lockBackgroundScroll(){
+  if(_lockDepth++ > 0) return;              // already locked by an outer layer
+  _lockedScrollY = window.scrollY || window.pageYOffset || 0;
+  document.body.style.top = (-_lockedScrollY) + 'px';
+  document.body.classList.add('scroll-locked');
+}
+function unlockBackgroundScroll(){
+  if(_lockDepth === 0) return;
+  if(--_lockDepth > 0) return;              // a layer above is still open
+  document.body.classList.remove('scroll-locked');
+  document.body.style.top = '';
+  /* Restore exactly where they were. 'instant' matters: a smooth scroll here
+     reads as the page jumping about after the sheet has already gone. */
+  window.scrollTo({ top: _lockedScrollY, behavior: 'instant' });
+}
+
+/* The single source of truth is how many overlays are actually open, so the
+   lock cannot drift out of step with the DOM however an overlay was opened. */
+function syncBackgroundScrollLock(){
+  const open = document.querySelectorAll('.overlay.open').length;
+  if(open > 0 && _lockDepth === 0){ lockBackgroundScroll(); }
+  else if(open === 0 && _lockDepth > 0){ _lockDepth = 1; unlockBackgroundScroll(); }
+  else if(open > 0){ _lockDepth = open; }   // nested layers keep the count honest
+}
+
+function initPageIsolation(){
+  /* Boot must not depend on this. Without an observer the app still runs —
+     it simply does not lock the page behind a sheet, which is a far smaller
+     failure than not starting. */
+  if(typeof MutationObserver === 'undefined') return null;
+  try{
+    const obs = new MutationObserver(syncBackgroundScrollLock);
+    document.querySelectorAll('.overlay').forEach(ov => {
+      obs.observe(ov, { attributes: true, attributeFilter: ['class'] });
+    });
+    syncBackgroundScrollLock();             // an overlay restored during boot
+    return obs;
+  }catch(e){ return null; }
+}
+
 function backdropDismiss(e, closeFn){
   if(e.target === e.currentTarget) closeFn();
 }
@@ -10482,9 +10670,377 @@ function toggleTodayPicker(){
    separate hero card, dash card, and "Pick a workout" grid. The primary
    action reflects actual state: resume an in-progress session, start
    today's workout, or review one already done. */
+
+/* =========================================================
+   SHARED SELECTED DAY  (Phase D12 · Fix 4)
+   ---------------------------------------------------------
+   Today and This Week are two views of one thing, so there is
+   ONE piece of state behind them. Selecting in either moves
+   both; there is deliberately no todaySelectedDate alongside a
+   weekSelectedDate to drift apart.
+
+   Stored as a day key inside the current week rather than a
+   date, because the week strip is the current week and a key
+   cannot wander outside it. `null` means today, so the state
+   resets correctly at midnight without anything having to
+   notice the date changed.
+   ========================================================= */
+let selectedDayKey = null;
+
+function effectiveSelectedKey(){ return selectedDayKey || todayKey(); }
+function selectedDayIsToday(){ return effectiveSelectedKey() === todayKey(); }
+
+/* The date the selected key refers to, in the current week. */
+function selectedDayDate(){
+  const start = currentWeekStart();
+  const i = DAY_ORDER.indexOf(effectiveSelectedKey());
+  const d = new Date(start);
+  d.setDate(start.getDate() + (i < 0 ? 0 : i));
+  return localDateStr(d);
+}
+
+/* TODAY / TOMORROW / YESTERDAY read better than a weekday name when they
+   apply; anything further away is just its own name. */
+function relativeDayLabel(key){
+  const ti = DAY_ORDER.indexOf(todayKey());
+  const si = DAY_ORDER.indexOf(key);
+  if(si === ti) return 'Today';
+  if(si === ti + 1) return 'Tomorrow';
+  if(si === ti - 1) return 'Yesterday';
+  return DAY_LABEL_FULL[key] || key;
+}
+
+/* The one writer. Everything that changes the selected day comes through
+   here, so the two views cannot disagree. */
+function setSelectedDay(key, opts){
+  if(!key || DAY_ORDER.indexOf(key) === -1) return;
+  const next = (key === todayKey()) ? null : key;
+  if(next === selectedDayKey && !(opts && opts.force)) return;
+  selectedDayKey = next;
+  renderTodayWorkout();
+  renderWeekCard();
+}
+function stepSelectedDay(delta){
+  const i = DAY_ORDER.indexOf(effectiveSelectedKey());
+  const n = i + delta;
+  if(n < 0 || n > 6) return false;            // the week is the boundary
+  setSelectedDay(DAY_ORDER[n]);
+  return true;
+}
+
+/* =========================================================
+   DRAG TO RESCHEDULE  (Phase D12 · Fix 2)
+   ---------------------------------------------------------
+   Touch-first, not a desktop drag-and-drop bolted onto a
+   phone. A tap still selects; only a deliberate hold picks a
+   workout up, so opening a day never turns into moving it by
+   accident.
+
+   Movement is horizontal and clamped to the strip: a workout
+   cannot be flung into the page. The write goes through
+   swapScheduledDays(), the existing schedule writer — there is
+   no second schedule here.
+   ========================================================= */
+const WEEK_DRAG = {
+  holdMs: 420,        // long enough to be deliberate, short enough to feel instant
+  slopPx: 8           // finger drift that still counts as holding still
+};
+let _wkDrag = null;
+
+function weekCellFromPoint(x, y){
+  const strip = document.querySelector('#weekCard .wk-days');
+  if(!strip) return null;
+  /* The lifted cell is excluded from the hit test. It has been translated
+     under the finger, so its own rect sits over whatever it is being dragged
+     towards — including itself as the first match in DOM order, which made
+     every drop read as "back where it started". */
+  const cells = [...strip.querySelectorAll('.wk-day')]
+    .filter(c => !c.classList.contains('wk-dragging'));
+  /* Horizontal hit-testing only: the finger is allowed to wander off the
+     strip vertically without losing the day it is over. */
+  return cells.find(c => {
+    const r = c.getBoundingClientRect();
+    return x >= r.left && x <= r.right;
+  }) || null;
+}
+
+function beginWeekDrag(cell, ev){
+  const strip = cell.parentElement;
+  const rect = cell.getBoundingClientRect();
+  _wkDrag.active = true;
+  _wkDrag.cell = cell;
+  _wkDrag.originKey = cell.dataset.key;
+  _wkDrag.startRect = rect;
+  _wkDrag.stripRect = strip.getBoundingClientRect();
+  cell.classList.add('wk-dragging');
+  strip.classList.add('wk-drag-mode');
+  /* Every day the workout could land on is marked, so the athlete is never
+     guessing where a drop is allowed. */
+  [...strip.querySelectorAll('.wk-day')].forEach(c => {
+    if(c !== cell) c.classList.add('wk-drop-ok');
+  });
+  loopHaptic();
+  moveWeekDrag(ev);
+}
+
+function moveWeekDrag(ev){
+  if(!_wkDrag || !_wkDrag.active) return;
+  const dx = ev.clientX - _wkDrag.startX;
+  /* Clamped to the strip so the cell cannot be thrown out of the week. */
+  const min = _wkDrag.stripRect.left - _wkDrag.startRect.left;
+  const max = _wkDrag.stripRect.right - _wkDrag.startRect.right;
+  const clamped = Math.max(min, Math.min(max, dx));
+  _wkDrag.cell.style.transform = `translateX(${clamped}px) scale(1.06)`;
+  const over = weekCellFromPoint(ev.clientX, ev.clientY);
+  const strip = _wkDrag.cell.parentElement;
+  [...strip.querySelectorAll('.wk-day')].forEach(c => c.classList.toggle('wk-drop-over', c === over && c !== _wkDrag.cell));
+  _wkDrag.overKey = (over && over !== _wkDrag.cell) ? over.dataset.key : null;
+}
+
+function endWeekDrag(commit){
+  if(!_wkDrag) return;
+  const d = _wkDrag;
+  if(d.holdTimer){ clearTimeout(d.holdTimer); d.holdTimer = null; }
+  if(d.active && d.cell){
+    const strip = d.cell.parentElement;
+    d.cell.classList.remove('wk-dragging');
+    d.cell.style.transform = '';
+    strip.classList.remove('wk-drag-mode');
+    [...strip.querySelectorAll('.wk-day')].forEach(c => c.classList.remove('wk-drop-ok', 'wk-drop-over'));
+    if(commit && d.overKey && d.overKey !== d.originKey){
+      commitWeekMove(d.originKey, d.overKey);
+    } else if(commit && !d.overKey){
+      /* Released somewhere that is not a day: say so quietly and put it back
+         rather than leaving a half-moved week. */
+      d.cell.classList.add('wk-reject');
+      setTimeout(() => d.cell && d.cell.classList.remove('wk-reject'), 320);
+    }
+  }
+  _wkDrag = null;
+}
+
+/* The move itself, through the writer D14 established as the only one that
+   keeps the plan layer and the active program in step. */
+function commitWeekMove(fromKey, toKey){
+  const before = snapshotWeekForUndo();
+  try{ swapScheduledDays(fromKey, toKey); }catch(e){ return; }
+  renderAll();
+  showWeekUndo(before, fromKey, toKey);
+}
+
+/* Undo restores the exact schedule that existed before the move, both
+   layers, and disappears on its own. It is transient by design — a permanent
+   undo control would be one more thing on the screen forever. */
+let _weekUndo = null;
+function snapshotWeekForUndo(){
+  const snap = { schedule: Object.assign({}, schedule), program: null };
+  try{
+    if(hasActiveProgram()){
+      const p = getActiveProgram();
+      snap.program = { id: p.id, schedule: JSON.parse(JSON.stringify(p.schedule || {})) };
+    }
+  }catch(e){}
+  return snap;
+}
+function showWeekUndo(snapshot, fromKey, toKey){
+  const host = document.getElementById('weekUndo');
+  if(!host) return;
+  if(_weekUndo && _weekUndo.timer) clearTimeout(_weekUndo.timer);
+  _weekUndo = { snapshot, timer: null };
+  host.innerHTML = `
+    <div class="wk-undo" role="status">
+      <span class="wk-undo-text">${escapeHtml(DAY_LABEL_FULL[fromKey])} → ${escapeHtml(DAY_LABEL_FULL[toKey])}</span>
+      <button type="button" class="wk-undo-btn" onclick="undoWeekMove()">Undo</button>
+    </div>`;
+  host.classList.add('open');
+  _weekUndo.timer = setTimeout(hideWeekUndo, 5000);
+}
+function hideWeekUndo(){
+  const host = document.getElementById('weekUndo');
+  if(host){ host.classList.remove('open'); host.innerHTML = ''; }
+  if(_weekUndo && _weekUndo.timer) clearTimeout(_weekUndo.timer);
+  _weekUndo = null;
+}
+function undoWeekMove(){
+  if(!_weekUndo || !_weekUndo.snapshot) return;
+  const s = _weekUndo.snapshot;
+  try{
+    Object.keys(schedule).forEach(k => { delete schedule[k]; });
+    Object.assign(schedule, s.schedule);
+    persistSchedule();
+    if(s.program){
+      updateProgram(s.program.id, { schedule: s.program.schedule });
+      invalidateProgramCache();
+    }
+  }catch(e){}
+  hideWeekUndo();
+  renderAll();
+}
+
+/* ---- pointer wiring ----
+   One delegated set of handlers on the strip, re-attached whenever the week
+   re-renders, so there is never a second listener on the same cell. */
+function attachWeekGestures(){
+  const strip = document.querySelector('#weekCard .wk-days');
+  if(!strip || strip.dataset.gestures === 'on') return;
+  strip.dataset.gestures = 'on';
+
+  strip.addEventListener('pointerdown', ev => {
+    const cell = ev.target.closest('.wk-day');
+    if(!cell) return;
+    _wkDrag = { startX: ev.clientX, startY: ev.clientY, cell: null, active: false,
+                originKey: cell.dataset.key, overKey: null, moved: false, holdTimer: null };
+    /* The hold decides between selecting and moving. Until it fires this is
+       an ordinary tap and behaves like one. */
+    _wkDrag.holdTimer = setTimeout(() => {
+      if(_wkDrag && !_wkDrag.moved) beginWeekDrag(cell, ev);
+    }, WEEK_DRAG.holdMs);
+    try{ strip.setPointerCapture(ev.pointerId); }catch(e){}
+  });
+
+  strip.addEventListener('pointermove', ev => {
+    if(!_wkDrag) return;
+    if(_wkDrag.active){ ev.preventDefault(); moveWeekDrag(ev); return; }
+    const dx = Math.abs(ev.clientX - _wkDrag.startX);
+    const dy = Math.abs(ev.clientY - _wkDrag.startY);
+    /* Moving before the hold completes means they are scrolling or swiping,
+       not picking a workout up. */
+    if(dx > WEEK_DRAG.slopPx || dy > WEEK_DRAG.slopPx){
+      _wkDrag.moved = true;
+      if(_wkDrag.holdTimer){ clearTimeout(_wkDrag.holdTimer); _wkDrag.holdTimer = null; }
+    }
+  });
+
+  strip.addEventListener('pointerup', ev => {
+    if(!_wkDrag) return;
+    const wasDrag = _wkDrag.active;
+    const key = _wkDrag.originKey;
+    const moved = _wkDrag.moved;
+    endWeekDrag(true);
+    if(!wasDrag && !moved && key) setSelectedDay(key);   // a plain tap selects
+  });
+  strip.addEventListener('pointercancel', () => endWeekDrag(false));
+}
+
+/* ---------- the selected day, when it is not today ----------
+   Today keeps its own renderer untouched: it carries Start, the time picker,
+   the workout picker and the cardio link, and it is the screen the app opens
+   on. Another day answers a smaller question — what is planned, and can I do
+   it — so it gets its own card rather than making today's carry two jobs. */
+function renderOtherDayCard(el){
+  const key = effectiveSelectedKey();
+  const dateStr = selectedDayDate();
+  const rel = relativeDayLabel(key);
+  const logged = workoutLog.find(l => l.date === dateStr);
+
+  /* Same precedence Today uses: an active program owns the day if it has one. */
+  let cat = (schedule && schedule[key]) || 'rest';
+  let workoutName = null;
+  try{
+    if(hasActiveProgram()){
+      const pd = getProgramWorkoutForDate(dateStr);
+      if(pd){
+        cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
+        if(pd.template && pd.template.name) workoutName = pd.template.name;
+      }
+    }
+  }catch(e){}
+  if(!workoutName && cat !== 'rest'){
+    try{ const t = (getTemplates(cat) || [])[0]; if(t && t.name) workoutName = t.name; }catch(e){}
+  }
+
+  const nav = `
+    <div class="tw-daynav">
+      <button type="button" class="tw-daynav-btn" onclick="stepSelectedDay(-1)"
+        aria-label="Previous day">${chevronLeftSvg()}</button>
+      <span class="tw-daynav-label">${escapeHtml(rel)}</span>
+      <button type="button" class="tw-daynav-btn" onclick="stepSelectedDay(1)"
+        aria-label="Next day">${chevronRightSvg()}</button>
+      <button type="button" class="tw-daynav-today" onclick="setSelectedDay(todayKey())">Today</button>
+    </div>`;
+
+  if(logged){
+    /* A day that already happened shows what happened, not what was planned. */
+    el.innerHTML = `
+      <div class="tw tw-other">
+        ${nav}
+        <div class="tw-title">${escapeHtml(logged.title)}</div>
+        <div class="tw-meta">Logged · ${(logged.exercises||[]).length} exercise${(logged.exercises||[]).length===1?'':'s'}</div>
+        <button class="tw-cta tw-cta-ghost" onclick="openDayDetail('${dateStr}')">View workout</button>
+      <button type="button" class="tw-change" onclick="openDayEdit('${key}')">Change this day</button>
+      </div>`;
+    return;
+  }
+
+  if(cat === 'rest'){
+    el.innerHTML = `
+      <div class="tw tw-rest tw-other">
+        ${nav}
+        <div class="tw-title">Rest Day</div>
+        <div class="tw-meta">Nothing scheduled for ${escapeHtml(DAY_LABEL_FULL[key])}.</div>
+        <button class="tw-cta tw-cta-ghost" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
+        ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(null)}</div>` : ''}
+      <button type="button" class="tw-change" onclick="openDayEdit('${key}')">Change this day</button>
+      </div>`;
+    return;
+  }
+
+  /* A planned day. Starting it is the normal path — the schedule is not
+     rewritten just because the athlete looked at another day. */
+  el.innerHTML = `
+    <div class="tw tw-other">
+      ${nav}
+      <span class="cat-chip ${cat}">${CAT_LABEL[cat]}</span>
+      <div class="tw-title">${escapeHtml(workoutName || CAT_LABEL[cat])}</div>
+      <div class="tw-meta">Planned for ${escapeHtml(DAY_LABEL_FULL[key])}</div>
+      <button class="tw-cta tw-cta-ghost" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
+      ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat)}</div>` : ''}
+      <button type="button" class="tw-change" onclick="openDayEdit('${key}')">Change this day</button>
+    </div>`;
+}
+
+/* ---------- swipe between days (Fix 4A) ----------
+   Confined to the day card. The gesture only claims the touch once it is
+   clearly horizontal, so scrolling the page vertically still works normally
+   over the same element. */
+const DAY_SWIPE = { minPx: 46, ratio: 1.5 };
+let _daySwipe = null;
+
+function attachDaySwipe(){
+  const host = document.getElementById('todayWorkout');
+  if(!host || host.dataset.swipe === 'on') return;
+  host.dataset.swipe = 'on';
+
+  host.addEventListener('pointerdown', ev => {
+    if(ev.target.closest('button, input, textarea, select, a')) return;
+    _daySwipe = { x: ev.clientX, y: ev.clientY, claimed: false };
+  });
+  host.addEventListener('pointermove', ev => {
+    if(!_daySwipe) return;
+    const dx = ev.clientX - _daySwipe.x, dy = ev.clientY - _daySwipe.y;
+    /* Vertical intent wins: the page must still scroll under the finger. */
+    if(!_daySwipe.claimed && Math.abs(dy) > Math.abs(dx)){ _daySwipe = null; return; }
+    if(Math.abs(dx) > DAY_SWIPE.minPx && Math.abs(dx) > Math.abs(dy) * DAY_SWIPE.ratio){
+      _daySwipe.claimed = true;
+    }
+  });
+  host.addEventListener('pointerup', ev => {
+    if(!_daySwipe || !_daySwipe.claimed){ _daySwipe = null; return; }
+    const dx = ev.clientX - _daySwipe.x;
+    _daySwipe = null;
+    stepSelectedDay(dx < 0 ? 1 : -1);      // drag left = go forward
+  });
+  host.addEventListener('pointercancel', () => { _daySwipe = null; });
+}
+
 function renderTodayWorkout(){
   const el = document.getElementById('todayWorkout');
   if(!el) return;
+  /* One shared selected day drives both views. Today keeps the full card —
+     Start, the time picker, the workout picker — and any other day gets the
+     smaller card that answers what is planned. */
+  if(!selectedDayIsToday()){ renderOtherDayCard(el); attachDaySwipe(); return; }
+  attachDaySwipe();
   const tKey = todayKey();
   const todayStr = localDateStr();
   const doneToday = workoutLog.find(l => l.date === todayStr);
@@ -10693,8 +11249,10 @@ function renderWeekCard(){
       }</div>`
     : '';
 
+  const selKey = effectiveSelectedKey();
   const cells = wk.days.map(d => `
-    <button type="button" class="wk-day wk-${d.state} ${d.cat}" onclick="openDayEdit('${d.key}')"
+    <button type="button" class="wk-day wk-${d.state} ${d.cat}${d.key === selKey ? ' wk-selected' : ''}"
+            data-key="${d.key}" aria-pressed="${d.key === selKey ? 'true' : 'false'}"
             aria-label="${escapeAttr(d.fullLabel)} — ${escapeAttr(d.workoutName || CAT_LABEL[d.cat] || 'Rest')}">
       <span class="wk-dl">${d.label}</span>
       <span class="wk-mark"></span>
@@ -10720,8 +11278,11 @@ function renderWeekCard(){
       ${segs}
       <div class="wk-days">${cells}</div>
       ${foot}
-      <div class="wk-hint">Tap a day to change it</div>
-    </div>`;
+      <div class="wk-hint">Tap a day to see it · hold to move a workout</div>
+    </div>
+    <div id="weekUndo" class="wk-undo-host"></div>`;
+  /* Re-attached after every render; the guard keeps it to one listener set. */
+  attachWeekGestures();
 }
 
 /* ---------- MOMENTUM (Phase D11) ----------
@@ -11365,18 +11926,25 @@ function openDayDetail(dateStr){
   `;
 
   const prsEl = document.getElementById('dayDetailPRs');
+  const sessionPR = sessionPRSets(entry);
   prsEl.innerHTML = prNames.length
-    ? `<div class="pr-callout" style="margin-top:12px;"><span class="pr-callout-icon">PR</span><div class="pr-callout-body"><div class="pr-callout-title">${prNames.length} new record${prNames.length>1?'s':''}</div><div class="pr-callout-sub">${prNames.map(escapeHtml).join(', ')}</div></div></div>`
+    ? `<div class="pr-callout" style="margin-top:12px;"><span class="pr-callout-icon">PR</span><div class="pr-callout-body"><div class="pr-callout-title">${prNames.length} new record${prNames.length>1?'s':''}</div><div class="pr-callout-sub">${prNames.map(escapeHtml).join(', ')}${
+        sessionPR.sessionOnly.indexOf('volume') !== -1 ? ' · most total volume in a session' : ''}</div></div></div>`
     : '';
 
-  document.getElementById('dayDetailExercises').innerHTML = entry.exercises.map(ex => `
+  /* One pass over history for the whole session, not one per rendered row. */
+  const prSets = sessionPRSets(entry);
+  document.getElementById('dayDetailExercises').innerHTML = entry.exercises.map((ex, exIdx) => {
+    const marks = prSets.sets[exIdx] || {};
+    return `
     <div class="log-ex-block">
-      <div class="log-ex-name-line"><span>${escapeHtml(ex.name)}</span></div>
+      <div class="log-ex-name-line"><span>${escapeHtml(ex.name)}</span>${
+        Object.keys(marks).length ? `<span class="log-ex-pr">${chevronPRSvg()}Record</span>` : ''}</div>
       <div class="log-ex-sets">
-        ${(ex.sets||[]).map(s => setChipHtml(s, ex.bodyweight)).join('')}
+        ${(ex.sets||[]).map((s, i) => setChipHtml(s, ex.bodyweight, marks[i])).join('')}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   document.getElementById('dayDetailNotes').innerHTML = entry.notes ? `<div class="log-notes">"${escapeHtml(entry.notes)}"</div>` : '';
 
@@ -11611,6 +12179,103 @@ function calculateSetXP(meaningfulSetCount){
 
 const PR_XP = { weight:15, reps_at_weight:10, '1rm':10, volume:5, reps:10 };
 function calculatePRXP(prType){ return PR_XP[prType] || 0; }
+
+/* =========================================================
+   PR SET ATTRIBUTION  (Phase D12 · Fix 5)
+   ---------------------------------------------------------
+   The log already says a session contained records. It could
+   not say WHICH set earned one, so the athlete had to work it
+   out by reading every row.
+
+   Nothing here redefines a PR. The classification comes from
+   computeExercisePREvents(), which is the existing authority,
+   and this only answers a second question about its output:
+   which set in that session produced the number.
+
+   Not every PR type belongs to a set. A volume record is a
+   property of the whole session — no single set earned it —
+   so it is reported at session level and no row is marked.
+   Marking an arbitrary set for it would be a small lie.
+
+   Derived, never stored: workoutLog is not written to for
+   display. Cached per session id because the naive form walks
+   the whole history once per exercise, which §5C rules out.
+   ========================================================= */
+const PR_SET_ATTRIBUTABLE = { weight:1, reps:1, '1rm':1, reps_at_weight:1 };
+let _prSetCache = null;
+
+function invalidatePRSetCache(){ _prSetCache = null; }
+
+/* Which set index achieved a given PR, within one exercise's sets. A
+   reps_at_weight record names its own weight, so it must be matched at that
+   weight rather than at the heaviest set. */
+function prSetIndexFor(sets, hit, isBW){
+  const type = hit && hit.type;
+  let bestIdx = -1, best = -1;
+  (sets || []).forEach((s, i) => {
+    const w = parseFloat(s.weight), r = parseFloat(s.reps);
+    let v = null;
+    if(type === 'reps') v = r;
+    else if(type === 'weight') v = isBW ? r : w;
+    else if(type === '1rm') v = (!isNaN(w) && !isNaN(r)) ? estimate1RM(w, r) : null;
+    else if(type === 'reps_at_weight'){
+      if(isNaN(w) || isNaN(r) || w !== parseFloat(hit.weight)) return;
+      v = r;
+    }
+    if(v !== null && !isNaN(v) && v > best){ best = v; bestIdx = i; }
+  });
+  return bestIdx;
+}
+
+/* { exerciseIndex: { setIndex: 'weight' | 'reps' | '1rm' | ... } } for one
+   session, plus the session-level types that belong to no single set. */
+function sessionPRSets(entry){
+  if(!entry || !entry.id) return { sets:{}, sessionOnly:[] };
+  if(_prSetCache && _prSetCache.id === entry.id) return _prSetCache.value;
+
+  const bySet = {};
+  const sessionOnly = [];
+  (entry.exercises || []).forEach((ex, exIdx) => {
+    let events = [];
+    try{ events = computeExercisePREvents(ex.name) || []; }catch(e){ return; }
+    const here = events.filter(e => e.date === entry.date);
+    if(!here.length) return;
+    here.forEach(ev => {
+      (ev.hits || [ev]).forEach(h => {
+        const type = h && h.type;
+        if(!type) return;
+        if(!PR_SET_ATTRIBUTABLE[type]){
+          if(sessionOnly.indexOf(type) === -1) sessionOnly.push(type);
+          return;
+        }
+        const idx = prSetIndexFor(ex.sets, h, !!ex.bodyweight);
+        if(idx < 0) return;
+        bySet[exIdx] = bySet[exIdx] || {};
+        /* One badge per set, and the strongest claim wins — PR_PRIORITY is
+           the existing ranking, so the label matches what the rest of LOOP
+           would call this record. */
+        const cur = bySet[exIdx][idx];
+        if(!cur || PR_PRIORITY.indexOf(type) < PR_PRIORITY.indexOf(cur)) bySet[exIdx][idx] = type;
+      });
+    });
+  });
+
+  const value = { sets: bySet, sessionOnly };
+  _prSetCache = { id: entry.id, value };
+  return value;
+}
+
+/* Short, honest label per type — the same words the PR history uses. */
+const PR_SET_LABEL = { weight:'PR', reps:'PR', '1rm':'PR', reps_at_weight:'PR' };
+function prSetLabel(type){ return PR_SET_LABEL[type] || 'PR'; }
+function prSetTitle(type){
+  if(type === 'weight') return 'Heaviest set yet';
+  if(type === 'reps') return 'Most reps yet';
+  if(type === '1rm') return 'Best estimated one-rep max';
+  if(type === 'reps_at_weight') return 'Most reps at this weight';
+  return 'Personal record';
+}
+
 
 const STREAK_XP_TIERS = [ {weeks:3,xp:25}, {weeks:4,xp:35}, {weeks:8,xp:75}, {weeks:12,xp:125} ];
 function calculateStreakXP(weeks){
@@ -13343,13 +14008,18 @@ function getSetTypeMeta(id){ return setTypeIndex()[id] || null; }
 /* One renderer for every history surface, so a drop / failure / AMRAP set
    reads the same wherever it appears. A set with no type renders exactly as
    it always did — no badge, nothing inferred. */
-function setChipHtml(set, isBodyweight){
+function setChipHtml(set, isBodyweight, prType){
   const t = setTypeOf(set);
   const badge = (t && t !== SET_TYPES.WORKING)
     ? `<span class="set-chip-badge stb-${t}">${escapeHtml(setTypeShortLabel(t))}</span>` : '';
-  return `<span class="set-chip${t && t !== SET_TYPES.WORKING ? ' set-chip-' + t : ''}">` +
+  /* The record badge is a word and a border, not only a colour — the set has
+     to be findable by someone who cannot separate green from grey. */
+  const pr = prType
+    ? `<span class="set-chip-pr" title="${escapeAttr(prSetTitle(prType))}">${escapeHtml(prSetLabel(prType))}</span>` : '';
+  return `<span class="set-chip${t && t !== SET_TYPES.WORKING ? ' set-chip-' + t : ''}${prType ? ' set-chip-record' : ''}"` +
+    `${prType ? ' aria-label="' + escapeAttr(prSetTitle(prType)) + '"' : ''}>` +
     `${escapeHtml(set.weight||'—')}${isBodyweight?'':' lb'} × ${escapeHtml(set.reps||'—')}` +
-    `${set.rir?' · RIR '+escapeHtml(String(set.rir)):''}${badge}</span>`;
+    `${set.rir?' · RIR '+escapeHtml(String(set.rir)):''}${badge}${pr}</span>`;
 }
 function isKnownSetType(id){ return !!getSetTypeMeta(id); }
 function setTypeShortLabel(id){ const m = getSetTypeMeta(id); return m ? m.shortLabel : null; }
@@ -14963,7 +15633,7 @@ const ONBOARDING_STEPS = [
   {
     id: 'today',
     title: 'Today',
-    body: 'Your starting point. Today shows the workout you have scheduled, how you are feeling, and where you are in your program.',
+    body: 'Your starting point. Today shows the workout you have scheduled, how you are feeling, and where you are in your plan.',
     visual: () => {
       const first = onboardingWorkoutSamples()[0];
       return `
@@ -15036,8 +15706,8 @@ const ONBOARDING_STEPS = [
   },
   {
     id: 'programs',
-    title: 'Programs and progress',
-    body: 'Your plan holds your workouts and which days you train. A program is optional — it groups those weeks into phases with a start and an end. Progress shows how it is actually going.',
+    title: 'Cycles and progress',
+    body: 'Your plan holds your workouts and which days you train. A cycle is optional — it runs your plan for a set number of weeks, through phases, with a start and an end. Progress shows how it is actually going.',
     visual: () => `
       <div class="ob-mock">
         <div class="ob-mock-label">SUMMER HYPERTROPHY</div>
@@ -15221,7 +15891,7 @@ const ONBOARDING_HINTS = {
   setType:  'Set Type records how a set was performed — warm-up, working, drop, failure or AMRAP.',
   timeMode: 'Short on time? Pick how long you have and LOOP trims today’s session, not your plan.',
   replace:  'Can’t use this exercise? LOOP ranks alternatives that keep the same training intent.',
-  programs: 'A program groups your plan into phases and weeks, with a start and an end date.',
+  programs: 'A cycle runs your plan for a set number of weeks, through phases, with a start and an end date.',
   notes:    'Notes are your own memory for an exercise. LOOP shows them again next time.',
   rir:      'RIR is Reps in Reserve — the number of good reps you could have done before stopping.'
 };
@@ -15490,9 +16160,9 @@ function getMissedProgramDays(program, limit){
    crashing a render later. */
 function validateProgram(input){
   const errors = [];
-  if(!input || typeof input !== 'object') return { valid:false, errors:['No program supplied'] };
+  if(!input || typeof input !== 'object') return { valid:false, errors:['No cycle supplied'] };
   const name = String(input.name || '').trim();
-  if(!name) errors.push('Give the program a name');
+  if(!name) errors.push('Give the cycle a name');
   if(name.length > PROGRAM_LIMITS.maxNameLength) errors.push('Name is too long');
   const weeks = parseInt(input.durationWeeks, 10);
   if(!(weeks >= PROGRAM_LIMITS.minWeeks && weeks <= PROGRAM_LIMITS.maxWeeks)){
@@ -15512,7 +16182,7 @@ function validateProgram(input){
     const s = parseInt(b.startWeek, 10), en = parseInt(b.endWeek, 10);
     if(!(s >= 1) || !(en >= 1)) errors.push('Phase ' + (i+1) + ' has an invalid week range');
     else if(s > en) errors.push('Phase ' + (i+1) + ' ends before it starts');
-    else if(weeks >= 1 && en > weeks) errors.push('Phase ' + (i+1) + ' runs past the program');
+    else if(weeks >= 1 && en > weeks) errors.push('Phase ' + (i+1) + ' runs past the cycle');
     if(b.phaseType && !getProgramPhase(b.phaseType)) errors.push('Phase ' + (i+1) + ' has an unknown phase');
   });
   const sorted = (input.blocks || []).slice().sort((a,b) => a.startWeek - b.startWeek);
@@ -15539,7 +16209,7 @@ function createProgram(input){
   const check = validateProgram(draft);
   if(!check.valid) return { ok:false, errors:check.errors, program:null };
   if((programsStore.programs || []).length >= PROGRAM_LIMITS.maxPrograms){
-    return { ok:false, errors:['Too many programs'], program:null };
+    return { ok:false, errors:['Too many cycles'], program:null };
   }
   const now = new Date().toISOString();
   const program = {
@@ -15569,7 +16239,7 @@ function createProgram(input){
    and no completed session is reinterpreted. */
 function updateProgram(programId, patch){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Program not found'], program:null };
+  if(!p) return { ok:false, errors:['Cycle not found'], program:null };
   const merged = Object.assign({}, p, patch || {});
   const check = validateProgram(merged);
   if(!check.valid) return { ok:false, errors:check.errors, program:null };
@@ -15773,7 +16443,7 @@ function getPhaseProgress(program, todayStr){
    through updateProgram() and inherits its validation. No second store. */
 function addProgramPhase(programId, input){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Program not found'] };
+  if(!p) return { ok:false, errors:['Cycle not found'] };
   const blocks = sortedProgramPhases(p).slice();
   const start = parseInt((input && input.startWeek), 10) || 1;
   const end = parseInt((input && input.endWeek), 10) || start;
@@ -15789,7 +16459,7 @@ function addProgramPhase(programId, input){
 }
 function updateProgramPhase(programId, blockId, patch){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Program not found'] };
+  if(!p) return { ok:false, errors:['Cycle not found'] };
   const blocks = sortedProgramPhases(p).map(b => b.id === blockId ? Object.assign({}, b, patch || {}) : Object.assign({}, b));
   const target = blocks.find(b => b.id === blockId);
   if(!target) return { ok:false, errors:['Phase not found'] };
@@ -15799,7 +16469,7 @@ function updateProgramPhase(programId, blockId, patch){
 }
 function deleteProgramPhase(programId, blockId){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Program not found'] };
+  if(!p) return { ok:false, errors:['Cycle not found'] };
   const blocks = sortedProgramPhases(p).filter(b => b.id !== blockId);
   return updateProgram(programId, { blocks: renumberPhases(blocks) });
 }
@@ -15814,7 +16484,7 @@ function renumberPhases(blocks){
    phase the same length and the program continuous. */
 function moveProgramPhase(programId, blockId, direction){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Program not found'] };
+  if(!p) return { ok:false, errors:['Cycle not found'] };
   const blocks = sortedProgramPhases(p);
   const idx = blocks.findIndex(b => b.id === blockId);
   const swapWith = idx + (direction === 'up' ? -1 : 1);
@@ -15872,7 +16542,7 @@ function phaseStatusLabel(status){
 function programPhasesHtml(program){
   const rows = getProgramPhaseSchedule(program);
   if(!rows.length){
-    return `<div class="pnote">No phases yet. Add one to split this program into blocks.</div>`;
+    return `<div class="pnote">No phases yet. Add one to split this cycle into phases.</div>`;
   }
   const ph = getPhaseProgress(program);
   return rows.map((r, i) => {
@@ -16062,11 +16732,11 @@ function renderProgramsList(){
   };
   el.innerHTML = all.length
     ? `<div class="prog-list">${all.map(card).join('')}</div>
-       <button class="btn-secondary prog-new-btn" onclick="openProgramBuilder()">Create program</button>`
+       <button class="btn-secondary prog-new-btn" onclick="openProgramBuilder()">Create cycle</button>`
     : `<div class="prog-none">
-         <div class="prog-none-title">No active program</div>
-         <div class="prog-none-sub">Optional. Your plan already works on its own — a program adds phases and a start and end date on top of it.</div>
-         <button class="btn-primary prog-new-btn" onclick="openProgramBuilder()">Create program</button>
+         <div class="prog-none-title">No active cycle</div>
+         <div class="prog-none-sub">Optional. Your plan already works on its own — a cycle adds phases and a start and end date on top of it.</div>
+         <button class="btn-primary prog-new-btn" onclick="openProgramBuilder()">Create cycle</button>
          <button class="prog-plan-btn" onclick="closePrograms(); openPlansManager();">Use an existing plan</button>
        </div>`;
 }
@@ -16116,7 +16786,7 @@ function renderProgramBuilder(){
     `<option value="${escapeAttr(id)}"${builderDraft.planId===id?' selected':''}>${escapeHtml(DEFAULT_PLANS[id].name)}</option>`).join('');
   const structures = builderStructures(builderDraft.planId);
   el.innerHTML = `
-    <label>Program name</label>
+    <label>Cycle name</label>
     <input type="text" id="builderName" value="${escapeAttr(builderDraft.name)}" placeholder="e.g. Summer Hypertrophy"
       oninput="builderDraft.name=this.value">
     <label style="margin-top:16px">Goal</label>
@@ -16373,12 +17043,12 @@ function renderMyTraining(){
         <span class="mt-act-go">${chevronRightSvg()}</span>
       </button>
       ${t.hasProgram ? `<button type="button" class="mt-act" onclick="closeMyTraining(); openProgramDetail('${escapeAttr(t.programId)}');">
-        <span class="mt-act-main">Training phases</span>
-        <span class="mt-act-sub">Longer-term structure</span>
+        <span class="mt-act-main">Training cycle</span>
+        <span class="mt-act-sub">Your current run of phases</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
       </button>` : `<button type="button" class="mt-act" onclick="closeMyTraining(); openPrograms();">
-        <span class="mt-act-main">Training phases</span>
-        <span class="mt-act-sub">Optional — plan a longer cycle</span>
+        <span class="mt-act-main">Training cycle</span>
+        <span class="mt-act-sub">Optional — run your plan for a set number of weeks</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
       </button>`}
     </div>
@@ -16574,11 +17244,11 @@ function renderProgramDetail(){
     <div class="prog-phases">${programPhasesHtml(p)}</div>
     <button class="phase-add-btn" onclick="doAddPhase()">+ Add phase</button>
     <div class="prog-actions">
-      ${p.status === 'active' ? `<button class="btn-secondary" onclick="doPauseProgram()">Pause program</button>` : ''}
-      ${p.status === 'paused' ? `<button class="btn-secondary" onclick="doResumeProgram()">Resume program</button>` : ''}
+      ${p.status === 'active' ? `<button class="btn-secondary" onclick="doPauseProgram()">Pause cycle</button>` : ''}
+      ${p.status === 'paused' ? `<button class="btn-secondary" onclick="doResumeProgram()">Resume cycle</button>` : ''}
       ${p.status !== 'completed' && programsStore.activeProgramId !== p.id ? `<button class="btn-secondary" onclick="doActivateProgram()">Make active</button>` : ''}
       ${p.status !== 'completed' ? `<button class="btn-secondary" onclick="doCompleteProgram()">Mark complete</button>` : ''}
-      <button class="prog-delete" onclick="doDeleteProgram()">Delete program</button>
+      <button class="prog-delete" onclick="doDeleteProgram()">Delete cycle</button>
     </div>`;
 }
 function doPauseProgram(){ pauseProgram(detailProgramId); renderProgramDetail(); }

@@ -1114,3 +1114,98 @@ Four equally weighted tiles said everything mattered the same amount. The
 activity's own primary metric — distance, or floors — now leads at its own size,
 the effort metric and the two calorie figures support it, and the elapsed time
 still outranks all of it. Three tiers: 54px, 30px, 18px.
+
+---
+
+## 22. One plan, direct manipulation, isolated pages (Phase D12)
+
+### The word that needed explaining
+
+A first-time athlete needed the difference between a **plan** and a **program**
+explained to them. In ordinary speech those are synonyms, so no amount of copy
+was going to separate them — LOOP was showing its own architecture and asking
+the athlete to learn it.
+
+The user-facing model is now one concept: **your plan** is how you train. What
+the code calls a program is a plan with a start date, an end date and phases —
+a **training cycle**, which is the word LOOP's own copy already used
+(*"plan a longer cycle"*), and which reads as part of a plan rather than a
+rival to one.
+
+**"Block" was considered and rejected.** D11 removed that word deliberately
+because it sat beside "phase" as a second name for the same idea, and its
+guardian test correctly refused to let it back in. A cycle is the container;
+phases are its stages. That hierarchy has one word at each level.
+
+The rename is **presentation only**. `programsStore`, `PROGRAMS_KEY`,
+`PROGRAM_PHASE_TYPES`, `createProgram()` and every other identifier are
+untouched, and nothing was migrated. Contract 89 asserts both halves: the
+athlete never reads "program", and the architecture still says it.
+
+> Terminology has to reach the strings an athlete only meets when something
+> goes wrong. "Give the program a name" on a validation error is exactly where
+> the old vocabulary would have reappeared and undone the rest.
+
+### One selected day, two views
+
+Today and This Week are two views of one thing, so there is **one** piece of
+state behind them — `selectedDayKey`, deliberately not a `todaySelectedDate`
+beside a `weekSelectedDate` to drift apart. `null` means today, so it resets at
+midnight without anything having to notice.
+
+Today keeps its own full renderer: it carries Start, the time picker and the
+workout picker, and it is the screen the app opens on. Another day gets a
+smaller card that answers a smaller question — what is planned, and can I do
+it — using the same program-over-plan precedence Today uses. Opening another
+day never rewrites the schedule.
+
+### Hold to move, tap to select
+
+A tap selects; a **420ms hold** picks a workout up. Drift beyond 8px during the
+hold cancels it, because that is a scroll, not a grab. Movement is horizontal
+and clamped to the strip, so a workout cannot be flung into the page.
+
+The lifted cell is **excluded from its own hit test** — it has been translated
+under the finger, so its rect sits over whatever it is being dragged towards,
+and including it made every drop read as "back where it started". That bug was
+invisible to the test suite and only appeared under real pointer events.
+
+The write goes through `swapScheduledDays()`, the writer D14 established as the
+only one that keeps the plan layer and the active program in step. Undo
+restores **both** layers exactly and withdraws itself after five seconds.
+
+Tapping a day used to open the day editor, and the gesture split removed that.
+The capability came back on the selected day's card, where it has room for a
+label instead of being an invisible behaviour of a 40px cell.
+
+### Pages own the screen
+
+While any page or sheet is open the document behind it stops being a
+scrollable document. This is **one** observer watching for `.overlay.open`,
+not a lock/unlock pair added to each of the twenty-seven open/close functions —
+those pair up by hand, and a future overlay that forgets one half would
+reintroduce the bug silently.
+
+iOS needs `position: fixed`, not just `overflow: hidden`, so the scroll offset
+is captured and restored exactly. Nested layers keep a depth count, so closing
+an inner sheet does not unlock the page under an outer one.
+
+Boot does not depend on it: without `MutationObserver` the app still starts and
+simply does not lock. A guardian test caught that — scrolling behind a sheet is
+a far smaller failure than a blank screen.
+
+### The set that earned the record
+
+The log already said a session contained records; it could not say **which
+set**. Nothing here redefines a PR — the classification comes from
+`computeExercisePREvents()`, and this only answers a second question about its
+output.
+
+Not every PR type belongs to a set. A **volume** record is a property of the
+whole session, so it is reported at session level and no row is marked;
+attributing it to an arbitrary set would be a small lie. Derived, never stored,
+and cached per session id because the naive form walks the whole history once
+per exercise.
+
+The badge is a border, a tint **and** the word "PR", with an aria-label naming
+which record it was — three signals, one of them colour.

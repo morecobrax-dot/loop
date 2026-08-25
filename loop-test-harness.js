@@ -94,6 +94,17 @@ function buildDomStub(){
 }
 
 /* Row builders used by shadow-observation tests. */
+/* Minimal MutationObserver: enough for the page-isolation observer to be
+   registered and fired on demand by a test via ctx.__flushMutations(). */
+function mkMutationObserver(sandbox){
+  return class MutationObserver {
+    constructor(cb){ this.cb = cb; (sandbox.__observers = sandbox.__observers || []).push(this); }
+    observe(){ }
+    disconnect(){ const i = (sandbox.__observers || []).indexOf(this); if(i > -1) sandbox.__observers.splice(i, 1); }
+    takeRecords(){ return []; }
+  };
+}
+
 function mkInput(v){ return { value:String(v), checked:false, dataset:{},
   classList:{ add(){}, remove(){}, toggle(){}, contains(){ return false; } } }; }
 
@@ -188,7 +199,9 @@ function loadApp(initialStore){
     'SET_TYPE_REGISTRY','setTypePickerRow','MASTERY_CONFIG','currentEditDay','setupDraft','historySelectedDate','DAY_ORDER','DAY_LABEL','CAT_SHORT',
     'cardioSession','cardioSessionTimer','CARDIO_MET_TABLE','CARDIO_MET_FLAT','CARDIO_MET_CURVE',
     'CARDIO_QUICK_IDS','CARDIO_ICONS','cardioStatsOpen','cardioEntryField','CARDIO_ENTRY_SPECS','METRES_PER_MILE',
-    'CARDIO_DISTANCE_UNIT','CARDIO_GROUP_STYLE'];
+    'CARDIO_DISTANCE_UNIT','CARDIO_GROUP_STYLE',
+    'selectedDayKey','WEEK_DRAG','DAY_SWIPE','DAY_LABEL_FULL','PR_PRIORITY','PR_SET_ATTRIBUTABLE',
+    '_prSetCache','_wkDrag','_weekUndo','_lockDepth','builderDraft','programsStore'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +
@@ -199,6 +212,9 @@ function loadApp(initialStore){
 
   vm.createContext(sandbox);
   vm.runInContext(src + bootstrap, sandbox, { filename:'loop-app.js' });
+  sandbox.MutationObserver = mkMutationObserver(sandbox);
+  /* Tests drive the observer explicitly rather than waiting on a real one. */
+  sandbox.__flushMutations = () => (sandbox.__observers || []).forEach(o => o.cb([]));
   return { ctx: sandbox, dom, store, errors };
 }
 

@@ -5551,7 +5551,9 @@ function testOnboarding(app){
   T('mentions warm-up', /warm-up/i.test(all));
   T('mentions replace', /replace/i.test(all));
   T('mentions readiness', /readiness/i.test(all));
-  T('mentions programs', /program/i.test(all));
+  T('mentions the training cycle', /cycle/i.test(all));
+  T('the tour no longer says "program", which read as a synonym for plan',
+    !/programs?/i.test(all));
   T('mentions autosave', /saves|autosaved/i.test(all));
   /* Membership, not order — the copy lists them in reading order
      ("working, warm-up, drop, failure or AMRAP"), which is a writing choice,
@@ -6694,7 +6696,13 @@ function testD11Consolidation(app){
 
   sub('TODAY — the week can be adjusted without leaving Today');
   {
-    T('a day opens the existing editor', /class="wk-day[\s\S]{0,160}openDayEdit\(/.test(src));
+    T('the week is still adjustable without leaving Today',
+      /openDayEdit\('\$\{key\}'\)/.test(src));
+    T('tapping a day selects it rather than opening an editor',
+      /class="wk-day[\s\S]{0,200}data-key=/.test(src) &&
+      !/class="wk-day[\s\S]{0,160}onclick="openDayEdit/.test(src));
+    T('holding a day is what moves a workout',
+      /holdMs/.test(src) && /beginWeekDrag/.test(src));
     T('moving a day exists', typeof ctx.moveDayTo === 'function');
     const mv = src.slice(src.indexOf('function moveDayTo('), src.indexOf('function templateCardHtml'));
     const sw = src.slice(src.indexOf('function swapScheduledDays('), src.indexOf('function setDayValue('));
@@ -8709,6 +8717,464 @@ async function testCardio2Safety(){
     ctx.DATA_KEYS.filter(k => /timer|stopwatch|session/i.test(k)).length === 0);
 }
 
+/* =========================================================
+   CONTRACT 85 — one selected day, two views
+   ========================================================= */
+function testSharedSelectedDay(app){
+  section('CONTRACT 85 — Today and This Week share one selected day');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('one source of truth, not two that drift');
+  T('there is a single selected-day variable', /let selectedDayKey = null;/.test(src));
+  T('no competing per-view selection state', (() => {
+    /* Strip comments first: the module explains in prose that these two do
+       not exist, and the assertion was finding its own documentation. */
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    return !/todaySelectedDate/.test(code) && !/weekSelectedDate/.test(code);
+  })());
+  T('one writer updates both views', (() => {
+    const fn = src.slice(src.indexOf('function setSelectedDay'), src.indexOf('function stepSelectedDay'));
+    return /renderTodayWorkout\(\)/.test(fn) && /renderWeekCard\(\)/.test(fn);
+  })());
+  T('null means today, so it cannot go stale overnight',
+    /function effectiveSelectedKey\(\)\{ return selectedDayKey \|\| todayKey\(\); \}/.test(src));
+
+  sub('selecting moves both views');
+  ctx.selectedDayKey = null;
+  T('the default is today', ctx.effectiveSelectedKey() === ctx.todayKey());
+  T('selecting today stores null rather than a key', (() => {
+    ctx.setSelectedDay(ctx.todayKey());
+    return ctx.selectedDayKey === null;
+  })());
+  const other = ctx.DAY_ORDER.find(k => k !== ctx.todayKey());
+  ctx.setSelectedDay(other);
+  T('selecting another day is remembered', ctx.effectiveSelectedKey() === other);
+  T('the week marks exactly one day as selected', (() => {
+    ctx.renderWeekCard();
+    const html = doc.getElementById('weekCard').innerHTML;
+    return (html.match(/wk-selected/g) || []).length === 1;
+  })());
+  T('selection is announced, not only painted', (() => {
+    const html = doc.getElementById('weekCard').innerHTML;
+    return (html.match(/aria-pressed="true"/g) || []).length === 1;
+  })());
+  T('selection does not rely on colour alone',
+    /\.wk-day\.wk-selected\{[^}]*box-shadow/.test(css));
+
+  sub('stepping stays inside the week');
+  ctx.setSelectedDay('mon');
+  T('cannot step before Monday', ctx.stepSelectedDay(-1) === false && ctx.effectiveSelectedKey() === 'mon');
+  ctx.setSelectedDay('sun');
+  T('cannot step past Sunday', ctx.stepSelectedDay(1) === false && ctx.effectiveSelectedKey() === 'sun');
+  ctx.setSelectedDay('wed');
+  T('stepping forward moves one day', (() => { ctx.stepSelectedDay(1); return ctx.effectiveSelectedKey() === 'thu'; })());
+  T('stepping back moves one day', (() => { ctx.stepSelectedDay(-1); return ctx.effectiveSelectedKey() === 'wed'; })());
+
+  sub('days are named the way a person would name them');
+  const ti = ctx.DAY_ORDER.indexOf(ctx.todayKey());
+  T('today is Today', ctx.relativeDayLabel(ctx.todayKey()) === 'Today');
+  if(ti < 6) T('the next day is Tomorrow', ctx.relativeDayLabel(ctx.DAY_ORDER[ti+1]) === 'Tomorrow');
+  if(ti > 0) T('the previous day is Yesterday', ctx.relativeDayLabel(ctx.DAY_ORDER[ti-1]) === 'Yesterday');
+  T('a day further away is simply named', (() => {
+    const far = ctx.DAY_ORDER[(ti + 3) % 7];
+    const lbl = ctx.relativeDayLabel(far);
+    return lbl !== 'Today' && lbl !== 'Tomorrow' && lbl !== 'Yesterday' && lbl.length > 3;
+  })());
+  T('the date itself is never altered by selection', (() => {
+    const before = ctx.localDateStr();
+    ctx.setSelectedDay(ctx.DAY_ORDER[(ti + 2) % 7]);
+    return ctx.localDateStr() === before;
+  })());
+
+  sub('a day that is not today shows what is planned, and changes nothing');
+  T('today keeps its own full card', /if\(!selectedDayIsToday\(\)\)\{ renderOtherDayCard\(el\); /.test(src));
+  T('a rest day says so and offers to train anyway', (() => {
+    const fn = src.slice(src.indexOf('function renderOtherDayCard'), src.indexOf('const DAY_SWIPE'));
+    return /Rest Day/.test(fn) && /Train anyway/.test(fn);
+  })());
+  T('a planned day names the workout it has', (() => {
+    const fn = src.slice(src.indexOf('function renderOtherDayCard'), src.indexOf('const DAY_SWIPE'));
+    return /workoutName \|\| CAT_LABEL\[cat\]/.test(fn);
+  })());
+  T('opening another day does not rewrite the schedule', (() => {
+    const before = JSON.stringify(ctx.schedule);
+    ctx.setSelectedDay(ctx.DAY_ORDER[(ti + 2) % 7]);
+    try{ ctx.renderTodayWorkout(); }catch(e){}
+    return JSON.stringify(ctx.schedule) === before;
+  })());
+  T('the day still uses the same program-over-plan precedence Today uses', (() => {
+    const fn = src.slice(src.indexOf('function renderOtherDayCard'), src.indexOf('const DAY_SWIPE'));
+    return /hasActiveProgram\(\)/.test(fn) && /getProgramWorkoutForDate/.test(fn);
+  })());
+  T('the week is still adjustable from the day card', /openDayEdit\('\$\{key\}'\)/.test(src));
+
+  sub('swiping is confined and defers to vertical scrolling');
+  T('the swipe lives on the day card, not the page',
+    /function attachDaySwipe[\s\S]{0,200}getElementById\('todayWorkout'\)/.test(src));
+  T('a vertical gesture is never claimed as a swipe',
+    /if\(!_daySwipe\.claimed && Math\.abs\(dy\) > Math\.abs\(dx\)\)\{ _daySwipe = null; return; \}/.test(src));
+  T('a swipe must be clearly horizontal to count', /ratio: 1\.5/.test(src));
+  T('the card allows the page to scroll through it', /\.tw-other\{ touch-action: pan-y; \}/.test(css));
+  ctx.selectedDayKey = null;
+}
+
+/* =========================================================
+   CONTRACT 86 — drag to reschedule
+   ========================================================= */
+function testWeekDrag(app){
+  section('CONTRACT 86 — drag to reschedule');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('a hold picks up, a tap selects');
+  T('there is a deliberate hold threshold', ctx.WEEK_DRAG.holdMs >= 300 && ctx.WEEK_DRAG.holdMs <= 700);
+  T('drift during the hold cancels it, because that is a scroll',
+    /if\(dx > WEEK_DRAG\.slopPx \|\| dy > WEEK_DRAG\.slopPx\)/.test(src));
+  T('a tap that never became a drag selects the day',
+    /if\(!wasDrag && !moved && key\) setSelectedDay\(key\);/.test(src));
+  T('the cell does not open an editor on tap any more',
+    !/class="wk-day[\s\S]{0,160}onclick="openDayEdit/.test(src));
+
+  sub('the lifted workout is visibly lifted, and cannot leave the week');
+  T('it scales and raises', /\.wk-day\.wk-dragging\{[\s\S]{0,220}box-shadow: var\(--shadow-lg\)/.test(css));
+  T('movement is horizontal only', /translateX\(\$\{clamped\}px\)/.test(src) && !/translateY\(/.test(
+    src.slice(src.indexOf('function moveWeekDrag'), src.indexOf('function endWeekDrag'))));
+  T('it is clamped to the strip', (() => {
+    const fn = src.slice(src.indexOf('function moveWeekDrag'), src.indexOf('function endWeekDrag'));
+    return /Math\.max\(min, Math\.min\(max, dx\)\)/.test(fn);
+  })());
+  T('the lifted cell is excluded from its own hit test', (() => {
+    const fn = src.slice(src.indexOf('function weekCellFromPoint'), src.indexOf('function beginWeekDrag'));
+    return /!c\.classList\.contains\('wk-dragging'\)/.test(fn);
+  })());
+
+  sub('drop targets are shown, and a bad drop is refused rather than broken');
+  T('every other day is marked as a target', /c\.classList\.add\('wk-drop-ok'\)/.test(src));
+  T('targets are marked by outline as well as tint',
+    /\.wk-day\.wk-drop-ok\{[^}]*outline: 1px dashed/.test(css));
+  T('the day under the finger is distinguished',
+    /\.wk-day\.wk-drop-over\{[^}]*outline: 2px dashed/.test(css));
+  T('a release on nothing returns the workout and says so',
+    /d\.cell\.classList\.add\('wk-reject'\)/.test(src));
+  T('a rejected drop never writes', (() => {
+    const fn = src.slice(src.indexOf('function endWeekDrag'), src.indexOf('function commitWeekMove'));
+    return /commit && d\.overKey && d\.overKey !== d\.originKey/.test(fn);
+  })());
+
+  sub('the move goes through the existing schedule writer');
+  T('it calls swapScheduledDays, not a second scheduler',
+    /try\{ swapScheduledDays\(fromKey, toKey\); \}/.test(src));
+  T('no new schedule storage was introduced',
+    ctx.DATA_KEYS.length === 15 && ctx.DATA_KEYS.indexOf('selectedPlan') !== -1);
+
+  sub('undo restores the exact week, and withdraws itself');
+  T('the snapshot covers both schedule layers', (() => {
+    const fn = src.slice(src.indexOf('function snapshotWeekForUndo'), src.indexOf('function showWeekUndo'));
+    return /schedule: Object\.assign/.test(fn) && /hasActiveProgram\(\)/.test(fn);
+  })());
+  T('undo restores the program layer too', (() => {
+    const fn = src.slice(src.indexOf('function undoWeekMove'), src.indexOf('/* ---- pointer wiring'));
+    return /updateProgram\(s\.program\.id/.test(fn);
+  })());
+  T('the offer is temporary, not a permanent control', /setTimeout\(hideWeekUndo, 5000\)/.test(src));
+  T('undo is a labelled button, not a gesture to discover', /class="wk-undo-btn"/.test(src));
+
+  sub('motion is restrained and optional');
+  T('reduced motion removes the lift transform',
+    /prefers-reduced-motion[\s\S]{0,400}\.wk-day\.wk-dragging\{ transform: none/.test(css));
+  T('reduced motion keeps the rejection readable without the shake',
+    /prefers-reduced-motion[\s\S]{0,300}\.wk-day\.wk-reject\{ animation: none; outline: 2px solid/.test(css));
+  T('nothing about the drag loops', !/wkReject[\s\S]{0,120}infinite/.test(css));
+}
+
+/* =========================================================
+   CONTRACT 87 — page isolation
+   ========================================================= */
+function testPageIsolation(app){
+  section('CONTRACT 87 — pages own the screen while they are open');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('one mechanism, not a lock added by hand to every screen');
+  T('an observer watches the overlays', /new MutationObserver\(syncBackgroundScrollLock\)/.test(src));
+  T('the open overlays are the source of truth',
+    /document\.querySelectorAll\('\.overlay\.open'\)\.length/.test(src));
+  T('boot survives a platform without an observer',
+    /if\(typeof MutationObserver === 'undefined'\) return null;/.test(src));
+  T('it is started once the app is on screen', /initPageIsolation\(\);/.test(src));
+
+  sub('the document behind a page stops being a document');
+  T('the body is pinned, which is what iOS needs',
+    /body\.scroll-locked\{[\s\S]{0,140}position: fixed/.test(css));
+  T('the offset is captured so it can be given back',
+    /_lockedScrollY = window\.scrollY/.test(src));
+  T('and restored exactly, without animating', /behavior: 'instant'/.test(src));
+  T('nested layers do not unlock early', /if\(--_lockDepth > 0\) return;/.test(src));
+
+  sub('a gesture inside a sheet stays inside it');
+  T('the overlay contains its own overscroll',
+    /\.overlay\{[\s\S]{0,600}overscroll-behavior: contain/.test(css));
+  T('every scrolling surface inside one contains it too',
+    /\.sheet-scroll, \.cs-body, \.prep-run, \.ob-scroll\{ overscroll-behavior: contain; \}/.test(css));
+  T('the locked body refuses chaining entirely',
+    /body\.scroll-locked\{[\s\S]{0,200}overscroll-behavior: none/.test(css));
+
+  sub('headers clear the device status area');
+  T('the app header reads the inset', /header\{[\s\S]{0,120}env\(safe-area-inset-top/.test(css));
+  T('full pages read it on their scroll surface',
+    /\.sheet-page \.sheet-scroll\{ padding-top: calc\(18px \+ env\(safe-area-inset-top/.test(css));
+  T('the workout topbar reads it', /\.workout-topbar\{[\s\S]{0,140}env\(safe-area-inset-top/.test(css));
+  T('onboarding reads it', /\.ob-top\{[\s\S]{0,160}env\(safe-area-inset-top/.test(css));
+  T('a tall sheet cannot reach under the status bar',
+    /\.overlay:not\(\.overlay-page\) \.sheet\{ max-height: calc\(92dvh - env\(safe-area-inset-top/.test(css));
+  T('no screen uses a fixed margin in place of the inset',
+    !/margin-top:\s*(44|47|59)px/.test(css));
+}
+
+/* =========================================================
+   CONTRACT 88 — the set that earned the record
+   ========================================================= */
+function testPRSetHighlight(app){
+  section('CONTRACT 88 — PR set highlighting');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  const mk = (date, sets) => ({ id:'w_'+date, date, category:'push', title:'Push Day',
+    exercises:[{ name:'Bench Press', sets }] });
+  ctx.workoutLog.length = 0;
+  ctx.workoutLog.push(
+    mk('2026-08-01', [{weight:'205',reps:'8'},{weight:'210',reps:'6'}]),
+    mk('2026-08-08', [{weight:'215',reps:'8'},{weight:'220',reps:'6'}]),
+    mk('2026-08-15', [{weight:'225',reps:'8'},{weight:'225',reps:'9'},{weight:'230',reps:'7'}])
+  );
+  ctx.invalidateSortedLogCache();
+  const entry = ctx.workoutLog[2];
+  const pr = ctx.sessionPRSets(entry);
+
+  sub('the record is attributed to the set that earned it');
+  T('the heaviest set carries the weight record', pr.sets[0] && pr.sets[0][2] === 'weight');
+  T('a different set can carry a different record type',
+    pr.sets[0] && Object.keys(pr.sets[0]).length >= 2);
+  T('a set that broke nothing is not marked', pr.sets[0] && pr.sets[0][0] === undefined);
+  T('a session that beat nothing marks nothing', (() => {
+    /* A first session cannot be this case — with no history every lift is a
+       best. This is a later, lighter session, which is the real one. */
+    ctx.workoutLog.push(mk('2026-08-22', [{weight:'185',reps:'5'},{weight:'190',reps:'4'}]));
+    ctx.invalidateSortedLogCache();
+    const weaker = ctx.sessionPRSets(ctx.workoutLog[ctx.workoutLog.length - 1]);
+    const none = Object.keys(weaker.sets).length === 0;
+    ctx.workoutLog.pop();
+    ctx.invalidateSortedLogCache();
+    return none;
+  })());
+  T('a first session does set records, because nothing preceded it', (() => {
+    const first = ctx.sessionPRSets(ctx.workoutLog[0]);
+    return !!(first.sets[0] && Object.keys(first.sets[0]).length);
+  })());
+
+  sub('the existing classification is used, not a new one');
+  T('PR types come from the existing priority list',
+    ctx.PR_PRIORITY.indexOf('weight') === 0);
+  T('every attributed type is one the app already defines', (() => {
+    return Object.keys(pr.sets).every(ex =>
+      Object.values(pr.sets[ex]).every(t => ctx.PR_PRIORITY.indexOf(t) !== -1));
+  })());
+  T('a volume record is reported at session level, not pinned to a set',
+    pr.sessionOnly.indexOf('volume') !== -1);
+  T('volume is deliberately not attributable',
+    ctx.PR_SET_ATTRIBUTABLE['volume'] === undefined);
+
+  sub('derived, never written');
+  const logBefore = JSON.stringify(ctx.workoutLog);
+  ctx.sessionPRSets(entry);
+  ctx.sessionPRSets(ctx.workoutLog[1]);
+  T('reading records does not write to workoutLog', JSON.stringify(ctx.workoutLog) === logBefore);
+  T('no PR flag is stored on a set', (() => {
+    return ctx.workoutLog.every(l => (l.exercises||[]).every(ex =>
+      (ex.sets||[]).every(s => s.pr === undefined && s.isPR === undefined)));
+  })());
+
+  sub('cheap enough to render a workout with');
+  T('the session result is cached', ctx.sessionPRSets(entry) === ctx.sessionPRSets(entry));
+  T('the cache follows the log it derives from', (() => {
+    ctx.sessionPRSets(entry);
+    ctx.invalidateSortedLogCache();
+    return ctx._prSetCache === null;
+  })());
+  T('one pass per session, not one per rendered row', (() => {
+    const fn = src.slice(src.indexOf("document.getElementById('dayDetailExercises')"),
+                         src.indexOf("document.getElementById('dayDetailNotes')"));
+    return (fn.match(/sessionPRSets\(/g) || []).length === 0;   // hoisted above the map
+  })());
+
+  sub('findable without seeing colour');
+  T('the set carries the word PR, not only a tint', /class="set-chip-pr"/.test(src));
+  T('and a border', /\.set-chip-record\{[\s\S]{0,120}border-color: var\(--success\)/.test(css));
+  T('and an accessible description of which record it was',
+    /aria-label="' \+ escapeAttr\(prSetTitle\(prType\)\)/.test(src));
+  T('the descriptions name the actual record type',
+    ctx.prSetTitle('weight') === 'Heaviest set yet' && ctx.prSetTitle('1rm').indexOf('one-rep max') !== -1);
+  T('the badge is small enough not to shout',
+    /\.set-chip-pr\{[\s\S]{0,160}font-size: 8\.5px/.test(css));
+  T('existing set rendering is unchanged when there is no record',
+    ctx.setChipHtml({ weight:'100', reps:'5' }, false).indexOf('set-chip-record') === -1);
+}
+
+/* =========================================================
+   CONTRACT 89 — one word for how you train
+   ========================================================= */
+function testPlanVocabulary(app){
+  section('CONTRACT 89 — plan vocabulary');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  /* What the athlete reads: markup and quoted UI copy, with code comments and
+     identifiers excluded so this measures the product, not the source. */
+  const visible = [
+    ...[...src.matchAll(/>([^<>{}]{2,240})</g)].map(m => m[1]),
+    ...[...src.matchAll(/(?:title|body|label|desc):\s*'([^']{4,300})'/g)].map(m => m[1]),
+    ...[...src.matchAll(/errors\.push\('([^']+)'\)/g)].map(m => m[1])
+  ].join(' | ');
+
+  sub('plan and program no longer compete as synonyms');
+  T('"program" is not a word the athlete meets', !/\bprograms?\b/i.test(visible), (visible.match(/\bprograms?\b/i)||[''])[0]);
+  T('"plan" is still the word for how you train', /\bplan\b/i.test(visible));
+  T('the timed structure is a cycle', /\bcycles?\b/i.test(visible));
+  T('a cycle is described as running the plan, not replacing it',
+    /cycle runs your plan|runs your plan for a set number of weeks/i.test(visible));
+  T('it is offered as optional', /Optional\. Your plan already works on its own/.test(src));
+
+  sub('"block" did not come back');
+  /* D11 removed it precisely because it sat beside "phase" as a second word
+     for the same idea; "cycle" is the container, and phases are its stages. */
+  T('block is still not shown beside phase', !/Training blocks|blocks and weeks|weeks and blocks/i.test(visible));
+  T('phase remains the word for a stage inside a cycle', /PROGRAM_PHASE_TYPES/.test(src));
+  T('a cycle contains phases, not the other way round',
+    /split this cycle into phases/i.test(visible));
+
+  sub('the words an athlete only meets when something fails');
+  T('validation speaks the same vocabulary',
+    !/Give the program a name|No program supplied|Too many programs|Program not found/.test(src));
+  T('and still says what to do', /Give the cycle a name/.test(src));
+
+  sub('choosing how you train is one screen with one question');
+  T('the chooser asks a human question', /Choose how you train/.test(src));
+  T('built-in plans and building your own sit together',
+    /customPlanCardHtml\(\)/.test(src) && /Build my own/.test(src));
+  T('building your own is presented as a plan, not a separate feature',
+    /plan-card plan-card-custom/.test(src));
+
+  sub('the internal architecture was NOT renamed');
+  /* The point was to stop exposing the architecture, not to churn it. */
+  T('the store is untouched', /const PROGRAMS_KEY = 'programs'/.test(src));
+  T('the storage key is unchanged', ctx.DATA_KEYS.indexOf('programs') !== -1);
+  T('the functions keep their names',
+    /function createProgram/.test(src) && /function getActiveProgram/.test(src) &&
+    /function hasActiveProgram/.test(src));
+  T('no data was migrated for a rename', !/migrateProgramNames|renameProgram/.test(src));
+}
+
+/* =========================================================
+   CONTRACT 90 — the builder is fast, atomic and repeatable
+   ========================================================= */
+async function testProgramBuilderStress(){
+  section('CONTRACT 90 — cycle builder under stress');
+  const app = await H.loadAppBooted(buildProtectionFixture());
+  const ctx = app.ctx;
+  const count = () => (ctx.programsStore.programs || []).length;
+  const nameInput = () => (app.doc || ctx.document).getElementById('builderName');
+
+  const before = H.snapshot(ctx);
+  const logBefore = app.store.workoutLog;
+  const cardioBefore = app.store.cardioLog;
+  const notesBefore = app.store.exerciseNotes;
+  const gymBefore = app.store.gymProfile;
+  const trainerBefore = ctx.trainerLog.entries.length;
+
+  sub('state lives in memory until the athlete commits');
+  ctx.openProgramBuilder();
+  const storeAtOpen = JSON.stringify(app.store.programs);
+  ctx.setBuilderField('durationWeeks', 12);
+  ctx.setBuilderField('goal', 'hypertrophy');
+  T('opening the builder writes nothing', JSON.stringify(app.store.programs) === storeAtOpen);
+  T('changing options writes nothing', JSON.stringify(app.store.programs) === storeAtOpen);
+  T('the draft is held in memory', ctx.builderDraft !== null && ctx.builderDraft.durationWeeks === 12);
+
+  sub('rapid interaction settles deterministically');
+  for(let i = 0; i < 20; i++) ctx.setBuilderField('durationWeeks', 4 + (i % 9));
+  T('the last change is the one that stands', ctx.builderDraft.durationWeeks === 4 + (19 % 9));
+  for(let i = 0; i < 20; i++) ctx.setBuilderField('goal', i % 2 ? 'hypertrophy' : 'strength');
+  T('and again for a different field', ctx.builderDraft.goal === 'hypertrophy');
+  T('still nothing written', JSON.stringify(app.store.programs) === storeAtOpen);
+
+  sub('an invalid cycle is refused whole');
+  const n0 = count();
+  const rawBefore = JSON.stringify(ctx.programsStore);
+  ctx.builderDraft.name = '';
+  ctx.builderDraft.durationWeeks = 9999;
+  try{ ctx.submitProgramBuilder(); }catch(e){}
+  T('nothing was created', count() === n0);
+  T('the store is byte-identical — no half-written cycle',
+    JSON.stringify(ctx.programsStore) === rawBefore);
+  T('the builder stays open so the athlete can fix it', ctx.builderDraft !== null);
+
+  sub('committing is atomic, and repeatable');
+  nameInput().value = 'Cycle One';
+  ctx.builderDraft.durationWeeks = 8;
+  ctx.builderDraft.structure = null;
+  try{ ctx.submitProgramBuilder(); }catch(e){}
+  T('exactly one cycle exists', count() === n0 + 1);
+  T('the draft is cleared on success', ctx.builderDraft === null);
+
+  /* Submitting again with no draft must be a no-op — this is the rapid
+     double-tap on Create, which is where duplicates come from. */
+  for(let i = 0; i < 10; i++){ try{ ctx.submitProgramBuilder(); }catch(e){} }
+  T('repeated submits cannot duplicate it', count() === n0 + 1);
+
+  ctx.openProgramBuilder();
+  T('a second builder starts empty, not from the last one', ctx.builderDraft.name === '');
+  nameInput().value = '';
+  nameInput().value = 'Cycle Two';
+  ctx.builderDraft.structure = null;
+  try{ ctx.submitProgramBuilder(); }catch(e){}
+  T('a second cycle can be created immediately', count() === n0 + 2);
+  T('the two are distinct', (() => {
+    const ids = (ctx.programsStore.programs || []).map(p => p.id);
+    return new Set(ids).size === ids.length;
+  })());
+
+  sub('cancelling leaves nothing behind');
+  const n1 = count();
+  ctx.openProgramBuilder();
+  ctx.setBuilderField('durationWeeks', 6);
+  ctx.closeProgramBuilder();
+  T('no cycle was created', count() === n1);
+  T('no draft survives', ctx.builderDraft === null);
+  for(let i = 0; i < 20; i++){ ctx.openProgramBuilder(); ctx.closeProgramBuilder(); }
+  T('twenty open/close cycles change nothing', count() === n1 && ctx.builderDraft === null);
+
+  sub('building a cycle touches nothing else');
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', app.store.workoutLog === logBefore);
+  T('cardioLog untouched', app.store.cardioLog === cardioBefore);
+  T('exercise notes untouched', app.store.exerciseNotes === notesBefore);
+  T('the gym profile is untouched', app.store.gymProfile === gymBefore);
+  T('the trainer wrote nothing', ctx.trainerLog.entries.length === trainerBefore);
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -8761,6 +9227,11 @@ async function main(){
   testPageSurfaces(H.loadApp());
   testRestTimer(H.loadApp());
   testCardio2(H.loadApp());
+  testSharedSelectedDay(H.loadApp());
+  testWeekDrag(H.loadApp());
+  testPageIsolation(H.loadApp());
+  testPRSetHighlight(H.loadApp());
+  testPlanVocabulary(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
@@ -8805,6 +9276,7 @@ async function main(){
     await testD14Safety();
     await testCardioSessionLifecycle();
     await testCardio2Safety();
+    await testProgramBuilderStress();
   }
 
   // ---- FULL ----
