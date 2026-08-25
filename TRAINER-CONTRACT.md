@@ -911,3 +911,122 @@ Draft restore also had to change: it wrote `'▶'` as text into what is now an
 icon button, and left the ring uninitialised. A restored rest now comes back
 **paused**, which is the honest state — it never silently counts down time the
 athlete spent away from the app.
+
+---
+
+## 20. Cardio 2.0 — tracking instead of recording (Phase D15)
+
+### What was actually wrong
+
+The Cardio tab had a button labelled **Start Cardio**. It opened a form. There
+was no clock anywhere in the feature: every session was typed in from memory
+after the fact, and `pace` was a free-text field the athlete filled in by hand.
+The tab below that button was six stacked analytics blocks — totals, personal
+bests, XP contribution, achievements — so the first thing between an athlete and
+their workout was a scoreboard.
+
+Everything underneath was sound and has been kept: 17 canonical activities each
+declaring the metrics it actually has, `cardioLog`, the draft key, the stats,
+the PRs, the XP timeline and its weekly caps. Cardio 2.0 adds the missing half —
+a session you can start — and re-orders what was already there.
+
+> The registry already knew a stair climber has floors and no pace. The old form
+> knew it too. The new session screen reads the same array; it did not need a
+> second opinion about what a stair climber is.
+
+### Three kinds of number, and the UI must not blur them
+
+LOOP has no GPS, no heart-rate strap and no Health import, so a cardio screen is
+mostly numbers of uncertain parentage. Each one now states where it came from,
+in the tile, underneath the value:
+
+| | | |
+|---|---|---|
+| **measured** | time | LOOP counts it against the wall clock |
+| **entered** | distance, floors | read off a console or a known route |
+| **estimated** | pace, speed, calories | derived from the two above |
+
+Pace and speed are exact arithmetic and are labelled *from distance*. Calories
+are a model and are labelled *estimated* everywhere they appear, including in
+the saved record (`caloriesEstimated: true`).
+
+### Calories: a published model, or nothing
+
+Energy expenditure scales with body mass, and LOOP had no body weight. The
+honest options were to ask for one or to not estimate — not to pick a plausible
+number.
+
+`athleteProfile` gains exactly one field, `bodyWeightLb`, defaulting to `null`.
+Profiles written before this phase load through
+`Object.assign(defaultAthleteProfile(), parsed)` and simply arrive without it,
+which reads as *unknown*. **Unknown means no estimate**: the tile shows a dash
+and offers the fix, and manual calorie entry stays available.
+
+With a weight, MET values come from the Compendium of Physical Activities, and
+where a distance makes the average speed known the MET is interpolated within
+that activity's own published table rather than using one flat number for every
+effort. `cardio_other` is deliberately absent from the table — "Other" says
+nothing about intensity, so there is no defensible MET for it.
+
+**Active and total are a real distinction, not two labels on one number.** Total
+is everything burned during the session; resting is what the body would have
+spent lying still for the same minutes, which is 1 MET by definition; active is
+the difference. Total is therefore always the larger. Both round to whole
+numbers — `440 active cal`, never `439.7`.
+
+### The clock
+
+Elapsed time is derived from the wall clock, never counted by ticks:
+`accumulatedMs` banks completed segments and `runningSince` marks the open one.
+Pausing closes the segment; resuming opens a new one. **Paused time is therefore
+structurally unreachable rather than subtracted afterwards** — measured at 0ms
+drift across a real pause.
+
+The same property makes interruption recovery fall out for free. A session that
+was running when the app went away is restored from the draft still running,
+with the time that passed counted — closing the tab mid-run is an interruption,
+not a pause, and treating it as one would silently shorten the workout.
+
+There is **one** ticker and **one** store. `startCardioTicker()` clears before it
+sets, so 20 rapid Starts leave one interval; finishing and cancelling both clear
+it. The session persists to `cardioDraft`, the key cardio already had, with a
+`kind` discriminator — drafts written before this phase have no `kind` and still
+restore as manual entries.
+
+`resumeCardioDraft()` had existed since cardio shipped and was **never called**,
+so an interrupted entry was written and then silently dropped. It is now wired
+into boot, which fixes live sessions and the original manual drafts together.
+
+### One visual language
+
+The launcher and history cards were redrawn with line marks first, which briefly
+left the manual logger, the records list and Today's cardio link printing the old
+geometric glyphs (`▶ ▲ ◉ ◆`) at the same activities. To an athlete that is one
+surface wearing two design languages. Every cardio mark now comes from
+`cardioIconSvg()`, one per activity *group* rather than per activity — eight
+marks, not seventeen, so the launcher does not become an icon catalogue. The
+`glyph` characters are gone from `CARDIO_GROUP_STYLE` entirely rather than left
+available to drift back; the object carries colour only.
+
+The app-wide caret (`▾`) and tick (`✓`) are untouched — they are LOOP's existing
+vocabulary in six other places each, and changing them only inside cardio would
+create the inconsistency this section is about removing.
+
+### Where things sit
+
+The session is an `overlay-page`, so it reads as a page the athlete moved to
+rather than a panel over the tab they left. Its controls live in their own strip
+at the foot of the page: always under the thumb, never over the numbers. One
+value at a time is edited in a sheet, which is the D14 rule — the athlete is
+changing one thing on a screen they can still see.
+
+The statistics that used to fill the tab are one tap down, behind
+**Records & totals**. Nothing was deleted; it stopped being the first thing
+between an athlete and Start.
+
+### Consistency without a target
+
+The week arc's denominator is **the seven days of the week** — a fact. LOOP has
+no cardio goal, and inventing one would mean shipping a ring most athletes are
+designed to fall short of. Three sessions in one day is one day, because the
+question the arc answers is *how often*, not *how much*.

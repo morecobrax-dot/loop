@@ -810,7 +810,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 
 /* ---- Cardio ---- */
 /* Activity tones. Presentation only — these carry no data meaning. */
-.cd-glyph{
+.cd-glyph{ display: flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 12px; line-height: 1;
@@ -2219,6 +2219,331 @@ body.page-locked{ overflow: hidden; }
   display: flex; align-items: center; justify-content: center;
 }
 .rest-start-btn:hover{ border-color: var(--accent); }
+/* =========================================================
+   CARDIO 2.0
+   ---------------------------------------------------------
+   Colour is state, not decoration: the activity tone marks
+   what you are doing, --text-faint marks paused, --success
+   marks finished. Every state also changes a word or a shape,
+   so none of it depends on seeing the hue.
+   ========================================================= */
+
+/* ---------- launcher ---------- */
+.cl-head{ padding: 2px 0 14px; }
+.cl-title{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 23px;
+  letter-spacing: -0.01em; color: var(--text);
+}
+.cl-sub{ font-size: 12.5px; color: var(--text-dim); margin-top: 5px; }
+
+.cl-grid{
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2);
+}
+.cl-tile{
+  display: flex; align-items: center; gap: 10px; min-height: 56px;
+  padding: 0 var(--space-3); text-align: left;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); cursor: pointer;
+  color: var(--text); font-family: 'Inter', sans-serif;
+  transition: transform 0.12s var(--ease), border-color 0.15s var(--ease);
+}
+.cl-tile:active{ transform: scale(0.975); }
+.cl-tile .cl-mark{
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+}
+.cl-name{ font-size: 13.5px; font-weight: 600; line-height: 1.25; min-width: 0; }
+/* The tone class paints the mark only — the tile itself stays neutral so eight
+   of them side by side do not read as a colour chart. */
+.cl-tile.cd-tone-run,.cl-tile.cd-tone-walk,.cl-tile.cd-tone-cycle,.cl-tile.cd-tone-climb,
+.cl-tile.cd-tone-machine,.cl-tile.cd-tone-water,.cl-tile.cd-tone-outdoor,.cl-tile.cd-tone-other{
+  background: var(--surface); color: var(--text);
+}
+.cl-tile.cd-tone-run .cl-mark{     background: rgba(91,140,255,0.14);  color: #5B8CFF; }
+.cl-tile.cd-tone-walk .cl-mark{    background: rgba(75,156,129,0.14);  color: #4B9C81; }
+.cl-tile.cd-tone-cycle .cl-mark{   background: rgba(189,146,96,0.14);  color: #BD9260; }
+.cl-tile.cd-tone-climb .cl-mark{   background: rgba(199,127,79,0.14);  color: #C77F4F; }
+.cl-tile.cd-tone-machine .cl-mark{ background: rgba(133,121,176,0.14); color: #8579B0; }
+.cl-tile.cd-tone-water .cl-mark{   background: rgba(79,163,199,0.14);  color: #4FA3C7; }
+.cl-tile.cd-tone-outdoor .cl-mark{ background: rgba(184,116,140,0.14); color: #B8748C; }
+.cl-tile.cd-tone-other .cl-mark{   background: var(--surface-3);       color: var(--text-dim); }
+.cl-tile-more .cl-mark{ background: var(--surface-3); color: var(--text-dim); }
+
+/* Manual entry is available, never competing: a text link under the grid. */
+.cl-manual{
+  display: block; width: 100%; min-height: 44px; margin-top: var(--space-3);
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 500;
+}
+.cl-manual:active{ color: var(--text); }
+.cl-empty{
+  margin-top: var(--space-5); padding: var(--space-4);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  font-size: 12.5px; line-height: 1.55; color: var(--text-dim);
+}
+.cl-disclose{
+  display: block; width: 100%; min-height: 44px; margin-top: var(--space-4);
+  background: none; border: none; border-top: 1px solid var(--border); cursor: pointer;
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+}
+.cl-stats{ margin-top: var(--space-2); }
+
+/* ---------- this week ---------- */
+.cw-card{
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--space-4); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+}
+.cw-arc{ position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+.cw-arc svg{ width: 100%; height: 100%; transform: rotate(-90deg); }
+.cw-arc-track{ fill: none; stroke: var(--surface-3); stroke-width: 6; }
+.cw-arc-fill{
+  fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s var(--ease);
+}
+.cw-arc-num{
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 700; color: var(--text);
+}
+.cw-arc-num span{ font-size: 11px; color: var(--text-faint); font-weight: 500; }
+.cw-stats{ display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-5); flex: 1; min-width: 0; }
+.cw-stat{ display: flex; flex-direction: column; gap: 2px; }
+.cw-stat b{
+  font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.02em;
+}
+.cw-stat span{ font-size: 10.5px; color: var(--text-faint); }
+.cw-dots{ display: none; }        /* the arc carries it; dots return in the detail below */
+
+/* ---------- history cards ---------- */
+.ch-list{ display: flex; flex-direction: column; gap: var(--space-2); }
+.ch-card{
+  display: flex; align-items: flex-start; gap: 11px; width: 100%; text-align: left;
+  padding: var(--space-3); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  cursor: pointer; color: var(--text); font-family: 'Inter', sans-serif;
+  transition: transform 0.12s var(--ease);
+}
+.ch-card:active{ transform: scale(0.99); }
+.ch-mark{
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; margin-top: 1px;
+}
+.ch-main{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ch-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ch-name{ font-size: 14px; font-weight: 600; color: var(--text); }
+.ch-when{ font-size: 11px; color: var(--text-faint); flex-shrink: 0; }
+.ch-metrics{
+  font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 600;
+  color: var(--text-dim); letter-spacing: -0.01em;
+}
+.ch-cal{ font-size: 11px; color: var(--text-faint); }
+
+/* ---------- picker sheet ---------- */
+.cp-grid{ display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); margin-top: var(--space-2); }
+.cp-tile{
+  display: flex; align-items: center; gap: 9px; min-height: 48px; padding: 0 var(--space-3);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; color: var(--text); font-family: 'Inter', sans-serif; text-align: left;
+}
+.cp-tile:active{ transform: scale(0.98); }
+.cp-mark{ display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0; }
+.cp-tile.cd-tone-run .cp-mark{     color: #5B8CFF; }
+.cp-tile.cd-tone-walk .cp-mark{    color: #4B9C81; }
+.cp-tile.cd-tone-cycle .cp-mark{   color: #BD9260; }
+.cp-tile.cd-tone-climb .cp-mark{   color: #C77F4F; }
+.cp-tile.cd-tone-machine .cp-mark{ color: #8579B0; }
+.cp-tile.cd-tone-water .cp-mark{   color: #4FA3C7; }
+.cp-tile.cd-tone-outdoor .cp-mark{ color: #B8748C; }
+.cp-tile.cd-tone-other .cp-mark{   color: var(--text-dim); }
+.cp-name{ font-size: 12.5px; font-weight: 600; line-height: 1.2; min-width: 0; }
+
+/* ---------- one-value entry sheet ---------- */
+.ce-row{ display: flex; align-items: baseline; gap: 10px; margin-top: var(--space-4); }
+.ce-input{
+  flex: 1; min-width: 0; min-height: 56px;
+  font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700;
+  letter-spacing: -0.02em; text-align: left;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); color: var(--text); padding: 0 var(--space-3);
+}
+.ce-input:focus{ outline: none; border-color: var(--accent); }
+.ce-unit{ font-size: 15px; font-weight: 600; color: var(--text-dim); flex-shrink: 0; }
+.ce-area{
+  width: 100%; min-height: 108px; margin-top: var(--space-4);
+  font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.5;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); color: var(--text); padding: var(--space-3);
+}
+.ce-hint{ font-size: 12px; line-height: 1.5; color: var(--text-faint); margin-top: var(--space-3); }
+
+/* =========================================================
+   ACTIVE SESSION PAGE
+   ========================================================= */
+.cs-body{
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column;
+}
+.cs-stage{
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: var(--space-5) var(--space-4); text-align: center; gap: var(--space-5);
+}
+.cs-activity{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* The clock is the largest thing in LOOP, deliberately. */
+.cs-ring{ position: relative; width: 208px; height: 208px; }
+.cs-ring-svg{ width: 100%; height: 100%; transform: rotate(-90deg); }
+.cs-ring-track{ fill: none; stroke: var(--surface-3); stroke-width: 5; }
+.cs-ring-fill{
+  fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round;
+  transition: stroke 0.25s var(--ease);
+}
+.cs-clock-wrap{
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+}
+.cs-clock{
+  font-family: 'JetBrains Mono', monospace; font-size: 46px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.035em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.cs-state{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--accent);
+}
+/* Activity tone drives the ring so a run and a ride are distinguishable at a
+   glance, without the hue being the only thing that says which. */
+.cs-tone-run .cs-ring-fill{     stroke: #5B8CFF; } .cs-tone-run .cs-state{     color: #5B8CFF; }
+.cs-tone-walk .cs-ring-fill{    stroke: #4B9C81; } .cs-tone-walk .cs-state{    color: #4B9C81; }
+.cs-tone-cycle .cs-ring-fill{   stroke: #BD9260; } .cs-tone-cycle .cs-state{   color: #BD9260; }
+.cs-tone-climb .cs-ring-fill{   stroke: #C77F4F; } .cs-tone-climb .cs-state{   color: #C77F4F; }
+.cs-tone-machine .cs-ring-fill{ stroke: #8579B0; } .cs-tone-machine .cs-state{ color: #8579B0; }
+.cs-tone-water .cs-ring-fill{   stroke: #4FA3C7; } .cs-tone-water .cs-state{   color: #4FA3C7; }
+.cs-tone-outdoor .cs-ring-fill{ stroke: #B8748C; } .cs-tone-outdoor .cs-state{ color: #B8748C; }
+.cs-tone-other .cs-ring-fill{   stroke: var(--accent); }
+
+/* Paused: the ring greys out AND the word changes AND the button becomes
+   Resume — three signals, only one of them colour. */
+.cs-stage.cs-paused .cs-ring-fill{ stroke: var(--text-faint) !important; }
+.cs-stage.cs-paused .cs-state{ color: var(--text-faint) !important; }
+.cs-stage.cs-paused .cs-clock{ color: var(--text-dim); }
+
+.cs-tiles{
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2);
+  width: 100%; max-width: 380px;
+}
+.cs-tile{
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: var(--space-3) var(--space-2); min-height: 72px; justify-content: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  font-family: 'Inter', sans-serif; color: var(--text);
+}
+.cs-tile-tap{ cursor: pointer; border-style: dashed; }
+.cs-tile-tap:active{ transform: scale(0.98); }
+.cs-tile-val{
+  font-family: 'JetBrains Mono', monospace; font-size: 21px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; gap: 3px;
+}
+.cs-tile-unit{ font-size: 11px; font-weight: 600; color: var(--text-faint); letter-spacing: 0; }
+.cs-tile-label{ font-size: 11px; font-weight: 600; color: var(--text-dim); }
+/* "estimated" / "entered" / "tap to add" — the provenance of every number is
+   printed under it, so nothing here can be mistaken for sensor data. */
+.cs-tile-hint{ font-size: 9.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); }
+
+/* ---------- bottom control bar ----------
+   Its own strip at the foot of the page: always reachable, never over the
+   numbers. */
+.cs-bar{
+  flex-shrink: 0; display: flex; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border); background: var(--surface);
+}
+.cs-btn{
+  flex: 1; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 7px;
+  border-radius: var(--radius-lg); border: 1px solid var(--border); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 600;
+  background: var(--surface-2); color: var(--text);
+  transition: transform 0.12s var(--ease);
+}
+.cs-btn:active{ transform: scale(0.98); }
+.cs-btn-finish{ background: var(--accent); border-color: var(--accent); color: #0A0C10; }
+.cs-btn-save{ background: var(--success); border-color: var(--success); color: #0A0C10; }
+
+/* ---------- summary ---------- */
+.cs-summary{
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: var(--space-5) var(--space-4) var(--space-4); text-align: center;
+}
+.cs-sum-check{
+  display: flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--success-soft); color: var(--success);
+  animation: csPop 0.4s var(--ease) both;
+}
+@keyframes csPop{ 0%{ transform: scale(0.5); opacity: 0; } 60%{ transform: scale(1.1); } 100%{ transform: scale(1); opacity: 1; } }
+.cs-sum-activity{
+  margin-top: var(--space-4); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-dim);
+}
+.cs-sum-time{
+  font-family: 'JetBrains Mono', monospace; font-size: 54px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.04em; line-height: 1.05; margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.cs-sum-date{ font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+.cs-sum-rows{
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2);
+  width: 100%; max-width: 380px; margin-top: var(--space-5);
+}
+.cs-sum-row{
+  display: flex; flex-direction: column; align-items: center; gap: 3px; justify-content: center;
+  padding: var(--space-3) var(--space-2); min-height: 66px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  font-family: 'Inter', sans-serif; color: var(--text);
+}
+.cs-sum-row-tap{ cursor: pointer; border-style: dashed; }
+.cs-sum-row-tap:active{ transform: scale(0.98); }
+.cs-sum-v{
+  font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.cs-sum-l{ font-size: 10.5px; color: var(--text-faint); }
+.cs-note-btn{
+  margin-top: var(--space-4); min-height: 44px; padding: 0 var(--space-4);
+  background: none; border: none; cursor: pointer;
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+}
+.cs-note-text{
+  max-width: 380px; font-size: 12.5px; line-height: 1.5; color: var(--text-dim);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: var(--space-3); text-align: left;
+}
+.cs-discard{
+  margin-top: auto; padding-top: var(--space-5); min-height: 44px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500;
+}
+.cs-discard:active{ color: var(--danger); }
+
+@media (prefers-reduced-motion: reduce){
+  .cs-ring-fill{ transition: none; }
+  .cs-sum-check{ animation: none; }
+  .cw-arc-fill{ transition: none; }
+  .cl-tile:active, .ch-card:active, .cs-btn:active, .cs-tile-tap:active{ transform: none; }
+}
+
+/* Narrow phones: keep two columns, shrink the type rather than wrapping. */
+@media (max-width: 360px){
+  .cs-clock{ font-size: 40px; }
+  .cs-ring{ width: 184px; height: 184px; }
+  .cl-name{ font-size: 12.5px; }
+}
+
+
 /* ---------- REST TIMER (Phase D14) ----------
    Part of the exercise card, not a widget floating over it. Three states, each
    distinguishable without colour: running (ring depleting), ending (ring and
@@ -3007,6 +3332,26 @@ body.page-locked{ overflow: hidden; }
   .tw-cta{ min-height: 46px; }
   .prep-card{ padding: var(--space-3) var(--space-4); }
   .prep-card .prep-start-btn{ min-height: 46px; }
+
+  /* Cardio 2.0 — the clock has to survive a 375px-tall screen, so the ring
+     shrinks and the tiles move beside it rather than below it. */
+  .cs-stage{
+    flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center;
+    gap: var(--space-4); padding: var(--space-3) var(--space-4);
+  }
+  .cs-activity{ width: 100%; }
+  .cs-ring{ width: 136px; height: 136px; }
+  .cs-clock{ font-size: 30px; }
+  .cs-tiles{ width: auto; flex: 1; min-width: 220px; max-width: 460px; }
+  .cs-tile{ min-height: 56px; padding: var(--space-2); }
+  .cs-tile-val{ font-size: 17px; }
+  .cs-bar{ padding-top: var(--space-2); padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px)); }
+  .cs-btn{ min-height: 44px; }
+  .cs-summary{ padding: var(--space-3) var(--space-4); }
+  .cs-sum-time{ font-size: 38px; }
+  .cs-sum-check{ width: 34px; height: 34px; }
+  .cs-sum-rows{ max-width: 560px; grid-template-columns: repeat(4, 1fr); }
+  .cs-discard{ padding-top: var(--space-3); }
 }
 /* Never let a rotation produce sideways scroll. */
 html, body{ max-width: 100%; overflow-x: hidden; }
@@ -3357,12 +3702,53 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 <div class="overlay" id="cardioOverlay">
   <div class="sheet">
     <div class="sheet-scroll">
-      <h2>Log Cardio</h2>
+      <h2>Log a past session</h2>
       <div id="cardioLoggerBody"></div>
     </div>
     <div class="sheet-actions" id="cardioSaveRow" style="display:none">
       <button class="btn-secondary" onclick="closeCardioLogger()">Close</button>
       <button class="btn-primary" id="cardioSaveBtn" onclick="saveCardioSession(this)">Save Session</button>
+    </div>
+  </div>
+</div>
+
+<!-- CARDIO SESSION — a page, not a sheet: the athlete is inside a workout -->
+<div class="overlay overlay-page" id="cardioSessionOverlay">
+  <div class="sheet sheet-page">
+    <div class="workout-topbar">
+      <button class="workout-back" onclick="cancelCardioSession()" aria-label="Discard session">‹</button>
+      <div class="workout-topbar-title" id="cardioSessionTitle">Session</div>
+      <span class="workout-topbar-spacer"></span>
+    </div>
+    <div class="cs-body" id="cardioSessionBody"></div>
+    <div class="cs-bar" id="cardioSessionBar"></div>
+  </div>
+</div>
+
+<!-- CARDIO ENTRY — one value at a time, never a form mid-session -->
+<div class="overlay" id="cardioEntryOverlay">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2 id="cardioEntryTitle">Value</h2>
+      <div id="cardioEntryBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeCardioEntry()">Cancel</button>
+      <button class="btn-primary" onclick="saveCardioEntry()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- CARDIO ACTIVITY PICKER — the full list, still one tap from Start -->
+<div class="overlay" id="cardioPickerOverlay" onclick="backdropDismiss(event, closeCardioPicker)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>All activities</h2>
+      <div class="sheet-sub">Tap one to start recording.</div>
+      <div id="cardioPickerBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeCardioPicker()">Cancel</button>
     </div>
   </div>
 </div>
@@ -5658,6 +6044,9 @@ async function boot(){
   await loadReadiness();
   await loadTrainerLog();
   await loadCardioLog();
+  /* A cardio session that was running when the app went away is picked back
+     up here, once the log it will be saved into is in memory. */
+  await resumeCardioDraft();
 
   renderStorageNotice(migrationResult);
 
@@ -8011,6 +8400,7 @@ const CARDIO_FIELDS = {
   rounds:    { label:'Rounds',     unit:'',      step:'1',    mode:'numeric' },
   heartRate: { label:'Avg HR',     unit:'bpm',   step:'1',    mode:'numeric' },
   calories:  { label:'Calories',   unit:'kcal',  step:'10',   mode:'numeric' },
+  activeCalories: { label:'Active cal', unit:'kcal', step:'10', mode:'numeric' },
   rpe:       { label:'RPE',        unit:'/10',   step:'1',    mode:'numeric' }
 };
 /* Shown immediately; everything else sits behind "More details" so a simple
@@ -8163,7 +8553,7 @@ function renderCardioLogger(){
     const tile = a => {
       const st = cardioStyleFor(a.id);
       return `<button class="cd-act" onclick="pickCardioActivity('${a.id}')">
-        <span class="cd-glyph cd-tone-${st.tone}">${st.glyph}</span>
+        <span class="cd-glyph cd-tone-${st.tone}">${cardioIconSvg(a.id, 17)}</span>
         <span class="cd-act-name">${a.name}</span>
       </button>`;
     };
@@ -8172,7 +8562,7 @@ function renderCardioLogger(){
     CARDIO_ACTIVITIES.forEach(a => { (groups[a.group] = groups[a.group] || []).push(a); });
 
     el.innerHTML = `
-      <div class="sheet-sub">Pick an activity — you'll only see the fields it actually uses.</div>
+      <div class="sheet-sub">For a session you already finished. To track one live, start it from the Cardio tab.</div>
       ${recentIds.length ? `
         <label style="margin-top:18px">Your usual</label>
         <div class="cd-act-grid">
@@ -8192,7 +8582,7 @@ function renderCardioLogger(){
   const st = cardioStyleFor(act.id);
   el.innerHTML = `
     <div class="cd-selected">
-      <span class="cd-glyph cd-glyph-lg cd-tone-${st.tone}">${st.glyph}</span>
+      <span class="cd-glyph cd-glyph-lg cd-tone-${st.tone}">${cardioIconSvg(act.id, 20)}</span>
       <div style="flex:1;min-width:0">
         <div class="cd-selected-label">${cardioEditingId ? 'Editing' : act.group}</div>
         <div class="cd-selected-name">${act.name}</div>
@@ -8274,6 +8664,7 @@ async function loadCardioDraft(){
 async function resumeCardioDraft(){
   const d = await loadCardioDraft();
   if(!d) return;
+  if(d.kind === 'live'){ await resumeCardioSessionDraft(d); return; }
   cardioEditingId = d.editingId || null;
   cardioSelectedActivity = d.activityId;
   openCardioLogger(d.activityId, d.editingId);
@@ -8329,90 +8720,946 @@ async function deleteCardioSession(id){
 
 /* Visual identity per activity group. Presentation only — no data meaning. */
 const CARDIO_GROUP_STYLE = {
-  Running:  { glyph:'▶', tone:'run' },
-  Walking:  { glyph:'▲', tone:'walk' },
-  Cycling:  { glyph:'◉', tone:'cycle' },
-  Climbing: { glyph:'▲', tone:'climb' },
-  Machine:  { glyph:'◆', tone:'machine' },
-  Water:    { glyph:'≈', tone:'water' },
-  Outdoor:  { glyph:'△', tone:'outdoor' },
-  Other:    { glyph:'●', tone:'other' }
+  Running:  { tone:'run' },
+  Walking:  { tone:'walk' },
+  Cycling:  { tone:'cycle' },
+  Climbing: { tone:'climb' },
+  Machine:  { tone:'machine' },
+  Water:    { tone:'water' },
+  Outdoor:  { tone:'outdoor' },
+  Other:    { tone:'other' }
 };
 function cardioStyleFor(activityId){
   const act = getCardioActivity(activityId);
   return (act && CARDIO_GROUP_STYLE[act.group]) || CARDIO_GROUP_STYLE.Other;
 }
 
-/* One-line metric summary, ordered so the activity's PRIMARY metric leads. */
-function cardioMetricLine(c){
-  const act = getCardioActivity(c.activityId);
-  const bits = [];
-  const push = (v, suffix) => { if(v !== undefined && v !== '' && v !== null) bits.push(v + suffix); };
-  if(act && act.primary === 'distance'){ push(c.distance, ' mi'); push(c.duration, ' min'); }
-  else { push(c.duration, ' min'); push(c.distance, ' mi'); }
-  if(c.pace) bits.push(c.pace + '/mi');
-  else if(c.speed) push(c.speed, ' mph');
-  if(c.floors) push(c.floors, ' floors');
-  if(c.elevation) push(c.elevation, ' ft');
-  if(c.heartRate) push(c.heartRate, ' bpm');
-  return bits.slice(0, 4).join('  ·  ');
+/* =========================================================
+   CARDIO 2.0 — MEASUREMENT, ESTIMATION, LIVE SESSION
+   ---------------------------------------------------------
+   Three kinds of number live in this module and the UI is
+   required to keep them apart, because they carry very
+   different authority:
+
+     MEASURED   time. LOOP counts it against the wall clock.
+     ENTERED    distance, floors. The athlete reads them off
+                a console or knows the route. LOOP never
+                guesses them.
+     ESTIMATED  pace, speed, calories. Derived from the two
+                above. Pace and speed are exact arithmetic;
+                calories are a published-MET model and are
+                labelled as estimates everywhere they appear.
+
+   LOOP has no GPS, no heart-rate strap and no Health import,
+   so nothing here may present itself as sensor data.
+   ========================================================= */
+
+/* ---------- units ----------
+   LOOP is imperial throughout (lb, mi, ft) and has no unit
+   preference to respect. Every distance and pace render goes
+   through these two functions rather than inlining 'mi', so
+   adding a preference later is one change here, not eighty
+   across the file. */
+const CARDIO_DISTANCE_UNIT = 'mi';
+function cardioDistanceUnit(){ return CARDIO_DISTANCE_UNIT; }
+function cardioPaceUnit(){ return '/' + CARDIO_DISTANCE_UNIT; }
+
+/* ---------- derived: speed and pace ----------
+   Exact arithmetic over two knowns. Returns null rather than
+   0 when either input is missing, so the UI can show '—'
+   instead of a number that looks measured. */
+function cardioSpeedMph(distance, minutes){
+  const d = parseFloat(distance), m = parseFloat(minutes);
+  if(!(d > 0) || !(m > 0)) return null;
+  return d / (m / 60);
+}
+function cardioPaceSec(distance, minutes){
+  const d = parseFloat(distance), m = parseFloat(minutes);
+  if(!(d > 0) || !(m > 0)) return null;
+  return (m * 60) / d;
+}
+function formatPace(secPerUnit){
+  if(secPerUnit === null || !isFinite(secPerUnit) || secPerUnit <= 0) return null;
+  // Beyond an hour per mile the number stops meaning anything useful.
+  if(secPerUnit > 3600) return null;
+  const m = Math.floor(secPerUnit / 60), s = Math.round(secPerUnit % 60);
+  return s === 60 ? (m + 1) + ':00' : m + ':' + String(s).padStart(2, '0');
+}
+/* Cycling is spoken in speed, everything else in pace. Following the
+   convention costs nothing and reading '3:12 /mi' on a bike is jarring. */
+function cardioUsesSpeed(activityId){
+  const act = getCardioActivity(activityId);
+  return !!act && act.group === 'Cycling';
 }
 
+/* ---------- estimated: calories ----------
+   MET values are from the Compendium of Physical Activities
+   (Ainsworth et al.), not invented for this UI. Where the
+   athlete has given a distance we know the average speed, so
+   the MET is interpolated within the published table for that
+   activity instead of using one flat number for every effort.
+
+   Everything here returns null when body weight is unknown.
+   Energy expenditure scales with body mass; without it there
+   is no responsible estimate to make, and LOOP asks for the
+   weight or takes a manual number rather than inventing one. */
+const CARDIO_MET_TABLE = {
+  /* [mph, MET] pairs, ascending. Interpolated between rows,
+     clamped at both ends. */
+  run:     [[4,6.0],[5,8.3],[6,9.8],[6.7,10.5],[7.5,11.8],[8.6,12.3],[10,14.5],[12,19.0]],
+  walk:    [[2,2.8],[2.5,3.0],[3,3.5],[3.5,4.3],[4,5.0],[4.5,7.0],[5,8.3]],
+  cycle:   [[8,4.0],[11,6.8],[13,8.0],[15,10.0],[17,12.0],[20,15.8]]
+};
+/* Flat MET for activities whose intensity a distance cannot reveal. */
+const CARDIO_MET_FLAT = {
+  walk_incline:    5.3,
+  cycle_stationary:6.8,
+  stair_climber:   9.0,
+  stepmill:        9.0,
+  elliptical:      5.0,
+  rowing:          7.0,
+  swimming:        7.0,
+  jump_rope:       12.3,
+  hiking:          6.0,
+  rucking:         7.0,
+  hiit:            8.0
+  /* cardio_other is deliberately absent. "Other" tells us nothing about
+     intensity, so there is no defensible MET for it and LOOP offers manual
+     calorie entry instead of a number dressed up as an estimate. */
+};
+const CARDIO_MET_CURVE = {
+  run_outdoor:'run', run_treadmill:'run',
+  walk_outdoor:'walk', walk_treadmill:'walk',
+  cycle_outdoor:'cycle'
+};
+
+function cardioMET(activityId, mph){
+  const curveKey = CARDIO_MET_CURVE[activityId];
+  if(curveKey && mph > 0){
+    const t = CARDIO_MET_TABLE[curveKey];
+    if(mph <= t[0][0]) return t[0][1];
+    if(mph >= t[t.length-1][0]) return t[t.length-1][1];
+    for(let i=1;i<t.length;i++){
+      if(mph <= t[i][0]){
+        const [x0,y0] = t[i-1], [x1,y1] = t[i];
+        return y0 + (y1 - y0) * ((mph - x0) / (x1 - x0));
+      }
+    }
+  }
+  // No speed known: the middle of the activity's own range, not of all cardio.
+  if(curveKey){
+    const t = CARDIO_MET_TABLE[curveKey];
+    return t[Math.floor(t.length / 2)][1];
+  }
+  return CARDIO_MET_FLAT[activityId] || null;
+}
+
+function cardioBodyWeightLb(){
+  const w = athleteProfile && parseFloat(athleteProfile.bodyWeightLb);
+  return (w > 0 && w < 1000) ? w : null;
+}
+
+/* ACTIVE vs TOTAL is a real distinction, not two labels on one number.
+   Total is everything burned during the session; resting is what the body
+   would have spent lying still for the same minutes (1 MET by definition);
+   active is the difference — the part the workout is responsible for.
+   Total is therefore always the larger of the two. */
+function cardioCalories(activityId, minutes, distance){
+  const lb = cardioBodyWeightLb();
+  const mins = parseFloat(minutes);
+  if(!lb || !(mins > 0)) return null;
+  const met = cardioMET(activityId, cardioSpeedMph(distance, mins));
+  if(!met) return null;
+  const kg = lb * 0.45359237;
+  const perMin = met * 3.5 * kg / 200;
+  const total = perMin * mins;
+  const resting = 1.0 * 3.5 * kg / 200 * mins;
+  return {
+    total: Math.round(total),
+    active: Math.max(0, Math.round(total - resting)),
+    estimated: true
+  };
+}
+
+/* Calories the athlete typed win over the model, and are not estimates. */
+function cardioCaloriesFor(session){
+  if(!session) return null;
+  const manual = parseFloat(session.calories);
+  if(manual > 0) return { total: Math.round(manual), active: null, estimated: false };
+  return cardioCalories(session.activityId, session.duration, session.distance);
+}
+
+/* ---------- which metrics an activity actually has ----------
+   Driven by the registry's own `metrics` array — the source of truth that
+   already existed — so an activity can never show a tile for something it
+   does not track. */
+function cardioShowsDistance(activityId){
+  const act = getCardioActivity(activityId);
+  return !!act && act.metrics.indexOf('distance') !== -1;
+}
+function cardioShowsFloors(activityId){
+  const act = getCardioActivity(activityId);
+  return !!act && act.metrics.indexOf('floors') !== -1;
+}
+
+/* =========================================================
+   LIVE SESSION
+   ---------------------------------------------------------
+   One session at a time, held in one variable, persisted to
+   the one cardio draft key that already existed. There is no
+   second stopwatch and no second store.
+
+   Elapsed time is derived from the wall clock, never counted
+   by ticks: `accumulatedMs` banks completed segments and
+   `runningSince` marks the open one. A backgrounded tab, a
+   throttled interval or a rotation cannot make the clock
+   wrong, and paused time is structurally excluded rather
+   than subtracted afterwards.
+   ========================================================= */
+let cardioSession = null;
+let cardioSessionTimer = null;
+
+function cardioElapsedMs(s){
+  const sess = s || cardioSession;
+  if(!sess) return 0;
+  return (sess.accumulatedMs || 0) + (sess.runningSince ? Date.now() - sess.runningSince : 0);
+}
+function cardioElapsedSec(s){ return Math.floor(cardioElapsedMs(s) / 1000); }
+function cardioElapsedMin(s){ return cardioElapsedMs(s) / 60000; }
+
+/* H:MM:SS past an hour, M:SS below it — the shape a stopwatch is read in. */
+function formatClock(totalSec){
+  const sec = Math.max(0, Math.floor(totalSec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h > 0
+    ? h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0')
+    : m + ':' + String(s).padStart(2,'0');
+}
+
+function cardioSessionActive(){ return !!cardioSession && cardioSession.state !== 'finished'; }
+
+function newCardioSession(activityId){
+  const act = getCardioActivity(activityId);
+  if(!act) return null;
+  return {
+    kind: 'live',
+    activityId: act.id,
+    activityName: act.name,
+    date: localDateStr(),
+    startedAt: Date.now(),
+    accumulatedMs: 0,
+    runningSince: Date.now(),
+    state: 'running',
+    distance: '',
+    floors: '',
+    notes: ''
+  };
+}
+
+/* ---------- lifecycle ----------
+   Start / Pause / Resume / Finish / Cancel. Each transition writes the draft,
+   so an interruption at any point is recoverable. */
+
+function startCardioActivity(activityId){
+  if(cardioSessionActive()){ openCardioSessionPage(); return; }   // never two at once
+  const s = newCardioSession(activityId);
+  if(!s) return;
+  cardioSession = s;
+  loopFeedbackPrime();                      // inside the athlete's own tap
+  persistCardioSession();
+  openCardioSessionPage();
+  startCardioTicker();
+}
+
+/* One ticker, ever. Starting twice cannot produce two intervals because the
+   previous one is always cleared first. */
+function startCardioTicker(){
+  stopCardioTicker();
+  cardioSessionTimer = setInterval(tickCardioSession, 200);
+}
+function stopCardioTicker(){
+  if(cardioSessionTimer){ clearInterval(cardioSessionTimer); cardioSessionTimer = null; }
+}
+
+function pauseCardioSession(){
+  if(!cardioSession || cardioSession.state !== 'running') return;
+  // Bank the open segment and close it. Paused time is now unreachable.
+  cardioSession.accumulatedMs = cardioElapsedMs();
+  cardioSession.runningSince = null;
+  cardioSession.state = 'paused';
+  persistCardioSession();
+  renderCardioSessionPage();
+}
+function resumeCardioSession(){
+  if(!cardioSession || cardioSession.state !== 'paused') return;
+  cardioSession.runningSince = Date.now();
+  cardioSession.state = 'running';
+  persistCardioSession();
+  startCardioTicker();
+  renderCardioSessionPage();
+}
+function toggleCardioPause(){
+  if(!cardioSession) return;
+  if(cardioSession.state === 'running') pauseCardioSession();
+  else resumeCardioSession();
+}
+
+function finishCardioSession(){
+  if(!cardioSession || cardioSession.state === 'finished') return;
+  cardioSession.accumulatedMs = cardioElapsedMs();
+  cardioSession.runningSince = null;
+  cardioSession.state = 'finished';
+  stopCardioTicker();
+  loopHaptic();
+  persistCardioSession();
+  renderCardioSessionPage();
+}
+
+/* Cancelling throws the session away. It is the one destructive action here,
+   so it asks first and says what is being lost. */
+function cancelCardioSession(){
+  if(!cardioSession) return;
+  const mins = Math.floor(cardioElapsedMin());
+  if(mins >= 1 && !confirm('Discard this ' + cardioSession.activityName + '? ' +
+      formatClock(cardioElapsedSec()) + ' will not be saved.')) return;
+  discardCardioSession();
+}
+function discardCardioSession(){
+  stopCardioTicker();
+  cardioSession = null;
+  clearCardioDraft();
+  closeCardioSessionPage();
+  renderCardioView();
+}
+
+function tickCardioSession(){
+  if(!cardioSession || cardioSession.state !== 'running') return;
+  const sec = cardioElapsedSec();
+  const clock = document.getElementById('csClock');
+  if(clock){
+    const next = formatClock(sec);
+    if(clock.textContent !== next) clock.textContent = next;   // DOM only on change
+  }
+  updateCardioRing();
+  // Live metrics move once a second at most; there is nothing sub-second in them.
+  if(sec !== cardioSession._lastMetricSec){
+    cardioSession._lastMetricSec = sec;
+    updateCardioLiveMetrics();
+  }
+}
+
+/* The ring sweeps one full turn every minute — a second hand, not a progress
+   bar. There is no target duration to be a proportion of, and inventing one
+   would be a fake number in the most prominent element on the screen. */
+function updateCardioRing(){
+  const fill = document.getElementById('csRingFill');
+  if(!fill) return;
+  const ms = cardioElapsedMs();
+  const frac = (ms % 60000) / 60000;
+  const circ = 2 * Math.PI * 76;
+  fill.setAttribute('stroke-dashoffset', String((circ * (1 - frac)).toFixed(1)));
+}
+
+/* ---------- persistence ----------
+   Reuses the cardio draft key that already existed. A `kind` discriminator
+   keeps live sessions and half-typed manual entries apart in the one slot;
+   drafts written before this phase have no `kind` and still load as manual. */
+function cardioSessionRecord(){
+  if(!cardioSession) return null;
+  return {
+    kind: 'live',
+    activityId: cardioSession.activityId,
+    activityName: cardioSession.activityName,
+    date: cardioSession.date,
+    startedAt: cardioSession.startedAt,
+    accumulatedMs: cardioSession.accumulatedMs,
+    runningSince: cardioSession.runningSince,
+    state: cardioSession.state,
+    distance: cardioSession.distance || '',
+    floors: cardioSession.floors || '',
+    notes: cardioSession.notes || ''
+  };
+}
+async function persistCardioSession(){
+  const rec = cardioSessionRecord();
+  if(!rec) return;
+  try{ await LOOPStore.set(CARDIO_DRAFT_KEY, JSON.stringify(rec)); }catch(e){}
+}
+
+/* A session that was running when the app went away keeps running: the banked
+   segment plus wall-clock time since. Closing the tab mid-run is an
+   interruption, not a pause, and pretending otherwise would silently shorten
+   the workout. */
+async function resumeCardioSessionDraft(d){
+  if(!d || d.kind !== 'live' || !getCardioActivity(d.activityId)) return false;
+  cardioSession = {
+    kind: 'live',
+    activityId: d.activityId,
+    activityName: d.activityName || (getCardioActivity(d.activityId) || {}).name || '',
+    date: d.date || localDateStr(),
+    startedAt: d.startedAt || Date.now(),
+    accumulatedMs: d.accumulatedMs || 0,
+    runningSince: d.runningSince || null,
+    state: d.state === 'finished' ? 'finished' : (d.runningSince ? 'running' : 'paused'),
+    distance: d.distance || '',
+    floors: d.floors || '',
+    notes: d.notes || ''
+  };
+  openCardioSessionPage();
+  if(cardioSession.state === 'running') startCardioTicker();
+  return true;
+}
+
+/* ---------- saving ----------
+   Writes exactly the fields that were measured, entered or derived — no
+   null-heavy record — into the same cardioLog every earlier session lives in. */
+/* cardioLog has always stored duration in whole minutes, and XP, stats and
+   every historical record depend on that. Rounding once, here, keeps the
+   summary, the saved record and everything derived from it in agreement. */
+function cardioSessionMinutes(s){
+  return Math.max(1, Math.round(cardioElapsedMin(s || cardioSession)));
+}
+function cardioSessionToRecord(){
+  if(!cardioSession) return null;
+  const mins = cardioSessionMinutes();
+  const rec = {
+    activityId: cardioSession.activityId,
+    activityName: cardioSession.activityName,
+    date: cardioSession.date || localDateStr(),
+    duration: mins,
+    source: 'live'                              // how it was recorded, for later
+  };
+  const dist = parseFloat(cardioSession.distance);
+  if(dist > 0) rec.distance = String(dist);
+  const floors = parseFloat(cardioSession.floors);
+  if(floors > 0) rec.floors = String(floors);
+  // Pace is derived, so it is stored as the string the athlete would read.
+  if(dist > 0 && !cardioUsesSpeed(rec.activityId)){
+    const p = formatPace(cardioPaceSec(dist, rec.duration));
+    if(p) rec.pace = p;
+  } else if(dist > 0){
+    const sp = cardioSpeedMph(dist, rec.duration);
+    if(sp) rec.speed = String(Math.round(sp * 10) / 10);
+  }
+  const cal = cardioCalories(rec.activityId, rec.duration, rec.distance);
+  if(cal){
+    rec.calories = String(cal.total);
+    rec.activeCalories = String(cal.active);
+    rec.caloriesEstimated = true;               // never confuse with a typed number
+  }
+  if((cardioSession.notes || '').trim()) rec.notes = cardioSession.notes.trim();
+  return rec;
+}
+
+async function saveCardioSessionFromSummary(btn){
+  if(!cardioSession) return;
+  const rec = cardioSessionToRecord();
+  if(!rec) return;
+  if(rec.duration < 1){ alert('That session was under a minute — nothing to save.'); return; }
+  if(btn) btn.disabled = true;
+  const now = new Date().toISOString();
+  cardioLog.push(Object.assign({
+    id: 'cardio_' + Date.now() + '_' + Math.random().toString(36).slice(2,6)
+  }, rec, { createdAt: now, updatedAt: now }));
+  const ok = await persistCardioLog();
+  if(!ok){
+    cardioLog.pop();                            // never leave a phantom in memory
+    if(btn) btn.disabled = false;
+    alert("That didn't save. Nothing was lost — try again.");
+    return;
+  }
+  await clearCardioDraft();
+  stopCardioTicker();
+  cardioSession = null;
+  closeCardioSessionPage();
+  renderCardioView();
+  renderAll();
+}
+
+/* ---------- the active session page ----------
+   A page, not a panel floating over the Cardio tab: the athlete has left the
+   tab and is now inside a workout, and the chrome should say so. */
+function openCardioSessionPage(){
+  const ov = document.getElementById('cardioSessionOverlay');
+  if(!ov) return;
+  ov.classList.add('open');
+  renderCardioSessionPage();
+}
+function closeCardioSessionPage(){
+  const ov = document.getElementById('cardioSessionOverlay');
+  if(ov) ov.classList.remove('open');
+}
+
+function cardioRingSvg(){
+  const r = 76, circ = 2 * Math.PI * r;
+  return `<svg class="cs-ring-svg" viewBox="0 0 168 168" aria-hidden="true">
+    <circle class="cs-ring-track" cx="84" cy="84" r="${r}"/>
+    <circle class="cs-ring-fill" id="csRingFill" cx="84" cy="84" r="${r}"
+      style="stroke-dasharray:${circ.toFixed(2)}; stroke-dashoffset:0"/>
+  </svg>`;
+}
+
+/* Which tiles this activity actually has. Everything is driven by the
+   registry's own metrics list, so a treadmill never asks about cadence and a
+   stair climber never shows a pace it cannot have. */
+function cardioLiveTiles(session){
+  if(!session) return [];
+  const id = session.activityId;
+  const mins = cardioElapsedMin(session);
+  const dist = parseFloat(session.distance);
+  const tiles = [];
+
+  if(cardioShowsDistance(id)){
+    tiles.push({
+      key: 'distance',
+      label: 'Distance',
+      value: dist > 0 ? (Math.round(dist * 100) / 100) : null,
+      unit: cardioDistanceUnit(),
+      hint: dist > 0 ? 'entered' : 'tap to add',
+      action: 'editCardioDistance()'
+    });
+    if(cardioUsesSpeed(id)){
+      const sp = cardioSpeedMph(dist, mins);
+      tiles.push({ key:'speed', label:'Speed', value: sp ? (Math.round(sp*10)/10) : null,
+        unit:'mph', hint: sp ? 'from distance' : 'needs distance' });
+    } else {
+      const p = formatPace(cardioPaceSec(dist, mins));
+      tiles.push({ key:'pace', label:'Pace', value: p, unit: cardioPaceUnit(),
+        hint: p ? 'from distance' : 'needs distance' });
+    }
+  }
+  if(cardioShowsFloors(id)){
+    const fl = parseFloat(session.floors);
+    tiles.push({ key:'floors', label:'Floors', value: fl > 0 ? fl : null, unit:'',
+      hint: fl > 0 ? 'entered' : 'tap to add', action:'editCardioFloors()' });
+  }
+
+  const cal = cardioCalories(id, mins, session.distance);
+  if(!cardioBodyWeightLb()){
+    /* No body weight means no responsible estimate. LOOP says so and offers
+       the one thing that would fix it, rather than printing a number. */
+    tiles.push({ key:'cal', label:'Calories', value:null, unit:'',
+      hint:'add your weight', action:'promptCardioWeight()' });
+  } else if(!cal){
+    tiles.push({ key:'cal', label:'Calories', value:null, unit:'',
+      hint:'not estimated for this' });
+  } else {
+    tiles.push({ key:'activeCal', label:'Active cal', value: cal.active, unit:'', hint:'estimated' });
+    tiles.push({ key:'totalCal', label:'Total cal', value: cal.total, unit:'', hint:'estimated' });
+  }
+  return tiles;
+}
+
+function cardioTileValueHtml(t){
+  const missing = (t.value === null || t.value === undefined || t.value === '');
+  if(missing) return '—';
+  return escapeHtml(String(t.value)) +
+    (t.unit ? `<span class="cs-tile-unit">${escapeHtml(t.unit)}</span>` : '');
+}
+function cardioTileHtml(t){
+  const tag = t.action ? 'button' : 'div';
+  const attrs = t.action ? ` type="button" onclick="${t.action}"` : '';
+  return `<${tag} class="cs-tile${t.action ? ' cs-tile-tap' : ''}"${attrs} data-tile="${t.key}">
+    <span class="cs-tile-val">${cardioTileValueHtml(t)}</span>
+    <span class="cs-tile-label">${escapeHtml(t.label)}</span>
+    ${t.hint ? `<span class="cs-tile-hint">${escapeHtml(t.hint)}</span>` : ''}
+  </${tag}>`;
+}
+
+/* Only the values move between renders — rebuilding the grid every second
+   would fight the athlete's finger and restart every transition. */
+function updateCardioLiveMetrics(){
+  if(!cardioSession) return;
+  const grid = document.getElementById('csTiles');
+  if(!grid) return;
+  const tiles = cardioLiveTiles(cardioSession);
+  if(grid.children.length !== tiles.length){ grid.innerHTML = tiles.map(cardioTileHtml).join(''); return; }
+  tiles.forEach(t => {
+    const el = grid.querySelector('[data-tile="' + t.key + '"] .cs-tile-val');
+    if(!el) return;
+    const next = cardioTileValueHtml(t);
+    if(el.innerHTML !== next) el.innerHTML = next;
+  });
+}
+
+function renderCardioSessionPage(){
+  const body = document.getElementById('cardioSessionBody');
+  const bar  = document.getElementById('cardioSessionBar');
+  const title = document.getElementById('cardioSessionTitle');
+  if(!body || !bar || !cardioSession) return;
+  const st = cardioStyleFor(cardioSession.activityId);
+  const finished = cardioSession.state === 'finished';
+  const paused = cardioSession.state === 'paused';
+  if(title) title.textContent = finished ? 'Summary' : cardioSession.activityName;
+
+  if(finished){ renderCardioSummary(body, bar); return; }
+
+  body.innerHTML = `
+    <div class="cs-stage cs-tone-${st.tone}${paused ? ' cs-paused' : ''}">
+      <div class="cs-activity">${escapeHtml(cardioSession.activityName)}</div>
+      <div class="cs-ring">
+        ${cardioRingSvg()}
+        <div class="cs-clock-wrap">
+          <div class="cs-clock" id="csClock" role="timer" aria-live="off"
+            aria-label="Elapsed time">${formatClock(cardioElapsedSec())}</div>
+          <div class="cs-state" id="csState">${paused ? 'Paused' : 'Recording'}</div>
+        </div>
+      </div>
+      <div class="cs-tiles" id="csTiles">${cardioLiveTiles(cardioSession).map(cardioTileHtml).join('')}</div>
+    </div>`;
+
+  /* The controls sit in their own bar at the bottom of the page so they stay
+     under the thumb and never cover the numbers above them. */
+  bar.innerHTML = `
+    <button type="button" class="cs-btn cs-btn-secondary" onclick="toggleCardioPause()"
+      aria-label="${paused ? 'Resume session' : 'Pause session'}">
+      ${paused ? playIconSvg() : pauseIconSvg()}<span>${paused ? 'Resume' : 'Pause'}</span>
+    </button>
+    <button type="button" class="cs-btn cs-btn-finish" onclick="finishCardioSession()">Finish</button>`;
+  updateCardioRing();
+}
+
+/* ---------- summary ----------
+   The moment the session becomes a workout. Big numbers, one primary action,
+   and nothing to fill in unless the athlete wants to. */
+function renderCardioSummary(body, bar){
+  const s = cardioSession;
+  const st = cardioStyleFor(s.activityId);
+  /* Whole minutes — the same value cardioSessionToRecord() will store, so what
+     the summary shows and what history shows can never disagree. */
+  const mins = cardioSessionMinutes(s);
+  const dist = parseFloat(s.distance);
+  const cal = cardioCalories(s.activityId, mins, s.distance);
+  const rows = [];
+
+  if(cardioShowsDistance(s.activityId)){
+    rows.push({ v: dist > 0 ? (Math.round(dist*100)/100) + ' ' + cardioDistanceUnit() : 'Add distance',
+      l: dist > 0 ? 'Distance' : 'not recorded', action:'editCardioDistance()' });
+    if(dist > 0){
+      if(cardioUsesSpeed(s.activityId)){
+        const sp = cardioSpeedMph(dist, mins);
+        if(sp) rows.push({ v: (Math.round(sp*10)/10) + ' mph', l:'Average speed' });
+      } else {
+        const p = formatPace(cardioPaceSec(dist, mins));
+        if(p) rows.push({ v: p + ' ' + cardioPaceUnit(), l:'Average pace' });
+      }
+    }
+  }
+  if(cardioShowsFloors(s.activityId)){
+    const fl = parseFloat(s.floors);
+    rows.push({ v: fl > 0 ? fl + ' floors' : 'Add floors', l: fl > 0 ? 'Climbed' : 'not recorded',
+      action:'editCardioFloors()' });
+  }
+  if(cal){
+    rows.push({ v: cal.active + ' cal', l:'Active · estimated' });
+    rows.push({ v: cal.total + ' cal', l:'Total · estimated' });
+  } else if(!cardioBodyWeightLb()){
+    rows.push({ v:'Add your weight', l:'to estimate calories', action:'promptCardioWeight()' });
+  }
+
+  body.innerHTML = `
+    <div class="cs-summary cs-tone-${st.tone}">
+      <div class="cs-sum-check">${checkIconSvg()}</div>
+      <div class="cs-sum-activity">${escapeHtml(s.activityName)}</div>
+      <div class="cs-sum-time">${formatClock(cardioElapsedSec(s))}</div>
+      <div class="cs-sum-date">${formatDateShort(s.date)}</div>
+      <div class="cs-sum-rows">
+        ${rows.map(r => r.action
+          ? `<button type="button" class="cs-sum-row cs-sum-row-tap" onclick="${r.action}">
+               <span class="cs-sum-v">${escapeHtml(String(r.v))}</span>
+               <span class="cs-sum-l">${escapeHtml(r.l)}</span></button>`
+          : `<div class="cs-sum-row">
+               <span class="cs-sum-v">${escapeHtml(String(r.v))}</span>
+               <span class="cs-sum-l">${escapeHtml(r.l)}</span></div>`).join('')}
+      </div>
+      <button type="button" class="cs-note-btn" onclick="editCardioNote()">
+        ${s.notes ? 'Edit note' : 'Add note'}</button>
+      ${s.notes ? `<div class="cs-note-text">${escapeHtml(s.notes)}</div>` : ''}
+      <button type="button" class="cs-discard" onclick="cancelCardioSession()">Discard session</button>
+    </div>`;
+
+  bar.innerHTML = `<button type="button" class="cs-btn cs-btn-save"
+    onclick="saveCardioSessionFromSummary(this)">Save Workout</button>`;
+}
+
+
+/* ---------- one-value entry ----------
+   A native prompt() would have been fewer lines, but it renders as a system
+   alert with a system keyboard and no unit — the one place in the session
+   where LOOP would stop looking like LOOP. This is a sheet rather than a page
+   for the reason set out in D14: the athlete is editing one value on a screen
+   they can still see, and that context is the point.
+
+   `inputmode="decimal"` raises the numeric keypad, and the 17px font size
+   keeps iOS from zooming the viewport on focus. */
+let cardioEntryField = null;
+
+const CARDIO_ENTRY_SPECS = {
+  distance: { title:'Distance',    unit:() => cardioDistanceUnit(), mode:'decimal', step:'0.01',
+              hint:'However far you covered — from the treadmill, the app you use, or the route you know.' },
+  floors:   { title:'Floors',      unit:() => '',                   mode:'numeric', step:'1',
+              hint:'Floors or flights climbed, from the machine.' },
+  weight:   { title:'Body weight', unit:() => 'lb',                 mode:'decimal', step:'1',
+              hint:'Used only to estimate calories. Stored on your device with the rest of your profile.' },
+  note:     { title:'Note',        unit:() => '',                   mode:'text',    step:'',
+              hint:'Route, how it felt, anything worth remembering.' }
+};
+
+function openCardioEntry(field){
+  const spec = CARDIO_ENTRY_SPECS[field];
+  const ov = document.getElementById('cardioEntryOverlay');
+  if(!spec || !ov) return;
+  cardioEntryField = field;
+  const cur = field === 'weight' ? (cardioBodyWeightLb() || '')
+            : (cardioSession ? (cardioSession[field] || '') : '');
+  const unit = spec.unit();
+  document.getElementById('cardioEntryTitle').textContent = spec.title;
+  document.getElementById('cardioEntryBody').innerHTML = field === 'note'
+    ? `<textarea id="cardioEntryInput" class="ce-area" maxlength="500"
+         placeholder="${escapeAttr(spec.hint)}">${escapeHtml(String(cur))}</textarea>`
+    : `<div class="ce-row">
+         <input id="cardioEntryInput" class="ce-input" type="number" inputmode="${spec.mode}"
+           step="${spec.step}" min="0" value="${escapeAttr(String(cur))}"
+           aria-label="${escapeAttr(spec.title)}${unit ? ' in ' + unit : ''}">
+         ${unit ? `<span class="ce-unit">${escapeHtml(unit)}</span>` : ''}
+       </div>
+       <div class="ce-hint">${escapeHtml(spec.hint)}</div>`;
+  ov.classList.add('open');
+  setTimeout(() => { const i = document.getElementById('cardioEntryInput'); if(i) i.focus(); }, 60);
+}
+function closeCardioEntry(){
+  const ov = document.getElementById('cardioEntryOverlay');
+  if(ov) ov.classList.remove('open');
+  cardioEntryField = null;
+}
+async function saveCardioEntry(){
+  const input = document.getElementById('cardioEntryInput');
+  const field = cardioEntryField;
+  if(!input || !field){ closeCardioEntry(); return; }
+  const raw = input.value.trim();
+
+  if(field === 'weight'){
+    const n = parseFloat(raw);
+    if(raw !== '' && !(n > 0 && n < 1000)){ alert('That does not look like a weight in pounds.'); return; }
+    athleteProfile.bodyWeightLb = raw === '' ? null : Math.round(n);
+    await persistAthleteProfile();
+  } else if(field === 'note'){
+    if(cardioSession) cardioSession.notes = raw.slice(0, 500);
+    persistCardioSession();
+  } else {
+    if(!cardioSession){ closeCardioEntry(); return; }
+    const n = parseFloat(raw);
+    // Clearing the field is a real choice: it removes the value rather than
+    // leaving the previous one behind.
+    cardioSession[field] = (raw === '' || !(n > 0)) ? '' : String(n);
+    persistCardioSession();
+  }
+  closeCardioEntry();
+  if(cardioSession) renderCardioSessionPage();
+  renderCardioView();
+}
+
+function editCardioDistance(){ openCardioEntry('distance'); }
+function editCardioFloors(){ openCardioEntry('floors'); }
+function editCardioNote(){ openCardioEntry('note'); }
+function promptCardioWeight(){ openCardioEntry('weight'); }
+
+/* ---------- activity marks ----------
+   One line-drawn mark per activity GROUP, not per activity — eight marks
+   instead of seventeen, which keeps the launcher from turning into an icon
+   catalogue. They inherit currentColor and carry no meaning of their own;
+   the label underneath is what identifies the activity. */
+const CARDIO_GROUP_ICON = {
+  Running:  '<path d="M9 3.2a1.5 1.5 0 1 0 0-.01"/><path d="M10.4 6 7.4 8.4l1.9 2.3-1.1 3.6"/><path d="M7.4 8.4 4.4 9.6"/><path d="M9.3 10.7l3 1.1"/>',
+  Walking:  '<path d="M8.4 3.2a1.4 1.4 0 1 0 0-.01"/><path d="M8.6 5.8v3.6l1.6 4.4"/><path d="M8.6 9.4 6.6 13.8"/><path d="M8.6 7 6.4 8.2"/><path d="M8.6 7l2.3 1.3"/>',
+  Cycling:  '<circle cx="4.2" cy="11.4" r="2.5"/><circle cx="11.8" cy="11.4" r="2.5"/><path d="M4.2 11.4 7 6.6h3.2l1.6 4.8"/><path d="M7 6.6 6 4.4"/>',
+  Climbing: '<path d="M2.5 13.5h3.2v-3h3.2v-3h3.6v-3h1.5"/>',
+  Machine:  '<ellipse cx="8" cy="8" rx="5.6" ry="3.2"/><path d="M8 4.8V3.2"/><circle cx="8" cy="2.4" r="1"/>',
+  Water:    '<path d="M2 6.4c1.5-1.4 2.9-1.4 4.4 0s2.9 1.4 4.4 0 2.9-1.4 3.2-.7"/><path d="M2 10.4c1.5-1.4 2.9-1.4 4.4 0s2.9 1.4 4.4 0 2.9-1.4 3.2-.7"/>',
+  Outdoor:  '<path d="M1.6 12.8 6 5.4l2.6 4.2"/><path d="M6.8 12.8 10.6 6.6l3.8 6.2z"/>',
+  Other:    '<circle cx="8" cy="8" r="5.4"/><path d="M8 4.9V8l2.2 1.4"/>'
+};
+function cardioMoreIconSvg(){
+  return `<svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"
+    aria-hidden="true" focusable="false"><circle cx="4.4" cy="4.4" r="1.5"/><circle cx="11.6" cy="4.4" r="1.5"/><circle cx="4.4" cy="11.6" r="1.5"/><circle cx="11.6" cy="11.6" r="1.5"/></svg>`;
+}
+function cardioIconSvg(activityId, size){
+  const act = getCardioActivity(activityId);
+  const paths = (act && CARDIO_GROUP_ICON[act.group]) || CARDIO_GROUP_ICON.Other;
+  const s = size || 18;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+    stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+    aria-hidden="true" focusable="false">${paths}</svg>`;
+}
+
+/* The activities that get a one-tap launcher. Every one is an existing
+   canonical id — the launcher is a shortcut into the registry, never a second
+   set of activity identities. */
+const CARDIO_QUICK_IDS = ['run_outdoor','walk_outdoor','cycle_outdoor','run_treadmill',
+  'stair_climber','rowing','elliptical'];
+
+/* Your own most-logged activities are promoted ahead of the defaults, so after
+   a few weeks the launcher is yours rather than ours. */
+function cardioLauncherIds(){
+  const freq = {};
+  cardioLog.forEach(c => { freq[c.activityId] = (freq[c.activityId] || 0) + 1; });
+  const mine = Object.keys(freq)
+    .filter(id => getCardioActivity(id))
+    .sort((a,b) => freq[b] - freq[a])
+    .slice(0, 3);
+  const out = mine.slice();
+  CARDIO_QUICK_IDS.forEach(id => { if(out.indexOf(id) === -1 && out.length < 7) out.push(id); });
+  return out.slice(0, 7);
+}
+
+/* ---------- this week ----------
+   Three numbers that answer "what have I done", and an arc that answers "how
+   often". The arc's denominator is the seven days of the week — a fact, not a
+   target LOOP invented for the athlete to fall short of. */
+function cardioWeekSummary(){
+  const start = currentWeekStart();
+  const rows = cardioLog.filter(c => new Date(c.date + 'T00:00:00') >= start);
+  const days = new Set(rows.map(c => c.date));
+  const minutes = rows.reduce((n,c) => n + (parseFloat(c.duration) || 0), 0);
+  const distance = rows.reduce((n,c) => n + (parseFloat(c.distance) || 0), 0);
+  return {
+    sessions: rows.length,
+    days: days.size,
+    minutes: Math.round(minutes),
+    distance: Math.round(distance * 10) / 10,
+    dayKeys: [...days]
+  };
+}
+function formatDurationLong(totalMin){
+  const m = Math.max(0, Math.round(totalMin));
+  const h = Math.floor(m / 60), r = m % 60;
+  if(h && r) return h + 'h ' + r + 'm';
+  if(h) return h + 'h';
+  return m + 'm';
+}
+
+function cardioWeekArcHtml(w){
+  const r = 30, circ = 2 * Math.PI * r;
+  const frac = Math.max(0, Math.min(1, w.days / 7));
+  const start = currentWeekStart();
+  const dots = [];
+  for(let i = 0; i < 7; i++){
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const key = localDateStr(d);
+    const done = w.dayKeys.indexOf(key) !== -1;
+    const future = d > new Date();
+    dots.push(`<span class="cw-dot${done ? ' on' : ''}${future ? ' future' : ''}"
+      title="${key}" aria-label="${key}${done ? ': cardio' : ''}"></span>`);
+  }
+  return `
+    <div class="cw-arc">
+      <svg viewBox="0 0 72 72" aria-hidden="true">
+        <circle class="cw-arc-track" cx="36" cy="36" r="${r}"/>
+        <circle class="cw-arc-fill" cx="36" cy="36" r="${r}"
+          style="stroke-dasharray:${circ.toFixed(2)};stroke-dashoffset:${(circ*(1-frac)).toFixed(1)}"/>
+      </svg>
+      <span class="cw-arc-num">${w.days}<span>/7</span></span>
+    </div>
+    <div class="cw-dots" role="img" aria-label="${w.days} of the last 7 days had cardio">${dots.join('')}</div>`;
+}
+
+/* ---------- history as cards ----------
+   Scannable in a second: what it was, how far, how fast, how long ago.
+   Everything else lives in the detail sheet. */
+function cardioCardHtml(c){
+  const st = cardioStyleFor(c.activityId);
+  const dist = parseFloat(c.distance);
+  const dur = parseFloat(c.duration);
+  const bits = [];
+  if(dist > 0) bits.push((Math.round(dist*100)/100) + ' ' + cardioDistanceUnit());
+  if(c.pace) bits.push(c.pace + ' ' + cardioPaceUnit());
+  else if(c.speed) bits.push(c.speed + ' mph');
+  if(c.floors) bits.push(c.floors + ' floors');
+  const calLine = c.activeCalories
+    ? c.activeCalories + ' active cal'
+    : (c.calories ? c.calories + ' cal' : null);
+  return `
+    <button type="button" class="ch-card" onclick="openCardioDetail('${c.id}')">
+      <span class="ch-mark cd-tone-${st.tone}">${cardioIconSvg(c.activityId, 17)}</span>
+      <span class="ch-main">
+        <span class="ch-top">
+          <span class="ch-name">${escapeHtml(c.activityName)}</span>
+          <span class="ch-when">${formatDateShort(c.date)}${dur ? ' · ' + formatDurationLong(dur) : ''}</span>
+        </span>
+        ${bits.length ? `<span class="ch-metrics">${escapeHtml(bits.join('  ·  '))}</span>` : ''}
+        ${calLine ? `<span class="ch-cal">${escapeHtml(calLine)}</span>` : ''}
+      </span>
+    </button>`;
+}
+
+/* The numbers that used to fill the tab now sit one tap down. Nothing was
+   deleted — it stopped being the first thing between the athlete and Start. */
+let cardioStatsOpen = false;
+function toggleCardioStats(){ cardioStatsOpen = !cardioStatsOpen; renderCardioView(); }
+
+/* ---------- the tab ---------- */
 function renderCardioView(){
   const el = document.getElementById('cardioBody');
   if(!el) return;
 
+  const launcher = `
+    <div class="cl-head">
+      <div class="cl-title">Start a session</div>
+      <div class="cl-sub">Pick what you're doing. The clock starts straight away.</div>
+    </div>
+    <div class="cl-grid">
+      ${cardioLauncherIds().map(id => {
+        const a = getCardioActivity(id); if(!a) return '';
+        const st = cardioStyleFor(id);
+        return `<button type="button" class="cl-tile cd-tone-${st.tone}" onclick="startCardioActivity('${id}')">
+          <span class="cl-mark">${cardioIconSvg(id, 22)}</span>
+          <span class="cl-name">${escapeHtml(a.name)}</span>
+        </button>`;
+      }).join('')}
+      <button type="button" class="cl-tile cl-tile-more" onclick="openCardioPicker()">
+        <span class="cl-mark">${cardioMoreIconSvg()}</span>
+        <span class="cl-name">More</span>
+      </button>
+    </div>
+    <button type="button" class="cl-manual" onclick="openCardioLogger()">Log a past session</button>`;
+
   if(!cardioLog.length){
-    el.innerHTML = `
-      <div class="cd-hero cd-hero-empty">
-        <div class="cd-hero-glyph">◉</div>
-        <div class="cd-hero-empty-title">Track your cardio</div>
-        <div class="cd-hero-empty-sub">Runs, walks, rides, rowing, stairs — anything that gets your heart going. LOOP will build your time, distance and streaks from here.</div>
-        <button class="cd-start" onclick="openCardioLogger()">Log your first session</button>
-      </div>`;
+    el.innerHTML = launcher + `
+      <div class="cl-empty">Runs, walks, rides, rowing, stairs — LOOP builds your
+        time, distance and consistency from whatever you track here.</div>`;
     return;
   }
 
-  const s = computeCardioStats();
-  const p = getCombinedProgression();
-  const recent = sortedCardio().slice(0, 8);
-  const streak = p.cardioStreakWeeks;
+  const w = cardioWeekSummary();
+  const recent = sortedCardio().slice(0, 6);
 
-  /* HERO — one number that matters, with the primary action attached. */
-  el.innerHTML = `
-    <div class="cd-hero">
-      <div class="cd-hero-top">
-        <div>
-          <div class="cd-hero-label">This week</div>
-          <div class="cd-hero-num">${s.weekMinutes}<span>min</span></div>
-          <div class="cd-hero-sub">${s.weekSessions} session${s.weekSessions===1?'':'s'}${s.weekDistance ? '  ·  ' + s.weekDistance + ' mi' : ''}</div>
-        </div>
-        ${streak > 0 ? `<div class="cd-streak"><div class="cd-streak-num">${streak}</div><div class="cd-streak-lbl">week${streak===1?'':'s'}<br>running</div></div>` : ''}
+  el.innerHTML = launcher + `
+    <div class="sec-head">This week</div>
+    <div class="cw-card">
+      ${cardioWeekArcHtml(w)}
+      <div class="cw-stats">
+        <div class="cw-stat"><b>${w.sessions}</b><span>session${w.sessions===1?'':'s'}</span></div>
+        <div class="cw-stat"><b>${formatDurationLong(w.minutes)}</b><span>moving</span></div>
+        ${w.distance > 0 ? `<div class="cw-stat"><b>${w.distance}</b><span>${cardioDistanceUnit()}</span></div>` : ''}
       </div>
-      <button class="cd-start" onclick="openCardioLogger()">Start Cardio</button>
     </div>
 
     <div class="sec-head">Recent<span class="sec-hint">tap for detail</span></div>
-    <div class="cd-list">
-      ${recent.map(c => {
-        const st = cardioStyleFor(c.activityId);
-        return `
-        <div class="cd-row" onclick="openCardioDetail('${c.id}')">
-          <span class="cd-glyph cd-tone-${st.tone}">${st.glyph}</span>
-          <div class="cd-row-main">
-            <div class="cd-row-name">${escapeHtml(c.activityName)}</div>
-            <div class="cd-row-meta">${cardioMetricLine(c)}</div>
-          </div>
-          <div class="cd-row-right">
-            <div class="cd-row-date">${formatDateShort(c.date)}</div>
-            ${c.rpe ? `<div class="cd-row-rpe">RPE ${escapeHtml(String(c.rpe))}</div>` : ''}
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-    ${cardioLog.length > 8 ? `<div class="cd-more-note">${cardioLog.length - 8} earlier session${cardioLog.length-8===1?'':'s'}</div>` : ''}
+    <div class="ch-list">${recent.map(cardioCardHtml).join('')}</div>
+    ${cardioLog.length > recent.length
+      ? `<div class="cd-more-note">${cardioLog.length - recent.length} earlier session${cardioLog.length-recent.length===1?'':'s'}</div>` : ''}
 
-    <div class="sec-head">Totals</div>
+    <button type="button" class="cl-disclose" onclick="toggleCardioStats()"
+      aria-expanded="${cardioStatsOpen ? 'true' : 'false'}">
+      ${cardioStatsOpen ? 'Hide records & totals' : 'Records & totals'}
+    </button>
+    ${cardioStatsOpen ? `<div class="cl-stats">${cardioStatsHtml()}</div>` : ''}`;
+}
+
+function cardioStatsHtml(){
+  const s = computeCardioStats();
+  const p = getCombinedProgression();
+  return `
     <div class="snapshot">
       <div class="snap-item"><div class="snap-label">Sessions</div><div class="snap-num">${s.total}</div></div>
       <div class="snap-item"><div class="snap-label">Lifetime min</div><div class="snap-num">${s.lifetimeMinutes.toLocaleString()}</div></div>
@@ -8420,12 +9667,43 @@ function renderCardioView(){
       <div class="snap-item"><div class="snap-label">Cardio XP</div><div class="snap-num">${p.cardioXP.toLocaleString()}</div></div>
     </div>
     ${s.topActivity ? `<div class="cd-inline-note">Most frequent · <b>${escapeHtml(s.topActivity)}</b> (${s.topActivityCount})${s.longestSession ? `  ·  Longest · <b>${s.longestSession.minutes} min</b>` : ''}</div>` : ''}
-
     ${renderCardioPRs()}
     ${cardioXPSummaryHtml()}
     ${cardioAchievementsHtml()}`;
 }
 
+/* The full activity list, for the eight-in-ten case the launcher does not
+   cover. Opens straight into a live session — picking here is still Start. */
+function openCardioPicker(){
+  const el = document.getElementById('cardioPickerBody');
+  if(!el) return;
+  const groups = {};
+  CARDIO_ACTIVITIES.forEach(a => { (groups[a.group] = groups[a.group] || []).push(a); });
+  el.innerHTML = Object.keys(groups).map(g => `
+    <label style="margin-top:16px">${escapeHtml(g)}</label>
+    <div class="cp-grid">
+      ${groups[g].map(a => {
+        const st = cardioStyleFor(a.id);
+        return `<button type="button" class="cp-tile cd-tone-${st.tone}"
+          onclick="startCardioFromPicker('${a.id}')">
+          <span class="cp-mark">${cardioIconSvg(a.id, 18)}</span>
+          <span class="cp-name">${escapeHtml(a.name)}</span>
+        </button>`;
+      }).join('')}
+    </div>`).join('');
+  document.getElementById('cardioPickerOverlay').classList.add('open');
+}
+function closeCardioPicker(){
+  const ov = document.getElementById('cardioPickerOverlay');
+  if(ov) ov.classList.remove('open');
+}
+function startCardioFromPicker(id){
+  closeCardioPicker();
+  startCardioActivity(id);
+}
+
+
+/* One-line metric summary, ordered so the activity's PRIMARY metric leads. */
 function renderCardioPRs(){
   const ids = [...new Set(cardioLog.map(c => c.activityId))];
   const rows = ids.map(id => {
@@ -8440,7 +9718,7 @@ function renderCardioPRs(){
     if(!bits.length) return '';
     return `
       <div class="cd-pr-row">
-        <span class="cd-glyph cd-tone-${st.tone}">${st.glyph}</span>
+        <span class="cd-glyph cd-tone-${st.tone}">${cardioIconSvg(id, 17)}</span>
         <div class="cd-pr-name">${escapeHtml(act ? act.name : id)}</div>
         <div class="cd-pr-vals">${bits.map(b => `<span><b>${b.v}</b>${b.l}</span>`).join('')}</div>
       </div>`;
@@ -8504,11 +9782,11 @@ function openCardioDetail(id){
   const rec = cardioLog.find(c => c.id === id);
   if(!rec) return;
   const act = getCardioActivity(rec.activityId);
-  const shown = (act ? act.metrics : Object.keys(CARDIO_FIELDS))
-    .filter(k => rec[k] !== undefined && rec[k] !== '');
+  const shown = (act ? act.metrics.concat(['activeCalories']) : Object.keys(CARDIO_FIELDS))
+    .filter(k => rec[k] !== undefined && rec[k] !== '' && CARDIO_FIELDS[k]);
   document.getElementById('cardioDetailBody').innerHTML = `
     <div class="cd-detail-head">
-      <span class="cd-glyph cd-glyph-lg cd-tone-${cardioStyleFor(rec.activityId).tone}">${cardioStyleFor(rec.activityId).glyph}</span>
+      <span class="cd-glyph cd-glyph-lg cd-tone-${cardioStyleFor(rec.activityId).tone}">${cardioIconSvg(rec.activityId, 20)}</span>
       <div>
         <div class="cd-detail-name">${escapeHtml(rec.activityName)}</div>
         <div class="cd-detail-date">${formatDateShort(rec.date)}</div>
@@ -8517,6 +9795,7 @@ function openCardioDetail(id){
     <div class="cd-detail-stats">
       ${shown.map(k => `<div><span>${escapeHtml(String(rec[k]))}</span>${CARDIO_FIELDS[k].label}${CARDIO_FIELDS[k].unit ? ' (' + CARDIO_FIELDS[k].unit + ')' : ''}</div>`).join('')}
     </div>
+    ${rec.caloriesEstimated ? `<div class="cd-detail-est">Calories are estimated from duration and body weight, not measured.</div>` : ''}
     ${rec.notes ? `<div class="cd-detail-notes">${escapeHtml(rec.notes)}</div>` : ''}
     <div class="cd-detail-actions">
       <button class="btn-secondary" onclick="editCardioSession('${rec.id}')">Edit</button>
@@ -9065,7 +10344,7 @@ function renderTodayWorkout(){
       ${templates.length > 1 || todayPickerOpen ? `
         <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide options' : 'Change workout'}</button>` : ''}
       <button class="today-cardio-link" onclick="switchTab('cardio')">
-        <span class="tcl-glyph">◉</span>
+        <span class="tcl-glyph">${cardioIconSvg('run_outdoor', 15)}</span>
         <span class="tcl-text">Cardio today?<span>${cardioLog.length ? computeCardioStats().weekSessions + ' logged this week' : 'Log a run, walk or ride'}</span></span>
         <span class="tcl-go">›</span>
       </button>
@@ -11197,6 +12476,7 @@ function defaultAthleteProfile(){
     preferredRepRange: null,   // overrides goal default when set
     phase: null,
     excludedExercises: [],     // hard "never recommend"
+    bodyWeightLb: null,        // only ever used to estimate cardio calories
     updatedAt: null
   };
 }

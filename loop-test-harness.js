@@ -185,7 +185,10 @@ function loadApp(initialStore){
     'gymProfile','EQUIPMENT_OPTIONS',
     'SUBSTITUTION_CONFIG','substitutionTargetRow',
     'editingPhaseId','detailProgramId','ONBOARDING_KEY','ONBOARDING_VERSION','ONBOARDING_STEPS','ONBOARDING_HINTS','onboardingState','onboardingIndex','PROGRAMS_KEY','programsStore','PROGRAM_PHASE_TYPES','PROGRAM_DAY_KEYS','PROGRAM_LIMITS','EXERCISE_NOTES_KEY','exerciseNotes','NOTE_MAX_LENGTH','REP_STEP_BOUNDS','TIME_MODE_CONFIG','TIME_MODE_COMPOUND_PATTERNS','selectedWorkoutMinutes','timePickerOpen','pendingPlannedMinutes',
-    'SET_TYPE_REGISTRY','setTypePickerRow','MASTERY_CONFIG','currentEditDay','setupDraft','historySelectedDate','DAY_ORDER','DAY_LABEL','CAT_SHORT'];
+    'SET_TYPE_REGISTRY','setTypePickerRow','MASTERY_CONFIG','currentEditDay','setupDraft','historySelectedDate','DAY_ORDER','DAY_LABEL','CAT_SHORT',
+    'cardioSession','cardioSessionTimer','CARDIO_MET_TABLE','CARDIO_MET_FLAT','CARDIO_MET_CURVE',
+    'CARDIO_QUICK_IDS','CARDIO_GROUP_ICON','cardioStatsOpen','cardioEntryField','CARDIO_ENTRY_SPECS',
+    'CARDIO_DISTANCE_UNIT','CARDIO_GROUP_STYLE'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

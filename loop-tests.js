@@ -1752,7 +1752,16 @@ async function testFirstImpression(){
 
   ctx.renderCardioView();
   const cardio = doc.getElementById('cardioBody').innerHTML;
-  T('Cardio empty state has a clear action', cardio.includes('Log your first session'));
+  T('Cardio empty state offers a way in', /cl-tile/.test(cardio));
+  T('the way in STARTS a session rather than opening a form',
+    /onclick="startCardioActivity\('[a-z_]+'\)"/.test(cardio));
+  T('every launcher tile names an activity from the canonical registry',
+    [...cardio.matchAll(/startCardioActivity\('([a-z_]+)'\)/g)]
+      .every(m => ctx.CARDIO_ACTIVITIES.some(a => a.id === m[1])));
+  T('manual entry is still reachable for a session already finished',
+    cardio.includes('openCardioLogger()'));
+  T('manual entry does not compete with starting',
+    cardio.indexOf('startCardioActivity') < cardio.indexOf('openCardioLogger()'));
   T('Cardio shows no zero stats', !cardio.includes('snap-num'));
 
   sub('users WITH data are unaffected');
@@ -8000,6 +8009,545 @@ async function testD14Safety(){
 /* =========================================================
    RUNNER
    ========================================================= */
+/* =========================================================
+   CONTRACT 81 — Cardio 2.0: launcher, session, metrics
+   ---------------------------------------------------------
+   Cardio used to be a form with a Start-shaped button on it.
+   These contracts pin the three things that changed: starting
+   is starting, the clock is derived from the wall clock, and
+   every number says where it came from.
+   ========================================================= */
+function testCardio2(app){
+  section('CONTRACT 81 — Cardio 2.0');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('the launcher starts sessions rather than opening forms');
+  ctx.cardioLog = [];
+  ctx.invalidateCardioCache();
+  ctx.renderCardioView();
+  const home = doc.getElementById('cardioBody').innerHTML;
+  T('the tab leads with starting', home.includes('Start a session'));
+  T('launcher tiles start a session directly',
+    /onclick="startCardioActivity\('[a-z_]+'\)"/.test(home));
+  T('every launcher id is a canonical activity, not a new identity',
+    [...home.matchAll(/startCardioActivity\('([a-z_]+)'\)/g)]
+      .every(m => ctx.CARDIO_ACTIVITIES.some(a => a.id === m[1])));
+  T('the full registry is one tap away', home.includes('openCardioPicker()'));
+  T('manual entry survives as the secondary path', home.includes('openCardioLogger()'));
+  T('starting outranks logging in the markup',
+    home.indexOf('startCardioActivity') < home.indexOf('openCardioLogger()'));
+  T('every quick id resolves',
+    ctx.CARDIO_QUICK_IDS.every(id => !!ctx.getCardioActivity(id)));
+  T('the seven activities the brief names are all reachable',
+    ['run_outdoor','walk_outdoor','cycle_outdoor','run_treadmill','stair_climber','rowing','elliptical']
+      .every(id => ctx.CARDIO_QUICK_IDS.indexOf(id) !== -1));
+
+  sub('your own activities are promoted ahead of the defaults');
+  ctx.cardioLog = [
+    { id:'a', activityId:'rowing', activityName:'Rowing Machine', date:'2026-08-01', duration:'30' },
+    { id:'b', activityId:'rowing', activityName:'Rowing Machine', date:'2026-08-02', duration:'30' },
+    { id:'c', activityId:'swimming', activityName:'Swimming', date:'2026-08-03', duration:'30' }
+  ];
+  ctx.invalidateCardioCache();
+  const ids = ctx.cardioLauncherIds();
+  T('the most-logged activity leads the launcher', ids[0] === 'rowing');
+  T('an activity outside the defaults can reach the launcher', ids.indexOf('swimming') !== -1);
+  T('the launcher never grows past seven', ids.length <= 7);
+  T('the launcher never repeats an activity', new Set(ids).size === ids.length);
+
+  sub('elapsed time is derived from the clock, never counted by ticks');
+  const engine = src.slice(src.indexOf('function cardioElapsedMs(s){'),
+                           src.indexOf('function cardioSessionToRecord(){'));
+  T('elapsed reads the wall clock', /Date\.now\(\)/.test(engine));
+  T('a paused session banks its accumulated time', /accumulatedMs/.test(engine));
+  T('no tick-counting increment survives',
+    !/elapsed(Sec|Ms)?\s*(\+\+|\+=\s*1\b)/.test(engine));
+
+  const s0 = ctx.newCardioSession('run_outdoor');
+  T('a new session starts running', s0.state === 'running' && s0.runningSince !== null);
+  T('a new session starts at zero', s0.accumulatedMs === 0);
+  T('a new session carries the canonical identity',
+    s0.activityId === 'run_outdoor' && s0.activityName === 'Outdoor Run');
+
+  // Paused time must be structurally unreachable, not subtracted afterwards.
+  const paused = { accumulatedMs: 600000, runningSince: null, state:'paused' };
+  const a = ctx.cardioElapsedMs(paused);
+  const b = ctx.cardioElapsedMs(paused);
+  T('a paused session does not advance', a === b && a === 600000);
+  const running = { accumulatedMs: 600000, runningSince: Date.now() - 5000, state:'running' };
+  T('a running session advances by wall-clock time',
+    Math.abs(ctx.cardioElapsedMs(running) - 605000) < 200);
+
+  sub('the clock reads like a stopwatch');
+  T('under an hour is M:SS', ctx.formatClock(61) === '1:01');
+  T('over an hour is H:MM:SS', ctx.formatClock(3661) === '1:01:01');
+  T('zero is 0:00', ctx.formatClock(0) === '0:00');
+  T('negative time cannot render', ctx.formatClock(-50) === '0:00');
+
+  sub('pace and speed are exact arithmetic over two knowns');
+  T('pace is minutes per unit distance',
+    ctx.formatPace(ctx.cardioPaceSec(3.72, 32.683)) === '8:47');
+  T('speed is distance over time', Math.abs(ctx.cardioSpeedMph(12, 30) - 24) < 0.01);
+  T('no distance means no pace', ctx.cardioPaceSec(0, 30) === null);
+  T('no duration means no pace', ctx.cardioPaceSec(3, 0) === null);
+  T('an absurd pace is withheld rather than printed', ctx.formatPace(4000) === null);
+  T('pace rounds to whole seconds', !/\./.test(ctx.formatPace(ctx.cardioPaceSec(3, 27)) || ''));
+  T('the pace unit follows the distance unit',
+    ctx.cardioPaceUnit() === '/' + ctx.cardioDistanceUnit());
+  T('cycling is spoken in speed, everything else in pace',
+    ctx.cardioUsesSpeed('cycle_outdoor') && !ctx.cardioUsesSpeed('run_outdoor')
+    && !ctx.cardioUsesSpeed('rowing'));
+
+  sub('calories are an estimate with a published model behind them');
+  ctx.athleteProfile.bodyWeightLb = null;
+  T('no body weight means NO estimate, not a guessed one',
+    ctx.cardioCalories('run_outdoor', 30, 3) === null);
+  ctx.athleteProfile.bodyWeightLb = 175;
+  const cal = ctx.cardioCalories('run_outdoor', 30, 3);
+  T('a weight makes an estimate possible', !!cal);
+  T('total exceeds active, because total includes resting expenditure',
+    cal.total > cal.active);
+  T('active is total minus one MET of resting burn',
+    Math.abs((cal.total - cal.active) - Math.round(1 * 3.5 * (175*0.45359237) / 200 * 30)) <= 1);
+  T('calories are whole numbers, not false precision',
+    Number.isInteger(cal.total) && Number.isInteger(cal.active));
+  T('the estimate is flagged as an estimate', cal.estimated === true);
+  T('an unspecified activity gets no MET and no estimate',
+    ctx.cardioCalories('cardio_other', 30, 0) === null);
+  T('"Other Cardio" is deliberately absent from the MET table',
+    ctx.CARDIO_MET_FLAT['cardio_other'] === undefined);
+  T('a faster run burns more than a slower one over the same minutes',
+    ctx.cardioCalories('run_outdoor', 30, 5).total > ctx.cardioCalories('run_outdoor', 30, 2).total);
+  T('a heavier athlete burns more over the same work', (() => {
+    const light = (ctx.athleteProfile.bodyWeightLb = 130, ctx.cardioCalories('run_outdoor', 30, 3).total);
+    const heavy = (ctx.athleteProfile.bodyWeightLb = 220, ctx.cardioCalories('run_outdoor', 30, 3).total);
+    ctx.athleteProfile.bodyWeightLb = 175;
+    return heavy > light;
+  })());
+  T('a typed calorie count is NOT relabelled as an estimate', (() => {
+    const r = ctx.cardioCaloriesFor({ activityId:'run_outdoor', duration:30, calories:'400' });
+    return r.estimated === false && r.total === 400;
+  })());
+  T('MET interpolation stays inside the published range', (() => {
+    const t = ctx.CARDIO_MET_TABLE.run;
+    const lo = t[0][1], hi = t[t.length-1][1];
+    return [3,5,7,9,11,15].every(mph => {
+      const m = ctx.cardioMET('run_outdoor', mph);
+      return m >= lo && m <= hi;
+    });
+  })());
+  T('body weight lives on the athlete profile, not a cardio-only store',
+    'bodyWeightLb' in ctx.defaultAthleteProfile());
+  T('a profile written before this phase simply has no weight',
+    ctx.defaultAthleteProfile().bodyWeightLb === null);
+
+  sub('metrics are context-aware — driven by the registry, not by guesswork');
+  const tilesFor = (id, distance) => ctx.cardioLiveTiles({
+    activityId: id, accumulatedMs: 30*60000, runningSince: null, distance: distance || '', floors: '' })
+    .map(t => t.key);
+  T('a run shows distance and pace',
+    tilesFor('run_outdoor').indexOf('distance') !== -1 && tilesFor('run_outdoor').indexOf('pace') !== -1);
+  T('a ride shows speed, not pace',
+    tilesFor('cycle_outdoor').indexOf('speed') !== -1 && tilesFor('cycle_outdoor').indexOf('pace') === -1);
+  T('a stair climber shows floors and no distance',
+    tilesFor('stair_climber').indexOf('floors') !== -1 && tilesFor('stair_climber').indexOf('distance') === -1);
+  T('a stair climber is never asked for a pace it cannot have',
+    tilesFor('stair_climber').indexOf('pace') === -1);
+  T('jump rope shows neither distance nor pace',
+    tilesFor('jump_rope').indexOf('distance') === -1 && tilesFor('jump_rope').indexOf('pace') === -1);
+  T('every visible metric is declared by the activity itself', (() => {
+    return ctx.CARDIO_ACTIVITIES.every(act => {
+      const keys = tilesFor(act.id);
+      if(keys.indexOf('distance') !== -1 && act.metrics.indexOf('distance') === -1) return false;
+      if(keys.indexOf('floors') !== -1 && act.metrics.indexOf('floors') === -1) return false;
+      return true;
+    });
+  })());
+
+  sub('every number on the session screen states where it came from');
+  const runTiles = ctx.cardioLiveTiles({ activityId:'run_outdoor',
+    accumulatedMs: 30*60000, runningSince: null, distance:'3', floors:'' });
+  T('an entered value says so', runTiles.find(t => t.key === 'distance').hint === 'entered');
+  T('a derived value names its input', runTiles.find(t => t.key === 'pace').hint === 'from distance');
+  T('an estimated value says estimated',
+    runTiles.find(t => t.key === 'activeCal').hint === 'estimated');
+  T('a missing value prints no unit for a number that is not there',
+    ctx.cardioTileValueHtml({ value:null, unit:'mi' }) === '—');
+  T('a present value keeps its unit',
+    ctx.cardioTileValueHtml({ value:3.7, unit:'mi' }).indexOf('mi') !== -1);
+  ctx.athleteProfile.bodyWeightLb = null;
+  const noWeight = ctx.cardioLiveTiles({ activityId:'run_outdoor',
+    accumulatedMs: 30*60000, runningSince: null, distance:'3', floors:'' });
+  T('without a weight the calorie tile offers the fix instead of a number', (() => {
+    const t = noWeight.find(x => x.key === 'cal');
+    return t && t.value === null && /weight/.test(t.hint);
+  })());
+  T('no active/total tiles appear when they cannot be estimated',
+    !noWeight.some(t => t.key === 'activeCal' || t.key === 'totalCal'));
+  ctx.athleteProfile.bodyWeightLb = 175;
+
+  sub('the session is a page, and its controls sit at the foot of it');
+  T('the session is a true page, not a sheet over the tab',
+    /id="cardioSessionOverlay"[^>]*class="[^"]*overlay-page|class="overlay overlay-page" id="cardioSessionOverlay"/.test(src));
+  T('the control bar is its own strip, not an overlay on the numbers',
+    /\.cs-bar\{[^}]*border-top/.test(css));
+  T('the control bar respects the home indicator',
+    /\.cs-bar\{[^}]*env\(safe-area-inset-bottom/.test(css));
+  T('session controls clear the 44px target', /\.cs-btn\{[^}]*min-height:\s*(4[4-9]|[5-9]\d)px/.test(css));
+  T('the clock is the largest thing on the page', (() => {
+    const clock = parseInt((css.match(/\.cs-clock\{[^}]*font-size:\s*(\d+)px/) || [])[1], 10);
+    const tile  = parseInt((css.match(/\.cs-tile-val\{[^}]*font-size:\s*(\d+)px/) || [])[1], 10);
+    return clock > tile * 2;
+  })());
+  T('the clock uses tabular figures so it does not jitter',
+    /\.cs-clock\{[^}]*tabular-nums/.test(css));
+  T('reduced motion is honoured',
+    /prefers-reduced-motion[\s\S]{0,400}\.cs-ring-fill\{\s*transition:\s*none/.test(css));
+  T('no emoji anywhere in the cardio surface', (() => {
+    const region = src.slice(src.indexOf('CARDIO 2.0 — MEASUREMENT'), src.indexOf('function renderCardioPRs'));
+    return !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(region);
+  })());
+
+  sub('one visual language — every activity mark is drawn, none are characters');
+  /* The launcher and history cards were redrawn first, which briefly left the
+     manual logger and the records list printing the old geometric glyphs at
+     the same activity. Both are the same surface to an athlete, so both use
+     the same marks now, and the glyph characters are gone from the registry
+     rather than left available to drift back. */
+  T('activity marks come from one drawing function',
+    /function cardioIconSvg\(activityId, size\)\{/.test(src));
+  T('there is a mark for every activity group',
+    ctx.CARDIO_ACTIVITIES.every(a => !!ctx.CARDIO_GROUP_ICON[a.group]));
+  T('the group style carries colour only — no glyph character survives',
+    Object.values(ctx.CARDIO_GROUP_STYLE).every(v => v.glyph === undefined && !!v.tone));
+  T('no cardio surface renders an activity glyph character',
+    !/\$\{st\.glyph\}/.test(src));
+  T('the geometric activity glyphs are gone from the cardio region', (() => {
+    const region = src.slice(src.indexOf('const CARDIO_ACTIVITIES'), src.indexOf('function getCombinedProgression'));
+    return !/[\u25B6\u25B2\u25C9\u25C6\u25B3\u2248]/.test(region);
+  })());
+  T('the marks are decorative — the label beside them carries the meaning', (() => {
+    const fn = src.slice(src.indexOf('function cardioIconSvg(activityId, size){'));
+    const body = fn.slice(0, fn.indexOf('\n}'));
+    return /aria-hidden="true"/.test(body) && /focusable="false"/.test(body);
+  })());
+}
+
+/* =========================================================
+   CONTRACT 82 — the session survives everything
+   ========================================================= */
+async function testCardioSessionLifecycle(){
+  section('CONTRACT 82 — cardio session lifecycle and recovery');
+  const app = await H.loadAppBooted(buildProtectionFixture());
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  ctx.athleteProfile.bodyWeightLb = 175;
+
+  sub('start, pause, resume, finish');
+  ctx.startCardioActivity('run_outdoor');
+  T('starting creates exactly one session', !!ctx.cardioSession);
+  T('starting opens the session page',
+    doc.getElementById('cardioSessionOverlay').classList.contains('open'));
+  T('starting runs one ticker', ctx.cardioSessionTimer !== null);
+
+  // Starting again while one is live must not create a second.
+  const first = ctx.cardioSession;
+  ctx.startCardioActivity('cycle_outdoor');
+  T('a second start does not replace a live session', ctx.cardioSession === first);
+  T('a second start does not change the activity', ctx.cardioSession.activityId === 'run_outdoor');
+
+  ctx.cardioSession.accumulatedMs = 600000;
+  ctx.cardioSession.runningSince = Date.now() - 3000;
+  ctx.pauseCardioSession();
+  T('pausing banks the elapsed time', ctx.cardioSession.accumulatedMs >= 603000);
+  T('pausing closes the open segment', ctx.cardioSession.runningSince === null);
+  T('pausing does not reset the session', ctx.cardioSession.accumulatedMs > 0);
+  const heldAt = ctx.cardioElapsedMs();
+  T('a paused session holds its time', ctx.cardioElapsedMs() === heldAt);
+  ctx.resumeCardioSession();
+  T('resuming reopens a segment', ctx.cardioSession.runningSince !== null);
+  T('resuming keeps the banked time', ctx.cardioSession.accumulatedMs >= 603000);
+  T('resuming still runs exactly one ticker', ctx.cardioSessionTimer !== null);
+
+  ctx.finishCardioSession();
+  T('finishing stops the clock', ctx.cardioSession.state === 'finished');
+  T('finishing clears the ticker', ctx.cardioSessionTimer === null);
+  const frozen = ctx.cardioElapsedMs();
+  T('a finished session no longer advances', ctx.cardioElapsedMs() === frozen);
+  ctx.finishCardioSession();
+  T('finishing twice changes nothing', ctx.cardioElapsedMs() === frozen);
+
+  sub('a session becomes exactly one record');
+  const before = ctx.cardioLog.length;
+  await ctx.saveCardioSessionFromSummary(null);
+  T('saving appends one session', ctx.cardioLog.length === before + 1);
+  T('saving clears the live session', ctx.cardioSession === null);
+  T('saving closes the page',
+    !doc.getElementById('cardioSessionOverlay').classList.contains('open'));
+  const rec = ctx.cardioLog[ctx.cardioLog.length - 1];
+  T('the record carries the canonical activity id', rec.activityId === 'run_outdoor');
+  T('the record stores whole minutes, as cardioLog always has',
+    Number.isInteger(rec.duration));
+  T('the record records that it was tracked live', rec.source === 'live');
+  T('the record has a unique id',
+    ctx.cardioLog.filter(c => c.id === rec.id).length === 1);
+  T('saving twice cannot duplicate it', ctx.cardioSession === null);
+
+  sub('the summary and the saved record agree');
+  ctx.startCardioActivity('run_outdoor');
+  ctx.cardioSession.accumulatedMs = 32*60000 + 41000;
+  ctx.cardioSession.runningSince = null;
+  ctx.cardioSession.distance = '3.72';
+  ctx.finishCardioSession();
+  const shownMins = ctx.cardioSessionMinutes();
+  const record = ctx.cardioSessionToRecord();
+  T('the stored duration is the one the summary showed', record.duration === shownMins);
+  T('the stored pace follows the stored duration',
+    record.pace === ctx.formatPace(ctx.cardioPaceSec(3.72, record.duration)));
+  T('a distance activity stores pace, not speed', !!record.pace && !record.speed);
+  ctx.discardCardioSession();
+
+  ctx.startCardioActivity('cycle_outdoor');
+  ctx.cardioSession.accumulatedMs = 60*60000;
+  ctx.cardioSession.runningSince = null;
+  ctx.cardioSession.distance = '18';
+  ctx.finishCardioSession();
+  const ride = ctx.cardioSessionToRecord();
+  T('a ride stores speed, not pace', !!ride.speed && !ride.pace);
+  T('estimated calories are stored flagged as estimated', ride.caloriesEstimated === true);
+  T('active and total are stored separately',
+    parseFloat(ride.activeCalories) < parseFloat(ride.calories));
+  ctx.discardCardioSession();
+
+  sub('cancelling throws the session away and leaves nothing behind');
+  ctx.startCardioActivity('rowing');
+  const logLen = ctx.cardioLog.length;
+  ctx.discardCardioSession();
+  T('cancelling clears the session', ctx.cardioSession === null);
+  T('cancelling stops the ticker', ctx.cardioSessionTimer === null);
+  T('cancelling writes nothing to history', ctx.cardioLog.length === logLen);
+  T('cancelling closes the page',
+    !doc.getElementById('cardioSessionOverlay').classList.contains('open'));
+
+  sub('an interrupted session comes back');
+  ctx.startCardioActivity('run_treadmill');
+  ctx.cardioSession.accumulatedMs = 420000;
+  ctx.cardioSession.distance = '1.5';
+  await ctx.persistCardioSession();
+  const draft = JSON.parse(app.store.cardioDraft);
+  T('a live session is written to the existing cardio draft key', draft.kind === 'live');
+  T('the draft carries the banked time', draft.accumulatedMs === 420000);
+  T('the draft carries what was entered', draft.distance === '1.5');
+
+  // Simulate the app being killed and reopened.
+  ctx.stopCardioTicker();
+  ctx.cardioSession = null;
+  await ctx.resumeCardioDraft();
+  T('the session is restored', !!ctx.cardioSession);
+  T('the restored session keeps its activity', ctx.cardioSession.activityId === 'run_treadmill');
+  T('the restored session keeps its banked time', ctx.cardioSession.accumulatedMs === 420000);
+  T('the restored session keeps what was entered', ctx.cardioSession.distance === '1.5');
+  T('the restored session reopens its page',
+    doc.getElementById('cardioSessionOverlay').classList.contains('open'));
+  ctx.discardCardioSession();
+
+  sub('a manual draft from before this phase still restores as a form');
+  await app.ctx.LOOPStore.set('cardioDraft', JSON.stringify({
+    activityId:'elliptical', date:'2026-08-01', duration:'30' }));
+  await ctx.resumeCardioDraft();
+  T('a draft with no kind is treated as a manual entry, not a live session',
+    ctx.cardioSession === null);
+  T('the manual logger is what opens',
+    doc.getElementById('cardioOverlay').classList.contains('open'));
+  ctx.closeCardioLogger();
+}
+
+/* =========================================================
+   CONTRACT 83 — history, week summary, backward compatibility
+   ========================================================= */
+function testCardioHistory(app){
+  section('CONTRACT 83 — cardio history and compatibility');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  ctx.athleteProfile.bodyWeightLb = 175;
+
+  sub('a record written before Cardio 2.0 stays valid and untouched');
+  const legacy = { id:'legacy_1', activityId:'run_outdoor', activityName:'Outdoor Run',
+    date:'2026-08-20', duration:'45', distance:'5.2', pace:'8:39', rpe:'7', notes:'felt good' };
+  const legacySnapshot = JSON.stringify(legacy);
+  const legacyMachine = { id:'legacy_2', activityId:'elliptical', activityName:'Elliptical',
+    date:'2026-08-19', duration:'30', calories:'280' };
+  ctx.cardioLog = [legacy, legacyMachine];
+  ctx.invalidateCardioCache();
+
+  const card = ctx.cardioCardHtml(legacy);
+  T('a legacy record renders as a card', card.indexOf('ch-card') !== -1);
+  T('its distance still shows', card.indexOf('5.2') !== -1);
+  T('its hand-typed pace still shows', card.indexOf('8:39') !== -1);
+  T('it is not migrated in place', JSON.stringify(ctx.cardioLog[0]) === legacySnapshot);
+  T('no new field is invented for it',
+    ctx.cardioLog[0].activeCalories === undefined && ctx.cardioLog[0].source === undefined);
+
+  /* A legacy `calories` is one ambiguous number: LOOP never split it, so it
+     must not be relabelled as the active half. */
+  const machineCard = ctx.cardioCardHtml(legacyMachine);
+  T('a legacy calorie count is NOT relabelled as active',
+    machineCard.indexOf('active cal') === -1);
+  T('a legacy calorie count still shows as a plain count',
+    machineCard.indexOf('280 cal') !== -1);
+  const newCard = ctx.cardioCardHtml({ id:'n', activityId:'run_outdoor', activityName:'Outdoor Run',
+    date:'2026-08-25', duration:33, distance:'3.72', pace:'8:52',
+    calories:'486', activeCalories:'440', caloriesEstimated:true });
+  T('a value LOOP split itself IS labelled active', newCard.indexOf('440 active cal') !== -1);
+
+  sub('history cards are scannable, not a table of raw numbers');
+  T('the card names the activity', newCard.indexOf('Outdoor Run') !== -1);
+  T('the card says when and how long', /ch-when/.test(newCard));
+  T('the card leads with the metrics that matter', /ch-metrics/.test(newCard));
+  T('the card is a control, so it can be opened', newCard.trim().indexOf('<button') === 0);
+  T('the card opens the existing detail sheet', newCard.indexOf('openCardioDetail(') !== -1);
+
+  sub('the week summary counts what happened, against a denominator that is a fact');
+  const monday = ctx.currentWeekStart();
+  const d = n => { const x = new Date(monday); x.setDate(monday.getDate() + n); return ctx.localDateStr(x); };
+  ctx.cardioLog = [
+    { id:'w1', activityId:'run_outdoor', activityName:'Outdoor Run', date:d(0), duration:'30', distance:'3' },
+    { id:'w2', activityId:'run_outdoor', activityName:'Outdoor Run', date:d(0), duration:'20', distance:'2' },
+    { id:'w3', activityId:'rowing',      activityName:'Rowing Machine', date:d(2), duration:'25' },
+    { id:'old', activityId:'run_outdoor',activityName:'Outdoor Run', date:'2020-01-01', duration:'99', distance:'9' }
+  ];
+  ctx.invalidateCardioCache();
+  const w = ctx.cardioWeekSummary();
+  T('sessions count sessions', w.sessions === 3);
+  T('days count days, so two runs in one day are one day', w.days === 2);
+  T('minutes are summed', w.minutes === 75);
+  T('distance is summed', w.distance === 5);
+  T('last week is not counted as this week', w.sessions === 3);
+  T('the arc denominator is the seven days of the week, not an invented target',
+    ctx.cardioWeekArcHtml(w).indexOf('/7') !== -1);
+  T('the arc cannot exceed a full turn', (() => {
+    const full = Object.assign({}, w, { days: 14 });
+    return ctx.cardioWeekArcHtml(full).indexOf('stroke-dashoffset:-') === -1;
+  })());
+
+  sub('duration reads as a duration');
+  T('under an hour is minutes', ctx.formatDurationLong(45) === '45m');
+  T('over an hour is hours and minutes', ctx.formatDurationLong(134) === '2h 14m');
+  T('a whole hour drops the minutes', ctx.formatDurationLong(120) === '2h');
+
+  sub('the tab no longer dumps every statistic above the fold');
+  ctx.renderCardioView();
+  const home = doc.getElementById('cardioBody').innerHTML;
+  T('records and totals are one tap down, not deleted', home.indexOf('toggleCardioStats()') !== -1);
+  T('they are closed by default', home.indexOf('snap-item') === -1);
+  T('opening them brings the numbers back', (() => {
+    ctx.toggleCardioStats();
+    const open = doc.getElementById('cardioBody').innerHTML;
+    const ok = open.indexOf('snap-item') !== -1 && open.indexOf('Cardio XP') !== -1;
+    ctx.toggleCardioStats();
+    return ok;
+  })());
+  T('starting still comes before any of it',
+    home.indexOf('startCardioActivity') < home.indexOf('toggleCardioStats()'));
+}
+
+/* =========================================================
+   CONTRACT 84 — Cardio 2.0 touched nothing it should not
+   ========================================================= */
+async function testCardio2Safety(){
+  section('CONTRACT 84 — Cardio 2.0 touched no strength history');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const strengthBefore = ctx.getCurrentProgression().strengthXP;
+  const cardioXPBefore = ctx.getCombinedProgression().cardioXP;
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const notesBefore = app.store.exerciseNotes;
+  const gymBefore = app.store.gymProfile;
+  const draftBefore = app.store.activeWorkoutDraft;
+  const programsBefore = app.store.programs;
+  const scheduleBefore = JSON.stringify(ctx.schedule);
+  const legacyCardio = JSON.stringify(ctx.cardioLog);
+  /* Baseline the store AFTER boot: boot writes plan defaults of its own, and
+     attributing those to cardio would be measuring the wrong thing. */
+  const storeAfterBoot = {};
+  Object.keys(app.store).forEach(k => { storeAfterBoot[k] = app.store[k]; });
+  const profileAfterBoot = JSON.parse(app.store.athleteProfile || '{}');
+
+  sub('a full live session, start to save');
+  ctx.athleteProfile.bodyWeightLb = 175;
+  ctx.startCardioActivity('run_outdoor');
+  ctx.cardioSession.accumulatedMs = 30*60000;
+  ctx.cardioSession.runningSince = null;
+  ctx.cardioSession.distance = '3.5';
+  ctx.pauseCardioSession();
+  ctx.resumeCardioSession();
+  ctx.finishCardioSession();
+  await ctx.saveCardioSessionFromSummary(null);
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  /* Combined XP and the profile are the two things a cardio save is ALLOWED to
+     move; every other protected field must be identical. */
+  T('NOTHING protected changed beyond combined XP and the profile',
+    H.diffSnapshot(before, after, ['xp','athleteProfile']).ok,
+    H.diffSnapshot(before, after, ['xp','athleteProfile']).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('the STRENGTH component of XP is unchanged',
+    ctx.getCurrentProgression().strengthXP === strengthBefore);
+  T('cardio XP rose, as Contract 22 requires it to',
+    ctx.getCombinedProgression().cardioXP > cardioXPBefore);
+  T('strength PRs unchanged', after.prs === before.prs);
+  T('muscle recovery unchanged', after.recovery === before.recovery);
+  T('exercise capability unchanged', after.capability === before.capability);
+  T('the trainer wrote nothing', ctx.trainerLog.entries.length === trainerBefore);
+  T('exercise notes untouched', app.store.exerciseNotes === notesBefore);
+  T('the gym profile is untouched', app.store.gymProfile === gymBefore);
+  T('an in-progress strength workout is untouched', app.store.activeWorkoutDraft === draftBefore);
+  T('programs are untouched', app.store.programs === programsBefore);
+  T('the week schedule is untouched', JSON.stringify(ctx.schedule) === scheduleBefore);
+
+  sub('only cardio keys were written');
+  const written = Object.keys(app.store).filter(k =>
+    JSON.stringify(app.store[k]) !== JSON.stringify(storeAfterBoot[k]));
+  T('the only keys that changed are the cardio ones and the profile',
+    written.every(k => ['cardioLog','cardioDraft','athleteProfile'].indexOf(k) !== -1),
+    written.join(','));
+  T('cardioLog gained exactly the new session',
+    JSON.parse(app.store.cardioLog).length === JSON.parse(legacyCardio).length + 1);
+  T('earlier cardio sessions survive unchanged', (() => {
+    const now = JSON.parse(app.store.cardioLog);
+    const was = JSON.parse(legacyCardio);
+    return was.every((old, i) => JSON.stringify(now[i]) === JSON.stringify(old));
+  })());
+  T('the draft was cleared after saving',
+    !app.store.cardioDraft || app.store.cardioDraft === 'null');
+
+  sub('body weight is the only profile field cardio may write');
+  const p = JSON.parse(app.store.athleteProfile);
+  const base = profileAfterBoot;
+  const changed = Object.keys(p).filter(k => JSON.stringify(p[k]) !== JSON.stringify(base[k]));
+  T('cardio wrote only the weight (and the timestamp that always moves)',
+    changed.every(k => ['bodyWeightLb','updatedAt','version','goal','experience','sessionMinutes',
+      'equipment','preferredRepRange','phase','excludedExercises'].indexOf(k) !== -1),
+    changed.join(','));
+  T('the training goal is untouched', p.goal === base.goal);
+  T('the equipment list is untouched', JSON.stringify(p.equipment) === JSON.stringify(base.equipment));
+
+  sub('backup and restore still carry cardio');
+  T('cardioLog is still a backed-up key', ctx.DATA_KEYS.indexOf('cardioLog') !== -1);
+  T('the cardio draft is still a backed-up key', ctx.DATA_KEYS.indexOf('cardioDraft') !== -1);
+  T('no new storage key was introduced for cardio', ctx.DATA_KEYS.length === 15);
+  T('there is no second stopwatch store',
+    ctx.DATA_KEYS.filter(k => /timer|stopwatch|session/i.test(k)).length === 0);
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -8051,6 +8599,8 @@ async function main(){
   testScheduleWritePath(H.loadApp());
   testPageSurfaces(H.loadApp());
   testRestTimer(H.loadApp());
+  testCardio2(H.loadApp());
+  testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -8092,6 +8642,8 @@ async function main(){
     await testProgressSafety();
     await testMyTrainingSafety();
     await testD14Safety();
+    await testCardioSessionLifecycle();
+    await testCardio2Safety();
   }
 
   // ---- FULL ----
