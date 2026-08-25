@@ -1547,6 +1547,96 @@ html.intro-skip #introOverlay{ display: none !important; }
 /* ---- History sub-view toggle ---- */
 .history-subview{ margin-top: 4px; }
 
+/* ---------- MY TRAINING (Phase D13) ----------
+   Colour carries state and nothing else: green completed, accent today,
+   muted upcoming, neutral rest. */
+.mt-hero{ padding: 2px 0 6px; }
+.mt-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 23px; letter-spacing: -0.01em; color: var(--text); }
+.mt-sub{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; }
+.mt-prog{ margin-top: 14px; }
+.mt-prog-top{ display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; color: var(--text-dim); }
+.mt-phase{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-soft); padding: 3px 8px; border-radius: var(--radius-sm);
+}
+.mt-prog-bar{ height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; margin-top: 8px; }
+.mt-prog-bar span{ display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+
+.mt-days{ display: flex; flex-direction: column; margin-top: 4px; }
+.mt-day{
+  display: flex; align-items: center; gap: 12px; min-height: 60px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 6px;
+  background: var(--surface);
+}
+.mt-day-k{
+  flex: 0 0 34px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--text-faint); font-family: 'JetBrains Mono', monospace;
+}
+.mt-day-body{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.mt-day-name{ font-size: 13.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-day-meta{ font-size: 11px; color: var(--text-faint); }
+.mt-day-rest{ font-size: 12.5px; color: var(--text-faint); }
+.mt-day-edit{
+  width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-faint); cursor: pointer;
+}
+.mt-day-edit:hover{ color: var(--accent); border-color: var(--accent); }
+.mt-rest{ background: none; border-style: dashed; min-height: 46px; }
+.mt-today{ border-color: var(--accent); background: var(--accent-soft); }
+.mt-today .mt-day-k{ color: var(--accent); }
+.mt-done{ border-color: rgba(75,156,129,0.4); }
+.mt-done .mt-day-k{ color: var(--success); }
+
+.mt-var{ border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; margin-top: 8px; background: var(--surface); }
+.mt-var-top{ display: flex; align-items: baseline; justify-content: space-between; }
+.mt-var-cat{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); }
+.mt-var-count{ font-size: 10.5px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
+.mt-var-list{ display: flex; flex-direction: column; margin-top: 8px; }
+.mt-var-row{
+  display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
+  width: 100%; min-height: 48px; padding: 8px 0; background: none; border: none;
+  border-bottom: 1px solid var(--border); cursor: pointer; text-align: left; font-family: 'Inter', sans-serif;
+}
+.mt-var-row:last-child{ border-bottom: none; }
+.mt-var-name{ font-size: 12.5px; font-weight: 600; color: var(--text); }
+.mt-var-meta{ font-size: 10.5px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
+
+.mt-actions{ display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.mt-act{
+  display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto;
+  align-items: center; gap: 2px 10px; width: 100%; min-height: 60px; padding: 11px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; text-align: left; font-family: 'Inter', sans-serif;
+}
+.mt-act-main{ font-size: 13.5px; font-weight: 600; color: var(--text); }
+.mt-act-sub{ font-size: 11px; color: var(--text-faint); grid-column: 1; }
+.mt-act-go{ grid-column: 2; grid-row: 1 / span 2; display: flex; color: var(--text-faint); }
+.mt-note{ font-size: 11.5px; color: var(--text-faint); line-height: 1.5; margin-top: 18px; }
+
+/* setup: frequency, days, and the week they produce */
+.ts-q{ font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--text-dim); margin: 18px 0 10px; }
+.ts-q:first-child{ margin-top: 6px; }
+.ts-freq{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.ts-freq-btn{
+  min-height: 48px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text-dim); font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; cursor: pointer;
+}
+.ts-freq-btn.on{ background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.ts-days{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.ts-day{
+  min-height: 48px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.ts-day.on{ background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.ts-week{ border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.ts-row{ display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.ts-row:last-child{ border-bottom: none; }
+.ts-rest{ opacity: 0.55; }
+.ts-row-day{ flex: 0 0 34px; font-size: 10.5px; font-weight: 700; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
+.ts-row-name{ flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-row-min{ font-size: 10.5px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+
 /* ---------- PROGRESS DASHBOARD (Phase D12.1) ----------
    One reading, three indicators, then five cards of equal weight. Colour is
    reserved for state — improving, on target, attention — and is never used to
@@ -3331,10 +3421,10 @@ html, body{ max-width: 100%; overflow-x: hidden; }
         </span>
         <span class="settings-row-arrow">›</span>
       </button>
-      <button class="settings-row-btn" onclick="openPrograms()">
+      <button class="settings-row-btn" onclick="openMyTraining()">
         <span class="settings-row-main">
-          <span class="settings-row-title">Programs</span>
-          <span class="settings-row-desc" id="settingsProgramSub">Your custom plans — phases, weeks and dates</span>
+          <span class="settings-row-title">My Training</span>
+          <span class="settings-row-desc" id="settingsProgramSub">Your schedule, workouts, goal and phases</span>
         </span>
         <span class="settings-row-arrow">›</span>
       </button>
@@ -3342,13 +3432,6 @@ html, body{ max-width: 100%; overflow-x: hidden; }
         <span class="settings-row-main">
           <span class="settings-row-title">My Gym</span>
           <span class="settings-row-desc" id="settingsGymSub">What equipment you can actually use</span>
-        </span>
-        <span class="settings-row-arrow">›</span>
-      </button>
-      <button class="settings-row-btn" onclick="openPlansManager()">
-        <span class="settings-row-main">
-          <span class="settings-row-title">Workout Plans</span>
-          <span class="settings-row-desc" id="settingsPlanSub">Choose and manage your training plan</span>
         </span>
         <span class="settings-row-arrow">›</span>
       </button>
@@ -3451,6 +3534,33 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 </div>
 
 <!-- PROGRAMS (Phase D7A) — structural planning layer above the plan system -->
+<!-- MY TRAINING — one destination for what the athlete is actually doing -->
+<div class="overlay overlay-page" id="myTrainingOverlay">
+  <div class="sheet sheet-page">
+    <div class="workout-topbar">
+      <button class="workout-back" onclick="closeMyTraining()" aria-label="Back">‹</button>
+      <div class="workout-topbar-title">My Training</div>
+      <span class="workout-topbar-spacer"></span>
+    </div>
+    <div class="sheet-scroll"><div id="myTrainingBody"></div></div>
+  </div>
+</div>
+
+<!-- MAKE THIS TRAINING YOURS — frequency, days, and the week it produces -->
+<div class="overlay" id="trainingSetupOverlay" onclick="backdropDismiss(event, closeTrainingSetup)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>Make this training yours</h2>
+      <div class="sheet-sub">Pick how often you train and which days suit you. You can change this any time.</div>
+      <div id="trainingSetupBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeTrainingSetup()">Cancel</button>
+      <button class="btn-primary" id="trainingSetupApply" onclick="applyTrainingSetup()">Use this week</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="programsOverlay" onclick="backdropDismiss(event, closePrograms)">
   <div class="sheet">
     <div class="sheet-scroll">
@@ -5665,7 +5775,8 @@ async function ensurePlanStart(id){
   return today;
 }
 
-async function choosePlan(id){
+async function choosePlan(id, opts){
+  const firstTime = !selectedPlanId;
   selectedPlanId = id;
   try{ await LOOPStore.set('selectedPlan', JSON.stringify(id)); }catch(e){}
   await loadPlanData(id);
@@ -5675,6 +5786,12 @@ async function choosePlan(id){
   closePlansManager();
   showMainApp();
   switchTab('today');
+  /* A plan is a starting point, not a finished week. Offer to fit it to the
+     days this athlete can actually train — skippable, and never forced on
+     someone who is only switching plans from inside the app. */
+  if(firstTime && !(opts && opts.skipSetup)){
+    setTimeout(() => { try{ openTrainingSetup(id); }catch(e){} }, 500);
+  }
 }
 
 /* The base plan a custom build starts from when the athlete has not chosen
@@ -5735,9 +5852,6 @@ function closePlanSwitcher(){ document.getElementById('planSwitchOverlay').class
    functions as before — this is a reorganization, not a reimplementation. */
 function openSettings(){
   renderUpdateIndicator();
-  const plan = DEFAULT_PLANS[selectedPlanId];
-  const sub = document.getElementById('settingsPlanSub');
-  if(sub && plan) sub.textContent = 'Currently on ' + plan.name;
   refreshSettingsProfileLabel();
   const ver = document.getElementById('settingsVersion');
   if(ver){
@@ -14284,9 +14398,9 @@ function programContextHtml(){
     try{ none = getPrograms().length === 0; }catch(e){ return ''; }
     if(!none) return '';
     return `
-      <button class="tw-program tw-program-empty" onclick="openPrograms()">
-        <span class="tw-program-name">Add a training program</span>
-        <span class="tw-program-meta">Optional — phases, weeks and an end date ›</span>
+      <button class="tw-program tw-program-empty" onclick="openMyTraining()">
+        <span class="tw-program-name">My Training</span>
+        <span class="tw-program-meta">Your schedule, workouts and goal ›</span>
       </button>`;
   }
   const prog = getProgramProgress(p);
@@ -14438,6 +14552,351 @@ function submitProgramBuilder(){
   closeProgramBuilder();
   openProgramDetail(res.program.id);
   renderAll();
+}
+
+/* =========================================================
+   MY TRAINING  (Phase D13)
+   ---------------------------------------------------------
+   One user-facing idea over two internal ones. An athlete has
+   "my training"; underneath it may be a plan alone, or a plan
+   with a program layered on it. Both are read through the same
+   shape here so the interface never has to explain which one
+   the athlete happens to have.
+
+   Nothing new is stored. The plan, its schedule and the program
+   store are exactly the systems that already existed.
+   ========================================================= */
+
+/* Categories a plan trains, in the order its own default week runs them. */
+function planRotation(planId){
+  const plan = DEFAULT_PLANS[planId];
+  if(!plan) return [];
+  const sch = plan.defaultSchedule || {};
+  const seen = [];
+  DAY_ORDER.forEach(d => {
+    const c = sch[d];
+    if(c && c !== 'rest' && seen.indexOf(c) === -1) seen.push(c);
+  });
+  return seen;
+}
+
+/* Assemble a week from a plan and the days the athlete can actually train.
+   Deterministic assembly from existing templates — it cycles each category's
+   variants so four days read A / A / B / B rather than the same session four
+   times. This is configuration, not a recommendation: no trainer is consulted. */
+function buildTrainingWeek(planId, chosenDays){
+  const plan = DEFAULT_PLANS[planId];
+  const rotation = planRotation(planId);
+  const out = {};
+  DAY_ORDER.forEach(d => { out[d] = { type:'rest' }; });
+  if(!plan || !rotation.length || !chosenDays || !chosenDays.length) return out;
+
+  const used = {};
+  DAY_ORDER.filter(d => chosenDays.indexOf(d) !== -1).forEach((day, i) => {
+    const cat = rotation[i % rotation.length];
+    const list = (plan.templates || {})[cat] || [];
+    if(!list.length){ out[day] = { type:'rest' }; return; }
+    const idx = (used[cat] || 0) % list.length;
+    used[cat] = idx + 1;
+    out[day] = { type:'workout', planId, category:cat, templateId:list[idx].id };
+  });
+  return out;
+}
+
+/* What the athlete would be doing, before committing to anything. */
+function previewTrainingWeek(planId, chosenDays){
+  const week = buildTrainingWeek(planId, chosenDays);
+  const plan = DEFAULT_PLANS[planId];
+  return DAY_ORDER.map(d => {
+    const e = week[d];
+    if(!e || e.type !== 'workout') return { day:d, label:DAY_LABEL[d], rest:true };
+    const list = (plan.templates || {})[e.category] || [];
+    const tpl = list.find(t => t.id === e.templateId);
+    return {
+      day:d, label:DAY_LABEL[d], rest:false,
+      category:e.category,
+      name: tpl ? tpl.name : CAT_LABEL[e.category],
+      minutes: tpl ? computeWorkoutDuration(tpl) : null
+    };
+  });
+}
+
+/* One shape for "my training", whether or not a program exists underneath. */
+function myTrainingState(){
+  const plan = DEFAULT_PLANS[selectedPlanId] || null;
+  let program = null;
+  try{ program = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ program = null; }
+
+  const days = [];
+  DAY_ORDER.forEach(d => {
+    let cat = (schedule && schedule[d]) || 'rest';
+    let name = null, minutes = null, templateId = null;
+    if(program){
+      try{
+        const entry = programEntryForDay(program, d);
+        if(entry){
+          if(entry.type !== 'workout'){ cat = 'rest'; }
+          else {
+            cat = entry.category || cat;
+            templateId = entry.templateId || null;
+            const tpl = resolveProgramWorkout(entry);
+            if(tpl){ name = tpl.name; minutes = computeWorkoutDuration(tpl); }
+          }
+        }
+      }catch(e){}
+    }
+    if(!name && cat !== 'rest'){
+      try{
+        const tpl = (getTemplates(cat) || [])[0];
+        if(tpl){ name = tpl.name; minutes = computeWorkoutDuration(tpl); templateId = tpl.id; }
+      }catch(e){}
+    }
+    days.push({ key:d, label:DAY_LABEL[d], fullLabel:DAY_LABEL_FULL[d], cat, name, minutes, templateId, rest: cat === 'rest' });
+  });
+
+  let phase = null, week = null, totalWeeks = null;
+  if(program){
+    try{ week = getCurrentProgramWeek(program, localDateStr()); }catch(e){}
+    totalWeeks = program.durationWeeks || null;
+    try{
+      const ph = getCurrentTrainingPhase(program, localDateStr());
+      // 'custom' is the placeholder every new program starts with — naming it
+      // would surface internal vocabulary instead of information.
+      if(ph && ph.phaseType && ph.phaseType !== 'custom'){
+        phase = { name: phaseTypeLabel(ph) || ph.name, weeks: phaseDurationWeeks(ph) };
+      }
+    }catch(e){}
+  }
+
+  const trainingDays = days.filter(d => !d.rest).length;
+  const cats = [...new Set(days.filter(d => !d.rest).map(d => d.cat))];
+  let goal = null;
+  if(program && program.goal) goal = (TRAINING_GOALS[program.goal] || {}).label || program.goal;
+  else if(athleteProfile && athleteProfile.goal) goal = (TRAINING_GOALS[athleteProfile.goal] || {}).label || athleteProfile.goal;
+
+  return {
+    title: program ? program.name : (plan ? plan.name : 'No training set up'),
+    hasProgram: !!program,
+    programId: program ? program.id : null,
+    planId: selectedPlanId,
+    planName: plan ? plan.name : null,
+    week, totalWeeks, phase, goal,
+    trainingDays,
+    structure: cats.map(c => CAT_LABEL[c]).join(' / '),
+    days
+  };
+}
+
+/* ---------- THE DASHBOARD ---------- */
+function openMyTraining(){
+  try{ closeSettings(); }catch(e){}
+  renderMyTraining();
+  document.getElementById('myTrainingOverlay').classList.add('open');
+}
+function closeMyTraining(){ document.getElementById('myTrainingOverlay').classList.remove('open'); }
+
+function renderMyTraining(){
+  const el = document.getElementById('myTrainingBody');
+  if(!el) return;
+  const t = myTrainingState();
+  const todayK = todayKey();
+  const doneToday = workoutLog.some(l => l.date === localDateStr());
+
+  const progressLine = (t.hasProgram && t.week && t.totalWeeks)
+    ? `<div class="mt-prog">
+         <div class="mt-prog-top"><span>Week ${t.week} of ${t.totalWeeks}</span>${
+           t.phase ? `<span class="mt-phase">${escapeHtml(t.phase.name)}</span>` : ''}</div>
+         <div class="mt-prog-bar"><span style="width:${Math.min(100, Math.round((t.week / t.totalWeeks) * 100))}%"></span></div>
+       </div>` : '';
+
+  const dayRows = t.days.map(d => {
+    const isToday = d.key === todayK;
+    const done = isToday && doneToday;
+    const state = d.rest ? 'rest' : (done ? 'done' : (isToday ? 'today' : 'up'));
+    return `
+      <div class="mt-day mt-${state}">
+        <span class="mt-day-k">${escapeHtml(d.label)}</span>
+        <span class="mt-day-body">
+          ${d.rest
+            ? `<span class="mt-day-rest">Rest</span>`
+            : `<span class="mt-day-name">${escapeHtml(d.name || CAT_LABEL[d.cat])}</span>
+               <span class="mt-day-meta">${d.minutes ? '~' + d.minutes + ' min' : escapeHtml(CAT_LABEL[d.cat] || '')}</span>`}
+        </span>
+        ${d.rest ? '' : `<button type="button" class="mt-day-edit" onclick="openDayEdit('${d.key}')" aria-label="Change ${escapeAttr(d.fullLabel)}">${pencilIconSvg()}</button>`}
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="mt-hero">
+      <div class="mt-title">${escapeHtml(t.title)}</div>
+      <div class="mt-sub">${t.trainingDays} day${t.trainingDays===1?'':'s'} a week${t.structure ? ' · ' + escapeHtml(t.structure) : ''}${t.goal ? ' · ' + escapeHtml(t.goal) : ''}</div>
+      ${progressLine}
+    </div>
+
+    <div class="sec-head">This week</div>
+    <div class="mt-days">${dayRows}</div>
+
+    <div class="sec-head">Your workouts</div>
+    ${myTrainingVariantsHtml()}
+
+    <div class="sec-head">Adjust</div>
+    <div class="mt-actions">
+      <button type="button" class="mt-act" onclick="openTrainingSetup()">
+        <span class="mt-act-main">Change schedule</span>
+        <span class="mt-act-sub">Training days and how often</span>
+        <span class="mt-act-go">${chevronRightSvg()}</span>
+      </button>
+      <button type="button" class="mt-act" onclick="closeMyTraining(); openPlanSwitcher();">
+        <span class="mt-act-main">Change plan</span>
+        <span class="mt-act-sub">${escapeHtml(t.planName || 'Pick a starting point')}</span>
+        <span class="mt-act-go">${chevronRightSvg()}</span>
+      </button>
+      <button type="button" class="mt-act" onclick="closeMyTraining(); openAthleteProfile();">
+        <span class="mt-act-main">Change goal</span>
+        <span class="mt-act-sub">${escapeHtml(t.goal || 'Not set')}</span>
+        <span class="mt-act-go">${chevronRightSvg()}</span>
+      </button>
+      ${t.hasProgram ? `<button type="button" class="mt-act" onclick="closeMyTraining(); openProgramDetail('${escapeAttr(t.programId)}');">
+        <span class="mt-act-main">Training phases</span>
+        <span class="mt-act-sub">Longer-term structure</span>
+        <span class="mt-act-go">${chevronRightSvg()}</span>
+      </button>` : `<button type="button" class="mt-act" onclick="closeMyTraining(); openPrograms();">
+        <span class="mt-act-main">Training phases</span>
+        <span class="mt-act-sub">Optional — plan a longer cycle</span>
+        <span class="mt-act-go">${chevronRightSvg()}</span>
+      </button>`}
+    </div>
+    <p class="mt-note">Changing your training only affects what comes next. Everything you have already logged stays exactly as it is.</p>`;
+}
+
+/* §11 — the four variants per category are a real asset, so name them as
+   versions of the same session rather than hiding them as "templates". */
+function myTrainingVariantsHtml(){
+  const plan = DEFAULT_PLANS[selectedPlanId];
+  if(!plan) return `<div class="mt-note">Choose a plan to see your workouts.</div>`;
+  const cats = planRotation(selectedPlanId);
+  if(!cats.length) return `<div class="mt-note">Choose a plan to see your workouts.</div>`;
+  return cats.map(c => {
+    const list = (getTemplates(c) || []);
+    if(!list.length) return '';
+    return `
+      <div class="mt-var">
+        <div class="mt-var-top">
+          <span class="mt-var-cat">${escapeHtml(CAT_LABEL[c] || c)}</span>
+          <span class="mt-var-count">${list.length} version${list.length===1?'':'s'}</span>
+        </div>
+        <div class="mt-var-list">${list.map(t => `
+          <button type="button" class="mt-var-row" onclick="closeMyTraining(); switchTab('train'); setTrainCategory('${c}');">
+            <span class="mt-var-name">${escapeHtml(t.name)}</span>
+            <span class="mt-var-meta">${(t.exercises||[]).length} exercises · ~${computeWorkoutDuration(t)} min</span>
+          </button>`).join('')}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ---------- SETUP: how often, and which days ---------- */
+let setupDraft = null;
+
+function openTrainingSetup(planId){
+  const pid = planId || selectedPlanId || defaultBasePlanId();
+  const current = DAY_ORDER.filter(d => schedule && schedule[d] && schedule[d] !== 'rest');
+  const fallback = DAY_ORDER.filter(d => {
+    const sch = (DEFAULT_PLANS[pid] || {}).defaultSchedule || {};
+    return sch[d] && sch[d] !== 'rest';
+  });
+  setupDraft = { planId: pid, days: (current.length ? current : fallback).slice() };
+  renderTrainingSetup();
+  document.getElementById('trainingSetupOverlay').classList.add('open');
+}
+function closeTrainingSetup(){
+  document.getElementById('trainingSetupOverlay').classList.remove('open');
+  setupDraft = null;
+}
+function setupToggleDay(dayKey){
+  if(!setupDraft) return;
+  const i = setupDraft.days.indexOf(dayKey);
+  if(i === -1) setupDraft.days.push(dayKey); else setupDraft.days.splice(i, 1);
+  setupDraft.days = DAY_ORDER.filter(d => setupDraft.days.indexOf(d) !== -1);
+  renderTrainingSetup();
+}
+/* Picking a frequency spreads the days out rather than clustering them, so the
+   athlete gets a usable week without having to place each day themselves. */
+function setupSetFrequency(n){
+  if(!setupDraft) return;
+  const SPREAD = {
+    1:['mon'], 2:['mon','thu'], 3:['mon','wed','fri'],
+    4:['mon','tue','thu','fri'], 5:['mon','tue','wed','thu','fri'],
+    6:['mon','tue','wed','thu','fri','sat'], 7:DAY_ORDER.slice()
+  };
+  setupDraft.days = (SPREAD[n] || SPREAD[4]).slice();
+  renderTrainingSetup();
+}
+
+function renderTrainingSetup(){
+  const el = document.getElementById('trainingSetupBody');
+  if(!el || !setupDraft) return;
+  const preview = previewTrainingWeek(setupDraft.planId, setupDraft.days);
+  const n = setupDraft.days.length;
+
+  el.innerHTML = `
+    <div class="ts-q">How often do you want to train?</div>
+    <div class="ts-freq">${[2,3,4,5,6].map(f =>
+      `<button type="button" class="ts-freq-btn${n===f?' on':''}" onclick="setupSetFrequency(${f})">${f}</button>`).join('')}</div>
+    <div class="ts-q">Which days work best?</div>
+    <div class="ts-days">${DAY_ORDER.map(d =>
+      `<button type="button" class="ts-day${setupDraft.days.indexOf(d)!==-1?' on':''}" onclick="setupToggleDay('${d}')"
+        aria-pressed="${setupDraft.days.indexOf(d)!==-1}">${escapeHtml(DAY_LABEL[d].slice(0,1))}</button>`).join('')}</div>
+
+    <div class="ts-q">Your week</div>
+    ${n ? `<div class="ts-week">${preview.map(p => `
+      <div class="ts-row${p.rest?' ts-rest':''}">
+        <span class="ts-row-day">${escapeHtml(p.label)}</span>
+        <span class="ts-row-name">${p.rest ? 'Rest' : escapeHtml(p.name)}</span>
+        ${p.rest ? '' : `<span class="ts-row-min">~${p.minutes} min</span>`}
+      </div>`).join('')}</div>`
+      : `<div class="mt-note">Pick at least one day and your week appears here.</div>`}
+  `;
+  const apply = document.getElementById('trainingSetupApply');
+  if(apply) apply.disabled = !n;
+}
+
+/* Writes the schedule, and nothing else. Historical training is never touched —
+   this changes what LOOP will ask for next, not what already happened. */
+function applyTrainingSetup(){
+  if(!setupDraft || !setupDraft.days.length) return;
+  const week = buildTrainingWeek(setupDraft.planId, setupDraft.days);
+  DAY_ORDER.forEach(d => {
+    const e = week[d];
+    schedule[d] = (e && e.type === 'workout') ? e.category : 'rest';
+  });
+  persistSchedule();
+
+  /* A program is what makes the week rotate A / B rather than repeating the
+     same session, so one is kept in step with the athlete's choice. It is
+     created silently: "program" is an internal layer, not a second thing to
+     learn. An existing program is updated rather than replaced, so its phases
+     and start date survive. */
+  try{
+    if(hasActiveProgram()){
+      updateProgram(getActiveProgram().id, { schedule: week });
+    } else {
+      const plan = DEFAULT_PLANS[setupDraft.planId];
+      createProgram({
+        name: plan ? plan.name : 'My Training',
+        goal: (athleteProfile && athleteProfile.goal) || null,
+        durationWeeks: 8,
+        schedule: week
+      });
+    }
+  }catch(e){ /* the plan schedule above already stands on its own */ }
+
+  closeTrainingSetup();
+  renderAll();
+  if(document.getElementById('myTrainingOverlay').classList.contains('open')) renderMyTraining();
+}
+
+function pencilIconSvg(){
+  return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M11.5 2.5l2 2L6 12l-2.5.5L4 10l7.5-7.5Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 }
 
 /* ---- detail ---- */

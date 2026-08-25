@@ -4756,9 +4756,11 @@ async function testProgramIntegration(){
        still fabricates nothing — it is an entry point, not a fake program. */
     const strip = ctx.programContextHtml();
     T('Today surfaces Programs when the athlete has none', strip.trim() !== '');
-    T('it offers a way in', strip.indexOf('openPrograms()') !== -1);
-    T('it says the program is optional, not that the setup is broken',
-      /optional/i.test(strip));
+    T('it offers a way in', strip.indexOf('openMyTraining()') !== -1);
+    T('it names the destination rather than a missing thing',
+      /My Training/.test(strip));
+    T('it does not present a working setup as broken',
+      !/no active|missing|not set up|incomplete/i.test(strip));
     T('it invents no week, phase or program name',
       !/Week\s*\d/i.test(strip) && !/Phase\s*\d/i.test(strip) &&
       strip.indexOf('Week ') === -1);
@@ -5700,7 +5702,7 @@ async function testOnboardingSafety(){
     sub('discoverability contracts');
     T('Settings offers a replayable tour', /Getting Started/.test(src));
     T('the replay action is wired', /replayOnboarding\(\)/.test(src));
-    T('Today surfaces Programs when there is none', /Add a training program/.test(src));
+    T('Today surfaces the training destination', /tw-program-empty[\s\S]{0,200}openMyTraining\(\)/.test(src));
     T('the tour never blocks the app — it is offered after showMainApp',
       /showMainApp[\s\S]{0,600}shouldOfferOnboarding/.test(src));
     T('skip has no confirmation dialog',
@@ -6375,8 +6377,9 @@ function testD10Consolidation(app){
   }
 
   sub('PROGRAM discovery stayed contextual — no new tab, no new card');
-  T('Today still offers the way in', /Add a training program/.test(src));
-  T('it routes to the existing sheet', /tw-program-empty[\s\S]{0,200}openPrograms\(\)/.test(src));
+  T('Today still offers the way in', /My Training/.test(src));
+  T('it routes into the training destination',
+    /tw-program-empty[\s\S]{0,200}openMyTraining\(\)/.test(src));
   T('no navigation tab was added',
     (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === 5);
   T('Programs is still reachable from Settings', /openPrograms\(\)/.test(src));
@@ -6746,8 +6749,12 @@ function testD11Consolidation(app){
     const srcCode = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     T('the training trend is stated once',
       (srcCode.match(/Holding steady/g) || []).length === 1);
+    /* Scoped to Progress: other screens may legitimately show a week — My
+       Training does — and this was only ever about Progress duplicating it. */
+    const progRenderers = src.slice(src.indexOf('function renderProgDashboard(){'),
+                                    src.indexOf('function renderProgMuscles(){'));
     T('Progress no longer keeps its own copy of this week — Today owns it',
-      src.indexOf('<div class="sec-head">This week</div>') === -1);
+      progRenderers.indexOf('<div class="sec-head">This week</div>') === -1);
   }
 
   sub('PROGRESS — analytical state is an icon, not punctuation');
@@ -7419,6 +7426,265 @@ async function testProgressSafety(){
 }
 
 /* =========================================================
+   CONTRACT 75 — My Training: one idea over two systems
+   ========================================================= */
+function testMyTraining(app){
+  section('CONTRACT 75 — My Training');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('one destination, reachable without instruction');
+  {
+    T('Today leads to it', /tw-program-empty[\s\S]{0,220}openMyTraining\(\)/.test(src));
+    T('Settings leads to the same place',
+      /settings-row-btn" onclick="openMyTraining\(\)/.test(src));
+    const settingsSheet = src.slice(src.indexOf('<div class="overlay" id="settingsOverlay"'),
+                                    src.indexOf('<div class="overlay" id="plansOverlay"'));
+    T('Settings no longer lists a competing plans entry',
+      settingsSheet.indexOf('Workout Plans') === -1);
+    T('the plans manager itself still exists and is reachable',
+      /function openPlansManager\(\)/.test(src) && /openPlanSwitcher\(\)/.test(src));
+    T('no navigation tab was added',
+      (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === 5);
+  }
+
+  sub('it reads plan and program through one shape');
+  {
+    T('myTrainingState exists', typeof ctx.myTrainingState === 'function');
+    ctx.workoutLog = [];
+    ctx.selectedPlanId = 'upperlower';
+    // loadPlanData() does this on a real launch; H.loadApp() does not boot.
+    ctx.planData = JSON.parse(JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates));
+    ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
+    clearCaches(ctx);
+    const st = ctx.myTrainingState();
+    T('seven days always', st.days.length === 7);
+    T('it counts training days', st.trainingDays === 4);
+    T('it names the structure', /Upper/.test(st.structure) && /Lower/.test(st.structure));
+    T('every training day resolves a workout name',
+      st.days.filter(d => !d.rest).every(d => !!d.name));
+    T('it works with no program at all', st.hasProgram === false && !!st.title);
+  }
+
+  sub('the week is assembled from existing templates, not invented');
+  {
+    const mod = src.slice(src.indexOf('function planRotation('), src.indexOf('function myTrainingState('));
+    T('it reads the plan library', mod.indexOf('DEFAULT_PLANS') !== -1 && mod.indexOf('plan.templates') !== -1);
+    T('it consults no trainer',
+      !/proposeTrainerState|computeShadowRecommendation|computeTrainingContext|buildProgressionRecommendation/.test(mod));
+    T('it invents no exercise', mod.indexOf('CANONICAL_EXERCISES') === -1);
+  }
+  {
+    // every plan, every realistic frequency
+    const SPREAD = { 2:['mon','thu'], 3:['mon','wed','fri'], 4:['mon','tue','thu','fri'],
+                     5:['mon','tue','wed','thu','fri'], 6:['mon','tue','wed','thu','fri','sat'] };
+    let ok = true, named = true, cycles = true;
+    Object.keys(ctx.DEFAULT_PLANS).forEach(pid => {
+      [2,3,4,5,6].forEach(f => {
+        const prev = ctx.previewTrainingWeek(pid, SPREAD[f]);
+        const training = prev.filter(p => !p.rest);
+        if(training.length !== f) ok = false;
+        if(!training.every(p => p.name && p.minutes > 0)) named = false;
+        // four sessions of a two-category plan must not be the same session ×4
+        if(f >= 4 && new Set(training.map(p => p.name)).size < 3) cycles = false;
+      });
+    });
+    T('every plan fills every frequency from 2 to 6 days', ok);
+    T('every generated day names a real workout and a duration', named);
+    T('variants cycle — four days is not the same session four times', cycles);
+  }
+  {
+    // §16's worked example, exactly
+    const prev = ctx.previewTrainingWeek('upperlower', ['mon','tue','thu','fri']);
+    const named = prev.filter(p => !p.rest).map(p => p.label + ' ' + p.name.split('—')[0].trim());
+    T('4 days on Mon/Tue/Thu/Fri gives Upper A, Lower A, Upper B, Lower B',
+      named.join(' | ') === 'MON Upper A | TUE Lower A | THU Upper B | FRI Lower B', named.join(' | '));
+  }
+  {
+    T('an empty day selection produces a rest week, not a crash',
+      Object.values(ctx.buildTrainingWeek('upperlower', [])).every(e => e.type === 'rest'));
+    T('an unknown plan degrades safely',
+      Object.values(ctx.buildTrainingWeek('does-not-exist', ['mon'])).every(e => e.type === 'rest'));
+  }
+
+  sub('workout variants are named as versions, not hidden as templates');
+  {
+    ctx.selectedPlanId = 'upperlower';
+    ctx.planData = JSON.parse(JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates));
+    ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
+    const html = ctx.myTrainingVariantsHtml();
+    T('each category lists its versions', /mt-var-row/.test(html));
+    T('it says how many versions there are', /versions?</.test(html));
+    T('the real variant names are shown', /Upper A|Upper B/.test(html));
+    T('each carries exercise count and duration', /exercises · ~\d+ min/.test(html));
+    T('the word "template" is not shown to the athlete', !/template/i.test(html));
+  }
+
+  sub('changing training changes the future only');
+  {
+    const applyFn = src.slice(src.indexOf('function applyTrainingSetup(){'), src.indexOf('function pencilIconSvg('));
+    T('it writes the schedule', applyFn.indexOf('persistSchedule()') !== -1);
+    T('it never writes workoutLog', !/workoutLog\s*(=[^=]|\.push|\.splice)/.test(applyFn));
+    T('it touches no XP, PR or mastery store',
+      !/xp|prCount|mastery/i.test(applyFn.replace(/\/\*[\s\S]*?\*\//g, '')));
+    T('it updates an existing program rather than replacing it',
+      /hasActiveProgram\(\)[\s\S]{0,140}updateProgram\(/.test(applyFn));
+    T('the athlete is told history is safe',
+      /Everything you have already logged stays exactly as it is/.test(src));
+  }
+
+  sub('internal vocabulary stays internal');
+  {
+    ctx.workoutLog = [];
+    clearCaches(ctx);
+    ctx.renderMyTraining();
+    const html = doc.getElementById('myTrainingBody').innerHTML;
+    const visible = html.replace(/<[^>]+>/g, ' ');
+    T('no "block"', !/\bblock\b/i.test(visible));
+    T('no "template"', !/\btemplate\b/i.test(visible));
+    T('no "variation"', !/\bvariation\b/i.test(visible));
+    T('no startWeek / endWeek / phaseType', !/startWeek|endWeek|phaseType/.test(visible));
+    T('the placeholder phase name is never surfaced',
+      !/\bCustom\b/.test(visible) || !/phase/i.test(visible));
+    T('it speaks of training, weeks and workouts',
+      /This week/i.test(visible) && /workouts/i.test(visible));
+  }
+
+  sub('setup asks only what changes the week');
+  {
+    const setup = src.slice(src.indexOf('function renderTrainingSetup(){'), src.indexOf('function applyTrainingSetup(){'));
+    T('it asks frequency', /How often do you want to train/.test(setup));
+    T('it asks which days', /Which days work best/.test(setup));
+    T('it shows the resulting week immediately', /Your week/.test(setup));
+    T('it asks nothing else — no name, no length, no goal quiz',
+      !/Program name|LENGTH|durationWeeks/.test(setup));
+    T('the apply control is disabled with no days chosen',
+      /apply\.disabled = !n/.test(setup));
+  }
+  {
+    ctx.selectedPlanId = 'upperlower';
+    ctx.openTrainingSetup('upperlower');
+    T('setup seeds from the athlete\'s current days', !!ctx.setupDraft && ctx.setupDraft.days.length > 0);
+    ctx.setupSetFrequency(3);
+    T('choosing a frequency spreads the days out', ctx.setupDraft.days.length === 3);
+    ctx.setupToggleDay('sat');
+    T('a day can be added', ctx.setupDraft.days.indexOf('sat') !== -1);
+    ctx.setupToggleDay('sat');
+    T('and removed', ctx.setupDraft.days.indexOf('sat') === -1);
+    T('days stay in week order', JSON.stringify(ctx.setupDraft.days) === JSON.stringify(
+      ctx.DAY_ORDER.filter(d => ctx.setupDraft.days.indexOf(d) !== -1)));
+    ctx.closeTrainingSetup();
+    T('closing clears the draft', ctx.setupDraft === null);
+  }
+
+  sub('layout');
+  {
+    T('day rows are 60px', /\.mt-day\{[^}]*min-height: 60px/.test(css));
+    T('the per-day edit control is 44px', /\.mt-day-edit\{[^}]*width: 44px; height: 44px/.test(css));
+    T('frequency and day buttons are 48px',
+      /\.ts-freq-btn\{[^}]*min-height: 48px/.test(css) && /\.ts-day\{[^}]*min-height: 48px/.test(css));
+    T('quick actions are 60px', /\.mt-act\{[^}]*min-height: 60px/.test(css));
+    T('state is carried by colour tokens, not literals',
+      /\.mt-today\{[^}]*var\(--accent/.test(css) && /\.mt-done[^{]*\{[^}]*var\(--success/.test(css));
+  }
+}
+
+/* =========================================================
+   CONTRACT 76 — My Training changed no training history
+   ========================================================= */
+async function testMyTrainingSafety(){
+  section('CONTRACT 76 — My Training touched no training history');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const storeKeysBefore = Object.keys(app.store).sort().join(',');
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const masteryBefore = JSON.stringify(ctx.getTopExerciseMastery());
+  const scheduleBefore = JSON.stringify(ctx.schedule);
+  const programsBefore = app.store.programs;
+  const notesBefore = app.store.exerciseNotes;
+  const gymBefore = app.store.gymProfile;
+  const draftBefore = app.store.activeWorkoutDraft;
+
+  sub('browsing changes nothing at all');
+  ctx.myTrainingState();
+  ctx.renderMyTraining();
+  ctx.myTrainingVariantsHtml();
+  ctx.previewTrainingWeek(ctx.selectedPlanId, ['mon','wed','fri']);
+  ctx.openTrainingSetup();
+  ctx.setupSetFrequency(5);
+  ctx.setupSetFrequency(2);
+  ctx.setupToggleDay('sun');
+  ctx.closeTrainingSetup();          // cancelled — nothing applied
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cancelling setup leaves the schedule untouched',
+    JSON.stringify(ctx.schedule) === scheduleBefore);
+  T('programs untouched by browsing', app.store.programs === programsBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('mastery unchanged', JSON.stringify(ctx.getTopExerciseMastery()) === masteryBefore);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+
+  sub('applying a new schedule changes the future only');
+  {
+    const logBefore = JSON.stringify(ctx.workoutLog);
+    const xpBefore = ctx.getCurrentProgression().lifetimeXP;
+    const strengthBefore = ctx.getCurrentProgression().strengthXP;
+    const prsBefore = ctx.computeAllPREvents().length;
+    const masteryPre = JSON.stringify(ctx.getTopExerciseMastery());
+
+    ctx.openTrainingSetup();
+    ctx.setupDraft.days = ['mon','wed','fri'];
+    ctx.applyTrainingSetup();
+    clearCaches(ctx);
+
+    T('the schedule DID change — that was the point',
+      JSON.stringify(ctx.schedule) !== scheduleBefore);
+    T('workoutLog is byte-identical', JSON.stringify(ctx.workoutLog) === logBefore);
+    T('XP unchanged', ctx.getCurrentProgression().lifetimeXP === xpBefore);
+    T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === strengthBefore);
+    T('PRs unchanged', ctx.computeAllPREvents().length === prsBefore);
+    T('mastery unchanged', JSON.stringify(ctx.getTopExerciseMastery()) === masteryPre);
+    T('exercise notes unchanged', app.store.exerciseNotes === notesBefore);
+    T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+    T('an unfinished workout is preserved', app.store.activeWorkoutDraft === draftBefore);
+  }
+
+  sub('no new storage, no migration');
+  {
+    const addedKeys = Object.keys(app.store).filter(k => storeKeysBefore.split(',').indexOf(k) === -1);
+    T('nothing outside DATA_KEYS was created',
+      addedKeys.every(k => ctx.DATA_KEYS.indexOf(k) !== -1 || /^planData:|^schedule:|^planStart:/.test(k)),
+      addedKeys.join(','));
+    T('the only key this flow may add is the program store',
+      addedKeys.every(k => k === 'programs'), addedKeys.join(','));
+    T('and it is a key that already existed in DATA_KEYS',
+      ctx.DATA_KEYS.indexOf('programs') !== -1);
+  }
+  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
+
+  sub('trainer isolation');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by configuring training',
+    ctx.trainerLog.entries.length === trainerBefore);
+  T('trainer states unchanged',
+    JSON.stringify(ctx.TRAINER_STATES) === JSON.stringify(['PROGRESS','CONSOLIDATE','MAINTAIN','BACK_OFF']));
+}
+
+/* =========================================================
    RUNNER
    ========================================================= */
 async function main(){
@@ -7468,6 +7734,7 @@ async function main(){
   testD11Consolidation(H.loadApp());
   testLogRedesign(H.loadApp());
   testProgressDashboard(H.loadApp());
+  testMyTraining(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -7507,6 +7774,7 @@ async function main(){
     await testD11Safety();
     await testLogSafety();
     await testProgressSafety();
+    await testMyTrainingSafety();
   }
 
   // ---- FULL ----

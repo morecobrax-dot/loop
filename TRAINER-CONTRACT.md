@@ -768,3 +768,72 @@ routes to Log; Records disclose in place. Cards that are tappable carry
 
 Progress remains observational. Contract 73 asserts the dashboard calls no
 trainer function and renders no recommendation. Engine stays `0.1.1-shadow`.
+
+---
+
+## 18. My Training (Phase D13)
+
+Plan and Program were two things the athlete had to learn in order. **My
+Training** is one user-facing idea over both: `myTrainingState()` reads a plan
+alone or a plan with a program through the same shape, so no screen has to
+explain which one this athlete happens to have. The internal architecture is
+untouched.
+
+### The flow
+
+**Before:** choose one of six plan cards → dropped onto Today with the plan's
+default week → discover Settings ▸ Programs → type a program name, pick a goal,
+a length, a plan and a structure → no preview of the resulting week.
+
+**After:** choose a plan → *Make this training yours* opens automatically →
+frequency and preferred days, with the week rendering live as you change them →
+*Use this week*. Everything else is reachable later from one destination.
+
+§16's worked example is asserted verbatim: 4 days on Mon/Tue/Thu/Fri produces
+**Upper A, Lower A, Upper B, Lower B** — not the same session four times.
+
+### One destination
+
+Today's card and Settings both open **My Training**. Settings' separate
+"Workout Plans" row is gone — it was the same Plan/Program split under new
+names. The plans manager still exists and is reached from *Change plan* inside
+My Training, from the Train empty state, and from the Programs sheet.
+
+All ten discoverability questions from the brief are answerable by clicking:
+schedule, workouts, goal, phases, pause, and how to get back are each one or two
+taps from Today.
+
+### Configuration, not recommendation
+
+`buildTrainingWeek()` assembles a week from the plan's own templates, cycling
+each category's variants. Contract 75 asserts it consults no trainer function
+and invents no exercise. Verified across **all 6 plans × 5 frequencies**: every
+generated day names a real workout with a real duration.
+
+### Two defects found while building
+
+**`resolveProgramWorkout()` returns the template itself**, not `{template}` —
+`getProgramWorkoutForDate()` is the one that wraps it. Reading `.template` off
+the bare return silently yielded `undefined`, so every program day fell through
+to the category's first variant and the week showed Upper A twice instead of
+Upper A and Upper B. Caught by comparing the setup preview against the
+dashboard.
+
+**Every new program carries one auto-created phase typed `custom`**, so the
+dashboard was showing a chip reading "CUSTOM" — internal vocabulary presented as
+information. A phase is now named only once the athlete has given it a purpose.
+
+### History is never rewritten
+
+Applying a schedule writes the plan schedule and the program's week. Contract 76
+proves `workoutLog`, XP, strength XP, PRs, mastery, notes, gym profile and an
+unfinished draft are all byte-identical across an intentional schedule change,
+and that cancelling the setup leaves the schedule untouched. The dashboard says
+so in plain language too.
+
+`applyTrainingSetup()` may write the **existing** `programs` key — that is the
+mechanism that makes variants rotate. Contract 76 asserts nothing outside
+`DATA_KEYS` is ever created and that `programs` is the only key this flow adds.
+
+> An assertion that snapshots the whole store cannot tell an intended write from
+> a leak. Assert *which* keys may change, not that none may.
