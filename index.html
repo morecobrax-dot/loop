@@ -1127,6 +1127,20 @@ html.intro-skip #introOverlay{ display: none !important; }
   display: inline-flex; align-items: center; justify-content: center;
 }
 
+/* Tutorial muscle read-out — the same bar language the app uses elsewhere. */
+.ob-muscles{ display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+.ob-mus-row{ display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 10px; }
+.ob-mus-name{ font-size: 11.5px; font-weight: 600; color: var(--text-dim); }
+.ob-mus-bar{ height: 7px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.ob-mus-fill{
+  display: block; height: 100%; background: var(--accent); border-radius: 4px;
+  transform-origin: left center; animation: obMusIn 0.5s var(--ease) both;
+}
+@keyframes obMusIn{ from{ transform: scaleX(0); } to{ transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce){
+  .ob-mus-fill{ animation: none; }
+}
+
 /* ---------- SHADOW EVIDENCE PANEL (Phase D15B) ----------
    Deliberately quiet. This is an observation surface, not a scoreboard, and
    nothing here should read as a result. */
@@ -2932,13 +2946,16 @@ body.page-locked{ overflow: hidden; }
    time shift to warning in the last ten seconds), complete (ring full, check
    replaces the time). */
 .rest-dial{
-  position: relative; width: 56px; height: 56px; flex-shrink: 0;
+  position: relative; width: 64px; height: 64px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.rest-ring{ position: absolute; inset: 0; width: 56px; height: 56px; transform: rotate(-90deg); }
-.rest-ring-track{ fill: none; stroke: var(--surface-3); stroke-width: 4; }
+.rest-ring{ position: absolute; inset: 0; width: 64px; height: 64px; transform: rotate(-90deg); }
+.rest-ring-track{ fill: none; stroke: var(--surface-3); stroke-width: 5; }
 .rest-ring-fill{
   fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round;
+  /* Thicker than the 4 it was: on a countdown this slow, the arc has to be
+     readable at a glance rather than watchable frame to frame. */
+  stroke-width: 5;
   transition: stroke-dashoffset 0.2s linear, stroke 0.25s var(--ease);
 }
 .rest-dial-time{
@@ -2946,7 +2963,7 @@ body.page-locked{ overflow: hidden; }
   /* Sized so the longest value a rest timer realistically shows still clears
      the stroke: 5 characters at this size measure under the 48px the ring
      leaves inside itself. */
-  font-size: 15px; font-weight: 700; color: var(--text);
+  font-size: 17px; font-weight: 700; color: var(--text);
   letter-spacing: -0.04em; font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -2974,6 +2991,7 @@ body.page-locked{ overflow: hidden; }
 }
 /* Every state stays readable with animation switched off. */
 @media (prefers-reduced-motion: reduce){
+  /* The arc still moves and still carries the time; only the breath stops. */
   .rest-ring-fill{ transition: none; }
   .rest-panel.done, .rest-panel.done .rest-dial-check{ animation: none; }
 }
@@ -13161,13 +13179,25 @@ function volumeBarSvg(buckets){
   const max = Math.max(1, ...buckets.map(b => b.volume));
   const slot = (w - padLeft - padRight) / buckets.length;
   const barW = Math.max(6, slot - 8);
+
+  /* A label like "Jun 15" is six characters of 8px monospace — about 29 user
+     units, plus a gap so neighbours never touch. Draw only as many as fit. */
+  const LABEL_UNITS = 34;
+  const fits = Math.max(1, Math.floor((w - padLeft - padRight) / LABEL_UNITS));
+  const step = Math.max(1, Math.ceil(buckets.length / fits));
+  /* Counted back from the end so the most recent week always carries a label:
+     it is the one an athlete reads first. */
+  const labelled = i => (buckets.length - 1 - i) % step === 0;
+
   let bars = '';
   buckets.forEach((b,i) => {
     const x = padLeft + i*slot + (slot-barW)/2;
     const barH = max > 0 ? (b.volume/max) * (h-padTop-padBottom) : 0;
     const y = h - padBottom - barH;
     bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(1,barH)}" rx="3" fill="#5B8CFF" opacity="${b.volume>0?0.9:0.15}"/>`;
-    bars += `<text x="${x+barW/2}" y="${h-6}" font-size="8" fill="#5B616B" text-anchor="middle" font-family="JetBrains Mono, monospace">${b.label}</text>`;
+    if(labelled(i)){
+      bars += `<text x="${x+barW/2}" y="${h-6}" font-size="8" fill="#5B616B" text-anchor="middle" font-family="JetBrains Mono, monospace">${b.label}</text>`;
+    }
   });
   return `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:150px; display:block;">${bars}</svg>`;
 }
@@ -16332,7 +16362,7 @@ const ONBOARDING_STEPS = [
   {
     id: 'today',
     title: 'Today',
-    body: 'Your starting point. Today shows the workout you have scheduled, how you are feeling, and where you are in your plan.',
+    body: 'What should I do today? Today opens on the session you have scheduled, ready to start.',
     visual: () => {
       const first = onboardingWorkoutSamples()[0];
       return `
@@ -16347,7 +16377,7 @@ const ONBOARDING_STEPS = [
   {
     id: 'start',
     title: 'Start a workout',
-    body: 'One tap opens your session. LOOP saves every set as you go, so closing the app or locking your phone never loses your workout.',
+    body: 'One tap opens the session. LOOP saves every set as you go, so locking your phone mid-set never loses anything.',
     visual: () => `
       <div class="ob-mock">
         <div class="ob-mock-row"><span class="ob-mock-key">Autosaved</span><span class="ob-mock-val">every set</span></div>
@@ -16395,7 +16425,7 @@ const ONBOARDING_STEPS = [
   {
     id: 'readiness',
     title: 'Readiness and recovery',
-    body: 'Tell LOOP how you feel each day. That is kept separate from muscle recovery, which is estimated from the training you have actually logged.',
+    body: 'Tell LOOP how you feel before you train. Readiness is yours to set; recovery is worked out from the sessions you have logged.',
     visual: () => `
       <div class="ob-mock">
         <div class="ob-mock-row"><span class="ob-mock-key">Readiness</span><span class="ob-mock-val">what you report</span></div>
@@ -16404,26 +16434,14 @@ const ONBOARDING_STEPS = [
       </div>`
   },
   {
-    id: 'programs',
-    title: 'Cycles and progress',
-    body: 'Your plan holds your workouts and which days you train. A cycle is optional — it runs your plan for a set number of weeks, through phases, with a start and an end. Progress shows how it is actually going.',
+    id: 'progress',
+    title: 'Watch it add up',
+    body: 'Every set feeds your progress — what you train most, which lifts are moving, and how the weeks stack up. Run your plan as a cycle when you want a start and an end date.',
     visual: () => `
       <div class="ob-mock">
-        <div class="ob-mock-label">SUMMER HYPERTROPHY</div>
-        <div class="ob-mock-week">Week 6 <span>/ 12</span></div>
-        <div class="ob-mock-phase">Progressive Overload</div>
-        <div class="ob-mock-bar"><span style="width:50%"></span></div>
-      </div>`
-  },
-  {
-    id: 'intelligence',
-    title: 'LOOP is learning',
-    body: 'As you log training, LOOP builds up your capability, recovery and history. It records what it would suggest so the guidance can be checked against real training before it ever changes your workout.',
-    visual: () => `
-      <div class="ob-mock">
-        <div class="ob-mock-row"><span class="ob-mock-key">Learns from</span><span class="ob-mock-val">your logged training</span></div>
-        <div class="ob-mock-row"><span class="ob-mock-key">Right now</span><span class="ob-mock-val">observing, not deciding</span></div>
-        <div class="ob-note">You stay in control of every workout.</div>
+        <div class="ob-mock-label">MUSCLE GROUPS TRAINED</div>
+        <div class="ob-muscles">${onboardingMuscleBars()}</div>
+        <div class="ob-note">Built from the sessions you log. LOOP is observing, not deciding — every weight on the bar stays yours.</div>
       </div>`
   }
 ];
@@ -16447,6 +16465,24 @@ function onboardingReducedMotion(){
 
 /* Representative REAL workouts, read from the plan the athlete is actually
    on — never a hard-coded list that could go stale. */
+/* Sample proportions for the tour only. A first-time athlete has no history,
+   so this shows the SHAPE of the read-out rather than pretending to be their
+   data — the real one is built from logged sessions. */
+function onboardingMuscleBars(){
+  const rows = [
+    { label:'Chest',     pct: 82 },
+    { label:'Back',      pct: 74 },
+    { label:'Legs',      pct: 91 },
+    { label:'Shoulders', pct: 58 },
+    { label:'Arms',      pct: 47 }
+  ];
+  return rows.map(r => `
+    <div class="ob-mus-row">
+      <span class="ob-mus-name">${r.label}</span>
+      <span class="ob-mus-bar"><span class="ob-mus-fill" style="width:${r.pct}%"></span></span>
+    </div>`).join('');
+}
+
 function onboardingWorkoutSamples(){
   const out = [];
   try{
@@ -20872,11 +20908,14 @@ function loopHaptic(){
 }
 
 /* ---- the timer ---- */
+/* One radius, read by both the drawing and the update, so the two can never
+   disagree about the circumference they are dividing. */
+const REST_RING_R = 30;
 function restRingSvg(){
-  const r = 26, circ = 2 * Math.PI * r;
-  return `<svg class="rest-ring" viewBox="0 0 64 64" aria-hidden="true">
-    <circle class="rest-ring-track" cx="32" cy="32" r="${r}"/>
-    <circle class="rest-ring-fill" cx="32" cy="32" r="${r}"
+  const circ = 2 * Math.PI * REST_RING_R;
+  return `<svg class="rest-ring" viewBox="0 0 72 72" aria-hidden="true">
+    <circle class="rest-ring-track" cx="36" cy="36" r="${REST_RING_R}"/>
+    <circle class="rest-ring-fill" cx="36" cy="36" r="${REST_RING_R}"
       style="stroke-dasharray:${circ.toFixed(2)}; stroke-dashoffset:0"/>
   </svg>`;
 }
@@ -20942,7 +20981,7 @@ function updateRestRing(panel){
   if(done) frac = 0;
   else if(panel.dataset.paused === 'true') frac = (parseInt(panel.dataset.remaining, 10) || 0) / total;
   else frac = Math.max(0, Math.min(1, (endsAt - Date.now()) / (total * 1000)));
-  const circ = 2 * Math.PI * 26;
+  const circ = 2 * Math.PI * REST_RING_R;
   fill.setAttribute('stroke-dashoffset', String((circ * (1 - frac)).toFixed(1)));
 }
 
@@ -20957,6 +20996,7 @@ function updateRestPanelDisplay(panel){
   } else {
     if(timeEl) timeEl.textContent = formatMMSS(remaining);
     if(labelEl) labelEl.textContent = paused ? 'Paused' : 'Resting';
+    panel.classList.toggle('paused', paused);
     // A quiet shift of attention in the last ten seconds — no flashing.
     panel.classList.toggle('ending', !paused && remaining > 0 && remaining <= 10);
   }

@@ -1416,3 +1416,72 @@ now returns the sample it actually divided by.
 `loop-evaluate.js real <backup.json>` remains the authoritative analysis path;
 the panel is for a glance. Verified end to end: export → restore keeps entries,
 both engine versions, both vocabularies, feedback, RIR and the eviction count.
+
+---
+
+## 26. Premium polish, and one request declined (Phase D16)
+
+### The tutorial stopped explaining how LOOP is built
+
+Its last two moments recited the internals — *"builds up your capability,
+recovery and history"*, *"records what it would suggest so the guidance can be
+checked against real training"*. All true, none of it useful to someone who has
+just opened the app.
+
+Eight steps became **seven**, ordered the way the questions actually arrive:
+Today → workout → logging → tools → readiness → **progress**. The two
+architecture moments collapse into one progress moment that shows the athlete a
+muscle read-out instead of describing the machinery behind it.
+
+The honesty the old step carried is **not** optional and did not go with it. A
+guardian test caught its removal, correctly: a first-time athlete must not
+finish the tour believing LOOP picks their weights. It is now stated in product
+language — *"LOOP is observing, not deciding — every weight on the bar stays
+yours"* — rather than in the vocabulary of the engine.
+
+### The chart's labels collided because there were too many of them
+
+Measured: each date label rendered **30px wide in slots 27px apart**, so every
+label overlapped its neighbour by 3px. The chart drew one label per bucket
+regardless of how many could fit, so the collision arrived the moment a range
+held more than about nine weeks.
+
+The fix is **density, not margin**. A label budget derived from the axis width
+decides how many are drawn, and the count is stepped back from the end so the
+**most recent week always keeps its label** — it is the one an athlete looks
+for. Verified at 4W, 8W and 12W across five viewports: zero overlaps.
+
+### A request I did not implement as asked
+
+The ring was reported as *"too static"*. Measurement explained why: over a
+three-minute rest the arc advances about **half a percent of its circumference
+per second** — roughly a third of a pixel on a 56px dial. It was animating
+correctly the whole time; the motion was simply below the threshold of visible
+change.
+
+I first added a slow pulse to the stroke. A D13 guardian test rejected it, and
+it was right to: **nothing on a training screen animates continuously**, and a
+pulsing ring in an athlete's peripheral vision for three minutes is exactly the
+distraction that rule exists to prevent. A pulse would also not have fixed the
+complaint — it adds motion carrying no information, while the arc's actual rate
+is fixed by the duration and must stay honest.
+
+What legibility actually needed was **size**: the dial went 56 → 64px and the
+stroke 4 → 5, so the arc's position reads at a glance. The number grew with it,
+16px → 17px, and still clears the stroke at every value — measured at 10:00,
+3:00, 1:42, 0:30 and 0:05, with 6px of clearance at the worst case.
+
+> Speeding the ring up would have made it lie about the time. The number ticking
+> every second is the real motion on that panel; the ring's job is proportion.
+
+### What the sweep found
+
+Nothing. Across five viewports and nine surfaces: **zero** touch targets under
+44px, **zero** inputs under 16px, **zero** document overflow, **zero** dangling
+timers after closing a cardio session, and no duplicate listeners after twenty
+re-renders. `renderAll` fires **zero** times during tab switches, day selection
+and sheet open/close — the app renders surgically.
+
+Thirteen apparent overflow findings were the `pageIn` animation frozen at its
+first frame because the test pane was not compositing; with animations
+neutralised every sheet measures exactly the viewport width.

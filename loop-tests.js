@@ -8275,9 +8275,16 @@ function testCardio2(app){
   sub('motion stays out of the way');
   T('reduced motion disables the icon and card transitions',
     /prefers-reduced-motion[\s\S]{0,500}transform:\s*none/.test(css));
-  T('nothing on the session screen animates continuously', (() => {
-    const region = css.slice(css.indexOf('ACTIVE SESSION PAGE'));
-    return !/animation:[^;]*infinite/.test(region);
+  T('nothing on the cardio session screen animates continuously', (() => {
+    const start = css.indexOf('ACTIVE SESSION PAGE');
+    const end = css.indexOf('one-value entry sheet', start);
+    return !/animation:[^;]*infinite/.test(css.slice(start, end > start ? end : undefined));
+  })());
+  T('nothing on the rest panel animates continuously either', (() => {
+    /* Same rule, stated for the surface an athlete stares at between sets. */
+    const start = css.indexOf('REST TIMER (Phase D14)');
+    const end = css.indexOf('PAGE ISOLATION', start);
+    return !/animation:[^;]*infinite/.test(css.slice(start, end > start ? end : undefined));
   })());
   T('the completion mark plays once', /animation:\s*csPop[^;]*both/.test(css));
 
@@ -9270,7 +9277,17 @@ function testD13Interaction(app){
 
   sub('the rest time fits inside its ring');
   const cssBare = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  T('the dial owns the size', /\.rest-dial-time\{[^}]*font-size:\s*15px/.test(cssBare));
+  T('the dial owns the size', /\.rest-dial-time\{[^}]*font-size:\s*\d+px/.test(cssBare) &&
+    !/\.rest-panel-time\{[^}]*font-size/.test(cssBare));
+  T('the number still fits inside the ring', (() => {
+    /* Monospace, so width is character count times roughly 0.6em. The longest
+       value a rest timer shows is five characters. */
+    const size = parseFloat((cssBare.match(/\.rest-dial-time\{[^}]*font-size:\s*(\d+)px/) || [])[1]);
+    const dial = parseFloat((cssBare.match(/\.rest-dial\{[^}]*width:\s*(\d+)px/) || [])[1]);
+    const stroke = parseFloat((cssBare.match(/\.rest-ring-fill\{[^}]*stroke-width:\s*(\d+)/) || [])[1]);
+    const inner = dial - stroke * 2;
+    return (size * 0.6 * 5) < inner;
+  })());
   T('the old panel rule no longer overrides it',
     !/\.rest-panel-time\{[^}]*font-size/.test(css));
   T('the digits do not reflow as they count',
@@ -9811,6 +9828,149 @@ async function testEvidenceSafety(){
   })());
 }
 
+/* =========================================================
+   CONTRACT 99 — the tutorial teaches the product
+   ========================================================= */
+function testTutorialD16(app){
+  section('CONTRACT 99 — Tutorial 2.0');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const all = ctx.ONBOARDING_STEPS.map(s => s.title + ' ' + s.body + ' ' + s.visual()).join(' ');
+  const bodies = ctx.ONBOARDING_STEPS.map(s => s.body).join(' ');
+
+  sub('it follows the order the questions arrive in');
+  const ids = ctx.ONBOARDING_STEPS.map(s => s.id);
+  T('it is short enough to finish',
+    ctx.ONBOARDING_STEPS.length >= 6 && ctx.ONBOARDING_STEPS.length <= 8, String(ids.length));
+  T('Today comes before the workout', ids.indexOf('today') < ids.indexOf('start'));
+  T('the workout comes before logging', ids.indexOf('start') < ids.indexOf('logging'));
+  T('logging comes before how you feel', ids.indexOf('logging') < ids.indexOf('readiness'));
+  T('progress is the last thing it shows', ids[ids.length - 1] === 'progress');
+
+  sub('it stopped explaining how LOOP is built');
+  /* These were the exact phrases that pulled a first-time athlete out of the
+     product and into its architecture. */
+  T('it no longer recites the internal systems',
+    !/builds up your capability, recovery and history/i.test(bodies));
+  T('it no longer explains the shadow record-keeping',
+    !/records what it would suggest/i.test(bodies));
+  T('no step is about Settings', !/settings|backup|export|gym profile/i.test(bodies));
+  T('there is no step whose subject is the engine',
+    ids.indexOf('intelligence') === -1);
+
+  sub('but it is still honest about what the trainer does');
+  T('it says LOOP is observing, not deciding', /observing, not deciding/i.test(all));
+  T('it never claims LOOP picks the weight',
+    !/perfect weight|chooses your weight|decides your/i.test(all));
+  T('it says the weight stays the athlete\'s', /stays yours/i.test(all));
+
+  sub('it still teaches the controls that exist');
+  ['set type','warm-up','replace','readiness','cycle'].forEach(k =>
+    T('mentions ' + k, new RegExp(k, 'i').test(all)));
+  T('mentions autosave', /saves|autosaved/i.test(all));
+  T('still names the five real set types',
+    ['warm-up','working','drop','failure','AMRAP'].every(t => new RegExp(t, 'i').test(all)));
+  T('still avoids the word "program"', !/programs?\b/i.test(all));
+
+  sub('the progress moment shows training, not prose');
+  T('it draws a muscle read-out', /ob-mus-row/.test(all));
+  T('with more than one group', (all.match(/ob-mus-row/g) || []).length >= 4);
+  T('the sample is labelled as a shape, not the athlete\'s data', (() => {
+    const at = src.indexOf('function onboardingMuscleBars');
+    /* The comment explaining it sits above the declaration. */
+    return /Sample proportions for the tour only/.test(src.slice(Math.max(0, at - 400), at));
+  })());
+  T('the bars animate in once, not forever',
+    /animation: obMusIn 0\.5s var\(--ease\) both/.test(src) && !/obMusIn[^;]*infinite/.test(src));
+  T('reduced motion removes even that',
+    /prefers-reduced-motion[\s\S]{0,200}\.ob-mus-fill\{ animation: none/.test(src));
+
+  sub('every step still holds together');
+  T('each has a title', ctx.ONBOARDING_STEPS.every(s => !!s.title));
+  T('each body stays short', ctx.ONBOARDING_STEPS.every(s => s.body && s.body.length <= 260));
+  T('each has a visual', ctx.ONBOARDING_STEPS.every(s => typeof s.visual === 'function'
+    && s.visual().trim().indexOf('<') === 0));
+  T('ids are unique', new Set(ids).size === ids.length);
+}
+
+/* =========================================================
+   CONTRACT 100 — the chart's labels, and the timer's number
+   ========================================================= */
+function testD16Layout(app){
+  section('CONTRACT 100 — label density and timer geometry');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>')).replace(/\/\*[\s\S]*?\*\//g, '');
+
+  sub('the volume chart draws only the labels that fit');
+  /* Measured before the fix: labels rendered 30px wide in slots 27px apart,
+     so every one overlapped its neighbour. The cause was density, not margin. */
+  T('a label budget exists', /const LABEL_UNITS = 34;/.test(src));
+  T('it is derived from the axis width, not hard-coded',
+    /Math\.floor\(\(w - padLeft - padRight\) \/ LABEL_UNITS\)/.test(src));
+  T('labels are thinned rather than crowded', /const step = Math\.max\(1, Math\.ceil\(buckets\.length \/ fits\)\)/.test(src));
+  T('the most recent week always keeps its label',
+    /\(buckets\.length - 1 - i\) % step === 0/.test(src));
+  T('no margin was added in place of the fix', (() => {
+    const fn = src.slice(src.indexOf('function volumeBarSvg'), src.indexOf('function muscleBarsHtml'));
+    return !/padBottom\s*=\s*(3\d|4\d)/.test(fn);
+  })());
+  T('a long range never draws more labels than fit', (() => {
+    const w = 320, pad = 12, LABEL_UNITS = 34;
+    const fits = Math.floor((w - pad) / LABEL_UNITS);
+    [4, 8, 12, 26, 52].forEach(n => {
+      const step = Math.max(1, Math.ceil(n / fits));
+      let drawn = 0;
+      for(let i = 0; i < n; i++) if((n - 1 - i) % step === 0) drawn++;
+      if(drawn > fits) throw new Error('n=' + n + ' drew ' + drawn);
+    });
+    return true;
+  })());
+
+  sub('the rest number is the hero, and stays inside the ring');
+  const num = k => parseFloat((css.match(new RegExp(k)) || [])[1]);
+  const dial = num('\\.rest-dial\\{[^}]*width:\\s*(\\d+)px');
+  const size = num('\\.rest-dial-time\\{[^}]*font-size:\\s*(\\d+)px');
+  const stroke = num('\\.rest-ring-fill\\{[^}]*stroke-width:\\s*(\\d+)');
+  T('the dial has room', dial >= 64, String(dial));
+  T('the number grew with it', size >= 16, String(size));
+  T('the longest value still clears the stroke', (size * 0.6 * 5) < (dial - stroke * 2),
+    'text≈' + Math.round(size*0.6*5) + ' inner=' + (dial - stroke*2));
+  T('the ring is drawn from one radius', /const REST_RING_R = 30;/.test(src));
+  T('and the update reads that same radius',
+    /const circ = 2 \* Math\.PI \* REST_RING_R;/.test(src));
+  T('the old panel rule still does not override the dial',
+    !/\.rest-panel-time\{[^}]*font-size/.test(css));
+
+  sub('the ring animates the time, and nothing else');
+  T('the arc is driven by the deadline, not a frame count', (() => {
+    const fn = src.slice(src.indexOf('function updateRestRing'), src.indexOf('function updateRestPanelDisplay'));
+    return /endsAt - Date\.now\(\)/.test(fn) && !/requestAnimationFrame|frame\+\+/.test(fn);
+  })());
+  T('nothing on the rest panel loops forever', (() => {
+    const start = css.indexOf('REST TIMER (Phase D14)');
+    const end = css.indexOf('PAGE ISOLATION', start);
+    return !/animation:[^;]*infinite/.test(css.slice(start, end > start ? end : undefined));
+  })());
+  T('a paused timer is marked as paused', /panel\.classList\.toggle\('paused', paused\)/.test(src));
+
+  sub('the haptic fires once, at zero');
+  T('it is guarded by the completion flag', (() => {
+    const fn = src.slice(src.indexOf('function completeRestPanel'), src.indexOf('function updateRestRing'));
+    return /panel\.dataset\.completed === 'true'\) return;/.test(fn) && /loopHaptic\(\)/.test(fn);
+  })());
+  T('skipping is not completing', (() => {
+    const fn = src.slice(src.indexOf('function skipRest'), src.indexOf('function pauseIconSvg'));
+    return /completed = 'true'/.test(fn) && !/loopHaptic/.test(fn);
+  })());
+  T('an unsupported platform is silent, not an error', (() => {
+    const fn = src.slice(src.indexOf('function loopHaptic'), src.indexOf('function restRingSvg'));
+    return /typeof navigator\.vibrate === 'function'/.test(fn) && /catch\(e\)\{\}/.test(fn);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -9875,6 +10035,8 @@ async function main(){
   testIconSystemD14(H.loadApp());
   testShadowSemantics(H.loadApp());
   testEvidencePanel(H.loadApp());
+  testTutorialD16(H.loadApp());
+  testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
