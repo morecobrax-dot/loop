@@ -2358,6 +2358,44 @@ body.page-locked{ overflow: hidden; }
 .cp-tile.cd-tone-other .cp-mark{   color: var(--text-dim); }
 .cp-name{ font-size: 12.5px; font-weight: 600; line-height: 1.2; min-width: 0; }
 
+/* ---------- the icon as identifier ----------
+   Same mark, same weight, on every cardio surface. On the session screens it
+   is deliberately small: it says WHICH activity, and the clock says everything
+   else. */
+.cs-activity{
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.cs-activity-mark{ display: flex; align-items: center; opacity: 0.85; }
+
+/* Selection is a border, a background, a mark and the word "Selected" — four
+   signals, one of which happens to be colour. */
+.cl-tile[aria-pressed="true"], .cp-tile[aria-pressed="true"]{
+  border-color: var(--accent); background: var(--accent-soft);
+}
+.cl-tile[aria-pressed="true"] .cl-name, .cp-tile[aria-pressed="true"] .cp-name{ color: var(--text); }
+.cd-selected{ border-color: var(--accent); }
+
+/* ---------- summary hierarchy ----------
+   One number leads, the rest support it. Four equal tiles said everything
+   mattered the same amount. */
+.cs-sum-lead{
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 100%; max-width: 380px; margin-top: var(--space-5);
+  padding: var(--space-4) var(--space-3);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  font-family: 'Inter', sans-serif; color: var(--text);
+}
+.cs-sum-lead-v{
+  font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1;
+}
+.cs-sum-lead-l{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.cs-sum-rows{ margin-top: var(--space-2); }
+.cs-sum-wide{ grid-column: 1 / -1; }
+
 /* ---------- one-value entry sheet ---------- */
 .ce-row{ display: flex; align-items: baseline; gap: 10px; margin-top: var(--space-4); }
 .ce-input{
@@ -8584,7 +8622,7 @@ function renderCardioLogger(){
     <div class="cd-selected">
       <span class="cd-glyph cd-glyph-lg cd-tone-${st.tone}">${cardioIconSvg(act.id, 20)}</span>
       <div style="flex:1;min-width:0">
-        <div class="cd-selected-label">${cardioEditingId ? 'Editing' : act.group}</div>
+        <div class="cd-selected-label">${cardioEditingId ? 'Editing' : 'Selected'} · ${escapeHtml(act.group)}</div>
         <div class="cd-selected-name">${act.name}</div>
       </div>
       <button class="cd-change" onclick="pickCardioActivity(null)">Change</button>
@@ -8785,11 +8823,41 @@ function formatPace(secPerUnit){
   const m = Math.floor(secPerUnit / 60), s = Math.round(secPerUnit % 60);
   return s === 60 ? (m + 1) + ':00' : m + ':' + String(s).padStart(2, '0');
 }
-/* Cycling is spoken in speed, everything else in pace. Following the
-   convention costs nothing and reading '3:12 /mi' on a bike is jarring. */
-function cardioUsesSpeed(activityId){
+/* How an activity's effort is spoken. Cycling uses speed; rowing uses time
+   per 500m, which is the only pace a rower reads; everything else uses time
+   per unit distance. This is the single place that decision is made — no
+   screen decides it for itself. */
+function cardioPaceMode(activityId){
+  if(activityId === 'rowing') return 'split';
   const act = getCardioActivity(activityId);
-  return !!act && act.group === 'Cycling';
+  if(act && act.group === 'Cycling') return 'speed';
+  return 'distance';
+}
+function cardioUsesSpeed(activityId){ return cardioPaceMode(activityId) === 'speed'; }
+
+/* 500m units inside one stored mile. The stored distance stays in miles;
+   only the split is expressed the way the sport is. */
+const METRES_PER_MILE = 1609.344;
+function cardioSplitSec(distance, minutes){
+  const d = parseFloat(distance), m = parseFloat(minutes);
+  if(!(d > 0) || !(m > 0)) return null;
+  return (m * 60) / (d * METRES_PER_MILE / 500);
+}
+/* The label and the number for whichever mode an activity is in. Returns null
+   when the inputs are not there, so a screen shows a dash rather than a zero. */
+function cardioEffortMetric(activityId, distance, minutes){
+  const mode = cardioPaceMode(activityId);
+  if(mode === 'speed'){
+    const sp = cardioSpeedMph(distance, minutes);
+    return { key:'speed', label:'Speed', unit:'mph',
+      value: sp === null ? null : Math.round(sp * 10) / 10 };
+  }
+  if(mode === 'split'){
+    return { key:'pace', label:'Split', unit:'/500m',
+      value: formatPace(cardioSplitSec(distance, minutes)) };
+  }
+  return { key:'pace', label:'Pace', unit: cardioPaceUnit(),
+    value: formatPace(cardioPaceSec(distance, minutes)) };
 }
 
 /* ---------- estimated: calories ----------
@@ -9134,12 +9202,17 @@ function cardioSessionToRecord(){
   const floors = parseFloat(cardioSession.floors);
   if(floors > 0) rec.floors = String(floors);
   // Pace is derived, so it is stored as the string the athlete would read.
-  if(dist > 0 && !cardioUsesSpeed(rec.activityId)){
-    const p = formatPace(cardioPaceSec(dist, rec.duration));
-    if(p) rec.pace = p;
-  } else if(dist > 0){
-    const sp = cardioSpeedMph(dist, rec.duration);
-    if(sp) rec.speed = String(Math.round(sp * 10) / 10);
+  if(dist > 0){
+    const eff = cardioEffortMetric(rec.activityId, dist, rec.duration);
+    if(eff.value !== null){
+      if(eff.key === 'speed') rec.speed = String(eff.value);
+      else {
+        rec.pace = String(eff.value);
+        /* Which unit that pace is in, so a card never has to guess from the
+           activity — and a record written before this stays readable. */
+        if(eff.unit !== cardioPaceUnit()) rec.paceUnit = eff.unit;
+      }
+    }
   }
   const cal = cardioCalories(rec.activityId, rec.duration, rec.distance);
   if(cal){
@@ -9218,15 +9291,9 @@ function cardioLiveTiles(session){
       hint: dist > 0 ? 'entered' : 'tap to add',
       action: 'editCardioDistance()'
     });
-    if(cardioUsesSpeed(id)){
-      const sp = cardioSpeedMph(dist, mins);
-      tiles.push({ key:'speed', label:'Speed', value: sp ? (Math.round(sp*10)/10) : null,
-        unit:'mph', hint: sp ? 'from distance' : 'needs distance' });
-    } else {
-      const p = formatPace(cardioPaceSec(dist, mins));
-      tiles.push({ key:'pace', label:'Pace', value: p, unit: cardioPaceUnit(),
-        hint: p ? 'from distance' : 'needs distance' });
-    }
+    const eff = cardioEffortMetric(id, dist, mins);
+    tiles.push(Object.assign({}, eff,
+      { hint: eff.value === null ? 'needs distance' : 'from distance' }));
   }
   if(cardioShowsFloors(id)){
     const fl = parseFloat(session.floors);
@@ -9296,7 +9363,10 @@ function renderCardioSessionPage(){
 
   body.innerHTML = `
     <div class="cs-stage cs-tone-${st.tone}${paused ? ' cs-paused' : ''}">
-      <div class="cs-activity">${escapeHtml(cardioSession.activityName)}</div>
+      <div class="cs-activity">
+        <span class="cs-activity-mark">${cardioIconSvg(cardioSession.activityId, 17)}</span>
+        <span>${escapeHtml(cardioSession.activityName)}</span>
+      </div>
       <div class="cs-ring">
         ${cardioRingSvg()}
         <div class="cs-clock-wrap">
@@ -9332,46 +9402,54 @@ function renderCardioSummary(body, bar){
   const cal = cardioCalories(s.activityId, mins, s.distance);
   const rows = [];
 
+  /* The one number this activity is actually about, given the loudest row. */
+  let lead = null;
   if(cardioShowsDistance(s.activityId)){
-    rows.push({ v: dist > 0 ? (Math.round(dist*100)/100) + ' ' + cardioDistanceUnit() : 'Add distance',
-      l: dist > 0 ? 'Distance' : 'not recorded', action:'editCardioDistance()' });
+    lead = dist > 0
+      ? { v: (Math.round(dist*100)/100) + ' ' + cardioDistanceUnit(), l:'Distance' }
+      : { v:'Add distance', l:'not recorded', action:'editCardioDistance()' };
     if(dist > 0){
-      if(cardioUsesSpeed(s.activityId)){
-        const sp = cardioSpeedMph(dist, mins);
-        if(sp) rows.push({ v: (Math.round(sp*10)/10) + ' mph', l:'Average speed' });
-      } else {
-        const p = formatPace(cardioPaceSec(dist, mins));
-        if(p) rows.push({ v: p + ' ' + cardioPaceUnit(), l:'Average pace' });
-      }
+      const eff = cardioEffortMetric(s.activityId, dist, mins);
+      if(eff.value !== null) rows.push({ v: eff.value + ' ' + eff.unit, l:'Average ' + eff.label.toLowerCase() });
     }
-  }
-  if(cardioShowsFloors(s.activityId)){
+  } else if(cardioShowsFloors(s.activityId)){
     const fl = parseFloat(s.floors);
-    rows.push({ v: fl > 0 ? fl + ' floors' : 'Add floors', l: fl > 0 ? 'Climbed' : 'not recorded',
-      action:'editCardioFloors()' });
+    lead = fl > 0
+      ? { v: fl + '', l:'Floors climbed' }
+      : { v:'Add floors', l:'not recorded', action:'editCardioFloors()' };
   }
   if(cal){
-    rows.push({ v: cal.active + ' cal', l:'Active · estimated' });
-    rows.push({ v: cal.total + ' cal', l:'Total · estimated' });
+    rows.push({ v: cal.active, l:'Active cal · estimated' });
+    rows.push({ v: cal.total, l:'Total cal · estimated' });
   } else if(!cardioBodyWeightLb()){
-    rows.push({ v:'Add your weight', l:'to estimate calories', action:'promptCardioWeight()' });
+    rows.push({ v:'Add your weight', l:'to estimate calories', action:'promptCardioWeight()', wide:true });
   }
 
   body.innerHTML = `
     <div class="cs-summary cs-tone-${st.tone}">
       <div class="cs-sum-check">${checkIconSvg()}</div>
-      <div class="cs-sum-activity">${escapeHtml(s.activityName)}</div>
+      <div class="cs-sum-activity">
+        <span class="cs-activity-mark">${cardioIconSvg(s.activityId, 17)}</span>
+        <span>${escapeHtml(s.activityName)}</span>
+      </div>
       <div class="cs-sum-time">${formatClock(cardioElapsedSec(s))}</div>
       <div class="cs-sum-date">${formatDateShort(s.date)}</div>
-      <div class="cs-sum-rows">
+      ${lead ? (lead.action
+        ? `<button type="button" class="cs-sum-lead cs-sum-row-tap" onclick="${lead.action}">
+             <span class="cs-sum-lead-v">${escapeHtml(String(lead.v))}</span>
+             <span class="cs-sum-lead-l">${escapeHtml(lead.l)}</span></button>`
+        : `<div class="cs-sum-lead">
+             <span class="cs-sum-lead-v">${escapeHtml(String(lead.v))}</span>
+             <span class="cs-sum-lead-l">${escapeHtml(lead.l)}</span></div>`) : ''}
+      ${rows.length ? `<div class="cs-sum-rows">
         ${rows.map(r => r.action
-          ? `<button type="button" class="cs-sum-row cs-sum-row-tap" onclick="${r.action}">
+          ? `<button type="button" class="cs-sum-row cs-sum-row-tap${r.wide ? ' cs-sum-wide' : ''}" onclick="${r.action}">
                <span class="cs-sum-v">${escapeHtml(String(r.v))}</span>
                <span class="cs-sum-l">${escapeHtml(r.l)}</span></button>`
-          : `<div class="cs-sum-row">
+          : `<div class="cs-sum-row${r.wide ? ' cs-sum-wide' : ''}">
                <span class="cs-sum-v">${escapeHtml(String(r.v))}</span>
                <span class="cs-sum-l">${escapeHtml(r.l)}</span></div>`).join('')}
-      </div>
+      </div>` : ''}
       <button type="button" class="cs-note-btn" onclick="editCardioNote()">
         ${s.notes ? 'Edit note' : 'Add note'}</button>
       ${s.notes ? `<div class="cs-note-text">${escapeHtml(s.notes)}</div>` : ''}
@@ -9464,32 +9542,164 @@ function editCardioFloors(){ openCardioEntry('floors'); }
 function editCardioNote(){ openCardioEntry('note'); }
 function promptCardioWeight(){ openCardioEntry('weight'); }
 
-/* ---------- activity marks ----------
-   One line-drawn mark per activity GROUP, not per activity — eight marks
-   instead of seventeen, which keeps the launcher from turning into an icon
-   catalogue. They inherit currentColor and carry no meaning of their own;
-   the label underneath is what identifies the activity. */
-const CARDIO_GROUP_ICON = {
-  Running:  '<path d="M9 3.2a1.5 1.5 0 1 0 0-.01"/><path d="M10.4 6 7.4 8.4l1.9 2.3-1.1 3.6"/><path d="M7.4 8.4 4.4 9.6"/><path d="M9.3 10.7l3 1.1"/>',
-  Walking:  '<path d="M8.4 3.2a1.4 1.4 0 1 0 0-.01"/><path d="M8.6 5.8v3.6l1.6 4.4"/><path d="M8.6 9.4 6.6 13.8"/><path d="M8.6 7 6.4 8.2"/><path d="M8.6 7l2.3 1.3"/>',
-  Cycling:  '<circle cx="4.2" cy="11.4" r="2.5"/><circle cx="11.8" cy="11.4" r="2.5"/><path d="M4.2 11.4 7 6.6h3.2l1.6 4.8"/><path d="M7 6.6 6 4.4"/>',
-  Climbing: '<path d="M2.5 13.5h3.2v-3h3.2v-3h3.6v-3h1.5"/>',
-  Machine:  '<ellipse cx="8" cy="8" rx="5.6" ry="3.2"/><path d="M8 4.8V3.2"/><circle cx="8" cy="2.4" r="1"/>',
-  Water:    '<path d="M2 6.4c1.5-1.4 2.9-1.4 4.4 0s2.9 1.4 4.4 0 2.9-1.4 3.2-.7"/><path d="M2 10.4c1.5-1.4 2.9-1.4 4.4 0s2.9 1.4 4.4 0 2.9-1.4 3.2-.7"/>',
-  Outdoor:  '<path d="M1.6 12.8 6 5.4l2.6 4.2"/><path d="M6.8 12.8 10.6 6.6l3.8 6.2z"/>',
-  Other:    '<circle cx="8" cy="8" r="5.4"/><path d="M8 4.9V8l2.2 1.4"/>'
+
+/* =========================================================
+   CARDIO ICON FAMILY
+   ---------------------------------------------------------
+   One icon per canonical activity, keyed by the id that
+   already identifies it. Nothing here introduces an activity,
+   renames one, or gives one a second identity — an icon is
+   presentation hanging off an id the registry already owns.
+
+   Drawn to one grid so they read as a family:
+
+     24x24 box, artwork inside 3-21
+     1.6 stroke, round caps and joins, no fills
+     equipment sits on an implied floor at y=19-20
+     figures share one head radius (1.9) and one limb weight
+
+   Simplified realism: a treadmill has a deck, a console and a
+   rail, and stops there. It is not a technical drawing.
+
+   Where two activities genuinely look the same to a person —
+   running and walking on a treadmill, a stair climber and a
+   stepmill — they share one drawing rather than inventing a
+   difference that does not exist.
+   ========================================================= */
+
+/* ---- equipment ---- */
+const _ICO_TREADMILL =
+  '<rect x="2.6" y="17.2" width="13.4" height="3.2" rx="1.6"/>' +      /* running deck */
+  '<path d="M15.4 17.6 19 8.2"/>' +                                     /* upright */
+  '<rect x="16.9" y="3.6" width="5.1" height="4" rx="1.2"/>' +          /* console */
+  '<path d="M12.6 11.6h5.2"/>';                                         /* side rail */
+
+const _ICO_STAIRS =
+  '<path d="M2.8 20.2h3.9v-3.4h3.9v-3.4h3.9V10h2.9"/>' +                /* step stack */
+  '<path d="M18.9 20.2V6.2"/>' +                                        /* machine column */
+  '<rect x="16.3" y="2.6" width="5.2" height="3.8" rx="1.2"/>' +        /* console */
+  '<path d="M14.4 8.4h4.5"/>';                                          /* handle */
+
+const _ICO_ELLIPTICAL =
+  '<path d="M7.4 20V7.2"/>' +                                           /* front column */
+  '<path d="M7.4 7.2 4.4 4.9M7.4 7.2l3 -2.3"/>' +                       /* splayed handles */
+  '<path d="M6.6 12.4 19 15.1M6.6 14.9 19 17.6"/>' +                    /* pedal arms */
+  '<circle cx="19.6" cy="16.4" r="1.9"/>' +                             /* rear wheel */
+  '<path d="M4.6 20.2h5.4"/>';                                          /* front foot */
+
+const _ICO_ROWER =
+  '<circle cx="6" cy="9.3" r="3.7"/>' +                                 /* flywheel cage */
+  '<path d="M4.2 18.4 19.4 14.2"/>' +                                   /* monorail */
+  '<path d="M11.4 16.9 14.3 16.1"/>' +                                  /* seat */
+  '<path d="M9.2 11.4 12.9 13.4"/>' +                                   /* chain */
+  '<path d="M12.2 12.4 13.4 14.8"/>' +                                  /* handle */
+  '<path d="M3.2 20.4h3.9M18.9 14.5l.7 5.9"/>';                         /* feet */
+
+const _ICO_BIKE =
+  '<circle cx="5.9" cy="15.9" r="3.9"/><circle cx="18.1" cy="15.9" r="3.9"/>' +
+  '<path d="M5.9 15.9 10.2 9.1h4.6l3.3 6.8"/>' +                        /* frame */
+  '<path d="M10.2 9.1 9.1 6.6"/><path d="M7.4 6.3h3"/>' +               /* seat post + seat */
+  '<path d="M14.8 9.1 16.1 6.2"/><path d="M14.7 5.7h2.9"/>';            /* stem + bars */
+
+const _ICO_BIKE_STATIONARY =
+  '<circle cx="7.2" cy="15.6" r="3.4"/>' +                              /* flywheel */
+  '<path d="M7.2 15.6 11.7 7.4"/>' +                                    /* frame */
+  '<path d="M9.7 6.6h3.6"/>' +                                          /* seat */
+  '<path d="M11.7 7.4 15.7 5.6"/><path d="M14.2 4.3 17.5 5.6"/>' +      /* stem + bars */
+  '<path d="M11.9 11.9 16.4 20.2"/>' +                                  /* rear support */
+  '<path d="M3.4 20.2h5.3M13.7 20.2h5.3"/>';                            /* feet */
+
+/* ---- figures ---- */
+const _ICO_RUN =
+  '<circle cx="15.1" cy="4.7" r="1.9"/>' +
+  '<path d="M14.6 7.4 10.9 11.6l2.5 3.2L11.5 20.4"/>' +                 /* torso + lead leg */
+  '<path d="M10.9 11.6 7.1 13.9l-.8 4.4"/>' +                           /* trailing leg */
+  '<path d="M13.3 9.2 17.6 10.9"/><path d="M12.4 9.8 8.3 8.3"/>';       /* driving arms */
+
+const _ICO_WALK =
+  '<circle cx="12.2" cy="4.6" r="1.9"/>' +
+  '<path d="M12.1 7.1 11.4 12.5l3.4 7.9"/>' +                           /* upright torso, lead leg */
+  '<path d="M11.4 12.5 8.5 16.3l-.8 4.1"/>' +                           /* trailing leg */
+  '<path d="M11.9 9 15.5 11.5"/><path d="M11.8 9 8.2 11.3"/>';          /* arm swing */
+
+const _ICO_RUCK =
+  '<circle cx="13.1" cy="4.6" r="1.9"/>' +
+  '<path d="M13 7.1 12.4 12.5l3.2 7.9"/>' +
+  '<path d="M12.4 12.5 9.5 16.3l-.8 4.1"/>' +
+  '<path d="M12.8 9 16.2 11.5"/>' +
+  '<rect x="7.4" y="6.9" width="4.6" height="5.6" rx="1.4"/>';          /* the load */
+
+const _ICO_HIKE =
+  '<circle cx="11.4" cy="4.6" r="1.9"/>' +
+  '<path d="M11.2 7 10.3 11.9l2.7 8.4"/>' +
+  '<path d="M10.3 11.9 7.6 15.9 7 20.3"/>' +
+  '<rect x="6.9" y="7.1" width="3.6" height="4.6" rx="1.2"/>' +         /* pack */
+  '<path d="M16.4 7.6 17.2 20.3"/><path d="M11 8.7 16.2 8.2"/>';        /* pole + reaching arm */
+
+const _ICO_SWIM =
+  '<circle cx="8.6" cy="8.8" r="1.9"/>' +
+  '<path d="M10.4 9.8 17.4 11.4l2.9 2.2"/>' +                           /* body + trailing legs */
+  '<path d="M9.4 7.2 6.2 3.9"/>' +                                      /* reaching arm */
+  '<path d="M2.6 17.4c1.9-1.7 3.7-1.7 5.6 0s3.7 1.7 5.6 0 3.7-1.7 5.6 0"/>';  /* water */
+
+const _ICO_JUMP_ROPE =
+  '<circle cx="12" cy="5.2" r="1.9"/>' +
+  '<path d="M12 7.4v5.1"/>' +
+  '<path d="M12 12.5 10.2 16.9M12 12.5l1.8 4.4"/>' +                    /* tucked legs */
+  '<path d="M12 9.2 9.3 10.9M12 9.2l2.7 1.7"/>' +                       /* hands on handles */
+  '<path d="M9.3 10.9C4 11.4 3.6 19.6 12 19.7s8-8.3 2.7-8.8"/>';        /* the rope */
+
+const _ICO_HIIT =
+  '<circle cx="12" cy="4.7" r="1.9"/>' +
+  '<path d="M12 6.8v5.6"/>' +
+  '<path d="M12 8.6 6.6 5.2M12 8.6l5.4-3.4"/>' +                        /* arms thrown wide */
+  '<path d="M12 12.4 7.4 19.2M12 12.4l4.6 6.8"/>';                      /* legs driven out */
+
+/* Neutral, and deliberately not a claim about what the activity was. */
+const _ICO_PULSE = '<path d="M2.4 12.2h3.6l2.3-7.4 3.4 14.6 2.4-7.2h7.5"/>';
+
+/* ---- the registry ----
+   Keyed by canonical id. Shared drawings are shared on purpose. */
+const CARDIO_ICONS = {
+  run_outdoor:      _ICO_RUN,
+  run_treadmill:    _ICO_TREADMILL,
+  walk_outdoor:     _ICO_WALK,
+  walk_treadmill:   _ICO_TREADMILL,
+  walk_incline:     _ICO_TREADMILL,
+  cycle_outdoor:    _ICO_BIKE,
+  cycle_stationary: _ICO_BIKE_STATIONARY,
+  stair_climber:    _ICO_STAIRS,
+  stepmill:         _ICO_STAIRS,
+  elliptical:       _ICO_ELLIPTICAL,
+  rowing:           _ICO_ROWER,
+  swimming:         _ICO_SWIM,
+  jump_rope:        _ICO_JUMP_ROPE,
+  hiking:           _ICO_HIKE,
+  rucking:          _ICO_RUCK,
+  hiit:             _ICO_HIIT,
+  cardio_other:     _ICO_PULSE
 };
-function cardioMoreIconSvg(){
-  return `<svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"
-    aria-hidden="true" focusable="false"><circle cx="4.4" cy="4.4" r="1.5"/><circle cx="11.6" cy="4.4" r="1.5"/><circle cx="4.4" cy="11.6" r="1.5"/><circle cx="11.6" cy="11.6" r="1.5"/></svg>`;
+
+/* An id LOOP does not know still gets a clean mark rather than an empty box.
+   Nothing in the UI has to guard against a missing icon. */
+function getCardioIcon(activityId){
+  return CARDIO_ICONS[activityId] || _ICO_PULSE;
 }
+
+/* Decorative by contract: the activity name is always rendered beside it, so
+   the icon is hidden from assistive technology instead of announcing a second
+   time. */
 function cardioIconSvg(activityId, size){
-  const act = getCardioActivity(activityId);
-  const paths = (act && CARDIO_GROUP_ICON[act.group]) || CARDIO_GROUP_ICON.Other;
-  const s = size || 18;
-  return `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-    stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
-    aria-hidden="true" focusable="false">${paths}</svg>`;
+  const s = size || 20;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+    aria-hidden="true" focusable="false">${getCardioIcon(activityId)}</svg>`;
+}
+
+function cardioMoreIconSvg(){
+  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+    aria-hidden="true" focusable="false"><rect x="3.6" y="3.6" width="7.2" height="7.2" rx="2"/><rect x="13.2" y="3.6" width="7.2" height="7.2" rx="2"/><rect x="3.6" y="13.2" width="7.2" height="7.2" rx="2"/><rect x="13.2" y="13.2" width="7.2" height="7.2" rx="2"/></svg>`;
 }
 
 /* The activities that get a one-tap launcher. Every one is an existing
@@ -9572,7 +9782,7 @@ function cardioCardHtml(c){
   const dur = parseFloat(c.duration);
   const bits = [];
   if(dist > 0) bits.push((Math.round(dist*100)/100) + ' ' + cardioDistanceUnit());
-  if(c.pace) bits.push(c.pace + ' ' + cardioPaceUnit());
+  if(c.pace) bits.push(c.pace + ' ' + (c.paceUnit || cardioPaceUnit()));
   else if(c.speed) bits.push(c.speed + ' mph');
   if(c.floors) bits.push(c.floors + ' floors');
   const calLine = c.activeCalories

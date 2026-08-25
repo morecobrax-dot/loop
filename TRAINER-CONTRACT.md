@@ -1030,3 +1030,87 @@ The week arc's denominator is **the seven days of the week** — a fact. LOOP ha
 no cardio goal, and inventing one would mean shipping a ring most athletes are
 designed to fall short of. Three sessions in one day is one day, because the
 question the arc answers is *how often*, not *how much*.
+
+---
+
+## 21. The cardio icon family (Phase D16)
+
+### What the group marks could not say
+
+D15 drew eight marks, one per activity *group*. That was enough to remove the
+geometric glyphs, and not enough to be an icon system: a treadmill drew the
+running figure, a rower and an elliptical drew the same ellipse, and jump rope
+drew a clock face. The test an icon has to pass is recognition **before**
+reading, and a group mark cannot pass it, because the group is not what the
+athlete is looking at.
+
+There are now seventeen entries in `CARDIO_ICONS`, keyed by the canonical id
+that already identifies each activity. An icon is presentation hanging off an
+id the registry owns — nothing here introduces an activity, renames one, or
+gives one a second identity.
+
+**Shared where sharing is true.** Running and walking on a treadmill are the
+same machine; a stair climber and a stepmill are the same machine. Those pairs
+share one drawing rather than inventing a difference that does not exist in the
+gym. Everything else is drawn for what it actually is: the rower has a
+flywheel, a rail, a seat and a handle; the elliptical has a column, splayed
+handles and two pedal arms; the treadmill has a deck, an upright, a console and
+a rail.
+
+### One grid, measured rather than eyeballed
+
+Screenshots were unavailable while this was built, so family cohesion was
+**measured**: bounding box, ink length, segment count, centre of mass and
+smallest feature, for every icon.
+
+That found three the eye would have caught and the tests never would. The
+neutral pulse was the shortest *and* lightest mark in the set, so "Other" read
+as a smaller-grade icon rather than a quieter one. The star jump was drawn too
+closed to be a star jump. The rower, at 13 units against a family averaging 16,
+sat visibly small in the same box — fixed by letting the flywheel cage carry the
+height, which is also truer to the machine.
+
+After refinement the family holds to one grid: heights 14.1–17.7 in a 24-unit
+box, centres at 11.9/11.9 against a target of 12, and no feature below 1.8 units
+— about 1.5px at the smallest size the icons are rendered, so nothing mushes.
+
+> A contract can assert that every activity has an icon. It cannot assert that
+> the icons look like they came from the same hand. Measuring the geometry is
+> the closest thing to that, and it earned its place by finding real problems.
+
+### The same mark everywhere
+
+Launcher, picker, live session, summary, history, manual logger and Today's
+cardio link all call `cardioIconSvg(id)`. Each drawing exists exactly once in
+the file, which a contract now checks tag by tag — if a screen ever pasted its
+own copy, the two would drift.
+
+On the two session screens the mark is deliberately 17px beside a 46px clock.
+It answers *which activity*; the clock answers everything else.
+
+An unknown id returns the neutral pulse rather than an empty box, so no screen
+has to guard against a missing icon, and the fallback never claims to be some
+other activity.
+
+### Rowing is spoken in splits
+
+`cardioPaceMode()` already chose between pace and speed for every screen; rowing
+is a third mode there rather than a special case inside a component. A rower
+judges every piece in time per 500m, so `/mi` was a number no rower reads.
+
+The stored distance is untouched — the conversion happens at display. A new
+record carries `paceUnit` alongside its pace, so a card never has to infer the
+unit from the activity, and **a rowing session written before this phase still
+reads in `/mi`**: its stored number was a per-mile pace, and relabelling it a
+split would restate a number LOOP never computed.
+
+The remaining half of this is entry, which still asks for rowing distance in
+miles. Fixing that means a per-activity distance unit, which is storage
+semantics rather than presentation, and is left as its own phase.
+
+### Summary hierarchy
+
+Four equally weighted tiles said everything mattered the same amount. The
+activity's own primary metric — distance, or floors — now leads at its own size,
+the effort metric and the two calorie figures support it, and the elapsed time
+still outranks all of it. Three tiers: 54px, 30px, 18px.

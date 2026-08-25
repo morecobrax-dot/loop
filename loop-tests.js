@@ -8102,6 +8102,42 @@ function testCardio2(app){
     ctx.cardioUsesSpeed('cycle_outdoor') && !ctx.cardioUsesSpeed('run_outdoor')
     && !ctx.cardioUsesSpeed('rowing'));
 
+  sub('effort is spoken the way the sport speaks it');
+  T('running is paced per unit distance', ctx.cardioPaceMode('run_outdoor') === 'distance');
+  T('cycling is spoken in speed', ctx.cardioPaceMode('cycle_outdoor') === 'speed');
+  T('rowing is spoken in a 500m split', ctx.cardioPaceMode('rowing') === 'split');
+  T('one function decides for every screen', (() => {
+    const region = src.slice(src.indexOf('function cardioPaceMode'), src.indexOf('function cardioBodyWeightLb'));
+    return /function cardioEffortMetric/.test(region);
+  })());
+  T('the split is time per 500m, converted from the stored distance', (() => {
+    /* 3 miles is 4828m, which is 9.656 lots of 500m; 22 minutes over that is
+       2:17 per 500. */
+    return ctx.formatPace(ctx.cardioSplitSec(3, 22)) === '2:17';
+  })());
+  T('a split needs a distance like any other derived number',
+    ctx.cardioSplitSec(0, 22) === null && ctx.cardioSplitSec(3, 0) === null);
+  T('the effort metric names its own unit', (() => {
+    const row = ctx.cardioEffortMetric('rowing', 3, 22);
+    const run = ctx.cardioEffortMetric('run_outdoor', 3, 22);
+    const ride = ctx.cardioEffortMetric('cycle_outdoor', 3, 22);
+    return row.unit === '/500m' && run.unit === '/mi' && ride.unit === 'mph';
+  })());
+  T('a missing distance yields nothing rather than a zero',
+    ctx.cardioEffortMetric('rowing', '', 22).value === null &&
+    ctx.cardioEffortMetric('cycle_outdoor', '', 22).value === null);
+  /* The number stored in an old rowing session was a per-mile pace. Showing it
+     under a /500m label would silently restate a number LOOP never computed. */
+  T('a rowing record written before this phase still reads in its own unit',
+    ctx.cardioCardHtml({ id:'o', activityId:'rowing', activityName:'Rowing Machine',
+      date:'2026-08-01', duration:'20', distance:'2.5', pace:'8:00' }).indexOf('8:00 /mi') !== -1);
+  T('a new rowing record carries the unit it was measured in', (() => {
+    const region = src.slice(src.indexOf('function cardioSessionToRecord'), src.indexOf('async function saveCardioSessionFromSummary'));
+    return /rec\.paceUnit = eff\.unit/.test(region);
+  })());
+  T('cardio storage was not rewritten to make the split work',
+    ctx.DATA_KEYS.indexOf('cardioLog') !== -1 && ctx.DATA_KEYS.length === 15);
+
   sub('calories are an estimate with a published model behind them');
   ctx.athleteProfile.bodyWeightLb = null;
   T('no body weight means NO estimate, not a guessed one',
@@ -8190,6 +8226,28 @@ function testCardio2(app){
     !noWeight.some(t => t.key === 'activeCal' || t.key === 'totalCal'));
   ctx.athleteProfile.bodyWeightLb = 175;
 
+  sub('the summary has a hierarchy rather than six equal blocks');
+  T('one metric leads at its own size', /\.cs-sum-lead-v\{[^}]*font-size:\s*(\d+)px/.test(css));
+  T('the lead is larger than the supporting rows', (() => {
+    const lead = parseInt((css.match(/\.cs-sum-lead-v\{[^}]*font-size:\s*(\d+)px/) || [])[1], 10);
+    const row  = parseInt((css.match(/\.cs-sum-v\{[^}]*font-size:\s*(\d+)px/) || [])[1], 10);
+    return lead > row;
+  })());
+  T('the elapsed time still outranks everything on the summary', (() => {
+    const time = parseInt((css.match(/\.cs-sum-time\{[^}]*font-size:\s*(\d+)px/) || [])[1], 10);
+    const lead = parseInt((css.match(/\.cs-sum-lead-v\{[^}]*font-size:\s*(\d+)px/) || [])[1], 10);
+    return time > lead;
+  })());
+
+  sub('motion stays out of the way');
+  T('reduced motion disables the icon and card transitions',
+    /prefers-reduced-motion[\s\S]{0,500}transform:\s*none/.test(css));
+  T('nothing on the session screen animates continuously', (() => {
+    const region = css.slice(css.indexOf('ACTIVE SESSION PAGE'));
+    return !/animation:[^;]*infinite/.test(region);
+  })());
+  T('the completion mark plays once', /animation:\s*csPop[^;]*both/.test(css));
+
   sub('the session is a page, and its controls sit at the foot of it');
   T('the session is a true page, not a sheet over the tab',
     /id="cardioSessionOverlay"[^>]*class="[^"]*overlay-page|class="overlay overlay-page" id="cardioSessionOverlay"/.test(src));
@@ -8220,8 +8278,111 @@ function testCardio2(app){
      rather than left available to drift back. */
   T('activity marks come from one drawing function',
     /function cardioIconSvg\(activityId, size\)\{/.test(src));
-  T('there is a mark for every activity group',
-    ctx.CARDIO_ACTIVITIES.every(a => !!ctx.CARDIO_GROUP_ICON[a.group]));
+  T('every canonical activity resolves to an icon',
+    ctx.CARDIO_ACTIVITIES.every(a => !!ctx.getCardioIcon(a.id)));
+  T('the registry is keyed by canonical id, so an icon cannot drift off its activity',
+    Object.keys(ctx.CARDIO_ICONS).every(id => ctx.CARDIO_ACTIVITIES.some(a => a.id === id)));
+  T('the registry covers every activity and invents none',
+    Object.keys(ctx.CARDIO_ICONS).length === ctx.CARDIO_ACTIVITIES.length);
+  T('an unknown id falls back cleanly instead of rendering nothing', (() => {
+    const svg = ctx.cardioIconSvg('not_a_real_activity', 20);
+    return svg.indexOf('<svg') === 0 && svg.indexOf('<path') !== -1;
+  })());
+  T('the fallback is neutral — it does not claim to be some other activity',
+    ctx.getCardioIcon('not_a_real_activity') === ctx.getCardioIcon('cardio_other'));
+  T('asking for an icon never changes the activity it asked about', (() => {
+    const before = JSON.stringify(ctx.CARDIO_ACTIVITIES);
+    ctx.CARDIO_ACTIVITIES.forEach(a => ctx.cardioIconSvg(a.id, 24));
+    ctx.cardioIconSvg('unmapped_thing', 24);
+    return JSON.stringify(ctx.CARDIO_ACTIVITIES) === before;
+  })());
+
+  sub('the icons look like one family, and like the equipment they name');
+  /* The point of the family is recognition before reading. A treadmill that
+     draws a running figure fails that, however tidy the figure is. */
+  T('equipment activities do not borrow the running figure',
+    ctx.getCardioIcon('run_treadmill') !== ctx.getCardioIcon('run_outdoor') &&
+    ctx.getCardioIcon('elliptical') !== ctx.getCardioIcon('run_outdoor') &&
+    ctx.getCardioIcon('rowing') !== ctx.getCardioIcon('run_outdoor'));
+  T('the machines are told apart from each other', (() => {
+    const machines = ['rowing','elliptical','stair_climber','cycle_stationary','run_treadmill']
+      .map(id => ctx.getCardioIcon(id));
+    return new Set(machines).size === machines.length;
+  })());
+  T('running and walking are drawn differently',
+    ctx.getCardioIcon('run_outdoor') !== ctx.getCardioIcon('walk_outdoor'));
+  T('activities that genuinely share a look share one drawing, deliberately',
+    ctx.getCardioIcon('run_treadmill') === ctx.getCardioIcon('walk_treadmill') &&
+    ctx.getCardioIcon('stair_climber') === ctx.getCardioIcon('stepmill'));
+  T('every icon is drawn on the same grid',
+    /viewBox="0 0 24 24"/.test(ctx.cardioIconSvg('rowing', 20)));
+  T('every icon carries the same stroke weight and joins', (() => {
+    const svg = ctx.cardioIconSvg('elliptical', 20);
+    return /stroke-width="1.6"/.test(svg) && /stroke-linecap="round"/.test(svg)
+      && /stroke-linejoin="round"/.test(svg);
+  })());
+  T('no icon carries a fill, so none reads heavier than its siblings',
+    Object.values(ctx.CARDIO_ICONS).every(d => !/fill="(?!none)/.test(d)));
+  T('every icon draws inside the grid it declares', (() => {
+    /* Absolute coordinates only. Relative commands carry deltas, which are
+       legitimately negative and say nothing about where the pen is. */
+    const absolute = d => {
+      const out = [];
+      (d.match(/(?:cx|cy|x|y|width|height|r|rx|ry)="(-?\d+(?:\.\d+)?)"/g) || [])
+        .forEach(m => out.push(parseFloat(m.split('"')[1])));
+      (d.match(/[ML]\s*-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?/g) || [])
+        .forEach(m => (m.slice(1).trim().split(/\s+/)).forEach(v => out.push(parseFloat(v))));
+      return out;
+    };
+    const bad = [];
+    Object.keys(ctx.CARDIO_ICONS).forEach(id => {
+      absolute(ctx.CARDIO_ICONS[id]).forEach(v => { if(v < 0 || v > 24) bad.push(id + ':' + v); });
+    });
+    return bad.length === 0;
+  })());
+  T('the icons carry no emoji or unicode symbol',
+    Object.values(ctx.CARDIO_ICONS).every(d =>
+      !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u25A0-\u25FF]/u.test(d)));
+  T('the icon scales on request rather than being fixed',
+    ctx.cardioIconSvg('rowing', 48).indexOf('width="48"') !== -1 &&
+    ctx.cardioIconSvg('rowing', 32).indexOf('width="32"') !== -1);
+
+  sub('the icon identifies the activity on every cardio surface');
+  T('the launcher uses it', /class="cl-mark">\$\{cardioIconSvg\(/.test(src));
+  T('history uses it', /class="ch-mark[^"]*">\$\{cardioIconSvg\(/.test(src));
+  T('the live session uses it', /cs-activity-mark">\$\{cardioIconSvg\(cardioSession\.activityId/.test(src));
+  T('the summary uses it', /cs-activity-mark">\$\{cardioIconSvg\(s\.activityId/.test(src));
+  T('the manual logger uses it', /cd-glyph[^"]*">\$\{cardioIconSvg\(/.test(src));
+  T('one function draws all of them',
+    (src.match(/function cardioIconSvg/g) || []).length === 1);
+  T('each drawing exists exactly once, in the registry', (() => {
+    /* If a screen pasted its own copy of an activity's artwork, that shape
+       would appear twice and the two copies would drift apart. Checked per
+       tag, because the icons are assembled from several joined segments and a
+       runtime-value prefix would straddle the join. */
+    const dupes = [];
+    Object.keys(ctx.CARDIO_ICONS).forEach(id => {
+      (ctx.CARDIO_ICONS[id].match(/<[a-z]+[^>]*\/>/g) || []).forEach(tag => {
+        if(src.split(tag).length - 1 !== 1) dupes.push(id + ' ' + tag.slice(0, 40));
+      });
+    });
+    return dupes.length === 0;
+  })(), 'duplicated artwork');
+  T('screens ask for icons by id, never by artwork',
+    !/cl-mark">\s*<svg|ch-mark[^"]*">\s*<svg|cs-activity-mark">\s*<svg/.test(src));
+
+  sub('the icon supports the timer rather than competing with it');
+  T('the session mark is a fraction of the clock', (() => {
+    const clock = parseInt((css.match(/\.cs-clock\{[^}]*font-size:\s*(\d+)px/) || [])[1], 10);
+    return clock >= 40;   // the clock keeps its size; the mark is 17px inline
+  })());
+  T('the mark sits beside the activity name, not over the numbers',
+    /\.cs-activity\{[^}]*display:\s*flex/.test(css));
+
+  sub('selection does not rest on colour alone');
+  T('a selected activity is marked in the accessibility tree, not just painted',
+    /aria-pressed="true"/.test(css) || /aria-pressed/.test(src));
+  T('the chosen activity says it is selected', /'Selected'/.test(src));
   T('the group style carries colour only — no glyph character survives',
     Object.values(ctx.CARDIO_GROUP_STYLE).every(v => v.glyph === undefined && !!v.tone));
   T('no cardio surface renders an activity glyph character',
