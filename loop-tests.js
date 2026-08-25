@@ -6854,6 +6854,304 @@ async function testD11Safety(){
 }
 
 /* =========================================================
+   CONTRACT 71 — Log page redesign
+   ========================================================= */
+function testLogRedesign(app){
+  section('CONTRACT 71 — Log: history, consistency, one escape hatch');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const view = src.slice(src.indexOf('<div class="view" id="view-history">'),
+                         src.indexOf('<!-- DAY DETAIL SHEET -->'));
+
+  const D = n => { const d = new Date(Date.now() - n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  const mk = (i, cat, daysAgo) => ({ id:'lg'+i, date:D(daysAgo), category:cat,
+    title:(cat==='upper'?'Upper A':'Lower B'), notes:'',
+    exercises:[{ name: cat==='upper'?'Bench Press':'Back Squat', bodyweight:false,
+      sets:[{weight:'45',reps:'10',rir:'2',type:'working'},
+            {weight:'135',reps:'8',rir:'2',type:'working'},
+            {weight:'135',reps:'8',rir:'2',type:'working'}] }] });
+
+  sub('hierarchy — history first, escape hatch after it');
+  {
+    const order = ['log-hdr','historyConsistency','cal-card','historySelectedDay','custom-log-btn','historyRecent'];
+    const idx = order.map(k => view.indexOf(k));
+    T('every block is present', idx.every(i => i !== -1), order.join(','));
+    T('header, consistency, calendar, selected day, freeform, recent — in that order',
+      idx.every((v,i) => i === 0 || v > idx[i-1]), idx.join(','));
+    T('the page names itself', />Log<\/h2>/.test(view));
+    T('freeform sits BELOW the calendar, not above it',
+      view.indexOf('custom-log-btn') > view.indexOf('cal-card'));
+    T('freeform is still one tap, not hidden in a menu', /onclick="openFreeformLog\(\)"/.test(view));
+    T('it reads as secondary, not the page CTA',
+      /\.custom-log-btn\{[^}]*background: none/.test(css));
+  }
+
+  sub('the calendar is the hero — every past day answers');
+  {
+    ctx.workoutLog = [mk(0,'upper',1), mk(1,'lower',3), mk(2,'upper',6)];
+    ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
+    clearCaches(ctx);
+    ctx.historySelectedDate = null;
+    ctx.historyCalMonth = null;
+    ctx.renderHistoryCalendar();
+    const grid = doc.getElementById('historyCalGrid').innerHTML;
+    T('the month renders cells', (grid.match(/class="cal-cell/g) || []).length > 27);
+    T('past days are buttons, not inert divs', grid.indexOf('<button type="button" class="cal-cell') !== -1);
+    T('selecting a day is wired', grid.indexOf('selectHistoryDay(') !== -1);
+    T('logged days are marked', grid.indexOf('cal-has-log') !== -1);
+    T('every cell carries an accessible name', (grid.match(/aria-label=/g) || []).length > 20);
+    T('future days stay inert — nothing to answer yet',
+      !/cal-future[^>]*onclick/.test(grid));
+  }
+
+  sub('a new athlete has not "missed" anything');
+  {
+    /* The calendar used to mark every past scheduled day with no log as missed,
+       ignoring whether this athlete had started training at all — so a brand-new
+       athlete opened Log and saw a month of failures. computeConsistencyData()
+       has always applied a beforeHistory rule; the calendar now applies the same
+       one, so the two cannot disagree. */
+    ctx.workoutLog = [];
+    clearCaches(ctx);
+    ctx.historyCalMonth = null;
+    ctx.renderHistoryCalendar();
+    const grid = doc.getElementById('historyCalGrid').innerHTML;
+    T('no day is called missed before any history exists',
+      (grid.match(/cal-missed/g) || []).length === 0);
+    T('the calendar still renders for them', (grid.match(/class="cal-cell/g) || []).length > 27);
+  }
+  {
+    // ...but a real gap after training began is still surfaced honestly.
+    ctx.workoutLog = [mk(0,'upper',20)];
+    clearCaches(ctx);
+    ctx.historyCalMonth = null;
+    ctx.renderHistoryCalendar();
+    const grid = doc.getElementById('historyCalGrid').innerHTML;
+    T('a planned day skipped AFTER training began is still shown as missed',
+      (grid.match(/cal-missed/g) || []).length > 0);
+  }
+
+  sub('selecting a day answers it inline');
+  {
+    ctx.workoutLog = [mk(0,'upper',1), mk(1,'lower',3)];
+    clearCaches(ctx);
+    ctx.historyCalMonth = null;
+    ctx.selectHistoryDay(D(1));
+    const panel = doc.getElementById('historySelectedDay').innerHTML;
+    T('the day summary appears', panel.indexOf('sd-card') !== -1);
+    T('it names the workout', panel.indexOf('Upper A') !== -1);
+    T('it summarises rather than dumping every set',
+      /exercise/.test(panel) && /set/.test(panel) && panel.indexOf('RIR') === -1);
+    T('the full session is one deliberate tap further', panel.indexOf('openDayDetail(') !== -1);
+    T('the selected cell is marked',
+      doc.getElementById('historyCalGrid').innerHTML.indexOf('cal-selected') !== -1);
+  }
+  {
+    // A day with nothing logged is a real question, and now gets a real answer.
+    ctx.selectHistoryDay(D(2));
+    const panel = doc.getElementById('historySelectedDay').innerHTML;
+    T('an empty day still responds', panel.indexOf('sd-card') !== -1);
+    T('it says what was planned rather than nothing at all',
+      /planned|Rest day/.test(panel));
+    T('it is not presented as a tappable workout', panel.indexOf('openDayDetail(') === -1);
+  }
+  {
+    ctx.selectHistoryDay(D(2));   // tapping the same day again clears it
+    T('selecting the same day again deselects', ctx.historySelectedDate === null);
+    T('and the panel empties', doc.getElementById('historySelectedDay').innerHTML === '');
+  }
+
+  sub('consistency — one visual, no fabricated numbers');
+  {
+    ctx.workoutLog = [];
+    clearCaches(ctx);
+    T('nothing is claimed before there is anything to claim',
+      ctx.logConsistencyStripHtml() === '');
+    ctx.workoutLog = [mk(0,'upper',1), mk(1,'lower',3), mk(2,'upper',8), mk(3,'lower',10)];
+    clearCaches(ctx);
+    const strip = ctx.logConsistencyStripHtml();
+    T('it renders once there is history', strip.indexOf('lc-card') !== -1);
+    T('it is a rhythm, not a second day grid — one column per week',
+      (strip.match(/lc-col/g) || []).length <= 8 && (strip.match(/lc-col/g) || []).length > 0);
+    T('every column is described for assistive tech', (strip.match(/aria-label=/g) || []).length > 0);
+    /* Measured against the line the athlete actually reads. The markup also
+       contains height:NN% on each bar, which is a style value, not copy. */
+    const footIdx = strip.indexOf('class="lc-foot"');
+    const footLine = footIdx === -1 ? '' : strip.slice(footIdx, strip.indexOf('</div>', footIdx));
+    T('the supporting line is a sentence, not a percentage wall',
+      /session/.test(footLine) && !/%/.test(footLine));
+    T('it does not duplicate the calendar below it', strip.indexOf('cal-cell') === -1);
+  }
+
+  sub('recent sessions are scannable, not a wall');
+  {
+    const many = [];
+    for(let i = 0; i < 40; i++) many.push(mk(i, i%2 ? 'upper':'lower', i*2));
+    ctx.workoutLog = many;
+    clearCaches(ctx);
+    const html = ctx.recentWorkoutsHtml(8);
+    T('it shows a capped, scannable slice', (html.match(/rw-row/g) || []).length === 8);
+    T('each row is a summary, never every set',
+      html.indexOf('RIR') === -1 && html.indexOf('log-ex-sets') === -1);
+    T('each row carries name, date and volume', /rw-title/.test(html) && /rw-meta/.test(html));
+    T('each row opens the full session', (html.match(/openDayDetail\(/g) || []).length === 8);
+    T('more history is available without leaving the page', html.indexOf('showAllRecent') !== -1);
+    T('the deeper slice is capped too — a two-year log cannot render thousands of rows',
+      (ctx.recentWorkoutsHtml(50).match(/rw-row/g) || []).length === 40);
+  }
+
+  sub('the 39,000px feed is gone');
+  {
+    T('the old list subview markup is gone',
+      view.indexOf('id="sv-list"') === -1 && view.indexOf('id="historyFeed"') === -1);
+    T('and its renderer with it', src.indexOf('function renderHistory(){') === -1);
+    T('deleting a workout is still reachable from the day sheet',
+      /id="dayDetailDeleteBtn"/.test(src));
+    T('the by-exercise lens survives as a secondary view',
+      view.indexOf('id="sv-exercise"') !== -1 && /log-lens/.test(view));
+  }
+
+  sub('empty state is intentional, not a page of zeroes');
+  {
+    ctx.workoutLog = [];
+    clearCaches(ctx);
+    ctx.renderLogPage();
+    const empty = doc.getElementById('historyEmpty').innerHTML;
+    T('a new athlete is told what this page becomes', /training history starts here/i.test(empty));
+    T('and how to use it', /Tap any day/i.test(empty));
+    T('no consistency block is shown', doc.getElementById('historyConsistency').innerHTML === '');
+    T('no recent block is shown', doc.getElementById('historyRecent').innerHTML === '');
+    T('no zero statistics anywhere on the page',
+      !/>0 </.test(empty) && !/0%/.test(empty));
+    T('the freeform escape hatch is still offered', /openFreeformLog\(\)/.test(view));
+  }
+
+  sub('iconography — no characters standing in for icons');
+  {
+    T('month navigation uses real chevrons, not ‹ ›',
+      view.indexOf('‹') === -1 && view.indexOf('›') === -1);
+    T('a left chevron joined the shared icon set', typeof ctx.chevronLeftSvg === 'function');
+    T('both chevrons are inline SVG', /<svg/.test(ctx.chevronLeftSvg()) && /<svg/.test(ctx.chevronRightSvg()));
+    T('no emoji or text arrows on the page', !/[↗↘↑↓→←✓]/.test(view));
+  }
+
+  sub('touch targets and layout');
+  {
+    T('calendar cells are square and reach the floor',
+      /\.cal-cell\{[^}]*aspect-ratio: 1/.test(css));
+    T('the grid bleeds to the card edge so cells clear 44px',
+      /\.cal-grid\{[^}]*margin: 6px -12px 0/.test(css));
+    T('month navigation is 44px', /\.cal-nav-btn\{[^}]*width: 44px; height: 44px/.test(css));
+    T('the freeform button is 48px', /\.custom-log-btn\{[^}]*min-height: 48px/.test(css));
+    T('recent rows are 60px', /\.rw-row\{[^}]*min-height: 60px/.test(css));
+    T('the grid stops growing on a wide viewport rather than making giant cells',
+      /@media \(min-width: 560px\)\{\s*\n\s*\.cal-grid, \.cal-weekdays\{ max-width: 392px/.test(css));
+    T('selection has a visible state', /\.cal-selected\{[^}]*border-color: var\(--accent\)/.test(css));
+    T('the day panel respects reduced motion',
+      /@media \(prefers-reduced-motion: reduce\)\{ \.sd-card\{ animation: none/.test(css));
+  }
+
+  sub('Log is not Progress');
+  {
+    const logFns = src.slice(src.indexOf('let historySelectedDate'), src.indexOf('function shiftHistoryMonth'));
+    T('no trend analysis on Log', !/computeExerciseTrends|trendIconSvg/.test(logFns));
+    T('no capability, recovery or mastery on Log',
+      !/getExerciseCapability|computeMuscleRecovery|getExerciseMastery/.test(logFns));
+    T('no XP or level on Log', !/getCurrentProgression|xpForNext/.test(logFns));
+    T('it reads only history, schedule and consistency',
+      /workoutLog/.test(logFns) && /computeConsistencyData/.test(logFns));
+  }
+}
+
+/* =========================================================
+   CONTRACT 72 — the Log redesign changed presentation only
+   ========================================================= */
+async function testLogSafety(){
+  section('CONTRACT 72 — Log redesign touched no training data');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const storeKeysBefore = Object.keys(app.store).sort().join(',');
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const masteryBefore = JSON.stringify(ctx.getTopExerciseMastery());
+  const scheduleBefore = JSON.stringify(ctx.schedule);
+  const notesBefore = app.store.exerciseNotes;
+  const gymBefore = app.store.gymProfile;
+  const programsBefore = app.store.programs;
+  const draftBefore = app.store.activeWorkoutDraft;
+
+  sub('drive the whole page, including the stressful paths');
+  ctx.renderLogPage();
+  ctx.renderHistoryCalendar();
+  ctx.logConsistencyStripHtml();
+  ctx.recentWorkoutsHtml(8);
+  ctx.recentWorkoutsHtml(50);
+  // rapid month navigation, both directions, across year boundaries
+  for(let i = 0; i < 30; i++) ctx.shiftHistoryMonth(i % 2 ? 1 : -1);
+  for(let i = 0; i < 14; i++) ctx.shiftHistoryMonth(-1);
+  for(let i = 0; i < 14; i++) ctx.shiftHistoryMonth(1);
+  // rapid selection, including days with and without sessions
+  const dates = ctx.sortedLog().slice(0, 12).map(l => l.date);
+  for(let i = 0; i < 40; i++) ctx.selectHistoryDay(dates[i % dates.length] || '2020-01-01');
+  ctx.selectHistoryDay(null);
+  ctx.setHistorySubView('exercise');
+  ctx.setHistorySubView('calendar');
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('cardio XP unchanged', ctx.getCurrentProgression().cardioXP === progBefore.cardioXP);
+  T('level unchanged', after.level === before.level);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('mastery unchanged', JSON.stringify(ctx.getTopExerciseMastery()) === masteryBefore);
+  T('schedule unchanged — browsing history never edits the plan',
+    JSON.stringify(ctx.schedule) === scheduleBefore);
+  T('exercise notes unchanged', app.store.exerciseNotes === notesBefore);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('programs unchanged', app.store.programs === programsBefore);
+  T('an unfinished workout is preserved', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('no storage, no migration');
+  T('no storage key created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
+  T('the selected day is memory-only — Log does not remember a date across launches',
+    !ctx.DATA_KEYS.some(k => /history|selectedDate|calendar/i.test(k)));
+  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
+
+  sub('trainer untouched');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created by browsing history',
+    ctx.trainerLog.entries.length === trainerBefore);
+  {
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    const mod = src.slice(src.indexOf('let historySelectedDate'), src.indexOf('function shiftHistoryMonth'));
+    T('the new code writes no storage',
+      mod.indexOf('LOOPStore.set') === -1 && mod.indexOf('localStorage') === -1);
+    T('it calls no trainer function',
+      !/proposeTrainerState|computeShadowRecommendation|logRecommendation/.test(mod));
+    T('it never writes workoutLog', !/workoutLog\s*(=[^=]|\.push|\.splice|\.sort\()/.test(mod));
+    T('it never writes the schedule', !/schedule\s*\[[^\]]+\]\s*=/.test(mod));
+  }
+}
+
+/* =========================================================
    RUNNER
    ========================================================= */
 async function main(){
@@ -6901,6 +7199,7 @@ async function main(){
   testD10Consolidation(H.loadApp());
   testD101Responsive(H.loadApp());
   testD11Consolidation(H.loadApp());
+  testLogRedesign(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -6938,6 +7237,7 @@ async function main(){
     await testD10Safety();
     await testD101Safety();
     await testD11Safety();
+    await testLogSafety();
   }
 
   // ---- FULL ----

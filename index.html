@@ -1608,29 +1608,134 @@ html.intro-skip #introOverlay{ display: none !important; }
 .hist-filters{ display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
 
 /* ---- History sub-view toggle ---- */
-.subview-toggle{ display: flex; gap: 6px; margin-top: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 4px; }
-.subview-btn{
-  flex: 1; background: none; border: none; color: var(--text-faint); padding: 9px 4px;
-  border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
-}
-.subview-btn.active{ background: var(--accent); color: #0C0E12; }
 .history-subview{ margin-top: 4px; }
 
+/* ---------- LOG (Phase D12) ---------- */
+.log-hdr{ display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.log-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 26px; letter-spacing: -0.01em; margin: 0; }
+.log-sub{ font-size: 12.5px; color: var(--text-faint); }
+
+/* Consistency: eight weekly columns. Deliberately not another day grid — the
+   calendar below already shows a month of days. */
+.lc-card{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 14px 14px 12px; margin-top: 14px;
+}
+.lc-top{ display: flex; align-items: baseline; justify-content: space-between; }
+.lc-title{ font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.lc-range{ font-size: 10.5px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
+.lc-bars{ display: flex; align-items: flex-end; gap: 5px; height: 46px; margin-top: 12px; }
+.lc-col{ flex: 1; height: 100%; display: flex; align-items: flex-end; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.lc-fill{ display: block; width: 100%; background: var(--text-faint); border-radius: 3px; transition: height 0.3s var(--ease); }
+.lc-col.on .lc-fill{ background: var(--success); }
+.lc-col.now{ box-shadow: 0 0 0 1.5px var(--accent); }
+.lc-foot{ margin-top: 10px; font-size: 11.5px; color: var(--text-dim); }
+.lc-foot b{ color: var(--text); font-weight: 700; }
+
+.cal-card{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 12px 12px 14px; margin-top: 14px;
+}
+
+/* Selected day, answered inline instead of in a modal. */
+.sd-card{
+  display: block; width: 100%; text-align: left; margin-top: 12px; padding: 14px;
+  background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg);
+  cursor: pointer; font-family: 'Inter', sans-serif;
+  animation: sdIn 0.18s var(--ease) both;
+}
+@keyframes sdIn{ from{ opacity: 0; transform: translateY(-4px); } to{ opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce){ .sd-card{ animation: none; } }
+.sd-card-empty{ border-color: var(--border); border-style: dashed; cursor: default; }
+.sd-head{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sd-date{ font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
+.sd-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; color: var(--text); margin-top: 8px; }
+.sd-meta{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; }
+.sd-prs{ display: inline-block; margin-top: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--success); background: var(--success-soft); padding: 3px 8px; border-radius: var(--radius-sm); }
+.sd-go{ display: flex; align-items: center; gap: 5px; margin-top: 12px; font-size: 12.5px; font-weight: 600; color: var(--accent); }
+
+/* Recent sessions: one scannable row each, detail one tap away. */
+.rw-list{ display: flex; flex-direction: column; margin-top: 4px; }
+.rw-row{
+  display: flex; align-items: center; gap: 11px; width: 100%; min-height: 60px; padding: 10px 4px;
+  background: none; border: none; border-bottom: 1px solid var(--border); cursor: pointer;
+  text-align: left; font-family: 'Inter', sans-serif;
+}
+.rw-row:last-child{ border-bottom: none; }
+.rw-row:active{ background: var(--surface-2); }
+.rw-accent{ width: 3px; align-self: stretch; border-radius: 2px; background: var(--text-faint); flex-shrink: 0; }
+.rw-accent.cat-push{ background: var(--push); }   .rw-accent.cat-pull{ background: var(--pull); }
+.rw-accent.cat-legs{ background: var(--legs); }   .rw-accent.cat-core{ background: var(--core); }
+.rw-accent.cat-fullbody{ background: var(--full); } .rw-accent.cat-upper{ background: var(--upper); }
+.rw-accent.cat-lower{ background: var(--lower); }
+.rw-body{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rw-title{ font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rw-meta{ font-size: 11.5px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
+.rw-pr{ font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; color: var(--success);
+  background: var(--success-soft); padding: 3px 6px; border-radius: var(--radius-sm); flex-shrink: 0; }
+.rw-go{ display: flex; color: var(--text-faint); flex-shrink: 0; }
+.rw-more{
+  width: 100%; min-height: 44px; margin-top: 10px; background: none;
+  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-dim);
+  font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.rw-more:hover{ color: var(--accent); border-color: var(--accent); }
+
+.log-lens{
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; margin-top: 18px;
+  padding: 0 14px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer; text-align: left; font-family: 'Inter', sans-serif;
+}
+.log-lens-main{ flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text); }
+.log-lens-go{ display: flex; color: var(--text-faint); }
+.log-back{
+  display: inline-flex; align-items: center; gap: 5px; min-height: 44px; margin-bottom: 6px;
+  background: none; border: none; color: var(--accent); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+}
+.log-empty{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 18px 16px; margin-top: 14px;
+}
+.log-empty-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; color: var(--text); }
+.log-empty-sub{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+
+@media (min-width: 560px){
+  .cal-grid, .cal-weekdays{ max-width: 392px; margin-left: auto; margin-right: auto; }
+}
 /* ---- Training calendar ---- */
 .cal-nav{ display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
 .cal-nav-btn{
-  width: 36px; height: 36px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-2);
+  width: 44px; height: 44px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-2);
   color: var(--text-dim); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
 }
+.cal-nav-btn:hover{ border-color: var(--accent); color: var(--accent); }
 .cal-nav-label{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; }
-.cal-weekdays{ display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-top: 12px; text-align: center; }
+.cal-weekdays{ display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin: 12px -12px 0; text-align: center; }
 .cal-weekdays span{ font-size: 10px; color: var(--text-faint); font-weight: 700; }
-.cal-grid{ display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-top: 6px; }
+.cal-grid{ display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin: 6px -12px 0; }
 .cal-cell{
   position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); border: 1px solid var(--border);
-  background: var(--surface-2); display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; padding: 0; font-family: 'Inter', sans-serif;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
 }
+button.cal-cell{ cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button.cal-cell:active{ transform: scale(0.92); }
+/* Selection is the page's primary interaction, so it reads clearly. */
+.cal-selected{ border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.cal-selected .cal-daynum{ color: var(--text); font-weight: 700; }
+/* State marks: filled = trained, ring = planned ahead, hollow = planned and not logged. */
+.cal-mark{ width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.cal-mark-done{ background: var(--success); }
+.cal-mark-planned{ border: 1px solid var(--text-faint); }
+.cal-mark-missed{ border: 1px solid var(--warning); }
+/* Upper and Lower had no category colour at all — the default plan's own two
+   categories rendered as plain cells. */
+.cal-cat-upper{ background: var(--upper-soft); border-color: var(--upper); }
+.cal-cat-lower{ background: var(--lower-soft); border-color: var(--lower); }
 .cal-empty{ border: none; background: none; }
 .cal-daynum{ font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
 .cal-rest{ opacity: 0.5; }
@@ -1646,13 +1751,6 @@ html.intro-skip #introOverlay{ display: none !important; }
 .cal-cat-core{ background: var(--core-soft); border-color: var(--core); }
 .cal-cat-fullbody{ background: var(--full-soft); border-color: var(--full); }
 .cal-pr-dot{ position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--full); }
-.cal-legend{ display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
-.cal-legend-item{ display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--text-faint); }
-.cal-legend-dot{ width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-.cal-legend-log{ background: var(--push); }
-.cal-legend-rest{ background: var(--surface-3); border: 1px solid var(--border); }
-.cal-legend-missed{ background: none; border: 1px dashed var(--pull); }
-.cal-legend-pr{ background: var(--full); border-radius: 50%; }
 
 /* ---- Exercise history ---- */
 .ex-history-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; margin-top: 16px; text-transform: uppercase; letter-spacing: 0.02em; }
@@ -1665,7 +1763,6 @@ html.intro-skip #introOverlay{ display: none !important; }
   display: inline-flex; align-items: center; min-height: 44px;
 }
 .filter-chip.active{ background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.log-card{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 15px 16px; margin-top: 10px; }
 .log-top{ display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .log-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px; }
 .log-date{ font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-faint); margin-top: 2px; }
@@ -1689,8 +1786,9 @@ html.intro-skip #introOverlay{ display: none !important; }
 .empty h3{ font-family: 'Space Grotesk', sans-serif; color: var(--text); font-size: 16px; margin: 0 0 4px; }
 
 .custom-log-btn{
-  width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
-  padding: 12px; border-radius: var(--radius-lg); font-weight: 600; font-size: 13px; cursor: pointer; margin-bottom: 4px;
+  width: 100%; min-height: 48px; background: none; border: 1px solid var(--border); color: var(--text);
+  padding: 12px; border-radius: var(--radius-lg); font-weight: 600; font-size: 13px; cursor: pointer;
+  margin-top: 14px; font-family: 'Inter', sans-serif;
 }
 .custom-log-btn:hover{ border-color: var(--accent); }
 
@@ -3008,38 +3106,43 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 
   <div class="view" id="view-history">
-    <button class="custom-log-btn" onclick="openFreeformLog()">+ Log a freeform workout</button>
-
-    <div class="subview-toggle">
-      <button class="subview-btn active" data-sv="calendar" onclick="setHistorySubView('calendar')">Calendar</button>
-      <button class="subview-btn" data-sv="list" onclick="setHistorySubView('list')">List</button>
-      <button class="subview-btn" data-sv="exercise" onclick="setHistorySubView('exercise')">By Exercise</button>
+    <div class="log-hdr">
+      <h2 class="log-title">Log</h2>
+      <span class="log-sub">Your training history</span>
     </div>
 
     <div class="history-subview" id="sv-calendar">
-      <div class="cal-nav">
-        <button class="cal-nav-btn" onclick="shiftHistoryMonth(-1)">‹</button>
-        <div class="cal-nav-label" id="historyCalLabel"></div>
-        <button class="cal-nav-btn" onclick="shiftHistoryMonth(1)">›</button>
-      </div>
-      <div class="cal-weekdays">
-        <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
-      </div>
-      <div class="cal-grid" id="historyCalGrid"></div>
-      <div class="cal-legend">
-        <span class="cal-legend-item"><span class="cal-legend-dot cal-legend-log"></span>Trained</span>
-        <span class="cal-legend-item"><span class="cal-legend-dot cal-legend-rest"></span>Rest</span>
-        <span class="cal-legend-item"><span class="cal-legend-dot cal-legend-missed"></span>Missed</span>
-        <span class="cal-legend-item"><span class="cal-legend-dot cal-legend-pr"></span>PR</span>
-      </div>
-    </div>
+      <div id="historyEmpty"></div>
+      <div id="historyConsistency"></div>
 
-    <div class="history-subview" id="sv-list" style="display:none">
-      <div class="hist-filters" id="histFilters"></div>
-      <div id="historyFeed"></div>
+      <div class="cal-card">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="shiftHistoryMonth(-1)" aria-label="Previous month"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8L10 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div class="cal-nav-label" id="historyCalLabel"></div>
+          <button class="cal-nav-btn" onclick="shiftHistoryMonth(1)" aria-label="Next month"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+        <div class="cal-weekdays" aria-hidden="true">
+          <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+        </div>
+        <div class="cal-grid" id="historyCalGrid"></div>
+      </div>
+
+      <div id="historySelectedDay"></div>
+
+      <button class="custom-log-btn" onclick="openFreeformLog()">Log a freeform workout</button>
+
+      <div id="historyRecent"></div>
+
+      <button type="button" class="log-lens" onclick="setHistorySubView('exercise')">
+        <span class="log-lens-main">Browse by exercise</span>
+        <span class="log-lens-go" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
     </div>
 
     <div class="history-subview" id="sv-exercise" style="display:none">
+      <button type="button" class="log-back" onclick="setHistorySubView('calendar')">
+        <span aria-hidden="true"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8L10 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Back to calendar
+      </button>
       <select id="exHistorySelect" onchange="renderExerciseHistoryList()"></select>
       <div id="exHistoryList"></div>
     </div>
@@ -4860,7 +4963,6 @@ let schedule = null;
 let planStartDate = null;
 let dismissedMissedDates = [];
 let workoutLog = [];
-let activeHistFilter = 'all';
 let historySubView = 'calendar';
 let historyCalMonth = null;
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -6006,6 +6108,9 @@ function trendDirOf(v){
   if(t === 'up' || t === 'improving' || t === 'increase') return 'up';
   if(t === 'down' || t === 'declining' || t === 'decrease') return 'down';
   return 'flat';
+}
+function chevronLeftSvg(){
+  return `<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8L10 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 function chevronRightSvg(){
   return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -9178,59 +9283,14 @@ function setTrainCategory(cat){
 }
 
 /* ---------- RENDER: HISTORY ---------- */
-function renderHistory(){
-  const filters = ['all', ...ORDER];
-  document.getElementById('histFilters').innerHTML = filters.map(f => `
-    <button class="filter-chip ${f===activeHistFilter?'active':''}" onclick="setHistFilter('${f}')">${f==='all'?'All':CAT_LABEL[f]}</button>
-  `).join('');
-
-  const logs = sortedLog().filter(l => activeHistFilter==='all' || l.category===activeHistFilter);
-  const feed = document.getElementById('historyFeed');
-
-  if(logs.length === 0){
-    feed.innerHTML = `<div class="empty"><div class="mark">○</div><h3>No sessions yet</h3><div>Log a workout to start your history.</div></div>`;
-    return;
-  }
-
-  const LIST_CAP = 100;
-  const shownLogs = logs.slice(0, LIST_CAP);
-
-  feed.innerHTML = shownLogs.map(l => `
-    <div class="log-card">
-      <div class="log-top">
-        <div>
-          <div class="log-title">${escapeHtml(l.title)}</div>
-          <div class="log-date">${formatDateShort(l.date)}</div>
-        </div>
-        <div style="display:flex; align-items:center; gap:14px;">
-          <span class="cat-chip ${l.category}">${CAT_LABEL[l.category]}</span>
-          <button class="log-del" onclick="deleteLog('${l.id}')">✕</button>
-        </div>
-      </div>
-      ${l.exercises.map(ex => `
-        <div class="log-ex-block">
-          <div class="log-ex-name-line">
-            <span>${escapeHtml(ex.name)}</span>
-          </div>
-          <div class="log-ex-sets">
-            ${(ex.sets||[]).map(s => setChipHtml(s, ex.bodyweight)).join('')}
-          </div>
-        </div>
-      `).join('')}
-      ${l.notes ? `<div class="log-notes">"${escapeHtml(l.notes)}"</div>` : ''}
-    </div>
-  `).join('') + (logs.length > LIST_CAP ? `<div class="list-cap-note">Showing your ${LIST_CAP} most recent sessions. Use Calendar or By Exercise to browse further back.</div>` : '');
-}
-function setHistFilter(f){ activeHistFilter = f; renderHistory(); }
-
-/* ---------- HISTORY SUB-VIEWS: Calendar / List / By Exercise ---------- */
+/* ---------- LOG: the calendar page, and one secondary exercise lens ---------- */
 function setHistorySubView(sv){
   historySubView = sv;
-  document.querySelectorAll('.subview-btn').forEach(b => b.classList.toggle('active', b.dataset.sv === sv));
-  document.getElementById('sv-calendar').style.display = sv === 'calendar' ? 'block' : 'none';
-  document.getElementById('sv-list').style.display = sv === 'list' ? 'block' : 'none';
-  document.getElementById('sv-exercise').style.display = sv === 'exercise' ? 'block' : 'none';
-  if(sv === 'calendar') renderHistoryCalendar();
+  const cal = document.getElementById('sv-calendar');
+  const ex = document.getElementById('sv-exercise');
+  if(cal) cal.style.display = sv === 'calendar' ? 'block' : 'none';
+  if(ex) ex.style.display = sv === 'exercise' ? 'block' : 'none';
+  if(sv === 'calendar'){ renderLogPage(); renderHistoryCalendar(); }
   if(sv === 'exercise') renderExerciseHistorySelect();
 }
 
@@ -9281,6 +9341,63 @@ function estimateLoggedDuration(entry){
   return Math.max(10, Math.round(totalSec / 60 / 5) * 5);
 }
 
+/* =========================================================
+   LOG  (Phase D12)
+   ---------------------------------------------------------
+   Log answers "what have I done", secondarily "how consistent
+   have I been", and offers one escape hatch for training that
+   was not planned. It is deliberately NOT a second Progress:
+   no trends, no projections, no improvement analytics.
+
+   Everything is derived from workoutLog, the plan schedule and
+   computeConsistencyData(). No storage key, and the selected
+   day lives in memory only — a page you return to should not
+   remember a date you tapped last week.
+   ========================================================= */
+
+let historySelectedDate = null;
+
+/* One visual, eight weeks. Deliberately NOT another day grid: the calendar
+   directly below already shows a month of days, and repeating that shape
+   twice would say the same thing in the same way. Sessions per week against
+   the week's own target answers "how consistent have I been" at a glance. */
+function logConsistencyStripHtml(){
+  let weeks = [];
+  try{ weeks = (computeConsistencyData().weeks || []).slice(-8); }catch(e){ return ''; }
+  if(!weeks.length) return '';
+
+  const totalDone = weeks.reduce((n, w) => n + w.workouts, 0);
+  if(!totalDone) return '';                       // nothing to be consistent about yet
+
+  const totalTarget = weeks.reduce((n, w) => n + (w.target || 0), 0);
+  const peak = Math.max(1, ...weeks.map(w => Math.max(w.workouts, w.target || 0)));
+
+  const bars = weeks.map((w, i) => {
+    const pct = Math.round((w.workouts / peak) * 100);
+    const onTarget = w.target ? w.workouts >= w.target : w.workouts > 0;
+    const isNow = i === weeks.length - 1;
+    return `<span class="lc-col${onTarget ? ' on' : ''}${isNow ? ' now' : ''}" role="img"
+      aria-label="${w.workouts} session${w.workouts === 1 ? '' : 's'}${w.target ? ' of ' + w.target + ' planned' : ''}">
+      <span class="lc-fill" style="height:${Math.max(pct, w.workouts ? 12 : 4)}%"></span>
+    </span>`;
+  }).join('');
+
+  return `
+    <div class="lc-card">
+      <div class="lc-top">
+        <span class="lc-title">Consistency</span>
+        <span class="lc-range">Last 8 weeks</span>
+      </div>
+      <div class="lc-bars">${bars}</div>
+      <div class="lc-foot">${totalTarget
+        ? `<b>${totalDone}</b> of ${totalTarget} planned sessions`
+        : `<b>${totalDone}</b> session${totalDone === 1 ? '' : 's'} logged`}</div>
+    </div>`;
+}
+
+/* The calendar is the page's primary interaction, so every past day responds —
+   not only the ones that happen to hold a workout. Tapping an empty day is a
+   real question ("what was I meant to do?") and it now gets a real answer. */
 function renderHistoryCalendar(){
   if(!historyCalMonth){
     const d = new Date();
@@ -9295,6 +9412,14 @@ function renderHistoryCalendar(){
   const dayMap = {};
   workoutLog.forEach(l => { if(!dayMap[l.date]) dayMap[l.date] = l; });
 
+  /* A day before this athlete's first ever workout was not "missed" — they had
+     not started yet. computeConsistencyData() has always applied this rule;
+     the calendar did not, so a brand-new athlete opened Log and saw a month of
+     missed days they were never given the chance to train. Same rule, one
+     source of truth. */
+  let firstLogDate = null;
+  workoutLog.forEach(l => { if(!firstLogDate || l.date < firstLogDate) firstLogDate = l.date; });
+
   let cells = '';
   for(let i=0; i<startOffset; i++) cells += `<div class="cal-cell cal-empty"></div>`;
   for(let d=1; d<=daysInMonth; d++){
@@ -9305,27 +9430,164 @@ function renderHistoryCalendar(){
     const entry = dayMap[dateStr];
     const dayKey = JS_DAY_TO_KEY[dt.getDay()];
     const scheduledCat = schedule ? schedule[dayKey] : 'rest';
+    const beforeHistory = !firstLogDate || dateStr < firstLogDate;
 
     let cls = 'cal-cell';
-    let prDot = '';
+    let mark = '';
     if(entry){
       cls += ' cal-has-log cal-cat-' + entry.category;
-      if(getSessionPRs(entry).length) prDot = `<span class="cal-pr-dot"></span>`;
+      mark = `<span class="cal-mark cal-mark-done"></span>`;
+      if(getSessionPRs(entry).length) mark += `<span class="cal-pr-dot" aria-hidden="true"></span>`;
     } else if(isFuture){
       cls += ' cal-future';
-    } else if(scheduledCat === 'rest'){
+      if(scheduledCat && scheduledCat !== 'rest') mark = `<span class="cal-mark cal-mark-planned"></span>`;
+    } else if(scheduledCat === 'rest' || beforeHistory){
       cls += ' cal-rest';
     } else {
       cls += ' cal-missed';
+      mark = `<span class="cal-mark cal-mark-missed"></span>`;
     }
     if(isToday) cls += ' cal-today';
+    if(dateStr === historySelectedDate) cls += ' cal-selected';
 
-    cells += `<div class="${cls}" ${entry ? `onclick="openDayDetail('${dateStr}')"` : ''}><span class="cal-daynum">${d}</span>${prDot}</div>`;
+    // Future days stay inert; everything up to today is answerable.
+    const selectable = !isFuture;
+    cells += `<${selectable ? 'button type="button"' : 'div'} class="${cls}"
+      ${selectable ? `onclick="selectHistoryDay('${dateStr}')" aria-label="${escapeAttr(dt.toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'}))}"` : 'aria-hidden="true"'}
+      ><span class="cal-daynum">${d}</span>${mark}</${selectable ? 'button' : 'div'}>`;
   }
 
   document.getElementById('historyCalGrid').innerHTML = cells;
   document.getElementById('historyCalLabel').textContent = MONTH_NAMES[m-1] + ' ' + y;
+  renderSelectedDay();
 }
+
+/* Selecting a day answers it inline rather than throwing a modal at the
+   athlete. The full session is one deliberate tap further in. */
+function selectHistoryDay(dateStr){
+  historySelectedDate = (historySelectedDate === dateStr) ? null : dateStr;
+  renderHistoryCalendar();
+}
+
+function renderSelectedDay(){
+  const el = document.getElementById('historySelectedDay');
+  if(!el) return;
+  if(!historySelectedDate){ el.innerHTML = ''; return; }
+
+  const dateStr = historySelectedDate;
+  const dt = new Date(dateStr + 'T00:00:00');
+  const nice = dt.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+  const entry = workoutLog.find(l => l.date === dateStr);
+
+  if(entry){
+    const exCount = (entry.exercises || []).length;
+    const setCount = (entry.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
+    let mins = null;
+    try{ mins = estimateLoggedDuration(entry); }catch(e){}
+    let prs = [];
+    try{ prs = getSessionPRs(entry); }catch(e){}
+    const meta = [
+      exCount + ' exercise' + (exCount === 1 ? '' : 's'),
+      setCount + ' set' + (setCount === 1 ? '' : 's'),
+      mins ? '~' + mins + ' min' : null
+    ].filter(Boolean).join(' · ');
+
+    el.innerHTML = `
+      <button type="button" class="sd-card" onclick="openDayDetail('${dateStr}')">
+        <div class="sd-head">
+          <span class="sd-date">${escapeHtml(nice)}</span>
+          <span class="cat-chip ${entry.category}">${CAT_LABEL[entry.category]}</span>
+        </div>
+        <div class="sd-title">${escapeHtml(entry.title)}</div>
+        <div class="sd-meta">${escapeHtml(meta)}</div>
+        ${prs.length ? `<div class="sd-prs">${prs.length} new record${prs.length === 1 ? '' : 's'}</div>` : ''}
+        <span class="sd-go">View full workout ${chevronRightSvg()}</span>
+      </button>`;
+    return;
+  }
+
+  // No session that day — say what it was, without calling it a failure.
+  const dayKey = JS_DAY_TO_KEY[dt.getDay()];
+  const scheduledCat = schedule ? schedule[dayKey] : 'rest';
+  let firstLogDate = null;
+  workoutLog.forEach(l => { if(!firstLogDate || l.date < firstLogDate) firstLogDate = l.date; });
+  const beforeHistory = !firstLogDate || dateStr < firstLogDate;
+  const isFuture = dateStr > localDateStr();
+
+  let line;
+  if(scheduledCat && scheduledCat !== 'rest' && !beforeHistory && !isFuture){
+    line = `${CAT_LABEL[scheduledCat]} was planned — nothing logged.`;
+  } else if(scheduledCat && scheduledCat !== 'rest'){
+    line = `${CAT_LABEL[scheduledCat]} is planned.`;
+  } else {
+    line = 'Rest day.';
+  }
+
+  el.innerHTML = `
+    <div class="sd-card sd-card-empty">
+      <div class="sd-head"><span class="sd-date">${escapeHtml(nice)}</span></div>
+      <div class="sd-meta">${escapeHtml(line)}</div>
+    </div>`;
+}
+
+/* Recent sessions as scannable rows. The old feed rendered every exercise and
+   every set of every workout inline — 50 sessions came to 39,000px, so finding
+   one from two weeks ago meant scrolling past ten full screens. The detail did
+   not disappear; it moved one tap away, where it is actually read. */
+function recentWorkoutsHtml(limit){
+  const logs = sortedLog();
+  if(!logs.length) return '';
+  const shown = logs.slice(0, limit || 8);
+  const rows = shown.map(l => {
+    const exCount = (l.exercises || []).length;
+    const setCount = (l.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
+    let prs = 0;
+    try{ prs = getSessionPRs(l).length; }catch(e){}
+    return `
+      <button type="button" class="rw-row" onclick="openDayDetail('${l.date}')">
+        <span class="rw-accent cat-${l.category}"></span>
+        <span class="rw-body">
+          <span class="rw-title">${escapeHtml(l.title)}</span>
+          <span class="rw-meta">${formatDateShort(l.date)} · ${exCount} exercise${exCount===1?'':'s'} · ${setCount} set${setCount===1?'':'s'}</span>
+        </span>
+        ${prs ? `<span class="rw-pr">PR</span>` : ''}
+        <span class="rw-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </button>`;
+  }).join('');
+
+  return `
+    <div class="sec-head">Recent<span class="sec-hint">${logs.length} session${logs.length===1?'':'s'} logged</span></div>
+    <div class="rw-list">${rows}</div>
+    ${logs.length > shown.length
+      ? `<button type="button" class="rw-more" onclick="showAllRecent(this)">Show ${Math.min(logs.length - shown.length, 42)} more</button>`
+      : ''}`;
+}
+/* Reveals a deeper slice in place rather than navigating away. Capped so a
+   two-year history never renders thousands of rows into one page. */
+function showAllRecent(btn){
+  const host = document.getElementById('historyRecent');
+  if(!host) return;
+  host.innerHTML = recentWorkoutsHtml(50);
+}
+
+function renderLogPage(){
+  const cons = document.getElementById('historyConsistency');
+  if(cons) cons.innerHTML = logConsistencyStripHtml();
+  const recent = document.getElementById('historyRecent');
+  if(recent) recent.innerHTML = recentWorkoutsHtml(8);
+  const empty = document.getElementById('historyEmpty');
+  if(empty){
+    /* A new athlete gets one honest sentence and a way to start — not a page of
+       zeroes. The calendar stays visible because it is the thing they are about
+       to fill in. */
+    empty.innerHTML = workoutLog.length ? '' : `
+      <div class="log-empty">
+        <div class="log-empty-title">Your training history starts here</div>
+        <div class="log-empty-sub">Every session you log appears on this calendar. Tap any day to see what happened.</div>
+      </div>`;
+  }
+}
+
 function shiftHistoryMonth(delta){
   let [y, m] = historyCalMonth.split('-').map(Number);
   m += delta;
@@ -12526,7 +12788,7 @@ function renderAll(){
   renderToday();
   renderCardioView();
   renderTrainView();
-  renderHistory();
+  renderLogPage();
   if(historySubView === 'calendar') renderHistoryCalendar();
   if(historySubView === 'exercise') renderExerciseHistorySelect();
   renderProgress();

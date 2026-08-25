@@ -632,3 +632,79 @@ comments before measuring.
 > When an assertion greps the source for a UI string or a call, strip comments
 > first. This file explains itself in prose that names the very symbols the
 > tests look for.
+
+---
+
+## 16. Log redesign (Phase D12)
+
+Log answers **"what have I done"**, secondarily "how consistent have I been",
+and offers one escape hatch for unplanned training. It is deliberately **not** a
+second Progress: Contract 71 asserts the Log module calls no trend, capability,
+recovery, mastery or XP function.
+
+### Two real defects found by auditing before building
+
+**A brand-new athlete was shown a month of failures.** The calendar marked any
+past scheduled day with no logged session as `cal-missed`, without asking
+whether this athlete had started training at all — so someone who installed
+LOOP that morning opened Log and saw **14 days marked Missed**, including today.
+`computeConsistencyData()` has always applied a `beforeHistory` rule; the
+calendar did not. Same rule now, one source of truth. Measured after the fix:
+**0 missed days for a new athlete**, while a genuine gap *after* training began
+is still surfaced honestly.
+
+**The history feed was 39,305px.** Every workout rendered as a 730–822px card
+containing every exercise and every set. Fifty sessions came to **48.4 screens**,
+so finding a workout from two weeks ago meant scrolling past roughly ten full
+screens. The detail was not deleted — it moved one tap away into the day sheet,
+where it is actually read.
+
+| | Before | After |
+|---|---|---|
+| Find a 2-week-old session | switch subview, scroll ~7,000px | **2 taps, no scrolling** |
+| Recent history | 48.4 screens | 8 rows, ~60px each |
+| Tappable calendar days | 12 of 31 | **25 of 31** (future days correctly inert) |
+| New-athlete "missed" days | 14 | **0** |
+
+### Hierarchy
+
+Header → consistency → calendar → selected day → freeform → recent → exercise
+lens. All five §13 elements land within the first 812px screen (title 111,
+consistency 144, calendar 282, freeform 699).
+
+The freeform action **moved from the top of the page to below the calendar** and
+changed from a filled surface to an outlined control: it is important, but it is
+not what the page is for.
+
+### The calendar is the hero
+
+Every past day is a `<button>` that answers. Tapping an empty day used to do
+nothing at all; it now says *"Upper Body was planned — nothing logged"* or
+*"Rest day"*. Selection is answered **inline** beneath the calendar rather than
+by throwing a modal; the full session is one deliberate further tap.
+
+State marks carry meaning in **shape** — filled disc trained, ring planned,
+hollow ring missed — so the four-item legend the page used to need is gone.
+`.cal-cat-upper` / `.cal-cat-lower` were also added: the default plan's own two
+categories previously had **no category colour at all**.
+
+### One consistency visual, not two
+
+Eight weekly columns, sessions against that week's target. Deliberately **not**
+another day grid — the calendar directly below already shows a month of days,
+and repeating that shape twice would say the same thing in the same way. It
+renders nothing at all until there is history to describe.
+
+### Storage
+
+None. `historySelectedDate` is memory-only: a page you return to should not
+remember a date you tapped last week. No new key, no migration, `DATA_KEYS`
+unchanged at 15.
+
+### A testing lesson, again
+
+One assertion checked the whole consistency markup for `%` to prove the copy was
+not a percentage wall — and caught `height:NN%` on the bars, a style value, not
+copy. **Assert against the string the athlete reads, not the markup that
+contains it.** This is the third phase in a row where a source-grep proxy was
+wrong in a new way; prefer extracting the rendered text.
