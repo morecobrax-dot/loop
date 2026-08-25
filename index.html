@@ -1245,20 +1245,6 @@ html.intro-skip #introOverlay{ display: none !important; }
 }
 .pt-empty{ font-size: 12.5px; line-height: 1.55; color: var(--text-dim); }
 
-.pm-list{ display: flex; flex-direction: column; gap: 1px; }
-.pm-row{
-  display: flex; align-items: center; gap: var(--space-3); width: 100%;
-  min-height: 56px; padding: 0 var(--space-3); text-align: left;
-  background: var(--surface); border: 1px solid var(--border); cursor: pointer;
-  font-family: 'Inter', sans-serif; color: var(--text);
-}
-.pm-row:first-child{ border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
-.pm-row:last-child{ border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
-.pm-row + .pm-row{ border-top: none; }
-.pm-main{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.pm-label{ font-size: 14px; font-weight: 600; }
-.pm-sub{ font-size: 11.5px; color: var(--text-faint); }
-.pm-go{ flex-shrink: 0; color: var(--text-faint); display: flex; }
 
 @media (prefers-reduced-motion: reduce){
   .pl-ring-fill{ transition: none; }
@@ -15106,23 +15092,6 @@ function progTrendsHtml(limit){
   }).join('') + `</div>`;
 }
 
-/* The deeper analytics keep their homes; this is the doorway to them, and it
-   replaces three cards that were restating what those tabs already hold. */
-function progMoreHtml(){
-  const links = [
-    { t:'strength', label:'Strength', sub:'Every lift, session by session' },
-    { t:'volume',   label:'Volume',   sub:'Sets and muscle group balance' },
-    { t:'muscles',  label:'Mastery',  sub:'Exercise and muscle mastery' }
-  ];
-  return `<div class="pm-list">` + links.map(l => `
-    <button type="button" class="pm-row" onclick="switchProgTab('${l.t}')">
-      <span class="pm-main">
-        <span class="pm-label">${escapeHtml(l.label)}</span>
-        <span class="pm-sub">${escapeHtml(l.sub)}</span>
-      </span>
-      <span class="pm-go">${chevronRightSvg()}</span>
-    </button>`).join('') + `</div>`;
-}
 
 function renderProgDashboard(){
   const host = document.getElementById('progPerf');
@@ -15187,10 +15156,7 @@ function renderProgDashboard(){
     <div class="sec-head">Strength trends<span class="sec-hint">tap a lift for detail</span></div>
     ${progTrendsHtml(4)}
 
-    ${progConsistencyCardHtml()}
-
-    <div class="sec-head">More detail</div>
-    ${progMoreHtml()}`;
+    ${progConsistencyCardHtml()}`;
 }
 
 /* ---- STRENGTH: the existing weekly-volume series, labelled for what it is ---- */
@@ -15224,34 +15190,7 @@ function progStrengthCardHtml(){
 }
 
 /* ---- MUSCLE DEVELOPMENT: the existing muscle mastery ranking, promoted ---- */
-function progMuscleCardHtml(){
-  let list = [];
-  try{ list = getTopMuscleMastery().filter(m => m.hasHistory); }catch(e){}
-  if(!list.length){
-    return `<section class="pd-card"><h3 class="pd-card-title">Muscle development</h3>
-      <div class="pd-note">Train consistently and your development profile builds here.</div></section>`;
-  }
-  const top = list.slice(0, 5);
-  const maxLvl = Math.max(...list.map(m => m.level), 1);
-  return `
-    <section class="pd-card pd-card-tap" onclick="switchProgTab('muscles')" role="button" tabindex="0">
-      <div class="pd-card-top">
-        <div>
-          <h3 class="pd-card-title">Muscle development</h3>
-          <p class="pd-card-sub">From what you have trained, not a body measurement</p>
-        </div>
-        <span class="pd-go" aria-hidden="true">${chevronRightSvg()}</span>
-      </div>
-      <div class="pd-mus">${top.map(m => `
-        <div class="pd-mus-row">
-          <span class="pd-mus-name">${escapeHtml(m.label)}</span>
-          <span class="pd-mus-bar"><span style="width:${Math.round((m.level / maxLvl) * 100)}%"></span></span>
-          <span class="pd-mus-lvl">Lv ${m.level}</span>
-        </div>`).join('')}</div>
-    </section>`;
-}
 
-/* ---- CONSISTENCY: the existing weekly series as an activity strip ---- */
 function progConsistencyCardHtml(){
   const cons = computeConsistencyData();
   const weeks = (cons.weeks || []).slice(-12);
@@ -15312,32 +15251,6 @@ function progPRCardHtml(){
 }
 
 /* ---- MASTERY: a curated few, with the full directory one tap deeper ---- */
-function progMasteryCardHtml(){
-  let list = [];
-  try{ list = getTopExerciseMastery(3).filter(m => m.hasHistory); }catch(e){}
-  if(!list.length){
-    return `<section class="pd-card"><h3 class="pd-card-title">Exercise mastery</h3>
-      <div class="pd-note">Levels grow as you repeat an exercise across weeks and months.</div></section>`;
-  }
-  return `
-    <section class="pd-card pd-card-tap" onclick="switchProgTab('muscles')" role="button" tabindex="0">
-      <div class="pd-card-top">
-        <div>
-          <h3 class="pd-card-title">Exercise mastery</h3>
-          <p class="pd-card-sub">The movements you have trained most</p>
-        </div>
-        <span class="pd-go" aria-hidden="true">${chevronRightSvg()}</span>
-      </div>
-      <div class="pd-mas">${list.map(m => `
-        <div class="pd-mas-row">
-          <span class="pd-mas-name">${escapeHtml(m.displayName)}</span>
-          <span class="pd-mas-bar"><span style="width:${m.percent}%"></span></span>
-          <span class="pd-mas-lvl">Lv ${m.level}</span>
-        </div>`).join('')}</div>
-    </section>`;
-}
-
-/* The full record directory kept its behaviour and moved one tap deeper. */
 function openAllRecords(){
   const el = document.getElementById('progAllRecords');
   if(!el) return;
@@ -15404,9 +15317,10 @@ function renderProgVolume(){
     ${hasAny ? volumeBarSvg(buckets) : `<div class="mini-empty">Log weighted sets to see your volume trend.</div>`}`;
 
   const totals = computeMuscleVolumeSince(currentWeekStart());
-  /* Volume: muscle development sits with the volume it is made of. */
-  document.getElementById('progVolMuscle').innerHTML =
-    progMuscleCardHtml() + muscleBarsHtml(totals, 'Sets this week');
+  /* Volume shows how this week's sets are distributed. Muscle DEVELOPMENT —
+     levels, mastery, long-term profile — lives in the Mastery tab and is not
+     previewed here. */
+  document.getElementById('progVolMuscle').innerHTML = muscleBarsHtml(totals, 'Sets this week');
 }
 
 function cmpRow(label, now, prev, isVol){

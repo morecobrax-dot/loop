@@ -1740,7 +1740,7 @@ async function testFirstImpression(){
   T('Progress explains what will appear',
     /this becomes your strength trend/.test(body));
   T('it names each section that will fill in',
-    /Strength/.test(body) && /Muscle development/.test(body) && /Exercise mastery/.test(body));
+    /Strength/.test(body) && /Exercise mastery/.test(body));
   T('no record directory is rendered to a new athlete',
     doc.getElementById('progAllRecords').innerHTML === '');
 
@@ -7287,8 +7287,13 @@ function testProgressDashboard(app){
   {
     const mod = src.slice(src.indexOf('function progressCoverage(){'), src.indexOf('function trophyIconSvg(){'));
     ['computeConsistencyData','computeImprovements','computeWeeklyVolume','computeAllPREvents',
-     'getTopMuscleMastery','getTopExerciseMastery'].forEach(fn =>
+     'getTopMuscleMastery'].forEach(fn =>
       T('reuses ' + fn + '()', mod.indexOf(fn + '(') !== -1));
+    /* Exercise mastery moved out of the dashboard entirely; the calculation is
+       unchanged and still feeds the tab that owns it. */
+    T('exercise mastery is still computed', typeof ctx.getTopExerciseMastery === 'function');
+    T('and still presented in the Mastery tab',
+      src.indexOf('exerciseMasteryListHtml(') !== -1 && /Exercise mastery/.test(src));
     T('no new stored score was introduced',
       !ctx.DATA_KEYS.some(k => /score|progress/i.test(k)));
     T('the dashboard writes nothing',
@@ -7312,20 +7317,25 @@ function testProgressDashboard(app){
       !/pd-delta/.test(html) || /vs the first half of this window/.test(html));
   }
 
-  sub('muscle development is promoted, and honest about what it is');
+  sub('muscle development has one home, and is honest about what it is');
   {
     render(longHistory());
-    /* Moved to the Volume tab in D14, beside the volume it is computed from. */
-    ctx.switchProgTab('volume');
-    const html = doc.getElementById('progVolMuscle').innerHTML;
-    T('it appears with the volume it is made of', /Muscle development/.test(html));
-    T('it is no longer on the landing view',
+    /* One concept, one home: the Mastery tab. The Volume preview it used to
+       carry was a signpost to exactly this, so it came off. */
+    ctx.switchProgTab('muscles');
+    const html = doc.getElementById('progMuscles').innerHTML;
+    T('it lives in the Mastery tab', /Muscle mastery/.test(html));
+    T('it is not previewed under Volume',
+      !/Muscle development/.test(doc.getElementById('progVolMuscle').innerHTML));
+    T('it is not on the landing view either',
       !/Muscle development/.test(doc.getElementById('progPerf').innerHTML));
-    T('it is ranked visually', (html.match(/pd-mus-row/g) || []).length > 0);
-    T('it shows a level per group', /pd-mus-lvl/.test(html));
+    T('it is ranked visually', (html.match(/mastery-row|pd-mas-row/g) || []).length > 0);
+    T('it shows a level per group', /Level |pd-mas-lvl|mastery-lvl/.test(html));
     T('it does not imply a body measurement',
-      /not a body measurement/.test(html) && !/muscle mass|body fat|composition/i.test(html));
-    T('it routes to the full ranking', /switchProgTab\('muscles'\)/.test(html));
+      /not a measure of strength|not a body measurement/.test(html) &&
+      !/muscle mass|body fat|composition/i.test(html));
+    T('the full ranking IS this tab, so there is nothing to route to',
+      /Most worked muscle/.test(html) && /Muscle group volume/.test(html));
   }
 
   sub('consistency and records read as achievement, not analytics');
@@ -7347,8 +7357,12 @@ function testProgressDashboard(app){
   sub('mastery is curated, not a second directory');
   {
     const html = render(longHistory());
-    T('a few movements are shown', (html.match(/pd-mas-row/g) || []).length <= 3);
-    T('it routes to the full mastery view', /switchProgTab\('muscles'\)/.test(html));
+    T('the landing view does not carry a mastery card', (html.match(/pd-mas-row/g) || []).length === 0);
+    T('the orphaned mastery card builder is gone, not left dead',
+      !/function progMasteryCardHtml/.test(require('fs').readFileSync(H.APP_PATH, 'utf8')));
+    T('mastery is reached by its own tab',
+      /data-p="muscles"[^>]*onclick="switchProgTab\('muscles'\)"/.test(
+        require('fs').readFileSync(H.APP_PATH, 'utf8')));
     T('the all-exercises directory is NOT duplicated onto the dashboard',
       html.indexOf('All exercises') === -1);
     T('but still exists on its own tab', /All exercises<span class="sec-hint">tap for detail/.test(src));
@@ -9501,7 +9515,7 @@ function testProgressDashboardD14(app){
     !/fitness score|overall score|loop score/i.test(html));
 
   sub('the three questions are answered in order');
-  const order = ['pl-ring', 'pd-hero-read', 'pd-tiles', 'Most trained', 'Strength trends', 'More detail'];
+  const order = ['pl-ring', 'pd-hero-read', 'pd-tiles', 'Most trained', 'Strength trends'];
   T('level, then reading, then indicators, then what I do, then what is moving', (() => {
     let last = -1;
     return order.every(k => { const i = html.indexOf(k); if(i <= last) return false; last = i; return true; });
@@ -9510,9 +9524,26 @@ function testProgressDashboardD14(app){
   T('so did its three indicators', (html.match(/class="pd-tile"/g) || []).length === 3);
 
   sub('the landing view leads, the sub-tabs hold the detail');
-  T('deeper analytics are one tap away, not on the page', /switchProgTab\('strength'\)/.test(html)
-    && /switchProgTab\('volume'\)/.test(html) && /switchProgTab\('muscles'\)/.test(html));
+  /* The segmented tabs ARE the navigation. A second list at the foot of the
+     same screen pointing at the same three places was noise, and is gone. */
+  T('the Overview carries no second navigation list', !/More detail/.test(html));
+  T('and no link row to the tabs above it', !/pm-row|pm-list/.test(html));
+  T('the destinations themselves still exist', (() => {
+    const src2 = require('fs').readFileSync(H.APP_PATH, 'utf8');
+    return ['strength','volume','muscles'].every(t =>
+      src2.indexOf('switchProgTab(\'' + t + '\')') !== -1);
+  })());
+  T('the Overview ends on content, not on navigation', (() => {
+    const tail = html.slice(-400);
+    return !/pm-list|More detail/.test(tail);
+  })());
   T('the muscle card is not on the landing view', !/Muscle development/.test(html));
+  T('nor is it duplicated under Volume', (() => {
+    ctx.switchProgTab('volume');
+    const v = doc.getElementById('progVolMuscle').innerHTML;
+    ctx.switchProgTab('overview');
+    return !/Muscle development/.test(v);
+  })());
   T('the record list is not on the landing view', !/pd-pr-row/.test(html));
   T('the strength metric card is not on the landing view', !/Total weight lifted per week/.test(html));
   T('consistency stayed, because it answers one of the three questions',
@@ -9546,7 +9577,7 @@ function testProgressDashboardD14(app){
   sub('nothing here computes anything new');
   const before = JSON.stringify(ctx.workoutLog);
   ctx.renderProgDashboard();
-  ctx.progLevelHtml(); ctx.progTrendsHtml(4); ctx.progMoreHtml();
+  ctx.progLevelHtml(); ctx.progTrendsHtml(4);
   T('rendering Progress does not write history', JSON.stringify(ctx.workoutLog) === before);
   T('no storage key was added', ctx.DATA_KEYS.length === 15);
   T('the trainer is not involved', (() => {
