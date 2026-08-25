@@ -3943,27 +3943,6 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div id="todayMomentum"></div>
     <div id="todayInsights"></div>
 
-    <!-- 5 — secondary -->
-    <div class="sec-head">Training Overview</div>
-    <div class="seg" id="todaySeg">
-      <button class="seg-btn active" data-t="progress" onclick="switchTodayTab('progress')">Progress</button>
-      <button class="seg-btn" data-t="consistency" onclick="switchTodayTab('consistency')">Consistency</button>
-      <button class="seg-btn" data-t="program" onclick="switchTodayTab('program')">Plan</button>
-    </div>
-
-    <div class="seg-panel" id="tpanel-progress">
-      <div id="recentPrCard"></div>
-      <div id="progressJump"></div>
-    </div>
-
-    <div class="seg-panel" id="tpanel-consistency" style="display:none">
-      <div class="heatmap-card" id="heatmapCard"></div>
-    </div>
-
-    <div class="seg-panel" id="tpanel-program" style="display:none">
-      <div class="program-carousel" id="programCarousel" onscroll="onProgramCarouselScroll()"></div>
-      <div class="program-dots" id="programDots"></div>
-    </div>
   </div>
 
   <div class="view" id="view-train">
@@ -11142,16 +11121,6 @@ let todayTab = 'progress';
 let todayPickerOpen = false;
 let hasActiveDraftNow = false;
 
-function switchTodayTab(t){
-  todayTab = t;
-  document.querySelectorAll('#todaySeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.t === t));
-  ['progress','consistency','program'].forEach(k => {
-    const p = document.getElementById('tpanel-' + k);
-    if(p) p.style.display = (k === t) ? 'block' : 'none';
-  });
-  // Carousel needs its scroll position set while visible
-  if(t === 'program') renderProgramCarousel();
-}
 
 function toggleTodayPicker(){
   todayPickerOpen = !todayPickerOpen;
@@ -11905,10 +11874,6 @@ function renderToday(){
   renderTodayMomentum();
   renderTodayInsights();
 
-  renderRecentPr();
-  renderProgressJump();
-  renderHeatmap();
-  if(todayTab === 'program') renderProgramCarousel();
 }
 
 /* ---------- DAY EDIT SHEET ---------- */

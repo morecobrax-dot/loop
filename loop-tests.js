@@ -10002,6 +10002,54 @@ function testD16Layout(app){
   })());
 }
 
+/* =========================================================
+   CONTRACT 101 — Today answers one question
+   ========================================================= */
+function testTodayIA(app){
+  section('CONTRACT 101 — Today is not a second Progress tab');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+
+  sub('one screen, one navigation layer');
+  /* Today carried a segmented control whose three panels each pointed at
+     something with its own home. Three navigation layers on one screen —
+     bottom tabs, segment, panel — is what made LOOP feel like an app you
+     have to learn rather than read. */
+  T('the Training Overview segment is gone', !/Training Overview/.test(src));
+  T('its switcher is gone, not orphaned', !/switchTodayTab/.test(src));
+  T('its panels are gone', !/tpanel-progress|tpanel-consistency|tpanel-program/.test(src));
+  T('Today has no segmented control at all', (() => {
+    const view = src.slice(src.indexOf('<div class="view" id="view-today">'),
+                           src.indexOf('<div class="view" id="view-train">'));
+    return !/class="seg"/.test(view);
+  })());
+
+  sub('nothing it showed was lost');
+  T('consistency still has the Progress card', /function progConsistencyCardHtml/.test(src));
+  T('and the Log strip', /logConsistencyStripHtml/.test(src));
+  T('records still live in the Strength tab', /function progPRCardHtml/.test(src));
+  T('the plan and its week still live in My Training', /function renderMyTraining/.test(src));
+  T('the Progress tab is still one tap away on the tab bar',
+    /data-tab="progress"[^>]*onclick="switchTab\('progress'\)"/.test(src));
+
+  sub('the first screen carries less vocabulary');
+  /* A beginner used to meet Plan, Cycle, Phase, Week, Schedule, Training,
+     Progress and Workout on the screen the app opens on. Phase and cycle
+     language came from a carousel that showed "FOUNDATION WEEK 1" even to
+     an athlete who had never started a cycle. */
+  T('Today no longer shows phase language', (() => {
+    const view = src.slice(src.indexOf('<div class="view" id="view-today">'),
+                           src.indexOf('<div class="view" id="view-train">'));
+    return !/program-carousel|programDots/.test(view);
+  })());
+  T('the phase carousel cannot render to a cycle-less athlete',
+    !/function renderProgramCarousel/.test(src) || !/programCarousel/.test(
+      src.slice(src.indexOf('<div class="view" id="view-today">'),
+                src.indexOf('<div class="view" id="view-train">'))));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -10067,6 +10115,7 @@ async function main(){
   testShadowSemantics(H.loadApp());
   testEvidencePanel(H.loadApp());
   testTutorialD16(H.loadApp());
+  testTodayIA(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
