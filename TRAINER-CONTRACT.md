@@ -837,3 +837,77 @@ mechanism that makes variants rotate. Contract 76 asserts nothing outside
 
 > An assertion that snapshots the whole store cannot tell an intended write from
 > a leak. Assert *which* keys may change, not that none may.
+
+---
+
+## 19. Week writes, page surfaces, rest timer (Phase D14)
+
+### The split-brain schedule — a bug that always "worked"
+
+LOOP holds the week in **two** places: `schedule` (the plan layer) and, when a
+program is active, that program's own day map naming exact workouts. Every
+**reader** — `renderTodayWorkout`, `weekOverview`, `myTrainingState` — prefers
+the program. Both **writers** (`setDayValue`, `moveDayTo`) wrote only the plan
+layer.
+
+So a day edit wrote a value nothing read. It persisted, survived reload, and was
+still invisible; the two stores simply diverged. Measured before the fix: plan
+said `wed:upper`, program still said `wed:rest`, the week card showed rest.
+
+**This was latent until D13**, which creates a program for every athlete who
+runs the setup — turning *"most people have no program, so the plan layer is
+authoritative"* into *"most people have one, so it is not"*. D13 did not write
+the bug; it made it reachable.
+
+The fix is **not a third store**: `setScheduledCategory()` and
+`swapScheduledDays()` are the only writers, and each updates whichever layers
+exist. A newly assigned day takes the variant the week uses least, so changing a
+rest day to Upper yields a session the week does not already contain.
+
+> Two representations with one writer is a bug that reports success. If a value
+> is read from one place, it must be written there.
+
+### Pages vs sheets — classified by measurement
+
+Each destination was measured before being reclassified. What's New, Profile and
+Plans left a **16px** blurred sliver of the screen behind them; My Gym 44px,
+Backup 96px, Settings 128px. That sliver is what made them read as something
+floating over Home rather than a page.
+
+**Promoted to true pages (13):** the workout, prep, onboarding, My Training,
+Settings, Plans, Programs, Program detail, My Gym, Backup & Data, What's New,
+Profile, Exercise detail.
+
+**Deliberately left as sheets (14):** day edit, set type, replace exercise,
+notes, training setup, plan switch, cardio log and detail, add workout, phase
+editor, program builder, profile edit, logged-day detail, post-workout summary —
+in each of these the athlete is editing something they can still see, and that
+context is the point. Contract 78 asserts both lists, so a future phase cannot
+quietly promote a sheet that should stay one.
+
+### Rest timer
+
+Rebuilt on an **`endsAt` deadline** rather than a counter decremented per tick —
+matching the prep timer, which has always worked that way. Interval counting
+drifts and stalls when the tab is backgrounded; the rest timer was the outlier.
+
+**Completion fires exactly once.** The guard is `panel.dataset.completed`, so a
+stray interval, a rotation re-render or a double tap cannot double-fire the
+haptic, the chime or the animation. Verified: 20 rapid starts leave one
+interval; completion produces exactly one haptic and one chime; ten further
+ticks and two explicit completion calls produce none. **Skipping is not
+completing** — it fires no feedback.
+
+Three states, each distinguishable **without colour**: running (ring depleting),
+ending (one held colour shift in the last ten seconds — no flashing), complete
+(ring closed, a check replaces the time). `prefers-reduced-motion` is respected.
+
+Haptics are a single 18ms pulse behind a capability check. Audio is a short
+two-tone WebAudio chime primed inside the athlete's own tap, so it is always
+born in a user-gesture context; if it cannot play, nothing else is affected —
+**the visual completion is the source of truth**.
+
+Draft restore also had to change: it wrote `'▶'` as text into what is now an
+icon button, and left the ring uninitialised. A restored rest now comes back
+**paused**, which is the honest state — it never silently counts down time the
+athlete spent away from the app.

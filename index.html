@@ -1547,6 +1547,19 @@ html.intro-skip #introOverlay{ display: none !important; }
 /* ---- History sub-view toggle ---- */
 .history-subview{ margin-top: 4px; }
 
+/* ---------- PAGES (Phase D14) ----------
+   A destination fills the screen. Its own back control is the way out, so it is
+   sized and placed like navigation rather than like body text. */
+.sheet-page .sheet-back{
+  display: inline-flex; align-items: center; min-height: 44px; margin: 0 0 4px -6px;
+  padding: 0 6px; background: none; border: none; cursor: pointer;
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+}
+/* The scroll surface owns the top inset on a page — there is no sheet lip above
+   it to absorb the notch. */
+.sheet-page .sheet-scroll{ padding-top: calc(18px + env(safe-area-inset-top, 0px)); }
+.overlay-page .sheet-page{ width: 100%; }
+
 /* ---------- MY TRAINING (Phase D13) ----------
    Colour carries state and nothing else: green completed, accent today,
    muted upcoming, neutral rest. */
@@ -2206,6 +2219,58 @@ body.page-locked{ overflow: hidden; }
   display: flex; align-items: center; justify-content: center;
 }
 .rest-start-btn:hover{ border-color: var(--accent); }
+/* ---------- REST TIMER (Phase D14) ----------
+   Part of the exercise card, not a widget floating over it. Three states, each
+   distinguishable without colour: running (ring depleting), ending (ring and
+   time shift to warning in the last ten seconds), complete (ring full, check
+   replaces the time). */
+.rest-dial{
+  position: relative; width: 56px; height: 56px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.rest-ring{ position: absolute; inset: 0; width: 56px; height: 56px; transform: rotate(-90deg); }
+.rest-ring-track{ fill: none; stroke: var(--surface-3); stroke-width: 4; }
+.rest-ring-fill{
+  fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round;
+  transition: stroke-dashoffset 0.2s linear, stroke 0.25s var(--ease);
+}
+.rest-dial-time{
+  position: relative; font-family: 'JetBrains Mono', monospace;
+  font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.02em;
+}
+.rest-dial-check{
+  position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  color: var(--success);
+}
+/* Ending: attention without flashing — one colour shift, held. */
+.rest-panel.ending .rest-ring-fill{ stroke: var(--warning); }
+.rest-panel.ending .rest-dial-time{ color: var(--warning); }
+/* Complete: the ring closes, the check takes the centre, one settle. */
+.rest-panel.done .rest-ring-fill{ stroke: var(--success); }
+.rest-panel.done .rest-dial-time{ display: none; }
+.rest-panel.done .rest-dial-check{ display: flex; animation: restCheck 0.34s var(--ease) both; }
+.rest-panel.done{ animation: restSettle 0.42s var(--ease); }
+@keyframes restCheck{
+  0%{ transform: scale(0.5); opacity: 0; }
+  60%{ transform: scale(1.12); opacity: 1; }
+  100%{ transform: scale(1); opacity: 1; }
+}
+@keyframes restSettle{
+  0%{ box-shadow: 0 0 0 0 var(--success-soft); }
+  45%{ box-shadow: 0 0 0 5px var(--success-soft); }
+  100%{ box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+}
+/* Every state stays readable with animation switched off. */
+@media (prefers-reduced-motion: reduce){
+  .rest-ring-fill{ transition: none; }
+  .rest-panel.done, .rest-panel.done .rest-dial-check{ animation: none; }
+}
+.rest-panel-sub{
+  font-size: 10.5px; color: var(--text-faint); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15ch;
+}
+.rest-panel .rest-panel-info{ flex: 1; min-width: 0; }
+
 .rest-panel{
   margin-top: 8px; background: var(--accent-soft); border: 1px solid var(--accent);
   border-radius: var(--radius-md); padding: 10px 12px;
@@ -2216,7 +2281,7 @@ body.page-locked{ overflow: hidden; }
 .rest-panel-label{ font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
 .rest-panel-time{ font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--text); }
 .rest-panel.done .rest-panel-time{ color: var(--full); }
-.rest-panel-controls{ display: flex; gap: 6px; }
+.rest-panel-controls{ display: flex; gap: 6px; flex-shrink: 0; }
 .rest-panel-btn{
   width: 44px; height: 44px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-2);
   color: var(--text-dim); font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -3194,8 +3259,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 
   <!-- EXERCISE DETAIL SHEET -->
-  <div class="overlay" id="exDetailOverlay" onclick="backdropDismiss(event, closeExDetail)">
-    <div class="sheet">
+  <div class="overlay overlay-page" id="exDetailOverlay" onclick="backdropDismiss(event, closeExDetail)">
+    <div class="sheet sheet-page">
       <div class="sheet-scroll">
         <h2 id="exDetailName">Exercise</h2>
         <div class="sheet-sub" id="exDetailTrend"></div>
@@ -3407,8 +3472,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 </div>
 
 <!-- SETTINGS HUB -->
-<div class="overlay" id="settingsOverlay" onclick="backdropDismiss(event, closeSettings)">
-  <div class="sheet">
+<div class="overlay overlay-page" id="settingsOverlay" onclick="backdropDismiss(event, closeSettings)">
+  <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <h2>Settings</h2>
       <div class="sheet-sub">Manage your training setup, your data, and this app.</div>
@@ -3469,8 +3534,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 </div>
 
 <!-- SETTINGS → WORKOUT PLANS -->
-<div class="overlay" id="plansOverlay" onclick="backdropDismiss(event, closePlansManager)">
-  <div class="sheet">
+<div class="overlay overlay-page" id="plansOverlay" onclick="backdropDismiss(event, closePlansManager)">
+  <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <button class="sheet-back" onclick="backToSettings('plansOverlay')">‹ Settings</button>
       <h2>Workout Plans</h2>
@@ -3561,8 +3626,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 </div>
 
-<div class="overlay" id="programsOverlay" onclick="backdropDismiss(event, closePrograms)">
-  <div class="sheet">
+<div class="overlay overlay-page" id="programsOverlay" onclick="backdropDismiss(event, closePrograms)">
+  <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <button class="sheet-back" onclick="backToSettings('programsOverlay')">‹ Settings</button>
       <h2>Programs</h2>
@@ -3603,8 +3668,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 </div>
 
-<div class="overlay" id="programDetailOverlay" onclick="backdropDismiss(event, closeProgramDetail)">
-  <div class="sheet">
+<div class="overlay overlay-page" id="programDetailOverlay" onclick="backdropDismiss(event, closeProgramDetail)">
+  <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <div id="programDetailBody"></div>
     </div>
@@ -3648,8 +3713,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 </div>
 
 <!-- MY GYM / EQUIPMENT PROFILE (Phase D1) — data source only, no substitution -->
-<div class="overlay" id="gymOverlay" onclick="backdropDismiss(event, closeGymProfile)">
-  <div class="sheet">
+<div class="overlay overlay-page" id="gymOverlay" onclick="backdropDismiss(event, closeGymProfile)">
+  <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <button class="sheet-back" onclick="backToSettings('gymOverlay')">‹ Settings</button>
       <h2>My Gym</h2>
@@ -3662,8 +3727,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 </div>
 
-<div class="overlay" id="dataOverlay" onclick="backdropDismiss(event, closeDataSettings)">
-  <div class="sheet">
+<div class="overlay overlay-page" id="dataOverlay" onclick="backdropDismiss(event, closeDataSettings)">
+  <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <button class="sheet-back" onclick="backToSettings('dataOverlay')">‹ Settings</button>
       <h2>Backup &amp; Data</h2>
@@ -3699,8 +3764,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 </div>
 
 <!-- UPDATES SHEET -->
-<div class="overlay" id="updatesOverlay" onclick="backdropDismiss(event, closeUpdates)">
-  <div class="sheet">
+<div class="overlay overlay-page" id="updatesOverlay" onclick="backdropDismiss(event, closeUpdates)">
+  <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <button class="sheet-back" onclick="backToSettings('updatesOverlay')">‹ Settings</button>
       <h2>What's New</h2>
@@ -3714,8 +3779,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 </div>
 
 <!-- PROFILE / PROGRESSION SHEET -->
-<div class="overlay" id="profileOverlay" onclick="backdropDismiss(event, closeProfile)">
-  <div class="sheet">
+<div class="overlay overlay-page" id="profileOverlay" onclick="backdropDismiss(event, closeProfile)">
+  <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <div id="profileHeader"></div>
       <div class="section-label" style="margin-top:20px">Stats</div>
@@ -9287,18 +9352,79 @@ function renderDayMoveOptions(key){
 /* Swap, never overwrite — so nothing is silently lost and the action reverses. */
 function moveDayTo(targetKey){
   if(!currentEditDay || !schedule || targetKey === currentEditDay) return;
-  const from = schedule[currentEditDay];
-  schedule[currentEditDay] = schedule[targetKey];
-  schedule[targetKey] = from;
-  persistSchedule();
+  swapScheduledDays(currentEditDay, targetKey);
   renderAll();
   closeDayEdit();
 }
 function closeDayEdit(){ document.getElementById('dayEditOverlay').classList.remove('open'); }
+/* Picks the variant of `cat` that the active program uses least this week, so a
+   newly assigned day does not duplicate a session the week already has. */
+function leastUsedTemplateId(program, cat, exceptDay){
+  let list = [];
+  try{ list = (getTemplates(cat) || []); }catch(e){}
+  if(!list.length) return null;
+  const counts = {};
+  list.forEach(t => { counts[t.id] = 0; });
+  if(program && program.schedule){
+    PROGRAM_DAY_KEYS.forEach(d => {
+      if(d === exceptDay) return;
+      const e = program.schedule[d];
+      if(e && e.type === 'workout' && counts[e.templateId] !== undefined) counts[e.templateId]++;
+    });
+  }
+  return list.slice().sort((a, b) => counts[a.id] - counts[b.id])[0].id;
+}
+
+/* THE single writer for "this day now holds this category". Updates the plan
+   layer and, when a program is active, that program's own entry — because the
+   program is what every reader consults first. Writing one without the other
+   is what made day edits silently do nothing. */
+function setScheduledCategory(dayKey, cat){
+  if(!dayKey || !schedule) return;
+  schedule[dayKey] = cat;
+  persistSchedule();
+  try{
+    if(hasActiveProgram()){
+      const p = getActiveProgram();
+      const next = Object.assign({}, p.schedule || {});
+      if(cat === 'rest'){
+        next[dayKey] = { type:'rest' };
+      } else {
+        const tplId = leastUsedTemplateId(p, cat, dayKey);
+        next[dayKey] = tplId
+          ? { type:'workout', planId:selectedPlanId, category:cat, templateId:tplId }
+          : { type:'rest' };
+      }
+      updateProgram(p.id, { schedule: next });
+      invalidateProgramCache();
+    }
+  }catch(e){ /* the plan layer above still stands on its own */ }
+}
+
+/* Swapping two days has to move BOTH layers, or the program keeps the old week
+   while the plan claims the new one. */
+function swapScheduledDays(a, b){
+  if(!a || !b || a === b || !schedule) return;
+  const tmp = schedule[a];
+  schedule[a] = schedule[b];
+  schedule[b] = tmp;
+  persistSchedule();
+  try{
+    if(hasActiveProgram()){
+      const p = getActiveProgram();
+      const next = Object.assign({}, p.schedule || {});
+      const ta = next[a];
+      next[a] = next[b] || { type:'rest' };
+      next[b] = ta || { type:'rest' };
+      updateProgram(p.id, { schedule: next });
+      invalidateProgramCache();
+    }
+  }catch(e){}
+}
+
 function setDayValue(val){
   if(!currentEditDay) return;
-  schedule[currentEditDay] = val;
-  persistSchedule();
+  setScheduledCategory(currentEditDay, val);
   renderAll();
   closeDayEdit();
 }
@@ -16926,11 +17052,19 @@ function restoreDraftToSheet(draft){
     if(ex.restRemaining){
       const panel = row.querySelector('.rest-panel');
       if(panel){
+        const left = parseInt(ex.restRemaining, 10) || 0;
         panel.style.display = 'flex';
-        panel.dataset.remaining = ex.restRemaining;
+        panel.dataset.remaining = left;
+        panel.dataset.total = Math.max(left, parseInt(panel.dataset.defaultRest, 10) || left || 1);
+        panel.dataset.endsAt = String(Date.now() + left * 1000);
         panel.dataset.paused = 'true';
+        panel.dataset.completed = 'false';
+        panel.classList.remove('done', 'ending');
         const pauseBtn = panel.querySelector('.rest-pause-btn');
-        if(pauseBtn) pauseBtn.textContent = '▶';
+        if(pauseBtn){
+          pauseBtn.innerHTML = playIconSvg();
+          pauseBtn.setAttribute('aria-label', 'Resume rest');
+        }
         updateRestPanelDisplay(panel);
       }
     }
@@ -17160,14 +17294,19 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
       <button class="add-set-btn" type="button" onclick="addSetRow(this)">+ Add Set</button>
       <button type="button" class="rest-start-btn" onclick="startRestPanel(this.closest('.ex-log-row').querySelector('.rest-panel'), parseInt(this.closest('.ex-log-row').querySelector('.rest-panel').dataset.defaultRest))">${clockIconSvg()}Rest ${formatMMSS(restSec)}</button>
     </div>
-    <div class="rest-panel" data-default-rest="${restSec}" data-remaining="${restSec}" style="display:none">
+    <div class="rest-panel" data-default-rest="${restSec}" data-remaining="${restSec}" data-total="${restSec}" style="display:none">
+      <div class="rest-dial">
+        ${restRingSvg()}
+        <span class="rest-dial-time rest-panel-time">${formatMMSS(restSec)}</span>
+        <span class="rest-dial-check">${checkIconSvg()}</span>
+      </div>
       <div class="rest-panel-info">
         <div class="rest-panel-label">Resting</div>
-        <div class="rest-panel-time">${formatMMSS(restSec)}</div>
+        <div class="rest-panel-sub">${escapeHtml(name || '')}</div>
       </div>
       <div class="rest-panel-controls">
-        <button type="button" class="rest-panel-btn" onclick="addRestTime(this,15)">+15s</button>
-        <button type="button" class="rest-panel-btn rest-pause-btn" onclick="pauseResumeRest(this)">⏸</button>
+        <button type="button" class="rest-panel-btn" onclick="addRestTime(this,15)" aria-label="Add 15 seconds">+15s</button>
+        <button type="button" class="rest-panel-btn rest-pause-btn" onclick="pauseResumeRest(this)" aria-label="Pause rest">${pauseIconSvg()}</button>
         <button type="button" class="rest-panel-btn rest-skip-btn" onclick="skipRest(this)">Skip</button>
       </div>
     </div>
@@ -17610,67 +17749,202 @@ function toggleSetComplete(btn){
   persistDraftNow();
 }
 
+/* =========================================================
+   REST TIMER  (Phase D14)
+   ---------------------------------------------------------
+   Rebuilt to match the pattern LOOP already uses for prep:
+   an `endsAt` timestamp plus a ring, rather than a counter
+   decremented once per interval tick. Interval counting drifts
+   and stalls whenever the tab is backgrounded; a deadline does
+   neither, and the prep timer has always worked this way.
+
+   Pause, resume, +15s, skip and the draft autosave path are
+   unchanged in behaviour.
+   ========================================================= */
+
+/* ---- feedback: the smallest abstraction that covers one event ---- */
+let _loopAudioCtx = null;
+/* Created lazily inside the tap that starts a rest, so it is always born in a
+   user-gesture context. If the browser refuses, everything else still runs. */
+function loopFeedbackPrime(){
+  try{
+    if(_loopAudioCtx) return;
+    const C = window.AudioContext || window.webkitAudioContext;
+    if(C) _loopAudioCtx = new C();
+  }catch(e){ _loopAudioCtx = null; }
+}
+/* One short, quiet two-tone chime. Never loops, never queues. */
+function loopPlayChime(){
+  try{
+    if(!_loopAudioCtx) return false;
+    if(_loopAudioCtx.state === 'suspended') _loopAudioCtx.resume();
+    const now = _loopAudioCtx.currentTime;
+    [[880, 0], [1174.7, 0.13]].forEach(([freq, at]) => {
+      const osc = _loopAudioCtx.createOscillator();
+      const gain = _loopAudioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + at);
+      gain.gain.exponentialRampToValueAtTime(0.14, now + at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.22);
+      osc.connect(gain).connect(_loopAudioCtx.destination);
+      osc.start(now + at);
+      osc.stop(now + at + 0.24);
+    });
+    return true;
+  }catch(e){ return false; }
+}
+/* A single intentional pulse. No pattern, no repetition, and silent on any
+   device that does not support it. */
+function loopHaptic(){
+  try{
+    if(navigator && typeof navigator.vibrate === 'function'){ navigator.vibrate(18); return true; }
+  }catch(e){}
+  return false;
+}
+
+/* ---- the timer ---- */
+function restRingSvg(){
+  const r = 26, circ = 2 * Math.PI * r;
+  return `<svg class="rest-ring" viewBox="0 0 64 64" aria-hidden="true">
+    <circle class="rest-ring-track" cx="32" cy="32" r="${r}"/>
+    <circle class="rest-ring-fill" cx="32" cy="32" r="${r}"
+      style="stroke-dasharray:${circ.toFixed(2)}; stroke-dashoffset:0"/>
+  </svg>`;
+}
+
 function startRestPanel(panel, seconds){
-  if(panel._interval){ clearInterval(panel._interval); panel._interval = null; }
-  panel.dataset.remaining = seconds;
+  if(!panel) return;
+  clearRestTimer(panel);
+  loopFeedbackPrime();                 // we are inside the athlete's tap
+  const total = Math.max(1, parseInt(seconds, 10) || 0);
+  panel.dataset.total = total;
+  panel.dataset.remaining = total;
+  panel.dataset.endsAt = String(Date.now() + total * 1000);
   panel.dataset.paused = 'false';
-  panel.classList.remove('done');
+  panel.dataset.completed = 'false';   // the once-only guard
+  panel.classList.remove('done', 'ending');
   panel.style.display = 'flex';
-  const pauseBtn = panel.querySelector('.rest-pause-btn');
-  if(pauseBtn) pauseBtn.textContent = '⏸';
   updateRestPanelDisplay(panel);
-  panel._interval = setInterval(() => tickRestPanel(panel), 1000);
+  // 200ms keeps the ring smooth; the DISPLAY still only redraws on a real change.
+  panel._interval = setInterval(() => tickRestPanel(panel), 200);
 }
+
+function clearRestTimer(panel){
+  if(panel && panel._interval){ clearInterval(panel._interval); panel._interval = null; }
+}
+
 function tickRestPanel(panel){
-  if(panel.dataset.paused === 'true') return;
-  let remaining = (parseInt(panel.dataset.remaining) || 0) - 1;
-  if(remaining <= 0){
-    clearInterval(panel._interval);
-    panel._interval = null;
-    panel.dataset.remaining = 0;
-    panel.classList.add('done');
+  if(!panel || panel.dataset.paused === 'true') return;
+  const endsAt = parseInt(panel.dataset.endsAt, 10) || 0;
+  const left = Math.ceil((endsAt - Date.now()) / 1000);
+  if(left <= 0){ completeRestPanel(panel); return; }
+  if(String(left) !== panel.dataset.remaining){
+    panel.dataset.remaining = left;
     updateRestPanelDisplay(panel);
-    setTimeout(() => { if(panel.classList.contains('done')) panel.style.display = 'none'; }, 3000);
-    return;
+  } else {
+    updateRestRing(panel);             // ring keeps moving between whole seconds
   }
-  panel.dataset.remaining = remaining;
-  updateRestPanelDisplay(panel);
 }
+
+/* Fires exactly once per rest, whatever calls it: the guard is on the panel, so
+   a stray interval, a rotation re-render or a double tap cannot double-fire the
+   haptic, the chime or the animation. */
+function completeRestPanel(panel){
+  if(!panel || panel.dataset.completed === 'true') return;
+  panel.dataset.completed = 'true';
+  clearRestTimer(panel);
+  panel.dataset.remaining = 0;
+  panel.classList.remove('ending');
+  panel.classList.add('done');
+  updateRestPanelDisplay(panel);
+  loopHaptic();
+  loopPlayChime();
+  // Stays on screen long enough to be read, then gets out of the way.
+  setTimeout(() => { if(panel.classList.contains('done')) panel.style.display = 'none'; }, 4000);
+}
+
+function updateRestRing(panel){
+  const fill = panel.querySelector('.rest-ring-fill');
+  if(!fill) return;
+  const total = parseInt(panel.dataset.total, 10) || 1;
+  const endsAt = parseInt(panel.dataset.endsAt, 10) || 0;
+  const done = panel.classList.contains('done');
+  let frac;
+  if(done) frac = 0;
+  else if(panel.dataset.paused === 'true') frac = (parseInt(panel.dataset.remaining, 10) || 0) / total;
+  else frac = Math.max(0, Math.min(1, (endsAt - Date.now()) / (total * 1000)));
+  const circ = 2 * Math.PI * 26;
+  fill.setAttribute('stroke-dashoffset', String((circ * (1 - frac)).toFixed(1)));
+}
+
 function updateRestPanelDisplay(panel){
   const timeEl = panel.querySelector('.rest-panel-time');
   const labelEl = panel.querySelector('.rest-panel-label');
-  const remaining = parseInt(panel.dataset.remaining) || 0;
+  const remaining = parseInt(panel.dataset.remaining, 10) || 0;
+  const paused = panel.dataset.paused === 'true';
   if(panel.classList.contains('done')){
-    timeEl.textContent = '0:00';
-    labelEl.textContent = 'Rest done';
+    if(timeEl) timeEl.textContent = '0:00';
+    if(labelEl) labelEl.textContent = 'Rest complete';
   } else {
-    timeEl.textContent = formatMMSS(remaining);
-    labelEl.textContent = panel.dataset.paused === 'true' ? 'Paused' : 'Resting';
+    if(timeEl) timeEl.textContent = formatMMSS(remaining);
+    if(labelEl) labelEl.textContent = paused ? 'Paused' : 'Resting';
+    // A quiet shift of attention in the last ten seconds — no flashing.
+    panel.classList.toggle('ending', !paused && remaining > 0 && remaining <= 10);
   }
+  updateRestRing(panel);
 }
+
 function pauseResumeRest(btn){
   const panel = btn.closest('.rest-panel');
+  if(!panel || panel.classList.contains('done')) return;
   const nowPaused = panel.dataset.paused !== 'true';
   panel.dataset.paused = nowPaused ? 'true' : 'false';
-  btn.textContent = nowPaused ? '▶' : '⏸';
+  if(nowPaused){
+    // Freeze what is left; resuming re-anchors the deadline to it.
+    const endsAt = parseInt(panel.dataset.endsAt, 10) || 0;
+    panel.dataset.remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+  } else {
+    panel.dataset.endsAt = String(Date.now() + (parseInt(panel.dataset.remaining, 10) || 0) * 1000);
+  }
+  btn.innerHTML = nowPaused ? playIconSvg() : pauseIconSvg();
+  btn.setAttribute('aria-label', nowPaused ? 'Resume rest' : 'Pause rest');
   updateRestPanelDisplay(panel);
 }
+
 function addRestTime(btn, secs){
   const panel = btn.closest('.rest-panel');
-  if(panel.style.display === 'none'){
-    startRestPanel(panel, (parseInt(panel.dataset.defaultRest) || 75) + secs);
-    return;
+  if(!panel || panel.classList.contains('done')) return;
+  const add = (parseInt(secs, 10) || 0) * 1000;
+  panel.dataset.total = (parseInt(panel.dataset.total, 10) || 0) + Math.round(add / 1000);
+  if(panel.dataset.paused === 'true'){
+    panel.dataset.remaining = (parseInt(panel.dataset.remaining, 10) || 0) + Math.round(add / 1000);
+  } else {
+    panel.dataset.endsAt = String((parseInt(panel.dataset.endsAt, 10) || Date.now()) + add);
+    panel.dataset.remaining = Math.max(0, Math.ceil((parseInt(panel.dataset.endsAt, 10) - Date.now()) / 1000));
   }
-  const remaining = Math.max(0, (parseInt(panel.dataset.remaining) || 0) + secs);
-  panel.dataset.remaining = remaining;
-  panel.classList.remove('done');
   updateRestPanelDisplay(panel);
 }
+
 function skipRest(btn){
   const panel = btn.closest('.rest-panel');
-  if(panel._interval){ clearInterval(panel._interval); panel._interval = null; }
+  if(!panel) return;
+  clearRestTimer(panel);
+  panel.dataset.completed = 'true';     // skipping is not completing: no feedback
+  panel.classList.remove('done', 'ending');
   panel.style.display = 'none';
 }
+
+function pauseIconSvg(){
+  return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="4.5" y="3.5" width="2.6" height="9" rx="1" fill="currentColor"/><rect x="8.9" y="3.5" width="2.6" height="9" rx="1" fill="currentColor"/></svg>`;
+}
+function playIconSvg(){
+  return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 3.6l7 4.4-7 4.4z" fill="currentColor"/></svg>`;
+}
+function checkIconSvg(){
+  return `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 8.5L6.5 11.5L12.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
 
 function toggleBW(checkbox){
   const row = checkbox.closest('.ex-log-row');

@@ -6688,11 +6688,15 @@ function testD11Consolidation(app){
     T('a day opens the existing editor', /class="wk-day[\s\S]{0,160}openDayEdit\(/.test(src));
     T('moving a day exists', typeof ctx.moveDayTo === 'function');
     const mv = src.slice(src.indexOf('function moveDayTo('), src.indexOf('function templateCardHtml'));
+    const sw = src.slice(src.indexOf('function swapScheduledDays('), src.indexOf('function setDayValue('));
+    T('moving routes through the shared schedule writer', /swapScheduledDays\(/.test(mv));
     T('it swaps rather than overwrites — so it is its own undo',
-      /schedule\[currentEditDay\] = schedule\[targetKey\]/.test(mv) &&
-      /schedule\[targetKey\] = from/.test(mv));
-    T('it persists through the existing schedule path', mv.indexOf('persistSchedule()') !== -1);
-    T('it never touches workoutLog', mv.indexOf('workoutLog') === -1);
+      /schedule\[a\] = schedule\[b\]/.test(sw) && /schedule\[b\] = tmp/.test(sw));
+    T('it moves the program entries too, not just the plan layer',
+      /hasActiveProgram\(\)/.test(sw) && /updateProgram\(/.test(sw));
+    T('it persists through the existing schedule path', sw.indexOf('persistSchedule()') !== -1);
+    T('it never touches workoutLog',
+      mv.indexOf('workoutLog') === -1 && sw.indexOf('workoutLog') === -1);
   }
   {
     ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
@@ -7685,6 +7689,315 @@ async function testMyTrainingSafety(){
 }
 
 /* =========================================================
+   CONTRACT 77 — one write path for the week
+   ========================================================= */
+function testScheduleWritePath(app){
+  section('CONTRACT 77 — week scheduling writes what the app reads');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+
+  sub('the split that made day edits invisible');
+  {
+    /* LOOP holds the week twice: `schedule` (plan layer) and, when a program is
+       active, that program's own day map. Every READER prefers the program.
+       Both writers used to touch only the plan layer, so an edit persisted and
+       was never read — the two simply diverged. These assertions exist because
+       the bug was invisible: the write succeeded every time. */
+    T('a single writer owns "this day holds this category"',
+      typeof ctx.setScheduledCategory === 'function');
+    T('a single writer owns swapping two days', typeof ctx.swapScheduledDays === 'function');
+    const setter = src.slice(src.indexOf('function setScheduledCategory('), src.indexOf('function swapScheduledDays('));
+    const swapper = src.slice(src.indexOf('function swapScheduledDays('), src.indexOf('function setDayValue('));
+    [['setScheduledCategory', setter], ['swapScheduledDays', swapper]].forEach(([nm, code]) => {
+      T(nm + ' writes the plan layer', code.indexOf('persistSchedule()') !== -1);
+      T(nm + ' also writes the active program', /hasActiveProgram\(\)/.test(code) && /updateProgram\(/.test(code));
+      T(nm + ' invalidates the program cache', code.indexOf('invalidateProgramCache()') !== -1);
+      T(nm + ' never touches workoutLog', code.indexOf('workoutLog') === -1);
+    });
+    T('the day editor routes through the shared writer',
+      /function setDayValue\([\s\S]{0,180}setScheduledCategory\(/.test(src));
+    T('moving a day routes through the shared writer',
+      /function moveDayTo\([\s\S]{0,220}swapScheduledDays\(/.test(src));
+  }
+
+  sub('behaviour, with a program active');
+  {
+    ctx.selectedPlanId = 'upperlower';
+    ctx.planData = JSON.parse(JSON.stringify(ctx.DEFAULT_PLANS.upperlower.templates));
+    ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
+    ctx.workoutLog = [];
+    clearCaches(ctx);
+    const week = {};
+    ctx.PROGRAM_DAY_KEYS.forEach(d => { week[d] = { type:'rest' }; });
+    week.mon = { type:'workout', planId:'upperlower', category:'upper', templateId:'ul-u1' };
+    week.tue = { type:'workout', planId:'upperlower', category:'lower', templateId:'ul-l1' };
+    week.thu = { type:'workout', planId:'upperlower', category:'upper', templateId:'ul-u2' };
+    week.fri = { type:'workout', planId:'upperlower', category:'lower', templateId:'ul-l2' };
+    const res = ctx.createProgram({ name:'T', goal:null, durationWeeks:8, schedule: week });
+    T('a program is active for this scenario', !!res.ok && ctx.hasActiveProgram());
+
+    const logBefore = JSON.stringify(ctx.workoutLog);
+    const layersAgree = () => ctx.DAY_ORDER.every(d => {
+      const e = ctx.getActiveProgram().schedule[d];
+      const progCat = (e && e.type === 'workout') ? e.category : 'rest';
+      return ctx.schedule[d] === progCat;
+    });
+
+    ctx.currentEditDay = 'wed';
+    ctx.setDayValue('upper');
+    T('the plan layer took the change', ctx.schedule.wed === 'upper');
+    T('the PROGRAM took it too — this is what was broken',
+      (function(){ const e = ctx.getActiveProgram().schedule.wed; return e && e.type === 'workout' && e.category === 'upper'; })());
+    T('both layers agree afterwards', layersAgree());
+    T('the new day names a real workout',
+      !!ctx.resolveProgramWorkout(ctx.getActiveProgram().schedule.wed));
+    T('it does not duplicate a session the week already has',
+      ctx.getActiveProgram().schedule.wed.templateId !== ctx.getActiveProgram().schedule.mon.templateId);
+    T('other days are untouched',
+      ctx.schedule.mon === 'upper' && ctx.schedule.tue === 'lower' && ctx.schedule.fri === 'lower');
+
+    ctx.currentEditDay = 'wed';
+    ctx.setDayValue('rest');
+    T('changing back to rest works in both layers',
+      ctx.schedule.wed === 'rest' && ctx.getActiveProgram().schedule.wed.type === 'rest');
+    T('layers still agree', layersAgree());
+
+    ctx.currentEditDay = 'mon';
+    ctx.moveDayTo('sat');
+    T('moving swaps the plan layer', ctx.schedule.mon === 'rest' && ctx.schedule.sat === 'upper');
+    T('moving swaps the program too', layersAgree());
+    ctx.currentEditDay = 'sat';
+    ctx.moveDayTo('mon');
+    T('moving back restores both layers exactly',
+      ctx.schedule.mon === 'upper' && ctx.schedule.sat === 'rest' && layersAgree());
+
+    T('training history was never involved', JSON.stringify(ctx.workoutLog) === logBefore);
+  }
+
+  sub('behaviour with no program — the plan layer alone still works');
+  {
+    ctx.programsStore = ctx.defaultProgramsStore();
+    ctx.schedule = { mon:'push', tue:'rest', wed:'pull', thu:'rest', fri:'legs', sat:'rest', sun:'rest' };
+    clearCaches(ctx);
+    ctx.currentEditDay = 'tue';
+    ctx.setDayValue('legs');
+    T('a plan-only athlete can still edit a day', ctx.schedule.tue === 'legs');
+    ctx.currentEditDay = 'tue';
+    ctx.setDayValue('rest');
+    T('and set it back', ctx.schedule.tue === 'rest');
+    T('push/pull/legs plans keep working', ctx.schedule.mon === 'push' && ctx.schedule.fri === 'legs');
+  }
+}
+
+/* =========================================================
+   CONTRACT 78 — pages look like pages
+   ========================================================= */
+function testPageSurfaces(app){
+  section('CONTRACT 78 — page and sheet hierarchy');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  /* Destinations you navigate TO. Each of these previously filled almost the
+     whole screen while leaving a blurred sliver of the screen behind it —
+     16px for What's New, Profile and Plans; 128px for Settings — which is what
+     made them read as something floating over Home rather than a page. */
+  const PAGES = ['logOverlay','prepOverlay','onboardingOverlay','myTrainingOverlay',
+    'settingsOverlay','plansOverlay','programsOverlay','programDetailOverlay',
+    'gymOverlay','dataOverlay','updatesOverlay','profileOverlay','exDetailOverlay'];
+  /* Sheets where the athlete is editing something they can still see, and that
+     context is the point. Deliberately NOT promoted. */
+  const SHEETS = ['dayEditOverlay','setTypeOverlay','subOverlay','notesOverlay',
+    'trainingSetupOverlay','planSwitchOverlay','cardioOverlay','cardioDetailOverlay',
+    'tplOverlay','phaseEditorOverlay','programBuilderOverlay','profileEditOverlay',
+    'dayDetailOverlay','summaryOverlay'];
+
+  sub('true pages');
+  PAGES.forEach(id => {
+    const at = src.indexOf('id="' + id + '"');
+    const tagStart = src.lastIndexOf('<div class="overlay', at);
+    const tag = src.slice(tagStart, at);
+    T(id + ' is a page', tag.indexOf('overlay-page') !== -1);
+    const sheetAt = src.indexOf('class="sheet', at);
+    T(id + ' uses the page surface', src.slice(sheetAt, sheetAt + 40).indexOf('sheet-page') !== -1);
+  });
+
+  sub('intentional sheets stay sheets');
+  SHEETS.forEach(id => {
+    const at = src.indexOf('id="' + id + '"');
+    const tagStart = src.lastIndexOf('<div class="overlay', at);
+    T(id + ' is still a sheet', src.slice(tagStart, at).indexOf('overlay-page') === -1);
+  });
+
+  sub('a page hides what is behind it');
+  T('pages are opaque', /\.overlay\.overlay-page\{[^}]*background: var\(--bg\)/.test(css));
+  T('pages drop the backdrop blur', /\.overlay\.overlay-page\{[^}]*backdrop-filter: none/.test(css));
+  T('pages fill the height', /\.sheet\.sheet-page\{[^}]*height: 100%/.test(css));
+  T('pages lose the sheet lip', /\.sheet\.sheet-page\{[^}]*border-radius: 0/.test(css));
+  T('a page owns its own top safe-area inset',
+    /\.sheet-page \.sheet-scroll\{[^}]*env\(safe-area-inset-top/.test(css));
+  T('back navigation on a page is a 44px control',
+    /\.sheet-page \.sheet-back\{[^}]*min-height: 44px/.test(css));
+}
+
+/* =========================================================
+   CONTRACT 79 — rest timer
+   ========================================================= */
+function testRestTimer(app){
+  section('CONTRACT 79 — rest timer');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const engine = src.slice(src.indexOf('function startRestPanel(panel, seconds){'), src.indexOf('function pauseIconSvg(){'));
+
+  sub('a deadline, not a counter');
+  {
+    /* The prep timer has always used an endsAt deadline; the rest timer was the
+       outlier, decrementing a counter once per interval. That drifts and stalls
+       whenever the tab is backgrounded. */
+    T('the timer stores a deadline', /dataset\.endsAt/.test(engine));
+    T('ticks are derived from the clock', /Date\.now\(\)/.test(engine));
+    T('no blind decrement survives', !/remaining\s*=\s*\(parseInt\([^)]*\)\s*\|\|\s*0\)\s*-\s*1/.test(engine));
+    T('pause freezes what is left', /function pauseResumeRest[\s\S]{0,420}Math\.ceil\(\(endsAt - Date\.now\(\)\)/.test(src));
+    T('resume re-anchors the deadline', /function pauseResumeRest[\s\S]{0,520}endsAt = String\(Date\.now\(\)/.test(src));
+  }
+
+  sub('completion happens exactly once');
+  {
+    T('a once-only guard exists on the panel', /dataset\.completed/.test(engine));
+    T('completion returns early if already complete',
+      /function completeRestPanel[\s\S]{0,200}dataset\.completed === 'true'\) return;/.test(src));
+    T('starting a rest resets the guard', /function startRestPanel[\s\S]{0,600}completed = 'false'/.test(src));
+    T('completion clears its own interval',
+      /function completeRestPanel[\s\S]{0,300}clearRestTimer\(panel\)/.test(src));
+    T('starting clears any previous interval first',
+      /function startRestPanel[\s\S]{0,120}clearRestTimer\(panel\)/.test(src));
+    T('skipping is not completing — it fires no feedback',
+      /function skipRest[\s\S]{0,320}completed = 'true'/.test(src) &&
+      !/function skipRest[\s\S]{0,320}(loopHaptic|loopPlayChime)/.test(src));
+  }
+
+  sub('feedback is one intentional event, and degrades gracefully');
+  {
+    T('a haptic helper exists', /function loopHaptic\(\)/.test(src));
+    T('it fires a single pulse, not a pattern', /navigator\.vibrate\(18\)/.test(src));
+    T('it is capability-checked and cannot throw',
+      /typeof navigator\.vibrate === 'function'/.test(src) && /function loopHaptic\(\)\{[\s\S]{0,220}catch/.test(src));
+    T('audio is created inside the athlete\'s tap',
+      /function startRestPanel[\s\S]{0,220}loopFeedbackPrime\(\)/.test(src));
+    T('audio failure is survivable', /function loopPlayChime\(\)\{[\s\S]{0,900}catch\(e\)\{ return false/.test(src));
+    T('the chime never loops', !/loop\s*=\s*true/.test(src));
+    T('the visual completion does not depend on sound or haptics',
+      /function completeRestPanel[\s\S]{0,400}classList\.add\('done'\)[\s\S]{0,200}loopHaptic\(\)/.test(src));
+  }
+
+  sub('three states, distinguishable without colour');
+  {
+    T('a ring communicates progress', /function restRingSvg\(\)/.test(src) && /rest-ring-fill/.test(css));
+    T('the ring depletes as time passes', /stroke-dashoffset/.test(src));
+    T('the last ten seconds shift attention once, without flashing',
+      /\.rest-panel\.ending \.rest-ring-fill\{[^}]*var\(--warning\)/.test(css) &&
+      !/\.rest-panel\.ending[^{]*\{[^}]*animation:[^}]*infinite/.test(css));
+    T('completion replaces the time with a mark, not just a colour',
+      /\.rest-panel\.done \.rest-dial-time\{ display: none/.test(css) &&
+      /\.rest-panel\.done \.rest-dial-check\{[^}]*display: flex/.test(css));
+    T('completion animates once, not forever',
+      /@keyframes restSettle/.test(css) && !/restSettle[^;]*infinite/.test(css));
+    T('reduced motion is respected',
+      /@media \(prefers-reduced-motion: reduce\)\{[\s\S]{0,240}\.rest-panel\.done/.test(css));
+  }
+
+  sub('no emoji stands in for a control');
+  {
+    const panelMarkup = src.slice(src.indexOf('<div class="rest-panel"'), src.indexOf('<div class="rest-panel"') + 1400);
+    T('pause and resume are drawn icons',
+      /function pauseIconSvg\(\)/.test(src) && /function playIconSvg\(\)/.test(src));
+    T('the panel markup carries no emoji glyph', !/[⏸▶⏱🔔⏰]/.test(panelMarkup));
+    T('draft restore no longer writes a text glyph into the control',
+      !/pauseBtn\.textContent = '▶'/.test(src));
+    T('a restored rest comes back paused rather than silently counting down',
+      /restRemaining[\s\S]{0,420}paused = 'true'/.test(src));
+  }
+
+  sub('the timer belongs to the exercise card');
+  {
+    T('it names the exercise it belongs to', /rest-panel-sub/.test(src));
+    T('it sits inside the exercise row, not over the screen',
+      src.indexOf('<div class="rest-panel"') > src.indexOf('class="ex-log-row"'));
+    T('controls stay a comfortable size', /\.rest-panel-btn\{[^}]*width: 44px; height: 44px/.test(css));
+  }
+}
+
+/* =========================================================
+   CONTRACT 80 — none of this touched training data
+   ========================================================= */
+async function testD14Safety(){
+  section('CONTRACT 80 — scheduling, pages and timer touched no history');
+  const fixture = buildProtectionFixture();
+  const app = await H.loadAppBooted(fixture);
+  const ctx = app.ctx;
+
+  const before = H.snapshot(ctx);
+  const progBefore = ctx.getCurrentProgression();
+  const trainerBefore = ctx.trainerLog.entries.length;
+  const cardioBefore = JSON.stringify(ctx.cardioLog);
+  const masteryBefore = JSON.stringify(ctx.getTopExerciseMastery());
+  const notesBefore = app.store.exerciseNotes;
+  const gymBefore = app.store.gymProfile;
+  const draftBefore = app.store.activeWorkoutDraft;
+
+  sub('editing the week');
+  const scheduleBefore = JSON.stringify(ctx.schedule);
+  ctx.currentEditDay = 'wed';
+  ctx.setDayValue('upper');
+  ctx.currentEditDay = 'wed';
+  ctx.setDayValue('rest');
+  ctx.currentEditDay = 'mon';
+  ctx.moveDayTo('sat');
+  ctx.currentEditDay = 'sat';
+  ctx.moveDayTo('mon');
+  clearCaches(ctx);
+  const after = H.snapshot(ctx);
+
+  T('NOTHING protected changed', H.diffSnapshot(before, after, []).ok,
+    H.diffSnapshot(before, after, []).violations.join(','));
+  T('workoutLog byte-identical', after.rawWorkoutLog === before.rawWorkoutLog);
+  T('a change and its exact reverse restore the week',
+    JSON.stringify(ctx.schedule) === scheduleBefore);
+  T('XP unchanged', after.xp === before.xp);
+  T('strength XP unchanged', ctx.getCurrentProgression().strengthXP === progBefore.strengthXP);
+  T('PRs unchanged', after.prCount === before.prCount);
+  T('readiness unchanged', after.readiness === before.readiness);
+  T('recovery unchanged', after.recovery === before.recovery);
+  T('capability unchanged', after.capabilityBench === before.capabilityBench);
+  T('mastery unchanged', JSON.stringify(ctx.getTopExerciseMastery()) === masteryBefore);
+  T('cardioLog unchanged', JSON.stringify(ctx.cardioLog) === cardioBefore);
+  T('exercise notes unchanged', app.store.exerciseNotes === notesBefore);
+  T('gymProfile unchanged', app.store.gymProfile === gymBefore);
+  T('an unfinished workout is preserved', app.store.activeWorkoutDraft === draftBefore);
+
+  sub('no new storage, no migration');
+  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
+  T('no timer or navigation key was introduced',
+    !ctx.DATA_KEYS.some(k => /timer|rest|page|overlay/i.test(k)));
+
+  sub('trainer isolation');
+  T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no trainerLog entries created', ctx.trainerLog.entries.length === trainerBefore);
+  {
+    const fs = require('fs');
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    const timer = src.slice(src.indexOf('function startRestPanel(panel, seconds){'), src.indexOf('function pauseIconSvg(){'));
+    T('the timer calls no trainer function',
+      !/proposeTrainerState|computeShadowRecommendation|logRecommendation/.test(timer));
+    T('the timer writes no storage',
+      timer.indexOf('LOOPStore.set') === -1 && timer.indexOf('localStorage') === -1);
+  }
+}
+
+/* =========================================================
    RUNNER
    ========================================================= */
 async function main(){
@@ -7735,6 +8048,9 @@ async function main(){
   testLogRedesign(H.loadApp());
   testProgressDashboard(H.loadApp());
   testMyTraining(H.loadApp());
+  testScheduleWritePath(H.loadApp());
+  testPageSurfaces(H.loadApp());
+  testRestTimer(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
   await testSetTypeLoggerAndDrafts();
@@ -7775,6 +8091,7 @@ async function main(){
     await testLogSafety();
     await testProgressSafety();
     await testMyTrainingSafety();
+    await testD14Safety();
   }
 
   // ---- FULL ----
