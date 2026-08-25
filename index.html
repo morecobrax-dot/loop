@@ -1119,6 +1119,83 @@ html.intro-skip #introOverlay{ display: none !important; }
 .cmp-delta{ width: 16px; text-align: center; font-size: 13px; color: var(--text-faint); }
 .cmp-delta.up{ color: var(--success); } .cmp-delta.down{ color: var(--warning); }
 
+/* Icon-bearing carets and marks align to their box rather than a baseline. */
+.gear-mark{ display: inline-flex; align-items: center; justify-content: center; }
+.exc-caret, .set-meta-caret, .set-type-caret,
+.cd-ach-tick, .summary-mark, .prep-done-mark,
+.tpl-edit, .tpl-del, .rm-ex, .ob-hint-x, .note-act-del{
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ---------- PROGRESS LEVEL + TRENDS (Phase D14) ----------
+   Colour is used to scan, not to decorate: accent for the athlete's own
+   progression, and the semantic trio only on trend state. Every trend also
+   carries its word, so none of it depends on hue. */
+.pl-row{ display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); }
+.pl-ring{ position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+.pl-ring svg{ width: 100%; height: 100%; transform: rotate(-90deg); }
+.pl-ring-track{ fill: none; stroke: var(--surface-3); stroke-width: 6; }
+.pl-ring-fill{
+  fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s var(--ease);
+}
+.pl-ring-num{
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+}
+.pl-info{ min-width: 0; }
+.pl-rank{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.10em;
+  text-transform: uppercase; color: var(--accent);
+}
+.pl-lvl{
+  font-family: 'Space Grotesk', sans-serif; font-size: 21px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.01em; margin-top: 1px;
+}
+.pl-xp{ font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
+
+.pt-list{ display: flex; flex-direction: column; gap: 1px; }
+.pt-row{
+  display: grid; grid-template-columns: 1fr auto 46px; align-items: center; gap: 10px;
+  width: 100%; min-height: 48px; padding: 0 var(--space-3); text-align: left;
+  background: var(--surface); border: 1px solid var(--border); cursor: pointer;
+  font-family: 'Inter', sans-serif; color: var(--text);
+}
+.pt-row:first-child{ border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.pt-row:last-child{ border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.pt-row:only-child{ border-radius: var(--radius-lg); }
+.pt-row + .pt-row{ border-top: none; }
+.pt-name{ font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-state{ display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; }
+.pt-up{ color: var(--success); }
+.pt-flat{ color: var(--text-dim); }
+.pt-down{ color: var(--warning); }
+.pt-pct{
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  color: var(--text-faint); text-align: right; font-variant-numeric: tabular-nums;
+}
+.pt-empty{ font-size: 12.5px; line-height: 1.55; color: var(--text-dim); }
+
+.pm-list{ display: flex; flex-direction: column; gap: 1px; }
+.pm-row{
+  display: flex; align-items: center; gap: var(--space-3); width: 100%;
+  min-height: 56px; padding: 0 var(--space-3); text-align: left;
+  background: var(--surface); border: 1px solid var(--border); cursor: pointer;
+  font-family: 'Inter', sans-serif; color: var(--text);
+}
+.pm-row:first-child{ border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.pm-row:last-child{ border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.pm-row + .pm-row{ border-top: none; }
+.pm-main{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pm-label{ font-size: 14px; font-weight: 600; }
+.pm-sub{ font-size: 11.5px; color: var(--text-faint); }
+.pm-go{ flex-shrink: 0; color: var(--text-faint); display: flex; }
+
+@media (prefers-reduced-motion: reduce){
+  .pl-ring-fill{ transition: none; }
+}
+
 /* ---------- MY TRAINING SUMMARY (Phase D13) ---------- */
 .mt-stats{ display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); margin-top: var(--space-4); }
 .mt-stat{
@@ -3781,8 +3858,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
           <span class="plan-chip-label">Plan</span>
           <span class="plan-chip-name" id="currentPlanLabel">Plan</span>
         </button>
-        <button class="settings-gear" onclick="openSettings()" title="Settings">
-          ⚙<span class="gear-dot" id="updateUnreadDot" style="display:none"></span>
+        <button class="settings-gear" aria-label="Settings" onclick="openSettings()" title="Settings">
+          <span class="gear-mark" id="gearMark"></span><span class="gear-dot" id="updateUnreadDot" style="display:none"></span>
         </button>
       </div>
     </div>
@@ -4478,7 +4555,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   <div class="sheet summary-sheet">
     <div class="sheet-scroll">
     <button class="summary-close-x" onclick="deleteJustLoggedWorkout()" title="Delete this workout">Delete</button>
-    <div class="summary-mark">✓</div>
+    <div class="summary-mark" id="summaryMark"></div>
     <h2 style="text-align:center">Workout Complete</h2>
     <div class="sheet-sub" id="summaryTitle" style="text-align:center"></div>
     <div id="summaryLevelUp"></div>
@@ -6337,6 +6414,12 @@ async function boot(){
   /* One observer owns the background lock for every overlay, including any
      restored during boot. */
   initPageIsolation();
+  try{
+    const sm = document.getElementById('summaryMark');
+    if(sm && !sm.innerHTML) sm.innerHTML = checkIconSvg(30);
+    const gm = document.getElementById('gearMark');
+    if(gm && !gm.innerHTML) gm.innerHTML = gearIconSvg(15);
+  }catch(e){}
 }
 
 /* Honest surfacing: if storage can't persist, or a migration needed attention,
@@ -6716,7 +6799,7 @@ function renderUpdatesList(){
           </div>
         `).join('')}
         ${u.detail ? `
-          <button class="update-detail-toggle" onclick="this.nextElementSibling.classList.toggle('open')">View details ▾</button>
+          <button class="update-detail-toggle" onclick="this.nextElementSibling.classList.toggle('open')">View details ${chevronDownSvg(11)}</button>
           <div class="update-detail-text">${escapeHtml(u.detail)}</div>
         ` : ''}
       </div>
@@ -6985,8 +7068,19 @@ function trendDirOf(v){
   if(t === 'down' || t === 'declining' || t === 'decrease') return 'down';
   return 'flat';
 }
-function chevronLeftSvg(){
-  return `<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8L10 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function gearIconSvg(size){
+  const px = size || 15;
+  return `<svg width="${px}" height="${px}" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+    aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.6v1.7M8 12.7v1.7M14.4 8h-1.7M3.3 8H1.6M12.5 3.5l-1.2 1.2M4.7 11.3l-1.2 1.2M12.5 12.5l-1.2-1.2M4.7 4.7L3.5 3.5"/></svg>`;
+}
+function closeIconSvg(size){
+  const px = size || 13;
+  return `<svg width="${px}" height="${px}" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
+}
+function chevronDownSvg(size){
+  const px = size || 13;
+  return `<svg width="${px}" height="${px}" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 6L8 10.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 function chevronLeftSvg(){
   return `<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8L10 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -10286,7 +10380,7 @@ function cardioAchievementsHtml(){
     <div class="cd-ach-list">
       ${unlocked.slice(-3).reverse().map(a => `
         <div class="cd-ach on">
-          <span class="cd-ach-tick">✓</span>
+          <span class="cd-ach-tick">${checkIconSvg(11)}</span>
           <div><div class="cd-ach-name">${a.name}</div><div class="cd-ach-desc">${a.desc}</div></div>
         </div>`).join('')}
       ${next.map(a => {
@@ -11678,8 +11772,8 @@ function templateCardHtml(t, cat, lastWeights){
           </div>
         </div>
         <div class="tpl-actions">
-          <button class="tpl-edit" onclick='openEditTemplate(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})'>✎</button>
-          <button class="tpl-del" onclick="deleteTemplate('${cat}','${t.id}')">✕</button>
+          <button class="tpl-edit" onclick='openEditTemplate(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})' aria-label="Edit workout">${pencilIconSvg()}</button>
+          <button class="tpl-del" onclick="deleteTemplate('${cat}','${t.id}')" aria-label="Delete workout">${closeIconSvg(13)}</button>
         </div>
       </div>
       ${plateauHtml}
@@ -14628,6 +14722,107 @@ function muscleBalanceSummary(){
   return { label:'Uneven', detail:`${trained.length} groups, ${spread} levels apart` };
 }
 
+
+/* =========================================================
+   PROGRESS DASHBOARD  (Phase D14)
+   ---------------------------------------------------------
+   The landing view answered "am I improving" well and the
+   other two questions not at all: it never showed the level
+   the whole XP system exists to produce, and it never said
+   what the athlete actually trains. Below the hero sat five
+   equally-weighted cards, three of which restated content
+   that already had a home in the sub-tabs — a collection of
+   analytics rather than a dashboard.
+
+   The order is now the order the questions get asked in:
+
+     LEVEL           where I am overall
+     READING         am I improving
+     THIS PERIOD     the three supporting indicators
+     MOST TRAINED    what I actually do
+     STRENGTH TRENDS what is moving, per lift
+     CONSISTENCY     what my weeks look like
+     → sub-tabs      everything deeper
+
+   Nothing here computes anything new. Every number comes from
+   an existing function, and the level uses the same
+   currentXP / xpForNext arithmetic the profile bar already
+   uses, so the two can never disagree.
+   ========================================================= */
+
+/* The level, drawn once, as the thing the XP system is for. */
+function progLevelHtml(){
+  const p = getCombinedProgression();
+  const pct = p.xpForNext > 0 ? Math.min(100, Math.round((p.currentXP / p.xpForNext) * 100)) : 0;
+  const r = 30, circ = 2 * Math.PI * r;
+  const toNext = Math.max(0, p.xpForNext - p.currentXP);
+  return `
+    <div class="pl-row">
+      <div class="pl-ring" role="img"
+        aria-label="Level ${p.level}, ${pct}% of the way to level ${p.level + 1}">
+        <svg viewBox="0 0 72 72" aria-hidden="true">
+          <circle class="pl-ring-track" cx="36" cy="36" r="${r}"/>
+          <circle class="pl-ring-fill" cx="36" cy="36" r="${r}"
+            style="stroke-dasharray:${circ.toFixed(2)};stroke-dashoffset:${(circ * (1 - pct/100)).toFixed(1)}"/>
+        </svg>
+        <span class="pl-ring-num">${p.level}</span>
+      </div>
+      <div class="pl-info">
+        <div class="pl-rank">${escapeHtml(p.rank)}</div>
+        <div class="pl-lvl">Level ${p.level}</div>
+        <div class="pl-xp">${toNext.toLocaleString()} XP to Level ${p.level + 1}</div>
+      </div>
+    </div>`;
+}
+
+/* Which lifts are moving, in the app's own trend vocabulary. Capped: the
+   landing page shows the signal, the Strength tab holds the detail. */
+const TREND_WORD = { up:'Improving', flat:'Stable', down:'Declining' };
+function progTrendsHtml(limit){
+  let trends = [];
+  try{ trends = computeExerciseTrends() || []; }catch(e){ trends = []; }
+  if(!trends.length){
+    return `<div class="pt-empty">Log a lift two or more times and its trend appears here.</div>`;
+  }
+  /* Movement first — a lift that is doing something is more worth the space
+     than one holding steady. */
+  const rank = { up: 0, down: 1, flat: 2 };
+  const rows = trends.slice().sort((a, b) =>
+    (rank[a.dir] - rank[b.dir]) || Math.abs(b.pct || 0) - Math.abs(a.pct || 0)
+  ).slice(0, limit || 4);
+
+  return `<div class="pt-list">` + rows.map(t => {
+    const word = TREND_WORD[t.dir] || 'Stable';
+    const pct = (t.pct !== undefined && t.pct !== null && Math.abs(t.pct) >= 1)
+      ? (t.pct > 0 ? '+' : '') + Math.round(t.pct) + '%' : '';
+    return `
+      <button type="button" class="pt-row" onclick="openExDetail('${escapeAttr(t.name)}')"
+        aria-label="${escapeAttr(t.name + ': ' + word + (pct ? ', ' + pct : ''))}">
+        <span class="pt-name">${escapeHtml(t.name)}</span>
+        <span class="pt-state pt-${t.dir}">${trendIconSvg(t.dir, 13)}<span>${word}</span></span>
+        ${pct ? `<span class="pt-pct">${pct}</span>` : `<span class="pt-pct"></span>`}
+      </button>`;
+  }).join('') + `</div>`;
+}
+
+/* The deeper analytics keep their homes; this is the doorway to them, and it
+   replaces three cards that were restating what those tabs already hold. */
+function progMoreHtml(){
+  const links = [
+    { t:'strength', label:'Strength', sub:'Every lift, session by session' },
+    { t:'volume',   label:'Volume',   sub:'Sets and muscle group balance' },
+    { t:'muscles',  label:'Mastery',  sub:'Exercise and muscle mastery' }
+  ];
+  return `<div class="pm-list">` + links.map(l => `
+    <button type="button" class="pm-row" onclick="switchProgTab('${l.t}')">
+      <span class="pm-main">
+        <span class="pm-label">${escapeHtml(l.label)}</span>
+        <span class="pm-sub">${escapeHtml(l.sub)}</span>
+      </span>
+      <span class="pm-go">${chevronRightSvg()}</span>
+    </button>`).join('') + `</div>`;
+}
+
 function renderProgDashboard(){
   const host = document.getElementById('progPerf');
   if(!host) return;
@@ -14678,17 +14873,23 @@ function renderProgDashboard(){
 
   host.innerHTML = `
     <div class="pd-hero">
-      <div class="pd-hero-head">Your Progress</div>
+      ${progLevelHtml()}
       ${interp ? `<div class="pd-hero-read pd-${interp.dir}">${trendIconSvg(interp.dir, 18)}<span>${escapeHtml(interp.head)}</span></div>
       <div class="pd-hero-line">${escapeHtml(interp.line)}</div>` : ''}
       <div class="pd-tiles">${tiles}</div>
       ${cov.weeksTracked < 12 ? `<div class="pd-cov">${cov.weeksTracked} week${cov.weeksTracked===1?'':'s'} tracked</div>` : ''}
     </div>
-    ${progStrengthCardHtml()}
-    ${progMuscleCardHtml()}
+
+    <div class="sec-head">Most trained<span class="sec-hint">sessions logged</span></div>
+    ${mostTrainedHtml(5)}
+
+    <div class="sec-head">Strength trends<span class="sec-hint">tap a lift for detail</span></div>
+    ${progTrendsHtml(4)}
+
     ${progConsistencyCardHtml()}
-    ${progPRCardHtml()}
-    ${progMasteryCardHtml()}`;
+
+    <div class="sec-head">More detail</div>
+    ${progMoreHtml()}`;
 }
 
 /* ---- STRENGTH: the existing weekly-volume series, labelled for what it is ---- */
@@ -14866,6 +15067,10 @@ function renderProgStrength(){
       </div>`).join('')}</div>` : '';
 
   const trends = computeExerciseTrends();
+  /* Strength: the per-lift metric card and the record directory live with
+     the lifts they describe. */
+  document.getElementById('progReady').innerHTML =
+    progStrengthCardHtml() + progPRCardHtml() + document.getElementById('progReady').innerHTML;
   document.getElementById('progExercises').innerHTML = `
     <div class="sec-head">All exercises<span class="sec-hint">tap for detail</span></div>
     ${trends.length ? `<div class="rank-list">${trends.map(t => `
@@ -14898,7 +15103,9 @@ function renderProgVolume(){
     ${hasAny ? volumeBarSvg(buckets) : `<div class="mini-empty">Log weighted sets to see your volume trend.</div>`}`;
 
   const totals = computeMuscleVolumeSince(currentWeekStart());
-  document.getElementById('progVolMuscle').innerHTML = muscleBarsHtml(totals, 'Sets this week');
+  /* Volume: muscle development sits with the volume it is made of. */
+  document.getElementById('progVolMuscle').innerHTML =
+    progMuscleCardHtml() + muscleBarsHtml(totals, 'Sets this week');
 }
 
 function cmpRow(label, now, prev, isVol){
@@ -14961,8 +15168,6 @@ function renderProgMuscles(){
   const catTotal = Object.values(catSets).reduce((a,b)=>a+b,0) || 1;
 
   el.innerHTML = `
-    <div class="sec-head">Most trained<span class="sec-hint">sessions logged</span></div>
-    ${mostTrainedHtml(5)}
     <div class="sec-head">Exercise mastery<span class="sec-hint">from your training history</span></div>
     ${exerciseMasteryListHtml(5)}
     <div class="sec-head">Muscle mastery<span class="sec-hint">primary and secondary work</span></div>
@@ -16129,7 +16334,7 @@ function hintHtml(id){
   return `
     <div class="ob-hint" id="hint-${escapeAttr(id)}">
       <span class="ob-hint-text">${escapeHtml(ONBOARDING_HINTS[id])}</span>
-      <button class="ob-hint-x" onclick="dismissHint('${escapeAttr(id)}')" aria-label="Dismiss">✕</button>
+      <button class="ob-hint-x" onclick="dismissHint('${escapeAttr(id)}')" aria-label="Dismiss">${closeIconSvg(12)}</button>
     </div>`;
 }
 function dismissHint(id){
@@ -17923,7 +18128,7 @@ function renderExerciseNotesSheet(){
           </div>
           <div class="note-row-actions">
             <button type="button" class="note-act" onclick="beginEditExerciseNote('${escapeAttr(n.id)}')" aria-label="Edit note">Edit</button>
-            <button type="button" class="note-act note-act-del" onclick="removeExerciseNote('${escapeAttr(n.id)}')" aria-label="Delete note">✕</button>
+            <button type="button" class="note-act note-act-del" onclick="removeExerciseNote('${escapeAttr(n.id)}')" aria-label="Delete note">${closeIconSvg(12)}</button>
           </div>
         </div>`).join('')
     : `<div class="notes-empty">Nothing noted for this exercise yet.</div>`;
@@ -19430,7 +19635,7 @@ function renderPrepComplete(){
 
   run.innerHTML =
     '<div class="prep-done">' +
-      '<div class="prep-done-mark">✓</div>' +
+      '<div class="prep-done-mark">' + checkIconSvg(26) + '</div>' +
       '<div class="prep-done-title">' + (isPrep ? 'Prep Complete' : 'Cooldown Complete') + '</div>' +
       '<div class="prep-done-sub">' + (isPrep ? 'Ready when you are.' : 'Nice work today.') + '</div>' +
       (isPrep && guidance.length ? renderLiftGuidanceHtml(guidance) : '') +
@@ -19862,11 +20067,11 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
         ${libOptions}
       </select>
       <input type="text" placeholder="Exercise name" class="ex-name-in" value="${name ? escapeAttr(name) : ''}">
-      <button class="rm-ex" onclick="removeLogExerciseRow(this)">✕</button>
+      <button class="rm-ex" onclick="removeLogExerciseRow(this)" aria-label="Remove exercise">${closeIconSvg(13)}</button>
     </div>
     <div class="ex-context">
       <button type="button" class="ex-context-btn" onclick="toggleExContext(this)" aria-expanded="false">
-        <span class="exc-summary"></span><span class="exc-caret">▾</span>
+        <span class="exc-summary"></span><span class="exc-caret">${chevronDownSvg(12)}</span>
       </button>
       <div class="ex-context-detail">
         <div class="recommend-wrap">${recommendCardHtml(rec, meta.targetSets, meta.targetReps, bodyweight)}</div>
@@ -20009,7 +20214,7 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
     <div class="set-row-top">
       <span class="set-idx" role="button" tabindex="0" onclick="toggleSetType(this)" title="Tap to mark warm-up">Set ${idx}</span>
       <button class="set-meta-btn" type="button" onclick="toggleSetMore(this)" aria-expanded="false" aria-label="Set type and RIR">
-        <span class="set-meta-type">Working</span><span class="set-meta-rir">RIR —</span><span class="set-meta-caret">▾</span>
+        <span class="set-meta-type">Working</span><span class="set-meta-rir">RIR —</span><span class="set-meta-caret">${chevronDownSvg(11)}</span>
       </button>
       <button class="set-complete-btn" type="button" onclick="toggleSetComplete(this)" aria-label="Mark complete" aria-pressed="false">
         <svg class="scb-svg" viewBox="0 0 36 36" aria-hidden="true">
@@ -20035,7 +20240,7 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
       <div class="stepper-group set-type-group">
         <span class="unit-label">SET TYPE</span>
         <button class="set-type-btn" type="button" onclick="openSetTypePicker(this)" aria-label="Change set type">
-          <span class="set-type-value">Working</span><span class="set-type-caret">▾</span>
+          <span class="set-type-value">Working</span><span class="set-type-caret">${chevronDownSvg(11)}</span>
         </button>
       </div>
       <div class="rir-row${rirExplained ? '' : ' explain-open'}">
@@ -20533,8 +20738,9 @@ function pauseIconSvg(){
 function playIconSvg(){
   return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 3.6l7 4.4-7 4.4z" fill="currentColor"/></svg>`;
 }
-function checkIconSvg(){
-  return `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 8.5L6.5 11.5L12.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function checkIconSvg(size){
+  const px = size || 16;
+  return `<svg width="${px}" height="${px}" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 8.5L6.5 11.5L12.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 
@@ -20930,7 +21136,7 @@ function addTplExerciseRow(name, sets, reps, effort, recommended){
         ${libOptions}
       </select>
       <input type="text" placeholder="Exercise name" class="t-name-in" value="${name?escapeAttr(name):''}">
-      <button class="rm-ex" onclick="this.closest('.ex-log-row').remove()">✕</button>
+      <button class="rm-ex" onclick="this.closest('.ex-log-row').remove()" aria-label="Remove exercise">${closeIconSvg(13)}</button>
     </div>
     <div class="ex-grid" style="margin-top:10px">
       <div><label>Sets</label><input type="number" class="t-sets-in" value="${sets||''}"></div>

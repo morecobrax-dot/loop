@@ -1291,3 +1291,64 @@ asked to see, and made the same tap give a different result each time. The five
 bottom tabs now open at their top; the per-tab memory is deleted rather than
 left unused. The workout is an overlay and never passes through `switchTab`, so
 nothing about draft state is touched.
+
+---
+
+## 24. Progress as a dashboard, one icon language (Phase D14)
+
+### The three questions, in the order they get asked
+
+The landing view answered *"am I improving"* well and the other two not at all.
+It never showed the **level the whole XP system exists to produce**, and it
+never said **what the athlete actually trains**. Below the hero sat five
+equally-weighted cards, three of which restated content that already had a home
+in the sub-tabs — a collection of analytics rather than a dashboard.
+
+The order is now the order the questions get asked in: level → reading →
+indicators → most trained → strength trends → consistency → sub-tabs.
+
+Measured on 62 real sessions: **1674px → 1371px** of scroll (2.06 → 1.69
+screens), the panel itself **1381px → 1078px**, rendering in **2ms**.
+
+The headline reading and its three indicators are untouched — contracts
+protect both, and the level sits above them rather than replacing them.
+
+### Relocated, not deleted
+
+Removing the three cards outright took the **record directory offline**: it is
+a disclosure, and that card was the only thing that opened it. The guardian
+tests caught it, and they were right to.
+
+They are now in the sub-tabs — the strength metric card and record list with
+the lifts they describe, muscle development with the volume it is computed
+from. Every behaviour those contracts protect was verified still present before
+a single assertion was re-pointed, and new assertions now hold the *hierarchy*
+in place: each card must be in its tab **and not** on the landing view.
+
+### Most Trained has one home
+
+It leads the Progress landing view, so the copy inside the Mastery tab was the
+same list twice. One heading exists in the app, and a contract counts it.
+
+### One icon language
+
+LOOP already had a native family — `checkIconSvg`, `pencilIconSvg`,
+`chevronRightSvg`, `trendIconSvg`, and the cardio set — all on a 16 or 24 box
+with a 1.5–1.7 stroke and round caps. Three members were missing, so controls
+that needed them were still printing Unicode: **close**, **chevron-down**, and
+**gear**. `checkIconSvg` gained the size argument the rest of the family takes.
+
+Converted: close/delete (five sites), edit, three disclosure carets, three
+completion marks, the settings gear, and the What's New toggle. Every one kept
+or gained an accessible name. **No rendered button is a bare glyph.**
+
+Two traps worth recording. The gear lives in the **static header**, not a
+template literal, so an interpolation there renders as the literal text
+`${gearIconSvg(15)}` — it is filled at boot instead, and a contract now scans
+the static body for that whole class of mistake. And `chevronLeftSvg` turned
+out to be defined **twice**, byte-identical, from D12; the duplicate is gone.
+
+**Deliberately retained:** the five navigation glyphs (`◆ ▤ ▲ ◉ ≡`). They are a
+coherent set of their own, always on screen, and swapping them one at a time
+would produce a mixed bar. They need designing as a set — different work from
+an audit.

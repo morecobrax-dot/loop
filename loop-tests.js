@@ -7298,9 +7298,15 @@ function testProgressDashboard(app){
 
   sub('strength is labelled, not a mystery score');
   {
-    const html = render(longHistory());
+    render(longHistory());
+    /* Lives in the Strength tab as of D14; the landing view leads with level,
+       most-trained and per-lift trends instead. */
+    ctx.switchProgTab('strength');
+    const html = doc.getElementById('progReady').innerHTML;
     T('the strength card names its metric', /Total weight lifted per week/.test(html));
     T('a timeframe control is offered', /range-btn/.test(html));
+    T('it is no longer competing for the landing view',
+      !/Total weight lifted per week/.test(doc.getElementById('progPerf').innerHTML));
     T('no unexplained "strength score" is invented', !/strength score/i.test(html));
     T('the delta states what it compares against',
       !/pd-delta/.test(html) || /vs the first half of this window/.test(html));
@@ -7308,8 +7314,13 @@ function testProgressDashboard(app){
 
   sub('muscle development is promoted, and honest about what it is');
   {
-    const html = render(longHistory());
-    T('it appears on the dashboard', /Muscle development/.test(html));
+    render(longHistory());
+    /* Moved to the Volume tab in D14, beside the volume it is computed from. */
+    ctx.switchProgTab('volume');
+    const html = doc.getElementById('progVolMuscle').innerHTML;
+    T('it appears with the volume it is made of', /Muscle development/.test(html));
+    T('it is no longer on the landing view',
+      !/Muscle development/.test(doc.getElementById('progPerf').innerHTML));
     T('it is ranked visually', (html.match(/pd-mus-row/g) || []).length > 0);
     T('it shows a level per group', /pd-mus-lvl/.test(html));
     T('it does not imply a body measurement',
@@ -7322,9 +7333,15 @@ function testProgressDashboard(app){
     const html = render(longHistory());
     T('consistency is a visual, one column per week', (html.match(/pd-wk/g) || []).length > 0);
     T('it routes into the training history', /switchTab\('history'\)/.test(html));
-    T('records celebrate a few, not a database', (html.match(/pd-pr-row/g) || []).length <= 3);
-    T('the record icon is drawn, not an emoji', /pd-pr-mark[^>]*>\s*<svg/.test(html) && !/🏆/.test(html));
-    T('the full record directory is one tap deeper', /openAllRecords\(\)/.test(html));
+    ctx.switchProgTab('strength');
+    const recHtml = doc.getElementById('progReady').innerHTML;
+    T('records celebrate a few, not a database', (recHtml.match(/pd-pr-row/g) || []).length <= 3);
+    T('the record icon is drawn, not an emoji',
+      /pd-pr-mark[^>]*>\s*<svg/.test(recHtml) && !/🏆/.test(recHtml));
+    T('the full record directory is still reachable', /openAllRecords\(\)/.test(recHtml));
+    T('records no longer crowd the landing view',
+      !/pd-pr-row/.test(doc.getElementById('progPerf').innerHTML));
+    ctx.switchProgTab('overview');
   }
 
   sub('mastery is curated, not a second directory');
@@ -9426,6 +9443,158 @@ function testTrajectory(app){
       src.slice(src.indexOf('TRAINING TRAJECTORY'), src.indexOf('function myTrainingVariantsHtml'))));
 }
 
+/* =========================================================
+   CONTRACT 94 — Progress answers three questions, in order
+   ========================================================= */
+function testProgressDashboardD14(app){
+  section('CONTRACT 94 — Progress hierarchy');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  /* Real history, so every section has something to say. */
+  const mon = ctx.currentWeekStart();
+  ctx.workoutLog.length = 0;
+  const EX = ['Bench Press','Lat Pulldown','Back Squat'];
+  for(let w = 15; w >= 0; w--){
+    for(let d = 0; d < 3; d++){
+      const dt = new Date(mon); dt.setDate(mon.getDate() - w*7 + d);
+      const base = 135 + (15 - w) * 2.5;
+      ctx.workoutLog.push({ id:'p'+w+d, date: ctx.localDateStr(dt), category:'push', title:'S',
+        exercises: EX.map((nm,i) => ({ name:nm,
+          sets: Array.from({length:3}, () => ({ weight:String(base - i*10), reps:'8' })) })) });
+    }
+  }
+  ctx.invalidateSortedLogCache();
+  ctx.renderProgDashboard();
+  const html = doc.getElementById('progPerf').innerHTML;
+
+  sub('the level the XP system exists to produce is shown');
+  T('the landing view shows the player level', /pl-lvl/.test(html) && /Level /.test(html));
+  T('and the rank that goes with it', /pl-rank/.test(html));
+  T('progress to the next level is drawn as a ring', /pl-ring-fill/.test(html));
+  T('the ring is described for a screen reader', /aria-label="Level \d+, \d+% of the way/.test(html));
+  T('it uses the same arithmetic as the profile bar, not a new one', (() => {
+    const fn = src.slice(src.indexOf('function progLevelHtml'), src.indexOf('const TREND_WORD'));
+    return /p\.currentXP \/ p\.xpForNext/.test(fn);
+  })());
+  T('no invented overall score exists',
+    !/fitness score|overall score|loop score/i.test(html));
+
+  sub('the three questions are answered in order');
+  const order = ['pl-ring', 'pd-hero-read', 'pd-tiles', 'Most trained', 'Strength trends', 'More detail'];
+  T('level, then reading, then indicators, then what I do, then what is moving', (() => {
+    let last = -1;
+    return order.every(k => { const i = html.indexOf(k); if(i <= last) return false; last = i; return true; });
+  })());
+  T('the headline reading survived the reorder', (html.match(/pd-hero-read/g) || []).length === 1);
+  T('so did its three indicators', (html.match(/class="pd-tile"/g) || []).length === 3);
+
+  sub('the landing view leads, the sub-tabs hold the detail');
+  T('deeper analytics are one tap away, not on the page', /switchProgTab\('strength'\)/.test(html)
+    && /switchProgTab\('volume'\)/.test(html) && /switchProgTab\('muscles'\)/.test(html));
+  T('the muscle card is not on the landing view', !/Muscle development/.test(html));
+  T('the record list is not on the landing view', !/pd-pr-row/.test(html));
+  T('the strength metric card is not on the landing view', !/Total weight lifted per week/.test(html));
+  T('consistency stayed, because it answers one of the three questions',
+    /pd-wk/.test(html));
+
+  sub('Most Trained is a summary, with one home');
+  T('it is on the landing view', /mtx-list|mt-empty/.test(html));
+  T('it is capped at five', (html.match(/mtx-row/g) || []).length <= 5);
+  T('it counts sessions, from real history',
+    ctx.mostTrainedExercises(5)[0].sessions === 48);
+  T('it is not also duplicated in the mastery tab', (() => {
+    ctx.renderProgMuscles && ctx.renderProgMuscles();
+    const m = doc.getElementById('progMuscles').innerHTML;
+    return !/mtx-list/.test(m);
+  })());
+  T('the app has only one Most trained heading',
+    (src.match(/>Most trained</g) || []).length === 1);
+
+  sub('trends are a mark plus a word plus a name');
+  T('each trend row carries a drawn icon', /pt-state[^>]*>\s*<svg/.test(html));
+  T('and the state in words', /Improving|Stable|Declining/.test(html));
+  T('and an accessible label naming both', /aria-label="[^"]+: (Improving|Stable|Declining)/.test(html));
+  T('no arrow characters are used for trend', !/[↗→↘]/.test(html));
+  T('the list is capped, not every lift', (html.match(/pt-row/g) || []).length <= 4);
+  T('a trend row opens the lift it names', /openExDetail\(/.test(html));
+  T('the state is not carried by colour alone', (() => {
+    /* Each state has its own word; colour only reinforces it. */
+    return /\.pt-up\{ color/.test(css) && /TREND_WORD = \{ up:'Improving', flat:'Stable', down:'Declining' \}/.test(src);
+  })());
+
+  sub('nothing here computes anything new');
+  const before = JSON.stringify(ctx.workoutLog);
+  ctx.renderProgDashboard();
+  ctx.progLevelHtml(); ctx.progTrendsHtml(4); ctx.progMoreHtml();
+  T('rendering Progress does not write history', JSON.stringify(ctx.workoutLog) === before);
+  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('the trainer is not involved', (() => {
+    const mod = src.slice(src.indexOf('PROGRESS DASHBOARD  (Phase D14)'), src.indexOf('function renderProgDashboard'));
+    return !/trainerLog|proposeTrainerState|TRAINER_CONFIG/.test(mod);
+  })());
+}
+
+/* =========================================================
+   CONTRACT 95 — one icon language
+   ========================================================= */
+function testIconSystemD14(app){
+  section('CONTRACT 95 — icon system');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+
+  sub('the family LOOP already had was extended, not replaced');
+  ['checkIconSvg','pencilIconSvg','chevronRightSvg','chevronLeftSvg','trendIconSvg']
+    .forEach(fn => T(fn + ' still exists', typeof ctx[fn] === 'function'));
+  T('a close mark was added', typeof ctx.closeIconSvg === 'function');
+  T('a downward chevron was added', typeof ctx.chevronDownSvg === 'function');
+  T('a settings mark was added', typeof ctx.gearIconSvg === 'function');
+  T('no icon library was introduced',
+    !/cdn|fontawesome|feather|lucide|material-icons/i.test(src));
+
+  sub('they are drawn to one specification');
+  const icons = ['closeIconSvg','chevronDownSvg','gearIconSvg','checkIconSvg','chevronRightSvg'];
+  T('every icon uses the same 16 grid',
+    icons.every(fn => /viewBox="0 0 16 16"/.test(ctx[fn]())));
+  T('every icon uses round caps',
+    icons.every(fn => /stroke-linecap="round"/.test(ctx[fn]())));
+  T('every icon inherits its colour', icons.every(fn => /currentColor/.test(ctx[fn]())));
+  T('every icon is hidden from assistive tech, since a label sits beside it',
+    icons.every(fn => /aria-hidden="true"/.test(ctx[fn]())));
+  T('they scale on request', ctx.closeIconSvg(20).indexOf('width="20"') !== -1 &&
+    ctx.checkIconSvg(30).indexOf('width="30"') !== -1);
+
+  sub('interactive controls no longer use characters as icons');
+  const glyphButton = /<button[^>]*>[^<]*[▾▴✓✕✎⚙][^<]*<\/button>/;
+  T('no rendered button is a bare glyph', !glyphButton.test(src));
+  T('the close control is drawn everywhere it appears',
+    (src.match(/closeIconSvg\(/g) || []).length >= 5);
+  T('the edit control uses the existing pencil', /tpl-edit[^>]*>\$\{pencilIconSvg\(\)\}/.test(src));
+  T('the settings control is drawn', /gearIconSvg\(15\)/.test(src));
+  T('disclosure carets are drawn', (src.match(/chevronDownSvg\(/g) || []).length >= 3);
+  T('completion marks are drawn', (src.match(/checkIconSvg\(/g) || []).length >= 4);
+
+  sub('every converted control kept or gained a name');
+  ['Delete workout','Edit workout','Remove exercise','Settings','Delete note','Dismiss']
+    .forEach(l => T('"' + l + '" is an accessible name in the markup',
+      src.indexOf('aria-label="' + l + '"') !== -1));
+
+  sub('what was deliberately left alone');
+  /* The five navigation glyphs are a coherent set of their own. Swapping them
+     one at a time would produce a mixed bar; they need designing as a set,
+     which is a different piece of work from this audit. */
+  T('the navigation glyphs are untouched and still a complete set',
+    (src.match(/<span class="glyph">/g) || []).length === 5);
+  T('an interpolation never leaked into static markup', (() => {
+    const body = src.slice(src.indexOf('<body>'), src.indexOf('<script>'));
+    return !/\$\{[a-zA-Z]+\(/.test(body);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -9486,6 +9655,8 @@ async function main(){
   testD13Interaction(H.loadApp());
   testD13Presentation(H.loadApp());
   testTrajectory(H.loadApp());
+  testProgressDashboardD14(H.loadApp());
+  testIconSystemD14(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
   testSetTypeSystemIntegration(H.loadApp());
