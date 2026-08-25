@@ -6753,7 +6753,13 @@ function testD11Consolidation(app){
   }
   {
     // offered everywhere plans are listed, so "custom" is never the hidden option
-    T('offered on the first-run chooser', /function showOnboarding\(\)[\s\S]{0,420}customPlanCardHtml\(\)/.test(src));
+    /* D16 first-use: showOnboarding() no longer builds the markup itself, it
+       opens the first-use flow, so this now checks the renderer that actually
+       lists plans. The contract is unchanged — the first-run chooser offers
+       "build my own" — but it is now one tap behind "More plans", because a
+       person on their first ever screen should not be authoring a program. */
+    T('offered on the first-run chooser', /function renderFirstUsePlans\([\s\S]{0,1400}customPlanCardHtml\(\)/.test(src));
+    T('and reachable there without leaving the chooser', /function togglePlanMore\(\)/.test(src));
     T('offered in the plan switcher', /function openPlanSwitcher\(\)[\s\S]{0,520}customPlanCardHtml\(\)/.test(src));
     T('offered in the plans manager', /plansGrid'\)\.innerHTML[\s\S]{0,400}customPlanCardHtml\(\)/.test(src));
     T('the program architecture was not duplicated',
@@ -9114,7 +9120,10 @@ function testPlanVocabulary(app){
   T('and still says what to do', /Give the cycle a name/.test(src));
 
   sub('choosing how you train is one screen with one question');
-  T('the chooser asks a human question', /Choose how you train/.test(src));
+  /* D16 first-use reworded this. "Choose how you train" still described the
+     mechanism; the question now asks about the person, which is what this
+     assertion was always for. */
+  T('the chooser asks a human question', /What do you want from training\?/.test(src));
   T('built-in plans and building your own sit together',
     /customPlanCardHtml\(\)/.test(src) && /Build my own/.test(src));
   T('building your own is presented as a plan, not a separate feature',
@@ -10050,6 +10059,149 @@ function testTodayIA(app){
                 src.indexOf('<div class="view" id="view-train">'))));
 }
 
+/* =========================================================
+   CONTRACT 102 — The first ninety seconds
+   ---------------------------------------------------------
+   LOOP opened on seven plan cards. Someone who had never
+   tracked a workout was asked to choose between "Bodybuilder
+   Hypertrophy" and "Upper / Lower Split" before anything had
+   said what the app was for, and the tour that explains it
+   ran afterwards.
+
+   Order is now: understand -> choose -> learn -> fit.
+   ========================================================= */
+function testFirstUse(app){
+  section('CONTRACT 102 — first use explains before it asks');
+  const ctx = app.ctx;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+
+  sub('understanding comes before the question');
+  T('the flow opens on an explanation, not a plan list',
+    /function showOnboarding\(\)[\s\S]{0,260}firstUseStage = 'intro'/.test(src));
+  T('the intro says what LOOP does in the athlete\'s terms',
+    /Know what to train, every day\./.test(src));
+  T('it shows the product rather than describing it', /class="fu-demo"/.test(src));
+  T('the demo is decoration to a screen reader, not content',
+    /class="fu-demo" aria-hidden="true"/.test(src));
+  T('one action on the intro screen',
+    (ctx.renderFirstUseIntro && (() => {
+      const host = { innerHTML: '' };
+      ctx.renderFirstUseIntro(host);
+      return (host.innerHTML.match(/<button/g) || []).length === 1;
+    })()) === true);
+
+  sub('the question is about the person, not the split');
+  T('the chooser asks what they want', /What do you want from training\?/.test(src));
+  T('intents lead, and each maps to a real plan',
+    Array.isArray(ctx.PLAN_INTENTS) && ctx.PLAN_INTENTS.length === 3 &&
+    ctx.PLAN_INTENTS.every(i => !!ctx.DEFAULT_PLANS[i.id]));
+  T('they are goals, not split names',
+    ctx.PLAN_INTENTS.map(i => i.label).join('|') === 'Build muscle|Get stronger|Get fit & athletic');
+
+  sub('nothing was removed from the plan library');
+  /* The intents are a presentation layer. Every plan that existed before is
+     still reachable without leaving the chooser. */
+  const reachable = ctx.PLAN_INTENTS.map(i => i.id).concat(ctx.PLAN_MORE);
+  T('every built-in plan is still offered',
+    Object.keys(ctx.DEFAULT_PLANS).every(id => reachable.indexOf(id) !== -1),
+    'unreachable: ' + Object.keys(ctx.DEFAULT_PLANS).filter(id => reachable.indexOf(id) === -1).join(','));
+  T('no plan is listed twice', new Set(reachable).size === reachable.length);
+  T('depth is one tap, not a different screen', typeof ctx.togglePlanMore === 'function');
+  T('building your own is still offered here', /function renderFirstUsePlans\([\s\S]{0,1400}customPlanCardHtml\(\)/.test(src));
+  T('and there is still only one definition of it',
+    (src.match(/function customPlanCardHtml/g) || []).length === 1);
+
+  sub('a plan card shows the week it actually runs');
+  /* The strip is read from the plan's own defaultSchedule. A sample week that
+     did not match what the athlete then got would be a lie on screen. */
+  Object.keys(ctx.DEFAULT_PLANS).forEach(id => {
+    const p = ctx.DEFAULT_PLANS[id];
+    const trained = ctx.DAY_ORDER.filter(k => p.defaultSchedule[k] && p.defaultSchedule[k] !== 'rest');
+    T(id + ': day count matches its schedule', ctx.planTrainingDays(id) === trained.length);
+    const strip = ctx.planWeekStripHtml(id);
+    T(id + ': every training day appears in the strip',
+      trained.every(k => strip.indexOf(ctx.CAT_SHORT[p.defaultSchedule[k]]) !== -1));
+    /* the cell itself is class="fu-day" or "fu-day fu-day-rest"; the label and
+       category spans inside it are fu-day-l / fu-day-c, hence the delimiter */
+    T(id + ': the strip has seven cells',
+      (strip.match(/class="fu-day[" ]/g) || []).length === 7);
+  });
+  T('the strip is labelled for screen readers', /role="img" aria-label=/.test(ctx.planWeekStripHtml('balanced')));
+
+  sub('"help me choose" lands on a real plan, never a dead end');
+  T('three questions, no more', ctx.HELP_QUESTIONS.length === 3);
+  const combos = [];
+  ['muscle','strength','fitness'].forEach(goal =>
+    [3,4,5].forEach(days =>
+      ['gym','home'].forEach(where => combos.push({ goal, days, where }))));
+  T('every combination of answers resolves to an existing plan',
+    combos.every(c => !!ctx.DEFAULT_PLANS[ctx.recommendPlan(c)]),
+    combos.filter(c => !ctx.DEFAULT_PLANS[ctx.recommendPlan(c)]).map(c => JSON.stringify(c)).join(' '));
+  T('equipment is respected before goal — a gym plan is useless without a gym',
+    combos.filter(c => c.where === 'home').every(c => ctx.recommendPlan(c) === 'home'));
+  T('it recommends, it does not decide — the other plans stay one tap away',
+    /See the other plans/.test(src));
+  T('no second recommendation engine was built',
+    (src.match(/function recommendPlan\(/g) || []).length === 1);
+
+  sub('the answer buttons survive the values they carry');
+  /* Serialising an answer into the inline handler put raw double quotes inside
+     a double-quoted attribute and silently killed every option button. */
+  T('options are addressed by index, not by serialised value',
+    /onclick="answerHelp\(\$\{answered\}, \$\{i\}\)"/.test(src));
+  T('answerHelp resolves the value itself', /function answerHelp\(qIndex, optIndex\)/.test(src));
+  T('no JSON is written into an attribute in this flow',
+    !/onclick="[^"]*JSON\.stringify/.test(src));
+  T('an out-of-range answer is ignored rather than thrown',
+    (() => { try{ ctx.answerHelp(99, 99); return true; }catch(e){ return false; } })());
+
+  sub('the tour still runs, and runs after the app is on screen');
+  T('the tutorial was kept, not replaced', typeof ctx.startOnboarding === 'function');
+  T('it is still offered from showMainApp, behind shouldOfferOnboarding',
+    /function showMainApp\(\)[\s\S]{0,700}shouldOfferOnboarding\(\)[\s\S]{0,120}startOnboarding\(\)/.test(src));
+  T('it is still skippable in one tap', typeof ctx.skipOnboarding === 'function');
+  T('completing it is still recorded', /onboardingState\.completedVersion = ONBOARDING_VERSION/.test(src));
+
+  sub('the first run is a sequence, never a stack');
+  /* Measured before this phase: startOnboarding() fired at 450ms and
+     openTrainingSetup() at 500ms, so both sheets were open together 80ms
+     apart, the setup waiting underneath the tutorial. */
+  T('the setup is held back while the tour is going to run',
+    /if\(shouldOfferOnboarding\(\)\) pendingTrainingSetupPlan = id;/.test(src));
+  T('and released when the tour closes, whichever way it closed',
+    /function closeOnboarding\(\)[\s\S]{0,600}pendingTrainingSetupPlan[\s\S]{0,200}openTrainingSetup\(id\)/.test(src));
+  T('skip and finish both route through that one exit',
+    /function skipOnboarding\(\)[\s\S]{0,180}closeOnboarding\(\)/.test(src) &&
+    /function finishOnboarding\(\)[\s\S]{0,220}closeOnboarding\(\)/.test(src));
+  T('an athlete only switching plans later is never shown the setup',
+    /if\(firstTime && !\(opts && opts\.skipSetup\)\)/.test(src));
+
+  sub('an athlete who already trains here never sees any of it');
+  T('the chooser is gated on having no plan',
+    /if\(selectedPlanId && DEFAULT_PLANS\[selectedPlanId\]\)\{[\s\S]{0,300}showMainApp\(\);\s*\} else \{\s*showOnboarding\(\);\s*\}/.test(src));
+  T('the tour is gated on a recorded version, not on being new',
+    /function shouldOfferOnboarding\(\)[\s\S]{0,220}completedVersion === ONBOARDING_VERSION/.test(src));
+  T('and on having skipped it', /function shouldOfferOnboarding\(\)[\s\S]{0,260}onboardingState\.skipped/.test(src));
+  T('first use writes no storage key of its own',
+    !/LOOPStore\.set\(['`]firstUse/.test(src) && !/DATA_KEYS[\s\S]{0,400}firstUse/.test(src));
+
+  sub('the screen it leaves behind is the app, not a half-state');
+  T('the tab-bar reservation is only removed while first use is showing',
+    /body\.first-use\{ padding-bottom: 0; \}/.test(src));
+  T('showOnboarding adds that state', /document\.body\.classList\.add\('first-use'\)/.test(src));
+  T('showMainApp removes it', /document\.body\.classList\.remove\('first-use'\)/.test(src));
+  T('the container is shown as flex, so the stylesheet keeps its layout',
+    /getElementById\('planOnboard'\)\.style\.display = 'flex'/.test(src));
+
+  sub('no second architecture appeared');
+  T('choosing still goes through the existing choosePlan',
+    /function choosePlanFromFirstUse\(planId\)\{ choosePlan\(planId\); \}/.test(src));
+  T('the plan library was not copied',
+    (src.match(/const DEFAULT_PLANS = /g) || []).length === 1);
+  T('no new storage key', (src.match(/const DATA_KEYS = /g) || []).length === 1);
+  T('the trainer was not touched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -10116,6 +10268,7 @@ async function main(){
   testEvidencePanel(H.loadApp());
   testTutorialD16(H.loadApp());
   testTodayIA(H.loadApp());
+  testFirstUse(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

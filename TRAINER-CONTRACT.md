@@ -1485,3 +1485,92 @@ and sheet open/close — the app renders surgically.
 Thirteen apparent overflow findings were the `pageIn` animation frozen at its
 first frame because the test pane was not compositing; with animations
 neutralised every sheet measures exactly the viewport width.
+
+## §27 — First use: understand, choose, learn, fit (Phase D16)
+
+LOOP opened on seven plan cards. Someone who had never tracked a workout was
+asked to choose between "Bodybuilder Hypertrophy" and "Upper / Lower Split"
+before anything had told them what the app was for, and the tour that explains
+it ran afterwards. The order was backwards.
+
+The first run is now four stages, in this order and never overlapping:
+
+1. **Understand** — one screen: "Know what to train, every day." A slice of the
+   real product sits under it (a workout card with logged sets) rather than a
+   description of one. One button.
+2. **Choose** — "What do you want from training?" Three intents lead — Build
+   muscle, Get stronger, Get fit & athletic — each mapping to an existing plan.
+   Every card shows the plan's **actual** `defaultSchedule`, not a sample week,
+   plus how many days a week it runs. The plan's own name sits underneath, so
+   the vocabulary is available without being the question.
+3. **Learn** — the existing seven-step tutorial, unchanged, still gated on
+   `shouldOfferOnboarding()`, still skippable in one tap.
+4. **Fit** — the existing "Make this training yours" setup.
+
+### What this phase must never do
+
+- **No plan may become unreachable.** The three intents are a presentation
+  layer over `DEFAULT_PLANS`, not a replacement for it. The remaining three
+  plans and "Build my own" sit behind **More plans**, one tap away and without
+  leaving the screen. A contract asserts every key of `DEFAULT_PLANS` is
+  reachable, so adding a plan without listing it fails the suite.
+- **The week strip is read, never authored.** `planWeekStripHtml()` renders
+  `plan.defaultSchedule` directly. A hand-written sample week that did not
+  match what the athlete then received would be a lie on screen.
+- **"Help me choose" recommends; it does not decide.** Three questions, then a
+  plan, with "See the other plans" always present. `recommendPlan()` selects
+  from the existing library — it is a lookup, not a second engine. All 18
+  answer combinations are asserted to resolve to a real plan. Equipment is the
+  first constraint: a gym plan is useless to someone training at home.
+- **Existing athletes never see any of it.** The chooser is gated on having no
+  `selectedPlanId`; the tour on a recorded `completedVersion`/`skipped`. First
+  use writes no storage key of its own, adds nothing to `DATA_KEYS`, and
+  performs no migration.
+
+### The stacking defect this phase fixed
+
+Measured on a clean first run before the change: `startOnboarding()` fired at
+450ms from `showMainApp()`, and `openTrainingSetup()` at 500ms from
+`choosePlan()`. Both sheets were open 80ms apart and **both stayed open** — the
+tutorial on top, the setup waiting underneath it. Two independent timers that
+never knew about each other; the first thing an athlete met after their first
+decision was two stacked modals.
+
+They are now a sequence. `choosePlan()` holds the setup in
+`pendingTrainingSetupPlan` when the tour is going to run, and
+`closeOnboarding()` — the single exit that both skip and finish route through —
+releases it. An athlete switching plans later still never sees the setup.
+
+### Contract 102
+
+Thirty-eight assertions covering: the intro precedes the chooser and carries
+one action; the question is about the person; every plan stays reachable and
+listed once; each plan's strip matches its own schedule and has seven cells;
+all 18 help combinations resolve; options are addressed by index rather than a
+value serialised into an inline handler (raw double quotes inside a
+double-quoted attribute had silently killed every option button); the tour is
+kept and still gated; the setup is deferred and released; and no second plan
+library, storage key, or recommendation engine was introduced.
+
+**Two earlier assertions were re-pointed, not weakened.** `offered on the
+first-run chooser` matched `showOnboarding()` building the markup itself, which
+it no longer does — it now matches `renderFirstUsePlans()`, the function that
+actually lists plans, and a companion assertion covers the disclosure. `the
+chooser asks a human question` pinned the literal string "Choose how you train";
+it now pins "What do you want from training?", which is the same contract
+against the current copy.
+
+### Measured, not assumed
+
+At 375×812, 390×844, 812×375, 844×390 and 932×430: no horizontal scroll, no
+clipped control, no touch target under 44px, and the intro fits without
+scrolling at every size. Landscape gets the two-column treatment `.cs-stage`
+already uses — text beside the demo — because shrinking type alone still left
+the only button 35px below the fold.
+
+Contrast was measured against the **composited** background rather than the
+token, which is what exposed `.fu-card-plan` at 2.88:1 and the day initials at
+2.45:1; both moved off `--text-faint`, which is for marks that carry no
+information on their own.
+
+The trainer is untouched and remains `0.1.1-shadow`.

@@ -132,11 +132,6 @@ header{
   border-bottom: 1px solid var(--border);
   position: relative;
 }
-.eyebrow{
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px; letter-spacing: 0.2em; color: var(--text-faint);
-  text-transform: uppercase; margin-bottom: 6px;
-}
 .header-row{ display:flex; align-items:center; justify-content:space-between; gap: 10px; }
 h1{
   font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; margin: 0; letter-spacing: -0.01em;
@@ -273,10 +268,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .current-plan-meta{ font-size: 11.5px; color: var(--text-dim); margin-top: 3px; }
 .plan-chip:active, .settings-gear:active{ transform: scale(0.96); }
 
-/* ---- Onboarding / plan select ---- */
-#planOnboard{ padding: 44px 20px 40px; max-width: 640px; margin: 0 auto; }
-.onboard-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 27px; margin: 8px 0 6px; }
-.onboard-sub{ color: var(--text-dim); font-size: 13.5px; margin-bottom: 26px; max-width: 440px; line-height: 1.5; }
+/* ---- Plan cards (chooser, switcher, plans manager) ---- */
 .plan-grid{ display: flex; flex-direction: column; gap: 12px; }
 .plan-card{
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -1141,6 +1133,148 @@ html.intro-skip #introOverlay{ display: none !important; }
   .ob-mus-fill{ animation: none; }
 }
 
+/* ---------- FIRST USE (Phase D16) ----------
+   The screens before an athlete has anything. Generous spacing, one action per
+   screen, and the product visible behind the words rather than described. */
+/* No tab bar during first use, so the space the app reserves for one is
+   removed — otherwise a screen that fits still scrolls. */
+body.first-use{ padding-bottom: 0; }
+#planOnboard{
+  min-height: 100dvh;
+  padding: calc(28px + env(safe-area-inset-top, 0px)) var(--space-5)
+           calc(28px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; justify-content: center;
+  max-width: 520px; margin: 0 auto;
+}
+.fu-intro, .fu-plans{ display: flex; flex-direction: column; }
+.fu-mark{
+  font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 800;
+  letter-spacing: 0.18em; color: var(--text-dim); margin-bottom: var(--space-6);
+}
+.fu-mark span{ color: var(--accent); }
+.fu-h1{
+  font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 700;
+  line-height: 1.15; letter-spacing: -0.02em; color: var(--text); text-wrap: balance;
+}
+.fu-h1-sm{ font-size: 25px; }
+.fu-lede{
+  font-size: 15px; line-height: 1.55; color: var(--text-dim);
+  margin-top: var(--space-3); max-width: 34ch;
+}
+.fu-lede-sm{ font-size: 13.5px; }
+
+/* A slice of the real product, so the claim above it is visibly true. */
+.fu-demo{
+  margin-top: var(--space-6); padding: var(--space-4);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  animation: fuRise 0.5s var(--ease) both 0.1s;
+}
+.fu-demo-label{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.10em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.fu-demo-title{
+  font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700;
+  color: var(--text); margin-top: 4px;
+}
+.fu-demo-meta{ font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+.fu-demo-sets{ display: flex; gap: 6px; margin-top: var(--space-4); }
+.fu-demo-set{
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  padding: 6px 9px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+}
+.fu-demo-set.done{
+  background: var(--success-soft); border-color: var(--success); color: var(--text);
+}
+
+.fu-primary{
+  margin-top: var(--space-6); min-height: 52px; width: 100%;
+  background: var(--accent); color: #0A0C10; border: none; border-radius: var(--radius-lg);
+  font-family: 'Inter', sans-serif; font-size: 15.5px; font-weight: 700; cursor: pointer;
+  box-shadow: var(--shadow-accent);
+  transition: transform 0.12s var(--ease);
+}
+.fu-primary:active{ transform: scale(0.985); }
+
+.fu-back{
+  align-self: flex-start; width: 44px; height: 44px; margin-left: -10px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text-dim);
+}
+.fu-step{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-faint); margin-bottom: var(--space-2);
+}
+
+/* Plan cards: goal, frequency, the real week, then the plan's own name. */
+.fu-list{ display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-5); }
+.fu-list-more{ margin-top: var(--space-2); }
+.fu-card{
+  display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left;
+  padding: var(--space-4); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-xl); cursor: pointer;
+  font-family: 'Inter', sans-serif; color: var(--text);
+  transition: transform 0.12s var(--ease), border-color 0.15s var(--ease);
+}
+.fu-card:active{ transform: scale(0.99); border-color: var(--accent); }
+.fu-card-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.fu-card-goal{
+  font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; color: var(--text);
+}
+.fu-card-days{
+  font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700;
+  color: var(--accent); white-space: nowrap;
+}
+.fu-card-days span{ font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 500; color: var(--text-faint); margin-left: 3px; }
+.fu-card-sub{ font-size: 12.5px; color: var(--text-dim); }
+.fu-card-plan{ font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+
+/* The plan's actual week, from its own schedule. */
+.fu-week{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: var(--space-3); }
+.fu-day{
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 5px 0; border-radius: var(--radius-sm);
+  background: var(--accent-soft); border: 1px solid var(--border);
+}
+.fu-day-rest{ background: none; }
+.fu-day-l{ font-size: 9px; font-weight: 700; color: var(--text-dim); letter-spacing: 0.04em; }
+.fu-day-c{
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
+  color: var(--accent); min-height: 12px;
+}
+.fu-day-rest .fu-day-c{ color: var(--text-faint); }
+
+.fu-help{
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; min-height: 52px; padding: 0 var(--space-4); margin-top: var(--space-3);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  cursor: pointer; font-family: 'Inter', sans-serif; color: var(--text); text-align: left;
+}
+.fu-help-main{ font-size: 14px; font-weight: 600; }
+.fu-help-go{ display: flex; color: var(--text-faint); flex-shrink: 0; }
+
+.fu-more{
+  width: 100%; min-height: 44px; margin-top: var(--space-3);
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+}
+
+.fu-opts{ display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-5); }
+.fu-opt{
+  width: 100%; min-height: 56px; padding: 0 var(--space-4); text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  cursor: pointer; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; color: var(--text);
+  transition: transform 0.12s var(--ease), border-color 0.15s var(--ease);
+}
+.fu-opt:active{ transform: scale(0.99); border-color: var(--accent); }
+
+@keyframes fuRise{ from{ opacity: 0; transform: translateY(8px); } to{ opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce){
+  .fu-demo{ animation: none; }
+  .fu-primary:active, .fu-card:active, .fu-opt:active{ transform: none; }
+}
 /* ---------- SHADOW EVIDENCE PANEL (Phase D15B) ----------
    Deliberately quiet. This is an observation surface, not a scoreboard, and
    nothing here should read as a result. */
@@ -3747,6 +3881,34 @@ body.page-locked{ overflow: hidden; }
   .cs-bar{ padding-top: var(--space-2); padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px)); }
   .cs-btn{ min-height: 44px; }
   .cs-summary{ padding: var(--space-3) var(--space-4); }
+
+  /* First use — the intro must not need scrolling to reach its button. */
+  #planOnboard{
+    max-width: 860px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .fu-h1{ font-size: 22px; }
+  .fu-h1-sm{ font-size: 19px; }
+  .fu-demo-sets{ margin-top: var(--space-3); }
+  .fu-primary{ min-height: 46px; }
+
+  /* Intro: two columns, so the words and the proof sit side by side. */
+  .fu-intro{
+    display: grid; align-content: center;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 'mark mark' 'h1 demo' 'lede demo' 'cta demo';
+    column-gap: var(--space-5);
+  }
+  .fu-mark{ grid-area: mark; margin-bottom: var(--space-3); }
+  .fu-h1{ grid-area: h1; }
+  .fu-lede{ grid-area: lede; }
+  .fu-demo{ grid-area: demo; align-self: center; margin-top: 0; padding: var(--space-3); }
+  .fu-primary{ grid-area: cta; align-self: start; margin-top: var(--space-4); }
+
+  /* Plan cards pair up rather than running off the bottom of the screen. */
+  .fu-list{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+  .fu-opts{ display: grid; grid-template-columns: repeat(3, 1fr); }
   .cs-sum-time{ font-size: 38px; }
   .cs-sum-check{ width: 34px; height: 34px; }
   .cs-sum-rows{ max-width: 560px; grid-template-columns: repeat(4, 1fr); }
@@ -3902,10 +4064,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 </div>
 
 <div id="planOnboard" style="display:none;">
-  <div class="eyebrow">LOOP</div>
-  <div class="onboard-title">Choose how you train</div>
-  <div class="onboard-sub">Pick the training style that fits you. You can edit every workout afterward, and switch plans anytime without losing your history.</div>
-  <div class="plan-grid" id="onboardPlanGrid"></div>
+
 </div>
 
 <div id="mainApp" style="display:none;">
@@ -6529,19 +6688,249 @@ function planCardBody(id, planDef, isActive){
   `;
 }
 
-function showOnboarding(){
-  const grid = document.getElementById('onboardPlanGrid');
-  grid.innerHTML = Object.keys(DEFAULT_PLANS).map(id => {
+
+/* =========================================================
+   FIRST USE  (Phase D16 · the first ninety seconds)
+   ---------------------------------------------------------
+   LOOP used to open on seven plan cards. A person who had
+   never tracked a workout was asked to pick between
+   "Bodybuilder Hypertrophy" and "Upper / Lower Split" before
+   anything had told them what the app was for, and the tour
+   that explains it ran afterwards.
+
+   The order is now: understand → choose → learn.
+
+     1. one screen saying what LOOP is, with the product
+        visible behind the words rather than described
+     2. a choice framed as what the athlete WANTS, with the
+        real week each plan actually runs
+     3. the existing tour, now using the plan they picked
+
+   Nothing about the plan library changed. All six plans are
+   still reachable, and "Build my own" still opens the same
+   builder — the difference is that three intents lead, and
+   the rest are one tap behind "More plans".
+   ========================================================= */
+
+/* Which plan each intent maps to. Every id here is an existing plan; this is a
+   presentation layer over the library, not a new one. */
+const PLAN_INTENTS = [
+  { id:'hypertrophy', label:'Build muscle',      sub:'Size and definition' },
+  { id:'strength',    label:'Get stronger',      sub:'Heavier lifts over time' },
+  { id:'athletic',    label:'Get fit & athletic', sub:'Conditioning and power' }
+];
+/* Everything else stays available, one tap behind. */
+const PLAN_MORE = ['balanced', 'upperlower', 'home'];
+
+let firstUseStage = 'intro';     // intro | plans | help
+let planMoreOpen = false;
+let helpAnswers = { goal:null, days:null, where:null };
+
+/* The real week a plan runs, straight from its own defaultSchedule — never a
+   sample. This is the clearest thing LOOP can show about a plan. */
+function planWeekStripHtml(planId){
+  const p = DEFAULT_PLANS[planId];
+  if(!p || !p.defaultSchedule) return '';
+  return `<div class="fu-week" role="img" aria-label="${escapeAttr(planWeekAria(planId))}">` +
+    DAY_ORDER.map(k => {
+      const cat = p.defaultSchedule[k] || 'rest';
+      const rest = cat === 'rest';
+      return `<span class="fu-day${rest ? ' fu-day-rest' : ''}">
+        <span class="fu-day-l">${DAY_LABEL[k].slice(0,1)}</span>
+        <span class="fu-day-c">${rest ? '' : escapeHtml(CAT_SHORT[cat] || cat)}</span>
+      </span>`;
+    }).join('') + `</div>`;
+}
+function planWeekAria(planId){
+  const p = DEFAULT_PLANS[planId];
+  if(!p || !p.defaultSchedule) return '';
+  return DAY_ORDER.map(k => {
+    const cat = p.defaultSchedule[k] || 'rest';
+    return DAY_LABEL_FULL[k] + ': ' + (cat === 'rest' ? 'rest' : (CAT_LABEL[cat] || cat));
+  }).join(', ');
+}
+function planTrainingDays(planId){
+  const p = DEFAULT_PLANS[planId];
+  if(!p || !p.defaultSchedule) return 0;
+  return DAY_ORDER.filter(k => p.defaultSchedule[k] && p.defaultSchedule[k] !== 'rest').length;
+}
+
+/* A card an athlete can read in about three seconds: what they get, how often,
+   and the actual week. */
+function firstUsePlanCard(planId, intent){
+  const p = DEFAULT_PLANS[planId];
+  if(!p) return '';
+  const days = planTrainingDays(planId);
+  return `
+    <button type="button" class="fu-card" onclick="choosePlanFromFirstUse('${planId}')">
+      <span class="fu-card-top">
+        <span class="fu-card-goal">${escapeHtml(intent ? intent.label : p.name)}</span>
+        <span class="fu-card-days">${days}<span> days/wk</span></span>
+      </span>
+      <span class="fu-card-sub">${escapeHtml(intent ? intent.sub : (p.builds || ''))}</span>
+      ${planWeekStripHtml(planId)}
+      ${intent ? `<span class="fu-card-plan">${escapeHtml(p.name)}</span>` : ''}
+    </button>`;
+}
+
+function renderFirstUse(){
+  const host = document.getElementById('planOnboard');
+  if(!host) return;
+  if(firstUseStage === 'intro') return renderFirstUseIntro(host);
+  if(firstUseStage === 'help')  return renderFirstUseHelp(host);
+  return renderFirstUsePlans(host);
+}
+
+/* STEP 1 — what LOOP is, shown rather than described. */
+function renderFirstUseIntro(host){
+  host.innerHTML = `
+    <div class="fu-intro">
+      <div class="fu-mark">LOOP<span>.</span></div>
+      <h1 class="fu-h1">Know what to train, every day.</h1>
+      <p class="fu-lede">LOOP gives you a training plan, tracks every set you lift,
+        and shows you getting stronger over time.</p>
+
+      <div class="fu-demo" aria-hidden="true">
+        <div class="fu-demo-label">TODAY</div>
+        <div class="fu-demo-title">Upper A — Push Focus</div>
+        <div class="fu-demo-meta">6 exercises · ~45 min</div>
+        <div class="fu-demo-sets">
+          <span class="fu-demo-set done">135 × 8</span>
+          <span class="fu-demo-set done">145 × 8</span>
+          <span class="fu-demo-set">155 × 6</span>
+        </div>
+      </div>
+
+      <button type="button" class="fu-primary" onclick="firstUseGo('plans')">Get started</button>
+    </div>`;
+}
+
+/* STEP 2 — choose by what you want, not by what the split is called. */
+function renderFirstUsePlans(host){
+  host.innerHTML = `
+    <div class="fu-plans">
+      <button type="button" class="fu-back" onclick="firstUseGo('intro')" aria-label="Back">${chevronLeftSvg()}</button>
+      <h1 class="fu-h1 fu-h1-sm">What do you want from training?</h1>
+      <p class="fu-lede fu-lede-sm">Pick the closest fit. You can change it whenever you like,
+        and nothing you log is ever lost.</p>
+
+      <div class="fu-list">
+        ${PLAN_INTENTS.map(i => firstUsePlanCard(i.id, i)).join('')}
+      </div>
+
+      <button type="button" class="fu-help" onclick="firstUseGo('help')">
+        <span class="fu-help-main">I'm not sure — help me choose</span>
+        <span class="fu-help-go">${chevronRightSvg()}</span>
+      </button>
+
+      <button type="button" class="fu-more" onclick="togglePlanMore()" aria-expanded="${planMoreOpen}">
+        ${planMoreOpen ? 'Fewer plans' : 'More plans'}
+      </button>
+      ${planMoreOpen ? `<div class="fu-list fu-list-more">
+        ${PLAN_MORE.map(id => firstUsePlanCard(id, null)).join('')}
+        ${customPlanCardHtml()}
+      </div>` : ''}
+    </div>`;
+}
+
+/* STEP 2b — three questions, then an existing plan. No new engine: this reads
+   the same library everything else reads and picks from it. */
+const HELP_QUESTIONS = [
+  { key:'goal',  q:'What matters most right now?',
+    opts:[ { v:'muscle', l:'Building muscle' }, { v:'strength', l:'Getting stronger' },
+           { v:'fitness', l:'General fitness' } ] },
+  { key:'days',  q:'How many days a week can you realistically train?',
+    opts:[ { v:3, l:'About 3' }, { v:4, l:'About 4' }, { v:5, l:'5 or more' } ] },
+  { key:'where', q:'Where will you train?',
+    opts:[ { v:'gym', l:'A gym' }, { v:'home', l:'At home' } ] }
+];
+
+function recommendPlan(a){
+  /* Equipment is the hard constraint — a gym plan is useless without a gym. */
+  if(a.where === 'home') return 'home';
+  if(a.goal === 'strength') return 'strength';
+  if(a.goal === 'fitness')  return 'athletic';
+  /* Building muscle: five days supports the high-volume plan, otherwise the
+     upper/lower split covers each muscle twice in four. */
+  if(a.goal === 'muscle')   return a.days >= 5 ? 'hypertrophy' : 'upperlower';
+  return 'balanced';
+}
+
+function renderFirstUseHelp(host){
+  const answered = HELP_QUESTIONS.filter(q => helpAnswers[q.key] !== null).length;
+  const current = HELP_QUESTIONS[answered];
+  if(!current){
+    const id = recommendPlan(helpAnswers);
     const p = DEFAULT_PLANS[id];
-    return `<div class="plan-card" onclick="choosePlan('${id}')">${planCardBody(id, p, false)}</div>`;
-  }).join('') + customPlanCardHtml();
-  document.getElementById('planOnboard').style.display = 'block';
+    host.innerHTML = `
+      <div class="fu-plans">
+        <button type="button" class="fu-back" onclick="resetHelp()" aria-label="Back">${chevronLeftSvg()}</button>
+        <h1 class="fu-h1 fu-h1-sm">Start here</h1>
+        <p class="fu-lede fu-lede-sm">Based on your answers. You can switch at any time.</p>
+        <div class="fu-list">${firstUsePlanCard(id, null)}</div>
+        <button type="button" class="fu-more" onclick="firstUseGo('plans')">See the other plans</button>
+      </div>`;
+    return;
+  }
+  host.innerHTML = `
+    <div class="fu-plans">
+      <button type="button" class="fu-back" onclick="helpBack()" aria-label="Back">${chevronLeftSvg()}</button>
+      <div class="fu-step">Question ${answered + 1} of ${HELP_QUESTIONS.length}</div>
+      <h1 class="fu-h1 fu-h1-sm">${escapeHtml(current.q)}</h1>
+      <div class="fu-opts">
+        ${current.opts.map((o, i) => `
+          <button type="button" class="fu-opt" onclick="answerHelp(${answered}, ${i})">
+            ${escapeHtml(o.l)}
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function firstUseGo(stage){
+  firstUseStage = stage;
+  if(stage !== 'help') helpAnswers = { goal:null, days:null, where:null };
+  renderFirstUse();
+}
+function togglePlanMore(){ planMoreOpen = !planMoreOpen; renderFirstUse(); }
+/* Indices, not values: serialising an answer into an inline handler put raw
+   double quotes inside a double-quoted attribute and silently killed every
+   option button. The question and option are looked up here instead. */
+function answerHelp(qIndex, optIndex){
+  const q = HELP_QUESTIONS[qIndex];
+  if(!q || !q.opts[optIndex]) return;
+  helpAnswers[q.key] = q.opts[optIndex].v;
+  renderFirstUse();
+}
+function helpBack(){
+  const answered = HELP_QUESTIONS.filter(q => helpAnswers[q.key] !== null);
+  if(!answered.length) return firstUseGo('plans');
+  helpAnswers[answered[answered.length - 1].key] = null;
+  renderFirstUse();
+}
+function resetHelp(){ helpAnswers = { goal:null, days:null, where:null }; renderFirstUse(); }
+
+/* The one exit. Everything above funnels here, and from here the existing
+   choosePlan() runs exactly as it always has. */
+function choosePlanFromFirstUse(planId){ choosePlan(planId); }
+
+function showOnboarding(){
+  /* Understand, then choose. The stage resets each time so a fresh install
+     always starts at the explanation. */
+  firstUseStage = 'intro';
+  planMoreOpen = false;
+  helpAnswers = { goal:null, days:null, where:null };
+  renderFirstUse();
+  /* flex, not block: the stylesheet centres this screen and an inline
+     display:block would silently win over it. */
+  document.getElementById('planOnboard').style.display = 'flex';
   document.getElementById('mainApp').style.display = 'none';
+  document.body.classList.add('first-use');
 }
 
 function showMainApp(){
   document.getElementById('planOnboard').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
+  document.body.classList.remove('first-use');
   document.getElementById('currentPlanLabel').textContent = DEFAULT_PLANS[selectedPlanId].name;
   renderAll();
   renderUpdateIndicator();
@@ -6660,7 +7049,8 @@ async function choosePlan(id, opts){
      days this athlete can actually train — skippable, and never forced on
      someone who is only switching plans from inside the app. */
   if(firstTime && !(opts && opts.skipSetup)){
-    setTimeout(() => { try{ openTrainingSetup(id); }catch(e){} }, 500);
+    if(shouldOfferOnboarding()) pendingTrainingSetupPlan = id;
+    else setTimeout(() => { try{ openTrainingSetup(id); }catch(e){} }, 500);
   }
 }
 
@@ -16428,6 +16818,9 @@ function startTimerDemo(){
 
 /* ---------- RUNNER ---------- */
 let onboardingIndex = 0;
+/* Set when a first-run training setup has been held back so it will not stack
+   on the tutorial. closeOnboarding() is the only thing that consumes it. */
+let pendingTrainingSetupPlan = null;
 
 function startOnboarding(){
   onboardingIndex = 0;
@@ -16456,6 +16849,13 @@ function closeOnboarding(){
   const ov = document.getElementById('onboardingOverlay');
   if(ov) ov.classList.remove('open');
   document.body.classList.remove('page-locked');
+  /* The setup this athlete would have got had the tutorial not been running.
+     Skip and finish both land here, so it is offered either way. */
+  if(pendingTrainingSetupPlan){
+    const id = pendingTrainingSetupPlan;
+    pendingTrainingSetupPlan = null;
+    setTimeout(() => { try{ openTrainingSetup(id); }catch(e){} }, 320);
+  }
 }
 function onboardingNext(){
   if(onboardingIndex >= ONBOARDING_STEPS.length - 1){ finishOnboarding(); return; }
