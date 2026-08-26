@@ -134,7 +134,25 @@ html::-webkit-scrollbar, body::-webkit-scrollbar{ width: 0; height: 0; display: 
    while leaving single taps, scrolling, panning, and pinch-to-zoom completely
    intact. Pinch is deliberately preserved — it's an accessibility affordance,
    and only the accidental double-tap zoom was the problem. */
-html{ touch-action: manipulation; }
+html{
+  touch-action: manipulation;
+  /* Safari on iOS inflates text when a block's width grows relative to the
+     viewport — which is exactly what rotating to landscape does. The default,
+     text-size-adjust:auto, permits it, so the same workout screen came back
+     from a rotation with larger type and a different hierarchy than the one it
+     was designed with.
+
+     100%, deliberately, not none: this switches off Safari's AUTOMATIC
+     inflation while leaving the athlete's own controls intact — pinch zoom and
+     Dynamic Type still work exactly as before. `none` would take those away.
+
+     This is the whole fix. There is no vw-based typography in LOOP, no scale
+     transform on the workout surface, no landscape rule that changes a font
+     size on a field, and the viewport meta already carries
+     width=device-width, initial-scale=1.0. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body{ touch-action: manipulation; }
 *{ touch-action: manipulation; }
 

@@ -2434,3 +2434,65 @@ leaked intervals, zero retained listeners.
 
 The warm-up library, the rest timer, `saveLog` and the trainer are untouched.
 The trainer remains `0.1.1-shadow`.
+
+## §36 — Rotating does not resize the app (Phase D18.3)
+
+### The root cause, and why it is one line
+
+`-webkit-text-size-adjust` was **absent from the entire file**, so the computed
+value on `<html>` was `auto`. That is the value that permits Safari's text
+autosizing: iOS inflates text when a block's width grows relative to the
+viewport, which is precisely what rotating to landscape does. The workout came
+back from a rotation with larger type than it was designed with.
+
+Every other candidate was checked and ruled out before changing anything:
+
+| candidate | finding |
+|---|---|
+| viewport meta | already `width=device-width, initial-scale=1.0, viewport-fit=cover` |
+| vw/vh typography | none in the file |
+| `scale()` on the workout surface | none — the only `scale()` uses are keyframes and `:active` feedback |
+| landscape rules changing field font size | none; the landscape block touches no field |
+| fields below the 16px iOS zoom floor | **none** — measured 16px and 17px across every workout input |
+| `user-scalable` / `maximum-scale` locks | absent |
+
+So the fix is one declaration, and Contract 111 keeps each of the ruled-out
+causes from reappearing.
+
+**`100%`, not `none`.** `none` would also remove the athlete's own text
+scaling. `100%` switches off Safari's *automatic* inflation while leaving pinch
+zoom and Dynamic Type working exactly as before.
+
+### Honest limitation
+
+**The inflation itself could not be reproduced in this environment.** The
+preview browser is Chromium-based and does not implement Safari's text
+autosizing — measured font sizes were already identical between portrait and
+landscape here. What is proven: the guard was missing (`auto` computed), it is
+now `100%`, no other cause exists, and nothing regressed. The fix is the
+documented remedy for the reported symptom, but the symptom is not observable
+on this engine.
+
+### Measured across the rotation cycle
+
+Portrait 375×812 → landscape 812×375 → portrait → landscape 932×430 → 844×390,
+with a live workout carrying three logged exercises, a RIR on each, a skipped
+exercise and a running rest timer:
+
+- **every font size identical at every orientation** — title 24px, chips 11px,
+  exercise number 11px, navigation 14px
+- values intact: `100×5@1`, `110×6@2`, `120×7@3`
+- skipped state, current exercise and 8 mounted rows / 1 visible unchanged
+- **exactly one rest timer** throughout, still running
+- `visualViewport.scale` 1 at every size, zero horizontal overflow
+- zero fields under 16px
+
+Reloading **while in landscape**: the guard persists, the draft restores with
+all three values and their RIR, the title is still 24px, and no warm-up appears.
+
+**Data safety:** eleven storage keys compared before and after the full rotation
+and reload cycle — **zero changed**. `workoutLog`, `trainerLog`, autosave, draft
+restoration and `saveLog` are untouched, and the diff to `index.html` is this
+one rule.
+
+The trainer remains `0.1.1-shadow`.

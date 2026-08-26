@@ -11311,6 +11311,96 @@ function testWarmupEntry(app){
   T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
 }
 
+/* =========================================================
+   CONTRACT 111 — Rotating does not resize the app (D18.3)
+   ---------------------------------------------------------
+   Safari on iOS inflates text when a block's width grows
+   relative to the viewport, which is exactly what rotating
+   to landscape does. LOOP never set text-size-adjust, so the
+   computed value was `auto` — the value that permits it —
+   and the workout came back from a rotation with larger type
+   than it was designed with.
+   ========================================================= */
+function testOrientationScale(app){
+  section('CONTRACT 111 — rotating does not resize the app');
+  const ctx = app.ctx;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('the inflation guard exists');
+  T('text-size-adjust is set on the root',
+    /html\{[\s\S]{0,900}-webkit-text-size-adjust: 100%;/.test(css));
+  T('and the standard property alongside it',
+    /html\{[\s\S]{0,960}[^-]text-size-adjust: 100%;/.test(css));
+  /* 100%, not none: none would also take away the athlete's own text scaling.
+     The guard must stop Safari inflating, not stop the user choosing. */
+  T('it does not disable the athlete\'s own scaling',
+    !/text-size-adjust:\s*none/i.test(css));
+  T('the viewport meta is unchanged and still scales to the device',
+    /<meta name="viewport" content="width=device-width, initial-scale=1\.0, viewport-fit=cover">/.test(src));
+
+  sub('and nothing else can change the scale');
+  /* The fix is one declaration because there was only one cause. These
+     assertions keep the other candidates from reappearing. */
+  T('no typography is sized in viewport units',
+    !/font-size:[^;]*\b\d+v(w|h|min|max)\b/.test(css));
+  T('no user-scalable lock', !/user-scalable\s*=\s*(no|0)/i.test(src));
+  T('no maximum-scale lock', !/maximum-scale/i.test(src));
+  T('the workout surface is not transform-scaled', (() => {
+    /* Read each rule body by slicing on its literal selector — building a
+       regex from the selector needs escaping that does not survive being
+       written through a template literal. */
+    const bodyOf = (sel) => {
+      const i = css.indexOf(sel + '{');
+      if(i === -1) return '';
+      return css.slice(i, css.indexOf('}', i));
+    };
+    const scaled = ['.sheet.sheet-page', '.ws-head', '.ws-nav', '.ws-rest']
+      .filter(sel => /transform:[^;]*scale\(/.test(bodyOf(sel)));
+    return scaled.length === 0 ? true : scaled;
+  })() === true);
+  T('and the scale guard reads the real rules', (() => {
+    const i = css.indexOf('.sheet.sheet-page{');
+    return i !== -1;
+  })());
+  T('no landscape rule changes a field\'s font size', (() => {
+    const i = css.indexOf('@media (orientation: landscape) and (max-height: 500px)');
+    if(i === -1) return 'landscape block missing';
+    const slice = css.slice(i, i + 4500);
+    const bad = [...slice.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(m => /(^|[\s,>+~])(input|textarea|select)\b|-in\b/.test(m[1]) && /font-size/.test(m[2]))
+      .map(m => m[1].trim());
+    return bad.length === 0 ? true : bad;
+  })() === true);
+
+  sub('every editable workout control clears the iOS zoom floor');
+  /* Below 16px Safari zooms the page on focus and does not zoom back. This is
+     asserted at the rule level so a new field cannot reintroduce it. */
+  T('the base field size is at the threshold',
+    /input, textarea, select\{[\s\S]{0,300}font-size: 16px;/.test(css));
+  T('and no rule anywhere sets a field below it', (() => {
+    const bad = [];
+    const re = /([^{}]+)\{([^{}]*)\}/g; let m;
+    while((m = re.exec(css))){
+      const sel = m[1].replace(/\s+/g,' ').trim();
+      if(!/(^|[\s,>+~])(input|textarea|select)\b/.test(sel)) continue;
+      const f = m[2].match(/font-size:\s*([\d.]+)px/);
+      if(f && parseFloat(f[1]) < 16 && !/::|checkbox|radio|range/.test(sel)) bad.push(sel + ' @' + f[1]);
+    }
+    return bad.length === 0 ? true : bad;
+  })() === true);
+
+  sub('this was presentation only');
+  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+  T('shadow retention is untouched', /TRAINER_LOG_MAX = 2000/.test(src));
+  T('autosave is untouched',
+    /function scheduleDraftSave\(\)\{[\s\S]{0,220}persistDraftNow\(\); \}, 250\);/.test(src));
+  T('draft restoration is untouched', /function restoreDraftToSheet\(draft\)\{/.test(src));
+  T('saveLog still reads every mounted row',
+    /const rows = document\.querySelectorAll\('#logExercises \.ex-log-row'\);/.test(src));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -11386,6 +11476,7 @@ async function main(){
   testWorkoutStepper(H.loadApp());
   testWarmupAndRest(H.loadApp());
   testWarmupEntry(H.loadApp());
+  testOrientationScale(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
