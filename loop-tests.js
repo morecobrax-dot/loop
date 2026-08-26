@@ -10737,6 +10737,112 @@ function testDesignSystem(app){
     /@media \(prefers-reduced-motion: reduce\)/.test(css));
 }
 
+/* =========================================================
+   CONTRACT 106 — Composition and completion
+   ---------------------------------------------------------
+   Rhythm on the screen LOOP opens on, the last three Unicode
+   symbols standing in for icons, and the one completion
+   moment that had no feedback.
+   ========================================================= */
+function testComposition(app){
+  section('CONTRACT 106 — composition and completion feedback');
+  const ctx = app.ctx;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('Today has a rhythm, not a set of near-misses');
+  /* Measured on the rendered screen: the blocks down Today sat 14, 14, 12, 26,
+     12, 16 apart. The 26 is the section rule and means something; three values
+     within four pixels of each other do not. */
+  ['\\.tw\\{ margin-top: var\\(--space-3\\)',
+   '\\.wk-card\\{[\\s\\S]{0,140}margin-top: var\\(--space-3\\)',
+   '\\.ready-prompt\\{[\\s\\S]{0,140}margin-top: var\\(--space-3\\)',
+   '\\.insight-list\\{ margin-top: var\\(--space-3\\)',
+   '\\.resume-card\\{\\s*margin-top: var\\(--space-3\\)']
+    .forEach((re, i) => T('Today block ' + (i+1) + ' uses the shared gap', new RegExp(re).test(css)));
+  T('the section break is still a section break, not another block gap',
+    /\.sec-head\{[\s\S]{0,220}margin: 26px 0 10px/.test(css));
+
+  sub('the last symbols standing in for icons');
+  /* The premium pass took the navigation bar off Unicode geometry. These were
+     what remained in rendered UI: a warning sign on Train, a tick and a ring
+     on every achievement row, and a caret on the cardio disclosure. */
+  T('the plateau notice draws its warning', /\$\{warnIconSvg\(\)\}/.test(src));
+  T('achievements draw their state', /a\.unlocked \? checkIconSvg\(14\) : ringIconSvg\(14\)/.test(src));
+  T('the cardio disclosure turns one chevron rather than swapping two characters',
+    /class="cd-more-caret\$\{cardioAdvancedOpen \? ' open' : ''\}">\$\{chevronDownSvg\(13\)\}/.test(src));
+  T('and it turns, rather than redrawing', /\.cd-more-caret\.open\{ transform: rotate\(180deg\); \}/.test(css));
+  T('no rendered UI still uses those characters', (() => {
+    const bad = [];
+    [/⚠/g, /[▴▾]/g].forEach(re => { const m = src.match(re); if(m) bad.push(m.join('')); });
+    /* ✓ and ○ survive only inside a native <option>, which cannot hold an SVG */
+    return bad.length === 0 ? true : bad;
+  })() === true);
+  T('the new icons are drawn on the family grid', (() => {
+    const w = src.slice(src.indexOf('function warnIconSvg'), src.indexOf('function trendIconSvg'));
+    return /viewBox="0 0 16 16"/.test(w) && /stroke="currentColor"/.test(w) && /aria-hidden="true"/.test(w);
+  })());
+  T('the swap control keeps its character, because an <option> cannot hold markup',
+    /<option value="">↻/.test(src));
+
+  sub('completing a set is felt, not just seen');
+  /* Finishing a cardio session, lifting a day to drag it and a rest timer
+     running out all pulsed. Completing a set — the action performed more than
+     any other in the app — did not. */
+  T('one pulse on completion', (() => {
+    const fn = src.slice(src.indexOf('function toggleSetComplete(btn)'), src.indexOf('function markExerciseComplete'));
+    return /if\(isDone\)\{[\s\S]{0,200}loopHaptic\(\);/.test(fn);
+  })());
+  T('and none when a set is re-opened', (() => {
+    const fn = src.slice(src.indexOf('function toggleSetComplete(btn)'), src.indexOf('function markExerciseComplete'));
+    const elseBranch = fn.slice(fn.indexOf('} else if(panel'));
+    return elseBranch.indexOf('loopHaptic') === -1;
+  })());
+  T('the haptic is a single pulse with a silent fallback',
+    /function loopHaptic\(\)\{[\s\S]{0,200}navigator\.vibrate\(18\)[\s\S]{0,80}return false;/.test(src));
+  T('the visual confirmation it already had was left alone',
+    /\.set-row\.completed \.set-complete-btn\{ animation: scbSettle/.test(css));
+  T('and the next set is still pointed at', /next\.classList\.add\('pulse'\)/.test(src));
+
+  sub('finishing an exercise is a slightly larger moment');
+  T('the mark is applied only when every set is done',
+    /const done = allRows\.every\(r => r\.classList\.contains\('completed'\)\);/.test(src));
+  T('it settles once, not on every set',
+    /if\(!done \|\| exRow\.classList\.contains\('ex-complete'\)\) return;/.test(src));
+  T('the settle is transient and the state is not',
+    /exRow\.classList\.remove\('ex-complete-in'\)/.test(src) &&
+    /\.ex-log-row\.ex-complete\{ border-color:/.test(css));
+  T('re-opening a set clears the mark, so it describes now rather than earlier',
+    /if\(!isDone && exRow\) exRow\.classList\.remove\('ex-complete'\);/.test(src));
+  T('the motion is restrained — a settle, not a bounce', (() => {
+    const kf = css.slice(css.indexOf('@keyframes exSettle'), css.indexOf('@keyframes exSettle') + 180);
+    const peak = kf.match(/scale\(([\d.]+)\)/g) || [];
+    return peak.every(p => parseFloat(p.match(/[\d.]+/)[0]) <= 1.02);
+  })());
+  T('reduced motion still removes all of it',
+    /@media \(prefers-reduced-motion: reduce\)\{\s*\*\{ animation: none !important; transition: none !important; \}/.test(css));
+
+  sub('what was already right was left alone');
+  /* The drag interaction, the PR reveal and the set button's own animation
+     already met this brief. Changing them would have been motion for its own
+     sake. */
+  T('the drag still lifts, scales and clamps', /translateX\(\$\{clamped\}px\) scale\(1\.06\)/.test(src));
+  T('it still leaves a placeholder behind', /\.wk-placeholder\{/.test(css));
+  T('it still refuses text selection', /strip\.addEventListener\('selectstart'/.test(src));
+  T('it still shakes on an invalid drop', /@keyframes wkReject/.test(css));
+  T('the PR reveal is still a rise and a glow, with no confetti',
+    /\.pr-callout-fresh\{ animation: prFreshIn 0\.3s var\(--ease\) both, prFreshGlow/.test(css));
+
+  sub('nothing about the product changed');
+  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+  T('shadow retention is untouched', /TRAINER_LOG_MAX = 2000/.test(src));
+  T('D17 accessibility survived',
+    /function initSheetKeyboard\(/.test(src) && /ov\.setAttribute\('aria-modal', 'true'\)/.test(src));
+  T('the warm-up library was not touched while passing through',
+    /function buildPrepSequence\(/.test(src));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -10807,6 +10913,7 @@ async function main(){
   testFirstRunRefinement(H.loadApp());
   testReliability(H.loadApp());
   testDesignSystem(H.loadApp());
+  testComposition(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

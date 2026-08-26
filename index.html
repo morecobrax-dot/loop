@@ -515,9 +515,11 @@ html.intro-skip #introOverlay{ display: none !important; }
 }
 .coach-note.expanded .coach-detail{ max-height: 60px; margin-top: 7px; }
 .plateau-flag{
+  display: flex; align-items: flex-start; gap: 7px;
   font-size: 11.5px; color: var(--warning); background: var(--warning-soft); border: 1px solid rgba(189,146,96,0.3);
   border-radius: var(--radius-sm); padding: 8px 10px; margin-top: 10px; line-height: 1.4;
 }
+.plateau-flag svg{ flex-shrink: 0; margin-top: 1px; }
 .plateau-more{ color: var(--text-faint); }
 .warmup-wrap:empty{ display: none; }
 .warmup-box{ background: var(--surface-3); border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 8px 10px; margin-top: 10px; }
@@ -684,7 +686,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 /* ---- Active workout resume banner ---- */
 #resumeBanner:empty{ display: none; }
 .resume-card{
-  margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-lg);
+  margin-top: var(--space-3); padding: 14px 16px; border-radius: var(--radius-lg);
   background: linear-gradient(160deg, var(--accent-soft), var(--surface-2));
   border: 1px solid var(--accent);
 }
@@ -711,7 +713,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .sec-hint{ font-size: var(--fs-micro); letter-spacing: 0.03em; text-transform: none; font-weight: 500; color: var(--text-faint); opacity: 0.75; }
 
 /* Today's Workout — the one primary component */
-.tw{ margin-top: 14px; padding: 18px; border-radius: var(--radius-xl); background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); }
+.tw{ margin-top: var(--space-3); padding: 18px; border-radius: var(--radius-xl); background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); }
 .tw-push{ border-left-color: var(--push); } .tw-pull{ border-left-color: var(--pull); }
 .tw-legs{ border-left-color: var(--legs); } .tw-core{ border-left-color: var(--core); }
 .tw-fullbody{ border-left-color: var(--full); }
@@ -748,7 +750,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 
 /* Compact insight rows instead of a coach card */
 #todayInsights:empty{ display: none; }
-.insight-list{ margin-top: 16px; display: flex; flex-direction: column; gap: 1px; }
+.insight-list{ margin-top: var(--space-3); display: flex; flex-direction: column; gap: 1px; }
 .insight-row{ display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--border); }
 .insight-tag{ flex-shrink: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 7px; border-radius: var(--radius-sm); }
 .it-trend{ background: var(--accent-soft); color: var(--accent); }
@@ -779,7 +781,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 #readinessCard:empty{ display: none; }
 .ready-prompt{
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  margin-top: 12px; padding: 13px 15px; border-radius: var(--radius-md);
+  margin-top: var(--space-3); padding: 13px 15px; border-radius: var(--radius-md);
   background: var(--surface-2); border: 1px dashed var(--border); cursor: pointer;
 }
 .ready-prompt-text{ font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
@@ -899,6 +901,9 @@ html.intro-skip #introOverlay{ display: none !important; }
   transition: border-color 0.15s var(--ease);
 }
 .cd-input:focus{ outline: none; border-color: var(--accent); background: var(--surface-3); }
+/* One chevron that turns, rather than two characters that swap. */
+.cd-more-caret{ display: inline-flex; transition: transform 0.18s var(--ease); }
+.cd-more-caret.open{ transform: rotate(180deg); }
 .cd-more{
   width: 100%; margin-top: 14px; min-height: 44px; padding: 11px; border-radius: var(--radius-md);
   background: none; border: 1px solid var(--border); color: var(--text-dim);
@@ -1542,7 +1547,7 @@ body.first-use{ padding-bottom: 0; }
 /* ---------- THIS WEEK + MOMENTUM (Phase D11) ---------- */
 .wk-card{
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 14px 14px 12px; margin-top: 14px;
+  padding: 14px 14px 12px; margin-top: var(--space-3);
 }
 .wk-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .wk-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
@@ -2524,7 +2529,19 @@ textarea{ resize: vertical; min-height: 56px; }
 .cat-opt.sel-upper.on{ border-color: var(--upper); background: var(--upper-soft); color: var(--upper); }
 .cat-opt.sel-lower.on{ border-color: var(--lower); background: var(--lower-soft); color: var(--lower); }
 
-.ex-log-row{ border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin-top: 10px; }
+.ex-log-row{
+  border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin-top: 10px;
+  transition: border-color 0.28s var(--ease), background 0.28s var(--ease);
+}
+/* Every set done. The exercise keeps the success edge it earned; the settle
+   plays once on the transition and is not part of the resting state. */
+.ex-log-row.ex-complete{ border-color: rgba(75,156,129,0.42); background: rgba(75,156,129,0.045); }
+.ex-log-row.ex-complete-in{ animation: exSettle 0.42s var(--ease); }
+@keyframes exSettle{
+  0%{ transform: scale(1); }
+  38%{ transform: scale(1.012); }
+  100%{ transform: scale(1); }
+}
 .swap-select{
   width: 44px; height: 44px; flex-shrink: 0; font-size: 16px; font-weight: 600; padding: 0;
   border: 1px solid var(--border); color: var(--text-faint); background: var(--surface-2); border-radius: var(--radius-sm);
@@ -7647,6 +7664,21 @@ function tabIconSvg(name){
   return open + (paths[name] || '') + '</svg>';
 }
 
+/* A warning triangle and a hollow ring, drawn on the family grid. The tick
+   already exists as checkIconSvg(). */
+function warnIconSvg(size){
+  const px = size || 13;
+  return `<svg width="${px}" height="${px}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">` +
+    '<path d="M8 2.6 14.2 13H1.8L8 2.6Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<path d="M8 6.6v2.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+    '<circle cx="8" cy="11.2" r="0.85" fill="currentColor"/></svg>';
+}
+function ringIconSvg(size){
+  const px = size || 13;
+  return `<svg width="${px}" height="${px}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">` +
+    '<circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+}
+
 function trendIconSvg(dir, size){
   const px = size || 14;
   const open = `<svg class="ti ti-${dir}" width="${px}" height="${px}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">`;
@@ -9971,7 +10003,8 @@ function renderCardioLogger(){
 
     ${advanced.length ? `
       <button class="cd-more" onclick="toggleCardioAdvanced()">
-        ${cardioAdvancedOpen ? 'Hide details' : 'More details'} <span>${cardioAdvancedOpen ? '▴' : '▾'}</span>
+        ${cardioAdvancedOpen ? 'Hide details' : 'More details'}
+        <span class="cd-more-caret${cardioAdvancedOpen ? ' open' : ''}">${chevronDownSvg(13)}</span>
       </button>
       ${cardioAdvancedOpen ? `<div class="cd-grid">${advanced.map(k => cardioFieldHtml(k, val(k))).join('')}</div>` : ''}
     ` : ''}
@@ -12666,7 +12699,7 @@ function templateCardHtml(t, cat, lastWeights){
   const plateaus = findPlateauedExercises(t);
   const plateauHtml = plateaus.length ? `
     <div class="plateau-flag">
-      ⚠ ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions — try the swap dropdown${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}
+      ${warnIconSvg()} ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions — try the swap dropdown${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}
     </div>` : '';
   return `
     <div class="tpl-card">
@@ -13712,7 +13745,7 @@ function renderProfile(){
   const achievements = getUnlockedAchievements();
   document.getElementById('profileAchievements').innerHTML = achievements.map(a => `
     <div class="achievement-row ${a.unlocked ? 'unlocked' : ''}">
-      <div class="achievement-mark">${a.unlocked ? '✓' : '○'}</div>
+      <div class="achievement-mark">${a.unlocked ? checkIconSvg(14) : ringIconSvg(14)}</div>
       <div class="achievement-body">
         <div class="achievement-name">${escapeHtml(a.name)}</div>
         <div class="achievement-desc">${escapeHtml(a.desc)}${!a.unlocked ? ` (${a.progress}/${a.threshold})` : ''}</div>
@@ -16959,7 +16992,7 @@ const ONBOARDING_STEPS = [
           <div class="ob-mock-ctrl"><span class="ob-mock-unit">REPS</span><span class="ob-mock-stepper">– 8 +</span></div>
         </div>
         <div class="ob-mock-ctrl ob-spot" style="margin-top:8px">
-          <span class="ob-mock-unit">SET TYPE</span><span class="ob-mock-select">Working ▾</span>
+          <span class="ob-mock-unit">SET TYPE</span><span class="ob-mock-select">Working ${chevronDownSvg(10)}</span>
         </div>
       </div>`
   },
@@ -21475,6 +21508,9 @@ function toggleSetComplete(btn){
   const exRow = row.closest('.ex-log-row');
   const panel = exRow ? exRow.querySelector('.rest-panel') : null;
   if(isDone){
+    /* One pulse, inside the athlete's own tap so iOS allows it, and silent on
+       anything that cannot vibrate. */
+    loopHaptic();
     if(panel){
       const restSec = parseInt(panel.dataset.defaultRest) || 75;
       startRestPanel(panel, restSec);
@@ -21487,12 +21523,27 @@ function toggleSetComplete(btn){
       next.classList.add('pulse');
       setTimeout(() => next.classList.remove('pulse'), 1300);
     }
+    markExerciseComplete(exRow, allRows);
   } else if(panel && panel._interval){
     clearInterval(panel._interval);
     panel._interval = null;
     panel.style.display = 'none';
   }
+  if(!isDone && exRow) exRow.classList.remove('ex-complete');
   persistDraftNow();
+}
+
+/* The last set of an exercise is a bigger moment than the ones before it, but
+   only slightly: the row settles once and stays marked. Re-opening a set
+   clears the mark, so it always describes the current state rather than
+   something that happened earlier. */
+function markExerciseComplete(exRow, allRows){
+  if(!exRow || !allRows || !allRows.length) return;
+  const done = allRows.every(r => r.classList.contains('completed'));
+  if(!done || exRow.classList.contains('ex-complete')) return;
+  exRow.classList.add('ex-complete');
+  exRow.classList.add('ex-complete-in');
+  setTimeout(() => exRow.classList.remove('ex-complete-in'), 460);
 }
 
 /* =========================================================

@@ -1945,3 +1945,106 @@ Pure visual navigation writes nothing: all fifteen `DATA_KEYS` byte-identical,
 XP unchanged, 35 logged sessions intact.
 
 The trainer is untouched and remains `0.1.1-shadow`.
+
+## §31 — Composition and completion (Visual composition pass)
+
+An audit-first pass on rhythm, the last Unicode standing in for icons, and the
+completion moment that had no feedback. Most of what this brief asked for was
+already built; the value was in finding the three places it was not.
+
+### Today's rhythm
+
+Measured on the rendered screen, the blocks down Today sat **14, 14, 12, 26,
+12, 16** pixels apart. The 26 is real — it comes from `.sec-head` and marks the
+break between "what am I doing today" and "how have I been doing". The 12, 14
+and 16 are three different answers to the same question, none of them chosen,
+and three values within four pixels read as accidental rather than composed.
+
+Two gaps now carry the screen: `--space-3` between blocks that belong together,
+and the section rule between groups that do not. **Four distinct gaps → two.**
+
+The wider stylesheet has 19 distinct raw `margin-top` values across 268
+declarations. That was deliberately **not** swept: most are intra-component
+spacing where a token grid would be wrong, and rewriting them is the
+"blindly fix everything" trap this brief warns against. Block-level rhythm is
+what a reader perceives, and that is what changed.
+
+### The last symbols standing in for icons
+
+The premium pass took the navigation bar off Unicode geometry. Four remained in
+rendered UI:
+
+| where | was | now |
+|---|---|---|
+| Train, plateau notice | `⚠` | `warnIconSvg()` |
+| Profile, achievement rows | `✓` / `○` | `checkIconSvg()` / `ringIconSvg()` |
+| Cardio, details disclosure | `▴` / `▾` swap | one `chevronDownSvg()` that rotates |
+| Tutorial, mock set-type control | `▾` | `chevronDownSvg()` |
+
+The tutorial one is worth naming: the real set-type control already used
+`chevronDownSvg()`, so the mock was depicting LOOP **less accurately than
+reality**. Fixing it made the tour honest, not just consistent.
+
+The swap control keeps its character deliberately — it lives inside a native
+`<option>`, which cannot hold markup.
+
+### Completing a set is now felt
+
+Finishing a cardio session, lifting a day to drag it, and a rest timer running
+out all pulsed. **Completing a set — the action an athlete performs more than
+any other, twenty-odd times a session — did not.**
+
+The visual side was already right: the button's ring fills and its check draws
+(`scbSettle`), and the next set pulses so the eye knows where to go. Only the
+touch was missing. One pulse, inside the athlete's own tap so iOS permits it,
+silent on anything that cannot vibrate, and **not** fired when a set is
+re-opened.
+
+Finishing the last set of an exercise is a slightly larger moment, so the row
+settles once and keeps a success edge. Re-opening a set clears the mark, so it
+always describes the current state rather than something that happened earlier.
+The settle peaks at scale 1.012 — a settle, not a bounce — and reduced motion
+removes it with everything else.
+
+### What was already right, and left alone
+
+The brief asked for polish in several places that already had it. Changing them
+would have been motion for its own sake:
+
+- **Drag** (Phase 12) already lifts with `scale(1.06)`, leaves a dashed
+  placeholder, outlines valid targets, highlights the one under the finger,
+  shakes on an invalid drop, fires a haptic on pickup, and suppresses text
+  selection three different ways.
+- **PR reveal** (Phase 11) already rises and pulses a success ring — no emoji,
+  no confetti.
+- **Rest timer** (Phase 13) already uses deadline-based timing, keeps its text
+  inside the ring at every value, fires one haptic and one chime.
+- **Card structure** (Phase 3) — the audit found 8 apparently nested cards on
+  Train; they are buttons and alert flags inside workout cards, which is correct
+  composition. No card was removed.
+- **Warm-up library** (Phase 20) untouched, as instructed.
+
+### Contract 106
+
+Thirty-four assertions: Today's five block gaps share one token and the section
+rule is still a section rule; each replaced symbol draws from the family grid;
+no rendered UI still carries those characters; the haptic fires on completion
+and not on re-opening; the exercise mark applies once and clears when a set
+re-opens; the settle stays under 1.02; and the drag, PR reveal and set button
+animations are all still present.
+
+No assertion was re-pointed this phase.
+
+### Measured
+
+375×812, 390×844, 812×375, 844×390 and 932×430, across five tabs, four Progress
+sub-tabs and six sheets: **no clipping, no text under 11px, no control under
+44px, no field under 16px, no horizontal overflow.**
+
+Performance: 20 tab switches in **39.5ms (1.98ms each)**; 20 sheet open/close
+cycles in **0.5ms (0.03ms each)**; zero intervals leaked, zero listeners
+retained, one active view and one active tab throughout.
+
+Data: fifteen `DATA_KEYS` byte-identical after the full sweep. D17 accessibility
+intact — dialog role, focus in and out, Escape, scroll lock. The trainer is
+untouched and remains `0.1.1-shadow`.
