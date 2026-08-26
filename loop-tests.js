@@ -2071,15 +2071,36 @@ function testPrepRunner(app){
   T('timed movement starts a timer', ctx.prepTimerId !== null);
 
   sub('pause');
+  /* D18C: pausing updates the button in place instead of re-rendering the
+     step. The step markup now contains the movement demonstration, and
+     rebuilding it would snap the figure back to its first frame on every tap
+     of Pause and again on every tap of Resume. So the label is asserted on the
+     button the athlete actually taps, and the step markup is asserted NOT to
+     change — a guarantee the previous rebuild-based assertion could not make. */
+  /* Counting calls rather than diffing markup: the paused ring legitimately
+     changes one class, so the rendered string is expected to differ by exactly
+     that. What must not happen is a re-render, and that is what is counted. */
+  const realRenderStep = ctx.renderPrepStep;
+  let stepRenders = 0;
+  ctx.renderPrepStep = function(){ stepRenders++; return realRenderStep.apply(this, arguments); };
+
   ctx.togglePrepPause();
   T('pause sets the flag', ctx.prepState.paused === true);
-  T('pause is reflected in the UI', dom.els.prepActions.innerHTML.includes('Resume'));
+  T('pause relabels the button the athlete taps', dom.els.prepPauseBtn.textContent === 'Resume');
+  T('pausing does not re-render the step', stepRenders === 0, String(stepRenders));
   const heldAt = ctx.prepState.remaining;
   ctx.tickPrep();
   T('paused timer does not advance', ctx.prepState.remaining === heldAt);
   ctx.togglePrepPause();
   T('resume clears the flag', ctx.prepState.paused === false);
+  T('resume relabels the button back', dom.els.prepPauseBtn.textContent === 'Pause');
+  T('resuming does not re-render the step either', stepRenders === 0, String(stepRenders));
   T('resume re-anchors the deadline', ctx.prepState.endsAt > Date.now());
+  /* The spy must be able to see a real render, or the two assertions above
+     would pass simply because nothing was ever wired up. */
+  ctx.enterPrepStep();
+  T('the render spy does observe real renders', stepRenders === 1, String(stepRenders));
+  ctx.renderPrepStep = realRenderStep;
 
   sub('completing early and stepping through');
   for(let i = 0; i < total; i++) ctx.nextPrepStep();
@@ -11417,16 +11438,43 @@ function testMovementLibraryBoundary(app){
   const libPath = H.APP_PATH.replace(/index\.html$/, 'loop-movement.js');
   const lib = fs.existsSync(libPath) ? fs.readFileSync(libPath, 'utf8') : '';
 
-  sub('production registries are untouched by the design handoff');
-  T('PREP_MOVEMENTS still has 22 movements',
-    (ctx.PREP_MOVEMENTS || []).length === 22, String((ctx.PREP_MOVEMENTS||[]).length));
+  sub('production registries changed only where D18C approved it');
+  /* Was "still has 22". D18C approved exactly five additions, so the count is
+     no longer the interesting fact — WHICH five is. Naming them is stricter
+     than a total: a count of 27 would also be satisfied by five wrong ones,
+     or by five additions plus a silent deletion. */
+  T('PREP_MOVEMENTS has the 22 originals plus the 5 approved additions',
+    (ctx.PREP_MOVEMENTS || []).length === 27, String((ctx.PREP_MOVEMENTS||[]).length));
+  ['reach_rotate','band_passthrough','hamstring_sweep','deep_squat_hold','reverse_lunge']
+    .forEach(id => T('approved addition present: ' + id,
+      (ctx.PREP_MOVEMENTS||[]).some(m => m.id === id)));
+  /* The four the brief withheld. Nothing should have swept them in alongside
+     the five that were approved. */
+  ['calf_raise','hip_hinge','bird_dog','hip_9090']
+    .forEach(id => T('withheld movement stayed out: ' + id,
+      !(ctx.PREP_MOVEMENTS||[]).some(m => m.id === id)));
   T('COOLDOWN_STRETCHES still has 13',
     (ctx.COOLDOWN_STRETCHES || []).length === 13, String((ctx.COOLDOWN_STRETCHES||[]).length));
   T('production movement ids are unique',
     (() => { const ids = [...(ctx.PREP_MOVEMENTS||[]), ...(ctx.COOLDOWN_STRETCHES||[])].map(m => m.id);
              return new Set(ids).size === ids.length; })());
-  T('production is not reading the design library',
-    !/loop-movement\.js|window\.LoopMovement|<loop-move/.test(src));
+
+  /* Was "production is not reading the design library" — a D18B boundary that
+     D18C deliberately crosses. The thing that assertion was really protecting
+     is that production content must not silently become whatever the design
+     file happens to say. That is now asserted directly, and harder: the
+     vendored renderer must match loop-movement.js byte for byte, so the
+     review tool always shows exactly what the app draws. */
+  T('production vendors the renderer instead of linking it',
+    /LOOP-MOVEMENT-BEGIN/.test(src) && !/<script[^>]*\ssrc=/.test(src));
+  T('the vendored renderer has not drifted from loop-movement.js', (() => {
+    if(!lib) return 'loop-movement.js not found';
+    const open = 'LOOP-MOVEMENT-BEGIN */';
+    const a = src.indexOf(open), b = src.indexOf('/* LOOP-MOVEMENT-END */');
+    if(a < 0 || b < 0) return 'markers missing';
+    const norm = t => t.split('\r\n').join('\n').trim();
+    return norm(src.slice(a + open.length, b)) === norm(lib) ? true : 'drifted';
+  })() === true);
 
   sub('rejected content replacements stay rejected');
   /* D18A rejected these two mappings: marching is dynamic preparation and a
@@ -11473,8 +11521,14 @@ function testMovementLibraryBoundary(app){
     const ids = [...lib.matchAll(/\{ id:'([a-z0-9_]+)'/g)].map(m => m[1]);
     return ids.length > 30 && new Set(ids).size === ids.length;
   })());
-  T('it still declares itself design-phase only',
-    /Design-phase library only — LOOP production data is untouched/.test(lib));
+  /* Was "it still declares itself design-phase only". D18C shipped it, so that
+     header would now be a lie sitting in production code. What replaces it is
+     the fact a future reader actually needs: this file is vendored, there is a
+     script that does it, and editing the copy in index.html is the wrong move. */
+  T('it documents that it is vendored rather than design-only',
+    /vendored verbatim into index\.html/.test(lib) && !/Design-phase library only/.test(lib));
+  T('it names the script that keeps the copies in step',
+    /sync-movement\.js/.test(lib) && fs.existsSync(H.APP_PATH.replace(/index\.html$/, 'sync-movement.js')));
   T('reduced motion is honoured', /prefers-reduced-motion/.test(lib) && /renderStatic/.test(lib));
   T('one figure system, not several', (lib.match(/function Figure\(/g) || []).length === 1);
   T('the custom element is registered once',
@@ -11504,6 +11558,201 @@ function testMovementLibraryBoundary(app){
     });
     return bad.length === 0 ? true : bad;
   })() === true);
+}
+
+/* =========================================================
+   CONTRACT 113 — Movement animation integration
+   ---------------------------------------------------------
+   D18C put the reviewed figure renderer into the prep runner.
+   The renderer draws; it decides nothing. These assertions
+   hold that line: the registries still say what an athlete is
+   given, the countdown still says how long, and a movement
+   with no authored animation shows no figure rather than a
+   plausible-looking wrong one.
+   ========================================================= */
+function testMovementAnimation(app){
+  section('CONTRACT 113 — movement animation integration');
+  const ctx = app.ctx, dom = app.dom;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const lib = ctx.window && ctx.window.LoopMovement;
+  const M = ctx.MOVEMENT_ANIMATION || {};
+  const prep = ctx.PREP_MOVEMENTS || [], cool = ctx.COOLDOWN_STRETCHES || [];
+  const ids = [...prep, ...cool].map(m => m.id);
+  const byId = id => [...prep, ...cool].find(m => m.id === id) || {};
+  /* The vendored renderer, isolated, so assertions about what the animation
+     code may not do cannot be satisfied by the rest of the app. */
+  const vendorStart = src.indexOf('LOOP-MOVEMENT-BEGIN */');
+  const vendorEnd = src.indexOf('/* LOOP-MOVEMENT-END */');
+  const vendored = vendorStart > 0 && vendorEnd > vendorStart ? src.slice(vendorStart, vendorEnd) : '';
+  /* Assertions about what the renderer DOES must read code, not prose. The
+     header says the renderer knows nothing about the trainer; without
+     stripping comments, that sentence is itself a match for /trainer/. */
+  const vendoredCode = vendored
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+  sub('the renderer reached production intact');
+  T('LoopMovement is exposed to the app', !!lib);
+  T('it carries the reviewed movement set',
+    !!lib && lib.MOVEMENTS.length === 34, lib ? String(lib.MOVEMENTS.length) : 'absent');
+  T('the vendored region was located', vendored.length > 40000, String(vendored.length));
+  /* The harness has no HTMLElement and no customElements. Without this guard
+     the renderer throws while loading and takes every contract down with it. */
+  T('element registration is guarded for non-browser environments',
+    /typeof HTMLElement!=='undefined'&&typeof customElements!=='undefined'/.test(vendored));
+  T('the app still loads with zero errors', app.errors.length === 0, app.errors.slice(0,2).join(' | '));
+
+  sub('every mapping resolves to something real');
+  T('the map covers the movements that have an animation',
+    Object.keys(M).length === 31, String(Object.keys(M).length));
+  T('every mapped key is a real production movement', (() => {
+    const bad = Object.keys(M).filter(k => ids.indexOf(k) === -1);
+    return bad.length === 0 ? true : bad.join(',');
+  })() === true);
+  T('every animation target exists in the library', (() => {
+    if(!lib) return 'library absent';
+    const bad = Object.keys(M).filter(k => !lib.get(M[k]));
+    return bad.length === 0 ? true : bad.join(',');
+  })() === true);
+  T('no two movements are drawn with the same animation', (() => {
+    const seen = {}, dupes = [];
+    Object.keys(M).forEach(k => { if(seen[M[k]]) dupes.push(M[k]); seen[M[k]] = 1; });
+    return dupes.length === 0 ? true : dupes.join(',');
+  })() === true);
+  T('an unmapped movement resolves to no animation',
+    ctx.animationForMovement('definitely_not_a_movement') === null);
+  T('every registry movement either has a resolvable animation or none at all',
+    ids.every(id => { const a = ctx.animationForMovement(id); return a === null || !!lib.get(a); }));
+
+  sub('rejected mappings stay rejected');
+  /* D18A refused these two: marching is dynamic preparation and a quad stretch
+     is a static hold; a dead bug is anti-extension core work and a hinge is a
+     pattern rehearsal. Drawing one as the other would teach the wrong
+     movement, which is worse than drawing nothing. */
+  T('march_in_place is not drawn as a quad stretch',
+    !M.march_in_place && ctx.animationForMovement('march_in_place') === null);
+  T('dead_bug is not drawn as a hip hinge',
+    !M.dead_bug && ctx.animationForMovement('dead_bug') === null);
+  T('quad_stretch still draws itself', M.quad_stretch === 'quad_stretch');
+  T('hip_hinge_bw draws the hinge under its own production id', M.hip_hinge_bw === 'hip_hinge');
+
+  sub('production-only movements show no figure rather than a wrong one');
+  ['straight_arm_pulldown','monster_walk','band_row','torso_twist',
+   'upper_back_round','rear_delt_stretch','spinal_twist'].forEach(id => {
+    T(id + ' is still offered', ids.indexOf(id) !== -1);
+    T(id + ' draws nothing rather than something approximate',
+      ctx.animationForMovement(id) === null);
+  });
+
+  sub('the three approved content changes actually landed');
+  /* The ids stayed canonical, which means an id check alone would pass even if
+     the content change had been forgotten. These assert the content. */
+  T('cat_cow is now the standing variant', byId('cat_cow').displayName === 'Standing Cat-Cow');
+  T('and no longer sends the athlete to all fours', !/all fours/i.test(byId('cat_cow').instruction));
+  T('and draws the standing animation', M.cat_cow === 'standing_cat_cow');
+  T('chest_doorway is now the chest opener', byId('chest_doorway').displayName === 'Chest Opener');
+  T('and no longer requires a doorway', !/frame|doorway/i.test(byId('chest_doorway').instruction));
+  T('and draws the chest opener', M.chest_doorway === 'chest_opener');
+  T('glute_figure4 is now the standing variant', byId('glute_figure4').displayName === 'Standing Figure-4');
+  T('and no longer requires lying down', !/on your back/i.test(byId('glute_figure4').instruction));
+  T('and draws the standing figure-4', M.glute_figure4 === 'standing_figure4');
+
+  sub('nobody is given a different warm-up');
+  /* Sequences are explicit id lists, so growing the registry changes nothing
+     on its own. Adopting the new movements into a sequence WOULD change what
+     an athlete is told to do, and that is a programming decision D18C did not
+     authorise — this holds the line until it is made deliberately. */
+  const added = ['reach_rotate','band_passthrough','hamstring_sweep','deep_squat_hold','reverse_lunge'];
+  T('no prep sequence silently adopted a new movement',
+    !Object.keys(ctx.PREP_SEQUENCES).some(k => ctx.PREP_SEQUENCES[k].some(id => added.indexOf(id) !== -1)));
+  T('the fallback sequence did not either',
+    !(ctx.PREP_SEQUENCE_FALLBACK || []).some(id => added.indexOf(id) !== -1));
+  T('every prep sequence id still resolves to a movement', (() => {
+    const bad = [];
+    Object.keys(ctx.PREP_SEQUENCES).forEach(k =>
+      ctx.PREP_SEQUENCES[k].forEach(id => { if(!ctx.getPrepMovement(id)) bad.push(k + '/' + id); }));
+    (ctx.PREP_SEQUENCE_FALLBACK || []).forEach(id => { if(!ctx.getPrepMovement(id)) bad.push('fallback/' + id); });
+    return bad.length === 0 ? true : bad.join(',');
+  })() === true);
+  T('every cooldown sequence id still resolves', (() => {
+    const bad = [];
+    Object.keys(ctx.COOLDOWN_SEQUENCES).forEach(k =>
+      ctx.COOLDOWN_SEQUENCES[k].forEach(id => { if(!ctx.getCooldownStretch(id)) bad.push(k + '/' + id); }));
+    (ctx.COOLDOWN_SEQUENCE_FALLBACK || []).forEach(id => { if(!ctx.getCooldownStretch(id)) bad.push('fallback/' + id); });
+    return bad.length === 0 ? true : bad.join(',');
+  })() === true);
+
+  sub('the countdown stays the only clock');
+  T('the renderer starts no interval of its own', !/setInterval|setTimeout/.test(vendoredCode));
+  T('it does not reach for the production timer', !/prepState|prepTimerId/.test(vendoredCode));
+  T('pausing stops the loop instead of rebuilding it',
+    /pause=function\(\)\{\s*this\._paused=true;\s*this\._stop\(\);\s*\}/.test(vendored));
+  /* Animation time accumulates on the instance and is only zeroed by a
+     rebuild, so resume() picks up the pose pause() stopped on. */
+  T('resuming keeps the pose it stopped on',
+    /self\._t\+=dt\*/.test(vendored) &&
+    !/this\._t\s*=\s*0/.test(vendored.slice(vendored.indexOf('resume=function'))));
+  T('animation frames are cancelled on disconnect',
+    /disconnectedCallback=function\(\)\{this\._stop\(\);\}/.test(vendored));
+
+  sub('reduced motion');
+  T('the renderer honours the preference', /prefers-reduced-motion/.test(vendored));
+  T('and renders a held pose rather than nothing', /renderStatic/.test(vendored));
+  T('a static figure never starts a loop',
+    /if\(noAnim\)\{this\._fig\.renderStatic\(\);return;\}/.test(vendored));
+
+  sub('lifecycle — nothing outlives the screen');
+  /* The fallback sequence opens with march_in_place, which is deliberately
+     unanimated, so this walks the whole sequence and asserts both branches:
+     a figure where one was authored, nothing where one was not. */
+  ctx.startPrep();
+  const steps = [];
+  for(let i = 0; i < 8 && ctx.prepState && ctx.prepState.idx < ctx.prepState.seq.length; i++){
+    const m = ctx.prepState.seq[ctx.prepState.idx];
+    const html = dom.els.prepRun.innerHTML;
+    steps.push({ id: m.id, anim: ctx.animationForMovement(m.id),
+                 figs: (html.match(/<loop-move/g) || []).length, html });
+    ctx.nextPrepStep();
+  }
+  T('the sequence was actually walked', steps.length >= 3, String(steps.length));
+  T('at least one step had an animation to draw', steps.some(s => s.anim));
+  T('a movement with an animation renders exactly one figure',
+    steps.filter(s => s.anim).every(s => s.figs === 1),
+    steps.filter(s => s.anim && s.figs !== 1).map(s => s.id + ':' + s.figs).join(','));
+  T('a movement without one renders no figure at all',
+    steps.filter(s => !s.anim).every(s => s.figs === 0),
+    steps.filter(s => !s.anim && s.figs !== 0).map(s => s.id).join(','));
+  T('the figure is given the mapped animation id',
+    steps.filter(s => s.anim).every(s => s.html.indexOf('movement="' + s.anim + '"') !== -1));
+  ctx.exitPrep();
+  T('exit empties the runner so the figure disconnects', dom.els.prepRun.innerHTML === '');
+  T('exit clears the timer', ctx.prepTimerId === null);
+  T('exit clears the state', ctx.prepState === null);
+
+  sub('abuse — rapid taps and rapid open/close');
+  ctx.startPrep();
+  const seqLen = ctx.prepState.seq.length;
+  for(let i = 0; i < 40; i++) ctx.nextPrepStep();
+  T('rapid Next cannot run the index past the sequence',
+    ctx.prepState === null || ctx.prepState.idx <= seqLen);
+  T('and leaves no timer behind', ctx.prepTimerId === null);
+  ctx.exitPrep();
+  for(let i = 0; i < 20; i++){ ctx.startPrep(); ctx.exitPrep(); }
+  T('twenty open/close cycles leave no timer', ctx.prepTimerId === null);
+  T('and no state', ctx.prepState === null);
+  T('and an empty runner', dom.els.prepRun.innerHTML === '');
+
+  sub('the animation touches no data and no trainer');
+  T('the renderer never writes to storage', !/LOOPStore|localStorage|\.setItem\(/.test(vendoredCode));
+  T('it defines no data key', !/DATA_KEYS/.test(vendoredCode));
+  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15, String((ctx.DATA_KEYS||[]).length));
+  T('no movement or animation key was added',
+    !(ctx.DATA_KEYS || []).some(k => /anim|movement|figure|prep/i.test(k)));
+  T('the trainer engine version is untouched',
+    ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
+  T('the renderer knows nothing about the trainer',
+    !/trainer|readiness|capability|recovery|mastery/i.test(vendoredCode));
 }
 
 async function main(){
@@ -11583,6 +11832,7 @@ async function main(){
   testWarmupEntry(H.loadApp());
   testOrientationScale(H.loadApp());
   testMovementLibraryBoundary(H.loadApp());
+  testMovementAnimation(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

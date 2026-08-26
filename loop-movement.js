@@ -6,7 +6,13 @@
    front-view limb unification (left/right arms render identically — no arbitrary
    depth), wall panels, front-layer props with grip points.
    Exposed as <loop-move movement="hip_flexor_stretch"> and window.LoopMovement.
-   Design-phase library only — LOOP production data is untouched. */
+
+   Shipped in D18C. This file is vendored verbatim into index.html by
+   sync-movement.js, and a contract holds the two copies byte-identical — edit
+   here, then run `node sync-movement.js`. It draws movements and does nothing
+   else: it reads no user data, writes none, owns no timer, and knows nothing
+   about the trainer. What an athlete is actually given is decided by
+   PREP_MOVEMENTS and COOLDOWN_STRETCHES in production, never by this file. */
 (function(){
 'use strict';
 var NS='http://www.w3.org/2000/svg';
@@ -854,8 +860,16 @@ function Figure(host,mv,opts){
   };
 }
 
-/* ---------- <loop-move> web component ---------- */
+/* ---------- <loop-move> web component ----------
+   Guarded because this file is also evaluated outside a browser: the LOOP test
+   harness concatenates every <script> block of index.html into a Node vm that
+   has no HTMLElement and no customElements. Reading .prototype off an
+   undefined HTMLElement at load time would throw and take the whole app —
+   every contract with it — down before a single test ran. The movement DATA
+   below the guard is what the harness actually needs, so registration is the
+   only part that has to be optional. In a browser nothing here changes. */
 var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)');
+if(typeof HTMLElement!=='undefined'&&typeof customElements!=='undefined'){
 var LoopMove=function(){return Reflect.construct(HTMLElement,[],LoopMove);};
 LoopMove.prototype=Object.create(HTMLElement.prototype);
 LoopMove.observedAttributes=['movement','highlight','tempo','animate'];
@@ -873,25 +887,43 @@ LoopMove.prototype._build=function(){
   if(this._fig)this._fig.destroy();
   var id=this.getAttribute('movement')||MOVEMENTS[0].id;
   var mv=MOVEMENTS.find(function(m){return m.id===id;})||MOVEMENTS[0];
-  var self=this;
   this._fig=Figure(this,mv,{highlight:this.getAttribute('highlight')!=='off'});
+  /* Animation time lives on the instance, not in this closure, so pause() can
+     stop the loop and resume() can pick the pose up exactly where it stopped.
+     Rebuilding to pause would snap the figure back to frame 0 on every tap. */
+  this._t=0;
   var noAnim=(reduced&&reduced.matches)||this.getAttribute('animate')==='off';
+  this._static=!!noAnim;
   if(noAnim){this._fig.renderStatic();return;}
-  var tempo=parseFloat(this.getAttribute('tempo'))||1;
-  var t=0,last=performance.now();
+  this._fig.tick(0);
+  if(!this._paused)this._run();
+};
+LoopMove.prototype._run=function(){
+  var self=this;
+  this._last=performance.now();   // re-anchored on resume so paused time isn't replayed
   function loop(now){
-    var dt=Math.min(0.05,(now-last)/1000); last=now;
-    t+=dt*tempo;
-    self._fig.tick(t);
+    var dt=Math.min(0.05,(now-self._last)/1000); self._last=now;
+    self._t+=dt*(parseFloat(self.getAttribute('tempo'))||1);
+    self._fig.tick(self._t);
     self._raf=requestAnimationFrame(loop);
   }
-  this._fig.tick(0);
   this._raf=requestAnimationFrame(loop);
+};
+/* pause()/resume() are methods rather than attributes on purpose:
+   attributeChangedCallback rebuilds, and a rebuild is the one thing pausing
+   must not do. They also own no timer of their own — the caller's countdown
+   stays the single source of truth for how long anything lasts. */
+LoopMove.prototype.pause=function(){ this._paused=true; this._stop(); };
+LoopMove.prototype.resume=function(){
+  if(!this._paused)return;
+  this._paused=false;
+  if(this._fig&&!this._static)this._run();
 };
 if(!customElements.get('loop-move'))customElements.define('loop-move',LoopMove);
 if(reduced&&reduced.addEventListener)reduced.addEventListener('change',function(){
   document.querySelectorAll('loop-move').forEach(function(n){n._build&&n._build();});
 });
+}
 
 window.LoopMovement={
   MOVEMENTS:MOVEMENTS,

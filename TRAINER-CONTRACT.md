@@ -2496,3 +2496,65 @@ restoration and `saveLog` are untouched, and the diff to `index.html` is this
 one rule.
 
 The trainer remains `0.1.1-shadow`.
+
+## §37 — D18C: animated movement demonstrations
+
+The reviewed figure renderer now ships. Every prep and cooldown movement that
+has an authored animation shows a moving figure above the countdown; every
+movement that does not shows the card exactly as before.
+
+**The renderer decides nothing.** `PREP_MOVEMENTS` and `COOLDOWN_STRETCHES`
+remain the sole source of truth for what an athlete is given.
+`MOVEMENT_ANIMATION` maps a production movement id to an animation id and does
+nothing else, so the production id stays canonical even where the drawing is
+named differently. `animationForMovement()` returns `null` for anything
+unmapped or unknown, and a `null` means no figure — never a substitute.
+
+**Nine movements deliberately have no animation.** Seven are production-only
+with nothing authored yet: `straight_arm_pulldown`, `monster_walk`, `band_row`,
+`torso_twist`, `upper_back_round`, `rear_delt_stretch`, `spinal_twist`. Two are
+the mappings D18A rejected: `march_in_place` is not drawn as a quad stretch and
+`dead_bug` is not drawn as a hip hinge. Drawing either would teach the wrong
+movement, which is worse than drawing nothing.
+
+**One clock.** The renderer starts no interval and never reads `prepState`. The
+existing countdown remains the only source of truth for duration; pausing calls
+`pause()` on the figure and resuming calls `resume()`, which continues from the
+pose it stopped on rather than restarting. Pausing no longer re-renders the
+step — a rebuild would snap the demonstration back to its first frame on every
+tap. Disconnecting cancels the animation frame, and `exitPrep()` empties the
+runner so nothing draws behind a closed overlay. Measured: **zero** live
+animation frames after twenty open/close cycles and forty rapid Next taps.
+
+**Landscape.** Stacked, the figure and the countdown are together taller than a
+375px screen and pushed the instruction off the bottom. They now share a
+`.prep-stage` that becomes a row under `(orientation: landscape) and
+(max-height: 500px)`, with the figure capped to the ring's height. Verified at
+375×812, 390×844, 812×375, 844×390 and 932×430: no horizontal overflow, no
+vertical overflow, instruction visible at every size. The
+`-webkit-text-size-adjust` guard from D18.3 is untouched.
+
+**Geometry.** All 31 animations swept across a full twelve-second cycle against
+the `30 10 180 178` viewBox: **zero clipping**, tightest margin 2.2 units.
+
+**Content.** Three approved replacements, ids unchanged: `cat_cow` →
+Standing Cat-Cow, `chest_doorway` → Chest Opener, `glute_figure4` → Standing
+Figure-4 — all three now doable beside a rack rather than on the floor. Five
+movements added to the registry: `reach_rotate`, `band_passthrough`,
+`hamstring_sweep`, `deep_squat_hold`, `reverse_lunge`. **No sequence was
+changed**, so no athlete is given a different warm-up; adopting the new
+movements into `PREP_SEQUENCES` is a programming decision, not a rendering one,
+and is left open deliberately.
+
+**Vendoring.** `loop-movement.js` is the source of truth and is copied into
+index.html by `node sync-movement.js`. A contract holds the two byte-identical,
+so forgetting to sync fails the suite instead of shipping a renderer that
+disagrees with the review tool. It is inlined rather than linked because a
+linked file would need its own service-worker cache entry to survive a gym with
+no signal, and because the harness only evaluates the largest inline block.
+
+**Isolation.** `DATA_KEYS` is still exactly 15. The renderer writes nothing,
+defines no key, and references no trainer symbol. Zero protected-symbol lines
+appear in the `index.html` diff.
+
+The trainer remains `0.1.1-shadow`.
