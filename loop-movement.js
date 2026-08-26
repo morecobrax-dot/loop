@@ -648,7 +648,12 @@ var MOVEMENTS=[
 
 { id:'child_pose', name:'Child Pose', short:"Child's Pose",
   tag:'SPINE', area:'spine', cat:'decompression', pattern:'flexion', equip:'none',
-  role:'cooldown', duration:45, breath:0.8, shadow:{cx:'mid',rx:60},
+  /* Ground shadow trimmed 60 → 52. It follows J.mid.x, and the final frame
+     folds the torso back to mid.x = 86, putting the ellipse's left edge at 26
+     against a viewBox that starts at 30 — the figure was fine, the shadow under
+     it was clipped. 52 leaves four units of margin at the deepest fold and is
+     still wide enough to read as a long, low pose. */
+  role:'cooldown', duration:45, breath:0.8, shadow:{cx:'mid',rx:52},
   instruction:'Knees wide, hips back to the heels, arms long. Breathe slowly.',
   cue2:'Let each exhale sink the hips a little further back.',
   purpose:'Decompress the spine and slow the breathing down.',

@@ -11401,6 +11401,111 @@ function testOrientationScale(app){
     /const rows = document\.querySelectorAll\('#logExercises \.ex-log-row'\);/.test(src));
 }
 
+/* =========================================================
+   CONTRACT 112 — Movement library stays out of production
+   ---------------------------------------------------------
+   The design library (loop-movement.js) is a review asset. It
+   is NOT authoritative for what athletes are given. These
+   assertions exist so D18C cannot let a visual redesign
+   become an unreviewed training-programme redesign.
+   ========================================================= */
+function testMovementLibraryBoundary(app){
+  section('CONTRACT 112 — movement library stays out of production');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const libPath = H.APP_PATH.replace(/index\.html$/, 'loop-movement.js');
+  const lib = fs.existsSync(libPath) ? fs.readFileSync(libPath, 'utf8') : '';
+
+  sub('production registries are untouched by the design handoff');
+  T('PREP_MOVEMENTS still has 22 movements',
+    (ctx.PREP_MOVEMENTS || []).length === 22, String((ctx.PREP_MOVEMENTS||[]).length));
+  T('COOLDOWN_STRETCHES still has 13',
+    (ctx.COOLDOWN_STRETCHES || []).length === 13, String((ctx.COOLDOWN_STRETCHES||[]).length));
+  T('production movement ids are unique',
+    (() => { const ids = [...(ctx.PREP_MOVEMENTS||[]), ...(ctx.COOLDOWN_STRETCHES||[])].map(m => m.id);
+             return new Set(ids).size === ids.length; })());
+  T('production is not reading the design library',
+    !/loop-movement\.js|window\.LoopMovement|<loop-move/.test(src));
+
+  sub('rejected content replacements stay rejected');
+  /* D18A rejected these two mappings: marching is dynamic preparation and a
+     quad stretch is static stretching; dead bug is anti-extension core work and
+     a hip hinge is a pattern rehearsal. Neither pair is interchangeable. */
+  const prepIds = (ctx.PREP_MOVEMENTS || []).map(m => m.id);
+  T('march_in_place survives in production', prepIds.indexOf('march_in_place') !== -1);
+  T('dead_bug survives in production', prepIds.indexOf('dead_bug') !== -1);
+  T('march_in_place is still dynamic preparation, not a stretch',
+    (ctx.PREP_MOVEMENTS.find(m => m.id === 'march_in_place') || {}).category === 'dynamic_mobility');
+  T('dead_bug is still activation, not movement prep',
+    (ctx.PREP_MOVEMENTS.find(m => m.id === 'dead_bug') || {}).category === 'activation');
+
+  sub('production-only movements are not silently retired');
+  /* Ten production movements have no design equivalent. Two carry coverage
+     nothing else does: the only lat activation, and the only frontal-plane
+     glute work. */
+  ['straight_arm_pulldown','monster_walk','band_row','torso_twist']
+    .forEach(id => T(id + ' is still in PREP_MOVEMENTS', prepIds.indexOf(id) !== -1));
+  ['upper_back_round','rear_delt_stretch','spinal_twist','chest_doorway','glute_figure4']
+    .forEach(id => T(id + ' is still in COOLDOWN_STRETCHES',
+      (ctx.COOLDOWN_STRETCHES||[]).map(m=>m.id).indexOf(id) !== -1));
+  T('cat_cow is still in production', prepIds.indexOf('cat_cow') !== -1);
+
+  sub('the hinge is not duplicated');
+  /* Production has hip_hinge_bw; the design library has hip_hinge. Both are a
+     bodyweight hinge rehearsal. Exposing both would let the selector offer the
+     same movement twice. */
+  T('production has exactly one hinge rehearsal',
+    prepIds.filter(id => /^hip_hinge/.test(id)).length === 1, prepIds.filter(id=>/^hip_hinge/.test(id)).join(','));
+  T('and it is the production id', prepIds.indexOf('hip_hinge_bw') !== -1);
+
+  sub('dead_hang keeps its production classification');
+  /* The design classifies it as a cooldown stretch. That changes WHEN it is
+     offered. Until that is decided as a content question, production wins. */
+  T('dead_hang is in PREP, not COOLDOWN', prepIds.indexOf('dead_hang') !== -1);
+  T('and is still dynamic mobility',
+    (ctx.PREP_MOVEMENTS.find(m => m.id === 'dead_hang') || {}).category === 'dynamic_mobility');
+
+  if(!lib){ T('design library present for renderer assertions', false, 'loop-movement.js not found'); return; }
+
+  sub('the design library itself');
+  T('movement ids are unique', (() => {
+    const ids = [...lib.matchAll(/\{ id:'([a-z0-9_]+)'/g)].map(m => m[1]);
+    return ids.length > 30 && new Set(ids).size === ids.length;
+  })());
+  T('it still declares itself design-phase only',
+    /Design-phase library only — LOOP production data is untouched/.test(lib));
+  T('reduced motion is honoured', /prefers-reduced-motion/.test(lib) && /renderStatic/.test(lib));
+  T('one figure system, not several', (lib.match(/function Figure\(/g) || []).length === 1);
+  T('the custom element is registered once',
+    (lib.match(/customElements\.define\('loop-move'/g) || []).length === 1);
+
+  sub("child_pose's shadow stays inside the frame");
+  /* Measured on an isolated element: the ground ellipse follows J.mid.x, and
+     the deepest fold puts mid.x at 86. With rx 60 its left edge landed at 26
+     against a viewBox starting at 30 — 4.5 units of the shadow were clipped. */
+  T('the viewBox still starts at x=30', /viewBox:'30 10 180 178'/.test(lib));
+  T('child_pose shadow is trimmed to fit', /child_pose[\s\S]{0,700}shadow:\{cx:'mid',rx:52\}/.test(lib));
+  T('and 52 clears the deepest fold', (() => {
+    const seg = lib.slice(lib.indexOf("{ id:'child_pose'"));
+    const mids = [...seg.slice(0, 1600).matchAll(/mid:\[(\d+)/g)].map(m => Number(m[1]));
+    return mids.length > 0 && Math.min(...mids) - 52 >= 30;
+  })());
+  T('no other movement shadow overruns the frame', (() => {
+    const bad = [];
+    [...lib.matchAll(/\{ id:'([a-z0-9_]+)'([\s\S]{0,1800}?)\n\n/g)].forEach(m => {
+      const sh = m[2].match(/shadow:\{(?:cx:'mid',)?rx:(\d+)\}/);
+      if(!sh) return;
+      const usesMid = /shadow:\{cx:'mid'/.test(m[2]);
+      const key = usesMid ? 'mid' : 'pelvis';
+      const xs = [...m[2].matchAll(new RegExp(key + ":\\[(\\d+)", 'g'))].map(x => Number(x[1]));
+      if(!xs.length) return;
+      if(Math.min(...xs) - Number(sh[1]) < 30) bad.push(m[1]);
+    });
+    return bad.length === 0 ? true : bad;
+  })() === true);
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -11477,6 +11582,7 @@ async function main(){
   testWarmupAndRest(H.loadApp());
   testWarmupEntry(H.loadApp());
   testOrientationScale(H.loadApp());
+  testMovementLibraryBoundary(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
