@@ -11873,6 +11873,38 @@ function testWorkoutJourney(app){
   T('the lift ramps moved to the exercise that needs them',
     /const steps = id && LIFT_PREP_GUIDANCE\[id\]/.test(src));
 
+  sub('what to do is read before the figure, not after the clock');
+  /* The instruction used to sit under the countdown at the foot of the card,
+     which made it the first thing to run out of room on a short screen — the
+     athlete saw a name and a figure, and had to scroll past the timer to find
+     out what to do. It now sits with the name of the movement it describes. */
+  T('the instruction is rendered between the name and the stage', (() => {
+    const i = src.indexOf('function renderPrepStep');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    const name = body.indexOf("class=\"prep-move-name\"");
+    const instr = body.indexOf("class=\"prep-instruction\"");
+    const stage = body.indexOf("class=\"prep-stage\"");
+    return name > 0 && instr > name && stage > instr ? true
+      : 'name@' + name + ' instr@' + instr + ' stage@' + stage;
+  })() === true);
+  T('and only once — it did not stay behind at the bottom too', (() => {
+    const i = src.indexOf('function renderPrepStep');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return (body.match(/class="prep-instruction"/g) || []).length === 1;
+  })());
+  T('the purpose line still trails the clock as the optional one',
+    /class="prep-purpose"/.test(src) && /\.prep-purpose\{ display: none; \}/.test(src));
+  /* Movements differ by a line or two of copy. Bounding the figure against the
+     viewport is what keeps the longest of them — Standing Cat-Cow, two lines
+     of instruction and two of purpose — inside one screen instead of pushing
+     the last line under the buttons. */
+  T('the figure is bounded by the viewport, not only by width',
+    /\.prep-figure\{[\s\S]{0,200}max-height: 26vh;/.test(src));
+  T('and that bound is released where width is the tighter one',
+    /\.prep-figure\{ max-width: 108px; max-height: none;/.test(src));
+  T('the instruction keeps real space beneath it for the figure',
+    /\.prep-instruction\{[\s\S]{0,160}margin: 0 auto var\(--space-5\);/.test(src));
+
   sub('one rest at a time');
   /* Completing a set starts that exercise's rest. Nothing used to stop the
      previous one, so two could run while the readout showed one. */

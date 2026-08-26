@@ -3657,7 +3657,7 @@ body.page-locked{ overflow: hidden; }
 .prep-back:active{ transform: scale(0.98); }
 .prep-move-name{
   font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;
-  line-height: 1.15; color: var(--text); margin-bottom: var(--space-3);
+  line-height: 1.15; color: var(--text); margin-bottom: var(--space-2);
 }
 /* ---- movement demonstration ----
    A fixed-ratio box so the card does not reflow as the figure moves through
@@ -3667,8 +3667,13 @@ body.page-locked{ overflow: hidden; }
   display: flex; flex-direction: column; align-items: center;
   width: 100%; flex: none;
 }
+/* Capped against the viewport as well as by width, so the text around it
+   always has somewhere to go. Movements differ by a line or two of instruction
+   and purpose — Standing Cat-Cow needs two of each — and a figure with a fixed
+   height turns that difference into an overflow that pushes the last line
+   under the buttons. Bounded this way it fits whatever the copy is. */
 .prep-figure{
-  width: 100%; max-width: 240px; aspect-ratio: 180 / 178;
+  width: 100%; max-width: 240px; aspect-ratio: 180 / 178; max-height: 26vh;
   margin: 0 auto var(--space-4); flex: none;
 }
 .prep-figure loop-move{ display: block; width: 100%; height: 100%; }
@@ -3678,13 +3683,18 @@ body.page-locked{ overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .prep-metric.paused{ color: var(--text-faint); }
+/* Sits between the movement's name and its demonstration. Slightly larger and
+   brighter than it was at the foot of the card, because it is now the sentence
+   the athlete reads before they start moving rather than a footnote under the
+   clock — and with real space beneath it so the figure has headroom instead of
+   being crowded up against the text. */
 .prep-instruction{
-  font-size: 14px; line-height: 1.5; color: var(--text-dim);
-  max-width: 320px; margin: 0 auto var(--space-3);
+  font-size: 15px; line-height: 1.5; color: var(--text);
+  max-width: 320px; margin: 0 auto var(--space-5);
 }
 .prep-purpose{
   font-size: 12px; line-height: 1.45; color: var(--text-faint);
-  max-width: 320px; margin: 0 auto;
+  max-width: 320px; margin: var(--space-3) auto 0;
 }
 .prep-tag{
   display: inline-block; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em;
@@ -4285,8 +4295,9 @@ body.page-locked{ overflow: hidden; }
      beside each other they cost the height of the taller one. */
   .prep-stage{ flex-direction: row; justify-content: center; gap: var(--space-4); }
   /* Capped to the ring's height: the stage is as tall as its tallest child,
-     so any extra on the figure is height the instruction loses. */
-  .prep-figure{ max-width: 108px; margin: 0; }
+     so any extra on the figure is height the instruction loses. The viewport
+     cap is released here because this width is already the tighter bound. */
+  .prep-figure{ max-width: 108px; max-height: none; margin: 0; }
   .prep-stage .prep-ring{ margin-bottom: 0; }
   /* The get-ready block matches the ring it stands in for, in landscape as in
      portrait — otherwise the card grows by 60px for three seconds and the
@@ -4302,9 +4313,10 @@ body.page-locked{ overflow: hidden; }
   .prep-dot{ flex: 0 0 22px; height: 10px; }
   .prep-dot::before{ top: 4px; }
   .prep-dot::after{ top: 1px; }
-  .prep-instruction{ font-size: 13px; }
+  /* The instruction now sits above the figure, so the generous gap that gives
+     it headroom in portrait is height the row layout cannot spare here. */
+  .prep-instruction{ font-size: 13px; margin-bottom: var(--space-2); }
   .prep-purpose{ display: none; }          /* least essential line first */
-  .prep-dots{ margin-bottom: var(--space-3); }
   .prep-actions button{ min-height: 44px; }
   .tw-cta{ min-height: 46px; }
   .prep-card{ padding: var(--space-3) var(--space-4); }
@@ -22217,14 +22229,21 @@ function renderPrepStep(){
     dots +
     (tag ? '<div class="prep-tag">' + escapeHtml(tag.toUpperCase()) + '</div>' : '') +
     '<div class="prep-move-name">' + escapeHtml(move.displayName) + '</div>' +
+    /* What to do sits with the name of the thing to do, above the figure. It
+       used to sit under the clock at the foot of the card, which made it the
+       first thing to run out of room on a short screen: the athlete read a
+       name, watched a figure, and had to scroll past the timer to find out
+       what they were meant to be doing. Name, instruction, then the
+       demonstration of it. */
+    '<div class="prep-instruction">' + escapeHtml(move.instruction) + '</div>' +
     /* The demonstration, when one has been authored for this movement. The
-       figure is decorative in the accessibility sense — the instruction below
+       figure is decorative in the accessibility sense — the instruction above
        it is the real content — but it carries its own label inside the SVG for
        anyone reading the tree. Movements without an animation simply omit it
        rather than falling back to something that shows the wrong shape. */
     /* Figure and countdown share a stage so landscape can stand them side by
        side. Stacked, the pair is taller than a 375px-tall screen and pushes
-       the instruction off the bottom; landscape has width to spare and no
+       everything after it off the bottom; landscape has width to spare and no
        height at all, so the stage turns into a row there. */
     '<div class="prep-stage">' +
     (anim ? '<div class="prep-figure"><loop-move movement="' + escapeHtml(anim) + '"></loop-move></div>' : '') +
@@ -22252,7 +22271,9 @@ function renderPrepStep(){
         '</div>'
       : '<div class="prep-metric prep-metric-plain" id="prepMetric">' + escapeHtml(metric) + '</div>') +
     '</div>' +
-    '<div class="prep-instruction">' + escapeHtml(move.instruction) + '</div>' +
+    /* Why the movement is in the warm-up at all. It is the one genuinely
+       optional line, so it trails the clock and is the first thing dropped
+       when a screen is too short to hold everything. */
     (move.purpose ? '<div class="prep-purpose">' + escapeHtml(move.purpose) + '</div>' : '');
 
   /* One primary action and, at most, two quiet ones. On the last movement the
