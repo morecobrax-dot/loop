@@ -2345,3 +2345,92 @@ values intact, zero leaked intervals, zero retained listeners.
 
 The warm-up library, the rest timer architecture, the replacement engine and the
 trainer are untouched. The trainer remains `0.1.1-shadow`.
+
+## §35 — The warm-up is an entry (Phase D18.2)
+
+### The bug
+
+`renderPrepCard()` set `card.style.display = 'flex'` — an **inline** style, which
+cannot be overridden by the stepper's `.stepper-on #prepCard{ display:none }`
+rule. So the warm-up card stayed mounted and visible above every exercise for
+the whole workout: measured on Exercise 1, a **138px bordered gradient box**
+reading "WARM-UP ~4 MIN Prepare your body for today's workout".
+
+That box is what made the workout feel like a container inside a container. It
+was introduced by D18 — the CSS was right in intent and lost to a pre-existing
+inline write.
+
+**Availability and visibility are now different things.** `renderPrepCard()`
+sets `dataset.available` and writes `display:none`; the stepper writes the
+display outright, because a stylesheet cannot win against an inline style. The
+stage gate asks the data flag rather than the style.
+
+### The entry
+
+Two choices, on the entry and nowhere else: **Start Warm-up** (primary) and
+**Skip** (plain text). Either one spends the entry — `skipPrep()` and
+`exitPrep()` both retire the card and call `goToWorkoutStep(0)`. The stage
+navigation renders nothing, because the entry carries its own actions.
+
+Inside the stepper the card drops its border, radius and gradient: on that
+stage the warm-up is the only thing on screen, so a box around it wraps a
+container in a container. Measured: `border 0px, radius 0px, no gradient`.
+
+**Verified: the string "warm-up" appears in no visible element of any exercise
+screen** — checked per element, not by scanning `innerText`.
+
+### Skip came back, deliberately
+
+D18.1 removed Skip entirely. D18.2 reinstates it on the entry alone, because
+the warm-up became a pre-workout prompt — a decision with two answers — rather
+than a stage to walk past. Three D18.1 assertions had to change with it; they
+are listed below.
+
+### Surface
+
+`.sheet-page` already stripped the radius, border and shadow, so the workout was
+never framed — the prep card was the frame. Beyond removing it: the head
+separates with a rule instead of a filled bar (`.sheet` is already `--surface`,
+so the background repeated it), the current exercise drops its border inside the
+stepper, progress reads as one rail (a 2px line between round stops rather than
+detached bars), and the forward action carries the accent while Previous and
+Skip are plain text.
+
+### Tests
+
+**4117 → 4143.** Contract 110 adds 26 assertions.
+
+**Four assertions were replaced**, three of them because this brief reversed a
+D18.1 decision and one because it fixed a D18 bug:
+
+- `prep card is shown when a workout opens` asserted `renderPrepCard()` sets
+  `display:flex` — the exact write that caused this bug. Split into three
+  stronger checks: the card reports availability, availability does not put it
+  on screen, and the stepper is what decides.
+- `the card offers exactly one action` / `and it is Start — no skip control
+  remains` (D18.1) → the entry offers exactly two choices, Skip carries no
+  button treatment, and skipping enters the workout.
+- `exactly one button on the card` / `no skip control on the card` /
+  `the warm-up stage offers a single forward action` (Contract 109) → two
+  buttons on the entry, Skip lives there, the stage navigation stays empty, and
+  no exercise screen mentions the warm-up.
+
+One real regression was caught by the suite and fixed rather than accommodated:
+my `exitPrep()` edit had moved `clearPrepTimer()` off the first line. It is
+first again — the timer is cleared before anything else on the only way out.
+
+### Measured
+
+New workout → entry with both actions → Skip → Exercise 1, no warm-up anywhere,
+and navigating next/previous/by segment never brings it back. Start Warm-up →
+runner → exit → Exercise 1, no warm-up anywhere. Reload with three exercises
+logged → **Exercise 1 with 100×5, 110×6, 120×7 intact**, 8 rows mounted, 1
+visible, no warm-up. Save → one entry, 8 exercises, all three values correct,
+draft cleared.
+
+375×812, 390×844, 812×375, 932×430: no clipping, nothing under 44px, no field
+under 16px, no horizontal overflow. 60 transitions in 463ms (7.7ms each), zero
+leaked intervals, zero retained listeners.
+
+The warm-up library, the rest timer, `saveLog` and the trainer are untouched.
+The trainer remains `0.1.1-shadow`.

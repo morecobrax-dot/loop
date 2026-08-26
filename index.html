@@ -2596,7 +2596,7 @@ textarea{ resize: vertical; min-height: 56px; }
 
 .ws-head{
   flex-shrink: 0; padding: var(--space-4) var(--space-5) var(--space-3);
-  border-bottom: 1px solid var(--border); background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 .ws-k{
   display: flex; align-items: center; gap: var(--space-2);
@@ -2608,14 +2608,18 @@ textarea{ resize: vertical; min-height: 56px; }
   background: var(--warning-soft); color: var(--warning); letter-spacing: 0.04em;
 }
 .ws-name{
-  font-family: 'Space Grotesk', sans-serif; font-size: 21px; font-weight: 700;
-  line-height: 1.15; color: var(--text); margin: var(--space-2) 0 0;
+  font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700;
+  line-height: 1.12; letter-spacing: -0.01em; color: var(--text);
+  margin: var(--space-3) 0 0;
 }
 .ws-lede{ font-size: 13px; line-height: 1.45; color: var(--text-dim); margin: 6px 0 0; }
 
 /* One segment per exercise, carrying that exercise's real state — and the way
    to jump straight to it, so progress and navigation are the same control. */
-.ws-bar{ display: flex; gap: 3px; margin: var(--space-3) 0 calc(var(--space-3) * -1); }
+.ws-bar{
+  display: flex; align-items: center;
+  margin: var(--space-3) 0 calc(var(--space-3) * -1);
+}
 /* The bar reads as a 4px rule but is tapped as a 44px one: the button carries
    the height and the mark is drawn inside it. Its width is one nth of the
    screen and cannot reach 44px on a long workout — Previous, Skip and Next
@@ -2625,14 +2629,28 @@ textarea{ resize: vertical; min-height: 56px; }
   flex: 1; height: 44px; padding: 0; border: none; background: none; cursor: pointer;
   position: relative;
 }
+/* The rail runs between the stops rather than under each one, so the workout
+   reads as a single track instead of a row of separate bars. */
+.ws-seg::before{
+  content: ""; position: absolute; left: 0; right: 0; top: 21px; height: 2px;
+  background: var(--surface-3);
+}
+.ws-seg:first-child::before{ left: 50%; }
+.ws-seg:last-child::before{ right: 50%; }
+.ws-seg-done::before{ background: var(--success); }
+/* The stop itself. */
 .ws-seg::after{
-  content: ""; position: absolute; left: 0; right: 0; top: 20px; height: 4px;
-  border-radius: 2px; background: var(--surface-3);
+  content: ""; position: absolute; left: 50%; top: 16px;
+  width: 12px; height: 12px; margin-left: -6px; border-radius: 50%;
+  background: var(--surface-3); border: 2px solid var(--surface);
   transition: background 0.18s var(--ease), transform 0.18s var(--ease);
 }
 .ws-seg-done::after{ background: var(--success); }
-.ws-seg-skip::after{ background: var(--warning); opacity: 0.55; }
-.ws-seg-now::after{ background: var(--accent); transform: scaleY(1.6); }
+.ws-seg-skip::after{ background: var(--warning); opacity: 0.6; }
+.ws-seg-now::after{
+  background: var(--accent); transform: scale(1.25);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 
 .ws-chips{ display: flex; flex-wrap: wrap; gap: 5px; margin-top: var(--space-3); }
 .ws-chip{
@@ -2681,17 +2699,40 @@ textarea{ resize: vertical; min-height: 56px; }
 }
 
 .ws-nav{
-  display: flex; gap: var(--space-2); flex-shrink: 0;
+  display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
   padding: var(--space-3) var(--space-5) 0;
 }
 .ws-nav:empty{ display: none; }
+
+/* The warm-up entry, when the stepper is showing it: no box, no gradient, no
+   border — the screen itself is the prompt. */
+.stepper-on #prepCard.ws-current{
+  background: none; border: none; border-radius: 0;
+  padding: var(--space-5) 0 0; margin-bottom: 0;
+}
+.stepper-on #prepCard.ws-current .prep-card-head{ justify-content: flex-start; gap: var(--space-2); }
+.stepper-on #prepCard.ws-current .prep-card-sub{
+  font-size: 15px; line-height: 1.5; color: var(--text-dim);
+  margin-top: var(--space-2); max-width: 30ch;
+}
+.stepper-on #prepCard.ws-current .prep-start-btn{ margin-top: var(--space-6); }
+.stepper-on #prepCard.ws-current .prep-skip-btn{
+  width: 100%; min-height: 44px; margin-top: var(--space-2);
+  background: none; border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; color: var(--text-dim);
+}
 .ws-nav-btn, .ws-nav-next{
   min-height: 44px; padding: 0 var(--space-4); border-radius: var(--radius-md);
   font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer;
   transition: opacity 0.15s var(--ease), transform 0.12s var(--ease);
 }
-.ws-nav-btn{ background: none; border: 1px solid var(--border); color: var(--text-dim); }
-.ws-nav-next{ flex: 1; background: var(--surface-3); border: 1px solid var(--border); color: var(--text); font-weight: 700; }
+/* Previous and Skip are quiet text; Next carries the weight, because moving
+   forward is what the athlete does most. */
+.ws-nav-btn{ background: none; border: none; color: var(--text-dim); padding: 0 var(--space-3); }
+.ws-nav-next{
+  flex: 1; background: var(--accent); border: none; color: #0A0C10; font-weight: 700;
+  box-shadow: var(--shadow-accent);
+}
 .ws-nav-btn:disabled{ opacity: 0.35; cursor: default; }
 .ws-nav-btn:active:not(:disabled), .ws-nav-next:active{ transform: scale(0.98); }
 
@@ -4589,6 +4630,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       </div>
       <div class="prep-card-sub" id="prepCardSub">Prepare your body for today's workout.</div>
       <button class="btn-primary prep-start-btn" onclick="startPrep()">Start Warm-up</button>
+      <button type="button" class="prep-skip-btn" onclick="skipPrep()">Skip</button>
     </div>
 
     <div id="logCategoryPicker" style="display:none">
@@ -20738,19 +20780,25 @@ function clearPrepTimer(){
 function renderPrepCard(){
   const card = document.getElementById('prepCard');
   if(!card) return;
-  if(prepCardDismissed){ card.style.display = 'none'; return; }
+  if(prepCardDismissed){ card.dataset.available = ''; card.style.display = 'none'; return; }
   const seq = buildPrepSequence(pendingLogCategory);
-  if(!seq.length){ card.style.display = 'none'; return; }
+  if(!seq.length){ card.dataset.available = ''; card.style.display = 'none'; return; }
   const mins = prepSequenceMinutes(seq);
   const timeEl = document.getElementById('prepCardTime');
   // Marked as an estimate, and uppercased to sit with the mono label opposite.
   if(timeEl) timeEl.textContent = '~' + mins + ' MIN';
-  card.style.display = 'flex';
+  /* Availability, not visibility. The stepper decides whether the entry is on
+     screen; writing display here is what kept the card above Exercise 1. */
+  card.dataset.available = '1';
+  card.style.display = 'none';
 }
+/* The entry's secondary action. Skip exists here and nowhere else: it belongs
+   to the decision "do I warm up today", not to the workout that follows. */
 function skipPrep(){
   prepCardDismissed = true;
   const card = document.getElementById('prepCard');
-  if(card) card.style.display = 'none';
+  if(card){ card.dataset.available = ''; card.style.display = 'none'; }
+  try{ goToWorkoutStep(0); }catch(e){}
 }
 function resetPrepCardForNewWorkout(){ prepCardDismissed = false; }
 
@@ -20799,6 +20847,14 @@ function openPrepOverlay(title){
 function exitPrep(){
   clearPrepTimer();
   prepState = null;
+  /* Whether it was completed or left early, the entry is spent: the athlete
+     has made their choice and the workout begins. */
+  try{
+    prepCardDismissed = true;
+    const card = document.getElementById('prepCard');
+    if(card){ card.dataset.available = ''; card.style.display = 'none'; }
+    if(typeof logStepIndex !== 'undefined' && logStepIndex === STEP_WARMUP) goToWorkoutStep(0);
+  }catch(e){}
   const ov = document.getElementById('prepOverlay');
   if(ov) ov.classList.remove('open');
   const logOverlayEl = document.getElementById('logOverlay');
@@ -21392,7 +21448,13 @@ function renderWorkoutStep(opts){
 
   rows.forEach((row, idx) => row.classList.toggle('ws-current', idx === i));
   try{ syncWorkoutRestChip(); }catch(e){}
-  if(prepCard) prepCard.classList.toggle('ws-current', i === STEP_WARMUP);
+  if(prepCard){
+    const onEntry = (i === STEP_WARMUP) && prepCard.dataset.available === '1';
+    prepCard.classList.toggle('ws-current', onEntry);
+    /* Written directly, because renderPrepCard() writes it too and an inline
+       style cannot be overridden from a stylesheet. */
+    prepCard.style.display = onEntry ? 'flex' : 'none';
+  }
   if(review) review.classList.toggle('ws-current', i === STEP_FINISH);
 
   if(i === STEP_WARMUP){
@@ -21400,11 +21462,9 @@ function renderWorkoutStep(opts){
       '<div class="ws-k">Warm-up</div>' +
       '<h3 class="ws-name">Prepare to train</h3>' +
       '<p class="ws-lede">A few minutes of movement before your first working set.</p>';
-    /* One action. "Skip" is gone: the stage is short, it is offered once per
-       workout, and the athlete moving into their first exercise is the normal
-       way out of it rather than a refusal. */
-    nav.innerHTML =
-      '<button type="button" class="ws-nav-next" onclick="goToWorkoutStep(0)">Go to first exercise</button>';
+    /* The entry carries its own two actions — Start Warm-up and Skip — so the
+       navigation bar stays out of its way entirely. */
+    nav.innerHTML = '';
   } else if(i === STEP_FINISH){
     head.innerHTML =
       '<div class="ws-k">Finish</div>' +
@@ -21515,7 +21575,10 @@ function syncWorkoutStepper(opts){
   if(!rows.length){ renderWorkoutStep(); return; }
   if(opts && opts.reset){
     const prep = document.getElementById('prepCard');
-    const prepOffered = prep && prep.style.display !== 'none';
+    /* Availability, not visibility. renderPrepCard() no longer writes display —
+       that inline write is what pinned the card above every exercise — so the
+       question "does this workout have a warm-up" is asked of the data flag. */
+    const prepOffered = prep && prep.dataset.available === '1';
     const started = rows.some(exerciseRowDone);
     /* Three things have to be true for the warm-up to lead: this workout has
        one available, it has not been through the stage already, and no set has

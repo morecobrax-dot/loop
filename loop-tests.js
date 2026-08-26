@@ -1984,8 +1984,20 @@ function testPrepRunner(app){
   sub('entry point');
   ctx.prepCardDismissed = false;
   ctx.renderPrepCard();
-  T('prep card is shown when a workout opens',
-    dom.els.prepCard && dom.els.prepCard.style.display === 'flex');
+  /* This asserted that renderPrepCard() sets display:flex. That inline write
+     is exactly what kept the warm-up card mounted above every exercise for the
+     whole workout — an inline style cannot be overridden by the stepper's
+     stylesheet rule. renderPrepCard() now reports AVAILABILITY and the stepper
+     owns visibility, so the contract is split in two and both halves are
+     asserted, which is stricter than the original. */
+  T('a workout with a warm-up marks it available',
+    dom.els.prepCard && dom.els.prepCard.dataset.available === '1');
+  T('but availability does not put it on screen',
+    dom.els.prepCard && dom.els.prepCard.style.display === 'none');
+  T('the stepper is what decides whether the entry shows', (() => {
+    const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+    return /prepCard\.style\.display = onEntry \? 'flex' : 'none';/.test(src);
+  })());
   /* The contract is unchanged — the card reports a duration. Only the display
      format moved, to "~3 MIN", so it reads as an estimate and sits with the
      mono label opposite it. Asserted case-insensitively AND for the estimate
@@ -1999,12 +2011,11 @@ function testPrepRunner(app){
      markup and stylesheet rather than the rendered box, because the harness
      has no layout engine — but they still catch the regression that matters:
      Start losing its primary treatment, or Skip regaining a button look. */
-  /* D18.1 removed Skip from the warm-up entirely, so this block's original
-     framing — "Start is the primary action, Skip is secondary" — describes a
-     card that no longer exists. The two assertions about Skip's treatment are
-     replaced by the stronger statement: there is no skip control at all, and
-     Start is the card's only action. */
-  sub('Start is the warm-up card\'s only action');
+  /* D18.1 removed Skip entirely. D18.2 put it back on the ENTRY and only
+     there: the warm-up became a pre-workout prompt with two choices — start it
+     or don't — and once either is taken the entry is gone for the session. So
+     the card carries both actions again, with Skip clearly subordinate. */
+  sub('the warm-up entry offers Start, with Skip subordinate');
   {
     const fs = require('fs');
     const src = fs.readFileSync(H.APP_PATH, 'utf8');
@@ -2013,10 +2024,13 @@ function testPrepRunner(app){
     T('the card is titled as a warm-up', /WARM-UP/.test(cardMarkup));
     T('Start carries the primary button treatment', /class="btn-primary prep-start-btn"/.test(cardMarkup));
     T('Start is labelled as the action, not a noun', /Start Warm-up/.test(cardMarkup));
-    T('the card offers exactly one action',
-      (cardMarkup.match(/<button/g) || []).length === 1);
-    T('and it is Start — no skip control remains on the card',
-      !/prep-skip-btn/.test(cardMarkup) && !/Skip/.test(cardMarkup));
+    T('the entry offers exactly two choices',
+      (cardMarkup.match(/<button/g) || []).length === 2);
+    T('Skip is present but carries no button treatment',
+      /class="prep-skip-btn"/.test(cardMarkup) &&
+      !/btn-primary prep-skip-btn/.test(cardMarkup) && !/btn-secondary prep-skip-btn/.test(cardMarkup));
+    T('and skipping enters the workout rather than leaving a card behind',
+      /function skipPrep\(\)\{[\s\S]{0,320}goToWorkoutStep\(0\);/.test(src));
 
     const css = src.slice(src.indexOf('.prep-card{'), src.indexOf('/* ---- runner ---- */'));
     T('Start is full width', /\.prep-card \.prep-start-btn\{[^}]*width:\s*100%/.test(css));
@@ -11118,20 +11132,27 @@ function testWarmupAndRest(app){
   const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
   const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
 
-  sub('the warm-up has one action, and it is not Skip');
+  /* D18.1 removed Skip; D18.2 reinstated it on the entry alone, because the
+     warm-up is now a pre-workout prompt rather than a stage you walk past.
+     The contract that matters is unchanged and is asserted below: Skip exists
+     in exactly one place, and no exercise screen mentions the warm-up. */
+  sub('the warm-up entry carries both choices, and nothing else does');
   const card = src.slice(src.indexOf('id="prepCard"'), src.indexOf('id="logCategoryPicker"'));
-  T('exactly one button on the card', (card.match(/<button/g) || []).length === 1);
-  T('and it starts the warm-up', /class="btn-primary prep-start-btn"[^>]*>Start Warm-up/.test(card));
-  T('no skip control on the card', !/prep-skip-btn/.test(card) && !/Skip/i.test(card));
-  T('and none in the stage navigation either', (() => {
-    /* Read what the stage RENDERS, not the source around it — the comment
-       there explains why Skip was removed and would match a naive scan. */
+  T('two buttons on the entry', (card.match(/<button/g) || []).length === 2);
+  T('and one of them starts the warm-up', /class="btn-primary prep-start-btn"[^>]*>Start Warm-up/.test(card));
+  T('Skip lives on the entry', /class="prep-skip-btn"/.test(card));
+  T('the stage navigation stays out of the entry\'s way', (() => {
     const fn = src.slice(src.indexOf("if(i === STEP_WARMUP){"), src.indexOf("} else if(i === STEP_FINISH){"));
-    const rendered = (fn.match(/(head|nav)\.innerHTML =[\s\S]*?;/g) || []).join(' ');
-    return rendered.length > 0 && !/Skip/i.test(rendered);
+    return /nav\.innerHTML = '';/.test(fn);
   })());
-  T('the warm-up stage offers a single forward action',
-    /nav\.innerHTML =\s*'<button type="button" class="ws-nav-next" onclick="goToWorkoutStep\(0\)">Go to first exercise<\/button>';/.test(src));
+  T('and no exercise screen mentions the warm-up at all', (() => {
+    /* The exercise branch of renderWorkoutStep — everything an athlete sees in
+       the head and navigation on every exercise. The word must not appear. */
+    const start = src.indexOf('\'<div class="ws-k">Exercise \'');
+    const end = src.indexOf('/* A step change starts at the top');
+    if(start === -1 || end === -1 || end <= start) return 'branch not found';
+    return !/warm.?up/i.test(src.slice(start, end));
+  })() === true);
 
   sub('the warm-up belongs to the workout, not to the screen');
   /* closeLogSheet() resets prepCardDismissed, so before this the athlete could
@@ -11204,6 +11225,90 @@ function testWarmupAndRest(app){
     const fn = src.slice(src.indexOf('function activeRestPanel()'), src.indexOf('function renderWorkoutStep(opts)'));
     return !/LOOPStore\.|localStorage/.test(fn);
   })());
+}
+
+/* =========================================================
+   CONTRACT 110 — The warm-up is an entry (Phase D18.2)
+   ---------------------------------------------------------
+   renderPrepCard() wrote card.style.display = 'flex', and an
+   inline style cannot be overridden by the stepper's
+   stylesheet rule. So the warm-up card stayed mounted and
+   visible above every exercise for the whole workout — a
+   138px bordered box reading "WARM-UP" on top of Exercise 1.
+   ========================================================= */
+function testWarmupEntry(app){
+  section('CONTRACT 110 — the warm-up is an entry, not a page');
+  const ctx = app.ctx;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('availability and visibility are different things');
+  T('renderPrepCard reports availability', /card\.dataset\.available = '1';/.test(src));
+  T('and no longer forces the card on screen', (() => {
+    const fn = src.slice(src.indexOf('function renderPrepCard()'), src.indexOf('function resetPrepCardForNewWorkout'));
+    return !/card\.style\.display = 'flex'/.test(fn);
+  })());
+  T('the stepper owns the display outright',
+    /prepCard\.style\.display = onEntry \? 'flex' : 'none';/.test(src));
+  T('and it only shows on the entry stage, and only if one exists',
+    /const onEntry = \(i === STEP_WARMUP\) && prepCard\.dataset\.available === '1';/.test(src));
+  T('the stage gate asks the data flag, not the style',
+    /const prepOffered = prep && prep\.dataset\.available === '1';/.test(src));
+
+  sub('choosing either option spends the entry');
+  T('Skip retires the entry and enters the workout',
+    /function skipPrep\(\)\{[\s\S]{0,400}goToWorkoutStep\(0\);/.test(src));
+  T('leaving the warm-up runner does the same',
+    /function exitPrep\(\)[\s\S]{0,600}prepCardDismissed = true;[\s\S]{0,300}goToWorkoutStep\(0\);/.test(src));
+  T('and it clears its timer first, before anything else',
+    /function exitPrep\(\)\{\s*clearPrepTimer\(\);/.test(src));
+  T('the entry carries both choices',
+    (src.slice(src.indexOf('id="prepCard"'), src.indexOf('id="logCategoryPicker"')).match(/<button/g) || []).length === 2);
+  T('so the stage navigation shows nothing', (() => {
+    const fn = src.slice(src.indexOf("if(i === STEP_WARMUP){"), src.indexOf("} else if(i === STEP_FINISH){"));
+    return /nav\.innerHTML = '';/.test(fn);
+  })());
+  T('and no exercise screen mentions the warm-up', (() => {
+    const start = src.indexOf('\'<div class="ws-k">Exercise \'');
+    const end = src.indexOf('/* A step change starts at the top');
+    return start !== -1 && end > start && !/warm.?up/i.test(src.slice(start, end));
+  })());
+
+  sub('the entry is the page, not a card on it');
+  T('it drops its border, radius and gradient inside the stepper',
+    /\.stepper-on #prepCard\.ws-current\{[\s\S]{0,180}background: none; border: none; border-radius: 0;/.test(css));
+  T('Skip reads as secondary, not as a second button',
+    /\.stepper-on #prepCard\.ws-current \.prep-skip-btn\{[\s\S]{0,200}background: none; border: none;/.test(css));
+
+  sub('the workout surface');
+  T('the page variant carries no card frame',
+    /\.sheet\.sheet-page\{[\s\S]{0,140}border-radius: 0; border-top: none; box-shadow: none;/.test(css));
+  T('the head separates with a rule rather than a filled bar', (() => {
+    const m = css.match(/\.ws-head\{([^}]*)\}/);
+    return !!m && /border-bottom: 1px solid var\(--border\)/.test(m[1]) && !/background:/.test(m[1]);
+  })());
+  T('the current exercise is the screen, not a card',
+    /\.stepper-on \.ex-log-row\.ws-current\{\s*border: none; padding: 0; margin-top: 0;/.test(css));
+  T('progress reads as one rail rather than separate bars',
+    /\.ws-seg::before\{[\s\S]{0,200}height: 2px;/.test(css) && /\.ws-seg:first-child::before\{ left: 50%; \}/.test(css));
+  T('the forward action dominates the navigation',
+    /\.ws-nav-next\{[\s\S]{0,160}background: var\(--accent\)/.test(css) &&
+    /\.ws-nav-btn\{ background: none; border: none;/.test(css));
+
+  sub('D18 and D18.1 invariants survive');
+  T('rows are hidden, never unmounted',
+    /\.stepper-on \.ex-log-row,[\s\S]{0,80}display: none;/.test(css));
+  T('saveLog still reads every mounted row',
+    /const rows = document\.querySelectorAll\('#logExercises \.ex-log-row'\);/.test(src));
+  T('the stage is still tied to the workout, not the screen',
+    /function warmupStagePassed\(\)\{\s*return !!pendingDraftId && warmupDoneForDraft === pendingDraftId;/.test(src));
+  T('and still survives a reload inside the draft',
+    /warmupDone: warmupStagePassed\(\),/.test(src));
+  T('the compact rest readout is still there', /id="wsRest"/.test(src));
+  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('the warm-up library is untouched',
+    /function buildPrepSequence\(/.test(src) && /function enterPrepStep\(\)\{\s*clearPrepTimer\(\);/.test(src));
+  T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
 }
 
 async function main(){
@@ -11280,6 +11385,7 @@ async function main(){
   testMomentum(H.loadApp());
   testWorkoutStepper(H.loadApp());
   testWarmupAndRest(H.loadApp());
+  testWarmupEntry(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
