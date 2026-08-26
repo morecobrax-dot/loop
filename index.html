@@ -2669,6 +2669,21 @@ textarea{ resize: vertical; min-height: 56px; }
   background: var(--accent); transform: scale(1.25);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+/* The warm-up leads the track. It is narrower than an exercise stop because it
+   is one thing rather than one of many, and it carries a hollow ring so the
+   start of the workout is identifiable at a glance without a label. */
+.ws-seg-warmup{ flex: 0 0 34px; }
+.ws-seg-warmup::before{ left: 50%; }
+.ws-seg-warmup::after{
+  width: 10px; height: 10px; margin-left: -5px; top: 17px;
+  background: var(--surface); border: 2px solid var(--surface-3);
+}
+.ws-seg-warmup.ws-seg-done::after{ background: var(--success); border-color: var(--success); }
+.ws-seg-warmup.ws-seg-now::after{ background: var(--accent); border-color: var(--accent); }
+/* Completion is not carried by colour alone: a finished stop is filled, the
+   current one is filled AND ringed and scaled up, and an untouched one is a
+   flat grey dot. Each state differs in shape as well as hue, and every stop
+   states its own status in its aria-label. */
 
 .ws-chips{ display: flex; flex-wrap: wrap; gap: 5px; margin-top: var(--space-3); }
 .ws-chip{
@@ -2747,6 +2762,9 @@ textarea{ resize: vertical; min-height: 56px; }
 /* Previous and Skip are quiet text; Next carries the weight, because moving
    forward is what the athlete does most. */
 .ws-nav-btn{ background: none; border: none; color: var(--text-dim); padding: 0 var(--space-3); }
+/* Skip is the only one of the three that leaves work undone, so it sits a
+   step quieter than Previous rather than level with it. */
+.ws-nav-skip{ font-weight: 500; color: var(--text-faint); }
 .ws-nav-next{
   flex: 1; background: var(--accent); border: none; color: #0A0C10; font-weight: 700;
   box-shadow: var(--shadow-accent);
@@ -3562,10 +3580,61 @@ body.page-locked{ overflow: hidden; }
   font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint);
   font-family: 'JetBrains Mono', monospace; margin-bottom: var(--space-4);
 }
-.prep-dots{ display: flex; gap: 6px; justify-content: center; margin-bottom: var(--space-5); }
-.prep-dot{ width: 6px; height: 6px; border-radius: 50%; background: var(--surface-3); }
-.prep-dot.done{ background: var(--text-faint); }
-.prep-dot.now{ background: var(--accent); transform: scale(1.35); }
+/* The same rail the workout uses, at a finer grain: one stop per movement,
+   joined by a track, green behind, accent on the current one. The warm-up is
+   part of the journey, so it reads in the journey's visual language rather
+   than inventing a second progress idiom. */
+.prep-dots{ display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-5); }
+.prep-dot{
+  flex: 0 0 26px; height: 14px; position: relative;
+}
+.prep-dot::before{
+  content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 2px;
+  background: var(--surface-3);
+}
+.prep-dot:first-child::before{ left: 50%; }
+.prep-dot:last-child::before{ right: 50%; }
+.prep-dot.done::before{ background: var(--success); }
+.prep-dot::after{
+  content: ""; position: absolute; left: 50%; top: 3px;
+  width: 8px; height: 8px; margin-left: -4px; border-radius: 50%;
+  background: var(--surface-3); border: 2px solid var(--surface);
+  transition: background 0.18s var(--ease), transform 0.18s var(--ease);
+}
+.prep-dot.done::after{ background: var(--success); }
+.prep-dot.now::after{
+  background: var(--accent); transform: scale(1.3);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ---- get into position ----
+   Occupies the clock's place so the screen says one thing at a time. Green
+   because it is a go-signal, and sized to be read at arm's length without
+   out-shouting the movement it is counting into. */
+.prep-ready{
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 168px; margin-bottom: var(--space-4);
+}
+.prep-ready-k{
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--success);
+  margin-bottom: var(--space-2);
+}
+.prep-ready-num{
+  font-family: 'JetBrains Mono', monospace; font-size: 64px; font-weight: 700;
+  line-height: 1; color: var(--success); font-variant-numeric: tabular-nums;
+  animation: prepReadyPop 0.28s var(--ease);
+}
+@keyframes prepReadyPop{ from{ transform: scale(0.82); opacity: 0.5; } to{ transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce){ .prep-ready-num{ animation: none; } }
+
+/* Previous is quiet text; Continue/Next carries the weight. */
+.prep-back{
+  flex: 0 0 auto; min-height: 48px; padding: 0 var(--space-3);
+  background: none; border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; color: var(--text-dim);
+}
+.prep-back:active{ transform: scale(0.98); }
 .prep-move-name{
   font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;
   line-height: 1.15; color: var(--text); margin-bottom: var(--space-3);
@@ -4199,6 +4268,20 @@ body.page-locked{ overflow: hidden; }
      so any extra on the figure is height the instruction loses. */
   .prep-figure{ max-width: 108px; margin: 0; }
   .prep-stage .prep-ring{ margin-bottom: 0; }
+  /* The get-ready block matches the ring it stands in for, in landscape as in
+     portrait — otherwise the card grows by 60px for three seconds and the
+     instruction drops off the bottom just as the movement begins. */
+  .prep-ready{ min-height: 108px; margin-bottom: 0; }
+  .prep-ready-num{ font-size: 44px; }
+  /* "1 OF 5" says exactly what the rail beneath it already shows, so in
+     landscape the rail keeps the job and the sentence gives up its line. The
+     position is still announced — it lives on the rail's own label. */
+  .prep-step-count{ display: none; }
+  /* The rail keeps its shape at a smaller scale rather than being dropped. */
+  .prep-dots{ margin-bottom: var(--space-2); }
+  .prep-dot{ flex: 0 0 22px; height: 10px; }
+  .prep-dot::before{ top: 4px; }
+  .prep-dot::after{ top: 1px; }
   .prep-instruction{ font-size: 13px; }
   .prep-purpose{ display: none; }          /* least essential line first */
   .prep-dots{ margin-bottom: var(--space-3); }
@@ -4705,9 +4788,12 @@ html, body{ max-width: 100%; overflow-x: hidden; }
          controls. Present only while a rest timer is running. -->
     <button type="button" class="ws-rest" id="wsRest" hidden onclick="jumpToRestingExercise()"></button>
     <div class="ws-nav" id="wsNav"></div>
-    <div class="sheet-actions">
-      <button class="btn-primary" style="width:100%" onclick="saveLog(this)">Finish Workout</button>
-    </div>
+    <!-- Finishing is the end of the journey, so the action only exists at the
+         end of it. renderWorkoutStep() fills this on the review step and
+         leaves it empty everywhere else — an athlete on their first exercise
+         has finished nothing, and offering to end the workout there put the
+         loudest button on screen against the thing they had not done yet. -->
+    <div class="sheet-actions" id="wsFinishBar"></div>
   </div>
 </div>
 
@@ -9314,10 +9400,22 @@ function computeWarmupRamp(workingWeight){
 function warmupBoxHtml(name, workingWeight){
   if(!isWarmupLift(name)) return '';
   const ramp = computeWarmupRamp(workingWeight);
-  if(!ramp) return '';
-  return `<div class="warmup-box">
+  if(ramp) return `<div class="warmup-box">
     <div class="warmup-label">Suggested warm-up</div>
     <div class="warmup-sets">${ramp.map(r => `<span class="warmup-chip">${r.weight} lb × ${r.reps}</span>`).join('')}</div>
+  </div>`;
+  /* No working weight yet, so there is nothing to take a percentage of. The
+     lift's own prep guidance says the same thing in relative terms. It used to
+     appear only on a "Prep Complete" screen the athlete tapped past on the way
+     to their first set; in front of the lift it describes, it is actually read.
+     Once a weight is typed the concrete ramp above replaces it. */
+  let id = null;
+  try{ id = resolveExerciseId(name); }catch(e){ id = null; }
+  const steps = id && LIFT_PREP_GUIDANCE[id];
+  if(!steps || !steps.length) return '';
+  return `<div class="warmup-box">
+    <div class="warmup-label">Suggested warm-up</div>
+    <div class="warmup-sets">${steps.map(s => `<span class="warmup-chip">${escapeHtml(s)}</span>`).join('')}</div>
   </div>`;
 }
 
@@ -21946,6 +22044,11 @@ function exitPrep(){
   }
 }
 
+/* Long enough to actually get into position, short enough that it never feels
+   like waiting. Not taken out of the movement: a 30 second stretch is still 30
+   seconds of stretching, with three seconds in front of it. */
+const PREP_READY_SECONDS = 3;
+
 function enterPrepStep(){
   clearPrepTimer();
   if(!prepState) return;
@@ -21954,16 +22057,45 @@ function enterPrepStep(){
   const secs = move.duration || move.suggestedDuration || null;
   prepState.remaining = secs || 0;
   prepState.paused = false;
-  /* Deadline-based rather than decrement-based. iOS throttles timers in a
-     backgrounded tab, so counting ticks would drift; deriving the remaining
-     time from a wall-clock deadline stays correct however the interval fires. */
-  prepState.endsAt = secs ? (Date.now() + secs * 1000) : null;
+  /* Timed movements open on a "get ready" phase and switch to the movement's
+     own clock when it runs out. Counted movements have no clock at all, so
+     they have nothing to get ready for — they start immediately, exactly as
+     they always did. Both phases are driven by the one interval below; there
+     is no second timer anywhere in this flow. */
+  if(secs){
+    prepState.phase = 'ready';
+    prepState.readyLeft = PREP_READY_SECONDS;
+    prepState.readyUntil = Date.now() + PREP_READY_SECONDS * 1000;
+    prepState.endsAt = null;
+  } else {
+    prepState.phase = 'run';
+    prepState.endsAt = null;
+  }
   prepState.totalForRing = secs || null;      // full duration the ring sweeps
   renderPrepStep();
   if(secs) prepTimerId = setInterval(tickPrep, 250);
 }
 function tickPrep(){
-  if(!prepState || prepState.paused || !prepState.endsAt) return;
+  if(!prepState || prepState.paused) return;
+  /* Phase one: the position countdown. Same interval, same wall-clock
+     deadline discipline as the movement itself — only the number on screen
+     and what happens at zero are different. */
+  if(prepState.phase === 'ready'){
+    const readyLeft = Math.ceil((prepState.readyUntil - Date.now()) / 1000);
+    if(readyLeft <= 0){
+      prepState.phase = 'run';
+      prepState.endsAt = Date.now() + prepState.remaining * 1000;
+      renderPrepStep();          // swaps the countdown for the movement clock
+      return;
+    }
+    if(readyLeft !== prepState.readyLeft){
+      prepState.readyLeft = readyLeft;
+      const n = document.getElementById('prepReadyNum');
+      if(n) n.textContent = String(readyLeft);
+    }
+    return;
+  }
+  if(!prepState.endsAt) return;
   const left = Math.ceil((prepState.endsAt - Date.now()) / 1000);
   if(left <= 0){
     clearPrepTimer();
@@ -21992,11 +22124,38 @@ function togglePrepPause(){
   // of stepping into a movement that no longer exists.
   if(prepFinished()){ renderPrepComplete(); return; }
   prepState.paused = !prepState.paused;
-  // Resuming re-anchors the deadline to whatever was left when it was paused.
-  if(!prepState.paused && prepState.remaining > 0){
-    prepState.endsAt = Date.now() + prepState.remaining * 1000;
+  // Resuming re-anchors the deadline to whatever was left when it was paused —
+  // whichever of the two phases the athlete paused in.
+  if(!prepState.paused){
+    if(prepState.phase === 'ready'){
+      prepState.readyUntil = Date.now() + Math.max(1, prepState.readyLeft || 1) * 1000;
+    } else if(prepState.remaining > 0){
+      prepState.endsAt = Date.now() + prepState.remaining * 1000;
+    }
   }
   syncPrepPauseUI();
+}
+
+/* Backward through the warm-up. Re-entering a step restarts its position
+   countdown, which is correct: the athlete has just moved, and needs the same
+   three seconds to get back into the shape. */
+function prevPrepStep(){
+  if(!prepState) return;
+  clearPrepTimer();
+  if(prepState.idx <= 0){ enterPrepStep(); return; }
+  prepState.idx--;
+  enterPrepStep();
+}
+
+/* The end of the warm-up is the start of the workout, not a destination of its
+   own. The old "Prep Complete" screen sat between the two carrying the main
+   lift ramps, which now render on the exercise page in front of the lift they
+   describe — so there is nothing left for a completion screen to say, and the
+   athlete goes straight to their first exercise. */
+function finishPrepIntoWorkout(){
+  clearPrepTimer();
+  exitPrep();
+  try{ goToWorkoutStep(0); }catch(e){}
 }
 function prepFinished(){ return !!prepState && prepState.idx >= prepState.seq.length; }
 
@@ -22019,16 +22178,23 @@ function renderPrepStep(){
   const move = prepState.seq[prepState.idx];
   const total = prepState.seq.length;
   const timed = !!(move.duration || move.suggestedDuration);
+  const ready = timed && prepState.phase === 'ready';
   const metric = timed ? formatPrepClock(prepState.remaining) : (move.reps + ' reps');
-  const dots = prepState.seq.map((_, i) =>
-    '<span class="prep-dot ' + (i < prepState.idx ? 'done' : (i === prepState.idx ? 'now' : '')) + '"></span>'
-  ).join('');
+  /* The rail carries the position for sighted athletes; the label carries it
+     for everyone else. That lets the written "1 of 5" be dropped where space
+     is tight without the position going missing. */
+  const dots =
+    '<div class="prep-dots" role="group" aria-label="' +
+      escapeAttr('Movement ' + (prepState.idx + 1) + ' of ' + prepState.seq.length) + '">' +
+    prepState.seq.map((_, i) =>
+      '<span class="prep-dot ' + (i < prepState.idx ? 'done' : (i === prepState.idx ? 'now' : '')) + '"></span>'
+    ).join('') + '</div>';
   const tag = (move.category || '').replace(/_/g, ' ');
   const anim = animationForMovement(move.id);
 
   run.innerHTML =
     '<div class="prep-step-count">' + (prepState.idx + 1) + ' OF ' + total + '</div>' +
-    '<div class="prep-dots">' + dots + '</div>' +
+    dots +
     (tag ? '<div class="prep-tag">' + escapeHtml(tag.toUpperCase()) + '</div>' : '') +
     '<div class="prep-move-name">' + escapeHtml(move.displayName) + '</div>' +
     /* The demonstration, when one has been authored for this movement. The
@@ -22046,7 +22212,15 @@ function renderPrepStep(){
        the hero and the remaining time is readable at a glance. Counted
        movements keep the plain number — a ring with no duration to sweep
        would be decoration. */
-    (timed
+    (ready
+      /* Get-ready phase. It replaces the clock rather than sitting beside it,
+         so the screen says one thing at a time, and it is announced politely
+         so a screen reader gets "Get ready" once instead of three numbers. */
+      ? '<div class="prep-ready" role="status" aria-label="Get ready">' +
+          '<div class="prep-ready-k">Get ready</div>' +
+          '<div class="prep-ready-num" id="prepReadyNum">' + prepState.readyLeft + '</div>' +
+        '</div>'
+      : timed
       ? '<div class="prep-ring' + (prepState.paused ? ' paused' : '') + '">' +
           '<svg class="prep-ring-svg" viewBox="0 0 120 120" aria-hidden="true">' +
             '<circle class="prep-ring-track" cx="60" cy="60" r="54"/>' +
@@ -22061,11 +22235,21 @@ function renderPrepStep(){
     '<div class="prep-instruction">' + escapeHtml(move.instruction) + '</div>' +
     (move.purpose ? '<div class="prep-purpose">' + escapeHtml(move.purpose) + '</div>' : '');
 
+  /* One primary action and, at most, two quiet ones. On the last movement the
+     primary leads straight into the workout rather than to a screen that only
+     says the warm-up is over. Previous is omitted rather than disabled on the
+     first movement — a control that can never do anything is noise. */
+  const isLastMove = prepState.idx + 1 >= total;
+  const isPrep = prepState.mode === 'prep';
   actions.innerHTML =
+    (prepState.idx > 0
+      ? '<button type="button" class="prep-back" onclick="prevPrepStep()">Previous</button>' : '') +
     (timed ? '<button class="btn-secondary prep-secondary" id="prepPauseBtn" onclick="togglePrepPause()">' +
              (prepState.paused ? 'Resume' : 'Pause') + '</button>' : '') +
-    '<button class="btn-primary" onclick="nextPrepStep()">' +
-      (prepState.idx + 1 >= total ? 'Finish' : 'Next') + '</button>';
+    (isLastMove && isPrep
+      ? '<button class="btn-primary" onclick="finishPrepIntoWorkout()">Continue to Workout</button>'
+      : '<button class="btn-primary" onclick="nextPrepStep()">' +
+          (isLastMove ? 'Finish' : 'Next') + '</button>');
 
   syncPrepFigureState();
 }
@@ -22474,8 +22658,29 @@ function workoutStepMusclesHtml(name){
 /* The segmented bar: one segment per exercise, carrying that exercise's real
    state. It is the progress indicator AND the way to jump around the workout,
    so there is no second navigation control doing the same job. */
+/* The one progress element in the workout, and the reason it now leads with the
+   warm-up: the warm-up is the first thing the athlete does, so leaving it off
+   the track made the workout look like it began at exercise 1 and the warm-up
+   was something else entirely. One rail, warm-up first, review at the end.
+
+   `current` is the step being shown. STEP_FINISH means "no stop is current" —
+   the review is not an exercise — and each stop still reports its own state. */
 function workoutStepBarHtml(rows, current){
-  return '<div class="ws-bar" role="tablist" aria-label="Exercises">' + rows.map((row, i) => {
+  const prep = document.getElementById('prepCard');
+  const hasWarmup = !!(prep && prep.dataset.available === '1');
+  let segs = '';
+  if(hasWarmup){
+    const wDone = warmupStagePassed();
+    const wNow = current === STEP_WARMUP;
+    const cls = 'ws-seg ws-seg-warmup' + (wNow ? ' ws-seg-now' : '') + (wDone ? ' ws-seg-done' : '');
+    /* Spoken, not just coloured — "complete" has to survive being read aloud
+       and being looked at by someone who cannot tell green from grey. */
+    const state = wDone ? 'complete' : wNow ? 'current' : 'not started';
+    segs += '<button type="button" class="' + cls + '" role="tab" aria-selected="' + wNow + '"' +
+      ' onclick="returnToWarmup()"' +
+      ' aria-label="' + escapeAttr('Warm-up, ' + state) + '"></button>';
+  }
+  segs += rows.map((row, i) => {
     const done = exerciseRowDone(row);
     const skipped = exerciseRowSkipped(row);
     const cls = 'ws-seg' + (i === current ? ' ws-seg-now' : '') +
@@ -22484,7 +22689,24 @@ function workoutStepBarHtml(rows, current){
     return '<button type="button" class="' + cls + '" role="tab" aria-selected="' + (i === current) + '"' +
       ' onclick="goToWorkoutStep(' + i + ')"' +
       ' aria-label="' + escapeAttr('Exercise ' + (i+1) + ', ' + workoutStepName(row) + ', ' + state) + '"></button>';
-  }).join('') + '</div>';
+  }).join('');
+  return '<div class="ws-bar" role="tablist" aria-label="Workout progress">' + segs + '</div>';
+}
+
+/* Going back to the warm-up on purpose. Automatic entry stays one-way —
+   D18.1 fixed a bug where the warm-up kept reappearing by itself, and
+   goToWorkoutStep() still refuses STEP_WARMUP once the stage has passed — but
+   tapping the warm-up stop is a deliberate request, not the app deciding.
+
+   Nothing about the draft is touched: the exercise rows stay mounted with
+   every weight, rep, RIR and set type in them, exactly as they are on any
+   other step. The warm-up simply becomes the visible one again. */
+function returnToWarmup(){
+  const prep = document.getElementById('prepCard');
+  if(!prep || prep.dataset.available !== '1') return;
+  if(logStepIndex === STEP_WARMUP) return;
+  logStepIndex = STEP_WARMUP;
+  renderWorkoutStep({ animate:true, dir:'back' });
 }
 
 /* ---------- COMPACT REST READOUT (Phase D18.1) ----------
@@ -22548,10 +22770,15 @@ function renderWorkoutStep(opts){
   const review = document.getElementById('wsReview');
   if(!head || !nav) return;
 
-  /* A workout with no exercises yet has nothing to step through. */
+  /* A workout with no exercises yet has nothing to step through. The plain
+     form shows, and with it the finish action — there is no journey to be at
+     the end of, so withholding it would just strand the athlete. */
   if(!rows.length){
     sheet.classList.remove('stepper-on');
     head.innerHTML = ''; nav.innerHTML = '';
+    const bar = document.getElementById('wsFinishBar');
+    if(bar) bar.innerHTML =
+      '<button class="btn-primary" style="width:100%" onclick="saveLog(this)">Finish Workout</button>';
     return;
   }
   sheet.classList.add('stepper-on');
@@ -22572,9 +22799,21 @@ function renderWorkoutStep(opts){
   }
   if(review) review.classList.toggle('ws-current', i === STEP_FINISH);
 
+  /* The finish action exists on the review step and nowhere else. Emptied
+      rather than dimmed: an action the athlete cannot sensibly take yet should
+      not be reachable, by tap or by keyboard. A workout with no exercises at
+      all never enters the stepper, and keeps the plain form it always had. */
+  const finishBar = document.getElementById('wsFinishBar');
+  if(finishBar){
+    finishBar.innerHTML = (i === STEP_FINISH)
+      ? '<button class="btn-primary" style="width:100%" onclick="saveLog(this)">Finish Workout</button>'
+      : '';
+  }
+
   if(i === STEP_WARMUP){
     head.innerHTML =
       '<div class="ws-k">Warm-up</div>' +
+      workoutStepBarHtml(rows, i) +
       '<h3 class="ws-name">Prepare to train</h3>' +
       '<p class="ws-lede">A few minutes of movement before your first working set.</p>';
     /* The entry carries its own two actions — Start Warm-up and Skip — so the
@@ -22583,6 +22822,7 @@ function renderWorkoutStep(opts){
   } else if(i === STEP_FINISH){
     head.innerHTML =
       '<div class="ws-k">Finish</div>' +
+      workoutStepBarHtml(rows, i) +
       '<h3 class="ws-name">Review and save</h3>' +
       '<p class="ws-lede">' + escapeHtml(workoutStepSummaryLine(rows)) + '</p>';
     nav.innerHTML =
@@ -22597,12 +22837,15 @@ function renderWorkoutStep(opts){
       '<h3 class="ws-name">' + escapeHtml(name) + '</h3>' +
       workoutStepMusclesHtml(name);
     const isLast = i >= rows.length - 1;
+    /* One primary action, two quiet ones. Previous and Skip were the same
+       weight as Next, which made "move on" look like a three-way choice
+       instead of the obvious next thing to do. */
     nav.innerHTML =
       '<button type="button" class="ws-nav-btn" onclick="prevWorkoutStep()"' +
         (i === 0 ? ' disabled' : '') + '>Previous</button>' +
-      '<button type="button" class="ws-nav-btn" onclick="skipWorkoutStep()">Skip</button>' +
+      '<button type="button" class="ws-nav-btn ws-nav-skip" onclick="skipWorkoutStep()">Skip</button>' +
       '<button type="button" class="ws-nav-next" onclick="nextWorkoutStep()">' +
-        (isLast ? 'Finish' : 'Next') + '</button>';
+        (isLast ? 'Finish Workout' : 'Next') + '</button>';
   }
 
   /* A step change starts at the top of the new step, never halfway down the

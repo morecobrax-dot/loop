@@ -2091,15 +2091,37 @@ function testPrepRunner(app){
   const heldAt = ctx.prepState.remaining;
   ctx.tickPrep();
   T('paused timer does not advance', ctx.prepState.remaining === heldAt);
+  /* D19: a timed movement now opens on the three-second position countdown, so
+     this pause landed in "get ready". Both phases carry a wall-clock deadline
+     and both must re-anchor on resume — the single assertion this replaces
+     could only ever observe one of them. */
+  T('a timed movement opens on the position countdown', ctx.prepState.phase === 'ready');
   ctx.togglePrepPause();
   T('resume clears the flag', ctx.prepState.paused === false);
   T('resume relabels the button back', dom.els.prepPauseBtn.textContent === 'Pause');
   T('resuming does not re-render the step either', stepRenders === 0, String(stepRenders));
-  T('resume re-anchors the deadline', ctx.prepState.endsAt > Date.now());
-  /* The spy must be able to see a real render, or the two assertions above
-     would pass simply because nothing was ever wired up. */
-  ctx.enterPrepStep();
-  T('the render spy does observe real renders', stepRenders === 1, String(stepRenders));
+  T('resume re-anchors the position countdown', ctx.prepState.readyUntil > Date.now());
+  T('and the movement clock has not started yet', ctx.prepState.endsAt === null);
+
+  /* Run the countdown out and repeat the whole check against the movement's
+     own clock. The handover is also what proves the render spy is live. */
+  const rendersBeforeHandover = stepRenders;
+  const programmed = ctx.prepState.remaining;
+  ctx.prepState.readyUntil = Date.now() - 10;
+  ctx.tickPrep();
+  T('the countdown hands over to the movement clock', ctx.prepState.phase === 'run');
+  T('the handover re-renders, proving the spy observes real renders',
+    stepRenders === rendersBeforeHandover + 1, String(stepRenders));
+  /* The three seconds are in front of the movement, not taken out of it. */
+  T('the movement still gets its full programmed time',
+    ctx.prepState.endsAt - Date.now() > (programmed - 1) * 1000 &&
+    ctx.prepState.remaining === programmed, String(programmed));
+  ctx.togglePrepPause();
+  const heldRun = ctx.prepState.remaining;
+  ctx.tickPrep();
+  T('a paused movement clock does not advance either', ctx.prepState.remaining === heldRun);
+  ctx.togglePrepPause();
+  T('resume re-anchors the movement deadline', ctx.prepState.endsAt > Date.now());
   ctx.renderPrepStep = realRenderStep;
 
   sub('completing early and stepping through');
@@ -10643,8 +10665,15 @@ function testReliability(app){
     (src.match(/setInterval\(/g) || []).length <= (src.match(/clearInterval\(/g) || []).length,
     (src.match(/setInterval\(/g) || []).length + ' intervals vs ' +
     (src.match(/clearInterval\(/g) || []).length + ' clears');
+  /* D19 split a timed movement into a position countdown and the movement
+     itself. Both are deadline-based, so this now asserts the discipline on
+     both phases rather than on the one line it used to match. */
   T('timers are wall-clock, not tick-counted, so throttling cannot drift them',
-    /prepState\.endsAt = secs \? \(Date\.now\(\) \+ secs \* 1000\) : null/.test(src));
+    /prepState\.endsAt = Date\.now\(\) \+ prepState\.remaining \* 1000/.test(src) &&
+    /prepState\.readyUntil = Date\.now\(\) \+ PREP_READY_SECONDS \* 1000/.test(src));
+  T('the position countdown is derived from its deadline, never decremented',
+    /Math\.ceil\(\(prepState\.readyUntil - Date\.now\(\)\) \/ 1000\)/.test(src) &&
+    !/readyLeft\s*(--|-=)/.test(src));
 
   sub('gestures attach once per element');
   T('the week strip guards re-attachment', /strip\.dataset\.gestures === 'on'/.test(src));
