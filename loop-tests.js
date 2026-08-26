@@ -11784,6 +11784,125 @@ function testMovementAnimation(app){
     !/trainer|readiness|capability|recovery|mastery/i.test(vendoredCode));
 }
 
+/* =========================================================
+   CONTRACT 114 — The workout as one journey (D19)
+   ---------------------------------------------------------
+   Warm-up, exercises and review are one track with one
+   progress rail, one clock and one ending. These assertions
+   hold the shape of that journey: where the finish action may
+   appear, what the rail says, that the position countdown is
+   a phase of the existing timer rather than a second one, and
+   that none of it can cost the athlete a logged set.
+   ========================================================= */
+function testWorkoutJourney(app){
+  section('CONTRACT 114 — the workout as one journey');
+  const ctx = app.ctx, dom = app.dom;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+
+  sub('the finish action belongs to the end of the journey');
+  /* It used to be a permanent sibling of the navigation, so the loudest
+     button on screen sat under the warm-up and the first exercise. */
+  T('the finish button is not hard-coded into the sheet',
+    !/<div class="sheet-actions">\s*<button class="btn-primary"[^>]*onclick="saveLog/.test(src));
+  T('the sheet carries an empty holder instead',
+    /<div class="sheet-actions" id="wsFinishBar"><\/div>/.test(src));
+  T('and it is filled only on the review step',
+    /finishBar\.innerHTML = \(i === STEP_FINISH\)/.test(src));
+  T('withheld by not existing, not by being dimmed',
+    !/wsFinishBar[\s\S]{0,200}(opacity|visibility|pointer-events)/.test(src));
+
+  sub('the rail is the backbone, and it starts at the warm-up');
+  T('every step renders the rail', (() => {
+    const fn = src.slice(src.indexOf('function renderWorkoutStep'));
+    const body = fn.slice(0, fn.indexOf('\nfunction ', 10));
+    return (body.match(/workoutStepBarHtml\(/g) || []).length === 3;
+  })(), 'expected warm-up, review and exercise branches');
+  T('the rail leads with a warm-up stop when one is offered',
+    /ws-seg ws-seg-warmup/.test(src));
+  T('the warm-up stop turns green when the stage is done',
+    /const wDone = warmupStagePassed\(\)/.test(src));
+  T('every stop states its status in words, not only in colour',
+    /aria-label="' \+ escapeAttr\('Warm-up, ' \+ state\)/.test(src) &&
+    /'Exercise ' \+ \(i\+1\) \+ ', ' \+ workoutStepName\(row\) \+ ', ' \+ state/.test(src));
+
+  sub('returning to the warm-up is deliberate, and free');
+  /* D18.1 fixed a bug where the warm-up reappeared by itself. Automatic entry
+     stays one-way; only an explicit tap goes back, and it must not disturb a
+     single logged value — the rows are never unmounted, only hidden. */
+  T('automatic re-entry is still refused once the stage has passed',
+    /if\(i === STEP_WARMUP && warmupStagePassed\(\)\) return;/.test(src));
+  T('a deliberate return exists and bypasses only that guard',
+    /function returnToWarmup\(\)\{[\s\S]{0,400}logStepIndex = STEP_WARMUP;/.test(src));
+  T('it does not mark, clear or rebuild anything', (() => {
+    const i = src.indexOf('function returnToWarmup()');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/markWarmupStagePassed|innerHTML|prepCardDismissed|captureActiveDraft/.test(body);
+  })());
+  T('stepping back off the first exercise still cannot re-enter the warm-up',
+    /if\(logStepIndex <= 0\)\{\s*if\(warmupStagePassed\(\)\) return;/.test(src));
+
+  sub('the position countdown is a phase, not a second timer');
+  T('three seconds, named once', /const PREP_READY_SECONDS = 3;/.test(src));
+  T('a timed movement opens on it', /prepState\.phase = 'ready';/.test(src));
+  T('a counted movement does not', (() => {
+    const i = src.indexOf('function enterPrepStep()');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return /\} else \{\s*prepState\.phase = 'run';/.test(body);
+  })());
+  T('both phases run on the one interval', (() => {
+    const i = src.indexOf('function enterPrepStep()');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return (body.match(/setInterval\(/g) || []).length === 1;
+  })());
+  T('the countdown never becomes part of the movement',
+    /prepState\.endsAt = Date\.now\(\) \+ prepState\.remaining \* 1000/.test(src));
+  T('pausing re-anchors whichever phase is running',
+    /if\(prepState\.phase === 'ready'\)\{\s*prepState\.readyUntil = Date\.now\(\)/.test(src));
+
+  sub('the warm-up ends in the workout, not in a screen about the workout');
+  T('the last movement leads straight to the first exercise',
+    /finishPrepIntoWorkout\(\)/.test(src) &&
+    /function finishPrepIntoWorkout\(\)\{[\s\S]{0,200}goToWorkoutStep\(0\)/.test(src));
+  T('the button says where it goes', /Continue to Workout/.test(src));
+  T('backward navigation exists inside the warm-up', /function prevPrepStep\(\)/.test(src));
+  T('and it is omitted rather than dead on the first movement',
+    /prepState\.idx > 0[\s\S]{0,120}prevPrepStep\(\)/.test(src));
+  /* The main-lift ramps the old completion screen carried are not lost: they
+     render on the exercise page when no working weight is known yet. */
+  T('the lift ramps moved to the exercise that needs them',
+    /const steps = id && LIFT_PREP_GUIDANCE\[id\]/.test(src));
+
+  sub('one rest at a time');
+  /* Completing a set starts that exercise's rest. Nothing used to stop the
+     previous one, so two could run while the readout showed one. */
+  T('starting a rest stops any other rest',
+    /document\.querySelectorAll\('\.rest-panel'\)\.forEach\(other =>/.test(src));
+  T('and puts the abandoned one away rather than freezing it',
+    /other\.style\.display = 'none';[\s\S]{0,160}other\.dataset\.paused = 'false';/.test(src));
+
+  sub('the journey runs, and costs nothing');
+  ctx.pendingLogCategory = 'push';
+  ctx.pendingDraftId = 'draft_journey';
+  const seq = ctx.buildPrepSequence('push');
+  T('the warm-up has movements to run', seq.length > 0, String(seq.length));
+  ctx.startPrep();
+  T('it opens on the first movement', ctx.prepState && ctx.prepState.idx === 0);
+  const timedFirst = !!(seq[0].duration || seq[0].suggestedDuration);
+  T('and on the position countdown when that movement is timed',
+    !timedFirst || ctx.prepState.phase === 'ready');
+  /* Twenty of each, in both directions, must leave one interval at most. */
+  for(let i = 0; i < 20; i++) ctx.nextPrepStep();
+  T('twenty rapid Next cannot run past the sequence',
+    !ctx.prepState || ctx.prepState.idx <= seq.length, String(ctx.prepState && ctx.prepState.idx));
+  for(let i = 0; i < 20; i++) ctx.prevPrepStep();
+  T('twenty rapid Previous cannot run before the start',
+    !ctx.prepState || ctx.prepState.idx >= 0, String(ctx.prepState && ctx.prepState.idx));
+  ctx.exitPrep();
+  T('and the way out still clears the timer', ctx.prepTimerId === null);
+  T('and the state', ctx.prepState === null);
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -11862,6 +11981,7 @@ async function main(){
   testOrientationScale(H.loadApp());
   testMovementLibraryBoundary(H.loadApp());
   testMovementAnimation(H.loadApp());
+  testWorkoutJourney(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

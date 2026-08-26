@@ -2558,3 +2558,70 @@ defines no key, and references no trainer symbol. Zero protected-symbol lines
 appear in the `index.html` diff.
 
 The trainer remains `0.1.1-shadow`.
+
+## §38 — D19: the workout as one journey
+
+Warm-up, exercises and review are now one track rather than three screens that
+happen to follow each other.
+
+**The finish action belongs to the end.** "Finish Workout" was a permanent
+sibling of the navigation, so the loudest button on screen sat under the
+warm-up and under exercise 1 — offering to end a workout against work the
+athlete had not started. It is now rendered only on the review step (and on a
+workout with no exercises at all, which never enters the stepper). It is
+withheld by not existing, not by opacity: there is nothing to tap and nothing
+to reach by keyboard. The final exercise's forward action reads **Finish
+Workout** and leads to the review, which carries the save.
+
+**The rail is the backbone and starts at the warm-up.** `workoutStepBarHtml()`
+renders on all three branches — warm-up, exercise, review — and leads with a
+warm-up stop whenever one is offered. Completed stops are filled, the current
+one is filled, ringed and scaled, untouched ones are flat grey: three states
+that differ in shape as well as hue. Every stop names its own status in its
+`aria-label`, including the genuine "complete, current" of a warm-up an athlete
+has tapped back into.
+
+**Returning to the warm-up is deliberate and free.** Automatic re-entry stays
+one-way — D18.1 fixed a bug where the warm-up reappeared by itself, and
+`goToWorkoutStep()` still refuses `STEP_WARMUP` once the stage has passed.
+`returnToWarmup()` bypasses only that guard. Nothing is unmounted, marked or
+rebuilt: measured across a return trip, weight, reps, RIR, set type and
+completion all survive unchanged, with all eight rows still mounted.
+
+**The position countdown is a phase, not a second timer.** Timed warm-up
+movements open on a three-second "Get ready" count driven by the *same*
+interval as the movement, with the same wall-clock deadline discipline
+(`readyUntil` then `endsAt`). The three seconds sit in front of the movement,
+never inside it — a 30-second stretch still gets 30 seconds. Rep-based
+movements are untouched: no countdown, no timer, no pause. Pausing re-anchors
+whichever phase is running. Measured: never more than **one** interval across
+20 rapid Next, 20 rapid Previous and 20 open/close cycles, and zero after exit.
+
+**The warm-up ends in the workout.** The last movement's primary action is
+**Continue to Workout** and lands on exercise 1. The old "Prep Complete" screen
+existed to carry the main-lift ramps; those now render on the exercise page
+when no working weight is known yet, in front of the lift they describe, so
+nothing was lost by removing the screen.
+
+**One rest at a time.** Completing a set starts that exercise's rest, and
+nothing used to stop the previous one — two countdowns could run while the
+workout's rest readout pointed at only one and the other ran down unseen.
+Starting a rest now stops and puts away any other. Measured across three
+exercises: exactly one live rest timer at every point.
+
+**Set rows are a list, not a card stack.** Each set was a filled, bordered,
+rounded box containing two more filled, bordered, rounded boxes — three
+container layers for two numbers. In the stepper the outer layer is gone,
+leaving a hairline separator and the steppers as the only things that look
+tappable. Measured: 18 rounded containers per exercise down to 14. Completion
+reads as an inset success edge plus the existing animated tick.
+
+**Measured.** Portrait 375×812 and 390×844, landscape 812×375, 844×390 and
+932×430: the whole warm-up fits one viewport in both phases with no scrolling,
+zero horizontal overflow in seven workout states, inputs at 16px, touch targets
+at 44px, and identical type sizes across rotation with a live workout. Rail
+render 0.46ms, exercise transition 7.6ms, set completion 2.95ms; exercise rows
+keep node identity across 30 transitions, so stepping re-renders nothing.
+
+`DATA_KEYS` is still exactly 15. Zero protected-symbol lines appear in the
+`index.html` diff. The trainer remains `0.1.1-shadow`.

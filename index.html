@@ -2611,6 +2611,26 @@ textarea{ resize: vertical; min-height: 56px; }
 .stepper-on .ex-log-row.ws-current{
   border: none; padding: 0; margin-top: 0;
 }
+/* One exercise is on screen at a time, so its sets are a list rather than a
+   stack of cards. Each set used to be a filled, bordered, rounded box holding
+   two more filled, bordered, rounded boxes — three container layers deep for
+   two numbers. Dropping the outer layer leaves the steppers as the only things
+   that look tappable, which is what they are, and a hairline keeps the sets
+   countable. Scoped to the stepper so the plain form is untouched. */
+.stepper-on .ws-current .set-row{
+  background: none; border: none; border-radius: 0;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.stepper-on .ws-current .set-row:last-child{ border-bottom: none; }
+/* Completion still reads at a glance, but as a mark on the row rather than a
+   filled card — the tick animates as it always did, and the edge carries the
+   state for anyone scanning down the list. */
+.stepper-on .ws-current .set-row.completed{
+  background: none;
+  box-shadow: inset 2px 0 0 var(--success);
+  padding-left: 10px;
+}
 
 .ws-head{
   flex-shrink: 0; padding: var(--space-4) var(--space-5) var(--space-3);
@@ -22674,8 +22694,11 @@ function workoutStepBarHtml(rows, current){
     const wNow = current === STEP_WARMUP;
     const cls = 'ws-seg ws-seg-warmup' + (wNow ? ' ws-seg-now' : '') + (wDone ? ' ws-seg-done' : '');
     /* Spoken, not just coloured — "complete" has to survive being read aloud
-       and being looked at by someone who cannot tell green from grey. */
-    const state = wDone ? 'complete' : wNow ? 'current' : 'not started';
+       and being looked at by someone who cannot tell green from grey. Both at
+       once is a real state: an athlete who taps back into a warm-up they have
+       already finished is on a stop that is both current and complete. */
+    const state = (wDone && wNow) ? 'complete, current'
+                : wDone ? 'complete' : wNow ? 'current' : 'not started';
     segs += '<button type="button" class="' + cls + '" role="tab" aria-selected="' + wNow + '"' +
       ' onclick="returnToWarmup()"' +
       ' aria-label="' + escapeAttr('Warm-up, ' + state) + '"></button>';
@@ -23685,6 +23708,19 @@ function startRestPanel(panel, seconds){
   updateRestPanelDisplay(panel);
   // 200ms keeps the ring smooth; the DISPLAY still only redraws on a real change.
   panel._interval = setInterval(() => tickRestPanel(panel), 200);
+  /* An athlete rests once at a time. Completing a set starts that exercise's
+     rest, and nothing used to stop the previous one — so moving between
+     exercises could leave two countdowns running, while the workout's rest
+     readout could only ever point at one of them and the other ran down
+     unseen. Any other rest is stopped and put away, not left frozen. */
+  document.querySelectorAll('.rest-panel').forEach(other => {
+    if(other === panel || !other._interval) return;
+    clearRestTimer(other);
+    other.style.display = 'none';
+    other.dataset.remaining = other.dataset.defaultRest || other.dataset.total;
+    other.dataset.paused = 'false';
+    other.classList.remove('done', 'ending');
+  });
 }
 
 function clearRestTimer(panel){
