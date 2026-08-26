@@ -1178,16 +1178,12 @@ body.first-use{ padding-bottom: 0; }
   font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700;
   color: var(--text); margin-top: 4px;
 }
-.fu-demo-meta{ font-size: 12px; color: var(--text-faint); margin-top: 2px; }
-.fu-demo-sets{ display: flex; gap: 6px; margin-top: var(--space-4); }
-.fu-demo-set{
-  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
-  padding: 6px 9px; border-radius: var(--radius-sm);
-  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+.fu-demo-list{ display: flex; flex-direction: column; margin-top: var(--space-3); }
+.fu-demo-ex{
+  font-size: 13.5px; color: var(--text-dim);
+  padding: 7px 0; border-top: 1px solid var(--border);
 }
-.fu-demo-set.done{
-  background: var(--success-soft); border-color: var(--success); color: var(--text);
-}
+.fu-demo-more{ color: var(--text-faint); font-size: 12px; }
 
 .fu-primary{
   margin-top: var(--space-6); min-height: 52px; width: 100%;
@@ -1269,6 +1265,13 @@ body.first-use{ padding-bottom: 0; }
   transition: transform 0.12s var(--ease), border-color 0.15s var(--ease);
 }
 .fu-opt:active{ transform: scale(0.99); border-color: var(--accent); }
+.fu-caveat{
+  font-size: 12.5px; line-height: 1.5; color: var(--text-dim);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md); padding: var(--space-3); margin-top: var(--space-3);
+}
+.fu-note{ font-size: 12.5px; line-height: 1.5; color: var(--text-dim); margin-top: var(--space-3); }
 
 @keyframes fuRise{ from{ opacity: 0; transform: translateY(8px); } to{ opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce){
@@ -1970,6 +1973,35 @@ body.first-use{ padding-bottom: 0; }
 .mt-note{ font-size: 11.5px; color: var(--text-faint); line-height: 1.5; margin-top: 18px; }
 
 /* setup: frequency, days, and the week they produce */
+/* A prefilled value and its one control. The value is the loud part; Change
+   is available without competing with it. */
+.ts-plan{
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding-bottom: var(--space-3); border-bottom: 1px solid var(--border);
+}
+.ts-plan-name{
+  font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: var(--text);
+}
+.ts-row-set{ padding: var(--space-4) 0; border-bottom: 1px solid var(--border); }
+.ts-set-head{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ts-set-label{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.ts-change{
+  min-height: 44px; min-width: 64px; padding: 0 var(--space-2); margin: -10px -8px -10px 0;
+  background: none; border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; color: var(--accent);
+}
+.ts-set-value{
+  font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700;
+  color: var(--text); margin-top: 3px;
+}
+.ts-from{
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 400;
+  color: var(--text-dim); margin-left: 6px; white-space: nowrap;
+}
+.ts-editor{ margin-top: var(--space-3); }
 .ts-q{ font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--text-dim); margin: 18px 0 10px; }
 .ts-q:first-child{ margin-top: 6px; }
 .ts-freq{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
@@ -1978,7 +2010,9 @@ body.first-use{ padding-bottom: 0; }
   color: var(--text-dim); font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; cursor: pointer;
 }
 .ts-freq-btn.on{ background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.ts-days{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+/* Seven cells across a 375px screen: at gap 5px each measured 43.56px, just
+   under the 44px minimum touch target. 4px clears it with room to spare. */
+.ts-days{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .ts-day{
   min-height: 48px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
   color: var(--text-dim); font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer;
@@ -3890,7 +3924,6 @@ body.page-locked{ overflow: hidden; }
   }
   .fu-h1{ font-size: 22px; }
   .fu-h1-sm{ font-size: 19px; }
-  .fu-demo-sets{ margin-top: var(--space-3); }
   .fu-primary{ min-height: 46px; }
 
   /* Intro: two columns, so the words and the proof sit side by side. */
@@ -6781,6 +6814,39 @@ function renderFirstUse(){
   return renderFirstUsePlans(host);
 }
 
+/* The demo card on the intro. Every name here comes out of DEFAULT_PLANS, so
+   it is a real session an athlete can actually be given — never a mock-up, and
+   never a number. What it shows is "this is what a workout looks like in
+   LOOP", which is true; what it must never show is performance, which would
+   not be. */
+function introDemoWorkout(){
+  const plan = DEFAULT_PLANS[defaultBasePlanId()];
+  if(!plan || !plan.defaultSchedule || !plan.templates) return null;
+  const day = DAY_ORDER.find(k => plan.defaultSchedule[k] && plan.defaultSchedule[k] !== 'rest');
+  if(!day) return null;
+  const list = plan.templates[plan.defaultSchedule[day]];
+  const tpl = list && list[0];
+  if(!tpl || !Array.isArray(tpl.exercises) || !tpl.exercises.length) return null;
+  return {
+    name: tpl.name,
+    exercises: tpl.exercises.slice(0, 3).map(e => e.name),
+    more: Math.max(0, tpl.exercises.length - 3)
+  };
+}
+function introDemoHtml(){
+  const w = introDemoWorkout();
+  if(!w) return '';
+  return `
+      <div class="fu-demo" aria-hidden="true">
+        <div class="fu-demo-label">TODAY'S WORKOUT</div>
+        <div class="fu-demo-title">${escapeHtml(w.name)}</div>
+        <div class="fu-demo-list">
+          ${w.exercises.map(x => `<span class="fu-demo-ex">${escapeHtml(x)}</span>`).join('')}
+          ${w.more ? `<span class="fu-demo-ex fu-demo-more">+ ${w.more} more</span>` : ''}
+        </div>
+      </div>`;
+}
+
 /* STEP 1 — what LOOP is, shown rather than described. */
 function renderFirstUseIntro(host){
   host.innerHTML = `
@@ -6790,16 +6856,7 @@ function renderFirstUseIntro(host){
       <p class="fu-lede">LOOP gives you a training plan, tracks every set you lift,
         and shows you getting stronger over time.</p>
 
-      <div class="fu-demo" aria-hidden="true">
-        <div class="fu-demo-label">TODAY</div>
-        <div class="fu-demo-title">Upper A — Push Focus</div>
-        <div class="fu-demo-meta">6 exercises · ~45 min</div>
-        <div class="fu-demo-sets">
-          <span class="fu-demo-set done">135 × 8</span>
-          <span class="fu-demo-set done">145 × 8</span>
-          <span class="fu-demo-set">155 × 6</span>
-        </div>
-      </div>
+      ${introDemoHtml()}
 
       <button type="button" class="fu-primary" onclick="firstUseGo('plans')">Get started</button>
     </div>`;
@@ -6846,28 +6903,62 @@ const HELP_QUESTIONS = [
 ];
 
 function recommendPlan(a){
-  /* Equipment is the hard constraint — a gym plan is useless without a gym. */
-  if(a.where === 'home') return 'home';
-  if(a.goal === 'strength') return 'strength';
-  if(a.goal === 'fitness')  return 'athletic';
+  return recommendPlanWithReason(a).id;
+}
+/* The same decision, plus what actually drove it, so the screen can explain
+   itself without exposing how plans are ranked. */
+function recommendPlanWithReason(a){
+  /* Equipment is the hard constraint — a gym plan is useless without a gym,
+     and this is the one case where the goal does not choose the plan. */
+  if(a.where === 'home'){
+    return {
+      id: 'home',
+      overridden: a.goal !== 'fitness',
+      reason: 'You are training at home, so LOOP picked the plan built around minimal equipment.'
+    };
+  }
+  if(a.goal === 'strength') return { id:'strength', overridden:false,
+    reason: 'Built around heavy barbell work, so your main lifts climb over time.' };
+  if(a.goal === 'fitness')  return { id:'athletic', overridden:false,
+    reason: 'Mixes strength and conditioning, so you build capacity as well as force.' };
   /* Building muscle: five days supports the high-volume plan, otherwise the
      upper/lower split covers each muscle twice in four. */
-  if(a.goal === 'muscle')   return a.days >= 5 ? 'hypertrophy' : 'upperlower';
-  return 'balanced';
+  if(a.goal === 'muscle')   return a.days >= 5
+    ? { id:'hypertrophy', overridden:false,
+        reason: 'Five days lets each muscle get its own session, which is where this plan earns its volume.' }
+    : { id:'upperlower', overridden:false,
+        reason: 'Trains every muscle twice a week, which is the most size you can build from ' + a.days + ' days.' };
+  return { id:'balanced', overridden:false, reason:'A well-rounded starting point you can steer later.' };
+}
+
+/* The goal an athlete gave "help me choose" is the same goal the profile uses
+   to set rep ranges. Recorded so the answer means something even when
+   equipment chose the plan — and never over an answer they gave themselves. */
+const HELP_GOAL_TO_PROFILE = { muscle:'hypertrophy', strength:'strength', fitness:'general' };
+function adoptHelpGoal(){
+  const g = helpAnswers && HELP_GOAL_TO_PROFILE[helpAnswers.goal];
+  if(!g || !athleteProfile || athleteProfile.goal) return false;
+  athleteProfile.goal = g;
+  invalidateContextCache();
+  persistAthleteProfile();
+  return true;
 }
 
 function renderFirstUseHelp(host){
   const answered = HELP_QUESTIONS.filter(q => helpAnswers[q.key] !== null).length;
   const current = HELP_QUESTIONS[answered];
   if(!current){
-    const id = recommendPlan(helpAnswers);
-    const p = DEFAULT_PLANS[id];
+    const rec = recommendPlanWithReason(helpAnswers);
     host.innerHTML = `
       <div class="fu-plans">
         <button type="button" class="fu-back" onclick="resetHelp()" aria-label="Back">${chevronLeftSvg()}</button>
         <h1 class="fu-h1 fu-h1-sm">Start here</h1>
-        <p class="fu-lede fu-lede-sm">Based on your answers. You can switch at any time.</p>
-        <div class="fu-list">${firstUsePlanCard(id, null)}</div>
+        <p class="fu-lede fu-lede-sm">${escapeHtml(rec.reason)}</p>
+        <div class="fu-list">${firstUsePlanCard(rec.id, null)}</div>
+        ${rec.overridden ? `<p class="fu-caveat">Your equipment limits which plans fit, so this one was
+          chosen ahead of your goal. Your goal still shapes how LOOP sets your reps.</p>` : ''}
+        <p class="fu-note">Your ${helpAnswers.days} training days are already set up for you — you can
+          change them on the next screen.</p>
         <button type="button" class="fu-more" onclick="firstUseGo('plans')">See the other plans</button>
       </div>`;
     return;
@@ -6911,7 +7002,10 @@ function resetHelp(){ helpAnswers = { goal:null, days:null, where:null }; render
 
 /* The one exit. Everything above funnels here, and from here the existing
    choosePlan() runs exactly as it always has. */
-function choosePlanFromFirstUse(planId){ choosePlan(planId); }
+function choosePlanFromFirstUse(planId){
+  adoptHelpGoal();
+  choosePlan(planId);
+}
 
 function showOnboarding(){
   /* Understand, then choose. The stage resets each time so a fresh install
@@ -18293,7 +18387,22 @@ function openTrainingSetup(planId){
     const sch = (DEFAULT_PLANS[pid] || {}).defaultSchedule || {};
     return sch[d] && sch[d] !== 'rest';
   });
-  setupDraft = { planId: pid, days: (current.length ? current : fallback).slice() };
+  let days = (current.length ? current : fallback).slice();
+  /* "Your current schedule" is misleading on a first run, where the schedule
+     was itself just seeded from the plan and the athlete has never set one.
+     Only claim it is theirs once it actually differs from the plan. */
+  const sameAsPlan = current.length === fallback.length &&
+    current.every((d, i) => d === fallback[i]);
+  let source = (current.length && !sameAsPlan) ? 'schedule' : 'plan';
+  /* Where the athlete told "help me choose" how often they can train, that
+     answer decides the week — otherwise it would have been a question whose
+     answer LOOP collected and then ignored. */
+  if(helpAnswers && helpAnswers.days && helpAnswers.days !== days.length){
+    days = spreadTrainingDays(helpAnswers.days);
+    source = 'answers';
+  }
+  setupDraft = { planId: pid, days: days, source: source };
+  setupEditing = null;
   renderTrainingSetup();
   document.getElementById('trainingSetupOverlay').classList.add('open');
 }
@@ -18306,35 +18415,89 @@ function setupToggleDay(dayKey){
   const i = setupDraft.days.indexOf(dayKey);
   if(i === -1) setupDraft.days.push(dayKey); else setupDraft.days.splice(i, 1);
   setupDraft.days = DAY_ORDER.filter(d => setupDraft.days.indexOf(d) !== -1);
+  setupDraft.source = 'custom';
   renderTrainingSetup();
 }
 /* Picking a frequency spreads the days out rather than clustering them, so the
    athlete gets a usable week without having to place each day themselves. */
+const TRAINING_DAY_SPREAD = {
+  1:['mon'], 2:['mon','thu'], 3:['mon','wed','fri'],
+  4:['mon','tue','thu','fri'], 5:['mon','tue','wed','thu','fri'],
+  6:['mon','tue','wed','thu','fri','sat'], 7:DAY_ORDER.slice()
+};
+function spreadTrainingDays(count){
+  return (TRAINING_DAY_SPREAD[count] || TRAINING_DAY_SPREAD[4]).slice();
+}
 function setupSetFrequency(n){
   if(!setupDraft) return;
-  const SPREAD = {
-    1:['mon'], 2:['mon','thu'], 3:['mon','wed','fri'],
-    4:['mon','tue','thu','fri'], 5:['mon','tue','wed','thu','fri'],
-    6:['mon','tue','wed','thu','fri','sat'], 7:DAY_ORDER.slice()
-  };
-  setupDraft.days = (SPREAD[n] || SPREAD[4]).slice();
+  setupDraft.days = spreadTrainingDays(n);
+  setupDraft.source = 'custom';
   renderTrainingSetup();
 }
+/* Which prefilled value is open for editing: null, 'freq' or 'days'. */
+let setupEditing = null;
+function setupEdit(which){
+  setupEditing = (setupEditing === which) ? null : which;
+  renderTrainingSetup();
+}
+
+/* Where a prefilled value came from. Said plainly, because "we filled this in
+   for you" is only reassuring if the athlete can tell where it came from. */
+const SETUP_SOURCE_NOTE = {
+  plan:     'From your selected plan',
+  schedule: 'Your current schedule',
+  answers:  'From what you told us',
+  custom:   null
+};
 
 function renderTrainingSetup(){
   const el = document.getElementById('trainingSetupBody');
   if(!el || !setupDraft) return;
   const preview = previewTrainingWeek(setupDraft.planId, setupDraft.days);
   const n = setupDraft.days.length;
+  const note = SETUP_SOURCE_NOTE[setupDraft.source];
+  const plan = DEFAULT_PLANS[setupDraft.planId];
+  const goal = athleteProfile && athleteProfile.goal && TRAINING_GOALS[athleteProfile.goal]
+    ? TRAINING_GOALS[athleteProfile.goal].label : null;
+
+  /* A prefilled value reads as an answer LOOP already has, with one control to
+     change it — not as a question waiting to be answered. */
+  const row = (key, label, value, editor) => `
+    <div class="ts-row-set">
+      <div class="ts-set-head">
+        <span class="ts-set-label">${escapeHtml(label)}</span>
+        <button type="button" class="ts-change" onclick="setupEdit('${key}')"
+          aria-expanded="${setupEditing === key}">${setupEditing === key ? 'Done' : 'Change'}</button>
+      </div>
+      <div class="ts-set-value">${value}</div>
+      ${setupEditing === key ? `<div class="ts-editor">${editor}</div>` : ''}
+    </div>`;
 
   el.innerHTML = `
-    <div class="ts-q">How often do you want to train?</div>
-    <div class="ts-freq">${[2,3,4,5,6].map(f =>
-      `<button type="button" class="ts-freq-btn${n===f?' on':''}" onclick="setupSetFrequency(${f})">${f}</button>`).join('')}</div>
-    <div class="ts-q">Which days work best?</div>
-    <div class="ts-days">${DAY_ORDER.map(d =>
-      `<button type="button" class="ts-day${setupDraft.days.indexOf(d)!==-1?' on':''}" onclick="setupToggleDay('${d}')"
-        aria-pressed="${setupDraft.days.indexOf(d)!==-1}">${escapeHtml(DAY_LABEL[d].slice(0,1))}</button>`).join('')}</div>
+    ${plan ? `<div class="ts-plan">
+      <span class="ts-set-label">Plan</span>
+      <span class="ts-plan-name">${escapeHtml(plan.name)}</span>
+    </div>` : ''}
+
+    ${row('freq', 'Training frequency',
+      `${n} day${n === 1 ? '' : 's'} / week` + (note ? ` <span class="ts-from">${escapeHtml(note)}</span>` : ''),
+      `<div class="ts-freq">${[2,3,4,5,6].map(f =>
+        `<button type="button" class="ts-freq-btn${n===f?' on':''}" onclick="setupSetFrequency(${f})">${f}</button>`).join('')}</div>`)}
+
+    ${row('days', 'Your schedule',
+      n ? setupDraft.days.map(d => escapeHtml(DAY_LABEL[d].slice(0,1) + DAY_LABEL[d].slice(1).toLowerCase())).join(' · ')
+        : 'No days selected',
+      `<div class="ts-days">${DAY_ORDER.map(d =>
+        `<button type="button" class="ts-day${setupDraft.days.indexOf(d)!==-1?' on':''}" onclick="setupToggleDay('${d}')"
+          aria-pressed="${setupDraft.days.indexOf(d)!==-1}">${escapeHtml(DAY_LABEL[d].slice(0,1))}</button>`).join('')}</div>`)}
+
+    ${goal ? `<div class="ts-row-set">
+      <div class="ts-set-head">
+        <span class="ts-set-label">Goal</span>
+        <button type="button" class="ts-change" onclick="closeTrainingSetup(); openAthleteProfile();">Change</button>
+      </div>
+      <div class="ts-set-value">${escapeHtml(goal)} <span class="ts-from">From what you told us</span></div>
+    </div>` : ''}
 
     <div class="ts-q">Your week</div>
     ${n ? `<div class="ts-week">${preview.map(p => `

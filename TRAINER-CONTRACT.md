@@ -1574,3 +1574,109 @@ token, which is what exposed `.fu-card-plan` at 2.88:1 and the day initials at
 information on their own.
 
 The trainer is untouched and remains `0.1.1-shadow`.
+
+## §28 — First run asks only what it does not know (Phase D16.1)
+
+D16 got the order right — understand, choose, learn, fit. It left three things
+wrong, all of them the same mistake in different places: the app talking as if
+it knew less than it did, or more.
+
+### The intro was showing invented performance
+
+The demo card read `135 × 8 / 145 × 8 / 155 × 6` under a workout title. Those
+numbers were fabricated. `aria-hidden` kept them from screen readers, which is
+not who they were misinforming.
+
+The card is now built by `introDemoWorkout()`, which reads `DEFAULT_PLANS` at
+render time: a real template name and its real first three exercises, with no
+load, no reps and no duration. It renders "Upper A — Strength Emphasis / Bench
+Press / Barbell Row / Overhead Press / + 5 more". Reading the library rather
+than restating it also means the card cannot go stale when plans change. A
+contract asserts the rendered card contains no digit other than the "+ N more"
+count.
+
+### Setup asked for what the plan had already answered
+
+`openTrainingSetup()` already prefilled its days from the plan's own schedule.
+It then rendered that prefilled state as two open questions, so an athlete who
+had just chosen a 3-day plan was immediately asked how often they wanted to
+train. The data was right; the screen refused to admit it already had it.
+
+Setup now opens as a summary — plan, training frequency, schedule, and goal
+where known — each value carrying where it came from and a single **Change**
+control that reveals the existing editor in place. Visible controls on that
+screen went from **14** (2 questions, 5 frequency buttons, 7 day buttons, plus
+cancel and apply) to **4**.
+
+Provenance is itself a claim, so it is held to the same standard: the note only
+says "Your current schedule" when the schedule actually differs from the plan
+default — on a first run it says "From your selected plan" — and it disappears
+entirely once the athlete edits the value, because at that point it did not
+come from anywhere but them.
+
+### "Help me choose" collected an answer and discarded it
+
+For six of the eighteen answer combinations the goal changed nothing: training
+at home selects the home plan whatever the goal is. The days answer was inert
+for twelve of eighteen — it only moved the plan for muscle-at-a-gym.
+
+Both now always do something, which is the honest version of Part 5A's third
+option — reframe the question as a preference that affects setup:
+
+- **days** always decides the prefilled week, whether or not it changed the plan
+- **goal** always seeds `athleteProfile.goal`, which sets rep ranges, even when
+  equipment chose the plan
+
+And where equipment did override the goal, the screen says so:
+
+> Your equipment limits which plans fit, so this one was chosen ahead of your
+> goal. Your goal still shapes how LOOP sets your reps.
+
+`recommendPlanWithReason()` returns `{ id, overridden, reason }`;
+`recommendPlan()` remains as the id-only wrapper, so there is still one
+decision function. A contract asserts no reason contains internal vocabulary
+(capability, confidence, substitution ranking) and that a goal-driven result
+never claims an override.
+
+### What may never happen here
+
+- **A goal the athlete set themselves is never overwritten.** `adoptHelpGoal()`
+  returns false and writes nothing when `athleteProfile.goal` is already set.
+- **No new storage key.** The goal is written to `athleteProfile`, which has
+  been a `DATA_KEYS` entry since the profile existed. `DATA_KEYS` still holds
+  fifteen entries.
+- **Setup still writes only the schedule.** `applyTrainingSetup()` is unchanged.
+- **No trainer record is created by navigating first run.** Asserted directly.
+
+### Contract 103
+
+Sixty-one assertions: fabricated metrics gone and unreproducible; the demo read
+from the library; setup prefilled correctly for every plan in the library and
+labelled with its true source; a stated frequency beating the plan default; one
+editor open at a time; all 18 combinations resolving, carrying a reason, and
+never leaking ranking vocabulary; the goal reaching the profile for every goal
+and never overwriting an existing one; and the touch-target geometry below.
+
+Three earlier assertions were re-pointed, not weakened, and all three because
+this brief deliberately changed what they pinned: `it asks frequency` and `it
+asks which days` matched the question strings D16.1 removed, and now match the
+labels of the prefilled rows plus the shared editable-row helper; `choosing
+still goes through the existing choosePlan` now allows the goal to be recorded
+before the handoff, with a companion assertion that there is still exactly one
+such exit.
+
+### Measured, not assumed
+
+Seven day cells across a 375px screen measured **43.56px** at gap 5px — under
+the 44px minimum. The gap is 4px and they measure 44.42px. Pre-existing, found
+by measuring rather than reading.
+
+At 375×812, 390×844, 812×375, 844×390 and 932×430, with both editors open: no
+horizontal scroll, no clipped control, no target under 44px, no input under
+16px, and the sheet within the viewport at every size.
+
+First launch to a personalised Today: **4 taps** (Get started → a plan → skip
+tutorial → Use this week), landing on the correct plan, schedule, current day
+and week, with honest empty states and no placeholder metrics.
+
+The trainer is untouched and remains `0.1.1-shadow`.

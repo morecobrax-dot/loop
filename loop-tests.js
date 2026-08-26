@@ -7622,8 +7622,18 @@ function testMyTraining(app){
   sub('setup asks only what changes the week');
   {
     const setup = src.slice(src.indexOf('function renderTrainingSetup(){'), src.indexOf('function applyTrainingSetup(){'));
-    T('it asks frequency', /How often do you want to train/.test(setup));
-    T('it asks which days', /Which days work best/.test(setup));
+    /* D16.1 stopped asking these as questions — the values arrive prefilled
+       from the plan the athlete just chose, each with a Change control. The
+       contract is unchanged: setup covers frequency and days and nothing
+       else. */
+    T('it covers frequency', /'Training frequency'/.test(setup));
+    T('it covers which days', /'Your schedule'/.test(setup));
+    /* both go through one editable-row helper rather than duplicated markup,
+       so the Change affordance cannot drift between them */
+    T('both are editable rather than fixed',
+      /row\('freq', 'Training frequency'/.test(setup) &&
+      /row\('days', 'Your schedule'/.test(setup) &&
+      /onclick="setupEdit\('\$\{key\}'\)"/.test(setup));
     T('it shows the resulting week immediately', /Your week/.test(setup));
     T('it asks nothing else — no name, no length, no goal quiz',
       !/Program name|LENGTH|durationWeeks/.test(setup));
@@ -10194,12 +10204,222 @@ function testFirstUse(app){
     /getElementById\('planOnboard'\)\.style\.display = 'flex'/.test(src));
 
   sub('no second architecture appeared');
+  /* D16.1 records the goal the athlete gave "help me choose" before handing
+     off. The contract — one exit, through the existing choosePlan — holds. */
   T('choosing still goes through the existing choosePlan',
-    /function choosePlanFromFirstUse\(planId\)\{ choosePlan\(planId\); \}/.test(src));
+    /function choosePlanFromFirstUse\(planId\)\{\s*adoptHelpGoal\(\);\s*choosePlan\(planId\);\s*\}/.test(src));
+  T('and there is still only one such exit',
+    (src.match(/function choosePlanFromFirstUse\(/g) || []).length === 1);
   T('the plan library was not copied',
     (src.match(/const DEFAULT_PLANS = /g) || []).length === 1);
   T('no new storage key', (src.match(/const DATA_KEYS = /g) || []).length === 1);
   T('the trainer was not touched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+}
+
+/* =========================================================
+   CONTRACT 103 — First run asks only what it does not know
+   ---------------------------------------------------------
+   D16 got the order right. It left three things wrong:
+
+     - the intro showed invented loads and reps
+     - setup asked for a frequency the plan had already set
+     - "help me choose" collected a goal it then discarded
+       whenever equipment decided the plan
+   ========================================================= */
+function testFirstRunRefinement(app){
+  section('CONTRACT 103 — first run asks only what it does not know');
+  const ctx = app.ctx;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+
+  sub('the intro shows the product, never a performance');
+  /* aria-hidden hid the fabricated numbers from screen readers. It did not
+     hide them from the person looking at the screen, which is who they were
+     misinforming. */
+  T('the invented sets are gone', !/135 × 8|145 × 8|155 × 6/.test(src));
+  T('no load-by-rep pair is written into the intro at all',
+    !/fu-demo-set/.test(src));
+  const demo = ctx.introDemoWorkout();
+  T('the demo is read from the plan library', !!demo && !!demo.name);
+  T('its title is a real template name', (() => {
+    const plan = ctx.DEFAULT_PLANS[ctx.defaultBasePlanId()];
+    return Object.keys(plan.templates).some(cat =>
+      plan.templates[cat].some(t => t.name === demo.name));
+  })());
+  T('its exercises are real exercises from that template', (() => {
+    const plan = ctx.DEFAULT_PLANS[ctx.defaultBasePlanId()];
+    const tpl = Object.keys(plan.templates)
+      .map(cat => plan.templates[cat].find(t => t.name === demo.name))
+      .find(Boolean);
+    return demo.exercises.every(n => tpl.exercises.some(e => e.name === n));
+  })());
+  T('the rendered card carries no number of any kind', (() => {
+    const html = ctx.introDemoHtml().replace(/\+ \d+ more/, '');
+    const text = html.replace(/<[^>]*>/g, ' ');
+    return !/\d/.test(text);
+  })(), ctx.introDemoHtml().replace(/<[^>]*>/g, ' ').trim());
+  T('nothing was hard-coded that could go stale',
+    /function introDemoWorkout\(\)[\s\S]{0,400}DEFAULT_PLANS\[defaultBasePlanId\(\)\]/.test(src));
+
+  sub('setup states what LOOP knows instead of asking for it again');
+  T('it no longer asks the frequency question', !/How often do you want to train/.test(src));
+  T('it no longer asks the days question', !/Which days work best/.test(src));
+  T('frequency arrives as a value', /'Training frequency'/.test(src));
+  T('the schedule arrives as a value', /'Your schedule'/.test(src));
+  T('each prefilled value says where it came from', !!ctx.SETUP_SOURCE_NOTE &&
+    ctx.SETUP_SOURCE_NOTE.plan === 'From your selected plan' &&
+    ctx.SETUP_SOURCE_NOTE.answers === 'From what you told us');
+  T('a value the athlete changed no longer claims to come from anywhere',
+    ctx.SETUP_SOURCE_NOTE.custom === null);
+
+  sub('the prefill matches the plan that was actually chosen');
+  Object.keys(ctx.DEFAULT_PLANS).forEach(id => {
+    ctx.schedule = {};
+    ctx.helpAnswers = { goal:null, days:null, where:null };
+    ctx.selectedPlanId = id;
+    ctx.openTrainingSetup(id);
+    const expected = ctx.DAY_ORDER.filter(d => {
+      const sch = ctx.DEFAULT_PLANS[id].defaultSchedule;
+      return sch[d] && sch[d] !== 'rest';
+    });
+    T(id + ': setup opens on the plan\'s own days',
+      ctx.setupDraft.days.join(',') === expected.join(','),
+      'got ' + ctx.setupDraft.days.join(',') + ' expected ' + expected.join(','));
+    T(id + ': and says so', ctx.setupDraft.source === 'plan');
+  });
+
+  sub('an answer the athlete gave is not then thrown away');
+  {
+    ctx.schedule = {};
+    ctx.helpAnswers = { goal:'muscle', days:5, where:'gym' };
+    ctx.selectedPlanId = 'upperlower';
+    ctx.openTrainingSetup('upperlower');
+    T('a stated training frequency wins over the plan default',
+      ctx.setupDraft.days.length === 5, 'got ' + ctx.setupDraft.days.length);
+    T('and is credited to the athlete, not the plan', ctx.setupDraft.source === 'answers');
+  }
+  {
+    /* An athlete whose plan already matches what they said should not see the
+       claim change — the value is the same either way. */
+    ctx.schedule = {};
+    ctx.helpAnswers = { goal:'muscle', days:4, where:'gym' };
+    ctx.openTrainingSetup('upperlower');
+    T('a matching answer does not fight the plan', ctx.setupDraft.days.length === 4);
+  }
+
+  sub('editing is available without being demanded');
+  {
+    ctx.schedule = {};
+    ctx.helpAnswers = { goal:null, days:null, where:null };
+    ctx.openTrainingSetup('strength');
+    T('nothing is open for editing when it opens', ctx.setupEditing === null);
+    ctx.setupEdit('freq');
+    T('Change opens exactly one editor', ctx.setupEditing === 'freq');
+    ctx.setupEdit('freq');
+    T('and closes it again', ctx.setupEditing === null);
+    ctx.setupEdit('days');
+    ctx.setupEdit('freq');
+    T('only one editor is open at a time', ctx.setupEditing === 'freq');
+    const before = ctx.setupDraft.days.length;
+    ctx.setupSetFrequency(5);
+    T('changing frequency changes the week', ctx.setupDraft.days.length === 5 && before !== 5);
+    T('and stops crediting the plan for it', ctx.setupDraft.source === 'custom');
+    ctx.setupToggleDay('sun');
+    T('a day can still be added by hand', ctx.setupDraft.days.indexOf('sun') !== -1);
+    T('the spread table is shared, not duplicated',
+      (src.match(/const TRAINING_DAY_SPREAD = /g) || []).length === 1);
+  }
+
+  sub('every question in "help me choose" changes something');
+  {
+    const combos = [];
+    ['muscle','strength','fitness'].forEach(goal =>
+      [3,4,5].forEach(days =>
+        ['gym','home'].forEach(where => combos.push({ goal, days, where }))));
+    T('all 18 combinations still resolve to a real plan',
+      combos.every(c => !!ctx.DEFAULT_PLANS[ctx.recommendPlan(c)]));
+
+    /* The days answer used to be inert for 12 of the 18 — it only moved the
+       plan for muscle-at-a-gym. It now always sets the week, so the question
+       is never asked for nothing. */
+    const daysAlwaysMatters = combos.every(c => {
+      ctx.schedule = {};
+      ctx.helpAnswers = { goal:c.goal, days:c.days, where:c.where };
+      ctx.openTrainingSetup(ctx.recommendPlan(c));
+      return ctx.setupDraft.days.length === c.days;
+    });
+    T('the days answer always decides the week', daysAlwaysMatters);
+
+    /* The goal answer used to be discarded whenever equipment chose the plan.
+       It now always seeds the profile that sets rep ranges. */
+    const goalAlwaysMatters = ['muscle','strength','fitness'].every(goal => {
+      ctx.athleteProfile = ctx.defaultAthleteProfile();
+      ctx.helpAnswers = { goal: goal, days:3, where:'home' };
+      ctx.adoptHelpGoal();
+      return !!ctx.athleteProfile.goal && !!ctx.TRAINING_GOALS[ctx.athleteProfile.goal];
+    });
+    T('the goal answer always reaches the profile, even when equipment chose the plan',
+      goalAlwaysMatters);
+    T('every mapped goal is a real training goal',
+      Object.keys(ctx.HELP_GOAL_TO_PROFILE).every(k => !!ctx.TRAINING_GOALS[ctx.HELP_GOAL_TO_PROFILE[k]]));
+  }
+
+  sub('an answer the athlete already gave is never overwritten');
+  {
+    ctx.athleteProfile = ctx.defaultAthleteProfile();
+    ctx.athleteProfile.goal = 'endurance';
+    ctx.helpAnswers = { goal:'muscle', days:3, where:'gym' };
+    const adopted = ctx.adoptHelpGoal();
+    T('a goal set by the athlete survives', ctx.athleteProfile.goal === 'endurance');
+    T('and the flow reports that it changed nothing', adopted === false);
+  }
+
+  sub('the recommendation explains itself without exposing its ranking');
+  {
+    const home = ctx.recommendPlanWithReason({ goal:'muscle', days:5, where:'home' });
+    T('equipment overriding the goal is admitted', home.overridden === true);
+    T('and explained in plain language', /training at home/i.test(home.reason));
+    T('the caveat separates what equipment decided from what the goal still does',
+      /chosen ahead of your goal[\s\S]{0,120}sets your reps/.test(src));
+    const gym = ctx.recommendPlanWithReason({ goal:'muscle', days:5, where:'gym' });
+    T('a goal-driven result does not claim an override', gym.overridden === false);
+    T('every combination carries a reason', (() => {
+      const combos = [];
+      ['muscle','strength','fitness'].forEach(goal =>
+        [3,4,5].forEach(days =>
+          ['gym','home'].forEach(where => combos.push({ goal, days, where }))));
+      return combos.every(c => {
+        const r = ctx.recommendPlanWithReason(c);
+        return typeof r.reason === 'string' && r.reason.length > 10;
+      });
+    })());
+    T('no internal vocabulary leaks into what the athlete reads',
+      !/coarse equipment|capability|substitution ranking|confidence/i.test(
+        ['muscle','strength','fitness'].flatMap(goal =>
+          [3,4,5].flatMap(days =>
+            ['gym','home'].map(where =>
+              ctx.recommendPlanWithReason({goal,days,where}).reason))).join(' ')));
+    T('it never claims the goal chose the plan when equipment did',
+      !/your goal selected|because you want/i.test(home.reason));
+  }
+
+  sub('nothing new was stored, and nothing existing was touched');
+  T('no new storage key', (src.match(/const DATA_KEYS = /g) || []).length === 1);
+  T('DATA_KEYS still holds fifteen entries', ctx.DATA_KEYS.length === 15);
+  T('the goal is written to the profile that already existed',
+    /athleteProfile\.goal = g;[\s\S]{0,120}persistAthleteProfile\(\)/.test(src));
+  T('and only when the athlete has none', /if\(!g \|\| !athleteProfile \|\| athleteProfile\.goal\) return false;/.test(src));
+  T('setup still writes the schedule and nothing else',
+    /function applyTrainingSetup\(\)[\s\S]{0,300}persistSchedule\(\)/.test(src));
+  T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+  T('no trainer record is written anywhere in the first-run path',
+    !/function (choosePlanFromFirstUse|adoptHelpGoal|openTrainingSetup|renderTrainingSetup)\([\s\S]{0,900}trainerLog/.test(src));
+
+  sub('touch targets survive seven across a 375px screen');
+  /* Measured: at gap 5px the day cells came out 43.56px, under the minimum. */
+  T('the day grid leaves room for a 44px target',
+    /\.ts-days\{ display: grid; grid-template-columns: repeat\(7, 1fr\); gap: 4px; \}/.test(src));
+  T('and the cells are tall enough', /\.ts-day\{[\s\S]{0,80}min-height: 48px/.test(src));
+  T('Change is a full-size target', /\.ts-change\{[\s\S]{0,120}min-height: 44px/.test(src));
 }
 
 async function main(){
@@ -10269,6 +10489,7 @@ async function main(){
   testTutorialD16(H.loadApp());
   testTodayIA(H.loadApp());
   testFirstUse(H.loadApp());
+  testFirstRunRefinement(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
