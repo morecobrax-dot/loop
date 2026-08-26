@@ -2048,3 +2048,112 @@ retained, one active view and one active tab throughout.
 Data: fifteen `DATA_KEYS` byte-identical after the full sweep. D17 accessibility
 intact — dialog role, focus in and out, Escape, scroll lock. The trainer is
 untouched and remains `0.1.1-shadow`.
+
+## §32 — Momentum says something true
+
+Momentum was three numbers. Measured against a real athlete with **perfect
+adherence** — three weeks, four of four every week, nothing missed — it read:
+
+> **0** Week streak · **25%** On target · **0** PRs this week
+
+Every one of those was wrong or misleading.
+
+### What "on target" actually was
+
+```
+overallConsistency = totalWorkouts / (plannedPerWeek × 12 weeks)
+```
+
+The denominator projected the **current** schedule back across twelve weeks
+regardless of how long the athlete had been training. Someone three weeks into
+a four-day plan has a ceiling of 12/48 = **25%**, no matter how perfectly they
+train. It measured **tenure, not adherence** — and it punished new users, plan
+changes and deloads, which is precisely backwards.
+
+It was removed rather than reworded. The underlying calculation is untouched:
+it remains defensible in Progress, where it is labelled and guarded behind four
+weeks of history.
+
+### The streak bug
+
+`computeWeekStreak()` counted the week in progress as already broken. An
+athlete who had trained eleven weeks running read **0** from Monday morning
+until their first session of the new week. Measured directly: the same athlete
+read **0**, then **4**, from logging one workout.
+
+Fixed in `computeWeekStreak()` itself — a week that has not finished cannot
+have been missed — so all five callers get the correct number. One definition,
+repaired, not a second one.
+
+### The information model
+
+Three questions, in the order a *Today* screen should ask them:
+
+| | reading | source |
+|---|---|---|
+| **This week** (primary) | `3 of 4` plus one dot per scheduled day | `computeConsistencyData().weeks[last].days` |
+| **Consistency** | week streak, shown only at 2+ | `computeWeekStreak()` |
+| **Progress** | PRs this week, else "N of M lifts improving" | `computeWeekSummary().prs`, `computeExerciseTrends()` |
+
+**This week leads because it is the only reading the athlete can still act on
+today.** Consistency and progress are history; this week is a decision. Three
+peer tiles were rejected for exactly that reason — equal weight answers none of
+the three questions first.
+
+Every number traces to an engine that already existed and is used elsewhere. No
+new storage key, no second definition of a workout, streak, PR or week.
+
+### Nothing claims more than the data supports
+
+- Under three sessions: "You are getting started." No trend, no streak.
+- A streak appears at two weeks. A broken streak shows **nothing** — not "0".
+- No PRs and fewer than two tracked lifts: progress says nothing at all rather
+  than showing a zero.
+- Nothing scheduled: "Nothing scheduled this week — a planned rest."
+- A finished week that fell short: "You trained 2 of 4 this week." Stated, not
+  scolded — the dots already show which days went.
+- Missed days use `--warning`, never `--error`.
+- Rest days are not drawn, because nothing was asked of them.
+
+### A second bug, found by testing more than one plan
+
+`momentumWeek()` compared a day's calendar date against `todayKey()`, which
+returns a **weekday name**. The comparison never matched, so a session
+scheduled for today read as **already missed**. It was invisible on every plan
+that rests on the current weekday and only surfaced on a five-day plan. Fixed
+to `localDateStr()`.
+
+A third, in the same pass: `remaining` was `planned − done`, which counted days
+that had already gone past as still trainable — on a Wednesday it promised four
+workouts left when only Thursday and Friday remained. It now counts only days
+that can still be trained.
+
+### Edge cases verified in a real browser
+
+Brand-new · 1 session · 2 sessions · complete week · week in progress · missed
+days with days still ahead · deload (plan cut to two days — reads *on track*,
+not failing) · full rest week · broken streak · multiple PRs · no PRs with
+lifts trending up · 3-day, 4-day and 5-day plans · today trained vs untrained.
+
+### Contract 107
+
+Thirty assertions: the tenure percentage is gone from Momentum but intact in
+`computeConsistencyData`; the streak skips the in-progress week and is still one
+function; the week reading reuses the consistency day states; today is compared
+as a date; remaining counts only trainable days; every metric traces to an
+existing engine; a beginner gets no trend; a broken streak shows nothing; rest
+is not a miss; missed uses the warning hue; the dots carry a spoken summary; and
+no trainer symbol appears anywhere in the section.
+
+**One assertion was re-pointed**: `Today momentum returns with data` checked for
+`mo-val`, the value class of the three tiles that no longer exist. Replaced by
+three stronger checks — an athlete with data gets a real reading rather than the
+empty state, it leads with this week, and the projected-target percentage never
+appears.
+
+### Safety
+
+Twenty-five consecutive Momentum renders plus a full tab sweep wrote **nothing**:
+fifteen `DATA_KEYS` byte-identical, XP unchanged, PR count unchanged, trainer log
+untouched. `DATA_KEYS` still holds fifteen entries. The trainer remains
+`0.1.1-shadow`.

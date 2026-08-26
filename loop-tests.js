@@ -1775,7 +1775,18 @@ async function testFirstImpression(){
   ctx.renderProgTab(); ctx.renderToday();
   T('Progress returns a real reading with data',
     /pd-hero-read/.test(doc.getElementById('progPerf').innerHTML));
-  T('Today momentum returns with data', doc.getElementById('todayMomentum').innerHTML.includes('mo-val'));
+  /* This checked for `mo-val`, the value class of the three tiles Momentum
+     used to be. Those tiles are gone — one of them ("N% on target") was
+     measuring how long the athlete had owned the app rather than how well they
+     were training. The contract is unchanged and now asserted more precisely:
+     an athlete with data gets a real reading, not the empty state, and it
+     leads with the week they can still act on. */
+  {
+    const html = doc.getElementById('todayMomentum').innerHTML;
+    T('Today momentum returns with data', !html.includes('mo-empty') && html.length > 40);
+    T('and it leads with this week', html.includes('mo-primary') || html.includes('mo-head'));
+    T('and never shows the old projected-target percentage', !/On target/.test(html));
+  }
 }
 
 function testUpdatesCurrency(app){
@@ -10843,6 +10854,126 @@ function testComposition(app){
     /function buildPrepSequence\(/.test(src));
 }
 
+/* =========================================================
+   CONTRACT 107 — Momentum says something true
+   ---------------------------------------------------------
+   The old section, measured against an athlete with PERFECT
+   adherence (three weeks, four of four every week, nothing
+   missed), read:
+
+       0 Week streak | 25% On target | 0 PRs this week
+
+   "On target" was totalWorkouts / (daysPerWeek x 12 weeks).
+   The denominator projected the CURRENT schedule back across
+   twelve weeks whatever the athlete's history, so someone
+   three weeks in could not exceed 25% however well they
+   trained. It measured tenure, not adherence.
+   ========================================================= */
+function testMomentum(app){
+  section('CONTRACT 107 — Momentum says something true');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('the tenure-not-adherence percentage is gone');
+  T('Momentum no longer reads overallConsistency', (() => {
+    const fn = src.slice(src.indexOf('function renderTodayMomentum()'), src.indexOf('function renderProgressJump'));
+    return fn.indexOf('overallConsistency') === -1;
+  })());
+  T('and no "on target" label survives in it', (() => {
+    const fn = src.slice(src.indexOf('function renderTodayMomentum()'), src.indexOf('function renderProgressJump'));
+    return !/On target/i.test(fn);
+  })());
+  /* The 12-week figure itself is untouched: it is defensible in Progress,
+     where it is labelled and guarded behind four weeks of history. */
+  T('the underlying calculation was not corrupted to fix the UI',
+    /const overallConsistency = totalPlanned \? Math\.min\(100, Math\.round\(\(totalWorkouts \/ totalPlanned\) \* 100\)\) : null;/.test(src));
+
+  sub('a week in progress is not a broken week');
+  /* Measured: an athlete with three perfect weeks read a streak of 0, then 4,
+     from logging a single workout. The current week counted as already failed. */
+  T('the streak skips the current week rather than breaking on it',
+    /if\(hasLog\)\{ streak\+\+; continue; \}[\s\S]{0,120}if\(i === 0\) continue;[\s\S]{0,90}break;/.test(src));
+  T('and it is still one definition, shared by every caller',
+    (src.match(/function computeWeekStreak\(/g) || []).length === 1);
+  {
+    const D = n => { const d = new Date(Date.now() - n*86400000);
+      return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+    /* Sessions in each of the previous three weeks, none yet this week. */
+    ctx.workoutLog = [9, 16, 23].map((n,i) => ({ id:'s'+i, date:D(n), category:'push', title:'P', notes:'',
+      exercises:[{ name:'Bench Press', bodyweight:false, sets:[{weight:'185',reps:'5',rir:'1',type:'working'}] }] }));
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    ctx.invalidateConsistencyCache && ctx.invalidateConsistencyCache();
+    T('three trained weeks read as a streak before this week begins',
+      ctx.computeWeekStreak() >= 3, 'got ' + ctx.computeWeekStreak());
+  }
+
+  sub('this week is measured against the plan, day by day');
+  T('the week reading reuses the consistency day states, not a second copy',
+    /function momentumWeek\(\)\{[\s\S]{0,200}computeConsistencyData\(\)/.test(src));
+  T('only scheduled days are counted', /week\.days\.filter\(d => d\.planned\)/.test(src));
+  T('a day still ahead is not a miss', /if\(d\.state === 'future'\) return \{ state:'upcoming'/.test(src));
+  T('today is today, compared as a calendar date', /const tKey = localDateStr\(\);/.test(src));
+  T('and never as a weekday name — the bug that made today look missed',
+    !/const tKey = todayKey\(\);/.test(src.slice(src.indexOf('function momentumWeek'), src.indexOf('function momentumHeadline'))));
+  T('what is left counts only days that can still be trained',
+    /remaining: days\.filter\(d => d\.state === 'today' \|\| d\.state === 'upcoming'\)\.length/.test(src));
+
+  sub('every metric traces to an engine that already existed');
+  T('PRs come from the app\'s own PR engine', /computeWeekSummary\(\)\.prs/.test(src));
+  T('the lift signal comes from the trends Progress uses',
+    /const trends = computeExerciseTrends\(\);/.test(src));
+  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no second definition of a streak, a week or a PR',
+    (src.match(/function computeWeekStreak\(/g) || []).length === 1 &&
+    (src.match(/function computeConsistencyData\(/g) || []).length === 1 &&
+    (src.match(/function computeAllPREvents\(/g) || []).length === 1);
+
+  sub('nothing claims more than the data supports');
+  T('a beginner is not given a trend', /if\(totalSessions < 3\) return 'You are getting started\.';/.test(src));
+  T('a streak is only shown once it is one', /if\(streak >= 2\)\{/.test(src));
+  T('with no records and no history, progress says nothing rather than zero', (() => {
+    const fn = src.slice(src.indexOf('function momentumProgress()'), src.indexOf('function momentumDotsHtml'));
+    /* two or more tracked lifts before any trend claim, and a null exit when
+       there is neither a record nor enough history */
+    return /if\(trends\.length >= 2\)\{/.test(fn) && /return null;\s*\}\s*$/.test(fn.trim() + '\n');
+  })());
+  {
+    ctx.workoutLog = [];
+    ctx.cardioLog = [];
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    ctx.renderTodayMomentum();
+    const html = doc.getElementById('todayMomentum').innerHTML;
+    T('a brand-new athlete gets one sentence, not a row of zeroes',
+      html.indexOf('mo-empty') !== -1 && html.indexOf('mo-cell') === -1);
+  }
+
+  sub('a lighter week is not a failed week');
+  T('a week with nothing scheduled says so', /Nothing scheduled this week — a planned rest\./.test(src));
+  T('a finished week that fell short reports it without scolding',
+    /return 'You trained ' \+ wk\.done \+ ' of ' \+ wk\.planned \+ ' this week\.';/.test(src));
+  T('missed days use the warning hue, not the error one',
+    /\.mo-dot-missed\{ background: none; border: 1\.5px solid var\(--warning\); \}/.test(css));
+  T('rest days are not drawn at all', /week\.days\.filter\(d => d\.planned\)/.test(src));
+
+  sub('the week is legible without seeing colour');
+  T('the dots carry a spoken summary', /role="img" aria-label="/.test(src.slice(
+    src.indexOf('function momentumDotsHtml'), src.indexOf('function renderTodayMomentum'))));
+  T('which names completed, missed and remaining',
+    /parts\.push\(missed \+ ' missed'\)/.test(src) && /' still to come'/.test(src));
+  T('the primary reading is a real control with a name',
+    /class="mo-primary"[\s\S]{0,200}aria-label="/.test(src));
+
+  sub('the trainer is untouched');
+  T('engine version', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+  T('shadow retention', /TRAINER_LOG_MAX = 2000/.test(src));
+  T('no trainer symbol appears anywhere in Momentum', (() => {
+    const fn = src.slice(src.indexOf('/* ---------- MOMENTUM ----------'), src.indexOf('function renderProgressJump'));
+    return !/trainerLog|TRAINER_CONFIG|proposeTrainerState|computeReadiness|computeRecovery|computeCapability/.test(fn);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -10914,6 +11045,7 @@ async function main(){
   testReliability(H.loadApp());
   testDesignSystem(H.loadApp());
   testComposition(H.loadApp());
+  testMomentum(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

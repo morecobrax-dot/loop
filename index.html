@@ -1592,17 +1592,60 @@ body.first-use{ padding-bottom: 0; }
 .wk-foot-done .wk-foot-k{ color: var(--success); background: var(--success-soft); }
 .wk-hint{ font-size: var(--fs-micro); color: var(--text-faint); margin-top: 8px; text-align: center; }
 
-.mo-row{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
-.mo-tile{
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 12px 8px; text-align: center;
+/* One sentence saying where this athlete is, before any number. */
+.mo-head{
+  margin: var(--space-3) 0 0; font-size: 13.5px; line-height: 1.45; color: var(--text-dim);
 }
-.mo-val{ display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; line-height: 1; color: var(--text); }
-.mo-lbl{ display: block; margin-top: 6px; font-size: var(--fs-micro); letter-spacing: 0.04em; color: var(--text-faint); }
-.mo-good .mo-val{ color: var(--success); }
+
+/* THIS WEEK leads: it is the only reading the athlete can still change today,
+   so it gets the size and the tap, and the other two support it. */
+.mo-primary{
+  display: flex; align-items: center; gap: var(--space-3); width: 100%;
+  margin-top: var(--space-3); padding: 14px 16px; min-height: 44px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  cursor: pointer; text-align: left; font-family: 'Inter', sans-serif;
+  transition: border-color 0.15s var(--ease), transform 0.12s var(--ease);
+}
+.mo-primary:active{ transform: scale(0.995); border-color: var(--accent); }
+.mo-p-k{
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-faint); flex-shrink: 0;
+}
+.mo-p-v{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px;
+  line-height: 1; color: var(--text); margin-left: auto; white-space: nowrap;
+}
+.mo-p-v span{ font-size: 14px; font-weight: 600; color: var(--text-dim); }
+
+/* The week itself, one mark per SCHEDULED day. A day still ahead is not a
+   failure and does not look like one; a rest day is not drawn at all,
+   because nothing was asked of it. */
+.mo-week{ display: flex; gap: 5px; flex-shrink: 0; }
+.mo-dot{ width: 9px; height: 9px; border-radius: 50%; background: var(--surface-3); }
+.mo-dot-done{ background: var(--success); }
+.mo-dot-pr{ box-shadow: 0 0 0 2px var(--success-soft); }
+.mo-dot-today{ background: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.mo-dot-upcoming{ background: none; border: 1.5px solid var(--border); }
+/* Missed reads as attention, not punishment: the warning hue, not the error one. */
+.mo-dot-missed{ background: none; border: 1.5px solid var(--warning); }
+
+.mo-cells{ display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+.mo-cell{
+  flex: 1; min-width: 0; padding: 11px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.mo-c-v{
+  display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  font-size: 19px; line-height: 1.1; color: var(--text);
+}
+.mo-c-k{
+  display: block; margin-top: 3px; font-size: var(--fs-micro);
+  line-height: 1.3; color: var(--text-faint);
+}
+.mo-good .mo-c-v{ color: var(--success); }
+
 .mo-good{ border-color: rgba(75,156,129,0.32); }
-.mo-warn .mo-val{ color: var(--warning); }
-.mo-warn{ border-color: rgba(189,146,96,0.32); }
+
 .mo-empty{ font-size: 12.5px; color: var(--text-dim); padding: 14px 0; }
 .mo-level{
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin-top: 8px;
@@ -8509,6 +8552,13 @@ function getGreeting(){
   return 'Good evening';
 }
 
+/* Consecutive weeks containing at least one logged session.
+   The week in progress is not counted against the athlete. Before this, an
+   athlete who had trained eleven weeks running saw a streak of 0 from Monday
+   morning until their first session of the new week — measured: the same
+   athlete read 0, then 4, from logging one workout. A week that has not
+   finished yet cannot have been missed, so it only joins the streak once it
+   contains a session and only breaks it once it is over. */
 function computeWeekStreak(){
   let streak = 0;
   const now = new Date();
@@ -8524,7 +8574,9 @@ function computeWeekStreak(){
       const d = new Date(l.date + 'T00:00:00');
       return d >= weekStart && d <= weekEnd;
     });
-    if(hasLog) streak++; else break;
+    if(hasLog){ streak++; continue; }
+    if(i === 0) continue;    // this week is still running — not a broken week
+    break;
   }
   return streak;
 }
@@ -12503,57 +12555,178 @@ function renderWeekCard(){
   attachWeekGestures();
 }
 
-/* ---------- MOMENTUM (Phase D11) ----------
-   Replaces the Training Snapshot's wall of numbers. Three readings an athlete
-   can actually act on, plus the progression line the old level card used to
-   spend a whole card on. Volume-vs-last-week and "avg workout score" are
-   deliberately gone: the audit found neither was interpretable without an
-   explanation the product never gave. */
+/* ---------- MOMENTUM ----------
+   Rebuilt. The old section showed three numbers, and measured against a real
+   athlete with PERFECT adherence — three weeks, four of four every week,
+   nothing missed — it read:
+
+       0 Week streak  |  25% On target  |  0 PRs this week
+
+   Every one of those was wrong or misleading.
+
+   "On target" was totalWorkouts / (daysPerWeek x 12 weeks). The denominator
+   projected the CURRENT schedule back across twelve weeks regardless of how
+   long the athlete had been training, so someone three weeks in could not
+   mathematically exceed 25% however perfectly they trained. It measured how
+   long you had owned the app, not how well you were following your plan. It
+   is gone — not reworded.
+
+   The streak read 0 because it counted the week in progress as already
+   broken. That was a genuine bug in computeWeekStreak() and is fixed there,
+   for all five callers, rather than worked around here.
+
+   What replaces it answers three questions in the order a Today screen should
+   ask them:
+
+     THIS WEEK    the only one still actionable today, so it leads
+     CONSISTENCY  am I showing up, over time
+     PROGRESS     am I getting stronger
+
+   No metric is invented. Every number below comes from an engine that already
+   existed and is already used elsewhere. */
+
+/* How this week is actually going, read from the same day-state machine the
+   consistency heatmap uses — so "planned rest", "still to come" and "missed"
+   mean here exactly what they mean everywhere else in LOOP. */
+function momentumWeek(){
+  const cons = computeConsistencyData();
+  const week = cons.weeks[cons.weeks.length - 1];
+  /* localDateStr(), not todayKey(): the day records carry calendar dates, and
+     todayKey() returns a weekday name. Comparing the two never matched, so an
+     untrained session scheduled for today read as already missed — invisible
+     on any plan that rests on the current weekday, which is why it took a
+     five-day plan to surface it. */
+  const tKey = localDateStr();
+  const days = week.days.filter(d => d.planned).map(d => {
+    if(d.state === 'trained' || d.state === 'pr') return { state:'done', pr: d.state === 'pr' };
+    if(d.date === tKey) return { state:'today', pr:false };
+    if(d.state === 'future') return { state:'upcoming', pr:false };
+    return { state:'missed', pr:false };
+  });
+  const planned = days.length;
+  const done = days.filter(d => d.state === 'done').length;
+  return {
+    planned, done, days,
+    /* What is still POSSIBLE, not what is unfinished. planned - done counts
+       days that have already gone past as though the athlete could still train
+       on them — on a Wednesday it promised four workouts left when only
+       Thursday and Friday remained. */
+    remaining: days.filter(d => d.state === 'today' || d.state === 'upcoming').length,
+    missed: days.filter(d => d.state === 'missed').length,
+    complete: planned > 0 && done >= planned
+  };
+}
+
+/* One sentence describing where this athlete actually is. It never claims a
+   trend an athlete has not trained long enough to have, and never treats a
+   rest day or a lighter scheduled week as a failure. */
+function momentumHeadline(wk, streak, totalSessions){
+  if(totalSessions < 3) return 'You are getting started.';
+  if(wk.planned === 0)  return 'Nothing scheduled this week — a planned rest.';
+  if(wk.complete)       return 'This week is complete.';
+  if(wk.remaining === 1) return 'One workout left this week.';
+  if(wk.remaining > 1)  return wk.remaining + ' workouts left this week.';
+  /* Nothing left to train and the week is not complete: it is over. Say what
+     happened rather than congratulating them on consistency they did not have
+     this week, and without scolding — the dots already show which days went. */
+  if(wk.done > 0) return 'You trained ' + wk.done + ' of ' + wk.planned + ' this week.';
+  return 'No sessions logged this week.';
+}
+
+/* The strength reading. PRs lead when there are any, because a record is the
+   clearest possible evidence of progress. With none this week, LOOP falls back
+   to the per-lift 1RM trends Progress already computes — and if there is not
+   enough history for either, it says nothing rather than showing a zero. */
+function momentumProgress(){
+  let prs = 0;
+  try{ prs = computeWeekSummary().prs || 0; }catch(e){}
+  if(prs > 0){
+    return { value: String(prs), label: prs === 1 ? 'New record this week' : 'New records this week', tone:'good' };
+  }
+  try{
+    const trends = computeExerciseTrends();
+    if(trends.length >= 2){
+      const up = trends.filter(t => t.dir === 'up').length;
+      if(up > 0) return { value: up + ' of ' + trends.length, label:'Lifts improving', tone: up * 2 >= trends.length ? 'good' : null };
+      const down = trends.filter(t => t.dir === 'down').length;
+      if(down === trends.length) return { value:'Holding', label:'No lifts moving up yet', tone:null };
+      return { value:'Steady', label:'Lifts holding', tone:null };
+    }
+  }catch(e){}
+  return null;
+}
+
+function momentumDotsHtml(days){
+  if(!days.length) return '';
+  return '<span class="mo-week" role="img" aria-label="' + escapeAttr(momentumDotsAria(days)) + '">' +
+    days.map(d => '<span class="mo-dot mo-dot-' + d.state + (d.pr ? ' mo-dot-pr' : '') + '"></span>').join('') +
+    '</span>';
+}
+function momentumDotsAria(days){
+  const done = days.filter(d => d.state === 'done').length;
+  const parts = [done + ' of ' + days.length + ' planned workouts completed'];
+  const missed = days.filter(d => d.state === 'missed').length;
+  if(missed) parts.push(missed + ' missed');
+  const left = days.filter(d => d.state === 'upcoming' || d.state === 'today').length;
+  if(left) parts.push(left + ' still to come');
+  return parts.join(', ');
+}
+
 function renderTodayMomentum(){
   const el = document.getElementById('todayMomentum');
   if(!el) return;
   if(!workoutLog.length && !cardioLog.length){
-    el.innerHTML = `<div class="mo-empty">Your training momentum appears here once you log your first session.</div>`;
+    el.innerHTML = '<div class="mo-empty">Your training momentum appears here once you log your first session.</div>';
     return;
   }
 
-  let streak = 0, onTarget = null, prs = 0;
+  let wk, streak = 0;
+  try{ wk = momentumWeek(); }catch(e){ wk = { planned:0, done:0, days:[], remaining:0, missed:0, complete:false }; }
   try{ streak = computeWeekStreak(); }catch(e){}
-  try{
-    const cons = computeConsistencyData();
-    onTarget = (cons.overallConsistency !== null && cons.overallConsistency !== undefined)
-      ? cons.overallConsistency : null;
-  }catch(e){}
-  try{ prs = computeWeekSummary().prs || 0; }catch(e){}
+  const totalSessions = workoutLog.length;
+  const prog = momentumProgress();
 
-  const tile = (val, lbl, tone) =>
-    `<div class="mo-tile${tone ? ' mo-' + tone : ''}"><span class="mo-val">${val}</span><span class="mo-lbl">${lbl}</span></div>`;
+  /* This week leads because it is the only reading the athlete can still
+     change today. Tapping it goes to the week it describes. */
+  const primary = wk.planned > 0
+    ? '<button type="button" class="mo-primary" onclick="switchTab(\'today\'); document.getElementById(\'weekCard\').scrollIntoView({block:\'center\'});"' +
+      ' aria-label="' + escapeAttr(momentumDotsAria(wk.days)) + '">' +
+        '<span class="mo-p-k">This week</span>' +
+        '<span class="mo-p-v">' + wk.done + '<span> of ' + wk.planned + '</span></span>' +
+        momentumDotsHtml(wk.days) +
+      '</button>'
+    : '';
 
-  const tiles = [
-    tile(streak, streak === 1 ? 'Week streak' : 'Week streak', streak >= 2 ? 'good' : null),
-    onTarget !== null ? tile(onTarget + '%', 'On target', onTarget >= 80 ? 'good' : (onTarget < 50 ? 'warn' : null)) : '',
-    tile(prs, prs === 1 ? 'PR this week' : 'PRs this week', prs > 0 ? 'good' : null)
-  ].filter(Boolean).join('');
+  /* Two supporting readings. A streak only appears once it means something —
+     one week is not a streak — and progress only when the data carries it. */
+  const cells = [];
+  if(streak >= 2){
+    cells.push('<div class="mo-cell"><span class="mo-c-v">' + streak + '</span>' +
+      '<span class="mo-c-k">Week streak</span></div>');
+  }
+  if(prog){
+    cells.push('<div class="mo-cell' + (prog.tone ? ' mo-' + prog.tone : '') + '">' +
+      '<span class="mo-c-v">' + escapeHtml(prog.value) + '</span>' +
+      '<span class="mo-c-k">' + escapeHtml(prog.label) + '</span></div>');
+  }
+  const support = cells.length ? '<div class="mo-cells">' + cells.join('') + '</div>' : '';
 
-  /* Player progression, reduced from a full card to one line. The system is
-     unchanged and Progress still presents it properly — Today only needs to
-     say where the athlete stands, not celebrate it. */
   let levelLine = '';
   try{
     const p = getCurrentProgression();
-    // Same arithmetic as levelBarHtml(), so the two can never disagree.
     const pct = p.xpForNext > 0 ? Math.min(100, Math.round((p.currentXP / p.xpForNext) * 100)) : 0;
-    levelLine = `
-      <button type="button" class="mo-level" onclick="openProfile()" aria-label="Level ${p.level}, ${pct}% to level ${p.level + 1}">
-        <span class="mo-level-k">Level ${p.level}</span>
-        <span class="mo-level-bar"><span style="width:${pct}%"></span></span>
-        <span class="mo-level-v">${pct}% to ${p.level + 1}</span>
-      </button>`;
+    levelLine =
+      '<button type="button" class="mo-level" onclick="openProfile()" aria-label="Level ' + p.level + ', ' + pct + '% to level ' + (p.level + 1) + '">' +
+        '<span class="mo-level-k">Level ' + p.level + '</span>' +
+        '<span class="mo-level-bar"><span style="width:' + pct + '%"></span></span>' +
+        '<span class="mo-level-v">' + pct + '% to ' + (p.level + 1) + '</span>' +
+      '</button>';
   }catch(e){ levelLine = ''; }
 
-  el.innerHTML = `<div class="mo-row">${tiles}</div>${levelLine}`;
+  el.innerHTML =
+    '<p class="mo-head">' + escapeHtml(momentumHeadline(wk, streak, totalSessions)) + '</p>' +
+    primary + support + levelLine;
 }
-
 /* A one-line route into the full progression view, replacing the exercise
    trend list that duplicated Progress > Strength without adding to it. */
 function renderProgressJump(){
