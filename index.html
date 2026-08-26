@@ -100,6 +100,10 @@ body::before{
 ::selection{ background: var(--accent); color: #0C0E12; }
 button{ font-family: inherit; }
 *:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The sheet itself is focused when it opens, so a screen reader announces the
+   dialog and Tab starts inside it. That is a programmatic focus, not a
+   keyboard one, and it should not paint a ring around the entire sheet. */
+.sheet:focus, .sheet:focus-visible{ outline: none; }
 @media (prefers-reduced-motion: reduce){
   *{ animation: none !important; transition: none !important; }
 }
@@ -256,7 +260,8 @@ html.intro-skip #introOverlay{ display: none !important; }
 .settings-version{ text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-faint); margin-top: 20px; }
 .sheet-back{
   background: none; border: none; color: var(--accent); font-size: 13px; font-weight: 600;
-  cursor: pointer; padding: 0 0 10px; margin: 0; display: inline-block;
+  cursor: pointer; padding: 9px 10px 9px 0; margin: -9px 0 1px -0px;
+  display: inline-flex; align-items: center; min-height: 44px;
 }
 .current-plan-card{
   margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-lg);
@@ -1012,7 +1017,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 /* ---- Athlete profile ---- */
 .pchips{ display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
 .pchip{
-  padding: 9px 13px; min-height: 40px; border-radius: var(--radius-md);
+  padding: 9px 13px; min-height: 44px; border-radius: var(--radius-md);
   border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
   font-size: 12.5px; font-weight: 600; cursor: pointer;
   transition: border-color 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
@@ -1840,7 +1845,7 @@ body.first-use{ padding-bottom: 0; }
 .update-cat-list li{ font-size: 12.5px; color: var(--text-dim); line-height: 1.55; margin-bottom: 3px; }
 .update-detail-toggle{
   background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer;
-  padding: 10px 0 0; text-align: left;
+  padding: 10px 10px 10px 0; text-align: left; min-height: 44px;
 }
 .update-detail-text{
   font-size: 12.5px; color: var(--text-faint); line-height: 1.55; font-style: italic;
@@ -2453,9 +2458,14 @@ body.scroll-locked{
 .sheet-sub{ color: var(--text-faint); font-size: 12px; margin-bottom: 16px; }
 
 label{ display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 6px; margin-top: 14px; }
+/* 16px is not a style choice. Safari on iOS zooms the page whenever a focused
+   field is smaller than that, and it does not zoom back out — so tapping a RIR
+   box left the athlete on a magnified, horizontally scrolling workout sheet
+   mid-set. Every field in LOOP is at or above the threshold; the fix is here
+   rather than per-field so a new input cannot reintroduce it. */
 input, textarea, select{
   width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
-  padding: 11px 13px; border-radius: var(--radius-md); font-family: 'Inter', sans-serif; font-size: 14.5px;
+  padding: 11px 13px; border-radius: var(--radius-md); font-family: 'Inter', sans-serif; font-size: 16px;
   transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 input:focus, textarea:focus, select:focus{ outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -2492,7 +2502,7 @@ textarea{ resize: vertical; min-height: 56px; }
 
 .ex-log-row{ border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin-top: 10px; }
 .swap-select{
-  width: 36px; height: 36px; flex-shrink: 0; font-size: 15px; font-weight: 600; padding: 0;
+  width: 44px; height: 44px; flex-shrink: 0; font-size: 16px; font-weight: 600; padding: 0;
   border: 1px solid var(--border); color: var(--text-faint); background: var(--surface-2); border-radius: var(--radius-sm);
   text-align: center; text-align-last: center; -webkit-appearance: none; appearance: none; cursor: pointer;
 }
@@ -2542,7 +2552,10 @@ textarea{ resize: vertical; min-height: 56px; }
 .ex-log-foot{ display: flex; gap: 8px; margin-top: 10px; }
 .ex-log-foot .add-set-btn{ flex: 1; margin-top: 0; height: 44px; }
 .ex-log-foot .rest-start-btn{ flex: 1; margin-top: 0; height: 44px; }
-.bw-toggle{ display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-dim); padding: 8px 0; cursor: pointer; }
+.bw-toggle{
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+  font-size: 11.5px; color: var(--text-dim); padding: 8px 8px 8px 0; margin-left: -0px; cursor: pointer;
+}
 .bw-toggle input{ width: 20px; height: 20px; }
 .sets-list{ display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .set-row{
@@ -3178,12 +3191,13 @@ body.page-locked{ overflow: hidden; }
 .ex-grid{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .ex-grid div{ display: flex; flex-direction: column; }
 .ex-grid label{ margin: 0 0 4px; font-size: 8.5px; }
-.ex-grid input{ padding: 8px; font-size: 12.5px; }
+/* 16px like every other field — below it Safari zooms the page on focus. */
+.ex-grid input{ padding: 8px; font-size: 16px; }
 .rm-ex{ background: none; border: 1px solid var(--border); color: var(--text-faint); width: 44px; height: 44px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; flex-shrink: 0; }
 .rm-ex:hover{ border-color: var(--danger); color: var(--danger); }
 
 .add-ex-btn{
-  width: 100%; background: none; border: 1px dashed var(--border); color: var(--text-faint);
+  width: 100%; min-height: 44px; background: none; border: 1px dashed var(--border); color: var(--text-faint);
   padding: 10px; border-radius: var(--radius-md); cursor: pointer; font-size: 12.5px; font-weight: 600; margin-top: 8px;
 }
 .add-ex-btn:hover{ border-color: var(--accent); color: var(--accent); }
@@ -3194,7 +3208,7 @@ body.page-locked{ overflow: hidden; }
   border-top: 1px solid var(--border); background: var(--surface);
 }
 .btn-secondary, .btn-primary{
-  flex: 1; padding: 13px; border-radius: var(--radius-md); font-weight: 700; font-size: 14px; cursor: pointer; border: none;
+  flex: 1; min-height: 44px; padding: 13px; border-radius: var(--radius-md); font-weight: 700; font-size: 14px; cursor: pointer; border: none;
   transition: transform 0.12s var(--ease), opacity 0.15s var(--ease), box-shadow 0.18s var(--ease);
 }
 .btn-secondary{ background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); }
@@ -8105,10 +8119,17 @@ function getTopCoachInsight(){
 /* ---------- TAB SWITCHING ---------- */
 let currentTab = 'today';
 function switchTab(tab){
+  /* Validate before touching anything. This used to clear every view and then
+     throw on a missing one, which left the athlete on a header, a tab bar and
+     nothing in between — with currentTab already overwritten, so no tap could
+     recover it and only a reload brought the app back. An unknown tab is now
+     a no-op and the screen they were on stays. */
+  const view = document.getElementById('view-' + tab);
+  if(!view) return;
   currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('view-' + tab).classList.add('active');
+  view.classList.add('active');
   /* A top-level tab opens at its top. Restoring where the athlete happened to
      be left them halfway down a screen they had just asked to see, and made
      the same tap give a different result each time. Nothing inside a workflow
@@ -8169,17 +8190,132 @@ function syncBackgroundScrollLock(){
   else if(open > 0){ _lockDepth = open; }   // nested layers keep the count honest
 }
 
+/* Which sheets are open, in the order they opened. The last entry is the one
+   on top, and the only one Escape or Tab should act on. */
+let _openSheetStack = [];
+const _sheetOpeners = new Map();
+
+function sheetFocusables(root){
+  return [...root.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+    .filter(el => !el.disabled && el.offsetParent !== null);
+}
+
+/* The sheet itself takes focus, not its first field. Focusing an input would
+   throw the keyboard up over the screen the athlete just opened, which is the
+   opposite of helpful on a phone. */
+function focusIntoSheet(ov){
+  const sheet = ov.querySelector('.sheet') || ov;
+  try{
+    if(!sheet.hasAttribute('tabindex')) sheet.setAttribute('tabindex', '-1');
+    sheet.focus({ preventScroll: true });
+  }catch(e){}
+}
+
+/* The close path a sheet already declares for itself — from its backdrop
+   handler, or from its own close button. Nothing is invented: a sheet that
+   declares no way out (an active cardio session, the tutorial) is left alone
+   rather than being torn down by a mechanism that does not know its cleanup. */
+function sheetCloser(ov){
+  const oc = ov.getAttribute('onclick') || '';
+  const m = oc.match(/backdropDismiss\(\s*event\s*,\s*([A-Za-z0-9_]+)\s*\)/);
+  if(m && typeof window[m[1]] === 'function') return window[m[1]];
+  const btn = [...ov.querySelectorAll('button')].find(b =>
+    /^(close|exit)[A-Z][A-Za-z0-9_]*\(\s*\)\s*;?\s*$/.test(b.getAttribute('onclick') || ''));
+  if(btn) return () => btn.click();
+  return null;
+}
+
+function topOpenSheet(){
+  for(let i = _openSheetStack.length - 1; i >= 0; i--){
+    const ov = document.getElementById(_openSheetStack[i]);
+    if(ov && ov.classList.contains('open')) return ov;
+  }
+  return null;
+}
+
+/* Runs on the same observer as the scroll lock, so it sees every open and
+   close however the sheet was opened. */
+function syncSheetAccessibility(){
+  const openNow = [...document.querySelectorAll('.overlay.open')].map(o => o.id);
+
+  openNow.forEach(id => {
+    if(_openSheetStack.indexOf(id) !== -1) return;
+    const ov = document.getElementById(id);
+    if(!ov) return;
+    const opener = document.activeElement;
+    _sheetOpeners.set(id, (opener && opener !== document.body) ? opener : null);
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-modal', 'true');
+    _openSheetStack.push(id);
+    focusIntoSheet(ov);
+  });
+
+  _openSheetStack.slice().forEach(id => {
+    if(openNow.indexOf(id) !== -1) return;
+    _openSheetStack = _openSheetStack.filter(x => x !== id);
+    const ov = document.getElementById(id);
+    if(ov) ov.removeAttribute('aria-modal');
+    const opener = _sheetOpeners.get(id);
+    _sheetOpeners.delete(id);
+    /* Only return focus if the control that opened this is still on screen —
+       after saving a workout the button that started it no longer exists. */
+    if(opener && document.contains(opener) && opener.offsetParent !== null){
+      try{ opener.focus({ preventScroll: true }); }catch(e){}
+    }
+  });
+}
+
+/* One handler for the whole app. Escape closes the top sheet through the
+   sheet's own close path; Tab stays inside it. Escape is handled before
+   anything else can swallow it, so there is no way to be trapped. */
+function initSheetKeyboard(){
+  document.addEventListener('keydown', ev => {
+    if(ev.key !== 'Escape' && ev.key !== 'Tab') return;
+    const ov = topOpenSheet();
+    if(!ov) return;
+
+    if(ev.key === 'Escape'){
+      const close = sheetCloser(ov);
+      if(!close) return;                       // a sheet with no declared exit
+      ev.preventDefault();
+      try{ close(); }catch(e){}
+      return;
+    }
+
+    const items = sheetFocusables(ov);
+    if(!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    const active = document.activeElement;
+    if(!ov.contains(active)){
+      ev.preventDefault();
+      (ev.shiftKey ? last : first).focus({ preventScroll: true });
+      return;
+    }
+    if(ev.shiftKey && active === first){
+      ev.preventDefault(); last.focus({ preventScroll: true });
+    } else if(!ev.shiftKey && active === last){
+      ev.preventDefault(); first.focus({ preventScroll: true });
+    }
+  });
+}
+
 function initPageIsolation(){
   /* Boot must not depend on this. Without an observer the app still runs —
      it simply does not lock the page behind a sheet, which is a far smaller
      failure than not starting. */
   if(typeof MutationObserver === 'undefined') return null;
   try{
-    const obs = new MutationObserver(syncBackgroundScrollLock);
+    const obs = new MutationObserver(() => {
+      syncBackgroundScrollLock();
+      syncSheetAccessibility();
+    });
     document.querySelectorAll('.overlay').forEach(ov => {
       obs.observe(ov, { attributes: true, attributeFilter: ['class'] });
     });
     syncBackgroundScrollLock();             // an overlay restored during boot
+    syncSheetAccessibility();
+    initSheetKeyboard();
     return obs;
   }catch(e){ return null; }
 }

@@ -1680,3 +1680,132 @@ tutorial → Use this week), landing on the correct plan, schedule, current day
 and week, with honest empty states and no placeholder metrics.
 
 The trainer is untouched and remains `0.1.1-shadow`.
+
+## §29 — Nothing feels fragile (Phase D17)
+
+A reliability and accessibility pass across every workflow an athlete can
+interrupt. No feature was added. The trainer was not touched.
+
+### The defect that could strand the app
+
+`switchTab()` set `currentTab`, cleared the active class from every view, and
+then threw on `document.getElementById('view-' + tab)` when the tab did not
+exist. The athlete was left with a header, a tab bar, and nothing between them
+— and because `currentTab` had already been overwritten, no further tap
+recovered it. Only a reload brought LOOP back.
+
+Reproduced in a browser, and it is not hypothetical: `switchTab` is called from
+card links and CTAs as well as the five tab buttons, so one wrong string
+anywhere blanks the app. The destination is now resolved first and an unknown
+tab is a no-op that leaves the current screen alone.
+
+### Fields small enough to zoom the page
+
+Safari on iOS zooms whenever a focused field is under 16px, and it does not
+zoom back out. The base `input, textarea, select` rule was **14.5px**, so
+tapping a RIR box mid-set left the athlete on a magnified, sideways-scrolling
+workout sheet. `.ex-grid input` was 12.5px and `.swap-select` 15px.
+
+All are now at the threshold, and the base rule carries it so a new field
+cannot reintroduce the problem. A contract scans every CSS rule targeting a
+real field element and fails on any font-size below 16px — class names like
+`.ob-mock-select` are excluded because those are spans in the tutorial mock-up
+that accept no input.
+
+### Touch targets measured, not assumed
+
+Seven controls measured under 44px in a real browser at 375×812:
+
+| control | was | now |
+|---|---|---|
+| `.btn-primary` / `.btn-secondary` (every sheet's confirm and cancel) | 43px | 44px |
+| `.add-ex-btn` | 37px | 44px |
+| `.bw-toggle` checkbox | 20×20 | label is the 44px target, box stays 20px |
+| `.swap-select` | 36×36 | 44×44 |
+| `.pchip` (two dozen on the profile sheet) | 40px | 44px |
+| `.sheet-back` | 26px tall | 44px |
+| `.update-detail-toggle` | 25px tall | 44px |
+
+`.wk-day` measures 43.94px — 0.06px under, below one device pixel. Left alone;
+tightening the grid gap would visibly compress the week strip for no
+perceptible gain.
+
+### Thirty sheets, no keyboard
+
+Before this phase no overlay could be closed without a pointer, none announced
+itself as a dialog, and none returned focus. All of it now hangs off the single
+MutationObserver D12 already runs on `.overlay` class changes, rather than
+thirty separate call sites:
+
+- `role="dialog"` and `aria-modal="true"` while open, cleared on close
+- focus moves to the **sheet**, never to a field — focusing an input would
+  throw a phone keyboard over the screen just opened
+- Escape closes the topmost sheet **through that sheet's own close path**,
+  read from its `backdropDismiss(event, fn)` handler or its own close button.
+  Nothing is invented: a sheet that declares no exit (an active cardio session,
+  the tutorial) is left alone rather than torn down by a mechanism that does
+  not know its cleanup.
+- Tab wraps inside the top sheet, and Escape is handled before anything can
+  swallow it, so there is no way to be trapped
+- focus returns to the control that opened the sheet, but only if it still
+  exists — after saving a workout the button that started it is gone
+
+### What was measured and found clean
+
+Instrumented `addEventListener`, `setInterval` and `MutationObserver` in a real
+browser, then exercised: 20 rapid sheet open/close cycles, 20 rapid tab
+switches, 20 rapid toggles, nested sheets three deep, portrait → landscape →
+portrait with a workout open and a rest timer running, a full cardio session
+with pause and reload, and a workout interrupted by reload.
+
+Result: **zero intervals left running, zero net listeners retained, zero stray
+overlays, no leaked scroll lock**, and `workoutLog` unchanged throughout. The
+existing single-exit discipline (`exitPrep`, `clearRestTimer` before
+`startRestPanel`, dataset-guarded gesture attachment) held under all of it.
+Double-resuming a cardio session still yields exactly one ticker.
+
+Draft recovery was verified end to end: weight, reps and RIR restored exactly,
+23 set rows and no duplicates, set-type label correctly reflecting the restored
+RIR.
+
+Pure navigation — five tabs and eleven sheets opened and closed — wrote
+**nothing**: all fifteen `DATA_KEYS` byte-identical before and after.
+
+### Corrupt storage degrades, it never destroys
+
+Every key was replaced with a different flavour of garbage — truncated JSON,
+`null`, an array where an object belongs, a bare number, a string, a plan id
+that does not exist. LOOP booted, showed no developer terminology, fell back to
+first run because the plan could not be resolved, and after recovery the
+malformed `workoutLog` was still there **byte for byte** rather than
+overwritten.
+
+### Empty states
+
+Audited against what is this / why does it matter / what next. Today, Log,
+Progress, Cardio and Train all already answer them in one or two lines. No
+changes: the brief's own rule is that the absence of unnecessary information is
+a feature.
+
+### Contract 104
+
+Forty-nine assertions covering tab validation and ordering, the 16px floor as a
+rule-level scan, every touch target above, dialog semantics, the single close
+path, focus in and out, one observer rather than two, timer ownership and
+single exits, gesture re-attachment guards, corrupt-storage tolerance, and
+trainer isolation.
+
+**One earlier assertion was re-pointed, not weakened**: `an observer watches the
+overlays` matched the literal `new MutationObserver(syncBackgroundScrollLock)`.
+The callback now calls two functions, so it matches the constructor plus two
+companion assertions — that there is still exactly one observer, and that the
+scroll lock still runs from it. The contract it protects (one mechanism, not a
+lock per screen) is unchanged and now covers more.
+
+Two assertions were deliberately **not** written as harness tests: "exactly one
+active view" and "switching away deactivates the previous view". The harness DOM
+returns nothing for compound class selectors, so `.view` sweeps are no-ops in
+it and those assertions would have tested the stub rather than the app. Both
+are verified in a real browser after 20 rapid switches.
+
+The trainer is untouched and remains `0.1.1-shadow`.

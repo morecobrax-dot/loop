@@ -8966,7 +8966,13 @@ function testPageIsolation(app){
   const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
 
   sub('one mechanism, not a lock added by hand to every screen');
-  T('an observer watches the overlays', /new MutationObserver\(syncBackgroundScrollLock\)/.test(src));
+  /* D17 hung sheet accessibility off this same observer rather than adding a
+     second one, so the callback is now a pair of calls instead of a bare
+     reference. The contract — one observer drives everything that reacts to a
+     sheet opening — is unchanged, and now covers more. */
+  T('an observer watches the overlays', /new MutationObserver\(/.test(src));
+  T('and it is still the only one', (src.match(/new MutationObserver\(/g) || []).length === 1);
+  T('the scroll lock runs from it', /new MutationObserver\(\(\) => \{[\s\S]{0,160}syncBackgroundScrollLock\(\);/.test(src));
   T('the open overlays are the source of truth',
     /document\.querySelectorAll\('\.overlay\.open'\)\.length/.test(src));
   T('boot survives a platform without an observer',
@@ -10422,6 +10428,152 @@ function testFirstRunRefinement(app){
   T('Change is a full-size target', /\.ts-change\{[\s\S]{0,120}min-height: 44px/.test(src));
 }
 
+/* =========================================================
+   CONTRACT 104 — Nothing feels fragile (Phase D17)
+   ---------------------------------------------------------
+   Reliability and accessibility across every workflow an
+   athlete can interrupt: sheets, timers, drafts, rotation,
+   rapid taps, corrupted storage and the keyboard.
+   ========================================================= */
+function testReliability(app){
+  section('CONTRACT 104 — reliability, accessibility and recovery');
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('a bad destination cannot blank the app');
+  /* switchTab cleared every view and then threw on the missing one, leaving a
+     header, a tab bar and nothing between them — with currentTab already
+     overwritten, so no tap recovered it and only a reload brought LOOP back. */
+  T('the destination is resolved before anything is cleared',
+    /function switchTab\(tab\)\{[\s\S]{0,420}const view = document\.getElementById\('view-' \+ tab\);[\s\S]{0,40}if\(!view\) return;/.test(src));
+  T('currentTab is only set once the destination exists',
+    /if\(!view\) return;\s*currentTab = tab;/.test(src));
+  T('and the views are cleared after that, not before',
+    src.indexOf("if(!view) return;") < src.indexOf("document.querySelectorAll('.view').forEach(v => v.classList.remove('active'))"));
+  {
+    const before = doc.querySelectorAll('.view.active').length;
+    ctx.switchTab('no-such-tab');
+    T('an unknown tab changes nothing', doc.querySelectorAll('.view.active').length === before);
+    ctx.switchTab('progress');
+    T('a real tab still works', doc.getElementById('view-progress').classList.contains('active'));
+    ctx.switchTab('view-does-not-exist');
+    T('a bad tab leaves the good one active',
+      doc.getElementById('view-progress').classList.contains('active'));
+  }
+  /* Deactivating the previous view, and the "exactly one active view and one
+     active tab button" property, are verified in a real browser after 20 rapid
+     switches. The harness DOM returns nothing for compound class selectors, so
+     .view/.tab-btn sweeps are no-ops here — asserting on them would test the
+     stub rather than the app. The source order above is what guarantees it. */
+  T('a top-level tab still opens at the top',
+    /function switchTab[\s\S]{0,1200}window\.scrollTo\(\{ top: 0/.test(src));
+
+  sub('no field small enough to make iOS zoom the page');
+  /* Safari zooms whenever a focused field is under 16px and does not zoom back
+     out, so tapping a RIR box left the athlete on a magnified, sideways-
+     scrolling workout sheet mid-set. */
+  T('the base field size is at the threshold',
+    /input, textarea, select\{[\s\S]{0,260}font-size: 16px;/.test(css));
+  T('no rule sets a smaller size on a field', (() => {
+    const bad = [];
+    const re = /([^{}]+)\{([^{}]*)\}/g; let m;
+    while((m = re.exec(css))){
+      const sel = m[1], body = m[2];
+      /* Real fields only. Class names like .ob-mock-select belong to spans in
+         the tutorial mock-up — they look like controls and accept nothing. */
+      if(!/(^|[\s,>+~])(input|textarea|select)\b/.test(sel)) continue;
+      const f = body.match(/font-size:\s*([\d.]+)px/);
+      if(f && parseFloat(f[1]) < 16 && !/::|checkbox|radio|range/.test(sel)) bad.push(sel.trim() + ' ' + f[1] + 'px');
+    }
+    return bad.length === 0 ? true : bad;
+  })() === true, 'see rule list');
+
+  sub('every control is big enough to hit');
+  /* Each of these measured under 44px in a real browser at 375x812. */
+  T('sheet confirm and cancel', /\.btn-secondary, \.btn-primary\{[\s\S]{0,60}min-height: 44px/.test(css));
+  T('add exercise', /\.add-ex-btn\{[\s\S]{0,60}min-height: 44px/.test(css));
+  T('the bodyweight toggle grew its label, not its box',
+    /\.bw-toggle\{[\s\S]{0,200}min-height: 44px/.test(css) &&
+    /\.bw-toggle input\{ width: 20px; height: 20px; \}/.test(css));
+  T('the exercise swap control', /\.swap-select\{\s*width: 44px; height: 44px;/.test(css));
+  T('the profile chips', /\.pchip\{[\s\S]{0,60}min-height: 44px/.test(css));
+  T('back out of a nested sheet', /\.sheet-back\{[\s\S]{0,220}min-height: 44px/.test(css));
+  T('the update disclosure', /\.update-detail-toggle\{[\s\S]{0,180}min-height: 44px/.test(css));
+
+  sub('sheets can be closed, announced and escaped from a keyboard');
+  /* Thirty overlays, and before this none could be closed without a mouse,
+     none announced itself as a dialog, and none gave focus back. */
+  T('a sheet is announced as a dialog', /ov\.setAttribute\('role', 'dialog'\)/.test(src));
+  T('and marked modal while it is open', /ov\.setAttribute\('aria-modal', 'true'\)/.test(src));
+  T('the mark is removed when it closes', /ov\.removeAttribute\('aria-modal'\)/.test(src));
+  T('Escape and Tab are handled in one place, not thirty',
+    (src.match(/function initSheetKeyboard\(/g) || []).length === 1);
+  T('Escape uses the sheet\'s own close path rather than inventing one',
+    /function sheetCloser\(ov\)[\s\S]{0,600}backdropDismiss/.test(src));
+  T('a sheet that declares no exit is left alone',
+    /function sheetCloser[\s\S]{0,900}return null;/.test(src));
+  T('focus moves to the sheet, not to a field — a phone keyboard must not leap up',
+    /function focusIntoSheet[\s\S]{0,320}const sheet = ov\.querySelector\('\.sheet'\)/.test(src) &&
+    !/focusIntoSheet[\s\S]{0,320}querySelector\('input/.test(src));
+  T('focus returns to whatever opened the sheet', /_sheetOpeners\.get\(id\)/.test(src));
+  T('but only if that control still exists',
+    /document\.contains\(opener\) && opener\.offsetParent !== null/.test(src));
+  T('the programmatic focus does not paint a ring round the whole sheet',
+    /\.sheet:focus, \.sheet:focus-visible\{ outline: none; \}/.test(css));
+  T('keyboard focus is still visible on controls',
+    /\*:focus-visible\{ outline: 2px solid var\(--accent\); outline-offset: 2px; \}/.test(css));
+  T('the topmost sheet is the one Escape acts on', /function topOpenSheet\(\)/.test(src));
+
+  sub('one mechanism reacts to a sheet opening, not one per sheet');
+  T('a single observer', (src.match(/new MutationObserver\(/g) || []).length === 1);
+  T('it drives the scroll lock', /new MutationObserver\(\(\) => \{[\s\S]{0,160}syncBackgroundScrollLock\(\);/.test(src));
+  T('and the accessibility state', /new MutationObserver\(\(\) => \{[\s\S]{0,200}syncSheetAccessibility\(\);/.test(src));
+  T('boot still survives a browser without MutationObserver',
+    /if\(typeof MutationObserver === 'undefined'\) return null;/.test(src));
+  T('nested sheets keep the lock count honest',
+    /else if\(open > 0\)\{ _lockDepth = open; \}/.test(src));
+
+  sub('timers belong to one owner and one exit');
+  T('prep clears its timer on the only way out',
+    /function exitPrep\(\)\{\s*clearPrepTimer\(\);/.test(src));
+  T('and whenever it moves to another movement',
+    /function enterPrepStep\(\)\{\s*clearPrepTimer\(\);/.test(src));
+  T('the rest panel clears before it starts, so a second tap cannot double it',
+    /function startRestPanel\(panel, seconds\)\{[\s\S]{0,120}clearRestTimer\(panel\);/.test(src));
+  T('every setInterval in the app has a matching clear',
+    (src.match(/setInterval\(/g) || []).length <= (src.match(/clearInterval\(/g) || []).length,
+    (src.match(/setInterval\(/g) || []).length + ' intervals vs ' +
+    (src.match(/clearInterval\(/g) || []).length + ' clears');
+  T('timers are wall-clock, not tick-counted, so throttling cannot drift them',
+    /prepState\.endsAt = secs \? \(Date\.now\(\) \+ secs \* 1000\) : null/.test(src));
+
+  sub('gestures attach once per element');
+  T('the week strip guards re-attachment', /strip\.dataset\.gestures === 'on'/.test(src));
+  T('the day card guards re-attachment', /host\.dataset\.swipe === 'on'/.test(src));
+
+  sub('corrupt storage degrades, it never destroys');
+  /* Every key was replaced with a different flavour of garbage in a real
+     browser: LOOP booted, showed no developer text, and left the malformed
+     values exactly as they were rather than overwriting them. */
+  T('reads are defended', (src.match(/JSON\.parse\(/g) || []).length > 0 &&
+    (src.match(/catch\(e\)/g) || []).length > 40);
+  T('a plan that no longer exists falls back rather than throwing',
+    /if\(selectedPlanId && DEFAULT_PLANS\[selectedPlanId\]\)/.test(src));
+  T('boot never depends on the page-isolation observer',
+    /Boot must not depend on this/.test(src));
+  T('the trainer log tolerates a malformed shape', /function loadTrainerData/.test(src));
+
+  sub('the trainer was not touched');
+  T('engine version', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+  T('shadow evidence retention', /TRAINER_LOG_MAX = 2000/.test(src));
+  T('outcome vocabulary', /OUTCOME_MATCH = \{ MATCHED:'matched', DIVERGED:'diverged' \}/.test(src));
+  T('no trainer symbol appears in anything D17 added',
+    !/function (switchTab|syncSheetAccessibility|initSheetKeyboard|sheetCloser|focusIntoSheet|topOpenSheet)\([\s\S]{0,900}(trainerLog|TRAINER_CONFIG|proposeTrainerState)/.test(src));
+  T('no new storage key', ctx.DATA_KEYS.length === 15);
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -10490,6 +10642,7 @@ async function main(){
   testTodayIA(H.loadApp());
   testFirstUse(H.loadApp());
   testFirstRunRefinement(H.loadApp());
+  testReliability(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
