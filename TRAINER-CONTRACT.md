@@ -2625,3 +2625,53 @@ keep node identity across 30 transitions, so stepping re-renders nothing.
 
 `DATA_KEYS` is still exactly 15. Zero protected-symbol lines appear in the
 `index.html` diff. The trainer remains `0.1.1-shadow`.
+
+## §39 — D19.1: rest holds its answer
+
+The rest card exists to answer two questions — *did my rest start?* and *did my
+rest finish?* — and before this phase it answered neither reliably.
+
+**It starts where the athlete can see it.** The card lived at the bottom of the
+exercise row's content, which on any real exercise is below the fold: measured
+at 375×812, completing a set produced a card at y=1125 on an 812px screen —
+no visible change at all. While its exercise is the visible step the card now
+pins to the foot of the scrollport (`position: sticky`), laying its 12%-alpha
+tint over a solid surface so scrolling content cannot bleed through, and enters
+with a short rise. Measured after the change: completing a set puts the card at
+627–713, fully in view, at every tested viewport; in short landscape it pins
+within the scrollport at the athlete's actual completion scroll position.
+
+**It holds at zero.** `completeRestPanel` used to hide the card four seconds
+after completion. It now holds the done state — green ring, check, "Rest
+complete", controls stepped aside — until the athlete demonstrably starts
+working again: adjusting a weight or rep count (both entry paths funnel through
+`propagateSetValueForward`), recording an RIR, or completing the next set
+(which starts a new rest and resets the panel). `dismissRestComplete()`'s only
+timer is the 280ms exit-animation handoff. Measured: still visible and still
+done 4.5 seconds after zero; dismissed with a settle on the next stepper tap.
+
+**A finished rest is visible from anywhere.** The compact chip used to vanish
+at zero — the chime fired once and the evidence disappeared with the hidden
+row. It now falls back to a held completion (`heldRestCompletePanel`) and
+renders it in the same green completion voice; tapping it still jumps to the
+exercise where the next set is. A new rest anywhere retires a held card, so
+exactly one rest surface exists at all times — measured across three
+exercises, twenty rapid pause/resume cycles, and repeated forced completions
+(one haptic, one live interval, deterministic state throughout).
+
+**The rail survives a long workout.** At ten or more stops the rail switches to
+dense drawing: 9px dots (13.4px gaps — wider than the dots, so the row still
+reads as stations) while every stop keeps its full-height, full-column touch
+area. Off at nine or fewer. Measured at 13 stops: no horizontal overflow, 44px
+column heights unchanged.
+
+**The warm-up stage.** The category chip — the only boxed element on the card —
+became quiet letterspaced text, the movement name gained a step (26→28px), and
+the figure stands in a faint static pool of the accent
+(`radial-gradient`, painted once, never animated). Re-audited after the
+changes: 97 warm-up/cooldown states across 31 movements at five viewports,
+zero overflow, zero clipping.
+
+Zero protected-symbol lines in the diff. `DATA_KEYS` still 15. The rest states
+are presentation only — nothing here writes storage. The trainer remains
+`0.1.1-shadow`.

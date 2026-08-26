@@ -11935,6 +11935,111 @@ function testWorkoutJourney(app){
   T('and the state', ctx.prepState === null);
 }
 
+/* =========================================================
+   CONTRACT 115 — Rest holds its answer (D19.1)
+   ---------------------------------------------------------
+   The rest card exists to answer two questions: "did my rest
+   start?" and "did my rest finish?". D19.1 made both answers
+   impossible to miss — the card pins into view while its
+   exercise is on screen, and at zero it HOLDS instead of
+   hiding itself four seconds later. These assertions keep
+   the card honest about both.
+   ========================================================= */
+function testRestHold(app){
+  section('CONTRACT 115 — rest holds its answer');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const cssStart = src.indexOf('REST TIMER (Phase D14)');
+  const cssEnd = src.indexOf('PAGE ISOLATION', cssStart);
+  const restCss = src.slice(cssStart, cssEnd > cssStart ? cssEnd : undefined);
+
+  sub('completion holds instead of hiding itself');
+  /* The card used to setTimeout itself away after four seconds — an athlete
+     who looked up mid-set came back to no evidence the rest ever finished. */
+  T('completeRestPanel no longer schedules its own disappearance', (() => {
+    const fn = src.slice(src.indexOf('function completeRestPanel'), src.indexOf('function updateRestRing'));
+    return !/setTimeout/.test(fn);
+  })());
+  T('nothing else hides a done panel on a timer',
+    !/setTimeout\([^)]*\)[^;]{0,80}classList\.contains\('done'\)[^;]{0,80}display = 'none'/.test(src));
+  const panel = ctx.document.getElementById('c115panel');
+  panel.dataset.completed = ''; panel.dataset.remaining = '30';
+  ctx.completeRestPanel(panel);
+  T('completing marks the panel done', panel.classList.contains('done'));
+  T('and zeroes the countdown', String(panel.dataset.remaining) === '0');
+  T('and never hides it', panel.style.display !== 'none');
+  const wasDone = panel.classList.contains('done');
+  ctx.completeRestPanel(panel);
+  T('completing twice is one completion', wasDone && panel.classList.contains('done'));
+
+  sub('the athlete\'s next action clears it — nothing else does');
+  T('a dismiss path exists and hides the card after its exit animation',
+    /function dismissRestComplete\(\)\{[\s\S]{0,700}panel\.style\.display = 'none';/.test(src));
+  T('adjusting a weight or rep count dismisses it',
+    /function propagateSetValueForward[\s\S]{0,700}dismissRestComplete\(\)/.test(src));
+  T('recording an RIR dismisses it',
+    /function setRIR[\s\S]{0,600}dismissRestComplete\(\)/.test(src));
+  T('a new rest anywhere retires a held card',
+    /if\(other === panel \|\| \(!other\._interval && !other\.classList\.contains\('done'\)\)\) return;/.test(src));
+  T('the exit is an act of the athlete, not a timer', (() => {
+    const i = src.indexOf('function dismissRestComplete');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    /* Its only setTimeout is the 280ms exit-animation handoff, not a countdown. */
+    return (fn.match(/setTimeout/g) || []).length === 1 && /280\)/.test(fn);
+  })());
+
+  sub('the card is where the athlete is looking');
+  T('while its exercise is the visible step, the card pins into the scrollport',
+    /\.stepper-on \.ws-current \.rest-panel\{[\s\S]{0,200}position: sticky;/.test(src));
+  T('and lays its tint over a solid surface so content cannot bleed through',
+    /linear-gradient\(var\(--accent-soft\), var\(--accent-soft\)\), var\(--surface\)/.test(src));
+  T('it enters with a rise, not a pop', /@keyframes restIn\{/.test(src) &&
+    /animation: restIn 0\.26s var\(--ease\);/.test(src));
+  T('it leaves with a settle, not a vanish', /@keyframes restOut\{/.test(src) &&
+    /\.rest-panel\.leaving\{ animation: restOut/.test(src));
+  T('both bow out under reduced motion',
+    /\.rest-panel, \.rest-panel\.leaving,\s*\.rest-panel\.done/.test(src));
+  T('no rest animation loops forever', !/animation:[^;]*infinite/.test(restCss));
+  T('at zero the controls step aside — the card is a status, not a control surface',
+    /\.rest-panel\.done \.rest-panel-controls\{ display: none; \}/.test(src));
+
+  sub('a finished rest is visible from anywhere');
+  /* The chip stands in for the card when its exercise is off screen. It used
+     to vanish at zero — the chime fired once and the evidence disappeared. */
+  T('a held completion is findable', /function heldRestCompletePanel\(\)/.test(src));
+  T('the chip falls back to it when no countdown runs',
+    /const done = !panel && !!\(panel = heldRestCompletePanel\(\)\);/.test(src));
+  T('and renders it in the completion voice',
+    /ws-rest-done/.test(src) && /'Rest complete on ' \+ name/.test(src));
+  T('tapping the chip still goes to where the next set is',
+    /activeRestPanel\(\) \|\| heldRestCompletePanel\(\)/.test(src));
+
+  sub('the rail survives a long workout');
+  T('ten or more stops switch the rail to dense drawing',
+    /stops >= 10 \? ' ws-bar-dense' : ''/.test(src));
+  T('dense mode shrinks only what is painted',
+    /\.ws-bar-dense \.ws-seg::after\{ width: 9px; height: 9px;/.test(src));
+  T('the tap column itself never shrinks', (() => {
+    /* No dense rule touches .ws-seg's own box — only its ::after dot. */
+    return !/\.ws-bar-dense \.ws-seg\{/.test(src) &&
+           /\.ws-seg\{\s*flex: 1; height: 44px;/.test(src);
+  })());
+
+  sub('the warm-up stage');
+  T('the category is quiet text, not a boxed chip', (() => {
+    const rule = src.slice(src.indexOf('.prep-tag{'), src.indexOf('}', src.indexOf('.prep-tag{')));
+    return !/background:|border:/.test(rule);
+  })());
+  T('the figure stands in a faint pool of the accent',
+    /\.prep-figure::before\{[\s\S]{0,260}radial-gradient/.test(src));
+  T('which is painted once and never animated', (() => {
+    const i = src.indexOf('.prep-figure::before{');
+    const rule = src.slice(i, src.indexOf('}', i));
+    return !/animation/.test(rule) && /pointer-events: none/.test(rule);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -12014,6 +12119,7 @@ async function main(){
   testMovementLibraryBoundary(H.loadApp());
   testMovementAnimation(H.loadApp());
   testWorkoutJourney(H.loadApp());
+  testRestHold(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

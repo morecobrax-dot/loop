@@ -2700,6 +2700,14 @@ textarea{ resize: vertical; min-height: 56px; }
 }
 .ws-seg-warmup.ws-seg-done::after{ background: var(--success); border-color: var(--success); }
 .ws-seg-warmup.ws-seg-now::after{ background: var(--accent); border-color: var(--accent); }
+/* Dense rail (10+ stops): the drawn dot gives up three pixels so the gaps
+   between stops stay wider than the dots themselves and the row keeps reading
+   as separate stations. The 44px column each dot sits in is untouched — this
+   changes what is painted, not what is tapped — and the current stop's scale
+   and halo now do proportionally more of the work of standing out. */
+.ws-bar-dense .ws-seg::after{ width: 9px; height: 9px; margin-left: -4.5px; top: 17.5px; }
+.ws-bar-dense .ws-seg-warmup{ flex: 0 0 26px; }
+.ws-bar-dense .ws-seg-warmup::after{ width: 8px; height: 8px; margin-left: -4px; top: 18px; }
 /* Completion is not carried by colour alone: a finished stop is filled, the
    current one is filled AND ringed and scaled up, and an untouched one is a
    flat grey dot. Each state differs in shape as well as hue, and every stop
@@ -2747,6 +2755,13 @@ textarea{ resize: vertical; min-height: 56px; }
 .ws-rest-ending::after{ background: var(--warning); }
 .ws-rest-paused .ws-rest-t{ color: var(--text-dim); }
 .ws-rest-paused::after{ background: var(--text-faint); }
+/* A rest that finished on an exercise the athlete is not looking at: the chip
+   holds the completion the same way the card does, and in the same green, so
+   the two surfaces read as one state. The text shrinks a step because "Rest
+   complete" is a sentence where the countdown was four digits. */
+.ws-rest-done .ws-rest-t{ color: var(--full); font-size: 14px; }
+.ws-rest-done .ws-rest-k{ color: var(--full); }
+.ws-rest-done::after{ background: var(--full); }
 @media (prefers-reduced-motion: reduce){
   .ws-rest::after{ transition: none; }
 }
@@ -3470,6 +3485,7 @@ body.page-locked{ overflow: hidden; }
 @media (prefers-reduced-motion: reduce){
   /* The arc still moves and still carries the time; only the breath stops. */
   .rest-ring-fill{ transition: none; }
+  .rest-panel, .rest-panel.leaving,
   .rest-panel.done, .rest-panel.done .rest-dial-check{ animation: none; }
 }
 .rest-panel-sub{
@@ -3482,8 +3498,35 @@ body.page-locked{ overflow: hidden; }
   margin-top: 8px; background: var(--accent-soft); border: 1px solid var(--accent);
   border-radius: var(--radius-md); padding: 10px 12px;
   align-items: center; justify-content: space-between; gap: 10px;
+  /* Plays when display flips none -> flex, i.e. exactly when a rest begins.
+     A short rise from below reads as "the rest state arrived", not a popup. */
+  animation: restIn 0.26s var(--ease);
 }
+@keyframes restIn{ from{ opacity: 0; transform: translateY(10px); } to{ opacity: 1; transform: none; } }
 .rest-panel.done{ background: var(--full-soft); border-color: var(--full); }
+/* At zero the card is a status, not a control surface. +15s and pause have
+   nothing left to act on, and Skip would just be a second name for what the
+   athlete's next action already does — so the row steps out and the state
+   reads clean: dial, check, "Rest complete". */
+.rest-panel.done .rest-panel-controls{ display: none; }
+/* The athlete's next input dismisses it: a short settle out, then gone. Sits
+   after the .done rules so the exit wins over the held state's animation. */
+.rest-panel.leaving{ animation: restOut 0.26s var(--ease) both; }
+@keyframes restOut{ to{ opacity: 0; transform: translateY(6px); } }
+/* While its exercise is the visible step, the card stays in reach: pinned to
+   the foot of the scrollport until its natural position scrolls into view.
+   It used to live only at the bottom of the row's content — below the fold on
+   any real exercise — so completing a set produced no visible change at all.
+   The soft tints are 12% alpha, fine over the page ground but see-through
+   over scrolling content, so the pinned card lays them over a solid surface. */
+.stepper-on .ws-current .rest-panel{
+  position: sticky; bottom: var(--space-2); z-index: 5;
+  background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--surface);
+  box-shadow: var(--shadow-md);
+}
+.stepper-on .ws-current .rest-panel.done{
+  background: linear-gradient(var(--full-soft), var(--full-soft)), var(--surface);
+}
 .rest-panel-info{ display: flex; flex-direction: column; }
 .rest-panel-label{ font-size: var(--fs-micro); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
 /* Size belongs to the dial now — this rule kept overriding it from further
@@ -3656,8 +3699,9 @@ body.page-locked{ overflow: hidden; }
 }
 .prep-back:active{ transform: scale(0.98); }
 .prep-move-name{
-  font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700;
   line-height: 1.15; color: var(--text); margin-bottom: var(--space-2);
+  letter-spacing: -0.01em;
 }
 /* ---- movement demonstration ----
    A fixed-ratio box so the card does not reflow as the figure moves through
@@ -3675,6 +3719,16 @@ body.page-locked{ overflow: hidden; }
 .prep-figure{
   width: 100%; max-width: 240px; aspect-ratio: 180 / 178; max-height: 26vh;
   margin: 0 auto var(--space-4); flex: none;
+  position: relative;
+}
+/* A faint pool of the accent behind the figure — enough that the movement
+   reads as standing on a lit stage instead of floating in a void, and no
+   more. It is painted behind the SVG and never moves, so it costs nothing
+   while the figure animates. */
+.prep-figure::before{
+  content: ""; position: absolute; inset: 4% 0; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(91,140,255,0.09), rgba(91,140,255,0) 76%);
+  pointer-events: none;
 }
 .prep-figure loop-move{ display: block; width: 100%; height: 100%; }
 .prep-metric{
@@ -3696,11 +3750,13 @@ body.page-locked{ overflow: hidden; }
   font-size: 12px; line-height: 1.45; color: var(--text-faint);
   max-width: 320px; margin: var(--space-3) auto 0;
 }
+/* Quiet context, not a component. The bordered chip this used to be was the
+   only boxed element on the card — one more container fighting the movement
+   for attention. Category is metadata: letterspaced small caps, no box. */
 .prep-tag{
-  display: inline-block; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em;
-  font-family: 'JetBrains Mono', monospace; color: var(--text-dim);
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 3px 7px; margin-bottom: var(--space-4);
+  display: inline-block; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.16em;
+  font-family: 'JetBrains Mono', monospace; color: var(--text-faint);
+  margin-bottom: var(--space-3);
 }
 .prep-actions{ display: flex; gap: var(--space-2); padding: 0 var(--space-4) var(--space-4); }
 .prep-actions button{ flex: 1; min-height: 48px; }
@@ -22734,7 +22790,14 @@ function workoutStepBarHtml(rows, current){
       ' onclick="goToWorkoutStep(' + i + ')"' +
       ' aria-label="' + escapeAttr('Exercise ' + (i+1) + ', ' + workoutStepName(row) + ', ' + state) + '"></button>';
   }).join('');
-  return '<div class="ws-bar" role="tablist" aria-label="Workout progress">' + segs + '</div>';
+  /* Ten or more stops on a phone leave 12px dots with single-digit gaps —
+     they start reading as a dashed line rather than a row of stations. Dense
+     mode shrinks only the DRAWN dot; every stop keeps its full-height,
+     full-column touch area, and Previous/Skip/Next still reach every exercise
+     at full size regardless. */
+  const stops = rows.length + (hasWarmup ? 1 : 0);
+  return '<div class="ws-bar' + (stops >= 10 ? ' ws-bar-dense' : '') +
+    '" role="tablist" aria-label="Workout progress">' + segs + '</div>';
 }
 
 /* Going back to the warm-up on purpose. Automatic entry stays one-way —
@@ -22767,15 +22830,40 @@ function activeRestPanel(){
     .find(p => p._interval || (p.dataset.paused === 'true' && p.style.display !== 'none')) || null;
 }
 
+/* A held completion card the athlete cannot currently see — it lives on a
+   row that is not the visible step. The chip stands in for it there. */
+function heldRestCompletePanel(){
+  return [...document.querySelectorAll('#logExercises .rest-panel.done')]
+    .find(p => p.style.display !== 'none' && p.dataset.leaving !== '1') || null;
+}
+
 function syncWorkoutRestChip(){
   const chip = document.getElementById('wsRest');
   if(!chip) return;
-  const panel = activeRestPanel();
+  let panel = activeRestPanel();
+  /* No countdown running: a rest that FINISHED on another exercise still
+     deserves a presence, or the athlete who stepped away learns nothing —
+     the chime fired once and the evidence vanished with the hidden row. */
+  const done = !panel && !!(panel = heldRestCompletePanel());
   /* Only worth showing while the athlete is looking somewhere else. On the
      exercise that owns the timer the full dial is already on screen. */
   const owner = panel ? panel.closest('.ex-log-row') : null;
   const showing = !!panel && !!owner && !owner.classList.contains('ws-current');
   if(!showing){ chip.hidden = true; chip.textContent = ''; return; }
+  if(done){
+    const name = (owner.querySelector('.ex-name-in') || {}).value || '';
+    chip.hidden = false;
+    chip.classList.remove('ws-rest-paused', 'ws-rest-ending');
+    chip.classList.add('ws-rest-done');
+    chip.style.setProperty('--ws-rest-pct', '100%');
+    chip.innerHTML =
+      '<span class="ws-rest-k">Done</span>' +
+      '<span class="ws-rest-t">Rest complete</span>' +
+      '<span class="ws-rest-n">' + escapeHtml(name) + '</span>';
+    chip.setAttribute('aria-label', 'Rest complete on ' + name + '. Tap to open.');
+    return;
+  }
+  chip.classList.remove('ws-rest-done');
 
   const remaining = parseInt(panel.dataset.remaining, 10) || 0;
   const total = parseInt(panel.dataset.total, 10) || 1;
@@ -22797,7 +22885,7 @@ function syncWorkoutRestChip(){
 
 /* Tapping the readout goes to the exercise that is resting. */
 function jumpToRestingExercise(){
-  const panel = activeRestPanel();
+  const panel = activeRestPanel() || heldRestCompletePanel();
   const owner = panel ? panel.closest('.ex-log-row') : null;
   if(!owner) return;
   const idx = workoutStepRows().indexOf(owner);
@@ -23395,6 +23483,8 @@ function setRIR(btn, v){
   picker.parentElement.querySelector('.set-rir-in').value = v;
   refreshSetMeta(btn.closest('.set-row'));
   markRirUnderstood();
+  // Recording RIR is working on a set — a held rest-complete card steps aside.
+  try{ dismissRestComplete(); }catch(e){}
   persistDraftNow();
 }
 
@@ -23494,6 +23584,11 @@ function propagateSetValueForward(sourceInput, selector){
   const setRow = sourceInput.closest('.set-row');
   const setsList = sourceInput.closest('.sets-list');
   if(!setRow || !setsList) return;
+  /* Adjusting a value is the athlete starting their next set. Both entry
+     paths land here — typing fires it from oninput, the +/- steppers call it
+     directly — so a held "Rest complete" card clears itself the moment work
+     resumes, with no separate dismiss tap. */
+  try{ dismissRestComplete(); }catch(e){}
   const allRows = [...setsList.querySelectorAll('.set-row')];
   const idx = allRows.indexOf(setRow);
   if(idx === -1) return;
@@ -23735,12 +23830,37 @@ function startRestPanel(panel, seconds){
      readout could only ever point at one of them and the other ran down
      unseen. Any other rest is stopped and put away, not left frozen. */
   document.querySelectorAll('.rest-panel').forEach(other => {
-    if(other === panel || !other._interval) return;
+    /* Running rests are stopped; held completion cards are retired. A card
+       still saying "Rest complete" about the previous exercise is stale the
+       moment a new rest begins somewhere else. */
+    if(other === panel || (!other._interval && !other.classList.contains('done'))) return;
     clearRestTimer(other);
     other.style.display = 'none';
     other.dataset.remaining = other.dataset.defaultRest || other.dataset.total;
     other.dataset.paused = 'false';
-    other.classList.remove('done', 'ending');
+    other.classList.remove('done', 'ending', 'leaving');
+  });
+}
+
+/* The completion card's exit. It holds after the countdown ends — that is the
+   point of it — and leaves when the athlete demonstrably starts working again:
+   adjusting a weight, a rep count or an RIR. Called from those paths rather
+   than from a timer, so the athlete's action is the only thing that clears it.
+   Completing the next set does not come through here at all — that starts a
+   new rest, and startRestPanel resets the panel itself. */
+function dismissRestComplete(){
+  document.querySelectorAll('#logExercises .rest-panel.done').forEach(panel => {
+    if(panel.style.display === 'none' || panel.dataset.leaving === '1') return;
+    panel.dataset.leaving = '1';
+    panel.classList.add('leaving');
+    /* Matches the restOut animation; with reduced motion the animation is
+       disabled and this is simply a short delay before the card goes. */
+    setTimeout(() => {
+      panel.classList.remove('done', 'leaving');
+      panel.dataset.leaving = '';
+      panel.style.display = 'none';
+      try{ syncWorkoutRestChip(); }catch(e){}
+    }, 280);
   });
 }
 
@@ -23774,8 +23894,12 @@ function completeRestPanel(panel){
   updateRestPanelDisplay(panel);
   loopHaptic();
   loopPlayChime();
-  // Stays on screen long enough to be read, then gets out of the way.
-  setTimeout(() => { if(panel.classList.contains('done')) panel.style.display = 'none'; }, 4000);
+  /* And then it HOLDS. It used to hide itself after four seconds, which meant
+     an athlete who looked up mid-set came back to no evidence the rest had
+     ever finished — the one question this card exists to answer. The done
+     state now stays until the athlete acts on a set again (dismissRestComplete)
+     or a new rest replaces it. Nothing here re-animates while it waits: the
+     check settles once and the card simply remains. */
 }
 
 function updateRestRing(panel){
