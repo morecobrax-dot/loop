@@ -2644,6 +2644,42 @@ textarea{ resize: vertical; min-height: 56px; }
 
 /* Navigation sits above the finish action, so moving through the workout and
    ending it are never the same tap. */
+/* The readout: a single quiet row carrying the state, the time and whose rest
+   it is. The remaining time is drawn as a rule beneath it rather than a second
+   ring, so it reads at a glance and competes with nothing. */
+.ws-rest{
+  display: flex; align-items: center; gap: var(--space-3); width: calc(100% - var(--space-5) * 2);
+  margin: var(--space-3) var(--space-5) 0; padding: 10px var(--space-4) 12px;
+  min-height: 44px; position: relative; overflow: hidden;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; text-align: left; font-family: 'Inter', sans-serif;
+}
+.ws-rest[hidden]{ display: none; }
+.ws-rest::after{
+  content: ""; position: absolute; left: 0; bottom: 0; height: 2px;
+  width: var(--ws-rest-pct, 100%); background: var(--accent);
+  transition: width 0.25s linear;
+}
+.ws-rest-k{
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--text-faint); flex-shrink: 0;
+}
+.ws-rest-t{
+  font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700;
+  color: var(--text); font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.ws-rest-n{
+  font-size: 12px; color: var(--text-dim); margin-left: auto;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.ws-rest-ending .ws-rest-t{ color: var(--warning); }
+.ws-rest-ending::after{ background: var(--warning); }
+.ws-rest-paused .ws-rest-t{ color: var(--text-dim); }
+.ws-rest-paused::after{ background: var(--text-faint); }
+@media (prefers-reduced-motion: reduce){
+  .ws-rest::after{ transition: none; }
+}
+
 .ws-nav{
   display: flex; gap: var(--space-2); flex-shrink: 0;
   padding: var(--space-3) var(--space-5) 0;
@@ -4553,7 +4589,6 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       </div>
       <div class="prep-card-sub" id="prepCardSub">Prepare your body for today's workout.</div>
       <button class="btn-primary prep-start-btn" onclick="startPrep()">Start Warm-up</button>
-      <button class="prep-skip-btn" onclick="skipPrep()">Skip</button>
     </div>
 
     <div id="logCategoryPicker" style="display:none">
@@ -4584,6 +4619,10 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     </div>
     </div>
     </div>
+    <!-- Compact rest readout. Sits in the workout chrome above the navigation,
+         so it never covers the exercise, the chips, the set inputs or the
+         controls. Present only while a rest timer is running. -->
+    <button type="button" class="ws-rest" id="wsRest" hidden onclick="jumpToRestingExercise()"></button>
     <div class="ws-nav" id="wsNav"></div>
     <div class="sheet-actions">
       <button class="btn-primary" style="width:100%" onclick="saveLog(this)">Finish Workout</button>
@@ -20681,6 +20720,15 @@ function logSheetExerciseNames(){
 let prepState = null;
 let prepTimerId = null;
 let prepCardDismissed = false;
+/* The workout id that has already passed its warm-up stage. Compared against
+   pendingDraftId, so it can never leak from one workout into the next. */
+let warmupDoneForDraft = null;
+function markWarmupStagePassed(){
+  if(pendingDraftId) warmupDoneForDraft = pendingDraftId;
+}
+function warmupStagePassed(){
+  return !!pendingDraftId && warmupDoneForDraft === pendingDraftId;
+}
 
 function clearPrepTimer(){
   if(prepTimerId){ clearInterval(prepTimerId); prepTimerId = null; }
@@ -21025,6 +21073,10 @@ function captureActiveDraft(){
     showCategoryPicker: document.getElementById('logCategoryPicker').style.display !== 'none',
     startedAt: pendingDraftStartedAt || new Date().toISOString(),
     savedAt: new Date().toISOString(),
+    /* Whether this workout is past its warm-up. Purely presentational — no
+       reader of a saved workout has ever looked at it, and workoutLog is not
+       involved. */
+    warmupDone: warmupStagePassed(),
     exercises
   };
 }
@@ -21068,6 +21120,9 @@ function restoreDraftToSheet(draft){
   draftRestoring = true;
   pendingDraftId = draft.id || ('draft_' + Date.now());
   pendingDraftStartedAt = draft.startedAt || new Date().toISOString();
+  /* A resumed workout does not warm up again. Older drafts have no flag, so
+     the started-check below still covers them. */
+  warmupDoneForDraft = draft.warmupDone ? pendingDraftId : warmupDoneForDraft;
   pendingLogCategory = draft.category || 'push';
 
   document.getElementById('logCategoryPicker').style.display = draft.showCategoryPicker ? 'block' : 'none';
@@ -21261,6 +21316,57 @@ function workoutStepBarHtml(rows, current){
   }).join('') + '</div>';
 }
 
+/* ---------- COMPACT REST READOUT (Phase D18.1) ----------
+   D18 made the workout a sequence, which meant a rest timer started on one
+   exercise vanished the moment the athlete looked at another. The timer kept
+   running correctly — it was simply off screen, which is worse than useless.
+
+   This reads the SAME panel the full timer owns. It starts no interval, holds
+   no time of its own and cannot disagree with the dial: updateRestPanelDisplay()
+   is the one place the timer's visible state changes, so the readout is
+   refreshed from there and nowhere else. */
+function activeRestPanel(){
+  return [...document.querySelectorAll('#logExercises .rest-panel')]
+    .find(p => p._interval || (p.dataset.paused === 'true' && p.style.display !== 'none')) || null;
+}
+
+function syncWorkoutRestChip(){
+  const chip = document.getElementById('wsRest');
+  if(!chip) return;
+  const panel = activeRestPanel();
+  /* Only worth showing while the athlete is looking somewhere else. On the
+     exercise that owns the timer the full dial is already on screen. */
+  const owner = panel ? panel.closest('.ex-log-row') : null;
+  const showing = !!panel && !!owner && !owner.classList.contains('ws-current');
+  if(!showing){ chip.hidden = true; chip.textContent = ''; return; }
+
+  const remaining = parseInt(panel.dataset.remaining, 10) || 0;
+  const total = parseInt(panel.dataset.total, 10) || 1;
+  const paused = panel.dataset.paused === 'true';
+  const name = (owner.querySelector('.ex-name-in') || {}).value || '';
+  const pct = Math.max(0, Math.min(1, remaining / total));
+  chip.hidden = false;
+  chip.classList.toggle('ws-rest-paused', paused);
+  chip.classList.toggle('ws-rest-ending', !paused && remaining > 0 && remaining <= 10);
+  chip.style.setProperty('--ws-rest-pct', (pct * 100).toFixed(1) + '%');
+  chip.innerHTML =
+    '<span class="ws-rest-k">' + (paused ? 'Paused' : 'Rest') + '</span>' +
+    '<span class="ws-rest-t">' + formatMMSS(remaining) + '</span>' +
+    '<span class="ws-rest-n">' + escapeHtml(name) + '</span>';
+  chip.setAttribute('aria-label',
+    (paused ? 'Rest paused, ' : 'Resting, ') + formatMMSS(remaining) +
+    ' remaining on ' + name + '. Tap to open.');
+}
+
+/* Tapping the readout goes to the exercise that is resting. */
+function jumpToRestingExercise(){
+  const panel = activeRestPanel();
+  const owner = panel ? panel.closest('.ex-log-row') : null;
+  if(!owner) return;
+  const idx = workoutStepRows().indexOf(owner);
+  if(idx !== -1) goToWorkoutStep(idx);
+}
+
 function renderWorkoutStep(opts){
   const sheet = document.getElementById('logOverlay');
   if(!sheet) return;
@@ -21285,6 +21391,7 @@ function renderWorkoutStep(opts){
   const i = logStepIndex;
 
   rows.forEach((row, idx) => row.classList.toggle('ws-current', idx === i));
+  try{ syncWorkoutRestChip(); }catch(e){}
   if(prepCard) prepCard.classList.toggle('ws-current', i === STEP_WARMUP);
   if(review) review.classList.toggle('ws-current', i === STEP_FINISH);
 
@@ -21293,9 +21400,11 @@ function renderWorkoutStep(opts){
       '<div class="ws-k">Warm-up</div>' +
       '<h3 class="ws-name">Prepare to train</h3>' +
       '<p class="ws-lede">A few minutes of movement before your first working set.</p>';
+    /* One action. "Skip" is gone: the stage is short, it is offered once per
+       workout, and the athlete moving into their first exercise is the normal
+       way out of it rather than a refusal. */
     nav.innerHTML =
-      '<button type="button" class="ws-nav-btn" onclick="goToWorkoutStep(0)">Skip warm-up</button>' +
-      '<button type="button" class="ws-nav-next" onclick="goToWorkoutStep(0)">Start training</button>';
+      '<button type="button" class="ws-nav-next" onclick="goToWorkoutStep(0)">Go to first exercise</button>';
   } else if(i === STEP_FINISH){
     head.innerHTML =
       '<div class="ws-k">Finish</div>' +
@@ -21347,6 +21456,13 @@ function goToWorkoutStep(i, dir){
   const rows = workoutStepRows();
   const from = logStepIndex;
   if(i !== STEP_WARMUP && i !== STEP_FINISH) i = Math.max(0, Math.min(rows.length - 1, i));
+  /* The stage is one-way. Nothing in the UI navigates back to it, and this
+     makes that structural rather than a property of which buttons exist. */
+  if(i === STEP_WARMUP && warmupStagePassed()) return;
+  /* Leaving the warm-up for the workout ends the stage for this session. It is
+     recorded here rather than in one navigation path so that every route into
+     the exercises — the button, a segment, Next, a restored draft — closes it. */
+  if(i !== STEP_WARMUP) markWarmupStagePassed();
   logStepIndex = i;
   renderWorkoutStep({ animate:true, dir: dir || (typeof from === 'number' && i < from ? 'back' : 'fwd') });
 }
@@ -21358,7 +21474,14 @@ function nextWorkoutStep(){
 }
 function prevWorkoutStep(){
   if(logStepIndex === STEP_FINISH) return goToWorkoutStep(workoutStepCount() - 1, 'back');
-  if(logStepIndex <= 0) return goToWorkoutStep(STEP_WARMUP, 'back');
+  /* Once the athlete is in the exercises the warm-up stage is over for this
+     workout, so Previous from the first exercise has nowhere to go. Without
+     this, stepping back off exercise 1 re-entered the warm-up — which is the
+     one thing this stage must never do. */
+  if(logStepIndex <= 0){
+    if(warmupStagePassed()) return;
+    return goToWorkoutStep(STEP_WARMUP, 'back');
+  }
   goToWorkoutStep(logStepIndex - 1, 'back');
 }
 /* Skip moves past an exercise for now. It never removes it from the workout:
@@ -21394,12 +21517,13 @@ function syncWorkoutStepper(opts){
     const prep = document.getElementById('prepCard');
     const prepOffered = prep && prep.style.display !== 'none';
     const started = rows.some(exerciseRowDone);
-    /* The warm-up only leads a workout that has not started. Resuming one with
-       three exercises already logged used to open on "Prepare to train", which
-       is both wrong and a step backwards — a resumed workout lands on the first
-       exercise still to do. */
-    if(prepOffered && !started){ logStepIndex = STEP_WARMUP; }
-    else {
+    /* Three things have to be true for the warm-up to lead: this workout has
+       one available, it has not been through the stage already, and no set has
+       been logged. Anything else resumes at the first exercise still to do. */
+    if(prepOffered && !warmupStagePassed() && !started){
+      logStepIndex = STEP_WARMUP;
+    } else {
+      if(started || warmupStagePassed()) markWarmupStagePassed();
       const firstOpen = rows.findIndex(r => !exerciseRowDone(r));
       logStepIndex = firstOpen === -1 ? 0 : firstOpen;
     }
@@ -22206,6 +22330,9 @@ function updateRestPanelDisplay(panel){
     panel.classList.toggle('ending', !paused && remaining > 0 && remaining <= 10);
   }
   updateRestRing(panel);
+  /* One source of truth: the compact readout is refreshed from the same call
+     that redraws the dial, so the two can never show different times. */
+  try{ syncWorkoutRestChip(); }catch(e){}
 }
 
 function pauseResumeRest(btn){

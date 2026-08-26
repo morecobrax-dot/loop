@@ -2248,3 +2248,100 @@ through 24 times, close, discard — zero intervals left, zero listeners retaine
 
 The warm-up library, the rest timer architecture, the replacement engine and
 the trainer are untouched. The trainer remains `0.1.1-shadow`.
+
+## §34 — Warm-up once, rest always visible (Phase D18.1)
+
+A refinement pass on D18. The stepper architecture is unchanged: every exercise
+row stays mounted, the stepper controls visibility.
+
+### The warm-up is a stage of a workout, not of the screen
+
+Before: `closeLogSheet()` called `resetPrepCardForNewWorkout()`, clearing the
+dismissal flag. So leaving a workout and returning put the athlete back on
+"Prepare to train" — mid-session, with sets already logged. Stepping back from
+exercise 1 re-entered it too.
+
+The stage is now tied to the workout's own identity. `pendingDraftId` already
+names a workout: `startTemplateLog()` and `openFreeformLog()` mint a new one,
+`restoreDraftToSheet()` carries the saved one back. `warmupDoneForDraft` records
+which workout has passed the stage, and it closes on **every** route into the
+exercises — the button, a segment, Next, a restored draft — because it is
+recorded inside `goToWorkoutStep()` rather than in one navigation path.
+
+Three guards make it one-way:
+
+- `goToWorkoutStep(STEP_WARMUP)` returns early once the stage has passed
+- `prevWorkoutStep()` from exercise 1 does nothing rather than stepping back
+- the opening stage requires all of: a warm-up exists, the stage has not passed,
+  and no set has been logged
+
+**It survives a reload without a new storage key.** The flag rides inside the
+draft, which is already persisted. `workoutLog` was not given a new field and
+`DATA_KEYS` still holds fifteen entries.
+
+Verified: new workout opens on the warm-up; entering the exercises and then
+navigating next / previous / by segment / off the sheet and back never brings it
+back; a reload with no sets logged resumes on Exercise 1, not the warm-up.
+
+### Skip is gone
+
+The card has exactly one button — Start Warm-up — and the stage navigation has
+one forward action. No control anywhere in the warm-up says Skip.
+
+`skipPrep()` is left in place, now without a caller. It is three lines, it is
+the warm-up system's own function, and this brief forbids removing warm-up
+functionality; deleting it to tidy up would be the riskier choice.
+
+### The D18 rest regression, fixed
+
+D18 made the workout a sequence, which meant a rest timer started on one
+exercise disappeared the moment another was shown. The timer kept running
+correctly — it was simply off screen, which is worse than useless.
+
+A compact readout now sits in the workout chrome, above the navigation, so it
+covers nothing: not the exercise, the chips, the set inputs or the controls. It
+shows **only** while the owning exercise is off screen, because on that exercise
+the full dial is already there.
+
+It holds no clock of its own. `updateRestPanelDisplay()` is the single place the
+timer's visible state changes, so the readout is refreshed from there and from
+the step change — it reads `panel.dataset.remaining` and cannot disagree with
+the dial. Tapping it goes to the exercise that is resting.
+
+Measured: `REST 1:15 Barbell Row`, 335×46 in portrait and 892×46 at 932 wide,
+inside the viewport at every size, counting down, one interval throughout.
+
+### Timer verification
+
+Text fits inside the ring with **6.15px clearance at all seven required
+durations** — 3:00, 2:00, 1:00, 0:30, 0:10, 0:01, 0:00. Completion fires
+**exactly one** haptic, the ring completes, the interval clears, the readout
+hides, and navigating between exercises afterwards does not restart it (haptic
+total stayed at 1, running intervals 0).
+
+Portrait → landscape → portrait with a live timer: stage, timer, readout, all
+eight mounted rows and every logged value intact, one interval throughout.
+
+### Contract 109
+
+Thirty-four assertions across the warm-up stage, its persistence, the readout,
+the timer architecture and the D18 invariants.
+
+**Two existing assertions were replaced**, both because this brief deliberately
+changed what they pinned:
+
+- `the card offers exactly two actions` — the card now offers one. Its whole
+  sub-block was framed "Start is the primary action, Skip is secondary", which
+  describes a card that no longer exists. Replaced by: exactly one button, it is
+  Start with primary treatment, and no skip control remains anywhere on it.
+- `the warm-up only leads a workout that has not started` — D18's two-condition
+  gate. Now pins the three-condition one, the third being the fix this phase
+  exists for.
+
+### Performance
+
+60 rapid step transitions in 76ms (1.27ms each), rows still mounted, logged
+values intact, zero leaked intervals, zero retained listeners.
+
+The warm-up library, the rest timer architecture, the replacement engine and the
+trainer are untouched. The trainer remains `0.1.1-shadow`.

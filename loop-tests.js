@@ -1999,7 +1999,12 @@ function testPrepRunner(app){
      markup and stylesheet rather than the rendered box, because the harness
      has no layout engine — but they still catch the regression that matters:
      Start losing its primary treatment, or Skip regaining a button look. */
-  sub('Start is the primary action, Skip is secondary');
+  /* D18.1 removed Skip from the warm-up entirely, so this block's original
+     framing — "Start is the primary action, Skip is secondary" — describes a
+     card that no longer exists. The two assertions about Skip's treatment are
+     replaced by the stronger statement: there is no skip control at all, and
+     Start is the card's only action. */
+  sub('Start is the warm-up card\'s only action');
   {
     const fs = require('fs');
     const src = fs.readFileSync(H.APP_PATH, 'utf8');
@@ -2008,10 +2013,10 @@ function testPrepRunner(app){
     T('the card is titled as a warm-up', /WARM-UP/.test(cardMarkup));
     T('Start carries the primary button treatment', /class="btn-primary prep-start-btn"/.test(cardMarkup));
     T('Start is labelled as the action, not a noun', /Start Warm-up/.test(cardMarkup));
-    T('Skip does NOT carry a button treatment',
-      !/btn-primary prep-skip-btn/.test(cardMarkup) && !/btn-secondary prep-skip-btn/.test(cardMarkup));
-    T('the card offers exactly two actions',
-      (cardMarkup.match(/<button/g) || []).length === 2);
+    T('the card offers exactly one action',
+      (cardMarkup.match(/<button/g) || []).length === 1);
+    T('and it is Start — no skip control remains on the card',
+      !/prep-skip-btn/.test(cardMarkup) && !/Skip/.test(cardMarkup));
 
     const css = src.slice(src.indexOf('.prep-card{'), src.indexOf('/* ---- runner ---- */'));
     T('Start is full width', /\.prep-card \.prep-start-btn\{[^}]*width:\s*100%/.test(css));
@@ -11035,8 +11040,12 @@ function testWorkoutStepper(app){
   sub('the sequence');
   T('the warm-up is a stage, not a separate feature', /const STEP_WARMUP = -1;/.test(src));
   T('a review step ends it', /const STEP_FINISH = 9999;/.test(src));
+  /* D18 gated the warm-up on two conditions. D18.1 added the third and most
+     important one — that this workout has not already been through the stage —
+     because closeLogSheet() reset the dismissal flag, so leaving a workout and
+     returning put the athlete back on "Prepare to train" mid-session. */
   T('the warm-up only leads a workout that has not started',
-    /if\(prepOffered && !started\)\{ logStepIndex = STEP_WARMUP; \}/.test(src));
+    /if\(prepOffered && !warmupStagePassed\(\) && !started\)\{/.test(src));
   T('a resumed workout opens on the first exercise still to do',
     /const firstOpen = rows\.findIndex\(r => !exerciseRowDone\(r\)\);/.test(src));
   T('a workout with no exercises stands the stepper down rather than breaking',
@@ -11093,6 +11102,107 @@ function testWorkoutStepper(app){
   T('no stepper function writes to storage', (() => {
     const mod = src.slice(src.indexOf('const STEP_WARMUP'), src.indexOf('function openLogSheet()'));
     return !/LOOPStore\.|localStorage/.test(mod);
+  })());
+}
+
+/* =========================================================
+   CONTRACT 109 — Warm-up once, rest always visible (D18.1)
+   ---------------------------------------------------------
+   The warm-up is a stage of a workout, not a property of the
+   screen being open — and a rest timer running on one
+   exercise must not vanish when the athlete looks at another.
+   ========================================================= */
+function testWarmupAndRest(app){
+  section('CONTRACT 109 — warm-up once, rest always visible');
+  const ctx = app.ctx;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('the warm-up has one action, and it is not Skip');
+  const card = src.slice(src.indexOf('id="prepCard"'), src.indexOf('id="logCategoryPicker"'));
+  T('exactly one button on the card', (card.match(/<button/g) || []).length === 1);
+  T('and it starts the warm-up', /class="btn-primary prep-start-btn"[^>]*>Start Warm-up/.test(card));
+  T('no skip control on the card', !/prep-skip-btn/.test(card) && !/Skip/i.test(card));
+  T('and none in the stage navigation either', (() => {
+    /* Read what the stage RENDERS, not the source around it — the comment
+       there explains why Skip was removed and would match a naive scan. */
+    const fn = src.slice(src.indexOf("if(i === STEP_WARMUP){"), src.indexOf("} else if(i === STEP_FINISH){"));
+    const rendered = (fn.match(/(head|nav)\.innerHTML =[\s\S]*?;/g) || []).join(' ');
+    return rendered.length > 0 && !/Skip/i.test(rendered);
+  })());
+  T('the warm-up stage offers a single forward action',
+    /nav\.innerHTML =\s*'<button type="button" class="ws-nav-next" onclick="goToWorkoutStep\(0\)">Go to first exercise<\/button>';/.test(src));
+
+  sub('the warm-up belongs to the workout, not to the screen');
+  /* closeLogSheet() resets prepCardDismissed, so before this the athlete could
+     leave a workout mid-session and be shown "Prepare to train" on return. */
+  T('the stage is tracked against the workout\'s own id',
+    /let warmupDoneForDraft = null;/.test(src) &&
+    /function warmupStagePassed\(\)\{\s*return !!pendingDraftId && warmupDoneForDraft === pendingDraftId;/.test(src));
+  T('entering the exercises closes the stage, by any route',
+    /if\(i !== STEP_WARMUP\) markWarmupStagePassed\(\);/.test(src));
+  T('and the stage is one-way',
+    /if\(i === STEP_WARMUP && warmupStagePassed\(\)\) return;/.test(src));
+  T('Previous from the first exercise cannot re-enter it',
+    /if\(logStepIndex <= 0\)\{\s*if\(warmupStagePassed\(\)\) return;/.test(src));
+  T('it leads only a workout that has one, has not passed it, and has not started',
+    /if\(prepOffered && !warmupStagePassed\(\) && !started\)\{/.test(src));
+
+  sub('and it survives a reload without a new storage key');
+  T('the flag rides inside the draft that already persists',
+    /warmupDone: warmupStagePassed\(\),/.test(src));
+  T('a restored workout reads it back',
+    /warmupDoneForDraft = draft\.warmupDone \? pendingDraftId : warmupDoneForDraft;/.test(src));
+  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('and workoutLog was not given a new field', (() => {
+    const fn = src.slice(src.indexOf('function saveLog(btn)'), src.indexOf('const priorSetsSnapshot'));
+    return !/warmupDone/.test(fn);
+  })());
+
+  sub('rest stays visible when the athlete looks elsewhere');
+  /* D18 turned the workout into a sequence, which meant a timer started on one
+     exercise disappeared the moment another was shown. */
+  T('a compact readout exists in the workout chrome', /id="wsRest"/.test(src));
+  T('it starts hidden', /<button type="button" class="ws-rest" id="wsRest" hidden/.test(src));
+  T('it shows only while the owning exercise is off screen',
+    /const showing = !!panel && !!owner && !owner\.classList\.contains\('ws-current'\);/.test(src));
+  T('it reads the panel rather than keeping its own clock', (() => {
+    const fn = src.slice(src.indexOf('function syncWorkoutRestChip()'), src.indexOf('function jumpToRestingExercise'));
+    return !/setInterval|setTimeout|Date\.now/.test(fn) && /panel\.dataset\.remaining/.test(fn);
+  })());
+  T('it is refreshed from the one place the timer redraws',
+    /updateRestRing\(panel\);[\s\S]{0,220}syncWorkoutRestChip\(\);/.test(src));
+  T('and again whenever the visible exercise changes',
+    /row\.classList\.toggle\('ws-current', idx === i\)\);[\s\S]{0,80}syncWorkoutRestChip\(\);/.test(src));
+  T('tapping it goes to the exercise that is resting',
+    /function jumpToRestingExercise\(\)\{[\s\S]{0,260}goToWorkoutStep\(idx\);/.test(src));
+  T('it carries a spoken description', /chip\.setAttribute\('aria-label',/.test(src));
+  T('it never covers the exercise — it sits in the chrome above the navigation',
+    src.indexOf('id="wsRest"') < src.indexOf('class="ws-nav" id="wsNav"'));
+  T('it is a full-height target', /\.ws-rest\{[\s\S]{0,300}min-height: 44px;/.test(css));
+  T('and its motion is dropped under reduced motion',
+    /@media \(prefers-reduced-motion: reduce\)\{\s*\.ws-rest::after\{ transition: none; \}/.test(css));
+
+  sub('the timer architecture was not touched');
+  T('still deadline-based', /const endsAt = parseInt\(panel\.dataset\.endsAt, 10\) \|\| 0;/.test(src));
+  T('still cleared before starting, so a second tap cannot double it',
+    /function startRestPanel\(panel, seconds\)\{[\s\S]{0,120}clearRestTimer\(panel\);/.test(src));
+  T('completion still fires one haptic',
+    /function completeRestPanel[\s\S]{0,400}loopHaptic\(\);/.test(src) &&
+    (src.match(/function completeRestPanel\(/g) || []).length === 1);
+
+  sub('the D18 stepper invariants still hold');
+  T('rows are hidden, never unmounted',
+    /\.stepper-on \.ex-log-row,[\s\S]{0,80}display: none;/.test(css));
+  T('saveLog still reads every mounted row',
+    /const rows = document\.querySelectorAll\('#logExercises \.ex-log-row'\);/.test(src));
+  T('skip still only flags', /row\.dataset\.skipped = '1';/.test(src));
+  T('the warm-up library is untouched',
+    /function buildPrepSequence\(/.test(src) && /function enterPrepStep\(\)\{\s*clearPrepTimer\(\);/.test(src));
+  T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+  T('no D18.1 function writes to storage', (() => {
+    const fn = src.slice(src.indexOf('function activeRestPanel()'), src.indexOf('function renderWorkoutStep(opts)'));
+    return !/LOOPStore\.|localStorage/.test(fn);
   })());
 }
 
@@ -11169,6 +11279,7 @@ async function main(){
   testComposition(H.loadApp());
   testMomentum(H.loadApp());
   testWorkoutStepper(H.loadApp());
+  testWarmupAndRest(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
