@@ -11110,18 +11110,38 @@ function testWorkoutStepper(app){
      returning put the athlete back on "Prepare to train" mid-session. */
   T('the warm-up only leads a workout that has not started',
     /if\(prepOffered && !warmupStagePassed\(\) && !started\)\{/.test(src));
+  /* D19.2: "still to do" now means not FINISHED rather than untouched. A
+     half-completed exercise is somewhere to return to, so resuming lands on
+     it instead of stepping past it to the first with nothing logged. */
   T('a resumed workout opens on the first exercise still to do',
-    /const firstOpen = rows\.findIndex\(r => !exerciseRowDone\(r\)\);/.test(src));
+    /const firstOpen = rows\.findIndex\(r => !exerciseRowComplete\(r\)\);/.test(src));
+  T('but "has this workout started" still asks whether anything is logged',
+    /const started = rows\.some\(exerciseRowStarted\);/.test(src));
   T('a workout with no exercises stands the stepper down rather than breaking',
     /if\(!rows\.length\)\{[\s\S]{0,160}classList\.remove\('stepper-on'\)/.test(src));
   T('adding the first exercise lands on it, not on the review',
     /function onWorkoutRowAdded\(\)\{[\s\S]{0,220}logStepIndex = rows\.length - 1;/.test(src));
 
   sub('progress is read from the workout, not stored beside it');
-  T('an exercise is done when it has a completed set',
-    /function exerciseRowDone\(row\)\{\s*return !!row\.querySelector\('\.set-row\.completed'\);/.test(src));
-  T('skipped never outranks done',
-    /function exerciseRowSkipped\(row\)\{\s*return row\.dataset\.skipped === '1' && !exerciseRowDone\(row\);/.test(src));
+  /* Was one predicate answering two questions: "done" meant a single logged
+     set, so one set of three painted the rail green and outranked a skip.
+     D19.2 separates them — started (anything logged) from complete (the work
+     finished) — and completion is the definition markExerciseComplete already
+     used to turn the row green, so there is still only one idea of finished. */
+  T('an exercise is started when it has a completed set',
+    /function exerciseRowStarted\(row\)\{\s*return !!row\.querySelector\('\.set-row\.completed'\);/.test(src));
+  T('an exercise is complete only when every set on it is complete',
+    /function exerciseRowComplete\(row\)\{[\s\S]{0,260}sets\.length > 0 && sets\.every\(s => s\.classList\.contains\('completed'\)\)/.test(src));
+  T('completion is read from the sets, not from the green class', (() => {
+    const i = src.indexOf('function exerciseRowComplete');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    /* Reading .ex-complete would miss a set ADDED to a finished exercise. */
+    return !/ex-complete/.test(fn);
+  })());
+  T('an exercise with no sets at all is not complete',
+    /sets\.length > 0 &&/.test(src));
+  T('skipped never outranks complete',
+    /function exerciseRowSkipped\(row\)\{\s*return row\.dataset\.skipped === '1' && !exerciseRowComplete\(row\);/.test(src));
   T('the segments carry each exercise\'s real state', /ws-seg-done|ws-seg-skip|ws-seg-now/.test(src));
   T('and name it for a screen reader', /aria-label="' \+ escapeAttr\('Exercise ' \+ \(i\+1\)/.test(src));
   T('the bar is tapped at full height even though it reads as a rule',
@@ -11341,9 +11361,15 @@ function testWarmupEntry(app){
     /\.stepper-on \.ex-log-row\.ws-current\{\s*border: none; padding: 0; margin-top: 0;/.test(css));
   T('progress reads as one rail rather than separate bars',
     /\.ws-seg::before\{[\s\S]{0,200}height: 2px;/.test(css) && /\.ws-seg:first-child::before\{ left: 50%; \}/.test(css));
+  /* D19.2 replaced the fixed Next button with one forward slot that changes
+     with the state. The assertion this replaces checked that Next outweighed
+     Previous; this checks the same balance AND that the slot is singular. */
   T('the forward action dominates the navigation',
-    /\.ws-nav-next\{[\s\S]{0,160}background: var\(--accent\)/.test(css) &&
+    /\.ws-nav-fwd\.is-next, \.ws-nav-fwd\.is-finish\{[\s\S]{0,120}background: var\(--accent\)/.test(css) &&
     /\.ws-nav-btn\{ background: none; border: none;/.test(css));
+  T('and skip takes that same slot without taking its emphasis',
+    /\.ws-nav-fwd\.is-skip\{[\s\S]{0,160}background: var\(--surface-2\)/.test(css) &&
+    /\.ws-nav-fwd\{\s*flex: 1;/.test(css));
 
   sub('D18 and D18.1 invariants survive');
   T('rows are hidden, never unmounted',
@@ -12040,6 +12066,126 @@ function testRestHold(app){
   })());
 }
 
+/* =========================================================
+   CONTRACT 116 — The forward control is the state (D19.2)
+   ---------------------------------------------------------
+   The workout used to offer Previous, Skip and Next at once,
+   where Skip and Next answered the same question — "move on"
+   — and the athlete had to work out which applied. There is
+   now one way back and one way forward, and the forward
+   control names the state it is in.
+   ========================================================= */
+function testWorkoutNavStates(app){
+  section('CONTRACT 116 — the forward control is the state');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('completion, by the definition the row already used');
+  /* A stand-in row: exerciseRowComplete reads the set rows and asks each
+     whether it is completed, which is all these objects need to answer. */
+  const rowOf = (...done) => ({
+    dataset: {},
+    querySelector: () => done.some(Boolean) ? {} : null,
+    querySelectorAll: () => done.map(d => ({ classList: { contains: c => c === 'completed' && d } }))
+  });
+  T('no sets logged is not complete', ctx.exerciseRowComplete(rowOf(false, false, false)) === false);
+  T('one of three is not complete', ctx.exerciseRowComplete(rowOf(true, false, false)) === false);
+  T('two of three is not complete', ctx.exerciseRowComplete(rowOf(true, true, false)) === false);
+  T('three of three is complete', ctx.exerciseRowComplete(rowOf(true, true, true)) === true);
+  T('an exercise with no sets is not complete', ctx.exerciseRowComplete(rowOf()) === false);
+  T('but one logged set does count as started',
+    ctx.exerciseRowStarted(rowOf(true, false, false)) === true);
+  T('and none does not', ctx.exerciseRowStarted(rowOf(false, false)) === false);
+
+  sub('skipped is current state, not a verdict');
+  const skipped = (flag, ...done) => { const r = rowOf(...done); r.dataset.skipped = flag; return r; };
+  T('a skipped exercise reads skipped', ctx.exerciseRowSkipped(skipped('1', true, false)) === true);
+  T('finishing it stops it reading skipped', ctx.exerciseRowSkipped(skipped('1', true, true)) === false);
+  T('an unskipped exercise never reads skipped', ctx.exerciseRowSkipped(skipped('', false)) === false);
+  T('and completing a skipped exercise clears the flag outright',
+    /if\(row && row\.dataset\.skipped === '1' && exerciseRowComplete\(row\)\) row\.dataset\.skipped = '';/.test(src));
+  T('skipping never edits the athlete\'s sets', (() => {
+    const i = src.indexOf('function skipWorkoutStep');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/remove\(\)|\.value = |innerHTML/.test(fn) && /dataset\.skipped = '1'/.test(fn);
+  })());
+
+  sub('one way forward, never two');
+  T('the forward control is built from the completion state',
+    /const complete = exerciseRowComplete\(row\);/.test(src));
+  T('outstanding work offers Skip', /\{ cls:'is-skip',\s*label:'Skip',/.test(src));
+  T('finished work offers Next', /\{ cls:'is-next',\s*label:'Next',/.test(src));
+  T('the last exercise finished offers Finish Workout',
+    /\{ cls:'is-finish', label:'Finish Workout',/.test(src));
+  T('Skip and Next can never render together', (() => {
+    /* One ternary chain produces exactly one forward descriptor, and the nav
+       emits exactly one .ws-nav-fwd button from it. */
+    const i = src.indexOf('const fwd = !complete');
+    const seg = src.slice(i, i + 700);
+    return (seg.match(/cls:'is-/g) || []).length === 3 &&
+           (src.match(/class="ws-nav-fwd '/g) || []).length === 1;
+  })());
+  T('the exercise navigation renders two controls, not three', (() => {
+    const i = src.indexOf('const prevFwd = nav.dataset.fwd');
+    const seg = src.slice(i, i + 700);
+    return (seg.match(/<button type="button"/g) || []).length === 2;
+  })());
+
+  sub('the control changes the moment the state does');
+  T('completing or un-completing a set re-renders the navigation',
+    /function toggleSetComplete[\s\S]{0,2400}syncWorkoutCompletionState\(exRow\);/.test(src));
+  T('adding a set does too', /function addSetRow[\s\S]{0,700}syncWorkoutCompletionState\(row\);/.test(src));
+  T('and removing one', /function removeSetRow[\s\S]{0,400}syncWorkoutCompletionState\(exRow\);/.test(src));
+  T('the change is marked, but only when it is a change',
+    /if\(prevFwd && prevFwd !== fwd\.cls\)\{/.test(src) && /\.ws-nav-fwd-in\{ animation: wsFwdIn 0\.18s/.test(css));
+  T('and that mark bows out under reduced motion',
+    /@media \(prefers-reduced-motion: reduce\)\{ \.ws-nav-fwd-in\{ animation: none; \} \}/.test(css));
+
+  sub('the navigation is the foot of the surface');
+  /* The finish bar is emptied on every step but the review, and an empty flex
+     container with padding and a border-top is a visible ruled strip. */
+  T('an empty finish bar takes no space', /\.sheet-actions:empty\{ display: none; \}/.test(css));
+  T('the navigation carries the bottom inset itself',
+    /\.ws-nav\{[\s\S]{0,240}calc\(var\(--space-3\) \+ env\(safe-area-inset-bottom, 0px\)\)/.test(css));
+  T('both controls clear the touch minimum',
+    /\.ws-nav-btn, \.ws-nav-fwd\{\s*min-height: 48px;/.test(css));
+
+  sub('states are told apart without colour');
+  T('skipped is a hollow ring, not a filled dot',
+    /\.ws-seg-skip::after\{[\s\S]{0,140}background: transparent;/.test(css));
+  T('and it is not dressed as a failure', (() => {
+    const i = css.indexOf('.ws-seg-skip::after{');
+    return !/var\(--danger\)|var\(--error\)/.test(css.slice(i, css.indexOf('}', i)));
+  })());
+  T('a skipped exercise is never announced as completed',
+    /const state = done \? 'completed' : skipped \? 'skipped'/.test(src));
+  T('the forward control says what it does',
+    /aria:'Skip exercise'/.test(src) && /aria:'Next exercise'/.test(src) &&
+    /aria:'Finish workout'/.test(src) && /aria-label="Previous exercise"/.test(src));
+
+  sub('navigation carries no data and no trainer');
+  T('skip adds no storage key', (() => {
+    const i = src.indexOf('function skipWorkoutStep');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/LOOPStore|DATA_KEYS|setItem/.test(fn);
+  })());
+  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15, String((ctx.DATA_KEYS||[]).length));
+  T('skip is not a trainer signal', (() => {
+    const i = src.indexOf('function skipWorkoutStep');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/trainer|shadow|capability|readiness|recovery/i.test(fn);
+  })());
+  T('and neither is the completion sync', (() => {
+    const i = src.indexOf('function syncWorkoutCompletionState');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/trainer|shadow|capability|readiness|recovery/i.test(fn);
+  })());
+  T('the trainer engine is untouched',
+    ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -12120,6 +12266,7 @@ async function main(){
   testMovementAnimation(H.loadApp());
   testWorkoutJourney(H.loadApp());
   testRestHold(H.loadApp());
+  testWorkoutNavStates(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

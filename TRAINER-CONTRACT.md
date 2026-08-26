@@ -2675,3 +2675,75 @@ zero overflow, zero clipping.
 Zero protected-symbol lines in the diff. `DATA_KEYS` still 15. The rest states
 are presentation only — nothing here writes storage. The trainer remains
 `0.1.1-shadow`.
+
+## §40 — D19.2: the forward control is the state
+
+The workout offered Previous, Skip and Next at once. Skip and Next answered the
+same question — *move on* — and left the athlete to work out which one applied
+to them. There is now one way back and one way forward, and the forward control
+names the state it is in.
+
+| Current exercise | Left | Right |
+|---|---|---|
+| Incomplete | Previous | **Skip** |
+| Complete, not last | Previous | **Next** |
+| Last, incomplete | Previous | **Skip** |
+| Last, complete | Previous | **Finish Workout** |
+
+Skip and Next can never render together: one ternary chain produces exactly one
+forward descriptor and the navigation emits exactly one `.ws-nav-fwd` button
+from it. Skip takes the same slot and size — the thumb never hunts — but is
+outlined rather than filled, because moving on without finishing is a choice
+the interface offers, not one it urges. `#wsFinishBar` stays empty on every
+exercise, so the actual save still lives only on the review step.
+
+**One idea of "finished", finally named.** `exerciseRowDone()` answered two
+different questions with one test: it returned true when *any* set was
+completed. One logged set of three painted the rail green and outranked a skip,
+making a half-done exercise indistinguishable from a finished one. It is now
+split — `exerciseRowStarted()` (anything logged, which is what decides whether
+a workout is under way) and `exerciseRowComplete()` (every set on the exercise
+completed, the same test `markExerciseComplete()` already used to turn the row
+green). Completion is read from the set rows rather than the `.ex-complete`
+class, so adding a set to a finished exercise correctly makes it unfinished
+again. A warm-up set left unticked keeps the exercise incomplete, so warm-up
+work can never unlock Next while working sets remain.
+
+**Skipped is current state, not a verdict.** Skipping sets a DOM flag and moves
+on; it never touches the athlete's sets, writes no storage, and adds no key —
+the draft has no `skipped` field. Returning to a skipped exercise shows every
+set exactly as it was left. Completing the outstanding work clears the skip
+outright: `skipped → completed` on the rail, `Skip → Next` in the navigation,
+no reload. Measured end to end: 2 of 4 sets logged → Skip → rail reads skipped
+with both sets preserved → return → finish the remaining sets → rail reads
+completed and the flag is cleared.
+
+**The control changes when the state does.** `syncWorkoutCompletionState()` runs
+on set completion, un-completion, addition and removal, repainting the rail and
+the forward control under the athlete's thumb. A 0.18s fade marks a genuine
+change of forward action and does not replay when merely moving between
+exercises; it bows out under reduced motion.
+
+**The navigation is the foot of the surface.** `.ws-nav` had no bottom padding
+and no safe-area inset, and sat flush against an emptied `#wsFinishBar` that
+still painted its own background and `border-top` — a 29px ruled strip of
+nothing under the controls on every exercise. The bar now hides when empty
+(`.sheet-actions:empty`), and the inset lives on the navigation where the
+controls actually are. Measured at all five viewports: dead space below the
+navigation **0px**, both controls 48px, no content covered, no horizontal
+overflow.
+
+**Skipped reads without colour.** The rail's skipped stop is a hollow ring in
+the muted warning tone — the shape says "nothing filled in here" on its own,
+and it never reaches for the danger red that would call it a failure. Solid
+green for complete, hollow amber for skipped, flat grey for untouched, filled
+and ringed for current. Every stop still states its status in words, and a
+skipped exercise is never announced as completed.
+
+Rapid interaction is deterministic: 20 Skip, 20 Next, 20 Previous and 20
+alternating Previous/Skip each settle to a valid step with the rail intact, 8
+rows mounted, and exactly one live interval throughout. Five consecutive skips
+wrote nothing — `workoutLog`, `cardioLog`, `trainerLog`, XP, level, PRs,
+`exerciseNotes`, `gymProfile` and `programs` all byte-identical before and
+after. `DATA_KEYS` is still 15. Skip is not a trainer signal and does not reach
+one. The trainer remains `0.1.1-shadow`.

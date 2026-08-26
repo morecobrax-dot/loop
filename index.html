@@ -2684,7 +2684,13 @@ textarea{ resize: vertical; min-height: 56px; }
   transition: background 0.18s var(--ease), transform 0.18s var(--ease);
 }
 .ws-seg-done::after{ background: var(--success); }
-.ws-seg-skip::after{ background: var(--warning); opacity: 0.6; }
+/* Skipped: passed over, not failed. A hollow ring in the muted warning tone —
+   the shape says "nothing filled in here" on its own, so the state survives
+   being read by someone who cannot separate it from grey by colour, and it
+   never reaches for the danger red that would call it a failure. */
+.ws-seg-skip::after{
+  background: transparent; border-color: var(--warning); opacity: 0.75;
+}
 .ws-seg-now::after{
   background: var(--accent); transform: scale(1.25);
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -2766,11 +2772,21 @@ textarea{ resize: vertical; min-height: 56px; }
   .ws-rest::after{ transition: none; }
 }
 
+/* The navigation is the foot of the workout surface, so it carries the bottom
+   inset itself. It used to have no bottom padding at all and sat flush against
+   an empty finish bar below it — which still painted its own border and
+   background, putting a 29px ruled strip of nothing under the controls on
+   every exercise. The bar hides when empty (below), and the padding lives
+   here where the controls actually are. */
 .ws-nav{
   display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
-  padding: var(--space-3) var(--space-5) 0;
+  padding: var(--space-3) var(--space-5)
+           calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
 }
 .ws-nav:empty{ display: none; }
+/* D19 empties this on every step but the review. An empty flex container with
+   padding and a border-top is not nothing — it is a visible seam. */
+.sheet-actions:empty{ display: none; }
 
 /* The warm-up entry, when the stepper is showing it: no box, no gradient, no
    border — the screen itself is the prompt. */
@@ -2789,23 +2805,36 @@ textarea{ resize: vertical; min-height: 56px; }
   background: none; border: none; cursor: pointer;
   font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; color: var(--text-dim);
 }
-.ws-nav-btn, .ws-nav-next{
-  min-height: 44px; padding: 0 var(--space-4); border-radius: var(--radius-md);
+.ws-nav-btn, .ws-nav-fwd{
+  min-height: 48px; padding: 0 var(--space-4); border-radius: var(--radius-md);
   font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer;
   transition: opacity 0.15s var(--ease), transform 0.12s var(--ease);
 }
-/* Previous and Skip are quiet text; Next carries the weight, because moving
-   forward is what the athlete does most. */
+/* Previous is quiet text; the forward control carries the weight, because
+   moving forward is what the athlete does most. */
 .ws-nav-btn{ background: none; border: none; color: var(--text-dim); padding: 0 var(--space-3); }
-/* Skip is the only one of the three that leaves work undone, so it sits a
-   step quieter than Previous rather than level with it. */
-.ws-nav-skip{ font-weight: 500; color: var(--text-faint); }
-.ws-nav-next{
-  flex: 1; background: var(--accent); border: none; color: #0A0C10; font-weight: 700;
-  box-shadow: var(--shadow-accent);
+/* One forward slot, three states. Skip occupies it when work is outstanding —
+   same position, same size, so the athlete's thumb never has to hunt — but
+   outlined rather than filled, because moving on without finishing is a
+   choice the interface offers, not one it urges. */
+.ws-nav-fwd{
+  flex: 1; border: 1px solid transparent; font-weight: 700;
 }
+.ws-nav-fwd.is-skip{
+  background: var(--surface-2); border-color: var(--border); color: var(--text-dim);
+  font-weight: 600;
+}
+.ws-nav-fwd.is-next, .ws-nav-fwd.is-finish{
+  background: var(--accent); color: #0A0C10; box-shadow: var(--shadow-accent);
+}
+/* The end of the journey earns a little more presence than another Next. */
+.ws-nav-fwd.is-finish{ letter-spacing: 0.01em; }
 .ws-nav-btn:disabled{ opacity: 0.35; cursor: default; }
-.ws-nav-btn:active:not(:disabled), .ws-nav-next:active{ transform: scale(0.98); }
+.ws-nav-btn:active:not(:disabled), .ws-nav-fwd:active{ transform: scale(0.98); }
+/* Only played when the forward action actually changed — see renderWorkoutStep. */
+@keyframes wsFwdIn{ from{ opacity: 0.35; } to{ opacity: 1; } }
+.ws-nav-fwd-in{ animation: wsFwdIn 0.18s var(--ease); }
+@media (prefers-reduced-motion: reduce){ .ws-nav-fwd-in{ animation: none; } }
 
 /* Short enough to feel like the workout moving, not a page loading. */
 @keyframes wsInR{ from{ opacity: 0; transform: translateX(14px); } to{ opacity: 1; transform: none; } }
@@ -22727,11 +22756,30 @@ function workoutStepCount(){ return workoutStepRows().length; }
 /* An exercise counts as done when it has at least one completed set. This
    reads the same .completed class the set button already toggles — it is a
    view of existing state, not a second record of it. */
-function exerciseRowDone(row){
+/* Two different questions, which used to share one answer.
+
+   STARTED — has any set been logged on this exercise? That is what decides
+   whether a workout is under way, and it is all the old exerciseRowDone()
+   ever meant.
+
+   COMPLETE — is this exercise's work finished? That is every set on it
+   completed: the same test markExerciseComplete() already uses to turn the
+   row green. Answering "complete" with "started" meant one logged set out of
+   three painted the progress rail green and outranked a skip, which is what
+   made a half-finished exercise indistinguishable from a finished one.
+
+   Read from the set rows rather than from the .ex-complete class, so adding a
+   set to a finished exercise correctly makes it unfinished again. */
+function exerciseRowStarted(row){
   return !!row.querySelector('.set-row.completed');
 }
+function exerciseRowComplete(row){
+  if(!row) return false;
+  const sets = [...row.querySelectorAll('.set-row')];
+  return sets.length > 0 && sets.every(s => s.classList.contains('completed'));
+}
 function exerciseRowSkipped(row){
-  return row.dataset.skipped === '1' && !exerciseRowDone(row);
+  return row.dataset.skipped === '1' && !exerciseRowComplete(row);
 }
 
 function workoutStepName(row){
@@ -22781,7 +22829,7 @@ function workoutStepBarHtml(rows, current){
       ' aria-label="' + escapeAttr('Warm-up, ' + state) + '"></button>';
   }
   segs += rows.map((row, i) => {
-    const done = exerciseRowDone(row);
+    const done = exerciseRowComplete(row);
     const skipped = exerciseRowSkipped(row);
     const cls = 'ws-seg' + (i === current ? ' ws-seg-now' : '') +
       (done ? ' ws-seg-done' : '') + (skipped ? ' ws-seg-skip' : '');
@@ -22951,6 +22999,7 @@ function renderWorkoutStep(opts){
     /* The entry carries its own two actions — Start Warm-up and Skip — so the
        navigation bar stays out of its way entirely. */
     nav.innerHTML = '';
+    nav.dataset.fwd = '';
   } else if(i === STEP_FINISH){
     head.innerHTML =
       '<div class="ws-k">Finish</div>' +
@@ -22959,6 +23008,7 @@ function renderWorkoutStep(opts){
       '<p class="ws-lede">' + escapeHtml(workoutStepSummaryLine(rows)) + '</p>';
     nav.innerHTML =
       '<button type="button" class="ws-nav-btn" onclick="goToWorkoutStep(' + (rows.length - 1) + ')">Back</button>';
+    nav.dataset.fwd = '';
   } else {
     const row = rows[i];
     const name = workoutStepName(row);
@@ -22969,15 +23019,31 @@ function renderWorkoutStep(opts){
       '<h3 class="ws-name">' + escapeHtml(name) + '</h3>' +
       workoutStepMusclesHtml(name);
     const isLast = i >= rows.length - 1;
-    /* One primary action, two quiet ones. Previous and Skip were the same
-       weight as Next, which made "move on" look like a three-way choice
-       instead of the obvious next thing to do. */
+    /* One way back and one way forward — never both Skip and Next, because
+       they answered the same question with different words and the athlete
+       had to work out which one applied to them. The forward control IS the
+       state: work outstanding says Skip, work finished says Next, and the
+       last exercise finished says Finish Workout. */
+    const complete = exerciseRowComplete(row);
+    const fwd = !complete
+      ? { cls:'is-skip',   label:'Skip',           aria:'Skip exercise',  fn:'skipWorkoutStep()' }
+      : isLast
+      ? { cls:'is-finish', label:'Finish Workout', aria:'Finish workout', fn:'nextWorkoutStep()' }
+      : { cls:'is-next',   label:'Next',           aria:'Next exercise',  fn:'nextWorkoutStep()' };
+    const prevFwd = nav.dataset.fwd || '';
     nav.innerHTML =
       '<button type="button" class="ws-nav-btn" onclick="prevWorkoutStep()"' +
-        (i === 0 ? ' disabled' : '') + '>Previous</button>' +
-      '<button type="button" class="ws-nav-btn ws-nav-skip" onclick="skipWorkoutStep()">Skip</button>' +
-      '<button type="button" class="ws-nav-next" onclick="nextWorkoutStep()">' +
-        (isLast ? 'Finish Workout' : 'Next') + '</button>';
+        (i === 0 ? ' disabled' : '') + ' aria-label="Previous exercise">Previous</button>' +
+      '<button type="button" class="ws-nav-fwd ' + fwd.cls + '" onclick="' + fwd.fn + '"' +
+        ' aria-label="' + fwd.aria + '">' + fwd.label + '</button>';
+    /* Ticking the last set changes the forward control under the athlete's
+       thumb. A short fade marks that it changed; moving between exercises
+       does not replay it, because the action there is the same one. */
+    if(prevFwd && prevFwd !== fwd.cls){
+      const b = nav.querySelector('.ws-nav-fwd');
+      if(b) b.classList.add('ws-nav-fwd-in');
+    }
+    nav.dataset.fwd = fwd.cls;
   }
 
   /* A step change starts at the top of the new step, never halfway down the
@@ -22995,7 +23061,7 @@ function renderWorkoutStep(opts){
 }
 
 function workoutStepSummaryLine(rows){
-  const done = rows.filter(exerciseRowDone).length;
+  const done = rows.filter(exerciseRowComplete).length;
   const skipped = rows.filter(exerciseRowSkipped).length;
   let out = done + ' of ' + rows.length + ' exercises logged';
   if(skipped) out += ' · ' + skipped + ' skipped';
@@ -23036,12 +23102,26 @@ function prevWorkoutStep(){
 }
 /* Skip moves past an exercise for now. It never removes it from the workout:
    the row stays mounted with everything in it, the segment shows it as
-   skipped, and tapping that segment returns to it. */
+   skipped, and tapping that segment returns to it. Sets already logged stay
+   logged — skipping is a navigation decision, not an edit. */
 function skipWorkoutStep(){
   const rows = workoutStepRows();
   const row = rows[logStepIndex];
   if(row) row.dataset.skipped = '1';
   nextWorkoutStep();
+}
+
+/* Called whenever the completeness of an exercise can have changed: a set
+   completed or un-completed, added or removed. Repaints the rail and the
+   forward control, so the last set ticked turns Skip into Next under the
+   athlete's thumb with no reload and no second tap — and removing required
+   work turns it back. */
+function syncWorkoutCompletionState(row){
+  /* Finishing an exercise that was skipped earlier retires the skip: they
+     came back and did the work, and the rail should stop saying otherwise.
+     Skipped is current workout state, not a permanent verdict. */
+  if(row && row.dataset.skipped === '1' && exerciseRowComplete(row)) row.dataset.skipped = '';
+  try{ renderWorkoutStep(); }catch(e){}
 }
 
 /* A freeform workout opens with no exercises at all, so the stepper is not
@@ -23069,7 +23149,7 @@ function syncWorkoutStepper(opts){
        that inline write is what pinned the card above every exercise — so the
        question "does this workout have a warm-up" is asked of the data flag. */
     const prepOffered = prep && prep.dataset.available === '1';
-    const started = rows.some(exerciseRowDone);
+    const started = rows.some(exerciseRowStarted);
     /* Three things have to be true for the warm-up to lead: this workout has
        one available, it has not been through the stage already, and no set has
        been logged. Anything else resumes at the first exercise still to do. */
@@ -23077,7 +23157,10 @@ function syncWorkoutStepper(opts){
       logStepIndex = STEP_WARMUP;
     } else {
       if(started || warmupStagePassed()) markWarmupStagePassed();
-      const firstOpen = rows.findIndex(r => !exerciseRowDone(r));
+      /* Resume where work remains, which now means the first exercise that is
+         not FINISHED rather than the first with nothing logged — a half-done
+         exercise is somewhere to return to, not somewhere to skip past. */
+      const firstOpen = rows.findIndex(r => !exerciseRowComplete(r));
       logStepIndex = firstOpen === -1 ? 0 : firstOpen;
     }
   }
@@ -23497,13 +23580,18 @@ function addSetRow(btnEl){
   const r = last ? last.querySelector('.set-reps-in').value : '';
   const rir = last ? last.querySelector('.set-rir-in').value : '';
   appendSetRow(setsList, w, r, bw, rir);
+  // A new set is work outstanding again: a finished exercise stops being one.
+  syncWorkoutCompletionState(row);
   persistDraftNow();
 }
 
 function removeSetRow(btn){
   const setsList = btn.closest('.sets-list');
+  const exRow = btn.closest('.ex-log-row');
   btn.closest('.set-row').remove();
   renumberSets(setsList);
+  // Removing the last outstanding set can finish the exercise outright.
+  syncWorkoutCompletionState(exRow);
   persistDraftNow();
 }
 function renumberSets(setsList){
@@ -23726,6 +23814,7 @@ function toggleSetComplete(btn){
     panel.style.display = 'none';
   }
   if(!isDone && exRow) exRow.classList.remove('ex-complete');
+  syncWorkoutCompletionState(exRow);
   persistDraftNow();
 }
 
