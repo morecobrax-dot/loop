@@ -1794,13 +1794,34 @@ function testUpdatesCurrency(app){
   T('no duplicate update ids',
     new Set((ctx.LOOP_UPDATES||[]).map(u=>u.id)).size === (ctx.LOOP_UPDATES||[]).length);
 
-  sub('tab glyph consistency');
+  sub('tab icon consistency');
   const fs = require('fs');
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
-  const glyphs = [...src.matchAll(/<span class="glyph">([^<]*)<\/span>/g)].map(m => m[1]);
-  T('all tab glyphs are symbols, not letters',
-    glyphs.every(g => !/^[A-Za-z]{2,}$/.test(g)), glyphs.join(' '));
-  T('five tabs present', glyphs.length === 5, String(glyphs.length));
+  /* These two assertions read the Unicode characters out of the markup — the
+     bar drew itself with a diamond, a shaded block, a triangle, a fisheye and
+     an identical-to. The premium pass replaced them with drawn icons from
+     LOOP's own family, so the spans are now empty and filled at boot. The
+     contract is stronger than it was: five tabs, five icons, one family. */
+  const slots = [...src.matchAll(/<span class="glyph" id="tabIcon([A-Za-z]+)"><\/span>/g)].map(m => m[1]);
+  T('five tabs present', slots.length === 5, String(slots.length));
+  T('every tab has an icon slot, and no two share one',
+    new Set(slots).size === 5, slots.join(','));
+  T('no tab borrows a letterform to mean something',
+    !/<span class="glyph">[^<]/.test(src));
+  T('every slot is painted from the shared icon function', (() => {
+    const fn = src.slice(src.indexOf('function paintTabIcons()'), src.indexOf('function initPageIsolation()'));
+    return slots.every(s => fn.indexOf('tabIcon' + s) !== -1) && fn.indexOf('tabIconSvg(') !== -1;
+  })());
+  T('the icons are drawn in the same language as the rest of the family', (() => {
+    const fn = src.slice(src.indexOf('function tabIconSvg(name)'), src.indexOf('function trendIconSvg'));
+    return /viewBox="0 0 16 16"/.test(fn) && /stroke="currentColor"/.test(fn) &&
+           /fill="none"/.test(fn) && /aria-hidden="true"/.test(fn);
+  })());
+  T('each of the five tabs has a path, so none renders empty', (() => {
+    const fn = src.slice(src.indexOf('function tabIconSvg(name)'), src.indexOf('function trendIconSvg'));
+    return ['today','train','progress','cardio','log'].every(k =>
+      new RegExp(k + ":\\s*'<").test(fn));
+  })());
 }
 
 /* =========================================================
@@ -6681,7 +6702,19 @@ function testD11Consolidation(app){
     T('seven days, always', wk.days.length === 7);
     T('planned counts only training days', wk.planned === 4);
     T('exactly one day is today', wk.days.filter(d => d.isToday).length === 1);
-    T('rest days are marked rest', wk.days.filter(d => d.cat === 'rest').every(d => d.state === 'rest'));
+    /* This asserted that EVERY rest-category day carries state 'rest', which
+       is only true on four days of the week. When today lands on one of the
+       fixture's rest days (wed, sat, sun) that day is correctly marked
+       'today' instead — today outranks category, which is what lets Today
+       present a rest day as a deliberate state rather than an empty one. The
+       assertion failed one run in two and was a flaw in the test, not the app;
+       it now says what the rule actually is. */
+    T('a rest day that is not today is marked rest',
+      wk.days.filter(d => d.cat === 'rest' && !d.isToday).every(d => d.state === 'rest'));
+    T('today is marked today whatever its category',
+      wk.days.filter(d => d.isToday).every(d => d.state === 'today'));
+    T('and a rest day is never treated as a missed workout',
+      wk.days.filter(d => d.cat === 'rest').every(d => d.state !== 'missed'));
     T('every day carries a state', wk.days.every(d => !!d.state));
     T('done never exceeds planned', wk.done <= wk.planned);
   }
@@ -9092,8 +9125,18 @@ function testPRSetHighlight(app){
     /aria-label="' \+ escapeAttr\(prSetTitle\(prType\)\)/.test(src));
   T('the descriptions name the actual record type',
     ctx.prSetTitle('weight') === 'Heaviest set yet' && ctx.prSetTitle('1rm').indexOf('one-rep max') !== -1);
+  /* This pinned font-size: 8.5px. The premium pass put a floor under every
+     micro-label at 11px — 8.5px was unreadable on a phone — so the literal is
+     gone, but the contract it protected is not: the badge must stay
+     subordinate to the set it annotates. That is now asserted as the
+     relationship rather than a magic number, which is the stronger form:
+     the badge reads at the micro size, the set it sits on reads a step above. */
   T('the badge is small enough not to shout',
-    /\.set-chip-pr\{[\s\S]{0,160}font-size: 8\.5px/.test(css));
+    /\.set-chip-pr\{[\s\S]{0,200}font-size: var\(--fs-micro\)/.test(css));
+  T('and the set it annotates is a step larger', (() => {
+    const chip = css.match(/\.set-chip\{[^}]*font-size:\s*([\d.]+)px/);
+    return !!chip && parseFloat(chip[1]) > 11;
+  })());
   T('existing set rendering is unchanged when there is no record',
     ctx.setChipHtml({ weight:'100', reps:'5' }, false).indexOf('set-chip-record') === -1);
 }
@@ -9656,12 +9699,15 @@ function testIconSystemD14(app){
     .forEach(l => T('"' + l + '" is an accessible name in the markup',
       src.indexOf('aria-label="' + l + '"') !== -1));
 
-  sub('what was deliberately left alone');
-  /* The five navigation glyphs are a coherent set of their own. Swapping them
-     one at a time would produce a mixed bar; they need designing as a set,
-     which is a different piece of work from this audit. */
-  T('the navigation glyphs are untouched and still a complete set',
-    (src.match(/<span class="glyph">/g) || []).length === 5);
+  sub('the navigation bar joined the icon family');
+  /* D14 deferred this deliberately: "they need designing as a set, which is a
+     different piece of work from this audit." The premium pass did that work,
+     so the assertion that recorded the deferral is replaced by one that holds
+     the result — the bar no longer mixes Unicode geometry with drawn icons. */
+  T('the five tabs carry drawn icons, not characters',
+    (src.match(/<span class="glyph" id="tabIcon[A-Za-z]+"><\/span>/g) || []).length === 5);
+  T('and they come from one function, so the set cannot drift apart',
+    (src.match(/function tabIconSvg\(/g) || []).length === 1);
   T('an interpolation never leaked into static markup', (() => {
     const body = src.slice(src.indexOf('<body>'), src.indexOf('<script>'));
     return !/\$\{[a-zA-Z]+\(/.test(body);
@@ -10574,6 +10620,123 @@ function testReliability(app){
   T('no new storage key', ctx.DATA_KEYS.length === 15);
 }
 
+/* =========================================================
+   CONTRACT 105 — One design system, followed (Premium pass)
+   ---------------------------------------------------------
+   LOOP already had a real token system: three surfaces,
+   three text levels, category and status colours, four
+   radii, six spacing steps, four shadows, one easing.
+   Typography was the axis nobody governed — 39 distinct
+   font sizes, and 148 rules below 11px spread across seven
+   different values with no rule deciding which.
+   ========================================================= */
+function testDesignSystem(app){
+  section('CONTRACT 105 — one design system, followed');
+  const ctx = app.ctx;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('type is a scale, not a pile of numbers');
+  ['--fs-micro','--fs-meta','--fs-support','--fs-body','--fs-card-title','--fs-section','--fs-title','--fs-metric']
+    .forEach(t => T(t + ' is defined', new RegExp(t.replace(/-/g,'\\-') + ':\\s*\\d').test(css)));
+  T('the micro tier is one token, not seven sizes',
+    (css.match(/var\(--fs-micro\)/g) || []).length > 100,
+    (css.match(/var\(--fs-micro\)/g) || []).length + ' uses');
+
+  sub('nothing is too small to read on a phone');
+  /* 160 rendered elements were under 11px, the smallest at 7px. Apple's own
+     floor is 11pt and LOOP had no floor at all. */
+  T('no rule sets text below the floor', (() => {
+    const bad = [];
+    const re = /([^{}]+)\{([^{}]*)\}/g; let m;
+    const ICON_OK = /glyph|caret|icon|ob-mock/;
+    while((m = re.exec(css))){
+      const sel = m[1].replace(/\s+/g,' ').trim(), body = m[2];
+      const f = body.match(/font-size:\s*([\d.]+)px/);
+      if(f && parseFloat(f[1]) < 11 && !ICON_OK.test(sel)) bad.push(sel + ' @' + f[1]);
+    }
+    return bad.length === 0 ? true : bad;
+  })() === true, 'rules below 11px remain');
+
+  sub('text drawn inside an SVG obeys the same floor');
+  /* A stylesheet audit cannot see this: SVG text is scaled by its viewBox, so
+     the body diagram's labels were rendering at 4.74px and the chart dates at
+     8.48px while every CSS rule looked fine. */
+  T('no SVG text is declared below 11 units', (() => {
+    const bad = (src.match(/font-size="([\d.]+)"/g) || [])
+      .map(x => parseFloat(x.match(/[\d.]+/)[0])).filter(v => v < 11);
+    return bad.length === 0 ? true : bad;
+  })() === true);
+  T('the outermost axis labels anchor to the edge so they are not clipped',
+    /const anchor = isFirst \? 'start' : isLast \? 'end' : 'middle';/.test(src));
+  T('the body diagram grew its box rather than shrinking its labels',
+    /viewBox="0 0 124 167"/.test(src));
+
+  sub('charts use the palette instead of restating it');
+  T('the volume bars are accent, by name', /fill="var\(--accent\)"/.test(src));
+  T('axis labels are faint text, by name', /fill="var\(--text-faint\)"/.test(src));
+  T('the trend area and line too',
+    /fill="var\(--accent-soft\)" stroke="var\(--accent\)"/.test(src));
+  T('no chart still hard-codes a colour that has a token', (() => {
+    const js = src.slice(src.indexOf('</style>'));
+    return !/(fill|stroke)="#(5B8CFF|5B616B|9AA1AC|4B9C81|BD9260|E5675F)"/i.test(js);
+  })());
+  /* PHASE_INTENT keeps its own literals on purpose: Foundation, Build, Peak
+     and Deload are a domain palette, and "Peak" is not an error state. */
+  T('the phase palette was left as its own set', /name:'Peak', color:'#E5675F'/.test(src));
+
+  sub('the navigation bar belongs to the icon family');
+  T('one function draws all five', (src.match(/function tabIconSvg\(/g) || []).length === 1);
+  T('drawn on the family grid, in the family stroke', (() => {
+    const fn = src.slice(src.indexOf('function tabIconSvg(name)'), src.indexOf('function trendIconSvg'));
+    return /viewBox="0 0 16 16"/.test(fn) && /stroke-width="1.6"/.test(fn) && /stroke="currentColor"/.test(fn);
+  })());
+  T('the icons are decorative — the button carries the name', (() => {
+    const fn = src.slice(src.indexOf('function tabIconSvg(name)'), src.indexOf('function trendIconSvg'));
+    return /aria-hidden="true"/.test(fn);
+  })());
+  T('and the tab still says its own name in text',
+    /id="tabIconToday"><\/span>Today/.test(src));
+  T('the active state is not carried by colour alone',
+    /\.tab-btn\.active \.glyph\{[^}]*border-color: var\(--accent\)[^}]*background: var\(--accent-soft\)/.test(css));
+
+  sub('Volume: the chart and the muscle breakdown are two sections, not one');
+  /* Measured before: the chart's axis labels ended at y=637, the chart box at
+     642, and the muscle rows began at 642 — a gap of zero, so the dates ran
+     into the breakdown. .sec-head is what carries LOOP's section separation,
+     and this was the only section in the panel without one. */
+  T('the breakdown has a heading', /<div class="sec-head">Sets this week by muscle<\/div>/.test(src));
+  T('the heading comes before the data, not after',
+    src.indexOf('Sets this week by muscle') < src.indexOf("muscleBarsHtml(totals)"));
+  T('and the trailing caption is gone rather than repeated',
+    /muscleBarsHtml\(totals\)/.test(src));
+  T('the caption is optional so a heading never duplicates it',
+    /\(caption \? `<div class="muscle-bar-foot"|caption \? `<div class="muscle-foot">/.test(src));
+  T('the Mastery tab still labels its own copy of the same component',
+    /<div class="sec-head">Muscle group volume<\/div>/.test(src));
+  T('one bar component serves both, not two',
+    (src.match(/function muscleBarsHtml\(/g) || []).length === 1);
+
+  sub('a record reads larger than the badge annotating it');
+  T('the set value', (() => {
+    const m = css.match(/\.set-chip\{[^}]*font-size:\s*([\d.]+)px/);
+    return !!m && parseFloat(m[1]) >= 13;
+  })());
+  T('the PR badge sits at the micro tier',
+    /\.set-chip-pr\{[\s\S]{0,200}font-size: var\(--fs-micro\)/.test(css));
+
+  sub('nothing about the product changed');
+  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+  T('shadow evidence retention is untouched', /TRAINER_LOG_MAX = 2000/.test(src));
+  T('the schedule engine was not touched by a visual pass',
+    /function applyTrainingSetup\(\)[\s\S]{0,300}persistSchedule\(\)/.test(src));
+  T('D17 accessibility survived', /function initSheetKeyboard\(/.test(src) &&
+    /ov\.setAttribute\('aria-modal', 'true'\)/.test(src));
+  T('reduced motion is still honoured',
+    /@media \(prefers-reduced-motion: reduce\)/.test(css));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -10643,6 +10806,7 @@ async function main(){
   testFirstUse(H.loadApp());
   testFirstRunRefinement(H.loadApp());
   testReliability(H.loadApp());
+  testDesignSystem(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

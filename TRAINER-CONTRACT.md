@@ -1809,3 +1809,139 @@ it and those assertions would have tested the stub rather than the app. Both
 are verified in a real browser after 20 rapid switches.
 
 The trainer is untouched and remains `0.1.1-shadow`.
+
+## §30 — One design system, followed (Premium design pass)
+
+An audit-first visual pass. No feature added, no engine touched.
+
+### What the audit found
+
+LOOP already had a real token system — three surfaces, three text levels,
+category and status colours, four radii, six spacing steps, four shadows, one
+easing — and it was followed reasonably well: 209 radius token uses against 44
+raw values, 233 spacing token uses, 128 uses of `--ease`.
+
+**Typography was the axis nobody governed.** 39 distinct font sizes. 148 CSS
+rules below 11px, spread across 7, 8, 8.5, 9, 9.5, 10 and 10.5 with no rule
+deciding which. In the running app that produced **160 rendered elements under
+11px**, including 8px "Plan", 9px "Today", 9.5px week-day letters and 10px
+"Tap a day to see it".
+
+The brief's own words: *avoid tiny text as a solution to density*.
+
+### The type scale
+
+Eight tokens, one per role — micro, meta, support, body, card title, section,
+title, metric. The 141 micro-label rules that were doing the same job at seven
+different sizes collapse to `--fs-micro`, at 11px, which is the floor Apple's
+guidance sets and the app had none of.
+
+Icon-like rules were left alone deliberately — carets and glyph boxes are sized
+as shapes, not as text.
+
+### Text inside SVG, which no stylesheet audit can see
+
+SVG text is scaled by its viewBox, so a CSS floor never reaches it. Measured
+rendered sizes:
+
+| label | before | after |
+|---|---|---|
+| body diagram FRONT / BACK | **4.74px** | 10.16px |
+| strength chart dates | 8.48px | 10.37px |
+| volume chart dates | 8.48px | 11.52px |
+| chart min / max | 8px declared | 11 |
+
+Making them readable pushed the outermost labels outside the viewBox, where
+`overflow:hidden` clipped them — "Aug 24" lost its last characters. The first
+and last labels now anchor to their edge instead of centring on their bar, and
+the body diagram's box grew by five units rather than its labels shrinking.
+
+### The Volume / muscle-breakdown overlap
+
+Named in the brief and reproduced exactly. The chart's axis labels ended at
+y=637, the chart box at 642, and the muscle rows began at **642 — a gap of
+zero**. The dates ran straight into the breakdown.
+
+The cause was not spacing but structure: `.sec-head` is what carries LOOP's
+section separation (26px plus a rule), and the muscle breakdown was the only
+section in the panel without one. It also placed its caption *below* the data,
+so the reader met six bars before learning what they counted. The Mastery tab
+already renders the same component the right way round.
+
+It now has a heading — "Sets this week by muscle" — before the data, and the
+redundant trailing caption is gone. **Gap: 0px → 26px.** `muscleBarsHtml()`
+takes an optional caption so one component still serves both callers.
+
+### The navigation bar joined the icon family
+
+The bottom bar is the one component on screen at all times, and it was the only
+one still drawing itself with Unicode geometry: ◆ ▤ ▲ ◉ ≡. Those characters
+render differently on every platform, have no relationship to each other, and
+belong to no family — while the rest of LOOP has a real icon set.
+
+`tabIconSvg()` draws all five on the family's own 16 grid, no fill,
+`currentColor`, 1.6 stroke, round joins, `aria-hidden` because the button
+already carries its name in text. Each says what its tab is *for*: the ring
+LOOP is named after with the day marked inside it, a bar with plates, three
+rising columns, a heartbeat, a calendar. The bordered glyph box and its active
+treatment are unchanged, so the bar still looks like LOOP.
+
+**D14 deferred this deliberately** — "they need designing as a set, which is a
+different piece of work from this audit" — and the assertion recording that
+deferral is now replaced by one holding the result.
+
+### Charts use the palette instead of restating it
+
+Sixteen hex literals in generated markup duplicated existing tokens. All are
+now `var(--accent)`, `var(--text-faint)`, `var(--text-dim)`, `var(--accent-soft)`.
+
+`PHASE_INTENT` keeps its own literals **on purpose**: Foundation, Build, Peak
+and Deload are a domain palette that happens to share values with semantic
+tokens, and "Peak" is not an error state.
+
+### Contract 105
+
+Thirty-seven assertions: the eight type tokens exist; no CSS rule and no SVG
+attribute sets text below the floor; edge labels anchor rather than clip; charts
+use named colours; the phase palette stays its own set; one function draws all
+five tab icons on the family grid; the active tab is not indicated by colour
+alone; the Volume breakdown has a heading before its data; a set value reads
+larger than the PR badge annotating it; and nothing about storage, the trainer
+or D17's accessibility changed.
+
+**Three assertions were replaced, not weakened**, all because the UI contract
+this brief set deliberately changed what they pinned:
+
+- `all tab glyphs are symbols, not letters` and `five tabs present` read the
+  Unicode characters out of the markup. Replaced by five assertions: five
+  distinct icon slots, no tab borrowing a letterform, every slot painted from
+  the shared function, drawn in the family's language, and a path present for
+  each of the five so none renders empty.
+- `the navigation glyphs are untouched and still a complete set` recorded D14's
+  deferral. Replaced by the result plus a check that one function owns the set.
+- `the badge is small enough not to shout` pinned `font-size: 8.5px`. The
+  relationship it protected is now asserted directly — the badge sits at the
+  micro tier and the set it annotates reads a step above it — which is the
+  stronger form.
+
+### A pre-existing test bug found at baseline
+
+`rest days are marked rest` asserted that *every* rest-category day carries
+state `'rest'`. When today falls on one of the fixture's rest days it is
+correctly marked `'today'` instead — today outranks category, which is what
+lets Today present a rest day as a deliberate state rather than an empty one.
+The assertion passed four days a week and failed three. It now states the
+actual rule, plus that a rest day is never counted as a missed workout.
+
+### Measured
+
+375×812, 390×844, 812×375, 844×390 and 932×430, across five tabs, four Progress
+sub-tabs, nine sheets and the open workout: **no clipping, no text under 11px,
+no control under 44px, no field under 16px, no horizontal overflow.** Rest timer
+text fits inside its ring at every value from 0:30 to 12:30 (worst case 1.7px
+clearance).
+
+Pure visual navigation writes nothing: all fifteen `DATA_KEYS` byte-identical,
+XP unchanged, 35 logged sessions intact.
+
+The trainer is untouched and remains `0.1.1-shadow`.
