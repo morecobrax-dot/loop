@@ -10974,6 +10974,128 @@ function testMomentum(app){
   })());
 }
 
+/* =========================================================
+   CONTRACT 108 — The workout is a sequence (Phase D18)
+   ---------------------------------------------------------
+   One exercise on screen at a time, warm-up first, finish
+   last — built as a visibility layer because LOOP's workout
+   state IS the DOM.
+   ========================================================= */
+function testWorkoutStepper(app){
+  section('CONTRACT 108 — the workout is a sequence');
+  const ctx = app.ctx;
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('THE INVARIANT — every exercise stays mounted');
+  /* captureActiveDraft() and saveLog() both read their values out of the
+     rendered inputs. Unmounting the exercises the athlete is not looking at
+     would silently drop them from the next autosave — which fires 250ms after
+     any input and on pagehide — and from the final save. So the stepper hides
+     rows; it must never remove them. */
+  T('the stepper hides rows with CSS rather than unmounting them',
+    /\.stepper-on \.ex-log-row,[\s\S]{0,80}display: none;/.test(css));
+  T('and reveals exactly the current one',
+    /\.stepper-on \.ex-log-row\.ws-current,[\s\S]{0,60}display: block;/.test(css));
+  T('no stepper function removes an exercise row', (() => {
+    const mod = src.slice(src.indexOf('const STEP_WARMUP'), src.indexOf('function openLogSheet()'));
+    /* The stepper clears its own chrome (wsHead / wsNav) when there is nothing
+       to step through — that is not the risk. The risk is touching the rows
+       themselves, or the container that holds them, since that is where the
+       workout's only copy of the athlete's sets lives. */
+    const dangerous = [
+      /#logExercises[^;\n]*\.(remove|removeChild)\s*\(/,
+      /#logExercises[^;\n]*\.innerHTML\s*=/,
+      /\.ex-log-row[^;\n]*\.(remove|removeChild)\s*\(/,
+      /logExercises'\)\s*\.innerHTML/
+    ];
+    const hit = dangerous.filter(re => re.test(mod));
+    return hit.length === 0 ? true : hit.map(String);
+  })() === true);
+  T('and it only ever toggles classes on them',
+    /rows\.forEach\(\(row, idx\) => row\.classList\.toggle\('ws-current', idx === i\)\);/.test(src));
+  T('skip flags the row, it does not delete it',
+    /function skipWorkoutStep\(\)\{[\s\S]{0,220}row\.dataset\.skipped = '1';/.test(src));
+  T('and a skipped exercise is still reachable',
+    /onclick="goToWorkoutStep\(' \+ i \+ '\)"/.test(src));
+
+  sub('the save path was not touched');
+  T('saveLog still reads every mounted row',
+    /const rows = document\.querySelectorAll\('#logExercises \.ex-log-row'\);/.test(src));
+  T('the draft capture still reads every mounted row',
+    /function captureActiveDraft[\s\S]{0,800}#logExercises \.ex-log-row/.test(src));
+  T('the required inputs are still inside the sheet, by id', (() => {
+    const sheet = src.slice(src.indexOf('id="logOverlay"'), src.indexOf('ADD / EDIT TEMPLATE SHEET'));
+    return ['logTitle','logDate','logNotes','logExercises'].every(id => sheet.indexOf('id="' + id + '"') !== -1);
+  })());
+  T('and each appears exactly once in the document',
+    ['logTitle','logDate','logNotes','logExercises','wsHead','wsNav','wsStage','wsReview']
+      .every(id => (src.match(new RegExp('id="' + id + '"', 'g')) || []).length === 1));
+
+  sub('the sequence');
+  T('the warm-up is a stage, not a separate feature', /const STEP_WARMUP = -1;/.test(src));
+  T('a review step ends it', /const STEP_FINISH = 9999;/.test(src));
+  T('the warm-up only leads a workout that has not started',
+    /if\(prepOffered && !started\)\{ logStepIndex = STEP_WARMUP; \}/.test(src));
+  T('a resumed workout opens on the first exercise still to do',
+    /const firstOpen = rows\.findIndex\(r => !exerciseRowDone\(r\)\);/.test(src));
+  T('a workout with no exercises stands the stepper down rather than breaking',
+    /if\(!rows\.length\)\{[\s\S]{0,160}classList\.remove\('stepper-on'\)/.test(src));
+  T('adding the first exercise lands on it, not on the review',
+    /function onWorkoutRowAdded\(\)\{[\s\S]{0,220}logStepIndex = rows\.length - 1;/.test(src));
+
+  sub('progress is read from the workout, not stored beside it');
+  T('an exercise is done when it has a completed set',
+    /function exerciseRowDone\(row\)\{\s*return !!row\.querySelector\('\.set-row\.completed'\);/.test(src));
+  T('skipped never outranks done',
+    /function exerciseRowSkipped\(row\)\{\s*return row\.dataset\.skipped === '1' && !exerciseRowDone\(row\);/.test(src));
+  T('the segments carry each exercise\'s real state', /ws-seg-done|ws-seg-skip|ws-seg-now/.test(src));
+  T('and name it for a screen reader', /aria-label="' \+ escapeAttr\('Exercise ' \+ \(i\+1\)/.test(src));
+  T('the bar is tapped at full height even though it reads as a rule',
+    /\.ws-seg\{[\s\S]{0,120}height: 44px;/.test(css));
+
+  sub('muscle focus comes from the existing lookup');
+  T('it reuses musclesForExercise', /try\{ m = musclesForExercise\(name\) \|\| m; \}catch\(e\)\{\}/.test(src));
+  T('and the shared labels', /MUSCLE_LABELS\[k\] \|\| k/.test(src));
+  T('an unclassifiable lift shows no chips rather than a guess',
+    /if\(!p\.length && !sec\.length\) return '';/.test(src));
+  T('no exercise descriptions were invented', (() => {
+    const mod = src.slice(src.indexOf('const STEP_WARMUP'), src.indexOf('function openLogSheet()'));
+    /* LOOP holds no per-exercise coaching text. The stepper shows what it
+       genuinely knows and stays silent where it knows nothing. */
+    return !/description|howTo|formCue/i.test(mod);
+  })());
+
+  sub('the redesign cannot stop a workout opening');
+  T('the stepper is called defensively', /try\{ syncWorkoutStepper\(\{ reset:true \}\); \}catch\(e\)\{\}/.test(src));
+  T('and so is every row-level refresh',
+    /try\{ onWorkoutRowAdded\(\); \}catch\(e\)\{\}/.test(src));
+  T('without it the sheet simply shows everything, as before',
+    /\.stepper-on \.ex-log-row/.test(css) && !/\.ex-log-row\{[^}]*display: none/.test(css));
+
+  sub('transitions are short and reduced-motion aware');
+  T('two hundred milliseconds, not a page load',
+    /animation: wsInR 0\.2s var\(--ease\) both/.test(css));
+  T('and the global reduced-motion rule still removes them',
+    /@media \(prefers-reduced-motion: reduce\)\{\s*\*\{ animation: none !important; transition: none !important; \}/.test(css));
+
+  sub('nothing protected was touched');
+  T('the trainer', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
+  T('shadow retention', /TRAINER_LOG_MAX = 2000/.test(src));
+  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('the warm-up engine is untouched',
+    /function buildPrepSequence\(/.test(src) && /function enterPrepStep\(\)\{\s*clearPrepTimer\(\);/.test(src));
+  T('the rest timer architecture is untouched',
+    /function startRestPanel\(panel, seconds\)\{[\s\S]{0,120}clearRestTimer\(panel\);/.test(src));
+  T('replacement still goes through the existing engine',
+    /onclick="openSubstitutions\(this\)"/.test(src) &&
+    (src.match(/function openSubstitutions\(/g) || []).length === 1);
+  T('no stepper function writes to storage', (() => {
+    const mod = src.slice(src.indexOf('const STEP_WARMUP'), src.indexOf('function openLogSheet()'));
+    return !/LOOPStore\.|localStorage/.test(mod);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -11046,6 +11168,7 @@ async function main(){
   testDesignSystem(H.loadApp());
   testComposition(H.loadApp());
   testMomentum(H.loadApp());
+  testWorkoutStepper(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

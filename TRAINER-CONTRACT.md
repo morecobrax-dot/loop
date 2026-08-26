@@ -2157,3 +2157,94 @@ Twenty-five consecutive Momentum renders plus a full tab sweep wrote **nothing**
 fifteen `DATA_KEYS` byte-identical, XP unchanged, PR count unchanged, trainer log
 untouched. `DATA_KEYS` still holds fifteen entries. The trainer remains
 `0.1.1-shadow`.
+
+## §33 — The workout is a sequence (Phase D18)
+
+The workout was one long page: every exercise stacked, so finding the lift you
+were on meant scrolling past the ones you had finished. It is now warm-up →
+one exercise at a time → finish.
+
+### The architectural constraint that decided the design
+
+**LOOP's workout state IS the DOM.** `captureActiveDraft()` and `saveLog()` both
+read their values straight out of the rendered inputs — every `.ex-log-row`,
+every `.set-row`, `#logTitle`, `#logDate`, `#logNotes`.
+
+So the obvious implementation of "one exercise per screen" — render only the
+current exercise — **would have silently destroyed workout data.** Autosave
+fires 250ms after any input and on `pagehide`; the moment the athlete moved to
+exercise 2, exercise 1's sets would have been absent from the DOM and therefore
+absent from the next write. Mid-workout, invisibly, on real users.
+
+Therefore: **every exercise row stays mounted, always.** This is a visibility
+layer. The stepper decides which row is visible and nothing else. Autosave,
+draft restore, rest timers, recommendations, PR detection and replacement all
+still see the whole workout, and none of them were modified.
+
+Proven end to end in a browser: sets logged on exercises 1, 2 and 3 while
+stepping between them appeared in the persisted draft with their distinct
+values, survived a reload, and saved to `workoutLog` as one entry containing
+all eight exercises.
+
+### What the athlete gets
+
+- **Warm-up as stage zero**, using the existing prep system untouched. It only
+  leads a workout that has not started — resuming one with three exercises
+  logged opens on the fourth, not on "Prepare to train".
+- **One exercise per screen**: number, a segmented bar, the name, and muscle
+  chips from the existing `musclesForExercise()` lookup.
+- **A segmented progress bar that is also the navigation** — each segment
+  carries that exercise's real state (done / skipped / current) and jumps to it.
+  It reads as a 4px rule and is tapped as a 44px one.
+- **Previous / Skip / Next**, with skip meaning "move past this for now":
+  the row keeps everything in it, the segment shows it as skipped, and tapping
+  that segment returns to it. Row count before and after a skip: 8 and 8.
+- **A finish step** carrying the workout name, date and notes — the fields did
+  not move out of the sheet, so every existing reader still finds them by id.
+- **200ms transitions**, removed entirely under reduced motion.
+
+### What was deliberately not built
+
+**Exercise descriptions.** The brief asked for a one-line explanation per lift.
+LOOP holds no per-exercise coaching text, and writing form cues for 200+
+movements is a content project, not a UI phase — inventing them would be both
+fabrication and, for form advice, unsafe. The screen shows what LOOP genuinely
+knows: muscle focus, the recommendation, last time, and the athlete's own note.
+
+**Swipe navigation.** The brief said to implement it only if it can be made
+reliable. The exercise screen contains number inputs, a select, RIR buttons and
+a scrolling set list; a horizontal gesture over that surface competes with
+every one of them and with the iOS back-edge gesture. Explicit navigation is
+used instead, which is what the brief asked for in that case.
+
+### Two bugs found by testing paths rather than the happy path
+
+- **Resume opened on the warm-up** even with three exercises already logged.
+  Now lands on the first unfinished exercise.
+- **Freeform workouts open with zero rows**, so the stepper stood down (correct)
+  but "Next" went to the review, and adding the first exercise left the athlete
+  on a review screen for a workout they had not started. Adding the first row
+  now lands on that row.
+
+### Contract 108
+
+Thirty-seven assertions. The first group is the invariant: rows are hidden by
+CSS and never unmounted, no stepper function touches `#logExercises` or a
+`.ex-log-row` with `remove`/`removeChild`/`innerHTML=`, skip only sets a flag,
+`saveLog` still queries every mounted row, and all eight ids appear exactly once.
+Then the sequence, the state reading, the muscle lookup, the defensive wrapping
+(a stepper failure leaves the old all-visible sheet, which is what it did
+before), and that no stepper function writes to storage.
+
+### Measured
+
+375×812, 390×844, 812×375, 844×390, 932×430: no clipping, no control under
+44px, no field under 16px, no horizontal overflow. 40 rapid step changes in
+87ms (2.17ms each) with rows still mounted and exactly one visible. A rest timer
+started on one exercise keeps running while the athlete steps away, completes
+correctly off-screen and clears its interval. After a full session — open, step
+through 24 times, close, discard — zero intervals left, zero listeners retained,
+`workoutLog` and `trainerLog` byte-identical, fifteen `DATA_KEYS` unchanged.
+
+The warm-up library, the rest timer architecture, the replacement engine and
+the trainer are untouched. The trainer remains `0.1.1-shadow`.

@@ -2572,6 +2572,99 @@ textarea{ resize: vertical; min-height: 56px; }
 .cat-opt.sel-upper.on{ border-color: var(--upper); background: var(--upper-soft); color: var(--upper); }
 .cat-opt.sel-lower.on{ border-color: var(--lower); background: var(--lower-soft); color: var(--lower); }
 
+/* ---------- WORKOUT STEPPER (Phase D18) ----------
+   One exercise on screen at a time. Every row is still mounted — the workout's
+   state is the DOM and autosave reads it from there — so this hides rather
+   than unmounts. Without .stepper-on the sheet renders exactly as it used to,
+   which is also what happens if the stepper ever fails to initialise. */
+.stepper-on #logSheetTitle,
+.stepper-on #logSheetSub,
+.stepper-on .sets-head{ display: none; }
+
+.stepper-on .ex-log-row,
+.stepper-on #prepCard,
+.stepper-on #wsReview{ display: none; }
+.stepper-on .ex-log-row.ws-current,
+.stepper-on #wsReview.ws-current{ display: block; }
+.stepper-on #prepCard.ws-current{ display: block; }
+
+/* The current exercise is the screen, not a card on it: it drops the border
+   it needed when eight of them were stacked. */
+.stepper-on .ex-log-row.ws-current{
+  border: none; padding: 0; margin-top: 0;
+}
+
+.ws-head{
+  flex-shrink: 0; padding: var(--space-4) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.ws-k{
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.ws-k-flag{
+  padding: 2px 6px; border-radius: var(--radius-sm);
+  background: var(--warning-soft); color: var(--warning); letter-spacing: 0.04em;
+}
+.ws-name{
+  font-family: 'Space Grotesk', sans-serif; font-size: 21px; font-weight: 700;
+  line-height: 1.15; color: var(--text); margin: var(--space-2) 0 0;
+}
+.ws-lede{ font-size: 13px; line-height: 1.45; color: var(--text-dim); margin: 6px 0 0; }
+
+/* One segment per exercise, carrying that exercise's real state — and the way
+   to jump straight to it, so progress and navigation are the same control. */
+.ws-bar{ display: flex; gap: 3px; margin: var(--space-3) 0 calc(var(--space-3) * -1); }
+/* The bar reads as a 4px rule but is tapped as a 44px one: the button carries
+   the height and the mark is drawn inside it. Its width is one nth of the
+   screen and cannot reach 44px on a long workout — Previous, Skip and Next
+   reach every exercise at full size, so this stays a shortcut rather than the
+   only way through. */
+.ws-seg{
+  flex: 1; height: 44px; padding: 0; border: none; background: none; cursor: pointer;
+  position: relative;
+}
+.ws-seg::after{
+  content: ""; position: absolute; left: 0; right: 0; top: 20px; height: 4px;
+  border-radius: 2px; background: var(--surface-3);
+  transition: background 0.18s var(--ease), transform 0.18s var(--ease);
+}
+.ws-seg-done::after{ background: var(--success); }
+.ws-seg-skip::after{ background: var(--warning); opacity: 0.55; }
+.ws-seg-now::after{ background: var(--accent); transform: scaleY(1.6); }
+
+.ws-chips{ display: flex; flex-wrap: wrap; gap: 5px; margin-top: var(--space-3); }
+.ws-chip{
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; padding: 4px 8px; border-radius: var(--radius-sm);
+}
+.ws-chip-p{ background: var(--accent-soft); color: var(--accent); }
+.ws-chip-s{ background: var(--surface-3); color: var(--text-dim); }
+
+/* Navigation sits above the finish action, so moving through the workout and
+   ending it are never the same tap. */
+.ws-nav{
+  display: flex; gap: var(--space-2); flex-shrink: 0;
+  padding: var(--space-3) var(--space-5) 0;
+}
+.ws-nav:empty{ display: none; }
+.ws-nav-btn, .ws-nav-next{
+  min-height: 44px; padding: 0 var(--space-4); border-radius: var(--radius-md);
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.15s var(--ease), transform 0.12s var(--ease);
+}
+.ws-nav-btn{ background: none; border: 1px solid var(--border); color: var(--text-dim); }
+.ws-nav-next{ flex: 1; background: var(--surface-3); border: 1px solid var(--border); color: var(--text); font-weight: 700; }
+.ws-nav-btn:disabled{ opacity: 0.35; cursor: default; }
+.ws-nav-btn:active:not(:disabled), .ws-nav-next:active{ transform: scale(0.98); }
+
+/* Short enough to feel like the workout moving, not a page loading. */
+@keyframes wsInR{ from{ opacity: 0; transform: translateX(14px); } to{ opacity: 1; transform: none; } }
+@keyframes wsInL{ from{ opacity: 0; transform: translateX(-14px); } to{ opacity: 1; transform: none; } }
+.stepper-on #wsStage.ws-in-r{ animation: wsInR 0.2s var(--ease) both; }
+.stepper-on #wsStage.ws-in-l{ animation: wsInL 0.2s var(--ease) both; }
+
 .ex-log-row{
   border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin-top: 10px;
   transition: border-color 0.28s var(--ease), background 0.28s var(--ease);
@@ -4443,6 +4536,9 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <span class="workout-topbar-spacer"></span>
     </div>
     <div class="sheet-scroll">
+    <!-- Which step of the workout is on screen. Filled by renderWorkoutStep(). -->
+    <div class="ws-head" id="wsHead"></div>
+    <div id="wsStage">
     <h2 id="logSheetTitle">Log Workout</h2>
     <div class="sheet-sub" id="logSheetSub">Record what you actually did today.</div>
     <!-- Phase context only. The workout is not altered by which phase it falls in. -->
@@ -4473,18 +4569,22 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       </div>
     </div>
 
-    <label>Workout name</label>
-    <input type="text" id="logTitle" placeholder="e.g. Push A — Chest Focus">
-    <label>Date</label>
-    <input type="date" id="logDate">
-
-    <label style="margin-top:18px">Exercises</label>
     <div id="logExercises"></div>
-    <button class="add-ex-btn" onclick="addLogExerciseRow()">+ Add exercise</button>
 
-    <label>Notes</label>
-    <textarea id="logNotes" placeholder="How'd it feel? PRs, form cues, anything worth remembering."></textarea>
+    <!-- The last step. These inputs stay inside the sheet exactly where they
+         were, so every existing reader still finds them by id. -->
+    <div id="wsReview">
+      <label>Workout name</label>
+      <input type="text" id="logTitle" placeholder="e.g. Push A — Chest Focus">
+      <label>Date</label>
+      <input type="date" id="logDate">
+      <label>Notes</label>
+      <textarea id="logNotes" placeholder="How'd it feel? PRs, form cues, anything worth remembering."></textarea>
+      <button class="add-ex-btn" onclick="addLogExerciseRow()">+ Add exercise</button>
     </div>
+    </div>
+    </div>
+    <div class="ws-nav" id="wsNav"></div>
     <div class="sheet-actions">
       <button class="btn-primary" style="width:100%" onclick="saveLog(this)">Finish Workout</button>
     </div>
@@ -21077,6 +21177,236 @@ async function renderResumeBanner(){
 }
 
 let workoutHistoryPushed = false;
+
+/* =========================================================
+   WORKOUT STEPPER  (Phase D18)
+   ---------------------------------------------------------
+   The workout was one long page: every exercise stacked, so
+   finding the lift you were actually on meant scrolling past
+   the ones you had finished. This turns it into a sequence —
+   warm-up, then one exercise at a time, then finish.
+
+   ARCHITECTURE NOTE, and the reason this is a visibility
+   layer rather than a rewrite:
+
+   LOOP's workout state IS the DOM. captureActiveDraft() and
+   saveLog() both read their values straight out of the
+   rendered inputs — every .ex-log-row, every .set-row. So
+   any design that unmounted the exercises you are not
+   looking at would silently drop them from the next autosave
+   (which fires 250ms after any input, and on pagehide), and
+   from the final save.
+
+   Therefore EVERY exercise row stays mounted, always. This
+   module only decides which one is visible. Autosave, draft
+   restore, rest timers, recommendations, PR detection and
+   replacement all keep seeing the whole workout exactly as
+   they did before, and none of them were touched.
+   ========================================================= */
+
+/* Which stage is on screen. -1 is the warm-up, 0..n-1 are exercises, and
+   STEP_FINISH is the review. Deliberately not persisted: a draft restores to
+   the first unfinished exercise, which is more useful than restoring to
+   wherever the athlete happened to be looking. */
+const STEP_WARMUP = -1;
+const STEP_FINISH = 9999;
+let logStepIndex = STEP_WARMUP;
+
+function workoutStepRows(){
+  return [...document.querySelectorAll('#logExercises .ex-log-row')];
+}
+function workoutStepCount(){ return workoutStepRows().length; }
+
+/* An exercise counts as done when it has at least one completed set. This
+   reads the same .completed class the set button already toggles — it is a
+   view of existing state, not a second record of it. */
+function exerciseRowDone(row){
+  return !!row.querySelector('.set-row.completed');
+}
+function exerciseRowSkipped(row){
+  return row.dataset.skipped === '1' && !exerciseRowDone(row);
+}
+
+function workoutStepName(row){
+  const el = row.querySelector('.ex-name-in');
+  return (el && el.value.trim()) || 'Exercise';
+}
+
+/* Muscle focus, from the same lookup Progress and the trainer context use.
+   Nothing invented: when LOOP cannot classify a lift, the chips are omitted
+   rather than guessed at. */
+function workoutStepMusclesHtml(name){
+  let m = { primary: [], secondary: [] };
+  try{ m = musclesForExercise(name) || m; }catch(e){}
+  const chip = (k, cls) => '<span class="ws-chip ' + cls + '">' + escapeHtml(MUSCLE_LABELS[k] || k) + '</span>';
+  const p = (m.primary || []).slice(0, 3).map(k => chip(k, 'ws-chip-p'));
+  const sec = (m.secondary || []).slice(0, 2).map(k => chip(k, 'ws-chip-s'));
+  if(!p.length && !sec.length) return '';
+  return '<div class="ws-chips">' + p.join('') + sec.join('') + '</div>';
+}
+
+/* The segmented bar: one segment per exercise, carrying that exercise's real
+   state. It is the progress indicator AND the way to jump around the workout,
+   so there is no second navigation control doing the same job. */
+function workoutStepBarHtml(rows, current){
+  return '<div class="ws-bar" role="tablist" aria-label="Exercises">' + rows.map((row, i) => {
+    const done = exerciseRowDone(row);
+    const skipped = exerciseRowSkipped(row);
+    const cls = 'ws-seg' + (i === current ? ' ws-seg-now' : '') +
+      (done ? ' ws-seg-done' : '') + (skipped ? ' ws-seg-skip' : '');
+    const state = done ? 'completed' : skipped ? 'skipped' : (i === current ? 'current' : 'not started');
+    return '<button type="button" class="' + cls + '" role="tab" aria-selected="' + (i === current) + '"' +
+      ' onclick="goToWorkoutStep(' + i + ')"' +
+      ' aria-label="' + escapeAttr('Exercise ' + (i+1) + ', ' + workoutStepName(row) + ', ' + state) + '"></button>';
+  }).join('') + '</div>';
+}
+
+function renderWorkoutStep(opts){
+  const sheet = document.getElementById('logOverlay');
+  if(!sheet) return;
+  const rows = workoutStepRows();
+  const head = document.getElementById('wsHead');
+  const nav  = document.getElementById('wsNav');
+  const prepCard = document.getElementById('prepCard');
+  const review = document.getElementById('wsReview');
+  if(!head || !nav) return;
+
+  /* A workout with no exercises yet has nothing to step through. */
+  if(!rows.length){
+    sheet.classList.remove('stepper-on');
+    head.innerHTML = ''; nav.innerHTML = '';
+    return;
+  }
+  sheet.classList.add('stepper-on');
+
+  if(logStepIndex !== STEP_WARMUP && logStepIndex !== STEP_FINISH){
+    logStepIndex = Math.max(0, Math.min(rows.length - 1, logStepIndex));
+  }
+  const i = logStepIndex;
+
+  rows.forEach((row, idx) => row.classList.toggle('ws-current', idx === i));
+  if(prepCard) prepCard.classList.toggle('ws-current', i === STEP_WARMUP);
+  if(review) review.classList.toggle('ws-current', i === STEP_FINISH);
+
+  if(i === STEP_WARMUP){
+    head.innerHTML =
+      '<div class="ws-k">Warm-up</div>' +
+      '<h3 class="ws-name">Prepare to train</h3>' +
+      '<p class="ws-lede">A few minutes of movement before your first working set.</p>';
+    nav.innerHTML =
+      '<button type="button" class="ws-nav-btn" onclick="goToWorkoutStep(0)">Skip warm-up</button>' +
+      '<button type="button" class="ws-nav-next" onclick="goToWorkoutStep(0)">Start training</button>';
+  } else if(i === STEP_FINISH){
+    head.innerHTML =
+      '<div class="ws-k">Finish</div>' +
+      '<h3 class="ws-name">Review and save</h3>' +
+      '<p class="ws-lede">' + escapeHtml(workoutStepSummaryLine(rows)) + '</p>';
+    nav.innerHTML =
+      '<button type="button" class="ws-nav-btn" onclick="goToWorkoutStep(' + (rows.length - 1) + ')">Back</button>';
+  } else {
+    const row = rows[i];
+    const name = workoutStepName(row);
+    head.innerHTML =
+      '<div class="ws-k">Exercise ' + (i + 1) + ' of ' + rows.length +
+        (exerciseRowSkipped(row) ? '<span class="ws-k-flag">Skipped</span>' : '') + '</div>' +
+      workoutStepBarHtml(rows, i) +
+      '<h3 class="ws-name">' + escapeHtml(name) + '</h3>' +
+      workoutStepMusclesHtml(name);
+    const isLast = i >= rows.length - 1;
+    nav.innerHTML =
+      '<button type="button" class="ws-nav-btn" onclick="prevWorkoutStep()"' +
+        (i === 0 ? ' disabled' : '') + '>Previous</button>' +
+      '<button type="button" class="ws-nav-btn" onclick="skipWorkoutStep()">Skip</button>' +
+      '<button type="button" class="ws-nav-next" onclick="nextWorkoutStep()">' +
+        (isLast ? 'Finish' : 'Next') + '</button>';
+  }
+
+  /* A step change starts at the top of the new step, never halfway down the
+     previous one's scroll position. */
+  if(opts && opts.animate){
+    const scroll = sheet.querySelector('.sheet-scroll');
+    if(scroll) scroll.scrollTop = 0;
+    const stage = document.getElementById('wsStage');
+    if(stage){
+      stage.classList.remove('ws-in-l', 'ws-in-r');
+      void stage.offsetWidth;
+      stage.classList.add(opts.dir === 'back' ? 'ws-in-l' : 'ws-in-r');
+    }
+  }
+}
+
+function workoutStepSummaryLine(rows){
+  const done = rows.filter(exerciseRowDone).length;
+  const skipped = rows.filter(exerciseRowSkipped).length;
+  let out = done + ' of ' + rows.length + ' exercises logged';
+  if(skipped) out += ' · ' + skipped + ' skipped';
+  return out + '.';
+}
+
+function goToWorkoutStep(i, dir){
+  const rows = workoutStepRows();
+  const from = logStepIndex;
+  if(i !== STEP_WARMUP && i !== STEP_FINISH) i = Math.max(0, Math.min(rows.length - 1, i));
+  logStepIndex = i;
+  renderWorkoutStep({ animate:true, dir: dir || (typeof from === 'number' && i < from ? 'back' : 'fwd') });
+}
+function nextWorkoutStep(){
+  const rows = workoutStepRows();
+  if(logStepIndex === STEP_WARMUP) return goToWorkoutStep(0, 'fwd');
+  if(logStepIndex >= rows.length - 1) return goToWorkoutStep(STEP_FINISH, 'fwd');
+  goToWorkoutStep(logStepIndex + 1, 'fwd');
+}
+function prevWorkoutStep(){
+  if(logStepIndex === STEP_FINISH) return goToWorkoutStep(workoutStepCount() - 1, 'back');
+  if(logStepIndex <= 0) return goToWorkoutStep(STEP_WARMUP, 'back');
+  goToWorkoutStep(logStepIndex - 1, 'back');
+}
+/* Skip moves past an exercise for now. It never removes it from the workout:
+   the row stays mounted with everything in it, the segment shows it as
+   skipped, and tapping that segment returns to it. */
+function skipWorkoutStep(){
+  const rows = workoutStepRows();
+  const row = rows[logStepIndex];
+  if(row) row.dataset.skipped = '1';
+  nextWorkoutStep();
+}
+
+/* A freeform workout opens with no exercises at all, so the stepper is not
+   running and "Next" has nowhere to go but the finish step. Adding the first
+   exercise has to land on that exercise rather than leaving the athlete on a
+   review screen for a workout they have not started. */
+function onWorkoutRowAdded(){
+  const rows = workoutStepRows();
+  if(rows.length === 1 || logStepIndex === STEP_FINISH){
+    logStepIndex = rows.length - 1;
+  }
+  renderWorkoutStep();
+}
+
+/* Called whenever the set of rows changes — after the sheet is built, after a
+   draft is restored, after an exercise is added or removed. Opens on the first
+   exercise that still has work in it, so resuming lands where the athlete
+   stopped rather than back at the beginning. */
+function syncWorkoutStepper(opts){
+  const rows = workoutStepRows();
+  if(!rows.length){ renderWorkoutStep(); return; }
+  if(opts && opts.reset){
+    const prep = document.getElementById('prepCard');
+    const prepOffered = prep && prep.style.display !== 'none';
+    const started = rows.some(exerciseRowDone);
+    /* The warm-up only leads a workout that has not started. Resuming one with
+       three exercises already logged used to open on "Prepare to train", which
+       is both wrong and a step backwards — a resumed workout lands on the first
+       exercise still to do. */
+    if(prepOffered && !started){ logStepIndex = STEP_WARMUP; }
+    else {
+      const firstOpen = rows.findIndex(r => !exerciseRowDone(r));
+      logStepIndex = firstOpen === -1 ? 0 : firstOpen;
+    }
+  }
+  renderWorkoutStep();
+}
+
 function openLogSheet(){
   document.getElementById('logOverlay').classList.add('open');
   document.body.classList.add('page-locked');
@@ -21099,6 +21429,10 @@ function openLogSheet(){
     const pc = document.getElementById('logPhaseContext');
     if(pc) pc.innerHTML = workoutPhaseContextHtml();
   }catch(e){}
+  /* Presentation only — wrapped so a stepper problem can never stop a workout
+     from opening. Without it the sheet simply shows every exercise at once,
+     which is what it did before. */
+  try{ syncWorkoutStepper({ reset:true }); }catch(e){}
 }
 function closeLogSheet(){
   persistDraftNow();
@@ -21265,6 +21599,7 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
   `;
   wrap.appendChild(row);
   refreshExContext(row);
+  try{ onWorkoutRowAdded(); }catch(e){}
   const setsList = row.querySelector('.sets-list');
   sets.forEach(s => appendSetRow(setsList, s.weight, s.reps, bodyweight, s.rir, s.type));
   // Reapply the label/styling for EVERY set type so a restored draft looks
@@ -21298,6 +21633,10 @@ function toggleExContext(btn){
   const open = wrap.classList.toggle('open');
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
+
+/* The head carries the exercise's name and muscles, so anything that renames
+   a row has to refresh it. */
+function refreshWorkoutStepHead(){ try{ renderWorkoutStep(); }catch(e){} }
 
 function swapLogExercise(selectEl){
   const chosenName = selectEl.value;
