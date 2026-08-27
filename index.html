@@ -3598,13 +3598,24 @@ body.page-locked{ overflow: hidden; }
    like one. It was previously the same 16px input as every other field, which
    is what made the top of the editor read as a form rather than a workout. */
 .ew-head{ padding-bottom: var(--space-4); border-bottom: 1px solid var(--border); }
+/* A textarea, not a text input, so a long name wraps onto a second line
+   instead of scrolling 580px of itself out of sight. It auto-sizes to its
+   content and newlines are stripped on the way in, so it behaves as a
+   single-value field that happens to be able to wrap. */
 .ew-title{
-  width: 100%; background: none; border: none; padding: 0; min-height: 44px;
+  width: 100%; background: none; border: none; padding: 0 0 3px; min-height: 44px;
   font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700;
-  line-height: 1.15; letter-spacing: -0.01em; color: var(--text);
+  line-height: 1.2; letter-spacing: -0.01em; color: var(--text);
+  resize: none; overflow: hidden; display: block;
+  box-shadow: inset 0 -1px 0 var(--border);
+  transition: box-shadow 0.14s var(--ease);
 }
 .ew-title::placeholder{ color: var(--text-faint); font-weight: 600; }
-.ew-title:focus{ outline: none; }
+.ew-title:focus{ outline: none; box-shadow: inset 0 -2px 0 var(--accent); }
+.ew-ex-name, .ew-date{
+  box-shadow: inset 0 -1px 0 var(--border);
+  transition: box-shadow 0.14s var(--ease), color 0.14s var(--ease);
+}
 .ew-head-meta{ display: flex; align-items: center; gap: var(--space-3); margin-top: 2px; }
 /* The native control, because it is the reliable one — dressed down to a line
    of text so it sits with the title instead of shouting like a form field. */
@@ -3612,20 +3623,20 @@ body.page-locked{ overflow: hidden; }
    focus, which is the regression D18.3 fixed globally. Weight comes off the
    colour instead of the size. */
 .ew-date{
-  background: none; border: none; padding: 0; min-height: 44px; width: auto;
+  background: none; border: none; padding: 0 0 2px; min-height: 44px; width: auto;
   font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600; color: var(--text-dim);
 }
-.ew-date:focus{ outline: none; color: var(--accent); }
+.ew-date:focus{ outline: none; color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
 
 /* ---- exercise block ---- */
 .ew-exercises{ margin-top: var(--space-2); }
 .ew-ex{ padding: var(--space-5) 0 var(--space-4); border-bottom: 1px solid var(--border); }
 .ew-ex-head{ display: flex; gap: var(--space-2); align-items: center; }
 .ew-ex-name{
-  flex: 1; min-width: 0; background: none; border: none; padding: 0; min-height: 44px;
+  flex: 1; min-width: 0; background: none; border: none; padding: 0 0 2px; min-height: 44px;
   font-family: 'Inter', sans-serif; font-size: 17px; font-weight: 700; color: var(--text);
 }
-.ew-ex-name:focus{ outline: none; }
+.ew-ex-name:focus{ outline: none; box-shadow: inset 0 -2px 0 var(--accent); }
 .ew-ex-meta{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
@@ -3654,35 +3665,66 @@ body.page-locked{ overflow: hidden; }
   font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
   color: var(--text-faint); text-align: center;
 }
-/* Borderless: the row is the container, not each field inside it. */
+/* Borderless boxes, but not featureless. A single hairline under the value
+   says "this is a field you can change" without putting four sides around
+   every number — the row is still the container. It is drawn as an inset
+   shadow rather than a border so focus can thicken it without moving
+   anything by a pixel. */
 .ew-num{
-  width: 100%; min-width: 0; background: none; border: none; padding: 0; min-height: 44px;
+  width: 100%; min-width: 0; background: none; border: none; padding: 0 0 2px; min-height: 44px;
   font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700;
   color: var(--text); font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 -1px 0 var(--border);
+  transition: box-shadow 0.14s var(--ease), color 0.14s var(--ease);
 }
-.ew-num:disabled{ color: var(--text-faint); font-weight: 600; }
-.ew-num:focus{ outline: none; color: var(--accent); }
+.ew-num:disabled{
+  color: var(--text-faint); font-weight: 600;
+  box-shadow: none;                    /* nothing to change here, so no invitation */
+}
+.ew-num:focus{ outline: none; color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
 /* 16px so focusing one never zooms the page on iOS. These stay secondary by
    colour and column width, not by being too small to tap or to focus safely. */
+/* The same hairline, plus a caret — a value that reads as a word ("Working")
+   needs to say it opens a menu, which the native arrow would have done before
+   appearance:none took it away. */
 .ew-rir, .ew-type{
-  width: 100%; min-width: 0; min-height: 44px; padding: 0 2px;
+  width: 100%; min-width: 0; min-height: 44px; padding: 0 12px 2px 2px;
   background: none; border: none; cursor: pointer;
   font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600;
   color: var(--text-faint);
   -webkit-appearance: none; appearance: none;
+  box-shadow: inset 0 -1px 0 var(--border);
+  transition: box-shadow 0.14s var(--ease), color 0.14s var(--ease);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%235B616B' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 1px center;
 }
-.ew-rir{ text-align: center; font-family: 'JetBrains Mono', monospace; }
+.ew-rir{ text-align: left; font-family: 'JetBrains Mono', monospace; }
 /* Reads as a label once it carries one, and as a prompt while it does not. */
 .ew-type.is-set{ color: var(--text-dim); }
-.ew-rir:focus, .ew-type:focus{ outline: none; color: var(--accent); }
-/* Removal is present but quiet — never a row permanently dressed in red. */
-.ew-x{
-  width: 30px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center;
-  background: none; border: none; cursor: pointer; color: var(--text-faint); opacity: 0.55;
-  transition: opacity 0.15s var(--ease), color 0.15s var(--ease);
+.ew-rir:focus, .ew-type:focus{
+  outline: none; color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent);
 }
-.ew-x:hover, .ew-x:focus-visible{ opacity: 1; color: var(--danger); }
+/* Removal is present but quiet — never a row permanently dressed in red.
+   At rest it sits in a faint circle: enough shape to be found without
+   hunting, far short of a destructive button. The circle is what makes the
+   44px touch area visible rather than merely present. */
+.ew-x{
+  width: 44px; height: 44px; margin: 0 -7px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text-faint);
+  position: relative;
+  transition: color 0.15s var(--ease);
+}
+.ew-x::before{
+  content: ""; position: absolute; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--surface-2); transition: background 0.15s var(--ease);
+}
+.ew-x svg{ position: relative; }
+.ew-x:hover, .ew-x:focus-visible{ color: var(--danger); }
+.ew-x:hover::before, .ew-x:focus-visible::before{ background: rgba(229,103,95,0.16); }
 .ew-x:active{ transform: scale(0.92); }
+/* The set row's × is inside a grid cell; the exercise's sits beside a much
+   larger name, so it needs no extra prominence to be found. */
 .ew-x-ex{ height: 44px; }
 
 .ew-add{
@@ -14939,6 +14981,10 @@ function openWorkoutEditor(id, origin){
   renderWorkoutEditor();
   document.getElementById('editWorkoutOverlay').classList.add('open');
   document.body.classList.add('page-locked');
+  /* Sized only once the sheet is on screen: a hidden element reports a
+     scrollHeight of zero, which would leave a wrapped title clipped to one
+     line instead of grown to fit it. */
+  ewSizeTitle(document.getElementById('ewTitle'));
 }
 
 function editJustLoggedWorkout(){
@@ -14978,6 +15024,26 @@ function editWorkoutField(field, value){
   if(!workoutEditState) return;
   workoutEditState.draft[field] = value;
   markEditorDirty();
+}
+
+/* The title wraps rather than scrolling itself out of sight, so it is a
+   textarea sized to its own content. It is still a single value: newlines are
+   stripped on the way in, because a workout is not called two things. */
+function ewSizeTitle(el){
+  if(!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+function editWorkoutTitle(el){
+  if(!el) return;
+  const clean = el.value.replace(/[\r\n]+/g, ' ');
+  if(clean !== el.value){
+    const at = el.selectionStart;
+    el.value = clean;
+    try{ el.setSelectionRange(at, at); }catch(e){}
+  }
+  ewSizeTitle(el);
+  editWorkoutField('title', clean);
 }
 function editExerciseName(i, value){
   const ex = workoutEditState && workoutEditState.draft.exercises[i];
@@ -15132,9 +15198,9 @@ function renderWorkoutEditor(opts){
     /* The title is the heading of the thing being edited, so it is set like
        one — not like the twenty-sixth input on the screen. */
     '<div class="ew-head">' +
-      '<input type="text" id="ewTitle" class="ew-title" aria-label="Workout name"' +
-        ' placeholder="Workout name" value="' + escapeAttr(d.title || '') + '"' +
-        ' oninput="editWorkoutField(\'title\',this.value)">' +
+      '<textarea id="ewTitle" class="ew-title" rows="1" aria-label="Workout name"' +
+        ' placeholder="Workout name"' +
+        ' oninput="editWorkoutTitle(this)">' + escapeHtml(d.title || '') + '</textarea>' +
       '<div class="ew-head-meta">' +
         '<input type="date" id="ewDate" class="ew-date" aria-label="Workout date"' +
           ' value="' + escapeAttr(d.date || '') + '" onchange="editWorkoutField(\'date\',this.value)">' +
@@ -15150,6 +15216,10 @@ function renderWorkoutEditor(opts){
     '<p class="ew-note ew-foot-note">Changes apply to this workout only — your plan, programme and' +
       ' schedule are untouched.</p>';
   syncEditorDirty();
+  /* Deferred for the same reason the focus call is: measuring the title to
+     size it forces a synchronous layout, and doing that inside the redraw
+     put every add-set and remove-set over a frame. */
+  setTimeout(() => ewSizeTitle(document.getElementById('ewTitle')), 0);
   /* A newly added set announces itself where it landed, rather than the whole
      list appearing to flicker. */
   if(opts && opts.flash){

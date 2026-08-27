@@ -2878,3 +2878,58 @@ one record, and editing one workout left the other workout, `cardioLog`,
 `persistLog`, `saveLog` and `deleteLog` are untouched by this diff, no new
 storage write exists, `DATA_KEYS` is still 15, and the trainer remains
 `0.1.1-shadow`.
+
+## §41.2 — Editor polish: affordance, removal, long titles
+
+Three limitations I flagged at the end of D20.1, each measured before it was
+touched.
+
+**Editable values looked static.** Measured: transparent background, `0px`
+border — a weight was indistinguishable from a label. Each editable value now
+carries a single hairline beneath it, drawn as `box-shadow: inset 0 -1px 0
+var(--border)` rather than a border, so focus can thicken it to 2px in the
+accent without moving the layout by a pixel. A disabled field (a bodyweight
+load) drops the line entirely: nothing to change there, so no invitation. The
+selects gained a small caret, because a value that reads as a word ("Working")
+gives no other sign it opens a menu once `appearance: none` removes the native
+arrow. No boxes returned — the row is still the container.
+
+**Focus had no state at all.** Measured: `outline: 3px none`, no shadow, no
+background change. Focus now takes the accent underline and accent text, at
+0.14s, with no layout shift and no glow.
+
+**Removal was 30px wide at 55% opacity.** Below the 44px touch minimum and
+hard to find. It is now a full 44×44 target with a faint neutral circle at
+rest, reaching danger red only on hover or keyboard focus. Quiet, but shaped —
+and the circle is what makes the touch area visible rather than merely present.
+
+**Long titles were clipped.** Measured: a 75-character name reported
+`scrollWidth 915` against `clientWidth 335` — 580px scrolled out of sight
+inside a single-line input. The title is now a textarea that wraps and sizes to
+its own content (44px at one line, 118px at three on a 375px screen), while
+remaining a single value: newlines are stripped on input. It keeps 24px/700.
+
+Two bugs found and fixed while doing this, both mine:
+
+- Sizing the title inside `renderWorkoutEditor()` measured a **hidden**
+  element — `scrollHeight` reads zero before the sheet opens, which left a
+  wrapped title clipped to one line rather than grown. It is now sized after
+  the overlay opens.
+- That same measurement forces a synchronous layout, and doing it inside the
+  redraw put every operation over a frame (render 6.6 → 26.3ms, add set 7.1 →
+  28.7ms). Deferred by a tick, as the focus call already was. After:
+  render **7.5ms**, add set **9.0ms**, remove set **7.3ms**, keystroke
+  **0.0035ms** — all inside a frame, typing still redraws nothing.
+
+Verified at 375×812, 390×844, 812×375, 844×390 and 932×430 across short,
+normal, long-title and eight-exercise workouts: no horizontal overflow, no
+control under 44px, no input under 16px, every control accessibly named, the
+title fully shown in every case, and Save/Cancel on screen.
+
+Behaviour is unchanged and re-verified: atomic save, derived effort, conflict
+and deleted-underneath guards, cancel discarding, 20 rapid saves producing one
+record, and editing one workout leaving the other workout, `cardioLog`,
+`trainerLog`, `exerciseNotes` and `gymProfile` byte-identical. The diff touches
+no persistence function, adds no storage write and contains no data logic —
+`persistLog`, `saveLog` and `deleteLog` do not appear in it. `DATA_KEYS` is
+still 15 and the trainer remains `0.1.1-shadow`.

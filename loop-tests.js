@@ -12391,33 +12391,94 @@ function testWorkoutEditor(app){
     /\.ew-num\{[\s\S]{0,240}font-size: 16px; font-weight: 700;/.test(css));
   T('and the fields inside a row carry no boxes of their own',
     /\.ew-num\{[\s\S]{0,160}background: none; border: none;/.test(css));
-  T('removal is a quiet affordance, not a row dressed in red',
-    /\.ew-x\{[\s\S]{0,260}opacity: 0\.55;/.test(css) &&
-    /\.ew-x:hover, \.ew-x:focus-visible\{ opacity: 1; color: var\(--danger\); \}/.test(css));
+  /* D20.2 replaced a 55%-opacity glyph with a faint circle. The intent is
+     unchanged and the assertion is stronger: the resting state must use a
+     neutral surface, and danger colour may appear only on interaction. */
+  T('removal is a quiet affordance, not a row dressed in red', (() => {
+    const rest = /\.ew-x::before\{[\s\S]{0,220}background: var\(--surface-2\)/.test(css);
+    const restBlock = (css.match(/\.ew-x\{[\s\S]{0,320}?\}/) || [''])[0] +
+                      (css.match(/\.ew-x::before\{[\s\S]{0,320}?\}/) || [''])[0];
+    const noDangerAtRest = !/danger|229,103,95/.test(restBlock);
+    const dangerOnInteraction = /\.ew-x:hover, \.ew-x:focus-visible\{ color: var\(--danger\); \}/.test(css) &&
+                                /\.ew-x:hover::before, \.ew-x:focus-visible::before\{ background: rgba\(229,103,95/.test(css);
+    return rest && noDangerAtRest && dangerOnInteraction;
+  })());
+
+  sub('an editable value looks editable');
+  /* D20.1 removed the boxes and left the fields indistinguishable from static
+     text. A single hairline under each value restores the affordance without
+     putting four sides back around every number, and it is drawn as an inset
+     shadow so focus can thicken it without moving the layout by a pixel. */
+  T('every editable value carries a resting underline', (() => {
+    const bad = ['.ew-num', '.ew-rir, .ew-type', '.ew-title'].filter(sel => {
+      const at = css.indexOf(sel + '{');
+      if(at === -1) return true;
+      return !/box-shadow: inset 0 -1px 0 var\(--border\)/.test(css.slice(at, css.indexOf('}', at)));
+    });
+    return bad.length === 0 ? true : bad;
+  })() === true);
+  T('the name and date fields carry it too',
+    /\.ew-ex-name, \.ew-date\{\s*box-shadow: inset 0 -1px 0 var\(--border\);/.test(css));
+  T('focus thickens that line in the accent rather than adding an outline',
+    (css.match(/box-shadow: inset 0 -2px 0 var\(--accent\)/g) || []).length >= 4);
+  T('and focus moves nothing, because a shadow takes no layout space',
+    !/:focus\{[^}]*\b(border-width|padding|margin|height)\s*:/.test(css));
+  T('a field with nothing to change makes no offer',
+    /\.ew-num:disabled\{[\s\S]{0,140}box-shadow: none;/.test(css));
+  T('a select says it opens a menu', (() => {
+    const at = css.indexOf('.ew-rir, .ew-type{');
+    return /background-image: url\("data:image\/svg\+xml/.test(css.slice(at, css.indexOf('}', at)));
+  })());
+
+  sub('the workout title behaves like a title');
+  /* It was a single-line input: a 75-character name scrolled 580px of itself
+     out of sight. It is now a textarea that wraps and sizes to its content,
+     while remaining a single value — newlines are stripped on the way in. */
+  T('the title is a field that can wrap', /<textarea id="ewTitle" class="ew-title"/.test(src));
+  T('and is sized to its content rather than scrolled',
+    /function ewSizeTitle\(el\)\{[\s\S]{0,200}el\.scrollHeight \+ 'px'/.test(src) &&
+    /\.ew-title\{[\s\S]{0,320}overflow: hidden;/.test(css));
+  T('newlines never enter the value', /replace\(\/\[\\r\\n\]\+\/g, ' '\)/.test(src));
+  T('it is measured only once it is on screen, never while hidden',
+    /classList\.add\('open'\);[\s\S]{0,400}ewSizeTitle\(document\.getElementById\('ewTitle'\)\)/.test(src));
+  T('and the measurement stays off the redraw path',
+    /setTimeout\(\(\) => ewSizeTitle\(document\.getElementById\('ewTitle'\)\), 0\)/.test(src));
+  T('the title keeps its weight in the hierarchy',
+    /\.ew-title\{[\s\S]{0,200}font-size: 24px; font-weight: 700;/.test(css));
 
   sub('mobile rules the editor must not break');
   /* Every control in this editor is focusable on a phone; below 16px Safari
      zooms the page on focus, which is the regression D18.3 fixed globally. */
+  /* Rules are located by their own start, not by substring: ".ew-date{" also
+     occurs inside ".ew-ex-name, .ew-date{", and matching that instead reads
+     the wrong declaration block. */
+  const ruleBlock = sel => {
+    const re = new RegExp('(^|[}\\n])\\s*' + sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{');
+    const m = re.exec(css);
+    if(!m) return null;
+    const at = m.index + m[0].length;
+    return css.slice(at, css.indexOf('}', at));
+  };
   T('no editor input is small enough to zoom iOS on focus', (() => {
-    const rules = ['.ew-title{', '.ew-date{', '.ew-num{', '.ew-rir, .ew-type{', '.ew-notes{'];
-    const bad = rules.filter(r => {
-      const at = css.indexOf(r);
-      if(at === -1) return true;
-      const m = css.slice(at, css.indexOf('}', at)).match(/font-size:\s*([\d.]+)px/);
+    const bad = ['.ew-title', '.ew-date', '.ew-num', '.ew-rir, .ew-type', '.ew-notes'].filter(sel => {
+      const b = ruleBlock(sel);
+      if(b === null) return true;
+      const m = b.match(/font-size:\s*([\d.]+)px/);
       return !m || parseFloat(m[1]) < 16;
     });
     return bad.length === 0 ? true : bad;
   })() === true);
   T('and every interactive control clears the touch minimum', (() => {
-    const rules = ['.ew-title{', '.ew-date{', '.ew-ex-name{', '.ew-num{', '.ew-rir, .ew-type{', '.ew-add{'];
-    const bad = rules.filter(r => {
-      const at = css.indexOf(r);
-      if(at === -1) return true;
-      const m = css.slice(at, css.indexOf('}', at)).match(/min-height:\s*([\d.]+)px/);
+    const bad = ['.ew-title', '.ew-date', '.ew-ex-name', '.ew-num', '.ew-rir, .ew-type', '.ew-add'].filter(sel => {
+      const b = ruleBlock(sel);
+      if(b === null) return true;
+      const m = b.match(/min-height:\s*([\d.]+)px/);
       return !m || parseFloat(m[1]) < 44;
     });
     return bad.length === 0 ? true : bad;
   })() === true);
+  T('and the remove buttons carry a full 44px touch area',
+    /\.ew-x\{[\s\S]{0,120}width: 44px; height: 44px;/.test(css));
   T('the remove buttons are 44px tall too',
     /\.ew-x\{[\s\S]{0,80}height: 44px;/.test(css) && /\.ew-x-ex\{ height: 44px; \}/.test(css));
 
