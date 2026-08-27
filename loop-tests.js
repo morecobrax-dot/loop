@@ -12165,6 +12165,71 @@ function testWorkoutNavStates(app){
     /aria:'Skip exercise'/.test(src) && /aria:'Next exercise'/.test(src) &&
     /aria:'Finish workout'/.test(src) && /aria-label="Previous exercise"/.test(src));
 
+  sub('the green row and the navigation read the same truth');
+  /* D19.2.1: markExerciseComplete() only ever ADDS .ex-complete and
+     toggleSetComplete() only removes it when a set is un-ticked — so a set
+     ADDED to a finished exercise left the row green while the navigation
+     correctly said Skip. Two surfaces, one state, disagreeing. */
+  const visualRow = (...done) => {
+    const cls = new Set(['ex-log-row']);
+    const r = {
+      dataset: {}, _sets: [...done],
+      classList: {
+        contains: c => cls.has(c), add: c => cls.add(c), remove: c => cls.delete(c),
+        toggle: (c, f) => { if(f === undefined){ cls.has(c) ? cls.delete(c) : cls.add(c); }
+                            else { f ? cls.add(c) : cls.delete(c); } return cls.has(c); }
+      },
+      querySelector: () => r._sets.some(Boolean) ? {} : null,
+      querySelectorAll: () => r._sets.map(d => ({ classList: { contains: c => c === 'completed' && d } }))
+    };
+    return r;
+  };
+  const green = row => row.classList.contains('ex-complete');
+
+  const vr = visualRow(true, true, true);
+  ctx.syncWorkoutCompletionState(vr);
+  T('a completed exercise carries the visual completion state', green(vr) === true);
+  T('and the navigation agrees with it', ctx.exerciseRowComplete(vr) === green(vr));
+
+  vr._sets.push(false);                       // add an incomplete required set
+  ctx.syncWorkoutCompletionState(vr);
+  T('adding incomplete required work clears the visual state at once', green(vr) === false);
+  T('and the navigation still agrees', ctx.exerciseRowComplete(vr) === green(vr));
+
+  vr._sets[3] = true;                          // complete the newly added set
+  ctx.syncWorkoutCompletionState(vr);
+  T('completing the new work restores the visual state', green(vr) === true);
+
+  vr._sets.splice(0, 1);                       // remove a completed set — still all done
+  ctx.syncWorkoutCompletionState(vr);
+  T('removing a completed set leaves a still-finished exercise finished', green(vr) === true);
+
+  vr._sets[0] = false;                         // required work outstanding again
+  ctx.syncWorkoutCompletionState(vr);
+  T('removing required completed work clears the visual state', green(vr) === false);
+
+  const sk = visualRow(true, false);
+  sk.dataset.skipped = '1';
+  ctx.syncWorkoutCompletionState(sk);
+  T('a skipped, unfinished exercise is not green', green(sk) === false);
+  sk._sets[1] = true;
+  ctx.syncWorkoutCompletionState(sk);
+  T('finishing a skipped exercise shows completion immediately', green(sk) === true);
+  T('and retires the skip in the same pass', sk.dataset.skipped === '');
+
+  T('the tint is recomputed from the sets, never from the class it is setting', (() => {
+    const i = src.indexOf('function syncExerciseCompleteVisual');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    /* It may READ the class to decide whether to replay the settle, but the
+       value it writes must come from exerciseRowComplete(). */
+    return /const complete = exerciseRowComplete\(row\);/.test(fn) &&
+           /classList\.toggle\('ex-complete', complete\)/.test(fn);
+  })());
+  T('the settle plays on becoming complete, not on every re-sync',
+    /if\(complete && !was\)\{/.test(src));
+  T('and the sync runs on every mutation, through the one entry point',
+    /try\{ syncExerciseCompleteVisual\(row\); \}catch\(e\)\{\}/.test(src));
+
   sub('navigation carries no data and no trainer');
   T('skip adds no storage key', (() => {
     const i = src.indexOf('function skipWorkoutStep');

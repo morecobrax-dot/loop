@@ -2747,3 +2747,25 @@ wrote nothing — `workoutLog`, `cardioLog`, `trainerLog`, XP, level, PRs,
 `exerciseNotes`, `gymProfile` and `programs` all byte-identical before and
 after. `DATA_KEYS` is still 15. Skip is not a trainer signal and does not reach
 one. The trainer remains `0.1.1-shadow`.
+
+## §40.1 — D19.2.1: completion visuals read the same truth
+
+D19.2 left one surface behind. `markExerciseComplete()` only ever *adds*
+`.ex-complete`, and `toggleSetComplete()` only removes it when a set is
+un-ticked — so a set **added** to a finished exercise left the row green while
+the navigation correctly showed Skip. Two surfaces describing one state, and
+disagreeing.
+
+`syncExerciseCompleteVisual()` recomputes the class from
+`exerciseRowComplete()` — the same predicate the navigation and the rail use —
+and runs from `syncWorkoutCompletionState()`, which already fires on all four
+mutations: complete, un-complete, add, remove. The class is never the source of
+truth; it is read only to decide whether the settle animation should replay, so
+re-syncing an already-complete row does not re-animate it.
+
+Verified through the real UI at 375×812: fresh → all complete → add an
+incomplete set → complete it → remove one, with the class, `exerciseRowComplete`
+and the forward control agreeing at every step. Geometry is byte-identical at
+375×812, 390×844, 812×375, 844×390 and 932×430 — the change is additive
+JavaScript, with no CSS and no layout touched. `DATA_KEYS` still 15, trainer
+still `0.1.1-shadow`.

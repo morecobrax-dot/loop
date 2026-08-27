@@ -23116,11 +23116,35 @@ function skipWorkoutStep(){
    forward control, so the last set ticked turns Skip into Next under the
    athlete's thumb with no reload and no second tap — and removing required
    work turns it back. */
+/* The row's green tint, derived from the same truth the navigation and the
+   rail use rather than from whoever wrote the class last.
+
+   markExerciseComplete() only ever ADDS the class, and toggleSetComplete()
+   only removes it when a set is un-ticked — so a set ADDED to a finished
+   exercise left the row green while the navigation correctly said Skip. Two
+   surfaces, one state, disagreeing. This recomputes from the set rows, so the
+   tint cannot drift from exerciseRowComplete() whatever caused the change. */
+function syncExerciseCompleteVisual(row){
+  if(!row || !row.classList) return;
+  const complete = exerciseRowComplete(row);
+  const was = row.classList.contains('ex-complete');
+  row.classList.toggle('ex-complete', complete);
+  /* The settle belongs to the moment of becoming complete, not to the state.
+     Re-syncing a row that was already complete must not replay it. */
+  if(complete && !was){
+    row.classList.add('ex-complete-in');
+    setTimeout(() => row.classList.remove('ex-complete-in'), 460);
+  }
+}
+
 function syncWorkoutCompletionState(row){
   /* Finishing an exercise that was skipped earlier retires the skip: they
      came back and did the work, and the rail should stop saying otherwise.
      Skipped is current workout state, not a permanent verdict. */
   if(row && row.dataset.skipped === '1' && exerciseRowComplete(row)) row.dataset.skipped = '';
+  /* Runs last, so it is the final word on the tint no matter which of the
+     four mutations — complete, un-complete, add, remove — got us here. */
+  try{ syncExerciseCompleteVisual(row); }catch(e){}
   try{ renderWorkoutStep(); }catch(e){}
 }
 
