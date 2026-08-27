@@ -2769,3 +2769,63 @@ and the forward control agreeing at every step. Geometry is byte-identical at
 375×812, 390×844, 812×375, 844×390 and 932×430 — the change is additive
 JavaScript, with no CSS and no layout touched. `DATA_KEYS` still 15, trainer
 still `0.1.1-shadow`.
+
+## §41 — D20: editing a completed workout
+
+A saved workout is what actually happened; a template is what was intended.
+The editor changes the former and only the former.
+
+**Entry.** Secondary actions on both completed-workout surfaces: `Edit` beside
+`Done` on the post-save summary (Done stays primary), and `Edit` in the day
+detail beside Close and Delete. Existing deletion is untouched.
+
+**The edit lives in memory.** `openWorkoutEditor()` takes a deep copy; typing
+writes to that copy and never re-renders the form (only adding or removing a
+set or exercise redraws). No new storage key exists — `DATA_KEYS` is still 15 —
+so an interrupted edit simply evaporates rather than half-persisting. Cancel
+writes nothing, and warns first when there are unsaved changes.
+
+**Save is one write of one record.** The workout is found by its own id and
+replaced in place; the editor never pushes, never reassigns `workoutLog`, and
+never calls `LOOPStore.set` — persistence goes through the same `persistLog()`
+every other history change already uses, which is also what invalidates the
+derived caches. A failed write puts the original back. A second tap while
+saving is ignored. Identity and provenance — `id`, `category`, `startedAt`,
+`endedAt` — are carried over rather than regenerated.
+
+**What it writes matches what a live workout writes.** The record is rebuilt
+exactly as `saveLog()` builds one: empty sets dropped, exercises left with no
+sets dropped, `effort` re-derived from the RIR actually recorded, bodyweight
+exercises still storing `BW`. A set type that was never recorded stays absent
+rather than becoming "Working" — the editor's type control carries an explicit
+*Not recorded* option for exactly this. A set added in the editor is empty; it
+fabricates no performance data.
+
+**Sets have no identity of their own** — they are positional. Removal splices
+by index so neighbours keep their values, and destructive removals ask first.
+
+**Derived systems recompute; none is reinvented.** XP, PRs, consistency,
+mastery, substitution ranking and volume all derive from `workoutLog` and
+recompute through `persistLog()`'s existing invalidation. Records are read
+through the existing `computeExercisePREvents()`, and no PR snapshot is
+persisted to paper over a record an edit invalidated. One addition:
+`invalidateProgramCache()`, because `getProgramProgress()` counts sessions in a
+date window but keys its cache on the log's *length*, which an edit never
+changes.
+
+**The trainer never sees a correction.** No shadow outcome is linked, no
+`trainerLog` entry appended, no recommendation generated — asserted against the
+editor's source, not just its behaviour. A historical correction is not a new
+observation and must not contaminate the active shadow experiment.
+
+**Measured** against a populated fixture (3 workouts, 5 set types, bodyweight
+and barbell exercises, cardio, notes, trainer log, gym profile): editing one
+workout left `wB`, `wC`, `cardioLog`, `trainerLog`, `exerciseNotes`,
+`gymProfile`, `programs`, the log length and the engine version **all
+byte-identical**. XP recomputed 367 → 349 after a set was removed. 20 rapid
+Save taps produced one workout with two sets and no duplicates. A record
+changed underneath the editor prompts rather than overwriting; one deleted
+underneath it is not resurrected. Backup round-trip preserves ids, set types,
+RIR and notes. Five viewports: no overflow, inputs 16px, controls 44px.
+
+The trainer remains `0.1.1-shadow`.

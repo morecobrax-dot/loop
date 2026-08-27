@@ -12251,6 +12251,145 @@ function testWorkoutNavStates(app){
     ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
 }
 
+/* =========================================================
+   CONTRACT 117 — Editing history corrects it, and nothing else (D20)
+   ---------------------------------------------------------
+   A saved workout is what actually happened; a template is
+   what was intended. The editor changes the former only, in
+   one write, and is invisible to the trainer — a correction
+   is not a new training event.
+   ========================================================= */
+function testWorkoutEditor(app){
+  section('CONTRACT 117 — editing history corrects it, and nothing else');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const saveFn = (() => { const i = src.indexOf('function saveWorkoutEdits'); return src.slice(i, src.indexOf('\nfunction ', i + 10)); })();
+  const openFn = (() => { const i = src.indexOf('function openWorkoutEditor'); return src.slice(i, src.indexOf('\nfunction ', i + 10)); })();
+
+  sub('the way in');
+  T('the completed summary offers it as a secondary action',
+    /<button class="btn-secondary" onclick="editJustLoggedWorkout\(\)"/.test(src));
+  T('and Done stays the primary one',
+    /<button class="btn-primary" onclick="closeSummary\(\)">Done<\/button>/.test(src));
+  T('a past workout offers it from its own detail', /id="dayDetailEditBtn"/.test(src) &&
+    /editBtn\.onclick = \(\) => \{ closeDayDetail\(\); openWorkoutEditor\(entry\.id, 'day'\); \}/.test(src));
+  T('both routes name the action for a screen reader',
+    /id="dayDetailEditBtn" aria-label="Edit workout"/.test(src) &&
+    /onclick="editJustLoggedWorkout\(\)" aria-label="Edit workout"/.test(src));
+
+  sub('the edit lives in memory until it is saved');
+  T('the editor opens on a deep copy, not the stored record',
+    /draft: JSON\.parse\(JSON\.stringify\(entry\)\)/.test(openFn));
+  T('and remembers what was on disk when it opened',
+    /baseline: JSON\.stringify\(entry\)/.test(openFn));
+  T('typing writes to the draft and never re-renders the form', (() => {
+    const i = src.indexOf('function editSetField');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/renderWorkoutEditor/.test(fn);
+  })());
+  T('no new storage key was invented for the edit',
+    !/editDraft|workoutEditKey|EDIT_KEY/.test(src) && (ctx.DATA_KEYS || []).length === 15);
+  T('cancelling writes nothing at all', (() => {
+    const i = src.indexOf('function closeWorkoutEditor');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/LOOPStore|persistLog|workoutLog\[/.test(fn);
+  })());
+  T('and asks first when there are unsaved changes',
+    /if\(!force && st && st\.dirty && !confirm\('Discard changes\?'\)\) return;/.test(src));
+
+  sub('saving is one write of one record');
+  T('exactly one workout is replaced, found by its own id',
+    /const idx = \(workoutLog \|\| \[\]\)\.findIndex\(l => l\.id === st\.id\);/.test(saveFn) &&
+    /workoutLog\[idx\] = updated;/.test(saveFn));
+  T('it never appends, so an edit cannot become a second workout',
+    !/workoutLog\.push|workoutLog\.unshift/.test(saveFn));
+  T('and never rewrites the log wholesale',
+    !/workoutLog = /.test(saveFn));
+  T('persistence goes through the one existing history write',
+    /persistLog\(\)\.then\(ok => \{/.test(saveFn) && !/LOOPStore\.set/.test(saveFn));
+  T('a failed write puts the original back',
+    /workoutLog\[idx\] = previous;/.test(saveFn));
+  T('a second tap while saving does nothing',
+    /if\(!st \|\| st\.saving\) return;/.test(saveFn) && /st\.saving = true;/.test(saveFn));
+  T('identity and provenance are carried over, not regenerated',
+    /Object\.assign\(\{\}, previous, \{/.test(saveFn) && !/id: Date\.now/.test(saveFn));
+  T('a record that moved underneath the editor is not silently overwritten',
+    /JSON\.stringify\(workoutLog\[idx\]\) !== st\.baseline/.test(saveFn));
+  T('and one deleted underneath it is not resurrected',
+    /if\(idx === -1\)\{/.test(saveFn));
+
+  sub('what it writes matches what a live workout writes');
+  /* Rebuilt the way saveLog() builds one, so an edited record is
+     indistinguishable in shape from one logged at the time. */
+  T('sets with nothing in them are dropped', /if\(weight \|\| reps\)\{/.test(saveFn));
+  T('exercises left with no sets are dropped', /if\(!sets\.length\) return;/.test(saveFn));
+  T('an unrecorded set type stays unrecorded rather than becoming "working"',
+    /if\(isKnownSetType\(s\.type\)\) o\.type = s\.type;/.test(saveFn) &&
+    /if\(value\) s\.type = value; else delete s\.type;/.test(src));
+  T('effort is re-derived from the RIR actually recorded',
+    /effort = String\(rirToEffort\(rirValues\.reduce/.test(saveFn));
+  T('bodyweight exercises keep recording BW rather than a number',
+    /const weight = bodyweight \? 'BW' :/.test(saveFn));
+  T('a new set is empty, never filled in with invented performance', (() => {
+    const i = src.indexOf('function editorAddSet');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return /\{ weight:'', reps:'', rir:'' \}/.test(fn) && !/previous|last|copy/i.test(fn.replace(/\/\*[\s\S]*?\*\//g, ''));
+  })());
+  T('a removed set is spliced by index, so its neighbours keep their own data',
+    /ex\.sets\.splice\(j, 1\);/.test(src));
+  T('destructive removals ask first',
+    /confirm\('Remove set ' \+ \(j \+ 1\)/.test(src) && /confirm\('Remove ' \+ \(ex\.name/.test(src));
+
+  sub('derived systems recompute; none of them is reinvented');
+  T('no second XP, PR or analytics engine appears', (() => {
+    const editorStart = src.indexOf('let workoutEditState = null;');
+    const editorEnd = src.indexOf('function saveWorkoutEdits') + saveFn.length;
+    const region = src.slice(editorStart, editorEnd);
+    return !/computeXPTimeline|calculateLevelFromXP|_xpTimelineCache|_prSetCache|_consistencyCache/.test(region);
+  })());
+  T('records are read through the existing PR computation',
+    /computeExercisePREvents\(ex\.name\)/.test(src.slice(src.indexOf('function prEventsForEntry'))));
+  T('and no PR snapshot is persisted onto the record',
+    !/prSnapshot|savedPRs|entry\.prs =/.test(saveFn));
+  T('the caches history already invalidates are invalidated by that same write',
+    /async function persistLog\(\)\{[\s\S]{0,400}invalidateSortedLogCache\(\);/.test(src));
+  T('programme progress is invalidated too, because it keys on log LENGTH',
+    /invalidateProgramCache\(\);/.test(saveFn) &&
+    /const key = p\.id \+ '\|' \+ today \+ '\|' \+ p\.status \+ '\|' \+ \(workoutLog \? workoutLog\.length : 0\);/.test(src));
+
+  sub('the trainer never sees a correction');
+  T('no shadow outcome is linked from an edit', !/linkShadowOutcomes/.test(saveFn));
+  T('no trainer log entry is appended', !/persistTrainerLog|logRecommendation/.test(saveFn));
+  T('no recommendation is generated', !/buildProgressionRecommendation|captureShadowFor/.test(saveFn));
+  T('the editor touches no trainer surface at all', (() => {
+    const editorStart = src.indexOf('let workoutEditState = null;');
+    const region = src.slice(editorStart, editorStart + 12000);
+    return !/trainerLog|shadowEvidence|capability|readiness|recovery/i.test(region);
+  })());
+  T('and the engine is untouched',
+    ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
+
+  sub('it edits history, not the plan');
+  T('no template, programme, phase or schedule is written',
+    !/persistPrograms|persistPlanData|planData|programsStore|schedule/.test(saveFn));
+  T('and no exercise memory is written — a workout note is not an exercise note',
+    !/exerciseNotes|persistExerciseNotes|addExerciseNote/.test(saveFn));
+
+  sub('none of the active workout comes with it');
+  T('no rest timer', !/startRestPanel|rest-panel/.test(src.slice(src.indexOf('function renderWorkoutEditor'), src.indexOf('function prEventsForEntry'))));
+  T('no warm-up, recommendation or stepper', (() => {
+    const i = src.indexOf('function editorExerciseHtml');
+    const region = src.slice(i, src.indexOf('function prEventsForEntry'));
+    return !/prepCard|startPrep|recommendCardHtml|ws-bar|warmupBoxHtml/.test(region);
+  })());
+  T('set type stays a labelled control, never a hidden menu',
+    /<label for="ew-t-' \+ idp \+ '">Set type<\/label>/.test(src));
+  T('every editable field is labelled',
+    /Workout name<\/label>/.test(src) && />Reps<\/label>/.test(src) &&
+    />RIR<\/label>/.test(src) && /aria-label="Exercise name"/.test(src));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -12332,6 +12471,7 @@ async function main(){
   testWorkoutJourney(H.loadApp());
   testRestHold(H.loadApp());
   testWorkoutNavStates(H.loadApp());
+  testWorkoutEditor(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

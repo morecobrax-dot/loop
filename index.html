@@ -3582,6 +3582,52 @@ body.page-locked{ overflow: hidden; }
   width: 100%; min-height: 44px; background: none; border: 1px dashed var(--border); color: var(--text-faint);
   padding: 10px; border-radius: var(--radius-md); cursor: pointer; font-size: 12.5px; font-weight: 600; margin-top: 8px;
 }
+
+/* ---- EDIT A COMPLETED WORKOUT (D20) ----
+   Reuses the sheet, the type scale and the field styling the rest of LOOP
+   uses. One exercise per block, separated by a rule rather than boxed into
+   another card stack — this is a correction form, and it should read as
+   calmly as the workout it is correcting. */
+.ew-dirty{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--warning);
+  text-align: right; white-space: nowrap;
+}
+.ew-exercises{ margin-top: var(--space-5); }
+.ew-ex{
+  padding-top: var(--space-4); margin-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.ew-ex:first-child{ border-top: none; margin-top: 0; padding-top: 0; }
+.ew-ex-head{ display: flex; gap: var(--space-2); align-items: center; }
+.ew-ex-name{ flex: 1; min-width: 0; font-weight: 600; }
+.ew-ex-del, .ew-set-del{
+  flex-shrink: 0; min-height: 44px; padding: 0 var(--space-3);
+  background: none; border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; color: var(--text-faint);
+}
+.ew-ex-del:active, .ew-set-del:active{ color: var(--danger); }
+.ew-set{ margin-top: var(--space-3); }
+.ew-set-top{ display: flex; align-items: center; justify-content: space-between; }
+.ew-set-n{
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.03em; color: var(--text-dim);
+}
+/* Weight / reps / RIR side by side — the three numbers being corrected. */
+.ew-fields{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-2); }
+.ew-f{ display: flex; flex-direction: column; min-width: 0; }
+.ew-f label{ font-size: var(--fs-micro); margin: 0 0 4px; color: var(--text-faint); }
+.ew-f-wide{ margin-top: var(--space-2); }
+/* Set type stays a labelled control in the open, never a hidden menu. */
+.ew-f select, .ew-f input{ width: 100%; min-height: 44px; font-size: 16px; }
+.ew-add{
+  width: 100%; min-height: 44px; margin-top: var(--space-3);
+  background: none; border: 1px dashed var(--border); border-radius: var(--radius-md);
+  color: var(--text-faint); cursor: pointer; font-size: 12.5px; font-weight: 600;
+}
+.ew-add:hover{ border-color: var(--accent); color: var(--accent); }
+.ew-note{ font-size: 12px; line-height: 1.45; color: var(--text-faint); margin: var(--space-2) 0 0; }
+.ew-foot-note{ margin-top: var(--space-5); }
 .add-ex-btn:hover{ border-color: var(--accent); color: var(--accent); }
 
 .sheet-actions{
@@ -4761,7 +4807,28 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       </div>
       <div class="sheet-actions">
         <button class="btn-secondary" onclick="closeDayDetail()">Close</button>
+        <button class="btn-secondary" id="dayDetailEditBtn" aria-label="Edit workout">Edit</button>
         <button class="btn-secondary" style="color:var(--danger)" id="dayDetailDeleteBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT A COMPLETED WORKOUT (D20)
+       Corrects the historical record and nothing else. Deliberately carries
+       none of the active-workout machinery: no rest timer, no warm-up, no
+       recommendations, no shadow observation. Correcting a mistake is not a
+       new training event and must never look like one to the trainer. -->
+  <div class="overlay overlay-page" id="editWorkoutOverlay">
+    <div class="sheet sheet-page">
+      <div class="workout-topbar">
+        <button class="workout-back" onclick="closeWorkoutEditor()" aria-label="Close editor">‹</button>
+        <div class="workout-topbar-title">Edit Workout</div>
+        <span class="workout-topbar-spacer ew-dirty" id="ewDirty"></span>
+      </div>
+      <div class="sheet-scroll" id="ewBody"></div>
+      <div class="sheet-actions">
+        <button class="btn-secondary" onclick="closeWorkoutEditor()">Cancel</button>
+        <button class="btn-primary" id="ewSaveBtn" onclick="saveWorkoutEdits(this)">Save Changes</button>
       </div>
     </div>
   </div>
@@ -5329,7 +5396,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div id="summaryCooldown"></div>
     </div>
     <div class="sheet-actions">
-      <button class="btn-primary" style="width:100%;" onclick="closeSummary()">Done</button>
+      <button class="btn-secondary" onclick="editJustLoggedWorkout()" aria-label="Edit workout">Edit</button>
+      <button class="btn-primary" onclick="closeSummary()">Done</button>
     </div>
   </div>
 </div>
@@ -14723,6 +14791,9 @@ function openDayDetail(dateStr){
 
   document.getElementById('dayDetailNotes').innerHTML = entry.notes ? `<div class="log-notes">"${escapeHtml(entry.notes)}"</div>` : '';
 
+  const editBtn = document.getElementById('dayDetailEditBtn');
+  if(editBtn) editBtn.onclick = () => { closeDayDetail(); openWorkoutEditor(entry.id, 'day'); };
+
   const delBtn = document.getElementById('dayDetailDeleteBtn');
   delBtn.onclick = () => {
     const before = workoutLog.length;
@@ -14733,6 +14804,343 @@ function openDayDetail(dateStr){
   document.getElementById('dayDetailOverlay').classList.add('open');
 }
 function closeDayDetail(){ document.getElementById('dayDetailOverlay').classList.remove('open'); }
+
+/* =========================================================
+   EDIT A COMPLETED WORKOUT (D20)
+   ---------------------------------------------------------
+   A saved workout is what actually happened; a template is
+   what was intended. This edits the former and only the
+   former — no plan, no programme, no schedule, no future
+   session.
+
+   The whole edit lives in memory until Save: a deep copy is
+   mutated as the athlete types, validated once, and written
+   through the same persistLog() every other history change
+   already uses. Cancel drops the copy, and the stored record
+   is untouched because it was never written to.
+
+   Nothing here observes, recommends or scores. A correction
+   is not a new training event: no shadow outcome is linked,
+   no trainerLog entry is appended, and no recommendation is
+   generated. Derived systems — XP, PRs, consistency, mastery
+   — recompute from the corrected log through their own
+   existing invalidation, which is exactly what they do after
+   any other change to history.
+   ========================================================= */
+let workoutEditState = null;
+
+function openWorkoutEditor(id, origin){
+  const entry = (workoutLog || []).find(l => l.id === id);
+  if(!entry) return;
+  workoutEditState = {
+    id: id,
+    origin: origin || 'day',
+    /* A deep copy, so every keystroke lands somewhere the stored workout
+       cannot see. */
+    draft: JSON.parse(JSON.stringify(entry)),
+    /* What was on disk when the editor opened. Save compares against this so
+       a record that moved underneath the editor is not silently clobbered. */
+    baseline: JSON.stringify(entry),
+    dirty: false,
+    saving: false
+  };
+  renderWorkoutEditor();
+  document.getElementById('editWorkoutOverlay').classList.add('open');
+  document.body.classList.add('page-locked');
+}
+
+function editJustLoggedWorkout(){
+  if(!lastLoggedEntryId) return;
+  openWorkoutEditor(lastLoggedEntryId, 'summary');
+}
+
+function closeWorkoutEditor(force){
+  const st = workoutEditState;
+  if(!force && st && st.dirty && !confirm('Discard changes?')) return;
+  workoutEditState = null;
+  const ov = document.getElementById('editWorkoutOverlay');
+  if(ov) ov.classList.remove('open');
+  /* Only release the page lock if nothing else is holding it — the editor can
+     be opened from on top of the summary sheet. */
+  const summaryOpen = document.getElementById('summaryOverlay');
+  const dayOpen = document.getElementById('dayDetailOverlay');
+  const logOpen = document.getElementById('logOverlay');
+  const stillOpen = [summaryOpen, dayOpen, logOpen].some(el => el && el.classList.contains('open'));
+  if(!stillOpen) document.body.classList.remove('page-locked');
+}
+
+function markEditorDirty(){
+  if(!workoutEditState || workoutEditState.dirty) return;
+  workoutEditState.dirty = true;
+  syncEditorDirty();
+}
+function syncEditorDirty(){
+  const el = document.getElementById('ewDirty');
+  if(el) el.textContent = (workoutEditState && workoutEditState.dirty) ? 'Unsaved' : '';
+}
+
+/* Field writes go straight to the in-memory draft and do NOT re-render — a
+   keystroke must never rebuild the form under the cursor. Only structural
+   changes (adding or removing a set or exercise) redraw. */
+function editWorkoutField(field, value){
+  if(!workoutEditState) return;
+  workoutEditState.draft[field] = value;
+  markEditorDirty();
+}
+function editExerciseName(i, value){
+  const ex = workoutEditState && workoutEditState.draft.exercises[i];
+  if(!ex) return;
+  ex.name = value;
+  markEditorDirty();
+}
+function editSetField(i, j, field, value){
+  const st = workoutEditState;
+  const ex = st && st.draft.exercises[i];
+  const s = ex && ex.sets && ex.sets[j];
+  if(!s) return;
+  if(field === 'type'){
+    /* Absent means "not recorded", which is a different thing from "working
+       set". Clearing the control must leave it absent rather than invent one. */
+    if(value) s.type = value; else delete s.type;
+  } else {
+    s[field] = value;
+  }
+  markEditorDirty();
+}
+
+function editorAddSet(i){
+  const ex = workoutEditState && workoutEditState.draft.exercises[i];
+  if(!ex) return;
+  /* Empty on purpose. This is a record of what happened, and the app does not
+     know what happened in a set the athlete has not described yet — so it
+     fabricates nothing and carries nothing forward. */
+  (ex.sets = ex.sets || []).push({ weight:'', reps:'', rir:'' });
+  markEditorDirty();
+  renderWorkoutEditor();
+}
+function editorRemoveSet(i, j){
+  const ex = workoutEditState && workoutEditState.draft.exercises[i];
+  if(!ex || !ex.sets || !ex.sets[j]) return;
+  if(!confirm('Remove set ' + (j + 1) + ' from ' + (ex.name || 'this exercise') + '?')) return;
+  /* Spliced by index, so the sets either side keep their own values — they
+     have no identity of their own to protect them. */
+  ex.sets.splice(j, 1);
+  markEditorDirty();
+  renderWorkoutEditor();
+}
+function editorAddExercise(){
+  if(!workoutEditState) return;
+  const d = workoutEditState.draft;
+  (d.exercises = d.exercises || []).push({ name:'', effort:'', bodyweight:false, sets:[{ weight:'', reps:'', rir:'' }] });
+  markEditorDirty();
+  renderWorkoutEditor();
+}
+function editorRemoveExercise(i){
+  const st = workoutEditState;
+  const ex = st && st.draft.exercises[i];
+  if(!ex) return;
+  if(!confirm('Remove ' + (ex.name || 'this exercise') + ' from this workout?')) return;
+  st.draft.exercises.splice(i, 1);
+  markEditorDirty();
+  renderWorkoutEditor();
+}
+
+function editorSetHtml(s, i, j, bw){
+  const known = isKnownSetType(s.type);
+  const types = '<option value=""' + (known ? '' : ' selected') + '>Not recorded</option>' +
+    SET_TYPE_REGISTRY.map(t =>
+      '<option value="' + escapeAttr(t.id) + '"' + (known && s.type === t.id ? ' selected' : '') + '>' +
+      escapeHtml(t.displayName) + '</option>').join('');
+  const rir = ['', '0', '1', '2', '3', '4', '5+'].map(v =>
+    '<option value="' + escapeAttr(v) + '"' + (String(s.rir == null ? '' : s.rir) === v ? ' selected' : '') + '>' +
+    (v === '' ? '—' : escapeHtml(v)) + '</option>').join('');
+  const idp = i + '-' + j;
+  return '<div class="ew-set">' +
+    '<div class="ew-set-top">' +
+      '<span class="ew-set-n">Set ' + (j + 1) + '</span>' +
+      '<button type="button" class="ew-set-del" onclick="editorRemoveSet(' + i + ',' + j + ')"' +
+        ' aria-label="Remove set ' + (j + 1) + '">Remove</button>' +
+    '</div>' +
+    '<div class="ew-fields">' +
+      '<div class="ew-f"><label for="ew-w-' + idp + '">' + (bw ? 'Load' : 'Weight') + '</label>' +
+        '<input id="ew-w-' + idp + '" type="text" inputmode="decimal"' + (bw ? ' disabled' : '') +
+        ' value="' + escapeAttr(bw ? 'BW' : (s.weight == null ? '' : String(s.weight))) + '"' +
+        ' oninput="editSetField(' + i + ',' + j + ',\'weight\',this.value)"></div>' +
+      '<div class="ew-f"><label for="ew-r-' + idp + '">Reps</label>' +
+        '<input id="ew-r-' + idp + '" type="text" inputmode="numeric"' +
+        ' value="' + escapeAttr(s.reps == null ? '' : String(s.reps)) + '"' +
+        ' oninput="editSetField(' + i + ',' + j + ',\'reps\',this.value)"></div>' +
+      '<div class="ew-f"><label for="ew-rir-' + idp + '">RIR</label>' +
+        '<select id="ew-rir-' + idp + '" onchange="editSetField(' + i + ',' + j + ',\'rir\',this.value)">' +
+        rir + '</select></div>' +
+    '</div>' +
+    '<div class="ew-f ew-f-wide"><label for="ew-t-' + idp + '">Set type</label>' +
+      '<select id="ew-t-' + idp + '" onchange="editSetField(' + i + ',' + j + ',\'type\',this.value)">' +
+      types + '</select></div>' +
+  '</div>';
+}
+
+function editorExerciseHtml(ex, i){
+  const bw = !!ex.bodyweight;
+  return '<div class="ew-ex">' +
+    '<div class="ew-ex-head">' +
+      '<input type="text" class="ew-ex-name" aria-label="Exercise name"' +
+        ' value="' + escapeAttr(ex.name || '') + '" oninput="editExerciseName(' + i + ',this.value)">' +
+      '<button type="button" class="ew-ex-del" onclick="editorRemoveExercise(' + i + ')"' +
+        ' aria-label="Remove exercise">Remove</button>' +
+    '</div>' +
+    (bw ? '<p class="ew-note">Bodyweight exercise — load was not recorded, and that cannot be changed here.</p>' : '') +
+    (ex.sets || []).map((s, j) => editorSetHtml(s, i, j, bw)).join('') +
+    '<button type="button" class="ew-add" onclick="editorAddSet(' + i + ')">+ Add set</button>' +
+  '</div>';
+}
+
+function renderWorkoutEditor(){
+  const st = workoutEditState;
+  if(!st) return;
+  const body = document.getElementById('ewBody');
+  if(!body) return;
+  const d = st.draft;
+  body.innerHTML =
+    '<label for="ewTitle">Workout name</label>' +
+    '<input type="text" id="ewTitle" value="' + escapeAttr(d.title || '') + '"' +
+      ' oninput="editWorkoutField(\'title\',this.value)">' +
+    '<label for="ewDate">Date</label>' +
+    '<input type="date" id="ewDate" value="' + escapeAttr(d.date || '') + '"' +
+      ' onchange="editWorkoutField(\'date\',this.value)">' +
+    '<div class="ew-exercises">' + (d.exercises || []).map(editorExerciseHtml).join('') + '</div>' +
+    '<button type="button" class="add-ex-btn" onclick="editorAddExercise()">+ Add exercise</button>' +
+    '<label for="ewNotes">Notes</label>' +
+    '<textarea id="ewNotes" placeholder="How did it actually go?"' +
+      ' oninput="editWorkoutField(\'notes\',this.value)">' + escapeHtml(d.notes || '') + '</textarea>' +
+    '<p class="ew-note ew-foot-note">Editing changes this workout only. Your plan, programme and' +
+      ' schedule are not affected.</p>';
+  syncEditorDirty();
+}
+
+/* The same records check saveLog() runs, reused rather than reinvented: an
+   exercise's newest PR event counts when it falls on this workout's date. If
+   an edit removed the lift that earned a record, the record stops being shown
+   because it stopped being true — no snapshot is persisted to paper over it. */
+function prEventsForEntry(entry){
+  const out = [];
+  const seen = new Set();
+  (entry.exercises || []).forEach(ex => {
+    const key = (ex.name || '').trim().toLowerCase();
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    let events = [];
+    try{ events = computeExercisePREvents(ex.name); }catch(e){ events = []; }
+    if(events.length && events[0].date === entry.date) out.push(events[0]);
+  });
+  return out;
+}
+
+function saveWorkoutEdits(btn){
+  const st = workoutEditState;
+  if(!st || st.saving) return;
+  const d = st.draft;
+
+  const title = (d.title || '').trim();
+  if(!title){ flagFieldError(document.getElementById('ewTitle')); return; }
+
+  /* Rebuilt exactly the way saveLog() builds a fresh workout, so an edited
+     record is indistinguishable in shape from one logged live: sets with
+     nothing in them are dropped, exercises left with no sets are dropped, and
+     effort is re-derived from the RIR actually recorded rather than kept from
+     before the edit. */
+  const exercises = [];
+  (d.exercises || []).forEach(ex => {
+    const name = (ex.name || '').trim();
+    if(!name) return;
+    const bodyweight = !!ex.bodyweight;
+    const sets = [];
+    const rirValues = [];
+    (ex.sets || []).forEach(s => {
+      const weight = bodyweight ? 'BW' : String(s.weight == null ? '' : s.weight).trim();
+      const reps = String(s.reps == null ? '' : s.reps).trim();
+      const rirRaw = String(s.rir == null ? '' : s.rir).trim();
+      if(weight || reps){
+        const o = { weight, reps, rir: rirRaw };
+        if(isKnownSetType(s.type)) o.type = s.type;   // absent stays absent
+        sets.push(o);
+      }
+      const n = parseFloat(rirRaw);
+      if(!isNaN(n)) rirValues.push(n);
+    });
+    if(!sets.length) return;
+    let effort = String(ex.effort == null ? '' : ex.effort).trim();
+    if(rirValues.length){
+      effort = String(rirToEffort(rirValues.reduce((a, b) => a + b, 0) / rirValues.length));
+    }
+    exercises.push({ name, effort, bodyweight, sets });
+  });
+
+  if(!exercises.length){
+    alert('Keep at least one exercise with a logged set. To remove the session entirely, delete the workout instead.');
+    return;
+  }
+
+  const idx = (workoutLog || []).findIndex(l => l.id === st.id);
+  if(idx === -1){
+    alert('This workout is no longer in your history, so there is nothing to update.');
+    closeWorkoutEditor(true);
+    return;
+  }
+  /* The record must still be the one the editor opened. If something else
+     changed it in the meantime, the athlete decides — it is not overwritten
+     underneath them. */
+  if(JSON.stringify(workoutLog[idx]) !== st.baseline){
+    if(!confirm('This workout changed since you opened it. Replace it with your edits?')) return;
+  }
+
+  st.saving = true;
+  if(btn) btn.disabled = true;
+
+  const previous = workoutLog[idx];
+  /* Identity and provenance carry over untouched: the id it has always had,
+     when it was trained, how long it took. Correcting what was recorded does
+     not make this a different session. */
+  const updated = Object.assign({}, previous, {
+    title: title,
+    date: d.date || previous.date,
+    notes: (d.notes || '').trim(),
+    exercises: exercises
+  });
+  workoutLog[idx] = updated;
+
+  /* One write, through the same function every other history change uses —
+     which is also what invalidates the derived caches. Until this resolves,
+     storage still holds the original, so a failure loses nothing. */
+  persistLog().then(ok => {
+    st.saving = false;
+    if(!ok){
+      workoutLog[idx] = previous;
+      invalidateSortedLogCache();
+      invalidateXPTimelineCache();
+      invalidateConsistencyCache();
+      if(btn) btn.disabled = false;
+      alert("Couldn't save your changes. This workout is unchanged.");
+      return;
+    }
+    /* Programme progress counts sessions inside the programme's date window
+       but keys its cache on the log's LENGTH, which an edit never changes —
+       so an edited date would otherwise be read from a stale count. */
+    try{ invalidateProgramCache(); }catch(e){}
+    const origin = st.origin;
+    closeWorkoutEditor(true);
+    renderAll();
+    /* Straight back to where they came from, now showing the corrected
+       record rather than the one they just fixed. */
+    if(origin === 'summary'){
+      try{
+        showWorkoutSummary(updated, prEventsForEntry(updated), [], computeSessionVolumeInsight(updated));
+      }catch(e){}
+    } else {
+      try{ openDayDetail(updated.date); }catch(e){}
+    }
+  });
+}
 
 /* ---------- EXERCISE HISTORY ---------- */
 function getAllLoggedExerciseNames(){
