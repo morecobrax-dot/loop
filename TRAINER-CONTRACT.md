@@ -2933,3 +2933,53 @@ record, and editing one workout leaving the other workout, `cardioLog`,
 no persistence function, adds no storage write and contains no data logic —
 `persistLog`, `saveLog` and `deleteLog` do not appear in it. `DATA_KEYS` is
 still 15 and the trainer remains `0.1.1-shadow`.
+
+## §41.3 — Edit opens on the first tap
+
+**The bug.** From the completed-workout summary, tapping Edit appeared to do
+nothing; the editor only became visible after a second, unrelated tap.
+
+**Root cause, traced not guessed.** Every overlay in LOOP shares `z-index: 60`,
+so which one is seen comes down to document order — and `#summaryOverlay`
+(line ~5517) sits *below* `#editWorkoutOverlay` (line ~4951) in the markup.
+`openWorkoutEditor()` opened the editor correctly, but left the summary open on
+top of it. Measured after a single tap: `editorOpen: true`, editor rendered at
+`top: 0` × full height — and `document.elementFromPoint()` at the centre of the
+screen returned `stat-num`, **inside the summary**. The athlete's next tap
+landed on the summary's backdrop, which runs `backdropDismiss(closeSummary)`,
+dismissing it and revealing an editor that had been there the whole time.
+
+**The fix is ordering, not stacking.** Opening the editor from the summary now
+stands the summary down, and backing out puts it back exactly as it was —
+nothing changed while it was away. No `z-index` value was altered; a contract
+asserts the editor's `openWorkoutEditor` contains no stacking change (reading
+code, not the comment that explains why). Save is unaffected: it already
+rebuilt the summary from the corrected record.
+
+**A second broken button, found by the required audit.** After one successful
+save, `#ewSaveBtn` stayed `disabled`, labelled "Saved", carrying `is-saved` —
+the element is static markup, so reopening the editor presented a green button
+that did nothing. A second edit could never be saved. Introduced by the D20.2
+save-feedback state; the button is now reset every time the editor opens.
+Verified by saving twice in one session: the second save lands.
+
+**Every button audited, one tap each.** Summary: Edit, Done, Delete (declining
+leaves the workout intact). Editor: Back, Cancel, Save, Add set, Remove set,
+Add exercise, Remove exercise, title/date/notes, and every set field. A
+hit-test over each editor button confirmed nothing invisible intercepts it.
+
+**Rapid taps.** Twenty consecutive taps on Edit leave exactly one open overlay
+and one editor state; a repeat tap while the editor is up is ignored rather
+than reopening, so typed changes survive it.
+
+**Lifecycle.** Edit→Cancel ×3, Edit→Save, reopen→Edit→Cancel, then a second
+Save: every edit step shows the editor and only the editor; every cancel step
+returns to the summary with state cleared; overlays never stack.
+
+Verified at 375×812, 390×844, 812×375, 844×390 and 932×430 — the editor opens
+at `top: 0`, never below the fold, with Save and Cancel hit-testable in all
+five. Cancel writes nothing (storage byte-identical); save writes only the
+intended record, with `wB`, `cardioLog`, `trainerLog`, `exerciseNotes` and
+`gymProfile` unchanged. `DATA_KEYS` is still 15 and the trainer remains
+`0.1.1-shadow`. The diff touches no persistence function and adds no storage
+write.

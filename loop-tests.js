@@ -12278,6 +12278,47 @@ function testWorkoutEditor(app){
     /id="dayDetailEditBtn" aria-label="Edit workout"/.test(src) &&
     /onclick="editJustLoggedWorkout\(\)" aria-label="Edit workout"/.test(src));
 
+  sub('one tap opens it, and the tap is the whole navigation');
+  /* Every overlay in LOOP shares z-index 60, so which one is seen comes down
+     to document order — and #summaryOverlay sits BELOW #editWorkoutOverlay in
+     the markup. Leaving the summary open painted it over an editor that had
+     opened correctly: the athlete tapped Edit, saw nothing change, and their
+     next tap hit the summary's backdrop, dismissed it, and revealed an editor
+     that had been there all along. */
+  T('the editor is declared before the summary, so it cannot out-stack it', (() => {
+    const ed = src.indexOf('id="editWorkoutOverlay"');
+    const sum = src.indexOf('id="summaryOverlay"');
+    return ed > 0 && sum > ed;
+  })());
+  T('so opening from the summary stands the summary down',
+    /const summary = document\.getElementById\('summaryOverlay'\);[\s\S]{0,220}summary\.classList\.remove\('open'\);/.test(src) &&
+    /workoutEditState\.summaryWasOpen = true;/.test(src));
+  T('and backing out puts it back exactly as it was',
+    /const restoreSummary = !force && st && st\.summaryWasOpen;/.test(src) &&
+    /if\(restoreSummary\)\{[\s\S]{0,160}summary\.classList\.add\('open'\);/.test(src));
+  T('the fix is ordering, not a z-index escalation', (() => {
+    const i = src.indexOf('function openWorkoutEditor');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    /* Read the code, not the comment explaining why no z-index was touched. */
+    const code = fn.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    return !/zIndex|z-index/.test(code);
+  })());
+  T('a save rebuilds the summary itself rather than restoring the stale one',
+    /showWorkoutSummary\(updated, prEventsForEntry\(updated\)/.test(src));
+  T('a second tap while the editor is up is ignored, not a reopen',
+    /if\(workoutEditState && workoutEditState\.id === id\) return;/.test(src));
+  /* The save button lives in static markup, so the "Saved" state left on it
+     survived the sheet closing: reopening the editor showed a green button
+     reading "Saved" that was still disabled, and a second edit could never be
+     saved. It is reset every time the editor opens. */
+  T('the save button is reset each time the editor opens', (() => {
+    const i = src.indexOf('function openWorkoutEditor');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return /saveBtn\.disabled = false;/.test(fn) &&
+           /saveBtn\.classList\.remove\('is-saved'\);/.test(fn) &&
+           /saveBtn\.textContent = 'Save Changes';/.test(fn);
+  })());
+
   sub('the edit lives in memory until it is saved');
   T('the editor opens on a deep copy, not the stored record',
     /draft: JSON\.parse\(JSON\.stringify\(entry\)\)/.test(openFn));

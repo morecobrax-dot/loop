@@ -14966,6 +14966,9 @@ let workoutEditState = null;
 function openWorkoutEditor(id, origin){
   const entry = (workoutLog || []).find(l => l.id === id);
   if(!entry) return;
+  /* A second tap while the editor is already up is the same tap arriving
+     twice. Reopening would throw away whatever had been typed. */
+  if(workoutEditState && workoutEditState.id === id) return;
   workoutEditState = {
     id: id,
     origin: origin || 'day',
@@ -14978,6 +14981,29 @@ function openWorkoutEditor(id, origin){
     dirty: false,
     saving: false
   };
+  /* One visible surface at a time. Every overlay in LOOP shares z-index 60,
+     so which one is seen comes down to document order — and the summary sheet
+     sits several hundred lines BELOW this editor in the markup. Leaving it
+     open painted it straight over an editor that had opened correctly: the
+     athlete tapped Edit, saw nothing change, and their next tap landed on the
+     summary's backdrop, dismissed it, and revealed an editor that had been
+     there the whole time. Standing the summary down is the fix; raising a
+     z-index would only have hidden the ordering problem. */
+  const summary = document.getElementById('summaryOverlay');
+  if(summary && summary.classList.contains('open')){
+    summary.classList.remove('open');
+    workoutEditState.summaryWasOpen = true;
+  }
+  /* The save button lives in static markup, so the "Saved" state left on it by
+     the previous save survives the sheet closing. Without this reset, opening
+     the editor a second time showed a green button reading "Saved" that was
+     still disabled — the athlete could edit, but never save again. */
+  const saveBtn = document.getElementById('ewSaveBtn');
+  if(saveBtn){
+    saveBtn.disabled = false;
+    saveBtn.classList.remove('is-saved');
+    saveBtn.textContent = 'Save Changes';
+  }
   renderWorkoutEditor();
   document.getElementById('editWorkoutOverlay').classList.add('open');
   document.body.classList.add('page-locked');
@@ -14995,9 +15021,20 @@ function editJustLoggedWorkout(){
 function closeWorkoutEditor(force){
   const st = workoutEditState;
   if(!force && st && st.dirty && !confirm('Discard changes?')) return;
+  /* Backing out returns the summary the athlete came from, untouched — it was
+     only stood down so it could not paint over the editor, and nothing was
+     changed while it was away. Not restored when `force` is set: that is the
+     save path, which rebuilds the summary from the corrected record itself,
+     and the deleted-underneath path, where there is no longer a workout to
+     show a summary of. */
+  const restoreSummary = !force && st && st.summaryWasOpen;
   workoutEditState = null;
   const ov = document.getElementById('editWorkoutOverlay');
   if(ov) ov.classList.remove('open');
+  if(restoreSummary){
+    const summary = document.getElementById('summaryOverlay');
+    if(summary) summary.classList.add('open');
+  }
   /* Only release the page lock if nothing else is holding it — the editor can
      be opened from on top of the summary sheet. */
   const summaryOpen = document.getElementById('summaryOverlay');
