@@ -12376,6 +12376,76 @@ function testWorkoutEditor(app){
   T('and no exercise memory is written — a workout note is not an exercise note',
     !/exerciseNotes|persistExerciseNotes|addExerciseNote/.test(saveFn));
 
+  sub('it reads as a workout, not a form');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  /* The first version labelled every field and boxed every input: twenty-three
+     labels for twenty-six controls, thirty bordered boxes. The polish pass
+     replaced that with one column header per exercise and borderless fields. */
+  T('the workout title is set as a heading, not as another input',
+    /\.ew-title\{[\s\S]{0,220}font-size: 24px; font-weight: 700;/.test(css) &&
+    /\.ew-title\{[\s\S]{0,120}background: none; border: none;/.test(css));
+  T('the exercise name leads its block', /\.ew-ex-name\{[\s\S]{0,200}font-size: 17px; font-weight: 700;/.test(css));
+  T('sets are columns, and the columns are named once per exercise',
+    /\.ew-cols, \.ew-set\{\s*display: grid;/.test(css) && /class="ew-cols"/.test(src));
+  T('the numbers being corrected are the ones that dominate',
+    /\.ew-num\{[\s\S]{0,240}font-size: 16px; font-weight: 700;/.test(css));
+  T('and the fields inside a row carry no boxes of their own',
+    /\.ew-num\{[\s\S]{0,160}background: none; border: none;/.test(css));
+  T('removal is a quiet affordance, not a row dressed in red',
+    /\.ew-x\{[\s\S]{0,260}opacity: 0\.55;/.test(css) &&
+    /\.ew-x:hover, \.ew-x:focus-visible\{ opacity: 1; color: var\(--danger\); \}/.test(css));
+
+  sub('mobile rules the editor must not break');
+  /* Every control in this editor is focusable on a phone; below 16px Safari
+     zooms the page on focus, which is the regression D18.3 fixed globally. */
+  T('no editor input is small enough to zoom iOS on focus', (() => {
+    const rules = ['.ew-title{', '.ew-date{', '.ew-num{', '.ew-rir, .ew-type{', '.ew-notes{'];
+    const bad = rules.filter(r => {
+      const at = css.indexOf(r);
+      if(at === -1) return true;
+      const m = css.slice(at, css.indexOf('}', at)).match(/font-size:\s*([\d.]+)px/);
+      return !m || parseFloat(m[1]) < 16;
+    });
+    return bad.length === 0 ? true : bad;
+  })() === true);
+  T('and every interactive control clears the touch minimum', (() => {
+    const rules = ['.ew-title{', '.ew-date{', '.ew-ex-name{', '.ew-num{', '.ew-rir, .ew-type{', '.ew-add{'];
+    const bad = rules.filter(r => {
+      const at = css.indexOf(r);
+      if(at === -1) return true;
+      const m = css.slice(at, css.indexOf('}', at)).match(/min-height:\s*([\d.]+)px/);
+      return !m || parseFloat(m[1]) < 44;
+    });
+    return bad.length === 0 ? true : bad;
+  })() === true);
+  T('the remove buttons are 44px tall too',
+    /\.ew-x\{[\s\S]{0,80}height: 44px;/.test(css) && /\.ew-x-ex\{ height: 44px; \}/.test(css));
+
+  sub('it stays fast');
+  /* Two hundred-odd suggestion options re-parsed on every redraw cost more
+     than the redraw; and focusing forces a synchronous layout that cost more
+     than everything else put together. */
+  T('the exercise suggestion list is built once, outside the redrawn region',
+    /<span id="ewNameList" hidden><\/span>/.test(src) &&
+    /if\(list && !list\.firstChild\) list\.innerHTML = editorNameListHtml\(\);/.test(src));
+  T('and it reuses the existing registry rather than a second one',
+    /EXERCISE_LIBRARY/.test(src.slice(src.indexOf('function editorNameListHtml'), src.indexOf('function renderWorkoutEditor'))));
+  T('focusing a new set is deferred off the redraw',
+    /if\(field\) setTimeout\(\(\) => \{/.test(src));
+  T('typing still never redraws the editor', (() => {
+    const i = src.indexOf('function editWorkoutField');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/renderWorkoutEditor/.test(fn);
+  })());
+
+  sub('motion is short, and optional');
+  T('a new set arrives rather than appearing', /@keyframes ewSetIn\{/.test(css) &&
+    /\.ew-set-in\{ animation: ewSetIn 0\.2s var\(--ease\); \}/.test(css));
+  T('the save is acknowledged before the sheet goes',
+    /btn\.classList\.add\('is-saved'\);/.test(src) && /#ewSaveBtn\.is-saved\{/.test(css));
+  T('and none of it runs when motion is turned down',
+    /@media \(prefers-reduced-motion: reduce\)\{\s*\.ew-set-in\{ animation: none; \}/.test(css));
+
   sub('none of the active workout comes with it');
   T('no rest timer', !/startRestPanel|rest-panel/.test(src.slice(src.indexOf('function renderWorkoutEditor'), src.indexOf('function prEventsForEntry'))));
   T('no warm-up, recommendation or stepper', (() => {
@@ -12383,11 +12453,32 @@ function testWorkoutEditor(app){
     const region = src.slice(i, src.indexOf('function prEventsForEntry'));
     return !/prepCard|startPrep|recommendCardHtml|ws-bar|warmupBoxHtml/.test(region);
   })());
-  T('set type stays a labelled control, never a hidden menu',
-    /<label for="ew-t-' \+ idp \+ '">Set type<\/label>/.test(src));
-  T('every editable field is labelled',
-    /Workout name<\/label>/.test(src) && />Reps<\/label>/.test(src) &&
-    />RIR<\/label>/.test(src) && /aria-label="Exercise name"/.test(src));
+  /* The polish pass replaced a <label> above every field with one column
+     header per exercise plus an accessible name on each control — twenty-three
+     visible labels for twenty-six inputs is what made this read as a form. The
+     assertions below check the guarantee those labels existed for, and check
+     it across EVERY control rather than the four that used to be named. */
+  T('set type is a control in the row, not a menu behind a tap',
+    /class="ew-type/.test(src) && /aria-label="Set ' \+ n \+ ' type"/.test(src) &&
+    !/ew-type[\s\S]{0,200}(hidden|display:\s*none)/.test(src));
+  T('and the row says which column it is',
+    /<span>Type<\/span>/.test(src) && /<span>Reps<\/span>/.test(src) && /<span>RIR<\/span>/.test(src));
+  T('every editable control in the editor carries an accessible name', (() => {
+    const from = src.indexOf('function editorSetHtml');
+    const to = src.indexOf('function prEventsForEntry');
+    const region = src.slice(from, to);
+    /* The markup is built by concatenation, so a control's tag and its
+       aria-label are separate string fragments — each control is located by
+       its own id or class and its name looked for in the expression that
+       follows. A field added without one fails here. */
+    const controls = ['id="ew-w-', 'id="ew-r-', 'id="ew-rir-', 'id="ew-t-',
+                      'class="ew-ex-name"', 'id="ewTitle"', 'id="ewDate"', 'id="ewNotes"'];
+    const unnamed = controls.filter(c => {
+      const at = region.indexOf(c);
+      return at === -1 || !/aria-label=/.test(region.slice(at, at + 320));
+    });
+    return unnamed.length === 0 ? true : unnamed;
+  })() === true);
 }
 
 async function main(){

@@ -2829,3 +2829,52 @@ underneath it is not resurrected. Backup round-trip preserves ids, set types,
 RIR and notes. Five viewports: no overflow, inputs 16px, controls 44px.
 
 The trainer remains `0.1.1-shadow`.
+
+## §41.1 — Premium editor polish
+
+D20's editor worked but read as a database form. Measured before the pass, on
+one workout of three exercises: **30 bordered boxes**, **23 visible labels for
+26 inputs**, the workout title set at the same 16px/400 as every field, and
+1790px of content in a 673px viewport.
+
+**Header.** The title is now set as the heading of the thing being edited —
+24px/700 Space Grotesk, borderless — with the date beside it as a line of text
+rather than a boxed field. The native date control is kept: it is the reliable
+one, and the brief is right that a custom picker would be a downgrade.
+
+**Sets are columns.** The per-field labels became one column header per
+exercise (`Weight · Reps · RIR · Type`), and the fields inside a row lost their
+borders — the row is the container now, not each input in it. Weight and reps
+take the free space in mono at 16px/700; RIR and Type are sized to content and
+carry secondary colour. Removal is a quiet × at 55% opacity that reaches
+danger red on hover, rather than every row wearing a permanent red control.
+
+**Result:** 30 boxes → **5**, 23 visible labels → **0** with every one of the
+26 controls still carrying an accessible name, content height 1790 → **1085px**.
+
+**Two mobile regressions I introduced and fixed.** Shrinking controls for
+visual quiet put four of them under 44px and three inputs under 16px — the
+latter would re-introduce the iOS focus-zoom that D18.3 fixed globally. Both
+are now contract-guarded: every editor control declares `min-height: 44px` and
+every editor input declares at least 16px, asserted rule by rule.
+
+**Two performance regressions, likewise.** The 211-option exercise suggestion
+list was being re-parsed on every redraw (render 3.4 → 10.8ms), and focusing a
+newly added set forced a synchronous layout costing **26.7ms** on its own —
+adding a set took 27.7ms, well over a frame. The list is now built once outside
+the redrawn region and the focus is deferred by a tick. Measured after:
+add set **7.1ms**, remove set **6.0ms**, redraw **6.6ms**, keystroke
+**0.0035ms** — typing still never redraws anything.
+
+**Add exercise** reuses `EXERCISE_LIBRARY` through a native suggestion list on
+the name field: a picker and free text in one control, no intermediate screen,
+no second registry.
+
+Behaviour is unchanged from D20 and re-verified: save is still one atomic write
+through `persistLog()`, effort still derives from RIR (8 → 5 on edit), the
+conflict and deleted-underneath guards still hold, 20 rapid saves still produce
+one record, and editing one workout left the other workout, `cardioLog`,
+`trainerLog`, `exerciseNotes` and the engine version byte-identical.
+`persistLog`, `saveLog` and `deleteLog` are untouched by this diff, no new
+storage write exists, `DATA_KEYS` is still 15, and the trainer remains
+`0.1.1-shadow`.

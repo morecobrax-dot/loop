@@ -3593,41 +3593,129 @@ body.page-locked{ overflow: hidden; }
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--warning);
   text-align: right; white-space: nowrap;
 }
-.ew-exercises{ margin-top: var(--space-5); }
-.ew-ex{
-  padding-top: var(--space-4); margin-top: var(--space-4);
-  border-top: 1px solid var(--border);
+/* ---- header ----
+   The workout's name is the heading of the thing being edited, so it is set
+   like one. It was previously the same 16px input as every other field, which
+   is what made the top of the editor read as a form rather than a workout. */
+.ew-head{ padding-bottom: var(--space-4); border-bottom: 1px solid var(--border); }
+.ew-title{
+  width: 100%; background: none; border: none; padding: 0; min-height: 44px;
+  font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700;
+  line-height: 1.15; letter-spacing: -0.01em; color: var(--text);
 }
-.ew-ex:first-child{ border-top: none; margin-top: 0; padding-top: 0; }
+.ew-title::placeholder{ color: var(--text-faint); font-weight: 600; }
+.ew-title:focus{ outline: none; }
+.ew-head-meta{ display: flex; align-items: center; gap: var(--space-3); margin-top: 2px; }
+/* The native control, because it is the reliable one — dressed down to a line
+   of text so it sits with the title instead of shouting like a form field. */
+/* 16px like every other field in LOOP — below it Safari zooms the page on
+   focus, which is the regression D18.3 fixed globally. Weight comes off the
+   colour instead of the size. */
+.ew-date{
+  background: none; border: none; padding: 0; min-height: 44px; width: auto;
+  font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600; color: var(--text-dim);
+}
+.ew-date:focus{ outline: none; color: var(--accent); }
+
+/* ---- exercise block ---- */
+.ew-exercises{ margin-top: var(--space-2); }
+.ew-ex{ padding: var(--space-5) 0 var(--space-4); border-bottom: 1px solid var(--border); }
 .ew-ex-head{ display: flex; gap: var(--space-2); align-items: center; }
-.ew-ex-name{ flex: 1; min-width: 0; font-weight: 600; }
-.ew-ex-del, .ew-set-del{
-  flex-shrink: 0; min-height: 44px; padding: 0 var(--space-3);
-  background: none; border: none; cursor: pointer;
-  font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; color: var(--text-faint);
+.ew-ex-name{
+  flex: 1; min-width: 0; background: none; border: none; padding: 0; min-height: 44px;
+  font-family: 'Inter', sans-serif; font-size: 17px; font-weight: 700; color: var(--text);
 }
-.ew-ex-del:active, .ew-set-del:active{ color: var(--danger); }
-.ew-set{ margin-top: var(--space-3); }
-.ew-set-top{ display: flex; align-items: center; justify-content: space-between; }
+.ew-ex-name:focus{ outline: none; }
+.ew-ex-meta{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+  margin-bottom: var(--space-3);
+}
+
+/* ---- the set grid ----
+   Number, weight, reps, RIR, type, remove — on one line, in columns that line
+   up down the exercise so the numbers can be read as a column rather than
+   hunted for. Weight and reps take the free space; RIR and type are sized to
+   their content because they are secondary. */
+.ew-cols, .ew-set{
+  display: grid; grid-template-columns: 16px 1fr 1fr 42px 78px 30px;
+  gap: 6px; align-items: center;
+}
+.ew-cols{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint);
+  padding-bottom: 4px;
+}
+.ew-set{
+  min-height: 48px; border-top: 1px solid var(--border);
+}
+.ew-set:first-of-type{ border-top: none; }
 .ew-set-n{
-  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
-  letter-spacing: 0.03em; color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  color: var(--text-faint); text-align: center;
 }
-/* Weight / reps / RIR side by side — the three numbers being corrected. */
-.ew-fields{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-2); }
-.ew-f{ display: flex; flex-direction: column; min-width: 0; }
-.ew-f label{ font-size: var(--fs-micro); margin: 0 0 4px; color: var(--text-faint); }
-.ew-f-wide{ margin-top: var(--space-2); }
-/* Set type stays a labelled control in the open, never a hidden menu. */
-.ew-f select, .ew-f input{ width: 100%; min-height: 44px; font-size: 16px; }
+/* Borderless: the row is the container, not each field inside it. */
+.ew-num{
+  width: 100%; min-width: 0; background: none; border: none; padding: 0; min-height: 44px;
+  font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.ew-num:disabled{ color: var(--text-faint); font-weight: 600; }
+.ew-num:focus{ outline: none; color: var(--accent); }
+/* 16px so focusing one never zooms the page on iOS. These stay secondary by
+   colour and column width, not by being too small to tap or to focus safely. */
+.ew-rir, .ew-type{
+  width: 100%; min-width: 0; min-height: 44px; padding: 0 2px;
+  background: none; border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600;
+  color: var(--text-faint);
+  -webkit-appearance: none; appearance: none;
+}
+.ew-rir{ text-align: center; font-family: 'JetBrains Mono', monospace; }
+/* Reads as a label once it carries one, and as a prompt while it does not. */
+.ew-type.is-set{ color: var(--text-dim); }
+.ew-rir:focus, .ew-type:focus{ outline: none; color: var(--accent); }
+/* Removal is present but quiet — never a row permanently dressed in red. */
+.ew-x{
+  width: 30px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text-faint); opacity: 0.55;
+  transition: opacity 0.15s var(--ease), color 0.15s var(--ease);
+}
+.ew-x:hover, .ew-x:focus-visible{ opacity: 1; color: var(--danger); }
+.ew-x:active{ transform: scale(0.92); }
+.ew-x-ex{ height: 44px; }
+
 .ew-add{
-  width: 100%; min-height: 44px; margin-top: var(--space-3);
-  background: none; border: 1px dashed var(--border); border-radius: var(--radius-md);
-  color: var(--text-faint); cursor: pointer; font-size: 12.5px; font-weight: 600;
+  min-height: 44px; margin-top: var(--space-3); padding: 0 var(--space-4);
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text-dim); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
 }
 .ew-add:hover{ border-color: var(--accent); color: var(--accent); }
+.ew-add:active{ transform: scale(0.98); }
+.ew-add-ex{ width: 100%; margin-top: var(--space-4); }
+
+/* ---- notes ----
+   Athlete context, not an essay field: two lines, growing only if it needs to. */
+.ew-notes-wrap{ margin-top: var(--space-5); }
+.ew-notes{
+  width: 100%; min-height: 56px; font-size: 16px; line-height: 1.45;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 10px 12px; resize: vertical;
+}
 .ew-note{ font-size: 12px; line-height: 1.45; color: var(--text-faint); margin: var(--space-2) 0 0; }
-.ew-foot-note{ margin-top: var(--space-5); }
+.ew-foot-note{ margin-top: var(--space-4); }
+
+/* ---- motion ----
+   A new set arrives where it was asked for; the save is acknowledged before
+   the sheet goes. Both short enough to read as responsiveness, not animation. */
+@keyframes ewSetIn{ from{ opacity: 0; transform: translateY(-6px); } to{ opacity: 1; transform: none; } }
+.ew-set-in{ animation: ewSetIn 0.2s var(--ease); }
+#ewSaveBtn.is-saved{ background: var(--success); color: #0A0C10; }
+@media (prefers-reduced-motion: reduce){
+  .ew-set-in{ animation: none; }
+  .ew-x:active, .ew-add:active{ transform: none; }
+}
 .add-ex-btn:hover{ border-color: var(--accent); color: var(--accent); }
 
 .sheet-actions{
@@ -4825,6 +4913,10 @@ html, body{ max-width: 100%; overflow-x: hidden; }
         <div class="workout-topbar-title">Edit Workout</div>
         <span class="workout-topbar-spacer ew-dirty" id="ewDirty"></span>
       </div>
+      <!-- Built once when the editor opens. It holds a couple of hundred
+           options, and re-parsing those on every redraw is what made adding a
+           set cost more than a frame. -->
+      <span id="ewNameList" hidden></span>
       <div class="sheet-scroll" id="ewBody"></div>
       <div class="sheet-actions">
         <button class="btn-secondary" onclick="closeWorkoutEditor()">Cancel</button>
@@ -14916,7 +15008,9 @@ function editorAddSet(i){
      fabricates nothing and carries nothing forward. */
   (ex.sets = ex.sets || []).push({ weight:'', reps:'', rir:'' });
   markEditorDirty();
-  renderWorkoutEditor();
+  // Lands focus in the new row's first field, so the next thing typed goes
+  // where the athlete just asked for space.
+  renderWorkoutEditor({ flash: { ex: i, set: ex.sets.length - 1 } });
 }
 function editorRemoveSet(i, j){
   const ex = workoutEditState && workoutEditState.draft.exercises[i];
@@ -14945,77 +15039,133 @@ function editorRemoveExercise(i){
   renderWorkoutEditor();
 }
 
+/* One set, one line of numbers. The labels that used to sit above every field
+   are now a single column header per exercise — twenty-three of them for
+   twenty-six inputs made this read as a database form rather than a workout.
+   Each control still names itself for a screen reader; only the repetition on
+   screen is gone. */
 function editorSetHtml(s, i, j, bw){
   const known = isKnownSetType(s.type);
-  const types = '<option value=""' + (known ? '' : ' selected') + '>Not recorded</option>' +
+  const types = '<option value=""' + (known ? '' : ' selected') + '>Type</option>' +
     SET_TYPE_REGISTRY.map(t =>
       '<option value="' + escapeAttr(t.id) + '"' + (known && s.type === t.id ? ' selected' : '') + '>' +
-      escapeHtml(t.displayName) + '</option>').join('');
+      escapeHtml(t.shortLabel || t.displayName) + '</option>').join('');
   const rir = ['', '0', '1', '2', '3', '4', '5+'].map(v =>
     '<option value="' + escapeAttr(v) + '"' + (String(s.rir == null ? '' : s.rir) === v ? ' selected' : '') + '>' +
     (v === '' ? '—' : escapeHtml(v)) + '</option>').join('');
   const idp = i + '-' + j;
-  return '<div class="ew-set">' +
-    '<div class="ew-set-top">' +
-      '<span class="ew-set-n">Set ' + (j + 1) + '</span>' +
-      '<button type="button" class="ew-set-del" onclick="editorRemoveSet(' + i + ',' + j + ')"' +
-        ' aria-label="Remove set ' + (j + 1) + '">Remove</button>' +
-    '</div>' +
-    '<div class="ew-fields">' +
-      '<div class="ew-f"><label for="ew-w-' + idp + '">' + (bw ? 'Load' : 'Weight') + '</label>' +
-        '<input id="ew-w-' + idp + '" type="text" inputmode="decimal"' + (bw ? ' disabled' : '') +
-        ' value="' + escapeAttr(bw ? 'BW' : (s.weight == null ? '' : String(s.weight))) + '"' +
-        ' oninput="editSetField(' + i + ',' + j + ',\'weight\',this.value)"></div>' +
-      '<div class="ew-f"><label for="ew-r-' + idp + '">Reps</label>' +
-        '<input id="ew-r-' + idp + '" type="text" inputmode="numeric"' +
-        ' value="' + escapeAttr(s.reps == null ? '' : String(s.reps)) + '"' +
-        ' oninput="editSetField(' + i + ',' + j + ',\'reps\',this.value)"></div>' +
-      '<div class="ew-f"><label for="ew-rir-' + idp + '">RIR</label>' +
-        '<select id="ew-rir-' + idp + '" onchange="editSetField(' + i + ',' + j + ',\'rir\',this.value)">' +
-        rir + '</select></div>' +
-    '</div>' +
-    '<div class="ew-f ew-f-wide"><label for="ew-t-' + idp + '">Set type</label>' +
-      '<select id="ew-t-' + idp + '" onchange="editSetField(' + i + ',' + j + ',\'type\',this.value)">' +
-      types + '</select></div>' +
+  const n = j + 1;
+  return '<div class="ew-set" data-set="' + j + '">' +
+    '<span class="ew-set-n" aria-hidden="true">' + n + '</span>' +
+    '<input id="ew-w-' + idp + '" class="ew-num" type="text" inputmode="decimal"' + (bw ? ' disabled' : '') +
+      ' aria-label="Set ' + n + ' ' + (bw ? 'load' : 'weight') + '"' +
+      ' value="' + escapeAttr(bw ? 'BW' : (s.weight == null ? '' : String(s.weight))) + '"' +
+      ' oninput="editSetField(' + i + ',' + j + ',\'weight\',this.value)">' +
+    '<input id="ew-r-' + idp + '" class="ew-num" type="text" inputmode="numeric"' +
+      ' aria-label="Set ' + n + ' reps"' +
+      ' value="' + escapeAttr(s.reps == null ? '' : String(s.reps)) + '"' +
+      ' oninput="editSetField(' + i + ',' + j + ',\'reps\',this.value)">' +
+    '<select id="ew-rir-' + idp + '" class="ew-rir" aria-label="Set ' + n + ' reps in reserve"' +
+      ' onchange="editSetField(' + i + ',' + j + ',\'rir\',this.value)">' + rir + '</select>' +
+    /* Quiet until it says something. A set whose type was never recorded shows
+       the placeholder rather than asserting one. */
+    '<select id="ew-t-' + idp + '" class="ew-type' + (known ? ' is-set' : '') + '"' +
+      ' aria-label="Set ' + n + ' type"' +
+      ' onchange="editSetField(' + i + ',' + j + ',\'type\',this.value)">' + types + '</select>' +
+    '<button type="button" class="ew-x" onclick="editorRemoveSet(' + i + ',' + j + ')"' +
+      ' aria-label="Remove set ' + n + '">' + closeIconSvg(11) + '</button>' +
   '</div>';
 }
 
+/* A training block, not a bordered form. The name leads, the sets sit under
+   one set of column headers, and the whole thing is separated from the next
+   exercise by space and a hairline rather than another box. */
 function editorExerciseHtml(ex, i){
   const bw = !!ex.bodyweight;
+  const count = (ex.sets || []).length;
   return '<div class="ew-ex">' +
     '<div class="ew-ex-head">' +
-      '<input type="text" class="ew-ex-name" aria-label="Exercise name"' +
+      '<input type="text" class="ew-ex-name" aria-label="Exercise name" list="ewExerciseNames"' +
+        ' placeholder="Exercise name"' +
         ' value="' + escapeAttr(ex.name || '') + '" oninput="editExerciseName(' + i + ',this.value)">' +
-      '<button type="button" class="ew-ex-del" onclick="editorRemoveExercise(' + i + ')"' +
-        ' aria-label="Remove exercise">Remove</button>' +
+      '<button type="button" class="ew-x ew-x-ex" onclick="editorRemoveExercise(' + i + ')"' +
+        ' aria-label="Remove exercise ' + escapeAttr(ex.name || '') + '">' + closeIconSvg(12) + '</button>' +
     '</div>' +
-    (bw ? '<p class="ew-note">Bodyweight exercise — load was not recorded, and that cannot be changed here.</p>' : '') +
+    '<div class="ew-ex-meta">' + count + (count === 1 ? ' set' : ' sets') +
+      (bw ? ' · bodyweight' : '') + '</div>' +
+    (count ? '<div class="ew-cols" aria-hidden="true">' +
+      '<span></span><span>' + (bw ? 'Load' : 'Weight') + '</span><span>Reps</span>' +
+      '<span>RIR</span><span>Type</span><span></span></div>' : '') +
     (ex.sets || []).map((s, j) => editorSetHtml(s, i, j, bw)).join('') +
-    '<button type="button" class="ew-add" onclick="editorAddSet(' + i + ')">+ Add set</button>' +
+    '<button type="button" class="ew-add" onclick="editorAddSet(' + i + ')">Add set</button>' +
   '</div>';
 }
 
-function renderWorkoutEditor(){
+/* Every exercise LOOP knows about, offered as a native suggestion list on the
+   name field: a picker and free text in one control, with no intermediate
+   screen and no second registry. */
+let _ewNameListHtml = null;
+function editorNameListHtml(){
+  if(_ewNameListHtml) return _ewNameListHtml;
+  const names = new Set();
+  try{
+    Object.keys(EXERCISE_LIBRARY || {}).forEach(cat =>
+      (EXERCISE_LIBRARY[cat] || []).forEach(ex => { if(ex && ex.name) names.add(ex.name); }));
+  }catch(e){}
+  try{ (getAllLoggedExerciseNames() || []).forEach(n => { if(n) names.add(n); }); }catch(e){}
+  _ewNameListHtml = '<datalist id="ewExerciseNames">' +
+    [...names].sort().map(n => '<option value="' + escapeAttr(n) + '"></option>').join('') +
+    '</datalist>';
+  return _ewNameListHtml;
+}
+
+function renderWorkoutEditor(opts){
   const st = workoutEditState;
   if(!st) return;
   const body = document.getElementById('ewBody');
   if(!body) return;
   const d = st.draft;
+  /* Filled once per session, outside the region this function rebuilds. */
+  const list = document.getElementById('ewNameList');
+  if(list && !list.firstChild) list.innerHTML = editorNameListHtml();
   body.innerHTML =
-    '<label for="ewTitle">Workout name</label>' +
-    '<input type="text" id="ewTitle" value="' + escapeAttr(d.title || '') + '"' +
-      ' oninput="editWorkoutField(\'title\',this.value)">' +
-    '<label for="ewDate">Date</label>' +
-    '<input type="date" id="ewDate" value="' + escapeAttr(d.date || '') + '"' +
-      ' onchange="editWorkoutField(\'date\',this.value)">' +
+    /* The title is the heading of the thing being edited, so it is set like
+       one — not like the twenty-sixth input on the screen. */
+    '<div class="ew-head">' +
+      '<input type="text" id="ewTitle" class="ew-title" aria-label="Workout name"' +
+        ' placeholder="Workout name" value="' + escapeAttr(d.title || '') + '"' +
+        ' oninput="editWorkoutField(\'title\',this.value)">' +
+      '<div class="ew-head-meta">' +
+        '<input type="date" id="ewDate" class="ew-date" aria-label="Workout date"' +
+          ' value="' + escapeAttr(d.date || '') + '" onchange="editWorkoutField(\'date\',this.value)">' +
+      '</div>' +
+    '</div>' +
     '<div class="ew-exercises">' + (d.exercises || []).map(editorExerciseHtml).join('') + '</div>' +
-    '<button type="button" class="add-ex-btn" onclick="editorAddExercise()">+ Add exercise</button>' +
-    '<label for="ewNotes">Notes</label>' +
-    '<textarea id="ewNotes" placeholder="How did it actually go?"' +
-      ' oninput="editWorkoutField(\'notes\',this.value)">' + escapeHtml(d.notes || '') + '</textarea>' +
-    '<p class="ew-note ew-foot-note">Editing changes this workout only. Your plan, programme and' +
-      ' schedule are not affected.</p>';
+    '<button type="button" class="ew-add ew-add-ex" onclick="editorAddExercise()">Add exercise</button>' +
+    '<div class="ew-notes-wrap">' +
+      '<textarea id="ewNotes" class="ew-notes" rows="2" aria-label="Workout notes"' +
+        ' placeholder="How did this workout feel?"' +
+        ' oninput="editWorkoutField(\'notes\',this.value)">' + escapeHtml(d.notes || '') + '</textarea>' +
+    '</div>' +
+    '<p class="ew-note ew-foot-note">Changes apply to this workout only — your plan, programme and' +
+      ' schedule are untouched.</p>';
   syncEditorDirty();
+  /* A newly added set announces itself where it landed, rather than the whole
+     list appearing to flicker. */
+  if(opts && opts.flash){
+    const row = body.querySelector('.ew-ex:nth-of-type(' + (opts.flash.ex + 1) + ') .ew-set[data-set="' + opts.flash.set + '"]');
+    if(row){
+      row.classList.add('ew-set-in');
+      const field = row.querySelector('.ew-num:not([disabled])');
+      /* Deferred by a tick: focusing forces a synchronous layout that costs
+         more than the entire redraw around it, and doing it inline made
+         adding a set take longer than a frame. Off the critical path the
+         row appears immediately and the caret still lands in it. */
+      if(field) setTimeout(() => {
+        try{ field.focus({ preventScroll:true }); }catch(e){ try{ field.focus(); }catch(e2){} }
+      }, 0);
+    }
+  }
 }
 
 /* The same records check saveLog() runs, reused rather than reinvented: an
@@ -15128,17 +15278,24 @@ function saveWorkoutEdits(btn){
        so an edited date would otherwise be read from a stale count. */
     try{ invalidateProgramCache(); }catch(e){}
     const origin = st.origin;
-    closeWorkoutEditor(true);
-    renderAll();
-    /* Straight back to where they came from, now showing the corrected
-       record rather than the one they just fixed. */
-    if(origin === 'summary'){
-      try{
-        showWorkoutSummary(updated, prEventsForEntry(updated), [], computeSessionVolumeInsight(updated));
-      }catch(e){}
-    } else {
-      try{ openDayDetail(updated.date); }catch(e){}
+    /* A short, deliberate acknowledgement before the sheet goes: the athlete
+       sees the save land rather than the screen simply vanishing. Short
+       enough that it never reads as waiting. */
+    if(btn){
+      btn.classList.add('is-saved');
+      btn.textContent = 'Saved';
     }
+    setTimeout(() => {
+      closeWorkoutEditor(true);
+      renderAll();
+      if(origin === 'summary'){
+        try{
+          showWorkoutSummary(updated, prEventsForEntry(updated), [], computeSessionVolumeInsight(updated));
+        }catch(e){}
+      } else {
+        try{ openDayDetail(updated.date); }catch(e){}
+      }
+    }, 420);
   });
 }
 
