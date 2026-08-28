@@ -11364,8 +11364,13 @@ function testWarmupEntry(app){
   /* D19.2 replaced the fixed Next button with one forward slot that changes
      with the state. The assertion this replaces checked that Next outweighed
      Previous; this checks the same balance AND that the slot is singular. */
+  /* D21: the forward action now carries the accent GRADIENT rather than the
+     flat accent — same dominance, more depth. The assertion is stronger: the
+     gradient token must itself be built from the accent pair, so the button
+     cannot drift onto a colour the system does not own. */
   T('the forward action dominates the navigation',
-    /\.ws-nav-fwd\.is-next, \.ws-nav-fwd\.is-finish\{[\s\S]{0,120}background: var\(--accent\)/.test(css) &&
+    /\.ws-nav-fwd\.is-next, \.ws-nav-fwd\.is-finish\{[\s\S]{0,120}background: var\(--grad-accent\)/.test(css) &&
+    /--grad-accent: linear-gradient\(135deg, var\(--accent\), var\(--accent-2\)\);/.test(css) &&
     /\.ws-nav-btn\{ background: none; border: none;/.test(css));
   T('and skip takes that same slot without taking its emphasis',
     /\.ws-nav-fwd\.is-skip\{[\s\S]{0,160}background: var\(--surface-2\)/.test(css) &&
@@ -12364,7 +12369,19 @@ function testWorkoutEditor(app){
   /* Rebuilt the way saveLog() builds one, so an edited record is
      indistinguishable in shape from one logged at the time. */
   T('sets with nothing in them are dropped', /if\(weight \|\| reps\)\{/.test(saveFn));
-  T('exercises left with no sets are dropped', /if\(!sets\.length\) return;/.test(saveFn));
+  /* D21: was "exercises left with no sets are dropped". A skipped exercise
+     with nothing performed now SURVIVES the edit as a skip — dropping it
+     rewrote "chose not to do this" into "never planned". Both halves are
+     asserted: ordinary setless exercises still vanish, skipped ones persist
+     with empty sets and their flag, never with fabricated performance. */
+  T('a setless exercise is dropped unless it is a skip, which survives as one',
+    /if\(!sets\.length\)\{\s*if\(ex\.skipped\) exercises\.push\(\{ name, effort:'', bodyweight, sets: \[\], skipped: true \}\);\s*return;\s*\}/.test(saveFn));
+  T('and recording real sets ends the skip — the correction wins', (() => {
+    /* The performed branch pushes without the skipped flag, so an exercise
+       that gains sets in the editor comes out as performed work. */
+    const at = saveFn.indexOf("exercises.push({ name, effort, bodyweight, sets });");
+    return at !== -1 && !/skipped/.test(saveFn.slice(at, at + 60));
+  })());
   T('an unrecorded set type stays unrecorded rather than becoming "working"',
     /if\(isKnownSetType\(s\.type\)\) o\.type = s\.type;/.test(saveFn) &&
     /if\(value\) s\.type = value; else delete s\.type;/.test(src));
@@ -12583,6 +12600,140 @@ function testWorkoutEditor(app){
   })() === true);
 }
 
+/* =========================================================
+   CONTRACT 118 — Training truth & the premium surface (D21)
+   ---------------------------------------------------------
+   A template prefills every set, so "the input has a value"
+   is evidence of the PLAN, not of the athlete. These
+   assertions hold the line that skipped work is never saved,
+   scored, credited or shown as performed — and that the D21
+   visual system stays a disciplined token system rather than
+   spreading gradients and glass across the app.
+   ========================================================= */
+function testTrainingTruth(app){
+  section('CONTRACT 118 — training truth and the premium surface');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('a skipped exercise is not performance');
+  T('saveLog asks the row whether it was skipped',
+    /const wasSkipped = exerciseRowSkipped\(row\);/.test(src));
+  T('and on a skipped row reads only sets the athlete ticked',
+    /if\(wasSkipped && !sr\.classList\.contains\('completed'\)\) return;/.test(src));
+  T('the skip is part of the record, not silently dropped',
+    /if\(wasSkipped\) ex\.skipped = true;/.test(src));
+  T('a skip with nothing performed is kept as a skip',
+    /exercises\.filter\(ex => \(ex\.sets && ex\.sets\.length > 0\) \|\| ex\.skipped\)/.test(src));
+  T('but a workout still needs real work to save at all',
+    /if\(!realExercises\.some\(ex => ex\.sets && ex\.sets\.length > 0\)\)\{/.test(src));
+
+  sub('the shadow experiment never sees a lift that did not happen');
+  T('the outcome snapshot applies the same rule',
+    /const rowSkipped = exerciseRowSkipped\(row\);[\s\S]{0,600}if\(rowSkipped && !sr\.classList\.contains\('completed'\)\) return;/.test(src));
+  T('no sets and no explicit feedback means no outcome at all',
+    /if\(!item\.sets\.length && !item\.feedback\) continue;/.test(src));
+
+  sub('the skip survives leaving and resuming');
+  T('the draft carries it', /skipped: row\.dataset\.skipped === '1',/.test(src));
+  T('and the restore reapplies it', /if\(ex\.skipped\) row\.dataset\.skipped = '1';/.test(src));
+
+  sub('history built from skips stays honest, measured');
+  /* Behavioural: two identical histories, except one carries an extra skipped
+     exercise with nothing performed. Every derived number must be identical —
+     the skip exists in the record and contributes nothing. */
+  const D2 = n => { const d = new Date(Date.now() - n*86400000); return d.toISOString().slice(0,10); };
+  const bench = { name:'Bench Press', effort:'8', bodyweight:false,
+    sets:[{ weight:'225', reps:'8', rir:'1', type:'working' }] };
+  const plain = [{ id:'t1', title:'A', category:'push', date:D2(3), notes:'', exercises:[bench] }];
+  const withSkip = [{ id:'t1', title:'A', category:'push', date:D2(3), notes:'',
+    exercises:[bench, { name:'Triceps Dip', effort:'', bodyweight:false, sets:[], skipped:true }] }];
+
+  ctx.workoutLog = JSON.parse(JSON.stringify(plain));
+  ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache(); ctx.invalidateConsistencyCache();
+  const base = {
+    xp: ctx.getCurrentProgression().lifetimeXP,
+    prs: ctx.computeAllPREvents().length,
+    vol: ctx.sessionVolume(ctx.workoutLog[0])
+  };
+  ctx.workoutLog = JSON.parse(JSON.stringify(withSkip));
+  ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache(); ctx.invalidateConsistencyCache();
+  T('a skipped exercise adds no XP',
+    ctx.getCurrentProgression().lifetimeXP === base.xp,
+    ctx.getCurrentProgression().lifetimeXP + ' vs ' + base.xp);
+  T('mints no PR', ctx.computeAllPREvents().length === base.prs);
+  T('and no PR exists for the skipped movement itself',
+    ctx.computeExercisePREvents('Triceps Dip').length === 0);
+  T('adds no volume', ctx.sessionVolume(ctx.workoutLog[0]) === base.vol);
+  T('the session itself still counts — performed work is untouched',
+    ctx.sessionVolume(ctx.workoutLog[0]) > 0 && ctx.computeExercisePREvents('Bench Press').length === 1);
+  ctx.workoutLog = [];
+  ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache(); ctx.invalidateConsistencyCache();
+
+  sub('nothing fabricates a workout record');
+  /* A scheduled day that never happened must never become history. The only
+     append to workoutLog in the whole app is saveLog's, and the only other
+     mutation paths are the editor's in-place replace, deletion, and restores. */
+  T('workoutLog is appended in exactly one place',
+    (src.match(/workoutLog\.push\(/g) || []).length === 1);
+
+  sub('the skip is visible wherever the workout is shown');
+  T('the editor names it', /class="ew-skip-chip" role="status">Skipped<\/span>/.test(src));
+  T('and calls nothing-performed what it is', /'Not performed'/.test(src));
+  T('the log detail badges it', /class="log-ex-skip">Skipped<\/span>/.test(src));
+  T('in the warning tone, never the failure red', (() => {
+    const i = css.indexOf('.ew-skip-chip{');
+    const block = css.slice(i, css.indexOf('}', i));
+    return /var\(--warning\)/.test(block) && !/danger|error/.test(block);
+  })());
+
+  sub('the premium surface is a token system, not a paint job');
+  T('the base is a deep navy system, defined once', (() => {
+    const grab = name => { const m = css.match(new RegExp('--' + name + ':\\s*#([0-9A-Fa-f]{6})')); return m ? m[1] : null; };
+    const bg = grab('bg'), surface = grab('surface');
+    if(!bg || !surface) return 'tokens missing';
+    /* Navy means the blue channel leads, and depth means bg sits below surface. */
+    const ch = (h, i) => parseInt(h.slice(i, i + 2), 16);
+    return ch(bg,4) > ch(bg,0) && ch(surface,4) > ch(surface,0) &&
+           (ch(bg,0)+ch(bg,2)+ch(bg,4)) < (ch(surface,0)+ch(surface,2)+ch(surface,4))
+      ? true : 'not a deepening navy ramp';
+  })() === true);
+  T('the accent pair exists and the gradient is built from it, nowhere else',
+    /--accent: #4CC2FF;/.test(css) && /--accent-2: #2E6BFF;/.test(css) &&
+    /--grad-accent: linear-gradient\(135deg, var\(--accent\), var\(--accent-2\)\);/.test(css));
+  T('gradients are said, not sprayed',
+    (css.match(/var\(--grad-accent\)/g) || []).length <= 4,
+    String((css.match(/var\(--grad-accent\)/g) || []).length));
+  T('glass is one floating surface, not a theme',
+    /\.tabbar\{[\s\S]{0,300}var\(--glass-bg\)/.test(css) &&
+    (css.match(/backdrop-filter/g) || []).length <= 6,
+    String((css.match(/backdrop-filter/g) || []).length));
+  T('primary buttons carry the gradient with dark text for contrast',
+    /\.btn-primary\{ background: var\(--grad-accent\); color: #06121F;/.test(css));
+
+  sub('contrast holds on the deeper surfaces, computed not eyeballed');
+  T('body text, dim text and the accent all clear their contrast floors', (() => {
+    const grab = name => { const m = css.match(new RegExp('--' + name + ':\\s*#([0-9A-Fa-f]{6})')); return m ? m[1] : null; };
+    const lum = h => {
+      const c = i => { let v = parseInt(h.slice(i, i+2), 16) / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4);
+    };
+    const ratio = (a, b) => { const la = lum(a), lb = lum(b);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+    const text = grab('text'), dim = grab('text-dim'), surface = grab('surface'), accent = grab('accent'), bg = grab('bg');
+    const checks = {
+      textOnSurface: ratio(text, surface) >= 7,
+      dimOnSurface: ratio(dim, surface) >= 4.5,
+      accentOnBg: ratio(accent, bg) >= 3,
+      darkTextOnAccent: ratio('06121F', accent) >= 4.5
+    };
+    const bad = Object.keys(checks).filter(k => !checks[k]);
+    return bad.length === 0 ? true : bad;
+  })() === true);
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -12665,6 +12816,7 @@ async function main(){
   testRestHold(H.loadApp());
   testWorkoutNavStates(H.loadApp());
   testWorkoutEditor(H.loadApp());
+  testTrainingTruth(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -2983,3 +2983,54 @@ intended record, with `wB`, `cardioLog`, `trainerLog`, `exerciseNotes` and
 `gymProfile` unchanged. `DATA_KEYS` is still 15 and the trainer remains
 `0.1.1-shadow`. The diff touches no persistence function and adds no storage
 write.
+
+## §42 — D21: training truth and the premium surface
+
+**The lie, found where it was made.** A template prefills weight and reps into
+every set, and `saveLog()` recorded any set whose input held a value — so a
+skipped exercise saved with the plan's full numbers as if performed, and could
+mint a PR for a lift that never happened. Worse, `linkShadowOutcomes()` read
+the same raw inputs and scored the shadow recommendation MATCHED or DIVERGED
+against them, contaminating the live experiment with fabricated agreement. And
+`captureActiveDraft()` never carried the skip, so leaving and resuming a
+workout silently un-skipped everything.
+
+**The rule, applied at both mouths.** On a skipped row, only sets the athlete
+ticked complete are performance. A fully skipped exercise saves as
+`{ skipped: true, sets: [] }` — present in the record as a decision, absent
+from it as training. A partial skip keeps exactly the completed sets. Rows the
+athlete did not skip keep the long-standing behaviour (typed-but-unticked
+logging predates the stepper and is not thrown away). The shadow snapshot
+applies the identical rule, and with no sets and no explicit feedback, no
+outcome is recorded at all: the trainer sees *not performed*, never
+*performed the plan*. The draft now carries `skipped` per exercise and the
+restore reapplies it.
+
+**Every derived system is truthful by construction** — they all read sets, and
+a skip has none. Measured behaviourally: two identical histories, one with an
+extra skipped exercise — XP, PR count and session volume byte-equal; no PR
+exists for the skipped movement; the performed work in the same session keeps
+its volume and its PR. Browser flows: a real template workout with prefilled
+values, one exercise completed, one skipped → saved with `skipped: true`,
+zero sets, no PR on that date, one trainer outcome recorded and it carries
+`actualSets > 0`. Correction: Edit Workout shows the amber **Skipped** chip
+and *Not performed*, with no green and no fake rows; recording 3×8@155 clears
+the skip, derives effort from RIR, and mints the now-legitimate PR — while the
+other five skips stay skipped. `workoutLog.push` exists in exactly one place,
+so no schedule can fabricate history.
+
+**The premium surface is a token change, not a paint job.** The base moved a
+few degrees toward navy at the same lightness steps (`#070B12 → #0E141F →
+#151D2B → #1C2636`), the accent stepped to a luminous cyan pair
+(`#4CC2FF` / `#2E6BFF`), and three tokens were added: `--grad-accent` (built
+only from that pair), `--glass-bg`, `--glass-border`. The gradient appears in
+exactly two places — `.btn-primary` and the workout's forward control — the
+glass on exactly one, the tab bar (blur 14px; three `backdrop-filter`
+declarations in the whole app, overlay included). The rail's current stop
+gains one restrained 9px luminous halo. Category and cardio hues keep their
+own identities. Contrast is contract-computed, not eyeballed: text on surface
+≥ 7:1, dim text ≥ 4.5:1, accent on bg ≥ 3:1, dark-on-accent ≥ 4.5:1.
+
+Zero trainer symbols, zero storage writes and zero XP/PR functions appear in
+the diff — the truth work changed only what feeds them. `DATA_KEYS` is still
+15. The trainer remains `0.1.1-shadow`.

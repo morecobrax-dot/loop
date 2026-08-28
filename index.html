@@ -21,16 +21,24 @@ try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.cla
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
 
 :root{
-  --bg: #0A0C10;
-  --surface: #14171C;
-  --surface-2: #1A1E24;
-  --surface-3: #21262D;
-  --border: #262B33;
-  --text: #EEF0F2;
-  --text-dim: #9AA1AC;
-  --text-faint: #5B616B;
-  --accent: #5B8CFF;
-  --accent-soft: rgba(91,140,255,0.12);
+  /* D21 base: the same dark system, pulled a few degrees toward navy so the
+     app reads as a deep surface rather than a grey sheet. Every step keeps
+     its old lightness relationship — hierarchy is untouched, only the
+     temperature and depth moved. */
+  --bg: #070B12;
+  --surface: #0E141F;
+  --surface-2: #151D2B;
+  --surface-3: #1C2636;
+  --border: #243044;
+  --text: #EEF1F5;
+  --text-dim: #9AA6B8;
+  --text-faint: #5D6878;
+  /* The accent steps from a mid blue to a luminous cyan-blue: bright enough
+     to read as light on OLED black, far from pastel, and still dark-text
+     safe on filled buttons. --accent-2 is its deeper partner for gradients. */
+  --accent: #4CC2FF;
+  --accent-2: #2E6BFF;
+  --accent-soft: rgba(76,194,255,0.12);
   --push: #5B8CFF;
   --push-soft: rgba(91,140,255,0.12);
   --pull: #BD9260;
@@ -70,8 +78,15 @@ try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.cla
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
   --shadow-md: 0 3px 10px rgba(0,0,0,0.24);
   --shadow-lg: 0 10px 28px rgba(0,0,0,0.38);
-  --shadow-accent: 0 2px 10px rgba(91,140,255,0.16);
+  --shadow-accent: 0 2px 12px rgba(76,194,255,0.20);
   --surface-gradient: linear-gradient(160deg, var(--surface-2), var(--surface));
+  /* D21 premium tokens. One accent gradient, used only where forward motion
+     or importance is being said — primary actions, the current stop, a hero
+     surface — never as decoration. Glass is reserved for the one surface
+     that genuinely floats over content: the tab bar. */
+  --grad-accent: linear-gradient(135deg, var(--accent), var(--accent-2));
+  --glass-bg: rgba(14,20,31,0.72);
+  --glass-border: rgba(140,190,255,0.14);
 
   /* ---- Type scale ----
      One token per role, so a label cannot drift a half pixel
@@ -91,7 +106,7 @@ try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.cla
 html,body{ margin:0; padding:0; }
 body{
   background:
-    radial-gradient(ellipse 560px 280px at 50% -6%, rgba(91,140,255,0.06), transparent 62%),
+    radial-gradient(ellipse 560px 280px at 50% -6%, rgba(76,194,255,0.07), transparent 62%),
     var(--bg);
   color: var(--text);
   font-family: 'Inter', sans-serif;
@@ -335,8 +350,9 @@ html.intro-skip #introOverlay{ display: none !important; }
 /* ---- Tabs (bottom nav) ---- */
 .tabbar{
   position: fixed; bottom: 0; left: 0; right: 0;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  border-top: 1px solid var(--glass-border);
   display: flex; z-index: 40; padding-bottom: env(safe-area-inset-bottom, 0);
   max-width: 640px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border);
   box-shadow: 0 -4px 12px rgba(0,0,0,0.18);
@@ -502,7 +518,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .recommend-wrap:empty{ display: none; }
 .recommend-card{
   margin-top: 10px; border-radius: var(--radius-md); padding: 10px 12px;
-  background: var(--accent-soft); border: 1px solid rgba(91,140,255,0.35);
+  background: var(--accent-soft); border: 1px solid rgba(76,194,255,0.35);
 }
 .recommend-card.recommend-increase{ background: var(--success-soft); border-color: rgba(75,156,129,0.4); }
 .recommend-card.recommend-plateau{ background: var(--warning-soft); border-color: rgba(189,146,96,0.4); }
@@ -1960,7 +1976,7 @@ body.first-use{ padding-bottom: 0; }
   box-shadow: var(--shadow-accent); transition: transform 0.12s var(--ease), box-shadow 0.18s var(--ease), opacity 0.15s var(--ease);
 }
 .tpl-start:hover{ opacity: 0.94; }
-.tpl-start:active{ transform: scale(0.98); box-shadow: 0 2px 8px rgba(91,140,255,0.22); }
+.tpl-start:active{ transform: scale(0.98); box-shadow: 0 2px 8px rgba(76,194,255,0.22); }
 .add-tpl-btn{
   width: 100%; background: none; border: 1px dashed var(--border); color: var(--text-faint);
   padding: 13px; border-radius: var(--radius-md); cursor: pointer; font-size: 13px; font-weight: 600; margin-top: 14px;
@@ -2693,7 +2709,7 @@ textarea{ resize: vertical; min-height: 56px; }
 }
 .ws-seg-now::after{
   background: var(--accent); transform: scale(1.25);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 0 9px rgba(76,194,255,0.4);
 }
 /* The warm-up leads the track. It is narrower than an exercise stop because it
    is one thing rather than one of many, and it carries a hollow ring so the
@@ -2825,7 +2841,7 @@ textarea{ resize: vertical; min-height: 56px; }
   font-weight: 600;
 }
 .ws-nav-fwd.is-next, .ws-nav-fwd.is-finish{
-  background: var(--accent); color: #0A0C10; box-shadow: var(--shadow-accent);
+  background: var(--grad-accent); color: #06121F; box-shadow: var(--shadow-accent);
 }
 /* The end of the journey earns a little more presence than another Next. */
 .ws-nav-fwd.is-finish{ letter-spacing: 0.01em; }
@@ -2919,7 +2935,7 @@ textarea{ resize: vertical; min-height: 56px; }
   transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 .set-row.completed{ background: var(--full-soft); border-color: rgba(75,156,129,0.4); }
-@keyframes setpulse{ 0%,100%{ box-shadow: 0 0 0 0 rgba(91,140,255,0); } 30%{ box-shadow: 0 0 0 3px var(--accent-soft); } }
+@keyframes setpulse{ 0%,100%{ box-shadow: 0 0 0 0 rgba(76,194,255,0); } 30%{ box-shadow: 0 0 0 3px var(--accent-soft); } }
 .set-row.pulse{ animation: setpulse 1.2s var(--ease); border-color: var(--accent); }
 .set-row-top{ display: flex; align-items: center; gap: 6px; }
 .set-idx{
@@ -3747,6 +3763,20 @@ body.page-locked{ overflow: hidden; }
 }
 .ew-note{ font-size: 12px; line-height: 1.45; color: var(--text-faint); margin: var(--space-2) 0 0; }
 .ew-foot-note{ margin-top: var(--space-4); }
+/* Skipped, said in the rail's own amber — a state, not a scolding. */
+.ew-skip-chip{
+  flex-shrink: 0; padding: 3px 8px; border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--warning); background: var(--warning-soft);
+}
+.log-ex-skip{
+  margin-left: 8px; padding: 2px 7px; border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--warning); background: var(--warning-soft);
+}
+.log-ex-skip-note{ font-size: 12px; color: var(--text-faint); }
 
 /* ---- motion ----
    A new set arrives where it was asked for; the save is acknowledged before
@@ -3770,7 +3800,7 @@ body.page-locked{ overflow: hidden; }
   transition: transform 0.12s var(--ease), opacity 0.15s var(--ease), box-shadow 0.18s var(--ease);
 }
 .btn-secondary{ background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); }
-.btn-primary{ background: var(--accent); color: #0C0E12; box-shadow: var(--shadow-accent); }
+.btn-primary{ background: var(--grad-accent); color: #06121F; box-shadow: var(--shadow-accent); }
 .btn-secondary:active, .btn-primary:active{ transform: scale(0.97); }
 .btn-primary:disabled{ opacity: 0.4; box-shadow: none; }
 
@@ -3932,7 +3962,7 @@ body.page-locked{ overflow: hidden; }
    while the figure animates. */
 .prep-figure::before{
   content: ""; position: absolute; inset: 4% 0; border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(91,140,255,0.09), rgba(91,140,255,0) 76%);
+  background: radial-gradient(closest-side, rgba(76,194,255,0.10), rgba(76,194,255,0) 76%);
   pointer-events: none;
 }
 .prep-figure loop-move{ display: block; width: 100%; height: 100%; }
@@ -10812,9 +10842,19 @@ async function linkShadowOutcomes(workoutId){
     if(!recId && !feedback) return;
     const nameEl = row.querySelector('.ex-name-in');
     const bwEl = row.querySelector('.ex-bw-in');
+    /* TRAINING TRUTH (D21). The values in a skipped exercise's inputs are the
+       template's prefills, not the athlete — reading them here scored the
+       shadow recommendation MATCHED or DIVERGED against a lift that never
+       happened, polluting the live experiment with fabricated agreement. On a
+       skipped row, only sets the athlete ticked complete are evidence; a
+       fully skipped exercise contributes no sets, and with no sets and no
+       explicit feedback, no outcome is recorded at all. The trainer sees
+       "not performed", never "performed the plan". */
+    const rowSkipped = exerciseRowSkipped(row);
     const sets = [];
     row.querySelectorAll('.set-row').forEach(sr => {
       if(sr.dataset.setType === SET_TYPES.WARMUP) return;      // working sets only
+      if(rowSkipped && !sr.classList.contains('completed')) return;
       const w = parseFloat(sr.querySelector('.set-weight-in').value);
       const r = parseFloat(sr.querySelector('.set-reps-in').value);
       const rir = parseFloat(sr.querySelector('.set-rir-in').value);
@@ -14916,9 +14956,11 @@ function openDayDetail(dateStr){
     return `
     <div class="log-ex-block">
       <div class="log-ex-name-line"><span>${escapeHtml(ex.name)}</span>${
+        ex.skipped ? `<span class="log-ex-skip">Skipped</span>` : ''}${
         Object.keys(marks).length ? `<span class="log-ex-pr">${chevronPRSvg()}Record</span>` : ''}</div>
       <div class="log-ex-sets">
-        ${(ex.sets||[]).map((s, i) => setChipHtml(s, ex.bodyweight, marks[i])).join('')}
+        ${(ex.sets||[]).map((s, i) => setChipHtml(s, ex.bodyweight, marks[i])).join('')}${
+        ex.skipped && !(ex.sets||[]).length ? `<span class="log-ex-skip-note">Not performed</span>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -15186,15 +15228,23 @@ function editorSetHtml(s, i, j, bw){
 function editorExerciseHtml(ex, i){
   const bw = !!ex.bodyweight;
   const count = (ex.sets || []).length;
+  /* A skipped exercise says so, plainly and without a scolding: the athlete
+     decided not to do it, and the record respects that. No green, no invented
+     set rows — and "Add set" right below is the correction path if they
+     actually did the work. */
+  const skipped = !!ex.skipped;
   return '<div class="ew-ex">' +
     '<div class="ew-ex-head">' +
       '<input type="text" class="ew-ex-name" aria-label="Exercise name" list="ewExerciseNames"' +
         ' placeholder="Exercise name"' +
         ' value="' + escapeAttr(ex.name || '') + '" oninput="editExerciseName(' + i + ',this.value)">' +
+      (skipped ? '<span class="ew-skip-chip" role="status">Skipped</span>' : '') +
       '<button type="button" class="ew-x ew-x-ex" onclick="editorRemoveExercise(' + i + ')"' +
         ' aria-label="Remove exercise ' + escapeAttr(ex.name || '') + '">' + closeIconSvg(12) + '</button>' +
     '</div>' +
-    '<div class="ew-ex-meta">' + count + (count === 1 ? ' set' : ' sets') +
+    '<div class="ew-ex-meta">' +
+      (skipped && !count ? 'Not performed'
+        : count + (count === 1 ? ' set' : ' sets') + (skipped ? ' · rest skipped' : '')) +
       (bw ? ' · bodyweight' : '') + '</div>' +
     (count ? '<div class="ew-cols" aria-hidden="true">' +
       '<span></span><span>' + (bw ? 'Load' : 'Weight') + '</span><span>Reps</span>' +
@@ -15325,7 +15375,15 @@ function saveWorkoutEdits(btn){
       const n = parseFloat(rirRaw);
       if(!isNaN(n)) rirValues.push(n);
     });
-    if(!sets.length) return;
+    /* A skipped exercise with nothing performed survives the edit as exactly
+       that — dropping it would quietly rewrite "I chose not to do this" into
+       "this was never planned". The moment the athlete records real sets, the
+       skip is over: they are correcting the record, and the correction wins.
+       That is the one transition Part 5 exists for. */
+    if(!sets.length){
+      if(ex.skipped) exercises.push({ name, effort:'', bodyweight, sets: [], skipped: true });
+      return;
+    }
     let effort = String(ex.effort == null ? '' : ex.effort).trim();
     if(rirValues.length){
       effort = String(rirToEffort(rirValues.reduce((a, b) => a + b, 0) / rirValues.length));
@@ -15333,7 +15391,7 @@ function saveWorkoutEdits(btn){
     exercises.push({ name, effort, bodyweight, sets });
   });
 
-  if(!exercises.length){
+  if(!exercises.some(ex => ex.sets && ex.sets.length > 0)){
     alert('Keep at least one exercise with a logged set. To remove the session entirely, delete the workout instead.');
     return;
   }
@@ -23198,6 +23256,10 @@ function captureActiveDraft(){
       name,
       shadowRecId: row.dataset.shadowRecId || null,
       shadowFeedback: row.dataset.shadowFeedback || null,
+      /* Skip state survives leaving and resuming — without this, closing the
+         app after skipping an exercise silently un-skipped it, and the resumed
+         workout would save the prefills as if they had been performed. */
+      skipped: row.dataset.skipped === '1',
       effort: effortEl ? effortEl.value : '',
       bodyweight: bwEl ? bwEl.checked : false,
       sets,
@@ -23296,6 +23358,8 @@ function restoreDraftToSheet(draft){
   (draft.exercises || []).forEach((ex, i) => {
     const row = rows[i];
     if(!row) return;
+    // The skip the athlete made before leaving is still their decision.
+    if(ex.skipped) row.dataset.skipped = '1';
     const setRows = row.querySelectorAll('.set-row');
     ex.sets.forEach((s, j) => {
       if(s.completed && setRows[j]){
@@ -24792,9 +24856,20 @@ function saveLog(btn){
     const name = row.querySelector('.ex-name-in').value.trim();
     if(!name) return;
     const bodyweight = row.querySelector('.ex-bw-in').checked;
+    /* TRAINING TRUTH (D21). A template prefills weight and reps into every
+       set, so "the input has a value" is evidence of the PLAN, not of the
+       athlete. For an exercise the athlete explicitly skipped, only sets they
+       actually ticked complete are performance — the untouched prefills are
+       what they decided not to do. Saving those was how a skipped exercise
+       could mint a PR for a lift that never happened. Exercises the athlete
+       did not skip keep the long-standing behaviour: every set with a value
+       is recorded, ticked or not, because typed-but-unticked logging predates
+       the stepper and must not be thrown away. */
+    const wasSkipped = exerciseRowSkipped(row);
     const sets = [];
     const rirValues = [];
     row.querySelectorAll('.set-row').forEach(sr => {
+      if(wasSkipped && !sr.classList.contains('completed')) return;
       const weight = bodyweight ? 'BW' : sr.querySelector('.set-weight-in').value.trim();
       const reps = sr.querySelector('.set-reps-in').value.trim();
       const rirRaw = sr.querySelector('.set-rir-in').value.trim();
@@ -24812,11 +24887,19 @@ function saveLog(btn){
       const avgRir = rirValues.reduce((a,b)=>a+b,0) / rirValues.length;
       effort = String(rirToEffort(avgRir));
     }
-    exercises.push({ name, effort, bodyweight, sets });
+    const ex = { name, effort, bodyweight, sets };
+    /* The skip is part of what happened, so it is part of the record: the
+       summary and the editor show the exercise as skipped instead of quietly
+       dropping it, and the athlete can correct it later if they actually did
+       the work. Historical entries without the flag are untouched. */
+    if(wasSkipped) ex.skipped = true;
+    exercises.push(ex);
   });
 
-  const realExercises = exercises.filter(ex => ex.sets && ex.sets.length > 0);
-  if(realExercises.length === 0){
+  /* A skipped exercise with nothing performed is kept — as a skip, not as
+     training. Every derived system reads sets, and it has none. */
+  const realExercises = exercises.filter(ex => (ex.sets && ex.sets.length > 0) || ex.skipped);
+  if(!realExercises.some(ex => ex.sets && ex.sets.length > 0)){
     alert("Add at least one exercise with a logged set before saving.");
     return;
   }
