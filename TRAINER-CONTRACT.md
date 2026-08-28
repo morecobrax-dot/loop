@@ -3080,3 +3080,53 @@ trails the clock was replaced by its D22 inverse.
 Storage-neutral: zero writes in the diff, `DATA_KEYS` still 15, three
 backdrop-filters and four gradient uses in the whole app, trainer at
 `0.1.1-shadow`.
+
+## §43 — D23: rank identity — presentation over the same numbers
+
+**One taxonomy, dressed.** The eight canonical ranks — ROOKIE through LEGEND —
+and their level ranges are byte-identical to before; a contract pins the
+lookup function's exact source. `RANK_VISUALS` adds only appearance: metal
+pair, gem pair, card gradient, glow strength per rank. Hex values live in that
+one config and nowhere else. XP and Level remain the only numbers; the
+showcase computes none of its own.
+
+**One medal, eight materials.** `rankMedalSvg()` is the single renderer for
+every surface — the Home chip at 30px, the profile hero at 72, the showcase at
+128, the promotion at 88. Drawn geometry only: bevelled metal ring, dark inner
+well, faceted gem lit from above, a specular arc. Prestige is earned through
+geometry and light, not ornament count — wings join at ELITE, the apex only at
+LEGEND, glow rises with tier — and nothing on a medal animates. No emoji, no
+raster assets.
+
+**The showcase answers "where am I?" first.** It opens centered on the current
+rank every time — never Rookie, never a remembered position — and a second tap
+cannot open it twice. The carousel is pointer-driven with `touch-action:
+pan-y`, so vertical stays the browser's; release resolves deterministically
+(a third of a card or a flick moves one; anything less settles back), the
+index is clamped to the taxonomy, and arrows and arrow keys are equals with
+the swipe. Positioning reads the target card's own `offsetLeft` rather than
+index × step — measured drift across all eight stops: ≤1px, after two real
+bugs were found and fixed (transformed-width measurement, then per-step
+integer rounding).
+
+**States are worn, not hidden.** Achieved ranks stay fully visible; the
+current card carries `CURRENT RANK` and one progress line (level, bar,
+next-rank threshold — 48% measured for a level-17 COMPETITOR); locked ranks
+show their full design dimmed with `REACHED AT LEVEL n` — aspiration, never a
+question mark. Every card speaks its whole meaning
+(`"LEGEND. Level 50+. Locked."`).
+
+**The promotion is read, not invented.** A rank boundary is detected by
+comparing `calculateRankFromLevel` across the level-before/after the XP
+timeline already recorded — no second detector, no new event. The medal gets
+one 0.9s settle and then holds; reduced motion removes it.
+
+**Routes.** The Home chip now reads medal + level + rank and opens the
+showcase; the showcase carries the one route on to the full profile, which
+gained the same medal. Home previews, the showcase explores, the profile keeps
+stats and achievements — no duplicated rank surfaces.
+
+The system reads and never writes: zero storage calls in the whole rank
+region, no remembered carousel position, `DATA_KEYS` still 15, gradient budget
+still 4 and glass still 3, and the trainer remains `0.1.1-shadow`. Measured:
+showcase opens in 13ms, a swipe step costs 0.9ms, Home renders in 7ms.

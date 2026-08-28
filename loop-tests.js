@@ -6763,8 +6763,12 @@ function testD11Consolidation(app){
       return /class="hdr-level"/.test(body) && /getCurrentProgression\(\)/.test(body) &&
              /todayDateLine/.test(body);
     })());
-    T('and still routes to the full profile',
-      /hdr-level" onclick="openProfile\(\)"/.test(src));
+    /* D23: the chip now opens the rank showcase, and the showcase carries the
+       route on to the profile — the profile stays reachable in exactly two
+       taps, and the showcase is the identity surface between them. */
+    T('and still routes to the full profile, through the showcase',
+      /hdr-level" onclick="openRankShowcase\(\)"/.test(src) &&
+      /rank-profile-link" onclick="closeRankShowcase\(\); openProfile\(\)"/.test(src));
     T('and momentum no longer shows a second copy of the same number',
       !/class="mo-level"/.test(src));
   }
@@ -12777,8 +12781,10 @@ function testHomeAndTouch(app){
     return /const p = getCurrentProgression\(\);/.test(body) &&
            !/lifetimeXP\s*[+\-*]/.test(body) && !/LOOPStore/.test(body);
   })());
+  /* D23: the label now leads with the rank identity and says where the tap
+     goes — strictly more meaning than the level-only label it replaces. */
   T('it speaks its meaning, not just a number',
-    /aria-label="Level \$\{p\.level\}, \$\{pct\}% to level \$\{p\.level \+ 1\}"/.test(src));
+    /aria-label="\$\{escapeAttr\(p\.rank\)\}, level \$\{p\.level\}, \$\{pct\}% to level \$\{p\.level \+ 1\}\. Opens rank showcase\."/.test(src));
   T('a progression failure cannot take the greeting down',
     /catch\(e\)\{ levelChip = ''; \}/.test(src));
   T('the chip clears the touch minimum', /\.hdr-level\{[\s\S]{0,240}min-height: 44px;/.test(css));
@@ -12839,6 +12845,112 @@ function testHomeAndTouch(app){
   })());
   T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15);
   T('the trainer engine is untouched',
+    ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
+}
+
+/* =========================================================
+   CONTRACT 120 — Rank identity reads, never writes (D23)
+   ---------------------------------------------------------
+   RANKS stays the one taxonomy, XP and Level stay the only
+   numbers, and everything new — medal, card, carousel — is
+   presentation fed by getCurrentProgression(). One renderer,
+   one visual config, zero storage.
+   ========================================================= */
+function testRankIdentity(app){
+  section('CONTRACT 120 — rank identity reads, never writes');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('one taxonomy, dressed — never replaced');
+  const NAMES = ['ROOKIE','TRAINEE','ATHLETE','COMPETITOR','ELITE','VETERAN','MASTER','LEGEND'];
+  T('the canonical eight ranks are unchanged',
+    Array.isArray(ctx.RANKS) && ctx.RANKS.length === 8 &&
+    ctx.RANKS.every((r, i) => r.name === NAMES[i]));
+  T('their ranges are unchanged',
+    ctx.RANKS[0].min === 1 && ctx.RANKS[0].max === 4 &&
+    ctx.RANKS[4].min === 20 && ctx.RANKS[4].max === 29 &&
+    ctx.RANKS[7].min === 50 && ctx.RANKS[7].max === Infinity);
+  T('every rank has a visual config, and no config invents a rank', (() => {
+    const keys = Object.keys(ctx.RANK_VISUALS || {});
+    return keys.length === 8 && NAMES.every(n => keys.includes(n)) ? true : keys;
+  })() === true);
+  T('rank calculation is byte-identical to before',
+    /function calculateRankFromLevel\(level\)\{\s*return \(RANKS\.find\(r => level >= r\.min && level <= r\.max\) \|\| RANKS\[RANKS\.length-1\]\)\.name;\s*\}/.test(src));
+  T('and the showcase computes no level or XP of its own', (() => {
+    const i = src.indexOf('function rankCardHtml');
+    const end = src.indexOf('function wireRankCarousel');
+    const region = src.slice(i, end);
+    return !/calculateLevelFromXP|calculateRequiredXP|lifetimeXP\s*[+\-*]/.test(region);
+  })());
+
+  sub('one medal renderer feeds every surface');
+  T('the renderer exists once',
+    (src.match(/function rankMedalSvg\(/g) || []).length === 1);
+  T('home, showcase, profile and the promotion all call it', (() => {
+    const uses = (src.match(/rankMedalSvg\(/g) || []).length;
+    /* definition + 4 call sites */
+    return uses >= 5 ? true : uses;
+  })() === true);
+  T('no emoji medal anywhere', !/🏅|⭐|🏆/.test(src));
+  T('prestige is geometry, not ornament count: wings from ELITE, apex only at LEGEND',
+    /const wings = tier >= 4;/.test(src) && /const apex = rankName === 'LEGEND';/.test(src));
+  T('the medal is static — nothing on it animates continuously', (() => {
+    const i = src.indexOf('function rankMedalSvg');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/animate|animation/i.test(fn);
+  })());
+
+  sub('the showcase answers "where am I?" first');
+  T('it opens on the current rank, never on Rookie and never remembered',
+    /rankShowcaseIndex = rankIndexOf\(p\.rank\);/.test(src));
+  T('a second tap cannot open it twice',
+    /if\(ov\.classList\.contains\('open'\)\) return;/.test(src));
+  T('release settles deterministically — a third of a card or a flick, one step',
+    /Math\.abs\(dx\) > step \/ 3 \|\| fast\) rankGo\(dx < 0 \? 1 : -1\);/.test(src) &&
+    /else positionRankTrack\(true\);/.test(src));
+  T('the index can never leave the taxonomy',
+    /Math\.max\(0, Math\.min\(RANKS\.length - 1, rankShowcaseIndex \+ delta\)\)/.test(src));
+  T('vertical stays the browser\'s: the wrap declares pan-y',
+    /\.rank-trackwrap\{[\s\S]{0,120}touch-action: pan-y;/.test(css));
+  T('arrows and keys are equals with the swipe',
+    /onclick="rankGo\(-1\)" aria-label="Previous rank"/.test(src) &&
+    /ArrowRight'\)\{ rankGo\(1\);/.test(src));
+  T('carousel listeners are wired once', /wrap\.dataset\.wired === '1'\) return;/.test(src));
+
+  sub('achieved, current and locked are states, not secrets');
+  T('a locked rank shows its design, dimmed — never a question mark',
+    /\.rank-locked \.rank-medal-wrap\{ filter: saturate\(0\.4\) brightness\(0\.62\); \}/.test(src) &&
+    !/\?\?\?/.test(src.slice(src.indexOf('function rankCardHtml'), src.indexOf('function openRankShowcase'))));
+  T('every card names its state in words',
+    /'CURRENT RANK' : state === 'achieved' \? 'ACHIEVED' : 'REACHED AT LEVEL ' \+ r\.min/.test(src));
+  T('and speaks its whole meaning',
+    /aria-roledescription="rank"/.test(src) &&
+    /'Current rank\. Level ' \+ p\.level/.test(src));
+  T('every card states its level range',
+    /function rankLevelRangeLabel\(r\)\{/.test(src) && /'Level ' \+ r\.min \+ '–' \+ r\.max/.test(src));
+  T('reduced motion keeps the snap and loses the flourish',
+    /\.rank-track\{ transition: none !important; \}/.test(css));
+
+  sub('the promotion is detected from existing truth');
+  T('rank change is read off the levels the XP timeline already recorded',
+    /calculateRankFromLevel\(xpEntry\.levelBefore\) !== rank/.test(src));
+  T('the reveal is one short settle, then still',
+    /animation: rankReveal 0\.9s var\(--ease\) both;/.test(css) &&
+    /\.levelup-promoted \.levelup-medal\{ animation: none; \}/.test(css));
+
+  sub('it reads, and writes nothing');
+  T('the whole rank system touches no storage', (() => {
+    const i = src.indexOf('const RANK_VISUALS');
+    const end = src.indexOf('function wireRankCarousel');
+    const region = src.slice(i, src.indexOf('\nfunction ', end + 10));
+    return !/LOOPStore|localStorage|setItem|persist/.test(region);
+  })());
+  T('no remembered carousel position exists',
+    !/rankShowcaseIndex/.test(src.match(/DATA_KEYS[\s\S]{0,400}\]/)[0]));
+  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched',
     ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
 }
 
@@ -12926,6 +13038,7 @@ async function main(){
   testWorkoutEditor(H.loadApp());
   testTrainingTruth(H.loadApp());
   testHomeAndTouch(H.loadApp());
+  testRankIdentity(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
