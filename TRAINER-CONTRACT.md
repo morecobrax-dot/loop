@@ -3467,3 +3467,87 @@ count unchanged, safe-area systems byte-identical (the four side-inset
 shells still count exactly 4). Contract 125. Zero protected symbols, zero
 storage writes, seven JS lines total (both chart renderers), `DATA_KEYS` 15,
 trainer `0.1.1-shadow`.
+
+## §49 — D28.1: the visual system, verified and locked
+
+D28 built the language. This phase checked it against the real product at
+every required viewport, corrected what it actually found, and locked it.
+
+**Viewport coverage, now complete.** 375×812 · 390×844 · 812×375 · 844×390 ·
+932×430 · 667×375 — the last three were never swept in D28. All six clean
+across five tabs and four Progress sections: no document overflow, no clipped
+chart text, no control under 44px. Two probe false-positives were identified
+rather than "fixed": `#trainChips` is an intentional horizontal scroller
+(556px of chips in a 335px rail — the document does not overflow), and the
+667px landscape case leaves the 640px centred layout 13px of margin, which
+the D27 side-inset padding sits inside.
+
+**The real finding: 107 surfaces never received the D28 material.** Static
+analysis said 107; the live DOM said **17** actually render (the rest are
+unreached states or dynamically-composed classes). They were corrected by
+D28's own precedent rather than a new one — standalone cards (`wk-card`,
+`today-cardio-link`, `cl-empty`, `cw-card`, `log-lens`, `gym-summary`) take
+the full material; repeated rows and tiles (`achievement-row`,
+`xp-history-row`, `wk-day`, `mt-day/var/act`, `filter-chip`, `cal-nav-btn`,
+`mastery-lvl-chip`, `cal-cell`) take the quiet boundary only, because
+fourteen ambient shadows in one list is cost without meaning; and
+`.btn-secondary`, the shared secondary button, became a raised control so it
+can never be mistaken for disabled. Re-measured after: **zero surfaces
+remain on the old material.**
+
+**Calibration: correct, and left alone.** Composited luminance ratios against
+the card surface — accent pool 1.28×, calendar-today 1.27×, success 1.25×,
+rest 1.10×, inner edge light 1.14×, the one edge light 1.94×. None neon, none
+invisible. D28's values are right and were NOT churned.
+
+**Light budget: one luminous object per screen.** Measured with correct
+alpha compositing against the app ground: surfaces sit at 1.07–1.28×, and the
+only object above 2× on any screen is Today's primary action at 9.8×. An
+earlier probe that dropped the alpha channel appeared to show six shouting
+calendar cells; corrected, completed days sit at 1.22–1.26× — a whisper. The
+category outlines were still softened to 55% (they had been full strength),
+which is a real improvement, but the backgrounds were correctly left alone.
+
+**Contrast was the one genuine accessibility defect.** `--text-faint`
+measured **2.99:1** on the lit hero label and 3.26:1 on Progress tile labels —
+micro-copy below comfortable reading, worst exactly where a pool lifts the
+surface beneath it. Fixed at the token level (`#5D6878` → `#737E92`): every
+micro-label now measures **4.13–4.50:1**, nothing below 3.0, and `--text-dim`
+stays at 8.0:1 so the hierarchy is unchanged — only legibility moved.
+
+**Cardio needed no redesign.** D28 flagged it as possible future work; with
+real sessions seeded, its tiles already carry the material and its history
+rows the quiet boundary. One card (`cw-card`) was stale and is now corrected.
+That is the whole of it.
+
+---
+
+### THE LOCK
+
+**LOOP's visual system is now the default. New work inherits it.**
+
+A new surface should reach for what exists before inventing anything:
+
+| Need | Use |
+|---|---|
+| A card | the shared recipe: `--border-quiet` + `inset 0 1px 0 var(--edge-hi)` + `--shadow-ambient` |
+| A repeated row | `--border-quiet` only — no per-row shadow |
+| State light | a pool: `--pool-accent` / `--pool-success` / `--pool-rest`, or a category radial |
+| The live thing | the single edge-light treatment — there is exactly one, and it belongs to the active workout |
+| A primary action | `--grad-accent` — one gradient token, budget of 4 uses |
+| A category | the `:root` palette. There is no second one |
+| A rank | `rankMedalSvg` — the one renderer |
+| A chart | gradient underfill, recessive history, one lit current datum |
+| Micro-copy | `--text-faint`, which now carries ≥4:1 |
+
+**Contract 126 enforces this.** It fails if a second card material appears, if
+the category palette is redefined, if a second edge light is introduced, if
+`--text-faint` drops below 4:1, if the medal renderer is duplicated, or if the
+recipe is scattered per-component instead of applied in grouped rules.
+
+A future phase may deviate only where product semantics genuinely require it —
+and should say so in this document when it does. Visual iteration for its own
+sake ends here.
+
+Verified: 4809 passing. Zero protected symbols, zero storage writes,
+`DATA_KEYS` 15, trainer `0.1.1-shadow`.

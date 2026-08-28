@@ -13860,9 +13860,22 @@ async function testLuminousDepth(){
   })());
 
   sub('one surface recipe, applied once');
-  T('the shared recipe exists as a single selector list',
-    (css.match(/box-shadow: inset 0 1px 0 var\(--edge-hi\), var\(--shadow-ambient\);/g) || []).length === 2,
-    'one card list + the hero variant');
+  /* D28.1: the count was pinned at 2, which is a number rather than the rule.
+     What actually matters is that the recipe is applied in GROUPED rules and
+     never scattered per component — asserted directly now, and it holds while
+     the parity pass added a third group. */
+  T('the shared recipe is applied in grouped rules, never per component', (() => {
+    const uses = [...css.matchAll(/([^{}]+)\{[^}]*box-shadow: inset 0 1px 0 var\(--edge-hi\), var\(--shadow-ambient\);/g)];
+    if(uses.length === 0 || uses.length > 4) return false;
+    /* Every use must cover several components at once (a selector list), or be
+       the one documented single-class variant: the daily hero. */
+    return uses.every(m => {
+      const sel = m[1].replace(/\/\*[\s\S]*?\*\//g, '').trim();
+      return sel.includes(',') || sel === '.tw';
+    });
+  })());
+  T('and it is still one recipe, not several materials',
+    (css.match(/box-shadow: inset 0 1px 0 var\(--edge-hi\), var\(--shadow-ambient\);/g) || []).length <= 4);
   T('the hero keeps its category bar — only three sides go quiet',
     /\.tw\{\s*border-top-color: var\(--border-quiet\); border-right-color: var\(--border-quiet\);\s*border-bottom-color: var\(--border-quiet\);/.test(css));
 
@@ -13923,6 +13936,117 @@ async function testLuminousDepth(){
   T('safe-area systems untouched',
     /\.top-scrim\{/.test(css) && /\.sheet\.sheet-page::before\{/.test(css) &&
     (css.match(/padding-left: (calc\(20px \+ )?env\(safe-area-inset-left/g) || []).length === 4);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+    String(ctx.TRAINER_ENGINE_VERSION));
+}
+
+/* =========================================================
+   CONTRACT 126 — the visual system is locked (D28.1)
+   ---------------------------------------------------------
+   D28 built the language; D28.1 verified it against every
+   surface at six viewports and locks it. From here, a new
+   feature INHERITS: the surface recipe, the tokens, the
+   category palette, the button roles, the chart treatments.
+   These guardians exist so a future phase cannot quietly
+   start a second visual generation.
+   ========================================================= */
+async function testVisualSystemLock(){
+  section('CONTRACT 126 — visual system lock (D28.1)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  sub('every surface the audit found has been brought onto the system');
+  /* Seventeen classes were still rendering pre-D28 material — measured in a
+     real browser across five tabs, four Progress sections and four overlays.
+     Each is corrected by D28's own precedent, not a new one. */
+  const cards = ['wk-card','today-cardio-link','cl-empty','cw-card','log-lens','gym-summary'];
+  const rows  = ['achievement-row','xp-history-row','wk-day','mt-day','mt-var','mt-act',
+                 'filter-chip','cal-nav-btn','mastery-lvl-chip','cal-cell'];
+  T('standalone cards take the full material', (() => {
+    const i = css.indexOf('.wk-card, .today-cardio-link');
+    if(i === -1) return false;
+    const rule = css.slice(i, css.indexOf('}', i));
+    return cards.every(c => rule.includes('.' + c)) &&
+      /border-color: var\(--border-quiet\)/.test(rule);
+  })());
+  T('repeated rows take the quiet boundary only — no shadow per row', (() => {
+    const i = css.indexOf('.achievement-row, .xp-history-row');
+    if(i === -1) return false;
+    const rule = css.slice(i, css.indexOf('}', i));
+    return rows.every(c => rule.includes('.' + c)) && !/box-shadow/.test(rule);
+  })());
+  T('the shared secondary button reads as raised, never as disabled',
+    /\.btn-secondary\{ border-color: var\(--border-quiet\); box-shadow: inset 0 1px 0 var\(--edge-hi\); \}/.test(css));
+
+  sub('micro-copy clears a real contrast floor');
+  T('--text-faint carries at least 4:1 on the app\'s card surface', (() => {
+    const hex = (css.match(/--text-faint: (#[0-9A-Fa-f]{6})/) || [])[1];
+    const surf = (css.match(/--surface-2: (#[0-9A-Fa-f]{6})/) || [])[1];
+    if(!hex || !surf) return false;
+    const rgb = h => [1,3,5].map(i => parseInt(h.substr(i,2),16));
+    const lum = ([r,g,b]) => { const f = v => { v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); };
+      return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b); };
+    const L1 = lum(rgb(hex)), L2 = lum(rgb(surf));
+    const ratio = (Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05);
+    return ratio >= 4.0;
+  })(), 'measured on --surface-2');
+  T('and stays clearly recessive to --text-dim, so hierarchy is unchanged', (() => {
+    const g = k => (css.match(new RegExp('--' + k + ': (#[0-9A-Fa-f]{6})')) || [])[1];
+    const rgb = h => [1,3,5].map(i => parseInt(h.substr(i,2),16));
+    const lum = ([r,g2,b]) => { const f = v => { v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); };
+      return 0.2126*f(r)+0.7152*f(g2)+0.0722*f(b); };
+    return lum(rgb(g('text-dim'))) > lum(rgb(g('text-faint'))) * 1.4;
+  })());
+
+  sub('the light budget stays scarce');
+  T('exactly one edge-light treatment exists',
+    (css.match(/0 0 0 1px rgba\(76,194,255,0\.30\)/g) || []).length === 1);
+  T('the calendar\'s category outlines are softened, not full strength', (() => {
+    const cats = ['push','pull','legs','core','fullbody','upper','lower'];
+    return cats.every(c => new RegExp('\\.cal-cat-' + c + '\\{ border-color: rgba\\([\\d, ]+0\\.55\\); \\}').test(css));
+  })());
+  T('completion is still told by a mark, not by colour alone',
+    /\.cal-mark-done\{ background: var\(--success\); \}/.test(css) && /class="cal-legend"/.test(src));
+  T('selection remains the one unambiguous layer',
+    css.lastIndexOf('.cal-selected{ border-color: var(--accent); }') > css.indexOf('.cal-cat-push{ border-color'));
+
+  sub('no second visual generation may start');
+  T('the category palette is defined once, in :root', (() => {
+    const root = css.slice(css.indexOf(':root{'), css.indexOf('}', css.indexOf(':root{')));
+    /* Each category hex appears in :root; nowhere else may redefine one as a
+       new token. Pools and calendar outlines reference the same values as
+       rgba, which is reuse, not a duplicate palette. */
+    return ['--push:','--pull:','--legs:','--core:','--full:','--upper:','--lower:']
+      .every(t => root.includes(t) && (css.match(new RegExp(t.replace(/-/g,'[-]'), 'g')) || []).length === 1);
+  })());
+  T('there is one medal renderer', (src.match(/function rankMedalSvg\(/g) || []).length === 1);
+  T('there is one primary-action gradient token',
+    (css.match(/--grad-accent:/g) || []).length === 1);
+  T('no competing card material was introduced', (() => {
+    /* The recipe's signature must not be forked into a near-duplicate with a
+       different shadow or edge value. */
+    const variants = css.match(/inset 0 1px 0 var\(--edge-hi\)/g) || [];
+    const literals = css.match(/inset 0 1px 0 rgba\(238,241,245/g) || [];
+    return variants.length >= 3 && literals.length === 0;
+  })());
+
+  sub('what earlier phases fixed is still fixed');
+  T('D25 chart truth', /function knownWeeklyBuckets/.test(src) && /LOOP has tracked/.test(src));
+  T('D26 status band and side insets', (() => {
+    /* Comments stripped: the D27 rule's own prose names the property it
+       introduces, which would otherwise count as a fifth shell. */
+    const code = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    return /\.sheet\.sheet-page::before\{/.test(code) &&
+      (code.match(/env\(safe-area-inset-left/g) || []).length === 4;
+  })());
+  T('D27 history truth', /plannedKnown/.test(src) && /\.cal-unknown\{ opacity: 0\.22/.test(css));
+  T('D28 pools unchanged in kind', /--pool-accent:/.test(css) && /--pool-rest:/.test(css));
+  T('reduced motion is still honoured broadly',
+    (css.match(/prefers-reduced-motion/g) || []).length >= 6);
   T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
     String(ctx.TRAINER_ENGINE_VERSION));
@@ -14018,6 +14142,7 @@ async function main(){
   await testOverlayIntegrity();
   await testTodayAndHistoryTruth();
   await testLuminousDepth();
+  await testVisualSystemLock();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -32,7 +32,13 @@ try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.cla
   --border: #243044;
   --text: #EEF1F5;
   --text-dim: #9AA6B8;
-  --text-faint: #5D6878;
+  /* D28.1: measured at 2.99:1 on the lit hero label and 3.26:1 on the Progress
+     tile labels — micro-copy that had drifted below comfortable reading, made
+     worse where a pool lifts the surface under it. Raised until small
+     letterspaced labels clear ~4:1 while staying clearly recessive to
+     --text-dim (6.9:1), so the hierarchy is unchanged and only legibility
+     moved. */
+  --text-faint: #737E92;
   /* The accent steps from a mid blue to a luminous cyan-blue: bright enough
      to read as light on OLED black, far from pastel, and still dark-text
      safe on filled buttons. --accent-2 is its deeper partner for gradients. */
@@ -4920,6 +4926,41 @@ body.page-locked{ overflow: hidden; }
 /* Joined list rows keep their seams but lose the heavy outline. */
 .rw-row, .pt-row, .rank-row, .ch-card, .insight-row{ border-color: var(--border-quiet); }
 .sec-head{ border-bottom-color: var(--border-quiet); }
+
+/* ---- D28.1: the surfaces the recipe missed ----
+   Walking every screen at six viewports found seventeen classes still
+   rendering pre-D28 material — a hard border, no inner light. They are
+   corrected here by the SAME precedent D28 set, not by a second system:
+   standalone cards take the full material, repeated rows and tiles take the
+   quiet boundary only (fourteen ambient shadows in one list is cost without
+   meaning), and the shared secondary button becomes a raised control. */
+.wk-card, .today-cardio-link, .cl-empty, .cw-card, .log-lens, .gym-summary{
+  border-color: var(--border-quiet);
+  box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
+}
+.achievement-row, .xp-history-row, .wk-day, .mt-day, .mt-var, .mt-act,
+.filter-chip, .cal-nav-btn, .mastery-lvl-chip, .cal-cell{
+  border-color: var(--border-quiet);
+}
+.sheet-actions{ border-top-color: var(--border-quiet); }
+/* §11: quiet and obviously available — never mistakable for disabled. */
+.btn-secondary{ border-color: var(--border-quiet); box-shadow: inset 0 1px 0 var(--edge-hi); }
+
+/* ---- D28.1 light budget (§7): the calendar was shouting six times ----
+   Measured on a real month, six category-coloured cells each read as a
+   luminous object at once — the grid competed with itself and with the
+   completion marks it exists to show. The category outline stays (it is
+   information) at roughly half strength; the filled green mark still
+   carries "completed", so nothing is told by colour alone. */
+.cal-cat-push{ border-color: rgba(91,140,255,0.55); }
+.cal-cat-pull{ border-color: rgba(189,146,96,0.55); }
+.cal-cat-legs{ border-color: rgba(133,121,176,0.55); }
+.cal-cat-core{ border-color: rgba(184,116,140,0.55); }
+.cal-cat-fullbody{ border-color: rgba(75,156,129,0.55); }
+.cal-cat-upper{ border-color: rgba(79,163,199,0.55); }
+.cal-cat-lower{ border-color: rgba(199,127,79,0.55); }
+/* Selection stays the one unambiguous layer on top of category and today. */
+.cal-selected{ border-color: var(--accent); }
 
 /* ---- The daily hero pools its light by state (§13) ----
    The pool rises from the card's foot — where the action lives — in the
