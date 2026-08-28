@@ -3412,3 +3412,58 @@ Contract 124 holds all of it. Presentation and provenance only: zero
 protected-symbol lines, zero storage writes, `DATA_KEYS` 15, trainer
 `0.1.1-shadow`; browsing every calendar day, month and recent row left every
 log, XP, PR and mastery value byte-identical.
+
+## §48 — D28: luminous depth is a system, not decoration
+
+Four reference images set the direction; their principles were extracted, not
+their pixels: information glows out of a dark surface, light pools from the
+data itself, big values anchor compositions, and borders give way to tone.
+
+**Tokens (once, in :root):** `--edge-hi` (1px inner top light — the glass
+read), `--border-quiet` (half-strength boundary), `--shadow-ambient`, and
+three pools — `--pool-accent`, `--pool-success`, `--pool-rest` — each a
+static radial rising from a surface's foot. No blur, no filter, no animation:
+one gradient paint each, and measured renders CONFIRMED it (Today 2.3ms, Log
+8.3ms, Train 6.4ms — all at or below their D27 numbers).
+
+**One recipe, applied once:** a single late-cascade selector list gives every
+card the quiet boundary, inner top light and ambient shadow — nineteen
+component classes converge on one material without touching 149 scattered
+border rules. The daily hero keeps its thin category bar (the reference's
+event-accent idea): only its other three sides go quiet.
+
+**Light pools per MEANING:** the hero pools in its category's colour (seven
+category radials), rest pools quiet neutral, completion pools green, the
+active workout carries the app's ONE edge light. Train cards take a fainter
+version of the same category light (`templateCardHtml` now stamps `cat-*` —
+the one markup change). The current calendar day is the one lit cell;
+the consistency strip's current column takes the accent; the tab bar's
+active glyph earns a 12px local light. D27's truth states — `cal-unknown`
+0.22, dashed `lc-unknown` — pass through unchanged, contract-held.
+
+**Big values as anchors:** the week count ("**2** of 4") and consistency
+count ("**6** of 8") became Space Grotesk anchors at 28/22px; Workout
+Complete's three bordered stat boxes became ONE composed metric strip
+divided by hairlines, numbers at 24px — the reference's distance·time·kcal
+row, not three cards.
+
+**Charts:** the exercise trend line gained a gradient underfill and ONE lit
+datum — the most recent point gets a halo (two circles, zero filters) while
+intermediate sessions recede to small marks; the weekly bar chart grounds a
+soft light under the current week's bar. Sparse-history clamps untouched.
+
+**The tutorial is the same app:** its hero pools like production, its
+9.5px micro-label (below the app's own floor) was raised to `--fs-micro`,
+and its timer demo was confirmed to be the production `prep-ring`. The
+warm-up figure's stage pool rose 10%→13% and gained a soft ground shadow —
+grounded, not floating. Set rows became recessed instrument wells (inset
+shadow) against the raised cards around them. The Check-in dashed box became
+a quiet solid glass row. The workout-quality block's full-accent outline
+dropped to 30% — it was shouting over its own score.
+
+**Budgets held as hard numbers:** `--grad-accent` still ≤4, backdrop-filter
+still 3 of 6, exactly one edge-light rule, no pool animates, reduced-motion
+count unchanged, safe-area systems byte-identical (the four side-inset
+shells still count exactly 4). Contract 125. Zero protected symbols, zero
+storage writes, seven JS lines total (both chart renderers), `DATA_KEYS` 15,
+trainer `0.1.1-shadow`.

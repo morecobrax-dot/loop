@@ -13831,6 +13831,103 @@ async function testTodayAndHistoryTruth(){
   }
 }
 
+/* =========================================================
+   CONTRACT 125 — luminous depth is a system, not decoration (D28)
+   ---------------------------------------------------------
+   Darkness is the foundation, colour is information, light
+   is emphasis. The rules here keep it that way: light is
+   tokenized once, pooled per meaning on the few stateful
+   surfaces, and everything else stays deep neutral. If every
+   surface glows, nothing is important — so the budgets that
+   keep glow scarce are held as hard numbers.
+   ========================================================= */
+async function testLuminousDepth(){
+  section('CONTRACT 125 — luminous depth system (D28)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  sub('the light is tokenized once');
+  ['--edge-hi:', '--border-quiet:', '--shadow-ambient:', '--pool-accent:', '--pool-success:', '--pool-rest:']
+    .forEach(t => T(t.replace(':','') + ' exists exactly once',
+      (css.match(new RegExp(t.replace(/-/g,'[-]'), 'g')) || []).length === 1));
+  T('pools are static radial gradients — no blur, no filter, no animation', (() => {
+    const i = css.indexOf('--pool-accent');
+    const block = css.slice(i, css.indexOf('--pool-rest') + 200);
+    return /radial-gradient/.test(block) && !/blur|filter|animation/.test(block);
+  })());
+
+  sub('one surface recipe, applied once');
+  T('the shared recipe exists as a single selector list',
+    (css.match(/box-shadow: inset 0 1px 0 var\(--edge-hi\), var\(--shadow-ambient\);/g) || []).length === 2,
+    'one card list + the hero variant');
+  T('the hero keeps its category bar — only three sides go quiet',
+    /\.tw\{\s*border-top-color: var\(--border-quiet\); border-right-color: var\(--border-quiet\);\s*border-bottom-color: var\(--border-quiet\);/.test(css));
+
+  sub('light is pooled per MEANING, never sprayed');
+  T('the daily hero pools by category', /\.tw-push::after\{ background: radial-gradient/.test(css) &&
+    /\.tw-fullbody::after\{ background: radial-gradient/.test(css));
+  T('rest pools quiet neutral, not colour', /\.tw-rest::after\{ background: var\(--pool-rest\); \}/.test(css));
+  T('completion pools green', /\.tw-done-hero::after\{ background: var\(--pool-success\); \}/.test(css));
+  T('edge light is reserved for the one live surface',
+    (css.match(/0 0 0 1px rgba\(76,194,255,0\.30\)/g) || []).length === 1);
+  T('train cards carry their category light', /\.tpl-card\.cat-push::after/.test(css) &&
+    /class="tpl-card\$\{cat \? ' cat-' \+ cat : ''\}/.test(src));
+  T('the current calendar day is the one lit cell',
+    /\.cal-today\{ background: linear-gradient\(180deg, var\(--surface-2\) 40%, rgba\(76,194,255,0\.12\)\); \}/.test(css));
+  T('D27 truth states survive the new light untouched',
+    /\.cal-unknown\{ opacity: 0\.22/.test(css) && /\.lc-unknown\{ background: none; border: 1px dashed/.test(css));
+
+  sub('glow budgets stay scarce');
+  T('the signature gradient is still at its D21 budget',
+    (src.match(/var\(--grad-accent\)/g) || []).length <= 4,
+    String((src.match(/var\(--grad-accent\)/g) || []).length));
+  T('backdrop blur did not spread', (src.match(/backdrop-filter/g) || []).length <= 6,
+    String((src.match(/backdrop-filter/g) || []).length));
+  T('no pool animates and none pulses', (() => {
+    const code = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    return !/--pool-[a-z]+[^;]*animation/.test(code) &&
+      !/::after\{[^}]*var\(--pool-[a-z]+\)[^}]*animation/.test(code) &&
+      !/@keyframes\s+(glow|pulse-bg|breathe)/.test(code);
+  })());
+
+  sub('big values are the composition');
+  T('the week count is a Space Grotesk anchor', /\.wk-count b\{[\s\S]{0,120}font-size: 28px/.test(css));
+  T('so is the consistency count', /\.lc-foot b\{[\s\S]{0,120}font-size: 22px/.test(css));
+  T('summary metrics are one strip, not three boxes',
+    /\.stat\{ background: none; border: none/.test(css) &&
+    /\.stat \+ \.stat\{ border-left: 1px solid var\(--border-quiet\); \}/.test(css));
+
+  sub('charts carry the reference language honestly');
+  T('the line chart underfills and lights its most recent point', (() => {
+    const fn = src.slice(src.indexOf('function e1rmLineSvg'), src.indexOf('function renderAll'));
+    return /url\(#e1fill\)/.test(fn) && /r="7" fill="rgba\(76,194,255,0\.22\)"/.test(fn) &&
+      /stop-opacity="0\.16"/.test(fn);
+  })());
+  T('the bar chart grounds its light under the current week', /url\(#vbase\)/.test(src));
+  T('sparse-history truth is untouched by the new light',
+    /function knownWeeklyBuckets/.test(src) && /LOOP has tracked/.test(src));
+
+  sub('the tutorial is the same app');
+  T('its hero pools like production', /\.ob-hero::after\{[\s\S]{0,80}var\(--pool-accent\)/.test(css));
+  T('its micro-label obeys the type floor',
+    /\.ob-mock-label\{[^}]*font-size: var\(--fs-micro\)/.test(css) && !/font-size: 9\.5px/.test(css));
+  T('its timer demo is the production ring, not a mock',
+    /class="prep-ring ob-timer-ring"/.test(src) && /prep-ring-fill/.test(src));
+
+  sub('nothing else moved');
+  T('reduced motion still honoured everywhere it was',
+    (css.match(/prefers-reduced-motion/g) || []).length >= 6);
+  T('safe-area systems untouched',
+    /\.top-scrim\{/.test(css) && /\.sheet\.sheet-page::before\{/.test(css) &&
+    (css.match(/padding-left: (calc\(20px \+ )?env\(safe-area-inset-left/g) || []).length === 4);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+    String(ctx.TRAINER_ENGINE_VERSION));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -13920,6 +14017,7 @@ async function main(){
   await testProgressExperience();
   await testOverlayIntegrity();
   await testTodayAndHistoryTruth();
+  await testLuminousDepth();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

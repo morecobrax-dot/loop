@@ -88,6 +88,19 @@ try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.cla
   --glass-bg: rgba(14,20,31,0.72);
   --glass-border: rgba(140,190,255,0.14);
 
+  /* ---- D28 luminous-depth tokens ----
+     The reference language, tokenized once: darkness is the foundation,
+     colour is information, light is emphasis. A "pool" is a static radial
+     that rises from the BOTTOM of a surface — light appearing to originate
+     from the information, never a painted-on corner. No blur, no filter,
+     no animation: each is one gradient paint. */
+  --edge-hi: rgba(238,241,245,0.05);              /* 1px inner top light = glass read */
+  --border-quiet: rgba(36,48,68,0.55);            /* embedded card boundary */
+  --shadow-ambient: 0 14px 28px -18px rgba(0,0,0,0.65);
+  --pool-accent:  radial-gradient(120% 90% at 50% 110%, rgba(76,194,255,0.13), rgba(46,107,255,0.05) 52%, transparent 74%);
+  --pool-success: radial-gradient(120% 90% at 50% 110%, rgba(75,156,129,0.16), transparent 70%);
+  --pool-rest:    radial-gradient(120% 90% at 50% 112%, rgba(93,104,120,0.10), transparent 70%);
+
   /* ---- Type scale ----
      One token per role, so a label cannot drift a half pixel
      away from every other label of the same kind. */
@@ -1882,7 +1895,10 @@ body.first-use{ padding-bottom: 0; }
 .quality-block{
   grid-column: 1 / -1; text-align: center; padding: 16px 14px; border-radius: var(--radius-md);
   background: linear-gradient(160deg, var(--accent-soft), var(--surface-2));
-  border: 1px solid var(--accent); margin-bottom: 2px;
+  /* D28: the score is the light; a full-strength accent outline around it was
+     shouting over its own number. */
+  border: 1px solid rgba(76,194,255,0.30); margin-bottom: 2px;
+  box-shadow: inset 0 1px 0 var(--edge-hi);
 }
 .quality-score{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 38px; line-height: 1; color: var(--text); }
 .quality-label{ font-size: var(--fs-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-top: 4px; font-weight: 700; }
@@ -2007,8 +2023,15 @@ body.first-use{ padding-bottom: 0; }
 .levelup-nums{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; color: var(--text); margin-top: 6px; }
 .levelup-rank{ font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-dim); margin-top: 4px; }
 
-.stat{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; text-align: center; }
-.stat-num{ font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--text); }
+/* D28: three identical bordered boxes became one composed metric strip —
+   related figures divided by hairlines, the way the reference widgets set
+   distance · time · calories as a single row rather than three cards. */
+.stat{ background: none; border: none; border-radius: 0; padding: 12px 6px; text-align: center; }
+.stat + .stat{ border-left: 1px solid var(--border-quiet); }
+.stat-num{
+  font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700;
+  letter-spacing: -0.01em; color: var(--text); font-variant-numeric: tabular-nums;
+}
 .stat-label{ font-size: var(--fs-micro); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
 
 .muscle-breakdown-card{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
@@ -4263,7 +4286,7 @@ body.page-locked{ overflow: hidden; }
    while the figure animates. */
 .prep-figure::before{
   content: ""; position: absolute; inset: 4% 0; border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(76,194,255,0.10), rgba(76,194,255,0) 76%);
+  background: radial-gradient(closest-side, rgba(76,194,255,0.13), rgba(76,194,255,0) 76%);
   pointer-events: none;
 }
 .prep-figure loop-move{ display: block; width: 100%; height: 100%; }
@@ -4861,6 +4884,131 @@ body.page-locked{ overflow: hidden; }
   .prep-ring-fill{ transition: none; }
 }
 
+/* =========================================================
+   D28 — LUMINOUS DEPTH SYSTEM
+   ---------------------------------------------------------
+   One recipe applied late in the cascade, so every card in
+   the app converges on the same material without touching a
+   hundred and forty scattered border rules:
+
+     · boundary drops to half strength (tone separates, not stroke)
+     · a 1px inner top light gives the glass read
+     · a soft ambient shadow embeds the card in the page
+
+   Light beyond this is POOLED, per meaning, on the few
+   surfaces that carry state: the daily hero (category /
+   active / complete / rest), the tutorial hero, the current
+   calendar day. 80–90% of every surface stays deep neutral —
+   if everything glows, nothing is important.
+   ========================================================= */
+.pd-card, .lc-card, .cal-card, .mv-card, .tpl-card, .ob-mock, .ob-hero,
+.mas-sum, .vw-grid, .pd-tiles, .mo-cell, .cl-tile, .settings-row-btn,
+.prog-jump, .hdr-level, .plan-card, .mt-stat, .sub-card{
+  border-color: var(--border-quiet);
+  box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
+}
+/* The hero keeps its thin category bar on the left — the reference's event
+   accent — so only its other three sides go quiet. */
+.tw{
+  border-top-color: var(--border-quiet); border-right-color: var(--border-quiet);
+  border-bottom-color: var(--border-quiet);
+  box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
+}
+/* Stateful borders declared earlier in the file stay louder than the recipe. */
+.mo-cell.mo-good{ border-color: rgba(75,156,129,0.32); }
+.plan-card.plan-card-active{ border-color: var(--accent); }
+/* Joined list rows keep their seams but lose the heavy outline. */
+.rw-row, .pt-row, .rank-row, .ch-card, .insight-row{ border-color: var(--border-quiet); }
+.sec-head{ border-bottom-color: var(--border-quiet); }
+
+/* ---- The daily hero pools its light by state (§13) ----
+   The pool rises from the card's foot — where the action lives — in the
+   colour of what the day MEANS. Rest is a quiet neutral pool; the next
+   session's category arrives later as a thin accent, not a flood. */
+.tw{ position: relative; overflow: hidden; }
+.tw::after{
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: var(--pool-accent);
+}
+.tw > *{ position: relative; z-index: 1; }
+.tw-push::after{ background: radial-gradient(120% 90% at 50% 110%, rgba(91,140,255,0.14), transparent 72%); }
+.tw-pull::after{ background: radial-gradient(120% 90% at 50% 110%, rgba(189,146,96,0.13), transparent 72%); }
+.tw-legs::after{ background: radial-gradient(120% 90% at 50% 110%, rgba(133,121,176,0.14), transparent 72%); }
+.tw-core::after{ background: radial-gradient(120% 90% at 50% 110%, rgba(184,116,140,0.13), transparent 72%); }
+.tw-fullbody::after{ background: radial-gradient(120% 90% at 50% 110%, rgba(75,156,129,0.14), transparent 72%); }
+.tw-upper::after{ background: radial-gradient(120% 90% at 50% 110%, rgba(79,163,199,0.14), transparent 72%); }
+.tw-lower::after{ background: radial-gradient(120% 90% at 50% 110%, rgba(199,127,79,0.13), transparent 72%); }
+.tw-rest::after{ background: var(--pool-rest); }
+.tw-done-hero::after{ background: var(--pool-success); }
+.tw-active::after{ background: var(--pool-accent); }
+/* §5 edge light — reserved for the ONE surface that is live right now. */
+.tw-active{
+  box-shadow: inset 0 1px 0 var(--edge-hi),
+              0 0 0 1px rgba(76,194,255,0.30),
+              0 8px 26px -12px rgba(76,194,255,0.30);
+}
+
+/* Train cards: the same category light, quieter — a shelf of options, not a
+   row of heroes. The active card brightens on press through its existing
+   border response. */
+.tpl-card{ position: relative; overflow: hidden; }
+.tpl-card::after{
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(110% 70% at 85% 112%, rgba(76,194,255,0.07), transparent 70%);
+}
+.tpl-card.cat-push::after{ background: radial-gradient(110% 70% at 85% 112%, rgba(91,140,255,0.10), transparent 70%); }
+.tpl-card.cat-pull::after{ background: radial-gradient(110% 70% at 85% 112%, rgba(189,146,96,0.09), transparent 70%); }
+.tpl-card.cat-legs::after{ background: radial-gradient(110% 70% at 85% 112%, rgba(133,121,176,0.10), transparent 70%); }
+.tpl-card.cat-core::after{ background: radial-gradient(110% 70% at 85% 112%, rgba(184,116,140,0.09), transparent 70%); }
+.tpl-card.cat-fullbody::after{ background: radial-gradient(110% 70% at 85% 112%, rgba(75,156,129,0.10), transparent 70%); }
+.tpl-card.cat-upper::after{ background: radial-gradient(110% 70% at 85% 112%, rgba(79,163,199,0.10), transparent 70%); }
+.tpl-card.cat-lower::after{ background: radial-gradient(110% 70% at 85% 112%, rgba(199,127,79,0.09), transparent 70%); }
+.tpl-card > *{ position: relative; z-index: 1; }
+
+/* ---- Big values (§10–11): the number IS the composition ---- */
+.wk-count{ display: inline-flex; align-items: baseline; gap: 5px; }
+.wk-count b{
+  font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700;
+  line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.lc-foot b{
+  font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 700;
+  line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+}
+.snap-num{ font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+
+/* ---- Current-day light on the calendar (§35): the one cell that glows ---- */
+.cal-today{ background: linear-gradient(180deg, var(--surface-2) 40%, rgba(76,194,255,0.12)); }
+/* Consistency: the current week's column carries the accent, history stays neutral. */
+.lc-col.now .lc-fill{ background: var(--accent); }
+.lc-card{ position: relative; overflow: hidden; }
+.lc-card::after{ content:''; position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(100% 70% at 78% 115%, rgba(76,194,255,0.07), transparent 70%); }
+
+/* ---- Bottom nav (§48): the active glyph earns a small local light ---- */
+.tab-btn.active .glyph{ box-shadow: 0 0 12px rgba(76,194,255,0.28); }
+
+/* ---- Check-in (§17): a quiet interactive row, not a dashed utility box ---- */
+.ready-prompt{ border-style: solid; border-color: var(--border-quiet);
+  box-shadow: inset 0 1px 0 var(--edge-hi); }
+
+/* ---- Set controls (§23): recessed instrument wells, not raised cards.
+   Completed keeps its green tint rule untouched. ---- */
+.set-row{ border-color: var(--border-quiet); box-shadow: inset 0 1.5px 3px rgba(0,0,0,0.28); }
+
+/* ---- Warm-up stage (§25): the figure grounded, not floating ---- */
+.prep-figure::after{
+  content: ''; position: absolute; left: 18%; right: 18%; bottom: 2%;
+  height: 7%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(0,0,0,0.45), transparent 74%);
+}
+
+/* ---- Tutorial hero (§42): first impression carries the system ---- */
+.ob-hero{ position: relative; overflow: hidden; }
+.ob-hero::after{ content:''; position:absolute; inset:0; pointer-events:none;
+  background: var(--pool-accent); }
+.ob-hero > *{ position: relative; z-index: 1; }
+
 /* ---------- LANDSCAPE / ROTATION SAFETY ----------
    LOOP is designed portrait-first. Rotating must not break it: sheets stay
    within the viewport, nothing overflows horizontally, and tall fixed
@@ -5049,7 +5197,9 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   background: var(--surface-gradient); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: var(--space-4);
 }
-.ob-mock-label{ font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; }
+/* D28: was 9.5px — under the app's own 11px type floor. The tutorial obeys
+   the same rules as production. */
+.ob-mock-label{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; }
 .ob-mock-title{ font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text); margin-top: 3px; }
 .ob-mock-meta{ font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 .ob-mock-cta{
@@ -14976,7 +15126,7 @@ function templateCardHtml(t, cat, lastWeights){
     `<div class="tpl-ex-row"><span>${escapeHtml(ex.name)}</span><span>${escapeHtml(String(ex.sets))} × ${escapeHtml(String(ex.reps))}</span></div>`).join('') +
     (t.exercises.length > 8 ? `<div class="tpl-ex-more">+ ${t.exercises.length - 8} more</div>` : '');
   return `
-    <div class="tpl-card">
+    <div class="tpl-card${cat ? ' cat-' + cat : ''}">
       <div class="tpl-name">${escapeHtml(t.name)}</div>
       ${tplEmphasisLine(t)}
       <div class="tpl-meta-row">
@@ -16952,7 +17102,18 @@ function volumeBarSvg(buckets){
 
   let bars = `<defs><linearGradient id="vbarg" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent-2)"/>
-  </linearGradient></defs>`;
+  </linearGradient>
+  <radialGradient id="vbase" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0" stop-color="var(--accent)" stop-opacity="0.20"/>
+    <stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
+  </radialGradient></defs>`;
+  /* D28: ground light under the current week — the light originates from the
+     bar that matters, the way the reference's glow sits under its data. */
+  {
+    const slotW = (w - padLeft - padRight) / buckets.length;
+    const cx = padLeft + (buckets.length - 0.5) * slotW;
+    bars += `<ellipse cx="${cx.toFixed(1)}" cy="${h - padBottom}" rx="${Math.min(34, slotW)}" ry="8" fill="url(#vbase)"/>`;
+  }
   /* One restrained guide at the peak, labelled with its real value, and a
      hairline baseline — enough scale to read, no grid to decode. */
   bars += `<line x1="${padLeft}" y1="${padTop}" x2="${w-padRight}" y2="${padTop}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3 4"/>`;
@@ -19790,14 +19951,28 @@ function e1rmLineSvg(points){
   const yFor = v => padT + (1 - (v - min) / range) * (h - padT - padB);
   const xFor = i => points.length === 1 ? (padL + (w - padL - padR) / 2) : padL + (i / (points.length - 1)) * (w - padL - padR);
   const pathD = points.map((p,i) => (i === 0 ? 'M' : 'L') + xFor(i).toFixed(1) + ',' + yFor(p.value).toFixed(1)).join(' ');
-  const dots = points.map((p,i) => `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(p.value).toFixed(1)}" r="3" fill="var(--accent)"/>`).join('');
+  /* D28: the line is a luminous stroke on the dark ground — a gradient
+     underfill falls away beneath it, intermediate sessions recede to small
+     marks, and the MOST RECENT point is the one lit datum (a halo, not a
+     filter — two circles, zero cost). Every value drawn is still real. */
+  const lastX = xFor(points.length - 1).toFixed(1);
+  const lastY = yFor(points[points.length - 1].value).toFixed(1);
+  const fillD = pathD + ` L${xFor(points.length - 1).toFixed(1)},${h - padB} L${xFor(0).toFixed(1)},${h - padB} Z`;
+  const dots = points.slice(0, -1).map((p,i) => `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(p.value).toFixed(1)}" r="2.4" fill="var(--accent)" opacity="0.55"/>`).join('');
+  const nowDot = `<circle cx="${lastX}" cy="${lastY}" r="7" fill="rgba(76,194,255,0.22)"/>
+    <circle cx="${lastX}" cy="${lastY}" r="3.4" fill="var(--accent)"/>`;
   const labelMax = `<text x="4" y="${padT+4}" font-size="11" fill="var(--text-faint)" font-family="JetBrains Mono, monospace">${max}</text>`;
   const labelMin = `<text x="4" y="${h-padB}" font-size="11" fill="var(--text-faint)" font-family="JetBrains Mono, monospace">${min}</text>`;
   const firstLabel = `<text x="${padL}" y="${h-5}" font-size="12" fill="var(--text-faint)" text-anchor="start" font-family="JetBrains Mono, monospace">${formatDateShort(points[0].date)}</text>`;
   const lastLabel = `<text x="${w-padR}" y="${h-5}" font-size="12" fill="var(--text-faint)" text-anchor="end" font-family="JetBrains Mono, monospace">${formatDateShort(points[points.length-1].date)}</text>`;
   return `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:150px; display:block;">
-    <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2"/>
-    ${dots}${labelMax}${labelMin}${firstLabel}${lastLabel}
+    <defs><linearGradient id="e1fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${fillD}" fill="url(#e1fill)"/>
+    <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}${nowDot}${labelMax}${labelMin}${firstLabel}${lastLabel}
   </svg>`;
 }
 
