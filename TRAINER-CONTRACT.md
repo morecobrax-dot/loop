@@ -3172,3 +3172,52 @@ the workout intact.
 Storage-neutral throughout: zero writes in the diff, `DATA_KEYS` still 15, no
 trainer symbol anywhere in it, trainer at `0.1.1-shadow`. Five viewports and
 rotation: no overflow, no sub-44 controls on the touched surfaces.
+
+## §43.1 — D23.1: the medal builds itself
+
+D23's eight medals shared one geometry and differed mostly by colour — the
+name said "ranked up", the emblem did not. The renderer now BUILDS: every tier
+keeps everything below it and adds one structural idea, so the family reads as
+a single medal growing more prestigious.
+
+| Tier | Adds |
+|---|---|
+| ROOKIE | the foundation — one ring, dark well, four-facet gem |
+| TRAINEE | a second hairline ring |
+| ATHLETE | the hexagonal frame — first break of the circle |
+| COMPETITOR | armored ring segmentation and a top crest tip |
+| ELITE | full geometric wings, an inner halo, a lower rim light |
+| VETERAN | weight — heavier ring, broader wings, the lower crest point |
+| MASTER | the crown begins: upper crest, split outer arcs, an inner gem layer |
+| LEGEND | the finished pinnacle, an outer armor octagon, and the one dual-material gem — violet heart in gold outer facets |
+
+The gem evolves the same way (4 facets → kites → gleam → deep split → inner
+layer → dual material), and the glow rises on a fixed ladder (0 → .06 → .10 →
+.16 → .21 → .25 → .30 → .38) that a contract holds monotone and capped.
+
+**The no-text test, in numbers.** Rendered and measured with the glow
+excluded: element counts run 8 → 12 → 14 → 17 → 24 → 27 → 30 → 34, strictly
+rising, and silhouette area runs 81 → 94 → 99 → 102 → 113 → 120 → 121 → 128
+(×100 units²), monotone with LEGEND largest — the medals order themselves by
+structure alone, which is also the greyscale guarantee. One real bug was
+caught by that measurement: MASTER and LEGEND's widened wings overflowed the
+viewBox (124 and 130 units against 120) and were silently clipped; the span
+is now capped at 58 units and their extra breadth comes from crown, arcs and
+armor instead. All eight verified fully in-box.
+
+**Presence and states.** Each card's medal now casts a faint rank-coloured
+pool into the card behind it (`gem[0]` at 8% alpha, closest-side radial —
+never flooding). The current medal is 5% crisper and owns the family's only
+motion: a 0.45s entrance settle when the showcase opens, removed under
+reduced motion. Achieved medals keep ~92% of their light; locked medals stay
+dimmed-but-visible, with the over-pinned exact filter values in the D23
+contract replaced by a bounds check on the mechanism.
+
+Everything else stands: the carousel, cards, ranges, names, XP, Level, and
+promotion detection are untouched; the two pinned renderer lines (`wings =
+tier >= 4`, `apex === 'LEGEND'`) survive verbatim. Contracts pin the ladder
+itself — sixteen assertions covering per-tier layer arrival, monotone
+complexity, ROOKIE-simplest, LEGEND-most-complete, determinism, and the glow
+ladder. Rendering the whole family costs 0.27ms; a swipe step 0.84ms.
+Presentation only: zero storage writes, zero trainer symbols, `DATA_KEYS`
+still 15, trainer at `0.1.1-shadow`.

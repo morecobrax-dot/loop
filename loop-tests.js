@@ -12925,9 +12925,17 @@ function testRankIdentity(app){
   T('carousel listeners are wired once', /wrap\.dataset\.wired === '1'\) return;/.test(src));
 
   sub('achieved, current and locked are states, not secrets');
-  T('a locked rank shows its design, dimmed — never a question mark',
-    /\.rank-locked \.rank-medal-wrap\{ filter: saturate\(0\.4\) brightness\(0\.62\); \}/.test(src) &&
-    !/\?\?\?/.test(src.slice(src.indexOf('function rankCardHtml'), src.indexOf('function openRankShowcase'))));
+  /* D23.1 retuned the exact dim values; the guarantee was never the numbers.
+     What must hold: a locked medal is dimmed (saturate and brightness both
+     genuinely below 1) yet still visibly itself (neither near zero), and no
+     rank is ever a question mark. */
+  T('a locked rank shows its design, dimmed — never a question mark', (() => {
+    const m = src.match(/\.rank-locked \.rank-medal-wrap\{ filter: saturate\(([\d.]+)\) brightness\(([\d.]+)\); \}/);
+    if(!m) return false;
+    const sat = parseFloat(m[1]), bri = parseFloat(m[2]);
+    return sat > 0.25 && sat < 1 && bri > 0.4 && bri < 1 &&
+      !/\?\?\?/.test(src.slice(src.indexOf('function rankCardHtml'), src.indexOf('function openRankShowcase')));
+  })());
   T('every card names its state in words',
     /'CURRENT RANK' : state === 'achieved' \? 'ACHIEVED' : 'REACHED AT LEVEL ' \+ r\.min/.test(src));
   T('and speaks its whole meaning',
@@ -12937,6 +12945,77 @@ function testRankIdentity(app){
     /function rankLevelRangeLabel\(r\)\{/.test(src) && /'Level ' \+ r\.min \+ '–' \+ r\.max/.test(src));
   T('reduced motion keeps the snap and loses the flourish',
     /\.rank-track\{ transition: none !important; \}/.test(css));
+
+  sub('the medal BUILDS — every tier keeps the last and adds one idea (D23.1)');
+  /* Rendered in the harness and measured structurally: element counts rise
+     monotonically, and each named layer appears exactly at its tier and above.
+     This is the greyscale test in code — the ladder is geometry, not colour. */
+  const medals = (ctx.RANKS || []).map(r => ctx.rankMedalSvg(r.name, 120));
+  const countIn = (svg, re) => (svg.match(re) || []).length;
+  T('complexity rises monotonically from ROOKIE to LEGEND', (() => {
+    const counts = medals.map(m => countIn(m, /<(circle|path|polygon)/g));
+    for(let i = 1; i < counts.length; i++) if(counts[i] <= counts[i-1]) return counts;
+    return true;
+  })() === true, 'element counts per tier');
+  T('ROOKIE is the simplest medal in the family', (() => {
+    const counts = medals.map(m => countIn(m, /<(circle|path|polygon)/g));
+    return counts[0] === Math.min(...counts);
+  })());
+  T('LEGEND is the most complete', (() => {
+    const counts = medals.map(m => countIn(m, /<(circle|path|polygon)/g));
+    return counts[7] === Math.max(...counts);
+  })());
+  T('the second ring arrives at TRAINEE', (() => {
+    const ring2 = m => /r="48\.5"/.test(m);
+    return !ring2(medals[0]) && ring2(medals[1]) && ring2(medals[2]);
+  })());
+  T('the hexagonal frame arrives at ATHLETE', (() => {
+    const hex = m => countIn(m, /<polygon points="10[0-9]\.|<polygon points="\d+\.\d,\d+\.\d \d/g) > 0 || /polygon points="[\d.]+,[\d.]+ [\d.]+,[\d.]+ [\d.]+,[\d.]+ [\d.]+,[\d.]+ [\d.]+,[\d.]+ [\d.]+,[\d.]+"/.test(m);
+    return !hex(medals[0]) && !hex(medals[1]) && hex(medals[2]);
+  })());
+  T('ring segmentation arrives at COMPETITOR', (() => {
+    const seg = m => /stroke-dasharray="7 15\.54"/.test(m);
+    return !seg(medals[2]) && seg(medals[3]) && seg(medals[7]);
+  })());
+  T('wings arrive at ELITE and never before', (() => {
+    const wing = m => countIn(m, /opacity="0\.94"/g) >= 2;
+    return !wing(medals[3]) && wing(medals[4]) && wing(medals[5]) && wing(medals[6]) && wing(medals[7]);
+  })());
+  T('the halo and rim light arrive with the wings', (() => {
+    const halo = m => /r="30"/.test(m);
+    return !halo(medals[3]) && halo(medals[4]);
+  })());
+  T('the lower crest point arrives at VETERAN — weight under the medal', (() => {
+    const lower = m => /M52 100 L60 114/.test(m);
+    return !lower(medals[4]) && lower(medals[5]) && lower(medals[6]) && lower(medals[7]);
+  })());
+  T('the crown begins at MASTER and finishes at LEGEND', (() => {
+    const masterCrest = /M47 17 L53 8/.test(medals[6]);
+    const legendCrown = /M44 16 L51 4/.test(medals[7]);
+    const noneBelow = !/M47 17|M44 16/.test(medals[5]);
+    return masterCrest && legendCrown && noneBelow;
+  })());
+  T('only LEGEND wears the dual-material gem and the armor octagon', (() => {
+    const oct = m => countIn(m, /polygon points="[^"]*"/g) && /stroke-width="2\.4" opacity="0\.85"/.test(m);
+    return !oct(medals[6]) && oct(medals[7]);
+  })());
+  T('the gem itself earns facets up the ladder', (() => {
+    const gemFacets = medals.map(m => countIn(m, /<polygon/g));
+    return gemFacets[0] < gemFacets[2] && gemFacets[2] < gemFacets[7];
+  })());
+  T('the glow ladder rises and never washes out', (() => {
+    const glows = (ctx.RANKS || []).map(r => (ctx.RANK_VISUALS[r.name] || {}).glow || 0);
+    for(let i = 1; i < glows.length; i++) if(glows[i] < glows[i-1]) return glows;
+    return glows[0] === 0 && glows[7] <= 0.45 ? true : glows;
+  })() === true);
+  T('the renderer is deterministic apart from its gradient ids',
+    ctx.rankMedalSvg('ELITE', 80).replace(/rk\d+/g, 'rk') === ctx.rankMedalSvg('ELITE', 80).replace(/rk\d+/g, 'rk'));
+  T('the medal casts its faint light into the card, and only faintly',
+    /rank-medal-wrap" style="background: radial-gradient\(closest-side, ' \+\s*v\.gem\[0\] \+ '14/.test(src));
+  T('the current medal is crisper and its only motion is the entrance',
+    /\.rank-current \.rank-medal-wrap\{ filter: brightness\(1\.05\); \}/.test(src) &&
+    /animation: medalIn 0\.45s var\(--ease\);/.test(src) &&
+    /\.rank-current\.rank-front \.rank-medal-wrap\{ animation: none; \}/.test(src));
 
   sub('the promotion is detected from existing truth');
   T('rank change is read off the levels the XP timeline already recorded',

@@ -797,9 +797,18 @@ html.intro-skip #introOverlay{ display: none !important; }
 .rank-medal-wrap{ display: flex; justify-content: center; padding: 18px 0 6px; }
 /* Locked: the design stays visible — the athlete should want it — but the
    light hasn't been earned yet. Dimmed, never hidden, never a question mark. */
-.rank-locked .rank-medal-wrap{ filter: saturate(0.4) brightness(0.62); }
+.rank-locked .rank-medal-wrap{ filter: saturate(0.45) brightness(0.66); }
 .rank-locked .rank-title{ color: var(--text-dim); }
-.rank-achieved .rank-medal-wrap{ filter: saturate(0.85); }
+/* A past rank is an achievement, not a memory — it keeps nearly all its
+   light and only yields the CURRENT emphasis. */
+.rank-achieved .rank-medal-wrap{ filter: saturate(0.92) brightness(0.94); }
+/* The earned medal, present tense: crispest and very slightly lifted. Its one
+   motion is the entrance — a 0.45s settle when the showcase opens, then still.
+   Nothing loops; reduced motion removes even that. */
+.rank-current .rank-medal-wrap{ filter: brightness(1.05); }
+.rank-current.rank-front .rank-medal-wrap{ animation: medalIn 0.45s var(--ease); }
+@keyframes medalIn{ from{ opacity: 0.4; transform: scale(0.97); } to{ opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce){ .rank-current.rank-front .rank-medal-wrap{ animation: none; } }
 .rank-progress{ margin-top: 10px; }
 .rank-progress-top{
   display: flex; justify-content: space-between;
@@ -15919,13 +15928,13 @@ function calculateRankFromLevel(level){
    ========================================================= */
 const RANK_VISUALS = {
   ROOKIE:     { metal:['#8B95A3','#4A525E'], gem:['#7FB4C9','#3E6B7E'], card:['#161B23','#0D1118'], glow:0 },
-  TRAINEE:    { metal:['#9FB2C4','#55677A'], gem:['#8FD8EC','#3E7E96'], card:['#151D29','#0C121C'], glow:0 },
-  ATHLETE:    { metal:['#A9C2DC','#5B7392'], gem:['#4CC2FF','#1E6FAE'], card:['#122036','#0B1220'], glow:0 },
-  COMPETITOR: { metal:['#9FB0E8','#4D5FA0'], gem:['#5FA8FF','#2E4FD0'], card:['#141F3E','#0B1024'], glow:0.16 },
-  ELITE:      { metal:['#B3A6E6','#5D4E9E'], gem:['#9D7BFF','#5230C9'], card:['#1C1638','#0E0A20'], glow:0.2 },
-  VETERAN:    { metal:['#D3A876','#7E5A32'], gem:['#F0B45C','#9A5F1E'], card:['#241A12','#120C08'], glow:0.22 },
-  MASTER:     { metal:['#E8C878','#8F6A24'], gem:['#FFD873','#B8821F'], card:['#261F0F','#120E06'], glow:0.26 },
-  LEGEND:     { metal:['#E9D9A0','#6E5A9E'], gem:['#C9A6FF','#E8C25A'], card:['#131022','#070610'], glow:0.34 }
+  TRAINEE:    { metal:['#9FB2C4','#55677A'], gem:['#8FD8EC','#3E7E96'], card:['#151D29','#0C121C'], glow:0.06 },
+  ATHLETE:    { metal:['#A9C2DC','#5B7392'], gem:['#4CC2FF','#1E6FAE'], card:['#122036','#0B1220'], glow:0.1 },
+  COMPETITOR: { metal:['#93A2E4','#454F9E'], gem:['#5FA8FF','#2E4FD0'], card:['#141F3E','#0B1024'], glow:0.16 },
+  ELITE:      { metal:['#B3A6E6','#5D4E9E'], gem:['#9D7BFF','#5230C9'], card:['#1C1638','#0E0A20'], glow:0.21 },
+  VETERAN:    { metal:['#D3A876','#7E5A32'], gem:['#F0B45C','#9A5F1E'], card:['#241A12','#120C08'], glow:0.25 },
+  MASTER:     { metal:['#E8C878','#8F6A24'], gem:['#FFD873','#B8821F'], card:['#261F0F','#120E06'], glow:0.3 },
+  LEGEND:     { metal:['#E9D9A0','#6E5A9E'], gem:['#C9A6FF','#E8C25A'], card:['#131022','#070610'], glow:0.38 }
 };
 
 function rankIndexOf(name){
@@ -15941,17 +15950,84 @@ function rankLevelRangeLabel(r){
    geometry and light rather than ornament count. Static on purpose — the
    references look expensive because nothing on them is blinking. */
 let _rankUid = 0;
+/* One medal family that BUILDS (D23.1). The gem is the athlete's progression
+   energy; the housing around it is the rank they earned, and the housing is
+   what evolves — each tier keeps everything below it and adds one structural
+   idea, so the eight read as a single medal growing more prestigious rather
+   than eight recolours:
+
+     0 ROOKIE      the foundation: one ring, dark well, a simple four-facet gem
+     1 TRAINEE     + a second hairline ring
+     2 ATHLETE     + a hexagonal frame behind the ring (first silhouette break)
+     3 COMPETITOR  + armored segmentation on the ring and a top crest tip
+     4 ELITE       + full geometric wings, an inner halo, a rim light
+     5 VETERAN     + weight: heavier ring, broader wings, a lower crest point
+     6 MASTER      + the crown begins: upper crest, split outer arcs,
+                     an inner second layer in the gem
+     7 LEGEND      + the finished pinnacle, an outer armor octagon, and the
+                     one dual-material gem — violet core in gold outer facets
+
+   Grayscale-safe on purpose: every step above is geometry, so the ladder
+   survives with the colour removed. Everything is static; the light lives in
+   gradients, not animation. */
 function rankMedalSvg(rankName, size){
   const v = RANK_VISUALS[rankName] || RANK_VISUALS.ROOKIE;
   const tier = rankIndexOf(rankName);
   const uid = 'rk' + (++_rankUid);
   const wings = tier >= 4;
   const apex = rankName === 'LEGEND';
+  const M = 'url(#m' + uid + ')', G = 'url(#g' + uid + ')';
+  const heavy = tier >= 5;
+
+  /* wings widen with seniority — capped so the farthest tip stays inside the
+     120-unit box (60 + 58 = 118): measured, MASTER and LEGEND were clipping.
+     Their extra breadth comes from the crown, arcs and armor instead. */
+  const span = Math.min(58, 54 + Math.max(0, tier - 4) * 1.5);
   const wingPath = (sx) =>
-    '<path d="M' + (60 + sx*38) + ' 60 L' + (60 + sx*58) + ' 46 L' + (60 + sx*52) + ' 60 L' + (60 + sx*58) + ' 74 Z"' +
-    ' fill="url(#m' + uid + ')" opacity="0.92"/>' +
-    '<path d="M' + (60 + sx*40) + ' 60 L' + (60 + sx*55) + ' 50 L' + (60 + sx*50) + ' 60 L' + (60 + sx*55) + ' 70 Z"' +
-    ' fill="url(#g' + uid + ')" opacity="0.5"/>';
+    '<path d="M' + (60 + sx*37) + ' 60 L' + (60 + sx*span) + ' 44 L' + (60 + sx*(span-7)) + ' 60 L' + (60 + sx*span) + ' 76 Z"' +
+      ' fill="' + M + '" opacity="0.94"/>' +
+    '<path d="M' + (60 + sx*39) + ' 60 L' + (60 + sx*(span-4)) + ' 49 L' + (60 + sx*(span-8)) + ' 60 L' + (60 + sx*(span-4)) + ' 71 Z"' +
+      ' fill="' + G + '" opacity="0.5"/>' +
+    (heavy ? '<path d="M' + (60 + sx*41) + ' 60 L' + (60 + sx*(span-1)) + ' 55 L' + (60 + sx*(span-1)) + ' 65 Z"' +
+      ' fill="#0B0F16" opacity="0.35"/>' : '');
+
+  const hexPts = (R) => {
+    let p = '';
+    for(let k = 0; k < 6; k++){
+      const a = Math.PI/6 + k * Math.PI/3;
+      p += (60 + R*Math.cos(a)).toFixed(1) + ',' + (60 + R*Math.sin(a)).toFixed(1) + ' ';
+    }
+    return p.trim();
+  };
+  const octPts = (R) => {
+    let p = '';
+    for(let k = 0; k < 8; k++){
+      const a = Math.PI/8 + k * Math.PI/4;
+      p += (60 + R*Math.cos(a)).toFixed(1) + ',' + (60 + R*Math.sin(a)).toFixed(1) + ' ';
+    }
+    return p.trim();
+  };
+
+  /* the gem earns facets: 4 → 6 → deeper split → gleam → inner layer → dual */
+  const dual = tier >= 7;
+  const outerFill = dual ? v.gem[1] : G;         // LEGEND: gold outer facets
+  const coreFill = v.gem[0];                     //         violet heart
+  let gem =
+    '<polygon points="60,40 73,53 60,58 47,53" fill="' + coreFill + '"/>' +
+    '<polygon points="47,53 60,58 60,80" fill="' + (dual ? v.gem[1] : v.gem[1]) + '" opacity="0.9"/>' +
+    '<polygon points="73,53 60,80 60,58" fill="' + v.gem[1] + '"/>';
+  if(tier >= 1) gem +=
+    '<polygon points="73,53 77,65 60,58" fill="' + outerFill + '" opacity="0.85"/>' +
+    '<polygon points="47,53 60,58 43,65" fill="' + outerFill + '" opacity="0.75"/>';
+  if(tier >= 2) gem += '<polygon points="60,40 60,58 73,53" fill="#FFFFFF" opacity="0.2"/>';
+  if(tier >= 3) gem += '<polygon points="43,65 60,80 60,58" fill="#0B0F16" opacity="0.22"/>';
+  if(tier >= 4) gem += '<polygon points="60,40 66,46 60,50 54,46" fill="#FFFFFF" opacity="0.3"/>';
+  if(tier >= 6) gem += '<polygon points="' + hexPts(9).split(' ').map(pt => {
+      const c = pt.split(','); return (+c[0]).toFixed(1) + ',' + (+c[1] + 1).toFixed(1);
+    }).join(' ') + '" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="1.2"/>';
+  if(dual) gem += '<polygon points="60,44 69,53 60,57 51,53" fill="' + coreFill + '"/>' +
+    '<polygon points="60,44 64,48 60,51 56,48" fill="#FFFFFF" opacity="0.5"/>';
+
   return '<svg class="rank-medal" viewBox="0 0 120 120" width="' + size + '" height="' + size + '"' +
     ' role="img" aria-label="' + escapeAttr(rankName + ' medal') + '">' +
     '<defs>' +
@@ -15969,25 +16045,42 @@ function rankMedalSvg(rankName, size){
         '<stop offset="1" stop-color="' + v.gem[0] + '" stop-opacity="0"/></radialGradient>' : '') +
     '</defs>' +
     (v.glow ? '<circle cx="60" cy="60" r="58" fill="url(#h' + uid + ')"/>' : '') +
+    /* LEGEND: outer armor octagon, the widest silhouette in the family */
+    (apex ? '<polygon points="' + octPts(53) + '" fill="none" stroke="' + M + '" stroke-width="2.4" opacity="0.85"/>' : '') +
+    /* ATHLETE+: the hexagonal frame that first breaks the circle */
+    (tier >= 2 ? '<polygon points="' + hexPts(51) + '" fill="' + (tier >= 3 ? '#0B0F16' : 'none') + '"' +
+      (tier >= 3 ? ' fill-opacity="0.4"' : '') + ' stroke="' + M + '" stroke-width="' + (tier >= 3 ? 3 : 2.2) + '"/>' : '') +
     (wings ? wingPath(1) + wingPath(-1) : '') +
-    (apex ? '<path d="M46 22 L53 12 L60 19 L67 12 L74 22 L60 27 Z" fill="url(#m' + uid + ')"/>' +
-            '<path d="M50 21 L60 24 L70 21 L60 25 Z" fill="' + v.gem[1] + '" opacity="0.6"/>' : '') +
-    /* rim, bevelled ring, inner well */
+    /* COMPETITOR+: a crest tip crowns the top edge */
+    (tier >= 3 && tier < 6 ? '<path d="M52 15 L60 6 L68 15 L60 19 Z" fill="' + M + '"/>' : '') +
+    /* MASTER: the crown begins — three points, restrained */
+    (tier === 6 ? '<path d="M47 17 L53 8 L60 14 L67 8 L73 17 L60 22 Z" fill="' + M + '"/>' +
+      '<circle cx="60" cy="12" r="1.6" fill="' + v.gem[0] + '"/>' : '') +
+    /* LEGEND: the finished pinnacle with its own set stone */
+    (apex ? '<path d="M44 16 L51 4 L60 12 L69 4 L76 16 L60 23 Z" fill="' + M + '"/>' +
+            '<path d="M48 15 L60 19 L72 15 L60 21 Z" fill="' + v.gem[1] + '" opacity="0.7"/>' +
+            '<circle cx="60" cy="9" r="2.2" fill="' + v.gem[0] + '"/>' : '') +
+    /* VETERAN+: the lower crest point — weight under the medal */
+    (tier >= 5 ? '<path d="M52 100 L60 114 L68 100 L60 104 Z" fill="' + M + '"/>' : '') +
+    /* MASTER+: split outer arcs, a second ring worn open */
+    (tier >= 6 ? '<path d="M22 45 A41 41 0 0 1 45 21" fill="none" stroke="' + M + '" stroke-width="2.6" stroke-linecap="round"/>' +
+      '<path d="M98 75 A41 41 0 0 1 75 99" fill="none" stroke="' + M + '" stroke-width="2.6" stroke-linecap="round"/>' : '') +
+    /* TRAINEE+: the second hairline ring — the first upgrade ever earned */
+    (tier >= 1 && tier < 6 ? '<circle cx="60" cy="60" r="48.5" fill="none" stroke="' + v.metal[0] + '" stroke-width="1.5" opacity="0.65"/>' : '') +
+    /* the founding ring, well and bevel — every rank stands on these */
     '<circle cx="60" cy="60" r="45" fill="' + v.metal[1] + '" opacity="0.55"/>' +
-    '<circle cx="60" cy="60" r="43" fill="none" stroke="url(#m' + uid + ')" stroke-width="9"/>' +
+    '<circle cx="60" cy="60" r="43" fill="none" stroke="' + M + '" stroke-width="' + (heavy ? 10 : 9) + '"/>' +
+    /* COMPETITOR+: segmentation — the ring becomes armored plates */
+    (tier >= 3 ? '<circle cx="60" cy="60" r="43" fill="none" stroke="#0B0F16" stroke-width="1.6"' +
+      ' stroke-dasharray="7 15.54" stroke-dashoffset="3.5" opacity="0.55"/>' : '') +
     '<circle cx="60" cy="60" r="38.4" fill="none" stroke="#0B0F16" stroke-width="1.4" opacity="0.8"/>' +
     '<circle cx="60" cy="60" r="37.5" fill="url(#w' + uid + ')"/>' +
-    /* faceted gem: six kites around a core, upper facets lit */
-    '<g>' +
-      '<polygon points="60,38 74,52 60,58 46,52" fill="' + v.gem[0] + '"/>' +
-      '<polygon points="74,52 78,66 60,58" fill="url(#g' + uid + ')"/>' +
-      '<polygon points="46,52 60,58 42,66" fill="url(#g' + uid + ')" opacity="0.85"/>' +
-      '<polygon points="42,66 60,58 60,82" fill="' + v.gem[1] + '"/>' +
-      '<polygon points="78,66 60,82 60,58" fill="' + v.gem[1] + '" opacity="0.88"/>' +
-      '<polygon points="60,38 60,58 74,52" fill="#FFFFFF" opacity="0.18"/>' +
-    '</g>' +
-    /* specular arc up top */
-    '<path d="M34 40 A32 32 0 0 1 86 40" fill="none" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="2.4" stroke-linecap="round"/>' +
+    /* ELITE+: the halo — a fine gem-lit ring around the energy core */
+    (tier >= 4 ? '<circle cx="60" cy="60" r="30" fill="none" stroke="' + v.gem[0] + '" stroke-width="1" opacity="0.35"/>' : '') +
+    '<g>' + gem + '</g>' +
+    /* specular arc, and from ELITE a lower rim light answering it */
+    '<path d="M34 40 A32 32 0 0 1 86 40" fill="none" stroke="#FFFFFF" stroke-opacity="' + (tier >= 2 ? 0.3 : 0.24) + '" stroke-width="2.4" stroke-linecap="round"/>' +
+    (tier >= 4 ? '<path d="M40 87 A33 33 0 0 0 86 76" fill="none" stroke="' + v.gem[0] + '" stroke-opacity="0.3" stroke-width="1.6" stroke-linecap="round"/>' : '') +
   '</svg>';
 }
 
@@ -16021,7 +16114,8 @@ function rankCardHtml(r, i, p){
     '<div class="rank-state">' + stateLabel + '</div>' +
     '<h3 class="rank-title">' + escapeHtml(r.name) + '</h3>' +
     '<div class="rank-range">' + escapeHtml(range) + '</div>' +
-    '<div class="rank-medal-wrap">' + rankMedalSvg(r.name, 128) + '</div>' +
+    '<div class="rank-medal-wrap" style="background: radial-gradient(closest-side, ' +
+      v.gem[0] + '14, transparent 78%)">' + rankMedalSvg(r.name, 128) + '</div>' +
     progress +
   '</article>';
 }
