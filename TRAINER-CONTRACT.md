@@ -3221,3 +3221,69 @@ complexity, ROOKIE-simplest, LEGEND-most-complete, determinism, and the glow
 ladder. Rendering the whole family costs 0.27ms; a swipe step 0.84ms.
 Presentation only: zero storage writes, zero trainer symbols, `DATA_KEYS`
 still 15, trainer at `0.1.1-shadow`.
+
+## §45 — D25: Progress tells the truth
+
+Progress answers four questions — overall, strength, volume, mastery — and the
+data behind them was already there. What changed is honesty and hierarchy, not
+analytics: no new system, no new tabs, no new scores, no new storage.
+
+**Guardian rules, now contract-held (Contract 122):**
+
+- **UNKNOWN ≠ ZERO.** A 12-week chart over a 2-week-old log used to draw ten
+  fabricated zero-weeks that read as ten weeks of not lifting. Every weekly
+  chart now clamps its window to the weeks LOOP has actually tracked
+  (`knownWeeklyBuckets`), draws only real history, and writes the clamp under
+  the chart ("Showing all 2 weeks LOOP has tracked"). A tracked week with
+  nothing logged keeps its faint stub — that is a real zero. Sparse charts
+  are compact (104 units); real 12-week history draws full height with the
+  current week as the one emphasized bar.
+- **PARTIAL ≠ COMPLETE.** "This week vs last" scored a half-run week against
+  a finished one and drew a down-arrow for every metric a Tuesday cannot yet
+  have. The comparison is now *this week so far vs the same point last week* —
+  both sides cover the same number of days, the foot says "Day N of 7 — last
+  week is measured through the same day", and the deltas are neutral: lower
+  is DOWN, not bad. The judged `cmpRow` is gone from the app.
+- **Skipped work contributes nothing** (D21 truth preserved): a skipped
+  exercise's empty set list adds no volume, no muscle sets, no Most Trained
+  sessions — asserted behaviourally.
+- **Words match calculations.** The "Strength" card measured tonnage; it is
+  now **Training load — total weight lifted per week, volume load, not peak
+  strength**. "30 set in the last 30 days" counted PR events; it now says
+  "30 records in the last 30 days".
+
+**One rank identity.** The Overview's generic level ring is gone. Progress
+renders the same shared D23 medal every other rank surface uses (one
+`rankMedalSvg` in the app, held by contract) with rank, level and a plain XP
+bar from the same `currentXP / xpForNext` arithmetic as the profile — one tap
+opens the existing rank showcase; the carousel is not reproduced. The early
+state stopped implying the athlete is a beginner: "Building your baseline —
+N sessions logged · N weeks tracked", with coverage attached to the reading
+it qualifies instead of floating between sections.
+
+**Consolidation.** "Most worked muscle" and "Muscle group volume" were the
+same information twice; they are now ONE Muscle volume card — body figure,
+top muscle named with its share, ranked bars — and the top value prints once.
+Training distribution is one segmented bar with a counted legend (shares of
+one whole, not four disconnected tracks), still explicitly not a judgement.
+Mastery gained a summary (top exercise / top muscle / count — from
+`getMasteryProgress`, nothing invented), level chips that climb a restrained
+accent ladder (never rank materials), per-row progress toward the next level
+from the existing deterministic standing, and disclosure controls that read
+as part of the section. Muscle mastery is top-5 plus disclosure. The broken
+"All records" tap — which toggled a container inside a different, hidden
+panel — now discloses beside the Records card that opens it.
+
+**Shell.** A fixed scrim (`z-index 55`, pointer-transparent, sized by
+`env(safe-area-inset-top)`) paints the status-bar band in the page ground so
+scrolled Progress text can never collide legibly with the system UI. Content
+clears the bottom nav via the body's real `84px + inset` padding — measured
+32px of daylight above the tab bar on every section. Subtabs reset scroll to
+top like every other tab, and became quiet underline navigation (still 44px).
+
+Verified in-browser: sparse (2-week) and rich (14-week) fixtures, same-point
+week comparison against the mirrored day count, mastery disclosure round
+trip, rank-hero → showcase → back, five viewports with zero overflow and no
+clipped chart text, inputs at the 16px zoom floor, warm renders 9–13ms.
+Presentation only: zero protected-symbol lines in the diff, zero storage
+writes, `DATA_KEYS` 15, trainer `0.1.1-shadow`.

@@ -6443,7 +6443,7 @@ function testD10Consolidation(app){
       < src.indexOf('Muscle mastery<span class="sec-hint">primary and secondary work'));
   T('the muscle diagram does not outrank exercise mastery',
     src.indexOf('Exercise mastery<span class="sec-hint">from your training history')
-      < src.indexOf('Most worked muscle<span class="sec-hint">last 12 weeks'));
+      < src.indexOf('Muscle volume<span class="sec-hint">sets'));
   T('the most-trained summary leads the tab',
     src.indexOf('Most trained<span class="sec-hint">sessions logged')
       < src.indexOf('Exercise mastery<span class="sec-hint">from your training history'));
@@ -7385,7 +7385,13 @@ function testProgressDashboard(app){
     const html = render([0,3,7,10].map((d,i)=>sess(i,i%2?'upper':'lower',d,135)));
     T('coverage is stated when short of the full window', /pd-cov/.test(html));
     T('it says how much is actually tracked', /weeks? tracked/.test(html));
-    T('the reading admits it is early', /Getting started/.test(html));
+    /* D25: the early state describes the app's short history, never the
+       athlete — they may train seriously and merely be new to LOOP. */
+    T('the reading admits it is early', /Building your baseline/.test(html));
+    T('without calling the athlete a beginner', !/beginner|getting started/i.test(html));
+    T('and says what more history buys', /More history unlocks/.test(html));
+    T('coverage sits WITH the reading, not floating between sections',
+      /pd-hero-line[\s\S]{0,220}pd-cov/.test(html) && html.indexOf('pd-cov') < html.indexOf('pd-tiles'));
     /* overallConsistency divides by twelve weeks of planned sessions. Showing
        that to a two-week-old account reads as failure when they have in fact
        hit every session they planned. */
@@ -7462,8 +7468,23 @@ function testProgressDashboard(app){
     T('it does not imply a body measurement',
       /not a measure of strength|not a body measurement/.test(html) &&
       !/muscle mass|body fat|composition/i.test(html));
+    /* D25: "Most worked muscle" and "Muscle group volume" were the same
+       information twice — a hero repeating the list's top row. They are now
+       ONE section: the body figure, the top muscle named with its share, and
+       the full ranked bars, in a single card. */
     T('the full ranking IS this tab, so there is nothing to route to',
-      /Most worked muscle/.test(html) && /Muscle group volume/.test(html));
+      /Muscle volume/.test(html) && /muscle-bar-list/.test(html));
+    T('the consolidation kept the body figure', /muscle-svg/.test(html));
+    T('the hero and the ranking are one component, not two sections',
+      /mv-card/.test(html) && (html.match(/mv-card/g) || []).length === 1 &&
+      /mv-card[\s\S]*?muscle-svg[\s\S]*?muscle-bar-list/.test(html));
+    T('the top muscle value is not printed twice',
+      (() => {
+        /* The hero names the leader and its share; only the bar list carries
+           its set count. */
+        const hero = html.slice(html.indexOf('mv-top'), html.indexOf('mv-bars'));
+        return /mv-name/.test(hero) && /of your logged sets/.test(hero) && !/\d+\s*sets?</.test(hero);
+      })());
   }
 
   sub('consistency and records read as achievement, not analytics');
@@ -9662,8 +9683,20 @@ function testProgressDashboardD14(app){
   sub('the level the XP system exists to produce is shown');
   T('the landing view shows the player level', /pl-lvl/.test(html) && /Level /.test(html));
   T('and the rank that goes with it', /pl-rank/.test(html));
-  T('progress to the next level is drawn as a ring', /pl-ring-fill/.test(html));
-  T('the ring is described for a screen reader', /aria-label="Level \d+, \d+% of the way/.test(html));
+  /* D25: the generic level ring is gone — Progress renders the SAME shared
+     D23 medal every rank surface uses, so there is exactly one progression
+     identity, plus a plain XP bar. Stronger than the ring it replaces: the
+     old ring was a second visual language for the same rank. */
+  T('progress identity is the shared D23 medal, not a second ring',
+    /pl-medal/.test(html) && /class="rank-medal"/.test(html) && !/pl-ring/.test(html));
+  T('the medal comes from the one shared renderer', (() => {
+    const fn = src.slice(src.indexOf('function progLevelHtml'), src.indexOf('const TREND_WORD'));
+    return /rankMedalSvg\(p\.rank/.test(fn) && !/<circle/.test(fn);
+  })());
+  T('XP progress is still drawn', /pl-xpbar/.test(html));
+  T('the identity is described for a screen reader', /aria-label="Level \d+, \d+% of the way/.test(html));
+  T('one tap opens the existing rank screen, not a reproduced carousel',
+    /pl-tap[^>]*onclick="openRankShowcase\(\)"/.test(html) && !/rank-track/.test(html));
   T('it uses the same arithmetic as the profile bar, not a new one', (() => {
     const fn = src.slice(src.indexOf('function progLevelHtml'), src.indexOf('const TREND_WORD'));
     return /p\.currentXP \/ p\.xpForNext/.test(fn);
@@ -9672,7 +9705,7 @@ function testProgressDashboardD14(app){
     !/fitness score|overall score|loop score/i.test(html));
 
   sub('the three questions are answered in order');
-  const order = ['pl-ring', 'pd-hero-read', 'pd-tiles', 'Most trained', 'Strength trends'];
+  const order = ['pl-medal', 'pd-hero-read', 'pd-tiles', 'Most trained', 'Strength trends'];
   T('level, then reading, then indicators, then what I do, then what is moving', (() => {
     let last = -1;
     return order.every(k => { const i = html.indexOf(k); if(i <= last) return false; last = i; return true; });
@@ -10808,8 +10841,11 @@ function testDesignSystem(app){
     /muscleBarsHtml\(totals\)/.test(src));
   T('the caption is optional so a heading never duplicates it',
     /\(caption \? `<div class="muscle-bar-foot"|caption \? `<div class="muscle-foot">/.test(src));
+  /* D25: the Mastery tab's copy consolidated into the single Muscle volume
+     card — still labelled, still the same one component. */
   T('the Mastery tab still labels its own copy of the same component',
-    /<div class="sec-head">Muscle group volume<\/div>/.test(src));
+    /<div class="sec-head">Muscle volume<span class="sec-hint">/.test(src) &&
+    /mv-bars">\$\{muscleBarsHtml\(totals\)\}/.test(src));
   T('one bar component serves both, not two',
     (src.match(/function muscleBarsHtml\(/g) || []).length === 1);
 
@@ -12826,9 +12862,15 @@ function testHomeAndTouch(app){
     /\.tpl-card:hover, \.tpl-card:focus-within\{ border-color: rgba\(76,194,255,0\.35\);/.test(css));
 
   sub('the body diagram labels its views in the app\'s own voice');
+  /* D25: the captions moved from debug-looking mono to the app's own display
+     face, softened — still at the 11-unit SVG text floor, still letterspaced. */
   T('FRONT and BACK are letterspaced micro labels at the SVG floor',
-    /font-size="11" letter-spacing="1\.4"[^>]*>FRONT</.test(src) &&
-    /font-size="11" letter-spacing="1\.4"[^>]*>BACK</.test(src));
+    /font-size="11" letter-spacing="1\.1"[^>]*>FRONT</.test(src) &&
+    /font-size="11" letter-spacing="1\.1"[^>]*>BACK</.test(src));
+  T('the captions use the app face, not the debug mono',
+    /Space Grotesk[^>]*>FRONT</.test(src) && !/JetBrains Mono[^>]*>FRONT</.test(src));
+  T('and recede rather than compete with the figure',
+    /opacity="0\.7"[^>]*>FRONT</.test(src));
 
   sub('the warm-up says how, and only how');
   T('the instruction still sits between the name and the figure', (() => {
@@ -13163,6 +13205,222 @@ function testSurfaceConsolidation(app){
     ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
 }
 
+/* =========================================================
+   CONTRACT 122 — Progress tells the truth (D25)
+   ---------------------------------------------------------
+   Four questions, one honest instrument. Guardian rules:
+   UNKNOWN is never drawn as ZERO, a PARTIAL week is never
+   scored against a COMPLETE one, the rank identity is the
+   one shared D23 medal, and skipped work contributes
+   nothing. Presentation only — every figure still comes
+   from an engine that already existed.
+   ========================================================= */
+async function testProgressExperience(){
+  section('CONTRACT 122 — Progress tells the truth (D25)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, doc = app.dom.document;
+  const D = n => { const d = new Date(Date.now() - n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  const S = (w,r) => ({ weight:String(w), reps:String(r), rir:'2', type:'working', completed:true });
+  const sess = (id, day, name, cat) => ({ id, date:D(day), category:cat||'push', title:'S', notes:'',
+    exercises:[{ name, bodyweight:false, sets:[S(135,8), S(135,8)] }] });
+  const reseed = log => {
+    ctx.workoutLog = log;
+    ['invalidateSortedLogCache','invalidateXPTimelineCache','invalidateConsistencyCache',
+     'invalidateAllMasteryCaches','invalidateCapabilityCache','invalidateContextCache']
+      .forEach(f => ctx[f] && ctx[f]());
+  };
+
+  sub('GLOBAL — the shell protects the system UI and the nav');
+  T('a fixed top scrim paints the safe-area band',
+    /\.top-scrim\{[^}]*position: fixed[^}]*pointer-events: none/.test(css) &&
+    /\.top-scrim\{[^}]*env\(safe-area-inset-top/.test(css));
+  T('it is painted in the page ground, so content fades under it',
+    /\.top-scrim\{[^}]*var\(--bg\)/.test(css));
+  T('it sits below overlays, above scrolled content', (() => {
+    const m = css.match(/\.top-scrim\{[^}]*z-index: (\d+)/);
+    return m && +m[1] > 40 && +m[1] < 60;
+  })());
+  T('the scrim element exists once, marked decorative',
+    (src.match(/class="top-scrim" aria-hidden="true"/g) || []).length === 1);
+  T('content clears the bottom nav by its real height, not a giant spacer', (() => {
+    const m = css.match(/body\{[\s\S]*?padding-bottom: calc\((\d+)px \+ env\(safe-area-inset-bottom/);
+    return m && +m[1] >= 70 && +m[1] <= 110;
+  })());
+  T('a Progress section opens at its top', (() => {
+    const fn = src.slice(src.indexOf('function switchProgTab'), src.indexOf('function setProgRange'));
+    return /window\.scrollTo\(\{ top: 0, behavior: 'instant' \}\)/.test(fn);
+  })());
+  T('the subtabs are navigation: underline active state, no solid slab',
+    /#progSeg \.seg-btn\.active\{ background: none/.test(css) &&
+    /#progSeg \.seg-btn\.active::after\{ background: var\(--accent\)/.test(css));
+  T('their touch height still meets the 44px floor',
+    /\.seg-btn\{[^}]*min-height: 44px/.test(css));
+
+  sub('OVERVIEW — one rank identity, from the one shared renderer');
+  T('there is exactly one medal renderer in the app',
+    (src.match(/function rankMedalSvg\(/g) || []).length === 1);
+  T('progLevelHtml computes no XP arithmetic of its own', (() => {
+    const fn = src.slice(src.indexOf('function progLevelHtml'), src.indexOf('const TREND_WORD'));
+    return !/calculateLevelFromXP|calculateRankFromLevel|lifetimeXP/.test(fn);
+  })());
+
+  sub('STRENGTH — unknown history is never drawn as zero');
+  reseed([sess('a1', 1, 'Bench Press'), sess('a2', 3, 'Bench Press'), sess('a3', 8, 'Bench Press')]);
+  ctx.switchProgTab('strength');
+  let sHtml = doc.getElementById('progReady').innerHTML;
+  {
+    const cs = sHtml.indexOf('<svg viewBox="0 0 320');
+    const chart = sHtml.slice(cs, sHtml.indexOf('</svg>', cs));
+    const bars = (chart.match(/<rect /g) || []).length;
+    T('a 12W request over a 2-week log draws 2 bars, not 12', bars === 2, 'bars=' + bars);
+    T('and says the window was clamped to real history',
+      /pd-chart-cov/.test(sHtml) && /Showing all 2 weeks LOOP has tracked/.test(sHtml));
+    T('a sparse chart is compact, not 150px of air', /viewBox="0 0 320 104"/.test(sHtml));
+    T('the peak carries a real value on a restrained guide',
+      /stroke-dasharray="3 4"/.test(chart) && /text-anchor="end"/.test(chart));
+  }
+  T('the card is named for what it measures — load, not strength',
+    /pd-card-title">Training load</.test(sHtml) && !/pd-card-title">Strength</.test(sHtml));
+  T('records are counted as records, not sets',
+    !/\d+ set in the last/.test(sHtml) &&
+    (/record[s]? in the last 30 days/.test(sHtml) || /all time/.test(sHtml)));
+  T('the range control survives the clamp', /range-btn/.test(sHtml) && /12W/.test(sHtml));
+  {
+    // 16 weeks of history: the full window returns, uncapped and unflagged
+    const log = [];
+    for(let w = 0; w < 16; w++) log.push(sess('w'+w, w*7 + 1, 'Bench Press'));
+    reseed(log);
+    ctx.switchProgTab('strength');
+    sHtml = doc.getElementById('progReady').innerHTML;
+    const cStart = sHtml.indexOf('<svg viewBox="0 0 320');
+    const chart = sHtml.slice(cStart, sHtml.indexOf('</svg>', cStart));
+    T('a real 12-week history draws all 12 weeks',
+      (chart.match(/<rect /g) || []).length === 12);
+    T('at full height, with no clamp note',
+      /viewBox="0 0 320 140"/.test(sHtml) && !/pd-chart-cov/.test(sHtml));
+    T('the current week is the emphasized bar',
+      /url\(#vbarg\)/.test(chart) && (chart.match(/url\(#vbarg\)/g) || []).length === 1);
+  }
+  T('ready-to-progress uses the existing deterministic engine, never the shadow trainer', (() => {
+    const fn = src.slice(src.indexOf('function renderProgStrength'), src.indexOf('function renderProgVolume'));
+    return /computeProgressionBuckets\(\)/.test(fn) &&
+      !/proposeTrainerState|computeShadowRecommendation|shadowEvidence|trainerLog/.test(fn);
+  })());
+
+  sub('VOLUME — a partial week is never scored against a complete one');
+  {
+    const start = ctx.currentWeekStart();
+    const daysIn = Math.min(7, Math.floor((Date.now() - start.getTime()) / 86400000) + 1);
+    const dstr = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const at = (base, off) => { const d = new Date(base); d.setDate(base.getDate() + off); return dstr(d); };
+    const prevStart = new Date(start); prevStart.setDate(start.getDate() - 7);
+    // last week trained on its FIRST and LAST day; this week once, today
+    reseed([
+      { id:'p1', date: at(prevStart, 0), category:'push', title:'S', notes:'',
+        exercises:[{ name:'Bench Press', bodyweight:false, sets:[S(135,8)] }] },
+      { id:'p2', date: at(prevStart, 6), category:'push', title:'S', notes:'',
+        exercises:[{ name:'Bench Press', bodyweight:false, sets:[S(135,8)] }] },
+      { id:'c1', date: at(start, daysIn - 1), category:'push', title:'S', notes:'',
+        exercises:[{ name:'Bench Press', bodyweight:false, sets:[S(140,8)] }] }
+    ]);
+    ctx.switchProgTab('volume');
+    const vHtml = doc.getElementById('progVolCompare').innerHTML;
+    const expectedPrev = daysIn >= 7 ? 2 : 1;   // day 7 of last week only counts once this week reaches day 7
+    const cellMatch = vHtml.match(/Workouts<\/span>\s*<span class="vw-v">(\d+)<\/span>\s*<span class="vw-c">vs <b>(\d+)<\/b>/);
+    T('both sides cover the same number of days',
+      !!cellMatch && cellMatch[1] === '1' && +cellMatch[2] === expectedPrev,
+      cellMatch ? `now=${cellMatch[1]} prev=${cellMatch[2]} expected=${expectedPrev}` : 'no cell match');
+    T('the comparison names its window', /vs same point last week/.test(vHtml));
+    T('an incomplete week says it is incomplete',
+      daysIn >= 7 ? /A full week on both sides/.test(vHtml)
+                  : new RegExp('Day ' + daysIn + ' of 7').test(vHtml));
+    T('the deltas are neutral — no arrows, no verdict colouring',
+      !/class="ti ti-/.test(vHtml) && !/vw-[a-z]+ (up|down)/.test(vHtml) &&
+      !/cmp-delta/.test(vHtml));
+    T('the old judged rows are gone from the app', !/function cmpRow/.test(src) && !/cmp-row/.test(src));
+    T('the volume chart clamps to known history like Strength does', (() => {
+      const fn = src.slice(src.indexOf('function renderProgVolume'), src.indexOf('function muscleBarsHtml'));
+      return /knownWeeklyBuckets\(progRange\)/.test(fn);
+    })());
+  }
+
+  sub('MASTERY — levels read as levels, progress is real, nothing is invented');
+  {
+    const log = [];
+    for(let w = 0; w < 10; w++) log.push(sess('m'+w, w*7 + 1, 'Bench Press'));
+    log.push(sess('m10', 2, 'Lat Pulldown', 'pull'));
+    reseed(log);
+    ctx.switchProgTab('muscles');
+    const mHtml = doc.getElementById('progMuscles').innerHTML;
+    T('a summary leads: top exercise, top muscle, count',
+      /mas-sum/.test(mHtml) && /Top exercise/.test(mHtml) && /Top muscle/.test(mHtml) &&
+      /exercises tracked/.test(mHtml));
+    T('no combined mastery score or mastery XP is invented',
+      !/mastery score|mastery xp|overall mastery/i.test(mHtml));
+    T('level chips climb a visual ladder', /mastery-lvl-chip ml\d/.test(mHtml) &&
+      /\.mastery-lvl-chip\.ml2\{/.test(css) && /\.mastery-lvl-chip\.ml5\{/.test(css));
+    T('the ladder is the app accent, never the rank materials', (() => {
+      const chip = css.slice(css.indexOf('.mastery-lvl-chip'), css.indexOf('.mastery-bar.mlb1'));
+      return !/D4AF37|BD9260|gold|bronze/i.test(chip);
+    })());
+    T('progress toward the next level comes from the existing standing',
+      /% to Level /.test(mHtml) || /max level/.test(mHtml));
+    T('history depth shares the meta line instead of echoing on every row',
+      /session[s]? · \d+% to Level |session[s]? · max level/.test(mHtml) ||
+      /\d+ sessions? · /.test(mHtml));
+    T('exactly one body figure serves the whole tab',
+      (mHtml.match(/class="muscle-svg"/g) || []).length === 1);
+    T('the distribution is one segmented whole with a counted legend',
+      /distseg/.test(mHtml) && /dl-row/.test(mHtml) && /%/.test(mHtml));
+    T('its shares sum to one whole', (() => {
+      const seg = mHtml.slice(mHtml.indexOf('distseg'), mHtml.indexOf('distseg-legend'));
+      const ws = [...seg.matchAll(/width:([\d.]+)%/g)].map(m => parseFloat(m[1]));
+      const sum = ws.reduce((a,b) => a+b, 0);
+      return ws.length > 0 && sum > 98 && sum <= 100.5;
+    })());
+    T('and it stays descriptive', /not a judgement about balance/.test(mHtml) &&
+      !/unbalanced|imbalance|too much|neglect/i.test(mHtml));
+    T('muscle mastery is top rankings plus disclosure, not a second directory', (() => {
+      const fn = src.slice(src.indexOf('function muscleMasteryHtml'), src.indexOf('function masteryRowHtml'));
+      return /slice\(0, 5\)/.test(fn) && /toggleAllMastery/.test(fn);
+    })());
+  }
+
+  sub('SAFETY — skipped work contributes nothing, rendering writes nothing');
+  {
+    ctx.switchProgTab('volume');
+    const before = doc.getElementById('progVolMuscle').innerHTML;
+    // a skipped exercise: named, but no sets survived (D21 truth)
+    ctx.workoutLog.push({ id:'sk1', date: D(0), category:'push', title:'S', notes:'',
+      exercises:[{ name:'Chest Press', bodyweight:false, skipped:true, sets:[] }] });
+    ['invalidateSortedLogCache','invalidateConsistencyCache','invalidateAllMasteryCaches']
+      .forEach(f => ctx[f] && ctx[f]());
+    ctx.switchProgTab('volume');
+    T('a skipped exercise adds no muscle volume',
+      doc.getElementById('progVolMuscle').innerHTML === before);
+    T('and no Most Trained sessions',
+      !ctx.mostTrainedExercises(10).some(r => /chest press/i.test(r.label)));
+  }
+  {
+    const snap = JSON.stringify({ w: ctx.workoutLog, t: ctx.trainerLog });
+    ['overview','strength','volume','muscles'].forEach(t => ctx.switchProgTab(t));
+    ctx.switchProgTab('overview');
+    T('rendering all four sections writes no history',
+      JSON.stringify({ w: ctx.workoutLog, t: ctx.trainerLog }) === snap);
+  }
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+    String(ctx.TRAINER_ENGINE_VERSION));
+  T('the new Progress code never mentions a trainer symbol', (() => {
+    const mod = src.slice(src.indexOf('function knownWeeklyBuckets'), src.indexOf('function trophyIconSvg'));
+    return !/proposeTrainerState|TRAINER_CONFIG|shadowEvidence|computeShadowRecommendation/.test(mod);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -13249,6 +13507,7 @@ async function main(){
   testHomeAndTouch(H.loadApp());
   testRankIdentity(H.loadApp());
   testSurfaceConsolidation(H.loadApp());
+  await testProgressExperience();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
