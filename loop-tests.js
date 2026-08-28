@@ -10850,12 +10850,17 @@ function testComposition(app){
   /* Measured on the rendered screen: the blocks down Today sat 14, 14, 12, 26,
      12, 16 apart. The 26 is the section rule and means something; three values
      within four pixels of each other do not. */
+  /* D24: the resume card no longer exists — the workout hero carries the
+     active state itself, so the fifth block left the page along with the
+     duplicate workout it announced. Four blocks share the gap, and a stronger
+     assertion below holds that the duplicate never returns. */
   ['\\.tw\\{ margin-top: var\\(--space-3\\)',
    '\\.wk-card\\{[\\s\\S]{0,140}margin-top: var\\(--space-3\\)',
    '\\.ready-prompt\\{[\\s\\S]{0,140}margin-top: var\\(--space-3\\)',
-   '\\.insight-list\\{ margin-top: var\\(--space-3\\)',
-   '\\.resume-card\\{\\s*margin-top: var\\(--space-3\\)']
+   '\\.insight-list\\{ margin-top: var\\(--space-3\\)']
     .forEach((re, i) => T('Today block ' + (i+1) + ' uses the shared gap', new RegExp(re).test(css)));
+  T('the separate resume card is gone for good',
+    !/class="resume-card"/.test(src) && !/\.resume-card\{/.test(css));
   T('the section break is still a section break, not another block gap',
     /\.sec-head\{[\s\S]{0,220}margin: 26px 0 10px/.test(css));
 
@@ -12954,6 +12959,131 @@ function testRankIdentity(app){
     ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
 }
 
+/* =========================================================
+   CONTRACT 121 — One job per surface (D24)
+   ---------------------------------------------------------
+   Today answers "what now" with one hero; Train answers
+   "which workout" with a card that stops shouting; the
+   summary answers "what did I do" without a delete button in
+   the celebration. Consolidation, not new product.
+   ========================================================= */
+function testSurfaceConsolidation(app){
+  section('CONTRACT 121 — one job per surface');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('Today: one hero, three states');
+  T('the resume banner renders nothing — it only resolves the draft', (() => {
+    const i = src.indexOf('async function renderResumeBanner');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return /el\.innerHTML = '';/.test(fn) && !/resume-card/.test(fn) && /renderTodayWorkout\(\)/.test(fn);
+  })());
+  T('an active workout owns the hero and returns before any planned card', (() => {
+    const i = src.indexOf('function renderTodayWorkout');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    const active = body.indexOf('if(hasActiveDraftNow){');
+    const rest = body.indexOf("if(cat === 'rest'){");
+    const planned = body.indexOf('Start Workout');
+    return active > -1 && rest > active && planned > active &&
+           /tw-active[\s\S]{0,300}Resume<\/button>/.test(body);
+  })());
+  T('so a rest-day session still shows its Resume', (() => {
+    const i = src.indexOf('function renderTodayWorkout');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return body.indexOf('if(hasActiveDraftNow){') < body.indexOf("if(cat === 'rest'){");
+  })());
+  T('a completed day says complete and offers the summary, never Resume', (() => {
+    const i = src.indexOf('function renderTodayWorkout');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return /tw-done-hero[\s\S]{0,600}View Summary/.test(body) &&
+           /Workout complete/.test(body);
+  })());
+  T('the planned branch can no longer offer Resume — those states returned above', (() => {
+    const i = src.indexOf('function renderTodayWorkout');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    const plannedStart = body.indexOf('const cta = first');
+    return plannedStart > -1 && !/Resume/.test(body.slice(plannedStart));
+  })());
+  T('discard is quiet text, not a competing button',
+    /\.tw-discard\{[\s\S]{0,220}background: none; border: none;/.test(css));
+
+  sub('Train: the card stops shouting');
+  T('the radar left the default card and lives behind Details', (() => {
+    const i = src.indexOf('function templateCardHtml');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    const details = fn.indexOf('<details class="tpl-details">');
+    const radar = fn.indexOf('radarSvg(profile)');
+    return details > -1 && radar > details;
+  })());
+  T('edit and delete moved behind Details too, keeping their looks and guards', (() => {
+    const i = src.indexOf('function templateCardHtml');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    const details = fn.indexOf('<details');
+    return fn.indexOf('tpl-edit', details) > details && fn.indexOf('tpl-del', details) > details;
+  })());
+  T('deleting still confirms', (() => {
+    const i = src.indexOf('function deleteTemplate');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return /confirm\(/.test(fn);
+  })());
+  T('the muscle visual stays on the default face', (() => {
+    const i = src.indexOf('function templateCardHtml');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    const details = fn.indexOf('<details');
+    const body = fn.indexOf('bodyDiagramSvg(t)');
+    return body > -1 && body < details;
+  })());
+  T('emphasis is one line with a quiet secondary half, from the same totals',
+    /function tplEmphasisLine\(t\)\{[\s\S]{0,600}computeMuscleTotals\(t\)/.test(src) &&
+    /tpl-emphasis-2/.test(src));
+  T('the disclosure is native, one tap, 44px',
+    /\.tpl-details summary\{[\s\S]{0,180}min-height: 44px;/.test(css) &&
+    /summary::-webkit-details-marker\{ display: none; \}/.test(css));
+
+  sub('Workout Complete: accomplishment first');
+  T('delete no longer sits beside the celebration',
+    !/summary-close-x/.test(src));
+  T('it waits at the quiet foot instead, same confirmation',
+    /class="summary-danger" onclick="deleteJustLoggedWorkout\(\)"/.test(src) &&
+    /\.summary-danger\{[\s\S]{0,240}background: none; border: none;/.test(css));
+  T('the score says what it is out of', /quality-of"> \/ 100</.test(src));
+  T('its words are bands of the score, not invention', (() => {
+    const i = src.indexOf('const qualityWord');
+    const fn = src.slice(i, i + 260);
+    return /q >= 85 \? 'Excellent session'/.test(fn) && /q >= 70 \? 'Strong session'/.test(fn) &&
+           /'Session logged'/.test(fn);
+  })());
+  T('and the detail line still names the real factors',
+    /sets matched or beat last time/.test(src));
+  T('three primary metrics, not five equal cards', (() => {
+    const i = src.indexOf("getElementById('summaryStats').innerHTML");
+    const seg = src.slice(i, i + 1400);
+    return (seg.match(/class="stat"/g) || []).length === 3 && !/Week Streak/.test(seg);
+  })());
+  T('the streak rides the identity line as a small reward',
+    /xp-streak">\$\{streak\}-week streak/.test(src));
+  T('XP connects to the rank identity through the shared renderer and read',
+    /xp-identity[\s\S]{0,200}rankMedalSvg\(pNow\.rank, 40\)/.test(src) &&
+    /const pNow = getCurrentProgression\(\);/.test(src));
+  T('and a progression failure falls back rather than breaking the summary',
+    /catch\(e\)\{\s*identity = `<div class="xp-breakdown-level">/.test(src));
+
+  sub('consolidation wrote nothing');
+  T('no storage call was added to any of the three surfaces', (() => {
+    const spans = ['function renderTodayWorkout', 'function templateCardHtml', 'function tplEmphasisLine'];
+    return spans.every(name => {
+      const i = src.indexOf(name);
+      const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+      return !/LOOPStore\.set|localStorage|setItem/.test(fn);
+    });
+  })());
+  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched',
+    ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -13039,6 +13169,7 @@ async function main(){
   testTrainingTruth(H.loadApp());
   testHomeAndTouch(H.loadApp());
   testRankIdentity(H.loadApp());
+  testSurfaceConsolidation(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

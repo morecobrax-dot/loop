@@ -501,12 +501,6 @@ html.intro-skip #introOverlay{ display: none !important; }
 
 /* ---- Workout summary sheet ---- */
 .summary-sheet{ text-align: left; position: relative; }
-.summary-close-x{
-  position: absolute; top: 14px; right: 14px; z-index: 2;
-  padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2);
-  color: var(--text-faint); font-size: 11px; font-weight: 600; cursor: pointer;
-}
-.summary-close-x:hover{ border-color: var(--danger); color: var(--danger); }
 .summary-mark{
   width: 56px; height: 56px; border-radius: 50%; background: var(--full-soft); color: var(--full);
   display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700;
@@ -686,7 +680,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .program-dot.active{ background: var(--accent); transform: scale(1.3); }
 
 /* ---- Workout profile radar & muscle diagram ---- */
-.tpl-body{ display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+.tpl-body{ display: flex; margin-top: 10px; align-items: center; justify-content: center; }
 .tpl-muscle-col{ flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
 .focus-block{ margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .focus-row{ display: flex; align-items: center; gap: 9px; }
@@ -697,9 +691,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .focus-names.dim{ color: var(--text-dim); font-weight: 500; }
 .muscle-svg{ transition: opacity 0.25s var(--ease); }
 @media (prefers-reduced-motion: reduce){ .muscle-svg{ transition: none; } }
-.muscle-svg{ width: 100%; max-width: 118px; height: auto; display: block; }
-.tpl-divider{ width: 1px; flex-shrink: 0; align-self: stretch; background: rgba(154,161,172,0.28); }
-.tpl-radar-col{ flex-shrink: 0; width: 100px; display: flex; align-items: center; justify-content: center; }
+.muscle-svg{ width: 100%; max-width: 106px; height: auto; display: block; }
 .radar-svg{ width: 100px; height: 100px; }
 
 /* ---- Progress tab ---- */
@@ -719,17 +711,19 @@ html.intro-skip #introOverlay{ display: none !important; }
 
 /* ---- Active workout resume banner ---- */
 #resumeBanner:empty{ display: none; }
-.resume-card{
-  margin-top: var(--space-3); padding: 14px 16px; border-radius: var(--radius-lg);
-  background: linear-gradient(160deg, var(--accent-soft), var(--surface-2));
-  border: 1px solid var(--accent);
+/* The hero's ACTIVE and COMPLETED states (D24) — the separate resume card is
+   gone, and with it the second copy of the same workout. State speaks through
+   the hero's own edge: accent while training, success once done. */
+.tw-active{ border-color: var(--accent); background: linear-gradient(160deg, var(--accent-soft), var(--surface-2)); }
+.tw-active .tw-label{ color: var(--accent); }
+.tw-done-hero{ border-color: rgba(75,156,129,0.45); }
+.tw-done-hero .tw-label{ color: var(--success); }
+.tw-discard{
+  width: 100%; min-height: 44px; margin-top: var(--space-1);
+  background: none; border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-faint);
 }
-.resume-label{ font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
-.resume-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; color: var(--text); margin-top: 5px; }
-.resume-sub{ font-size: 12px; color: var(--text-dim); margin-top: 3px; }
-.resume-actions{ display: flex; gap: 8px; margin-top: 12px; }
-.resume-btn{ flex: 1; }
-.resume-discard{ flex: 0 0 auto; padding-left: 16px; padding-right: 16px; color: var(--text-faint); }
+.tw-discard:hover{ color: var(--danger); }
 
 /* ---- Today: condensed dashboard ---- */
 /* Greeting on the left, standing on the right — one balanced line, under the
@@ -1875,6 +1869,20 @@ body.first-use{ padding-bottom: 0; }
 .quality-score{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 38px; line-height: 1; color: var(--text); }
 .quality-label{ font-size: var(--fs-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-top: 4px; font-weight: 700; }
 .quality-detail{ font-size: 11px; color: var(--text-dim); margin-top: 7px; line-height: 1.45; }
+.quality-of{ font-size: 15px; font-weight: 600; color: var(--text-faint); letter-spacing: 0; }
+/* Post-workout identity line: medal, level, progress and the streak as a
+   small reward — one row where a fourth stat card used to sit. */
+.xp-identity{ display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.xp-identity-txt{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.xp-identity-lvl{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; color: var(--text-dim); }
+.xp-streak{ flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700; color: var(--success); background: var(--success-soft); padding: 4px 8px; border-radius: 999px; }
+/* Destructive maintenance at the quiet foot of the celebration. */
+.summary-danger{
+  display: block; margin: 18px auto 4px; min-height: 44px; padding: 0 var(--space-4);
+  background: none; border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-faint);
+}
+.summary-danger:hover{ color: var(--danger); }
 
 /* ---- Next time notes ---- */
 #summaryNextTime:empty{ display: none; }
@@ -2078,15 +2086,37 @@ body.first-use{ padding-bottom: 0; }
   transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 .tpl-card:hover, .tpl-card:focus-within{ border-color: rgba(76,194,255,0.35); box-shadow: var(--shadow-md); }
-.tpl-top{ display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .tpl-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
 .tpl-meta-row{ display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
 .tpl-meta{ font-size: 11px; color: var(--text-faint); }
 .tpl-duration{ font-size: 11px; color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; }
-.tpl-actions{ display: flex; gap: 10px; flex-shrink: 0; }
+/* Maintenance lives behind Details now (D24) — full-width labelled rows
+   instead of two permanent icon squares beside every workout's name. Delete
+   keeps its confirmation and stays visually apart from Start. */
+.tpl-emphasis{ font-size: 13px; font-weight: 600; color: var(--text-dim); margin-top: 3px; }
+.tpl-emphasis-2{ color: var(--text-faint); font-weight: 500; }
+.tpl-details{ margin-top: 10px; border-top: 1px solid var(--border); }
+.tpl-details summary{
+  list-style: none; cursor: pointer; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12.5px; font-weight: 600; color: var(--text-faint);
+}
+.tpl-details summary::-webkit-details-marker{ display: none; }
+.tpl-details summary:hover{ color: var(--text-dim); }
+.tpl-details[open] summary{ color: var(--text-dim); }
+.tpl-ex-list{ padding-bottom: 4px; }
+.tpl-ex-row{
+  display: flex; justify-content: space-between; gap: 10px; padding: 5px 0;
+  font-size: 12.5px; color: var(--text-dim);
+}
+.tpl-ex-row span:last-child{ font-family: 'JetBrains Mono', monospace; color: var(--text-faint); }
+.tpl-ex-more{ font-size: var(--fs-micro); color: var(--text-faint); padding: 4px 0; }
+.tpl-radar-col{ display: flex; justify-content: center; padding: 6px 0; }
+.tpl-manage{ display: flex; gap: 10px; padding: 10px 0 4px; }
 .tpl-edit, .tpl-del{
-  background: none; border: 1px solid var(--border); color: var(--text-faint);
-  width: 44px; height: 44px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
+  flex: 1; background: none; border: 1px solid var(--border); color: var(--text-faint);
+  min-height: 44px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
   transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
 }
 .tpl-edit:hover{ border-color: var(--accent); color: var(--accent); }
@@ -5698,7 +5728,6 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 <div class="overlay" id="summaryOverlay" onclick="backdropDismiss(event, closeSummary)">
   <div class="sheet summary-sheet">
     <div class="sheet-scroll">
-    <button class="summary-close-x" onclick="deleteJustLoggedWorkout()" title="Delete this workout">Delete</button>
     <div class="summary-mark" id="summaryMark"></div>
     <h2 style="text-align:center">Workout Complete</h2>
     <div class="sheet-sub" id="summaryTitle" style="text-align:center"></div>
@@ -5709,6 +5738,10 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div id="summaryNextTime"></div>
     <div id="summaryCoach"></div>
     <div id="summaryCooldown"></div>
+    <!-- Destructive maintenance, out of the celebration (D24): the same
+         confirmed delete it always was, at the quiet foot of the scroll
+         instead of beside "Workout Complete". -->
+    <button type="button" class="summary-danger" onclick="deleteJustLoggedWorkout()">Delete this workout</button>
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="editJustLoggedWorkout()" aria-label="Edit workout">Edit</button>
@@ -14104,6 +14137,43 @@ function renderTodayWorkout(){
     ? (programDay.entry.type === 'workout' ? programDay.category : 'rest')
     : (schedule ? schedule[tKey] : 'rest');
 
+  /* ONE hero, three states (D24). It used to be possible to see this workout
+     twice — a "Workout in progress" banner above AND the planned card below,
+     both offering Resume. The hero now changes state instead of stacking.
+
+     ACTIVE first, because a workout under way outranks whatever was planned —
+     including a rest day the athlete decided to train through. Nothing else
+     renders: no time picker, no workout picker; changing plans is not the
+     decision mid-session. One title, one Resume, one quiet Discard. */
+  if(hasActiveDraftNow){
+    const info = activeDraftInfo || { title: 'Workout', mins: null, summary: '' };
+    el.innerHTML = `
+      <div class="tw tw-${cat === 'rest' ? 'fullbody' : cat} tw-active">
+        <div class="tw-label">Workout in progress</div>
+        <div class="tw-title">${escapeHtml(info.title)}</div>
+        <div class="tw-meta">${info.mins ? info.mins + ' min · ' : ''}${info.summary}</div>
+        <button class="tw-cta" onclick="resumeActiveWorkout()">Resume</button>
+        <button class="tw-discard" onclick="discardActiveWorkout()">Discard workout</button>
+      </div>`;
+    return;
+  }
+
+  /* COMPLETED: the day's work is done and the hero says so, instead of still
+     offering the plan with a Resume that no longer means anything. The
+     summary is one tap; a second session stays quietly possible. */
+  if(doneToday){
+    el.innerHTML = `
+      <div class="tw tw-${doneToday.category || cat} tw-done-hero">
+        <div class="tw-label">Workout complete</div>
+        <div class="tw-title">${escapeHtml(doneToday.title || CAT_LABEL[doneToday.category] || 'Workout')}</div>
+        <div class="tw-meta">Completed today · ${doneToday.exercises.length} exercise${doneToday.exercises.length===1?'':'s'} · ${sessionVolume(doneToday).toLocaleString()} lb</div>
+        <button class="tw-cta tw-cta-done" onclick="openDayDetail('${todayStr}')">View Summary</button>
+        <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train again'}</button>
+        ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat === 'rest' ? null : cat)}</div>` : ''}
+      </div>`;
+    return;
+  }
+
   if(cat === 'rest'){
     const nextDay = findNextTrainingDay(tKey);
     el.innerHTML = `
@@ -14136,16 +14206,10 @@ function renderTodayWorkout(){
     daysAgo === null ? 'First time' : daysAgo === 0 ? 'Done today' : daysAgo === 1 ? 'Last done yesterday' : `Last done ${daysAgo}d ago`
   ].filter(Boolean).join(' · ');
 
-  let cta;
-  if(hasActiveDraftNow){
-    cta = `<button class="tw-cta" onclick="resumeActiveWorkout()">Resume Workout</button>`;
-  } else if(doneToday){
-    cta = `<button class="tw-cta tw-cta-done" onclick="openDayDetail('${todayStr}')">View Today's Workout</button>`;
-  } else if(first){
-    cta = `<button class="tw-cta" onclick="startTemplateLog('${cat}','${first.id}')">Start Workout</button>`;
-  } else {
-    cta = `<button class="tw-cta tw-cta-ghost" onclick="goToTrainCategory('${cat}')">Add a ${CAT_LABEL[cat]} workout</button>`;
-  }
+  /* Active and completed returned above — this branch only ever plans. */
+  const cta = first
+    ? `<button class="tw-cta" onclick="startTemplateLog('${cat}','${first.id}')">Start Workout</button>`
+    : `<button class="tw-cta tw-cta-ghost" onclick="goToTrainCategory('${cat}')">Add a ${CAT_LABEL[cat]} workout</button>`;
 
   el.innerHTML = `
     <div class="tw tw-${cat}">
@@ -14660,6 +14724,25 @@ function setDayValue(val){
   closeDayEdit();
 }
 
+/* The choosing card (D24). Its default face answers one question — "what does
+   this workout train, and do I want it?" — with name, emphasis, two facts,
+   the body visual, and Start. Everything else the card used to shout —
+   radar profile, primary/secondary rows, permanent edit and delete buttons —
+   lives behind one native disclosure, where it is still one tap away without
+   competing with the workout itself. Nothing was deleted: the radar and the
+   focus data render inside Details, and Delete keeps its confirmation. */
+function tplEmphasisLine(t){
+  const totals = computeMuscleTotals(t);
+  const entries = Object.keys(totals).filter(k => totals[k] > 0).sort((a,b) => totals[b] - totals[a]);
+  if(!entries.length) return '';
+  const max = totals[entries[0]];
+  const label = k => escapeHtml(MUSCLE_LABELS[k] || k);
+  const primary = entries.filter(k => totals[k] >= max * 0.75).slice(0, 3);
+  const secondary = entries.filter(k => totals[k] < max * 0.75).slice(0, 2);
+  return '<div class="tpl-emphasis">' + primary.map(label).join(' · ') +
+    (secondary.length ? '<span class="tpl-emphasis-2"> · ' + secondary.map(label).join(' · ') + '</span>' : '') +
+    '</div>';
+}
 function templateCardHtml(t, cat, lastWeights){
   const profile = computeWorkoutProfile(t);
   const duration = computeWorkoutDuration(t);
@@ -14668,29 +14751,32 @@ function templateCardHtml(t, cat, lastWeights){
     <div class="plateau-flag">
       ${warnIconSvg()} ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions — try the swap dropdown${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}
     </div>` : '';
+  const exercisePreview = t.exercises.slice(0, 8).map(ex =>
+    `<div class="tpl-ex-row"><span>${escapeHtml(ex.name)}</span><span>${escapeHtml(String(ex.sets))} × ${escapeHtml(String(ex.reps))}</span></div>`).join('') +
+    (t.exercises.length > 8 ? `<div class="tpl-ex-more">+ ${t.exercises.length - 8} more</div>` : '');
   return `
     <div class="tpl-card">
-      <div class="tpl-top">
-        <div>
-          <div class="tpl-name">${escapeHtml(t.name)}</div>
-          <div class="tpl-meta-row">
-            <span class="tpl-meta">${t.exercises.length} exercises</span>
-            <span class="tpl-duration">${clockIconSvg()}~${duration} min</span>
-          </div>
-        </div>
-        <div class="tpl-actions">
-          <button class="tpl-edit" onclick='openEditTemplate(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})' aria-label="Edit workout">${pencilIconSvg()}</button>
-          <button class="tpl-del" onclick="deleteTemplate('${cat}','${t.id}')" aria-label="Delete workout">${closeIconSvg(13)}</button>
-        </div>
+      <div class="tpl-name">${escapeHtml(t.name)}</div>
+      ${tplEmphasisLine(t)}
+      <div class="tpl-meta-row">
+        <span class="tpl-meta">${t.exercises.length} exercises</span>
+        <span class="tpl-duration">${clockIconSvg()}~${duration} min</span>
       </div>
       ${plateauHtml}
       <div class="tpl-body">
         <div class="tpl-muscle-col">${bodyDiagramSvg(t)}</div>
-        <div class="tpl-divider"></div>
-        <div class="tpl-radar-col">${radarSvg(profile)}</div>
       </div>
-      ${muscleFocusHtml(t)}
       <button class="tpl-start" onclick='startTemplateLog(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})'>Start This Workout</button>
+      <details class="tpl-details">
+        <summary>Details</summary>
+        <div class="tpl-ex-list">${exercisePreview}</div>
+        <div class="tpl-radar-col">${radarSvg(profile)}</div>
+        ${muscleFocusHtml(t)}
+        <div class="tpl-manage">
+          <button class="tpl-edit" onclick='openEditTemplate(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})' aria-label="Edit workout">${pencilIconSvg()} Edit workout</button>
+          <button class="tpl-del" onclick="deleteTemplate('${cat}','${t.id}')" aria-label="Delete workout">${closeIconSvg(13)} Delete</button>
+        </div>
+      </details>
     </div>
   `;
 }
@@ -23805,28 +23891,30 @@ function draftSummaryLine(draft){
   return `${escapeHtml(last.name)} · ${totalDone}/${totalSets} sets completed`;
 }
 
+/* ONE workout hero (D24). This used to render a full "Workout in progress"
+   card here AND let renderTodayWorkout() draw a second full card underneath
+   whose button was also Resume — the same workout twice, two Resumes, half a
+   screen spent saying one thing. Now this function only resolves the draft
+   truth and hands presentation to the single hero, which changes state. */
+let activeDraftInfo = null;
 async function renderResumeBanner(){
   const el = document.getElementById('resumeBanner');
-  if(!el) return;
+  if(el) el.innerHTML = '';
   const overlay = document.getElementById('logOverlay');
-  if(overlay && overlay.classList.contains('open')){ el.innerHTML = ''; return; }
-  
+  if(overlay && overlay.classList.contains('open')) return;
+
   const draft = await loadActiveDraft();
   hasActiveDraftNow = !!draft;
-  if(!draft){ el.innerHTML = ''; renderTodayWorkout(); return; }
-  const started = draft.startedAt ? new Date(draft.startedAt) : null;
-  const mins = started ? Math.max(1, Math.round((new Date() - started) / 60000)) : null;
-  el.innerHTML = `
-    <div class="resume-card">
-      <div class="resume-label">Workout in progress</div>
-      <div class="resume-title">${escapeHtml(draft.title || CAT_LABEL[draft.category] || 'Workout')}${mins ? ` · ${mins} min` : ''}</div>
-      <div class="resume-sub">${draftSummaryLine(draft)}</div>
-      <div class="resume-actions">
-        <button class="btn-primary resume-btn" onclick="resumeActiveWorkout()">Resume</button>
-        <button class="btn-secondary resume-discard" onclick="discardActiveWorkout()">Discard</button>
-      </div>
-    </div>
-  `;
+  if(draft){
+    const started = draft.startedAt ? new Date(draft.startedAt) : null;
+    activeDraftInfo = {
+      title: draft.title || CAT_LABEL[draft.category] || 'Workout',
+      mins: started ? Math.max(1, Math.round((new Date() - started) / 60000)) : null,
+      summary: draftSummaryLine(draft)
+    };
+  } else {
+    activeDraftInfo = null;
+  }
   renderTodayWorkout();
 }
 
@@ -25493,16 +25581,21 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
   const durationMin = estimateLoggedDuration(entry);
   const totalSets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
 
+  /* The score is /100, built from completion (40), rep targets (25), volume
+     progress (20) and records (15). The words below come from those bands and
+     say nothing the number does not — interpretation, not invention — and the
+     detail line IS the explanation: which factors actually moved it. */
+  const qualityWord = q => q >= 85 ? 'Excellent session' : q >= 70 ? 'Strong session'
+    : q >= 50 ? 'Solid session' : 'Session logged';
   document.getElementById('summaryStats').innerHTML = `
     ${quality ? `<div class="quality-block">
-      <div class="quality-score">${quality.score}</div>
-      <div class="quality-label">Session Quality</div>
+      <div class="quality-score">${quality.score}<span class="quality-of"> / 100</span></div>
+      <div class="quality-label">${qualityWord(quality.score)}</div>
       <div class="quality-detail">${quality.targetsTotal ? `${quality.targetsHit}/${quality.targetsTotal} sets matched or beat last time` : 'First time logging these movements'}${quality.progressPct !== null ? ` · ${quality.progressPct >= 0 ? '+' : ''}${quality.progressPct}% volume` : ''}</div>
     </div>` : ''}
     <div class="stat"><div class="stat-num">${vol.toLocaleString()}</div><div class="stat-label">Volume (lb)</div></div>
     <div class="stat"><div class="stat-num">${totalSets}</div><div class="stat-label">Sets</div></div>
     <div class="stat"><div class="stat-num">${durationMin ? '~'+durationMin : '—'}</div><div class="stat-label">Minutes</div></div>
-    <div class="stat"><div class="stat-num">${streak}</div><div class="stat-label">Week Streak</div></div>
   ` + plannedVsActualHtml(entry);
   const prsEl = document.getElementById('summaryPRs');
   if(newPREvents.length){
@@ -25525,13 +25618,33 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
 
   const xpEl = document.getElementById('summaryXP');
   if(xpEntry && xpEntry.breakdown.length){
+    /* D24/D23: the XP a session earned lands somewhere — this shows where.
+       The same medal renderer and the same progression read as everywhere;
+       the week streak rides here as a small reward line instead of holding a
+       stat card the size of the volume it sat beside. */
+    let identity = '';
+    try{
+      const pNow = getCurrentProgression();
+      const pctNow = pNow.xpForNext > 0 ? Math.min(100, Math.round((pNow.currentXP / pNow.xpForNext) * 100)) : 0;
+      identity = `
+      <div class="xp-identity">
+        ${rankMedalSvg(pNow.rank, 40)}
+        <div class="xp-identity-txt">
+          <span class="xp-identity-lvl">LEVEL ${pNow.level} · ${escapeHtml(pNow.rank)}</span>
+          <span class="hdr-level-bar"><span style="width:${pctNow}%"></span></span>
+        </div>
+        ${streak >= 2 ? `<span class="xp-streak">${streak}-week streak</span>` : ''}
+      </div>`;
+    }catch(e){
+      identity = `<div class="xp-breakdown-level">LEVEL ${xpEntry.levelAfter} · ${calculateRankFromLevel(xpEntry.levelAfter)}</div>`;
+    }
     xpEl.innerHTML = `
       <div class="section-label" style="margin-top:18px">XP Earned</div>
       <div class="xp-breakdown-card">
         ${xpEntry.breakdown.map(b => `<div class="xp-breakdown-row"><span>${escapeHtml(b.label)}</span><span>+${b.xp} XP</span></div>`).join('')}
         <div class="xp-breakdown-total"><span>Total</span><span>+${xpEntry.xpTotal} XP</span></div>
       </div>
-      <div class="xp-breakdown-level">LEVEL ${xpEntry.levelAfter} · ${calculateRankFromLevel(xpEntry.levelAfter)}</div>
+      ${identity}
     `;
   } else {
     xpEl.innerHTML = '';

@@ -3130,3 +3130,45 @@ The system reads and never writes: zero storage calls in the whole rank
 region, no remembered carousel position, `DATA_KEYS` still 15, gradient budget
 still 4 and glass still 3, and the trainer remains `0.1.1-shadow`. Measured:
 showcase opens in 13ms, a swipe step costs 0.9ms, Home renders in 7ms.
+
+## §44 — D24: one job per surface
+
+**Today: one hero, three states.** An active draft used to render a full
+"Workout in progress" card *and* let the planned card render beneath it with a
+second Resume — the same workout twice, half a screen saying one thing.
+`renderResumeBanner()` now only resolves the draft truth; the hero itself
+changes state. ACTIVE outranks everything, including a rest day the athlete
+decided to train through (it returns before the rest branch — a placement bug
+caught and fixed mid-implementation). COMPLETED says "Workout complete" and
+offers View Summary; Resume ceases to exist anywhere on the page. The planned
+branch structurally cannot offer Resume — those states return before it.
+Measured: one hero and exactly one Resume in the active state; zero Resume
+buttons after completion; the resume banner byte-empty; This Week visible
+without scrolling (its position and Momentum's one-visual-two-signals shape
+already satisfied §5–8 from earlier phases — reported, not rebuilt).
+
+**Train: the card stops shouting.** The default face is name → emphasis line
+(primary muscles bright, secondary faint, same `computeMuscleTotals` truth) →
+two facts → body visual → Start. The radar, the exercise preview, the
+primary/secondary rows, and Edit/Delete all live behind one native `<details>`
+disclosure — still one tap, 44px summary, no JS state. Delete keeps its
+confirmation and no longer stands beside Start. Measured at 375×812: default
+card **359px** with **460px** of content moved behind Details (819px open),
+and a second workout is discoverable without scrolling.
+
+**Workout Complete: accomplishment first.** Delete left the hero corner for
+the quiet foot of the scroll, same confirmation. The quality score now says
+what it is out of ("80 **/ 100**") and carries a one-word band read off the
+score itself — Excellent ≥85, Strong ≥70, Solid ≥50, else "Session logged" —
+with the existing factor line as its explanation; the calculation is
+untouched. The five equal stat cards became three (volume, sets, minutes);
+the week streak rides the new identity line as a small reward chip beside the
+D23 medal and level bar — the same renderer and the same
+`getCurrentProgression()` read, with a plain-text fallback if progression
+ever fails. Measured: Edit still opens the editor in one visible tap, Cancel
+restores the summary, Save returns to it updated, and declining Delete leaves
+the workout intact.
+
+Storage-neutral throughout: zero writes in the diff, `DATA_KEYS` still 15, no
+trainer symbol anywhere in it, trainer at `0.1.1-shadow`. Five viewports and
+rotation: no overflow, no sub-44 controls on the touched surfaces.
