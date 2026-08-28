@@ -7049,17 +7049,27 @@ function testLogRedesign(app){
 
   sub('hierarchy — history first, escape hatch after it');
   {
-    const order = ['log-hdr','historyConsistency','cal-card','historySelectedDay','custom-log-btn','historyRecent'];
+    /* D27: freeform logging moved OUT of the middle of the page and up into
+       the header. Log's spine is now unbroken history — consistency, calendar,
+       the selected day, then the sessions themselves — with the manual escape
+       hatch beside the title where it cannot outrank what it sits between. */
+    const order = ['log-hdr','historyConsistency','cal-card','historySelectedDay','historyRecent'];
     const idx = order.map(k => view.indexOf(k));
     T('every block is present', idx.every(i => i !== -1), order.join(','));
-    T('header, consistency, calendar, selected day, freeform, recent — in that order',
+    T('header, consistency, calendar, selected day, recent — in that order',
       idx.every((v,i) => i === 0 || v > idx[i-1]), idx.join(','));
     T('the page names itself', />Log<\/h2>/.test(view));
-    T('freeform sits BELOW the calendar, not above it',
-      view.indexOf('custom-log-btn') > view.indexOf('cal-card'));
+    T('nothing is wedged between the calendar and the history it explains',
+      view.indexOf('historyRecent') > view.indexOf('cal-card') &&
+      view.slice(view.indexOf('historySelectedDay'), view.indexOf('historyRecent'))
+        .indexOf('custom-log-btn') === -1);
+    T('freeform lives in the header, not in the history spine',
+      view.indexOf('custom-log-btn') < view.indexOf('cal-card') &&
+      view.indexOf('custom-log-btn') > view.indexOf('log-hdr'));
     T('freeform is still one tap, not hidden in a menu', /onclick="openFreeformLog\(\)"/.test(view));
     T('it reads as secondary, not the page CTA',
-      /\.custom-log-btn\{[^}]*background: none/.test(css));
+      /\.custom-log-btn\{[^}]*background: none/.test(css) &&
+      !/\.custom-log-btn\{[^}]*width: 100%/.test(css));
   }
 
   sub('the calendar is the hero — every past day answers');
@@ -7218,7 +7228,12 @@ function testLogRedesign(app){
     T('the grid bleeds to the card edge so cells clear 44px',
       /\.cal-grid\{[^}]*margin: 6px -12px 0/.test(css));
     T('month navigation is 44px', /\.cal-nav-btn\{[^}]*width: 44px; height: 44px/.test(css));
-    T('the freeform button is 48px', /\.custom-log-btn\{[^}]*min-height: 48px/.test(css));
+    /* D27: it sits in the header now, sized to its content rather than the
+       page width, and still clears the app's 44px touch floor. */
+    T('the freeform button clears the touch floor', (() => {
+      const m = css.match(/\.custom-log-btn\{[^}]*min-height: (\d+)px/);
+      return !!m && +m[1] >= 44;
+    })());
     T('recent rows are 60px', /\.rw-row\{[^}]*min-height: 60px/.test(css));
     T('the grid stops growing on a wide viewport rather than making giant cells',
       /@media \(min-width: 560px\)\{\s*\n\s*\.cal-grid, \.cal-weekdays\{ max-width: 392px/.test(css));
@@ -11060,9 +11075,12 @@ function testMomentum(app){
   T('a beginner is not given a trend', /if\(totalSessions < 3\) return 'You are getting started\.';/.test(src));
   T('a streak is only shown once it is one', /if\(streak >= 2\)\{/.test(src));
   T('with no records and no history, progress says nothing rather than zero', (() => {
-    const fn = src.slice(src.indexOf('function momentumProgress()'), src.indexOf('function momentumDotsHtml'));
-    /* two or more tracked lifts before any trend claim, and a null exit when
-       there is neither a record nor enough history */
+    /* D27 re-anchored: momentumDotsHtml was removed with Momentum's duplicate
+       week, so this slices to the next surviving function. Same body, same
+       assertion — two or more tracked lifts before any trend claim, and a
+       null exit when there is neither a record nor enough history. */
+    const fn = src.slice(src.indexOf('function momentumProgress()'), src.indexOf('function renderTodayMomentum'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');   // prose between functions is not code
     return /if\(trends\.length >= 2\)\{/.test(fn) && /return null;\s*\}\s*$/.test(fn.trim() + '\n');
   })());
   {
@@ -11079,17 +11097,28 @@ function testMomentum(app){
   T('a week with nothing scheduled says so', /Nothing scheduled this week — a planned rest\./.test(src));
   T('a finished week that fell short reports it without scolding',
     /return 'You trained ' \+ wk\.done \+ ' of ' \+ wk\.planned \+ ' this week\.';/.test(src));
+  /* D27: Momentum's dot copy of the week was removed as a duplicate, so these
+     now hold the rule on the ONE surviving week visualisation — This Week —
+     and on the calendar, which is two surfaces rather than the one the dots
+     covered. */
   T('missed days use the warning hue, not the error one',
-    /\.mo-dot-missed\{ background: none; border: 1\.5px solid var\(--warning\); \}/.test(css));
+    /\.wk-missed \.wk-mark\{ border-color: var\(--warning\)/.test(css) &&
+    !/\.wk-missed[^}]*var\(--danger\)/.test(css));
+  T('and the calendar agrees rather than reaching for red',
+    /\.cal-missed\{ border-color: rgba\(189,146,96/.test(css) &&
+    !/\.cal-missed[^}]*var\(--danger\)/.test(css));
   T('rest days are not drawn at all', /week\.days\.filter\(d => d\.planned\)/.test(src));
 
   sub('the week is legible without seeing colour');
-  T('the dots carry a spoken summary', /role="img" aria-label="/.test(src.slice(
-    src.indexOf('function momentumDotsHtml'), src.indexOf('function renderTodayMomentum'))));
-  T('which names completed, missed and remaining',
-    /parts\.push\(missed \+ ' missed'\)/.test(src) && /' still to come'/.test(src));
-  T('the primary reading is a real control with a name',
-    /class="mo-primary"[\s\S]{0,200}aria-label="/.test(src));
+  T('the week bar carries a spoken summary',
+    /class="wk-bar" role="img" aria-label="\$\{wk\.done\} of \$\{wk\.planned\} sessions completed"/.test(src));
+  T('each state is a distinguishable shape, not only a hue',
+    /a filled disc, a ring and a dash are distinguishable without hue/.test(src) &&
+    /\.wk-mark\{[^}]*border: 1\.5px solid/.test(css));
+  T('the week is shown exactly once across Today',
+    (src.match(/class="wk-bar"/g) || []).length === 1 && !/class="mo-primary"/.test(src));
+  T('and its days are real controls, not decoration',
+    /class="wk-day/.test(src) && /\.wk-day\{[^}]*cursor: pointer/.test(css));
 
   sub('the trainer is untouched');
   T('engine version', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
@@ -13575,6 +13604,233 @@ async function testOverlayIntegrity(){
     (src.match(/addEventListener\('scroll'/g) || []).length <= 2);
 }
 
+/* =========================================================
+   CONTRACT 124 — Today and Log tell the truth (D27)
+   ---------------------------------------------------------
+   The adherence denominator projected the CURRENT plan back
+   across twelve weeks regardless of whether LOOP knew the
+   athlete then: a two-week-old account read "6 of 32 planned
+   sessions". The per-day model had always refused to call a
+   pre-history day missed; the aggregate had not. Same rule,
+   one boundary, everywhere.
+   ========================================================= */
+async function testTodayAndHistoryTruth(){
+  section('CONTRACT 124 — Today and Log tell the truth (D27)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, doc = app.dom.document;
+  const D = n => { const d = new Date(Date.now() - n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  const S = (w,r) => ({ weight:String(w), reps:String(r), rir:'2', type:'working', completed:true });
+  const sess = (id, day, cat, name) => ({ id, date:D(day), category:cat||'push', title:'S', notes:'',
+    exercises:[{ name:name||'Bench Press', bodyweight:false, sets:[S(135,8),S(135,8)] }] });
+  const reseed = (log, planStart) => {
+    ctx.workoutLog = log;
+    ctx.schedule = { mon:'push', tue:'pull', wed:'rest', thu:'legs', fri:'push', sat:'rest', sun:'rest' };
+    if(planStart !== undefined) ctx.planStartDate = planStart;
+    ['invalidateSortedLogCache','invalidateXPTimelineCache','invalidateConsistencyCache',
+     'invalidateAllMasteryCaches','invalidateCapabilityCache','invalidateContextCache']
+      .forEach(f => ctx[f] && ctx[f]());
+  };
+
+  sub('UNKNOWN HISTORY IS NOT A MISSED SESSION');
+  {
+    /* Two weeks of training against a 4/week plan. Twelve weeks of denominator
+       would be 48 planned sessions; only the fortnight was ever knowable. */
+    reseed([sess('a',1), sess('b',3,'pull'), sess('c',6,'legs'), sess('d',8), sess('e',10,'pull'), sess('f',13)], D(13));
+    const c = ctx.computeConsistencyData();
+    T('the boundary is recorded, not guessed', !!c.trackingStart, String(c.trackingStart));
+    T('it is the earlier of the plan start and the first logged session',
+      c.trackingStart === D(13));
+    T('the denominator counts only sessions LOOP could know were planned',
+      c.totalPlanned !== null && c.totalPlanned <= 12, 'totalPlanned=' + c.totalPlanned);
+    T('it is nowhere near plannedPerWeek x 12',
+      c.totalPlanned < c.plannedPerWeek * 12, c.totalPlanned + ' vs ' + (c.plannedPerWeek * 12));
+    T('so adherence describes the athlete, not the install date',
+      c.overallConsistency >= 50, c.overallConsistency + '%');
+    T('the source never multiplies the plan across the whole window',
+      !/plannedPerWeek \* CONSISTENCY_WEEKS/.test(src));
+    T('it sums what each week actually knew',
+      /weeks\.reduce\(\(n,w\) => n \+ w\.plannedKnown, 0\)/.test(src));
+    T('a day counts as planned only when knowable and already due',
+      /if\(wasPlanned && !beforeHistory && !isFuture\) plannedKnown\+\+;/.test(src));
+  }
+
+  sub('a genuinely missed session still counts');
+  {
+    /* Trained ten weeks ago and then stopped: those weeks WERE knowable. */
+    reseed([sess('x', 70), sess('y', 68, 'pull'), sess('z', 66, 'legs')], D(70));
+    const c = ctx.computeConsistencyData();
+    T('a real gap after tracking began is still measured',
+      c.totalPlanned > 20, 'totalPlanned=' + c.totalPlanned);
+    T('and it shows as a shortfall, not a clean sheet',
+      c.overallConsistency !== null && c.overallConsistency < 40, c.overallConsistency + '%');
+    const missed = c.weeks.reduce((n,w) => n + w.missed, 0);
+    T('the missed days are named', missed > 0, String(missed));
+  }
+
+  sub('future is not missed, rest is not missed');
+  {
+    reseed([sess('p', 2)], D(20));
+    const c = ctx.computeConsistencyData();
+    const cur = c.weeks[c.weeks.length - 1];
+    T('no day still ahead is called missed',
+      cur.days.filter(d => d.state === 'future').every(d => d.state !== 'missed'));
+    T('a future day is excluded from the denominator too',
+      cur.plannedKnown <= cur.days.filter(d => d.planned && d.state !== 'future').length);
+    T('a rest day is never a missed training session',
+      c.weeks.every(w => w.days.every(d => d.state === 'missed' ? d.planned : true)));
+  }
+
+  sub('the calendar separates unknown from rest, and from failure');
+  {
+    reseed([sess('q', 3)], D(3));
+    ctx.historyCalMonth = null;
+    ctx.renderHistoryCalendar();
+    const grid = doc.getElementById('historyCalGrid').innerHTML;
+    T('days before tracking get their own neutral state', /cal-unknown/.test(grid));
+    T('which is not the rest-day state', /\.cal-unknown\{/.test(css) && /\.cal-rest\{/.test(css));
+    T('and is quieter than rest, never louder', (() => {
+      const u = parseFloat((css.match(/\.cal-unknown\{ opacity: ([\d.]+)/) || [])[1]);
+      const r = parseFloat((css.match(/\.cal-rest\{ opacity: ([\d.]+)/) || [])[1]);
+      return u < r;
+    })());
+    T('unknown days are never marked missed',
+      !/cal-unknown[^"]*cal-missed|cal-missed[^"]*cal-unknown/.test(grid));
+    T('the calendar reads its boundary from the consistency engine',
+      /trackingStart = computeConsistencyData\(\)\.trackingStart/.test(src));
+    T('two marks carry status, and they are named for the athlete',
+      /class="cal-legend"/.test(src) && /Completed/.test(src) && /Planned/.test(src));
+  }
+
+  sub('the consistency strip refuses to draw weeks it knows nothing about');
+  {
+    reseed([sess('r', 2), sess('s', 5, 'pull')], D(5));
+    const strip = ctx.logConsistencyStripHtml();
+    T('unknown weeks render as an explicit empty state', /lc-unknown/.test(strip));
+    T('which is an outline, not a zero-height bar',
+      /\.lc-unknown\{ background: none; border: 1px dashed/.test(css));
+    T('and it says how much is actually tracked', /weeks? tracked/.test(strip));
+    T('the tracked count comes from the same helper Progress uses',
+      /progressCoverage\(\)\.weeksTracked/.test(src));
+    T('the denominator on screen is the knowable one',
+      /w\.plannedKnown \|\| 0/.test(src));
+  }
+
+  sub('TODAY — the week is shown once');
+  {
+    reseed([sess('t', 1), sess('u', 3, 'pull')], D(3));
+    ctx.renderToday();
+    const week = doc.getElementById('weekCard').innerHTML;
+    const mo = doc.getElementById('todayMomentum').innerHTML;
+    T('This Week owns the weekly completion reading', /wk-bar|wk-count/.test(week));
+    T('Momentum no longer repeats it', !/mo-primary|mo-week|mo-p-v/.test(mo));
+    T('and its builders were removed, not left unreachable',
+      !/function momentumDotsHtml/.test(src) && !/\.mo-dot-done\{/.test(css));
+    T('Momentum still adds something the week cannot show',
+      /mo-head/.test(mo));
+    T('from signals that already existed',
+      /computeWeekSummary\(\)\.prs/.test(src) && /computeWeekStreak\(\)/.test(src));
+    T('no momentum score was invented', !/momentum score|momentumScore/i.test(src));
+  }
+
+  sub('TODAY — a rest day is a plan, not an absence');
+  {
+    const fn = src.slice(src.indexOf("if(cat === 'rest'){", src.indexOf('function renderTodayWorkout')),
+                         src.indexOf('const templates = getTemplates(cat)'));
+    T('it names what is next', /tw-next-v/.test(fn) && /DAY_LABEL_FULL\[nextDay\]/.test(fn));
+    T('previewed from the real template, not a guess',
+      /getTemplates\(nextCat\)/.test(fn) && /applyTimeModeToTemplate\(tpl\)/.test(fn));
+    T('with detail that already exists — count and duration',
+      /computeWorkoutDuration\(shown\)/.test(fn) && /exercise\$\{n===1\?'':'s'\}/.test(fn));
+    T('it offers no recovery advice and no reason for resting',
+      !/recover|hydrat|sleep|stretch|you need/i.test(fn));
+    T('training today is still one tap', /onclick="toggleTodayPicker\(\)"/.test(fn));
+    T('but it reads as an override, not the card\'s primary action',
+      /class="tw-change tw-override"/.test(fn) && !/tw-cta tw-cta-ghost/.test(fn));
+    T('and never as disabled — it keeps the accent and 44px',
+      /\.tw-change\{ min-height: 44px/.test(css) && /\.tw-change\{[\s\S]{0,200}color: var\(--accent\)/.test(css));
+  }
+
+  sub('TODAY — the greeting knows the clock and nothing else');
+  {
+    /* Counted against code only: the comment recording the removal quotes the
+       old string, and an unrelated timer comment mentions midnight. */
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    T('no behavioural guess survives — the greeting returns no such literal',
+      !/return '(Still up|Up late|Burning the midnight)'/.test(code) &&
+      !/late night/i.test(code));
+    T('three deterministic branches, from local hours only', (() => {
+      const fn = src.slice(src.indexOf('function getGreeting()'), src.indexOf('function getGreeting()') + 320);
+      return /const h = new Date\(\)\.getHours\(\);/.test(fn) &&
+        /Good morning/.test(fn) && /Good afternoon/.test(fn) && /Good evening/.test(fn) &&
+        !/sleep|awake|shift/i.test(fn);
+    })());
+  }
+
+  sub('LOG — history leads, manual logging follows');
+  {
+    T('the freeform action sits in the header',
+      /<div class="log-hdr">[\s\S]{0,400}custom-log-btn/.test(src));
+    T('it is not full-width any more', !/\.custom-log-btn\{[^}]*width: 100%/.test(css));
+    T('it still reaches the touch floor', (() => {
+      const m = css.match(/\.custom-log-btn\{[^}]*min-height: (\d+)px/);
+      return !!m && +m[1] >= 44;
+    })());
+    T('and is still one tap', /class="custom-log-btn" onclick="openFreeformLog\(\)"/.test(src));
+    T('Recent follows the calendar with nothing wedged between',
+      src.indexOf('historyRecent') > src.indexOf('historySelectedDay'));
+  }
+
+  sub('LOG — a record stays notable');
+  {
+    T('a session with several records says how many',
+      /prs > 1 \? prs \+ ' PRs' : 'PR'/.test(src));
+    T('from the existing PR engine, not a new one',
+      /getSessionPRs\(l\)\.length/.test(src) && !/function computeRecentPRs/.test(src));
+  }
+
+  sub('LANDSCAPE — the shell owns the physical edge');
+  {
+    ['header', '\\.view', '\\.tabbar', '\\.sheet'].forEach(sel => {
+      T(sel.replace(/\\\\/g,'').replace('\\.','.') + ' reads the left inset',
+        new RegExp(sel + '\\{[\\s\\S]{0,200}padding-left: (calc\\(20px \\+ )?env\\(safe-area-inset-left').test(css));
+      T(sel.replace(/\\\\/g,'').replace('\\.','.') + ' reads the right inset',
+        new RegExp(sel + '\\{[\\s\\S]{0,200}padding-right: (calc\\(20px \\+ )?env\\(safe-area-inset-right').test(css));
+    });
+    T('the centred landscape treatment is untouched',
+      /\.sheet\{ max-width: 100%; \}/.test(css) &&
+      /@media \(min-width: 640px\)\{[\s\S]{0,200}max-width: 540px/.test(css));
+    T('no blanket padding was sprayed at every container',
+      (css.match(/env\(safe-area-inset-left/g) || []).length <= 6);
+  }
+
+  sub('this pass writes nothing');
+  {
+    reseed([sess('v', 1)], D(1));
+    const before = JSON.stringify({ w: ctx.workoutLog, t: ctx.trainerLog, s: ctx.schedule });
+    ctx.renderToday();
+    ctx.renderLogPage();
+    ctx.historyCalMonth = null; ctx.renderHistoryCalendar();
+    ctx.shiftHistoryMonth(-1); ctx.shiftHistoryMonth(1);
+    ctx.logConsistencyStripHtml(); ctx.recentWorkoutsHtml(8);
+    T('rendering Today and Log leaves training data untouched',
+      JSON.stringify({ w: ctx.workoutLog, t: ctx.trainerLog, s: ctx.schedule }) === before);
+    T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+    T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+      String(ctx.TRAINER_ENGINE_VERSION));
+    T('the consistency engine never calls the trainer', (() => {
+      const fn = src.slice(src.indexOf('function computeConsistencyData'),
+                           src.indexOf('SHADOW ADAPTIVE TRAINING ENGINE'));
+      return !/trainerLog|proposeTrainerState|TRAINER_CONFIG|shadowEvidence|computeCapability/.test(fn);
+    })());
+    T('and reuses the one cache it already had',
+      /_consistencyCache/.test(src) && !/_adherenceCache|_trackingCache/.test(src));
+  }
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -13663,6 +13919,7 @@ async function main(){
   testSurfaceConsolidation(H.loadApp());
   await testProgressExperience();
   await testOverlayIntegrity();
+  await testTodayAndHistoryTruth();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

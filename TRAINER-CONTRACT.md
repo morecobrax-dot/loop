@@ -3344,3 +3344,71 @@ lines of CSS with **zero JavaScript**, zero protected symbols, zero storage
 writes; cycling all 32 overlays left `workoutLog`, `cardioLog`, `trainerLog`,
 notes, gym, programs, XP, PRs and mastery byte-identical. `DATA_KEYS` 15,
 trainer `0.1.1-shadow`. Overlay open/close 0.11ms, workout page 1.13ms.
+
+## §47 — D27: Today and Log tell the truth
+
+Three problems, one theme: the app was stating things it did not know.
+
+**The adherence denominator was fiction.** Log's consistency card read
+**"6 of 32 planned sessions"** to an athlete who had been using LOOP for two
+weeks — twenty-six failures they were never given the chance to attend. The
+per-day model had always refused to call a pre-history day *missed*; the
+aggregate ignored that rule and multiplied the current plan across all twelve
+weeks (`plannedPerWeek × CONSISTENCY_WEEKS`).
+
+A day now counts as planned only from `trackingStart` — the earlier of the
+plan's own activation date (`planStart:<id>`, already stored) and the first
+logged session — and only once it is actually due. Both provenance sources
+existed; nothing new is recorded to answer this. Measured on the same
+fixture: **"6 of 32" became "6 of 8", and adherence went from 13% to 75%.**
+The experienced fixture is unaffected — 14 weeks of history still reports
+"14 of 32 planned sessions" over the last eight weeks, with all eight genuine
+misses intact, including a deliberately skipped week. Unknown is not zero;
+a real gap is still a real gap.
+
+**Unknown had no visual language.** A week before tracking now draws as a
+dashed outline rather than an empty bar, the strip says "N weeks tracked"
+(from the same `progressCoverage` helper Progress uses, so the two screens
+cannot quote different numbers), and the calendar gained `cal-unknown` —
+quieter than a rest day, which it is not, and nothing like a miss. The
+calendar's state model is now written down: outline = category, filled mark =
+completed, hollow = planned, dashed = missed, faint = unknown, plus a
+two-item legend naming the marks.
+
+**Today said the week twice.** "This week 2 of 4" with seven dots sat in
+Momentum a few hundred pixels below the same reading in This Week. Momentum's
+copy is gone, along with `momentumDotsHtml`, `momentumDotsAria` and the
+`.mo-primary` / `.mo-week` / `.mo-dot-*` styles — removed, not orphaned.
+Momentum now carries only what This Week cannot: a headline, the streak, and
+records this week, all from engines that already existed.
+
+**A rest day is now a plan.** It names what is next from the real template —
+"Monday · Push A — Chest Focus · 8 exercises · ~40 min" (it previously said
+only "Next up · Monday · Push"), with no recovery advice and no explanation
+of why rest is needed. Training anyway stays one tap but became the quiet
+44px accent control it always should have been, since rest is the plan and
+training is the override. The greeting lost "Still up" — it guessed at the
+athlete's night — and now reads only the clock.
+
+**Landscape had no horizontal safe area at all.** `env(safe-area-inset-left/
+right)` appeared zero times, and with a 44px side inset simulated the probe
+found the settings gear at x 748–792 on an 812px viewport, the workout back
+control at 22–66, and Settings' Close button spanning 34–806 — all under the
+island or the rounded corner. Four shells own a physical edge — `header`,
+`.view`, `.tabbar`, `.sheet` — and each now adds the inset to its own
+padding, so the surface still reaches the edge while its content never does.
+Zero collisions afterwards across 812×375, 844×390, 932×430 and 667×375, on
+five tabs and ten overlays; the 560px centred sheet still centres exactly
+(82px each side), so D10.1 is intact.
+
+**Heights, same fixture:** Today 1080 → 1014 (training day), 795 → 753
+(rest); Log 1167 → 1156 with the freeform action moved out of the history
+spine into the header. Today renders in 5.1ms, Log 11.0ms, month navigation
+7.1ms; the consistency cache still serves repeated reads at 0ms and no second
+cache was introduced. Records now say "2 PRs" where there were two, from the
+existing PR engine.
+
+Contract 124 holds all of it. Presentation and provenance only: zero
+protected-symbol lines, zero storage writes, `DATA_KEYS` 15, trainer
+`0.1.1-shadow`; browsing every calendar day, month and recent row left every
+log, XP, PR and mastery value byte-identical.

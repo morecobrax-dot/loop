@@ -876,6 +876,15 @@ html.intro-skip #introOverlay{ display: none !important; }
 .tw-cta:active{ transform: scale(0.985); }
 .tw-cta-done{ background: var(--success); }
 .tw-cta-ghost{ background: none; border: 1px solid var(--border); color: var(--text-dim); box-shadow: none; }
+/* D27 — on a scheduled rest day, REST is the plan and training is the
+   override. It stays a full-width 44px control and keeps the accent, so it
+   never reads as disabled; it simply stops competing with the plan. */
+.tw-override{ margin-top: 14px; }
+/* The next session, previewed from its own template. */
+.tw-next{ display: flex; flex-direction: column; gap: 2px; margin-top: 12px; }
+.tw-next-k{ font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
+.tw-next-v{ font-size: 14.5px; font-weight: 600; color: var(--text); }
+.tw-next-s{ font-size: 12px; color: var(--text-dim); }
 .tw-change{ min-height: 44px;
   width: 100%; margin-top: 8px; padding: 10px; background: none; border: none;
   color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer;
@@ -1753,37 +1762,10 @@ body.first-use{ padding-bottom: 0; }
   margin: var(--space-3) 0 0; font-size: 13.5px; line-height: 1.45; color: var(--text-dim);
 }
 
-/* THIS WEEK leads: it is the only reading the athlete can still change today,
-   so it gets the size and the tap, and the other two support it. */
-.mo-primary{
-  display: flex; align-items: center; gap: var(--space-3); width: 100%;
-  margin-top: var(--space-3); padding: 14px 16px; min-height: 44px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  cursor: pointer; text-align: left; font-family: 'Inter', sans-serif;
-  transition: border-color 0.15s var(--ease), transform 0.12s var(--ease);
-}
-.mo-primary:active{ transform: scale(0.995); border-color: var(--accent); }
-.mo-p-k{
-  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--text-faint); flex-shrink: 0;
-}
-.mo-p-v{
-  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px;
-  line-height: 1; color: var(--text); margin-left: auto; white-space: nowrap;
-}
-.mo-p-v span{ font-size: 14px; font-weight: 600; color: var(--text-dim); }
-
-/* The week itself, one mark per SCHEDULED day. A day still ahead is not a
-   failure and does not look like one; a rest day is not drawn at all,
-   because nothing was asked of it. */
-.mo-week{ display: flex; gap: 5px; flex-shrink: 0; }
-.mo-dot{ width: 9px; height: 9px; border-radius: 50%; background: var(--surface-3); }
-.mo-dot-done{ background: var(--success); }
-.mo-dot-pr{ box-shadow: 0 0 0 2px var(--success-soft); }
-.mo-dot-today{ background: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-.mo-dot-upcoming{ background: none; border: 1.5px solid var(--border); }
-/* Missed reads as attention, not punishment: the warning hue, not the error one. */
-.mo-dot-missed{ background: none; border: 1.5px solid var(--warning); }
+/* D27: Momentum's own week block (.mo-primary, .mo-p-*, .mo-week, .mo-dot-*)
+   was removed with the duplicate reading it drew. This Week is the one place
+   the week is shown, and it carries the same rule those dots did — a missed
+   day reads as attention (--warning), never as an error. */
 
 .mo-cells{ display: flex; gap: var(--space-2); margin-top: var(--space-2); }
 .mo-cell{
@@ -2503,7 +2485,8 @@ body.first-use{ padding-bottom: 0; }
 .muscle-bar-row.mb-top .muscle-bar-pct{ color: var(--text); font-weight: 700; }
 
 /* ---------- LOG (Phase D12) ---------- */
-.log-hdr{ display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.log-hdr{ display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.log-hdr-text{ display: flex; align-items: baseline; gap: 10px; min-width: 0; flex-wrap: wrap; }
 .log-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 26px; letter-spacing: -0.01em; margin: 0; }
 .log-sub{ font-size: 12.5px; color: var(--text-faint); }
 
@@ -2518,6 +2501,9 @@ body.first-use{ padding-bottom: 0; }
 .lc-range{ font-size: var(--fs-micro); color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
 .lc-bars{ display: flex; align-items: flex-end; gap: 5px; height: 46px; margin-top: 12px; }
 .lc-col{ flex: 1; height: 100%; display: flex; align-items: flex-end; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+/* D27: a week from before tracking began. Drawn as an empty outline so it
+   reads as "no data", never as a week the athlete failed to train. */
+.lc-unknown{ background: none; border: 1px dashed var(--border); }
 .lc-fill{ display: block; width: 100%; background: var(--text-faint); border-radius: 3px; transition: height 0.3s var(--ease); }
 .lc-col.on .lc-fill{ background: var(--success); }
 .lc-col.now{ box-shadow: 0 0 0 1.5px var(--accent); }
@@ -2624,6 +2610,17 @@ button.cal-cell:active{ transform: scale(0.92); }
 .cal-mark-done{ background: var(--success); }
 .cal-mark-planned{ border: 1px solid var(--text-faint); }
 .cal-mark-missed{ border: 1px solid var(--warning); }
+/* D27: two marks carry the whole status layer, so name them once rather than
+   asking the athlete to infer filled-vs-hollow. Category stays discoverable
+   through the cell outline and the day detail. */
+.cal-legend{
+  display: flex; justify-content: center; gap: 16px; margin-top: 12px;
+  font-size: var(--fs-micro); color: var(--text-faint);
+}
+.cal-legend span{ display: inline-flex; align-items: center; gap: 5px; }
+.cal-legend i{ width: 6px; height: 6px; border-radius: 50%; display: block; }
+.cal-lg-done{ background: var(--success); }
+.cal-lg-planned{ border: 1px solid var(--text-faint); }
 /* Upper and Lower had no category colour at all — the default plan's own two
    categories rendered as plain cells. */
 .cal-cat-upper{ background: var(--upper-soft); border-color: var(--upper); }
@@ -2631,6 +2628,9 @@ button.cal-cell:active{ transform: scale(0.92); }
 .cal-empty{ border: none; background: none; }
 .cal-daynum{ font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
 .cal-rest{ opacity: 0.5; }
+/* D27: before LOOP knew this athlete's schedule. Neutral and quiet — it is
+   not a rest day (nothing was planned) and it is certainly not a failure. */
+.cal-unknown{ opacity: 0.22; }
 .cal-future{ opacity: 0.3; }
 .cal-missed{ border-color: rgba(189,146,96,0.5); border-style: dashed; }
 .cal-missed .cal-daynum{ color: var(--pull); }
@@ -2679,12 +2679,16 @@ button.cal-cell:active{ transform: scale(0.92); }
 .empty .mark{ font-size: 30px; margin-bottom: 8px; }
 .empty h3{ font-family: 'Space Grotesk', sans-serif; color: var(--text); font-size: 16px; margin: 0 0 4px; }
 
+/* D27: freeform logging moved beside the Log title. It is a real action, so it
+   keeps a 44px target and a border — but it no longer sits full-width between
+   the calendar and Recent, outranking the history it interrupts. */
 .custom-log-btn{
-  width: 100%; min-height: 48px; background: none; border: 1px solid var(--border); color: var(--text);
-  padding: 12px; border-radius: var(--radius-lg); font-weight: 600; font-size: 13px; cursor: pointer;
-  margin-top: 14px; font-family: 'Inter', sans-serif;
+  flex-shrink: 0; min-height: 44px; background: none; border: 1px solid var(--border);
+  color: var(--accent); padding: 0 14px; border-radius: var(--radius-md);
+  font-weight: 600; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif;
 }
 .custom-log-btn:hover{ border-color: var(--accent); }
+.custom-log-btn:active{ transform: scale(0.97); }
 
 /* ---- Sheet / modal ---- */
 .overlay{
@@ -4861,6 +4865,33 @@ body.page-locked{ overflow: hidden; }
    LOOP is designed portrait-first. Rotating must not break it: sheets stay
    within the viewport, nothing overflows horizontally, and tall fixed
    elements shrink instead of being clipped. */
+
+/* D27 — HORIZONTAL SAFE AREA, at the shell level and nowhere else.
+   Rotated, the Dynamic Island and the rounded corners take a bite out of the
+   LEFT or RIGHT edge, and LOOP read `env(safe-area-inset-left/right)` in
+   exactly zero places: the workout back control sits 8px from the edge and a
+   full-bleed page sheet is 100% wide, so both landed under the island.
+   Four shells own a physical edge — the app header, the tab views, the tab
+   bar and any overlay sheet. Each keeps its own padding and adds the inset,
+   so the SURFACE still reaches the edge while its CONTENT never does, and
+   the 640/560px centred layouts simply centre inside the usable width.
+   On a device with no side inset every value below is its original. */
+header{
+  padding-left: calc(20px + env(safe-area-inset-left, 0px));
+  padding-right: calc(20px + env(safe-area-inset-right, 0px));
+}
+.view{
+  padding-left: calc(20px + env(safe-area-inset-left, 0px));
+  padding-right: calc(20px + env(safe-area-inset-right, 0px));
+}
+.tabbar{
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.sheet{
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
 .sheet{ max-width: 100%; }
 .overlay .sheet{ max-height: 100vh; max-height: 100dvh; }
 .sheet-scroll{ overscroll-behavior: contain; }
@@ -5222,9 +5253,15 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 
   <div class="view" id="view-history">
+    <!-- D27: Log's job is history. Freeform logging moved out of the middle of
+         the page (where it outranked the sessions it sits between) up beside
+         the title, as a quiet secondary action that is still one tap. -->
     <div class="log-hdr">
-      <h2 class="log-title">Log</h2>
-      <span class="log-sub">Your training history</span>
+      <div class="log-hdr-text">
+        <h2 class="log-title">Log</h2>
+        <span class="log-sub">Your training history</span>
+      </div>
+      <button type="button" class="custom-log-btn" onclick="openFreeformLog()">+ Log workout</button>
     </div>
 
     <div class="history-subview" id="sv-calendar">
@@ -5241,11 +5278,13 @@ html, body{ max-width: 100%; overflow-x: hidden; }
           <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
         </div>
         <div class="cal-grid" id="historyCalGrid"></div>
+        <div class="cal-legend" aria-hidden="true">
+          <span><i class="cal-lg-done"></i>Completed</span>
+          <span><i class="cal-lg-planned"></i>Planned</span>
+        </div>
       </div>
 
       <div id="historySelectedDay"></div>
-
-      <button class="custom-log-btn" onclick="openFreeformLog()">Log a freeform workout</button>
 
       <div id="historyRecent"></div>
 
@@ -10501,9 +10540,11 @@ function goToTrainCategory(cat){
   switchTab('train');
 }
 
+/* Local time only. "Still up" guessed at the athlete's night — it read as a
+   comment on their sleep to anyone training at 5am, on a night shift, or in a
+   timezone LOOP guessed wrong. The clock is the only thing the app knows. */
 function getGreeting(){
   const h = new Date().getHours();
-  if(h < 5) return 'Still up';
   if(h < 12) return 'Good morning';
   if(h < 18) return 'Good afternoon';
   return 'Good evening';
@@ -10610,21 +10651,34 @@ function computeConsistencyData(){
 
   let firstLogDate = null;
   workoutLog.forEach(l => { if(!firstLogDate || l.date < firstLogDate) firstLogDate = l.date; });
+  /* D27 — UNKNOWN HISTORY IS NOT A MISSED SESSION.
+     The per-day model already refused to call a pre-history day "missed", but
+     the DENOMINATOR did not: it multiplied the current plan across all twelve
+     weeks, so a two-week-old account read "6 of 32 planned sessions" — 26
+     failures it was never given the chance to attend. A day counts as planned
+     only from the point LOOP can actually establish the schedule: the plan's
+     own activation date, or the first logged session, whichever came first.
+     Both are stored already; nothing new is recorded to answer this. */
+  const trackingStart = [planStartDate, firstLogDate].filter(Boolean).sort()[0] || null;
 
   const weeks = [];
   for(let w = CONSISTENCY_WEEKS - 1; w >= 0; w--){
     const weekStart = new Date(thisMonday); weekStart.setDate(thisMonday.getDate() - w*7);
     const days = [];
     let workouts = 0, sets = 0, volume = 0, prs = 0, scoreSum = 0, scored = 0, missed = 0;
+    let plannedKnown = 0;
 
     for(let d = 0; d < 7; d++){
       const dt = new Date(weekStart); dt.setDate(weekStart.getDate() + d);
       const key = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
       const isFuture = dt > now;
-      const beforeHistory = firstLogDate && key < firstLogDate;
+      const beforeHistory = trackingStart && key < trackingStart;
       const entry = byDate[key];
       const dayKey = JS_DAY_TO_KEY[dt.getDay()];
       const wasPlanned = plannedDayKeys.indexOf(dayKey) !== -1;
+      /* Planned AND knowable AND already due — the only sessions the athlete
+         can fairly be measured against. */
+      if(wasPlanned && !beforeHistory && !isFuture) plannedKnown++;
 
       let state = 'rest', dayPRs = 0, dayScore = null, daySets = 0, dayVol = 0;
       if(entry){
@@ -10646,11 +10700,15 @@ function computeConsistencyData(){
       days.push({ date: key, state, entry: entry || null, prs: dayPRs, score: dayScore, sets: daySets, volume: dayVol, planned: wasPlanned });
     }
 
-    const target = plannedPerWeek || null;
+    /* The target is what was genuinely knowable, not the plan's shape applied
+       to weeks LOOP knew nothing about. A week entirely before tracking has no
+       target at all — it is unknown, which is not the same as a failed week. */
+    const target = plannedKnown || null;
     weeks.push({
       index: CONSISTENCY_WEEKS - w,
       start: weekStart,
       days, workouts, sets, volume, prs, missed,
+      plannedKnown, known: plannedKnown > 0 || workouts > 0,
       avgScore: scored ? Math.round(scoreSum / scored) : null,
       target,
       consistency: target ? Math.min(100, Math.round((workouts / target) * 100)) : null
@@ -10658,8 +10716,10 @@ function computeConsistencyData(){
   }
 
   const totalWorkouts = weeks.reduce((n,w) => n + w.workouts, 0);
-  const totalPlanned = plannedPerWeek ? plannedPerWeek * CONSISTENCY_WEEKS : null;
+  /* Summed from what was knowable week by week, never plannedPerWeek × 12. */
+  const totalPlanned = weeks.reduce((n,w) => n + w.plannedKnown, 0) || null;
   const overallConsistency = totalPlanned ? Math.min(100, Math.round((totalWorkouts / totalPlanned) * 100)) : null;
+  const weeksKnown = weeks.filter(w => w.known).length;
 
   const scoredWeeks = weeks.filter(w => w.avgScore !== null);
   const overallScore = scoredWeeks.length
@@ -10676,7 +10736,7 @@ function computeConsistencyData(){
 
   _consistencyCache = {
     weeks, totalWorkouts, totalPlanned, overallConsistency, overallScore,
-    plannedPerWeek, trend,
+    plannedPerWeek, trend, trackingStart, weeksKnown,
     hasEnoughData: totalWorkouts >= 3,
     rangeStart: weeks[0].start
   };
@@ -14328,13 +14388,37 @@ function renderTodayWorkout(){
   }
 
   if(cat === 'rest'){
+    /* D27 — a scheduled rest day is a plan, not an absence. It states what is
+       actually next, previewed from the same template the Train tab would
+       start, so the athlete can see what they are resting FOR. Training today
+       stays available, but as an override of the plan rather than the card's
+       primary action. */
     const nextDay = findNextTrainingDay(tKey);
+    const nextCat = nextDay ? schedule[nextDay] : null;
+    let nextPreview = '';
+    if(nextCat){
+      const tpl = (getTemplates(nextCat) || [])[0];
+      const shown = tpl ? applyTimeModeToTemplate(tpl) : null;
+      const bits = [];
+      if(shown){
+        const n = shown.exercises.length;
+        if(n) bits.push(`${n} exercise${n===1?'':'s'}`);
+        const dur = computeWorkoutDuration(shown);
+        if(dur) bits.push(`~${dur} min`);
+      }
+      nextPreview = `
+        <div class="tw-next">
+          <span class="tw-next-k">Next</span>
+          <span class="tw-next-v">${DAY_LABEL_FULL[nextDay]} · ${escapeHtml(tpl ? tpl.name : CAT_LABEL[nextCat])}</span>
+          ${bits.length ? `<span class="tw-next-s">${bits.join(' · ')}</span>` : ''}
+        </div>`;
+    }
     el.innerHTML = `
       <div class="tw tw-rest">
         <div class="tw-label">Today</div>
         <div class="tw-title">Rest Day</div>
-        <div class="tw-meta">${nextDay ? `Next up · ${DAY_LABEL_FULL[nextDay]} · ${CAT_LABEL[schedule[nextDay]]}` : 'No training days set yet'}</div>
-        <button class="tw-cta tw-cta-ghost" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
+        ${nextPreview || `<div class="tw-meta">No training days set yet</div>`}
+        <button class="tw-change tw-override" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
         ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(null)}</div>` : ''}
       </div>`;
     return;
@@ -14654,21 +14738,10 @@ function momentumProgress(){
   return null;
 }
 
-function momentumDotsHtml(days){
-  if(!days.length) return '';
-  return '<span class="mo-week" role="img" aria-label="' + escapeAttr(momentumDotsAria(days)) + '">' +
-    days.map(d => '<span class="mo-dot mo-dot-' + d.state + (d.pr ? ' mo-dot-pr' : '') + '"></span>').join('') +
-    '</span>';
-}
-function momentumDotsAria(days){
-  const done = days.filter(d => d.state === 'done').length;
-  const parts = [done + ' of ' + days.length + ' planned workouts completed'];
-  const missed = days.filter(d => d.state === 'missed').length;
-  if(missed) parts.push(missed + ' missed');
-  const left = days.filter(d => d.state === 'upcoming' || d.state === 'today').length;
-  if(left) parts.push(left + ' still to come');
-  return parts.join(', ');
-}
+/* D27: momentumDotsHtml / momentumDotsAria drew Momentum's copy of the week.
+   That copy is gone — This Week owns the week, with its own segment bar and
+   its own spoken summary — so the builders went with it rather than being
+   left behind as an unreachable second representation. */
 
 function renderTodayMomentum(){
   const el = document.getElementById('todayMomentum');
@@ -14684,19 +14757,14 @@ function renderTodayMomentum(){
   const totalSessions = workoutLog.length;
   const prog = momentumProgress();
 
-  /* This week leads because it is the only reading the athlete can still
-     change today. Tapping it goes to the week it describes. */
-  const primary = wk.planned > 0
-    ? '<button type="button" class="mo-primary" onclick="switchTab(\'today\'); document.getElementById(\'weekCard\').scrollIntoView({block:\'center\'});"' +
-      ' aria-label="' + escapeAttr(momentumDotsAria(wk.days)) + '">' +
-        '<span class="mo-p-k">This week</span>' +
-        '<span class="mo-p-v">' + wk.done + '<span> of ' + wk.planned + '</span></span>' +
-        momentumDotsHtml(wk.days) +
-      '</button>'
-    : '';
+  /* D27 — Momentum no longer restates the week. "2 of 4" and its seven dots
+     already sit in This Week, a few hundred pixels up the same screen; saying
+     it twice made the second one look like a different reading. Momentum's
+     job is what This Week cannot show: what is carrying forward.
 
-  /* Two supporting readings. A streak only appears once it means something —
-     one week is not a streak — and progress only when the data carries it. */
+     Two supporting readings remain. A streak only appears once it means
+     something — one week is not a streak — and progress only when the data
+     carries it. */
   const cells = [];
   if(streak >= 2){
     cells.push('<div class="mo-cell"><span class="mo-c-v">' + streak + '</span>' +
@@ -14713,7 +14781,7 @@ function renderTodayMomentum(){
      two showing the same number a scroll apart. */
   el.innerHTML =
     '<p class="mo-head">' + escapeHtml(momentumHeadline(wk, streak, totalSessions)) + '</p>' +
-    primary + support;
+    support;
 }
 /* A one-line route into the full progression view, replacing the exercise
    trend list that duplicated Progress > Strength without adding to it. */
@@ -15103,24 +15171,39 @@ function logConsistencyStripHtml(){
   const totalDone = weeks.reduce((n, w) => n + w.workouts, 0);
   if(!totalDone) return '';                       // nothing to be consistent about yet
 
-  const totalTarget = weeks.reduce((n, w) => n + (w.target || 0), 0);
+  /* Only the weeks LOOP can actually speak for. A column before tracking began
+     is UNKNOWN — drawn as an explicit empty outline, never as a failed week,
+     and never counted in the denominator. */
+  const known = weeks.filter(w => w.known);
+  const totalTarget = weeks.reduce((n, w) => n + (w.plannedKnown || 0), 0);
   const peak = Math.max(1, ...weeks.map(w => Math.max(w.workouts, w.target || 0)));
 
   const bars = weeks.map((w, i) => {
     const pct = Math.round((w.workouts / peak) * 100);
     const onTarget = w.target ? w.workouts >= w.target : w.workouts > 0;
     const isNow = i === weeks.length - 1;
+    if(!w.known){
+      return `<span class="lc-col lc-unknown" role="img" aria-label="Before tracking began">
+        <span class="lc-fill" style="height:4%"></span></span>`;
+    }
     return `<span class="lc-col${onTarget ? ' on' : ''}${isNow ? ' now' : ''}" role="img"
       aria-label="${w.workouts} session${w.workouts === 1 ? '' : 's'}${w.target ? ' of ' + w.target + ' planned' : ''}">
       <span class="lc-fill" style="height:${Math.max(pct, w.workouts ? 12 : 4)}%"></span>
     </span>`;
   }).join('');
 
+  const unknownCount = weeks.length - known.length;
+  /* Read from the same coverage helper Progress uses, so the two screens can
+     never quote a different number of tracked weeks at the same athlete. */
+  let tracked = known.length;
+  try{ tracked = progressCoverage().weeksTracked; }catch(e){}
   return `
     <div class="lc-card">
       <div class="lc-top">
         <span class="lc-title">Consistency</span>
-        <span class="lc-range">Last 8 weeks</span>
+        <span class="lc-range">${unknownCount
+          ? `${tracked} week${tracked === 1 ? '' : 's'} tracked`
+          : 'Last 8 weeks'}</span>
       </div>
       <div class="lc-bars">${bars}</div>
       <div class="lc-foot">${totalTarget
@@ -15151,8 +15234,11 @@ function renderHistoryCalendar(){
      the calendar did not, so a brand-new athlete opened Log and saw a month of
      missed days they were never given the chance to train. Same rule, one
      source of truth. */
-  let firstLogDate = null;
-  workoutLog.forEach(l => { if(!firstLogDate || l.date < firstLogDate) firstLogDate = l.date; });
+  /* D27: the same boundary the consistency engine uses, read from it rather
+     than recomputed — Today, Log and Progress cannot disagree about when this
+     athlete's tracked history begins. */
+  let trackingStart = null;
+  try{ trackingStart = computeConsistencyData().trackingStart; }catch(e){}
 
   let cells = '';
   for(let i=0; i<startOffset; i++) cells += `<div class="cal-cell cal-empty"></div>`;
@@ -15164,8 +15250,16 @@ function renderHistoryCalendar(){
     const entry = dayMap[dateStr];
     const dayKey = JS_DAY_TO_KEY[dt.getDay()];
     const scheduledCat = schedule ? schedule[dayKey] : 'rest';
-    const beforeHistory = !firstLogDate || dateStr < firstLogDate;
+    const beforeHistory = !trackingStart || dateStr < trackingStart;
 
+    /* State model, one layer at a time:
+         OUTLINE   — which category was trained (completed days only)
+         FILLED ●  — completed          HOLLOW ○ — planned, not yet due
+         MISSED    — planned, due, and knowable
+         UNKNOWN   — before LOOP had any schedule for this athlete
+         REST      — deliberately no training that day
+       Unknown and rest were one state before D27, which quietly claimed a
+       plan existed on days LOOP knew nothing about. */
     let cls = 'cal-cell';
     let mark = '';
     if(entry){
@@ -15175,7 +15269,9 @@ function renderHistoryCalendar(){
     } else if(isFuture){
       cls += ' cal-future';
       if(scheduledCat && scheduledCat !== 'rest') mark = `<span class="cal-mark cal-mark-planned"></span>`;
-    } else if(scheduledCat === 'rest' || beforeHistory){
+    } else if(beforeHistory){
+      cls += ' cal-unknown';
+    } else if(scheduledCat === 'rest'){
       cls += ' cal-rest';
     } else {
       cls += ' cal-missed';
@@ -15284,7 +15380,7 @@ function recentWorkoutsHtml(limit){
           <span class="rw-title">${escapeHtml(l.title)}</span>
           <span class="rw-meta">${formatDateShort(l.date)} · ${exCount} exercise${exCount===1?'':'s'} · ${setCount} set${setCount===1?'':'s'}</span>
         </span>
-        ${prs ? `<span class="rw-pr">PR</span>` : ''}
+        ${prs ? `<span class="rw-pr">${prs > 1 ? prs + ' PRs' : 'PR'}</span>` : ''}
         <span class="rw-go" aria-hidden="true">${chevronRightSvg()}</span>
       </button>`;
   }).join('');
