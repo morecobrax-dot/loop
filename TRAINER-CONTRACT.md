@@ -3287,3 +3287,60 @@ trip, rank-hero → showcase → back, five viewports with zero overflow and no
 clipped chart text, inputs at the 16px zoom floor, warm renders 9–13ms.
 Presentation only: zero protected-symbol lines in the diff, zero storage
 writes, `DATA_KEYS` 15, trainer `0.1.1-shadow`.
+
+## §46 — D26: the phone is respected on every surface
+
+D25 fixed Progress. The same defect lived in every full-screen overlay, and
+this pass found its actual cause rather than its symptom.
+
+**Root cause.** The device inset was carried as `padding-top` *inside* the
+scrolling box (`.sheet-page .sheet-scroll`). Padding scrolls away. So on a
+notched phone the content simply travelled up into the status region and sat
+there perfectly readable behind the clock and the Dynamic Island. Measured,
+with a 47px inset simulated across the 32-overlay inventory: **five pages
+leaked** — Backup & Data (its own title at y=11), Athlete Profile
+("Legendary Numbers" at y=32), Updates, My Gym, Plans.
+
+**The fix, in three CSS rules.** The inset now *also* gets a painted band:
+`.sheet.sheet-page::before` at the height of `env(safe-area-inset-top)`, in
+the page's own `--surface` ground, `pointer-events: none` so it never eats a
+tap. Scrolled content passes UNDER it instead of through it. An overlay that
+brings its own opaque header keeps it — `.workout-topbar` is raised above the
+band, so the band never paints over a title or a back control. Both sit above
+every z-index used inside page content (the pinned rest card at 5 is the
+highest), so no future sticky element can rise through the band. Pure CSS: no
+listener, no measurement, no blur, one paint.
+
+**A second defect fell out of the audit:** pages that already had an inset
+header were paying the inset *twice* — the workout page had a **65px blank
+strip** below its own topbar. `.workout-topbar + .sheet-scroll` now takes
+plain padding, and the gap measured 18px after.
+
+**Inventory: 32 overlays.** 16 full-screen pages (all now band-protected,
+verified by hit-testing the status band at three x-positions on each, at all
+five viewports) and 16 bottom sheets, which were already safe by their
+`92dvh - inset` height cap — tops measured from 367px to 760px, none within
+the band. No overlay was rewritten; the shared primitive was corrected once.
+
+**What the audit confirmed already correct** (measured, not assumed): the
+single body-lock/`MutationObserver` mechanism pins the background at
+`position: fixed` with the exact offset (700px in, 700px out, no jump);
+nesting reaches depth 2 with only the topmost surface hit-testable and the
+page beneath unreachable; overscroll is contained on `.sheet-scroll`,
+`.cs-body`, `.prep-run`, `.ob-scroll`, the overlay and the locked body; every
+bottom action bar pads for the home indicator with 0px dead strip and ≥44px
+controls; no input anywhere is under 16px; pinch zoom is still permitted
+(`viewport-fit=cover`, no `maximum-scale`) while `touch-action: manipulation`
+blocks tap zoom. A full workout — values, completed state, set type, RIR,
+open sheets, row count — survived portrait→landscape→portrait unchanged.
+
+**Rank.** "Full profile & achievements" genuinely opens the profile but was
+drawn in the faint caption grey, which reads as disabled. It now uses the
+accent — the app's own language for a secondary text link, the same voice as
+`.sheet-back` — and still reaches 44px.
+
+Contract 123 holds all of it. Layout only: the `index.html` diff is 34 added
+lines of CSS with **zero JavaScript**, zero protected symbols, zero storage
+writes; cycling all 32 overlays left `workoutLog`, `cardioLog`, `trainerLog`,
+notes, gym, programs, XP, PRs and mastery byte-identical. `DATA_KEYS` 15,
+trainer `0.1.1-shadow`. Overlay open/close 0.11ms, workout page 1.13ms.

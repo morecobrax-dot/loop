@@ -828,13 +828,19 @@ html.intro-skip #introOverlay{ display: none !important; }
 .rank-dots{ display: flex; gap: 6px; }
 .rank-dot{ width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.16); transition: background 0.2s var(--ease); }
 .rank-dot.on{ background: var(--accent); }
+/* D26: this control really does go somewhere — it opens the profile — but drawn
+   in the faint caption grey it read as disabled. The accent is the app's own
+   language for a secondary text link, the same voice as .sheet-back, and at
+   13px under the card it stays clearly subordinate to the rank itself. */
 .rank-profile-link{
   margin: var(--space-3) auto calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
   min-height: 44px; padding: 0 var(--space-4);
   background: none; border: none; cursor: pointer;
-  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-faint);
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+  color: var(--accent);
 }
-.rank-profile-link:hover{ color: var(--text-dim); }
+.rank-profile-link:hover{ color: var(--text); }
+.rank-profile-link:active{ opacity: 0.7; }
 @media (prefers-reduced-motion: reduce){
   .rank-track{ transition: none !important; }
   .rank-card{ transition: none; }
@@ -2184,6 +2190,11 @@ body.first-use{ padding-bottom: 0; }
 /* The scroll surface owns the top inset on a page — there is no sheet lip above
    it to absorb the notch. */
 .sheet-page .sheet-scroll{ padding-top: calc(18px + env(safe-area-inset-top, 0px)); }
+/* Unless the page brings its own header, which already absorbed it: measured
+   on the workout page, the inset was being paid twice — a 65px blank strip
+   below an already-inset topbar. The header offsets the content; the scroll
+   only needs its own breathing room. */
+.workout-topbar + .sheet-scroll{ padding-top: 18px; }
 /* A bottom sheet tall enough to reach the top of the screen needs the inset
    too — otherwise its first line sits under the clock on a notched device. */
 .overlay:not(.overlay-page) .sheet{ max-height: calc(92dvh - env(safe-area-inset-top, 0px)); }
@@ -3315,6 +3326,20 @@ textarea{ resize: vertical; min-height: 56px; }
   height: 100%; max-height: 100%;
   border-radius: 0; border-top: none; box-shadow: none;
   animation: pageIn 0.22s var(--ease) both;
+  position: relative;             /* containing block for the status band */
+}
+/* D26 — STATUS-AREA BAND (the systemic fix)
+   The device inset used to live as padding-top INSIDE the scrolling box.
+   Padding scrolls away, so on a notched phone the content simply travelled
+   up into the status region and stayed perfectly readable behind the clock
+   and the Dynamic Island — measured on five pages before this.
+   The inset now also gets a painted band in the page's own ground, so
+   scrolled content passes UNDER it rather than through it. Pure CSS: no
+   listener, no measurement, no blur — it costs one paint. */
+.sheet.sheet-page::before{
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--surface); z-index: 6; pointer-events: none;
 }
 @keyframes pageIn{
   from{ transform: translateX(14px); opacity: 0; }
@@ -3324,6 +3349,12 @@ textarea{ resize: vertical; min-height: 56px; }
   display: flex; align-items: center; gap: 8px; flex-shrink: 0;
   padding: calc(10px + env(safe-area-inset-top, 0px)) 8px 10px;
   border-bottom: 1px solid var(--border); background: var(--surface);
+  /* D26 — an overlay that brings its own opaque header keeps it: the header
+     paints ABOVE the status band, so the band can never cover a title or a
+     back control. Both sit above every z-index used inside page content
+     (the highest is the pinned rest card at 5), so no future sticky element
+     can rise through the band. */
+  position: relative; z-index: 7;
 }
 .workout-back{
   width: 44px; height: 44px; flex-shrink: 0;

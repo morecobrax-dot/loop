@@ -13421,6 +13421,160 @@ async function testProgressExperience(){
   })());
 }
 
+/* =========================================================
+   CONTRACT 123 — the phone is respected everywhere (D26)
+   ---------------------------------------------------------
+   D25 fixed the Progress tab; the same defect lived in every
+   full-screen overlay, because the device inset was carried
+   as padding INSIDE the scrolling box. Padding scrolls away.
+   Five pages were measured leaking readable text into the
+   status region before this.
+
+   The rule this contract holds: on every page surface the
+   inset is also a PAINTED band, an overlay's own opaque
+   header outranks that band, only the topmost surface takes
+   input, and the background never moves.
+   ========================================================= */
+async function testOverlayIntegrity(){
+  section('CONTRACT 123 — overlay safe areas, scrolling and input (D26)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, doc = app.dom.document;
+
+  sub('the status band: painted, not padded');
+  T('a page surface paints a band the height of the device inset',
+    /\.sheet\.sheet-page::before\{[\s\S]{0,220}height: env\(safe-area-inset-top, 0px\)/.test(css));
+  T('it is painted in the page ground, so nothing shows through',
+    /\.sheet\.sheet-page::before\{[\s\S]{0,260}background: var\(--surface\)/.test(css));
+  T('it never eats a tap',
+    /\.sheet\.sheet-page::before\{[\s\S]{0,300}pointer-events: none/.test(css));
+  T('the page is its containing block, so the band cannot drift',
+    /\.sheet\.sheet-page\{[\s\S]{0,200}position: relative/.test(css));
+  T('the band outranks every z-index used inside page content', (() => {
+    const band = +(css.match(/\.sheet\.sheet-page::before\{[\s\S]{0,300}z-index: (\d+)/) || [])[1];
+    /* Everything that can appear inside a scrolling page — the pinned rest
+       card is the highest at 5 — must sit below the band. The overlay layer
+       (40+) and the header are above it by design and excluded. */
+    const bar = +(css.match(/\.workout-topbar\{[\s\S]{0,700}z-index: (\d+)/) || [])[1];
+    const inner = [...css.matchAll(/z-index: (\d+)/g)].map(m => +m[1])
+      .filter(n => n < 40 && n !== band && n !== bar);
+    return inner.length > 0 && band > Math.max(...inner);
+  })());
+  T('an overlay header outranks the band, so a title is never covered', (() => {
+    const band = +(css.match(/\.sheet\.sheet-page::before\{[\s\S]{0,300}z-index: (\d+)/) || [])[1];
+    const bar = +(css.match(/\.workout-topbar\{[\s\S]{0,700}z-index: (\d+)/) || [])[1];
+    return bar > band;
+  })());
+  T('a header that owns the inset is opaque',
+    /\.workout-topbar\{[\s\S]{0,200}background: var\(--surface\)/.test(css));
+  T('the inset is never paid twice under a header',
+    /\.workout-topbar \+ \.sheet-scroll\{ padding-top: 18px; \}/.test(css));
+  T('pages still offset their content below the band',
+    /\.sheet-page \.sheet-scroll\{ padding-top: calc\(18px \+ env\(safe-area-inset-top/.test(css));
+
+  sub('every page surface is covered — none opts out');
+  {
+    /* Asserted against the shipped markup rather than the harness DOM: every
+       full-screen page must present a .sheet-page, which is what carries the
+       band. A future page that forgets it fails here. */
+    const ids = [...src.matchAll(/<div class="overlay overlay-page" id="([A-Za-z]+)"/g)].map(m => m[1]);
+    T('the app has full-screen pages to protect', ids.length >= 14, String(ids.length));
+    const unprotected = ids.filter(id => {
+      const at = src.indexOf('id="' + id + '"');
+      const window600 = src.slice(at, at + 600);
+      return !/class="sheet sheet-page/.test(window600);
+    });
+    T('every one of them carries the band-bearing page surface',
+      unprotected.length === 0, unprotected.join(','));
+    /* And the six that bring their own header still declare an opaque one. */
+    const withBar = ids.filter(id => {
+      const at = src.indexOf('id="' + id + '"');
+      return /workout-topbar/.test(src.slice(at, at + 600));
+    });
+    T('the pages that carry their own header still do', withBar.length >= 5, String(withBar.length));
+  }
+  T('bottom sheets stay clear of the status area by their height cap',
+    /\.overlay:not\(\.overlay-page\) \.sheet\{ max-height: calc\(92dvh - env\(safe-area-inset-top/.test(css));
+
+  sub('scroll ownership');
+  T('every scrolling surface inside an overlay contains its own overscroll',
+    /\.sheet-scroll, \.cs-body, \.prep-run, \.ob-scroll\{ overscroll-behavior: contain; \}/.test(css));
+  T('the overlay itself refuses to chain to the page behind it',
+    /\.overlay\{[\s\S]{0,400}overscroll-behavior: contain/.test(css));
+  T('a locked body cannot rubber-band either',
+    /body\.scroll-locked\{[\s\S]{0,200}overscroll-behavior: none/.test(css));
+  T('the background lock is position:fixed, not merely overflow:hidden',
+    /body\.scroll-locked\{[\s\S]{0,160}position: fixed/.test(css));
+
+  sub('one lock, one stack — no second mechanism was built');
+  T('there is exactly one lock implementation',
+    (src.match(/function lockBackgroundScroll\(/g) || []).length === 1 &&
+    (src.match(/function unlockBackgroundScroll\(/g) || []).length === 1);
+  T('depth is derived from the DOM, so it cannot drift',
+    /function syncBackgroundScrollLock\(\)\{[\s\S]{0,200}querySelectorAll\('\.overlay\.open'\)/.test(src));
+  T('the scroll offset is restored exactly, and instantly',
+    /window\.scrollTo\(\{ top: _lockedScrollY, behavior: 'instant' \}\)/.test(src));
+  T('only the topmost sheet answers Escape',
+    /function topOpenSheet\(\)/.test(src) && /const ov = topOpenSheet\(\);/.test(src));
+
+  sub('behaviour: lock, nest, restore');
+  {
+    /* The harness's window is a stub, so drive it directly: the lock reads
+       scrollY on the way in and calls scrollTo on the way out. */
+    const win = ctx.window;
+    let scrolled = 700;
+    win.scrollTo = (o) => { scrolled = (o && typeof o.top === 'number') ? o.top : scrolled; };
+    Object.defineProperty(win, 'scrollY', { get: () => scrolled, configurable: true });
+    ctx.lockBackgroundScroll();
+    T('opening a surface pins the body at the athlete\'s position',
+      doc.body.style.top === '-700px' && doc.body.classList.contains('scroll-locked'));
+    ctx.lockBackgroundScroll();          // a nested surface
+    ctx.unlockBackgroundScroll();        // inner closes
+    T('closing an inner surface leaves the lock in place',
+      doc.body.classList.contains('scroll-locked'));
+    ctx.unlockBackgroundScroll();        // outer closes
+    T('closing the last one restores the exact offset — no jump to top',
+      !doc.body.classList.contains('scroll-locked') && scrolled === 700, String(scrolled));
+  }
+
+  sub('touch and zoom policy is unchanged');
+  T('the viewport still covers the notch',
+    /viewport-fit=cover/.test(src));
+  T('pinch zoom is still permitted',
+    !/maximum-scale|user-scalable\s*=\s*no/.test(src));
+  T('a normal tap cannot zoom', /body\{ touch-action: manipulation; \}/.test(src));
+  T('text does not resize itself on rotation', /text-size-adjust: 100%/.test(css));
+
+  sub('bottom action areas honour the inset');
+  ['\\.sheet-actions', '\\.ob-actions'].forEach(sel => {
+    T(sel.replace(/\\\\/g,'').replace('\\.','.') + ' pads for the home indicator',
+      new RegExp(sel + '\\{[\\s\\S]{0,220}env\\(safe-area-inset-bottom').test(css));
+  });
+  T('the rank screen\'s own bottom control does too',
+    /\.rank-profile-link\{[\s\S]{0,160}env\(safe-area-inset-bottom/.test(css));
+
+  sub('the rank profile link reads as a link, not as disabled text');
+  T('it really does go somewhere',
+    /class="rank-profile-link" onclick="closeRankShowcase\(\); openProfile\(\)"/.test(src));
+  T('so it is drawn in the app\'s link colour, not the faint caption grey',
+    /\.rank-profile-link\{[\s\S]{0,320}color: var\(--accent\)/.test(css) &&
+    !/\.rank-profile-link\{[\s\S]{0,320}color: var\(--text-faint\)/.test(css));
+  T('and it still reaches 44px', /\.rank-profile-link\{[\s\S]{0,120}min-height: 44px/.test(css));
+
+  sub('this pass is layout only');
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+    String(ctx.TRAINER_ENGINE_VERSION));
+  T('the band is pure CSS — no listener, no measurement, no blur', (() => {
+    const rule = css.slice(css.indexOf('.sheet.sheet-page::before'), css.indexOf('@keyframes pageIn'));
+    return !/backdrop-filter|blur\(/.test(rule);
+  })());
+  T('no scroll listener was introduced to keep it in place',
+    (src.match(/addEventListener\('scroll'/g) || []).length <= 2);
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -13508,6 +13662,7 @@ async function main(){
   testRankIdentity(H.loadApp());
   testSurfaceConsolidation(H.loadApp());
   await testProgressExperience();
+  await testOverlayIntegrity();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
