@@ -6753,8 +6753,20 @@ function testD11Consolidation(app){
     T('exercise trends left Today', view.indexOf('id="todayTrends"') === -1 &&
       src.indexOf('function renderTodayTrends(') === -1);
     T('the full-size level card left Today', src.indexOf('function renderLevelCard(') === -1);
-    T('progression survives as one compact line', /class="mo-level"/.test(src));
-    T('and still routes to the full profile', /mo-level[\s\S]{0,120}openProfile\(\)/.test(src));
+    /* D22: the compact line moved from Momentum's foot to the Home header —
+       the athlete's standing is the first thing Home says, not something found
+       by scrolling. Same guarantees, stronger position: one display, reading
+       the same progression, still routing to the same profile. */
+    T('progression survives as one compact display, now in the header', (() => {
+      const i = src.indexOf('function renderToday(){');
+      const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+      return /class="hdr-level"/.test(body) && /getCurrentProgression\(\)/.test(body) &&
+             /todayDateLine/.test(body);
+    })());
+    T('and still routes to the full profile',
+      /hdr-level" onclick="openProfile\(\)"/.test(src));
+    T('and momentum no longer shows a second copy of the same number',
+      !/class="mo-level"/.test(src));
   }
 
   sub('TODAY — the week is derived, never a second schedule');
@@ -11923,8 +11935,15 @@ function testWorkoutJourney(app){
     const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
     return (body.match(/class="prep-instruction"/g) || []).length === 1;
   })());
-  T('the purpose line still trails the clock as the optional one',
-    /class="prep-purpose"/.test(src) && /\.prep-purpose\{ display: none; \}/.test(src));
+  /* D22: was "the purpose line still trails the clock". The focus line is
+     gone from the runner entirely — it sat against the actions at the foot of
+     the card, competing with Next for the same ground, and explained why the
+     movement exists rather than how to do it. What must survive is the HOW:
+     the instruction, once, between the name and the figure (asserted above).
+     The registry keeps its purpose text for any surface that wants it; the
+     runner just no longer renders it. */
+  T('the focus description no longer competes with the actions',
+    !/class="prep-purpose"/.test(src) && !/\.prep-purpose\{/.test(src));
   /* Movements differ by a line or two of copy. Bounding the figure against the
      viewport is what keeps the longest of them — Standing Cat-Cow, two lines
      of instruction and two of purpose — inside one screen instead of pushing
@@ -12734,6 +12753,95 @@ function testTrainingTruth(app){
   })() === true);
 }
 
+/* =========================================================
+   CONTRACT 119 — Home standing, tap safety, choosing surface (D22)
+   ---------------------------------------------------------
+   The level is the first thing Home says; a tap can never
+   zoom the page; the Train card is the choosing surface; and
+   the warm-up says how, not why.
+   ========================================================= */
+function testHomeAndTouch(app){
+  section('CONTRACT 119 — home standing, tap safety, the choosing surface');
+  const ctx = app.ctx;
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  sub('the level leads Home, from the one progression there is');
+  T('the header renders greeting and level as one balanced row',
+    /\.today-hdr\{[^}]*display: flex;[^}]*justify-content: space-between;/.test(css));
+  T('the chip reads the same progression as everywhere else', (() => {
+    const i = src.indexOf('function renderToday(){');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    /* No arithmetic of its own beyond the same percent everyone derives. */
+    return /const p = getCurrentProgression\(\);/.test(body) &&
+           !/lifetimeXP\s*[+\-*]/.test(body) && !/LOOPStore/.test(body);
+  })());
+  T('it speaks its meaning, not just a number',
+    /aria-label="Level \$\{p\.level\}, \$\{pct\}% to level \$\{p\.level \+ 1\}"/.test(src));
+  T('a progression failure cannot take the greeting down',
+    /catch\(e\)\{ levelChip = ''; \}/.test(src));
+  T('the chip clears the touch minimum', /\.hdr-level\{[\s\S]{0,240}min-height: 44px;/.test(css));
+
+  sub('a tap can never zoom the page');
+  /* `manipulation` removes double-tap zoom and the 300ms delay while leaving
+     pinch intact — declared at every level so no subtree can reintroduce it. */
+  T('the root, the body and every element decline double-tap zoom',
+    /html\{\s*touch-action: manipulation;/.test(css) &&
+    /body\{ touch-action: manipulation; \}/.test(css) &&
+    /\*\{ touch-action: manipulation; \}/.test(css));
+  T('no element opts back into free gestures', !/touch-action:\s*auto/.test(css));
+  T('the only overrides are pan and drag locks, which also refuse zoom', (() => {
+    const others = (css.match(/touch-action:\s*([a-z-]+)/g) || [])
+      .map(m => m.split(':')[1].trim())
+      .filter(v => v !== 'manipulation');
+    return others.every(v => v === 'pan-y' || v === 'none') ? true : others;
+  })() === true);
+  T('the viewport does not pin maximum-scale, so pinch stays available',
+    /name="viewport"/.test(src) && !/maximum-scale|user-scalable=no/.test(src));
+  T('Safari cannot inflate text on rotation', /-webkit-text-size-adjust: 100%;/.test(css));
+
+  sub('the Train card is the choosing surface');
+  T('the card carries the deep surface, not another flat sheet',
+    /\.tpl-card\{[\s\S]{0,200}background: var\(--surface-gradient\);/.test(css));
+  T('its name is set as a heading',
+    /\.tpl-name\{[^}]*font-weight: 700; font-size: 17px;/.test(css));
+  T('starting it is the same gradient as every primary forward action',
+    /\.tpl-start\{[\s\S]{0,220}background: var\(--grad-accent\); color: #06121F;/.test(css));
+  T('and the gradient budget still holds',
+    (css.match(/var\(--grad-accent\)/g) || []).length <= 4,
+    String((css.match(/var\(--grad-accent\)/g) || []).length));
+  T('the card answers interaction with its border, not a glow',
+    /\.tpl-card:hover, \.tpl-card:focus-within\{ border-color: rgba\(76,194,255,0\.35\);/.test(css));
+
+  sub('the body diagram labels its views in the app\'s own voice');
+  T('FRONT and BACK are letterspaced micro labels at the SVG floor',
+    /font-size="11" letter-spacing="1\.4"[^>]*>FRONT</.test(src) &&
+    /font-size="11" letter-spacing="1\.4"[^>]*>BACK</.test(src));
+
+  sub('the warm-up says how, and only how');
+  T('the instruction still sits between the name and the figure', (() => {
+    const i = src.indexOf('function renderPrepStep');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    const name = body.indexOf('prep-move-name');
+    const instr = body.indexOf('prep-instruction');
+    const stage = body.indexOf('prep-stage');
+    return name > 0 && instr > name && stage > instr;
+  })());
+  T('the registry keeps its purpose text — only the runner stopped reading it',
+    /purpose:'Get the shoulders moving/.test(src));
+
+  sub('none of it writes anything');
+  T('the header, the momentum change and the card styling touch no storage', (() => {
+    const i = src.indexOf('function renderToday(){');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/LOOPStore|setItem|persist/.test(body);
+  })());
+  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer engine is untouched',
+    ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -12817,6 +12925,7 @@ async function main(){
   testWorkoutNavStates(H.loadApp());
   testWorkoutEditor(H.loadApp());
   testTrainingTruth(H.loadApp());
+  testHomeAndTouch(H.loadApp());
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

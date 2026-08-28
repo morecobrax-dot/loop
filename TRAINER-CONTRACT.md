@@ -3034,3 +3034,49 @@ own identities. Contrast is contract-computed, not eyeballed: text on surface
 Zero trainer symbols, zero storage writes and zero XP/PR functions appear in
 the diff — the truth work changed only what feeds them. `DATA_KEYS` is still
 15. The trainer remains `0.1.1-shadow`.
+
+## §42.1 — D22: the standing leads Home; nothing zooms; the choosing surface
+
+**Level moved to the header.** It sat at the foot of Momentum, a scroll below
+the greeting. It is now a compact chip across from "Good evening" — level
+number over a 3px gradient progress bar, 44px minimum, reading the same
+`getCurrentProgression()` as everywhere else with no arithmetic of its own,
+routing to the same profile, and wrapped so a progression failure cannot take
+the greeting down. The Momentum copy is gone: one number, one place. Contracts
+assert the header row, the shared read, the spoken label, and that no second
+copy exists.
+
+**A tap can never zoom.** The audit found this already architecturally closed
+— `touch-action: manipulation` on `html`, `body` and `*` removes double-tap
+zoom and the 300ms delay while keeping pinch; the only overrides are `pan-y`
+and drag-lock `none`, which also refuse zoom; the viewport meta pins no
+`maximum-scale`, so pinch stays available; and the D18.3 text-inflation guard
+stands. What changed is that this is now contract-held: no rule may opt back
+into `touch-action: auto`, and any new override must be a pan or a lock.
+Measured: twenty rapid taps leave `visualViewport.scale` at 1.
+
+**The Train card is the choosing surface.** It gains the deep gradient surface
+and a 17px/700 heading; Start This Workout carries the same accent gradient as
+every other primary forward action (fourth and final use of the budgeted
+token); interaction answers with a border, not a glow. Information was neither
+added nor removed — the card already said exercises, duration, muscles, focus
+and plateau; the hierarchy just stopped being flat.
+
+**FRONT / BACK resolved.** The body diagram's view labels were declared at 15
+SVG units — ~18px rendered, larger than the workout's own name, in bare mono:
+the "stray control". They are meaningful (two anatomical views), so they were
+redesigned, not removed: 11 units — exactly the SVG floor a previous phase
+established after finding these same labels at 4.74px — letterspaced into the
+app's micro-label voice, rendering ~14px, now smaller than the name.
+
+**The warm-up says how, and only how.** The focus line ("why this movement")
+sat against the actions at the foot of the card, fighting Next for the same
+ground. It is gone from the runner; the instruction — the how — keeps its
+place between the name and the figure, asserted by position. The runner is a
+centered column, so nothing is left holding a hole; the registry keeps its
+purpose text for any future surface. The D19 assertion that the purpose line
+trails the clock was replaced by its D22 inverse.
+
+Storage-neutral: zero writes in the diff, `DATA_KEYS` still 15, three
+backdrop-filters and four gradient uses in the whole app, trainer at
+`0.1.1-shadow`.

@@ -732,7 +732,35 @@ html.intro-skip #introOverlay{ display: none !important; }
 .resume-discard{ flex: 0 0 auto; padding-left: 16px; padding-right: 16px; color: var(--text-faint); }
 
 /* ---- Today: condensed dashboard ---- */
-.today-hdr{ padding: 4px 0 2px; }
+/* Greeting on the left, standing on the right — one balanced line, under the
+   safe area the page header already carries. */
+.today-hdr{ padding: 4px 0 2px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.today-hdr-left{ min-width: 0; }
+/* The level chip: compact, deep, quietly luminous. The number is the point;
+   the bar underneath carries progress without a percentage shouting beside
+   the greeting. Tapping it opens the same profile it always did. */
+.hdr-level{
+  flex-shrink: 0; display: grid; grid-template-columns: auto auto; align-items: baseline;
+  column-gap: 6px; row-gap: 5px; padding: 8px 12px; min-height: 44px;
+  background: var(--surface-gradient); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); cursor: pointer; text-align: left;
+  transition: border-color 0.15s var(--ease), transform 0.12s var(--ease);
+}
+.hdr-level:active{ transform: scale(0.97); }
+.hdr-level:hover, .hdr-level:focus-visible{ border-color: var(--accent); }
+.hdr-level-k{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint);
+}
+.hdr-level-n{
+  font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 700;
+  color: var(--text); line-height: 1;
+}
+.hdr-level-bar{
+  grid-column: 1 / -1; height: 3px; border-radius: 2px;
+  background: var(--surface-3); overflow: hidden;
+}
+.hdr-level-bar span{ display: block; height: 100%; background: var(--grad-accent); border-radius: 2px; }
 .today-greet{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 21px; color: var(--text); }
 .today-sub{ font-size: 12px; color: var(--text-faint); margin-top: 3px; display: flex; align-items: center; gap: 8px; }
 .today-focus{ color: var(--accent); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--fs-micro); }
@@ -1953,12 +1981,19 @@ body.first-use{ padding-bottom: 0; }
 
 /* ---- Template cards ---- */
 .tpl-grid{ display: flex; flex-direction: column; gap: 10px; }
+/* D22: the choosing surface. A workout card is the thing the athlete weighs
+   before committing, so it gets the deep gradient surface and a name set as a
+   heading — while everything inside stays the quiet informational layer it
+   was. Depth over decoration: no glow, no glass, one border that answers
+   interaction. */
 .tpl-card{
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px;
-  transition: border-color 0.2s var(--ease);
+  background: var(--surface-gradient); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
+.tpl-card:hover, .tpl-card:focus-within{ border-color: rgba(76,194,255,0.35); box-shadow: var(--shadow-md); }
 .tpl-top{ display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-.tpl-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px; }
+.tpl-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
 .tpl-meta-row{ display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
 .tpl-meta{ font-size: 11px; color: var(--text-faint); }
 .tpl-duration{ font-size: 11px; color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; }
@@ -1970,8 +2005,10 @@ body.first-use{ padding-bottom: 0; }
 }
 .tpl-edit:hover{ border-color: var(--accent); color: var(--accent); }
 .tpl-del:hover{ border-color: var(--danger); color: var(--danger); }
+/* The card's one loud element — the same gradient every primary forward
+   action in LOOP now carries, so "start" reads identically everywhere. */
 .tpl-start{
-  width: 100%; margin-top: 14px; background: var(--accent); color: #0C0E12; border: none;
+  width: 100%; margin-top: 14px; background: var(--grad-accent); color: #06121F; border: none;
   padding: 11px; min-height: 44px; border-radius: var(--radius-md); font-weight: 700; font-size: 13.5px; cursor: pointer;
   box-shadow: var(--shadow-accent); transition: transform 0.12s var(--ease), box-shadow 0.18s var(--ease), opacity 0.15s var(--ease);
 }
@@ -3981,10 +4018,6 @@ body.page-locked{ overflow: hidden; }
   font-size: 15px; line-height: 1.5; color: var(--text);
   max-width: 320px; margin: 0 auto var(--space-5);
 }
-.prep-purpose{
-  font-size: 12px; line-height: 1.45; color: var(--text-faint);
-  max-width: 320px; margin: var(--space-3) auto 0;
-}
 /* Quiet context, not a component. The bordered chip this used to be was the
    only boxed element on the card — one more container fighting the movement
    for attention. Category is metadata: letterspaced small caps, no box. */
@@ -4607,7 +4640,6 @@ body.page-locked{ overflow: hidden; }
   /* The instruction now sits above the figure, so the generous gap that gives
      it headroom in portrait is height the row layout cannot spare here. */
   .prep-instruction{ font-size: 13px; margin-bottom: var(--space-2); }
-  .prep-purpose{ display: none; }          /* least essential line first */
   .prep-actions button{ min-height: 44px; }
   .tw-cta{ min-height: 46px; }
   .prep-card{ padding: var(--space-3) var(--space-4); }
@@ -9219,7 +9251,7 @@ function bodyDiagramSvg(t){
       <line x1="38" y1="120" x2="38" y2="144" stroke="${S}" stroke-width="0.6"/>
       <ellipse cx="19" cy="149" rx="5.5" ry="4.5" fill="${BLACK}"/>
       <ellipse cx="39" cy="149" rx="5.5" ry="4.5" fill="${BLACK}"/>
-      <text x="29" y="160" font-size="15" fill="var(--text-faint)" text-anchor="middle" font-family="JetBrains Mono, monospace">FRONT</text>
+      <text x="29" y="160" font-size="11" letter-spacing="1.4" fill="var(--text-faint)" text-anchor="middle" font-family="JetBrains Mono, monospace">FRONT</text>
     </g>
     <g transform="translate(66,0)">
       <ellipse cx="29" cy="9" rx="8.5" ry="9.5" fill="${BLACK}"/>
@@ -9251,7 +9283,7 @@ function bodyDiagramSvg(t){
       <line x1="38" y1="120" x2="38" y2="144" stroke="${S}" stroke-width="0.6" opacity="0.7"/>
       <ellipse cx="19" cy="149" rx="5.5" ry="4.5" fill="${BLACK}"/>
       <ellipse cx="39" cy="149" rx="5.5" ry="4.5" fill="${BLACK}"/>
-      <text x="29" y="160" font-size="15" fill="var(--text-faint)" text-anchor="middle" font-family="JetBrains Mono, monospace">BACK</text>
+      <text x="29" y="160" font-size="11" letter-spacing="1.4" fill="var(--text-faint)" text-anchor="middle" font-family="JetBrains Mono, monospace">BACK</text>
     </g>
   </svg>`;
 }
@@ -14341,21 +14373,11 @@ function renderTodayMomentum(){
   }
   const support = cells.length ? '<div class="mo-cells">' + cells.join('') + '</div>' : '';
 
-  let levelLine = '';
-  try{
-    const p = getCurrentProgression();
-    const pct = p.xpForNext > 0 ? Math.min(100, Math.round((p.currentXP / p.xpForNext) * 100)) : 0;
-    levelLine =
-      '<button type="button" class="mo-level" onclick="openProfile()" aria-label="Level ' + p.level + ', ' + pct + '% to level ' + (p.level + 1) + '">' +
-        '<span class="mo-level-k">Level ' + p.level + '</span>' +
-        '<span class="mo-level-bar"><span style="width:' + pct + '%"></span></span>' +
-        '<span class="mo-level-v">' + pct + '% to ' + (p.level + 1) + '</span>' +
-      '</button>';
-  }catch(e){ levelLine = ''; }
-
+  /* The level line moved to the Home header (D22) — one level display, not
+     two showing the same number a scroll apart. */
   el.innerHTML =
     '<p class="mo-head">' + escapeHtml(momentumHeadline(wk, streak, totalSessions)) + '</p>' +
-    primary + support + levelLine;
+    primary + support;
 }
 /* A one-line route into the full progression view, replacing the exercise
    trend list that duplicated Progress > Strength without adding to it. */
@@ -14375,9 +14397,28 @@ function renderToday(){
   const dateStr = now.toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
   const tKey = todayKey();
   const cat = schedule ? schedule[tKey] : 'rest';
+  /* The level sits in the header, across from the greeting — the athlete's
+     standing is the first thing Home says, not something found by scrolling
+     into Momentum. Same progression read as everywhere else; tapping it opens
+     the same profile. Wrapped so a progression hiccup can never take the
+     greeting down with it. */
+  let levelChip = '';
+  try{
+    const p = getCurrentProgression();
+    const pct = p.xpForNext > 0 ? Math.min(100, Math.round((p.currentXP / p.xpForNext) * 100)) : 0;
+    levelChip =
+      `<button type="button" class="hdr-level" onclick="openProfile()"
+        aria-label="Level ${p.level}, ${pct}% to level ${p.level + 1}">
+        <span class="hdr-level-k">Level</span>
+        <span class="hdr-level-n">${p.level}</span>
+        <span class="hdr-level-bar"><span style="width:${pct}%"></span></span>
+      </button>`;
+  }catch(e){ levelChip = ''; }
   document.getElementById('todayDateLine').innerHTML = `
-    <div class="today-greet">${getGreeting()}</div>
-    <div class="today-sub">${dateStr}<span class="today-focus">${cat === 'rest' ? 'Rest' : CAT_LABEL[cat]}</span></div>`;
+    <div class="today-hdr-left">
+      <div class="today-greet">${getGreeting()}</div>
+      <div class="today-sub">${dateStr}<span class="today-focus">${cat === 'rest' ? 'Rest' : CAT_LABEL[cat]}</span></div>
+    </div>${levelChip}`;
 
   renderResumeBanner();     // also refreshes the CTA via hasActiveDraftNow
   renderMissedBanner();
@@ -23085,11 +23126,12 @@ function renderPrepStep(){
           '<div class="prep-metric" id="prepMetric">' + escapeHtml(metric) + '</div>' +
         '</div>'
       : '<div class="prep-metric prep-metric-plain" id="prepMetric">' + escapeHtml(metric) + '</div>') +
-    '</div>' +
-    /* Why the movement is in the warm-up at all. It is the one genuinely
-       optional line, so it trails the clock and is the first thing dropped
-       when a screen is too short to hold everything. */
-    (move.purpose ? '<div class="prep-purpose">' + escapeHtml(move.purpose) + '</div>' : '');
+    '</div>';
+    /* The "what this focuses on" line is gone (D22): it sat against the
+       actions at the foot of the card, competing with Next for the same
+       ground, and explained why the movement exists rather than how to do
+       it. The instruction — the how — keeps its place above the figure.
+       The runner is a centered column, so nothing is left holding a hole. */
 
   /* One primary action and, at most, two quiet ones. On the last movement the
      primary leads straight into the workout rather than to a screen that only
