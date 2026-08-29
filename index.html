@@ -5688,7 +5688,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 <div class="overlay" id="tplOverlay">
   <div class="sheet">
     <div class="sheet-scroll">
-    <h2 id="tplSheetTitle">New Variation</h2>
+    <h2 id="tplSheetTitle">New Workout</h2>
     <div class="sheet-sub" id="tplSheetSub">Add another way to train this lift.</div>
     <label>Workout name</label>
     <input type="text" id="tplName" placeholder="e.g. Pull C — Rows Focus">
@@ -5698,7 +5698,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeTplSheet()">Cancel</button>
-      <button class="btn-primary" onclick="saveTemplate(this)">Save Variation</button>
+      <button class="btn-primary" onclick="saveTemplate(this)">Save Workout</button>
     </div>
   </div>
 </div>
@@ -10444,6 +10444,16 @@ function switchTab(tab){
      is affected — this is only the five bottom tabs, and the workout page is
      an overlay that never passes through here. */
   window.scrollTo({ top: 0, behavior: 'instant' });
+  /* D29 — and Today opens on TODAY. Peeking at another day in the week strip
+     set a preview that nothing ever cleared: it survived every tab switch, so
+     an athlete who glanced at Thursday and came back later was still being
+     shown Thursday by the screen whose whole job is "what do I do now". The
+     preview still works exactly as before while they are on the tab; leaving
+     and returning is what ends it. Already-today is a no-op, so this costs a
+     comparison and nothing else. */
+  if(tab === 'today'){
+    try{ setSelectedDay(todayKey()); }catch(e){}
+  }
 }
 
 /* Tap the dimmed backdrop to dismiss a sheet — but only wired onto sheets
@@ -26359,8 +26369,8 @@ function deleteLog(id){
 function openAddTemplate(cat){
   pendingTplCategory = cat;
   editingTemplateId = null;
-  document.getElementById('tplSheetTitle').textContent = 'New Variation';
-  document.getElementById('tplSheetSub').textContent = 'Add a rotation option for ' + CAT_LABEL[cat] + ' day.';
+  document.getElementById('tplSheetTitle').textContent = 'New Workout';
+  document.getElementById('tplSheetSub').textContent = 'Another workout you can run on ' + CAT_LABEL[cat] + ' day.';
   document.getElementById('tplName').value = '';
   document.getElementById('tplExercises').innerHTML = '';
   addTplExerciseRow();
@@ -26372,7 +26382,7 @@ function openEditTemplate(cat, id){
   if(!tpl) return;
   pendingTplCategory = cat;
   editingTemplateId = id;
-  document.getElementById('tplSheetTitle').textContent = 'Edit Variation';
+  document.getElementById('tplSheetTitle').textContent = 'Edit Workout';
   document.getElementById('tplSheetSub').textContent = 'Update this ' + CAT_LABEL[cat] + ' workout.';
   document.getElementById('tplName').value = tpl.name;
   document.getElementById('tplExercises').innerHTML = '';

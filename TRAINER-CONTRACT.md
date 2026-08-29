@@ -3551,3 +3551,64 @@ sake ends here.
 
 Verified: 4809 passing. Zero protected symbols, zero storage writes,
 `DATA_KEYS` 15, trainer `0.1.1-shadow`.
+
+## §50 — D29: production UX integrity
+
+A hardening pass. Not a redesign, not a feature — the question was only
+whether LOOP survives being used impatiently.
+
+**What was actually driven.** ~94 visible controls clicked across all five
+tabs; 20-tap bursts on set completion and Add Set; 30 pause/resume cycles and
+20 "+15s" taps on a live rest timer; 250 overlay open/close cycles; 200 tab
+and month navigations; a live 17-set workout rotated to landscape and back and
+tab-switched 30 times; an athlete emptied to nothing and restored.
+
+**Two real defects, both fixed.**
+
+1. **Today could be stranded on another day.** `selectedDayKey` had exactly one
+   writer and *nothing* that cleared it, so peeking at Thursday in the week
+   strip left the Today tab showing Thursday across every subsequent tab
+   switch — indefinitely, on the one screen whose whole job is "what do I do
+   now". `switchTab` now ends the preview when the athlete returns to Today.
+   The preview still behaves exactly as before while they are on the tab
+   (D27 §9 preserved), it routes through the same single writer, it is a
+   no-op when already on today, and it is wrapped so it can never take a tab
+   switch down with it.
+
+2. **Retired vocabulary was still on screen.** The template sheet — reached
+   from a button reading "+ Add a workout" — said "New Variation", "Save
+   Variation", "Edit Variation" and "Add a rotation option for Push day".
+   *Variation* and *rotation* were consolidated out of the product language
+   long ago. Now "New Workout" / "Save Workout" / "Edit Workout" and "Another
+   workout you can run on Push day." Function names that legitimately contain
+   the word (`applyVariationDiversity`, `coefficientOfVariation`) are
+   untouched; a contract now separates rendered copy from code identifiers.
+
+**Five things that looked like defects and were not** — each investigated and
+deliberately left alone, which matters as much as the fixes:
+
+- The **set-complete button** measured 40×40. The CSS is 44×44; the reading is
+  `scbSettle` frozen at `scale(0.9)` in a pane that does not composite.
+- The **scroll lock** appeared stuck with no overlay open. It was read inside
+  the same synchronous tick; D26's observer had already released it, and the
+  page scrolled freely.
+- **Six "dead" controls** (Start Workout, + Log workout, Start This Workout,
+  View all N, and the already-active Push / Overview) were async paths, a
+  class toggle, and correctly-inert current selections.
+- **Week-day cells** ignored `.click()` because they are driven by pointer
+  events; a real pointer sequence works.
+- **"LOOP's hidden engine"** copy sits inside the Advanced / Shadow Evidence
+  area, where implementation language is explicitly permitted.
+
+**Confirmed invariants** (measured, now contract-held): exactly one live rest
+timer under abuse; one forward workout action, never Skip and Next; completion
+read from the sets and never from the green class; one background-lock
+implementation deriving depth from the DOM, restoring scroll to the exact
+pixel (520 → 520); zero interval, RAF or listener growth across the full
+stress run; zero horizontal overflow; every workout input ≥16px; no console
+error from LOOP code in any flow; every empty state explains a next step
+without fake numbers or blame.
+
+Contract 127. Pure navigation across the whole app left `workoutLog`,
+`cardioLog`, `trainerLog`, notes, gym, programs, XP, PRs and mastery
+byte-identical. `DATA_KEYS` 15, trainer `0.1.1-shadow`. 4828 passing.

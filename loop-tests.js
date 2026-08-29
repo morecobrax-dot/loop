@@ -14052,6 +14052,107 @@ async function testVisualSystemLock(){
     String(ctx.TRAINER_ENGINE_VERSION));
 }
 
+/* =========================================================
+   CONTRACT 127 — production UX integrity (D29)
+   ---------------------------------------------------------
+   A hardening pass, not a feature. Every assertion below
+   traces to something driven in a real browser: ~94 controls
+   clicked across five tabs, 20-tap bursts on the most-used
+   actions, 250 overlay cycles, 200 navigations, a live
+   workout rotated and tab-switched, and an emptied athlete.
+   Two defects were found; both are pinned here.
+   ========================================================= */
+async function testProductionIntegrity(){
+  section('CONTRACT 127 — production UX integrity (D29)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, doc = app.dom.document;
+
+  sub('Today opens on today (D29 defect 1)');
+  /* The week strip's day preview was set by one writer and cleared by
+     nothing: it survived every tab switch, so the screen whose job is
+     "what do I do now" could sit on Thursday indefinitely. */
+  T('leaving and returning to Today ends the preview', (() => {
+    const fn = src.slice(src.indexOf('function switchTab'), src.indexOf('/* Tap the dimmed backdrop'));
+    return /if\(tab === 'today'\)\{[\s\S]{0,120}setSelectedDay\(todayKey\(\)\)/.test(fn);
+  })());
+  T('it routes through the single writer, not a second assignment',
+    (src.match(/selectedDayKey = /g) || []).length === 2,   // the declaration and setSelectedDay
+    String((src.match(/selectedDayKey = /g) || []).length));
+  T('and it cannot take the tab switch down with it',
+    /try\{ setSelectedDay\(todayKey\(\)\); \}catch\(e\)\{\}/.test(src));
+  {
+    /* Behavioural: preview holds while on the tab, clears on return. */
+    ctx.selectedDayKey = null;
+    const other = ctx.DAY_ORDER[(ctx.DAY_ORDER.indexOf(ctx.todayKey()) + 2) % 7];
+    ctx.setSelectedDay(other);
+    T('a preview is held while the athlete is on Today', ctx.selectedDayKey === other);
+    ctx.switchTab('progress');
+    ctx.switchTab('today');
+    T('and is gone when they come back', ctx.selectedDayKey === null && ctx.selectedDayIsToday());
+    T('selecting today directly is still a no-op', (() => {
+      ctx.setSelectedDay(ctx.todayKey());
+      return ctx.selectedDayKey === null;
+    })());
+  }
+
+  sub('one product vocabulary (D29 defect 2)');
+  /* "New Variation" / "Save Variation" / "rotation option" survived the
+     vocabulary consolidation, reached from a button reading "Add a workout". */
+  T('the template sheet speaks the app\'s own language',
+    /<h2 id="tplSheetTitle">New Workout<\/h2>/.test(src) &&
+    /onclick="saveTemplate\(this\)">Save Workout<\/button>/.test(src));
+  T('editing one says so too',
+    /tplSheetTitle'\)\.textContent = 'Edit Workout';/.test(src));
+  T('and the sub-line explains without jargon',
+    /'Another workout you can run on ' \+ CAT_LABEL\[cat\] \+ ' day\.'/.test(src));
+  T('the retired vocabulary is gone from user-facing copy', (() => {
+    /* Function names may legitimately keep the word; rendered copy may not. */
+    const body = src.slice(src.indexOf('<body>')).replace(/\/\*[\s\S]*?\*\//g, '');
+    const copy = [...body.matchAll(/>([^<>{}]{3,90})</g)].map(m => m[1])
+      .concat([...body.matchAll(/textContent = '([^']{3,90})'/g)].map(m => m[1]));
+    return !copy.some(t => /\b(variation|rotation)\b/i.test(t));
+  })());
+
+  sub('the invariants the stress testing confirmed');
+  T('one live rest timer — starting a rest stops every other one', (() => {
+    const i = src.indexOf('function startRestPanel(');
+    if(i === -1) return false;
+    const fn = src.slice(i, i + 2200);
+    /* Measured in the browser: 30 pause/resume cycles and 20 "+15s" taps left
+       exactly one live interval. The mechanism that guarantees it: the panel
+       clears its own timer first, then retires every other panel. */
+    return /clearRestTimer\(panel\)/.test(fn) &&
+      /querySelectorAll\('\.rest-panel'\)\.forEach/.test(fn) &&
+      /panel\._interval = setInterval/.test(fn);
+  })());
+  T('one forward action in the workout navigation — never Skip and Next',
+    !/ws-nav-next/.test(src) && /\.ws-nav-fwd/.test(src));
+  T('completion is read from the sets, never from the green class', (() => {
+    const fn = src.slice(src.indexOf('function exerciseRowComplete'), src.indexOf('function exerciseRowSkipped'));
+    return fn.length > 0 && !/ex-complete/.test(fn);
+  })());
+  T('the background lock has one implementation and derives depth from the DOM',
+    (src.match(/function lockBackgroundScroll\(/g) || []).length === 1 &&
+    /querySelectorAll\('\.overlay\.open'\)\.length/.test(src));
+  T('the set-complete control meets the touch floor in CSS, whatever a frozen animation frame reports',
+    /\.set-complete-btn\{\s*width: 44px; height: 44px/.test(src));
+
+  sub('nothing protected moved');
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+    String(ctx.TRAINER_ENGINE_VERSION));
+  T('switchTab still writes nothing', (() => {
+    const fn = src.slice(src.indexOf('function switchTab'), src.indexOf('/* Tap the dimmed backdrop'));
+    return !/LOOPStore\.set|localStorage|setItem/.test(fn);
+  })());
+  T('and still touches no trainer symbol', (() => {
+    const fn = src.slice(src.indexOf('function switchTab'), src.indexOf('/* Tap the dimmed backdrop'));
+    return !/trainerLog|proposeTrainerState|shadowEvidence|TRAINER_CONFIG/.test(fn);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -14143,6 +14244,7 @@ async function main(){
   await testTodayAndHistoryTruth();
   await testLuminousDepth();
   await testVisualSystemLock();
+  await testProductionIntegrity();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
