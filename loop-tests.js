@@ -9433,14 +9433,16 @@ function testD13Interaction(app){
   T('a selection begun during the hold is cleared', /sel\.removeAllRanges/.test(src));
   /* Suppression has to be local: an athlete must still be able to select the
      text of a note, a workout name or anything else in the app. */
-  T('suppression is scoped to the strip, not global', (() => {
-    /* Every rule that suppresses selection must name the week strip. A
-       selector ending in "*" is not global when it is scoped by what precedes
-       it — .wk-days.wk-drag-mode * is exactly that. */
+  T('suppression is scoped to a drag surface, never global', (() => {
+    /* Every rule that suppresses selection must name a surface the athlete
+       actually drags. A selector ending in "*" is not global when it is
+       scoped by what precedes it — .wk-days.wk-drag-mode * is exactly that.
+       D30.6 added the rank carousel, which is the same kind of surface: a
+       swipe across the rank title must not start a text selection. */
     const rules = css.match(/[^{}]+\{[^}]*user-select:\s*none[^}]*\}/g) || [];
     return rules.length > 0 && rules.every(r => {
       const sel = r.split('{')[0].replace(/\/\*[\s\S]*?\*\//g, '').trim();
-      return /\.wk-day|\.wk-days/.test(sel);
+      return /\.wk-day|\.wk-days|\.rank-panel/.test(sel);
     });
   })());
 
@@ -12970,8 +12972,15 @@ function testRankIdentity(app){
     return uses >= 5 ? true : uses;
   })() === true);
   T('no emoji medal anywhere', !/🏅|⭐|🏆/.test(src));
-  T('prestige is geometry, not ornament count: wings from ELITE, apex only at LEGEND',
-    /const wings = tier >= 4;/.test(src) && /const apex = rankName === 'LEGEND';/.test(src));
+  /* D30.6: the tier flags moved into the outline generator, where a rank's
+     structure is a radius rather than an overlaid shape. Same guarantee,
+     asserted where it now lives. */
+  T('prestige is geometry, not ornament count: wings from ELITE, apex only at LEGEND', (() => {
+    const fn = src.slice(src.indexOf('function rankFramePts'), src.indexOf('function framePath'));
+    return /const wing = tier >= 4/.test(fn) && /const apex = tier >= 7/.test(fn) &&
+      /const shoulder = tier >= 3/.test(fn) && /const keel = tier >= 5/.test(fn) &&
+      /const crown = tier >= 6/.test(fn);
+  })());
   T('the medal is static — nothing on it animates continuously', (() => {
     const i = src.indexOf('function rankMedalSvg');
     const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
@@ -13019,72 +13028,104 @@ function testRankIdentity(app){
     return sat > 0.25 && sat < 1 && bri > 0.4 && bri < 1 &&
       !/\?\?\?/.test(src.slice(src.indexOf('function rankCardHtml'), src.indexOf('function openRankShowcase')));
   })());
-  T('every card names its state in words',
-    /'CURRENT RANK' : state === 'achieved' \? 'ACHIEVED' : 'REACHED AT LEVEL ' \+ r\.min/.test(src));
-  T('and speaks its whole meaning',
+  /* D30.6 removed the card, so the state is stated on the page itself and the
+     spoken label now carries LADDER POSITION too — strictly more than before. */
+  T('every rank names its state in words',
+    /'CURRENT RANK' : state === 'achieved' \? 'ACHIEVED' : 'LOCKED'/.test(src));
+  T('and speaks its whole meaning, including where it sits on the ladder',
     /aria-roledescription="rank"/.test(src) &&
-    /'Current rank\. Level ' \+ p\.level/.test(src));
+    /', rank ' \+ \(i \+ 1\) \+ ' of ' \+ RANKS\.length \+ ', '/.test(src) &&
+    /'current rank, Level ' \+ p\.level/.test(src));
+  T('a rank the athlete is not in never draws a progress bar',
+    /state === 'achieved' \? 'Reached at Level ' \+ r\.min : 'Begins at Level ' \+ r\.min/.test(src));
   T('every card states its level range',
     /function rankLevelRangeLabel\(r\)\{/.test(src) && /'Level ' \+ r\.min \+ '–' \+ r\.max/.test(src));
   T('reduced motion keeps the snap and loses the flourish',
     /\.rank-track\{ transition: none !important; \}/.test(css));
 
-  sub('the medal BUILDS — every tier keeps the last and adds one idea (D23.1)');
-  /* Rendered in the harness and measured structurally: element counts rise
-     monotonically, and each named layer appears exactly at its tier and above.
-     This is the greyscale test in code — the ladder is geometry, not colour. */
+  sub('the emblem BUILDS — the ladder is readable from the silhouette alone (D30.6)');
+  /* D30.6 rebuilt the artwork: the frame is now ONE generated outline rather
+     than a ring with shapes laid on it, so the old token checks (r="48.5",
+     dasharray "7 15.54", "M52 100 L60 114", the octagon) describe a
+     representation that no longer exists. Every guarantee they protected is
+     re-asserted below against the new geometry, and measured rather than
+     matched — which is strictly stronger, because it tests the visual claim
+     (does the ladder read without colour or text?) instead of a proxy. */
   const medals = (ctx.RANKS || []).map(r => ctx.rankMedalSvg(r.name, 120));
   const countIn = (svg, re) => (svg.match(re) || []).length;
-  T('complexity rises monotonically from ROOKIE to LEGEND', (() => {
-    const counts = medals.map(m => countIn(m, /<(circle|path|polygon)/g));
-    for(let i = 1; i < counts.length; i++) if(counts[i] <= counts[i-1]) return counts;
+  const frames = (ctx.RANKS || []).map((r, i) => ctx.rankFramePts(i));
+  const areaOf = pts => { let A = 0;
+    for(let i = 0; i < pts.length; i++){ const q = pts[(i + 1) % pts.length];
+      A += pts[i][0] * q[1] - q[0] * pts[i][1]; }
+    return Math.abs(A / 2); };
+  const maxR = pts => Math.max(...pts.map(q => Math.hypot(q[0] - 60, q[1] - 60)));
+
+  T('the silhouette itself grows, rank by rank — the greyscale test', (() => {
+    const areas = frames.map(areaOf);
+    for(let i = 1; i < areas.length; i++) if(areas[i] <= areas[i-1]) return areas.map(Math.round);
     return true;
-  })() === true, 'element counts per tier');
-  T('ROOKIE is the simplest medal in the family', (() => {
+  })() === true, 'silhouette area per tier');
+  T('ROOKIE has the smallest silhouette and LEGEND the largest', (() => {
+    const areas = frames.map(areaOf);
+    return areas[0] === Math.min(...areas) && areas[7] === Math.max(...areas);
+  })());
+  T('no rank is a repeat of the one below it', (() => {
+    /* Two identical outlines would mean a rank that earned nothing. */
+    const sig = frames.map(f => f.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join('|'));
+    return new Set(sig).size === sig.length;
+  })());
+  T('every emblem stays inside its box — no clipped ornament', (() => {
+    return frames.every(f => maxR(f) <= 57.5);
+  })(), 'max vertex radius');
+  T('element complexity never falls', (() => {
     const counts = medals.map(m => countIn(m, /<(circle|path|polygon)/g));
-    return counts[0] === Math.min(...counts);
+    for(let i = 1; i < counts.length; i++) if(counts[i] < counts[i-1]) return counts;
+    return counts[0] === Math.min(...counts) && counts[7] === Math.max(...counts) ? true : counts;
+  })() === true);
+
+  sub('each structural idea arrives at its own rank, and is part of the outline');
+  /* The chassis is generated: a shoulder or a wing is a longer RADIUS at that
+     angle, so it cannot be a triangle stuck to a ring. Each is asserted by
+     measuring the outline it produces. */
+  const widthAt = (pts, deg) => {
+    const i = Math.round((deg / 360) * pts.length) % pts.length;
+    return Math.hypot(pts[i][0] - 60, pts[i][1] - 60);
+  };
+  T('TRAINEE earns a bezel the round chassis did not have',
+    Math.abs(areaOf(frames[1]) - areaOf(frames[0])) > 100);
+  T('ATHLETE breaks the circle into a hexagon', (() => {
+    const r = frames[2].map(q => Math.hypot(q[0] - 60, q[1] - 60));
+    return (Math.max(...r) - Math.min(...r)) > 3;      // a circle has zero spread
   })());
-  T('LEGEND is the most complete', (() => {
-    const counts = medals.map(m => countIn(m, /<(circle|path|polygon)/g));
-    return counts[7] === Math.max(...counts);
+  T('COMPETITOR gains shoulders, ELITE extends them into wings', (() => {
+    const shoulder = widthAt(frames[3], 90) - widthAt(frames[2], 90);
+    const wing = widthAt(frames[4], 90) - widthAt(frames[3], 90);
+    return shoulder > 2 && wing > 5;
   })());
-  T('the second ring arrives at TRAINEE', (() => {
-    const ring2 = m => /r="48\.5"/.test(m);
-    return !ring2(medals[0]) && ring2(medals[1]) && ring2(medals[2]);
+  T('VETERAN adds weight below', widthAt(frames[5], 180) - widthAt(frames[4], 180) > 3);
+  T('MASTER raises a crest above', widthAt(frames[6], 0) - widthAt(frames[5], 0) > 3);
+  T('LEGEND finishes the crown', widthAt(frames[7], 0) - widthAt(frames[6], 0) > 1);
+  T('and none of it is a spike bolted on — extensions ARE the outline', (() => {
+    const fn = src.slice(src.indexOf('function rankFramePts'), src.indexOf('function framePath'));
+    return /R \+= [\d.]+ \* \(near\(90/.test(fn) && /pts\.push\(\[60 \+ R \* Math\.cos\(a\)/.test(fn);
   })());
-  T('the hexagonal frame arrives at ATHLETE', (() => {
-    const hex = m => countIn(m, /<polygon points="10[0-9]\.|<polygon points="\d+\.\d,\d+\.\d \d/g) > 0 || /polygon points="[\d.]+,[\d.]+ [\d.]+,[\d.]+ [\d.]+,[\d.]+ [\d.]+,[\d.]+ [\d.]+,[\d.]+ [\d.]+,[\d.]+"/.test(m);
-    return !hex(medals[0]) && !hex(medals[1]) && hex(medals[2]);
+
+  sub('the stone is cut, not drawn');
+  T('facets are shaded by their angle to one light, not filled flat', (() => {
+    const fn = src.slice(src.indexOf('function facetShade'), src.indexOf('function polyPts'));
+    return fn.indexOf('Math.hypot(nx, ny)') !== -1 && fn.indexOf('mixHex(lo, hi') !== -1;
   })());
-  T('ring segmentation arrives at COMPETITOR', (() => {
-    const seg = m => /stroke-dasharray="7 15\.54"/.test(m);
-    return !seg(medals[2]) && seg(medals[3]) && seg(medals[7]);
+  T('the gem earns facets up the ladder', (() => {
+    const fn = src.slice(src.indexOf('function rankGem'), src.indexOf('/* ---------- THE CHASSIS'));
+    return fn.indexOf('tier >= 6 ? 10 : tier >= 3 ? 8 : 6') !== -1;
   })());
-  T('wings arrive at ELITE and never before', (() => {
-    const wing = m => countIn(m, /opacity="0\.94"/g) >= 2;
-    return !wing(medals[3]) && wing(medals[4]) && wing(medals[5]) && wing(medals[6]) && wing(medals[7]);
+  T('it has a table, a crown, star facets and a pavilion', (() => {
+    const fn = src.slice(src.indexOf('function rankGem'), src.indexOf('/* ---------- THE CHASSIS'));
+    return /table/.test(fn) && /girdle/.test(fn) && /Star facets/.test(fn) && /Pavilion/.test(fn);
   })());
-  T('the halo and rim light arrive with the wings', (() => {
-    const halo = m => /r="30"/.test(m);
-    return !halo(medals[3]) && halo(medals[4]);
-  })());
-  T('the lower crest point arrives at VETERAN — weight under the medal', (() => {
-    const lower = m => /M52 100 L60 114/.test(m);
-    return !lower(medals[4]) && lower(medals[5]) && lower(medals[6]) && lower(medals[7]);
-  })());
-  T('the crown begins at MASTER and finishes at LEGEND', (() => {
-    const masterCrest = /M47 17 L53 8/.test(medals[6]);
-    const legendCrown = /M44 16 L51 4/.test(medals[7]);
-    const noneBelow = !/M47 17|M44 16/.test(medals[5]);
-    return masterCrest && legendCrown && noneBelow;
-  })());
-  T('only LEGEND wears the dual-material gem and the armor octagon', (() => {
-    const oct = m => countIn(m, /polygon points="[^"]*"/g) && /stroke-width="2\.4" opacity="0\.85"/.test(m);
-    return !oct(medals[6]) && oct(medals[7]);
-  })());
-  T('the gem itself earns facets up the ladder', (() => {
-    const gemFacets = medals.map(m => countIn(m, /<polygon/g));
-    return gemFacets[0] < gemFacets[2] && gemFacets[2] < gemFacets[7];
+  T('and the family really does render more polygons higher up', (() => {
+    const polys = medals.map(m => countIn(m, /<polygon/g));
+    return polys[0] < polys[7] && polys[0] === Math.min(...polys);
   })());
   T('the glow ladder rises and never washes out', (() => {
     const glows = (ctx.RANKS || []).map(r => (ctx.RANK_VISUALS[r.name] || {}).glow || 0);
@@ -13093,12 +13134,21 @@ function testRankIdentity(app){
   })() === true);
   T('the renderer is deterministic apart from its gradient ids',
     ctx.rankMedalSvg('ELITE', 80).replace(/rk\d+/g, 'rk') === ctx.rankMedalSvg('ELITE', 80).replace(/rk\d+/g, 'rk'));
-  T('the medal casts its faint light into the card, and only faintly',
-    /rank-medal-wrap" style="background: radial-gradient\(closest-side, ' \+\s*v\.gem\[0\] \+ '14/.test(src));
-  T('the current medal is crisper and its only motion is the entrance',
-    /\.rank-current \.rank-medal-wrap\{ filter: brightness\(1\.05\); \}/.test(src) &&
-    /animation: medalIn 0\.45s var\(--ease\);/.test(src) &&
-    /\.rank-current\.rank-front \.rank-medal-wrap\{ animation: none; \}/.test(src));
+  /* D30.6: there is no card to cast light into — the PAGE carries the rank's
+     atmosphere now, and the emblem's own glow is rendered inside the SVG. */
+  T('there is no card behind the rank — the page is the composition',
+    !/rank-card/.test(src) && /\.rank-panel\{[\s\S]{0,420}background: none; border: none;/.test(css));
+  T('the emblem throws its own light, from its own stone',
+    /<circle cx="60" cy="60" r="56" fill="url\(#h' \+ uid/.test(src) &&
+    /r="24" fill="' \+ v\.gem\[0\]/.test(src));
+  T('current, achieved and locked stay three distinguishable states',
+    /\.rank-current \.rank-medal-wrap\{ filter: brightness/.test(css) &&
+    /\.rank-achieved \.rank-medal-wrap\{ filter: saturate/.test(css) &&
+    /\.rank-locked \.rank-medal-wrap\{ filter: saturate/.test(css));
+  T('and a rank not yet reached is still desirable, not hidden', (() => {
+    const m = css.match(/\.rank-locked \.rank-medal-wrap\{ filter: saturate\(([\d.]+)\) brightness\(([\d.]+)\)/);
+    return m && parseFloat(m[1]) >= 0.5 && parseFloat(m[2]) >= 0.7;
+  })());
 
   sub('the promotion is detected from existing truth');
   T('rank change is read off the levels the XP timeline already recorded',
@@ -14201,6 +14251,16 @@ async function testRankShowcaseExperience(){
   T('and that handler is inert while the showcase is closed',
     /if\(!ov \|\| !ov\.classList\.contains\('open'\)\) return;\s*positionRankTrack\(false\);/.test(src));
 
+  sub('the card is gone — the page is the composition (D30.6)');
+  T('no card container survives anywhere in the rank surface',
+    !/rank-card/.test(src) && !/class="rank-card/.test(src));
+  T('the panel paints nothing behind the content',
+    /\.rank-panel\{[\s\S]{0,420}background: none; border: none;/.test(css));
+  T('the emblem is the hero, rendered large on the page',
+    /rankMedalSvg\(r\.name, 208, \{ showcase: true \}\)/.test(src));
+  T('the carousel is a drag surface: no selection, no callout, no tap highlight',
+    /\.rank-panel\{[\s\S]{0,520}user-select: none;[\s\S]{0,120}-webkit-touch-callout: none/.test(css));
+
   sub('the page wears the rank, from the rank\'s own material');
   T('an atmosphere layer exists, behind content and inert',
     /class="rank-atmos"/.test(src) &&
@@ -14235,18 +14295,43 @@ async function testRankShowcaseExperience(){
     const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
     return !/animate|animation/i.test(fn);
   })());
-  T('the sweep is scoped to a showcase card, so reused medals are untouched',
-    /\.rank-card\.rank-front \.rank-medal-wrap::after\{/.test(css) &&
-    !/\.hdr-level[^{]*::after\{[^}]*medalShine/.test(css));
-  T('only the centred card catches it',
-    /\.rank-card\.rank-front \.rank-medal-wrap::after\{[\s\S]{0,400}animation: medalShine/.test(css));
-  T('it moves on the compositor alone — no filter, no shadow', (() => {
-    const i = css.indexOf('@keyframes medalShine');
-    const kf = css.slice(i, css.indexOf('}', css.indexOf('100%', i)));
-    return /transform: translate3d/.test(kf) && !/filter|box-shadow/.test(kf);
+  /* D30.6 moved the light INSIDE the emblem. The old version clipped a CSS
+     pseudo-element to a rectangular wrapper, which is exactly why it rendered
+     on device as a grey diagonal slab across the card. It is now an SVG band
+     clipped to the emblem's own generated outline, so light can only ever
+     appear on the object — a stronger guarantee than "scoped to a card". */
+  T('the light is clipped to the emblem\'s own outline, never a rectangle', (() => {
+    const i = src.indexOf('function rankMedalSvg');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return /<clipPath id="c' \+ uid \+ '"><path d="' \+ outline/.test(fn) &&
+      /class="rank-shine" clip-path="url\(#c'/.test(fn);
   })());
-  T('reduced motion keeps the light and drops the travel',
-    /@media \(prefers-reduced-motion: reduce\)\{\s*\.rank-card\.rank-front \.rank-medal-wrap::after\{\s*animation: none;/.test(css));
+  T('it exists only in showcase mode, so every reused medal is untouched', (() => {
+    const chip = ctx.rankMedalSvg('LEGEND', 30);
+    const page = ctx.rankMedalSvg('LEGEND', 208, { showcase: true });
+    return !/rank-shine/.test(chip) && !/clipPath/.test(chip) && /rank-shine/.test(page);
+  })());
+  T('only the centred emblem catches it',
+    /\.rank-front \.rank-shine-bar\{ animation: rankShine/.test(css) &&
+    /\.rank-shine\{ opacity: 0; \}/.test(css));
+  T('it passes once when a rank settles — it is not a loop', (() => {
+    const m = css.match(/\.rank-front \.rank-shine-bar\{ animation: rankShine [^;]+;/);
+    return !!m && !/infinite/.test(m[0]) && / 1 both/.test(m[0]);
+  })());
+  T('it moves on the compositor alone — no filter, no shadow', (() => {
+    const i = css.indexOf('@keyframes rankShine');
+    const kf = css.slice(i, css.indexOf('}', css.indexOf('to{', i)));
+    return /transform: rotate\(18deg\) translateX/.test(kf) && !/filter|box-shadow/.test(kf);
+  })());
+  T('reduced motion drops the pass entirely, losing no information', (() => {
+    /* Every facet is shaded in the SVG itself, so the emblem's material
+       survives with the pass off. */
+    const i = css.indexOf('@media (prefers-reduced-motion: reduce){\n  .rank-front .rank-shine-bar');
+    const blk = css.slice(css.indexOf('.rank-front .rank-shine-bar{ animation: none;'), 200 + css.indexOf('.rank-front .rank-shine-bar{ animation: none;'));
+    return blk.indexOf('animation: none') !== -1 && /\.rank-shine, \.rank-front \.rank-shine\{ opacity: 0; \}/.test(css);
+  })());
+  T('and no page-wide or card-wide sweep survives anywhere',
+    !/medalShine/.test(src) && !/rank-card/.test(src));
 
   sub('the emblems are lit metal, and the ladder is untouched');
   T('the metal carries a specular band, not a two-stop ramp', (() => {
@@ -14255,15 +14340,21 @@ async function testRankShowcaseExperience(){
     return (g.match(/<stop offset=/g) || []).length >= 4 && /mixHex\(v\.metal\[0\], '#FFFFFF'/.test(g);
   })());
   T('the specular is derived from the rank\'s own metal', /function mixHex\(/.test(src));
-  T('every tier gained the same bevel, so complexity stays monotone', (() => {
-    const medals = (ctx.RANKS || []).map(r => ctx.rankMedalSvg(r.name, 120));
-    const bevel = m => /M28 52 A34 34 0 0 1 92 52/.test(m);
-    const counts = medals.map(m => (m.match(/<(circle|path|polygon)/g) || []).length);
-    let rising = true;
-    for(let i = 1; i < counts.length; i++) if(counts[i] <= counts[i-1]) rising = false;
-    return medals.every(bevel) && rising &&
-      counts[0] === Math.min(...counts) && counts[7] === Math.max(...counts);
+  /* D30.6: the bevel is no longer a fixed arc laid over a ring — it is an
+     inset repeat of each rank's OWN outline, so the edge turns correctly
+     whatever silhouette that rank earned. Every tier still has one. */
+  T('every tier turns its edge with a bevel and a rim light, from its own outline', (() => {
+    const i = src.indexOf('function rankMedalSvg');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return /framePath\(pts, 0\.905\)/.test(fn) && /Bevel: an inset repeat of the same outline/.test(fn) &&
+      /framePath\(pts, 0\.965\)/.test(fn) && /Rim light along the top of the outline/.test(fn);
   })());
+  T('and the complexity ladder still holds after the rebuild', (() => {
+    const medals = (ctx.RANKS || []).map(r => ctx.rankMedalSvg(r.name, 120));
+    const counts = medals.map(m => (m.match(/<(circle|path|polygon)/g) || []).length);
+    for(let i = 1; i < counts.length; i++) if(counts[i] < counts[i-1]) return counts;
+    return counts[0] === Math.min(...counts) && counts[7] === Math.max(...counts);
+  })() === true);
 
   sub('rank truth is presentation-only, exactly as before');
   T('thresholds untouched',
