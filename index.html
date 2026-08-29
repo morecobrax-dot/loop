@@ -16695,11 +16695,10 @@ function rankMedalSvg(rankName, size, opts){
     /* ELITE+: a fine gem-lit halo around the chamber. */
     (tier >= 4 ? '<circle cx="60" cy="60" r="26.5" fill="none" stroke="' + v.gem[0] +
       '" stroke-opacity="0.30" stroke-width="1"/>' : '') +
-    /* MASTER+: engraved arcs inside the chamber wall. */
-    (tier >= 6 ? '<path d="M36 47 A29 29 0 0 1 60 30.5" fill="none" stroke="' +
-      mixHex(v.metal[0], '#FFFFFF', 0.4) + '" stroke-opacity="0.35" stroke-width="1.1" stroke-linecap="round"/>' +
-      '<path d="M84 73 A29 29 0 0 1 60 89.5" fill="none" stroke="' +
-      mixHex(v.metal[0], '#FFFFFF', 0.4) + '" stroke-opacity="0.35" stroke-width="1.1" stroke-linecap="round"/>' : '') +
+    /* MASTER and LEGEND had two engraved arcs here. They read as stray lines
+       across the chamber rather than as engraving, so the inner ring is left
+       clean — the extra sophistication at these ranks comes from the crown,
+       the crest and the second material, not from marks inside the well. */
     /* LEGEND: the second material — a gold inlay following the crest. */
     (apex ? '<path d="' + framePath(pts, 0.925) + '" fill="none" stroke="' + v.gem[1] +
       '" stroke-opacity="0.5" stroke-width="1.4" stroke-linejoin="round"' +
