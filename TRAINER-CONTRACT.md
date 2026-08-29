@@ -3612,3 +3612,70 @@ without fake numbers or blame.
 Contract 127. Pure navigation across the whole app left `workoutLog`,
 `cardioLog`, `trainerLog`, notes, gym, programs, XP, PRs and mastery
 byte-identical. `DATA_KEYS` 15, trainer `0.1.1-shadow`. 4828 passing.
+
+## §51 — D30.5: the rank showcase becomes a swipe experience
+
+A presentation pass over a finished system. The ladder, thresholds, XP
+arithmetic, current-rank logic and the one shared medal renderer are all
+untouched; what changed is how the page carries them.
+
+**The gesture is the navigation.** Both arrow buttons are gone — on a phone
+they were the least premium thing on the screen, and the swipe already did
+the work. The settle rule D23 tuned is unchanged (a third of a card, or a
+flick), but the flick floor rose from 24px to **36px**: at 24 it sat inside
+the range a finger wanders during an ordinary tap (~10-16px of slop), so a
+sloppy press could change rank. The ends now **rubber-band** at 0.32 rather
+than dead-stopping. Keyboard stepping and the focusable, named region remain,
+so the ladder is still reachable without the gesture.
+
+**A rotation bug was found and fixed.** The track is positioned in pixels, so
+a viewport change left it holding stale geometry — measured, rotating to
+landscape put the centred card **215px off-centre** until the next swipe.
+This predates D30.5; the carousel never had a resize handler. It now
+re-centres on `resize` and `orientationchange`, wired once with the rest of
+the carousel and inert while the showcase is closed.
+
+**The card was being clipped in short landscape.** Measured 11px of overflow
+past the clipped track — the current rank's progress bar was cut off. The
+track's own padding yields the room, and the footer (which replaced the arrow
+nav, leaving that landscape rule dead) compacts with it. Card, progress bar
+and footer all verified whole at 812×375.
+
+**The page wears the rank.** A single atmosphere layer, behind all content and
+pointer-inert, painted from that rank's OWN `RANK_VISUALS` material — gem
+above, metal below, card colour as the ground — so the page can never drift
+out of step with the medal, and no second palette exists to maintain.
+Intensity rides the existing glow ladder. Measured against the page ground,
+elevation runs **1.18× at ROOKIE → 2.06× at LEGEND**; the alpha ladder itself
+is strictly monotone (0.10 → 0.29). Two neighbours invert in raw luminance
+(MASTER's gold is intrinsically brighter than LEGEND's violet, ATHLETE's cyan
+than COMPETITOR's blue) — that is the rank palette speaking, it is under 5%,
+and it was deliberately not flattened. The atmosphere follows the gesture
+rather than only the release, and cross-fades without animating.
+
+**Emblems: lit metal, same ladder.** The metal gradient went from a two-stop
+vertical ramp to a four-stop angled one carrying a specular band derived from
+the rank's own metal (`mixHex`, no new palette), the gem gained a bright core,
+and every tier gained the same top bevel arc — one element added uniformly, so
+D23.1's monotonic complexity, ROOKIE-simplest and LEGEND-most-complete all
+still hold, along with every pinned path, radius and dasharray.
+
+**Page-only shine.** A narrow light band crosses the centred emblem on a 4.6s
+cycle. It lives in CSS scoped to `.rank-card`, never in `rankMedalSvg` — so
+the home chip, the summary identity and the promotion medal, which all call
+the same renderer, are untouched, and the contract that the renderer animates
+nothing still passes. Composited on transform and opacity alone. Reduced
+motion keeps the light and drops the travel.
+
+**The footer is anchored**, not floating: one grounded band with a hairline
+and a soft ground, holding the ladder indicator (the current rung drawn as a
+longer filled bar, so position reads without counting) and the route to the
+full profile.
+
+Verified: opens on the athlete's own rank, centring drift ≤1px at all eight
+stops, clamped at both ends, full gesture matrix correct (tap jitter ignored,
+slow small drag settles back, flick advances one, decisive drag advances),
+both controls ≥44px with actions, no horizontal overflow, atmosphere behind
+D26's status band. Open/close 12.4ms, reposition 2.1ms, atmosphere repaint
+**0.03ms**. Contract 128. Zero protected symbols, zero storage writes,
+`DATA_KEYS` 15, trainer `0.1.1-shadow`. 4857 passing.

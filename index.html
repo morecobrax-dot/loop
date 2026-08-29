@@ -782,12 +782,30 @@ html.intro-skip #introOverlay{ display: none !important; }
    Dark space is the design: the sheet is the deepest surface in the app so
    each card's own gradient and metal reads against near-black, the way the
    references let their medals breathe. */
-.rank-sheet{ background: #05070C; }
-.rank-stagearea{ flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+.rank-sheet{ background: #05070C; position: relative; overflow: hidden; }
+/* D30.5 — PER-RANK PAGE ATMOSPHERE
+   The whole page transforms by rank, not just the card. Three pooled layers
+   drawn from the centred rank's OWN material (--rk-gem / --rk-metal / --rk-deep,
+   set by positionRankTrack) so the page can never drift out of step with the
+   medal, and --rk-lift, taken from the existing glow ladder, so each rank sits
+   more elevated than the last. Static gradients: no blur, no filter, no
+   animation — it costs one paint and cross-fades on rank change. */
+.rank-atmos{
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  transition: opacity 0.5s var(--ease), background 0.5s var(--ease);
+  background:
+    radial-gradient(120% 62% at 50% -6%, var(--rk-gem, transparent), transparent 66%),
+    radial-gradient(90% 52% at 50% 108%, var(--rk-metal, transparent), transparent 70%),
+    linear-gradient(180deg, var(--rk-deep, transparent), transparent 46%);
+}
+@media (prefers-reduced-motion: reduce){ .rank-atmos{ transition: none; } }
+.rank-stagearea{ flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center;
+  position: relative; z-index: 1; }
 .rank-trackwrap{
   overflow: hidden; touch-action: pan-y; cursor: grab; outline: none;
   padding: var(--space-4) 0;
 }
+.rank-trackwrap:active{ cursor: grabbing; }
 .rank-trackwrap:focus-visible{ box-shadow: inset 0 0 0 2px var(--accent); border-radius: var(--radius-lg); }
 .rank-track{ display: flex; gap: 14px; will-change: transform; }
 .rank-card{
@@ -828,6 +846,36 @@ html.intro-skip #introOverlay{ display: none !important; }
 .rank-current.rank-front .rank-medal-wrap{ animation: medalIn 0.45s var(--ease); }
 @keyframes medalIn{ from{ opacity: 0.4; transform: scale(0.97); } to{ opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce){ .rank-current.rank-front .rank-medal-wrap{ animation: none; } }
+
+/* D30.5 — PAGE-ONLY SHINE.
+   A narrow band of light crossing the emblem, the way a struck face catches a
+   moving light source. Scoped to .rank-card so it exists ONLY in this
+   showcase: the home chip, the summary identity and the promotion medal all
+   call the same renderer and are deliberately untouched. Only the centred card
+   catches it, and only one at a time. Composited on transform/opacity alone —
+   no filter, no repaint of the medal — and clipped to the wrap so nothing
+   bleeds onto the card. */
+.rank-card .rank-medal-wrap{ position: relative; overflow: hidden; }
+.rank-card.rank-front .rank-medal-wrap::after{
+  content: ''; position: absolute; top: -20%; bottom: -20%; left: -60%; width: 42%;
+  pointer-events: none; transform: translate3d(0,0,0) rotate(14deg);
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.16) 45%,
+    rgba(255,255,255,0.30) 50%, rgba(255,255,255,0.16) 55%, transparent);
+  animation: medalShine 4.6s var(--ease) 1.1s infinite;
+}
+@keyframes medalShine{
+  0%{ transform: translate3d(0,0,0) rotate(14deg); opacity: 0; }
+  8%{ opacity: 1; }
+  38%{ transform: translate3d(420%,0,0) rotate(14deg); opacity: 1; }
+  46%, 100%{ transform: translate3d(420%,0,0) rotate(14deg); opacity: 0; }
+}
+/* Reduced motion keeps the material read and drops the travel: the light sits
+   still on the emblem's shoulder instead of sweeping. */
+@media (prefers-reduced-motion: reduce){
+  .rank-card.rank-front .rank-medal-wrap::after{
+    animation: none; left: 8%; opacity: 0.5;
+  }
+}
 .rank-progress{ margin-top: 10px; }
 .rank-progress-top{
   display: flex; justify-content: space-between;
@@ -836,17 +884,24 @@ html.intro-skip #introOverlay{ display: none !important; }
 }
 .rank-bar{ height: 4px; border-radius: 2px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .rank-bar span{ display: block; height: 100%; border-radius: 2px; background: var(--accent); }
-.rank-nav{ display: flex; align-items: center; justify-content: center; gap: var(--space-3); padding-top: var(--space-4); }
-.rank-arrow{
-  width: 44px; height: 44px; border-radius: 50%;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(140,170,220,0.16);
-  color: var(--text-dim); font-size: 20px; cursor: pointer;
-  transition: color 0.15s var(--ease), border-color 0.15s var(--ease);
+/* D30.5 — the footer is ANCHORED, not floating: one grounded band, separated
+   by a hairline, holding the ladder indicator and the route deeper. The arrows
+   are gone — the gesture is the navigation. */
+.rank-footer{
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
+  gap: var(--space-2); padding-top: var(--space-4);
+  border-top: 1px solid rgba(140,170,220,0.10);
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.28));
 }
-.rank-arrow:hover, .rank-arrow:focus-visible{ color: var(--accent); border-color: var(--accent); }
-.rank-dots{ display: flex; gap: 6px; }
-.rank-dot{ width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.16); transition: background 0.2s var(--ease); }
-.rank-dot.on{ background: var(--accent); }
+/* The dots are the ladder: eight rungs, the current one drawn as a longer
+   filled bar so position reads without counting. */
+.rank-dots{ display: flex; align-items: center; gap: 6px; }
+.rank-dot{
+  width: 5px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.18);
+  transition: background 0.24s var(--ease), width 0.24s var(--ease);
+}
+.rank-dot.on{ width: 18px; background: var(--accent); }
+@media (prefers-reduced-motion: reduce){ .rank-dot{ transition: none; } }
 /* D26: this control really does go somewhere — it opens the profile — but drawn
    in the faint caption grey it read as disabled. The accent is the app's own
    language for a secondary text link, the same voice as .sheet-back, and at
@@ -5089,12 +5144,16 @@ header{
   /* Reclaim vertical space rather than letting content be cut off. */
   .overlay .sheet{ max-height: 100dvh; }
   /* Rank showcase: the card shrinks so medal, title and range stay whole
-     with the nav still reachable. */
+     with the footer still reachable. D30.5 measured the card overflowing the
+     clipped track by 11px here — the progress bar on the current rank was
+     being cut off — so the track's own padding yields the room, and the
+     footer (which replaced the arrow nav) compacts with it. */
   .rank-card{ width: min(60vw, 300px); padding: 12px 16px 14px; }
-  .rank-medal-wrap{ padding: 8px 0 2px; }
+  .rank-trackwrap{ padding: var(--space-1) 0; }
+  .rank-medal-wrap{ padding: 6px 0 2px; }
   .rank-medal-wrap svg{ width: 84px; height: 84px; }
   .rank-title{ font-size: 19px; margin-top: 6px; }
-  .rank-nav{ padding-top: var(--space-2); }
+  .rank-footer{ padding-top: var(--space-2); gap: var(--space-1); }
   .rank-profile-link{ margin-top: 0; }
   .sheet-scroll{ padding-top: 14px; padding-bottom: 12px; }
   .sheet h2{ font-size: 17px; }
@@ -6093,17 +6152,20 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <div class="workout-topbar-title">Rank</div>
       <span class="workout-topbar-spacer"></span>
     </div>
+    <!-- D30.5: the page itself carries the rank's atmosphere. Painted behind
+         everything, driven by the centred rank's own material. -->
+    <div class="rank-atmos" id="rankAtmos" aria-hidden="true"></div>
     <div class="rank-stagearea">
-      <div class="rank-trackwrap" id="rankTrackWrap" tabindex="0" role="region" aria-label="Rank carousel. Use arrow keys or swipe to browse ranks.">
+      <div class="rank-trackwrap" id="rankTrackWrap" tabindex="0" role="region" aria-label="Rank ladder. Swipe or use arrow keys to browse ranks.">
         <div class="rank-track" id="rankTrack"></div>
       </div>
-      <div class="rank-nav">
-        <button type="button" class="rank-arrow" onclick="rankGo(-1)" aria-label="Previous rank">‹</button>
+      <!-- Anchored footer: the ladder indicator and the way deeper sit on one
+           grounded band rather than floating under the card. -->
+      <div class="rank-footer">
         <div class="rank-dots" id="rankDots" aria-hidden="true"></div>
-        <button type="button" class="rank-arrow" onclick="rankGo(1)" aria-label="Next rank">›</button>
+        <button type="button" class="rank-profile-link" onclick="closeRankShowcase(); openProfile()">
+          Full profile &amp; achievements</button>
       </div>
-      <button type="button" class="rank-profile-link" onclick="closeRankShowcase(); openProfile()">
-        Full profile &amp; achievements</button>
     </div>
   </div>
 </div>
@@ -16411,6 +16473,14 @@ let _rankUid = 0;
    Grayscale-safe on purpose: every step above is geometry, so the ladder
    survives with the colour removed. Everything is static; the light lives in
    gradients, not animation. */
+/* Blend two hex colours. Used to derive a medal's specular band from its own
+   metal rather than introducing a second palette to keep in step. */
+function mixHex(a, b, t){
+  const p = h => [1,3,5].map(i => parseInt(h.substr(i,2), 16));
+  const A = p(a), B = p(b);
+  return '#' + A.map((c,i) => Math.round(c + (B[i] - c) * t).toString(16).padStart(2,'0')).join('');
+}
+
 function rankMedalSvg(rankName, size){
   const v = RANK_VISUALS[rankName] || RANK_VISUALS.ROOKIE;
   const tier = rankIndexOf(rankName);
@@ -16472,11 +16542,22 @@ function rankMedalSvg(rankName, size){
   return '<svg class="rank-medal" viewBox="0 0 120 120" width="' + size + '" height="' + size + '"' +
     ' role="img" aria-label="' + escapeAttr(rankName + ' medal') + '">' +
     '<defs>' +
-      '<linearGradient id="m' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
-        '<stop offset="0" stop-color="' + v.metal[0] + '"/><stop offset="1" stop-color="' + v.metal[1] + '"/>' +
+      /* D30.5 — the metal is LIT, not filled. A two-stop vertical ramp reads as
+         a flat vector; real metal carries a bright specular band across its
+         upper third and darkens into the lower edge. Angled slightly so the
+         highlight crosses the ring rather than banding it. Structure is
+         untouched — every element keeps the exact geometry D23.1 pinned; only
+         the material under it changed. */
+      '<linearGradient id="m' + uid + '" x1="0.15" y1="0" x2="0.85" y2="1">' +
+        '<stop offset="0" stop-color="' + v.metal[0] + '"/>' +
+        '<stop offset="0.28" stop-color="' + mixHex(v.metal[0], '#FFFFFF', 0.34) + '"/>' +
+        '<stop offset="0.52" stop-color="' + v.metal[0] + '"/>' +
+        '<stop offset="1" stop-color="' + v.metal[1] + '"/>' +
       '</linearGradient>' +
-      '<linearGradient id="g' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
-        '<stop offset="0" stop-color="' + v.gem[0] + '"/><stop offset="1" stop-color="' + v.gem[1] + '"/>' +
+      '<linearGradient id="g' + uid + '" x1="0.2" y1="0" x2="0.8" y2="1">' +
+        '<stop offset="0" stop-color="' + mixHex(v.gem[0], '#FFFFFF', 0.22) + '"/>' +
+        '<stop offset="0.45" stop-color="' + v.gem[0] + '"/>' +
+        '<stop offset="1" stop-color="' + v.gem[1] + '"/>' +
       '</linearGradient>' +
       '<radialGradient id="w' + uid + '">' +
         '<stop offset="0.55" stop-color="#0A0E16"/><stop offset="1" stop-color="#141A26"/>' +
@@ -16515,6 +16596,12 @@ function rankMedalSvg(rankName, size){
     (tier >= 3 ? '<circle cx="60" cy="60" r="43" fill="none" stroke="#0B0F16" stroke-width="1.6"' +
       ' stroke-dasharray="7 15.54" stroke-dashoffset="3.5" opacity="0.55"/>' : '') +
     '<circle cx="60" cy="60" r="38.4" fill="none" stroke="#0B0F16" stroke-width="1.4" opacity="0.8"/>' +
+    /* D30.5 — the ring's top bevel. One element, added to EVERY tier so the
+       ladder's monotonic complexity is unchanged, and the single largest step
+       from "shapes placed together" toward "a struck piece of metal": the
+       upper edge catches light the way a bevelled rim does. */
+    '<path d="M28 52 A34 34 0 0 1 92 52" fill="none" stroke="' + mixHex(v.metal[0], '#FFFFFF', 0.5) +
+      '" stroke-opacity="0.28" stroke-width="1.6" stroke-linecap="round"/>' +
     '<circle cx="60" cy="60" r="37.5" fill="url(#w' + uid + ')"/>' +
     /* ELITE+: the halo — a fine gem-lit ring around the energy core */
     (tier >= 4 ? '<circle cx="60" cy="60" r="30" fill="none" stroke="' + v.gem[0] + '" stroke-width="1" opacity="0.35"/>' : '') +
@@ -16575,6 +16662,7 @@ function openRankShowcase(){
     '<span class="rank-dot' + (i === rankShowcaseIndex ? ' on' : '') + '"></span>').join('');
   ov.classList.add('open');
   document.body.classList.add('page-locked');
+  paintRankAtmosphere(rankShowcaseIndex);
   positionRankTrack(false);
   wireRankCarousel();
 }
@@ -16607,10 +16695,41 @@ function positionRankTrack(animate, dragOffset){
   if(!card) return;
   const center = (wrap.clientWidth - card.offsetWidth) / 2;
   const x = center - card.offsetLeft + (dragOffset || 0);
-  track.style.transition = animate ? 'transform 0.28s var(--ease)' : 'none';
+  track.style.transition = animate ? 'transform 0.42s cubic-bezier(0.22,1,0.36,1)' : 'none';
   track.style.transform = 'translate3d(' + x + 'px,0,0)';
   document.querySelectorAll('.rank-dot').forEach((d, i) => d.classList.toggle('on', i === rankShowcaseIndex));
   document.querySelectorAll('.rank-card').forEach((c, i) => c.classList.toggle('rank-front', i === rankShowcaseIndex));
+  paintRankAtmosphere(dragOffset ? rankNearestIndex(dragOffset) : rankShowcaseIndex);
+}
+
+/* Which rank the page is closest to mid-drag, so the atmosphere changes with
+   the gesture rather than snapping only on release. */
+function rankNearestIndex(dragOffset){
+  const step = rankStep();
+  const shifted = rankShowcaseIndex - (dragOffset / step);
+  return Math.max(0, Math.min(RANKS.length - 1, Math.round(shifted)));
+}
+
+/* The page wears the centred rank's own material. Nothing new is invented:
+   the hues are that rank's gem and metal, and the intensity rides the existing
+   glow ladder (0 → 0.38), so a higher rank is literally a more elevated page. */
+function paintRankAtmosphere(i){
+  const el = document.getElementById('rankAtmos');
+  if(!el) return;
+  const r = RANKS[i]; if(!r) return;
+  const v = RANK_VISUALS[r.name] || RANK_VISUALS.ROOKIE;
+  /* Measured: riding the raw glow ladder left ROOKIE at 4% alpha — invisible
+     against #05070C, so the low ranks had no atmosphere at all. The floor is
+     set where a cool, minimal page still reads, and the ceiling where LEGEND
+     is unmistakably the most elevated. */
+  const g = v.glow || 0;
+  el.style.setProperty('--rk-gem', hexA(v.gem[0], 0.10 + g * 0.50));    // .10 → .29
+  el.style.setProperty('--rk-metal', hexA(v.metal[1], 0.08 + g * 0.40)); // .08 → .23
+  el.style.setProperty('--rk-deep', hexA(v.card[0], 0.85));
+}
+function hexA(hex, a){
+  const c = [1,3,5].map(k => parseInt(hex.substr(k,2), 16));
+  return 'rgba(' + c.join(',') + ',' + Math.max(0, Math.min(1, a)).toFixed(3) + ')';
 }
 function rankGo(delta){
   rankShowcaseIndex = Math.max(0, Math.min(RANKS.length - 1, rankShowcaseIndex + delta));
@@ -16631,15 +16750,27 @@ function wireRankCarousel(){
   });
   wrap.addEventListener('pointermove', e => {
     if(!_rankDrag) return;
-    _rankDrag.dx = e.clientX - _rankDrag.x0;
-    positionRankTrack(false, _rankDrag.dx);
+    let dx = e.clientX - _rankDrag.x0;
+    /* Rubber-band at the ends: the ladder has a first and last rank, and a
+       swipe past either should feel like resistance rather than a dead stop
+       or a card sliding into empty space. */
+    const atStart = rankShowcaseIndex === 0 && dx > 0;
+    const atEnd = rankShowcaseIndex === RANKS.length - 1 && dx < 0;
+    if(atStart || atEnd) dx *= 0.32;
+    _rankDrag.dx = dx;
+    positionRankTrack(false, dx);
   });
   const release = () => {
     if(!_rankDrag) return;
     const { dx, t0 } = _rankDrag;
     _rankDrag = null;
     const step = rankStep();
-    const fast = Math.abs(dx) > 24 && (Date.now() - t0) < 260;
+    /* D30.5 — a flick has to be a flick. At 24px the threshold sat inside the
+       range a finger wanders during an ordinary tap (~10-16px of slop), so a
+       sloppy press could change rank. 36px is still a small deliberate
+       gesture and is clear of tap jitter. The settle rule itself — a third of
+       a card, or a flick — is unchanged. */
+    const fast = Math.abs(dx) > 36 && (Date.now() - t0) < 260;
     if(Math.abs(dx) > step / 3 || fast) rankGo(dx < 0 ? 1 : -1);
     else positionRankTrack(true);
   };
@@ -16649,6 +16780,19 @@ function wireRankCarousel(){
     if(e.key === 'ArrowRight'){ rankGo(1); e.preventDefault(); }
     if(e.key === 'ArrowLeft'){ rankGo(-1); e.preventDefault(); }
   });
+  /* D30.5 — the track is positioned in pixels, so a viewport change leaves it
+     holding the old geometry: measured, rotating to landscape left the centred
+     card 215px off-centre until the next swipe. Re-centre on resize and
+     orientation change. Wired once with the rest of the carousel, a no-op
+     while the showcase is closed, and it re-reads layout rather than
+     remembering anything. */
+  const recentre = () => {
+    const ov = document.getElementById('rankOverlay');
+    if(!ov || !ov.classList.contains('open')) return;
+    positionRankTrack(false);
+  };
+  window.addEventListener('resize', recentre);
+  window.addEventListener('orientationchange', recentre);
 }
 
 /* Superlinear curve: early levels are quick, later levels take substantially

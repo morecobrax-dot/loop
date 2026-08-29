@@ -12990,9 +12990,21 @@ function testRankIdentity(app){
     /Math\.max\(0, Math\.min\(RANKS\.length - 1, rankShowcaseIndex \+ delta\)\)/.test(src));
   T('vertical stays the browser\'s: the wrap declares pan-y',
     /\.rank-trackwrap\{[\s\S]{0,120}touch-action: pan-y;/.test(css));
-  T('arrows and keys are equals with the swipe',
-    /onclick="rankGo\(-1\)" aria-label="Previous rank"/.test(src) &&
-    /ArrowRight'\)\{ rankGo\(1\);/.test(src));
+  /* D30.5: the arrow buttons are gone — the gesture IS the navigation on a
+     phone, and two chrome buttons under the card were the least premium thing
+     on the screen. The guarantee that mattered was never "arrows exist"; it
+     was that swipe is not the ONLY way through the ladder. Asserted directly
+     now, and more strictly: keys still step it, the region is still reachable
+     and named, and no arrow chrome came back. */
+  T('the ladder is reachable without the gesture — keys still step it',
+    /ArrowRight'\)\{ rankGo\(1\);/.test(src) && /ArrowLeft'\)\{ rankGo\(-1\);/.test(src));
+  T('and the carousel is focusable and named for assistive tech',
+    /id="rankTrackWrap" tabindex="0" role="region" aria-label="Rank ladder\./.test(src));
+  T('the arrow chrome is gone, not merely hidden',
+    !/rank-arrow/.test(src) && !/aria-label="Previous rank"/.test(src));
+  T('rankGo survives as the one place the index moves',
+    /function rankGo\(delta\)\{/.test(src) &&
+    (src.match(/rankShowcaseIndex = Math\.max/g) || []).length === 1);
   T('carousel listeners are wired once', /wrap\.dataset\.wired === '1'\) return;/.test(src));
 
   sub('achieved, current and locked are states, not secrets');
@@ -14153,6 +14165,124 @@ async function testProductionIntegrity(){
   })());
 }
 
+/* =========================================================
+   CONTRACT 128 — the rank showcase is a swipe experience (D30.5)
+   ---------------------------------------------------------
+   A presentation pass over an existing system. The ladder,
+   the thresholds, the XP arithmetic and the shared renderer
+   are untouched; what changed is that the page now wears each
+   rank's own material, the gesture is the navigation, and the
+   emblems read as struck metal rather than assembled vectors.
+   ========================================================= */
+async function testRankShowcaseExperience(){
+  section('CONTRACT 128 — rank showcase experience (D30.5)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  sub('the gesture is the navigation');
+  T('no arrow chrome remains', !/rank-arrow/.test(src));
+  T('the old nav container is gone with it, not left dead',
+    !/rank-nav/.test(src) && /\.rank-footer\{/.test(css));
+  T('a flick threshold clear of tap slop', (() => {
+    const m = src.match(/const fast = Math\.abs\(dx\) > (\d+) &&/);
+    return m && +m[1] >= 32;                      // tap slop is ~10-16px
+  })());
+  T('the settle rule itself is unchanged',
+    /Math\.abs\(dx\) > step \/ 3 \|\| fast\) rankGo\(dx < 0 \? 1 : -1\);/.test(src));
+  T('the ends resist rather than dead-stop',
+    /const atStart = rankShowcaseIndex === 0 && dx > 0;/.test(src) &&
+    /if\(atStart \|\| atEnd\) dx \*= 0\.32;/.test(src));
+  T('rotation re-centres the track instead of holding stale pixels',
+    /window\.addEventListener\('resize', recentre\);/.test(src) &&
+    /window\.addEventListener\('orientationchange', recentre\);/.test(src));
+  T('and that handler is inert while the showcase is closed',
+    /if\(!ov \|\| !ov\.classList\.contains\('open'\)\) return;\s*positionRankTrack\(false\);/.test(src));
+
+  sub('the page wears the rank, from the rank\'s own material');
+  T('an atmosphere layer exists, behind content and inert',
+    /class="rank-atmos"/.test(src) &&
+    /\.rank-atmos\{[\s\S]{0,200}pointer-events: none/.test(css) &&
+    /\.rank-atmos\{[\s\S]{0,200}z-index: 0/.test(css));
+  T('it is painted from RANK_VISUALS, not a second palette', (() => {
+    /* Comments stripped: the rule's own note quotes the page ground it was
+       measured against, which is prose, not a palette. */
+    const fn = src.slice(src.indexOf('function paintRankAtmosphere'), src.indexOf('function hexA'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    return /RANK_VISUALS\[r\.name\]/.test(fn) && /v\.gem\[0\]/.test(fn) &&
+      /v\.metal\[1\]/.test(fn) && /v\.card\[0\]/.test(fn) && !/#[0-9A-Fa-f]{6}/.test(fn);
+  })());
+  T('elevation rises with the existing glow ladder', (() => {
+    /* The controllable ladder is the alpha, and it must be strictly rising —
+       ROOKIE minimal, LEGEND strongest. (Composited LUMINANCE wobbles by hue:
+       MASTER's gold is intrinsically brighter than LEGEND's violet, which is
+       the rank palette speaking and is deliberately not flattened.) */
+    const alphas = (ctx.RANKS || []).map(r => 0.10 + ((ctx.RANK_VISUALS[r.name] || {}).glow || 0) * 0.50);
+    for(let i = 1; i < alphas.length; i++) if(alphas[i] <= alphas[i-1]) return alphas;
+    return alphas[0] >= 0.10 && alphas[7] >= 0.28;
+  })() === true);
+  T('the atmosphere never animates — it cross-fades and stops',
+    /\.rank-atmos\{[\s\S]{0,260}transition: opacity/.test(css) &&
+    !/\.rank-atmos\{[\s\S]{0,260}animation:/.test(css));
+  T('and it follows the gesture, not just the release',
+    /paintRankAtmosphere\(dragOffset \? rankNearestIndex\(dragOffset\) : rankShowcaseIndex\)/.test(src));
+
+  sub('the shine belongs to this page only');
+  T('the renderer itself still animates nothing', (() => {
+    const i = src.indexOf('function rankMedalSvg');
+    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
+    return !/animate|animation/i.test(fn);
+  })());
+  T('the sweep is scoped to a showcase card, so reused medals are untouched',
+    /\.rank-card\.rank-front \.rank-medal-wrap::after\{/.test(css) &&
+    !/\.hdr-level[^{]*::after\{[^}]*medalShine/.test(css));
+  T('only the centred card catches it',
+    /\.rank-card\.rank-front \.rank-medal-wrap::after\{[\s\S]{0,400}animation: medalShine/.test(css));
+  T('it moves on the compositor alone — no filter, no shadow', (() => {
+    const i = css.indexOf('@keyframes medalShine');
+    const kf = css.slice(i, css.indexOf('}', css.indexOf('100%', i)));
+    return /transform: translate3d/.test(kf) && !/filter|box-shadow/.test(kf);
+  })());
+  T('reduced motion keeps the light and drops the travel',
+    /@media \(prefers-reduced-motion: reduce\)\{\s*\.rank-card\.rank-front \.rank-medal-wrap::after\{\s*animation: none;/.test(css));
+
+  sub('the emblems are lit metal, and the ladder is untouched');
+  T('the metal carries a specular band, not a two-stop ramp', (() => {
+    const i = src.indexOf("'<linearGradient id=\"m' + uid");
+    const g = src.slice(i, i + 460);
+    return (g.match(/<stop offset=/g) || []).length >= 4 && /mixHex\(v\.metal\[0\], '#FFFFFF'/.test(g);
+  })());
+  T('the specular is derived from the rank\'s own metal', /function mixHex\(/.test(src));
+  T('every tier gained the same bevel, so complexity stays monotone', (() => {
+    const medals = (ctx.RANKS || []).map(r => ctx.rankMedalSvg(r.name, 120));
+    const bevel = m => /M28 52 A34 34 0 0 1 92 52/.test(m);
+    const counts = medals.map(m => (m.match(/<(circle|path|polygon)/g) || []).length);
+    let rising = true;
+    for(let i = 1; i < counts.length; i++) if(counts[i] <= counts[i-1]) rising = false;
+    return medals.every(bevel) && rising &&
+      counts[0] === Math.min(...counts) && counts[7] === Math.max(...counts);
+  })());
+
+  sub('rank truth is presentation-only, exactly as before');
+  T('thresholds untouched',
+    ctx.RANKS[0].min === 1 && ctx.RANKS[4].min === 20 && ctx.RANKS[7].max === Infinity);
+  T('the showcase still opens on the athlete\'s own rank',
+    /rankShowcaseIndex = rankIndexOf\(p\.rank\);/.test(src));
+  T('and still computes no level or XP of its own', (() => {
+    const region = src.slice(src.indexOf('function rankCardHtml'), src.indexOf('function openRankShowcase'));
+    return !/calculateLevelFromXP|calculateRequiredXP|getXPTimeline/.test(region);
+  })());
+  T('the whole rank surface still writes nothing', (() => {
+    const region = src.slice(src.indexOf('const RANK_VISUALS'), src.indexOf('function wireRankCarousel'));
+    return !/LOOPStore|localStorage|setItem/.test(region);
+  })());
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+    String(ctx.TRAINER_ENGINE_VERSION));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -14245,6 +14375,7 @@ async function main(){
   await testLuminousDepth();
   await testVisualSystemLock();
   await testProductionIntegrity();
+  await testRankShowcaseExperience();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
