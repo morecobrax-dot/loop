@@ -4055,3 +4055,80 @@ program created today invents no failures in the weeks before it existed.
 Contract 132 keeps the always-on subset. 5001 passing, 111 program checks, 43
 GPS checks, 261 cardio-lifecycle checks, 87 data-integrity checks, 252 date
 checks. `DATA_KEYS` 15, trainer `0.1.1-shadow`.
+
+## §57 — Program explainability (D34, loop-v104)
+
+Programs now explain themselves, and every sentence is derived from the program
+it describes. One pure layer — `deriveProgramExplanation(program)` and its
+helpers, inserted alongside the D33 flow — feeds the builder review, My
+Training and the program map, so no two surfaces can tell different stories.
+Nothing derived is persisted: the stored program gains exactly two id fields
+(`emphasis`, `sessionLength`) and no prose. `DATA_KEYS` stays 15.
+
+**What the layer derives.** Set-weighted muscle profiles per session (curated
+canonical registry first, keyword fallback for uncataloged names); primary vs
+secondary areas; a focus tag when a session genuinely leans ≥10 share-points
+away from its same-category sibling — that is what makes Upper A and Upper B
+read as intended; split and schedule rationale recomputed from the actual week
+(exposure counts, rest-day spacing, category alternation); phase purposes;
+one context line for weeks whose position says something (week 1, phase
+boundaries, the final week — plain middle weeks get silence); a progression
+statement that claims only what LOOP does: consistent sessions plus the log.
+
+**"Extra" is proven, never assumed.** An emphasis claim is only worded as
+extra work when a balanced re-pick of the same week (same pick loop, factored
+so the two cannot drift) would have chosen different sessions. Across the
+audit's 4,320 combinations: 1,881 effective, 2,439 inert — inert choices claim
+nothing, and the review's rationale no longer says "extra arms work" when
+nothing was added. The rationale also states measured session minutes instead
+of echoing the requested bucket the library cannot always fill (§7 honesty
+preserved: 75+ answers show the real ~35–50 min).
+
+**Phases stay honest.** Generated phases are the same sessions every week; the
+copy now says exactly that ("Same sessions — now push the loads up", and the
+note "The sessions stay the same across phases — what changes is what you
+chase in them"). No periodization is implied that the program does not
+contain. The position line now uses the block's own name — it used to say
+"Accumulation" beside a band saying "Foundation".
+
+**Four production defects found by explainability and fixed, with regression
+coverage:**
+
+1. *Edit round-trip swapped workouts.* Emphasis and session length were not
+   stored, so opening the editor and tapping Save regenerated from defaults
+   and silently replaced the athlete's sessions. The two ids now travel with
+   the program, the editor prefills them, and the round-trip is asserted to be
+   the identity.
+
+2. *"Leg Curl" counted as biceps, "Hack Squat" as glutes.* The keyword map's
+   substring semantics fed focus tags naming muscles the session did not
+   emphasize. The explanation layer attributes through the curated canonical
+   registry (Leg Curl → hamstrings, Hack Squat → quads), keywords only as
+   fallback.
+
+3. *Every triceps kickback inflated glute volume.* `MUSCLE_MAP.glutes`
+   contained bare `kickback`; the volume chart and the tags both misattributed
+   it. The keyword is now `glute kickback`, and the one ambiguous template
+   exercise ("Cable Kickback" on a push day) is named "Triceps Kickback".
+
+4. *Emphasis scoring chased junk matches.* The scorer's own keyword list
+   counted "Leg Extension" as arms work and "Hanging Leg Raise" as legs work,
+   so an emphasis could select templates that added nothing for its muscle —
+   which the review then described as extra work. Scoring now sums the same
+   canonical contributions the claims are made from, through one shared
+   group mapping.
+
+**Validation.** `npm run audit:program` grew to 130 checks: a 4,320-combination
+explainability sweep in which every focus tag must survive an oracle that
+reimplements all of the math (set-weighting, shares, sibling leans, label
+mapping) independently, every "extra" claim must beat its balanced twin under
+that oracle, forbidden vocabulary (optimise/AI/trainer/recovery/scientific/
+personalised) must never appear in derived copy, and the substring poisons are
+pinned as fixtures. The oracle demonstrably rejects a fabricated claim.
+Contract 133 keeps 38 always-on guards: one derivation entry point referenced
+by both surfaces, ids-not-prose persistence, edit-identity, grounded claims,
+honest phases, purity (50 derivations < 1s, zero writes), reduced-motion, and
+trainer isolation. Contract 132's fixed-length isolation windows became
+marker-bounded so region growth can never silently shrink their coverage.
+
+5,045 passing. Trainer `0.1.1-shadow`, untouched.

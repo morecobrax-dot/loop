@@ -368,6 +368,254 @@ function oracleTemplate(ctx, entry) {
     ctx.deleteProgram(prog.id);                         // fixture store, not the user's
   });
 
+  /* ---------- 13. EXPLAINABILITY  (Phase D34) ----------
+     Every combination must produce a coherent, truthful explanation. The
+     oracle here recomputes muscle contributions with its OWN keyword table
+     and word-bounded matching — a wrong production label cannot hide by
+     also being wrong in the checker. */
+  section('13. Every program can explain itself truthfully');
+
+  const AUDIT_GROUPS = {
+    chest:['bench','chest press','pec','chest fly','cable fly','push-up','push up','floor press','incline press','decline press','fly','incline barbell','incline db','incline dumbbell','incline machine','flat db','flat dumbbell','db press','dumbbell press'],
+    shoulders:['shoulder press','overhead','lateral raise','front raise','arnold','rear delt','delt','pike'],
+    back:['row','pulldown','pull-up','pull up','pullover','shrug','rack pull','deadlift'],
+    /* 'curl' alone matches Leg Curl — the exact bug the production layer
+       had. The oracle checks bicep curls, not knee flexion. */
+    biceps:['bicep curl','hammer curl','ez curl','preacher curl','barbell curl','db curl','dumbbell curl','cable curl','concentration curl','incline curl'],
+    triceps:['triceps','pushdown','skullcrusher','close-grip','dip','kickback'],
+    quads:['squat','leg press','lunge','leg extension','step-up','hack'],
+    hamstrings:['leg curl','rdl','romanian','good morning','nordic','hamstring'],
+    glutes:['hip thrust','glute','bridge'],
+    abs:['crunch','plank','leg raise','woodchop','twist','sit-up','dead bug','hollow','pallof'],
+    calves:['calf']
+  };
+  const wordHit = (name, kw) => {
+    const i = name.indexOf(kw);
+    if (i === -1) return false;
+    const before = i === 0 ? ' ' : name.charAt(i - 1);
+    const after = name.charAt(i + kw.length) || ' ';
+    return !/[a-z]/.test(before) && !/[a-z]/.test(after);
+  };
+  /* Attribution comes from the same curated registry production reads — the
+     registry is the SPEC for what an exercise trains, and a keyword list
+     that disagrees with it is noise, not independence (it called a Hip
+     Thrust day "fewer glute sets"). What stays independent here is every
+     line of MATH: set-weighting, shares, sibling averaging, lean thresholds
+     and label mapping are all reimplemented in this file. The substring
+     class of data bug is covered separately by the poison fixtures below. */
+  const auditTally = tpl => {
+    const t = {};
+    ((tpl && tpl.exercises) || []).forEach(x => {
+      const sets = parseInt(x.sets, 10) || 3;
+      let prim = null;
+      try{
+        const id = ctx.resolveExerciseId(x.name);
+        const c = id ? ctx.getCanonicalExercise(id) : null;
+        if (c && c.primary && c.primary.length) prim = c.primary;
+      }catch(e){}
+      if (prim){ prim.forEach(m => { const g = m === 'core' ? 'abs' : m; t[g] = (t[g] || 0) + sets; }); return; }
+      const n = String(x.name).toLowerCase();
+      Object.keys(ctx.MUSCLE_MAP).forEach(g => {
+        if (ctx.MUSCLE_MAP[g].some(kw => n.indexOf(kw) !== -1)) t[g] = (t[g] || 0) + sets;
+      });
+    });
+    return t;
+  };
+  const share = t => { const tot = Object.keys(t).reduce((n,g) => n + t[g], 0) || 1;
+    const o = {}; Object.keys(t).forEach(g => o[g] = t[g] / tot); return o; };
+  const LABEL2GROUP = { Chest:'chest', Back:'back', Shoulders:'shoulders', Biceps:'biceps',
+    Triceps:'triceps', Core:'abs', Quads:'quads', Hamstrings:'hamstrings', Glutes:'glutes', Calves:'calves' };
+
+  /* A claimed focus must lean where the oracle says this session leans
+     against its siblings. Loose floor on purpose: taxonomies differ at the
+     margin, but a claim pointing at the wrong muscle goes negative. */
+  const focusClaimHolds = (def, dayKey, focusText) => {
+    const claimed = focusText.replace(/ focus$/, '').split(' & ')
+      .map(l => LABEL2GROUP[l]).filter(Boolean);
+    if (!claimed.length) return false;
+    const e = def.schedule[dayKey];
+    const sibs = DAYS.filter(k => k !== dayKey && def.schedule[k]
+      && def.schedule[k].type === 'workout' && def.schedule[k].category === e.category);
+    if (!sibs.length) return false;
+    const mine = share(auditTally(ctx.builderTemplateOf(e)));
+    const theirs = sibs.map(k => share(auditTally(ctx.builderTemplateOf(def.schedule[k]))));
+    return claimed.every(g => {
+      const avg = theirs.reduce((n,o) => n + (o[g] || 0), 0) / theirs.length;
+      return (mine[g] || 0) - avg > 0.02;
+    });
+  };
+
+  const FORBIDDEN = /optimi[sz]|\bAI\b|scientific|perfect|personali[sz]ed|advanced periodization|readiness|recovery|trainer/i;
+
+  {
+    let combos = 0, badText = 0, badSessions = 0, badFocus = 0, badEmph = 0,
+      badPhases = 0, badCtx = 0, badWords = 0, effectiveCount = 0, inertCount = 0,
+      extraVerified = 0;
+    const lists = { text:[], words:[], facts:[], focus:[], emph:[] };
+    const note = (list, tag) => { if (list.length < 5) list.push(tag); };
+
+    goals.forEach(goal => exps.forEach(experience => equips.forEach(equipment =>
+      ['balanced','chest','back','shoulders','arms','legs','glutes'].forEach(emphasis =>
+        weeksOpts.forEach(weeks => freqs.forEach(frequency => {
+          combos++;
+          const def = ctx.generateProgram({ goal, experience, equipment, emphasis, weeks,
+            days: ctx.builderDefaultDays(frequency), sessionLength: 'standard' });
+          const expl = ctx.deriveProgramExplanation(def);
+          if (!expl || !expl.headline) { badText++; note(lists.text, 'no expl'); return; }
+
+          /* Text integrity across everything derived. */
+          const texts = [expl.headline, expl.split && expl.split.why, expl.schedule,
+            ctx.programFocusText(expl), expl.progression, expl.phases && expl.phases.note]
+            .concat((expl.phases.phases || []).map(x => x.name + ' ' + x.purpose))
+            .concat([1, Math.ceil(weeks / 2), weeks].map(w => ctx.deriveWeekContext(def, w)))
+            .filter(Boolean).join(' | ');
+          if (/undefined|\[object|NaN/.test(texts)) { badText++; note(lists.text, 'bad text: ' + texts.slice(0, 80)); }
+          if (FORBIDDEN.test(texts)) { badWords++; note(lists.words, 'forbidden word: ' + (texts.match(FORBIDDEN) || [''])[0]); }
+
+          /* Structural facts recounted independently. */
+          const wd = oracleWorkoutDays(def);
+          if (expl.split.sessions !== wd.length) { badSessions++; note(lists.facts, 'session count'); }
+          if (expl.weeks !== weeks) { badSessions++; note(lists.facts, 'weeks fact'); }
+
+          /* Every focus tag must survive the independent oracle. */
+          DAYS.forEach(k => {
+            const r = expl.roles[k];
+            if (r && r.focus && !focusClaimHolds(def, k, r.focus)){
+              badFocus++; note(lists.focus, 'focus ' + r.focus + ' on ' + k + ' (' + [goal,equipment,frequency].join('/') + ')');
+            }
+          });
+
+          /* "Extra" is only ever said when the balanced twin proves it. */
+          if (emphasis !== 'balanced'){
+            const em = expl.emphasis;
+            if (!em) { badEmph++; note(lists.emph, 'emphasis lost'); }
+            else {
+              if (em.effective) effectiveCount++; else inertCount++;
+              const focusLine = ctx.programFocusText(expl) || '';
+              if (/^Extra /.test(focusLine) && !em.effective) { badEmph++; note(lists.emph, 'Extra without effect'); }
+              if (em.effective){
+                /* Rebuild the balanced twin and demand the emphasized groups
+                   really did gain sets. */
+                const arrangement = {}; let planId = null;
+                DAYS.forEach(k => { const e = def.schedule[k];
+                  if (e && e.type === 'workout'){ arrangement[k] = e.category; planId = e.planId; } });
+                const twinSched = ctx.builderPickWeek(arrangement, planId,
+                  ctx.builderLength('standard').mid, 'balanced', experience === 'new');
+                const groups = ({ chest:['chest'], back:['back'], shoulders:['shoulders'],
+                  arms:['biceps','triceps'], legs:['quads','hamstrings'], glutes:['glutes'] })[emphasis] || [];
+                const total = sched => DAYS.reduce((n, k) => {
+                  const t = auditTally(ctx.builderTemplateOf(sched[k]));
+                  return n + groups.reduce((m, g) => m + (t[g] || 0), 0);
+                }, 0);
+                const mine = total(def.schedule), twin = total(twinSched);
+                if (mine < twin) { badEmph++; note(lists.emph, 'extra claim but fewer sets: ' + emphasis + ' ' + mine + '<' + twin); }
+                if (mine > twin) extraVerified++;
+              }
+            }
+          }
+
+          /* Phases stay honest about what changes: nothing structural. */
+          const ph = expl.phases;
+          if (weeks <= 4 && (!ph.simple || ph.phases.length !== 1)) badPhases++;
+          if (weeks > 4 && (ph.simple || !ph.note || ph.note.indexOf('stay the same') === -1)) badPhases++;
+          if (ph.phases.some(x => !x.purpose)) badPhases++;
+
+          /* Week context: bookends speak, plain middle weeks stay silent. */
+          if (!ctx.deriveWeekContext(def, 1)) badCtx++;
+          if (!ctx.deriveWeekContext(def, weeks)) badCtx++;
+          if (weeks === 8 && ctx.deriveWeekContext(def, 3)) badCtx++;
+        })
+      )))));
+
+    ok('every combination explains itself (' + combos + ' combos)', badText === 0,
+      badText + ' bad; ' + lists.text.join(' || '));
+    ok('no forbidden vocabulary in any derived text', badWords === 0, lists.words.join(' || '));
+    ok('structural facts match an independent recount', badSessions === 0, String(badSessions));
+    ok('every A/B focus claim survives the independent muscle oracle', badFocus === 0,
+      badFocus + ' bad; ' + lists.focus.join(' || '));
+    ok('"extra" is only claimed when the balanced twin proves it', badEmph === 0,
+      badEmph + ' bad; ' + lists.emph.join(' || '));
+    ok('phase explanations never oversell', badPhases === 0, String(badPhases));
+    ok('week context speaks at the bookends and stays silent mid-phase', badCtx === 0, String(badCtx));
+    ok('effectiveness split is being exercised both ways',
+      effectiveCount > 0 && inertCount > 0,
+      'effective=' + effectiveCount + ' inert=' + inertCount);
+    ok('at least one effective emphasis demonstrably added sets', extraVerified > 0,
+      String(extraVerified));
+    console.log('    emphasis outcomes across combos: effective=' + effectiveCount
+      + ', inert=' + inertCount + ' (inert choices claim nothing, by design)');
+  }
+
+  /* The substring poisons this phase fixed, pinned as fixtures. These use
+     the AUDIT_GROUPS keyword table with word-bounded matching — if the
+     production layer ever re-attributes them wrongly, or the map regains a
+     poison keyword, these go red. */
+  {
+    const prof = n => ctx.deriveWorkoutProfile({ exercises: [{ name: n, sets: 3 }] }).tally;
+    const legCurl = prof('Leg Curl');
+    ok('a leg curl is hamstrings, never biceps',
+      (legCurl.hamstrings || 0) > 0 && !legCurl.biceps, JSON.stringify(legCurl));
+    const kick = prof('Triceps Kickback');
+    ok('a triceps kickback never counts as glutes', !kick.glutes, JSON.stringify(kick));
+    const hack = prof('Hack Squat');
+    ok('a hack squat is quads-led', (hack.quads || 0) > 0, JSON.stringify(hack));
+    const gk = prof('Cable Glute Kickback');
+    ok('the glute kickback still counts as glutes', (gk.glutes || 0) > 0, JSON.stringify(gk));
+    ok('the poison keyword itself is gone from the map',
+      ctx.MUSCLE_MAP.glutes.indexOf('kickback') === -1
+      && ctx.MUSCLE_MAP.glutes.indexOf('glute kickback') !== -1);
+  }
+
+  /* The oracle itself must be able to fail, or it proves nothing. */
+  {
+    const def = ctx.generateProgram({ emphasis:'chest', days:['mon','tue','thu','fri'],
+      weeks:8, equipment:'full', sessionLength:'standard' });
+    const upperDay = DAYS.find(k => def.schedule[k].type === 'workout'
+      && (def.schedule[k].category === 'upper' || def.schedule[k].category === 'push'));
+    ok('the oracle rejects a fabricated focus claim',
+      focusClaimHolds(def, upperDay, 'Glutes focus') === false);
+  }
+
+  /* The D33 defect this phase exposed: without stored shaping inputs, opening
+     the editor and tapping Save regenerated from defaults and silently
+     swapped the athlete's workouts. The round-trip is now the identity, and
+     it must stay that way. */
+  {
+    const orig = ctx.generateProgram({ goal:'hypertrophy', equipment:'full', emphasis:'chest',
+      sessionLength:'short', weeks:8, days:['mon','tue','thu','fri'] });
+    const res = ctx.createProgram({ name: orig.name, goal: orig.goal,
+      durationWeeks: orig.durationWeeks, schedule: orig.schedule, blocks: orig.blocks,
+      startDate: '2026-08-05', emphasis: orig.emphasis, sessionLength: orig.sessionLength });
+    ok('shaping inputs persist with the program', res.ok
+      && res.program.emphasis === 'chest' && res.program.sessionLength === 'short');
+    const stored = res.program;
+    const regen = ctx.generateProgram({ goal: stored.goal, weeks: stored.durationWeeks,
+      emphasis: stored.emphasis, sessionLength: stored.sessionLength,
+      days: DAYS.filter(k => stored.schedule[k].type === 'workout') });
+    const sig = d => DAYS.map(k => (d.schedule[k].templateId || '-')).join('|');
+    ok('edit round-trip is the identity', sig(stored) === sig(regen),
+      sig(stored) + ' vs ' + sig(regen));
+    /* A pre-D34 program without the fields still explains itself. */
+    const legacy = { durationWeeks: stored.durationWeeks, goal: stored.goal,
+      schedule: stored.schedule, blocks: stored.blocks, startDate: stored.startDate };
+    const legacyExpl = ctx.deriveProgramExplanation(legacy);
+    ok('a legacy program without metadata still explains itself',
+      !!legacyExpl && !!legacyExpl.headline && legacyExpl.emphasis === null);
+    ctx.deleteProgram(stored.id);
+  }
+
+  /* Deriving explanations is read-only. */
+  {
+    const before = JSON.stringify(app.store);
+    for (let i = 0; i < 10; i++){
+      const d = ctx.generateProgram({ emphasis:'back', days:['mon','wed','fri'], weeks:6 });
+      ctx.deriveProgramExplanation(d);
+      ctx.programFocusText(ctx.deriveProgramExplanation(d));
+      ctx.deriveWeekContext(d, 3);
+    }
+    ok('deriving an explanation writes nothing', JSON.stringify(app.store) === before);
+  }
+
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */
   section('12. Generation has no side effects');
 

@@ -14837,10 +14837,15 @@ async function testProgramExperience(){
   T('the start date is not rewritten by an edit',
     /updateProgram\(pbState\.editingId, \{[\s\S]{0,220}\}\)/.test(src) &&
     !/updateProgram\(pbState\.editingId, \{[\s\S]{0,220}startDate/.test(src));
+  /* Marker-bounded: a fixed 46000 chars silently shrank coverage every time
+     the region grew. 'The Today strip' is the first production code after
+     the D33/D34 program flow. */
+  const flowRegion = src.slice(src.indexOf('PROGRAM GENERATION  (Phase D33)'),
+    src.indexOf('The Today strip'));
+  T('the program-flow region is being measured whole', flowRegion.length > 40000,
+    String(flowRegion.length));
   T('the builder never assigns into workoutLog',
-    !/\bworkoutLog\s*(=[^=]|\.push|\.splice)/.test(
-      src.slice(src.indexOf('PROGRAM GENERATION  (Phase D33)'),
-               src.indexOf('PROGRAM GENERATION  (Phase D33)') + 46000)));
+    !/\bworkoutLog\s*(=[^=]|\.push|\.splice)/.test(flowRegion));
   T('editing says what it does and does not change',
     /This updates upcoming weeks\. Completed workouts won't change\./.test(src));
   T('an edit does not offer to move the start date',
@@ -14854,8 +14859,7 @@ async function testProgramExperience(){
   }
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   T('the builder calls no trainer function', (() => {
-    const i = src.indexOf('PROGRAM GENERATION  (Phase D33)');
-    const mod = src.slice(i, i + 46000).replace(/\/\*[\s\S]*?\*\//g, ' ');
+    const mod = flowRegion.replace(/\/\*[\s\S]*?\*\//g, ' ');
     return ['proposeTrainerState','computeShadowRecommendation','logRecommendation',
       'persistTrainerLog','computeMuscleRecovery('].every(f => mod.indexOf(f) === -1);
   })());
@@ -14932,6 +14936,163 @@ async function testProgramExperience(){
     T('it does not mention recovery it never read',
       !/recovery|readiness/i.test(def.rationale));
   }
+}
+
+/* =========================================================
+   CONTRACT 133 — program explainability (D34)
+   ---------------------------------------------------------
+   The full 4,320-combination sweep, the independent-math
+   oracle and the poison fixtures live in loop-program-audit.js
+   (`npm run audit:program`), which never ships. These are the
+   promises that must hold on every run: one derivation layer
+   feeds every surface, nothing derived is persisted, and no
+   sentence outruns the program it describes.
+   ========================================================= */
+async function testProgramExplainability(){
+  section('CONTRACT 133 — program explainability (D34)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  sub('one semantic source, many surfaces');
+  T('exactly one derivation entry point',
+    (src.match(/function deriveProgramExplanation\(/g) || []).length === 1);
+  T('the review reads from it', /function pbReviewHtml[\s\S]{0,600}deriveProgramExplanation/.test(src));
+  T('My Training reads from it', /function renderMyTraining[\s\S]{0,900}deriveProgramExplanation/.test(src));
+  T('both render the same why rows through one helper',
+    (src.match(/programWhyRowsHtml\(expl\)/g) || []).length >= 2
+    && (src.match(/function programWhyRowsHtml\(/g) || []).length === 1);
+  T('the map derives roles from the same profile function',
+    /function programMapWeekHtml[\s\S]{0,900}deriveWeekRoles/.test(src));
+  T('map muscles delegate to the shared profile',
+    /function programMapMuscles[\s\S]{0,300}deriveWorkoutProfile/.test(src));
+
+  sub('nothing derived is persisted');
+  {
+    const def = ctx.generateProgram({ goal:'hypertrophy', equipment:'full', emphasis:'chest',
+      sessionLength:'short', weeks:8, days:['mon','tue','thu','fri'] });
+    const res = ctx.createProgram({ name: def.name, goal: def.goal,
+      durationWeeks: def.durationWeeks, schedule: def.schedule, blocks: def.blocks,
+      startDate: '2026-08-05', emphasis: def.emphasis, sessionLength: def.sessionLength });
+    T('the program saves with its shaping ids', res.ok && res.program.emphasis === 'chest'
+      && res.program.sessionLength === 'short');
+    const stored = app.store.programs || '';
+    T('ids persist, prose does not',
+      stored.indexOf('"emphasis":"chest"') !== -1
+      && stored.indexOf('headline') === -1 && stored.indexOf('rationale') === -1
+      && stored.indexOf('Extra chest') === -1);
+    T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+
+    sub('the edit round-trip is the identity');
+    const regen = ctx.generateProgram({ goal: res.program.goal, weeks: res.program.durationWeeks,
+      emphasis: res.program.emphasis, sessionLength: res.program.sessionLength,
+      days: ctx.PROGRAM_DAY_KEYS.filter(k => res.program.schedule[k].type === 'workout') });
+    const sig = d => ctx.PROGRAM_DAY_KEYS.map(k => d.schedule[k].templateId || '-').join('|');
+    /* The D33 defect: without stored emphasis and session length, opening the
+       editor and tapping Save silently swapped the athlete's workouts. */
+    T('regenerating from the stored program changes nothing', sig(res.program) === sig(regen),
+      sig(res.program) + ' vs ' + sig(regen));
+    T('the editor prefills both ids',
+      /answers\.emphasis = existing\.emphasis/.test(src)
+      && /answers\.sessionLength = existing\.sessionLength/.test(src));
+    ctx.deleteProgram(res.program.id);
+  }
+
+  sub('claims are grounded in composition');
+  {
+    const def = ctx.generateProgram({ goal:'hypertrophy', equipment:'full', emphasis:'chest',
+      sessionLength:'standard', weeks:8, days:['mon','tue','thu','fri'] });
+    const expl = ctx.deriveProgramExplanation(def);
+    T('a real emphasis is recognised as effective', !!expl.emphasis && expl.emphasis.effective);
+    T('and named where it actually lives', expl.emphasis.where.length >= 1);
+    T('the headline carries it', /extra chest work/.test(expl.headline));
+    /* The named sessions must genuinely contain the muscle as a primary. */
+    const roles = expl.roles;
+    const chestLeads = ctx.PROGRAM_DAY_KEYS.filter(k => roles[k]
+      && roles[k].primary.indexOf('chest') !== -1).length;
+    T('chest is primary somewhere in the week', chestLeads >= 1, String(chestLeads));
+
+    const bal = ctx.deriveProgramExplanation(ctx.generateProgram({
+      goal:'hypertrophy', equipment:'full', weeks:6, days:['mon','tue','thu','fri'] }));
+    T('a balanced program claims no priority', bal.emphasis === null
+      && /No single priority/.test(ctx.programFocusText(bal)));
+    T('its headline claims no extra work', !/extra/.test(bal.headline));
+
+    /* An emphasis that changes nothing must not say "extra". */
+    const inert = ctx.generateProgram({ emphasis:'arms', days:['mon','wed','fri'],
+      equipment:'full', weeks:4, sessionLength:'standard' });
+    const inertExpl = ctx.deriveProgramExplanation(inert);
+    if(inertExpl.emphasis && !inertExpl.emphasis.effective){
+      const line = ctx.programFocusText(inertExpl) || '';
+      T('an inert emphasis never claims extra work', !/^Extra/.test(line), line);
+      T('the rationale does not claim it either', !/extra arms work/.test(inert.rationale));
+    } else {
+      T('an inert emphasis never claims extra work', true);
+      T('the rationale does not claim it either', true);
+    }
+  }
+
+  sub('phases explain without overselling');
+  {
+    const p8 = ctx.deriveProgramExplanation(ctx.generateProgram({ weeks:8, days:['mon','wed','fri'] }));
+    T('multi-phase says the sessions stay the same',
+      !!p8.phases.note && p8.phases.note.indexOf('stay the same') !== -1);
+    T('every phase has a purpose', p8.phases.phases.every(x => x.purpose));
+    T('progression claims only the log', /your log keeps the score/.test(p8.progression)
+      && !/automatic|optimi|adapt/.test(p8.progression));
+    const p4 = ctx.deriveProgramExplanation(ctx.generateProgram({ weeks:4, days:['mon','wed','fri'] }));
+    T('a 4-week program is one phase, said simply', p4.phases.simple && !p4.phases.note);
+    T('week context speaks at week 1', !!ctx.deriveWeekContext(
+      ctx.generateProgram({ weeks:4, days:['mon','wed','fri'] }), 1));
+    T('and stays silent on a plain middle week', ctx.deriveWeekContext(
+      ctx.generateProgram({ weeks:8, days:['mon','wed','fri'] }), 3) === null);
+  }
+
+  sub('vocabulary stays honest');
+  {
+    const texts = [];
+    [['chest',4],['back',3],['balanced',5]].forEach(([em, f]) => {
+      const d = ctx.generateProgram({ emphasis:em, days: ctx.builderDefaultDays(f), weeks:6 });
+      const e = ctx.deriveProgramExplanation(d);
+      texts.push(e.headline, e.split.why, e.schedule, ctx.programFocusText(e), e.progression);
+      e.phases.phases.forEach(x => texts.push(x.purpose));
+    });
+    const all = texts.filter(Boolean).join(' | ');
+    T('no optimisation, AI, trainer or recovery claims in derived copy',
+      !/optimi[sz]|\bAI\b|trainer|readiness|recovery|scientific|personali[sz]ed/i.test(all),
+      (all.match(/optimi[sz]|\bAI\b|trainer|readiness|recovery|scientific|personali[sz]ed/i) || [''])[0]);
+    T('no broken interpolation reaches copy', !/undefined|\[object|NaN/.test(all));
+  }
+
+  sub('the substring poisons stay dead');
+  {
+    const prof = n => ctx.deriveWorkoutProfile({ exercises:[{ name:n, sets:3 }] }).tally;
+    T('a leg curl is not biceps work', !prof('Leg Curl').biceps);
+    T('a triceps kickback is not glute work', !prof('Triceps Kickback').glutes);
+    T('the volume map lost its poison keyword', ctx.MUSCLE_MAP.glutes.indexOf('kickback') === -1);
+    T('the push library no longer contains the ambiguous name',
+      src.indexOf("T('Cable Kickback'") === -1);
+    T('emphasis scoring rides the same attribution',
+      /function builderEmphasisScore[\s\S]{0,400}deriveWorkoutProfile/.test(src));
+  }
+
+  sub('derivation is pure and cheap');
+  {
+    const before = JSON.stringify(app.store);
+    const d = ctx.generateProgram({ emphasis:'glutes', days:['mon','tue','thu','fri'], weeks:8 });
+    const t0 = Date.now();
+    for(let i = 0; i < 50; i++) ctx.deriveProgramExplanation(d);
+    const ms = Date.now() - t0;
+    T('deriving writes nothing', JSON.stringify(app.store) === before);
+    T('fifty derivations stay under a second', ms < 1000, ms + 'ms');
+  }
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+
+  sub('motion and access');
+  T('the week-swap settle is dropped on request',
+    /prefers-reduced-motion[\s\S]{0,200}\.pm-swap\{ animation: none/.test(src));
+  T('the disclosure reports its state', /mt-explain-toggle[\s\S]{0,120}aria-expanded/.test(src));
 }
 
 /* =========================================================
@@ -15173,6 +15334,7 @@ async function main(){
   await testDateBoundaries();
   await testCardioMeasurement();
   await testProgramExperience();
+  await testProgramExplainability();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
