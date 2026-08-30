@@ -4873,9 +4873,9 @@ async function testProgramIntegration(){
        still fabricates nothing — it is an entry point, not a fake program. */
     const strip = ctx.programContextHtml();
     T('Today surfaces Programs when the athlete has none', strip.trim() !== '');
-    T('it offers a way in', strip.indexOf('openMyTraining()') !== -1);
+    T('it offers a way in', strip.indexOf("openProgramBuilderFlow('create')") !== -1);
     T('it names the destination rather than a missing thing',
-      /My Training/.test(strip));
+      /Build my program/i.test(strip));
     T('it does not present a working setup as broken',
       !/no active|missing|not set up|incomplete/i.test(strip));
     T('it invents no week, phase or program name',
@@ -5659,9 +5659,13 @@ function testOnboarding(app){
   T('mentions warm-up', /warm-up/i.test(all));
   T('mentions replace', /replace/i.test(all));
   T('mentions readiness', /readiness/i.test(all));
-  T('mentions the training cycle', /cycle/i.test(all));
-  T('the tour no longer says "program", which read as a synonym for plan',
-    !/programs?/i.test(all));
+  T('mentions the program', /program/i.test(all));
+  /* D33 flipped which of the two words survives; the rule that only one may
+     exist is unchanged. The escapes here were literal backspace bytes left by
+     an old patch script, so the pattern could never match and the assertion
+     could never fail. */
+  T('the tour no longer says "cycle", which read as a synonym for plan',
+    !/\bcycles?\b/i.test(all));
   T('mentions autosave', /saves|autosaved/i.test(all));
   /* Membership, not order — the copy lists them in reading order
      ("working, warm-up, drop, failure or AMRAP"), which is a writing choice,
@@ -5821,7 +5825,7 @@ async function testOnboardingSafety(){
     sub('discoverability contracts');
     T('Settings offers a replayable tour', /Getting Started/.test(src));
     T('the replay action is wired', /replayOnboarding\(\)/.test(src));
-    T('Today surfaces the training destination', /tw-program-empty[\s\S]{0,200}openMyTraining\(\)/.test(src));
+    T('Today surfaces the training destination', /tw-program-empty[\s\S]{0,200}openProgramBuilderFlow\('create'\)/.test(src));
     T('the tour never blocks the app — it is offered after showMainApp',
       /showMainApp[\s\S]{0,600}shouldOfferOnboarding/.test(src));
     T('skip has no confirmation dialog',
@@ -6505,8 +6509,11 @@ function testD10Consolidation(app){
 
   sub('PROGRAM discovery stayed contextual — no new tab, no new card');
   T('Today still offers the way in', /My Training/.test(src));
+  /* D33 — the contextual entry goes straight to the builder rather than to My
+     Training and then a second tap. Same intent as before: exactly one way in
+     from Today, no new tab and no new card. */
   T('it routes into the training destination',
-    /tw-program-empty[\s\S]{0,200}openMyTraining\(\)/.test(src));
+    /tw-program-empty[\s\S]{0,200}openProgramBuilderFlow\('create'\)/.test(src));
   T('no navigation tab was added',
     (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === 5);
   T('Programs is still reachable from Settings', /openPrograms\(\)/.test(src));
@@ -6885,7 +6892,10 @@ function testD11Consolidation(app){
       sc.indexOf('choosePlan(defaultBasePlanId())') !== -1);
     T('an athlete who already has a plan keeps it — no silent migration',
       /if\(!selectedPlanId \|\| !DEFAULT_PLANS\[selectedPlanId\]\)/.test(sc));
-    T('it opens the existing program builder, not a new one', sc.indexOf('openProgramBuilder()') !== -1);
+    /* One builder, three entry points — first run uses the same flow that
+       Settings and the empty state use. */
+    T('it opens the existing program builder, not a new one',
+      sc.indexOf("openProgramBuilderFlow('create')") !== -1);
   }
   {
     // offered everywhere plans are listed, so "custom" is never the hidden option
@@ -7676,7 +7686,7 @@ function testMyTraining(app){
 
   sub('one destination, reachable without instruction');
   {
-    T('Today leads to it', /tw-program-empty[\s\S]{0,220}openMyTraining\(\)/.test(src));
+    T('Today leads to it', /tw-program-empty[\s\S]{0,220}openProgramBuilderFlow\('create'\)/.test(src));
     T('Settings leads to the same place',
       /settings-row-btn" onclick="openMyTraining\(\)/.test(src));
     const settingsSheet = src.slice(src.indexOf('<div class="overlay" id="settingsOverlay"'),
@@ -9297,25 +9307,42 @@ function testPlanVocabulary(app){
   ].join(' | ');
 
   sub('plan and program no longer compete as synonyms');
-  T('"program" is not a word the athlete meets', !/\bprograms?\b/i.test(visible), (visible.match(/\bprograms?\b/i)||[''])[0]);
+  /* D33 §1 resolves this collision the other way round. It was "cycle" so that
+     "plan" and "program" could not read as two words for one thing; the
+     athlete's structure is now called a PROGRAM and "cycle" has retired. The
+     contract is unchanged in substance — exactly one word for the idea — only
+     in which word won. "Cycling" the cardio activity is a different word and
+     is excluded rather than being allowed to fail this. */
+  /* Cardio's cycling activity carries the bare data label 'cycle'. It is a
+     different word from the retired program one, so it is dropped rather than
+     allowed to fail this. Only whole entries are dropped — a sentence that
+     used "cycle" to mean a program would still be caught. */
+  const progVocab = visible.split(' | ')
+    .filter(v => v.trim().toLowerCase() !== 'cycle')
+    .join(' | ').replace(/cycling/gi, ' ');
+  T('the timed structure is a program', /\bprograms?\b/i.test(progVocab));
   T('"plan" is still the word for how you train', /\bplan\b/i.test(visible));
-  T('the timed structure is a cycle', /\bcycles?\b/i.test(visible));
-  T('a cycle is described as running the plan, not replacing it',
-    /cycle runs your plan|runs your plan for a set number of weeks/i.test(visible));
+  T('"cycle" no longer competes with it',
+    !/\bcycles?\b/i.test(progVocab.replace(/label:\s*'cycle'/g, ' ')),
+    (progVocab.match(/[^|]{0,60}\bcycles?\b[^|]{0,40}/i) || [''])[0]);
+  T('a program is described as running the plan, not replacing it',
+    /program runs your plan|runs your plan for a set number of weeks/i.test(visible));
   T('it is offered as optional', /Optional\. Your plan already works on its own/.test(src));
 
   sub('"block" did not come back');
   /* D11 removed it precisely because it sat beside "phase" as a second word
      for the same idea; "cycle" is the container, and phases are its stages. */
   T('block is still not shown beside phase', !/Training blocks|blocks and weeks|weeks and blocks/i.test(visible));
-  T('phase remains the word for a stage inside a cycle', /PROGRAM_PHASE_TYPES/.test(src));
-  T('a cycle contains phases, not the other way round',
-    /split this cycle into phases/i.test(visible));
+  T('phase remains the word for a stage inside a program', /PROGRAM_PHASE_TYPES/.test(src));
+  T('a program contains phases, not the other way round',
+    /split this program into phases/i.test(visible));
 
   sub('the words an athlete only meets when something fails');
+  /* Errors speak the athlete's vocabulary too — since D33 that word is
+     "program", so this flipped along with the product. */
   T('validation speaks the same vocabulary',
-    !/Give the program a name|No program supplied|Too many programs|Program not found/.test(src));
-  T('and still says what to do', /Give the cycle a name/.test(src));
+    !/Give the cycle a name|No cycle supplied|Too many cycles|Cycle not found/.test(src));
+  T('and still says what to do', /Give the program a name/.test(src));
 
   sub('choosing how you train is one screen with one question');
   /* D16 first-use reworded this. "Choose how you train" still described the
@@ -10121,12 +10148,12 @@ function testTutorialD16(app){
   T('it says the weight stays the athlete\'s', /stays yours/i.test(all));
 
   sub('it still teaches the controls that exist');
-  ['set type','warm-up','replace','readiness','cycle'].forEach(k =>
+  ['set type','warm-up','replace','readiness','program'].forEach(k =>
     T('mentions ' + k, new RegExp(k, 'i').test(all)));
   T('mentions autosave', /saves|autosaved/i.test(all));
   T('still names the five real set types',
     ['warm-up','working','drop','failure','AMRAP'].every(t => new RegExp(t, 'i').test(all)));
-  T('still avoids the word "program"', !/programs?\b/i.test(all));
+  T('still avoids the retired word "cycle"', !/\bcycles?\b/i.test(all));
 
   sub('the progress moment shows training, not prose');
   T('it draws a muscle read-out', /ob-mus-row/.test(all));
@@ -10466,8 +10493,15 @@ function testFirstRunRefinement(app){
     /function introDemoWorkout\(\)[\s\S]{0,400}DEFAULT_PLANS\[defaultBasePlanId\(\)\]/.test(src));
 
   sub('setup states what LOOP knows instead of asking for it again');
-  T('it no longer asks the frequency question', !/How often do you want to train/.test(src));
-  T('it no longer asks the days question', !/Which days work best/.test(src));
+  /* Scoped to the setup surface. This always meant "setup does not re-ask what
+     LOOP already knows"; a whole-file grep also caught D33's builder, which
+     asks these only when the answer is genuinely unknown. */
+  const setupSrc = (() => {
+    const i = src.indexOf('function renderTrainingSetup');
+    return i === -1 ? src : src.slice(i, i + 6000);
+  })();
+  T('it no longer asks the frequency question', !/How often do you want to train/.test(setupSrc));
+  T('it no longer asks the days question', !/Which days work best/.test(setupSrc));
   T('frequency arrives as a value', /'Training frequency'/.test(src));
   T('the schedule arrives as a value', /'Your schedule'/.test(src));
   T('each prefilled value says where it came from', !!ctx.SETUP_SOURCE_NOTE &&
@@ -14658,6 +14692,224 @@ async function testCardioMeasurement(){
 }
 
 /* =========================================================
+   CONTRACT 132 — the program experience (D33)
+   ---------------------------------------------------------
+   Generation is swept in full by loop-program-audit.js (55
+   checks over 720 answer combinations, `npm run audit:program`),
+   which never ships. These are the promises that must hold on
+   every run: the editor is visible when you tap it, a program
+   is however many weeks it says it is, and editing one never
+   rewrites what the athlete already did.
+   ========================================================= */
+async function testProgramExperience(){
+  section('CONTRACT 132 — the program experience (D33)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  sub('a visible action reaches a visible destination');
+  /* Every overlay shares one z-index, so the browser painted them in DOCUMENT
+     order: anything opened from a surface declared later in the file landed
+     underneath it. Stacking now follows the order things were opened in. */
+  T('stacking is painted from the open order, not the document',
+    /paintSheetStackOrder[\s\S]{0,400}_openSheetStack\.forEach/.test(src));
+  T('the painter runs on the same observer as the scroll lock',
+    /syncSheetAccessibility\(\)[\s\S]{0,200}paintSheetStackOrder\(\)/.test(src)
+    || /paintSheetStackOrder\(\);[\s\S]{0,80}\}/.test(src));
+  T('a closed overlay gives its z-index back to the stylesheet',
+    /ov2\.style\.zIndex = ''/.test(src));
+  /* The fixes the brief ruled out. */
+  T('it was not fixed with a timeout', !/setTimeout[^;]{0,120}(openProgramBuilderFlow|pbOverlay)/.test(src));
+  T('it was not fixed by auto-clicking Close', !/\.click\(\)[^;]{0,60}close/i.test(src));
+
+  sub('one builder, three ways in');
+  T('the first run uses it', /openProgramBuilderFlow\('create'\)/.test(src));
+  T('Settings reaches the editor in one tap',
+    /mt-act[\s\S]{0,200}openProgramBuilderFlow\('edit'\)/.test(src));
+  T('the empty state builds rather than explaining',
+    /tw-program-empty[\s\S]{0,200}openProgramBuilderFlow\('create'\)/.test(src));
+  T('there is only one generator', (src.match(/function generateProgram\(/g) || []).length === 1);
+
+  sub('the athlete is never asked what LOOP already knows');
+  T('every step declares how it is already known or is always asked',
+    Array.isArray(ctx.PB_STEPS) && ctx.PB_STEPS.every(st => st.id && st.title));
+  T('a known goal is not asked again', (() => {
+    const st = ctx.PB_STEPS.find(x => x.id === 'goal');
+    ctx.athleteProfile.goal = 'strength';
+    const known = st.known();
+    ctx.athleteProfile.goal = null;
+    return known === 'strength';
+  })());
+  T('an unknown goal is asked', (() => {
+    const st = ctx.PB_STEPS.find(x => x.id === 'goal');
+    const before = ctx.athleteProfile.goal;
+    ctx.athleteProfile.goal = null;
+    const known = st.known();
+    ctx.athleteProfile.goal = before;
+    return !known;
+  })());
+
+  sub('a program is as long as it says it is');
+  [4, 6, 8].forEach(w => {
+    const def = ctx.generateProgram({ weeks: w, days: ['mon','wed','fri'] });
+    T(w + ' weeks means ' + w + ' weeks', def.durationWeeks === w);
+    T(w + ' weeks of phases, no more', def.blocks.every(b => b.endWeek <= w));
+    const map = ctx.programMapHtml(def, { week:1, idPrefix:'t' + w });
+    /* Only the week buttons — "pm-w" as a whole class, not pm-w-n or pm-week. */
+    const cells = (map.match(/class="pm-w[ "]/g) || []).length;
+    T(w + ' weeks draws ' + w + ' week cells', cells === w, String(cells));
+  });
+  /* The thing that made 8 special before. */
+  T('no surface hard-codes an eight-week program',
+    !/Week \$\{[^}]*\} \/ 8|of 8 weeks|durationWeeks \|\| 8/.test(src));
+
+  sub('one phase is shown as one phase');
+  T('a 4-week program has a single phase',
+    ctx.generateProgram({ weeks:4, days:['mon','wed','fri'] }).blocks.length === 1);
+  T('a single phase draws no band chart',
+    ctx.programMapHtml(ctx.generateProgram({ weeks:4, days:['mon','wed','fri'] }),
+      { idPrefix:'t1' }).indexOf('pm-phases') === -1);
+  T('two phases do draw bands',
+    ctx.programMapHtml(ctx.generateProgram({ weeks:8, days:['mon','wed','fri'] }),
+      { idPrefix:'t2' }).indexOf('pm-phases') !== -1);
+  T('the current phase is stated once, not in four cards',
+    (src.match(/Current Phase/g) || []).length === 0);
+
+  sub('the schedule the athlete chose is the schedule they get');
+  [['mon','wed','fri'], ['tue','thu','sat'], ['wed','thu','fri','sat'], ['sun']].forEach(days => {
+    const def = ctx.generateProgram({ days, weeks:6 });
+    const got = ctx.PROGRAM_DAY_KEYS.filter(k => def.schedule[k].type === 'workout');
+    T('training lands on ' + days.join('+'), got.join(',') === days.slice().sort(
+      (a,b) => ctx.PROGRAM_DAY_KEYS.indexOf(a) - ctx.PROGRAM_DAY_KEYS.indexOf(b)).join(','), got.join(','));
+  });
+
+  sub('starting is one action');
+  T('committing saves, activates and syncs the week',
+    /function pbCommit[\s\S]{0,1400}pbSyncScheduleFromProgram/.test(src));
+  T('the plan is written before the schedule, which is stored per plan',
+    /LOOPStore\.set\('selectedPlan'[\s\S]{0,400}persistSchedule\(\)/.test(src));
+  T('it lands the athlete on Today', /function pbCommit[\s\S]{0,1600}switchTab\('today'\)/.test(src));
+  T('a second tap cannot save twice', /btn\.disabled = true/.test(src));
+
+  sub('an arbitrary start date still works');
+  /* Week 1 is the week CONTAINING the start date. A Wednesday start still has
+     a Monday in week 1 — in the past, and therefore never marked missed. */
+  {
+    const prog = { startDate:'2026-08-05', durationWeeks:6,
+      schedule:{ mon:{type:'workout'}, wed:{type:'workout'}, fri:{type:'workout'} } };
+    T('a Wednesday start puts Wednesday in week 1',
+      ctx.programDateFor(prog, 1, 'wed') === '2026-08-05',
+      String(ctx.programDateFor(prog, 1, 'wed')));
+    T('week 2 is exactly seven days later',
+      ctx.programDateFor(prog, 2, 'wed') === '2026-08-12',
+      String(ctx.programDateFor(prog, 2, 'wed')));
+    T('the Monday before the start is still week 1',
+      ctx.programDateFor(prog, 1, 'mon') === '2026-08-03',
+      String(ctx.programDateFor(prog, 1, 'mon')));
+  }
+
+  sub('unknown is still not missed');
+  {
+    const prog = { startDate:'2026-08-05', durationWeeks:6,
+      schedule:{ mon:{type:'workout',planId:'balanced',category:'push',templateId:'d1'},
+                 wed:{type:'workout',planId:'balanced',category:'pull',templateId:'e1'} } };
+    /* The Monday of week 1 precedes the program itself. A program created
+       today must not invent failures in the weeks before it existed. */
+    T('a day before the start date is never missed',
+      ctx.programDayState(prog, 'mon', 1) === null,
+      String(ctx.programDayState(prog, 'mon', 1)));
+    T('a future day is not missed either',
+      ctx.programDayState(prog, 'wed', 60) === null,
+      String(ctx.programDayState(prog, 'wed', 60)));
+    T('a rest day has no state at all',
+      ctx.programDayState(prog, 'sun', 1) === null);
+  }
+
+  sub('editing changes the plan, never the past');
+  T('editing writes through updateProgram, not createProgram',
+    /pbState\.mode === 'edit'[\s\S]{0,300}updateProgram\(/.test(src));
+  T('the start date is not rewritten by an edit',
+    /updateProgram\(pbState\.editingId, \{[\s\S]{0,220}\}\)/.test(src) &&
+    !/updateProgram\(pbState\.editingId, \{[\s\S]{0,220}startDate/.test(src));
+  T('the builder never assigns into workoutLog',
+    !/\bworkoutLog\s*(=[^=]|\.push|\.splice)/.test(
+      src.slice(src.indexOf('PROGRAM GENERATION  (Phase D33)'),
+               src.indexOf('PROGRAM GENERATION  (Phase D33)') + 46000)));
+  T('editing says what it does and does not change',
+    /This updates upcoming weeks\. Completed workouts won't change\./.test(src));
+  T('an edit does not offer to move the start date',
+    /pbState\.mode === 'edit' \? '' : `<div class="pb-rv-sec">Starts/.test(src));
+
+  sub('generation touches nothing it should not');
+  {
+    const before = JSON.stringify(app.store);
+    for(let i = 0; i < 10; i++) ctx.generateProgram({ weeks:8, days:['mon','tue','thu','fri'] });
+    T('previewing a program writes nothing', JSON.stringify(app.store) === before);
+  }
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('the builder calls no trainer function', (() => {
+    const i = src.indexOf('PROGRAM GENERATION  (Phase D33)');
+    const mod = src.slice(i, i + 46000).replace(/\/\*[\s\S]*?\*\//g, ' ');
+    return ['proposeTrainerState','computeShadowRecommendation','logRecommendation',
+      'persistTrainerLog','computeMuscleRecovery('].every(f => mod.indexOf(f) === -1);
+  })());
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+
+  sub('every exercise is a canonical one');
+  {
+    const def = ctx.generateProgram({ days:['mon','tue','thu','fri'], weeks:8, equipment:'full' });
+    const bad = [];
+    ctx.PROGRAM_DAY_KEYS.forEach(k => {
+      const tpl = ctx.builderTemplateOf(def.schedule[k]);
+      ((tpl && tpl.exercises) || []).forEach(e => {
+        let id = null;
+        try{ id = ctx.resolveExerciseId(e.name); }catch(err){}
+        if(!id) bad.push(e.name);
+      });
+    });
+    T('no generated exercise is off-registry', bad.length === 0, bad.slice(0,3).join(', '));
+  }
+  /* Scoped to the generator: elsewhere in the app reading tpl.exercises is
+     ordinary (the intro demo names three of them). What matters is that a
+     scheduled day stores a REFERENCE, so editing a template is reflected by
+     every program pointing at it and no exercise data is duplicated. */
+  {
+    const gi = src.indexOf('PROGRAM GENERATION  (Phase D33)');
+    const gen = src.slice(gi, gi + 46000);
+    T('workouts are references, never copies',
+      /templateId: tpl\.id/.test(gen) && !/exercises: *tpl\.exercises/.test(gen));
+  }
+
+  sub('touch, motion and assistive tech');
+  T('the week strip scrolls rather than shrinking its targets',
+    /\.pm-strip\{[^}]*overflow-x: auto/.test(src));
+  T('week cells clear 44px', /\.pm-w\{[^}]*min-width: 44px;[^}]*min-height: 44px/.test(src));
+  T('answer tiles clear 44px', /\.pb-tile\{[^}]*min-height: 56px/.test(src));
+  T('adjust chips clear 44px', /\.pb-chip\{[^}]*min-height: 44px/.test(src));
+  T('the current week is marked, not only tinted', /pm-w-dot/.test(src));
+  T('week buttons are labelled for screen readers',
+    /aria-label="Week \$\{w\}\$\{isNow \? ', current week' : ''\}/.test(src));
+  T('the week strip is a tablist with selection state',
+    /role="tablist"/.test(src) && /aria-selected="\$\{isSel\}"/.test(src));
+  T('day toggles report their checked state',
+    /role="checkbox"[\s\S]{0,80}aria-checked/.test(src));
+  T('motion is dropped on request',
+    /prefers-reduced-motion[\s\S]{0,200}\.pb-step\{ animation: none/.test(src));
+
+  sub('the builder claims only what it was told');
+  {
+    const def = ctx.generateProgram({ days:['mon','wed','fri'], equipment:'home',
+      sessionLength:'short', emphasis:'balanced', weeks:4 });
+    T('the reason names real inputs', /training days/.test(def.rationale));
+    T('it does not claim to have optimised anything',
+      !/optimi[sz]|AI |intelligent|perfect/i.test(def.rationale), def.rationale);
+    T('it does not mention recovery it never read',
+      !/recovery|readiness/i.test(def.rationale));
+  }
+}
+
+/* =========================================================
    CONTRACT 130 — date boundaries (D31.1)
    ---------------------------------------------------------
    The full sweep runs under seven real timezones in
@@ -14895,6 +15147,7 @@ async function main(){
   await testDataIntegrityD31();
   await testDateBoundaries();
   await testCardioMeasurement();
+  await testProgramExperience();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

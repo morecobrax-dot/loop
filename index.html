@@ -2281,6 +2281,11 @@ body.first-use{ padding-bottom: 0; }
 .mt-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 23px; letter-spacing: -0.01em; color: var(--text); }
 .mt-sub{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; }
 .mt-prog{ margin-top: 14px; }
+.mt-status{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint);
+}
 .mt-prog-top{ display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; color: var(--text-dim); }
 .mt-phase{
   font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
@@ -3658,6 +3663,238 @@ body.page-locked{ overflow: hidden; }
   font-family: inherit; cursor: pointer; min-height: 34px;
 }
 .cr-svg{ width: 100%; height: auto; display: block; }
+
+/* =========================================================
+   PROGRAM BUILDER + PROGRAM MAP  (Phase D33)
+   Built from D28's locked tokens. No new gradient system, no
+   second glass, no third button shape. Every control clears
+   44px and every state carries a mark as well as a colour.
+   ========================================================= */
+
+/* ---------- the builder shell ---------- */
+.pb-x{
+  background: none; border: none; color: var(--text-dim);
+  min-width: 44px; min-height: 44px; display: flex;
+  align-items: center; justify-content: center; cursor: pointer;
+}
+.pb-rail{ height: 2px; background: var(--border-quiet); position: relative; }
+.pb-rail span{
+  display: block; height: 100%; width: 0%;
+  background: var(--accent); transition: width 0.28s var(--ease);
+}
+.pb-foot{
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border-quiet); background: var(--bg);
+}
+.pb-foot:empty{ display: none; }
+.pb-go{ width: 100%; min-height: 48px; }
+
+/* Content moves, the shell does not. This is what stops each question
+   reading as navigation to an unrelated page. */
+.pb-step{ animation: pbIn 0.2s var(--ease) both; }
+.pb-step.pb-back{ animation-name: pbInBack; }
+@keyframes pbIn{ from{ opacity:0; transform: translateX(10px); } to{ opacity:1; transform:none; } }
+@keyframes pbInBack{ from{ opacity:0; transform: translateX(-10px); } to{ opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce){
+  .pb-step{ animation: none; }
+  .pb-rail span{ transition: none; }
+}
+
+.pb-head{ margin-bottom: 20px; }
+.pb-q{ font-size: var(--fs-xl); font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+.pb-sub{ font-size: var(--fs-sm); color: var(--text-dim); margin: 6px 0 0; line-height: 1.45; }
+.pb-hint{ font-size: var(--fs-xs); color: var(--text-faint); margin: 14px 0 0; line-height: 1.5; }
+
+/* ---------- answer tiles ---------- */
+.pb-tiles{ display: flex; flex-direction: column; gap: 10px; }
+.pb-tile{
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  padding: 14px 16px; min-height: 56px; justify-content: center;
+  border-radius: var(--radius-lg); border: 1px solid var(--border-quiet);
+  background: var(--surface); color: var(--text);
+  font-family: inherit; cursor: pointer;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.pb-tile:hover{ border-color: var(--border); }
+.pb-tile.on{
+  border-color: var(--accent); background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.pb-tile-l{ font-size: var(--fs-base); font-weight: 700; }
+.pb-tile-n{ font-size: var(--fs-xs); color: var(--text-dim); }
+
+/* ---------- frequency ---------- */
+.pb-freq{ display: flex; gap: 8px; }
+.pb-num{
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 14px 4px; min-height: 64px; justify-content: center;
+  border-radius: var(--radius-lg); border: 1px solid var(--border-quiet);
+  background: var(--surface); color: var(--text); font-family: inherit; cursor: pointer;
+}
+.pb-num.on{ border-color: var(--accent); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--accent); }
+.pb-num-n{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-lg); font-weight: 800; }
+.pb-num-l{ font-size: var(--fs-micro); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ---------- day picker ---------- */
+.pb-week{ display: flex; gap: 6px; }
+.pb-day{
+  flex: 1; min-height: 52px; border-radius: var(--radius-md);
+  border: 1px solid var(--border-quiet); background: var(--surface);
+  color: var(--text-dim); font-family: inherit; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.pb-day.on{
+  border-color: var(--accent); background: var(--surface-2);
+  color: var(--text); box-shadow: inset 0 0 0 1px var(--accent);
+}
+.pb-day-l{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-sm); font-weight: 700; }
+.pb-preview{ margin-top: 18px; display: flex; flex-direction: column; gap: 1px; }
+.pb-pv-row{
+  display: flex; align-items: baseline; gap: 12px; padding: 8px 2px;
+  border-top: 1px solid var(--border-quiet);
+}
+.pb-pv-d{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; min-width: 32px;
+}
+.pb-pv-c{ font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
+
+/* ---------- review ---------- */
+.pb-rv-head{ margin-bottom: 18px; }
+.pb-rv-name{
+  display: inline-flex; align-items: center; gap: 8px; padding: 0;
+  background: none; border: none; color: var(--text); cursor: pointer;
+  font-family: inherit; font-size: var(--fs-xl); font-weight: 800;
+  letter-spacing: -0.02em; text-align: left; min-height: 44px;
+}
+.pb-rv-pencil{ color: var(--text-faint); display: inline-flex; }
+.pb-rv-meta{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-xs);
+  color: var(--text-dim); letter-spacing: 0.04em; margin-top: 2px;
+}
+.pb-rv-why{ font-size: var(--fs-xs); color: var(--text-faint); margin-top: 8px; line-height: 1.5; }
+.pb-rv-sec{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); margin: 22px 0 8px;
+}
+.pb-seg{ display: flex; gap: 6px; }
+.pb-seg-b{
+  flex: 1; min-height: 44px; border-radius: 999px;
+  border: 1px solid var(--border-quiet); background: var(--surface);
+  color: var(--text-dim); font-family: inherit; font-size: var(--fs-xs);
+  font-weight: 700; cursor: pointer;
+}
+.pb-seg-b.on{ border-color: var(--accent); color: var(--accent); background: var(--surface-2); }
+.pb-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
+.pb-chip{
+  min-height: 44px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--border-quiet); background: var(--surface);
+  color: var(--text-dim); font-family: inherit; font-size: var(--fs-xs);
+  font-weight: 600; cursor: pointer;
+}
+.pb-chip:hover{ border-color: var(--border); color: var(--text); }
+.pb-consequence{ margin-top: 18px; color: var(--text-dim); }
+.pb-rv-note{ font-size: var(--fs-xs); color: var(--text-faint); margin: 10px 0 0; }
+.pb-warn{
+  margin-top: 20px; padding: 12px 14px; border-radius: var(--radius-lg);
+  border: 1px solid rgba(189,146,96,0.3); background: var(--surface-2);
+}
+.pb-warn-h{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--warning); margin-bottom: 4px;
+}
+.pb-warn-r{ font-size: var(--fs-xs); color: var(--text-dim); line-height: 1.5; }
+
+/* =========================================================
+   THE PROGRAM MAP
+   ========================================================= */
+.pmap{ margin: 4px 0 0; }
+
+/* Phase bands. Width is proportional to length, so a three-week phase beside
+   a five-week one reads correctly without a single number being needed. */
+.pm-phases{ display: flex; gap: 4px; margin-bottom: 8px; }
+.pm-ph{
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  padding: 7px 10px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border-quiet);
+}
+.pm-ph.on{ border-color: var(--accent); background: var(--surface-2); }
+.pm-ph-n{
+  font-size: var(--fs-micro); font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pm-ph-w{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  color: var(--text-faint);
+}
+/* One phase needs one line, not a band chart of a single bar. */
+.pm-single{
+  font-size: var(--fs-xs); color: var(--text-dim); margin-bottom: 8px;
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.pm-single b{ color: var(--text); font-weight: 700; }
+.pm-single span{ color: var(--text-faint); }
+
+/* The week strip is as long as the program is. It scrolls rather than
+   shrinking, so a 4-week and a 12-week program use the same sized target. */
+.pm-strip{
+  display: flex; gap: 5px; overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.pm-strip::-webkit-scrollbar{ display: none; }
+.pm-w{
+  flex: 0 0 auto; min-width: 44px; min-height: 44px; position: relative;
+  border-radius: var(--radius-md); border: 1px solid var(--border-quiet);
+  background: var(--surface); color: var(--text-dim);
+  font-family: inherit; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.pm-w[disabled]{ cursor: default; }
+.pm-w-n{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-sm); font-weight: 700; }
+.pm-w.on{ border-color: var(--accent); color: var(--text); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--accent); }
+/* The current week is marked, not merely tinted — colour is never the only
+   channel. */
+.pm-w.now .pm-w-n{ color: var(--accent); }
+.pm-w-dot{
+  position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
+}
+/* Where a new phase begins, the strip breaks. */
+.pm-w.phase-start{ margin-left: 9px; }
+.pm-w.phase-start::before{
+  content: ''; position: absolute; left: -7px; top: 8px; bottom: 8px;
+  width: 1px; background: var(--border);
+}
+
+.pm-week{ margin-top: 14px; display: flex; flex-direction: column; gap: 1px; }
+.pm-day{
+  display: flex; align-items: center; gap: 12px; padding: 10px 2px;
+  border-top: 1px solid var(--border-quiet);
+}
+.pm-d{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em;
+  min-width: 34px; flex: 0 0 auto;
+}
+.pm-body{ display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.pm-name{ font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+.pm-mus{ font-size: var(--fs-micro); color: var(--text-dim); }
+.pm-meta{ font-size: var(--fs-micro); color: var(--text-faint); }
+/* Rest is quiet by construction: no name, no metrics, dimmer than a day that
+   asks something of the athlete. */
+.pm-rest{ opacity: 0.55; }
+.pm-rest-l{ font-size: var(--fs-xs); color: var(--text-faint); }
+.pm-state{ flex: 0 0 auto; display: inline-flex; color: var(--success); }
+.pm-miss{ width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--warning); display: block; }
+.pm-now{ width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: block; }
+.pm-done .pm-name{ color: var(--text-dim); }
+
+/* Category identity, borrowed from the tones the rest of LOOP already uses. */
+.pm-cat-push .pm-d, .pm-cat-upper .pm-d{ color: var(--pool-accent); }
+.pm-cat-pull .pm-d{ color: var(--pool-success); }
+.pm-cat-legs .pm-d, .pm-cat-lower .pm-d{ color: var(--pool-rest); }
 
 /* ---------- history cards ---------- */
 .ch-list{ display: flex; flex-direction: column; gap: var(--space-2); }
@@ -5414,8 +5651,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 
 /* ---------- ONBOARDING DEMONSTRATIONS (Phase D8.1) ---------- */
 /* Carousel: a short cross-fade, nothing that draws attention to itself. */
-.ob-cycle{ transition: opacity 0.18s var(--ease); }
-.ob-cycle.ob-fade{ opacity: 0; }
+.ob-rotator{ transition: opacity 0.18s var(--ease); }
+.ob-rotator.ob-fade{ opacity: 0; }
 
 /* Timer demo reuses the warm-up runner's ring so it reads as the real app.
    Smaller here — it is a demonstration, not the hero of the screen. */
@@ -5430,7 +5667,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   font-family: 'JetBrains Mono', monospace; text-transform: uppercase;
 }
 @media (prefers-reduced-motion: reduce){
-  .ob-cycle{ transition: none; }
+  .ob-rotator{ transition: none; }
 }
 </style>
 </head>
@@ -5859,7 +6096,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <button class="settings-row-btn" onclick="openMyTraining()">
         <span class="settings-row-main">
           <span class="settings-row-title">My Training</span>
-          <span class="settings-row-desc" id="settingsProgramSub">Your schedule, workouts, goal and phases</span>
+          <span class="settings-row-desc" id="settingsProgramSub">Your program, schedule and workouts</span>
         </span>
         <span class="settings-row-arrow">›</span>
       </button>
@@ -5970,6 +6207,22 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 
 <!-- PROGRAMS (Phase D7A) — structural planning layer above the plan system -->
 <!-- MY TRAINING — one destination for what the athlete is actually doing -->
+<!-- PROGRAM BUILDER (D33) — one system, three entry points. The shell is
+     stable and only the step content changes, so moving between questions
+     reads as one screen rather than a series of pages. -->
+<div class="overlay overlay-page" id="pbOverlay">
+  <div class="sheet sheet-page">
+    <div class="workout-topbar">
+      <button class="workout-back" id="pbBack" onclick="pbGoBack()" aria-label="Back">‹</button>
+      <div class="workout-topbar-title" id="pbTitle">Build your program</div>
+      <button class="pb-x" id="pbX" onclick="pbClose()" aria-label="Close"></button>
+    </div>
+    <div class="pb-rail" aria-hidden="true"><span id="pbRailFill"></span></div>
+    <div class="sheet-scroll"><div id="pbBody"></div></div>
+    <div class="pb-foot" id="pbFoot"></div>
+  </div>
+</div>
+
 <div class="overlay overlay-page" id="myTrainingOverlay">
   <div class="sheet sheet-page">
     <div class="workout-topbar">
@@ -6000,8 +6253,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   <div class="sheet sheet-page">
     <div class="sheet-scroll">
       <button class="sheet-back" onclick="backToSettings('programsOverlay')">‹ Settings</button>
-      <h2>Training Cycles</h2>
-      <div class="sheet-sub">A cycle runs your plan for a set number of weeks, through phases that build and then deload. Optional — your plan already works without one, and nothing you have logged is affected.</div>
+      <h2>Programs</h2>
+      <div class="sheet-sub">A program runs your plan for a set number of weeks, through phases that build and then deload. Optional — your plan already works without one, and nothing you have logged is affected.</div>
       <div id="programsBody"></div>
     </div>
     <div class="sheet-actions">
@@ -6013,12 +6266,12 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 <div class="overlay" id="programBuilderOverlay" onclick="backdropDismiss(event, closeProgramBuilder)">
   <div class="sheet">
     <div class="sheet-scroll">
-      <h2>New Training Cycle</h2>
+      <h2>New Program</h2>
       <div class="sheet-sub">Name it, pick a length and a structure. Everything else can be adjusted afterwards.</div>
       <div id="programBuilderBody"></div>
     </div>
     <div class="sheet-actions">
-      <button class="btn-primary" style="flex:1" onclick="submitProgramBuilder()">Create cycle</button>
+      <button class="btn-primary" style="flex:1" onclick="submitProgramBuilder()">Create program</button>
       <button class="btn-secondary" onclick="closeProgramBuilder()">Cancel</button>
     </div>
   </div>
@@ -8588,9 +8841,9 @@ const PROGRAM_PHASES = [
   { key:'build', weeks:[3,4], name:'Build', color:'#BD9260', colorSoft:'rgba(189,146,96,0.14)',
     desc:'Add load. Work in the 8–12 rep range and push effort closer to 7–8/10 as the weight climbs.' },
   { key:'peak', weeks:[5,6], name:'Peak', color:'#E5675F', colorSoft:'rgba(229,103,95,0.14)',
-    desc:'Heaviest phase of the cycle. Target 6–10 reps at 8–9/10 effort — most of your strength gains show up here.' },
+    desc:'Heaviest phase of the program. Target 6–10 reps at 8–9/10 effort — most of your strength gains show up here.' },
   { key:'deload', weeks:[7,7], name:'Deload', color:'#4B9C81', colorSoft:'rgba(75,156,129,0.14)',
-    desc:'Cut volume roughly in half and drop the weight about 30%. Let your joints and nervous system recover before the next cycle.' }
+    desc:'Cut volume roughly in half and drop the weight about 30%. Let your joints and nervous system recover before the next phase.' }
 ];
 const PHASE_CYCLE_LENGTH = 7;
 
@@ -9598,7 +9851,7 @@ async function startCustomPlan(){
   }
   closePlanSwitcher();
   closePlansManager();
-  openProgramBuilder();
+  openProgramBuilderFlow('create');
 }
 
 function openPlanSwitcher(){
@@ -10698,6 +10951,36 @@ function topOpenSheet(){
 
 /* Runs on the same observer as the scroll lock, so it sees every open and
    close however the sheet was opened. */
+/* ---------- D33: STACKING IS OPEN ORDER, NOT DOCUMENT ORDER ----------
+   Every .overlay shares one z-index, so the browser painted them in document
+   order. A surface opened from a surface declared later in the file was
+   therefore painted UNDERNEATH it: the athlete tapped Edit, saw nothing
+   change, and had to close the page they were on to discover the editor
+   waiting behind it. Seven of eight sampled transitions did this.
+
+   The order that matters is the order things were opened in, which
+   _openSheetStack already records. Painting from that stack makes the
+   newest surface the top one by construction — for every overlay, however
+   it was opened, including boot and draft restore, which never call an
+   open* function at all. Same reasoning as the scroll lock above: one
+   mechanism that cannot be forgotten, rather than a rule each of the
+   thirty-two overlays has to remember. */
+const OVERLAY_Z_BASE = 60;
+function paintSheetStackOrder(){
+  _openSheetStack.forEach((id, i) => {
+    const ov = document.getElementById(id);
+    if(ov) ov.style.zIndex = String(OVERLAY_Z_BASE + i);
+  });
+}
+
+/* Tearing the page beneath down was the other tempting fix, and it is wrong:
+   closing an exercise opened from My Gym then dropped the athlete on the root
+   tab instead of back in their gym. The page underneath is not a hidden
+   destination — the top of the stack is always what the athlete just
+   navigated to — it is the way back. It stays open, painted below, inert to
+   screen readers through the aria-modal the stack already sets, and revealed
+   again when the surface above it closes. */
+
 function syncSheetAccessibility(){
   const openNow = [...document.querySelectorAll('.overlay.open')].map(o => o.id);
 
@@ -10725,7 +11008,11 @@ function syncSheetAccessibility(){
     if(opener && document.contains(opener) && opener.offsetParent !== null){
       try{ opener.focus({ preventScroll: true }); }catch(e){}
     }
+    const ov2 = document.getElementById(id);
+    if(ov2) ov2.style.zIndex = '';          // back to the stylesheet's value
   });
+
+  paintSheetStackOrder();
 }
 
 /* One handler for the whole app. Escape closes the top sheet through the
@@ -21051,7 +21338,18 @@ function e1rmLineSvg(points){
 }
 
 
+/* The plan chip in the header used to be painted once, at boot. Anything that
+   changed the plan afterwards — and since D33 building a program does — left
+   it naming the previous one until the next reload. Painting it with
+   everything else means it cannot drift again. */
+function paintPlanChip(){
+  const el = document.getElementById('currentPlanLabel');
+  const plan = DEFAULT_PLANS[selectedPlanId];
+  if(el && plan) el.textContent = plan.name;
+}
+
 function renderAll(){
+  paintPlanChip();
   renderToday();
   renderCardioView();
   renderTrainView();
@@ -21402,8 +21700,8 @@ const ONBOARDING_STEPS = [
       return `
       <div class="ob-mock">
         <div class="ob-mock-label">TODAY'S WORKOUT</div>
-        <div class="ob-mock-title ob-cycle" id="obCarouselTitle">${escapeHtml(first.cat)}</div>
-        <div class="ob-mock-meta ob-cycle" id="obCarouselMeta">${escapeHtml(first.name)}</div>
+        <div class="ob-mock-title ob-rotator" id="obCarouselTitle">${escapeHtml(first.cat)}</div>
+        <div class="ob-mock-meta ob-rotator" id="obCarouselMeta">${escapeHtml(first.name)}</div>
         <div class="ob-mock-cta ob-spot">Start Workout</div>
       </div>`;
     }
@@ -21470,7 +21768,7 @@ const ONBOARDING_STEPS = [
   {
     id: 'progress',
     title: 'Watch it add up',
-    body: 'Every set feeds your progress — what you train most, which lifts are moving, and how the weeks stack up. Run your plan as a cycle when you want a start and an end date.',
+    body: 'Every set feeds your progress — what you train most, which lifts are moving, and how the weeks stack up. Run your plan as a program when you want a start and an end date.',
     visual: () => `
       <div class="ob-mock">
         <div class="ob-mock-label">MUSCLE GROUPS TRAINED</div>
@@ -21670,7 +21968,7 @@ const ONBOARDING_HINTS = {
   setType:  'Set Type records how a set was performed — warm-up, working, drop, failure or AMRAP.',
   timeMode: 'Short on time? Pick how long you have and LOOP trims today’s session, not your plan.',
   replace:  'Can’t use this exercise? LOOP ranks alternatives that keep the same training intent.',
-  programs: 'A cycle runs your plan for a set number of weeks, through phases, with a start and an end date.',
+  programs: 'A program runs your plan for a set number of weeks, through phases, with a start and an end date.',
   notes:    'Notes are your own memory for an exercise. LOOP shows them again next time.',
   rir:      'RIR is Reps in Reserve — the number of good reps you could have done before stopping.'
 };
@@ -21939,9 +22237,9 @@ function getMissedProgramDays(program, limit){
    crashing a render later. */
 function validateProgram(input){
   const errors = [];
-  if(!input || typeof input !== 'object') return { valid:false, errors:['No cycle supplied'] };
+  if(!input || typeof input !== 'object') return { valid:false, errors:['No program supplied'] };
   const name = String(input.name || '').trim();
-  if(!name) errors.push('Give the cycle a name');
+  if(!name) errors.push('Give the program a name');
   if(name.length > PROGRAM_LIMITS.maxNameLength) errors.push('Name is too long');
   const weeks = parseInt(input.durationWeeks, 10);
   if(!(weeks >= PROGRAM_LIMITS.minWeeks && weeks <= PROGRAM_LIMITS.maxWeeks)){
@@ -21988,7 +22286,7 @@ function createProgram(input){
   const check = validateProgram(draft);
   if(!check.valid) return { ok:false, errors:check.errors, program:null };
   if((programsStore.programs || []).length >= PROGRAM_LIMITS.maxPrograms){
-    return { ok:false, errors:['Too many cycles'], program:null };
+    return { ok:false, errors:['Too many programs'], program:null };
   }
   const now = new Date().toISOString();
   const program = {
@@ -22018,7 +22316,7 @@ function createProgram(input){
    and no completed session is reinterpreted. */
 function updateProgram(programId, patch){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Cycle not found'], program:null };
+  if(!p) return { ok:false, errors:['Program not found'], program:null };
   const merged = Object.assign({}, p, patch || {});
   const check = validateProgram(merged);
   if(!check.valid) return { ok:false, errors:check.errors, program:null };
@@ -22222,7 +22520,7 @@ function getPhaseProgress(program, todayStr){
    through updateProgram() and inherits its validation. No second store. */
 function addProgramPhase(programId, input){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Cycle not found'] };
+  if(!p) return { ok:false, errors:['Program not found'] };
   const blocks = sortedProgramPhases(p).slice();
   const start = parseInt((input && input.startWeek), 10) || 1;
   const end = parseInt((input && input.endWeek), 10) || start;
@@ -22238,7 +22536,7 @@ function addProgramPhase(programId, input){
 }
 function updateProgramPhase(programId, blockId, patch){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Cycle not found'] };
+  if(!p) return { ok:false, errors:['Program not found'] };
   const blocks = sortedProgramPhases(p).map(b => b.id === blockId ? Object.assign({}, b, patch || {}) : Object.assign({}, b));
   const target = blocks.find(b => b.id === blockId);
   if(!target) return { ok:false, errors:['Phase not found'] };
@@ -22248,7 +22546,7 @@ function updateProgramPhase(programId, blockId, patch){
 }
 function deleteProgramPhase(programId, blockId){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Cycle not found'] };
+  if(!p) return { ok:false, errors:['Program not found'] };
   const blocks = sortedProgramPhases(p).filter(b => b.id !== blockId);
   return updateProgram(programId, { blocks: renumberPhases(blocks) });
 }
@@ -22263,7 +22561,7 @@ function renumberPhases(blocks){
    phase the same length and the program continuous. */
 function moveProgramPhase(programId, blockId, direction){
   const p = getProgram(programId);
-  if(!p) return { ok:false, errors:['Cycle not found'] };
+  if(!p) return { ok:false, errors:['Program not found'] };
   const blocks = sortedProgramPhases(p);
   const idx = blocks.findIndex(b => b.id === blockId);
   const swapWith = idx + (direction === 'up' ? -1 : 1);
@@ -22321,7 +22619,7 @@ function phaseStatusLabel(status){
 function programPhasesHtml(program){
   const rows = getProgramPhaseSchedule(program);
   if(!rows.length){
-    return `<div class="pnote">No phases yet. Add one to split this cycle into phases.</div>`;
+    return `<div class="pnote">No phases yet. Add one to split this program into phases.</div>`;
   }
   const ph = getPhaseProgress(program);
   return rows.map((r, i) => {
@@ -22450,6 +22748,971 @@ function doAddPhase(){ openPhaseEditor(null); }
    A compact strip on Today, and one sheet each for the list, the builder and
    the detail view. No new main tab: programs live under Settings > Training. */
 
+/* =========================================================
+   PROGRAM GENERATION  (Phase D33)
+   ---------------------------------------------------------
+   Answers in, a complete program definition out. Deterministic:
+   the same answers always produce the same program, so what the
+   athlete previews is exactly what Start writes. Nothing here
+   is random, nothing consults the trainer, and nothing invents
+   a second exercise library — every workout is a REFERENCE
+   into the existing plan templates, which is what the program
+   model already stores.
+
+   The rules below are ordinary programming sense, not science
+   theatre: train each muscle more than once a week when the
+   frequency allows it, do not stack the same heavy day twice in
+   a row, and do not hand someone with 35 minutes a ten-exercise
+   session.
+   ========================================================= */
+
+const BUILDER_GOALS = [
+  { id:'hypertrophy', label:'Build Muscle',       note:'Moderate loads, higher volume' },
+  { id:'strength',    label:'Get Stronger',       note:'Heavier loads, lower reps' },
+  { id:'recomp',      label:'Muscle + Strength',  note:'Both, without chasing either' },
+  { id:'general',     label:'General Fitness',    note:'Balanced and sustainable' }
+];
+
+const BUILDER_EXPERIENCE = [
+  { id:'new',          label:'New',          note:'Still learning the main lifts' },
+  { id:'intermediate', label:'Intermediate', note:'Training consistently and progressing' },
+  { id:'experienced',  label:'Experienced',  note:'Comfortable managing advanced training' }
+];
+
+/* Minutes, used to choose between templates rather than to promise a
+   stopwatch figure. The midpoint is what the generator fits against. */
+const BUILDER_LENGTHS = [
+  { id:'short',    label:'30–45 min', mid:38 },
+  { id:'standard', label:'45–60 min', mid:52 },
+  { id:'long',     label:'60–75 min', mid:67 },
+  { id:'extended', label:'75+ min',   mid:85 }
+];
+
+const BUILDER_EQUIPMENT = [
+  { id:'full',      label:'Full Gym',   note:'Barbells, machines, cables', plan:'hypertrophy' },
+  { id:'home',      label:'Home Gym',   note:'Some weights and a bench',   plan:'home' },
+  { id:'dumbbells', label:'Dumbbells',  note:'Adjustable or a set',        plan:'home' },
+  { id:'minimal',   label:'Bodyweight', note:'Little or no equipment',     plan:'home' }
+];
+
+const BUILDER_EMPHASIS = [
+  { id:'balanced', label:'Balanced', cats:[] },
+  { id:'chest',    label:'Chest',    cats:['push','upper'] },
+  { id:'back',     label:'Back',     cats:['pull','upper'] },
+  { id:'shoulders',label:'Shoulders',cats:['push','upper'] },
+  { id:'arms',     label:'Arms',     cats:['push','pull','upper'] },
+  { id:'legs',     label:'Legs',     cats:['legs','lower'] },
+  { id:'glutes',   label:'Glutes',   cats:['legs','lower'] }
+];
+
+const BUILDER_LENGTHS_WEEKS = [4, 6, 8];
+
+function builderGoal(id){ return BUILDER_GOALS.find(g => g.id === id) || BUILDER_GOALS[0]; }
+function builderLength(id){ return BUILDER_LENGTHS.find(l => l.id === id) || BUILDER_LENGTHS[1]; }
+function builderEquipment(id){ return BUILDER_EQUIPMENT.find(e => e.id === id) || BUILDER_EQUIPMENT[0]; }
+function builderEmphasis(id){ return BUILDER_EMPHASIS.find(e => e.id === id) || BUILDER_EMPHASIS[0]; }
+
+/* ---------- 1. WHICH PLAN LIBRARY ----------
+   Equipment decides what is even possible; goal only refines within that.
+   A home athlete never gets a machine program however they answered. */
+function builderPlanFor(equipmentId, goalId){
+  const eq = builderEquipment(equipmentId);
+  if(eq.plan !== 'hypertrophy') return eq.plan;         // home / dumbbells / minimal
+  if(goalId === 'strength') return 'strength';
+  if(goalId === 'hypertrophy') return 'hypertrophy';
+  if(goalId === 'recomp') return 'hypertrophy';
+  return 'balanced';
+}
+
+/* ---------- 2. THE SPLIT ----------
+   Frequency picks the shape. Experience breaks ties: someone still learning
+   the lifts gets repeated exposure to the same movements rather than six
+   different sessions to remember.
+
+   Every sequence below is checked against the categories the chosen plan
+   actually has, so a plan without upper/lower can never be handed an
+   upper/lower split. */
+function builderSplitFor(days, experienceId, planId){
+  const plan = DEFAULT_PLANS[planId] || {};
+  const have = c => ((plan.templates || {})[c] || []).length > 0;
+  const usable = seq => seq.every(have);
+  const beginner = experienceId === 'new';
+
+  const options = {
+    2: [ ['fullbody','fullbody'] ],
+    3: beginner
+      ? [ ['fullbody','fullbody','fullbody'], ['push','pull','legs'] ]
+      : [ ['push','pull','legs'], ['fullbody','fullbody','fullbody'] ],
+    4: [ ['upper','lower','upper','lower'],
+         ['push','pull','legs','fullbody'] ],
+    5: [ ['upper','lower','push','pull','legs'],
+         ['push','pull','legs','upper','lower'],
+         ['push','pull','legs','fullbody','fullbody'] ],
+    6: [ ['push','pull','legs','push','pull','legs'],
+         ['upper','lower','push','pull','legs','fullbody'] ]
+  };
+  const list = options[days] || options[4];
+  const pick = list.find(usable);
+  if(pick) return pick.slice();
+  /* Nothing canonical fits this library. Fall back to whatever it does have,
+     cycled — still coherent, never empty. */
+  const cats = ['fullbody','upper','lower','push','pull','legs'].filter(have);
+  if(!cats.length) return [];
+  const out = [];
+  for(let i = 0; i < days; i++) out.push(cats[i % cats.length]);
+  return out;
+}
+
+/* ---------- 3. FATIGUE DISTRIBUTION ----------
+   The split is an ordered rotation; the athlete's chosen days are wherever
+   they land in the week. Assigning the rotation in order can put two of the
+   same category back to back when the days are consecutive. This rotates the
+   starting offset and keeps the arrangement with the fewest same-category
+   adjacencies, counting Sunday->Monday because the week repeats. */
+function builderArrangeDays(dayKeys, split){
+  if(!dayKeys.length || !split.length) return {};
+  const idxOf = k => PROGRAM_DAY_KEYS.indexOf(k);
+  const ordered = dayKeys.slice().sort((a,b) => idxOf(a) - idxOf(b));
+
+  const clashesFor = offset => {
+    let clashes = 0;
+    for(let i = 0; i < ordered.length; i++){
+      const a = split[(i + offset) % split.length];
+      const b = split[(i + 1 + offset) % split.length];
+      const gap = i + 1 < ordered.length
+        ? idxOf(ordered[i+1]) - idxOf(ordered[i])
+        : (7 - idxOf(ordered[i])) + idxOf(ordered[0]);
+      if(gap === 1 && a === b) clashes += 2;      // same thing two days running
+      else if(gap === 1 && builderHeavy(a) && builderHeavy(b)) clashes += 1;
+    }
+    return clashes;
+  };
+
+  let best = 0, bestScore = Infinity;
+  for(let off = 0; off < split.length; off++){
+    const sc = clashesFor(off);
+    if(sc < bestScore){ bestScore = sc; best = off; }
+  }
+  const out = {};
+  ordered.forEach((k, i) => { out[k] = split[(i + best) % split.length]; });
+  return out;
+}
+/* Lower-body and full-body days carry the most systemic fatigue. */
+function builderHeavy(cat){ return cat === 'legs' || cat === 'lower' || cat === 'fullbody'; }
+
+/* ---------- 4. TEMPLATE CHOICE ----------
+   Within a category the plan offers several templates. The right one is the
+   one that fits the session the athlete said they have, nudged by whatever
+   they asked to emphasise. Ties break on the earlier template so the result
+   stays deterministic.
+
+   Repeated categories (Upper/Lower twice a week) take DIFFERENT templates,
+   which is what makes Upper A and Upper B different sessions.
+
+   Beginners get different templates too. Handing them the same session
+   three times looked like helpful repetition and was actually a hole: the
+   audit found a 3-day beginner week with no direct shoulder, glute or
+   triceps work at all, because one five-exercise template was the entire
+   week. The repetition a beginner benefits from is of MOVEMENT PATTERNS —
+   squat, press, pull every session — which full-body templates already
+   deliver. What they get instead is the shorter end of the template range,
+   so sessions stay simple. */
+/* LOOP already estimates a workout's length, rest intervals and all, and My
+   Training shows that number. The builder uses the SAME function rather than
+   a second opinion — two estimators would eventually print two durations for
+   one workout. */
+function builderEstimateMinutes(tpl){
+  if(!tpl || !tpl.exercises || !tpl.exercises.length) return 0;
+  try{ return computeWorkoutDuration(tpl); }catch(e){ return 0; }
+}
+function builderEmphasisScore(tpl, emphasisId){
+  const em = builderEmphasis(emphasisId);
+  if(!em.cats.length) return 0;
+  const words = { chest:['chest','press','fly','pec'], back:['row','pulldown','pull-up','back','lat'],
+    shoulders:['shoulder','lateral','raise','overhead'], arms:['curl','triceps','biceps','extension'],
+    legs:['squat','leg','lunge','quad','hamstring','calf'], glutes:['hip thrust','glute','bridge','rdl','deadlift'] };
+  const kw = words[em.id] || [];
+  if(!kw.length) return 0;
+  const names = ((tpl && tpl.exercises) || []).map(e => String(e.name).toLowerCase());
+  return names.filter(n => kw.some(k => n.indexOf(k) !== -1)).length;
+}
+function builderPickTemplate(planId, cat, targetMinutes, emphasisId, used, simple){
+  const list = ((DEFAULT_PLANS[planId] || {}).templates || {})[cat] || [];
+  if(!list.length) return null;
+  const seen = used[cat] || [];
+  const fresh = list.filter(t => seen.indexOf(t.id) === -1);
+  const pool = fresh.length ? fresh : list;
+  let best = pool[0], bestScore = -Infinity;
+  pool.forEach(t => {
+    const fitPenalty = Math.abs(builderEstimateMinutes(t) - targetMinutes) / 10;
+    /* A beginner is nudged toward the shorter templates: fewer things to
+       learn in one session, without losing the week's coverage. */
+    const simplicity = simple ? -(((t.exercises || []).length) * 0.35) : 0;
+    const score = builderEmphasisScore(t, emphasisId) - fitPenalty + simplicity;
+    if(score > bestScore){ bestScore = score; best = t; }
+  });
+  used[cat] = seen.concat([best.id]);
+  return best;
+}
+
+/* ---------- 5. PHASES ----------
+   A phase must mean something. Four weeks is one stretch of training and is
+   presented as one; splitting it in two so the timeline has more to draw
+   would be decoration. Longer programs get a genuine change of emphasis. */
+function builderPhasesFor(weeks){
+  const mk = (name, type, a, b, desc) => ({ id:newBlockId(), name, order:0,
+    phaseType:type, startWeek:a, endWeek:b, description:desc });
+  if(weeks <= 4) return [ mk('Foundation','accumulation', 1, weeks,
+    'Build the habit and the movements. Volume stays repeatable.') ];
+  if(weeks <= 6) return [
+    mk('Foundation','accumulation', 1, 3, 'Build the habit and the movements.'),
+    mk('Build','intensification', 4, weeks, 'Add load now the movements are familiar.') ];
+  const half = Math.ceil(weeks / 2);
+  return [
+    mk('Foundation','accumulation', 1, half, 'Build the habit and the movements.'),
+    mk('Build','intensification', half + 1, weeks, 'Add load now the movements are familiar.') ];
+}
+
+/* ---------- 6. NAMING ---------- */
+function builderProgramName(days, goalId, split){
+  const shape = (() => {
+    const u = split.filter(c => c === 'upper' || c === 'lower').length;
+    const p = split.filter(c => c === 'push' || c === 'pull' || c === 'legs').length;
+    const f = split.filter(c => c === 'fullbody').length;
+    if(f === split.length) return 'Full Body';
+    if(u === split.length) return 'Upper / Lower';
+    if(p === split.length) return 'Push / Pull / Legs';
+    return null;
+  })();
+  const goal = { hypertrophy:'Muscle Growth', strength:'Strength',
+    recomp:'Muscle + Strength', general:'Fitness' }[goalId] || 'Training';
+  return days + '-Day ' + (shape ? shape + ' ' + goal : goal);
+}
+
+/* ---------- 7. THE GENERATOR ----------
+   One function, no side effects: it returns a program definition and the
+   reasons behind it. Nothing is written until the athlete taps Start. */
+function generateProgram(answers){
+  const a = answers || {};
+  const goalId = a.goal || 'hypertrophy';
+  const experienceId = a.experience || 'intermediate';
+  const equipmentId = a.equipment || 'full';
+  const emphasisId = a.emphasis || 'balanced';
+  const weeks = BUILDER_LENGTHS_WEEKS.indexOf(parseInt(a.weeks, 10)) !== -1
+    ? parseInt(a.weeks, 10) : 6;
+  const target = builderLength(a.sessionLength).mid;
+  const planId = builderPlanFor(equipmentId, goalId);
+
+  const dayKeys = (a.days || []).filter(d => PROGRAM_DAY_KEYS.indexOf(d) !== -1);
+  const days = dayKeys.length || parseInt(a.frequency, 10) || 4;
+  const split = builderSplitFor(days, experienceId, planId);
+  const chosen = dayKeys.length ? dayKeys : builderDefaultDays(days);
+  const arrangement = builderArrangeDays(chosen, split);
+
+  const used = {};
+  const simple = experienceId === 'new';   // fewer movements per session
+  const schedule = {};
+  PROGRAM_DAY_KEYS.forEach(k => {
+    const cat = arrangement[k];
+    if(!cat){ schedule[k] = { type:'rest' }; return; }
+    const tpl = builderPickTemplate(planId, cat, target, emphasisId, used, simple);
+    if(!tpl){ schedule[k] = { type:'rest' }; return; }
+    schedule[k] = { type:'workout', planId, category:cat, templateId: tpl.id };
+  });
+
+  return {
+    name: builderProgramName(Object.keys(arrangement).length, goalId, split),
+    goal: goalId,
+    durationWeeks: weeks,
+    schedule,
+    blocks: builderPhasesFor(weeks),
+    startDate: a.startDate || localDateStr(),
+    /* Why this program looks the way it does, in the athlete's own terms.
+       Only ever states what was actually used as an input. */
+    rationale: builderRationale({ days: Object.keys(arrangement).length, planId,
+      equipmentId, goalId, sessionLength: a.sessionLength, emphasisId, weeks })
+  };
+}
+
+/* A sensible week when the athlete has not picked days — spread, not stacked. */
+function builderDefaultDays(n){
+  const spreads = { 1:['mon'], 2:['mon','thu'], 3:['mon','wed','fri'],
+    4:['mon','tue','thu','fri'], 5:['mon','tue','wed','fri','sat'],
+    6:['mon','tue','wed','thu','fri','sat'], 7:PROGRAM_DAY_KEYS.slice() };
+  return (spreads[n] || spreads[4]).slice();
+}
+
+/* Claims only what the answers support. No optimisation language, because
+   nothing here optimised anything. */
+function builderRationale(o){
+  const bits = [];
+  bits.push('Built around your ' + o.days + ' training day' + (o.days === 1 ? '' : 's'));
+  const eq = builderEquipment(o.equipmentId);
+  bits.push(eq.label.toLowerCase() + ' equipment');
+  if(o.sessionLength) bits.push(builderLength(o.sessionLength).label + ' sessions');
+  const em = builderEmphasis(o.emphasisId);
+  if(em.cats.length) bits.push('extra ' + em.label.toLowerCase() + ' work');
+  return bits.join(' · ') + '.';
+}
+
+/* ---------- 8. GUARDRAILS ----------
+   Deterministic checks on a generated program, so a bad combination is
+   caught here rather than discovered by the athlete in week three. These
+   report; they do not silently rewrite the program. */
+function auditGeneratedProgram(def){
+  const problems = [];
+  if(!def) return [{ code:'empty', text:'No program was produced' }];
+  const days = PROGRAM_DAY_KEYS.filter(k => def.schedule[k] && def.schedule[k].type === 'workout');
+  if(!days.length) problems.push({ code:'no-days', text:'No training days scheduled' });
+
+  /* Weekly coverage, from the templates actually referenced.
+
+     Two kinds of coverage, because they are not the same claim. The big
+     movers need genuine work of their own. Arms and shoulders do not: a
+     week of pressing and rowing trains triceps and biceps, and demanding a
+     named curl before calling biceps covered flags well-built full-body
+     programs as broken — which is exactly what this check did to every
+     beginner program before it counted patterns as well as names. */
+  const names = [];
+  days.forEach(k => {
+    const tpl = builderTemplateOf(def.schedule[k]);
+    ((tpl && tpl.exercises) || []).forEach(x => names.push(String(x.name).toLowerCase()));
+  });
+  const hits = g => names.filter(n =>
+    (MUSCLE_MAP[g] || []).some(kw => n.indexOf(kw) !== -1)).length;
+  /* Whole words only. A bare substring test reported that every machine
+     exercise was a chin-up, because 'machine' contains 'chin' — which
+     silently satisfied the pulling requirement for press-only weeks. */
+  const anyOf = kws => names.some(n => kws.some(k => {
+    const i = n.indexOf(k);
+    if(i === -1) return false;
+    const before = i === 0 ? ' ' : n.charAt(i - 1);
+    const after = n.charAt(i + k.length) || ' ';
+    return !/[a-z]/.test(before) && !/[a-z]/.test(after);
+  }));
+
+  const PATTERNS = {
+    press: ['press','push-up','push up','dip','bench'],
+    pull:  ['row','pulldown','pull-up','pull up','chin','pullover'],
+    squat: ['squat','leg press','lunge','step-up','hack'],
+    hinge: ['deadlift','rdl','romanian','hip thrust','glute','bridge','leg curl','good morning']
+  };
+
+  if(days.length >= 3){
+    /* Direct work expected for the prime movers. */
+    ['chest','back','quads'].forEach(g => {
+      if(MUSCLE_MAP[g] && !hits(g)) problems.push({ code:'gap', text:'No ' + g + ' work this week' });
+    });
+    /* The posterior chain counts as covered by hamstrings OR glutes OR a hinge. */
+    if(!hits('hamstrings') && !hits('glutes') && !anyOf(PATTERNS.hinge)){
+      problems.push({ code:'gap', text:'No posterior chain work this week' });
+    }
+    /* Arms and shoulders: direct work, or the compounds that train them. */
+    if(!hits('triceps') && !anyOf(PATTERNS.press)){
+      problems.push({ code:'gap', text:'No pressing or triceps work this week' });
+    }
+    if(!hits('biceps') && !anyOf(PATTERNS.pull)){
+      problems.push({ code:'gap', text:'No pulling or biceps work this week' });
+    }
+    if(!hits('shoulders') && !anyOf(PATTERNS.press)){
+      problems.push({ code:'gap', text:'No shoulder work this week' });
+    }
+    /* And the patterns themselves must all appear somewhere in the week. */
+    Object.keys(PATTERNS).forEach(pat => {
+      if(!anyOf(PATTERNS[pat])) problems.push({ code:'pattern', text:'No ' + pat + ' movement this week' });
+    });
+  }
+
+  /* Same category on consecutive days. */
+  for(let i = 0; i < PROGRAM_DAY_KEYS.length; i++){
+    const a = def.schedule[PROGRAM_DAY_KEYS[i]];
+    const b = def.schedule[PROGRAM_DAY_KEYS[(i+1) % 7]];
+    if(a && b && a.type === 'workout' && b.type === 'workout' && a.category === b.category){
+      problems.push({ code:'repeat', text:'Two ' + (CAT_LABEL[a.category] || a.category) + ' days in a row' });
+      break;
+    }
+  }
+
+  /* Duplicate exercises inside one workout. */
+  days.forEach(k => {
+    const tpl = builderTemplateOf(def.schedule[k]);
+    const names = ((tpl && tpl.exercises) || []).map(x => String(x.name).toLowerCase());
+    if(new Set(names).size !== names.length){
+      problems.push({ code:'dupe', text:'A workout repeats an exercise' });
+    }
+  });
+
+  return problems;
+}
+
+function builderTemplateOf(entry){
+  if(!entry || entry.type !== 'workout') return null;
+  const list = ((DEFAULT_PLANS[entry.planId] || {}).templates || {})[entry.category] || [];
+  return list.find(t => t.id === entry.templateId) || null;
+}
+
+/* =========================================================
+   PROGRAM BUILDER  (Phase D33)
+   ---------------------------------------------------------
+   ONE builder, three ways in: first run, Settings -> My
+   Training -> Edit Program, and the empty state on Today.
+   They differ only in which answers are already known.
+
+   The step list is computed from what LOOP already knows, so
+   an athlete who has set a goal and a gym is never asked
+   again. That is why progress is a rail rather than 'Step 3
+   of 12' — the number of questions genuinely varies.
+   ========================================================= */
+let pbState = null;
+
+/* Everything the builder could ask, in order. `known` reads existing state:
+   when it returns a value the question is answered and never shown. */
+const PB_STEPS = [
+  { id:'goal',      title:'What are you training for?',
+    sub:'This shapes how your sessions are built.',
+    known: () => athleteProfile && athleteProfile.goal && BUILDER_GOALS.some(g => g.id === athleteProfile.goal)
+      ? athleteProfile.goal : null },
+  { id:'frequency', title:'How many days can you train?',
+    sub:'Choose what you will actually sustain.' },
+  { id:'days',      title:'Which days work best?',
+    sub:'Tap the days you train. This becomes your schedule.' },
+  { id:'experience',title:'Where are you at?',
+    sub:'This sets how much is packed into each session.',
+    known: () => (athleteProfile && athleteProfile.experience
+      && BUILDER_EXPERIENCE.some(e => e.id === athleteProfile.experience))
+      ? athleteProfile.experience : null },
+  { id:'sessionLength', title:'How long do you usually have?',
+    sub:'Sessions are sized to fit.' },
+  { id:'equipment', title:'What can you train with?',
+    sub:'Only exercises you can actually do.',
+    known: () => pbEquipmentFromGym() },
+  { id:'emphasis',  title:'Anything to emphasise?',
+    sub:'Optional. Adds a little extra work, without neglecting the rest.' }
+];
+
+/* My Gym already knows the answer for anyone who has set it up. */
+function pbEquipmentFromGym(){
+  try{
+    const g = (typeof gymProfile !== 'undefined' && gymProfile) ? gymProfile : null;
+    const items = g && (g.equipment || g.items);
+    if(!items) return null;
+    const have = Array.isArray(items) ? items : Object.keys(items).filter(k => items[k]);
+    if(!have.length) return null;
+    const has = w => have.some(x => String(x).toLowerCase().indexOf(w) !== -1);
+    if(has('machine') || has('cable')) return 'full';
+    if(has('barbell')) return 'full';
+    if(has('dumbbell')) return 'dumbbells';
+    return 'minimal';
+  }catch(e){ return null; }
+}
+
+/* ---------- opening ---------- */
+function pbSteps(){ return PB_STEPS.filter(st => !(pbState.known || {})[st.id]); }
+
+function openProgramBuilderFlow(mode){
+  const existing = mode === 'edit' ? getActiveProgram() : null;
+  const known = {};
+  const answers = {};
+  PB_STEPS.forEach(st => {
+    const v = st.known ? st.known() : null;
+    if(v){ known[st.id] = true; answers[st.id] = v; }
+  });
+  /* Editing starts from the program the athlete already has, so nothing they
+     chose before is silently reset by opening the editor. */
+  if(existing){
+    answers.goal = existing.goal || answers.goal;
+    answers.weeks = existing.durationWeeks;
+    answers.days = PROGRAM_DAY_KEYS.filter(k => existing.schedule[k] && existing.schedule[k].type === 'workout');
+    answers.frequency = answers.days.length;
+    delete known.goal;                         // still offer to change it
+  }
+  pbState = { step:0, answers, known, mode: mode || 'create',
+    editingId: existing ? existing.id : null, generated:null, dir:'fwd' };
+  if(!answers.weeks) pbState.answers.weeks = 6;
+  /* An athlete changing one training day should not be walked back through
+     seven questions to do it. Editing lands on the program itself, and each
+     question is one tap away from there. */
+  if(existing) pbState.step = pbSteps().length;
+  const x = document.getElementById('pbX');
+  if(x && !x.firstChild) x.innerHTML = closeIconSvg(18);   // static markup, painted once
+  renderProgramBuilderFlow();
+  document.getElementById('pbOverlay').classList.add('open');
+}
+function pbClose(){
+  document.getElementById('pbOverlay').classList.remove('open');
+  pbState = null;
+}
+
+/* ---------- navigation ---------- */
+function pbTotal(){ return pbSteps().length + 1; }        // +1 for review
+function pbAtReview(){ return pbState && pbState.step >= pbSteps().length; }
+
+function pbGoBack(){
+  if(!pbState) return;
+  /* Coming back from a question opened by tapping Adjust returns to the
+     program, not to the question before it, which the athlete never saw. */
+  if(pbState.jumped){ pbState.jumped = false; pbState.step = pbSteps().length;
+    pbState.dir = 'back'; renderProgramBuilderFlow(); return; }
+  if(pbState.step === 0){ pbClose(); return; }
+  pbState.step--; pbState.dir = 'back';
+  renderProgramBuilderFlow();
+}
+
+function pbJumpTo(stepId){
+  if(!pbState) return;
+  const i = pbSteps().findIndex(st => st.id === stepId);
+  if(i === -1) return;
+  pbState.jumped = true;
+  pbState.step = i; pbState.dir = 'fwd';
+  renderProgramBuilderFlow();
+}
+function pbNext(){
+  if(!pbState) return;
+  if(pbAtReview()) return;
+  if(pbState.jumped){ pbState.jumped = false; pbState.step = pbSteps().length; }
+  else pbState.step++;
+  pbState.dir = 'fwd';
+  renderProgramBuilderFlow();
+}
+
+/* Answering advances. One tap per decision — no separate Continue for a
+   question that only takes one choice. Days and emphasis are multi-tap, so
+   those keep an explicit Continue. */
+function pbAnswer(id, value){
+  if(!pbState) return;
+  pbState.answers[id] = value;
+  if(id === 'frequency'){
+    /* Re-suggest a sensible spread, but keep the athlete's own days when
+       they still fit the new count. */
+    const cur = pbState.answers.days || [];
+    if(cur.length !== value) pbState.answers.days = builderDefaultDays(value);
+  }
+  pbNext();
+}
+function pbToggleDay(key){
+  if(!pbState) return;
+  const days = (pbState.answers.days || []).slice();
+  const i = days.indexOf(key);
+  if(i === -1) days.push(key); else days.splice(i, 1);
+  pbState.answers.days = days;
+  pbState.answers.frequency = days.length;
+  renderProgramBuilderFlow();
+}
+
+/* ---------- render ---------- */
+function renderProgramBuilderFlow(){
+  const body = document.getElementById('pbBody');
+  const foot = document.getElementById('pbFoot');
+  const title = document.getElementById('pbTitle');
+  const rail = document.getElementById('pbRailFill');
+  if(!body || !pbState) return;
+
+  const steps = pbSteps();
+  const atReview = pbAtReview();
+  const step = atReview ? null : steps[pbState.step];
+
+  title.textContent = pbState.mode === 'edit' ? 'Edit program' : 'Build your program';
+  const pos = atReview ? pbTotal() : pbState.step + 1;
+  rail.style.width = Math.round((pos / pbTotal()) * 100) + '%';
+
+  body.className = 'pb-step pb-' + pbState.dir;
+  body.innerHTML = atReview ? pbReviewHtml() : pbStepHtml(step);
+  foot.innerHTML = atReview ? pbReviewFootHtml() : pbStepFootHtml(step);
+}
+
+function pbStepHtml(step){
+  const a = pbState.answers;
+  const head = `<div class="pb-head">
+      <h2 class="pb-q">${escapeHtml(step.title)}</h2>
+      <p class="pb-sub">${escapeHtml(step.sub)}</p>
+    </div>`;
+
+  if(step.id === 'goal') return head + pbTiles(BUILDER_GOALS, a.goal, 'goal');
+  if(step.id === 'experience') return head + pbTiles(BUILDER_EXPERIENCE, a.experience, 'experience');
+  if(step.id === 'sessionLength') return head + pbTiles(BUILDER_LENGTHS.map(l =>
+    ({ id:l.id, label:l.label, note:'' })), a.sessionLength, 'sessionLength');
+  if(step.id === 'equipment') return head + pbTiles(BUILDER_EQUIPMENT, a.equipment, 'equipment');
+  if(step.id === 'emphasis') return head + pbTiles(BUILDER_EMPHASIS.map(e =>
+    ({ id:e.id, label:e.label, note:'' })), a.emphasis, 'emphasis');
+
+  if(step.id === 'frequency'){
+    return head + `<div class="pb-freq">${[2,3,4,5,6].map(n => `
+      <button type="button" class="pb-num${a.frequency === n ? ' on' : ''}"
+        onclick="pbAnswer('frequency', ${n})" aria-pressed="${a.frequency === n}">
+        <span class="pb-num-n">${n}</span><span class="pb-num-l">days</span>
+      </button>`).join('')}</div>
+      <p class="pb-hint">Training three days every week beats five days for a fortnight.</p>`;
+  }
+
+  if(step.id === 'days'){
+    const days = a.days || [];
+    const labels = { mon:'M', tue:'T', wed:'W', thu:'T', fri:'F', sat:'S', sun:'S' };
+    const full = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
+      fri:'Friday', sat:'Saturday', sun:'Sunday' };
+    /* The split the current selection would produce, so the athlete sees the
+       week taking shape before they commit to it. */
+    const split = builderSplitFor(days.length || a.frequency || 4,
+      a.experience || 'intermediate', builderPlanFor(a.equipment || 'full', a.goal));
+    const arranged = builderArrangeDays(days, split);
+    return head + `
+      <div class="pb-week" role="group" aria-label="Training days">
+        ${PROGRAM_DAY_KEYS.map(k => `
+          <button type="button" class="pb-day${days.indexOf(k) !== -1 ? ' on' : ''}"
+            onclick="pbToggleDay('${k}')" role="checkbox"
+            aria-checked="${days.indexOf(k) !== -1}" aria-label="${full[k]}">
+            <span class="pb-day-l" aria-hidden="true">${labels[k]}</span>
+          </button>`).join('')}
+      </div>
+      ${days.length ? `<div class="pb-preview">
+        ${PROGRAM_DAY_KEYS.filter(k => arranged[k]).map(k => `
+          <div class="pb-pv-row">
+            <span class="pb-pv-d">${full[k].slice(0,3)}</span>
+            <span class="pb-pv-c">${escapeHtml(CAT_LABEL[arranged[k]] || arranged[k])}</span>
+          </div>`).join('')}
+      </div>` : `<p class="pb-hint">Pick at least one day.</p>`}`;
+  }
+  return head;
+}
+
+function pbTiles(options, selected, field){
+  return `<div class="pb-tiles">${options.map(o => `
+    <button type="button" class="pb-tile${selected === o.id ? ' on' : ''}"
+      onclick="pbAnswer('${field}', '${o.id}')" aria-pressed="${selected === o.id}">
+      <span class="pb-tile-l">${escapeHtml(o.label)}</span>
+      ${o.note ? `<span class="pb-tile-n">${escapeHtml(o.note)}</span>` : ''}
+    </button>`).join('')}</div>`;
+}
+
+/* Only the steps that genuinely need one get a Continue button. */
+function pbStepFootHtml(step){
+  const a = pbState.answers;
+  if(step.id === 'days'){
+    const n = (a.days || []).length;
+    return `<button class="btn-primary pb-go" onclick="pbNext()" ${n ? '' : 'disabled'}>
+      ${n ? 'Continue' : 'Pick your days'}</button>`;
+  }
+  if(step.id === 'emphasis'){
+    return `<button class="btn-secondary pb-go" onclick="pbAnswer('emphasis','balanced')">Skip</button>`;
+  }
+  return '';
+}
+
+/* ---------- THE REVIEW ----------
+   The program, visible, before anything is written. Length and start date
+   are adjustable right here rather than being two more questions, because
+   both are easier to judge once you can see what they apply to. */
+function pbGenerate(){
+  const a = pbState.answers;
+  pbState.generated = generateProgram({
+    goal: a.goal, experience: a.experience, equipment: a.equipment,
+    emphasis: a.emphasis, sessionLength: a.sessionLength,
+    weeks: a.weeks, days: a.days, frequency: a.frequency,
+    startDate: a.startDate || localDateStr()
+  });
+  if(a.name) pbState.generated.name = a.name;
+  return pbState.generated;
+}
+
+function pbSetWeeks(n){
+  pbState.answers.weeks = n;
+  pbState.answers.name = null;      // the default name follows the structure
+  renderProgramBuilderFlow();
+}
+function pbSetStart(which){
+  const today = new Date(localDateStr() + 'T00:00:00');
+  if(which === 'today'){ pbState.answers.startDate = localDateStr(); }
+  else if(which === 'monday'){
+    const d = new Date(today);
+    const delta = (8 - (d.getDay() || 7)) % 7 || 7;   // the next Monday, never today
+    d.setDate(d.getDate() + delta);
+    pbState.answers.startDate = localDateStr(d);
+  }
+  renderProgramBuilderFlow();
+}
+function pbRename(){
+  const cur = (pbState.generated && pbState.generated.name) || '';
+  const next = prompt('Program name', cur);
+  if(next === null) return;
+  const trimmed = String(next).trim().slice(0, PROGRAM_LIMITS.maxNameLength);
+  pbState.answers.name = trimmed || null;
+  renderProgramBuilderFlow();
+}
+
+function pbReviewHtml(){
+  const def = pbGenerate();
+  const a = pbState.answers;
+  const start = a.startDate || localDateStr();
+  const startsToday = start === localDateStr();
+  const trainingDays = PROGRAM_DAY_KEYS.filter(k => def.schedule[k] && def.schedule[k].type === 'workout');
+  const problems = auditGeneratedProgram(def);
+
+  return `
+    <div class="pb-review">
+      <div class="pb-rv-head">
+        <button type="button" class="pb-rv-name" onclick="pbRename()">
+          <span>${escapeHtml(def.name)}</span>
+          <span class="pb-rv-pencil">${pencilIconSvg()}</span>
+        </button>
+        <div class="pb-rv-meta">${def.durationWeeks} weeks · ${trainingDays.length} days a week</div>
+        <div class="pb-rv-why">${escapeHtml(def.rationale)}</div>
+      </div>
+
+      ${programMapHtml(def, { week:1, interactive:true, idPrefix:'pbMap' })}
+
+      <div class="pb-rv-sec">Adjust</div>
+      <div class="pb-chips">
+        ${[['days','Training days'],['frequency','How often'],['goal','Goal'],
+           ['sessionLength','Session length'],['equipment','Equipment'],
+           ['emphasis','Emphasis'],['experience','Experience']]
+          .filter(([id]) => pbSteps().some(st => st.id === id))
+          .map(([id,label]) => `<button type="button" class="pb-chip"
+            onclick="pbJumpTo('${id}')">${escapeHtml(label)}</button>`).join('')}
+      </div>
+
+      <div class="pb-rv-sec">Program length</div>
+      <div class="pb-seg" role="group" aria-label="Program length">
+        ${BUILDER_LENGTHS_WEEKS.map(w => `
+          <button type="button" class="pb-seg-b${def.durationWeeks === w ? ' on' : ''}"
+            onclick="pbSetWeeks(${w})" aria-pressed="${def.durationWeeks === w}">${w} weeks</button>`).join('')}
+      </div>
+
+      ${pbState.mode === 'edit' ? '' : `<div class="pb-rv-sec">Starts</div>
+      <div class="pb-seg" role="group" aria-label="Start date">
+        <button type="button" class="pb-seg-b${startsToday ? ' on' : ''}"
+          onclick="pbSetStart('today')" aria-pressed="${startsToday}">Today</button>
+        <button type="button" class="pb-seg-b${startsToday ? '' : ' on'}"
+          onclick="pbSetStart('monday')" aria-pressed="${!startsToday}">Next Monday</button>
+      </div>
+      <p class="pb-rv-note">Week 1 begins ${escapeHtml(formatDateShort(start))}.</p>`}
+
+      ${pbState.mode === 'edit' ? `<p class="pb-rv-note pb-consequence">
+        This updates upcoming weeks. Completed workouts won't change.</p>` : ''}
+
+      ${problems.length ? `<div class="pb-warn">
+        <div class="pb-warn-h">Worth knowing</div>
+        ${problems.map(x => `<div class="pb-warn-r">${escapeHtml(x.text)}</div>`).join('')}
+      </div>` : ''}
+    </div>`;
+}
+
+function pbReviewFootHtml(){
+  const editing = pbState.mode === 'edit' && pbState.editingId;
+  return `<button class="btn-primary pb-go" onclick="pbCommit(this)">
+    ${editing ? 'Save changes' : 'Start program'}</button>`;
+}
+
+/* ---------- ONE ACTION ----------
+   Save, activate, set the chronology, sync the week and land on Today. The
+   athlete taps once; there is no phase to pick or week to activate
+   afterwards. */
+async function pbCommit(btn){
+  if(!pbState) return;
+  if(btn && btn.disabled) return;
+  if(btn) btn.disabled = true;                 // a second tap cannot double-save
+  const def = pbGenerate();
+
+  let result;
+  if(pbState.mode === 'edit' && pbState.editingId){
+    /* Editing changes what is PLANNED. The start date is deliberately left
+       alone: moving it would silently re-date every week the athlete has
+       already trained through. */
+    result = updateProgram(pbState.editingId, {
+      name: def.name, goal: def.goal, durationWeeks: def.durationWeeks,
+      schedule: def.schedule, blocks: def.blocks
+    });
+  } else {
+    result = createProgram({
+      name: def.name, goal: def.goal, durationWeeks: def.durationWeeks,
+      schedule: def.schedule, blocks: def.blocks, startDate: def.startDate
+    });
+  }
+
+  if(!result || !result.ok){
+    if(btn) btn.disabled = false;
+    alert((result && result.errors && result.errors[0]) || "That didn't save. Nothing was lost — try again.");
+    return;
+  }
+
+  /* The weekly schedule the rest of LOOP reads follows the program, so Today
+     and This Week agree with what was just created without a second step. */
+  await pbSyncScheduleFromProgram(result.program || getActiveProgram());
+
+  pbClose();
+  try{ closeMyTraining(); }catch(e){}
+  try{ closePrograms(); }catch(e){}
+  renderAll();
+  if(typeof switchTab === 'function') switchTab('today');
+}
+
+/* The program is the intent; `schedule` is what Today reads. This copies the
+   program's days across so the two cannot disagree — categories only, since
+   the plan/template reference already lives on the program.
+
+   Two things make the order here load-bearing. The selected plan lives under
+   its own key, and the schedule is stored PER PLAN ('schedule:<planId>'), so
+   the plan must be chosen and written first or the schedule lands under the
+   old plan's key and the next launch loads the previous week back. */
+async function pbSyncScheduleFromProgram(program){
+  if(!program) return;
+  const first = PROGRAM_DAY_KEYS.map(k => program.schedule[k])
+    .find(e => e && e.type === 'workout');
+  if(first && first.planId && DEFAULT_PLANS[first.planId] && first.planId !== selectedPlanId){
+    selectedPlanId = first.planId;
+    try{ await LOOPStore.set('selectedPlan', JSON.stringify(selectedPlanId)); }catch(e){}
+    try{ await loadPlanData(selectedPlanId); }catch(e){}
+  }
+  PROGRAM_DAY_KEYS.forEach(k => {
+    const e = program.schedule[k];
+    schedule[k] = (e && e.type === 'workout') ? e.category : 'rest';
+  });
+  await persistSchedule();
+}
+
+/* =========================================================
+   THE PROGRAM MAP  (Phase D33)
+   ---------------------------------------------------------
+   One component, used by the builder's review and by My
+   Training, so a program looks the same wherever it is seen
+   and there is only one thing to keep honest.
+
+   Everything is derived from the program: the week strip is
+   as long as durationWeeks, phase bands come from the blocks,
+   and no layout assumes eight of anything.
+   ========================================================= */
+let programMapWeek = {};       // idPrefix -> which week is selected
+let programMapDefs = {};       // idPrefix -> the program being drawn
+let programMapOpts = {};       // idPrefix -> how it was drawn
+
+function programMapSelect(prefix, week){
+  programMapWeek[prefix] = week;
+  const host = document.getElementById(prefix + 'Host');
+  const def = programMapDefs[prefix];
+  if(!host || !def) return;
+  const o = Object.assign({}, programMapOpts[prefix] || {}, { week, idPrefix:prefix });
+  host.innerHTML = programMapInnerHtml(def, o);
+}
+
+function programMapHtml(def, opts){
+  const o = opts || {};
+  const prefix = o.idPrefix || 'pmap';
+  /* A remembered week from a previous, longer program must not survive into
+     a shorter one — switching 8 weeks down to 4 would select week 7. */
+  const weeks = Math.max(1, parseInt(def.durationWeeks, 10) || 1);
+  let week = programMapWeek[prefix] || o.week || 1;
+  if(week > weeks) week = Math.min(o.week || 1, weeks);
+  programMapWeek[prefix] = week;
+  programMapDefs[prefix] = def;
+  programMapOpts[prefix] = { interactive:o.interactive, today:o.today, dayState:o.dayState };
+  const inner = programMapInnerHtml(def,
+    { week, interactive:o.interactive, idPrefix:prefix, today:o.today, dayState:o.dayState });
+  return `<div class="pmap" id="${prefix}Host">${inner}</div>`;
+}
+
+function programMapInnerHtml(def, opts){
+  const o = opts || {};
+  const prefix = o.idPrefix || 'pmap';
+  const weeks = Math.max(1, parseInt(def.durationWeeks, 10) || 1);
+  const sel = Math.min(Math.max(1, o.week || 1), weeks);
+  const blocks = (def.blocks || []).slice().sort((a,b) => a.startWeek - b.startWeek);
+  const multi = blocks.length > 1;
+
+  /* A single phase is not a layer worth drawing. Naming it once above the
+     weeks says everything a band would, without inventing a second timeline
+     for a program that has one stretch. */
+  const phaseOf = w => blocks.find(b => w >= b.startWeek && w <= b.endWeek) || blocks[0] || null;
+  const selPhase = phaseOf(sel);
+
+  const strip = `
+    <div class="pm-strip" role="tablist" aria-label="Program weeks">
+      ${Array.from({ length: weeks }, (_, i) => {
+        const w = i + 1;
+        const b = phaseOf(w);
+        const isSel = w === sel;
+        const isNow = o.today === w;
+        /* A break before week 1 marks nothing — only phases that begin
+           partway through the program get a separator. */
+        const first = b && b.startWeek === w && w > 1;
+        return `<button type="button" role="tab" aria-selected="${isSel}"
+          class="pm-w${isSel ? ' on' : ''}${isNow ? ' now' : ''}${multi && first ? ' phase-start' : ''}"
+          ${o.interactive ? `onclick="programMapSelect('${prefix}', ${w})"` : 'disabled'}
+          aria-label="Week ${w}${isNow ? ', current week' : ''}${b ? ', ' + escapeAttr(b.name) : ''}">
+          <span class="pm-w-n">${w}</span>
+          ${isNow ? '<span class="pm-w-dot" aria-hidden="true"></span>' : ''}
+        </button>`;
+      }).join('')}
+    </div>`;
+
+  const phaseLine = multi
+    ? `<div class="pm-phases">${blocks.map(b => {
+        const on = selPhase && b.id === selPhase.id;
+        return `<div class="pm-ph${on ? ' on' : ''}" style="flex:${b.endWeek - b.startWeek + 1}">
+          <span class="pm-ph-n">${escapeHtml(b.name)}</span>
+          <span class="pm-ph-w">W${b.startWeek}–${b.endWeek}</span>
+        </div>`; }).join('')}</div>`
+    : (selPhase ? `<div class="pm-single"><b>${escapeHtml(selPhase.name)}</b>` +
+        `${selPhase.description ? '<span>·</span>' + escapeHtml(selPhase.description) : ''}</div>` : '');
+
+  return phaseLine + strip + programMapWeekHtml(def, sel, o);
+}
+
+/* The selected week, as seven days. Rest is quiet; training days carry their
+   category and enough structure to be understood without opening them. */
+function programMapWeekHtml(def, week, o){
+  const opts = o || {};
+  const full = { mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat', sun:'Sun' };
+  const rows = PROGRAM_DAY_KEYS.map(k => {
+    const e = def.schedule[k];
+    if(!e || e.type !== 'workout'){
+      return `<div class="pm-day pm-rest">
+        <span class="pm-d">${full[k]}</span>
+        <span class="pm-rest-l">Rest</span></div>`;
+    }
+    const tpl = builderTemplateOf(e);
+    const name = (tpl && tpl.name) || CAT_LABEL[e.category] || e.category;
+    const count = ((tpl && tpl.exercises) || []).length;
+    const mins = tpl ? builderEstimateMinutes(tpl) : null;
+    const muscles = programMapMuscles(tpl);
+    const state = opts.dayState ? opts.dayState(k, week) : null;
+    return `<div class="pm-day pm-cat-${escapeAttr(e.category)}${state ? ' pm-' + state : ''}">
+      <span class="pm-d">${full[k]}</span>
+      <span class="pm-body">
+        <span class="pm-name">${escapeHtml(name)}</span>
+        ${muscles ? `<span class="pm-mus">${escapeHtml(muscles)}</span>` : ''}
+        <span class="pm-meta">${count} exercise${count === 1 ? '' : 's'}${mins ? ' · ~' + mins + ' min' : ''}</span>
+      </span>
+      ${state ? `<span class="pm-state" aria-label="${escapeAttr(state)}">${programMapStateMark(state)}</span>` : ''}
+    </div>`;
+  }).join('');
+  return `<div class="pm-week" aria-label="Week ${week}">${rows}</div>`;
+}
+
+/* The two or three muscle groups a session is actually about, read from the
+   template's own exercises rather than a label someone typed. */
+function programMapMuscles(tpl){
+  if(!tpl || !tpl.exercises) return '';
+  const tally = {};
+  tpl.exercises.forEach(x => {
+    const n = String(x.name).toLowerCase();
+    Object.keys(MUSCLE_MAP).forEach(g => {
+      if((MUSCLE_MAP[g] || []).some(kw => n.indexOf(kw) !== -1)) tally[g] = (tally[g] || 0) + 1;
+    });
+  });
+  const label = { chest:'Chest', back:'Back', shoulders:'Shoulders', biceps:'Biceps',
+    triceps:'Triceps', abs:'Core', quads:'Quads', hamstrings:'Hamstrings',
+    glutes:'Glutes', calves:'Calves' };
+  return Object.keys(tally).sort((a,b) => tally[b] - tally[a]).slice(0,3)
+    .map(g => label[g] || g).join(' · ');
+}
+
+/* State is never colour alone — each carries a mark and a label. */
+function programMapStateMark(state){
+  if(state === 'done') return checkIconSvg(13);
+  if(state === 'missed') return '<span class="pm-miss" aria-hidden="true"></span>';
+  if(state === 'today') return '<span class="pm-now" aria-hidden="true"></span>';
+  return '';
+}
+
+
 /* The Today strip. Renders nothing at all without an active program, so an
    athlete on plans alone sees exactly what they saw before. */
 function programContextHtml(){
@@ -22463,9 +23726,9 @@ function programContextHtml(){
     try{ none = getPrograms().length === 0; }catch(e){ return ''; }
     if(!none) return '';
     return `
-      <button class="tw-program tw-program-empty" onclick="openMyTraining()">
-        <span class="tw-program-name">My Training</span>
-        <span class="tw-program-meta">Your schedule, workouts and goal ›</span>
+      <button class="tw-program tw-program-empty" onclick="openProgramBuilderFlow('create')">
+        <span class="tw-program-name">Build my program</span>
+        <span class="tw-program-meta">A few quick choices and LOOP builds it ›</span>
       </button>`;
   }
   const prog = getProgramProgress(p);
@@ -22511,11 +23774,11 @@ function renderProgramsList(){
   };
   el.innerHTML = all.length
     ? `<div class="prog-list">${all.map(card).join('')}</div>
-       <button class="btn-secondary prog-new-btn" onclick="openProgramBuilder()">Create cycle</button>`
+       <button class="btn-secondary prog-new-btn" onclick="openProgramBuilderFlow('create')">Create program</button>`
     : `<div class="prog-none">
-         <div class="prog-none-title">No active cycle</div>
-         <div class="prog-none-sub">Optional. Your plan already works on its own — a cycle adds phases and a start and end date on top of it.</div>
-         <button class="btn-primary prog-new-btn" onclick="openProgramBuilder()">Create cycle</button>
+         <div class="prog-none-title">No active program</div>
+         <div class="prog-none-sub">Optional. Your plan already works on its own — a program adds phases and a start and end date on top of it.</div>
+         <button class="btn-primary prog-new-btn" onclick="openProgramBuilderFlow('create')">Create program</button>
          <button class="prog-plan-btn" onclick="closePrograms(); openPlansManager();">Use an existing plan</button>
        </div>`;
 }
@@ -22565,7 +23828,7 @@ function renderProgramBuilder(){
     `<option value="${escapeAttr(id)}"${builderDraft.planId===id?' selected':''}>${escapeHtml(DEFAULT_PLANS[id].name)}</option>`).join('');
   const structures = builderStructures(builderDraft.planId);
   el.innerHTML = `
-    <label>Cycle name</label>
+    <label>Program name</label>
     <input type="text" id="builderName" value="${escapeAttr(builderDraft.name)}" placeholder="e.g. Summer Hypertrophy"
       oninput="builderDraft.name=this.value">
     <label style="margin-top:16px">Goal</label>
@@ -22687,6 +23950,63 @@ function previewTrainingWeek(planId, chosenDays){
 }
 
 /* One shape for "my training", whether or not a program exists underneath. */
+/* ACTIVE / UPCOMING / COMPLETE, from the program's own dates. Not lifecycle
+   jargon and not a fourth place to read the week number. */
+function programStatusWord(t){
+  if(!t || !t.hasProgram) return '';
+  if(t.week && t.totalWeeks && t.week > t.totalWeeks) return 'Complete';
+  return 'Active';
+}
+
+/* My Training draws the same map the builder's review does, with the current
+   week marked and each day carrying what actually happened. */
+function myTrainingProgramMapHtml(t){
+  let program = null;
+  try{ program = getActiveProgram(); }catch(e){ return ''; }
+  if(!program) return '';
+  return programMapHtml(program, {
+    week: t.week || 1, today: t.week || 1, interactive: true, idPrefix: 'mtMap',
+    dayState: (dayKey, week) => programDayState(program, dayKey, week)
+  });
+}
+
+/* D27's rule holds: unknown is not missed. A day is only MISSED when it was
+   planned, its date has genuinely passed, and the program had already started
+   — a program created today never back-dates failures onto the weeks before
+   it existed. */
+function programDayState(program, dayKey, week){
+  try{
+    const entry = program.schedule[dayKey];
+    if(!entry || entry.type !== 'workout') return null;
+    const date = programDateFor(program, week, dayKey);
+    if(!date) return null;
+    const today = localDateStr();
+    if(date > today) return null;                       // upcoming: say nothing
+    if(date < program.startDate) return null;           // before the program existed
+    const done = workoutLog.some(w => w.date === date);
+    if(done) return 'done';
+    if(date === today) return 'today';
+    return 'missed';
+  }catch(e){ return null; }
+}
+
+/* The calendar date of a given day in a given program week. */
+function programDateFor(program, week, dayKey){
+  const idx = PROGRAM_DAY_KEYS.indexOf(dayKey);
+  if(idx === -1 || !program.startDate) return null;
+  const start = new Date(program.startDate + 'T00:00:00');
+  if(isNaN(start.getTime())) return null;
+  /* Week 1 is the week containing the start date, counted from its Monday, so
+     a program that starts on a Wednesday still has a Monday in week 1 — it is
+     simply in the past and therefore never marked missed. */
+  const startIdx = (start.getDay() + 6) % 7;            // Monday = 0
+  const monday = new Date(start);
+  monday.setDate(monday.getDate() - startIdx);
+  const d = new Date(monday);
+  d.setDate(d.getDate() + (week - 1) * 7 + idx);
+  return localDateStr(d);
+}
+
 function myTrainingState(){
   const plan = DEFAULT_PLANS[selectedPlanId] || null;
   let program = null;
@@ -22767,10 +24087,12 @@ function renderMyTraining(){
   const todayK = todayKey();
   const doneToday = workoutLog.some(l => l.date === localDateStr());
 
+  /* The program says where the athlete is, once. A second progress bar
+     underneath the map would be the same fact twice. */
   const progressLine = (t.hasProgram && t.week && t.totalWeeks)
     ? `<div class="mt-prog">
-         <div class="mt-prog-top"><span>Week ${t.week} of ${t.totalWeeks}</span>${
-           t.phase ? `<span class="mt-phase">${escapeHtml(t.phase.name)}</span>` : ''}</div>
+         <div class="mt-prog-top"><span>Week ${t.week} of ${t.totalWeeks}</span>
+           <span class="mt-status">${escapeHtml(programStatusWord(t))}</span></div>
          <div class="mt-prog-bar"><span style="width:${Math.min(100, Math.round((t.week / t.totalWeeks) * 100))}%"></span></div>
        </div>` : '';
 
@@ -22800,8 +24122,11 @@ function renderMyTraining(){
 
     ${myTrainingStatsHtml(t)}
 
-    <div class="sec-head">This week</div>
-    <div class="mt-days">${dayRows}</div>
+    ${t.hasProgram
+      ? `<div class="sec-head">Your program<span class="sec-hint">tap a week</span></div>
+         ${myTrainingProgramMapHtml(t)}`
+      : `<div class="sec-head">This week</div>
+         <div class="mt-days">${dayRows}</div>`}
 
     <div class="sec-head">Training volume<span class="sec-hint">logged vs planned</span></div>
     ${trajectoryHtml()}
@@ -22826,28 +24151,57 @@ function renderMyTraining(){
         <span class="mt-act-sub">${escapeHtml(t.goal || 'Not set')}</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
       </button>
-      ${t.hasProgram ? `<button type="button" class="mt-act" onclick="closeMyTraining(); openProgramDetail('${escapeAttr(t.programId)}');">
-        <span class="mt-act-main">Training cycle</span>
-        <span class="mt-act-sub">Your current run of phases</span>
+      ${t.hasProgram ? `<button type="button" class="mt-act" onclick="openProgramBuilderFlow('edit')">
+        <span class="mt-act-main">Edit program</span>
+        <span class="mt-act-sub">Days, workouts, goal and length</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
-      </button>` : `<button type="button" class="mt-act" onclick="closeMyTraining(); openPrograms();">
-        <span class="mt-act-main">Training cycle</span>
-        <span class="mt-act-sub">Optional — run your plan for a set number of weeks</span>
+      </button>` : `<button type="button" class="mt-act" onclick="openProgramBuilderFlow('create')">
+        <span class="mt-act-main">Build my program</span>
+        <span class="mt-act-sub">A few quick choices and LOOP builds it</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
       </button>`}
+      ${t.hasProgram ? `<button type="button" class="mt-act" onclick="openProgramDetail('${escapeAttr(t.programId)}')">
+        <span class="mt-act-main">Program details</span>
+        <span class="mt-act-sub">Phases, start date and status</span>
+        <span class="mt-act-go">${chevronRightSvg()}</span>
+      </button>` : ''}
     </div>
     <p class="mt-note">Changing your training only affects what comes next. Everything you have already logged stays exactly as it is.</p>`;
 }
 
 /* Three numbers, from state My Training already computes: where you are in
    the cycle, how this week is going, and what is next. */
+/* The next training day, wrapping past the end of the week. Returns the same
+   shape weekOverview().next uses so the caller cannot tell them apart. */
+function myTrainingNextSession(){
+  const todayIdx = (new Date(localDateStr() + 'T00:00:00').getDay() + 6) % 7;   // Mon = 0
+  for(let i = 1; i <= 7; i++){
+    const key = PROGRAM_DAY_KEYS[(todayIdx + i) % 7];
+    const cat = schedule && schedule[key];
+    if(!cat || cat === 'rest') continue;
+    let workoutName = null;
+    try{
+      let program = hasActiveProgram() ? getActiveProgram() : null;
+      const entry = program ? programEntryForDay(program, key) : null;
+      const tpl = entry && entry.type === 'workout' ? resolveProgramWorkout(entry) : null;
+      if(tpl) workoutName = tpl.name;
+    }catch(e){}
+    return { cat, key, workoutName, isToday:false, fullLabel: DAY_LABEL_FULL[key] };
+  }
+  return null;
+}
+
 function myTrainingStatsHtml(t){
   const wk = weekOverview();
-  const next = wk.next && wk.next.cat !== 'rest' ? wk.next : null;
+  /* weekOverview() only looks to the end of the current week, so a Sunday
+     with training on Tuesday reported 'nothing scheduled'. The week repeats,
+     so the search wraps into the next one. */
+  const next = (wk.next && wk.next.cat !== 'rest') ? wk.next : myTrainingNextSession();
   const cells = [];
-  if(t.hasProgram && t.week && t.totalWeeks){
-    cells.push({ v: t.week + ' / ' + t.totalWeeks, l: 'Week', sub: t.phase || '' });
-  }
+  /* The week used to be repeated here, beneath a progress bar that had just
+     said it, above a map that says it again. It also rendered its phase as
+     [object Object]: t.phase is a block, not a string. One statement of
+     where the athlete is, in the bar; this row is for the other two facts. */
   cells.push({ v: wk.done + ' / ' + wk.planned, l: 'This week',
     sub: wk.planned && wk.done >= wk.planned ? 'complete' : 'sessions done' });
   cells.push({ v: next ? (next.workoutName || CAT_LABEL[next.cat]) : '—',
@@ -23281,11 +24635,11 @@ function renderProgramDetail(){
     <div class="prog-phases">${programPhasesHtml(p)}</div>
     <button class="phase-add-btn" onclick="doAddPhase()">+ Add phase</button>
     <div class="prog-actions">
-      ${p.status === 'active' ? `<button class="btn-secondary" onclick="doPauseProgram()">Pause cycle</button>` : ''}
-      ${p.status === 'paused' ? `<button class="btn-secondary" onclick="doResumeProgram()">Resume cycle</button>` : ''}
+      ${p.status === 'active' ? `<button class="btn-secondary" onclick="doPauseProgram()">Pause program</button>` : ''}
+      ${p.status === 'paused' ? `<button class="btn-secondary" onclick="doResumeProgram()">Resume program</button>` : ''}
       ${p.status !== 'completed' && programsStore.activeProgramId !== p.id ? `<button class="btn-secondary" onclick="doActivateProgram()">Make active</button>` : ''}
       ${p.status !== 'completed' ? `<button class="btn-secondary" onclick="doCompleteProgram()">Mark complete</button>` : ''}
-      <button class="prog-delete" onclick="doDeleteProgram()">Delete cycle</button>
+      <button class="prog-delete" onclick="doDeleteProgram()">Delete program</button>
     </div>`;
 }
 function doPauseProgram(){ pauseProgram(detailProgramId); renderProgramDetail(); }

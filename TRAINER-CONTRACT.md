@@ -3956,3 +3956,102 @@ overwritten — still holds.
 Contract 131 keeps the always-on subset. 4939 passing, 43 GPS checks, 261
 lifecycle checks, 87 data-integrity checks, 252 date checks. `DATA_KEYS` 15,
 trainer `0.1.1-shadow`.
+
+## §56 — The program experience (D33, loop-v102)
+
+**The navigation defect, and what actually caused it.** Every `.overlay` shared
+one `z-index: 60`, so the browser painted them in DOCUMENT order. A surface
+opened from a surface declared later in the file was painted *underneath* it:
+the athlete tapped Edit, saw nothing change, and had to close the page they were
+on to find the editor waiting behind it. Seven of eight sampled transitions did
+this — Settings→Plan switcher, My Gym→Exercise, Program detail→Phase editor
+among them. It was never one broken button.
+
+Stacking now follows the order things were opened in. `_openSheetStack` already
+recorded that for focus and Escape handling; `paintSheetStackOrder()` assigns
+`z-index` from it on the same MutationObserver that drives the scroll lock, so
+it covers every overlay however it was opened — including boot and draft
+restore, which call no `open*` function at all. Closing an overlay returns its
+`z-index` to the stylesheet. Same reasoning as the scroll lock: one mechanism
+that cannot be forgotten, not a rule each of thirty-two overlays must remember.
+
+Tearing down the page underneath was tried and rejected. It fixed the burying
+and introduced stranding: closing an exercise opened from My Gym dropped the
+athlete on the root tab instead of back in their gym. The page below is not a
+hidden destination — the top of the stack is always what the athlete just
+navigated to — it is the way back, inert to screen readers through the
+`aria-modal` the stack already sets.
+
+**Vocabulary.** The athlete's word is now PROGRAM. Contract 89 previously made
+it "cycle" so "plan" and "program" could not read as two words for one thing;
+D33 §1 resolves that collision the other way. The contract is unchanged in
+substance — exactly one word for the idea — only in which word won. 22 copy
+strings changed; every identifier was left alone. The `ob-cycle` CSS class was
+renamed `ob-rotator`, since it was a fade rotator and only ever collided with
+the vocabulary check by accident.
+
+**Generation is deterministic and has no side effects.** `generateProgram(answers)`
+returns a definition and the reasons for it; nothing is written until the athlete
+taps Start. Equipment decides which template library is even possible and goal
+only refines within it, so a home athlete never receives a machine program
+however they answered. Frequency picks the split, checked against the categories
+the chosen library actually has — a library without upper/lower can never be
+handed an upper/lower split. Day assignment rotates the split's starting offset
+and keeps the arrangement with the fewest same-category adjacencies, counting
+Sunday→Monday because the week repeats.
+
+`loop-program-audit.js` (111 checks, `npm run audit:program`) drives 720 answer
+combinations through it against rules written in the audit rather than imported
+from production. It found two real defects:
+
+- **Beginners got one workout photocopied.** "Repeated exposure" was implemented
+  as literally the same template three times a week, which left a 3-day beginner
+  with no direct shoulder, glute or triceps work at all. The repetition a
+  beginner benefits from is of movement PATTERNS, which full-body templates
+  already deliver; they now get different templates, biased toward the shorter
+  end so sessions stay simple.
+
+- **"Machine" contains "chin".** The coverage check matched pattern keywords by
+  bare substring, so every machine exercise satisfied the pulling requirement.
+  A press-only week passed. Keywords are matched on whole words now.
+
+The coverage rule itself was also wrong in the other direction: it demanded
+named isolation work for eight muscle groups and flagged well-built full-body
+programs for having no curl. Prime movers need direct work; arms and shoulders
+count as covered by the compounds that train them. The audit proves the relaxed
+rule still catches a week with no pulling, no legs and no hinge.
+
+**One estimator.** The builder scored templates with its own duration formula
+until it was noticed that LOOP already has `computeWorkoutDuration()`, rest
+intervals and all, and that My Training shows that number. Two estimators would
+eventually have printed two durations for one workout, so the builder delegates.
+The template library tops out near fifty minutes, so a "75+ min" answer cannot
+produce a longer session — padding one with invented accessory work would be
+worse than honest. What is guaranteed is that asking for less never gets you
+more.
+
+**Starting is one action.** Save, activate, set the chronology, sync the weekly
+schedule, land on Today. Order is load-bearing: the selected plan lives under its
+own key and the schedule is stored PER PLAN (`schedule:<planId>`), so the plan
+must be chosen and written first or the schedule lands under the old plan's key
+and the next launch loads the previous week back. The plan chip in the header was
+painted once at boot and is now painted with every render, so it cannot name a
+plan the athlete has left.
+
+**Editing changes the plan, never the past.** Edit opens on the program, not on
+question one, with each question a tap away. It writes through `updateProgram`
+and deliberately does not touch `startDate` — moving it would silently re-date
+every week already trained through. Verified against a week-4-of-8 athlete with
+six logged workouts, PRs and trainer evidence: changing the training days left
+`workoutLog`, `trainerLog`, XP, PR history and the current week byte-identical.
+
+**Nothing assumes eight weeks.** Every surface derives from `durationWeeks`. Four
+weeks is one phase and is drawn as one line, not a band chart of a single bar;
+six and eight earn a real second phase. Week 1 is the week CONTAINING the start
+date, so a Wednesday start still has a Monday in week 1 — in the past, and
+therefore never marked missed. D27's rule holds: unknown is not missed, and a
+program created today invents no failures in the weeks before it existed.
+
+Contract 132 keeps the always-on subset. 5001 passing, 111 program checks, 43
+GPS checks, 261 cardio-lifecycle checks, 87 data-integrity checks, 252 date
+checks. `DATA_KEYS` 15, trainer `0.1.1-shadow`.
