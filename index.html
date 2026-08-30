@@ -3603,6 +3603,62 @@ body.page-locked{ overflow: hidden; }
 .cw-stat span{ font-size: var(--fs-micro); color: var(--text-faint); }
 .cw-dots{ display: none; }        /* the arc carries it; dots return in the detail below */
 
+/* D32 — GPS state and route trace. Uses the locked D28 surface language:
+   no new gradient system, no new button, no second glass. */
+.cs-gps{
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+  padding: 3px 10px; border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  border: 1px solid var(--border-quiet); color: var(--text-dim);
+}
+.cs-gps-ok{ color: var(--success); border-color: rgba(75,156,129,0.34); }
+.cs-gps-warn{ color: var(--warning); border-color: rgba(189,146,96,0.34); }
+.cs-gps-off{ color: var(--text-faint); }
+.cs-route{ margin-top: 14px; }
+.ch-measured{
+  margin-left: 8px; font-family: 'JetBrains Mono', monospace;
+  font-size: var(--fs-micro); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+.cs-splits{ margin-top: 16px; text-align: left; }
+.cs-splits-h{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+.cs-split{
+  display: flex; align-items: baseline; gap: 8px; padding: 6px 0;
+  border-top: 1px solid var(--border-quiet);
+}
+.cs-split-n{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-xs);
+  font-weight: 700; color: var(--text); min-width: 16px;
+}
+.cs-split-u{ font-size: var(--fs-micro); color: var(--text-faint); flex: 1; }
+/* The closing fragment is not a split to compare against the others. */
+.cs-split-part .cs-split-n,
+.cs-split-part .cs-split-t{ color: var(--text-dim); }
+.cs-split-part .cs-split-n{ font-size: var(--fs-micro); letter-spacing: 0.06em; }
+.cs-split-t{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-sm);
+  font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.cs-gate{
+  margin-top: 12px; padding: 12px 14px; border-radius: 14px;
+  border: 1px solid var(--border-quiet); background: var(--surface-2);
+  text-align: left;
+}
+.cs-gate-t{ font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+.cs-gate-b{ font-size: var(--fs-xs); color: var(--text-dim); margin-top: 4px; line-height: 1.45; }
+.cs-gate-a{
+  margin-top: 10px; padding: 8px 14px; border-radius: 999px;
+  border: 1px solid var(--border-quiet); background: transparent;
+  color: var(--accent); font-size: var(--fs-xs); font-weight: 700;
+  font-family: inherit; cursor: pointer; min-height: 34px;
+}
+.cr-svg{ width: 100%; height: auto; display: block; }
+
 /* ---------- history cards ---------- */
 .ch-list{ display: flex; flex-direction: column; gap: var(--space-2); }
 .ch-card{
@@ -7410,13 +7466,30 @@ async function importAllData(input){
       await LOOPStore.set('workoutLog', JSON.stringify(merged));
     }
 
+    // Cardio history is history too, and merges by id on the same terms. A
+    // measured run carries its route and splits, so losing one to a
+    // fill-only rule would lose the only copy of where the athlete went.
+    const hasCardioLog = !!incoming.cardioLog;
+    let addedCardio = 0;
+    if(hasCardioLog){
+      const theirs = JSON.parse(incoming.cardioLog) || [];
+      const mineRaw = await LOOPStore.get('cardioLog');
+      const mine = mineRaw && mineRaw.value ? (JSON.parse(mineRaw.value) || []) : [];
+      const byId = {};
+      mine.forEach(c => { if(c && c.id) byId[c.id] = c; });
+      theirs.forEach(c => { if(c && c.id && !byId[c.id]){ byId[c.id] = c; addedCardio++; } });
+      const merged = Object.keys(byId).map(k => byId[k]);
+      await LOOPStore.set('cardioLog', JSON.stringify(merged));
+    }
+
     // Everything else is per-plan config or app state — only fill gaps. This
     // runs regardless of whether the backup had a workoutLog, so a
     // cardio-only or trainer-only backup still restores what it actually has
     // instead of silently importing nothing.
     let filled = 0;
     for(const k of Object.keys(incoming)){
-      if(k === 'workoutLog' || k === SCHEMA_KEY || k.startsWith(BACKUP_PREFIX)) continue;
+      if(k === 'workoutLog' || k === 'cardioLog' || k === SCHEMA_KEY
+        || k.startsWith(BACKUP_PREFIX)) continue;
       const existing = await LOOPStore.get(k);
       const isEmpty = !existing || !existing.value || existing.value === 'null';
       if(isEmpty){ await LOOPStore.set(k, incoming[k]); filled++; }
@@ -7426,6 +7499,7 @@ async function importAllData(input){
     // completed import reports what actually happened, never silently.
     const parts = [];
     if(hasWorkoutLog) parts.push(`${added} new workout${added===1?'':'s'} added`);
+    if(hasCardioLog) parts.push(`${addedCardio} new cardio session${addedCardio===1?'':'s'} added`);
     if(filled) parts.push(`${filled} setting${filled===1?'':'s'} restored`);
     const summary = parts.length ? parts.join(', ') : 'nothing new to import — you already have this data';
     alert(`Import complete — ${summary}. LOOP will reload.`);
@@ -12723,6 +12797,441 @@ function formatClock(totalSec){
 
 function cardioSessionActive(){ return !!cardioSession && cardioSession.state !== 'finished'; }
 
+/* =========================================================
+   CARDIO GPS ENGINE  (Phase D32)
+   ---------------------------------------------------------
+   Everything below is PURE and DETERMINISTIC: the same point
+   sequence always produces the same distance, pace and
+   splits. Nothing here touches the DOM, storage or the
+   clock, which is what makes it testable without a phone —
+   the dev-only replay harness feeds fixtures through these
+   exact functions, never through a second implementation.
+
+   WHAT THE BROWSER CAN ACTUALLY KNOW, and what it cannot:
+   geolocation gives latitude, longitude, accuracy and a
+   timestamp, sometimes altitude and speed. It does NOT give
+   heart rate, steps, calories, cadence or Health data, and a
+   PWA gets NO guaranteed background location. Every metric
+   below is derived from those few honest inputs; anything
+   that cannot be derived is not displayed.
+   ========================================================= */
+
+/* Per-activity physical limits. A point implying faster than 'maxMps' over
+   the elapsed gap is a GPS spike, not an athlete. Numbers are deliberately
+   generous — a fast cyclist descending is real, a 300m/2s runner is not. */
+const GPS_LIMITS = {
+  run:   { maxMps: 8.5,  accuracyM: 50, label: 'run' },
+  walk:  { maxMps: 4.5,  accuracyM: 50, label: 'walk' },
+  hike:  { maxMps: 4.5,  accuracyM: 60, label: 'hike' },
+  cycle: { maxMps: 25,   accuracyM: 65, label: 'cycle' },
+  other: { maxMps: 12,   accuracyM: 55, label: 'other' }
+};
+/* Which activities the browser can genuinely measure. A treadmill cannot be
+   tracked by GPS, so it is never offered one and never gets a fake route. */
+const GPS_ACTIVITIES = {
+  run_outdoor: 'run', walk_outdoor: 'walk', cycle_outdoor: 'cycle',
+  hiking: 'hike', rucking: 'hike'
+};
+function cardioIsGpsActivity(activityId){ return !!GPS_ACTIVITIES[activityId]; }
+function gpsLimitsFor(activityId){
+  return GPS_LIMITS[GPS_ACTIVITIES[activityId] || 'other'] || GPS_LIMITS.other;
+}
+
+/* A reading older than this with nothing in between is a coverage gap — the
+   phone was asleep, in a tunnel, or iOS suspended the tab. Distance is NOT
+   accumulated across it: LOOP will not invent a straight line through the
+   part of the run it did not see. */
+const GPS_GAP_MS = 30000;
+
+/* Metres between two coordinates on the sphere. Haversine, not a flat
+   approximation, and never start-to-finish: total distance is the sum of
+   accepted segments. */
+function gpsHaversineM(a, b){
+  const R = 6371008.8;                       // IUGG mean Earth radius
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lon - a.lon);
+  const la1 = toRad(a.lat), la2 = toRad(b.lat);
+  const h = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(la1) * Math.cos(la2) * Math.sin(dLon/2) * Math.sin(dLon/2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/* Is this reading usable at all? Shape and accuracy only — movement is judged
+   separately, because a valid point can still describe an impossible move. */
+function gpsPointUsable(pt, activityId){
+  if(!pt) return { ok:false, why:'missing' };
+  const { lat, lon, t } = pt;
+  if(typeof lat !== 'number' || typeof lon !== 'number' ||
+     !isFinite(lat) || !isFinite(lon)) return { ok:false, why:'coords' };
+  if(lat < -90 || lat > 90 || lon < -180 || lon > 180) return { ok:false, why:'range' };
+  if(typeof t !== 'number' || !isFinite(t) || t <= 0) return { ok:false, why:'time' };
+  const lim = gpsLimitsFor(activityId);
+  if(typeof pt.acc === 'number' && isFinite(pt.acc) && pt.acc > lim.accuracyM)
+    return { ok:false, why:'accuracy' };
+  return { ok:true };
+}
+
+/* Should the segment prev -> next contribute distance?
+   Four ways to answer no, each for a different real failure:
+     stale     — the clock went backwards or stood still
+     gap       — too long since the last fix to claim what happened between
+     jitter    — the move is inside the error circle of the two readings, so a
+                 phone on a bench "walking" 2m at a time earns nothing
+     spike     — the move is physically impossible for this activity        */
+function gpsSegmentVerdict(prev, next, activityId){
+  const lim = gpsLimitsFor(activityId);
+  const dt = (next.t - prev.t) / 1000;
+  if(!(dt > 0)) return { accept:false, why:'stale', meters:0, dt:0 };
+  /* An explicit break — the athlete paused — is a gap regardless of how
+     little time passed. Movement while paused is never distance. */
+  if(next.brk) return { accept:false, why:'gap', meters:0, dt };
+  if(next.t - prev.t > GPS_GAP_MS) return { accept:false, why:'gap', meters:0, dt };
+  const meters = gpsHaversineM(prev, next);
+  const noise = Math.max(4, ((prev.acc || 0) + (next.acc || 0)) * 0.5);
+  if(meters < noise) return { accept:false, why:'jitter', meters, dt };
+  if(meters / dt > lim.maxMps) return { accept:false, why:'spike', meters, dt };
+  return { accept:true, why:'ok', meters, dt };
+}
+
+/* The whole track, reduced in one deterministic pass. Returns the accepted
+   geometry plus the counts behind it, so the UI can be honest about quality
+   without showing anyone a raw accuracy figure. */
+function gpsReduce(points, activityId){
+  const out = { meters:0, movingMs:0, accepted:[], rejected:{}, gaps:0, pts:0 };
+  if(!Array.isArray(points) || !points.length) return out;
+  let prev = null;
+  points.forEach(raw => {
+    out.pts++;
+    const usable = gpsPointUsable(raw, activityId);
+    if(!usable.ok){ out.rejected[usable.why] = (out.rejected[usable.why]||0)+1; return; }
+    const pt = { lat: raw.lat, lon: raw.lon, t: raw.t,
+                 acc: raw.acc, alt: raw.alt, brk: raw.brk };
+    if(!prev){ prev = pt; out.accepted.push(Object.assign({ d:0 }, pt)); return; }
+    const v = gpsSegmentVerdict(prev, pt, activityId);
+    if(v.accept){
+      out.meters += v.meters;
+      out.movingMs += v.dt * 1000;
+      out.accepted.push(Object.assign({ d: out.meters }, pt));
+      prev = pt;
+    } else {
+      out.rejected[v.why] = (out.rejected[v.why]||0)+1;
+      if(v.why === 'gap'){
+        /* The track resumes here, but the distance between does not count.
+           Marking it keeps the route honest about what was not observed. */
+        out.gaps++;
+        out.accepted.push(Object.assign({ d: out.meters, gap:true }, pt));
+        prev = pt;
+      } else if(v.why === 'spike' || v.why === 'jitter'){
+        /* Jitter: keep the anchor so noise cannot creep. Spike: do not adopt
+           the bad fix as the new anchor, or the next good point measures from
+           a place the athlete never was. */
+        if(v.why === 'jitter' && v.dt > 8) prev = pt;
+      }
+    }
+  });
+  return out;
+}
+
+const GPS_M_PER_MI = 1609.344, GPS_M_PER_KM = 1000;
+function gpsUnitMeters(){ return CARDIO_DISTANCE_UNIT === 'km' ? GPS_M_PER_KM : GPS_M_PER_MI; }
+function gpsMetersToUnit(m){ return m / gpsUnitMeters(); }
+
+/* Average pace over the whole session: seconds per display unit. */
+function gpsAveragePaceSec(meters, seconds){
+  if(!(meters > 0) || !(seconds > 0)) return null;
+  return seconds / gpsMetersToUnit(meters);
+}
+
+/* CURRENT pace, smoothed. A single GPS segment is far too noisy to show
+   someone mid-run — it swings between 6:30 and 15:00 on consecutive fixes.
+   This walks back through accepted points until it has covered at least
+   'windowSec' of real movement, and paces THAT. Returns null until there is
+   enough of a window to mean anything, so the UI shows "--:--" rather than a
+   number nobody should trust. */
+function gpsCurrentPaceSec(accepted, windowSec){
+  const win = (windowSec || 30) * 1000;
+  if(!accepted || accepted.length < 2) return null;
+  const last = accepted[accepted.length - 1];
+  let i = accepted.length - 1;
+  while(i > 0 && (last.t - accepted[i].t) < win) i--;
+  const first = accepted[i];
+  const dt = (last.t - first.t) / 1000;
+  const dm = last.d - first.d;
+  if(!(dt >= 10) || !(dm > 0)) return null;     // too little to smooth honestly
+  return dt / gpsMetersToUnit(dm);
+}
+function gpsCurrentSpeedMph(accepted, windowSec){
+  const pace = gpsCurrentPaceSec(accepted, windowSec);
+  if(pace === null) return null;
+  return 3600 / pace;                            // units per hour
+}
+
+/* Splits, one per whole display unit, with the boundary INTERPOLATED. A
+   single accepted segment can straddle a mile marker; assigning all of it to
+   one side is how trackers produce a 6:10 followed by a 9:30 that never
+   happened. */
+function gpsSplits(accepted){
+  const unit = gpsUnitMeters();
+  const out = [];
+  if(!accepted || accepted.length < 2) return out;
+  let nextMark = unit, prevMarkT = accepted[0].t, prevMarkD = 0;
+  for(let i = 1; i < accepted.length; i++){
+    const a = accepted[i-1], b = accepted[i];
+    while(b.d >= nextMark && b.d > a.d){
+      const frac = (nextMark - a.d) / (b.d - a.d);
+      const tAt = a.t + (b.t - a.t) * frac;
+      out.push({ index: out.length + 1,
+        seconds: Math.round((tAt - prevMarkT) / 1000),
+        meters: unit, partial: false });
+      prevMarkT = tAt; prevMarkD = nextMark; nextMark += unit;
+    }
+  }
+  const last = accepted[accepted.length - 1];
+  const leftover = last.d - prevMarkD;
+  if(leftover > unit * 0.05){
+    out.push({ index: out.length + 1,
+      seconds: Math.round((last.t - prevMarkT) / 1000),
+      meters: Math.round(leftover), partial: true });
+  }
+  return out;
+}
+
+/* Route simplification for STORAGE AND DISPLAY ONLY — Douglas-Peucker on the
+   accepted geometry. The distance was already computed from every accepted
+   point and is never recalculated from the simplified path, so shrinking the
+   stored route cannot change what the athlete ran. */
+function gpsSimplifyRoute(points, tolDeg){
+  if(!points || points.length < 3) return (points || []).slice();
+  const tol = tolDeg || 0.00003;                 // ~3m
+  const perp = (p, a, b) => {
+    const x = p.lon - a.lon, y = p.lat - a.lat;
+    const dx = b.lon - a.lon, dy = b.lat - a.lat;
+    const len = dx*dx + dy*dy;
+    if(len === 0) return Math.sqrt(x*x + y*y);
+    let t = (x*dx + y*dy) / len;
+    t = Math.max(0, Math.min(1, t));
+    const px = x - t*dx, py = y - t*dy;
+    return Math.sqrt(px*px + py*py);
+  };
+  const keep = new Array(points.length).fill(false);
+  keep[0] = keep[points.length-1] = true;
+  const stack = [[0, points.length-1]];
+  while(stack.length){
+    const [lo, hi] = stack.pop();
+    let best = -1, bestD = tol;
+    for(let i = lo+1; i < hi; i++){
+      const d = perp(points[i], points[lo], points[hi]);
+      if(d > bestD){ bestD = d; best = i; }
+    }
+    if(best !== -1){ keep[best] = true; stack.push([lo, best], [best, hi]); }
+  }
+  return points.filter((p,i) => keep[i] || p.gap);
+}
+
+/* Everything the live screen and the summary need, from the raw track. One
+   entry point so the UI can never compute a metric a different way. */
+function gpsSessionMetrics(points, activityId, elapsedSec){
+  const r = gpsReduce(points, activityId);
+  const distUnits = gpsMetersToUnit(r.meters);
+  const movingSec = Math.round(r.movingMs / 1000);
+  return {
+    meters: r.meters,
+    distance: distUnits,
+    movingSeconds: movingSec,
+    avgPaceSec: gpsAveragePaceSec(r.meters, elapsedSec || movingSec),
+    curPaceSec: gpsCurrentPaceSec(r.accepted, 30),
+    splits: gpsSplits(r.accepted),
+    accepted: r.accepted,
+    gaps: r.gaps,
+    quality: gpsQualityOf(r)
+  };
+}
+/* Quality as a WORD, because "±7.34m" helps nobody mid-run. */
+function gpsQualityOf(reduced){
+  if(!reduced || !reduced.pts) return 'none';
+  const bad = (reduced.rejected.accuracy || 0) + (reduced.rejected.spike || 0);
+  const ratio = bad / reduced.pts;
+  if(reduced.gaps > 0) return 'gaps';
+  if(ratio > 0.35) return 'weak';
+  if(reduced.pts < 3) return 'acquiring';
+  return 'good';
+}
+
+/* ---------- LIVE GPS RUNTIME ----------
+   The bridge between the browser and the pure engine above. It owns exactly
+   one watchPosition registration and one wake lock, and it is the only place
+   that talks to navigator — so the engine stays testable and this stays
+   small enough to reason about. */
+let cardioGeoWatch = null;      // the single watchPosition id, or null
+let _cardioGpsBreak = false;    // next fix begins a new segment, not a leg
+let cardioWakeLock = null;      // the screen lock, where the browser has one
+
+function cardioGeoSupported(){
+  return typeof navigator !== 'undefined' && !!navigator.geolocation;
+}
+
+/* Stopping is idempotent and safe to call from anywhere — finish, pause,
+   discard, page close. Two watchers can never exist because the id is
+   cleared before a new one is ever requested. */
+function stopCardioGeoWatch(){
+  if(cardioGeoWatch !== null && cardioGeoSupported()){
+    try{ navigator.geolocation.clearWatch(cardioGeoWatch); }catch(e){}
+  }
+  cardioGeoWatch = null;
+}
+
+function startCardioGeoWatch(){
+  if(!cardioGeoSupported() || !cardioSession) return;
+  if(!cardioIsGpsActivity(cardioSession.activityId)) return;
+  stopCardioGeoWatch();                       // singleton, always
+  try{
+    cardioGeoWatch = navigator.geolocation.watchPosition(
+      onCardioPosition, onCardioGeoError,
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  }catch(e){ cardioGeoWatch = null; }
+}
+
+/* Every fix lands here. The point is stored raw; nothing is filtered on the
+   way in, because the engine must see the same sequence a replay fixture
+   does. Distance is never accumulated while paused. */
+function onCardioPosition(pos){
+  if(!cardioSession || cardioSession.state !== 'running') return;
+  if(!pos || !pos.coords) return;
+  const c = pos.coords;
+  const pt = { lat: c.latitude, lon: c.longitude,
+    t: typeof pos.timestamp === 'number' ? pos.timestamp : Date.now(),
+    acc: typeof c.accuracy === 'number' ? Math.round(c.accuracy) : undefined };
+  if(typeof c.altitude === 'number' && isFinite(c.altitude)) pt.alt = Math.round(c.altitude);
+  if(_cardioGpsBreak){ pt.brk = true; _cardioGpsBreak = false; }
+  cardioSession.gpsPoints = cardioSession.gpsPoints || [];
+  cardioSession.gpsPoints.push(pt);
+  cardioSession.gpsState = 'tracking';
+  /* The ticker already repaints at 200ms; recomputing here as well would
+     rebuild the route on every fix for no benefit. */
+  cardioCheckpointRoute();
+}
+
+/* Browser errors are for developers. The athlete gets a state. */
+function onCardioGeoError(err){
+  if(!cardioSession) return;
+  const code = err && err.code;
+  cardioSession.gpsState = code === 1 ? 'denied'
+    : code === 3 ? 'weak' : 'unavailable';
+}
+
+/* Persistence is checkpointed, not written on every fix: a 60-minute run
+   would otherwise be thousands of storage writes. Every 20 accepted points
+   or so is frequent enough that a crash costs seconds, not the session. */
+let _cardioRouteCheckpoint = 0;
+function cardioCheckpointRoute(){
+  if(!cardioSession) return;
+  const n = (cardioSession.gpsPoints || []).length;
+  if(n - _cardioRouteCheckpoint < 20) return;
+  _cardioRouteCheckpoint = n;
+  persistCardioSession();
+}
+
+/* ---------- screen wake lock ----------
+   This helps the screen stay on so the tab keeps running. It is NOT
+   background tracking, and nothing in the UI claims that it is. */
+/* Requesting a lock is asynchronous, so a session can end while the request
+   is still in flight. The epoch is what makes release final: a lock that
+   arrives for a finished session is let go immediately instead of being
+   adopted, which would hold the screen on after the workout was over. */
+let _cardioWakeEpoch = 0;
+let _cardioWakePending = false;
+async function acquireCardioWakeLock(_retry){
+  try{
+    if(typeof navigator === 'undefined' || !navigator.wakeLock) return;
+    if(cardioWakeLock || _cardioWakePending) return;   // one request at a time
+    const epoch = _cardioWakeEpoch;
+    _cardioWakePending = true;
+    let lock = null;
+    try{ lock = await navigator.wakeLock.request('screen'); }
+    finally{ _cardioWakePending = false; }
+    const stillWanted = epoch === _cardioWakeEpoch
+      && cardioSession && cardioSession.state === 'running';
+    if(!stillWanted){
+      try{ lock.release(); }catch(e){}
+      /* A pause and resume inside the request window invalidates this lock
+         while still wanting one. Exactly one retry, so a session that keeps
+         running does not spend the rest of the run unlocked. */
+      if(!_retry && cardioSession && cardioSession.state === 'running'
+        && cardioIsGpsActivity(cardioSession.activityId)) acquireCardioWakeLock(true);
+      return;
+    }
+    cardioWakeLock = lock;
+    cardioWakeLock.addEventListener('release', () => { cardioWakeLock = null; });
+  }catch(e){ cardioWakeLock = null; }   // refused or unsupported: carry on
+}
+function releaseCardioWakeLock(){
+  _cardioWakeEpoch++;                   // any in-flight request is now stale
+  try{ if(cardioWakeLock) cardioWakeLock.release(); }catch(e){}
+  cardioWakeLock = null;
+}
+
+/* Coming back to the foreground: the lock is dropped by the platform when the
+   tab hides, so it is re-taken if a session is still running. The timer needs
+   no repair — elapsed time is derived from timestamps, not counted by the
+   ticker — and the watcher is only restarted if it actually went away. */
+function cardioVisibilityChanged(){
+  if(!cardioSession || cardioSession.state !== 'running') return;
+  if(typeof document !== 'undefined' && document.visibilityState === 'visible'){
+    acquireCardioWakeLock();
+    if(cardioIsGpsActivity(cardioSession.activityId) && cardioGeoWatch === null){
+      startCardioGeoWatch();
+    }
+  }
+}
+
+/* ---------- the measured picture ----------
+   One entry point for every surface, so the live screen, the summary and the
+   saved record can never disagree about what was measured. */
+function cardioGpsMetrics(session){
+  const sess = session || cardioSession;
+  if(!sess || !cardioIsGpsActivity(sess.activityId)) return null;
+  const pts = sess.gpsPoints || [];
+  if(!pts.length) return null;
+  return gpsSessionMetrics(pts, sess.activityId, Math.round(cardioElapsedMs(sess) / 1000));
+}
+
+/* The athlete's way out. The session continues as a timed workout with a
+   distance they can type — nothing is lost except the measuring. */
+function cardioContinueWithoutGps(){
+  if(!cardioSession) return;
+  cardioSession.gpsOptOut = true;
+  stopCardioGeoWatch();
+  persistCardioSession();
+  renderCardioSessionPage();
+}
+
+/* Asking again after a refusal. iOS will not re-prompt once denied, so the
+   copy has to send them to Settings rather than pretend a retry works. */
+function cardioRetryLocation(){
+  if(!cardioSession) return;
+  cardioSession.gpsOptOut = false;
+  cardioSession.gpsState = 'acquiring';
+  startCardioGeoWatch();
+  renderCardioSessionPage();
+}
+
+/* Location is asked for at the moment it is needed — when the athlete picks
+   an outdoor activity — never at launch. The request itself must happen
+   inside their tap, or Safari will not show the prompt. */
+function cardioRequestLocation(activityId){
+  return new Promise(resolve => {
+    if(!cardioGeoSupported()){ resolve('unavailable'); return; }
+    let settled = false;
+    const done = v => { if(!settled){ settled = true; resolve(v); } };
+    try{
+      navigator.geolocation.getCurrentPosition(
+        () => done('granted'),
+        err => done(err && err.code === 1 ? 'denied' : 'unavailable'),
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    }catch(e){ done('unavailable'); }
+  });
+}
+
 function newCardioSession(activityId){
   const act = getCardioActivity(activityId);
   if(!act) return null;
@@ -12737,7 +13246,12 @@ function newCardioSession(activityId){
     state: 'running',
     distance: '',
     floors: '',
-    notes: ''
+    notes: '',
+    /* D32 — GPS fields. Absent on indoor sessions, so an elliptical never
+       carries an empty route, and old drafts without them still load. */
+    gps: cardioIsGpsActivity(act.id),
+    gpsPoints: cardioIsGpsActivity(act.id) ? [] : null,
+    gpsState: cardioIsGpsActivity(act.id) ? 'acquiring' : null
   };
 }
 
@@ -12751,9 +13265,12 @@ function startCardioActivity(activityId){
   if(!s) return;
   cardioSession = s;
   loopFeedbackPrime();                      // inside the athlete's own tap
+  _cardioRouteCheckpoint = 0;
   persistCardioSession();
   openCardioSessionPage();
   startCardioTicker();
+  /* Outdoor activities start measuring immediately; indoor ones never ask. */
+  if(cardioIsGpsActivity(s.activityId)){ startCardioGeoWatch(); acquireCardioWakeLock(); }
 }
 
 /* One ticker, ever. Starting twice cannot produce two intervals because the
@@ -12772,6 +13289,9 @@ function pauseCardioSession(){
   cardioSession.accumulatedMs = cardioElapsedMs();
   cardioSession.runningSince = null;
   cardioSession.state = 'paused';
+  /* Nothing measures while paused: no fixes, no battery, no drift. */
+  stopCardioGeoWatch();
+  releaseCardioWakeLock();
   persistCardioSession();
   renderCardioSessionPage();
 }
@@ -12779,6 +13299,11 @@ function resumeCardioSession(){
   if(!cardioSession || cardioSession.state !== 'paused') return;
   cardioSession.runningSince = Date.now();
   cardioSession.state = 'running';
+  if(cardioIsGpsActivity(cardioSession.activityId) && !cardioSession.gpsOptOut){
+    _cardioGpsBreak = true;          // the pause is a break in the track
+    startCardioGeoWatch();
+    acquireCardioWakeLock();
+  }
   persistCardioSession();
   startCardioTicker();
   renderCardioSessionPage();
@@ -12795,6 +13320,8 @@ function finishCardioSession(){
   cardioSession.runningSince = null;
   cardioSession.state = 'finished';
   stopCardioTicker();
+  stopCardioGeoWatch();
+  releaseCardioWakeLock();
   loopHaptic();
   persistCardioSession();
   renderCardioSessionPage();
@@ -12862,7 +13389,13 @@ function cardioSessionRecord(){
     state: cardioSession.state,
     distance: cardioSession.distance || '',
     floors: cardioSession.floors || '',
-    notes: cardioSession.notes || ''
+    notes: cardioSession.notes || '',
+    /* D32 — the measured track. A reload mid-run is an interruption, not a
+       reset, so the points come back with the clock. */
+    gps: !!cardioSession.gps,
+    gpsPoints: cardioSession.gpsPoints || null,
+    gpsState: cardioSession.gpsState || null,
+    gpsOptOut: !!cardioSession.gpsOptOut
   };
 }
 async function persistCardioSession(){
@@ -12888,10 +13421,26 @@ async function resumeCardioSessionDraft(d){
     state: d.state === 'finished' ? 'finished' : (d.runningSince ? 'running' : 'paused'),
     distance: d.distance || '',
     floors: d.floors || '',
-    notes: d.notes || ''
+    notes: d.notes || '',
+    gps: d.gps !== undefined ? !!d.gps : cardioIsGpsActivity(d.activityId),
+    gpsPoints: Array.isArray(d.gpsPoints) ? d.gpsPoints
+      : (cardioIsGpsActivity(d.activityId) ? [] : null),
+    gpsState: d.gpsState || (cardioIsGpsActivity(d.activityId) ? 'acquiring' : null),
+    gpsOptOut: !!d.gpsOptOut
   };
+  _cardioRouteCheckpoint = (cardioSession.gpsPoints || []).length;
   openCardioSessionPage();
-  if(cardioSession.state === 'running') startCardioTicker();
+  if(cardioSession.state === 'running'){
+    startCardioTicker();
+    /* The watcher did not survive the reload; the points did. Measuring
+       picks up where it stopped, and the missing stretch reads as a gap
+       rather than a straight line across it. */
+    if(cardioIsGpsActivity(cardioSession.activityId) && !cardioSession.gpsOptOut){
+      _cardioGpsBreak = true;
+      startCardioGeoWatch();
+      acquireCardioWakeLock();
+    }
+  }
   return true;
 }
 
@@ -12904,6 +13453,99 @@ async function resumeCardioSessionDraft(d){
 function cardioSessionMinutes(s){
   return Math.max(1, Math.round(cardioElapsedMin(s || cardioSession)));
 }
+/* ---------- ROUTE TRACE ----------
+   The shape of the run, drawn from the points LOOP actually accepted. Not a
+   street map: no tile provider, no API key, no billing — just the geometry
+   normalised into the box. A gap in coverage breaks the line rather than
+   drawing a road the athlete may never have taken. */
+function cardioRouteSvg(points, w, h){
+  const W = w || 320, H = h || 150, PAD = 10;
+  if(!points || points.length < 2) return '';
+  let minLa = 90, maxLa = -90, minLo = 180, maxLo = -180;
+  points.forEach(p => { if(p.lat < minLa) minLa = p.lat; if(p.lat > maxLa) maxLa = p.lat;
+    if(p.lon < minLo) minLo = p.lon; if(p.lon > maxLo) maxLo = p.lon; });
+  /* Longitude degrees are shorter than latitude degrees away from the
+     equator, so the box is corrected or every route looks stretched. */
+  const midLa = (minLa + maxLa) / 2;
+  const spanLo = Math.max(1e-7, (maxLo - minLo) * Math.cos(midLa * Math.PI / 180));
+  const spanLa = Math.max(1e-7, maxLa - minLa);
+  const scale = Math.min((W - PAD*2) / spanLo, (H - PAD*2) / spanLa);
+  const ox = (W - spanLo * scale) / 2, oy = (H - spanLa * scale) / 2;
+  const X = p => ox + ((p.lon - minLo) * Math.cos(midLa * Math.PI / 180)) * scale;
+  const Y = p => H - (oy + (p.lat - minLa) * scale);
+  let d = '', pen = 'M';
+  points.forEach(p => { if(p.gap){ pen = 'M'; return; }
+    d += pen + X(p).toFixed(1) + ',' + Y(p).toFixed(1) + ' '; pen = 'L'; });
+  const a = points[0], b = points[points.length - 1];
+  return '<svg class="cr-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img"' +
+    ' aria-label="Route shape for this session">' +
+    '<path d="' + d.trim() + '" fill="none" stroke="var(--accent)" stroke-width="2.5"' +
+      ' stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>' +
+    '<circle cx="' + X(a).toFixed(1) + '" cy="' + Y(a).toFixed(1) + '" r="4"' +
+      ' fill="var(--success)"/>' +
+    '<circle cx="' + X(b).toFixed(1) + '" cy="' + Y(b).toFixed(1) + '" r="4"' +
+      ' fill="none" stroke="var(--accent)" stroke-width="2"/>' +
+  '</svg>';
+}
+
+/* GPS state as product language. The athlete never sees a browser error or a
+   raw accuracy figure. */
+const CARDIO_GPS_WORDS = {
+  acquiring:   { label:'Finding GPS',  tone:'wait' },
+  tracking:    { label:'GPS good',     tone:'ok' },
+  good:        { label:'GPS good',     tone:'ok' },
+  weak:        { label:'Weak GPS',     tone:'warn' },
+  gaps:        { label:'GPS gap',      tone:'warn' },
+  denied:      { label:'No location',  tone:'off' },
+  unavailable: { label:'No location',  tone:'off' },
+  off:         { label:'Timer only',   tone:'off' }
+};
+/* ---------- THE PERMISSION GATE ----------
+   Five states, one rule: the workout is never held hostage to the measuring.
+   Whatever the browser says, there is a way forward on this screen. */
+function cardioGpsGate(session){
+  if(!session || !cardioIsGpsActivity(session.activityId)) return null;
+  if(session.gpsOptOut) return null;         // they chose the timer; respect it
+  const st = session.gpsState;
+  if(st === 'denied') return {
+    title: 'Location is off for LOOP',
+    body: 'Distance and pace need location. Turn it on in Settings, or keep '
+        + 'going as a timed session and add the distance at the end.',
+    act: 'cardioContinueWithoutGps()', actLabel: 'Continue without GPS' };
+  if(st === 'unavailable') return {
+    title: 'No location signal',
+    body: 'LOOP cannot reach GPS right now. The timer is still running.',
+    act: 'cardioRetryLocation()', actLabel: 'Try again' };
+  const m = cardioGpsMetrics(session);
+  /* Nothing measured yet and half a minute gone: say so, and offer the exit
+     rather than leaving them watching a spinner mid-run. */
+  if((!m || !m.accepted.length) && cardioElapsedSec(session) > 30) return {
+    title: 'Still finding GPS',
+    body: 'This can take a moment outdoors, longer between buildings.',
+    act: 'cardioContinueWithoutGps()', actLabel: 'Continue without GPS' };
+  return null;
+}
+
+function cardioGpsWord(session){
+  if(!session || !cardioIsGpsActivity(session.activityId)) return null;
+  if(session.gpsOptOut) return CARDIO_GPS_WORDS.off;
+  const m = cardioGpsMetrics(session);
+  const key = (m && m.quality === 'weak') ? 'weak'
+    : (m && m.quality === 'gaps') ? 'gaps'
+    : (session.gpsState || 'acquiring');
+  return CARDIO_GPS_WORDS[key] || CARDIO_GPS_WORDS.acquiring;
+}
+
+/* Measured distance wins over anything typed. A GPS session should never ask
+   the athlete for the number LOOP just spent the run measuring. */
+function cardioSessionDistance(session){
+  const m = cardioGpsMetrics(session);
+  if(m && m.meters > 0) return { value: m.distance, source: 'gps' };
+  const typed = parseFloat(session && session.distance);
+  if(typed > 0) return { value: typed, source: 'manual' };
+  return { value: null, source: null };
+}
+
 function cardioSessionToRecord(){
   if(!cardioSession) return null;
   const mins = cardioSessionMinutes();
@@ -12914,8 +13556,31 @@ function cardioSessionToRecord(){
     duration: mins,
     source: 'live'                              // how it was recorded, for later
   };
-  const dist = parseFloat(cardioSession.distance);
-  if(dist > 0) rec.distance = String(dist);
+  /* D32 — a GPS session saves the distance LOOP measured; a typed value is
+     only used when there is nothing measured. The record says which, so no
+     later screen has to guess whether a number came from the satellites or
+     from a treadmill console. */
+  const measured = cardioGpsMetrics(cardioSession);
+  const dsrc = cardioSessionDistance(cardioSession);
+  const dist = dsrc.value;
+  if(dist > 0){
+    rec.distance = String(Math.round(dist * 100) / 100);
+    rec.distanceSource = dsrc.source;            // 'gps' | 'manual'
+  }
+  if(measured && measured.meters > 0){
+    rec.trackingMode = 'gps';
+    rec.movingSeconds = measured.movingSeconds;
+    rec.splits = measured.splits;
+    rec.gpsQuality = measured.quality;
+    /* Stored simplified for size; the distance above was computed from every
+       accepted point and is never recalculated from this. */
+    rec.route = gpsSimplifyRoute(measured.accepted).map(pt => ({
+      lat: Math.round(pt.lat * 1e5) / 1e5,
+      lon: Math.round(pt.lon * 1e5) / 1e5,
+      t: pt.t, gap: pt.gap || undefined }));
+  } else if(cardioIsGpsActivity(cardioSession.activityId)){
+    rec.trackingMode = 'timer';                  // outdoor, but nothing measured
+  }
   const floors = parseFloat(cardioSession.floors);
   if(floors > 0) rec.floors = String(floors);
   // Pace is derived, so it is stored as the string the athlete would read.
@@ -13000,17 +13665,43 @@ function cardioLiveTiles(session){
   const tiles = [];
 
   if(cardioShowsDistance(id)){
-    tiles.push({
-      key: 'distance',
-      label: 'Distance',
-      value: dist > 0 ? (Math.round(dist * 100) / 100) : null,
-      unit: cardioDistanceUnit(),
-      hint: dist > 0 ? 'entered' : 'tap to add',
-      action: 'editCardioDistance()'
-    });
-    const eff = cardioEffortMetric(id, dist, mins);
-    tiles.push(Object.assign({}, eff,
-      { hint: eff.value === null ? 'needs distance' : 'from distance' }));
+    /* D32 — when LOOP is measuring, the athlete never types a distance and
+       never taps the tile. The hint says which kind of number this is. */
+    const gm = cardioGpsMetrics(session);
+    if(gm && gm.meters > 0){
+      tiles.push({ key:'distance', label:'Distance',
+        value: Math.round(gm.distance * 100) / 100,
+        unit: cardioDistanceUnit(), hint: 'measured' });
+      const speedMode = cardioPaceMode(id) === 'speed';
+      const cur = speedMode ? gpsCurrentSpeedMph(gm.accepted, 30)
+                            : gpsCurrentPaceSec(gm.accepted, 30);
+      const avg = speedMode ? (gm.avgPaceSec ? 3600 / gm.avgPaceSec : null)
+                            : gm.avgPaceSec;
+      tiles.push({ key: speedMode ? 'speed' : 'pace',
+        label: speedMode ? 'Avg speed' : 'Avg pace',
+        value: avg === null ? null
+          : (speedMode ? Math.round(avg * 10) / 10 : formatPace(avg)),
+        unit: speedMode ? 'mph' : cardioPaceUnit(),
+        hint: avg === null ? 'measuring' : 'measured' });
+      tiles.push({ key:'current',
+        label: speedMode ? 'Speed' : 'Pace',
+        value: cur === null ? null
+          : (speedMode ? Math.round(cur * 10) / 10 : formatPace(cur)),
+        unit: speedMode ? 'mph' : cardioPaceUnit(),
+        hint: cur === null ? 'measuring' : 'now' });
+    } else {
+      tiles.push({
+        key: 'distance',
+        label: 'Distance',
+        value: dist > 0 ? (Math.round(dist * 100) / 100) : null,
+        unit: cardioDistanceUnit(),
+        hint: dist > 0 ? 'entered' : 'tap to add',
+        action: 'editCardioDistance()'
+      });
+      const eff = cardioEffortMetric(id, dist, mins);
+      tiles.push(Object.assign({}, eff,
+        { hint: eff.value === null ? 'needs distance' : 'from distance' }));
+    }
   }
   if(cardioShowsFloors(id)){
     const fl = parseFloat(session.floors);
@@ -13092,7 +13783,17 @@ function renderCardioSessionPage(){
           <div class="cs-state" id="csState">${paused ? 'Paused' : 'Recording'}</div>
         </div>
       </div>
+      ${(() => { const w = cardioGpsWord(cardioSession); return w
+        ? `<div class="cs-gps cs-gps-${w.tone}">${escapeHtml(w.label)}</div>` : ''; })()}
+      ${(() => { const g = cardioGpsGate(cardioSession); return g ? `
+        <div class="cs-gate">
+          <div class="cs-gate-t">${escapeHtml(g.title)}</div>
+          <div class="cs-gate-b">${escapeHtml(g.body)}</div>
+          <button class="cs-gate-a" onclick="${g.act}">${escapeHtml(g.actLabel)}</button>
+        </div>` : ''; })()}
       <div class="cs-tiles" id="csTiles">${cardioLiveTiles(cardioSession).map(cardioTileHtml).join('')}</div>
+      ${(() => { const m = cardioGpsMetrics(cardioSession);
+        return (m && m.accepted.length > 2) ? `<div class="cs-route">${cardioRouteSvg(m.accepted, 300, 120)}</div>` : ''; })()}
     </div>`;
 
   /* The controls sit in their own bar at the bottom of the page so they stay
@@ -13115,15 +13816,20 @@ function renderCardioSummary(body, bar){
   /* Whole minutes — the same value cardioSessionToRecord() will store, so what
      the summary shows and what history shows can never disagree. */
   const mins = cardioSessionMinutes(s);
-  const dist = parseFloat(s.distance);
-  const cal = cardioCalories(s.activityId, mins, s.distance);
+  /* D32 — measured beats typed. On a GPS session this is the distance LOOP
+     recorded, so the summary can never ask for a number it already has. */
+  const gm = cardioGpsMetrics(s);
+  const dsrc = cardioSessionDistance(s);
+  const dist = dsrc.value || NaN;
+  const cal = cardioCalories(s.activityId, mins, dist > 0 ? String(dist) : s.distance);
   const rows = [];
 
   /* The one number this activity is actually about, given the loudest row. */
   let lead = null;
   if(cardioShowsDistance(s.activityId)){
     lead = dist > 0
-      ? { v: (Math.round(dist*100)/100) + ' ' + cardioDistanceUnit(), l:'Distance' }
+      ? { v: (Math.round(dist*100)/100) + ' ' + cardioDistanceUnit(),
+          l: dsrc.source === 'gps' ? 'Distance · measured' : 'Distance' }
       : { v:'Add distance', l:'not recorded', action:'editCardioDistance()' };
     if(dist > 0){
       const eff = cardioEffortMetric(s.activityId, dist, mins);
@@ -13135,6 +13841,9 @@ function renderCardioSummary(body, bar){
       ? { v: fl + '', l:'Floors climbed' }
       : { v:'Add floors', l:'not recorded', action:'editCardioFloors()' };
   }
+  /* Moving time and splits are only shown when they were actually measured. */
+  if(gm && gm.movingSeconds > 0 && gm.movingSeconds < mins * 60)
+    rows.push({ v: formatClock(gm.movingSeconds), l:'Moving time' });
   if(cal){
     rows.push({ v: cal.active, l:'Active cal · estimated' });
     rows.push({ v: cal.total, l:'Total cal · estimated' });
@@ -13158,6 +13867,21 @@ function renderCardioSummary(body, bar){
         : `<div class="cs-sum-lead">
              <span class="cs-sum-lead-v">${escapeHtml(String(lead.v))}</span>
              <span class="cs-sum-lead-l">${escapeHtml(lead.l)}</span></div>`) : ''}
+      ${(() => { if(!gm || !gm.splits || gm.splits.length < 2) return '';
+        const unit = cardioDistanceUnit();
+        return `<div class="cs-splits">
+          <div class="cs-splits-h">Splits</div>
+          ${gm.splits.map((sp, i) => {
+            const frac = sp.partial
+              ? (Math.round((sp.meters / gpsUnitMeters()) * 100) / 100) + ' ' + unit : unit;
+            return `<div class="cs-split${sp.partial ? ' cs-split-part' : ''}">
+              <span class="cs-split-n">${sp.partial ? 'Final' : i + 1}</span>
+              <span class="cs-split-u">${escapeHtml(frac)}</span>
+              <span class="cs-split-t">${escapeHtml(formatClock(Math.round(sp.seconds)))}</span>
+            </div>`; }).join('')}
+        </div>`; })()}
+      ${(gm && gm.accepted.length > 2)
+        ? `<div class="cs-route">${cardioRouteSvg(gm.accepted, 300, 130)}</div>` : ''}
       ${rows.length ? `<div class="cs-sum-rows">
         ${rows.map(r => r.action
           ? `<button type="button" class="cs-sum-row cs-sum-row-tap${r.wide ? ' cs-sum-wide' : ''}" onclick="${r.action}">
@@ -13513,7 +14237,8 @@ function cardioCardHtml(c){
           <span class="ch-name">${escapeHtml(c.activityName)}</span>
           <span class="ch-when">${formatDateShort(c.date)}${dur ? ' · ' + formatDurationLong(dur) : ''}</span>
         </span>
-        ${bits.length ? `<span class="ch-metrics">${escapeHtml(bits.join('  ·  '))}</span>` : ''}
+        ${bits.length ? `<span class="ch-metrics">${escapeHtml(bits.join('  ·  '))}
+          ${c.distanceSource === 'gps' ? '<span class="ch-measured">measured</span>' : ''}</span>` : ''}
         ${calLine ? `<span class="ch-cal">${escapeHtml(calLine)}</span>` : ''}
       </span>
     </button>`;
@@ -13722,6 +14447,24 @@ function openCardioDetail(id){
     <div class="cd-detail-stats">
       ${shown.map(k => `<div><span>${escapeHtml(String(rec[k]))}</span>${CARDIO_FIELDS[k].label}${CARDIO_FIELDS[k].unit ? ' (' + CARDIO_FIELDS[k].unit + ')' : ''}</div>`).join('')}
     </div>
+    ${(rec.route && rec.route.length > 2)
+      ? `<div class="cs-route">${cardioRouteSvg(rec.route, 300, 130)}</div>` : ''}
+    ${(rec.splits && rec.splits.length > 1) ? (() => {
+      const unit = cardioDistanceUnit();
+      return `<div class="cs-splits">
+        <div class="cs-splits-h">Splits</div>
+        ${rec.splits.map((sp, i) => {
+          const frac = sp.partial
+            ? (Math.round((sp.meters / gpsUnitMeters()) * 100) / 100) + ' ' + unit : unit;
+          return `<div class="cs-split${sp.partial ? ' cs-split-part' : ''}">
+            <span class="cs-split-n">${sp.partial ? 'Final' : i + 1}</span>
+            <span class="cs-split-u">${escapeHtml(frac)}</span>
+            <span class="cs-split-t">${escapeHtml(formatClock(Math.round(sp.seconds)))}</span>
+          </div>`; }).join('')}
+      </div>`; })() : ''}
+    ${rec.distanceSource === 'gps'
+      ? `<div class="cd-detail-est">Distance and pace were measured by GPS during the session.</div>`
+      : ''}
     ${rec.caloriesEstimated ? `<div class="cd-detail-est">Calories are estimated from duration and body weight, not measured.</div>` : ''}
     ${rec.notes ? `<div class="cd-detail-notes">${escapeHtml(rec.notes)}</div>` : ''}
     <div class="cd-detail-actions">
@@ -26810,6 +27553,10 @@ window.addEventListener('popstate', () => {
 
 /* Last-chance flush if the page is being torn down mid-workout. */
 window.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') persistDraftNow(); });
+/* D32 — a backgrounded tab loses its screen lock and can lose its watcher.
+   Returning re-takes both; the clock needs no repair because elapsed time is
+   derived from timestamps rather than counted by the ticker. */
+window.addEventListener('visibilitychange', cardioVisibilityChanged);
 window.addEventListener('pagehide', () => { persistDraftNow(); });
 
 /* ---------- LAUNCH INTRO CONTROLLER ----------

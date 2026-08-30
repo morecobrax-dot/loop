@@ -1159,7 +1159,10 @@ async function testBackupImportFlow(){
     T('trainerLog gap-filled despite no workoutLog in the backup', app.store.trainerLog === incoming.trainerLog);
     T('success path executed — an alert was shown', !!lastAlert);
     T('alert does not falsely claim a workout was added', !/new workout/.test(lastAlert || ''));
-    T('alert reports what was actually restored', /2 settings/.test(lastAlert || ''));
+    /* Cardio sessions are reported as sessions, not as "settings": since D32
+       they merge by id like workouts do, so the count is real history. */
+    T('alert reports what was actually restored',
+      /1 new cardio session/.test(lastAlert || '') && /1 setting/.test(lastAlert || ''));
     T('local workoutLog left untouched', app.store.workoutLog === originalWorkoutLog);
   }
 
@@ -1251,7 +1254,18 @@ async function testBackupImportFlow(){
     T('existing trainerLog preserved, not overwritten', app.store.trainerLog === mineTrainerLog);
     T('existing readiness preserved, not overwritten', app.store.dailyReadiness === mineReadiness);
     T('existing athlete profile preserved, not overwritten', app.store.athleteProfile === mineProfile);
-    T('existing cardioLog preserved, not overwritten', app.store.cardioLog === mineCardio);
+    /* D32 — cardio history merges by id rather than being skipped when the
+       key is already populated. "Never overwritten" still holds: the
+       athlete's own session survives untouched and theirs is added beside
+       it. Before this, importing onto a phone with any cardio history at all
+       silently dropped every cardio session in the backup. */
+    {
+      const merged = JSON.parse(app.store.cardioLog);
+      T('existing cardioLog preserved, not overwritten',
+        merged.some(c => c.id === 'mine_cardio'));
+      T('imported cardio session merged in alongside it',
+        merged.some(c => c.id === 'theirs_cardio'));
+    }
     T('workoutLog still merges by id regardless of gap-fill gating',
       JSON.parse(app.store.workoutLog).some(w => w.id === 'theirs'));
   }
@@ -14533,6 +14547,117 @@ async function testDataIntegrityD31(){
 }
 
 /* =========================================================
+   CONTRACT 131 — cardio measurement (D32)
+   ---------------------------------------------------------
+   The GPS pipeline is swept in full by loop-gps-audit.js
+   (43 checks, `npm run audit:gps`) and the lifecycle by
+   loop-cardio-stress.js (261 checks, `npm run audit:cardio`).
+   Neither ships. What follows is the subset that must hold on
+   every run of the always-on suite: the promises LOOP makes
+   to the athlete about what it measured.
+   ========================================================= */
+async function testCardioMeasurement(){
+  section('CONTRACT 131 — cardio measurement (D32)');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  /* --- what may measure at all --- */
+  T('outdoor run measures', ctx.cardioIsGpsActivity('run_outdoor'));
+  T('outdoor walk measures', ctx.cardioIsGpsActivity('walk_outdoor'));
+  T('hiking measures', ctx.cardioIsGpsActivity('hiking'));
+  /* An indoor machine can never produce a route: there is nowhere to go. */
+  T('treadmill never measures', !ctx.cardioIsGpsActivity('run_treadmill'));
+  T('rower never measures', !ctx.cardioIsGpsActivity('rower'));
+  T('elliptical never measures', !ctx.cardioIsGpsActivity('elliptical'));
+
+  /* --- distance is summed along the path, never start-to-finish --- */
+  const t0 = 1735689600000;
+  const loop = [];
+  for(let k = 0; k < 40; k++){
+    /* A closed square: the athlete ends where they started. Straight-line
+       distance is zero; the run is not. */
+    const leg = Math.floor(k / 10), i = k % 10, d = i * 0.0003;
+    const pt = leg === 0 ? { lat: 40 + d, lon: -74 }
+      : leg === 1 ? { lat: 40.0027, lon: -74 + d }
+      : leg === 2 ? { lat: 40.0027 - d, lon: -73.9973 }
+      : { lat: 40, lon: -73.9973 + d };
+    loop.push({ lat: pt.lat, lon: pt.lon, t: t0 + k * 12000, acc: 6 });
+  }
+  const sq = ctx.gpsReduce(loop, 'run_outdoor');
+  T('a closed loop still has distance', sq.meters > 800, Math.round(sq.meters) + 'm');
+
+  /* --- a stationary athlete gains nothing --- */
+  const still = [];
+  for(let k = 0; k < 200; k++) still.push({
+    lat: 40 + (Math.sin(k * 2.7) * 0.00004), lon: -74 + (Math.cos(k * 1.9) * 0.00004),
+    t: t0 + k * 2000, acc: 12 });
+  const st = ctx.gpsReduce(still, 'run_outdoor');
+  T('standing still adds no distance', st.meters < 60, Math.round(st.meters) + 'm');
+
+  /* --- a teleport is refused, and does not become the new anchor --- */
+  const jump = [
+    { lat:40, lon:-74, t:t0, acc:5 },
+    { lat:40.0009, lon:-74, t:t0+30000, acc:5 },
+    { lat:41.5, lon:-74, t:t0+33000, acc:5 },        // 160km in 3s
+    { lat:40.0018, lon:-74, t:t0+60000, acc:5 }
+  ];
+  const jr = ctx.gpsReduce(jump, 'run_outdoor');
+  T('a teleport is rejected', (jr.rejected.spike || 0) >= 1);
+  T('the run continues past it', jr.meters > 150 && jr.meters < 300, Math.round(jr.meters) + 'm');
+
+  /* --- a pause is a hard break, however short --- */
+  const brk = ctx.gpsSegmentVerdict(
+    { lat:40, lon:-74, t:t0, acc:5 },
+    { lat:40.001, lon:-74, t:t0+5000, acc:5, brk:true }, 'run_outdoor');
+  T('a pause breaks the track', !brk.accept && brk.why === 'gap');
+
+  /* --- the same points always give the same answer --- */
+  const a = ctx.gpsReduce(loop, 'run_outdoor'), b = ctx.gpsReduce(loop, 'run_outdoor');
+  T('measurement is deterministic', a.meters === b.meters);
+
+  /* --- measured and entered are never confused --- */
+  const measured = { activityId:'run_outdoor', distance:'99', gpsPoints:loop,
+    accumulatedMs: 40*12000, runningSince:null, state:'finished' };
+  const dm = ctx.cardioSessionDistance(measured);
+  T('measured beats typed', dm.source === 'gps', String(dm.source));
+  const typed = { activityId:'run_treadmill', distance:'3.1', gpsPoints:null };
+  const dt = ctx.cardioSessionDistance(typed);
+  T('typed is labelled typed', dt.source === 'manual' && dt.value === 3.1);
+  const none = ctx.cardioSessionDistance({ activityId:'run_outdoor', distance:'' });
+  T('nothing is not zero', none.value === null && none.source === null);
+
+  /* --- the route is a drawing, never a claim about roads --- */
+  const svg = ctx.cardioRouteSvg(a.accepted, 300, 120);
+  T('the route draws', svg.indexOf('<svg') === 0 && svg.indexOf('<path') > 0);
+  T('the route needs no map provider',
+    !/https?:|tile|mapbox|google|leaflet|api[_-]?key/i.test(svg));
+  T('the route is labelled for screen readers', /aria-label=/.test(svg));
+
+  /* --- nothing is invented --- */
+  const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+  T('no VO2 is claimed', !/vo2/i.test(src));
+  T('no HealthKit is claimed', !/healthkit/i.test(src));
+  T('calories stay estimated', src.indexOf('estimated') > 0);
+  /* Background tracking is a native capability LOOP does not have; the copy
+     must never suggest otherwise. Comments are stripped first — the source
+     says the words in order to deny them, and only shipped copy can promise. */
+  const copy = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+  T('no background tracking is promised',
+    !/background\s+(tracking|location)/i.test(copy));
+
+  /* --- the athlete always has a way forward --- */
+  T('a refusal offers an exit',
+    !!ctx.cardioGpsGate({ activityId:'run_outdoor', gpsState:'denied' }));
+  T('opting out silences the gate',
+    ctx.cardioGpsGate({ activityId:'run_outdoor', gpsState:'denied', gpsOptOut:true }) === null);
+  T('indoor sessions are never gated',
+    ctx.cardioGpsGate({ activityId:'rower', gpsState:'denied' }) === null);
+  T('a measuring session is not nagged',
+    ctx.cardioGpsGate({ activityId:'run_outdoor', gpsState:'tracking',
+      gpsPoints: loop, accumulatedMs: 5000, runningSince:null }) === null);
+}
+
+/* =========================================================
    CONTRACT 130 — date boundaries (D31.1)
    ---------------------------------------------------------
    The full sweep runs under seven real timezones in
@@ -14769,6 +14894,7 @@ async function main(){
   await testRankShowcaseExperience();
   await testDataIntegrityD31();
   await testDateBoundaries();
+  await testCardioMeasurement();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

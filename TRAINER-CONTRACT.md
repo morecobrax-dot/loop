@@ -3883,3 +3883,76 @@ result was trusted.
 
 Contract 130 keeps the always-on regressions. 4912 passing, 87 data-integrity
 checks, 252 date checks. `DATA_KEYS` 15, trainer `0.1.1-shadow`.
+
+## §55 — Cardio measurement (D32, loop-v101)
+
+Cardio stopped being a timer with a text box. Outdoor activities — outdoor run,
+outdoor walk, outdoor cycle, hiking, rucking — are measured by
+`navigator.geolocation.watchPosition()`. Indoor activities never are: a
+treadmill has nowhere to go, so it is never offered location and never carries a
+route.
+
+**The engine is pure.** `gpsHaversineM`, `gpsPointUsable`, `gpsSegmentVerdict`,
+`gpsReduce`, `gpsCurrentPaceSec`, `gpsSplits`, `gpsSimplifyRoute` and
+`gpsSessionMetrics` take points and return numbers. Nothing in them touches
+`navigator`, so the same sequence replayed from a fixture and observed on a
+phone produce identical output. `loop-gps-audit.js` (43 checks,
+`npm run audit:gps`) checks them against an independent equirectangular oracle —
+deliberately a different formula from the production Haversine.
+
+**Distance is the sum of accepted segments, never start-to-finish.** A loop that
+ends where it began still measures its full length. Filtering is deterministic
+and conservative: a fix is rejected for bad coordinates, an accuracy worse than
+the activity's limit, a gap over 30s, movement inside the combined accuracy
+noise floor, or an implied speed above the activity's ceiling. A rejected spike
+does not become the next anchor — otherwise the following good fix would measure
+from a place the athlete never was.
+
+**A pause is a hard break.** `pauseCardioSession` clears the watcher and releases
+the wake lock; resuming sets `brk` on the next fix, and `gpsSegmentVerdict`
+treats an explicit break as a gap regardless of elapsed time. Distance can never
+accumulate across a pause, however short.
+
+**A reload is an interruption, not a reset.** The draft carries `gpsPoints`,
+`gpsState` and `gpsOptOut`, checkpointed every 20 fixes. Restoring a running
+session restarts the watcher with a break, so the unobserved stretch reads as a
+gap rather than a straight line across it.
+
+**The wake lock is epoch-guarded.** `navigator.wakeLock.request()` is
+asynchronous, so a session can end while the request is in flight.
+`releaseCardioWakeLock` bumps an epoch; a lock arriving for a stale epoch is
+released instead of adopted. Without this, finishing quickly held the screen on
+after the workout was over — found by `loop-cardio-stress.js` (261 checks,
+`npm run audit:cardio`), which leaked 34 locks across 20 sessions before the fix.
+
+**Measured and entered are distinct, everywhere.** `cardioSessionDistance()`
+returns `{value, source}`; the record stores `distanceSource`, `trackingMode`,
+`movingSeconds`, `splits`, `gpsQuality` and a Douglas-Peucker–simplified
+`route`. The route is simplified for storage and display only — distance was
+computed from every accepted point and is never recalculated from the simplified
+path. A final partial mile is labelled `Final 0.41 mi`, never listed as a split
+to compare against full ones.
+
+**The route trace is a drawing, not a map.** Normalised SVG with cosine-latitude
+correction, the pen lifted across gaps. No tile provider, no API key, no
+billing, no third-party request of any kind.
+
+**The workout is never held hostage to the measuring.** `cardioGpsGate()` covers
+denied, unavailable and slow-acquisition, and every state offers a way forward —
+`cardioContinueWithoutGps()` keeps the session as a timed workout with a typed
+distance. Calories remain labelled estimated. Nothing fabricates heart rate,
+steps, VO2 or HealthKit data, and no copy promises background tracking, which a
+PWA cannot deliver.
+
+**Import defect found and fixed.** `importAllData` merged `workoutLog` by id but
+fell through to a fill-only rule for every other key — so importing onto a phone
+that already had any cardio history silently dropped every cardio session in the
+backup, routes included, while the dialog promised they would be merged in.
+Cardio history now merges by id on the same terms as strength history. Two
+existing assertions encoded the old fill-only behaviour and were updated to
+assert the merge; the intent they protected — the athlete's own data is never
+overwritten — still holds.
+
+Contract 131 keeps the always-on subset. 4939 passing, 43 GPS checks, 261
+lifecycle checks, 87 data-integrity checks, 252 date checks. `DATA_KEYS` 15,
+trainer `0.1.1-shadow`.

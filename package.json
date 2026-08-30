@@ -13,7 +13,9 @@
     "evaluate": "node loop-evaluate.js synthetic",
     "evaluate:real": "node loop-evaluate.js real",
     "audit": "node loop-audit.js",
-    "audit:dates": "node loop-date-audit.js --matrix"
+    "audit:dates": "node loop-date-audit.js --matrix",
+    "audit:gps": "node loop-gps-audit.js",
+    "audit:cardio": "node loop-cardio-stress.js"
   },
   "engines": {
     "node": ">=18"
