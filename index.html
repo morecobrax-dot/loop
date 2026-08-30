@@ -9366,6 +9366,24 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v3-0',
+    version: 'LOOP 3.0',
+    title: 'Programs That Develop',
+    date: '2026-08-31',
+    swVersion: 'loop-v107',
+    summary: 'Longer programs now change how you train as they go — when there is a real reason to.',
+    newFeatures: [
+      'Strength and Muscle + Strength programs of six weeks or more now move your main lifts into heavier work partway through, while the rest of each session stays exactly as it was'
+    ],
+    improvements: [
+      'Programs no longer split into phases that trained identically — if nothing about the training changes, it is simply one straightforward program',
+      'Tapping a future week shows the targets you will actually be training that week',
+      'Beginner and muscle-building programs stay deliberately consistent, so you can keep loading the same movements'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -22245,7 +22263,7 @@ function programEntryForDay(program, dayKey){
 /* Resolves a scheduled reference into the actual template. Returns null when
    the reference no longer resolves — a deleted template must not crash the
    app, it simply reads as unresolved. */
-function resolveProgramWorkout(entry){
+function resolveProgramWorkout(entry, phaseRx){
   if(!entry || entry.type !== 'workout') return null;
   const plan = DEFAULT_PLANS[entry.planId];
   if(!plan) return null;
@@ -22254,8 +22272,8 @@ function resolveProgramWorkout(entry){
   const list = (source && source[entry.category]) || (plan.templates || {})[entry.category] || [];
   const base = list.find(t => t.id === entry.templateId) || null;
   /* D35 \u2014 the entry may carry a depth recipe; what this returns is what
-     the athlete sees AND trains. */
-  return composeProgramSession(entry, base);
+     the athlete sees AND trains. D37 \u2014 plus the phase the week falls in. */
+  return composeProgramSession(entry, base, phaseRx);
 }
 function getProgramWorkoutForDate(dateStr, program){
   const p = program || getActiveProgram();
@@ -22265,7 +22283,11 @@ function getProgramWorkoutForDate(dateStr, program){
   const key = JS_DAY_TO_KEY[d.getDay()];
   const entry = programEntryForDay(p, key);
   if(entry.type !== 'workout') return { entry, template:null, category:entry.type };
-  return { entry, template: resolveProgramWorkout(entry), category: entry.category };
+  /* The prescription for THIS program week, not for week 1. */
+  const week = getCurrentProgramWeek(p, dateStr || localDateStr());
+  const phaseRx = week === null ? null : programPhaseRxForWeek(p, week);
+  return { entry, template: resolveProgramWorkout(entry, phaseRx),
+    category: entry.category, week: week };
 }
 function programTrainingDayCount(program){
   const s = getProgramSchedule(program);
@@ -22384,6 +22406,9 @@ function validateProgram(input){
     else if(s > en) errors.push('Phase ' + (i+1) + ' ends before it starts');
     else if(weeks >= 1 && en > weeks) errors.push('Phase ' + (i+1) + ' runs past the cycle');
     if(b.phaseType && !getProgramPhase(b.phaseType)) errors.push('Phase ' + (i+1) + ' has an unknown phase');
+    /* D37 — a phase may name the prescription its weeks resolve to. */
+    if(b.rx && typeof getPrescriptionProfile !== 'undefined' && !getPrescriptionProfile(b.rx))
+      errors.push('Phase ' + (i+1) + ' has an unknown prescription');
   });
   const sorted = (input.blocks || []).slice().sort((a,b) => a.startWeek - b.startWeek);
   for(let i = 1; i < sorted.length; i++){
@@ -22999,16 +23024,73 @@ function extensionAllowedForPlan(ext, planId){
    D36 \u2014 composes with its curated prescription untouched.
    ========================================================= */
 const PRESCRIPTION_PROFILES = {
+  /* An explicit no-op, so a phase can say \"train this stretch exactly as the
+     library wrote it\" without that being indistinguishable from missing
+     metadata. */
+  base:       { primaryReps:null, primaryEffort:null, primarySets:0 },
   /* Muscle + Strength. The band is deliberately 5\u20138: its midpoint sits
      just above the 6-rep line where rest jumps to 150s, so the session
      leans heavier without silently becoming a longer workout. */
-  hybrid:     { primaryReps:{ min:5, max:8 }, primaryEffort:'8', primarySets:0 },
-  hybridDeep: { primaryReps:{ min:5, max:8 }, primaryEffort:'8', primarySets:1 },
+  hybrid:     { primaryReps:{ min:5, max:8 }, repsMode:'lower', primaryEffort:'8', primarySets:0 },
+  hybridDeep: { primaryReps:{ min:5, max:8 }, repsMode:'lower', primaryEffort:'8', primarySets:1 },
   /* Experienced athlete, 75+ minutes: depth where they asked for it. */
-  deep:       { primaryReps:null,             primaryEffort:null, primarySets:1 }
+  deep:       { primaryReps:null, primaryEffort:null, primarySets:1 },
+  /* D37 \u2014 the opening stretch of a strength program. The library's
+     primaries are already 3\u20135; this RAISES them so the athlete establishes
+     repeatable performance before the heavy work, and the later phase is
+     the library's own prescription arriving on purpose rather than on day
+     one. Effort eases with it. */
+  foundation:     { primaryReps:{ min:6, max:8 }, repsMode:'raise', primaryEffort:'7\u20138', primarySets:0 },
+  foundationDeep: { primaryReps:{ min:6, max:8 }, repsMode:'raise', primaryEffort:'7\u20138', primarySets:1 }
 };
 function getPrescriptionProfile(id){
   return (id && PRESCRIPTION_PROFILES[id]) || null;
+}
+
+/* =========================================================
+   TEMPORAL PROGRAMMING  (Phase D37)
+   ---------------------------------------------------------
+   Every 6- and 8-week program used to declare two phases whose
+   training was byte-identical — 1,920 of 1,920 generated
+   multi-phase programs were labels over nothing. A phase is
+   only created here when it will actually change how the
+   athlete trains, and the change is deliberately confined to
+   the session's PRIMARY movement so the program still reads
+   as the same program in week 7 as in week 1.
+
+   Most programs are therefore single-phase now, and that is
+   the correct outcome: a hypertrophy block earns its results
+   from repeating the same movements long enough to load them,
+   not from a new label every three weeks.
+   ========================================================= */
+function builderPhasePlan(goalId, experienceId, lengthId, weeks){
+  const solo = { phases:1, rx: prescriptionProfileFor(goalId, experienceId, lengthId) };
+  /* Too short to develop, still learning the movements, or a goal whose
+     best programming is simply consistency — all legitimately one phase. */
+  if(weeks < 6 || experienceId === 'new') return solo;
+  const deep = experienceId === 'experienced' && lengthId === 'extended';
+
+  if(goalId === 'strength'){
+    /* Establish performance in a moderate range, then train the library's
+       own heavy prescription with a base already built under it. */
+    return { phases:2,
+      early: deep ? 'foundationDeep' : 'foundation',
+      late:  deep ? 'deep' : 'base',
+      names: ['Foundation', 'Heavy'],
+      types: ['accumulation', 'intensification'] };
+  }
+  if(goalId === 'recomp'){
+    /* Muscle + Strength keeps its mixed identity across both phases: only
+       the primary shifts, and the hypertrophy accessory work never moves. */
+    return { phases:2,
+      early: deep ? 'deep' : 'base',
+      late:  deep ? 'hybridDeep' : 'hybrid',
+      names: ['Foundation', 'Build'],
+      types: ['accumulation', 'intensification'] };
+  }
+  /* Build Muscle and General Fitness: nothing about the training should
+     change part-way through, so nothing is labelled as though it does. */
+  return solo;
 }
 
 /* Which profile a set of answers earns. Deterministic, and deliberately
@@ -23082,10 +23164,15 @@ function applyPrescription(exercises, rxId){
     const next = Object.assign({}, ex);
     if(prof.primaryReps){
       const cur = parseRepRange(ex.reps);
-      /* Only ever shifts DOWN toward the band. A primary already prescribed
-         heavier than the band keeps its own, so the strength library is
-         never softened by a hybrid profile. */
-      if(cur && cur.max > prof.primaryReps.max){
+      /* A profile only ever moves a primary in ONE declared direction, and
+         only when the library is on the other side of the band. 'lower'
+         never softens a primary that is already heavy; 'raise' never makes
+         a light primary heavier. Neither can overshoot into the other's
+         territory. */
+      const mode = prof.repsMode || 'lower';
+      const move = cur && (mode === 'lower' ? cur.max > prof.primaryReps.max
+                                            : cur.max < prof.primaryReps.min);
+      if(move){
         next.reps = prof.primaryReps.min + '\u2013' + prof.primaryReps.max;
         if(prof.primaryEffort) next.effort = prof.primaryEffort;
       }
@@ -23104,12 +23191,15 @@ function applyPrescription(exercises, rxId){
    surface shows and the athlete actually trains. An entry with no recipe
    composes to its base untouched \u2014 which is exactly what every pre-D35
    program stores, so nothing saved before this phase changes shape. */
-function composeProgramSession(entry, base){
+/* `phaseRx`, when supplied, is the prescription for the WEEK being resolved.
+   It replaces the entry's own profile rather than stacking with it, so a
+   session can never accumulate two prescriptions. */
+function composeProgramSession(entry, base, phaseRx){
   if(!base || !entry) return base;
   const hasLead = Number.isInteger(entry.lead) && entry.lead > 0
     && base.exercises && entry.lead < base.exercises.length;
   const extIds = Array.isArray(entry.ext) ? entry.ext : [];
-  const rxId = entry.rx || null;
+  const rxId = phaseRx || entry.rx || null;
   if(!hasLead && !extIds.length && !rxId) return base;
   let ex = (base.exercises || []).slice();
   if(hasLead){
@@ -23325,22 +23415,50 @@ function builderPickTemplate(planId, cat, targetMinutes, emphasisId, used, simpl
    A phase must mean something. Four weeks is one stretch of training and is
    presented as one; splitting it in two so the timeline has more to draw
    would be decoration. Longer programs get a genuine change of emphasis. */
-function builderPhasesFor(weeks){
-  const mk = (name, type, a, b, desc) => ({ id:newBlockId(), name, order:0,
-    phaseType:type, startWeek:a, endWeek:b, description:desc });
-  /* The schedule is the same in every week — a generated phase changes what
-     the athlete chases, not which sessions they do. The copy says exactly
-     that and no more, so the timeline never implies periodization the
-     program does not contain. */
-  if(weeks <= 4) return [ mk('Foundation','accumulation', 1, weeks,
-    'Learn the sessions and set your baselines.') ];
-  if(weeks <= 6) return [
-    mk('Foundation','accumulation', 1, 3, 'Learn the sessions and set your baselines.'),
-    mk('Build','intensification', 4, weeks, 'Same sessions — now push the loads up.') ];
+/* Phases come from the plan, so a boundary exists only where the training
+   genuinely changes. `rx` on a block is the prescription that stretch of
+   weeks resolves to — an id, like everything else LOOP stores. A block
+   without one (every program built before D37) falls back to the entry's
+   own profile, which is exactly the behaviour it had. */
+/* The plan decides a phase boundary before it can know whether the library
+   will actually move under it. Some do not: a 3-day strength week whose
+   primary is already 4\u20136 sits inside the Foundation band, so both phases
+   would resolve to identical training \u2014 a label over nothing, which is
+   exactly what this phase exists to delete. So the generator PROVES the
+   boundary against the real schedule and collapses it when nothing moves. */
+function builderJustifyPhases(schedule, blocks, weeks, soloRx){
+  if(!blocks || blocks.length < 2) return blocks;
+  const days = PROGRAM_DAY_KEYS.filter(k => schedule[k] && schedule[k].type === 'workout');
+  const shapeUnder = rx => days.map(k => {
+    const t = builderTemplateOf(schedule[k], rx);
+    return ((t && t.exercises) || [])
+      .map(x => x.name + ':' + x.sets + 'x' + x.reps + '@' + (x.effort || '')).join(',');
+  }).join('|');
+  const early = shapeUnder(blocks[0].rx || null);
+  const late = shapeUnder(blocks[blocks.length - 1].rx || null);
+  if(early !== late) return blocks;
+  return [ { id: blocks[0].id, name:'Foundation', order:0, phaseType:'accumulation',
+    startWeek:1, endWeek:weeks,
+    description:'Keep the same sessions long enough to build repeatable performance.',
+    rx: soloRx || null } ];
+}
+
+function builderPhasesFor(weeks, goalId, experienceId, lengthId){
+  const mk = (name, type, a, b, desc, rx) => ({ id:newBlockId(), name, order:0,
+    phaseType:type, startWeek:a, endWeek:b, description:desc, rx: rx || null });
+  const plan = builderPhasePlan(goalId, experienceId, lengthId, weeks);
+  if(plan.phases === 1){
+    return [ mk('Foundation','accumulation', 1, weeks,
+      'Keep the same sessions long enough to build repeatable performance.',
+      plan.rx) ];
+  }
   const half = Math.ceil(weeks / 2);
   return [
-    mk('Foundation','accumulation', 1, half, 'Learn the sessions and set your baselines.'),
-    mk('Build','intensification', half + 1, weeks, 'Same sessions — now push the loads up.') ];
+    mk(plan.names[0], plan.types[0], 1, half,
+      'Establish your working weights in a moderate rep range.', plan.early),
+    mk(plan.names[1], plan.types[1], half + 1, weeks,
+      'Main lifts move to heavier work; the rest of the session stays put.', plan.late)
+  ];
 }
 
 /* ---------- 6. NAMING ---------- */
@@ -23397,7 +23515,9 @@ function generateProgram(answers){
     goal: goalId,
     durationWeeks: weeks,
     schedule,
-    blocks: builderPhasesFor(weeks),
+    blocks: builderJustifyPhases(schedule,
+      builderPhasesFor(weeks, goalId, experienceId, lengthId), weeks,
+      prescriptionProfileFor(goalId, experienceId, lengthId)),
     startDate: a.startDate || localDateStr(),
     /* The shaping inputs travel WITH the program. Without them, opening the
        editor and tapping Save regenerated from defaults and silently swapped
@@ -23856,11 +23976,20 @@ function auditGeneratedProgram(def){
   return problems;
 }
 
-function builderTemplateOf(entry){
+function builderTemplateOf(entry, phaseRx){
   if(!entry || entry.type !== 'workout') return null;
   const list = ((DEFAULT_PLANS[entry.planId] || {}).templates || {})[entry.category] || [];
   const base = list.find(t => t.id === entry.templateId) || null;
-  return composeProgramSession(entry, base);
+  return composeProgramSession(entry, base, phaseRx);
+}
+
+/* The prescription a given program week resolves to. One place computes it,
+   so Today, the map, the review and the live workout cannot disagree. */
+function programPhaseRxForWeek(program, week){
+  try{
+    const b = getBlockForWeek(program, week);
+    return (b && b.rx) || null;
+  }catch(e){ return null; }
 }
 
 /* The bare library template, for the allocator \u2014 which must measure the
@@ -24423,7 +24552,13 @@ function programMapWeekHtml(def, week, o){
   const full = { mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat', sun:'Sun' };
   /* Roles for the whole week at once: what each session is about, and what
      separates the A session from the B when a category repeats. */
-  const roles = deriveWeekRoles(def);
+  /* D37 — the selected week resolves through its own phase, so scrubbing the
+     week strip shows what that week actually prescribes. */
+  const phaseRx = (() => {
+    try{ const b = (def.blocks || []).find(x => week >= x.startWeek && week <= x.endWeek);
+      return (b && b.rx) || null; }catch(e){ return null; }
+  })();
+  const roles = deriveWeekRoles(def, phaseRx);
   const rows = PROGRAM_DAY_KEYS.map(k => {
     const e = def.schedule[k];
     if(!e || e.type !== 'workout'){
@@ -24431,7 +24566,7 @@ function programMapWeekHtml(def, week, o){
         <span class="pm-d">${full[k]}</span>
         <span class="pm-rest-l">Rest</span></div>`;
     }
-    const tpl = builderTemplateOf(e);
+    const tpl = builderTemplateOf(e, phaseRx);
     const name = (tpl && tpl.name) || CAT_LABEL[e.category] || e.category;
     const count = ((tpl && tpl.exercises) || []).length;
     const mins = tpl ? builderEstimateMinutes(tpl) : null;
@@ -24576,7 +24711,7 @@ function deriveSessionMinutes(def){
 /* Where each session sits in the week, and — when a category appears twice —
    what makes A different from B. Differences come from the exercises the
    templates actually contain, never from their names. */
-function deriveWeekRoles(def){
+function deriveWeekRoles(def, phaseRx){
   const roles = {};
   const byCat = {};
   PROGRAM_DAY_KEYS.forEach(k => {
@@ -24587,7 +24722,7 @@ function deriveWeekRoles(def){
   PROGRAM_DAY_KEYS.forEach(k => {
     const e = (def.schedule || {})[k];
     if(!e || e.type !== 'workout') return;
-    const tpl = builderTemplateOf(e);
+    const tpl = builderTemplateOf(e, phaseRx);
     const prof = deriveWorkoutProfile(tpl);
     roles[k] = { primary: prof.primary, secondary: prof.secondary,
       minutes: prof.minutes, count: prof.count, focus: null, repeated: false };
@@ -24707,8 +24842,8 @@ function deriveEmphasisInfo(def){
 function derivePhaseInfo(def){
   const blocks = (def.blocks || []).slice().sort((a,b) => a.startWeek - b.startWeek);
   if(!blocks.length) return { simple:true, phases:[], note:null };
-  const typeFallback = { accumulation:'Learn the sessions and set your baselines.',
-    intensification:'Same sessions — now push the loads up.',
+  const typeFallback = { accumulation:'Establish your working weights in a moderate rep range.',
+    intensification:'Main lifts move to heavier work; the rest of the session stays put.',
     deload:'A planned lighter stretch.', peak:'Short, focused push.',
     rebuild:'Ease back into normal training.' };
   const phases = blocks.map(b => ({
@@ -24718,10 +24853,40 @@ function derivePhaseInfo(def){
   return {
     simple: blocks.length === 1,
     phases,
-    note: blocks.length > 1
-      ? 'The sessions stay the same across phases — what changes is what you chase in them.'
-      : null
+    /* Read off the program rather than asserted: the note names the movement
+       whose prescription actually changes and what it changes to. If nothing
+       measurably differs there is no note, and a phase that earns no note is
+       a phase this generator would not have created. */
+    note: blocks.length > 1 ? derivePhaseChangeNote(def, blocks) : null
   };
+}
+
+/* Compares the first training day under each phase and reports the primary
+   movement's change in plain words. */
+function derivePhaseChangeNote(def, blocks){
+  try{
+    /* Scans every training day for the first primary that actually moves.
+       Sampling only the first day reported 'nothing changed' for weeks whose
+       change landed on a later session. */
+    const earlyRx = blocks[0].rx || null;
+    const lateRx = blocks[blocks.length - 1].rx || null;
+    let a = null, b = null;
+    for(const k of PROGRAM_DAY_KEYS){
+      const e = (def.schedule || {})[k];
+      if(!e || e.type !== 'workout') continue;
+      const first = builderTemplateOf(e, earlyRx);
+      const last  = builderTemplateOf(e, lateRx);
+      if(!first || !last || !first.exercises.length || !last.exercises.length) continue;
+      const x = first.exercises[0], y = last.exercises[0];
+      if(x.reps !== y.reps || String(x.sets) !== String(y.sets)){ a = x; b = y; break; }
+    }
+    if(!a || !b) return null;
+    const bits = [];
+    if(a.reps !== b.reps) bits.push('from ' + a.reps + ' to ' + b.reps + ' reps');
+    if(String(a.sets) !== String(b.sets)) bits.push('from ' + a.sets + ' to ' + b.sets + ' sets');
+    if(!bits.length) return null;
+    return 'Your main lifts move ' + bits.join(' and ') + '. The rest of each session stays as it is.';
+  }catch(e){ return null; }
 }
 
 /* One line for a selected week, only when its position says something. A

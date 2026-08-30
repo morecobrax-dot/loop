@@ -98,8 +98,13 @@ function oracleTemplate(ctx, entry) {
      the timeline having something to draw. */
   const short4 = ctx.generateProgram({ weeks: 4, days: ['mon','wed','fri'] });
   ok('a 4-week program is a single phase', short4.blocks.length === 1, String(short4.blocks.length));
-  const eight = ctx.generateProgram({ weeks: 8, days: ['mon','wed','fri'] });
-  ok('an 8-week program earns a second phase', eight.blocks.length === 2, String(eight.blocks.length));
+  /* D37 — length alone no longer earns a phase. A hypertrophy block of any
+     length is deliberately one phase; a strength block earns two because its
+     prescription genuinely moves. */
+  const eightHyp = ctx.generateProgram({ weeks: 8, days: ['mon','wed','fri'], goal: 'hypertrophy', experience: 'intermediate' });
+  ok('an 8-week muscle program stays a single phase', eightHyp.blocks.length === 1, String(eightHyp.blocks.length));
+  const eightStr = ctx.generateProgram({ weeks: 8, days: ['mon','wed','fri'], goal: 'strength', experience: 'intermediate' });
+  ok('an 8-week strength program earns a second phase', eightStr.blocks.length === 2, String(eightStr.blocks.length));
 
   /* ---------- 3. SPLIT SELECTION ---------- */
   section('3. Frequency selects a coherent split');
@@ -517,10 +522,15 @@ function oracleTemplate(ctx, entry) {
             }
           }
 
-          /* Phases stay honest about what changes: nothing structural. */
+          /* D37 — a phase must earn its existence. Length alone no longer
+             creates one, so the rule is now about CONSEQUENCE: a program that
+             declares two phases must name a real change, and one that
+             declares a single phase must not pretend otherwise. */
           const ph = expl.phases;
           if (weeks <= 4 && (!ph.simple || ph.phases.length !== 1)) badPhases++;
-          if (weeks > 4 && (ph.simple || !ph.note || ph.note.indexOf('stay the same') === -1)) badPhases++;
+          if (!ph.simple && !ph.note) badPhases++;
+          if (ph.simple && ph.note) badPhases++;
+          if (ph.note && /stay the same/.test(ph.note)) badPhases++;
           if (ph.phases.some(x => !x.purpose)) badPhases++;
 
           /* Week context: bookends speak, plain middle weeks stay silent. */
@@ -1105,6 +1115,213 @@ function oracleTemplate(ctx, entry) {
       DAYS.forEach(k => ctx.builderTemplateOf(d.schedule[k]));
     }
     ok('prescribing writes nothing', JSON.stringify(app.store) === before);
+  }
+
+  /* ---------- 16. TEMPORAL PROGRAMMING  (Phase D37) ----------
+     Before this phase every 6- and 8-week program declared two phases whose
+     training was byte-identical: 1,920 of 1,920 were labels over nothing.
+     The oracle here reads the actual composed sessions under each phase and
+     refuses to accept a boundary that changes nothing. */
+  section('16. Temporal programming (D37)');
+
+  /* Independent: resolves each phase's weeks itself rather than asking the
+     program what it thinks changed. */
+  const phaseShape = (def, block) => DAYS.map(k => {
+    const e = def.schedule[k];
+    if (!e || e.type !== 'workout') return '-';
+    const t = ctx.builderTemplateOf(e, (block && block.rx) || null);
+    return ((t && t.exercises) || []).map(x =>
+      x.name + ':' + x.sets + 'x' + x.reps + '@' + (x.effort || '')).join(',');
+  }).join('|');
+
+  /* --- no phase without consequence, across the whole matrix --- */
+  {
+    let phantom = [], single = 0, multi = 0, meaningful = 0;
+    const multiBy = {};
+    goals.forEach(goal => exps.forEach(experience => equips.forEach(equipment =>
+      lengths.forEach(sessionLength => [4,6,8].forEach(weeks => freqs.forEach(frequency => {
+        const def = ctx.generateProgram({ goal, experience, equipment, emphasis:'balanced',
+          sessionLength, weeks, days: ctx.builderDefaultDays(frequency) });
+        const blocks = def.blocks || [];
+        if (blocks.length < 2) { single++; return; }
+        multi++;
+        multiBy[goal + '/' + experience] = (multiBy[goal + '/' + experience] || 0) + 1;
+        const shapes = blocks.map(b => phaseShape(def, b));
+        if (new Set(shapes).size === 1 && phantom.length < 4)
+          phantom.push('PHANTOM PHASE: ' + [goal,experience,equipment,sessionLength,weeks,frequency].join('/')
+            + ' declares ' + blocks.length + ' phases with identical training');
+        else meaningful++;
+      }))))));
+    ok('no phase exists without a training consequence', phantom.length === 0, phantom.join(' || '));
+    ok('multi-phase programs are the minority, by design', multi < single,
+      'multi=' + multi + ' single=' + single);
+    ok('beginners are never given a phase boundary',
+      !Object.keys(multiBy).some(k => /\/new$/.test(k)), JSON.stringify(multiBy));
+    console.log('    phases: ' + single + ' single, ' + multi + ' multi (all meaningful: '
+      + (meaningful === multi) + ') \u2014 ' + JSON.stringify(multiBy));
+  }
+
+  /* --- the oracle must reject fabricated phases --- */
+  {
+    const base = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+      equipment:'full', emphasis:'balanced', sessionLength:'long', weeks:8,
+      days:['mon','tue','thu','fri'] });
+    /* Same rx on both sides, different label and description: the classic
+       phantom this phase deleted. */
+    const faked = JSON.parse(JSON.stringify(base));
+    faked.blocks = [
+      { id:'a', name:'Foundation', phaseType:'accumulation', startWeek:1, endWeek:4,
+        description:'Build a base.', rx:null },
+      { id:'b', name:'Intensify', phaseType:'intensification', startWeek:5, endWeek:8,
+        description:'Now go harder.', rx:null }
+    ];
+    const shapes = faked.blocks.map(b => phaseShape(faked, b));
+    ok('the oracle catches a label-only phase boundary', new Set(shapes).size === 1);
+    ok('and the explanation refuses to invent a change for it',
+      ctx.derivePhaseInfo(faked).note === null,
+      String(ctx.derivePhaseInfo(faked).note));
+
+    /* A microscopic difference must not read as a phase either. */
+    const micro = JSON.parse(JSON.stringify(base));
+    micro.blocks = [
+      { id:'a', name:'A', phaseType:'accumulation', startWeek:1, endWeek:4, rx:'base' },
+      { id:'b', name:'B', phaseType:'intensification', startWeek:5, endWeek:8, rx:'base' }
+    ];
+    ok('two identical prescriptions are not a phase change',
+      new Set(micro.blocks.map(b => phaseShape(micro, b))).size === 1);
+  }
+
+  /* --- what changes is confined to the primary --- */
+  {
+    let leaked = [], moved = 0;
+    ['strength','recomp'].forEach(goal => ['intermediate','experienced'].forEach(experience =>
+      ['standard','long','extended'].forEach(sessionLength => freqs.forEach(frequency => {
+        const def = ctx.generateProgram({ goal, experience, equipment:'full', emphasis:'balanced',
+          sessionLength, weeks:8, days: ctx.builderDefaultDays(frequency) });
+        if ((def.blocks || []).length < 2) return;
+        const early = def.blocks[0], late = def.blocks[def.blocks.length - 1];
+        DAYS.forEach(k => {
+          const e = def.schedule[k];
+          if (!e || e.type !== 'workout') return;
+          const a = ctx.builderTemplateOf(e, early.rx || null);
+          const b = ctx.builderTemplateOf(e, late.rx || null);
+          if (!a || !b) return;
+          if (a.exercises.length !== b.exercises.length){
+            leaked.push('PHASE CHANGED THE SESSION SHAPE: ' + [goal,experience,frequency,k].join('/'));
+            return;
+          }
+          a.exercises.forEach((x, i) => {
+            const y = b.exercises[i];
+            if (x.name !== y.name && leaked.length < 4)
+              leaked.push('PHASE SWAPPED AN EXERCISE: ' + x.name + ' -> ' + y.name
+                + ' (' + [goal,experience,frequency,k].join('/') + ')');
+            const differs = x.sets !== y.sets || x.reps !== y.reps || x.effort !== y.effort;
+            if (!differs) return;
+            if (i === 0) { moved++; return; }              // the primary may move
+            if (oracleRole(a, i) !== 'primary' && leaked.length < 4)
+              leaked.push('PHASE MOVED NON-PRIMARY WORK: ' + x.name + ' '
+                + x.sets + 'x' + x.reps + ' -> ' + y.sets + 'x' + y.reps
+                + ' (' + [goal,experience,frequency,k].join('/') + ')');
+          });
+        });
+      }))));
+    ok('a phase never swaps exercises or touches accessory work', leaked.length === 0,
+      leaked.join(' || '));
+    ok('and it does move primaries somewhere', moved > 0, String(moved));
+  }
+
+  /* --- every phase still passes the D36 prescription oracle --- */
+  {
+    let complaints = [];
+    ['strength','recomp'].forEach(goal => ['intermediate','experienced'].forEach(experience =>
+      ['short','standard','long','extended'].forEach(sessionLength => freqs.forEach(frequency => {
+        const def = ctx.generateProgram({ goal, experience, equipment:'full', emphasis:'balanced',
+          sessionLength, weeks:8, days: ctx.builderDefaultDays(frequency) });
+        (def.blocks || []).forEach(b => {
+          /* Re-read the program as that phase resolves it, then run D36's
+             judgement over it. */
+          const phased = { schedule: {} };
+          DAYS.forEach(k => { const e = def.schedule[k];
+            phased.schedule[k] = (e && e.type === 'workout')
+              ? Object.assign({}, e, { rx: b.rx || e.rx || null }) : { type:'rest' }; });
+          const c = prescriptionComplaints(phased,
+            [goal,experience,sessionLength,frequency,b.name].join('/'));
+          if (c.length && complaints.length < 4) complaints = complaints.concat(c.slice(0, 2));
+        });
+      }))));
+    ok('every phase passes the prescription oracle', complaints.length === 0, complaints.join(' || '));
+  }
+
+  /* --- capacity and monotonicity hold INSIDE every phase --- */
+  {
+    const CAPS = { short:45, standard:60, long:75, extended:88 };
+    let over = [], mono = [];
+    const phaseMins = (def, b) => DAYS.reduce((n, k) => {
+      const t = ctx.builderTemplateOf(def.schedule[k], (b && b.rx) || null);
+      return n + (t ? ctx.computeWorkoutDuration(t) : 0); }, 0);
+    goals.forEach(goal => exps.forEach(experience => equips.forEach(equipment =>
+      freqs.forEach(frequency => {
+        const days = ctx.builderDefaultDays(frequency);
+        const four = ['short','standard','long','extended'].map(sessionLength =>
+          ({ sessionLength, def: ctx.generateProgram({ goal, experience, equipment,
+            emphasis:'balanced', sessionLength, weeks:8, days }) }));
+        /* The LAST phase is the heaviest one; monotonicity must hold there too. */
+        const lastMins = four.map(x => phaseMins(x.def, (x.def.blocks || []).slice(-1)[0]));
+        for (let i = 1; i < 4; i++) if (lastMins[i] < lastMins[i-1] - 0.01 && mono.length < 3)
+          mono.push('PHASE BROKE MONOTONICITY: ' + [goal,experience,equipment,frequency].join('/')
+            + ' ' + lastMins.join('->'));
+        four.forEach(x => (x.def.blocks || []).forEach(b => {
+          DAYS.forEach(k => {
+            const t = ctx.builderTemplateOf(x.def.schedule[k], b.rx || null);
+            if (t && ctx.computeWorkoutDuration(t) > CAPS[x.sessionLength] && over.length < 3)
+              over.push('PHASE OVER BAND: ' + ctx.computeWorkoutDuration(t) + 'min in '
+                + b.name + ' for ' + x.sessionLength
+                + ' (' + [goal,experience,equipment,frequency].join('/') + ')');
+          });
+        }));
+      }))));
+    ok('no phase pushes a session past its duration band', over.length === 0, over.join(' || '));
+    ok('monotonicity holds in the heaviest phase', mono.length === 0, mono.join(' || '));
+  }
+
+  /* --- determinism, including the phase dimension --- */
+  {
+    const a = { goal:'recomp', experience:'experienced', equipment:'full', emphasis:'chest',
+      sessionLength:'extended', weeks:8, days:['mon','tue','thu','fri'] };
+    const shot = () => { const d = ctx.generateProgram(a);
+      return JSON.stringify((d.blocks || []).map(b => [b.name, b.startWeek, b.endWeek, b.rx]))
+        + '|' + (d.blocks || []).map(b => phaseShape(d, b)).join('#'); };
+    const first = shot();
+    let stable = true;
+    for (let i = 0; i < 100; i++) if (shot() !== first) stable = false;
+    ok('phase resolution is byte-identical across 100 repeats', stable);
+  }
+
+  /* --- legacy programs keep their original behaviour --- */
+  {
+    const legacyBlock = { id:'x', name:'Phase 1', phaseType:'custom', startWeek:1, endWeek:8 };
+    const entry = { type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' };
+    ok('a block with no prescription resolves to the entry as before',
+      JSON.stringify(ctx.builderTemplateOf(entry, legacyBlock.rx || null))
+      === JSON.stringify(ctx.builderBaseTemplateOf(entry)));
+    const legacyProgram = { durationWeeks:8, goal:'hypertrophy', blocks:[legacyBlock],
+      schedule:{ mon:entry, tue:{type:'rest'}, wed:{type:'rest'}, thu:{type:'rest'},
+        fri:{type:'rest'}, sat:{type:'rest'}, sun:{type:'rest'} } };
+    const expl = ctx.deriveProgramExplanation(legacyProgram);
+    ok('a legacy single-phase program still explains itself', !!expl && !!expl.headline);
+    ok('and claims no phase change', expl.phases.note === null);
+  }
+
+  /* --- resolving a phase writes nothing --- */
+  {
+    const before = JSON.stringify(app.store);
+    for (let i = 0; i < 10; i++){
+      const d = ctx.generateProgram({ goal:'strength', experience:'intermediate', equipment:'full',
+        emphasis:'balanced', sessionLength:'long', weeks:8, days:['mon','tue','thu','fri'] });
+      (d.blocks || []).forEach(b => phaseShape(d, b));
+      ctx.derivePhaseInfo(d);
+    }
+    ok('resolving phases writes nothing', JSON.stringify(app.store) === before);
   }
 
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */

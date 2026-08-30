@@ -14775,9 +14775,17 @@ async function testProgramExperience(){
   T('a single phase draws no band chart',
     ctx.programMapHtml(ctx.generateProgram({ weeks:4, days:['mon','wed','fri'] }),
       { idPrefix:'t1' }).indexOf('pm-phases') === -1);
+  /* D37 — length alone no longer earns a second phase. An 8-week hypertrophy
+     block is deliberately one phase; a strength block of the same length earns
+     two, because its prescription genuinely changes. */
   T('two phases do draw bands',
-    ctx.programMapHtml(ctx.generateProgram({ weeks:8, days:['mon','wed','fri'] }),
+    ctx.programMapHtml(ctx.generateProgram({ weeks:8, days:['mon','wed','fri'],
+      goal:'strength', experience:'intermediate' }),
       { idPrefix:'t2' }).indexOf('pm-phases') !== -1);
+  T('and a program that earns no second phase draws none',
+    ctx.programMapHtml(ctx.generateProgram({ weeks:8, days:['mon','wed','fri'],
+      goal:'hypertrophy', experience:'intermediate' }),
+      { idPrefix:'t2b' }).indexOf('pm-phases') === -1);
   T('the current phase is stated once, not in four cards',
     (src.match(/Current Phase/g) || []).length === 0);
 
@@ -14886,8 +14894,11 @@ async function testProgramExperience(){
      scheduled day stores a REFERENCE, so editing a template is reflected by
      every program pointing at it and no exercise data is duplicated. */
   {
+    /* Marker-bounded, not a fixed length: every phase that adds code to this
+       region used to silently shrink what the assertion could see. */
     const gi = src.indexOf('PROGRAM GENERATION  (Phase D33)');
-    const gen = src.slice(gi, gi + 46000);
+    const gen = src.slice(gi, src.indexOf('The Today strip'));
+    T('the generation region is measured whole', gen.length > 40000, String(gen.length));
     T('workouts are references, never copies',
       /templateId: tpl\.id/.test(gen) && !/exercises: *tpl\.exercises/.test(gen));
   }
@@ -15037,9 +15048,15 @@ async function testProgramExplainability(){
 
   sub('phases explain without overselling');
   {
-    const p8 = ctx.deriveProgramExplanation(ctx.generateProgram({ weeks:8, days:['mon','wed','fri'] }));
-    T('multi-phase says the sessions stay the same',
-      !!p8.phases.note && p8.phases.note.indexOf('stay the same') !== -1);
+    const p8 = ctx.deriveProgramExplanation(ctx.generateProgram({ weeks:8, days:['mon','wed','fri'],
+      goal:'strength', experience:'intermediate' }));
+    /* D37 — the note used to say "the sessions stay the same", which was the
+       truth when phases changed nothing. Now a phase only exists when the
+       prescription really moves, so the note reports the actual change. */
+    T('multi-phase names the change it actually makes',
+      !!p8.phases.note && /main lifts move/i.test(p8.phases.note), String(p8.phases.note));
+    T('and it does not claim nothing changed',
+      p8.phases.note.indexOf('stay the same') === -1);
     T('every phase has a purpose', p8.phases.phases.every(x => x.purpose));
     T('progression claims only the log', /your log keeps the score/.test(p8.progression)
       && !/automatic|optimi|adapt/.test(p8.progression));
@@ -15149,8 +15166,8 @@ async function testSessionDepth(){
   T('the start path resolves through the program day',
     /function startTemplateLog[\s\S]{0,900}getProgramWorkoutForDate/.test(src));
   T('every resolver composes the recipe',
-    /function resolveProgramWorkout[\s\S]{0,600}composeProgramSession/.test(src)
-    && /function builderTemplateOf[\s\S]{0,400}composeProgramSession/.test(src));
+    /function resolveProgramWorkout[\s\S]{0,900}composeProgramSession/.test(src)
+    && /function builderTemplateOf[\s\S]{0,500}composeProgramSession/.test(src));
   {
     const entry = { type:'workout', planId:'hypertrophy', category:'upper',
       templateId:'h-u1', ext:['x_lat_raise'] };
@@ -15382,6 +15399,189 @@ async function testTrainingPrescription(){
       !!latest && latest.swVersion === cache,
       'sw=' + cache + ' note=' + (latest && latest.swVersion));
     T('older entries remain', ctx.LOOP_UPDATES.length >= 19, String(ctx.LOOP_UPDATES.length));
+  }
+}
+
+/* =========================================================
+   CONTRACT 136 — temporal programming (D37)
+   ---------------------------------------------------------
+   The full sweep (191 checks) lives in loop-program-audit.js.
+   These are the always-on promises: a phase exists only when
+   the training genuinely changes, the change is confined to
+   primary movements, every surface resolves the week it is
+   showing, and a paused program does not advance.
+   ========================================================= */
+async function testTemporalProgramming(){
+  section('CONTRACT 136 — temporal programming (D37)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const DAYS = ctx.PROGRAM_DAY_KEYS;
+  const shapeOf = (def, rx) => DAYS.map(k => {
+    const e = def.schedule[k];
+    if (!e || e.type !== 'workout') return '-';
+    const t = ctx.builderTemplateOf(e, rx);
+    return ((t && t.exercises) || []).map(x => x.sets + 'x' + x.reps + '@' + (x.effort||'')).join(',');
+  }).join('|');
+  const mk = o => ctx.generateProgram(Object.assign({ weeks:8, equipment:'full',
+    emphasis:'balanced', sessionLength:'long', days:['mon','tue','thu','fri'] }, o));
+
+  sub('no phase without consequence');
+  {
+    /* Before D37 every 6- and 8-week program declared two phases with
+       byte-identical training. Length alone must never create one again. */
+    const hyp = mk({ goal:'hypertrophy', experience:'intermediate' });
+    T('an 8-week muscle program stays a single phase', hyp.blocks.length === 1,
+      String(hyp.blocks.length));
+    const beginner = mk({ goal:'strength', experience:'new' });
+    T('a beginner is never given a phase boundary', beginner.blocks.length === 1,
+      String(beginner.blocks.length));
+    const short = mk({ goal:'strength', experience:'intermediate', weeks:4 });
+    T('a 4-week program is a single phase', short.blocks.length === 1, String(short.blocks.length));
+
+    const str = mk({ goal:'strength', experience:'intermediate' });
+    T('an 8-week strength program earns two', str.blocks.length === 2, String(str.blocks.length));
+    T('and its phases really do train differently',
+      shapeOf(str, str.blocks[0].rx) !== shapeOf(str, str.blocks[1].rx));
+    const rec = mk({ goal:'recomp', experience:'intermediate' });
+    T('Muscle + Strength earns two as well', rec.blocks.length === 2);
+    T('with a real difference', shapeOf(rec, rec.blocks[0].rx) !== shapeOf(rec, rec.blocks[1].rx));
+  }
+
+  sub('the generator proves a boundary before shipping it');
+  T('phases are justified against the real schedule',
+    /function builderJustifyPhases/.test(src)
+    && /blocks: builderJustifyPhases\(schedule,/.test(src));
+  {
+    /* A boundary whose two sides resolve identically collapses to one phase
+       rather than shipping as a label over nothing. */
+    let collapsed = false;
+    ['short','standard','long','extended'].forEach(sessionLength =>
+      [2,3,4,5,6].forEach(frequency => {
+        const d = ctx.generateProgram({ goal:'strength', experience:'intermediate',
+          equipment:'home', emphasis:'balanced', sessionLength, weeks:8,
+          days: ctx.builderDefaultDays(frequency) });
+        if (d.blocks.length === 1) collapsed = true;
+      }));
+    T('an unjustifiable boundary collapses instead of shipping', collapsed);
+  }
+
+  sub('a phase changes primaries only');
+  {
+    const str = mk({ goal:'strength', experience:'intermediate' });
+    const early = str.blocks[0].rx, late = str.blocks[1].rx;
+    let swapped = false, accessoryMoved = false, primaryMoved = false;
+    DAYS.forEach(k => {
+      const e = str.schedule[k];
+      if (!e || e.type !== 'workout') return;
+      const a = ctx.builderTemplateOf(e, early), b = ctx.builderTemplateOf(e, late);
+      if (!a || !b || a.exercises.length !== b.exercises.length) { swapped = true; return; }
+      a.exercises.forEach((x, i) => {
+        const y = b.exercises[i];
+        if (x.name !== y.name) swapped = true;
+        const differs = x.sets !== y.sets || x.reps !== y.reps || x.effort !== y.effort;
+        if (!differs) return;
+        if (ctx.deriveExerciseRole(a, i) === 'primary') primaryMoved = true;
+        else accessoryMoved = true;
+      });
+    });
+    T('no exercise is swapped between phases', !swapped);
+    T('accessory work is left alone', !accessoryMoved);
+    T('the primary is what moves', primaryMoved);
+    /* D36's safety veto survives the temporal layer. */
+    T('a phase can never make a lateral raise heavy',
+      ctx.exerciseIsNeverPrimary('Lateral Raise') === true);
+  }
+
+  sub('every surface resolves the week it shows');
+  T('the resolvers accept a phase prescription',
+    /function resolveProgramWorkout\(entry, phaseRx\)/.test(src)
+    && /function builderTemplateOf\(entry, phaseRx\)/.test(src));
+  T('Today resolves the phase for the actual program week',
+    /function getProgramWorkoutForDate[\s\S]{0,900}programPhaseRxForWeek/.test(src));
+  T('the map resolves the selected week through its own phase',
+    /function programMapWeekHtml[\s\S]{0,700}week >= x\.startWeek/.test(src));
+  T('one place computes a week\'s prescription',
+    (src.match(/function programPhaseRxForWeek\(/g) || []).length === 1);
+  {
+    const str = mk({ goal:'strength', experience:'intermediate' });
+    const wk1 = ctx.programPhaseRxForWeek(str, 1);
+    const wk8 = ctx.programPhaseRxForWeek(str, 8);
+    T('week 1 and week 8 resolve to different prescriptions', wk1 !== wk8,
+      String(wk1) + ' vs ' + String(wk8));
+  }
+
+  sub('the explanation follows the training, not the label');
+  {
+    const str = mk({ goal:'strength', experience:'intermediate' });
+    const note = ctx.derivePhaseInfo(str).note;
+    T('a real boundary names what moves', !!note && /main lifts move/i.test(note), String(note));
+    T('and never claims nothing changed', !/stay the same/i.test(String(note)));
+    const hyp = mk({ goal:'hypertrophy', experience:'intermediate' });
+    T('a single-phase program makes no phase claim', ctx.derivePhaseInfo(hyp).note === null);
+    /* A fabricated boundary must not produce a sentence. */
+    const faked = JSON.parse(JSON.stringify(hyp));
+    faked.blocks = [
+      { id:'a', name:'Foundation', phaseType:'accumulation', startWeek:1, endWeek:4, rx:null },
+      { id:'b', name:'Intensify', phaseType:'intensification', startWeek:5, endWeek:8, rx:null }
+    ];
+    T('a label-only boundary earns no explanation', ctx.derivePhaseInfo(faked).note === null);
+  }
+
+  sub('chronology owns the phase, nothing else does');
+  T('phase transitions are not driven by the trainer',
+    !/(PROGRESS|BACK_OFF|readiness|capability)[^;]{0,120}(startWeek|phaseType|blocks\[)/.test(src));
+  {
+    const prog = { startDate:'2026-08-05', durationWeeks:8, status:'active', pausedDays:0,
+      blocks:[{ id:'a', startWeek:1, endWeek:4, rx:'foundation', name:'Foundation' },
+              { id:'b', startWeek:5, endWeek:8, rx:'base', name:'Heavy' }],
+      schedule:{} };
+    T('a mid-program week resolves to its own phase',
+      ctx.programPhaseRxForWeek(prog, 3) === 'foundation'
+      && ctx.programPhaseRxForWeek(prog, 6) === 'base');
+    /* Paused time must not carry the athlete into the next phase. */
+    const paused = Object.assign({}, prog, { status:'paused', pausedOnDate:'2026-08-19' });
+    const wk = ctx.getCurrentProgramWeek(paused, '2026-10-01');
+    T('a paused program does not advance into a later phase', wk === 3,
+      'week=' + wk);
+    T('and its phase follows that frozen week',
+      ctx.programPhaseRxForWeek(paused, wk) === 'foundation');
+  }
+
+  sub('storage stays ids, legacy stays legacy');
+  {
+    const str = mk({ goal:'strength', experience:'intermediate' });
+    const res = ctx.createProgram({ name:str.name, goal:str.goal, durationWeeks:str.durationWeeks,
+      schedule:str.schedule, blocks:str.blocks, startDate:'2026-08-05',
+      emphasis:str.emphasis, sessionLength:str.sessionLength, experience:str.experience });
+    T('a phased program saves', res.ok, (res.errors || []).join('; '));
+    const stored = app.store.programs || '';
+    T('a phase stores a prescription id, not numbers',
+      /"rx":"(foundation|base|hybrid|deep)/.test(stored)
+      && !/"primaryReps"|"repsMode"/.test(stored));
+    const bogus = JSON.parse(JSON.stringify(str));
+    bogus.blocks[0].rx = 'not_a_profile';
+    T('an unknown phase prescription is refused', !ctx.validateProgram(bogus).valid);
+    ctx.deleteProgram(res.program.id);
+
+    const legacyEntry = { type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' };
+    T('a block with no prescription resolves exactly as before',
+      JSON.stringify(ctx.builderTemplateOf(legacyEntry, null))
+      === JSON.stringify(ctx.builderBaseTemplateOf(legacyEntry)));
+    T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  }
+
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+
+  sub('no release without its note');
+  {
+    const sw = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8');
+    const cache = (sw.match(/CACHE_VERSION = '([^']+)'/) || [])[1];
+    const latest = ctx.getLatestUpdate();
+    T('the newest What\'s New entry names the deployed version',
+      !!latest && latest.swVersion === cache,
+      'sw=' + cache + ' note=' + (latest && latest.swVersion));
   }
 }
 
@@ -15627,6 +15827,7 @@ async function main(){
   await testProgramExplainability();
   await testSessionDepth();
   await testTrainingPrescription();
+  await testTemporalProgramming();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

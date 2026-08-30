@@ -4290,3 +4290,92 @@ human-readable failures (ISOLATION LOW-REP, PRIMARY UNDERPRESCRIBED,
 ROLE IMBALANCE, SET COUNT EXTREME). Contract 135 adds 26 always-on guards.
 5,094 passing. Full-matrix duration monotonicity 0 violations, 0 sessions over
 band, byte-identical across 100 repeats, generation ~0.8ms.
+
+## §60 — Temporal programming (D37, loop-v107)
+
+The baseline was unambiguous: **1,920 of 1,920 generated multi-phase programs
+were phantoms.** Every 6- and 8-week program declared two phases whose training
+was byte-identical, and no resolver accepted a week, so the architecture could
+not have expressed a phase difference even if one had been intended. D34's
+"same sessions, different focus" copy was truthful precisely because nothing
+changed.
+
+**A phase now requires a consequence, and the generator proves it.**
+`builderPhasePlan` proposes a boundary only for goals whose training has a
+defensible development — Get Stronger and Muscle + Strength — and only at six
+weeks or more, and never for beginners. `builderJustifyPhases` then resolves
+the real schedule under both candidate prescriptions and collapses the boundary
+to a single phase when nothing moves. That collapse is not theoretical: a
+3-day strength week whose primary is already 4–6 sits inside the Foundation
+band, so both phases would have trained identically. The generator deletes that
+boundary rather than shipping a label over nothing.
+
+Result across the full matrix: **phantom phases 1,920 → 0.** Multi-phase
+programs fell 1,920 → 400, every one meaningful; single-phase rose 960 → 2,480.
+Fewer phases is the correct outcome, not a regression.
+
+**What a phase may change, and what it may not.** Only the session's PRIMARY
+movement moves — rep range, effort intent, and (for experienced athletes at
+75+) set depth. Exercises are never swapped, session shape never changes, and
+accessory work is never touched, so week 7 still reads as the same program as
+week 1. Pinned: the audit walks every phased program and fails on
+`PHASE SWAPPED AN EXERCISE`, `PHASE MOVED NON-PRIMARY WORK`, or
+`PHASE CHANGED THE SESSION SHAPE`.
+
+Strength: Foundation raises the library's 3–5 primaries to 6–8 at eased effort
+so performance is established first, then the library's own heavy prescription
+arrives on purpose rather than on day one. Muscle + Strength: Foundation trains
+the plain hypertrophy prescription, then the D36 hybrid band — its mixed
+identity survives because the accessories never move. Build Muscle, General
+Fitness and Recomp remain single-phase by design: their programming earns
+results from repeating the same movements long enough to load them.
+
+**Time is resolved once.** `programPhaseRxForWeek(program, week)` is the single
+place a week's prescription is decided; `resolveProgramWorkout` and
+`builderTemplateOf` accept it, Today passes the actual program week, and the
+map passes the selected week. Verified live end to end on one program: week 1
+Bench Press 5×**6–8**, week 6 Bench Press 5×**3–5**, same seven-exercise
+session, accessory Cable Crunch unchanged at 3×12–15 — and the changed target
+reached the live log rows, not just the preview.
+
+**The explanation follows the training.** `derivePhaseChangeNote` compares the
+composed sessions under each phase and reports the movement that actually
+changes ("Your main lifts move from 6–8 to 3–5 reps. The rest of each session
+stays as it is."). A boundary that changes nothing produces no note — proven
+against a fabricated label-only phase. The stale "stay the same" copy is gone,
+and its contract was inverted to forbid it.
+
+**Defects found and fixed:**
+
+- *Phase note sampled one day.* It read only the first training day, so a
+  program whose change landed on a later session reported "nothing changed"
+  while genuinely having two phases. It now scans every training day for the
+  first primary that moves.
+- *A fixed 46,000-character audit window* had silently shrunk again as the
+  generation region grew, hiding the reference-not-copy assertion. Marker-
+  bounded, like the two D36 windows, plus a pin that the region is measured
+  whole.
+
+**Ownership is one-directional.** The trainer never selects a phase; the
+calendar does. Phase transitions are deterministic and derive from
+`getCurrentProgramWeek`, which already freezes during a pause — pinned: a
+program paused in week 3 and read two months later is still in week 3, and
+still in its Foundation phase. The program owns rep intent, the trainer chooses
+load inside it, and a phase change simply hands the trainer a new range.
+`TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`; no threshold, state,
+calibration or evidence semantics changed, and no historical evidence is
+reinterpreted.
+
+**Storage is ids.** A block may carry `rx`, a prescription profile id resolved
+through `PRESCRIPTION_PROFILES` at read time — the same architecture D36
+introduced, extended rather than duplicated. No sets, reps or effort values are
+persisted. A block without `rx` (every program built before D37) resolves to
+the entry's own profile, which is exactly its previous behaviour: no boot
+migration, no active program changes shape, `DATA_KEYS` still 15.
+
+Validation: `npm run audit:program` grew to 191 checks with an oracle that
+resolves each phase itself rather than reading its label, adversarial fixtures
+(label-only boundary, identical-prescription boundary) proven caught, and
+per-phase duration-band and monotonicity sweeps. Contract 136 adds 33
+always-on guards. 5,130 passing. Phase resolution byte-identical across 100
+repeats; generation still ~0.8ms.
