@@ -198,6 +198,7 @@ function loadApp(initialStore){
     'BUILDER_EMPHASIS','BUILDER_LENGTHS_WEEKS','PROGRAM_DAY_KEYS','PROGRAM_PHASE_TYPES',
     'PROGRAM_LIMITS','pbState','programMapWeek','programsStore',
     'PROGRAM_EXTENSIONS',
+    'PRESCRIPTION_PROFILES','NEVER_PRIMARY_IDS',
     'prepState','prepTimerId','prepCardDismissed','pendingLogCategory',
     'GYM_EQUIPMENT','GYM_CATEGORIES','EXERCISE_EQUIPMENT','GYM_STATUS','GYM_PROFILE_KEY',
     'gymProfile','EQUIPMENT_OPTIONS',

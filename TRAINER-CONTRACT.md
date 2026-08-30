@@ -4207,3 +4207,86 @@ SESSION OVER BAND…), 100-repeat byte-determinism, full-matrix monotonicity,
 canonical-duplicate and equipment sweeps, and the §58 fixtures asserted on
 their load-bearing properties. Contract 134 adds 22 always-on guards.
 5,067 passing. Generation ~0.8ms. Trainer `0.1.1-shadow`, untouched.
+
+## §59 — Training prescription (D36, loop-v106)
+
+The baseline audit found the library was already good at prescription: 131 of
+140 templates give the opening movement different sets and reps from the
+closing one, and the strength library genuinely opens 5×3–5 @8–9 where the
+hypertrophy library opens 4×8–12 @7–8. D36 therefore does NOT re-prescribe
+what the library already says well. It fills the two places the library could
+not express, and closes one safety hole.
+
+**"Muscle + Strength" was a phantom goal.** It resolved to the hypertrophy
+library and produced a byte-identical program to "Build Muscle" — an answer
+the athlete could change that changed nothing. It now leans its PRIMARY
+movements toward strength (4×5–8 @8) while secondary and accessory work stays
+hypertrophy-ranged, which is the actual middle ground. The band is deliberately
+5–8: its midpoint sits just above the 6-rep line where restSecondsForReps
+jumps to 150s, so the session leans heavier without silently becoming longer.
+Verified structurally: primary rep midpoint now sits strictly between strength
+and hypertrophy.
+
+**Experience stopped mattering above beginner.** Intermediate and experienced
+produced identical prescriptions. An experienced athlete who has told LOOP they
+have 75+ minutes now gets one more working set on the session's primary — the
+only place extra volume is both wanted and paid for. Nothing changes at 30–45
+or 45–60, and beginners never receive a set bump.
+
+**Role is one taxonomy with a curated veto.** deriveExerciseRole ranks by
+position (templates are written main-lift-first), and exerciseIsNeverPrimary
+is the veto. The veto had to be curated because neither existing registry field
+answers it: pattern describes DIRECTION, so a Lateral Raise is filed under
+vertical_push beside the Overhead Press — trusting it would have let a
+strength-leaning profile prescribe 4×5–8 on lateral raises, exactly the failure
+this phase was told to prevent. supports1RM does not separate them either: it
+is false for Lat Pulldown and Pull-Up, which are perfectly good primaries.
+Uncataloged movements are never vetoed, so the home library keeps working.
+
+**Defect found by the new registry-anchor pin:** three ids in the curated veto
+list (cable_lateral_raise, cable_fly, incline_cable_fly) did not exist — the
+real ids are lateral_raise_cable, chest_fly_cable, chest_fly_incline_cable.
+Those three movements were silently unprotected. The pin now fails if any
+vetoed id stops resolving, so the list cannot rot.
+
+**Defect found by the release guard:** the two newest What's New entries shared
+a date, and updatesNewestFirst breaks ties by array position — so the D36 entry
+sorted behind D35 and the guard correctly refused the release. The array is now
+ordered oldest→newest, matching its own convention. Contract 134's release-id
+assertion was also replaced: naming a specific version would fail on every
+future ship and teach the next phase to edit the guard rather than trust it.
+The durable invariant — newest entry is well-formed and names the deployed
+CACHE_VERSION — is what remains.
+
+**The trainer boundary already existed and is now pinned.** startTemplateLog
+passes each row targetSets/targetReps from the composed session, and the engine
+records targetSource 'program' for a supplied range. The program owns the rep
+range; the trainer chooses the load inside it, and may only depart from the
+range through its existing targetMismatch path when three consecutive sessions
+fall outside it. D36 changed no threshold, no state decision and no
+calibration. TRAINER_ENGINE_VERSION remains 0.1.1-shadow.
+
+**Prescription is an id, never stored numbers.** A schedule entry may carry rx
+— a profile id resolved through PRESCRIPTION_PROFILES at read time, exactly as
+templateId resolves through the plan library. No sets, reps or effort values
+are ever written to storage. An entry without rx — every program built before
+D36 — composes with its curated prescription untouched, so there is no boot
+migration and no active program changes shape.
+
+**Goal classification (§18).** A: Get Stronger and Build Muscle materially
+differ, by library and by prescription. A: Muscle + Strength now differs from
+both, by prescription only — deliberately sharing the exercise library, since
+the movements are not what makes it a middle ground. C: Recomp shares Build
+Muscle's resistance-training prescription entirely — LOOP has no calorie or
+body-composition context, and there is no separate "recomp lifting style" to
+implement; inventing one would be fiction. B: General Fitness shares the
+balanced library with moderate prescriptions.
+
+Validation: npm run audit:program grew to 174 checks, including an oracle that
+keeps its OWN copy of the veto list and its own role ranking, adversarial
+fixtures (heavy-triple lateral raise, 1×25 primary squat, nine-set
+prescription) proven to be caught, a 960-program prescription sweep, and
+human-readable failures (ISOLATION LOW-REP, PRIMARY UNDERPRESCRIBED,
+ROLE IMBALANCE, SET COUNT EXTREME). Contract 135 adds 26 always-on guards.
+5,094 passing. Full-matrix duration monotonicity 0 violations, 0 sessions over
+band, byte-identical across 100 repeats, generation ~0.8ms.

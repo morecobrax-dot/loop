@@ -8975,28 +8975,6 @@ const MUSCLE_MAP = {
    ========================================================= */
 const LOOP_UPDATES = [
   {
-    id: 'v2-8',
-    version: 'LOOP 2.8',
-    title: 'Deeper Programs',
-    date: '2026-08-30',
-    /* Ties this entry to the deployed release. Every future deploy bumps the
-       service worker, and a contract requires the newest entry here to name
-       the same version \u2014 so shipping without release notes fails tests. */
-    swVersion: 'loop-v105',
-    summary: 'Your time and your focus now shape what LOOP builds.',
-    newFeatures: [
-      'Choosing 60\u201375 or 75+ minutes now adds real extra work to your program \u2014 accessories picked for your emphasis first, and for whatever your week trains least otherwise',
-      'A training emphasis now reshapes the week: the right sessions get picked, and your priority movement can open the day'
-    ],
-    improvements: [
-      'Programs protect balance \u2014 no major muscle group is ever dropped to chase an emphasis',
-      'Session estimates stay inside the time you chose; extra capacity is used only when it genuinely helps',
-      'When your schedule cannot honestly fit an emphasis, LOOP builds the strongest balanced week instead of pretending'
-    ],
-    bugFixes: [],
-    changes: []
-  },
-  {
     id: 'v1-0',
     version: 'LOOP 1.0',
     title: 'Train With a Plan',
@@ -9348,6 +9326,46 @@ const LOOP_UPDATES = [
     bugFixes: [],
     changes: [],
     detail: 'These are labels for what happened, not new scoring. A drop, failure or AMRAP set counts exactly like a working set for XP, records, recovery and capability — there is no bonus and nothing is inflated. Sets you logged before this update are untouched: an old set with no type stays untyped rather than being guessed at.'
+  },
+  {
+    id: 'v2-8',
+    version: 'LOOP 2.8',
+    title: 'Deeper Programs',
+    date: '2026-08-30',
+    /* Ties this entry to the deployed release. Every future deploy bumps the
+       service worker, and a contract requires the newest entry here to name
+       the same version \u2014 so shipping without release notes fails tests. */
+    swVersion: 'loop-v105',
+    summary: 'Your time and your focus now shape what LOOP builds.',
+    newFeatures: [
+      'Choosing 60\u201375 or 75+ minutes now adds real extra work to your program \u2014 accessories picked for your emphasis first, and for whatever your week trains least otherwise',
+      'A training emphasis now reshapes the week: the right sessions get picked, and your priority movement can open the day'
+    ],
+    improvements: [
+      'Programs protect balance \u2014 no major muscle group is ever dropped to chase an emphasis',
+      'Session estimates stay inside the time you chose; extra capacity is used only when it genuinely helps',
+      'When your schedule cannot honestly fit an emphasis, LOOP builds the strongest balanced week instead of pretending'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v2-9',
+    version: 'LOOP 2.9',
+    title: 'Smarter Training Targets',
+    date: '2026-08-30',
+    swVersion: 'loop-v106',
+    summary: 'Your sets and reps now follow the kind of training you picked.',
+    newFeatures: [
+      'Muscle + Strength is now its own program: the main lift of each session goes heavier while the rest stays built for muscle',
+      'Experienced athletes training 75+ minutes get an extra working set on the movement that matters most in each session'
+    ],
+    improvements: [
+      'Every workout has a clear main lift, and targets follow each exercise’s job — small isolation work never gets heavy low-rep targets',
+      'Weight suggestions stay inside the rep range your program asks for'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -22357,6 +22375,8 @@ function validateProgram(input){
     }
     if(e.lead !== undefined && !(Number.isInteger(e.lead) && e.lead >= 1 && e.lead <= 12))
       errors.push('Bad lead on ' + k);
+    if(e.rx !== undefined && e.rx !== null && typeof getPrescriptionProfile !== 'undefined'
+      && !getPrescriptionProfile(e.rx)) errors.push('Unknown prescription on ' + k);
   });
   (input.blocks || []).forEach((b, i) => {
     const s = parseInt(b.startWeek, 10), en = parseInt(b.endWeek, 10);
@@ -22949,6 +22969,136 @@ function extensionAllowedForPlan(ext, planId){
   return true;
 }
 
+/* =========================================================
+   TRAINING PRESCRIPTION  (Phase D36)
+   ---------------------------------------------------------
+   The library's templates are hand-curated and already role-aware:
+   94% of them prescribe the opening movement differently from the
+   closing one, and the strength library really does open 5\u00d73\u20135
+   where the hypertrophy library opens 4\u00d78\u201312. D36 does NOT
+   re-prescribe what the library already says well.
+
+   It fills the two places the library CANNOT express:
+
+     1. \"Muscle + Strength\" had no library of its own, so it was
+        byte-identical to \"Build Muscle\" \u2014 a goal the athlete
+        could pick that changed nothing. It now leans its PRIMARY
+        movements toward strength while accessories stay
+        hypertrophy, which is the actual middle ground.
+
+     2. Experience stopped mattering above beginner: intermediate
+        and experienced produced identical prescriptions. An
+        experienced athlete who has told LOOP they have 75+ minutes
+        gets one more working set on the session's primary \u2014 the
+        only place extra volume is both wanted and paid for.
+
+   A profile id travels with the entry (`rx`). No prescription is
+   ever copied into storage: the id resolves through the table below
+   at read time, exactly as templateId resolves through the plan
+   library. An entry without `rx` \u2014 every program built before
+   D36 \u2014 composes with its curated prescription untouched.
+   ========================================================= */
+const PRESCRIPTION_PROFILES = {
+  /* Muscle + Strength. The band is deliberately 5\u20138: its midpoint sits
+     just above the 6-rep line where rest jumps to 150s, so the session
+     leans heavier without silently becoming a longer workout. */
+  hybrid:     { primaryReps:{ min:5, max:8 }, primaryEffort:'8', primarySets:0 },
+  hybridDeep: { primaryReps:{ min:5, max:8 }, primaryEffort:'8', primarySets:1 },
+  /* Experienced athlete, 75+ minutes: depth where they asked for it. */
+  deep:       { primaryReps:null,             primaryEffort:null, primarySets:1 }
+};
+function getPrescriptionProfile(id){
+  return (id && PRESCRIPTION_PROFILES[id]) || null;
+}
+
+/* Which profile a set of answers earns. Deterministic, and deliberately
+   narrow: a goal or experience level the library already expresses well
+   earns NO profile, so its curated prescription is what ships. */
+function prescriptionProfileFor(goalId, experienceId, lengthId){
+  const deep = experienceId === 'experienced' && lengthId === 'extended';
+  if(goalId === 'recomp') return deep ? 'hybridDeep' : 'hybrid';
+  return deep ? 'deep' : null;
+}
+
+/* Movements that may never open a session as its main lift, and may never
+   receive a heavy low-rep prescription.
+
+   This is curated rather than derived, because neither existing registry
+   field answers the question. `pattern` describes DIRECTION, not role \u2014 a
+   Lateral Raise is filed under vertical_push beside the Overhead Press, so
+   trusting it would have let a strength-leaning profile prescribe 4\u00d75\u20138
+   on lateral raises. `supports1RM` does not separate them either: it is
+   false for Lat Pulldown and Pull-Up, which are perfectly good primaries.
+
+   So the safety-critical case gets an explicit list. It is single-joint and
+   small-muscle work only, every id is checked against the registry by the
+   audit so it cannot rot, and it is a veto \u2014 never a promotion. */
+const NEVER_PRIMARY_IDS = [
+  'lateral_raise', 'lateral_raise_cable', 'front_raise', 'upright_row',
+  'chest_fly_cable', 'chest_fly_incline_cable', 'rear_delt_fly', 'face_pull',
+  'straight_arm_pulldown', 'leg_extension', 'leg_curl', 'hip_abduction',
+  'nordic_curl', 'shrug', 'calf_raise'
+];
+
+/* ---------- ROLE ----------
+   ONE taxonomy, shared with the Main/Build/Finish grouping D34 already
+   shows the athlete \u2014 the same question asked twice would eventually be
+   answered two different ways.
+
+   Templates are written main-lift-first, so POSITION decides role and the
+   registry supplies the veto. That also keeps the home library working,
+   where many movements have no canonical entry at all: an uncataloged
+   Goblet Squat opening a session is still that session's primary. */
+function exerciseIsNeverPrimary(name){
+  let canon = null;
+  try{ const id = resolveExerciseId(name); canon = id ? getCanonicalExercise(id) : null; }catch(e){}
+  if(!canon) return false;                       // uncataloged: position decides
+  if(NEVER_PRIMARY_IDS.indexOf(canon.id) !== -1) return true;
+  return !!(canon.pattern && /isolation|core/.test(canon.pattern));
+}
+
+function deriveExerciseRole(tpl, index){
+  const list = (tpl && tpl.exercises) || [];
+  const ex = list[index];
+  if(!ex) return 'accessory';
+  if(exerciseIsNeverPrimary(ex.name)) return 'accessory';
+  /* Rank among the movements that COULD lead, so a session opening with an
+     isolation movement still has a real primary behind it. */
+  let rank = 0;
+  for(let i = 0; i < index; i++) if(!exerciseIsNeverPrimary(list[i].name)) rank++;
+  if(rank === 0) return 'primary';
+  if(rank === 1) return 'secondary';
+  return 'accessory';
+}
+
+/* The one place a prescription is adjusted. Pure: exercises in, exercises
+   out, no storage and no history. */
+function applyPrescription(exercises, rxId){
+  const prof = getPrescriptionProfile(rxId);
+  if(!prof || !exercises || !exercises.length) return exercises;
+  const tpl = { exercises };
+  return exercises.map((ex, i) => {
+    if(deriveExerciseRole(tpl, i) !== 'primary') return ex;
+    const next = Object.assign({}, ex);
+    if(prof.primaryReps){
+      const cur = parseRepRange(ex.reps);
+      /* Only ever shifts DOWN toward the band. A primary already prescribed
+         heavier than the band keeps its own, so the strength library is
+         never softened by a hybrid profile. */
+      if(cur && cur.max > prof.primaryReps.max){
+        next.reps = prof.primaryReps.min + '\u2013' + prof.primaryReps.max;
+        if(prof.primaryEffort) next.effort = prof.primaryEffort;
+      }
+    }
+    if(prof.primarySets){
+      const cur = parseInt(ex.sets, 10) || 3;
+      /* Capped: depth, not a volume ladder. */
+      next.sets = Math.min(cur + prof.primarySets, 5);
+    }
+    return next;
+  });
+}
+
 /* ---------- THE COMPOSER ----------
    One function turns (base template, entry recipe) into the session every
    surface shows and the athlete actually trains. An entry with no recipe
@@ -22959,7 +23109,8 @@ function composeProgramSession(entry, base){
   const hasLead = Number.isInteger(entry.lead) && entry.lead > 0
     && base.exercises && entry.lead < base.exercises.length;
   const extIds = Array.isArray(entry.ext) ? entry.ext : [];
-  if(!hasLead && !extIds.length) return base;
+  const rxId = entry.rx || null;
+  if(!hasLead && !extIds.length && !rxId) return base;
   let ex = (base.exercises || []).slice();
   if(hasLead){
     /* The emphasised movement opens the session; everything else keeps its
@@ -22970,6 +23121,10 @@ function composeProgramSession(entry, base){
     const x = getProgramExtension(id);
     if(x) ex = ex.concat(x.exercises.map(e => Object.assign({ recommended:'\u2014' }, e)));
   });
+  /* Prescription last, and after the lead swap, so it always lands on the
+     movement that actually opens the session. Extensions are appended, so
+     they are structurally accessories and are never re-prescribed. */
+  if(rxId) ex = applyPrescription(ex, rxId);
   return Object.assign({}, base, { exercises: ex });
 }
 
@@ -23226,7 +23381,8 @@ function generateProgram(answers){
 
   const simple = experienceId === 'new';   // fewer movements per session
   const lengthId = builderLength(a.sessionLength).id;
-  const schedule = builderComposeWeek(arrangement, planId, target, emphasisId, simple, lengthId);
+  const rxId = prescriptionProfileFor(goalId, experienceId, lengthId);
+  const schedule = builderComposeWeek(arrangement, planId, target, emphasisId, simple, lengthId, rxId);
 
   /* Whether the emphasis actually changed anything. The rationale says
      "extra chest work" ONLY when a balanced run of the same answers would
@@ -23234,7 +23390,7 @@ function generateProgram(answers){
      changed nothing still claimed extra work that was never added. */
   const effective = emphasisId !== 'balanced'
     && builderEmphasisEffective(schedule,
-         builderComposeWeek(arrangement, planId, target, 'balanced', simple, lengthId), emphasisId);
+         builderComposeWeek(arrangement, planId, target, 'balanced', simple, lengthId, rxId), emphasisId);
 
   return {
     name: builderProgramName(Object.keys(arrangement).length, goalId, split),
@@ -23296,10 +23452,15 @@ function builderPrimariesOf(name){
 /* The whole pipeline for one week: pick bases, then spend the depth budget.
    Used by generation AND by every balanced-twin comparison, so \"effective\"
    can never be an artefact of two different allocators. */
-function builderComposeWeek(arrangement, planId, target, emphasisId, simple, lengthId){
+function builderComposeWeek(arrangement, planId, target, emphasisId, simple, lengthId, rxId){
   const schedule = builderPickWeek(arrangement, planId, target, emphasisId, simple);
   builderRepairCoverage(schedule, planId, lengthId);
   builderAllocateDepth(schedule, planId, emphasisId, simple, lengthId);
+  /* The prescription profile is program truth: an id, stamped once, read
+     back through the table. Nothing about the prescription is copied. */
+  if(rxId) PROGRAM_DAY_KEYS.forEach(k => {
+    if(schedule[k] && schedule[k].type === 'workout') schedule[k].rx = rxId;
+  });
   return schedule;
 }
 
@@ -24531,7 +24692,10 @@ function deriveEmphasisInfo(def){
       /* The stored id, never a guess from the live profile. */
       const simple = def.experience ? def.experience === 'new'
         : !!(athleteProfile && athleteProfile.experience === 'new');
-      const twin = builderComposeWeek(arrangement, planId, len.mid, 'balanced', simple, len.id);
+      const firstEntry = PROGRAM_DAY_KEYS.map(k => def.schedule[k])
+        .find(e => e && e.type === 'workout');
+      const twin = builderComposeWeek(arrangement, planId, len.mid, 'balanced', simple, len.id,
+        firstEntry ? (firstEntry.rx || null) : null);
       effective = builderEmphasisEffective(def.schedule, twin, id);
     }
   }catch(e){}

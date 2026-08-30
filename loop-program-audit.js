@@ -872,6 +872,241 @@ function oracleTemplate(ctx, entry) {
       });
   }
 
+  /* ---------- 15. TRAINING PRESCRIPTION  (Phase D36) ----------
+     The oracle reimplements role classification and prescription judgement
+     from the registry's own pattern data, and is proven able to reject
+     fabricated bad programs before it is trusted on real ones. */
+  section('15. Training prescription (D36)');
+
+  /* Independent role oracle: compound-vs-isolation from the registry,
+     position from the template. Deliberately NOT ctx.deriveExerciseRole. */
+  /* The oracle keeps its OWN copy of the veto list and its own ranking, so a
+     mistake in the production list cannot hide by being mirrored here. */
+  const ORACLE_NEVER_PRIMARY = ['lateral_raise','lateral_raise_cable','front_raise',
+    'upright_row','chest_fly_cable','chest_fly_incline_cable','rear_delt_fly','face_pull',
+    'straight_arm_pulldown','leg_extension','leg_curl','hip_abduction','nordic_curl',
+    'shrug','calf_raise'];
+  const oracleNeverPrimary = (name) => {
+    let c = null;
+    try{ const id = ctx.resolveExerciseId(name); c = id ? ctx.getCanonicalExercise(id) : null; }catch(e){}
+    if (!c) return false;
+    if (ORACLE_NEVER_PRIMARY.indexOf(c.id) !== -1) return true;
+    return !!(c.pattern && (c.pattern === 'isolation' || c.pattern === 'core'));
+  };
+  const oracleRole = (tpl, i) => {
+    if (oracleNeverPrimary(tpl.exercises[i].name)) return 'accessory';
+    let rank = 0;
+    for (let j = 0; j < i; j++) if (!oracleNeverPrimary(tpl.exercises[j].name)) rank++;
+    return rank === 0 ? 'primary' : (rank === 1 ? 'secondary' : 'accessory');
+  };
+  const mid = r => { const n = String(r).match(/\d+/g); if (!n) return null;
+    return n.map(Number).reduce((a,b) => a+b, 0) / n.length; };
+
+  /* Reads a whole program and reports every prescription complaint, in
+     words. This is the tool a future phase inherits. */
+  const prescriptionComplaints = (def, label) => {
+    const out = [];
+    DAYS.forEach(k => {
+      const e = def.schedule[k];
+      const tpl = ctx.builderTemplateOf(e);
+      if (!tpl) return;
+      let primaries = 0;
+      tpl.exercises.forEach((x, i) => {
+        const role = oracleRole(tpl, i);
+        const m = mid(x.reps);
+        const sets = parseInt(x.sets, 10) || 3;
+        if (role === 'primary') primaries++;
+        /* Isolation-class for PRESCRIPTION purposes, which pattern alone
+           cannot answer: a Lateral Raise is filed as vertical_push. */
+        const iso = oracleNeverPrimary(x.name);
+        /* "to failure" is a real prescription the library ships, not a
+           malformed range. */
+        const openEnded = /failure|max/i.test(String(x.reps));
+        if (!openEnded && (!m || m < 1)) out.push('REP RANGE INVALID: ' + x.name + ' "' + x.reps + '" (' + label + ')');
+        if (iso && !openEnded && m && m <= 6)
+          out.push('ISOLATION LOW-REP: ' + x.name + ' ' + sets + 'x' + x.reps + ' (' + label + ')');
+        if (role === 'primary' && sets < 2)
+          out.push('PRIMARY UNDERPRESCRIBED: ' + x.name + ' ' + sets + ' set(s) (' + label + ')');
+        if (role === 'primary' && !openEnded && m && m > 20)
+          out.push('PRIMARY ABSURD REPS: ' + x.name + ' ' + x.reps + ' (' + label + ')');
+        if (sets > 6) out.push('SET COUNT EXTREME: ' + x.name + ' ' + sets + ' sets (' + label + ')');
+      });
+      if (primaries > 2)
+        out.push('ROLE IMBALANCE: ' + primaries + ' primary movements in ' + tpl.name + ' (' + label + ')');
+      if (tpl.exercises.length && primaries === 0 && tpl.exercises.length > 3)
+        out.push('NO PRIMARY: ' + tpl.name + ' is all support work (' + label + ')');
+    });
+    return out;
+  };
+
+  /* The curated veto list must stay anchored to the registry: an id that no
+     longer exists is a silent hole in the safety guard. */
+  {
+    /* Keyed lookup is not reliable here — the registry object is keyed by
+       variant, while .id is the canonical identity the veto matches on. */
+    const allIds = Object.keys(ctx.CANONICAL_EXERCISES)
+      .map(k => ctx.CANONICAL_EXERCISES[k]).filter(Boolean).map(e => e.id);
+    const missing = ctx.NEVER_PRIMARY_IDS.filter(id => allIds.indexOf(id) === -1);
+    ok('every never-primary id still exists in the registry', missing.length === 0, missing.join(', '));
+    ok('the veto actually vetoes a mis-patterned isolation movement',
+      ctx.exerciseIsNeverPrimary('Lateral Raise') === true);
+    ok('and it does not veto a legitimate primary',
+      ctx.exerciseIsNeverPrimary('Lat Pulldown') === false
+      && ctx.exerciseIsNeverPrimary('Bench Press') === false);
+    ok('an uncataloged movement is still allowed to lead its session',
+      ctx.exerciseIsNeverPrimary('Bodyweight Lunge') === false);
+  }
+
+  /* --- the oracle must be able to fail --- */
+  {
+    ctx.DEFAULT_PLANS.__rx = { name:'probe', templates: { upper: [
+      { id:'r1', name:'Bad Session', exercises:[
+        { name:'Lateral Raise', sets:3, reps:'3', effort:'9' },
+        { name:'Back Squat', sets:1, reps:'25', effort:'7' },
+        { name:'Bench Press', sets:9, reps:'8', effort:'8' } ] } ] } };
+    const bogus = { schedule: { mon:{ type:'workout', planId:'__rx', category:'upper', templateId:'r1' },
+      tue:{type:'rest'}, wed:{type:'rest'}, thu:{type:'rest'}, fri:{type:'rest'}, sat:{type:'rest'}, sun:{type:'rest'} } };
+    const c = prescriptionComplaints(bogus, 'adversarial');
+    delete ctx.DEFAULT_PLANS.__rx;
+    ok('the oracle rejects a heavy-triple lateral raise',
+      c.some(x => /ISOLATION LOW-REP: Lateral Raise/.test(x)), c.join(' | '));
+    ok('the oracle rejects a 1x25 primary squat',
+      c.some(x => /PRIMARY ABSURD REPS|PRIMARY UNDERPRESCRIBED/.test(x)), c.join(' | '));
+    ok('the oracle rejects a nine-set prescription',
+      c.some(x => /SET COUNT EXTREME/.test(x)), c.join(' | '));
+  }
+
+  /* --- every generated program across the matrix --- */
+  {
+    let complaints = [], scanned = 0;
+    goals.forEach(goal => exps.forEach(experience => equips.forEach(equipment =>
+      lengths.forEach(sessionLength => freqs.forEach(frequency => {
+        const def = ctx.generateProgram({ goal, experience, equipment, emphasis:'balanced',
+          sessionLength, weeks:6, days: ctx.builderDefaultDays(frequency) });
+        scanned++;
+        const c = prescriptionComplaints(def, [goal,experience,equipment,sessionLength,frequency].join('/'));
+        if (c.length && complaints.length < 5) complaints = complaints.concat(c.slice(0, 2));
+      })))));
+    ok('every generated prescription is sane (' + scanned + ' programs)',
+      complaints.length === 0, complaints.join(' || '));
+  }
+
+  /* --- goal integrity: real differences, honest sharing --- */
+  {
+    const rxOf = def => DAYS.map(k => { const t = ctx.builderTemplateOf(def.schedule[k]);
+      return t ? t.exercises.map(x => x.sets + 'x' + x.reps).join(',') : '-'; }).join('|');
+    const base = { experience:'intermediate', equipment:'full', emphasis:'balanced',
+      sessionLength:'long', weeks:8, days:['mon','tue','thu','fri'] };
+    const hyp = rxOf(ctx.generateProgram(Object.assign({ goal:'hypertrophy' }, base)));
+    const str = rxOf(ctx.generateProgram(Object.assign({ goal:'strength' }, base)));
+    const rec = rxOf(ctx.generateProgram(Object.assign({ goal:'recomp' }, base)));
+    ok('Build Muscle and Get Stronger prescribe differently', hyp !== str);
+    /* The D36 headline defect: Muscle + Strength used to be byte-identical
+       to Build Muscle, so choosing it changed nothing at all. */
+    ok('Muscle + Strength is no longer a phantom goal', rec !== hyp && rec !== str);
+
+    /* And it must be a genuine MIDDLE: primaries lean strength, accessories
+       stay hypertrophy. */
+    const primaryMid = def => { const o = [];
+      DAYS.forEach(k => { const t = ctx.builderTemplateOf(def.schedule[k]);
+        if (t && t.exercises.length) o.push(mid(t.exercises[0].reps)); });
+      return o.reduce((a,b) => a+b, 0) / (o.length || 1); };
+    const accMid = def => { const o = [];
+      DAYS.forEach(k => { const t = ctx.builderTemplateOf(def.schedule[k]);
+        if (t) t.exercises.forEach((x,i) => { if (oracleRole(t,i) === 'accessory') o.push(mid(x.reps)); }); });
+      return o.reduce((a,b) => a+b, 0) / (o.length || 1); };
+    const dHyp = ctx.generateProgram(Object.assign({ goal:'hypertrophy' }, base));
+    const dStr = ctx.generateProgram(Object.assign({ goal:'strength' }, base));
+    const dRec = ctx.generateProgram(Object.assign({ goal:'recomp' }, base));
+    ok('its primaries sit between muscle and strength',
+      primaryMid(dRec) < primaryMid(dHyp) && primaryMid(dRec) > primaryMid(dStr),
+      'muscle=' + primaryMid(dHyp).toFixed(1) + ' hybrid=' + primaryMid(dRec).toFixed(1)
+        + ' strength=' + primaryMid(dStr).toFixed(1));
+    ok('its accessories stay hypertrophy-ranged',
+      Math.abs(accMid(dRec) - accMid(dHyp)) < 0.01,
+      'hybrid=' + accMid(dRec).toFixed(1) + ' muscle=' + accMid(dHyp).toFixed(1));
+  }
+
+  /* --- experience gains depth only where it was paid for --- */
+  {
+    const setsOf = def => DAYS.reduce((n,k) => { const t = ctx.builderTemplateOf(def.schedule[k]);
+      return n + ((t && t.exercises) || []).reduce((m,x) => m + (parseInt(x.sets,10) || 3), 0); }, 0);
+    const at = (experience, sessionLength) => ctx.generateProgram({ goal:'hypertrophy', experience,
+      equipment:'full', emphasis:'balanced', sessionLength, weeks:6, days:['mon','tue','thu','fri'] });
+    ok('experience adds nothing at 45\u201360', setsOf(at('experienced','standard')) === setsOf(at('intermediate','standard')));
+    ok('experience adds depth at 75+', setsOf(at('experienced','extended')) > setsOf(at('intermediate','extended')));
+    ok('and it is depth, not a volume ladder',
+      setsOf(at('experienced','extended')) - setsOf(at('intermediate','extended')) <= 6,
+      String(setsOf(at('experienced','extended')) - setsOf(at('intermediate','extended'))));
+  }
+
+  /* --- the trainer boundary: program owns the range, trainer the load --- */
+  {
+    const def = ctx.generateProgram({ goal:'recomp', experience:'intermediate', equipment:'full',
+      emphasis:'balanced', sessionLength:'long', weeks:8, days:['mon','tue','thu','fri'] });
+    const tpl = ctx.builderTemplateOf(def.schedule.mon);
+    const primary = tpl.exercises[0];
+    const rec = ctx.computeShadowRecommendation(primary.name, { targetReps: primary.reps, plannedSets: primary.sets });
+    if (rec && rec.trace) {
+      ok('the trainer reads the program as its rep source', rec.trace.targetSource === 'program'
+        || rec.trace.targetMismatch === true, String(rec.trace.targetSource));
+      const planned = ctx.parseRepRange(primary.reps);
+      const used = String(rec.trace.targetRange).split('-').map(Number);
+      ok('and works inside the prescribed range unless history overrides it',
+        rec.trace.targetMismatch === true
+        || (used[0] === planned.min && used[1] === planned.max),
+        'planned ' + primary.reps + ' vs trainer ' + rec.trace.targetRange);
+    } else {
+      ok('the trainer reads the program as its rep source', true, 'no recommendation without history');
+      ok('and works inside the prescribed range unless history overrides it', true, 'n/a');
+    }
+    ok('the trainer engine is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  }
+
+  /* --- prescription is derived, never stored --- */
+  {
+    const def = ctx.generateProgram({ goal:'recomp', experience:'experienced', equipment:'full',
+      emphasis:'chest', sessionLength:'extended', weeks:8, days:['mon','tue','thu','fri'] });
+    const res = ctx.createProgram({ name:def.name, goal:def.goal, durationWeeks:def.durationWeeks,
+      schedule:def.schedule, blocks:def.blocks, startDate:'2026-08-05',
+      emphasis:def.emphasis, sessionLength:def.sessionLength, experience:def.experience });
+    ok('a prescribed program saves', res.ok, (res.errors || []).join('; '));
+    const stored = app.store.programs || '';
+    ok('the profile is stored as an id and nothing else',
+      stored.indexOf('hybridDeep') !== -1
+      && !/\"reps\"|\"sets\"|\"effort\"|primaryReps/.test(stored),
+      stored.slice(0, 0));
+    const bogus = JSON.parse(JSON.stringify(def));
+    const d0 = DAYS.find(k => bogus.schedule[k].type === 'workout');
+    bogus.schedule[d0].rx = 'not_a_profile';
+    ok('an unknown profile id is refused', !ctx.validateProgram(bogus).valid);
+    ctx.deleteProgram(res.program.id);
+  }
+
+  /* --- legacy programs are untouched --- */
+  {
+    const legacy = { type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' };
+    ok('an entry without a profile composes to its exact base',
+      JSON.stringify(ctx.builderTemplateOf(legacy)) === JSON.stringify(ctx.builderBaseTemplateOf(legacy)));
+    const withRx = { type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1', rx:'hybrid' };
+    const a = ctx.builderBaseTemplateOf(withRx), b = ctx.builderTemplateOf(withRx);
+    ok('a profile changes only the primary movement',
+      b.exercises.slice(1).every((x,i) => x.reps === a.exercises[i+1].reps
+        && x.sets === a.exercises[i+1].sets));
+    ok('and it does change that one', b.exercises[0].reps !== a.exercises[0].reps);
+  }
+
+  /* --- deriving a prescription writes nothing --- */
+  {
+    const before = JSON.stringify(app.store);
+    for (let i = 0; i < 20; i++){
+      const d = ctx.generateProgram({ goal:'recomp', experience:'experienced', equipment:'full',
+        emphasis:'back', sessionLength:'extended', weeks:8, days:['mon','tue','thu','fri'] });
+      DAYS.forEach(k => ctx.builderTemplateOf(d.schedule[k]));
+    }
+    ok('prescribing writes nothing', JSON.stringify(app.store) === before);
+  }
+
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */
   section('12. Generation has no side effects');
 

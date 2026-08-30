@@ -15210,7 +15210,13 @@ async function testSessionDepth(){
     T('the newest What\'s New entry names the deployed version',
       !!latest && latest.swVersion === cache,
       'sw=' + cache + ' note=' + (latest && latest.swVersion));
-    T('this release is LOOP 2.8', latest && latest.id === 'v2-8' && latest.version === 'LOOP 2.8');
+    /* Deliberately not pinned to one release id: naming a specific version
+       here would fail on every future ship, which teaches the next phase to
+       edit the guard rather than trust it. What must always hold is that the
+       newest entry is well-formed and carries the deployed version. */
+    T('the newest entry is a complete release note',
+      !!latest && !!latest.id && !!latest.version && !!latest.title
+      && !!latest.summary && !!latest.swVersion);
     T('newest first', (() => { const s2 = ctx.updatesNewestFirst();
       return new Date(s2[0].date) >= new Date(s2[1].date); })());
     T('older entries remain', ctx.LOOP_UPDATES.length >= 18, String(ctx.LOOP_UPDATES.length));
@@ -15219,6 +15225,164 @@ async function testSessionDepth(){
   }
 
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+}
+
+/* =========================================================
+   CONTRACT 135 — training prescription (D36)
+   ---------------------------------------------------------
+   The full sweep (174 checks, 960 programs, adversarial
+   fixtures) lives in loop-program-audit.js. These are the
+   always-on promises: one role taxonomy, prescription derived
+   from an id and never stored, the program owns the rep range
+   and the trainer works inside it, and no profile can put a
+   heavy prescription on small-muscle work.
+   ========================================================= */
+async function testTrainingPrescription(){
+  section('CONTRACT 135 — training prescription (D36)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const DAYS = ctx.PROGRAM_DAY_KEYS;
+  const rxOf = def => DAYS.map(k => { const t = ctx.builderTemplateOf(def.schedule[k]);
+    return t ? t.exercises.map(x => x.sets + 'x' + x.reps).join(',') : '-'; }).join('|');
+  const base = { experience:'intermediate', equipment:'full', emphasis:'balanced',
+    sessionLength:'long', weeks:8, days:['mon','tue','thu','fri'] };
+
+  sub('one role taxonomy, vetoed by curated truth');
+  T('there is exactly one role function',
+    (src.match(/function deriveExerciseRole\(/g) || []).length === 1);
+  T('the Main/Build/Finish grouping and role share the same veto',
+    /function deriveExerciseGroups[\s\S]{0,900}exerciseIsNeverPrimary/.test(src)
+    || /function exerciseIsNeverPrimary/.test(src));
+  /* pattern says DIRECTION, not role: a Lateral Raise is filed under
+     vertical_push beside the Overhead Press. Trusting it would have let a
+     strength-leaning profile prescribe 4x5-8 on lateral raises. */
+  T('a mis-patterned isolation movement is still vetoed',
+    ctx.exerciseIsNeverPrimary('Lateral Raise') === true
+    && ctx.exerciseIsNeverPrimary('Cable Fly') === true);
+  T('a legitimate primary is not vetoed',
+    ctx.exerciseIsNeverPrimary('Bench Press') === false
+    && ctx.exerciseIsNeverPrimary('Lat Pulldown') === false);
+  T('an uncataloged movement may still lead its session',
+    ctx.exerciseIsNeverPrimary('Bodyweight Lunge') === false);
+  /* Every id in the curated list must still resolve, or the guard has a
+     silent hole \u2014 three of them did when the list was first written. */
+  T('every vetoed id still resolves in the registry', (() => {
+    const ids = Object.keys(ctx.CANONICAL_EXERCISES)
+      .map(k => ctx.CANONICAL_EXERCISES[k]).filter(Boolean).map(e => e.id);
+    return ctx.NEVER_PRIMARY_IDS.every(id => ids.indexOf(id) !== -1);
+  })());
+
+  sub('goals differ where they should, share where that is honest');
+  {
+    const hyp = rxOf(ctx.generateProgram(Object.assign({ goal:'hypertrophy' }, base)));
+    const str = rxOf(ctx.generateProgram(Object.assign({ goal:'strength' }, base)));
+    const rec = rxOf(ctx.generateProgram(Object.assign({ goal:'recomp' }, base)));
+    T('Build Muscle and Get Stronger prescribe differently', hyp !== str);
+    /* The D36 defect: Muscle + Strength was byte-identical to Build Muscle,
+       so choosing it changed nothing whatsoever. */
+    T('Muscle + Strength is not a phantom goal', rec !== hyp && rec !== str);
+    const mid = r => { const n = String(r).match(/\d+/g);
+      return n ? n.map(Number).reduce((a,b) => a+b, 0) / n.length : null; };
+    const primaryMid = def => { const o = [];
+      DAYS.forEach(k => { const t = ctx.builderTemplateOf(def.schedule[k]);
+        if (t) t.exercises.forEach((x, i) => {
+          if (ctx.deriveExerciseRole(t, i) === 'primary') o.push(mid(x.reps)); }); });
+      return o.reduce((a,b) => a+b, 0) / (o.length || 1); };
+    const dh = ctx.generateProgram(Object.assign({ goal:'hypertrophy' }, base));
+    const ds = ctx.generateProgram(Object.assign({ goal:'strength' }, base));
+    const dr = ctx.generateProgram(Object.assign({ goal:'recomp' }, base));
+    T('and it sits between them on primary movements',
+      primaryMid(dr) < primaryMid(dh) && primaryMid(dr) > primaryMid(ds),
+      [primaryMid(ds), primaryMid(dr), primaryMid(dh)].map(x => x.toFixed(1)).join(' < '));
+  }
+
+  sub('prescription is an id, resolved at read time');
+  {
+    const def = ctx.generateProgram(Object.assign({ goal:'recomp', experience:'experienced',
+      sessionLength:'extended' }, base, { goal:'recomp', experience:'experienced', sessionLength:'extended' }));
+    const res = ctx.createProgram({ name:def.name, goal:def.goal, durationWeeks:def.durationWeeks,
+      schedule:def.schedule, blocks:def.blocks, startDate:'2026-08-05',
+      emphasis:def.emphasis, sessionLength:def.sessionLength, experience:def.experience });
+    T('a prescribed program saves', res.ok, (res.errors || []).join('; '));
+    const stored = app.store.programs || '';
+    T('the profile is stored as an id, never as sets and reps',
+      stored.indexOf('"rx"') !== -1
+      && !/"reps":|"effort":|primaryReps/.test(stored));
+    const bogus = JSON.parse(JSON.stringify(def));
+    const d0 = DAYS.find(k => bogus.schedule[k].type === 'workout');
+    bogus.schedule[d0].rx = 'not_a_profile';
+    T('an unknown profile id is refused', !ctx.validateProgram(bogus).valid);
+    ctx.deleteProgram(res.program.id);
+  }
+
+  sub('legacy programs are untouched');
+  {
+    const legacy = { type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' };
+    T('an entry without a profile composes to its exact base',
+      JSON.stringify(ctx.builderTemplateOf(legacy)) === JSON.stringify(ctx.builderBaseTemplateOf(legacy)));
+    const withRx = Object.assign({}, legacy, { rx:'hybrid' });
+    const a = ctx.builderBaseTemplateOf(withRx), b = ctx.builderTemplateOf(withRx);
+    T('a profile touches only the primary movement',
+      b.exercises.slice(1).every((x, i) => x.reps === a.exercises[i+1].reps
+        && x.sets === a.exercises[i+1].sets));
+    T('and it does change that one', b.exercises[0].reps !== a.exercises[0].reps);
+  }
+
+  sub('the program owns the range, the trainer owns the load');
+  {
+    /* This boundary already existed: startTemplateLog passes the template's
+       reps through, and the engine records targetSource 'program'. D36 makes
+       the range goal-aware, so the pin matters more, not less. */
+    T('the log path hands the program prescription to each row',
+      /startTemplateLog[\s\S]{0,2800}targetSets: ex\.sets, targetReps: ex\.reps/.test(src));
+    T('the engine treats a supplied range as program-owned',
+      /targetSource = opts\.targetReps \? 'program'/.test(src));
+    T('planned effort never overwrites recorded effort',
+      !/\brir\s*=\s*(prescribed|planned|target)/i.test(src));
+    T('the trainer engine is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  }
+
+  sub('experience buys depth only where it was paid for');
+  {
+    const setsOf = def => DAYS.reduce((n, k) => { const t = ctx.builderTemplateOf(def.schedule[k]);
+      return n + ((t && t.exercises) || []).reduce((m, x) => m + (parseInt(x.sets, 10) || 3), 0); }, 0);
+    const at = (experience, sessionLength) => ctx.generateProgram(Object.assign({}, base,
+      { goal:'hypertrophy', experience, sessionLength }));
+    T('nothing extra at 45\u201360', setsOf(at('experienced','standard')) === setsOf(at('intermediate','standard')));
+    T('depth at 75+', setsOf(at('experienced','extended')) > setsOf(at('intermediate','extended')));
+    T('a beginner never gets a set bump',
+      setsOf(at('new','extended')) <= setsOf(at('intermediate','extended')));
+  }
+
+  sub('capacity and determinism survive prescription');
+  {
+    const mins = def => DAYS.reduce((n, k) => { const t = ctx.builderTemplateOf(def.schedule[k]);
+      return n + (t ? ctx.computeWorkoutDuration(t) : 0); }, 0);
+    const four = ['short','standard','long','extended'].map(sessionLength =>
+      mins(ctx.generateProgram(Object.assign({}, base, { goal:'recomp', sessionLength }))));
+    T('a shorter request still never buys more work',
+      four[0] <= four[1] && four[1] <= four[2] && four[2] <= four[3], four.join(' -> '));
+    T('one duration estimator, still',
+      (src.match(/function computeWorkoutDuration\(/g) || []).length === 1);
+    const a = Object.assign({}, base, { goal:'recomp', experience:'experienced', sessionLength:'extended' });
+    const first = JSON.stringify(ctx.generateProgram(a).schedule);
+    let stable = true;
+    for (let i = 0; i < 25; i++) if (JSON.stringify(ctx.generateProgram(a).schedule) !== first) stable = false;
+    T('twenty-five runs, one prescription', stable);
+  }
+
+  sub('no release without its note');
+  {
+    const sw = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8');
+    const cache = (sw.match(/CACHE_VERSION = '([^']+)'/) || [])[1];
+    const latest = ctx.getLatestUpdate();
+    T('the newest What\'s New entry names the deployed version',
+      !!latest && latest.swVersion === cache,
+      'sw=' + cache + ' note=' + (latest && latest.swVersion));
+    T('older entries remain', ctx.LOOP_UPDATES.length >= 19, String(ctx.LOOP_UPDATES.length));
+  }
 }
 
 /* =========================================================
@@ -15462,6 +15626,7 @@ async function main(){
   await testProgramExperience();
   await testProgramExplainability();
   await testSessionDepth();
+  await testTrainingPrescription();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
