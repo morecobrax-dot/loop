@@ -14834,9 +14834,11 @@ async function testProgramExperience(){
   sub('editing changes the plan, never the past');
   T('editing writes through updateProgram, not createProgram',
     /pbState\.mode === 'edit'[\s\S]{0,300}updateProgram\(/.test(src));
+  /* Window widened for D35: the edit object now carries three shaping ids
+     (emphasis, sessionLength, experience). Still no startDate. */
   T('the start date is not rewritten by an edit',
-    /updateProgram\(pbState\.editingId, \{[\s\S]{0,220}\}\)/.test(src) &&
-    !/updateProgram\(pbState\.editingId, \{[\s\S]{0,220}startDate/.test(src));
+    /updateProgram\(pbState\.editingId, \{[\s\S]{0,340}\}\)/.test(src) &&
+    !/updateProgram\(pbState\.editingId, \{[\s\S]{0,340}startDate/.test(src));
   /* Marker-bounded: a fixed 46000 chars silently shrank coverage every time
      the region grew. 'The Today strip' is the first production code after
      the D33/D34 program flow. */
@@ -15096,6 +15098,130 @@ async function testProgramExplainability(){
 }
 
 /* =========================================================
+   CONTRACT 134 — session depth & release notes (D35)
+   ---------------------------------------------------------
+   The full sweeps (149 checks, 4,320+ combinations) live in
+   loop-program-audit.js. These are the always-on promises:
+   depth is deterministic and monotonic, the standard baseline
+   is untouched, what is shown is what is trained, legacy
+   programs never change shape, and no release ships without
+   its What's New entry.
+   ========================================================= */
+async function testSessionDepth(){
+  section('CONTRACT 134 — session depth & release notes (D35)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const DAYS = ctx.PROGRAM_DAY_KEYS;
+
+  sub('depth is deterministic and directional');
+  {
+    const a = { emphasis:'chest', sessionLength:'long', days:['mon','tue','thu','fri'],
+      weeks:8, equipment:'full', experience:'intermediate', goal:'hypertrophy' };
+    const first = JSON.stringify(ctx.generateProgram(a).schedule);
+    let stable = true;
+    for(let i = 0; i < 20; i++) if(JSON.stringify(ctx.generateProgram(a).schedule) !== first) stable = false;
+    T('twenty runs, one program', stable);
+
+    const mins = def => DAYS.reduce((n,k) => {
+      const t = ctx.builderTemplateOf(def.schedule[k]);
+      return n + (t ? ctx.computeWorkoutDuration(t) : 0); }, 0);
+    const four = ['short','standard','long','extended'].map(sessionLength =>
+      mins(ctx.generateProgram(Object.assign({}, a, { sessionLength }))));
+    T('more available time never means less work', four[0] <= four[1]
+      && four[1] <= four[2] && four[2] <= four[3], four.join(' -> '));
+    T('and 60\u201375 genuinely deepens this program', four[2] > four[1], four.join(' -> '));
+  }
+
+  sub('the standard baseline is untouched');
+  {
+    const std = ctx.generateProgram({ sessionLength:'standard', days:['mon','tue','thu','fri'],
+      weeks:6, equipment:'full', experience:'intermediate' });
+    T('a 45\u201360 week carries no extensions', DAYS.every(k => !(std.schedule[k] || {}).ext));
+    const beg = ctx.generateProgram({ sessionLength:'extended', days:['mon','wed','fri'],
+      weeks:6, equipment:'full', experience:'new' });
+    T('a 3-day beginner stays lean even at 75+', DAYS.every(k => !(beg.schedule[k] || {}).ext
+      && !Number.isInteger((beg.schedule[k] || {}).lead)));
+  }
+
+  sub('what is shown is what is trained');
+  T('the start path resolves through the program day',
+    /function startTemplateLog[\s\S]{0,900}getProgramWorkoutForDate/.test(src));
+  T('every resolver composes the recipe',
+    /function resolveProgramWorkout[\s\S]{0,600}composeProgramSession/.test(src)
+    && /function builderTemplateOf[\s\S]{0,400}composeProgramSession/.test(src));
+  {
+    const entry = { type:'workout', planId:'hypertrophy', category:'upper',
+      templateId:'h-u1', ext:['x_lat_raise'] };
+    const base = ctx.builderBaseTemplateOf(entry);
+    const composed = ctx.builderTemplateOf(entry);
+    T('an extension reaches the composed session',
+      composed.exercises.length === base.exercises.length + 1
+      && composed.exercises[composed.exercises.length - 1].name === 'Lateral Raise');
+    const legacy = { type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' };
+    T('a recipe-less entry composes to its exact base',
+      JSON.stringify(ctx.builderTemplateOf(legacy)) === JSON.stringify(ctx.builderBaseTemplateOf(legacy)));
+  }
+
+  sub('recipes are validated references, never analysis');
+  {
+    const def = ctx.generateProgram({ emphasis:'arms', sessionLength:'extended',
+      days:['mon','tue','wed','fri','sat'], weeks:6, experience:'experienced', equipment:'full' });
+    const bogus = JSON.parse(JSON.stringify(def));
+    const day = DAYS.find(k => bogus.schedule[k].type === 'workout');
+    bogus.schedule[day].ext = ['x_does_not_exist'];
+    T('an unknown extension id is refused', !ctx.validateProgram(bogus).valid);
+    const res = ctx.createProgram({ name:def.name, goal:def.goal, durationWeeks:def.durationWeeks,
+      schedule:def.schedule, blocks:def.blocks, startDate:'2026-08-05',
+      emphasis:def.emphasis, sessionLength:def.sessionLength, experience:def.experience });
+    T('a deep program saves', res.ok, (res.errors || []).join('; '));
+    const stored = app.store.programs || '';
+    T('stored recipes are ids only \u2014 no minutes, no scores, no analysis',
+      stored.indexOf('x_') !== -1 && !/\"minutes\"|\"score\"|\"effective\"|\"coverage\"/.test(stored));
+    T('experience persists beside the other shaping ids',
+      res.program.experience === 'experienced');
+    ctx.deleteProgram(res.program.id);
+  }
+
+  sub('claims stay directional');
+  {
+    const eff = ctx.deriveProgramExplanation(ctx.generateProgram({ emphasis:'chest',
+      sessionLength:'long', days:['mon','tue','thu','fri'], weeks:8, equipment:'full',
+      experience:'intermediate', goal:'hypertrophy' }));
+    T('a compatible emphasis is effective and placed', !!(eff.emphasis && eff.emphasis.effective)
+      && eff.emphasis.where.length >= 1);
+    const inert = ctx.deriveProgramExplanation(ctx.generateProgram({ emphasis:'arms',
+      sessionLength:'long', days:['mon','thu'], weeks:6, equipment:'home',
+      experience:'intermediate', goal:'hypertrophy' }));
+    const line = ctx.programFocusText(inert) || '';
+    T('a starved emphasis never says Extra', !(inert.emphasis && inert.emphasis.effective)
+      ? !/^Extra/.test(line) : true, line);
+  }
+
+  sub('no release without its note');
+  {
+    const sw = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8');
+    const cache = (sw.match(/CACHE_VERSION = '([^']+)'/) || [])[1];
+    const latest = ctx.getLatestUpdate();
+    T('the service worker version exists', !!cache, String(cache));
+    /* THE permanent shipping invariant: bumping the deploy version without a
+       matching What's New entry fails this test. */
+    T('the newest What\'s New entry names the deployed version',
+      !!latest && latest.swVersion === cache,
+      'sw=' + cache + ' note=' + (latest && latest.swVersion));
+    T('this release is LOOP 2.8', latest && latest.id === 'v2-8' && latest.version === 'LOOP 2.8');
+    T('newest first', (() => { const s2 = ctx.updatesNewestFirst();
+      return new Date(s2[0].date) >= new Date(s2[1].date); })());
+    T('older entries remain', ctx.LOOP_UPDATES.length >= 18, String(ctx.LOOP_UPDATES.length));
+    T('the entry speaks user value, not engineering',
+      !/combination|oracle|contract|canonical|inert|substring/i.test(JSON.stringify(latest)));
+  }
+
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+}
+
+/* =========================================================
    CONTRACT 130 — date boundaries (D31.1)
    ---------------------------------------------------------
    The full sweep runs under seven real timezones in
@@ -15335,6 +15461,7 @@ async function main(){
   await testCardioMeasurement();
   await testProgramExperience();
   await testProgramExplainability();
+  await testSessionDepth();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

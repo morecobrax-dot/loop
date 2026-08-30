@@ -8975,6 +8975,28 @@ const MUSCLE_MAP = {
    ========================================================= */
 const LOOP_UPDATES = [
   {
+    id: 'v2-8',
+    version: 'LOOP 2.8',
+    title: 'Deeper Programs',
+    date: '2026-08-30',
+    /* Ties this entry to the deployed release. Every future deploy bumps the
+       service worker, and a contract requires the newest entry here to name
+       the same version \u2014 so shipping without release notes fails tests. */
+    swVersion: 'loop-v105',
+    summary: 'Your time and your focus now shape what LOOP builds.',
+    newFeatures: [
+      'Choosing 60\u201375 or 75+ minutes now adds real extra work to your program \u2014 accessories picked for your emphasis first, and for whatever your week trains least otherwise',
+      'A training emphasis now reshapes the week: the right sessions get picked, and your priority movement can open the day'
+    ],
+    improvements: [
+      'Programs protect balance \u2014 no major muscle group is ever dropped to chase an emphasis',
+      'Session estimates stay inside the time you chose; extra capacity is used only when it genuinely helps',
+      'When your schedule cannot honestly fit an emphasis, LOOP builds the strongest balanced week instead of pretending'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
     id: 'v1-0',
     version: 'LOOP 1.0',
     title: 'Train With a Plan',
@@ -22212,7 +22234,10 @@ function resolveProgramWorkout(entry){
   // Prefer the athlete's own edited copy when this is the plan they're on.
   const source = (entry.planId === selectedPlanId && planData) ? planData : plan.templates;
   const list = (source && source[entry.category]) || (plan.templates || {})[entry.category] || [];
-  return list.find(t => t.id === entry.templateId) || null;
+  const base = list.find(t => t.id === entry.templateId) || null;
+  /* D35 \u2014 the entry may carry a depth recipe; what this returns is what
+     the athlete sees AND trains. */
+  return composeProgramSession(entry, base);
 }
 function getProgramWorkoutForDate(dateStr, program){
   const p = program || getActiveProgram();
@@ -22312,6 +22337,8 @@ function validateProgram(input){
      evaluates before the builder tables further down the file exist. */
   if(input.emphasis && typeof BUILDER_EMPHASIS !== 'undefined'
     && !BUILDER_EMPHASIS.some(e => e.id === input.emphasis)) errors.push('Unknown emphasis');
+  if(input.experience && typeof BUILDER_EXPERIENCE !== 'undefined'
+    && !BUILDER_EXPERIENCE.some(e => e.id === input.experience)) errors.push('Unknown experience');
   if(input.sessionLength && typeof BUILDER_LENGTHS !== 'undefined'
     && !BUILDER_LENGTHS.some(l => l.id === input.sessionLength)) errors.push('Unknown session length');
   const sched = input.schedule || {};
@@ -22322,6 +22349,14 @@ function validateProgram(input){
   trainingDays.forEach(k => {
     const e = sched[k];
     if(!e.planId || !e.category || !e.templateId) errors.push('Incomplete workout on ' + k);
+    /* D35 depth recipe: references only, and only into the known library. */
+    if(e.ext !== undefined){
+      if(!Array.isArray(e.ext) || e.ext.length > 3) errors.push('Bad extensions on ' + k);
+      else if(typeof getProgramExtension !== 'undefined'
+        && e.ext.some(id => !getProgramExtension(id))) errors.push('Unknown extension on ' + k);
+    }
+    if(e.lead !== undefined && !(Number.isInteger(e.lead) && e.lead >= 1 && e.lead <= 12))
+      errors.push('Bad lead on ' + k);
   });
   (input.blocks || []).forEach((b, i) => {
     const s = parseInt(b.startWeek, 10), en = parseInt(b.endWeek, 10);
@@ -22364,6 +22399,7 @@ function createProgram(input){
     goal: draft.goal || null,
     emphasis: draft.emphasis || null,
     sessionLength: draft.sessionLength || null,
+    experience: draft.experience || null,
     durationWeeks: parseInt(draft.durationWeeks, 10),
     schedule: draft.schedule,
     blocks: draft.blocks,
@@ -22390,7 +22426,7 @@ function updateProgram(programId, patch){
   const merged = Object.assign({}, p, patch || {});
   const check = validateProgram(merged);
   if(!check.valid) return { ok:false, errors:check.errors, program:null };
-  ['name','description','goal','durationWeeks','schedule','blocks','startDate','emphasis','sessionLength'].forEach(k => {
+  ['name','description','goal','durationWeeks','schedule','blocks','startDate','emphasis','sessionLength','experience'].forEach(k => {
     if(patch && Object.prototype.hasOwnProperty.call(patch, k)) p[k] = merged[k];
   });
   p.durationWeeks = parseInt(p.durationWeeks, 10);
@@ -22836,6 +22872,107 @@ function doAddPhase(){ openPhaseEditor(null); }
    session.
    ========================================================= */
 
+/* =========================================================
+   SESSION DEPTH  (Phase D35)
+   ---------------------------------------------------------
+   The base templates top out near fifty minutes, so 60\u201375 and
+   75+ used to collapse into the 45\u201360 program. Depth is added
+   compositionally: a schedule entry may carry a small recipe
+   \u2014 extension ids and a lead index \u2014 and every resolver
+   composes the same final session from it. No template
+   explosion, no copies: extensions are REFERENCES into the
+   curated list below, exactly as templateId references the
+   plan library.
+
+   Entries reuse exercise names the plan library already ships
+   (proven resolvable, same style). `groups` is curated and
+   audit-checked against the canonical registry; `gym:false`
+   marks entries a home athlete can run. Accessory-class work
+   only, so bolting one onto a session never changes which
+   day is heavy.
+   ========================================================= */
+const PROGRAM_EXTENSIONS = [
+  { id:'x_cable_fly',    label:'Chest isolation',     gym:true,  groups:['chest'],
+    slots:['upper','push','fullbody'], exercises:[ { name:'Cable Fly', sets:3, reps:'12\u201315', effort:'7' } ] },
+  { id:'x_incline_db',   label:'Incline chest',       gym:false, groups:['chest'],
+    slots:['upper','push'], exercises:[ { name:'Incline DB Press', sets:2, reps:'8\u201312', effort:'7\u20138' } ] },
+  { id:'x_pushup',       label:'Chest bodyweight',    gym:false, groups:['chest'],
+    slots:['upper','push','fullbody'], exercises:[ { name:'Push-Up', sets:2, reps:'12\u201320', effort:'7' } ] },
+  { id:'x_face_pull',    label:'Rear delts & upper back', gym:true, groups:['shoulders','back'],
+    slots:['upper','pull','push','fullbody'], exercises:[ { name:'Face Pull', sets:3, reps:'12\u201315', effort:'6\u20137' } ] },
+  { id:'x_rear_delt',    label:'Rear delts',          gym:true,  groups:['shoulders'],
+    slots:['upper','pull','push','fullbody'], exercises:[ { name:'Rear Delt Fly', sets:3, reps:'12\u201315', effort:'6\u20137' } ] },
+  { id:'x_row_arm',      label:'Extra back row',      gym:false, groups:['back'],
+    slots:['upper','pull','fullbody'], exercises:[ { name:'Single-Arm DB Row', sets:2, reps:'10\u201312', effort:'7' } ] },
+  { id:'x_lat_raise',    label:'Side delts',          gym:false, groups:['shoulders'],
+    slots:['upper','push','fullbody'], exercises:[ { name:'Lateral Raise', sets:3, reps:'12\u201315', effort:'7' } ] },
+  { id:'x_bb_curl',      label:'Biceps barbell',      gym:true,  groups:['biceps'],
+    slots:['upper','pull','fullbody'], exercises:[ { name:'Barbell Curl', sets:3, reps:'8\u201312', effort:'7' } ] },
+  { id:'x_hammer_curl',  label:'Biceps dumbbell',     gym:false, groups:['biceps'],
+    slots:['upper','pull','fullbody'], exercises:[ { name:'Hammer Curl', sets:3, reps:'10\u201312', effort:'7' } ] },
+  { id:'x_pushdown',     label:'Triceps cable',       gym:true,  groups:['triceps'],
+    slots:['upper','push','fullbody'], exercises:[ { name:'Triceps Pushdown', sets:3, reps:'10\u201315', effort:'7' } ] },
+  { id:'x_oh_triceps',   label:'Triceps overhead',    gym:true,  groups:['triceps'],
+    slots:['upper','push','fullbody'], exercises:[ { name:'Overhead Triceps Extension', sets:3, reps:'10\u201315', effort:'7' } ] },
+  { id:'x_leg_ext',      label:'Quad isolation',      gym:true,  groups:['quads'],
+    slots:['lower','legs','fullbody'], exercises:[ { name:'Leg Extension', sets:3, reps:'12\u201315', effort:'7' } ] },
+  { id:'x_goblet',       label:'Quad dumbbell',       gym:false, groups:['quads'],
+    slots:['lower','legs','fullbody'], exercises:[ { name:'Goblet Squat', sets:2, reps:'10\u201312', effort:'7' } ] },
+  { id:'x_leg_curl',     label:'Hamstring isolation', gym:true,  groups:['hamstrings'],
+    slots:['lower','legs','fullbody'], exercises:[ { name:'Leg Curl', sets:3, reps:'10\u201315', effort:'7' } ] },
+  { id:'x_db_rdl',       label:'Hamstring hinge',     gym:false, groups:['hamstrings','glutes'],
+    slots:['lower','legs','fullbody'], exercises:[ { name:'DB Romanian Deadlift', sets:2, reps:'10\u201312', effort:'7' } ] },
+  { id:'x_hip_thrust',   label:'Glute barbell',       gym:true,  groups:['glutes'],
+    slots:['lower','legs','fullbody'], exercises:[ { name:'Hip Thrust', sets:3, reps:'8\u201312', effort:'7\u20138' } ] },
+  { id:'x_glute_kick',   label:'Glute cable',         gym:true,  groups:['glutes'],
+    slots:['lower','legs','fullbody'], exercises:[ { name:'Cable Glute Kickback', sets:3, reps:'12\u201315', effort:'7' } ] },
+  { id:'x_glute_bridge', label:'Glute bodyweight',    gym:false, groups:['glutes'],
+    slots:['lower','legs','fullbody'], exercises:[ { name:'Single-Leg Glute Bridge', sets:3, reps:'12\u201315', effort:'7' } ] },
+  { id:'x_cg_pushup',    label:'Triceps bodyweight',  gym:false, groups:['triceps'],
+    slots:['upper','push','fullbody'], exercises:[ { name:'Close-Grip Push-up', sets:2, reps:'12\u201320', effort:'7' } ] },
+  { id:'x_calf',         label:'Calves',              gym:true,  groups:['calves'],
+    slots:['lower','legs','fullbody'], exercises:[ { name:'Standing Calf Raise', sets:3, reps:'12\u201320', effort:'7' } ] },
+  { id:'x_cable_crunch', label:'Core cable',          gym:true,  groups:['abs'],
+    slots:['upper','push','pull','lower','legs','fullbody'], exercises:[ { name:'Cable Crunch', sets:3, reps:'12\u201315', effort:'7' } ] },
+  { id:'x_plank',        label:'Core bodyweight',     gym:false, groups:['abs'],
+    slots:['upper','push','pull','lower','legs','fullbody'], exercises:[ { name:'Plank', sets:3, reps:'40\u201360s', effort:'7' } ] }
+];
+function getProgramExtension(id){
+  return PROGRAM_EXTENSIONS.find(e => e.id === id) || null;
+}
+
+/* Which extensions a plan family may use. The home library is dumbbell /
+   bodyweight / band territory; gym-marked entries never reach it. */
+function extensionAllowedForPlan(ext, planId){
+  if(!ext) return false;
+  if(ext.gym && planId === 'home') return false;
+  return true;
+}
+
+/* ---------- THE COMPOSER ----------
+   One function turns (base template, entry recipe) into the session every
+   surface shows and the athlete actually trains. An entry with no recipe
+   composes to its base untouched \u2014 which is exactly what every pre-D35
+   program stores, so nothing saved before this phase changes shape. */
+function composeProgramSession(entry, base){
+  if(!base || !entry) return base;
+  const hasLead = Number.isInteger(entry.lead) && entry.lead > 0
+    && base.exercises && entry.lead < base.exercises.length;
+  const extIds = Array.isArray(entry.ext) ? entry.ext : [];
+  if(!hasLead && !extIds.length) return base;
+  let ex = (base.exercises || []).slice();
+  if(hasLead){
+    /* The emphasised movement opens the session; everything else keeps its
+       programmed order. */
+    ex = [ex[entry.lead]].concat(ex.slice(0, entry.lead)).concat(ex.slice(entry.lead + 1));
+  }
+  extIds.forEach(id => {
+    const x = getProgramExtension(id);
+    if(x) ex = ex.concat(x.exercises.map(e => Object.assign({ recommended:'\u2014' }, e)));
+  });
+  return Object.assign({}, base, { exercises: ex });
+}
+
 const BUILDER_GOALS = [
   { id:'hypertrophy', label:'Build Muscle',       note:'Moderate loads, higher volume' },
   { id:'strength',    label:'Get Stronger',       note:'Heavier loads, lower reps' },
@@ -23088,15 +23225,16 @@ function generateProgram(answers){
   const arrangement = builderArrangeDays(chosen, split);
 
   const simple = experienceId === 'new';   // fewer movements per session
-  const schedule = builderPickWeek(arrangement, planId, target, emphasisId, simple);
+  const lengthId = builderLength(a.sessionLength).id;
+  const schedule = builderComposeWeek(arrangement, planId, target, emphasisId, simple, lengthId);
 
   /* Whether the emphasis actually changed anything. The rationale says
      "extra chest work" ONLY when a balanced run of the same answers would
      have picked different sessions — before this, choosing an emphasis that
      changed nothing still claimed extra work that was never added. */
   const effective = emphasisId !== 'balanced'
-    && builderScheduleDiffers(schedule,
-         builderPickWeek(arrangement, planId, target, 'balanced', simple));
+    && builderEmphasisEffective(schedule,
+         builderComposeWeek(arrangement, planId, target, 'balanced', simple, lengthId), emphasisId);
 
   return {
     name: builderProgramName(Object.keys(arrangement).length, goalId, split),
@@ -23110,12 +23248,274 @@ function generateProgram(answers){
        the athlete's workouts — the round-trip is now the identity. */
     emphasis: emphasisId,
     sessionLength: a.sessionLength || 'standard',
+    /* Same disease, same cure as emphasis/sessionLength in D34: without the
+       experience id stored, the balanced-twin comparison and the edit
+       round-trip had to GUESS it from the live profile \u2014 and a beginner's
+       program could read as \"effective\" purely because the guess
+       disagreed with the answer that built it. */
+    experience: experienceId,
     /* Why this program looks the way it does, in the athlete's own terms.
        States what the program actually is — measured session minutes, not
        the requested bucket, which the library cannot always fill. */
     rationale: builderRationale({ days: Object.keys(arrangement).length,
       equipmentId, minutes: deriveSessionMinutes({ schedule }), emphasisId, effective })
   };
+}
+
+/* ---------- DEPTH ALLOCATION  (Phase D35) ----------
+   Session length is CAPACITY, not a quota. Short and standard sessions keep
+   the exact library baseline; 60\u201375 earns one extension slot and 75+ two,
+   spent on the athlete's emphasis first and on the week's least-covered
+   groups otherwise \u2014 and left unspent when the estimator says the session
+   would leave its band. Beginners stay lean (one slot, and only at four or
+   more days a week); two training days never get more than one. */
+function builderDepthBudget(lengthId, simple, trainingDays){
+  const base = ({ short:0, standard:0, long:1, extended:2 })[lengthId] || 0;
+  if(!base) return 0;
+  if(simple) return trainingDays >= 4 ? Math.min(base, 1) : 0;
+  if(trainingDays === 2) return Math.min(base, 1);
+  return base;
+}
+function builderDepthCap(lengthId){
+  return ({ short:45, standard:60, long:75, extended:88 })[lengthId] || 60;
+}
+
+/* Canonical-first attribution for the allocator's own bookkeeping. */
+function builderPrimariesOf(name){
+  try{
+    const id = resolveExerciseId(name);
+    const c = id ? getCanonicalExercise(id) : null;
+    if(c && c.primary && c.primary.length)
+      return c.primary.map(m => m === 'core' ? 'abs' : m);
+  }catch(e){}
+  const n = String(name).toLowerCase();
+  return Object.keys(MUSCLE_MAP).filter(g =>
+    MUSCLE_MAP[g].some(kw => n.indexOf(kw) !== -1));
+}
+
+/* The whole pipeline for one week: pick bases, then spend the depth budget.
+   Used by generation AND by every balanced-twin comparison, so \"effective\"
+   can never be an artefact of two different allocators. */
+function builderComposeWeek(arrangement, planId, target, emphasisId, simple, lengthId){
+  const schedule = builderPickWeek(arrangement, planId, target, emphasisId, simple);
+  builderRepairCoverage(schedule, planId, lengthId);
+  builderAllocateDepth(schedule, planId, emphasisId, simple, lengthId);
+  return schedule;
+}
+
+/* Selection chasing an emphasis could zero a major group for the whole week
+   \u2014 a 2-day chest week with no shoulder press at all. Repair swaps ONE
+   session to a sibling template that restores the missing group without
+   zeroing another. Deterministic: day order, then library order; both the
+   real week and the balanced twin pass through it, so it can never
+   manufacture a difference. */
+function builderRepairCoverage(schedule, planId, lengthId){
+  const days = PROGRAM_DAY_KEYS.filter(k => schedule[k] && schedule[k].type === 'workout');
+  if(days.length < 2) return;                 // one session cannot cover everything
+  /* Glutes are a major too — a legs emphasis was zeroing them. */
+  const MAJORS = ['chest','back','shoulders','quads','hamstrings','glutes'];
+  const cap = builderDepthCap(lengthId || 'standard');
+  const groupSets = tpl => {
+    const t = {};
+    ((tpl && tpl.exercises) || []).forEach(x => {
+      const sets = parseInt(x.sets, 10) || 3;
+      builderPrimariesOf(x.name).forEach(g => t[g] = (t[g] || 0) + sets);
+    });
+    return t;
+  };
+  for(let pass = 0; pass < 2; pass++){
+    const weekly = {};
+    days.forEach(k => { const t = groupSets(builderBaseTemplateOf(schedule[k]));
+      Object.keys(t).forEach(g => weekly[g] = (weekly[g] || 0) + t[g]); });
+    const missing = MAJORS.filter(g => !(weekly[g] > 0));
+    if(!missing.length) return;
+    let repaired = false;
+    missing.forEach(g => {
+      if(repaired) return;                    // one swap per pass keeps this auditable
+      for(const k of days){
+        const e = schedule[k];
+        const list = ((DEFAULT_PLANS[planId] || {}).templates || {})[e.category] || [];
+        const usedIds = days.map(d => schedule[d].templateId);
+        const cur = groupSets(builderBaseTemplateOf(e));
+        /* Among qualifying siblings, the SHORTEST that fits the session's
+           band — repair restores coverage, it never inflates the week. */
+        let pick = null, pickMins = Infinity;
+        for(const t of list){
+          if(usedIds.indexOf(t.id) !== -1) continue;
+          const tt = groupSets(t);
+          if(!(tt[g] > 0)) continue;
+          const zeroesAnother = MAJORS.some(m => (weekly[m] > 0)
+            && !((weekly[m] - (cur[m] || 0) + (tt[m] || 0)) > 0));
+          if(zeroesAnother) continue;
+          let mins = 0;
+          try{ mins = computeWorkoutDuration(t); }catch(err){}
+          if(mins > cap) continue;
+          if(mins < pickMins){ pick = t; pickMins = mins; }
+        }
+        if(pick){
+          schedule[k] = Object.assign({}, e, { templateId: pick.id });
+          repaired = true;
+          return;
+        }
+      }
+    });
+    if(!repaired) break;                      // single swaps are exhausted
+  }
+
+  /* Two-day fallback: try every unused pair outright. Deterministic — pairs
+     in library order; first pair that covers the most majors inside the
+     duration band wins, duration breaking ties. */
+  if(days.length === 2){
+    const weekly = {};
+    days.forEach(k => { const t = groupSets(builderBaseTemplateOf(schedule[k]));
+      Object.keys(t).forEach(g => weekly[g] = (weekly[g] || 0) + t[g]); });
+    if(MAJORS.every(g => weekly[g] > 0)) return;
+    const cats = days.map(k => schedule[k].category);
+    if(cats[0] !== cats[1]) return;           // pair search only makes sense same-category
+    const list = ((DEFAULT_PLANS[planId] || {}).templates || {})[cats[0]] || [];
+    let best = null;
+    for(let i = 0; i < list.length; i++) for(let j = 0; j < list.length; j++){
+      if(i === j) continue;
+      const g1 = groupSets(list[i]), g2 = groupSets(list[j]);
+      let m1 = 0, m2 = 0;
+      try{ m1 = computeWorkoutDuration(list[i]); m2 = computeWorkoutDuration(list[j]); }catch(e){}
+      if(m1 > cap || m2 > cap) continue;
+      const covered = MAJORS.filter(g => (g1[g] || 0) + (g2[g] || 0) > 0).length;
+      const key = -covered * 1000 + (m1 + m2);
+      if(!best || key < best.key) best = { key, i, j, covered };
+    }
+    if(best && best.covered > MAJORS.filter(g => weekly[g] > 0).length){
+      schedule[days[0]] = Object.assign({}, schedule[days[0]], { templateId: list[best.i].id });
+      schedule[days[1]] = Object.assign({}, schedule[days[1]], { templateId: list[best.j].id });
+    }
+  }
+}
+
+function builderAllocateDepth(schedule, planId, emphasisId, simple, lengthId){
+  const days = PROGRAM_DAY_KEYS.filter(k => schedule[k] && schedule[k].type === 'workout');
+  const budget = builderDepthBudget(lengthId, simple, days.length);
+  const cap = builderDepthCap(lengthId);
+  const emphGroups = builderEmphasisGroups(emphasisId);
+
+  /* Week-wide set counts per group, kept current as extensions land, so the
+     coverage picks chase the genuinely least-covered areas. */
+  const weekly = {};
+  const sessionNames = {};
+  const sessionCanon = {};       // canonical ids already in the session
+  const sessionMoves = {};       // [{pattern, primary}] per session, for redundancy
+  const canonOf = name => {
+    try{ const id = resolveExerciseId(name); return id ? getCanonicalExercise(id) : null; }
+    catch(e){ return null; }
+  };
+  days.forEach(k => {
+    const base = builderBaseTemplateOf(schedule[k]);
+    sessionNames[k] = {}; sessionCanon[k] = {}; sessionMoves[k] = [];
+    ((base && base.exercises) || []).forEach(x => {
+      sessionNames[k][String(x.name).toLowerCase()] = true;
+      const c = canonOf(x.name);
+      if(c){ sessionCanon[k][c.id] = true;
+        if(c.pattern) sessionMoves[k].push({ pattern: c.pattern, primary: c.primary || [] }); }
+      const sets = parseInt(x.sets, 10) || 3;
+      builderPrimariesOf(x.name).forEach(g => weekly[g] = (weekly[g] || 0) + sets);
+    });
+  });
+  const usedExt = {};
+
+  /* An extension is redundant for a session when the session already has
+     two movements of the same canonical pattern hitting the same primary
+     group \u2014 a third incline press is not depth, it is repetition. */
+  const redundantFor = (k, x) => x.exercises.some(e => {
+    const c = canonOf(e.name);
+    if(!c) return false;
+    if(sessionCanon[k][c.id]) return true;             // exact same exercise
+    if(!c.pattern) return false;
+    const same = sessionMoves[k].filter(m => m.pattern === c.pattern
+      && m.primary.some(g => (c.primary || []).indexOf(g) !== -1)).length;
+    return same >= 2;
+  });
+
+  days.forEach(k => {
+    const entry = schedule[k];
+    if(!budget) return;
+    const base = builderBaseTemplateOf(entry);
+    if(!base) return;
+    const chosen = [];
+    for(let slot = 0; slot < budget; slot++){
+      let best = null, bestKey = null;
+      PROGRAM_EXTENSIONS.forEach(x => {
+        if(usedExt[x.id]) return;                          // fresh work across the week
+        if(chosen.indexOf(x.id) !== -1) return;
+        if(x.slots.indexOf(entry.category) === -1) return;
+        if(!extensionAllowedForPlan(x, planId)) return;
+        if(x.exercises.some(e => sessionNames[k][String(e.name).toLowerCase()])) return;
+        if(redundantFor(k, x)) return;
+        const emphHit = emphGroups.length && x.groups.some(g => emphGroups.indexOf(g) !== -1);
+        const scarcity = Math.min.apply(null, x.groups.map(g => weekly[g] || 0));
+        /* Balance outranks specialization: a major group at ZERO weekly sets
+           claims the slot before any emphasis does. With one slot on a
+           two-day home week, that can honestly leave an arms emphasis
+           inert — which is the right answer. Then emphasis; then whatever
+           the week has least of; ties resolve by library order so the same
+           inputs always compose the same week. */
+        const ZMAJ = ['chest','back','shoulders','quads','hamstrings','glutes'];
+        const zeroFill = x.groups.some(g => ZMAJ.indexOf(g) !== -1 && !(weekly[g] > 0));
+        const key = (zeroFill ? 0 : (emphHit ? 1 : 2)) * 100000 + scarcity * 100 + PROGRAM_EXTENSIONS.indexOf(x);
+        if(best === null || key < bestKey){ best = x; bestKey = key; }
+      });
+      if(!best) break;
+      /* Capacity check with the one real estimator: if this extension pushes
+         the session past its band, the slot goes unspent. */
+      const trial = composeProgramSession({ ext: chosen.concat([best.id]) }, base);
+      let mins = 0;
+      try{ mins = computeWorkoutDuration(trial); }catch(e){}
+      if(mins > cap) break;
+      chosen.push(best.id);
+      usedExt[best.id] = true;
+      best.exercises.forEach(e => {
+        sessionNames[k][String(e.name).toLowerCase()] = true;
+        const c = canonOf(e.name);
+        if(c){ sessionCanon[k][c.id] = true;
+          if(c.pattern) sessionMoves[k].push({ pattern: c.pattern, primary: c.primary || [] }); }
+        const sets = parseInt(e.sets, 10) || 3;
+        builderPrimariesOf(e.name).forEach(g => weekly[g] = (weekly[g] || 0) + sets);
+      });
+    }
+    if(chosen.length) entry.ext = chosen;
+  });
+
+  /* Priority ordering: in the single session where the emphasis is already
+     strongest, its main movement opens the day. One session only \u2014 the
+     sibling keeps its own character, which is what keeps A and B
+     complementary. Beginners keep the library order untouched. */
+  if(emphGroups.length && !simple){
+    let bestDay = null, bestScore = -1;
+    days.forEach(k => {
+      const base = builderBaseTemplateOf(schedule[k]);
+      let score = 0;
+      ((base && base.exercises) || []).forEach(x => {
+        const prim = builderPrimariesOf(x.name);
+        if(prim.some(g => emphGroups.indexOf(g) !== -1)) score += parseInt(x.sets, 10) || 3;
+      });
+      if(score > bestScore){ bestScore = score; bestDay = k; }
+    });
+    if(bestDay && bestScore > 0){
+      const base = builderBaseTemplateOf(schedule[bestDay]);
+      const ex = (base && base.exercises) || [];
+      const isEmph = x => builderPrimariesOf(x.name).some(g => emphGroups.indexOf(g) !== -1);
+      const mainish = x => {
+        try{
+          const id = resolveExerciseId(x.name);
+          const c = id ? getCanonicalExercise(id) : null;
+          return !!(c && c.pattern && /push|pull|squat|hinge/.test(c.pattern));
+        }catch(e){ return false; }
+      };
+      if(ex.length && !isEmph(ex[0])){
+        for(let i = 1; i < ex.length; i++){
+          if(isEmph(ex[i]) && mainish(ex[i])){ schedule[bestDay].lead = i; break; }
+        }
+      }
+    }
+  }
 }
 
 /* One pick loop, used for the real program and for the balanced twin the
@@ -23132,10 +23532,36 @@ function builderPickWeek(arrangement, planId, target, emphasisId, simple){
   });
   return schedule;
 }
+/* Composed canonical sets for a group list, over a whole week. */
+function builderEmphasisSetsOf(schedule, groups){
+  if(!groups || !groups.length) return 0;
+  let n = 0;
+  PROGRAM_DAY_KEYS.forEach(k => {
+    const t = builderTemplateOf(schedule[k]);
+    ((t && t.exercises) || []).forEach(x => {
+      const prim = builderPrimariesOf(x.name);
+      if(prim.some(g => groups.indexOf(g) !== -1)) n += parseInt(x.sets, 10) || 3;
+    });
+  });
+  return n;
+}
+
+function builderEmphasisEffective(schedule, twin, emphasisId){
+  if(!builderScheduleDiffers(schedule, twin)) return false;
+  const groups = builderEmphasisGroups(emphasisId);
+  /* The claim is \"extra\" — so the emphasized week must actually carry at
+     least as much of its own emphasis as the balanced one. */
+  return builderEmphasisSetsOf(schedule, groups) >= builderEmphasisSetsOf(twin, groups);
+}
+
 function builderScheduleDiffers(a, b){
   return PROGRAM_DAY_KEYS.some(k => {
     const x = a[k] || {}, y = b[k] || {};
-    return (x.templateId || null) !== (y.templateId || null);
+    if((x.templateId || null) !== (y.templateId || null)) return true;
+    /* D35 \u2014 a different extension or a different opening movement is a
+       different session, and only real recipe differences count. */
+    if((x.ext || []).join(',') !== (y.ext || []).join(',')) return true;
+    return (Number.isInteger(x.lead) ? x.lead : 0) !== (Number.isInteger(y.lead) ? y.lead : 0);
   });
 }
 
@@ -23197,12 +23623,30 @@ function auditGeneratedProgram(def){
     return !/[a-z]/.test(before) && !/[a-z]/.test(after);
   }));
 
+  /* Canonical movement patterns first (D35): the registry says what a lift
+     IS; the keyword lists only catch names it does not know, and they are
+     the constrained fallback the poison fixtures test. */
   const PATTERNS = {
     press: ['press','push-up','push up','dip','bench'],
     pull:  ['row','pulldown','pull-up','pull up','chin','pullover'],
     squat: ['squat','leg press','lunge','step-up','hack'],
     hinge: ['deadlift','rdl','romanian','hip thrust','glute','bridge','leg curl','good morning']
   };
+  const canonPatterns = (() => {
+    const found = {};
+    names.forEach(n => {
+      try{
+        const id = resolveExerciseId(n);
+        const c = id ? getCanonicalExercise(id) : null;
+        if(!c || !c.pattern) return;
+        if(/push/.test(c.pattern)) found.press = true;
+        if(/pull|row/.test(c.pattern)) found.pull = true;
+        if(/squat|lunge|knee/.test(c.pattern)) found.squat = true;
+        if(/hinge|hip/.test(c.pattern)) found.hinge = true;
+      }catch(e){}
+    });
+    return found;
+  })();
 
   if(days.length >= 3){
     /* Direct work expected for the prime movers. */
@@ -23210,22 +23654,22 @@ function auditGeneratedProgram(def){
       if(MUSCLE_MAP[g] && !hits(g)) problems.push({ code:'gap', text:'No ' + g + ' work this week' });
     });
     /* The posterior chain counts as covered by hamstrings OR glutes OR a hinge. */
-    if(!hits('hamstrings') && !hits('glutes') && !anyOf(PATTERNS.hinge)){
+    if(!hits('hamstrings') && !hits('glutes') && !canonPatterns.hinge && !anyOf(PATTERNS.hinge)){
       problems.push({ code:'gap', text:'No posterior chain work this week' });
     }
     /* Arms and shoulders: direct work, or the compounds that train them. */
-    if(!hits('triceps') && !anyOf(PATTERNS.press)){
+    if(!hits('triceps') && !canonPatterns.press && !anyOf(PATTERNS.press)){
       problems.push({ code:'gap', text:'No pressing or triceps work this week' });
     }
-    if(!hits('biceps') && !anyOf(PATTERNS.pull)){
+    if(!hits('biceps') && !canonPatterns.pull && !anyOf(PATTERNS.pull)){
       problems.push({ code:'gap', text:'No pulling or biceps work this week' });
     }
-    if(!hits('shoulders') && !anyOf(PATTERNS.press)){
+    if(!hits('shoulders') && !canonPatterns.press && !anyOf(PATTERNS.press)){
       problems.push({ code:'gap', text:'No shoulder work this week' });
     }
     /* And the patterns themselves must all appear somewhere in the week. */
     Object.keys(PATTERNS).forEach(pat => {
-      if(!anyOf(PATTERNS[pat])) problems.push({ code:'pattern', text:'No ' + pat + ' movement this week' });
+      if(!canonPatterns[pat] && !anyOf(PATTERNS[pat])) problems.push({ code:'pattern', text:'No ' + pat + ' movement this week' });
     });
   }
 
@@ -23252,6 +23696,15 @@ function auditGeneratedProgram(def){
 }
 
 function builderTemplateOf(entry){
+  if(!entry || entry.type !== 'workout') return null;
+  const list = ((DEFAULT_PLANS[entry.planId] || {}).templates || {})[entry.category] || [];
+  const base = list.find(t => t.id === entry.templateId) || null;
+  return composeProgramSession(entry, base);
+}
+
+/* The bare library template, for the allocator \u2014 which must measure the
+   base before deciding what the recipe adds. */
+function builderBaseTemplateOf(entry){
   if(!entry || entry.type !== 'workout') return null;
   const list = ((DEFAULT_PLANS[entry.planId] || {}).templates || {})[entry.category] || [];
   return list.find(t => t.id === entry.templateId) || null;
@@ -23333,6 +23786,7 @@ function openProgramBuilderFlow(mode){
        swapped the athlete's workouts. */
     answers.emphasis = existing.emphasis || answers.emphasis;
     answers.sessionLength = existing.sessionLength || answers.sessionLength;
+    answers.experience = existing.experience || answers.experience;
     answers.days = PROGRAM_DAY_KEYS.filter(k => existing.schedule[k] && existing.schedule[k].type === 'workout');
     answers.frequency = answers.days.length;
     delete known.goal;                         // still offer to change it
@@ -23640,13 +24094,13 @@ async function pbCommit(btn){
     result = updateProgram(pbState.editingId, {
       name: def.name, goal: def.goal, durationWeeks: def.durationWeeks,
       schedule: def.schedule, blocks: def.blocks,
-      emphasis: def.emphasis, sessionLength: def.sessionLength
+      emphasis: def.emphasis, sessionLength: def.sessionLength, experience: def.experience
     });
   } else {
     result = createProgram({
       name: def.name, goal: def.goal, durationWeeks: def.durationWeeks,
       schedule: def.schedule, blocks: def.blocks, startDate: def.startDate,
-      emphasis: def.emphasis, sessionLength: def.sessionLength
+      emphasis: def.emphasis, sessionLength: def.sessionLength, experience: def.experience
     });
   }
 
@@ -24073,10 +24527,12 @@ function deriveEmphasisInfo(def){
       if(e && e.type === 'workout'){ arrangement[k] = e.category; planId = e.planId; }
     });
     if(planId){
-      const target = builderLength(def.sessionLength).mid;
-      const simple = !!(athleteProfile && athleteProfile.experience === 'new');
-      const twin = builderPickWeek(arrangement, planId, target, 'balanced', simple);
-      effective = builderScheduleDiffers(def.schedule, twin);
+      const len = builderLength(def.sessionLength);
+      /* The stored id, never a guess from the live profile. */
+      const simple = def.experience ? def.experience === 'new'
+        : !!(athleteProfile && athleteProfile.experience === 'new');
+      const twin = builderComposeWeek(arrangement, planId, len.mid, 'balanced', simple, len.id);
+      effective = builderEmphasisEffective(def.schedule, twin, id);
     }
   }catch(e){}
   return { id, label: em.label, where, effective };
@@ -24222,7 +24678,17 @@ function deriveExerciseGroups(tpl){
   const MAINISH = ['squat','press','row','deadlift','pulldown','pull-up','pull up','dip','lunge','hip thrust','rdl'];
   const FINISHISH = ['curl','raise','fly','extension','crunch','plank','pushdown','shrug','calf',
     'woodchop','twist','side bend','pallof','kickback','sit-up','leg raise','mountain climber'];
-  const kind = x => { const n = String(x.name).toLowerCase();
+  const kind = x => {
+    /* The registry's pattern outranks any keyword guess. */
+    try{
+      const id = resolveExerciseId(x.name);
+      const c = id ? getCanonicalExercise(id) : null;
+      if(c && c.pattern){
+        if(/push|pull|squat|hinge|row/.test(c.pattern)) return 'main';
+        if(/isolation|carry|core/.test(c.pattern)) return 'finish';
+      }
+    }catch(e){}
+    const n = String(x.name).toLowerCase();
     if(MAINISH.some(w => n.indexOf(w) !== -1) && !FINISHISH.some(w => n.indexOf(w) !== -1)) return 'main';
     if(FINISHISH.some(w => n.indexOf(w) !== -1)) return 'finish';
     return 'mid'; };
@@ -28037,7 +28503,17 @@ async function confirmOverwriteDraft(){
 async function startTemplateLog(cat, tplId){
   if(!(await confirmOverwriteDraft())) return;
 
-  const planned = getTemplates(cat).find(t => t.id === tplId);
+  let planned = getTemplates(cat).find(t => t.id === tplId);
+  /* D35 \u2014 if the active program scheduled exactly this workout today, the
+     session it composed (base + any depth recipe) is the one to train.
+     Shown and trained can never disagree. Picking a different template from
+     the picker still starts the plain library version, as before. */
+  try{
+    const prog = getProgramWorkoutForDate(localDateStr());
+    if(prog && prog.template && prog.category === cat && prog.template.id === tplId){
+      planned = prog.template;
+    }
+  }catch(e){}
   if(!planned) return;
   /* Time Mode works on a COPY. The saved template keeps every exercise and
      set it was programmed with, whatever the athlete picked for today. */

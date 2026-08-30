@@ -4132,3 +4132,78 @@ trainer isolation. Contract 132's fixed-length isolation windows became
 marker-bounded so region growth can never silently shrink their coverage.
 
 5,045 passing. Trainer `0.1.1-shadow`, untouched.
+
+## §58 — Session depth & personalization (D35, loop-v105)
+
+The library gained COMPOSITIONAL depth rather than more templates. A schedule
+entry may carry a recipe — extension ids and a lead index — and one composer
+turns (base template + recipe) into the session every surface shows and the
+athlete actually trains. Extensions are references into a 22-entry curated
+list (`PROGRAM_EXTENSIONS`), exactly as `templateId` references the plan
+library: no copies, no persisted analysis, ids only. An entry without a recipe
+composes to its exact base, so every pre-D35 program renders, edits and trains
+unchanged — no boot migration, ever.
+
+**Session length is capacity, not a quota.** Short and standard weeks keep the
+exact library baseline (asserted). 60–75 earns one extension slot per session,
+75+ two — spent on the athlete's emphasis first and the week's least-covered
+groups otherwise, and left unspent when the estimator says the session would
+leave its band. Beginners cap at one slot and only at 4+ days; two-day weeks
+cap at one. Before: 45–60/60–75/75+ produced structurally identical programs
+in 234/240 combos and 75+ NEVER differed from 60–75. After: 32/240 identical
+(intentional plateaus included), 208/240 length-responsive, monotonicity
+0 violations across the full matrix. Emphasis effectiveness rose from
+2,442/5,760 (42%) to 3,533 (61%), with the 2,227 inert cases concentrated
+exactly where the classification says they belong: 2–3 day weeks, short and
+standard sessions, and beginners.
+
+**Balance outranks specialization.** Three rules keep an emphasis from
+damaging the program, all shared by generation and every balanced-twin
+comparison so "effective" can never be a pipeline artefact:
+
+- *Coverage repair*: template selection may never zero a major group
+  (chest/back/shoulders/quads/hamstrings/glutes) for the week. Repair swaps
+  one session to the shortest qualifying sibling inside the duration band;
+  two-day same-category weeks get an exhaustive six-pair search.
+- *Zero-fill priority*: an extension slot goes to a major group at zero weekly
+  sets before any emphasis — which honestly leaves a home two-day arms
+  emphasis inert, the right answer.
+- *Directional effectiveness*: "extra X work" now additionally requires the
+  emphasized week to carry at least as many canonical sets for X as the
+  balanced twin. Different-but-worse never claims extra.
+
+**Defects found by the new pins, all fixed with the pin as regression:**
+three extension entries lied about home equipment against the registry
+(Rear Delt Fly→Machine, Overhead Triceps Extension→Cable, Glute Bridge→
+Barbell); the derive-side balanced twin GUESSED experience from the live
+profile while generation used the answer, producing phantom "effective"
+beginners — `experience` now persists beside `emphasis`/`sessionLength` (same
+disease, same cure as D34's edit bug); chest emphasis on two-day weeks zeroed
+shoulders; coverage repair initially ignored duration caps and inflated a
+short week to 85 minutes; and a legs emphasis could end with FEWER leg sets
+than balanced after glute repair, which the directional rule now converts to
+honest inert.
+
+**Substring semantics retired from program logic (§24).** The weekly guardrail
+and Main/Build/Finish grouping read canonical `pattern` first; the emphasis
+scorer and allocator attribute through canonical `primary`. Keyword lists
+remain only as the constrained fallback for uncataloged names, pinned by the
+poison fixtures.
+
+**Shown = trained.** `resolveProgramWorkout` and `builderTemplateOf` both
+compose; `startTemplateLog` resolves through `getProgramWorkoutForDate` when
+today's program session is the one being started — verified end to end in the
+browser: all ten composed exercises, extensions included, appear as live log
+rows.
+
+**What's New is now a release requirement.** `LOOP_UPDATES` gained v2-8
+("LOOP 2.8 — Deeper Programs"), and its `swVersion` field must equal sw.js's
+`CACHE_VERSION` — Contract 134 makes shipping a version without its release
+note a test failure, permanently.
+
+Validation: `npm run audit:program` grew to 149 checks with human-readable
+failure reasons (PHANTOM/DURATION COLLAPSE/EMPHASIS DESTROYED COVERAGE/
+SESSION OVER BAND…), 100-repeat byte-determinism, full-matrix monotonicity,
+canonical-duplicate and equipment sweeps, and the §58 fixtures asserted on
+their load-bearing properties. Contract 134 adds 22 always-on guards.
+5,067 passing. Generation ~0.8ms. Trainer `0.1.1-shadow`, untouched.

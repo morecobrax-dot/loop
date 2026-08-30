@@ -499,8 +499,11 @@ function oracleTemplate(ctx, entry) {
                 const arrangement = {}; let planId = null;
                 DAYS.forEach(k => { const e = def.schedule[k];
                   if (e && e.type === 'workout'){ arrangement[k] = e.category; planId = e.planId; } });
-                const twinSched = ctx.builderPickWeek(arrangement, planId,
-                  ctx.builderLength('standard').mid, 'balanced', experience === 'new');
+                /* The twin must be built by the SAME pipeline as production
+                   (repair + depth included), or repair-driven differences
+                   read as false claims. */
+                const twinSched = ctx.builderComposeWeek(arrangement, planId,
+                  ctx.builderLength('standard').mid, 'balanced', experience === 'new', 'standard');
                 const groups = ({ chest:['chest'], back:['back'], shoulders:['shoulders'],
                   arms:['biceps','triceps'], legs:['quads','hamstrings'], glutes:['glutes'] })[emphasis] || [];
                 const total = sched => DAYS.reduce((n, k) => {
@@ -614,6 +617,259 @@ function oracleTemplate(ctx, entry) {
       ctx.deriveWeekContext(d, 3);
     }
     ok('deriving an explanation writes nothing', JSON.stringify(app.store) === before);
+  }
+
+  /* ---------- 14. SESSION DEPTH & PERSONALIZATION  (Phase D35) ----------
+     The library gained compositional depth: 60\u201375 earns one extension
+     slot, 75+ two, spent on emphasis first and least-covered groups
+     otherwise. Every pin here reports WHY it failed, so a red run reads as
+     an engineering diagnosis rather than a number. */
+  section('14. Session depth and personalization (D35)');
+
+  const compSig = d => DAYS.map(k => { const e = d.schedule[k];
+    if (!e || e.type !== 'workout') return '-';
+    return e.templateId + '+' + (e.ext || []).join('.') + '+' + (e.lead || 0); }).join('|');
+  const composedMinutes = d => DAYS.reduce((n, k) => {
+    const t = ctx.builderTemplateOf(d.schedule[k]);
+    return n + (t ? ctx.computeWorkoutDuration(t) : 0); }, 0);
+  const composedNames = d => { const out = [];
+    DAYS.forEach(k => { const t = ctx.builderTemplateOf(d.schedule[k]);
+      if (t) out.push(t.exercises.map(x => x.name).join(',')); });
+    return out.join('|'); };
+
+  /* Every extension entry must be sound on its own. */
+  {
+    const bad = [];
+    const HOME_OK = { Dumbbell:1, Bodyweight:1, Band:1, Kettlebell:1 };
+    ctx.PROGRAM_EXTENSIONS.forEach(x => {
+      if (!x.id || !x.groups.length || !x.slots.length) bad.push(x.id + ': malformed');
+      x.exercises.forEach(e => {
+        let c = null;
+        try{ const id = ctx.resolveExerciseId(e.name); c = id ? ctx.getCanonicalExercise(id) : null; }catch(err){}
+        if (c && c.primary && c.primary.length){
+          const prim = c.primary.map(m => m === 'core' ? 'abs' : m);
+          if (!x.groups.some(g => prim.indexOf(g) !== -1))
+            bad.push(x.id + ': declared ' + x.groups + ' but canonical says ' + prim);
+          if (!x.gym && c.equipment && !HOME_OK[c.equipment])
+            bad.push(x.id + ': marked home-safe but needs ' + c.equipment);
+        } else {
+          /* Uncataloged: the constrained keyword fallback must at least agree
+             with the declared groups. */
+          const n = String(e.name).toLowerCase();
+          const kw = Object.keys(ctx.MUSCLE_MAP).filter(g =>
+            ctx.MUSCLE_MAP[g].some(w => n.indexOf(w) !== -1));
+          if (!x.groups.some(g => kw.indexOf(g) !== -1))
+            bad.push(x.id + ': unresolvable and keywords disagree (' + kw + ')');
+        }
+      });
+    });
+    ok('every extension is canonical-consistent and equipment-honest', bad.length === 0,
+      bad.slice(0, 4).join(' | '));
+  }
+
+  /* Determinism: same inputs, byte-identical program, 100 times. */
+  {
+    const cases = [
+      { emphasis:'chest', sessionLength:'extended', days:['mon','tue','thu','fri'], weeks:8, equipment:'full' },
+      { emphasis:'arms', sessionLength:'long', days:['mon','tue','wed','fri','sat'], weeks:6, equipment:'home', experience:'experienced' },
+      { emphasis:'balanced', sessionLength:'short', days:['mon','thu'], weeks:4, equipment:'minimal', experience:'new' }
+    ];
+    let stable = true, which = '';
+    cases.forEach(a => {
+      const first = JSON.stringify(ctx.generateProgram(a).schedule);
+      for (let i = 0; i < 100; i++){
+        if (JSON.stringify(ctx.generateProgram(a).schedule) !== first){
+          stable = false; which = JSON.stringify(a); break;
+        }
+      }
+    });
+    ok('generation is byte-identical across 100 repeats', stable, which);
+  }
+
+  /* Monotonicity + duration behaviour across the full combo space. */
+  {
+    let monoBad = [], allSame = 0, stdLongSame = 0, longExtSame = 0, combos = 0;
+    let overCap = [];
+    const CAPS = { short:45, standard:60, long:75, extended:88 };
+    goals.forEach(goal => exps.forEach(experience => equips.forEach(equipment =>
+      freqs.forEach(frequency => {
+        const days = ctx.builderDefaultDays(frequency);
+        const four = ['short','standard','long','extended'].map(sessionLength => ({
+          sessionLength,
+          def: ctx.generateProgram({ goal, experience, equipment, emphasis:'balanced', sessionLength, weeks:6, days })
+        }));
+        combos++;
+        const sigs = four.map(x => compSig(x.def));
+        const mins = four.map(x => composedMinutes(x.def));
+        if (new Set(sigs).size === 1) allSame++;
+        if (sigs[1] === sigs[2]) stdLongSame++;
+        if (sigs[2] === sigs[3]) longExtSame++;
+        for (let i = 1; i < 4; i++) if (mins[i] < mins[i-1] - 0.01 && monoBad.length < 3)
+          monoBad.push('SHORTER REQUEST GOT MORE WORK: ' + [goal,experience,equipment,frequency].join('/')
+            + ' ' + four[i-1].sessionLength + '=' + mins[i-1] + ' > ' + four[i].sessionLength + '=' + mins[i]);
+        four.forEach(x => {
+          DAYS.forEach(k => {
+            const t = ctx.builderTemplateOf(x.def.schedule[k]);
+            if (!t) return;
+            const m = ctx.computeWorkoutDuration(t);
+            if (m > CAPS[x.sessionLength] && overCap.length < 3)
+              overCap.push('SESSION OVER BAND: ' + m + 'min for ' + x.sessionLength + ' ('
+                + [goal,experience,equipment,frequency,k].join('/') + ')');
+          });
+        });
+      }))));
+    ok('a shorter request never generates more work', monoBad.length === 0, monoBad.join(' || '));
+    ok('no session exceeds its duration band', overCap.length === 0, overCap.join(' || '));
+    ok('45\u201360 vs 60\u201375 no longer collapse wholesale', stdLongSame < combos * 0.35,
+      'DURATION COLLAPSE: ' + stdLongSame + '/' + combos + ' identical');
+    console.log('    duration: all-four-identical ' + allSame + '/' + combos
+      + ', std=60-75 ' + stdLongSame + ', 60-75=75+ ' + longExtSame + ' (intentional plateaus included)');
+  }
+
+  /* Phantom personalization: an \"effective\" emphasis must change the actual
+     composed movements or the opening exercise \u2014 metadata differences do
+     not count. Balance: no major group a balanced week trains may collapse
+     to zero under an emphasis. */
+  {
+    let phantom = [], collapsed = [], effective = 0, inert = 0;
+    const emphList = ['chest','back','shoulders','arms','legs','glutes'];
+    exps.forEach(experience => equips.forEach(equipment =>
+      emphList.forEach(emphasis => ['standard','long','extended'].forEach(sessionLength =>
+        freqs.forEach(frequency => {
+          const days = ctx.builderDefaultDays(frequency);
+          const a = ctx.generateProgram({ goal:'hypertrophy', experience, equipment, emphasis, sessionLength, weeks:6, days });
+          const b = ctx.generateProgram({ goal:'hypertrophy', experience, equipment, emphasis:'balanced', sessionLength, weeks:6, days });
+          const expl = ctx.deriveProgramExplanation(a);
+          const isEff = !!(expl.emphasis && expl.emphasis.effective);
+          if (isEff) effective++; else inert++;
+          if (isEff){
+            const namesDiffer = composedNames(a) !== composedNames(b);
+            const firstDiffer = DAYS.some(k => {
+              const ta = ctx.builderTemplateOf(a.schedule[k]), tb = ctx.builderTemplateOf(b.schedule[k]);
+              return ta && tb && ta.exercises[0].name !== tb.exercises[0].name;
+            });
+            if (!namesDiffer && !firstDiffer && phantom.length < 3)
+              phantom.push('PHANTOM: ' + [emphasis,experience,equipment,sessionLength,frequency].join('/')
+                + ' claimed effective with identical composition');
+            /* Balance guard. */
+            const tally = def => { const t = {};
+              DAYS.forEach(k => { const tpl = ctx.builderTemplateOf(def.schedule[k]);
+                ((tpl && tpl.exercises) || []).forEach(x => {
+                  ctx.builderPrimariesOf(x.name).forEach(g => t[g] = (t[g] || 0) + (parseInt(x.sets,10) || 3)); }); });
+              return t; };
+            const ta = tally(a), tb = tally(b);
+            ['chest','back','shoulders','quads','hamstrings','glutes'].forEach(g => {
+              if ((tb[g] || 0) > 0 && (ta[g] || 0) === 0 && collapsed.length < 3)
+                collapsed.push('EMPHASIS DESTROYED COVERAGE: ' + emphasis + ' zeroed ' + g
+                  + ' (' + [experience,equipment,sessionLength,frequency].join('/') + ')');
+            });
+          }
+        })))));
+    ok('no phantom personalization \u2014 every effective emphasis changes real movements',
+      phantom.length === 0, phantom.join(' || '));
+    ok('emphasis never zeroes a group the balanced week trains', collapsed.length === 0,
+      collapsed.join(' || '));
+    console.log('    hypertrophy sweep: effective=' + effective + ', inert=' + inert
+      + ' (short sessions and low-frequency beginners stay inert by design)');
+  }
+
+  /* Composed weeks: no duplicate canonical exercise inside one session, no
+     equipment violation, and the consecutive-day rule holds after depth. */
+  {
+    let dup = [], equipBad = [], adj = [];
+    const HOME_OK = { Dumbbell:1, Bodyweight:1, Band:1, Kettlebell:1 };
+    exps.forEach(experience => equips.forEach(equipment =>
+      ['chest','arms','glutes','balanced'].forEach(emphasis =>
+        ['long','extended'].forEach(sessionLength => freqs.forEach(frequency => {
+          const days = ctx.builderDefaultDays(frequency);
+          const def = ctx.generateProgram({ experience, equipment, emphasis, sessionLength, weeks:6, days });
+          DAYS.forEach(k => {
+            const e = def.schedule[k];
+            const t = ctx.builderTemplateOf(e);
+            if (!t) return;
+            const seen = {};
+            t.exercises.forEach(x => {
+              let cid = null, c = null;
+              try{ cid = ctx.resolveExerciseId(x.name); c = cid ? ctx.getCanonicalExercise(cid) : null; }catch(err){}
+              const key = cid || String(x.name).toLowerCase();
+              if (seen[key] && dup.length < 3)
+                dup.push('DUPLICATE IN SESSION: ' + x.name + ' twice in ' + t.name
+                  + ' (' + [experience,equipment,emphasis,sessionLength,frequency].join('/') + ')');
+              seen[key] = true;
+              if (equipment === 'home' || equipment === 'dumbbells' || equipment === 'minimal'){
+                if ((e.ext || []).length && c && c.equipment && !HOME_OK[c.equipment]){
+                  /* Only extensions are new; base templates are curated per plan. */
+                  const isExt = (e.ext || []).some(id => {
+                    const xt = ctx.getProgramExtension(id);
+                    return xt && xt.exercises.some(z => z.name === x.name);
+                  });
+                  if (isExt && equipBad.length < 3)
+                    equipBad.push('EQUIPMENT VIOLATION: ' + x.name + ' (' + c.equipment + ') in home program');
+                }
+              }
+            });
+          });
+          for (let i = 0; i < 7; i++){
+            const a = def.schedule[DAYS[i]], b = def.schedule[DAYS[(i+1)%7]];
+            if (a && b && a.type === 'workout' && b.type === 'workout'
+              && a.category === b.category && adj.length < 3)
+              adj.push('ADJACENT REPEAT: ' + a.category + ' twice running ('
+                + [experience,equipment,emphasis,sessionLength,frequency].join('/') + ')');
+          }
+        })))));
+    ok('no composed session repeats a canonical exercise', dup.length === 0, dup.join(' || '));
+    ok('extensions never violate the equipment family', equipBad.length === 0, equipBad.join(' || '));
+    ok('fatigue alternation survives depth', adj.length === 0, adj.join(' || '));
+  }
+
+  /* Legacy identity: an entry with no recipe composes to its base, so every
+     pre-D35 program renders and trains exactly as it did. */
+  {
+    const entry = { type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' };
+    const base = ctx.builderBaseTemplateOf(entry);
+    const composed = ctx.builderTemplateOf(entry);
+    ok('a recipe-less entry composes to its exact base', composed === base
+      || JSON.stringify(composed) === JSON.stringify(base));
+  }
+
+  /* The \u00a758 fixtures, asserted on their load-bearing properties. */
+  {
+    const fix = (label, a, checks) => {
+      const def = ctx.generateProgram(Object.assign({ weeks:6, days: ctx.builderDefaultDays(a.frequency) }, a));
+      const expl = ctx.deriveProgramExplanation(def);
+      checks(def, expl, label);
+    };
+    fix('beginner 3d standard', { experience:'new', frequency:3, goal:'hypertrophy', sessionLength:'standard', emphasis:'balanced', equipment:'full' },
+      (def) => ok('beginner standard week carries no extensions',
+        DAYS.every(k => !(def.schedule[k] || {}).ext), 'beginner got depth it should not have'));
+    fix('intermediate 4d 60-75 chest', { experience:'intermediate', frequency:4, goal:'hypertrophy', sessionLength:'long', emphasis:'chest', equipment:'full' },
+      (def, expl) => {
+        ok('4-day 60\u201375 chest is effective', !!(expl.emphasis && expl.emphasis.effective));
+        ok('its sessions stay inside the 60\u201375 band', DAYS.every(k => {
+          const t = ctx.builderTemplateOf(def.schedule[k]);
+          return !t || ctx.computeWorkoutDuration(t) <= 75; }));
+      });
+    fix('experienced 5d 75+ arms', { experience:'experienced', frequency:5, goal:'hypertrophy', sessionLength:'extended', emphasis:'arms', equipment:'full' },
+      (def, expl) => {
+        const armDays = DAYS.filter(k => ((def.schedule[k] || {}).ext || []).some(id => {
+          const x = ctx.getProgramExtension(id);
+          return x && x.groups.some(g => g === 'biceps' || g === 'triceps');
+        })).length;
+        ok('75+ arms puts direct arm work on multiple days', armDays >= 2,
+          'ARM EMPHASIS THIN: only ' + armDays + ' day(s) gained arm extensions');
+        ok('and it reads as effective', !!(expl.emphasis && expl.emphasis.effective));
+      });
+    fix('beginner 2d short glutes', { experience:'new', frequency:2, goal:'general', sessionLength:'short', emphasis:'glutes', equipment:'full' },
+      (def) => ok('a 2-day short beginner week stays lean',
+        DAYS.every(k => !(def.schedule[k] || {}).ext && !(def.schedule[k] || {}).lead),
+        'short beginner program gained depth'));
+    fix('experienced 6d 60-75 shoulders', { experience:'experienced', frequency:6, goal:'hypertrophy', sessionLength:'long', emphasis:'shoulders', equipment:'full' },
+      (def, expl) => {
+        const leads = DAYS.filter(k => Number.isInteger((def.schedule[k] || {}).lead)).length;
+        ok('priority ordering stays surgical: at most one led session', leads <= 1,
+          leads + ' sessions were reordered');
+        ok('6-day shoulders is effective', !!(expl.emphasis && expl.emphasis.effective));
+      });
   }
 
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */
