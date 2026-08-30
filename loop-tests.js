@@ -14532,6 +14532,148 @@ async function testDataIntegrityD31(){
     String(ctx.TRAINER_ENGINE_VERSION));
 }
 
+/* =========================================================
+   CONTRACT 130 — date boundaries (D31.1)
+   ---------------------------------------------------------
+   The full sweep runs under seven real timezones in
+   loop-date-audit.js (`npm run audit:dates`), which the
+   shipping app never loads. These are the behavioural
+   regressions worth keeping in the always-on suite: the rules
+   that must hold whatever zone the machine is in.
+
+   The audit found NO production defect, so no production code
+   changed. What follows guards the behaviour that was proven.
+   ========================================================= */
+async function testDateBoundaries(){
+  section('CONTRACT 130 — date boundaries (D31.1)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  /* Independent oracle: the Monday of a date computed from its PARTS, with no
+     Date-object timezone involved, so agreement is two implementations
+     agreeing rather than one being called twice. */
+  const oracleMonday = ymd => {
+    const [y,m,d] = ymd.split('-').map(Number);
+    const dow = new Date(Date.UTC(y, m-1, d)).getUTCDay();
+    const t = Date.UTC(y, m-1, d) - ((dow + 6) % 7) * 86400000;
+    const dt = new Date(t);
+    return dt.getUTCFullYear() + '-' + String(dt.getUTCMonth()+1).padStart(2,'0') +
+           '-' + String(dt.getUTCDate()).padStart(2,'0');
+  };
+  const withClock = (iso, fn) => {
+    const Real = ctx.Date;
+    const fixed = new Real(iso).getTime();
+    function Fake(...a){ return a.length ? new Real(...a) : new Real(fixed); }
+    Fake.prototype = Real.prototype; Fake.now = () => fixed;
+    Fake.UTC = Real.UTC; Fake.parse = Real.parse;
+    ctx.Date = Fake;
+    try{ return fn(); } finally { ctx.Date = Real; }
+  };
+  const SET = (w,r) => ({ weight:String(w), reps:String(r), rir:'2', type:'working', completed:true });
+  const WK = (id, ymd) => ({ id, date:ymd, category:'push', title:'S', notes:'',
+    exercises:[{ name:'Bench Press', bodyweight:false, sets:[SET(135,10), SET(135,8)] }] });
+  const clear = () => ['invalidateSortedLogCache','invalidateXPTimelineCache',
+    'invalidateConsistencyCache','invalidateAllMasteryCaches','invalidateCapabilityCache',
+    'invalidateContextCache'].forEach(f => { try{ ctx[f] && ctx[f](); }catch(e){} });
+
+  sub('the local day key is built from local parts, never from UTC');
+  T('localDateStr uses getFullYear/getMonth/getDate', (() => {
+    const i = src.indexOf('function localDateStr');
+    const fn = src.slice(i, i + 260);
+    return /getFullYear\(\)/.test(fn) && /getMonth\(\)\+1/.test(fn) && /getDate\(\)/.test(fn) &&
+      !/toISOString/.test(fn);
+  })());
+  T('and weekStartKey formats the same way', (() => {
+    const i = src.indexOf('function weekStartKey');
+    const fn = src.slice(i, i + 420);
+    return /getFullYear\(\)/.test(fn) && !/toISOString/.test(fn);
+  })());
+  T('date strings are parsed at local midnight, not as bare UTC dates',
+    (src.match(/\+ 'T00:00:00'/g) || []).length > 30);
+
+  sub('week keys agree with an independent calendar oracle');
+  {
+    const dates = ['2026-03-07','2026-03-08','2026-03-09','2026-10-25','2026-10-26',
+                   '2026-11-01','2026-12-31','2027-01-01','2028-02-29','2026-08-31'];
+    const bad = dates.filter(d => ctx.weekStartKey(d) !== oracleMonday(d));
+    T('every boundary date resolves to the true Monday', bad.length === 0, bad.join(','));
+    T('a week spanning December and January is one week',
+      ctx.weekStartKey('2026-12-31') === ctx.weekStartKey('2027-01-01'));
+    T('a week spanning two months is one week',
+      ctx.weekStartKey('2026-08-31') === ctx.weekStartKey('2026-09-01'));
+    T('the week turns over on Monday, not Sunday',
+      ctx.weekStartKey('2026-03-08') !== ctx.weekStartKey('2026-03-09') &&
+      ctx.weekStartKey('2026-03-08') === '2026-03-02');
+    T('and the key is idempotent',
+      ctx.weekStartKey(ctx.weekStartKey('2026-03-08')) === ctx.weekStartKey('2026-03-08'));
+  }
+
+  sub('a DST week is still one week — streaks count weeks, not 168 hours');
+  {
+    ctx.workoutLog = ['2026-02-23','2026-03-02','2026-03-09','2026-03-16'].map((d,i) => WK('s'+i, d));
+    withClock('2026-03-18T12:00:00Z', () => { clear();
+      T('the 167-hour spring week does not break a streak',
+        ctx.computeWeekStreak() === 4, String(ctx.computeWeekStreak())); });
+    ctx.workoutLog = ['2026-10-12','2026-10-19','2026-10-26','2026-11-02'].map((d,i) => WK('f'+i, d));
+    withClock('2026-11-04T12:00:00Z', () => { clear();
+      T('the 169-hour autumn week counts once, not twice',
+        ctx.computeWeekStreak() === 4, String(ctx.computeWeekStreak())); });
+    ctx.workoutLog = ['2026-02-23','2026-03-09','2026-03-16'].map((d,i) => WK('g'+i, d));
+    withClock('2026-03-18T12:00:00Z', () => { clear();
+      T('but a genuinely missed week still breaks it',
+        ctx.computeWeekStreak() === 2, String(ctx.computeWeekStreak())); });
+  }
+
+  sub('one record, one date, on every surface');
+  {
+    ctx.workoutLog = [ WK('mid', '2026-03-09') ];
+    ctx.schedule = { mon:'push', tue:'pull', wed:'rest', thu:'legs', fri:'push', sat:'rest', sun:'rest' };
+    withClock('2026-03-10T12:00:00Z', () => {
+      clear();
+      const day = ctx.computeConsistencyData().weeks.flatMap(w => w.days)
+        .find(d => d.date === '2026-03-09');
+      T('consistency files it on its stored date', !!day && day.state !== 'rest',
+        day ? day.state : 'missing');
+      T('a PR carries the session date',
+        ctx.computeAllPREvents().every(p => p.date === '2026-03-09'));
+      let m = null; try{ m = ctx.getExerciseMasteryByName('Bench Press'); }catch(e){}
+      T('mastery records the same date', !m || m.firstDate === '2026-03-09',
+        m ? m.firstDate : 'none');
+    });
+  }
+
+  sub('D27 truth holds at the year boundary');
+  {
+    ctx.planStartDate = '2026-12-28';
+    ctx.workoutLog = [ WK('y1','2026-12-28'), WK('y2','2026-12-31'), WK('y3','2027-01-04') ];
+    withClock('2027-01-06T12:00:00Z', () => {
+      clear();
+      const cons = ctx.computeConsistencyData();
+      T('tracking starts at the plan, not before', cons.trackingStart === '2026-12-28',
+        String(cons.trackingStart));
+      T('no future day is a miss',
+        cons.weeks.flatMap(w => w.days).filter(d => d.date > '2027-01-06')
+          .every(d => d.state !== 'missed'));
+      T('and a rest day is never a miss',
+        cons.weeks.flatMap(w => w.days).filter(d => !d.planned)
+          .every(d => d.state !== 'missed'));
+    });
+  }
+
+  sub('the date audit is development tooling');
+  T('the app never loads it', !/<script[^>]+src=["'][^"']*loop-date-audit/.test(src));
+  T('and the service worker does not cache it', (() => {
+    const path = require('path');
+    const sw = fs.readFileSync(path.join(path.dirname(H.APP_PATH), 'sw.js'), 'utf8');
+    return !/loop-date-audit/.test(sw);
+  })());
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+    String(ctx.TRAINER_ENGINE_VERSION));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -14626,6 +14768,7 @@ async function main(){
   await testProductionIntegrity();
   await testRankShowcaseExperience();
   await testDataIntegrityD31();
+  await testDateBoundaries();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

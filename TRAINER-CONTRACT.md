@@ -3821,3 +3821,65 @@ weighting or state rule was altered. The audit tooling is development-only:
 it never opens a store, contains zero `LOOPStore`/`localStorage` references,
 is not loaded or executed by the app, and is not cached by the service worker
 — all contract-held. `DATA_KEYS` 15. Contract 129. 4891 passing.
+
+## §54 — D31.1: date integrity audit (no production change)
+
+D31 closed by admitting DST and timezone behaviour had never been exercised.
+This phase exercised it. **No production defect was found, so no production
+code changed** — `index.html` and `sw.js` are byte-identical, and the service
+worker was deliberately not bumped so no phone is asked to re-download an app
+that did not change.
+
+**The date model, as it actually is.** A workout's identity is a plain
+`YYYY-MM-DD` calendar string, written once and never re-derived from an
+instant — which is why viewing a session from another timezone cannot move it.
+`localDateStr()` builds that string from `getFullYear/getMonth/getDate`;
+`weekStartKey()` parses with an explicit `+'T00:00:00'` (local midnight, not
+the UTC parse a bare `new Date('YYYY-MM-DD')` would give) and formats back
+through local parts; `monthKeyOf()` is a pure string slice and cannot have a
+timezone at all. 46 parse sites use the local-safe form.
+
+**How it was tested.** A new development-only tool, `loop-date-audit.js`
+(`npm run audit:dates`), with two independent controls: the timezone is the
+platform's real one (Node's `TZ`, so DST rules and transitions are genuine,
+not simulated), and the wall clock is stubbed inside the sandbox by swapping
+the global `Date` — no production code is touched to make a scenario. The
+oracle is genuinely independent: expected dates come from
+`Intl.DateTimeFormat` and from pure part-arithmetic, never from calling the
+product's own helper twice.
+
+**Result: 36 checks × 7 real timezones = 252, zero failures.** UTC,
+America/New_York, America/Chicago, America/Denver, America/Los_Angeles,
+Europe/London, Asia/Tokyo. Covered: US and EU spring-forward and fall-back
+instants either side of the transition; exact midnight boundaries; the
+Sunday→Monday turnover; weeks spanning two months, two years and a DST
+change; leap day; streaks across the 167-hour and 169-hour weeks; a genuinely
+missed week still breaking a streak; D27's tracking-start, future-day and
+rest-day truth at the year boundary; two sessions on one day staying two
+records; ordering stability; and 600 fuzzed boundary dates.
+
+**One inconsistency found, tested, and deliberately left alone.** Strength
+derives week keys from local parts; **cardio has its own inline key built with
+`toISOString().slice(0,10)`**, which in any UTC+ zone names the *previous*
+calendar day. That is a real inconsistency in form, and exactly the pattern
+D31.1 lists as a bug class — so it was tested rather than assumed. Both the
+key set and the cursor walk derive from local-midnight Mondays, so they shift
+together: the cardio streak survives the DST week, a missed week still breaks
+it, and Monday and the following Sunday share one weekly-XP bucket — in all
+seven zones. It is cosmetic, not behavioural, and the gate says code changes
+require a demonstrated wrong output. Recorded here so a future phase can
+tidy it deliberately rather than discover it again.
+
+**Also proven harmless.** Eight bare `new Date(x.date)` calls are all sort
+comparators: both operands shift identically, so ordering is unaffected —
+asserted by the ordering tests across year and DST boundaries.
+
+**Limits.** Zones whose DST transition occurs at local midnight (so local
+midnight does not exist) were not exercised; the matrix uses the seven common
+zones the environment supports reliably. And `TZ=x node …` does not propagate
+in this Git Bash environment — the matrix therefore spawns child processes
+with an explicit `env`, which was verified to change the offset before any
+result was trusted.
+
+Contract 130 keeps the always-on regressions. 4912 passing, 87 data-integrity
+checks, 252 date checks. `DATA_KEYS` 15, trainer `0.1.1-shadow`.

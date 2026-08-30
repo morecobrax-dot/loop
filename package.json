@@ -12,7 +12,8 @@
     "test:trainer": "node loop-tests.js trainer",
     "evaluate": "node loop-evaluate.js synthetic",
     "evaluate:real": "node loop-evaluate.js real",
-    "audit": "node loop-audit.js"
+    "audit": "node loop-audit.js",
+    "audit:dates": "node loop-date-audit.js --matrix"
   },
   "engines": {
     "node": ">=18"
