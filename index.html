@@ -1669,7 +1669,7 @@ body.first-use{ padding-bottom: 0; }
 .mt-stat-s{ font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- TRAJECTORY (Phase D13) ----------
-   Solid is what happened; outlined is what the cycle intends. The two are
+   Solid is what happened; outlined is what the program intends. The two are
    told apart by fill and border, not by hue, so the distinction survives
    without colour vision. */
 .trj{ margin-top: var(--space-2); }
@@ -3869,9 +3869,26 @@ body.page-locked{ overflow: hidden; }
 }
 
 .pm-week{ margin-top: 14px; display: flex; flex-direction: column; gap: 1px; }
-.pm-day{
-  display: flex; align-items: center; gap: 12px; padding: 10px 2px;
-  border-top: 1px solid var(--border-quiet);
+.pm-day{ border-top: 1px solid var(--border-quiet); }
+.pm-day-btn{
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 2px; min-height: 44px; text-align: left;
+  background: none; border: none; color: inherit; font-family: inherit;
+  cursor: pointer;
+}
+.pm-rest{ padding: 10px 2px; display: flex; align-items: center; gap: 12px; }
+.pm-ex{ padding: 2px 2px 12px 46px; display: flex; flex-direction: column; gap: 4px; }
+.pm-ex-r{ display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.pm-ex-n{ font-size: var(--fs-xs); color: var(--text-dim); }
+.pm-ex-s{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  color: var(--text-faint); white-space: nowrap;
+}
+.pm-edit{
+  margin-top: 8px; align-self: flex-start; min-height: 44px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid var(--border-quiet);
+  background: transparent; color: var(--accent);
+  font-family: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer;
 }
 .pm-d{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
@@ -23582,8 +23599,21 @@ async function pbSyncScheduleFromProgram(program){
 let programMapWeek = {};       // idPrefix -> which week is selected
 let programMapDefs = {};       // idPrefix -> the program being drawn
 let programMapOpts = {};       // idPrefix -> how it was drawn
+let programMapOpenDay = {};    // idPrefix -> which day is expanded, if any
+
+function programMapToggleDay(prefix, dayKey){
+  programMapOpenDay[prefix] = programMapOpenDay[prefix] === dayKey ? null : dayKey;
+  programMapSelect(prefix, programMapWeek[prefix] || 1);
+}
+
+/* Straight into the template editor the rest of LOOP already uses — one tap,
+   and it opens on top because stacking follows open order. */
+function programMapEditWorkout(category, templateId){
+  try{ openEditTemplate(category, templateId); }catch(e){}
+}
 
 function programMapSelect(prefix, week){
+  if(programMapWeek[prefix] !== week) programMapOpenDay[prefix] = null;
   programMapWeek[prefix] = week;
   const host = document.getElementById(prefix + 'Host');
   const def = programMapDefs[prefix];
@@ -23673,14 +23703,30 @@ function programMapWeekHtml(def, week, o){
     const mins = tpl ? builderEstimateMinutes(tpl) : null;
     const muscles = programMapMuscles(tpl);
     const state = opts.dayState ? opts.dayState(k, week) : null;
-    return `<div class="pm-day pm-cat-${escapeAttr(e.category)}${state ? ' pm-' + state : ''}">
-      <span class="pm-d">${full[k]}</span>
-      <span class="pm-body">
-        <span class="pm-name">${escapeHtml(name)}</span>
-        ${muscles ? `<span class="pm-mus">${escapeHtml(muscles)}</span>` : ''}
-        <span class="pm-meta">${count} exercise${count === 1 ? '' : 's'}${mins ? ' · ~' + mins + ' min' : ''}</span>
-      </span>
-      ${state ? `<span class="pm-state" aria-label="${escapeAttr(state)}">${programMapStateMark(state)}</span>` : ''}
+    const prefix = opts.idPrefix || 'pmap';
+    const open = programMapOpenDay[prefix] === k;
+    /* The map stays a map. Exercises are one tap down, never crowding the
+       structure the athlete came here to read. */
+    return `<div class="pm-day pm-cat-${escapeAttr(e.category)}${state ? ' pm-' + state : ''}${open ? ' pm-open' : ''}">
+      <button type="button" class="pm-day-btn" onclick="programMapToggleDay('${prefix}','${k}')"
+        aria-expanded="${open}" aria-label="${escapeAttr(name)} on ${full[k]}">
+        <span class="pm-d">${full[k]}</span>
+        <span class="pm-body">
+          <span class="pm-name">${escapeHtml(name)}</span>
+          ${muscles ? `<span class="pm-mus">${escapeHtml(muscles)}</span>` : ''}
+          <span class="pm-meta">${count} exercise${count === 1 ? '' : 's'}${mins ? ' · ~' + mins + ' min' : ''}</span>
+        </span>
+        ${state ? `<span class="pm-state" aria-label="${escapeAttr(state)}">${programMapStateMark(state)}</span>` : ''}
+      </button>
+      ${open && tpl ? `<div class="pm-ex">
+        ${(tpl.exercises || []).map(x => `<div class="pm-ex-r">
+          <span class="pm-ex-n">${escapeHtml(x.name)}</span>
+          <span class="pm-ex-s">${escapeHtml(String(x.sets))} × ${escapeHtml(String(x.reps))}</span>
+        </div>`).join('')}
+        <button type="button" class="pm-edit"
+          onclick="programMapEditWorkout('${escapeAttr(e.category)}','${escapeAttr(e.templateId)}')">
+          Edit this workout</button>
+      </div>` : ''}
     </div>`;
   }).join('');
   return `<div class="pm-week" aria-label="Week ${week}">${rows}</div>`;
@@ -24374,7 +24420,7 @@ function trajectoryHtml(){
       </div>
       <div class="trj-chart">${bars}</div>
       <div class="trj-foot">${t.hasPlan
-        ? `Solid bars are working sets you logged. Outlined bars are what this cycle intends for that week, scaled to your own typical ${t.median} sets — a plan, not a prediction.`
+        ? `Solid bars are working sets you logged. Outlined bars are what this program intends for that week, scaled to your own typical ${t.median} sets — a plan, not a prediction.`
         : `Working sets per week, from your logged sessions. Start a training cycle to compare them against a planned path.`}</div>
     </div>`;
 }

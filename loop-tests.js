@@ -9300,9 +9300,14 @@ function testPlanVocabulary(app){
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
   /* What the athlete reads: markup and quoted UI copy, with code comments and
      identifiers excluded so this measures the product, not the source. */
+  /* Template-literal copy is included too. Without it a whole class of athlete-
+     facing sentence was invisible to this check: D33 found "what this cycle
+     intends for that week" sitting in a backtick string, months after the
+     vocabulary it used had been retired everywhere the regex could see. */
   const visible = [
     ...[...src.matchAll(/>([^<>{}]{2,240})</g)].map(m => m[1]),
-    ...[...src.matchAll(/(?:title|body|label|desc):\s*'([^']{4,300})'/g)].map(m => m[1]),
+    ...[...src.matchAll(/(?:title|body|label|desc|sub):\s*'([^']{4,300})'/g)].map(m => m[1]),
+    ...[...src.matchAll(/\?\s*`([^`]{20,400})`/g)].map(m => m[1]),
     ...[...src.matchAll(/errors\.push\('([^']+)'\)/g)].map(m => m[1])
   ].join(' | ');
 
@@ -14879,6 +14884,26 @@ async function testProgramExperience(){
     const gen = src.slice(gi, gi + 46000);
     T('workouts are references, never copies',
       /templateId: tpl\.id/.test(gen) && !/exercises: *tpl\.exercises/.test(gen));
+  }
+
+  sub('structure first, exercises second');
+  {
+    const def = ctx.generateProgram({ days:['mon','wed','fri'], weeks:6 });
+    const collapsed = ctx.programMapHtml(def, { week:1, idPrefix:'tdisc' });
+    T('the map shows structure, not every exercise',
+      collapsed.indexOf('pm-ex-r') === -1);
+    T('each training day is a control that can open',
+      /aria-expanded="(true|false)"/.test(collapsed));
+    ctx.programMapToggleDay('tdisc', 'mon');
+    const opened = ctx.programMapHtml(def, { week:1, idPrefix:'tdisc' });
+    T('opening a day reveals its exercises', opened.indexOf('pm-ex-r') !== -1);
+    T('and offers to edit that workout', opened.indexOf('programMapEditWorkout(') !== -1);
+    T('editing routes to the template editor LOOP already has',
+      /function programMapEditWorkout[\s\S]{0,200}openEditTemplate\(/.test(src));
+    /* An expanded day belongs to the week it was opened in. */
+    ctx.programMapSelect('tdisc', 2);
+    T('changing week closes the open day',
+      ctx.programMapHtml(def, { week:2, idPrefix:'tdisc' }).indexOf('pm-ex-r') === -1);
   }
 
   sub('touch, motion and assistive tech');
