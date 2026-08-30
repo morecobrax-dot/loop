@@ -1961,6 +1961,14 @@ body.first-use{ padding-bottom: 0; }
   border: 1px solid rgba(76,194,255,0.30); margin-bottom: 2px;
   box-shadow: inset 0 1px 0 var(--edge-hi);
 }
+/* D31: the score rendered as an anonymous 38px "87 / 100" directly under
+   "Workout Complete", which reads as an objective grade of the workout when
+   40 of its 100 points are simply completion. Naming it costs one line and
+   changes no arithmetic. */
+.quality-title{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 6px;
+}
 .quality-score{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 38px; line-height: 1; color: var(--text); }
 .quality-label{ font-size: var(--fs-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-top: 4px; font-weight: 700; }
 .quality-detail{ font-size: 11px; color: var(--text-dim); margin-top: 7px; line-height: 1.45; }
@@ -14971,10 +14979,13 @@ function momentumHeadline(wk, streak, totalSessions){
   if(wk.complete)       return 'This week is complete.';
   if(wk.remaining === 1) return 'One workout left this week.';
   if(wk.remaining > 1)  return wk.remaining + ' workouts left this week.';
-  /* Nothing left to train and the week is not complete: it is over. Say what
-     happened rather than congratulating them on consistency they did not have
-     this week, and without scolding — the dots already show which days went. */
-  if(wk.done > 0) return 'You trained ' + wk.done + ' of ' + wk.planned + ' this week.';
+  /* Nothing left to train and the week is not complete: it is over. Say that,
+     without scolding — and WITHOUT the count. D27 removed Momentum's own week
+     dots, which this line was written to caption; since then it restated the
+     exact "2 of 4" that This Week already shows a few hundred pixels above,
+     with no visual of its own to explain. This Week owns the count; Momentum
+     says what the count cannot, which is that the week has finished. */
+  if(wk.done > 0) return 'The training week is over.';
   return 'No sessions logged this week.';
 }
 
@@ -19849,6 +19860,18 @@ function buildMasteryIndex(){
       let id = null;
       try{ id = resolveExerciseId(ex.name); }catch(e){}
       if(!id) return;
+      /* D31 — a row the athlete SKIPPED is not a session with that movement.
+         Volume, Most Trained, PRs, muscle volume and the capability history
+         all already applied this rule; mastery did not, because it counted a
+         session from the row's presence and only checked the sets when
+         counting sets. A skipped exercise therefore earned a session, a
+         distinct week, a distinct month and the points attached to all three
+         — the one place D21's skip truth leaked. */
+      const performed = (ex.sets || []).some(s => {
+        const reps = parseFloat(s && s.reps);
+        return !isNaN(reps) && reps > 0;
+      });
+      if(!performed) return;
       const rec = byExercise[id] || (byExercise[id] = {
         exerciseId: id, sessions: 0, countedSets: 0,
         weeks: new Set(), months: new Set(), lastDate: null, firstDate: null, names: new Set()
@@ -26503,6 +26526,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
     : q >= 50 ? 'Solid session' : 'Session logged';
   document.getElementById('summaryStats').innerHTML = `
     ${quality ? `<div class="quality-block">
+      <div class="quality-title">Session score</div>
       <div class="quality-score">${quality.score}<span class="quality-of"> / 100</span></div>
       <div class="quality-label">${qualityWord(quality.score)}</div>
       <div class="quality-detail">${quality.targetsTotal ? `${quality.targetsHit}/${quality.targetsTotal} sets matched or beat last time` : 'First time logging these movements'}${quality.progressPct !== null ? ` · ${quality.progressPct >= 0 ? '+' : ''}${quality.progressPct}% volume` : ''}</div>

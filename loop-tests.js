@@ -11097,8 +11097,19 @@ function testMomentum(app){
 
   sub('a lighter week is not a failed week');
   T('a week with nothing scheduled says so', /Nothing scheduled this week — a planned rest\./.test(src));
+  /* D31: the line still reports a short week without scolding, but no longer
+     restates the count. It was written to caption Momentum's own week dots;
+     D27 removed those, leaving it duplicating This Week's "N of M" with no
+     visual of its own. Stronger now — it must ALSO not repeat the count. */
   T('a finished week that fell short reports it without scolding',
-    /return 'You trained ' \+ wk\.done \+ ' of ' \+ wk\.planned \+ ' this week\.';/.test(src));
+    /if\(wk\.done > 0\) return 'The training week is over\.';/.test(src) &&
+    !/missed|failed|only trained/i.test(src.slice(src.indexOf('function momentumHeadline'),
+      src.indexOf('function momentumHeadline') + 900)));
+  T('and it does not restate the count This Week already owns', (() => {
+    const fn = src.slice(src.indexOf('function momentumHeadline'),
+      src.indexOf('function momentumHeadline') + 900);
+    return !/wk\.done \+ ' of ' \+ wk\.planned/.test(fn);
+  })());
   /* D27: Momentum's dot copy of the week was removed as a duplicate, so these
      now hold the rule on the ONE surviving week visualisation — This Week —
      and on the calendar, which is two surfaces rather than the one the dots
@@ -14374,6 +14385,153 @@ async function testRankShowcaseExperience(){
     String(ctx.TRAINER_ENGINE_VERSION));
 }
 
+/* =========================================================
+   CONTRACT 129 — data integrity under adversarial history (D31)
+   ---------------------------------------------------------
+   These are the smallest contracts that would have caught the
+   two defects the D31 audit found. Everything else the audit
+   proved (fuzzing, determinism, scale, cross-screen agreement)
+   lives in loop-audit.js, which is development tooling and
+   does not ship — this file keeps only the regression guards.
+   ========================================================= */
+async function testDataIntegrityD31(){
+  section('CONTRACT 129 — data integrity under adversarial history (D31)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const D = n => { const d = new Date(Date.now() - n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  const S = (w,r) => ({ weight:String(w), reps:String(r), rir:'2', type:'working', completed:true });
+  const clear = () => ['invalidateSortedLogCache','invalidateXPTimelineCache','invalidateConsistencyCache',
+    'invalidateAllMasteryCaches','invalidateCapabilityCache','invalidateContextCache']
+    .forEach(f => { try{ ctx[f] && ctx[f](); }catch(e){} });
+
+  sub('a skipped exercise earns no mastery — the last place skip truth leaked');
+  {
+    /* D31 defect 1: buildMasteryIndex counted a session from the ROW being
+       present and only consulted the sets when counting sets, so a skipped
+       exercise earned a session, a distinct week, a distinct month and the
+       points attached to all three. Every other consumer already excluded it. */
+    ctx.workoutLog = [{ id:'k1', date:D(2), category:'push', title:'P', notes:'', exercises:[
+      { name:'Bench Press', bodyweight:false, sets:[S(135,10), S(135,10)] },
+      { name:'Chest Fly',   bodyweight:false, skipped:true, sets:[] }
+    ]}];
+    clear();
+    let m = null;
+    try{ m = ctx.getExerciseMasteryByName('Chest Fly'); }catch(e){}
+    T('a skipped exercise has no mastery history',
+      !m || m.hasHistory === false || m.sessions === 0,
+      m ? 'sessions=' + m.sessions : 'no record');
+    const performed = ctx.getExerciseMasteryByName('Bench Press');
+    T('while the exercise actually performed still does',
+      performed && performed.sessions === 1, performed ? String(performed.sessions) : 'none');
+    T('the guard reads the sets, not the row', (() => {
+      const i = src.indexOf('function buildMasteryIndex');
+      const fn = src.slice(i, src.indexOf('_masteryIndex = byExercise'));
+      return /const performed = \(ex\.sets \|\| \[\]\)\.some/.test(fn) && /if\(!performed\) return;/.test(fn);
+    })());
+  }
+  {
+    /* An exercise that is ONLY ever skipped must not exist in mastery at all. */
+    ctx.workoutLog = [{ id:'k2', date:D(1), category:'push', title:'P', notes:'', exercises:[
+      { name:'Chest Fly', bodyweight:false, skipped:true, sets:[] }
+    ]}];
+    clear();
+    const prog = ctx.getMasteryProgress();
+    T('an exercise never performed is not tracked at all',
+      prog.exercisesTracked === 0, String(prog.exercisesTracked));
+  }
+
+  sub('the session score says what it is');
+  /* D31 defect 2: the block rendered an anonymous 38px "N / 100" directly
+     under "Workout Complete". Forty of those points are completion, so an
+     unnamed number there reads as an objective grade of the workout. */
+  T('the number carries a label naming it',
+    /<div class="quality-title">Session score<\/div>/.test(src));
+  T('and the label sits above the number, not after it',
+    src.indexOf('class="quality-title"') < src.indexOf('class="quality-score"'));
+  T('the arithmetic behind it is unchanged', (() => {
+    const i = src.indexOf('function computeWorkoutQuality');
+    const fn = src.slice(i, i + 1800);
+    return /completion = Math\.round\(\(filled\.length \/ allSets\.length\) \* 40\)/.test(fn) &&
+      /repTargets = counted \? Math\.round\(\(hit \/ counted\) \* 25\) : 25/.test(fn) &&
+      /records = Math\.min\(15,/.test(fn);
+  })());
+
+  sub('the log writer clears everything derived from the log');
+  T('persistLog is the one writer, and it invalidates', (() => {
+    const i = src.indexOf('async function persistLog');
+    const fn = src.slice(i, src.indexOf('}', src.indexOf('return true;', i)));
+    return /invalidateSortedLogCache\(\)/.test(fn) && /invalidateConsistencyCache\(\)/.test(fn) &&
+      /invalidateXPTimelineCache\(\)/.test(fn) && /invalidateCapabilityCache\(\)/.test(fn);
+  })());
+  T('and mastery is reached through the sorted-log chain', (() => {
+    const i = src.indexOf('function invalidateSortedLogCache');
+    const fn = src.slice(i, i + 600);
+    return /invalidateAllMasteryCaches\(\)/.test(fn);
+  })());
+  {
+    /* Behavioural: delete through the real writer, then read everything. */
+    ctx.workoutLog = [
+      { id:'d1', date:D(3), category:'push', title:'P', notes:'', exercises:[
+        { name:'Bench Press', bodyweight:false, sets:[S(135,10), S(145,8)] }]},
+      { id:'d2', date:D(7), category:'pull', title:'L', notes:'', exercises:[
+        { name:'Lat Pulldown', bodyweight:false, sets:[S(120,10)] }]}
+    ];
+    clear();
+    const beforeVol = ctx.workoutLog.reduce((n,w) => n + ctx.sessionVolume(w), 0);
+    const beforeMastery = JSON.stringify(ctx.getMasteryProgress());
+    ctx.workoutLog = ctx.workoutLog.filter(w => w.id !== 'd1');
+    await ctx.persistLog();
+    const afterVol = ctx.workoutLog.reduce((n,w) => n + ctx.sessionVolume(w), 0);
+    T('a delete moves volume', afterVol < beforeVol, beforeVol + ' -> ' + afterVol);
+    T('and mastery does not answer with pre-delete data',
+      JSON.stringify(ctx.getMasteryProgress()) !== beforeMastery);
+  }
+
+  sub('nothing the athlete can log produces an impossible number');
+  {
+    ctx.workoutLog = [{ id:'bad', date:D(1), category:'push', title:'P', notes:'', exercises:[
+      { name:'Bench Press', bodyweight:false, sets:[
+        { weight:'', reps:'', rir:'' }, { weight:'abc', reps:'xyz' },
+        { weight:'-5', reps:'-3' }, { weight:'0', reps:'0' } ] }
+    ]}];
+    clear();
+    let threw = null;
+    try{
+      ctx.computeAllPREvents(); ctx.computeConsistencyData();
+      ctx.mostTrainedExercises(5); ctx.getMasteryProgress();
+      ctx.getCombinedProgression();
+    }catch(e){ threw = e.message; }
+    T('malformed sets crash nothing', threw === null, threw || '');
+    const vol = ctx.workoutLog.reduce((n,w) => n + ctx.sessionVolume(w), 0);
+    T('and produce neither NaN nor Infinity', !isNaN(vol) && isFinite(vol), String(vol));
+    const p = ctx.getCombinedProgression();
+    T('level stays a positive integer', Number.isInteger(p.level) && p.level >= 1, String(p.level));
+  }
+
+  sub('the audit tooling stays out of the shipping path');
+  /* The evaluator is NAMED in the Shadow Evidence panel, which tells a
+     developer how to analyse an exported backup — advanced diagnostic copy,
+     which is where that belongs. What must never happen is the app loading or
+     executing the tooling, so that is what this asserts. */
+  T('the app never loads or executes the audit or evaluator', (() => {
+    const executes = /<script[^>]+src=["'][^"']*loop-(audit|evaluate)/.test(src) ||
+      /require\(['"]\.\/loop-(audit|evaluate)/.test(src) ||
+      /import[^;]*loop-(audit|evaluate)/.test(src) ||
+      /fetch\(['"][^'"]*loop-(audit|evaluate)/.test(src);
+    return !executes;
+  })());
+  T('and the service worker does not cache it', (() => {
+    const sw = fs.readFileSync(require('path').join(require('path').dirname(H.APP_PATH), 'sw.js'), 'utf8');
+    return !/loop-audit|loop-evaluate/.test(sw);
+  })());
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+    String(ctx.TRAINER_ENGINE_VERSION));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -14467,6 +14625,7 @@ async function main(){
   await testVisualSystemLock();
   await testProductionIntegrity();
   await testRankShowcaseExperience();
+  await testDataIntegrityD31();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

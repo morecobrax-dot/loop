@@ -11,7 +11,10 @@
     "test:full": "node loop-tests.js full",
     "test:trainer": "node loop-tests.js trainer",
     "evaluate": "node loop-evaluate.js synthetic",
-    "evaluate:real": "node loop-evaluate.js real"
+    "evaluate:real": "node loop-evaluate.js real",
+    "audit": "node loop-audit.js"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  }
 }

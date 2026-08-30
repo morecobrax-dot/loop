@@ -3746,3 +3746,78 @@ promotion) is verified to contain neither. Contract 128 extended; the D23.1
 ladder assertions were rewritten against the new geometry and are stronger for
 it, each documented above. Zero protected symbols, zero storage writes,
 `DATA_KEYS` 15, trainer `0.1.1-shadow`. 4872 passing.
+
+## §53 — D31: adversarial simulation and data-integrity audit
+
+The instruction was to try to break LOOP rather than confirm it. This records
+what broke, what held, and — as importantly — what was left alone.
+
+**Scale.** The existing trainer evaluator was re-run rather than replaced:
+**16,800 recommendation evaluations** across 8 training patterns, 4 goals, 6
+exercise classes, 3 experience levels — zero contradictions, 6/6 differential
+tests passing. A new development-only companion, `loop-audit.js`
+(`npm run audit`), adds the statistics half: **87 integrity checks**, 400
+randomised fuzz histories, longitudinal trajectories at 12/24/52 weeks across
+4 behavioural profiles, and scale runs to 1,000 workouts. Every derived metric
+is recomputed independently from the raw log inside the audit and compared
+against the product's answer, so a disagreement indicts one of them.
+
+**Two real defects were found and fixed.**
+
+1. **Skipped work earned mastery.** `buildMasteryIndex` counted a session from
+   the exercise ROW being present and only consulted the sets when counting
+   sets — so a skipped exercise earned a session, a distinct week, a distinct
+   month and the points attached to all three. Volume, Most Trained, PRs,
+   muscle volume and the capability history all already excluded it; mastery
+   was the single place D21's skip truth still leaked. Fixed at the source: a
+   row now counts only if at least one set carries real reps.
+
+2. **The session score was anonymous.** Workout Complete rendered a 38px
+   "87 / 100" directly under the title with no label. Forty of those hundred
+   points are simply completion, so an unnamed number in that position reads
+   as an objective grade of the workout. It is now labelled *Session score*.
+   The arithmetic is untouched and contract-pinned as untouched.
+
+**One duplication was removed.** Momentum's short-week headline restated This
+Week's exact "N of M" a few hundred pixels below it. The line was written to
+caption Momentum's own week dots, which D27 removed — leaving a bare
+duplicate. This Week owns the count; Momentum now says what the count cannot,
+that the week has finished. A visible-text scan of all nine surfaces afterwards
+found **zero duplicated concepts**.
+
+**What held.** Volume, workout counts, Most Trained, PR events, muscle volume,
+alias handling (no double-counting), bodyweight work (no phantom load),
+unknown-history truth, and the level/rank/XP chain all matched independent
+recomputation exactly. Delete through the real writer (`persistLog`) leaves no
+consumer stale — mastery is reached through the `invalidateSortedLogCache`
+chain. 400 fuzz histories produced no throw, no NaN, no Infinity, no negative
+volume, no malformed date, and identical output on repeat runs. A 1,000-workout
+history completes a full analytic pass in **82ms**, growing near-linearly from
+7ms at 100.
+
+**Three findings were investigated and deliberately NOT changed.**
+
+- *Oscillation in the "inconsistent" profile* (30–46% flip rate) is the engine
+  correctly tracking an athlete whose input alternates every session by
+  construction. Only stable inputs are now held to a no-oscillation standard;
+  the alternating profile is reported as an observation.
+- *56% of long improving synthetic histories remain CONSOLIDATE* — the
+  over-conservatism signal. This is a **CALIBRATION CANDIDATE**, not a logic
+  bug: the evidence chain is internally consistent. Per policy it is reported,
+  not tuned. Real athlete evidence remains the calibration gate.
+- *The `plateau` and `weak` patterns never reach BACK_OFF* (0/2100 each).
+  Consistent with the engine's own rule that BACK_OFF answers decline rather
+  than absence of progress. Reported, not changed.
+
+**Trainer verdict, kept separate as required.** Logical robustness: **8/10** —
+no contradictions across 16,800 evaluations, all differentials monotone, no
+impossible loads or rep targets, deterministic. Real-world validation: **TIER 1**
+— the phone's shadow log is the only real evidence and it is small; nothing
+here changes that. Calibration confidence: **LOW** — synthetic distributions
+cannot license a threshold change, and none was made.
+
+`TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`; no trainer threshold,
+weighting or state rule was altered. The audit tooling is development-only:
+it never opens a store, contains zero `LOOPStore`/`localStorage` references,
+is not loaded or executed by the app, and is not cached by the service worker
+— all contract-held. `DATA_KEYS` 15. Contract 129. 4891 passing.
