@@ -1761,6 +1761,243 @@ function oracleTemplate(ctx, entry) {
       + numeric + ' numeric, ' + insufficient + ' insufficient (low coverage can be correct)');
   }
 
+  /* ---------- 19. PROGRAM OUTCOMES  (Phase D40) ----------
+     D39 already has an independent oracle for the strength model, so this
+     one deliberately does NOT reimplement Epley, the median or the
+     evidence gates again. Its target is the AGGREGATION: given a set of
+     per-lift directions, what may LOOP say about the program?
+
+     Rather than restate the production rule (an oracle that copies the
+     implementation agrees with it even when both are wrong), it sweeps the
+     whole state space and asserts PROPERTIES that must hold for any honest
+     aggregation, taken from the product rules rather than from the code:
+     unknown is never evidence, one lift never decides a program, the
+     verdict is symmetric under swapping improvement and decline, and no
+     cross-lift percentage is ever produced. ---------- */
+  section('19. Program outcomes (D40)');
+
+  {
+    const PROG = { id:'p_audit_d40', name:'Audit', startDate:'2026-01-05',
+      durationWeeks:8, schedule:{}, status:'active' };
+
+    /* Real lifts whose canonical ids are e1RM-comparable, so the fixtures
+       drive the true D39 -> D40 chain instead of hand-made objects. */
+    const LIFTS = ['Bench Press','Squat','Deadlift','Barbell Row',
+      'Overhead Press','Leg Press','Incline Bench Press'];
+
+    let dayN = 0;
+    const nextDate = () => {
+      const d = new Date('2026-01-05T00:00:00');
+      d.setDate(d.getDate() + (dayN++));
+      return d.toISOString().slice(0, 10);
+    };
+    /* A load series that lands on the intended direction. The DIRECTION is
+       still decided by D39, never asserted here. */
+    const loads = (kind, n) => {
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        if (kind === 'improving') out.push(i < n / 2 ? 185 : 205);
+        else if (kind === 'declining') out.push(i < n / 2 ? 205 : 185);
+        else out.push(185);
+      }
+      return out;
+    };
+    const buildLog = specs => {
+      dayN = 0;
+      const log = [];
+      specs.forEach(sp => loads(sp.kind, sp.sessions).forEach(w => {
+        log.push({ id:'w'+log.length, date: nextDate(), programId: PROG.id,
+          exercises: [{ name: sp.name, sets: [{ type:'working', completed:true,
+            weight: w, reps: 8 }] }] });
+      }));
+      return log;
+    };
+    /* n lifts of each kind, drawn from distinct canonical movements. */
+    const mix = (imp, std, dec, sessions) => {
+      const specs = []; let i = 0;
+      for (let k = 0; k < imp; k++) specs.push({ name: LIFTS[i++], kind:'improving', sessions: sessions||8 });
+      for (let k = 0; k < std; k++) specs.push({ name: LIFTS[i++], kind:'steady', sessions: sessions||8 });
+      for (let k = 0; k < dec; k++) specs.push({ name: LIFTS[i++], kind:'declining', sessions: sessions||8 });
+      return buildLog(specs);
+    };
+    const stateOf = (imp, std, dec) =>
+      ctx.deriveProgramOutcome(PROG, mix(imp, std, dec)).state;
+
+    /* ----- the brief’s own adversarial cases, end to end ----- */
+    const cases = [
+      ['1 improving + 7 under-evidenced', [{ name:LIFTS[0], kind:'improving', sessions:8 }].concat(
+        LIFTS.slice(1).map(n => ({ name:n, kind:'improving', sessions:2 }))), 'insufficient'],
+      ['4 improving + 1 steady', null, 'improving', [4,1,0]],
+      ['2 improving + 2 declining', null, 'mixed', [2,0,2]],
+      ['5 steady', null, 'steady', [0,5,0]],
+      ['2 improving, 1 steady, 1 declining', null, 'mixed', [2,1,1]],
+      ['6 improving + 1 declining', null, 'improving', [6,0,1]],
+      ['3 declining', null, 'declining', [0,0,3]],
+      ['1 declining + 3 steady stays calm', null, 'steady', [0,3,1]]
+    ];
+    cases.forEach(cs => {
+      const st = cs[3] ? stateOf(cs[3][0], cs[3][1], cs[3][2])
+        : ctx.deriveProgramOutcome(PROG, buildLog(cs[1])).state;
+      ok('outcome: ' + cs[0] + ' -> ' + cs[2], st === cs[2], 'got ' + st);
+    });
+
+    /* ----- PROPERTY SWEEP over the whole small-program state space ----- */
+    const FLOOR = ctx.OUTCOME_CONFIG.minEvidencedLifts;
+    let swept = 0, floorOk = true, neverBackwards = true, mixedOk = true,
+        symmetryOk = true, unknownInert = true, oneLiftDecides = false;
+    for (let I = 0; I <= 3; I++) for (let S = 0; S <= 3; S++) for (let D = 0; D <= 3; D++) {
+      if (I + S + D === 0 || I + S + D > LIFTS.length) continue;
+      swept++;
+      const st = stateOf(I, S, D);
+      const n = I + S + D;
+
+      /* below the floor a program may not describe itself at all */
+      if (n < FLOOR && st !== 'insufficient') floorOk = false;
+
+      /* a verdict never points against its own evidence */
+      if (st === 'improving' && D > I) neverBackwards = false;
+      if (st === 'declining' && I > D) neverBackwards = false;
+
+      /* mixed requires real signal in BOTH directions */
+      if (st === 'mixed' && !(I > 0 && D > 0)) mixedOk = false;
+
+      /* swapping improvement and decline must mirror the verdict exactly */
+      const flip = stateOf(D, S, I);
+      const mirror = { improving:'declining', declining:'improving',
+        mixed:'mixed', steady:'steady', insufficient:'insufficient' }[st];
+      if (flip !== mirror) symmetryOk = false;
+
+      /* lifts with too little evidence must not change the answer: adding
+         two 2-session movements is adding no information at all */
+      if (I + S + D + 2 <= LIFTS.length) {
+        const specs = [];
+        let i = 0;
+        for (let k = 0; k < I; k++) specs.push({ name:LIFTS[i++], kind:'improving', sessions:8 });
+        for (let k = 0; k < S; k++) specs.push({ name:LIFTS[i++], kind:'steady', sessions:8 });
+        for (let k = 0; k < D; k++) specs.push({ name:LIFTS[i++], kind:'declining', sessions:8 });
+        specs.push({ name:LIFTS[i++], kind:'improving', sessions:2 });
+        specs.push({ name:LIFTS[i++], kind:'declining', sessions:2 });
+        if (ctx.deriveProgramOutcome(PROG, buildLog(specs)).state !== st) unknownInert = false;
+      }
+    }
+    ok('state space swept (' + swept + ' combinations)', swept > 40, String(swept));
+    ok('below the evidence floor a program never describes itself', floorOk);
+    ok('a verdict never contradicts its own evidence', neverBackwards);
+    ok('mixed requires movement in both directions', mixedOk);
+    ok('improvement and decline are treated symmetrically', symmetryOk);
+    ok('lifts without enough evidence never change the verdict', unknownInert);
+
+    /* one lift must never be the whole story: from a broad improving set,
+       removing any single lift must not flip the program to declining */
+    for (let drop = 0; drop < 5; drop++) {
+      const specs = [];
+      for (let k = 0; k < 5; k++) if (k !== drop)
+        specs.push({ name:LIFTS[k], kind:'improving', sessions:8 });
+      if (ctx.deriveProgramOutcome(PROG, buildLog(specs)).state === 'declining')
+        oneLiftDecides = true;
+    }
+    ok('no single lift decides a program', !oneLiftDecides);
+
+    /* ----- NO CROSS-LIFT PERCENTAGE, structurally ----- */
+    const oc = ctx.deriveProgramOutcome(PROG, mix(4, 1, 0));
+    const pctFields = Object.keys(oc).filter(k => /pct|percent|avg|mean|score/i.test(k));
+    ok('the program result carries no aggregate percentage or score',
+      pctFields.length === 0, pctFields.join(','));
+    ok('every percentage shown belongs to one lift',
+      (oc.highlights || []).every(h => typeof h.name === 'string' && h.id));
+    ok('no program-level number is a mean of lift percentages', (() => {
+      const vals = (oc.exercises || []).map(x => x.pct).filter(v => typeof v === 'number');
+      if (!vals.length) return true;
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      return !JSON.stringify(oc).includes(String(Math.round(mean * 10) / 10));
+    })());
+
+    /* ----- PR IS NOT A TREND, at the program layer (§60) ----- */
+    dayN = 0;
+    const freak = [];
+    LIFTS.slice(0, 4).forEach(name => {
+      for (let i = 0; i < 8; i++) {
+        const w = (name === LIFTS[0] && i === 7) ? 315 : 185;
+        freak.push({ id:'f'+freak.length, date: nextDate(), programId: PROG.id,
+          exercises: [{ name, sets: [{ type:'working', completed:true, weight:w, reps:8 }] }] });
+      }
+    });
+    ok('a single freak PR does not create a program trend',
+      ctx.deriveProgramOutcome(PROG, freak).state === 'steady');
+
+    /* ----- UNSUPPORTED MOVEMENTS ARE NOT NEGATIVE EVIDENCE ----- */
+    dayN = 0;
+    const acc = [];
+    ['Cable Fly','Triceps Pushdown','Lat Pulldown'].forEach(name => {
+      for (let i = 0; i < 8; i++) acc.push({ id:'a'+acc.length, date: nextDate(),
+        programId: PROG.id, exercises: [{ name, sets: [{ type:'working',
+          completed:true, weight:25, reps:12 }] }] });
+    });
+    const ocAcc = ctx.deriveProgramOutcome(PROG, acc);
+    ok('movements e1RM cannot describe produce no verdict at all',
+      ocAcc.state === 'insufficient' && ocAcc.decliningLifts === 0,
+      ocAcc.state + '/' + ocAcc.decliningLifts);
+
+    /* ----- ADHERENCE IS NOT OUTCOME ----- */
+    const perfect = mix(0, 0, 0);   // no comparable training at all
+    ok('full adherence with no comparable lifts yields no verdict',
+      ctx.deriveProgramOutcome(PROG, []).state === 'insufficient');
+    ok('improvement survives partial adherence', stateOf(4, 1, 0) === 'improving');
+    ok('the outcome carries no adherence field',
+      ctx.deriveProgramOutcome(PROG, mix(4, 1, 0)).completedSessions === undefined);
+
+    /* ----- HIGHLIGHT SELECTION IS DETERMINISTIC AND EVIDENCE-FIRST ----- */
+    const ocH = ctx.deriveProgramOutcome(PROG, buildLog([
+      { name:LIFTS[0], kind:'improving', sessions:12 },
+      { name:LIFTS[1], kind:'improving', sessions:4 },
+      { name:LIFTS[2], kind:'improving', sessions:8 },
+      { name:LIFTS[3], kind:'improving', sessions:8 },
+      { name:LIFTS[4], kind:'declining', sessions:8 }]));
+    ok('highlights are capped', ocH.highlights.length <= ctx.OUTCOME_CONFIG.maxHighlights);
+    ok('the best-evidenced lift leads', ocH.highlights[0].sessions === 12);
+    ok('a lift without a percentage never outranks one with', (() => {
+      const nums = ocH.highlights.map(h => h.numeric ? 0 : 1);
+      return nums.slice().sort().join() === nums.join();
+    })());
+    ok('a real decline is surfaced, not hidden', ocH.declines.length === 1);
+    ok('the decline is worded plainly', /estimated strength/.test(
+      String(ctx.perfDeltaText(ocH.declines[0]))));
+
+    /* ----- DETERMINISM (§80) ----- */
+    const detLog = mix(4, 1, 1);
+    const first = JSON.stringify(ctx.deriveProgramOutcome(PROG, detLog));
+    let stable = true;
+    for (let i = 0; i < 100; i++)
+      if (JSON.stringify(ctx.deriveProgramOutcome(PROG, detLog)) !== first) stable = false;
+    ok('100 derivations are byte-identical', stable);
+
+    /* ----- READ-ONLY (§53) ----- */
+    const storeBefore = JSON.stringify(app.store);
+    const logBefore = JSON.stringify(detLog);
+    for (let i = 0; i < 25; i++) {
+      ctx.deriveProgramOutcome(PROG, detLog);
+      ctx.programOutcomeHtml(ctx.deriveProgramOutcome(PROG, detLog));
+    }
+    ok('deriving and rendering writes nothing to the store',
+      JSON.stringify(app.store) === storeBefore);
+    ok('the workout history is not mutated', JSON.stringify(detLog) === logBefore);
+    ok('the trainer stays 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+
+    /* ----- COPY BOUNDARIES (§43–§48) ----- */
+    const copy = ['improving','mixed','steady','declining'].map(st => {
+      const fake = { state: st, evidencedLifts:5, improvingLifts:4, steadyLifts:1, decliningLifts:0 };
+      return ctx.programOutcomeLabel(fake) + ' ' + ctx.programOutcomeHeadline(fake);
+    }).join(' ');
+    ok('no muscle, fat or body-composition claim',
+      !/muscle|body ?fat|lean mass|composition|weight loss/i.test(copy), copy);
+    ok('no causal claim about the program',
+      !/because|caused|thanks to|made you|resulted in/i.test(copy), copy);
+    ok('no score or grade', ['score','grade','rating','/100','out of 10']
+      .every(w => copy.toLowerCase().indexOf(w) === -1), copy);
+    ok('strength claims say estimated strength',
+      copy.toLowerCase().indexOf('estimated strength') !== -1, copy);
+  }
+
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */
   section('12. Generation has no side effects');
 

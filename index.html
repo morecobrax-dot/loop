@@ -119,6 +119,18 @@ try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.cla
   --fs-title: 22px;      /* page title */
   --fs-metric: 28px;     /* the number a screen exists to show */
 
+  /* D40 — the program CSS written across D33–D39 used a t-shirt
+     vocabulary this scale never defined, so 37 font-size declarations
+     resolved to nothing and silently inherited: on the completion panel
+     the program name, its supporting line and its metric numerals all
+     rendered at body size. Aliased onto the roles they meant rather than
+     given values of their own, so there is still one number per role. */
+  --fs-xs:   var(--fs-meta);      /* 12 */
+  --fs-sm:   var(--fs-support);   /* 13 */
+  --fs-base: var(--fs-body);      /* 14 */
+  --fs-lg:   var(--fs-section);   /* 18 */
+  --fs-xl:   var(--fs-title);     /* 22 */
+
 }
 
 *{ box-sizing: border-box; }
@@ -3844,6 +3856,28 @@ body.page-locked{ overflow: hidden; }
   font-weight: 700; color: var(--text-dim); white-space: nowrap; flex: 0 0 auto;
 }
 .perf-row:has(.perf-val) .perf-val{ color: var(--text-dim); }
+/* D40 — the program-level answer. State is carried by the words first;
+   the rule beside them only reinforces it, and an ordinary training
+   decline is toned as information, never as an error. */
+.pc-outcome{
+  margin-top: 20px; padding: 2px 0 2px 13px;
+  border-left: 2px solid var(--border);
+}
+.pc-outcome-k{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.pc-outcome-l{
+  font-size: var(--fs-section); font-weight: 700; letter-spacing: -0.01em;
+  line-height: 1.4; margin-top: 4px; color: var(--text); text-wrap: balance;
+}
+.pc-outcome-improving{ border-left-color: var(--success); }
+.pc-outcome-improving .pc-outcome-k{ color: var(--success); }
+.pc-outcome-mixed{ border-left-color: var(--warning); }
+.pc-outcome-mixed .pc-outcome-k{ color: var(--warning); }
+.pc-outcome-declining{ border-left-color: var(--warning); }
+.pc-outcome-declining .pc-outcome-k{ color: var(--warning); }
 .tw-program-done .tw-program-name{ color: var(--text); }
 /* Past programs — rows, deliberately quiet. */
 .ph-list{ display: flex; flex-direction: column; }
@@ -9525,6 +9559,28 @@ const LOOP_UPDATES = [
       'Every movement is judged on its own, so an incline press is never mistaken for a flat press'
     ],
     bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v3-3',
+    version: 'LOOP 3.3',
+    title: 'Program Results',
+    date: '2026-09-03',
+    swVersion: 'loop-v110',
+    summary: 'A finished program now tells you what your training actually did — and stays honest about what it cannot tell.',
+    newFeatures: [
+      'A completed program now says whether your measured strength improved, stayed steady, produced mixed results, or fell — based on how each comparable lift moved',
+      'The lifts with the clearest evidence are listed underneath, including one that went down if one did'
+    ],
+    improvements: [
+      'A program-wide result appears only when enough separate lifts have enough comparable training to support one — a single lift never speaks for a whole program',
+      'Movements that cannot be compared by load, and lifts you did not repeat often enough, are never counted as a lack of progress',
+      'Finishing a program and reviewing it later now show exactly the same result',
+      'Program screens now use their intended text sizes, so titles, summaries and numbers read with the hierarchy they were designed with'
+    ],
+    bugFixes: [
+      'Marking a program complete reported a workout and record count worked out a different way than the summary shown straight afterwards, so the two could disagree about the same program'
+    ],
     changes: []
   }
 ];
@@ -22690,20 +22746,6 @@ function deleteProgram(programId){
 
 /* Structural summary shown when the last week is done. Uses only metrics that
    already exist — no new scoring engine. */
-function getProgramCompletionSummary(programId){
-  const p = getProgram(programId);
-  if(!p || !p.startDate) return null;
-  const end = programEndDate(p);
-  const sessions = (workoutLog || []).filter(w => w && w.date >= p.startDate && (!end || w.date <= end));
-  let prs = 0;
-  try{ prs = computeAllPREvents().filter(e => e.date >= p.startDate && (!end || e.date <= end)).length; }catch(e){ prs = 0; }
-  return {
-    name: p.name, weeks: p.durationWeeks,
-    workouts: sessions.length,
-    prs: prs,
-    plannedSessions: programTrainingDayCount(p) * p.durationWeeks
-  };
-}
 
 
 /* ---------- TRAINING PHASES  (Phase D7B) ----------
@@ -25336,6 +25378,13 @@ function programCompletionHeadline(sum){
 function programCompletionHtml(sum, opts){
   if(!sum) return '';
   const o = opts || {};
+  /* D40 — derived here rather than passed in, so completion, My Training
+     and the past-program overlay cannot reach different conclusions about
+     the same program: they all render through this one function. */
+  let oc = null;
+  if(o.programId){
+    try{ oc = deriveProgramOutcome(getProgram(o.programId)); }catch(e){ oc = null; }
+  }
   const facts = [];
   if(sum.tone !== 'none'){
     facts.push({ v: sum.completedSessions, l: sum.completedSessions === 1 ? 'workout' : 'workouts' });
@@ -25353,18 +25402,11 @@ function programCompletionHtml(sum, opts){
         sum.perWeek ? ' \u00b7 ' + sum.perWeek + ' day' + (sum.perWeek === 1 ? '' : 's') + ' a week' : ''}${
         dates ? ' \u00b7 ' + escapeHtml(dates) : ''}</div>
       <p class="pc-line">${escapeHtml(programCompletionHeadline(sum))}</p>
+      ${programOutcomeHtml(oc)}
       ${facts.length ? `<div class="pc-facts">${facts.map(f => `
         <div class="pc-fact"><span class="pc-fact-v">${f.v}</span>
         <span class="pc-fact-l">${escapeHtml(f.l)}</span></div>`).join('')}</div>` : ''}
-      ${(() => {
-        /* D39 — performance, only where the training supports a claim. The
-           section is absent rather than empty when nothing qualifies. */
-        if(!o.programId) return '';
-        let perf = null;
-        try{ perf = deriveProgramPerformance(getProgram(o.programId)); }catch(e){}
-        const block = performanceHighlightsHtml(perf, { limit:3 });
-        return block ? `<div class="pc-perf-h">Performance</div>${block}` : '';
-      })()}
+      ${programOutcomeQuietHtml(oc, sum)}
       ${o.actions === false ? '' : `<div class="pc-actions">
         <button class="btn-primary pc-go" onclick="startNextProgramFrom('${escapeAttr(o.programId || '')}')">Build next program</button>
       </div>`}
@@ -25617,13 +25659,21 @@ function perfTrendWord(r){
   if(!r) return '';
   if(r.direction === 'improving') return 'Trending up';
   if(r.direction === 'steady') return 'Steady';
+  /* D40 — D39 never asked about a decline because its highlights list
+     excluded them. A program review has to be able to show one, and it
+     says so plainly rather than as an alarm. */
+  if(r.direction === 'declining') return 'Trending down';
   return '';
 }
+/* Unchanged for every improving lift: numeric is already false when the
+   direction is steady, and an improving pct is positive, so the added
+   sign handling cannot alter what D39 surfaces already render. */
 function perfDeltaText(r){
-  if(!r || !r.numeric || r.direction !== 'improving') return null;
+  if(!r || !r.numeric) return null;
+  if(r.direction !== 'improving' && r.direction !== 'declining') return null;
   const pct = Math.round(r.pct);
-  if(pct < PERF_CONFIG.meaningfulPct) return null;
-  return '+' + pct + '% estimated strength';
+  if(Math.abs(pct) < PERF_CONFIG.meaningfulPct) return null;
+  return (pct >= 0 ? '+' : '\u2212') + Math.abs(pct) + '% estimated strength';
 }
 
 /* A compact block used by every surface that reports performance, so My
@@ -25642,12 +25692,185 @@ function performanceHighlightsHtml(perf, opts){
         return `<div class="perf-row">
           <span class="perf-name">${escapeHtml(programShortName(r.name))}</span>
           <span class="perf-val" aria-label="${escapeAttr(
-            programShortName(r.name) + ': ' + (delta ? 'performance increased about '
-            + Math.round(r.pct) + ' percent' : word.toLowerCase())
+            programShortName(r.name) + ': ' + (delta ? 'estimated strength '
+            + (r.pct < 0 ? 'decreased' : 'increased') + ' about '
+            + Math.abs(Math.round(r.pct)) + ' percent' : word.toLowerCase())
             + ', from ' + r.sessions + ' comparable sessions')}">${escapeHtml(delta || word)}</span>
         </div>`;
       }).join('')}
     </div>`;
+}
+
+/* =========================================================
+   PROGRAM OUTCOMES  (Phase D40)
+   ---------------------------------------------------------
+   "Did this program produce meaningful training progress?"
+
+   COMPOSITION, NOT A SECOND MODEL. Every per-lift fact here comes from
+   derivePerformanceProgress, which owns Epley, working-set validity,
+   canonical identity, the median comparison and the evidence gates. D40
+   adds exactly one thing: how to read a set of per-lift directions as a
+   statement about a whole program. If this section ever computes an
+   e1RM, a percentage or a session count of its own, it has become the
+   thing it was written to avoid.
+
+   NEVER AN AVERAGE. Bench +10%, Squat +4% and Row +8% do not make a
+   program "+7.3% stronger". Different movements carry different absolute
+   loads and different evidence quality, so a cross-lift percentage would
+   be a number with no referent. The program-level answer is SEMANTIC: it
+   counts how many comparable lifts moved which way, and says that.
+
+   OBSERVED, NOT CAUSED. LOOP sees training performed during a program.
+   It cannot run the counterfactual, so it never says the program produced
+   the change — only that performance moved while it was being trained.
+
+   ADHERENCE IS NOT OUTCOME. Completing every session proves attendance,
+   not progress; improving across half a program is still improvement.
+   The two are derived separately here and never stand in for each other.
+   ========================================================= */
+
+/* Program-composition parameters. NOT evidence thresholds — D39 owns
+   those and nothing here touches them. These answer a different question:
+   how much per-lift evidence must exist before a whole program can be
+   described in one word.
+
+   Grounded in the generated library rather than picked to make copy read
+   well. Across all 75 goal/frequency/length combinations, a program at
+   full adherence produces at least 5 comparable lifts clearing D39’s
+   4-session direction gate (median 14), and the smallest case — a 2-day
+   program — still produces 5. A floor of 3 therefore stays reachable for
+   the smallest real program while refusing to let one or two lifts speak
+   for a whole training block. The 3:1 dominance rule lets a genuine
+   result survive the one movement that always misbehaves, without
+   letting 5 improving lifts bury 2 that fell. */
+const OUTCOME_CONFIG = {
+  minEvidencedLifts: 3,   // below this there is no program-level verdict
+  minSide: 3,             // lifts needed on one side to name a direction
+  dominance: 3,           // ...and it must outnumber the other side 3:1
+  maxHighlights: 3
+};
+
+/* The one program-outcome derivation. Pure: program truth and immutable
+   history in, a semantic result out. Nothing is persisted and nothing is
+   cached, so an edited or deleted workout changes the answer the next
+   time it is asked — there is no stale summary to invalidate. */
+function deriveProgramOutcome(program, log){
+  if(!program) return null;
+  const perf = deriveProgramPerformance(program, log);
+  const all = (perf && perf.exercises) || [];
+  const evidenced = all.filter(r => r.direction !== 'insufficient');
+  const by = d => evidenced.filter(r => r.direction === d);
+  const improving = by('improving'), steady = by('steady'), declining = by('declining');
+  const I = improving.length, S = steady.length, D = declining.length;
+  const n = evidenced.length;
+
+  /* Claim strength follows coverage. Under the floor the program says
+     nothing about itself; the individual lifts may still be worth showing
+     and are still selected below. An exercise with no valid trend is
+     absent from every count here — unknown is never read as steady, and
+     a movement e1RM cannot describe is never read as a decline. */
+  let state = 'insufficient';
+  if(n >= OUTCOME_CONFIG.minEvidencedLifts){
+    const dominates = (a, b) =>
+      a >= OUTCOME_CONFIG.minSide && a >= b * OUTCOME_CONFIG.dominance;
+    if(dominates(I, D)) state = 'improving';
+    else if(dominates(D, I)) state = 'declining';
+    else if(I > 0 && D > 0) state = 'mixed';
+    else state = 'steady';
+  }
+
+  /* Deterministic and evidence-first: a lift carrying a percentage",
+     outranks one that does not, then the better-evidenced lift, then the
+     larger movement, then the name. Magnitude never leads — a big number
+     off four sessions must not outrank a smaller one off twelve. */
+  const order = (a, b) =>
+    ((a.numeric ? 0 : 1) - (b.numeric ? 0 : 1))
+    || (b.sessions - a.sessions)
+    || (Math.abs(b.pct || 0) - Math.abs(a.pct || 0))
+    || String(a.name).localeCompare(String(b.name));
+
+  return {
+    state,
+    comparableLifts: all.length,
+    evidencedLifts: n,
+    improvingLifts: I,
+    steadyLifts: S,
+    decliningLifts: D,
+    highlights: improving.slice().sort(order).slice(0, OUTCOME_CONFIG.maxHighlights),
+    /* One real decline is shown rather than buried — premium is not the
+       same as flattering — but one is enough to stay honest without
+       turning an ordinary training block red. */
+    declines: declining.slice().sort(order).slice(0, 1),
+    exercises: all
+  };
+}
+
+/* Wording is bounded by the evidence type. D39 measures ESTIMATED STRENGTH
+   from completed working sets — not muscle, not fitness, not body
+   composition — so the sentence says exactly that whatever goal the
+   program was built for. A hypertrophy program whose measured strength
+   improved is reported as measured strength improving, never as muscle
+   gained; a recomp program is never described as recomposition. */
+function programOutcomeLabel(oc){
+  if(!oc) return '';
+  if(oc.state === 'improving') return 'Performance improved';
+  if(oc.state === 'declining') return 'Performance decreased';
+  if(oc.state === 'mixed') return 'Mixed results';
+  if(oc.state === 'steady') return 'Performance steady';
+  return '';
+}
+function programOutcomeHeadline(oc){
+  if(!oc || oc.state === 'insufficient') return '';
+  const n = oc.evidencedLifts;
+  const lifts = n + ' comparable lift' + (n === 1 ? '' : 's');
+  if(oc.state === 'improving')
+    return 'Estimated strength improved on ' + oc.improvingLifts + ' of ' + lifts + '.';
+  if(oc.state === 'declining')
+    return 'Estimated strength decreased on ' + oc.decliningLifts + ' of ' + lifts + '.';
+  if(oc.state === 'mixed')
+    return 'Results differed by movement across ' + lifts + '.';
+  return 'Estimated strength stayed steady across ' + lifts + '.';
+}
+function programOutcomeAria(oc){
+  if(!oc || oc.state === 'insufficient') return '';
+  return 'Program performance: ' + programOutcomeLabel(oc).toLowerCase() + '. '
+    + oc.improvingLifts + ' of ' + oc.evidencedLifts + ' comparable lifts improved, '
+    + oc.steadyLifts + ' stayed steady, ' + oc.decliningLifts + ' decreased.';
+}
+
+/* The lift rows, rendered through D39’s own row markup so a percentage
+   can never be worded one way on this panel and another way elsewhere. */
+function programOutcomeRowsHtml(oc){
+  if(!oc) return '';
+  const rows = (oc.highlights || []).concat(oc.declines || []);
+  if(!rows.length) return '';
+  return '<div class="pc-perf-h">Key lifts</div>'
+    + performanceHighlightsHtml({ highlights: rows }, { limit: rows.length });
+}
+
+/* The verdict, shown only when the evidence carries one. */
+function programOutcomeHtml(oc){
+  if(!oc || oc.state === 'insufficient') return '';
+  return `
+    <div class="pc-outcome pc-outcome-${escapeAttr(oc.state)}"
+      aria-label="${escapeAttr(programOutcomeAria(oc))}">
+      <div class="pc-outcome-k">${escapeHtml(programOutcomeLabel(oc))}</div>
+      <div class="pc-outcome-l">${escapeHtml(programOutcomeHeadline(oc))}</div>
+    </div>${programOutcomeRowsHtml(oc)}`;
+}
+
+/* Not enough to describe the program, which is a fact rather than a
+   failure. It stays a quiet line under the completion facts instead of a
+   large empty verdict, and any lift that IS evidenced is still shown —
+   one or two good lifts are worth seeing, they just cannot speak for a
+   whole training block. */
+function programOutcomeQuietHtml(oc, sum){
+  if(!oc || oc.state !== 'insufficient') return '';
+  if(!sum || sum.tone === 'none') return '';
+  const note = oc.evidencedLifts > 0
+    ? 'Not enough comparable lifts yet to describe this program as a whole.'
+    : 'Not enough repeated comparable training yet to say how performance moved across this program.';
+  return programOutcomeRowsHtml(oc) + '<p class="pc-note">' + escapeHtml(note) + '</p>';
 }
 
 /* The Today strip. Renders nothing at all without an active program, so an
@@ -26643,10 +26866,17 @@ function doPauseProgram(){ pauseProgram(detailProgramId); renderProgramDetail();
 function doResumeProgram(){ resumeProgram(detailProgramId); renderProgramDetail(); }
 function doActivateProgram(){ setActiveProgram(detailProgramId); renderProgramDetail(); }
 function doCompleteProgram(){
-  const s = getProgramCompletionSummary(detailProgramId);
+  /* D40 — one program-history calculator. This used to call a pre-D38
+     summary that attributed workouts to a program by date alone, so the
+     alert could report a different workout and PR count than the
+     completion panel shown seconds later for the same program.
+     deriveProgramCompletion is canonical: exact programId first, with a
+     date fallback that never claims a session another program owns. */
+  const dp = getProgram(detailProgramId);
+  const s = dp ? deriveProgramCompletion(dp, localDateStr()) : null;
   completeProgram(detailProgramId);
   renderProgramDetail();
-  if(s) alert(`Program complete — ${s.name}\n\n${s.weeks} weeks\n${s.workouts} workouts\n${s.prs} record${s.prs===1?'':'s'}`);
+  if(s) alert(`Program complete — ${s.name}\n\n${s.weeks} weeks\n${s.completedSessions} workouts\n${s.prs} record${s.prs===1?'':'s'}`);
 }
 function doDeleteProgram(){
   if(!confirm('Delete this program? Your workout history is not affected.')) return;

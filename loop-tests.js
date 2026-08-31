@@ -4776,9 +4776,18 @@ function testProgramModel(app){
   T('status is completed', ctx.getProgram(p.id).status === 'completed');
   T('a completed program stays in history', getProgramCount(ctx) === 1);
   T('it is no longer the active program', ctx.getActiveProgram() === null || ctx.hasActiveProgram() === false);
-  const sum = ctx.getProgramCompletionSummary(p.id);
+  /* D40 — this used to assert against getProgramCompletionSummary, a
+     pre-D38 calculator that attributed workouts to a program by date
+     alone and so could disagree with the completion panel about the same
+     program. That function is gone; the contract it encoded (existing
+     metrics only, never an invented score) is what mattered and is now
+     pinned against the canonical derivation. */
+  const sum = ctx.deriveProgramCompletion(ctx.getProgram(p.id), DSTR(0));
   T('completion summary uses existing metrics only',
-    sum && typeof sum.workouts === 'number' && typeof sum.prs === 'number' && sum.score === undefined);
+    sum && typeof sum.completedSessions === 'number' && typeof sum.prs === 'number'
+    && sum.score === undefined);
+  T('there is one program-history calculator',
+    typeof ctx.getProgramCompletionSummary === 'undefined');
 
   sub('multiple programs coexist');
   const second = ctx.createProgram({ name:'Strength Block', goal:'strength',
@@ -15759,6 +15768,219 @@ async function testProgramLifecycle(){
    PR is not a trend, current capability is untouched, and
    every surface reads one analysis.
    ========================================================= */
+/* =========================================================
+   CONTRACT 139 — PROGRAM OUTCOMES  (Phase D40)
+   Guards the composition, not the strength model: D39 owns that and has
+   its own contract. What must never drift here is that a program-level
+   claim stays tied to the evidence underneath it.
+   ========================================================= */
+async function testProgramOutcomes(){
+  section('CONTRACT 139 — program outcomes (D40)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  const PROG = { id:'p_c139', name:'Contract', startDate:'2026-01-05',
+    durationWeeks:8, schedule:{}, status:'active' };
+  const LIFTS = ['Bench Press','Squat','Deadlift','Barbell Row',
+    'Overhead Press','Leg Press','Incline Bench Press'];
+  let dayN = 0;
+  const nextDate = () => {
+    const d = new Date('2026-01-05T00:00:00');
+    d.setDate(d.getDate() + (dayN++));
+    return d.toISOString().slice(0,10);
+  };
+  const loads = (kind, n) => {
+    const out = [];
+    for(let i=0;i<n;i++){
+      if(kind === 'improving') out.push(i < n/2 ? 185 : 205);
+      else if(kind === 'declining') out.push(i < n/2 ? 205 : 185);
+      else out.push(185);
+    }
+    return out;
+  };
+  const buildLog = specs => {
+    dayN = 0;
+    const log = [];
+    specs.forEach(sp => loads(sp.kind, sp.sessions).forEach(w => {
+      log.push({ id:'w'+log.length, date: nextDate(), programId: PROG.id,
+        exercises:[{ name: sp.name, sets:[{ type:'working', completed:true,
+          weight:w, reps:8 }] }] });
+    }));
+    return log;
+  };
+  const mix = (imp, std, dec) => {
+    const specs = []; let i = 0;
+    for(let k=0;k<imp;k++) specs.push({ name:LIFTS[i++], kind:'improving', sessions:8 });
+    for(let k=0;k<std;k++) specs.push({ name:LIFTS[i++], kind:'steady', sessions:8 });
+    for(let k=0;k<dec;k++) specs.push({ name:LIFTS[i++], kind:'declining', sessions:8 });
+    return buildLog(specs);
+  };
+  const st = (i,s2,d) => ctx.deriveProgramOutcome(PROG, mix(i,s2,d)).state;
+
+  sub('one layer, composed from D39');
+  T('there is a single program-outcome derivation',
+    typeof ctx.deriveProgramOutcome === 'function');
+  T('it consumes D39 rather than reimplementing it', (() => {
+    const i = src.indexOf('function deriveProgramOutcome');
+    const body = src.slice(i, i + 2600);
+    return body.indexOf('deriveProgramPerformance') !== -1
+      && body.indexOf('estimate1RM') === -1
+      && body.indexOf('perfMedian') === -1
+      && body.indexOf('isWorkingSet') === -1
+      && body.indexOf('perfSessionObservation') === -1;
+  })());
+  T('D39 still owns the evidence gates',
+    ctx.PERF_CONFIG.minSessions === 4 && ctx.PERF_CONFIG.minSessionsNumeric === 6);
+  T('program thresholds live in one config',
+    ctx.OUTCOME_CONFIG && typeof ctx.OUTCOME_CONFIG.minEvidencedLifts === 'number');
+
+  sub('a claim never outruns its evidence');
+  T('one improving lift does not make a program improving',
+    ctx.deriveProgramOutcome(PROG, buildLog([{ name:LIFTS[0], kind:'improving', sessions:8 }]
+      .concat(LIFTS.slice(1,6).map(n => ({ name:n, kind:'improving', sessions:2 })))
+    )).state === 'insufficient');
+  T('broad positive evidence reads as improving', st(4,1,0) === 'improving');
+  T('split evidence reads as mixed', st(2,0,2) === 'mixed');
+  T('stable evidence reads as steady', st(0,5,0) === 'steady');
+  T('broad negative evidence reads as declining', st(0,0,3) === 'declining');
+  T('one decline against stable lifts does not turn a program red',
+    st(0,3,1) === 'steady');
+  T('an unmeasurable program says nothing at all',
+    ctx.deriveProgramOutcome(PROG, []).state === 'insufficient');
+
+  sub('unknown is not steady, unsupported is not decline');
+  T('movements e1RM cannot describe produce no verdict', (() => {
+    dayN = 0;
+    const acc = [];
+    ['Cable Fly','Triceps Pushdown','Lat Pulldown'].forEach(name => {
+      for(let i=0;i<8;i++) acc.push({ id:'a'+acc.length, date: nextDate(),
+        programId: PROG.id, exercises:[{ name, sets:[{ type:'working',
+          completed:true, weight:25, reps:12 }] }] });
+    });
+    const o = ctx.deriveProgramOutcome(PROG, acc);
+    return o.state === 'insufficient' && o.decliningLifts === 0;
+  })());
+  T('under-evidenced lifts never change the verdict', (() => {
+    const base = st(4,1,0);
+    const specs = [];
+    for(let k=0;k<4;k++) specs.push({ name:LIFTS[k], kind:'improving', sessions:8 });
+    specs.push({ name:LIFTS[4], kind:'steady', sessions:8 });
+    specs.push({ name:LIFTS[5], kind:'declining', sessions:2 });
+    return ctx.deriveProgramOutcome(PROG, buildLog(specs)).state === base;
+  })());
+
+  sub('no cross-lift arithmetic');
+  T('the result carries no aggregate percentage or score', (() => {
+    const o = ctx.deriveProgramOutcome(PROG, mix(4,1,0));
+    return Object.keys(o).filter(k =>
+      /pct|percent|avg|mean|score/i.test(k)).length === 0;
+  })());
+  T('no averaging of lift percentages in the source', (() => {
+    const i = src.indexOf('function deriveProgramOutcome');
+    const body = src.slice(i, i + 2600);
+    return body.indexOf('reduce(') === -1 && body.indexOf('/ vals.length') === -1;
+  })());
+
+  sub('a PR is still not a trend');
+  T('one freak session cannot move a program', (() => {
+    dayN = 0;
+    const freak = [];
+    LIFTS.slice(0,4).forEach(name => {
+      for(let i=0;i<8;i++){
+        const w = (name === LIFTS[0] && i === 7) ? 315 : 185;
+        freak.push({ id:'f'+freak.length, date: nextDate(), programId: PROG.id,
+          exercises:[{ name, sets:[{ type:'working', completed:true, weight:w, reps:8 }] }] });
+      }
+    });
+    return ctx.deriveProgramOutcome(PROG, freak).state === 'steady';
+  })());
+
+  sub('adherence and outcome stay separate');
+  T('the outcome carries no adherence fields', (() => {
+    const o = ctx.deriveProgramOutcome(PROG, mix(4,1,0));
+    return o.completedSessions === undefined && o.plannedSessions === undefined
+      && o.prs === undefined;
+  })());
+  T('improvement survives partial adherence', st(4,1,0) === 'improving');
+
+  sub('completion and archive cannot disagree');
+  T('both surfaces render through one function',
+    src.split('programCompletionHtml(').length - 1 >= 3);
+  T('the panel derives the outcome itself rather than being handed one', (() => {
+    const i = src.indexOf('function programCompletionHtml');
+    return src.slice(i, i + 900).indexOf('deriveProgramOutcome') !== -1;
+  })());
+
+  sub('current profile cannot contaminate a past program');
+  T('the derivation reads no live profile state', (() => {
+    const i = src.indexOf('function deriveProgramOutcome');
+    const body = src.slice(i, i + 2600);
+    return ['getActiveProgram','athleteProfile','selectedPlanId','readiness',
+      'trainerLog','getCurrentGoal'].every(k => body.indexOf(k) === -1);
+  })());
+  T('the same history yields the same outcome regardless of active program', (() => {
+    const log = mix(4,1,0);
+    const a = ctx.deriveProgramOutcome(PROG, log).state;
+    ctx.programsStore.activeProgramId = 'something_else';
+    const b = ctx.deriveProgramOutcome(PROG, log).state;
+    return a === b;
+  })());
+
+  sub('deterministic and read-only');
+  T('100 derivations are byte-identical', (() => {
+    const log = mix(4,1,1);
+    const first = JSON.stringify(ctx.deriveProgramOutcome(PROG, log));
+    for(let i=0;i<100;i++)
+      if(JSON.stringify(ctx.deriveProgramOutcome(PROG, log)) !== first) return false;
+    return true;
+  })());
+  T('deriving and rendering writes nothing', (() => {
+    const log = mix(4,1,1);
+    const before = JSON.stringify(app.store);
+    const logBefore = JSON.stringify(log);
+    for(let i=0;i<20;i++) ctx.programOutcomeHtml(ctx.deriveProgramOutcome(PROG, log));
+    return JSON.stringify(app.store) === before && JSON.stringify(log) === logBefore;
+  })());
+  T('no new storage key was introduced', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+
+  sub('what LOOP may say');
+  T('no causal, body-composition or score language', (() => {
+    const copy = ['improving','mixed','steady','declining'].map(x => {
+      const f = { state:x, evidencedLifts:5, improvingLifts:4, steadyLifts:1, decliningLifts:0 };
+      return ctx.programOutcomeLabel(f) + ' ' + ctx.programOutcomeHeadline(f)
+        + ' ' + ctx.programOutcomeAria(f);
+    }).join(' ').toLowerCase();
+    return ['muscle','body fat','lean mass','composition','because','caused',
+      'made you','score','grade','/100'].every(w => copy.indexOf(w) === -1);
+  })());
+  T('strength wording stays estimated strength', (() => {
+    const f = { state:'improving', evidencedLifts:5, improvingLifts:4, steadyLifts:1, decliningLifts:0 };
+    return ctx.programOutcomeHeadline(f).toLowerCase().indexOf('estimated strength') !== -1;
+  })());
+  T('an insufficient program is given no verdict wording', (() => {
+    const f = { state:'insufficient', evidencedLifts:1, improvingLifts:1, steadyLifts:0, decliningLifts:0 };
+    return ctx.programOutcomeLabel(f) === '' && ctx.programOutcomeHeadline(f) === ''
+      && ctx.programOutcomeHtml(f) === '';
+  })());
+
+  sub('D39 remains exactly as it was');
+  T('an improving delta is worded as before',
+    ctx.perfDeltaText({ numeric:true, direction:'improving', pct:9.4 })
+      === '+9% estimated strength');
+  T('a steady lift still shows no percentage',
+    ctx.perfDeltaText({ numeric:false, direction:'steady', pct:1 }) === null);
+  T('a decline can now be worded, and is signed',
+    ctx.perfDeltaText({ numeric:true, direction:'declining', pct:-5.2 })
+      === '\u22125% estimated strength');
+  T('D39 highlights still exclude declines', (() => {
+    const perf = ctx.derivePerformanceProgress(mix(1,0,1));
+    return (perf.highlights || []).every(h => h.direction !== 'declining');
+  })());
+}
+
 async function testPerformanceProgress(){
   section('CONTRACT 138 — performance progress (D39)');
   const fs = require('fs');
@@ -16180,6 +16402,7 @@ async function main(){
   await testTemporalProgramming();
   await testProgramLifecycle();
   await testPerformanceProgress();
+  await testProgramOutcomes();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

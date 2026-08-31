@@ -4525,3 +4525,112 @@ observation filter and the half-split from scratch as an independent oracle and
 agrees with production on every fixture. 87 data-integrity, 261
 cardio-lifecycle, 43 GPS and 252 date checks still green. Deriving progress
 over 600 sessions takes 2.5 ms.
+
+## §63 — Program outcomes & completion integrity (D40, loop-v110)
+
+**Composition, not a second model.** D39 answers "am I improving on this
+lift?". D40 answers "did this program produce meaningful training progress?"
+by reading D39’s per-lift directions — nothing more. `deriveProgramOutcome`
+calls `deriveProgramPerformance` and never touches `estimate1RM`,
+`perfMedian`, `isWorkingSet` or `perfSessionObservation`; Contract 139 reads
+the function body and fails if any of those names appear inside it. The
+evidence gates stay exactly where D39 put them: 4 sessions for a direction,
+6 for a percentage, unchanged and unweakened.
+
+**Never a cross-lift percentage.** Bench +10%, Squat +4% and Row +8% do not
+make a program "+7.3% stronger" — different movements carry different
+absolute loads and different evidence quality, so the average would be a
+number with no referent. The program answer is SEMANTIC: it counts how many
+comparable lifts moved which way. The audit computes the mean of the lift
+percentages itself and asserts that number appears nowhere in the result,
+and the contract fails if `reduce(` ever enters the derivation.
+
+**The evidence floor was measured, not chosen.** Sweeping all 75
+goal/frequency/length combinations of the generated library: at full
+adherence every program yields at least 5 comparable lifts clearing D39’s
+4-session gate (median 14), and even the smallest — a 2-day program — yields
+5. So `OUTCOME_CONFIG.minEvidencedLifts = 3` stays reachable for the smallest
+real program while refusing to let one or two lifts speak for a training
+block. The same sweep shows 4-week programs mostly CANNOT clear the
+6-session percentage gate — that is correct and was left alone rather than
+tuned away.
+
+**Five states, and a 3:1 rule.** `improving` and `declining` each require 3
+lifts on that side outnumbering the other 3:1, so a real result survives the
+one movement that always misbehaves while 5 improving lifts can never bury 2
+that fell; `mixed` needs genuine movement in both directions; `steady` means
+enough evidence, mostly stable; `insufficient` means the program says nothing
+about itself. The rule lives in one config, not scattered through renderers.
+The audit sweeps the whole small-program state space and asserts properties
+taken from the product rules rather than from the code — a verdict never
+contradicts its own evidence, improvement and decline are treated
+symmetrically, no single lift decides a program, and lifts without enough
+evidence never change the answer.
+
+**Unknown is not steady; unsupported is not decline.** A movement e1RM cannot
+describe (cable flies, pushdowns, lat pulldowns) contributes to no count in
+either direction. A hypertrophy program built almost entirely from such
+movements returns `insufficient`, never a negative result.
+
+**Adherence and outcome never impersonate each other.** They are separate
+derivations: the outcome object carries no `completedSessions`,
+`plannedSessions` or `prs` field, and a PR count cannot move a verdict. The
+seven-at-185 plus one-at-315 fixture still reports `steady` at the program
+layer, exactly as it does at the lift layer.
+
+**What LOOP may say.** Wording is bounded by the evidence type: D39 measures
+ESTIMATED STRENGTH from completed working sets, so the sentence says that
+whatever the program’s goal was. A hypertrophy program is never described as
+having built muscle, a recomp program is never described as recomposition,
+and a general-fitness program is never described as improved fitness. Nothing
+claims the program CAUSED the change — only that performance moved while it
+was being trained. No score, no grade, no next-program recommendation.
+
+**Two defects found and fixed.**
+
+*A second program-history calculator was still shipping.*
+`getProgramCompletionSummary` predated D38 and attributed workouts to a
+program by date window alone, ignoring `programId` entirely — so it could
+claim sessions belonging to another program. It powered the "Mark complete"
+alert, which meant that alert could report a different workout and PR count
+than the completion panel shown seconds later for the same program. It is
+deleted; `doCompleteProgram` now uses `deriveProgramCompletion`, the
+canonical rule. Contract pin: the superseded assertion was repointed at the
+canonical derivation and a new one fails if the legacy function ever returns.
+
+*37 font-size declarations had been resolving to nothing since D33.* The
+program CSS written across D33–D39 used a t-shirt token vocabulary
+(`--fs-xs/sm/base/lg/xl`) that the design system never defined — its real
+scale is `--fs-micro/meta/support/body/section/title/metric`. Every one of
+those declarations was invalid and dropped, so the elements silently
+inherited: on the completion panel the program name, its supporting line and
+its metric numerals all rendered at 16px body size, and a builder question’s
+subtitle rendered nearly as large as the question. Verified by computed style
+on the live panel before the fix. The phantom names are now aliased onto the
+roles they meant rather than given values of their own, so the scale keeps
+one number per role.
+
+**Read-only, and proven so.** Rendering every D40 surface five times over
+leaves `workoutLog`, `trainerLog`, `programs`, `cardioLog`, PR events, XP,
+level, rank, recovery, readiness, mastery, capability output, the
+localStorage key set AND the full localStorage contents byte-identical.
+`DATA_KEYS` remains 15, no key was added, and no outcome is persisted or
+cached — an edited or deleted workout changes the answer the next time it is
+asked. `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`.
+
+**One function, three surfaces.** Program completion, My Training’s finished
+program and the past-program overlay all render through
+`programCompletionHtml`, which derives the outcome itself rather than being
+handed one, so they cannot disagree. Verified live: identical kicker,
+headline, rows and aria-label on completion and archive, and identical again
+after a reload. An ACTIVE program still shows D39’s "Progress so far" and is
+given no final verdict.
+
+**Verification.** 5,236 assertions across 139 always-on contracts; the
+program audit reached 282 checks. 87 data-integrity, 261 cardio-lifecycle, 43
+GPS and the full date matrix still green. 100 repeat derivations are
+byte-identical; 50 derivations over 40 sessions take 5 ms. Six viewports
+clean with worst-case content — a mixed outcome heading above "Dumbbell
+Bulgarian Split Squat +14% estimated strength" and "Standing Barbell Overhead
+Press −11% estimated strength" — 0 offscreen, 0 clipped, 0 horizontal
+overflow.
