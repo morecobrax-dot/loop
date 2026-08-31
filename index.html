@@ -9582,6 +9582,24 @@ const LOOP_UPDATES = [
       'Marking a program complete reported a workout and record count worked out a different way than the summary shown straight afterwards, so the two could disagree about the same program'
     ],
     changes: []
+  },
+  {
+    id: 'v3-4',
+    version: 'LOOP 3.4',
+    title: 'Cleaner Program History',
+    date: '2026-09-04',
+    swVersion: 'loop-v111',
+    summary: 'Extra workouts stay your own — they no longer count as training your program asked for.',
+    newFeatures: [],
+    improvements: [
+      'A workout you start outside your program is now kept separate from it, so program results and completion summaries describe only the training that program actually planned',
+      'Your extra sessions still count everywhere else — training history, personal records, progress and recovery treat them exactly as before'
+    ],
+    bugFixes: [
+      'A workout logged while a program was running was counted as part of that program even when the program never included it, which could overstate how much of the program you had completed',
+      'A record set in an extra session on the same day as a program workout was credited to that program'
+    ],
+    changes: []
   }
 ];
 
@@ -22513,8 +22531,13 @@ function getProgramProgress(program, todayStr){
   const week = getCurrentProgramWeek(p, today);
   const block = getBlockForWeek(p, week);
   const endStr = programEndDate(p);
-  const completed = (workoutLog || []).filter(w =>
-    w && w.date >= p.startDate && w.date <= today && (!endStr || w.date <= endStr)).length;
+  /* D41 — membership, not merely dates. This counted every workout falling
+     inside the program's window, so an extra rest-day session inflated
+     "sessions done" for a program that never prescribed it. It now shares the
+     one membership policy; the cap at today is what makes this progress so
+     far rather than the whole program. */
+  const completed = programWorkouts(p).filter(w =>
+    w.date <= today && (!endStr || w.date <= endStr)).length;
   const perWeek = programTrainingDayCount(p);
   const weeksElapsed = Math.max(0, Math.min(week === null ? 0 : week, p.durationWeeks));
   const value = {
@@ -25286,20 +25309,60 @@ function getLastFinishedProgram(todayStr){
 }
 
 /* ---------- WHICH WORKOUTS BELONGED TO THIS PROGRAM ----------
-   Newly logged sessions carry programId, which is exact. Sessions logged
-   before D38 have none, so they fall back to the program's own date window.
-   The fallback deliberately EXCLUDES anything already claimed by a different
-   program, so two programs can never both count the same workout. */
+   D41 — membership means ORIGIN, not coincidence. A workout belongs to a
+   program because it began from training that program prescribes, never
+   because that program happened to be running on the same date.
+
+   Three cases, and they are genuinely different facts:
+
+     origin 'program' + programId  — started from a session this program
+                                     prescribes. Exact, and it outranks
+                                     every date consideration.
+     origin 'freeform'             — started independently. Real training
+                                     and real evidence everywhere else in
+                                     LOOP, but never this program’s work.
+     no origin at all              — logged before provenance existed. Not
+                                     freeform, not program: UNKNOWN. Only
+                                     these may use the date window, which
+                                     stays the safest available reading of
+                                     history that cannot be re-derived.
+
+   Nothing is backfilled and nothing is guessed from titles or dates: an
+   old session that could have been either remains ambiguous forever, which
+   is the honest answer. */
+function workoutBelongsToProgram(w, program){
+  if(!w || !w.date || !program || !program.startDate) return false;
+  /* Explicit provenance is authoritative in both directions — a session
+     claimed by another program is excluded here, never date-recovered. */
+  if(w.programId) return w.programId === program.id;
+  if(w.origin) return false;
+  /* Legacy only. */
+  if(w.date < program.startDate) return false;
+  const end = programEndDate(program);
+  if(end && w.date > end) return false;
+  return true;
+}
+
+/* Every program-level consumer — completion, adherence, PR counts and the
+   D40 outcome — reads membership through here, so there is one policy to
+   reason about rather than a date rule per surface. */
 function programWorkouts(program, log){
   if(!program || !program.startDate) return [];
-  const end = programEndDate(program);
   const all = log || workoutLog || [];
-  return all.filter(w => {
-    if(!w || !w.date) return false;
-    if(w.programId) return w.programId === program.id;
-    if(w.date < program.startDate) return false;
-    if(end && w.date > end) return false;
-    return true;
+  return all.filter(w => workoutBelongsToProgram(w, program));
+}
+
+/* Does this program’s own schedule prescribe this exact session? This is
+   the question provenance turns on, and it is deliberately asked of the
+   program’s STRUCTURE rather than of today’s date: training Monday’s Upper
+   A on Tuesday is still the program’s work, while a movement the program
+   never contains is extra training however convenient the calendar. */
+function programPrescribesTemplate(program, cat, tplId){
+  if(!program || !cat || !tplId) return false;
+  const sched = getProgramSchedule(program);
+  return PROGRAM_DAY_KEYS.some(k => {
+    const e = sched[k];
+    return !!(e && e.type === 'workout' && e.category === cat && e.templateId === tplId);
   });
 }
 
@@ -25321,10 +25384,25 @@ function deriveProgramCompletion(program, todayStr, log){
   try{
     const ids = {};
     done.forEach(w => { if(w && w.id) ids[w.id] = true; });
-    const dates = {};
-    done.forEach(w => { if(w && w.date) dates[w.date] = true; });
-    prs = (computeAllPREvents() || []).filter(e =>
-      e && ((e.workoutId && ids[e.workoutId]) || (!e.workoutId && e.date && dates[e.date]))).length;
+    /* D41 — PR events carry no workout id, so membership is matched by date
+       AND exercise rather than by date alone. Training an extra session on the
+       same day as a program workout used to donate its records to the program;
+       the record is still entirely real, it simply belongs to the athlete
+       rather than to a plan that never asked for it. */
+    const byDate = {};
+    done.forEach(w => {
+      if(!w || !w.date) return;
+      const day = byDate[w.date] || (byDate[w.date] = {});
+      (w.exercises || []).forEach(x => {
+        if(x && x.name) day[String(x.name).trim().toLowerCase()] = true;
+      });
+    });
+    prs = (computeAllPREvents() || []).filter(e => {
+      if(!e || !e.date) return false;
+      if(e.workoutId) return !!ids[e.workoutId];
+      const day = byDate[e.date];
+      return !!(day && e.exerciseName && day[String(e.exerciseName).trim().toLowerCase()]);
+    }).length;
   }catch(e){ prs = 0; }
 
   let sets = 0;
@@ -28957,6 +29035,12 @@ let draftSaveTimer = null;
 let draftRestoring = false;
 let pendingDraftStartedAt = null;
 let pendingDraftId = null;
+/* D41 — how the OPEN workout was started. Decided once, when the session
+   begins, and carried through the draft so that activating, switching or
+   finishing a program midway through a workout cannot retroactively change
+   what that workout is. */
+let pendingWorkoutOrigin = null;
+let pendingWorkoutProgramId = null;
 
 function captureActiveDraft(){
   const overlay = document.getElementById('logOverlay');
@@ -29017,6 +29101,10 @@ function captureActiveDraft(){
     showCategoryPicker: document.getElementById('logCategoryPicker').style.display !== 'none',
     startedAt: pendingDraftStartedAt || new Date().toISOString(),
     savedAt: new Date().toISOString(),
+    /* D41 — so a workout resumed tomorrow is still the workout that was
+       started today, whatever the athlete did to their program in between. */
+    origin: pendingWorkoutOrigin || null,
+    originProgramId: pendingWorkoutProgramId || null,
     /* Whether this workout is past its warm-up. Purely presentational — no
        reader of a saved workout has ever looked at it, and workoutLog is not
        involved. */
@@ -29044,6 +29132,8 @@ async function clearActiveDraft(){
   if(draftSaveTimer){ clearTimeout(draftSaveTimer); draftSaveTimer = null; }
   pendingDraftStartedAt = null;
   pendingDraftId = null;
+  pendingWorkoutOrigin = null;
+  pendingWorkoutProgramId = null;
   try{ await LOOPStore.set(DRAFT_KEY, 'null'); }catch(e){}
   renderResumeBanner();
 }
@@ -29064,6 +29154,10 @@ function restoreDraftToSheet(draft){
   draftRestoring = true;
   pendingDraftId = draft.id || ('draft_' + Date.now());
   pendingDraftStartedAt = draft.startedAt || new Date().toISOString();
+  /* Older drafts predate provenance and stay unknown rather than being
+     guessed into a program. */
+  pendingWorkoutOrigin = draft.origin || null;
+  pendingWorkoutProgramId = draft.originProgramId || null;
   /* A resumed workout does not warm up again. Older drafts have no flag, so
      the started-check below still covers them. */
   warmupDoneForDraft = draft.warmupDone ? pendingDraftId : warmupDoneForDraft;
@@ -29733,6 +29827,19 @@ async function startTemplateLog(cat, tplId){
     }
   }catch(e){}
   if(!planned) return;
+  /* D41 — provenance is decided here, from whether the running program
+     actually prescribes this session, and never from the fact that a
+     program exists. Picking an unrelated workout from the library, or
+     training through a rest day, is extra training. */
+  pendingWorkoutOrigin = 'freeform';
+  pendingWorkoutProgramId = null;
+  try{
+    const _op = hasActiveProgram() ? getActiveProgram() : null;
+    if(_op && _op.id && programPrescribesTemplate(_op, cat, tplId)){
+      pendingWorkoutOrigin = 'program';
+      pendingWorkoutProgramId = _op.id;
+    }
+  }catch(e){}
   /* Time Mode works on a COPY. The saved template keeps every exercise and
      set it was programmed with, whatever the athlete picked for today. */
   const tpl = applyTimeModeToTemplate(planned);
@@ -29766,6 +29873,10 @@ async function startTemplateLog(cat, tplId){
 
 async function openFreeformLog(){
   if(!(await confirmOverwriteDraft())) return;
+  /* D41 — training the athlete chose independently. It counts everywhere
+     a workout normally counts; it is simply not the program’s work. */
+  pendingWorkoutOrigin = 'freeform';
+  pendingWorkoutProgramId = null;
   pendingLogCategory = 'push';
   pendingDraftStartedAt = new Date().toISOString();
   pendingDraftId = 'draft_' + Date.now();
@@ -30668,15 +30779,22 @@ function saveLog(btn){
     newEntry.endedAt = new Date().toISOString();
   }
   if(pendingPlannedMinutes) newEntry.plannedMinutes = pendingPlannedMinutes;
-  /* D38 \u2014 which program this session belonged to, written only when one
-     was genuinely running. Optional, exactly like the duration fields above:
-     every workout logged before this has none, and every reader falls back to
-     the program's date window rather than treating absence as \"no program\".
-     Nothing is backfilled and no historical entry is touched. */
-  try{
-    const _ap = hasActiveProgram() ? getActiveProgram() : null;
-    if(_ap && _ap.id) newEntry.programId = _ap.id;
-  }catch(e){}
+  /* D41 \u2014 provenance, recorded from how this workout was actually started
+     rather than from what happened to be active when it was saved. Before
+     this, EVERY session inherited the running program’s id, so a rest-day
+     arm workout became evidence that the program had prescribed it.
+
+     A session begun from training the program prescribes carries its id; a
+     session begun independently is explicitly freeform and can never be
+     read as program work. Both remain ordinary workouts everywhere else \u2014
+     history, PRs, mastery, capability, recovery and trainer evidence are
+     untouched by this field. Sessions logged before provenance existed
+     carry neither and stay honestly unknown. */
+  if(pendingWorkoutOrigin){
+    newEntry.origin = pendingWorkoutOrigin;
+    if(pendingWorkoutOrigin === 'program' && pendingWorkoutProgramId)
+      newEntry.programId = pendingWorkoutProgramId;
+  }
   workoutLog.push(newEntry);
   // Caches must be invalidated now so the PR/XP computations below see the new
   // entry. The actual write to storage happens once, at the end, where its

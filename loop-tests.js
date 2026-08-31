@@ -15362,7 +15362,7 @@ async function testTrainingPrescription(){
        reps through, and the engine records targetSource 'program'. D36 makes
        the range goal-aware, so the pin matters more, not less. */
     T('the log path hands the program prescription to each row',
-      /startTemplateLog[\s\S]{0,2800}targetSets: ex\.sets, targetReps: ex\.reps/.test(src));
+      /startTemplateLog[\s\S]{0,3400}targetSets: ex\.sets, targetReps: ex\.reps/.test(src));
     T('the engine treats a supplied range as program-owned',
       /targetSource = opts\.targetReps \? 'program'/.test(src));
     T('planned effort never overwrites recorded effort',
@@ -15685,9 +15685,21 @@ async function testProgramLifecycle(){
       ctx.deriveProgramCompletion(prog, '2026-10-01',
         [{ id:'l', date:'2026-01-06', exercises:[{ name:'Bench Press', sets:[{}] }] }]
       ).completedSessions === 1);
-    /* Forward-safe linkage, written only when a program is actually running. */
+    /* D41 — this used to pin `newEntry.programId = _ap.id`: the line that
+       stamped the RUNNING program onto every workout however it was started,
+       so a rest-day arm session became evidence the program prescribed it.
+       That line was the contamination, not the contract. What must stay true
+       is that a session records the program it belonged to — it now does so
+       from provenance recorded when the workout began, and the pin is
+       strengthened by also requiring that the active program can no longer be
+       consulted at save time. */
     T('new sessions record the program they belonged to',
-      /newEntry\.programId = _ap\.id/.test(src));
+      /newEntry\.programId = pendingWorkoutProgramId/.test(src));
+    T('the running program is not stamped onto whatever happens to be saved',
+      !/newEntry\.programId = _ap\.id/.test(src));
+    T('provenance is decided when the workout starts, not when it is saved',
+      /pendingWorkoutOrigin = 'program'/.test(src)
+      && /pendingWorkoutOrigin = 'freeform'/.test(src));
     T('and nothing historical is backfilled',
       !/workoutLog\.forEach[^;]{0,200}programId =/.test(src));
   }
@@ -15768,6 +15780,173 @@ async function testProgramLifecycle(){
    PR is not a trend, current capability is untouched, and
    every surface reads one analysis.
    ========================================================= */
+/* =========================================================
+   CONTRACT 140 — WORKOUT PROVENANCE  (Phase D41)
+   A workout can be real training without being PROGRAM training. What
+   must never drift is that the difference is recorded from how a session
+   was started, not inferred from what was running when it was saved.
+   ========================================================= */
+async function testWorkoutProvenance(){
+  section('CONTRACT 140 — workout provenance (D41)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  const A = { id:'pA', name:'A', startDate:'2026-03-02', durationWeeks:4,
+    status:'active', schedule:{} };
+  const B = { id:'pB', name:'B', startDate:'2026-03-02', durationWeeks:4,
+    status:'active', schedule:{} };
+
+  sub('origin is recorded, not assumed');
+  T('the running program is not stamped onto every saved workout',
+    !/newEntry\.programId = _ap\.id/.test(src));
+  T('the save path writes the origin the workout was started with',
+    /newEntry\.origin = pendingWorkoutOrigin/.test(src));
+  T('freeform sessions declare themselves freeform', (() => {
+    const i = src.indexOf('async function openFreeformLog');
+    return src.slice(i, i + 600).indexOf("pendingWorkoutOrigin = 'freeform'") !== -1;
+  })());
+  T('a template start asks whether the program prescribes it', (() => {
+    const i = src.indexOf('async function startTemplateLog');
+    const body = src.slice(i, i + 3400);
+    return body.indexOf('programPrescribesTemplate') !== -1
+      && body.indexOf("pendingWorkoutOrigin = 'program'") !== -1;
+  })());
+  T('prescription is asked of the program structure, not of today', (() => {
+    const i = src.indexOf('function programPrescribesTemplate');
+    const body = src.slice(i, i + 500);
+    return body.indexOf('PROGRAM_DAY_KEYS') !== -1
+      && body.indexOf('localDateStr') === -1;
+  })());
+
+  sub('membership means origin, not coincidence');
+  T('an explicit program session belongs to its program',
+    ctx.workoutBelongsToProgram({ date:'2026-03-10', origin:'program', programId:'pA' }, A) === true);
+  T('a session owned by another program never leaks in',
+    ctx.workoutBelongsToProgram({ date:'2026-03-10', origin:'program', programId:'pB' }, A) === false);
+  T('a known-freeform session inside the window is not program work',
+    ctx.workoutBelongsToProgram({ date:'2026-03-10', origin:'freeform' }, A) === false);
+  T('a known-freeform session never falls through to the date window',
+    [ '2026-03-02', '2026-03-10', ctx.programEndDate(A) ].every(d =>
+      ctx.workoutBelongsToProgram({ date:d, origin:'freeform' }, A) === false));
+  T('a legacy session with no origin still counts by date',
+    ctx.workoutBelongsToProgram({ date:'2026-03-10' }, A) === true);
+  T('a legacy session outside the window does not',
+    ctx.workoutBelongsToProgram({ date:'2025-01-01' }, A) === false);
+  T('title never decides membership',
+    ctx.workoutBelongsToProgram({ date:'2026-03-10', origin:'freeform', title:'Upper A' }, A) === false);
+  T('a renamed program session stays program work',
+    ctx.workoutBelongsToProgram({ date:'2026-03-10', origin:'program', programId:'pA',
+      title:'Renamed Later' }, A) === true);
+  T('editing the exercises does not change where it came from',
+    ctx.workoutBelongsToProgram({ date:'2026-03-10', origin:'program', programId:'pA',
+      exercises:[{ name:'Anything', sets:[{}] }] }, A) === true);
+  T('membership is unaffected by program status',
+    ['active','paused','completed'].every(st =>
+      ctx.workoutBelongsToProgram(
+        { date:'2026-03-10', origin:'freeform' }, Object.assign({}, A, { status:st })) === false));
+
+  sub('one policy, shared by every program consumer');
+  T('there is exactly one programId membership comparison',
+    (src.match(/\.programId === /g) || []).length === 1);
+  T('programWorkouts delegates to the membership helper', (() => {
+    const i = src.indexOf('function programWorkouts');
+    return src.slice(i, i + 400).indexOf('workoutBelongsToProgram') !== -1;
+  })());
+  T('program progress counts membership rather than dates', (() => {
+    const i = src.indexOf('function getProgramProgress');
+    return src.slice(i, i + 1400).indexOf('programWorkouts(p)') !== -1;
+  })());
+
+  sub('extra training cannot inflate a program');
+  {
+    const planned = [];
+    for(let i=0;i<4;i++) planned.push({ id:'a'+i,
+      date:'2026-03-0' + (2+i), origin:'program', programId:'pA',
+      exercises:[{ name:'Bench Press', sets:[{}] }] });
+    const extra = planned.concat([
+      { id:'x1', date:'2026-03-06', origin:'freeform', exercises:[{ name:'Bicep Curl', sets:[{}] }] },
+      { id:'x2', date:'2026-03-07', origin:'freeform', exercises:[{ name:'Bicep Curl', sets:[{}] }] }]);
+    const c1 = ctx.deriveProgramCompletion(A, '2026-12-01', planned);
+    const c2 = ctx.deriveProgramCompletion(A, '2026-12-01', extra);
+    T('the completed-session count ignores extra training',
+      c1.completedSessions === 4 && c2.completedSessions === 4,
+      c1.completedSessions + '/' + c2.completedSessions);
+    T('the planned denominator is untouched',
+      c1.plannedSessions === c2.plannedSessions);
+  }
+
+  sub('a freeform session is not program evidence');
+  {
+    const log = [];
+    for(let i=0;i<8;i++) log.push({ id:'p'+i,
+      date:'2026-03-' + String(2+i).padStart(2,'0'), origin:'program', programId:'pA',
+      exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true, weight:185, reps:8 }] }] });
+    const withFree = log.concat([{ id:'ff', date:'2026-03-11', origin:'freeform',
+      exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true, weight:315, reps:8 }] }] }]);
+    T('a huge freeform session cannot move the program outcome',
+      JSON.stringify(ctx.deriveProgramOutcome(A, log))
+        === JSON.stringify(ctx.deriveProgramOutcome(A, withFree)));
+    T('the program\u2019s own lift evidence excludes it', (() => {
+      const b = (ctx.deriveProgramPerformance(A, withFree).exercises || [])
+        .find(x => /bench/i.test(x.name || ''));
+      return b && b.sessions === 8 && b.direction === 'steady';
+    })());
+  }
+
+  sub('freeform is still real training everywhere else');
+  {
+    const free = [];
+    for(let i=0;i<6;i++) free.push({ id:'f'+i,
+      date:'2026-03-' + String(2+i).padStart(2,'0'), origin:'freeform',
+      exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true,
+        weight:185 + i*10, reps:8 }] }] });
+    T('unscoped performance history still sees it',
+      ctx.derivePerformanceProgress(free).exercises.length > 0);
+    T('nothing in the membership helper touches capability or the trainer', (() => {
+      const i = src.indexOf('function workoutBelongsToProgram');
+      const body = src.slice(i, i + 900);
+      return ['computeExerciseCapability','trainerLog','recovery','mastery','XP']
+        .every(k => body.indexOf(k) === -1);
+    })());
+  }
+
+  sub('drafts remember where they came from');
+  T('a draft carries its origin', /origin: pendingWorkoutOrigin/.test(src));
+  T('and the program it came from', /originProgramId: pendingWorkoutProgramId/.test(src));
+  T('resuming restores both', (() => {
+    const i = src.indexOf('function restoreDraftToSheet');
+    const body = src.slice(i, i + 700);
+    return body.indexOf('pendingWorkoutOrigin = draft.origin') !== -1
+      && body.indexOf('pendingWorkoutProgramId = draft.originProgramId') !== -1;
+  })());
+  T('an older draft without provenance stays unknown rather than guessed',
+    /pendingWorkoutOrigin = draft\.origin \|\| null/.test(src));
+
+  sub('nothing historical is rewritten');
+  T('no backfill of provenance onto existing history',
+    !/workoutLog\.forEach[^;]{0,200}origin =/.test(src));
+  T('reading a legacy record does not normalize it', (() => {
+    const legacy = { id:'L', date:'2026-03-10', exercises:[{ name:'Bench Press', sets:[{}] }] };
+    const before = JSON.stringify(legacy);
+    for(let i=0;i<15;i++){
+      ctx.programWorkouts(A, [legacy]);
+      ctx.deriveProgramCompletion(A, '2026-12-01', [legacy]);
+      ctx.deriveProgramOutcome(A, [legacy]);
+    }
+    return JSON.stringify(legacy) === before && legacy.origin === undefined;
+  })());
+
+  sub('nothing else moved');
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('D39 evidence gates are unchanged',
+    ctx.PERF_CONFIG.minSessions === 4 && ctx.PERF_CONFIG.minSessionsNumeric === 6);
+  T('D40 aggregation thresholds are unchanged',
+    ctx.OUTCOME_CONFIG.minEvidencedLifts === 3 && ctx.OUTCOME_CONFIG.dominance === 3);
+}
+
 /* =========================================================
    CONTRACT 139 — PROGRAM OUTCOMES  (Phase D40)
    Guards the composition, not the strength model: D39 owns that and has
@@ -16403,6 +16582,7 @@ async function main(){
   await testProgramLifecycle();
   await testPerformanceProgress();
   await testProgramOutcomes();
+  await testWorkoutProvenance();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

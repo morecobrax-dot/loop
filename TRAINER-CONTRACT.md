@@ -4634,3 +4634,94 @@ clean with worst-case content — a mixed outcome heading above "Dumbbell
 Bulgarian Split Squat +14% estimated strength" and "Standing Barbell Overhead
 Press −11% estimated strength" — 0 offscreen, 0 clipped, 0 horizontal
 overflow.
+
+## §64 — Workout provenance & program evidence integrity (D41, loop-v111)
+
+**A workout can be real training without being PROGRAM training.** D40 left
+this open and said so: every workout saved while a program was running
+inherited that program’s id, so a rest-day arm session became evidence the
+program had prescribed it. The root cause was a single line in the one save
+path — `newEntry.programId = _ap.id` — which read the ACTIVE program at save
+time and knew nothing about how the session had been started.
+
+**Origin is decided when a workout begins, not when it is saved.**
+`openFreeformLog` records `freeform`. `startTemplateLog` asks
+`programPrescribesTemplate`, which reads the program’s own schedule — its
+STRUCTURE, never today’s date — so Monday’s Upper A trained on Tuesday is
+still the program’s work (§56), while a movement the program does not contain
+is extra training however convenient the calendar. "Train anyway" on a rest
+day was traced rather than guessed from its wording: it opens the workout
+picker, so picking something the program does not prescribe is correctly
+freeform, and picking a session it does prescribe is correctly program work.
+
+**One field, not a policy record.** The workout carries `origin`
+(`program` | `freeform`) plus the existing `programId`. Nothing stores
+`countsForCompletion`, `countsForOutcome` or any other interpretation — those
+may change, and history records what happened, not how to read it. No
+localStorage key was added; `DATA_KEYS` remains 15.
+
+**Three states, deliberately distinct.** `origin:'program'` with an id is
+exact and outranks every date consideration. `origin:'freeform'` is
+explicitly not program work and NEVER falls through to the date window.
+Absence of `origin` means UNKNOWN — logged before provenance existed — and
+only those records may use the window. Conflating "explicitly not this
+program" with "we do not know" was the specific trap §16 warned about, and
+the audit pins that a known-freeform session and a legacy session at the same
+date inside the same window resolve differently.
+
+**One membership policy.** `workoutBelongsToProgram` is the only place a
+membership decision is made; the source now contains exactly one
+`.programId ===` comparison and a contract fails if a second appears.
+`programWorkouts` delegates to it, and every program consumer — completion,
+adherence, program PR counts and the D40 outcome — goes through
+`programWorkouts`.
+
+**A third calculator was found and consolidated.** `getProgramProgress`, which
+powers "sessions done" on Today and My Training, counted EVERY workout inside
+the program’s date window. An extra rest-day session therefore raised the
+program’s completion count directly in the UI. It now counts membership,
+capped at today.
+
+**Program PR counts were date-only.** PR events carry no workout id, so the
+program recap matched them by date alone: a record set in an extra session on
+the same day as a program workout was credited to the program. Matching is now
+by date AND exercise. Verified live — 9 global PRs, 8 program PRs, with the
+freeform Bench record real everywhere and absent from the program.
+
+**Freeform is still real training.** D41 restricts PROGRAM-ATTRIBUTED claims
+and nothing else. The membership helper references no capability, trainer,
+recovery, mastery or XP symbol, and a contract fails if it ever does. Verified
+live: an extra Bench session at 315 lb appears in global performance history,
+sets a real PR, and feeds capability — while being wholly absent from the
+program’s own Bench evidence, which stayed 8 flat sessions reading steady.
+
+**Drafts keep their origin.** Provenance is written into the draft and
+restored on resume, so activating, switching or finishing a program midway
+through a workout cannot retroactively change what that workout is. Older
+drafts carry none and stay unknown rather than being guessed into a program.
+
+**Nothing historical was touched.** No migration, no backfill, no inference
+from titles or dates. Browsing every program surface twenty times leaves a
+legacy record byte-identical, with no `origin` field added — there is no
+read-time normalization.
+
+**Backup round-trip.** Provenance rides on the workout record, so no new
+top-level backup key was needed. A modern export/import preserves origin
+exactly and reproduces an identical program outcome and completion. A
+pre-D41 backup imports with no invented provenance and falls back to the date
+window — demonstrated by the same two workouts attributing as 1 session
+(modern, exact) versus 2 (legacy, approximate).
+
+**Verification.** 5,272 assertions across 140 always-on contracts; the program
+audit reached 301 checks, including a declared 14-case membership matrix whose
+expectations are written from the product rules rather than computed by the
+function under test, and a 36-combination status × origin × date sweep. 87
+data-integrity, 261 cardio, 43 GPS and the full date matrix still green. D39’s
+gates (4 sessions / 6 for a percentage) and D40’s aggregation thresholds are
+pinned unchanged. `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`.
+
+**Remaining limitation, stated plainly.** Workouts logged before this release
+carry no origin and are still attributed by date window, so a pre-D41 extra
+session inside a program’s dates still counts toward that program. That
+ambiguity is historical and is left honest rather than repaired by guessing.
+Attribution is exact from this release forward.

@@ -1998,6 +1998,222 @@ function oracleTemplate(ctx, entry) {
       copy.toLowerCase().indexOf('estimated strength') !== -1, copy);
   }
 
+  /* ---------- 20. WORKOUT PROVENANCE  (Phase D41) ----------
+     The oracle here does not call workoutBelongsToProgram to decide what
+     the answer should be. Every fixture DECLARES its expected membership up
+     front, in a table written from the product rules: explicit provenance
+     always outranks the calendar, a known-freeform session never falls
+     through to the date window, a session claimed by another program is
+     never date-recovered, and only genuinely unknown legacy records may use
+     the window at all. ---------- */
+  section('20. Workout provenance (D41)');
+
+  {
+    const A = { id:'progA', name:'A', startDate:'2026-03-02', durationWeeks:4,
+      status:'active', schedule:{} };
+    const B = { id:'progB', name:'B', startDate:'2026-04-06', durationWeeks:4,
+      status:'active', schedule:{} };
+    const endA = ctx.programEndDate(A);
+
+    /* date, record, expected-membership-in-A, why. Declared, not computed. */
+    const MATRIX = [
+      ['exact program A, inside A',
+        { id:'m1', date:'2026-03-10', origin:'program', programId:'progA' }, true],
+      ['exact program A, dated outside A',
+        { id:'m2', date:'2026-09-09', origin:'program', programId:'progA' }, true],
+      ['exact program B, inside A window',
+        { id:'m3', date:'2026-03-10', origin:'program', programId:'progB' }, false],
+      ['known freeform, inside A window',
+        { id:'m4', date:'2026-03-10', origin:'freeform' }, false],
+      ['known freeform, on A start date',
+        { id:'m5', date:'2026-03-02', origin:'freeform' }, false],
+      ['known freeform, on A end date',
+        { id:'m6', date: endA, origin:'freeform' }, false],
+      ['legacy unknown, inside A window',
+        { id:'m7', date:'2026-03-10' }, true],
+      ['legacy unknown, on A start date',
+        { id:'m8', date:'2026-03-02' }, true],
+      ['legacy unknown, on A end date',
+        { id:'m9', date: endA }, true],
+      ['legacy unknown, before A',
+        { id:'m10', date:'2026-01-01' }, false],
+      ['legacy unknown, after A',
+        { id:'m11', date:'2026-12-31' }, false],
+      ['freeform titled like a program session',
+        { id:'m12', date:'2026-03-10', origin:'freeform', title:'Upper A' }, false],
+      ['program session renamed after the fact',
+        { id:'m13', date:'2026-03-10', origin:'program', programId:'progA',
+          title:'Whatever I Called It' }, true],
+      ['program session whose exercises were edited',
+        { id:'m14', date:'2026-03-10', origin:'program', programId:'progA',
+          exercises:[{ name:'Something Else', sets:[{}] }] }, true]
+    ];
+
+    let matrixOk = 0, matrixBad = [];
+    MATRIX.forEach(row => {
+      const got = ctx.workoutBelongsToProgram(row[1], A);
+      if (got === row[2]) matrixOk++;
+      else matrixBad.push(row[0] + ' expected ' + row[2] + ' got ' + got);
+    });
+    ok('declared membership matrix (' + MATRIX.length + ' cases)',
+      matrixBad.length === 0, matrixBad.join(' | '));
+
+    /* The two invariants the matrix exists to protect. */
+    ok('explicit provenance always outranks the date window',
+      MATRIX.filter(r => r[1].origin).every(r =>
+        ctx.workoutBelongsToProgram(r[1], A)
+          === (r[1].programId === 'progA')));
+    ok('a known-freeform session never falls through to the window',
+      MATRIX.filter(r => r[1].origin === 'freeform')
+        .every(r => ctx.workoutBelongsToProgram(r[1], A) === false));
+    ok('a session owned by another program is never date-recovered',
+      ctx.workoutBelongsToProgram({ date:'2026-03-10', origin:'program',
+        programId:'progB' }, A) === false);
+    ok('only records with no origin at all use the window', (() => {
+      const legacy = { id:'x', date:'2026-03-10' };
+      const known = { id:'x', date:'2026-03-10', origin:'freeform' };
+      return ctx.workoutBelongsToProgram(legacy, A) === true
+        && ctx.workoutBelongsToProgram(known, A) === false;
+    })());
+
+    /* ----- §91 STATE x ORIGIN x DATE ----- */
+    const STATES = ['active','paused','completed'];
+    const ORIGINS = [
+      ['planned',  { origin:'program', programId:'progA' }, true],
+      ['freeform', { origin:'freeform' },                   false],
+      ['other',    { origin:'program', programId:'progB' }, false],
+      ['legacy',   {},                                      null]   // date decides
+    ];
+    const DATES = [['before','2026-01-01',false],['inside','2026-03-10',true],
+      ['after','2026-12-31',false]];
+    let combos = 0, comboBad = [];
+    STATES.forEach(st => ORIGINS.forEach(o => DATES.forEach(d => {
+      combos++;
+      const prog = Object.assign({}, A, { status: st });
+      const w = Object.assign({ id:'c', date: d[1] }, o[1]);
+      const expected = o[2] === null ? d[2] : o[2];
+      const got = ctx.workoutBelongsToProgram(w, prog);
+      if (got !== expected) comboBad.push(st+'/'+o[0]+'/'+d[0]+' expected '+expected+' got '+got);
+    })));
+    ok('membership is independent of program status (' + combos + ' combinations)',
+      comboBad.length === 0, comboBad.slice(0,4).join(' | '));
+
+    /* ----- §64 A FREEFORM OUTLIER CANNOT MOVE A PROGRAM ----- */
+    {
+      const log = [];
+      for (let i = 0; i < 8; i++)
+        log.push({ id:'pw'+i, date:'2026-03-' + String(2+i).padStart(2,'0'),
+          origin:'program', programId:'progA',
+          exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true,
+            weight:185, reps:8 }] }] });
+      const withFree = log.concat([
+        { id:'ff', date:'2026-03-11', origin:'freeform',
+          exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true,
+            weight:315, reps:8 }] }] }]);
+      const base = ctx.deriveProgramOutcome(A, log);
+      const after = ctx.deriveProgramOutcome(A, withFree);
+      ok('a huge freeform session does not change the program outcome',
+        JSON.stringify(base) === JSON.stringify(after));
+      /* The program-level state is correctly 'insufficient' here: one lift may
+         never speak for a program (D40). The claim under test is the lift-level
+         one — the program's own Bench evidence stays 8 flat sessions and reads
+         steady, with the 315 lb freeform session nowhere in it. */
+      const scopedBench = (ctx.deriveProgramPerformance(A, withFree).exercises || [])
+        .find(x => /bench/i.test(x.name || ''));
+      ok('the program’s own Bench evidence excludes the freeform session',
+        !!scopedBench && scopedBench.sessions === 8,
+        scopedBench ? String(scopedBench.sessions) : 'none');
+      ok('and that evidence reads steady, not improving',
+        !!scopedBench && scopedBench.direction === 'steady',
+        scopedBench ? scopedBench.direction : 'none');
+      /* The same training IS visible to unscoped performance history. */
+      const global = ctx.derivePerformanceProgress(withFree);
+      ok('the freeform training is still real training history',
+        global.exercises.length > 0);
+    }
+
+    /* ----- §36 SAME EXERCISE, DIFFERENT ORIGIN ----- */
+    {
+      const log = [];
+      for (let i = 0; i < 6; i++)
+        log.push({ id:'q'+i, date:'2026-03-' + String(2+i).padStart(2,'0'),
+          origin:'program', programId:'progA',
+          exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true,
+            weight:185, reps:8 }] }] });
+      for (let i = 0; i < 6; i++)
+        log.push({ id:'r'+i, date:'2026-03-' + String(9+i).padStart(2,'0'),
+          origin:'freeform',
+          exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true,
+            weight:275, reps:8 }] }] });
+      const scoped = ctx.deriveProgramPerformance(A, log);
+      const bench = (scoped.exercises || []).find(x => /bench/i.test(x.name || ''));
+      ok('program-scoped evidence uses only the program\u2019s own sessions',
+        !!bench && bench.sessions === 6, bench ? String(bench.sessions) : 'none');
+    }
+
+    /* ----- §19/§86 ADHERENCE IS NOT INFLATED BY EXTRA TRAINING ----- */
+    {
+      const planned = [];
+      for (let i = 0; i < 4; i++)
+        planned.push({ id:'a'+i, date:'2026-03-' + String(2+i).padStart(2,'0'),
+          origin:'program', programId:'progA', exercises:[{ name:'Bench Press', sets:[{}] }] });
+      const extra = planned.concat([
+        { id:'e1', date:'2026-03-06', origin:'freeform', exercises:[{ name:'Bicep Curl', sets:[{}] }] },
+        { id:'e2', date:'2026-03-07', origin:'freeform', exercises:[{ name:'Bicep Curl', sets:[{}] }] }]);
+      const c1 = ctx.deriveProgramCompletion(A, '2026-12-01', planned);
+      const c2 = ctx.deriveProgramCompletion(A, '2026-12-01', extra);
+      ok('extra training does not raise the completed-session count',
+        c1.completedSessions === c2.completedSessions && c1.completedSessions === 4,
+        c1.completedSessions + ' vs ' + c2.completedSessions);
+      ok('the planned denominator is untouched by extra training',
+        c1.plannedSessions === c2.plannedSessions);
+    }
+
+    /* ----- §92 DETERMINISM ----- */
+    {
+      const log = [
+        { id:'d1', date:'2026-03-10', origin:'program', programId:'progA',
+          exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true, weight:185, reps:8 }] }] },
+        { id:'d2', date:'2026-03-11', origin:'freeform',
+          exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true, weight:315, reps:8 }] }] }];
+      const first = JSON.stringify(ctx.programWorkouts(A, log).map(w => w.id));
+      let stable = true;
+      for (let i = 0; i < 100; i++)
+        if (JSON.stringify(ctx.programWorkouts(A, log).map(w => w.id)) !== first) stable = false;
+      ok('100 membership evaluations agree', stable);
+      ok('and they select only the program session', first === '["d1"]', first);
+    }
+
+    /* ----- §61 NO READ-TIME MIGRATION ----- */
+    {
+      const legacy = { id:'L', date:'2026-03-10', exercises:[{ name:'Bench Press', sets:[{}] }] };
+      const snapshot = JSON.stringify(legacy);
+      for (let i = 0; i < 20; i++) {
+        ctx.workoutBelongsToProgram(legacy, A);
+        ctx.programWorkouts(A, [legacy]);
+        ctx.deriveProgramCompletion(A, '2026-12-01', [legacy]);
+        ctx.deriveProgramOutcome(A, [legacy]);
+      }
+      ok('reading a legacy record never writes provenance onto it',
+        JSON.stringify(legacy) === snapshot);
+      ok('a legacy record gains no origin field', legacy.origin === undefined);
+    }
+
+    /* ----- ONE MEMBERSHIP POLICY ----- */
+    {
+      const src = require('fs').readFileSync(H.APP_PATH, 'utf8');
+      const compares = (src.match(/\.programId === /g) || []).length;
+      ok('there is exactly one programId membership comparison',
+        compares === 1, String(compares));
+      ok('programWorkouts delegates rather than re-deciding', (() => {
+        const i = src.indexOf('function programWorkouts');
+        const body = src.slice(i, i + 400);
+        return body.indexOf('workoutBelongsToProgram') !== -1
+          && body.indexOf('startDate') === body.lastIndexOf('startDate');
+      })());
+    }
+  }
+
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */
   section('12. Generation has no side effects');
 
