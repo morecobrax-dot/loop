@@ -11105,8 +11105,15 @@ function testMomentum(app){
   {
     const D = n => { const d = new Date(Date.now() - n*86400000);
       return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
-    /* Sessions in each of the previous three weeks, none yet this week. */
-    ctx.workoutLog = [9, 16, 23].map((n,i) => ({ id:'s'+i, date:D(n), category:'push', title:'P', notes:'',
+    /* Sessions in each of the previous three weeks, none yet this week.
+       Anchored to this week's Monday rather than to fixed day counts: 9/16/23
+       days ago only lands in the three PREVIOUS weeks from Wednesday onwards,
+       so on a Monday or Tuesday the fixture itself left week 1 empty and the
+       streak correctly read 0. The gap was in the fixture, never in
+       computeWeekStreak — which is exactly what this assertion exists to
+       protect, so it must not depend on which day the suite is run. */
+    const dayOffset = (new Date().getDay() + 6) % 7;   // days since Monday
+    ctx.workoutLog = [dayOffset+3, dayOffset+10, dayOffset+17].map((n,i) => ({ id:'s'+i, date:D(n), category:'push', title:'P', notes:'',
       exercises:[{ name:'Bench Press', bodyweight:false, sets:[{weight:'185',reps:'5',rir:'1',type:'working'}] }] }));
     ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
     ctx.invalidateConsistencyCache && ctx.invalidateConsistencyCache();
