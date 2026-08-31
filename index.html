@@ -3795,6 +3795,49 @@ body.page-locked{ overflow: hidden; }
 }
 .pb-chip:hover{ border-color: var(--border); color: var(--text); }
 .pb-consequence{ margin-top: 18px; color: var(--text-dim); }
+/* D38 — program completion. Composed, not a stack of cards: one mark, one
+   identity, a few facts, one way on. */
+.pc{ padding: 4px 0 2px; }
+.pc-mark{
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); color: var(--success);
+  border: 1px solid rgba(75,156,129,0.32); margin-bottom: 12px;
+}
+.pc-kicker{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+.pc-name{ font-size: var(--fs-xl); font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; }
+.pc-meta{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-xs);
+  color: var(--text-dim); margin-top: 4px;
+}
+.pc-line{ font-size: var(--fs-sm); color: var(--text-dim); line-height: 1.5; margin: 12px 0 0; }
+.pc-facts{ display: flex; gap: 22px; margin-top: 18px; flex-wrap: wrap; }
+.pc-fact{ display: flex; flex-direction: column; gap: 1px; }
+.pc-fact-v{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-lg);
+  font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.pc-fact-l{ font-size: var(--fs-micro); color: var(--text-faint); }
+.pc-actions{ margin-top: 22px; }
+.pc-go{ width: 100%; min-height: 48px; }
+.pc-note{ font-size: var(--fs-xs); color: var(--text-faint); line-height: 1.5; margin-top: 18px; }
+.tw-program-done .tw-program-name{ color: var(--text); }
+/* Past programs — rows, deliberately quiet. */
+.ph-list{ display: flex; flex-direction: column; }
+.ph-row{
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 2px; min-height: 44px; text-align: left;
+  background: none; border: none; border-top: 1px solid var(--border-quiet);
+  color: inherit; font-family: inherit; cursor: pointer;
+}
+.ph-main{ display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.ph-name{ font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+.ph-meta{ font-size: var(--fs-micro); color: var(--text-faint); }
+.ph-go{ color: var(--text-faint); display: inline-flex; flex: 0 0 auto; }
 /* D34 — the why rows, shared by the review and My Training. Quiet definition
    rows, not cards. */
 .pgm-why{ display: flex; flex-direction: column; }
@@ -6284,6 +6327,18 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 </div>
 
+<!-- PAST PROGRAM (D38) — read-only record of a finished program -->
+<div class="overlay overlay-page" id="pastProgramOverlay">
+  <div class="sheet sheet-page">
+    <div class="workout-topbar">
+      <button class="workout-back" onclick="closePastProgram()" aria-label="Back">‹</button>
+      <div class="workout-topbar-title">Past program</div>
+      <span class="workout-topbar-spacer"></span>
+    </div>
+    <div class="sheet-scroll"><div id="pastProgramBody"></div></div>
+  </div>
+</div>
+
 <div class="overlay overlay-page" id="myTrainingOverlay">
   <div class="sheet sheet-page">
     <div class="workout-topbar">
@@ -7796,13 +7851,41 @@ async function importAllData(input){
       await LOOPStore.set('cardioLog', JSON.stringify(merged));
     }
 
+    // Programs are training history too: a finished program records weeks the
+    // athlete actually trained. Merged by id, and the device's own active
+    // program is never displaced by an imported one.
+    const hasPrograms = !!incoming.programs;
+    let addedPrograms = 0;
+    if(hasPrograms){
+      let theirs = null, mine = null;
+      try{ theirs = JSON.parse(incoming.programs); }catch(e){ theirs = null; }
+      const mineRaw = await LOOPStore.get('programs');
+      try{ mine = mineRaw && mineRaw.value ? JSON.parse(mineRaw.value) : null; }catch(e){ mine = null; }
+      if(theirs && Array.isArray(theirs.programs)){
+        const base = (mine && Array.isArray(mine.programs)) ? mine : defaultProgramsStore();
+        const byId = {};
+        (base.programs || []).forEach(x => { if(x && x.id) byId[x.id] = x; });
+        theirs.programs.forEach(x => {
+          if(x && x.id && !byId[x.id]){ byId[x.id] = x; addedPrograms++; }
+        });
+        const merged = {
+          version: base.version || theirs.version || 1,
+          /* Whatever this device is training now stays active; an imported
+             active id is only adopted when there is nothing to displace. */
+          activeProgramId: base.activeProgramId || theirs.activeProgramId || null,
+          programs: Object.keys(byId).map(k => byId[k])
+        };
+        await LOOPStore.set('programs', JSON.stringify(merged));
+      }
+    }
+
     // Everything else is per-plan config or app state — only fill gaps. This
     // runs regardless of whether the backup had a workoutLog, so a
     // cardio-only or trainer-only backup still restores what it actually has
     // instead of silently importing nothing.
     let filled = 0;
     for(const k of Object.keys(incoming)){
-      if(k === 'workoutLog' || k === 'cardioLog' || k === SCHEMA_KEY
+      if(k === 'workoutLog' || k === 'cardioLog' || k === 'programs' || k === SCHEMA_KEY
         || k.startsWith(BACKUP_PREFIX)) continue;
       const existing = await LOOPStore.get(k);
       const isEmpty = !existing || !existing.value || existing.value === 'null';
@@ -7814,6 +7897,7 @@ async function importAllData(input){
     const parts = [];
     if(hasWorkoutLog) parts.push(`${added} new workout${added===1?'':'s'} added`);
     if(hasCardioLog) parts.push(`${addedCardio} new cardio session${addedCardio===1?'':'s'} added`);
+    if(hasPrograms) parts.push(`${addedPrograms} new program${addedPrograms===1?'':'s'} added`);
     if(filled) parts.push(`${filled} setting${filled===1?'':'s'} restored`);
     const summary = parts.length ? parts.join(', ') : 'nothing new to import — you already have this data';
     alert(`Import complete — ${summary}. LOOP will reload.`);
@@ -9381,6 +9465,26 @@ const LOOP_UPDATES = [
       'Programs no longer split into phases that trained identically — if nothing about the training changes, it is simply one straightforward program',
       'Tapping a future week shows the targets you will actually be training that week',
       'Beginner and muscle-building programs stay deliberately consistent, so you can keep loading the same movements'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v3-1',
+    version: 'LOOP 3.1',
+    title: 'Finishing a Program',
+    date: '2026-09-01',
+    swVersion: 'loop-v108',
+    summary: 'Programs now have an ending, and your next one starts from where you left off.',
+    newFeatures: [
+      'When a program reaches the end of its weeks, LOOP closes it out with a summary of the training you actually logged',
+      'Build next program carries your goal, days, session length and emphasis forward — change any of it before you start',
+      'Past programs are kept, so you can look back at what you trained and when'
+    ],
+    improvements: [
+      'A finished program no longer keeps offering last week’s workout',
+      'Starting a new program leaves your previous program and every logged workout exactly as they were',
+      'Restoring a backup now brings your past programs back with it'
     ],
     bugFixes: [],
     changes: []
@@ -22281,6 +22385,11 @@ function getProgramWorkoutForDate(dateStr, program){
   const d = new Date((dateStr || localDateStr()) + 'T00:00:00');
   if(isNaN(d)) return null;
   const key = JS_DAY_TO_KEY[d.getDay()];
+  /* D38 \u2014 a finished program schedules nothing. Without this the week was
+     clamped to the last one and the program kept prescribing sessions into
+     dates past its own end, indefinitely. */
+  if(programTimelineEnded(p, dateStr || localDateStr()))
+    return { entry: { type:'rest' }, template:null, category:'rest', week:null, ended:true };
   const entry = programEntryForDay(p, key);
   if(entry.type !== 'workout') return { entry, template:null, category:entry.type };
   /* The prescription for THIS program week, not for week 1. */
@@ -25030,11 +25139,280 @@ function deriveExerciseGroups(tpl){
   return { mainEnd, finishStart };
 }
 
+/* =========================================================
+   PROGRAM LIFECYCLE & COMPLETION  (Phase D38)
+   ---------------------------------------------------------
+   A program used to have no ending. `completeProgram` existed
+   but was reachable only from a \"Mark complete\" button buried
+   in program detail, so a program whose eight weeks had elapsed
+   sat at \"Week 8 of 8 \u00b7 Active\" indefinitely and kept
+   scheduling sessions into dates past its own end.
+
+   Lifecycle is DERIVED, never migrated. Every state below is
+   computed from fields the program already stores, so a program
+   saved months ago reads correctly the moment this ships and
+   nothing is rewritten at boot.
+   ========================================================= */
+
+/* Has the planned timeline finished? Uses programEndDate, which already
+   accounts for paused days \u2014 so a program paused in week 3 and read two
+   months later has NOT ended. */
+function programTimelineEnded(program, todayStr){
+  if(!program || !program.startDate) return false;
+  if(program.status === 'paused') return false;      // frozen, not finished
+  const end = programEndDate(program);
+  if(!end) return false;
+  return (todayStr || localDateStr()) > end;
+}
+
+/* The one lifecycle answer. Derived from stored fields only. */
+function deriveProgramLifecycle(program, todayStr){
+  if(!program) return 'none';
+  if(program.status === 'completed') return 'completed';
+  if(program.status === 'paused') return 'paused';
+  if(programTimelineEnded(program, todayStr)) return 'ended';
+  /* Still inside its weeks, but another program has taken over. */
+  try{
+    if(programsStore.activeProgramId && programsStore.activeProgramId !== program.id) return 'past';
+  }catch(e){}
+  return 'active';
+}
+
+/* Finished for the athlete's purposes: the timeline is over, however it got
+   there. This is what every surface asks. */
+function programIsFinished(program, todayStr){
+  const st = deriveProgramLifecycle(program, todayStr);
+  return st === 'ended' || st === 'completed';
+}
+
+/* The program the athlete is actually training right now \u2014 an active
+   program whose timeline has not run out. */
+function getRunningProgram(todayStr){
+  let p = null;
+  try{ p = getActiveProgram(); }catch(e){ return null; }
+  if(!p) return null;
+  return deriveProgramLifecycle(p, todayStr) === 'active' ? p : null;
+}
+
+/* The most recently finished program, for the surfaces that offer to carry on
+   from it. Sorted by when its timeline ended, newest first. */
+function getLastFinishedProgram(todayStr){
+  let list = [];
+  try{ list = getPrograms(); }catch(e){ return null; }
+  const done = list.filter(x => programIsFinished(x, todayStr) && x.startDate);
+  if(!done.length) return null;
+  done.sort((a, b) => String(programEndDate(b) || '').localeCompare(String(programEndDate(a) || '')));
+  return done[0];
+}
+
+/* ---------- WHICH WORKOUTS BELONGED TO THIS PROGRAM ----------
+   Newly logged sessions carry programId, which is exact. Sessions logged
+   before D38 have none, so they fall back to the program's own date window.
+   The fallback deliberately EXCLUDES anything already claimed by a different
+   program, so two programs can never both count the same workout. */
+function programWorkouts(program, log){
+  if(!program || !program.startDate) return [];
+  const end = programEndDate(program);
+  const all = log || workoutLog || [];
+  return all.filter(w => {
+    if(!w || !w.date) return false;
+    if(w.programId) return w.programId === program.id;
+    if(w.date < program.startDate) return false;
+    if(end && w.date > end) return false;
+    return true;
+  });
+}
+
+/* ---------- THE COMPLETION SUMMARY ----------
+   Pure and derived: program truth plus immutable history in, facts out.
+   Nothing here is persisted, and nothing claims more than the log supports. */
+function deriveProgramCompletion(program, todayStr, log){
+  if(!program) return null;
+  const today = todayStr || localDateStr();
+  const state = deriveProgramLifecycle(program, today);
+  const done = programWorkouts(program, log);
+  const perWeek = programTrainingDayCount(program);
+  const weeks = parseInt(program.durationWeeks, 10) || 0;
+  const planned = perWeek * weeks;
+
+  /* PRs are counted only inside the window this program actually owns, and
+     only through the existing PR engine \u2014 nothing is recomputed here. */
+  let prs = 0;
+  try{
+    const ids = {};
+    done.forEach(w => { if(w && w.id) ids[w.id] = true; });
+    const dates = {};
+    done.forEach(w => { if(w && w.date) dates[w.date] = true; });
+    prs = (computeAllPREvents() || []).filter(e =>
+      e && ((e.workoutId && ids[e.workoutId]) || (!e.workoutId && e.date && dates[e.date]))).length;
+  }catch(e){ prs = 0; }
+
+  let sets = 0;
+  done.forEach(w => (w.exercises || []).forEach(x => {
+    if(x && !x.skipped && Array.isArray(x.sets)) sets += x.sets.length;
+  }));
+
+  /* Whether the denominator is trustworthy. A legacy program whose sessions
+     carry no programId still reports what WAS logged, but never turns an
+     unknown into a missed session \u2014 D27's rule, applied to a whole program. */
+  const linked = done.filter(w => !!w.programId).length;
+  const denominatorKnown = planned > 0;
+
+  return {
+    state,
+    finished: state === 'ended' || state === 'completed',
+    name: program.name,
+    weeks,
+    perWeek,
+    startDate: program.startDate,
+    endDate: programEndDate(program),
+    completedSessions: done.length,
+    plannedSessions: denominatorKnown ? planned : null,
+    prs,
+    sets,
+    linkedSessions: linked,
+    emphasis: program.emphasis || null,
+    goal: program.goal || null,
+    phases: (program.blocks || []).map(b => b.name),
+    /* How confidently the product may speak. Nothing is celebrated into
+       existence: two logged sessions across eight weeks is an ending, not an
+       achievement. */
+    tone: done.length === 0 ? 'none' : (done.length <= 2 ? 'quiet' : 'full')
+  };
+}
+
+/* Plain, factual, never congratulatory beyond what was logged. */
+function programCompletionHeadline(sum){
+  if(!sum) return '';
+  if(sum.tone === 'none') return 'Your program period has ended. No workouts were logged.';
+  const n = sum.completedSessions;
+  const of = sum.plannedSessions ? ' of ' + sum.plannedSessions + ' planned' : '';
+  return sum.weeks + ' week' + (sum.weeks === 1 ? '' : 's') + ' finished. You logged '
+    + n + ' workout' + (n === 1 ? '' : 's') + of + '.';
+}
+
+/* The completion surface. One renderer, used by Today's finished state and by
+   My Training, so the athlete is told the same thing wherever they look. It
+   stays a panel rather than a one-time modal: a summary you can never see
+   again is not a record of your training. */
+function programCompletionHtml(sum, opts){
+  if(!sum) return '';
+  const o = opts || {};
+  const facts = [];
+  if(sum.tone !== 'none'){
+    facts.push({ v: sum.completedSessions, l: sum.completedSessions === 1 ? 'workout' : 'workouts' });
+    if(sum.prs > 0) facts.push({ v: sum.prs, l: sum.prs === 1 ? 'personal record' : 'personal records' });
+    if(sum.sets > 0) facts.push({ v: sum.sets, l: 'sets logged' });
+  }
+  const dates = sum.startDate && sum.endDate
+    ? formatDateShort(sum.startDate) + ' \u2013 ' + formatDateShort(sum.endDate) : '';
+  return `
+    <div class="pc">
+      <div class="pc-mark">${checkIconSvg(16)}</div>
+      <div class="pc-kicker">Program finished</div>
+      <div class="pc-name">${escapeHtml(sum.name || 'Your program')}</div>
+      <div class="pc-meta">${sum.weeks} week${sum.weeks === 1 ? '' : 's'}${
+        sum.perWeek ? ' \u00b7 ' + sum.perWeek + ' day' + (sum.perWeek === 1 ? '' : 's') + ' a week' : ''}${
+        dates ? ' \u00b7 ' + escapeHtml(dates) : ''}</div>
+      <p class="pc-line">${escapeHtml(programCompletionHeadline(sum))}</p>
+      ${facts.length ? `<div class="pc-facts">${facts.map(f => `
+        <div class="pc-fact"><span class="pc-fact-v">${f.v}</span>
+        <span class="pc-fact-l">${escapeHtml(f.l)}</span></div>`).join('')}</div>` : ''}
+      ${o.actions === false ? '' : `<div class="pc-actions">
+        <button class="btn-primary pc-go" onclick="startNextProgramFrom('${escapeAttr(o.programId || '')}')">Build next program</button>
+      </div>`}
+    </div>`;
+}
+
+/* Continuation. The builder is D33's, opened in create mode with what the
+   finished program already knows filled in \u2014 and nothing written until the
+   athlete taps Start, exactly as before. LOOP never decides the next program:
+   every prefilled answer is one tap from being changed. */
+function startNextProgramFrom(programId){
+  let prev = null;
+  try{ prev = programId ? getProgram(programId) : getLastFinishedProgram(); }catch(e){}
+  openProgramBuilderFlow('create');
+  if(!prev || !pbState) return;
+  /* A copy of the previous answers, never a reference: editing the draft must
+     not reach back into the finished program. */
+  const days = PROGRAM_DAY_KEYS.filter(k => prev.schedule[k] && prev.schedule[k].type === 'workout');
+  const a = pbState.answers;
+  if(prev.goal) a.goal = prev.goal;
+  if(prev.experience) a.experience = prev.experience;
+  if(prev.sessionLength) a.sessionLength = prev.sessionLength;
+  if(prev.emphasis) a.emphasis = prev.emphasis;
+  if(prev.durationWeeks) a.weeks = prev.durationWeeks;
+  if(days.length){ a.days = days.slice(); a.frequency = days.length; }
+  /* Equipment is inferred from the plan the previous program referenced. */
+  try{
+    const first = PROGRAM_DAY_KEYS.map(k => prev.schedule[k]).find(e => e && e.type === 'workout');
+    if(first && first.planId === 'home') a.equipment = a.equipment || 'home';
+  }catch(e){}
+  /* Anything already answered is skipped, so the athlete lands on whatever is
+     genuinely still unknown \u2014 usually the review itself. */
+  pbState.step = pbSteps().length;
+  renderProgramBuilderFlow();
+}
+
+/* Past programs. A list, not a second dashboard: everything here is read
+   only, because a finished program is a record of training that happened and
+   editing it would rewrite history. */
+function programHistoryHtml(excludeId){
+  let list = [];
+  try{ list = getPrograms().filter(x => programIsFinished(x) && x.id !== excludeId); }catch(e){ return ''; }
+  if(!list.length) return '';
+  list.sort((a, b) => String(programEndDate(b) || '').localeCompare(String(programEndDate(a) || '')));
+  return `
+    <div class="sec-head">Past programs</div>
+    <div class="ph-list">${list.map(x => {
+      const sum = deriveProgramCompletion(x, localDateStr());
+      return `<button type="button" class="ph-row" onclick="openPastProgram('${escapeAttr(x.id)}')">
+        <span class="ph-main">
+          <span class="ph-name">${escapeHtml(x.name)}</span>
+          <span class="ph-meta">${x.startDate ? escapeHtml(formatDateShort(x.startDate)) : ''}${
+            programEndDate(x) ? ' \u2013 ' + escapeHtml(formatDateShort(programEndDate(x))) : ''} \u00b7 ${
+            sum.weeks} week${sum.weeks === 1 ? '' : 's'} \u00b7 ${sum.completedSessions} logged</span>
+        </span>
+        <span class="ph-go">${chevronRightSvg()}</span>
+      </button>`;
+    }).join('')}</div>`;
+}
+
+/* Read-only detail. Reuses the completion panel, so there is one description
+   of a finished program rather than two that can drift apart. */
+function openPastProgram(programId){
+  let prog = null;
+  try{ prog = getProgram(programId); }catch(e){}
+  if(!prog) return;
+  const sum = deriveProgramCompletion(prog, localDateStr());
+  const el = document.getElementById('pastProgramBody');
+  if(!el) return;
+  el.innerHTML = programCompletionHtml(sum, { programId: prog.id })
+    + `<div class="sec-head">What it asked for</div>
+       ${programMapHtml(prog, { week:1, interactive:true, idPrefix:'pastMap' })}
+       <p class="pc-note">This program has finished. Its structure is kept as a record
+       of what you trained \u2014 build a new program to change anything.</p>`;
+  document.getElementById('pastProgramOverlay').classList.add('open');
+}
+function closePastProgram(){
+  document.getElementById('pastProgramOverlay').classList.remove('open');
+}
+
 /* The Today strip. Renders nothing at all without an active program, so an
    athlete on plans alone sees exactly what they saw before. */
 function programContextHtml(){
   let p = null;
   try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ return ''; }
+  /* D38 \u2014 a program whose weeks have run out is over. Today says so once,
+     quietly, and offers the way on; it does not keep presenting week 8. */
+  if(p && programTimelineEnded(p, localDateStr())){
+    const sum = deriveProgramCompletion(p, localDateStr());
+    return `<button type="button" class="tw-program tw-program-done"
+        onclick="openMyTraining()">
+        <span class="tw-program-name">${escapeHtml(p.name)} \u00b7 finished</span>
+        <span class="tw-program-meta">${escapeHtml(programCompletionHeadline(sum))} \u203a</span>
+      </button>`;
+  }
   /* With no program, Today still names the feature and offers the way in —
      Programs used to be reachable only by digging through Settings. Quiet
      enough that it never competes with Start Workout. */
@@ -25271,7 +25649,13 @@ function previewTrainingWeek(planId, chosenDays){
    jargon and not a fourth place to read the week number. */
 function programStatusWord(t){
   if(!t || !t.hasProgram) return '';
-  if(t.week && t.totalWeeks && t.week > t.totalWeeks) return 'Complete';
+  /* Derived from the same lifecycle every other surface reads, so the word
+     and the page can never disagree. */
+  try{
+    const p = getActiveProgram();
+    if(p && programIsFinished(p)) return 'Complete';
+    if(p && p.status === 'paused') return 'Paused';
+  }catch(e){}
   return 'Active';
 }
 
@@ -25419,6 +25803,15 @@ function renderMyTraining(){
      stale. */
   let expl = null;
   if(t.hasProgram){ try{ expl = deriveProgramExplanation(getActiveProgram()); }catch(e){} }
+  /* D38 \u2014 when nothing is running, the page shows what was just finished
+     and the way on, instead of reading as an empty or broken screen. */
+  let finishedSum = null, finishedId = null;
+  try{
+    if(!getRunningProgram()){
+      const last = getLastFinishedProgram();
+      if(last){ finishedId = last.id; finishedSum = deriveProgramCompletion(last, localDateStr()); }
+    }
+  }catch(e){}
 
   /* The program says where the athlete is, once. A second progress bar
      underneath the map would be the same fact twice. */
@@ -25447,24 +25840,29 @@ function renderMyTraining(){
   }).join('');
 
   el.innerHTML = `
-    <div class="mt-hero">
+    ${finishedSum ? '' : `<div class="mt-hero">
       <div class="mt-title">${escapeHtml(t.title)}</div>
       <div class="mt-sub">${t.trainingDays} day${t.trainingDays===1?'':'s'} a week${t.structure ? ' · ' + escapeHtml(t.structure) : ''}${t.goal ? ' · ' + escapeHtml(t.goal) : ''}${
         expl && expl.minutes.max ? ' · ~' + (expl.minutes.min === expl.minutes.max ? expl.minutes.min : expl.minutes.min + '\u2013' + expl.minutes.max) + ' min' : ''}${
         expl && expl.emphasis && expl.emphasis.effective ? ' · ' + escapeHtml(expl.emphasis.label) + ' emphasis' : ''}</div>
       ${progressLine}
-    </div>
+    </div>`}
 
-    ${myTrainingStatsHtml(t)}
+    ${finishedSum ? '' : myTrainingStatsHtml(t)}
 
-    ${t.hasProgram
+    ${finishedSum ? `<div class="sec-head">Last program</div>
+       ${programCompletionHtml(finishedSum, { programId: finishedId })}` : ''}
+
+    ${(t.hasProgram && !finishedSum)
       ? `<div class="sec-head">Your program<span class="sec-hint">tap a week</span></div>
          ${myTrainingProgramMapHtml(t)}
          <button type="button" class="mt-explain-toggle" onclick="toggleMtExplain()"
            aria-expanded="${mtExplainOpen}">How this program works</button>
          ${mtExplainOpen ? programWhyRowsHtml(expl) : ''}`
-      : `<div class="sec-head">This week</div>
-         <div class="mt-days">${dayRows}</div>`}
+      : (finishedSum ? '' : `<div class="sec-head">This week</div>
+         <div class="mt-days">${dayRows}</div>`)}
+
+    ${programHistoryHtml(finishedId)}
 
     <div class="sec-head">Training volume<span class="sec-hint">logged vs planned</span></div>
     ${trajectoryHtml()}
@@ -29779,6 +30177,15 @@ function saveLog(btn){
     newEntry.endedAt = new Date().toISOString();
   }
   if(pendingPlannedMinutes) newEntry.plannedMinutes = pendingPlannedMinutes;
+  /* D38 \u2014 which program this session belonged to, written only when one
+     was genuinely running. Optional, exactly like the duration fields above:
+     every workout logged before this has none, and every reader falls back to
+     the program's date window rather than treating absence as \"no program\".
+     Nothing is backfilled and no historical entry is touched. */
+  try{
+    const _ap = hasActiveProgram() ? getActiveProgram() : null;
+    if(_ap && _ap.id) newEntry.programId = _ap.id;
+  }catch(e){}
   workoutLog.push(newEntry);
   // Caches must be invalidated now so the PR/XP computations below see the new
   // entry. The actual write to storage happens once, at the end, where its

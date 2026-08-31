@@ -4379,3 +4379,89 @@ resolves each phase itself rather than reading its label, adversarial fixtures
 per-phase duration-band and monotonicity sweeps. Contract 136 adds 33
 always-on guards. 5,130 passing. Phase resolution byte-identical across 100
 repeats; generation still ~0.8ms.
+
+## §61 — Program lifecycle & completion (D38, loop-v108)
+
+**D37 pre-flight.** The D37 report contained two statements that could not both
+be true about Recomp phases. Production was inspected rather than guessed:
+`builderPhasePlan` returns two phases for `strength` and `recomp`, and the
+sweep confirms Recomp earns a boundary in 160/160 intermediate and experienced
+combinations at 6 and 8 weeks (Strength: 40/160, the rest collapsing correctly
+where its primaries already sit inside the Foundation band). Build Muscle and
+General Fitness are single-phase at every length. The D37 report's second
+statement wrongly included Recomp in that list — **a report wording error, no
+code defect.** No behaviour changed; the classification is now pinned by
+Contract 137's phase checks and the audit's per-goal breakdown.
+
+**A program had no ending.** `completeProgram` existed but was reachable only
+from a "Mark complete" button buried in program detail, so a program whose
+eight weeks had elapsed sat at "Week 8 of 8 · Active" indefinitely — and kept
+scheduling sessions into dates past its own end (verified: a workout offered
+16 days after the end date, still claiming week 8).
+
+Lifecycle is now DERIVED, never migrated. `deriveProgramLifecycle` returns
+`active | paused | ended | past | completed` from fields the program already
+stores, so a program saved months ago reads correctly the moment this ships and
+nothing is rewritten at boot. `programTimelineEnded` builds on
+`programEndDate`, which already accounts for paused days — a program paused in
+week 3 and read in December is still paused, never finished. `DATA_KEYS`
+remains 15.
+
+**Completion states only what was logged.** `deriveProgramCompletion` is pure:
+program truth plus immutable history in, facts out, nothing persisted. Tone is
+graded by evidence — zero sessions reads "Your program period has ended. No
+workouts were logged."; one or two reads quiet; genuine training earns the
+confident tone. The words *missed*, *failed* and *poor* appear nowhere, and an
+unknowable denominator (a program with no scheduled days) reports `null` rather
+than a fabricated zero-of-zero, which is D27's rule applied at program scale.
+
+**Program membership is exact going forward, honest about the past.** Newly
+logged workouts record `programId` when a program is genuinely running —
+optional, exactly like the existing duration fields, written in the one save
+path. Sessions logged before D38 have none and fall back to the program's date
+window, and that fallback explicitly excludes anything already claimed by a
+different program, so two programs can never both count the same workout.
+Nothing historical is backfilled.
+
+**History was already durable; it was not reachable.** `programsStore.programs`
+is an array and completed programs were never destroyed — the gap was that
+nothing surfaced them. My Training now shows the finished program's summary in
+place of active-program chrome (the hero, progress line and "next session" row
+all stand down, so one screen cannot say "Active" above "Program finished"),
+followed by a quiet Past programs list. Past-program detail is read-only and
+reuses the completion panel, so there is one description of a finished program
+rather than two that can drift.
+
+**Continuation is offered, never taken.** "Build next program" opens D33's
+builder in create mode with the finished program's goal, experience, session
+length, emphasis, duration and days copied in — copied, never referenced, so
+editing the draft cannot reach back into the finished program. Verified:
+changing the new draft to Back emphasis left Program A on Chest, byte-identical
+in name, start date, blocks and schedule, while Program B became a distinct
+instance starting today. D33's "writes nothing until Start" is untouched: LOOP
+never decides the next program.
+
+**Defect found: program history was silently dropped on import.** Exactly the
+D32 cardio defect, repeated. `importAllData` merged `workoutLog` and
+`cardioLog` by id but let `programs` fall through to the fill-only rule, so
+importing a backup onto a device that already had any program discarded every
+program in it — a real integrity failure now that a finished program is a
+record of training. Programs merge by id like the other histories, the device's
+own active program is never displaced by an imported one, and the import
+reports what it restored. Verified live: first import "1 new program added",
+second import of the same file "0 new programs added", zero duplicates.
+
+**Boundaries held.** No trainer coupling: completion reads performed history
+and never asks the trainer anything, creates no evidence, and awards no XP or
+mastery for reaching a date. `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`.
+Starting Program B left `workoutLog`, `trainerLog`, XP, PR history and
+`cardioLog` byte-identical.
+
+Validation: `npm run audit:program` grew to 220 checks, including an oracle
+that computes end dates independently and adversarial fixtures proven caught —
+`PROGRAM ENDED WHILE PAUSED`, `FUTURE WORKOUT AFTER PROGRAM END`,
+`PROGRAM COUNTED FOREIGN WORKOUT`, `PROGRAM CLAIMED UNKNOWN AS MISSED`,
+`PROGRAM LOST AFTER NEXT START`, `PROGRAM HISTORY MUTATED`. Contract 137 adds
+37 always-on guards. 5,167 passing; 87 data-integrity, 261 cardio-lifecycle and
+43 GPS checks still green. Completion derivation over 200 sessions stays well
+inside a second.

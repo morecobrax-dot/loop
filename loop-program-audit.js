@@ -1324,6 +1324,179 @@ function oracleTemplate(ctx, entry) {
     ok('resolving phases writes nothing', JSON.stringify(app.store) === before);
   }
 
+  /* ---------- 17. PROGRAM LIFECYCLE & COMPLETION  (Phase D38) ----------
+     A program used to have no ending: `completeProgram` was reachable only
+     from a buried button, so a finished program sat at 'Week 8 of 8 · Active'
+     and kept scheduling sessions past its own end date. The checks here
+     resolve lifecycle independently of the stored status flag. */
+  section('17. Program lifecycle and completion (D38)');
+
+  /* The oracle computes the end date itself rather than asking the program. */
+  const oracleEnd = (prog) => {
+    const d = new Date(prog.startDate + 'T00:00:00');
+    d.setDate(d.getDate() + prog.durationWeeks * 7 - 1 + (prog.pausedDays || 0));
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+      + '-' + String(d.getDate()).padStart(2,'0');
+  };
+  const mkProgram = (over) => Object.assign({
+    id:'pX', name:'Test Program', startDate:'2026-01-05', durationWeeks:8,
+    status:'active', pausedDays:0, emphasis:null, goal:'hypertrophy',
+    blocks:[{ id:'b', name:'Foundation', startWeek:1, endWeek:8 }],
+    schedule:{ mon:{ type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' },
+      tue:{type:'rest'}, wed:{type:'rest'}, thu:{type:'rest'},
+      fri:{type:'rest'}, sat:{type:'rest'}, sun:{type:'rest'} }
+  }, over || {});
+
+  /* --- a finished timeline is finished; a paused one is not --- */
+  {
+    const prog = mkProgram();
+    const end = oracleEnd(prog);
+    ok('the end date matches an independent计算'.replace('计算','calculation'),
+      ctx.programEndDate(prog) === end, ctx.programEndDate(prog) + ' vs ' + end);
+    ok('inside its weeks it is active',
+      ctx.deriveProgramLifecycle(prog, '2026-02-01') === 'active');
+    ok('past its end it is finished',
+      ctx.deriveProgramLifecycle(prog, '2026-06-01') === 'ended');
+    ok('on the final day it has NOT finished',
+      ctx.deriveProgramLifecycle(prog, end) === 'active', 'end=' + end);
+
+    /* PROGRAM ENDED WHILE PAUSED — the adversarial case D37 protected and
+       completion must not undo. */
+    const paused = mkProgram({ status:'paused', pausedOnDate:'2026-01-20' });
+    ok('a paused program never finishes on elapsed calendar time',
+      ctx.deriveProgramLifecycle(paused, '2026-12-31') === 'paused',
+      'PROGRAM ENDED WHILE PAUSED: ' + ctx.deriveProgramLifecycle(paused, '2026-12-31'));
+    ok('and it is not treated as finished', ctx.programIsFinished(paused, '2026-12-31') === false);
+  }
+
+  /* --- no session is scheduled beyond the end --- */
+  {
+    const prog = mkProgram();
+    const end = oracleEnd(prog);
+    const after = new Date(end + 'T00:00:00'); after.setDate(after.getDate() + 8);
+    while (after.getDay() !== 1) after.setDate(after.getDate() + 1);   // a Monday
+    const y = after.getFullYear() + '-' + String(after.getMonth()+1).padStart(2,'0')
+      + '-' + String(after.getDate()).padStart(2,'0');
+    const w = ctx.getProgramWorkoutForDate(y, prog);
+    ok('a finished program schedules nothing', !(w && w.template),
+      'FUTURE WORKOUT AFTER PROGRAM END: ' + (w && w.template ? w.template.name : ''));
+    /* And it still schedules inside its own weeks. */
+    const inside = ctx.getProgramWorkoutForDate('2026-01-05', prog);
+    ok('but it still schedules inside its weeks', !!(inside && inside.template));
+  }
+
+  /* --- completion never claims more than the log supports --- */
+  {
+    const prog = mkProgram();
+    const none = ctx.deriveProgramCompletion(prog, '2026-06-01', []);
+    ok('a program with no logged training is not celebrated', none.tone === 'none',
+      'tone=' + none.tone);
+    ok('and its headline says so plainly',
+      /no workouts were logged/i.test(ctx.programCompletionHeadline(none)),
+      ctx.programCompletionHeadline(none));
+
+    const two = ctx.deriveProgramCompletion(prog, '2026-06-01', [
+      { id:'w1', date:'2026-01-06', programId:'pX', exercises:[{ name:'Bench Press', sets:[{},{}] }] },
+      { id:'w2', date:'2026-01-13', programId:'pX', exercises:[{ name:'Bench Press', sets:[{}] }] }
+    ]);
+    ok('barely training reads as quiet, not triumphant', two.tone === 'quiet', 'tone=' + two.tone);
+    ok('it counts exactly what was logged', two.completedSessions === 2, String(two.completedSessions));
+    ok('and it counts sets from performed exercises only', two.sets === 3, String(two.sets));
+
+    const many = [];
+    for (let i = 0; i < 12; i++) many.push({ id:'m'+i, date:'2026-01-06', programId:'pX',
+      exercises:[{ name:'Bench Press', sets:[{},{},{}] }] });
+    ok('genuine training earns the confident tone',
+      ctx.deriveProgramCompletion(prog, '2026-06-01', many).tone === 'full');
+  }
+
+  /* --- PROGRAM COUNTED FOREIGN WORKOUT --- */
+  {
+    const prog = mkProgram();
+    const log = [
+      { id:'own', date:'2026-01-06', programId:'pX', exercises:[{ name:'Bench Press', sets:[{}] }] },
+      { id:'other', date:'2026-01-07', programId:'pOTHER', exercises:[{ name:'Bench Press', sets:[{}] }] },
+      { id:'before', date:'2025-12-01', exercises:[{ name:'Bench Press', sets:[{}] }] },
+      { id:'after', date:'2026-09-01', exercises:[{ name:'Bench Press', sets:[{}] }] }
+    ];
+    const sum = ctx.deriveProgramCompletion(prog, '2026-10-01', log);
+    ok('a workout claimed by another program is never counted',
+      sum.completedSessions === 1,
+      'PROGRAM COUNTED FOREIGN WORKOUT: counted ' + sum.completedSessions);
+    /* Legacy sessions with no programId still count, by date window only. */
+    const legacy = [{ id:'l1', date:'2026-01-06', exercises:[{ name:'Bench Press', sets:[{}] }] }];
+    ok('a legacy session inside the window still counts',
+      ctx.deriveProgramCompletion(prog, '2026-10-01', legacy).completedSessions === 1);
+  }
+
+  /* --- PROGRAM CLAIMED UNKNOWN AS MISSED --- */
+  {
+    const prog = mkProgram();
+    const sum = ctx.deriveProgramCompletion(prog, '2026-06-01', []);
+    const text = ctx.programCompletionHeadline(sum)
+      + ' ' + JSON.stringify(sum);
+    ok('completion never uses the word missed or failed',
+      !/missed|failed|poor|bad\b/i.test(text),
+      'PROGRAM CLAIMED UNKNOWN AS MISSED: ' + text.slice(0, 90));
+    ok('and it never claims a percentage it cannot support',
+      !/100%|%/.test(ctx.programCompletionHeadline(sum)));
+    /* A program with no schedule has no honest denominator. */
+    const noSched = mkProgram({ schedule:{ mon:{type:'rest'}, tue:{type:'rest'}, wed:{type:'rest'},
+      thu:{type:'rest'}, fri:{type:'rest'}, sat:{type:'rest'}, sun:{type:'rest'} } });
+    const s2 = ctx.deriveProgramCompletion(noSched, '2026-06-01', []);
+    ok('an unknowable denominator is reported as unknown, not zero-of-zero',
+      s2.plannedSessions === null, String(s2.plannedSessions));
+    ok('and the headline omits it', !/ of /.test(ctx.programCompletionHeadline(s2)),
+      ctx.programCompletionHeadline(s2));
+  }
+
+  /* --- PROGRAM LOST AFTER NEXT START / PROGRAM HISTORY MUTATED --- */
+  {
+    const before = ctx.getPrograms().length;
+    const defA = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+      equipment:'full', emphasis:'chest', sessionLength:'long', weeks:8,
+      days:['mon','tue','thu','fri'] });
+    const A = ctx.createProgram({ name:'Program A', goal:defA.goal, durationWeeks:8,
+      schedule:defA.schedule, blocks:defA.blocks, startDate:'2026-01-05',
+      emphasis:'chest', sessionLength:defA.sessionLength, experience:defA.experience });
+    ok('Program A saves', A.ok, (A.errors || []).join('; '));
+    const snapshotA = JSON.stringify(A.program);
+
+    const defB = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+      equipment:'full', emphasis:'back', sessionLength:'long', weeks:8,
+      days:['mon','tue','thu','fri'] });
+    const B = ctx.createProgram({ name:'Program B', goal:defB.goal, durationWeeks:8,
+      schedule:defB.schedule, blocks:defB.blocks, startDate:'2026-06-01',
+      emphasis:'back', sessionLength:defB.sessionLength, experience:defB.experience });
+    ok('Program B saves', B.ok, (B.errors || []).join('; '));
+
+    const stillA = ctx.getProgram(A.program.id);
+    ok('Program A survives Program B starting', !!stillA,
+      'PROGRAM LOST AFTER NEXT START');
+    ok('and it is byte-identical', JSON.stringify(stillA) === snapshotA,
+      'PROGRAM HISTORY MUTATED');
+    ok('they are distinct instances', A.program.id !== B.program.id);
+    ok('the store grew by exactly two', ctx.getPrograms().length === before + 2,
+      String(ctx.getPrograms().length - before));
+    ok('only one program is active', ctx.programsStore.activeProgramId === B.program.id);
+    ctx.deleteProgram(A.program.id);
+    ctx.deleteProgram(B.program.id);
+  }
+
+  /* --- derivation is pure and cheap --- */
+  {
+    const prog = mkProgram();
+    const log = [];
+    for (let i = 0; i < 200; i++) log.push({ id:'x'+i, date:'2026-01-06', programId:'pX',
+      exercises:[{ name:'Bench Press', sets:[{},{},{}] }] });
+    const before = JSON.stringify(app.store);
+    const t0 = Date.now();
+    for (let i = 0; i < 50; i++) ctx.deriveProgramCompletion(prog, '2026-06-01', log);
+    const ms = Date.now() - t0;
+    ok('deriving completion writes nothing', JSON.stringify(app.store) === before);
+    ok('fifty derivations over 200 sessions stay quick', ms < 1500, ms + 'ms');
+  }
+
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */
   section('12. Generation has no side effects');
 

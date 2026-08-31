@@ -15586,6 +15586,171 @@ async function testTemporalProgramming(){
 }
 
 /* =========================================================
+   CONTRACT 137 — program lifecycle (D38)
+   ---------------------------------------------------------
+   The full sweep (220 checks) lives in loop-program-audit.js.
+   These are the always-on promises: a program ends when its
+   planned weeks end and not before, a paused one never ends on
+   elapsed time, completion claims only what was logged,
+   finishing one program never disturbs another, and history is
+   read-only.
+   ========================================================= */
+async function testProgramLifecycle(){
+  section('CONTRACT 137 — program lifecycle (D38)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const mk = over => Object.assign({
+    id:'pL', name:'Test', startDate:'2026-01-05', durationWeeks:8, status:'active',
+    pausedDays:0, goal:'hypertrophy',
+    blocks:[{ id:'b', name:'Foundation', startWeek:1, endWeek:8 }],
+    schedule:{ mon:{ type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' },
+      tue:{type:'rest'}, wed:{type:'rest'}, thu:{type:'rest'},
+      fri:{type:'rest'}, sat:{type:'rest'}, sun:{type:'rest'} }
+  }, over || {});
+
+  sub('a program ends when its weeks end');
+  {
+    const prog = mk();
+    const end = ctx.programEndDate(prog);
+    T('inside its weeks it is active', ctx.deriveProgramLifecycle(prog, '2026-02-01') === 'active');
+    T('on its final day it has not finished', ctx.deriveProgramLifecycle(prog, end) === 'active', end);
+    T('the day after, it has', ctx.deriveProgramLifecycle(prog, '2026-06-01') === 'ended');
+    /* The whole reason this phase exists: completion used to require a button. */
+    T('finishing needs no manual action', ctx.programIsFinished(prog, '2026-06-01'));
+    T('a finished program is not the running one',
+      ctx.deriveProgramLifecycle(prog, '2026-06-01') !== 'active');
+  }
+
+  sub('pause still freezes everything');
+  {
+    const paused = mk({ status:'paused', pausedOnDate:'2026-01-20' });
+    T('two months of paused calendar time does not end a program',
+      ctx.deriveProgramLifecycle(paused, '2026-12-31') === 'paused');
+    T('and it is never reported as finished', !ctx.programIsFinished(paused, '2026-12-31'));
+  }
+
+  sub('nothing is scheduled past the end');
+  T('the resolver refuses a finished program',
+    /function getProgramWorkoutForDate[\s\S]{0,600}programTimelineEnded/.test(src));
+  {
+    const prog = mk();
+    const w = ctx.getProgramWorkoutForDate('2026-09-07', prog);   // a Monday, past the end
+    T('a finished program schedules no workout', !(w && w.template),
+      w && w.template ? w.template.name : 'none');
+    T('but it still schedules inside its weeks',
+      !!(ctx.getProgramWorkoutForDate('2026-01-05', prog) || {}).template);
+  }
+
+  sub('completion states only what was logged');
+  {
+    const prog = mk();
+    const none = ctx.deriveProgramCompletion(prog, '2026-06-01', []);
+    T('no training is not a celebration', none.tone === 'none');
+    T('and it says so plainly',
+      /no workouts were logged/i.test(ctx.programCompletionHeadline(none)));
+    const few = ctx.deriveProgramCompletion(prog, '2026-06-01', [
+      { id:'a', date:'2026-01-06', programId:'pL', exercises:[{ name:'Bench Press', sets:[{}] }] }
+    ]);
+    T('one workout reads quiet', few.tone === 'quiet');
+    T('completion never shames', !/missed|failed|poor/i.test(
+      ctx.programCompletionHeadline(few) + JSON.stringify(few)));
+    /* D27's rule at program scale: an unknowable denominator stays unknown. */
+    const noSched = mk({ schedule:{ mon:{type:'rest'}, tue:{type:'rest'}, wed:{type:'rest'},
+      thu:{type:'rest'}, fri:{type:'rest'}, sat:{type:'rest'}, sun:{type:'rest'} } });
+    T('an unknowable denominator is null, never zero',
+      ctx.deriveProgramCompletion(noSched, '2026-06-01', []).plannedSessions === null);
+  }
+
+  sub('a program counts only its own training');
+  {
+    const prog = mk();
+    const log = [
+      { id:'own', date:'2026-01-06', programId:'pL', exercises:[{ name:'Bench Press', sets:[{}] }] },
+      { id:'other', date:'2026-01-07', programId:'pOTHER', exercises:[{ name:'Bench Press', sets:[{}] }] }
+    ];
+    T('a session claimed by another program is excluded',
+      ctx.deriveProgramCompletion(prog, '2026-10-01', log).completedSessions === 1);
+    T('a legacy session with no link still counts by date',
+      ctx.deriveProgramCompletion(prog, '2026-10-01',
+        [{ id:'l', date:'2026-01-06', exercises:[{ name:'Bench Press', sets:[{}] }] }]
+      ).completedSessions === 1);
+    /* Forward-safe linkage, written only when a program is actually running. */
+    T('new sessions record the program they belonged to',
+      /newEntry\.programId = _ap\.id/.test(src));
+    T('and nothing historical is backfilled',
+      !/workoutLog\.forEach[^;]{0,200}programId =/.test(src));
+  }
+
+  sub('finishing one program disturbs no other');
+  {
+    const defA = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+      equipment:'full', emphasis:'chest', sessionLength:'long', weeks:8,
+      days:['mon','tue','thu','fri'] });
+    const A = ctx.createProgram({ name:'A', goal:defA.goal, durationWeeks:8,
+      schedule:defA.schedule, blocks:defA.blocks, startDate:'2026-01-05',
+      emphasis:'chest', sessionLength:defA.sessionLength, experience:defA.experience });
+    const snapA = JSON.stringify(A.program);
+    const defB = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+      equipment:'full', emphasis:'back', sessionLength:'long', weeks:8,
+      days:['mon','tue','thu','fri'] });
+    const B = ctx.createProgram({ name:'B', goal:defB.goal, durationWeeks:8,
+      schedule:defB.schedule, blocks:defB.blocks, startDate:'2026-06-01',
+      emphasis:'back', sessionLength:defB.sessionLength, experience:defB.experience });
+    T('both programs exist', !!ctx.getProgram(A.program.id) && !!ctx.getProgram(B.program.id));
+    T('the earlier one is byte-identical', JSON.stringify(ctx.getProgram(A.program.id)) === snapA);
+    T('they are distinct instances', A.program.id !== B.program.id);
+    T('exactly one is active', ctx.programsStore.activeProgramId === B.program.id);
+    T('the earlier one keeps its own emphasis', ctx.getProgram(A.program.id).emphasis === 'chest');
+    ctx.deleteProgram(A.program.id); ctx.deleteProgram(B.program.id);
+  }
+
+  sub('history is one source, read-only, and unpersisted where derived');
+  T('there is one program collection', /programsStore\.programs/.test(src)
+    && !/completedPrograms|programArchive|pastPrograms\s*=/.test(src));
+  T('past-program detail offers no editing',
+    /function openPastProgram[\s\S]{0,700}build a new program/.test(src));
+  T('completion is derived, never stored',
+    (src.match(/function deriveProgramCompletion\(/g) || []).length === 1
+    && !/completionSummary\s*[:=]|programSummary\s*[:=]/.test(src));
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+
+  sub('program history survives a backup round-trip');
+  /* The D32 cardio defect, repeated for programs: they fell through to the
+     fill-only rule, so importing onto a device that already had any program
+     silently discarded every program in the backup. */
+  T('programs merge by id like the other histories',
+    src.indexOf('const hasPrograms = !!incoming.programs;') !== -1
+    && /theirs\.programs\.forEach[\s\S]{0,200}addedPrograms\+\+/.test(src));
+  T('and they are excluded from the fill-only branch',
+    src.indexOf("k === 'workoutLog' || k === 'cardioLog' || k === 'programs'") !== -1);
+  T('the import reports what it restored',
+    src.indexOf('new program${addedPrograms===1') !== -1);
+  T('the device keeps its own active program',
+    src.indexOf('activeProgramId: base.activeProgramId || theirs.activeProgramId') !== -1);
+
+  sub('continuation is offered, never taken');
+  T('the next program reuses the D33 builder',
+    /function startNextProgramFrom[\s\S]{0,400}openProgramBuilderFlow\('create'\)/.test(src));
+  T('and it copies the previous answers rather than referencing them',
+    /a\.days = days\.slice\(\)/.test(src));
+  T('nothing is auto-started',
+    !/function startNextProgramFrom[\s\S]{0,900}(createProgram|pbCommit)\(/.test(src));
+
+  sub('no release without its note');
+  {
+    const sw = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8');
+    const cache = (sw.match(/CACHE_VERSION = '([^']+)'/) || [])[1];
+    const latest = ctx.getLatestUpdate();
+    T('the newest What\'s New entry names the deployed version',
+      !!latest && latest.swVersion === cache,
+      'sw=' + cache + ' note=' + (latest && latest.swVersion));
+  }
+}
+
+/* =========================================================
    CONTRACT 130 — date boundaries (D31.1)
    ---------------------------------------------------------
    The full sweep runs under seven real timezones in
@@ -15828,6 +15993,7 @@ async function main(){
   await testSessionDepth();
   await testTrainingPrescription();
   await testTemporalProgramming();
+  await testProgramLifecycle();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
