@@ -3825,6 +3825,25 @@ body.page-locked{ overflow: hidden; }
 .pc-actions{ margin-top: 22px; }
 .pc-go{ width: 100%; min-height: 48px; }
 .pc-note{ font-size: var(--fs-xs); color: var(--text-faint); line-height: 1.5; margin-top: 18px; }
+/* D39 — performance rows. Direction is carried by the words, never by colour
+   alone, and an ordinary training fluctuation is never painted as an alarm. */
+.pc-perf-h{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); margin: 22px 0 6px;
+}
+.perf{ display: flex; flex-direction: column; }
+.perf-row{
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  padding: 9px 0; border-top: 1px solid var(--border-quiet);
+}
+.perf-row:first-child{ border-top: none; }
+.perf-name{ font-size: var(--fs-sm); font-weight: 600; color: var(--text); min-width: 0; }
+.perf-val{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-xs);
+  font-weight: 700; color: var(--text-dim); white-space: nowrap; flex: 0 0 auto;
+}
+.perf-row:has(.perf-val) .perf-val{ color: var(--text-dim); }
 .tw-program-done .tw-program-name{ color: var(--text); }
 /* Past programs — rows, deliberately quiet. */
 .ph-list{ display: flex; flex-direction: column; }
@@ -9485,6 +9504,25 @@ const LOOP_UPDATES = [
       'A finished program no longer keeps offering last week’s workout',
       'Starting a new program leaves your previous program and every logged workout exactly as they were',
       'Restoring a backup now brings your past programs back with it'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v3-2',
+    version: 'LOOP 3.2',
+    title: 'Are You Actually Improving?',
+    date: '2026-09-02',
+    swVersion: 'loop-v109',
+    summary: 'LOOP now tells you where your strength is genuinely going — and stays quiet when there is not enough training to say.',
+    newFeatures: [
+      'A finished program now shows how your main lifts actually moved across it, measured only from comparable working sets',
+      'While a program is running, My Training shows your progress so far on the lifts you have trained often enough to judge'
+    ],
+    improvements: [
+      'A percentage appears only when there are enough sessions on both sides of the comparison to support one — otherwise LOOP says nothing rather than guessing',
+      'One unusually good session no longer reads as a trend, and warm-up sets never count toward it',
+      'Every movement is judged on its own, so an incline press is never mistaken for a flat press'
     ],
     bugFixes: [],
     changes: []
@@ -25318,6 +25356,15 @@ function programCompletionHtml(sum, opts){
       ${facts.length ? `<div class="pc-facts">${facts.map(f => `
         <div class="pc-fact"><span class="pc-fact-v">${f.v}</span>
         <span class="pc-fact-l">${escapeHtml(f.l)}</span></div>`).join('')}</div>` : ''}
+      ${(() => {
+        /* D39 — performance, only where the training supports a claim. The
+           section is absent rather than empty when nothing qualifies. */
+        if(!o.programId) return '';
+        let perf = null;
+        try{ perf = deriveProgramPerformance(getProgram(o.programId)); }catch(e){}
+        const block = performanceHighlightsHtml(perf, { limit:3 });
+        return block ? `<div class="pc-perf-h">Performance</div>${block}` : '';
+      })()}
       ${o.actions === false ? '' : `<div class="pc-actions">
         <button class="btn-primary pc-go" onclick="startNextProgramFrom('${escapeAttr(o.programId || '')}')">Build next program</button>
       </div>`}
@@ -25396,6 +25443,211 @@ function openPastProgram(programId){
 }
 function closePastProgram(){
   document.getElementById('pastProgramOverlay').classList.remove('open');
+}
+
+/* =========================================================
+   PERFORMANCE PROGRESS  (Phase D39)
+   ---------------------------------------------------------
+   One read-only answer to \"am I actually improving?\", built
+   entirely on maths LOOP already owns. This file adds no
+   strength model: it calls the SAME estimate1RM, the SAME
+   exercise-type gate and the SAME rep-validity limit that
+   capability uses, and it never touches capability itself.
+   Nothing here is stored.
+
+   The restraint is the point. A single lucky set is not a
+   trend, a planned target is not performance, and two
+   different movements are not the same movement. When the
+   evidence does not support a claim this layer returns
+   'insufficient' and the product says nothing.
+   ========================================================= */
+
+/* Thresholds are DERIVED from the trainer's existing capability config rather
+   than invented here, so there is one place where 'how much evidence is
+   enough' is decided. Numeric claims deliberately cost more than directional
+   ones. */
+const PERF_CONFIG = {
+  get minSessions(){ return CAPABILITY_CONFIG.minSessionsForTrend; },      // 4
+  get minPerWindow(){ return 2; },
+  get minSessionsNumeric(){ return CAPABILITY_CONFIG.minSessionsForTrend + 2; }, // 6
+  get minPerWindowNumeric(){ return 3; },
+  get meaningfulPct(){ return CAPABILITY_CONFIG.trendThresholdPct; },      // 3
+  get maxReps(){ return CAPABILITY_CONFIG.maxRepsFor1RM; }                 // 15
+};
+
+/* Canonical identity, strictly. An unresolved name is not comparable to
+   anything \u2014 including itself under another spelling \u2014 so it is dropped
+   rather than guessed at. */
+function perfCanonicalId(name){
+  try{
+    const id = resolveExerciseId(name);
+    if(!id || /^unmapped:/.test(String(id))) return null;
+    return id;
+  }catch(e){ return null; }
+}
+
+/* Whether e1RM means anything for this movement, asked exactly the way
+   capability asks it. Bodyweight and timed work is excluded: a Pull-Up going
+   from 5 to 8 reps is real progress, but turning it into a percentage without
+   load context would be false precision. */
+function perfComparable(name, isBodyweight){
+  if(isBodyweight) return false;
+  try{ return supports1RMEstimate(classifyExerciseType(name, false)); }
+  catch(e){ return false; }
+}
+
+/* One observation per exercise per session: the best valid working set,
+   measured with the app's own e1RM. Sets are filtered through the existing
+   working-set registry, so warm-ups never count and drop/failure/AMRAP work
+   does \u2014 the same rule the rest of LOOP applies. A legacy set with no type
+   predates set types and is treated as working, never invented into a
+   warm-up. */
+function perfSessionObservation(exercise){
+  let best = 0;
+  (exercise.sets || []).forEach(st => {
+    if(isWorkingSet(st) === false) return;              // an explicit warm-up
+    if(st && st.completed === false) return;            // logged but not performed
+    const w = parseFloat(st && st.weight), r = parseFloat(st && st.reps);
+    if(!(w > 0) || !(r > 0) || r > PERF_CONFIG.maxReps) return;
+    const e = estimate1RM(w, r);
+    if(e > best) best = e;
+  });
+  return best > 0 ? best : null;
+}
+
+/* Every comparable observation in a set of workouts, grouped by canonical
+   exercise and ordered oldest first. Skipped exercises contribute nothing. */
+function perfObservations(workouts){
+  const byId = {};
+  (workouts || []).slice()
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .forEach(w => {
+      (w.exercises || []).forEach(ex => {
+        if(!ex || ex.skipped) return;
+        if(!perfComparable(ex.name, !!ex.bodyweight)) return;
+        const id = perfCanonicalId(ex.name);
+        if(!id) return;
+        const obs = perfSessionObservation(ex);
+        if(obs === null) return;
+        (byId[id] = byId[id] || { id, name: ex.name, points: [] })
+          .points.push({ date: w.date, e1rm: obs });
+      });
+    });
+  return byId;
+}
+
+/* The middle value \u2014 deliberately not the mean and never the max. One freak
+   set moves a median barely at all, which is what keeps a PR from being
+   mistaken for a trend. */
+function perfMedian(nums){
+  if(!nums || !nums.length) return null;
+  const a = nums.slice().sort((x, y) => x - y);
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+
+/* Early against late, measured in PERFORMED sessions rather than calendar
+   time \u2014 an athlete who missed week one has not had an early week. The two
+   windows are equal and disjoint; with an odd number of sessions the middle
+   one is dropped so neither side can borrow from the other. */
+function perfTrendFor(entry){
+  const pts = (entry && entry.points) || [];
+  const n = pts.length;
+  const out = { id: entry && entry.id, name: entry && entry.name, sessions: n,
+    direction: 'insufficient', pct: null, earlyE1rm: null, lateE1rm: null,
+    earlySessions: 0, lateSessions: 0, numeric: false };
+  if(n < PERF_CONFIG.minSessions) return out;
+  const half = Math.floor(n / 2);
+  if(half < PERF_CONFIG.minPerWindow) return out;
+  const early = pts.slice(0, half).map(x => x.e1rm);
+  const late = pts.slice(n - half).map(x => x.e1rm);
+  const a = perfMedian(early), b = perfMedian(late);
+  if(!(a > 0) || !(b > 0)) return out;
+  out.earlyE1rm = a; out.lateE1rm = b;
+  out.earlySessions = early.length; out.lateSessions = late.length;
+  const pct = ((b - a) / a) * 100;
+  out.pct = pct;
+  out.direction = pct >= PERF_CONFIG.meaningfulPct ? 'improving'
+    : (pct <= -PERF_CONFIG.meaningfulPct ? 'declining' : 'steady');
+  /* A number costs more evidence than a direction. */
+  out.numeric = n >= PERF_CONFIG.minSessionsNumeric
+    && early.length >= PERF_CONFIG.minPerWindowNumeric
+    && late.length >= PERF_CONFIG.minPerWindowNumeric
+    && out.direction !== 'steady';
+  return out;
+}
+
+/* The one entry point. Give it the workouts that belong to a window \u2014 a
+   program's sessions, or a slice of recent history \u2014 and it reports what
+   can be said about them. */
+function derivePerformanceProgress(workouts){
+  const byId = perfObservations(workouts);
+  const results = Object.keys(byId).map(id => perfTrendFor(byId[id]));
+  const usable = results.filter(r => r.direction !== 'insufficient');
+  return {
+    exercises: results,
+    /* Improving first, then steady; within each, the strongest evidence
+       (most sessions) leads, so a light isolation movement with a big
+       percentage never outranks a well-evidenced main lift. */
+    highlights: usable
+      .filter(r => r.direction === 'improving' || r.direction === 'steady')
+      .sort((a, b) => {
+        const rank = d => d === 'improving' ? 0 : 1;
+        if(rank(a.direction) !== rank(b.direction)) return rank(a.direction) - rank(b.direction);
+        if(b.sessions !== a.sessions) return b.sessions - a.sessions;
+        return String(a.name).localeCompare(String(b.name));
+      }),
+    comparableExercises: results.length,
+    evidencedExercises: usable.length
+  };
+}
+
+/* Program-scoped, reusing D38's membership rule so exact programId wins and
+   a session claimed by another program can never leak in. */
+function deriveProgramPerformance(program, log){
+  if(!program) return null;
+  return derivePerformanceProgress(programWorkouts(program, log));
+}
+
+/* ---------- PRESENTATION ----------
+   Plain language, no confidence score, no causal claim. A declining movement
+   is omitted rather than relabelled: LOOP does not editorialise an ordinary
+   training fluctuation, and it does not pretend it was steady either. */
+function perfTrendWord(r){
+  if(!r) return '';
+  if(r.direction === 'improving') return 'Trending up';
+  if(r.direction === 'steady') return 'Steady';
+  return '';
+}
+function perfDeltaText(r){
+  if(!r || !r.numeric || r.direction !== 'improving') return null;
+  const pct = Math.round(r.pct);
+  if(pct < PERF_CONFIG.meaningfulPct) return null;
+  return '+' + pct + '% estimated strength';
+}
+
+/* A compact block used by every surface that reports performance, so My
+   Training, program completion and past programs can never show different
+   numbers for the same training. */
+function performanceHighlightsHtml(perf, opts){
+  if(!perf) return '';
+  const o = opts || {};
+  const rows = (perf.highlights || []).slice(0, o.limit || 3);
+  if(!rows.length) return '';
+  return `
+    <div class="perf">
+      ${rows.map(r => {
+        const delta = perfDeltaText(r);
+        const word = perfTrendWord(r);
+        return `<div class="perf-row">
+          <span class="perf-name">${escapeHtml(programShortName(r.name))}</span>
+          <span class="perf-val" aria-label="${escapeAttr(
+            programShortName(r.name) + ': ' + (delta ? 'performance increased about '
+            + Math.round(r.pct) + ' percent' : word.toLowerCase())
+            + ', from ' + r.sessions + ' comparable sessions')}">${escapeHtml(delta || word)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
 /* The Today strip. Renders nothing at all without an active program, so an
@@ -25856,6 +26108,15 @@ function renderMyTraining(){
     ${(t.hasProgram && !finishedSum)
       ? `<div class="sec-head">Your program<span class="sec-hint">tap a week</span></div>
          ${myTrainingProgramMapHtml(t)}
+         ${(() => {
+           /* Progress so far, for a program still being trained. Same
+              function and same evidence rules as the completion panel, so
+              the two surfaces can never report different numbers. */
+           let perf = null;
+           try{ const rp = getRunningProgram(); if(rp) perf = deriveProgramPerformance(rp); }catch(e){}
+           const block = performanceHighlightsHtml(perf, { limit:3 });
+           return block ? `<div class="sec-head">Progress so far</div>${block}` : '';
+         })()}
          <button type="button" class="mt-explain-toggle" onclick="toggleMtExplain()"
            aria-expanded="${mtExplainOpen}">How this program works</button>
          ${mtExplainOpen ? programWhyRowsHtml(expl) : ''}`

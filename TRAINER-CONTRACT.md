@@ -4465,3 +4465,63 @@ that computes end dates independently and adversarial fixtures proven caught —
 37 always-on guards. 5,167 passing; 87 data-integrity, 261 cardio-lifecycle and
 43 GPS checks still green. Completion derivation over 200 sessions stays well
 inside a second.
+
+## §62 — Performance progress & outcome integrity (D39, loop-v109)
+
+**One strength model, not a second one.** LOOP already had `estimate1RM`
+(Epley), `classifyExerciseType`, `supports1RMEstimate`, `isWorkingSet` and the
+`CAPABILITY_CONFIG` thresholds. D39 reuses every one of them and adds no rival
+formula. `PERF_CONFIG` holds no numbers of its own — its fields are getters that
+derive from `CAPABILITY_CONFIG`, so tuning capability tunes progress with it and
+the two surfaces cannot drift into disagreeing about the same lift.
+
+**No progress claim without comparable evidence.** A movement is reported only
+if it is comparable in principle (`supports1RMEstimate` on its classified type;
+bodyweight movements are excluded because their load is not recorded) and
+evidenced in fact. A direction needs 4 sessions with at least 2 in each half; a
+numeric percentage needs 6 with at least 3 in each half. Below that the exercise
+is carried as insufficient and the surface renders nothing at all — an absent
+section, never an empty one, and never a hedged claim.
+
+**A PR is not a trend.** Each session contributes one observation: the best
+valid estimated 1RM from its working sets. Warm-ups are dropped
+(`isWorkingSet(st) === false`), uncompleted sets are dropped, reps beyond
+`maxRepsFor1RM` are dropped because Epley stops being meaningful there, and
+skipped exercises contribute nothing. The two halves are compared by MEDIAN,
+not mean or max, so a single freak session cannot manufacture a trend: a flat
+history plus one 315 lb outlier against 185 lb working sets reports Steady at
+0.0%, which is the correct answer and the one a max-based comparison gets wrong.
+The halves are equal and disjoint, with an odd middle session dropped rather
+than double-counted.
+
+**Identity is canonical or the exercise does not exist.** Grouping runs through
+`resolveExerciseId` and rejects anything resolving to `unmapped:`. No substring
+matching, no name inference — the D34 class of bug (Leg Curl attributed to
+biceps, "machine" containing "chin") cannot recur here. Bench Press and Incline
+Bench Press stay separate lifts.
+
+**Read-only, and proven so.** The layer derives; it persists nothing.
+`DATA_KEYS` remains 15 and no localStorage key was added. Rendering every D39
+surface three times over leaves `workoutLog`, `trainerLog`, `programs`,
+combined progression, PR events, `cardioLog`, capability output and the
+localStorage key set byte-identical. `TRAINER_ENGINE_VERSION` remains
+`0.1.1-shadow`: no threshold, calibration, state or evidence rule was touched.
+§7 holds — `computeExerciseCapability` returns exactly what it returned before.
+
+**One function, three surfaces.** `performanceHighlightsHtml` renders the
+program completion panel, the past-program overlay and My Training’s "Progress
+so far". They cannot report different numbers for the same training because
+they are the same call. Wording is bounded by what the evidence supports:
+"+9% estimated strength" only where numeric evidence exists, "Trending up" or
+"Steady" otherwise, and nothing where neither holds. Declines are never painted
+as alarms. There is no confidence score, no program score, no causal claim that
+the program produced the change, and no body-composition claim — all four are
+pinned by Contract 138 against comment-stripped source, so only shipped code
+can violate them.
+
+**Verification.** 5,202 assertions across 138 always-on contracts. The program
+audit reached 246 checks; its section 18 reimplements Epley, the median, the
+observation filter and the half-split from scratch as an independent oracle and
+agrees with production on every fixture. 87 data-integrity, 261
+cardio-lifecycle, 43 GPS and 252 date checks still green. Deriving progress
+over 600 sessions takes 2.5 ms.

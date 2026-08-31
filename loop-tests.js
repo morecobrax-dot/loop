@@ -15751,6 +15751,191 @@ async function testProgramLifecycle(){
 }
 
 /* =========================================================
+   CONTRACT 138 — performance progress (D39)
+   ---------------------------------------------------------
+   The full sweep (246 checks, independent oracle, adversarial
+   fixtures) lives in loop-program-audit.js. These are the
+   always-on promises: no claim without comparable evidence, a
+   PR is not a trend, current capability is untouched, and
+   every surface reads one analysis.
+   ========================================================= */
+async function testPerformanceProgress(){
+  section('CONTRACT 138 — performance progress (D39)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const W = (date, name, sets) => ({ id:'w'+date+name, date,
+    exercises:[{ name, sets: sets.map(x => Object.assign({ type:'working', completed:true }, x)) }] });
+  const series = (name, weights, reps) => weights.map((wt, i) =>
+    W('2026-' + String(1 + Math.floor(i/4)).padStart(2,'0') + '-'
+      + String((i%4)*7 + 6).padStart(2,'0'), name, [{ weight: wt, reps: reps || 8 }]));
+  const first = wk => ctx.derivePerformanceProgress(wk).exercises[0] || {};
+
+  sub('no claim without comparable evidence');
+  T('one session says nothing', first(series('Bench Press',[185])).direction === 'insufficient');
+  T('two sessions say nothing even when far apart',
+    first(series('Bench Press',[135,225])).direction === 'insufficient');
+  T('four sessions earn a direction but not a number', (() => {
+    const r = first(series('Bench Press',[185,185,205,205]));
+    return r.direction === 'improving' && r.numeric === false && ctx.perfDeltaText(r) === null;
+  })());
+  T('six sessions earn a number',
+    first(series('Bench Press',[185,185,185,205,205,205])).numeric === true);
+  /* Thresholds come from the trainer's existing capability config rather than
+     being invented, so there is one place evidence sufficiency is decided. */
+  T('thresholds derive from the existing capability config',
+    /CAPABILITY_CONFIG\.minSessionsForTrend/.test(src)
+    && /CAPABILITY_CONFIG\.trendThresholdPct/.test(src)
+    && /CAPABILITY_CONFIG\.maxRepsFor1RM/.test(src));
+
+  sub('a PR is not a trend');
+  {
+    const freak = first(series('Bench Press',[185,185,185,185,185,185,185,315]));
+    T('one freak set against flat history stays steady', freak.direction === 'steady',
+      'direction=' + freak.direction + ' pct=' + freak.pct);
+    T('and it produces no numeric claim', ctx.perfDeltaText(freak) === null);
+    /* Trend without a dramatic PR must still be detectable. */
+    const gradual = first(series('Bench Press',[180,182.5,185,187.5,190,192.5,195,197.5]));
+    T('gradual improvement is still recognised', gradual.direction === 'improving');
+    T('the middle value is what resists the outlier', /function perfMedian/.test(src));
+  }
+
+  sub('only performed, comparable work counts');
+  {
+    const warm = [];
+    for(let i = 0; i < 8; i++) warm.push({ id:'wu'+i,
+      date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+      exercises:[{ name:'Bench Press', sets:[
+        { type:'warmup', completed:true, weight: 95 + i*25, reps:8 },
+        { type:'working', completed:true, weight:185, reps:8 }] }] });
+    T('climbing warm-ups create no progress',
+      (ctx.derivePerformanceProgress(warm).exercises[0] || {}).direction === 'steady');
+    T('the working-set registry is what decides',
+      /function perfSessionObservation[\s\S]{0,400}isWorkingSet/.test(src));
+    const unperformed = [];
+    for(let i = 0; i < 8; i++) unperformed.push({ id:'up'+i,
+      date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+      exercises:[{ name:'Bench Press',
+        sets:[{ type:'working', completed:false, weight:185 + i*10, reps:8 }] }] });
+    T('a set logged but not performed is not performance',
+      ctx.derivePerformanceProgress(unperformed).comparableExercises === 0);
+    T('a skipped exercise contributes nothing',
+      ctx.derivePerformanceProgress(Array.from({length:8}, (_,i) => ({ id:'s'+i,
+        date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+        exercises:[{ name:'Bench Press', skipped:true, sets:[] }] }))).comparableExercises === 0);
+  }
+
+  sub('comparability is canonical, never by name');
+  {
+    const mixed = series('Bench Press',[185,185,190,190])
+      .concat(series('Incline Bench Press',[225,230,235,240]));
+    T('flat and incline bench are never merged',
+      ctx.derivePerformanceProgress(mixed).comparableExercises === 2);
+    T('an unrecognised movement is excluded, not guessed',
+      ctx.derivePerformanceProgress(series('Zercher Sandbag Thing',
+        [100,110,120,130,140,150,160,170])).comparableExercises === 0);
+    T('identity comes from the canonical registry',
+      /function perfCanonicalId[\s\S]{0,200}resolveExerciseId/.test(src));
+    /* Bodyweight and timed work get no strength percentage. */
+    T('bodyweight work is excluded from strength percentages',
+      ctx.derivePerformanceProgress(Array.from({length:8}, (_,i) => ({ id:'b'+i,
+        date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+        exercises:[{ name:'Pull-Up', bodyweight:true,
+          sets:[{ type:'working', completed:true, weight:'BW', reps:5+i }] }] })))
+        .comparableExercises === 0);
+    T('reps beyond the estimate\'s validity are excluded',
+      ctx.derivePerformanceProgress(series('Bench Press',
+        [95,95,95,95,95,95,95,95], 30)).comparableExercises === 0);
+  }
+
+  sub('a phase rep change does not break comparison');
+  /* D37 moves a primary from 6-8 to 3-5; the existing e1RM model is what makes
+     those sessions comparable at all. */
+  T('load up while reps drop still reads as improvement', (() => {
+    const wk = series('Bench Press',[185,185,190,190]).concat(
+      series('Bench Press',[215,220,225,225], 5).map((w, i) =>
+        Object.assign(w, { id:'late'+i, date:'2026-03-0' + (i+1) })));
+    return first(wk).direction === 'improving';
+  })());
+  T('and it uses the app\'s single e1RM function',
+    /function perfSessionObservation[\s\S]{0,600}estimate1RM\(/.test(src)
+    && (src.match(/function estimate1RM\(/g) || []).length === 1);
+
+  sub('program scoping and isolation');
+  T('program analysis reuses D38 membership',
+    /function deriveProgramPerformance[\s\S]{0,300}programWorkouts\(/.test(src));
+  {
+    const prog = { id:'pA', name:'A', startDate:'2026-01-05', durationWeeks:8, status:'active',
+      pausedDays:0, blocks:[{ id:'b', startWeek:1, endWeek:8 }],
+      schedule:{ mon:{ type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' },
+        tue:{type:'rest'}, wed:{type:'rest'}, thu:{type:'rest'},
+        fri:{type:'rest'}, sat:{type:'rest'}, sun:{type:'rest'} } };
+    const mine = series('Bench Press',[185,185,185,185]).map(w => Object.assign(w, { programId:'pA' }));
+    const theirs = series('Bench Press',[300,310,320,330]).map((w,i) =>
+      Object.assign(w, { id:'f'+i, date:'2026-02-' + String(i*5+1).padStart(2,'0'), programId:'pB' }));
+    const r = (ctx.deriveProgramPerformance(prog, mine.concat(theirs)).exercises[0] || {});
+    T('another program\'s sessions never leak in', r.sessions === 4 && r.direction === 'steady',
+      'n=' + r.sessions + ' dir=' + r.direction);
+  }
+
+  sub('one analysis, many surfaces');
+  T('there is a single analysis entry point',
+    (src.match(/function derivePerformanceProgress\(/g) || []).length === 1);
+  T('completion and My Training render the same component',
+    (src.match(/performanceHighlightsHtml\(/g) || []).length >= 3
+    && (src.match(/function performanceHighlightsHtml\(/g) || []).length === 1);
+  T('nothing derived is persisted',
+    !/performanceSnapshot|trendCache|progressSnapshot|_perfCache/.test(src));
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+
+  sub('language stays factual');
+  {
+    const improving = first(series('Bench Press',[185,185,185,205,205,205]));
+    const text = (ctx.perfDeltaText(improving) || '') + ' ' + ctx.perfTrendWord(improving);
+    T('no causal claim is made', !/because|caused|thanks to|this program (built|increased)/i.test(text));
+    /* Comments are stripped first: the layer's own header says "no confidence
+       score" in order to state the rule, and only shipped code can show one. */
+    T('no confidence score is shown', (() => {
+      const i = src.indexOf('PERFORMANCE PROGRESS  (Phase D39)');
+      const code = src.slice(i, i + 9000)
+        .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+      return !/confidence/i.test(code);
+    })());
+    T('percentages are whole numbers', !/\.\d\d+%/.test(text), text);
+    /* A decline is omitted rather than relabelled as steady. */
+    const declining = first(series('Bench Press',[225,220,215,210,195,190,185,180]));
+    T('a genuine decline is not called steady', declining.direction === 'declining');
+    T('and it is not surfaced as a highlight',
+      ctx.derivePerformanceProgress(series('Bench Press',[225,220,215,210,195,190,185,180]))
+        .highlights.length === 0);
+  }
+
+  sub('capability and trainer are untouched');
+  {
+    const names = ['Bench Press','Lat Pulldown','Leg Press'];
+    const before = names.map(n => JSON.stringify(ctx.computeExerciseCapability(n)));
+    for(let i = 0; i < 10; i++)
+      ctx.derivePerformanceProgress(series('Bench Press',[185,190,195,200,205,210,215,220]));
+    const after = names.map(n => JSON.stringify(ctx.computeExerciseCapability(n)));
+    T('current capability is byte-identical after analysis', before.join('|') === after.join('|'));
+    T('capability math was not rewritten',
+      (src.match(/function computeExerciseCapability\(/g) || []).length === 1);
+    T('the trainer engine is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  }
+
+  sub('no release without its note');
+  {
+    const sw = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8');
+    const cache = (sw.match(/CACHE_VERSION = '([^']+)'/) || [])[1];
+    const latest = ctx.getLatestUpdate();
+    T('the newest What\'s New entry names the deployed version',
+      !!latest && latest.swVersion === cache,
+      'sw=' + cache + ' note=' + (latest && latest.swVersion));
+  }
+}
+
+/* =========================================================
    CONTRACT 130 — date boundaries (D31.1)
    ---------------------------------------------------------
    The full sweep runs under seven real timezones in
@@ -15994,6 +16179,7 @@ async function main(){
   await testTrainingPrescription();
   await testTemporalProgramming();
   await testProgramLifecycle();
+  await testPerformanceProgress();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

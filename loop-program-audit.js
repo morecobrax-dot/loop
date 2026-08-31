@@ -1497,6 +1497,270 @@ function oracleTemplate(ctx, entry) {
     ok('fifty derivations over 200 sessions stay quick', ms < 1500, ms + 'ms');
   }
 
+  /* ---------- 18. PERFORMANCE PROGRESS  (Phase D39) ----------
+     The oracle reimplements the evidence model from scratch — its own Epley,
+     its own median, its own early/late split — so a production
+     misclassification cannot hide by being mirrored here. Production is never
+     asked what it concluded; the oracle concludes independently and the two
+     are compared. */
+  section('18. Performance progress (D39)');
+
+  const oEpley = (w, r) => w * (1 + r / 30);
+  const oMedian = a => { if (!a.length) return null;
+    const b = a.slice().sort((x, y) => x - y); const m = Math.floor(b.length / 2);
+    return b.length % 2 ? b[m] : (b[m-1] + b[m]) / 2; };
+  /* Independent observation extraction: working sets only, rep-valid only. */
+  const oObserve = (workouts, exName) => {
+    const pts = [];
+    workouts.slice().sort((a,b) => String(a.date).localeCompare(String(b.date))).forEach(w => {
+      (w.exercises || []).forEach(ex => {
+        if (!ex || ex.skipped || ex.name !== exName || ex.bodyweight) return;
+        let best = 0;
+        (ex.sets || []).forEach(st => {
+          if (st && st.type === 'warmup') return;
+          if (st && st.completed === false) return;
+          const wt = parseFloat(st && st.weight), rp = parseFloat(st && st.reps);
+          if (!(wt > 0) || !(rp > 0) || rp > 15) return;
+          const e = oEpley(wt, rp); if (e > best) best = e;
+        });
+        if (best > 0) pts.push(best);
+      });
+    });
+    return pts;
+  };
+  const oTrend = pts => {
+    const n = pts.length;
+    if (n < 4) return { direction:'insufficient', pct:null };
+    const half = Math.floor(n / 2);
+    if (half < 2) return { direction:'insufficient', pct:null };
+    const a = oMedian(pts.slice(0, half)), b = oMedian(pts.slice(n - half));
+    const pct = ((b - a) / a) * 100;
+    return { direction: pct >= 3 ? 'improving' : (pct <= -3 ? 'declining' : 'steady'), pct };
+  };
+
+  const W = (date, name, sets) => ({ id:'w'+date+name, date,
+    exercises:[{ name, sets: sets.map(x => Object.assign({ type:'working', completed:true }, x)) }] });
+  const series = (name, weights, reps) => weights.map((wt, i) =>
+    W('2026-' + String(1 + Math.floor(i/4)).padStart(2,'0') + '-' + String((i%4)*7 + 6).padStart(2,'0'),
+      name, [{ weight: wt, reps: reps || 8 }]));
+
+  /* --- production must agree with the independent oracle --- */
+  {
+    const cases = [
+      ['steady climb', series('Bench Press', [185,185,190,190,200,205,205,210])],
+      ['flat', series('Bench Press', [185,185,185,185,185,185,185,185])],
+      ['gradual', series('Bench Press', [180,182.5,185,187.5,190,192.5,195,197.5])],
+      ['freak PR at the end', series('Bench Press', [185,185,185,185,185,185,185,315])],
+      ['decline', series('Bench Press', [225,220,215,210,195,190,185,180])],
+      ['two sessions', series('Bench Press', [135,225]).slice(0,2)]
+    ];
+    let bad = [];
+    cases.forEach(([label, wk]) => {
+      const prod = ctx.derivePerformanceProgress(wk).exercises[0]
+        || { direction:'insufficient', pct:null };
+      const orc = oTrend(oObserve(wk, 'Bench Press'));
+      if (prod.direction !== orc.direction)
+        bad.push('DIRECTION DISAGREES on ' + label + ': production=' + prod.direction
+          + ' oracle=' + orc.direction);
+      else if (orc.pct !== null && prod.pct !== null && Math.abs(prod.pct - orc.pct) > 0.01)
+        bad.push('PERCENTAGE DISAGREES on ' + label + ': ' + prod.pct + ' vs ' + orc.pct);
+    });
+    ok('production agrees with an independently computed trend', bad.length === 0,
+      bad.join(' || '));
+  }
+
+  /* --- INSUFFICIENT EVIDENCE CLAIMED PROGRESS --- */
+  {
+    const two = ctx.derivePerformanceProgress(series('Bench Press',[135,225]).slice(0,2));
+    ok('two sessions never produce a claim',
+      (two.exercises[0] || {}).direction === 'insufficient' && two.highlights.length === 0,
+      'INSUFFICIENT EVIDENCE CLAIMED PROGRESS');
+    const three = ctx.derivePerformanceProgress(series('Bench Press',[135,180,225]).slice(0,3));
+    ok('three sessions still do not', (three.exercises[0] || {}).direction === 'insufficient');
+    /* Four gives a direction; a number needs six. */
+    const four = ctx.derivePerformanceProgress(series('Bench Press',[185,185,205,205]));
+    const r4 = four.exercises[0] || {};
+    ok('four sessions give a direction but no number',
+      r4.direction === 'improving' && r4.numeric === false && ctx.perfDeltaText(r4) === null,
+      'dir=' + r4.direction + ' numeric=' + r4.numeric);
+    const six = ctx.derivePerformanceProgress(series('Bench Press',[185,185,185,205,205,205]));
+    ok('six sessions earn a number', (six.exercises[0] || {}).numeric === true);
+  }
+
+  /* --- OUTLIER DOMINATED TREND --- */
+  {
+    const freak = ctx.derivePerformanceProgress(series('Bench Press',[185,185,185,185,185,185,185,315]));
+    const r = freak.exercises[0] || {};
+    ok('one freak set is not a trend', r.direction === 'steady',
+      'OUTLIER DOMINATED TREND: direction=' + r.direction + ' pct=' + r.pct);
+    ok('and it produces no numeric claim', ctx.perfDeltaText(r) === null);
+    /* The same history genuinely improving is still detected. */
+    ok('a real trend is still detected',
+      (ctx.derivePerformanceProgress(series('Bench Press',[185,185,190,195,205,205,210,210]))
+        .exercises[0] || {}).direction === 'improving');
+  }
+
+  /* --- WARMUP COUNTED AS PERFORMANCE --- */
+  {
+    const wk = [];
+    for (let i = 0; i < 8; i++) wk.push({ id:'wu'+i,
+      date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+      exercises:[{ name:'Bench Press', sets:[
+        { type:'warmup', completed:true, weight: 95 + i*25, reps:8 },
+        { type:'working', completed:true, weight:185, reps:8 }] }] });
+    const r = ctx.derivePerformanceProgress(wk).exercises[0] || {};
+    ok('climbing warm-ups never create progress', r.direction === 'steady',
+      'WARMUP COUNTED AS PERFORMANCE: ' + r.direction + ' ' + r.pct);
+    /* Drop / failure / AMRAP sets are real training and DO count. */
+    const drops = [];
+    for (let i = 0; i < 8; i++) drops.push({ id:'dr'+i,
+      date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+      exercises:[{ name:'Bench Press', sets:[
+        { type:'drop', completed:true, weight: 185 + (i>=4 ? 25 : 0), reps:8 }] }] });
+    ok('drop sets are real training and do count',
+      (ctx.derivePerformanceProgress(drops).exercises[0] || {}).direction === 'improving');
+  }
+
+  /* --- NON-CANONICAL EXERCISE COMPARED --- */
+  {
+    const mixed = series('Bench Press',[185,185,190,190])
+      .concat(series('Incline Bench Press',[225,230,235,240]));
+    const perf = ctx.derivePerformanceProgress(mixed);
+    ok('different canonical movements are never merged',
+      perf.comparableExercises === 2,
+      'NON-CANONICAL EXERCISE COMPARED: ' + perf.exercises.map(e => e.id).join(','));
+    const ids = perf.exercises.map(e => e.id);
+    ok('and they keep distinct canonical ids', new Set(ids).size === ids.length);
+    /* An unresolvable name is comparable to nothing, including itself. */
+    const junk = series('Zercher Sandbag Carry Thing',[100,100,120,120,140,140,160,160]);
+    ok('an unrecognised movement is excluded rather than guessed at',
+      ctx.derivePerformanceProgress(junk).comparableExercises === 0);
+  }
+
+  /* --- UNSUPPORTED EXERCISE GIVEN NUMERIC DELTA --- */
+  {
+    const bw = [];
+    for (let i = 0; i < 8; i++) bw.push({ id:'bw'+i,
+      date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+      exercises:[{ name:'Pull-Up', bodyweight:true,
+        sets:[{ type:'working', completed:true, weight:'BW', reps:5+i }] }] });
+    ok('bodyweight work receives no strength percentage',
+      ctx.derivePerformanceProgress(bw).comparableExercises === 0,
+      'UNSUPPORTED EXERCISE GIVEN NUMERIC DELTA');
+    const planks = [];
+    for (let i = 0; i < 8; i++) planks.push({ id:'pl'+i,
+      date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+      exercises:[{ name:'Plank', sets:[{ type:'working', completed:true, weight:0, reps:60+i }] }] });
+    ok('timed work is excluded too',
+      ctx.derivePerformanceProgress(planks).comparableExercises === 0);
+    ok('and so are reps beyond the estimate\'s validity',
+      ctx.derivePerformanceProgress(series('Bench Press',[95,95,95,95,95,95,95,95], 30))
+        .comparableExercises === 0);
+  }
+
+  /* --- PLANNED TARGET COUNTED AS ACTUAL --- */
+  {
+    /* A session logged but not performed contributes nothing. */
+    const unperformed = [];
+    for (let i = 0; i < 8; i++) unperformed.push({ id:'up'+i,
+      date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+      exercises:[{ name:'Bench Press',
+        sets:[{ type:'working', completed:false, weight: 185 + i*10, reps:8 }] }] });
+    ok('sets marked not completed are not performance',
+      ctx.derivePerformanceProgress(unperformed).comparableExercises === 0,
+      'PLANNED TARGET COUNTED AS ACTUAL');
+    ok('a skipped exercise contributes nothing',
+      ctx.derivePerformanceProgress(Array.from({length:8}, (_,i) => ({ id:'sk'+i,
+        date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
+        exercises:[{ name:'Bench Press', skipped:true, sets:[] }] }))).comparableExercises === 0);
+  }
+
+  /* --- FOREIGN PROGRAM SESSION COUNTED --- */
+  {
+    const prog = { id:'pA', name:'A', startDate:'2026-01-05', durationWeeks:8, status:'active',
+      pausedDays:0, blocks:[{ id:'b', name:'F', startWeek:1, endWeek:8 }],
+      schedule:{ mon:{ type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' },
+        tue:{type:'rest'}, wed:{type:'rest'}, thu:{type:'rest'},
+        fri:{type:'rest'}, sat:{type:'rest'}, sun:{type:'rest'} } };
+    const mine = series('Bench Press',[185,185,185,185]).map(w =>
+      Object.assign(w, { programId:'pA' }));
+    const theirs = series('Bench Press',[300,310,320,330]).map((w, i) =>
+      Object.assign(w, { id:'f'+i, date:'2026-02-' + String(i*5+1).padStart(2,'0'), programId:'pB' }));
+    const perf = ctx.deriveProgramPerformance(prog, mine.concat(theirs));
+    const r = perf.exercises[0] || {};
+    ok('another program\'s sessions never enter this program\'s analysis',
+      r.sessions === 4 && r.direction === 'steady',
+      'FOREIGN PROGRAM SESSION COUNTED: n=' + r.sessions + ' dir=' + r.direction);
+  }
+
+  /* --- PROGRAM RESULT DISAGREES WITH PROGRESS --- */
+  {
+    const prog = { id:'pS', name:'S', startDate:'2026-01-05', durationWeeks:8, status:'active',
+      pausedDays:0, blocks:[{ id:'b', startWeek:1, endWeek:8 }],
+      schedule:{ mon:{ type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' },
+        tue:{type:'rest'}, wed:{type:'rest'}, thu:{type:'rest'},
+        fri:{type:'rest'}, sat:{type:'rest'}, sun:{type:'rest'} } };
+    const log = series('Bench Press',[185,185,190,195,205,205,210,210])
+      .map(w => Object.assign(w, { programId:'pS' }));
+    const viaProgram = ctx.deriveProgramPerformance(prog, log);
+    const viaDirect = ctx.derivePerformanceProgress(ctx.programWorkouts(prog, log));
+    ok('program and direct analysis are the same computation',
+      JSON.stringify(viaProgram) === JSON.stringify(viaDirect),
+      'PROGRAM RESULT DISAGREES WITH PROGRESS');
+    ok('there is one analysis entry point',
+      typeof ctx.derivePerformanceProgress === 'function'
+      && typeof ctx.deriveProgramPerformance === 'function');
+  }
+
+  /* --- CAPABILITY CHANGED --- */
+  {
+    const names = ['Bench Press','Lat Pulldown','Leg Press','Barbell Row','Overhead Press'];
+    const before = names.map(n => JSON.stringify(ctx.computeExerciseCapability(n)));
+    for (let i = 0; i < 25; i++)
+      ctx.derivePerformanceProgress(series('Bench Press',[185,190,195,200,205,210,215,220]));
+    const after = names.map(n => JSON.stringify(ctx.computeExerciseCapability(n)));
+    ok('current capability is byte-identical after analysis',
+      before.join('|') === after.join('|'), 'CAPABILITY CHANGED');
+    ok('the trainer engine is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  }
+
+  /* --- nothing is written, and it is quick at scale --- */
+  {
+    const big = [];
+    for (let i = 0; i < 600; i++) big.push({ id:'b'+i,
+      date:'2026-' + String(1 + (i % 12)).padStart(2,'0') + '-' + String(1 + (i % 28)).padStart(2,'0'),
+      exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true,
+        weight: 180 + (i % 40), reps: 6 + (i % 4) }] },
+        { name:'Lat Pulldown', sets:[{ type:'working', completed:true,
+          weight: 120 + (i % 30), reps: 8 }] }] });
+    const before = JSON.stringify(app.store);
+    const t0 = Date.now();
+    for (let i = 0; i < 20; i++) ctx.derivePerformanceProgress(big);
+    const ms = (Date.now() - t0) / 20;
+    ok('analysis writes nothing', JSON.stringify(app.store) === before);
+    ok('600 sessions analyse quickly', ms < 120, ms.toFixed(1) + 'ms per pass');
+    console.log('    performance: ' + ms.toFixed(1) + 'ms for 600 sessions / 2 exercises');
+  }
+
+  /* --- coverage, reported rather than optimised --- */
+  {
+    let comparable = 0, evidenced = 0, numeric = 0, insufficient = 0;
+    const shapes = [
+      [185,185,190,190,200,205,205,210], [185,185,185,185,185,185,185,185],
+      [185,190], [185,185,190], [200,195,190,185,180,175,170,165],
+      [185,185,185,185,185,185,185,315], [180,182.5,185,187.5,190,192.5,195,197.5]
+    ];
+    shapes.forEach(sh => {
+      const r = ctx.derivePerformanceProgress(series('Bench Press', sh)).exercises[0] || {};
+      comparable++;
+      if (r.direction === 'insufficient') insufficient++; else evidenced++;
+      if (r.numeric) numeric++;
+    });
+    ok('coverage is reported, not maximised', comparable === shapes.length);
+    console.log('    coverage across ' + comparable + ' shapes: ' + evidenced + ' evidenced, '
+      + numeric + ' numeric, ' + insufficient + ' insufficient (low coverage can be correct)');
+  }
+
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */
   section('12. Generation has no side effects');
 
