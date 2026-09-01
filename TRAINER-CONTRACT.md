@@ -4725,3 +4725,95 @@ carry no origin and are still attributed by date window, so a pre-D41 extra
 session inside a program’s dates still counts toward that program. That
 ambiguity is historical and is left honest rather than repaired by guessing.
 Attribution is exact from this release forward.
+
+## §65 — Next program continuity & post-program guidance (D42, loop-v112)
+
+**Finishing a program was the end of the product.** The completion panel
+offered one button, "Build next program", which always prefilled everything
+and jumped to the review. There was no way to say "similar, but not the
+same", and no way to reconsider without abandoning the flow entirely.
+
+**Three ways forward, one builder.** Keep the goal, change what it focuses
+on, or start from scratch. All three call the same `startNextProgramFrom`,
+which opens the same D33 builder — there is no continuation generator beside
+the real one. A contract fails if a second entry point, a second prefill
+helper, or a `continueProgramGenerator`-shaped function ever appears.
+
+**Intent decides the landing point, not a different code path.** Keeping the
+goal lands on the review it can be edited from; changing focus drops the
+emphasis and lands on the question that exists to ask it; starting fresh
+assumes nothing and begins at question one. `deriveNextProgramPrefill` is a
+pure function returning ANSWERS — it cannot create a program, and a contract
+reads its body to prove it never calls `createProgram`, `setActiveProgram`,
+`pbCommit` or any store write.
+
+**Prefill is history, never today.** Goal, experience, session length,
+emphasis, length and training days come from the finished program itself —
+what the athlete actually chose when they built it — so changing a profile
+later cannot rewrite what the previous block was. Values arrive as copies:
+pushing a day onto the prefilled schedule leaves the finished program
+byte-identical, which is pinned. A legacy program missing metadata prefills
+only what it genuinely has and lets the builder default the rest; nothing is
+invented.
+
+**Outcome is context, never cause.** D40 can see that performance moved
+DURING a program; it cannot run the counterfactual. The rationale line says
+at most "Your goal is still Build Muscle, and this program showed measurable
+progress on 4 of 5 comparable lifts." Contracts reject `made you`, `caused`,
+`because this program`, `this program failed` and `proves`, and separately
+reject `you need a`, `you should`, `deload`, `switch to` and `replace your`:
+D42 may report, never prescribe. A decline is stated by the outcome above and
+then left alone — no recovery, nutrition, overtraining or plateau language
+appears anywhere, because LOOP does not know which of those it was.
+
+**A louder button is not evidence.** A primary action is offered ONLY when
+the outcome is `improving`. Mixed, steady, declining and insufficient all get
+a level hierarchy of three equal secondary buttons — pinned, so a future
+redesign cannot quietly manufacture confidence the evidence does not support.
+There is no score, confidence figure or rating in the result object.
+
+**Nothing starts itself.** Rendering the completion panel, opening a past
+program and deriving the next step five times over leaves `programs`,
+`workoutLog`, `trainerLog`, `cardioLog`, PR events, XP, level, rank,
+recovery, readiness, mastery, capability output, the localStorage key set and
+the full localStorage contents byte-identical. Opening all three intents in
+the builder and closing it again leaves the programs store byte-identical: a
+program exists only after the athlete taps Start.
+
+**The athlete outranks the suggestion.** Verified live: the builder opens
+prefilled with `hypertrophy`, the athlete picks `strength`, and `strength`
+wins. The prefill is a starting point, not a decision.
+
+**Completion and review agree, but do not nag.** Both render through
+`programNextStepHtml` and the same `deriveNextStep`, so they can never frame
+the same block differently. The just-finished panel asks the full three-way
+question; reviewing a program months later offers a single quiet "Use as a
+starting point" instead. Same truth, different volume.
+
+**History survives the next program.** Starting Program B produced a new id
+and a new start date, and left Program A’s outcome, completion summary, next
+step and stored record byte-identical. Then eight heavy Bench sessions inside
+B changed nothing about A: A’s Bench evidence stayed 8 sessions while B
+carried its own 8, and global Bench history spanned all 16 — the athlete’s
+strength history is continuous even though the programs are isolated. XP and
+PR totals were unchanged by starting a new program: a new program is not a
+new athlete.
+
+**Not a second trainer.** `deriveNextStep` references no `trainerLog`,
+`computeExerciseCapability`, readiness, recovery or `TRAINER_CONFIG` symbol,
+and a contract fails if it ever does. `TRAINER_ENGINE_VERSION` remains
+`0.1.1-shadow`; D39’s gates (4 sessions / 6 for a percentage) and D40’s
+aggregation thresholds are pinned unchanged. `DATA_KEYS` remains 15 and no
+recommendation is persisted — `nextRecommendation`, `recommendedNextProgram`,
+`shouldRepeat` and `outcomeDecision` are all rejected by name.
+
+**Verification.** 5,309 assertions across 141 always-on contracts; 301
+program-audit checks, 87 data-integrity, 261 cardio, 43 GPS and the full date
+matrix green. 100 next-step derivations and 100 prefills are byte-identical,
+and the layer contains no `Math.random`. Six viewports clean with the
+next-step block actually on screen: 3 buttons, all 48px, 0 offscreen, 0
+clipped, 0 horizontal overflow.
+
+**Remaining limitation.** The manual on-device checklist in the D42 brief
+(§96) was not physically performed — everything above was verified in the
+desktop browser at phone viewports, which is not the same as a real iPhone.

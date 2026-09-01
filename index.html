@@ -3836,6 +3836,13 @@ body.page-locked{ overflow: hidden; }
 .pc-fact-l{ font-size: var(--fs-micro); color: var(--text-faint); }
 .pc-actions{ margin-top: 22px; }
 .pc-go{ width: 100%; min-height: 48px; }
+/* D42 — the next step. Existing button families only: hierarchy comes from
+   which family is used, never from a new colour or card language, and the
+   reasoning sits above the buttons as one plain sentence. */
+.pc-why{ font-size: var(--fs-sm); color: var(--text-dim); line-height: 1.5;
+  margin: 0 0 12px; }
+.pc-next{ display: flex; flex-direction: column; gap: 8px; }
+.pc-next > button{ width: 100%; min-height: 48px; }
 .pc-note{ font-size: var(--fs-xs); color: var(--text-faint); line-height: 1.5; margin-top: 18px; }
 /* D39 — performance rows. Direction is carried by the words, never by colour
    alone, and an ordinary training fluctuation is never painted as an alarm. */
@@ -9599,6 +9606,25 @@ const LOOP_UPDATES = [
       'A workout logged while a program was running was counted as part of that program even when the program never included it, which could overstate how much of the program you had completed',
       'A record set in an extra session on the same day as a program workout was credited to that program'
     ],
+    changes: []
+  },
+  {
+    id: 'v3-5',
+    version: 'LOOP 3.5',
+    title: 'What\u2019s Next',
+    date: '2026-09-05',
+    swVersion: 'loop-v112',
+    summary: 'Finishing a program now leads somewhere \u2014 with your setup carried forward and your goal still yours to change.',
+    newFeatures: [
+      'A finished program now offers three ways forward: build another with the same goal, change what it focuses on, or start from scratch',
+      'Whichever you pick, the answers you gave last time are carried into the builder, so you are not retyping a setup you have already made'
+    ],
+    improvements: [
+      'Every option still ends at the same review screen, where you can change any answer before anything is created \u2014 nothing starts on its own',
+      'Looking back at an older program offers the same starting point more quietly, instead of asking you to decide again every time you review it',
+      'One option is highlighted only when your training actually showed measurable progress; otherwise the choices are presented evenly'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];
@@ -25485,9 +25511,16 @@ function programCompletionHtml(sum, opts){
         <div class="pc-fact"><span class="pc-fact-v">${f.v}</span>
         <span class="pc-fact-l">${escapeHtml(f.l)}</span></div>`).join('')}</div>` : ''}
       ${programOutcomeQuietHtml(oc, sum)}
-      ${o.actions === false ? '' : `<div class="pc-actions">
-        <button class="btn-primary pc-go" onclick="startNextProgramFrom('${escapeAttr(o.programId || '')}')">Build next program</button>
-      </div>`}
+      ${(() => {
+        /* D42 — the way forward, under the result rather than over it. */
+        if(o.actions === false || !o.programId) return '';
+        let prog = null;
+        try{ prog = getProgram(o.programId); }catch(e){}
+        if(!prog) return '';
+        return '<div class="pc-actions">'
+          + programNextStepHtml(prog, { compact: !!o.compact })
+          + '</div>';
+      })()}
     </div>`;
 }
 
@@ -25495,15 +25528,43 @@ function programCompletionHtml(sum, opts){
    finished program already knows filled in \u2014 and nothing written until the
    athlete taps Start, exactly as before. LOOP never decides the next program:
    every prefilled answer is one tap from being changed. */
-function startNextProgramFrom(programId){
-  let prev = null;
-  try{ prev = programId ? getProgram(programId) : getLastFinishedProgram(); }catch(e){}
-  openProgramBuilderFlow('create');
-  if(!prev || !pbState) return;
+/* =========================================================
+   NEXT PROGRAM CONTINUITY  (Phase D42)
+   ---------------------------------------------------------
+   Finishing a program used to be the end of the product: one button, one
+   path, and no way to say "similar, but not the same". D42 turns the end
+   of a block into a choice.
+
+   OUTCOME IS CONTEXT, NEVER CAUSE. D40 can see that performance moved
+   DURING a program. It cannot run the counterfactual, so nothing here says
+   a program produced anything, and nothing diagnoses why a lift fell. A
+   decline is reported and then left to the athlete: LOOP does not know
+   whether it was the plan, the week, sleep or the shoulder.
+
+   NOT A SECOND TRAINER. This owns lifecycle only \u2014 what to build next, and
+   how little the athlete has to retype. It reads no trainer state, changes
+   no thresholds, and never touches load.
+
+   NOTHING STARTS ITSELF. Every path opens the SAME D33 builder with answers
+   filled in. No program exists until the athlete taps Start.
+   ========================================================= */
+
+const NEXT_INTENTS = { KEEP:'keep', FOCUS:'focus', FRESH:'fresh' };
+
+/* The one prefill. Historical program truth only \u2014 what the athlete chose
+   when they built the finished block \u2014 never today’s profile, so changing a
+   profile later cannot rewrite what the previous program was. Anything left
+   unanswered falls through to the builder’s own current defaults.
+
+   Returns answers, not a program: this function cannot create anything. */
+function deriveNextProgramPrefill(prev, intent){
+  const out = { answers:{}, jumpTo:null };
+  const how = intent || NEXT_INTENTS.KEEP;
+  if(how === NEXT_INTENTS.FRESH || !prev || !prev.schedule) return out;
   /* A copy of the previous answers, never a reference: editing the draft must
      not reach back into the finished program. */
   const days = PROGRAM_DAY_KEYS.filter(k => prev.schedule[k] && prev.schedule[k].type === 'workout');
-  const a = pbState.answers;
+  const a = out.answers;
   if(prev.goal) a.goal = prev.goal;
   if(prev.experience) a.experience = prev.experience;
   if(prev.sessionLength) a.sessionLength = prev.sessionLength;
@@ -25513,11 +25574,112 @@ function startNextProgramFrom(programId){
   /* Equipment is inferred from the plan the previous program referenced. */
   try{
     const first = PROGRAM_DAY_KEYS.map(k => prev.schedule[k]).find(e => e && e.type === 'workout');
-    if(first && first.planId === 'home') a.equipment = a.equipment || 'home';
+    if(first && first.planId === 'home') a.equipment = 'home';
   }catch(e){}
-  /* Anything already answered is skipped, so the athlete lands on whatever is
-     genuinely still unknown \u2014 usually the review itself. */
-  pbState.step = pbSteps().length;
+  /* Changing focus carries the direction forward but deliberately drops the
+     emphasis, so the athlete picks it again rather than inheriting it. */
+  if(how === NEXT_INTENTS.FOCUS){ delete a.emphasis; out.jumpTo = 'emphasis'; }
+  return out;
+}
+
+/* What a finished program can offer the next decision. Pure, and derived at
+   render time rather than stored, so completion and past-program review can
+   never frame the same block differently and nothing is written back onto a
+   program that is finished. */
+function deriveNextStep(program, log){
+  if(!program) return null;
+  let oc = null;
+  try{ oc = deriveProgramOutcome(program, log); }catch(e){}
+  const state = oc ? oc.state : 'insufficient';
+  const goal = BUILDER_GOALS.find(g => g.id === program.goal) || null;
+  return {
+    state,
+    goalId: program.goal || null,
+    goalLabel: goal ? goal.label : null,
+    evidencedLifts: oc ? oc.evidencedLifts : 0,
+    improvingLifts: oc ? oc.improvingLifts : 0,
+    /* A primary action is offered ONLY where the evidence supports one.
+       Steady, mixed, declining and insufficient all get a level hierarchy:
+       a louder button is not a substitute for evidence, and a program that
+       cannot describe itself must not imply a recommendation. */
+    primary: state === 'improving' ? NEXT_INTENTS.KEEP : null,
+    rationale: nextStepRationale(state, oc, goal)
+  };
+}
+
+/* One short factual sentence, and only where there is something factual to
+   say. It states what the athlete’s goal still is, and \u2014 where performance
+   genuinely improved \u2014 that this happened DURING the program. It never says
+   the program caused anything, never diagnoses a decline, and never
+   prescribes a deload, a frequency change or a different split: the outcome
+   above already reports what happened, and repeating it here would be noise
+   as well as overreach. */
+function nextStepRationale(state, oc, goal){
+  const g = goal ? 'Your goal is still ' + goal.label + '.' : '';
+  if(state === 'improving' && oc && oc.evidencedLifts > 0){
+    const lifts = oc.improvingLifts + ' of ' + oc.evidencedLifts
+      + ' comparable lift' + (oc.evidencedLifts === 1 ? '' : 's');
+    return (goal ? 'Your goal is still ' + goal.label + ', and this' : 'This')
+      + ' program showed measurable progress on ' + lifts + '.';
+  }
+  return g;
+}
+
+/* The next-step block. Three ways forward, all of them the same builder.
+   The compact form is for reviewing an old program months later, where a
+   full three-way prompt would be a nag rather than a choice. */
+function programNextStepHtml(program, opts){
+  if(!program) return '';
+  const o = opts || {};
+  let ns = null;
+  try{ ns = deriveNextStep(program); }catch(e){ return ''; }
+  if(!ns) return '';
+  const id = escapeAttr(program.id || '');
+  const why = ns.rationale ? '<p class="pc-why">' + escapeHtml(ns.rationale) + '</p>' : '';
+  if(o.compact){
+    return `
+      <div class="pc-perf-h">Next program</div>
+      ${why}
+      <div class="pc-next">
+        <button type="button" class="btn-secondary"
+          onclick="startNextProgramFrom('${id}','${NEXT_INTENTS.KEEP}')">
+          Use as a starting point</button>
+      </div>`;
+  }
+  const keepCls = ns.primary === NEXT_INTENTS.KEEP ? 'btn-primary' : 'btn-secondary';
+  return `
+    <div class="pc-perf-h">What’s next?</div>
+    ${why}
+    <div class="pc-next">
+      <button type="button" class="${keepCls}"
+        onclick="startNextProgramFrom('${id}','${NEXT_INTENTS.KEEP}')">
+        Build another with the same goal</button>
+      <button type="button" class="btn-secondary"
+        onclick="startNextProgramFrom('${id}','${NEXT_INTENTS.FOCUS}')">
+        Change what it focuses on</button>
+      <button type="button" class="btn-secondary"
+        onclick="startNextProgramFrom('${id}','${NEXT_INTENTS.FRESH}')">
+        Start from scratch</button>
+    </div>`;
+}
+
+/* Every next-program entry point in the app comes through here, so there is
+   one continuation path rather than one per surface. It opens the D33
+   builder and fills answers in \u2014 it does not, and must not, create or
+   activate a program. */
+function startNextProgramFrom(programId, intent){
+  let prev = null;
+  try{ prev = programId ? getProgram(programId) : getLastFinishedProgram(); }catch(e){}
+  openProgramBuilderFlow('create');
+  if(!pbState) return;
+  const pre = deriveNextProgramPrefill(prev, intent);
+  const a = pbState.answers;
+  Object.keys(pre.answers).forEach(k => { a[k] = pre.answers[k]; });
+  /* Landing point follows intent: a repeat goes straight to the review it
+     can edit from, changing focus lands on the question it exists to ask,
+     and starting over begins at the first question like any new program. */
+  if(pre.jumpTo){ pbJumpTo(pre.jumpTo); return; }
+  if(Object.keys(pre.answers).length) pbState.step = pbSteps().length;
   renderProgramBuilderFlow();
 }
 
@@ -25554,7 +25716,9 @@ function openPastProgram(programId){
   const sum = deriveProgramCompletion(prog, localDateStr());
   const el = document.getElementById('pastProgramBody');
   if(!el) return;
-  el.innerHTML = programCompletionHtml(sum, { programId: prog.id })
+  /* D42 — reviewing an old block is not the moment it ended: same truth,
+     quieter invitation. */
+  el.innerHTML = programCompletionHtml(sum, { programId: prog.id, compact: true })
     + `<div class="sec-head">What it asked for</div>
        ${programMapHtml(prog, { week:1, interactive:true, idPrefix:'pastMap' })}
        <p class="pc-note">This program has finished. Its structure is kept as a record

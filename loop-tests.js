@@ -15788,6 +15788,234 @@ async function testProgramLifecycle(){
    every surface reads one analysis.
    ========================================================= */
 /* =========================================================
+   CONTRACT 141 — NEXT PROGRAM CONTINUITY  (Phase D42)
+   Finishing a program leads somewhere. What must never drift is that it
+   leads there by INVITATION: outcome is context, never cause; nothing
+   starts itself; and the athlete’s own intent outranks anything the
+   evidence suggests.
+   ========================================================= */
+async function testNextProgramContinuity(){
+  section('CONTRACT 141 — next program continuity (D42)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  const P = { id:'pD42', name:'Block A', goal:'hypertrophy', experience:'intermediate',
+    sessionLength:'long', emphasis:'chest', durationWeeks:8, status:'active',
+    startDate:'2026-03-02',
+    schedule:{ mon:{type:'workout',category:'upper',templateId:'h-u1',planId:'gym'},
+               tue:{type:'workout',category:'lower',templateId:'h-l1',planId:'gym'} } };
+  const LIFTS = ['Bench Press','Squat','Deadlift','Barbell Row','Overhead Press','Leg Press'];
+  let dayN = 0;
+  const nextDate = () => { const d = new Date('2026-03-02T00:00:00');
+    d.setDate(d.getDate() + (dayN++)); return d.toISOString().slice(0,10); };
+  const loads = (kind, n) => { const o=[];
+    for(let i=0;i<n;i++){
+      if(kind==='improving') o.push(i<n/2?185:205);
+      else if(kind==='declining') o.push(i<n/2?205:185);
+      else o.push(185);
+    } return o; };
+  const build = specs => { dayN=0; const log=[];
+    specs.forEach(sp => loads(sp.kind, sp.sessions).forEach(w => {
+      log.push({ id:'w'+log.length, date: nextDate(), origin:'program', programId:P.id,
+        exercises:[{ name: sp.name, sets:[{type:'working',completed:true,weight:w,reps:8}] }] });
+    })); return log; };
+  const mix = (imp,std,dec) => { const sp=[]; let i=0;
+    for(let k=0;k<imp;k++) sp.push({name:LIFTS[i++],kind:'improving',sessions:8});
+    for(let k=0;k<std;k++) sp.push({name:LIFTS[i++],kind:'steady',sessions:8});
+    for(let k=0;k<dec;k++) sp.push({name:LIFTS[i++],kind:'declining',sessions:8});
+    return build(sp); };
+
+  sub('nothing starts itself');
+  T('the continuation opens the builder and creates nothing',
+    !/function startNextProgramFrom[\s\S]{0,1200}(createProgram|pbCommit|setActiveProgram)\(/.test(src));
+  T('the prefill helper cannot create a program', (() => {
+    const i = src.indexOf('function deriveNextProgramPrefill');
+    const body = src.slice(i, i + 1600);
+    return ['createProgram','setActiveProgram','pbCommit','LOOPStore.set','persistLog']
+      .every(k => body.indexOf(k) === -1);
+  })());
+  T('deriving the next step cannot create a program', (() => {
+    const i = src.indexOf('function deriveNextStep');
+    const body = src.slice(i, i + 1400);
+    return ['createProgram','setActiveProgram','LOOPStore.set'].every(k => body.indexOf(k) === -1);
+  })());
+
+  sub('one builder, one prefill');
+  T('every path opens the same D33 builder',
+    /function startNextProgramFrom[\s\S]{0,400}openProgramBuilderFlow\('create'\)/.test(src));
+  T('there is exactly one continuation entry point',
+    (src.match(/function startNextProgramFrom\(/g) || []).length === 1);
+  T('there is exactly one prefill helper',
+    (src.match(/function deriveNextProgramPrefill\(/g) || []).length === 1);
+  T('no second generator was introduced',
+    !/function (continueProgramGenerator|changeFocusGenerator|freshGenerator|NextProgramBuilder)/.test(src));
+
+  sub('prefill carries history forward without trapping the athlete');
+  {
+    const keep = ctx.deriveNextProgramPrefill(P, 'keep');
+    const focus = ctx.deriveNextProgramPrefill(P, 'focus');
+    const fresh = ctx.deriveNextProgramPrefill(P, 'fresh');
+    T('keeping the goal carries the previous answers',
+      keep.answers.goal === 'hypertrophy' && keep.answers.weeks === 8
+      && keep.answers.emphasis === 'chest' && keep.answers.frequency === 2);
+    T('changing focus keeps the direction but drops the emphasis',
+      focus.answers.goal === 'hypertrophy' && focus.answers.emphasis === undefined
+      && focus.jumpTo === 'emphasis');
+    T('starting fresh assumes nothing',
+      Object.keys(fresh.answers).length === 0 && fresh.jumpTo === null);
+    T('the prefill is a copy, not a reference into the finished program', (() => {
+      const before = JSON.stringify(P);
+      const pre = ctx.deriveNextProgramPrefill(P, 'keep');
+      pre.answers.days.push('sat'); pre.answers.goal = 'strength';
+      return JSON.stringify(P) === before && P.goal === 'hypertrophy';
+    })());
+    T('a legacy program missing metadata neither crashes nor invents answers', (() => {
+      const legacy = { id:'old', startDate:'2025-01-06', durationWeeks:6, schedule:{} };
+      const pre = ctx.deriveNextProgramPrefill(legacy, 'keep');
+      return pre.answers.goal === undefined && pre.answers.emphasis === undefined
+        && pre.answers.weeks === 6;
+    })());
+  }
+
+  sub('outcome is context, never cause');
+  {
+    const states = [
+      ['improving', mix(4,1,0)], ['mixed', mix(2,0,2)], ['steady', mix(0,5,0)],
+      ['declining', mix(0,0,3)], ['insufficient', mix(1,0,0)] ];
+    T('each outcome state produces its own next step', states.every(([want, log]) =>
+      ctx.deriveNextStep(P, log).state === want));
+    T('no next-step copy claims the program caused anything', (() => {
+      const banned = ['made you','caused','because this program','the plan increased',
+        'this program failed','proves','guarantee'];
+      return states.every(([, log]) => {
+        const t = String(ctx.deriveNextStep(P, log).rationale).toLowerCase();
+        return banned.every(w => t.indexOf(w) === -1);
+      });
+    })());
+    T('no next-step copy prescribes a training change', (() => {
+      const banned = ['you need a','you should','deload','reduce your frequency',
+        'switch to','replace your'];
+      return states.every(([, log]) => {
+        const t = String(ctx.deriveNextStep(P, log).rationale).toLowerCase();
+        return banned.every(w => t.indexOf(w) === -1);
+      });
+    })());
+    T('improvement is stated as happening DURING the program', (() => {
+      const r = ctx.deriveNextStep(P, mix(4,1,0)).rationale.toLowerCase();
+      return r.indexOf('during this program') !== -1
+        || r.indexOf('this program showed') !== -1;
+    })());
+    T('a decline is never turned into a diagnosis', (() => {
+      const r = ctx.deriveNextStep(P, mix(0,0,3)).rationale.toLowerCase();
+      return ['recovery','nutrition','overtrain','plateau','not working','wrong']
+        .every(w => r.indexOf(w) === -1);
+    })());
+    T('steady is never called a plateau', (() => {
+      const r = ctx.deriveNextStep(P, mix(0,5,0)).rationale.toLowerCase();
+      return r.indexOf('plateau') === -1 && r.indexOf('stall') === -1;
+    })());
+  }
+
+  sub('a louder button is not evidence');
+  T('only genuine improvement earns a primary action',
+    ctx.deriveNextStep(P, mix(4,1,0)).primary === ctx.NEXT_INTENTS.KEEP);
+  T('every other state gets a level hierarchy',
+    [mix(2,0,2), mix(0,5,0), mix(0,0,3), mix(1,0,0), []]
+      .every(log => ctx.deriveNextStep(P, log).primary === null));
+  T('there is no score, confidence or rating anywhere in the result', (() => {
+    const ns = ctx.deriveNextStep(P, mix(4,1,0));
+    return Object.keys(ns).filter(k => /score|confidence|rating|percent/i.test(k)).length === 0;
+  })());
+
+  sub('this is not a second trainer');
+  T('the next step reads no trainer, readiness or capability state', (() => {
+    const i = src.indexOf('function deriveNextStep');
+    const body = src.slice(i, i + 1400);
+    return ['trainerLog','computeExerciseCapability','readiness','recovery',
+      'TRAINER_CONFIG','buildProgressionRecommendation'].every(k => body.indexOf(k) === -1);
+  })());
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('D40 aggregation thresholds are unchanged',
+    ctx.OUTCOME_CONFIG.minEvidencedLifts === 3 && ctx.OUTCOME_CONFIG.dominance === 3);
+  T('D39 evidence gates are unchanged',
+    ctx.PERF_CONFIG.minSessions === 4 && ctx.PERF_CONFIG.minSessionsNumeric === 6);
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+
+  sub('the finished program stays finished');
+  T('deriving and rendering never mutates it', (() => {
+    const before = JSON.stringify(P);
+    const log = mix(4,1,1);
+    for(let i=0;i<20;i++){
+      ctx.deriveNextStep(P, log);
+      ctx.deriveNextProgramPrefill(P, 'keep');
+      ctx.deriveNextProgramPrefill(P, 'focus');
+      ctx.programNextStepHtml(P, {});
+      ctx.programNextStepHtml(P, { compact:true });
+    }
+    return JSON.stringify(P) === before;
+  })());
+  T('no recommendation is written back onto the program',
+    !/(nextRecommendation|recommendedNextProgram|shouldRepeat|outcomeDecision)/.test(src));
+
+  sub('completion and past review agree');
+  T('both render through the same next-step derivation',
+    (src.match(/programNextStepHtml\(/g) || []).length >= 2);
+  T('the compact form invites, the full form asks', (() => {
+    const full = ctx.programNextStepHtml(P, {});
+    const compact = ctx.programNextStepHtml(P, { compact:true });
+    return (full.match(/<button/g) || []).length === 3
+      && (compact.match(/<button/g) || []).length === 1;
+  })());
+  T('both route to the one continuation entry point', (() => {
+    const full = ctx.programNextStepHtml(P, {});
+    const compact = ctx.programNextStepHtml(P, { compact:true });
+    return full.indexOf('startNextProgramFrom(') !== -1
+      && compact.indexOf('startNextProgramFrom(') !== -1;
+  })());
+
+  sub('a later program cannot rewrite an earlier one');
+  {
+    const a = mix(0,4,0);                       // Program A: steady
+    const before = JSON.stringify(ctx.deriveProgramOutcome(P, a));
+    const withB = a.concat([1,2,3,4,5,6,7,8].map((n,i) => ({
+      id:'b'+i, date:'2026-06-0' + (i+1), origin:'program', programId:'pOTHER',
+      exercises:[{ name:'Bench Press', sets:[{type:'working',completed:true,
+        weight: i<4?225:315, reps:8}] }] })));
+    T('Program B training never enters Program A\u2019s outcome',
+      JSON.stringify(ctx.deriveProgramOutcome(P, withB)) === before);
+    T('and never changes what the next step says',
+      JSON.stringify(ctx.deriveNextStep(P, withB)) === JSON.stringify(ctx.deriveNextStep(P, a)));
+    T('a freeform session cannot either', (() => {
+      const withFree = a.concat([{ id:'ff', date:'2026-03-11', origin:'freeform',
+        exercises:[{ name:'Bench Press', sets:[{type:'working',completed:true,weight:315,reps:8}] }] }]);
+      return JSON.stringify(ctx.deriveProgramOutcome(P, withFree)) === before;
+    })());
+  }
+
+  sub('deterministic');
+  T('100 next-step derivations are byte-identical', (() => {
+    const log = mix(4,1,1);
+    const first = JSON.stringify(ctx.deriveNextStep(P, log));
+    for(let i=0;i<100;i++)
+      if(JSON.stringify(ctx.deriveNextStep(P, log)) !== first) return false;
+    return true;
+  })());
+  T('100 prefills are byte-identical', (() => {
+    const first = JSON.stringify(ctx.deriveNextProgramPrefill(P, 'keep'));
+    for(let i=0;i<100;i++)
+      if(JSON.stringify(ctx.deriveNextProgramPrefill(P, 'keep')) !== first) return false;
+    return true;
+  })());
+  T('no randomness in the next-step layer', (() => {
+    const i = src.indexOf('NEXT PROGRAM CONTINUITY');
+    const body = src.slice(i, i + 6000);
+    return body.indexOf('Math.random') === -1;
+  })());
+}
+
+/* =========================================================
    CONTRACT 140 — WORKOUT PROVENANCE  (Phase D41)
    A workout can be real training without being PROGRAM training. What
    must never drift is that the difference is recorded from how a session
@@ -16590,6 +16818,7 @@ async function main(){
   await testPerformanceProgress();
   await testProgramOutcomes();
   await testWorkoutProvenance();
+  await testNextProgramContinuity();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
