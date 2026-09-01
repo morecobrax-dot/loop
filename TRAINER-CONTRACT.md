@@ -4918,3 +4918,85 @@ programs) still divides workouts-in-week by planned-days-in-week and clamps
 the result to 100%, which is the same class of defect in a different place;
 it was audited here and deliberately left for its own phase rather than
 changed alongside program adherence.
+
+## §67 — Plan consistency integrity (D44, loop-v114)
+
+**The same defect D43 fixed for programs, in the plans subsystem.** Weekly
+consistency divided workouts performed by planned days known:
+`Math.min(100, Math.round((workouts / target) * 100))`. Training on an
+unplanned day pushed the ratio past 100% and the clamp hid it — so a week
+where the athlete skipped Wednesday but trained Tuesday and Saturday still
+read 100%.
+
+**One matcher now, not two.** D43’s assignment was extracted into
+`assignWorkoutsToPlannedSlots(slots, workouts, weekOf)` and both callers share
+it: a program schedule and the athlete’s weekly schedule differ in where their
+slots come from, not in what fulfilling one means. `PLAN_SHIFT_DAYS` is still
+declared exactly once. Contracts fail if a second assignment implementation, a
+second shift constant, or a per-surface consistency calculator appears.
+
+**Consistency is fulfilled plans over knowable planned days.** Each planned
+day in the window becomes one opportunity, matched to at most one session, and
+each session can satisfy at most one opportunity. `fulfilled <= target` holds
+by construction, so the clamp was deleted rather than adjusted — a contract
+reads the function body and fails if `Math.min(100` returns.
+
+**Verified live, on the exact defect.** A week planning push/pull/legs where
+the athlete trained Monday and Friday plus three unrelated extra sessions:
+five workouts logged, and consistency reads **2 of 3 — 67%**. The old code
+produced `min(100, 5/3)` = 100%. Extras cannot raise the percentage, cannot
+lower it, and fulfilling a genuinely missed day raises it by exactly one
+session; all three are pinned.
+
+**What still counts as fulfilment.** A session trained a day or two off its
+planned day is that session, not a miss plus an extra — the same narrow
+window program plans use. A category mismatch on a planned date never fulfils:
+an arms session on a planned push day leaves push outstanding. Two matching
+sessions on one planned day earn one credit.
+
+**Future and unknown are not failures.** Only planned days that are knowable
+and already due enter the denominator, so future sessions cannot drag the
+number down. A plan LOOP does not know reports `null` for both planned and
+consistency rather than 0%, and that training is still counted as training. No
+NaN, no Infinity.
+
+**A dead rendering path found.** `renderHeatmap()` — which draws the Log
+consistency block: the large percentage, the "of your Nx/week target" label
+and the "X of Y planned sessions completed" line — looks up
+`document.getElementById('heatmapCard')`. **No element with that id exists**
+anywhere in the markup (the CSS class is `.heatmap-card`), so the function
+returns at its first guard, and its only callers are onclick handlers that the
+unreachable block itself generates. That entire Log surface has never
+rendered. Its copy was corrected to read fulfilled plans along with everything
+else, but the surface was deliberately NOT resurrected here: mounting an
+unseen UI inside a metric-integrity phase would be shipping a new screen under
+cover of a bug fix, and there is no way to know where it was meant to sit.
+Recorded for its own decision.
+
+**Nothing else moved.** `totalWorkouts` still counts workouts — volume and the
+training trend are genuinely volume questions and keep their own numerator.
+Momentum still does not read the 12-week percentage. The trainer never reads
+consistency and remains `0.1.1-shadow`; D39, D40, D41, D42 and D43 thresholds
+are pinned unchanged, and the D43 program audit still passes at 327. Nothing
+is persisted and `DATA_KEYS` remains 15.
+
+**Two superseded contracts repointed.** One pinned the literal
+`Math.min(100, (totalWorkouts / totalPlanned) * 100)` — that line WAS the
+defect, so the contract now pins the corrected numerator plus the absence of a
+clamp. The other pinned the exact statement `if(...) plannedKnown++;`, which
+became a block that also records the opportunity; it now follows the
+condition rather than the statement.
+
+**Verification.** 5,374 assertions across 143 always-on contracts; 327
+program-audit checks, 87 data-integrity, 261 cardio, 43 GPS and the full date
+matrix green. A hand-declared consistency table of 7 cases, 100 derivations
+byte-identical, reversed history identical, and the window proven to span a
+month boundary while still agreeing. Six viewports clean with no percentage
+above 100 anywhere on screen.
+
+**Remaining limitations.** LOOP stores only the CURRENT weekly schedule, so a
+schedule changed today re-describes past weeks — historical schedule
+revisions are not stored and are not guessed, which is the same honest
+limitation program adherence carries. The Log consistency block remains
+unreachable, as above. Neither the phone checklist nor the PWA update was
+physically performed on a device.

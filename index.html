@@ -9646,6 +9646,25 @@ const LOOP_UPDATES = [
       'Doing two sessions on one planned day counted as completing two planned sessions'
     ],
     changes: []
+  },
+  {
+    id: 'v3-7',
+    version: 'LOOP 3.7',
+    title: 'Consistency, Counted Right',
+    date: '2026-09-07',
+    swVersion: 'loop-v114',
+    summary: 'Consistency now measures the planned sessions you completed, not how many workouts you did.',
+    newFeatures: [],
+    improvements: [
+      'Your consistency percentage now counts the planned sessions you actually completed, so extra training no longer pushes it up',
+      'Training on top of your plan still counts everywhere else — your history, records, progress and volume are unchanged',
+      'A planned session done a day early or late still counts as that session, rather than showing up as a missed day plus an extra workout',
+      'Two sessions on one planned day count as completing that day once'
+    ],
+    bugFixes: [
+      'Consistency could be calculated above 100% and was then quietly capped, because it compared every workout you logged against only the days you had planned'
+    ],
+    changes: []
   }
 ];
 
@@ -11655,6 +11674,12 @@ function computeConsistencyData(){
 
   const byDate = {};
   workoutLog.forEach(l => { if(!byDate[l.date]) byDate[l.date] = l; });
+  /* D44 — the planned opportunities this window can fairly measure, gathered
+     once and matched once. Consistency asks how reliably the athlete met the
+     training they planned, so its numerator has to be fulfilled PLANS. It
+     used to be the raw workout count, which meant training on an unplanned
+     day pushed the ratio over 100% and a clamp hid it. */
+  const planSlots = [];
 
   // Planned days come from the live schedule — the only planned baseline LOOP
   // stores. Applied uniformly and labelled as a target, not presented as a
@@ -11691,7 +11716,11 @@ function computeConsistencyData(){
       const wasPlanned = plannedDayKeys.indexOf(dayKey) !== -1;
       /* Planned AND knowable AND already due — the only sessions the athlete
          can fairly be measured against. */
-      if(wasPlanned && !beforeHistory && !isFuture) plannedKnown++;
+      if(wasPlanned && !beforeHistory && !isFuture){
+        plannedKnown++;
+        planSlots.push({ date: key, category: schedule ? schedule[dayKey] : null,
+          week: CONSISTENCY_WEEKS - 1 - w, workoutId: null });
+      }
 
       let state = 'rest', dayPRs = 0, dayScore = null, daySets = 0, dayVol = 0;
       if(entry){
@@ -11719,19 +11748,49 @@ function computeConsistencyData(){
     const target = plannedKnown || null;
     weeks.push({
       index: CONSISTENCY_WEEKS - w,
+      weekSlot: CONSISTENCY_WEEKS - 1 - w,
       start: weekStart,
       days, workouts, sets, volume, prs, missed,
       plannedKnown, known: plannedKnown > 0 || workouts > 0,
       avgScore: scored ? Math.round(scoreSum / scored) : null,
       target,
-      consistency: target ? Math.min(100, Math.round((workouts / target) * 100)) : null
+      /* Filled in below, once every planned opportunity in the window has
+         been matched against the training exactly once. */
+      fulfilled: 0, consistency: null
     });
   }
 
+  /* D44 — one matching pass for the whole window, sharing the rule program
+     plans use. Only training inside the window can fulfil it, and each
+     session can satisfy at most one planned day. */
+  const firstMonday = new Date(thisMonday);
+  firstMonday.setDate(thisMonday.getDate() - (CONSISTENCY_WEEKS - 1) * 7);
+  const firstMondayKey = firstMonday.getFullYear() + '-'
+    + String(firstMonday.getMonth()+1).padStart(2,'0') + '-'
+    + String(firstMonday.getDate()).padStart(2,'0');
+  const slotWeekOf = dateStr => {
+    const n = daysBetweenDates(firstMondayKey, dateStr);
+    return n === null ? null : Math.floor(n / 7);
+  };
+  const inWindow = (workoutLog || []).filter(l => l && l.date
+    && l.date >= firstMondayKey && !(trackingStart && l.date < trackingStart));
+  assignWorkoutsToPlannedSlots(planSlots, inWindow, slotWeekOf);
+  const fulfilledByWeek = {};
+  planSlots.forEach(sl => { if(sl.workoutId)
+    fulfilledByWeek[sl.week] = (fulfilledByWeek[sl.week] || 0) + 1; });
+  weeks.forEach(wk => {
+    wk.fulfilled = fulfilledByWeek[wk.weekSlot] || 0;
+    /* fulfilled can never exceed target: there is one slot per planned day
+       and each is claimed at most once, so no clamp is needed or wanted. */
+    wk.consistency = wk.target ? Math.round((wk.fulfilled / wk.target) * 100) : null;
+  });
+
   const totalWorkouts = weeks.reduce((n,w) => n + w.workouts, 0);
+  const totalFulfilled = weeks.reduce((n,w) => n + w.fulfilled, 0);
   /* Summed from what was knowable week by week, never plannedPerWeek × 12. */
   const totalPlanned = weeks.reduce((n,w) => n + w.plannedKnown, 0) || null;
-  const overallConsistency = totalPlanned ? Math.min(100, Math.round((totalWorkouts / totalPlanned) * 100)) : null;
+  const overallConsistency = totalPlanned
+    ? Math.round((totalFulfilled / totalPlanned) * 100) : null;
   const weeksKnown = weeks.filter(w => w.known).length;
 
   const scoredWeeks = weeks.filter(w => w.avgScore !== null);
@@ -11748,7 +11807,7 @@ function computeConsistencyData(){
   } else if(recent6 > 0) trend = 'improving';
 
   _consistencyCache = {
-    weeks, totalWorkouts, totalPlanned, overallConsistency, overallScore,
+    weeks, totalWorkouts, totalFulfilled, totalPlanned, overallConsistency, overallScore,
     plannedPerWeek, trend, trackingStart, weeksKnown,
     hasEnoughData: totalWorkouts >= 3,
     rangeStart: weeks[0].start
@@ -15427,7 +15486,7 @@ function renderHeatmap(){
   const headline = data.overallConsistency !== null
     ? `<div class="cons-big">${data.overallConsistency}<span class="cons-pct">%</span></div>
        <div class="cons-big-label">of your ${data.plannedPerWeek}&times;/week target &middot; last 12 weeks</div>
-       <div class="cons-big-sub">${data.totalWorkouts} of ${data.totalPlanned} planned sessions completed</div>`
+       <div class="cons-big-sub">${data.totalFulfilled} of ${data.totalPlanned} planned sessions completed</div>`
     : `<div class="cons-big">${data.totalWorkouts}</div>
        <div class="cons-big-label">workouts in the last 12 weeks</div>
        <div class="cons-big-sub">Set training days in your schedule to track this against a target.</div>`;
@@ -25475,6 +25534,49 @@ function programPlannedSlots(program){
   return out;
 }
 
+/* The one assignment rule, shared by every plan LOOP can measure: a program
+   schedule (D43) and the athlete's weekly schedule (D44) differ in where
+   their slots come from, but not in what fulfilling one means.
+
+   One-to-one and deterministic, strongest identity first:
+     1. the slot’s own date AND category
+     2. the same week and category within PLAN_SHIFT_DAYS — a session trained
+        a day early or late is the same session, not a miss plus an extra
+     3. the slot’s own date, but only where one side records no category at
+        all; a KNOWN mismatch never fulfils, so training core on the day an
+        upper session was planned leaves that session outstanding
+   Within each pass the pool is walked oldest-first with the id as tiebreak,
+   so the order history arrives in can never decide the result.
+
+   Mutates slot.workoutId and returns the set of workout ids that were used,
+   so callers can name what was left over without recounting. */
+function assignWorkoutsToPlannedSlots(slots, workouts, weekOf){
+  const pool = (workouts || []).slice().sort((a, b) =>
+    String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
+  const used = {};
+  const claim = (slot, w) => { slot.workoutId = w.id; used[w.id] = true; };
+  slots.forEach(slot => {
+    if(slot.workoutId) return;
+    const hit = pool.find(w => !used[w.id] && w.date === slot.date
+      && w.category === slot.category);
+    if(hit) claim(slot, hit);
+  });
+  slots.forEach(slot => {
+    if(slot.workoutId) return;
+    const hit = pool.find(w => !used[w.id] && w.category === slot.category
+      && weekOf(w.date) === slot.week
+      && Math.abs(daysBetweenDates(slot.date, w.date) || 99) <= PLAN_SHIFT_DAYS);
+    if(hit) claim(slot, hit);
+  });
+  slots.forEach(slot => {
+    if(slot.workoutId) return;
+    const hit = pool.find(w => !used[w.id] && w.date === slot.date
+      && (!w.category || !slot.category));
+    if(hit) claim(slot, hit);
+  });
+  return used;
+}
+
 /* The one planned-vs-performed interpretation. Pure, derived, never stored:
    deleting or editing a workout changes the answer the next time it is
    asked, and no workout is ever stamped "fulfilled" in history.
@@ -25510,39 +25612,8 @@ function deriveProgramPlanFulfillment(program, log){
   }
   out.planningKnown = true;
 
-  const pool = members.slice().sort((a, b) =>
-    String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
-  const used = {};
-  const claim = (slot, w) => { slot.workoutId = w.id; used[w.id] = true; };
-
-  slots.forEach(slot => {
-    if(slot.workoutId) return;
-    const hit = pool.find(w => !used[w.id] && w.date === slot.date
-      && w.category === slot.category);
-    if(hit) claim(slot, hit);
-  });
-  /* A session trained a day or two off its planned day is the same session,
-     not a miss plus an extra. The window is deliberately narrow and named:
-     wide enough for "I moved Monday to Tuesday", too narrow to let a second
-     Monday session quietly pre-fulfil Thursday's, which the athlete has not
-     trained yet. */
-  slots.forEach(slot => {
-    if(slot.workoutId) return;
-    const hit = pool.find(w => !used[w.id] && w.category === slot.category
-      && getCurrentProgramWeek(program, w.date) === slot.week
-      && Math.abs(daysBetweenDates(slot.date, w.date) || 99) <= PLAN_SHIFT_DAYS);
-    if(hit) claim(slot, hit);
-  });
-  /* Same day, but the categories cannot be compared because one side does not
-     record it. A KNOWN mismatch never fulfils a planned session: training core
-     on the day an upper session was planned is additional training, and the
-     upper session is still outstanding. */
-  slots.forEach(slot => {
-    if(slot.workoutId) return;
-    const hit = pool.find(w => !used[w.id] && w.date === slot.date
-      && (!w.category || !slot.category));
-    if(hit) claim(slot, hit);
-  });
+  const used = assignWorkoutsToPlannedSlots(slots, members,
+    d => getCurrentProgramWeek(program, d));
 
   out.fulfilled = slots.filter(x => x.workoutId).length;
   out.unfulfilled = out.planned - out.fulfilled;

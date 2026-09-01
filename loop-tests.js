@@ -11110,8 +11110,20 @@ function testMomentum(app){
   })());
   /* The 12-week figure itself is untouched: it is defensible in Progress,
      where it is labelled and guarded behind four weeks of history. */
+  /* D44 — this used to pin the literal `Math.min(100, (totalWorkouts /
+     totalPlanned) * 100)`. That line WAS the defect: its numerator counted
+     workouts rather than fulfilled plans, so training on an unplanned day
+     pushed the ratio past 100% and the clamp hid it. The contract's intent —
+     that the 12-week figure is a real calculation rather than a display hack —
+     survives, pinned now against the corrected numerator and the absence of
+     any clamp to hide an impossible value. */
   T('the underlying calculation was not corrupted to fix the UI',
-    /const overallConsistency = totalPlanned \? Math\.min\(100, Math\.round\(\(totalWorkouts \/ totalPlanned\) \* 100\)\) : null;/.test(src));
+    /const overallConsistency = totalPlanned[\s\S]{0,140}totalFulfilled \/ totalPlanned/.test(src));
+  T('and it is not clamped to conceal an impossible percentage', (() => {
+    const i = src.indexOf('function computeConsistencyData');
+    const body = src.slice(i, src.indexOf('SHADOW ADAPTIVE TRAINING ENGINE', i));
+    return body.indexOf('Math.min(100') === -1;
+  })());
 
   sub('a week in progress is not a broken week');
   /* Measured: an athlete with three perfect weeks read a streak of 0, then 4,
@@ -13814,8 +13826,11 @@ async function testTodayAndHistoryTruth(){
       !/plannedPerWeek \* CONSISTENCY_WEEKS/.test(src));
     T('it sums what each week actually knew',
       /weeks\.reduce\(\(n,w\) => n \+ w\.plannedKnown, 0\)/.test(src));
+    /* D44 turned this into a block — the same eligibility test now also records
+       the planned opportunity so it can be matched one-to-one — so the pin
+       follows the condition rather than the exact statement that followed it. */
     T('a day counts as planned only when knowable and already due',
-      /if\(wasPlanned && !beforeHistory && !isFuture\) plannedKnown\+\+;/.test(src));
+      /if\(wasPlanned && !beforeHistory && !isFuture\)\{[\s\S]{0,200}plannedKnown\+\+;/.test(src));
   }
 
   sub('a genuinely missed session still counts');
@@ -15819,6 +15834,219 @@ async function testProgramLifecycle(){
    every surface reads one analysis.
    ========================================================= */
 /* =========================================================
+   CONTRACT 143 — PLAN CONSISTENCY  (Phase D44)
+   Consistency answers how reliably the athlete met the training they
+   planned. Its numerator is fulfilled PLANS, never workouts performed —
+   the moment those swap, extra training starts inflating the number and a
+   clamp has to hide the result.
+
+   The oracle below never asks computeConsistencyData what to expect. Each
+   fixture declares its plan, its training and the fulfilment worked out by
+   hand from the product rules.
+   ========================================================= */
+async function testPlanConsistency(){
+  section('CONTRACT 143 — plan consistency (D44)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+    + '-' + String(d.getDate()).padStart(2,'0');
+  /* Anchored to a Monday two weeks back: every fixture date is in the past,
+     inside the window, and independent of which day or month the suite runs
+     — the date-fragility that bit D43 twice. */
+  const now = new Date(); now.setHours(0,0,0,0);
+  const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((now.getDay()+6)%7));
+  const base = new Date(thisMon); base.setDate(thisMon.getDate() - 14);
+  const day = n => fmt(new Date(base.getFullYear(), base.getMonth(), base.getDate() + n));
+  const MON = day(0), TUE = day(1), WED = day(2), THU = day(3), FRI = day(4), SAT = day(5);
+
+  const w = (id, date, category) => ({ id, date, category, title:'S', notes:'',
+    exercises:[{ name:'Bench Press', bodyweight:false,
+      sets:[{ weight:'135', reps:'8', rir:'2', type:'working' }] }] });
+  const MWF = { mon:'push', tue:'rest', wed:'pull', thu:'rest', fri:'legs',
+    sat:'rest', sun:'rest' };
+  const derive = (sched, log) => {
+    ctx.schedule = sched;
+    ctx.planStartDate = day(-7);
+    ctx.workoutLog = log;
+    if(ctx.invalidateSortedLogCache) ctx.invalidateSortedLogCache();
+    if(ctx.invalidateConsistencyCache) ctx.invalidateConsistencyCache();
+    const d = ctx.computeConsistencyData();
+    return { data: d, week: d.weeks.find(x => fmt(x.start) === MON) };
+  };
+
+  sub('the numerator is fulfilled plans, not workouts performed');
+  {
+    /* plan, training, [fulfilled, planned, percent] — declared by hand. */
+    const CASES = [
+      ['every planned day trained',
+        [w('a',MON,'push'), w('b',WED,'pull'), w('c',FRI,'legs')], [3,3,100]],
+      ['every planned day trained, plus two extras',
+        [w('a',MON,'push'), w('b',WED,'pull'), w('c',FRI,'legs'),
+         w('x',TUE,'core'), w('y',SAT,'core')], [3,3,100]],
+      ['two of three, with three unrelated extras',
+        [w('a',MON,'push'), w('c',FRI,'legs'),
+         w('x',TUE,'core'), w('y',THU,'core'), w('z',SAT,'core')], [2,3,67]],
+      ['nothing trained', [], [0,3,0]],
+      ['the same session twice in one day',
+        [w('a',MON,'push'), w('a2',MON,'push'), w('b',WED,'pull'), w('c',FRI,'legs')], [3,3,100]],
+      ['a different kind of session on a planned day',
+        [w('f',MON,'arms'), w('b',WED,'pull'), w('c',FRI,'legs')], [2,3,67]],
+      ['a planned session trained a day late',
+        [w('a',MON,'push'), w('y',THU,'pull'), w('c',FRI,'legs')], [3,3,100]]
+    ];
+    let bad = [];
+    CASES.forEach(cs => {
+      const r = derive(MWF, cs[1]);
+      const got = r.week ? [r.week.fulfilled, r.week.target, r.week.consistency] : [];
+      if(got.join() !== cs[2].join()) bad.push(cs[0] + ' expected ' + cs[2].join('/')
+        + ' got ' + got.join('/'));
+    });
+    T('declared consistency table (' + CASES.length + ' cases)',
+      bad.length === 0, bad.join(' | '));
+  }
+
+  sub('extra training cannot buy consistency');
+  T('extras never raise the percentage', (() => {
+    const plan = [w('a',MON,'push'), w('c',FRI,'legs')];
+    const b = derive(MWF, plan).week.consistency;
+    const withExtras = derive(MWF, plan.concat([w('x',TUE,'core'),
+      w('y',THU,'core'), w('z',SAT,'core'), w('q',day(6),'core')])).week.consistency;
+    return withExtras === b;
+  })());
+  T('extras never lower it either', (() => {
+    const plan = [w('a',MON,'push'), w('c',FRI,'legs')];
+    const b = derive(MWF, plan).week.consistency;
+    return derive(MWF, plan.concat([w('x',TUE,'core')])).week.consistency >= b;
+  })());
+  T('fulfilling a missed plan raises it by exactly one session', (() => {
+    const plan = [w('a',MON,'push'), w('c',FRI,'legs')];
+    const b = derive(MWF, plan).week.fulfilled;
+    return derive(MWF, plan.concat([w('n',WED,'pull')])).week.fulfilled === b + 1;
+  })());
+  T('one workout never earns two credits', (() => {
+    const r = derive(MWF, [w('solo', MON, 'push')]);
+    return r.week.fulfilled === 1;
+  })());
+
+  sub('the clamp is gone and cannot come back');
+  T('no percentage exceeds 100 under heavy extra load', (() => {
+    for(let extras=0; extras<=8; extras++){
+      const log = [w('a',MON,'push'), w('b',WED,'pull'), w('c',FRI,'legs')];
+      for(let k=0;k<extras;k++) log.push(w('x'+k, day(k%7), 'push'));
+      const d = derive(MWF, log).data;
+      if(d.overallConsistency !== null && d.overallConsistency > 100) return false;
+      if(d.weeks.some(x => x.consistency !== null && x.consistency > 100)) return false;
+    }
+    return true;
+  })());
+  T('the consistency derivation contains no clamp', (() => {
+    const i = src.indexOf('function computeConsistencyData');
+    const body = src.slice(i, src.indexOf('SHADOW ADAPTIVE TRAINING ENGINE', i));
+    return body.indexOf('Math.min(100') === -1;
+  })());
+  T('fulfilled never exceeds what was planned', (() => {
+    const log = [w('a',MON,'push'), w('a2',MON,'push'), w('b',WED,'pull'),
+      w('b2',WED,'pull'), w('c',FRI,'legs')];
+    return derive(MWF, log).data.weeks.every(x => x.fulfilled <= (x.target || 0));
+  })());
+
+  sub('future and unknown are not failures');
+  T('future planned days never enter the denominator', (() => {
+    const r = derive(MWF, [w('a',MON,'push'), w('b',WED,'pull'), w('c',FRI,'legs')]);
+    const cur = r.data.weeks[r.data.weeks.length-1];
+    return cur.fulfilled <= (cur.target || 0);
+  })());
+  T('a plan LOOP does not know yields no percentage', (() => {
+    ctx.schedule = { mon:'rest', tue:'rest', wed:'rest', thu:'rest', fri:'rest',
+      sat:'rest', sun:'rest' };
+    ctx.planStartDate = null;
+    ctx.workoutLog = [w('a',MON,'push')];
+    if(ctx.invalidateConsistencyCache) ctx.invalidateConsistencyCache();
+    const d = ctx.computeConsistencyData();
+    return d.totalPlanned === null && d.overallConsistency === null;
+  })());
+  T('and that training is still counted as training', (() => {
+    const d = ctx.computeConsistencyData();
+    return d.totalWorkouts === 1;
+  })());
+  T('no NaN or Infinity ever reaches a percentage', (() => {
+    const d = ctx.computeConsistencyData();
+    return !Number.isNaN(d.overallConsistency) && d.overallConsistency !== Infinity;
+  })());
+
+  sub('one matcher, shared with program plans');
+  T('there is a single assignment implementation',
+    (src.match(/function assignWorkoutsToPlannedSlots\(/g) || []).length === 1);
+  T('program fulfilment uses it', (() => {
+    const i = src.indexOf('function deriveProgramPlanFulfillment');
+    return src.slice(i, i + 2000).indexOf('assignWorkoutsToPlannedSlots(') !== -1;
+  })());
+  T('consistency uses it too', (() => {
+    const i = src.indexOf('function computeConsistencyData');
+    const body = src.slice(i, src.indexOf('SHADOW ADAPTIVE TRAINING ENGINE', i));
+    return body.indexOf('assignWorkoutsToPlannedSlots(') !== -1;
+  })());
+  T('the shift window is not duplicated',
+    (src.match(/PLAN_SHIFT_DAYS = /g) || []).length === 1);
+  T('no rival consistency calculator exists',
+    !/function (computeMomentumConsistency|computeProgressConsistency|computeLogConsistency)/.test(src));
+
+  sub('every surface reads the one number');
+  T('Log, Progress and the tiles all read overallConsistency',
+    (src.match(/overallConsistency/g) || []).length >= 4);
+  T('the Log summary counts fulfilled plans, not workouts',
+    /totalFulfilled\} of \$\{data\.totalPlanned\} planned sessions/.test(src));
+  T('Momentum still does not show the 12-week percentage', (() => {
+    const fn = src.slice(src.indexOf('function renderTodayMomentum()'),
+      src.indexOf('function renderProgressJump'));
+    return fn.indexOf('overallConsistency') === -1;
+  })());
+
+  sub('deterministic across dates and input order');
+  T('100 derivations are byte-identical', (() => {
+    const log = [w('a',MON,'push'), w('b',WED,'pull'), w('c',FRI,'legs'), w('x',TUE,'core')];
+    const snap = () => { const d = derive(MWF, log).data;
+      return JSON.stringify({ o:d.overallConsistency, f:d.totalFulfilled, p:d.totalPlanned }); };
+    const first = snap();
+    for(let i=0;i<100;i++) if(snap() !== first) return false;
+    return true;
+  })());
+  T('reversing the history changes nothing', (() => {
+    const log = [w('a',MON,'push'), w('b',WED,'pull'), w('c',FRI,'legs'), w('x',TUE,'core')];
+    const a = derive(MWF, log).data;
+    const b = derive(MWF, log.slice().reverse()).data;
+    return a.overallConsistency === b.overallConsistency
+      && a.totalFulfilled === b.totalFulfilled;
+  })());
+  T('the window spans a month boundary and still agrees', (() => {
+    const log = [w('a',MON,'push'), w('b',WED,'pull'), w('c',FRI,'legs')];
+    const d = derive(MWF, log).data;
+    const months = new Set(d.weeks.map(x => x.start.getMonth()));
+    return months.size >= 2 && d.overallConsistency !== null
+      && d.overallConsistency <= 100;
+  })());
+
+  sub('nothing else moved');
+  T('consistency is never persisted',
+    !/LOOPStore\.set\([^)]*consistency/i.test(src));
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('the trainer does not read consistency', (() => {
+    const i = src.indexOf('SHADOW ADAPTIVE TRAINING ENGINE');
+    const body = src.slice(i, i + 40000);
+    return body.indexOf('overallConsistency') === -1;
+  })());
+  T('D43 program adherence is unchanged',
+    ctx.PLAN_SHIFT_DAYS === 2
+    && typeof ctx.deriveProgramPlanFulfillment === 'function');
+  T('D39 and D40 thresholds are unchanged',
+    ctx.PERF_CONFIG.minSessions === 4 && ctx.OUTCOME_CONFIG.minEvidencedLifts === 3);
+}
+
+/* =========================================================
    CONTRACT 142 — PLANNED VS PERFORMED  (Phase D43)
    Adherence describes the PLAN. Membership describes where a workout came
    from. They are different populations, and the moment one is divided by
@@ -17039,6 +17267,7 @@ async function main(){
   await testWorkoutProvenance();
   await testNextProgramContinuity();
   await testPlannedVsPerformed();
+  await testPlanConsistency();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
