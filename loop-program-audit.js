@@ -2214,6 +2214,202 @@ function oracleTemplate(ctx, entry) {
     }
   }
 
+  /* ---------- 21. PLANNED VS PERFORMED  (Phase D43) ----------
+     The oracle never asks deriveProgramPlanFulfillment what the answer
+     should be. Each fixture DECLARES its planned slots, its member workouts
+     and the fulfilment it expects, worked out by hand from the product
+     rules; the implementation then has to agree. On top of that sit the
+     invariants that must hold for any honest planned-vs-performed model,
+     whatever the matching rule turns out to be. ---------- */
+  section('21. Planned vs performed (D43)');
+
+  {
+    /* 4 training days x 8 weeks = 32 planned sessions. Monday start. */
+    const P = {
+      id:'pD43', name:'Block', goal:'hypertrophy', durationWeeks:8,
+      status:'active', startDate:'2026-03-02',
+      schedule:{
+        mon:{type:'workout',category:'upper',templateId:'h-u1',planId:'gym'},
+        tue:{type:'workout',category:'lower',templateId:'h-l1',planId:'gym'},
+        thu:{type:'workout',category:'upper',templateId:'h-u2',planId:'gym'},
+        fri:{type:'workout',category:'lower',templateId:'h-l2',planId:'gym'} } };
+
+    const slots = ctx.programPlannedSlots(P);
+    ok('the declared plan enumerates 32 sessions', slots.length === 32, String(slots.length));
+
+    const w = (id, date, category, over) => Object.assign({ id, date, category,
+      origin:'program', programId:'pD43',
+      exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true,
+        weight:185, reps:8 }] }] }, over || {});
+
+    /* One workout on each planned slot, exactly. */
+    const exact = slots.map((sl, i) => w('f'+i, sl.date, sl.category));
+    /* Wednesday sessions: real program training the plan never asked for. */
+    const wednesdays = n => {
+      const out = [];
+      for(let i=0;i<n;i++){
+        const d = new Date('2026-03-04T00:00:00');
+        d.setDate(d.getDate() + i*7);
+        out.push(w('x'+i, d.toISOString().slice(0,10), 'core'));
+      }
+      return out;
+    };
+
+    /* label, log, [expected planned, fulfilled, additional, total] */
+    const DECLARED = [
+      ['every planned session trained once', exact, [32, 32, 0, 32]],
+      ['32 fulfilled plus 16 extra sessions', exact.concat(wednesdays(16)), [32, 32, 16, 48]],
+      ['24 fulfilled plus 4 extra', exact.slice(0,24).concat(wednesdays(4)), [32, 24, 4, 28]],
+      ['20 fulfilled plus 30 extra', exact.slice(0,20).concat(wednesdays(30)), [32, 20, 30, 50]],
+      ['nothing trained at all', [], [32, 0, 0, 0]],
+      ['one session, trained a day late',
+        [w('l1','2026-03-03','upper')], [32, 1, 0, 1]],
+      ['the same session trained twice in a day',
+        [w('d1', slots[0].date, 'upper'), w('d2', slots[0].date, 'upper')], [32, 1, 1, 2]]
+    ];
+    let bad = [];
+    DECLARED.forEach(row => {
+      const f = ctx.deriveProgramPlanFulfillment(P, row[1]);
+      const got = [f.planned, f.fulfilled, f.additional, f.totalWorkouts];
+      if(row[2].join() !== got.join())
+        bad.push(row[0] + ' expected [' + row[2].join(',') + '] got [' + got.join(',') + ']');
+    });
+    ok('declared fulfilment table (' + DECLARED.length + ' cases)',
+      bad.length === 0, bad.join(' | '));
+
+    /* ----- THE DEFECT THIS PHASE EXISTS FOR ----- */
+    {
+      const f = ctx.deriveProgramPlanFulfillment(P, exact.concat(wednesdays(16)));
+      const sum = ctx.deriveProgramCompletion(P, '2026-12-01', exact.concat(wednesdays(16)));
+      const line = ctx.programCompletionHeadline(sum);
+      ok('48 program workouts against 32 planned never reads as 48 of 32',
+        line.indexOf('48 of 32') === -1, line);
+      ok('the adherence numerator is fulfilment, not membership',
+        sum.fulfilledSessions === 32 && sum.completedSessions === 48);
+      ok('adherence cannot exceed 100 percent',
+        (f.fulfilled / f.planned) <= 1);
+      ok('the extra training is still counted and named',
+        sum.additionalSessions === 16);
+    }
+
+    /* ----- §77 INVARIANTS ----- */
+    {
+      const logs = DECLARED.map(r => r[1]);
+      let inv = { fulfilledLEplanned:true, fulfilledLEtotal:true, additionalGE0:true,
+        partitions:true, oneSlotOneWorkout:true, oneWorkoutOneSlot:true };
+      logs.forEach(log => {
+        const f = ctx.deriveProgramPlanFulfillment(P, log);
+        if(f.fulfilled > f.planned) inv.fulfilledLEplanned = false;
+        if(f.fulfilled > f.totalWorkouts) inv.fulfilledLEtotal = false;
+        if(f.additional < 0) inv.additionalGE0 = false;
+        if(f.planningKnown && f.fulfilled + f.unfulfilled !== f.planned) inv.partitions = false;
+        const claimed = (f.slots || []).filter(x => x.workoutId);
+        const ids = claimed.map(x => x.workoutId);
+        if(new Set(ids).size !== ids.length) inv.oneWorkoutOneSlot = false;
+        if(claimed.length !== f.fulfilled) inv.oneSlotOneWorkout = false;
+        if(f.fulfilled + f.additional > f.totalWorkouts) inv.partitions = false;
+      });
+      ok('fulfilled never exceeds planned', inv.fulfilledLEplanned);
+      ok('fulfilled never exceeds the workouts that exist', inv.fulfilledLEtotal);
+      ok('additional is never negative', inv.additionalGE0);
+      ok('fulfilled and unfulfilled partition the plan', inv.partitions);
+      ok('one planned session is fulfilled by at most one workout', inv.oneSlotOneWorkout);
+      ok('one workout fulfils at most one planned session', inv.oneWorkoutOneSlot);
+    }
+
+    /* ----- §78 MONOTONICITY ----- */
+    {
+      const base = exact.slice(0, 24);
+      const b = ctx.deriveProgramPlanFulfillment(P, base).fulfilled;
+      const withExtra = ctx.deriveProgramPlanFulfillment(P,
+        base.concat(wednesdays(6))).fulfilled;
+      const withReal = ctx.deriveProgramPlanFulfillment(P,
+        base.concat([w('nn', slots[24].date, slots[24].category)])).fulfilled;
+      ok('extra training never raises planned completion', withExtra === b,
+        b + ' -> ' + withExtra);
+      ok('extra training never lowers it either', withExtra === b);
+      ok('a genuine fulfilment raises it by exactly one', withReal === b + 1,
+        b + ' -> ' + withReal);
+    }
+
+    /* ----- §26/§27/§28 NOTHING FOREIGN FULFILS A PLAN ----- */
+    {
+      const d0 = slots[0].date;
+      const cases = [
+        ['a freeform session on a planned day',
+          [Object.assign({}, w('a', d0, 'upper'), { origin:'freeform', programId:undefined })]],
+        ['a freeform session titled like the plan',
+          [Object.assign({}, w('b', d0, 'upper'), { origin:'freeform', programId:undefined, title:'Upper A' })]],
+        ['a workout owned by another program',
+          [Object.assign({}, w('c', d0, 'upper'), { programId:'pOTHER' })]]
+      ];
+      let leaked = [];
+      cases.forEach(([label, log]) => {
+        const f = ctx.deriveProgramPlanFulfillment(P, log);
+        if(f.fulfilled !== 0 || f.additional !== 0 || f.totalWorkouts !== 0) leaked.push(label);
+      });
+      ok('only this program\u2019s own training can fulfil its plan',
+        leaked.length === 0, leaked.join(' | '));
+    }
+
+    /* ----- §52 UNKNOWABLE PLANS SAY NOTHING ----- */
+    {
+      const legacy = { id:'old', name:'Old', startDate:'2025-01-06',
+        durationWeeks:6, schedule:{} };
+      const log = [{ id:'g1', date:'2025-01-07', category:'upper', origin:'program',
+        programId:'old', exercises:[{ name:'Bench Press', sets:[{}] }] }];
+      const f = ctx.deriveProgramPlanFulfillment(legacy, log);
+      const sum = ctx.deriveProgramCompletion(legacy, '2025-12-01', log);
+      const line = ctx.programCompletionHeadline(sum);
+      ok('a program with no knowable plan reports no ratio',
+        f.planningKnown === false && sum.plannedSessions === null
+        && sum.fulfilledSessions === null);
+      ok('and its headline states the count instead',
+        line.indexOf('planned session') === -1 && /1 workout/.test(line), line);
+      ok('no NaN, Infinity or 0 of 0 anywhere',
+        !/NaN|Infinity|0 of 0/.test(line), line);
+      ok('its real training is still counted',
+        f.totalWorkouts === 1 && sum.completedSessions === 1);
+    }
+
+    /* ----- §71 CROSS-PROGRAM ISOLATION ----- */
+    {
+      const before = JSON.stringify(ctx.deriveProgramPlanFulfillment(P, exact));
+      const withB = exact.concat([1,2,3,4,5,6].map((n,i) => ({
+        id:'bb'+i, date:'2026-06-0' + (i+1), category:'upper', origin:'program',
+        programId:'pOTHER', exercises:[{ name:'Bench Press', sets:[{}] }] })));
+      ok('another program\u2019s training cannot move this one\u2019s adherence',
+        JSON.stringify(ctx.deriveProgramPlanFulfillment(P, withB)) === before);
+    }
+
+    /* ----- §75 DETERMINISM ----- */
+    {
+      const log = exact.concat(wednesdays(16));
+      const first = JSON.stringify(ctx.deriveProgramPlanFulfillment(P, log));
+      let stable = true;
+      for(let i=0;i<100;i++)
+        if(JSON.stringify(ctx.deriveProgramPlanFulfillment(P, log)) !== first) stable = false;
+      ok('100 derivations are byte-identical', stable);
+      ok('the order the history arrives in cannot change adherence',
+        JSON.stringify(ctx.deriveProgramPlanFulfillment(P, log.slice().reverse())) === first);
+    }
+
+    /* ----- §67 NOTHING IS WRITTEN ONTO HISTORY ----- */
+    {
+      const log = exact.concat(wednesdays(4));
+      const snapshot = JSON.stringify(log);
+      const progSnapshot = JSON.stringify(P);
+      for(let i=0;i<20;i++){
+        ctx.deriveProgramPlanFulfillment(P, log);
+        ctx.deriveProgramCompletion(P, '2026-12-01', log);
+      }
+      ok('no workout is stamped fulfilled or extra', JSON.stringify(log) === snapshot);
+      ok('the program itself is untouched', JSON.stringify(P) === progSnapshot);
+      ok('no fulfilment flag exists on any record', log.every(x =>
+        x.fulfilled === undefined && x.extra === undefined && x.missed === undefined));
+    }
+  }
+
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */
   section('12. Generation has no side effects');
 

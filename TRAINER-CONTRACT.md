@@ -4817,3 +4817,104 @@ clipped, 0 horizontal overflow.
 **Remaining limitation.** The manual on-device checklist in the D42 brief
 (§96) was not physically performed — everything above was verified in the
 desktop browser at phone viewports, which is not the same as a real iPhone.
+
+## §66 — Planned vs performed integrity (D43, loop-v113)
+
+**The completion summary divided one population by another.** The numerator
+counted every workout belonging to the program; the denominator counted the
+sessions the program planned. An athlete who trained more than the plan asked
+read "48 workouts of 32 planned" — a ratio with no meaning. Reproduced live,
+then fixed at the semantics rather than the surface.
+
+**The fix is not a clamp.** `min(48, 32)` would have hidden the defect and
+left the arithmetic wrong; a contract now reads the derivation body and fails
+if `Math.min(` appears in it. Instead `deriveProgramPlanFulfillment` assigns
+every program-member workout to at most one planned slot, and every planned
+slot to at most one workout. Adherence above 100% is impossible by
+construction rather than by truncation.
+
+**Four facts, no longer impersonating each other.** Program workouts (what
+belonged to the program), planned sessions (what it asked for), fulfilled
+planned sessions (the only honest numerator), and additional sessions
+(training beyond the plan). The live 48/32 fixture now reports 32 of 32
+planned, 48 workouts, 16 additional — all three true at once.
+
+**Matching, strongest identity first.** The slot’s own date and category;
+then the same program week and category within `PLAN_SHIFT_DAYS` (2), so a
+session moved a day is the same session rather than a miss plus an extra;
+then the date alone, but ONLY where one side does not record a category — a
+known mismatch never fulfils, so training core on the day an upper session
+was planned leaves that upper session outstanding. The window is declared
+once, not scattered through renderers. Within each pass the pool is walked
+oldest-first with the id as tiebreak, so the order history arrives in cannot
+decide adherence: pinned by deriving against a reversed log.
+
+**Three more defects found by the same audit.**
+
+*`programDayState` marked a planned day done if ANY workout shared its date*,
+ignoring membership entirely — a freeform session completed the program’s day.
+It now reads the fulfilment slot.
+
+*`getMissedProgramDays` had the same blindness*, suppressing a missed mark for
+any workout on the date. It now considers only this program’s own fulfilments.
+
+*`getProgramProgress` compared membership-to-date against planned-to-date*, so
+extra training pushed "sessions done" past the number planned in the live UI.
+Both sides now describe planned sessions; verified that completed never
+exceeds planned-to-date on an active program.
+
+**Unknown is not zero.** A program whose schedule cannot be reconstructed
+reports `planningKnown: false`, `plannedSessions: null` and
+`fulfilledSessions: null`, and its headline states the workout count instead
+of a ratio. No `NaN`, no `Infinity`, no "0 of 0". Its real training is still
+counted. Nothing is backfilled and no history is guessed from titles or dates.
+
+**Extra training is neither credit nor fault.** Adding unmatched program
+sessions cannot raise planned completion and cannot lower it; adding a genuine
+fulfilment raises it by exactly one. All three are pinned. The extra sessions
+remain in history, in membership, in D40 evidence, in PRs, mastery, capability
+and recovery — D43 corrected a read model, it did not erase work.
+
+**Nothing foreign fulfils a plan.** A freeform session on a planned day, a
+freeform session titled like the plan, and a workout owned by another program
+all fulfil nothing and are not even members — D41 still decides who may reach
+this layer at all.
+
+**Derived, never stored.** No workout is stamped fulfilled, extra or missed;
+no adherence is persisted; `DATA_KEYS` remains 15 and the backup schema is
+unchanged. Browsing every surface five times leaves programs, workoutLog,
+trainerLog, PR events, XP, the localStorage key set and its full contents
+byte-identical.
+
+**The phases underneath are untouched.** `TRAINER_ENGINE_VERSION` remains
+`0.1.1-shadow` and the trainer never consumes adherence. D39’s gates and
+D40’s aggregation thresholds are pinned unchanged, and D40 outcomes are
+deliberately NOT restricted to fulfilling workouts — an extra program session
+is still program performance evidence. D42’s next-step flow is unchanged.
+
+**A separate pre-existing defect, fixed in the tests only.** Four calendar
+assertions were failing on the pristine commit before any D43 change: the
+suite ran on the 1st of a month, the calendar correctly rendered the current
+month, and the fixture placed its sessions 1/3/6 days earlier — in the
+previous month. The product was right; the fixture assumed the suite never
+runs early in a month. Offsets are now clamped into the rendered month
+(historyCalMonth is module-scope and cannot be pointed elsewhere from the
+harness), the accessible-name count is measured against the days the month
+actually has in the past, and the pre-tracking assertion demands the mark only
+where such a day exists while asserting the underlying rule unconditionally.
+This is the second date-fragile fixture found in two phases.
+
+**Verification.** 5,344 assertions across 142 always-on contracts; the program
+audit reached 327 checks, including a hand-declared fulfilment table whose
+expected numbers are worked out from the product rules rather than computed by
+the code under test. 87 data-integrity, 261 cardio, 43 GPS and the full date
+matrix green. 100 derivations byte-identical. Six viewports clean.
+
+**Remaining limitations.** LOOP stores only the CURRENT program schedule, so a
+program edited mid-cycle is measured against the plan as it stands now, not as
+it stood three weeks ago — historical plan revisions are not recoverable and
+are not guessed. The plans consistency percentage (a separate subsystem from
+programs) still divides workouts-in-week by planned-days-in-week and clamps
+the result to 100%, which is the same class of defect in a different place;
+it was audited here and deliberately left for its own phase rather than
+changed alongside program adherence.

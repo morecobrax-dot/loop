@@ -9626,6 +9626,26 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v3-6',
+    version: 'LOOP 3.6',
+    title: 'Planned vs. Completed',
+    date: '2026-09-06',
+    swVersion: 'loop-v113',
+    summary: 'Program recaps now separate the sessions your program planned from the extra training you chose to do.',
+    newFeatures: [],
+    improvements: [
+      'A finished program reports how many of its planned sessions you completed, with the total number of workouts you did for it shown alongside',
+      'Training you did on top of the plan is counted as its own figure, so doing more never quietly changes what the plan asked for',
+      'An older program whose planned schedule cannot be reconstructed now shows the workouts you logged rather than an invented ratio'
+    ],
+    bugFixes: [
+      'A program recap could claim more completed sessions than the program ever planned, because it compared every workout belonging to the program against the number of sessions the program had scheduled',
+      'A workout that did not belong to your program could mark one of that program\u2019s planned days as complete',
+      'Doing two sessions on one planned day counted as completing two planned sessions'
+    ],
+    changes: []
   }
 ];
 
@@ -22545,7 +22565,7 @@ function programTrainingDayCount(program){
    Structural only. Counts sessions that already exist in workoutLog; it does
    not judge them, and there is deliberately no "program score". */
 let _programProgressCache = null;
-function invalidateProgramCache(){ _programProgressCache = null; }
+function invalidateProgramCache(){ _programProgressCache = null; _planFulfillCache = null; }
 
 function getProgramProgress(program, todayStr){
   const p = program || getActiveProgram();
@@ -22557,13 +22577,18 @@ function getProgramProgress(program, todayStr){
   const week = getCurrentProgramWeek(p, today);
   const block = getBlockForWeek(p, week);
   const endStr = programEndDate(p);
-  /* D41 — membership, not merely dates. This counted every workout falling
-     inside the program's window, so an extra rest-day session inflated
-     "sessions done" for a program that never prescribed it. It now shares the
-     one membership policy; the cap at today is what makes this progress so
-     far rather than the whole program. */
-  const completed = programWorkouts(p).filter(w =>
-    w.date <= today && (!endStr || w.date <= endStr)).length;
+  /* D41 — membership, not merely dates. D43 — and fulfilment, not merely
+     membership: this counted every program workout up to today against the
+     sessions planned up to today, so training beyond the plan pushed
+     "sessions done" past the number planned. Both sides now describe
+     planned sessions. */
+  const _fulfil = deriveProgramPlanFulfillment(p);
+  const completed = _fulfil.planningKnown
+    ? (_fulfil.slots || []).filter(x => x.workoutId && x.date <= today
+        && (!endStr || x.date <= endStr)).length
+    : programWorkouts(p).filter(w => w.date <= today
+        && (!endStr || w.date <= endStr)).length;
+  const _extra = _fulfil.additional;
   const perWeek = programTrainingDayCount(p);
   const weeksElapsed = Math.max(0, Math.min(week === null ? 0 : week, p.durationWeeks));
   const value = {
@@ -22571,6 +22596,8 @@ function getProgramProgress(program, todayStr){
     blockName: block ? block.name : null,
     blockPhase: block ? block.phaseType : null,
     completedSessions: completed,
+    additionalSessions: _extra,
+    planningKnown: _fulfil.planningKnown,
     plannedSessions: perWeek * weeksElapsed,
     totalPlannedSessions: perWeek * p.durationWeeks,
     status: p.status
@@ -22592,7 +22619,10 @@ function getMissedProgramDays(program, limit){
   const p = program || getActiveProgram();
   if(!p || !p.startDate || p.status !== 'active') return [];
   const today = localDateStr();
-  const logged = new Set((workoutLog || []).map(w => w && w.date));
+  /* D43 — a planned session counts as met only by this program’s own
+     training. Any workout on the date used to suppress the mark. */
+  const _fulfil = deriveProgramPlanFulfillment(p);
+  const logged = new Set((_fulfil.slots || []).filter(x => x.workoutId).map(x => x.date));
   const out = [];
   const cursor = new Date(p.startDate + 'T00:00:00');
   const end = new Date(today + 'T00:00:00');
@@ -25392,6 +25422,138 @@ function programPrescribesTemplate(program, cat, tplId){
   });
 }
 
+/* =========================================================
+   PLANNED VS PERFORMED  (Phase D43)
+   ---------------------------------------------------------
+   "Did I complete the training that was planned?" is not the same question
+   as "how much training did I do?", and the completion summary used to
+   answer the second while labelling it as the first: the numerator counted
+   every workout belonging to the program, the denominator counted the
+   sessions the program planned. Those are different populations, so an
+   athlete who trained more than the plan asked could read "48 workouts of
+   32 planned" — a number that cannot mean anything.
+
+   THE FIX IS NOT A CLAMP. min(48, 32) would hide the defect and keep the
+   arithmetic wrong. Instead every program-member workout is assigned to at
+   most one planned slot, and every planned slot is fulfilled by at most one
+   workout. What is left over on each side is named honestly: sessions the
+   plan asked for and did not get, and training performed beyond the plan.
+
+   MEMBERSHIP FIRST, THEN FULFILMENT. D41 decides what belongs to the
+   program; this decides which planned session each member session
+   fulfilled. A freeform workout cannot reach this layer at all, because it
+   never enters programWorkouts.
+
+   EXTRA TRAINING IS NOT FAILURE. An additional session is neither credit
+   nor a fault — it is training the plan did not ask for, reported as such
+   and nothing more. */
+/* How far a planned session may travel and still be the same session. Two days
+   covers moving a session across a weekend or around a working day; beyond
+   that the athlete has trained something else, and the planned session is
+   still outstanding. Declared once so no renderer can invent its own window. */
+const PLAN_SHIFT_DAYS = 2;
+let _planFulfillCache = null;
+
+/* Every planned session this program actually prescribes, as calendar
+   slots. Derived from the program’s own schedule and its week arithmetic,
+   so a paused program produces no phantom slots — the week count is
+   already frozen by getCurrentProgramWeek while paused. */
+function programPlannedSlots(program){
+  const out = [];
+  if(!program || !program.startDate) return out;
+  const weeks = parseInt(program.durationWeeks, 10) || 0;
+  const sched = getProgramSchedule(program);
+  for(let w = 1; w <= weeks; w++){
+    PROGRAM_DAY_KEYS.forEach(k => {
+      const e = sched[k];
+      if(!e || e.type !== 'workout') return;
+      const date = programDateFor(program, w, k);
+      if(!date) return;
+      out.push({ week:w, dayKey:k, date, category:e.category || null, workoutId:null });
+    });
+  }
+  return out;
+}
+
+/* The one planned-vs-performed interpretation. Pure, derived, never stored:
+   deleting or editing a workout changes the answer the next time it is
+   asked, and no workout is ever stamped "fulfilled" in history.
+
+   Assignment is one-to-one and deterministic, strongest identity first:
+     1. the slot’s own date AND category
+     2. the slot’s own date
+     3. the same program week and category — a session trained a day early
+        or late is the same planned session, not a miss plus an extra
+   Within each pass the pool is walked oldest-first with the id as tiebreak,
+   so array order can never quietly decide adherence. */
+function deriveProgramPlanFulfillment(program, log){
+  const out = { planned:0, fulfilled:0, unfulfilled:0, additional:0,
+    totalWorkouts:0, planningKnown:false, slots:[] };
+  if(!program || !program.startDate) return out;
+  const useCache = !log;
+  const key = useCache ? [program.id, program.status, program.durationWeeks,
+    program.pausedDays || 0, program.startDate,
+    (workoutLog ? workoutLog.length : 0)].join('|') : null;
+  if(useCache && _planFulfillCache && _planFulfillCache.key === key)
+    return _planFulfillCache.value;
+
+  const members = programWorkouts(program, log);
+  out.totalWorkouts = members.length;
+  const slots = programPlannedSlots(program);
+  out.planned = slots.length;
+  /* No schedule or no length means LOOP cannot say what was planned. That
+     is unknown, not zero, and it must never be rendered as a ratio. */
+  if(!slots.length){
+    out.additional = members.length;
+    if(useCache) _planFulfillCache = { key, value: out };
+    return out;
+  }
+  out.planningKnown = true;
+
+  const pool = members.slice().sort((a, b) =>
+    String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
+  const used = {};
+  const claim = (slot, w) => { slot.workoutId = w.id; used[w.id] = true; };
+
+  slots.forEach(slot => {
+    if(slot.workoutId) return;
+    const hit = pool.find(w => !used[w.id] && w.date === slot.date
+      && w.category === slot.category);
+    if(hit) claim(slot, hit);
+  });
+  /* A session trained a day or two off its planned day is the same session,
+     not a miss plus an extra. The window is deliberately narrow and named:
+     wide enough for "I moved Monday to Tuesday", too narrow to let a second
+     Monday session quietly pre-fulfil Thursday's, which the athlete has not
+     trained yet. */
+  slots.forEach(slot => {
+    if(slot.workoutId) return;
+    const hit = pool.find(w => !used[w.id] && w.category === slot.category
+      && getCurrentProgramWeek(program, w.date) === slot.week
+      && Math.abs(daysBetweenDates(slot.date, w.date) || 99) <= PLAN_SHIFT_DAYS);
+    if(hit) claim(slot, hit);
+  });
+  /* Same day, but the categories cannot be compared because one side does not
+     record it. A KNOWN mismatch never fulfils a planned session: training core
+     on the day an upper session was planned is additional training, and the
+     upper session is still outstanding. */
+  slots.forEach(slot => {
+    if(slot.workoutId) return;
+    const hit = pool.find(w => !used[w.id] && w.date === slot.date
+      && (!w.category || !slot.category));
+    if(hit) claim(slot, hit);
+  });
+
+  out.fulfilled = slots.filter(x => x.workoutId).length;
+  out.unfulfilled = out.planned - out.fulfilled;
+  /* Counted from what actually went unassigned, never as total minus
+     fulfilled: the classification has to prove itself. */
+  out.additional = members.filter(w => !used[w.id]).length;
+  out.slots = slots;
+  if(useCache) _planFulfillCache = { key, value: out };
+  return out;
+}
+
 /* ---------- THE COMPLETION SUMMARY ----------
    Pure and derived: program truth plus immutable history in, facts out.
    Nothing here is persisted, and nothing claims more than the log supports. */
@@ -25402,7 +25564,10 @@ function deriveProgramCompletion(program, todayStr, log){
   const done = programWorkouts(program, log);
   const perWeek = programTrainingDayCount(program);
   const weeks = parseInt(program.durationWeeks, 10) || 0;
-  const planned = perWeek * weeks;
+  /* D43 — planned sessions come from the schedule the program actually
+     prescribes, and fulfilment is assigned one-to-one against it. */
+  const fulfil = deriveProgramPlanFulfillment(program, log);
+  const planned = fulfil.planned;
 
   /* PRs are counted only inside the window this program actually owns, and
      only through the existing PR engine \u2014 nothing is recomputed here. */
@@ -25440,7 +25605,7 @@ function deriveProgramCompletion(program, todayStr, log){
      carry no programId still reports what WAS logged, but never turns an
      unknown into a missed session \u2014 D27's rule, applied to a whole program. */
   const linked = done.filter(w => !!w.programId).length;
-  const denominatorKnown = planned > 0;
+  const denominatorKnown = fulfil.planningKnown;
 
   return {
     state,
@@ -25450,8 +25615,17 @@ function deriveProgramCompletion(program, todayStr, log){
     perWeek,
     startDate: program.startDate,
     endDate: programEndDate(program),
+    /* Every workout that belonged to this program. A true fact, and
+       deliberately NOT the adherence numerator. */
     completedSessions: done.length,
     plannedSessions: denominatorKnown ? planned : null,
+    /* Distinct planned sessions actually fulfilled — the only honest
+       numerator for "of N planned", and never larger than N. */
+    fulfilledSessions: denominatorKnown ? fulfil.fulfilled : null,
+    unfulfilledSessions: denominatorKnown ? fulfil.unfulfilled : null,
+    /* Program training beyond the plan. Not credit, not a fault. */
+    additionalSessions: fulfil.additional,
+    planningKnown: fulfil.planningKnown,
     prs,
     sets,
     linkedSessions: linked,
@@ -25470,9 +25644,16 @@ function programCompletionHeadline(sum){
   if(!sum) return '';
   if(sum.tone === 'none') return 'Your program period has ended. No workouts were logged.';
   const n = sum.completedSessions;
-  const of = sum.plannedSessions ? ' of ' + sum.plannedSessions + ' planned' : '';
-  return sum.weeks + ' week' + (sum.weeks === 1 ? '' : 's') + ' finished. You logged '
-    + n + ' workout' + (n === 1 ? '' : 's') + of + '.';
+  const wk = sum.weeks + ' week' + (sum.weeks === 1 ? '' : 's') + ' finished. ';
+  /* D43 — planned completion is reported against planned sessions, and the
+     raw workout count is reported as itself. Mixing them produced the
+     impossible "48 workouts of 32 planned". Where the plan is unknowable,
+     the count stands alone rather than borrowing a denominator. */
+  if(!sum.planningKnown || sum.fulfilledSessions === null)
+    return wk + 'You logged ' + n + ' workout' + (n === 1 ? '' : 's') + '.';
+  return wk + 'You completed ' + sum.fulfilledSessions + ' of '
+    + sum.plannedSessions + ' planned session'
+    + (sum.plannedSessions === 1 ? '' : 's') + '.';
 }
 
 /* The completion surface. One renderer, used by Today's finished state and by
@@ -25492,6 +25673,10 @@ function programCompletionHtml(sum, opts){
   const facts = [];
   if(sum.tone !== 'none'){
     facts.push({ v: sum.completedSessions, l: sum.completedSessions === 1 ? 'workout' : 'workouts' });
+    /* D43 — shown only when there was extra training to report, so a
+       plan followed exactly is not cluttered with "0 additional". */
+    if(sum.additionalSessions > 0)
+      facts.push({ v: sum.additionalSessions, l: 'additional' });
     if(sum.prs > 0) facts.push({ v: sum.prs, l: sum.prs === 1 ? 'personal record' : 'personal records' });
     if(sum.sets > 0) facts.push({ v: sum.sets, l: 'sets logged' });
   }
@@ -26401,8 +26586,13 @@ function programDayState(program, dayKey, week){
     const today = localDateStr();
     if(date > today) return null;                       // upcoming: say nothing
     if(date < program.startDate) return null;           // before the program existed
-    const done = workoutLog.some(w => w.date === date);
-    if(done) return 'done';
+    /* D43 — was this planned session fulfilled by training that belongs to
+       this program? It used to ask only whether ANY workout shared the
+       date, so a freeform session marked the program’s day complete. */
+    const fulfil = deriveProgramPlanFulfillment(program);
+    const slot = (fulfil.slots || []).find(x => x.week === week && x.dayKey === dayKey);
+    if(slot && slot.workoutId) return 'done';
+    if(!fulfil.planningKnown && workoutLog.some(w => w.date === date)) return 'done';
     if(date === today) return 'today';
     return 'missed';
   }catch(e){ return null; }

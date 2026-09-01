@@ -7107,7 +7107,17 @@ function testLogRedesign(app){
 
   sub('the calendar is the hero — every past day answers');
   {
-    ctx.workoutLog = [mk(0,'upper',1), mk(1,'lower',3), mk(2,'upper',6)];
+    /* The calendar renders exactly one month — the current one — so the fixture
+       has to put its sessions inside it. Fixed days-ago offsets did not: run on
+       the 1st of a month, "1 / 3 / 6 days ago" all land in the PREVIOUS month,
+       the grid correctly shows no logged days, and four assertions fail for a
+       calendar that is working. (The month cannot simply be pointed elsewhere:
+       historyCalMonth is module-scope and assigning it from the harness does
+       not reach the renderer.) Offsets are clamped into the current month
+       instead, so at least today is always logged. */
+    const _dom = new Date().getDate();
+    const _off = n => Math.min(n, _dom - 1);
+    ctx.workoutLog = [mk(0,'upper',_off(1)), mk(1,'lower',_off(3)), mk(2,'upper',_off(6))];
     ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
     clearCaches(ctx);
     ctx.historySelectedDate = null;
@@ -7118,7 +7128,12 @@ function testLogRedesign(app){
     T('past days are buttons, not inert divs', grid.indexOf('<button type="button" class="cal-cell') !== -1);
     T('selecting a day is wired', grid.indexOf('selectHistoryDay(') !== -1);
     T('logged days are marked', grid.indexOf('cal-has-log') !== -1);
-    T('every cell carries an accessible name', (grid.match(/aria-label=/g) || []).length > 20);
+    /* Every day that can be answered carries a name. Counted against the days
+       the month actually has in the past rather than a flat ">20", which
+       silently assumed the suite never runs early in a month. */
+    T('every cell carries an accessible name',
+      (grid.match(/aria-label=/g) || []).length >= _dom,
+      (grid.match(/aria-label=/g) || []).length + ' names for ' + _dom + ' past days');
     T('future days stay inert — nothing to answer yet',
       !/cal-future[^>]*onclick/.test(grid));
   }
@@ -7152,10 +7167,13 @@ function testLogRedesign(app){
 
   sub('selecting a day answers it inline');
   {
-    ctx.workoutLog = [mk(0,'upper',1), mk(1,'lower',3)];
+    /* The selected day has to be a day the rendered month contains, so the
+       offsets are clamped into the current month exactly as above. */
+    const _sel = Math.min(1, new Date().getDate() - 1);
+    ctx.workoutLog = [mk(0,'upper',_sel), mk(1,'lower',Math.min(3, new Date().getDate() - 1))];
     clearCaches(ctx);
     ctx.historyCalMonth = null;
-    ctx.selectHistoryDay(D(1));
+    ctx.selectHistoryDay(D(_sel));
     const panel = doc.getElementById('historySelectedDay').innerHTML;
     T('the day summary appears', panel.indexOf('sd-card') !== -1);
     T('it names the workout', panel.indexOf('Upper A') !== -1);
@@ -13832,7 +13850,20 @@ async function testTodayAndHistoryTruth(){
     ctx.historyCalMonth = null;
     ctx.renderHistoryCalendar();
     const grid = doc.getElementById('historyCalGrid').innerHTML;
-    T('days before tracking get their own neutral state', /cal-unknown/.test(grid));
+    /* The rule is that a day before this athlete had any history is neutral,
+       never a failure. The MARK can only appear when the rendered month
+       actually contains such a day — on the first days of a month it does not,
+       and demanding the mark there tested the calendar rather than the rule.
+       The rule itself is asserted unconditionally below it. */
+    const _domU = new Date().getDate();
+    const _hasPreTrackingDay = _domU > 4;
+    T('days before tracking get their own neutral state',
+      !_hasPreTrackingDay || /cal-unknown/.test(grid),
+      _hasPreTrackingDay ? 'expected cal-unknown' : 'month has no pre-tracking day yet');
+    T('and a day before tracking is never called missed', (() => {
+      const cells = grid.match(/class="cal-cell[^"]*"/g) || [];
+      return cells.every(cl => !(/cal-unknown/.test(cl) && /cal-missed/.test(cl)));
+    })());
     T('which is not the rest-day state', /\.cal-unknown\{/.test(css) && /\.cal-rest\{/.test(css));
     T('and is quieter than rest, never louder', (() => {
       const u = parseFloat((css.match(/\.cal-unknown\{ opacity: ([\d.]+)/) || [])[1]);
@@ -15788,6 +15819,194 @@ async function testProgramLifecycle(){
    every surface reads one analysis.
    ========================================================= */
 /* =========================================================
+   CONTRACT 142 — PLANNED VS PERFORMED  (Phase D43)
+   Adherence describes the PLAN. Membership describes where a workout came
+   from. They are different populations, and the moment one is divided by
+   the other the number stops meaning anything.
+   ========================================================= */
+async function testPlannedVsPerformed(){
+  section('CONTRACT 142 — planned vs performed (D43)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  const P = {
+    id:'pC142', name:'Block', goal:'hypertrophy', durationWeeks:8,
+    status:'active', startDate:'2026-03-02',
+    schedule:{
+      mon:{type:'workout',category:'upper',templateId:'h-u1',planId:'gym'},
+      tue:{type:'workout',category:'lower',templateId:'h-l1',planId:'gym'},
+      thu:{type:'workout',category:'upper',templateId:'h-u2',planId:'gym'},
+      fri:{type:'workout',category:'lower',templateId:'h-l2',planId:'gym'} } };
+  const slots = ctx.programPlannedSlots(P);
+  const w = (id, date, category, over) => Object.assign({ id, date, category,
+    origin:'program', programId:'pC142',
+    exercises:[{ name:'Bench Press', sets:[{ type:'working', completed:true,
+      weight:185, reps:8 }] }] }, over || {});
+  const exact = slots.map((sl, i) => w('f'+i, sl.date, sl.category));
+  const wednesdays = n => { const out=[];
+    for(let i=0;i<n;i++){ const d=new Date('2026-03-04T00:00:00');
+      d.setDate(d.getDate()+i*7); out.push(w('x'+i, d.toISOString().slice(0,10), 'core')); }
+    return out; };
+
+  sub('the plan is the denominator, fulfilment is the numerator');
+  T('planned sessions come from the schedule the program prescribes',
+    slots.length === 32, String(slots.length));
+  T('48 program workouts against 32 planned never reads as 48 of 32', (() => {
+    const log = exact.concat(wednesdays(16));
+    const line = ctx.programCompletionHeadline(ctx.deriveProgramCompletion(P, '2026-12-01', log));
+    return line.indexOf('48 of 32') === -1 && line.indexOf('32 of 32') !== -1;
+  })());
+  T('the numerator is fulfilment, never the membership count', (() => {
+    const log = exact.concat(wednesdays(16));
+    const sum = ctx.deriveProgramCompletion(P, '2026-12-01', log);
+    return sum.fulfilledSessions === 32 && sum.completedSessions === 48
+      && sum.additionalSessions === 16;
+  })());
+  T('adherence above 100 percent is impossible by construction', (() => {
+    return [exact, exact.concat(wednesdays(16)), exact.slice(0,20).concat(wednesdays(30))]
+      .every(log => { const f = ctx.deriveProgramPlanFulfillment(P, log);
+        return f.planned === 0 || (f.fulfilled / f.planned) <= 1; });
+  })());
+  T('the defect was not fixed by clamping the ratio', (() => {
+    const i = src.indexOf('function deriveProgramPlanFulfillment');
+    const body = src.slice(i, i + 3000);
+    return body.indexOf('Math.min(') === -1;
+  })());
+
+  sub('one planned session, one workout');
+  T('the same session trained twice fulfils it once', (() => {
+    const f = ctx.deriveProgramPlanFulfillment(P, [w('d1', slots[0].date, 'upper'),
+      w('d2', slots[0].date, 'upper')]);
+    return f.fulfilled === 1 && f.additional === 1;
+  })());
+  T('one workout never fulfils two planned sessions', (() => {
+    const logs = [exact, exact.concat(wednesdays(8)), exact.slice(0,10)];
+    return logs.every(log => {
+      const f = ctx.deriveProgramPlanFulfillment(P, log);
+      const ids = (f.slots||[]).filter(x => x.workoutId).map(x => x.workoutId);
+      return new Set(ids).size === ids.length;
+    });
+  })());
+  T('a session trained a day late still fulfils its slot',
+    ctx.deriveProgramPlanFulfillment(P, [w('l','2026-03-03','upper')]).fulfilled === 1);
+  T('a different kind of session on a planned day does not fulfil it', (() => {
+    const f = ctx.deriveProgramPlanFulfillment(P, [w('c', slots[0].date, 'core')]);
+    return f.fulfilled === 0 && f.additional === 1;
+  })());
+  T('the shift window is declared once, not scattered',
+    typeof ctx.PLAN_SHIFT_DAYS === 'number'
+    && (src.match(/PLAN_SHIFT_DAYS/g) || []).length <= 3);
+
+  sub('extra training counts as itself');
+  T('extra sessions never raise planned completion', (() => {
+    const base = exact.slice(0, 24);
+    const b = ctx.deriveProgramPlanFulfillment(P, base).fulfilled;
+    return ctx.deriveProgramPlanFulfillment(P, base.concat(wednesdays(6))).fulfilled === b;
+  })());
+  T('and never lower it', (() => {
+    const base = exact.slice(0, 24);
+    const b = ctx.deriveProgramPlanFulfillment(P, base).fulfilled;
+    return ctx.deriveProgramPlanFulfillment(P, base.concat(wednesdays(6))).fulfilled >= b;
+  })());
+  T('a genuine fulfilment raises it by exactly one', (() => {
+    const base = exact.slice(0, 24);
+    const b = ctx.deriveProgramPlanFulfillment(P, base).fulfilled;
+    return ctx.deriveProgramPlanFulfillment(P, base.concat([w('n', slots[24].date,
+      slots[24].category)])).fulfilled === b + 1;
+  })());
+  T('extra training is still real training in the record', (() => {
+    const log = exact.concat(wednesdays(16));
+    const sum = ctx.deriveProgramCompletion(P, '2026-12-01', log);
+    return sum.completedSessions === 48 && ctx.programWorkouts(P, log).length === 48;
+  })());
+
+  sub('nothing foreign can fulfil a plan');
+  {
+    const d0 = slots[0].date;
+    const foreign = [
+      Object.assign({}, w('a', d0, 'upper'), { origin:'freeform', programId:undefined }),
+      Object.assign({}, w('b', d0, 'upper'), { origin:'freeform', programId:undefined, title:'Upper A' }),
+      Object.assign({}, w('c', d0, 'upper'), { programId:'pOTHER' })
+    ];
+    T('freeform, same-titled and other-program sessions all fulfil nothing',
+      foreign.every(x => {
+        const f = ctx.deriveProgramPlanFulfillment(P, [x]);
+        return f.fulfilled === 0 && f.additional === 0 && f.totalWorkouts === 0;
+      }));
+  }
+
+  sub('an unknowable plan reports no ratio');
+  {
+    const legacy = { id:'old', name:'Old', startDate:'2025-01-06', durationWeeks:6, schedule:{} };
+    const log = [{ id:'g', date:'2025-01-07', category:'upper', origin:'program',
+      programId:'old', exercises:[{ name:'Bench Press', sets:[{}] }] }];
+    const sum = ctx.deriveProgramCompletion(legacy, '2025-12-01', log);
+    const line = ctx.programCompletionHeadline(sum);
+    T('planned and fulfilled are null rather than zero',
+      sum.plannedSessions === null && sum.fulfilledSessions === null);
+    T('planningKnown says so explicitly', sum.planningKnown === false);
+    T('the headline states the count instead of a ratio',
+      line.indexOf('planned session') === -1, line);
+    T('no NaN, Infinity or 0 of 0 is ever rendered',
+      !/NaN|Infinity|0 of 0/.test(line), line);
+    T('the real training is still counted', sum.completedSessions === 1);
+  }
+
+  sub('one calculator, and nothing written down');
+  T('there is a single planned-vs-performed derivation',
+    (src.match(/function deriveProgramPlanFulfillment\(/g) || []).length === 1);
+  T('no rival adherence calculator was introduced',
+    !/function (deriveProgramAdherence|computeAdherence|adherenceMatcher|completionMatcher)/.test(src));
+  T('completion consumes the one derivation', (() => {
+    const i = src.indexOf('function deriveProgramCompletion');
+    return src.slice(i, i + 900).indexOf('deriveProgramPlanFulfillment') !== -1;
+  })());
+  T('fulfilment is never stamped onto history', (() => {
+    const log = exact.concat(wednesdays(4));
+    const snap = JSON.stringify(log);
+    for(let i=0;i<15;i++) ctx.deriveProgramCompletion(P, '2026-12-01', log);
+    return JSON.stringify(log) === snap
+      && log.every(x => x.fulfilled === undefined && x.missed === undefined);
+  })());
+  T('no adherence is persisted anywhere',
+    !/(fulfilledSessions|additionalSessions|adherence)\s*:\s*[^,\n]*LOOPStore/.test(src));
+
+  sub('deterministic');
+  T('100 derivations are byte-identical', (() => {
+    const log = exact.concat(wednesdays(16));
+    const first = JSON.stringify(ctx.deriveProgramPlanFulfillment(P, log));
+    for(let i=0;i<100;i++)
+      if(JSON.stringify(ctx.deriveProgramPlanFulfillment(P, log)) !== first) return false;
+    return true;
+  })());
+  T('history order cannot decide adherence', (() => {
+    const log = exact.concat(wednesdays(16));
+    return JSON.stringify(ctx.deriveProgramPlanFulfillment(P, log))
+      === JSON.stringify(ctx.deriveProgramPlanFulfillment(P, log.slice().reverse()));
+  })());
+
+  sub('the phases underneath are untouched');
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('D39 evidence gates are unchanged',
+    ctx.PERF_CONFIG.minSessions === 4 && ctx.PERF_CONFIG.minSessionsNumeric === 6);
+  T('D40 aggregation thresholds are unchanged',
+    ctx.OUTCOME_CONFIG.minEvidencedLifts === 3 && ctx.OUTCOME_CONFIG.dominance === 3);
+  T('D40 outcomes are not restricted to fulfilling workouts', (() => {
+    /* Extra program training is still program performance evidence. */
+    const log = exact.concat(wednesdays(16));
+    const oc = ctx.deriveProgramOutcome(P, log);
+    return oc && oc.comparableLifts > 0;
+  })());
+  T('D41 membership still decides who may fulfil', (() => {
+    const i = src.indexOf('function deriveProgramPlanFulfillment');
+    return src.slice(i, i + 3000).indexOf('programWorkouts(') !== -1;
+  })());
+}
+
+/* =========================================================
    CONTRACT 141 — NEXT PROGRAM CONTINUITY  (Phase D42)
    Finishing a program leads somewhere. What must never drift is that it
    leads there by INVITATION: outcome is context, never cause; nothing
@@ -16819,6 +17038,7 @@ async function main(){
   await testProgramOutcomes();
   await testWorkoutProvenance();
   await testNextProgramContinuity();
+  await testPlannedVsPerformed();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
