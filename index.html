@@ -904,41 +904,46 @@ html.intro-skip #introOverlay{ display: none !important; }
 
 /* Compact insight rows instead of a coach card */
 #todayInsights:empty{ display: none; }
-/* D46 — Trained this week. One block answering one question, using the
-   existing card surface, radius and accent rather than a new visual family. */
+/* D46B — Trained this week. The first attempt drew its own silhouettes and
+   its own bar rows, which is why it read as a widget embedded in LOOP rather
+   than part of it. It now composes the two components this content already
+   has — bodyDiagramSvg and the muscle bar list — laid out on the same
+   mv-card geometry the Muscle Volume surface uses, so the block the athlete
+   taps and the screen it opens are visibly the same thing. */
 #todayMuscles:empty{ display: none; }
 .tm-card{
   display: block; width: 100%; text-align: left; margin-top: 14px;
-  background: var(--surface); border: 1px solid var(--border-quiet);
-  border-radius: var(--radius-lg); padding: 14px 15px 15px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 15px 16px 16px; cursor: pointer;
   color: var(--text); font-family: inherit;
 }
 .tm-card:active{ background: var(--surface-2); }
 .tm-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
-.tm-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tm-head{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .tm-title{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint);
 }
-.tm-sub{
-  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
-  font-weight: 700; color: var(--text-dim); font-variant-numeric: tabular-nums;
+.tm-go{ display: flex; color: var(--text-faint); flex-shrink: 0; }
+/* Same figure/copy geometry as .mv-top, stated here because the card is a
+   <button> and its children are spans. */
+.tm-top{ display: flex; align-items: center; gap: 18px; margin-top: 10px; }
+.tm-body{ width: 96px; flex-shrink: 0; display: block; }
+.tm-info{ min-width: 0; display: block; }
+.tm-k{
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
 }
-.tm-body{ display: flex; align-items: center; gap: 16px; margin-top: 12px; }
-.tm-figs{ display: flex; gap: 4px; flex-shrink: 0; }
-.tm-fig{ width: 46px; height: 89px; display: block; }
-.tm-list{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-.tm-row{ display: flex; align-items: center; gap: 9px; }
-.tm-name{ font-size: var(--fs-support); font-weight: 600; flex: 0 0 74px; }
-.tm-bar{
-  flex: 1; min-width: 0; height: 6px; border-radius: 99px;
-  background: var(--surface-3); overflow: hidden;
+.tm-name{
+  display: block; font-family: 'Space Grotesk', sans-serif; font-size: 22px;
+  font-weight: 700; color: var(--text); margin-top: 3px; line-height: 1.15;
 }
-.tm-bar span{ display: block; height: 100%; background: var(--accent); border-radius: 99px; }
-.tm-n{
-  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta); font-weight: 700;
-  color: var(--text-dim); font-variant-numeric: tabular-nums; flex: 0 0 auto; min-width: 16px;
-  text-align: right;
+.tm-sub{ display: block; font-size: var(--fs-meta); color: var(--text-dim); margin-top: 4px; }
+.tm-sub b{ color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.tm-bars{ display: block; margin-top: 14px; }
+.tm-foot{
+  display: block; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border);
+  font-size: var(--fs-meta); color: var(--text-faint); font-variant-numeric: tabular-nums;
 }
 .insight-list{ margin-top: var(--space-3); display: flex; flex-direction: column; gap: 1px; }
 .insight-row{ display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--border); }
@@ -1585,29 +1590,6 @@ body.first-use{ padding-bottom: 0; }
 }
 .pl-xp{ font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
 
-.pt-list{ display: flex; flex-direction: column; gap: 1px; }
-.pt-row{
-  display: grid; grid-template-columns: 1fr auto 46px; align-items: center; gap: 10px;
-  width: 100%; min-height: 48px; padding: 0 var(--space-3); text-align: left;
-  background: var(--surface); border: 1px solid var(--border); cursor: pointer;
-  font-family: 'Inter', sans-serif; color: var(--text);
-}
-.pt-row:first-child{ border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
-.pt-row:last-child{ border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
-.pt-row:only-child{ border-radius: var(--radius-lg); }
-.pt-row + .pt-row{ border-top: none; }
-.pt-name{ font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pt-state{ display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; }
-.pt-up{ color: var(--success); }
-.pt-flat{ color: var(--text-dim); }
-.pt-down{ color: var(--warning); }
-.pt-pct{
-  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
-  color: var(--text-faint); text-align: right; font-variant-numeric: tabular-nums;
-}
-.pt-empty{ font-size: 12.5px; line-height: 1.55; color: var(--text-dim); }
-
-
 @media (prefers-reduced-motion: reduce){
   .pl-medal{ transition: none; }
 }
@@ -2036,7 +2018,10 @@ body.first-use{ padding-bottom: 0; }
 .muscle-bar-row{ display: flex; align-items: center; gap: 10px; }
 .muscle-bar-label{ width: 76px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--text-dim); }
 .muscle-bar-track{ flex: 1; height: 8px; background: var(--surface-3); border-radius: var(--radius-sm); overflow: hidden; }
-.muscle-bar-fill{ height: 100%; background: var(--accent); border-radius: var(--radius-sm); }
+/* display:block matters — the component emits spans when it sits inside a
+   <button>, and an inline element ignores height, which drew every bar as an
+   empty track. */
+.muscle-bar-fill{ display: block; height: 100%; background: var(--accent); border-radius: var(--radius-sm); }
 .muscle-bar-pct{ width: 32px; flex-shrink: 0; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text-faint); }
 
 .trend-list{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
@@ -2205,6 +2190,31 @@ body.first-use{ padding-bottom: 0; }
 /* ---------- MY TRAINING (Phase D13) ----------
    Colour carries state and nothing else: green completed, accent today,
    muted upcoming, neutral rest. */
+/* D46B — the way into a program, when none is running. Sized as the primary
+   action on the screen because it is one, and paired with a line that keeps
+   training without a program a legitimate choice rather than a failure. */
+.mt-start{
+  display: block; width: 100%; text-align: left; font-family: inherit; color: var(--text);
+  position: relative; background: var(--surface); border: 1px solid var(--accent);
+  border-radius: var(--radius-lg); padding: 16px 44px 16px 17px; margin-top: 14px; cursor: pointer;
+}
+.mt-start:active{ background: var(--surface-2); }
+.mt-start:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.mt-start-k{
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint);
+}
+.mt-start-t{
+  display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  font-size: 21px; color: var(--text); margin-top: 6px; line-height: 1.15;
+}
+.mt-start-s{ display: block; font-size: var(--fs-meta); color: var(--text-dim); margin-top: 6px; line-height: 1.45; }
+.mt-start-go{
+  position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+  display: flex; color: var(--accent);
+}
+.mt-start-alt{ font-size: var(--fs-meta); color: var(--text-faint); margin-top: 9px; line-height: 1.45; }
+
 .mt-hero{ padding: 2px 0 6px; }
 .mt-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 23px; letter-spacing: -0.01em; color: var(--text); }
 .mt-sub{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; }
@@ -2330,6 +2340,108 @@ body.first-use{ padding-bottom: 0; }
 .ts-row-day{ flex: 0 0 34px; font-size: var(--fs-micro); font-weight: 700; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
 .ts-row-name{ flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ts-row-min{ font-size: var(--fs-micro); color: var(--text-faint); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+
+/* ---------- PROGRESS OVERVIEW (Phase D46B) ----------
+   A command centre, not a card collection. The hero carries real weight and
+   everything under it is deliberately quieter, so the eye lands on the answer
+   before it lands on the supporting detail. Colour stays reserved for state.
+
+   The blocks are BUTTONS, not divs with role="button": every one of them
+   opens the surface that explains it, and a real button is the only version
+   of that a keyboard can operate. */
+.po-hero{
+  display: block; width: 100%; text-align: left; font-family: inherit;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 17px 17px 15px; margin-top: 2px;
+}
+.po-hero-tap{ cursor: pointer; }
+.po-hero-tap:hover{ border-color: var(--accent); }
+.po-hero-tap:active{ background: var(--surface-2); }
+.po-hero:focus-visible, .po-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.po-hero-top{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.po-eyebrow, .po-k{
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--text-faint);
+}
+/* The one genuinely large thing on the screen. */
+.po-head{
+  display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  font-size: 26px; line-height: 1.12; letter-spacing: -0.015em;
+  color: var(--text); margin-top: 9px; text-wrap: balance;
+}
+.po-line{
+  display: block; font-size: var(--fs-support); line-height: 1.5;
+  color: var(--text-dim); margin: 8px 0 0; max-width: 46ch;
+}
+.po-hero-quiet .po-head{ color: var(--text-dim); }
+
+/* The evidence under the headline. Each row is one lift: name, a bar for the
+   size of the movement, and the number the bar encodes. */
+.po-lifts{ display: flex; flex-direction: column; gap: 9px; margin-top: 15px; }
+.po-lift{ display: flex; align-items: center; gap: 10px; }
+.po-lift-n{
+  flex: 0 0 40%; min-width: 0; font-size: var(--fs-support); font-weight: 600;
+  color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.po-lift-track{
+  flex: 1; min-width: 0; height: 7px; border-radius: 99px;
+  background: var(--surface-3); overflow: hidden;
+}
+.po-lift-track i{ display: block; height: 100%; border-radius: 99px; background: var(--text-faint); }
+.po-lift-track i.po-improving{ background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+.po-lift-v{
+  flex: 0 0 auto; min-width: 44px; text-align: right; font-family: 'JetBrains Mono', monospace;
+  font-size: var(--fs-meta); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-dim);
+}
+.po-lift-v.po-improving{ color: var(--success); }
+.po-lift-v.po-declining{ color: var(--warning); }
+.po-foot{
+  display: block; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+  font-size: var(--fs-micro); color: var(--text-faint); line-height: 1.4;
+}
+.po-go{ display: flex; color: var(--text-faint); flex-shrink: 0; }
+
+.po-card{
+  display: block; width: 100%; text-align: left; font-family: inherit; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 15px 16px 16px; margin-top: 12px;
+}
+.po-card-tap{ cursor: pointer; }
+.po-card-tap:hover{ border-color: var(--accent); }
+.po-card-tap:active{ background: var(--surface-2); }
+.po-card-top{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.po-card-t{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  font-size: var(--fs-card-title); color: var(--text); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* One cell per program week: the shape of the whole program, and where in it
+   the athlete is standing. Reads before any number is parsed. */
+.po-wks{ display: flex; gap: 3px; margin-top: 13px; }
+.po-wk{ flex: 1; height: 7px; border-radius: 2px; background: var(--surface-3); min-width: 3px; }
+.po-wk-done{ background: var(--accent-2); }
+.po-wk-now{ background: var(--accent); }
+.po-card-row{ display: flex; gap: 14px; margin-top: 14px; }
+.po-stat{ display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.po-stat b{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 19px;
+  color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums;
+}
+.po-stat i{ font-style: normal; font-size: var(--fs-micro); color: var(--text-faint); line-height: 1.35; }
+
+/* Same figure-and-copy geometry as the Muscle Volume card this opens. */
+.po-mus{ display: flex; align-items: center; gap: 18px; margin-top: 13px; }
+.po-mus-body{ width: 92px; flex-shrink: 0; display: block; }
+.po-mus-info{ min-width: 0; display: block; }
+.po-mus-name{
+  display: block; font-family: 'Space Grotesk', sans-serif; font-size: 21px;
+  font-weight: 700; color: var(--text); margin-top: 3px; line-height: 1.15;
+}
+.po-mus-sub{ display: block; font-size: var(--fs-meta); color: var(--text-dim); margin-top: 4px; line-height: 1.4; }
+.po-mus-sub b{ color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.po-mus-bars{ display: block; margin-top: 14px; }
 
 /* ---------- PROGRESS DASHBOARD (Phase D12.1) ----------
    One reading, three indicators, then five cards of equal weight. Colour is
@@ -5347,6 +5459,7 @@ body.page-locked{ overflow: hidden; }
    ========================================================= */
 .pd-card, .lc-card, .cal-card, .mv-card, .tpl-card, .ob-mock, .ob-hero,
 .mas-sum, .vw-grid, .pd-tiles, .cl-tile, .tm-card, .settings-row-btn,
+.po-hero, .po-card,
 .prog-jump, .hdr-level, .plan-card, .mt-stat, .sub-card{
   border-color: var(--border-quiet);
   box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
@@ -9620,6 +9733,29 @@ const LOOP_UPDATES = [
       'A week where you trained every planned day lost its completed green state if the sessions were logged under a different category than the day was labelled'
     ],
     changes: []
+  },
+  {
+    id: 'v4-0',
+    version: 'LOOP 4.0',
+    title: 'Progress, At A Glance',
+    date: '2026-09-16',
+    swVersion: 'loop-v117',
+    summary: 'Progress now opens with what is actually changing in your training, and keeps the detail one tap away.',
+    newFeatures: [
+      'Progress leads with the lifts that are moving, measured by comparing the middle of your early sessions against your recent ones rather than your best day against your first',
+      'A week-by-muscle summary sits on Progress as well as Today, drawn with the same body diagram the rest of LOOP uses'
+    ],
+    improvements: [
+      'The muscle summary opens the Muscle Volume tab you already know, instead of a different muscle screen',
+      'Today and Muscle Volume now count a week the same way, so a number you tap through to check is the number you find',
+      'Most trained moved to Strength, beside the rest of your per-exercise detail',
+      'Starting a program is offered on Today whenever none is running — including on rest days, and after you have already built one before'
+    ],
+    bugFixes: [
+      'Muscle Volume counted warm-up sets and exercises you skipped',
+      'Today hid programs entirely once you had saved one, and on every rest day'
+    ],
+    changes: []
   }
 ];
 
@@ -10495,8 +10631,17 @@ function muscleFill(totals, maxVal, group){
 /* Which view best represents a session. Anterior groups vs posterior groups —
    a pull day shows the back, a push day shows the front, without the user
    having to think about it. */
-function bodyDiagramSvg(t){
-  const totals = computeMuscleTotals(t);
+/* D46B — the ONE body figure in LOOP. Every surface that draws an anatomy
+   uses this: the plan preview, the workout template card, Mastery's muscle
+   volume, and Today's week summary. A second silhouette drawn beside it would
+   be a different product wearing LOOP's colours, which is precisely how the
+   first attempt at Today's block went wrong.
+
+   `totalsOverride` lets a caller supply set counts it has already derived
+   accurately, instead of having them re-inferred here from exercise names.
+   Callers that pass a template keep the exact behaviour they always had. */
+function bodyDiagramSvg(t, totalsOverride){
+  const totals = totalsOverride || computeMuscleTotals(t);
   const maxVal = Math.max(1, ...Object.values(totals));
   const f = (g) => muscleFill(totals, maxVal, g);
   /* The figure is drawn on its own ramp rather than the surface tokens: it
@@ -15947,8 +16092,13 @@ function renderTodayWorkout(){
           ${bits.length ? `<span class="tw-next-s">${bits.join(' · ')}</span>` : ''}
         </div>`;
     }
+    /* D46B — a rest day is still a day inside a program, and a rest day with
+       no program is still a day the athlete might want one. This branch used
+       to omit the program row entirely, so the feature disappeared from Today
+       on every rest day. */
     el.innerHTML = `
       <div class="tw tw-rest">
+        ${programContextHtml()}
         <div class="tw-label">Today</div>
         <div class="tw-title">Rest Day</div>
         ${nextPreview || `<div class="tw-meta">No training days set yet</div>`}
@@ -16039,16 +16189,22 @@ function pickerGridHtml(cat){
    copy never implies otherwise. Shading is relative to the athlete's own
    busiest muscle this week and means only "more sets went here".
    ========================================================= */
-function deriveWeekMuscleSets(){
+function deriveWeekMuscleSets(fromKey){
   /* setsLogged is the real number of sets performed. The per-muscle counts
-     deliberately do NOT sum to it: a Romanian Deadlift primarily trains back
-     and glutes, so its sets are counted toward both. Summing them would
-     produce a "total" larger than the training that happened, which is why
-     the header reports setsLogged and the rows report per-muscle counts. */
-  const out = { muscles: [], total: 0, setsLogged: 0, weekStart: null };
+     deliberately do NOT sum to it: a Romanian Deadlift primarily trains back,
+     hamstrings and glutes, so its sets are counted toward each. Summing them
+     would produce a "total" larger than the training that happened, which is
+     why the header reports setsLogged and the rows report per-muscle counts.
+
+     D46B — `totals` is the same numbers keyed by muscle id, which is the shape
+     bodyDiagramSvg and muscleBarsHtml both consume. It exists so Today's
+     summary and the Muscle Volume surface it opens are the SAME arithmetic:
+     an athlete who taps through to check a number must find that number. */
+  const out = { muscles: [], total: 0, setsLogged: 0, weekStart: null, totals: {} };
+  Object.keys(MUSCLE_MAP).forEach(k => { out.totals[k] = 0; });
   const now = new Date(); now.setHours(0,0,0,0);
   const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  const startKey = localDateStr(mon);
+  const startKey = fromKey || localDateStr(mon);
   out.weekStart = startKey;
   const acc = {};
   (workoutLog || []).forEach(entry => {
@@ -16072,6 +16228,7 @@ function deriveWeekMuscleSets(){
       (m.primary || []).forEach(k => { acc[k] = (acc[k] || 0) + performed; });
     });
   });
+  Object.keys(acc).forEach(k => { out.totals[k] = acc[k]; });
   out.muscles = Object.keys(acc)
     .map(k => ({ id: k, label: MUSCLE_LABELS[k] || k, sets: acc[k] }))
     .sort((a, b) => b.sets - a.sets || a.label.localeCompare(b.label));
@@ -16079,71 +16236,58 @@ function deriveWeekMuscleSets(){
   return out;
 }
 
-/* Two silhouettes, front and back, with each region shaded against the
-   busiest muscle of the week. Hand-drawn paths rather than a dependency, and
-   aria-hidden throughout: the figures are a picture of the list beside them,
-   and the list is the accessible reading. */
-function muscleBodyHtml(data){
-  const top = data.muscles.length ? data.muscles[0].sets : 0;
-  const by = {};
-  data.muscles.forEach(m => { by[m.id] = m.sets; });
-  /* Floor of 0.06 so an untrained region is still visibly part of the body
-     rather than a hole in it. */
-  const fill = id => {
-    const v = by[id] || 0;
-    return v && top ? (0.16 + (v / top) * 0.84).toFixed(2) : '0.06';
-  };
-  const P = (id, d) => '<path d="' + d + '" fill="var(--accent)" opacity="' + fill(id) + '"/>';
-  const body = 'var(--surface-3)';
-  return '<div class="tm-figs" aria-hidden="true">' +
-    '<svg viewBox="0 0 60 116" class="tm-fig">' +
-      '<ellipse cx="30" cy="11" rx="7.5" ry="8.5" fill="' + body + '"/>' +
-      '<path d="M18 22 h24 l4 22 -6 4 h-20 l-6 -4 z" fill="' + body + '"/>' +
-      '<path d="M14 24 l-5 26 4 2 6 -24 z M46 24 l5 26 -4 2 -6 -24 z" fill="' + body + '"/>' +
-      '<path d="M20 50 h20 l3 30 -9 2 -8 0 -9 -2 z" fill="' + body + '"/>' +
-      '<path d="M22 82 h6 l2 30 -7 0 z M32 82 h6 l-1 30 -7 0 z" fill="' + body + '"/>' +
-      P('shoulders', 'M16 22 q-4 3 -3 9 l7 -2 1 -7 z M44 22 q4 3 3 9 l-7 -2 -1 -7 z') +
-      P('chest', 'M20 25 h20 l-1 11 h-18 z') +
-      P('biceps', 'M13 33 l4 -1 2 11 -4 1 z M47 33 l-4 -1 -2 11 4 1 z') +
-      P('abs', 'M23 38 h14 l-1 11 h-12 z') +
-      P('quads', 'M22 52 h7 l1 24 -7 1 z M31 52 h7 l-1 25 -7 -1 z') +
-    '</svg>' +
-    '<svg viewBox="0 0 60 116" class="tm-fig">' +
-      '<ellipse cx="30" cy="11" rx="7.5" ry="8.5" fill="' + body + '"/>' +
-      '<path d="M18 22 h24 l4 22 -6 4 h-20 l-6 -4 z" fill="' + body + '"/>' +
-      '<path d="M14 24 l-5 26 4 2 6 -24 z M46 24 l5 26 -4 2 -6 -24 z" fill="' + body + '"/>' +
-      '<path d="M20 50 h20 l3 30 -9 2 -8 0 -9 -2 z" fill="' + body + '"/>' +
-      '<path d="M22 82 h6 l2 30 -7 0 z M32 82 h6 l-1 30 -7 0 z" fill="' + body + '"/>' +
-      P('back', 'M20 24 h20 l-2 22 h-16 z') +
-      P('triceps', 'M13 33 l4 -1 2 11 -4 1 z M47 33 l-4 -1 -2 11 4 1 z') +
-      P('glutes', 'M21 50 h18 l1 12 -10 2 -10 -2 z') +
-      P('hamstrings', 'M22 63 h7 l1 15 -7 1 z M31 63 h7 l-1 16 -7 -1 z') +
-      P('calves', 'M23 86 h5 l1 16 -6 0 z M32 86 h5 l-1 16 -6 0 z') +
-    '</svg>' +
-  '</div>';
+/* D46B — the destination for every "what did I train" tap. The owner's
+   expectation is explicit and it is the right one: this must open the Muscle
+   Volume surface they already know, not a second muscle screen. That surface
+   is `#progVolMuscle` inside the Volume tab, so this selects Volume and brings
+   its muscle section into view. It renders nothing of its own. */
+function openMuscleVolume(){
+  switchTab('progress');
+  switchProgTab('volume');
+  /* switchProgTab scrolls the section to its top; the muscle block is the
+     third row down, so it is scrolled to after that has settled. */
+  setTimeout(() => {
+    const el = document.getElementById('progVolMuscle');
+    if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 60);
 }
 
 function renderTodayMuscles(){
   const el = document.getElementById('todayMuscles');
   if(!el) return;
-  let data = { muscles: [], total: 0 };
+  let data = null;
   try{ data = deriveWeekMuscleSets(); }catch(e){ el.innerHTML = ''; return; }
   /* Nothing trained yet this week is not a story worth a block. */
-  if(!data.setsLogged || !data.muscles.length){ el.innerHTML = ''; return; }
-  const rows = data.muscles.slice(0, 4).map(m =>
-    '<div class="tm-row"><span class="tm-name">' + escapeHtml(m.label) + '</span>' +
-    '<span class="tm-bar"><span style="width:' +
-      Math.max(6, Math.round((m.sets / data.muscles[0].sets) * 100)) + '%"></span></span>' +
-    '<span class="tm-n">' + m.sets + '</span></div>').join('');
+  if(!data || !data.setsLogged || !data.muscles.length){ el.innerHTML = ''; return; }
+  const top = data.muscles[0];
+  const share = data.total ? Math.round((top.sets / data.total) * 100) : 0;
   const spoken = data.muscles.slice(0, 4)
     .map(m => m.label + ' ' + m.sets + ' set' + (m.sets === 1 ? '' : 's')).join(', ');
+  /* The figure and the headline both answer before the list is read: the
+     shaded body shows WHERE, the callout names the leader in words. The bars
+     underneath are the same component the Volume tab uses, so tapping through
+     lands on a surface that looks and counts identically. */
   el.innerHTML =
-    '<button type="button" class="tm-card" onclick="switchTab(\'progress\'); switchProgTab(\'muscles\');"' +
-      ' aria-label="' + escapeAttr('Trained this week: ' + spoken + '. Open muscle detail.') + '">' +
-      '<span class="tm-top"><span class="tm-title">Trained this week</span>' +
-      '<span class="tm-sub">' + data.setsLogged + ' set' + (data.setsLogged === 1 ? '' : 's') + '</span></span>' +
-      '<span class="tm-body">' + muscleBodyHtml(data) +
-        '<span class="tm-list">' + rows + '</span></span>' +
+    '<button type="button" class="tm-card" onclick="openMuscleVolume()"' +
+      ' aria-label="' + escapeAttr('Trained this week: ' + spoken
+        + '. ' + data.setsLogged + ' sets logged. Open Muscle Volume.') + '">' +
+      '<span class="tm-head">' +
+        '<span class="tm-title">Trained this week</span>' +
+        '<span class="tm-go" aria-hidden="true">' + chevronRightSvg() + '</span>' +
+      '</span>' +
+      '<span class="tm-top">' +
+        '<span class="tm-body">' + bodyDiagramSvg(null, data.totals) + '</span>' +
+        '<span class="tm-info">' +
+          '<span class="tm-k">Most worked</span>' +
+          '<span class="tm-name">' + escapeHtml(top.label) + '</span>' +
+          '<span class="tm-sub"><b>' + top.sets + '</b> set' + (top.sets === 1 ? '' : 's') +
+            (share ? ' · ' + share + '% of the week' : '') + '</span>' +
+        '</span>' +
+      '</span>' +
+      '<span class="tm-bars">' +
+        muscleBarsHtml(data.totals, null, { phrasing: true, limit: 5 }) + '</span>' +
+      '<span class="tm-foot">' + data.setsLogged + ' set' +
+        (data.setsLogged === 1 ? '' : 's') + ' logged this week</span>' +
     '</button>';
 }
 
@@ -18946,36 +19090,6 @@ function switchProgTab(t){
 }
 function setProgRange(w){ progRange = w; progSelectedWeek = null; renderProgTab(); }
 
-/* Absolute + relative change per exercise, derived from real first/last
-   working weights rather than an invented percentage. */
-function computeImprovements(){
-  const out = [];
-  getAllLoggedExerciseNames().forEach(name => {
-    const sessions = getExerciseFullHistory(name);
-    if(sessions.length < 2) return;
-    const topOf = s => {
-      const w = s.sets.map(x => parseFloat(x.weight)).filter(n => !isNaN(n));
-      const r = s.sets.map(x => parseFloat(x.reps)).filter(n => !isNaN(n));
-      return { w: w.length ? Math.max(...w) : null, r: r.length ? Math.max(...r) : null, bw: s.bodyweight };
-    };
-    const recent = topOf(sessions[0]);
-    const first = topOf(sessions[sessions.length - 1]);
-    // Ranked by RELATIVE gain, since pounds and reps aren't directly comparable —
-    // +6 pull-up reps and +20 lb on a bench can only be ordered as percentages.
-    if(recent.bw || first.bw){
-      if(recent.r != null && first.r != null && recent.r > first.r)
-        out.push({ name, deltaText: `+${recent.r - first.r} reps`, sortVal: ((recent.r - first.r) / first.r) * 100, sessions: sessions.length });
-      return;
-    }
-    if(recent.w == null || first.w == null) return;
-    const dW = recent.w - first.w;
-    if(dW > 0) out.push({ name, deltaText: `+${Math.round(dW)} lb`, sortVal: (dW / first.w) * 100, sessions: sessions.length });
-    else if(dW === 0 && recent.r != null && first.r != null && recent.r > first.r)
-      out.push({ name, deltaText: `+${recent.r - first.r} reps`, sortVal: ((recent.r - first.r) / first.r) * 100, sessions: sessions.length });
-  });
-  return out.sort((a,b) => b.sortVal - a.sortVal);
-}
-
 /* P1 FIX: the progression engine's "ready to increase" tier requires a rep
    range, so passing null made that tier unreachable — "Ready to progress" was
    silently always empty. Resolve each exercise's real target range from the
@@ -20584,50 +20698,6 @@ function progressCoverage(){
   return { weeksTracked, firstDate, sessions: workoutLog.length };
 }
 
-/* One sentence, derived — never a template with an invented number in it. */
-function progressInterpretation(){
-  const cov = progressCoverage();
-  if(!cov.sessions) return null;
-
-  const cons = computeConsistencyData();
-  const imps = computeImprovements();
-  const gaining = imps.length;
-
-  /* D25: an athlete new to LOOP is not a beginner — the app is new, not the
-     training. The early state describes the app's history, not the person. */
-  if(cov.weeksTracked < 3){
-    return { dir:'flat', head:'Building your baseline',
-      line:`${cov.sessions} session${cov.sessions===1?'':'s'} logged so far. More history unlocks stronger trend comparisons.` };
-  }
-  if(gaining && cons.trend !== 'declining'){
-    return { dir:'up', head:'Getting stronger',
-      line:`${gaining} lift${gaining===1?' has':'s have'} added weight recently, and you are training ${cons.trend === 'improving' ? 'more often than before' : 'at a steady rate'}.` };
-  }
-  if(cons.trend === 'improving'){
-    return { dir:'up', head:'Building momentum',
-      line:`You are training more often than you were — ${cons.totalWorkouts} sessions over the last 12 weeks.` };
-  }
-  if(cons.trend === 'declining'){
-    return { dir:'down', head:'Training has eased off',
-      line:`Fewer sessions than earlier in the period${gaining ? `, though ${gaining} lift${gaining===1?' is':'s are'} still moving up` : ''}.` };
-  }
-  return { dir:'flat', head:'Holding steady',
-    line:`${cons.totalWorkouts} sessions over the last 12 weeks, at a consistent rate.` };
-}
-
-/* Balance across the muscles this athlete actually trains. A descriptor, not a
-   measurement — LOOP knows training history, not body composition. */
-function muscleBalanceSummary(){
-  let trained = [];
-  try{ trained = getTopMuscleMastery().filter(m => m.hasHistory); }catch(e){ return null; }
-  if(trained.length < 3) return { label:'Building', detail:`${trained.length} muscle group${trained.length===1?'':'s'} trained so far` };
-  const levels = trained.map(m => m.level);
-  const spread = Math.max(...levels) - Math.min(...levels);
-  if(spread <= 1) return { label:'Balanced', detail:`${trained.length} groups within one level` };
-  if(spread <= 3) return { label:'Developing', detail:`${trained.length} groups, ${spread} levels apart` };
-  return { label:'Uneven', detail:`${trained.length} groups, ${spread} levels apart` };
-}
-
 
 /* =========================================================
    PROGRESS DASHBOARD  (Phase D14)
@@ -20679,36 +20749,187 @@ function progLevelHtml(){
     </button>`;
 }
 
-/* Which lifts are moving, in the app's own trend vocabulary. Capped: the
-   landing page shows the signal, the Strength tab holds the detail. */
-const TREND_WORD = { up:'Improving', flat:'Stable', down:'Declining' };
-function progTrendsHtml(limit){
-  let trends = [];
-  try{ trends = computeExerciseTrends() || []; }catch(e){ trends = []; }
-  if(!trends.length){
-    return `<div class="pt-empty">Log a lift two or more times and its trend appears here.</div>`;
-  }
-  /* Movement first — a lift that is doing something is more worth the space
-     than one holding steady. */
-  const rank = { up: 0, down: 1, flat: 2 };
-  const rows = trends.slice().sort((a, b) =>
-    (rank[a.dir] - rank[b.dir]) || Math.abs(b.pct || 0) - Math.abs(a.pct || 0)
-  ).slice(0, limit || 4);
+/* =========================================================
+   PROGRESS OVERVIEW  (Phase D46B)
+   ---------------------------------------------------------
+   The landing screen answers ONE question first — am I getting
+   better — and answers it with D39’s evidence, which until now
+   only ever reached the athlete inside a program summary.
 
-  return `<div class="pt-list">` + rows.map(t => {
-    const word = TREND_WORD[t.dir] || 'Stable';
-    const pct = (t.pct !== undefined && t.pct !== null && Math.abs(t.pct) >= 1)
-      ? (t.pct > 0 ? '+' : '') + Math.round(t.pct) + '%' : '';
-    return `
-      <button type="button" class="pt-row" onclick="openExDetail('${escapeAttr(t.name)}')"
-        aria-label="${escapeAttr(t.name + ': ' + word + (pct ? ', ' + pct : ''))}">
-        <span class="pt-name">${escapeHtml(t.name)}</span>
-        <span class="pt-state pt-${t.dir}">${trendIconSvg(t.dir, 13)}<span>${word}</span></span>
-        ${pct ? `<span class="pt-pct">${pct}</span>` : `<span class="pt-pct"></span>`}
-      </button>`;
-  }).join('') + `</div>`;
+   What it replaced, and why:
+
+     The old hero read "Getting stronger" from computeImprovements(),
+     which compares the FIRST logged top set against the LAST. One
+     good day moves it permanently, and one bad day it cannot see.
+     D39 exists precisely because that comparison is not evidence:
+     it takes medians of two equal, disjoint windows, requires four
+     sessions before it will name a direction and six before it will
+     put a number on one. The most prominent claim in Progress was
+     being made by the weakest calculator in the app while the
+     strongest sat unused two tabs away.
+
+     Below the hero sat "Strength trends", which rendered
+     computeExerciseTrends() — the same list, from the same
+     function, that the Strength tab renders in full. Overview is a
+     summary layer; it does not reprint a specialist tab.
+
+   Five blocks, each answering one question, each one tap from the
+   surface that explains it:
+
+     MOVING       am I getting better        → Strength
+     PROGRAM      how is my program going    → My Training
+     THIS WEEK    what have I trained        → Volume
+     CONSISTENCY  what do my weeks look like → Log
+     RANK         where am I overall         → Rank showcase
+
+   NO AGGREGATE SCORE. Not a progress score, not a training quality
+   figure, not a fitness number. LOOP has no defensible way to add a
+   squat and a curl into one value, so it does not print one.
+   ========================================================= */
+
+/* Twelve weeks — the same window consistency and the Log strip use, so the
+   three surfaces agree about what "recently" means. */
+function progRecentWorkouts(){
+  const cut = new Date(); cut.setHours(0,0,0,0);
+  cut.setDate(cut.getDate() - 84);
+  const key = localDateStr(cut);
+  return (workoutLog || []).filter(w => w && w.date && w.date >= key);
 }
 
+/* The dominant answer. States what the evidence supports and stops there. */
+function progHeroHtml(){
+  let perf = null;
+  try{ perf = derivePerformanceProgress(progRecentWorkouts()); }catch(e){}
+  const cov = progressCoverage();
+  const rows = perf ? (perf.highlights || []) : [];
+  const improving = rows.filter(r => r.direction === 'improving');
+
+  /* Not enough comparable work yet. This says so plainly rather than
+     rendering a hero with nothing behind it. */
+  if(!perf || !perf.evidencedExercises){
+    return `
+      <section class="po-hero po-hero-quiet">
+        <div class="po-eyebrow">Your training</div>
+        <h2 class="po-head">Building your baseline</h2>
+        <p class="po-line">${cov.sessions} session${cov.sessions===1?'':'s'} logged over ${cov.weeksTracked} week${cov.weeksTracked===1?'':'s'}. Repeat a lift about four times and LOOP can start comparing where it began with where it is now.</p>
+      </section>`;
+  }
+
+  const head = improving.length ? 'Your training is moving' : 'Holding steady';
+  const line = improving.length
+    ? `${improving.length} of your ${perf.evidencedExercises} tracked lift${perf.evidencedExercises===1?'':'s'} ${improving.length===1?'is':'are'} stronger than earlier in the last 12 weeks.`
+    : `${perf.evidencedExercises} lift${perf.evidencedExercises===1?' is':'s are'} holding their level over the last 12 weeks. Steady is not stalled — it is the same work, repeated.`;
+
+  /* The evidence itself, largest first. Each row is a real median-to-median
+     comparison; a lift without enough sessions for a number shows its
+     direction in words rather than an invented percentage. */
+  const shown = rows.slice(0, 3);
+  const bars = shown.map(r => {
+    const delta = perfDeltaText(r);
+    const word = perfTrendWord(r);
+    const pct = (r.numeric && r.pct != null) ? Math.abs(Math.round(r.pct)) : null;
+    /* Bar length is capped so one outsized gain cannot flatten the others
+       into invisibility. It encodes the same number the label states. */
+    const w = pct == null ? 0 : Math.max(8, Math.min(100, Math.round((pct / 25) * 100)));
+    return `
+      <div class="po-lift">
+        <span class="po-lift-n">${escapeHtml(programShortName(r.name))}</span>
+        <span class="po-lift-track" aria-hidden="true"><i class="po-${r.direction}" style="width:${w}%"></i></span>
+        <span class="po-lift-v po-${r.direction}">${escapeHtml(delta ? (r.pct >= 0 ? '+' : '−') + pct + '%' : word)}</span>
+      </div>`;
+  }).join('');
+
+  const spoken = shown.map(r => {
+    const d = perfDeltaText(r);
+    return programShortName(r.name) + ': ' + (d || perfTrendWord(r).toLowerCase())
+      + ', from ' + r.sessions + ' comparable sessions';
+  }).join('. ');
+
+  return `
+    <button type="button" class="po-hero po-hero-tap" onclick="switchProgTab('strength')"
+      aria-label="${escapeAttr(head + '. ' + line + ' ' + spoken + '. Open Strength.')}">
+      <span class="po-hero-top">
+        <span class="po-eyebrow">Your training</span>
+        <span class="po-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </span>
+      <span class="po-head">${head}</span>
+      <span class="po-line">${line}</span>
+      <span class="po-lifts" aria-hidden="true">${bars}</span>
+      <span class="po-foot">Median of your early sessions against your recent ones</span>
+    </button>`;
+}
+
+/* Where the athlete is in the program they are running, and whether they are
+   actually running it. Both numbers come from the functions that own them —
+   the program map and D43 — so this can never disagree with My Training. */
+function progProgramCardHtml(){
+  let prog = null, rp = null;
+  try{ rp = getRunningProgram(); }catch(e){}
+  if(!rp) return '';
+  try{ prog = getProgramProgress(rp); }catch(e){}
+  if(!prog || !prog.totalWeeks) return '';
+  let fulfil = null;
+  try{ fulfil = deriveProgramPlanFulfillment(rp); }catch(e){}
+
+  const pctWeeks = Math.min(100, Math.round((prog.week / prog.totalWeeks) * 100));
+  const weeks = Array.from({ length: prog.totalWeeks }, (_, i) => {
+    const n = i + 1;
+    const st = n < prog.week ? 'done' : (n === prog.week ? 'now' : 'up');
+    return `<span class="po-wk po-wk-${st}"></span>`;
+  }).join('');
+
+  /* Adherence is shown only when the plan is knowable. An unschedulable
+     program has no denominator, and unknown is never drawn as zero. */
+  const adher = (fulfil && fulfil.planningKnown && fulfil.planned)
+    ? `<span class="po-stat"><b>${fulfil.fulfilled}</b><i>of ${fulfil.planned} planned sessions</i></span>`
+    : `<span class="po-stat"><b>${fulfil ? fulfil.totalWorkouts : 0}</b><i>sessions in this program</i></span>`;
+
+  return `
+    <button type="button" class="po-card po-card-tap" onclick="openMyTraining()"
+      aria-label="${escapeAttr(rp.name + ', week ' + prog.week + ' of ' + prog.totalWeeks
+        + (fulfil && fulfil.planningKnown && fulfil.planned
+            ? ', ' + fulfil.fulfilled + ' of ' + fulfil.planned + ' planned sessions trained' : '')
+        + '. Open My Training.')}">
+      <span class="po-card-top">
+        <span class="po-card-t">${escapeHtml(rp.name)}</span>
+        <span class="po-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </span>
+      <span class="po-wks" aria-hidden="true">${weeks}</span>
+      <span class="po-card-row">
+        <span class="po-stat"><b>Week ${prog.week}</b><i>of ${prog.totalWeeks}${prog.phase ? ' · ' + escapeHtml(prog.phase) : ''}</i></span>
+        ${adher}
+      </span>
+    </button>`;
+}
+
+/* This week, by muscle — the same derivation and the same two components as
+   the block on Today, opening the same Muscle Volume surface. Three places
+   showing this content, one calculation behind all of them. */
+function progWeekMuscleHtml(){
+  let data = null;
+  try{ data = deriveWeekMuscleSets(); }catch(e){ return ''; }
+  if(!data || !data.setsLogged || !data.muscles.length) return '';
+  const top = data.muscles[0];
+  return `
+    <button type="button" class="po-card po-card-tap" onclick="openMuscleVolume()"
+      aria-label="${escapeAttr('Trained this week: ' + data.muscles.slice(0,4)
+        .map(m => m.label + ' ' + m.sets + ' set' + (m.sets===1?'':'s')).join(', ')
+        + '. Open Muscle Volume.')}">
+      <span class="po-card-top">
+        <span class="po-card-t">This week</span>
+        <span class="po-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </span>
+      <span class="po-mus">
+        <span class="po-mus-body">${bodyDiagramSvg(null, data.totals)}</span>
+        <span class="po-mus-info">
+          <span class="po-k">Most worked</span>
+          <span class="po-mus-name">${escapeHtml(top.label)}</span>
+          <span class="po-mus-sub"><b>${data.setsLogged}</b> working set${data.setsLogged===1?'':'s'} across ${data.muscles.length} muscle group${data.muscles.length===1?'':'s'}</span>
+        </span>
+      </span>
+      <span class="po-mus-bars">${muscleBarsHtml(data.totals, null, { phrasing:true, limit:4 })}</span>
+    </button>`;
+}
 
 function renderProgDashboard(){
   const host = document.getElementById('progPerf');
@@ -20730,50 +20951,15 @@ function renderProgDashboard(){
     return;
   }
 
-  const interp = progressInterpretation();
-  const cons = computeConsistencyData();
-  const cov = progressCoverage();
-  const imps = computeImprovements();
-  const balance = muscleBalanceSummary();
-
-  /* ---- HERO: one reading, three supporting indicators ---- */
-  const tiles = [
-    `<div class="pd-tile">
-       <span class="pd-tile-k">Strength</span>
-       <span class="pd-tile-v">${imps.length ? imps.length : '—'}</span>
-       <span class="pd-tile-s">${imps.length ? `lift${imps.length===1?'':'s'} gaining` : 'no gains yet'}</span>
-     </div>`,
-    (function(){
-       const enoughWindow = cov.weeksTracked >= 4 && cons.overallConsistency !== null;
-       return `<div class="pd-tile">
-       <span class="pd-tile-k">Consistency</span>
-       <span class="pd-tile-v">${enoughWindow ? cons.overallConsistency + '<i>%</i>' : cons.totalWorkouts}</span>
-       <span class="pd-tile-s">${enoughWindow ? 'of planned sessions' : `session${cons.totalWorkouts===1?'':'s'} logged`}</span>
-     </div>`;
-     })(),
-    balance ? `<div class="pd-tile">
-       <span class="pd-tile-k">Muscle</span>
-       <span class="pd-tile-v pd-tile-word">${escapeHtml(balance.label)}</span>
-       <span class="pd-tile-s">${escapeHtml(balance.detail)}</span>
-     </div>` : ''
-  ].join('');
-
+  /* Derived once, top to bottom, in the order the questions get asked.
+     Every block is a summary of a surface that explains it, and every block
+     is one tap from that surface. */
   host.innerHTML = `
-    <div class="pd-hero">
-      ${progLevelHtml()}
-      ${interp ? `<div class="pd-hero-read pd-${interp.dir}">${trendIconSvg(interp.dir, 18)}<span>${escapeHtml(interp.head)}</span></div>
-      <div class="pd-hero-line">${escapeHtml(interp.line)}</div>
-      ${cov.weeksTracked < 12 ? `<div class="pd-cov">${cov.weeksTracked} week${cov.weeksTracked===1?'':'s'} tracked</div>` : ''}` : ''}
-      <div class="pd-tiles">${tiles}</div>
-    </div>
-
-    <div class="sec-head">Most trained<span class="sec-hint">sessions logged</span></div>
-    ${mostTrainedHtml(5)}
-
-    <div class="sec-head">Strength trends<span class="sec-hint">tap a lift for detail</span></div>
-    ${progTrendsHtml(4)}
-
-    ${progConsistencyCardHtml()}`;
+    ${progHeroHtml()}
+    ${progProgramCardHtml()}
+    ${progWeekMuscleHtml()}
+    ${progConsistencyCardHtml()}
+    ${progLevelHtml()}`;
 }
 
 /* UNKNOWN ≠ ZERO (D25, guardian rule). A 12-week chart over a 2-week-old log
@@ -20916,8 +21102,15 @@ function renderProgStrength(){
         <div class="rank-val up">${escapeHtml(r.rec.headline.split(' × ')[0])}</div>
       </div>`).join('')}</div>` : '';
 
+  /* D46B — Most Trained moved here from the Overview. It counts sessions
+     per EXERCISE, which is per-exercise information, and this is the tab
+     that holds per-exercise information. It still has exactly one home; the
+     Overview now answers "what have I trained" with the muscle summary,
+     which reads at a glance where a ranked text list did not. */
   document.getElementById('progReady').innerHTML =
-    readyHtml + progStrengthCardHtml() + progPRCardHtml();
+    readyHtml + progStrengthCardHtml() + progPRCardHtml()
+    + '<div class="sec-head">Most trained<span class="sec-hint">sessions logged</span></div>'
+    + mostTrainedHtml(5);
 
   const trends = computeExerciseTrends();
   document.getElementById('progExercises').innerHTML = `
@@ -20979,27 +21172,54 @@ function renderProgVolume(){
       (clamped ? `<div class="pd-chart-cov">Showing all ${known} week${known===1?'':'s'} LOOP has tracked</div>` : '')
     : `<div class="mini-empty">Log weighted sets to see your volume trend.</div>`}`;
 
-  const totals = computeMuscleVolumeSince(currentWeekStart());
+  /* D46B — the SAME derivation Today's summary uses, which is the surface that
+     sends the athlete here. It previously used computeMuscleVolumeSince(),
+     which counts every logged set including warm-ups and skipped work and maps
+     names by raw keyword rather than the canonical registry. The two disagreed,
+     so tapping through to check a number found a different one. There is now
+     one week-by-muscle calculation, and this reads it. */
+  const wk = deriveWeekMuscleSets();
   /* Volume shows how this week's sets are distributed. Muscle DEVELOPMENT —
      levels, mastery, long-term profile — lives in the Mastery tab and is not
      previewed here. */
   document.getElementById('progVolMuscle').innerHTML =
-    `<div class="sec-head">Sets this week by muscle</div>` + muscleBarsHtml(totals);
+    `<div class="sec-head">Sets this week by muscle<span class="sec-hint">working sets</span></div>
+     <div class="mv-card">
+       <div class="mv-top">
+         <div class="mv-body">${bodyDiagramSvg(null, wk.totals)}</div>
+         <div class="mv-info">
+           <div class="mas-sum-k">Most worked</div>
+           <div class="mv-name">${wk.muscles.length ? escapeHtml(wk.muscles[0].label) : '—'}</div>
+           <div class="mv-sub">${wk.muscles.length
+             ? `<b>${wk.muscles[0].sets}</b> set${wk.muscles[0].sets===1?'':'s'} of ${wk.setsLogged} logged`
+             : 'No working sets logged yet this week'}</div>
+         </div>
+       </div>
+       <div class="mv-bars">${muscleBarsHtml(wk.totals)}</div>
+     </div>`;
 }
 
-function muscleBarsHtml(totals, caption){
+/* The one muscle ranking in LOOP. `opts.limit` trims it for a summary that
+   opens the full list; `opts.phrasing` emits spans instead of divs so the
+   same component can sit inside a <button> without producing invalid markup —
+   a real button is used rather than a div with role="button", because the
+   latter is not keyboard-operable without a handler none of them have. */
+function muscleBarsHtml(totals, caption, opts){
+  const o = opts || {};
+  const E = o.phrasing ? 'span' : 'div';
   const sum = Object.keys(totals).reduce((n,k) => n + totals[k], 0);
-  if(!sum) return `<div class="mini-empty">No sets logged in this range yet.</div>`;
+  if(!sum) return `<${E} class="mini-empty">No sets logged in this range yet.</${E}>`;
   const max = Math.max(...Object.values(totals));
-  const rows = Object.keys(totals).map(k => ({ label: MUSCLE_LABELS[k], val: totals[k] }))
+  let rows = Object.keys(totals).map(k => ({ label: MUSCLE_LABELS[k], val: totals[k] }))
     .filter(r => r.val > 0).sort((a,b) => b.val - a.val);
+  if(o.limit) rows = rows.slice(0, o.limit);
   /* D25: the most-worked muscle leads the ranking visually. */
-  return `<div class="muscle-bar-list">${rows.map((r, i) => `
-    <div class="muscle-bar-row${i === 0 ? ' mb-top' : ''}">
-      <div class="muscle-bar-label">${r.label}</div>
-      <div class="muscle-bar-track"><div class="muscle-bar-fill" style="width:${((r.val/max)*100).toFixed(1)}%"></div></div>
-      <div class="muscle-bar-pct">${r.val}</div>
-    </div>`).join('')}</div>` + (caption ? `<div class="muscle-foot">${escapeHtml(caption)}</div>` : '');
+  return `<${E} class="muscle-bar-list">${rows.map((r, i) => `
+    <${E} class="muscle-bar-row${i === 0 ? ' mb-top' : ''}">
+      <${E} class="muscle-bar-label">${r.label}</${E}>
+      <${E} class="muscle-bar-track"><${E} class="muscle-bar-fill" style="width:${((r.val/max)*100).toFixed(1)}%"></${E}></${E}>
+      <${E} class="muscle-bar-pct">${r.val}</${E}>
+    </${E}>`).join('')}</${E}>` + (caption ? `<${E} class="muscle-foot">${escapeHtml(caption)}</${E}>` : '');
 }
 
 function renderProgMuscles(){
@@ -26292,15 +26512,28 @@ function programContextHtml(){
   }
   /* With no program, Today still names the feature and offers the way in —
      Programs used to be reachable only by digging through Settings. Quiet
-     enough that it never competes with Start Workout. */
+     enough that it never competes with Start Workout.
+
+     D46B — this used to return nothing at all unless the library was empty,
+     so the athlete who had finished a program, or built one and stopped it,
+     lost every trace of the feature from Today. Having trained with LOOP
+     before is a reason to make the way back easier, not a reason to remove
+     it. Both states offer one row; only the wording and the destination
+     differ, and neither shames training without a program. */
   if(!p){
-    let none = false;
-    try{ none = getPrograms().length === 0; }catch(e){ return ''; }
-    if(!none) return '';
+    let saved = [];
+    try{ saved = getPrograms(); }catch(e){ return ''; }
+    if(!saved.length){
+      return `
+        <button class="tw-program tw-program-empty" onclick="openProgramBuilderFlow('create')">
+          <span class="tw-program-name">Build my program</span>
+          <span class="tw-program-meta">A few quick choices and LOOP builds it ›</span>
+        </button>`;
+    }
     return `
-      <button class="tw-program tw-program-empty" onclick="openProgramBuilderFlow('create')">
-        <span class="tw-program-name">Build my program</span>
-        <span class="tw-program-meta">A few quick choices and LOOP builds it ›</span>
+      <button class="tw-program tw-program-empty" onclick="openPrograms()">
+        <span class="tw-program-name">Start a program</span>
+        <span class="tw-program-meta">${saved.length} saved · or build a new one ›</span>
       </button>`;
   }
   const prog = getProgramProgress(p);
@@ -26731,6 +26964,29 @@ function renderMyTraining(){
     </div>`}
 
     ${finishedSum ? '' : myTrainingStatsHtml(t)}
+
+    ${/* D46B — with no program running, this page used to read as a schedule
+          with the program feature reduced to the fourth row of "Adjust", far
+          below the fold. Structured training is the point of the screen, so
+          when none is running the way into it is stated here, once, above the
+          week rather than under it. It never appears while a program is
+          running, and it does not disparage training without one. */''}
+    ${(!t.hasProgram && !finishedSum) ? (() => {
+      let saved = [];
+      try{ saved = getPrograms(); }catch(e){}
+      return `
+        <button type="button" class="mt-start" onclick="${saved.length
+          ? 'closeMyTraining(); openPrograms();'
+          : "openProgramBuilderFlow('create')"}">
+          <span class="mt-start-k">No program running</span>
+          <span class="mt-start-t">${saved.length ? 'Start a program' : 'Build my program'}</span>
+          <span class="mt-start-s">${saved.length
+            ? `${saved.length} saved program${saved.length===1?'':'s'} · or build a new one`
+            : 'A few questions and LOOP writes the weeks, the days and the progression'}</span>
+          <span class="mt-start-go" aria-hidden="true">${chevronRightSvg()}</span>
+        </button>
+        <div class="mt-start-alt">You can keep training from your own workouts below — a program is not required.</div>`;
+    })() : ''}
 
     ${finishedSum ? `<div class="sec-head">Last program</div>
        ${programCompletionHtml(finishedSum, { programId: finishedId })}` : ''}

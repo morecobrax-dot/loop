@@ -1791,8 +1791,10 @@ async function testFirstImpression(){
    'invalidateCapabilityCache','invalidateContextCache','invalidateRecoveryCache','invalidateShadowCache']
     .forEach(f => ctx[f] && ctx[f]());
   ctx.renderProgTab(); ctx.renderToday();
+  /* D46B — the reading is the hero headline, which now states what D39's
+     evidence supports instead of what a first-vs-last comparison implied. */
   T('Progress returns a real reading with data',
-    /pd-hero-read/.test(doc.getElementById('progPerf').innerHTML));
+    /po-head/.test(doc.getElementById('progPerf').innerHTML));
   /* Originally this checked `mo-val`, the value class of three Momentum tiles
      — one of which ("N% on target") measured how long the athlete had owned
      the app rather than how well they trained. Those went in D27; Momentum
@@ -6939,8 +6941,11 @@ function testD11Consolidation(app){
        and the "interpretable figure" contract against the hero's own tiles. */
     T('volume-vs-last-week is gone from the summary', src.indexOf('Volume vs last wk') === -1);
     T('the undefined "avg workout score" is gone', src.indexOf('Avg workout score') === -1);
+    /* D46B — the three unlabelled-adjacent tiles became labelled blocks. A
+       figure is interpretable when the thing it counts is named beside it:
+       a lift's percentage sits on the lift, a week count sits on the program. */
     T('the summary keeps figures an athlete can interpret',
-      /pd-tile-k">Strength</.test(src) && /pd-tile-k">Consistency</.test(src));
+      /class="po-lift-v/.test(src) && /class="po-stat"><b>/.test(src));
     T('"avg session score" is gone from the hero too', src.indexOf('Avg session score') === -1);
     /* Counted against code only — a comment elsewhere quotes the old
        "Holding steady - 0 workouts" state it describes fixing. */
@@ -7458,15 +7463,21 @@ function testProgressDashboard(app){
   sub('never fabricates a window it does not have');
   {
     const html = render([0,3,7,10].map((d,i)=>sess(i,i%2?'upper':'lower',d,135)));
-    T('coverage is stated when short of the full window', /pd-cov/.test(html));
-    T('it says how much is actually tracked', /weeks? tracked/.test(html));
+    /* D46B — coverage stopped being a separate line under the hero and
+       became the hero itself: with too little comparable work to compare,
+       the headline says so and the sentence states exactly what LOOP has. */
+    T('coverage is stated when short of the full window', /po-hero-quiet/.test(html));
+    T('it says how much is actually tracked', /over \d+ weeks?/.test(html));
     /* D25: the early state describes the app's short history, never the
        athlete — they may train seriously and merely be new to LOOP. */
     T('the reading admits it is early', /Building your baseline/.test(html));
     T('without calling the athlete a beginner', !/beginner|getting started/i.test(html));
-    T('and says what more history buys', /More history unlocks/.test(html));
+    T('and says what more history buys', /LOOP can start comparing/.test(html));
+    /* Stronger than it was: coverage is no longer merely NEAR the reading,
+       it is inside the sentence, so the two cannot be separated by a later
+       layout change. */
     T('coverage sits WITH the reading, not floating between sections',
-      /pd-hero-line[\s\S]{0,220}pd-cov/.test(html) && html.indexOf('pd-cov') < html.indexOf('pd-tiles'));
+      /class="po-line">[^<]*over \d+ weeks?/.test(html));
     /* overallConsistency divides by twelve weeks of planned sessions. Showing
        that to a two-week-old account reads as failure when they have in fact
        hit every session they planned. */
@@ -7476,27 +7487,48 @@ function testProgressDashboard(app){
   }
   {
     const html = render(longHistory());
-    T('the percentage returns once the window is real', /of planned sessions/.test(html));
-    T('and coverage is no longer flagged', !/pd-cov/.test(html));
+    T('the percentage returns once the window is real', /% of planned/.test(html));
+    T('and coverage is no longer flagged', !/po-hero-quiet/.test(html));
   }
 
   sub('the hero interprets rather than listing');
   {
     const html = render(longHistory());
-    T('there is a single headline reading', (html.match(/pd-hero-read/g) || []).length === 1);
-    T('it is backed by a sentence', /pd-hero-line/.test(html));
-    T('the reading carries a trend icon, not a character',
-      /pd-hero-read[\s\S]{0,120}<svg/.test(html));
-    T('exactly three supporting indicators', (html.match(/class="pd-tile"/g) || []).length === 3);
+    T('there is a single headline reading', (html.match(/class="po-head"/g) || []).length === 1);
+    T('it is backed by a sentence', /po-line/.test(html));
+    /* D46B — the reading no longer needs an icon to carry its direction:
+       each lift states a signed percentage or the direction in words, and
+       the bar draws the size. What the contract forbids — punctuation
+       standing in for meaning — is asserted directly. */
+    T('the reading carries a drawn mark and a word, not a character',
+      /po-lift-track/.test(html) && !/[\u2197\u2192\u2198\u2191\u2193]/.test(html));
+    /* Still exactly three supporting indicators, and still capped so the
+       hero cannot grow into a list. They are lifts now rather than tiles. */
+    /* D46B — three tiles were three because the layout had three slots; the
+       hero shows the evidence it actually has, capped at three. Pinning the
+       literal 3 would pin a number rather than the rule, so this asserts the
+       rule: never more than three, and never padded or truncated away from
+       what D39 can support. */
+    const evid = ctx.derivePerformanceProgress(ctx.progRecentWorkouts()).highlights.length;
+    const shown = (html.match(/class="po-lift"/g) || []).length;
+    T('supporting indicators are capped at three', shown <= 3);
+    T('and show exactly the evidence there is', shown === Math.min(3, evid));
+    /* The three questions kept their answers; each now has its own block
+       and its own drill-down instead of sharing one tile strip. */
     T('they are Strength, Consistency and Muscle',
-      /pd-tile-k">Strength</.test(html) && /pd-tile-k">Consistency</.test(html) && /pd-tile-k">Muscle</.test(html));
+      /po-lifts/.test(html) && /pd-wk/.test(html) && /po-mus/.test(html));
   }
 
   sub('every figure comes from a calculation that already existed');
   {
     const mod = src.slice(src.indexOf('function progressCoverage(){'), src.indexOf('function trophyIconSvg(){'));
-    ['computeConsistencyData','computeImprovements','computeWeeklyVolume','computeAllPREvents',
-     'getTopMuscleMastery'].forEach(fn =>
+    /* D46B — repointed at the calculators the rebuilt Overview actually
+       reads. computeImprovements and the mastery balance descriptor went
+       with the tiles they fed; D39, D43 and the shared week-by-muscle
+       derivation replaced them, and naming those here is a stronger
+       guarantee than naming the ones that happened to be there before. */
+    ['computeConsistencyData','derivePerformanceProgress','deriveProgramPlanFulfillment',
+     'deriveWeekMuscleSets'].forEach(fn =>
       T('reuses ' + fn + '()', mod.indexOf(fn + '(') !== -1));
     /* Exercise mastery moved out of the dashboard entirely; the calculation is
        unchanged and still feeds the tab that owns it. */
@@ -7611,7 +7643,7 @@ function testProgressDashboard(app){
     const html = render(longHistory());
     T('no arrow or tick characters', !/[✓✗→←↑↓★]/.test(html.replace(/<[^>]*>/g, '')));
     T('no emoji', !/[\u{1F300}-\u{1FAFF}]/u.test(html));
-    T('trend direction is an inline svg', /class="ti ti-/.test(html));
+    T('trend direction is drawn, not typed', /po-lift-track/.test(html));
   }
 
   sub('layout and touch targets');
@@ -7649,7 +7681,11 @@ async function testProgressSafety(){
   const masteryBefore = JSON.stringify(ctx.getTopExerciseMastery());
   const muscleBefore = JSON.stringify(ctx.getTopMuscleMastery());
   const consBefore = JSON.stringify(ctx.computeConsistencyData());
-  const impsBefore = JSON.stringify(ctx.computeImprovements());
+  /* computeImprovements was retired in D46B with the hero it fed. The
+     property this line guards — driving Progress mutates no derived
+     training fact — is guarded against D39, which is what the rebuilt
+     Overview reads and a far more expensive calculation to corrupt. */
+  const impsBefore = JSON.stringify(ctx.derivePerformanceProgress(ctx.workoutLog).highlights);
   const prsBefore = ctx.computeAllPREvents().length;
   const scheduleBefore = JSON.stringify(ctx.schedule);
   const notesBefore = app.store.exerciseNotes;
@@ -7662,8 +7698,8 @@ async function testProgressSafety(){
   [4, 8, 12].forEach(w => { ctx.setProgRange(w); });
   ctx.renderProgDashboard();
   ctx.progressCoverage();
-  ctx.progressInterpretation();
-  ctx.muscleBalanceSummary();
+  ctx.progHeroHtml();
+  ctx.progWeekMuscleHtml();
   ctx.openAllRecords();
   ctx.openAllRecords();
   ['strength','volume','muscles','overview'].forEach(t => { ctx.progTab = t; ctx.renderProgTab(); });
@@ -7686,7 +7722,8 @@ async function testProgressSafety(){
 
   sub('the calculations the dashboard reads are themselves unchanged');
   T('consistency calculation unchanged', JSON.stringify(ctx.computeConsistencyData()) === consBefore);
-  T('improvements calculation unchanged', JSON.stringify(ctx.computeImprovements()) === impsBefore);
+  T('performance calculation unchanged',
+    JSON.stringify(ctx.derivePerformanceProgress(ctx.workoutLog).highlights) === impsBefore);
   T('exercise mastery unchanged', JSON.stringify(ctx.getTopExerciseMastery()) === masteryBefore);
   T('muscle ranking unchanged', JSON.stringify(ctx.getTopMuscleMastery()) === muscleBefore);
   T('schedule unchanged', JSON.stringify(ctx.schedule) === scheduleBefore);
@@ -9642,9 +9679,15 @@ function testD13Presentation(app){
      here. The rule they protect — a trend is a drawn mark plus a word, never a
      bare arrow character — is enforced against the live Progress trend rows
      instead, which is where an athlete actually reads one. */
-  T('the existing icon is used', /trendIconSvg\(t\.dir, 13\)/.test(src));
+  /* D46B — pinned a second time. The Overview trend list these described
+     reprinted the Strength tab and was retired with the rebuild; the rule
+     they protect is enforced where an athlete now reads a trend. The
+     Strength directory still draws the mark, and the Overview hero still
+     states the direction in words for any lift without enough sessions to
+     carry a number. */
+  T('the existing icon is used', /trendIconSvg\(trendDirOf\(t\.dir\)\)/.test(src));
   T('the word carries the meaning alongside it',
-    /<span class="pt-state pt-\$\{t\.dir\}">\$\{trendIconSvg\(t\.dir, 13\)\}<span>\$\{word\}<\/span>/.test(src));
+    /perfTrendWord\(r\)/.test(src) && /TREND_WORDS|perfTrendWord/.test(src));
 
   sub('Most Trained counts real sessions, and stays a summary');
   ctx.workoutLog.length = 0;
@@ -9794,7 +9837,11 @@ function testProgressDashboardD14(app){
   T('progress identity is the shared D23 medal, not a second ring',
     /pl-medal/.test(html) && /class="rank-medal"/.test(html) && !/pl-ring/.test(html));
   T('the medal comes from the one shared renderer', (() => {
-    const fn = src.slice(src.indexOf('function progLevelHtml'), src.indexOf('const TREND_WORD'));
+    /* End anchor followed TREND_WORD, which was retired with the Overview
+       trend list. It now runs to the next banner, which is a real module
+       boundary rather than whichever declaration happened to sit there. */
+    const fn = src.slice(src.indexOf('function progLevelHtml'),
+                         src.indexOf('PROGRESS OVERVIEW  (Phase D46B)'));
     return /rankMedalSvg\(p\.rank/.test(fn) && !/<circle/.test(fn);
   })());
   T('XP progress is still drawn', /pl-xpbar/.test(html));
@@ -9809,13 +9856,21 @@ function testProgressDashboardD14(app){
     !/fitness score|overall score|loop score/i.test(html));
 
   sub('the three questions are answered in order');
-  const order = ['pl-medal', 'pd-hero-read', 'pd-tiles', 'Most trained', 'Strength trends'];
-  T('level, then reading, then indicators, then what I do, then what is moving', (() => {
+  /* D46B — the order inverted deliberately. Level led the old Overview
+     because the XP system needed somewhere to show itself; it is identity,
+     not progress, and it answered none of the three questions. The reading
+     leads now, and level closes. */
+  const order = ['po-head', 'po-lifts', 'po-mus', 'pd-wk', 'pl-medal'];
+  T('reading, then evidence, then what I trained, then my weeks, then level', (() => {
     let last = -1;
     return order.every(k => { const i = html.indexOf(k); if(i <= last) return false; last = i; return true; });
   })());
-  T('the headline reading survived the reorder', (html.match(/pd-hero-read/g) || []).length === 1);
-  T('so did its three indicators', (html.match(/class="pd-tile"/g) || []).length === 3);
+  T('the headline reading survived the reorder', (html.match(/class="po-head"/g) || []).length === 1);
+  T('so did its indicators', (() => {
+    const evid = ctx.derivePerformanceProgress(ctx.progRecentWorkouts()).highlights.length;
+    const shown = (html.match(/class="po-lift"/g) || []).length;
+    return shown <= 3 && shown === Math.min(3, evid);
+  })());
 
   sub('the landing view leads, the sub-tabs hold the detail');
   /* The segmented tabs ARE the navigation. A second list at the foot of the
@@ -9844,7 +9899,16 @@ function testProgressDashboardD14(app){
     /pd-wk/.test(html));
 
   sub('Most Trained is a summary, with one home');
-  T('it is on the landing view', /mtx-list|mt-empty/.test(html));
+  /* D46B — its home moved to Strength, which is the tab that holds
+     per-exercise information; the Overview answers "what have I trained"
+     with the muscle summary, which reads at a glance where a ranked text
+     list did not. The contract still requires exactly one home. */
+  T('it has a home, and that home is the Strength tab', (() => {
+    ctx.switchProgTab('strength');
+    const st = doc.getElementById('progReady').innerHTML;
+    ctx.switchProgTab('overview');
+    return /mtx-list|mt-empty/.test(st) && !/mtx-list/.test(html);
+  })());
   T('it is capped at five', (html.match(/mtx-row/g) || []).length <= 5);
   T('it counts sessions, from real history',
     ctx.mostTrainedExercises(5)[0].sessions === 48);
@@ -9856,26 +9920,36 @@ function testProgressDashboardD14(app){
   T('the app has only one Most trained heading',
     (src.match(/>Most trained</g) || []).length === 1);
 
-  sub('trends are a mark plus a word plus a name');
-  T('each trend row carries a drawn icon', /pt-state[^>]*>\s*<svg/.test(html));
-  T('and the state in words', /Improving|Stable|Declining/.test(html));
-  T('and an accessible label naming both', /aria-label="[^"]+: (Improving|Stable|Declining)/.test(html));
+  sub('the evidence rows are a mark plus a value plus a name');
+  /* D46B — these described the Overview trend list, which rendered the
+     same computeExerciseTrends() output the Strength tab renders in full.
+     A summary layer does not reprint a specialist tab, so it was retired
+     and the hero's evidence rows took its place. Every property is
+     re-asserted against those rows, which carry BETTER evidence: medians
+     of two disjoint windows rather than first-against-last. */
+  T('each evidence row carries a drawn mark', /po-lift-track/.test(html));
+  T('and the value in words or a signed number',
+    /class="po-lift-v[^"]*">(\+|−|Improving|Steady|Declining)/.test(html));
+  T('and an accessible label naming the lift and its evidence',
+    /aria-label="[^"]*comparable sessions/.test(html));
   T('no arrow characters are used for trend', !/[↗→↘]/.test(html));
-  T('the list is capped, not every lift', (html.match(/pt-row/g) || []).length <= 4);
-  T('a trend row opens the lift it names', /openExDetail\(/.test(html));
+  T('the list is capped, not every lift', (html.match(/class="po-lift"/g) || []).length <= 3);
+  T('the row opens the surface that explains it', /switchProgTab\('strength'\)/.test(html));
   T('the state is not carried by colour alone', (() => {
-    /* Each state has its own word; colour only reinforces it. */
-    return /\.pt-up\{ color/.test(css) && /TREND_WORD = \{ up:'Improving', flat:'Stable', down:'Declining' \}/.test(src);
+    /* A percentage carries its own sign and a non-numeric lift is given the
+       direction in words, so neither depends on the tone token. */
+    return /\.po-lift-v\.po-improving\{ color/.test(css) &&
+      /function perfTrendWord\(r\)/.test(src);
   })());
 
   sub('nothing here computes anything new');
   const before = JSON.stringify(ctx.workoutLog);
   ctx.renderProgDashboard();
-  ctx.progLevelHtml(); ctx.progTrendsHtml(4);
+  ctx.progLevelHtml(); ctx.progHeroHtml(); ctx.progWeekMuscleHtml();
   T('rendering Progress does not write history', JSON.stringify(ctx.workoutLog) === before);
   T('no storage key was added', ctx.DATA_KEYS.length === 15);
   T('the trainer is not involved', (() => {
-    const mod = src.slice(src.indexOf('PROGRESS DASHBOARD  (Phase D14)'), src.indexOf('function renderProgDashboard'));
+    const mod = src.slice(src.indexOf('PROGRESS OVERVIEW  (Phase D46B)'), src.indexOf('function renderProgDashboard'));
     return !/trainerLog|proposeTrainerState|TRAINER_CONFIG/.test(mod);
   })());
 }
@@ -10945,13 +11019,18 @@ function testDesignSystem(app){
      642, and the muscle rows began at 642 — a gap of zero, so the dates ran
      into the breakdown. .sec-head is what carries LOOP's section separation,
      and this was the only section in the panel without one. */
-  T('the breakdown has a heading', /<div class="sec-head">Sets this week by muscle<\/div>/.test(src));
+  /* D46B — the section gained a hint and the figure that Today's summary
+     shows, so the heading is matched by its opening rather than its exact
+     closing tag. The rule is unchanged: this section carries a .sec-head. */
+  T('the breakdown has a heading', /<div class="sec-head">Sets this week by muscle/.test(src));
   T('the heading comes before the data, not after',
-    src.indexOf('Sets this week by muscle') < src.indexOf("muscleBarsHtml(totals)"));
+    src.indexOf('Sets this week by muscle') < src.indexOf("muscleBarsHtml(wk.totals)"));
   T('and the trailing caption is gone rather than repeated',
-    /muscleBarsHtml\(totals\)/.test(src));
+    /muscleBarsHtml\(wk\.totals\)/.test(src));
+  /* The element name is a variable now so the same component can sit inside
+     a <button>; the property is that the caption is still optional. */
   T('the caption is optional so a heading never duplicates it',
-    /\(caption \? `<div class="muscle-bar-foot"|caption \? `<div class="muscle-foot">/.test(src));
+    /\(caption \? `<\$\{E\} class="muscle-foot">/.test(src));
   /* D25: the Mastery tab's copy consolidated into the single Muscle volume
      card — still labelled, still the same one component. */
   T('the Mastery tab still labels its own copy of the same component',
@@ -13504,7 +13583,8 @@ async function testProgressExperience(){
   T('there is exactly one medal renderer in the app',
     (src.match(/function rankMedalSvg\(/g) || []).length === 1);
   T('progLevelHtml computes no XP arithmetic of its own', (() => {
-    const fn = src.slice(src.indexOf('function progLevelHtml'), src.indexOf('const TREND_WORD'));
+    const fn = src.slice(src.indexOf('function progLevelHtml'),
+                         src.indexOf('PROGRESS OVERVIEW  (Phase D46B)'));
     return !/calculateLevelFromXP|calculateRankFromLevel|lifetimeXP/.test(fn);
   })());
 
@@ -15907,15 +15987,16 @@ async function testTrainedThisWeek(){
   T('no second muscle mapping was introduced',
     (src.match(/const MUSCLE_MAP = /g) || []).length === 1 &&
     (src.match(/function musclesForExercise\(/g) || []).length === 1);
-  T('the derivation reads that registry', (() => {
+  /* D46B — bounded by the next function rather than a character count. The
+     count broke the moment the derivation grew, which is a property of the
+     ruler and not of the code being measured. */
+  const dwmsBody = (() => {
     const i = src.indexOf('function deriveWeekMuscleSets');
-    return src.slice(i, i + 1800).indexOf('musclesForExercise(') !== -1;
-  })());
-  T('and it borrows no weights from the recovery engine', (() => {
-    const i = src.indexOf('function deriveWeekMuscleSets');
-    const body = src.slice(i, i + 1800);
-    return body.indexOf('RECOVERY_CONFIG') === -1 && body.indexOf('recencyDecay') === -1;
-  })());
+    return src.slice(i, src.indexOf('function openMuscleVolume', i));
+  })();
+  T('the derivation reads that registry', dwmsBody.indexOf('musclesForExercise(') !== -1);
+  T('and it borrows no weights from the recovery engine',
+    dwmsBody.indexOf('RECOVERY_CONFIG') === -1 && dwmsBody.indexOf('recencyDecay') === -1);
 
   sub('the numbers say what they mean');
   {
@@ -15961,13 +16042,24 @@ async function testTrainedThisWeek(){
     const body = src.slice(i, j).replace(/\/\*[\s\S]*?\*\//g, ' ');
     return !/stimulus|activation|hypertroph|growth|recovered/i.test(body);
   })());
+  /* D46B — the block drew its own silhouettes and its own bar rows, which
+     is why it read as a widget embedded in LOOP rather than part of it. It
+     now composes the two components this content already had. The reading
+     requirement is unchanged and is asserted against the components that
+     replaced the bespoke ones. */
   T('the block is read as well as drawn', (() => {
     const i = src.indexOf('function renderTodayMuscles');
-    const body = src.slice(i, i + 1600);
-    return body.indexOf('tm-row') !== -1 && body.indexOf('aria-label') !== -1;
+    const body = src.slice(i, i + 2200);
+    return body.indexOf('muscleBarsHtml') !== -1 && body.indexOf('aria-label') !== -1;
   })());
-  T('the figures are decoration over that reading, not the reading',
-    /<div class="tm-figs" aria-hidden="true">/.test(src));
+  T('the figure is drawn by the one shared body renderer, not a second one', (() => {
+    const i = src.indexOf('function renderTodayMuscles');
+    const body = src.slice(i, i + 2200);
+    return body.indexOf('bodyDiagramSvg(null, data.totals)') !== -1;
+  })());
+  T('and LOOP still has exactly one body figure',
+    (src.match(/function bodyDiagramSvg\(/g) || []).length === 1 &&
+    !/function muscleBodyHtml\(/.test(src));
   T('nothing about it is persisted',
     !/LOOPStore\.set\([^)]*muscle/i.test(src));
   T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
@@ -15978,8 +16070,180 @@ async function testTrainedThisWeek(){
     ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
     T('no zero-state block is drawn', ctx.deriveWeekMuscleSets().setsLogged === 0);
     T('and the renderer clears rather than inventing rows',
-      /if\(!data\.setsLogged \|\| !data\.muscles\.length\)\{ el\.innerHTML = /.test(src));
+      /if\(!data \|\| !data\.setsLogged \|\| !data\.muscles\.length\)\{ el\.innerHTML = /.test(src));
   }
+}
+
+/* =========================================================
+   CONTRACT 145 — PROGRESS COMMAND CENTRE  (Phase D46B)
+
+   Three properties, each of which was actually broken before this
+   phase rather than hypothetically breakable:
+
+     1. The headline claim on Progress must come from D39. It used to
+        come from a first-against-last comparison that one good day
+        moved permanently.
+     2. A number shown in a summary must be the number found on the
+        surface that summary opens. Today’s muscle block and the
+        Muscle Volume tab it opened were two different calculations,
+        so tapping through to check a figure found a different one.
+     3. Program functionality must survive having no program. Today
+        hid the feature entirely once the athlete had ever saved one,
+        and hid it on every rest day regardless.
+   ========================================================= */
+async function testProgressCommandCentre(){
+  section('CONTRACT 145 — Progress command centre (D46B)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const doc = app.doc || ctx.document;
+
+  const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+    + '-' + String(d.getDate()).padStart(2,'0');
+  const now = new Date(); now.setHours(0,0,0,0);
+  const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay()+6)%7));
+  const dd = n => fmt(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate()+n));
+
+  sub('the headline is D39 evidence, never a first-against-last guess');
+  {
+    const i = src.indexOf('function progHeroHtml');
+    const body = src.slice(i, src.indexOf('function progProgramCardHtml', i));
+    T('the hero reads derivePerformanceProgress', body.indexOf('derivePerformanceProgress(') !== -1);
+    T('and nothing else computes a trend for it',
+      body.indexOf('computeExerciseTrends') === -1);
+    T('the calculator D39 replaced is gone from the app entirely',
+      src.indexOf('function computeImprovements(') === -1);
+    /* The rule that made D39 necessary: a direction needs four sessions and
+       a NUMBER needs six. The hero must not print a percentage the engine
+       declined to certify. */
+    T('a percentage is printed only where D39 marked it numeric',
+      /r\.numeric && r\.pct != null/.test(body));
+  }
+
+  sub('no aggregate score is invented anywhere on Progress');
+  {
+    ctx.workoutLog = [];
+    for(let w = 12; w >= 0; w--){
+      for(const d of [0,2,4]){
+        ctx.workoutLog.push({ id:'h'+w+d, date: dd(-w*7 + d), category:'push', title:'S', notes:'',
+          exercises:[{ name:'Bench Press', bodyweight:false,
+            sets:[{weight:String(135 + (12-w)*2.5), reps:'8', rir:'1', type:'working', completed:true}] }] });
+      }
+    }
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    ctx.invalidateConsistencyCache && ctx.invalidateConsistencyCache();
+    ctx.progTab = 'overview';
+    ctx.renderProgDashboard();
+    const html = doc.getElementById('progPerf').innerHTML;
+    T('the Overview renders with a mature history', html.length > 200);
+    T('no progress score, training quality or fitness number',
+      !/progress score|training quality|fitness score|overall score|loop score/i.test(html));
+    T('and no bare "NN/100" anywhere in it', !/\b\d{1,3}\s*\/\s*100\b/.test(html));
+    T('every block opens the surface that explains it',
+      /switchProgTab\('strength'\)/.test(html) && /openMuscleVolume\(\)/.test(html)
+      && /switchTab\('history'\)/.test(html));
+  }
+
+  sub('a summary and the surface it opens are the same arithmetic');
+  {
+    /* A warm-up and a skipped exercise beside real work: the two
+       calculations disagreed on exactly this shape, and the athlete who
+       tapped through to check found a different number. */
+    ctx.workoutLog = [{ id:'m', date: dd(0), category:'push', title:'P', notes:'',
+      exercises:[
+        { name:'Bench Press', bodyweight:false, sets:[
+          {weight:'95',reps:'10',rir:'4',type:'warmup',completed:true},
+          {weight:'185',reps:'8',rir:'1',type:'working',completed:true},
+          {weight:'185',reps:'8',rir:'1',type:'working',completed:true}] },
+        { name:'Back Squat', bodyweight:false, skipped:true, sets:[
+          {weight:'225',reps:'5',rir:'2',type:'working',completed:true}] }] }];
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+
+    const wk = ctx.deriveWeekMuscleSets();
+    T('the warm-up and the skipped exercise are both excluded', wk.setsLogged === 2,
+      'setsLogged=' + wk.setsLogged);
+
+    ctx.renderTodayMuscles();
+    const today = doc.getElementById('todayMuscles').innerHTML;
+    ctx.switchProgTab('volume');
+    const volume = doc.getElementById('progVolMuscle').innerHTML;
+
+    /* Pull every "muscle-bar-pct" figure off both surfaces and require them
+       to match exactly — not merely to be produced by similar-looking code. */
+    const figures = h => (h.match(/muscle-bar-pct[^>]*>(\d+)</g) || [])
+      .map(x => x.replace(/[^0-9]/g, ''));
+    const a = figures(today), b = figures(volume);
+    T('both surfaces report figures at all', a.length > 0 && b.length > 0,
+      'today=' + a.length + ' volume=' + b.length);
+    T('and every figure agrees between them', a.join(',') === b.join(','),
+      'today=[' + a + '] volume=[' + b + ']');
+    T('because there is one week-by-muscle derivation, read twice', (() => {
+      const i = src.indexOf('function renderProgVolume');
+      const body = src.slice(i, src.indexOf('function muscleBarsHtml', i));
+      return body.indexOf('deriveWeekMuscleSets()') !== -1
+        && body.indexOf('computeMuscleVolumeSince(currentWeekStart())') === -1;
+    })());
+
+    sub('the summary opens the Muscle Volume surface the athlete knows');
+    T('Today\u2019s block routes to openMuscleVolume', /openMuscleVolume\(\)/.test(today));
+    T('which selects the Volume tab, not a second muscle screen', (() => {
+      const i = src.indexOf('function openMuscleVolume');
+      const body = src.slice(i, src.indexOf('function renderTodayMuscles', i));
+      return /switchProgTab\('volume'\)/.test(body) && !/switchProgTab\('muscles'\)/.test(body);
+    })());
+    T('and brings the existing muscle section into view',
+      /getElementById\('progVolMuscle'\)/.test(src.slice(src.indexOf('function openMuscleVolume'),
+                                                  src.indexOf('function renderTodayMuscles'))));
+    T('no second muscle-detail renderer was added',
+      (src.match(/function renderProgMuscles\(/g) || []).length === 1 &&
+      !/function renderMuscleDetail\(|function openMuscleDetail\(/.test(src));
+
+    /* Order independence: the same week reported the same way regardless of
+       how the log happens to be sorted. */
+    const forward = JSON.stringify(ctx.deriveWeekMuscleSets().totals);
+    ctx.workoutLog.reverse();
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    T('reversing the log changes nothing',
+      JSON.stringify(ctx.deriveWeekMuscleSets().totals) === forward);
+  }
+
+  sub('program functionality survives having no program');
+  {
+    const i = src.indexOf('function programContextHtml');
+    const body = src.slice(i, src.indexOf('function renderTodayWorkout', i) > i
+      ? src.indexOf('function renderTodayWorkout', i) : i + 2600);
+    T('an empty library is offered the builder', /openProgramBuilderFlow\('create'\)/.test(body));
+    T('and a non-empty one is still offered a way in', /openPrograms\(\)/.test(body));
+    T('the way in is never withheld for having saved a program before',
+      !/if\(!none\) return '';/.test(body));
+
+    /* The rest-day branch omitted the program row entirely, so the feature
+       vanished from Today one day in three. */
+    T('a rest day still carries the program row', (() => {
+      const j = src.indexOf('<div class="tw tw-rest">');
+      return src.slice(j - 400, j + 200).indexOf('programContextHtml()') !== -1;
+    })());
+
+    T('My Training states the way into a program when none is running',
+      /class="mt-start"/.test(src) && /No program running/.test(src));
+    T('and it routes to the one canonical builder', (() => {
+      const j = src.indexOf('class="mt-start"');
+      const body2 = src.slice(j - 900, j + 900);
+      return /openProgramBuilderFlow\('create'\)/.test(body2) || /openPrograms\(\)/.test(body2);
+    })());
+    T('no second program generator was introduced',
+      !/function quickProgramBuilder|function emptyStateBuilder|function homepageProgramGenerator/.test(src)
+      && (src.match(/function openProgramBuilderFlow\(/g) || []).length === 1);
+    T('training without a program is not disparaged',
+      /a program is not required/i.test(src));
+  }
+
+  sub('it stays derived');
+  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('nothing about the Overview is persisted',
+    !/topProgressMetric|weeklyMuscleSummary|overviewCards|programEmptyState/.test(src));
 }
 
 /* =========================================================
@@ -17436,6 +17700,7 @@ async function main(){
   await testPlannedVsPerformed();
   await testPlanConsistency();
   await testTrainedThisWeek();
+  await testProgressCommandCentre();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

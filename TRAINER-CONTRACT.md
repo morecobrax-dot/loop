@@ -5220,3 +5220,168 @@ all green. Six viewports clean on Today with the new block, zero horizontal
 overflow at every width. `DATA_KEYS` remains 15 and `TRAINER_ENGINE_VERSION`
 remains `0.1.1-shadow`; no threshold, calibration, readiness, recovery or
 capability logic was touched, and no new persistence was added.
+
+---
+
+## §70 — D46B: Progress becomes a command centre
+
+**Status.** Shipped in LOOP 4.0 (`loop-v117`).
+
+### Why this phase existed
+
+D46 shipped the Log completion fix and a first muscle block, and deferred the
+Progress rebuild that was the owner's stated first priority. The Owner QA that
+followed rated the release 8/10 and confirmed the deferral was right on quality
+and wrong on scope: Progress was still marked friction, the muscle block "does
+not sufficiently fit LOOP's style", and its tap opened the wrong surface. D46B
+finishes that work.
+
+### The headline came from the weakest calculator in the app
+
+Progress opened with "Getting stronger", derived from `computeImprovements()`:
+the athlete's FIRST logged top set against their LAST. One good day moves it
+permanently and one bad day it cannot see.
+
+D39 exists because that comparison is not evidence. It takes medians of two
+equal, disjoint windows measured in performed sessions, requires four sessions
+before it will name a direction and six before it will attach a number. It was
+built in D39, used inside program outcomes in D40, and **never reached the
+Progress landing screen** — the most-read surface in the app was making its
+most prominent claim with the weakest arithmetic available to it, while the
+strongest sat two tabs away.
+
+The hero now reads `derivePerformanceProgress` over a twelve-week window — the
+same window consistency and the Log strip use, so the three agree about what
+"recently" means. `computeImprovements` is gone from the app.
+
+There is still no aggregate score. Not a progress score, not a training quality
+figure, not a fitness number. LOOP has no defensible way to add a squat and a
+curl into one value, and a contract asserts the absence.
+
+### Below the hero sat a reprint of the Strength tab
+
+"Strength trends" rendered `computeExerciseTrends()` — the same list, from the
+same function, that the Strength tab renders in full. A summary layer does not
+reprint a specialist tab. It was retired, along with the three-tile strip whose
+Strength tile counted `computeImprovements` and whose Muscle tile described a
+mastery spread rather than training.
+
+"Most trained" counts sessions per EXERCISE, which is per-exercise information,
+so its home moved to Strength where per-exercise information lives. The
+contract requiring it to have exactly one home still requires that; the home is
+different.
+
+Five blocks now, each answering one question, each one tap from the surface
+that explains it:
+
+| block | question | source | opens |
+|---|---|---|---|
+| Your training | am I getting better | D39 `derivePerformanceProgress` | Strength |
+| Program | how is my program going | program map + D43 fulfilment | My Training |
+| This week | what have I trained | `deriveWeekMuscleSets` | Volume |
+| Consistency | what do my weeks look like | D44 `computeConsistencyData` | Log |
+| Rank | where am I overall | `getCombinedProgression` | Rank showcase |
+
+Measured at 390x844 against a mature 53-session history: **879px and six blocks
+before, 780px and four blocks after** (the program block is absent without a
+running program). Three answers are visible in the first viewport in both, but
+they are now three DIFFERENT answers rather than a reading, a ranked text list
+and the top of a second ranked text list. Rendering the dashboard took 4ms
+before and 1ms after.
+
+The order inverted deliberately. Level led the old Overview because the XP
+system needed somewhere to show itself; it is identity, not progress, and it
+answered none of the three questions. The reading leads now and level closes.
+
+### A summary and the surface it opens must be the same arithmetic
+
+Today's muscle block used `deriveWeekMuscleSets` — working sets only, mapped
+through the canonical registry. The Muscle Volume tab it opened used
+`computeMuscleVolumeSince` — every logged set including warm-ups, including
+exercises the athlete skipped, mapped by raw substring. On a week with one
+warm-up and one skipped squat the two read:
+
+    Today          chest 2
+    Muscle Volume  chest 3, quads 1, glutes 1
+
+An athlete who taps a figure to check it must find that figure. There is now
+one week-by-muscle calculation and both surfaces read it. A contract pulls
+every number off both rendered surfaces and requires them to match exactly,
+rather than requiring the code to merely look similar.
+
+### One body, not two
+
+The block drew its own front and back silhouettes. LOOP already had
+`bodyDiagramSvg`, used by the plan preview, the workout template card and
+Mastery's muscle volume card — so the block was a fourth body in an app that
+had one, which is exactly why it read as a widget embedded in LOOP rather than
+part of it.
+
+`bodyDiagramSvg` gained an optional pre-computed totals argument so a caller
+can supply counts it has derived accurately instead of having them re-inferred
+from exercise names. All three original callers are unchanged in behaviour. The
+block now composes that figure and the existing muscle bar list, on the same
+geometry as the card it opens.
+
+Glanceability was the other half of the complaint — the owner read the list
+instead of the diagram. The figure now uses LOOP's own intensity ramp rather
+than an accent opacity, and a callout names the leading muscle in 22px type
+beside it. The answer is stated in words and in colour before the list is
+reached; the list remains the accessible reading and the aria-label spells out
+every figure.
+
+Tapping it calls `openMuscleVolume()`, which selects the **Volume** tab and
+scrolls its existing muscle section into view. No second muscle screen was
+created, and a contract asserts there is still exactly one `renderProgMuscles`.
+
+### Program functionality survives having no program
+
+`programContextHtml` returned nothing at all unless the program library was
+empty, so an athlete who had ever saved a program lost every trace of the
+feature from Today. It was also called only on the training-day branch, so on
+a rest day it was absent regardless. The feature disappeared for the two states
+most likely to need it.
+
+Both states now offer one quiet row — the builder when the library is empty,
+the library when it is not — and the rest-day branch renders it too. My
+Training states the way in above the week rather than as the fourth row of
+"Adjust" below it, paired with a line keeping training without a program a
+legitimate choice. When a program has just finished, D42's "What's next?"
+already owns that surface and this stays out of its way. One builder,
+`openProgramBuilderFlow`, in every case.
+
+### Found and not fixed
+
+`musclesForExercise` returns **no primary muscle** for the incline and decline
+press family (`Incline Dumbbell Press`, `Incline Barbell Press`, `Flat DB
+Press`, `Decline Dumbbell Press`), and for `Chin-Up`, `Face Pull`, `Cable
+Crossover`, `Back Extension`, `Kettlebell Swing`, `Hanging Knee Raise` and
+`Wall Sit`. It returns **biceps** for every leg curl variant, because
+`MUSCLE_MAP.biceps` matches the bare substring `curl`.
+
+This predates the phase, but making the data prominent makes it visible, and a
+body diagram that lights the arms for a leg curl is wrong in a way a bar chart
+hid.
+
+It is deliberately NOT fixed here. `musclesForExercise` is consumed by
+`computeMuscleRecovery`, so editing `MUSCLE_OVERRIDES` changes recovery state
+for every athlete — which §35 of the brief forbids and which needs recovery
+tests rather than visual ones. It is the first recommendation for the next
+phase.
+
+### Verification
+
+5,415 assertions across 145 contracts, 327 program-audit checks, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix across three zones — all
+green. Every contract that pinned the D14 Overview was repointed at the
+mechanism that replaced it; none was deleted or weakened, and two were made
+stronger: coverage must now sit INSIDE the reading rather than near it, and the
+hero must show exactly the evidence D39 supports rather than a fixed three.
+
+Six viewports clean across Progress Overview, sparse Progress, Muscle Volume,
+Today's block, Today with no program and My Training with no program: zero
+horizontal overflow, zero clipping, zero interactive targets under 44px, with
+deliberately long exercise names. `DATA_KEYS` remains 15 and
+`TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`; no threshold, calibration,
+readiness, recovery or capability logic was touched, and nothing about the
+Overview is persisted.
