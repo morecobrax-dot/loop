@@ -5081,3 +5081,142 @@ completion and Today. `DATA_KEYS` remains 15 and `TRAINER_ENGINE_VERSION`
 remains `0.1.1-shadow`; no threshold, calibration or state was touched, and
 D39–D44 arithmetic is unchanged apart from the Log strip correction above,
 which applies D44's own rule to the surface that renders.
+
+---
+
+## §69 — D46: What you trained, and a week allowed to be complete
+
+**Status.** Shipped in LOOP 3.9 (`loop-v116`).
+
+### The regression D45B introduced
+
+D45B repointed the Log week strip at `deriveProgramPlanFulfillment` so a week
+trained beyond its plan could no longer read "12 of 8". That was correct, and
+it exposed a second defect underneath it: the fulfilment matcher requires a
+performed workout's category to match the planned slot's category before it
+will fill that slot. On the planner that is right — it is how D43 refuses to
+call a push day satisfied by a run. On the Log strip it was wrong, and it cost
+the athlete the green completed state on weeks they had actually completed.
+
+The athlete does not label sessions the way the planner does. A day planned as
+`pull` gets logged as `back`, or `arms`, or left on the default. Before D45B
+the strip counted sessions, so this never showed; after D45B it counted
+fulfilled slots, so a fully trained week rendered as partial.
+
+`assignWorkoutsToPlannedSlots` now takes `opts.requireCategory`, defaulting to
+`true`. The planner passes `true` and is unchanged in every respect. The Log
+strip passes `false`, which adds one further pass over slots still unfilled:
+
+```js
+if(!requireCategory){
+  slots.forEach(slot => {
+    if(slot.workoutId) return;
+    const hit = pool.find(w => !used[w.id] && w.date === slot.date);
+    if(hit) claim(slot, hit);
+  });
+}
+```
+
+**That pass is same-day only, and the restriction is the whole point.** The
+first implementation searched within the week, and the fixtures caught what
+that meant: training twice on Tuesday rescued a missed Thursday. That is
+exactly the substitution D44 exists to refuse, and relaxing the category must
+not smuggle it back. Showing up on a planned day and calling the session
+something else is a labelling difference. Not showing up is a missed day, and
+no amount of training elsewhere converts one into the other.
+
+Contract 143's declared table records both halves, so a future relaxation of
+the day constraint fails a test rather than passing silently:
+
+- *a session on a planned day counts whatever it was called* → 3 of 3, 100%
+- *but training on an unplanned day never fills a planned one* → 2 of 3, 67%
+
+### What you trained this week
+
+Today ends with a block the athlete can read in one glance: two body
+silhouettes with the muscles they trained this week shaded by volume, and the
+top four listed with set counts.
+
+`deriveWeekMuscleSets()` counts performed sets. A set is counted when it was
+actually done — `isWorkingSet(st) === false` is excluded, so warm-ups do not
+inflate it; `st.completed === false`, `reps <= 0` and `ex.skipped` are
+excluded, so a planned-then-abandoned set is not credited. Legacy sets where
+`isWorkingSet` returns `null` are counted, matching every other consumer of
+that predicate: unknown provenance has always meant *count it*, and changing
+that here would silently restate history.
+
+Attribution is **primary muscle only**, through `musclesForExercise`. Secondary
+involvement is real but it is not what the athlete is asking; crediting it
+would make every pressing movement shade the triceps and every hinge shade the
+whole posterior chain, and the picture would stop discriminating.
+
+The header reports `setsLogged`, not the sum across muscles. Those differ, and
+the difference is not a rounding artefact: an RDL is attributed to back and to
+glutes, so summing the per-muscle counts double-counts every multi-primary
+exercise. During QA the header read "40 sets" for a week in which the athlete
+logged 30. `setsLogged` is the count of distinct performed sets; the per-muscle
+figures sum higher and are labelled per muscle, where that is the correct
+reading.
+
+**This block makes no claim about stimulus, growth, hypertrophy, activation,
+adequacy or balance.** It reports how many sets went to each muscle. It does
+not say whether that was enough, and no threshold, target or colour-coded
+judgement is attached to it. A contract asserts the absence of that
+vocabulary in the derivation, so the block cannot quietly acquire an opinion
+later. Shading is relative to the athlete's own top muscle for the week — it
+encodes *their* distribution, not a comparison against a prescription that
+does not exist.
+
+Tapping the block opens the muscle detail in Progress. The block is one
+`.tm-card` button, and it joins the shared surface recipe rather than
+redeclaring its own elevation.
+
+### Not attempted, and why
+
+The Progress Overview command-centre rebuild is not in this release, and it
+was the owner's stated first priority. The reason is D45B: a partial redesign
+shipped alongside five other changes coincided with the rating falling from
+8 to 7, and the correct lesson from that is not to do it again faster.
+Overview is a full information-design pass on the surface the owner spends the
+most time in. It is carried whole into D47 rather than half-built here.
+
+Program visibility on Today and the My Training hierarchy are carried with it,
+for the same reason and because they share the same surfaces.
+
+### D47 feasibility — Session Score
+
+Specification only. Nothing scored, persisted, computed or displayed.
+
+**The finding that governs it.** A saved set is constructed as
+`{ weight, reps, rir }` plus optional `type` and `completed`. The effective
+prescription — `targetSets`, `targetReps`, the progression recommendation —
+exists during the live session as DOM meta passed into `addLogExerciseRow`,
+and is discarded at save.
+
+So LOOP cannot presently score a past session against what it actually asked
+for. Re-deriving the prescription from today's program is not a substitute:
+the program may have been edited since, phase week mapping may have advanced,
+and any trainer adjustment that applied at the time is gone. §51 requires
+execution to be judged against the *effective* prescription rather than a
+stale original, and a re-derived one is precisely the stale original.
+
+**Therefore D47's first requirement is forward-only capture, not a formula.**
+Record the effective prescription on the workout at save time, following the
+`origin` precedent from D41: new sessions carry it, historical sessions are
+never migrated or normalised at read time, and any score is available only for
+sessions that carry it. Sessions without it are not scored, not estimated, and
+not shown a placeholder — the same discipline D39 and D40 apply to
+insufficient evidence.
+
+A score computed before that capture exists would be a number about the
+program's present state wearing the timestamp of a past session, which is the
+class of defect D43 and D44 were spent removing.
+
+### Verification
+
+5,386 assertions (144 contracts), 327 program-audit checks, 87
+data-integrity, 261 cardio, 43 GPS, and the date matrix across three zones —
+all green. Six viewports clean on Today with the new block, zero horizontal
+overflow at every width. `DATA_KEYS` remains 15 and `TRAINER_ENGINE_VERSION`
+remains `0.1.1-shadow`; no threshold, calibration, readiness, recovery or
+capability logic was touched, and no new persistence was added.

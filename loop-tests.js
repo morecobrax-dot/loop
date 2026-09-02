@@ -15885,6 +15885,104 @@ async function testProgramLifecycle(){
    every surface reads one analysis.
    ========================================================= */
 /* =========================================================
+   CONTRACT 144 — TRAINED THIS WEEK  (Phase D46)
+   One block, one question: what have I trained most this week? It counts
+   sets through the canonical muscle registry and claims nothing about
+   stimulus, growth or recovery — none of which LOOP models here.
+   ========================================================= */
+async function testTrainedThisWeek(){
+  section('CONTRACT 144 — trained this week (D46)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+    + '-' + String(d.getDate()).padStart(2,'0');
+  const now = new Date(); now.setHours(0,0,0,0);
+  const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay()+6)%7));
+  const dd = n => fmt(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate()+n));
+  const sets = n => Array.from({length:n},()=>({weight:'135',reps:'8',rir:'1',type:'working',completed:true}));
+
+  sub('it counts sets through the one canonical muscle registry');
+  T('no second muscle mapping was introduced',
+    (src.match(/const MUSCLE_MAP = /g) || []).length === 1 &&
+    (src.match(/function musclesForExercise\(/g) || []).length === 1);
+  T('the derivation reads that registry', (() => {
+    const i = src.indexOf('function deriveWeekMuscleSets');
+    return src.slice(i, i + 1800).indexOf('musclesForExercise(') !== -1;
+  })());
+  T('and it borrows no weights from the recovery engine', (() => {
+    const i = src.indexOf('function deriveWeekMuscleSets');
+    const body = src.slice(i, i + 1800);
+    return body.indexOf('RECOVERY_CONFIG') === -1 && body.indexOf('recencyDecay') === -1;
+  })());
+
+  sub('the numbers say what they mean');
+  {
+    ctx.workoutLog = [{ id:'a', date: dd(0), category:'pull', title:'Pull', notes:'',
+      exercises:[{ name:'Romanian Deadlift', bodyweight:false, sets: sets(3) }] }];
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    const d = ctx.deriveWeekMuscleSets();
+    T('a set counts toward each muscle it primarily trains', d.muscles.length >= 2);
+    T('but the header reports sets actually performed, not their sum',
+      d.setsLogged === 3 && d.total > d.setsLogged,
+      'logged=' + d.setsLogged + ' sum=' + d.total);
+  }
+  {
+    ctx.workoutLog = [{ id:'w', date: dd(0), category:'push', title:'P', notes:'',
+      exercises:[{ name:'Bench Press', bodyweight:false, sets:[
+        {weight:'95',reps:'10',rir:'4',type:'warmup',completed:true},
+        {weight:'185',reps:'8',rir:'1',type:'working',completed:true}] }] }];
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    T('a warm-up is not a trained set', ctx.deriveWeekMuscleSets().setsLogged === 1);
+  }
+  {
+    ctx.workoutLog = [{ id:'s', date: dd(0), category:'push', title:'P', notes:'',
+      exercises:[{ name:'Bench Press', bodyweight:false, skipped:true, sets: sets(3) }] }];
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    T('a skipped exercise contributes nothing', ctx.deriveWeekMuscleSets().setsLogged === 0);
+  }
+  {
+    const lastWeek = dd(-7);
+    ctx.workoutLog = [{ id:'old', date: lastWeek, category:'push', title:'P', notes:'',
+      exercises:[{ name:'Bench Press', bodyweight:false, sets: sets(3) }] }];
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    T('last week is not this week', ctx.deriveWeekMuscleSets().setsLogged === 0);
+  }
+
+  sub('it claims only what LOOP knows');
+  T('no stimulus, growth, activation or recovery claim', (() => {
+    /* Sliced from the first function, not the section header: the header is a
+       comment that STATES this rule, and a slice beginning inside it cannot be
+       comment-stripped because its opening marker sits above the cut. Only
+       shipped code can break the rule, so only shipped code is read. */
+    const i = src.indexOf('function deriveWeekMuscleSets');
+    const j = src.indexOf('function renderTodayInsights', i);
+    const body = src.slice(i, j).replace(/\/\*[\s\S]*?\*\//g, ' ');
+    return !/stimulus|activation|hypertroph|growth|recovered/i.test(body);
+  })());
+  T('the block is read as well as drawn', (() => {
+    const i = src.indexOf('function renderTodayMuscles');
+    const body = src.slice(i, i + 1600);
+    return body.indexOf('tm-row') !== -1 && body.indexOf('aria-label') !== -1;
+  })());
+  T('the figures are decoration over that reading, not the reading',
+    /<div class="tm-figs" aria-hidden="true">/.test(src));
+  T('nothing about it is persisted',
+    !/LOOPStore\.set\([^)]*muscle/i.test(src));
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+
+  sub('an empty week renders nothing at all');
+  {
+    ctx.workoutLog = [];
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    T('no zero-state block is drawn', ctx.deriveWeekMuscleSets().setsLogged === 0);
+    T('and the renderer clears rather than inventing rows',
+      /if\(!data\.setsLogged \|\| !data\.muscles\.length\)\{ el\.innerHTML = /.test(src));
+  }
+}
+
+/* =========================================================
    CONTRACT 143 — PLAN CONSISTENCY  (Phase D44)
    Consistency answers how reliably the athlete met the training they
    planned. Its numerator is fulfilled PLANS, never workouts performed —
@@ -15943,8 +16041,19 @@ async function testPlanConsistency(){
       ['nothing trained', [], [0,3,0]],
       ['the same session twice in one day',
         [w('a',MON,'push'), w('a2',MON,'push'), w('b',WED,'pull'), w('c',FRI,'legs')], [3,3,100]],
-      ['a different kind of session on a planned day',
-        [w('f',MON,'arms'), w('b',WED,'pull'), w('c',FRI,'legs')], [2,3,67]],
+      /* D46 — this expected a category mismatch to cost the day. Real use
+         showed that is the wrong rule for a weekly SCHEDULE: a freeform
+         session saves as 'push' whatever day it lands on, so training on
+         every planned day could still read as none fulfilled, and the Log
+         card lost its completed state for a week that was genuinely
+         complete. The schedule promises days; the program prescribes
+         sessions. Program adherence keeps the strict rule (Contract 142),
+         and the relaxation here is same-day only, so extra training on an
+         unplanned day still cannot rescue a missed one. */
+      ['a session on a planned day counts whatever it was called',
+        [w('f',MON,'arms'), w('b',WED,'pull'), w('c',FRI,'legs')], [3,3,100]],
+      ['but training on an unplanned day never fills a planned one',
+        [w('a',MON,'push'), w('c',FRI,'legs'), w('x',TUE,'core'), w('y',THU,'core')], [2,3,67]],
       ['a planned session trained a day late',
         [w('a',MON,'push'), w('y',THU,'pull'), w('c',FRI,'legs')], [3,3,100]]
     ];
@@ -17326,6 +17435,7 @@ async function main(){
   await testNextProgramContinuity();
   await testPlannedVsPerformed();
   await testPlanConsistency();
+  await testTrainedThisWeek();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

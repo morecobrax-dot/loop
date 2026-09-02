@@ -904,6 +904,42 @@ html.intro-skip #introOverlay{ display: none !important; }
 
 /* Compact insight rows instead of a coach card */
 #todayInsights:empty{ display: none; }
+/* D46 — Trained this week. One block answering one question, using the
+   existing card surface, radius and accent rather than a new visual family. */
+#todayMuscles:empty{ display: none; }
+.tm-card{
+  display: block; width: 100%; text-align: left; margin-top: 14px;
+  background: var(--surface); border: 1px solid var(--border-quiet);
+  border-radius: var(--radius-lg); padding: 14px 15px 15px; cursor: pointer;
+  color: var(--text); font-family: inherit;
+}
+.tm-card:active{ background: var(--surface-2); }
+.tm-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.tm-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tm-title{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint);
+}
+.tm-sub{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; color: var(--text-dim); font-variant-numeric: tabular-nums;
+}
+.tm-body{ display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+.tm-figs{ display: flex; gap: 4px; flex-shrink: 0; }
+.tm-fig{ width: 46px; height: 89px; display: block; }
+.tm-list{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.tm-row{ display: flex; align-items: center; gap: 9px; }
+.tm-name{ font-size: var(--fs-support); font-weight: 600; flex: 0 0 74px; }
+.tm-bar{
+  flex: 1; min-width: 0; height: 6px; border-radius: 99px;
+  background: var(--surface-3); overflow: hidden;
+}
+.tm-bar span{ display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.tm-n{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta); font-weight: 700;
+  color: var(--text-dim); font-variant-numeric: tabular-nums; flex: 0 0 auto; min-width: 16px;
+  text-align: right;
+}
 .insight-list{ margin-top: var(--space-3); display: flex; flex-direction: column; gap: 1px; }
 .insight-row{ display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--border); }
 .insight-tag{ flex-shrink: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 7px; border-radius: var(--radius-sm); }
@@ -5310,7 +5346,7 @@ body.page-locked{ overflow: hidden; }
    if everything glows, nothing is important.
    ========================================================= */
 .pd-card, .lc-card, .cal-card, .mv-card, .tpl-card, .ob-mock, .ob-hero,
-.mas-sum, .vw-grid, .pd-tiles, .cl-tile, .settings-row-btn,
+.mas-sum, .vw-grid, .pd-tiles, .cl-tile, .tm-card, .settings-row-btn,
 .prog-jump, .hdr-level, .plan-card, .mt-stat, .sub-card{
   border-color: var(--border-quiet);
   box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
@@ -5777,6 +5813,9 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 
     <!-- 4 — what is worth knowing right now -->
     <div id="todayInsights"></div>
+
+    <!-- 5 — what have I actually trained this week -->
+    <div id="todayMuscles"></div>
 
   </div>
 
@@ -9563,6 +9602,24 @@ const LOOP_UPDATES = [
       'A heading on Today could appear with nothing underneath it'
     ],
     changes: []
+  },
+  {
+    id: 'v3-9',
+    version: 'LOOP 3.9',
+    title: 'What You Trained',
+    date: '2026-09-09',
+    swVersion: 'loop-v116',
+    summary: 'Today now shows the muscles your week actually went into, and a completed week is clearly complete again.',
+    newFeatures: [
+      'Today ends with what you have trained this week — a body diagram and set counts per muscle, drawn from the exercises you logged'
+    ],
+    improvements: [
+      'Tapping that block opens the muscle detail in Progress'
+    ],
+    bugFixes: [
+      'A week where you trained every planned day lost its completed green state if the sessions were logged under a different category than the day was labelled'
+    ],
+    changes: []
   }
 ];
 
@@ -11672,7 +11729,11 @@ function computeConsistencyData(){
   };
   const inWindow = (workoutLog || []).filter(l => l && l.date
     && l.date >= firstMondayKey && !(trackingStart && l.date < trackingStart));
-  assignWorkoutsToPlannedSlots(planSlots, inWindow, slotWeekOf);
+  /* Days, not labels: the weekly schedule promises training on chosen days,
+     and a session logged under a different category still met that promise.
+     Program adherence keeps the stricter rule, where the program genuinely
+     prescribes the session. */
+  assignWorkoutsToPlannedSlots(planSlots, inWindow, slotWeekOf, { requireCategory: false });
   const fulfilledByWeek = {};
   planSlots.forEach(sl => { if(sl.workoutId)
     fulfilledByWeek[sl.week] = (fulfilledByWeek[sl.week] || 0) + 1; });
@@ -15958,6 +16019,134 @@ function pickerGridHtml(cat){
    week-summary card and progress-ring card. */
 /* Compact one-line insight rows — replaces the standalone coach card. Only
    renders when there is genuinely something worth saying. */
+/* =========================================================
+   TRAINED THIS WEEK  (Phase D46)
+   ---------------------------------------------------------
+   One question: WHAT HAVE I TRAINED MOST THIS WEEK?
+
+   Counted as SETS THAT TRAINED EACH MUSCLE, from the canonical
+   musclesForExercise() registry — the same resolver the exercise pages and
+   the trainer context use. No second muscle mapping is introduced.
+
+   PRIMARY MUSCLES ONLY. An exercise's secondary muscles are real, but the
+   only weighted primary/secondary model LOOP owns belongs to the recovery
+   engine, and borrowing its weights here would quietly restate recovery as
+   training volume. Counting a performed set toward the muscles it primarily
+   trains is the simplest claim the data actually supports.
+
+   IT IS A COUNT, NOT A VERDICT. This says nothing about stimulus, growth,
+   activation or recovery — LOOP does not model any of those here, and the
+   copy never implies otherwise. Shading is relative to the athlete's own
+   busiest muscle this week and means only "more sets went here".
+   ========================================================= */
+function deriveWeekMuscleSets(){
+  /* setsLogged is the real number of sets performed. The per-muscle counts
+     deliberately do NOT sum to it: a Romanian Deadlift primarily trains back
+     and glutes, so its sets are counted toward both. Summing them would
+     produce a "total" larger than the training that happened, which is why
+     the header reports setsLogged and the rows report per-muscle counts. */
+  const out = { muscles: [], total: 0, setsLogged: 0, weekStart: null };
+  const now = new Date(); now.setHours(0,0,0,0);
+  const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const startKey = localDateStr(mon);
+  out.weekStart = startKey;
+  const acc = {};
+  (workoutLog || []).forEach(entry => {
+    if(!entry || !entry.date || entry.date < startKey) return;
+    (entry.exercises || []).forEach(ex => {
+      if(!ex || ex.skipped) return;
+      /* The same set filter D39 uses: warm-ups are excluded where the type
+         says so, and a set with no reps was never performed. A set whose
+         type was never recorded still counts — unknown is not a warm-up. */
+      let performed = 0;
+      (ex.sets || []).forEach(st => {
+        if(isWorkingSet(st) === false) return;
+        if(st && st.completed === false) return;
+        if(!(parseFloat(st && st.reps) > 0)) return;
+        performed++;
+      });
+      if(!performed) return;
+      out.setsLogged += performed;
+      let m = { primary: [], secondary: [] };
+      try{ m = musclesForExercise(ex.name) || m; }catch(e){}
+      (m.primary || []).forEach(k => { acc[k] = (acc[k] || 0) + performed; });
+    });
+  });
+  out.muscles = Object.keys(acc)
+    .map(k => ({ id: k, label: MUSCLE_LABELS[k] || k, sets: acc[k] }))
+    .sort((a, b) => b.sets - a.sets || a.label.localeCompare(b.label));
+  out.total = out.muscles.reduce((n, x) => n + x.sets, 0);
+  return out;
+}
+
+/* Two silhouettes, front and back, with each region shaded against the
+   busiest muscle of the week. Hand-drawn paths rather than a dependency, and
+   aria-hidden throughout: the figures are a picture of the list beside them,
+   and the list is the accessible reading. */
+function muscleBodyHtml(data){
+  const top = data.muscles.length ? data.muscles[0].sets : 0;
+  const by = {};
+  data.muscles.forEach(m => { by[m.id] = m.sets; });
+  /* Floor of 0.06 so an untrained region is still visibly part of the body
+     rather than a hole in it. */
+  const fill = id => {
+    const v = by[id] || 0;
+    return v && top ? (0.16 + (v / top) * 0.84).toFixed(2) : '0.06';
+  };
+  const P = (id, d) => '<path d="' + d + '" fill="var(--accent)" opacity="' + fill(id) + '"/>';
+  const body = 'var(--surface-3)';
+  return '<div class="tm-figs" aria-hidden="true">' +
+    '<svg viewBox="0 0 60 116" class="tm-fig">' +
+      '<ellipse cx="30" cy="11" rx="7.5" ry="8.5" fill="' + body + '"/>' +
+      '<path d="M18 22 h24 l4 22 -6 4 h-20 l-6 -4 z" fill="' + body + '"/>' +
+      '<path d="M14 24 l-5 26 4 2 6 -24 z M46 24 l5 26 -4 2 -6 -24 z" fill="' + body + '"/>' +
+      '<path d="M20 50 h20 l3 30 -9 2 -8 0 -9 -2 z" fill="' + body + '"/>' +
+      '<path d="M22 82 h6 l2 30 -7 0 z M32 82 h6 l-1 30 -7 0 z" fill="' + body + '"/>' +
+      P('shoulders', 'M16 22 q-4 3 -3 9 l7 -2 1 -7 z M44 22 q4 3 3 9 l-7 -2 -1 -7 z') +
+      P('chest', 'M20 25 h20 l-1 11 h-18 z') +
+      P('biceps', 'M13 33 l4 -1 2 11 -4 1 z M47 33 l-4 -1 -2 11 4 1 z') +
+      P('abs', 'M23 38 h14 l-1 11 h-12 z') +
+      P('quads', 'M22 52 h7 l1 24 -7 1 z M31 52 h7 l-1 25 -7 -1 z') +
+    '</svg>' +
+    '<svg viewBox="0 0 60 116" class="tm-fig">' +
+      '<ellipse cx="30" cy="11" rx="7.5" ry="8.5" fill="' + body + '"/>' +
+      '<path d="M18 22 h24 l4 22 -6 4 h-20 l-6 -4 z" fill="' + body + '"/>' +
+      '<path d="M14 24 l-5 26 4 2 6 -24 z M46 24 l5 26 -4 2 -6 -24 z" fill="' + body + '"/>' +
+      '<path d="M20 50 h20 l3 30 -9 2 -8 0 -9 -2 z" fill="' + body + '"/>' +
+      '<path d="M22 82 h6 l2 30 -7 0 z M32 82 h6 l-1 30 -7 0 z" fill="' + body + '"/>' +
+      P('back', 'M20 24 h20 l-2 22 h-16 z') +
+      P('triceps', 'M13 33 l4 -1 2 11 -4 1 z M47 33 l-4 -1 -2 11 4 1 z') +
+      P('glutes', 'M21 50 h18 l1 12 -10 2 -10 -2 z') +
+      P('hamstrings', 'M22 63 h7 l1 15 -7 1 z M31 63 h7 l-1 16 -7 -1 z') +
+      P('calves', 'M23 86 h5 l1 16 -6 0 z M32 86 h5 l-1 16 -6 0 z') +
+    '</svg>' +
+  '</div>';
+}
+
+function renderTodayMuscles(){
+  const el = document.getElementById('todayMuscles');
+  if(!el) return;
+  let data = { muscles: [], total: 0 };
+  try{ data = deriveWeekMuscleSets(); }catch(e){ el.innerHTML = ''; return; }
+  /* Nothing trained yet this week is not a story worth a block. */
+  if(!data.setsLogged || !data.muscles.length){ el.innerHTML = ''; return; }
+  const rows = data.muscles.slice(0, 4).map(m =>
+    '<div class="tm-row"><span class="tm-name">' + escapeHtml(m.label) + '</span>' +
+    '<span class="tm-bar"><span style="width:' +
+      Math.max(6, Math.round((m.sets / data.muscles[0].sets) * 100)) + '%"></span></span>' +
+    '<span class="tm-n">' + m.sets + '</span></div>').join('');
+  const spoken = data.muscles.slice(0, 4)
+    .map(m => m.label + ' ' + m.sets + ' set' + (m.sets === 1 ? '' : 's')).join(', ');
+  el.innerHTML =
+    '<button type="button" class="tm-card" onclick="switchTab(\'progress\'); switchProgTab(\'muscles\');"' +
+      ' aria-label="' + escapeAttr('Trained this week: ' + spoken + '. Open muscle detail.') + '">' +
+      '<span class="tm-top"><span class="tm-title">Trained this week</span>' +
+      '<span class="tm-sub">' + data.setsLogged + ' set' + (data.setsLogged === 1 ? '' : 's') + '</span></span>' +
+      '<span class="tm-body">' + muscleBodyHtml(data) +
+        '<span class="tm-list">' + rows + '</span></span>' +
+    '</button>';
+}
+
 function renderTodayInsights(){
   const el = document.getElementById('todayInsights');
   if(!el) return;
@@ -16217,6 +16406,7 @@ function renderToday(){
   renderTodayWorkout();
   renderWeekCard();
   renderTodayInsights();
+  try{ renderTodayMuscles(); }catch(e){}
 
 }
 
@@ -25234,7 +25424,19 @@ function programPlannedSlots(program){
 
    Mutates slot.workoutId and returns the set of workout ids that were used,
    so callers can name what was left over without recounting. */
-function assignWorkoutsToPlannedSlots(slots, workouts, weekOf){
+/* opts.requireCategory — whether a category mismatch BLOCKS fulfilment.
+   A program prescribes a specific session, so D43 passes true: training core
+   on the day an upper session was planned leaves that session outstanding.
+   The weekly schedule promises days rather than sessions, so D44 passes
+   false: category still orders the pairing, but showing up on a planned day
+   counts even when the label differs. That distinction is the difference
+   between "did I do the session my program asked for" and "am I training on
+   the days I said I would", which are separate questions with separate
+   surfaces. Requiring the label in both regressed the Log card in D45B —
+   a freeform session saves as 'push' whatever day it lands on, so any
+   freeform training silently cost the week its completed state. */
+function assignWorkoutsToPlannedSlots(slots, workouts, weekOf, opts){
+  const requireCategory = !opts || opts.requireCategory !== false;
   const pool = (workouts || []).slice().sort((a, b) =>
     String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
   const used = {};
@@ -25258,6 +25460,24 @@ function assignWorkoutsToPlannedSlots(slots, workouts, weekOf){
       && (!w.category || !slot.category));
     if(hit) claim(slot, hit);
   });
+  /* One category-blind pass, for plans only, and deliberately SAME DAY ONLY.
+     Everything above has had first refusal, so a session matching its planned
+     category is still paired with it; this catches the planned day trained
+     under a different label.
+
+     It does not extend to the shift window, and that restriction is the whole
+     point. A within-week version of this pass let a session on an unplanned
+     day claim a planned day that was never trained — extra training rescuing
+     a missed session, which is the precise defect D44 exists to prevent.
+     Restricted to the same date, a slot can only ever be filled by training
+     that actually happened on the day it was planned for. */
+  if(!requireCategory){
+    slots.forEach(slot => {
+      if(slot.workoutId) return;
+      const hit = pool.find(w => !used[w.id] && w.date === slot.date);
+      if(hit) claim(slot, hit);
+    });
+  }
   return used;
 }
 
