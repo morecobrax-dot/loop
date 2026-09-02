@@ -247,7 +247,7 @@ function testUIDataSeparation(){
     'Muscle Recovery':      ['MUSCLE RECOVERY ENGINE', "const READINESS_KEY"],
     'Exercise Capability':  ['EXERCISE CAPABILITY ENGINE  (Phase 4)', 'TRAINER INSTRUMENTATION'],
     'Shadow Engine':        ['SHADOW ADAPTIVE TRAINING ENGINE  (Phase 5C)', 'PERSONAL SHADOW OBSERVATION'],
-    'Replay/Evaluation':    ['TRAINER EVALUATION & REPLAY  (Phase 5D)', 'let selectedConsistencyWeek']
+    'Replay/Evaluation':    ['TRAINER EVALUATION & REPLAY  (Phase 5D)', 'CARDIO SYSTEM  (Phase A)']
   };
   Object.keys(mods).forEach(name => {
     const [a,b] = mods[name];
@@ -880,7 +880,7 @@ function testProtectedWriteAudit(){
      restored in a finally block, and it must still never persist or touch
      the DOM. This is a more precise test, not a weaker one. */
   const SANDBOX = {
-    'Replay/Evaluation':   ['TRAINER EVALUATION & REPLAY  (Phase 5D)', 'let selectedConsistencyWeek']
+    'Replay/Evaluation':   ['TRAINER EVALUATION & REPLAY  (Phase 5D)', 'CARDIO SYSTEM  (Phase A)']
   };
   const FORBIDDEN = [
     ['workoutLog.push',      'appends to workout history'],
@@ -1759,10 +1759,14 @@ async function testFirstImpression(){
     doc.getElementById('progAllRecords').innerHTML === '');
 
   ctx.renderToday();
-  const snap = doc.getElementById('todayMomentum').innerHTML;
-  T('Today momentum shows no zeros', !/mo-val">0</.test(snap));
-  T('Today momentum explains itself', snap.includes('appears here'));
-  T('Today momentum shows no stat tiles to a new athlete', snap.indexOf('mo-tile') === -1);
+  /* D45B — Momentum is gone. Its week sentence restated This Week directly
+     above it and its lifts reading restated Progress, which the button below
+     it opens; the owner marked it friction and asked for it to be replaced.
+     The question these assertions protect — a new athlete is shown no
+     fabricated numbers on Today — now belongs to This Week. */
+  const snap = doc.getElementById('weekCard').innerHTML;
+  T('Today shows a new athlete no invented counts', !/>0 of 0</.test(snap));
+  T('and no zero-value stat tiles', snap.indexOf('mo-tile') === -1 && snap.indexOf('mo-cell') === -1);
 
   ctx.renderCardioView();
   const cardio = doc.getElementById('cardioBody').innerHTML;
@@ -1789,16 +1793,17 @@ async function testFirstImpression(){
   ctx.renderProgTab(); ctx.renderToday();
   T('Progress returns a real reading with data',
     /pd-hero-read/.test(doc.getElementById('progPerf').innerHTML));
-  /* This checked for `mo-val`, the value class of the three tiles Momentum
-     used to be. Those tiles are gone — one of them ("N% on target") was
-     measuring how long the athlete had owned the app rather than how well they
-     were training. The contract is unchanged and now asserted more precisely:
-     an athlete with data gets a real reading, not the empty state, and it
-     leads with the week they can still act on. */
+  /* Originally this checked `mo-val`, the value class of three Momentum tiles
+     — one of which ("N% on target") measured how long the athlete had owned
+     the app rather than how well they trained. Those went in D27; Momentum
+     itself went in D45B. The contract is unchanged in substance: an athlete
+     with data gets a real reading of the week they can still act on, and the
+     projected-target percentage never comes back. */
   {
-    const html = doc.getElementById('todayMomentum').innerHTML;
-    T('Today momentum returns with data', !html.includes('mo-empty') && html.length > 40);
-    T('and it leads with this week', html.includes('mo-primary') || html.includes('mo-head'));
+    const html = doc.getElementById('weekCard').innerHTML;
+    T('Today returns a real week reading with data',
+      /wk-card/.test(html) && html.length > 40);
+    T('and it leads with this week', html.indexOf('This Week') !== -1);
     T('and never shows the old projected-target percentage', !/On target/.test(html));
   }
 }
@@ -6773,11 +6778,14 @@ function testD11Consolidation(app){
   {
     const view = src.slice(src.indexOf('<div class="view active" id="view-today">'),
                            src.indexOf('<div class="view" id="view-train">'));
-    const order = ['todayWorkout','weekCard','readinessCard','todayMomentum'];
+    /* D45B — Momentum was the last block in this order and is now removed;
+       the hierarchy above it is unchanged. */
+    const order = ['todayWorkout','weekCard','readinessCard'];
     const idx = order.map(id => view.indexOf('id="' + id + '"'));
     T('every hierarchy block is present', idx.every(i => i !== -1));
-    T('workout, then week, then context, then momentum',
-      idx[0] < idx[1] && idx[1] < idx[2] && idx[2] < idx[3], idx.join(','));
+    T('workout, then week, then context',
+      idx[0] < idx[1] && idx[1] < idx[2], idx.join(','));
+    T('and Momentum no longer sits below them', view.indexOf('id="todayMomentum"') === -1);
     T('the analytics wall is gone', view.indexOf('id="todaySnapshot"') === -1);
     T('its renderer went with it', src.indexOf('function renderSnapshot(') === -1);
     T('exercise trends left Today', view.indexOf('id="todayTrends"') === -1 &&
@@ -6998,7 +7006,6 @@ async function testD11Safety(){
   sub('drive every surface D11 touched');
   ctx.renderAll();
   ctx.renderWeekCard();
-  ctx.renderTodayMomentum();
   ctx.weekOverview();
   ctx.customPlanCardHtml();
   ctx.progTab = 'overview'; ctx.renderProgTab();
@@ -7043,8 +7050,10 @@ async function testD11Safety(){
     const fs = require('fs');
     const src = fs.readFileSync(H.APP_PATH, 'utf8');
     const d11 = [
-      src.slice(src.indexOf('function weekOverview(){'), src.indexOf('function renderTodayMomentum(){')),
-      src.slice(src.indexOf('function renderTodayMomentum(){'), src.indexOf('function renderProgressJump(){')),
+      /* D45B — renderTodayMomentum was removed; momentumWeek, which This Week
+         reads, occupies the same span. */
+      src.slice(src.indexOf('function weekOverview(){'), src.indexOf('function momentumWeek(){')),
+      src.slice(src.indexOf('function momentumWeek(){'), src.indexOf('function renderProgressJump(){')),
       src.slice(src.indexOf('async function startCustomPlan()'), src.indexOf('function openPlanSwitcher()'))
     ].join('\n');
     T('the new code writes no storage directly',
@@ -9628,9 +9637,14 @@ function testD13Presentation(app){
 
   sub('trend is a drawn mark plus a word');
   T('no arrow characters remain in the trend', !/&#8599;|&#8594;|&#8600;/.test(src));
-  T('the existing icon is used', /trendIconSvg\(trendDirOf\(data\.trend\), 13\)/.test(src));
+  /* D45B — these pinned the 12-week trend as drawn by the Today consistency
+     heatmap, a surface removed from the markup in ba74bc4 and retired in full
+     here. The rule they protect — a trend is a drawn mark plus a word, never a
+     bare arrow character — is enforced against the live Progress trend rows
+     instead, which is where an athlete actually reads one. */
+  T('the existing icon is used', /trendIconSvg\(t\.dir, 13\)/.test(src));
   T('the word carries the meaning alongside it',
-    /trendLabel = \{ improving:'Improving', steady:'Steady', declining:'Easing off' \}/.test(src));
+    /<span class="pt-state pt-\$\{t\.dir\}">\$\{trendIconSvg\(t\.dir, 13\)\}<span>\$\{word\}<\/span>/.test(src));
 
   sub('Most Trained counts real sessions, and stays a summary');
   ctx.workoutLog.length = 0;
@@ -11100,13 +11114,17 @@ function testMomentum(app){
   const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
 
   sub('the tenure-not-adherence percentage is gone');
-  T('Momentum no longer reads overallConsistency', (() => {
-    const fn = src.slice(src.indexOf('function renderTodayMomentum()'), src.indexOf('function renderProgressJump'));
-    return fn.indexOf('overallConsistency') === -1;
+  /* D45B — Momentum is gone, so the percentage cannot reappear there. The
+     rule holds on Today as a whole: nothing on the screen reads the 12-week
+     figure, which is defensible only in Progress where it is labelled. */
+  T('Today no longer reads overallConsistency', (() => {
+    const view = src.slice(src.indexOf('<div class="view active" id="view-today">'),
+                           src.indexOf('<div class="view" id="view-train">'));
+    return view.indexOf('overallConsistency') === -1;
   })());
-  T('and no "on target" label survives in it', (() => {
-    const fn = src.slice(src.indexOf('function renderTodayMomentum()'), src.indexOf('function renderProgressJump'));
-    return !/On target/i.test(fn);
+  T('and no "on target" label survives on it', (() => {
+    const i = src.indexOf('function renderThisWeek');
+    return !/On target/i.test(src.slice(i, src.indexOf('function attachWeekGestures', i)));
   })());
   /* The 12-week figure itself is untouched: it is defensible in Progress,
      where it is labelled and guarded behind four weeks of history. */
@@ -11158,14 +11176,20 @@ function testMomentum(app){
   T('a day still ahead is not a miss', /if\(d\.state === 'future'\) return \{ state:'upcoming'/.test(src));
   T('today is today, compared as a calendar date', /const tKey = localDateStr\(\);/.test(src));
   T('and never as a weekday name — the bug that made today look missed',
-    !/const tKey = todayKey\(\);/.test(src.slice(src.indexOf('function momentumWeek'), src.indexOf('function momentumHeadline'))));
+    !/const tKey = todayKey\(\);/.test(src.slice(src.indexOf('function momentumWeek'), src.indexOf('function renderProgressJump'))));
   T('what is left counts only days that can still be trained',
     /remaining: days\.filter\(d => d\.state === 'today' \|\| d\.state === 'upcoming'\)\.length/.test(src));
 
   sub('every metric traces to an engine that already existed');
-  T('PRs come from the app\'s own PR engine', /computeWeekSummary\(\)\.prs/.test(src));
-  T('the lift signal comes from the trends Progress uses',
-    /const trends = computeExerciseTrends\(\);/.test(src));
+  /* D45B — the PR and lift readings these named lived in momentumProgress,
+     which went with Momentum. computeExerciseTrends still backs the live
+     Progress surfaces, and is pinned there; there is no longer a second
+     consumer of computeWeekSummary().prs to guard. What the sub exists to
+     protect — no metric on Today is invented, and nothing is defined twice —
+     is asserted by the two checks below, which are unchanged. */
+  T('the lift signal still comes from one shared trend engine',
+    (src.match(/function computeExerciseTrends\(/g) || []).length === 1 &&
+    /const trends = computeExerciseTrends\(\)/.test(src));
   T('no new storage key', ctx.DATA_KEYS.length === 15);
   T('no second definition of a streak, a week or a PR',
     (src.match(/function computeWeekStreak\(/g) || []).length === 1 &&
@@ -11173,41 +11197,41 @@ function testMomentum(app){
     (src.match(/function computeAllPREvents\(/g) || []).length === 1);
 
   sub('nothing claims more than the data supports');
-  T('a beginner is not given a trend', /if\(totalSessions < 3\) return 'You are getting started\.';/.test(src));
+  /* D45B — "a beginner is not given a trend" and the null-exit check both
+     read momentumHeadline / momentumProgress, which were removed with
+     Momentum. Neither claim can be made on Today any more because Today no
+     longer makes a claim about lifts at all: it shows the week, and sends the
+     athlete to Progress for the rest. The surviving guarantee is that the one
+     reading Today did keep is still withheld until it means something. */
   T('a streak is only shown once it is one', /if\(streak >= 2\)\{/.test(src));
-  T('with no records and no history, progress says nothing rather than zero', (() => {
-    /* D27 re-anchored: momentumDotsHtml was removed with Momentum's duplicate
-       week, so this slices to the next surviving function. Same body, same
-       assertion — two or more tracked lifts before any trend claim, and a
-       null exit when there is neither a record nor enough history. */
-    const fn = src.slice(src.indexOf('function momentumProgress()'), src.indexOf('function renderTodayMomentum'))
-      .replace(/\/\*[\s\S]*?\*\//g, '');   // prose between functions is not code
-    return /if\(trends\.length >= 2\)\{/.test(fn) && /return null;\s*\}\s*$/.test(fn.trim() + '\n');
+  T('and Today no longer interprets lift trends at all', (() => {
+    const view = src.slice(src.indexOf('<div class="view active" id="view-today">'),
+                           src.indexOf('<div class="view" id="view-train">'));
+    return view.indexOf('todayTrends') === -1 && view.indexOf('todayMomentum') === -1;
   })());
   {
     ctx.workoutLog = [];
     ctx.cardioLog = [];
     ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
-    ctx.renderTodayMomentum();
-    const html = doc.getElementById('todayMomentum').innerHTML;
-    T('a brand-new athlete gets one sentence, not a row of zeroes',
-      html.indexOf('mo-empty') !== -1 && html.indexOf('mo-cell') === -1);
+    ctx.renderToday();
+    const html = doc.getElementById('weekCard').innerHTML;
+    /* D45B — the row of zeroes this guarded against was Momentum's stat
+       cells, which are gone. A new athlete now meets This Week alone, and it
+       must still not manufacture counts for a plan that does not exist. */
+    T('a brand-new athlete is shown no row of zeroes',
+      html.indexOf('mo-cell') === -1 && !/>0 of 0</.test(html));
   }
 
   sub('a lighter week is not a failed week');
-  T('a week with nothing scheduled says so', /Nothing scheduled this week — a planned rest\./.test(src));
-  /* D31: the line still reports a short week without scolding, but no longer
-     restates the count. It was written to caption Momentum's own week dots;
-     D27 removed those, leaving it duplicating This Week's "N of M" with no
-     visual of its own. Stronger now — it must ALSO not repeat the count. */
-  T('a finished week that fell short reports it without scolding',
-    /if\(wk\.done > 0\) return 'The training week is over\.';/.test(src) &&
-    !/missed|failed|only trained/i.test(src.slice(src.indexOf('function momentumHeadline'),
-      src.indexOf('function momentumHeadline') + 900)));
-  T('and it does not restate the count This Week already owns', (() => {
-    const fn = src.slice(src.indexOf('function momentumHeadline'),
-      src.indexOf('function momentumHeadline') + 900);
-    return !/wk\.done \+ ' of ' \+ wk\.planned/.test(fn);
+  /* D45B — these three read momentumHeadline, the sentence Momentum wrote
+     about the week. D27 had already stripped it back for duplicating This
+     Week's count; D45B removed the section entirely, so Today now makes no
+     written claim about the week at all. The rule the sub protects — a short
+     week is never scolded — is asserted against the surface that remains. */
+  T('the week surface never scolds a short week', (() => {
+    const i = src.indexOf('function renderThisWeek');
+    const fn = src.slice(i, src.indexOf('function attachWeekGestures', i));
+    return !/missed|failed|only trained|behind/i.test(fn.replace(/\/\*[\s\S]*?\*\//g, ''));
   })());
   /* D27: Momentum's dot copy of the week was removed as a duplicate, so these
      now hold the rule on the ONE surviving week visualisation — This Week —
@@ -12648,8 +12672,17 @@ function testWorkoutEditor(app){
     /\.ew-title\{[\s\S]{0,220}font-size: 24px; font-weight: 700;/.test(css) &&
     /\.ew-title\{[\s\S]{0,120}background: none; border: none;/.test(css));
   T('the exercise name leads its block', /\.ew-ex-name\{[\s\S]{0,200}font-size: 17px; font-weight: 700;/.test(css));
-  T('sets are columns, and the columns are named once per exercise',
-    /\.ew-cols, \.ew-set\{\s*display: grid;/.test(css) && /class="ew-cols"/.test(src));
+  /* D45B — this pinned a single-line column grid with one shared header per
+     exercise. That layout could not hold the logger's stepper, and the owner
+     reported the resulting form "feels inconsistent" with the workout they
+     had just been logging. The set row is two lines now: what the set was on
+     top, the same ± controls they logged with underneath. The sub's intent —
+     it reads as a workout, not a form — is what this now pins. */
+  T('a set is corrected with the controls it was logged with',
+    /\.ew-set-controls\{[\s\S]{0,120}grid-template-columns: 1fr 1fr;/.test(css) &&
+    /class="stepper"/.test(src) && /ewStep\(this,-5\)/.test(src));
+  T('and the editor no longer lays sets out as a spreadsheet',
+    !/class="ew-cols"/.test(src));
   T('the numbers being corrected are the ones that dominate',
     /\.ew-num\{[\s\S]{0,240}font-size: 16px; font-weight: 700;/.test(css));
   T('and the fields inside a row carry no boxes of their own',
@@ -12785,8 +12818,13 @@ function testWorkoutEditor(app){
   T('set type is a control in the row, not a menu behind a tap',
     /class="ew-type/.test(src) && /aria-label="Set ' \+ n \+ ' type"/.test(src) &&
     !/ew-type[\s\S]{0,200}(hidden|display:\s*none)/.test(src));
-  T('and the row says which column it is',
-    /<span>Type<\/span>/.test(src) && /<span>Reps<\/span>/.test(src) && /<span>RIR<\/span>/.test(src));
+  /* D45B — the shared column header is gone with the grid it labelled. Each
+     row now carries its own identification: type and RIR are visible controls
+     showing their value as a word, and every stepper input is named. */
+  T('and each row identifies its own values',
+    /aria-label="Set ' \+ n \+ ' type"/.test(src) &&
+    /aria-label="Set ' \+ n \+ ' reps in reserve"/.test(src) &&
+    /aria-label="Set ' \+ n \+ ' reps"/.test(src));
   T('every editable control in the editor carries an accessible name', (() => {
     const from = src.indexOf('function editorSetHtml');
     const to = src.indexOf('function prEventsForEntry');
@@ -13370,13 +13408,14 @@ function testSurfaceConsolidation(app){
   T('it waits at the quiet foot instead, same confirmation',
     /class="summary-danger" onclick="deleteJustLoggedWorkout\(\)"/.test(src) &&
     /\.summary-danger\{[\s\S]{0,240}background: none; border: none;/.test(css));
-  T('the score says what it is out of', /quality-of"> \/ 100</.test(src));
-  T('its words are bands of the score, not invention', (() => {
-    const i = src.indexOf('const qualityWord');
-    const fn = src.slice(i, i + 260);
-    return /q >= 85 \? 'Excellent session'/.test(fn) && /q >= 70 \? 'Strong session'/.test(fn) &&
-           /'Session logged'/.test(fn);
-  })());
+  /* D45B — both of these made an unearned number less misleading: one forced
+     it to say "/100", the other kept its praise inside fixed bands. The number
+     is gone, so the guarantee is stronger than either — completion states
+     facts and grades nothing. */
+  T('the session is not graded', !/quality-of/.test(src) && !/\/ 100</.test(src));
+  T('and no band word is invented for it',
+    !/'Excellent session'/.test(src) && !/'Strong session'/.test(src) &&
+    !/'Solid session'/.test(src));
   T('and the detail line still names the real factors',
     /sets matched or beat last time/.test(src));
   T('three primary metrics, not five equal cards', (() => {
@@ -13912,15 +13951,21 @@ async function testTodayAndHistoryTruth(){
     reseed([sess('t', 1), sess('u', 3, 'pull')], D(3));
     ctx.renderToday();
     const week = doc.getElementById('weekCard').innerHTML;
-    const mo = doc.getElementById('todayMomentum').innerHTML;
     T('This Week owns the weekly completion reading', /wk-bar|wk-count/.test(week));
-    T('Momentum no longer repeats it', !/mo-primary|mo-week|mo-p-v/.test(mo));
-    T('and its builders were removed, not left unreachable',
-      !/function momentumDotsHtml/.test(src) && !/\.mo-dot-done\{/.test(css));
-    T('Momentum still adds something the week cannot show',
-      /mo-head/.test(mo));
-    T('from signals that already existed',
-      /computeWeekSummary\(\)\.prs/.test(src) && /computeWeekStreak\(\)/.test(src));
+    /* D45B — D27 cut Momentum's duplicate week and left it carrying a
+       sentence plus a lifts reading; the owner then marked it friction and
+       asked for it to be replaced. Both remaining readings duplicated
+       something adjacent — the sentence restated this card, the lifts line
+       restated Progress, which the button beneath it opens — so the section
+       was removed and its one unique reading, the streak, folded into the
+       week it counts. */
+    T('and Momentum no longer sits beside it',
+      !/function renderTodayMomentum/.test(src) && !/id="todayMomentum"/.test(src));
+    T('its builders were removed, not left unreachable',
+      !/function momentumDotsHtml/.test(src) && !/function momentumHeadline/.test(src) &&
+      !/function momentumProgress/.test(src) && !/\.mo-cell\{/.test(css));
+    T('the streak it carried survives, on the week it counts',
+      /wk-foot-streak/.test(src) && /computeWeekStreak\(\)/.test(src));
     T('no momentum score was invented', !/momentum score|momentumScore/i.test(src));
   }
 
@@ -14558,14 +14603,20 @@ async function testDataIntegrityD31(){
       prog.exercisesTracked === 0, String(prog.exercisesTracked));
   }
 
-  sub('the session score says what it is');
-  /* D31 defect 2: the block rendered an anonymous 38px "N / 100" directly
-     under "Workout Complete". Forty of those points are completion, so an
-     unnamed number there reads as an objective grade of the workout. */
-  T('the number carries a label naming it',
-    /<div class="quality-title">Session score<\/div>/.test(src));
-  T('and the label sits above the number, not after it',
-    src.indexOf('class="quality-title"') < src.indexOf('class="quality-score"'));
+  sub('the session reads as evidence, not a grade');
+  /* D31 saw this first: the block rendered an anonymous 38px "N / 100"
+     directly under "Workout Complete", and forty of those points were simply
+     completion, so an unnamed number there read as an objective grade. D31
+     answered by naming it. D45B removed it — the audit found completion was
+     near-constant, rep targets punished adding weight, and volume progress
+     punished matching last week. What replaces it is the evidence the score
+     was built from, stated as facts the athlete can check. */
+  T('the block states what happened rather than scoring it',
+    /<div class="quality-title">This session<\/div>/.test(src) &&
+    /class="quality-read"/.test(src));
+  T('and every line it shows is checkable against the athlete\'s own sets',
+    /sets matched or beat last time/.test(src) &&
+    /% volume vs your last /.test(src));
   T('the arithmetic behind it is unchanged', (() => {
     const i = src.indexOf('function computeWorkoutQuality');
     const fn = src.slice(i, i + 1800);
@@ -15997,12 +16048,19 @@ async function testPlanConsistency(){
   sub('every surface reads the one number');
   T('Log, Progress and the tiles all read overallConsistency',
     (src.match(/overallConsistency/g) || []).length >= 4);
+  /* D45B — this pinned the copy inside renderHeatmap, which never rendered:
+     the element it drew into left the markup in ba74bc4. Correcting dead text
+     was why the LIVE Log strip kept comparing raw workouts against planned
+     days after D44 shipped. The heatmap is retired and the assertion now
+     follows the strip an athlete can actually see. */
   T('the Log summary counts fulfilled plans, not workouts',
-    /totalFulfilled\} of \$\{data\.totalPlanned\} planned sessions/.test(src));
-  T('Momentum still does not show the 12-week percentage', (() => {
-    const fn = src.slice(src.indexOf('function renderTodayMomentum()'),
-      src.indexOf('function renderProgressJump'));
-    return fn.indexOf('overallConsistency') === -1;
+    /<b>\$\{totalFulfilled\}<\/b> of \$\{totalTarget\} planned sessions/.test(src));
+  T('and its weekly bars mark a week on target by plans fulfilled',
+    /const onTarget = w\.target \? \(w\.fulfilled \|\| 0\) >= w\.target/.test(src));
+  T('This Week does not show the 12-week percentage', (() => {
+    const i = src.indexOf('function renderThisWeek');
+    return src.slice(i, src.indexOf('function attachWeekGestures', i))
+      .indexOf('overallConsistency') === -1;
   })());
 
   sub('deterministic across dates and input order');

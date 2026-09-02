@@ -5000,3 +5000,84 @@ revisions are not stored and are not guessed, which is the same honest
 limitation program adherence carries. The Log consistency block remains
 unreachable, as above. Neither the phone checklist nor the PWA update was
 physically performed on a device.
+
+## §68 — Core experience refinement (D45B, loop-v115)
+
+**The first phase driven by physical use.** D45A changed nothing and produced a
+checklist; the owner trained with LOOP 3.7 on iPhone and rated it 8/10, marking
+the logger, rest timer and Log as Smooth and naming five points of friction.
+Everything below answers one of those, or was found while answering one.
+
+**Correcting a workout now uses the controls it was logged with.** The owner's
+words were that going back to fix a set "should reload back in the workout page
+not some different logging page — this feels inconsistent". Reproduced exactly:
+the logger gives ±5/±1 steppers at 44px, a six-option RIR picker and one
+exercise filling the screen; the editor gave bare text inputs and `<select>`
+dropdowns in a six-column spreadsheet grid. The grid could not hold a stepper —
+weight and reps had ~73px each at 375px — so the set row became two lines: what
+the set WAS on top, the logger's own steppers underneath. `ewStep` reuses the
+logger's `clampStepValue` and writes through the one canonical `editSetField`;
+it deliberately does not reuse `stepValue`, which propagates a weight forward
+into later sets and saves the live draft, neither of which belongs in a
+correction to history. The shared column header went with the grid it labelled.
+
+**The session score was removed, not restyled.** The owner asked for a score
+that "feels REAL, not arbitrary". Audited: `completion(40) + repTargets(25) +
+progress(20) + records(15)`. Completion was near-constant, because saving a
+workout already drops empty sets, so it scored 40/40 for essentially every
+session. Rep targets did not measure a target — it compared reps against the
+most reps done last time, so adding weight and doing fewer reps, the ordinary
+way a lift progresses, scored as a miss. Progress compared volume against the
+last session of the same category, so matching last week scored 10/20 and a
+deliberate lighter week read as failure. The practical range was roughly 68–100
+with no way for the athlete to predict or check it. D31 had already noticed the
+shape of this — "an unnamed number there reads as an objective grade of the
+workout when 40 of its 100 points are simply completion" — and answered by
+naming it. D45B finished the thought: the grade is gone and what remains is the
+evidence it was built from, stated as facts the athlete can verify against their
+own sets. Four contracts that existed to make the number less misleading were
+replaced by one stronger guarantee: completion states facts and grades nothing.
+
+**Momentum was removed and its one unique reading kept.** D22 moved the level
+out of it; D27 removed its copy of the week, noting This Week already showed
+"2 of 4" a few hundred pixels up the same screen. What survived was a sentence
+restating that card and a lifts reading restating Progress — which the button
+directly beneath it opens. The owner marked it friction. The section, its
+headline, its progress reading, its renderer and twelve `.mo-*` rules are gone;
+the week streak moved into This Week, beside the week it counts. `momentumWeek`
+survives under its own heading because This Week reads it. Its section header
+had been left labelling the insights block below it, which is now titled
+"Worth knowing" and renders its own heading, fixing a latent bug where a new
+athlete saw a bare heading over nothing.
+
+**The dead heatmap is retired.** D45A classified it RETIRE CANDIDATE; the Owner
+QA then reported Log as Smooth with nothing missing, so the evidence was in.
+`renderHeatmap`, `scoreRingSvg`, `scoreBand`, both selection handlers, both
+selection variables and fifty `.cons-*` / `.score-ring` rules are removed —
+13.4KB that could never execute. Two harness module boundaries that used
+`let selectedConsistencyWeek` as a landmark now use the CARDIO SYSTEM header,
+which is a real boundary rather than an incidental declaration.
+
+**A live defect the dead code had been hiding.** D44 corrected "X of Y planned
+sessions" inside `renderHeatmap` — copy that never rendered. The LIVE Log strip,
+`logConsistencyStripHtml`, still summed `w.workouts` against `w.plannedKnown`,
+so a week trained beyond its plan could read "12 of 8 planned sessions". Its
+footer, its on-target bar state and its spoken labels now use `w.fulfilled`;
+bar height stays on sessions trained, because that is a picture of the work
+done rather than a claim about the plan. Correcting dead text is precisely why
+this survived D44, and the contract that pinned it now follows the strip an
+athlete can see.
+
+**Not attempted, and why.** Progress Overview and My Training were both marked
+friction and are not addressed here. Both are substantial information-design
+efforts on surfaces the owner otherwise rated workable, and rushing them
+alongside five other changes risked the card soup the brief warns against.
+They are carried forward whole rather than half-done.
+
+**Verification.** 5,371 assertions, 327 program-audit checks, 87
+data-integrity, 261 cardio, 43 GPS and the full date matrix — all green.
+`index.html` is 14,622 bytes smaller. Six viewports clean across the editor,
+completion and Today. `DATA_KEYS` remains 15 and `TRAINER_ENGINE_VERSION`
+remains `0.1.1-shadow`; no threshold, calibration or state was touched, and
+D39–D44 arithmetic is unchanged apart from the Log strip correction above,
+which applies D44's own rule to the surface that renders.

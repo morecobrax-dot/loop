@@ -601,93 +601,6 @@ html.intro-skip #introOverlay{ display: none !important; }
 .missed-btn-primary{ background: var(--accent); color: #0C0E12; }
 .missed-btn-secondary{ background: var(--surface-3); color: var(--text-dim); border: 1px solid var(--border); }
 
-/* ---- Consistency heatmap ---- */
-.heatmap-card{
-  border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 14px; margin-top: 10px;
-  display: flex; flex-direction: column; align-items: stretch;
-}
-/* ---- Consistency & Performance dashboard ---- */
-.cons-header{ text-align: center; padding: 4px 0 16px; }
-.cons-big{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 42px; line-height: 1; color: var(--text); }
-.cons-pct{ font-size: 22px; color: var(--text-dim); margin-left: 2px; }
-.cons-big-label{ font-size: 11.5px; color: var(--accent); font-weight: 600; margin-top: 6px; }
-.cons-big-sub{ font-size: 11px; color: var(--text-faint); margin-top: 3px; }
-
-.cons-grid-wrap{ margin-top: 4px; }
-.cons-grid{
-  display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(7, 1fr);
-  grid-auto-flow: column; gap: 3px; width: 100%; aspect-ratio: 12 / 7;
-}
-.cons-cell{
-  border-radius: 2px; width: 100%; height: 100%; cursor: pointer;
-  background: var(--surface-3);
-  animation: consFade 0.35s var(--ease) both;
-  transition: transform 0.12s var(--ease), box-shadow 0.15s var(--ease);
-}
-@keyframes consFade{ from{ opacity: 0; } to{ opacity: 1; } }
-.cons-rest{ background: var(--surface-3); }
-.cons-future{ background: var(--surface-3); opacity: 0.25; cursor: default; }
-.cons-missed{ background: transparent; border: 1px dashed rgba(189,146,96,0.55); }
-.cons-trained{ background: var(--success); }
-.cons-pr{ background: var(--accent); }
-.cons-day-sel{ box-shadow: 0 0 0 2px var(--text); transform: scale(1.15); position: relative; z-index: 2; }
-
-.cons-axis{ display: flex; justify-content: space-between; font-size: var(--fs-micro); color: var(--text-faint); margin-top: 7px; }
-.cons-legend{ display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 12px; font-size: var(--fs-micro); color: var(--text-faint); }
-.cons-key{ width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-
-.cons-weekbar-label{ font-size: var(--fs-micro); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin: 18px 0 7px; }
-.cons-weekbar{ display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; height: 34px; }
-.cons-wk{ cursor: pointer; display: flex; align-items: flex-end; }
-.cons-wk-bar{ width: 100%; height: 100%; background: var(--surface-3); border-radius: 2px; display: flex; align-items: flex-end; overflow: hidden; }
-.cons-wk-fill{ width: 100%; background: var(--success); border-radius: 2px; transition: height 0.4s var(--ease); }
-.cons-wk.sel .cons-wk-bar{ box-shadow: 0 0 0 1.5px var(--accent); }
-.cons-wk.sel .cons-wk-fill{ background: var(--accent); }
-
-.cons-detail{
-  margin-top: 14px; padding: 13px 14px; border-radius: var(--radius-md);
-  background: var(--surface-3); border: 1px solid var(--border);
-  animation: consFade 0.25s var(--ease) both;
-}
-.cons-detail-head{ display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.cons-detail-title{ font-size: 13.5px; font-weight: 700; color: var(--text); }
-.cons-detail-date{ font-size: 11px; color: var(--text-faint); margin-top: 2px; }
-.cons-detail-score{ position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.cons-ring-num{
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--text);
-}
-.cons-ring-num.sm{ font-size: 12px; }
-.cons-detail-stats{ display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
-.cons-detail-stats > div{ font-size: var(--fs-micro); letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); display: flex; flex-direction: column; gap: 2px; }
-.cons-detail-stats span{ font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: 0; text-transform: none; }
-
-.score-ring{ display: block; transform: rotate(-90deg); }
-.score-ring-track{ fill: none; stroke: var(--surface-2); stroke-width: 6; }
-.score-ring-fill{ fill: none; stroke: var(--success); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.55s var(--ease); }
-
-.cons-foot{ display: flex; align-items: center; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-.cons-foot-item{ flex: 1; display: flex; align-items: center; gap: 9px; min-width: 0; }
-.cons-foot-ring{ position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.cons-foot-num{ font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; color: var(--text); }
-.cons-foot-label{ font-size: var(--fs-micro); letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); line-height: 1.35; }
-.cons-foot-label span{ color: var(--success); }
-.cons-trend-improving{ color: var(--success); font-size: 12px; }
-.cons-trend-steady{ color: var(--text-dim); font-size: 12px; }
-.cons-trend-declining{ color: var(--warning); font-size: 12px; }
-
-.cons-note{ font-size: var(--fs-micro); color: var(--text-faint); text-align: center; margin-top: 12px; }
-.cons-empty{ text-align: center; padding: 22px 10px; }
-.cons-empty-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
-.cons-empty-sub{ font-size: 12px; color: var(--text-faint); margin-top: 6px; line-height: 1.5; }
-
-@media (prefers-reduced-motion: reduce){
-  .cons-cell, .cons-detail{ animation: none; }
-  .cons-wk-fill, .score-ring-fill{ transition: none; }
-  .cons-day-sel{ transform: none; }
-}
-
 /* ---- Program carousel (swipeable, Instagram-style) ---- */
 .program-carousel{
   display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
@@ -1844,42 +1757,7 @@ body.first-use{ padding-bottom: 0; }
 .wk-hint{ font-size: var(--fs-micro); color: var(--text-faint); margin-top: 8px; text-align: center; }
 
 /* One sentence saying where this athlete is, before any number. */
-.mo-head{
-  margin: var(--space-3) 0 0; font-size: 13.5px; line-height: 1.45; color: var(--text-dim);
-}
 
-/* D27: Momentum's own week block (.mo-primary, .mo-p-*, .mo-week, .mo-dot-*)
-   was removed with the duplicate reading it drew. This Week is the one place
-   the week is shown, and it carries the same rule those dots did — a missed
-   day reads as attention (--warning), never as an error. */
-
-.mo-cells{ display: flex; gap: var(--space-2); margin-top: var(--space-2); }
-.mo-cell{
-  flex: 1; min-width: 0; padding: 11px 12px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-}
-.mo-c-v{
-  display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700;
-  font-size: 19px; line-height: 1.1; color: var(--text);
-}
-.mo-c-k{
-  display: block; margin-top: 3px; font-size: var(--fs-micro);
-  line-height: 1.3; color: var(--text-faint);
-}
-.mo-good .mo-c-v{ color: var(--success); }
-
-.mo-good{ border-color: rgba(75,156,129,0.32); }
-
-.mo-empty{ font-size: 12.5px; color: var(--text-dim); padding: 14px 0; }
-.mo-level{
-  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin-top: 8px;
-  padding: 0 12px; background: none; border: 1px solid var(--border); border-radius: var(--radius-md);
-  cursor: pointer; font-family: 'Inter', sans-serif;
-}
-.mo-level-k{ font-size: 12px; font-weight: 700; color: var(--text-dim); flex-shrink: 0; }
-.mo-level-bar{ flex: 1; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
-.mo-level-bar span{ display: block; height: 100%; background: var(--accent); border-radius: 2px; }
-.mo-level-v{ font-size: var(--fs-micro); color: var(--text-faint); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
 
 .prog-jump{
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; margin-top: 10px;
@@ -1965,26 +1843,28 @@ body.first-use{ padding-bottom: 0; }
 .week-summary-foot{ font-size: 11px; color: var(--text-faint); margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); }
 
 /* ---- Session quality score ---- */
+/* D45B — this block used to be lit like a scoreboard because it held a 38px
+   number. With the number gone it holds statements instead, so it drops the
+   accent gradient and outline and sits as a quiet reading. D31 had already
+   observed that the score "reads as an objective grade of the workout when 40
+   of its 100 points are simply completion" and answered by naming it; this
+   finishes that thought by removing the grade and keeping the evidence. */
 .quality-block{
-  grid-column: 1 / -1; text-align: center; padding: 16px 14px; border-radius: var(--radius-md);
-  background: linear-gradient(160deg, var(--accent-soft), var(--surface-2));
-  /* D28: the score is the light; a full-strength accent outline around it was
-     shouting over its own number. */
-  border: 1px solid rgba(76,194,255,0.30); margin-bottom: 2px;
-  box-shadow: inset 0 1px 0 var(--edge-hi);
+  grid-column: 1 / -1; padding: 14px 15px; border-radius: var(--radius-md);
+  background: var(--surface-2); border: 1px solid var(--border);
+  margin-bottom: 2px; box-shadow: inset 0 1px 0 var(--edge-hi);
 }
-/* D31: the score rendered as an anonymous 38px "87 / 100" directly under
-   "Workout Complete", which reads as an objective grade of the workout when
-   40 of its 100 points are simply completion. Naming it costs one line and
-   changes no arithmetic. */
 .quality-title{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 6px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 8px;
 }
-.quality-score{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 38px; line-height: 1; color: var(--text); }
-.quality-label{ font-size: var(--fs-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-top: 4px; font-weight: 700; }
-.quality-detail{ font-size: 11px; color: var(--text-dim); margin-top: 7px; line-height: 1.45; }
-.quality-of{ font-size: 15px; font-weight: 600; color: var(--text-faint); letter-spacing: 0; }
+/* Each line is one checkable fact about the session, not a verdict on it. */
+.quality-read{
+  font-size: var(--fs-support); font-weight: 600; color: var(--text);
+  line-height: 1.5; margin-top: 3px;
+}
+.quality-read:first-of-type{ margin-top: 0; }
+
 /* Post-workout identity line: medal, level, progress and the streak as a
    small reward — one row where a fourth stat card used to sit. */
 .xp-identity{ display: flex; align-items: center; gap: 10px; margin-top: 10px; }
@@ -4514,17 +4394,19 @@ body.page-locked{ overflow: hidden; }
    up down the exercise so the numbers can be read as a column rather than
    hunted for. Weight and reps take the free space; RIR and type are sized to
    their content because they are secondary. */
-.ew-cols, .ew-set{
-  display: grid; grid-template-columns: 16px 1fr 1fr 42px 78px 30px;
+/* D45B — the row is two lines now: what the set WAS on top, what it measured
+   underneath. The top line keeps the column reading the old grid was built
+   for; the controls below are the logger's, so correcting a number uses the
+   same gesture as entering it. */
+.ew-set-top{
+  display: grid; grid-template-columns: 16px 1fr 62px 30px;
   gap: 6px; align-items: center;
 }
-.ew-cols{
-  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
-  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint);
-  padding-bottom: 4px;
-}
+.ew-set-controls{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
+.ew-set-controls .stepper input{ font-size: 17px; }
+
 .ew-set{
-  min-height: 48px; border-top: 1px solid var(--border);
+  padding-top: 8px; border-top: 1px solid var(--border);
 }
 .ew-set:first-of-type{ border-top: none; }
 .ew-set-n{
@@ -5428,7 +5310,7 @@ body.page-locked{ overflow: hidden; }
    if everything glows, nothing is important.
    ========================================================= */
 .pd-card, .lc-card, .cal-card, .mv-card, .tpl-card, .ob-mock, .ob-hero,
-.mas-sum, .vw-grid, .pd-tiles, .mo-cell, .cl-tile, .settings-row-btn,
+.mas-sum, .vw-grid, .pd-tiles, .cl-tile, .settings-row-btn,
 .prog-jump, .hdr-level, .plan-card, .mt-stat, .sub-card{
   border-color: var(--border-quiet);
   box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
@@ -5441,7 +5323,6 @@ body.page-locked{ overflow: hidden; }
   box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
 }
 /* Stateful borders declared earlier in the file stay louder than the recipe. */
-.mo-cell.mo-good{ border-color: rgba(75,156,129,0.32); }
 .plan-card.plan-card-active{ border-color: var(--accent); }
 /* Joined list rows keep their seams but lose the heavy outline. */
 .rw-row, .pt-row, .rank-row, .ch-card, .insight-row{ border-color: var(--border-quiet); }
@@ -5894,9 +5775,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <!-- 3 — today's context -->
     <div id="readinessCard"></div>
 
-    <!-- 4 — momentum -->
-    <div class="sec-head">Momentum</div>
-    <div id="todayMomentum"></div>
+    <!-- 4 — what is worth knowing right now -->
     <div id="todayInsights"></div>
 
   </div>
@@ -9665,6 +9544,25 @@ const LOOP_UPDATES = [
       'Consistency could be calculated above 100% and was then quietly capped, because it compared every workout you logged against only the days you had planned'
     ],
     changes: []
+  },
+  {
+    id: 'v3-8',
+    version: 'LOOP 3.8',
+    title: 'Clearer After You Train',
+    date: '2026-09-08',
+    swVersion: 'loop-v115',
+    summary: 'Finishing a workout tells you what actually happened, and fixing a set works the way logging one does.',
+    newFeatures: [],
+    improvements: [
+      'Correcting a finished workout now uses the same +/- controls you logged it with, instead of a separate form',
+      'The finish screen states what your session actually did — how many sets matched or beat last time, and how the volume compared — rather than grading it out of 100',
+      'Today is shorter: the Momentum section is gone, your training streak now sits with the week it counts, and what is left is the week ahead plus anything worth knowing'
+    ],
+    bugFixes: [
+      'The consistency card in Log compared every workout you logged against only the days you had planned, so training extra could read as more sessions than were ever planned',
+      'A heading on Today could appear with nothing underneath it'
+    ],
+    changes: []
   }
 ];
 
@@ -12881,7 +12779,7 @@ function analyzeReplay(replay){
   };
 }
 
-let selectedConsistencyWeek = null;
+
 
 /* =========================================================
    CARDIO SYSTEM  (Phase A)
@@ -15436,172 +15334,6 @@ function getCombinedProgression(){
 
 
 
-let selectedConsistencyDay = null;
-
-function scoreRingSvg(score, size){
-  const r = 26, circ = 2 * Math.PI * r;
-  const pct = score === null ? 0 : Math.max(0, Math.min(100, score)) / 100;
-  return `
-    <svg class="score-ring" viewBox="0 0 64 64" style="width:${size}px;height:${size}px">
-      <circle class="score-ring-track" cx="32" cy="32" r="${r}"/>
-      <circle class="score-ring-fill" cx="32" cy="32" r="${r}" style="stroke-dasharray:${circ.toFixed(2)}; stroke-dashoffset:${(circ*(1-pct)).toFixed(2)}"/>
-    </svg>`;
-}
-function scoreBand(score){
-  if(score === null) return '';
-  if(score >= 95) return 'Outstanding';
-  if(score >= 85) return 'Excellent';
-  if(score >= 70) return 'Good';
-  if(score >= 50) return 'Moderate';
-  return 'Building';
-}
-
-function selectConsistencyWeek(i){
-  selectedConsistencyWeek = (selectedConsistencyWeek === i) ? null : i;
-  selectedConsistencyDay = null;
-  renderHeatmap();
-}
-function selectConsistencyDay(dateStr){
-  selectedConsistencyDay = (selectedConsistencyDay === dateStr) ? null : dateStr;
-  selectedConsistencyWeek = null;
-  renderHeatmap();
-}
-
-function renderHeatmap(){
-  const el = document.getElementById('heatmapCard');
-  if(!el) return;
-
-  if(workoutLog.length === 0){
-    el.innerHTML = `
-      <div class="cons-empty">
-        <div class="cons-empty-title">Building your history</div>
-        <div class="cons-empty-sub">Log your first workout and your consistency, scores, and streaks will start appearing here.</div>
-      </div>`;
-    return;
-  }
-
-  const data = computeConsistencyData();
-  const fmt = d => d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
-
-  const headline = data.overallConsistency !== null
-    ? `<div class="cons-big">${data.overallConsistency}<span class="cons-pct">%</span></div>
-       <div class="cons-big-label">of your ${data.plannedPerWeek}&times;/week target &middot; last 12 weeks</div>
-       <div class="cons-big-sub">${data.totalFulfilled} of ${data.totalPlanned} planned sessions completed</div>`
-    : `<div class="cons-big">${data.totalWorkouts}</div>
-       <div class="cons-big-label">workouts in the last 12 weeks</div>
-       <div class="cons-big-sub">Set training days in your schedule to track this against a target.</div>`;
-
-  let cells = '';
-  data.weeks.forEach(wk => {
-    wk.days.forEach(day => {
-      const selDay = selectedConsistencyDay === day.date;
-      cells += `<div class="cons-cell cons-${day.state}${selDay?' cons-day-sel':''}" onclick="selectConsistencyDay('${day.date}')"></div>`;
-    });
-  });
-
-  const weekBar = data.weeks.map(wk => {
-    const h = wk.target ? Math.min(100, (wk.workouts / wk.target) * 100) : (wk.workouts ? 100 : 0);
-    const sel = selectedConsistencyWeek === wk.index;
-    return `<div class="cons-wk ${sel?'sel':''}" onclick="selectConsistencyWeek(${wk.index})">
-      <div class="cons-wk-bar"><div class="cons-wk-fill" style="height:${h}%"></div></div>
-    </div>`;
-  }).join('');
-
-  let detail = '';
-  if(selectedConsistencyDay){
-    const day = data.weeks.reduce((acc,w) => acc.concat(w.days), []).find(d => d.date === selectedConsistencyDay);
-    if(day){
-      const dt = new Date(day.date + 'T00:00:00');
-      const label = dt.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-      if(day.entry){
-        const dur = estimateLoggedDuration(day.entry);
-        detail = `
-          <div class="cons-detail">
-            <div class="cons-detail-head">
-              <div><div class="cons-detail-title">${escapeHtml(day.entry.title)}</div><div class="cons-detail-date">${label}</div></div>
-              ${day.score !== null ? `<div class="cons-detail-score">${scoreRingSvg(day.score, 52)}<span class="cons-ring-num">${day.score}</span></div>` : ''}
-            </div>
-            <div class="cons-detail-stats">
-              <div><span>${day.sets}</span>Sets</div>
-              <div><span>${day.volume.toLocaleString()}</span>Volume</div>
-              <div><span>${day.prs}</span>PRs</div>
-              ${dur ? `<div><span>~${dur}</span>Min</div>` : ''}
-            </div>
-          </div>`;
-      } else {
-        const plannedCat = (day.planned && schedule) ? CAT_LABEL[schedule[JS_DAY_TO_KEY[dt.getDay()]]] : null;
-        detail = `
-          <div class="cons-detail">
-            <div class="cons-detail-title">${day.state === 'missed' ? 'Missed session' : 'Rest day'}</div>
-            <div class="cons-detail-date">${label}${plannedCat ? ` &middot; planned ${plannedCat}` : ''}</div>
-          </div>`;
-      }
-    }
-  } else if(selectedConsistencyWeek !== null){
-    const wk = data.weeks.find(w => w.index === selectedConsistencyWeek);
-    if(wk){
-      const end = new Date(wk.start); end.setDate(wk.start.getDate() + 6);
-      detail = `
-        <div class="cons-detail">
-          <div class="cons-detail-head">
-            <div><div class="cons-detail-title">${fmt(wk.start)} &ndash; ${fmt(end)}</div>
-              <div class="cons-detail-date">${wk.target ? `${wk.workouts} / ${wk.target} workouts` : `${wk.workouts} workout${wk.workouts===1?'':'s'}`}</div></div>
-            ${wk.avgScore !== null ? `<div class="cons-detail-score">${scoreRingSvg(wk.avgScore, 52)}<span class="cons-ring-num">${wk.avgScore}</span></div>` : ''}
-          </div>
-          <div class="cons-detail-stats">
-            <div><span>${wk.sets}</span>Sets</div>
-            <div><span>${wk.volume.toLocaleString()}</span>Volume</div>
-            <div><span>${wk.prs}</span>PRs</div>
-            ${wk.consistency !== null ? `<div><span>${wk.consistency}%</span>Consistency</div>` : ''}
-          </div>
-        </div>`;
-    }
-  }
-
-  const streak = computeWeekStreak();
-  const trendLabel = { improving:'Improving', steady:'Steady', declining:'Easing off' }[data.trend];
-  /* The same drawn mark the rest of the app uses. The label beside it says the
-   same thing in words, so neither the shape nor the colour stands alone. */
-const trendArrow = trendIconSvg(trendDirOf(data.trend), 13);
-
-  el.innerHTML = `
-    <div class="cons-header">${headline}</div>
-
-    <div class="cons-grid-wrap">
-      <div class="cons-grid">${cells}</div>
-      <div class="cons-axis"><span>${fmt(data.rangeStart)}</span><span>Today</span></div>
-    </div>
-
-    <div class="cons-legend">
-      <span>Less</span>
-      <i class="cons-key cons-rest"></i><i class="cons-key cons-missed"></i><i class="cons-key cons-trained"></i><i class="cons-key cons-pr"></i>
-      <span>More</span>
-    </div>
-
-    <div class="cons-weekbar-label">Weekly completion &middot; tap a week</div>
-    <div class="cons-weekbar">${weekBar}</div>
-
-    ${detail}
-
-    <div class="cons-foot">
-      ${data.overallScore !== null ? `
-        <div class="cons-foot-item">
-          <div class="cons-foot-ring">${scoreRingSvg(data.overallScore, 46)}<span class="cons-ring-num sm">${data.overallScore}</span></div>
-          <div class="cons-foot-label">Avg score<br><span>${scoreBand(data.overallScore)}</span></div>
-        </div>` : ''}
-      <div class="cons-foot-item">
-        <div class="cons-foot-num">${streak}</div>
-        <div class="cons-foot-label">Week streak</div>
-      </div>
-      <div class="cons-foot-item">
-        <div class="cons-foot-num cons-trend-${data.trend}">${trendArrow} ${trendLabel}</div>
-        <div class="cons-foot-label">12-week trend</div>
-      </div>
-    </div>
-    ${!data.hasEnoughData ? `<div class="cons-note">Keep logging &mdash; trends sharpen after a few more sessions.</div>` : ''}
-  `;
-}
-
 /* ---------- MISSED WORKOUT AWARENESS ---------- */
 function checkMissedWorkout(){
   if(!planStartDate) return null;
@@ -16246,8 +15978,16 @@ function renderTodayInsights(){
   if(ready) rows.push({ tag:'Ready', text:`${ready} — ready for more weight` });
   if(stalled) rows.push({ tag:'Stalled', text:`${stalled} — progress has flattened` });
 
+  /* D45B — the heading moved inside the render. It used to sit in the static
+     markup reading "Momentum", so when Momentum was removed it was left
+     labelling this block, and a new athlete with no signals yet saw a bare
+     heading over nothing (#todayInsights:empty hides the list, but could not
+     hide a sibling). Rendered with the rows, it appears only when there is
+     something under it — and it now says what the block actually holds:
+     a trend, and any lift ready for more weight or gone flat. */
   el.innerHTML = rows.length
-    ? `<div class="insight-list">${rows.slice(0,3).map(r => `
+    ? `<div class="sec-head">Worth knowing</div>
+       <div class="insight-list">${rows.slice(0,3).map(r => `
         <div class="insight-row"><span class="insight-tag it-${r.tag.toLowerCase()}">${r.tag}</span><span>${escapeHtml(r.text)}</span></div>`).join('')}</div>`
     : '';
 }
@@ -16361,6 +16101,17 @@ function renderWeekCard(){
   } else if(wk.planned && wk.done >= wk.planned){
     foot = `<div class="wk-foot wk-foot-done"><span class="wk-foot-k">Done</span>Every planned session this week is logged.</div>`;
   }
+  /* D45B — the streak moved here from Momentum, which the owner asked to have
+     replaced. It was the one reading Momentum carried that nothing else on the
+     screen said: its week sentence restated this card, and its lifts line
+     restated Progress, which the button directly below it opens. A streak
+     belongs beside the week it counts. Still only shown once it means
+     something — one week is not a streak. */
+  let streak = 0;
+  try{ streak = computeWeekStreak(); }catch(e){}
+  if(streak >= 2){
+    foot += `<div class="wk-foot wk-foot-streak"><span class="wk-foot-k">Streak</span>${streak} weeks trained in a row</div>`;
+  }
 
   el.innerHTML = `
     <div class="wk-card">
@@ -16378,39 +16129,11 @@ function renderWeekCard(){
   attachWeekGestures();
 }
 
-/* ---------- MOMENTUM ----------
-   Rebuilt. The old section showed three numbers, and measured against a real
-   athlete with PERFECT adherence — three weeks, four of four every week,
-   nothing missed — it read:
-
-       0 Week streak  |  25% On target  |  0 PRs this week
-
-   Every one of those was wrong or misleading.
-
-   "On target" was totalWorkouts / (daysPerWeek x 12 weeks). The denominator
-   projected the CURRENT schedule back across twelve weeks regardless of how
-   long the athlete had been training, so someone three weeks in could not
-   mathematically exceed 25% however perfectly they trained. It measured how
-   long you had owned the app, not how well you were following your plan. It
-   is gone — not reworded.
-
-   The streak read 0 because it counted the week in progress as already
-   broken. That was a genuine bug in computeWeekStreak() and is fixed there,
-   for all five callers, rather than worked around here.
-
-   What replaces it answers three questions in the order a Today screen should
-   ask them:
-
-     THIS WEEK    the only one still actionable today, so it leads
-     CONSISTENCY  am I showing up, over time
-     PROGRESS     am I getting stronger
-
-   No metric is invented. Every number below comes from an engine that already
-   existed and is already used elsewhere. */
-
-/* How this week is actually going, read from the same day-state machine the
-   consistency heatmap uses — so "planned rest", "still to come" and "missed"
-   mean here exactly what they mean everywhere else in LOOP. */
+/* ---------- THIS WEEK SOURCE ----------
+   momentumWeek() survives the Momentum section it was named in: This Week
+   reads it, and renaming a working function across its callers would be
+   churn. Everything else that lived here — the week sentence, the lifts
+   reading and their renderer — was removed in D45B. */
 function momentumWeek(){
   const cons = computeConsistencyData();
   const week = cons.weeks[cons.weeks.length - 1];
@@ -16443,90 +16166,6 @@ function momentumWeek(){
 /* One sentence describing where this athlete actually is. It never claims a
    trend an athlete has not trained long enough to have, and never treats a
    rest day or a lighter scheduled week as a failure. */
-function momentumHeadline(wk, streak, totalSessions){
-  if(totalSessions < 3) return 'You are getting started.';
-  if(wk.planned === 0)  return 'Nothing scheduled this week — a planned rest.';
-  if(wk.complete)       return 'This week is complete.';
-  if(wk.remaining === 1) return 'One workout left this week.';
-  if(wk.remaining > 1)  return wk.remaining + ' workouts left this week.';
-  /* Nothing left to train and the week is not complete: it is over. Say that,
-     without scolding — and WITHOUT the count. D27 removed Momentum's own week
-     dots, which this line was written to caption; since then it restated the
-     exact "2 of 4" that This Week already shows a few hundred pixels above,
-     with no visual of its own to explain. This Week owns the count; Momentum
-     says what the count cannot, which is that the week has finished. */
-  if(wk.done > 0) return 'The training week is over.';
-  return 'No sessions logged this week.';
-}
-
-/* The strength reading. PRs lead when there are any, because a record is the
-   clearest possible evidence of progress. With none this week, LOOP falls back
-   to the per-lift 1RM trends Progress already computes — and if there is not
-   enough history for either, it says nothing rather than showing a zero. */
-function momentumProgress(){
-  let prs = 0;
-  try{ prs = computeWeekSummary().prs || 0; }catch(e){}
-  if(prs > 0){
-    return { value: String(prs), label: prs === 1 ? 'New record this week' : 'New records this week', tone:'good' };
-  }
-  try{
-    const trends = computeExerciseTrends();
-    if(trends.length >= 2){
-      const up = trends.filter(t => t.dir === 'up').length;
-      if(up > 0) return { value: up + ' of ' + trends.length, label:'Lifts improving', tone: up * 2 >= trends.length ? 'good' : null };
-      const down = trends.filter(t => t.dir === 'down').length;
-      if(down === trends.length) return { value:'Holding', label:'No lifts moving up yet', tone:null };
-      return { value:'Steady', label:'Lifts holding', tone:null };
-    }
-  }catch(e){}
-  return null;
-}
-
-/* D27: momentumDotsHtml / momentumDotsAria drew Momentum's copy of the week.
-   That copy is gone — This Week owns the week, with its own segment bar and
-   its own spoken summary — so the builders went with it rather than being
-   left behind as an unreachable second representation. */
-
-function renderTodayMomentum(){
-  const el = document.getElementById('todayMomentum');
-  if(!el) return;
-  if(!workoutLog.length && !cardioLog.length){
-    el.innerHTML = '<div class="mo-empty">Your training momentum appears here once you log your first session.</div>';
-    return;
-  }
-
-  let wk, streak = 0;
-  try{ wk = momentumWeek(); }catch(e){ wk = { planned:0, done:0, days:[], remaining:0, missed:0, complete:false }; }
-  try{ streak = computeWeekStreak(); }catch(e){}
-  const totalSessions = workoutLog.length;
-  const prog = momentumProgress();
-
-  /* D27 — Momentum no longer restates the week. "2 of 4" and its seven dots
-     already sit in This Week, a few hundred pixels up the same screen; saying
-     it twice made the second one look like a different reading. Momentum's
-     job is what This Week cannot show: what is carrying forward.
-
-     Two supporting readings remain. A streak only appears once it means
-     something — one week is not a streak — and progress only when the data
-     carries it. */
-  const cells = [];
-  if(streak >= 2){
-    cells.push('<div class="mo-cell"><span class="mo-c-v">' + streak + '</span>' +
-      '<span class="mo-c-k">Week streak</span></div>');
-  }
-  if(prog){
-    cells.push('<div class="mo-cell' + (prog.tone ? ' mo-' + prog.tone : '') + '">' +
-      '<span class="mo-c-v">' + escapeHtml(prog.value) + '</span>' +
-      '<span class="mo-c-k">' + escapeHtml(prog.label) + '</span></div>');
-  }
-  const support = cells.length ? '<div class="mo-cells">' + cells.join('') + '</div>' : '';
-
-  /* The level line moved to the Home header (D22) — one level display, not
-     two showing the same number a scroll apart. */
-  el.innerHTML =
-    '<p class="mo-head">' + escapeHtml(momentumHeadline(wk, streak, totalSessions)) + '</p>' +
-    support;
-}
 /* A one-line route into the full progression view, replacing the exercise
    trend list that duplicated Progress > Strength without adding to it. */
 function renderProgressJump(){
@@ -16577,7 +16216,6 @@ function renderToday(){
   renderReadinessCard();
   renderTodayWorkout();
   renderWeekCard();
-  renderTodayMomentum();
   renderTodayInsights();
 
 }
@@ -16920,18 +16558,25 @@ function logConsistencyStripHtml(){
      and never counted in the denominator. */
   const known = weeks.filter(w => w.known);
   const totalTarget = weeks.reduce((n, w) => n + (w.plannedKnown || 0), 0);
+  /* D45B — this card is called Consistency, so anything it compares against
+     the plan has to be PLANS FULFILLED. D44 corrected that arithmetic inside
+     computeConsistencyData, but this strip still read w.workouts, so a week
+     with more training than the plan asked for could read "12 of 8 planned".
+     The bar height stays on sessions trained — it is a picture of the work
+     done — while every statement about the plan uses w.fulfilled. */
+  const totalFulfilled = weeks.reduce((n, w) => n + (w.fulfilled || 0), 0);
   const peak = Math.max(1, ...weeks.map(w => Math.max(w.workouts, w.target || 0)));
 
   const bars = weeks.map((w, i) => {
     const pct = Math.round((w.workouts / peak) * 100);
-    const onTarget = w.target ? w.workouts >= w.target : w.workouts > 0;
+    const onTarget = w.target ? (w.fulfilled || 0) >= w.target : w.workouts > 0;
     const isNow = i === weeks.length - 1;
     if(!w.known){
       return `<span class="lc-col lc-unknown" role="img" aria-label="Before tracking began">
         <span class="lc-fill" style="height:4%"></span></span>`;
     }
     return `<span class="lc-col${onTarget ? ' on' : ''}${isNow ? ' now' : ''}" role="img"
-      aria-label="${w.workouts} session${w.workouts === 1 ? '' : 's'}${w.target ? ' of ' + w.target + ' planned' : ''}">
+      aria-label="${w.workouts} session${w.workouts === 1 ? '' : 's'} trained${w.target ? ', ' + (w.fulfilled || 0) + ' of ' + w.target + ' planned' : ''}">
       <span class="lc-fill" style="height:${Math.max(pct, w.workouts ? 12 : 4)}%"></span>
     </span>`;
   }).join('');
@@ -16951,7 +16596,7 @@ function logConsistencyStripHtml(){
       </div>
       <div class="lc-bars">${bars}</div>
       <div class="lc-foot">${totalTarget
-        ? `<b>${totalDone}</b> of ${totalTarget} planned sessions`
+        ? `<b>${totalFulfilled}</b> of ${totalTarget} planned sessions`
         : `<b>${totalDone}</b> session${totalDone === 1 ? '' : 's'} logged`}</div>
     </div>`;
 }
@@ -17373,6 +17018,21 @@ function editExerciseName(i, value){
   ex.name = value;
   markEditorDirty();
 }
+/* D45B — the editor's stepper. It reuses the logger's clamp so ±5 and ±1 mean
+   the same thing in both places, then writes through the one canonical field
+   setter. It deliberately does NOT reuse stepValue(), which carries
+   logger-only behaviour — propagating a weight forward into later sets, and
+   saving the live draft — neither of which belongs in a correction to a
+   workout that is already history. */
+function ewStep(btn, delta){
+  const input = btn.closest('.stepper').querySelector('input');
+  if(!input || input.disabled) return;
+  const isReps = input.dataset.ewF === 'reps';
+  input.value = clampStepValue(input.value, delta, isReps);
+  editSetField(parseInt(input.dataset.ewI, 10), parseInt(input.dataset.ewJ, 10),
+    input.dataset.ewF, input.value);
+}
+
 function editSetField(i, j, field, value){
   const st = workoutEditState;
   const ex = st && st.draft.exercises[i];
@@ -17443,25 +17103,48 @@ function editorSetHtml(s, i, j, bw){
     (v === '' ? '—' : escapeHtml(v)) + '</option>').join('');
   const idp = i + '-' + j;
   const n = j + 1;
+  /* D45B — the same controls the athlete just logged with. Correcting a set
+     used to mean typing into a bare field with a dropdown beside it, which is
+     a different product from the stepper they had been tapping for the
+     previous forty minutes — the owner's words were that it "feels
+     inconsistent". Weight and reps now carry the logger's stepper, so a wrong
+     number is fixed the way it was entered. Set number, type and RIR stay on
+     their own line above, where they can still be read down the exercise. */
   return '<div class="ew-set" data-set="' + j + '">' +
-    '<span class="ew-set-n" aria-hidden="true">' + n + '</span>' +
-    '<input id="ew-w-' + idp + '" class="ew-num" type="text" inputmode="decimal"' + (bw ? ' disabled' : '') +
-      ' aria-label="Set ' + n + ' ' + (bw ? 'load' : 'weight') + '"' +
-      ' value="' + escapeAttr(bw ? 'BW' : (s.weight == null ? '' : String(s.weight))) + '"' +
-      ' oninput="editSetField(' + i + ',' + j + ',\'weight\',this.value)">' +
-    '<input id="ew-r-' + idp + '" class="ew-num" type="text" inputmode="numeric"' +
-      ' aria-label="Set ' + n + ' reps"' +
-      ' value="' + escapeAttr(s.reps == null ? '' : String(s.reps)) + '"' +
-      ' oninput="editSetField(' + i + ',' + j + ',\'reps\',this.value)">' +
-    '<select id="ew-rir-' + idp + '" class="ew-rir" aria-label="Set ' + n + ' reps in reserve"' +
-      ' onchange="editSetField(' + i + ',' + j + ',\'rir\',this.value)">' + rir + '</select>' +
-    /* Quiet until it says something. A set whose type was never recorded shows
-       the placeholder rather than asserting one. */
-    '<select id="ew-t-' + idp + '" class="ew-type' + (known ? ' is-set' : '') + '"' +
-      ' aria-label="Set ' + n + ' type"' +
-      ' onchange="editSetField(' + i + ',' + j + ',\'type\',this.value)">' + types + '</select>' +
-    '<button type="button" class="ew-x" onclick="editorRemoveSet(' + i + ',' + j + ')"' +
-      ' aria-label="Remove set ' + n + '">' + closeIconSvg(11) + '</button>' +
+    '<div class="ew-set-top">' +
+      '<span class="ew-set-n" aria-hidden="true">' + n + '</span>' +
+      /* Quiet until it says something. A set whose type was never recorded
+         shows the placeholder rather than asserting one. */
+      '<select id="ew-t-' + idp + '" class="ew-type' + (known ? ' is-set' : '') + '"' +
+        ' aria-label="Set ' + n + ' type"' +
+        ' onchange="editSetField(' + i + ',' + j + ',\'type\',this.value)">' + types + '</select>' +
+      '<select id="ew-rir-' + idp + '" class="ew-rir" aria-label="Set ' + n + ' reps in reserve"' +
+        ' onchange="editSetField(' + i + ',' + j + ',\'rir\',this.value)">' + rir + '</select>' +
+      '<button type="button" class="ew-x" onclick="editorRemoveSet(' + i + ',' + j + ')"' +
+        ' aria-label="Remove set ' + n + '">' + closeIconSvg(11) + '</button>' +
+    '</div>' +
+    '<div class="ew-set-controls">' +
+      '<div class="stepper">' +
+        '<button type="button" tabindex="-1" aria-hidden="true"' + (bw ? ' disabled' : '') +
+          ' onclick="ewStep(this,-5)">–</button>' +
+        '<input id="ew-w-' + idp + '" class="ew-num" type="text" inputmode="decimal"' + (bw ? ' disabled' : '') +
+          ' data-ew-i="' + i + '" data-ew-j="' + j + '" data-ew-f="weight"' +
+          ' aria-label="Set ' + n + ' ' + (bw ? 'load' : 'weight') + '"' +
+          ' value="' + escapeAttr(bw ? 'BW' : (s.weight == null ? '' : String(s.weight))) + '"' +
+          ' oninput="editSetField(' + i + ',' + j + ',\'weight\',this.value)">' +
+        '<button type="button" tabindex="-1" aria-hidden="true"' + (bw ? ' disabled' : '') +
+          ' onclick="ewStep(this,5)">+</button>' +
+      '</div>' +
+      '<div class="stepper">' +
+        '<button type="button" tabindex="-1" aria-hidden="true" onclick="ewStep(this,-1)">–</button>' +
+        '<input id="ew-r-' + idp + '" class="ew-num" type="text" inputmode="numeric"' +
+          ' data-ew-i="' + i + '" data-ew-j="' + j + '" data-ew-f="reps"' +
+          ' aria-label="Set ' + n + ' reps"' +
+          ' value="' + escapeAttr(s.reps == null ? '' : String(s.reps)) + '"' +
+          ' oninput="editSetField(' + i + ',' + j + ',\'reps\',this.value)">' +
+        '<button type="button" tabindex="-1" aria-hidden="true" onclick="ewStep(this,1)">+</button>' +
+      '</div>' +
+    '</div>' +
   '</div>';
 }
 
@@ -17489,9 +17172,10 @@ function editorExerciseHtml(ex, i){
       (skipped && !count ? 'Not performed'
         : count + (count === 1 ? ' set' : ' sets') + (skipped ? ' · rest skipped' : '')) +
       (bw ? ' · bodyweight' : '') + '</div>' +
-    (count ? '<div class="ew-cols" aria-hidden="true">' +
-      '<span></span><span>' + (bw ? 'Load' : 'Weight') + '</span><span>Reps</span>' +
-      '<span>RIR</span><span>Type</span><span></span></div>' : '') +
+    /* D45B — the column header went with the single-line grid it labelled.
+       Each set now shows its type and RIR as words on its own line, and the
+       two steppers beneath are the same pair the athlete logged with, in the
+       same order — the logger carries no headers either. */
     (ex.sets || []).map((s, j) => editorSetHtml(s, i, j, bw)).join('') +
     '<button type="button" class="ew-add" onclick="editorAddSet(' + i + ')">Add set</button>' +
   '</div>';
@@ -31404,18 +31088,43 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
   const durationMin = estimateLoggedDuration(entry);
   const totalSets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
 
-  /* The score is /100, built from completion (40), rep targets (25), volume
-     progress (20) and records (15). The words below come from those bands and
-     say nothing the number does not — interpretation, not invention — and the
-     detail line IS the explanation: which factors actually moved it. */
-  const qualityWord = q => q >= 85 ? 'Excellent session' : q >= 70 ? 'Strong session'
-    : q >= 50 ? 'Solid session' : 'Session logged';
+  /* D45B — the /100 score is gone, and this is the reason.
+​
+     It summed completion (40), rep targets (25), volume progress (20) and
+     records (15). Audited against real sessions, three of those four could not
+     carry the authority a score out of 100 claims:
+
+       · COMPLETION was very nearly a constant. Saving a workout drops sets
+         with nothing in them, so "sets filled / sets present" is 40/40 for
+         essentially every logged session.
+       · REP TARGETS did not measure a target. It compared reps against the
+         most reps done last time, so adding weight and doing fewer reps — the
+         ordinary way a lift progresses — scored as a miss.
+       · PROGRESS compared volume against the last session of the same
+         category, so matching last week scored 10/20 and a deliberate lighter
+         week read as failure.
+
+     The practical range was roughly 68–100 with no way for the athlete to
+     predict or check it. The owner asked for a score that "feels REAL"; the
+     honest answer was that this one could not, so the number was removed
+     rather than restyled. What is left is the evidence underneath it, which
+     was always the trustworthy part: each line below is a fact the athlete
+     can verify against their own sets. */
+  const readLines = [];
+  if(quality && quality.targetsTotal){
+    readLines.push(quality.targetsHit + ' of ' + quality.targetsTotal
+      + ' sets matched or beat last time');
+  } else if(quality){
+    readLines.push('First time logging these movements');
+  }
+  if(quality && quality.progressPct !== null){
+    readLines.push((quality.progressPct >= 0 ? '+' : '') + quality.progressPct
+      + '% volume vs your last ' + (CAT_LABEL[entry.category] || 'session').toLowerCase());
+  }
   document.getElementById('summaryStats').innerHTML = `
-    ${quality ? `<div class="quality-block">
-      <div class="quality-title">Session score</div>
-      <div class="quality-score">${quality.score}<span class="quality-of"> / 100</span></div>
-      <div class="quality-label">${qualityWord(quality.score)}</div>
-      <div class="quality-detail">${quality.targetsTotal ? `${quality.targetsHit}/${quality.targetsTotal} sets matched or beat last time` : 'First time logging these movements'}${quality.progressPct !== null ? ` · ${quality.progressPct >= 0 ? '+' : ''}${quality.progressPct}% volume` : ''}</div>
+    ${readLines.length ? `<div class="quality-block">
+      <div class="quality-title">This session</div>
+      ${readLines.map(l => `<div class="quality-read">${escapeHtml(l)}</div>`).join('')}
     </div>` : ''}
     <div class="stat"><div class="stat-num">${vol.toLocaleString()}</div><div class="stat-label">Volume (lb)</div></div>
     <div class="stat"><div class="stat-num">${totalSets}</div><div class="stat-label">Sets</div></div>
