@@ -17367,6 +17367,199 @@ async function testLiveSetCoach(){
 }
 
 /* =========================================================
+   CONTRACT 150 — PROGRAM SCHEDULE REVISIONS  (Phase D51)
+
+   A program carried ONE schedule, read for every week of its
+   life, so changing it changed the past. Demonstrated before the
+   fix: a three-week-old program whose athlete had trained
+   exactly as planned went from planned 16 to planned 24 when a
+   third training day was added, dropping their adherence from
+   38% to 25% for weeks that were already over.
+
+   DELIBERATE FIXED DATES throughout. Several suites in this file
+   have been broken by fixtures built from "today minus N days",
+   where the answer depends on which weekday the suite happens to
+   run. Every date below is written down, and the expected values
+   are counted by hand from those dates.
+   ========================================================= */
+async function testProgramRevisions(){
+  section('CONTRACT 150 — program schedule revisions (D51)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  /* Monday 2 March 2026. An eight-week program starting here runs:
+       week 1  Mon 2 Mar   week 5  Mon 30 Mar
+       week 2  Mon 9 Mar   week 6  Mon 6 Apr
+       week 3  Mon 16 Mar  week 7  Mon 13 Apr
+       week 4  Mon 23 Mar  week 8  Mon 20 Apr */
+  const START = '2026-03-02';
+  const W5 = '2026-03-30';
+  const two   = { mon:{ type:'workout', category:'push', templateId:'t1' },
+                  thu:{ type:'workout', category:'pull', templateId:'t2' } };
+  const three = { mon:{ type:'workout', category:'push', templateId:'t1' },
+                  wed:{ type:'workout', category:'pull', templateId:'t2' },
+                  fri:{ type:'workout', category:'legs', templateId:'t3' } };
+  const mk = () => ({ id:'rev1', name:'T', goal:'hypertrophy', status:'active',
+    durationWeeks:8, startDate:START, schedule: JSON.parse(JSON.stringify(two)) });
+  const plannedCount = prog => {
+    ctx._planFulfillCache = null;
+    return ctx.programPlannedSlots(prog).length;
+  };
+
+  sub('one schedule, read for every week, is what let a change rewrite the past');
+  {
+    const prog = mk();
+    T('eight weeks of two planned days is sixteen slots', plannedCount(prog) === 16,
+      String(plannedCount(prog)));
+    /* The unguarded write, exactly as the old code did it. */
+    prog.schedule = JSON.parse(JSON.stringify(three));
+    T('overwriting the schedule restates every week, including finished ones',
+      plannedCount(prog) === 24, String(plannedCount(prog)));
+  }
+
+  sub('a revision changes the future and leaves the past alone');
+  {
+    const prog = mk();
+    ctx.addProgramRevision(prog, three, W5);
+    /* Weeks 1-4 keep two days (8), weeks 5-8 get three (12). */
+    T('planned is counted per week against the plan in force then',
+      plannedCount(prog) === 20, String(plannedCount(prog)));
+    T('the first edit writes down what came before it',
+      prog.revisions.length === 2 && prog.revisions[0].baseline === true);
+    T('and the baseline is dated from the program start, not from today',
+      prog.revisions[0].effectiveFrom === START, prog.revisions[0].effectiveFrom);
+    T('the current schedule is the new one',
+      Object.keys(prog.schedule).sort().join() === Object.keys(three).sort().join());
+  }
+
+  sub('the schedule in force is resolved by date');
+  {
+    const prog = mk();
+    ctx.addProgramRevision(prog, three, W5);
+    const days = d => Object.keys(ctx.programScheduleOn(prog, d))
+      .filter(k => ctx.programScheduleOn(prog, d)[k].type === 'workout').sort().join('/');
+    T('week 1 answers to the original plan', days('2026-03-02') === 'mon/thu', days('2026-03-02'));
+    T('the week before the revision still does', days('2026-03-23') === 'mon/thu', days('2026-03-23'));
+    T('the revision week answers to the new plan', days(W5) === 'fri/mon/wed', days(W5));
+    T('and so does every week after it', days('2026-04-20') === 'fri/mon/wed', days('2026-04-20'));
+    T('with no date it reports the newest plan',
+      Object.keys(ctx.programScheduleOn(prog)).sort().join() === Object.keys(three).sort().join());
+  }
+
+  sub('the live edit path routes through revisions');
+  {
+    /* updateProgram is what the builder calls when editing an active program.
+       It used to assign the new schedule straight onto the program. */
+    const def = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+      equipment:'full', emphasis:'balanced', weeks:8, days:['mon','thu'],
+      sessionLength:'standard', startDate: START });
+    const created = ctx.createProgram(def);
+    T('a program can be created to edit', created.ok, JSON.stringify(created.errors));
+    if(created.ok){
+      const id = created.program.id;
+      const beforeSlots = plannedCount(ctx.getProgram(id));
+      const def3 = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+        equipment:'full', emphasis:'balanced', weeks:8, days:['mon','wed','fri'],
+        sessionLength:'standard', startDate: START });
+      const up = ctx.updateProgram(id, { schedule: def3.schedule });
+      T('the edit succeeds', up.ok, JSON.stringify(up.errors));
+      const after = ctx.getProgram(id);
+      T('it recorded a revision rather than overwriting',
+        Array.isArray(after.revisions) && after.revisions.length >= 2,
+        JSON.stringify((after.revisions||[]).map(r => r.effectiveFrom)));
+      /* The count is deliberately NOT asserted here. This fixture is anchored
+         to a fixed start date, so how many of its weeks are still ahead
+         depends on when the suite runs — and a forward-only revision that
+         lands after the program has finished correctly changes nothing. What
+         must hold on any date is the guarantee itself: the edit takes effect
+         in the future, and every week before it still answers to the plan
+         that was in force then. */
+      const rev = (after.revisions || []).filter(r => !r.baseline)[0];
+      T('the edit takes effect in the future, never today or earlier',
+        !!rev && String(rev.effectiveFrom) > ctx.localDateStr(),
+        rev && rev.effectiveFrom);
+      T('and every week before it keeps the plan it was trained under',
+        Object.keys(ctx.programScheduleOn(after, START))
+          .filter(k => ctx.programScheduleOn(after, START)[k].type === 'workout')
+          .sort().join('/') === 'mon/thu');
+      T('the athlete sees the new schedule from now on',
+        Object.keys(after.schedule).filter(k => after.schedule[k].type === 'workout')
+          .sort().join('/') === 'fri/mon/wed');
+    }
+  }
+
+  sub('a program that has not started has no past to protect');
+  {
+    /* Editing a draft or a future-dated program should not accumulate
+       revisions for weeks nobody has trained. */
+    const def = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+      equipment:'full', emphasis:'balanced', weeks:8, days:['mon','thu'],
+      sessionLength:'standard', startDate:'2099-01-05' });
+    const created = ctx.createProgram(def);
+    if(created.ok){
+      const id = created.program.id;
+      const def3 = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+        equipment:'full', emphasis:'balanced', weeks:8, days:['mon','wed','fri'],
+        sessionLength:'standard', startDate:'2099-01-05' });
+      ctx.updateProgram(id, { schedule: def3.schedule });
+      const after = ctx.getProgram(id);
+      T('no revision is recorded for a program yet to begin',
+        !after.revisions || !after.revisions.length,
+        JSON.stringify((after.revisions||[]).map(r => r.effectiveFrom)));
+      T('and the schedule is simply the new one',
+        Object.keys(after.schedule).filter(k => after.schedule[k].type === 'workout')
+          .sort().join('/') === 'fri/mon/wed');
+    }
+  }
+
+  sub('legacy programs keep working, and nothing is invented for them');
+  {
+    const legacy = mk();
+    T('a program with no revisions reads its own schedule',
+      Object.keys(ctx.programScheduleOn(legacy, '2020-01-01')).sort().join() ===
+      Object.keys(two).sort().join());
+    T('at any date, past or future',
+      Object.keys(ctx.programScheduleOn(legacy, '2099-01-01')).sort().join() ===
+      Object.keys(two).sort().join());
+    T('no migration writes revisions onto existing programs', (() => {
+      /* Comments stripped: the module explains the model in prose that names
+         the very things this is checking for. Third time this class of test
+         has been fooled by a comment, so it is stripped by default now. */
+      const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+      return !/migrate[A-Za-z]*Revision|revisions\s*=\s*\[\s*\]\s*;?\s*\/\/\s*migrat/i.test(code);
+    })());
+    T('no new storage key was added', ctx.DATA_KEYS.length === 15);
+  }
+
+  sub('revisions round-trip through backup');
+  {
+    const prog = mk();
+    ctx.addProgramRevision(prog, three, W5);
+    const clone = JSON.parse(JSON.stringify(prog));
+    T('a revised program survives serialisation unchanged',
+      JSON.stringify(ctx.programPlannedSlots(clone)) ===
+      JSON.stringify(ctx.programPlannedSlots(prog)));
+    T('and still resolves by date after the round trip',
+      Object.keys(ctx.programScheduleOn(clone, '2026-03-02')).sort().join() ===
+      Object.keys(two).sort().join());
+  }
+
+  sub('two edits before the same week are one decision');
+  {
+    const prog = mk();
+    ctx.addProgramRevision(prog, three, W5);
+    ctx.addProgramRevision(prog, two, W5);
+    T('the later edit replaces the earlier rather than stacking',
+      prog.revisions.filter(r => r.effectiveFrom === W5).length === 1,
+      JSON.stringify(prog.revisions.map(r => r.effectiveFrom)));
+    T('and the surviving plan is the last one chosen',
+      plannedCount(prog) === 16, String(plannedCount(prog)));
+  }
+}
+
+/* =========================================================
    CONTRACT 143 — PLAN CONSISTENCY  (Phase D44)
    Consistency answers how reliably the athlete met the training they
    planned. Its numerator is fulfilled PLANS, never workouts performed —
@@ -18825,6 +19018,7 @@ async function main(){
   await testMuscleRegistry();
   await testProgressionEvidence();
   await testLiveSetCoach();
+  await testProgramRevisions();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

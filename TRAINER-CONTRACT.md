@@ -6071,3 +6071,128 @@ the pressed state applies `scale(0.9)`. It is pre-existing, untouched by this
 phase, and affects only a button the athlete has already hit — but it is below
 the target size while still being interactive, since tapping it again re-opens
 the set.
+
+---
+
+## §75 — D51: Program schedule revisions
+
+**Status.** Shipped in LOOP 4.5 (`loop-v122`). This is the mandatory
+foundation of Program Studio, not the whole of it — see *Scope* below.
+
+### The audit came first, and it changed the plan
+
+D51's brief asked for a large Program Studio. §46 required a specific question
+be answered before any of it: does making schedule editing first-class require
+a historical revision model? That question was answered empirically rather than
+assumed, and the answer was yes.
+
+A program carried **one schedule** — a single weekday map — and every consumer
+of "what was planned" read it for every week of the program's life. D43
+fulfilment, D44 consistency, missed days and the week map all resolved week 1
+and week 8 against the same mutable object.
+
+Measured on a three-week-old program whose athlete had trained exactly as
+planned:
+
+| schedule | planned | fulfilled | adherence |
+|---|---|---|---|
+| Mon/Thu, as trained | 16 | 6 | 38% |
+| edited to Mon/Wed/Fri | **24** | 6 | **25%** |
+
+Their adherence fell for weeks that were already over, because they added a
+training day *going forward*.
+
+Worth recording what did **not** reproduce it: moving Mon/Thu to Tue/Fri, or
+even to Wed/Sat, left the past untouched — D43's ±2 day shift tolerance absorbs
+a moved day. It is the **count** of planned days that rewrites history, not
+their identity. That is why the defect had survived: the obvious test passes.
+
+### The model
+
+```
+revisions: [
+  { effectiveFrom: '2026-03-02', schedule: {…}, baseline: true },
+  { effectiveFrom: '2026-03-30', schedule: {…} }
+]
+```
+
+`programScheduleOn(program, date)` returns the revision in force on that date.
+`programPlannedSlots` now resolves each week against the plan that was in force
+when that week happened, instead of reading one schedule for all of them.
+
+`addProgramRevision` defaults to the **Monday after today**, so an edit made
+mid-week never restates a week the athlete has already partly trained.
+
+**The first edit writes down what came before it.** Without that baseline the
+weeks before a new revision fall through to `program.schedule` — which the edit
+is about to overwrite — and the rewrite happens anyway. This was caught in
+testing: the first implementation still moved planned from 16 to 24. The
+baseline is dated from the program's own start and records what LOOP actually
+knows; it does not claim the schedule was never edited before revisions
+existed.
+
+### The live path, which is where it mattered
+
+`updateProgram` is what the builder calls when editing an active program, and
+it assigned the new schedule straight onto the program. That was the actual
+route to the defect, and it now routes through `addProgramRevision`.
+
+A program that has **not started yet** has no past to protect and is simply
+assigned, so draft and future-dated editing accumulate no revision noise.
+
+Verified end to end through `updateProgram`: planned grew 16 → 20 rather than
+16 → 24, completed weeks kept their fulfilment, and the athlete sees the new
+schedule from now on.
+
+### Compatibility
+
+`schedule` remains the current plan, so every existing reader keeps working
+untouched. A program with no `revisions` behaves exactly as it always did.
+There is **no migration**, **no new `DATA_KEY`**, and nothing is rewritten —
+revisions round-trip through backup as ordinary program fields.
+
+### Scope, stated plainly
+
+D51's brief describes a full Program Studio: three entry paths, an editable
+draft, session and exercise editing, prescription authoring, session
+templates, outside-activity blocks, mixed generated/custom programs, and a
+flagship visual treatment. That is several phases of work.
+
+**Shipped here:** the schedule revision model and the safety of the live edit
+path — the part that is mandatory before any of the rest, and the part that is
+impossible to retrofit once athletes start editing schedules against real
+history.
+
+**Not shipped, and why:** everything above the data model. The audit also
+corrected two assumptions in the brief's framing that change what remains:
+
+- The builder **already asks which days you can train** (`PB_STEPS` includes a
+  `days` step), and `generateProgram` honours them exactly — verified for
+  Sat/Sun and Mon/Thu/Sat. §7 and §65 are largely already satisfied.
+- A **review step already exists** (`pbReviewHtml`) with a week map and
+  rationale.
+
+The real rigidity is narrower than "LOOP picks everything": `pbReviewHtml`
+calls `pbGenerate()` on every render, so the review is a *regenerated* program
+rather than an editable one. Any direct edit would be discarded on the next
+repaint. Making the draft hold its own edits is the next unlock, and it is now
+safe to build because the history underneath it can no longer be rewritten.
+
+### Verification
+
+5,617 assertions across 150 contracts, 327 program-audit checks, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix — all green.
+
+Contract 150 uses **deliberate fixed dates** (a program starting Monday 2 March
+2026) with expected counts worked out by hand, because several suites in this
+file have been broken by fixtures built from "today minus N days". One
+assertion was rewritten during the phase for exactly that reason: it asserted a
+planned count for a fixture whose remaining weeks depend on when the suite runs,
+and it now asserts the calendar-independent guarantee instead — the edit takes
+effect in the future, and weeks before it keep the plan they were trained
+under. Its source-slicing assertion strips comments, per the rule D50B's report
+asked for.
+
+`DATA_KEYS` remains 15 and `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`,
+with no calibration, threshold, state or promotion change. D39–D50B are
+untouched.

@@ -9974,6 +9974,22 @@ const LOOP_UPDATES = [
       'Changing an earlier set could silently overwrite a weight you had deliberately set for a later one'
     ],
     changes: []
+  },
+  {
+    id: 'v4-5',
+    version: 'LOOP 4.5',
+    title: 'Your Plan, Your History',
+    date: '2026-10-21',
+    swVersion: 'loop-v122',
+    summary: 'Changing your training days now only changes what is ahead of you.',
+    newFeatures: [],
+    improvements: [
+      'Editing an active program records the change from next week, so the weeks you have already trained keep the plan you trained them under'
+    ],
+    bugFixes: [
+      'Adding or removing a training day rewrote how many sessions you were supposed to have done in past weeks, which quietly changed your adherence for training you had already finished'
+    ],
+    changes: []
   }
 ];
 
@@ -23608,6 +23624,119 @@ function getBlockForWeek(program, week){
 }
 
 /* ---------- SCHEDULE ---------- */
+/* =========================================================
+   PROGRAM SCHEDULE REVISIONS  (Phase D51)
+   ---------------------------------------------------------
+   A program carried ONE schedule: a single weekday map, read
+   for every week of its life. Every consumer of "what was
+   planned" — D43 fulfilment, D44 consistency, missed days,
+   the week map — read that same object for week 1 and week 8
+   alike. So changing it changed the past.
+
+   Measured, on a program three weeks in whose athlete had
+   trained exactly as planned:
+
+     schedule Mon/Thu            planned 16   fulfilled 6
+     edited to Mon/Wed/Fri       planned 24   fulfilled 6
+
+   Their adherence fell from 38% to 25% for weeks that were
+   already over, because they added a training day going
+   forward. Nothing about their past training changed.
+
+   Note what did NOT reproduce it: moving Mon/Thu to Tue/Fri, or
+   even to Wed/Sat, left the past untouched — D43’s shift
+   tolerance absorbs a moved day. It is the COUNT of planned days
+   that rewrites history, not their identity.
+
+   D51 makes schedule editing a first-class action, so this had
+   to be fixed before that shipped rather than after.
+
+   THE MODEL. A program may carry `revisions`, ordered, each
+   effective from a date:
+
+     revisions: [ { effectiveFrom: "2026-03-02", schedule: {…} } ]
+
+   A week is evaluated against the revision that was in force on
+   the day it happened. Future weeks use the newest.
+
+   FORWARD-ONLY, AND HONEST ABOUT WHAT IT DOES NOT KNOW. A
+   program with no revisions behaves exactly as it always did:
+   `schedule` is its whole history. LOOP does not invent
+   revisions for edits made before this existed, because it has
+   no record of them — the baseline is simply "as far back as we
+   know, it was this". No migration, no new storage key, and
+   nothing is rewritten.
+   ========================================================= */
+
+/* The schedule in force on a given date. With no date, the newest — which is
+   what every "what should I do now" caller wants. */
+function programScheduleOn(program, dateStr){
+  const p = program || getActiveProgram();
+  if(!p) return {};
+  const revs = Array.isArray(p.revisions) ? p.revisions : null;
+  if(!revs || !revs.length) return p.schedule || {};
+  /* Ordered by effectiveFrom; the last one that had started by `dateStr`
+     wins. A revision dated after the program began leaves the weeks before
+     it answering to whatever came before. */
+  let chosen = null;
+  for(let i = 0; i < revs.length; i++){
+    const r = revs[i];
+    if(!r || !r.schedule) continue;
+    if(!dateStr || String(r.effectiveFrom) <= String(dateStr)){
+      if(!chosen || String(r.effectiveFrom) >= String(chosen.effectiveFrom)) chosen = r;
+    }
+  }
+  /* Before the first revision, the program’s original schedule stands. */
+  return chosen ? chosen.schedule : (p.schedule || {});
+}
+
+/* Appends a forward-only revision. Defaults to the Monday after the given
+   date, so an edit made mid-week never restates the week in progress — the
+   athlete has already trained some of it against the old plan.
+
+   Returns the program for chaining. Writing it is the caller’s job, which is
+   what keeps this usable on a draft that has never been saved. */
+function addProgramRevision(program, schedule, effectiveFrom){
+  if(!program || !schedule) return program;
+  let from = effectiveFrom;
+  if(!from){
+    const d = new Date(localDateStr() + 'T00:00:00');
+    const delta = (8 - (d.getDay() || 7)) % 7 || 7;   // the next Monday, never today
+    d.setDate(d.getDate() + delta);
+    from = localDateStr(d);
+  }
+  if(!Array.isArray(program.revisions)) program.revisions = [];
+  /* THE FIRST EDIT MUST WRITE DOWN WHAT CAME BEFORE IT. Without this the
+     weeks before the new revision fall through to `program.schedule` — which
+     the edit is about to overwrite — so every past week would answer to the
+     new plan and the rewrite this whole model exists to prevent would happen
+     anyway. Measured before the fix: adding a third day still moved a
+     completed program's planned count from 16 to 24.
+
+     The baseline is dated from the program's own start, and it records what
+     LOOP actually knows: the schedule the program has been carrying. It does
+     not claim that schedule was never edited before revisions existed — only
+     that this is as far back as the record goes. */
+  if(!program.revisions.length && program.schedule){
+    program.revisions.push({
+      effectiveFrom: program.startDate || '0000-01-01',
+      schedule: JSON.parse(JSON.stringify(program.schedule)),
+      baseline: true
+    });
+  }
+  /* Two edits before the same effective date are one decision, not two: the
+     later one replaces the earlier rather than stacking. */
+  const existing = program.revisions.findIndex(r => r && r.effectiveFrom === from);
+  const rev = { effectiveFrom: from, schedule: JSON.parse(JSON.stringify(schedule)) };
+  if(existing !== -1) program.revisions[existing] = rev;
+  else program.revisions.push(rev);
+  program.revisions.sort((a, b) => String(a.effectiveFrom).localeCompare(String(b.effectiveFrom)));
+  /* `schedule` stays the CURRENT plan so every existing reader keeps working
+     unchanged; the revisions are the history behind it. */
+  program.schedule = JSON.parse(JSON.stringify(schedule));
+  return program;
+}
+
 function getProgramSchedule(program){
   const p = program || getActiveProgram();
   return p ? (p.schedule || {}) : {};
@@ -23847,9 +23976,26 @@ function updateProgram(programId, patch){
   const merged = Object.assign({}, p, patch || {});
   const check = validateProgram(merged);
   if(!check.valid) return { ok:false, errors:check.errors, program:null };
+  /* D51 — a schedule change on a program that has already begun is recorded as
+     a forward-only REVISION, not written over the old one. This is the live
+     path that made editing dangerous: it assigned the new schedule straight
+     onto the program, and every consumer of "what was planned" then read it
+     for weeks that were already over. Measured on a three-week-old program
+     whose athlete had trained exactly as planned, adding a third training day
+     moved planned from 16 to 24 and dropped their adherence from 38% to 25%.
+
+     addProgramRevision writes `schedule` itself, so it is skipped below. A
+     program that has not started yet has no past to protect and is simply
+     assigned, which keeps draft editing free of revision noise. */
+  const schedulePatched = patch && Object.prototype.hasOwnProperty.call(patch, 'schedule');
+  const hasBegun = p.startDate && String(p.startDate) <= localDateStr();
+  const revising = schedulePatched && hasBegun &&
+    JSON.stringify(p.schedule || {}) !== JSON.stringify(patch.schedule || {});
   ['name','description','goal','durationWeeks','schedule','blocks','startDate','emphasis','sessionLength','experience'].forEach(k => {
+    if(k === 'schedule' && revising) return;
     if(patch && Object.prototype.hasOwnProperty.call(patch, k)) p[k] = merged[k];
   });
+  if(revising) addProgramRevision(p, patch.schedule);
   p.durationWeeks = parseInt(p.durationWeeks, 10);
   p.updatedAt = new Date().toISOString();
   invalidateProgramCache();
@@ -26557,8 +26703,13 @@ function programPlannedSlots(program){
   const out = [];
   if(!program || !program.startDate) return out;
   const weeks = parseInt(program.durationWeeks, 10) || 0;
-  const sched = getProgramSchedule(program);
   for(let w = 1; w <= weeks; w++){
+    /* D51 — each week answers to the schedule that was in force when it
+       happened. Reading one mutable schedule for every week is what let a
+       change made today restate how many sessions were planned in a week
+       that was already over. */
+    const weekStart = programDateFor(program, w, PROGRAM_DAY_KEYS[0]);
+    const sched = programScheduleOn(program, weekStart);
     PROGRAM_DAY_KEYS.forEach(k => {
       const e = sched[k];
       if(!e || e.type !== 'workout') return;
