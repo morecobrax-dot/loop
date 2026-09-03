@@ -15059,11 +15059,20 @@ async function testProgramExperience(){
   });
 
   sub('starting is one action');
+  /* D51B — these were bounded by character counts, which broke the moment
+     pbCommit grew a validation step. A count measures the ruler, not the
+     code. Bounded by the function and stripped of comments, per the testing
+     convention this file has now rediscovered four times. */
+  const pbCommitBody = (() => {
+    const i = src.indexOf('function pbCommit');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 40));
+    return body.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+  })();
   T('committing saves, activates and syncs the week',
-    /function pbCommit[\s\S]{0,1400}pbSyncScheduleFromProgram/.test(src));
+    pbCommitBody.indexOf('pbSyncScheduleFromProgram') !== -1);
   T('the plan is written before the schedule, which is stored per plan',
     /LOOPStore\.set\('selectedPlan'[\s\S]{0,400}persistSchedule\(\)/.test(src));
-  T('it lands the athlete on Today', /function pbCommit[\s\S]{0,1600}switchTab\('today'\)/.test(src));
+  T('it lands the athlete on Today', pbCommitBody.indexOf("switchTab('today')") !== -1);
   T('a second tap cannot save twice', /btn\.disabled = true/.test(src));
 
   sub('an arbitrary start date still works');
@@ -17560,6 +17569,244 @@ async function testProgramRevisions(){
 }
 
 /* =========================================================
+   CONTRACT 151 — EDITABLE PROGRAM DRAFT  (Phase D51B)
+
+   pbGenerate() rebuilt the program from the answers on every
+   call, and both the review renderer and the commit called it.
+   So the review was a fresh generation shown once: an edit was
+   destroyed by the next repaint, and any edit that survived was
+   thrown away at activation anyway.
+
+   Fixed dates throughout, and source-slicing assertions strip
+   comments first — both conventions this file has had to
+   rediscover more than once.
+   ========================================================= */
+async function testProgramDraft(){
+  section('CONTRACT 151 — editable program draft (D51B)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+
+  /* The editors repaint; in a harness there is nothing to paint. */
+  ctx.renderProgramBuilderFlow = () => {};
+  ctx.confirm = () => true;
+  const startBuilder = () => { ctx.pbState = { step:99, dir:'fwd', known:{},
+    mode:'create', editingId:null, draft:null, edited:false,
+    answers:{ goal:'hypertrophy', experience:'intermediate', equipment:'full',
+      emphasis:'balanced', sessionLength:'standard', weeks:8,
+      days:['mon','thu'], frequency:2, startDate:'2026-11-02' } }; };
+
+  sub('rendering never regenerates');
+  {
+    startBuilder();
+    const first = ctx.pbDraft();
+    for(let i = 0; i < 5; i++) ctx.pbDraft();
+    T('repeated reads return the same draft object', ctx.pbDraft() === first);
+    T('pbGenerate no longer builds anything', (() => {
+      const i = code.indexOf('function pbGenerate');
+      const body = code.slice(i, code.indexOf('\nfunction ', i + 20));
+      return body.indexOf('generateProgram') === -1 && body.indexOf('pbDraft') !== -1;
+    })());
+    T('only the draft builder calls the generator', (() => {
+      /* pbRegenerateDraft is the single point of generation in the builder. */
+      const calls = (code.match(/generateProgram\(\{/g) || []).length;
+      const i = code.indexOf('function pbRegenerateDraft');
+      const body = code.slice(i, code.indexOf('\nfunction ', i + 20));
+      return body.indexOf('generateProgram') !== -1 && calls <= 2;
+    })(), String((code.match(/generateProgram\(\{/g) || []).length));
+  }
+
+  sub('an edit survives every repaint');
+  {
+    startBuilder();
+    const def = ctx.pbDraft();
+    const day = ctx.pbSessions(def)[0].dayKey;
+    ctx.pbEditRx(day, 0, 'sets', 4);
+    ctx.pbEditRx(day, 0, 'reps', '6-8');
+    for(let i = 0; i < 5; i++) ctx.pbDraft();
+    const ex = ctx.pbSessionExercises(ctx.pbDraft(), day)[0];
+    T('sets stayed edited', ex.sets === 4, String(ex.sets));
+    T('reps stayed edited', ex.reps === '6-8', String(ex.reps));
+    T('and the draft is marked as carrying work', ctx.pbState.edited === true);
+  }
+
+  sub('add, remove and reorder are decisions, not suggestions');
+  {
+    startBuilder();
+    const def = ctx.pbDraft();
+    const day = ctx.pbSessions(def)[0].dayKey;
+    const n0 = ctx.pbSessionExercises(def, day).length;
+    ctx.pbAddExercise(day, 'Lateral Raise');
+    T('an added exercise is there', ctx.pbSessionExercises(ctx.pbDraft(), day).length === n0 + 1);
+    const added = ctx.pbSessionExercises(ctx.pbDraft(), day).slice(-1)[0];
+    T('and arrives with a prescription from the canonical pool',
+      added.sets > 0 && !!added.reps && !!added.effort,
+      JSON.stringify(added));
+    T('which is not invented here', (() => {
+      const i = code.indexOf('function pbSuggestedExercise');
+      const body = code.slice(i, code.indexOf('function clean0', i));
+      return body.indexOf('PROGRAM_EXTENSIONS') !== -1;
+    })());
+    ctx.pbRemoveExercise(day, 0);
+    T('a removed exercise stays removed, with no replacement',
+      ctx.pbSessionExercises(ctx.pbDraft(), day).length === n0);
+    const list = ctx.pbSessionExercises(ctx.pbDraft(), day);
+    const a = list[0].name, b = list[1] && list[1].name;
+    ctx.pbMoveExercise(day, 0, 1);
+    const after = ctx.pbSessionExercises(ctx.pbDraft(), day);
+    T('reordering swaps the two it names', after[0].name === b && after[1].name === a);
+  }
+
+  sub('editing a generated session never reaches the template it came from');
+  {
+    startBuilder();
+    const def = ctx.pbDraft();
+    const day = ctx.pbSessions(def)[0].dayKey;
+    const entry = def.schedule[day];
+    const shared = ctx.builderTemplateOf({ type:'workout', planId: entry.planId,
+      category: entry.category, templateId: entry.templateId });
+    const sharedCount = shared ? shared.exercises.length : 0;
+    ctx.pbRemoveExercise(day, 0);
+    const sharedAfter = ctx.builderTemplateOf({ type:'workout', planId: entry.planId,
+      category: entry.category, templateId: entry.templateId });
+    T('the source template is untouched',
+      sharedAfter.exercises.length === sharedCount,
+      sharedCount + ' -> ' + sharedAfter.exercises.length);
+  }
+
+  sub('a custom session is an ordinary program session');
+  {
+    startBuilder();
+    ctx.pbDraft();
+    const day = ctx.pbAddSession();
+    T('it lands on a free day', !!day && ['tue','wed','fri','sat','sun'].indexOf(day) !== -1, String(day));
+    ctx.pbRenameSession(day, 'Arms');
+    ctx.pbAddExercise(day, 'Cable Curl');
+    ctx.pbAddExercise(day, 'Triceps Pushdown');
+    const def = ctx.pbDraft();
+    T('it carries its own name', def.schedule[day].name === 'Arms');
+    T('and its own exercises', ctx.pbSessionExercises(def, day).length === 2);
+    /* The bridge: the ONE path every consumer uses must return the athlete’s
+       session, not the template the entry once pointed at. */
+    const resolved = ctx.builderTemplateOf(def.schedule[day]);
+    T('the canonical resolver returns the authored session',
+      resolved && resolved.name === 'Arms' && resolved.exercises.length === 2,
+      JSON.stringify(resolved && { n:resolved.name, c:resolved.exercises.length }));
+    T('every exercise carries structured prescription truth',
+      resolved.exercises.every(x => x.sets > 0 && !!x.reps && !!x.effort));
+  }
+
+  sub('validation blocks broken states and nothing else');
+  {
+    startBuilder();
+    const def = ctx.pbDraft();
+    T('a generated draft is valid', ctx.pbValidateDraft(def).length === 0,
+      JSON.stringify(ctx.pbValidateDraft(def)));
+    const day = ctx.pbSessions(def)[0].dayKey;
+    const broken = JSON.parse(JSON.stringify(def));
+    ctx.pbOwnSession(broken, day);
+    broken.schedule[day].exercises = [];
+    T('a session with no exercises is refused', ctx.pbValidateDraft(broken).length > 0);
+    /* An unusual split is a choice, not an error. */
+    const odd = JSON.parse(JSON.stringify(def));
+    T('consecutive training days are not an error', ctx.pbValidateDraft(odd).length === 0);
+  }
+
+  sub('prescription editing refuses nonsense rather than storing it');
+  {
+    startBuilder();
+    const def = ctx.pbDraft();
+    const day = ctx.pbSessions(def)[0].dayKey;
+    ctx.pbEditRx(day, 0, 'reps', '8-10');
+    const good = ctx.pbSessionExercises(ctx.pbDraft(), day)[0].reps;
+    ctx.pbEditRx(day, 0, 'reps', '8-6');
+    T('an inverted range is refused', ctx.pbSessionExercises(ctx.pbDraft(), day)[0].reps === good);
+    ctx.pbEditRx(day, 0, 'reps', '0-10');
+    T('a zero minimum is refused', ctx.pbSessionExercises(ctx.pbDraft(), day)[0].reps === good);
+    ctx.pbEditRx(day, 0, 'sets', 0);
+    T('set count stays at least one', ctx.pbSessionExercises(ctx.pbDraft(), day)[0].sets >= 1);
+    T('no starting load is fabricated', (() => {
+      const i = code.indexOf('function pbSuggestedExercise');
+      const body = code.slice(i, code.indexOf('function clean0', i));
+      return body.indexOf('recommended') === -1 && body.indexOf('weight') === -1;
+    })());
+  }
+
+  sub('activation uses the draft the athlete approved');
+  {
+    T('commit reads the draft rather than generating', (() => {
+      const i = code.indexOf('function pbCommit');
+      const body = code.slice(i, code.indexOf('\nfunction ', i + 40));
+      return body.indexOf('pbDraft()') !== -1 && body.indexOf('generateProgram') === -1;
+    })());
+    T('and validates before creating anything', (() => {
+      const i = code.indexOf('function pbCommit');
+      const body = code.slice(i, code.indexOf('\nfunction ', i + 40));
+      return body.indexOf('pbValidateDraft') !== -1 &&
+        body.indexOf('pbValidateDraft') < body.indexOf('createProgram');
+    })());
+  }
+
+  sub('an athlete-authored prescription behaves exactly like a generated one');
+  {
+    startBuilder();
+    ctx.pbDraft();
+    const day = ctx.pbAddSession();
+    ctx.pbAddExercise(day, 'Lat Pulldown');
+    ctx.pbEditRx(day, 0, 'sets', 3);
+    ctx.pbEditRx(day, 0, 'reps', '8-10');
+    ctx.pbEditRx(day, 0, 'effort', '8');          // effort 8 is 1 rep in reserve
+    const t = ctx.builderTemplateOf(ctx.pbDraft().schedule[day]).exercises[0];
+    const rx = { sets: parseInt(t.sets, 10), reps: String(t.reps),
+      effort: parseFloat(ctx.firstNumber(t.effort)), load: 115 };
+    T('it produces the prescription the athlete wrote',
+      rx.sets === 3 && rx.reps === '8-10' && rx.effort === 8, JSON.stringify(rx));
+    T('and a target RIR the coach understands', ctx.effortToRir(rx.effort) === 1);
+
+    const coach = perf => ctx.deriveNextSetCoach(
+      { exerciseName:'Lat Pulldown', rx, performed: perf });
+    T('before any set it states the target', coach([]).action === 'prescribed');
+    const easy = coach([{ weight:115, reps:10, rir:5 }]);
+    T('a set far easier than asked earns an increase', easy.action === 'increase');
+    T('by the canonical increment, not an invented one',
+      easy.load - 115 === ctx.progressionIncrement('Lat Pulldown', 115));
+    T('and the next set on target holds',
+      coach([{ weight:115, reps:10, rir:5 }, { weight:easy.load, reps:8, rir:2 }]).action === 'hold');
+
+    const S = (w, r, rir) => ({ weight:String(w), reps:String(r), rir:String(rir),
+      type:'working', completed:true });
+    const entry = { id:'x', date:'2026-11-02', category:'pull', title:'Back', notes:'',
+      exercises:[{ name:'Lat Pulldown', bodyweight:false, rx,
+        sets:[S(115,9,1), S(115,9,1), S(115,8,1)] }] };
+    const score = ctx.sessionScore(entry);
+    T('Session Score reads it with no separate path',
+      score.available && score.score === 100, JSON.stringify(score.score));
+    ctx.workoutLog = [entry];
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+    T('and D49 progression reads it too',
+      ['build','hold','increase','reduce','insufficient']
+        .indexOf(ctx.buildProgressionRecommendation('Lat Pulldown', rx.reps, null).tag) !== -1);
+  }
+
+  sub('a draft is not history');
+  {
+    startBuilder();
+    const def = ctx.pbDraft();
+    T('a draft has no planned slots until it is a program',
+      ctx.programPlannedSlots(def).length === 0 || !def.id,
+      'draft id: ' + def.id);
+    T('no new storage key', ctx.DATA_KEYS.length === 15);
+    T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('no second program engine',
+      !/function customProgramBuilder|function templateProgramBuilder|function aiProgramBuilder/.test(code));
+    T('no second prescription engine',
+      !/function customProgramPrescriptionEngine/.test(code));
+  }
+}
+
+/* =========================================================
    CONTRACT 143 — PLAN CONSISTENCY  (Phase D44)
    Consistency answers how reliably the athlete met the training they
    planned. Its numerator is fulfilled PLANS, never workouts performed —
@@ -19019,6 +19266,7 @@ async function main(){
   await testProgressionEvidence();
   await testLiveSetCoach();
   await testProgramRevisions();
+  await testProgramDraft();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

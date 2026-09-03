@@ -6196,3 +6196,136 @@ asked for.
 `DATA_KEYS` remains 15 and `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`,
 with no calibration, threshold, state or promotion change. D39–D50B are
 untouched.
+
+---
+
+## §76 — D51B: The draft the athlete approved
+
+**Status.** Shipped in LOOP 4.6 (`loop-v123`).
+
+### The root defect
+
+`pbGenerate()` built a fresh program from the answers every time it was called,
+and it was called from two places: the review renderer and the commit.
+
+So the review was never a draft. It was a generation, displayed once. An edit
+was destroyed by the next repaint — and an edit that somehow survived was
+thrown away at activation regardless, because commit generated again before
+creating the program. **The athlete approved one program and started a
+different one.**
+
+That is why the program felt like something to accept: there was nothing to
+shape. The only lever was to change an answer and hope the generator landed
+closer.
+
+### Generation is an event
+
+`pbGenerate()` no longer generates. It returns the draft, which
+`pbRegenerateDraft()` builds **once**. Generation now happens on exactly three
+occasions: finishing the questions, changing a constraint, and asking for a
+fresh plan. Drawing the screen is not one of them.
+
+When a regeneration would discard work, the athlete is asked first — and
+declining a constraint change restores the previous answer rather than half-
+applying it.
+
+### The bridge that made editing real
+
+`composeProgramSession(entry, base)` returned the template untouched. A program
+entry was a *reference* — plan, category, templateId — so an edited or
+hand-built session would have been silently replaced by the generated one at
+the moment it was trained.
+
+**A session that carries its own `exercises` now IS the session.** That single
+change flows through the one path every consumer already uses: the workout
+screen, `ex.rx`, Live Set Coach, Session Score, progression and adherence. An
+athlete-authored session is an ordinary program session everywhere, with no
+second-class branch anywhere in the app.
+
+The first edit to a generated session deep-copies its template's exercises onto
+the entry, so editing your program never reaches the template — or any other
+program built on it. Verified: the shared template is byte-identical after an
+exercise is removed from a program that used it.
+
+### Editing
+
+Sessions rename, move to another day, and can be added or removed. Exercises
+add, remove and reorder. Sets, reps and target effort edit in place.
+
+**Reorder is buttons, not a drag handle** — a drag handle is the one control
+that cannot be used one-handed or by a screen reader, and each button names the
+exercise it moves.
+
+Prescription editing refuses nonsense instead of storing it: `8-6` and `0-10`
+are rejected and the previous value kept; set counts clamp to at least one.
+An added exercise arrives with a real prescription looked up from
+`PROGRAM_EXTENSIONS`, the canonical pool the generator already uses — so there
+is no second prescription engine. **No starting load is fabricated**; LOOP
+does not invent a weight it has no evidence for, and the coach becomes useful
+after the first working set instead.
+
+### Activation
+
+`pbCommit` reads the draft and validates it before creating anything. Only
+genuinely broken states block — no sessions, a session with no exercises, an
+invalid set count or rep range. An unusual split is a choice, not an error.
+
+### The guarantee that mattered
+
+An athlete authoring `Lat Pulldown · 3 × 8–10 · effort 8` produces, with no
+separate path anywhere:
+
+```
+before any set      prescribed  115 lb   Today's target is 8–10 reps at about 1 rep in reserve.
+115 × 10 @ RIR 5    increase    120 lb   That set was 5 reps in reserve against a target of
+                                         1 rep. Add 5 lb and stay in 8–10.
+120 × 8  @ RIR 2    hold        120 lb
+```
+
+Session Score reads it (100 on a clean execution). D49 progression reads it.
+`effort 8` resolves to a 1-rep-in-reserve target through `effortToRir`, the
+same helper generated prescriptions use. This is the exact §50 fixture, and it
+closes the gap D50B named.
+
+### Scope
+
+Shipped: the draft model, generation/render separation, session and exercise
+editing, prescription authoring, custom sessions, the composition bridge, and
+activation from the edited draft.
+
+Not shipped: templates, the three-way entry screen, outside-activity blocks,
+and **draft persistence across a reload** — the draft lives in `pbState` for
+the builder session. Persisting it needs a storage decision the brief asked to
+be justified rather than assumed, and it is the first thing D51C should settle.
+
+**Active-program exercise and prescription editing remains deferred**, and
+deliberately so. D51 revisioned the schedule; exercise and prescription changes
+on a running program still mutate one object, and `ex.rx` protects only
+workouts already performed — future planned prescriptions have no revision
+history. Exposing that editing without the revision model would reintroduce
+exactly the rewrite D51 removed. Draft editing is fully safe because a draft
+has no history to damage.
+
+### Verification
+
+5,656 assertions across 151 contracts, 327 program-audit checks, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix — all green. Six
+viewports clean on the studio with a session open: zero overflow, zero
+clipping, every control at least 44px, every input 16px. Browser storage was
+byte-identical across the pass, and an edit survived every repaint at every
+width.
+
+`DATA_KEYS` remains 15, `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`, and
+D39–D51 are untouched.
+
+### The ruler problem, a fourth time
+
+Two contracts failed because they matched `function pbCommit` followed by a
+character-count window, and adding a validation step pushed their landmarks out
+of range. A character count measures the ruler, not the code. Both are now
+bounded by the function and stripped of comments.
+
+This file has now rediscovered the same two conventions — bound by structure,
+strip comments — in four consecutive phases. Contract 151 follows both by
+construction. A pass that applies them to every existing source-slicing
+assertion is overdue and would be cheap.

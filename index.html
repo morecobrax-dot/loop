@@ -3908,6 +3908,91 @@ body.page-locked{ overflow: hidden; }
   color: var(--text-dim); letter-spacing: 0.04em; margin-top: 2px;
 }
 .pb-rv-why{ font-size: var(--fs-xs); color: var(--text-faint); margin-top: 8px; line-height: 1.5; }
+/* D51B — Program Studio. Read state is compact so the week stays scannable;
+   one tap opens a session and the numbers become editable in place. No
+   separate edit mode, no Save button: the draft is the state. */
+.pb-rv-hint{ float: right; font-size: var(--fs-micro); color: var(--text-faint); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.ps-list{ display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ps-sess{ background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.ps-sess.open{ border-color: var(--accent); }
+.ps-sess-top{
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px;
+  padding: 12px 14px; background: none; border: none; cursor: pointer;
+  color: var(--text); font-family: 'Inter', sans-serif; text-align: left;
+}
+.ps-sess-top:active{ background: var(--surface-2); }
+.ps-sess-top:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.ps-day{
+  flex: 0 0 34px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+}
+.ps-sess-main{ flex: 1; min-width: 0; }
+.ps-sess-name{
+  display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  font-size: var(--fs-card-title); color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ps-sess-meta{ display: block; font-size: var(--fs-meta); color: var(--text-faint); margin-top: 2px; }
+.ps-caret{ display: flex; color: var(--text-faint); flex-shrink: 0; }
+.ps-sess.open .ps-caret{ transform: rotate(180deg); }
+.ps-body{ padding: 0 14px 14px; border-top: 1px solid var(--border); }
+.ps-field{ display: block; margin-top: 12px; }
+.ps-lab{
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 5px;
+}
+.ps-name-in, .ps-day-in{
+  width: 100%; min-height: 44px; padding: 0 12px; font-size: 16px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text); font-family: 'Inter', sans-serif;
+}
+.ps-name-in:focus, .ps-day-in:focus{ outline: none; border-color: var(--accent); }
+.ps-ex-list{ display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.ps-ex{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 11px; }
+.ps-ex-top{ display: flex; align-items: center; gap: 8px; }
+.ps-ex-name{ flex: 1; min-width: 0; font-size: var(--fs-support); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-ex-move{ display: flex; gap: 2px; flex-shrink: 0; }
+/* Reorder is buttons, not a drag handle: a drag handle is the one control
+   that cannot be used one-handed or by a screen reader. */
+.ps-mv{
+  min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 15px;
+}
+.ps-mv:disabled{ opacity: 0.3; cursor: default; }
+.ps-mv:active:not(:disabled){ color: var(--accent); }
+.ps-mv:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); }
+.ps-mv-x{ color: var(--text-faint); }
+.ps-rx{ display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; margin-top: 9px; }
+.ps-rx-f{ display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ps-rx-f span{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint);
+}
+.ps-rx-f input{
+  width: 100%; min-height: 44px; padding: 0 10px; font-size: 16px; text-align: center;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text); font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
+}
+.ps-rx-f input:focus{ outline: none; border-color: var(--accent); }
+.ps-sess-actions{ display: flex; gap: 8px; margin-top: 14px; }
+.ps-act{
+  flex: 1; min-height: 44px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text-dim); font-family: 'Inter', sans-serif;
+  font-size: var(--fs-meta); font-weight: 600; cursor: pointer;
+}
+.ps-act:active{ background: var(--surface-3); }
+.ps-act:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.ps-act-danger{ color: var(--danger); }
+.ps-add-session{
+  display: block; width: 100%; min-height: 48px; margin-top: 10px;
+  background: none; border: 1px dashed var(--border); border-radius: var(--radius-lg);
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-support);
+  font-weight: 600; cursor: pointer;
+}
+.ps-add-session:active{ background: var(--surface-2); }
+.ps-add-session:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .pb-rv-sec{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
   font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
@@ -9988,6 +10073,26 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [
       'Adding or removing a training day rewrote how many sessions you were supposed to have done in past weeks, which quietly changed your adherence for training you had already finished'
+    ],
+    changes: []
+  },
+  {
+    id: 'v4-6',
+    version: 'LOOP 4.6',
+    title: 'Make It Your Program',
+    date: '2026-10-28',
+    swVersion: 'loop-v123',
+    summary: 'A generated program is now a draft you can shape before you start it.',
+    newFeatures: [
+      'Tap any session in the program review to rename it, move it to another day, or edit the exercises',
+      'Change sets, reps and target effort on any exercise, add or remove exercises, and reorder them',
+      'Add a session of your own — it works exactly like a generated one, with LOOP Coach, Session Score and progression'
+    ],
+    improvements: [
+      'The program you start is the program you approved, down to every edit'
+    ],
+    bugFixes: [
+      'The program review rebuilt itself every time it drew, so any change you made was thrown away — and rebuilt again when you pressed start'
     ],
     changes: []
   }
@@ -24703,7 +24808,30 @@ function applyPrescription(exercises, rxId){
    It replaces the entry's own profile rather than stacking with it, so a
    session can never accumulate two prescriptions. */
 function composeProgramSession(entry, base, phaseRx){
-  if(!base || !entry) return base;
+  if(!entry) return base;
+  /* D51B — A SESSION THE ATHLETE HAS EDITED OWNS ITSELF.
+     Program entries used to be a reference: plan + category + templateId, and
+     the session was whatever that template said. This function returned the
+     template untouched, so an edited or hand-built session would have been
+     silently replaced by the generated one at the moment it was trained.
+
+     When an entry carries its own `exercises`, that IS the session. It flows
+     through the one path every consumer already uses — the workout screen,
+     ex.rx, Live Set Coach, Session Score, progression and adherence — so an
+     athlete-authored session is an ordinary program session everywhere, with
+     no second-class branch anywhere in the app.
+
+     A phase prescription still applies on top, because that is program intent
+     rather than session content. */
+  if(Array.isArray(entry.exercises)){
+    const own = { id: (base && base.id) || ('own_' + (entry.category || 'session')),
+      name: entry.name || (base && base.name) || CAT_LABEL[entry.category] || 'Session',
+      exercises: entry.exercises.slice() };
+    const rxOwn = phaseRx || entry.rx || null;
+    if(rxOwn) own.exercises = applyPrescription(own.exercises, rxOwn);
+    return own;
+  }
+  if(!base) return base;
   const hasLead = Number.isInteger(entry.lead) && entry.lead > 0
     && base.exercises && entry.lead < base.exercises.length;
   const extIds = Array.isArray(entry.ext) ? entry.ext : [];
@@ -25644,7 +25772,20 @@ function pbNext(){
    those keep an explicit Continue. */
 function pbAnswer(id, value){
   if(!pbState) return;
+  /* D51B — changing a constraint is an explicit instruction to build a
+     different program, so it is one of the few events that regenerates. When
+     there is work to lose the athlete is asked first, and declining leaves
+     the previous answer exactly as it was. */
+  const previous = pbState.answers[id];
+  const changed = previous !== value;
+  if(changed && pbState.draft && pbState.edited &&
+     !confirm('Change this and rebuild? Your edits to the draft will be replaced.')){
+    pbState.answers[id] = previous;
+    renderProgramBuilderFlow();
+    return;
+  }
   pbState.answers[id] = value;
+  if(changed) pbState.draft = null;
   if(id === 'frequency'){
     /* Re-suggest a sensible spread, but keep the athlete's own days when
        they still fit the new count. */
@@ -25765,16 +25906,267 @@ function pbStepFootHtml(step){
    The program, visible, before anything is written. Length and start date
    are adjustable right here rather than being two more questions, because
    both are easier to judge once you can see what they apply to. */
-function pbGenerate(){
+/* =========================================================
+   PROGRAM DRAFT  (Phase D51B)
+   ---------------------------------------------------------
+   GENERATION HAPPENS ON COMMAND. RENDERING NEVER REGENERATES.
+
+   pbGenerate() used to build a fresh program from the answers
+   every time it was called, and it was called from two places:
+   the review renderer and the commit. So the "review" was not a
+   draft at all — it was a fresh generation displayed once. Any
+   edit an athlete made to it was discarded by the next repaint,
+   and even an edit that somehow survived would have been thrown
+   away at activation, because commit generated again before
+   creating the program.
+
+   That is why the program felt like something to accept rather
+   than something to shape: there was nothing to shape. The
+   only lever was to change an answer and hope the generator
+   produced something closer.
+
+   The draft is now the single source of truth for everything
+   after generation. It is generated ONCE, rendered from, edited
+   in place, and activated exactly as the athlete left it.
+
+   REGENERATION IS AN EVENT, never a side effect of drawing. It
+   happens when the athlete finishes the questions, changes a
+   constraint, or explicitly asks — and when their edits would be
+   lost, they are told first.
+   ========================================================= */
+
+/* The draft, generating once if there is not one yet. Every reader goes
+   through here; nobody calls the generator directly to draw a screen. */
+function pbDraft(){
+  if(!pbState) return null;
+  if(!pbState.draft) pbRegenerateDraft();
+  return pbState.draft;
+}
+
+/* The one place a draft is built. Called when the questions are answered,
+   when a constraint changes, and when the athlete asks for a fresh plan. */
+function pbRegenerateDraft(){
+  if(!pbState) return null;
   const a = pbState.answers;
-  pbState.generated = generateProgram({
+  const def = generateProgram({
     goal: a.goal, experience: a.experience, equipment: a.equipment,
     emphasis: a.emphasis, sessionLength: a.sessionLength,
     weeks: a.weeks, days: a.days, frequency: a.frequency,
     startDate: a.startDate || localDateStr()
   });
-  if(a.name) pbState.generated.name = a.name;
-  return pbState.generated;
+  if(a.name) def.name = a.name;
+  pbState.draft = def;
+  pbState.edited = false;
+  return def;
+}
+
+/* Marks the draft as carrying work the athlete would not want silently
+   replaced. Every editor below calls this. */
+function pbTouch(){ if(pbState) pbState.edited = true; }
+
+/* The explicit regeneration action. Anything the athlete changed is real
+   work, so replacing it is confirmed once rather than assumed. */
+function pbRegenerate(){
+  if(!pbState) return;
+  if(pbState.edited &&
+     !confirm('Build a fresh program? Your changes to this draft will be replaced.')) return;
+  pbRegenerateDraft();
+  renderProgramBuilderFlow();
+}
+
+/* ---------- draft editing ----------
+   Every editor mutates the draft in place and repaints. None of them
+   regenerates, which is the entire point. */
+
+/* The sessions of a draft, in weekday order, as {dayKey, entry, template}. */
+function pbSessions(def){
+  const out = [];
+  if(!def || !def.schedule) return out;
+  PROGRAM_DAY_KEYS.forEach(k => {
+    const e = def.schedule[k];
+    if(!e || e.type !== 'workout') return;
+    out.push({ dayKey:k, entry:e });
+  });
+  return out;
+}
+
+/* A draft session owns its exercises outright once touched. Generated
+   sessions reference a template by id; the first edit copies that template’s
+   exercises onto the entry so the athlete is editing THEIR program rather
+   than the shared template every other program using it would see. */
+function pbSessionExercises(def, dayKey){
+  const e = def && def.schedule ? def.schedule[dayKey] : null;
+  if(!e) return [];
+  if(Array.isArray(e.exercises)) return e.exercises;
+  let tpl = null;
+  try{ tpl = builderTemplateOf(e); }catch(err){ tpl = null; }
+  return (tpl && tpl.exercises) ? tpl.exercises : [];
+}
+function pbOwnSession(def, dayKey){
+  const e = def && def.schedule ? def.schedule[dayKey] : null;
+  if(!e) return null;
+  if(!Array.isArray(e.exercises)){
+    /* Deep copy: editing this program must never reach the template it came
+       from, or any other program built on it. */
+    e.exercises = JSON.parse(JSON.stringify(pbSessionExercises(def, dayKey)));
+    if(!e.name){
+      let tpl = null;
+      try{ tpl = builderTemplateOf(e); }catch(err){}
+      e.name = (tpl && tpl.name) || CAT_LABEL[e.category] || 'Session';
+    }
+  }
+  return e;
+}
+
+function pbRenameSession(dayKey, name){
+  const def = pbDraft(); if(!def) return;
+  const e = pbOwnSession(def, dayKey); if(!e) return;
+  e.name = String(name || '').trim().slice(0, 40) || e.name;
+  pbTouch(); renderProgramBuilderFlow();
+}
+
+function pbMoveExercise(dayKey, idx, delta){
+  const def = pbDraft(); if(!def) return;
+  const e = pbOwnSession(def, dayKey); if(!e) return;
+  const list = e.exercises;
+  const to = idx + delta;
+  if(to < 0 || to >= list.length) return;
+  const [item] = list.splice(idx, 1);
+  list.splice(to, 0, item);
+  pbTouch(); renderProgramBuilderFlow();
+}
+
+function pbRemoveExercise(dayKey, idx){
+  const def = pbDraft(); if(!def) return;
+  const e = pbOwnSession(def, dayKey); if(!e) return;
+  e.exercises.splice(idx, 1);
+  /* Deliberately NOT replaced. Removing something is a decision, and
+     generating a substitute on the spot would be the app arguing. */
+  pbTouch(); renderProgramBuilderFlow();
+}
+
+/* Sets, reps and effort, edited in place. Values are clamped to what the
+   program schema already accepts rather than to new limits invented here. */
+function pbEditRx(dayKey, idx, field, value){
+  const def = pbDraft(); if(!def) return;
+  const e = pbOwnSession(def, dayKey); if(!e) return;
+  const ex = e.exercises[idx]; if(!ex) return;
+  if(field === 'sets'){
+    const n = Math.max(1, Math.min(10, parseInt(value, 10) || 1));
+    ex.sets = n;
+  } else if(field === 'reps'){
+    const r = parseRepRange(value);
+    /* min > 0 and max >= min, or the value is refused rather than stored
+       as something no consumer can read. */
+    if(r && r.min > 0 && r.max >= r.min) ex.reps = String(value).trim();
+  } else if(field === 'effort'){
+    const n = parseFloat(value);
+    if(!isNaN(n) && n >= 1 && n <= 10) ex.effort = String(Math.round(n));
+  }
+  pbTouch();
+}
+
+/* Adds an exercise from the canonical library. Its prescription is suggested
+   from the same program logic the generator uses, so an athlete who does not
+   want to author one gets something defensible — and can change it. */
+function pbAddExercise(dayKey, name){
+  const def = pbDraft(); if(!def) return;
+  const e = pbOwnSession(def, dayKey); if(!e) return;
+  const clean = String(name || '').trim();
+  if(!clean) return;
+  e.exercises.push(pbSuggestedExercise(def, e, clean));
+  pbTouch(); renderProgramBuilderFlow();
+}
+
+/* The suggestion. Reuses the prescription the generator would have written
+   for this goal and session, taken from a sibling exercise where one exists,
+   so there is no second prescription engine. Starting load is deliberately
+   left unset: LOOP does not invent a weight it has no evidence for. */
+function pbSuggestedExercise(def, entry, name){
+  const peers = (entry.exercises || []).filter(x => x && x.reps);
+  const peer = peers.length ? peers[peers.length - 1] : null;
+  /* The canonical pool already carries a prescription for every accessory
+     LOOP offers, so a suggestion is a lookup rather than a new engine. */
+  let canon = null;
+  try{
+    const key = normalizeExerciseName(name);
+    (PROGRAM_EXTENSIONS || []).forEach(x => (x.exercises || []).forEach(ex => {
+      if(!canon && normalizeExerciseName(ex.name) === key) canon = ex;
+    }));
+  }catch(err){}
+  const src = canon || peer || null;
+  const out = { name: clean0(name), sets: src ? src.sets : 3,
+    reps: src ? src.reps : (peer ? peer.reps : '8\u201312'),
+    effort: src ? src.effort : (peer ? peer.effort : '7\u20138') };
+  return out;
+}
+function clean0(n){ return String(n || '').trim().slice(0, 60); }
+
+/* Adds an empty session on a free day. A custom session is an ordinary
+   program session from the moment it exists — same schema, same schedule,
+   same adherence, same prescriptions. There is no second-class kind. */
+function pbAddSession(){
+  const def = pbDraft(); if(!def) return;
+  const free = PROGRAM_DAY_KEYS.find(k => !def.schedule[k] || def.schedule[k].type !== 'workout');
+  if(!free){ alert('Every day of the week already has a session.'); return; }
+  def.schedule[free] = { type:'workout', planId: def.schedule[free] && def.schedule[free].planId || null,
+    category:'fullbody', name:'New session', exercises:[] };
+  pbTouch(); renderProgramBuilderFlow();
+  /* The caller needs to know WHICH day was used so it can open the new
+     session rather than guessing at the end of the weekday order. */
+  return free;
+}
+
+function pbRemoveSession(dayKey){
+  const def = pbDraft(); if(!def) return;
+  if(pbSessions(def).length <= 1){ alert('A program needs at least one session.'); return; }
+  def.schedule[dayKey] = { type:'rest' };
+  pbTouch(); renderProgramBuilderFlow();
+}
+
+/* Moves a session to another weekday, keeping everything about it. The draft
+   has no history, so no revision is involved — that machinery exists for
+   ACTIVE programs, where past weeks have to be protected. */
+function pbMoveSession(dayKey, toKey){
+  const def = pbDraft(); if(!def) return;
+  if(!toKey || toKey === dayKey) return;
+  const occupied = def.schedule[toKey] && def.schedule[toKey].type === 'workout';
+  const moving = def.schedule[dayKey];
+  if(!moving) return;
+  def.schedule[dayKey] = occupied ? def.schedule[toKey] : { type:'rest' };
+  def.schedule[toKey] = moving;
+  pbTouch(); renderProgramBuilderFlow();
+}
+
+/* Validation before activation. Only genuinely broken states block — an
+   unusual split is a choice, not an error. */
+function pbValidateDraft(def){
+  const problems = [];
+  const sessions = pbSessions(def);
+  if(!sessions.length) problems.push('Add at least one session.');
+  sessions.forEach(({ dayKey, entry }) => {
+    const label = entry.name || CAT_LABEL[entry.category] || dayKey;
+    const list = pbSessionExercises(def, dayKey);
+    if(!list.length){ problems.push(label + ' has no exercises.'); return; }
+    list.forEach(ex => {
+      const n = parseInt(ex.sets, 10);
+      if(!(n > 0)) problems.push(label + ': ' + (ex.name || 'an exercise') + ' needs at least one set.');
+      if(ex.reps){
+        const r = parseRepRange(ex.reps);
+        if(!r || !(r.min > 0) || !(r.max >= r.min))
+          problems.push(label + ': ' + (ex.name || 'an exercise') + ' has an invalid rep range.');
+      }
+    });
+  });
+  return problems;
+}
+
+/* D51B — kept as the name the rest of the builder already calls, but it no
+   longer generates: it returns the draft, which is generated once. Rendering
+   through here used to rebuild the program on every repaint and throw away
+   whatever the athlete had changed. */
+function pbGenerate(){
+  return pbDraft();
 }
 
 function pbSetWeeks(n){
@@ -25802,6 +26194,121 @@ function pbRename(){
   renderProgramBuilderFlow();
 }
 
+/* ---------- Program Studio: the sessions, editable ----------
+   Read state is compact — name, day, exercise count — so the week stays
+   scannable. One tap opens a session and the prescriptions become editable in
+   place. There is no separate edit mode and no Save: the draft IS the state,
+   and activation is the only commitment. */
+let pbOpenSession = null;
+function pbToggleSession(dayKey){
+  pbOpenSession = (pbOpenSession === dayKey) ? null : dayKey;
+  renderProgramBuilderFlow();
+}
+
+function pbStudioHtml(def){
+  const sessions = pbSessions(def);
+  return '<div class="pb-rv-sec">Sessions<span class="pb-rv-hint">tap to edit</span></div>' +
+    '<div class="ps-list">' +
+      sessions.map(sn => pbSessionBlockHtml(def, sn)).join('') +
+    '</div>' +
+    '<button type="button" class="ps-add-session" onclick="pbAddSession()">+ Add a session</button>';
+}
+
+function pbSessionBlockHtml(def, sn){
+  const { dayKey, entry } = sn;
+  const list = pbSessionExercises(def, dayKey);
+  const open = pbOpenSession === dayKey;
+  let name = entry.name;
+  if(!name){ let t = null; try{ t = builderTemplateOf(entry); }catch(e){}
+    name = (t && t.name) || CAT_LABEL[entry.category] || 'Session'; }
+  const mins = (() => { try{ const t = builderTemplateOf(entry);
+    return t ? computeWorkoutDuration(t) : null; }catch(e){ return null; } })();
+  return '<div class="ps-sess' + (open ? ' open' : '') + '">' +
+    '<button type="button" class="ps-sess-top" onclick="pbToggleSession(\'' + dayKey + '\')"' +
+      ' aria-expanded="' + (open ? 'true' : 'false') + '">' +
+      '<span class="ps-day">' + escapeHtml(DAY_LABEL[dayKey] || dayKey) + '</span>' +
+      '<span class="ps-sess-main">' +
+        '<span class="ps-sess-name">' + escapeHtml(name) + '</span>' +
+        '<span class="ps-sess-meta">' + list.length + ' exercise' + (list.length === 1 ? '' : 's') +
+          (mins ? ' · ~' + mins + ' min' : '') + '</span>' +
+      '</span>' +
+      '<span class="ps-caret" aria-hidden="true">' + chevronDownSvg(13) + '</span>' +
+    '</button>' +
+    (open ? pbSessionEditorHtml(def, dayKey, name, list) : '') +
+  '</div>';
+}
+
+function pbSessionEditorHtml(def, dayKey, name, list){
+  const rows = list.map((ex, i) => pbExerciseRowHtml(dayKey, ex, i, list.length)).join('');
+  const dayOpts = PROGRAM_DAY_KEYS.map(k =>
+    '<option value="' + k + '"' + (k === dayKey ? ' selected' : '') + '>' +
+    escapeHtml(DAY_LABEL_FULL[k] || k) + '</option>').join('');
+  return '<div class="ps-body">' +
+    '<label class="ps-field"><span class="ps-lab">Session name</span>' +
+      '<input type="text" class="ps-name-in" value="' + escapeAttr(name) + '"' +
+      ' onchange="pbRenameSession(\'' + dayKey + '\', this.value)" maxlength="40"></label>' +
+    '<label class="ps-field"><span class="ps-lab">Day</span>' +
+      '<select class="ps-day-in" onchange="pbMoveSession(\'' + dayKey + '\', this.value)">' +
+      dayOpts + '</select></label>' +
+    '<div class="ps-ex-list">' + rows + '</div>' +
+    '<div class="ps-sess-actions">' +
+      '<button type="button" class="ps-act" onclick="pbOpenExercisePicker(\'' + dayKey + '\')">+ Add exercise</button>' +
+      '<button type="button" class="ps-act ps-act-danger" onclick="pbRemoveSession(\'' + dayKey + '\')">Remove session</button>' +
+    '</div>' +
+  '</div>';
+}
+
+/* One exercise: what it is, and the three numbers that define it. Reorder is
+   two buttons rather than a drag handle, because a drag handle is the one
+   control that cannot be used one-handed or by a screen reader. */
+function pbExerciseRowHtml(dayKey, ex, i, total){
+  const d = '\'' + dayKey + '\'';
+  return '<div class="ps-ex">' +
+    '<div class="ps-ex-top">' +
+      '<span class="ps-ex-name">' + escapeHtml(ex.name || 'Exercise') + '</span>' +
+      '<span class="ps-ex-move">' +
+        '<button type="button" class="ps-mv" onclick="pbMoveExercise(' + d + ',' + i + ',-1)"' +
+          (i === 0 ? ' disabled' : '') + ' aria-label="Move ' + escapeAttr(ex.name || 'exercise') + ' up">↑</button>' +
+        '<button type="button" class="ps-mv" onclick="pbMoveExercise(' + d + ',' + i + ',1)"' +
+          (i === total - 1 ? ' disabled' : '') + ' aria-label="Move ' + escapeAttr(ex.name || 'exercise') + ' down">↓</button>' +
+        '<button type="button" class="ps-mv ps-mv-x" onclick="pbRemoveExercise(' + d + ',' + i + ')"' +
+          ' aria-label="Remove ' + escapeAttr(ex.name || 'exercise') + '">' + closeIconSvg(11) + '</button>' +
+      '</span>' +
+    '</div>' +
+    '<div class="ps-rx">' +
+      '<label class="ps-rx-f"><span>Sets</span>' +
+        '<input type="text" inputmode="numeric" value="' + escapeAttr(String(ex.sets || '')) + '"' +
+        ' onchange="pbEditRx(' + d + ',' + i + ',\'sets\',this.value); renderProgramBuilderFlow();"' +
+        ' aria-label="Sets"></label>' +
+      '<label class="ps-rx-f ps-rx-wide"><span>Reps</span>' +
+        '<input type="text" inputmode="numeric" value="' + escapeAttr(String(ex.reps || '')) + '"' +
+        ' onchange="pbEditRx(' + d + ',' + i + ',\'reps\',this.value); renderProgramBuilderFlow();"' +
+        ' aria-label="Rep range"></label>' +
+      '<label class="ps-rx-f"><span>Effort</span>' +
+        '<input type="text" inputmode="numeric" value="' + escapeAttr(String(firstNumber(ex.effort) || '')) + '"' +
+        ' onchange="pbEditRx(' + d + ',' + i + ',\'effort\',this.value); renderProgramBuilderFlow();"' +
+        ' aria-label="Target effort out of 10"></label>' +
+    '</div>' +
+  '</div>';
+}
+
+/* Adding an exercise reuses the canonical library. No second picker, no
+   second set of names. */
+function pbOpenExercisePicker(dayKey){
+  const names = [];
+  try{
+    Object.keys(EXERCISE_LIBRARY || {}).forEach(cat =>
+      (EXERCISE_LIBRARY[cat] || []).forEach(e => { if(e && e.name) names.push(e.name); }));
+  }catch(e){}
+  const uniq = [...new Set(names)].sort();
+  const pick = prompt('Add exercise\n\nType a name, or one of:\n' +
+    uniq.slice(0, 12).join(', ') + '…');
+  if(pick === null) return;
+  const clean = String(pick).trim();
+  if(!clean) return;
+  pbAddExercise(dayKey, clean);
+}
+
 function pbReviewHtml(){
   const def = pbGenerate();
   const a = pbState.answers;
@@ -25826,6 +26333,8 @@ function pbReviewHtml(){
       </div>
 
       ${programMapHtml(def, { week:1, interactive:true, idPrefix:'pbMap' })}
+
+      ${pbStudioHtml(def)}
 
       <div class="pb-rv-sec">Why this structure</div>
       ${programWhyRowsHtml(expl)}
@@ -25883,7 +26392,20 @@ async function pbCommit(btn){
   if(!pbState) return;
   if(btn && btn.disabled) return;
   if(btn) btn.disabled = true;                 // a second tap cannot double-save
-  const def = pbGenerate();
+  /* D51B — activation uses the draft EXACTLY as the athlete left it. This
+     called pbGenerate(), which rebuilt the program from the answers, so even
+     an edit that survived the review render was discarded at the moment of
+     activation: the athlete approved one program and started a different one.
+
+     Validation runs here rather than on every keystroke, and only genuinely
+     broken states block. An unusual split is a choice. */
+  const def = pbDraft();
+  const problems = pbValidateDraft(def);
+  if(problems.length){
+    if(btn) btn.disabled = false;
+    alert(problems.slice(0, 3).join('\n'));
+    return;
+  }
 
   let result;
   if(pbState.mode === 'edit' && pbState.editingId){
