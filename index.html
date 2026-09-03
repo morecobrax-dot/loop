@@ -582,6 +582,8 @@ html.intro-skip #introOverlay{ display: none !important; }
 .plateau-more{ color: var(--text-faint); }
 .warmup-wrap:empty{ display: none; }
 .warmup-box{ background: var(--surface-3); border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 8px 10px; margin-top: 10px; }
+.warmup-note{ font-size: var(--fs-micro); color: var(--text-faint); margin-top: 6px; line-height: 1.45; }
+
 .warmup-label{ font-size: var(--fs-micro); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 6px; }
 .warmup-sets{ display: flex; gap: 6px; flex-wrap: wrap; }
 .warmup-chip{ font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim); padding: 4px 8px; border-radius: var(--radius-sm); }
@@ -1899,6 +1901,66 @@ body.first-use{ padding-bottom: 0; }
 
 /* ---- Next time notes ---- */
 #summaryNextTime:empty{ display: none; }
+/* D47 — Session Score. It anchors the completion screen, so it is the one
+   large thing on it; everything below stays quieter than it. No confetti, no
+   casino roll: a short fade that reduced motion removes entirely. */
+.ss{
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 18px 16px 14px; margin-top: 14px; text-align: center;
+}
+.ss-k{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.13em; text-transform: uppercase; color: var(--text-faint);
+}
+.ss-num{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 56px;
+  line-height: 1.02; letter-spacing: -0.03em; color: var(--text); margin-top: 4px;
+  font-variant-numeric: tabular-nums; animation: ss-in 0.34s cubic-bezier(0.4,0,0.2,1) both;
+}
+.ss-word{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: var(--fs-card-title);
+  color: var(--accent); margin-top: 2px;
+}
+.ss-reasons{
+  list-style: none; margin: 14px 0 0; padding: 12px 0 0; text-align: left;
+  border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 7px;
+}
+.ss-reason{ font-size: var(--fs-support); color: var(--text-dim); line-height: 1.45; padding-left: 14px; position: relative; }
+.ss-reason::before{ content: ""; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--text-faint); }
+.ss-cov{ font-size: var(--fs-meta); color: var(--text-faint); margin-top: 10px; text-align: left; line-height: 1.45; }
+.ss-none{
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 13px 15px; margin-top: 14px; font-size: var(--fs-meta); color: var(--text-dim); line-height: 1.5;
+}
+.ss-more{
+  display: block; width: 100%; min-height: 44px; margin-top: 12px; cursor: pointer;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600;
+}
+.ss-more:active{ background: var(--surface-2); }
+.ss-more:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.ss-detail{ margin-top: 10px; text-align: left; }
+.ss-row{ display: flex; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.ss-row-n{ flex: 1; min-width: 0; font-size: var(--fs-meta); color: var(--text-dim); }
+.ss-row-w{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); color: var(--text-faint);
+  font-variant-numeric: tabular-nums; flex: 0 0 auto;
+}
+.ss-row-v{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta); font-weight: 700;
+  color: var(--text); font-variant-numeric: tabular-nums; flex: 0 0 auto; min-width: 34px; text-align: right;
+}
+.ss-row-v.ss-row-none{ font-size: var(--fs-micro); font-weight: 600; color: var(--text-faint); min-width: 74px; }
+.ss-note{ font-size: var(--fs-micro); color: var(--text-faint); line-height: 1.5; margin-top: 10px; }
+@keyframes ss-in{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce){ .ss-num{ animation: none; } }
+/* The next target reads as a target: same weight the logger will hand over. */
+.nexttime-target{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-support); font-weight: 700;
+  color: var(--accent); margin-top: 3px; font-variant-numeric: tabular-nums;
+}
+.nexttime-row.nexttime-reduce .nexttime-target{ color: var(--warning); }
+
 .nexttime-card{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; margin-top: 8px; }
 .nexttime-row{ padding: 11px 14px; border-bottom: 1px solid var(--border); }
 .nexttime-row:last-child{ border-bottom: none; }
@@ -4884,6 +4946,38 @@ body.page-locked{ overflow: hidden; }
 }
 .prep-done-sub{ font-size: 13px; color: var(--text-dim); }
 
+/* D47 — which side, and for how long. The switch state is loud on purpose:
+   it is the moment the athlete has to act on, and it lasts a few seconds. */
+.prep-side{
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  margin: var(--space-3) auto 0; padding: 8px 14px; max-width: 340px;
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2);
+}
+.prep-side-cue{
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-card-title); font-weight: 700;
+  letter-spacing: 0.02em; color: var(--accent); text-transform: uppercase;
+}
+.prep-side-now{
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-section); font-weight: 700; color: var(--text);
+}
+.prep-side-len{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.06em; color: var(--text-faint); text-transform: uppercase;
+}
+.prep-side-switch{ border-color: var(--accent); background: var(--accent-soft); }
+.prep-side-switch .prep-side-now{ color: var(--accent); }
+/* Warm-up steps: the load is the reading, the percentage is the footnote. */
+.prep-step{ white-space: nowrap; }
+.prep-step i{
+  font-style: normal; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  color: var(--text-faint); margin-left: 4px;
+}
+.prep-step-sep{ color: var(--text-faint); margin: 0 6px; }
+.prep-guide-target{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  color: var(--accent); margin-left: 7px;
+}
+
 /* ---- optional lift guidance (text only, never logged) ---- */
 .prep-guide{
   text-align: left; background: var(--surface-2); border: 1px solid var(--border);
@@ -6700,6 +6794,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="summary-mark" id="summaryMark"></div>
     <h2 style="text-align:center">Workout Complete</h2>
     <div class="sheet-sub" id="summaryTitle" style="text-align:center"></div>
+    <!-- D47 — the score anchors the page, above everything it is a summary of. -->
+    <div id="summaryScore"></div>
     <div id="summaryLevelUp"></div>
     <div class="summary-stats" id="summaryStats"></div>
     <div id="summaryPRs"></div>
@@ -9756,6 +9852,29 @@ const LOOP_UPDATES = [
       'Today hid programs entirely once you had saved one, and on every rest day'
     ],
     changes: []
+  },
+  {
+    id: 'v4-1',
+    version: 'LOOP 4.1',
+    title: 'Train With Intent',
+    date: '2026-09-23',
+    swVersion: 'loop-v118',
+    summary: 'Finishing a workout now tells you how closely you executed the session LOOP actually prescribed, and what to change next time.',
+    newFeatures: [
+      'Session Score is back — it measures how well you executed the sets, reps and effort LOOP asked for, and shows the four things it is made of',
+      'Next Time now names the actual weight and rep range you will be given, from the same engine the logger uses'
+    ],
+    improvements: [
+      'Warm-ups show real loads instead of percentages to work out mid-session',
+      'Warm-up weights round to what your gym can actually load',
+      'A later exercise can shorten its warm-up when you have already worked up to a heavier load in the same movement this session',
+      'Timed warm-ups with two sides now say which side you are on and cue the switch'
+    ],
+    bugFixes: [
+      'Repeatedly grinding below your rep range never suggested taking weight off the bar — it told you to beat your last session',
+      'Warm-ups that needed a side switch just showed one countdown'
+    ],
+    changes: []
   }
 ];
 
@@ -11013,6 +11132,43 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
     };
   }
 
+  /* D47 Tier 2.5: the load is genuinely too heavy, and saying so is the one
+     thing this engine could not do. Every other tier either adds weight or
+     holds it, so an athlete grinding below the bottom of the rep range with
+     nothing left in reserve was told "beat last session" — push harder at a
+     weight that was already too much. That is the only advice here that could
+     make training worse rather than merely slower.
+
+     Deliberately expensive to trigger, because a load reduction the athlete
+     did not need is demoralising and starts a ping-pong:
+       · TWO consecutive sessions, not one bad day
+       · at the SAME weight, so a heavier one-off cannot trigger it
+       · BOTH below the bottom of the range, not merely short of the top
+       · BOTH at 0.5 RIR or less, so it is grinding rather than a light day
+     Missing RIR fails the last condition and holds instead — unknown effort
+     is not evidence of struggle.
+
+     The step down is progressionIncrement(), the same equipment-aware amount
+     the increase uses, so the ladder an athlete climbs is the ladder they come
+     back down. It is never a percentage that lands on a weight no gym has. */
+  const prevSame = sessions[1];
+  if(range && prevSame && prevSame.weight === w
+     && last.topReps < range.min && prevSame.topReps < range.min
+     && last.avgRir !== null && last.avgRir <= 0.5
+     && prevSame.avgRir !== null && prevSame.avgRir <= 0.5){
+    const down = Math.max(progressionIncrement(exerciseName, w),
+                          0);                               // never negative
+    const lighter = Math.max(0, w - down);
+    if(lighter > 0){
+      return {
+        weight: lighter,
+        headline: `${lighter} lb × ${templateReps}`,
+        why: `Two sessions under ${range.min} reps with nothing left in reserve — drop to ${lighter} lb and rebuild the range.`,
+        tag: 'reduce'
+      };
+    }
+  }
+
   // Tier 3: fewer reps than the previous session at the same weight — performance dipped
   const prev = sessions[1];
   if(prev && prev.weight === w && last.topReps < prev.topReps - 1){
@@ -11213,10 +11369,30 @@ function computeWarmupRamp(workingWeight){
 function warmupBoxHtml(name, workingWeight){
   if(!isWarmupLift(name)) return '';
   const ramp = computeWarmupRamp(workingWeight);
-  if(ramp) return `<div class="warmup-box">
-    <div class="warmup-label">Suggested warm-up</div>
-    <div class="warmup-sets">${ramp.map(r => `<span class="warmup-chip">${r.weight} lb × ${r.reps}</span>`).join('')}</div>
+  if(ramp){
+    /* D47 — a full ramp assumes the athlete arrived cold at this exercise.
+       By the third lift of a session that is usually false, and repeating the
+       whole sequence is the redundant preparation the owner reported.
+
+       The reduction is conservative by construction and is refused whenever
+       anything is unknown: it needs the SAME MOVEMENT PATTERN already worked
+       at a load at least as heavy, in this session, with sets actually ticked
+       complete. Muscle overlap alone never qualifies — a squat and a Romanian
+       deadlift share the posterior chain and prepare each other barely at all.
+
+       Even then the ramp is shortened rather than removed. One acclimation set
+       at the top of the ramp is kept, because the movement-specific part is
+       the half that does not transfer. Under-warming costs an injury; one
+       extra set costs ninety seconds. */
+    let prepared = null;
+    try{ prepared = generalPrepSatisfiedBy(name, sessionPreparation()); }catch(e){ prepared = null; }
+    const shown = prepared ? ramp.slice(-1) : ramp;
+    return `<div class="warmup-box">
+    <div class="warmup-label">${prepared ? 'Warm-up · already prepared' : 'Suggested warm-up'}</div>
+    <div class="warmup-sets">${shown.map(r => `<span class="warmup-chip">${r.weight} lb × ${r.reps}</span>`).join('')}</div>
+    ${prepared ? `<div class="warmup-note">Shortened — you already worked up to ${prepared.topLoad} lb on ${escapeHtml(programShortName(prepared.from))} this session.</div>` : ''}
   </div>`;
+  }
   /* No working weight yet, so there is nothing to take a percentage of. The
      lift's own prep guidance says the same thing in relative terms. It used to
      appear only on a "Prep Complete" screen the athlete tapped past on the way
@@ -29134,6 +29310,191 @@ const LIFT_PREP_GUIDANCE = {
   hip_thrust: ['Glute bridge × 12','Empty bar × 8','~60% × 5']
 };
 
+/* =========================================================
+   WARM-UP LOADS AND SESSION PREPARATION  (Phase D47)
+   ---------------------------------------------------------
+   The athlete standing at a barbell should not be doing
+   arithmetic. "~70% × 3" requires knowing today’s working
+   weight, multiplying, and rounding to something that can
+   actually be loaded — three steps, mid-session, to answer a
+   question LOOP already knows the answer to.
+
+   Percentages remain, but as the secondary reading. The load
+   is primary because the load is what gets put on the bar.
+
+   Today’s EFFECTIVE working load is used, never the template’s
+   original: if the progression engine put 135 in front of the
+   athlete, the ramp climbs to 135.
+   ========================================================= */
+
+/* The smallest change worth making to a warm-up weight, by implement. This is
+   about what can be LOADED, which is not the same question as
+   progressionIncrement() — that one asks what is worth adding between
+   sessions and deliberately returns 10 for a heavy barbell. A warm-up single
+   at 152.5 is fine arithmetic and an impossible bar, so this rounds to what a
+   gym actually has.
+
+   Where LOOP does not recognise the implement it falls back to 5, the
+   convention already used everywhere else in the app. It never invents a
+   plate configuration. */
+function warmupIncrement(exerciseName){
+  const n = (exerciseName || '').toLowerCase();
+  if(/dumbbell|\bdb\b|goblet/.test(n)) return 5;      // pairs go up in 5s
+  if(/machine|cable|pulldown|pushdown|pec deck|leg press|smith/.test(n)) return 5;  // stack pin
+  if(/curl|raise|fly|flye|extension|kickback|pushdown|lateral/.test(n)) return 2.5; // light isolation
+  return 5;                                            // barbell and unknown
+}
+function roundWarmupLoad(exerciseName, weight){
+  const inc = warmupIncrement(exerciseName);
+  const w = parseFloat(weight);
+  if(isNaN(w) || w <= 0) return null;
+  return Math.max(inc, Math.round(w / inc) * inc);
+}
+
+/* Turns a stored guidance step into something loadable. Steps are authored as
+   "~70% × 3", "Empty bar × 10" or "Bodyweight squats × 10"; only the first
+   shape has a percentage to resolve, and the others are already concrete and
+   are passed through untouched.
+
+   With no working load known, the percentage is left exactly as authored — a
+   percentage of nothing is not a number, and inventing one would be worse
+   than the arithmetic it saves. */
+function resolveWarmupStep(step, workingLoad, exerciseName){
+  const m = /^~?(\d+(?:\.\d+)?)%(.*)$/.exec(String(step).trim());
+  if(!m) return { text: step, pct: null };
+  const pct = parseFloat(m[1]);
+  const rest = m[2] || '';
+  const load = roundWarmupLoad(exerciseName, (parseFloat(workingLoad) || 0) * (pct / 100));
+  if(!load) return { text: step, pct };
+  return { text: load + ' lb' + rest, pct };
+}
+
+/* Today’s effective working load for a named exercise, read from the logger
+   the athlete is about to use. Prefers the prescription LOOP wrote onto the
+   row; falls back to whatever weight is actually typed into the first set,
+   because an athlete who has overridden the number means it. Returns null
+   when nothing is known, and callers must keep the percentage in that case. */
+function effectiveWorkingLoad(exerciseName){
+  const key = (exerciseName || '').trim().toLowerCase();
+  if(!key) return null;
+  const rows = document.querySelectorAll('#logExercises .ex-log-row');
+  for(const row of rows){
+    const nameEl = row.querySelector('.ex-name-in');
+    if(!nameEl || nameEl.value.trim().toLowerCase() !== key) continue;
+    const bw = row.querySelector('.ex-bw-in');
+    if(bw && bw.checked) return null;                  // bodyweight has no load to ramp
+    const rx = parseFloat(row.dataset.rxLoad);
+    if(!isNaN(rx) && rx > 0) return rx;
+    const first = row.querySelector('.set-weight-in');
+    const typed = first ? parseFloat(first.value) : NaN;
+    if(!isNaN(typed) && typed > 0) return typed;
+    return null;
+  }
+  return null;
+}
+
+/* =========================================================
+   SESSION PREPARATION CONTEXT
+   ---------------------------------------------------------
+   Later exercises should not repeat preparation the athlete has
+   already done. The tempting rule — "same muscles, skip the
+   warm-up" — is FORBIDDEN and would be wrong: a squat and a
+   Romanian deadlift share the whole posterior chain and prepare
+   each other barely at all, because the joint they load and the
+   range they load it through are different.
+
+   What actually transfers is the MOVEMENT, so that is what is
+   compared: the same movement pattern, at a load already worked
+   up to, in the same session. Squat then Bulgarian split squat
+   is the same knee-dominant pattern and genuinely prepared.
+   Squat then Romanian deadlift is knee-dominant then
+   hip-dominant, and is not.
+
+   The reduction is also asymmetric on purpose: it only ever
+   removes GENERAL preparation, never the movement-specific
+   ramp, and it only fires when the earlier work was at least as
+   heavy. Under-warming costs an injury; one extra warm-up set
+   costs ninety seconds. When anything is unknown, the
+   preparation is preserved.
+
+   NOTHING IS PERSISTED. There is no warmedMuscles store; this is
+   derived from the sets already logged in the session in front
+   of the athlete and vanishes with it.
+   ========================================================= */
+
+/* The movement pattern LOOP can defend for a barbell exercise. Deliberately
+   coarse and deliberately incomplete: an exercise it does not recognise
+   returns null, and null always means "warm up properly". */
+const MOVEMENT_PATTERNS = {
+  squat:      ['back squat','front squat','goblet squat','hack squat','leg press',
+               'split squat','bulgarian','lunge','step-up','step up','box squat','wall sit'],
+  hinge:      ['deadlift','romanian','rdl','good morning','hip thrust','glute bridge','back extension','kettlebell swing'],
+  horiz_push: ['bench press','chest press','push-up','push up','dip','chest fly','pec deck','cable fly','crossover'],
+  vert_push:  ['overhead press','shoulder press','push press','military press','arnold press'],
+  horiz_pull: ['row','face pull','rear delt'],
+  vert_pull:  ['pulldown','pull-up','pull up','chin-up','chin up','pullover']
+};
+function movementPatternOf(exerciseName){
+  const n = (exerciseName || '').toLowerCase();
+  if(!n) return null;
+  /* Longest keyword wins, so "front squat" is not decided by "squat" and
+     "chest press" is not decided by "press". */
+  let best = null, bestLen = 0;
+  Object.keys(MOVEMENT_PATTERNS).forEach(pat => {
+    MOVEMENT_PATTERNS[pat].forEach(kw => {
+      if(n.includes(kw) && kw.length > bestLen){ best = pat; bestLen = kw.length; }
+    });
+  });
+  return best;
+}
+
+/* What the athlete has already done in THIS session, as movement patterns
+   they have worked up to and the heaviest load reached in each. Reads the
+   live logger only, and only sets actually ticked complete — a prefilled set
+   the athlete has not done yet prepares nobody. */
+function sessionPreparation(){
+  const done = {};
+  const rows = document.querySelectorAll('#logExercises .ex-log-row');
+  rows.forEach(row => {
+    const nameEl = row.querySelector('.ex-name-in');
+    if(!nameEl) return;
+    const name = nameEl.value.trim();
+    const pat = movementPatternOf(name);
+    if(!pat) return;
+    let top = 0, sets = 0;
+    row.querySelectorAll('.set-row.completed').forEach(sr => {
+      const wEl = sr.querySelector('.set-weight-in');
+      const w = wEl ? parseFloat(wEl.value) : NaN;
+      sets++;
+      if(!isNaN(w) && w > top) top = w;
+    });
+    if(!sets) return;
+    if(!done[pat] || top > done[pat].topLoad) done[pat] = { topLoad: top, sets, name };
+  });
+  return done;
+}
+
+/* Whether GENERAL preparation can be skipped for this exercise, given what
+   has already been trained. Returns a reason when it can, null when it
+   cannot — and null is the answer to every uncertainty.
+
+   The movement-specific ramp is NEVER removed by this. Only the general
+   sequence is, because that is the part that genuinely does not need doing
+   twice in one session. */
+function generalPrepSatisfiedBy(exerciseName, prepared){
+  const pat = movementPatternOf(exerciseName);
+  if(!pat) return null;                                // unknown movement: warm up
+  const p = (prepared || {})[pat];
+  if(!p) return null;                                  // pattern not trained yet
+  if(p.name && p.name.trim().toLowerCase() === (exerciseName||'').trim().toLowerCase()) return null;
+  /* Only work at least as heavy counts. Ramping up to a heavy single and then
+     doing a light accessory is prepared; the reverse is not. */
+  const target = effectiveWorkingLoad(exerciseName);
+  if(target == null) return null;                      // unknown target: warm up
+  if(!(p.topLoad >= target)) return null;
+  return { pattern: pat, from: p.name, topLoad: p.topLoad };
+}
+
 /* Returns guidance for any major lift among the given names. Returns [] when
    nothing matches — it never invents guidance for an exercise it does not know. */
 function collectMainLiftGuidance(names){
@@ -29147,7 +29508,14 @@ function collectMainLiftGuidance(names){
     const steps = LIFT_PREP_GUIDANCE[id];
     if(!steps) return;
     seen[id] = true;
-    out.push({ exerciseId:id, name:name, steps:steps });
+    /* D47 — resolved against today's effective working load, so the athlete
+       reads a weight rather than a percentage of a number they have to
+       remember. The percentage is kept alongside for anyone who wants it. */
+    let load = null;
+    try{ load = effectiveWorkingLoad(name); }catch(e){ load = null; }
+    const resolved = steps.map(st => resolveWarmupStep(st, load, name));
+    out.push({ exerciseId:id, name:name, steps:steps,
+      resolved: resolved, workingLoad: load });
   });
   return out;
 }
@@ -29287,12 +29655,55 @@ function exitPrep(){
    seconds of stretching, with three seconds in front of it. */
 const PREP_READY_SECONDS = 3;
 
+/* =========================================================
+   UNILATERAL PREPARATION  (Phase D47)
+   ---------------------------------------------------------
+   A leg swing is authored as 30 seconds with the instruction
+   "swing one leg forward and back, then switch". The clock
+   counted 30 and said nothing else, so the athlete had to
+   decide for themselves when half of it had gone — which is
+   the one thing a countdown exists to remove. Six of the
+   twenty-seven prep movements are in this shape, and two of
+   them are in every legs sequence.
+
+   The authored duration is the whole movement, both sides
+   included, so it is SPLIT rather than doubled. A leg day does
+   not silently get longer because the instruction got clearer.
+
+   ONE TIMER. This adds a side to the existing run phase; it does
+   not add an interval, and every deadline stays wall-clock
+   (endsAt), so locking the phone and coming back shows the
+   correct side and the correct remaining time.
+   ========================================================= */
+
+/* Read from the instruction LOOP already stores. A movement whose text does
+   not say it has sides is left exactly as it was — this never guesses. */
+function isUnilateralPrep(move){
+  if(!move) return false;
+  const t = String(move.instruction || '');
+  return /both sides|then switch|each side|one leg|one arm|opposite (leg|arm)/i.test(t);
+}
+/* Timed AND two-sided is the ambiguous case. A counted movement already says
+   "10 reps" beside an instruction that says both sides, which is unambiguous
+   in a way "30" is not. */
+function prepHasSides(move){
+  return isUnilateralPrep(move) && !!(move && (move.duration || move.suggestedDuration));
+}
+function prepSideLabel(side){ return side === 'right' ? 'Right' : 'Left'; }
+
 function enterPrepStep(){
   clearPrepTimer();
   if(!prepState) return;
   const move = prepState.seq[prepState.idx];
   if(!move){ renderPrepComplete(); return; }
-  const secs = move.duration || move.suggestedDuration || null;
+  const full = move.duration || move.suggestedDuration || null;
+  /* D47 — a two-sided movement runs as two halves of the authored duration.
+     Rounded up so 45 seconds becomes 23 and 23 rather than 22.5, and floored
+     at 5 so a very short movement never produces a meaningless side. */
+  prepState.sides = prepHasSides(move) ? ['left','right'] : null;
+  prepState.sideIdx = 0;
+  const secs = (full && prepState.sides) ? Math.max(5, Math.ceil(full / 2)) : full;
+  prepState.perSide = prepState.sides ? secs : null;
   prepState.remaining = secs || 0;
   prepState.paused = false;
   /* Timed movements open on a "get ready" phase and switch to the movement's
@@ -29336,6 +29747,17 @@ function tickPrep(){
   if(!prepState.endsAt) return;
   const left = Math.ceil((prepState.endsAt - Date.now()) / 1000);
   if(left <= 0){
+    /* D47 — half-way on a two-sided movement is a SWITCH, not the end of the
+       movement. Same interval, same wall-clock deadline; only the side and
+       the cue change. */
+    if(prepState.sides && prepState.sideIdx === 0){
+      prepState.sideIdx = 1;
+      prepState.remaining = prepState.perSide;
+      prepState.endsAt = Date.now() + prepState.perSide * 1000;
+      try{ loopHaptic(); }catch(e){}
+      renderPrepStep();
+      return;
+    }
     clearPrepTimer();
     nextPrepStep();
     return;
@@ -29418,6 +29840,19 @@ function renderPrepStep(){
   const timed = !!(move.duration || move.suggestedDuration);
   const ready = timed && prepState.phase === 'ready';
   const metric = timed ? formatPrepClock(prepState.remaining) : (move.reps + ' reps');
+  /* D47 — which side, and for how long. Stated as a heading above the clock
+     so the number underneath is unambiguous, and announced as a live region
+     so the switch is heard as well as seen. */
+  const sides = prepState.sides;
+  const sideNow = sides ? prepSideLabel(sides[prepState.sideIdx]) : null;
+  const sideBanner = sides
+    ? '<div class="prep-side' + (prepState.sideIdx === 1 ? ' prep-side-switch' : '') + '"' +
+        ' role="status" aria-live="assertive">' +
+        (prepState.sideIdx === 1 ? '<span class="prep-side-cue">Switch sides</span>' : '') +
+        '<span class="prep-side-now">' + sideNow + ' side</span>' +
+        '<span class="prep-side-len">' + prepState.perSide + ' sec each side</span>' +
+      '</div>'
+    : '';
   /* The rail carries the position for sighted athletes; the label carries it
      for everyone else. That lets the written "1 of 5" be dropped where space
      is tight without the position going missing. */
@@ -29442,6 +29877,7 @@ function renderPrepStep(){
        what they were meant to be doing. Name, instruction, then the
        demonstration of it. */
     '<div class="prep-instruction">' + escapeHtml(move.instruction) + '</div>' +
+    sideBanner +
     /* The demonstration, when one has been authored for this movement. The
        figure is decorative in the accessibility sense — the instruction above
        it is the real content — but it carries its own label inside the SVG for
@@ -29556,10 +29992,18 @@ function renderPrepComplete(){
 function renderLiftGuidanceHtml(guidance){
   return '<div class="prep-guide">' +
     '<div class="prep-guide-head">BEFORE YOUR MAIN LIFTS</div>' +
-    guidance.map(g =>
-      '<div class="prep-guide-lift">' + escapeHtml(g.name) + '</div>' +
-      '<div class="prep-guide-steps">' + g.steps.map(escapeHtml).join(' · ') + '</div>'
-    ).join('') +
+    guidance.map(g => {
+      /* Load first, percentage second and only where one exists. With no
+         working load resolved this renders exactly what it always did. */
+      const rows = (g.resolved || g.steps.map(t => ({ text:t, pct:null })))
+        .map(r => '<span class="prep-step">' + escapeHtml(r.text) +
+          (r.pct != null && g.workingLoad ? '<i>' + r.pct + '%</i>' : '') + '</span>')
+        .join('<span class="prep-step-sep" aria-hidden="true">\u00b7</span>');
+      return '<div class="prep-guide-lift">' + escapeHtml(g.name) +
+        (g.workingLoad ? '<span class="prep-guide-target">to ' + g.workingLoad + ' lb</span>' : '') +
+        '</div>' +
+        '<div class="prep-guide-steps">' + rows + '</div>';
+    }).join('') +
     '<div class="prep-guide-note">Working up to your first set. These are not logged — log the sets you actually count.</div>' +
   '</div>';
 }
@@ -30502,6 +30946,18 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
   if(meta.targetSets) row.dataset.targetSets = meta.targetSets;
   if(meta.targetReps) row.dataset.targetReps = meta.targetReps;
   if(meta.recommended) row.dataset.recommended = meta.recommended;
+  /* D47 — the EFFECTIVE prescription, as opposed to the template's original.
+     `recommended` is what the plan was written with; `rxLoad` is the load LOOP
+     actually put in front of the athlete today, which is the progression
+     engine's output and can differ from the template by several sessions of
+     earned weight. Judging execution against the template would penalise an
+     athlete for following exactly what they were asked to do.
+
+     `rxEffort` is the target on the app's own 0-10 effort scale. Both are
+     written only when genuinely known — an exercise added by hand carries
+     neither, and its absence must always read as unknown rather than zero. */
+  if(rec && rec.weight != null && !bodyweight) row.dataset.rxLoad = rec.weight;
+  if(effort !== '' && effort != null) row.dataset.rxEffort = effort;
   const libOptions = (EXERCISE_LIBRARY[pendingLogCategory] || []).map(ex =>
     `<option value="${escapeAttr(ex.name)}">${escapeHtml(ex.name)}</option>`
   ).join('');
@@ -31280,6 +31736,310 @@ function toggleBW(checkbox){
   row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });
 }
 
+/* =========================================================
+   WORKOUT EXECUTION INTELLIGENCE  (Phase D47)
+   ---------------------------------------------------------
+   One question: HOW WELL DID THE ATHLETE EXECUTE THE TRAINING
+   LOOP ACTUALLY PRESCRIBED?
+
+   Not how strong they are. Not how hard it felt. Not how much
+   they lifted. Execution of a specific prescription, and
+   nothing else.
+
+   THE CHAIN, AND WHO OWNS EACH LINK:
+
+     template / program        intended structure
+     buildProgressionRecommendation
+                               TODAY’S EFFECTIVE LOAD
+     capturedPrescription()    writes that down at save time
+     deriveSessionExecution()  compares it with what happened
+     sessionScore()            presents that comparison
+     buildProgressionRecommendation
+                               what to do next time
+
+   Note the first and last line are the SAME function. LOOP has
+   one progression owner and D47 does not add a second. The
+   completion screen shows what the logger will prescribe next
+   session, because it asks the same question of the same
+   function — a display-only recommendation that disagreed with
+   the next workout would be worse than none.
+
+   THE SHADOW TRAINER IS NOT CONSULTED. computeShadowRecommendation
+   is 0.1.1-shadow: it observes and records, it does not drive the
+   logger. Scoring against it would judge the athlete on advice
+   they were never given.
+
+   NOTHING HERE IS PERSISTED except the prescription itself, and
+   that is written once, at save, forward-only. The score, its
+   breakdown and its reasons are derived on every read.
+   ========================================================= */
+
+/* The app stores effort on a 0-10 scale and converts RIR into it with
+   rirToEffort(). This is that function read backwards, and it is the only
+   place the inverse exists. */
+function effortToRir(effort){
+  const e = parseFloat(effort);
+  if(isNaN(e)) return null;
+  return Math.max(0, (10 - e) / 2);
+}
+
+/* Reads the prescription off a logger row at save time. Returns null unless
+   something real is known — a hand-typed exercise has no prescription and
+   must not be given one. */
+function capturedPrescription(row){
+  if(!row || !row.dataset) return null;
+  const d = row.dataset;
+  const rx = {};
+  const sets = parseInt(d.targetSets, 10);
+  if(sets > 0) rx.sets = sets;
+  if(d.targetReps) rx.reps = String(d.targetReps);
+  const load = parseFloat(d.rxLoad);
+  if(!isNaN(load) && load > 0) rx.load = load;
+  const eff = parseFloat(d.rxEffort);
+  if(!isNaN(eff)) rx.effort = eff;
+  return Object.keys(rx).length ? rx : null;
+}
+
+/* Every knob the score turns. Nothing below hard-codes a number.
+
+   WEIGHTS. Completion leads because it is the only dimension the athlete
+   fully controls and the only one that is unambiguous: the work was done or
+   it was not. Reps come next — they are prescribed precisely and measured
+   precisely. Effort is real evidence but noisier and often absent, so it
+   carries less. Load appropriateness is the smallest weight because it is an
+   inference about the PRESCRIPTION rather than about the athlete, and an
+   athlete should not lose much for LOOP having picked a number slightly
+   wrong. Equal weighting was rejected: it would let a session with half the
+   sets missing score 75 on the strength of three tidy dimensions. */
+const EXEC_CONFIG = {
+  weights: { completion: 0.40, reps: 0.30, effort: 0.18, load: 0.12 },
+  /* A rep inside the prescribed range scores full. Outside it, credit falls
+     off per rep rather than to zero — 7 reps against a range of 8-10 is a
+     near miss, not a failure. */
+  repTolerance: 3,
+  /* How far actual RIR may sit from the target before it stops counting as
+     on-target. Half a rep in reserve is inside anyone’s measurement error. */
+  rirTolerance: 0.5,
+  rirFalloff: 2.5,
+  /* Evidence coverage. Below this share of the weighting the score is reported
+     as limited rather than confident.
+
+     Set above completion + reps (0.70) deliberately. A session with no RIR
+     recorded anywhere loses both effort and load, which is 48% of the model,
+     and landing exactly on the threshold let that session describe itself as
+     confident. Claiming confidence in a judgement made without any effort
+     evidence is the specific dishonesty this field exists to prevent. */
+  confidentCoverage: 0.75,
+  /* A session must carry at least this many prescribed exercises before it
+     can be scored at all. One exercise is an anecdote. */
+  minScoredExercises: 1,
+  tiers: [
+    { min: 90, word: 'Excellent execution' },
+    { min: 78, word: 'Strong execution' },
+    { min: 62, word: 'Solid session' },
+    { min: 45, word: 'Partly executed' },
+    { min: 0,  word: 'Session logged' }
+  ]
+};
+
+/* A set the athlete actually performed. Same rule the rest of the app uses:
+   a warm-up is not working evidence, an unticked set with no reps was never
+   done, and a set whose type was never recorded still counts — unknown is
+   not a warm-up. */
+function execWorkingSets(ex){
+  return (ex && ex.sets ? ex.sets : []).filter(st => {
+    if(isWorkingSet(st) === false) return false;
+    if(st && st.completed === false) return false;
+    return parseFloat(st && st.reps) > 0;
+  });
+}
+
+/* How well one performed set matches a prescribed rep range. Inside the
+   range is full credit; outside it decays linearly and floors at zero. */
+function repCredit(reps, range){
+  if(!range || !(reps > 0)) return null;
+  if(reps >= range.min && reps <= range.max) return 1;
+  const miss = reps < range.min ? (range.min - reps) : (reps - range.max);
+  return Math.max(0, 1 - (miss / EXEC_CONFIG.repTolerance));
+}
+
+/* How well actual reps-in-reserve matches the target. Deliberately symmetric:
+   training far harder than asked is a deviation from the prescription, not a
+   bonus. That is the single rule that stops this rewarding ego lifting. */
+function rirCredit(actualRir, targetRir){
+  if(actualRir == null || targetRir == null) return null;
+  const miss = Math.abs(actualRir - targetRir);
+  if(miss <= EXEC_CONFIG.rirTolerance) return 1;
+  return Math.max(0, 1 - ((miss - EXEC_CONFIG.rirTolerance) / EXEC_CONFIG.rirFalloff));
+}
+
+/* THE ONE ANALYSIS. Session Score and the next-time explanation both read
+   this, so the two can never contradict each other: LOOP cannot say 95 and
+   "reduce the load" for reasons that do not appear in the same object.
+
+   Pure. Reads the entry it is given and nothing else — no store, no program
+   lookup, no current readiness. That is what makes a completed workout’s
+   score stable forever. */
+function deriveSessionExecution(entry){
+  const out = { scored: false, exercises: [], prescribedExercises: 0,
+    setsPrescribed: 0, setsCompleted: 0, skipped: 0,
+    dimensions: {}, coverage: 0, reason: null };
+  if(!entry || !Array.isArray(entry.exercises)) { out.reason = 'no workout'; return out; }
+
+  (entry.exercises || []).forEach(ex => {
+    const rx = ex && ex.rx;
+    /* No prescription means LOOP never asked for anything here, so there is
+       nothing to have executed well or badly. The exercise is reported so the
+       UI can say how much of the session was judged, but it scores nothing. */
+    if(!rx){ out.exercises.push({ name: ex && ex.name, judged: false }); return; }
+    out.prescribedExercises++;
+
+    const performed = ex.skipped ? [] : execWorkingSets(ex);
+    const prescribedSets = rx.sets || null;
+    if(prescribedSets){ out.setsPrescribed += prescribedSets; }
+    out.setsCompleted += performed.length;
+    if(ex.skipped) out.skipped++;
+
+    const range = rx.reps ? parseRepRange(rx.reps) : null;
+    const targetRir = rx.effort != null ? effortToRir(rx.effort) : null;
+
+    /* COMPLETION. Extra sets are not credited: the cap is the whole reason a
+       junk set cannot inflate anything. */
+    const completion = prescribedSets
+      ? Math.min(1, performed.length / prescribedSets) : null;
+
+    /* REPS. Averaged across the sets actually performed, so an athlete who
+       stopped early is judged on completion for the missing work rather than
+       twice for the same shortfall. */
+    const repScores = performed.map(st => repCredit(parseFloat(st.reps), range))
+      .filter(v => v != null);
+    const reps = repScores.length ? repScores.reduce((a,b)=>a+b,0) / repScores.length : null;
+
+    /* EFFORT. Only sets that actually recorded an RIR contribute. A missing
+       RIR is missing evidence, never a zero. */
+    const rirScores = performed.map(st => {
+      const r = parseFloat(st.rir);
+      return isNaN(r) ? null : rirCredit(r, targetRir);
+    }).filter(v => v != null);
+    const effort = rirScores.length ? rirScores.reduce((a,b)=>a+b,0) / rirScores.length : null;
+
+    /* LOAD APPROPRIATENESS. Was the number LOOP put in front of them the
+       right one? Reaching the top of the range with reps to spare says it was
+       light; missing the bottom at zero RIR says it was heavy. Judged only
+       where both a range and effort evidence exist. */
+    let load = null, challenge = null;
+    if(range && rirScores.length){
+      const avgRir = performed.map(st => parseFloat(st.rir)).filter(r => !isNaN(r))
+        .reduce((a,b,_,arr) => a + b/arr.length, 0);
+      const topReps = Math.max(...performed.map(st => parseFloat(st.reps) || 0));
+      const minReps = Math.min(...performed.map(st => parseFloat(st.reps) || 0));
+      if(topReps >= range.max && targetRir != null && avgRir > targetRir + EXEC_CONFIG.rirTolerance){
+        challenge = 'light'; load = 0.55;
+      } else if(minReps < range.min && avgRir <= 0.5){
+        challenge = 'heavy'; load = 0.5;
+      } else {
+        challenge = 'on target'; load = 1;
+      }
+    }
+
+    /* A SKIPPED EXERCISE SCORES ZERO ON EVERY DIMENSION, not null.
+       Absent dimensions are averaged out of existence, which meant a skipped
+       exercise could only ever touch completion — and completion carries 40%
+       of the weight, so a session where half the work was abandoned still
+       scored 80 on the strength of the half that was done well, and a session
+       where NOTHING was done scored 60. Skipping is not missing evidence: it
+       is a known, complete answer about work LOOP asked for, and it is scored
+       as one. Sets left undone inside an exercise that WAS trained stay a
+       completion matter only — those reps were never attempted, so counting
+       them against rep accuracy as well would penalise the same shortfall
+       twice. */
+    if(ex.skipped){
+      out.exercises.push({ name: ex.name, judged: true, skipped: true,
+        prescribedSets, completedSets: 0, range, targetRir,
+        completion: 0, reps: 0, effort: 0, load: 0, challenge: null });
+      return;
+    }
+
+    out.exercises.push({ name: ex.name, judged: true, skipped: false,
+      prescribedSets, completedSets: performed.length, range, targetRir,
+      completion, reps, effort, load, challenge });
+  });
+
+  if(out.prescribedExercises < EXEC_CONFIG.minScoredExercises){
+    out.reason = 'no prescription recorded';
+    return out;
+  }
+
+  /* Session dimensions are the mean of the per-exercise ones that exist. A
+   dimension nobody had evidence for is absent, not zero. */
+  ['completion','reps','effort','load'].forEach(k => {
+    const vals = out.exercises.filter(e => e.judged && e[k] != null).map(e => e[k]);
+    out.dimensions[k] = vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : null;
+  });
+
+  out.scored = out.dimensions.completion != null || out.dimensions.reps != null;
+  if(!out.scored){ out.reason = 'nothing measurable was recorded'; return out; }
+
+  /* Coverage is the share of the weighting that had evidence behind it. It is
+     reported, never used to inflate: a session judged on completion alone
+     scores on completion alone and says so. */
+  const W = EXEC_CONFIG.weights;
+  let used = 0;
+  Object.keys(W).forEach(k => { if(out.dimensions[k] != null) used += W[k]; });
+  out.coverage = used;
+  return out;
+}
+
+/* Presentation of the analysis above. Integers only — a decimal would claim
+   a precision the inputs do not have. */
+function sessionScore(entry){
+  const a = deriveSessionExecution(entry);
+  if(!a.scored) return { available: false, analysis: a, reason: a.reason };
+  const W = EXEC_CONFIG.weights;
+  let sum = 0, wsum = 0;
+  Object.keys(W).forEach(k => {
+    if(a.dimensions[k] == null) return;
+    sum += a.dimensions[k] * W[k];
+    wsum += W[k];
+  });
+  /* Renormalised over the dimensions that had evidence, so a missing RIR
+     neither collapses the score nor silently counts as perfect. */
+  const score = Math.round((sum / wsum) * 100);
+  const tier = EXEC_CONFIG.tiers.find(t => score >= t.min) || EXEC_CONFIG.tiers[EXEC_CONFIG.tiers.length - 1];
+  return {
+    available: true, score, word: tier.word, analysis: a,
+    coverage: a.coverage, confident: a.coverage >= EXEC_CONFIG.confidentCoverage,
+    reasons: sessionScoreReasons(a),
+    components: Object.keys(W).map(k => ({ key: k, weight: W[k], value: a.dimensions[k] }))
+  };
+}
+
+/* The two to four strongest things worth saying, drawn from the same analysis
+   the number came from. Neutral language throughout: this describes execution
+   of a prescription, and the athlete is not the thing being judged. */
+function sessionScoreReasons(a){
+  const out = [];
+  const d = a.dimensions;
+  if(d.completion != null){
+    if(d.completion >= 0.999) out.push('Completed all prescribed work');
+    else if(a.skipped) out.push(a.skipped + ' exercise' + (a.skipped===1?'':'s') + ' skipped');
+    else out.push(Math.round(d.completion * 100) + '% of prescribed sets completed');
+  }
+  if(d.reps != null){
+    if(d.reps >= 0.95) out.push('Rep targets matched');
+    else if(d.reps >= 0.7) out.push('Most sets landed in the target range');
+    else out.push('Reps fell outside the target range');
+  }
+  const light = a.exercises.filter(e => e.challenge === 'light');
+  const heavy = a.exercises.filter(e => e.challenge === 'heavy');
+  if(light.length) out.push(programShortName(light[0].name) + ' was easier than intended'
+    + (light.length > 1 ? ' (' + light.length + ' lifts)' : ''));
+  if(heavy.length) out.push(programShortName(heavy[0].name) + ' was harder than intended'
+    + (heavy.length > 1 ? ' (' + heavy.length + ' lifts)' : ''));
+  if(d.effort == null) out.push('No effort recorded, so challenge was not judged');
+  return out.slice(0, 4);
+}
+
 function saveLog(btn){
   if(btn){ if(btn.disabled) return; btn.disabled = true; setTimeout(() => { if(btn) btn.disabled = false; }, 800); }
   const title = document.getElementById('logTitle').value.trim();
@@ -31330,6 +32090,18 @@ function saveLog(btn){
        dropping it, and the athlete can correct it later if they actually did
        the work. Historical entries without the flag are untouched. */
     if(wasSkipped) ex.skipped = true;
+    /* D47 — what LOOP ACTUALLY ASKED FOR, recorded at the moment it asked.
+       Forward-only and additive: sessions logged before this carry no `rx`,
+       are never migrated, are never normalised at read time, and are never
+       scored against today's program. A score derived from a re-read of the
+       current program would change every time the program was edited, which
+       is not a record of what happened.
+
+       Only fields that are genuinely known are written. An exercise the
+       athlete typed in by hand has no prescription, and gets no `rx` rather
+       than an invented one. */
+    const rx = capturedPrescription(row);
+    if(rx) ex.rx = rx;
     exercises.push(ex);
   });
 
@@ -31513,6 +32285,90 @@ function computeWorkoutQuality(entry, newPREvents){
 /* "Next time" guidance, generated from what actually happened this session.
    Reuses the same progression engine that drives in-workout recommendations,
    so the advice here can never contradict what you'll see next session. */
+/* D47 — the score, its interpretation and the two to four reasons behind it.
+   Everything here comes from deriveSessionExecution(); nothing is recomputed,
+   so the number and its explanation cannot drift apart.
+
+   The /100 removed in D45B failed for three specific reasons, and this one is
+   built against each of them:
+     · its COMPLETION was sets-filled over sets-present, which is 100% for
+       essentially every saved session. This counts sets performed against
+       sets PRESCRIBED, which is a real denominator that can be missed.
+     · its REP TARGETS compared reps against last session’s reps, so adding
+       weight scored as a miss. This compares reps against the PRESCRIBED
+       RANGE, which is what the athlete was actually asked for.
+     · its PROGRESS compared volume against the previous session, so a
+       deliberate lighter week read as failure. There is no volume term here
+       at all, and following a deload exactly scores 100.
+   The old score also could not be predicted or checked. Every component of
+   this one is a fact the athlete can verify against their own sets. */
+function renderSummaryScore(entry){
+  const el = document.getElementById('summaryScore');
+  if(!el) return;
+  let r = null;
+  try{ r = sessionScore(entry); }catch(e){ el.innerHTML = ''; return; }
+  /* A session LOOP never prescribed cannot be judged on how well it was
+     followed. Freeform training and every workout logged before D47 land
+     here, and they are told plainly rather than given a number. */
+  if(!r || !r.available){
+    el.innerHTML = '<div class="ss-none">No session score — this workout was not logged against a prescribed plan.</div>';
+    return;
+  }
+  const reasons = r.reasons.map(x =>
+    '<li class="ss-reason">' + escapeHtml(x) + '</li>').join('');
+  el.innerHTML =
+    '<div class="ss" role="group" aria-label="' + escapeAttr('Session score ' + r.score
+      + ' out of 100. ' + r.word + '. ' + r.reasons.join('. ')) + '">' +
+      '<div class="ss-k">Session Score</div>' +
+      '<div class="ss-num" aria-hidden="true">' + r.score + '</div>' +
+      '<div class="ss-word">' + escapeHtml(r.word) + '</div>' +
+      '<ul class="ss-reasons">' + reasons + '</ul>' +
+      (r.confident ? '' :
+        '<div class="ss-cov">Judged on ' + scoredDimensionWords(r) + ' — effort was not recorded for every set</div>') +
+      '<button type="button" class="ss-more" onclick="toggleScoreDetail(this)" aria-expanded="false">How this is worked out</button>' +
+      '<div class="ss-detail" hidden>' + scoreDetailHtml(r) + '</div>' +
+    '</div>';
+}
+
+const SS_LABELS = { completion: 'Prescribed work completed', reps: 'Reps inside the target range',
+  effort: 'Effort matched the target', load: 'Load looked right for you' };
+
+function scoredDimensionWords(r){
+  const on = r.components.filter(c => c.value != null).map(c => {
+    if(c.key === 'completion') return 'sets';
+    if(c.key === 'reps') return 'reps';
+    if(c.key === 'effort') return 'effort';
+    return 'load';
+  });
+  return on.length > 1 ? on.slice(0, -1).join(', ') + ' and ' + on[on.length - 1] : (on[0] || 'what was recorded');
+}
+
+/* The component breakdown, shown only on request. Each row states what was
+   measured, how much of the score it can move, and what it scored — or says
+   plainly that it was not measured. */
+function scoreDetailHtml(r){
+  const rows = r.components.map(c => {
+    const known = c.value != null;
+    return '<div class="ss-row">' +
+      '<span class="ss-row-n">' + escapeHtml(SS_LABELS[c.key] || c.key) + '</span>' +
+      '<span class="ss-row-w">' + Math.round(c.weight * 100) + '%</span>' +
+      '<span class="ss-row-v' + (known ? '' : ' ss-row-none') + '">' +
+        (known ? Math.round(c.value * 100) : 'not recorded') + '</span>' +
+    '</div>';
+  }).join('');
+  return rows +
+    '<div class="ss-note">Measured against the sets, reps and effort LOOP prescribed for this session — not against your previous workout, and not against how much you lifted. Anything LOOP did not ask for is not counted, so extra sets cannot raise it.</div>';
+}
+
+function toggleScoreDetail(btn){
+  const d = btn.parentNode.querySelector('.ss-detail');
+  if(!d) return;
+  const open = d.hasAttribute('hidden');
+  if(open) d.removeAttribute('hidden'); else d.setAttribute('hidden', '');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  btn.textContent = open ? 'Hide the breakdown' : 'How this is worked out';
+}
+
 function computeNextTimeNotes(entry){
   const notes = [];
   const seen = new Set();
@@ -31521,10 +32377,21 @@ function computeNextTimeNotes(entry){
     const key = ex.name.trim().toLowerCase();
     if(seen.has(key)) return;
     seen.add(key);
-    const rec = buildProgressionRecommendation(ex.name, repRangeForExercise(ex.name), null);
+    const range = repRangeForExercise(ex.name);
+    const rec = buildProgressionRecommendation(ex.name, range, null);
     if(!rec || !rec.why) return;
-    if(rec.tag === 'increase' || rec.tag === 'plateau' || rec.tag === 'build'){
-      notes.push({ name: ex.name, tag: rec.tag, text: rec.why });
+    /* D47 — 'reduce' was not in this list, so the one recommendation that
+       tells an athlete to take weight OFF the bar could never reach them. It
+       is the most important of the set: every other tag is a way of carrying
+       on. 'decline' and 'hold' stay out because they say nothing actionable
+       that the number beside them does not already say. */
+    if(rec.tag === 'increase' || rec.tag === 'reduce' || rec.tag === 'plateau' || rec.tag === 'build'){
+      /* The target itself, not just the sentence about it. It is the same
+         function the logger will call next session, so what the athlete reads
+         here is what they will be handed when they train. */
+      const target = (rec.weight != null && !isNaN(rec.weight))
+        ? rec.weight + ' lb' + (range ? ' \u00b7 aim for ' + range : '') : null;
+      notes.push({ name: ex.name, tag: rec.tag, text: rec.why, target });
     }
   });
   return notes.slice(0, 4);
@@ -31557,6 +32424,11 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
     levelUpEl.innerHTML = '';
   }
   document.getElementById('summaryTitle').textContent = entry.title;
+  /* Wrapped like every other summary block: a session the scorer cannot read
+     must never be able to stop the completion screen appearing. */
+  try{ renderSummaryScore(entry); }catch(e){
+    const el = document.getElementById('summaryScore'); if(el) el.innerHTML = '';
+  }
   /* Optional cooldown. Reads only the category already on the saved entry and
      writes nothing; wrapped so it can never interfere with the summary. */
   try{ renderCooldownCard(entry); }catch(e){}
@@ -31666,8 +32538,9 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
       <div class="section-label" style="margin-top:18px">Next Time</div>
       <div class="nexttime-card">
         ${notes.map(n => `
-          <div class="nexttime-row">
+          <div class="nexttime-row nexttime-${escapeAttr(n.tag)}">
             <div class="nexttime-name">${escapeHtml(n.name)}</div>
+            ${n.target ? `<div class="nexttime-target">${escapeHtml(n.target)}</div>` : ''}
             <div class="nexttime-text">${escapeHtml(n.text)}</div>
           </div>`).join('')}
       </div>` : '';

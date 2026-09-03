@@ -13487,14 +13487,32 @@ function testSurfaceConsolidation(app){
   T('it waits at the quiet foot instead, same confirmation',
     /class="summary-danger" onclick="deleteJustLoggedWorkout\(\)"/.test(src) &&
     /\.summary-danger\{[\s\S]{0,240}background: none; border: none;/.test(css));
-  /* D45B — both of these made an unearned number less misleading: one forced
-     it to say "/100", the other kept its praise inside fixed bands. The number
-     is gone, so the guarantee is stronger than either — completion states
-     facts and grades nothing. */
-  T('the session is not graded', !/quality-of/.test(src) && !/\/ 100</.test(src));
-  T('and no band word is invented for it',
-    !/'Excellent session'/.test(src) && !/'Strong session'/.test(src) &&
-    !/'Solid session'/.test(src));
+  /* D45B removed a score that could not be earned: its completion term was
+     100% for every saved session, its rep term compared reps against the last
+     session rather than against a target, and its progress term read a
+     deliberate lighter week as failure. The rule it left behind was "grade
+     nothing".
+
+     D47 restores a score, so the rule is restated as what actually made the
+     old one dishonest — a number with no recorded prescription behind it, and
+     praise composed per session. Both are now structurally impossible: scoring
+     requires a prescription captured at save time, and every band word comes
+     from one declared table rather than from the renderer. */
+  T('the session is not graded against a moving target',
+    !/quality-of/.test(src) && !/\/ 100</.test(src));
+  T('a score is refused outright when nothing was prescribed', (() => {
+    const i = src.indexOf('function deriveSessionExecution');
+    const body = src.slice(i, src.indexOf('function sessionScore(', i));
+    return /minScoredExercises/.test(body) && /no prescription recorded/.test(body);
+  })());
+  T('and no band word is invented for it', (() => {
+    /* Every word the athlete can be shown is declared in EXEC_CONFIG.tiers
+       beside the threshold that earns it. The renderer holds no vocabulary of
+       its own, so praise cannot be composed for a particular session. */
+    const i = src.indexOf('function renderSummaryScore');
+    const body = src.slice(i, src.indexOf('function scoreDetailHtml', i));
+    return /tiers: \[/.test(src) && !/'Excellent|'Strong|'Solid/.test(body);
+  })());
   T('and the detail line still names the real factors',
     /sets matched or beat last time/.test(src));
   T('three primary metrics, not five equal cards', (() => {
@@ -16247,6 +16265,299 @@ async function testProgressCommandCentre(){
 }
 
 /* =========================================================
+   CONTRACT 146 — WORKOUT EXECUTION INTELLIGENCE  (Phase D47)
+
+   The oracle never asks sessionScore() what to expect. Every
+   fixture below states the prescription, states what was done,
+   and states the ordering or the property that must hold. Where
+   an exact number is asserted it is one the weights make
+   arithmetically necessary, not one read off the implementation.
+   ========================================================= */
+async function testExecutionIntelligence(){
+  section('CONTRACT 146 — workout execution intelligence (D47)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r),
+    rir: rir == null ? '' : String(rir), type: type || 'working', completed: true });
+  /* 3 x 6-8 at effort 8, which is RIR 1, on an effective load of 135. */
+  const RX = { sets: 3, reps: '6-8', effort: 8, load: 135 };
+  const one = (sets, rx, extra) => ({ id:'t', date:'2026-09-01', category:'push', title:'P',
+    exercises: [Object.assign({ name:'Bench Press', bodyweight:false, sets,
+      rx: rx === undefined ? RX : rx }, extra || {})] });
+  const score = e => { const r = ctx.sessionScore(e); return r.available ? r.score : null; };
+
+  sub('it scores execution of the prescription, and refuses without one');
+  {
+    T('a session logged against a prescription is scored',
+      score(one([S(135,7,1),S(135,7,1),S(135,8,1)])) === 100);
+    T('a session with no prescription is not scored at all',
+      score(one([S(135,7,1)], null)) === null);
+    T('and says why rather than showing a zero', (() => {
+      const r = ctx.sessionScore(one([S(135,7,1)], null));
+      return r.available === false && /prescription/.test(r.reason || '');
+    })());
+    T('legacy workouts carry no prescription, so they cannot be scored', (() => {
+      /* The exact shape every workout saved before D47 has. */
+      const legacy = { id:'l', date:'2026-01-01', category:'push', title:'P',
+        exercises:[{ name:'Bench Press', effort:'8', bodyweight:false,
+          sets:[{ weight:'135', reps:'7', rir:'1' }] }] };
+      return ctx.sessionScore(legacy).available === false;
+    })());
+  }
+
+  sub('the guardrails from the brief, one fixture each');
+  {
+    const perfect = score(one([S(135,7,1),S(135,7,1),S(135,8,1)]));
+    const extra   = score(one([S(135,7,1),S(135,7,1),S(135,7,1),S(135,7,1),S(135,7,1)]));
+    T('extra unscheduled sets cannot inflate the score', extra <= perfect);
+    T('and nothing can exceed 100', perfect <= 100 && extra <= 100);
+
+    /* Heavier than prescribed, reps missed, nothing in reserve. */
+    const ego = score(one([S(185,4,0),S(185,3,0),S(185,3,0)]));
+    T('ego lifting scores below faithful execution', ego < perfect,
+      'ego=' + ego + ' perfect=' + perfect);
+
+    /* One heavy single and the rest of the work abandoned. A PR does not
+       appear in this analysis at all, which is what stops it rescuing a
+       session that was not executed. */
+    const pr = score(one([S(225,1,0)]));
+    T('a single heavy set cannot rescue an unexecuted session', pr < 50,
+      'pr=' + pr);
+
+    T('warm-ups are not scored as working sets',
+      score(one([S(95,10,5,'warmup'),S(135,7,1),S(135,7,1),S(135,8,1)])) === perfect);
+  }
+
+  sub('following a reduced target is good execution, not a penalty');
+  {
+    /* §10 case G and §11: the prescription itself is lighter. Executing it
+       exactly is a perfect execution of what was asked. */
+    const deload = { sets:3, reps:'6-8', effort:6, load:105 };
+    T('a deload followed exactly scores as well as a heavy session',
+      score(one([S(105,7,2),S(105,7,2),S(105,8,2)], deload)) === 100);
+    T('and lighter weight alone never lowers the score', (() => {
+      const heavy = score(one([S(225,7,1),S(225,7,1),S(225,8,1)], { sets:3, reps:'6-8', effort:8, load:225 }));
+      const light = score(one([S(65,7,1),S(65,7,1),S(65,8,1)], { sets:3, reps:'6-8', effort:8, load:65 }));
+      return heavy === light;
+    })());
+  }
+
+  sub('missing effort is limited evidence, never invented');
+  {
+    const noRir = ctx.sessionScore(one([S(135,7,null),S(135,7,null),S(135,8,null)]));
+    T('a session with no RIR is still scored', noRir.available === true);
+    T('it is not punished for data LOOP never captured', noRir.score === 100);
+    T('and it does not claim full confidence', noRir.confident === false);
+    T('the effort dimension is absent rather than zero',
+      noRir.analysis.dimensions.effort === null);
+    T('coverage reports what was actually judged',
+      noRir.coverage > 0 && noRir.coverage < 1);
+  }
+
+  sub('skipped work is a known answer, not missing evidence');
+  {
+    /* Before this rule a skipped exercise touched only completion, which
+       carries 40% of the weight — so a session where NOTHING was done scored
+       60, and half a session abandoned still scored 80. */
+    const four = n => ({ id:'h', date:'2026-09-01', category:'push', title:'P',
+      exercises: ['Bench Press','Overhead Press','Incline Press','Triceps Pushdown'].map((nm,i) =>
+        i < n ? { name:nm, bodyweight:false, skipped:true, sets:[], rx:RX }
+              : { name:nm, bodyweight:false, sets:[S(135,7,1),S(135,7,1),S(135,7,1)], rx:RX }) });
+    T('a session where nothing was done scores zero', score(four(4)) === 0);
+    T('half the session abandoned cannot stay near-perfect', score(four(2)) <= 60,
+      'half=' + score(four(2)));
+    T('and the ladder falls monotonically', (() => {
+      const v = [0,1,2,3,4].map(four).map(score);
+      for(let i = 1; i < v.length; i++) if(v[i] > v[i-1]) return false;
+      return true;
+    })());
+  }
+
+  sub('better execution never scores worse');
+  {
+    const ladder = [
+      ['1 of 3 sets', [S(135,7,1)]],
+      ['2 of 3 sets', [S(135,7,1),S(135,7,1)]],
+      ['3 of 3 sets', [S(135,7,1),S(135,7,1),S(135,7,1)]]
+    ].map(([, sets]) => score(one(sets)));
+    T('completing more of the prescription scores higher',
+      ladder[0] < ladder[1] && ladder[1] < ladder[2]);
+    T('and reps closer to the range score higher', (() => {
+      const far  = score(one([S(135,3,1),S(135,3,1),S(135,3,1)]));
+      const near = score(one([S(135,5,1),S(135,5,1),S(135,5,1)]));
+      const on   = score(one([S(135,7,1),S(135,7,1),S(135,7,1)]));
+      return far < near && near < on;
+    })());
+    T('effort is judged symmetrically — harder than asked is a deviation too', (() => {
+      /* Target RIR is 1. Two in reserve and none in reserve are both one rep
+         from target, and neither is rewarded over the other. */
+      const easy = ctx.sessionScore(one([S(135,7,3),S(135,7,3),S(135,7,3)])).analysis.dimensions.effort;
+      const hard = ctx.sessionScore(one([S(135,7,-1),S(135,7,-1),S(135,7,-1)])).analysis.dimensions.effort;
+      return Math.abs(easy - hard) < 0.001;
+    })());
+  }
+
+  sub('one canonical progression owner, and it can now say "less"');
+  {
+    const D = n => { const d = new Date(Date.now() - n*86400000);
+      return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+    const hist = ss => { ctx.workoutLog = ss.map((sets,i) => ({ id:'x'+i, date:D((ss.length-i)*3),
+      category:'push', title:'P', notes:'', exercises:[{ name:'Bench Press', bodyweight:false, sets }] }));
+      ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache(); };
+    const rec = () => ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+
+    /* §10 case A: top of the range with reps to spare. */
+    hist([[S(135,8,3),S(135,8,2),S(135,8,2)]]);
+    const up = rec();
+    T('top of range with headroom raises the load', up.tag === 'increase' && up.weight > 135);
+
+    /* §10 case C: the case that had no answer before D47. Every other tier
+       either adds weight or holds it, so an athlete already grinding was told
+       to beat their last session. */
+    hist([[S(135,5,0),S(135,5,0),S(135,4,0)],[S(135,5,0),S(135,4,0),S(135,4,0)]]);
+    const down = rec();
+    T('two sessions grinding below the range lowers the load',
+      down.tag === 'reduce' && down.weight < 135, 'got ' + down.tag + ' ' + down.weight);
+    T('and it steps down by the same equipment-aware amount it steps up',
+      135 - down.weight === ctx.progressionIncrement('Bench Press', 135));
+
+    /* One weird set must not move the load. Each of these differs from the
+       reducing fixture in exactly one condition. */
+    hist([[S(135,5,0),S(135,4,0),S(135,4,0)]]);
+    T('one bad session alone does not', rec().tag !== 'reduce');
+    hist([[S(135,5,2),S(135,5,2),S(135,4,2)],[S(135,5,2),S(135,4,2),S(135,4,2)]]);
+    T('below range but with reps in reserve does not', rec().tag !== 'reduce');
+    hist([[S(135,5,null),S(135,4,null)],[S(135,5,null),S(135,4,null)]]);
+    T('unknown effort does not — missing RIR is not evidence of grinding', rec().tag !== 'reduce');
+    hist([[S(145,5,0),S(145,4,0)],[S(135,5,0),S(135,4,0)]]);
+    T('two sessions at different weights do not', rec().tag !== 'reduce');
+    hist([[S(135,6,0),S(135,6,0)],[S(135,6,0),S(135,6,0)]]);
+    T('reps inside the range do not, however hard they were', rec().tag !== 'reduce');
+
+    T('no second progression engine was introduced',
+      !/function smartProgressionEngine|function deriveNextWeightRecommendation|function doubleProgressionEngine/.test(src));
+    T('and the completion screen shows the same function the logger will use', (() => {
+      const i = src.indexOf('function computeNextTimeNotes');
+      const body = src.slice(i, src.indexOf('function renderCooldownCard', i) > i
+        ? src.indexOf('function renderCooldownCard', i) : i + 2000);
+      return /buildProgressionRecommendation\(/.test(body)
+        && !/computeShadowRecommendation/.test(body);
+    })());
+    T('a load reduction actually reaches the athlete', (() => {
+      const i = src.indexOf('function computeNextTimeNotes');
+      return /rec\.tag === 'reduce'/.test(src.slice(i, i + 1600));
+    })());
+  }
+
+  sub('warm-ups show loads, not arithmetic homework');
+  {
+    T('a percentage step resolves to a usable load',
+      ctx.resolveWarmupStep('~70% × 3', 185, 'Bench Press').text === '130 lb × 3');
+    T('the percentage is kept as the secondary reading',
+      ctx.resolveWarmupStep('~70% × 3', 185, 'Bench Press').pct === 70);
+    T('a step with no percentage is passed through untouched',
+      ctx.resolveWarmupStep('Empty bar × 10', 185, 'Bench Press').text === 'Empty bar × 10');
+    T('with no working load the percentage is preserved, never invented',
+      ctx.resolveWarmupStep('~70% × 3', null, 'Bench Press').text === '~70% × 3');
+
+    T('light isolation rounds to 2.5, not 5',
+      ctx.warmupIncrement('Lateral Raise') === 2.5 && ctx.roundWarmupLoad('Lateral Raise', 14) === 15);
+    T('barbells, dumbbells and stacks round to 5',
+      ctx.warmupIncrement('Bench Press') === 5 &&
+      ctx.warmupIncrement('Dumbbell Bench Press') === 5 &&
+      ctx.warmupIncrement('Leg Press') === 5);
+    T('an unrecognised implement uses the safe existing convention',
+      ctx.warmupIncrement('Zercher Carry') === 5);
+    T('no warm-up load is ever below one increment',
+      ctx.roundWarmupLoad('Bench Press', 1) === 5);
+  }
+
+  sub('preparation is reduced by movement, never by muscle overlap alone');
+  {
+    T('squat and a split squat are the same pattern',
+      ctx.movementPatternOf('Back Squat') === ctx.movementPatternOf('Bulgarian Split Squat'));
+    /* The rule the brief forbids. These two share the whole posterior chain
+       and prepare each other barely at all. */
+    T('squat and a Romanian deadlift are NOT',
+      ctx.movementPatternOf('Back Squat') !== ctx.movementPatternOf('Romanian Deadlift'));
+    T('bench and a cable fly are the same pattern',
+      ctx.movementPatternOf('Bench Press') === ctx.movementPatternOf('Cable Fly'));
+    T('bench and an overhead press are NOT',
+      ctx.movementPatternOf('Bench Press') !== ctx.movementPatternOf('Overhead Press'));
+    T('an unrecognised movement returns nothing, so preparation is kept',
+      ctx.movementPatternOf('Zercher Carry') === null);
+    T('muscle overlap is not consulted at all', (() => {
+      const i = src.indexOf('function generalPrepSatisfiedBy');
+      const body = src.slice(i, src.indexOf('/* Returns guidance for any major lift', i));
+      return !/musclesForExercise|MUSCLE_MAP|primary/.test(body);
+    })());
+    T('nothing about being warmed up is persisted', (() => {
+      /* Comments stripped first: the module's own explanation names the store
+         it deliberately does not keep, and an assertion that matched that
+         would be failing on the sentence describing the rule it enforces. */
+      const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+      return !/warmedMuscles/.test(code) && ctx.DATA_KEYS.length === 15;
+    })());
+  }
+
+  sub('a timed two-sided movement says which side, and when to switch');
+  {
+    const M = ctx.PREP_MOVEMENTS;
+    const sided = M.filter(m => ctx.prepHasSides(m));
+    T('the ambiguous movements are found', sided.length === 6, 'found ' + sided.length);
+    T('both leg swings are among them',
+      sided.some(m => m.id === 'leg_swing_front') && sided.some(m => m.id === 'leg_swing_side'));
+    T('a counted two-sided movement is left alone — "10 reps" is already clear',
+      ctx.prepHasSides(M.find(m => m.id === 'dead_bug')) === false);
+    T('a timed one-sided movement is left alone',
+      ctx.prepHasSides(M.find(m => m.id === 'arm_circles')) === false);
+    T('the authored duration is split, so a leg day does not get longer', (() => {
+      const i = src.indexOf('prepState.sides = prepHasSides(move)');
+      return /Math\.max\(5, Math\.ceil\(full \/ 2\)\)/.test(src.slice(i, i + 700));
+    })());
+    T('the switch is cued in words', /Switch sides/.test(src));
+    T('and announced, not only drawn', /prep-side[\s\S]{0,200}aria-live="assertive"/.test(src));
+    T('the per-side duration is stated', /sec each side/.test(src));
+    T('it reuses the one timer rather than adding a second', (() => {
+      /* Exactly one interval drives the whole runner. A second setInterval in
+         this module is the failure this guards against. */
+      const i = src.indexOf('function enterPrepStep');
+      const body = src.slice(i, src.indexOf('function formatPrepClock', i));
+      return (body.match(/setInterval\(/g) || []).length === 1;
+    })());
+    T('the switch keeps wall-clock deadlines, so locking the phone is safe', (() => {
+      const i = src.indexOf('if(prepState.sides && prepState.sideIdx === 0)');
+      return /endsAt = Date\.now\(\) \+ prepState\.perSide \* 1000/.test(src.slice(i, i + 400));
+    })());
+  }
+
+  sub('reading a score writes nothing');
+  {
+    const entry = one([S(135,7,1),S(135,7,1),S(135,8,1)]);
+    const before = JSON.stringify(entry);
+    const logBefore = JSON.stringify(ctx.workoutLog);
+    const trainerBefore = ctx.trainerLog ? ctx.trainerLog.entries.length : 0;
+    ctx.sessionScore(entry); ctx.deriveSessionExecution(entry); ctx.sessionScore(entry);
+    T('the workout it read is unchanged', JSON.stringify(entry) === before);
+    T('history is unchanged', JSON.stringify(ctx.workoutLog) === logBefore);
+    T('the trainer was not consulted or written',
+      (ctx.trainerLog ? ctx.trainerLog.entries.length : 0) === trainerBefore);
+    T('the analysis reads nothing but the workout it is given', (() => {
+      const i = src.indexOf('function deriveSessionExecution');
+      const body = src.slice(i, src.indexOf('function sessionScore(', i));
+      return !/workoutLog|getProgram|dailyReadiness|computeShadowRecommendation|LOOPStore/.test(body);
+    })());
+    T('the trainer engine version is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('and no score is persisted',
+      !/sessionScore["\']?\s*:/.test(src.replace(/function sessionScore/g, '')) ||
+      !/LOOPStore\.set\([^)]*[Ss]core/.test(src));
+  }
+}
+
+/* =========================================================
    CONTRACT 143 — PLAN CONSISTENCY  (Phase D44)
    Consistency answers how reliably the athlete met the training they
    planned. Its numerator is fulfilled PLANS, never workouts performed —
@@ -17701,6 +18012,7 @@ async function main(){
   await testPlanConsistency();
   await testTrainedThisWeek();
   await testProgressCommandCentre();
+  await testExecutionIntelligence();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

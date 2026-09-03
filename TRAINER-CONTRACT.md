@@ -5385,3 +5385,205 @@ deliberately long exercise names. `DATA_KEYS` remains 15 and
 `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`; no threshold, calibration,
 readiness, recovery or capability logic was touched, and nothing about the
 Overview is persisted.
+
+---
+
+## §71 — D47: Workout execution intelligence
+
+**Status.** Shipped in LOOP 4.1 (`loop-v118`).
+
+### The finding that had to come first
+
+D46 established that a saved set was `{ weight, reps, rir }` plus optional
+`type` and `completed`, and that the prescription — `targetSets`, `targetReps`,
+the progression engine's chosen load — lived only as DOM state during the live
+session and was discarded at save. LOOP could not compare execution against
+what it had actually asked for, because it never wrote down what it asked.
+
+So D47 begins with capture, not with a formula. `capturedPrescription(row)`
+reads the logger row at save time and writes `ex.rx = { sets, reps, effort,
+load }`. Only fields genuinely known are written; an exercise typed in by hand
+carries no `rx` rather than an invented one.
+
+**Forward-only, exactly as `origin` was in D41.** No migration, no read-time
+normalisation, no retroactive scoring. Every workout logged before this carries
+no prescription and is reported as unscoreable — which is the honest answer,
+because the alternative is scoring a past session against a program that may
+have been edited since. `DATA_KEYS` is unchanged at 15: `rx` is a field inside
+existing workout entries, not a new store.
+
+### Ownership, and the second engine that was not built
+
+LOOP has two progression systems and they are not equals:
+
+- `buildProgressionRecommendation` — **live**. It chooses the weight the
+  logger puts in front of the athlete.
+- `computeShadowRecommendation` — `0.1.1-shadow`. It observes and records.
+  It does not drive the logger.
+
+D47 reads and displays the **live** one. Scoring against the shadow trainer
+would judge an athlete on advice they were never given, and a "Next Time"
+panel showing the shadow's number would disagree with what the logger hands
+over next session. The completion screen calls the same function the logger
+will call, so the two cannot diverge.
+
+`TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`. Nothing in the trainer, its
+thresholds, its calibration, readiness, recovery or capability was touched.
+
+### The live engine could not say "less"
+
+Probed against the phase's own cases, `buildProgressionRecommendation` handled
+under-challenge, on-target, top-reps-at-wrong-RIR and mixed evidence correctly.
+It had no answer at all for repeated over-challenge:
+
+```
+5 @ 0 / 4 @ 0 / 4 @ 0, twice, at the same weight
+  →  "Beat last session — aim for 6 reps at 135 lb"
+```
+
+Every tier either added weight or held it, so an athlete already grinding at
+zero reps in reserve was told to push harder. That is the only advice in this
+engine that could make training worse rather than merely slower.
+
+A reduction tier now exists, and it is deliberately expensive to trigger:
+**two consecutive sessions, at the same weight, both below the bottom of the
+range, both at 0.5 RIR or less.** Missing RIR fails the last condition and
+holds — unknown effort is not evidence of struggle. The step down is
+`progressionIncrement()`, the same equipment-aware amount the increase uses, so
+the ladder an athlete climbs is the ladder they come back down; it is never a
+percentage that lands on a weight no gym has.
+
+`computeNextTimeNotes` did not list `reduce` among the tags it surfaced, so
+the one recommendation that takes weight off the bar would have been computed
+and then discarded. It is now shown, with the actual target beside it.
+
+### Session Score
+
+**"How well did I execute the training LOOP actually prescribed?"** Not
+strength, not effort, not volume, not PRs.
+
+D45B removed a score for three specific reasons, and this one is built against
+each:
+
+| the old /100 | why it failed | D47 |
+|---|---|---|
+| completion = sets filled ÷ sets present | 100% for every saved session | sets performed ÷ sets **prescribed** |
+| rep targets vs last session's reps | adding weight scored as a miss | reps vs the **prescribed range** |
+| progress = volume vs last session | a deliberate lighter week read as failure | **no volume term at all** |
+
+Weights are `completion 0.40 / reps 0.30 / effort 0.18 / load 0.12`. Completion
+leads because it is the only dimension the athlete fully controls and the only
+unambiguous one. Load appropriateness is smallest because it is an inference
+about the *prescription* rather than about the athlete. Equal weighting was
+rejected: it would let a session with half the sets missing score 75 on the
+strength of three tidy dimensions.
+
+**Effort is judged symmetrically.** Two reps in reserve against a target of one
+and zero in reserve against a target of one score identically. That single rule
+is what stops the score rewarding ego lifting, and a contract asserts it.
+
+**Missing RIR is missing evidence.** It is neither zero nor perfect: the
+dimension is absent, the score is renormalised over what was measured, and
+coverage is reported. `confidentCoverage` sits at 0.75, deliberately above
+completion + reps (0.70), because a session with no effort recorded anywhere
+was landing exactly on the threshold and describing itself as confident.
+
+**A skipped exercise scores zero on every dimension, not null.** Absent
+dimensions are averaged out of existence, so a skipped exercise could only ever
+touch completion — meaning half a session abandoned still scored 80, and a
+session where *nothing* was done scored 60. Skipping is not missing evidence;
+it is a complete answer about work LOOP asked for. The ladder is now
+100 / 75 / 50 / 25 / 0 across four exercises. Sets left undone inside an
+exercise that *was* trained remain a completion matter only — those reps were
+never attempted, and counting them against rep accuracy would penalise the same
+shortfall twice.
+
+Extra sets are capped at the prescription, so junk volume cannot inflate
+anything. A PR appears in the analysis nowhere at all: one heavy single with
+the rest of the work abandoned scores 34.
+
+### Warm-ups
+
+`~70% × 3` requires knowing today's working weight, multiplying, and rounding
+to something loadable — three steps, mid-session, to answer a question LOOP
+already knows. Steps now resolve against **today's effective load**, with the
+percentage kept as the secondary reading:
+
+```
+Bench Press, working 185
+  Empty bar × 10  ·  95 lb × 5 (50%)  ·  130 lb × 3 (70%)  ·  155 lb × 1 (85%)
+```
+
+Rounding is by implement — 2.5 for light isolation, 5 for barbells, dumbbells
+and stacks, 5 for anything unrecognised. This is a separate question from
+`progressionIncrement()`, which asks what is worth *adding between sessions*
+and correctly returns 10 for a heavy barbell; a warm-up single at 152.5 is fine
+arithmetic and an impossible bar. Bodyweight exercises resolve to no load and
+keep their existing guidance. With no working load known the percentage is left
+exactly as authored — a percentage of nothing is not a number.
+
+### Redundant preparation, reduced by movement and never by muscle
+
+The forbidden rule is "same muscles trained, remove the warm-up". A squat and a
+Romanian deadlift share the entire posterior chain and prepare each other
+barely at all, because the joint they load and the range they load it through
+are different. What transfers is the **movement**, so that is what is compared.
+
+`generalPrepSatisfiedBy` grants a reduction only when the same movement pattern
+has already been worked **in this session**, at a load **at least as heavy**,
+with sets actually ticked complete. Anything unknown returns null, and null
+always means warm up properly. Verified live:
+
+- Back Squat @225 → Bulgarian Split Squat: *"Warm-up · already prepared —
+  55 lb × 2. Shortened: you already worked up to 225 lb on Back Squat."*
+- Back Squat @225 → Romanian Deadlift: **full ramp preserved**
+- Back Squat @45 → Bulgarian Split Squat: **full ramp preserved**
+- Before the squat is completed: **full ramp preserved**
+
+Even when granted, the ramp is shortened rather than removed — one acclimation
+set at the top is kept, because the movement-specific half is the part that
+does not transfer. Nothing is persisted; there is no `warmedMuscles` store.
+
+### Unilateral warm-ups
+
+Six of the twenty-seven prep movements are timed *and* two-sided, and two of
+them (`leg_swing_front`, `leg_swing_side`) are in every legs sequence. A leg
+swing counted 30 seconds against an instruction reading "swing one leg forward
+and back, then switch" — leaving the athlete to decide when half of it had
+gone, which is the one thing a countdown exists to remove.
+
+The authored duration is the whole movement, so it is **split, not doubled**: a
+leg day does not get longer because the instruction got clearer. 30 seconds
+becomes "15 sec each side", with `Switch sides` cued in words, an accent state,
+a haptic pulse, and `aria-live="assertive"` so it is heard as well as seen.
+
+**One timer.** This adds a side to the existing run phase rather than a second
+interval, and every deadline stays wall-clock (`endsAt`), so locking the phone
+and returning shows the correct side and the correct remaining time. Counted
+two-sided movements are untouched — "10 reps" beside "both sides" was never
+ambiguous.
+
+### Not attempted
+
+Readiness does not adjust the prescribed load anywhere in the live path today —
+there is no `applyReadinessToTemplate` or equivalent, and the trainer is
+shadow-only. The brief's example of a trainer reducing 145 to 135 therefore
+describes a capability LOOP does not yet have. The effective prescription
+captured here is the template's targets plus the live progression engine's
+chosen load, which is genuinely what the athlete was asked for. If readiness
+ever adjusts prescriptions, it will flow into `rx` with no change to the
+scoring model.
+
+### Verification
+
+5,480 assertions across 146 contracts, 327 program-audit checks, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix — all green. Contract
+146 states each fixture's prescription and its expected ordering independently
+of the implementation. Six viewports clean on the score, its expanded
+breakdown, the prep runner mid-switch and the warm-up box, with long exercise
+names: zero overflow, zero clipping, zero targets under 44px, zero inputs under
+16px. Browser storage was byte-identical before and after the whole QA pass.
+
+`DATA_KEYS` remains 15, `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`, and
+nothing about the score, its breakdown, warm state or next-load explanation is
+persisted.
