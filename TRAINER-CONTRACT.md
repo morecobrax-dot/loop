@@ -5903,3 +5903,171 @@ build instruction to an athlete who is struggling. D47 decided deliberately
 that one session is not enough evidence to change the load, and D49 preserves
 that. The copy is the weak part rather than the decision, and changing it would
 re-litigate D47 without new evidence.
+
+---
+
+## §74 — D50B: A coach between sets
+
+**Status.** Shipped in LOOP 4.4 (`loop-v121`).
+
+### Three horizons, one reading of a set
+
+| owner | question | window |
+|---|---|---|
+| `deriveNextSetCoach` | what should the **next set** be | today, this exercise |
+| `buildProgressionRecommendation` | what should I **start with next time** | across sessions |
+| `computeShadowRecommendation` | longitudinal observation | `0.1.1-shadow`, still not driving anything |
+
+They are separate **policies**, not separate brains. All three read the same
+primitives: `parseRepRange` for the target, `effortToRir` for what the
+prescription asked of the athlete, `isWorkingSet` for what counts as work, and
+`progressionIncrement` for what a gym can actually load. LOOP has one
+interpretation of RIR and one increment policy; D50B added neither.
+
+`deriveNextSetCoach` is **pure**. It takes a prescription and the sets already
+performed and returns the same answer forever. It reads no store, no history,
+no readiness and no Session Score — a score judges execution, and must never
+become the thing that decides what goes on the bar. A contract asserts each of
+those absences.
+
+### Day one
+
+Before any set is completed the coach states the prescription and nothing more:
+*"Today's target is 8–10 reps at about 1 rep in reserve."* That is the honest
+answer with no evidence — it does not pretend to know a weight. After the first
+working set it is coaching from real evidence, with no history required at all.
+History is not consulted by this layer; the starting load still comes from
+`buildProgressionRecommendation` as it always did.
+
+### The policy
+
+```
+easyOverTarget      2    RIR above the prescribed target before a single set
+                         counts as evidence the load is light
+hardMissWithoutRir  2    reps below the range that count as objective failure
+                         when no effort was recorded
+hardRir             0.5  grinding, when effort IS recorded
+maxChangesPerExercise 1  at most one load change per exercise per session
+maxIncrementsFromRx   1  never more than one increment from the prescription
+```
+
+`easyOverTarget` is deliberately larger than the session-level bar in
+`PROGRESSION_EVIDENCE`: one set is thinner evidence than a completed
+prescription, and the cost of being wrong is paid immediately rather than next
+week.
+
+The last two knobs are the stability guarantee. Together they make the
++15 / −20 / +15 experience **structurally impossible**, and they stop the coach
+quietly rewriting the session it was handed: the largest deviation from the
+program in a session is a single increment, once.
+
+### Verified behaviour
+
+The brief's own example, with 120 lb coming from `progressionIncrement` rather
+than from anywhere in the copy:
+
+```
+before any set     prescribed  115 lb   Today's target is 8–10 reps at about 1 rep in reserve.
+115 × 10 @ RIR 5   increase    120 lb   That set was 5 reps in reserve against a target of
+                                        1 rep. Add 5 lb and stay in 8–10.
+120 × 8  @ RIR 2   hold        120 lb   Load already adjusted this exercise. Hold 120 lb.
+```
+
+| case | result |
+|---|---|
+| on target, 9 @ 2 | hold |
+| below range at 0 RIR | reduce one increment |
+| 10 @ 2 then 9 @ 2 — ordinary fatigue | **hold**, no reduction |
+| top reps, effort not logged | hold, and never says "in reserve" |
+| missed the range badly, no RIR | reduce, worded as **reps** not effort |
+| deload, 10 @ 5, planned lighter week | **hold** — "keep the prescribed load even if it feels easy" |
+| the identical set outside a deload | increase |
+| strength, 3–5 @ 0.5 RIR | respects the range and steps by the barbell increment |
+| already one increment above the prescription | hold |
+| no prescription at all | insufficient — "nothing to coach against" |
+
+Missing RIR is never spare RIR and never failure. Reps alone remain objective —
+five reps against a prescription of 8–10 is a missed prescription whatever it
+felt like — and that case is worded as reps so it cannot be mistaken for an
+effort claim.
+
+Deload is read from `getCurrentTrainingPhase`, which is program truth. There is
+no second phase policy.
+
+### The header
+
+The old surface was headed **Recommended** and read as *"beat what you did last
+time"* — a comparison rather than a plan. Worse, it lived inside
+`.ex-context-detail`, the collapsed disclosure, so the athlete had to tap to
+discover what LOOP wanted. That is why it read as an afterthought.
+
+**LOOP Coach** sits in the exercise header now: the load large, the rep range
+and effort target under it, one sentence of reasoning, and the working-out one
+tap away — target, last set, decision. The disclosure keeps what it is
+genuinely for, which is last time.
+
+No per-set score. `SESSION SCORE` already exists and answers a different
+question; gamifying every set was explicitly refused.
+
+### The athlete stays in control
+
+An input the athlete typed into or stepped is **theirs**, marked from `oninput`
+— which only user interaction fires, so a programmatic assignment cannot
+counterfeit it. The coach writes only to suggestions nobody has touched, and
+never to a completed set.
+
+This exposed an existing defect: `propagateSetValueForward` overwrote *every*
+later uncompleted set. Choosing 125 for the last set and then adjusting the
+first silently discarded that choice. Propagation now respects the same
+ownership.
+
+Verified live: with 125 entered by hand into set 2, a coach recommendation of
+120 lb left set 2 at **125** and moved only the untouched set 3.
+
+### Live behaviour
+
+`refreshSetCoach` runs inside `toggleSetComplete` **after** `startRestPanel`, so
+a recommendation can never delay the thing the athlete is waiting on. Measured
+at **0.26 ms per call** — it reads the rows already on screen and nothing else,
+so there is no history scan per set. Re-opening a set removes evidence and the
+coach reconsiders.
+
+A value that moves gets one short background mark; nothing resizes, so the page
+cannot jump while the athlete is resting. Reduced motion removes it. A single
+polite live region announces the change once, only when a value actually moved.
+
+### Verification
+
+5,590 assertions across 149 contracts, 327 program-audit checks, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix — all green. Contract
+149 declares eleven cases and asserts the stability, ownership, purity and
+separation properties. Six viewports clean across the prescribed, increase,
+reduce and missing-RIR states with the detail expanded and the rest timer
+running, using a deliberately long exercise name.
+
+`DATA_KEYS` remains 15. Nothing about a recommendation is persisted, and the
+calculation was proved read-only across 25 repeated calls.
+`TRAINER_ENGINE_VERSION` remains `0.1.1-shadow` with no calibration, threshold,
+state or promotion change; Session Score keeps `40 / 30 / 18 / 12`; D49's
+next-exposure evidence rules are untouched.
+
+### A testing weakness worth naming
+
+Three contracts failed during this phase because they read **source text
+including comments**, and a comment that merely *named* a symbol or an element
+counted as the thing itself. One was tripped by the Live Set Coach's banner
+explaining that it does **not** consult the shadow trainer; another by a comment
+naming `ex-context-detail` while explaining the markup around it.
+
+Each is now comment-stripped, and each is stronger for it. But this is the
+third phase in a row where an assertion has been fooled by prose. Assertions
+that slice source should strip comments as a rule rather than one at a time —
+worth a dedicated pass.
+
+### Found and not fixed
+
+`.set-complete-btn` declares 44×44 and renders at 40×40 once completed, because
+the pressed state applies `scale(0.9)`. It is pre-existing, untouched by this
+phase, and affects only a button the athlete has already hit — but it is below
+the target size while still being interactive, since tapping it again re-opens
+the set.

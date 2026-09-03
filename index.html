@@ -541,20 +541,50 @@ html.intro-skip #introOverlay{ display: none !important; }
 
 /* ---- Intelligent progression recommendation ---- */
 .recommend-wrap:empty{ display: none; }
-.recommend-card{
-  margin-top: 10px; border-radius: var(--radius-md); padding: 10px 12px;
-  background: var(--accent-soft); border: 1px solid rgba(76,194,255,0.35);
+/* D50B — announced but never drawn. LOOP had no screen-reader-only helper
+   because until now nothing needed to speak without appearing. */
+.sr-only{
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
-.recommend-card.recommend-increase{ background: var(--success-soft); border-color: rgba(75,156,129,0.4); }
-.recommend-card.recommend-plateau{ background: var(--warning-soft); border-color: rgba(189,146,96,0.4); }
-.recommend-card.recommend-decline{ background: var(--surface-3); border-color: var(--border); }
-.recommend-card.recommend-new{ background: var(--surface-3); border-color: var(--border); }
-.recommend-label{ font-size: var(--fs-micro); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
-.recommend-top{ display: flex; align-items: center; justify-content: space-between; }
-.recommend-sets{ font-size: var(--fs-micro); font-weight: 600; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
-.recommend-headline{ font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; color: var(--text); margin-top: 3px; }
-.recommend-why{ font-size: 11.5px; color: var(--text-dim); margin-top: 5px; line-height: 1.4; }
-.recommend-why span{ color: var(--text-faint); font-weight: 600; }
+
+/* D50B — LOOP Coach. The target is the hero; the reason is one quiet line
+   under it. No badge on every field, no score, no celebration. */
+.coach{
+  display: block; width: 100%; text-align: left; font-family: inherit; color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 12px 14px 13px; cursor: pointer;
+}
+.coach:active{ background: var(--surface-3); }
+.coach:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.coach-top{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.coach-k{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint);
+}
+.coach-sets{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; color: var(--text-faint);
+}
+.coach-load{
+  display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  font-size: 26px; line-height: 1.1; color: var(--text); margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.coach-target{ display: block; font-size: var(--fs-support); color: var(--text-dim); margin-top: 2px; }
+.coach-why{ display: block; font-size: var(--fs-meta); color: var(--text-faint); line-height: 1.45; margin-top: 8px; }
+/* Direction is carried by the sentence; the tone only reinforces it. */
+.coach-increase .coach-load{ color: var(--success); }
+.coach-reduce .coach-load{ color: var(--warning); }
+.coach-detail{ display: block; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.coach-row{ display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: var(--fs-meta); }
+.coach-row i{ font-style: normal; color: var(--text-faint); }
+.coach-row b{ color: var(--text-dim); font-weight: 600; text-align: right; }
+/* The value that moved gets one short mark. Nothing resizes, so the page
+   cannot jump while the athlete is resting. */
+@keyframes coach-bump{ 0%{ background: var(--accent-soft); } 100%{ background: transparent; } }
+.set-row.coach-bumped .set-weight-in{ animation: coach-bump 0.85s ease-out both; }
+@media (prefers-reduced-motion: reduce){ .set-row.coach-bumped .set-weight-in{ animation: none; } }
 
 /* ---- Coaching layer ---- */
 #coachNote:empty{ display: none; }
@@ -6308,6 +6338,9 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     </div>
 
     <div id="logExercises"></div>
+    <!-- D50B — one polite live region for coach updates. Announced only when
+         a value actually moved, never for decoration. -->
+    <div id="coachLive" class="sr-only" role="status" aria-live="polite"></div>
 
     <!-- The last step. These inputs stay inside the sheet exactly where they
          were, so every existing reader still finds them by id. -->
@@ -9919,6 +9952,28 @@ const LOOP_UPDATES = [
       'Following a deload correctly could suggest going heavier next time'
     ],
     changes: []
+  },
+  {
+    id: 'v4-4',
+    version: 'LOOP 4.4',
+    title: 'A Coach Between Sets',
+    date: '2026-10-14',
+    swVersion: 'loop-v121',
+    summary: 'LOOP now reads each working set as you finish it and tells you what the rest of the exercise should look like.',
+    newFeatures: [
+      'Every exercise opens with LOOP Coach — the load, the rep range and the effort today asks for, in one place',
+      'After each completed set the plan for the remaining sets updates from what you just did, with a one-line reason',
+      'Tap the Coach for the target, your last set and the decision behind it'
+    ],
+    improvements: [
+      'Suggestions stay editable, and anything you enter yourself is never overwritten',
+      'Load changes use the same increments as the rest of LOOP, so they are always loadable',
+      'A planned lighter week is left alone even when the sets feel easy'
+    ],
+    bugFixes: [
+      'Changing an earlier set could silently overwrite a weight you had deliberately set for a later one'
+    ],
+    changes: []
   }
 ];
 
@@ -11381,30 +11436,338 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
   };
 }
 
-function recommendCardHtml(rec, targetSets, targetReps, isBW){
-  if(isBW){
-    if(!targetSets || !targetReps) return '';
-    return `
-      <div class="recommend-card recommend-new">
-        <div class="recommend-top">
-          <span class="recommend-label">Target</span>
-          ${targetSets ? `<span class="recommend-sets">${escapeHtml(String(targetSets))} sets</span>` : ''}
-        </div>
-        <div class="recommend-headline">${escapeHtml(String(targetReps))} reps</div>
-      </div>
-    `;
+/* =========================================================
+   LIVE SET COACH  (Phase D50B)
+   ---------------------------------------------------------
+   "What should I probably do for the NEXT SET?"
+
+   THREE TIME HORIZONS, ONE INTERPRETATION OF A SET.
+
+     deriveNextSetCoach       the next set, today       (here)
+     buildProgressionRecommendation
+                              the next exposure         (D47/D49)
+     computeShadowRecommendation
+                              longitudinal, observing   (0.1.1-shadow)
+
+   They are deliberately separate policies because they answer
+   different questions over different windows. They are NOT
+   separate brains: all three read the same primitives —
+   parseRepRange for the target, effortToRir for what the
+   prescription asked of the athlete, isWorkingSet for what
+   counts as work, and progressionIncrement for what a gym can
+   actually load. There is one interpretation of RIR in LOOP and
+   one increment policy; this adds neither.
+
+   PURE. Given a prescription and the sets already performed it
+   returns the same answer forever. It reads no store, no
+   history, no readiness and no Session Score — a score is a
+   judgement of execution and must never become the thing that
+   decides what weight to put on the bar.
+
+   USEFUL ON DAY ONE. Before any set is completed it states
+   today’s prescription rather than pretending to know a weight
+   it has no evidence for. After the first working set it is
+   coaching from real evidence, with no history required.
+   ========================================================= */
+const SET_COACH = {
+  /* How far ABOVE the prescribed target a single set must sit before it is
+     evidence the load is light. Deliberately larger than the session-level
+     bar in PROGRESSION_EVIDENCE: one set is thinner evidence than a completed
+     prescription, and the cost of being wrong is paid immediately. */
+  easyOverTarget: 2,
+  /* With no effort recorded, reps alone can still be objective evidence: 5 on
+     a prescription of 8-10 is a missed prescription whatever it felt like.
+     This is how far below the bottom of the range that has to be before the
+     coach will act on reps alone. It is never read as an effort claim. */
+  hardMissWithoutRir: 2,
+  /* Grinding, when effort IS recorded. */
+  hardRir: 0.5,
+  /* STABILITY. At most one load change per exercise per session, and never
+     more than one increment away from what the program prescribed. Together
+     these make the +15 / -20 / +15 oscillation structurally impossible and
+     keep the coach from quietly rewriting the session it was given. */
+  maxChangesPerExercise: 1,
+  maxIncrementsFromRx: 1
+};
+
+/* The one entry point. `input` is plain data so this stays testable without a
+   DOM and identical wherever it is called from.
+
+     rx        the effective prescription: sets, reps, effort, load
+     performed completed WORKING sets this session, in order
+     deload    true when the program says today is a planned lighter week
+
+   Returns { action, load, reps, rir, reason, changed }. `action` is one of
+   prescribed | hold | increase | reduce | insufficient. */
+function deriveNextSetCoach(input){
+  const o = input || {};
+  const rx = o.rx || null;
+  const performed = (o.performed || []).filter(x => x && x.reps > 0);
+  const range = rx && rx.reps ? parseRepRange(rx.reps) : null;
+  const targetRir = (rx && rx.effort != null) ? effortToRir(rx.effort) : null;
+  const rxLoad = (rx && rx.load > 0) ? rx.load : null;
+  const name = o.exerciseName || '';
+
+  const out = { action: 'insufficient', load: null, reps: rx ? rx.reps : null,
+    rir: targetRir, reason: null, changed: false, range, targetRir };
+
+  /* Nothing was prescribed. Freeform training is a legitimate choice, not a
+     gap to fill with an invented target — the coach says what it knows, which
+     is nothing about what this set should be. */
+  if(!rx || !range){
+    out.reason = 'No target set for this exercise, so nothing to coach against.';
+    return out;
   }
-  if(!rec || !rec.headline) return '';
-  return `
-    <div class="recommend-card recommend-${rec.tag}">
-      <div class="recommend-top">
-        <span class="recommend-label">Recommended</span>
-        ${targetSets ? `<span class="recommend-sets">${escapeHtml(String(targetSets))} sets</span>` : ''}
-      </div>
-      <div class="recommend-headline">${escapeHtml(rec.headline)}</div>
-      <div class="recommend-why"><span>Why:</span> ${escapeHtml(rec.why)}</div>
-    </div>
-  `;
+
+  const lastLoad = performed.length ? performed[performed.length - 1].weight : null;
+  const base = (lastLoad > 0) ? lastLoad : rxLoad;
+  out.load = base;
+
+  /* BEFORE ANY WORK. State the prescription. This is the day-one case and it
+     is deliberately not a guess: with no history and no completed set, the
+     program is the only thing LOOP actually knows. */
+  if(!performed.length){
+    out.action = 'prescribed';
+    out.reason = targetRir != null
+      ? `Today’s target is ${range.min}–${range.max} reps at about ${fmtRir(targetRir)} in reserve.`
+      : `Today’s target is ${range.min}–${range.max} reps.`;
+    return out;
+  }
+
+  const last = performed[performed.length - 1];
+  const rirKnown = last.rir != null && !isNaN(last.rir);
+
+  /* STABILITY GATE. Count load changes already made this exercise. Once the
+     coach (or the athlete) has moved the weight, the rest of the session
+     holds: a second change would be reacting to the consequences of the
+     first, which is exactly how a recommendation starts oscillating. */
+  const loads = performed.map(x => x.weight).filter(w => w > 0);
+  let changes = 0;
+  for(let i = 1; i < loads.length; i++) if(loads[i] !== loads[i-1]) changes++;
+  const settled = changes >= SET_COACH.maxChangesPerExercise;
+
+  const inc = base > 0 ? progressionIncrement(name, base) : 0;
+  const withinBounds = next => {
+    if(!rxLoad || !inc) return true;
+    return Math.abs(next - rxLoad) <= inc * SET_COACH.maxIncrementsFromRx + 0.001;
+  };
+
+  /* EASY: at the top of the range AND meaningfully easier than asked. Effort
+     must be RECORDED — top reps with no RIR is not evidence of spare
+     capacity, which is the D49 invariant and holds at set level too. */
+  const easy = rirKnown && range && last.reps >= range.max &&
+    targetRir != null && last.rir >= targetRir + SET_COACH.easyOverTarget;
+
+  /* HARD: below the bottom of the range, either grinding on recorded effort
+     or missing the prescription by enough that reps alone say so. */
+  const hard = range && last.reps < range.min && (rirKnown
+    ? last.rir <= SET_COACH.hardRir
+    : last.reps <= range.min - SET_COACH.hardMissWithoutRir);
+
+  if(easy && !settled && !o.deload){
+    const next = base + inc;
+    if(inc > 0 && withinBounds(next)){
+      out.action = 'increase'; out.load = next; out.changed = true;
+      out.reason = `That set was ${fmtRir(last.rir)} in reserve against a target of ${fmtRir(targetRir)}. Add ${fmtLoad(inc)} and stay in ${range.min}–${range.max}.`;
+      return out;
+    }
+  }
+
+  if(hard && !settled){
+    const next = Math.max(0, base - inc);
+    if(inc > 0 && next > 0 && withinBounds(next)){
+      out.action = 'reduce'; out.load = next; out.changed = true;
+      out.reason = rirKnown
+        ? `${last.reps} reps with nothing left in reserve, under a target of ${range.min}. Take ${fmtLoad(inc)} off and rebuild the range.`
+        : `${last.reps} reps against a target of ${range.min}–${range.max}. Take ${fmtLoad(inc)} off for the next set.`;
+      return out;
+    }
+  }
+
+  /* HOLD, and say which kind of hold it is — the reason is the whole value
+     of a recommendation that changes nothing. */
+  out.action = 'hold';
+  if(o.deload){
+    out.reason = `This is a planned lighter week. Keep the prescribed load even if it feels easy.`;
+  } else if(settled){
+    out.reason = `Load already adjusted this exercise. Hold ${fmtLoad(base)} for the rest of the sets.`;
+  } else if(!rirKnown){
+    out.reason = `No effort logged for that set, so the challenge cannot be judged. Stay inside ${range.min}–${range.max}.`;
+  } else if(last.reps < range.min){
+    out.reason = `Reps came in under ${range.min}. Hold the load and rebuild the range.`;
+  } else {
+    out.reason = `Challenge is on target. Hold ${fmtLoad(base)}.`;
+  }
+  return out;
+}
+
+/* Presentation helpers, kept next to the policy so the wording that reaches
+   the athlete cannot drift from the numbers behind it. */
+function fmtRir(r){
+  if(r == null || isNaN(r)) return '—';
+  const n = Math.round(r * 10) / 10;
+  return (n === Math.round(n) ? String(Math.round(n)) : String(n)) + ' rep' + (n === 1 ? '' : 's');
+}
+function fmtLoad(n){
+  if(n == null || isNaN(n)) return '—';
+  return (Math.round(n * 10) / 10) + ' lb';
+}
+
+/* ---------- reading the live session ----------
+   A thin adapter, kept apart from the policy above so the analysis stays pure
+   and the DOM stays the only thing that knows about the DOM. */
+function liveSetEvidence(exRow){
+  const out = { exerciseName: '', rx: null, performed: [], deload: false, bodyweight: false };
+  if(!exRow) return out;
+  const nameEl = exRow.querySelector('.ex-name-in');
+  out.exerciseName = nameEl ? nameEl.value.trim() : '';
+  const bw = exRow.querySelector('.ex-bw-in');
+  out.bodyweight = !!(bw && bw.checked);
+  /* The same prescription the workout was opened with, and the same reader
+     saveLog uses, so what the coach judges is what gets recorded. */
+  try{ out.rx = capturedPrescription(exRow); }catch(e){ out.rx = null; }
+  exRow.querySelectorAll('.set-row').forEach(sr => {
+    if(!sr.classList.contains('completed')) return;
+    if(sr.dataset.setType && isWorkingSet({ type: sr.dataset.setType }) === false) return;
+    const w = parseFloat((sr.querySelector('.set-weight-in')||{}).value);
+    const r = parseFloat((sr.querySelector('.set-reps-in')||{}).value);
+    const rirRaw = (sr.querySelector('.set-rir-in')||{}).value;
+    const rir = (rirRaw === '' || rirRaw == null) ? null : parseFloat(String(rirRaw).replace('+',''));
+    if(!(r > 0)) return;
+    out.performed.push({ weight: isNaN(w) ? null : w, reps: r, rir: isNaN(rir) ? null : rir });
+  });
+  /* Program truth, not a second phase policy: a planned lighter week is the
+     program saying the work should feel easy, and the coach must not correct
+     it upward. Wrapped because a malformed program can never be allowed to
+     stop the workout screen working. */
+  try{
+    const prog = hasActiveProgram() ? getActiveProgram() : null;
+    if(prog){
+      const ph = getCurrentTrainingPhase(prog, localDateStr());
+      if(ph && ph.phaseType === 'deload') out.deload = true;
+    }
+  }catch(e){}
+  return out;
+}
+
+/* ---------- the Coach surface ----------
+   Replaces a card headed "Recommended" whose single line read as "beat what
+   you did last time". That is a comparison, not a plan: it said nothing about
+   what today asks for, and nothing at all once the session was under way.
+
+   The target dominates, the reason is one sentence, and the whole thing is a
+   button so the working-out can be inspected without leaving the workout. */
+function setCoachHtml(coach, targetSets){
+  if(!coach) return '';
+  const load = coach.load != null ? fmtLoad(coach.load) : null;
+  const reps = coach.range ? coach.range.min + '\u2013' + coach.range.max + ' reps' : null;
+  const rir  = coach.targetRir != null ? fmtRir(coach.targetRir) + ' in reserve' : null;
+  const bits = [reps, rir].filter(Boolean).join(' \u00b7 ');
+  return '<button type="button" class="coach coach-' + coach.action + '"' +
+      ' onclick="toggleCoachDetail(this)" aria-expanded="false"' +
+      ' aria-label="' + escapeAttr('LOOP Coach. ' +
+        (load ? load + '. ' : '') + (bits ? bits + '. ' : '') + (coach.reason || '')) + '">' +
+    '<span class="coach-top">' +
+      '<span class="coach-k">LOOP Coach</span>' +
+      (targetSets ? '<span class="coach-sets">' + escapeHtml(String(targetSets)) + ' sets</span>' : '') +
+    '</span>' +
+    (load ? '<span class="coach-load">' + escapeHtml(load) + '</span>' : '') +
+    (bits ? '<span class="coach-target">' + escapeHtml(bits) + '</span>' : '') +
+    '<span class="coach-why">' + escapeHtml(coach.reason || '') + '</span>' +
+    '<span class="coach-detail" hidden>' + coachDetailHtml(coach) + '</span>' +
+  '</button>';
+}
+
+/* Target, what actually happened, and the decision — three lines, so the
+   athlete can check the reasoning against their own set rather than trusting
+   it. Shown only on request. */
+function coachDetailHtml(coach){
+  const rows = [];
+  if(coach.range){
+    rows.push(['Target', coach.range.min + '\u2013' + coach.range.max + ' reps' +
+      (coach.targetRir != null ? ' at ' + fmtRir(coach.targetRir) + ' in reserve' : '')]);
+  }
+  if(coach.last){
+    rows.push(['Last set', (coach.last.weight != null ? fmtLoad(coach.last.weight) + ' \u00d7 ' : '') +
+      coach.last.reps + ' reps' +
+      (coach.last.rir != null ? ' at ' + fmtRir(coach.last.rir) + ' in reserve' : ', effort not logged')]);
+  }
+  const WORD = { increase:'Increase one step', reduce:'Reduce one step',
+    hold:'Hold this load', prescribed:'Follow today\u2019s prescription',
+    insufficient:'Not enough to judge' };
+  rows.push(['Decision', WORD[coach.action] || coach.action]);
+  return rows.map(r => '<span class="coach-row"><i>' + escapeHtml(r[0]) + '</i>' +
+    '<b>' + escapeHtml(r[1]) + '</b></span>').join('');
+}
+
+function toggleCoachDetail(btn){
+  const d = btn.querySelector('.coach-detail');
+  if(!d) return;
+  const open = d.hasAttribute('hidden');
+  if(open) d.removeAttribute('hidden'); else d.setAttribute('hidden', '');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+/* An input the athlete typed into or stepped is THEIRS. The coach may write
+   to a suggestion nobody has touched; it may never overwrite a deliberate
+   choice. Marked from oninput, which only user interaction fires — a
+   programmatic .value assignment does not, which is exactly the distinction
+   needed. */
+function markUserSet(input){ if(input) input.dataset.userSet = '1'; }
+
+/* Writes the coach’s load into the sets still to come. Completed sets are
+   history and are never touched; user-owned inputs are left exactly as the
+   athlete left them. */
+function applyCoachToFutureSets(exRow, coach){
+  if(!exRow || !coach || coach.load == null) return 0;
+  const bw = exRow.querySelector('.ex-bw-in');
+  if(bw && bw.checked) return 0;
+  let changed = 0;
+  exRow.querySelectorAll('.set-row').forEach(sr => {
+    if(sr.classList.contains('completed')) return;
+    const w = sr.querySelector('.set-weight-in');
+    if(!w || w.disabled || w.dataset.userSet) return;
+    const next = String(coach.load);
+    if(w.value === next) return;
+    w.value = next;
+    /* A brief mark on the value that moved, so the change is visible without
+       anything jumping or scrolling. */
+    const row = w.closest('.set-row');
+    if(row){
+      row.classList.add('coach-bumped');
+      setTimeout(() => row.classList.remove('coach-bumped'), 900);
+    }
+    changed++;
+  });
+  return changed;
+}
+
+/* Recomputes and repaints one exercise’s coach. Cheap by construction: it
+   reads the rows already on screen and nothing else — no history scan, no
+   store read — so it can run after every completed set without being felt. */
+function refreshSetCoach(exRow){
+  if(!exRow) return null;
+  const wrap = exRow.querySelector('.recommend-wrap');
+  if(!wrap) return null;
+  let ev = null, coach = null;
+  try{
+    ev = liveSetEvidence(exRow);
+    coach = deriveNextSetCoach(ev);
+  }catch(e){ return null; }
+  if(ev && ev.performed.length) coach.last = ev.performed[ev.performed.length - 1];
+  /* Bodyweight work has no load to coach; the prescription still speaks. */
+  if(ev && ev.bodyweight) coach.load = null;
+  const sets = ev && ev.rx ? ev.rx.sets : null;
+  wrap.innerHTML = setCoachHtml(coach, sets);
+  applyCoachToFutureSets(exRow, coach);
+  /* Announced once, politely, and only when something actually moved. */
+  const live = document.getElementById('coachLive');
+  if(live && coach.changed){
+    live.textContent = 'Next set updated: ' +
+      (coach.load != null ? fmtLoad(coach.load) : '') +
+      (coach.range ? ', ' + coach.range.min + ' to ' + coach.range.max + ' reps' : '');
+  }
+  return coach;
 }
 
 function getPreviousSets(exerciseName){
@@ -31374,12 +31737,19 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
       <input type="text" placeholder="Exercise name" class="ex-name-in" value="${name ? escapeAttr(name) : ''}">
       <button class="rm-ex" onclick="removeLogExerciseRow(this)" aria-label="Remove exercise">${closeIconSvg(13)}</button>
     </div>
+    <!-- D50B — the coach is the plan for this exercise today, so it sits in the
+         header rather than behind a disclosure. The old Recommended card lived
+         inside .ex-context-detail and was collapsed by default: the athlete had
+         to tap to find out what LOOP wanted, which is why it read as an
+         afterthought rather than as coaching. refreshSetCoach() repaints it in
+         place after every completed set. What stays behind the disclosure is
+         what that control is genuinely for — last time. -->
+    <div class="recommend-wrap"></div>
     <div class="ex-context">
       <button type="button" class="ex-context-btn" onclick="toggleExContext(this)" aria-expanded="false">
         <span class="exc-summary"></span><span class="exc-caret">${chevronDownSvg(12)}</span>
       </button>
       <div class="ex-context-detail">
-        <div class="recommend-wrap">${recommendCardHtml(rec, meta.targetSets, meta.targetReps, bodyweight)}</div>
         <div class="last-time-wrap">${name ? lastTimeHtml(name) : ''}</div>
       </div>
     </div>
@@ -31434,10 +31804,9 @@ function refreshExContext(row){
   const out  = row.querySelector('.exc-summary');
   if(!wrap || !out) return;
   const parts = [];
-  const sets = row.querySelector('.recommend-sets');
-  const head = row.querySelector('.recommend-headline');
-  if(sets && head) parts.push(sets.textContent.replace(/\s*sets?$/i, '') + ' × ' + head.textContent.trim());
-  else if(head) parts.push(head.textContent.trim());
+  /* D50B — the target moved into the header, so this no longer summarises it.
+     The disclosure now holds last time and says so; with no history it has
+     nothing to offer and hides itself, exactly as it did before. */
   const lastChip = row.querySelector('.last-time-chip');
   if(lastChip) parts.push('Last ' + lastChip.textContent.trim());
   out.textContent = parts.join('  ·  ');
@@ -31484,8 +31853,17 @@ function swapLogExercise(selectEl){
   if(lastTimeWrap) lastTimeWrap.innerHTML = lastTimeHtml(lib.name);
   refreshExerciseNoteBlock(row);
 
-  const recWrap = row.querySelector('.recommend-wrap');
-  if(recWrap) recWrap.innerHTML = recommendCardHtml(rec, lib.sets, lib.reps, isBW);
+  /* D50B — swapping an exercise replaces its prescription, so the coach must
+     be rebuilt against the new one. This wrote the old Recommended card
+     straight into the same slot, which would have put the superseded surface
+     back on screen for exactly the athletes who had just changed their mind.
+     The swapped-in exercise carries its own sets and reps, so those are
+     recorded before the coach reads them. */
+  if(lib.sets) row.dataset.targetSets = lib.sets;
+  if(lib.reps) row.dataset.targetReps = lib.reps;
+  if(rec && rec.weight != null && !isBW) row.dataset.rxLoad = rec.weight;
+  else delete row.dataset.rxLoad;
+  try{ refreshSetCoach(row); }catch(e){}
   refreshExContext(row);
 
   const warmupWrap = row.querySelector('.warmup-wrap');
@@ -31537,12 +31915,12 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
     <div class="set-row-controls">
       <div class="stepper">
         <button type="button" onclick="stepValue(this,-5)">–</button>
-        <input type="text" inputmode="decimal" class="set-weight-in" aria-label="Weight in pounds" value="${weight||''}" ${bodyweight?'disabled':''} oninput="maybeRefreshWarmup(this); propagateWeightForward(this);">
+        <input type="text" inputmode="decimal" class="set-weight-in" aria-label="Weight in pounds" value="${weight||''}" ${bodyweight?'disabled':''} oninput="markUserSet(this); maybeRefreshWarmup(this); propagateWeightForward(this);">
         <button type="button" onclick="stepValue(this,5)">+</button>
       </div>
       <div class="stepper">
         <button type="button" onclick="stepValue(this,-1)">–</button>
-        <input type="text" inputmode="numeric" class="set-reps-in" aria-label="Reps" value="${reps||''}" oninput="propagateRepsForward(this);">
+        <input type="text" inputmode="numeric" class="set-reps-in" aria-label="Reps" value="${reps||''}" oninput="markUserSet(this); propagateRepsForward(this);">
         <button type="button" onclick="stepValue(this,1)">+</button>
       </div>
     </div>
@@ -31740,7 +32118,11 @@ function propagateSetValueForward(sourceInput, selector){
   allRows.slice(idx + 1).forEach(row => {
     if(row.classList.contains('completed')) return;
     const laterInput = row.querySelector(selector);
-    if(laterInput && !laterInput.disabled) laterInput.value = newVal;
+    /* D50B — a later set the athlete has deliberately set is theirs. This
+       used to overwrite it, so choosing 125 for the last set and then
+       adjusting the first silently discarded that choice. */
+    if(laterInput && !laterInput.disabled && !laterInput.dataset.userSet)
+      laterInput.value = newVal;
   });
 }
 
@@ -31864,12 +32246,20 @@ function toggleSetComplete(btn){
       setTimeout(() => next.classList.remove('pulse'), 1300);
     }
     markExerciseComplete(exRow, allRows);
+    /* D50B — the coach runs AFTER the rest timer has already started, so a
+       recommendation can never delay the thing the athlete is waiting on. */
+    try{ refreshSetCoach(exRow); }catch(e){}
   } else if(panel && panel._interval){
     clearInterval(panel._interval);
     panel._interval = null;
     panel.style.display = 'none';
   }
-  if(!isDone && exRow) exRow.classList.remove('ex-complete');
+  if(!isDone && exRow){
+    exRow.classList.remove('ex-complete');
+    /* Un-completing a set removes evidence; the coach must not keep standing
+       on a set that is no longer done. */
+    try{ refreshSetCoach(exRow); }catch(e){}
+  }
   syncWorkoutCompletionState(exRow);
   persistDraftNow();
 }

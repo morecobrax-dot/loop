@@ -6409,8 +6409,14 @@ function testD10Consolidation(app){
     /ex-context-btn/.test(exMarkup) && /exc-summary/.test(exMarkup));
   T('both blocks are still rendered, not removed',
     /recommend-wrap/.test(exMarkup) && /last-time-wrap/.test(exMarkup));
-  T('the summary sits before the detail it hides',
-    exMarkup.indexOf('exc-summary') < exMarkup.indexOf('ex-context-detail'));
+  /* D50B — comments stripped before the ordering is read. This compared raw
+     source positions, so a comment that merely NAMED ex-context-detail while
+     explaining the markup counted as the element itself. Only emitted markup
+     can be out of order, so only emitted markup is measured. */
+  T('the summary sits before the detail it hides', (() => {
+    const m = exMarkup.replace(/<!--[\s\S]*?-->/g, ' ').replace(/\/\*[\s\S]*?\*\//g, ' ');
+    return m.indexOf('exc-summary') < m.indexOf('ex-context-detail');
+  })());
   T('exercise actions share one row', /class="ex-actions"/.test(exMarkup));
   T('Replace is still a named action, not a glyph',
     />Replace</.test(exMarkup) && exMarkup.indexOf('⋯') === -1);
@@ -6420,8 +6426,17 @@ function testD10Consolidation(app){
     rowMarkup.indexOf('unit-label">LB') === -1);
 
   sub('the summary is derived, never a second copy of the data');
-  T('refreshExContext reads the rendered blocks',
-    /function refreshExContext[\s\S]{0,700}querySelector\('\.recommend-headline'\)/.test(src));
+  /* D50B — the disclosure used to summarise the recommendation as well as last
+     time, so it read .recommend-headline. The recommendation became the LOOP
+     Coach and moved into the exercise header, where it is the plan for today
+     rather than something the athlete had to tap to discover. What the
+     disclosure still holds — and therefore still summarises — is last time. */
+  T('refreshExContext reads the block it still summarises',
+    /function refreshExContext[\s\S]{0,700}querySelector\('\.last-time-chip'\)/.test(src));
+  T('and the target it stopped summarising is in the header instead', (() => {
+    const m = exMarkup.replace(/<!--[\s\S]*?-->/g, ' ');
+    return m.indexOf('recommend-wrap') < m.indexOf('ex-context-detail');
+  })());
   T('it is refreshed wherever those blocks are rewritten',
     (src.match(/refreshExContext\(row\)/g) || []).length >= 3);
 
@@ -11171,8 +11186,11 @@ function testComposition(app){
   T('the settle is transient and the state is not',
     /exRow\.classList\.remove\('ex-complete-in'\)/.test(src) &&
     /\.ex-log-row\.ex-complete\{ border-color:/.test(css));
+  /* D50B — pinned the exact one-line source shape, which broke when the
+     branch grew a second statement. The property is that re-opening a set
+     clears the mark; assert that, not its formatting. */
   T('re-opening a set clears the mark, so it describes now rather than earlier',
-    /if\(!isDone && exRow\) exRow\.classList\.remove\('ex-complete'\);/.test(src));
+    /if\(!isDone && exRow\)[\s\S]{0,240}exRow\.classList\.remove\('ex-complete'\);/.test(src));
   T('the motion is restrained — a settle, not a bounce', (() => {
     const kf = css.slice(css.indexOf('@keyframes exSettle'), css.indexOf('@keyframes exSettle') + 180);
     const peak = kf.match(/scale\(([\d.]+)\)/g) || [];
@@ -17091,8 +17109,14 @@ async function testProgressionEvidence(){
     T('no invented confidence percentage is shown',
       !/[Cc]onfidence: ?\$\{|[Cc]onfidence \d+%/.test(src));
     T('the shadow trainer is not consulted for live progression', (() => {
+      /* D50B — comments stripped first. The slice runs to the next top-level
+         function, so it picked up the banner of whatever module follows; the
+         Live Set Coach's banner NAMES the shadow trainer in order to say it is
+         a separate horizon, and the assertion was failing on that sentence.
+         Only shipped code can consult an engine, so only code is read. */
       const i = src.indexOf('function buildProgressionRecommendation');
-      const body = src.slice(i, src.indexOf('\nfunction ', i + 40));
+      const body = src.slice(i, src.indexOf('\nfunction ', i + 40))
+        .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       return !/computeShadowRecommendation|proposeTrainerState/.test(body);
     })());
   }
@@ -17123,6 +17147,222 @@ async function testProgressionEvidence(){
     T('history is unchanged', JSON.stringify(ctx.workoutLog) === before);
     T('the trainer log is unchanged',
       (ctx.trainerLog ? ctx.trainerLog.entries.length : 0) === trainerBefore);
+  }
+}
+
+/* =========================================================
+   CONTRACT 149 — LIVE SET COACH  (Phase D50B)
+
+   Every case below declares its prescription, what was
+   performed, and the answer a coach standing there would give.
+   None of them asks deriveNextSetCoach what to expect.
+   ========================================================= */
+async function testLiveSetCoach(){
+  section('CONTRACT 149 — live set coach (D50B)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  /* Hypertrophy: 3 x 8-10 at effort 8, which is 1 rep in reserve, on 115. */
+  const HYP = { sets:3, reps:'8-10', effort:8, load:115 };
+  /* Strength: 5 x 3-5 at effort 9, which is half a rep in reserve, on 275. */
+  const STR = { sets:5, reps:'3-5', effort:9, load:275 };
+  /* Deload: the same shape, deliberately easier. */
+  const DEL = { sets:3, reps:'8-10', effort:6, load:95 };
+
+  const coach = (rx, performed, extra) => ctx.deriveNextSetCoach(Object.assign(
+    { exerciseName:'Lat Pulldown', rx, performed: performed || [] }, extra || {}));
+
+  sub('the declared cases');
+  {
+    /* [label, rx, performed, expected action, expected load or null] */
+    const CASES = [
+      ['A. top reps, far above target effort', HYP,
+        [{ weight:115, reps:10, rir:5 }], 'increase', 120],
+      ['B. on target', HYP,
+        [{ weight:115, reps:9, rir:2 }], 'hold', 115],
+      ['C. below range at zero in reserve', HYP,
+        [{ weight:115, reps:7, rir:0 }], 'reduce', 110],
+      ['D. normal fatigue, still inside the range', HYP,
+        [{ weight:115, reps:10, rir:2 }, { weight:115, reps:9, rir:2 }], 'hold', 115],
+      ['E. top reps, effort not logged', HYP,
+        [{ weight:115, reps:10, rir:null }], 'hold', 115],
+      ['F. deload, easy by design', DEL,
+        [{ weight:95, reps:10, rir:5 }], 'hold', 95, { deload:true }],
+      ['G. nothing performed yet', HYP, [], 'prescribed', 115],
+      ['I. missed the range with no effort logged', HYP,
+        [{ weight:115, reps:5, rir:null }], 'reduce', 110],
+      ['J. strength, easy set', STR,
+        [{ weight:275, reps:5, rir:3 }], 'increase', 285],
+      ['J2. strength, on target', STR,
+        [{ weight:275, reps:4, rir:1 }], 'hold', 275],
+      ['K. no prescription at all', null,
+        [{ weight:100, reps:12, rir:2 }], 'insufficient', null]
+    ];
+    let bad = 0;
+    CASES.forEach(([label, rx, perf, wantAction, wantLoad, extra]) => {
+      const name = (rx === STR) ? 'Back Squat' : 'Lat Pulldown';
+      const r = ctx.deriveNextSetCoach(Object.assign(
+        { exerciseName:name, rx, performed: perf }, extra || {}));
+      const ok = r.action === wantAction && (wantLoad == null || r.load === wantLoad);
+      if(!ok){ bad++; T(label + ' -> ' + wantAction, false,
+        'got [' + r.action + '] ' + r.load + ' :: ' + r.reason); }
+    });
+    T(CASES.length + ' declared set-coach cases all hold', bad === 0, bad + ' wrong');
+  }
+
+  sub('it uses canonical increments, never a made-up number');
+  {
+    const up = coach(HYP, [{ weight:115, reps:10, rir:5 }]);
+    T('the step is the equipment increment',
+      up.load - 115 === ctx.progressionIncrement('Lat Pulldown', 115));
+    const heavy = ctx.deriveNextSetCoach({ exerciseName:'Back Squat', rx:STR,
+      performed:[{ weight:275, reps:5, rir:3 }] });
+    T('a heavy barbell steps by its own amount',
+      heavy.load - 275 === ctx.progressionIncrement('Back Squat', 275));
+    T('the coach never invents its own increment', (() => {
+      const i = src.indexOf('function deriveNextSetCoach');
+      const body = src.slice(i, src.indexOf('function fmtRir', i));
+      return /progressionIncrement\(/.test(body) && !/[^a-zA-Z]2\.5[^0-9]/.test(body);
+    })());
+  }
+
+  sub('missing effort is never read as spare capacity');
+  {
+    const noRir = coach(HYP, [{ weight:115, reps:10, rir:null }]);
+    T('top reps with no RIR does not increase', noRir.action !== 'increase');
+    T('and never claims reps were left in reserve',
+      !/in reserve/.test(noRir.reason), noRir.reason);
+    T('it says what is actually missing instead',
+      /effort/i.test(noRir.reason), noRir.reason);
+    /* Reps alone ARE objective, and are reported as reps rather than effort. */
+    const missed = coach(HYP, [{ weight:115, reps:5, rir:null }]);
+    T('a badly missed range still acts, on reps evidence', missed.action === 'reduce');
+    T('and words it as reps, not effort',
+      !/in reserve/.test(missed.reason), missed.reason);
+  }
+
+  sub('the program stays in control');
+  {
+    const dl = coach(DEL, [{ weight:95, reps:10, rir:5 }], { deload:true });
+    T('a deload is never corrected upward', dl.action !== 'increase');
+    T('and says why it is holding', /lighter week/i.test(dl.reason), dl.reason);
+    /* The identical set outside a deload is real evidence, so the guard must
+       be the program\u2019s intent and not a blanket refusal to act. */
+    T('the same set outside a deload does increase',
+      coach(DEL, [{ weight:95, reps:10, rir:5 }]).action === 'increase');
+
+    /* Never more than one increment from what the program asked for. */
+    const drifted = coach(HYP, [{ weight:120, reps:10, rir:5 }]);
+    T('the coach cannot drift away from the prescribed load',
+      drifted.action === 'hold', drifted.action + ' ' + drifted.load);
+    T('phase truth comes from the program, not a second phase policy', (() => {
+      const i = src.indexOf('function liveSetEvidence');
+      const body = src.slice(i, i + 2200);
+      return /getCurrentTrainingPhase/.test(body);
+    })());
+  }
+
+  sub('recommendations converge instead of oscillating');
+  {
+    /* easy -> increase -> on target -> hold, and it stays held. */
+    let perf = [{ weight:115, reps:10, rir:5 }];
+    const seen = [];
+    for(let i = 0; i < 3; i++){
+      const r = coach(HYP, perf);
+      seen.push(r.action);
+      perf = perf.concat([{ weight:r.load, reps:9, rir:2 }]);
+    }
+    T('it increases once, then holds',
+      seen[0] === 'increase' && seen[1] === 'hold' && seen[2] === 'hold',
+      seen.join(' -> '));
+
+    /* The +15 / -20 / +15 experience, made structurally impossible. */
+    const flip = coach(HYP, [{ weight:115, reps:10, rir:5 }, { weight:120, reps:6, rir:0 }]);
+    T('a hard set after an increase does not bounce the load back',
+      flip.action === 'hold', flip.action + ' ' + flip.load);
+    T('at most one load change per exercise per session',
+      /maxChangesPerExercise/.test(src));
+  }
+
+  sub('the athlete stays in control');
+  {
+    T('a user-edited input is marked as theirs', /function markUserSet/.test(src));
+    T('the coach writes only to inputs nobody has touched', (() => {
+      const i = src.indexOf('function applyCoachToFutureSets');
+      const body = src.slice(i, src.indexOf('function refreshSetCoach', i));
+      return /dataset\.userSet/.test(body) && /classList\.contains\('completed'\)/.test(body);
+    })());
+    T('and forward propagation respects the same ownership', (() => {
+      const i = src.indexOf('function propagateSetValueForward');
+      const body = src.slice(i, src.indexOf('\nfunction ', i + 40));
+      return /dataset\.userSet/.test(body);
+    })());
+    T('completed sets are never rewritten', (() => {
+      const i = src.indexOf('function applyCoachToFutureSets');
+      const body = src.slice(i, src.indexOf('function refreshSetCoach', i));
+      return /if\(sr\.classList\.contains\('completed'\)\) return;/.test(body);
+    })());
+  }
+
+  sub('one interpretation of a set, three time horizons');
+  {
+    T('no second coaching engine was created',
+      !/function nextSessionRecommendationV2|function smartRepTargetEngine|function progressionConfidenceEngine/.test(src));
+    T('the coach reuses the shared primitives', (() => {
+      const i = src.indexOf('function deriveNextSetCoach');
+      const body = src.slice(i, src.indexOf('function fmtRir', i));
+      return /parseRepRange/.test(body) && /effortToRir/.test(body)
+        && /progressionIncrement/.test(body);
+    })());
+    T('it never reads the Session Score', (() => {
+      const i = src.indexOf('function deriveNextSetCoach');
+      const body = src.slice(i, src.indexOf('function fmtRir', i));
+      return !/sessionScore|deriveSessionExecution|EXEC_CONFIG/.test(body);
+    })());
+    T('it never consults the shadow trainer', (() => {
+      const i = src.indexOf('function deriveNextSetCoach');
+      const body = src.slice(i, src.indexOf('function liveSetEvidence', i))
+        .replace(/\/\*[\s\S]*?\*\//g, ' ');
+      return !/computeShadowRecommendation|proposeTrainerState/.test(body);
+    })());
+    T('next-exposure progression is untouched',
+      /completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12/.test(src) &&
+      ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  }
+
+  sub('pure, deterministic and read-only');
+  {
+    const args = { exerciseName:'Lat Pulldown', rx:HYP,
+      performed:[{ weight:115, reps:10, rir:5 }] };
+    const first = JSON.stringify(ctx.deriveNextSetCoach(args));
+    let stable = true;
+    for(let i = 0; i < 100; i++)
+      if(JSON.stringify(ctx.deriveNextSetCoach(args)) !== first) stable = false;
+    T('identical across 100 evaluations', stable);
+    T('its input is not mutated', JSON.stringify(args.performed) ===
+      JSON.stringify([{ weight:115, reps:10, rir:5 }]));
+    T('the analysis reads no store, history or readiness', (() => {
+      const i = src.indexOf('function deriveNextSetCoach');
+      const body = src.slice(i, src.indexOf('function fmtRir', i));
+      return !/workoutLog|LOOPStore|sortedLog|dailyReadiness|exerciseSessionHistory/.test(body);
+    })());
+    T('no new storage key', ctx.DATA_KEYS.length === 15);
+    T('nothing about a recommendation is persisted',
+      !/coachRecommendation|nextSetSuggestion|liveCoachState/.test(src));
+  }
+
+  sub('the rest timer is never made to wait');
+  {
+    /* The coach runs after startRestPanel inside the same handler, so a
+       recommendation can never delay the thing the athlete is waiting on. */
+    const i = src.indexOf('function toggleSetComplete');
+    const body = src.slice(i, src.indexOf('\nfunction ', i + 40));
+    T('the timer starts before the coach runs',
+      body.indexOf('startRestPanel') < body.indexOf('refreshSetCoach'));
+    T('re-opening a set makes the coach reconsider',
+      (body.match(/refreshSetCoach/g) || []).length >= 2);
   }
 }
 
@@ -18584,6 +18824,7 @@ async function main(){
   await testExecutionIntelligence();
   await testMuscleRegistry();
   await testProgressionEvidence();
+  await testLiveSetCoach();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
