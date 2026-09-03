@@ -1959,7 +1959,10 @@ body.first-use{ padding-bottom: 0; }
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-support); font-weight: 700;
   color: var(--accent); margin-top: 3px; font-variant-numeric: tabular-nums;
 }
+/* D49 — the three states are distinguishable without colour: each carries its
+   own sentence naming what it is and why. The tone token only reinforces. */
 .nexttime-row.nexttime-reduce .nexttime-target{ color: var(--warning); }
+.nexttime-row.nexttime-insufficient .nexttime-target{ color: var(--text-dim); }
 
 .nexttime-card{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; margin-top: 8px; }
 .nexttime-row{ padding: 11px 14px; border-bottom: 1px solid var(--border); }
@@ -9895,6 +9898,27 @@ const LOOP_UPDATES = [
       'Hanging leg raises and other core work could be missed entirely'
     ],
     changes: []
+  },
+  {
+    id: 'v4-3',
+    version: 'LOOP 4.3',
+    title: 'Smarter Next Sets',
+    date: '2026-10-07',
+    swVersion: 'loop-v120',
+    summary: 'Next Time now waits for enough training evidence before giving you a specific target — and still moves decisively when you have earned it.',
+    newFeatures: [],
+    improvements: [
+      'Logging only part of an exercise no longer produces a precise next-rep target — LOOP holds the weight and restates your prescribed range instead',
+      'Next Time reads the prescription from the session you actually did, so editing a program later cannot change advice about a workout already finished',
+      'Strong sessions still earn a clear increase, and repeated grinding still earns a reduction'
+    ],
+    bugFixes: [
+      'Reaching the top of your rep range with no effort logged was treated as having reps in reserve, and added weight on that basis',
+      'Warm-up sets counted as working sets when deciding your next weight',
+      'A single good set could stand in for a whole prescription',
+      'Following a deload correctly could suggest going heavier next time'
+    ],
+    changes: []
   }
 ];
 
@@ -11069,15 +11093,38 @@ function exerciseSessionHistory(exerciseName, limit){
   for(const l of sortedLog()){
     const ex = l.exercises.find(e => e.name.trim().toLowerCase() === key);
     if(ex && !ex.bodyweight && ex.sets && ex.sets.length){
-      const weights = ex.sets.map(s => parseFloat(s.weight)).filter(w => !isNaN(w));
-      const reps = ex.sets.map(s => parseFloat(s.reps)).filter(r => !isNaN(r));
-      const rirs = ex.sets.map(s => parseFloat(s.rir)).filter(r => !isNaN(r));
+      /* D49 — WORKING SETS ONLY. This used to read every set on the exercise,
+         so a warm-up counted as performance: 95 lb × 10 at 5 RIR beside three
+         working sets of 135 × 6 at 1 RIR reported topReps 10 and avgRir 2, and
+         the engine read that as the top of the rep range with reps to spare
+         and added weight. The athlete had actually ground out the BOTTOM of
+         the range. Same predicate the rest of the app uses: a set whose type
+         was never recorded still counts, because unknown is not a warm-up. */
+      const perf = ex.sets.filter(st => {
+        if(isWorkingSet(st) === false) return false;
+        if(st && st.completed === false) return false;
+        return parseFloat(st && st.reps) > 0;
+      });
+      if(!perf.length) continue;
+      const weights = perf.map(s => parseFloat(s.weight)).filter(w => !isNaN(w));
+      const reps = perf.map(s => parseFloat(s.reps)).filter(r => !isNaN(r));
+      const rirs = perf.map(s => parseFloat(s.rir)).filter(r => !isNaN(r));
       if(!weights.length || !reps.length) continue;
+      /* D49 — evidence, alongside the measurements. What LOOP may CONCLUDE
+         depends on how much of the prescription was actually performed and
+         how much of it carried an effort reading, so both travel with the
+         session rather than being re-derived by every caller. */
+      const rx = ex.rx || null;
       sessions.push({
         date: l.date,
         weight: Math.max(...weights),
         topReps: Math.max(...reps),
         setsLogged: ex.sets.length,
+        workingSets: perf.length,
+        rirSets: rirs.length,
+        prescribedSets: (rx && rx.sets > 0) ? rx.sets : null,
+        targetRir: (rx && rx.effort != null) ? effortToRir(rx.effort) : null,
+        prescribedLoad: (rx && rx.load > 0) ? rx.load : null,
         avgRir: rirs.length ? (rirs.reduce((a,b)=>a+b,0) / rirs.length) : null
       });
     }
@@ -11107,6 +11154,80 @@ function progressionIncrement(exerciseName, currentWeight){
   if(isCable)     return currentWeight >= 120 ? 10 : 5;
   if(isBigLift)   return currentWeight >= 225 ? 10 : 5;
   return currentWeight >= 150 ? 10 : 5;
+}
+
+/* =========================================================
+   PROGRESSION EVIDENCE  (Phase D49)
+   ---------------------------------------------------------
+   THE MORE SPECIFIC A RECOMMENDATION IS, THE STRONGER THE
+   EVIDENCE BEHIND IT MUST BE.
+
+     "6–8 reps"            the prescription. Always sayable.
+     "aim for 7"           a personalised target. Needs the
+                           prescription to have been performed.
+     "go to 145"           needs that, plus effort evidence that
+                           the load was actually owned.
+     "drop to 125"         needs two qualifying sessions.
+
+   Before D49 the engine could not tell those apart. One set of
+   six reps with no effort recorded produced "aim for 7 reps" —
+   a number generated by adding one to whatever was last seen,
+   which is pseudo-personalisation rather than a recommendation.
+
+   INSUFFICIENT EVIDENCE IS A VALID ANSWER. The completion screen
+   has a slot for guidance; that is not a reason to invent some.
+   Holding the load and restating the prescribed range is more
+   useful than a specific target the evidence cannot support.
+
+   MISSING RIR IS NOT A VALUE. It is neither spare capacity nor
+   failure. The old headroom test read `avgRir === null` as
+   headroom, so three sets at the top of the range with no effort
+   recorded anywhere earned a load increase on the stated grounds
+   that the athlete "had reps in reserve" — something LOOP had no
+   way of knowing.
+   ========================================================= */
+const PROGRESSION_EVIDENCE = {
+  /* A single set is never a prescription, whatever it contains. Where the
+     prescription was recorded, all of it must have been performed; where it
+     was not, two working sets is the floor at which "a session happened"
+     stops being a guess. */
+  minSetsWithoutRx: 2,
+  /* Headroom is measured against the effort that was ASKED FOR, which is how
+     a deload stays a deload: an easy session is only evidence of an easy LOAD
+     when it was meant to be hard. Falls back to the long-standing absolute
+     figure when no target was recorded. */
+  headroomOverTarget: 1,
+  headroomAbsolute: 1.5,
+  /* One exposure at a load that was just changed is not evidence for changing
+     it again. This is what stops a reduction bouncing straight back up. */
+  settleExposures: 1
+};
+
+/* What may be concluded from one session. Pure, and derived from the session
+   record alone — no store, no program lookup, no readiness. */
+function progressionEvidence(session, prevSession){
+  const out = { performed: false, complete: false, rirKnown: false,
+    headroom: false, loadJustChanged: false, targetRir: null };
+  if(!session) return out;
+  const working = session.workingSets != null ? session.workingSets : session.setsLogged;
+  out.performed = working > 0;
+  /* COMPLETE means the prescription was carried out, not that a good set
+     happened. Extra sets do not make it more complete than complete. */
+  out.complete = session.prescribedSets
+    ? working >= session.prescribedSets
+    : working >= PROGRESSION_EVIDENCE.minSetsWithoutRx;
+  out.rirKnown = (session.rirSets || 0) > 0 && session.avgRir != null;
+  out.targetRir = session.targetRir;
+  if(out.rirKnown){
+    const bar = session.targetRir != null
+      ? session.targetRir + PROGRESSION_EVIDENCE.headroomOverTarget
+      : PROGRESSION_EVIDENCE.headroomAbsolute;
+    out.headroom = session.avgRir >= bar;
+  }
+  /* A load the program or the engine has just moved. Deloads arrive this way,
+     and so does the session after a reduction. */
+  if(prevSession && prevSession.weight > session.weight) out.loadJustChanged = true;
+  return out;
 }
 
 function buildProgressionRecommendation(exerciseName, templateReps, templateRecommended){
@@ -11139,10 +11260,25 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
     };
   }
 
-  // Tier 2: hit the top of the rep range with room to spare — ready to add weight
+  /* D49 — the evidence available from the session being judged. */
+  const ev = progressionEvidence(last, sessions[1]);
+
+  /* Tier 2: top of the rep range, OWNED, with effort to spare — add weight.
+
+     Three gates, each closing a way this used to fire on evidence that did
+     not exist:
+       · the prescription must have been performed, so one good set can no
+         longer impersonate three;
+       · effort must actually be RECORDED — `avgRir === null` used to count
+         as headroom, which is how a session with no RIR anywhere earned an
+         increase justified by reps in reserve nobody logged;
+       · the load must not have just moved. A deload is a load the program
+         deliberately lowered, and one easy session at a weight chosen to be
+         easy is not evidence for going heavier. It is also what stops a
+         reduction bouncing straight back up. */
   const atTop = range && last.topReps >= range.max;
-  const hasHeadroom = last.avgRir === null || last.avgRir >= 1.5;
-  if(atTop && hasHeadroom){
+  const hasHeadroom = ev.headroom;
+  if(atTop && hasHeadroom && ev.complete && !ev.loadJustChanged){
     const newWeight = w + progressionIncrement(exerciseName, w);
     const rirNote = last.avgRir != null ? ` with ~${Math.round(last.avgRir)} RIR` : '';
     const prNote = prPeak && newWeight >= prPeak.weight ? ' — this would match or beat your best.' : '';
@@ -11202,14 +11338,37 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
     };
   }
 
-  // Tier 4: still climbing toward the top of the rep range
-  if(range && last.topReps < range.max){
+  /* Tier 4: still climbing toward the top of the rep range.
+
+     The target used to be last-seen-reps plus one, computed from whatever
+     happened to be in the log. From a single set of six with no effort
+     recorded that produced "aim for 7" — a specific instruction generated by
+     arithmetic rather than by evidence. Personalising the target now requires
+     the prescription to have actually been performed. */
+  if(range && last.topReps < range.max && ev.complete){
     const nextGoal = Math.min(range.max, last.topReps + 1);
     return {
       weight: w,
       headline: `${w} lb × ${templateReps}`,
       why: `Beat last session — aim for ${nextGoal} reps at ${w} lb.`,
       tag: 'build'
+    };
+  }
+
+  /* D49 — INSUFFICIENT EVIDENCE, stated rather than papered over. The load is
+     held because holding is what LOOP can defend, and the prescribed range is
+     still shown because that part IS known: the athlete was asked for 6–8 and
+     that remains true however little of it was logged. What is withheld is
+     the pretence of a personalised number. */
+  if(range && !ev.complete){
+    const shortfall = last.prescribedSets
+      ? `${last.workingSets} of ${last.prescribedSets} sets logged last time`
+      : 'only one set logged last time';
+    return {
+      weight: w,
+      headline: `${w} lb × ${templateReps}`,
+      why: `${shortfall} — keep ${w} lb and work inside ${range.min}–${range.max} reps.`,
+      tag: 'insufficient'
     };
   }
 
@@ -32621,7 +32780,14 @@ function computeNextTimeNotes(entry){
     const key = ex.name.trim().toLowerCase();
     if(seen.has(key)) return;
     seen.add(key);
-    const range = repRangeForExercise(ex.name);
+    /* D49 — the range LOOP actually asked for in THIS session, not the one
+       today's templates happen to hold. ex.rx is the forward-only record of
+       the prescription, and it is authoritative for the workout being
+       summarised: without it, editing a program later silently rewrote the
+       advice given about a session already finished, and the completion
+       screen could judge 6-8 work against an 8-12 target. Legacy sessions
+       carry no rx and keep the existing template lookup. */
+    const range = (ex.rx && ex.rx.reps) ? ex.rx.reps : repRangeForExercise(ex.name);
     const rec = buildProgressionRecommendation(ex.name, range, null);
     if(!rec || !rec.why) return;
     /* D47 — 'reduce' was not in this list, so the one recommendation that
@@ -32629,7 +32795,13 @@ function computeNextTimeNotes(entry){
        is the most important of the set: every other tag is a way of carrying
        on. 'decline' and 'hold' stay out because they say nothing actionable
        that the number beside them does not already say. */
-    if(rec.tag === 'increase' || rec.tag === 'reduce' || rec.tag === 'plateau' || rec.tag === 'build'){
+    /* D49 — 'insufficient' is a real recommendation, not a gap. It says hold
+       the load and work inside the prescribed range, which is the useful and
+       defensible thing to say when the last session was too sparse to
+       personalise a target from. Withholding it would leave the athlete with
+       no guidance at all for exactly the exercise LOOP knows least about. */
+    if(rec.tag === 'increase' || rec.tag === 'reduce' || rec.tag === 'plateau'
+       || rec.tag === 'build' || rec.tag === 'insufficient'){
       /* The target itself, not just the sentence about it. It is the same
          function the logger will call next session, so what the athlete reads
          here is what they will be handed when they train. */

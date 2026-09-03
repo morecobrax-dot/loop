@@ -5754,3 +5754,152 @@ unused day.
 Six viewports clean on Today's muscle block, Muscle Volume, Mastery and
 Progress Overview. `DATA_KEYS` remains 15, no storage key was added, no backup
 format changed, and browser storage was byte-identical across the whole QA pass.
+
+---
+
+## §73 — D49: Specificity must be earned
+
+**Status.** Shipped in LOOP 4.3 (`loop-v120`).
+
+### The rule
+
+> The more specific a recommendation is, the stronger the evidence behind it
+> must be.
+
+| output | evidence required |
+|---|---|
+| `6–8 reps` | the prescription. Always sayable. |
+| `aim for 7` | the prescription was actually performed. |
+| `go to 145` | that, plus recorded effort showing the load was owned, and a load that has not just moved. |
+| `drop to 125` | two consecutive qualifying sessions (D47, unchanged). |
+
+**Insufficient evidence is a valid recommendation state.** The completion
+screen has a slot for guidance; that is not a reason to invent some.
+
+### Four defects, one boundary
+
+The phase was scoped around a single known limitation. Probing the live engine
+found four, three of them worse than the one named.
+
+**1 — A specific rep target from a sparse session.** Tier 4 computed
+`Math.min(range.max, last.topReps + 1)` — last-seen reps plus one, from
+whatever happened to be in the log. One set of six reps with no effort recorded
+produced *"aim for 7 reps at 135 lb"*. That is arithmetic, not a
+recommendation.
+
+**2 — Missing RIR read as spare RIR.** The headroom test was
+`last.avgRir === null || last.avgRir >= 1.5`. Three sets at the top of the
+range with **no effort recorded anywhere** earned a load increase, justified on
+screen as *"You hit 8 reps last session — ready for a small increase."* LOOP
+had no way of knowing there was anything in reserve. Missing effort is neither
+spare capacity nor failure; it is missing.
+
+**3 — Warm-ups counted as performance.** `exerciseSessionHistory` read every
+set on the exercise. A warm-up of 95 × 10 at 5 RIR beside three working sets of
+135 × 6 at 1 RIR reported `topReps 10, avgRir 2` — the top of the range with
+reps to spare — and the engine added weight to a session the athlete had ground
+out at the **bottom** of the range. This is the one with a safety edge.
+
+**4 — One good set impersonating a prescription.** A single set of 8 at RIR 2,
+out of three prescribed, earned an increase. Nothing measured how much of the
+prescription had been done.
+
+And a fifth, found in the UI while verifying:
+
+**5 — Next Time judged a finished session against today's templates.**
+`computeNextTimeNotes` resolved the rep range with `repRangeForExercise`, which
+reads the athlete's current templates. A session prescribed 6–8 was being
+judged against an 8–12 template range, and editing a program later silently
+rewrote the advice given about a workout already finished. It now reads
+`ex.rx.reps` — D47's forward-only record of what LOOP actually asked that day —
+and falls back to the template lookup only for legacy sessions that carry no
+prescription.
+
+### The evidence model
+
+`exerciseSessionHistory` now reports evidence alongside measurement:
+`workingSets`, `rirSets`, `prescribedSets`, `targetRir`, `prescribedLoad` —
+with `topReps` and `avgRir` computed over **working sets only**, using the same
+predicate the rest of the app uses (a set whose type was never recorded still
+counts, because unknown is not a warm-up).
+
+`progressionEvidence(session, prev)` derives four facts and nothing else:
+
+- **complete** — `workingSets >= prescribedSets` where the prescription was
+  recorded, otherwise at least two working sets. A single set is never a
+  prescription, whatever it contains. Extra sets do not make it more complete
+  than complete.
+- **rirKnown** — at least one working set carried an effort reading.
+- **headroom** — only when `rirKnown`, and measured against the effort that was
+  *asked for*: `avgRir >= targetRir + 1`, falling back to the long-standing
+  absolute 1.5 when no target was recorded.
+- **loadJustChanged** — the previous session was heavier.
+
+That last fact is how a deload stays a deload **without a separate deload
+rule**, which §26 forbids. A deload is a load the program deliberately lowered;
+one easy session at a weight chosen to be easy is not evidence for going
+heavier. The same fact stops a reduction bouncing straight back up: the first
+exposure at a changed load holds, and the second can progress, so the athlete
+is never stuck.
+
+Nothing is persisted. There is no confidence score, no percentage, and
+`DATA_KEYS` remains 15.
+
+### Declared cases
+
+Contract 148 states each case's prescription, its performance and the answer a
+coach would give — declared, never read off the engine.
+
+| case | before | after |
+|---|---|---|
+| 1 of 3 sets, 6 reps, no RIR | build · *aim for 7* | **insufficient** · hold 135, work inside 6–8 |
+| 1 of 3 sets, 8 reps @ RIR 2 | increase → 140 | **insufficient** · hold 135 |
+| 3 of 3 at top of range, no RIR | increase → 140 | **hold** 135 |
+| 3 of 3, 8@3 8@2 8@2 | increase → 140 | **increase → 140** (unchanged) |
+| 3 of 3, 7@2 7@2 6@2 | build · aim for 8 | **build** (unchanged) |
+| one grinding session | build | **build** (unchanged — one session is not evidence) |
+| two grinding sessions | reduce → 130 | **reduce → 130** (unchanged) |
+| deload followed exactly | increase → 110 | **hold** 105 |
+| warm-up + 3 working sets of 6 | increase → 140 | **build** · aim for 7 |
+| partial RIR, prescription complete | increase | **increase** (partial coverage is still evidence) |
+| legacy session, no `rx` | build | **build** (safe legacy behaviour) |
+
+The engine did not become timid: every case that earned a change before still
+earns it.
+
+### What did not change
+
+Session Score is untouched — weights `40 / 30 / 18 / 12`, missing-RIR
+renormalisation, prescription snapshot, all as D47 shipped them. A contract
+asserts the progression engine never reads the score, because **a high score
+must not mean add weight**: a session can execute its prescription perfectly
+and still be told to hold, and those are different questions.
+
+`TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`. No trainer threshold, state,
+readiness, recovery, capability or promotion logic was touched, and the shadow
+trainer is not consulted for live progression. D48's registry and recovery
+anatomy are untouched. `progressionIncrement` and equipment rounding are
+unchanged, so the ladder an athlete climbs is still the ladder they come down.
+
+### Verification
+
+5,556 assertions across 148 contracts, 327 program-audit checks, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix across three zones — all
+green. Determinism confirmed over 100 evaluations, and reversing irrelevant
+earlier history changes nothing. Six viewports clean across the increase, hold,
+reduce and insufficient states with a deliberately long exercise name; browser
+storage was byte-identical across the whole QA pass.
+
+One older assertion was repointed: Contract 146's check that a load reduction
+reaches the athlete was bounded by a character count, which broke the moment
+the function it measured grew. It is now bounded by the next function — a
+property of the code rather than of the ruler. This is the second such fix; the
+pattern is worth watching for.
+
+### Remaining limitation, carried forward
+
+One grinding session below the rep range still returns *"aim for 6 reps"* — a
+build instruction to an athlete who is struggling. D47 decided deliberately
+that one session is not enough evidence to change the load, and D49 preserves
+that. The copy is the weak part rather than the decision, and changing it would
+re-litigate D47 without new evidence.

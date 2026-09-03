@@ -16486,8 +16486,12 @@ async function testExecutionIntelligence(){
         && !/computeShadowRecommendation/.test(body);
     })());
     T('a load reduction actually reaches the athlete', (() => {
+      /* D49 — bounded by the next function rather than a character count. The
+         count broke the moment the function grew, which is a property of the
+         ruler and not of the code being measured. */
       const i = src.indexOf('function computeNextTimeNotes');
-      return /rec\.tag === 'reduce'/.test(src.slice(i, i + 1600));
+      const body = src.slice(i, src.indexOf('\nfunction ', i + 40));
+      return /rec\.tag === 'reduce'/.test(body);
     })());
   }
 
@@ -16869,6 +16873,256 @@ async function testMuscleRegistry(){
       mus('Seated Leg Curl').primary.join() === mus('seated leg curl').primary.join());
     T('but distinct movements are not normalised together',
       mus('Leg Curl').primary.join() !== mus('Leg Extension').primary.join());
+  }
+}
+
+/* =========================================================
+   CONTRACT 148 — PROGRESSION EVIDENCE  (Phase D49)
+
+   THE MORE SPECIFIC THE RECOMMENDATION, THE STRONGER THE
+   EVIDENCE MUST BE. Each case below states its prescription, its
+   performance and the answer a coach would give, declared here
+   rather than read off the engine.
+   ========================================================= */
+async function testProgressionEvidence(){
+  section('CONTRACT 148 — progression evidence (D49)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  const S = (w, r, rir, type) => ({ weight:String(w), reps:String(r),
+    rir: rir == null ? '' : String(rir), type: type || 'working', completed:true });
+  const D = n => { const d = new Date(Date.now() - n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  /* 3 x 6-8 at effort 8, which is RIR 1, on 135. */
+  const N  = { sets:3, reps:'6-8', effort:8, load:135 };
+  /* the same shape, deliberately easier: effort 6 is RIR 2, on 105. */
+  const DL = { sets:3, reps:'6-8', effort:6, load:105 };
+
+  const build = list => {
+    ctx.workoutLog = list.map((o, i) => ({ id:'x'+i, date: D((list.length - i) * 3),
+      category:'push', title:'P', notes:'',
+      exercises:[Object.assign({ name:'Bench Press', bodyweight:false, sets:o.sets },
+        o.rx === null ? {} : { rx: o.rx || N })] }));
+    ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
+  };
+  const rec = () => ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+
+  sub('the hand-declared table');
+  {
+    /* [label, sessions oldest-last, expected tag, expected weight or null] */
+    const CASES = [
+      ['A. 1 of 3 sets, 6 reps, no RIR',
+        [{ sets:[S(135,6,null)] }], 'insufficient', 135],
+      ['B. 1 of 3 sets, 8 reps at RIR 2 — one good set is not a prescription',
+        [{ sets:[S(135,8,2)] }], 'insufficient', 135],
+      ['C. 3 of 3 at the top of the range, no RIR anywhere',
+        [{ sets:[S(135,8,null),S(135,8,null),S(135,8,null)] }], 'hold', 135],
+      ['D. 3 of 3, 8@3 8@2 8@2 — earned',
+        [{ sets:[S(135,8,3),S(135,8,2),S(135,8,2)] }], 'increase', 140],
+      ['E. 3 of 3, 7@2 7@2 6@2 — on target',
+        [{ sets:[S(135,7,2),S(135,7,2),S(135,6,2)] }], 'build', 135],
+      ['F. one grinding session below range',
+        [{ sets:[S(135,5,0),S(135,4,0),S(135,4,0)] }], 'build', 135],
+      ['G. two grinding sessions below range',
+        [{ sets:[S(135,5,0),S(135,5,0),S(135,4,0)] },
+         { sets:[S(135,5,0),S(135,4,0),S(135,4,0)] }], 'reduce', 130],
+      ['H. deload followed exactly, after heavy weeks',
+        [{ sets:[S(135,7,1),S(135,7,1),S(135,6,1)] },
+         { sets:[S(135,7,1),S(135,7,1),S(135,7,1)] },
+         { sets:[S(105,8,3),S(105,8,3),S(105,8,3)], rx: DL }], 'hold', 105],
+      ['I. partial RIR coverage, prescription complete',
+        [{ sets:[S(135,8,2),S(135,8,null),S(135,8,2)] }], 'increase', 140],
+      ['J. legacy session with no prescription recorded',
+        [{ sets:[S(135,7,1),S(135,7,1),S(135,7,1)], rx: null }], 'build', 135]
+    ];
+    let bad = 0;
+    CASES.forEach(([label, sessions, wantTag, wantWeight]) => {
+      build(sessions);
+      const r = rec();
+      const ok = r.tag === wantTag && (wantWeight == null || r.weight === wantWeight);
+      if(!ok){ bad++; T(label + ' -> ' + wantTag, false,
+        'got [' + r.tag + '] ' + r.weight + ' :: ' + r.why); }
+    });
+    T(CASES.length + ' declared progression cases all hold', bad === 0, bad + ' wrong');
+  }
+
+  sub('specificity must be earned');
+  {
+    /* The exact defect: one set, six reps, no effort recorded, and the engine
+       answering with a personalised rep target computed by adding one to the
+       last thing it saw. */
+    build([{ sets:[S(135,6,null)] }]);
+    const sparse = rec();
+    T('a sparse session yields no personalised rep target',
+      !/aim for \d/.test(sparse.why), sparse.why);
+    T('but the prescribed range is still stated', /6\u20138|6-8/.test(sparse.why), sparse.why);
+    T('and the load is held, not changed', sparse.weight === 135);
+
+    build([{ sets:[S(135,6,1),S(135,6,1),S(135,6,1)] }]);
+    const full = rec();
+    T('the same reps, fully performed, DO earn a personalised target',
+      /aim for \d/.test(full.why), full.why);
+
+    /* The ladder, stated as an ordering rather than as a set of literals. */
+    T('less evidence never produces more precision than more evidence', (() => {
+      const specificity = r => (/go to|drop to/.test(r.why) ? 3 :
+        (/aim for \d/.test(r.why) ? 2 : 1));
+      build([{ sets:[S(135,6,null)] }]);              const one = specificity(rec());
+      build([{ sets:[S(135,6,1),S(135,6,1),S(135,6,1)] }]); const three = specificity(rec());
+      return one <= three;
+    })());
+  }
+
+  sub('missing effort is not a value');
+  {
+    build([{ sets:[S(135,8,null),S(135,8,null),S(135,8,null)] }]);
+    const noRir = rec();
+    T('top of range with no RIR does not add weight', noRir.tag !== 'increase',
+      noRir.tag + ' ' + noRir.weight);
+    T('and never claims reps were left in reserve',
+      !/in reserve|RIR|reps to spare/i.test(noRir.why), noRir.why);
+    build([{ sets:[S(135,5,null),S(135,4,null),S(135,4,null)] },
+           { sets:[S(135,5,null),S(135,4,null),S(135,4,null)] }]);
+    T('and is never read as failure either', rec().tag !== 'reduce');
+    T('the headroom test requires recorded effort', (() => {
+      const i = src.indexOf('function progressionEvidence');
+      const body = src.slice(i, src.indexOf('function buildProgressionRecommendation', i));
+      return /out\.rirKnown\s*=/.test(body) && /if\(out\.rirKnown\)/.test(body);
+    })());
+    T('the old null-means-headroom test is gone',
+      !/avgRir === null \|\| last\.avgRir >= 1\.5/.test(src));
+  }
+
+  sub('one set cannot impersonate a completed prescription');
+  {
+    build([{ sets:[S(135,8,2)] }]);
+    const one = rec();
+    build([{ sets:[S(135,8,2),S(135,8,2),S(135,8,2)] }]);
+    const three = rec();
+    T('one excellent set does not add weight', one.tag !== 'increase');
+    T('three of three does', three.tag === 'increase');
+    T('completion is measured against the recorded prescription', (() => {
+      const i = src.indexOf('function progressionEvidence');
+      const body = src.slice(i, src.indexOf('function buildProgressionRecommendation', i));
+      return /prescribedSets/.test(body);
+    })());
+    T('extra sets do not make it more complete than complete', (() => {
+      build([{ sets:[S(135,8,2),S(135,8,2),S(135,8,2),S(135,8,2),S(135,8,2)] }]);
+      const extra = rec();
+      return extra.tag === three.tag && extra.weight === three.weight;
+    })());
+  }
+
+  sub('warm-ups are not performance');
+  {
+    /* A warm-up used to be read as a working set: 95 x 10 at 5 RIR beside
+       three working sets of 135 x 6 at 1 RIR reported the top of the range
+       with reps to spare, and the engine added weight to a session the
+       athlete had ground out at the BOTTOM of the range. */
+    build([{ sets:[S(95,10,5,'warmup'),S(135,6,1),S(135,6,1),S(135,6,1)] }]);
+    const r = rec();
+    T('a warm-up does not earn a load increase', r.tag !== 'increase', r.tag + ' ' + r.weight);
+    T('the history reports working sets only', (() => {
+      const h = ctx.exerciseSessionHistory('Bench Press', 1)[0];
+      return h.topReps === 6 && h.workingSets === 3;
+    })(), JSON.stringify(ctx.exerciseSessionHistory('Bench Press',1)[0]));
+  }
+
+  sub('a load that just moved is not evidence for moving it again');
+  {
+    /* A deload is a load the program lowered on purpose. One easy session at
+       a weight chosen to be easy is not a reason to go heavier. */
+    build([{ sets:[S(135,7,1),S(135,7,1),S(135,6,1)] },
+           { sets:[S(135,7,1),S(135,7,1),S(135,7,1)] },
+           { sets:[S(105,8,3),S(105,8,3),S(105,8,3)], rx: DL }]);
+    T('a correctly followed deload does not escalate', rec().tag !== 'increase');
+    T('and the deload load itself is held', rec().weight === 105);
+
+    /* But the engine must not become timid: back at the normal load with real
+       evidence, it progresses exactly as before. */
+    build([{ sets:[S(135,7,1),S(135,7,1),S(135,7,1)] },
+           { sets:[S(105,8,3),S(105,8,3),S(105,8,3)], rx: DL },
+           { sets:[S(135,8,2),S(135,8,2),S(135,8,2)] }]);
+    T('the exposure after a deload still progresses on real evidence',
+      rec().tag === 'increase' && rec().weight === 140);
+
+    /* The same rule stops a reduction bouncing straight back up. */
+    const R = { sets:3, reps:'6-8', effort:8, load:130 };
+    build([{ sets:[S(135,5,0),S(135,5,0),S(135,4,0)] },
+           { sets:[S(135,5,0),S(135,4,0),S(135,4,0)] },
+           { sets:[S(130,8,2),S(130,8,2),S(130,8,2)], rx: R }]);
+    T('the first session at a reduced load does not re-escalate', rec().tag !== 'increase');
+    build([{ sets:[S(130,8,2),S(130,8,2),S(130,8,2)], rx: R },
+           { sets:[S(130,8,2),S(130,8,2),S(130,8,2)], rx: R }]);
+    T('but the second one can, so the athlete is not stuck', rec().tag === 'increase');
+  }
+
+  sub('Session Score does not drive progression');
+  {
+    /* A session can execute the prescription perfectly and still be told to
+       hold. Score answers "how well did I do what was asked"; progression
+       answers "what changes next time". They are different questions. */
+    build([{ sets:[S(135,7,1),S(135,7,1),S(135,7,1)] }]);
+    const entry = ctx.workoutLog[ctx.workoutLog.length - 1];
+    const score = ctx.sessionScore(entry);
+    const r = rec();
+    T('a high score can accompany a hold or build',
+      score.available && score.score >= 90 && r.tag !== 'increase',
+      'score=' + score.score + ' tag=' + r.tag);
+    T('the engine never reads the score', (() => {
+      const i = src.indexOf('function buildProgressionRecommendation');
+      const body = src.slice(i, src.indexOf('\nfunction ', i + 40));
+      return !/sessionScore|deriveSessionExecution|EXEC_CONFIG/.test(body);
+    })());
+    T('and the score weights are untouched',
+      /completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12/.test(src));
+  }
+
+  sub('one engine, no persisted confidence');
+  {
+    T('no second progression engine',
+      !/function progressionConfidenceEngine|function smartRepTargetEngine|function nextSessionRecommendationV2/.test(src));
+    T('evidence is derived, never stored',
+      !/progressionConfidence|recommendationEvidence|nextRepConfidence/.test(src));
+    T('no new storage key', ctx.DATA_KEYS.length === 15);
+    T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('no invented confidence percentage is shown',
+      !/[Cc]onfidence: ?\$\{|[Cc]onfidence \d+%/.test(src));
+    T('the shadow trainer is not consulted for live progression', (() => {
+      const i = src.indexOf('function buildProgressionRecommendation');
+      const body = src.slice(i, src.indexOf('\nfunction ', i + 40));
+      return !/computeShadowRecommendation|proposeTrainerState/.test(body);
+    })());
+  }
+
+  sub('deterministic and order-independent');
+  {
+    build([{ sets:[S(135,8,3),S(135,8,2),S(135,8,2)] }]);
+    const first = JSON.stringify(rec());
+    let stable = true;
+    for(let i = 0; i < 100; i++) if(JSON.stringify(rec()) !== first) stable = false;
+    T('identical across 100 evaluations', stable);
+
+    /* Irrelevant older history, in either order, must not change the answer. */
+    const tail = [{ sets:[S(95,12,4)] }, { sets:[S(100,10,3)] }];
+    build(tail.concat([{ sets:[S(135,8,3),S(135,8,2),S(135,8,2)] }]));
+    const a = JSON.stringify(rec());
+    build(tail.slice().reverse().concat([{ sets:[S(135,8,3),S(135,8,2),S(135,8,2)] }]));
+    const b = JSON.stringify(rec());
+    T('reversing irrelevant earlier history changes nothing', a === b);
+  }
+
+  sub('reading a recommendation writes nothing');
+  {
+    build([{ sets:[S(135,8,2),S(135,8,2),S(135,8,2)] }]);
+    const before = JSON.stringify(ctx.workoutLog);
+    const trainerBefore = ctx.trainerLog ? ctx.trainerLog.entries.length : 0;
+    for(let i = 0; i < 5; i++){ rec(); ctx.exerciseSessionHistory('Bench Press', 5); }
+    T('history is unchanged', JSON.stringify(ctx.workoutLog) === before);
+    T('the trainer log is unchanged',
+      (ctx.trainerLog ? ctx.trainerLog.entries.length : 0) === trainerBefore);
   }
 }
 
@@ -18329,6 +18583,7 @@ async function main(){
   await testProgressCommandCentre();
   await testExecutionIntelligence();
   await testMuscleRegistry();
+  await testProgressionEvidence();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
