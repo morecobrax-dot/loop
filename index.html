@@ -9875,6 +9875,26 @@ const LOOP_UPDATES = [
       'Warm-ups that needed a side switch just showed one countdown'
     ],
     changes: []
+  },
+  {
+    id: 'v4-2',
+    version: 'LOOP 4.2',
+    title: 'The Right Muscles',
+    date: '2026-09-30',
+    swVersion: 'loop-v119',
+    summary: 'LOOP now recognises far more exercise variations and credits them to the muscles they actually train.',
+    newFeatures: [],
+    improvements: [
+      'Incline and decline pressing, chin-ups, face pulls, push-ups and dozens of other variations now count toward the right muscle group',
+      'Today, Muscle Volume and recovery all read one shared exercise-to-muscle source, so they can no longer disagree',
+      'Compound lifts credit their main muscle rather than counting two or three times — a squat is quads, with glutes assisting'
+    ],
+    bugFixes: [
+      'Leg curls counted toward your biceps',
+      'Incline dumbbell pressing counted toward nothing at all',
+      'Hanging leg raises and other core work could be missed entirely'
+    ],
+    changes: []
   }
 ];
 
@@ -10726,11 +10746,13 @@ function computeWorkoutProfile(t){
 function computeMuscleTotals(t){
   const totals = {};
   Object.keys(MUSCLE_MAP).forEach(k => totals[k] = 0);
+  /* D48 — one anatomy. The figure used to run its own substring scan, so the
+     body could shade a muscle the rest of the app did not believe was
+     trained. It now reads the same resolver as recovery and muscle volume. */
   t.exercises.forEach(ex => {
-    const n = ex.name.toLowerCase();
     const sets = parseInt(ex.sets) || 3;
-    Object.keys(MUSCLE_MAP).forEach(group => {
-      if(MUSCLE_MAP[group].some(kw => n.includes(kw))) totals[group] += sets;
+    musclesForExercise(ex.name).primary.forEach(group => {
+      if(group in totals) totals[group] += sets;
     });
   });
   return totals;
@@ -11284,13 +11306,13 @@ const MUSCLE_LABELS = { chest:'Chest', shoulders:'Shoulders', back:'Back', bicep
 function computeMuscleGroupBreakdown(){
   const totals = {};
   Object.keys(MUSCLE_MAP).forEach(k => totals[k] = 0);
+  /* D48 — reads the one resolver, like every other muscle consumer. */
   workoutLog.forEach(l => {
     l.exercises.forEach(ex => {
-      const n = ex.name.toLowerCase();
       const setCount = (ex.sets || []).length;
       if(!setCount) return;
-      Object.keys(MUSCLE_MAP).forEach(group => {
-        if(MUSCLE_MAP[group].some(kw => n.includes(kw))) totals[group] += setCount;
+      musclesForExercise(ex.name).primary.forEach(group => {
+        if(group in totals) totals[group] += setCount;
       });
     });
   });
@@ -12441,8 +12463,12 @@ function computeShadowRecommendation(exerciseName, options){
 
     const perf   = extractPerformanceSignal(cap, targetRange);
     const capSig = extractCapabilitySignal(cap);
-    const primaryMuscles = meta.mapped && meta.primary.length ? meta.primary
-      : Object.keys(MUSCLE_MAP).filter(m => MUSCLE_MAP[m].some(kw => name.toLowerCase().includes(kw)));
+    /* D48 — this already preferred canonical metadata and fell back to a raw
+       substring scan. The fallback is now the shared resolver, whose first
+       tier IS that same canonical lookup, so both branches collapse into one
+       call and an unrecognised name gets family-level truth instead of
+       whichever keyword happened to appear in it. */
+    const primaryMuscles = musclesForExercise(name).primary;
     const recSig   = extractRecoverySignal(primaryMuscles);
     const readySig = extractReadinessSignal();
 
@@ -19222,11 +19248,12 @@ function computeMuscleVolumeSince(fromDate){
   workoutLog.forEach(l => {
     if(new Date(l.date + 'T00:00:00') < fromDate) return;
     l.exercises.forEach(ex => {
-      const n = (ex.name || '').toLowerCase();
       const setCount = (ex.sets || []).length;
       if(!setCount) return;
-      Object.keys(MUSCLE_MAP).forEach(group => {
-        if(MUSCLE_MAP[group].some(kw => n.includes(kw))) totals[group] += setCount;
+      /* D48 — the shared resolver. Before this, an incline press contributed
+         to nothing here and a leg curl contributed to the biceps. */
+      musclesForExercise(ex.name).primary.forEach(group => {
+        if(group in totals) totals[group] += setCount;
       });
     });
   });
@@ -19454,18 +19481,232 @@ const MUSCLE_OVERRIDES = {
   'cable upright row':      { primary:['shoulders'], secondary:['back'] }
 };
 
+/* =========================================================
+   EXERCISE MUSCLE RESOLUTION  (Phase D48)
+   ---------------------------------------------------------
+   ONE question, ONE answer: what muscles does LOOP believe
+   this exercise trains?
+
+   THE DEFECT THIS REPLACES. LOOP has had a canonical exercise
+   registry since the trainer was built — CANONICAL_EXERCISES,
+   resolved by EXACT normalized alias, carrying primary,
+   secondary, pattern and equipment for 62 movements. It is
+   correct. This function never consulted it. It matched raw
+   display-name substrings against MUSCLE_MAP instead, which
+   produced three distinct classes of wrong answer:
+
+     LOST      "Incline Dumbbell Press" matched nothing, because
+               MUSCLE_MAP holds "incline press" and the string
+               says "incline dumbbell press". Face Pull, Chin-Up,
+               Push-Up, Military Press and thirty others were
+               likewise invisible — the registry knew all of them.
+
+     WRONG     MUSCLE_MAP.biceps is the single token "curl", so
+               every leg curl trained the biceps. "Hamstring
+               Curl" resolved to biceps and NOT hamstrings.
+
+     INFLATED  MUSCLE_MAP.glutes contains "squat", "lunge" and
+               "deadlift", so every squat was PRIMARY quads AND
+               PRIMARY glutes. Secondary involvement was being
+               promoted to primary, and every compound lift
+               counted two or three times in muscle volume.
+
+   Of 431 exercise names the product can reach, 77 disagreed with
+   the registry and 68 had no primary muscle at all.
+
+   PRECEDENCE, most specific first. Each tier is only reached when
+   the one above it has nothing to say:
+
+     1. CANONICAL ID     exact alias → the registry. Authoritative.
+     2. EXACT OVERRIDE   MUSCLE_OVERRIDES, for names the registry
+                         does not carry.
+     3. FAMILY RULE      an ordered table of specific phrases, for
+                         variants the registry does not name
+                         individually — "Sumo Deadlift" is not the
+                         same exercise as "Deadlift" and must not
+                         become an alias of it, but it is the same
+                         family and its anatomy is not in doubt.
+     4. KEYWORD          the old MUSCLE_MAP scan, kept but demoted.
+     5. UNKNOWN          empty. An exercise LOOP cannot identify is
+                         reported as unidentified, never guessed.
+
+   PRIMARY MEANS PRIMARY. Secondary involvement is real and is
+   still reported, but it stays in `secondary`. Consumers that ask
+   for primary get the principal group and nothing else.
+   ========================================================= */
+
+/* ORDERED — first match wins, and specific phrases precede generic tokens.
+   This is the same precedence movementPatternFor() has always used, which is
+   why patterns never developed the leg-curl bug that anatomy did.
+
+   These are FAMILIES, not exercises. They exist so an unrecognised variant of
+   a well-understood movement gets defensible anatomy instead of falling
+   through to a single-token keyword scan. Anything genuinely ambiguous is
+   deliberately absent so it reaches UNKNOWN. */
+const MUSCLE_FAMILY_RULES = [
+  /* --- the curl collision, resolved by phrase rather than by token --- */
+  { phrase:'hamstring curl',      primary:['hamstrings'], secondary:[] },
+  { phrase:'hamstrings curl',     primary:['hamstrings'], secondary:[] },
+  { phrase:'nordic curl',         primary:['hamstrings'], secondary:['glutes'] },
+  { phrase:'leg curl',            primary:['hamstrings'], secondary:[] },
+  /* --- core work whose names contain "leg" --- */
+  { phrase:'hanging knee raise',  primary:['abs'], secondary:[] },
+  { phrase:'hanging leg raise',   primary:['abs'], secondary:[] },
+  { phrase:'lying leg raise',     primary:['abs'], secondary:[] },
+  { phrase:'leg raise',           primary:['abs'], secondary:[] },
+  /* --- hinge, most specific first: an RDL is not a conventional pull --- */
+  { phrase:'stiff leg deadlift',  primary:['hamstrings'], secondary:['glutes','back'] },
+  { phrase:'stiff-leg deadlift',  primary:['hamstrings'], secondary:['glutes','back'] },
+  { phrase:'romanian deadlift',   primary:['hamstrings'], secondary:['glutes','back'] },
+  { phrase:'romanian dead lift',  primary:['hamstrings'], secondary:['glutes','back'] },
+  { phrase:'single-leg deadlift', primary:['hamstrings'], secondary:['glutes'] },
+  { phrase:'single leg deadlift', primary:['hamstrings'], secondary:['glutes'] },
+  { phrase:'rdl',                 primary:['hamstrings'], secondary:['glutes','back'] },
+  { phrase:'good morning',        primary:['hamstrings'], secondary:['glutes','back'] },
+  { phrase:'back extension',      primary:['hamstrings'], secondary:['glutes','back'] },
+  { phrase:'pull-through',        primary:['glutes'], secondary:['hamstrings'] },
+  { phrase:'pull through',        primary:['glutes'], secondary:['hamstrings'] },
+  { phrase:'kettlebell swing',    primary:['glutes'], secondary:['hamstrings'] },
+  { phrase:'hip thrust',          primary:['glutes'], secondary:['hamstrings'] },
+  { phrase:'glute bridge',        primary:['glutes'], secondary:['hamstrings'] },
+  { phrase:'hip abduction',       primary:['glutes'], secondary:[] },
+  { phrase:'lateral walk',        primary:['glutes'], secondary:[] },
+  { phrase:'lateral band walk',   primary:['glutes'], secondary:[] },
+  { phrase:'monster walk',        primary:['glutes'], secondary:[] },
+  { phrase:'deadlift',            primary:['back','hamstrings'], secondary:['glutes'] },
+  /* --- knee-dominant: quads lead, glutes assist. Never both primary. --- */
+  { phrase:'bulgarian split squat', primary:['quads'], secondary:['glutes'] },
+  { phrase:'split squat',         primary:['quads'], secondary:['glutes'] },
+  { phrase:'leg extension',       primary:['quads'], secondary:[] },
+  { phrase:'quad extension',      primary:['quads'], secondary:[] },
+  { phrase:'leg press',           primary:['quads'], secondary:['glutes'] },
+  { phrase:'wall sit',            primary:['quads'], secondary:[] },
+  { phrase:'step-up',             primary:['quads'], secondary:['glutes'] },
+  { phrase:'step up',             primary:['quads'], secondary:['glutes'] },
+  { phrase:'lunge',               primary:['quads'], secondary:['glutes'] },
+  { phrase:'squat',               primary:['quads'], secondary:['glutes','hamstrings'] },
+  { phrase:'calf raise',          primary:['calves'], secondary:[] },
+  /* --- pressing variants the registry does not name individually --- */
+  { phrase:'close-grip bench',    primary:['triceps'], secondary:['chest'] },
+  { phrase:'close grip bench',    primary:['triceps'], secondary:['chest'] },
+  /* Word order varies by gym and by author: 'Incline Machine Press',
+     'Machine Incline Press', 'Decline Dumbbell Press'. A contiguous phrase
+     cannot cover them all, so these require both tokens to be PRESENT rather
+     than adjacent. Both are required, which is what stops 'Incline Curl' or
+     'Decline Sit-Up' reaching a pressing rule. */
+  { all:['incline','press'],      primary:['chest'], secondary:['triceps','shoulders'] },
+  { all:['decline','press'],      primary:['chest'], secondary:['triceps'] },
+  { all:['incline','bench'],      primary:['chest'], secondary:['triceps','shoulders'] },
+  { all:['decline','bench'],      primary:['chest'], secondary:['triceps'] },
+  { all:['flat','press'],         primary:['chest'], secondary:['triceps','shoulders'] },
+  { phrase:'decline press',       primary:['chest'], secondary:['triceps'] },
+  { phrase:'incline bench',       primary:['chest'], secondary:['triceps','shoulders'] },
+  { phrase:'decline bench',       primary:['chest'], secondary:['triceps'] },
+  { phrase:'chest press',         primary:['chest'], secondary:['triceps','shoulders'] },
+  { phrase:'bench press',         primary:['chest'], secondary:['triceps','shoulders'] },
+  { phrase:'chest pass',          primary:['chest'], secondary:['shoulders'] },
+  { phrase:'floor press',         primary:['chest'], secondary:['triceps'] },
+  { phrase:'pike push',           primary:['shoulders'], secondary:['triceps'] },
+  { phrase:'push-up',             primary:['chest'], secondary:['triceps','shoulders'] },
+  { phrase:'push up',             primary:['chest'], secondary:['triceps','shoulders'] },
+  /* --- shoulders, including the rear-delt work that reads as chest/back --- */
+  { phrase:'reverse pec deck',    primary:['shoulders'], secondary:['back'] },
+  { phrase:'rear delt',           primary:['shoulders'], secondary:['back'] },
+  { phrase:'reverse fly',         primary:['shoulders'], secondary:['back'] },
+  { phrase:'snow angel',          primary:['shoulders'], secondary:['back'] },
+  { phrase:'band pull-apart',     primary:['shoulders'], secondary:['back'] },
+  { phrase:'band pull apart',     primary:['shoulders'], secondary:['back'] },
+  { phrase:'face pull',           primary:['shoulders'], secondary:['back'] },
+  { phrase:'upright row',         primary:['shoulders'], secondary:['back'] },
+  { phrase:'lateral raise',       primary:['shoulders'], secondary:[] },
+  { phrase:'front raise',         primary:['shoulders'], secondary:[] },
+  { phrase:'overhead press',      primary:['shoulders'], secondary:['triceps'] },
+  { phrase:'shoulder press',      primary:['shoulders'], secondary:['triceps'] },
+  { phrase:'push press',          primary:['shoulders'], secondary:['triceps'] },
+  { phrase:'arnold press',        primary:['shoulders'], secondary:['triceps'] },
+  /* --- arms --- */
+  { phrase:'overhead extension',  primary:['triceps'], secondary:[] },
+  { phrase:'rope extension',      primary:['triceps'], secondary:[] },
+  { phrase:'cable extension',     primary:['triceps'], secondary:[] },
+  { phrase:'triceps extension',   primary:['triceps'], secondary:[] },
+  { phrase:'tricep extension',    primary:['triceps'], secondary:[] },
+  { phrase:'skull crusher',       primary:['triceps'], secondary:[] },
+  { phrase:'skullcrusher',        primary:['triceps'], secondary:[] },
+  { phrase:'pushdown',            primary:['triceps'], secondary:[] },
+  /* --- pulling --- */
+  { phrase:'lat pulldown',        primary:['back'], secondary:['biceps'] },
+  { phrase:'pulldown',            primary:['back'], secondary:['biceps'] },
+  { phrase:'pull-up',             primary:['back'], secondary:['biceps'] },
+  { phrase:'pull up',             primary:['back'], secondary:['biceps'] },
+  { phrase:'chin-up',             primary:['back'], secondary:['biceps'] },
+  { phrase:'chin up',             primary:['back'], secondary:['biceps'] },
+  { phrase:'pullover',            primary:['back'], secondary:[] },
+  { phrase:'shrug',               primary:['back'], secondary:[] },
+  { phrase:'superman',            primary:['back'], secondary:['glutes'] },
+  { phrase:'row',                 primary:['back'], secondary:['biceps'] },
+  /* --- core --- */
+  { phrase:'mountain climber',    primary:['abs'], secondary:[] },
+  { phrase:'bird dog',            primary:['abs'], secondary:['back'] },
+  { phrase:'dead bug',            primary:['abs'], secondary:[] },
+  { phrase:'cable chop',          primary:['abs'], secondary:[] },
+  { phrase:'woodchop',            primary:['abs'], secondary:[] },
+  { phrase:'pallof',              primary:['abs'], secondary:[] },
+  { phrase:'crunch',              primary:['abs'], secondary:[] },
+  { phrase:'plank',               primary:['abs'], secondary:[] },
+  { phrase:'sit-up',              primary:['abs'], secondary:[] },
+  { phrase:'hollow',              primary:['abs'], secondary:[] },
+  { phrase:'ab wheel',            primary:['abs'], secondary:[] },
+  /* --- biceps LAST, so no leg movement can ever reach it --- */
+  { phrase:'curl',                primary:['biceps'], secondary:[] }
+];
+
+/* First matching phrase wins. The table is ordered, so a generic token placed
+   below a specific phrase can never pre-empt it. */
+function muscleFamilyFor(normName){
+  if(!normName) return null;
+  for(let i = 0; i < MUSCLE_FAMILY_RULES.length; i++){
+    const r = MUSCLE_FAMILY_RULES[i];
+    /* A rule matches either as a contiguous phrase or, where word order
+       genuinely varies, as a set of tokens that must ALL appear. */
+    if(r.phrase){ if(normName.indexOf(r.phrase) !== -1) return r; continue; }
+    if(r.all && r.all.every(tok => normName.indexOf(tok) !== -1)) return r;
+  }
+  return null;
+}
+
 function musclesForExercise(name){
-  const override = MUSCLE_OVERRIDES[normalizeExerciseName(name)];
+  const key = normalizeExerciseName(name);
+  if(!key) return { primary: [], secondary: [] };
+
+  /* 1. CANONICAL IDENTITY. Exact alias match against the registry the trainer
+        already trusts. This is the tier that was missing. */
+  try{
+    const canon = getCanonicalExercise(resolveExerciseId(name));
+    if(canon && canon.primary && canon.primary.length){
+      return { primary: canon.primary.slice(), secondary: (canon.secondary || []).slice() };
+    }
+  }catch(e){ /* registry not yet evaluated: fall through, never throw */ }
+
+  /* 2. EXACT OVERRIDE, for names the registry does not carry. */
+  const override = MUSCLE_OVERRIDES[key];
   if(override) return { primary: override.primary.slice(), secondary: (override.secondary || []).slice() };
-  const n = (name || '').toLowerCase();
+
+  /* 3. FAMILY RULE. */
+  const fam = muscleFamilyFor(key);
+  if(fam) return { primary: fam.primary.slice(), secondary: (fam.secondary || []).slice() };
+
+  /* 4. KEYWORD SCAN. The original behaviour, kept for anything the tiers above
+        do not recognise, and now unable to pre-empt any of them. */
   const primary = [], secondary = [];
   Object.keys(MUSCLE_MAP).forEach(m => {
-    if(MUSCLE_MAP[m].some(kw => n.includes(kw))) primary.push(m);
+    if(MUSCLE_MAP[m].some(kw => key.includes(kw))) primary.push(m);
   });
   Object.keys(SECONDARY_MUSCLE_MAP).forEach(m => {
     if(primary.indexOf(m) !== -1) return;           // primary always wins
-    if(SECONDARY_MUSCLE_MAP[m].some(kw => n.includes(kw))) secondary.push(m);
+    if(SECONDARY_MUSCLE_MAP[m].some(kw => key.includes(kw))) secondary.push(m);
   });
+
+  /* 5. UNKNOWN stays unknown — both arrays empty. */
   return { primary, secondary };
 }
 
@@ -20656,8 +20897,10 @@ function computeTrainingContext(){
     const d = Math.floor((new Date() - new Date(l.date + 'T00:00:00')) / 86400000);
     l.exercises.forEach(ex => {
       const n = (ex.name || '').toLowerCase();
-      Object.keys(MUSCLE_MAP).forEach(m => {
-        if(lastTrained[m] === null && MUSCLE_MAP[m].some(kw => n.includes(kw))) lastTrained[m] = d;
+      /* D48 — the shared resolver, so "when did I last train this" agrees
+         with every other muscle surface. */
+      musclesForExercise(ex.name).primary.forEach(m => {
+        if(m in lastTrained && lastTrained[m] === null) lastTrained[m] = d;
       });
     });
   });
@@ -24161,9 +24404,10 @@ function builderPrimariesOf(name){
     if(c && c.primary && c.primary.length)
       return c.primary.map(m => m === 'core' ? 'abs' : m);
   }catch(e){}
-  const n = String(name).toLowerCase();
-  return Object.keys(MUSCLE_MAP).filter(g =>
-    MUSCLE_MAP[g].some(kw => n.indexOf(kw) !== -1));
+  /* D48 — the fallback is the shared resolver, whose first tier is the same
+     canonical lookup tried above, so an unrecognised name gets family truth
+     rather than whichever keyword its label happens to contain. */
+  return musclesForExercise(name).primary.map(m => m === 'core' ? 'abs' : m);
 }
 
 /* The whole pipeline for one week: pick bases, then spend the depth budget.
@@ -25273,9 +25517,9 @@ function deriveWorkoutProfile(tpl){
       }
     }catch(e){}
     if(!credited){
-      const n = String(x.name).toLowerCase();
-      Object.keys(MUSCLE_MAP).forEach(g => {
-        if(MUSCLE_MAP[g].some(kw => n.indexOf(kw) !== -1)) out.tally[g] = (out.tally[g] || 0) + sets;
+      /* D48 — shared resolver, same reason as builderPrimariesOf. */
+      musclesForExercise(x.name).primary.forEach(g => {
+        out.tally[g] = (out.tally[g] || 0) + sets;
       });
     }
   });

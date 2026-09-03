@@ -419,10 +419,64 @@ function oracleTemplate(ctx, entry) {
         if (c && c.primary && c.primary.length) prim = c.primary;
       }catch(e){}
       if (prim){ prim.forEach(m => { const g = m === 'core' ? 'abs' : m; t[g] = (t[g] || 0) + sets; }); return; }
+      /* D48 - this fallback used to mirror the product's MUSCLE_MAP substring
+         scan, which is not an independent oracle at all: it credited glutes
+         for every squat, lunge and deadlift because those bare tokens sit
+         under the glutes keyword list. When the product stopped promoting
+         assisting muscles to primary, this oracle kept doing so and the two
+         disagreed - the oracle being stale, not the product being wrong.
+
+         It is now a hand-declared PRIMARY-muscle table written here, in the
+         audit, from domain knowledge rather than from any product function.
+         Ordered: the first phrase that matches wins, so specific movements
+         are decided before generic tokens. */
       const n = String(x.name).toLowerCase();
-      Object.keys(ctx.MUSCLE_MAP).forEach(g => {
-        if (ctx.MUSCLE_MAP[g].some(kw => n.indexOf(kw) !== -1)) t[g] = (t[g] || 0) + sets;
-      });
+      const ORACLE = [
+        ['hamstring curl','hamstrings'], ['leg curl','hamstrings'], ['nordic','hamstrings'],
+        ['hanging knee raise','abs'], ['hanging leg raise','abs'], ['leg raise','abs'],
+        ['romanian','hamstrings'], ['rdl','hamstrings'], ['stiff leg','hamstrings'],
+        ['single-leg deadlift','hamstrings'], ['single leg deadlift','hamstrings'],
+        ['good morning','hamstrings'], ['back extension','hamstrings'],
+        ['pull-through','glutes'], ['pull through','glutes'], ['kettlebell swing','glutes'],
+        ['hip thrust','glutes'], ['glute bridge','glutes'], ['glute','glutes'],
+        ['hip abduction','glutes'], ['lateral walk','glutes'], ['monster walk','glutes'],
+        /* A conventional pull trains both, and the taxonomy says so. Entries
+           may name more than one primary group. */
+        ['deadlift',['back','hamstrings']],
+        ['leg extension','quads'], ['quad extension','quads'], ['leg press','quads'],
+        ['split squat','quads'], ['squat','quads'], ['lunge','quads'], ['step-up','quads'],
+        ['step up','quads'], ['wall sit','quads'],
+        ['calf','calves'],
+        ['close-grip bench','triceps'], ['close grip bench','triceps'],
+        ['skull','triceps'], ['pushdown','triceps'], ['overhead extension','triceps'],
+        ['rope extension','triceps'], ['cable extension','triceps'],
+        ['tricep','triceps'], ['triceps','triceps'], ['dip','triceps'],
+        ['reverse pec deck','shoulders'], ['rear delt','shoulders'], ['reverse fly','shoulders'],
+        ['pull-apart','shoulders'], ['pull apart','shoulders'], ['snow angel','shoulders'],
+        ['face pull','shoulders'], ['upright row','shoulders'],
+        ['lateral raise','shoulders'], ['front raise','shoulders'], ['side raise','shoulders'],
+        ['overhead press','shoulders'], ['shoulder press','shoulders'], ['push press','shoulders'],
+        ['arnold','shoulders'], ['pike push','shoulders'],
+        ['incline machine','chest'], ['incline press','chest'], ['incline bench','chest'],
+        ['decline press','chest'], ['decline bench','chest'], ['chest press','chest'],
+        ['bench press','chest'], ['chest pass','chest'], ['floor press','chest'],
+        ['pec deck','chest'], ['chest fly','chest'], ['cable fly','chest'], ['crossover','chest'],
+        ['push-up','chest'], ['push up','chest'], ['pushup','chest'],
+        ['pulldown','back'], ['pull-up','back'], ['pull up','back'], ['pullup','back'],
+        ['chin-up','back'], ['chin up','back'], ['chinup','back'], ['pullover','back'],
+        ['shrug','back'], ['superman','back'], ['row','back'],
+        ['mountain climber','abs'], ['bird dog','abs'], ['dead bug','abs'], ['chop','abs'],
+        ['woodchop','abs'], ['pallof','abs'], ['crunch','abs'], ['plank','abs'],
+        ['sit-up','abs'], ['hollow','abs'], ['ab wheel','abs'], ['twist','abs'],
+        ['curl','biceps']
+      ];
+      for (let i = 0; i < ORACLE.length; i++){
+        if (n.indexOf(ORACLE[i][0]) !== -1){
+          const gs = [].concat(ORACLE[i][1]);
+          gs.forEach(g => { t[g] = (t[g] || 0) + sets; });
+          return;
+        }
+      }
     });
     return t;
   };

@@ -1415,9 +1415,23 @@ function testNewExercisesCanonical(app){
   sub('override table must not affect existing exercises');
   T('Bench Press unchanged', JSON.stringify(mus('Bench Press')) ===
     JSON.stringify({primary:['chest'],secondary:['triceps','shoulders']}));
-  T('Back Squat unchanged', mus('Back Squat').primary.join(',') === 'quads,glutes');
   T('Dumbbell Curl unchanged', mus('Dumbbell Curl').primary.join(',') === 'biceps');
-  T('Deadlift unchanged', mus('Deadlift').primary.join(',') === 'back,hamstrings,glutes');
+  /* D48 — these two asserted 'quads,glutes' and 'back,hamstrings,glutes' as
+     PRIMARY, which is what the old substring scan returned because
+     MUSCLE_MAP.glutes contains the bare tokens "squat" and "deadlift". That
+     promoted assisting muscles to principal ones and made every compound lift
+     count two or three times in muscle volume.
+
+     The property this section protects — an override must not perturb
+     exercises it does not name — is unchanged and is asserted more strongly
+     below: the glutes did not disappear, they moved to the tier that describes
+     them honestly. */
+  T('Back Squat is quads, with glutes assisting rather than co-primary',
+    mus('Back Squat').primary.join(',') === 'quads' &&
+    mus('Back Squat').secondary.indexOf('glutes') !== -1);
+  T('Deadlift is back and hamstrings, with glutes assisting',
+    mus('Deadlift').primary.join(',') === 'back,hamstrings' &&
+    mus('Deadlift').secondary.indexOf('glutes') !== -1);
 }
 
 function testUpperLowerLogging(app){
@@ -7198,18 +7212,36 @@ function testLogRedesign(app){
       doc.getElementById('historyCalGrid').innerHTML.indexOf('cal-selected') !== -1);
   }
   {
-    // A day with nothing logged is a real question, and now gets a real answer.
-    ctx.selectHistoryDay(D(2));
-    const panel = doc.getElementById('historySelectedDay').innerHTML;
-    T('an empty day still responds', panel.indexOf('sd-card') !== -1);
-    T('it says what was planned rather than nothing at all',
-      /planned|Rest day/.test(panel));
-    T('it is not presented as a tappable workout', panel.indexOf('openDayDetail(') === -1);
-  }
-  {
-    ctx.selectHistoryDay(D(2));   // tapping the same day again clears it
-    T('selecting the same day again deselects', ctx.historySelectedDate === null);
-    T('and the panel empties', doc.getElementById('historySelectedDay').innerHTML === '');
+    /* A day with nothing logged is a real question, and now gets a real answer.
+
+       The offset used to be the literal 2, which stopped being empty on the
+       third of a month: both fixture workouts are clamped into the current
+       month, and on the 3rd `Math.min(3, dom - 1)` collapses onto 2 as well,
+       so this selected a day that had a workout on it. The empty day is now
+       DERIVED from the offsets actually used, preferring one further in the
+       past, so no date can make the fixture contradict itself. */
+    const _dom = new Date().getDate();
+    /* The same two offsets the block above logged, recomputed here because
+       they are scoped to it. */
+    const _used = [Math.min(1, _dom - 1), Math.min(3, _dom - 1)];
+    const _empty = [4,3,2,1,0].find(n => n <= _dom - 1 && _used.indexOf(n) === -1);
+    /* On the 1st every offset clamps to the same day, so the month genuinely
+       cannot hold both a logged day and an empty one. Saying so is better than
+       passing silently on a fixture that never ran. */
+    T('the month can hold an empty day to ask about', _empty !== undefined || _dom === 1,
+      'dom=' + _dom + ' used=' + _used.join(','));
+    if(_empty !== undefined){
+      ctx.selectHistoryDay(D(_empty));
+      const panel = doc.getElementById('historySelectedDay').innerHTML;
+      T('an empty day still responds', panel.indexOf('sd-card') !== -1);
+      T('it says what was planned rather than nothing at all',
+        /planned|Rest day/.test(panel));
+      T('it is not presented as a tappable workout', panel.indexOf('openDayDetail(') === -1);
+
+      ctx.selectHistoryDay(D(_empty));   // tapping the same day again clears it
+      T('selecting the same day again deselects', ctx.historySelectedDate === null);
+      T('and the panel empties', doc.getElementById('historySelectedDay').innerHTML === '');
+    }
   }
 
   sub('consistency — one visual, no fabricated numbers');
@@ -16018,8 +16050,15 @@ async function testTrainedThisWeek(){
 
   sub('the numbers say what they mean');
   {
+    /* D48 — this used a Romanian Deadlift, which the old substring scan
+       reported as PRIMARY back, hamstrings AND glutes because MUSCLE_MAP holds
+       the bare token "deadlift" under all three. An RDL is a hamstring
+       movement; the other two assist. The property being protected here is
+       real and unchanged — per-muscle counts do not sum to sets performed —
+       so it now uses a lift that is genuinely multi-primary in the canonical
+       registry rather than one that only looked that way because of a bug. */
     ctx.workoutLog = [{ id:'a', date: dd(0), category:'pull', title:'Pull', notes:'',
-      exercises:[{ name:'Romanian Deadlift', bodyweight:false, sets: sets(3) }] }];
+      exercises:[{ name:'Deadlift', bodyweight:false, sets: sets(3) }] }];
     ctx.invalidateSortedLogCache && ctx.invalidateSortedLogCache();
     const d = ctx.deriveWeekMuscleSets();
     T('a set counts toward each muscle it primarily trains', d.muscles.length >= 2);
@@ -16554,6 +16593,282 @@ async function testExecutionIntelligence(){
     T('and no score is persisted',
       !/sessionScore["\']?\s*:/.test(src.replace(/function sessionScore/g, '')) ||
       !/LOOPStore\.set\([^)]*[Ss]core/.test(src));
+  }
+}
+
+/* =========================================================
+   CONTRACT 147 — EXERCISE MUSCLE REGISTRY  (Phase D48)
+
+   The oracle below is HAND-DECLARED. It never calls
+   musclesForExercise() to decide what the answer should be,
+   because a function cannot be validated against itself. Each
+   row is a statement about anatomy written independently, and
+   every historical defect this phase fixed appears in it.
+   ========================================================= */
+async function testMuscleRegistry(){
+  section('CONTRACT 147 — exercise muscle registry (D48)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const mus = n => ctx.musclesForExercise(n);
+
+  /* [exercise, expected PRIMARY groups, note]. Declared, not derived. */
+  const ORACLE = [
+    /* --- the press family: incline and decline are chest --- */
+    ['Bench Press',              ['chest']],
+    ['Incline Bench Press',      ['chest'],      'lost its primary entirely before D48'],
+    ['Decline Bench Press',      ['chest'],      'lost its primary entirely before D48'],
+    ['Incline Dumbbell Press',   ['chest'],      'lost its primary entirely before D48'],
+    ['Decline Dumbbell Press',   ['chest']],
+    ['Machine Chest Press',      ['chest']],
+    ['Incline Machine Press',    ['chest']],
+    ['Push-Up',                  ['chest']],
+    ['Pec Deck',                 ['chest']],
+    ['Close-Grip Bench Press',   ['triceps'],    'a triceps lift despite the word bench'],
+    ['Dip',                      ['triceps']],
+    /* --- the curl collision --- */
+    ['Barbell Curl',             ['biceps']],
+    ['Dumbbell Curl',            ['biceps']],
+    ['Hammer Curl',              ['biceps']],
+    ['Cable Curl',               ['biceps']],
+    ['Preacher Curl',            ['biceps']],
+    ['Leg Curl',                 ['hamstrings'], 'returned biceps before D48'],
+    ['Seated Leg Curl',          ['hamstrings'], 'returned biceps before D48'],
+    ['Lying Leg Curl',           ['hamstrings'], 'returned biceps before D48'],
+    ['Hamstring Curl',           ['hamstrings'], 'returned biceps and NOT hamstrings'],
+    ['Nordic Curl',              ['hamstrings']],
+    /* --- pulling --- */
+    ['Barbell Row',              ['back']],
+    ['Seated Cable Row',         ['back']],
+    ['Chest Supported Row',      ['back']],
+    ['Lat Pulldown',             ['back']],
+    ['Pull-Up',                  ['back']],
+    ['Chin-Up',                  ['back'],       'lost its primary entirely before D48'],
+    /* --- shoulders, including rear-delt work that reads as chest --- */
+    ['Overhead Press',           ['shoulders']],
+    ['Dumbbell Shoulder Press',  ['shoulders']],
+    ['Lateral Raise',            ['shoulders']],
+    ['Front Raise',              ['shoulders']],
+    ['Reverse Pec Deck',         ['shoulders'],  'must not be chest despite "pec deck"'],
+    ['Face Pull',                ['shoulders'],  'lost its primary entirely before D48'],
+    /* --- lower body: quads lead, glutes assist. Never co-primary. --- */
+    ['Back Squat',               ['quads'],      'was quads AND glutes'],
+    ['Front Squat',              ['quads']],
+    ['Hack Squat',               ['quads']],
+    ['Leg Press',                ['quads']],
+    ['Bulgarian Split Squat',    ['quads']],
+    ['Walking Lunge',            ['quads']],
+    ['Leg Extension',            ['quads']],
+    ['Hip Thrust',               ['glutes']],
+    ['Calf Raise',               ['calves']],
+    /* --- hinge: an RDL is not a conventional pull --- */
+    ['Romanian Deadlift',        ['hamstrings'], 'was back AND hamstrings AND glutes'],
+    ['Deadlift',                 ['back','hamstrings']],
+    /* --- core: names containing "leg" are still core --- */
+    ['Hanging Leg Raise',        ['abs'],        'must not be a leg movement'],
+    ['Hanging Knee Raise',       ['abs']],
+    ['Plank',                    ['abs']],
+    ['Cable Crunch',             ['abs']],
+    /* --- machine and cable aliases resolve to the same anatomy --- */
+    ['Chest Press',              ['chest']],
+    ['Seated Chest Press',       ['chest']],
+    ['Cable Crossover',          ['chest']]
+  ];
+
+  sub('every declared exercise resolves to the anatomy a coach would state');
+  {
+    let bad = 0;
+    ORACLE.forEach(([name, want, note]) => {
+      const got = mus(name).primary.slice().sort().join(',');
+      const exp = want.slice().sort().join(',');
+      if(got !== exp){ bad++;
+        T(name + ' -> ' + exp, false, 'got [' + (got || 'none') + ']' + (note ? ' (' + note + ')' : '')); }
+    });
+    T(ORACLE.length + ' hand-declared mappings all hold', bad === 0, bad + ' wrong');
+  }
+
+  sub('a broad token can never outrank a specific phrase');
+  {
+    /* The architectural failure mode, stated directly: the single token
+       "curl" sits under biceps in MUSCLE_MAP, and used to classify every leg
+       curl. Precedence, not the absence of string matching, is the fix. */
+    T('"curl" still resolves biceps work', mus('Barbell Curl').primary[0] === 'biceps');
+    T('but never leg work', mus('Seated Leg Curl').primary.indexOf('biceps') === -1);
+    T('"press" does not make everything chest',
+      mus('Leg Press').primary.indexOf('chest') === -1 &&
+      mus('Overhead Press').primary.indexOf('chest') === -1);
+    T('"raise" does not make core work shoulders',
+      mus('Hanging Leg Raise').primary.join(',') === 'abs');
+    T('"pec deck" does not make rear delts chest',
+      mus('Reverse Pec Deck').primary.indexOf('chest') === -1);
+    T('"deadlift" does not make an RDL a back lift',
+      mus('Romanian Deadlift').primary.join(',') === 'hamstrings');
+    T('the generic biceps token is declared LAST in the family table', (() => {
+      const i = src.indexOf('const MUSCLE_FAMILY_RULES');
+      const body = src.slice(i, src.indexOf('function muscleFamilyFor', i));
+      return body.lastIndexOf("phrase:'curl'") > body.indexOf("phrase:'leg curl'");
+    })());
+  }
+
+  sub('precedence is explicit, and canonical identity leads it');
+  {
+    const i = src.indexOf('function musclesForExercise');
+    const body = src.slice(i, src.indexOf('function ', i + 40) > i ? src.indexOf('\nfunction ', i + 40) : i + 4000);
+    T('the registry is consulted first',
+      body.indexOf('getCanonicalExercise') !== -1 &&
+      body.indexOf('getCanonicalExercise') < body.indexOf('MUSCLE_MAP'));
+    T('the family table sits between overrides and the keyword scan',
+      body.indexOf('MUSCLE_OVERRIDES') < body.indexOf('muscleFamilyFor') &&
+      body.indexOf('muscleFamilyFor') < body.indexOf('MUSCLE_MAP'));
+    T('resolution is order-independent — the family table is an ordered array, not an object',
+      /const MUSCLE_FAMILY_RULES = \[/.test(src));
+  }
+
+  sub('unknown stays unknown');
+  {
+    ['Sled Push','Turkish Get-Up','Battle Rope Waves','Zercher Carry','Qwerty Flomp'].forEach(n => {
+      T(n + ' is not guessed', mus(n).primary.length === 0, JSON.stringify(mus(n).primary));
+    });
+    T('and a nonsense name never throws', (() => {
+      try{ mus(''); mus(null); mus(undefined); mus('###'); return true; }catch(e){ return false; }
+    })());
+  }
+
+  sub('every muscle returned is a real group');
+  {
+    const VOCAB = Object.keys(ctx.MUSCLE_MAP);
+    let bad = 0;
+    const names = [];
+    try{ Object.values(ctx.EXERCISE_LIBRARY || {}).forEach(list =>
+      (list || []).forEach(e => names.push(e.name))); }catch(e){}
+    try{ (ctx.CANONICAL_EXERCISES || []).forEach(e => { names.push(e.displayName);
+      (e.aliases || []).forEach(a => names.push(a)); }); }catch(e){}
+    names.forEach(n => {
+      const m = mus(n);
+      m.primary.concat(m.secondary).forEach(g => { if(VOCAB.indexOf(g) === -1) bad++; });
+    });
+    T('no invented muscle name across ' + names.length + ' exercises', bad === 0, bad + ' invalid');
+    T('the registry uses the same vocabulary as the visual layer', (() => {
+      const used = {};
+      (ctx.CANONICAL_EXERCISES || []).forEach(e =>
+        (e.primary || []).concat(e.secondary || []).forEach(g => used[g] = 1));
+      return Object.keys(used).every(g => VOCAB.indexOf(g) !== -1);
+    })());
+  }
+
+  sub('one anatomy: every consumer reads the same resolver');
+  {
+    /* Six surfaces each ran their own MUSCLE_MAP substring scan, which is why
+       the defect had to be fixed in six places or not at all. */
+    const scans = (src.match(/MUSCLE_MAP\[[a-z]+\]\.some\(kw/g) || []).length;
+    T('only the resolver itself scans keywords', scans <= 2, scans + ' scan sites');
+    T('the body diagram does not keep its own map', (() => {
+      const i = src.indexOf('function computeMuscleTotals');
+      const body = src.slice(i, src.indexOf('function', i + 30));
+      return body.indexOf('musclesForExercise') !== -1;
+    })());
+    T('muscle volume does not keep its own map', (() => {
+      const i = src.indexOf('function computeMuscleVolumeSince');
+      const body = src.slice(i, src.indexOf('function', i + 40));
+      return body.indexOf('musclesForExercise') !== -1;
+    })());
+    T('recovery reads the resolver', (() => {
+      const i = src.indexOf('function computeMuscleRecovery');
+      return src.slice(i, i + 2500).indexOf('musclesForExercise') !== -1;
+    })());
+  }
+
+  sub('Today, Muscle Volume and Recovery agree on anatomy');
+  {
+    const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const now = new Date(); now.setHours(0,0,0,0);
+    const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay()+6)%7));
+    const S = (w,r) => ({ weight:String(w), reps:String(r), rir:'1', type:'working', completed:true });
+    ctx.workoutLog = [{ id:'x', date: fmt(mon), category:'push', title:'Mixed', notes:'',
+      exercises:[
+        { name:'Incline Dumbbell Press', bodyweight:false, sets:[S(70,8),S(70,8),S(70,8)] },
+        { name:'Seated Leg Curl',        bodyweight:false, sets:[S(90,10),S(90,10),S(90,10)] },
+        { name:'Barbell Curl',           bodyweight:false, sets:[S(65,10),S(65,10)] }
+      ]}];
+    ['invalidateSortedLogCache','invalidateRecoveryCache','invalidateContextCache']
+      .forEach(f => { try{ ctx[f] && ctx[f](); }catch(e){} });
+
+    const week = ctx.deriveWeekMuscleSets();
+    const today = {}; week.muscles.forEach(m => today[m.id] = m.sets);
+    const vol = ctx.computeMuscleVolumeSince(ctx.currentWeekStart());
+    const volSet = Object.keys(vol).filter(k => vol[k] > 0).sort().join(',');
+    const todaySet = Object.keys(today).sort().join(',');
+
+    T('Today reports chest, hamstrings and biceps', todaySet === 'biceps,chest,hamstrings', todaySet);
+    T('Muscle Volume reports the same three', volSet === todaySet, volSet);
+    T('and the counts match too',
+      Object.keys(today).every(g => today[g] === vol[g]));
+    T('neither invents quads, glutes or calves',
+      !['quads','glutes','calves'].some(g => (today[g] || 0) > 0 || (vol[g] || 0) > 0));
+
+    const rec = ctx.computeMuscleRecovery();
+    const credited = g => { const v = rec[g];
+      const n = (v && typeof v === 'object') ? (v.rawSets != null ? v.rawSets : v.load) : v;
+      return (n || 0) > 0; };
+    T('recovery credits the same primary muscles',
+      credited('chest') && credited('hamstrings') && credited('biceps'));
+    T('recovery credits no muscle none of these lifts train',
+      !credited('quads') && !credited('glutes') && !credited('calves'));
+    T('secondary involvement is still weighted in, and stays secondary', (() => {
+      /* An incline press assists the triceps and shoulders. Recovery models
+         that deliberately; muscle volume does not. Both are correct. */
+      return credited('triceps') && !((today.triceps || 0) > 0);
+    })());
+  }
+
+  sub('replacement resolves to the replacement');
+  {
+    const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const now = new Date(); now.setHours(0,0,0,0);
+    const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay()+6)%7));
+    const S = (w,r) => ({ weight:String(w), reps:String(r), rir:'1', type:'working', completed:true });
+    ctx.workoutLog = [{ id:'r', date: fmt(mon), category:'legs', title:'Legs', notes:'',
+      exercises:[{ name:'Leg Extension', bodyweight:false, sets:[S(120,12),S(120,12)] }] }];
+    ['invalidateSortedLogCache','invalidateRecoveryCache'].forEach(f => { try{ ctx[f] && ctx[f](); }catch(e){} });
+    T('the original contributes to quads',
+      ctx.deriveWeekMuscleSets().muscles.some(m => m.id === 'quads'));
+    ctx.workoutLog[0].exercises[0].name = 'Leg Curl';
+    ['invalidateSortedLogCache','invalidateRecoveryCache'].forEach(f => { try{ ctx[f] && ctx[f](); }catch(e){} });
+    const after = ctx.deriveWeekMuscleSets().muscles;
+    T('after replacement it contributes to hamstrings', after.some(m => m.id === 'hamstrings'));
+    T('and no credit from the original survives', !after.some(m => m.id === 'quads'));
+  }
+
+  sub('nothing is stored, and no history is rewritten');
+  {
+    T('no new storage key', ctx.DATA_KEYS.length === 15);
+    T('the trainer engine is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('the resolver writes nothing', (() => {
+      const i = src.indexOf('function musclesForExercise');
+      const body = src.slice(i, i + 2000);
+      return !/LOOPStore\.set|workoutLog\s*(=[^=]|\.push|\.splice)/.test(body);
+    })());
+    T('resolving a name does not mutate the workout it came from', (() => {
+      const before = JSON.stringify(ctx.workoutLog);
+      ctx.workoutLog.forEach(l => (l.exercises||[]).forEach(ex => mus(ex.name)));
+      return JSON.stringify(ctx.workoutLog) === before;
+    })());
+  }
+
+  sub('the same name always resolves the same way');
+  {
+    let stable = true;
+    ['Seated Leg Curl','Incline Dumbbell Press','Back Squat','Face Pull','Sled Push'].forEach(n => {
+      const first = JSON.stringify(mus(n));
+      for(let i = 0; i < 100; i++) if(JSON.stringify(mus(n)) !== first) stable = false;
+    });
+    T('identical across 100 resolutions', stable);
+    T('case, spacing and punctuation do not change the answer',
+      mus('seated leg curl').primary.join() === mus('  SEATED   Leg Curl  ').primary.join() &&
+      mus('Seated Leg Curl').primary.join() === mus('seated leg curl').primary.join());
+    T('but distinct movements are not normalised together',
+      mus('Leg Curl').primary.join() !== mus('Leg Extension').primary.join());
   }
 }
 
@@ -18013,6 +18328,7 @@ async function main(){
   await testTrainedThisWeek();
   await testProgressCommandCentre();
   await testExecutionIntelligence();
+  await testMuscleRegistry();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

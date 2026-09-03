@@ -5587,3 +5587,170 @@ names: zero overflow, zero clipping, zero targets under 44px, zero inputs under
 `DATA_KEYS` remains 15, `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`, and
 nothing about the score, its breakdown, warm state or next-load explanation is
 persisted.
+
+---
+
+## §72 — D48: One answer to "what muscle does this train?"
+
+**Status.** Shipped in LOOP 4.2 (`loop-v119`).
+
+### The registry already existed. Nothing asked it.
+
+`CANONICAL_EXERCISES` has carried `primary`, `secondary`, `pattern` and
+`equipment` for 62 movements since the trainer was built, resolved by **exact
+normalized alias** — the strongest identity LOOP has. It is correct. It says
+Leg Curl is hamstrings, Incline Dumbbell Press is chest, Face Pull is
+shoulders, Hanging Leg Raise is abs.
+
+`musclesForExercise()` never consulted it. It matched raw display-name
+substrings against `MUSCLE_MAP`, which produced three distinct classes of wrong
+answer:
+
+**LOST.** `MUSCLE_MAP.chest` holds the phrase `"incline press"`. The string
+"Incline Dumbbell Press" does not contain it, so the exercise matched nothing
+and contributed to no muscle anywhere in the app. Face Pull, Chin-Up, Push-Up,
+Pull-Up, Military Press, Skull Crusher, Cable Crossover and thirty others were
+likewise invisible — and the registry knew every one of them.
+
+**WRONG.** `MUSCLE_MAP.biceps` is the single token `"curl"`. Every leg curl
+trained the biceps. "Hamstring Curl" resolved to biceps and **not** hamstrings.
+
+**INFLATED.** `MUSCLE_MAP.glutes` contains the bare tokens `"squat"`,
+`"lunge"` and `"deadlift"`. Every squat was primary quads **and** primary
+glutes; every deadlift was primary back, hamstrings **and** glutes. Assisting
+muscles were being promoted to principal ones, and every compound lift counted
+two or three times in muscle volume.
+
+Measured across the 431 exercise names the product can reach: **77 disagreed
+with the registry and 68 had no primary muscle at all**, 35 of which the
+registry answered correctly and was never asked.
+
+### One resolver, explicit precedence
+
+```
+1. CANONICAL ID    exact alias → the registry. Authoritative.
+2. EXACT OVERRIDE  MUSCLE_OVERRIDES, for names the registry lacks.
+3. FAMILY RULE     ordered phrase table, for variants the registry
+                   does not name individually.
+4. KEYWORD         the old MUSCLE_MAP scan, kept but demoted.
+5. UNKNOWN         empty. Never guessed.
+```
+
+Tier 3 exists because "Sumo Deadlift" is not the same exercise as "Deadlift"
+and must not become an alias of it — but it is the same family and its anatomy
+is not in doubt. The table is **ordered**, and the generic `curl` token is
+declared last, below `leg curl`, so a broad token can never pre-empt a specific
+phrase. This is the same precedence `movementPatternFor()` has always used,
+which is exactly why patterns never developed the leg-curl bug that anatomy
+did.
+
+Where gym and author word order genuinely varies — "Incline Machine Press",
+"Machine Incline Press", "Decline Dumbbell Press" — rules match on **all tokens
+present** rather than adjacency. Both tokens are required, which is what keeps
+"Incline Curl" and "Decline Sit-Up" away from a pressing rule.
+
+**Primary means primary.** Secondary involvement is real and still reported; it
+stays in `secondary`. A squat is quads, with glutes and hamstrings assisting.
+
+### Six consumers, one anatomy
+
+The defect had to be fixed in six places or not at all, because six surfaces
+each ran their own `MUSCLE_MAP` substring scan: the body diagram
+(`computeMuscleTotals`), the all-time breakdown, muscle volume, days-since-last-
+trained, the program builder's two allocators, and the trainer's recovery
+signal. Every one now reads `musclesForExercise()`. The only keyword scan left
+in the file is the one inside it.
+
+The trainer's site is worth naming: it already *preferred* canonical metadata
+and fell back to the raw scan — and that fallback is precisely what fired for
+any exercise the registry does not name. Both branches now collapse into one
+call whose first tier is the same canonical lookup.
+
+### Recovery
+
+`computeMuscleRecovery` was already correct. It consumes `musclesForExercise`
+and applies `RECOVERY_CONFIG.primaryWeight` / `secondaryWeight` — an intentional
+weighted model, so a bench set is not counted as a full chest set *plus* a full
+triceps set. It simply had bad input. No recovery mathematics were changed.
+
+Fixture — Incline Dumbbell Press ×3, Seated Leg Curl ×3, Barbell Curl ×2:
+
+| surface | before | after |
+|---|---|---|
+| Today weekly block | Biceps 5 | Chest 3, Hamstrings 3, Biceps 2 |
+| Muscle Volume | Biceps 5 | Chest 3, Hamstrings 3, Biceps 2 |
+| Recovery | biceps only | chest 0.9, hamstrings 0.9, biceps 0.6, plus shoulders 0.4 and triceps 0.4 as weighted secondary |
+
+**Derived historical recovery changes, and that is the point.** Recovery is
+derived on every read, so a leg curl logged last month now loads the hamstrings
+instead of the biceps. No workout was rewritten, no migration ran, and nothing
+is normalised at read time — the stored history is untouched and the derivation
+over it is simply no longer wrong.
+
+**Trainer inputs change as a consequence**, and that is a bug fix rather than
+calibration. `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`; no threshold,
+state, readiness, capability or PROGRESS/CONSOLIDATE/MAINTAIN/BACK_OFF logic was
+touched.
+
+### The audit's oracle was not independent
+
+Correcting the product broke two program-audit checks. The cause was
+instructive: `auditTally` mirrored the product's own fallback — canonical first,
+then the same `MUSCLE_MAP` substring scan — so it still credited glutes for
+every squat while the product no longer did. An oracle that copies the thing it
+validates is not an oracle.
+
+It is now a hand-declared primary-muscle table written in the audit file from
+domain knowledge, ordered, supporting multi-primary entries. Under it, both
+checks pass and 11,601 program focus claims hold.
+
+One product behaviour genuinely shifted: a day's claimed A/B focus is computed
+from muscle share against its same-category siblings, and correcting the
+anatomy changed those shares. The claim rule itself (a 0.10 share lead) is
+unchanged and every claim the builder now makes survives the independent
+oracle.
+
+### Coverage
+
+431 reachable exercise names · 309 resolve to a canonical id · **0 disagree
+with the registry** · **0 invalid muscle names** · 14 without a primary, of
+which 4 are plan titles that are not exercises at all.
+
+The remaining ten are intentional: Sled Push, Sled Pull, Farmer's Carry,
+Turkish Get-Up, Power Clean, Battle Rope Slams, Battle Rope Waves, Broad Jump,
+Lateral Bound, Med Ball Slam. These are carries, jumps and conditioning where
+naming a single principal muscle would be a guess, and §19's rule is that
+unknown stays unknown. They contribute to no muscle surface and are not
+counted as trained.
+
+### Strength-profile readiness
+
+Every major group now has strength-relevant lift coverage through the canonical
+registry: chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes,
+calves and abs all resolve from multiple mapped movements with `supports1RM`
+flags already present. The blocker for a future body-area system is no longer
+anatomy. It is that bodyweight and height cannot rank a muscle group, and no
+muscle rank is implemented here.
+
+### Verification
+
+5,521 assertions across 147 contracts, 327 program-audit checks, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix across three zones — all
+green. Contract 147's oracle is hand-declared and never calls
+`musclesForExercise` to decide what the answer should be.
+
+Two contracts were repointed rather than weakened. One asserted Back Squat as
+primary `quads,glutes` and Deadlift as `back,hamstrings,glutes` — snapshots of
+the over-attribution — and now asserts that the glutes did not disappear but
+moved to the tier that describes them honestly. The other used a Romanian
+deadlift as its example of a multi-primary lift; an RDL is a hamstring
+movement, so it now uses a conventional deadlift, which genuinely is.
+
+A pre-existing date-fragile fixture was also repaired: the Log calendar's
+"empty day" block selected a hard-coded offset that stopped being empty on the
+third of a month, when two clamped fixture offsets collide. It now derives an
+unused day.
+
+Six viewports clean on Today's muscle block, Muscle Volume, Mastery and
+Progress Overview. `DATA_KEYS` remains 15, no storage key was added, no backup
+format changed, and browser storage was byte-identical across the whole QA pass.
