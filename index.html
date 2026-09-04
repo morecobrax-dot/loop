@@ -1591,14 +1591,36 @@ body.first-use{ padding-bottom: 0; }
    Colour is used to scan, not to decorate: accent for the athlete's own
    progression, and the semantic trio only on trend state. Every trend also
    carries its word, so none of it depends on hue. */
-.pl-row{ display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); }
+/* D51D — THE ONE BLOCK IN THE OVERVIEW THAT WAS NOT A BLOCK.
+
+   Every other section of the Progress overview is a card: a surface, a
+   border, 16px of padding and `margin-top: 12px` for rhythm. This was a bare
+   flex row with the margin on the WRONG SIDE — margin-bottom and no
+   margin-top — so it collided with the consistency card above it (0px where
+   every other join is 12px) and then left 16px of dead space below itself at
+   the end of the panel, with nothing after it. That is the spacing the owner
+   could see and the reason the rank 'didn't fit': it was composed as if it
+   were the last row of a header, in a column of cards.
+
+   It closes the page deliberately now — the long view after the week-by-week
+   ones — as a block of the same construction as the rest. */
+.pl-row{
+  display: flex; align-items: center; gap: var(--space-4);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px 16px; margin-top: 12px;
+}
+.pl-row:hover{ border-color: var(--accent); }
+.pl-row:active{ background: var(--surface-2); }
+.pl-row:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.pl-head{
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--text-faint); margin-top: 22px;
+}
 /* D25: the generic level ring is gone — Progress states the SAME rank identity
    every other surface renders (the shared D23 medal), it does not keep a
    second progression face. The whole row is one tap into the rank showcase. */
-.pl-tap{
-  width: 100%; text-align: left; background: none; border: none; padding: 0;
-  cursor: pointer; font-family: inherit;
-}
+.pl-tap{ width: 100%; text-align: left; cursor: pointer; font-family: inherit; color: var(--text); }
 .pl-tap:active .pl-medal{ transform: scale(0.96); }
 .pl-medal{
   width: 64px; height: 64px; flex-shrink: 0; display: flex; align-items: center;
@@ -2378,6 +2400,75 @@ body.first-use{ padding-bottom: 0; }
 .mt-act-sub{ font-size: 11px; color: var(--text-faint); grid-column: 1; }
 .mt-act-go{ grid-column: 2; grid-row: 1 / span 2; display: flex; color: var(--text-faint); }
 .mt-note{ font-size: 11.5px; color: var(--text-faint); line-height: 1.5; margin-top: 18px; }
+
+/* ---------- the unfinished draft, and the week as sessions (D51D) ---------- */
+.mt-draft{
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-md); padding: 13px 14px; margin-top: 4px;
+}
+.mt-draft-top{ display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.mt-draft-info{ min-width: 0; }
+.mt-draft-k{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent);
+}
+.mt-draft-name{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px;
+  color: var(--text); margin-top: 5px; line-height: 1.25;
+}
+.mt-draft-meta{ font-size: 11.5px; color: var(--text-faint); margin-top: 4px; }
+.mt-draft-acts{ display: flex; gap: 8px; margin-top: 12px; }
+.mt-draft-go{
+  flex: 1; min-height: 44px; background: var(--accent-soft);
+  border: 1px solid var(--accent); border-radius: var(--radius-md);
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: var(--fs-meta);
+  font-weight: 700; cursor: pointer;
+}
+.mt-draft-go:active{ background: var(--surface-2); }
+.mt-draft-x{
+  min-height: 44px; padding: 0 16px; background: none;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-meta);
+  font-weight: 600; cursor: pointer;
+}
+.mt-draft-x:active{ color: var(--danger); }
+.mt-draft-go:focus-visible, .mt-draft-x:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.mt-sessions{ display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+/* The whole row is the control. A 44px pencil at the end of a row is a
+   target most people miss with a thumb, and it reads as an afterthought
+   next to the thing it edits. */
+.mt-sess{
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px;
+  padding: 10px 12px; text-align: left; font-family: 'Inter', sans-serif;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer;
+}
+.mt-sess:active{ background: var(--surface-2); }
+.mt-sess:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.mt-sess-today{ border-color: var(--accent); background: var(--accent-soft); }
+.mt-sess-today .mt-sess-day{ color: var(--accent); }
+.mt-sess-day{
+  flex: 0 0 34px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.05em; color: var(--text-faint);
+}
+.mt-sess-body{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.mt-sess-name{
+  font-size: 13.5px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mt-sess-meta{ font-size: 11px; color: var(--text-faint); }
+.mt-sess-go{ display: flex; color: var(--text-faint); flex-shrink: 0; }
+.mt-sess-add{
+  display: block; width: 100%; min-height: 48px; margin-top: 8px;
+  background: none; border: 1px dashed var(--border); border-radius: var(--radius-md);
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-support);
+  font-weight: 600; cursor: pointer;
+}
+.mt-sess-add:active{ background: var(--surface-2); }
+.mt-sess-add:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
 
 /* setup: frequency, days, and the week they produce */
 /* A prefilled value and its one control. The value is the loud part; Change
@@ -3936,6 +4027,13 @@ body.page-locked{ overflow: hidden; }
 .ps-caret{ display: flex; color: var(--text-faint); flex-shrink: 0; }
 .ps-sess.open .ps-caret{ transform: rotate(180deg); }
 .ps-body{ padding: 0 14px 14px; border-top: 1px solid var(--border); }
+/* Name and day, side by side and sized like what they are. */
+.ps-ident{ display: flex; gap: 8px; align-items: stretch; margin-bottom: 4px; }
+.ps-ident .ps-name-in{
+  flex: 1; min-width: 0; font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px; font-weight: 700; text-align: left;
+}
+.ps-ident .ps-day-in{ flex: 0 0 auto; width: auto; min-width: 108px; }
 .ps-field{ display: block; margin-top: 12px; }
 .ps-lab{
   display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
@@ -3949,41 +4047,114 @@ body.page-locked{ overflow: hidden; }
 }
 .ps-name-in:focus, .ps-day-in:focus{ outline: none; border-color: var(--accent); }
 .ps-ex-list{ display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-.ps-ex{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 11px; }
-.ps-ex-top{ display: flex; align-items: center; gap: 8px; }
-.ps-ex-name{ flex: 1; min-width: 0; font-size: var(--fs-support); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ps-ex-move{ display: flex; gap: 2px; flex-shrink: 0; }
-/* Reorder is buttons, not a drag handle: a drag handle is the one control
-   that cannot be used one-handed or by a screen reader. */
-.ps-mv{
-  min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;
-  background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 15px;
+/* An exercise is a line of the session, not a card sitting inside the
+   session card. Eight bordered boxes inside one bordered box is the card soup
+   that made this read as a form; a rule between rows is enough. */
+.ps-ex{ border-bottom: 1px solid var(--border); }
+.ps-ex:last-child{ border-bottom: none; }
+.ps-ex.open{ background: var(--surface-2); border-radius: var(--radius-md); padding: 0 11px; margin: 6px -11px; border-bottom: none; }
+.ps-ex.open + .ps-ex{ border-top: 1px solid var(--border); }
+/* A row states its training and opens into its editor. Everything the row can
+   do lives inside it once opened, so nothing has to be discovered as a small
+   icon sitting beside text. */
+.ps-ex-read{
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px;
+  padding: 9px 0; background: none; border: none; text-align: left;
+  font-family: 'Inter', sans-serif; cursor: pointer;
 }
-.ps-mv:disabled{ opacity: 0.3; cursor: default; }
-.ps-mv:active:not(:disabled){ color: var(--accent); }
-.ps-mv:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); }
-.ps-mv-x{ color: var(--text-faint); }
-.ps-rx{ display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; margin-top: 9px; }
-.ps-rx-f{ display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.ps-rx-f span{
+.ps-ex-read:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.ps-ex-main{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ps-ex-name{
+  font-size: var(--fs-body); font-weight: 600; color: var(--text); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ps-ex-rx{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta);
+  color: var(--text-dim); font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+}
+.ps-ex.open .ps-ex-rx{ color: var(--accent); }
+.ps-ex-caret{ display: flex; color: var(--text-faint); flex-shrink: 0; transition: transform 0.18s var(--ease); }
+.ps-ex.open .ps-ex-caret{ transform: rotate(180deg); }
+.ps-ex-edit{ padding: 2px 0 12px; }
+/* Measured: the stepper came out 46px tall against 44px inputs — its 1px
+   border sat outside 44px of button — and with the grid stretching to the
+   tallest cell, SETS sat 14px above REPS and EFFORT with its label on a
+   different line from theirs. Three labels for three numbers have to start on
+   the same line. */
+.ps-rx{ display: grid; grid-template-columns: 1fr 1.15fr 0.85fr; gap: 8px; align-items: start; }
+/* `margin: 0` is load-bearing. A global `label { margin-bottom: 6px }` rule
+   for LOOP's older forms was reaching in here: Reps and Effort are labels and
+   Sets is a div, so two of the three columns picked up 14px of top margin and
+   6px below, and the row grew to 83px to hold a 63px control. Measured: the
+   SETS label sat 14px above REPS and EFFORT. Three numbers presented as a set
+   have to sit on one line, so the component states its own box. */
+.ps-rx-f{ display: flex; flex-direction: column; gap: 5px; min-width: 0; margin: 0; }
+.ps-rx-lab{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint);
 }
-.ps-rx-f input{
-  width: 100%; min-height: 44px; padding: 0 10px; font-size: 16px; text-align: center;
+/* 46px outer, so the interactive area inside the 1px border is a full 44 and
+   the stepper beside it can match exactly. At 44 outer the stepper's buttons
+   came out 42x42 — under the minimum, measured. */
+.ps-rx-in{
+  width: 100%; height: 46px; box-sizing: border-box; padding: 0 10px;
+  font-size: 16px; text-align: center;
   background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
   color: var(--text); font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
 }
-.ps-rx-f input:focus{ outline: none; border-color: var(--accent); }
-.ps-sess-actions{ display: flex; gap: 8px; margin-top: 14px; }
+.ps-rx-in:focus{ outline: none; border-color: var(--accent); }
+/* A set count is a small whole number, so it steps rather than opening a
+   keyboard over the session being edited. */
+.ps-step{
+  display: flex; align-items: stretch; height: 46px; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.ps-step-b{
+  width: 44px; flex-shrink: 0; background: none; border: none;
+  color: var(--text-dim); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.ps-step-b:disabled{ opacity: 0.3; cursor: default; }
+.ps-step-b:active:not(:disabled){ color: var(--accent); }
+.ps-step-b:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); }
+.ps-step-v{
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
+}
+/* Three structural actions on one row, and removal beneath them. As four
+   equal buttons the row wrapped and Remove became a full-width red bar — the
+   loudest element in the editor, for its most destructive action. */
+.ps-ex-acts{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+.ps-ex-act{
+  min-height: 44px; padding: 0 6px;
+  background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-meta);
+  font-weight: 600; cursor: pointer; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.ps-ex-act:disabled{ opacity: 0.35; cursor: default; }
+.ps-ex-act:active:not(:disabled){ background: var(--border); }
+.ps-ex-act:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.ps-ex-act-danger{
+  grid-column: 1 / -1; background: none; border-color: transparent;
+  color: var(--text-faint); font-weight: 500;
+}
+.ps-ex-act-danger:active{ background: none; color: var(--danger); }
+/* Adding is the common action and looks like it; removing the whole session
+   is rare and destructive, and stops competing for the same weight. */
+.ps-sess-actions{ display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
 .ps-act{
-  flex: 1; min-height: 44px; background: var(--surface-2); border: 1px solid var(--border);
+  width: 100%; min-height: 44px; background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius-md); color: var(--text-dim); font-family: 'Inter', sans-serif;
   font-size: var(--fs-meta); font-weight: 600; cursor: pointer;
 }
 .ps-act:active{ background: var(--surface-3); }
 .ps-act:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
-.ps-act-danger{ color: var(--danger); }
+.ps-act-add{ border-style: dashed; }
+.ps-act-danger{
+  background: none; border-color: transparent; color: var(--text-faint); font-weight: 500;
+}
+.ps-act-danger:active{ background: none; color: var(--danger); }
 .ps-add-session{
   display: block; width: 100%; min-height: 48px; margin-top: 10px;
   background: none; border: 1px dashed var(--border); border-radius: var(--radius-lg);
@@ -10242,6 +10413,30 @@ const LOOP_UPDATES = [
       'A session you built yourself could not be started — it was refused as incomplete, and the workout screen could not open it',
       'The program-length buttons and the rename control changed nothing after the review stopped rebuilding itself',
       'Restoring a backup could quietly drop unfinished program work while reporting success'
+    ],
+    changes: []
+  },
+  {
+    id: 'v4-8',
+    version: 'LOOP 4.8',
+    title: 'Your Program, Clearer',
+    date: '2026-11-11',
+    swVersion: 'loop-v125',
+    summary: 'My Training now shows your sessions, your unfinished work, and only what is still true.',
+    newFeatures: [
+      'Unfinished program work now appears on My Training, with one tap to carry on or to discard it',
+      'Every session in your week is listed and opens straight into its own editor — rename it, move it, change the exercises, or add a session of your own',
+      'Exercises read as training rather than as a form: <b>4 \u00d7 6\u20138 \u00b7 effort 8</b>, with sets, reps and effort one tap deeper'
+    ],
+    improvements: [
+      'LOOP stops describing your program as a split it no longer is — rewrite a session and the summary, and a program name LOOP wrote, follow what you actually built',
+      'A program name you typed yourself is never changed',
+      'Rank emblems are centred and sized consistently, and the top rank\u2019s crest is no longer clipped',
+      'The rank block on Progress now keeps the same spacing as the cards above it'
+    ],
+    bugFixes: [
+      'Sets, reps and effort did not line up with each other in the program editor',
+      'Removing an exercise was the loudest control on the screen'
     ],
     changes: []
   }
@@ -19099,13 +19294,51 @@ function rankFramePts(tier){
     if(keel) R += 7.5 * near(180, 13);
     if(crown) R += 6 * near(0, 15);
     if(apex) R += 4 * (near(0, 30) + near(330, 9) + near(30, 9));
-    /* The box is 120 units and the frame is stroked: 56 keeps the farthest
-       vertex and its bevel inside it. Measured — LEGEND reached 61.1 and was
-       being clipped. */
-    R = Math.min(R, 56);
+    /* D51D — THE CLAMP IS GONE. It kept the farthest vertex inside the box,
+       but it did so by flattening it: LEGEND's apex — the single point the
+       top rank's whole silhouette builds toward — was one of 96 points sitting
+       exactly on R=56, cut off square. rankFrameFit below now scales each
+       emblem to the box, so nothing needs truncating to fit. */
     pts.push([60 + R * Math.cos(a), 60 + R * Math.sin(a)]);
   }
   return pts;
+}
+
+/* ONE ALIGNMENT OWNER FOR EIGHT EMBLEMS.
+
+   Every rank is drawn in the same 120-unit box, but the silhouettes are not
+   the same size or the same shape, and three of them are not centred in it:
+
+     ROOKIE      80.0 x 80.0   centre (60.0, 60.0)
+     ELITE      107.6 x 91.9   centre (60.0, 60.0)
+     VETERAN    107.6 x 99.4   centre (60.0, 63.8)   <- the keel hangs low
+     MASTER     107.6 x 105.4  centre (60.0, 60.8)
+     LEGEND     107.6 x 109.4  centre (60.0, 58.8)   <- the crest rides high
+
+   Two visible consequences, both of which read as sloppy work up close. The
+   emblem sags or floats inside its own box — VETERAN by 3.75 units, which is
+   6.5px at showcase size. And ROOKIE's ink covers 74% of the width LEGEND's
+   does, so at one rendered size the medals visibly change size as you move
+   along the ladder.
+
+   The fix is not seven nudges. It is one transform, derived from each
+   silhouette's own bounds: centre it, then scale it to a common extent. The
+   SHAPES are untouched — the bezel, the hexagon, the shoulders, the wings,
+   the keel, the crest and the apex all stay exactly as designed, and the
+   ladder still reads from the outline alone. Only the fit changes. */
+const RANK_FIT_EXTENT = 104;      // of 120, leaving the bevel and rim room
+function rankFrameFit(pts){
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  pts.forEach(pt => {
+    if(pt[0] < x0) x0 = pt[0]; if(pt[0] > x1) x1 = pt[0];
+    if(pt[1] < y0) y0 = pt[1]; if(pt[1] > y1) y1 = pt[1];
+  });
+  const w = x1 - x0, h = y1 - y0;
+  const scale = RANK_FIT_EXTENT / Math.max(w, h, 1);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  /* Applied to the WHOLE emblem, so the stone stays exactly where it was
+     composed relative to the frame around it. */
+  return { scale, dx: 60 - cx, dy: 60 - cy };
 }
 function framePath(pts, scale){
   const s = scale || 1;
@@ -19124,6 +19357,13 @@ function rankMedalSvg(rankName, size, opts){
   const outline = framePath(pts);
   const metalHi = mixHex(v.metal[0], '#FFFFFF', 0.62);
   const metalLo = mixHex(v.metal[1], '#05070C', 0.42);
+  /* Centre and size, computed from this silhouette's own bounds. Written as
+     one transform on one group so the frame, the chamber, the stone and every
+     highlight keep exactly the relationship they were composed with. */
+  const fit = rankFrameFit(pts);
+  const _fs = fit.scale;
+  const fitT = 'translate(' + (60 - 60 * _fs + _fs * fit.dx).toFixed(3) + ',' +
+    (60 - 60 * _fs + _fs * fit.dy).toFixed(3) + ') scale(' + _fs.toFixed(4) + ')';
 
   return '<svg class="rank-medal' + (showcase ? ' rank-medal-lg' : '') + '" viewBox="0 0 120 120"' +
     ' width="' + size + '" height="' + size + '"' +
@@ -19161,6 +19401,10 @@ function rankMedalSvg(rankName, size, opts){
           '<stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>' +
         '</linearGradient>' : '') +
     '</defs>' +
+    /* THE ONE ALIGNMENT TRANSFORM. Everything the emblem is made of sits
+       inside it, so centring and fitting can never pull the stone off the
+       frame or the rim light off the edge. */
+    '<g transform="' + fitT + '">' +
     /* Light the stone throws past the frame. */
     (v.glow ? '<circle cx="60" cy="60" r="56" fill="url(#h' + uid + ')"/>' : '') +
     /* THE CHASSIS — one outline, drawn once as material. */
@@ -19205,6 +19449,7 @@ function rankMedalSvg(rankName, size, opts){
     (showcase ? '<g class="rank-shine" clip-path="url(#c' + uid + ')">' +
       '<rect class="rank-shine-bar" x="-150" y="-30" width="66" height="180"' +
       ' transform="rotate(18 60 60)" fill="url(#s' + uid + ')"/></g>' : '') +
+    '</g>' +
   '</svg>';
 }
 
@@ -24391,6 +24636,17 @@ function createProgram(input){
   const program = {
     id: newProgramId(),
     name: String(draft.name).trim(),
+    /* Who the name belongs to travels with it. Without this the rule fell
+       back to recognising LOOP's own handwriting, which cannot tell an
+       athlete who happens to type '3-Day Upper / Lower Strength' from the
+       generator.
+
+       THREE STATES, NOT TWO. true is the athlete's, false is the generator's,
+       and ABSENT is unknown — a program created by some other path, where the
+       only safe answer is to leave the name alone unless it is recognisably
+       LOOP's. Coercing absent to false claimed authorship LOOP does not have:
+       it renamed a program called 'My Old Program' to '1-Day Muscle Growth'. */
+    nameByAthlete: draft.nameByAthlete,
     description: String(draft.description || ''),
     goal: draft.goal || null,
     emphasis: draft.emphasis || null,
@@ -24437,11 +24693,14 @@ function updateProgram(programId, patch){
   const hasBegun = programHasBegun(p);
   const revising = schedulePatched && hasBegun &&
     JSON.stringify(p.schedule || {}) !== JSON.stringify(patch.schedule || {});
-  ['name','description','goal','durationWeeks','schedule','blocks','startDate','emphasis','sessionLength','experience'].forEach(k => {
+  ['name','nameByAthlete','description','goal','durationWeeks','schedule','blocks','startDate','emphasis','sessionLength','experience'].forEach(k => {
     if(k === 'schedule' && revising) return;
     if(patch && Object.prototype.hasOwnProperty.call(patch, k)) p[k] = merged[k];
   });
   if(revising) reviseProgramPlan(p, patch.schedule, (patch && patch.applyFrom) || 'week');
+  /* Same rule on the live program: the plan changed, so a derived name has to
+     answer for the plan it now describes. */
+  try{ refreshProgramName(p); }catch(e){}
   p.durationWeeks = parseInt(p.durationWeeks, 10);
   p.updatedAt = new Date().toISOString();
   invalidateProgramCache();
@@ -26407,7 +26666,7 @@ function pbDraft(){
    until the athlete saves. */
 function pbDraftFromProgram(prog){
   const def = {
-    name: prog.name, goal: prog.goal, durationWeeks: prog.durationWeeks,
+    name: prog.name, nameByAthlete: prog.nameByAthlete, goal: prog.goal, durationWeeks: prog.durationWeeks,
     schedule: JSON.parse(JSON.stringify(prog.schedule || {})),
     blocks: JSON.parse(JSON.stringify(prog.blocks || [])),
     startDate: prog.startDate,
@@ -26451,7 +26710,8 @@ function pbRegenerateDraft(fresh){
     weeks: a.weeks, days: a.days, frequency: a.frequency,
     startDate: a.startDate || localDateStr()
   });
-  if(a.name) def.name = a.name;
+  if(a.name){ def.name = a.name; def.nameByAthlete = true; }
+  else def.nameByAthlete = false;
   pbState.draft = def;
   pbState.edited = false;
   pbPersistDraft();
@@ -26484,6 +26744,10 @@ function pbPersistDraft(){
 function pbTouch(){
   if(!pbState) return;
   pbState.edited = true;
+  /* A generated name is a claim about the shape of the program, so it is
+     re-derived whenever the shape changes. An athlete-typed name is theirs
+     and refreshProgramName leaves it alone. */
+  try{ refreshProgramName(pbState.draft); }catch(e){}
   pbPersistDraft();
 }
 
@@ -26766,6 +27030,9 @@ function pbRename(){
   if(!trimmed) return;
   pbState.answers.name = trimmed;
   def.name = trimmed;
+  /* Typed by the athlete: from here on it is their name, and nothing derives
+     over it. */
+  def.nameByAthlete = true;
   pbTouch();
   renderProgramBuilderFlow();
 }
@@ -27107,57 +27374,135 @@ function pbSessionEditorHtml(def, dayKey, name, list){
   const dayOpts = PROGRAM_DAY_KEYS.map(k =>
     '<option value="' + k + '"' + (k === dayKey ? ' selected' : '') + '>' +
     escapeHtml(DAY_LABEL_FULL[k] || k) + '</option>').join('');
+  /* D51D — the two things that identify a session sit together on one line,
+     shaped like the title and the day they are, rather than as two labelled
+     form fields stacked above the training. They are still ordinary inputs;
+     they simply stop announcing themselves as a form before the athlete has
+     asked to change anything. */
   return '<div class="ps-body">' +
-    '<label class="ps-field"><span class="ps-lab">Session name</span>' +
+    '<div class="ps-ident">' +
       '<input type="text" class="ps-name-in" value="' + escapeAttr(name) + '"' +
-      ' onchange="pbRenameSession(\'' + dayKey + '\', this.value)" maxlength="40"></label>' +
-    '<label class="ps-field"><span class="ps-lab">Day</span>' +
-      '<select class="ps-day-in" onchange="pbMoveSession(\'' + dayKey + '\', this.value)">' +
-      dayOpts + '</select></label>' +
+        ' onchange="pbRenameSession(\'' + dayKey + '\', this.value)" maxlength="40"' +
+        ' aria-label="Session name">' +
+      '<select class="ps-day-in" onchange="pbMoveSession(\'' + dayKey + '\', this.value)"' +
+        ' aria-label="Day this session is trained">' + dayOpts + '</select>' +
+    '</div>' +
     '<div class="ps-ex-list">' + rows + '</div>' +
     '<div class="ps-sess-actions">' +
-      '<button type="button" class="ps-act" onclick="pbOpenExercisePicker(\'' + dayKey + '\')">+ Add exercise</button>' +
+      '<button type="button" class="ps-act ps-act-add" onclick="pbOpenExercisePicker(\'' + dayKey + '\')">+ Add exercise</button>' +
       '<button type="button" class="ps-act ps-act-danger" onclick="pbRemoveSession(\'' + dayKey + '\')">Remove session</button>' +
     '</div>' +
   '</div>';
 }
 
-/* One exercise: what it is, and the three numbers that define it. Reorder is
-   two buttons rather than a drag handle, because a drag handle is the one
-   control that cannot be used one-handed or by a screen reader. */
+/* THE PRESCRIPTION, READ BEFORE IT IS EDITED  (D51D)
+
+   D51B put three text inputs on every exercise, permanently. A six-exercise
+   session was therefore eighteen input boxes stacked down the screen, and the
+   owner named it exactly: "form, want it to feel premium". The information an
+   athlete wants when they open a session is what the session IS — the lifts,
+   in order, with their prescriptions — and a form cannot show that, because
+   every value is wearing a box.
+
+   So the row states the training and nothing else:
+
+       BENCH PRESS
+       4 × 6–8 · effort 8
+
+   and one tap turns that row into its editor. Only one is open at a time, so
+   the session stays readable while a single exercise is being changed, and
+   the controls that restructure it — move, replace, remove — appear with the
+   fields rather than sitting on every row waiting to be hit by accident.
+   Nothing is hidden: everything is one tap deep, which is where §21 asks the
+   depth to live. */
+let pbOpenExercise = null;                       // "dayKey:index" while editing one
+function pbExerciseKey(dayKey, i){ return dayKey + ':' + i; }
+function pbToggleExercise(dayKey, i){
+  const k = pbExerciseKey(dayKey, i);
+  pbOpenExercise = (pbOpenExercise === k) ? null : k;
+  renderProgramBuilderFlow();
+}
+
+/* What this exercise asks for, in one line of training language. */
+function pbRxLine(ex){
+  const parts = [];
+  const sets = parseInt(ex.sets, 10);
+  if(sets > 0 && ex.reps) parts.push(sets + ' × ' + String(ex.reps));
+  else if(sets > 0) parts.push(sets + ' set' + (sets === 1 ? '' : 's'));
+  else if(ex.reps) parts.push(String(ex.reps));
+  const eff = firstNumber(ex.effort);
+  if(eff) parts.push('effort ' + eff);
+  return parts.join(' · ') || 'No prescription yet';
+}
+
 function pbExerciseRowHtml(dayKey, ex, i, total){
   const d = '\'' + dayKey + '\'';
-  return '<div class="ps-ex">' +
-    '<div class="ps-ex-top">' +
-      '<span class="ps-ex-name">' + escapeHtml(ex.name || 'Exercise') + '</span>' +
-      '<span class="ps-ex-move">' +
-        '<button type="button" class="ps-mv ps-mv-swap" onclick="openExercisePicker(' + d + ',' + i + ')"' +
-          ' aria-label="Replace ' + escapeAttr(ex.name || 'exercise') + '">↻</button>' +
-        '<button type="button" class="ps-mv" onclick="pbMoveExercise(' + d + ',' + i + ',-1)"' +
-          (i === 0 ? ' disabled' : '') + ' aria-label="Move ' + escapeAttr(ex.name || 'exercise') + ' up">↑</button>' +
-        '<button type="button" class="ps-mv" onclick="pbMoveExercise(' + d + ',' + i + ',1)"' +
-          (i === total - 1 ? ' disabled' : '') + ' aria-label="Move ' + escapeAttr(ex.name || 'exercise') + ' down">↓</button>' +
-        '<button type="button" class="ps-mv ps-mv-x" onclick="pbRemoveExercise(' + d + ',' + i + ')"' +
-          ' aria-label="Remove ' + escapeAttr(ex.name || 'exercise') + '">' + closeIconSvg(11) + '</button>' +
+  const open = pbOpenExercise === pbExerciseKey(dayKey, i);
+  const name = ex.name || 'Exercise';
+  return '<div class="ps-ex' + (open ? ' open' : '') + '">' +
+    '<button type="button" class="ps-ex-read" onclick="pbToggleExercise(' + d + ',' + i + ')"' +
+      ' aria-expanded="' + (open ? 'true' : 'false') + '"' +
+      ' aria-label="' + escapeAttr(name + ', ' + pbRxLine(ex) + '. Edit.') + '">' +
+      '<span class="ps-ex-main">' +
+        '<span class="ps-ex-name">' + escapeHtml(name) + '</span>' +
+        '<span class="ps-ex-rx">' + escapeHtml(pbRxLine(ex)) + '</span>' +
       '</span>' +
-    '</div>' +
+      '<span class="ps-ex-caret" aria-hidden="true">' + chevronDownSvg(12) + '</span>' +
+    '</button>' +
+    (open ? pbExerciseEditHtml(dayKey, ex, i, total) : '') +
+  '</div>';
+}
+
+/* The editor for one exercise. Sets step, because a set count is a small
+   whole number and two 44px targets beat a keyboard for it. Reps and effort
+   stay the app’s own numeric fields — a rep range is text ("6–8"), and there
+   is no second input language here. */
+function pbExerciseEditHtml(dayKey, ex, i, total){
+  const d = '\'' + dayKey + '\'';
+  const sets = parseInt(ex.sets, 10) || 1;
+  const nm = escapeAttr(ex.name || 'exercise');
+  return '<div class="ps-ex-edit">' +
     '<div class="ps-rx">' +
-      '<label class="ps-rx-f"><span>Sets</span>' +
-        '<input type="text" inputmode="numeric" value="' + escapeAttr(String(ex.sets || '')) + '"' +
-        ' onchange="pbEditRx(' + d + ',' + i + ',\'sets\',this.value); renderProgramBuilderFlow();"' +
-        ' aria-label="Sets"></label>' +
-      '<label class="ps-rx-f ps-rx-wide"><span>Reps</span>' +
-        '<input type="text" inputmode="numeric" value="' + escapeAttr(String(ex.reps || '')) + '"' +
+      '<div class="ps-rx-f">' +
+        '<span class="ps-rx-lab" id="setsLab' + escapeAttr(dayKey) + i + '">Sets</span>' +
+        '<div class="ps-step">' +
+          '<button type="button" class="ps-step-b" onclick="pbStepSets(' + d + ',' + i + ',-1)"' +
+            (sets <= 1 ? ' disabled' : '') + ' aria-label="One fewer set of ' + nm + '">−</button>' +
+          '<span class="ps-step-v" role="status" aria-live="polite">' + sets + '</span>' +
+          '<button type="button" class="ps-step-b" onclick="pbStepSets(' + d + ',' + i + ',1)"' +
+            (sets >= 10 ? ' disabled' : '') + ' aria-label="One more set of ' + nm + '">+</button>' +
+        '</div>' +
+      '</div>' +
+      '<label class="ps-rx-f"><span class="ps-rx-lab">Reps</span>' +
+        '<input type="text" inputmode="numeric" class="ps-rx-in" value="' + escapeAttr(String(ex.reps || '')) + '"' +
         ' onchange="pbEditRx(' + d + ',' + i + ',\'reps\',this.value); renderProgramBuilderFlow();"' +
-        ' aria-label="Rep range"></label>' +
-      '<label class="ps-rx-f"><span>Effort</span>' +
-        '<input type="text" inputmode="numeric" value="' + escapeAttr(String(firstNumber(ex.effort) || '')) + '"' +
+        ' aria-label="Rep range for ' + nm + '"></label>' +
+      '<label class="ps-rx-f"><span class="ps-rx-lab">Effort</span>' +
+        '<input type="text" inputmode="numeric" class="ps-rx-in" value="' + escapeAttr(String(firstNumber(ex.effort) || '')) + '"' +
         ' onchange="pbEditRx(' + d + ',' + i + ',\'effort\',this.value); renderProgramBuilderFlow();"' +
-        ' aria-label="Target effort out of 10"></label>' +
+        ' aria-label="Target effort out of 10 for ' + nm + '"></label>' +
+    '</div>' +
+    '<div class="ps-ex-acts">' +
+      '<button type="button" class="ps-ex-act" onclick="openExercisePicker(' + d + ',' + i + ')"' +
+        ' aria-label="Replace ' + nm + '">Replace</button>' +
+      '<button type="button" class="ps-ex-act" onclick="pbMoveExercise(' + d + ',' + i + ',-1)"' +
+        (i === 0 ? ' disabled' : '') + ' aria-label="Move ' + nm + ' earlier in the session">\u2191 Earlier</button>' +
+      '<button type="button" class="ps-ex-act" onclick="pbMoveExercise(' + d + ',' + i + ',1)"' +
+        (i === total - 1 ? ' disabled' : '') + ' aria-label="Move ' + nm + ' later in the session">\u2193 Later</button>' +
+      '<button type="button" class="ps-ex-act ps-ex-act-danger" onclick="pbRemoveExercise(' + d + ',' + i + ')"' +
+        ' aria-label="Remove ' + nm + ' from this session">Remove from session</button>' +
     '</div>' +
   '</div>';
 }
 
+/* One step of the set count, through the same validation typing it would. */
+function pbStepSets(dayKey, i, delta){
+  const def = pbDraft(); if(!def) return;
+  const list = pbSessionExercises(def, dayKey);
+  const ex = list[i]; if(!ex) return;
+  pbEditRx(dayKey, i, 'sets', (parseInt(ex.sets, 10) || 1) + delta);
+  renderProgramBuilderFlow();
+}
 /* D51C — the D51B prompt() is gone. Adding an exercise opens the picker, the
    same surface that replaces one, reading the same canonical library. */
 function pbOpenExercisePicker(dayKey){
@@ -27268,7 +27613,8 @@ async function pbCommit(btn){
        alone: moving it would silently re-date every week the athlete has
        already trained through. */
     result = updateProgram(pbState.editingId, {
-      name: def.name, goal: def.goal, durationWeeks: def.durationWeeks,
+      name: def.name, nameByAthlete: def.nameByAthlete,
+      goal: def.goal, durationWeeks: def.durationWeeks,
       schedule: def.schedule, blocks: def.blocks,
       emphasis: def.emphasis, sessionLength: def.sessionLength, experience: def.experience,
       /* D51C — the athlete's own answer to when this starts. One save, one
@@ -27277,7 +27623,8 @@ async function pbCommit(btn){
     });
   } else {
     result = createProgram({
-      name: def.name, goal: def.goal, durationWeeks: def.durationWeeks,
+      name: def.name, nameByAthlete: def.nameByAthlete,
+      goal: def.goal, durationWeeks: def.durationWeeks,
       schedule: def.schedule, blocks: def.blocks, startDate: def.startDate,
       emphasis: def.emphasis, sessionLength: def.sessionLength, experience: def.experience
     });
@@ -27648,6 +27995,99 @@ function deriveWeekRoles(def, phaseRx){
 }
 
 /* The split, described by what the week actually contains. */
+/* Which muscle groups a session category actually promises. Used to check a
+   label against its own contents — not to decide what a session is. */
+const CATEGORY_GROUPS = {
+  push:     ['chest','shoulders','triceps'],
+  pull:     ['back','biceps'],
+  legs:     ['quads','hamstrings','glutes','calves'],
+  lower:    ['quads','hamstrings','glutes','calves'],
+  upper:    ['chest','back','shoulders','biceps','triceps'],
+  core:     ['abs'],
+  fullbody: null                       // a full-body session promises no one area
+};
+
+/* DOES THIS SESSION STILL DO WHAT ITS LABEL SAYS?
+
+   A program entry keeps the category it was generated with, and no editor
+   changes it — correctly, because category is how adherence identifies a
+   planned session. But it means an athlete can rewrite Monday's push session
+   into arms work and the category still reads 'push'.
+
+   Nothing was checking. deriveSplitInfo counted CATEGORIES and announced
+   'Push / Pull / Legs' from them alone, so LOOP kept describing a program
+   whose content no longer matched: measured on a generated PPL program whose
+   every pressing movement had been removed and whose Monday had been renamed
+   'Arms & Shoulders', the headline still read 'push / pull / legs training'.
+   That is the claim the owner meant by not wanting the program to be false.
+
+   The session's own exercises decide. Its dominant muscle group has to be one
+   the category promises; if it is not, the label is no longer corroborated
+   and the confident split name is withheld. Nothing is renamed and no session
+   is reclassified — LOOP simply stops asserting a shape it can no longer
+   support. */
+function categoryStillFits(entry){
+  if(!entry || entry.type !== 'workout') return true;
+  const want = CATEGORY_GROUPS[entry.category];
+  if(want === undefined) return true;              // a category we make no claim about
+  if(want === null) return true;                   // full body promises nothing specific
+  let prof = null;
+  try{ prof = deriveWorkoutProfile(builderTemplateOf(entry)); }catch(e){ return true; }
+  if(!prof || !prof.primary || !prof.primary.length) return true;   // unknown is not wrong
+  /* The session's leading group must be something the label promised. Its
+     secondary work is free to go anywhere — accessories always do. */
+  return want.indexOf(prof.primary[0]) !== -1;
+}
+
+function splitLabelCorroborated(def){
+  return PROGRAM_DAY_KEYS.every(k => categoryStillFits((def.schedule || {})[k]));
+}
+
+/* THE NAME IS THE LOUDEST CLAIM ON THE SCREEN.
+
+   '3-Day Push / Pull / Legs Muscle Growth' is generated from the shape the
+   program was built with, and it sits at the top of My Training in the title
+   position. Rewrite the sessions and it keeps asserting a split the program
+   no longer has — the same staleness as the headline, in the most prominent
+   place LOOP has.
+
+   A name the ATHLETE typed is never touched. That is their program's name,
+   it is intent rather than derivation, and correcting it would be LOOP
+   overruling them. `nameByAthlete` records which kind a name is, and only a
+   generated one is ever re-derived. A program saved before this flag existed
+   has no marker either way, so it is left alone unless its name is still
+   exactly what the generator would have produced — which is the only case
+   where LOOP can be sure it wrote it. */
+function programNameIsGenerated(def){
+  if(!def) return false;
+  if(def.nameByAthlete) return false;
+  if(def.nameByAthlete === false) return true;
+  /* Legacy: no marker. Recognise LOOP's own handwriting, nothing else. */
+  return /^\d+-Day .+ (Muscle Growth|Strength|Muscle \+ Strength|Fitness|Training)$/.test(String(def.name || ''));
+}
+
+/* The name this program would be given for what it now contains. */
+function deriveProgramName(def){
+  const cats = [];
+  PROGRAM_DAY_KEYS.forEach(k => {
+    const e = (def.schedule || {})[k];
+    if(e && e.type === 'workout') cats.push(e.category);
+  });
+  if(!cats.length) return def.name;
+  /* An uncorroborated split gets no shape word, so the name states only what
+     is still true: how many days, and the goal the athlete chose. */
+  const shaped = splitLabelCorroborated(def) ? cats : ['\u0000'];
+  return builderProgramName(cats.length, def.goal, shaped);
+}
+
+/* Keeps a generated name honest after an edit. Returns the program. */
+function refreshProgramName(def){
+  if(!def || !programNameIsGenerated(def)) return def;
+  const next = deriveProgramName(def);
+  if(next && next !== def.name) def.name = next;
+  return def;
+}
+
 function deriveSplitInfo(def){
   const counts = {};
   PROGRAM_DAY_KEYS.forEach(k => {
@@ -27656,7 +28096,8 @@ function deriveSplitInfo(def){
   });
   const cats = Object.keys(counts);
   const n = cats.reduce((t,c) => t + counts[c], 0);
-  const only = list => cats.length && cats.every(c => list.indexOf(c) !== -1);
+  const corroborated = splitLabelCorroborated(def);
+  const only = list => corroborated && cats.length && cats.every(c => list.indexOf(c) !== -1);
   let label = 'Mixed split', why = null;
   if(only(['fullbody'])){
     label = 'Full Body';
@@ -27675,7 +28116,14 @@ function deriveSplitInfo(def){
   } else if(cats.length){
     why = cats.map(c => (CAT_LABEL[c] || c) + ' \u00d7' + counts[c]).join(' \u00b7 ');
   }
-  return { counts, label, why, sessions: n };
+  /* Edited past its generated shape. 'Your own split' is the honest name for
+     it, and the reason states what the week actually is rather than what it
+     was built as. */
+  if(!corroborated){
+    label = 'Your own split';
+    why = n + ' session' + (n === 1 ? '' : 's') + ' a week, built the way you wanted them.';
+  }
+  return { counts, label, why, sessions: n, corroborated };
 }
 
 /* The schedule, described only when there is something true to say. */
@@ -27860,8 +28308,12 @@ function deriveProgramExplanation(def){
   const emphasis = deriveEmphasisInfo(def);
   const goalLabel = def.goal && TRAINING_GOALS[def.goal]
     ? TRAINING_GOALS[def.goal].label.toLowerCase() : null;
+  /* D51D — the headline is one sentence of derived fact, so it answers to the
+     same corroboration the label does. */
+  const shapeWord = split.corroborated === false ? 'your own'
+    : (split.label === 'Mixed split' ? 'mixed-split' : split.label.toLowerCase());
   let headline = split.sessions + ' day' + (split.sessions === 1 ? '' : 's')
-    + ' a week of ' + (split.label === 'Mixed split' ? 'mixed-split' : split.label.toLowerCase())
+    + ' a week of ' + shapeWord
     + ' training' + (goalLabel ? ' for ' + goalLabel : '');
   if(emphasis && emphasis.effective) headline += ', with extra ' + emphasis.label.toLowerCase() + ' work';
   headline += '.';
@@ -29364,6 +29816,19 @@ function myTrainingState(){
 
   const trainingDays = days.filter(d => !d.rest).length;
   const cats = [...new Set(days.filter(d => !d.rest).map(d => d.cat))];
+  /* D51D — the structure line went straight from the stored categories to the
+     screen: 'Push / Pull / Legs', spelled out from labels nothing verifies.
+     deriveSplitInfo is the one place that decides whether that shape is still
+     supported by what the sessions actually contain, so the hero asks it
+     rather than reading the labels itself. */
+  let structure = cats.map(c => CAT_LABEL[c]).join(' / ');
+  if(program){
+    try{
+      const sp = deriveSplitInfo(program);
+      if(sp && sp.label) structure = sp.corroborated === false ? sp.label
+        : (sp.label === 'Mixed split' ? structure : sp.label);
+    }catch(e){}
+  }
   let goal = null;
   if(program && program.goal) goal = (TRAINING_GOALS[program.goal] || {}).label || program.goal;
   else if(athleteProfile && athleteProfile.goal) goal = (TRAINING_GOALS[athleteProfile.goal] || {}).label || athleteProfile.goal;
@@ -29376,9 +29841,172 @@ function myTrainingState(){
     planName: plan ? plan.name : null,
     week, totalWeeks, phase, goal,
     trainingDays,
-    structure: cats.map(c => CAT_LABEL[c]).join(' / '),
+    structure,
     days
   };
+}
+
+/* =========================================================
+   THE DRAFT HAS A HOME, AND SO DOES EVERY SESSION  (D51D)
+   ---------------------------------------------------------
+   D51C made an unfinished program survive being interrupted.
+   It did not give it anywhere to be found: the only surface
+   that mentioned a saved draft was the builder itself, reached
+   from the fourth row of a section called Adjust, below the
+   fold. Persisted and undiscoverable is the same as lost —
+   the owner’s words were "couldn’t find it again".
+
+   The same shape of problem sat over editing. With a program
+   running, My Training showed a read-only program map; the day
+   rows WITH edit controls only ever rendered when there was no
+   program. So the athlete could see their week and could not
+   touch it, and the one way in was a button labelled "Edit
+   program — Days, workouts, goal and length" at the bottom of
+   Adjust. The capability existed. Nothing pointed at it.
+   ========================================================= */
+
+/* The unfinished program, offered back. Secondary by construction: it never
+   outranks what the athlete is currently training, and it never opens itself
+   — arriving at My Training must not throw anyone into a draft they were not
+   asking for. */
+function myTrainingDraftHtml(){
+  let rec = null;
+  try{ rec = pbUsableStoredDraft(); }catch(e){ return ''; }
+  if(!rec || !rec.draft) return '';
+  const d = rec.draft;
+  const days = PROGRAM_DAY_KEYS.filter(k => d.schedule[k] && d.schedule[k].type === 'workout');
+  const editing = rec.mode === 'edit' && rec.editingId;
+  let when = '';
+  try{
+    const saved = rec.savedAt ? new Date(rec.savedAt) : null;
+    if(saved && !isNaN(saved.getTime())){
+      const ds = localDateStr(saved);
+      when = ds === localDateStr() ? 'Edited today' : 'Edited ' + formatDateShort(ds);
+    }
+  }catch(e){}
+  return '<div class="sec-head">Unfinished</div>' +
+    '<div class="mt-draft">' +
+      '<div class="mt-draft-top">' +
+        '<div class="mt-draft-info">' +
+          '<div class="mt-draft-k">' + (editing ? 'Unsaved changes' : 'Program draft') + '</div>' +
+          '<div class="mt-draft-name">' + escapeHtml(d.name || 'Your program') + '</div>' +
+          '<div class="mt-draft-meta">' + d.durationWeeks + ' weeks · ' + days.length +
+            ' day' + (days.length === 1 ? '' : 's') + ' a week' +
+            (when ? ' · ' + escapeHtml(when) : '') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mt-draft-acts">' +
+        '<button type="button" class="mt-draft-go" onclick="mtResumeDraft()">' +
+          (editing ? 'Continue editing' : 'Continue building') + '</button>' +
+        '<button type="button" class="mt-draft-x" onclick="mtDiscardDraft()">Discard</button>' +
+      '</div>' +
+    '</div>';
+}
+
+function mtResumeDraft(){
+  let rec = null;
+  try{ rec = pbUsableStoredDraft(); }catch(e){}
+  if(!rec) return;
+  /* Straight back into the work — the athlete asked for it by name here, so
+     the resume screen would only be a second confirmation of a choice they
+     have already made. */
+  openProgramBuilderFlow(rec.mode === 'edit' ? 'edit' : 'create');
+  if(pbState && pbState.resume) pbResumeContinue();
+}
+
+function mtDiscardDraft(){
+  if(!confirm('Discard this draft? Your training history and current program are not affected.')) return;
+  clearProgramDraft();
+  renderMyTraining();
+}
+
+/* THE WEEK, AS THINGS YOU CAN OPEN. One row per session: the day, what it is,
+   and how much is in it. The whole row is the control — there is no small
+   pencil to find, because a pencil is exactly the affordance that cannot be
+   hit one-handed. */
+function myTrainingSessionsHtml(t){
+  let program = null;
+  try{ program = getActiveProgram(); }catch(e){ return ''; }
+  if(!program) return '';
+  const rows = PROGRAM_DAY_KEYS.map(k => {
+    const entry = programEntryOn(program, k, weekDateForDayKey(k));
+    if(!entry || entry.type !== 'workout') return '';
+    let tpl = null;
+    try{ tpl = resolveProgramWorkout(entry); }catch(e){}
+    const name = entry.name || (tpl && tpl.name) || CAT_LABEL[entry.category] || 'Session';
+    const count = (tpl && tpl.exercises) ? tpl.exercises.length : 0;
+    let mins = null;
+    try{ mins = tpl ? computeWorkoutDuration(tpl) : null; }catch(e){}
+    const today = k === todayKey();
+    return '<button type="button" class="mt-sess' + (today ? ' mt-sess-today' : '') + '"' +
+      ' onclick="openProgramSessionEditor(\'' + k + '\')"' +
+      ' aria-label="Edit ' + escapeAttr(name) + ', ' + escapeAttr(DAY_LABEL_FULL[k] || k) + '">' +
+      '<span class="mt-sess-day">' + escapeHtml(DAY_LABEL[k] || k) + '</span>' +
+      '<span class="mt-sess-body">' +
+        '<span class="mt-sess-name">' + escapeHtml(name) + '</span>' +
+        '<span class="mt-sess-meta">' + (count ? count + ' exercise' + (count === 1 ? '' : 's') : 'No exercises yet') +
+          (mins ? ' · ~' + mins + ' min' : '') + '</span>' +
+      '</span>' +
+      '<span class="mt-sess-go" aria-hidden="true">' + chevronRightSvg() + '</span>' +
+    '</button>';
+  }).join('');
+  return '<div class="sec-head">Your sessions<span class="sec-hint">tap to edit</span></div>' +
+    '<div class="mt-sessions">' + rows + '</div>' +
+    '<button type="button" class="mt-sess-add" onclick="openProgramSessionEditor(null)">' +
+      '+ Add a session</button>';
+}
+
+/* One tap from a session to that session’s editor. It opens the program
+   editor already scrolled to the right place and already open — not the
+   questionnaire, and not a list the athlete has to find their day in again. */
+let pbPendingSession = null;
+function openProgramSessionEditor(dayKey){
+  pbPendingSession = dayKey || null;
+  closeMyTraining();
+  openProgramBuilderFlow('edit');
+  /* A stored draft for this same program is the athlete’s own unsaved work on
+     it, so continue that rather than silently starting again from the saved
+     plan. A draft for something else keeps its resume screen. */
+  try{
+    if(pbState && pbState.resume && pbState.mode === 'edit') pbResumeContinue();
+  }catch(e){}
+  pbApplyPendingSession();
+}
+
+function pbApplyPendingSession(){
+  if(!pbState || pbState.resume) return;
+  const want = pbPendingSession;
+  pbPendingSession = null;
+  if(want === null){
+    /* "Add a session" — create it and open it, so the athlete lands inside
+       the thing they just asked for rather than looking for it. */
+    const made = pbAddSession();
+    if(made){ pbOpenSession = made; renderProgramBuilderFlow(); pbScrollToSession(made); }
+    return;
+  }
+  if(!want) return;
+  pbOpenSession = want;
+  renderProgramBuilderFlow();
+  pbScrollToSession(want);
+}
+
+/* The athlete tapped a named session, so that session is what they should be
+   looking at. Without this the editor opened at the top of a long page with
+   the thing they asked for somewhere below the fold — the session was open,
+   and they still had to go and find it. */
+function pbScrollToSession(dayKey){
+  try{
+    /* renderProgramBuilderFlow writes innerHTML synchronously, so the session
+       is already in the document — there is nothing to wait a frame for, and
+       waiting only introduces a visible jump from the top of the page. */
+    const el = document.querySelector('.ps-sess.open');
+    const box = document.querySelector('#pbOverlay .sheet-scroll');
+    if(!el || !box) return;
+    const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top;
+    /* Instant. The athlete tapped a session by name; animating 900px of
+       program past them on the way there is a journey they did not ask for. */
+    box.scrollTop = Math.max(0, box.scrollTop + top - 12);
+  }catch(e){}
 }
 
 /* ---------- THE DASHBOARD ---------- */
@@ -29455,6 +30083,12 @@ function renderMyTraining(){
 
     ${finishedSum ? '' : myTrainingStatsHtml(t)}
 
+    ${/* D51D — unfinished work, offered where the athlete's programs live.
+          Below the current program because current training is what this page
+          is for; above everything else because a saved draft they cannot find
+          is a saved draft they have lost. */''}
+    ${myTrainingDraftHtml()}
+
     ${/* D46B — with no program running, this page used to read as a schedule
           with the program feature reduced to the fourth row of "Adjust", far
           below the fold. Structured training is the point of the screen, so
@@ -29484,6 +30118,7 @@ function renderMyTraining(){
     ${(t.hasProgram && !finishedSum)
       ? `<div class="sec-head">Your program<span class="sec-hint">tap a week</span></div>
          ${myTrainingProgramMapHtml(t)}
+         ${myTrainingSessionsHtml(t)}
          ${(() => {
            /* Progress so far, for a program still being trained. Same
               function and same evidence rules as the completion panel, so
@@ -29526,7 +30161,7 @@ function renderMyTraining(){
       </button>
       ${t.hasProgram ? `<button type="button" class="mt-act" onclick="openProgramBuilderFlow('edit')">
         <span class="mt-act-main">Edit program</span>
-        <span class="mt-act-sub">Days, workouts, goal and length</span>
+        <span class="mt-act-sub">Length, goal and the whole week at once</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
       </button>` : `<button type="button" class="mt-act" onclick="openProgramBuilderFlow('create')">
         <span class="mt-act-main">Build my program</span>

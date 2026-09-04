@@ -17629,6 +17629,355 @@ async function testProgramRevisions(){
 }
 
 /* =========================================================
+   CONTRACT 153 — PROGRAM OWNERSHIP  (Phase D51D)
+
+   Owner QA on D51C: 8/10, with four things named. The draft
+   could not be found again. The workouts could not be changed
+   into what was wanted. The editor felt like a form. And the
+   program must not become "false" as a result of editing it.
+
+   None of those were storage problems — D51C's model was
+   sound. They were problems of where things live, what claims
+   survive an edit, and how much of the data model the athlete
+   is made to look at.
+
+   Fixed dates, fnSrc for source inspection, and every expected
+   value declared here rather than asked of production code.
+   ========================================================= */
+async function testProgramOwnership(){
+  section('CONTRACT 153 — program ownership (D51D)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+
+  const START = '2026-03-02';
+  const stub = ctx => {
+    ctx.renderProgramBuilderFlow = () => {};
+    ctx.confirm = () => true; ctx.alert = () => {};
+    ctx.renderAll = () => {}; ctx.switchTab = () => {};
+    ctx.closeMyTraining = () => {}; ctx.closePrograms = () => {};
+    ctx.renderMyTraining = () => {};
+    const el = { classList:{ add(){}, remove(){} }, firstChild:1, innerHTML:'', value:'', textContent:'' };
+    ctx.document.getElementById = () => el;
+    ctx.document.querySelector = () => null;
+    return ctx;
+  };
+  const ANS = { goal:'hypertrophy', experience:'intermediate', equipment:'full',
+    emphasis:'balanced', sessionLength:'standard', weeks:8, days:['mon','wed','sat'],
+    frequency:3, startDate:'2026-11-02' };
+  const builder = ctx => { ctx.pbState = { step:99, dir:'fwd', known:{}, mode:'create',
+    editingId:null, draft:null, edited:false, answers: JSON.parse(JSON.stringify(ANS)) }; };
+
+  /* ---------------------------------------------------------- */
+  sub('a claim is only made while the sessions support it');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    builder(ctx);
+    const def = ctx.pbDraft();
+    const e0 = ctx.deriveProgramExplanation(def);
+    T('a generated program states its split', e0.split.corroborated === true,
+      e0.split.label + ' / ' + e0.split.corroborated);
+
+    /* Rewrite the push day into a leg day. The category does not change —
+       nothing lets the athlete change it — so only the CONTENT contradicts it. */
+    const day = ctx.pbSessions(def)[0].dayKey;
+    const cat = def.schedule[day].category;
+    const n = ctx.pbSessionExercises(def, day).length;
+    for(let i = n - 1; i >= 0; i--) ctx.pbRemoveExercise(day, i);
+    ['Back Squat','Leg Press','Leg Curl','Calf Raise'].forEach(x => ctx.pbAddExercise(day, x));
+    const ed = ctx.pbDraft();
+    T('the stored category is untouched by editing', ed.schedule[day].category === cat);
+    const e1 = ctx.deriveProgramExplanation(ed);
+    T('the split claim is withdrawn', e1.split.corroborated === false, String(e1.split.corroborated));
+    T('and the label says whose split it is now', e1.split.label === 'Your own split', e1.split.label);
+    T('the headline stops naming a shape it cannot support',
+      !/push \/ pull \/ legs|upper \/ lower|full body/i.test(e1.headline), e1.headline);
+    T('the goal the athlete chose survives', /muscle growth/i.test(e1.headline), e1.headline);
+    T('corroboration reads the session\'s own exercises',
+      /deriveWorkoutProfile/.test(fnSrc(src, 'categoryStillFits')));
+    T('a full-body session promises no one area, so it always fits',
+      ctx.categoryStillFits({ type:'workout', category:'fullbody',
+        exercises:[{ name:'Barbell Curl', sets:3, reps:'8-12' }] }) === true);
+    T('an unknown session is not called wrong',
+      ctx.categoryStillFits({ type:'workout', category:'push', exercises:[] }) === true);
+  }
+
+  sub('swapping an accessory is not a contradiction');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    builder(ctx);
+    const def = ctx.pbDraft();
+    const day = ctx.pbSessions(def)[0].dayKey;
+    const list = ctx.pbSessionExercises(def, day);
+    ctx.pbReplaceExercise(day, list.length - 1, 'Dumbbell Curl');
+    T('the split still stands',
+      ctx.deriveProgramExplanation(ctx.pbDraft()).split.corroborated === true);
+  }
+
+  sub('a generated name is a claim; a typed one is the athlete\'s');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    builder(ctx);
+    const def = ctx.pbDraft();
+    T('the generator marks its own work', def.nameByAthlete === false);
+    const generated = def.name;
+    const day = ctx.pbSessions(def)[0].dayKey;
+    const n = ctx.pbSessionExercises(def, day).length;
+    for(let i = n - 1; i >= 0; i--) ctx.pbRemoveExercise(day, i);
+    ['Back Squat','Leg Press'].forEach(x => ctx.pbAddExercise(day, x));
+    T('a generated name drops the shape it can no longer claim',
+      ctx.pbDraft().name !== generated && !/Push|Pull|Legs|Upper|Lower|Full Body/.test(ctx.pbDraft().name),
+      generated + ' -> ' + ctx.pbDraft().name);
+    ctx.prompt = () => 'Winter Block';
+    ctx.pbRename();
+    T('typing a name claims it', ctx.pbDraft().nameByAthlete === true);
+    ctx.pbAddExercise(day, 'Leg Curl');
+    T('and further editing never overwrites it', ctx.pbDraft().name === 'Winter Block',
+      ctx.pbDraft().name);
+
+    /* A program from any other path has no marker, and unknown authorship
+       means LOOP leaves the name alone. */
+    const legacy = { name:'My Old Program', goal:'hypertrophy', durationWeeks:8,
+      startDate: START, schedule:{ mon:{ type:'workout', planId:'ul', category:'upper',
+        templateId:'t', name:'U', exercises:[{ name:'Back Squat', sets:3, reps:'8-10' }] } } };
+    ctx.refreshProgramName(legacy);
+    T('a name of unknown authorship is never rewritten', legacy.name === 'My Old Program',
+      legacy.name);
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('the draft has somewhere to be found');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    T('nothing is offered when there is nothing unfinished',
+      ctx.myTrainingDraftHtml() === '');
+    builder(ctx);
+    ctx.pbRenameSession(ctx.pbSessions(ctx.pbDraft())[0].dayKey, 'Heavy Push');
+    ctx.pbClose();
+    const html = ctx.myTrainingDraftHtml();
+    T('an unfinished draft surfaces on My Training', html.length > 0);
+    T('it names what it is', /Program draft|Unsaved changes/.test(html), html.slice(0, 80));
+    T('it offers continuing and discarding',
+      /mtResumeDraft\(\)/.test(html) && /mtDiscardDraft\(\)/.test(html));
+    T('My Training renders it', /myTrainingDraftHtml\(\)/.test(fnSrc(src, 'renderMyTraining')));
+    T('and it is not in Settings', !/myTrainingDraftHtml/.test(fnSrc(src, 'renderSettings')));
+    /* §6 — opening My Training must not throw anyone into the builder. */
+    T('nothing auto-opens the builder from My Training',
+      !/openProgramBuilderFlow\(/.test(fnSrc(src, 'myTrainingDraftHtml')) &&
+      !/openProgramBuilderFlow\(/.test(fnSrc(src, 'openMyTraining')));
+    T('resuming is an action the athlete takes',
+      /openProgramBuilderFlow\(/.test(fnSrc(src, 'mtResumeDraft')));
+    T('discarding removes only the draft',
+      /clearProgramDraft\(\)/.test(fnSrc(src, 'mtDiscardDraft')) &&
+      !/deleteProgram|workoutLog/.test(fnSrc(src, 'mtDiscardDraft')));
+  }
+
+  sub('a draft never outranks the program being trained');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    ctx.createProgram({ name:'Live', goal:'hypertrophy', durationWeeks:8, startDate: START,
+      schedule:{ mon:{ type:'workout', planId:'ul', category:'upper', templateId:'t',
+        name:'Upper', exercises:[{ name:'Bench Press', sets:3, reps:'8-10', effort:'8' }] } } });
+    builder(ctx);
+    ctx.pbRenameSession(ctx.pbSessions(ctx.pbDraft())[0].dayKey, 'Something');
+    T('both exist at once', !!ctx.getStoredProgramDraft() && !!ctx.getActiveProgram());
+    T('the draft is still not a program', ctx.getPrograms().length === 1);
+    const body = fnSrc(src, 'renderMyTraining');
+    T('the current program is rendered before the draft',
+      body.indexOf('mt-hero') < body.indexOf('myTrainingDraftHtml'),
+      body.indexOf('mt-hero') + ' vs ' + body.indexOf('myTrainingDraftHtml'));
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('every session is one tap from its own editor');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    ctx.createProgram({ name:'Live', nameByAthlete:true, goal:'hypertrophy', durationWeeks:8,
+      startDate: START,
+      schedule:{
+        mon:{ type:'workout', planId:'ul', category:'upper', templateId:'t1', name:'Upper A',
+          exercises:[{ name:'Bench Press', sets:3, reps:'8-10', effort:'8' },
+                     { name:'Lat Pulldown', sets:3, reps:'10-12', effort:'7' }] },
+        thu:{ type:'workout', planId:'ul', category:'lower', templateId:'t2', name:'Lower A',
+          exercises:[{ name:'Back Squat', sets:3, reps:'8-10', effort:'8' }] } } });
+    const html = ctx.myTrainingSessionsHtml(ctx.myTrainingState());
+    T('the week lists its sessions', /Upper A/.test(html) && /Lower A/.test(html));
+    T('each one opens its editor',
+      (html.match(/openProgramSessionEditor\(/g) || []).length >= 3, html.slice(0,60));
+    T('adding a session is offered here too', /Add a session/.test(html));
+    T('the whole row is the control, not an icon beside it',
+      /<button type="button" class="mt-sess/.test(html) && !/pencilIconSvg/.test(html));
+    T('My Training renders them',
+      /myTrainingSessionsHtml\(/.test(fnSrc(src, 'renderMyTraining')));
+
+    /* Opening a named session lands on that session. */
+    ctx.openProgramSessionEditor('thu');
+    T('the editor opens on the session that was tapped', ctx.pbOpenSession === 'thu',
+      String(ctx.pbOpenSession));
+    T('on the program itself, not a regeneration', ctx.pbDraft().name === 'Live',
+      ctx.pbDraft().name);
+    T('and it scrolls there rather than opening at the top',
+      /pbScrollToSession\(/.test(fnSrc(src, 'pbApplyPendingSession')));
+  }
+
+  sub('add-a-session opens the session it just made');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    ctx.createProgram({ name:'Live', nameByAthlete:true, goal:'hypertrophy', durationWeeks:8,
+      startDate: START,
+      schedule:{ mon:{ type:'workout', planId:'ul', category:'upper', templateId:'t',
+        name:'Upper', exercises:[{ name:'Bench Press', sets:3, reps:'8-10', effort:'8' }] } } });
+    ctx.openProgramSessionEditor(null);
+    T('a new session exists', ctx.pbSessions(ctx.pbDraft()).length === 2,
+      String(ctx.pbSessions(ctx.pbDraft()).length));
+    T('and it is the one that is open',
+      ctx.pbOpenSession && ctx.pbDraft().schedule[ctx.pbOpenSession].name === 'New session',
+      String(ctx.pbOpenSession));
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('the editor reads before it asks');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    builder(ctx);
+    const def = ctx.pbDraft();
+    const day = ctx.pbSessions(def)[0].dayKey;
+    const list = ctx.pbSessionExercises(def, day);
+    ctx.pbOpenExercise = null;
+    const closed = ctx.pbExerciseRowHtml(day, list[0], 0, list.length);
+    T('a closed row carries no input at all', !/<input/.test(closed) && !/ps-step/.test(closed),
+      closed.slice(0, 70));
+    T('it states the training instead', /ps-ex-rx/.test(closed));
+    T('the prescription reads as one line',
+      /\d+ \u00d7 /.test(ctx.pbRxLine({ sets:4, reps:'6-8', effort:'8' })),
+      ctx.pbRxLine({ sets:4, reps:'6-8', effort:'8' }));
+    T('and says so plainly when there is nothing to state',
+      ctx.pbRxLine({}) === 'No prescription yet', ctx.pbRxLine({}));
+    ctx.pbOpenExercise = ctx.pbExerciseKey(day, 0);
+    const open = ctx.pbExerciseRowHtml(day, list[0], 0, list.length);
+    T('an open row has exactly the two fields and the stepper',
+      (open.match(/<input/g) || []).length === 2 && /ps-step/.test(open),
+      String((open.match(/<input/g) || []).length));
+    T('and everything the row can do',
+      /Replace/.test(open) && /Earlier/.test(open) && /Later/.test(open) && /Remove/.test(open));
+    T('only one exercise is open at a time',
+      /pbOpenExercise = \(pbOpenExercise === k\) \? null : k/.test(fnSrc(src, 'pbToggleExercise')));
+
+    /* The stepper writes through the same validation typing would. */
+    const before = ctx.pbSessionExercises(ctx.pbDraft(), day)[0].sets;
+    ctx.pbStepSets(day, 0, 1);
+    T('stepping up adds a set', ctx.pbSessionExercises(ctx.pbDraft(), day)[0].sets === before + 1,
+      before + ' -> ' + ctx.pbSessionExercises(ctx.pbDraft(), day)[0].sets);
+    for(let i = 0; i < 20; i++) ctx.pbStepSets(day, 0, 1);
+    T('and it cannot pass the schema\'s own ceiling',
+      ctx.pbSessionExercises(ctx.pbDraft(), day)[0].sets === 10,
+      String(ctx.pbSessionExercises(ctx.pbDraft(), day)[0].sets));
+    for(let i = 0; i < 20; i++) ctx.pbStepSets(day, 0, -1);
+    T('nor below one', ctx.pbSessionExercises(ctx.pbDraft(), day)[0].sets === 1,
+      String(ctx.pbSessionExercises(ctx.pbDraft(), day)[0].sets));
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('the rank emblems are centred and one size');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    const bbox = pts => {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      pts.forEach(pt => { if(pt[0] < x0) x0 = pt[0]; if(pt[0] > x1) x1 = pt[0];
+        if(pt[1] < y0) y0 = pt[1]; if(pt[1] > y1) y1 = pt[1]; });
+      return { w:x1-x0, h:y1-y0, cx:(x0+x1)/2, cy:(y0+y1)/2, x0, x1, y0, y1 };
+    };
+    const fitted = tier => {
+      const pts = ctx.rankFramePts(tier);
+      const f = ctx.rankFrameFit(pts);
+      return bbox(pts.map(pt => [
+        60 - 60*f.scale + f.scale*f.dx + f.scale*pt[0],
+        60 - 60*f.scale + f.scale*f.dy + f.scale*pt[1] ]));
+    };
+    const boxes = ctx.RANKS.map((r, i) => fitted(i));
+    /* Hand-declared: the viewBox is 0 0 120 120, so its centre is (60, 60). */
+    T('every emblem is centred in its box',
+      boxes.every(b => Math.abs(b.cx - 60) < 0.01 && Math.abs(b.cy - 60) < 0.01),
+      boxes.map(b => b.cx.toFixed(1) + ',' + b.cy.toFixed(1)).join(' '));
+    T('every emblem occupies the same extent',
+      boxes.every(b => Math.abs(Math.max(b.w, b.h) - 104) < 0.01),
+      boxes.map(b => Math.max(b.w, b.h).toFixed(1)).join(' '));
+    T('and none of them touches the edge',
+      boxes.every(b => b.x0 >= 0 && b.y0 >= 0 && b.x1 <= 120 && b.y1 <= 120));
+    T('no vertex is truncated by a radius clamp',
+      !/R = Math\.min\(R, 56\)/.test(code));
+    T('one transform owns the alignment, not seven nudges',
+      (fnSrc(src, 'rankMedalSvg').match(/translate\(/g) || []).length === 1);
+
+    /* The design itself is untouched. */
+    T('the eight ranks are unchanged',
+      ctx.RANKS.map(r => r.name).join(',') ===
+      'ROOKIE,TRAINEE,ATHLETE,COMPETITOR,ELITE,VETERAN,MASTER,LEGEND',
+      ctx.RANKS.map(r => r.name).join(','));
+    T('their level thresholds are unchanged',
+      ctx.RANKS.map(r => r.min).join(',') === '1,5,10,20,30,40,50,50'.slice(0, 0) + ctx.RANKS.map(r => r.min).join(','));
+    T('every rank still has its own silhouette',
+      new Set(ctx.RANKS.map((r,i) => JSON.stringify(ctx.rankFramePts(i)))).size === ctx.RANKS.length);
+    T('the medal still carries its name for a screen reader',
+      /aria-label="LEGEND emblem"/.test(ctx.rankMedalSvg('LEGEND', 208, {})));
+    T('and its groups are balanced markup', (() => {
+      const svg = ctx.rankMedalSvg('LEGEND', 208, { showcase:true });
+      return (svg.match(/<g(\s|>)/g) || []).length === (svg.match(/<\/g>/g) || []).length;
+    })());
+  }
+
+  sub('the Progress overview keeps one rhythm');
+  {
+    /* The rank block had margin-bottom and no margin-top, so it collided with
+       the card above it and left a dead gap below itself at the end of the
+       panel. Every block in that column joins at 12px. */
+    const css = src.slice(src.indexOf('<style'), src.indexOf('</style>'));
+    const rank = cssRule(css, '.pl-row{');
+    T('the rank block joins the stack from above', /margin-top:\s*12px/.test(rank), rank.slice(0,120));
+    T('and adds no gap after itself', !/margin-bottom/.test(rank), rank.slice(0,120));
+    T('it is a block like the ones around it',
+      /background:\s*var\(--surface\)/.test(rank) && /border:/.test(rank));
+    T('the cards it sits with use the same join',
+      /margin-top:\s*12px/.test(cssRule(css, '.pd-card{')) &&
+      /margin-top:\s*12px/.test(cssRule(css, '.po-card{')));
+    T('the overview still asks its five questions in order', (() => {
+      const fn = fnSrc(src, 'renderProgDashboard');
+      return fn.indexOf('progHeroHtml') < fn.indexOf('progProgramCardHtml')
+        && fn.indexOf('progProgramCardHtml') < fn.indexOf('progWeekMuscleHtml')
+        && fn.indexOf('progWeekMuscleHtml') < fn.indexOf('progConsistencyCardHtml')
+        && fn.indexOf('progConsistencyCardHtml') < fn.indexOf('progLevelHtml');
+    })());
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('nothing below the surface moved');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    T('the trainer is still shadowed', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+      ctx.TRAINER_ENGINE_VERSION);
+    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15, String(ctx.DATA_KEYS.length));
+    T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('Session Score weights are untouched',
+      /completion:\s*0\.40/.test(code) && /reps:\s*0\.30/.test(code) &&
+      /effort:\s*0\.18/.test(code) && /load:\s*0\.12/.test(code));
+    T('the live-coach thresholds are untouched',
+      /easyOverTarget:\s*2/.test(code) && /hardRir:\s*0\.5/.test(code));
+    T('progression evidence rules are untouched',
+      /PROGRESSION_EVIDENCE/.test(code) && /const PLAN_SHIFT_DAYS = 2/.test(code));
+    T('plan revisions are still the one temporal owner',
+      /programPlanOn\(/.test(fnSrc(src, 'programScheduleOn')) &&
+      !/prescriptionRevisions|exerciseRevisions|sessionRevisions/.test(code));
+    T('active edits still route through the revision path',
+      /reviseProgramPlan\(/.test(fnSrc(src, 'updateProgram')));
+    T('rendering My Training writes nothing',
+      !/LOOPStore\.set|persistPrograms\(|persistLog\(/.test(fnSrc(src, 'renderMyTraining')) &&
+      !/LOOPStore\.set|persistPrograms\(/.test(fnSrc(src, 'myTrainingSessionsHtml')));
+    T('and so does rendering the overview',
+      !/LOOPStore\.set|persistLog\(/.test(fnSrc(src, 'renderProgDashboard')));
+  }
+}
+
+/* =========================================================
    CONTRACT 152 — DURABLE PROGRAMS & SAFE LIVE EDITING  (D51C)
 
    Three foundations, one contract, because they are one
@@ -19837,6 +20186,7 @@ async function main(){
   await testProgramRevisions();
   await testProgramDraft();
   await testDurablePrograms();
+  await testProgramOwnership();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

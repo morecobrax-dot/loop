@@ -6505,3 +6505,176 @@ migration. D39–D51B untouched.
 Not shipped, and still deliberately so: the template library, the three-way
 entry screen, and outside-activity blocks. The architecture is now ready for all
 three — a session that owns its exercises is exactly what a template is.
+
+---
+
+## §78 — D51D: A program you can see
+
+**Status.** Shipped in LOOP 4.8 (`loop-v125`).
+
+D51C built the durable, forward-safe program architecture. Owner QA rated it
+8/10 and named four things that had nothing to do with storage: *couldn't find
+the draft again*, *couldn't change the workouts to what I want*, *feels like a
+form*, and *I don't want the program to be false either*. Plus two on Progress:
+the rank block doesn't fit, and the medals look unfinished up close.
+
+Every one of them turned out to be a real, reproducible defect.
+
+### "Couldn't find it again"
+
+The draft was persisted correctly and had **nowhere to be found**. The only
+surface that mentioned one was the builder itself, reached from the fourth row
+of a section called *Adjust*, below the fold on My Training. Persisted and
+undiscoverable is the same as lost.
+
+It has a home now: a block on My Training, above the fold, naming what it is,
+how big it is and when it was last touched, with **Continue** and **Discard**.
+It is secondary to the program being trained, and it never opens itself —
+arriving at My Training must not throw anyone into a draft they were not asking
+for.
+
+### "Couldn't change the workouts to what I want"
+
+Not hidden capability, and not a misunderstanding. With a program running, My
+Training rendered a **read-only** program map; the day rows carrying edit
+controls only ever rendered when there was *no* program. So the athlete could
+see their week and could not touch it, and the single way in was a button
+labelled "Edit program — Days, workouts, goal and length" at the bottom of
+Adjust.
+
+Every session in the week is now listed, and **the whole row is the control** —
+tap it and the editor opens on that session, scrolled to it. Add a session is
+offered in the same place, and creates the session and opens it. A pencil icon
+at the end of a row is the affordance that cannot be hit one-handed; there
+isn't one.
+
+### "I don't want the program to be false either"
+
+`deriveSplitInfo` counted **stored categories** and announced "Push / Pull /
+Legs" from them alone. No editor changes a category — correctly, since category
+is how adherence identifies a planned session — so an athlete could rewrite
+Monday's push session into a leg day and LOOP would keep describing the program
+as PPL in the headline, in the My Training hero, and in the program's own name
+at the top of the screen.
+
+The session's exercises decide now. Its dominant muscle group has to be one its
+category promises; when it is not, the confident split name is withheld and the
+program reads *"Your own split"*. Measured:
+
+```
+generated      3-Day Push / Pull / Legs Muscle Growth
+               3 days a week · Push / Pull / Legs · Muscle Growth
+               "3 days a week of push / pull / legs training for muscle growth."
+
+push day rewritten as legs
+               3-Day Muscle Growth
+               3 days a week · Your own split · Muscle Growth
+               "3 days a week of your own training for muscle growth."
+```
+
+Nothing is renamed and no session is reclassified. LOOP simply stops asserting
+a shape it can no longer support. Swapping one accessory is **not** a
+contradiction, and the goal the athlete chose survives everything — §17's
+distinction between intent and derived composition, made structural.
+
+The program **name** needed the same treatment and one more rule, because it is
+the loudest claim on the screen. `nameByAthlete` has three states: `true` is
+the athlete's and is never touched, `false` is the generator's and is
+re-derived, and **absent is unknown** — a program from some other path, whose
+name LOOP leaves alone unless it is recognisably its own handwriting. Coercing
+absent to false renamed "My Old Program" to "1-Day Muscle Growth" for exactly
+one test run before that was caught.
+
+Emphasis already self-corrected. The brief's own example was the one thing that
+was already right.
+
+### "Form, want it to feel premium"
+
+D51B put three text inputs on every exercise, permanently. A six-exercise
+session was eighteen input boxes stacked down the screen. What an athlete wants
+when they open a session is what the session *is* — and a form cannot show
+that, because every value is wearing a box.
+
+```
+BENCH PRESS
+4 × 6–8 · effort 8
+```
+
+One tap turns that row into its editor: a stepper for sets, the app's own
+numeric fields for reps and effort, and the controls that restructure the
+session — Replace, ↑ Earlier, ↓ Later, Remove — appearing *with* the fields
+rather than sitting on every row waiting to be hit by accident. One exercise
+open at a time. Everything is one tap deep; nothing is hidden.
+
+Three defects fell out of building it:
+
+- **The columns never lined up.** A global `label { margin-bottom: 6px }` rule
+  for LOOP's older forms was reaching into the grid. Reps and Effort are
+  labels and Sets is a div, so two of three columns picked up 14px of top
+  margin and the row grew to 83px to hold a 63px control. The SETS label sat
+  14px above the other two — since D51B.
+- **Remove was the loudest control on the screen.** Four equal buttons wrapped,
+  and the destructive one became a full-width red bar.
+- **The stepper buttons were 42×42.** A 44px box with a 1px border leaves 42
+  inside. Both the stepper and the inputs are 46 outer / 44 interactive now, so
+  they match each other as well as the minimum.
+
+### The rank emblems
+
+Measured rather than squinted at. Every rank draws into the same 120-unit box,
+and three of them are not centred in it — VETERAN's keel put its silhouette
+**3.75 units low**, which is 6.5px at showcase size. ROOKIE's ink covered 74%
+of the width LEGEND's did, so the medals visibly changed size along the ladder.
+And LEGEND's apex — the single point the top rank's whole silhouette builds
+toward — sat exactly on the `R = 56` clamp, cut off square.
+
+The fix is not seven nudges. One transform per emblem, derived from its own
+bounds: centre it, then scale it to a common extent. The bezel, the hexagon,
+the shoulders, the wings, the keel, the crest and the apex are untouched, and
+the ladder still reads from the outline alone. Only the fit changes, and the
+clamp is gone because fitting now guarantees the box.
+
+```
+                 before                        after
+ROOKIE       80.0 × 80.0   (60.0, 60.0)   104.0 × 104.0   (60, 60)
+VETERAN     107.6 × 99.4   (60.0, 63.8)   104.0 ×  96.1   (60, 60)
+LEGEND      107.6 × 109.4  (60.0, 58.8)   102.3 × 104.0   (60, 60)
+```
+
+Worst centring error: 0.0000. Extent spread: 0.0000, from 29.4.
+
+### The rank block on Progress
+
+Every other section of the overview is a card with `margin-top: 12px`. This was
+a bare flex row with the margin on the **wrong side** — `margin-bottom` and no
+`margin-top` — so it collided with the card above it (0px where every other
+join is 12px) and left 16px of dead space below itself at the end of the panel,
+with nothing after it. That is the spacing the owner could see, and the reason
+the rank "didn't fit": it was composed as the last row of a header, in a column
+of cards. The joins now measure 12 / 12 / 12.
+
+The order is unchanged and deliberate: how am I doing now → am I following my
+plan → what did I train → am I consistent → how far I've come. The long view
+closes the page.
+
+### Progression: deliberately unchanged
+
+The owner asked for rep guidance to be "a little more accurate", and almost
+every progression reality-check answer was DIDN'T TEST. That is real feedback
+with no evidence behind it yet, so D49's thresholds, increase, hold, reduction
+and RIR-sufficiency rules are all untouched. The question stays in Owner QA
+until there are real gym exposures to calibrate against.
+
+### Verification
+
+5,835 assertions across 153 contracts, plus 327 program-audit, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix — all green, and D51C's
+temporal oracle (42) and durability probe (58) still pass unchanged.
+
+Six viewports clean across My Training, the session editor with an exercise
+open, and the Progress overview: zero overflow, zero clipping, every control at
+least 44px, every input 16px.
+
+`DATA_KEYS` remains 15 — this phase added no storage at all. No migration.
+`TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`. Session Score, Live Set Coach,
+D49 progression, D51C plan revisions and the picker are untouched.
