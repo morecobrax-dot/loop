@@ -6329,3 +6329,179 @@ This file has now rediscovered the same two conventions — bound by structure,
 strip comments — in four consecutive phases. Contract 151 follows both by
 construction. A pass that applies them to every existing source-slicing
 assertion is overdue and would be cheap.
+
+---
+
+## §77 — D51C: A program you can live with
+
+**Status.** Shipped in LOOP 4.7 (`loop-v124`).
+
+D51B made a generated program editable. D51C makes it *durable*: the work
+survives interruption, changes to a running program apply forward, and choosing
+an exercise stopped being a `prompt()`.
+
+### One timeline, not four
+
+The brief asked for a single canonical owner of temporal plan truth, and warned
+against `scheduleRevisions` + `prescriptionRevisions` + `exerciseRevisions` that
+would later have to be reconciled. That turned out to need **no new shape at
+all**.
+
+D51 stored the *schedule* of each revision. After D51B, a schedule entry carries
+its own name, exercises and prescriptions — so the record D51 was already
+writing IS the whole plan: days, sessions, exercises and prescriptions together.
+Broadening it into a **program plan** cost one rename and a materialisation
+step. There is exactly one revision list, and `programPlanOn(program, date)` is
+the one function that reads it.
+
+```
+Program
+  schedule      the current plan, unchanged, for every existing reader
+  revisions[]   { effectiveFrom, schedule }  — the plan in force from a date
+```
+
+`programScheduleOn` survives as a narrow wrapper over `programPlanOn`, because
+"schedule" is what most callers are actually asking about.
+
+### Materialisation: a snapshot must stand alone
+
+A generated entry is a *reference* — planId + category + templateId, with the
+exercises living in a shared template. A reference cannot record what was
+planned *then*: edit the template later and every historical week silently moves
+with it.
+
+So a plan recorded as history takes a private copy of the exercises it resolves
+to, **keeping the reference alongside** — planId, category and templateId still
+identify the session, so provenance, adherence and template matching are
+untouched. It captures only what is knowable today. It reconstructs nothing.
+
+### Per slot date, not per week
+
+`programPlannedSlots` resolved a whole week from its Monday. That was right
+while revisions could only start on one, but it meant a mid-week change would
+have restated the days before it. Each slot now asks what was planned for **its
+own day**, which makes the guarantee structural: a revision effective from a
+date cannot alter any date before it, at any granularity.
+
+Three more readers were asking today's plan about other days and now do not:
+the workout for a date, the missed-day scan, and This Week — the last of which
+was showing a change the athlete had been told applies *next* week.
+
+### The effective date can only point forward
+
+Program weeks are Monday-aligned, so "the next program week" and "next Monday"
+are the same date; that is the default. The sooner option is *from tomorrow*,
+which reaches the very next session without touching a day that may already have
+been trained.
+
+The guard is the absence of the expression, not a check somebody has to
+remember: `programRevisionDate` can return only those two values, and
+`reviseProgramPlan` — the one live write path — takes a *choice*, never a
+caller-supplied date. `addProgramRevision` still accepts an explicit date,
+because the model must be able to place a revision anywhere; the product cannot
+reach it.
+
+### The draft lives in the programs store
+
+Before this it lived in `pbState` and nowhere else. Closing the builder,
+switching apps, or the PWA being evicted destroyed every edit.
+
+It now sits beside `programs` in the store that already owns everything about an
+athlete's programs — no new `DATA_KEY`, and backup, export and restore for free.
+**And it cannot be mistaken for a program**: not because a filter remembers to
+exclude it, but because it is not in the `programs` array, which is the only
+place `getPrograms`, adherence, consistency, outcomes, the trainer and readiness
+ever look.
+
+Persisted: the answers needed to resume, the plan as edited, which program is
+being edited. Not persisted: which session is expanded, scroll position, the
+step — none of that is the athlete's work.
+
+Ending a draft is **one operation**, because it lives in two places. `pbClose`
+persists on the way out — that is what makes backgrounding safe — so clearing
+only storage wrote the draft straight back underneath the caller. That happened
+twice before `pbEndDraft` existed: activation offered to resume a program that
+was already running, and Discard did not discard.
+
+### The picker
+
+`prompt('Add exercise…')` is gone. One surface adds and replaces, reading
+`CANONICAL_EXERCISES` for names, aliases, muscles and equipment, and
+`PROGRAM_EXTENSIONS` for suggestions — the same pool the generator draws on.
+
+Two things it does that a list of names would not. **One entry per movement**:
+the templates name the same lift several ways, and the registry already declares
+them identical, so they collapse — 216 rows became 185 without adding a single
+fact. **Filters mean what they say**: filtering by triceps returned Bench Press,
+Push-Up and Overhead Press until it read *primary* muscles, which is the
+ownership D48 made canonical. Fifty-five results became sixteen.
+
+Replacing keeps the prescription. Swapping Bench Press for Incline DB Press
+changes what is trained, not how much of it.
+
+### Five defects, four of them shipped
+
+1. **Editing a running program regenerated it.** `openProgramBuilderFlow('edit')`
+   seeded answers and let the review generate — so the editor opened on a
+   freshly built program with the athlete's own sessions gone, and Save wrote
+   that over theirs. Measured: a program named "My Program" with a hand-authored
+   Upper A opened as "2-Day Full Body Muscle Growth". This is D51B's root defect
+   on the active side, and it is why active editing could not be offered at all.
+2. **A custom session could not be activated.** `validateProgram` required
+   `planId + templateId` on every training day — the only shape an entry had
+   before D51B. A session that owns its exercises was refused as *"Incomplete
+   workout on tue"* with no way forward.
+3. **…and the app could not resolve one either.** `resolveProgramWorkout`
+   returned null the moment `DEFAULT_PLANS` had no entry for `planId`, before
+   ever looking at what the session contained. The builder showed custom
+   sessions; the workout screen could not open them. Both halves shipped in
+   D51B, and neither was reachable from the other's test.
+4. **The length and rename controls did nothing.** Both set an answer and
+   repainted, which worked only while every repaint regenerated. After D51B the
+   two controls that changed an answer *without* going through `pbAnswer` stopped
+   reaching the program: tapping 12 weeks left the draft at 6 and the segment
+   never even moved.
+5. **Restoring a backup could drop a draft while reporting success.** The
+   programs merge was a fresh object literal naming three fields, so anything
+   else the store carried was silently discarded. It now spreads the existing
+   store, so a future field survives without anyone remembering.
+
+### The ruler problem, ended
+
+D51B reported the fourth consecutive phase lost to character-count source
+assertions. It happened twice more here before the fix landed.
+
+`fnSrc(src, name)` returns a function bounded by the **next top-level
+declaration**, comment-stripped, and `stripComments` / `cssRule` sit beside it.
+Ninety function-anchored rulers across sixty-six functions were converted
+mechanically; two negative assertions got *stronger* in the process, because a
+ruler-bounded negative was always weaker than it read. Assertion count is
+unchanged, so nothing was lost in the conversion.
+
+Two conversions ran across into a neighbouring assertion and were repaired by
+hand — worth recording, because the failure was silent in one direction: the
+suite still passed while asserting the wrong thing.
+
+CSS-property rulers were deliberately left alone. None has ever caused one of
+these failures, and converting 200 more of them is the framework migration the
+brief said not to do.
+
+### Verification
+
+5,763 assertions across 152 contracts, plus 327 program-audit, 87
+data-integrity, 261 cardio, 43 GPS and the three-zone date matrix — all green.
+The temporal oracle hand-declares every expected count from the calendar: eight
+weeks of two days is 16 slots; a third day from week 4 makes it 21, never 24;
+three windows make it 18.
+
+Six viewports clean on the studio and on the picker: zero overflow, zero
+clipping, every control at least 44px, every input 16px.
+
+`DATA_KEYS` remains 15. `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`. No
+migration. D39–D51B untouched.
+
+### Scope
+
+Not shipped, and still deliberately so: the template library, the three-way
+entry screen, and outside-activity blocks. The architecture is now ready for all
+three — a session that owns its exercises is exactly what a template is.

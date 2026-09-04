@@ -3992,6 +3992,105 @@ body.page-locked{ overflow: hidden; }
 }
 .ps-add-session:active{ background: var(--surface-2); }
 .ps-add-session:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Discarding is the one destructive action in the studio, so it is quiet and
+   last rather than sitting next to the things people use constantly. */
+.ps-discard{
+  display: block; width: 100%; min-height: 44px; margin-top: 8px;
+  background: none; border: none; color: var(--text-faint);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-meta); cursor: pointer;
+}
+.ps-discard:active{ color: var(--danger); }
+.ps-discard:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-md); }
+.ps-mv-swap{ color: var(--text-dim); font-size: 16px; }
+
+/* ---------- resuming an unfinished program (D51C) ---------- */
+.pb-resume{
+  margin-top: 18px; padding: 18px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+}
+.pb-resume-name{
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-section);
+  font-weight: 700; color: var(--text); line-height: 1.25;
+}
+.pb-resume-meta{ margin-top: 6px; font-size: var(--fs-support); color: var(--text-dim); }
+.pb-resume-when{
+  margin-top: 10px; font-family: 'JetBrains Mono', monospace;
+  font-size: var(--fs-micro); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+.pb-startover{
+  display: block; width: 100%; min-height: 44px; margin-top: 8px;
+  background: none; border: none; color: var(--text-dim);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-support); font-weight: 600;
+  cursor: pointer;
+}
+.pb-startover:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-md); }
+/* The promise under the effective-date control. Stated in words and in a
+   date — never in colour alone, because it is the sentence that says the
+   past is safe. */
+.pb-apply-note{
+  margin-top: 8px; font-size: var(--fs-support); line-height: 1.5; color: var(--text-dim);
+}
+.pb-apply-note strong{ color: var(--text); font-weight: 600; }
+
+/* ---------- the exercise picker (D51C) ---------- */
+.xp-search{
+  padding: 10px 16px 12px; border-bottom: 1px solid var(--border);
+  background: var(--bg); flex-shrink: 0;
+}
+.xp-search-lab{
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+.xp-search-in{
+  width: 100%; min-height: 44px; padding: 0 12px; font-size: 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text); font-family: 'Inter', sans-serif;
+}
+.xp-search-in:focus{ outline: none; border-color: var(--accent); }
+.xp-filters{
+  display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.xp-filters::-webkit-scrollbar{ display: none; }
+.xp-chip{
+  flex-shrink: 0; min-height: 44px; padding: 0 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-meta);
+  font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+/* Selected state is border + text + weight, not colour alone. */
+.xp-chip.on{ background: var(--surface-3); border-color: var(--accent); color: var(--text); }
+.xp-chip:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.xp-sec{
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); margin: 18px 0 8px;
+}
+.xp-count{ font-weight: 400; letter-spacing: 0.04em; }
+.xp-list{ display: flex; flex-direction: column; gap: 6px; }
+.xp-row{
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; min-height: 56px; padding: 10px 14px; text-align: left;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer;
+}
+.xp-row:active{ background: var(--surface-2); }
+.xp-row:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.xp-row-main{ display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.xp-row-name{
+  font-family: 'Inter', sans-serif; font-size: var(--fs-body); font-weight: 600;
+  color: var(--text); line-height: 1.3;
+}
+.xp-row-meta{ font-size: var(--fs-meta); color: var(--text-faint); }
+.xp-row-in{
+  flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim);
+}
+.xp-empty{ font-size: var(--fs-support); line-height: 1.5; color: var(--text-dim); padding: 4px 0 20px; }
+
 
 .pb-rv-sec{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
@@ -6633,6 +6732,23 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 </div>
 
+<!-- EXERCISE PICKER (D51C) — one selection surface, used to add and to replace -->
+<div class="overlay overlay-page" id="exPickerOverlay">
+  <div class="sheet sheet-page">
+    <div class="workout-topbar">
+      <button class="workout-back" onclick="closeExercisePicker()" aria-label="Back to your program">‹</button>
+      <div class="workout-topbar-title" id="exPickerTitle">Add exercise</div>
+      <span class="workout-topbar-spacer"></span>
+    </div>
+    <div class="xp-search">
+      <label class="xp-search-lab" for="exPickerSearch">Search exercises</label>
+      <input type="search" id="exPickerSearch" class="xp-search-in" autocomplete="off"
+        placeholder="Search exercises" oninput="exPickerSearch(this.value)">
+    </div>
+    <div class="sheet-scroll"><div id="exPickerBody"></div></div>
+  </div>
+</div>
+
 <!-- PAST PROGRAM (D38) — read-only record of a finished program -->
 <div class="overlay overlay-page" id="pastProgramOverlay">
   <div class="sheet sheet-page">
@@ -8176,13 +8292,22 @@ async function importAllData(input){
         theirs.programs.forEach(x => {
           if(x && x.id && !byId[x.id]){ byId[x.id] = x; addedPrograms++; }
         });
-        const merged = {
+        /* D51C — REBUILT FROM `base`, NOT FROM A FIELD LIST. This was written
+           as a fresh object literal naming three fields, so anything else the
+           store carried was dropped by an import that then reported success.
+           A durable draft is exactly that kind of field: hours of an athlete's
+           work, silently discarded by a restore. Spreading `base` first means
+           a future field survives without anyone remembering to add it. */
+        const merged = Object.assign({}, theirs, base, {
           version: base.version || theirs.version || 1,
           /* Whatever this device is training now stays active; an imported
              active id is only adopted when there is nothing to displace. */
           activeProgramId: base.activeProgramId || theirs.activeProgramId || null,
           programs: Object.keys(byId).map(k => byId[k])
-        };
+        });
+        /* The device's own unfinished draft always wins; an imported one is
+           adopted only when there is nothing here to overwrite. */
+        if(!base.draft && theirs.draft) merged.draft = theirs.draft;
         await LOOPStore.set('programs', JSON.stringify(merged));
       }
     }
@@ -10093,6 +10218,30 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [
       'The program review rebuilt itself every time it drew, so any change you made was thrown away — and rebuilt again when you pressed start'
+    ],
+    changes: []
+  },
+  {
+    id: 'v4-7',
+    version: 'LOOP 4.7',
+    title: 'Your Program Stays Yours',
+    date: '2026-11-04',
+    swVersion: 'loop-v124',
+    summary: 'Program work is saved as you go, and changes to a running program apply forward.',
+    newFeatures: [
+      'An unfinished program is saved as you leave it — close LOOP, come back, and carry on where you stopped',
+      'Adding or replacing an exercise now opens LOOP\u2019s full exercise library, with search, muscle and equipment filters, and suggestions for the session you are building',
+      'Editing a program you are already running: change a session, its exercises, or its sets, reps and effort, and choose whether it starts next week or tomorrow'
+    ],
+    improvements: [
+      'Every change to a running program applies from the day you choose forward, so the weeks you have already trained keep the plan you trained them under',
+      'Your saved program work is included in a backup'
+    ],
+    bugFixes: [
+      'Opening Edit Program on a running program replaced it with a freshly generated one, so saving overwrote the sessions and exercises you had chosen',
+      'A session you built yourself could not be started — it was refused as incomplete, and the workout screen could not open it',
+      'The program-length buttons and the rename control changed nothing after the review stopped rebuilding itself',
+      'Restoring a backup could quietly drop unfinished program work while reporting success'
     ],
     changes: []
   }
@@ -23679,6 +23828,38 @@ async function persistPrograms(){
   catch(e){ return false; }
 }
 
+/* ---------- THE PROGRAM DRAFT, DURABLY  (Phase D51C) ----------
+   A draft is an unfinished program the athlete is still shaping. Before this
+   it lived in `pbState` and nowhere else, so closing the builder, switching
+   tabs on a phone, or the PWA being evicted destroyed every edit — sessions
+   renamed, exercises chosen, prescriptions authored, all of it.
+
+   IT LIVES IN THE PROGRAMS STORE, NOT IN A NEW KEY. `programs` already owns
+   everything about the athlete's programs, already round-trips through backup
+   and import, and loadPrograms already merges unknown fields forward. Putting
+   the draft beside `programs` costs no DATA_KEY and gets persistence, export
+   and restore for free.
+
+   AND IT CANNOT BE MISTAKEN FOR A PROGRAM. Not because a filter remembers to
+   exclude it, but because it is not in the `programs` array — the only place
+   getPrograms, getActiveProgram, adherence, consistency, outcomes, the trainer
+   and readiness ever look. A draft is structurally invisible to every one of
+   them, which is the only version of that guarantee worth having. */
+function getStoredProgramDraft(){
+  const d = programsStore.draft;
+  return (d && d.draft) ? d : null;
+}
+function saveProgramDraft(record){
+  programsStore.draft = record;
+  persistPrograms();
+}
+function clearProgramDraft(){
+  if(!programsStore.draft) return false;
+  delete programsStore.draft;
+  persistPrograms();
+  return true;
+}
+
 /* ---------- READ API ---------- */
 function getPrograms(){ return (programsStore.programs || []).slice(); }
 function getProgram(programId){
@@ -23773,9 +23954,23 @@ function getBlockForWeek(program, week){
    nothing is rewritten.
    ========================================================= */
 
-/* The schedule in force on a given date. With no date, the newest — which is
-   what every "what should I do now" caller wants. */
-function programScheduleOn(program, dateStr){
+/* THE PLAN IN FORCE ON A DATE. One function owns the question "what did this
+   program prescribe then", and every temporal reader goes through it.
+
+   D51C — THERE IS ONE TIMELINE, NOT FOUR. D51 stored the schedule of each
+   revision, and after D51B a schedule entry carries its own name, exercises
+   and prescriptions. So the record D51 already writes IS the whole plan:
+   days, sessions, exercises and prescriptions together. Broadening it into a
+   PROGRAM PLAN cost no new field and, more importantly, no second timeline
+   to reconcile — separate scheduleRevisions / prescriptionRevisions /
+   exerciseRevisions would each have answered part of "what was I doing in
+   March" and nothing would have owned the whole answer.
+
+   FORWARD-ONLY AND HONEST. A program with no revisions answers with its
+   current plan for every date, because that is genuinely all LOOP knows. It
+   does not infer revisions from workout history, session titles or today's
+   prescriptions: unknown stays unknown. */
+function programPlanOn(program, dateStr){
   const p = program || getActiveProgram();
   if(!p) return {};
   const revs = Array.isArray(p.revisions) ? p.revisions : null;
@@ -23795,21 +23990,102 @@ function programScheduleOn(program, dateStr){
   return chosen ? chosen.schedule : (p.schedule || {});
 }
 
-/* Appends a forward-only revision. Defaults to the Monday after the given
-   date, so an edit made mid-week never restates the week in progress — the
-   athlete has already trained some of it against the old plan.
+/* The narrow name D51 introduced, kept because "schedule" is what most
+   callers are asking about. It is the same truth, not a second source. */
+function programScheduleOn(program, dateStr){
+  return programPlanOn(program, dateStr);
+}
+
+/* One day of the plan, as it stood on a date. `dateStr` omitted means the
+   current plan — the right answer for "what does this program prescribe",
+   and the wrong one for any question about a particular day. */
+function programEntryOn(program, dayKey, dateStr){
+  const s = programPlanOn(program, dateStr);
+  return s[dayKey] || { type:'rest' };
+}
+
+/* The date a weekday falls on in the week containing `fromDateStr`. Weeks run
+   Monday-first, the same alignment programDateFor uses, so a weekday key and
+   a calendar date are never resolved two different ways. */
+function weekDateForDayKey(dayKey, fromDateStr){
+  const idx = PROGRAM_DAY_KEYS.indexOf(dayKey);
+  if(idx === -1) return null;
+  const d = new Date((fromDateStr || localDateStr()) + 'T00:00:00');
+  if(isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + idx);
+  return localDateStr(d);
+}
+
+/* MATERIALISATION — a plan snapshot has to be able to stand alone.
+
+   A generated entry is a REFERENCE: planId + category + templateId, with the
+   exercises living in the shared template. That is fine while the reference
+   still means what it meant, but a revision is supposed to record what was
+   planned THEN, and a reference cannot: edit the underlying template later
+   and every historical week silently changes with it.
+
+   So when a plan is recorded as history, each workout entry takes a private
+   copy of the exercises it resolves to right now. The reference is KEPT
+   alongside — planId, category and templateId still identify the session, so
+   provenance, adherence and template matching are unaffected.
+
+   It captures only what is knowable today. It does not reconstruct changes
+   made before revisions existed, because LOOP has no record of them. */
+function materializeProgramPlan(schedule){
+  const out = {};
+  Object.keys(schedule || {}).forEach(k => {
+    const e = schedule[k];
+    if(!e || e.type !== 'workout' || Array.isArray(e.exercises)){ out[k] = e; return; }
+    let tpl = null;
+    try{ tpl = resolveProgramWorkout(e); }catch(err){ tpl = null; }
+    /* A reference that no longer resolves stays a reference. Inventing an
+       empty session would be worse than admitting the template is gone. */
+    if(!tpl || !Array.isArray(tpl.exercises)){ out[k] = e; return; }
+    out[k] = Object.assign({}, e, {
+      name: e.name || tpl.name || null,
+      exercises: JSON.parse(JSON.stringify(tpl.exercises))
+    });
+  });
+  return out;
+}
+
+/* EFFECTIVE-DATE SEMANTICS, D51C.
+
+   Program weeks are Monday-aligned — programDateFor counts from the Monday of
+   the week the program started — so "the next program week" and "next Monday"
+   are the same date, and that is the default. A structural change landing on
+   a week boundary never restates a week the athlete is part-way through.
+
+   'next' is the sooner option: from tomorrow, so a change reaches the very
+   next session without touching a day that may already have been trained.
+
+   NEITHER CAN REACH BACKWARDS, AND THAT IS WHY THIS FUNCTION EXISTS. Both
+   options are computed forward from today, so the earliest date the product
+   can even express is tomorrow. There is no code path from an athlete's
+   choice to a date in the past — the guard is the absence of the expression,
+   not a check somebody has to remember to write. */
+function programRevisionDate(when){
+  const today = new Date(localDateStr() + 'T00:00:00');
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+  if(when === 'next') return localDateStr(tomorrow);
+  const d = new Date(today);
+  const delta = (8 - (d.getDay() || 7)) % 7 || 7;   // the next Monday, never today
+  d.setDate(d.getDate() + delta);
+  return localDateStr(d);
+}
+
+/* Appends a forward-only revision recording the whole plan — days, sessions,
+   exercises and prescriptions — in force from `effectiveFrom`.
 
    Returns the program for chaining. Writing it is the caller’s job, which is
    what keeps this usable on a draft that has never been saved. */
 function addProgramRevision(program, schedule, effectiveFrom){
   if(!program || !schedule) return program;
-  let from = effectiveFrom;
-  if(!from){
-    const d = new Date(localDateStr() + 'T00:00:00');
-    const delta = (8 - (d.getDay() || 7)) % 7 || 7;   // the next Monday, never today
-    d.setDate(d.getDate() + delta);
-    from = localDateStr(d);
-  }
+  /* D51C — a finished program is history. Nothing may be added to its
+     timeline, because there is no future left for a forward-only change to
+     apply to. */
+  if(program.status === 'completed') return program;
+  const from = effectiveFrom || programRevisionDate('week');
   if(!Array.isArray(program.revisions)) program.revisions = [];
   /* THE FIRST EDIT MUST WRITE DOWN WHAT CAME BEFORE IT. Without this the
      weeks before the new revision fall through to `program.schedule` — which
@@ -23825,14 +24101,20 @@ function addProgramRevision(program, schedule, effectiveFrom){
   if(!program.revisions.length && program.schedule){
     program.revisions.push({
       effectiveFrom: program.startDate || '0000-01-01',
-      schedule: JSON.parse(JSON.stringify(program.schedule)),
+      /* D51C — materialised, so the baseline records the exercises and
+         prescriptions the plan actually resolved to at this moment rather
+         than a reference that a later template edit would silently rewrite.
+         This is the whole of §69: capture what is knowable now, invent
+         nothing about what came before. */
+      schedule: materializeProgramPlan(JSON.parse(JSON.stringify(program.schedule))),
       baseline: true
     });
   }
   /* Two edits before the same effective date are one decision, not two: the
      later one replaces the earlier rather than stacking. */
   const existing = program.revisions.findIndex(r => r && r.effectiveFrom === from);
-  const rev = { effectiveFrom: from, schedule: JSON.parse(JSON.stringify(schedule)) };
+  const rev = { effectiveFrom: from,
+    schedule: materializeProgramPlan(JSON.parse(JSON.stringify(schedule))) };
   if(existing !== -1) program.revisions[existing] = rev;
   else program.revisions.push(rev);
   program.revisions.sort((a, b) => String(a.effectiveFrom).localeCompare(String(b.effectiveFrom)));
@@ -23840,6 +24122,24 @@ function addProgramRevision(program, schedule, effectiveFrom){
      unchanged; the revisions are the history behind it. */
   program.schedule = JSON.parse(JSON.stringify(schedule));
   return program;
+}
+
+/* THE ONE WRITE PATH FOR A PLAN CHANGE THE ATHLETE MAKES.
+
+   addProgramRevision takes a date because the model needs to be able to place
+   a revision anywhere; this takes a CHOICE, and the only choices are forward.
+   Every product surface that changes a running program's plan goes through
+   here, so §26 is guaranteed by what the code can express rather than by a
+   check each caller has to remember. */
+/* Whether a program has training behind it. A program that has not started
+   has no past to protect, so its plan is simply assigned — which is what
+   keeps editing a not-yet-started program free of revision machinery. */
+function programHasBegun(program){
+  return !!(program && program.startDate && String(program.startDate) <= localDateStr());
+}
+
+function reviseProgramPlan(program, schedule, when){
+  return addProgramRevision(program, schedule, programRevisionDate(when === 'next' ? 'next' : 'week'));
 }
 
 function getProgramSchedule(program){
@@ -23855,12 +24155,26 @@ function programEntryForDay(program, dayKey){
    app, it simply reads as unresolved. */
 function resolveProgramWorkout(entry, phaseRx){
   if(!entry || entry.type !== 'workout') return null;
-  const plan = DEFAULT_PLANS[entry.planId];
-  if(!plan) return null;
-  // Prefer the athlete's own edited copy when this is the plan they're on.
-  const source = (entry.planId === selectedPlanId && planData) ? planData : plan.templates;
-  const list = (source && source[entry.category]) || (plan.templates || {})[entry.category] || [];
-  const base = list.find(t => t.id === entry.templateId) || null;
+  const plan = DEFAULT_PLANS[entry.planId] || null;
+  let base = null;
+  if(plan){
+    // Prefer the athlete's own edited copy when this is the plan they're on.
+    const source = (entry.planId === selectedPlanId && planData) ? planData : plan.templates;
+    const list = (source && source[entry.category]) || (plan.templates || {})[entry.category] || [];
+    base = list.find(t => t.id === entry.templateId) || null;
+  }
+  /* D51C — A SESSION THAT OWNS ITS EXERCISES NEEDS NO PLAN TO POINT AT.
+
+     This returned null the moment DEFAULT_PLANS had no entry for planId, before
+     ever looking at what the session contained. A custom session carries
+     planId: null by construction, so every one of them resolved to nothing:
+     the builder showed it (builderTemplateOf tolerates a missing plan) and the
+     app could not train it. Custom sessions were unreachable in two separate
+     places, and this was the second.
+
+     A reference with no plan behind it still resolves to null, exactly as
+     before — a deleted template must read as unresolved rather than crash. */
+  if(!plan && !Array.isArray(entry.exercises)) return null;
   /* D35 \u2014 the entry may carry a depth recipe; what this returns is what
      the athlete sees AND trains. D37 \u2014 plus the phase the week falls in. */
   return composeProgramSession(entry, base, phaseRx);
@@ -23876,7 +24190,11 @@ function getProgramWorkoutForDate(dateStr, program){
      dates past its own end, indefinitely. */
   if(programTimelineEnded(p, dateStr || localDateStr()))
     return { entry: { type:'rest' }, template:null, category:'rest', week:null, ended:true };
-  const entry = programEntryForDay(p, key);
+  /* D51C — against the plan that was in force ON THIS DATE, not against
+     today's. This is where a workout takes its prescription, so reading the
+     current plan meant a session performed weeks ago resolved to whatever the
+     program says now. */
+  const entry = programEntryOn(p, key, dateStr || localDateStr());
   if(entry.type !== 'workout') return { entry, template:null, category:entry.type };
   /* The prescription for THIS program week, not for week 1. */
   const week = getCurrentProgramWeek(p, dateStr || localDateStr());
@@ -23957,7 +24275,10 @@ function getMissedProgramDays(program, limit){
   let guard = 0;
   while(cursor < end && guard++ < 400){
     const ds = cursor.getFullYear() + '-' + String(cursor.getMonth()+1).padStart(2,'0') + '-' + String(cursor.getDate()).padStart(2,'0');
-    const entry = programEntryForDay(p, JS_DAY_TO_KEY[cursor.getDay()]);
+    /* D51C — every one of these dates is in the past, so each asks the plan
+       that was in force then. Reading the current plan reported days as
+       missed that the program had not yet been asked to prescribe. */
+    const entry = programEntryOn(p, JS_DAY_TO_KEY[cursor.getDay()], ds);
     if(entry.type === 'workout' && !logged.has(ds)){
       const tpl = resolveProgramWorkout(entry);
       out.push({ date: ds, category: entry.category, name: tpl ? tpl.name : null });
@@ -23998,7 +24319,27 @@ function validateProgram(input){
   if(!trainingDays.length) errors.push('Schedule at least one training day');
   trainingDays.forEach(k => {
     const e = sched[k];
-    if(!e.planId || !e.category || !e.templateId) errors.push('Incomplete workout on ' + k);
+    /* D51C — A SESSION IS COMPLETE EITHER WAY IT CAN BE DEFINED.
+
+       This required planId + category + templateId on every training day,
+       which was the only shape an entry had before D51B: a reference into the
+       shared library. D51B let an entry own its exercises outright — that is
+       what a custom session and an edited session are — but the validator was
+       never told, so activating a program containing one was REFUSED with
+       'Incomplete workout on tue' and no way forward. Custom sessions shipped
+       as a feature that could not reach a program.
+
+       The rule is the one composeProgramSession already applies: a session
+       carrying its own exercises IS the session, and needs no template to
+       point at. A reference is still checked exactly as strictly as before. */
+    const ownsExercises = Array.isArray(e.exercises) && e.exercises.length > 0;
+    if(ownsExercises){
+      if(!e.category) errors.push('Incomplete workout on ' + k);
+      if(e.exercises.some(x => !x || !String(x.name || '').trim()))
+        errors.push('An exercise on ' + k + ' has no name');
+    } else if(!e.planId || !e.category || !e.templateId){
+      errors.push('Incomplete workout on ' + k);
+    }
     /* D35 depth recipe: references only, and only into the known library. */
     if(e.ext !== undefined){
       if(!Array.isArray(e.ext) || e.ext.length > 3) errors.push('Bad extensions on ' + k);
@@ -24093,14 +24434,14 @@ function updateProgram(programId, patch){
      program that has not started yet has no past to protect and is simply
      assigned, which keeps draft editing free of revision noise. */
   const schedulePatched = patch && Object.prototype.hasOwnProperty.call(patch, 'schedule');
-  const hasBegun = p.startDate && String(p.startDate) <= localDateStr();
+  const hasBegun = programHasBegun(p);
   const revising = schedulePatched && hasBegun &&
     JSON.stringify(p.schedule || {}) !== JSON.stringify(patch.schedule || {});
   ['name','description','goal','durationWeeks','schedule','blocks','startDate','emphasis','sessionLength','experience'].forEach(k => {
     if(k === 'schedule' && revising) return;
     if(patch && Object.prototype.hasOwnProperty.call(patch, k)) p[k] = merged[k];
   });
-  if(revising) addProgramRevision(p, patch.schedule);
+  if(revising) reviseProgramPlan(p, patch.schedule, (patch && patch.applyFrom) || 'week');
   p.durationWeeks = parseInt(p.durationWeeks, 10);
   p.updatedAt = new Date().toISOString();
   invalidateProgramCache();
@@ -25695,7 +26036,35 @@ function pbEquipmentFromGym(){
 /* ---------- opening ---------- */
 function pbSteps(){ return PB_STEPS.filter(st => !(pbState.known || {})[st.id]); }
 
+/* A stored draft is usable only if what it refers to still exists. An edit
+   draft for a program that has since been deleted or finished is not work the
+   athlete can resume, so it is dropped rather than offered. */
+function pbUsableStoredDraft(){
+  const rec = getStoredProgramDraft();
+  if(!rec || !rec.draft || !rec.draft.schedule) return null;
+  if(rec.mode === 'edit'){
+    const prog = rec.editingId ? getProgram(rec.editingId) : null;
+    if(!prog || prog.status === 'completed'){ clearProgramDraft(); return null; }
+  }
+  return rec;
+}
+
 function openProgramBuilderFlow(mode){
+  /* D51C — unfinished work is offered back before anything is built. The
+     athlete is never dropped into a stale draft without being told, and never
+     loses one by opening the builder again. */
+  const stored = pbUsableStoredDraft();
+  if(stored){
+    pbState = { step:0, answers: stored.answers || {}, known: stored.known || {},
+      mode: stored.mode || 'create', editingId: stored.editingId || null,
+      draft: stored.draft, edited: true, dir:'fwd',
+      resume:true, resumeInto: mode || 'create' };
+    const rx = document.getElementById('pbX');
+    if(rx && !rx.firstChild) rx.innerHTML = closeIconSvg(18);
+    renderProgramBuilderFlow();
+    document.getElementById('pbOverlay').classList.add('open');
+    return;
+  }
   const existing = mode === 'edit' ? getActiveProgram() : null;
   const known = {};
   const answers = {};
@@ -25730,9 +26099,55 @@ function openProgramBuilderFlow(mode){
   renderProgramBuilderFlow();
   document.getElementById('pbOverlay').classList.add('open');
 }
+/* ENDING A DRAFT IS ONE OPERATION, BECAUSE IT LIVES IN TWO PLACES.
+
+   Clearing storage alone is not enough: pbClose persists on the way out, which
+   is exactly what makes backgrounding safe, so a caller that cleared only
+   storage had the draft written straight back underneath it. That happened
+   twice — activation offered to resume a program that was already running, and
+   Discard did not discard. Both callers now end the draft rather than delete
+   half of it. */
+function pbEndDraft(){
+  clearProgramDraft();
+  if(pbState){ pbState.draft = null; pbState.edited = false; }
+}
+
+/* Closing keeps the draft. That is the entire point of D51C: leaving the
+   builder — by the close button, by the app being backgrounded, or by the PWA
+   being evicted — is not a decision to throw work away. Only Discard is. */
 function pbClose(){
+  pbPersistDraft();
   document.getElementById('pbOverlay').classList.remove('open');
   pbState = null;
+}
+
+/* ---------- resuming ---------- */
+function pbResumeContinue(){
+  if(!pbState) return;
+  pbState.resume = false;
+  pbState.step = pbSteps().length;      // straight to the program itself
+  renderProgramBuilderFlow();
+}
+
+/* Start over discards the draft and begins the thing the athlete asked for.
+   Confirmed once, because it is the only action in the builder that destroys
+   work on purpose. */
+function pbStartOver(){
+  if(!pbState) return;
+  if(!confirm('Start over? Your unfinished program will be discarded.')) return;
+  const into = pbState.resumeInto || 'create';
+  pbEndDraft();
+  pbState = null;
+  openProgramBuilderFlow(into);
+}
+
+/* Discard from inside the studio. Removes the draft and nothing else — the
+   active program and every workout stay exactly as they were. */
+function pbDiscardDraft(){
+  if(!pbState) return;
+  if(!confirm('Discard this draft? Your training history and current program are not affected.')) return;
+  pbEndDraft();
+  pbClose();
 }
 
 /* ---------- navigation ---------- */
@@ -25812,6 +26227,15 @@ function renderProgramBuilderFlow(){
   const rail = document.getElementById('pbRailFill');
   if(!body || !pbState) return;
 
+  if(pbState.resume){
+    title.textContent = 'Unfinished program';
+    rail.style.width = '100%';
+    body.className = 'pb-step pb-fwd';
+    body.innerHTML = pbResumeHtml();
+    foot.innerHTML = pbResumeFootHtml();
+    return;
+  }
+
   const steps = pbSteps();
   const atReview = pbAtReview();
   const step = atReview ? null : steps[pbState.step];
@@ -25823,6 +26247,40 @@ function renderProgramBuilderFlow(){
   body.className = 'pb-step pb-' + pbState.dir;
   body.innerHTML = atReview ? pbReviewHtml() : pbStepHtml(step);
   foot.innerHTML = atReview ? pbReviewFootHtml() : pbStepFootHtml(step);
+}
+
+/* WHAT WAS LEFT UNFINISHED, described in the athlete's terms: what it is, how
+   big it is, and when they last worked on it. Two actions, both spelled out
+   — nothing here relies on colour or position to say what it does. */
+function pbResumeHtml(){
+  const def = pbState.draft;
+  const days = PROGRAM_DAY_KEYS.filter(k => def.schedule[k] && def.schedule[k].type === 'workout');
+  const rec = getStoredProgramDraft();
+  const editing = pbState.mode === 'edit' && pbState.editingId;
+  let when = '';
+  try{
+    const saved = rec && rec.savedAt ? new Date(rec.savedAt) : null;
+    if(saved && !isNaN(saved.getTime())){
+      const ds = localDateStr(saved);
+      when = ds === localDateStr() ? 'Last edited today' : 'Last edited ' + formatDateShort(ds);
+    }
+  }catch(e){}
+  return '<div class="pb-head">' +
+    '<h2 class="pb-q">You were still working on this</h2>' +
+    '<p class="pb-sub">' + (editing
+      ? 'You have unsaved changes to your program. Nothing has been applied to your training yet.'
+      : 'Your program was saved as you left it. Nothing has been started yet.') + '</p>' +
+  '</div>' +
+  '<div class="pb-resume">' +
+    '<div class="pb-resume-name">' + escapeHtml(def.name || 'Your program') + '</div>' +
+    '<div class="pb-resume-meta">' + def.durationWeeks + ' weeks · ' + days.length +
+      ' day' + (days.length === 1 ? '' : 's') + ' a week</div>' +
+    (when ? '<div class="pb-resume-when">' + escapeHtml(when) + '</div>' : '') +
+  '</div>';
+}
+function pbResumeFootHtml(){
+  return '<button class="btn-primary pb-go" onclick="pbResumeContinue()">Continue where you left off</button>' +
+    '<button type="button" class="pb-startover" onclick="pbStartOver()">Start over instead</button>';
 }
 
 function pbStepHtml(step){
@@ -25943,10 +26401,49 @@ function pbDraft(){
   return pbState.draft;
 }
 
+/* A draft built from a program that already exists — the same shape
+   generateProgram returns, so nothing downstream can tell them apart. The
+   schedule is deep-copied, so editing the draft cannot reach the live program
+   until the athlete saves. */
+function pbDraftFromProgram(prog){
+  const def = {
+    name: prog.name, goal: prog.goal, durationWeeks: prog.durationWeeks,
+    schedule: JSON.parse(JSON.stringify(prog.schedule || {})),
+    blocks: JSON.parse(JSON.stringify(prog.blocks || [])),
+    startDate: prog.startDate,
+    emphasis: prog.emphasis, sessionLength: prog.sessionLength,
+    experience: prog.experience
+  };
+  let expl = null;
+  try{ expl = deriveProgramExplanation(def); }catch(e){}
+  def.rationale = (expl && expl.headline) || '';
+  return def;
+}
+
 /* The one place a draft is built. Called when the questions are answered,
-   when a constraint changes, and when the athlete asks for a fresh plan. */
-function pbRegenerateDraft(){
+   when a constraint changes, and when the athlete asks for a fresh plan.
+
+   D51C — EDITING AN EXISTING PROGRAM STARTS FROM THAT PROGRAM. This built
+   every draft by generating from the answers, so opening Edit Program on a
+   running program silently replaced it: measured on a program whose Monday
+   session was a hand-authored Upper A, the editor opened showing a freshly
+   generated '2-Day Full Body Muscle Growth' with the athlete's exercises
+   gone, and Save wrote that over their program. It is D51B's defect on the
+   active side, and it is why active editing could not be offered at all.
+
+   `fresh` is the explicit "build me a different program" action, which is the
+   one case where generating over an existing program is what was asked for. */
+function pbRegenerateDraft(fresh){
   if(!pbState) return null;
+  if(!fresh && pbState.mode === 'edit' && pbState.editingId){
+    const prog = getProgram(pbState.editingId);
+    if(prog){
+      pbState.draft = pbDraftFromProgram(prog);
+      pbState.edited = false;
+      pbPersistDraft();
+      return pbState.draft;
+    }
+  }
   const a = pbState.answers;
   const def = generateProgram({
     goal: a.goal, experience: a.experience, equipment: a.equipment,
@@ -25957,12 +26454,38 @@ function pbRegenerateDraft(){
   if(a.name) def.name = a.name;
   pbState.draft = def;
   pbState.edited = false;
+  pbPersistDraft();
   return def;
+}
+
+/* WHAT IS WORTH KEEPING, AND NOTHING ELSE. The answers needed to resume, the
+   plan as edited, and which program is being edited. Deliberately absent:
+   which session is expanded, scroll position, the step the athlete was on,
+   and every other piece of screen state — none of it is their work, and
+   restoring it would only make resuming feel stale. */
+function pbPersistDraft(){
+  /* Only work worth resuming is stored. A draft nobody has touched is
+     reproducible from the answers, so keeping it would mean offering to
+     resume something the athlete never made. */
+  if(!pbState || !pbState.draft || !pbState.edited) return;
+  saveProgramDraft({
+    answers: pbState.answers,
+    known: pbState.known,
+    mode: pbState.mode,
+    editingId: pbState.editingId,
+    edited: !!pbState.edited,
+    draft: pbState.draft,
+    savedAt: new Date().toISOString()
+  });
 }
 
 /* Marks the draft as carrying work the athlete would not want silently
    replaced. Every editor below calls this. */
-function pbTouch(){ if(pbState) pbState.edited = true; }
+function pbTouch(){
+  if(!pbState) return;
+  pbState.edited = true;
+  pbPersistDraft();
+}
 
 /* The explicit regeneration action. Anything the athlete changed is real
    work, so replacing it is confirmed once rather than assumed. */
@@ -25970,7 +26493,7 @@ function pbRegenerate(){
   if(!pbState) return;
   if(pbState.edited &&
      !confirm('Build a fresh program? Your changes to this draft will be replaced.')) return;
-  pbRegenerateDraft();
+  pbRegenerateDraft(true);
   renderProgramBuilderFlow();
 }
 
@@ -26078,6 +26601,28 @@ function pbAddExercise(dayKey, name){
   pbTouch(); renderProgramBuilderFlow();
 }
 
+/* D51C — REPLACING KEEPS THE PRESCRIPTION. Swapping Bench Press for Incline
+   DB Press changes what is trained, not how much of it: the sets, reps and
+   effort the athlete chose for this slot are their decision and survive the
+   swap. An exercise that never had a prescription takes a suggested one, the
+   same way an added exercise does. */
+function pbReplaceExercise(dayKey, idx, name){
+  const def = pbDraft(); if(!def) return;
+  const e = pbOwnSession(def, dayKey); if(!e) return;
+  const clean = String(name || '').trim();
+  const ex = e.exercises[idx];
+  if(!clean || !ex) return;
+  if(ex.reps && ex.sets){
+    ex.name = clean0(clean);
+    /* A starting load belonged to the old movement and would be wrong for the
+       new one, so it is dropped rather than carried across. */
+    delete ex.recommended;
+  } else {
+    e.exercises[idx] = pbSuggestedExercise(def, e, clean);
+  }
+  pbTouch(); renderProgramBuilderFlow();
+}
+
 /* The suggestion. Reuses the prescription the generator would have written
    for this goal and session, taken from a sibling exercise where one exists,
    so there is no second prescription engine. Starting load is deliberately
@@ -26169,9 +26714,37 @@ function pbGenerate(){
   return pbDraft();
 }
 
+/* D51C — LENGTH AND NAME EDIT THE DRAFT, NOT JUST THE ANSWER.
+
+   Both of these set an answer and repainted, which worked only while every
+   repaint regenerated from the answers. Once D51B made generation an event,
+   the two controls that changed an answer WITHOUT going through pbAnswer
+   stopped reaching the program at all: tapping 12 weeks left the draft at 6
+   and the segment never even moved, and renaming did nothing whatsoever.
+
+   They are draft edits, so they are applied to the draft. Changing the length
+   re-derives the phases for the new week count and leaves the sessions
+   completely alone — the athlete's exercises are their work, and a different
+   program length is not a reason to throw it away. */
 function pbSetWeeks(n){
+  if(!pbState) return;
+  const def = pbDraft(); if(!def) return;
+  if(def.durationWeeks === n) return;
   pbState.answers.weeks = n;
-  pbState.answers.name = null;      // the default name follows the structure
+  def.durationWeeks = n;
+  try{
+    const a = pbState.answers;
+    const lengthId = builderLength(a.sessionLength).id;
+    def.blocks = builderJustifyPhases(def.schedule,
+      builderPhasesFor(n, a.goal || 'hypertrophy', a.experience || 'intermediate', lengthId),
+      n, prescriptionProfileFor(a.goal || 'hypertrophy', a.experience || 'intermediate', lengthId));
+  }catch(e){
+    /* Phases are presentation over the same sessions; if they cannot be
+       re-derived the length still changes and one block spans it. */
+    def.blocks = [{ id:newBlockId(), name:'Phase 1', order:1, phaseType:'custom',
+      startWeek:1, endWeek:n, description:'' }];
+  }
+  pbTouch();
   renderProgramBuilderFlow();
 }
 function pbSetStart(which){
@@ -26186,12 +26759,258 @@ function pbSetStart(which){
   renderProgramBuilderFlow();
 }
 function pbRename(){
-  const cur = (pbState.generated && pbState.generated.name) || '';
-  const next = prompt('Program name', cur);
+  const def = pbDraft(); if(!def) return;
+  const next = prompt('Program name', def.name || '');
   if(next === null) return;
   const trimmed = String(next).trim().slice(0, PROGRAM_LIMITS.maxNameLength);
-  pbState.answers.name = trimmed || null;
+  if(!trimmed) return;
+  pbState.answers.name = trimmed;
+  def.name = trimmed;
+  pbTouch();
   renderProgramBuilderFlow();
+}
+
+/* =========================================================
+   THE EXERCISE PICKER  (Phase D51C)
+   ---------------------------------------------------------
+   ONE SELECTION SURFACE, AND NO SECOND LIBRARY. D51B added
+   exercises through a prompt() — scaffolding, honestly labelled
+   as such, that asked the athlete to type a name from memory.
+
+   Everything here reads what LOOP already knows. Names, aliases,
+   muscles and equipment come from CANONICAL_EXERCISES, the same
+   registry D48 made the single source of exercise→muscle truth.
+   Prescriptions come from PROGRAM_EXTENSIONS and the plan
+   templates, which is where the generator gets its own. Nothing
+   in this file describes an exercise that LOOP did not already
+   describe somewhere else.
+   ========================================================= */
+let exPickerState = null;
+let _exPickerIndex = null;
+
+/* Every exercise LOOP can offer, each with the metadata the picker shows and
+   filters on. Built once. The canonical registry leads because it carries
+   muscles and equipment; a template exercise with no canonical entry is still
+   offered, because the athlete can already train it. */
+function exPickerIndex(){
+  if(_exPickerIndex) return _exPickerIndex;
+  const byKey = {};
+  /* ONE ENTRY PER MOVEMENT. The plan templates name the same lift several
+     ways — Bench Press, Barbell Bench Press, Flat Bench Press, Flat DB Press
+     — and listing all of them made the picker look like six exercises that
+     are one. The registry already declares them identical, and
+     resolveExerciseId already tracks them as one movement in history, so
+     collapsing them here uses knowledge LOOP has rather than adding any.
+     Anything the registry does not recognise keeps its own name, because
+     merging by guesswork is how a picker offers the wrong exercise. */
+  const idOf = n => { try{ return resolveExerciseId(n); }catch(e){ return null; } };
+  const add = (name, extra) => {
+    const clean = String(name || '').trim();
+    if(!clean) return;
+    const id = idOf(clean);
+    const key = (id && id.indexOf('unmapped:') !== 0) ? id : normalizeExerciseName(clean);
+    if(!key) return;
+    if(!byKey[key]) byKey[key] = Object.assign({ name: clean, key,
+      muscles: [], primaryMuscles: [], equipment: null, pattern: null, aliases: [] }, extra || {});
+    else Object.keys(extra || {}).forEach(k => {
+      if(byKey[key][k] == null || byKey[key][k].length === 0) byKey[key][k] = extra[k];
+    });
+  };
+  try{
+    (CANONICAL_EXERCISES || []).forEach(ex => add(ex.displayName, {
+      muscles: (ex.primary || []).concat(ex.secondary || []),
+      /* Filtering is on the muscles a movement TRAINS, not on every muscle it
+         involves. Filtering by triceps returned Bench Press, Push-Up and
+         Overhead Press — 55 results for a question about triceps work. D48
+         made this distinction canonical; the picker honours it. */
+      primaryMuscles: (ex.primary || []).slice(),
+      equipment: ex.equipment || null, pattern: ex.pattern || null,
+      aliases: ex.aliases || [], canonical: true }));
+  }catch(e){}
+  try{
+    Object.keys(EXERCISE_LIBRARY || {}).forEach(cat =>
+      (EXERCISE_LIBRARY[cat] || []).forEach(ex => add(ex.name, {})));
+  }catch(e){}
+  try{
+    (PROGRAM_EXTENSIONS || []).forEach(x => (x.exercises || []).forEach(ex => add(ex.name, {})));
+  }catch(e){}
+  /* Anything without canonical metadata still gets muscles, through the same
+     resolver every other surface uses — not through a table kept here. */
+  Object.keys(byKey).forEach(k => {
+    const e = byKey[k];
+    if(e.muscles.length) return;
+    try{
+      const m = musclesForExercise(e.name);
+      e.muscles = (m.primary || []).concat(m.secondary || []);
+      e.primaryMuscles = (m.primary || []).slice();
+    }catch(err){}
+  });
+  _exPickerIndex = Object.keys(byKey).map(k => byKey[k])
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return _exPickerIndex;
+}
+
+/* Search is exact on substrings of the name or of any known alias, so
+   "rdl" finds Romanian Deadlift and nothing pretends to be a near miss. A
+   name match ranks above an alias match, and a prefix above a substring. */
+function exPickerMatches(query){
+  const all = exPickerIndex();
+  const q = normalizeExerciseName(query);
+  if(!q) return all;
+  const scored = [];
+  all.forEach(e => {
+    const n = e.key;
+    let score = -1;
+    const aliases = e.aliases || [];
+    if(n === q) score = 0;
+    /* An EXACT alias is an exact identification, so it ranks with an exact
+       name rather than below every partial one. Typing 'rdl' offered
+       Single-Leg RDL first, because that name contains the letters, while
+       Romanian Deadlift — whose alias is literally 'rdl' — came second. */
+    else if(aliases.some(a => normalizeExerciseName(a) === q)) score = 1;
+    else if(n.indexOf(q) === 0) score = 2;
+    else if(n.indexOf(q) !== -1) score = 3;
+    else if(aliases.some(a => normalizeExerciseName(a).indexOf(q) === 0)) score = 4;
+    else if(aliases.some(a => normalizeExerciseName(a).indexOf(q) !== -1)) score = 5;
+    if(score !== -1) scored.push({ e, score });
+  });
+  return scored.sort((a, b) => a.score - b.score || a.e.name.localeCompare(b.e.name))
+    .map(x => x.e);
+}
+
+/* What this session is missing, from the pool the generator itself draws on.
+   PROGRAM_EXTENSIONS declares which session types each accessory suits, so
+   the suggestion is the program logic answering rather than a new opinion. */
+function exPickerSuggestions(category, already){
+  const have = {};
+  (already || []).forEach(n => { have[normalizeExerciseName(n)] = true; });
+  const out = [];
+  try{
+    (PROGRAM_EXTENSIONS || []).forEach(x => {
+      if((x.slots || []).indexOf(category) === -1) return;
+      (x.exercises || []).forEach(ex => {
+        if(have[normalizeExerciseName(ex.name)]) return;
+        if(out.some(o => normalizeExerciseName(o.name) === normalizeExerciseName(ex.name))) return;
+        out.push({ name: ex.name, label: x.label });
+      });
+    });
+  }catch(e){}
+  return out.slice(0, 8);
+}
+
+/* ---------- opening ---------- */
+/* `replaceIdx` opens the same picker in replace mode. One surface, one index,
+   one set of results — the only difference is what happens on tap. */
+function openExercisePicker(dayKey, replaceIdx){
+  const def = pbDraft(); if(!def) return;
+  const entry = def.schedule[dayKey]; if(!entry) return;
+  const list = pbSessionExercises(def, dayKey);
+  exPickerState = { dayKey, replaceIdx: (typeof replaceIdx === 'number' ? replaceIdx : null),
+    query: '', muscle: null, equipment: null,
+    category: entry.category || null,
+    already: list.map(x => x.name) };
+  const t = document.getElementById('exPickerTitle');
+  if(t) t.textContent = exPickerState.replaceIdx === null ? 'Add exercise' : 'Replace exercise';
+  const q = document.getElementById('exPickerSearch');
+  if(q) q.value = '';
+  renderExercisePicker();
+  document.getElementById('exPickerOverlay').classList.add('open');
+}
+
+/* Back returns to the program exactly as it was left. The draft was never
+   touched by opening this, so there is nothing to restore and nothing to
+   regenerate — the session the athlete had open is still open. */
+function closeExercisePicker(){
+  document.getElementById('exPickerOverlay').classList.remove('open');
+  exPickerState = null;
+  renderProgramBuilderFlow();
+}
+
+function exPickerSearch(v){
+  if(!exPickerState) return;
+  exPickerState.query = v || '';
+  renderExercisePicker();
+}
+function exPickerFilter(kind, value){
+  if(!exPickerState) return;
+  exPickerState[kind] = exPickerState[kind] === value ? null : value;
+  renderExercisePicker();
+}
+
+/* ---------- choosing ---------- */
+function exPickerChoose(name){
+  if(!exPickerState) return;
+  const { dayKey, replaceIdx } = exPickerState;
+  if(replaceIdx === null) pbAddExercise(dayKey, name);
+  else pbReplaceExercise(dayKey, replaceIdx, name);
+  closeExercisePicker();
+}
+
+/* ---------- rendering ---------- */
+const XP_MUSCLES = ['chest','back','shoulders','biceps','triceps','quads','hamstrings','glutes','calves','abs'];
+const XP_EQUIPMENT = ['Barbell','Dumbbell','Cable','Machine','Bodyweight'];
+
+function renderExercisePicker(){
+  const body = document.getElementById('exPickerBody');
+  if(!body || !exPickerState) return;
+  const st = exPickerState;
+  let results = exPickerMatches(st.query);
+  if(st.muscle) results = results.filter(e => (e.primaryMuscles || []).indexOf(st.muscle) !== -1);
+  if(st.equipment) results = results.filter(e => e.equipment === st.equipment);
+
+  const chip = (kind, value, label) =>
+    '<button type="button" class="xp-chip' + (st[kind] === value ? ' on' : '') + '"' +
+    ' onclick="exPickerFilter(\'' + kind + '\',\'' + value + '\')"' +
+    ' aria-pressed="' + (st[kind] === value) + '">' + escapeHtml(label) + '</button>';
+
+  const filters =
+    '<div class="xp-filters" role="group" aria-label="Filter by muscle">' +
+      XP_MUSCLES.map(m => chip('muscle', m, MUSCLE_LABELS[m] || m)).join('') +
+    '</div>' +
+    '<div class="xp-filters" role="group" aria-label="Filter by equipment">' +
+      XP_EQUIPMENT.map(q => chip('equipment', q, q)).join('') +
+    '</div>';
+
+  /* Suggestions are for a blank search only. Once the athlete is looking for
+     something, the thing they are looking for is what should be on screen. */
+  let suggested = '';
+  if(!st.query && !st.muscle && !st.equipment){
+    const sug = exPickerSuggestions(st.category, st.already);
+    if(sug.length) suggested =
+      '<div class="xp-sec">Suggested for this session</div>' +
+      '<div class="xp-list">' + sug.map(x => exPickerRowHtml(x.name, x.label)).join('') + '</div>';
+  }
+
+  const count = results.length;
+  body.innerHTML = filters + suggested +
+    '<div class="xp-sec">' + (st.query ? 'Results' : 'All exercises') +
+      '<span class="xp-count" role="status" aria-live="polite">' + count +
+      (count === 1 ? ' exercise' : ' exercises') + '</span></div>' +
+    (count
+      ? '<div class="xp-list">' + results.map(e => exPickerRowHtml(e.name, exPickerMetaOf(e))).join('') + '</div>'
+      : '<p class="xp-empty">Nothing matches “' + escapeHtml(st.query) + '”. You can still type any' +
+        ' name into the exercise itself — LOOP will track it either way.</p>');
+}
+
+function exPickerMetaOf(e){
+  const parts = [];
+  if(e.equipment) parts.push(e.equipment);
+  const m = (e.muscles || []).slice(0, 2).map(x => MUSCLE_LABELS[x] || x);
+  if(m.length) parts.push(m.join(', '));
+  return parts.join(' · ');
+}
+
+function exPickerRowHtml(name, meta){
+  const already = exPickerState && (exPickerState.already || [])
+    .some(n => normalizeExerciseName(n) === normalizeExerciseName(name));
+  return '<button type="button" class="xp-row" onclick="exPickerChoose(\'' +
+    escapeAttr(String(name).replace(/'/g, "\\'")) + '\')">' +
+    '<span class="xp-row-main">' +
+      '<span class="xp-row-name">' + escapeHtml(name) + '</span>' +
+      (meta ? '<span class="xp-row-meta">' + escapeHtml(meta) + '</span>' : '') +
+    '</span>' +
+    (already ? '<span class="xp-row-in">In this session</span>' : '') +
+  '</button>';
 }
 
 /* ---------- Program Studio: the sessions, editable ----------
@@ -26205,13 +27024,58 @@ function pbToggleSession(dayKey){
   renderProgramBuilderFlow();
 }
 
+/* WHEN A CHANGE TO A RUNNING PROGRAM STARTS.
+
+   Two choices, both forward, stated as dates rather than as options with
+   consequences the athlete has to work out. There is no version history here
+   and no way to reach backwards: the sentence under the control names the day
+   before which nothing changes, which is the whole promise in one line. */
+function pbApplyFromHtml(){
+  if(!pbState || pbState.mode !== 'edit' || !pbState.editingId) return '';
+  const prog = getProgram(pbState.editingId);
+  if(!prog || !programHasBegun(prog)) return '';
+  const choice = pbState.applyFrom === 'next' ? 'next' : 'week';
+  const date = programRevisionDate(choice);
+  const opts = [['week','From next week'], ['next','From tomorrow']];
+  return '<div class="pb-rv-sec">When these changes apply</div>' +
+    '<div class="pb-seg" role="group" aria-label="When these changes apply">' +
+      opts.map(([id, label]) =>
+        '<button type="button" class="pb-seg-b' + (choice === id ? ' on' : '') + '"' +
+        ' onclick="pbSetApplyFrom(\'' + id + '\')" aria-pressed="' + (choice === id) + '">' +
+        escapeHtml(label) + '</button>').join('') +
+    '</div>' +
+    '<p class="pb-apply-note">Your program changes from <strong>' +
+      escapeHtml(pbApplyDateLabel(date)) + '</strong>. Everything you have already trained,' +
+      ' and everything planned before that day, stays exactly as it was.</p>';
+}
+
+/* The date, spelled out. A choice about time is easier to trust when the
+   product names the day it means than when it says ‘next week’. */
+function pbApplyDateLabel(dateStr){
+  try{
+    const d = new Date(dateStr + 'T00:00:00');
+    if(isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+  }catch(e){ return dateStr; }
+}
+
+function pbSetApplyFrom(which){
+  if(!pbState) return;
+  pbState.applyFrom = which === 'next' ? 'next' : 'week';
+  renderProgramBuilderFlow();
+}
+
 function pbStudioHtml(def){
   const sessions = pbSessions(def);
-  return '<div class="pb-rv-sec">Sessions<span class="pb-rv-hint">tap to edit</span></div>' +
+  return pbApplyFromHtml() +
+    '<div class="pb-rv-sec">Sessions<span class="pb-rv-hint">tap to edit</span></div>' +
     '<div class="ps-list">' +
       sessions.map(sn => pbSessionBlockHtml(def, sn)).join('') +
     '</div>' +
-    '<button type="button" class="ps-add-session" onclick="pbAddSession()">+ Add a session</button>';
+    '<button type="button" class="ps-add-session" onclick="pbAddSession()">+ Add a session</button>' +
+    (pbState && pbState.edited
+      ? '<button type="button" class="ps-discard" onclick="pbDiscardDraft()">Discard this draft</button>'
+      : '');
 }
 
 function pbSessionBlockHtml(def, sn){
@@ -26267,6 +27131,8 @@ function pbExerciseRowHtml(dayKey, ex, i, total){
     '<div class="ps-ex-top">' +
       '<span class="ps-ex-name">' + escapeHtml(ex.name || 'Exercise') + '</span>' +
       '<span class="ps-ex-move">' +
+        '<button type="button" class="ps-mv ps-mv-swap" onclick="openExercisePicker(' + d + ',' + i + ')"' +
+          ' aria-label="Replace ' + escapeAttr(ex.name || 'exercise') + '">↻</button>' +
         '<button type="button" class="ps-mv" onclick="pbMoveExercise(' + d + ',' + i + ',-1)"' +
           (i === 0 ? ' disabled' : '') + ' aria-label="Move ' + escapeAttr(ex.name || 'exercise') + ' up">↑</button>' +
         '<button type="button" class="ps-mv" onclick="pbMoveExercise(' + d + ',' + i + ',1)"' +
@@ -26292,21 +27158,10 @@ function pbExerciseRowHtml(dayKey, ex, i, total){
   '</div>';
 }
 
-/* Adding an exercise reuses the canonical library. No second picker, no
-   second set of names. */
+/* D51C — the D51B prompt() is gone. Adding an exercise opens the picker, the
+   same surface that replaces one, reading the same canonical library. */
 function pbOpenExercisePicker(dayKey){
-  const names = [];
-  try{
-    Object.keys(EXERCISE_LIBRARY || {}).forEach(cat =>
-      (EXERCISE_LIBRARY[cat] || []).forEach(e => { if(e && e.name) names.push(e.name); }));
-  }catch(e){}
-  const uniq = [...new Set(names)].sort();
-  const pick = prompt('Add exercise\n\nType a name, or one of:\n' +
-    uniq.slice(0, 12).join(', ') + '…');
-  if(pick === null) return;
-  const clean = String(pick).trim();
-  if(!clean) return;
-  pbAddExercise(dayKey, clean);
+  openExercisePicker(dayKey);
 }
 
 function pbReviewHtml(){
@@ -26415,7 +27270,10 @@ async function pbCommit(btn){
     result = updateProgram(pbState.editingId, {
       name: def.name, goal: def.goal, durationWeeks: def.durationWeeks,
       schedule: def.schedule, blocks: def.blocks,
-      emphasis: def.emphasis, sessionLength: def.sessionLength, experience: def.experience
+      emphasis: def.emphasis, sessionLength: def.sessionLength, experience: def.experience,
+      /* D51C — the athlete's own answer to when this starts. One save, one
+         revision, dated by a choice that can only point forward. */
+      applyFrom: pbState.applyFrom === 'next' ? 'next' : 'week'
     });
   } else {
     result = createProgram({
@@ -26430,6 +27288,15 @@ async function pbCommit(btn){
     alert((result && result.errors && result.errors[0]) || "That didn't save. Nothing was lost — try again.");
     return;
   }
+
+  /* D51C — the draft's life ends here. It became a program, so leaving it in
+     storage would mean the builder offering to resume something the athlete
+     has already started training.
+
+     pbEndDraft clears both the stored copy and the one in memory, because
+     pbClose() persists on the way out and clearing only storage wrote the
+     draft straight back. */
+  pbEndDraft();
 
   /* The weekly schedule the rest of LOOP reads follows the program, so Today
      and This Week agree with what was just created without a second step. */
@@ -27230,13 +28097,17 @@ function programPlannedSlots(program){
        happened. Reading one mutable schedule for every week is what let a
        change made today restate how many sessions were planned in a week
        that was already over. */
-    const weekStart = programDateFor(program, w, PROGRAM_DAY_KEYS[0]);
-    const sched = programScheduleOn(program, weekStart);
     PROGRAM_DAY_KEYS.forEach(k => {
-      const e = sched[k];
-      if(!e || e.type !== 'workout') return;
       const date = programDateFor(program, w, k);
       if(!date) return;
+      /* D51C — PER SLOT DATE, not per week. Resolving a whole week from its
+         Monday was right while revisions could only start on one, but a change
+         that takes effect mid-week would then have restated the days before it
+         too. Asking each day what was planned for THAT day makes the guarantee
+         structural: a revision effective from a date cannot alter any date
+         before it, whatever granularity it was created at. */
+      const e = programPlanOn(program, date)[k];
+      if(!e || e.type !== 'workout') return;
       out.push({ week:w, dayKey:k, date, category:e.category || null, workoutId:null });
     });
   }
@@ -28449,7 +29320,11 @@ function myTrainingState(){
     let name = null, minutes = null, templateId = null;
     if(program){
       try{
-        const entry = programEntryForDay(program, d);
+        /* D51C — the plan in force on this day of the CURRENT week. A change
+           the athlete was told applies next week must not appear in this
+           week's row, or the promise on the button is false on the screen
+           beneath it. */
+        const entry = programEntryOn(program, d, weekDateForDayKey(d));
         if(entry){
           if(entry.type !== 'workout'){ cat = 'rest'; }
           else {
@@ -28672,15 +29547,19 @@ function renderMyTraining(){
 /* The next training day, wrapping past the end of the week. Returns the same
    shape weekOverview().next uses so the caller cannot tell them apart. */
 function myTrainingNextSession(){
-  const todayIdx = (new Date(localDateStr() + 'T00:00:00').getDay() + 6) % 7;   // Mon = 0
+  const today = new Date(localDateStr() + 'T00:00:00');
+  const todayIdx = (today.getDay() + 6) % 7;   // Mon = 0
   for(let i = 1; i <= 7; i++){
     const key = PROGRAM_DAY_KEYS[(todayIdx + i) % 7];
     const cat = schedule && schedule[key];
     if(!cat || cat === 'rest') continue;
     let workoutName = null;
     try{
+      /* D51C — this session is `i` days away, so it answers to the plan in
+         force then. A revision starting before it is already true for it. */
+      const when = new Date(today); when.setDate(when.getDate() + i);
       let program = hasActiveProgram() ? getActiveProgram() : null;
-      const entry = program ? programEntryForDay(program, key) : null;
+      const entry = program ? programEntryOn(program, key, localDateStr(when)) : null;
       const tpl = entry && entry.type === 'workout' ? resolveProgramWorkout(entry) : null;
       if(tpl) workoutName = tpl.name;
     }catch(e){}

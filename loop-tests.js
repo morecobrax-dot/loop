@@ -26,6 +26,58 @@ function T(name, cond, detail){
 function section(t){ console.log('\n' + '='.repeat(62) + '\n  ' + t + '\n' + '='.repeat(62)); }
 function sub(t){ console.log('\n  --- ' + t + ' ---'); }
 
+/* =========================================================
+   SOURCE INSPECTION  (D51C)
+   ---------------------------------------------------------
+   Structural assertions read the app's own source. Two ways of
+   doing that keep breaking, and D51B reported the FOURTH
+   consecutive phase spent rediscovering them:
+
+     src.slice(i, i + 1400)      and      /landmark[\s\S]{0,900}other/
+
+   Both measure a RULER, not the code. They pass or fail on how
+   many characters happen to sit between two landmarks, so adding
+   a comment or a validation step to a function that is otherwise
+   completely correct fails the test guarding it. Every one of
+   those failures has been a false alarm, and each cost a debug
+   cycle that found nothing wrong with the app.
+
+   fnSrc(src, name) returns a function bounded by the NEXT
+   top-level declaration, so it grows with the function it is
+   measuring. It strips comments, because prose about a rule is
+   not the rule — four phases have had an assertion match its own
+   explanatory comment and report a pass that meant nothing.
+
+   Reach for these instead of writing another ruler. */
+function stripComments(text){
+  return String(text || '')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:'"\\])\/\/[^\n]*/g, '$1 ');
+}
+
+/* One function, from its declaration to the next top-level one. Returns ''
+   when the function is absent, so a rename fails the assertion that depends
+   on it rather than silently matching against the whole file. */
+function fnSrc(src, name){
+  let i = src.indexOf('function ' + name + '(');
+  if(i === -1) return '';
+  const from = i + name.length + 10;
+  const marks = ['\nfunction ', '\nasync function ', '\nconst ', '\nlet ']
+    .map(m => src.indexOf(m, from))
+    .filter(x => x !== -1);
+  const end = marks.length ? Math.min.apply(null, marks) : src.length;
+  return stripComments(src.slice(i, end));
+}
+
+/* A CSS rule's body, bounded by its own closing brace rather than by a
+   character count that a new declaration pushes a property out of. */
+function cssRule(css, selector){
+  const i = css.indexOf(selector);
+  if(i === -1) return '';
+  const end = css.indexOf('}', i);
+  return css.slice(i, end === -1 ? css.length : end);
+}
+
 /* ---------- shared synthetic data builders ---------- */
 const D = n => { const d = new Date(Date.now() - n*86400000);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
@@ -2065,7 +2117,7 @@ function testPrepRunner(app){
       /class="prep-skip-btn"/.test(cardMarkup) &&
       !/btn-primary prep-skip-btn/.test(cardMarkup) && !/btn-secondary prep-skip-btn/.test(cardMarkup));
     T('and skipping enters the workout rather than leaving a card behind',
-      /function skipPrep\(\)\{[\s\S]{0,320}goToWorkoutStep\(0\);/.test(src));
+      /goToWorkoutStep\(0\);/.test(fnSrc(src, 'skipPrep')));
 
     const css = src.slice(src.indexOf('.prep-card{'), src.indexOf('/* ---- runner ---- */'));
     T('Start is full width', /\.prep-card \.prep-start-btn\{[^}]*width:\s*100%/.test(css));
@@ -6432,7 +6484,7 @@ function testD10Consolidation(app){
      rather than something the athlete had to tap to discover. What the
      disclosure still holds — and therefore still summarises — is last time. */
   T('refreshExContext reads the block it still summarises',
-    /function refreshExContext[\s\S]{0,700}querySelector\('\.last-time-chip'\)/.test(src));
+    /querySelector\('\.last-time-chip'\)/.test(fnSrc(src, 'refreshExContext')));
   T('and the target it stopped summarising is in the header instead', (() => {
     const m = exMarkup.replace(/<!--[\s\S]*?-->/g, ' ');
     return m.indexOf('recommend-wrap') < m.indexOf('ex-context-detail');
@@ -6470,13 +6522,13 @@ function testD10Consolidation(app){
     }
   }
   T('an explicit choice is remembered rather than overridden',
-    /function setTrainCategory[\s\S]{0,220}trainCategoryChosen = true/.test(src));
+    /trainCategoryChosen = true/.test(fnSrc(src, 'setTrainCategory')));
   T('the resolver only runs while the athlete has not chosen',
     /function renderTrainView\(\)\{\s*\n\s*if\(!trainCategoryChosen\)/.test(src));
 
   sub('TRAIN empty state answers what / why / next');
   T('it never tells a stocked athlete they have nothing',
-    /function trainEmptyStateHtml[\s\S]{0,900}Your plan trains/.test(src));
+    /Your plan trains/.test(fnSrc(src, 'trainEmptyStateHtml')));
   T('a genuinely new athlete is told what the screen is',
     /Your workout library/.test(src));
   T('and given something to do', /Choose a plan/.test(src) && /empty-cta/.test(src));
@@ -6492,8 +6544,8 @@ function testD10Consolidation(app){
   T('it is shown by default until the athlete has used RIR',
     /rirExplained \? '' : ' explain-open'/.test(rowMarkup));
   T('using RIR is what retires the first-use explanation',
-    /function markRirUnderstood[\s\S]{0,260}markHintSeen\('rir'\)/.test(src));
-  T('the "?" still works afterwards', /function openRirHelp[\s\S]{0,200}toggle\('explain-open'\)/.test(src));
+    /markHintSeen\('rir'\)/.test(fnSrc(src, 'markRirUnderstood')));
+  T('the "?" still works afterwards', /toggle\('explain-open'\)/.test(fnSrc(src, 'openRirHelp')));
   T('no new storage key was introduced for it',
     !ctx.DATA_KEYS.some(k => /rir/i.test(k)));
 
@@ -6702,7 +6754,7 @@ function testD101Responsive(app){
 
   sub('no behavioural code changed — this was a presentation-only pass');
   T('appendSetRow is untouched by D10.1 (still the D10 two-line markup)',
-    /function appendSetRow[\s\S]{0,1400}set-meta-btn/.test(src));
+    /set-meta-btn/.test(fnSrc(src, 'appendSetRow')));
   T('this phase declared no new JS function', !/^function \w*[Ll]andscape/m.test(
     src.slice(src.indexOf('<script>'), src.indexOf('</script>'))));
 }
@@ -6802,7 +6854,7 @@ function testD11Consolidation(app){
     T('an athlete who skipped is never offered it again', ctx.shouldOfferOnboarding() === false);
     T('replay stays available on purpose', typeof ctx.replayOnboarding === 'function');
     T('replay does not clear the completion record',
-      !/function replayOnboarding[\s\S]{0,220}(completedVersion\s*=|skipped\s*=)/.test(src));
+      !/(completedVersion\s*=|skipped\s*=)/.test(fnSrc(src, 'replayOnboarding')));
   }
 
   sub('TODAY — hierarchy puts the week where it can be seen');
@@ -6952,9 +7004,9 @@ function testD11Consolidation(app){
        lists plans. The contract is unchanged — the first-run chooser offers
        "build my own" — but it is now one tap behind "More plans", because a
        person on their first ever screen should not be authoring a program. */
-    T('offered on the first-run chooser', /function renderFirstUsePlans\([\s\S]{0,1400}customPlanCardHtml\(\)/.test(src));
+    T('offered on the first-run chooser', /customPlanCardHtml\(\)/.test(fnSrc(src, 'renderFirstUsePlans')));
     T('and reachable there without leaving the chooser', /function togglePlanMore\(\)/.test(src));
-    T('offered in the plan switcher', /function openPlanSwitcher\(\)[\s\S]{0,520}customPlanCardHtml\(\)/.test(src));
+    T('offered in the plan switcher', /customPlanCardHtml\(\)/.test(fnSrc(src, 'openPlanSwitcher')));
     T('offered in the plans manager', /plansGrid'\)\.innerHTML[\s\S]{0,400}customPlanCardHtml\(\)/.test(src));
     T('the program architecture was not duplicated',
       (src.match(/function createProgram\(/g) || []).length === 1);
@@ -7072,8 +7124,7 @@ async function testD11Safety(){
   T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
   T('no migration introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
   T('an existing athlete is never auto-migrated into a program',
-    !/function boot\(\)[\s\S]{0,3000}createProgram\(/.test(
-      require('fs').readFileSync(H.APP_PATH, 'utf8')));
+    !/createProgram\(/.test(fnSrc(require('fs').readFileSync(H.APP_PATH, 'utf8'), 'boot')));
 
   sub('trainer untouched');
   T('engine still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
@@ -8090,9 +8141,9 @@ function testScheduleWritePath(app){
       T(nm + ' never touches workoutLog', code.indexOf('workoutLog') === -1);
     });
     T('the day editor routes through the shared writer',
-      /function setDayValue\([\s\S]{0,180}setScheduledCategory\(/.test(src));
+      /setScheduledCategory\(/.test(fnSrc(src, 'setDayValue')));
     T('moving a day routes through the shared writer',
-      /function moveDayTo\([\s\S]{0,220}swapScheduledDays\(/.test(src));
+      /swapScheduledDays\(/.test(fnSrc(src, 'moveDayTo')));
   }
 
   sub('behaviour, with a program active');
@@ -8233,23 +8284,23 @@ function testRestTimer(app){
     T('the timer stores a deadline', /dataset\.endsAt/.test(engine));
     T('ticks are derived from the clock', /Date\.now\(\)/.test(engine));
     T('no blind decrement survives', !/remaining\s*=\s*\(parseInt\([^)]*\)\s*\|\|\s*0\)\s*-\s*1/.test(engine));
-    T('pause freezes what is left', /function pauseResumeRest[\s\S]{0,420}Math\.ceil\(\(endsAt - Date\.now\(\)\)/.test(src));
-    T('resume re-anchors the deadline', /function pauseResumeRest[\s\S]{0,520}endsAt = String\(Date\.now\(\)/.test(src));
+    T('pause freezes what is left', /Math\.ceil\(\(endsAt - Date\.now\(\)\)/.test(fnSrc(src, 'pauseResumeRest')));
+    T('resume re-anchors the deadline', /endsAt = String\(Date\.now\(\)/.test(fnSrc(src, 'pauseResumeRest')));
   }
 
   sub('completion happens exactly once');
   {
     T('a once-only guard exists on the panel', /dataset\.completed/.test(engine));
     T('completion returns early if already complete',
-      /function completeRestPanel[\s\S]{0,200}dataset\.completed === 'true'\) return;/.test(src));
-    T('starting a rest resets the guard', /function startRestPanel[\s\S]{0,600}completed = 'false'/.test(src));
+      /dataset\.completed === 'true'\) return;/.test(fnSrc(src, 'completeRestPanel')));
+    T('starting a rest resets the guard', /completed = 'false'/.test(fnSrc(src, 'startRestPanel')));
     T('completion clears its own interval',
-      /function completeRestPanel[\s\S]{0,300}clearRestTimer\(panel\)/.test(src));
+      /clearRestTimer\(panel\)/.test(fnSrc(src, 'completeRestPanel')));
     T('starting clears any previous interval first',
-      /function startRestPanel[\s\S]{0,120}clearRestTimer\(panel\)/.test(src));
+      /clearRestTimer\(panel\)/.test(fnSrc(src, 'startRestPanel')));
     T('skipping is not completing — it fires no feedback',
-      /function skipRest[\s\S]{0,320}completed = 'true'/.test(src) &&
-      !/function skipRest[\s\S]{0,320}(loopHaptic|loopPlayChime)/.test(src));
+      /completed = 'true'/.test(fnSrc(src, 'skipRest')) &&
+      !/(loopHaptic|loopPlayChime)/.test(fnSrc(src, 'skipRest')));
   }
 
   sub('feedback is one intentional event, and degrades gracefully');
@@ -8257,13 +8308,13 @@ function testRestTimer(app){
     T('a haptic helper exists', /function loopHaptic\(\)/.test(src));
     T('it fires a single pulse, not a pattern', /navigator\.vibrate\(18\)/.test(src));
     T('it is capability-checked and cannot throw',
-      /typeof navigator\.vibrate === 'function'/.test(src) && /function loopHaptic\(\)\{[\s\S]{0,220}catch/.test(src));
+      /typeof navigator\.vibrate === 'function'/.test(src) && /catch/.test(fnSrc(src, 'loopHaptic')));
     T('audio is created inside the athlete\'s tap',
-      /function startRestPanel[\s\S]{0,220}loopFeedbackPrime\(\)/.test(src));
-    T('audio failure is survivable', /function loopPlayChime\(\)\{[\s\S]{0,900}catch\(e\)\{ return false/.test(src));
+      /loopFeedbackPrime\(\)/.test(fnSrc(src, 'startRestPanel')));
+    T('audio failure is survivable', /catch\(e\)\{ return false/.test(fnSrc(src, 'loopPlayChime')));
     T('the chime never loops', !/loop\s*=\s*true/.test(src));
     T('the visual completion does not depend on sound or haptics',
-      /function completeRestPanel[\s\S]{0,400}classList\.add\('done'\)[\s\S]{0,200}loopHaptic\(\)/.test(src));
+      /classList\.add\('done'\)[\s\S]*loopHaptic\(\)/.test(fnSrc(src, 'completeRestPanel')));
   }
 
   sub('three states, distinguishable without colour');
@@ -9178,7 +9229,7 @@ function testSharedSelectedDay(app){
 
   sub('swiping is confined and defers to vertical scrolling');
   T('the swipe lives on the day card, not the page',
-    /function attachDaySwipe[\s\S]{0,200}getElementById\('todayWorkout'\)/.test(src));
+    /getElementById\('todayWorkout'\)/.test(fnSrc(src, 'attachDaySwipe')));
   T('a vertical gesture is never claimed as a swipe',
     /if\(!_daySwipe\.claimed && Math\.abs\(dy\) > Math\.abs\(dx\)\)\{ _daySwipe = null; return; \}/.test(src));
   T('a swipe must be clearly horizontal to count', /ratio: 1\.5/.test(src));
@@ -9648,7 +9699,7 @@ function testD13Interaction(app){
   T('the tab switch scrolls to the top', /window\.scrollTo\(\{ top: 0, behavior: 'instant' \}\)/.test(src));
   T('the per-tab scroll memory is gone, not just unused', !/tabScrollPositions/.test(src));
   T('the workout is an overlay and never passes through switchTab',
-    !/function switchTab[\s\S]{0,400}logOverlay/.test(src));
+    !/logOverlay/.test(fnSrc(src, 'switchTab')));
 
   sub('the rest time fits inside its ring');
   const cssBare = css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -10486,7 +10537,7 @@ function testFirstUse(app){
 
   sub('understanding comes before the question');
   T('the flow opens on an explanation, not a plan list',
-    /function showOnboarding\(\)[\s\S]{0,260}firstUseStage = 'intro'/.test(src));
+    /firstUseStage = 'intro'/.test(fnSrc(src, 'showOnboarding')));
   T('the intro says what LOOP does in the athlete\'s terms',
     /Know what to train, every day\./.test(src));
   T('it shows the product rather than describing it', /class="fu-demo"/.test(src));
@@ -10516,7 +10567,7 @@ function testFirstUse(app){
     'unreachable: ' + Object.keys(ctx.DEFAULT_PLANS).filter(id => reachable.indexOf(id) === -1).join(','));
   T('no plan is listed twice', new Set(reachable).size === reachable.length);
   T('depth is one tap, not a different screen', typeof ctx.togglePlanMore === 'function');
-  T('building your own is still offered here', /function renderFirstUsePlans\([\s\S]{0,1400}customPlanCardHtml\(\)/.test(src));
+  T('building your own is still offered here', /customPlanCardHtml\(\)/.test(fnSrc(src, 'renderFirstUsePlans')));
   T('and there is still only one definition of it',
     (src.match(/function customPlanCardHtml/g) || []).length === 1);
 
@@ -10567,7 +10618,7 @@ function testFirstUse(app){
   sub('the tour still runs, and runs after the app is on screen');
   T('the tutorial was kept, not replaced', typeof ctx.startOnboarding === 'function');
   T('it is still offered from showMainApp, behind shouldOfferOnboarding',
-    /function showMainApp\(\)[\s\S]{0,700}shouldOfferOnboarding\(\)[\s\S]{0,120}startOnboarding\(\)/.test(src));
+    /shouldOfferOnboarding\(\)[\s\S]*startOnboarding\(\)/.test(fnSrc(src, 'showMainApp')));
   T('it is still skippable in one tap', typeof ctx.skipOnboarding === 'function');
   T('completing it is still recorded', /onboardingState\.completedVersion = ONBOARDING_VERSION/.test(src));
 
@@ -10578,10 +10629,10 @@ function testFirstUse(app){
   T('the setup is held back while the tour is going to run',
     /if\(shouldOfferOnboarding\(\)\) pendingTrainingSetupPlan = id;/.test(src));
   T('and released when the tour closes, whichever way it closed',
-    /function closeOnboarding\(\)[\s\S]{0,600}pendingTrainingSetupPlan[\s\S]{0,200}openTrainingSetup\(id\)/.test(src));
+    /pendingTrainingSetupPlan[\s\S]*openTrainingSetup\(id\)/.test(fnSrc(src, 'closeOnboarding')));
   T('skip and finish both route through that one exit',
-    /function skipOnboarding\(\)[\s\S]{0,180}closeOnboarding\(\)/.test(src) &&
-    /function finishOnboarding\(\)[\s\S]{0,220}closeOnboarding\(\)/.test(src));
+    /closeOnboarding\(\)/.test(fnSrc(src, 'skipOnboarding')) &&
+    /closeOnboarding\(\)/.test(fnSrc(src, 'finishOnboarding')));
   T('an athlete only switching plans later is never shown the setup',
     /if\(firstTime && !\(opts && opts\.skipSetup\)\)/.test(src));
 
@@ -10589,8 +10640,8 @@ function testFirstUse(app){
   T('the chooser is gated on having no plan',
     /if\(selectedPlanId && DEFAULT_PLANS\[selectedPlanId\]\)\{[\s\S]{0,300}showMainApp\(\);\s*\} else \{\s*showOnboarding\(\);\s*\}/.test(src));
   T('the tour is gated on a recorded version, not on being new',
-    /function shouldOfferOnboarding\(\)[\s\S]{0,220}completedVersion === ONBOARDING_VERSION/.test(src));
-  T('and on having skipped it', /function shouldOfferOnboarding\(\)[\s\S]{0,260}onboardingState\.skipped/.test(src));
+    /completedVersion === ONBOARDING_VERSION/.test(fnSrc(src, 'shouldOfferOnboarding')));
+  T('and on having skipped it', /onboardingState\.skipped/.test(fnSrc(src, 'shouldOfferOnboarding')));
   T('first use writes no storage key of its own',
     !/LOOPStore\.set\(['`]firstUse/.test(src) && !/DATA_KEYS[\s\S]{0,400}firstUse/.test(src));
 
@@ -10657,7 +10708,7 @@ function testFirstRunRefinement(app){
     return !/\d/.test(text);
   })(), ctx.introDemoHtml().replace(/<[^>]*>/g, ' ').trim());
   T('nothing was hard-coded that could go stale',
-    /function introDemoWorkout\(\)[\s\S]{0,400}DEFAULT_PLANS\[defaultBasePlanId\(\)\]/.test(src));
+    /DEFAULT_PLANS\[defaultBasePlanId\(\)\]/.test(fnSrc(src, 'introDemoWorkout')));
 
   sub('setup states what LOOP knows instead of asking for it again');
   /* Scoped to the setup surface. This always meant "setup does not re-ask what
@@ -10815,7 +10866,7 @@ function testFirstRunRefinement(app){
     /athleteProfile\.goal = g;[\s\S]{0,120}persistAthleteProfile\(\)/.test(src));
   T('and only when the athlete has none', /if\(!g \|\| !athleteProfile \|\| athleteProfile\.goal\) return false;/.test(src));
   T('setup still writes the schedule and nothing else',
-    /function applyTrainingSetup\(\)[\s\S]{0,300}persistSchedule\(\)/.test(src));
+    /persistSchedule\(\)/.test(fnSrc(src, 'applyTrainingSetup')));
   T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
   T('no trainer record is written anywhere in the first-run path',
     !/function (choosePlanFromFirstUse|adoptHelpGoal|openTrainingSetup|renderTrainingSetup)\([\s\S]{0,900}trainerLog/.test(src));
@@ -10847,7 +10898,7 @@ function testReliability(app){
      header, a tab bar and nothing between them — with currentTab already
      overwritten, so no tap recovered it and only a reload brought LOOP back. */
   T('the destination is resolved before anything is cleared',
-    /function switchTab\(tab\)\{[\s\S]{0,420}const view = document\.getElementById\('view-' \+ tab\);[\s\S]{0,40}if\(!view\) return;/.test(src));
+    /const view = document\.getElementById\('view-' \+ tab\);[\s\S]*if\(!view\) return;/.test(fnSrc(src, 'switchTab')));
   T('currentTab is only set once the destination exists',
     /if\(!view\) return;\s*currentTab = tab;/.test(src));
   T('and the views are cleared after that, not before',
@@ -10868,7 +10919,7 @@ function testReliability(app){
      .view/.tab-btn sweeps are no-ops here — asserting on them would test the
      stub rather than the app. The source order above is what guarantees it. */
   T('a top-level tab still opens at the top',
-    /function switchTab[\s\S]{0,1200}window\.scrollTo\(\{ top: 0/.test(src));
+    /window\.scrollTo\(\{ top: 0/.test(fnSrc(src, 'switchTab')));
 
   sub('no field small enough to make iOS zoom the page');
   /* Safari zooms whenever a focused field is under 16px and does not zoom back
@@ -10911,11 +10962,11 @@ function testReliability(app){
   T('Escape and Tab are handled in one place, not thirty',
     (src.match(/function initSheetKeyboard\(/g) || []).length === 1);
   T('Escape uses the sheet\'s own close path rather than inventing one',
-    /function sheetCloser\(ov\)[\s\S]{0,600}backdropDismiss/.test(src));
+    /backdropDismiss/.test(fnSrc(src, 'sheetCloser')));
   T('a sheet that declares no exit is left alone',
-    /function sheetCloser[\s\S]{0,900}return null;/.test(src));
+    /return null;/.test(fnSrc(src, 'sheetCloser')));
   T('focus moves to the sheet, not to a field — a phone keyboard must not leap up',
-    /function focusIntoSheet[\s\S]{0,320}const sheet = ov\.querySelector\('\.sheet'\)/.test(src) &&
+    /const sheet = ov\.querySelector\('\.sheet'\)/.test(fnSrc(src, 'focusIntoSheet')) &&
     !/focusIntoSheet[\s\S]{0,320}querySelector\('input/.test(src));
   T('focus returns to whatever opened the sheet', /_sheetOpeners\.get\(id\)/.test(src));
   T('but only if that control still exists',
@@ -10941,7 +10992,7 @@ function testReliability(app){
   T('and whenever it moves to another movement',
     /function enterPrepStep\(\)\{\s*clearPrepTimer\(\);/.test(src));
   T('the rest panel clears before it starts, so a second tap cannot double it',
-    /function startRestPanel\(panel, seconds\)\{[\s\S]{0,120}clearRestTimer\(panel\);/.test(src));
+    /clearRestTimer\(panel\);/.test(fnSrc(src, 'startRestPanel')));
   T('every setInterval in the app has a matching clear',
     (src.match(/setInterval\(/g) || []).length <= (src.match(/clearInterval\(/g) || []).length,
     (src.match(/setInterval\(/g) || []).length + ' intervals vs ' +
@@ -11099,7 +11150,7 @@ function testDesignSystem(app){
   T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
   T('shadow evidence retention is untouched', /TRAINER_LOG_MAX = 2000/.test(src));
   T('the schedule engine was not touched by a visual pass',
-    /function applyTrainingSetup\(\)[\s\S]{0,300}persistSchedule\(\)/.test(src));
+    /persistSchedule\(\)/.test(fnSrc(src, 'applyTrainingSetup')));
   T('D17 accessibility survived', /function initSheetKeyboard\(/.test(src) &&
     /ov\.setAttribute\('aria-modal', 'true'\)/.test(src));
   T('reduced motion is still honoured',
@@ -11173,7 +11224,7 @@ function testComposition(app){
     return elseBranch.indexOf('loopHaptic') === -1;
   })());
   T('the haptic is a single pulse with a silent fallback',
-    /function loopHaptic\(\)\{[\s\S]{0,200}navigator\.vibrate\(18\)[\s\S]{0,80}return false;/.test(src));
+    /navigator\.vibrate\(18\)[\s\S]*return false;/.test(fnSrc(src, 'loopHaptic')));
   T('the visual confirmation it already had was left alone',
     /\.set-row\.completed \.set-complete-btn\{ animation: scbSettle/.test(css));
   T('and the next set is still pointed at', /next\.classList\.add\('pulse'\)/.test(src));
@@ -11300,7 +11351,7 @@ function testMomentum(app){
 
   sub('this week is measured against the plan, day by day');
   T('the week reading reuses the consistency day states, not a second copy',
-    /function momentumWeek\(\)\{[\s\S]{0,200}computeConsistencyData\(\)/.test(src));
+    /computeConsistencyData\(\)/.test(fnSrc(src, 'momentumWeek')));
   T('only scheduled days are counted', /week\.days\.filter\(d => d\.planned\)/.test(src));
   T('a day still ahead is not a miss', /if\(d\.state === 'future'\) return \{ state:'upcoming'/.test(src));
   T('today is today, compared as a calendar date', /const tKey = localDateStr\(\);/.test(src));
@@ -11435,7 +11486,7 @@ function testWorkoutStepper(app){
   T('and it only ever toggles classes on them',
     /rows\.forEach\(\(row, idx\) => row\.classList\.toggle\('ws-current', idx === i\)\);/.test(src));
   T('skip flags the row, it does not delete it',
-    /function skipWorkoutStep\(\)\{[\s\S]{0,220}row\.dataset\.skipped = '1';/.test(src));
+    /row\.dataset\.skipped = '1';/.test(fnSrc(src, 'skipWorkoutStep')));
   T('and a skipped exercise is still reachable',
     /onclick="goToWorkoutStep\(' \+ i \+ '\)"/.test(src));
 
@@ -11443,7 +11494,7 @@ function testWorkoutStepper(app){
   T('saveLog still reads every mounted row',
     /const rows = document\.querySelectorAll\('#logExercises \.ex-log-row'\);/.test(src));
   T('the draft capture still reads every mounted row',
-    /function captureActiveDraft[\s\S]{0,800}#logExercises \.ex-log-row/.test(src));
+    /#logExercises \.ex-log-row/.test(fnSrc(src, 'captureActiveDraft')));
   T('the required inputs are still inside the sheet, by id', (() => {
     const sheet = src.slice(src.indexOf('id="logOverlay"'), src.indexOf('ADD / EDIT TEMPLATE SHEET'));
     return ['logTitle','logDate','logNotes','logExercises'].every(id => sheet.indexOf('id="' + id + '"') !== -1);
@@ -11471,7 +11522,7 @@ function testWorkoutStepper(app){
   T('a workout with no exercises stands the stepper down rather than breaking',
     /if\(!rows\.length\)\{[\s\S]{0,160}classList\.remove\('stepper-on'\)/.test(src));
   T('adding the first exercise lands on it, not on the review',
-    /function onWorkoutRowAdded\(\)\{[\s\S]{0,220}logStepIndex = rows\.length - 1;/.test(src));
+    /logStepIndex = rows\.length - 1;/.test(fnSrc(src, 'onWorkoutRowAdded')));
 
   sub('progress is read from the workout, not stored beside it');
   /* Was one predicate answering two questions: "done" meant a single logged
@@ -11482,7 +11533,7 @@ function testWorkoutStepper(app){
   T('an exercise is started when it has a completed set',
     /function exerciseRowStarted\(row\)\{\s*return !!row\.querySelector\('\.set-row\.completed'\);/.test(src));
   T('an exercise is complete only when every set on it is complete',
-    /function exerciseRowComplete\(row\)\{[\s\S]{0,260}sets\.length > 0 && sets\.every\(s => s\.classList\.contains\('completed'\)\)/.test(src));
+    /sets\.length > 0 && sets\.every\(s => s\.classList\.contains\('completed'\)\)/.test(fnSrc(src, 'exerciseRowComplete')));
   T('completion is read from the sets, not from the green class', (() => {
     const i = src.indexOf('function exerciseRowComplete');
     const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
@@ -11530,7 +11581,7 @@ function testWorkoutStepper(app){
   T('the warm-up engine is untouched',
     /function buildPrepSequence\(/.test(src) && /function enterPrepStep\(\)\{\s*clearPrepTimer\(\);/.test(src));
   T('the rest timer architecture is untouched',
-    /function startRestPanel\(panel, seconds\)\{[\s\S]{0,120}clearRestTimer\(panel\);/.test(src));
+    /clearRestTimer\(panel\);/.test(fnSrc(src, 'startRestPanel')));
   T('replacement still goes through the existing engine',
     /onclick="openSubstitutions\(this\)"/.test(src) &&
     (src.match(/function openSubstitutions\(/g) || []).length === 1);
@@ -11617,7 +11668,7 @@ function testWarmupAndRest(app){
   T('and again whenever the visible exercise changes',
     /row\.classList\.toggle\('ws-current', idx === i\)\);[\s\S]{0,80}syncWorkoutRestChip\(\);/.test(src));
   T('tapping it goes to the exercise that is resting',
-    /function jumpToRestingExercise\(\)\{[\s\S]{0,260}goToWorkoutStep\(idx\);/.test(src));
+    /goToWorkoutStep\(idx\);/.test(fnSrc(src, 'jumpToRestingExercise')));
   T('it carries a spoken description', /chip\.setAttribute\('aria-label',/.test(src));
   T('it never covers the exercise — it sits in the chrome above the navigation',
     src.indexOf('id="wsRest"') < src.indexOf('class="ws-nav" id="wsNav"'));
@@ -11628,9 +11679,9 @@ function testWarmupAndRest(app){
   sub('the timer architecture was not touched');
   T('still deadline-based', /const endsAt = parseInt\(panel\.dataset\.endsAt, 10\) \|\| 0;/.test(src));
   T('still cleared before starting, so a second tap cannot double it',
-    /function startRestPanel\(panel, seconds\)\{[\s\S]{0,120}clearRestTimer\(panel\);/.test(src));
+    /clearRestTimer\(panel\);/.test(fnSrc(src, 'startRestPanel')));
   T('completion still fires one haptic',
-    /function completeRestPanel[\s\S]{0,400}loopHaptic\(\);/.test(src) &&
+    /loopHaptic\(\);/.test(fnSrc(src, 'completeRestPanel')) &&
     (src.match(/function completeRestPanel\(/g) || []).length === 1);
 
   sub('the D18 stepper invariants still hold');
@@ -11678,9 +11729,9 @@ function testWarmupEntry(app){
 
   sub('choosing either option spends the entry');
   T('Skip retires the entry and enters the workout',
-    /function skipPrep\(\)\{[\s\S]{0,400}goToWorkoutStep\(0\);/.test(src));
+    /goToWorkoutStep\(0\);/.test(fnSrc(src, 'skipPrep')));
   T('leaving the warm-up runner does the same',
-    /function exitPrep\(\)[\s\S]{0,600}prepCardDismissed = true;[\s\S]{0,300}goToWorkoutStep\(0\);/.test(src));
+    /prepCardDismissed = true;[\s\S]*goToWorkoutStep\(0\);/.test(fnSrc(src, 'exitPrep')));
   T('and it clears its timer first, before anything else',
     /function exitPrep\(\)\{\s*clearPrepTimer\(\);/.test(src));
   T('the entry carries both choices',
@@ -11827,7 +11878,7 @@ function testOrientationScale(app){
   T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
   T('shadow retention is untouched', /TRAINER_LOG_MAX = 2000/.test(src));
   T('autosave is untouched',
-    /function scheduleDraftSave\(\)\{[\s\S]{0,220}persistDraftNow\(\); \}, 250\);/.test(src));
+    /persistDraftNow\(\); \}, 250\);/.test(fnSrc(src, 'scheduleDraftSave')));
   T('draft restoration is untouched', /function restoreDraftToSheet\(draft\)\{/.test(src));
   T('saveLog still reads every mounted row',
     /const rows = document\.querySelectorAll\('#logExercises \.ex-log-row'\);/.test(src));
@@ -12215,7 +12266,7 @@ function testWorkoutJourney(app){
   T('automatic re-entry is still refused once the stage has passed',
     /if\(i === STEP_WARMUP && warmupStagePassed\(\)\) return;/.test(src));
   T('a deliberate return exists and bypasses only that guard',
-    /function returnToWarmup\(\)\{[\s\S]{0,400}logStepIndex = STEP_WARMUP;/.test(src));
+    /logStepIndex = STEP_WARMUP;/.test(fnSrc(src, 'returnToWarmup')));
   T('it does not mark, clear or rebuild anything', (() => {
     const i = src.indexOf('function returnToWarmup()');
     const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
@@ -12245,7 +12296,7 @@ function testWorkoutJourney(app){
   sub('the warm-up ends in the workout, not in a screen about the workout');
   T('the last movement leads straight to the first exercise',
     /finishPrepIntoWorkout\(\)/.test(src) &&
-    /function finishPrepIntoWorkout\(\)\{[\s\S]{0,200}goToWorkoutStep\(0\)/.test(src));
+    /goToWorkoutStep\(0\)/.test(fnSrc(src, 'finishPrepIntoWorkout')));
   T('the button says where it goes', /Continue to Workout/.test(src));
   T('backward navigation exists inside the warm-up', /function prevPrepStep\(\)/.test(src));
   T('and it is omitted rather than dead on the first movement',
@@ -12364,11 +12415,11 @@ function testRestHold(app){
 
   sub('the athlete\'s next action clears it — nothing else does');
   T('a dismiss path exists and hides the card after its exit animation',
-    /function dismissRestComplete\(\)\{[\s\S]{0,700}panel\.style\.display = 'none';/.test(src));
+    /panel\.style\.display = 'none';/.test(fnSrc(src, 'dismissRestComplete')));
   T('adjusting a weight or rep count dismisses it',
-    /function propagateSetValueForward[\s\S]{0,700}dismissRestComplete\(\)/.test(src));
+    /dismissRestComplete\(\)/.test(fnSrc(src, 'propagateSetValueForward')));
   T('recording an RIR dismisses it',
-    /function setRIR[\s\S]{0,600}dismissRestComplete\(\)/.test(src));
+    /dismissRestComplete\(\)/.test(fnSrc(src, 'setRIR')));
   T('a new rest anywhere retires a held card',
     /if\(other === panel \|\| \(!other\._interval && !other\.classList\.contains\('done'\)\)\) return;/.test(src));
   T('the exit is an act of the athlete, not a timer', (() => {
@@ -12498,9 +12549,9 @@ function testWorkoutNavStates(app){
 
   sub('the control changes the moment the state does');
   T('completing or un-completing a set re-renders the navigation',
-    /function toggleSetComplete[\s\S]{0,2400}syncWorkoutCompletionState\(exRow\);/.test(src));
-  T('adding a set does too', /function addSetRow[\s\S]{0,700}syncWorkoutCompletionState\(row\);/.test(src));
-  T('and removing one', /function removeSetRow[\s\S]{0,400}syncWorkoutCompletionState\(exRow\);/.test(src));
+    /syncWorkoutCompletionState\(exRow\);/.test(fnSrc(src, 'toggleSetComplete')));
+  T('adding a set does too', /syncWorkoutCompletionState\(row\);/.test(fnSrc(src, 'addSetRow')));
+  T('and removing one', /syncWorkoutCompletionState\(exRow\);/.test(fnSrc(src, 'removeSetRow')));
   T('the change is marked, but only when it is a change',
     /if\(prevFwd && prevFwd !== fwd\.cls\)\{/.test(src) && /\.ws-nav-fwd-in\{ animation: wsFwdIn 0\.18s/.test(css));
   T('and that mark bows out under reduced motion',
@@ -12861,7 +12912,7 @@ function testWorkoutEditor(app){
      while remaining a single value — newlines are stripped on the way in. */
   T('the title is a field that can wrap', /<textarea id="ewTitle" class="ew-title"/.test(src));
   T('and is sized to its content rather than scrolled',
-    /function ewSizeTitle\(el\)\{[\s\S]{0,200}el\.scrollHeight \+ 'px'/.test(src) &&
+    /el\.scrollHeight \+ 'px'/.test(fnSrc(src, 'ewSizeTitle')) &&
     /\.ew-title\{[\s\S]{0,320}overflow: hidden;/.test(css));
   T('newlines never enter the value', /replace\(\/\[\\r\\n\]\+\/g, ' '\)/.test(src));
   T('it is measured only once it is on screen, never while hidden',
@@ -13525,7 +13576,7 @@ function testSurfaceConsolidation(app){
     return body > -1 && body < details;
   })());
   T('emphasis is one line with a quiet secondary half, from the same totals',
-    /function tplEmphasisLine\(t\)\{[\s\S]{0,600}computeMuscleTotals\(t\)/.test(src) &&
+    /computeMuscleTotals\(t\)/.test(fnSrc(src, 'tplEmphasisLine')) &&
     /tpl-emphasis-2/.test(src));
   T('the disclosure is native, one tap, 44px',
     /\.tpl-details summary\{[\s\S]{0,180}min-height: 44px;/.test(css) &&
@@ -13901,7 +13952,7 @@ async function testOverlayIntegrity(){
     (src.match(/function lockBackgroundScroll\(/g) || []).length === 1 &&
     (src.match(/function unlockBackgroundScroll\(/g) || []).length === 1);
   T('depth is derived from the DOM, so it cannot drift',
-    /function syncBackgroundScrollLock\(\)\{[\s\S]{0,200}querySelectorAll\('\.overlay\.open'\)/.test(src));
+    /querySelectorAll\('\.overlay\.open'\)/.test(fnSrc(src, 'syncBackgroundScrollLock')));
   T('the scroll offset is restored exactly, and instantly',
     /window\.scrollTo\(\{ top: _lockedScrollY, behavior: 'instant' \}\)/.test(src));
   T('only the topmost sheet answers Escape',
@@ -15110,13 +15161,22 @@ async function testProgramExperience(){
   }
 
   sub('editing changes the plan, never the past');
+  /* D51C — was a 340-character window, and the comment above it recorded that
+     it had already been widened once when the edit object grew. It broke again
+     the moment applyFrom was added: the third time this assertion has failed
+     for measuring a ruler rather than the code. Bounded by the call's own
+     closing brace now, so it holds however long the object gets. */
+  const commitFn = fnSrc(src, 'pbCommit');
+  const editCall = (() => {
+    const i = commitFn.indexOf('updateProgram(pbState.editingId, {');
+    if(i === -1) return '';
+    const end = commitFn.indexOf('});', i);
+    return commitFn.slice(i, end === -1 ? commitFn.length : end);
+  })();
   T('editing writes through updateProgram, not createProgram',
-    /pbState\.mode === 'edit'[\s\S]{0,300}updateProgram\(/.test(src));
-  /* Window widened for D35: the edit object now carries three shaping ids
-     (emphasis, sessionLength, experience). Still no startDate. */
+    /pbState\.mode === 'edit'/.test(commitFn) && editCall.length > 0);
   T('the start date is not rewritten by an edit',
-    /updateProgram\(pbState\.editingId, \{[\s\S]{0,340}\}\)/.test(src) &&
-    !/updateProgram\(pbState\.editingId, \{[\s\S]{0,340}startDate/.test(src));
+    editCall.length > 0 && !/startDate/.test(editCall));
   /* Marker-bounded: a fixed 46000 chars silently shrank coverage every time
      the region grew. 'The Today strip' is the first production code after
      the D33/D34 program flow. */
@@ -15186,7 +15246,7 @@ async function testProgramExperience(){
     T('opening a day reveals its exercises', opened.indexOf('pm-ex-r') !== -1);
     T('and offers to edit that workout', opened.indexOf('programMapEditWorkout(') !== -1);
     T('editing routes to the template editor LOOP already has',
-      /function programMapEditWorkout[\s\S]{0,200}openEditTemplate\(/.test(src));
+      /openEditTemplate\(/.test(fnSrc(src, 'programMapEditWorkout')));
     /* An expanded day belongs to the week it was opened in. */
     ctx.programMapSelect('tdisc', 2);
     T('changing week closes the open day',
@@ -15241,15 +15301,15 @@ async function testProgramExplainability(){
   sub('one semantic source, many surfaces');
   T('exactly one derivation entry point',
     (src.match(/function deriveProgramExplanation\(/g) || []).length === 1);
-  T('the review reads from it', /function pbReviewHtml[\s\S]{0,600}deriveProgramExplanation/.test(src));
-  T('My Training reads from it', /function renderMyTraining[\s\S]{0,900}deriveProgramExplanation/.test(src));
+  T('the review reads from it', /deriveProgramExplanation/.test(fnSrc(src, 'pbReviewHtml')));
+  T('My Training reads from it', /deriveProgramExplanation/.test(fnSrc(src, 'renderMyTraining')));
   T('both render the same why rows through one helper',
     (src.match(/programWhyRowsHtml\(expl\)/g) || []).length >= 2
     && (src.match(/function programWhyRowsHtml\(/g) || []).length === 1);
   T('the map derives roles from the same profile function',
-    /function programMapWeekHtml[\s\S]{0,900}deriveWeekRoles/.test(src));
+    /deriveWeekRoles/.test(fnSrc(src, 'programMapWeekHtml')));
   T('map muscles delegate to the shared profile',
-    /function programMapMuscles[\s\S]{0,300}deriveWorkoutProfile/.test(src));
+    /deriveWorkoutProfile/.test(fnSrc(src, 'programMapMuscles')));
 
   sub('nothing derived is persisted');
   {
@@ -15363,7 +15423,7 @@ async function testProgramExplainability(){
     T('the push library no longer contains the ambiguous name',
       src.indexOf("T('Cable Kickback'") === -1);
     T('emphasis scoring rides the same attribution',
-      /function builderEmphasisScore[\s\S]{0,400}deriveWorkoutProfile/.test(src));
+      /deriveWorkoutProfile/.test(fnSrc(src, 'builderEmphasisScore')));
   }
 
   sub('derivation is pure and cheap');
@@ -15434,10 +15494,10 @@ async function testSessionDepth(){
 
   sub('what is shown is what is trained');
   T('the start path resolves through the program day',
-    /function startTemplateLog[\s\S]{0,900}getProgramWorkoutForDate/.test(src));
+    /getProgramWorkoutForDate/.test(fnSrc(src, 'startTemplateLog')));
   T('every resolver composes the recipe',
-    /function resolveProgramWorkout[\s\S]{0,900}composeProgramSession/.test(src)
-    && /function builderTemplateOf[\s\S]{0,500}composeProgramSession/.test(src));
+    /composeProgramSession/.test(fnSrc(src, 'resolveProgramWorkout'))
+    && /composeProgramSession/.test(fnSrc(src, 'builderTemplateOf')));
   {
     const entry = { type:'workout', planId:'hypertrophy', category:'upper',
       templateId:'h-u1', ext:['x_lat_raise'] };
@@ -15540,7 +15600,7 @@ async function testTrainingPrescription(){
   T('there is exactly one role function',
     (src.match(/function deriveExerciseRole\(/g) || []).length === 1);
   T('the Main/Build/Finish grouping and role share the same veto',
-    /function deriveExerciseGroups[\s\S]{0,900}exerciseIsNeverPrimary/.test(src)
+    /exerciseIsNeverPrimary/.test(fnSrc(src, 'deriveExerciseGroups'))
     || /function exerciseIsNeverPrimary/.test(src));
   /* pattern says DIRECTION, not role: a Lateral Raise is filed under
      vertical_push beside the Overhead Press. Trusting it would have let a
@@ -15769,9 +15829,9 @@ async function testTemporalProgramming(){
     /function resolveProgramWorkout\(entry, phaseRx\)/.test(src)
     && /function builderTemplateOf\(entry, phaseRx\)/.test(src));
   T('Today resolves the phase for the actual program week',
-    /function getProgramWorkoutForDate[\s\S]{0,900}programPhaseRxForWeek/.test(src));
+    /programPhaseRxForWeek/.test(fnSrc(src, 'getProgramWorkoutForDate')));
   T('the map resolves the selected week through its own phase',
-    /function programMapWeekHtml[\s\S]{0,700}week >= x\.startWeek/.test(src));
+    /week >= x\.startWeek/.test(fnSrc(src, 'programMapWeekHtml')));
   T('one place computes a week\'s prescription',
     (src.match(/function programPhaseRxForWeek\(/g) || []).length === 1);
   {
@@ -15903,7 +15963,7 @@ async function testProgramLifecycle(){
 
   sub('nothing is scheduled past the end');
   T('the resolver refuses a finished program',
-    /function getProgramWorkoutForDate[\s\S]{0,600}programTimelineEnded/.test(src));
+    /programTimelineEnded/.test(fnSrc(src, 'getProgramWorkoutForDate')));
   {
     const prog = mk();
     const w = ctx.getProgramWorkoutForDate('2026-09-07', prog);   // a Monday, past the end
@@ -15992,7 +16052,7 @@ async function testProgramLifecycle(){
   T('there is one program collection', /programsStore\.programs/.test(src)
     && !/completedPrograms|programArchive|pastPrograms\s*=/.test(src));
   T('past-program detail offers no editing',
-    /function openPastProgram[\s\S]{0,700}build a new program/.test(src));
+    /build a new program/.test(fnSrc(src, 'openPastProgram')));
   T('completion is derived, never stored',
     (src.match(/function deriveProgramCompletion\(/g) || []).length === 1
     && !/completionSummary\s*[:=]|programSummary\s*[:=]/.test(src));
@@ -16015,11 +16075,11 @@ async function testProgramLifecycle(){
 
   sub('continuation is offered, never taken');
   T('the next program reuses the D33 builder',
-    /function startNextProgramFrom[\s\S]{0,400}openProgramBuilderFlow\('create'\)/.test(src));
+    /openProgramBuilderFlow\('create'\)/.test(fnSrc(src, 'startNextProgramFrom')));
   T('and it copies the previous answers rather than referencing them',
     /a\.days = days\.slice\(\)/.test(src));
   T('nothing is auto-started',
-    !/function startNextProgramFrom[\s\S]{0,900}(createProgram|pbCommit)\(/.test(src));
+    !/(createProgram|pbCommit)\(/.test(fnSrc(src, 'startNextProgramFrom')));
 
   sub('no release without its note');
   {
@@ -17569,6 +17629,515 @@ async function testProgramRevisions(){
 }
 
 /* =========================================================
+   CONTRACT 152 — DURABLE PROGRAMS & SAFE LIVE EDITING  (D51C)
+
+   Three foundations, one contract, because they are one
+   guarantee: a program you can live with over time.
+
+     1. A draft survives interruption. It lives in the programs
+        store rather than in a variable, so closing the builder,
+        backgrounding the app or the PWA being evicted no longer
+        destroys an athlete's work.
+     2. An edit to a running program applies FORWARD. There is
+        one temporal owner of plan truth — the revision list D51
+        introduced, which after D51B already carried the whole
+        plan — and every historical reader goes through it.
+     3. Exercise selection is a real picker over the canonical
+        registry, not a prompt().
+
+   ORACLE. Every expected number below is declared from the
+   calendar and counted by hand. Nothing here asks production
+   code what the answer should be.
+
+   Fixed dates, and source inspection through fnSrc — bounded by
+   the function, stripped of comments. No character rulers.
+   ========================================================= */
+async function testDurablePrograms(){
+  section('CONTRACT 152 — durable programs & safe live editing (D51C)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  /* Whole-source assertions run against the code, never against the prose
+     about it: the parallel-timelines check below matched the comment that
+     explains why those timelines do not exist. */
+  const code = stripComments(src);
+
+  /* Monday-aligned program weeks: W1 2026-03-02, W4 2026-03-23, W6 2026-04-06. */
+  const START = '2026-03-02', W3 = '2026-03-16', W4 = '2026-03-23', W6 = '2026-04-06';
+  const UPPER_V1 = [{ name:'Bench Press', sets:3, reps:'8-10', effort:'8' }];
+  const UPPER_V2 = [{ name:'Incline DB Press', sets:4, reps:'6-8', effort:'8' }];
+  const LOWER    = [{ name:'Back Squat', sets:3, reps:'8-10', effort:'8' }];
+  const ARMS     = [{ name:'Cable Curl', sets:3, reps:'12-15', effort:'7' }];
+  const sess = (cat, name, ex) => ({ type:'workout', planId:'ul', category:cat,
+    templateId:'ul-' + cat, name, exercises: JSON.parse(JSON.stringify(ex)) });
+  const PLAN_1 = { mon: sess('upper','Upper A', UPPER_V1), thu: sess('lower','Lower A', LOWER) };
+  const PLAN_2 = { mon: sess('upper','Upper A', UPPER_V2), wed: sess('lower','Lower A', LOWER),
+                   sat: sess('arms','Arms', ARMS) };
+  const PLAN_3 = { mon: sess('upper','Upper A', UPPER_V2),
+                   wed: sess('lower','Lower A', [{ name:'Back Squat', sets:5, reps:'5', effort:'9' }]) };
+
+  const ANSWERS = { goal:'hypertrophy', experience:'intermediate', equipment:'full',
+    emphasis:'balanced', sessionLength:'standard', weeks:8, days:['mon','thu','sat'],
+    frequency:3, startDate:'2026-11-02' };
+
+  const stub = ctx => {
+    ctx.renderProgramBuilderFlow = () => {};
+    ctx.confirm = () => true; ctx.alert = () => {};
+    /* renderAll paints the whole app; the harness DOM is a purpose-built stub. */
+    ctx.renderAll = () => {}; ctx.switchTab = () => {};
+    ctx.closeMyTraining = () => {}; ctx.closePrograms = () => {};
+    const el = { classList:{ add(){}, remove(){} }, firstChild:1, innerHTML:'', value:'', textContent:'' };
+    ctx.document.getElementById = () => el;
+    return ctx;
+  };
+  const builder = ctx => { ctx.pbState = { step:99, dir:'fwd', known:{}, mode:'create',
+    editingId:null, draft:null, edited:false,
+    answers: JSON.parse(JSON.stringify(ANSWERS)) }; };
+
+  /* ---------------------------------------------------------- */
+  sub('one temporal owner of plan truth');
+  T('programPlanOn is the resolver', typeof (await H.loadAppBooted({dataSchemaVersion:'1'})).ctx.programPlanOn === 'function');
+  T('programScheduleOn derives from it rather than duplicating it',
+    /programPlanOn\(/.test(fnSrc(src, 'programScheduleOn')));
+  T('there are no parallel revision timelines',
+    !/prescriptionRevisions|exerciseRevisions|sessionRevisions|scheduleRevisions/.test(code));
+  T('planned slots resolve per slot date, not per week',
+    /programPlanOn\(program, date\)/.test(fnSrc(src, 'programPlannedSlots')));
+  T('the workout for a date resolves against that date',
+    /programEntryOn\(p, key, dateStr/.test(fnSrc(src, 'getProgramWorkoutForDate')));
+  T('missed days are judged against the plan of their own day',
+    /programEntryOn\(p, JS_DAY_TO_KEY\[cursor\.getDay\(\)\], ds\)/.test(fnSrc(src, 'getMissedProgramDays')));
+
+  /* ---------------------------------------------------------- */
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    const mk = () => ({ id:'c152', name:'Oracle', goal:'hypertrophy', status:'active',
+      durationWeeks:8, startDate:START, schedule: JSON.parse(JSON.stringify(PLAN_1)) });
+    const slots = prog => { ctx._planFulfillCache = null; return ctx.programPlannedSlots(prog); };
+    const wk = (prog, w) => slots(prog).filter(s => s.week === w);
+    const exOn = (prog, day, date) => {
+      const e = ctx.programPlanOn(prog, date)[day];
+      return e && e.exercises ? e.exercises[0].name + ' ' + e.exercises[0].sets + 'x' + e.exercises[0].reps : '(none)';
+    };
+
+    sub('a schedule change moves the future and leaves the past');
+    {
+      const prog = mk();
+      /* Hand-counted: 8 weeks x 2 days. */
+      T('eight weeks of two days is sixteen slots', slots(prog).length === 16, String(slots(prog).length));
+      ctx.addProgramRevision(prog, PLAN_2, W4);
+      /* Hand-counted: weeks 1-3 keep 2 (=6); weeks 4-8 have 3 (=15); total 21. */
+      T('weeks 1-3 still plan two sessions each',
+        [1,2,3].every(w => wk(prog,w).length === 2), [1,2,3].map(w => wk(prog,w).length).join('/'));
+      T('weeks 4-8 plan three',
+        [4,5,6,7,8].every(w => wk(prog,w).length === 3), [4,5,6,7,8].map(w => wk(prog,w).length).join('/'));
+      T('the program plans 21 sessions, not 24', slots(prog).length === 21, String(slots(prog).length));
+      T('the added Saturday exists only from week 4',
+        slots(prog).filter(s => s.dayKey === 'sat').every(s => s.week >= 4));
+      T('the removed Thursday keeps the three weeks it was planned for',
+        slots(prog).filter(s => s.dayKey === 'thu').map(s => s.week).join(',') === '1,2,3',
+        slots(prog).filter(s => s.dayKey === 'thu').map(s => s.week).join(','));
+    }
+
+    sub('an exercise change does not reach back either');
+    {
+      const prog = mk();
+      ctx.addProgramRevision(prog, PLAN_2, W4);
+      T('week 1 Monday still prescribes Bench Press 3x8-10',
+        exOn(prog,'mon',START) === 'Bench Press 3x8-10', exOn(prog,'mon',START));
+      T('and so does week 3', exOn(prog,'mon',W3) === 'Bench Press 3x8-10', exOn(prog,'mon',W3));
+      T('week 4 prescribes Incline DB Press 4x6-8',
+        exOn(prog,'mon',W4) === 'Incline DB Press 4x6-8', exOn(prog,'mon',W4));
+    }
+
+    sub('a prescription change is not a volume change');
+    {
+      const prog = mk();
+      const before = slots(prog).length;
+      const rxOnly = { mon: sess('upper','Upper A', [{ name:'Bench Press', sets:4, reps:'6-8', effort:'8' }]),
+                       thu: sess('lower','Lower A', LOWER) };
+      ctx.addProgramRevision(prog, rxOnly, W4);
+      T('3x8-10 becoming 4x6-8 leaves the slot count alone',
+        slots(prog).length === before, before + ' -> ' + slots(prog).length);
+      T('week 3 still reads what it was written with',
+        exOn(prog,'mon',W3) === 'Bench Press 3x8-10', exOn(prog,'mon',W3));
+    }
+
+    sub('three windows, three truths');
+    {
+      const prog = mk();
+      ctx.addProgramRevision(prog, PLAN_2, W4);
+      ctx.addProgramRevision(prog, PLAN_3, W6);
+      /* Hand-counted: 3 weeks x 2, then 2 weeks x 3, then 3 weeks x 2 = 18. */
+      T('the program plans 18 sessions across three windows',
+        slots(prog).length === 18, String(slots(prog).length));
+      T('week 4 Lower is still 3x8-10', exOn(prog,'wed',W4) === 'Back Squat 3x8-10', exOn(prog,'wed',W4));
+      T('week 6 Lower is 5x5', exOn(prog,'wed',W6) === 'Back Squat 5x5', exOn(prog,'wed',W6));
+      T('writing week 6 did not disturb week 4', exOn(prog,'wed',W4) === 'Back Squat 3x8-10');
+      T('revisions stay ordered by date',
+        prog.revisions.map(r => r.effectiveFrom).join(',') === [START, W4, W6].join(','),
+        prog.revisions.map(r => r.effectiveFrom).join(','));
+    }
+
+    sub('the record captures what is knowable and invents nothing');
+    {
+      const def = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
+        equipment:'full', emphasis:'balanced', weeks:8, days:['mon','thu'],
+        sessionLength:'standard', startDate: START });
+      const prog = Object.assign({ id:'c152b', status:'active' }, def);
+      const wasReference = !Array.isArray(prog.schedule.mon.exercises);
+      const resolved = ctx.builderTemplateOf(prog.schedule.mon).exercises[0].name;
+      ctx.addProgramRevision(prog, JSON.parse(JSON.stringify(prog.schedule)), W4);
+      const base = prog.revisions[0];
+      T('a generated session is a reference until it is recorded', wasReference);
+      T('the baseline snapshot materialises the exercises it resolved to',
+        Array.isArray(base.schedule.mon.exercises) && base.schedule.mon.exercises[0].name === resolved,
+        String(base.schedule.mon.exercises && base.schedule.mon.exercises[0].name));
+      T('and keeps the template reference alongside them',
+        base.schedule.mon.templateId === prog.schedule.mon.templateId);
+      T('the baseline is dated from the program start',
+        base.effectiveFrom === START && base.baseline === true, base.effectiveFrom);
+      T('no revision claims a date before the program existed',
+        prog.revisions.every(r => r.effectiveFrom >= START));
+      T('nothing reconstructs history from workout logs',
+        !/workoutLog/.test(fnSrc(src, 'addProgramRevision')) &&
+        !/workoutLog/.test(fnSrc(src, 'programPlanOn')));
+    }
+
+    sub('writing the same revision twice is one decision');
+    {
+      const prog = mk();
+      ctx.addProgramRevision(prog, PLAN_2, W4);
+      const once = JSON.stringify(prog.revisions);
+      ctx.addProgramRevision(prog, PLAN_2, W4);
+      ctx.addProgramRevision(prog, PLAN_2, W4);
+      T('three identical writes store one revision', JSON.stringify(prog.revisions) === once,
+        String(prog.revisions.length));
+    }
+
+    sub('a finished program is closed');
+    {
+      const prog = mk();
+      ctx.addProgramRevision(prog, PLAN_2, W4);
+      const n = prog.revisions.length;
+      prog.status = 'completed';
+      ctx.addProgramRevision(prog, PLAN_3, W6);
+      T('no revision is added after completion', prog.revisions.length === n,
+        n + ' -> ' + prog.revisions.length);
+    }
+
+    sub('a legacy program behaves exactly as it always did');
+    {
+      const prog = mk();
+      delete prog.revisions;
+      const before = JSON.stringify(prog);
+      ctx.programPlanOn(prog, START); ctx.programPlanOn(prog, W6);
+      ctx.getProgramWorkoutForDate(W3, prog);
+      T('reading it never writes to it', JSON.stringify(prog) === before);
+      T('and it plans sixteen sessions, as before', slots(prog).length === 16, String(slots(prog).length));
+    }
+
+    sub('the effective date can only point forward');
+    {
+      const today = ctx.localDateStr();
+      const week = ctx.programRevisionDate('week'), next = ctx.programRevisionDate('next');
+      T('"next week" is after today', week > today, today + ' -> ' + week);
+      T('"tomorrow" is after today', next > today, today + ' -> ' + next);
+      T('"next week" lands on a Monday, the program week boundary',
+        new Date(week + 'T00:00:00').getDay() === 1, week);
+      T('the live write path takes a choice, never a caller-supplied date',
+        /programRevisionDate\(/.test(fnSrc(src, 'reviseProgramPlan')));
+      T('and updateProgram routes through it',
+        /reviseProgramPlan\(/.test(fnSrc(src, 'updateProgram')));
+      const prog = mk();
+      ctx.reviseProgramPlan(prog, PLAN_2, 'next');
+      T('a live revision on a program whose weeks are over changes no week',
+        slots(prog).length === 16, String(slots(prog).length));
+    }
+
+    sub('ex.rx snapshots the revision that was in force');
+    {
+      const prog = mk();
+      ctx.addProgramRevision(prog, PLAN_2, W4);
+      ctx.programsStore.programs = [prog];
+      ctx.programsStore.activeProgramId = prog.id;
+      ctx.invalidateProgramCache();
+      const w1 = ctx.getProgramWorkoutForDate(START, prog);
+      const w4 = ctx.getProgramWorkoutForDate(W4, prog);
+      T('week 1 resolves Bench Press', w1 && w1.template && w1.template.exercises[0].name === 'Bench Press',
+        w1 && w1.template ? w1.template.exercises[0].name : 'null');
+      T('week 4 resolves Incline DB Press', w4 && w4.template && w4.template.exercises[0].name === 'Incline DB Press',
+        w4 && w4.template ? w4.template.exercises[0].name : 'null');
+      T('with the prescription it was written with',
+        w1.template.exercises[0].sets === 3 && w1.template.exercises[0].reps === '8-10');
+      T('Session Score weights are untouched',
+        /completion:\s*0\.40/.test(code) && /reps:\s*0\.30/.test(code) &&
+        /effort:\s*0\.18/.test(code) && /load:\s*0\.12/.test(code));
+      ctx.programsStore.programs = []; ctx.programsStore.activeProgramId = null;
+      ctx.invalidateProgramCache();
+    }
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('a session that owns its exercises is a first-class session');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    builder(ctx);
+    const day = ctx.pbAddSession();
+    ctx.pbRenameSession(day, 'Arms');
+    ctx.pbAddExercise(day, 'Cable Curl');
+    const def = ctx.pbDraft();
+    T('a custom session carries no plan reference', !def.schedule[day].planId);
+    T('and validateProgram accepts it', ctx.validateProgram(def).valid === true,
+      JSON.stringify(ctx.validateProgram(def).errors));
+    T('a session with an unnamed exercise is still refused', (() => {
+      const broken = JSON.parse(JSON.stringify(def));
+      broken.schedule[day].exercises = [{ name:'', sets:3, reps:'8-10' }];
+      return ctx.validateProgram(broken).valid === false;
+    })());
+    T('a reference session missing its template is still refused', (() => {
+      const broken = JSON.parse(JSON.stringify(def));
+      broken.schedule[day] = { type:'workout', planId:'ul', category:'upper' };
+      return ctx.validateProgram(broken).valid === false;
+    })());
+    T('the app can resolve a custom session, not only the builder',
+      (() => { const t = ctx.resolveProgramWorkout(def.schedule[day]);
+        return !!(t && t.exercises && t.exercises[0].name === 'Cable Curl'); })());
+    T('a reference with no plan behind it still reads as unresolved',
+      ctx.resolveProgramWorkout({ type:'workout', planId:'nope', category:'upper', templateId:'x' }) === null);
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('a draft survives being interrupted');
+  let stored = null;
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    builder(ctx);
+    const day = ctx.pbSessions(ctx.pbDraft())[0].dayKey;
+    ctx.pbRenameSession(day, 'Upper A');
+    ctx.pbEditRx(day, 0, 'sets', 4);
+    ctx.pbEditRx(day, 0, 'reps', '6-8');
+    ctx.pbAddExercise(day, 'Lateral Raise');
+    ctx.pbSetWeeks(12);
+    ctx.pbClose();
+    const raw = await ctx.LOOPStore.get('programs');
+    stored = raw && raw.value ? raw.value : null;
+    T('the draft is stored', !!stored && /"draft"/.test(stored));
+    T('inside the programs key, adding no DATA_KEY', ctx.DATA_KEYS.length === 15,
+      String(ctx.DATA_KEYS.length));
+    T('no screen state is persisted with it',
+      !/scroll|pbOpenSession|accordion/.test(fnSrc(src, 'pbPersistDraft')));
+  }
+  {
+    /* A genuinely fresh launch that knows only what was written. */
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1', programs: stored })).ctx);
+    const rec = ctx.getStoredProgramDraft();
+    T('a fresh launch finds it', !!rec);
+    T('12 weeks, as left', rec.draft.durationWeeks === 12, String(rec.draft.durationWeeks));
+    const upper = ctx.PROGRAM_DAY_KEYS.map(k => rec.draft.schedule[k]).find(e => e && e.name === 'Upper A');
+    T('the renamed session kept its name', !!upper);
+    T('the authored prescription survived',
+      upper && upper.exercises[0].sets === 4 && upper.exercises[0].reps === '6-8',
+      upper ? upper.exercises[0].sets + 'x' + upper.exercises[0].reps : 'n/a');
+    T('the added exercise survived', upper.exercises.some(x => x.name === 'Lateral Raise'));
+
+    ctx.openProgramBuilderFlow('create');
+    T('the builder offers to resume rather than starting over', ctx.pbState.resume === true);
+    const before = JSON.stringify(ctx.pbState.draft);
+    ctx.pbResumeContinue();
+    for(let i = 0; i < 6; i++) ctx.pbDraft();
+    T('six renders later it is byte-identical', JSON.stringify(ctx.pbDraft()) === before);
+
+    T('a draft is not in the programs list', ctx.getPrograms().length === 0);
+    T('it is not an active program', ctx.getActiveProgram() === null);
+    T('it plans no slots', ctx.programPlannedSlots(ctx.getActiveProgram()).length === 0);
+
+    /* Activation. */
+    await ctx.pbCommit(null);
+    T('activation creates exactly one program', ctx.getPrograms().length === 1,
+      String(ctx.getPrograms().length));
+    T('and ends the draft', ctx.getStoredProgramDraft() === null);
+    ctx.pbState = null;
+    ctx.openProgramBuilderFlow('create');
+    T('no ghost draft reappears', !ctx.pbState.resume);
+  }
+
+  sub('discard removes the draft and nothing else');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    const made = ctx.createProgram({ name:'Live', goal:'hypertrophy', durationWeeks:8,
+      startDate: START, schedule:{ mon: sess('upper','Upper', UPPER_V1) } });
+    const snap = JSON.stringify(made.program);
+    builder(ctx);
+    ctx.pbRenameSession(ctx.pbSessions(ctx.pbDraft())[0].dayKey, 'Something');
+    T('a draft can exist alongside a live program', !!ctx.getStoredProgramDraft());
+    ctx.pbDiscardDraft();
+    T('discard removes it', ctx.getStoredProgramDraft() === null);
+    T('the live program is byte-identical', JSON.stringify(ctx.getProgram(made.program.id)) === snap);
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('editing a running program starts from that program');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    const made = ctx.createProgram({ name:'My Program', goal:'hypertrophy', durationWeeks:8,
+      startDate:'2026-08-03',
+      schedule:{ mon: sess('upper','Upper A', [{ name:'Lat Pulldown', sets:3, reps:'10-12', effort:'7' }]) } });
+    const id = made.program.id;
+    ctx.openProgramBuilderFlow('edit');
+    T('the editor loads the athlete\'s own program, not a fresh generation',
+      ctx.pbDraft().name === 'My Program' &&
+      ctx.pbDraft().schedule.mon.exercises[0].name === 'Lat Pulldown',
+      ctx.pbDraft().name + ' / ' + ctx.pbDraft().schedule.mon.exercises[0].name);
+    T('and the draft is a copy, not the live program',
+      ctx.pbDraft().schedule !== ctx.getProgram(id).schedule);
+
+    ctx.pbEditRx('mon', 0, 'reps', '8-10');
+    ctx.pbEditRx('mon', 0, 'effort', '8');
+    ctx.pbState.applyFrom = 'next';
+    await ctx.pbCommit(null);
+    const prog = ctx.getProgram(id);
+    T('one save creates one revision, plus the baseline behind it',
+      prog.revisions.length === 2 && prog.revisions[0].baseline === true,
+      String(prog.revisions.length));
+    T('dated from the choice the athlete made',
+      prog.revisions[1].effectiveFrom === ctx.programRevisionDate('next'),
+      prog.revisions[1].effectiveFrom);
+    T('the current plan carries the edit', prog.schedule.mon.exercises[0].reps === '8-10');
+
+    /* The coach reads it, exactly as it reads a generated prescription. */
+    const ex = prog.schedule.mon.exercises[0];
+    const rx = { sets: ex.sets, reps: ex.reps, effort: Number(ex.effort), load: 115 };
+    const c0 = ctx.deriveNextSetCoach({ exerciseName:'Lat Pulldown', rx, performed: [] });
+    const c1 = ctx.deriveNextSetCoach({ exerciseName:'Lat Pulldown', rx,
+      performed:[{ weight:115, reps:10, rir:5 }] });
+    const c2 = ctx.deriveNextSetCoach({ exerciseName:'Lat Pulldown', rx,
+      performed:[{ weight:115, reps:10, rir:5 }, { weight:120, reps:8, rir:2 }] });
+    T('the coach states the authored target before any set',
+      c0.action === 'prescribed' && c0.load === 115, c0.action + ' ' + c0.load);
+    T('raises the load after a set five reps in reserve',
+      c1.action === 'increase' && c1.load === 120, c1.action + ' ' + c1.load);
+    T('and holds once the set lands on target',
+      c2.action === 'hold' && c2.load === 120, c2.action + ' ' + c2.load);
+
+    sub('a save that changes nothing writes nothing');
+    const n = prog.revisions.length;
+    ctx.openProgramBuilderFlow('edit');
+    await ctx.pbCommit(null);
+    T('no revision is created', ctx.getProgram(id).revisions.length === n,
+      n + ' -> ' + ctx.getProgram(id).revisions.length);
+
+    sub('cancelling writes nothing at all');
+    const snap = JSON.stringify(ctx.getProgram(id));
+    ctx.openProgramBuilderFlow('edit');
+    ctx.pbEditRx('mon', 0, 'sets', 5);
+    ctx.pbClose();
+    T('the program is byte-identical after closing without saving',
+      JSON.stringify(ctx.getProgram(id)) === snap);
+    T('but the unsaved work is kept as a draft', !!ctx.getStoredProgramDraft());
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('exercise selection is a picker over the canonical registry');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    T('the D51B prompt is gone', !/prompt\('Add exercise/.test(src));
+    T('and the studio opens the picker instead',
+      /openExercisePicker\(/.test(fnSrc(src, 'pbOpenExercisePicker')));
+    const idx = ctx.exPickerIndex();
+    T('the index is built, not declared', idx.length > 60, String(idx.length));
+    T('there is no second exercise database',
+      /CANONICAL_EXERCISES/.test(fnSrc(src, 'exPickerIndex')) &&
+      /EXERCISE_LIBRARY/.test(fnSrc(src, 'exPickerIndex')));
+    T('entries carry canonical muscle and equipment metadata', (() => {
+      const b = idx.find(e => e.name === 'Bench Press');
+      return !!(b && b.equipment === 'Barbell' && b.muscles.indexOf('chest') !== -1);
+    })());
+    T('an exact alias identifies the exercise it names',
+      ctx.exPickerMatches('rdl')[0].name === 'Romanian Deadlift',
+      ctx.exPickerMatches('rdl').slice(0,2).map(x => x.name).join(', '));
+    T('an exact name outranks a substring',
+      ctx.exPickerMatches('Lat Pulldown')[0].name === 'Lat Pulldown');
+    T('case and spacing do not matter', ctx.exPickerMatches('  BENCH   PRESS ').length > 0);
+    T('a nonsense query matches nothing rather than guessing',
+      ctx.exPickerMatches('zzzqqq').length === 0);
+
+    builder(ctx);
+    const def = ctx.pbDraft();
+    const day = ctx.pbSessions(def)[0].dayKey;
+    const already = ctx.pbSessionExercises(def, day).map(x => x.name);
+    const sug = ctx.exPickerSuggestions(def.schedule[day].category, already);
+    T('suggestions come from the generator\'s own pool',
+      /PROGRAM_EXTENSIONS/.test(fnSrc(src, 'exPickerSuggestions')) && sug.length > 0);
+    T('and never repeat what the session already has',
+      sug.every(s => !already.some(a => a.toLowerCase() === s.name.toLowerCase())));
+
+    const n0 = ctx.pbSessionExercises(ctx.pbDraft(), day).length;
+    ctx.openExercisePicker(day);
+    T('opening the picker changes nothing',
+      ctx.pbSessionExercises(ctx.pbDraft(), day).length === n0);
+    ctx.exPickerChoose('Face Pull');
+    const after = ctx.pbSessionExercises(ctx.pbDraft(), day);
+    T('choosing adds it with a real prescription',
+      after.length === n0 + 1 && after[after.length-1].name === 'Face Pull' &&
+      after[after.length-1].sets > 0);
+    T('and returns to the program', ctx.exPickerState === null);
+
+    const firstBefore = JSON.parse(JSON.stringify(ctx.pbSessionExercises(ctx.pbDraft(), day)[0]));
+    ctx.openExercisePicker(day, 0);
+    T('the same picker replaces', ctx.exPickerState.replaceIdx === 0);
+    ctx.exPickerChoose('Incline Dumbbell Press');
+    const firstAfter = ctx.pbSessionExercises(ctx.pbDraft(), day)[0];
+    T('replacing changes the movement', firstAfter.name === 'Incline Dumbbell Press');
+    T('and keeps the prescription the athlete chose',
+      firstAfter.sets === firstBefore.sets && firstAfter.reps === firstBefore.reps,
+      firstAfter.sets + 'x' + firstAfter.reps);
+    T('a replacement is not an addition',
+      ctx.pbSessionExercises(ctx.pbDraft(), day).length === n0 + 1);
+
+    /* Interrupted with the picker open. */
+    const mid = JSON.stringify(ctx.pbDraft());
+    ctx.openExercisePicker(day);
+    ctx.pbClose();
+    const rec = ctx.getStoredProgramDraft();
+    T('an interruption mid-pick keeps the draft as it stood',
+      !!rec && JSON.stringify(rec.draft) === mid);
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('backup carries the draft and the revisions');
+  {
+    T('the programs merge is not a fixed field list',
+      /Object\.assign\(\{\}, theirs, base/.test(fnSrc(src, 'importAllData')));
+    T('and a draft is preserved rather than silently dropped',
+      /merged\.draft = theirs\.draft/.test(fnSrc(src, 'importAllData')));
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    const prog = { id:'rt', name:'RT', goal:'hypertrophy', status:'active', durationWeeks:8,
+      startDate: START, schedule: JSON.parse(JSON.stringify(PLAN_1)) };
+    ctx.addProgramRevision(prog, PLAN_2, W4);
+    ctx.addProgramRevision(prog, PLAN_3, W6);
+    const clone = JSON.parse(JSON.stringify(prog));
+    ctx._planFulfillCache = null;
+    const a = JSON.stringify(ctx.programPlannedSlots(prog));
+    ctx._planFulfillCache = null;
+    const b = JSON.stringify(ctx.programPlannedSlots(clone));
+    T('planned slots are identical after a round trip', a === b);
+    [START, W3, W4, W6].forEach(d => {
+      T('the plan on ' + d + ' is identical after a round trip',
+        JSON.stringify(ctx.programPlanOn(clone, d)) === JSON.stringify(ctx.programPlanOn(prog, d)));
+    });
+  }
+
+  sub('nothing here touched the trainer');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    T('the engine is still shadowed', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+      ctx.TRAINER_ENGINE_VERSION);
+    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15, String(ctx.DATA_KEYS.length));
+    T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
+  }
+}
+
+/* =========================================================
    CONTRACT 151 — EDITABLE PROGRAM DRAFT  (Phase D51B)
 
    pbGenerate() rebuilt the program from the answers on every
@@ -18267,7 +18836,7 @@ async function testNextProgramContinuity(){
 
   sub('nothing starts itself');
   T('the continuation opens the builder and creates nothing',
-    !/function startNextProgramFrom[\s\S]{0,1200}(createProgram|pbCommit|setActiveProgram)\(/.test(src));
+    !/(createProgram|pbCommit|setActiveProgram)\(/.test(fnSrc(src, 'startNextProgramFrom')));
   T('the prefill helper cannot create a program', (() => {
     const i = src.indexOf('function deriveNextProgramPrefill');
     const body = src.slice(i, i + 1600);
@@ -18282,7 +18851,7 @@ async function testNextProgramContinuity(){
 
   sub('one builder, one prefill');
   T('every path opens the same D33 builder',
-    /function startNextProgramFrom[\s\S]{0,400}openProgramBuilderFlow\('create'\)/.test(src));
+    /openProgramBuilderFlow\('create'\)/.test(fnSrc(src, 'startNextProgramFrom')));
   T('there is exactly one continuation entry point',
     (src.match(/function startNextProgramFrom\(/g) || []).length === 1);
   T('there is exactly one prefill helper',
@@ -18886,7 +19455,7 @@ async function testPerformanceProgress(){
     T('climbing warm-ups create no progress',
       (ctx.derivePerformanceProgress(warm).exercises[0] || {}).direction === 'steady');
     T('the working-set registry is what decides',
-      /function perfSessionObservation[\s\S]{0,400}isWorkingSet/.test(src));
+      /isWorkingSet/.test(fnSrc(src, 'perfSessionObservation')));
     const unperformed = [];
     for(let i = 0; i < 8; i++) unperformed.push({ id:'up'+i,
       date:'2026-0' + (i<4?1:2) + '-' + String((i%4)*7+6).padStart(2,'0'),
@@ -18910,7 +19479,7 @@ async function testPerformanceProgress(){
       ctx.derivePerformanceProgress(series('Zercher Sandbag Thing',
         [100,110,120,130,140,150,160,170])).comparableExercises === 0);
     T('identity comes from the canonical registry',
-      /function perfCanonicalId[\s\S]{0,200}resolveExerciseId/.test(src));
+      /resolveExerciseId/.test(fnSrc(src, 'perfCanonicalId')));
     /* Bodyweight and timed work get no strength percentage. */
     T('bodyweight work is excluded from strength percentages',
       ctx.derivePerformanceProgress(Array.from({length:8}, (_,i) => ({ id:'b'+i,
@@ -18933,12 +19502,12 @@ async function testPerformanceProgress(){
     return first(wk).direction === 'improving';
   })());
   T('and it uses the app\'s single e1RM function',
-    /function perfSessionObservation[\s\S]{0,600}estimate1RM\(/.test(src)
+    /estimate1RM\(/.test(fnSrc(src, 'perfSessionObservation'))
     && (src.match(/function estimate1RM\(/g) || []).length === 1);
 
   sub('program scoping and isolation');
   T('program analysis reuses D38 membership',
-    /function deriveProgramPerformance[\s\S]{0,300}programWorkouts\(/.test(src));
+    /programWorkouts\(/.test(fnSrc(src, 'deriveProgramPerformance')));
   {
     const prog = { id:'pA', name:'A', startDate:'2026-01-05', durationWeeks:8, status:'active',
       pausedDays:0, blocks:[{ id:'b', startWeek:1, endWeek:8 }],
@@ -19267,6 +19836,7 @@ async function main(){
   await testLiveSetCoach();
   await testProgramRevisions();
   await testProgramDraft();
+  await testDurablePrograms();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
