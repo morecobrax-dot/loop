@@ -15245,8 +15245,21 @@ async function testProgramExperience(){
     const opened = ctx.programMapHtml(def, { week:1, idPrefix:'tdisc' });
     T('opening a day reveals its exercises', opened.indexOf('pm-ex-r') !== -1);
     T('and offers to edit that workout', opened.indexOf('programMapEditWorkout(') !== -1);
-    T('editing routes to the template editor LOOP already has',
-      /openEditTemplate\(/.test(fnSrc(src, 'programMapEditWorkout')));
+    /* D51E — REPOINTED, NOT RELAXED. This asserted that the map's Edit button
+       called openEditTemplate, and openEditTemplate was the wrong destination:
+       it looks a templateId up in the athlete's CURRENTLY SELECTED plan, while
+       a program carries its own planId, so on a real phone the button did
+       nothing at all — and where it did resolve it edited the shared library
+       template rather than the program. The contract this test exists for is
+       "an opened day offers a working way to edit that workout"; only the
+       destination was wrong, so the destination is what changes here. */
+    T('editing opens that session in the program editor',
+      /pbOpenSession = dayKey/.test(fnSrc(src, 'programMapEditWorkout')) &&
+      /openProgramSessionEditor\(/.test(fnSrc(src, 'programMapEditWorkout')));
+    T('and it no longer reaches the shared plan-library editor',
+      !/openEditTemplate\(/.test(fnSrc(src, 'programMapEditWorkout')));
+    T('the button passes the day it sits under, not a template id',
+      /programMapEditWorkout\('\$\{prefix\}','\$\{k\}'\)/.test(src));
     /* An expanded day belongs to the week it was opened in. */
     ctx.programMapSelect('tdisc', 2);
     T('changing week closes the open day',
@@ -17625,6 +17638,364 @@ async function testProgramRevisions(){
       JSON.stringify(prog.revisions.map(r => r.effectiveFrom)));
     T('and the surviving plan is the last one chosen',
       plannedCount(prog) === 16, String(plannedCount(prog)));
+  }
+}
+
+/* =========================================================
+   CONTRACT 154 — SPLIT OWNERSHIP  (Phase D51E)
+
+   Two things the owner found on a real phone.
+
+   The Program review had a visible "Edit this workout" button
+   that did nothing when tapped. And LOOP chose the split: an
+   athlete who wanted Push / Pull / Full Body had no way to say
+   so, because builderSplitFor read a table keyed by day count
+   and nothing ever asked.
+
+   The split is now the athlete's. LOOP still recommends —
+   builderSplitFor unchanged, demoted from a verdict to a
+   suggestion — and programs intelligently inside whatever was
+   chosen.
+
+   Fixed dates, fnSrc for source inspection, expected roles
+   hand-declared rather than asked of the generator.
+   ========================================================= */
+async function testSplitOwnership(){
+  section('CONTRACT 154 — split ownership (D51E)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+  const START = '2026-03-02', W4 = '2026-03-23';
+
+  const stub = ctx => {
+    ctx.renderProgramBuilderFlow = () => {};
+    ctx.confirm = () => true; ctx.alert = () => {};
+    ctx.renderAll = () => {}; ctx.switchTab = () => {};
+    ctx.closeMyTraining = () => {}; ctx.closePrograms = () => {};
+    ctx.renderMyTraining = () => {};
+    const el = { classList:{ add(){}, remove(){} }, firstChild:1, innerHTML:'', value:'', textContent:'' };
+    ctx.document.getElementById = () => el;
+    ctx.document.querySelector = () => null;
+    return ctx;
+  };
+  const app = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+  const gen = extra => app.generateProgram(Object.assign({
+    goal:'hypertrophy', experience:'intermediate', equipment:'full', emphasis:'balanced',
+    sessionLength:'standard', weeks:8, startDate:'2026-11-02' }, extra));
+  const PROGRAM_DAYS = app.PROGRAM_DAY_KEYS;
+  const rolesOf = def => PROGRAM_DAYS.filter(k => def.schedule[k] && def.schedule[k].type === 'workout')
+    .map(k => def.schedule[k].category);
+
+  /* ---------------------------------------------------------- */
+  sub('the visible Edit control goes where it says');
+  {
+    /* The defect: programMapEditWorkout took (category, templateId) and called
+       openEditTemplate, which looks the id up in the athlete's CURRENTLY
+       SELECTED plan. A program carries its own planId, so the lookup missed
+       and the function returned on its first line — silently, inside a
+       try/catch. Measured: a program on 'hypertrophy' while selectedPlanId was
+       'balanced', template 'y1' not found, every session dead. A custom
+       session has no templateId at all. */
+    T('the button passes the day it sits under',
+      /programMapEditWorkout\('\$\{prefix\}','\$\{k\}'\)/.test(src));
+    T('and not a template id from another plan',
+      !/programMapEditWorkout\('\$\{escapeAttr\(e\.category\)\}/.test(src));
+    const fn = fnSrc(src, 'programMapEditWorkout');
+    T('it never reaches the shared plan-library editor', !/openEditTemplate/.test(fn));
+    T('and it does not swallow its own failure', !/catch\(e\)\{\}/.test(fn), fn.slice(0, 90));
+
+    app.pbState = { step:99, dir:'fwd', known:{}, mode:'create', editingId:null, draft:null,
+      edited:false, answers:{ goal:'hypertrophy', experience:'intermediate', equipment:'full',
+        emphasis:'balanced', sessionLength:'standard', weeks:8, days:['mon','thu','sat'],
+        frequency:3, split:['push','pull','fullbody'], startDate:'2026-11-02' } };
+    app.pbDraft();
+    app.pbOpenSession = null;
+    app.programMapEditWorkout('pbMap', 'thu');
+    T('tapping it opens that session', app.pbOpenSession === 'thu', String(app.pbOpenSession));
+    app.programMapEditWorkout('pbMap', 'sat');
+    T('and follows the day that was tapped', app.pbOpenSession === 'sat', String(app.pbOpenSession));
+    T('a tap with no day does nothing rather than something wrong',
+      (() => { app.pbOpenSession = 'sat'; app.programMapEditWorkout('pbMap', '');
+        return app.pbOpenSession === 'sat'; })());
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('an approved split is used exactly as given');
+  {
+    /* Hand-declared: the roles asked for are the roles that come back, in the
+       order asked for, on the days asked for. */
+    const cases = [
+      { split:['push','pull','fullbody'],          days:['mon','thu','sat'] },
+      { split:['push','pull','legs'],              days:['mon','wed','fri'] },
+      { split:['upper','lower'],                   days:['tue','sat'] },
+      { split:['fullbody','fullbody'],             days:['sat','sun'] },
+      { split:['upper','lower','upper','lower'],   days:['mon','tue','thu','fri'] },
+      { split:['push','pull','upper','lower'],     days:['mon','tue','thu','fri'] },
+      { split:['legs','push','pull'],              days:['mon','wed','sat'] }
+    ];
+    cases.forEach(cs => {
+      const def = gen({ split: cs.split, days: cs.days, frequency: cs.days.length });
+      T(cs.split.join('/') + ' comes back as ' + rolesOf(def).join('/'),
+        rolesOf(def).join('|') === cs.split.join('|'),
+        cs.days.map((d, i) => d + ':' + rolesOf(def)[i]).join(' '));
+    });
+    const def = gen({ split:['push','pull','fullbody'], days:['mon','thu','sat'], frequency:3 });
+    T('Monday is Push, Thursday is Pull, Saturday is Full Body',
+      def.schedule.mon.category === 'push' && def.schedule.thu.category === 'pull'
+      && def.schedule.sat.category === 'fullbody');
+    T('the program records whose decision it was', def.splitByAthlete === true);
+    T('a recommendation is recorded as LOOP\'s',
+      gen({ days:['mon','thu','sat'], frequency:3 }).splitByAthlete === false);
+    T('an exact split is not rotated',
+      /if\(exact\)/.test(fnSrc(src, 'builderArrangeDays')));
+    T('and the builder forwards the answer to the generator',
+      /split: a\.split/.test(fnSrc(src, 'pbRegenerateDraft')));
+  }
+
+  sub('every frequency offers real choices, not one');
+  {
+    [2,3,4,5,6].forEach(d => {
+      const opts = app.splitOptionsFor(d, 'intermediate', 'hypertrophy');
+      T(d + ' days offers ' + opts.length + ' structures', opts.length >= 2,
+        opts.map(o => o.label).join(' | '));
+      T(d + ' days: exactly one is marked recommended',
+        opts.filter(o => o.recommended).length === 1);
+      T(d + ' days: every option has the right number of sessions',
+        opts.every(o => o.roles.length === d));
+    });
+    const three = app.splitOptionsFor(3, 'intermediate', 'hypertrophy');
+    T('Push / Pull / Full Body is offered at three days',
+      three.some(o => o.roles.join('|') === 'push|pull|fullbody'),
+      three.map(o => o.label).join(' | '));
+    T('no option claims to be the best one',
+      !/\b(best|optimal|perfect|ideal)\b/i.test(three.map(o => o.label + ' ' + o.shape).join(' ')));
+    T('a library without a role is never offered it',
+      app.splitOptionsFor(2, 'intermediate', 'upperlower')
+        .every(o => o.roles.every(r => r === 'upper' || r === 'lower')),
+      app.splitOptionsFor(2, 'intermediate', 'upperlower').map(o => o.label).join(' | '));
+    T('and an unbuildable split is refused',
+      app.splitIsUsable(['push','pull'], 2, 'upperlower') === false
+      && app.splitIsUsable(['upper','lower'], 2, 'upperlower') === true);
+    T('a split of the wrong length is refused',
+      app.splitIsUsable(['push','pull'], 3, 'hypertrophy') === false);
+  }
+
+  sub('the label says what the week is, briefly');
+  {
+    const cases = [
+      [['fullbody','fullbody'], 'Full Body \u00d72'],
+      [['upper','lower'], 'Upper / Lower'],
+      [['push','pull','fullbody'], 'Push / Pull / Full Body'],
+      [['upper','lower','upper','lower'], 'Upper / Lower \u00d72'],
+      [['push','pull','legs','push','pull','legs'], 'Push / Pull / Legs \u00d72']
+    ];
+    cases.forEach(([roles, want]) =>
+      T(roles.join('/') + ' reads as "' + want + '"', app.splitLabelOf(roles) === want,
+        app.splitLabelOf(roles)));
+    const def = gen({ split:['push','pull','fullbody'], days:['mon','thu','sat'], frequency:3 });
+    const e = app.deriveProgramExplanation(def);
+    T('an approved split names itself rather than reading as "Mixed"',
+      e.split.label === 'Push / Pull / Full Body', e.split.label);
+    T('and D51D corroboration still governs it',
+      /splitLabelCorroborated/.test(fnSrc(src, 'deriveSplitInfo')));
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('a priority works inside the split, never on it');
+  {
+    const days = ['mon','thu','sat'], split = ['push','pull','fullbody'];
+    const balanced = gen({ split, days, frequency:3, emphasis:'balanced' });
+    const chest    = gen({ split, days, frequency:3, emphasis:'chest' });
+    T('the split is identical with and without a priority',
+      rolesOf(chest).join('|') === rolesOf(balanced).join('|'),
+      rolesOf(balanced).join('/') + ' vs ' + rolesOf(chest).join('/'));
+    T('emphasis is not an input to the recommendation either',
+      !/emphasis/.test(fnSrc(src, 'builderSplitFor')));
+
+    const chestSets = def => {
+      let n = 0;
+      PROGRAM_DAYS.forEach(k => {
+        const en = def.schedule[k]; if(!en || en.type !== 'workout') return;
+        const t = app.builderTemplateOf(en);
+        (t ? t.exercises : []).forEach(x => {
+          try{ if((app.musclesForExercise(x.name).primary || []).indexOf('chest') !== -1)
+            n += parseInt(x.sets, 10) || 0; }catch(err){}
+        });
+      });
+      return n;
+    };
+    const b = chestSets(balanced), ch = chestSets(chest);
+    T('a chest priority adds chest work', ch > b, b + ' -> ' + ch);
+    T('and adds one movement, not a chest week', ch - b <= 6, b + ' -> ' + ch);
+    T('a balanced program is untouched by any of this',
+      JSON.stringify(balanced.schedule) ===
+      JSON.stringify(gen({ split, days, frequency:3, emphasis:'balanced' }).schedule));
+    T('the priority slot is reserved, not taken from balance',
+      /emphasisSlot/.test(fnSrc(src, 'builderAllocateDepth')));
+    T('a short session is never given one',
+      /lengthId !== 'short'/.test(fnSrc(src, 'builderAllocateDepth')));
+    T('and the duration cap still vetoes it',
+      /builderDepthCap/.test(fnSrc(src, 'builderAllocateDepth')));
+  }
+
+  sub('exercises fit the role they were built for');
+  {
+    const def = gen({ split:['push','pull','legs'], days:['mon','wed','fri'], frequency:3 });
+    /* Hand-declared: what each role promises. */
+    const want = { push:['chest','shoulders','triceps'], pull:['back','biceps'],
+      legs:['quads','hamstrings','glutes','calves'] };
+    ['mon','wed','fri'].forEach(k => {
+      const en = def.schedule[k];
+      const prof = app.deriveWorkoutProfile(app.builderTemplateOf(en));
+      T(k + ' (' + en.category + ') leads with ' + prof.primary[0],
+        want[en.category].indexOf(prof.primary[0]) !== -1, prof.primary.join('/'));
+    });
+    T('role checking reads the canonical registry',
+      /deriveWorkoutProfile/.test(fnSrc(src, 'categoryStillFits')));
+    T('and there is no string-matched exercise taxonomy for roles',
+      !/PUSH_EXERCISES|PULL_EXERCISES|LEGS_EXERCISES/.test(code));
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('changing a role does not rebuild the session');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    ctx.pbState = { step:99, dir:'fwd', known:{}, mode:'create', editingId:null, draft:null,
+      edited:false, answers:{ goal:'hypertrophy', experience:'intermediate', equipment:'full',
+        emphasis:'balanced', sessionLength:'standard', weeks:8, days:['mon','thu','sat'],
+        frequency:3, split:['push','pull','fullbody'], startDate:'2026-11-02' } };
+    const def = ctx.pbDraft();
+    ctx.pbAddExercise('thu', 'Face Pull');
+    const before = ctx.pbSessionExercises(ctx.pbDraft(), 'thu').map(x => x.name);
+    ctx.pbSetSessionRole('thu', 'legs');
+    const after = ctx.pbSessionExercises(ctx.pbDraft(), 'thu').map(x => x.name);
+    T('the role changes', ctx.pbDraft().schedule.thu.category === 'legs');
+    T('and the athlete\'s exercises are untouched', before.join('|') === after.join('|'),
+      after.join(', '));
+    T('the session owns them, so it cannot resolve to the old library',
+      Array.isArray(ctx.pbDraft().schedule.thu.exercises));
+    T('the split follows the sessions',
+      ctx.pbDraft().split.join('|') === 'push|legs|fullbody',
+      JSON.stringify(ctx.pbDraft().split));
+    /* Rebuilding is explicit, confirmed, and only then replaces anything. */
+    T('a rebuild asks first', /confirm\(/.test(fnSrc(src, 'pbRebuildSession')));
+    ctx.pbRebuildSession('thu');
+    const rebuilt = ctx.pbSessionExercises(ctx.pbDraft(), 'thu').map(x => x.name);
+    T('and only then replaces the session', rebuilt.join('|') !== after.join('|'),
+      rebuilt.join(', '));
+    T('the rebuilt session matches its role',
+      ctx.categoryStillFits(ctx.pbDraft().schedule.thu) === true);
+  }
+
+  sub('a role change on a running program is forward-only');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    const sess = (cat, name, ex) => ({ type:'workout', planId:'ul', category:cat,
+      templateId:'ul-' + cat, name, exercises: JSON.parse(JSON.stringify(ex)) });
+    const prog = { id:'c154', name:'Split Change', goal:'hypertrophy', status:'active',
+      durationWeeks:8, startDate: START,
+      schedule:{ mon: sess('upper','Upper A', [{ name:'Bench Press', sets:3, reps:'8-10', effort:'8' }]),
+                 thu: sess('lower','Lower A', [{ name:'Back Squat', sets:3, reps:'8-10', effort:'8' }]) } };
+    ctx._planFulfillCache = null;
+    /* Hand-declared: 8 weeks x 2 days = 16. */
+    T('before: 16 planned sessions', ctx.programPlannedSlots(prog).length === 16,
+      String(ctx.programPlannedSlots(prog).length));
+    ctx.addProgramRevision(prog, {
+      mon: sess('push','Push', [{ name:'Overhead Press', sets:3, reps:'8-10', effort:'8' }]),
+      thu: sess('pull','Pull', [{ name:'Lat Pulldown', sets:3, reps:'8-10', effort:'8' }]),
+      sat: sess('fullbody','Full Body', [{ name:'Barbell Curl', sets:3, reps:'8-12', effort:'7' }])
+    }, W4);
+    ctx._planFulfillCache = null;
+    const slots = ctx.programPlannedSlots(prog);
+    /* Hand-declared: weeks 1-3 keep 2 (=6), weeks 4-8 have 3 (=15), total 21. */
+    T('weeks 1-3 keep two', [1,2,3].every(w => slots.filter(x => x.week === w).length === 2));
+    T('weeks 4-8 have three', [4,5,6,7,8].every(w => slots.filter(x => x.week === w).length === 3));
+    T('21 planned, not 24', slots.length === 21, String(slots.length));
+    T('week 1 Monday is still Upper',
+      ctx.programPlanOn(prog, START).mon.category === 'upper',
+      ctx.programPlanOn(prog, START).mon.category);
+    T('week 4 Monday is Push', ctx.programPlanOn(prog, W4).mon.category === 'push');
+    T('week 1 slots carry the roles they were planned with',
+      slots.filter(x => x.week === 1).map(x => x.category).sort().join('/') === 'lower/upper',
+      slots.filter(x => x.week === 1).map(x => x.category).join('/'));
+
+    /* §10 — a workout trained under the old role still fulfils its old slot. */
+    ctx.workoutLog = [{ id:'w1', date: START, category:'upper', title:'Upper A',
+      origin:'program', programId:'c154',
+      exercises:[{ name:'Bench Press', sets:[{ weight:'135', reps:'8', rir:'2' }] }] }];
+    ['invalidateSortedLogCache','invalidateProgramCache'].forEach(f => { try{ ctx[f](); }catch(e){} });
+    ctx._planFulfillCache = null;
+    const slot = (ctx.deriveProgramPlanFulfillment(prog).slots || [])
+      .find(x => x.week === 1 && x.dayKey === 'mon');
+    T('a session trained as Upper still fulfils its Upper slot after the role changed',
+      !!(slot && slot.workoutId === 'w1'),
+      slot ? slot.category + '/' + slot.workoutId : 'no slot');
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('the split survives being saved and reopened');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    ctx.pbState = { step:99, dir:'fwd', known:{}, mode:'create', editingId:null, draft:null,
+      edited:false, answers:{ goal:'hypertrophy', experience:'intermediate', equipment:'full',
+        emphasis:'chest', sessionLength:'standard', weeks:8, days:['mon','thu','sat'],
+        frequency:3, split:['push','pull','fullbody'], startDate:'2026-11-02' } };
+    const approved = ctx.pbDraft();
+    const week = PROGRAM_DAYS.filter(k => approved.schedule[k] && approved.schedule[k].type === 'workout')
+      .map(k => k + ':' + approved.schedule[k].category).join(' ');
+    await ctx.pbCommit(null);
+    const live = ctx.getPrograms()[0];
+    T('the program started is the week approved',
+      PROGRAM_DAYS.filter(k => live.schedule[k] && live.schedule[k].type === 'workout')
+        .map(k => k + ':' + live.schedule[k].category).join(' ') === week, week);
+    T('and it remembers the split and whose it was',
+      live.split.join('|') === 'push|pull|fullbody' && live.splitByAthlete === true,
+      JSON.stringify(live.split));
+    T('My Training states it', ctx.myTrainingState().structure === 'Push / Pull / Full Body',
+      ctx.myTrainingState().structure);
+    ctx.openProgramBuilderFlow('edit');
+    T('reopening the editor does not re-decide it',
+      ctx.pbDraft().split.join('|') === 'push|pull|fullbody' &&
+      ctx.pbDraft().splitByAthlete === true, JSON.stringify(ctx.pbDraft().split));
+  }
+
+  sub('changing the number of days drops a split that no longer fits');
+  {
+    const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
+    ctx.pbState = { step:0, dir:'fwd', known:{}, mode:'create', editingId:null, draft:null,
+      edited:false, answers:{ goal:'hypertrophy', experience:'intermediate', equipment:'full',
+        emphasis:'balanced', sessionLength:'standard', weeks:8, days:['mon','thu','sat'],
+        frequency:3, split:['push','pull','fullbody'], startDate:'2026-11-02' } };
+    ctx.pbToggleDay('tue');
+    T('a four-day week drops a three-session split',
+      ctx.pbState.answers.split === null, JSON.stringify(ctx.pbState.answers.split));
+    ctx.pbState.answers.split = ['push','pull','upper','lower'];
+    ctx.pbToggleDay('fri');
+    T('and a five-day week drops a four-session one', ctx.pbState.answers.split === null);
+  }
+
+  /* ---------------------------------------------------------- */
+  sub('nothing below the surface moved');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    T('the trainer is still shadowed', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+      ctx.TRAINER_ENGINE_VERSION);
+    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15, String(ctx.DATA_KEYS.length));
+    T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('Session Score weights are untouched',
+      /completion:\s*0\.40/.test(code) && /reps:\s*0\.30/.test(code) &&
+      /effort:\s*0\.18/.test(code) && /load:\s*0\.12/.test(code));
+    T('the live-coach thresholds are untouched',
+      /easyOverTarget:\s*2/.test(code) && /hardRir:\s*0\.5/.test(code));
+    T('progression evidence is untouched',
+      /PROGRESSION_EVIDENCE/.test(code) && /const PLAN_SHIFT_DAYS = 2/.test(code));
+    T('the Live Set Coach knows nothing about session roles',
+      !/category|push|pull|fullbody/i.test(fnSrc(src, 'deriveNextSetCoach')));
+    T('plan revisions remain the one temporal owner',
+      /programPlanOn\(/.test(fnSrc(src, 'programScheduleOn')) &&
+      !/prescriptionRevisions|exerciseRevisions|sessionRevisions/.test(code));
+    T('active edits still route through the revision path',
+      /reviseProgramPlan\(/.test(fnSrc(src, 'updateProgram')));
   }
 }
 
@@ -20187,6 +20558,7 @@ async function main(){
   await testProgramDraft();
   await testDurablePrograms();
   await testProgramOwnership();
+  await testSplitOwnership();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

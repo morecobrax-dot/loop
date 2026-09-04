@@ -6678,3 +6678,174 @@ least 44px, every input 16px.
 `DATA_KEYS` remains 15 — this phase added no storage at all. No migration.
 `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`. Session Score, Live Set Coach,
 D49 progression, D51C plan revisions and the picker are untouched.
+
+---
+
+## §79 — D51E: The split belongs to the athlete
+
+**Status.** Shipped in LOOP 4.9 (`loop-v126`).
+
+Two findings from a real phone, and physical evidence outranks anything the
+repository reports about itself.
+
+### "Edit this workout" did nothing
+
+The Program review showed the button. Tapping it produced nothing at all.
+
+```js
+function programMapEditWorkout(category, templateId){
+  try{ openEditTemplate(category, templateId); }catch(e){}
+}
+```
+
+Three faults, any one of which was enough:
+
+1. **`openEditTemplate` looks the id up in the athlete's currently selected
+   plan.** A generated program carries its own `planId`. Measured: a program on
+   `hypertrophy` while `selectedPlanId` was `balanced`, template `y1` not in the
+   list, function returns on its first line. **Every session, dead.**
+2. **A session the athlete built has no `templateId` at all**, so the button
+   rendered `onclick="…('fullbody','undefined')"`.
+3. **Even when it resolved, it was the wrong destination** — the shared
+   plan-library editor, which edits the template every program using it would
+   see, not the program under review.
+
+And `try{…}catch(e){}` swallowed the lot, so it failed in silence.
+
+It now takes the map's own `prefix` and day key, so it cannot disagree with the
+row it sits under, and opens that session in Program Studio. Verified with a
+hit-test and a full pointer/touch/click sequence, not a programmatic `.click()`:
+the button is reachable at its own centre, and afterwards the destination
+session sits at 79–810px in an 812px viewport.
+
+**Why automated QA missed it, honestly:** a contract was pinning the defect as
+correct — `T('editing routes to the template editor LOOP already has', …)`. It
+has been repointed, with the reasoning recorded in the test. The behaviour the
+test exists for — *an opened day offers a working way to edit that workout* —
+is unchanged; only the destination was wrong.
+
+### LOOP chose the split, and nothing asked
+
+`builderSplitFor(days, experience, planId)` read a table keyed by day count. At
+four days there was exactly one entry, `upper/lower/upper/lower`. At two days,
+exactly one. The athlete was never asked, at any frequency.
+
+**What it was not.** The owner read this as their muscle priority choosing the
+split. It never did — emphasis is not an input to `builderSplitFor` and never
+has been. **Frequency chose the split, and nothing asked.** The fix is the same
+either way, but the cause is worth recording accurately.
+
+The split is now an answer:
+
+```
+2 days   Full Body ×2 (recommended) · Upper / Lower · Push / Pull · Build my own
+3 days   Push / Pull / Legs (recommended) · Push / Pull / Full Body ·
+         Upper / Lower / Full Body · Full Body ×3 · Build my own
+4 days   Upper / Lower ×2 (recommended) · Push / Pull / Upper / Lower ·
+         Push / Pull / Legs / Full Body · Upper / Lower / Full Body ×2 · Build my own
+```
+
+Each states what it does — `pushing ×2 · pulling ×2 · legs ×1` — counted, never
+ranked. **No option claims to be the best one, because none of them is.**
+`builderSplitFor` is unchanged and is exactly the recommendation, demoted from a
+verdict to a suggestion; a beginner gets it by doing nothing.
+
+**An approved split is used exactly as given, in the order given.** The rotation
+`builderArrangeDays` performs is LOOP arranging its *own* suggestion to avoid
+two heavy days back to back; applying it to a chosen split would quietly move
+Push off the Monday the athlete put it on. `exact` turns it off.
+
+### Priority inside the split, not on it
+
+The owner's case now produces what they asked for:
+
+```
+hypertrophy · chest priority · Push / Pull / Full Body · Mon / Thu / Sat
+
+MON  push      Machine Chest Press · Cable Fly · Incline DB Press ·
+               Cable Lateral Raise · Cable Triceps Pushdown · Overhead Rope Extension
+THU  pull      Lat Pulldown · Seated Cable Row · Straight-Arm Pulldown ·
+               Rear Delt Fly · Cable Curl · Preacher Curl
+SAT  fullbody  Leg Press · Machine Chest Press · Lat Pulldown · Leg Curl ·
+               Cable Crunch · Cable Fly        ← the priority
+```
+
+Chest work: **13 → 16 sets a week**, and `deriveEmphasisInfo` now reports
+`effective: true`, so the copy that says "with extra chest work" is finally
+telling the truth.
+
+**It had been doing nothing at all.** `builderDepthBudget` returns 0 at standard
+session length, so no accessory was ever placed — for *any* split, including
+LOOP's own recommendation. A chest priority produced byte-identical sessions to
+balanced. Nothing was broken: `effective: false` was correct and LOOP never
+claimed the work. But the athlete asked for something, got nothing, and could
+not tell why.
+
+Two rules were in the way and neither is worth breaking. Balance outranks
+specialisation — a major group at zero sets should claim a slot before any
+emphasis. And a full session should stay the length it was. So the priority gets
+**one slot across the whole week that balance cannot take**, spendable only on
+the emphasised groups, subject to the same redundancy and duration guards, and
+skipped entirely on a short session or a beginner's light week. If nothing
+eligible exists, nothing is added and `effective` stays false.
+
+One movement a week is the whole of it.
+
+### Session role, changed without rebuilding
+
+D51D left session category uneditable. With D51C's per-date plan resolution
+already in place, changing it forward turned out to be safe without any new
+identity field — proven rather than assumed:
+
+```
+Weeks 1–3   Mon Upper · Thu Lower                     6 planned
+Week 4+     Mon Push · Thu Pull · Sat Full Body      15 planned
+            21 total, not 24
+```
+
+Week 1 Monday is still Upper. A workout logged as Upper still fulfils its Upper
+slot after the role changed, because D43 asks the plan in force on the slot's
+own date. **No new stable-identity field was added**, because the temporal
+resolver already provides the stability the brief was asking for; adding one
+would have been a schema change with nothing to do.
+
+Changing a role relabels the session and touches nothing else — the exercises
+are the athlete's work. A separate, confirmed **"Build me a fresh one"** is the
+only action that replaces them.
+
+### The audit oracle was under-counting
+
+Adding an extension surfaced a pre-existing hole. A sweep of all **211**
+exercises across every plan and extension against the audit's hand-declared
+table found **22 unknown**, 12 with a real primary group: five chest presses
+whose names put a word between "incline" and "press", a fly, a rack pull, a
+landmine press, three core movements, a band walk and a box jump. All predate
+this phase; the audit has been counting them as nothing since D48. **Zero
+existing entries disagreed with the product**, so the table was completed rather
+than corrected. The remaining 10 unknowns are movements the product does not
+attribute either — both sides agree on nothing.
+
+### Verification
+
+5,926 assertions across 154 contracts, plus 327 program-audit, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix — all green. D51C's
+temporal oracle (42) and durability probe (58) still pass unchanged.
+
+Six viewports clean across the split question with Build-my-own open, the review
+with a session open, and the review with an exercise open: zero overflow, zero
+clipping, every control at least 44px, every input 16px.
+
+`DATA_KEYS` remains 15 — the split lives on the program object, no new key and
+no migration. `TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`. Session Score,
+Live Set Coach and D49 progression are untouched, and the coach is pinned to
+know nothing about session roles.
+
+### Deliberately not done
+
+**D49 progression is unchanged.** The owner asked for more accurate rep
+guidance, and almost every progression reality-check answer remains DIDN'T TEST.
+That stays in Owner QA until there is real gym evidence behind it.
+
+Templates are still not built. The architecture is now ready for them — a
+session that owns its exercises and a role that can be chosen is most of what a
+template is — but split ownership had to be right first.

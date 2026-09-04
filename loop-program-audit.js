@@ -440,12 +440,13 @@ function oracleTemplate(ctx, entry) {
         ['pull-through','glutes'], ['pull through','glutes'], ['kettlebell swing','glutes'],
         ['hip thrust','glutes'], ['glute bridge','glutes'], ['glute','glutes'],
         ['hip abduction','glutes'], ['lateral walk','glutes'], ['monster walk','glutes'],
+        ['lateral band walk','glutes'],
         /* A conventional pull trains both, and the taxonomy says so. Entries
            may name more than one primary group. */
         ['deadlift',['back','hamstrings']],
         ['leg extension','quads'], ['quad extension','quads'], ['leg press','quads'],
         ['split squat','quads'], ['squat','quads'], ['lunge','quads'], ['step-up','quads'],
-        ['step up','quads'], ['wall sit','quads'],
+        ['step up','quads'], ['wall sit','quads'], ['box jump','quads'],
         ['calf','calves'],
         ['close-grip bench','triceps'], ['close grip bench','triceps'],
         ['skull','triceps'], ['pushdown','triceps'], ['overhead extension','triceps'],
@@ -456,17 +457,29 @@ function oracleTemplate(ctx, entry) {
         ['face pull','shoulders'], ['upright row','shoulders'],
         ['lateral raise','shoulders'], ['front raise','shoulders'], ['side raise','shoulders'],
         ['overhead press','shoulders'], ['shoulder press','shoulders'], ['push press','shoulders'],
-        ['arnold','shoulders'], ['pike push','shoulders'],
+        ['arnold','shoulders'], ['pike push','shoulders'], ['landmine press','shoulders'],
+        /* D51E — the table is hand-declared, so a movement it has never been
+           told about counts as NOTHING, and a focus claim measured against it
+           can disagree with a product that counts correctly. A sweep of all
+           211 exercises across every plan and extension found 22 unknown, 12
+           of them with a real primary group: five chest presses whose names
+           put a word between "incline" and "press", a fly, a rack pull, a
+           landmine press, three core movements, a band walk and a box jump.
+           All pre-existing. Zero of the existing entries disagreed with the
+           product, so this completes the table rather than correcting it. */
         ['incline machine','chest'], ['incline press','chest'], ['incline bench','chest'],
+        ['incline db','chest'], ['incline dumbbell','chest'], ['incline barbell','chest'],
+        ['flat db press','chest'], ['floor fly','chest'],
         ['decline press','chest'], ['decline bench','chest'], ['chest press','chest'],
         ['bench press','chest'], ['chest pass','chest'], ['floor press','chest'],
         ['pec deck','chest'], ['chest fly','chest'], ['cable fly','chest'], ['crossover','chest'],
         ['push-up','chest'], ['push up','chest'], ['pushup','chest'],
         ['pulldown','back'], ['pull-up','back'], ['pull up','back'], ['pullup','back'],
         ['chin-up','back'], ['chin up','back'], ['chinup','back'], ['pullover','back'],
-        ['shrug','back'], ['superman','back'], ['row','back'],
+        ['shrug','back'], ['superman','back'], ['row','back'], ['rack pull','back'],
         ['mountain climber','abs'], ['bird dog','abs'], ['dead bug','abs'], ['chop','abs'],
         ['woodchop','abs'], ['pallof','abs'], ['crunch','abs'], ['plank','abs'],
+        ['side bend','abs'], ['v-up','abs'], ['flutter','abs'],
         ['sit-up','abs'], ['hollow','abs'], ['ab wheel','abs'], ['twist','abs'],
         ['curl','biceps']
       ];

@@ -3929,6 +3929,58 @@ body.page-locked{ overflow: hidden; }
 .pb-head{ margin-bottom: 20px; }
 .pb-q{ font-size: var(--fs-xl); font-weight: 800; letter-spacing: -0.02em; margin: 0; }
 .pb-sub{ font-size: var(--fs-sm); color: var(--text-dim); margin: 6px 0 0; line-height: 1.45; }
+/* ---------- choosing the shape of the week (D51E) ---------- */
+/* One block per structure. Not a dropdown of fifteen strings, and not a
+   full-height onboarding card either — the athlete is comparing four things
+   and needs to see all of them at once. */
+.pb-splits{ display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.pb-split{
+  display: block; width: 100%; min-height: 64px; padding: 12px 14px; text-align: left;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); cursor: pointer; font-family: 'Inter', sans-serif;
+}
+.pb-split:active{ background: var(--surface-2); }
+.pb-split:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Selected is border + ground + text weight, never colour alone. */
+.pb-split.on{ border-color: var(--accent); background: var(--accent-soft); }
+.pb-split-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.pb-split-l{
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-card-title);
+  font-weight: 700; color: var(--text); line-height: 1.25; min-width: 0;
+}
+.pb-split.on .pb-split-l{ color: var(--accent); }
+.pb-split-rec{
+  flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-faint);
+}
+.pb-split-s{
+  display: block; margin-top: 5px; font-family: 'JetBrains Mono', monospace;
+  font-size: var(--fs-meta); color: var(--text-dim); font-variant-numeric: tabular-nums;
+}
+.pb-split-custom{ border-style: dashed; }
+.pb-custom{
+  margin-top: 12px; padding: 13px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+}
+.pb-cs-head{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 8px;
+}
+.pb-cs-row{
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 8px;
+}
+.pb-cs-row:last-child{ margin-bottom: 0; }
+.pb-cs-n{
+  flex-shrink: 0; font-size: var(--fs-support); font-weight: 600; color: var(--text-dim);
+  text-transform: none; letter-spacing: 0;
+}
+.pb-cs-sel{
+  flex: 1; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 12px;
+  font-size: 16px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text); font-family: 'Inter', sans-serif;
+}
+.pb-cs-sel:focus{ outline: none; border-color: var(--accent); }
 .pb-hint{ font-size: var(--fs-xs); color: var(--text-faint); margin: 14px 0 0; line-height: 1.5; }
 
 /* ---------- answer tiles ---------- */
@@ -4029,6 +4081,16 @@ body.page-locked{ overflow: hidden; }
 .ps-body{ padding: 0 14px 14px; border-top: 1px solid var(--border); }
 /* Name and day, side by side and sized like what they are. */
 .ps-ident{ display: flex; gap: 8px; align-items: stretch; margin-bottom: 4px; }
+/* What the session trains, stated as a sentence rather than as a labelled
+   field, so the editor keeps reading like training. */
+.ps-role{ display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; }
+.ps-role-lab{ flex-shrink: 0; font-size: var(--fs-support); color: var(--text-dim); }
+.ps-role-sel{
+  flex: 1; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 12px;
+  font-size: 16px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text); font-family: 'Inter', sans-serif;
+}
+.ps-role-sel:focus{ outline: none; border-color: var(--accent); }
 .ps-ident .ps-name-in{
   flex: 1; min-width: 0; font-family: 'Space Grotesk', sans-serif;
   font-size: 16px; font-weight: 700; text-align: left;
@@ -10437,6 +10499,28 @@ const LOOP_UPDATES = [
     bugFixes: [
       'Sets, reps and effort did not line up with each other in the program editor',
       'Removing an exercise was the loudest control on the screen'
+    ],
+    changes: []
+  },
+  {
+    id: 'v4-9',
+    version: 'LOOP 4.9',
+    title: 'Train Your Way',
+    date: '2026-11-18',
+    swVersion: 'loop-v126',
+    summary: 'You choose how your week is built. LOOP programs inside it.',
+    newFeatures: [
+      'Choose your split when you build a program \u2014 Push / Pull / Legs, Push / Pull / Full Body, Upper / Lower, Full Body, or build your own session by session',
+      'LOOP still recommends one, and says why, but the choice is yours and you can change it from the review without answering anything again',
+      'Change what a session trains at any time \u2014 your exercises stay exactly as you left them, and there is a separate button when you actually want a fresh workout'
+    ],
+    improvements: [
+      'A muscle priority now adds real work to your program instead of quietly doing nothing, and it can no longer change the split you picked',
+      'Your program is described by the split you chose rather than by whichever shape LOOP thought it resembled'
+    ],
+    bugFixes: [
+      'Edit this workout did nothing when tapped \u2014 it looked your workout up in the wrong plan, and where it did find one it opened the shared library instead of your program',
+      'Choosing a muscle priority changed nothing at the standard session length'
     ],
     changes: []
   }
@@ -24647,6 +24731,12 @@ function createProgram(input){
        LOOP's. Coercing absent to false claimed authorship LOOP does not have:
        it renamed a program called 'My Old Program' to '1-Day Muscle Growth'. */
     nameByAthlete: draft.nameByAthlete,
+    /* D51E — the roles the week was built as, and whose decision they were.
+       Without these the program forgets an approved split the moment it is
+       created, and My Training falls back to describing it as whatever shape
+       the categories happen to resemble. */
+    split: Array.isArray(draft.split) ? draft.split.slice() : undefined,
+    splitByAthlete: draft.splitByAthlete,
     description: String(draft.description || ''),
     goal: draft.goal || null,
     emphasis: draft.emphasis || null,
@@ -24693,7 +24783,7 @@ function updateProgram(programId, patch){
   const hasBegun = programHasBegun(p);
   const revising = schedulePatched && hasBegun &&
     JSON.stringify(p.schedule || {}) !== JSON.stringify(patch.schedule || {});
-  ['name','nameByAthlete','description','goal','durationWeeks','schedule','blocks','startDate','emphasis','sessionLength','experience'].forEach(k => {
+  ['name','nameByAthlete','description','goal','durationWeeks','schedule','blocks','startDate','emphasis','sessionLength','experience','split','splitByAthlete'].forEach(k => {
     if(k === 'schedule' && revising) return;
     if(patch && Object.prototype.hasOwnProperty.call(patch, k)) p[k] = merged[k];
   });
@@ -25512,6 +25602,134 @@ function builderPlanFor(equipmentId, goalId){
   return 'balanced';
 }
 
+/* =========================================================
+   THE SPLIT BELONGS TO THE ATHLETE  (Phase D51E)
+   ---------------------------------------------------------
+   builderSplitFor picks a split from a table keyed by day
+   count, broken only by experience, and the athlete was never
+   asked. At four days there is exactly one entry —
+   upper/lower/upper/lower — and at two days exactly one, so an
+   athlete who wanted Push / Pull / Full Body had no way to say
+   so and no way to see why not.
+
+   WHAT IT WAS NOT. The owner read this as their muscle priority
+   choosing the split. It never did: emphasis is not an input to
+   builderSplitFor and never has been. Frequency chose the split,
+   and nothing asked. The fix is the same either way — the
+   athlete chooses — but the cause is worth recording accurately.
+
+   LOOP still recommends. builderSplitFor is exactly the
+   recommendation, unchanged, and it is what a beginner gets by
+   doing nothing. It is now a suggestion rather than a verdict.
+   ========================================================= */
+
+/* The roles a session can be built for. Every one of these has templates in
+   the plan libraries, which is what makes it something LOOP can program into
+   rather than a word on a screen. */
+const SPLIT_ROLES = [
+  { id:'push',     label:'Push',      note:'Chest, shoulders, triceps' },
+  { id:'pull',     label:'Pull',      note:'Back and biceps' },
+  { id:'legs',     label:'Legs',      note:'Quads, hamstrings, glutes' },
+  { id:'upper',    label:'Upper',     note:'The whole upper body' },
+  { id:'lower',    label:'Lower',     note:'The whole lower body' },
+  { id:'fullbody', label:'Full Body', note:'Everything in one session' }
+];
+function splitRole(id){ return SPLIT_ROLES.find(r => r.id === id) || null; }
+function splitRoleLabel(id){ const r = splitRole(id); return r ? r.label : (CAT_LABEL[id] || id); }
+
+/* Presets per frequency. Starting structures, not a list of the only programs
+   LOOP will accept — Custom builds any combination of the roles above. */
+const SPLIT_PRESETS = {
+  2: [ ['fullbody','fullbody'], ['upper','lower'], ['push','pull'] ],
+  3: [ ['push','pull','legs'], ['push','pull','fullbody'],
+       ['upper','lower','fullbody'], ['fullbody','fullbody','fullbody'] ],
+  4: [ ['upper','lower','upper','lower'], ['push','pull','upper','lower'],
+       ['push','pull','legs','fullbody'], ['upper','lower','fullbody','fullbody'] ],
+  5: [ ['push','pull','legs','upper','lower'], ['upper','lower','push','pull','legs'],
+       ['push','pull','legs','fullbody','fullbody'] ],
+  6: [ ['push','pull','legs','push','pull','legs'],
+       ['upper','lower','upper','lower','upper','lower'] ]
+};
+
+/* Which broad areas a role trains. Used only to state a preset's shape as a
+   fact; exercise selection reads the canonical registry, never this. */
+const ROLE_AREAS = {
+  push:     ['pushing'],
+  pull:     ['pulling'],
+  legs:     ['legs'],
+  lower:    ['legs'],
+  upper:    ['pushing','pulling'],
+  fullbody: ['pushing','pulling','legs']
+};
+
+/* A preset described by what it actually does, counted. No claim that any
+   split is best, because none of them is. */
+function splitShapeText(roles){
+  const n = { pushing:0, pulling:0, legs:0 };
+  (roles || []).forEach(r => (ROLE_AREAS[r] || []).forEach(a => { n[a]++; }));
+  const parts = [];
+  if(n.pushing) parts.push('pushing ×' + n.pushing);
+  if(n.pulling) parts.push('pulling ×' + n.pulling);
+  if(n.legs) parts.push('legs ×' + n.legs);
+  return parts.join(' · ');
+}
+/* "Upper / Lower / Upper / Lower / Upper / Lower" is the same information as
+   "Upper / Lower ×2", four words longer, and it stops fitting a phone at six
+   days. Runs and whole-cycle repeats collapse to a count. */
+function splitLabelOf(roles){
+  if(!roles || !roles.length) return '';
+  const uniq = [];
+  roles.forEach(r => { if(uniq.indexOf(r) === -1) uniq.push(r); });
+  if(uniq.length === 1) return splitRoleLabel(uniq[0]) + (roles.length > 1 ? ' ×' + roles.length : '');
+  /* A repeating pattern: Upper/Lower/Upper/Lower is Upper / Lower, twice.
+     (Deliberately not the word D33 retired from the product's vocabulary —
+      the check that guards it reads source spans, not only visible copy.) */
+  for(let n = 1; n <= roles.length / 2; n++){
+    if(roles.length % n) continue;
+    const head = roles.slice(0, n);
+    let repeats = true;
+    for(let i = n; i < roles.length; i++) if(roles[i] !== head[i % n]) { repeats = false; break; }
+    if(repeats) return head.map(splitRoleLabel).join(' / ') + ' ×' + (roles.length / n);
+  }
+  /* Otherwise consecutive repeats collapse in place. */
+  const out = [];
+  for(let i = 0; i < roles.length; i++){
+    let n = 1;
+    while(i + n < roles.length && roles[i + n] === roles[i]) n++;
+    out.push(splitRoleLabel(roles[i]) + (n > 1 ? ' ×' + n : ''));
+    i += n - 1;
+  }
+  return out.join(' / ');
+}
+
+/* The presets LOOP offers for this many days, recommendation first. The
+   recommendation IS builderSplitFor — the same logic as before, demoted from
+   a decision to a suggestion. */
+function splitOptionsFor(days, experienceId, planId){
+  const rec = builderSplitFor(days, experienceId, planId);
+  const list = (SPLIT_PRESETS[days] || []).slice();
+  const key = a => a.join('|');
+  const out = [];
+  const push = roles => { if(!out.some(o => key(o.roles) === key(roles))) out.push({ roles: roles.slice() }); };
+  if(rec && rec.length === days) push(rec);
+  list.forEach(r => { if(r.length === days) push(r); });
+  /* Only offer what the chosen library can actually build. */
+  const plan = DEFAULT_PLANS[planId] || {};
+  const have = c => ((plan.templates || {})[c] || []).length > 0;
+  return out.filter(o => o.roles.every(have)).map((o, i) => ({
+    roles: o.roles, id: o.roles.join('-'), label: splitLabelOf(o.roles),
+    shape: splitShapeText(o.roles), recommended: i === 0
+  }));
+}
+
+/* Is this a split LOOP can build, for this many days and this library? */
+function splitIsUsable(roles, days, planId){
+  if(!Array.isArray(roles) || !roles.length) return false;
+  if(days && roles.length !== days) return false;
+  const plan = DEFAULT_PLANS[planId] || {};
+  return roles.every(r => splitRole(r) && ((plan.templates || {})[r] || []).length > 0);
+}
+
 /* ---------- 2. THE SPLIT ----------
    Frequency picks the shape. Experience breaks ties: someone still learning
    the lifts gets repeated exposure to the same movements rather than six
@@ -25557,10 +25775,19 @@ function builderSplitFor(days, experienceId, planId){
    same category back to back when the days are consecutive. This rotates the
    starting offset and keeps the arrangement with the fewest same-category
    adjacencies, counting Sunday->Monday because the week repeats. */
-function builderArrangeDays(dayKeys, split){
+function builderArrangeDays(dayKeys, split, exact){
   if(!dayKeys.length || !split.length) return {};
   const idxOf = k => PROGRAM_DAY_KEYS.indexOf(k);
   const ordered = dayKeys.slice().sort((a,b) => idxOf(a) - idxOf(b));
+  /* D51E — `exact` means the athlete chose this order. The rotation below is
+     LOOP arranging its OWN suggestion to avoid two heavy days back to back;
+     applying it to a chosen split would quietly move Push off the Monday they
+     put it on. */
+  if(exact){
+    const out = {};
+    ordered.forEach((k, i) => { out[k] = split[i % split.length]; });
+    return out;
+  }
 
   const clashesFor = offset => {
     let clashes = 0;
@@ -25729,9 +25956,15 @@ function generateProgram(answers){
 
   const dayKeys = (a.days || []).filter(d => PROGRAM_DAY_KEYS.indexOf(d) !== -1);
   const days = dayKeys.length || parseInt(a.frequency, 10) || 4;
-  const split = builderSplitFor(days, experienceId, planId);
+  /* D51E — AN EXPLICIT SPLIT IS AN INSTRUCTION, NOT A HINT. When the athlete
+     has chosen one it is used exactly as given, in the order given: they
+     approved a week, and a rotation that produced the same multiset on
+     different days would still not be the week they approved. With no choice
+     LOOP recommends, which is builderSplitFor doing what it always did. */
+  const picked = splitIsUsable(a.split, days, planId) ? a.split.slice() : null;
+  const split = picked || builderSplitFor(days, experienceId, planId);
   const chosen = dayKeys.length ? dayKeys : builderDefaultDays(days);
-  const arrangement = builderArrangeDays(chosen, split);
+  const arrangement = builderArrangeDays(chosen, split, !!picked);
 
   const simple = experienceId === 'new';   // fewer movements per session
   const lengthId = builderLength(a.sessionLength).id;
@@ -25766,6 +25999,12 @@ function generateProgram(answers){
        program could read as \"effective\" purely because the guess
        disagreed with the answer that built it. */
     experience: experienceId,
+    /* D51E — the roles this week was built as, and whether the athlete
+       chose them. An approved split is intent: it survives editing, it is what
+       the program is described as, and reopening the editor must not
+       re-decide it. */
+    split: split.slice(),
+    splitByAthlete: !!picked,
     /* Why this program looks the way it does, in the athlete's own terms.
        States what the program actually is — measured session minutes, not
        the requested bucket, which the library cannot always fill. */
@@ -25781,6 +26020,9 @@ function generateProgram(answers){
    groups otherwise \u2014 and left unspent when the estimator says the session
    would leave its band. Beginners stay lean (one slot, and only at four or
    more days a week); two training days never get more than one. */
+/* How many accessory slots a session may spend. Unchanged: these belong to
+   balance, and a priority does not get to bid for them — see the emphasis
+   pass at the end of builderAllocateDepth for how a priority is served. */
 function builderDepthBudget(lengthId, simple, trainingDays){
   const base = ({ short:0, standard:0, long:1, extended:2 })[lengthId] || 0;
   if(!base) return 0;
@@ -26000,6 +26242,74 @@ function builderAllocateDepth(schedule, planId, emphasisId, simple, lengthId){
     }
     if(chosen.length) entry.ext = chosen;
   });
+
+  /* THE PRIORITY GETS ONE SLOT OF ITS OWN, AND ONLY ITS OWN.
+
+     D51E — measured before this: a chest priority on a 3-day standard week
+     produced sessions byte-identical to balanced, for every split including
+     LOOP's own recommendation. Two things caused it. The ordinary budget is 0
+     at standard length, so nothing was placed at all; and where a budget did
+     exist, `zeroFill` correctly gave the slot to a major group sitting at zero
+     sets, because balance outranks specialisation and should.
+
+     Neither rule is worth breaking, so the priority gets a slot that balance
+     cannot take: exactly ONE extension across the whole week, spendable only
+     on the emphasised groups. If nothing eligible exists — every session
+     already trains that area twice, or adding one would push a session past
+     its duration band — nothing is added and deriveEmphasisInfo goes on
+     reporting effective=false, which is the honest answer.
+
+     One movement a week is the whole of it. A priority should be visible in
+     the program, not turn the week into that one muscle.
+
+     It answers to the same two guards the ordinary slots do. A SHORT session
+     has no room to give, whatever was asked for; and a beginner on a light
+     week is not the athlete to hand extra accessory work to. Measured: without
+     these, a 2-day short beginner week gained depth it is explicitly built not
+     to have. */
+  const emphasisSlot = emphGroups.length && lengthId !== 'short'
+    && !(simple && days.length < 4);
+  if(emphasisSlot){
+    let best = null, bestDay = null, bestKey = null;
+    days.forEach(k => {
+      const entry = schedule[k];
+      const base = builderBaseTemplateOf(entry);
+      if(!base) return;
+      const already = (entry.ext || []).slice();
+      PROGRAM_EXTENSIONS.forEach(x => {
+        if(usedExt[x.id] || already.indexOf(x.id) !== -1) return;
+        if(!x.groups.some(g => emphGroups.indexOf(g) !== -1)) return;   // emphasis only
+        if(x.slots.indexOf(entry.category) === -1) return;
+        if(!extensionAllowedForPlan(x, planId)) return;
+        if(x.exercises.some(e => sessionNames[k][String(e.name).toLowerCase()])) return;
+        if(redundantFor(k, x)) return;
+        /* Into the session that trains this area least, so the extra work
+           lands where there is room for it rather than on top of the day that
+           already has three of them. Library order breaks ties. */
+        const load = Math.min.apply(null, x.groups
+          .filter(g => emphGroups.indexOf(g) !== -1)
+          .map(g => { let n = 0;
+            ((base && base.exercises) || []).forEach(ex => {
+              if(builderPrimariesOf(ex.name).indexOf(g) !== -1) n += parseInt(ex.sets, 10) || 3; });
+            return n; }));
+        const key = load * 100 + PROGRAM_EXTENSIONS.indexOf(x);
+        if(best === null || key < bestKey){ best = x; bestDay = k; bestKey = key; }
+      });
+    });
+    if(best){
+      const entry = schedule[bestDay];
+      const base = builderBaseTemplateOf(entry);
+      const ext = (entry.ext || []).concat([best.id]);
+      let mins = 0;
+      try{ mins = computeWorkoutDuration(composeProgramSession({ ext }, base)); }catch(e){}
+      /* The same time cap every other slot answers to. A full session stays
+         the length it was, and the priority simply does not land. */
+      if(mins <= builderDepthCap(lengthId || 'standard')){
+        entry.ext = ext;
+        usedExt[best.id] = true;
+      }
+    }
+  }
 
   /* Priority ordering: in the single session where the emphasis is already
      strongest, its main movement opens the day. One session only \u2014 the
@@ -26262,6 +26572,8 @@ const PB_STEPS = [
     sub:'Choose what you will actually sustain.' },
   { id:'days',      title:'Which days work best?',
     sub:'Tap the days you train. This becomes your schedule.' },
+  { id:'split',     title:'How do you want to train?',
+    sub:'Pick the shape of your week. LOOP builds the sessions inside it.' },
   { id:'experience',title:'Where are you at?',
     sub:'This sets how much is packed into each session.',
     known: () => (athleteProfile && athleteProfile.experience
@@ -26475,6 +26787,16 @@ function pbToggleDay(key){
   if(i === -1) days.push(key); else days.splice(i, 1);
   pbState.answers.days = days;
   pbState.answers.frequency = days.length;
+  /* D51E — a split is a list of sessions, one per training day. Changing how
+     many days there are makes a chosen split the wrong length, so it is
+     dropped rather than silently padded with a role nobody picked. Days and
+     split stay independent otherwise: either can be changed first, and
+     changing days never re-decides a split that still fits. */
+  if(Array.isArray(pbState.answers.split) && pbState.answers.split.length !== days.length){
+    pbState.answers.split = null;
+    pbState.customSplit = false;
+    pbState.draft = null;
+  }
   renderProgramBuilderFlow();
 }
 
@@ -26542,6 +26864,97 @@ function pbResumeFootHtml(){
     '<button type="button" class="pb-startover" onclick="pbStartOver()">Start over instead</button>';
 }
 
+/* THE SPLIT, CHOSEN RATHER THAN ASSIGNED  (D51E)
+
+   One block per structure, each stating what it actually does across the
+   week rather than which of them is best — none of them is. LOOP’s own
+   recommendation is first and marked as a recommendation, so a beginner can
+   take it by doing nothing and everyone else can disagree in one tap.
+
+   Custom opens a role per session. It is not a separate mode: the same
+   screen, one level down, which is where §15 asks the depth to live. */
+function pbSplitStepHtml(head){
+  const a = pbState.answers;
+  const days = (a.days && a.days.length) || parseInt(a.frequency, 10) || 3;
+  const planId = builderPlanFor(a.equipment || 'full', a.goal || 'hypertrophy');
+  const opts = splitOptionsFor(days, a.experience || 'intermediate', planId);
+  const cur = Array.isArray(a.split) ? a.split : null;
+  const key = r => (r || []).join('|');
+  const custom = !!cur && !opts.some(o => key(o.roles) === key(cur));
+
+  const cards = opts.map(o =>
+    '<button type="button" class="pb-split' + (cur && key(cur) === key(o.roles) ? ' on' : '') + '"' +
+    ' onclick="pbSetSplit([' + o.roles.map(r => "'" + r + "'").join(',') + '])"' +
+    ' aria-pressed="' + (!!cur && key(cur) === key(o.roles)) + '">' +
+      '<span class="pb-split-top">' +
+        '<span class="pb-split-l">' + escapeHtml(o.label) + '</span>' +
+        (o.recommended ? '<span class="pb-split-rec">Recommended</span>' : '') +
+      '</span>' +
+      '<span class="pb-split-s">' + escapeHtml(o.shape) + '</span>' +
+    '</button>').join('');
+
+  const roleOpts = i => SPLIT_ROLES.map(r =>
+    '<option value="' + r.id + '"' + ((cur && cur[i] === r.id) ? ' selected' : '') + '>' +
+    escapeHtml(r.label) + '</option>').join('');
+  const customRows = Array.from({ length: days }, (_, i) =>
+    '<label class="pb-cs-row"><span class="pb-cs-n">Session ' + (i + 1) + '</span>' +
+    '<select class="pb-cs-sel" onchange="pbSetCustomRole(' + i + ', this.value)"' +
+    ' aria-label="Role for session ' + (i + 1) + '">' + roleOpts(i) + '</select></label>').join('');
+
+  return head +
+    '<div class="pb-splits">' + cards +
+      '<button type="button" class="pb-split pb-split-custom' + (custom ? ' on' : '') + '"' +
+      ' onclick="pbStartCustomSplit()" aria-pressed="' + custom + '">' +
+        '<span class="pb-split-top"><span class="pb-split-l">Build my own</span></span>' +
+        '<span class="pb-split-s">Choose what each session is</span>' +
+      '</button>' +
+    '</div>' +
+    (custom ? '<div class="pb-custom"><div class="pb-cs-head">Your sessions</div>' +
+      customRows + '</div>' : '') +
+    '<p class="pb-hint">Whatever you choose, LOOP picks the exercises, the order and the' +
+      ' prescriptions inside it — and you can change any of them afterwards.</p>';
+}
+
+/* Choosing a split is a constraint change, so it rebuilds — but choosing the
+   one already selected is not a change and must not offer to discard work. */
+function pbSetSplit(roles){
+  if(!pbState) return;
+  const cur = pbState.answers.split;
+  if(Array.isArray(cur) && cur.join('|') === roles.join('|')){ pbNext(); return; }
+  pbAnswer('split', roles);
+}
+
+/* Custom starts from whatever is on screen, so the athlete edits a real week
+   rather than an empty form. */
+function pbStartCustomSplit(){
+  if(!pbState) return;
+  const a = pbState.answers;
+  const days = (a.days && a.days.length) || parseInt(a.frequency, 10) || 3;
+  const planId = builderPlanFor(a.equipment || 'full', a.goal || 'hypertrophy');
+  const base = Array.isArray(a.split) && a.split.length === days
+    ? a.split.slice()
+    : (splitOptionsFor(days, a.experience || 'intermediate', planId)[0] || { roles: [] }).roles.slice();
+  if(!base.length) return;
+  /* Nudge it off every preset so the custom rows stay open while editing. */
+  pbState.answers.split = base;
+  pbState.customSplit = true;
+  pbState.draft = null;
+  renderProgramBuilderFlow();
+}
+
+function pbSetCustomRole(i, roleId){
+  if(!pbState || !splitRole(roleId)) return;
+  const a = pbState.answers;
+  const days = (a.days && a.days.length) || parseInt(a.frequency, 10) || 3;
+  const next = (Array.isArray(a.split) ? a.split.slice() : []).slice(0, days);
+  while(next.length < days) next.push('fullbody');
+  if(next[i] === roleId) return;
+  next[i] = roleId;
+  pbState.answers.split = next;
+  pbState.draft = null;                      // a different week, so a new draft
+  renderProgramBuilderFlow();
+}
+
 function pbStepHtml(step){
   const a = pbState.answers;
   const head = `<div class="pb-head">
@@ -26549,6 +26962,7 @@ function pbStepHtml(step){
       <p class="pb-sub">${escapeHtml(step.sub)}</p>
     </div>`;
 
+  if(step.id === 'split') return pbSplitStepHtml(head);
   if(step.id === 'goal') return head + pbTiles(BUILDER_GOALS, a.goal, 'goal');
   if(step.id === 'experience') return head + pbTiles(BUILDER_EXPERIENCE, a.experience, 'experience');
   if(step.id === 'sessionLength') return head + pbTiles(BUILDER_LENGTHS.map(l =>
@@ -26666,7 +27080,10 @@ function pbDraft(){
    until the athlete saves. */
 function pbDraftFromProgram(prog){
   const def = {
-    name: prog.name, nameByAthlete: prog.nameByAthlete, goal: prog.goal, durationWeeks: prog.durationWeeks,
+    name: prog.name, nameByAthlete: prog.nameByAthlete,
+    split: Array.isArray(prog.split) ? prog.split.slice() : undefined,
+    splitByAthlete: prog.splitByAthlete,
+    goal: prog.goal, durationWeeks: prog.durationWeeks,
     schedule: JSON.parse(JSON.stringify(prog.schedule || {})),
     blocks: JSON.parse(JSON.stringify(prog.blocks || [])),
     startDate: prog.startDate,
@@ -26708,6 +27125,10 @@ function pbRegenerateDraft(fresh){
     goal: a.goal, experience: a.experience, equipment: a.equipment,
     emphasis: a.emphasis, sessionLength: a.sessionLength,
     weeks: a.weeks, days: a.days, frequency: a.frequency,
+    /* D51E — the answer the athlete gave to "how do you want to train". Every
+       other answer was already forwarded; without this one the split question
+       collected a choice the generator never saw. */
+    split: a.split,
     startDate: a.startDate || localDateStr()
   });
   if(a.name){ def.name = a.name; def.nameByAthlete = true; }
@@ -26803,6 +27224,53 @@ function pbOwnSession(def, dayKey){
     }
   }
   return e;
+}
+
+/* WHAT THIS SESSION IS — CHANGED WITHOUT REBUILDING IT.
+
+   D51E — a session's role was fixed at generation and unreachable afterwards,
+   which is what made the split LOOP's rather than the athlete's even inside
+   Program Studio. Changing it here relabels the session and nothing else: the
+   exercises the athlete has are their work, and §42 is explicit that a role
+   change must not silently delete them.
+
+   The session takes ownership of its exercises first. Its templateId belongs
+   to the old role's library, so leaving it a reference would point a Pull day
+   at a Push template and resolve to the wrong session entirely. */
+function pbSetSessionRole(dayKey, roleId){
+  const def = pbDraft(); if(!def) return;
+  if(!splitRole(roleId)) return;
+  const e = pbOwnSession(def, dayKey); if(!e) return;
+  if(e.category === roleId) return;
+  e.category = roleId;
+  /* The split the program describes itself by follows the sessions it
+     actually has, so an approved split stays true to the week. */
+  def.split = pbSessions(def).map(sn => sn.entry.category);
+  def.splitByAthlete = true;
+  pbTouch(); renderProgramBuilderFlow();
+}
+
+/* Rebuild ONE session for the role it now has. Deliberately explicit and
+   deliberately confirmed — it is the only action in the studio that replaces
+   an athlete's exercises with generated ones. */
+function pbRebuildSession(dayKey){
+  const def = pbDraft(); if(!def) return;
+  const e = def.schedule[dayKey]; if(!e || e.type !== 'workout') return;
+  if(!confirm('Build a fresh ' + splitRoleLabel(e.category) + ' workout? The exercises in this session will be replaced.')) return;
+  const a = pbState.answers;
+  const planId = builderPlanFor(a.equipment || 'full', a.goal || 'hypertrophy');
+  const list = ((DEFAULT_PLANS[planId] || {}).templates || {})[e.category] || [];
+  if(!list.length){ alert('No ' + splitRoleLabel(e.category) + ' workouts in this library.'); return; }
+  /* One that is not already used elsewhere in the week, so a rebuild does not
+     hand the athlete a duplicate of another day. */
+  const used = pbSessions(def).filter(sn => sn.dayKey !== dayKey).map(sn => sn.entry.templateId);
+  const pick = list.find(t => used.indexOf(t.id) === -1) || list[0];
+  e.planId = planId;
+  e.templateId = pick.id;
+  e.exercises = JSON.parse(JSON.stringify(pick.exercises));
+  e.name = pick.name;
+  delete e.ext;
+  pbTouch(); renderProgramBuilderFlow();
 }
 
 function pbRenameSession(dayKey, name){
@@ -27387,9 +27855,19 @@ function pbSessionEditorHtml(def, dayKey, name, list){
       '<select class="ps-day-in" onchange="pbMoveSession(\'' + dayKey + '\', this.value)"' +
         ' aria-label="Day this session is trained">' + dayOpts + '</select>' +
     '</div>' +
+    '<div class="ps-role">' +
+      '<span class="ps-role-lab">This session is</span>' +
+      '<select class="ps-role-sel" onchange="pbSetSessionRole(\'' + dayKey + '\', this.value)"' +
+        ' aria-label="What this session trains">' +
+        SPLIT_ROLES.map(r => '<option value="' + r.id + '"' +
+          (r.id === (def.schedule[dayKey] || {}).category ? ' selected' : '') + '>' +
+          escapeHtml(r.label) + '</option>').join('') +
+      '</select>' +
+    '</div>' +
     '<div class="ps-ex-list">' + rows + '</div>' +
     '<div class="ps-sess-actions">' +
       '<button type="button" class="ps-act ps-act-add" onclick="pbOpenExercisePicker(\'' + dayKey + '\')">+ Add exercise</button>' +
+      '<button type="button" class="ps-act" onclick="pbRebuildSession(\'' + dayKey + '\')">Build me a fresh one</button>' +
       '<button type="button" class="ps-act ps-act-danger" onclick="pbRemoveSession(\'' + dayKey + '\')">Remove session</button>' +
     '</div>' +
   '</div>';
@@ -27541,7 +28019,7 @@ function pbReviewHtml(){
 
       <div class="pb-rv-sec">Adjust</div>
       <div class="pb-chips">
-        ${[['days','Training days'],['frequency','How often'],['goal','Goal'],
+        ${[['split','Change split'],['days','Change days'],['frequency','How often'],['goal','Goal'],
            ['sessionLength','Session length'],['equipment','Equipment'],
            ['emphasis','Emphasis'],['experience','Experience']]
           .filter(([id]) => pbSteps().some(st => st.id === id))
@@ -27614,6 +28092,7 @@ async function pbCommit(btn){
        already trained through. */
     result = updateProgram(pbState.editingId, {
       name: def.name, nameByAthlete: def.nameByAthlete,
+      split: def.split, splitByAthlete: def.splitByAthlete,
       goal: def.goal, durationWeeks: def.durationWeeks,
       schedule: def.schedule, blocks: def.blocks,
       emphasis: def.emphasis, sessionLength: def.sessionLength, experience: def.experience,
@@ -27624,6 +28103,7 @@ async function pbCommit(btn){
   } else {
     result = createProgram({
       name: def.name, nameByAthlete: def.nameByAthlete,
+      split: def.split, splitByAthlete: def.splitByAthlete,
       goal: def.goal, durationWeeks: def.durationWeeks,
       schedule: def.schedule, blocks: def.blocks, startDate: def.startDate,
       emphasis: def.emphasis, sessionLength: def.sessionLength, experience: def.experience
@@ -27703,8 +28183,39 @@ function programMapToggleDay(prefix, dayKey){
 
 /* Straight into the template editor the rest of LOOP already uses — one tap,
    and it opens on top because stacking follows open order. */
-function programMapEditWorkout(category, templateId){
-  try{ openEditTemplate(category, templateId); }catch(e){}
+/* EDIT THIS WORKOUT — THE ONE THE ATHLETE IS LOOKING AT.
+
+   This took (category, templateId) and called openEditTemplate, and on a real
+   phone it did nothing at all. Three reasons, any one of which was enough:
+
+     1. openEditTemplate looks the id up in getTemplates(cat), which reads the
+        athlete's CURRENTLY SELECTED plan. A generated program carries its own
+        planId — measured: a program on 'hypertrophy' while selectedPlanId was
+        'balanced' — so template 'y1' was not in the list and the function
+        returned on its first line. Every session, dead.
+     2. A session the athlete built has no templateId at all, so the button
+        rendered onclick=…('fullbody','undefined').
+     3. Even when it did resolve, it opened the PLAN LIBRARY editor — editing
+        the shared template rather than the program being reviewed.
+
+   And `try{...}catch(e){}` swallowed the lot, so it failed in silence.
+
+   A program session is edited in Program Studio, which is where every other
+   route already goes. This takes the map's own prefix and day key, so it can
+   never disagree with the row it sits under. */
+function programMapEditWorkout(prefix, dayKey){
+  if(!dayKey) return;
+  /* Inside the builder the draft is already open: reveal the session in place
+     rather than opening a second surface over the one being read. */
+  if(prefix === 'pbMap' && typeof pbState !== 'undefined' && pbState){
+    pbOpenSession = dayKey;
+    pbOpenExercise = null;
+    renderProgramBuilderFlow();
+    pbScrollToSession(dayKey);
+    return;
+  }
+  /* Anywhere else — My Training — open the program editor on that session. */
+  openProgramSessionEditor(dayKey);
 }
 
 function programMapSelect(prefix, week){
@@ -27857,7 +28368,8 @@ function programMapWeekHtml(def, week, o){
           }).join('');
         })()}
         <button type="button" class="pm-edit"
-          onclick="programMapEditWorkout('${escapeAttr(e.category)}','${escapeAttr(e.templateId)}')">
+          onclick="programMapEditWorkout('${prefix}','${k}')"
+          aria-label="Edit ${escapeAttr(name)}">
           Edit this workout</button>
       </div>` : ''}
     </div>`;
@@ -28099,6 +28611,18 @@ function deriveSplitInfo(def){
   const corroborated = splitLabelCorroborated(def);
   const only = list => corroborated && cats.length && cats.every(c => list.indexOf(c) !== -1);
   let label = 'Mixed split', why = null;
+  /* D51E — A SPLIT THE ATHLETE CHOSE IS INTENT, AND LOOP CAN SAY IT PLAINLY.
+     D51D withheld a confident name whenever the roles were not one of three
+     canonical shapes, so an approved Push / Pull / Full Body read as "Mixed
+     split" — vaguer than the athlete's own decision. Corroboration still
+     applies: rewrite a session's content past its role and the claim is
+     withdrawn exactly as before. */
+  const chosen = Array.isArray(def.split) && def.splitByAthlete ? def.split : null;
+  if(chosen && corroborated){
+    return { counts, label: splitLabelOf(chosen), sessions: n, corroborated: true,
+      why: splitShapeText(chosen).replace(/^./, c => c.toUpperCase()) + ' across the week.',
+      chosen: true };
+  }
   if(only(['fullbody'])){
     label = 'Full Body';
     why = 'Every session trains the whole body, so each area gets worked ' + n + '\u00d7 a week.';
