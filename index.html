@@ -2171,6 +2171,160 @@ body.first-use{ padding-bottom: 0; }
 .reset-btn:hover{ background: rgba(229,103,95,0.1); }
 
 /* ---- Settings row button (e.g. What's New) ---- */
+/* ---------- friends (D52) ----------
+   LOOP's own type, surfaces and spacing. This is supporting functionality and
+   is composed to sit behind Today and Workout, not beside them. */
+.soc-head{ padding: 4px 0 2px; }
+.soc-h{
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-title);
+  font-weight: 700; color: var(--text); margin: 0; line-height: 1.2; text-wrap: balance;
+}
+.soc-sub{ font-size: var(--fs-support); color: var(--text-dim); margin: 8px 0 0; line-height: 1.5; }
+.soc-fine{ font-size: var(--fs-meta); color: var(--text-faint); margin: 10px 0 0; line-height: 1.5; }
+.soc-notice{
+  margin: 14px 0 0; padding: 11px 13px; font-size: var(--fs-support); line-height: 1.45;
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 2px solid var(--accent); border-radius: var(--radius-md); color: var(--text);
+}
+.soc-field{ display: block; margin: 18px 0 0; }
+.soc-lab{
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+.soc-in{
+  width: 100%; height: 48px; box-sizing: border-box; padding: 0 13px; font-size: 16px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text); font-family: 'Inter', sans-serif;
+}
+.soc-in:focus{ outline: none; border-color: var(--accent); }
+.soc-in-code{
+  font-family: 'JetBrains Mono', monospace; letter-spacing: 0.18em;
+  text-transform: uppercase; text-align: center;
+}
+.soc-go{ width: 100%; margin-top: 16px; }
+.soc-alt{
+  display: block; width: 100%; min-height: 46px; margin-top: 8px;
+  background: none; border: none; color: var(--text-dim);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-support); font-weight: 600; cursor: pointer;
+}
+.soc-alt:active{ color: var(--accent); }
+.soc-alt:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-md); }
+
+/* The leaderboard. Position, the rank LOOP already gave them, the name, the
+   level. No podium, no confetti — this is a training product. */
+.soc-board{ display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.soc-row{
+  display: flex; align-items: center; gap: 11px; min-height: 60px; padding: 9px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.soc-me{ border-color: var(--accent); background: var(--accent-soft); }
+.soc-pos{
+  flex: 0 0 20px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-support);
+  font-weight: 700; color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
+.soc-me .soc-pos{ color: var(--accent); }
+.soc-medal{ flex: 0 0 30px; display: flex; align-items: center; }
+.soc-medal svg{ display: block; }
+.soc-who{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.soc-name{
+  font-size: var(--fs-support); font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.soc-meta{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
+.soc-lvl{ flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+/* line-height 1 clipped the digits: measured, every level number overflowed
+   its own box and read as if it had a line struck through it. */
+.soc-lvl b{
+  font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+}
+/* var(--fs-micro), not a smaller number invented here: 11px is LOOP's floor
+   and the reason it exists is that 160 rendered elements were once under it. */
+.soc-lvl span{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.09em; color: var(--text-faint); line-height: 1;
+}
+.soc-empty{ font-size: var(--fs-support); color: var(--text-dim); line-height: 1.5; margin: 10px 0 0; }
+.soc-stale{ font-size: var(--fs-meta); color: var(--text-faint); margin: 0 0 8px; }
+
+/* Accept and decline carry a mark as well as a colour, so they are
+   distinguishable without relying on green versus grey. */
+.soc-req{
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 60px;
+  padding: 9px 12px; margin-top: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.soc-req-n{ flex: 1; min-width: 90px; font-size: var(--fs-support); font-weight: 600; color: var(--text); }
+.soc-req-p{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-faint);
+}
+.soc-req-a{ display: flex; gap: 6px; }
+.soc-yes, .soc-no{
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 13px; border-radius: var(--radius-md);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600; cursor: pointer;
+}
+.soc-yes svg, .soc-no svg{ flex-shrink: 0; }
+.soc-yes{ background: var(--surface-3); border: 1px solid var(--success); color: var(--success); }
+.soc-no{ background: none; border: 1px solid var(--border); color: var(--text-dim); }
+.soc-yes:focus-visible, .soc-no:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.soc-code{
+  display: flex; align-items: center; gap: 12px; padding: 13px 14px; margin-top: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.soc-code-l{
+  flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-faint);
+}
+.soc-code-v{
+  flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 17px;
+  font-weight: 700; letter-spacing: 0.13em; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis;
+}
+.soc-copy{
+  flex: 0 0 auto; min-height: 44px; padding: 0 14px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-dim);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600; cursor: pointer;
+}
+.soc-copy:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.soc-acct{
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 4px 14px; margin-top: 4px;
+}
+.soc-acct-r{
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+}
+.soc-acct-r:last-child{ border-bottom: none; }
+.soc-acct-r span{ font-size: var(--fs-meta); color: var(--text-faint); flex-shrink: 0; }
+.soc-acct-r b{
+  font-size: var(--fs-support); font-weight: 600; color: var(--text);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* The account-switch guard. Stated, not silent. */
+.soc-claim{
+  margin-top: 14px; padding: 14px; background: var(--surface);
+  border: 1px solid var(--warning); border-radius: var(--radius-md);
+}
+.soc-claim-t{
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-card-title);
+  font-weight: 700; color: var(--text);
+}
+.soc-claim-s{ font-size: var(--fs-support); color: var(--text-dim); margin: 7px 0 0; line-height: 1.5; }
+.soc-claim-go{
+  width: 100%; min-height: 46px; margin-top: 12px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-support); font-weight: 700; cursor: pointer;
+}
+.soc-claim-go:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
 .settings-row-btn{
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
@@ -6850,6 +7004,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
         <span class="settings-row-arrow">›</span>
       </button>
 
+      <div id="settingsSocialRow"></div>
+
       <label style="margin-top:22px">Data &amp; Privacy</label>
       <button class="settings-row-btn" onclick="openDataSettings()">
         <span class="settings-row-main">
@@ -6962,6 +7118,18 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="pb-rail" aria-hidden="true"><span id="pbRailFill"></span></div>
     <div class="sheet-scroll"><div id="pbBody"></div></div>
     <div class="pb-foot" id="pbFoot"></div>
+  </div>
+</div>
+
+<!-- FRIENDS (D52) — present only when a social backend is configured -->
+<div class="overlay overlay-page" id="socialOverlay">
+  <div class="sheet sheet-page">
+    <div class="workout-topbar">
+      <button class="workout-back" onclick="closeSocial()" aria-label="Back">‹</button>
+      <div class="workout-topbar-title">Friends</div>
+      <span class="workout-topbar-spacer"></span>
+    </div>
+    <div class="sheet-scroll"><div id="socialBody"></div></div>
   </div>
 </div>
 
@@ -10523,8 +10691,719 @@ const LOOP_UPDATES = [
       'Choosing a muscle priority changed nothing at the standard session length'
     ],
     changes: []
+  },
+  {
+    id: 'v5-0',
+    version: 'LOOP 5.0',
+    title: 'Train With Friends',
+    date: '2026-11-25',
+    swVersion: 'loop-v127',
+    summary: 'An optional account, private invites, and a leaderboard with the people you train with.',
+    newFeatures: [
+      'Create an optional LOOP account with your email \u2014 a code, no password to remember',
+      'Pick a username. Friends see that; your email stays private and is never shown to anyone',
+      'Invite people with a short code, accept or decline requests, and remove a connection at any time',
+      'A Friends leaderboard built from the Level, XP and Rank you have already earned \u2014 you and your friends, nobody else'
+    ],
+    improvements: [],
+    bugFixes: [],
+    changes: [
+      'Your workouts, programs and records stay on this phone. An account adds friends and nothing else \u2014 signing in does not upload your training, and signing out does not remove it'
+    ]
   }
 ];
+
+/* =========================================================
+   SOCIAL  (Phase D52)
+   ---------------------------------------------------------
+   LOOP’S FIRST TRUST BOUNDARY, AND ITS ONLY ONE.
+
+   Everything above this section is local-first and stays that
+   way. Workouts, programs, PRs, prescriptions, readiness,
+   trainer evidence and settings live on the device, are never
+   uploaded, and do not become less available because a network
+   is missing or an account was never created.
+
+   What crosses the boundary is the smallest thing a private
+   friends leaderboard can be built from:
+
+     a username        so friends can see who you are
+     a friendship      so the list has anyone on it
+     XP, level, rank   the progression you already earned
+
+   Nothing else. No exercise, no load, no rep, no RIR, no
+   bodyweight, no program, no note. Not the athlete’s email
+   either — that belongs to authentication, and no friend ever
+   receives it.
+
+   NO SDK. LOOP is one file with no build step and no
+   dependencies, and the way to keep it that way is to speak
+   Supabase’s own HTTP: GoTrue for auth, PostgREST for data.
+   Adding a bundler or a CDN script to a product whose whole
+   value is working in a basement would be the wrong trade.
+
+   SECURITY IS IN THE DATABASE. Row level security and
+   SECURITY DEFINER functions decide what any session may read
+   or write; the code below is a client, and is assumed hostile
+   by the thing it talks to. See supabase/migrations.
+   ========================================================= */
+
+/* The two public values a Supabase project needs. The anon key is designed
+   to sit in a browser — it authorises nothing on its own, because every table
+   denies by default and every policy is written against auth.uid().
+
+   Empty here on purpose. Until an owner fills these in, LOOP has no social
+   layer at all: no Friends entry, no network call, no behaviour change of any
+   kind. See SOCIAL-SETUP.md and .env.example. */
+const LOOP_SOCIAL = {
+  url: '',            // https://<project>.supabase.co
+  anonKey: ''         // the project’s publishable anon key
+};
+function socialConfigured(){
+  return !!(LOOP_SOCIAL.url && LOOP_SOCIAL.anonKey);
+}
+
+/* THE SESSION AND THE BINDING LIVE OUTSIDE DATA_KEYS, DELIBERATELY.
+
+   Everything in DATA_KEYS is what backup and export copy. Access and refresh
+   tokens must never leave the device inside a backup file the athlete might
+   email to themselves, so they are stored under a key the export layer does
+   not know about. DATA_KEYS stays 15 and a LOOP backup remains what it always
+   was: training data, and no credentials. */
+const SOCIAL_STORE_KEY = 'socialSession';
+let socialState = {
+  session: null,      // { access_token, refresh_token, expires_at, user_id, email }
+  binding: null,      // { userId, boundAt, publishAllowed }
+  profile: null,      // { username, invite_code }
+  friends: null,
+  requests: null,
+  status: 'idle',
+  error: null,
+  lastPublished: null
+};
+
+async function socialLoad(){
+  if(!socialConfigured()) return;
+  try{
+    const r = await LOOPStore.get(SOCIAL_STORE_KEY);
+    if(r && r.value){
+      const v = JSON.parse(r.value);
+      socialState.session = v.session || null;
+      socialState.binding = v.binding || null;
+      socialState.profile = v.profile || null;
+      socialState.lastPublished = v.lastPublished || null;
+    }
+  }catch(e){ /* an unreadable social record is not a reason to fail boot */ }
+}
+async function socialPersist(){
+  try{
+    await LOOPStore.set(SOCIAL_STORE_KEY, JSON.stringify({
+      session: socialState.session, binding: socialState.binding,
+      profile: socialState.profile, lastPublished: socialState.lastPublished
+    }));
+  }catch(e){}
+}
+function socialSignedIn(){ return !!(socialState.session && socialState.session.access_token); }
+
+/* ---------- HTTP ---------- */
+/* One place that talks to the network, so there is one place that handles a
+   dead backend, an expired token and an offline phone. Every caller gets
+   { ok, data, error } and nothing throws into the UI. */
+async function socialRequest(path, opts){
+  if(!socialConfigured()) return { ok:false, error:'not_configured' };
+  const o = opts || {};
+  const headers = Object.assign({
+    'apikey': LOOP_SOCIAL.anonKey,
+    'Content-Type': 'application/json'
+  }, o.headers || {});
+  if(o.auth !== false && socialSignedIn())
+    headers['Authorization'] = 'Bearer ' + socialState.session.access_token;
+  let res;
+  try{
+    res = await fetch(LOOP_SOCIAL.url + path, {
+      method: o.method || 'GET', headers,
+      body: o.body === undefined ? undefined : JSON.stringify(o.body)
+    });
+  }catch(e){
+    return { ok:false, error:'offline' };
+  }
+  /* One retry, and only after a genuine refresh. A refresh loop on a revoked
+     token would sign the athlete out of a working app. */
+  if(res.status === 401 && o.auth !== false && !o.retried && socialState.session){
+    const refreshed = await socialRefresh();
+    if(refreshed) return socialRequest(path, Object.assign({}, o, { retried:true }));
+    await socialClearSession();
+    return { ok:false, error:'signed_out' };
+  }
+  let data = null;
+  try{ data = await res.json(); }catch(e){ data = null; }
+  if(!res.ok){
+    return { ok:false, status: res.status,
+      error: (data && (data.error_description || data.msg || data.message || data.error)) || 'request_failed',
+      data };
+  }
+  return { ok:true, data };
+}
+
+function socialRest(path, opts){ return socialRequest('/rest/v1' + path, opts); }
+function socialRpc(fn, args){
+  return socialRequest('/rest/v1/rpc/' + fn, { method:'POST', body: args || {} });
+}
+
+/* ---------- AUTH ---------- */
+/* Email one-time code rather than a magic link. A link has to leave the
+   installed PWA, open a browser, and come back — which on iOS lands the
+   athlete in Safari with a signed-in session the app cannot see. A six-digit
+   code is typed where it was requested and never leaves the app. */
+async function socialSendCode(email){
+  const clean = String(email || '').trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return { ok:false, error:'bad_email' };
+  const r = await socialRequest('/auth/v1/otp', { method:'POST', auth:false,
+    body: { email: clean, create_user: true } });
+  return r.ok ? { ok:true, email: clean } : r;
+}
+
+async function socialVerifyCode(email, code){
+  const clean = String(email || '').trim().toLowerCase();
+  const token = String(code || '').replace(/\D/g, '');
+  if(token.length < 6) return { ok:false, error:'bad_code' };
+  const r = await socialRequest('/auth/v1/verify', { method:'POST', auth:false,
+    body: { type:'email', email: clean, token } });
+  if(!r.ok) return r;
+  const d = r.data || {};
+  if(!d.access_token) return { ok:false, error:'bad_code' };
+  /* An account only becomes a social identity once the address is confirmed.
+     A verified OTP IS that confirmation — the code was delivered to the
+     mailbox — but the claim is checked rather than assumed. */
+  const verified = !!(d.user && (d.user.email_confirmed_at || d.user.confirmed_at));
+  if(!verified) return { ok:false, error:'not_verified' };
+  return socialAdoptSession(d);
+}
+
+async function socialRefresh(){
+  const rt = socialState.session && socialState.session.refresh_token;
+  if(!rt) return false;
+  const r = await socialRequest('/auth/v1/token?grant_type=refresh_token',
+    { method:'POST', auth:false, body: { refresh_token: rt } });
+  if(!r.ok || !r.data || !r.data.access_token) return false;
+  socialState.session = socialSessionFrom(r.data);
+  await socialPersist();
+  return true;
+}
+
+function socialSessionFrom(d){
+  return {
+    access_token: d.access_token,
+    refresh_token: d.refresh_token,
+    expires_at: Date.now() + ((d.expires_in || 3600) * 1000),
+    user_id: d.user ? d.user.id : (socialState.session && socialState.session.user_id),
+    email: d.user ? d.user.email : (socialState.session && socialState.session.email)
+  };
+}
+
+/* ---------- THE BINDING ----------
+
+   THE INTEGRITY REQUIREMENT OF THIS WHOLE PHASE. This device holds one
+   athlete’s training history, and XP published from it is a claim about who
+   did that training. If Alice signs out and Bob signs in on her phone,
+   nothing may publish Alice’s work under Bob’s name.
+
+   So the local dataset records which account it belongs to. A new account
+   binds and may publish. The same account returning is business as usual. A
+   DIFFERENT account is signed in, and is explicitly not allowed to publish
+   until a human says this training is theirs — the app cannot know, so it
+   does not guess. */
+async function socialAdoptSession(d){
+  socialState.session = socialSessionFrom(d);
+  const uid = socialState.session.user_id;
+  const prior = socialState.binding;
+  if(!prior || !prior.userId){
+    socialState.binding = { userId: uid, boundAt: new Date().toISOString(), publishAllowed: true };
+  } else if(prior.userId === uid){
+    socialState.binding = Object.assign({}, prior, { publishAllowed: prior.publishAllowed !== false });
+  } else {
+    /* Someone else’s history is on this device. Sign them in, show them their
+       friends — and publish nothing until they claim it. */
+    socialState.binding = { userId: uid, boundAt: new Date().toISOString(),
+      publishAllowed: false, previousUserId: prior.userId };
+    socialState.profile = null;
+  }
+  await socialPersist();
+  await socialLoadProfile();
+  if(socialState.binding.publishAllowed) socialPublishStats();
+  return { ok:true };
+}
+
+/* The athlete confirming that the training on this device is theirs. */
+async function socialClaimThisHistory(){
+  if(!socialState.binding) return;
+  socialState.binding.publishAllowed = true;
+  delete socialState.binding.previousUserId;
+  await socialPersist();
+  await socialPublishStats();
+  renderSocial();
+}
+
+/* Signing out removes the social session and nothing else. Every workout,
+   program, record and setting is exactly where it was. */
+async function socialClearSession(){
+  socialState.session = null;
+  socialState.profile = null;
+  socialState.friends = null;
+  socialState.requests = null;
+  socialState.error = null;
+  await socialPersist();
+}
+async function socialSignOut(){
+  if(socialSignedIn()){
+    try{ await socialRequest('/auth/v1/logout', { method:'POST' }); }catch(e){}
+  }
+  await socialClearSession();
+  renderSocial();
+}
+
+/* ---------- PROFILE ---------- */
+const SOCIAL_USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
+const SOCIAL_RESERVED = ['loop','admin','administrator','support','moderator','mod',
+  'staff','help','system','root','official','null','undefined'];
+
+/* The same rules the database enforces, checked here first so the athlete gets
+   an answer without a round trip. The database is what actually decides. */
+function socialUsernameProblem(name){
+  const n = String(name || '').trim();
+  if(!n) return 'Pick a username.';
+  if(n.length < 3) return 'At least 3 characters.';
+  if(n.length > 20) return 'At most 20 characters.';
+  if(n.indexOf('@') !== -1) return 'Letters, numbers and underscores — not an email address.';
+  if(!SOCIAL_USERNAME_RE.test(n)) return 'Letters, numbers and underscores only.';
+  if(SOCIAL_RESERVED.indexOf(n.toLowerCase()) !== -1) return 'That name is reserved.';
+  return null;
+}
+
+async function socialLoadProfile(){
+  if(!socialSignedIn()) return null;
+  const uid = socialState.session.user_id;
+  const r = await socialRest('/profiles?select=username,invite_code&user_id=eq.' + uid);
+  if(r.ok && Array.isArray(r.data) && r.data.length){
+    socialState.profile = { username: r.data[0].username, invite_code: r.data[0].invite_code };
+    await socialPersist();
+  }
+  return socialState.profile;
+}
+
+/* Claim a username, or change one. Friendships bind to the account id, never
+   to the name, so renaming cannot break a connection. */
+async function socialSetUsername(name){
+  const problem = socialUsernameProblem(name);
+  if(problem) return { ok:false, error: problem };
+  if(!socialSignedIn()) return { ok:false, error:'Sign in first.' };
+  const clean = String(name).trim();
+  const uid = socialState.session.user_id;
+  const row = { user_id: uid, username: clean, username_key: clean.toLowerCase() };
+  const existing = socialState.profile && socialState.profile.username;
+  const r = existing
+    ? await socialRest('/profiles?user_id=eq.' + uid, { method:'PATCH',
+        headers:{ Prefer:'return=representation' },
+        body:{ username: clean, username_key: clean.toLowerCase() } })
+    : await socialRest('/profiles', { method:'POST',
+        headers:{ Prefer:'return=representation' }, body: row });
+  if(!r.ok){
+    /* 23505 is the unique index on username_key doing its job. */
+    const taken = /duplicate key|23505|already exists/i.test(String(r.error || ''));
+    return { ok:false, error: taken ? 'That username is taken.' : 'That did not save. Try again.' };
+  }
+  const got = Array.isArray(r.data) ? r.data[0] : r.data;
+  socialState.profile = { username: (got && got.username) || clean,
+    invite_code: (got && got.invite_code) || (socialState.profile && socialState.profile.invite_code) };
+  await socialPersist();
+  await socialPublishStats();
+  return { ok:true };
+}
+
+/* ---------- PUBLISHING ----------
+
+   ONE SOURCE OF TRUTH. getCombinedProgression() is what the header, the
+   Progress overview and the rank showcase already read; the leaderboard reads
+   the same function. There is no social XP calculator, and there is no social
+   level or rank with rules of its own — what is published is a snapshot of
+   what LOOP already says about this athlete.
+
+   rules_version travels with it, so a row written by an older progression can
+   never be silently reinterpreted as if the rules had not moved. */
+const SOCIAL_RULES_VERSION = 'loop-progression-1';
+function socialSnapshot(){
+  const p = getCombinedProgression();
+  return {
+    lifetime_xp: Math.max(0, Math.round(p.lifetimeXP || 0)),
+    level: Math.max(1, Math.round(p.level || 1)),
+    rank: String(p.rank || 'ROOKIE'),
+    rules_version: SOCIAL_RULES_VERSION
+  };
+}
+
+/* Never awaited by anything that matters. A workout finishing, a set landing
+   and a rest timer running are local events; this is a background courtesy
+   that is allowed to fail. */
+async function socialPublishStats(){
+  if(!socialSignedIn() || !socialState.profile) return { ok:false, error:'not_ready' };
+  if(!socialState.binding || socialState.binding.publishAllowed === false)
+    return { ok:false, error:'unclaimed' };
+  let snap;
+  try{ snap = socialSnapshot(); }catch(e){ return { ok:false, error:'no_snapshot' }; }
+  const body = Object.assign({ user_id: socialState.session.user_id }, snap);
+  const r = await socialRest('/social_stats', { method:'POST',
+    headers:{ Prefer:'resolution=merge-duplicates' }, body });
+  if(r.ok){
+    socialState.lastPublished = new Date().toISOString();
+    await socialPersist();
+  }
+  return r;
+}
+
+/* Called where a workout finishes. Deliberately not awaited: if this throws,
+   hangs or the phone is in a basement, the workout is already saved. */
+function socialPublishSoon(){
+  if(!socialConfigured() || !socialSignedIn()) return;
+  try{ Promise.resolve(socialPublishStats()).catch(() => {}); }catch(e){}
+}
+
+/* ---------- FRIENDS ---------- */
+async function socialLoadFriends(){
+  if(!socialSignedIn()) return;
+  const [lb, rq] = await Promise.all([
+    socialRpc('loop_friends_leaderboard'),
+    socialRpc('loop_my_requests')
+  ]);
+  if(lb.ok && Array.isArray(lb.data)) socialState.friends = lb.data;
+  if(rq.ok && Array.isArray(rq.data)) socialState.requests = rq.data;
+  socialState.error = (lb.ok && rq.ok) ? null : (lb.error || rq.error);
+  return socialState.friends;
+}
+
+/* THE ORDER IS DECIDED HERE so every device sorts a tie the same way. Total XP
+   is LOOP’s own metric — there is no leaderboard score — and the tie-break is
+   the username, which is stable and unique, so a reload never reshuffles
+   anyone. */
+function socialLeaderboard(){
+  const rows = (socialState.friends || []).slice();
+  rows.sort((a, b) => (b.lifetime_xp - a.lifetime_xp)
+    || String(a.username).toLowerCase().localeCompare(String(b.username).toLowerCase()));
+  return rows.map((r, i) => Object.assign({ position: i + 1 }, r));
+}
+
+async function socialSendInvite(code){
+  const clean = String(code || '').trim().toUpperCase();
+  if(!clean) return { ok:false, error:'Enter a code.' };
+  if(socialState.profile && clean === String(socialState.profile.invite_code || '').toUpperCase())
+    return { ok:false, error:'That is your own code.' };
+  const r = await socialRpc('loop_send_friend_request', { code: clean });
+  if(!r.ok) return { ok:false, error: r.error === 'offline' ? 'You are offline.' : 'That did not send.' };
+  const MSG = {
+    sent:'Request sent.', accepted:'You are now connected.',
+    already_pending:'You have already asked.', already_friends:'You are already connected.',
+    invalid_code:'No one has that code.', self:'That is your own code.',
+    too_many_pending:'Too many pending requests.', not_signed_in:'Sign in first.'
+  };
+  const status = String(r.data);
+  const good = status === 'sent' || status === 'accepted';
+  await socialLoadFriends();
+  return { ok: good, status, message: MSG[status] || 'That did not send.' };
+}
+
+async function socialAcceptRequest(id){
+  const r = await socialRpc('loop_accept_friend_request', { request_id: id });
+  await socialLoadFriends();
+  return { ok: r.ok && String(r.data) === 'accepted' };
+}
+async function socialDeclineRequest(id){
+  const r = await socialRest('/friend_requests?id=eq.' + encodeURIComponent(id), { method:'DELETE' });
+  await socialLoadFriends();
+  return { ok: r.ok };
+}
+async function socialRemoveFriend(userId){
+  const r = await socialRpc('loop_remove_friend', { other: userId });
+  await socialLoadFriends();
+  return { ok: r.ok };
+}
+async function socialRotateCode(){
+  const r = await socialRpc('loop_rotate_invite_code');
+  if(r.ok && r.data){
+    socialState.profile = Object.assign({}, socialState.profile, { invite_code: r.data });
+    await socialPersist();
+  }
+  return r;
+}
+
+/* ---------- FRIENDS, THE SCREEN ----------
+   Supporting functionality, and composed like it. Friends is not competing
+   with Today or Workout for attention: it answers who am I connected to and
+   how are we doing, using the rank identity LOOP already has, and then stops. */
+let socialView = { email:'', stage:'email', busy:false, notice:null };
+
+function socialSettingsRowHtml(){
+  if(!socialConfigured()) return '';
+  const signed = socialSignedIn();
+  const name = socialState.profile && socialState.profile.username;
+  return '<label style="margin-top:22px">Friends</label>' +
+    '<button class="settings-row-btn" onclick="openSocial()">' +
+      '<span class="settings-row-main">' +
+        '<span class="settings-row-title">Friends</span>' +
+        '<span class="settings-row-desc">' + (signed
+          ? (name ? 'Signed in as @' + escapeHtml(name) : 'Choose your username')
+          : 'Add friends and share a private leaderboard') + '</span>' +
+      '</span>' +
+      '<span class="settings-row-arrow">›</span>' +
+    '</button>';
+}
+function renderSettingsSocialRow(){
+  const el = document.getElementById('settingsSocialRow');
+  if(el) el.innerHTML = socialSettingsRowHtml();
+}
+
+function openSocial(){
+  if(!socialConfigured()) return;
+  try{ closeSettings(); }catch(e){}
+  socialView.notice = null;
+  renderSocial();
+  document.getElementById('socialOverlay').classList.add('open');
+  if(socialSignedIn()) socialLoadFriends().then(renderSocial);
+}
+function closeSocial(){
+  document.getElementById('socialOverlay').classList.remove('open');
+  renderSettingsSocialRow();
+}
+
+function renderSocial(){
+  const el = document.getElementById('socialBody');
+  if(!el) return;
+  el.innerHTML = !socialSignedIn() ? socialSignedOutHtml()
+    : (!socialState.profile || !socialState.profile.username) ? socialUsernameHtml()
+    : socialFriendsHtml();
+  renderSettingsSocialRow();
+}
+
+/* Signed out. States plainly that an account adds friends and nothing else —
+   no suggestion that training needs one, because it does not. */
+function socialSignedOutHtml(){
+  const busy = socialView.busy;
+  const notice = socialView.notice
+    ? '<p class="soc-notice" role="status">' + escapeHtml(socialView.notice) + '</p>' : '';
+  if(socialView.stage === 'code'){
+    return '<div class="soc-head"><h2 class="soc-h">Check your email</h2>' +
+      '<p class="soc-sub">We sent a code to <strong>' + escapeHtml(socialView.email) + '</strong>.</p></div>' +
+      notice +
+      '<label class="soc-field"><span class="soc-lab" id="socCodeLab">Six-digit code</span>' +
+        '<input type="text" id="socCode" class="soc-in" inputmode="numeric" autocomplete="one-time-code"' +
+        ' maxlength="8" aria-labelledby="socCodeLab" placeholder="000000"></label>' +
+      '<button class="btn-primary soc-go" onclick="socialDoVerify(this)"' + (busy ? ' disabled' : '') + '>Sign in</button>' +
+      '<button type="button" class="soc-alt" onclick="socialBackToEmail()">Use a different email</button>';
+  }
+  return '<div class="soc-head"><h2 class="soc-h">Train with friends</h2>' +
+    '<p class="soc-sub">Add an account to share a private leaderboard with people you train with.' +
+    ' Your workouts stay on this phone either way — an account is only for friends.</p></div>' +
+    notice +
+    '<label class="soc-field"><span class="soc-lab" id="socEmailLab">Email</span>' +
+      '<input type="email" id="socEmail" class="soc-in" autocomplete="email" inputmode="email"' +
+      ' autocapitalize="none" spellcheck="false" aria-labelledby="socEmailLab"' +
+      ' value="' + escapeAttr(socialView.email || '') + '" placeholder="you@example.com"></label>' +
+    '<button class="btn-primary soc-go" onclick="socialDoSendCode(this)"' + (busy ? ' disabled' : '') + '>Email me a code</button>' +
+    '<p class="soc-fine">No password. We only use your email to sign you in — friends never see it.</p>';
+}
+
+function socialUsernameHtml(){
+  const notice = socialView.notice
+    ? '<p class="soc-notice" role="status">' + escapeHtml(socialView.notice) + '</p>' : '';
+  return '<div class="soc-head"><h2 class="soc-h">Pick a username</h2>' +
+    '<p class="soc-sub">This is what friends see. Your email stays private.</p></div>' +
+    notice +
+    '<label class="soc-field"><span class="soc-lab" id="socNameLab">Username</span>' +
+      '<input type="text" id="socName" class="soc-in" autocomplete="username" autocapitalize="none"' +
+      ' spellcheck="false" maxlength="20" aria-labelledby="socNameLab" placeholder="cobra"></label>' +
+    '<p class="soc-fine">3–20 characters. Letters, numbers and underscores.</p>' +
+    '<button class="btn-primary soc-go" onclick="socialDoUsername(this)">Continue</button>';
+}
+
+function socialFriendsHtml(){
+  const me = socialState.profile;
+  const rows = socialLeaderboard();
+  const reqs = socialState.requests || [];
+  const incoming = reqs.filter(r => r.direction === 'incoming');
+  const outgoing = reqs.filter(r => r.direction === 'outgoing');
+  const unclaimed = socialState.binding && socialState.binding.publishAllowed === false;
+  const notice = socialView.notice
+    ? '<p class="soc-notice" role="status">' + escapeHtml(socialView.notice) + '</p>' : '';
+
+  /* The account-switch guard, stated rather than silently applied. This phone
+     already held someone else’s training when this account signed in. */
+  const claim = unclaimed
+    ? '<div class="soc-claim">' +
+        '<div class="soc-claim-t">Whose training is on this phone?</div>' +
+        '<p class="soc-claim-s">Another account was signed in here before. Until you confirm, ' +
+          'nothing from this phone is published to your leaderboard.</p>' +
+        '<button type="button" class="soc-claim-go" onclick="socialClaimThisHistory()">' +
+          'This training is mine</button>' +
+      '</div>'
+    : '';
+
+  const board = rows.length
+    ? '<div class="soc-board">' + rows.map(r =>
+        '<div class="soc-row' + (r.is_self ? ' soc-me' : '') + '"' +
+          ' aria-label="' + escapeAttr('Position ' + r.position + ', ' + r.username +
+            ', level ' + r.level + ', rank ' + r.rank) + '">' +
+          '<span class="soc-pos">' + r.position + '</span>' +
+          '<span class="soc-medal" aria-hidden="true">' + rankMedalSvg(r.rank, 30) + '</span>' +
+          '<span class="soc-who">' +
+            '<span class="soc-name">@' + escapeHtml(r.username) + (r.is_self ? ' · you' : '') + '</span>' +
+            '<span class="soc-meta">' + escapeHtml(String(r.rank)) + ' · ' +
+              Number(r.lifetime_xp || 0).toLocaleString() + ' XP</span>' +
+          '</span>' +
+          '<span class="soc-lvl"><b>' + r.level + '</b><span>LVL</span></span>' +
+        '</div>').join('') + '</div>'
+    : '';
+
+  const alone = rows.length <= 1
+    ? '<p class="soc-empty">Invite someone you train with — share your code below and ' +
+      'you will both appear here.</p>' : '';
+
+  const inHtml = incoming.length
+    ? '<div class="sec-head">Wants to connect</div>' + incoming.map(r =>
+        '<div class="soc-req">' +
+          '<span class="soc-req-n">@' + escapeHtml(r.username) + '</span>' +
+          '<span class="soc-req-a">' +
+            /* Drawn marks, not characters — D14's rule, and it is also what
+               makes accept and decline tell apart without relying on colour. */
+            '<button type="button" class="soc-yes" onclick="socialDoAccept(\'' + r.id + '\')">' +
+              checkIconSvg(13) + '<span>Accept</span></button>' +
+            '<button type="button" class="soc-no" onclick="socialDoDecline(\'' + r.id + '\')">' +
+              closeIconSvg(12) + '<span>Decline</span></button>' +
+          '</span>' +
+        '</div>').join('') : '';
+
+  const outHtml = outgoing.length
+    ? '<div class="sec-head">Waiting on</div>' + outgoing.map(r =>
+        '<div class="soc-req">' +
+          '<span class="soc-req-n">@' + escapeHtml(r.username) + '</span>' +
+          '<span class="soc-req-p">Pending</span>' +
+          '<button type="button" class="soc-no" onclick="socialDoDecline(\'' + r.id + '\')">Cancel</button>' +
+        '</div>').join('') : '';
+
+  const stale = socialState.error === 'offline'
+    ? '<p class="soc-stale">Offline — showing the last list this phone loaded.</p>' : '';
+
+  return notice + claim +
+    '<div class="sec-head">Your leaderboard</div>' + stale + board + alone +
+    inHtml + outHtml +
+    '<div class="sec-head">Add a friend</div>' +
+    '<div class="soc-code">' +
+      '<div class="soc-code-l">Your invite code</div>' +
+      '<div class="soc-code-v">' + escapeHtml(String((me && me.invite_code) || '—')) + '</div>' +
+      '<button type="button" class="soc-copy" onclick="socialCopyCode(this)">Copy</button>' +
+    '</div>' +
+    '<label class="soc-field"><span class="soc-lab" id="socInviteLab">Enter their code</span>' +
+      '<input type="text" id="socInvite" class="soc-in soc-in-code" autocapitalize="characters"' +
+      ' autocomplete="off" spellcheck="false" maxlength="8" aria-labelledby="socInviteLab"' +
+      /* Not the athlete's own code: a placeholder that shows YOUR code in the
+         field for THEIR code reads as if it were already filled in. */
+      ' placeholder="Their 8-character code"></label>' +
+    '<button class="btn-primary soc-go" onclick="socialDoInvite(this)">Send request</button>' +
+    '<div class="sec-head">Account</div>' +
+    '<div class="soc-acct">' +
+      '<div class="soc-acct-r"><span>Username</span><b>@' + escapeHtml(me.username) + '</b></div>' +
+      '<div class="soc-acct-r"><span>Email</span><b>' +
+        escapeHtml(String((socialState.session && socialState.session.email) || '—')) + '</b></div>' +
+    '</div>' +
+    '<p class="soc-fine">Only you can see your email. Your workouts and programs stay on this' +
+      ' phone — signing out does not touch them.</p>' +
+    '<button type="button" class="soc-alt" onclick="socialDoRename()">Change username</button>' +
+    '<button type="button" class="soc-alt" onclick="socialDoSignOut()">Sign out</button>';
+}
+
+/* ---------- actions ---------- */
+function socialBusy(btn, on){
+  socialView.busy = on;
+  if(btn) btn.disabled = on;
+}
+async function socialDoSendCode(btn){
+  const input = document.getElementById('socEmail');
+  socialView.email = input ? input.value : socialView.email;
+  socialBusy(btn, true);
+  const r = await socialSendCode(socialView.email);
+  socialBusy(btn, false);
+  if(r.ok){ socialView.stage = 'code'; socialView.email = r.email; socialView.notice = null; }
+  else socialView.notice = r.error === 'bad_email' ? 'That does not look like an email address.'
+    : r.error === 'offline' ? 'You are offline. Try again when you have a connection.'
+    : 'Could not send a code just now. Try again in a moment.';
+  renderSocial();
+}
+function socialBackToEmail(){ socialView.stage = 'email'; socialView.notice = null; renderSocial(); }
+async function socialDoVerify(btn){
+  const input = document.getElementById('socCode');
+  socialBusy(btn, true);
+  const r = await socialVerifyCode(socialView.email, input ? input.value : '');
+  socialBusy(btn, false);
+  if(r.ok){ socialView.stage = 'email'; socialView.notice = null; await socialLoadFriends(); }
+  else socialView.notice = r.error === 'bad_code' ? 'That code did not work. Check it and try again.'
+    : r.error === 'offline' ? 'You are offline.'
+    : r.error === 'not_verified' ? 'That email is not verified yet.'
+    : 'Could not sign in. Try requesting a new code.';
+  renderSocial();
+}
+async function socialDoUsername(btn){
+  const input = document.getElementById('socName');
+  socialBusy(btn, true);
+  const r = await socialSetUsername(input ? input.value : '');
+  socialBusy(btn, false);
+  socialView.notice = r.ok ? null : r.error;
+  if(r.ok) await socialLoadFriends();
+  renderSocial();
+}
+async function socialDoRename(){
+  const next = prompt('Username', (socialState.profile && socialState.profile.username) || '');
+  if(next === null) return;
+  const r = await socialSetUsername(next);
+  socialView.notice = r.ok ? 'Username updated.' : r.error;
+  if(r.ok) await socialLoadFriends();
+  renderSocial();
+}
+async function socialDoInvite(btn){
+  const input = document.getElementById('socInvite');
+  socialBusy(btn, true);
+  const r = await socialSendInvite(input ? input.value : '');
+  socialBusy(btn, false);
+  socialView.notice = r.message || r.error;
+  renderSocial();
+}
+/* Accept and remove are NOT optimistic: a list that shows a friendship the
+   backend refused would be a lie the athlete cannot see through. */
+async function socialDoAccept(id){
+  const r = await socialAcceptRequest(id);
+  socialView.notice = r.ok ? null : 'Could not accept that just now.';
+  renderSocial();
+}
+async function socialDoDecline(id){
+  const r = await socialDeclineRequest(id);
+  socialView.notice = r.ok ? null : 'Could not do that just now.';
+  renderSocial();
+}
+async function socialDoRemove(userId, name){
+  if(!confirm('Remove @' + name + '? You can reconnect with a new invite.')) return;
+  const r = await socialRemoveFriend(userId);
+  socialView.notice = r.ok ? null : 'Could not remove that just now.';
+  renderSocial();
+}
+async function socialDoSignOut(){
+  if(!confirm('Sign out? Your workouts, programs and records stay on this phone.')) return;
+  await socialSignOut();
+  socialView.stage = 'email'; socialView.notice = null;
+  renderSocial();
+}
+function socialCopyCode(btn){
+  const code = socialState.profile && socialState.profile.invite_code;
+  if(!code) return;
+  try{ navigator.clipboard.writeText(code); btn.textContent = 'Copied'; }
+  catch(e){ btn.textContent = 'Copy failed'; }
+  setTimeout(() => { try{ btn.textContent = 'Copy'; }catch(e){} }, 1600);
+}
 
 /* ---------- BOOT ---------- */
 async function boot(){
@@ -10541,6 +11420,11 @@ async function boot(){
     const dm = await LOOPStore.get('dismissedMissed');
     if(dm && dm.value) dismissedMissedDates = JSON.parse(dm.value);
   }catch(e){}
+
+  /* D52 — reads a stored session from disk. No network call happens here:
+     launch, Today and Workout must never wait on a backend, and a phone with
+     no signal boots exactly as it always did. */
+  try{ await socialLoad(); }catch(e){}
 
   try{
     const su = await LOOPStore.get('lastSeenUpdateId');
@@ -11135,6 +12019,9 @@ function closePlanSwitcher(){ document.getElementById('planSwitchOverlay').class
 function openSettings(){
   renderUpdateIndicator();
   refreshSettingsProfileLabel();
+  /* Renders nothing at all when no social backend is configured, so LOOP
+     without one is byte-for-byte the product it was. */
+  renderSettingsSocialRow();
   const ver = document.getElementById('settingsVersion');
   if(ver){
     const latest = getLatestUpdate();
@@ -35720,6 +36607,11 @@ function saveLog(btn){
       // from the full planned workout again.
       selectedWorkoutMinutes = null;
       pendingPlannedMinutes = null;
+      /* D52 — the workout is SAVED before this line, and this is not awaited.
+         A leaderboard that cannot be reached must never be able to cost an
+         athlete a session, so publishing happens after the write succeeded and
+         its failure is nobody's problem. */
+      socialPublishSoon();
       showWorkoutSummary(newEntry, newPREvents, matchedNames, volumeInsight);
     } else {
       const idx = workoutLog.findIndex(l => l.id === newEntry.id);

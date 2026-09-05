@@ -6849,3 +6849,154 @@ That stays in Owner QA until there is real gym evidence behind it.
 Templates are still not built. The architecture is now ready for them — a
 session that owns its exercises and a role that can be chosen is most of what a
 template is — but split ownership had to be right first.
+
+---
+
+## §80 — D52: The first trust boundary
+
+**Status.** Shipped in LOOP 5.0 (`loop-v127`), **with the social layer disabled
+by default.** The code, the schema and the authorisation are all in the
+repository; the Supabase project is not created, because credentials cannot be
+invented. Until two values are filled in, LOOP is byte-for-byte the product it
+was — no Friends entry, no network call, no behaviour change.
+
+### What the audit decided
+
+Three findings shaped every choice.
+
+**LOOP has one external dependency: Google Fonts.** No `fetch`, no
+`XMLHttpRequest`, no WebSocket, anywhere. Adding a social layer meant being
+extremely careful about what a network becomes responsible for.
+
+**There is no build step.** One `index.html`, three inline `<script>` tags, no
+bundler, no npm dependency at runtime. So there is no way to `import` a
+Supabase SDK, and a CDN `<script>` would put a third-party runtime on the
+critical path of an app whose entire value is working in a basement.
+
+**The service worker already ignores cross-origin requests.**
+`if(new URL(req.url).origin !== location.origin) return;` — so a backend on
+another origin can never be cached as a static asset. That guarantee was
+already there; it is now pinned by contract.
+
+The decision: **Supabase, spoken over its own HTTP.** GoTrue for auth,
+PostgREST for data. No SDK, no CDN, no bundler, ~6 endpoints. The anon key is
+designed to sit in a browser — security is row level security, not key secrecy.
+
+### The boundary
+
+| Stays local, always | Crosses the network |
+|---|---|
+| workouts, exercises, loads, reps, RIR | a username |
+| programs, prescriptions, revisions | friendships |
+| PRs, readiness, trainer evidence | XP, level, rank |
+| bodyweight, notes, settings | which progression produced them |
+| **the athlete's email** | |
+
+Email belongs to authentication. It lives in `auth.users`, which has no client
+policy at all, and no friend ever receives it.
+
+### Security is in the database
+
+Four tables, row level security on every one, no permissive policy anywhere,
+and `anon` granted nothing. The two operations that must be atomic are
+`SECURITY DEFINER` functions, so a client cannot produce half a friendship:
+
+```sql
+primary key (user_a, user_b)
+check (user_a < user_b)      -- A→B and B→A are one row, structurally
+check (from_user <> to_user) -- you cannot invite yourself
+unique (from_user, to_user)  -- and cannot ask twice
+unique (username_key)        -- @Cobra and @cobra are one account
+```
+
+There is **no insert policy on `friendships` at all** — the only thing that can
+create one is `loop_accept_friend_request()`, which inserts the friendship and
+deletes the request together. Two people inviting each other collapses to one
+clean friendship rather than a mirrored pair.
+
+Invite codes are eight characters from an unambiguous alphabet, generated
+rather than derived from the user id or email. There is no username search
+anywhere in the product, so there is nothing to enumerate.
+
+### The integrity requirement
+
+The one that mattered most. This phone holds one athlete's training history,
+and XP published from it is a claim about who did that work. If Alice signs out
+and Bob signs in on her phone, **nothing may publish Alice's training as Bob's.**
+
+So the local dataset records which account it belongs to. A new account binds
+and may publish. The same account returning is normal. A *different* account is
+signed in, shown their friends — and `publishAllowed` is false until a human
+says the training on this phone is theirs. The app cannot know, so it does not
+guess.
+
+Measured: Alice binds at 12,000 XP, signs out, Bob signs in. Bob's publish
+returns `unclaimed`, and Alice's number was never written under Bob's id.
+
+### Local-first, verified rather than asserted
+
+- `DATA_KEYS` is still **15**. No new key, no migration, schema still v1.
+- The session and the binding live **outside** `DATA_KEYS`, so backup and
+  export never see them. Measured: with a live session, no access token, no
+  refresh token and no email appear anywhere in the exported data.
+- Every `DATA_KEY` is **byte-identical** across sign-in, publish and sign-out.
+- Publishing happens after `persistLog()` has already succeeded, is not
+  awaited, and cannot throw. A leaderboard that cannot be reached can never
+  cost an athlete a workout.
+- Boot reads the stored session from disk and makes no request.
+
+### One source of truth
+
+`socialSnapshot()` reads `getCombinedProgression()` — the same function the
+header, the Progress overview and the rank showcase already use. There is no
+`socialXp`, no `socialLevel`, no `socialRank`, no leaderboard score. The
+leaderboard reuses the existing rank emblems rather than a second design, sorts
+on total XP, and breaks ties on the username so a reload never reshuffles
+anyone.
+
+`rules_version` travels with each snapshot, so a row written under an older
+progression can never be silently reinterpreted.
+
+### What this is not
+
+**The leaderboard is not cheat-proof, and does not pretend to be.** XP is
+computed on the device from workouts the athlete logged themselves. Making it
+tamper-proof would mean uploading workout history and recomputing server-side —
+which is the local-first architecture this phase exists to preserve. For a
+private board between people who train together, that trade is the right way
+round. It is written down in `SOCIAL-SETUP.md` rather than buried.
+
+### Verification, and its limits
+
+6,030 assertions across 156 contracts, plus 327 program-audit, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix — all green, and every
+prior oracle unchanged. A 73-check client probe drives two devices against a
+mock of Supabase's HTTP surface: sign-in, username collisions, invites,
+decline, the reciprocal race, removal, tie ordering, the account switch, local
+data safety and token exclusion.
+
+**None of that is a security result.** Row level security lives in the
+database, and testing it needs a real project and two real accounts. The
+adversarial checks — Bob writing Alice's stats, a stranger reading a profile,
+anyone reading `auth.users` — are written down in `SOCIAL-SETUP.md §5` and
+**must be run before the feature is trusted.** A green suite here proves the
+boundary, not the authorisation.
+
+Six viewports across six social states: signed out, code entry, username,
+friends, the account-switch guard and offline. Zero overflow, zero clipping,
+every control at least 44px, every input 16px.
+
+`TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`. Session Score, Live Set Coach,
+D49 progression and D51C plan revisions are untouched, and no social code
+reaches the workout logger or the rest timer.
+
+### Defects found while building
+
+- The level number's `line-height: 1` clipped its own digits — measured, every
+  row overflowed and read as struck through.
+- The invite field's placeholder showed the athlete's *own* code, which reads
+  as if it were already filled in.
+- Two of my own contract assertions were word-matching rather than
+  code-matching: one failed because a comment said "CDN", another because
+  LOOP's monthly summary is called Analytics and `seenThisEntry` contains the
+  letters of *sentry*. Both now measure the thing rather than the word.

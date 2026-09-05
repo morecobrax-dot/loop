@@ -10067,8 +10067,12 @@ function testIconSystemD14(app){
   T('a close mark was added', typeof ctx.closeIconSvg === 'function');
   T('a downward chevron was added', typeof ctx.chevronDownSvg === 'function');
   T('a settings mark was added', typeof ctx.gearIconSvg === 'function');
+  /* D52 — comment-stripped. This greps the raw file, so a COMMENT explaining
+     why LOOP does not load anything from a CDN failed a check about whether it
+     does. The rule is unchanged and is not weakened: an icon library arrives
+     as a script tag or an import, both of which are code. */
   T('no icon library was introduced',
-    !/cdn|fontawesome|feather|lucide|material-icons/i.test(src));
+    !/cdn|fontawesome|feather|lucide|material-icons/i.test(stripComments(src)));
 
   sub('they are drawn to one specification');
   const icons = ['closeIconSvg','chevronDownSvg','gearIconSvg','checkIconSvg','chevronRightSvg'];
@@ -17642,6 +17646,283 @@ async function testProgramRevisions(){
 }
 
 /* =========================================================
+   CONTRACT 156 — SOCIAL FOUNDATION  (Phase D52)
+
+   LOOP’s first trust boundary. Everything this suite has
+   guarded until now was local; this is the first phase where
+   anything at all leaves the device.
+
+   WHAT THIS CONTRACT CAN AND CANNOT PROVE. It proves the
+   boundary: that an account is optional, that the network is
+   never on the path of a workout, that training data is
+   byte-identical across sign-in and sign-out, that no token or
+   email reaches a backup, and that the leaderboard reads LOOP’s
+   own progression rather than a second calculator.
+
+   It CANNOT prove row level security. Authorisation lives in
+   the database, and testing it needs a real project and two
+   real accounts. The adversarial checks are written down in
+   SOCIAL-SETUP.md §5 and must be run before the feature is
+   trusted. A green suite here is not a security result.
+   ========================================================= */
+async function testSocialFoundation(){
+  section('CONTRACT 156 — social foundation (D52)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+
+  /* ---------------------------------------------------------- */
+  sub('an account is optional, and unconfigured means absent');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    T('LOOP ships with no backend configured', ctx.socialConfigured() === false);
+    T('and renders no social entry at all', ctx.socialSettingsRowHtml() === '');
+    T('the shipped config is empty',
+      /const LOOP_SOCIAL = \{\s*url: '',/.test(code), code.slice(code.indexOf('const LOOP_SOCIAL'), code.indexOf('const LOOP_SOCIAL') + 60));
+    T('no service-role key is anywhere in the client',
+      !/service_role|serviceRole|SERVICE_ROLE/.test(src));
+    T('no credential is committed',
+      !/supabase\.co/.test(code) || /\/\/ https:\/\/<project>/.test(src));
+
+    /* Boot must not touch the network, configured or not. */
+    let called = false;
+    ctx.fetch = () => { called = true; return Promise.reject(new Error('no')); };
+    await ctx.socialLoad();
+    T('loading the social record makes no request', called === false);
+    T('boot reads it without awaiting a backend',
+      /await socialLoad\(\)/.test(fnSrc(src, 'boot')) &&
+      !/socialRequest|fetch\(/.test(fnSrc(src, 'socialLoad')));
+  }
+
+  sub('the local boundary holds');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    T('DATA_KEYS is unchanged at 15', ctx.DATA_KEYS.length === 15, String(ctx.DATA_KEYS.length));
+    T('the social store is not one of them',
+      ctx.DATA_KEYS.indexOf('socialSession') === -1);
+    T('so backup and export never see it',
+      (await ctx.allDataKeys()).indexOf('socialSession') === -1);
+    T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('the schema version did not move', ctx.DATA_SCHEMA_VERSION === 1);
+  }
+
+  sub('nothing but progression crosses the boundary');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    /* The snapshot is built in one place, from one function. */
+    const snap = fnSrc(src, 'socialSnapshot');
+    T('it reads LOOP\'s own progression', /getCombinedProgression\(\)/.test(snap));
+    T('and publishes exactly four fields',
+      /lifetime_xp/.test(snap) && /level/.test(snap) && /rank/.test(snap)
+      && /rules_version/.test(snap));
+    ['workoutLog','exercises','sets','reps','rir','bodyweight','programs','notes','schedule']
+      .forEach(field => T('the snapshot never reads ' + field, snap.indexOf(field) === -1));
+    T('there is no second XP, level or rank calculator',
+      !/socialXp|socialLevel|socialRank|calculateLeaderboardXp|leaderboardScore/i.test(code));
+    T('the published rules version is recorded',
+      typeof ctx.SOCIAL_RULES_VERSION === 'string' && ctx.SOCIAL_RULES_VERSION.length > 0,
+      String(ctx.SOCIAL_RULES_VERSION));
+    /* The one place that writes stats writes only the snapshot. */
+    const pub = fnSrc(src, 'socialPublishStats');
+    T('publishing sends the snapshot and the user id, nothing else',
+      /socialSnapshot\(\)/.test(pub) && /user_id: socialState\.session\.user_id/.test(pub));
+  }
+
+  sub('the network is never on the path of a workout');
+  {
+    T('publishing is fire-and-forget where a workout is saved',
+      /socialPublishSoon\(\);/.test(code) && !/await socialPublishSoon/.test(code));
+    T('and it happens only after the log write succeeded', (() => {
+      const fn = fnSrc(src, 'finishWorkout') || code;
+      const i = code.indexOf('socialPublishSoon();');
+      const j = code.lastIndexOf('persistLog().then(ok => {', i);
+      const k = code.lastIndexOf('if(ok){', i);
+      return i !== -1 && j !== -1 && k !== -1 && j < k && k < i;
+    })());
+    T('the fire-and-forget wrapper cannot throw',
+      /try\{/.test(fnSrc(src, 'socialPublishSoon')) &&
+      /catch/.test(fnSrc(src, 'socialPublishSoon')));
+    T('every request path returns a result rather than throwing',
+      /catch\(e\)\{[\s\S]*return \{ ok:false, error:'offline' \}/.test(fnSrc(src, 'socialRequest')));
+  }
+
+  sub('usernames');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    ['ab', 'a'.repeat(21), 'has space', 'bad-dash', 'me@example.com', 'admin', 'loop',
+     'support', '', '   ', 'na\u200bme'].forEach(n =>
+      T('refuses ' + JSON.stringify(n), ctx.socialUsernameProblem(n) !== null));
+    ['cobra','a_b_c','User99','___','abc'].forEach(n =>
+      T('accepts ' + n, ctx.socialUsernameProblem(n) === null, String(ctx.socialUsernameProblem(n))));
+    T('an email address can never be a username',
+      ctx.socialUsernameProblem('a@b.co') !== null);
+    T('the client folds case the same way the database does',
+      /username_key: clean\.toLowerCase\(\)/.test(fnSrc(src, 'socialSetUsername')));
+    T('friendships bind to the account id, never the name',
+      !/username/.test(fnSrc(src, 'socialRemoveFriend')) &&
+      /other: userId/.test(fnSrc(src, 'socialRemoveFriend')));
+  }
+
+  sub('the leaderboard is deterministic and is LOOP\'s own metric');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    ctx.socialState.friends = [
+      { user_id:'c', username:'carol', lifetime_xp: 500, level: 2, rank:'ROOKIE', is_self:false },
+      { user_id:'a', username:'alice', lifetime_xp: 900, level: 3, rank:'TRAINEE', is_self:true },
+      { user_id:'b', username:'Bob',   lifetime_xp: 500, level: 2, rank:'ROOKIE', is_self:false }
+    ];
+    const once = ctx.socialLeaderboard();
+    T('sorted by total XP', once[0].username === 'alice', once.map(r => r.username).join(','));
+    /* Hand-declared: carol and Bob tie at 500, so the tie-break is the name,
+       case-insensitively — Bob before carol, every time. */
+    T('a tie breaks on the name, not on arrival order',
+      once.map(r => r.username).join(',') === 'alice,Bob,carol',
+      once.map(r => r.username).join(','));
+    const twice = ctx.socialLeaderboard();
+    T('and reloading never reshuffles anyone',
+      JSON.stringify(once) === JSON.stringify(twice));
+    T('positions are 1-based and contiguous',
+      once.map(r => r.position).join(',') === '1,2,3');
+    T('the athlete is always on their own leaderboard',
+      once.some(r => r.is_self));
+    ctx.socialState.friends = [{ user_id:'a', username:'alice', lifetime_xp: 0, level: 1,
+      rank:'ROOKIE', is_self:true }];
+    T('even with no friends at all', ctx.socialLeaderboard().length === 1);
+    T('and it reuses the existing rank emblem rather than a second design',
+      /rankMedalSvg\(/.test(fnSrc(src, 'socialFriendsHtml')));
+  }
+
+  sub('account binding — one athlete\'s work is never published as another\'s');
+  {
+    const adopt = fnSrc(src, 'socialAdoptSession');
+    T('a different account signing in is detected',
+      /prior\.userId === uid/.test(adopt) && /publishAllowed: false/.test(adopt));
+    T('and publishing is blocked until it is claimed',
+      /publishAllowed === false/.test(fnSrc(src, 'socialPublishStats')) &&
+      /unclaimed/.test(fnSrc(src, 'socialPublishStats')));
+    T('claiming is an explicit action',
+      /publishAllowed = true/.test(fnSrc(src, 'socialClaimThisHistory')));
+    T('the binding survives signing out',
+      !/binding/.test(fnSrc(src, 'socialClearSession')));
+    T('and signing out clears only the session and its caches',
+      /session = null/.test(fnSrc(src, 'socialClearSession')) &&
+      !/workoutLog|programsStore|LOOPStore\.remove/.test(fnSrc(src, 'socialClearSession')));
+  }
+
+  sub('privacy');
+  {
+    /* Email is authentication, not social identity. It is never sent to a
+       profile row and never rendered anywhere a friend can see. */
+    T('the profile row carries no email',
+      !/email/.test(fnSrc(src, 'socialSetUsername')));
+    T('a leaderboard row shows a username, never an address',
+      !/session\.email/.test(fnSrc(src, 'socialFriendsHtml').split('Account')[0]));
+    T('there is no username search anywhere',
+      !/username=ilike|username=like|search_users|find_user/i.test(code));
+    T('invites are resolved by code, not by identity',
+      /loop_send_friend_request/.test(fnSrc(src, 'socialSendInvite')) &&
+      /code: clean/.test(fnSrc(src, 'socialSendInvite')));
+    /* A word list was the wrong instrument: LOOP's own monthly summary is
+       called Analytics, and `seenThisEntry` contains the letters of sentry.
+       What matters is whether a script with an external source was added,
+       which is a thing rather than a word. */
+    T('no script with an external source was added', (() => {
+      const tags = code.match(/<script[^>]*>/gi) || [];
+      return tags.every(t => !/\ssrc\s*=/i.test(t));
+    })(), (code.match(/<script[^>]*src[^>]*>/gi) || []).join(' | '));
+    T('and nothing is imported from a network origin',
+      !/import\s*\(?\s*['"]https?:/i.test(code));
+    T('the only external origin is still the font host', (() => {
+      const hosts = [...new Set((code.match(/https:\/\/[a-z0-9.-]+/gi) || []))];
+      return hosts.every(h => /fonts\.(googleapis|gstatic)\.com/.test(h));
+    })(), [...new Set((code.match(/https:\/\/[a-z0-9.-]+/gi) || []))].join(', '));
+  }
+
+  sub('the service worker never caches a social response');
+  {
+    const sw = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8');
+    T('it only handles same-origin requests',
+      /origin !== location\.origin\) return;/.test(sw));
+    T('and only GET', /req\.method !== 'GET'\) return;/.test(sw));
+    T('so a backend on another origin is never cached',
+      !/supabase|auth\/v1|rest\/v1/.test(sw));
+    T('the asset list is still the app shell only',
+      /ASSETS = \[\s*'\.\/',\s*'\.\/index\.html',\s*'\.\/manifest\.webmanifest'\s*\]/.test(sw));
+  }
+
+  sub('the backend is checked in, and denies by default');
+  {
+    const path = H.APP_PATH.replace(/index\.html$/, 'supabase/migrations/0001_social_foundation.sql');
+    let sql = '';
+    try{ sql = fs.readFileSync(path, 'utf8'); }catch(e){}
+    T('the schema lives in the repository, not in a dashboard', sql.length > 2000,
+      String(sql.length));
+    ['profiles','social_stats','friend_requests','friendships'].forEach(t =>
+      T(t + ' has row level security enabled',
+        new RegExp('alter table public\\.' + t + '\\s+enable row level security').test(sql)));
+    T('no policy is permissive', !/using \(true\)|with check \(true\)/i.test(sql));
+    T('anon is granted nothing', /revoke all on public\.profiles/.test(sql));
+    T('a friendship can only be created by the accept function',
+      !/create policy friendships_insert/.test(sql));
+    T('the pair is ordered, so A-B and B-A are one row',
+      /check \(user_a < user_b\)/.test(sql) && /primary key \(user_a, user_b\)/.test(sql));
+    T('a request to yourself is refused by the database',
+      /check \(from_user <> to_user\)/.test(sql));
+    T('duplicate requests are refused by the database',
+      /unique \(from_user, to_user\)/.test(sql));
+    T('usernames are unique case-insensitively in the database',
+      /username_key = lower\(username\)/.test(sql) &&
+      /unique \(username_key\)/.test(sql));
+    T('the username shape is enforced in the database too',
+      /username ~ '\^\[A-Za-z0-9_\]\{3,20\}\$'/.test(sql));
+    T('accepting is one atomic function, not client steps',
+      /create or replace function public\.loop_accept_friend_request/.test(sql) &&
+      /security definer/.test(sql));
+    T('only the recipient can accept', /and to_user = me/.test(sql));
+    T('the invite preview returns a username and nothing else',
+      /returns table \(username text\)/.test(sql));
+    T('invite codes are generated, not derived from the user id',
+      /loop_new_invite_code/.test(sql) && !/substr\(user_id/.test(sql));
+    T('there is a ceiling on pending requests', /too_many_pending/.test(sql));
+    T('the leaderboard is one query, not one per friend',
+      /loop_friends_leaderboard/.test(sql) && /left join public\.social_stats/.test(sql));
+    T('and the client calls it that way',
+      /loop_friends_leaderboard/.test(fnSrc(src, 'socialLoadFriends')));
+    T('account deletion removes the whole social graph',
+      /loop_delete_account/.test(sql) && /delete from public\.friendships/.test(sql));
+
+    const setup = (() => { try{ return fs.readFileSync(
+      H.APP_PATH.replace(/index\.html$/, 'SOCIAL-SETUP.md'), 'utf8'); }catch(e){ return ''; } })();
+    T('setup instructions are checked in', setup.length > 1500);
+    T('they warn about the service-role key', /service_role/.test(setup));
+    T('they require two-account verification', /two accounts/i.test(setup));
+    T('and they state the integrity limitation honestly',
+      /not cheat-proof/i.test(setup));
+  }
+
+  sub('nothing below the surface moved');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+    T('the trainer is still shadowed', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
+      ctx.TRAINER_ENGINE_VERSION);
+    T('Session Score weights are untouched',
+      /completion:\s*0\.40/.test(code) && /reps:\s*0\.30/.test(code) &&
+      /effort:\s*0\.18/.test(code) && /load:\s*0\.12/.test(code));
+    T('the live-coach thresholds are untouched',
+      /easyOverTarget:\s*2/.test(code) && /hardRir:\s*0\.5/.test(code));
+    T('progression evidence is untouched',
+      /PROGRESSION_EVIDENCE/.test(code) && /const PLAN_SHIFT_DAYS = 2/.test(code));
+    T('plan revisions remain the one temporal owner',
+      /programPlanOn\(/.test(fnSrc(src, 'programScheduleOn')));
+    T('no social code reaches the workout logger',
+      !/social/i.test(fnSrc(src, 'appendSetRow')) &&
+      !/social/i.test(fnSrc(src, 'toggleSetComplete')));
+    T('and none reaches the rest timer',
+      !/social/i.test(fnSrc(src, 'startRestPanel')));
+  }
+}
+
+/* =========================================================
    CONTRACT 154 — SPLIT OWNERSHIP  (Phase D51E)
 
    Two things the owner found on a real phone.
@@ -20559,6 +20840,7 @@ async function main(){
   await testDurablePrograms();
   await testProgramOwnership();
   await testSplitOwnership();
+  await testSocialFoundation();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

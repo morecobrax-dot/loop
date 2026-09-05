@@ -215,7 +215,8 @@ function loadApp(initialStore){
     '_prSetCache','_wkDrag','_weekUndo','_lockDepth','builderDraft','programsStore','CATEGORY_DISPLAY_ORDER','PHASE_INTENT','TRAJECTORY_MIN_WEEKS','TREND_WORD',
     'OUTCOME_MATCH','OUTCOME_MATCH_LEGACY','shadowEvidenceOpen','TRAINER_LOG_MAX','SHADOW_CAVEAT',
     /* D51C */ 'exPickerState','pbOpenSession',
-    /* D51D */ 'pbOpenExercise','pbPendingSession','RANKS'];
+    /* D51D */ 'pbOpenExercise','pbPendingSession','RANKS',
+    /* D52 */ 'LOOP_SOCIAL','socialState','socialView','SOCIAL_RULES_VERSION'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +
