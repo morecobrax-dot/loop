@@ -667,11 +667,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 .focus-names.dim{ color: var(--text-dim); font-weight: 500; }
 .muscle-svg{ transition: opacity 0.25s var(--ease); }
 @media (prefers-reduced-motion: reduce){ .muscle-svg{ transition: none; } }
-/* D53 — the cap that made the body map an icon. The pair used to be held at
-   106px, so each figure was about 50px wide and every muscle in it was one
-   ellipse two pixels tall. The figure is the same one everywhere; what each
-   surface decides is how much room it deserves. */
-.muscle-svg{ width: 100%; max-width: 300px; height: auto; display: block; margin: 0 auto; }
+.muscle-svg{ width: 100%; max-width: 106px; height: auto; display: block; }
 .radar-svg{ width: 100px; height: 100px; }
 
 /* ---- Progress tab ---- */
@@ -964,7 +960,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 /* Same figure/copy geometry as .mv-top, stated here because the card is a
    <button> and its children are spans. */
 .tm-top{ display: flex; align-items: center; gap: 18px; margin-top: 10px; }
-.tm-body{ width: 132px; flex-shrink: 0; display: block; }
+.tm-body{ width: 96px; flex-shrink: 0; display: block; }
 .tm-info{ min-width: 0; display: block; }
 .tm-k{
   display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
@@ -2777,7 +2773,7 @@ body.first-use{ padding-bottom: 0; }
 
 /* Same figure-and-copy geometry as the Muscle Volume card this opens. */
 .po-mus{ display: flex; align-items: center; gap: 18px; margin-top: 13px; }
-.po-mus-body{ width: 132px; flex-shrink: 0; display: block; }
+.po-mus-body{ width: 92px; flex-shrink: 0; display: block; }
 .po-mus-info{ min-width: 0; display: block; }
 .po-mus-name{
   display: block; font-family: 'Space Grotesk', sans-serif; font-size: 21px;
@@ -2954,9 +2950,9 @@ body.first-use{ padding-bottom: 0; }
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 16px;
 }
-.mv-top{ display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.mv-body{ width: 100%; max-width: 300px; }
-.mv-info{ min-width: 0; width: 100%; text-align: center; }
+.mv-top{ display: flex; align-items: center; gap: 18px; }
+.mv-body{ width: 84px; flex-shrink: 0; }
+.mv-info{ min-width: 0; }
 .mv-name{ font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 700; color: var(--text); margin-top: 3px; }
 .mv-sub{ font-size: 12px; color: var(--text-dim); margin-top: 3px; }
 .mv-sub b{ color: var(--accent); font-weight: 700; }
@@ -7507,7 +7503,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 (function(){
 'use strict';
 var NS='http://www.w3.org/2000/svg';
-var ACCENT='#4CC2FF';   /* LOOP's --accent, so the figure glows the same colour as the app */
+var ACCENT='#5B8CFF';
 var C={
   nearCore:'#3B4451', nearEdge:'#525E71',
   farCore:'#262C36',  farEdge:'#39414D',
@@ -8220,69 +8216,15 @@ function joints(d,breath){
 var UID=0;
 function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
 function line(J,a,b){return 'M'+J[a].x.toFixed(1)+' '+J[a].y.toFixed(1)+'L'+J[b].x.toFixed(1)+' '+J[b].y.toFixed(1);}
-/* ---------- anatomical limb geometry ----------
-   A limb used to be two round-capped constant-width strokes, which is why the
-   figure read as a prototype: a real thigh is wide at the hip and narrow at
-   the knee, a calf carries its mass halfway down, and a constant tube can
-   express neither. Limbs are now FILLED OUTLINES built from the same two joint
-   positions the motion system already produces — per-vertex widths give the
-   taper, and `belly` pushes each segment's midpoint out along its normal to
-   put muscle where muscle actually sits.
-
-   Nothing about the motion changed. This is the draw layer only. */
-function norm(dx,dy){var l=Math.hypot(dx,dy)||1;return{x:dx/l,y:dy/l};}
-function n1(v){return v.toFixed(1);}
-
-/* Per-vertex half-widths and belly, in viewBox units. Proximal first. */
-var LIMB={
-  thigh:{w:[15.4,10.6],belly:0.09},
-  shin:{w:[10.4,6.0],belly:0.22},     /* the calf */
-  uArm:{w:[11.0,7.9],belly:0.15},     /* the bicep */
-  fArm:{w:[7.9,5.4],belly:0.11},
-  foot:{w:[6.4,3.6],belly:0},
-  neck:{w:[9.0,8.0],belly:0},
-  torso:{w:[15.4,15.0,18.6],belly:0.05},    /* side: pelvis, mid, chest */
-  torsoF:{w:[17.0,15.4,23.0],belly:0.04},   /* front: the V-taper */
-  bar:{w:[13,13],belly:0}
-};
-
-function tubePath(P,hw,belly){
-  var n=P.length,i;
-  if(n<2)return '';
-  var seg=[];
-  for(i=0;i<n-1;i++){var d=norm(P[i+1].x-P[i].x,P[i+1].y-P[i].y);seg.push({x:-d.y,y:d.x});}
-  var L=[],R=[];
-  for(i=0;i<n;i++){
-    var a=seg[Math.max(0,i-1)],b=seg[Math.min(seg.length-1,i)];
-    var v=norm(a.x+b.x,a.y+b.y),h=hw[i];
-    L.push({x:P[i].x+v.x*h,y:P[i].y+v.y*h});
-    R.push({x:P[i].x-v.x*h,y:P[i].y-v.y*h});
-  }
-  /* Segment midpoints, pushed out to make the belly. */
-  var cL=[],cR=[];
-  for(i=0;i<n-1;i++){
-    var mx=(P[i].x+P[i+1].x)/2,my=(P[i].y+P[i+1].y)/2;
-    var hm=(hw[i]+hw[i+1])/2*(1+belly);
-    cL.push({x:mx+seg[i].x*hm,y:my+seg[i].y*hm});
-    cR.push({x:mx-seg[i].x*hm,y:my-seg[i].y*hm});
-  }
-  var d='M'+n1(L[0].x)+' '+n1(L[0].y);
-  for(i=0;i<n-1;i++)d+='Q'+n1(cL[i].x)+' '+n1(cL[i].y)+' '+n1(L[i+1].x)+' '+n1(L[i+1].y);
-  var hE=hw[n-1];
-  d+='A'+n1(hE)+' '+n1(hE)+' 0 0 0 '+n1(R[n-1].x)+' '+n1(R[n-1].y);
-  for(i=n-2;i>=0;i--)d+='Q'+n1(cR[i].x)+' '+n1(cR[i].y)+' '+n1(R[i].x)+' '+n1(R[i].y);
-  var hS=hw[0];
-  d+='A'+n1(hS)+' '+n1(hS)+' 0 0 0 '+n1(L[0].x)+' '+n1(L[0].y)+'Z';
+function chain(J,keys){
+  var d='M'+J[keys[0]].x.toFixed(1)+' '+J[keys[0]].y.toFixed(1);
+  for(var i=1;i<keys.length;i++)d+='L'+J[keys[i]].x.toFixed(1)+' '+J[keys[i]].y.toFixed(1);
   return d;
 }
-
-/* `fill` carries the form shading; the hairline stroke keeps the silhouette
-   crisp against a dark ground at phone size, where a pure gradient edge
-   dissolves. */
-function limb(svg,fill,edge,spec,thin){
-  var hw=spec.w.map(function(v){return Math.max(1.6,(v-(thin||0))/2);});
-  var e=el('path',{fill:fill,stroke:edge,'stroke-width':1,'stroke-linejoin':'round'},svg);
-  return {set:function(P){e.setAttribute('d',tubePath(P,hw,spec.belly||0));}};
+function limb(svg,color,edge,w){
+  var e=el('path',{fill:'none','stroke-linecap':'round','stroke-linejoin':'round',stroke:edge,'stroke-width':w+W.edge},svg);
+  var c=el('path',{fill:'none','stroke-linecap':'round','stroke-linejoin':'round',stroke:color,'stroke-width':w},svg);
+  return {set:function(d){e.setAttribute('d',d);c.setAttribute('d',d);}};
 }
 
 function Figure(host,mv,opts){
@@ -8298,22 +8240,6 @@ function Figure(host,mv,opts){
   var g2=el('radialGradient',{id:'lms'+uid},defs);
   el('stop',{offset:'0%','stop-color':'#000','stop-opacity':'0.42'},g2);
   el('stop',{offset:'100%','stop-color':'#000','stop-opacity':'0'},g2);
-  /* FORM SHADING, WITH ONE LIGHT FOR THE WHOLE FIGURE.
-     userSpaceOnUse, not objectBoundingBox: a per-shape gradient would rotate
-     with each limb and light every bone from its own private sun, which is
-     exactly the tell of cheap vector anatomy. Fixed in the viewBox, one
-     direction — upper-left key, lower-right falloff — so a raised arm catches
-     the light and a lowered one does not, the way a body does. */
-  function ramp(id,a,b,c){
-    var g=el('linearGradient',{id:id+uid,gradientUnits:'userSpaceOnUse',x1:'62',y1:'22',x2:'170',y2:'182'},defs);
-    el('stop',{offset:'0%','stop-color':a},g);
-    el('stop',{offset:'52%','stop-color':b},g);
-    el('stop',{offset:'100%','stop-color':c},g);
-    return 'url(#'+id+uid+')';
-  }
-  var NEAR=ramp('lmn','#5D6B80','#454F60','#333B48');
-  var TORSO=ramp('lmt','#556377','#3E4859','#2E3542');
-  var FAR=ramp('lmf','#39414F','#2E3542','#252A34');
   // wall panels behind everything
   (mv.props||[]).forEach(function(pr){
     if(pr.t==='panel')el('rect',{x:pr.x,y:pr.y,width:pr.w,height:pr.h,rx:3,fill:'#171C24',opacity:'0.55'},svg);
@@ -8328,24 +8254,19 @@ function Figure(host,mv,opts){
   // dynamic links (band / cable) — layer:'front' draws over the figure
   var linkEls=(mv.links||[]).map(function(lk){return lk.layer==='front'?null:el('path',{fill:'none',stroke:C.link,'stroke-width':2.5,'stroke-linecap':'round',opacity:'0.9'},svg);});
   // far limbs: side views shade them back; front views render both sides identically
-  var fFill=mv.front?NEAR:FAR, fEdge=mv.front?C.nearEdge:C.farEdge, fThin=mv.front?0:1.4;
-  var farG=el('g',{opacity:mv.front?'1':'0.9'},svg);
-  var fArm1=limb(farG,fFill,fEdge,LIMB.uArm,fThin), fArm2=limb(farG,fFill,fEdge,LIMB.fArm,fThin);
-  var fLeg1=limb(farG,fFill,fEdge,LIMB.thigh,fThin), fLeg2=limb(farG,fFill,fEdge,LIMB.shin,fThin), fFoot=limb(farG,fFill,fEdge,LIMB.foot,fThin);
-  var tSpec=mv.front?LIMB.torsoF:LIMB.torso;
-  var shBar=mv.front?limb(svg,TORSO,C.torsoEdge,LIMB.bar):null;
-  var hipBar=mv.front?limb(svg,TORSO,C.torsoEdge,LIMB.bar):null;
-  var torso=limb(svg,TORSO,C.torsoEdge,tSpec);
-  var neck=limb(svg,NEAR,C.nearEdge,LIMB.neck);
-  var headE=el('ellipse',{rx:W.head*0.84,ry:W.head*0.97,fill:NEAR,stroke:C.nearEdge,'stroke-width':1},svg);
-  var nLeg1=limb(svg,NEAR,C.nearEdge,LIMB.thigh), nLeg2=limb(svg,NEAR,C.nearEdge,LIMB.shin), nFoot=limb(svg,NEAR,C.nearEdge,LIMB.foot);
-  var nArm1=limb(svg,NEAR,C.nearEdge,LIMB.uArm), nArm2=limb(svg,NEAR,C.nearEdge,LIMB.fArm);
-  /* The focus trace marks the limb the movement is about. Against the old
-     constant-width tubes a 3.5-wide bar read as emphasis; against a limb that
-     now has real mass it read as a stripe painted down the arm. Thin and
-     bright is the difference between a highlight ON the limb and a lit
-     contour OF it. */
-  var trace=el('path',{fill:'none',stroke:ACCENT,'stroke-width':1.8,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'0.5'},svg);
+  var fCore=mv.front?C.nearCore:C.farCore, fEdge=mv.front?C.nearEdge:C.farEdge, fThin=mv.front?0:1;
+  var farG=el('g',{opacity:mv.front?'1':'0.88'},svg);
+  var fArm1=limb(farG,fCore,fEdge,W.uArm-fThin), fArm2=limb(farG,fCore,fEdge,W.fArm-fThin);
+  var fLeg1=limb(farG,fCore,fEdge,W.thigh-fThin), fLeg2=limb(farG,fCore,fEdge,W.shin-fThin), fFoot=limb(farG,fCore,fEdge,W.foot);
+  var tw=mv.front?W.torsoF:W.torso;
+  var shBar=mv.front?limb(svg,C.torsoCore,C.torsoEdge,13):null;
+  var hipBar=mv.front?limb(svg,C.torsoCore,C.torsoEdge,13):null;
+  var torso=limb(svg,C.torsoCore,C.torsoEdge,tw);
+  var neck=limb(svg,C.nearCore,C.nearEdge,W.neck);
+  var headE=el('circle',{r:W.head,fill:C.nearCore,stroke:C.nearEdge,'stroke-width':1.6},svg);
+  var nLeg1=limb(svg,C.nearCore,C.nearEdge,W.thigh), nLeg2=limb(svg,C.nearCore,C.nearEdge,W.shin), nFoot=limb(svg,C.nearCore,C.nearEdge,W.foot);
+  var nArm1=limb(svg,C.nearCore,C.nearEdge,W.uArm), nArm2=limb(svg,C.nearCore,C.nearEdge,W.fArm);
+  var trace=el('path',{fill:'none',stroke:ACCENT,'stroke-width':3.5,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'0.38'},svg);
   (mv.links||[]).forEach(function(lk,i){if(lk.layer==='front')linkEls[i]=el('path',{fill:'none',stroke:C.link,'stroke-width':2.5,'stroke-linecap':'round',opacity:'0.95'},svg);});
   var gripEls=(mv.grips||[]).map(function(){return el('circle',{r:3.4,fill:C.nearEdge,stroke:C.nearCore,'stroke-width':1.2},svg);});
   host.appendChild(svg);
@@ -8375,16 +8296,15 @@ function Figure(host,mv,opts){
       else d2+='L'+b.x.toFixed(1)+' '+b.y.toFixed(1);
       linkEls[i].setAttribute('d',d2);
     });
-    var pts=function(){var a=[],i;for(i=0;i<arguments.length;i++)a.push(J[arguments[i]]);return a;};
-    fArm1.set(pts('fSh','fE')); fArm2.set(pts('fE','fW'));
-    fLeg1.set(pts('fHip','fK')); fLeg2.set(pts('fK','fA')); fFoot.set(pts('fA','fT'));
-    if(shBar)shBar.set(pts('nSh','fSh'));
-    if(hipBar)hipBar.set(pts('nHip','fHip'));
-    torso.set(pts('pelvis','mid','chest'));
-    neck.set(pts('chest','head'));
+    fArm1.set(line(J,'fSh','fE')); fArm2.set(line(J,'fE','fW'));
+    fLeg1.set(line(J,'fHip','fK')); fLeg2.set(line(J,'fK','fA')); fFoot.set(line(J,'fA','fT'));
+    if(shBar)shBar.set(line(J,'nSh','fSh'));
+    if(hipBar)hipBar.set(line(J,'nHip','fHip'));
+    torso.set(chain(J,['pelvis','mid','chest']));
+    neck.set(line(J,'chest','head'));
     headE.setAttribute('cx',J.head.x.toFixed(1)); headE.setAttribute('cy',J.head.y.toFixed(1));
-    nLeg1.set(pts('nHip','nK')); nLeg2.set(pts('nK','nA')); nFoot.set(pts('nA','nT'));
-    nArm1.set(pts('nSh','nE')); nArm2.set(pts('nE','nW'));
+    nLeg1.set(line(J,'nHip','nK')); nLeg2.set(line(J,'nK','nA')); nFoot.set(line(J,'nA','nT'));
+    nArm1.set(line(J,'nSh','nE')); nArm2.set(line(J,'nE','nW'));
     (mv.grips||[]).forEach(function(g,i){gripEls[i].setAttribute('cx',J[g].x.toFixed(1));gripEls[i].setAttribute('cy',J[g].y.toFixed(1));});
     if(opts.highlight!==false&&mv.hl){
       var s=mv.hl.seg,a2=J[s[0]],b2=s[1]?J[s[1]]:a2,k=mv.hl.k==null?0:mv.hl.k;
@@ -10812,6 +10732,11 @@ const LOOP_UPDATES = [
       'Still true, and worth repeating now that the feature does something: your workouts, programs and records never leave this phone. Friends see a username, your Level, XP and Rank, and nothing else \u2014 not your email, and not a single set'
     ]
   },
+  /* 5.2 SHIPPED AND IS KEPT, THOUGH ITS CHANGE WAS UNDONE IN 5.3.
+     The reverting commit removed this entry along with the code, which would
+     have left the notes claiming a release that really went out never
+     happened. A changelog records what each release did at the time; 5.3
+     below says plainly that it was reversed. */
   {
     id: 'v5-2',
     version: 'LOOP 5.2',
@@ -10828,6 +10753,21 @@ const LOOP_UPDATES = [
     bugFixes: [],
     changes: [
       'Drawing only. The warm-up movements, their timing and their order are exactly what they were, and nothing about how training is measured or scored has changed'
+    ]
+  },
+  {
+    id: 'v5-3',
+    version: 'LOOP 5.3',
+    title: 'Back to the Simpler Figures',
+    date: '2026-12-16',
+    swVersion: 'loop-v130',
+    summary: 'The detailed anatomy drawing from 5.2 is reversed.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [],
+    changes: [
+      'The heavier anatomical warm-up figure and enlarged body map introduced in LOOP 5.2 are reverted. The cleaner, lighter drawing that shipped through 5.1 is back, and it sits better inside the rest of the app',
+      'Drawing only, again. Your workouts, programs, records and every number LOOP has ever calculated are exactly where they were \u2014 5.2 never touched them and neither does this'
     ]
   }
 ];
@@ -12539,122 +12479,21 @@ function computeMuscleTotals(t){
   });
   return totals;
 }
-/* ---------- D53: THE BODY MAP ----------
-   Was: grey ellipses filled on a pink-to-red ramp. Two things were wrong with
-   it beyond looking flat. The ramp was off-palette — red on grey in an app
-   whose accent is cyan — and every muscle was an ellipse, so the figure read
-   as an icon rather than an anatomy. At 106px for the PAIR, each body was
-   about 50px wide, which is a glyph, not a visualisation.
-
-   Now: hand-authored anatomical forms on LOOP's own accent ramp. The geometry
-   is the only thing that changed. computeMuscleTotals and MUSCLE_MAP remain
-   the single source of truth for what trained what, muscleFill keeps its
-   signature, and bodyDiagramSvg keeps (t, totalsOverride) — so all seven
-   call sites upgrade without knowing anything happened. */
-
-/* Untrained muscle is still MUSCLE: a visible dark form, not an absence.
-   Trained ramps from a dim teal to LOOP's accent, so "more work" reads as
-   "brighter" on the same hue the rest of the app already uses. */
-const MM_IDLE = '#2C3341';
 function muscleFill(totals, maxVal, group){
-  const v = totals[group] || 0;
-  if(v <= 0) return MM_IDLE;
-  const t = 0.30 + 0.70 * Math.min(1, v / maxVal);
-  const LO = [34, 82, 108], HI = [76, 194, 255];
-  const c = i => Math.round(LO[i] + (HI[i] - LO[i]) * t);
-  return 'rgb(' + c(0) + ',' + c(1) + ',' + c(2) + ')';
+  const v = totals[group];
+  const GREY = [147,152,158];
+  if(v <= 0) return `rgb(${GREY[0]},${GREY[1]},${GREY[2]})`;
+  const t = 0.35 + 0.65 * (v / maxVal);
+  const PINK = [242,163,156];
+  const RED = [224,42,36];
+  const r = Math.round(PINK[0] + (RED[0]-PINK[0])*t);
+  const g = Math.round(PINK[1] + (RED[1]-PINK[1])*t);
+  const b = Math.round(PINK[2] + (RED[2]-PINK[2])*t);
+  return `rgb(${r},${g},${b})`;
 }
-
-/* Left-half forms, mirrored about the figure's centre line. Authoring one
-   side and reflecting it is why the two shoulders are identical rather than
-   nearly identical, which is the detail that reads as "drawn by hand" in the
-   bad sense. */
-const MM_W = 108, MM_MID = MM_W / 2;
-/* EVERY MUSCLE IS INSET INSIDE ITS LIMB. The first pass drew them at the full
-   width of the part they sit on, which is why the deltoid swallowed the whole
-   upper arm, the quadriceps read as a pair of shorts and the lat read as a
-   vest. A muscle with a margin of body around it reads as anatomy; a muscle
-   flush to the silhouette reads as a coloured region. Same reason the lat is
-   a V and not a rectangle — the shape carries the meaning. */
-const MM_PARTS = {
-  delt:   'M35,38.5 C28,40.5 23.5,45.5 22.4,53.5 C21.8,59.2 24.2,62.6 28.8,62 C30.4,53.5 32.4,44.5 35,38.5 Z',
-  pec:    'M39,43.5 C46,41 51.5,41.8 52.8,45 L52.8,58.5 C47.5,61.5 41.5,60.5 37.8,56 C36.2,51 36.6,46 39,43.5 Z',
-  lat:    'M33.5,40 C29.5,48 29,58 31,68 C32.6,75 36,81 44,84 L52.8,84 L52.8,37 C44,35 37,36.5 33.5,40 Z',
-  trap:   'M46,33.5 C42,35 38.5,37.6 36,41 C40,43.6 46,45.2 52.8,45.2 L52.8,33.5 Z',
-  arm:    'M24.5,55 C22.6,61 22,69 22.4,78 L28.6,78.5 C29,69.5 29.4,61.5 30,55.5 Z',
-  glute:  'M36.5,86 C32.5,89.5 31.5,96.5 34.5,101.5 C39,105.5 48,105 52.8,101 L52.8,86 Z',
-  quad:   'M37.5,101 C34.8,113 34.8,128 37,140 L51,140 C52.6,128 52.6,113 51,101 Z',
-  ham:    'M37.5,106 C35.2,117 35.2,129 37.2,140 L51,140 C52.4,129 52.4,117 51,106 Z',
-  calf:   'M38,147 C36,155 36,165 37.6,173 L49,173 C50,165 50,155 49,147 Z',
-  /* Centre forms — drawn once, never mirrored. */
-  abs:    'M44.5,62.5 L63.5,62.5 C65,73 64.2,85.5 61,95 L47,95 C43.8,85.5 43,73 44.5,62.5 Z',
-  spine:  'M50.5,38 L57.5,38 C58.8,53 58.8,70 57.5,84 L50.5,84 C49.2,70 49.2,53 50.5,38 Z'
-};
-/* The body under the muscles. Neutral, so a highlighted group reads against
-   something rather than floating — and sized so that margin is visible. */
-const MM_BASE = {
-  torso:  'M35,38 C29.5,45 28,56 30.5,68 C32.5,77 34,86 34.8,99 L73.2,99 C74,86 75.5,77 77.5,68 C80,56 78.5,45 73,38 C63,33 45,33 35,38 Z',
-  uarm:   'M32,42 C25,44 22,50 21.5,58 C21,68 20.5,76 20,84 L30,85 C30.5,76 31,68 31.5,58 C32,50 32,45 32,42 Z',
-  farm:   'M20.2,82 L30.2,82.5 C29.5,95 28.5,105 28,113 L19,113 C18.8,105 19.4,94 20.2,82 Z',
-  hand:   'M19,110 L28,110 C28.6,119.5 26,124 22.4,124 C18.8,124 18,119.5 19,110 Z',
-  thigh:  'M35,95 C31.5,110 31.5,129 34.5,143 L52.5,143 C54,129 54,110 52.5,95 Z',
-  shin:   'M36.2,139 C34.8,155 34.8,168 36.8,179 L50.5,179 C51.4,168 51.4,155 50.8,139 Z',
-  foot:   'M36,176 L50.5,176 C52,184.5 50,187.5 45,187.5 L36,187.5 Z'
-};
-
-function mmMirror(d){ return '<path d="' + d + '" transform="translate(' + MM_W + ',0) scale(-1,1)"/>'; }
-/* One <path> per side inside a single <g> that carries the fill, so a group
-   is one paint operation and one colour rather than two of each. */
-function mmPair(d, attrs){
-  return '<g ' + attrs + '><path d="' + d + '"/>' + mmMirror(d) + '</g>';
-}
-
-function mmFigure(view, f){
-  const E = 'stroke="#151A22" stroke-width="0.9" stroke-linejoin="round"';
-  const base = () => 'fill="#222834"';
-  /* A worked muscle gets a faint outer bloom in its own colour. A stroke
-     rather than a blur filter: seven of these can be on screen at once in
-     Mastery, and a filter per figure is a real cost on a phone for an effect
-     nobody would name. */
-  const grp = (g) => {
-    const c = f(g);
-    const lit = c !== MM_IDLE;
-    return 'fill="' + c + '" stroke="' + (lit ? c : '#151A22') + '" stroke-width="' + (lit ? 2.2 : 0.9) +
-      '" stroke-opacity="' + (lit ? 0.28 : 1) + '" stroke-linejoin="round"';
-  };
-  const front = view === 'front';
-  let o = '';
-  /* head, neck */
-  o += '<ellipse cx="' + MM_MID + '" cy="16" rx="10" ry="12" fill="#222834" ' + E + '/>';
-  o += '<path d="M48,25 L60,25 L61,37 L47,37 Z" fill="#1E2430" ' + E + '/>';
-  /* the body under everything */
-  o += '<path d="' + MM_BASE.torso + '" ' + base() + '/>';
-  o += mmPair(MM_BASE.uarm, base()) + mmPair(MM_BASE.farm, base());
-  o += mmPair(MM_BASE.thigh, base()) + mmPair(MM_BASE.shin, base()) + mmPair(MM_BASE.foot, base());
-  o += mmPair(MM_BASE.hand, base());
-  /* the muscles */
-  if(front){
-    o += mmPair(MM_PARTS.pec, grp('chest'));
-    o += '<path d="' + MM_PARTS.abs + '" ' + grp('abs') + '/>';
-    o += '<path d="M54,62 L54,98 M43.5,73 L64.5,73 M44.5,84 L63.5,84" stroke="#151A22" stroke-width="0.9" fill="none" opacity="0.55"/>';
-    o += mmPair(MM_PARTS.delt, grp('shoulders'));
-    o += mmPair(MM_PARTS.arm, grp('biceps'));
-    o += mmPair(MM_PARTS.quad, grp('quads'));
-    o += mmPair('M40,101 L46,142', 'fill="none" stroke="#151A22" stroke-width="0.9" opacity="0.5"');
-  }else{
-    o += mmPair(MM_PARTS.lat, grp('back'));
-    o += mmPair(MM_PARTS.trap, grp('back'));
-    o += '<path d="' + MM_PARTS.spine + '" fill="#222834" ' + E + ' opacity="0.85"/>';
-    o += mmPair(MM_PARTS.delt, grp('shoulders'));
-    o += mmPair(MM_PARTS.arm, grp('triceps'));
-    o += mmPair(MM_PARTS.glute, grp('glutes'));
-    o += mmPair(MM_PARTS.ham, grp('hamstrings'));
-    o += mmPair('M40,107 L46,142', 'fill="none" stroke="#151A22" stroke-width="0.9" opacity="0.5"');
-  }
-  o += mmPair(MM_PARTS.calf, grp('calves'));
-  return o;
-}
-
+/* Which view best represents a session. Anterior groups vs posterior groups —
+   a pull day shows the back, a push day shows the front, without the user
+   having to think about it. */
 /* D46B — the ONE body figure in LOOP. Every surface that draws an anatomy
    uses this: the plan preview, the workout template card, Mastery's muscle
    volume, and Today's week summary. A second silhouette drawn beside it would
@@ -12664,33 +12503,84 @@ function mmFigure(view, f){
    `totalsOverride` lets a caller supply set counts it has already derived
    accurately, instead of having them re-inferred here from exercise names.
    Callers that pass a template keep the exact behaviour they always had. */
-function bodyDiagramSvg(t, totalsOverride, opts){
+function bodyDiagramSvg(t, totalsOverride){
   const totals = totalsOverride || computeMuscleTotals(t);
   const maxVal = Math.max(1, ...Object.values(totals));
   const f = (g) => muscleFill(totals, maxVal, g);
-  /* 11 units, not 9.5. SVG text is scaled by the viewBox, so a label that
-     looks fine in the source can render at four pixels on a phone — which is
-     why the suite holds a hard floor on the declared unit and why the answer
-     to a cramped label is a bigger box, never smaller type. Attributes match
-     the D25 caption exactly: app face, letterspaced, receding. */
-  const lbl = (x, s) => '<text x="' + x + '" y="206" font-size="11" letter-spacing="1.1" ' +
-    'fill="var(--text-faint)" opacity="0.7" text-anchor="middle" ' +
-    'font-family="Space Grotesk, sans-serif" font-weight="600">' + s + '</text>';
-  /* CAPTIONS ARE OPT-IN, and default to off for a reason measured rather
-     than guessed. SVG text scales with the viewBox: in the 132px preview
-     boxes an 11-unit label renders at about 6px, well under LOOP's 11px
-     floor. The old figure had the same bug quietly — 11 units in a 106px
-     box was 9.4px — and the fix is not smaller type or a bigger preview,
-     it is not drawing a caption nobody can read. Front and back are
-     obvious from the anatomy; the aria-label carries it for screen
-     readers either way. Only the full-size Muscle Volume card asks for
-     them, where the box is 300px and they land at 14px. */
-  const caps = !!(opts && opts.labels);
-  const h = caps ? 212 : 196;
-  return '<svg viewBox="0 0 232 ' + h + '" class="muscle-svg" role="img" aria-label="Body map: front and back, with the muscles trained highlighted">' +
-    '<g>' + mmFigure('front', f) + (caps ? lbl(MM_MID, 'FRONT') : '') + '</g>' +
-    '<g transform="translate(124,0)">' + mmFigure('back', f) + (caps ? lbl(MM_MID, 'BACK') : '') + '</g>' +
-  '</svg>';
+  /* The figure is drawn on its own ramp rather than the surface tokens: it
+     needs a silhouette that reads against --surface without becoming a card. */
+  const BLACK = '#131417';
+  const GREY = '#93989E';
+  const S = '#1A1B1E';
+  const torsoPath = "M12,30 C8,36 7,40 9,42 C6,52 10,62 20,68 C16,74 14,78 15,80 L29,88 L43,80 C44,78 42,74 38,68 C48,62 52,52 49,42 C51,40 50,36 46,30 C38,24 20,24 12,30 Z";
+  return `<svg viewBox="0 0 124 167" class="muscle-svg">
+    <g>
+      <ellipse cx="29" cy="9" rx="8.5" ry="9.5" fill="${BLACK}"/>
+      <path d="M24,16 L34,16 L33,25 L25,25 Z" fill="${BLACK}"/>
+      <path d="${torsoPath}" fill="${GREY}" stroke="${S}" stroke-width="1"/>
+      <path d="M25,24 L14,31 L20,34 Z" fill="${GREY}" stroke="${S}" stroke-width="0.7"/>
+      <path d="M33,24 L44,31 L38,34 Z" fill="${GREY}" stroke="${S}" stroke-width="0.7"/>
+      <ellipse cx="11" cy="32" rx="6" ry="7" fill="${f('shoulders')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="47" cy="32" rx="6" ry="7" fill="${f('shoulders')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="20" cy="40" rx="9" ry="8" fill="${f('chest')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="38" cy="40" rx="9" ry="8" fill="${f('chest')}" stroke="${S}" stroke-width="1"/>
+      <line x1="29" y1="33" x2="29" y2="48" stroke="${S}" stroke-width="0.8"/>
+      <path d="M16,54 C14,62 14,71 17,78 L20,78 L20,52 Z" fill="${GREY}" stroke="${S}" stroke-width="0.7"/>
+      <path d="M42,54 C44,62 44,71 41,78 L38,78 L38,52 Z" fill="${GREY}" stroke="${S}" stroke-width="0.7"/>
+      <rect x="20" y="50" width="18" height="28" rx="6" fill="${f('abs')}" stroke="${S}" stroke-width="1"/>
+      <path d="M29,50 V78 M20,58 H38 M20,66 H38 M20,74 H38" stroke="${S}" stroke-width="0.7" opacity="0.6"/>
+      <path d="M18,52 L23,48 M40,52 L35,48" stroke="${S}" stroke-width="0.7"/>
+      <ellipse cx="8" cy="52" rx="5" ry="13" fill="${f('biceps')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="50" cy="52" rx="5" ry="13" fill="${f('biceps')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="7" cy="76" rx="4" ry="11" fill="${GREY}" stroke="${S}" stroke-width="0.8"/>
+      <ellipse cx="51" cy="76" rx="4" ry="11" fill="${GREY}" stroke="${S}" stroke-width="0.8"/>
+      <ellipse cx="6" cy="90" rx="3.5" ry="5" fill="${BLACK}"/>
+      <ellipse cx="52" cy="90" rx="3.5" ry="5" fill="${BLACK}"/>
+      <ellipse cx="20" cy="104" rx="8" ry="16" fill="${f('quads')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="38" cy="104" rx="8" ry="16" fill="${f('quads')}" stroke="${S}" stroke-width="1"/>
+      <line x1="20" y1="90" x2="20" y2="119" stroke="${S}" stroke-width="0.7"/>
+      <line x1="38" y1="90" x2="38" y2="119" stroke="${S}" stroke-width="0.7"/>
+      <ellipse cx="20" cy="132" rx="5" ry="14" fill="${GREY}" stroke="${S}" stroke-width="0.8"/>
+      <ellipse cx="38" cy="132" rx="5" ry="14" fill="${GREY}" stroke="${S}" stroke-width="0.8"/>
+      <line x1="20" y1="120" x2="20" y2="144" stroke="${S}" stroke-width="0.6"/>
+      <line x1="38" y1="120" x2="38" y2="144" stroke="${S}" stroke-width="0.6"/>
+      <ellipse cx="19" cy="149" rx="5.5" ry="4.5" fill="${BLACK}"/>
+      <ellipse cx="39" cy="149" rx="5.5" ry="4.5" fill="${BLACK}"/>
+      <text x="29" y="160" font-size="11" letter-spacing="1.1" fill="var(--text-faint)" opacity="0.7" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-weight="600">FRONT</text>
+    </g>
+    <g transform="translate(66,0)">
+      <ellipse cx="29" cy="9" rx="8.5" ry="9.5" fill="${BLACK}"/>
+      <path d="M24,16 L34,16 L33,25 L25,25 Z" fill="${BLACK}"/>
+      <path d="${torsoPath}" fill="${GREY}" stroke="${S}" stroke-width="1"/>
+      <path d="M14,32 C12,44 14,58 18,66 L40,66 C44,58 46,44 44,32 C40,27 18,27 14,32 Z" fill="${f('back')}" stroke="${S}" stroke-width="1"/>
+      <path d="M29,24 L38,30 L29,38 L20,30 Z" fill="${GREY}" stroke="${S}" stroke-width="0.7"/>
+      <line x1="29" y1="30" x2="29" y2="64" stroke="${S}" stroke-width="0.7" opacity="0.7"/>
+      <ellipse cx="11" cy="32" rx="6" ry="7" fill="${f('shoulders')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="47" cy="32" rx="6" ry="7" fill="${f('shoulders')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="8" cy="52" rx="5" ry="13" fill="${f('triceps')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="50" cy="52" rx="5" ry="13" fill="${f('triceps')}" stroke="${S}" stroke-width="1"/>
+      <path d="M8,42 C5,48 5,58 8,63 M50,42 C53,48 53,58 50,63" stroke="${S}" stroke-width="0.6" fill="none" opacity="0.7"/>
+      <ellipse cx="7" cy="76" rx="4" ry="11" fill="${GREY}" stroke="${S}" stroke-width="0.8"/>
+      <ellipse cx="51" cy="76" rx="4" ry="11" fill="${GREY}" stroke="${S}" stroke-width="0.8"/>
+      <ellipse cx="6" cy="90" rx="3.5" ry="5" fill="${BLACK}"/>
+      <ellipse cx="52" cy="90" rx="3.5" ry="5" fill="${BLACK}"/>
+      <line x1="25" y1="66" x2="25" y2="79" stroke="${S}" stroke-width="0.7" opacity="0.7"/>
+      <line x1="33" y1="66" x2="33" y2="79" stroke="${S}" stroke-width="0.7" opacity="0.7"/>
+      <path d="M15,80 C15,86 18,92 29,92 C40,92 43,86 43,80 L38,68 L20,68 Z" fill="${f('glutes')}" stroke="${S}" stroke-width="1"/>
+      <line x1="29" y1="80" x2="29" y2="90" stroke="${S}" stroke-width="0.7"/>
+      <ellipse cx="20" cy="104" rx="8" ry="16" fill="${f('hamstrings')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="38" cy="104" rx="8" ry="16" fill="${f('hamstrings')}" stroke="${S}" stroke-width="1"/>
+      <line x1="20" y1="90" x2="20" y2="119" stroke="${S}" stroke-width="0.7"/>
+      <line x1="38" y1="90" x2="38" y2="119" stroke="${S}" stroke-width="0.7"/>
+      <ellipse cx="20" cy="132" rx="5" ry="14" fill="${f('calves')}" stroke="${S}" stroke-width="1"/>
+      <ellipse cx="38" cy="132" rx="5" ry="14" fill="${f('calves')}" stroke="${S}" stroke-width="1"/>
+      <line x1="20" y1="120" x2="20" y2="144" stroke="${S}" stroke-width="0.6" opacity="0.7"/>
+      <line x1="38" y1="120" x2="38" y2="144" stroke="${S}" stroke-width="0.6" opacity="0.7"/>
+      <ellipse cx="19" cy="149" rx="5.5" ry="4.5" fill="${BLACK}"/>
+      <ellipse cx="39" cy="149" rx="5.5" ry="4.5" fill="${BLACK}"/>
+      <text x="29" y="160" font-size="11" letter-spacing="1.1" fill="var(--text-faint)" opacity="0.7" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-weight="600">BACK</text>
+    </g>
+  </svg>`;
 }
 
 /* Text equivalent of the visual highlighting — muscle focus is never conveyed
@@ -23930,7 +23820,7 @@ function renderProgVolume(){
     `<div class="sec-head">Sets this week by muscle<span class="sec-hint">working sets</span></div>
      <div class="mv-card">
        <div class="mv-top">
-         <div class="mv-body">${bodyDiagramSvg(null, wk.totals, {labels:true})}</div>
+         <div class="mv-body">${bodyDiagramSvg(null, wk.totals)}</div>
          <div class="mv-info">
            <div class="mas-sum-k">Most worked</div>
            <div class="mv-name">${wk.muscles.length ? escapeHtml(wk.muscles[0].label) : '—'}</div>
@@ -24021,7 +23911,7 @@ function renderProgMuscles(){
     <div class="sec-head">Muscle volume<span class="sec-hint">sets · last 12 weeks</span></div>
     <div class="mv-card">
       <div class="mv-top">
-        <div class="mv-body">${bodyDiagramSvg(synthetic, null, {labels:true})}</div>
+        <div class="mv-body">${bodyDiagramSvg(synthetic)}</div>
         <div class="mv-info">
           <div class="mas-sum-k">Most worked</div>
           <div class="mv-name">${top.label}</div>

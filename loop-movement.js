@@ -16,7 +16,7 @@
 (function(){
 'use strict';
 var NS='http://www.w3.org/2000/svg';
-var ACCENT='#4CC2FF';   /* LOOP's --accent, so the figure glows the same colour as the app */
+var ACCENT='#5B8CFF';
 var C={
   nearCore:'#3B4451', nearEdge:'#525E71',
   farCore:'#262C36',  farEdge:'#39414D',
@@ -729,69 +729,15 @@ function joints(d,breath){
 var UID=0;
 function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
 function line(J,a,b){return 'M'+J[a].x.toFixed(1)+' '+J[a].y.toFixed(1)+'L'+J[b].x.toFixed(1)+' '+J[b].y.toFixed(1);}
-/* ---------- anatomical limb geometry ----------
-   A limb used to be two round-capped constant-width strokes, which is why the
-   figure read as a prototype: a real thigh is wide at the hip and narrow at
-   the knee, a calf carries its mass halfway down, and a constant tube can
-   express neither. Limbs are now FILLED OUTLINES built from the same two joint
-   positions the motion system already produces — per-vertex widths give the
-   taper, and `belly` pushes each segment's midpoint out along its normal to
-   put muscle where muscle actually sits.
-
-   Nothing about the motion changed. This is the draw layer only. */
-function norm(dx,dy){var l=Math.hypot(dx,dy)||1;return{x:dx/l,y:dy/l};}
-function n1(v){return v.toFixed(1);}
-
-/* Per-vertex half-widths and belly, in viewBox units. Proximal first. */
-var LIMB={
-  thigh:{w:[15.4,10.6],belly:0.09},
-  shin:{w:[10.4,6.0],belly:0.22},     /* the calf */
-  uArm:{w:[11.0,7.9],belly:0.15},     /* the bicep */
-  fArm:{w:[7.9,5.4],belly:0.11},
-  foot:{w:[6.4,3.6],belly:0},
-  neck:{w:[9.0,8.0],belly:0},
-  torso:{w:[15.4,15.0,18.6],belly:0.05},    /* side: pelvis, mid, chest */
-  torsoF:{w:[17.0,15.4,23.0],belly:0.04},   /* front: the V-taper */
-  bar:{w:[13,13],belly:0}
-};
-
-function tubePath(P,hw,belly){
-  var n=P.length,i;
-  if(n<2)return '';
-  var seg=[];
-  for(i=0;i<n-1;i++){var d=norm(P[i+1].x-P[i].x,P[i+1].y-P[i].y);seg.push({x:-d.y,y:d.x});}
-  var L=[],R=[];
-  for(i=0;i<n;i++){
-    var a=seg[Math.max(0,i-1)],b=seg[Math.min(seg.length-1,i)];
-    var v=norm(a.x+b.x,a.y+b.y),h=hw[i];
-    L.push({x:P[i].x+v.x*h,y:P[i].y+v.y*h});
-    R.push({x:P[i].x-v.x*h,y:P[i].y-v.y*h});
-  }
-  /* Segment midpoints, pushed out to make the belly. */
-  var cL=[],cR=[];
-  for(i=0;i<n-1;i++){
-    var mx=(P[i].x+P[i+1].x)/2,my=(P[i].y+P[i+1].y)/2;
-    var hm=(hw[i]+hw[i+1])/2*(1+belly);
-    cL.push({x:mx+seg[i].x*hm,y:my+seg[i].y*hm});
-    cR.push({x:mx-seg[i].x*hm,y:my-seg[i].y*hm});
-  }
-  var d='M'+n1(L[0].x)+' '+n1(L[0].y);
-  for(i=0;i<n-1;i++)d+='Q'+n1(cL[i].x)+' '+n1(cL[i].y)+' '+n1(L[i+1].x)+' '+n1(L[i+1].y);
-  var hE=hw[n-1];
-  d+='A'+n1(hE)+' '+n1(hE)+' 0 0 0 '+n1(R[n-1].x)+' '+n1(R[n-1].y);
-  for(i=n-2;i>=0;i--)d+='Q'+n1(cR[i].x)+' '+n1(cR[i].y)+' '+n1(R[i].x)+' '+n1(R[i].y);
-  var hS=hw[0];
-  d+='A'+n1(hS)+' '+n1(hS)+' 0 0 0 '+n1(L[0].x)+' '+n1(L[0].y)+'Z';
+function chain(J,keys){
+  var d='M'+J[keys[0]].x.toFixed(1)+' '+J[keys[0]].y.toFixed(1);
+  for(var i=1;i<keys.length;i++)d+='L'+J[keys[i]].x.toFixed(1)+' '+J[keys[i]].y.toFixed(1);
   return d;
 }
-
-/* `fill` carries the form shading; the hairline stroke keeps the silhouette
-   crisp against a dark ground at phone size, where a pure gradient edge
-   dissolves. */
-function limb(svg,fill,edge,spec,thin){
-  var hw=spec.w.map(function(v){return Math.max(1.6,(v-(thin||0))/2);});
-  var e=el('path',{fill:fill,stroke:edge,'stroke-width':1,'stroke-linejoin':'round'},svg);
-  return {set:function(P){e.setAttribute('d',tubePath(P,hw,spec.belly||0));}};
+function limb(svg,color,edge,w){
+  var e=el('path',{fill:'none','stroke-linecap':'round','stroke-linejoin':'round',stroke:edge,'stroke-width':w+W.edge},svg);
+  var c=el('path',{fill:'none','stroke-linecap':'round','stroke-linejoin':'round',stroke:color,'stroke-width':w},svg);
+  return {set:function(d){e.setAttribute('d',d);c.setAttribute('d',d);}};
 }
 
 function Figure(host,mv,opts){
@@ -807,22 +753,6 @@ function Figure(host,mv,opts){
   var g2=el('radialGradient',{id:'lms'+uid},defs);
   el('stop',{offset:'0%','stop-color':'#000','stop-opacity':'0.42'},g2);
   el('stop',{offset:'100%','stop-color':'#000','stop-opacity':'0'},g2);
-  /* FORM SHADING, WITH ONE LIGHT FOR THE WHOLE FIGURE.
-     userSpaceOnUse, not objectBoundingBox: a per-shape gradient would rotate
-     with each limb and light every bone from its own private sun, which is
-     exactly the tell of cheap vector anatomy. Fixed in the viewBox, one
-     direction — upper-left key, lower-right falloff — so a raised arm catches
-     the light and a lowered one does not, the way a body does. */
-  function ramp(id,a,b,c){
-    var g=el('linearGradient',{id:id+uid,gradientUnits:'userSpaceOnUse',x1:'62',y1:'22',x2:'170',y2:'182'},defs);
-    el('stop',{offset:'0%','stop-color':a},g);
-    el('stop',{offset:'52%','stop-color':b},g);
-    el('stop',{offset:'100%','stop-color':c},g);
-    return 'url(#'+id+uid+')';
-  }
-  var NEAR=ramp('lmn','#5D6B80','#454F60','#333B48');
-  var TORSO=ramp('lmt','#556377','#3E4859','#2E3542');
-  var FAR=ramp('lmf','#39414F','#2E3542','#252A34');
   // wall panels behind everything
   (mv.props||[]).forEach(function(pr){
     if(pr.t==='panel')el('rect',{x:pr.x,y:pr.y,width:pr.w,height:pr.h,rx:3,fill:'#171C24',opacity:'0.55'},svg);
@@ -837,24 +767,19 @@ function Figure(host,mv,opts){
   // dynamic links (band / cable) — layer:'front' draws over the figure
   var linkEls=(mv.links||[]).map(function(lk){return lk.layer==='front'?null:el('path',{fill:'none',stroke:C.link,'stroke-width':2.5,'stroke-linecap':'round',opacity:'0.9'},svg);});
   // far limbs: side views shade them back; front views render both sides identically
-  var fFill=mv.front?NEAR:FAR, fEdge=mv.front?C.nearEdge:C.farEdge, fThin=mv.front?0:1.4;
-  var farG=el('g',{opacity:mv.front?'1':'0.9'},svg);
-  var fArm1=limb(farG,fFill,fEdge,LIMB.uArm,fThin), fArm2=limb(farG,fFill,fEdge,LIMB.fArm,fThin);
-  var fLeg1=limb(farG,fFill,fEdge,LIMB.thigh,fThin), fLeg2=limb(farG,fFill,fEdge,LIMB.shin,fThin), fFoot=limb(farG,fFill,fEdge,LIMB.foot,fThin);
-  var tSpec=mv.front?LIMB.torsoF:LIMB.torso;
-  var shBar=mv.front?limb(svg,TORSO,C.torsoEdge,LIMB.bar):null;
-  var hipBar=mv.front?limb(svg,TORSO,C.torsoEdge,LIMB.bar):null;
-  var torso=limb(svg,TORSO,C.torsoEdge,tSpec);
-  var neck=limb(svg,NEAR,C.nearEdge,LIMB.neck);
-  var headE=el('ellipse',{rx:W.head*0.84,ry:W.head*0.97,fill:NEAR,stroke:C.nearEdge,'stroke-width':1},svg);
-  var nLeg1=limb(svg,NEAR,C.nearEdge,LIMB.thigh), nLeg2=limb(svg,NEAR,C.nearEdge,LIMB.shin), nFoot=limb(svg,NEAR,C.nearEdge,LIMB.foot);
-  var nArm1=limb(svg,NEAR,C.nearEdge,LIMB.uArm), nArm2=limb(svg,NEAR,C.nearEdge,LIMB.fArm);
-  /* The focus trace marks the limb the movement is about. Against the old
-     constant-width tubes a 3.5-wide bar read as emphasis; against a limb that
-     now has real mass it read as a stripe painted down the arm. Thin and
-     bright is the difference between a highlight ON the limb and a lit
-     contour OF it. */
-  var trace=el('path',{fill:'none',stroke:ACCENT,'stroke-width':1.8,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'0.5'},svg);
+  var fCore=mv.front?C.nearCore:C.farCore, fEdge=mv.front?C.nearEdge:C.farEdge, fThin=mv.front?0:1;
+  var farG=el('g',{opacity:mv.front?'1':'0.88'},svg);
+  var fArm1=limb(farG,fCore,fEdge,W.uArm-fThin), fArm2=limb(farG,fCore,fEdge,W.fArm-fThin);
+  var fLeg1=limb(farG,fCore,fEdge,W.thigh-fThin), fLeg2=limb(farG,fCore,fEdge,W.shin-fThin), fFoot=limb(farG,fCore,fEdge,W.foot);
+  var tw=mv.front?W.torsoF:W.torso;
+  var shBar=mv.front?limb(svg,C.torsoCore,C.torsoEdge,13):null;
+  var hipBar=mv.front?limb(svg,C.torsoCore,C.torsoEdge,13):null;
+  var torso=limb(svg,C.torsoCore,C.torsoEdge,tw);
+  var neck=limb(svg,C.nearCore,C.nearEdge,W.neck);
+  var headE=el('circle',{r:W.head,fill:C.nearCore,stroke:C.nearEdge,'stroke-width':1.6},svg);
+  var nLeg1=limb(svg,C.nearCore,C.nearEdge,W.thigh), nLeg2=limb(svg,C.nearCore,C.nearEdge,W.shin), nFoot=limb(svg,C.nearCore,C.nearEdge,W.foot);
+  var nArm1=limb(svg,C.nearCore,C.nearEdge,W.uArm), nArm2=limb(svg,C.nearCore,C.nearEdge,W.fArm);
+  var trace=el('path',{fill:'none',stroke:ACCENT,'stroke-width':3.5,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'0.38'},svg);
   (mv.links||[]).forEach(function(lk,i){if(lk.layer==='front')linkEls[i]=el('path',{fill:'none',stroke:C.link,'stroke-width':2.5,'stroke-linecap':'round',opacity:'0.95'},svg);});
   var gripEls=(mv.grips||[]).map(function(){return el('circle',{r:3.4,fill:C.nearEdge,stroke:C.nearCore,'stroke-width':1.2},svg);});
   host.appendChild(svg);
@@ -884,16 +809,15 @@ function Figure(host,mv,opts){
       else d2+='L'+b.x.toFixed(1)+' '+b.y.toFixed(1);
       linkEls[i].setAttribute('d',d2);
     });
-    var pts=function(){var a=[],i;for(i=0;i<arguments.length;i++)a.push(J[arguments[i]]);return a;};
-    fArm1.set(pts('fSh','fE')); fArm2.set(pts('fE','fW'));
-    fLeg1.set(pts('fHip','fK')); fLeg2.set(pts('fK','fA')); fFoot.set(pts('fA','fT'));
-    if(shBar)shBar.set(pts('nSh','fSh'));
-    if(hipBar)hipBar.set(pts('nHip','fHip'));
-    torso.set(pts('pelvis','mid','chest'));
-    neck.set(pts('chest','head'));
+    fArm1.set(line(J,'fSh','fE')); fArm2.set(line(J,'fE','fW'));
+    fLeg1.set(line(J,'fHip','fK')); fLeg2.set(line(J,'fK','fA')); fFoot.set(line(J,'fA','fT'));
+    if(shBar)shBar.set(line(J,'nSh','fSh'));
+    if(hipBar)hipBar.set(line(J,'nHip','fHip'));
+    torso.set(chain(J,['pelvis','mid','chest']));
+    neck.set(line(J,'chest','head'));
     headE.setAttribute('cx',J.head.x.toFixed(1)); headE.setAttribute('cy',J.head.y.toFixed(1));
-    nLeg1.set(pts('nHip','nK')); nLeg2.set(pts('nK','nA')); nFoot.set(pts('nA','nT'));
-    nArm1.set(pts('nSh','nE')); nArm2.set(pts('nE','nW'));
+    nLeg1.set(line(J,'nHip','nK')); nLeg2.set(line(J,'nK','nA')); nFoot.set(line(J,'nA','nT'));
+    nArm1.set(line(J,'nSh','nE')); nArm2.set(line(J,'nE','nW'));
     (mv.grips||[]).forEach(function(g,i){gripEls[i].setAttribute('cx',J[g].x.toFixed(1));gripEls[i].setAttribute('cy',J[g].y.toFixed(1));});
     if(opts.highlight!==false&&mv.hl){
       var s=mv.hl.seg,a2=J[s[0]],b2=s[1]?J[s[1]]:a2,k=mv.hl.k==null?0:mv.hl.k;
