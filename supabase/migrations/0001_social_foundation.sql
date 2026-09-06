@@ -31,13 +31,13 @@ language plpgsql
 as $$
 declare
   alphabet constant text := '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-  out text := '';
+  code text := '';
   i int;
 begin
   for i in 1..8 loop
-    out := out || substr(alphabet, 1 + floor(random() * length(alphabet))::int, 1);
+    code := code || substr(alphabet, 1 + floor(random() * length(alphabet))::int, 1);
   end loop;
-  return out;
+  return code;
 end;
 $$;
 
@@ -130,6 +130,18 @@ create index if not exists friendships_user_b_idx on public.friendships(user_b);
 -- =============================================================================
 -- HELPERS
 -- =============================================================================
+-- EVERY SECURITY DEFINER FUNCTION SAYS `auth.uid() is not null` OUT LOUD.
+--
+-- Most of them would return nothing for an anonymous caller anyway, because a
+-- comparison against a NULL uid is NULL rather than true and the row is
+-- filtered out. That is correct PostgreSQL and it is also an accident: it
+-- holds only as long as nobody rewrites a predicate, and it reads like an
+-- oversight rather than a decision. SECURITY DEFINER means these functions
+-- bypass row level security entirely, so the one place their authorisation
+-- can live is in their own text. It is written there.
+--
+-- loop_are_friends and loop_request_between did not have even the accident:
+-- they take two UUIDs and never look at who is asking.
 -- Are these two accounts friends? Used by policies, so it is STABLE and
 -- SECURITY DEFINER: a policy that had to read friendships through the caller's
 -- own policies would recurse.
@@ -140,7 +152,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (
+  select auth.uid() is not null and exists (
     select 1 from public.friendships f
     where f.user_a = least(a, b) and f.user_b = greatest(a, b)
   );
@@ -156,7 +168,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (
+  select auth.uid() is not null and exists (
     select 1 from public.friend_requests r
     where (r.from_user = a and r.to_user = b)
        or (r.from_user = b and r.to_user = a)
@@ -303,7 +315,8 @@ set search_path = public
 as $$
   select p.username
   from public.profiles p
-  where p.invite_code = upper(trim(code))
+  where auth.uid() is not null
+    and p.invite_code = upper(trim(code))
     and p.user_id <> auth.uid()
   limit 1;
 $$;
@@ -428,7 +441,8 @@ as $$
          p.user_id = (select id from me)
   from circle c
   join public.profiles p on p.user_id = c.uid
-  left join public.social_stats s on s.user_id = c.uid;
+  left join public.social_stats s on s.user_id = c.uid
+  where auth.uid() is not null;
 $$;
 
 -- Requests I am party to, with the other athlete's username attached, in one
@@ -452,7 +466,8 @@ as $$
   from public.friend_requests r
   join public.profiles p
     on p.user_id = case when r.from_user = auth.uid() then r.to_user else r.from_user end
-  where r.from_user = auth.uid() or r.to_user = auth.uid();
+  where auth.uid() is not null
+    and (r.from_user = auth.uid() or r.to_user = auth.uid());
 $$;
 
 -- Remove a friendship from either side.
@@ -520,9 +535,9 @@ $$;
 -- =============================================================================
 -- GRANTS
 -- =============================================================================
--- anon gets nothing at all. Every table is reached by an authenticated session
--- through the policies above, and the functions are the only way to write a
--- request or a friendship.
+-- anon gets nothing. Every table is reached by an authenticated session through
+-- the policies above, and the functions are the only way to write a request or
+-- a friendship.
 revoke all on public.profiles, public.social_stats,
               public.friend_requests, public.friendships from anon;
 
@@ -531,6 +546,38 @@ grant select, insert, update on public.social_stats to authenticated;
 grant select, delete         on public.friend_requests to authenticated;
 grant select, delete         on public.friendships    to authenticated;
 
+-- FUNCTION PRIVILEGES, AND THREE MISTAKES WORTH NAMING.
+--
+-- ONE. PostgreSQL grants EXECUTE on a new function to PUBLIC by default, and
+-- PUBLIC includes anon. Revoking from a ROLE does not remove a privilege held
+-- through PUBLIC, so a `revoke ... from anon, authenticated` reads like a
+-- lockdown and does nothing whatsoever. The revoke has to name PUBLIC.
+--
+-- TWO. Revoking from PUBLIC alone does not finish the job either, and this one
+-- was found on the live project rather than on paper: Supabase ships
+-- `alter default privileges in schema public grant all on functions to anon,
+-- authenticated, ...`, so every new function ALSO carries an explicit grant to
+-- anon. PUBLIC and anon are two separate holdings of the same privilege and
+-- both have to be revoked. Measured before this line existed: an
+-- unauthenticated caller holding nothing but the publishable key could call
+-- loop_send_friend_request and get 200.
+--
+-- The third is below, with the three functions that must be granted back.
+revoke execute on function public.loop_new_invite_code()           from public, anon;
+revoke execute on function public.loop_are_friends(uuid, uuid)     from public, anon;
+revoke execute on function public.loop_request_between(uuid, uuid) from public, anon;
+revoke execute on function public.loop_preview_invite(text)        from public, anon;
+revoke execute on function public.loop_send_friend_request(text)   from public, anon;
+revoke execute on function public.loop_accept_friend_request(uuid) from public, anon;
+revoke execute on function public.loop_friends_leaderboard()       from public, anon;
+revoke execute on function public.loop_my_requests()               from public, anon;
+revoke execute on function public.loop_remove_friend(uuid)         from public, anon;
+revoke execute on function public.loop_rotate_invite_code()        from public, anon;
+revoke execute on function public.loop_delete_account()            from public, anon;
+revoke execute on function public.loop_touch_updated_at()          from public, anon;
+revoke execute on function public.loop_profiles_guard()            from public, anon;
+
+-- Then grant back exactly what an authenticated session needs.
 grant execute on function public.loop_preview_invite(text)        to authenticated;
 grant execute on function public.loop_send_friend_request(text)   to authenticated;
 grant execute on function public.loop_accept_friend_request(uuid) to authenticated;
@@ -540,6 +587,19 @@ grant execute on function public.loop_remove_friend(uuid)         to authenticat
 grant execute on function public.loop_rotate_invite_code()        to authenticated;
 grant execute on function public.loop_delete_account()            to authenticated;
 
-revoke execute on function public.loop_new_invite_code() from anon, authenticated;
-revoke execute on function public.loop_are_friends(uuid, uuid) from anon, authenticated;
-revoke execute on function public.loop_request_between(uuid, uuid) from anon, authenticated;
+-- THESE THREE ARE NOT OPTIONAL, AND REVOKING THEM WAS THE THIRD MISTAKE.
+--
+-- loop_new_invite_code is a column DEFAULT, and a DEFAULT is evaluated as the
+-- INSERTING role. loop_are_friends and loop_request_between appear inside RLS
+-- policy expressions, and a policy is evaluated as the QUERYING role. Being
+-- SECURITY DEFINER changes what they run AS, not who is allowed to call them.
+-- Without these grants every profile insert and every policy-mediated read
+-- fails with "permission denied for function" — which is to say, nothing in
+-- the entire feature works.
+--
+-- What they expose is small and needs the answer already: whether two UUIDs
+-- you have somehow obtained are friends. Profiles are not readable, so those
+-- UUIDs are not discoverable in the first place.
+grant execute on function public.loop_new_invite_code()           to authenticated;
+grant execute on function public.loop_are_friends(uuid, uuid)     to authenticated;
+grant execute on function public.loop_request_between(uuid, uuid) to authenticated;

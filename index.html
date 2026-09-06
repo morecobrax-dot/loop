@@ -10710,6 +10710,27 @@ const LOOP_UPDATES = [
     changes: [
       'Your workouts, programs and records stay on this phone. An account adds friends and nothing else \u2014 signing in does not upload your training, and signing out does not remove it'
     ]
+  },
+  {
+    id: 'v5-1',
+    version: 'LOOP 5.1',
+    title: 'Friends, Switched On',
+    date: '2026-12-02',
+    swVersion: 'loop-v128',
+    summary: 'Friends is now actually available, and you sign in with a password.',
+    newFeatures: [
+      'Friends is switched on. It shipped with LOOP 5.0 but was not connected to anything, so there was nothing to find in Settings \u2014 there is now',
+      'Create an account with an email and a password. Confirm the address once from the email we send, and you are done'
+    ],
+    improvements: [
+      'Signing in uses a password rather than the emailed code LOOP 5.0 described. A code costs an email every single time you sign in, and the allowance runs out \u2014 a password costs one email, ever',
+      'iPhone offers to save your password and hands it back on the sign-in screen',
+      'If your session ever runs out, LOOP says so instead of quietly showing you the sign-in screen'
+    ],
+    bugFixes: [],
+    changes: [
+      'Still true, and worth repeating now that the feature does something: your workouts, programs and records never leave this phone. Friends see a username, your Level, XP and Rank, and nothing else \u2014 not your email, and not a single set'
+    ]
   }
 ];
 
@@ -10755,9 +10776,18 @@ const LOOP_UPDATES = [
    Empty here on purpose. Until an owner fills these in, LOOP has no social
    layer at all: no Friends entry, no network call, no behaviour change of any
    kind. See SOCIAL-SETUP.md and .env.example. */
+/* THE BROWSER-SAFE PUBLISHABLE KEY, AND NOTHING ELSE, EVER.
+   It is designed to sit in a browser and on its own it authorises nothing:
+   every table denies by default, every policy is written against auth.uid(),
+   and every RPC checks that somebody is signed in. Security here is row level
+   security, not key secrecy — which is why this value being public is fine and
+   why an sb_secret_ / service_role key would not be. Verified against this
+   exact project: 89 adversarial checks and 34 client checks, zero critical
+   failures, no function executable by an anonymous caller.
+   See SOCIAL-SETUP.md and .env.example. */
 const LOOP_SOCIAL = {
-  url: '',            // https://<project>.supabase.co
-  anonKey: ''         // the project’s publishable anon key
+  url: 'https://hqjrzkmtjduhknlvhprf.supabase.co',
+  anonKey: 'sb_publishable_hX1EfcElCEg3Vmo6UlSpnQ_uNA8e_65'
 };
 function socialConfigured(){
   return !!(LOOP_SOCIAL.url && LOOP_SOCIAL.anonKey);
@@ -10779,6 +10809,7 @@ let socialState = {
   requests: null,
   status: 'idle',
   error: null,
+  expired: false,     // a session that ran out, as opposed to a deliberate sign out
   lastPublished: null
 };
 
@@ -10832,7 +10863,13 @@ async function socialRequest(path, opts){
   if(res.status === 401 && o.auth !== false && !o.retried && socialState.session){
     const refreshed = await socialRefresh();
     if(refreshed) return socialRequest(path, Object.assign({}, o, { retried:true }));
+    /* Keep the address so the sign-in screen can say whose session ended and
+       fill the field in. It is the athlete’s own email on the athlete’s own
+       phone; nothing about it becomes visible to anyone else. */
+    const who = socialState.session.email || '';
     await socialClearSession();
+    socialState.expired = true;
+    if(who) socialView.email = who;
     return { ok:false, error:'signed_out' };
   }
   let data = null;
@@ -10850,34 +10887,107 @@ function socialRpc(fn, args){
   return socialRequest('/rest/v1/rpc/' + fn, { method:'POST', body: args || {} });
 }
 
-/* ---------- AUTH ---------- */
-/* Email one-time code rather than a magic link. A link has to leave the
-   installed PWA, open a browser, and come back — which on iOS lands the
-   athlete in Safari with a signed-in session the app cannot see. A six-digit
-   code is typed where it was requested and never leaves the app. */
-async function socialSendCode(email){
+/* ---------- AUTH ----------
+
+   EMAIL AND PASSWORD, WITH THE DEFAULT VERIFICATION EMAIL.
+
+   D52 shipped a one-time-code flow. It worked, but it spends an email on
+   EVERY sign-in, and Supabase's built-in mailer allows only a handful an
+   hour — so the athlete who reinstalls, or the second person on a shared
+   phone, hits a wall that looks like the app being broken. A password costs
+   one email ever, at signup, and the built-in mailer is entirely sufficient
+   for that. No custom domain, no SMTP provider, no second auth provider.
+
+   The verification link opens in a browser rather than the installed PWA, and
+   that is fine here in a way it was not for a magic link. GoTrue does append
+   tokens to the redirect it lands on — that is its normal behaviour and it is
+   not read here. LOOP deliberately ignores them: reading a session out of a
+   redirect is precisely the magic-link failure, where the session ends up in
+   Safari and the installed app cannot see it. What the trip accomplishes is
+   the CONFIRMATION. The athlete then returns to LOOP and signs in with what
+   they already know, so nothing depends on a session surviving the trip. */
+const SOCIAL_MIN_PASSWORD = 8;
+
+function socialEmailProblem(email){
   const clean = String(email || '').trim().toLowerCase();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return { ok:false, error:'bad_email' };
-  const r = await socialRequest('/auth/v1/otp', { method:'POST', auth:false,
-    body: { email: clean, create_user: true } });
-  return r.ok ? { ok:true, email: clean } : r;
+  if(!clean) return 'Enter your email.';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return 'That does not look like an email address.';
+  return null;
+}
+/* Length only. A composition rule that demands a symbol produces worse
+   passwords and an angrier athlete; length is the part that matters. */
+function socialPasswordProblem(pw){
+  const v = String(pw || '');
+  if(!v) return 'Enter a password.';
+  if(v.length < SOCIAL_MIN_PASSWORD) return 'At least ' + SOCIAL_MIN_PASSWORD + ' characters.';
+  if(v.length > 72) return 'At most 72 characters.';
+  return null;
 }
 
-async function socialVerifyCode(email, code){
-  const clean = String(email || '').trim().toLowerCase();
-  const token = String(code || '').replace(/\D/g, '');
-  if(token.length < 6) return { ok:false, error:'bad_code' };
-  const r = await socialRequest('/auth/v1/verify', { method:'POST', auth:false,
-    body: { type:'email', email: clean, token } });
-  if(!r.ok) return r;
+/* Create the account. With email confirmation on, GoTrue returns a user and
+   NO session — which is the correct outcome: an unverified address must not
+   become a social identity. */
+async function socialCreateAccount(email, password){
+  const bad = socialEmailProblem(email) || socialPasswordProblem(password);
+  if(bad) return { ok:false, error: bad };
+  const clean = String(email).trim().toLowerCase();
+  const r = await socialRequest('/auth/v1/signup', { method:'POST', auth:false,
+    body: { email: clean, password: String(password) } });
+  if(!r.ok){
+    const msg = String(r.error || '');
+    if(/already registered|already been registered|user_already_exists/i.test(msg))
+      return { ok:false, error:'There is already an account with that email. Sign in instead.' };
+    if(/password/i.test(msg)) return { ok:false, error:'That password was rejected: ' + msg };
+    if(r.error === 'offline') return { ok:false, error:'You are offline.' };
+    return { ok:false, error:'Could not create that account. Try again in a moment.' };
+  }
   const d = r.data || {};
-  if(!d.access_token) return { ok:false, error:'bad_code' };
+  /* Confirmation switched off in the project would hand back a session here.
+     Honour it rather than sending the athlete to check an email that will
+     never arrive. */
+  if(d.access_token) return socialAdoptSession(d);
+  return { ok:true, verify:true, email: clean };
+}
+
+async function socialSignIn(email, password){
+  const bad = socialEmailProblem(email);
+  if(bad) return { ok:false, error: bad };
+  if(!password) return { ok:false, error:'Enter your password.' };
+  const clean = String(email).trim().toLowerCase();
+  const r = await socialRequest('/auth/v1/token?grant_type=password',
+    { method:'POST', auth:false, body: { email: clean, password: String(password) } });
+  if(!r.ok){
+    const msg = String(r.error || '');
+    if(/email not confirmed|email_not_confirmed/i.test(msg))
+      return { ok:false, error:'Confirm your email first — check your inbox.', verify:true, email: clean };
+    if(/invalid login|invalid_credentials|invalid grant/i.test(msg))
+      return { ok:false, error:'That email and password do not match.' };
+    if(r.error === 'offline') return { ok:false, error:'You are offline.' };
+    return { ok:false, error:'Could not sign in. Try again in a moment.' };
+  }
+  const d = r.data || {};
+  if(!d.access_token) return { ok:false, error:'That email and password do not match.' };
   /* An account only becomes a social identity once the address is confirmed.
-     A verified OTP IS that confirmation — the code was delivered to the
-     mailbox — but the claim is checked rather than assumed. */
+     GoTrue enforces this too; it is checked here rather than assumed. */
   const verified = !!(d.user && (d.user.email_confirmed_at || d.user.confirmed_at));
-  if(!verified) return { ok:false, error:'not_verified' };
+  if(!verified) return { ok:false, error:'Confirm your email first — check your inbox.',
+    verify:true, email: clean };
   return socialAdoptSession(d);
+}
+
+/* The default mailer will send the confirmation again. Deliberately reports
+   success either way: whether an address has an account is not something an
+   unauthenticated caller should be able to probe. */
+async function socialResendVerification(email){
+  const bad = socialEmailProblem(email);
+  if(bad) return { ok:false, error: bad };
+  const clean = String(email).trim().toLowerCase();
+  const r = await socialRequest('/auth/v1/resend', { method:'POST', auth:false,
+    body: { type:'signup', email: clean } });
+  if(r.error === 'offline') return { ok:false, error:'You are offline.' };
+  if(!r.ok && /rate|limit|seconds/i.test(String(r.error || '')))
+    return { ok:false, error:'Too soon — wait a minute and try again.' };
+  return { ok:true };
 }
 
 async function socialRefresh(){
@@ -10915,6 +11025,7 @@ function socialSessionFrom(d){
    does not guess. */
 async function socialAdoptSession(d){
   socialState.session = socialSessionFrom(d);
+  socialState.expired = false;
   const uid = socialState.session.user_id;
   const prior = socialState.binding;
   if(!prior || !prior.userId){
@@ -10959,6 +11070,7 @@ async function socialSignOut(){
     try{ await socialRequest('/auth/v1/logout', { method:'POST' }); }catch(e){}
   }
   await socialClearSession();
+  socialState.expired = false;   /* leaving on purpose is not an expiry */
   renderSocial();
 }
 
@@ -11138,7 +11250,7 @@ async function socialRotateCode(){
    Supporting functionality, and composed like it. Friends is not competing
    with Today or Workout for attention: it answers who am I connected to and
    how are we doing, using the rank identity LOOP already has, and then stops. */
-let socialView = { email:'', stage:'email', busy:false, notice:null };
+let socialView = { email:'', stage:'signin', busy:false, notice:null };
 
 function socialSettingsRowHtml(){
   if(!socialConfigured()) return '';
@@ -11182,32 +11294,67 @@ function renderSocial(){
   renderSettingsSocialRow();
 }
 
-/* Signed out. States plainly that an account adds friends and nothing else —
-   no suggestion that training needs one, because it does not. */
+/* Signed out, in three states: sign in, create an account, and the wait for a
+   confirmation email. Each states plainly that an account adds friends and
+   nothing else — no suggestion that training needs one, because it does not. */
 function socialSignedOutHtml(){
   const busy = socialView.busy;
-  const notice = socialView.notice
-    ? '<p class="soc-notice" role="status">' + escapeHtml(socialView.notice) + '</p>' : '';
-  if(socialView.stage === 'code'){
-    return '<div class="soc-head"><h2 class="soc-h">Check your email</h2>' +
-      '<p class="soc-sub">We sent a code to <strong>' + escapeHtml(socialView.email) + '</strong>.</p></div>' +
+  /* A session that simply ran out looks identical to being signed out, which
+     reads as the app losing something. Say what happened instead. */
+  const msg = socialView.notice
+    || (socialState.expired && socialView.stage === 'signin'
+      ? 'Your session ended. Sign in again — nothing on this phone changed.' : null);
+  const notice = msg ? '<p class="soc-notice" role="status">' + escapeHtml(msg) + '</p>' : '';
+  const emailField = id =>
+    '<label class="soc-field"><span class="soc-lab" id="' + id + 'Lab">Email</span>' +
+      '<input type="email" id="' + id + '" class="soc-in" autocomplete="email" inputmode="email"' +
+      ' autocapitalize="none" autocorrect="off" spellcheck="false" aria-labelledby="' + id + 'Lab"' +
+      ' value="' + escapeAttr(socialView.email || '') + '" placeholder="you@example.com"></label>';
+  /* autocomplete tells iOS which keychain entry this is, and whether to offer
+     to save a new one. Getting it wrong is why so many PWAs fight the
+     password manager. */
+  const pwField = (id, label, mode) =>
+    '<label class="soc-field"><span class="soc-lab" id="' + id + 'Lab">' + label + '</span>' +
+      '<input type="password" id="' + id + '" class="soc-in" autocomplete="' + mode + '"' +
+      ' autocapitalize="none" autocorrect="off" spellcheck="false" aria-labelledby="' + id + 'Lab"></label>';
+
+  if(socialView.stage === 'verify'){
+    return '<div class="soc-head"><h2 class="soc-h">Confirm your email</h2>' +
+      '<p class="soc-sub">We sent a confirmation link to <strong>' +
+      escapeHtml(socialView.email) + '</strong>. Open it, then come back here and sign in.</p></div>' +
       notice +
-      '<label class="soc-field"><span class="soc-lab" id="socCodeLab">Six-digit code</span>' +
-        '<input type="text" id="socCode" class="soc-in" inputmode="numeric" autocomplete="one-time-code"' +
-        ' maxlength="8" aria-labelledby="socCodeLab" placeholder="000000"></label>' +
-      '<button class="btn-primary soc-go" onclick="socialDoVerify(this)"' + (busy ? ' disabled' : '') + '>Sign in</button>' +
-      '<button type="button" class="soc-alt" onclick="socialBackToEmail()">Use a different email</button>';
+      '<button class="btn-primary soc-go" onclick="socialGoSignIn()">I have confirmed — sign in</button>' +
+      '<button type="button" class="soc-alt" onclick="socialDoResend(this)"' + (busy ? ' disabled' : '') + '>' +
+        'Send the email again</button>' +
+      '<p class="soc-fine">The link confirms your address. It does not sign you in here, so it' +
+      ' does not matter which browser opens it — come back and sign in either way.</p>';
   }
+
+  if(socialView.stage === 'signup'){
+    return '<div class="soc-head"><h2 class="soc-h">Create an account</h2>' +
+      '<p class="soc-sub">Only for friends and your private leaderboard. Your workouts stay on' +
+      ' this phone either way.</p></div>' +
+      notice +
+      emailField('socEmail') +
+      pwField('socPw', 'Password', 'new-password') +
+      /* The rule belongs under the field it governs, not under the one after
+         it, where it reads as a rule about confirming. */
+      '<p class="soc-fine">At least ' + SOCIAL_MIN_PASSWORD + ' characters.</p>' +
+      pwField('socPw2', 'Confirm password', 'new-password') +
+      '<button class="btn-primary soc-go" onclick="socialDoCreate(this)"' + (busy ? ' disabled' : '') + '>' +
+        'Create account</button>' +
+      '<button type="button" class="soc-alt" onclick="socialGoSignIn()">I already have one</button>';
+  }
+
   return '<div class="soc-head"><h2 class="soc-h">Train with friends</h2>' +
-    '<p class="soc-sub">Add an account to share a private leaderboard with people you train with.' +
+    '<p class="soc-sub">Sign in to share a private leaderboard with people you train with.' +
     ' Your workouts stay on this phone either way — an account is only for friends.</p></div>' +
     notice +
-    '<label class="soc-field"><span class="soc-lab" id="socEmailLab">Email</span>' +
-      '<input type="email" id="socEmail" class="soc-in" autocomplete="email" inputmode="email"' +
-      ' autocapitalize="none" spellcheck="false" aria-labelledby="socEmailLab"' +
-      ' value="' + escapeAttr(socialView.email || '') + '" placeholder="you@example.com"></label>' +
-    '<button class="btn-primary soc-go" onclick="socialDoSendCode(this)"' + (busy ? ' disabled' : '') + '>Email me a code</button>' +
-    '<p class="soc-fine">No password. We only use your email to sign you in — friends never see it.</p>';
+    emailField('socEmail') +
+    pwField('socPw', 'Password', 'current-password') +
+    '<button class="btn-primary soc-go" onclick="socialDoSignIn(this)"' + (busy ? ' disabled' : '') + '>Sign in</button>' +
+    '<button type="button" class="soc-alt" onclick="socialGoSignUp()">Create an account</button>' +
+    '<p class="soc-fine">Friends never see your email — only the username you choose.</p>';
 }
 
 function socialUsernameHtml(){
@@ -11323,29 +11470,51 @@ function socialBusy(btn, on){
   socialView.busy = on;
   if(btn) btn.disabled = on;
 }
-async function socialDoSendCode(btn){
-  const input = document.getElementById('socEmail');
-  socialView.email = input ? input.value : socialView.email;
+/* The field is read before the render that replaces it, so a typed email
+   survives moving between sign in and create. A password never does. */
+function socialCaptureEmail(){
+  const el = document.getElementById('socEmail');
+  if(el && el.value) socialView.email = el.value;
+}
+function socialGoSignIn(){ socialCaptureEmail(); socialView.stage = 'signin'; socialView.notice = null; renderSocial(); }
+function socialGoSignUp(){ socialCaptureEmail(); socialView.stage = 'signup'; socialView.notice = null; renderSocial(); }
+
+async function socialDoSignIn(btn){
+  socialCaptureEmail();
+  const pw = document.getElementById('socPw');
   socialBusy(btn, true);
-  const r = await socialSendCode(socialView.email);
+  const r = await socialSignIn(socialView.email, pw ? pw.value : '');
   socialBusy(btn, false);
-  if(r.ok){ socialView.stage = 'code'; socialView.email = r.email; socialView.notice = null; }
-  else socialView.notice = r.error === 'bad_email' ? 'That does not look like an email address.'
-    : r.error === 'offline' ? 'You are offline. Try again when you have a connection.'
-    : 'Could not send a code just now. Try again in a moment.';
+  if(r.ok){ socialView.notice = null; await socialLoadFriends(); }
+  else {
+    socialView.notice = r.error;
+    /* An unconfirmed address is not a failed sign-in, it is an unfinished
+       signup — so it goes back to the screen that can finish it. */
+    if(r.verify){ socialView.stage = 'verify'; socialView.email = r.email || socialView.email; }
+  }
   renderSocial();
 }
-function socialBackToEmail(){ socialView.stage = 'email'; socialView.notice = null; renderSocial(); }
-async function socialDoVerify(btn){
-  const input = document.getElementById('socCode');
+
+async function socialDoCreate(btn){
+  socialCaptureEmail();
+  const pw = document.getElementById('socPw');
+  const pw2 = document.getElementById('socPw2');
+  const a = pw ? pw.value : '', b = pw2 ? pw2.value : '';
+  if(a !== b){ socialView.notice = 'Those passwords do not match.'; renderSocial(); return; }
   socialBusy(btn, true);
-  const r = await socialVerifyCode(socialView.email, input ? input.value : '');
+  const r = await socialCreateAccount(socialView.email, a);
   socialBusy(btn, false);
-  if(r.ok){ socialView.stage = 'email'; socialView.notice = null; await socialLoadFriends(); }
-  else socialView.notice = r.error === 'bad_code' ? 'That code did not work. Check it and try again.'
-    : r.error === 'offline' ? 'You are offline.'
-    : r.error === 'not_verified' ? 'That email is not verified yet.'
-    : 'Could not sign in. Try requesting a new code.';
+  if(r.ok && r.verify){ socialView.stage = 'verify'; socialView.email = r.email; socialView.notice = null; }
+  else if(r.ok){ socialView.notice = null; await socialLoadFriends(); }
+  else socialView.notice = r.error;
+  renderSocial();
+}
+
+async function socialDoResend(btn){
+  socialBusy(btn, true);
+  const r = await socialResendVerification(socialView.email);
+  socialBusy(btn, false);
+  socialView.notice = r.ok ? 'Sent again — check your inbox.' : r.error;
   renderSocial();
 }
 async function socialDoUsername(btn){
@@ -11394,7 +11563,7 @@ async function socialDoRemove(userId, name){
 async function socialDoSignOut(){
   if(!confirm('Sign out? Your workouts, programs and records stay on this phone.')) return;
   await socialSignOut();
-  socialView.stage = 'email'; socialView.notice = null;
+  socialView.stage = 'signin'; socialView.notice = null;
   renderSocial();
 }
 function socialCopyCode(btn){

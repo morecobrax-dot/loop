@@ -7000,3 +7000,135 @@ reaches the workout logger or the rest timer.
   code-matching: one failed because a comment said "CDN", another because
   LOOP's monthly summary is called Analytics and `seenThisEntry` contains the
   letters of *sentry*. Both now measure the thing rather than the word.
+
+---
+
+## §81 — D52B: Switching it on, and what the real backend said
+
+**Status.** Shipped in LOOP 5.1 (`loop-v128`), **social enabled.** D52 shipped
+the code with an empty config because credentials cannot be invented. The
+project now exists, the schema is applied, the authorisation has been attacked
+with real accounts, and the two values are filled in.
+
+### Email and password, replacing the one-time code
+
+D52 signed athletes in with an emailed six-digit code. The reasoning was sound
+— a magic link has to leave the installed PWA, open Safari and come back, which
+lands the session in a browser the app cannot see — but the economics were not.
+A code spends an email on **every** sign-in, and the built-in mailer allows a
+handful an hour. The athlete who reinstalls, or the second person on a shared
+phone, hits a wall that looks exactly like the app being broken. The
+alternative on offer was a custom domain and an SMTP provider, for a feature
+whose entire point is that it is optional.
+
+A password costs one email, ever, at signup. The confirmation link still opens
+in whatever browser iOS chooses, and that is fine here in a way it was not for
+a magic link: **the link's job is the confirmation, not the session.** GoTrue
+does append tokens to the page it redirects to — LOOP deliberately does not
+read them, and a contract now pins that no session is ever read out of a URL.
+The athlete confirms wherever the link opens, comes back, and signs in with
+what they already know.
+
+The OTP flow was removed rather than kept alongside. `socialSendCode` and
+`socialVerifyCode` are gone; `/auth/v1/otp`, `/auth/v1/magiclink` and
+`/auth/v1/verify` appear nowhere in the client.
+
+### Three privilege mistakes, and how the last one was found
+
+The migration was never applied when D52 shipped, so all three were fixed
+before they could matter — but only the first two were found by reading.
+
+**One.** PostgreSQL grants EXECUTE on a new function to PUBLIC, and PUBLIC
+includes anon. `revoke ... from anon, authenticated` reads like a lockdown and
+does nothing at all. The revoke has to name PUBLIC.
+
+**Two.** `loop_new_invite_code` is a column DEFAULT and a DEFAULT is evaluated
+as the *inserting* role; `loop_are_friends` and `loop_request_between` sit
+inside RLS policy expressions and are evaluated as the *querying* role. SECURITY
+DEFINER changes what a function runs **as**, not who may call it. Revoking them
+broke every profile insert and every policy-mediated read.
+
+**Three, and this one required the live project.** Revoking from PUBLIC is
+still not enough. Supabase ships
+`alter default privileges in schema public grant all on functions to anon, ...`,
+so every function *also* carries an explicit grant to anon, held separately
+from the one through PUBLIC. Measured against the real backend: an
+unauthenticated caller holding nothing but the publishable key — which is
+public, because it ships in `index.html` — could execute all eleven RPCs and
+got 200 from every one. Most returned nothing useful only because a comparison
+against a NULL `auth.uid()` is NULL; `loop_are_friends` answered outright.
+
+Both halves are now revoked, and every SECURITY DEFINER function states
+`auth.uid() is not null` in its own text rather than relying on three-valued
+logic to filter an anonymous caller out. Re-measured after the fix: eleven of
+eleven denied.
+
+### Two harnesses that reported success while proving nothing
+
+Worth recording, because both would have cleared a security gate.
+
+**The adversarial suite never reached the database.** Thirty-five table paths
+were missing the `/rest/v1` prefix, so every request got the gateway's
+`requested path is invalid` — a 404, and the `denied()` predicate counted any
+4xx as an attack repelled. Every attack passed without touching Postgres.
+`denied()` now refuses a misrouted request as evidence at all.
+
+**The suite's verdict depended on how many times it had run.** §10 deliberately
+leaves a Bob–Charlie friendship standing, so a second run began with them
+already friends and reported CRITICAL FAILURES — "Charlie can read Bob's
+stats", "a friendship appeared on his leaderboard". Both true; neither a
+defect. Charlie was reading a friend, exactly as designed. Every run now
+deletes all three accounts first and asserts the slate is clean before a single
+attack.
+
+**And the client suite could not tell a blocked write from a no-op.** The
+fixture wrote `lifetimeXp` where `socialSnapshot` reads `lifetimeXP`, so every
+device published 0 XP — which made "Bob's row is still 0" indistinguishable
+from "the block held". The fixture is now asserted before anything depends on
+it.
+
+### Verification
+
+**Local.** 6,082 assertions across 156 contracts, plus 327 program-audit, 87
+data-integrity, 261 cardio, 43 GPS and the date matrix — all green. An 80-check
+client probe drives two devices against a mock of GoTrue with email
+confirmation on, including the refusal to sign in before the address is
+confirmed.
+
+**Against the real project, which D52 could not do at all.** `g6-rls.js`: 89
+checks, 0 failed, 0 critical, repeatable — Bob cannot write or read Alice's
+stats, cannot rename her, cannot accept a request addressed to someone else,
+cannot insert a friendship directly (there is no INSERT policy; only the accept
+function creates one), and `auth.users` is unreachable both authenticated and
+anonymous. `g7-client.js`: 34 checks through LOOP's own functions — the invite
+and leaderboard path end to end, and the integrity case measured on the server:
+Alice's phone at 12,480 XP, Bob signs in, publishing refused as `unclaimed`,
+**Bob's row still 6,120 before and after.**
+
+**On the device.** A temporary build at `/loop/qa/` with an isolated storage
+prefix, installed on the owner's iPhone: real sign-in, keychain save and
+offer, no input zoom, session survived force-quit, invite and accept between
+real accounts, both leaderboards matching, and normal LOOP still usable offline
+with its training data untouched.
+
+### Contracts repointed, not weakened
+
+Four assertions pinned social being switched **off** — no backend configured,
+no Settings entry, an empty config literal, no `supabase.co` anywhere. That was
+the correct shipped state for D52 and is a superseded one. What they were
+actually protecting is asserted harder: no secret credential of any generation,
+exactly two external origins and no third, and the unconfigured path still
+working, since it is what a fork gets and what LOOP falls back to if the values
+are ever cleared.
+
+One of those replacements had to be repaired immediately: it tested the raw
+source for the string `sb_secret_` and was tripped by LOOP's own comment
+explaining why a secret key must never go there — the fifth time in this suite
+that a check on prose has fired on prose. It now measures a key-shaped
+**value**, and its teeth were verified against a planted secret and a planted
+service_role JWT.
+
+`TRAINER_ENGINE_VERSION` remains `0.1.1-shadow`. Session Score, Live Set Coach,
+D49 progression and D51C plan revisions are untouched. `DATA_KEYS` is still 15,
+no migration was introduced, and no social code reaches the workout logger or
+the rest timer.

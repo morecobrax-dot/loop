@@ -216,7 +216,8 @@ function loadApp(initialStore){
     'OUTCOME_MATCH','OUTCOME_MATCH_LEGACY','shadowEvidenceOpen','TRAINER_LOG_MAX','SHADOW_CAVEAT',
     /* D51C */ 'exPickerState','pbOpenSession',
     /* D51D */ 'pbOpenExercise','pbPendingSession','RANKS',
-    /* D52 */ 'LOOP_SOCIAL','socialState','socialView','SOCIAL_RULES_VERSION'];
+    /* D52 */ 'LOOP_SOCIAL','socialState','socialView','SOCIAL_RULES_VERSION',
+    /* D52B */ 'SOCIAL_MIN_PASSWORD'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

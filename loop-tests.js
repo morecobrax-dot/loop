@@ -17672,17 +17672,67 @@ async function testSocialFoundation(){
   const code = stripComments(src);
 
   /* ---------------------------------------------------------- */
-  sub('an account is optional, and unconfigured means absent');
+  /* ----------------------------------------------------------
+     REPOINTED IN D52B, NOT WEAKENED.
+
+     Four assertions here pinned social being switched OFF: no
+     backend configured, no Settings entry, an empty config
+     literal, no supabase.co anywhere. That was the correct
+     shipped state for D52 and it is a superseded one — LOOP 5.1
+     turns the feature on, so a suite that still demanded silence
+     would be pinning the old release rather than guarding the
+     new one.
+
+     What was actually being protected has not changed and is
+     asserted harder below: no secret credential, ever; exactly
+     one backend origin and no other; and the unconfigured path
+     still working, because it is what anyone forking LOOP gets
+     and what the app falls back to if the config is ever
+     emptied.
+     ---------------------------------------------------------- */
+  sub('the backend is configured, with a key that is safe to publish');
   {
     const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
-    T('LOOP ships with no backend configured', ctx.socialConfigured() === false);
-    T('and renders no social entry at all', ctx.socialSettingsRowHtml() === '');
-    T('the shipped config is empty',
-      /const LOOP_SOCIAL = \{\s*url: '',/.test(code), code.slice(code.indexOf('const LOOP_SOCIAL'), code.indexOf('const LOOP_SOCIAL') + 60));
-    T('no service-role key is anywhere in the client',
-      !/service_role|serviceRole|SERVICE_ROLE/.test(src));
-    T('no credential is committed',
-      !/supabase\.co/.test(code) || /\/\/ https:\/\/<project>/.test(src));
+    T('social is switched on', ctx.socialConfigured() === true);
+    T('and Settings offers a way in', ctx.socialSettingsRowHtml() !== '');
+    T('the configured project is a Supabase URL and nothing else',
+      /^https:\/\/[a-z0-9]+\.supabase\.co$/.test(ctx.LOOP_SOCIAL.url), ctx.LOOP_SOCIAL.url);
+
+    /* THE ONE THAT MATTERS. A publishable key in the client is by design;
+       a secret one is a total compromise, because it bypasses row level
+       security and every athlete would hold it.
+
+       Measured as a CREDENTIAL, not as a word. The first version of this
+       assertion tested the raw source for the string "sb_secret_" and was
+       tripped by LOOP's own comment explaining why a secret key must never
+       go here — the fifth time in this suite that a check on prose has
+       fired on prose. The name may appear in a comment, in a warning, in
+       this very sentence. A key-SHAPED value may not, anywhere, comment or
+       not: sb_secret_ followed by actual key characters, or a JWT whose
+       payload carries the service_role claim. */
+    T('no secret credential of any generation is anywhere in the client',
+      !/sb_secret_[A-Za-z0-9_-]{8,}/.test(src) &&
+      !/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/.test(src),
+      (src.match(/sb_secret_[A-Za-z0-9_-]{8,}/) || [''])[0]);
+    T('and the words still only ever appear as a warning', (() => {
+      /* Named in the source is fine; named in executable code is not. */
+      return !/service_role|serviceRole|SERVICE_ROLE|sb_secret_/.test(code);
+    })(), (code.match(/.{0,40}(service_role|sb_secret_).{0,40}/) || [''])[0]);
+    T('the key that IS here is the publishable one',
+      /^(sb_publishable_|eyJ)/.test(ctx.LOOP_SOCIAL.anonKey),
+      ctx.LOOP_SOCIAL.anonKey.slice(0, 16));
+    T('and it is not something that merely looks publishable',
+      ctx.LOOP_SOCIAL.anonKey.length > 24 && !/^sb_publishable_$/.test(ctx.LOOP_SOCIAL.anonKey));
+
+    /* The disabled path is still real. It is what a fork gets, and what
+       LOOP falls back to if these values are ever cleared. */
+    T('an unconfigured LOOP still has no social layer at all', (() => {
+      const saved = ctx.LOOP_SOCIAL.url;
+      ctx.LOOP_SOCIAL.url = '';
+      const off = ctx.socialConfigured() === false && ctx.socialSettingsRowHtml() === '';
+      ctx.LOOP_SOCIAL.url = saved;
+      return off;
+    })());
 
     /* Boot must not touch the network, configured or not. */
     let called = false;
@@ -17744,6 +17794,137 @@ async function testSocialFoundation(){
       /catch/.test(fnSrc(src, 'socialPublishSoon')));
     T('every request path returns a result rather than throwing',
       /catch\(e\)\{[\s\S]*return \{ ok:false, error:'offline' \}/.test(fnSrc(src, 'socialRequest')));
+  }
+
+  /* ----------------------------------------------------------
+     D52B replaced the D52 one-time-code flow with email and
+     password. The reason was operational — the built-in mailer
+     allows a handful of messages an hour, and a code flow spends
+     one on EVERY sign-in — but the security properties are the
+     part that must not drift, so they are pinned here.
+     ---------------------------------------------------------- */
+  sub('authentication — email and password, confirmed before it counts');
+  {
+    const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
+
+    T('signing up and signing in are the only two ways in',
+      /'\/auth\/v1\/signup'/.test(code) && /grant_type=password/.test(code));
+    T('the one-time-code endpoints are gone, not merely unused',
+      !/\/auth\/v1\/otp|\/auth\/v1\/magiclink|\/auth\/v1\/verify/.test(code));
+    T('and no second auth provider was introduced',
+      !/oauth|provider=|signInWithOAuth|google|apple|facebook/i.test(
+        fnSrc(src, 'socialCreateAccount') + fnSrc(src, 'socialSignIn')));
+
+    /* Hand-declared: what each input IS, decided here rather than
+       asked of the function being tested. */
+    [['', false], ['   ', false], ['nope', false], ['a@b', false], ['a@b.', false],
+     ['@b.co', false], ['a b@c.co', false], ['a@b.co', true], ['A.Name+tag@Ex.CO', true]]
+      .forEach(([v, ok]) => T('email ' + JSON.stringify(v) + ' is ' + (ok ? 'usable' : 'refused'),
+        (ctx.socialEmailProblem(v) === null) === ok, String(ctx.socialEmailProblem(v))));
+    T('the minimum password length is 8', ctx.SOCIAL_MIN_PASSWORD === 8,
+      String(ctx.SOCIAL_MIN_PASSWORD));
+    [['', false], ['short', false], ['1234567', false], ['12345678', true],
+     ['a'.repeat(72), true], ['a'.repeat(73), false]]
+      .forEach(([v, ok]) => T('a ' + v.length + '-character password is ' + (ok ? 'usable' : 'refused'),
+        (ctx.socialPasswordProblem(v) === null) === ok, String(ctx.socialPasswordProblem(v))));
+    T('no composition rule is imposed on top of length',
+      ctx.socialPasswordProblem('all lower case letters') === null);
+
+    /* An unconfirmed address must not become a social identity. Both
+       paths that can produce a session check it. */
+    const signIn = fnSrc(src, 'socialSignIn');
+    const create = fnSrc(src, 'socialCreateAccount');
+    T('signing in refuses a session on an unconfirmed address',
+      /email_confirmed_at/.test(signIn) && /verify:true/.test(signIn));
+    T('and creating an account waits for confirmation rather than pretending',
+      /verify:true/.test(create) && /access_token/.test(create));
+    /* Exactly three places write a session, and only one of them can
+       introduce a DIFFERENT account: restoring reads back an identity
+       already bound, and a refresh token cannot change whose it is.
+       Adopting is therefore the only door the binding check has to
+       stand in, which is why it is the only door signing in has. */
+    const installs = code.match(/socialState\.session = (?!null)\S+/g) || [];
+    T('only three places install a session, and they are the known three',
+      installs.length === 3 &&
+      ['socialLoad','socialRefresh','socialAdoptSession']
+        .every(f => /socialState\.session = (?!null)/.test(fnSrc(src, f))),
+      installs.join(' | '));
+    T('signing in and creating an account both go through the binding check',
+      /socialAdoptSession\(d\)/.test(signIn) && /socialAdoptSession\(d\)/.test(create));
+    T('and neither one writes a session itself',
+      !/socialState\.session = /.test(signIn) && !/socialState\.session = /.test(create));
+
+    /* The password is a transit value. It exists in a field and in one
+       request body, and nowhere else. */
+    T('no password is ever persisted',
+      !/password/i.test(fnSrc(src, 'socialPersist')));
+    T('no password is held on the view or the state',
+      !/password/i.test(fnSrc(src, 'socialSnapshot')) &&
+      !/socialView\.password|socialState\.password/.test(code));
+    T('and it is read straight from the field into the request', (() => {
+      const fn = fnSrc(src, 'socialDoSignIn') + fnSrc(src, 'socialDoCreate');
+      return /getElementById\('socPw'\)/.test(fn) && !/socialView\.\w*[Pp]w/.test(fn);
+    })());
+    T('a failed sign-in never says which half was wrong',
+      /do not match/.test(signIn) && !/no such (account|user)|unknown email/i.test(signIn));
+    T('and resending never reveals whether an address has an account',
+      /return \{ ok:true \}/.test(fnSrc(src, 'socialResendVerification')));
+
+    /* GoTrue appends tokens to the page its confirmation link redirects to.
+       Reading them would put the session in whatever browser opened the
+       link — which is the magic-link failure D52B exists to avoid. The
+       confirmation is what the trip is for; the session is not. */
+    T('no session is ever read out of a URL',
+      !/location\.hash|access_token=|URLSearchParams|location\.search/.test(code));
+
+    /* The three signed-out screens. Rendered rather than read, because
+       the defect this guards against is a control that is described but
+       not present. */
+    const screen = stage => { ctx.socialView.stage = stage; return ctx.socialSignedOutHtml(); };
+    const inputs = html => (html.match(/<input[^>]*>/g) || []);
+    const signinHtml = screen('signin'), signupHtml = screen('signup'), verifyHtml = screen('verify');
+
+    T('sign in asks for an email and one password',
+      inputs(signinHtml).length === 2 &&
+      /type="email"/.test(inputs(signinHtml)[0]) && /type="password"/.test(inputs(signinHtml)[1]));
+    T('and marks it as the saved one, so iOS offers the keychain entry',
+      /autocomplete="current-password"/.test(signinHtml));
+    T('sign up asks for an email and the password twice',
+      inputs(signupHtml).length === 3 &&
+      inputs(signupHtml).filter(i => /type="password"/.test(i)).length === 2);
+    T('and marks both as new, so iOS offers to save one',
+      (signupHtml.match(/autocomplete="new-password"/g) || []).length === 2);
+    T('confirmation is checked before the network is touched',
+      /a !== b/.test(fnSrc(src, 'socialDoCreate')) &&
+      fnSrc(src, 'socialDoCreate').indexOf('a !== b') <
+        fnSrc(src, 'socialDoCreate').indexOf('socialCreateAccount'));
+    T('the confirmation screen has no password field at all',
+      inputs(verifyHtml).length === 0 && !/type="password"/.test(verifyHtml));
+    T('and it offers to send the email again',
+      /socialDoResend/.test(verifyHtml));
+    T('every route between the screens exists',
+      /socialGoSignUp\(\)/.test(signinHtml) && /socialGoSignIn\(\)/.test(signupHtml) &&
+      /socialGoSignIn\(\)/.test(verifyHtml) &&
+      ['socialGoSignIn','socialGoSignUp','socialDoSignIn','socialDoCreate','socialDoResend']
+        .every(f => typeof ctx[f] === 'function'));
+    T('no signed-out screen names a one-time code',
+      ![signinHtml, signupHtml, verifyHtml].some(h => /code/i.test(h)));
+
+    /* iOS zooms the whole page when a focused field is under 16px, and
+       never zooms back out. Measured once, pinned forever. */
+    T('every field is 16px, so focusing one does not zoom the app',
+      /font-size:\s*16px/.test(cssRule(src, '.soc-in')), cssRule(src, '.soc-in'));
+
+    /* A session running out is not the same event as leaving. */
+    T('a session that cannot be refreshed is cleared, not retried forever',
+      /!o\.retried/.test(fnSrc(src, 'socialRequest')) &&
+      /socialClearSession\(\)/.test(fnSrc(src, 'socialRequest')));
+    ctx.socialState.expired = true; ctx.socialView.notice = null;
+    T('and the sign-in screen explains it rather than looking like data loss',
+      /session ended/i.test(screen('signin')));
+    T('signing out on purpose is not reported as an expiry',
+      /expired = false/.test(fnSrc(src, 'socialSignOut')));
+    ctx.socialState.expired = false; ctx.socialView.stage = 'signin';
   }
 
   sub('usernames');
@@ -17832,10 +18013,20 @@ async function testSocialFoundation(){
     })(), (code.match(/<script[^>]*src[^>]*>/gi) || []).join(' | '));
     T('and nothing is imported from a network origin',
       !/import\s*\(?\s*['"]https?:/i.test(code));
-    T('the only external origin is still the font host', (() => {
+    /* Was "the only external origin is still the font host". D52B adds the
+       one backend LOOP is allowed to talk to, so the check became: the font
+       host, the configured project, and NOTHING ELSE. A second Supabase
+       project, an analytics host or a CDN would all still trip it. */
+    T('there are exactly two external origins, and they are the expected two', (() => {
+      const ctxUrl = 'https://hqjrzkmtjduhknlvhprf.supabase.co';
       const hosts = [...new Set((code.match(/https:\/\/[a-z0-9.-]+/gi) || []))];
-      return hosts.every(h => /fonts\.(googleapis|gstatic)\.com/.test(h));
+      return hosts.every(h => /fonts\.(googleapis|gstatic)\.com/.test(h) || h === ctxUrl);
     })(), [...new Set((code.match(/https:\/\/[a-z0-9.-]+/gi) || []))].join(', '));
+    T('and the backend origin is the one the config names', (() => {
+      const ctx2 = code.match(/url: '(https:\/\/[a-z0-9.]+\.supabase\.co)'/);
+      const hosts = [...new Set((code.match(/https:\/\/[a-z0-9.-]*supabase[a-z0-9.-]*/gi) || []))];
+      return !!ctx2 && hosts.length === 1 && hosts[0] === ctx2[1];
+    })(), [...new Set((code.match(/https:\/\/[a-z0-9.-]*supabase[a-z0-9.-]*/gi) || []))].join(', '));
   }
 
   sub('the service worker never caches a social response');
@@ -17862,6 +18053,46 @@ async function testSocialFoundation(){
         new RegExp('alter table public\\.' + t + '\\s+enable row level security').test(sql)));
     T('no policy is permissive', !/using \(true\)|with check \(true\)/i.test(sql));
     T('anon is granted nothing', /revoke all on public\.profiles/.test(sql));
+
+    /* MEASURED ON THE LIVE PROJECT, not reasoned about here. With the revoke
+       naming only PUBLIC, an unauthenticated caller holding nothing but the
+       publishable key called loop_send_friend_request and got 200 — because
+       Supabase's default privileges ALSO grant execute to anon explicitly,
+       and that holding is separate from the one through PUBLIC. Both have to
+       be named. This assertion exists because the first fix looked right. */
+    {
+      const revokes = sql.match(/revoke execute on function[^;]+;/g) || [];
+      const fns = sql.match(/create or replace function public\.(loop_\w+)/g) || [];
+      T('every function has its execute revoked', revokes.length === fns.length,
+        revokes.length + ' revokes for ' + fns.length + ' functions');
+      T('and every revoke names PUBLIC and anon, which are two holdings',
+        revokes.every(r => /from public, anon;/.test(r)),
+        (revokes.filter(r => !/from public, anon;/.test(r))[0] || '').trim());
+      const granted = (sql.match(/grant execute on function public\.(loop_\w+)/g) || [])
+        .map(g => g.split('public.')[1]);
+      T('execute is granted back only to authenticated',
+        (sql.match(/grant execute on function[^;]+;/g) || [])
+          .every(g => /to authenticated;/.test(g)));
+      T('and the three that policies and defaults call are among them',
+        ['loop_new_invite_code','loop_are_friends','loop_request_between']
+          .every(f => granted.indexOf(f) !== -1), granted.join(','));
+    }
+
+    /* A SECURITY DEFINER function bypasses RLS, so its authorisation can only
+       live in its own text. Relying on a NULL comparison to filter an
+       anonymous caller out is correct today and an accident tomorrow. */
+    T('every security definer function checks that someone is signed in', (() => {
+      const bodies = sql.split(/create or replace function public\./).slice(1);
+      const bad = bodies.filter(b => /security definer/.test(b.split('$$')[0])
+        && !/auth\.uid\(\) is not null|me is null/.test(b))
+        .map(b => b.split('(')[0]);
+      return bad.length === 0;
+    })(), (() => {
+      const bodies = sql.split(/create or replace function public\./).slice(1);
+      return bodies.filter(b => /security definer/.test(b.split('$$')[0])
+        && !/auth\.uid\(\) is not null|me is null/.test(b))
+        .map(b => b.split('(')[0]).join(', ');
+    })());
     T('a friendship can only be created by the accept function',
       !/create policy friendships_insert/.test(sql));
     T('the pair is ordered, so A-B and B-A are one row',

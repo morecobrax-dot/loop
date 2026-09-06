@@ -1,4 +1,4 @@
-# LOOP — social setup (D52)
+# LOOP — social setup (D52 / D52B)
 
 Friends and the private leaderboard need a backend. The code is shipped and
 tested; the project is not created, because credentials cannot be invented.
@@ -28,7 +28,9 @@ Signing in adds identity. It does not move your training anywhere.
 
 1. <https://supabase.com> → **New project**.
 2. Any name. Choose the region closest to you — it decides leaderboard latency.
-3. Save the database password somewhere; you will not need it for LOOP.
+3. Save the database password somewhere. It is the project's admin password
+   and has nothing to do with the passwords athletes sign in with — LOOP never
+   uses it.
 
 ## 2. Apply the schema
 
@@ -48,33 +50,39 @@ It creates four tables, enables row level security on every one of them, and
 installs the functions that are the only way to create a friend request or a
 friendship. Nothing in it is optional.
 
-## 3. Turn on email codes, and turn off links
+## 3. Turn on email and password
 
 **Authentication → Providers → Email**
 
 - **Enable email provider** — on
 - **Confirm email** — on
-- **Enable email OTP** — on
 
-**Authentication → Email Templates → Magic Link**
-
-The default template sends a clickable link. LOOP asks for a **code**, because
-a link has to leave the installed PWA, open Safari, and come back — which on
-iOS leaves the athlete signed in to a browser the app cannot see. Change the
-template body to send the token instead:
-
-```html
-<h2>Your LOOP sign-in code</h2>
-<p>{{ .Token }}</p>
-<p>This code expires in an hour. If you did not ask for it, ignore this email.</p>
-```
+That is the whole configuration. Nothing else on this page needs changing, and
+no email template needs editing — Supabase's default confirmation email is
+what LOOP uses.
 
 **Authentication → URL Configuration** → set **Site URL** to
-`https://morecobrax-dot.github.io/loop/`.
+`https://morecobrax-dot.github.io/loop/`. This is where the confirmation link
+sends the athlete after they click it.
 
-> Supabase's built-in mail service is rate-limited and meant for development.
-> For real use, add an SMTP provider under **Project Settings → Auth → SMTP**,
-> or codes will stop arriving under load.
+### Why a password rather than an emailed code
+
+A password costs **one email, ever** — the confirmation, at signup. A code
+flow costs one on **every sign-in**, and Supabase's built-in mailer sends only
+a handful an hour, so the athlete who reinstalls the app, or the second person
+on a shared phone, hits a wall that looks exactly like the app being broken.
+
+The confirmation link opens in a browser rather than in the installed PWA, and
+that is fine here in a way it would not be for a magic link. Supabase does
+append tokens to the page it redirects to — that is its normal behaviour —
+but **LOOP does not read them.** Reading a session out of a redirect is
+exactly the magic-link failure: the session ends up in Safari and the
+installed app cannot see it. What the trip accomplishes is the confirmation.
+The athlete then returns to LOOP and signs in with what they already know, so
+nothing depends on a session surviving that trip.
+
+**No custom domain and no SMTP provider are required.** The built-in mailer is
+sufficient for one confirmation per account.
 
 ## 4. Point LOOP at it
 
@@ -90,10 +98,19 @@ const LOOP_SOCIAL = {
 Fill in **Project Settings → API**:
 
 - `url` — the Project URL, `https://<ref>.supabase.co`
-- `anonKey` — the **anon / public** key
+- `anonKey` — the **browser-safe publishable key**
 
-**Use the anon key. Never the `service_role` key** — that one bypasses row
-level security completely, and anything in `index.html` is public.
+Supabase has two generations of browser key and either works here, because
+both are sent as the `apikey` header and neither authorises anything on its
+own:
+
+- newer projects: **Publishable key**, `sb_publishable_…`
+- older projects: **anon / public**, a JWT beginning `eyJ…`
+
+**Never the secret key** — `sb_secret_…` on newer projects, `service_role` on
+older ones. Both bypass row level security completely, and anything in
+`index.html` is public. The field is called `anonKey` for continuity; what
+belongs in it is whichever browser-safe key the project exposes.
 
 Bump `CACHE_VERSION` in `sw.js`, commit, push.
 
@@ -105,8 +122,9 @@ Bump `CACHE_VERSION` in `sw.js`, commit, push.
 cannot be verified from one account — half of what matters is what the *other*
 person can and cannot see.
 
-1. Alice signs in, takes a username, and sees herself alone on the leaderboard.
-2. Bob signs in, takes a username.
+1. Alice creates an account, clicks the confirmation email, signs in, takes a
+   username, and sees herself alone on the leaderboard.
+2. Bob does the same.
 3. Alice copies her invite code to Bob. Bob enters it.
 4. Alice accepts. Both leaderboards show both athletes, in the same order.
 5. Alice removes Bob. Both lists drop back to one.
@@ -132,11 +150,24 @@ Then the part that matters more:
 8. **A stranger sees nothing.** With no friendship between them, Bob querying
    `/rest/v1/profiles?user_id=eq.<alice-uuid>` must return `[]`.
 
+Two more, specific to a password:
+
+9. **An unconfirmed account cannot sign in.** Create one and try before
+   clicking the link. LOOP must say to confirm first, and must not produce a
+   session — an unconfirmed address is not an identity.
+10. **A wrong password is refused and says nothing more.** The message must not
+    reveal whether the address has an account.
+
 ## 6. On the actual phone
 
-Install LOOP to the home screen and sign in **from the installed app**, not
-from Safari. Check that the code arrives, that entering it signs you in, and
-that the session is still there after force-quitting and reopening.
+Install LOOP to the home screen and create the account **from the installed
+app**, not from Safari. Check that:
+
+- the confirmation email arrives, and that clicking it — in whatever browser
+  iOS chooses — is enough to make the following sign-in work;
+- iOS offers to save the password, and offers it back on the sign-in screen;
+- focusing a field does **not** zoom the page;
+- the session is still there after force-quitting and reopening.
 
 ---
 
@@ -145,6 +176,22 @@ that the session is still there after force-quitting and reopening.
 `select public.loop_delete_account();` while signed in as that user removes the
 profile, the stats, the requests and the friendships. It cannot touch anything
 on a phone: the training lives there, not here.
+
+## Optional, later: a branded confirmation email
+
+**Not required.** LOOP works exactly as described above on the built-in mailer,
+with no domain and no third-party service. Skip this section unless one of the
+two reasons below actually applies.
+
+The default confirmation email comes from a Supabase address and says Supabase
+on it. If LOOP ever has enough athletes that signups outpace the built-in
+mailer's hourly allowance, or the email looking like someone else's product
+starts to matter, add an SMTP provider under **Project Settings → Auth → SMTP**
+and edit **Authentication → Email Templates → Confirm signup**.
+
+That needs a domain you control, because a sending provider has to verify one.
+Nothing in LOOP changes: the client does not know or care which mailer sent
+the message.
 
 ## What this is not
 
