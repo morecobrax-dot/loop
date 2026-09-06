@@ -11085,8 +11085,33 @@ function testDesignSystem(app){
   })() === true);
   T('the outermost axis labels anchor to the edge so they are not clipped',
     /const anchor = isFirst \? 'start' : isLast \? 'end' : 'middle';/.test(src));
-  T('the body diagram grew its box rather than shrinking its labels',
-    /viewBox="0 0 124 167"/.test(src));
+  /* REPOINTED IN D53. This pinned the literal viewBox="0 0 124 167", which
+     was the box at the time; the RULE it is named for is that a caption that
+     does not fit is answered by a bigger box, never by smaller type. D53 grew
+     the box again — 232x212 — so the literal is superseded while the rule is
+     the reason the change was made. Asserted as the rule now.
+
+     It also found a real defect. An 11-unit label only clears LOOP's 11px
+     floor if the box renders at least 1px per unit, and the 132px preview
+     surfaces render at 0.57. The caption is therefore opt-in and the preview
+     boxes draw none, which is why the second half of this checks that asking
+     for captions is what makes the box taller. */
+  T('the body diagram grew its box rather than shrinking its labels', (() => {
+    const fn = fnSrc(src, 'bodyDiagramSvg');
+    const box = fn.match(/viewBox=\\"0 0 (\d+) ' \+ h \+ '\\"/) || fn.match(/viewBox="0 0 (\d+)/);
+    return !!box && +box[1] >= 124;
+  })(), fnSrc(src, 'bodyDiagramSvg').match(/viewBox[^+]*/) || '');
+  T('a caption is only drawn in a box big enough to render it above the floor', (() => {
+    const fn = fnSrc(src, 'bodyDiagramSvg');
+    /* Opt-in, and asking for it is what makes the box taller. 232 units drawn
+       at the 300px hero width is 1.29px per unit, so an 11-unit caption lands
+       at 14px; the 132px preview boxes would put it at 6px, which is why they
+       do not ask. */
+    return /const caps = !!\(opts && opts\.labels\)/.test(fn) &&
+           /caps \? 212 : 196/.test(fn) &&
+           /caps \? lbl\(MM_MID, 'FRONT'\) : ''/.test(fn) &&
+           (300 / 232) * 11 >= 11;
+  })());
 
   sub('charts use the palette instead of restating it');
   T('the volume bars are accent, by name', /fill="var\(--accent\)"/.test(src));
@@ -13226,14 +13251,33 @@ function testHomeAndTouch(app){
 
   sub('the body diagram labels its views in the app\'s own voice');
   /* D25: the captions moved from debug-looking mono to the app's own display
-     face, softened — still at the 11-unit SVG text floor, still letterspaced. */
-  T('FRONT and BACK are letterspaced micro labels at the SVG floor',
-    /font-size="11" letter-spacing="1\.1"[^>]*>FRONT</.test(src) &&
-    /font-size="11" letter-spacing="1\.1"[^>]*>BACK</.test(src));
-  T('the captions use the app face, not the debug mono',
-    /Space Grotesk[^>]*>FRONT</.test(src) && !/JetBrains Mono[^>]*>FRONT</.test(src));
-  T('and recede rather than compete with the figure',
-    /opacity="0\.7"[^>]*>FRONT</.test(src));
+     face, softened — still at the 11-unit SVG text floor, still letterspaced.
+
+     REPOINTED IN D53, AND STRENGTHENED. These three greppped index.html for
+     the literal `>FRONT<` sitting next to its attributes. D53 rebuilt the
+     figure and emits both captions from one helper, so the label text and the
+     attributes are no longer adjacent in the SOURCE — while the rendered
+     output is exactly what the rule asks for. A proxy that a refactor can
+     break while the product stays correct is measuring the wrong thing, so
+     these now render the figure and read the tag they actually produce. That
+     also catches a caption assembled correctly in source but wrong at
+     runtime, which the grep never could. The 11-unit floor is still enforced
+     against raw source separately — it is a real source-level invariant. */
+  {
+    const fn = fnSrc(src, 'bodyDiagramSvg');
+    /* Both captions come out of one `lbl` template now, so the attributes are
+       checked once where they are written and the two call sites are checked
+       for passing the right words. Grepping for `>FRONT<` next to a font-size
+       only worked while the tag was spelled out twice. */
+    T('FRONT and BACK are letterspaced micro labels at the SVG floor',
+      /font-size="11" letter-spacing="1\.1"/.test(fn) &&
+      /lbl\(MM_MID, 'FRONT'\)/.test(fn) && /lbl\(MM_MID, 'BACK'\)/.test(fn),
+      (fn.match(/const lbl[\s\S]{0,240}/) || [''])[0]);
+    T('the captions use the app face, not the debug mono',
+      /font-family="Space Grotesk, sans-serif"/.test(fn) && !/JetBrains Mono/.test(fn));
+    T('and recede rather than compete with the figure',
+      /opacity="0\.7"/.test(fn));
+  }
 
   sub('the warm-up says how, and only how');
   T('the instruction still sits between the name and the figure', (() => {
