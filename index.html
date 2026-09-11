@@ -10769,6 +10769,24 @@ const LOOP_UPDATES = [
       'The heavier anatomical warm-up figure and enlarged body map introduced in LOOP 5.2 are reverted. The cleaner, lighter drawing that shipped through 5.1 is back, and it sits better inside the rest of the app',
       'Drawing only, again. Your workouts, programs, records and every number LOOP has ever calculated are exactly where they were \u2014 5.2 never touched them and neither does this'
     ]
+  },
+  {
+    id: 'v5-4',
+    version: 'LOOP 5.4',
+    title: 'Rank Emblems, Properly Finished',
+    date: '2026-12-23',
+    swVersion: 'loop-v131',
+    summary: 'The same eight emblems, with the geometry finally squared up.',
+    newFeatures: [],
+    improvements: [
+      'Every rank emblem is now truly centred. The stone sat slightly low inside its own setting on all eight, and on the three ranks with an ornament \u2014 the keel, the crest, the apex \u2014 the whole ring was pulled off centre to make room for it',
+      'The highlight along the rim is now the same sweep on every rank instead of a different length on each, and the fine ticks around the inner ring meet themselves exactly where they close',
+      'The metal reads properly again: the lower body of the frame falls into shadow the way it was always meant to, and the setting and the stone are lit from the same place'
+    ],
+    bugFixes: [],
+    changes: [
+      'Finish only. The eight ranks, their names, their symbols, their colours and the levels that earn them are exactly what they were \u2014 this is the same emblem set, drawn properly'
+    ]
   }
 ];
 
@@ -20395,7 +20413,13 @@ const ptsStr = p => p.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' '
    individually lit, and the darker pavilion showing through beneath. The
    table carries the internal light; the girdle keeps the silhouette crisp. */
 function rankGem(v, tier, uid){
-  const cx = 60, cy = 62;
+  /* D53 — THE STONE SITS ON THE COMPOSITION ORIGIN, NOT TWO UNITS UNDER IT.
+     The chamber is drawn at (60,60) and the stone was composed at (60,62), so
+     on every emblem in the set the gem sat 2 units low in its own well — 3.5px
+     at showcase size, and the single clearest reason the medals read as
+     not-quite-finished up close. The pavilion below keeps its own offset,
+     because a stone showing its underside is depth rather than misalignment. */
+  const cx = 60, cy = 60;
   const R = 15.5 + Math.min(3, tier * 0.42);          // grows a little with rank
   const nFac = tier >= 6 ? 10 : tier >= 3 ? 8 : 6;    // more facets, higher rank
   const hi = mixHex(v.gem[0], '#FFFFFF', 0.55);
@@ -20504,19 +20528,63 @@ function rankFramePts(tier){
    SHAPES are untouched — the bezel, the hexagon, the shoulders, the wings,
    the keel, the crest and the apex all stay exactly as designed, and the
    ladder still reads from the outline alone. Only the fit changes. */
+/* D53 — CENTRING THE BOUNDING BOX WAS CENTRING THE WRONG THING.
+
+   The fit above used to move each silhouette so its bounding box sat in the
+   middle of the 120 box. That is correct for a symmetric emblem and wrong for
+   the three that carry an ornament: VETERAN has a keel below, MASTER a crest
+   above, LEGEND an apex. Their boxes are off-centre BECAUSE of the ornament,
+   so squaring the box shoved the ring — and the stone inside it — the other
+   way. Measured, chamber centre in a box whose centre is 60:
+
+     VETERAN  56.38   (3.62 high, 6.3px at showcase size)
+     MASTER   59.28
+     LEGEND   61.19
+
+   An ornament extends the outline in its own direction; it does not move the
+   object. So the fit now holds the composition origin (60,60) fixed and sizes
+   from the farthest point about THAT centre. The ring is concentric with the
+   box on all eight, the keel still hangs below and the crest still rides
+   above, and nothing is clipped because the scale is derived from the extent
+   that actually matters. */
 const RANK_FIT_EXTENT = 104;      // of 120, leaving the bevel and rim room
 function rankFrameFit(pts){
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  let m = 0;
   pts.forEach(pt => {
-    if(pt[0] < x0) x0 = pt[0]; if(pt[0] > x1) x1 = pt[0];
-    if(pt[1] < y0) y0 = pt[1]; if(pt[1] > y1) y1 = pt[1];
+    const dx = Math.abs(pt[0] - 60), dy = Math.abs(pt[1] - 60);
+    if(dx > m) m = dx;
+    if(dy > m) m = dy;
   });
-  const w = x1 - x0, h = y1 - y0;
-  const scale = RANK_FIT_EXTENT / Math.max(w, h, 1);
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  /* Applied to the WHOLE emblem, so the stone stays exactly where it was
-     composed relative to the frame around it. */
-  return { scale, dx: 60 - cx, dy: 60 - cy };
+  /* dx/dy stay in the returned shape so the transform below is unchanged;
+     they are zero by construction now that the origin is the anchor. */
+  return { scale: (RANK_FIT_EXTENT / 2) / Math.max(m, 1), dx: 0, dy: 0 };
+}
+
+/* Ornament dash patterns have to CLOSE. The rim light, the armour ticks and
+   LEGEND's inlay were specified in absolute user units — 70/210, 9/17,
+   34/250 — on outlines whose perimeter runs from 251 (ROOKIE) to 355
+   (LEGEND). The same numbers therefore covered a different fraction of each
+   emblem and, worse, left a visible mismatch where the pattern wrapped past
+   the start. Deriving them from the real perimeter makes the highlight the
+   same arc on every rank and makes the ticks meet themselves exactly. */
+function framePerimeter(pts, scale){
+  const s = scale || 1;
+  let L = 0;
+  for(let i = 0; i < pts.length; i++){
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    L += Math.hypot((b[0] - a[0]) * s, (b[1] - a[1]) * s);
+  }
+  return L;
+}
+/* n whole repeats of a dash+gap around the path, so the last one meets the
+   first. `frac` is the dash's share of one repeat. */
+function frameDashes(len, repeats, frac){
+  const period = len / Math.max(1, Math.round(repeats));
+  /* Four places, not two. At two the ticks came out to 13.997 repeats instead
+     of 14 — 0.06 units of drift over a 260-unit ring, invisible in itself, but
+     the entire reason this function exists is that the pattern must meet
+     itself exactly. */
+  return (period * frac).toFixed(4) + " " + (period * (1 - frac)).toFixed(4);
 }
 function framePath(pts, scale){
   const s = scale || 1;
@@ -20539,6 +20607,10 @@ function rankMedalSvg(rankName, size, opts){
      one transform on one group so the frame, the chamber, the stone and every
      highlight keep exactly the relationship they were composed with. */
   const fit = rankFrameFit(pts);
+  /* Measured on the paths these actually stroke, so every ornament closes. */
+  const rimLen = framePerimeter(pts, 0.965);
+  const plateLen = framePerimeter(pts, 0.84);
+  const inlayLen = framePerimeter(pts, 0.925);
   const _fs = fit.scale;
   const fitT = 'translate(' + (60 - 60 * _fs + _fs * fit.dx).toFixed(3) + ',' +
     (60 - 60 * _fs + _fs * fit.dy).toFixed(3) + ') scale(' + _fs.toFixed(4) + ')';
@@ -20555,12 +20627,20 @@ function rankMedalSvg(rankName, size, opts){
         '<stop offset="0.55" stop-color="' + v.metal[0] + '"/>' +
         '<stop offset="1" stop-color="' + metalLo + '"/>' +
       '</linearGradient>' +
-      /* The recessed chamber the stone sits in. */
-      '<radialGradient id="w' + uid + '" cx="0.42" cy="0.36" r="0.72">' +
+      /* The underside: the frame turning away from the key light. */
+      '<linearGradient id="u' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0.42" stop-color="' + metalLo + '" stop-opacity="0"/>' +
+        '<stop offset="1" stop-color="' + metalLo + '" stop-opacity="0.6"/>' +
+      '</linearGradient>' +
+      /* The recessed chamber the stone sits in. ONE KEY LIGHT: this and the
+         stone's table below share an origin, so the well and the gem in it
+         are lit from the same place. They were at (0.42,0.36) and (0.40,0.32),
+         close enough to look like a mistake rather than a decision. */
+      '<radialGradient id="w' + uid + '" cx="0.38" cy="0.30" r="0.72">' +
         '<stop offset="0" stop-color="#131A26"/><stop offset="1" stop-color="#05070C"/>' +
       '</radialGradient>' +
       /* The stone's table — its internal light. */
-      '<radialGradient id="gt' + uid + '" cx="0.40" cy="0.32" r="0.78">' +
+      '<radialGradient id="gt' + uid + '" cx="0.38" cy="0.30" r="0.78">' +
         '<stop offset="0" stop-color="' + mixHex(v.gem[0], '#FFFFFF', 0.78) + '"/>' +
         '<stop offset="0.55" stop-color="' + v.gem[0] + '"/>' +
         '<stop offset="1" stop-color="' + mixHex(v.gem[1], '#05070C', 0.15) + '"/>' +
@@ -20587,22 +20667,33 @@ function rankMedalSvg(rankName, size, opts){
     (v.glow ? '<circle cx="60" cy="60" r="56" fill="url(#h' + uid + ')"/>' : '') +
     /* THE CHASSIS — one outline, drawn once as material. */
     '<path d="' + outline + '" fill="' + M + '"/>' +
-    /* Its lower body darkened, so the frame has an underside. */
-    '<path d="' + outline + '" fill="' + metalLo + '" fill-opacity="0.42"' +
-      ' clip-path="url(#w' + uid + 'c)"/>'.replace('clip-path="url(#w' + uid + 'c)"', '') +
+    /* D53 — A REAL UNDERSIDE. This was a full-strength copy of the outline
+       carrying clip-path="url(#w<uid>c)" — an id that is never defined,
+       because the .replace() meant to strip it was applied to the last
+       concatenated fragment rather than the whole string and matched nothing.
+       An undefined clip reference is handled differently across engines, so
+       the frame was either flatly darkened by 42% or the layer vanished. Both
+       are wrong and neither is the stated intent. The underside is now what
+       it always meant to be: the lower body falling into shadow. */
+    '<path d="' + outline + '" fill="url(#u' + uid + ')"/>' +
     /* Bevel: an inset repeat of the same outline, so the edge turns. */
     '<path d="' + framePath(pts, 0.905) + '" fill="none" stroke="' + metalLo +
       '" stroke-opacity="0.55" stroke-width="1.6" stroke-linejoin="round"/>' +
     /* Rim light along the top of the outline — the edge that faces the light. */
     '<path d="' + framePath(pts, 0.965) + '" fill="none" stroke="' +
       mixHex(v.metal[0], '#FFFFFF', 0.75) + '" stroke-opacity="0.42" stroke-width="1.2"' +
-      ' stroke-linejoin="round" stroke-dasharray="70 210" stroke-dashoffset="-18"/>' +
+      /* One arc, a quarter of the rim, starting off the top-left shoulder —
+         the same sweep on every rank instead of whatever 70 units happened to
+         cover. */
+      ' stroke-linejoin="round" stroke-dasharray="' + frameDashes(rimLen, 1, 0.25) +
+      '" stroke-dashoffset="' + (-rimLen * 0.07).toFixed(2) + '"/>' +
     /* TRAINEE+: a second structural layer inside the frame. */
     (tier >= 1 ? '<path d="' + framePath(pts, 0.84) + '" fill="none" stroke="' + M +
       '" stroke-width="' + (tier >= 5 ? 3.4 : 2.2) + '" stroke-linejoin="round"/>' : '') +
     /* COMPETITOR+: the ring reads as armour plate rather than a band. */
     (tier >= 3 ? '<path d="' + framePath(pts, 0.84) + '" fill="none" stroke="#05070C"' +
-      ' stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="9 17" stroke-linejoin="round"/>' : '') +
+      ' stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="' +
+      frameDashes(plateLen, 14, 0.35) + '" stroke-linejoin="round"/>' : '') +
     /* The chamber. */
     '<circle cx="60" cy="60" r="30.5" fill="url(#w' + uid + ')"/>' +
     '<circle cx="60" cy="60" r="30.5" fill="none" stroke="' + metalLo +
@@ -20617,11 +20708,14 @@ function rankMedalSvg(rankName, size, opts){
     /* LEGEND: the second material — a gold inlay following the crest. */
     (apex ? '<path d="' + framePath(pts, 0.925) + '" fill="none" stroke="' + v.gem[1] +
       '" stroke-opacity="0.5" stroke-width="1.4" stroke-linejoin="round"' +
-      ' stroke-dasharray="34 250" stroke-dashoffset="-17"/>' : '') +
+      ' stroke-dasharray="' + frameDashes(inlayLen, 1, 0.12) +
+      '" stroke-dashoffset="' + (-inlayLen * 0.06).toFixed(2) + '"/>' : '') +
     /* THE STONE. */
     '<g>' + rankGem(v, tier, uid) + '</g>' +
-    /* Its light spilling onto the chamber floor. */
-    '<circle cx="60" cy="62" r="24" fill="' + v.gem[0] + '" fill-opacity="' +
+    /* Its light spilling onto the chamber floor — concentric with the stone
+       and the well. A symmetric radial glow offset two units downward has no
+       direction to justify it and simply reads as a third misaligned layer. */
+    '<circle cx="60" cy="60" r="24" fill="' + v.gem[0] + '" fill-opacity="' +
       (0.06 + v.glow * 0.22).toFixed(3) + '"/>' +
     /* The showcase-only light pass, clipped to the emblem itself. */
     (showcase ? '<g class="rank-shine" clip-path="url(#c' + uid + ')">' +

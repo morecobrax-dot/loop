@@ -18778,15 +18778,104 @@ async function testProgramOwnership(){
         60 - 60*f.scale + f.scale*f.dy + f.scale*pt[1] ]));
     };
     const boxes = ctx.RANKS.map((r, i) => fitted(i));
-    /* Hand-declared: the viewBox is 0 0 120 120, so its centre is (60, 60). */
-    T('every emblem is centred in its box',
-      boxes.every(b => Math.abs(b.cx - 60) < 0.01 && Math.abs(b.cy - 60) < 0.01),
-      boxes.map(b => b.cx.toFixed(1) + ',' + b.cy.toFixed(1)).join(' '));
-    T('every emblem occupies the same extent',
-      boxes.every(b => Math.abs(Math.max(b.w, b.h) - 104) < 0.01),
-      boxes.map(b => Math.max(b.w, b.h).toFixed(1)).join(' '));
+    /* Where the composition origin — and so the chamber, the stone, the halo
+       and the light spill — actually lands after the fit. */
+    const originOf = tier => {
+      const f = ctx.rankFrameFit(ctx.rankFramePts(tier));
+      return [ 60 - 60*f.scale + f.scale*f.dx + f.scale*60,
+               60 - 60*f.scale + f.scale*f.dy + f.scale*60 ];
+    };
+    const origins = ctx.RANKS.map((r, i) => originOf(i));
+
+    /* THE PERMANENT RULE: AN EMBLEM IS CENTRED ON ITS RING, NEVER ON ITS BOX.
+
+       D51D centred each silhouette's bounding box. That is right for a
+       symmetric emblem and wrong for the three that carry an ornament:
+       VETERAN's keel, MASTER's crest and LEGEND's apex make their boxes
+       off-centre BY DESIGN, so squaring the box shoved the ring — and the
+       stone inside it — the other way. Measured under that fit, chamber
+       centre against a box centre of 60: VETERAN 56.38, MASTER 59.28,
+       LEGEND 61.19. Worst case 3.62 units, 6.3px at showcase size.
+
+       An ornament extends the outline in its own direction; it does not move
+       the object. So the bounding-box centre is NO LONGER expected to be 60,
+       and asserting that it is would re-introduce the defect. What is
+       asserted instead is stricter and is the rule any future change must
+       keep: the canonical ring/chamber origin lands dead centre on every
+       rank, and the ornament is free to extend past it. */
+    T('every emblem is centred on its ring, not its bounding box',
+      origins.every(o => Math.abs(o[0] - 60) < 0.001 && Math.abs(o[1] - 60) < 0.001),
+      origins.map(o => o[0].toFixed(3) + ',' + o[1].toFixed(3)).join(' '));
+    /* And the mechanism itself, so a future refactor cannot quietly go back
+       to bbox centring while the numbers happen to line up. */
+    T('and the fit derives from the origin rather than the box', (() => {
+      const fn = fnSrc(src, 'rankFrameFit');
+      return /Math\.abs\(pt\[0\] - 60\)/.test(fn) && /Math\.abs\(pt\[1\] - 60\)/.test(fn)
+        && !/\(x0 \+ x1\) \/ 2/.test(fn);
+    })());
+    /* Hand-declared: the viewBox is 0 0 120 120, so 104 of it is the extent
+       the family is sized to. Measured about the ORIGIN, since that is now the
+       anchor — LEGEND's bbox is 101.7 because its apex and keel are not the
+       same length, which is the silhouette doing its job. */
+    T('every emblem is sized to the same extent about its centre',
+      boxes.every(b => Math.abs(2 * Math.max(60 - b.x0, b.x1 - 60,
+                                             60 - b.y0, b.y1 - 60) - 104) < 0.01),
+      boxes.map(b => (2 * Math.max(60 - b.x0, b.x1 - 60,
+                                   60 - b.y0, b.y1 - 60)).toFixed(1)).join(' '));
     T('and none of them touches the edge',
       boxes.every(b => b.x0 >= 0 && b.y0 >= 0 && b.x1 <= 120 && b.y1 <= 120));
+
+    /* ---- D54: the finish faults, each measured before it was fixed ---- */
+
+    /* The stone was composed at (60,62) while its well was at (60,60), so on
+       every emblem in the set the gem sat two units low inside its own
+       chamber — 3.5px at showcase size. */
+    T('the stone shares the chamber\'s centre, not two units under it',
+      /const cx = 60, cy = 60;/.test(fnSrc(src, 'rankGem')));
+    T('and nothing in the medal is anchored to the old 62 line',
+      !/cy="62"/.test(ctx.rankMedalSvg('ELITE', 210, { showcase:true })));
+
+    /* Ornament dashes were absolute user units on outlines whose perimeter
+       runs 242 to 313, so the same 70/210 covered 28.9% of ROOKIE's rim and
+       22.4% of LEGEND's, and the plate ticks wrapped past their own start. */
+    T('the rim highlight is the same arc on every rank', (() => {
+      return ctx.RANKS.every((r, i) => {
+        const len = ctx.framePerimeter(ctx.rankFramePts(i), 0.965);
+        const d = ctx.frameDashes(len, 1, 0.25).split(' ').map(Number);
+        return Math.abs(d[0] / (d[0] + d[1]) - 0.25) < 0.001;
+      });
+    })());
+    T('the plate ticks meet themselves exactly', (() => {
+      return ctx.RANKS.every((r, i) => {
+        const len = ctx.framePerimeter(ctx.rankFramePts(i), 0.84);
+        const d = ctx.frameDashes(len, 14, 0.35).split(' ').map(Number);
+        return Math.abs(len / (d[0] + d[1]) - 14) < 0.001;
+      });
+    })());
+
+    /* A clip-path pointing at an id that was never defined. The .replace()
+       meant to strip it was applied to the last concatenated fragment and
+       matched nothing, so the frame was either flatly darkened by 42% or the
+       layer was dropped, depending on the engine. */
+    T('no layer references a clip path that does not exist', (() => {
+      const svg = ctx.rankMedalSvg('MASTER', 210, { showcase:true });
+      const refs = [...new Set((svg.match(/url\(#([a-zA-Z0-9]+)\)/g) || [])
+        .map(u => u.slice(5, -1)))];
+      return refs.every(id => svg.indexOf('id="' + id + '"') !== -1);
+    })(), (() => {
+      const svg = ctx.rankMedalSvg('MASTER', 210, { showcase:true });
+      return [...new Set((svg.match(/url\(#([a-zA-Z0-9]+)\)/g) || [])
+        .map(u => u.slice(5, -1)))].filter(id => svg.indexOf('id="' + id + '"') === -1).join(',');
+    })());
+
+    /* The well and the stone in it were lit from two slightly different
+       places — close enough to read as a mistake rather than a decision. */
+    T('the chamber and the stone share one key light', (() => {
+      const svg = ctx.rankMedalSvg('ELITE', 210, {});
+      const well = svg.match(/id="w[a-z0-9]+" cx="([\d.]+)" cy="([\d.]+)"/);
+      const gem  = svg.match(/id="gt[a-z0-9]+" cx="([\d.]+)" cy="([\d.]+)"/);
+      return !!well && !!gem && well[1] === gem[1] && well[2] === gem[2];
+    })());
     T('no vertex is truncated by a radius clamp',
       !/R = Math\.min\(R, 56\)/.test(code));
     T('one transform owns the alignment, not seven nudges',

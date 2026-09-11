@@ -7132,3 +7132,104 @@ service_role JWT.
 D49 progression and D51C plan revisions are untouched. `DATA_KEYS` is still 15,
 no migration was introduced, and no social code reaches the workout logger or
 the rest timer.
+
+---
+
+## §82 — D54: The rank emblems, and centring the wrong thing
+
+**Status.** Shipped in LOOP 5.4 (`loop-v131`). Finish only: the eight ranks,
+their names, thresholds, symbols and colours are byte-for-byte what they were.
+
+### An ornament extends an outline; it does not move the object
+
+D51D gave the emblems one alignment owner, which was right, and pointed it at
+the wrong anchor. `rankFrameFit` centred each silhouette's **bounding box**.
+That is correct for a symmetric emblem and wrong for the three that carry an
+ornament — VETERAN's keel below, MASTER's crest above, LEGEND's apex. Their
+boxes are off-centre *because of* the ornament, so squaring the box shoved the
+ring, and the stone inside it, the other way.
+
+Measured, chamber centre against a box centre of 60:
+
+```
+  VETERAN  56.38     3.62 units high — 6.3px at showcase size
+  MASTER   59.28
+  LEGEND   61.19
+```
+
+VETERAN was the worst of it and read as incoherent rather than merely shifted,
+because its ring was high while its stone was low: `rankGem` composed at
+`(60,62)` while the chamber was drawn at `(60,60)`, so the stone sat two units
+under its own setting **on every emblem in the set**.
+
+The fit now holds the composition origin fixed and sizes from the farthest
+point about that centre. The rule is recorded in the suite twice — once as the
+outcome (every ring within 0.001 units of centre) and once as the mechanism
+(`rankFrameFit` must derive from `|pt − 60|` and must not contain
+`(x0 + x1) / 2`), so a later refactor cannot quietly return to bbox centring
+while the numbers happen to agree.
+
+### Ornament dashes have to close
+
+The rim highlight, the armour ticks and LEGEND's inlay were specified in
+absolute user units — `70 210`, `9 17`, `34 250` — on outlines whose perimeter
+runs from 242 (ROOKIE) to 313 (LEGEND). The same numbers therefore covered a
+different fraction of each emblem: 28.9% of ROOKIE's rim against 22.4% of
+LEGEND's. Worse, the tick pattern ran a fractional number of repeats and left a
+visible mismatch where it wrapped past its own start. `framePerimeter` and
+`frameDashes` derive both from the real path length, so the highlight is the
+same sweep on every rank and the ticks meet themselves exactly.
+
+### A clip reference to an id that never existed
+
+```js
+'<path … fill-opacity="0.42"' +
+  ' clip-path="url(#w' + uid + 'c)"/>'.replace('clip-path="url(#w' + uid + 'c)"', '')
+```
+
+The `.replace()` meant to strip the attribute binds to the **last concatenated
+fragment**, not to the assembled string, so it searched `'c)"/>'` and matched
+nothing. The emitted markup carried `clip-path="url(#w<uid>c)"` — an id defined
+nowhere. An invalid clip reference is handled differently across engines, so
+the frame was either flatly darkened by 42% or the layer was dropped entirely.
+Neither is the stated intent, and the flat 42% is why the metal read muddy. The
+underside is now a real gradient, and a contract asserts that every `url(#…)`
+in a rendered medal resolves to an id the same document defines.
+
+### Verification
+
+56 combinations — eight ranks across every real call size (30, 40, 64, 72, 88,
+168, 208):
+
+```
+  ring offset          3.62 units  ->  0.000
+  worst, in pixels     6.3px       ->  0.0052px
+  stone girdle         2 units low ->  0.0052px
+  clipped              -           ->  0 of 56
+  rim arc              22.4-28.9%  ->  25.0% on all eight
+  plate tick closure   fractional  ->  14.000 +/-0.0005 on all eight
+```
+
+One measurement needed chasing rather than accepting: the stone's combined
+bounding box reads 1.35px low. That is the pavilion's deliberate 2.4-unit
+underside — the stone showing a below — and measuring the girdle, which is the
+stone's actual outline, gives 0.0052px.
+
+`DATA_KEYS` 15, schema 1, no migration, `TRAINER_ENGINE_VERSION` 0.1.1-shadow.
+Rank names, thresholds, `RANK_VISUALS`, progression, social, programs and the
+warm-up renderer are untouched.
+
+### What shipped alongside it, and what did not
+
+This release was isolated out of a working tree that also held the unapproved
+anatomy work from the previous phase. Rather than reverse-remove fifteen
+anatomy hunks from a shared `index.html`, the emblem patch was dry-run against
+a pristine `HEAD`, the tree restored to production, and the emblem work
+re-applied on top — zero residue by construction rather than by inspection.
+
+One thing deliberately left out: `longHistory()` in the Progress contract
+builds its sessions at `wk*7+(6-dof)`, which puts week 0's newest session two
+days ago. Whether that falls inside the current Monday-to-Sunday week depends
+on the weekday the suite runs. Proven green on Sunday 2026-09-06 and red on
+Tuesday 2026-09-08 with no code change in between. It is green on the day this
+shipped, it is not fixed, and it does not belong in an emblem release.
