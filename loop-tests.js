@@ -49,6 +49,27 @@ function sub(t){ console.log('\n  --- ' + t + ' ---'); }
    explanatory comment and report a pass that meant nothing.
 
    Reach for these instead of writing another ruler. */
+/* RUN fn() WITH THE APP'S CLOCK PINNED TO A FIXED INSTANT.
+   Lifted out of testDateBoundaries so a second contract could stop depending
+   on what day the suite happens to run. The app reads the wall clock through
+   both trainerNow() and bare `new Date()`, and only the second of those is
+   what a week boundary is computed from, so pinning ctx.Date is the one lever
+   that covers every path. Restores the real constructor in a finally, so a
+   throwing assertion cannot leave the rest of the suite frozen in 2026. */
+function pinClock(ctx, iso){
+  const Real = ctx.Date;
+  const fixed = new Real(iso).getTime();
+  function Fake(...a){ return a.length ? new Real(...a) : new Real(fixed); }
+  Fake.prototype = Real.prototype; Fake.now = () => fixed;
+  Fake.UTC = Real.UTC; Fake.parse = Real.parse;
+  ctx.Date = Fake;
+  return () => { ctx.Date = Real; };   /* nests correctly: restores whatever was installed */
+}
+function withClockOn(ctx, iso, fn){
+  const release = pinClock(ctx, iso);
+  try{ return fn(); } finally { release(); }
+}
+
 function stripComments(text){
   return String(text || '')
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -7512,8 +7533,35 @@ function testProgressDashboard(app){
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
   const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
 
-  const D = n => { const d = new Date(Date.now() - n*86400000);
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  /* A DELIBERATE CALENDAR, BECAUSE THIS CONTRACT USED TO HAVE A MOVING ONE.
+
+     Every fixture date was Date.now() minus N days, and the Progress overview
+     only renders its Muscle block when the CURRENT Monday-to-Sunday week
+     contains logged sets. The newest session sat two days back, so whether it
+     landed inside this week depended entirely on the weekday the suite ran:
+     green on Sunday 2026-09-06, red on Tuesday 2026-09-08, with no product
+     change in between.
+
+     The product was never wrong. progWeekMuscleHtml() returning nothing for a
+     week with no training is correct, and the block below now asserts that
+     directly instead of leaving it to the calendar to demonstrate at random.
+
+     PD_NOW is Wednesday 2026-03-18 at noon UTC. Noon is chosen so every zone
+     in the date matrix (UTC-8 through UTC+9) reads the same civil date, and
+     even at UTC+14 it only advances to Thursday the 19th, which is still
+     inside the same week. Hand-declared from that anchor:
+
+       evaluation week   Mon 2026-03-16 .. Sun 2026-03-22
+       week-0 sessions   03-12 Thu, 03-13 Fri, 03-15 Sun, 03-16 Mon
+       inside that week  03-16 only  -> the Muscle block renders
+
+     Fixture dates are derived with UTC arithmetic so the STRINGS are literal
+     civil dates that do not shift with the host zone; the app then reads them
+     as local civil dates exactly as it does in production. */
+  const PD_NOW = '2026-03-18T12:00:00Z';
+  const PD_ANCHOR = Date.UTC(2026, 2, 18);
+  const D = n => { const d = new Date(PD_ANCHOR - n*86400000);
+    return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); };
   const S = (w,r) => ({weight:String(w),reps:String(r),rir:'2',type:'working'});
   const sess = (i, cat, daysAgo, w) => ({ id:'pd'+i, date:D(daysAgo), category:cat, title:'S', notes:'',
     exercises:[{ name: cat==='upper'?'Bench Press':'Back Squat', bodyweight:false,
@@ -7525,7 +7573,17 @@ function testProgressDashboard(app){
     }
     return out;
   };
-  const render = log => {
+  /* Pinned here rather than at each call site, so no assertion in this
+     contract can quietly go back to depending on the real clock. */
+  /* THE PIN COVERS THE WHOLE CONTRACT, NOT JUST render().
+     Several assertions call render() and then switchProgTab() to read another
+     tab. Pinning only inside render() put those second renders back on the
+     real clock, six months adrift from the fixture, and eight of them failed.
+     The clock is therefore held for the duration of this function and
+     released at the end; renderAt() nests a second pin for the one case that
+     deliberately evaluates from a different week. */
+  const releaseClock = pinClock(ctx, PD_NOW);
+  const renderNow = log => {
     ctx.workoutLog = log;
     ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
     clearCaches(ctx);
@@ -7533,6 +7591,8 @@ function testProgressDashboard(app){
     ctx.renderProgTab();
     return doc.getElementById('progPerf').innerHTML;
   };
+  const renderAt = (log, iso) => withClockOn(ctx, iso, () => renderNow(log));
+  const render = log => renderNow(log);
 
   sub('renders at every history size');
   {
@@ -7613,8 +7673,26 @@ function testProgressDashboard(app){
     T('and show exactly the evidence there is', shown === Math.min(3, evid));
     /* The three questions kept their answers; each now has its own block
        and its own drill-down instead of sharing one tile strip. */
+    /* Hand-declared above: on Wednesday 2026-03-18 the evaluation week is
+       Mon 03-16 .. Sun 03-22 and exactly one fixture session (03-16) falls
+       inside it, so all three blocks have something to say. */
     T('they are Strength, Consistency and Muscle',
       /po-lifts/.test(html) && /pd-wk/.test(html) && /po-mus/.test(html));
+  }
+
+  /* THE OTHER HALF OF THE RULE, WHICH USED TO BE LEFT TO CHANCE.
+     The flake above was the calendar occasionally walking this contract into
+     a week with no training and finding the Muscle block absent. That is the
+     correct product behaviour and it deserves to be asserted rather than
+     stumbled upon. Same 13-week fixture, evaluated from Monday 2026-03-23:
+     the week Mon 03-23 .. Sun 03-29 contains none of it, because the newest
+     session is 03-16. */
+  sub('a week with no training says so, rather than showing an empty block');
+  {
+    const html = renderAt(longHistory(), '2026-03-23T12:00:00Z');
+    T('the Muscle block is not drawn for an empty week', !/po-mus/.test(html));
+    T('but the history-wide blocks still are',
+      /po-lifts/.test(html) && /pd-wk/.test(html));
   }
 
   sub('every figure comes from a calculation that already existed');
@@ -7760,6 +7838,9 @@ function testProgressDashboard(app){
     T('no trainer call', !/proposeTrainerState|computeShadowRecommendation|logRecommendation|computeTrainingContext/.test(mod));
     T('no recommendation is rendered', !/buildProgressionRecommendation/.test(mod));
   }
+
+  /* Hand back the real clock. Every contract after this one reads it. */
+  releaseClock();
 }
 
 /* =========================================================
@@ -20929,15 +21010,8 @@ async function testDateBoundaries(){
     return dt.getUTCFullYear() + '-' + String(dt.getUTCMonth()+1).padStart(2,'0') +
            '-' + String(dt.getUTCDate()).padStart(2,'0');
   };
-  const withClock = (iso, fn) => {
-    const Real = ctx.Date;
-    const fixed = new Real(iso).getTime();
-    function Fake(...a){ return a.length ? new Real(...a) : new Real(fixed); }
-    Fake.prototype = Real.prototype; Fake.now = () => fixed;
-    Fake.UTC = Real.UTC; Fake.parse = Real.parse;
-    ctx.Date = Fake;
-    try{ return fn(); } finally { ctx.Date = Real; }
-  };
+  /* The same helper, now shared — see withClockOn at the top of this file. */
+  const withClock = (iso, fn) => withClockOn(ctx, iso, fn);
   const SET = (w,r) => ({ weight:String(w), reps:String(r), rir:'2', type:'working', completed:true });
   const WK = (id, ymd) => ({ id, date:ymd, category:'push', title:'S', notes:'',
     exercises:[{ name:'Bench Press', bodyweight:false, sets:[SET(135,10), SET(135,8)] }] });
