@@ -1205,21 +1205,71 @@ html.intro-skip #introOverlay{ display: none !important; }
 .cd-detail-actions{ display: flex; gap: 10px; margin-top: 22px; }
 .cd-detail-actions > *{ flex: 1; }
 
-/* Today entry point */
-.today-cardio-link{
-  display: flex; align-items: center; gap: 11px; width: 100%;
-  margin-top: 10px; padding: 12px 14px; border-radius: var(--radius-md);
-  background: var(--surface-3); border: 1px solid var(--border);
-  color: var(--text-dim); cursor: pointer; text-align: left;
+/* ---- Activity, under the day's card ----
+   Quieter than the plan it sits beneath, and never drawn like a workout: no
+   category colour, no hero material. The mark is a broken line because a
+   solid colour bar already means "workout" everywhere else in LOOP. */
+.act-block{ display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.act-k{
+  margin: 4px 2px 0; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
 }
-.today-cardio-link:active{ opacity: 0.7; }
-.tcl-glyph{ flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
-  background: rgba(75,156,129,0.14); color: var(--success);
-  display: flex; align-items: center; justify-content: center; font-size: 12px; }
-.tcl-text{ flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text);
-  display: flex; flex-direction: column; gap: 2px; }
-.tcl-text span{ font-size: var(--fs-micro); font-weight: 400; color: var(--text-faint); }
-.tcl-go{ flex-shrink: 0; color: var(--accent); font-size: 16px; font-weight: 700; }
+.act-row{
+  display: flex; align-items: center; gap: 11px; width: 100%; min-height: 52px;
+  padding: 9px 13px; border-radius: var(--radius-md); background: var(--surface);
+  border: 1px solid var(--border-quiet); color: var(--text); text-align: left; cursor: pointer;
+}
+.act-row:active{ background: var(--surface-2); }
+.act-mark{
+  flex-shrink: 0; width: 3px; align-self: stretch; border-radius: 2px;
+  background: repeating-linear-gradient(180deg, var(--text-faint) 0 4px, transparent 4px 7px);
+}
+.act-body{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.act-name{ font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.act-meta{ font-size: 11.5px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
+.act-go{ flex-shrink: 0; display: flex; color: var(--text-faint); }
+.act-log{
+  display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%;
+  min-height: 44px; border-radius: var(--radius-md); background: none;
+  border: 1px dashed var(--border); color: var(--text-dim); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+}
+.act-log:active{ color: var(--accent); border-color: var(--accent); }
+.act-log-plus{ font-size: 16px; line-height: 1; color: var(--accent); }
+.act-row:focus-visible, .act-log:focus-visible, .act-chip:focus-visible, .act-delete:focus-visible{
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.act-chips{ display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+.act-chip{
+  min-height: 44px; padding: 0 16px; border-radius: 99px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-dim); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+}
+.act-chip.on{ background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.act-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); column-gap: 10px; }
+.act-field{ display: block; margin-top: 14px; min-width: 0; }
+.act-flab{
+  display: block; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace;
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+.act-in{
+  width: 100%; height: 46px; box-sizing: border-box; padding: 0 12px; border-radius: var(--radius-md);
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 16px;
+}
+.act-in:focus{ outline: none; border-color: var(--accent); }
+.act-err{ margin: 14px 0 0; font-size: var(--fs-support); color: var(--danger); }
+.act-fine{ margin: 16px 0 0; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-faint); }
+.act-delete{
+  display: block; margin: 18px 0 2px; padding: 10px 0; min-height: 44px; background: none; border: none;
+  color: var(--danger); font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+/* In the Log: the same broken mark, so a session that was not a workout never
+   borrows a workout's category colour. */
+.rw-accent.rw-accent-other{
+  background: repeating-linear-gradient(180deg, var(--text-faint) 0 4px, transparent 4px 7px);
+}
 
 @media (prefers-reduced-motion: reduce){
   .cd-ach-fill{ transition: none; }
@@ -6182,7 +6232,7 @@ body.page-locked{ overflow: hidden; }
    standalone cards take the full material, repeated rows and tiles take the
    quiet boundary only (fourteen ambient shadows in one list is cost without
    meaning), and the shared secondary button becomes a raised control. */
-.wk-card, .today-cardio-link, .cl-empty, .cw-card, .log-lens, .gym-summary{
+.wk-card, .cl-empty, .cw-card, .log-lens, .gym-summary{
   border-color: var(--border-quiet);
   box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
 }
@@ -6615,6 +6665,9 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div id="missedBanner"></div>
     <!-- 1 — what am I doing today -->
     <div id="todayWorkout"></div>
+    <!-- 1b — anything else the athlete did today. Kept apart from the card
+         above on purpose: an activity is never the workout. -->
+    <div id="todayActivity"></div>
 
     <!-- 2 — how is my week going -->
     <div id="weekCard"></div>
@@ -6793,8 +6846,22 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <button class="tab-btn active" data-tab="today" onclick="switchTab('today')"><span class="glyph" id="tabIconToday"></span>Today</button>
     <button class="tab-btn" data-tab="train" onclick="switchTab('train')"><span class="glyph" id="tabIconTrain"></span>Train</button>
     <button class="tab-btn" data-tab="progress" onclick="switchTab('progress')"><span class="glyph" id="tabIconProgress"></span>Progress</button>
-    <button class="tab-btn" data-tab="cardio" onclick="switchTab('cardio')"><span class="glyph" id="tabIconCardio"></span>Cardio</button>
     <button class="tab-btn" data-tab="history" onclick="switchTab('history')"><span class="glyph" id="tabIconLog"></span>Log</button>
+  </div>
+</div>
+
+<!-- ACTIVITY LOGGER — holds unsaved input, so no backdrop dismiss -->
+<div class="overlay" id="activityOverlay">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2 id="activityTitle">Log activity</h2>
+      <div class="sheet-sub">Golf, a walk, a game — anything you did outside a workout.</div>
+      <div id="activityLoggerBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeActivityLogger()">Cancel</button>
+      <button class="btn-primary" id="activitySave" onclick="saveActivity()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -8664,14 +8731,19 @@ async function importAllData(input){
     // measured run carries its route and splits, so losing one to a
     // fill-only rule would lose the only copy of where the athlete went.
     const hasCardioLog = !!incoming.cardioLog;
-    let addedCardio = 0;
+    let addedCardio = 0, addedActivities = 0;
     if(hasCardioLog){
       const theirs = JSON.parse(incoming.cardioLog) || [];
       const mineRaw = await LOOPStore.get('cardioLog');
       const mine = mineRaw && mineRaw.value ? (JSON.parse(mineRaw.value) || []) : [];
       const byId = {};
       mine.forEach(c => { if(c && c.id) byId[c.id] = c; });
-      theirs.forEach(c => { if(c && c.id && !byId[c.id]){ byId[c.id] = c; addedCardio++; } });
+      theirs.forEach(c => {
+        if(c && c.id && !byId[c.id]){
+          byId[c.id] = c;
+          if(isActivityRecord(c)) addedActivities++; else addedCardio++;
+        }
+      });
       const merged = Object.keys(byId).map(k => byId[k]);
       await LOOPStore.set('cardioLog', JSON.stringify(merged));
     }
@@ -8730,7 +8802,11 @@ async function importAllData(input){
     // completed import reports what actually happened, never silently.
     const parts = [];
     if(hasWorkoutLog) parts.push(`${added} new workout${added===1?'':'s'} added`);
-    if(hasCardioLog) parts.push(`${addedCardio} new cardio session${addedCardio===1?'':'s'} added`);
+    /* Activities share the store but are not cardio sessions, and a restore
+       report that called them sessions would be the first place LOOP said so. */
+    if(hasCardioLog && (addedCardio || !addedActivities))
+      parts.push(`${addedCardio} new cardio session${addedCardio===1?'':'s'} added`);
+    if(addedActivities) parts.push(`${addedActivities} new activit${addedActivities===1?'y':'ies'} added`);
     if(hasPrograms) parts.push(`${addedPrograms} new program${addedPrograms===1?'':'s'} added`);
     if(filled) parts.push(`${filled} setting${filled===1?'':'s'} restored`);
     const summary = parts.length ? parts.join(', ') : 'nothing new to import — you already have this data';
@@ -10787,6 +10863,29 @@ const LOOP_UPDATES = [
     changes: [
       'Finish only. The eight ranks, their names, their symbols, their colours and the levels that earn them are exactly what they were \u2014 this is the same emblem set, drawn properly'
     ]
+  },
+  {
+    id: 'v5-5',
+    version: 'LOOP 5.5',
+    title: 'Log What Else You Did',
+    date: '2026-12-30',
+    swVersion: 'loop-v132',
+    summary: 'The Cardio tab is gone. Golf, a walk or a game is now a quick note on Today.',
+    newFeatures: [
+      'Log activity, right under today\u2019s workout \u2014 golf, a walk, a run, a ride, a hike, a sport, or anything else you name. Pick what you did and save; minutes, distance and a note are there if you want them',
+      'The Log is now one list, newest first: your workouts, your activities, and every cardio session you logged before. Each one is labelled, so an activity never looks like a workout'
+    ],
+    improvements: [
+      'Show more in the Log now keeps going all the way back, instead of stopping at fifty'
+    ],
+    bugFixes: [
+      'If you have cardio history, the level shown when LOOP first opened could leave that cardio out until something refreshed the screen. It\u2019s included from the moment the app opens',
+      'If your phone\u2019s storage was full, saving a cardio session could report success when nothing had been saved. LOOP now tells you, and keeps what you entered so you can try again'
+    ],
+    changes: [
+      'The Cardio tab has been retired, leaving four tabs. Every cardio session you already logged is kept, opens with its full detail from the Log, and still counts toward your level exactly as it did',
+      'An activity is a record of what you did, not training. It never completes or replaces a planned workout, and it earns no XP, records or streaks \u2014 your level, rank, progression and coaching are unchanged by it'
+    ]
   }
 ];
 
@@ -11667,6 +11766,14 @@ async function boot(){
      default state. */
   await loadOnboarding();
 
+  /* Also before the first paint, for the same reason. Cardio XP is part of the
+     level, and this used to load after showMainApp() had already drawn the
+     header, so an athlete with cardio history opened the app to a level and
+     progress bar that left it out until something else redrew the screen.
+     With the Cardio tab retired, the first thing to redraw it was often saving
+     an activity — which made a round of golf look like it had earned XP. */
+  await loadCardioLog();
+
   if(selectedPlanId && DEFAULT_PLANS[selectedPlanId]){
     await loadPlanData(selectedPlanId);
     await loadSchedule(selectedPlanId);
@@ -11679,9 +11786,8 @@ async function boot(){
   await loadTrainerData();
   await loadReadiness();
   await loadTrainerLog();
-  await loadCardioLog();
   /* A cardio session that was running when the app went away is picked back
-     up here, once the log it will be saved into is in memory. */
+     up here. The log it will be saved into was loaded before the first paint. */
   await resumeCardioDraft();
 
   renderStorageNotice(migrationResult);
@@ -12652,8 +12758,6 @@ function tabIconSvg(name){
     train:    '<path d="M2 8h12"/><path d="M4.2 5.4v5.2M6.2 4.2v7.6M9.8 4.2v7.6M11.8 5.4v5.2"/>',
     /* three rising columns: the shape of getting stronger over time */
     progress: '<path d="M3.2 12.5V9.4M8 12.5V4.9M12.8 12.5V7.2"/>',
-    /* a working heartbeat, matching the stroke language of the trend icons */
-    cardio:   '<path d="M1.8 8h3l1.4-3.1 2.2 6.2L10 8h4.2"/>',
     /* the calendar the Log tab actually is */
     log:      '<rect x="2.4" y="3.4" width="11.2" height="10.2" rx="1.6"/><path d="M2.4 6.6h11.2M5.6 2.2v2.4M10.4 2.2v2.4"/>'
   };
@@ -13933,7 +14037,7 @@ function initSheetKeyboard(){
 /* The tab bar is static markup, so its icons are painted once at boot. */
 function paintTabIcons(){
   const map = { tabIconToday:'today', tabIconTrain:'train', tabIconProgress:'progress',
-                tabIconCardio:'cardio', tabIconLog:'log' };
+                tabIconLog:'log' };
   Object.keys(map).forEach(id => {
     const el = document.getElementById(id);
     if(el) el.innerHTML = tabIconSvg(map[id]);
@@ -15384,6 +15488,12 @@ function analyzeReplay(replay){
 
    Records store ONLY the fields that apply to the activity —
    a 30-minute stair session never carries a null `distance`.
+
+   RETIRED AS A TAB. This module no longer has an entry point of
+   its own. It stays so legacy sessions keep their detail, edit and
+   XP, and so a live session in flight when the change arrived can
+   still be finished. cardioLog now also holds ACTIVITIES (see
+   ACTIVITY LOGGING), which every derived reader here excludes.
    ========================================================= */
 
 const CARDIO_KEY = 'cardioLog';
@@ -15481,18 +15591,90 @@ async function loadCardioLog(){
 }
 async function persistCardioLog(){
   invalidateCardioCache();
-  try{ await LOOPStore.set(CARDIO_KEY, JSON.stringify(cardioLog)); return true; }
+  /* LOOPStore.set() reports a failed write by RETURNING false — it never
+     throws. This returned true regardless, so a write refused by a full
+     store told the athlete their session was saved, and every rollback
+     written against this result was unreachable. Every other persist in
+     LOOP passes the store's answer through; this one now does too. */
+  try{ return (await LOOPStore.set(CARDIO_KEY, JSON.stringify(cardioLog))) === true; }
   catch(e){ return false; }
 }
 
 function sortedCardio(){
-  return [...cardioLog].sort((a,b) => b.date.localeCompare(a.date) ||
+  return legacyCardioRecords().sort((a,b) => b.date.localeCompare(a.date) ||
     (b.createdAt||'').localeCompare(a.createdAt||''));
+}
+
+/* =========================================================
+   ACTIVITY LOGGING  (the Cardio tab, retired)
+   ---------------------------------------------------------
+   "I had legs planned and played golf instead."
+
+   The Cardio tab asked the athlete to run a second training product beside
+   the first. What it held that was worth keeping is simpler: the plain fact
+   of what else they did. An activity records that fact and nothing more.
+
+   IT IS OBSERVATIONAL. That is a rule, not a gap. An activity never
+   completes a workout, never fulfils a planned day, never becomes strength
+   evidence, and never earns XP, a record, a streak week or a statistic.
+   There are no calories, no training load and no recovery effect, because
+   LOOP has no measurement that would make any of them true. If activity is
+   ever a coaching signal it will be because a model for it was built and
+   defended — never because a round of golf was logged.
+
+   IT SHARES cardioLog RATHER THAN OWNING A STORE. DATA_KEYS is held at
+   fifteen by sixty assertions, on purpose: every store is another thing a
+   backup must carry and a restore must merge. cardioLog already travels
+   through both, merged by id. An activity is told apart by `kind`, a field
+   no legacy record has ever carried — so every existing record reads exactly
+   as it did, and every reader that turns cardio into XP, streaks, stats or
+   records reads legacyCardioRecords() and cannot see an activity at all.
+
+   LEGACY CARDIO KEEPS WHAT IT EARNED. Those sessions were logged under a
+   defined, capped XP model, and they are part of a level and rank that
+   friends can see. Retiring the tab does not reach back and take them away.
+   ========================================================= */
+/* `name` is what the athlete called it: required for Other, optional for
+   Sport ("Tennis" beats "Sport"), and fixed for the rest. */
+const ACTIVITY_TYPES = [
+  { id:'golf',    name:'Golf',    distance:false },
+  { id:'walk',    name:'Walk',    distance:true  },
+  { id:'run',     name:'Run',     distance:true  },
+  { id:'cycling', name:'Cycling', distance:true  },
+  { id:'hike',    name:'Hike',    distance:true  },
+  { id:'sport',   name:'Sport',   distance:false, naming:'optional' },
+  { id:'other',   name:'Other',   distance:false, naming:'required' }
+];
+function activityType(id){ return ACTIVITY_TYPES.find(t => t.id === id) || null; }
+function isActivityRecord(r){ return !!(r && r.kind === 'activity'); }
+/* The ONE place the two are separated. Everything that derives XP, streaks,
+   statistics or records from cardio reads through here. */
+function legacyCardioRecords(){ return cardioLog.filter(r => !isActivityRecord(r)); }
+function activityRecords(){ return cardioLog.filter(isActivityRecord); }
+function sortedActivities(){
+  return activityRecords().sort((a,b) => b.date.localeCompare(a.date) ||
+    (b.createdAt||'').localeCompare(a.createdAt||''));
+}
+function activitiesOn(date){ return sortedActivities().filter(a => a.date === date); }
+/* A record id placed inside onclick="fn('…')". A restored backup can carry any
+   id at all, so it is escaped for the JS string first and the attribute second
+   — the same order the one earlier handler that needed this uses. */
+function onclickArg(v){ return escapeAttr(String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
+
+/* "45 min · 3.1 mi" — only what was actually entered, never a zero. */
+function activityMetaText(a){
+  const bits = [];
+  if(a.duration > 0) bits.push(a.duration + ' min');
+  if(a.distance > 0) bits.push(a.distance + ' ' + cardioDistanceUnit());
+  return bits.join(' · ');
 }
 
 /* ---------- STATS ---------- */
 function computeCardioStats(){
   if(_cardioCache) return _cardioCache;
+  /* Legacy sessions only. Shadowed once here rather than edited at each of
+     the six uses below, so none of them can be missed. */
+  const cardioLog = legacyCardioRecords();
   const now = new Date();
   const weekStart = currentWeekStart();
   const monthCut = new Date(now); monthCut.setDate(now.getDate() - 30);
@@ -15527,7 +15709,7 @@ function computeCardioStats(){
 /* Activity-specific bests only. A 5-mile run is never compared against a
    stair session — records are scoped to one activity and one metric. */
 function computeCardioPRs(activityId){
-  const rows = cardioLog.filter(c => c.activityId === activityId);
+  const rows = legacyCardioRecords().filter(c => c.activityId === activityId);
   if(rows.length < 2) return null;   // one session isn't a record
   const best = (k) => rows.reduce((b,c) => {
     const v = parseFloat(c[k]);
@@ -15591,7 +15773,7 @@ function renderCardioLogger(){
     /* Your own most-used activities surface first — after a few sessions the
        thing you actually do is one tap away instead of buried in a list. */
     const freq = {};
-    cardioLog.forEach(c => { freq[c.activityId] = (freq[c.activityId] || 0) + 1; });
+    legacyCardioRecords().forEach(c => { freq[c.activityId] = (freq[c.activityId] || 0) + 1; });
     const recentIds = Object.keys(freq).sort((a,b) => freq[b] - freq[a]).slice(0, 4);
 
     const tile = a => {
@@ -15606,7 +15788,7 @@ function renderCardioLogger(){
     CARDIO_ACTIVITIES.forEach(a => { (groups[a.group] = groups[a.group] || []).push(a); });
 
     el.innerHTML = `
-      <div class="sheet-sub">For a session you already finished. To track one live, start it from the Cardio tab.</div>
+      <div class="sheet-sub">For a session you already finished.</div>
       ${recentIds.length ? `
         <label style="margin-top:18px">Your usual</label>
         <div class="cd-act-grid">
@@ -15732,6 +15914,7 @@ async function saveCardioSession(btn){
   if(btn) btn.disabled = true;
 
   const now = new Date().toISOString();
+  const before = cardioLog.slice();
   if(cardioEditingId){
     const i = cardioLog.findIndex(c => c.id === cardioEditingId);
     if(i !== -1) cardioLog[i] = { ...cardioLog[i], ...rec, updatedAt: now };
@@ -15741,6 +15924,11 @@ async function saveCardioSession(btn){
   }
   const ok = await persistCardioLog();
   if(!ok){
+    /* Put memory back to what storage holds. Left in place, the unsaved
+       record made "try again" push a second copy, and a retry that landed
+       stored both — the same session counted twice. */
+    cardioLog = before;
+    invalidateCardioCache();
     if(btn) btn.disabled = false;
     alert("That didn't save. Nothing was lost — try again.");
     return;
@@ -15750,17 +15938,23 @@ async function saveCardioSession(btn){
   cardioEditingId = null;
   cardioSelectedActivity = null;
   document.getElementById('cardioOverlay').classList.remove('open');
-  renderCardioView();
+  renderAll();
 }
 
 async function deleteCardioSession(id){
   const rec = cardioLog.find(c => c.id === id);
   if(!rec) return;
   if(!confirm('Delete this ' + rec.activityName + ' session? This cannot be undone.')) return;
+  const before = cardioLog;
   cardioLog = cardioLog.filter(c => c.id !== id);
-  await persistCardioLog();
+  if(!(await persistCardioLog())){
+    cardioLog = before;                    // still stored, so still shown
+    invalidateCardioCache();
+    alert("That didn't delete. Nothing was changed — try again.");
+    return;
+  }
   closeCardioDetail();
-  renderCardioView();
+  renderAll();
 }
 
 /* Visual identity per activity group. Presentation only — no data meaning. */
@@ -17369,7 +17563,7 @@ const CARDIO_QUICK_IDS = ['run_outdoor','walk_outdoor','cycle_outdoor','run_trea
    a few weeks the launcher is yours rather than ours. */
 function cardioLauncherIds(){
   const freq = {};
-  cardioLog.forEach(c => { freq[c.activityId] = (freq[c.activityId] || 0) + 1; });
+  legacyCardioRecords().forEach(c => { freq[c.activityId] = (freq[c.activityId] || 0) + 1; });
   const mine = Object.keys(freq)
     .filter(id => getCardioActivity(id))
     .sort((a,b) => freq[b] - freq[a])
@@ -17385,7 +17579,7 @@ function cardioLauncherIds(){
    target LOOP invented for the athlete to fall short of. */
 function cardioWeekSummary(){
   const start = currentWeekStart();
-  const rows = cardioLog.filter(c => new Date(c.date + 'T00:00:00') >= start);
+  const rows = legacyCardioRecords().filter(c => new Date(c.date + 'T00:00:00') >= start);
   const days = new Set(rows.map(c => c.date));
   const minutes = rows.reduce((n,c) => n + (parseFloat(c.duration) || 0), 0);
   const distance = rows.reduce((n,c) => n + (parseFloat(c.distance) || 0), 0);
@@ -17491,7 +17685,8 @@ function renderCardioView(){
     </div>
     <button type="button" class="cl-manual" onclick="openCardioLogger()">Log a past session</button>`;
 
-  if(!cardioLog.length){
+  const legacyCount = legacyCardioRecords().length;
+  if(!legacyCount){
     el.innerHTML = launcher + `
       <div class="cl-empty">Runs, walks, rides, rowing, stairs — LOOP builds your
         time, distance and consistency from whatever you track here.</div>`;
@@ -17514,8 +17709,8 @@ function renderCardioView(){
 
     <div class="sec-head">Recent<span class="sec-hint">tap for detail</span></div>
     <div class="ch-list">${recent.map(cardioCardHtml).join('')}</div>
-    ${cardioLog.length > recent.length
-      ? `<div class="cd-more-note">${cardioLog.length - recent.length} earlier session${cardioLog.length-recent.length===1?'':'s'}</div>` : ''}
+    ${legacyCount > recent.length
+      ? `<div class="cd-more-note">${legacyCount - recent.length} earlier session${legacyCount-recent.length===1?'':'s'}</div>` : ''}
 
     <button type="button" class="cl-disclose" onclick="toggleCardioStats()"
       aria-expanded="${cardioStatsOpen ? 'true' : 'false'}">
@@ -17573,7 +17768,7 @@ function startCardioFromPicker(id){
 
 /* One-line metric summary, ordered so the activity's PRIMARY metric leads. */
 function renderCardioPRs(){
-  const ids = [...new Set(cardioLog.map(c => c.activityId))];
+  const ids = [...new Set(legacyCardioRecords().map(c => c.activityId))];
   const rows = ids.map(id => {
     const prs = computeCardioPRs(id);
     if(!prs) return '';
@@ -17598,7 +17793,7 @@ function renderCardioPRs(){
 
 function cardioXPSummaryHtml(){
   const p = getCombinedProgression();
-  if(!cardioLog.length) return '';
+  if(!legacyCardioRecords().length) return '';
   const pct = p.lifetimeXP > 0 ? Math.round(p.cardioXP / p.lifetimeXP * 100) : 0;
   return `
     <div class="sec-head">Contribution<span class="sec-hint">to your level</span></div>
@@ -17617,7 +17812,7 @@ function cardioXPSummaryHtml(){
 
 function cardioAchievementsHtml(){
   const list = getCardioAchievements();
-  if(!cardioLog.length) return '';
+  if(!legacyCardioRecords().length) return '';
   const unlocked = list.filter(a => a.unlocked);
   const next = list.filter(a => !a.unlocked).slice(0, 3);
   return `
@@ -17646,9 +17841,10 @@ function cardioAchievementsHtml(){
 /* ---------- DETAIL ---------- */
 let cardioDetailId = null;
 function openCardioDetail(id){
-  cardioDetailId = id;
   const rec = cardioLog.find(c => c.id === id);
   if(!rec) return;
+  if(isActivityRecord(rec)){ openActivityLogger(id); return; }
+  cardioDetailId = id;
   const act = getCardioActivity(rec.activityId);
   const shown = (act ? act.metrics.concat(['activeCalories']) : Object.keys(CARDIO_FIELDS))
     .filter(k => rec[k] !== undefined && rec[k] !== '' && CARDIO_FIELDS[k]);
@@ -17792,7 +17988,7 @@ function invalidateCardioXPCache(){ _cardioXPCache = null; }
 function computeCardioXPTimeline(){
   if(_cardioXPCache) return _cardioXPCache;
 
-  const chrono = [...cardioLog].sort((a,b) =>
+  const chrono = legacyCardioRecords().sort((a,b) =>
     a.date.localeCompare(b.date) || (a.createdAt||'').localeCompare(b.createdAt||''));
 
   const timeline = [];
@@ -17843,7 +18039,7 @@ function computeCardioXPTotal(){ return computeCardioXPTimeline().lifetimeXP; }
 /* Cardio consistency is tracked SEPARATELY from strength — a cardio week does
    not extend a lifting streak, and vice versa. */
 function computeCardioStreakWeeks(sortedAsc){
-  const rows = sortedAsc || [...cardioLog].sort((a,b) => a.date.localeCompare(b.date));
+  const rows = sortedAsc || legacyCardioRecords().sort((a,b) => a.date.localeCompare(b.date));
   if(!rows.length) return { current:0, maxEver:0 };
   const weeks = new Set();
   rows.forEach(s => {
@@ -18396,6 +18592,9 @@ function attachDaySwipe(){
 function renderTodayWorkout(){
   const el = document.getElementById('todayWorkout');
   if(!el) return;
+  /* Drawn from here so every path that refreshes Today refreshes the
+     activity block too, without each of them having to know it exists. */
+  renderTodayActivity();
   /* One shared selected day drives both views. Today keeps the full card —
      Start, the time picker, the workout picker — and any other day gets the
      smaller card that answers what is planned. */
@@ -18529,13 +18728,183 @@ function renderTodayWorkout(){
       ${timePickerHtml(first)}
       ${templates.length > 1 || todayPickerOpen ? `
         <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide options' : 'Change workout'}</button>` : ''}
-      <button class="today-cardio-link" onclick="switchTab('cardio')">
-        <span class="tcl-glyph">${cardioIconSvg('run_outdoor', 15)}</span>
-        <span class="tcl-text">Cardio today?<span>${cardioLog.length ? computeCardioStats().weekSessions + ' logged this week' : 'Log a run, walk or ride'}</span></span>
-        <span class="tcl-go">›</span>
-      </button>
       ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat)}</div>` : ''}
     </div>`;
+}
+
+/* ---------- TODAY: what else happened ----------
+   Hidden while a workout is under way, and while another day is being
+   previewed — this block is about today, and mid-session is not when the
+   athlete is deciding to log golf. */
+function renderTodayActivity(){
+  const host = document.getElementById('todayActivity');
+  if(!host) return;
+  if(hasActiveDraftNow || !selectedDayIsToday()){ host.innerHTML = ''; return; }
+  const today = activitiesOn(localDateStr());
+  const rows = today.map(a => {
+    const meta = activityMetaText(a);
+    return `
+      <button type="button" class="act-row" onclick="openActivityLogger('${onclickArg(a.id)}')"
+        aria-label="${escapeAttr('Edit ' + a.name + (meta ? ', ' + meta : ''))}">
+        <span class="act-mark" aria-hidden="true"></span>
+        <span class="act-body">
+          <span class="act-name">${escapeHtml(a.name)}</span>
+          ${meta ? `<span class="act-meta">${escapeHtml(meta)}</span>` : ''}
+        </span>
+        <span class="act-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </button>`;
+  }).join('');
+  host.innerHTML = `
+    <div class="act-block">
+      ${today.length ? `<div class="act-k">Also today</div>${rows}` : ''}
+      <button type="button" class="act-log" onclick="openActivityLogger()">
+        <span class="act-log-plus" aria-hidden="true">+</span>Log activity
+      </button>
+    </div>`;
+}
+
+/* ---------- THE LOGGER ----------
+   Golf is three taps: Log activity, Golf, Save. Everything else is optional
+   and appears only when the type calls for it — distance is offered for the
+   kinds of activity that have one, and for no others. */
+let activityDraft = null;
+function openActivityLogger(editId){
+  const rec = editId ? cardioLog.find(r => r.id === editId && isActivityRecord(r)) : null;
+  if(editId && !rec) return;
+  const t = rec ? activityType(rec.type) : null;
+  activityDraft = rec
+    ? { editingId: rec.id, type: t ? t.id : 'other',
+        customName: (!t || t.naming) && rec.name !== (t && t.name) ? rec.name : '',
+        date: rec.date, duration: rec.duration > 0 ? String(rec.duration) : '',
+        distance: rec.distance > 0 ? String(rec.distance) : '', note: rec.note || '', error: null }
+    : { editingId: null, type: null, customName: '', date: localDateStr(),
+        duration: '', distance: '', note: '', error: null };
+  renderActivityLogger();
+  document.getElementById('activityOverlay').classList.add('open');
+}
+function closeActivityLogger(){
+  document.getElementById('activityOverlay').classList.remove('open');
+  activityDraft = null;
+}
+/* Reads the fields before any re-render, so choosing a type never throws
+   away a duration the athlete already typed. */
+function captureActivityFields(){
+  if(!activityDraft) return;
+  [['actName','customName'],['actDate','date'],['actDuration','duration'],
+   ['actDistance','distance'],['actNote','note']].forEach(([id, k]) => {
+    const el = document.getElementById(id);
+    if(el && typeof el.value === 'string') activityDraft[k] = el.value;
+  });
+}
+function pickActivityType(id){
+  if(!activityDraft || !activityType(id)) return;
+  captureActivityFields();
+  activityDraft.type = id;
+  activityDraft.error = null;
+  renderActivityLogger();
+}
+function renderActivityLogger(){
+  const body = document.getElementById('activityLoggerBody');
+  if(!body || !activityDraft) return;
+  const d = activityDraft, t = activityType(d.type);
+  const title = document.getElementById('activityTitle');
+  if(title) title.textContent = d.editingId ? 'Edit activity' : 'Log activity';
+  const chips = ACTIVITY_TYPES.map(x => `
+    <button type="button" class="act-chip${d.type === x.id ? ' on' : ''}"
+      aria-pressed="${d.type === x.id}" onclick="pickActivityType('${x.id}')">${x.name}</button>`).join('');
+  const field = (id, label, value, attrs) => `
+    <label class="act-field"><span class="act-flab">${label}</span>
+      <input id="${id}" class="act-in" value="${escapeAttr(value || '')}" ${attrs}></label>`;
+  const unitLabel = cardioDistanceUnit() === 'km' ? 'Kilometres' : 'Miles';
+  body.innerHTML = `
+    <div class="act-chips" role="group" aria-label="What you did">${chips}</div>
+    ${t ? `
+      ${t.naming ? field('actName', t.naming === 'required' ? 'What was it' : 'Which sport', d.customName,
+          `type="text" maxlength="40" autocapitalize="words" placeholder="${t.naming === 'required' ? 'e.g. Climbing' : 'Optional — e.g. Tennis'}"`) : ''}
+      <div class="act-grid">
+        ${field('actDuration', 'Minutes', d.duration, 'type="text" inputmode="numeric" placeholder="Optional"')}
+        ${t.distance ? field('actDistance', unitLabel, d.distance, 'type="text" inputmode="decimal" placeholder="Optional"') : ''}
+      </div>
+      ${field('actDate', 'Date', d.date, `type="date" max="${localDateStr()}"`)}
+      ${field('actNote', 'Note', d.note, 'type="text" maxlength="140" placeholder="Optional"')}` : ''}
+    ${d.error ? `<p class="act-err" role="alert">${escapeHtml(d.error)}</p>` : ''}
+    <p class="act-fine">Saved as an activity. It won't count as a workout or change your training.</p>
+    ${d.editingId ? `<button type="button" class="act-delete" onclick="deleteActivity()">Delete activity</button>` : ''}`;
+  const save = document.getElementById('activitySave');
+  if(save) save.disabled = !t;
+}
+
+/* A positive number or nothing. "abc", "0" and "-3" are all nothing, rather
+   than a stored value nobody meant. */
+function activityNumber(v){
+  const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+  return (Number.isFinite(n) && n > 0) ? Math.round(n * 100) / 100 : null;
+}
+
+async function saveActivity(){
+  if(!activityDraft || activityDraft.busy) return;   // a double tap writes once
+  captureActivityFields();
+  const d = activityDraft, t = activityType(d.type);
+  const fail = msg => { d.busy = false; d.error = msg; if(activityDraft === d) renderActivityLogger(); };
+  if(!t) return fail('Pick what you did.');
+  const custom = String(d.customName || '').trim();
+  if(t.naming === 'required' && !custom) return fail('Give it a name.');
+  const today = localDateStr();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(d.date || '') ? d.date : today;
+  if(date > today) return fail("That day hasn't happened yet.");
+
+  const now = new Date().toISOString();
+  const fields = { kind:'activity', type:t.id, name:(t.naming && custom) ? custom : t.name, date };
+  const duration = activityNumber(d.duration);
+  if(duration) fields.duration = duration;
+  const distance = t.distance ? activityNumber(d.distance) : null;
+  if(distance) fields.distance = distance;
+  const note = String(d.note || '').trim();
+  if(note) fields.note = note;
+
+  /* An edit replaces the record whole, so clearing a field really clears it. */
+  let undo;
+  if(d.editingId){
+    const i = cardioLog.findIndex(r => r.id === d.editingId && isActivityRecord(r));
+    if(i === -1){ closeActivityLogger(); return; }
+    const prev = cardioLog[i];
+    const next = Object.assign({ id: prev.id }, fields, { createdAt: prev.createdAt || now, updatedAt: now });
+    cardioLog[i] = next;
+    undo = () => { const j = cardioLog.indexOf(next); if(j !== -1) cardioLog[j] = prev; };
+  } else {
+    const rec = Object.assign({ id: 'activity_' + Date.now() + '_' + Math.random().toString(36).slice(2,6) },
+      fields, { createdAt: now, updatedAt: now });
+    cardioLog.push(rec);
+    undo = () => { cardioLog = cardioLog.filter(r => r !== rec); };
+  }
+  d.busy = true;
+  if(!(await persistCardioLog())){
+    undo();                                        // never leave a phantom in memory
+    invalidateCardioCache();
+    return fail("That didn't save. Nothing was lost — try again.");
+  }
+  closeActivityLogger();
+  renderAll();
+}
+
+async function deleteActivity(){
+  const d = activityDraft;
+  if(!d || !d.editingId || d.busy) return;
+  if(!confirm('Delete this activity? This cannot be undone.')) return;
+  const before = cardioLog;
+  cardioLog = cardioLog.filter(r => !(r.id === d.editingId && isActivityRecord(r)));
+  if(cardioLog.length === before.length){ closeActivityLogger(); return; }
+  d.busy = true;
+  if(!(await persistCardioLog())){
+    cardioLog = before;                            // still stored, so still shown
+    invalidateCardioCache();
+    d.busy = false;
+    d.error = "That didn't delete. Nothing was changed — try again.";
+    if(activityDraft === d) renderActivityLogger();
+    return;
+  }
+  closeActivityLogger();
+  renderAll();
 }
 
 function pickerGridHtml(cat){
@@ -19468,15 +19837,64 @@ function renderSelectedDay(){
     </div>`;
 }
 
+/* ONE HISTORY. The Log used to read workoutLog alone, so a run logged in the
+   Cardio tab was visible only inside that tab — and that tab only ever
+   listed its six most recent sessions. Retiring it would have left every
+   such session stored and unseen. The list now carries all three kinds of
+   record, newest first, each drawn so it cannot be mistaken for another: a
+   workout keeps its category colour, and a legacy cardio session or an
+   activity gets a broken neutral mark and says in words what it is. */
+function historyEntryTime(e){
+  const r = e.rec;
+  if(e.kind === 'workout'){
+    const ended = Date.parse(r.endedAt || '');
+    if(Number.isFinite(ended)) return ended;
+    return /^\d{12,}$/.test(String(r.id)) ? Number(r.id) : 0;   // ids are save times
+  }
+  const created = Date.parse(r.createdAt || '');
+  return Number.isFinite(created) ? created : 0;
+}
+function historyEntries(){
+  const out = sortedLog().map(l => ({ kind:'workout', date:l.date, rec:l }));
+  cardioLog.forEach(r => out.push({ kind: isActivityRecord(r) ? 'activity' : 'cardio', date:r.date, rec:r }));
+  out.forEach(e => { e.at = historyEntryTime(e); });
+  return out.sort((a, b) => String(b.date).localeCompare(String(a.date)) || b.at - a.at);
+}
+function historyOtherRowHtml(e){
+  const r = e.rec;
+  const isAct = e.kind === 'activity';
+  let meta;
+  if(isAct){
+    meta = activityMetaText(r);
+  } else {
+    const bits = [];
+    const mins = parseFloat(r.duration), dist = parseFloat(r.distance);
+    if(mins > 0) bits.push(Math.round(mins) + ' min');
+    if(dist > 0) bits.push(dist + ' ' + cardioDistanceUnit());
+    meta = bits.join(' · ');
+  }
+  const title = isAct ? r.name : (r.activityName || 'Cardio session');
+  return `
+      <button type="button" class="rw-row rw-other" onclick="${isAct ? 'openActivityLogger' : 'openCardioDetail'}('${onclickArg(r.id)}')">
+        <span class="rw-accent rw-accent-other"></span>
+        <span class="rw-body">
+          <span class="rw-title">${escapeHtml(title)}</span>
+          <span class="rw-meta">${formatDateShort(r.date)} · ${isAct ? 'Activity' : 'Cardio'}${meta ? ' · ' + escapeHtml(meta) : ''}</span>
+        </span>
+        <span class="rw-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </button>`;
+}
 /* Recent sessions as scannable rows. The old feed rendered every exercise and
    every set of every workout inline — 50 sessions came to 39,000px, so finding
    one from two weeks ago meant scrolling past ten full screens. The detail did
    not disappear; it moved one tap away, where it is actually read. */
 function recentWorkoutsHtml(limit){
-  const logs = sortedLog();
+  const logs = historyEntries();
   if(!logs.length) return '';
   const shown = logs.slice(0, limit || 8);
-  const rows = shown.map(l => {
+  const rows = shown.map(e => {
+    if(e.kind !== 'workout') return historyOtherRowHtml(e);
+    const l = e.rec;
     const exCount = (l.exercises || []).length;
     const setCount = (l.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
     let prs = 0;
@@ -19494,31 +19912,39 @@ function recentWorkoutsHtml(limit){
   }).join('');
 
   return `
-    <div class="sec-head">Recent<span class="sec-hint">${logs.length} session${logs.length===1?'':'s'} logged</span></div>
+    <div class="sec-head">Recent<span class="sec-hint">${logs.length} logged</span></div>
     <div class="rw-list">${rows}</div>
     ${logs.length > shown.length
-      ? `<button type="button" class="rw-more" onclick="showAllRecent(this)">Show ${Math.min(logs.length - shown.length, 42)} more</button>`
+      ? `<button type="button" class="rw-more" onclick="showAllRecent(this)">Show ${Math.min(logs.length - shown.length, RECENT_STEP - (shown.length % RECENT_STEP))} more</button>`
       : ''}`;
 }
-/* Reveals a deeper slice in place rather than navigating away. Capped so a
-   two-year history never renders thousands of rows into one page. */
+/* Reveals a deeper slice in place rather than navigating away, fifty rows at
+   a time, so a two-year history never renders thousands of rows unasked.
+   It keeps going: with the Cardio tab retired this list is the only place a
+   legacy session can be read, so none of them may sit past a dead end. */
+const RECENT_STEP = 50;
+let recentShown = 8;
 function showAllRecent(btn){
   const host = document.getElementById('historyRecent');
   if(!host) return;
-  host.innerHTML = recentWorkoutsHtml(50);
+  recentShown = (Math.floor(recentShown / RECENT_STEP) + 1) * RECENT_STEP;
+  host.innerHTML = recentWorkoutsHtml(recentShown);
 }
 
 function renderLogPage(){
   const cons = document.getElementById('historyConsistency');
   if(cons) cons.innerHTML = logConsistencyStripHtml();
   const recent = document.getElementById('historyRecent');
-  if(recent) recent.innerHTML = recentWorkoutsHtml(8);
+  recentShown = 8;
+  if(recent) recent.innerHTML = recentWorkoutsHtml(recentShown);
   const empty = document.getElementById('historyEmpty');
   if(empty){
     /* A new athlete gets one honest sentence and a way to start — not a page of
        zeroes. The calendar stays visible because it is the thing they are about
        to fill in. */
-    empty.innerHTML = workoutLog.length ? '' : `
+    /* Any history counts. An athlete whose past is cardio or activities has
+       one, and telling them it "starts here" would be false. */
+    empty.innerHTML = (workoutLog.length || cardioLog.length) ? '' : `
       <div class="log-empty">
         <div class="log-empty-title">Your training history starts here</div>
         <div class="log-empty-sub">Every session you log appears on this calendar. Tap any day to see what happened.</div>
@@ -25088,9 +25514,10 @@ function onboardingWorkoutSamples(){
     });
   }catch(e){}
   if(!out.length) out.push({ cat:'Full Body', name:'Full Body A' });
-  const picked = out.slice(0, 4);
-  picked.push({ cat:'Cardio', name:'Run, walk, row or ride' });   // a real LOOP mode
-  return picked;
+  /* Workouts only. Cardio sat here as "a real LOOP mode" until the Cardio tab
+     was retired; a tour that offered it would be promising a screen that is
+     no longer there. */
+  return out.slice(0, 4);
 }
 
 /* Step 2 — cycles through real workouts so "multiple ways to train" is shown

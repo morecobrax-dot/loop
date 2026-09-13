@@ -7233,3 +7233,155 @@ days ago. Whether that falls inside the current Monday-to-Sunday week depends
 on the weekday the suite runs. Proven green on Sunday 2026-09-06 and red on
 Tuesday 2026-09-08 with no code change in between. It is green on the day this
 shipped, it is not fixed, and it does not belong in an emblem release.
+
+## §83 — Phase A: Retiring the Cardio tab, and what an activity is not
+
+**Status.** Shipped in LOOP 5.5 (`loop-v132`). The Cardio tab is gone; a
+lightweight activity log replaces it on Today and in the Log. `DATA_KEYS` 15,
+schema 1, no migration, `TRAINER_ENGINE_VERSION` 0.1.1-shadow.
+
+### The rule: an activity is observational
+
+"I had legs planned and played golf instead" is a fact worth recording and
+nothing more. An activity never completes a workout, never fulfils a planned
+day or a program slot, never becomes strength evidence, and never earns XP, a
+record, a streak week or an achievement. There are no calories, no training
+load and no recovery effect, because LOOP measures none of them. If activity
+ever becomes a coaching signal, that will be a model someone built and
+defended, not a side effect of a round of golf being logged.
+
+### Why activities live in `cardioLog`
+
+A new store would have been the obvious design and the wrong one. `DATA_KEYS`
+is held at fifteen by sixty assertions because every store is another thing a
+backup must carry and a restore must merge. `cardioLog` already travels through
+both, merged by id. An activity is a record with `kind: 'activity'`, a field no
+legacy record has ever carried, so every existing record reads exactly as it
+did.
+
+The separation lives in one function, `legacyCardioRecords()`. Every reader
+that turns cardio into a number goes through it: the XP timeline, the streak,
+the stats, the PRs, the weekly summary, `sortedCardio`, the launcher, and the
+dormant view. `computeCardioStats` shadows `cardioLog` with the legacy slice
+once at its top rather than being edited at six sites, so none of them can be
+missed.
+
+It is load-bearing, and that has been measured rather than argued. With the
+filter removed from the XP timeline alone, the contract's legacy fixture moves
+from level 7 to level 8 (cardio XP 1,949 → 2,461) after one month of logged
+activities.
+
+**A tripwire guards it.** Contract 158 lists every top-level declaration that
+names `cardioLog`, and the list must equal an allowlist: storage plumbing,
+backup, record editing and display. A new function that reads `cardioLog`
+directly fails the suite and has to be decided about. It is not a style rule —
+it is the one place a future phase could make golf worth XP without anyone
+choosing to.
+
+### Legacy cardio keeps what it earned
+
+Those sessions were logged under a defined, capped XP model and are part of
+levels and ranks that friends can see. Retiring the tab does not take them
+back. On a 40-session legacy fixture, every cardio-derived value — XP, level,
+rank, streak, stats, PRs, weekly summary, sort order and the social snapshot —
+is byte-identical before and after this change (12 of 12 fields).
+
+### One history
+
+The Log read `workoutLog` alone, so a session logged in the Cardio tab was only
+visible inside that tab, and that tab only ever listed its six most recent
+sessions. Retiring it without changing the Log would have left every legacy
+session stored and unreachable. `historyEntries()` now merges workouts, legacy
+cardio and activities, newest first. A workout keeps its category colour; the
+other two get a broken neutral mark and say in words what they are, because a
+solid colour bar already means "workout" everywhere else.
+
+"Show more" used to stop at fifty. With the tab gone, this list is the only
+place a legacy session can be opened, so it now steps on in fifties to the
+first entry. Each step is still a deliberate tap, so a long history is never
+rendered unasked.
+
+### A failed write that said it had saved
+
+`LOOPStore.set()` reports a refused write by **returning** `false`; it never
+throws. `persistCardioLog()` awaited it and returned `true` regardless. Every
+other persist function in LOOP passes the store's answer through, so on a full
+phone this one was alone in telling the athlete a session had saved when it
+had not — and every rollback written against its result was unreachable.
+
+Fixing it made one of those rollbacks matter. The manual cardio save left the
+unsaved record in memory on failure, so once failure was reachable, "try again"
+would push a second copy and a successful retry would store both — the same
+session counted twice for XP. It now restores memory to what storage holds.
+Legacy delete reports its failure the same way, activity save and delete undo
+by reference, and a double tap on Save writes once.
+
+### The level at launch left cardio out
+
+Found in the browser, not the suite. With legacy cardio on the device, the
+header read "level 2, 17%" at launch; saving an activity redrew it as
+"level 2, 52%". Measured in the live page, the activity changed nothing —
+762 XP with it, 762 without — and 17% was exactly the strength-only figure.
+`boot()` called `loadCardioLog()` after `showMainApp()` had already drawn the
+header, so the first paint always omitted cardio XP. The same build of 5.4,
+served beside it, showed the same 17%: the bug predates this phase.
+
+It could not stay. With the Cardio tab gone, the first thing to redraw the
+header was often saving an activity, so the level visibly rose as golf was
+saved — the one impression this phase exists to prevent. In the harness it was
+worse than a percentage: level 1 on screen against a true level 2. The cardio
+log now loads before the first paint, and Contract 158 compares the rendered
+chip against `getCurrentProgression()` at boot; moving the load back fails it.
+
+### Ids inside `onclick`
+
+History rows put a record id inside `onclick="fn('…')"`, and a restored backup
+can carry any id at all. `onclickArg()` escapes for the JavaScript string first
+and the HTML attribute second, the order the one earlier handler that needed
+this already used. Checked by round-tripping `x');alert(1);('`, backslashes,
+quotes and markup back to the original id.
+
+### Contracts repointed, not weakened
+
+- **Eight "no navigation tab was added" guards** compared against the literal
+  5. They now compare against `NAV_TAB_COUNT = 4`, still with strict equality:
+  a tab added, or one silently lost, fails every one of them.
+- **Contract 26** pinned five icon slots and a path for each, including
+  `cardio`. It now pins four slots by name, in order — so the retirement cannot
+  take a different tab with it — and asserts the Cardio icon, slot and
+  `data-tab` are all gone.
+- **Contract 126** listed `today-cardio-link` among the standalone cards held
+  to D28 material. The element no longer exists; the five cards that remain are
+  held to the same rule, and a new assertion requires that no styling for the
+  retired link survives.
+
+### What stays, and why
+
+The cardio module is retired as a tab, not deleted. `view-cardio`, its
+renderer and the logger, session, entry, picker and detail overlays remain:
+the detail sheet is how a legacy session is read from the Log, its Edit and
+Delete are the athlete's own record, and a live session already in progress
+when 5.5 arrives can still be finished. Nothing links to the view. The one
+place onboarding offered "Cardio — Run, walk, row or ride" as a mode to start,
+and the logger's pointer to "the Cardio tab", are gone.
+
+This is debt, recorded rather than hidden: the view still renders inside
+`renderAll()` where nobody can see it, and a future cleanup can remove it once
+in-flight drafts are no longer a consideration.
+
+### Verification
+
+- **Contract 158**: 116 assertions covering the ten acceptance cases as
+  outcomes, driven through the same functions the buttons call with the clock
+  pinned, plus the level rendered at launch.
+- **Mutation check**: 16 deliberate re-breakings (activities earning XP or
+  counting in stats, an activity fulfilling a missed day or completing Today, a
+  refused write reporting success, a missing rollback, the list dead-ending at
+  fifty, HTML-only id escaping, double-tap double writes, a restore that calls
+  activities sessions, legacy rows vanishing, golf storing distance, future
+  dates, the legacy phantom, backdrop dismiss, the block showing mid-workout,
+  and cardio loading after the first paint). 17 of 17 caught.
+- **Date matrix**: a new section stamps activities at nine instants across
+  month and year ends, both DST changes and a leap day, in seven zones. Swapping
+  `localDateStr()` for the UTC day fails it in all six non-UTC zones (22
+  failures); the real code passes in all seven.

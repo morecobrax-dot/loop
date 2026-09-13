@@ -70,6 +70,16 @@ function withClockOn(ctx, iso, fn){
   try{ return fn(); } finally { release(); }
 }
 
+/* THE NAVIGATION BAR HAS FOUR TABS.
+   Eight contracts, written across six phases, guard that a phase never adds a
+   tab, and each compared against the literal 5. Phase A retired the Cardio
+   tab on purpose, so the number they protect is now four. They still assert
+   strict equality — a tab added or one silently lost fails every one of
+   them — so moving the number changes what the bar is, not how hard it is
+   held. One constant, so the next deliberate change is one edit with one
+   reason attached, not eight literals to hunt down. */
+const NAV_TAB_COUNT = 4;
+
 function stripComments(text){
   return String(text || '')
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -1920,11 +1930,14 @@ function testUpdatesCurrency(app){
      bar drew itself with a diamond, a shaded block, a triangle, a fisheye and
      an identical-to. The premium pass replaced them with drawn icons from
      LOOP's own family, so the spans are now empty and filled at boot. The
-     contract is stronger than it was: five tabs, five icons, one family. */
+     contract is stronger than it was: five tabs, five icons, one family.
+     Phase A retired Cardio, so it is four of each — and the names are pinned
+     too, so the retirement cannot quietly take a different tab with it. */
   const slots = [...src.matchAll(/<span class="glyph" id="tabIcon([A-Za-z]+)"><\/span>/g)].map(m => m[1]);
-  T('five tabs present', slots.length === 5, String(slots.length));
+  T('four tabs present, in order', slots.length === NAV_TAB_COUNT &&
+    slots.join(',') === 'Today,Train,Progress,Log', slots.join(','));
   T('every tab has an icon slot, and no two share one',
-    new Set(slots).size === 5, slots.join(','));
+    new Set(slots).size === NAV_TAB_COUNT, slots.join(','));
   T('no tab borrows a letterform to mean something',
     !/<span class="glyph">[^<]/.test(src));
   T('every slot is painted from the shared icon function', (() => {
@@ -1936,10 +1949,16 @@ function testUpdatesCurrency(app){
     return /viewBox="0 0 16 16"/.test(fn) && /stroke="currentColor"/.test(fn) &&
            /fill="none"/.test(fn) && /aria-hidden="true"/.test(fn);
   })());
-  T('each of the five tabs has a path, so none renders empty', (() => {
+  T('each tab has a path, so none renders empty', (() => {
     const fn = src.slice(src.indexOf('function tabIconSvg(name)'), src.indexOf('function trendIconSvg'));
-    return ['today','train','progress','cardio','log'].every(k =>
+    return ['today','train','progress','log'].every(k =>
       new RegExp(k + ":\\s*'<").test(fn));
+  })());
+  T('the retired Cardio tab left no icon or slot behind', (() => {
+    const fn = src.slice(src.indexOf('function tabIconSvg(name)'), src.indexOf('function trendIconSvg'));
+    const paint = src.slice(src.indexOf('function paintTabIcons()'), src.indexOf('function initPageIsolation()'));
+    return !/cardio:\s*'</.test(fn) && paint.indexOf('tabIconCardio') === -1 &&
+      src.indexOf('data-tab="cardio"') === -1;
   })());
 }
 
@@ -6633,7 +6652,7 @@ function testD10Consolidation(app){
   T('it routes into the training destination',
     /tw-program-empty[\s\S]{0,200}openProgramBuilderFlow\('create'\)/.test(src));
   T('no navigation tab was added',
-    (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === 5);
+    (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === NAV_TAB_COUNT);
   T('Programs is still reachable from Settings', /openPrograms\(\)/.test(src));
 }
 
@@ -7033,7 +7052,7 @@ function testD11Consolidation(app){
       (src.match(/function createProgram\(/g) || []).length === 1);
     T('programs remain reachable from Settings', /openPrograms\(\)/.test(src));
     T('no new navigation tab was added',
-      (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === 5);
+      (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === NAV_TAB_COUNT);
   }
 
   sub('PROGRESS — each fact appears once');
@@ -7948,7 +7967,7 @@ function testMyTraining(app){
     T('the plans manager itself still exists and is reachable',
       /function openPlansManager\(\)/.test(src) && /openPlanSwitcher\(\)/.test(src));
     T('no navigation tab was added',
-      (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === 5);
+      (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === NAV_TAB_COUNT);
   }
 
   sub('it reads plan and program through one shape');
@@ -10187,8 +10206,8 @@ function testIconSystemD14(app){
      different piece of work from this audit." The premium pass did that work,
      so the assertion that recorded the deferral is replaced by one that holds
      the result — the bar no longer mixes Unicode geometry with drawn icons. */
-  T('the five tabs carry drawn icons, not characters',
-    (src.match(/<span class="glyph" id="tabIcon[A-Za-z]+"><\/span>/g) || []).length === 5);
+  T('every tab carries a drawn icon, not a character',
+    (src.match(/<span class="glyph" id="tabIcon[A-Za-z]+"><\/span>/g) || []).length === NAV_TAB_COUNT);
   T('and they come from one function, so the set cannot drift apart',
     (src.match(/function tabIconSvg\(/g) || []).length === 1);
   T('an interpolation never leaked into static markup', (() => {
@@ -10269,7 +10288,7 @@ function testEvidencePanel(app){
   sub('it lives in Backup & Data, and nowhere louder');
   T('the control is inside the data sheet',
     /id="dataOverlay"[\s\S]*?shadowEvidenceToggle[\s\S]*?Danger zone/.test(src));
-  T('no navigation tab was added', (src.match(/<button class="tab-btn/g) || []).length === 5);
+  T('no navigation tab was added', (src.match(/<button class="tab-btn/g) || []).length === NAV_TAB_COUNT);
   T('it is not on Today, Progress or the workout screen',
     !/view-today[\s\S]{0,4000}shadowEvidence/.test(src) &&
     !/ppanel-overview[\s\S]{0,2000}shadowEvidence/.test(src));
@@ -14480,16 +14499,20 @@ async function testVisualSystemLock(){
   /* Seventeen classes were still rendering pre-D28 material — measured in a
      real browser across five tabs, four Progress sections and four overlays.
      Each is corrected by D28's own precedent, not a new one. */
-  const cards = ['wk-card','today-cardio-link','cl-empty','cw-card','log-lens','gym-summary'];
+  /* today-cardio-link left this list with the element itself (Phase A). The
+     five surfaces that remain are held to the same material as before. */
+  const cards = ['wk-card','cl-empty','cw-card','log-lens','gym-summary'];
   const rows  = ['achievement-row','xp-history-row','wk-day','mt-day','mt-var','mt-act',
                  'filter-chip','cal-nav-btn','mastery-lvl-chip','cal-cell'];
   T('standalone cards take the full material', (() => {
-    const i = css.indexOf('.wk-card, .today-cardio-link');
+    const i = css.indexOf('.wk-card, .cl-empty');
     if(i === -1) return false;
     const rule = css.slice(i, css.indexOf('}', i));
     return cards.every(c => rule.includes('.' + c)) &&
       /border-color: var\(--border-quiet\)/.test(rule);
   })());
+  T('the retired Today cardio link left no styling behind',
+    !/today-cardio-link|\.tcl-(glyph|text|go)/.test(css));
   T('repeated rows take the quiet boundary only — no shadow per row', (() => {
     const i = css.indexOf('.achievement-row, .xp-history-row');
     if(i === -1) return false;
@@ -21115,6 +21138,623 @@ async function testDateBoundaries(){
     String(ctx.TRAINER_ENGINE_VERSION));
 }
 
+/* =========================================================
+   CONTRACT 158 — ACTIVITY LOGGING  (Phase A)
+   ---------------------------------------------------------
+   The Cardio tab was retired and replaced by a way to record
+   what else the athlete did. Two things must hold at once and
+   they pull against each other: an activity has to be quick to
+   log and always findable in history, and it has to be INERT —
+   never a workout, never fulfilment, never XP, never evidence.
+
+   The brief's ten acceptance cases are here as outcomes, driven
+   through the same functions the buttons call, with the clock
+   pinned so no case depends on the day the suite runs.
+
+   (157 was drafted for the anatomy work discarded before it
+   shipped. The number is not reused.)
+   ========================================================= */
+async function testActivityLogging(){
+  section('CONTRACT 158 — activity logging (Phase A)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+  const DAY = 86400000;
+  const ymdLocal = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') +
+    '-' + String(d.getDate()).padStart(2,'0');
+  const ANCHOR = new Date(2026, 4, 20, 9, 0, 0);            // Wed 20 May 2026, local
+
+  /* Legacy cardio exactly as the retired logger wrote it: string metrics,
+     notes, and one session carrying the calorie estimate the old logger made. */
+  const legacyCardio = () => {
+    const acts = [['run_outdoor','Outdoor Run'],['walk_outdoor','Outdoor Walk'],
+                  ['cycle_stationary','Stationary Bike'],['rowing','Rowing Machine'],['hiking','Hiking']];
+    return Array.from({ length: 40 }, (_, i) => {
+      const [id, name] = acts[i % acts.length];
+      const at = new Date(ANCHOR.getTime() - i*3*DAY);
+      const r = { id:'cardio_legacy_' + i, activityId:id, activityName:name, date: ymdLocal(at),
+        duration: String(20 + (i % 7) * 8), rpe: String(4 + (i % 5)),
+        createdAt: at.toISOString(), updatedAt: at.toISOString() };
+      if(id !== 'cycle_stationary') r.distance = String((2 + (i % 6) * 0.8).toFixed(1));
+      if(i % 4 === 0) r.notes = 'legacy note ' + i;
+      if(i === 1){ r.calories = '310'; r.activeCalories = '250'; r.caloriesEstimated = true; }
+      return r;
+    });
+  };
+  const benchWorkouts = n => Array.from({ length: n }, (_, i) => {
+    const at = new Date(ANCHOR.getTime() - (1 + i*4) * DAY);
+    const w = 135 + (n - i);
+    const set = (reps, rir) => Object.assign(S(w, reps, rir, 'working'), { completed:true });
+    return { id: String(1747000000000 + i), date: ymdLocal(at), category:'push', title:'Push', notes:'',
+      exercises:[{ name:'Barbell Bench Press', bodyweight:false, sets:[set(8,2), set(8,2), set(7,1)] }] };
+  });
+
+  /* Drives the sheet the way a thumb does: open it, pick a kind, and leave the
+     inputs showing what the sheet showed unless this step changes them. */
+  const FIELDS = { actName:'name', actDuration:'duration', actDistance:'distance', actDate:'date', actNote:'note' };
+  async function logActivity(ctx, f){
+    ctx.openActivityLogger(f.editId);
+    if(f.type) ctx.pickActivityType(f.type);
+    const d = ctx.activityDraft || {};
+    const shown = { name:d.customName, duration:d.duration, distance:d.distance,
+                    date: f.editId ? d.date : '', note:d.note };
+    Object.keys(FIELDS).forEach(id => {
+      const k = FIELDS[id];
+      const v = f[k] !== undefined ? f[k] : shown[k];
+      ctx.document.getElementById(id).value = v == null ? '' : String(v);
+    });
+    await ctx.saveActivity();
+  }
+  const onToday = ctx => { ctx.selectedDayKey = null; };
+
+  /* Every number LOOP derives that an activity could plausibly corrupt. */
+  const truths = ctx => {
+    ctx.invalidateCardioCache(); clearCaches(ctx);
+    const g = ctx.getCombinedProgression(), p = ctx.getCurrentProgression();
+    return JSON.stringify({
+      combined: g,
+      current: [p.lifetimeXP, p.cardioXP, p.strengthXP, p.level, p.rank, p.prCount, p.workoutCount],
+      timeline: ctx.computeCardioXPTimeline(),
+      stats: ctx.computeCardioStats(),
+      prs: ['run_outdoor','walk_outdoor','cycle_stationary','rowing','hiking'].map(id => ctx.computeCardioPRs(id)),
+      week: ctx.cardioWeekSummary(),
+      streak: ctx.computeCardioStreakWeeks(),
+      achievements: ctx.getCardioAchievements(),
+      sorted: ctx.sortedCardio().map(r => r.id),
+      social: ctx.socialSnapshot(),
+      strengthPRs: ctx.computeAllPREvents().length,
+      scores: ctx.workoutLog.map(w => { const s = ctx.sessionScore(w); return s && s.score; }),
+      recovery: ctx.computeMuscleRecovery(),
+      weekMuscles: ctx.deriveWeekMuscleSets(),
+      bench: ctx.buildProgressionRecommendation('Barbell Bench Press', '6-8', '135 lb'),
+      trainer: ctx.trainerLog.entries.length
+    });
+  };
+  const firstDiff = (a, b) => {
+    if(a === b) return '';
+    let i = 0; while(i < a.length && a[i] === b[i]) i++;
+    return '@' + i + ' before …' + a.slice(Math.max(0, i - 50), i + 50) + '… after …' + b.slice(Math.max(0, i - 50), i + 50) + '…';
+  };
+  const HEAVY_MONTH = [
+    { type:'run',     duration:300, distance:26.2, date:'2026-05-20' },   // a marathon, today
+    { type:'golf',    duration:240,               date:'2026-05-19' },
+    { type:'cycling', duration:180, distance:60,  date:'2026-05-18' },
+    { type:'hike',    duration:360, distance:14,  date:'2026-05-16' },
+    { type:'walk',    duration:60,  distance:3,   date:'2026-05-13' },
+    { type:'sport',   name:'Tennis', duration:90, date:'2026-05-06' },
+    { type:'other',   name:'Climbing', duration:120, date:'2026-04-29' },
+    { type:'run',     duration:45,  distance:5,   date:'2026-04-22' }
+  ];
+
+  /* ------------------------------------------------------------------ */
+  sub('1 — legs planned, golf played: the workout is still planned, not fulfilled');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const ctx = app.ctx, doc = ctx.document;
+    let release = pinClock(ctx, '2026-05-20T09:00:00');          // a Wednesday
+    try{
+      onToday(ctx);
+      ctx.planStartDate = '2026-01-05';
+      ctx.schedule = { mon:'push', tue:'pull', wed:'legs', thu:'rest', fri:'push', sat:'rest', sun:'rest' };
+      T('premise: no program owns today, so the schedule does', !ctx.hasActiveProgram());
+      ctx.renderTodayWorkout();
+      const heroBefore = doc.getElementById('todayWorkout').innerHTML;
+      T('premise: Today is offering legs', /legs/i.test(heroBefore) && !/Workout complete/.test(heroBefore));
+
+      await logActivity(ctx, { type:'golf', duration:240 });
+      ctx.renderTodayWorkout();
+      const heroAfter = doc.getElementById('todayWorkout').innerHTML;
+      T('the workout card is byte-identical — still planned, still startable', heroAfter === heroBefore,
+        firstDiff(heroBefore, heroAfter));
+      T('nothing says the day is done', !/Workout complete/.test(heroAfter));
+      T('no workout was created', ctx.workoutLog.length === 0 && JSON.parse(app.store.workoutLog).length === 0);
+      const block = doc.getElementById('todayActivity').innerHTML;
+      T('the golf sits beside it, as something else that happened',
+        /Also today/.test(block) && /Golf/.test(block) && /240 min/.test(block));
+    }finally{ release(); }
+
+    sub('2 — the next morning legs is still missed, and moving on keeps both');
+    release = pinClock(ctx, '2026-05-21T08:00:00');
+    try{
+      onToday(ctx);
+      const missed = ctx.checkMissedWorkout();
+      T('golf did not fulfil yesterday — legs is reported missed',
+        !!missed && missed.date === '2026-05-20' && missed.category === 'legs', JSON.stringify(missed));
+      ctx.dismissMissed('2026-05-20');
+      await H.settle(20);
+      T('moving on is recorded', JSON.parse(app.store.dismissedMissed).indexOf('2026-05-20') !== -1);
+      T('and it stops asking', ctx.checkMissedWorkout() === null);
+      T('the golf is still stored',
+        JSON.parse(app.store.cardioLog).some(r => r.kind === 'activity' && r.type === 'golf' && r.date === '2026-05-20'));
+      T('and still belongs to that day', ctx.activitiesOn('2026-05-20').length === 1);
+      T('and there is still no workout', ctx.workoutLog.length === 0);
+    }finally{ release(); }
+  }
+  T('program fulfilment reads the workout log it is handed, and nothing else',
+    !/cardioLog|activit/i.test(fnSrc(src, 'deriveProgramPlanFulfillment')) &&
+    !/cardioLog|activit/i.test(fnSrc(src, 'checkMissedWorkout')));
+
+  /* ------------------------------------------------------------------ */
+  sub('3 — nothing planned, a walk: recorded, visible, and worth nothing');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const blank = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const ctx = app.ctx, doc = ctx.document;
+    const release = pinClock(ctx, '2026-05-23T17:00:00');        // a Saturday
+    const releaseBlank = pinClock(blank.ctx, '2026-05-23T17:00:00');
+    try{
+      onToday(ctx);
+      ctx.schedule = { mon:'push', tue:'pull', wed:'legs', thu:'rest', fri:'push', sat:'rest', sun:'rest' };
+      blank.ctx.schedule = ctx.schedule;
+      await logActivity(ctx, { type:'walk', duration:35, distance:1.8, note:'with the dog' });
+      const rec = JSON.parse(app.store.cardioLog)[0] || {};
+      T('stored with what was entered', rec.kind === 'activity' && rec.type === 'walk' && rec.name === 'Walk' &&
+        rec.date === '2026-05-23' && rec.duration === 35 && rec.distance === 1.8 && rec.note === 'with the dog',
+        JSON.stringify(rec));
+      T('and with nothing else — no calories, no load, no score',
+        Object.keys(rec).sort().join(',') === 'createdAt,date,distance,duration,id,kind,name,note,type,updatedAt',
+        Object.keys(rec).sort().join(','));
+      T('no workout', ctx.workoutLog.length === 0);
+      const a = truths(ctx), b = truths(blank.ctx);
+      T('every derived number equals an athlete who logged nothing', a === b, firstDiff(b, a));
+      T('Today shows it', /Walk/.test(doc.getElementById('todayActivity').innerHTML) &&
+        /35 min · 1\.8 mi/.test(doc.getElementById('todayActivity').innerHTML));
+      ctx.renderLogPage();
+      T('the Log is not "starting here" — it has a past', doc.getElementById('historyEmpty').innerHTML === '');
+      const recent = doc.getElementById('historyRecent').innerHTML;
+      T('the Log lists it, labelled as an activity',
+        /Walk/.test(recent) && /· Activity ·/.test(recent) && /rw-accent-other/.test(recent));
+      T('it opens the activity — never a workout day',
+        /openActivityLogger\(/.test(recent) && !/openDayDetail\(/.test(recent));
+    }finally{ release(); releaseBlank(); }
+  }
+
+  /* ------------------------------------------------------------------ */
+  sub('4 — legacy cardio stays readable, from the Log, and reading it changes nothing');
+  {
+    const cardio = legacyCardio();
+    const raw = JSON.stringify(cardio);
+    const app = await H.loadAppBooted({ cardioLog: raw, workoutLog: JSON.stringify(benchWorkouts(20)) });
+    const ctx = app.ctx, doc = ctx.document;
+    const release = pinClock(ctx, '2026-05-20T09:00:00');
+    try{
+      onToday(ctx);
+      ctx.renderAll();
+      let html = doc.getElementById('historyRecent').innerHTML;
+      T('legacy sessions sit in the Log beside workouts',
+        /· Cardio ·/.test(html) && /openCardioDetail\('cardio_legacy_0'\)/.test(html) && /openDayDetail\(/.test(html));
+      const legacyRows = html.split('<button').filter(b => /openCardioDetail\(/.test(b));
+      T('a legacy session is never drawn with a workout category colour',
+        legacyRows.length > 0 && legacyRows.every(b => /rw-accent-other/.test(b) && !/cat-/.test(b)));
+      const dates = ctx.historyEntries().map(e => e.date);
+      T('one order, newest first, across both kinds', dates.every((d, i) => i === 0 || dates[i - 1] >= d));
+      let taps = 0;
+      while(/showAllRecent/.test(doc.getElementById('historyRecent').innerHTML) && taps < 10){ ctx.showAllRecent(); taps++; }
+      html = doc.getElementById('historyRecent').innerHTML;
+      const rows = (html.match(/class="rw-row/g) || []).length;
+      T('every entry is reachable — the list does not dead-end at fifty', rows === 60 && taps === 2,
+        rows + ' rows after ' + taps + ' taps');
+      T('every one of the forty legacy sessions is in it',
+        cardio.every(c => html.indexOf("openCardioDetail('" + c.id + "')") !== -1));
+      ctx.openCardioDetail('cardio_legacy_0');
+      const detail = doc.getElementById('cardioDetailBody').innerHTML;
+      T('its detail still opens with what was recorded',
+        /Outdoor Run/.test(detail) && /legacy note 0/.test(detail) &&
+        doc.getElementById('cardioDetailOverlay').classList.contains('open'));
+      ctx.closeCardioDetail();
+      ctx.openCardioDetail('cardio_legacy_1');
+      T('a stored calorie estimate is still shown as the estimate it was',
+        /estimated/i.test(doc.getElementById('cardioDetailBody').innerHTML));
+      ctx.closeCardioDetail();
+      T('reading all of it wrote nothing — storage is byte-identical', app.store.cardioLog === raw);
+      T('and legacy sessions still earn what they earned', ctx.getCombinedProgression().cardioSessions === 40 &&
+        ctx.getCombinedProgression().cardioXP > 0);
+    }finally{ release(); }
+  }
+
+  /* ------------------------------------------------------------------ */
+  sub('5 — export and restore carry activities, and the report names them');
+  {
+    const from = await H.loadAppBooted({ cardioLog: JSON.stringify(legacyCardio().slice(0, 2)) });
+    const a = from.ctx;
+    let exported = null;
+    const release = pinClock(a, '2026-05-20T09:00:00');
+    try{
+      onToday(a);
+      await logActivity(a, { type:'golf', duration:240 });
+      await logActivity(a, { type:'other', name:'Climbing', duration:90, note:'bouldering' });
+      a.Blob = class { constructor(parts){ exported = parts.join(''); } };
+      await a.exportAllData();
+    }finally{ release(); }
+    const payload = JSON.parse(exported || '{}');
+    const inFile = JSON.parse(((payload.data || {}).cardioLog) || '[]');
+    T('the backup file carries both activities and both legacy sessions',
+      inFile.length === 4 && inFile.filter(r => r.kind === 'activity').length === 2);
+    T('carried in the store that already existed — no new key', a.DATA_KEYS.length === 15);
+
+    const to = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    let said = null; to.ctx.alert = m => { said = m; };
+    await to.ctx.importAllData(mkImportFile(payload));
+    const restored = JSON.parse(to.store.cardioLog || '[]');
+    T('restore brings all four back', restored.length === 4);
+    T('activities come back exactly as they left',
+      JSON.stringify(restored.filter(r => r.kind === 'activity')) === JSON.stringify(inFile.filter(r => r.kind === 'activity')));
+    T('the report calls activities activities, and sessions sessions',
+      /2 new activities added/.test(said || '') && /2 new cardio sessions added/.test(said || ''), said);
+    await to.ctx.importAllData(mkImportFile(payload));
+    T('restoring the same file twice duplicates nothing', JSON.parse(to.store.cardioLog).length === 4);
+    const reloaded = await H.loadAppBooted(Object.assign({}, to.store));
+    T('after the reload a restore ends with, both kinds are there',
+      reloaded.ctx.activityRecords().length === 2 && reloaded.ctx.legacyCardioRecords().length === 2);
+
+    const onlyActs = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    let said2 = null; onlyActs.ctx.alert = m => { said2 = m; };
+    await onlyActs.ctx.importAllData(mkImportFile(mkBackupPayload({
+      cardioLog: JSON.stringify(inFile.filter(r => r.kind === 'activity')) })));
+    T('an activities-only backup does not claim any cardio sessions',
+      /2 new activities added/.test(said2 || '') && !/cardio session/.test(said2 || ''), said2);
+  }
+
+  /* ------------------------------------------------------------------ */
+  sub('6 — saved means saved: a reload finds it unchanged');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const release = pinClock(app.ctx, '2026-05-20T09:00:00');
+    try{ onToday(app.ctx); await logActivity(app.ctx, { type:'hike', duration:150, distance:6.5, note:'ridge loop' }); }
+    finally{ release(); }
+    const saved = app.ctx.activityRecords()[0];
+    const next = await H.loadAppBooted(Object.assign({}, app.store));
+    const back = next.ctx.activityRecords()[0];
+    T('the reloaded record is the saved record', !!saved && JSON.stringify(back) === JSON.stringify(saved));
+    const release2 = pinClock(next.ctx, '2026-05-20T18:00:00');
+    try{
+      onToday(next.ctx);
+      next.ctx.renderTodayWorkout();
+      T('and Today still shows it that evening', /Hike/.test(next.ctx.document.getElementById('todayActivity').innerHTML));
+    }finally{ release2(); }
+  }
+
+  /* ------------------------------------------------------------------ */
+  sub('7 — it belongs to the local calendar day, across a month boundary');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const ctx = app.ctx, doc = ctx.document;
+    let release = pinClock(ctx, '2026-05-31T23:40:00');
+    try{
+      onToday(ctx);
+      await logActivity(ctx, { type:'walk', duration:20 });
+      T('logged at 23:40 on the 31st, it is the 31st', (ctx.activityRecords()[0] || {}).date === '2026-05-31');
+    }finally{ release(); }
+    release = pinClock(ctx, '2026-06-01T00:05:00');
+    try{
+      onToday(ctx);
+      ctx.renderTodayWorkout();
+      const block = doc.getElementById('todayActivity').innerHTML;
+      T('five minutes later it is yesterday — Today no longer lists it', !/Walk/.test(block) && /Log activity/.test(block));
+      T('and history still has it on May 31',
+        ctx.activitiesOn('2026-05-31').length === 1 && ctx.historyEntries()[0].date === '2026-05-31');
+      ctx.openActivityLogger();
+      T('a new entry starts on the new day', ctx.activityDraft.date === '2026-06-01');
+      ctx.closeActivityLogger();
+      await logActivity(ctx, { type:'run', duration:30, distance:3, date:'2026-05-30' });
+      T('an earlier day can be chosen', ctx.activitiesOn('2026-05-30').length === 1);
+      const n = ctx.activityRecords().length;
+      await logActivity(ctx, { type:'run', duration:30, date:'2026-06-02' });
+      T('a day that has not happened is refused, and says why',
+        ctx.activityRecords().length === n && /hasn't happened/.test(doc.getElementById('activityLoggerBody').innerHTML));
+      ctx.closeActivityLogger();
+    }finally{ release(); }
+  }
+
+  /* ------------------------------------------------------------------ */
+  sub('8 — several on one day: separate records, newest first everywhere');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const ctx = app.ctx, doc = ctx.document;
+    const steps = [['2026-05-20T07:00:00', { type:'walk', duration:25 }],
+                   ['2026-05-20T12:30:00', { type:'golf', duration:240 }],
+                   ['2026-05-20T18:15:00', { type:'sport', name:'Tennis', duration:60 }]];
+    for(const [at, f] of steps){
+      const r = pinClock(ctx, at);
+      try{ onToday(ctx); await logActivity(ctx, f); }finally{ r(); }
+    }
+    const release = pinClock(ctx, '2026-05-20T20:00:00');
+    try{
+      onToday(ctx);
+      ctx.renderTodayWorkout();
+      const block = doc.getElementById('todayActivity').innerHTML;
+      T('three records, three ids', ctx.activitiesOn('2026-05-20').length === 3 &&
+        new Set(ctx.activityRecords().map(a => a.id)).size === 3);
+      T('Today lists all three', (block.match(/class="act-row"/g) || []).length === 3);
+      T('newest first on Today', block.indexOf('Tennis') < block.indexOf('Golf') && block.indexOf('Golf') < block.indexOf('Walk'));
+      T('a named sport keeps its name', ctx.activityRecords().some(a => a.type === 'sport' && a.name === 'Tennis'));
+      ctx.renderLogPage();
+      const recent = doc.getElementById('historyRecent').innerHTML;
+      T('and in the same order in the Log',
+        recent.indexOf('Tennis') !== -1 && recent.indexOf('Tennis') < recent.indexOf('Golf') && recent.indexOf('Golf') < recent.indexOf('Walk'));
+    }finally{ release(); }
+  }
+
+  /* ------------------------------------------------------------------ */
+  sub('9 — edit and delete change only the record they are about');
+  {
+    const cardio = legacyCardio().slice(0, 3);
+    const app = await H.loadAppBooted({ cardioLog: JSON.stringify(cardio) });
+    const ctx = app.ctx, doc = ctx.document;
+    let rec;
+    let release = pinClock(ctx, '2026-05-20T09:00:00');
+    try{ onToday(ctx); await logActivity(ctx, { type:'golf', duration:240, note:'back nine' }); rec = ctx.activityRecords()[0]; }
+    finally{ release(); }
+    release = pinClock(ctx, '2026-05-20T15:00:00');
+    try{
+      onToday(ctx);
+      ctx.openActivityLogger(rec.id);
+      T('editing opens that record, and says it is an edit',
+        ctx.activityDraft.editingId === rec.id && doc.getElementById('activityTitle').textContent === 'Edit activity' &&
+        /Delete activity/.test(doc.getElementById('activityLoggerBody').innerHTML));
+      ctx.closeActivityLogger();
+      await logActivity(ctx, { editId: rec.id, duration:200, note:'' });
+      const edited = ctx.activityRecords()[0];
+      T('the same record, changed', edited.id === rec.id && edited.duration === 200 &&
+        edited.createdAt === rec.createdAt && edited.updatedAt !== rec.updatedAt);
+      T('clearing a field clears it', !('note' in edited));
+      T('no copy was made', ctx.activityRecords().length === 1);
+      await logActivity(ctx, { editId: rec.id, type:'walk', distance:2.5 });
+      const retyped = ctx.activityRecords()[0];
+      T('changing the kind renames it and takes a distance',
+        retyped.type === 'walk' && retyped.name === 'Walk' && retyped.distance === 2.5);
+      await logActivity(ctx, { editId: rec.id, type:'golf' });
+      T('and a kind with no distance drops it', !('distance' in ctx.activityRecords()[0]));
+      T('the legacy sessions were never touched', JSON.stringify(ctx.legacyCardioRecords()) === JSON.stringify(cardio));
+
+      ctx.confirm = () => false;
+      ctx.openActivityLogger(rec.id);
+      await ctx.deleteActivity();
+      T('declining the confirmation deletes nothing', ctx.activityRecords().length === 1);
+      ctx.confirm = () => true;
+      await ctx.deleteActivity();
+      T('confirming removes it from storage', !JSON.parse(app.store.cardioLog).some(x => x.id === rec.id));
+      T('and removes only it', app.store.cardioLog === JSON.stringify(cardio));
+      T('and the sheet closes', !doc.getElementById('activityOverlay').classList.contains('open'));
+    }finally{ release(); }
+  }
+
+  sub('a refused write is reported, and leaves nothing behind');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const ctx = app.ctx, doc = ctx.document;
+    const release = pinClock(ctx, '2026-05-20T09:00:00');
+    try{
+      onToday(ctx);
+      const realSet = ctx.LOOPStore.set;
+      ctx.LOOPStore.set = async () => false;                    // a full store says no
+      await logActivity(ctx, { type:'golf', duration:240 });
+      T('the athlete is told it did not save', /didn't save/.test(doc.getElementById('activityLoggerBody').innerHTML));
+      T('no phantom record in memory', ctx.cardioLog.length === 0);
+      T('the sheet stays open, holding what they entered',
+        doc.getElementById('activityOverlay').classList.contains('open') && ctx.activityDraft && ctx.activityDraft.duration === '240');
+      ctx.LOOPStore.set = realSet;
+      await Promise.all([ctx.saveActivity(), ctx.saveActivity()]);
+      T('the retry saves exactly once, even tapped twice',
+        JSON.parse(app.store.cardioLog || '[]').length === 1 && ctx.cardioLog.length === 1);
+    }finally{ release(); }
+
+    const legacy = await H.loadAppBooted({ cardioLog: JSON.stringify(legacyCardio().slice(0, 3)) });
+    const c = legacy.ctx;
+    let said = null; c.alert = m => { said = m; }; c.confirm = () => true;
+    const realSet = c.LOOPStore.set;
+    c.LOOPStore.set = async () => false;
+    T('a refused cardioLog write is now reported as a failure', (await c.persistCardioLog()) === false);
+    await c.deleteCardioSession('cardio_legacy_0');
+    T('a legacy delete that did not land says so', /didn't delete/.test(said || ''), said);
+    T('and the session is still there, in memory and in storage',
+      c.cardioLog.length === 3 && JSON.parse(legacy.store.cardioLog).length === 3);
+    c.LOOPStore.set = realSet;
+    T('a failed legacy save puts memory back, so a retry cannot store a second copy',
+      /if\(!ok\)\{[^}]*cardioLog = before;/.test(fnSrc(src, 'saveCardioSession')));
+  }
+
+  sub('it keeps nonsense out of the record');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const ctx = app.ctx, doc = ctx.document;
+    const release = pinClock(ctx, '2026-05-20T09:00:00');
+    try{
+      onToday(ctx);
+      await logActivity(ctx, {});
+      T('a kind must be picked', ctx.cardioLog.length === 0 && /Pick what you did/.test(doc.getElementById('activityLoggerBody').innerHTML));
+      ctx.closeActivityLogger();
+      await logActivity(ctx, { type:'other', name:'   ', duration:30 });
+      T('Other needs a name', ctx.cardioLog.length === 0 && /Give it a name/.test(doc.getElementById('activityLoggerBody').innerHTML));
+      ctx.closeActivityLogger();
+      await logActivity(ctx, { type:'golf', duration:'abc', distance:'12', note:'   ' });
+      const golf = ctx.activityRecords().find(a => a.type === 'golf') || {};
+      T('an unreadable duration is left out, not stored as zero', !('duration' in golf));
+      T('golf never stores a distance, even if one was typed', !('distance' in golf));
+      T('a blank note is not a note', !('note' in golf));
+      await logActivity(ctx, { type:'run', duration:'-3', distance:'0' });
+      const run = ctx.activityRecords().find(a => a.type === 'run') || {};
+      T('negative and zero are nothing', !('duration' in run) && !('distance' in run));
+      await logActivity(ctx, { type:'walk', duration:'45', distance:'2,5' });
+      T('a decimal comma reads as a decimal', (ctx.activityRecords().find(a => a.type === 'walk') || {}).distance === 2.5);
+      await logActivity(ctx, { type:'sport', duration:40 });
+      T('an unnamed sport is simply Sport', ctx.activityRecords().some(a => a.type === 'sport' && a.name === 'Sport'));
+      await logActivity(ctx, { type:'other', name:'<img src=x onerror=alert(1)>', duration:10 });
+      ctx.renderTodayWorkout(); ctx.renderLogPage();
+      const today = doc.getElementById('todayActivity').innerHTML, log = doc.getElementById('historyRecent').innerHTML;
+      T('a name is text, never markup — on Today', !/<img/.test(today) && /&lt;img/.test(today));
+      T('and in the Log', !/<img/.test(log) && /&lt;img/.test(log));
+      ctx.cardioLog.push({ id:"x');alert(1);('", kind:'activity', type:'golf', name:'Golf', date:'2026-05-20',
+        createdAt:'2026-05-20T08:00:00.000Z', updatedAt:'2026-05-20T08:00:00.000Z' });
+      ctx.renderTodayWorkout(); ctx.renderLogPage();
+      const t2 = doc.getElementById('todayActivity').innerHTML, l2 = doc.getElementById('historyRecent').innerHTML;
+      T('an id from a hand-edited backup cannot break out of its handler',
+        !/\('x'\);alert/.test(t2) && !/\('x'\);alert/.test(l2) && /x\\'\);alert/.test(t2) && /x\\'\);alert/.test(l2));
+    }finally{ release(); }
+  }
+
+  /* ------------------------------------------------------------------ */
+  sub('10 — progression, XP, records and coaching are identical with activities in the log');
+  {
+    const cardio = legacyCardio();
+    const workouts = benchWorkouts(20);
+    const app = await H.loadAppBooted({ cardioLog: JSON.stringify(cardio), workoutLog: JSON.stringify(workouts) });
+    const ctx = app.ctx;
+    const release = pinClock(ctx, '2026-05-20T09:00:00');
+    try{
+      onToday(ctx);
+      const before = truths(ctx);
+      const snapBefore = H.snapshot(ctx);
+      const rawWorkouts = JSON.stringify(ctx.workoutLog);
+      const keysBefore = Object.keys(app.store).sort().join(',');
+      for(const f of HEAVY_MONTH) await logActivity(ctx, f);
+      T('premise: all eight were stored as activities',
+        JSON.parse(app.store.cardioLog).filter(r => r.kind === 'activity').length === HEAVY_MONTH.length);
+      const after = truths(ctx);
+      T('every derived number is byte-identical: XP, level, rank, cardio stats, records, streak, ' +
+        'achievements, social stats, strength PRs, Session Scores, recovery, weekly sets, progression, trainer',
+        after === before, firstDiff(before, after));
+      const d = H.diffSnapshot(snapBefore, H.snapshot(ctx), []);
+      T('the protected snapshot did not move', d.ok, d.violations.join(','));
+      T('workoutLog byte-identical', JSON.stringify(ctx.workoutLog) === rawWorkouts);
+      T('legacy records byte-identical in storage',
+        JSON.stringify(JSON.parse(app.store.cardioLog).filter(r => r.kind !== 'activity')) === JSON.stringify(cardio));
+      T('no storage key was created', Object.keys(app.store).sort().join(',') === keysBefore);
+    }finally{ release(); }
+
+    const only = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const none = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const r1 = pinClock(only.ctx, '2026-05-20T09:00:00'), r2 = pinClock(none.ctx, '2026-05-20T09:00:00');
+    try{
+      onToday(only.ctx); onToday(none.ctx);
+      for(const f of HEAVY_MONTH) await logActivity(only.ctx, f);
+      const a = truths(only.ctx), b = truths(none.ctx);
+      T('a month of nothing but activities is worth exactly what no month is', a === b, firstDiff(b, a));
+    }finally{ r1(); r2(); }
+  }
+
+  /* ------------------------------------------------------------------ */
+  sub('the level on screen at launch already includes legacy cardio');
+  {
+    /* Cardio loaded after the first paint, so an athlete with cardio history
+       opened LOOP to a level that left it out — measured at level 1 against a
+       true level 2 — until something redrew the header. Once the Cardio tab
+       was gone, that something was usually saving an activity, and the level
+       jumping as golf was saved read as golf earning XP. */
+    const app = await H.loadAppBooted({ cardioLog: JSON.stringify(legacyCardio().slice(0, 12)),
+      selectedPlan: JSON.stringify('balanced') });
+    const ctx = app.ctx;
+    const chip = ctx.document.getElementById('todayDateLine').innerHTML.match(/level (\d+), (\d+)% to level/);
+    const p = ctx.getCurrentProgression();
+    const pct = p.xpForNext > 0 ? Math.min(100, Math.round((p.currentXP / p.xpForNext) * 100)) : 0;
+    T('premise: this athlete has cardio XP', p.cardioXP > 0, String(p.cardioXP));
+    T('the first paint shows the true level and progress, cardio included',
+      !!chip && +chip[1] === p.level && +chip[2] === pct,
+      'chip ' + (chip ? chip[1] + ' / ' + chip[2] + '%' : 'missing') + ' vs ' + p.level + ' / ' + pct + '%');
+    const bootSrc = fnSrc(src, 'boot');
+    T('cardio is read before the app is first drawn',
+      bootSrc.indexOf('await loadCardioLog()') !== -1 &&
+      bootSrc.indexOf('await loadCardioLog()') < bootSrc.indexOf('showMainApp()'));
+  }
+
+  sub('nothing that turns cardio into a number can see an activity');
+  {
+    /* A tripwire, not a style rule. Every declaration that names cardioLog is
+       listed, and each is storage, backup, record editing or display. Anything
+       that DERIVES from cardio — XP, streaks, stats, records, the launcher —
+       reads legacyCardioRecords() and is deliberately absent from this list.
+       A new direct reader fails here and has to be decided about. */
+    const ALLOWED = ['CARDIO_KEY','DATA_KEYS','activityRecords()','cardioLog','computeCardioStats()',
+      'deleteActivity()','deleteCardioSession()','editCardioSession()','historyEntries()','importAllData()',
+      'legacyCardioRecords()','loadCardioLog()','openActivityLogger()','openCardioDetail()','persistCardioLog()',
+      'renderCardioLogger()','renderLogPage()','saveActivity()','saveCardioSession()','saveCardioSessionFromSummary()'];
+    const script = [...src.matchAll(/<script>([\s\S]*?)<\/script>/g)].reduce((x, y) => (y[1].length > x[1].length ? y : x))[1];
+    const body = stripComments(script);
+    const re = /^(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(|^(?:const|let|var)\s+([A-Za-z0-9_$]+)/gm;
+    const marks = []; let m;
+    while((m = re.exec(body))) marks.push({ name: m[1] ? m[1] + '()' : m[2], i: m.index });
+    const found = marks.filter((k, j) => /\bcardioLog\b/.test(body.slice(k.i, j + 1 < marks.length ? marks[j + 1].i : body.length)))
+      .map(k => k.name).sort();
+    T('the direct readers of cardioLog are exactly the accounted-for set',
+      found.join(',') === ALLOWED.slice().sort().join(','),
+      'unexpected: ' + found.filter(n => ALLOWED.indexOf(n) === -1).join(',') +
+      ' | gone: ' + ALLOWED.filter(n => found.indexOf(n) === -1).join(','));
+    T('the one reader on the list that derives numbers shadows the log with the legacy slice',
+      /const cardioLog = legacyCardioRecords\(\);/.test(fnSrc(src, 'computeCardioStats')));
+    ['computeCardioXPTimeline','computeCardioStreakWeeks','computeCardioPRs','cardioWeekSummary','sortedCardio','cardioLauncherIds']
+      .forEach(fn => T(fn + ' reads the legacy slice', /legacyCardioRecords\(\)/.test(fnSrc(src, fn))));
+    T('saving or deleting an activity publishes nothing to friends',
+      !/socialPublish/.test(fnSrc(src, 'saveActivity')) && !/socialPublish/.test(fnSrc(src, 'deleteActivity')));
+  }
+
+  /* ------------------------------------------------------------------ */
+  sub('it lives on Today and in the Log — not in a tab of its own');
+  {
+    T('the Cardio tab is gone from the bar', src.indexOf('data-tab="cardio"') === -1 && code.indexOf("switchTab('cardio')") === -1);
+    T('no Activity tab took its place', !/data-tab="activit/.test(src) && !/id="view-activit/.test(src));
+    T('the Today cardio link is gone, markup and style', code.indexOf('today-cardio-link') === -1);
+    T('the block sits directly under the day\'s card', (() => {
+      const v = src.slice(src.indexOf('id="view-today"'));
+      const a = v.indexOf('id="todayWorkout"'), b = v.indexOf('id="todayActivity"');
+      return a !== -1 && b > a && b - a < 400;
+    })());
+    T('the logger holds unsaved input, so a stray backdrop tap cannot dismiss it',
+      /<div class="overlay" id="activityOverlay">/.test(src));
+    T('the sheet says plainly what an activity is not', /won't count as a workout or change your training/.test(fnSrc(src, 'renderActivityLogger')));
+    T('and asks for nothing LOOP cannot measure',
+      !/calor|kcal|\bload\b|recover|VO2|heart rate|intensity|RPE/i.test(stripComments(fnSrc(src, 'renderActivityLogger'))));
+
+    const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    const ctx = app.ctx, doc = ctx.document;
+    const release = pinClock(ctx, '2026-05-20T09:00:00');
+    try{
+      onToday(ctx);
+      ctx.openActivityLogger();
+      T('Save waits for a kind', doc.getElementById('activitySave').disabled === true);
+      ctx.pickActivityType('golf');
+      T('and is ready the moment one is picked', doc.getElementById('activitySave').disabled === false);
+      Object.keys(FIELDS).forEach(id => { doc.getElementById(id).value = ''; });
+      await ctx.saveActivity();
+      T('three taps log golf: Log activity, Golf, Save', ctx.activityRecords().length === 1 &&
+        ctx.activityRecords()[0].name === 'Golf');
+      ctx.hasActiveDraftNow = true; ctx.renderTodayWorkout();
+      T('mid-workout the block steps aside', doc.getElementById('todayActivity').innerHTML === '');
+      ctx.hasActiveDraftNow = false;
+      ctx.selectedDayKey = 'fri'; ctx.renderTodayWorkout();
+      T('while another day is previewed it steps aside', doc.getElementById('todayActivity').innerHTML === '');
+      onToday(ctx); ctx.renderTodayWorkout();
+      T('back on today it returns', /Golf/.test(doc.getElementById('todayActivity').innerHTML));
+      ctx.openCardioDetail(ctx.activityRecords()[0].id);
+      T('an activity handed to the legacy detail sheet opens as an activity',
+        doc.getElementById('activityOverlay').classList.contains('open') &&
+        !doc.getElementById('cardioDetailOverlay').classList.contains('open'));
+      ctx.closeActivityLogger();
+    }finally{ release(); }
+    T('no storage key was added', ctx.DATA_KEYS.length === 15 && ctx.DATA_KEYS.indexOf('cardioLog') !== -1);
+    T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  }
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -21235,6 +21875,7 @@ async function main(){
   await testProgramOwnership();
   await testSplitOwnership();
   await testSocialFoundation();
+  await testActivityLogging();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

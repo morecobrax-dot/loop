@@ -411,6 +411,67 @@ async function run(){
   }
 
   /* ---------------------------------------------------------
+     H2 — Phase A: an activity is filed under the local day
+     ---------------------------------------------------------
+     An activity carries a calendar date and no other notion of time,
+     and Today and the Log file it by that date alone. So the instant
+     it is saved at has to become the day the athlete is living in —
+     in every zone, the minute either side of midnight, and across
+     both DST changes — or a late round of golf lands on tomorrow and
+     disappears from the Today it was logged on.
+     --------------------------------------------------------- */
+  sub('an activity is filed under the local calendar day');
+  {
+    async function withClockAsync(isoInstant, fn){
+      const RealDate = ctx.Date;
+      const fixed = new RealDate(isoInstant).getTime();
+      function FakeDate(...args){ return args.length ? new RealDate(...args) : new RealDate(fixed); }
+      FakeDate.prototype = RealDate.prototype; FakeDate.now = () => fixed;
+      FakeDate.UTC = RealDate.UTC; FakeDate.parse = RealDate.parse;
+      ctx.Date = FakeDate;
+      try { return await fn(); } finally { ctx.Date = RealDate; }
+    }
+    const instants = ['2026-05-31T23:59:00Z', '2026-06-01T00:00:00Z', '2026-12-31T23:30:00Z',
+                      '2027-01-01T00:30:00Z', '2026-03-08T07:30:00Z', '2026-11-01T06:30:00Z',
+                      '2026-03-29T00:30:00Z', '2026-10-25T01:30:00Z', '2028-02-29T23:45:00Z'];
+    const stamped = [], drafted = [], today = [], tomorrow = [];
+    const rows = () => (ctx.document.getElementById('todayActivity').innerHTML.match(/class="act-row"/g) || []).length;
+    const onDay = ymd => ctx.cardioLog.filter(r => r.kind === 'activity' && r.date === ymd).length;
+    ctx.cardioLog = [];
+    for(const iso of instants){
+      const oracle = oracleLocalDate(new Date(iso).getTime(), TZ);
+      await withClockAsync(iso, async () => {
+        ctx.selectedDayKey = null;
+        ctx.openActivityLogger();
+        if(!ctx.activityDraft || ctx.activityDraft.date !== oracle)
+          drafted.push(iso + ': draft=' + (ctx.activityDraft && ctx.activityDraft.date) + ' oracle=' + oracle);
+        ctx.pickActivityType('golf');
+        ['actName','actDuration','actDistance','actDate','actNote']
+          .forEach(id => { ctx.document.getElementById(id).value = ''; });
+        const n = ctx.cardioLog.length;
+        await ctx.saveActivity();
+        const rec = ctx.cardioLog[ctx.cardioLog.length - 1];
+        if(ctx.cardioLog.length !== n + 1 || !rec || rec.date !== oracle)
+          stamped.push(iso + ': stored=' + (rec && rec.date) + ' oracle=' + oracle);
+        ctx.renderTodayActivity();
+        if(rows() !== onDay(oracle)) today.push(iso + ': shown=' + rows() + ' expected=' + onDay(oracle));
+      });
+      const next = new Date(new Date(iso).getTime() + 86400000).toISOString();
+      const nextDay = oracleLocalDate(new Date(next).getTime(), TZ);
+      await withClockAsync(next, async () => {
+        ctx.selectedDayKey = null;
+        ctx.renderTodayActivity();
+        if(rows() !== onDay(nextDay)) tomorrow.push(next + ': shown=' + rows() + ' expected=' + onDay(nextDay));
+      });
+    }
+    ok('a new entry starts on the local calendar day', drafted.length === 0, drafted.slice(0, 3).join(' | '));
+    ok('saved at any instant, it is stamped with that local day', stamped.length === 0, stamped.slice(0, 3).join(' | '));
+    ok('Today lists exactly that day\'s activities', today.length === 0, today.slice(0, 3).join(' | '));
+    ok('and twenty-four hours later they are no longer Today\'s', tomorrow.length === 0, tomorrow.slice(0, 3).join(' | '));
+    ctx.cardioLog = [];
+  }
+
+  /* ---------------------------------------------------------
      I — date fuzz concentrated on boundaries
      --------------------------------------------------------- */
   sub('boundary fuzz');

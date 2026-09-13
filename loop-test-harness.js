@@ -217,7 +217,9 @@ function loadApp(initialStore){
     /* D51C */ 'exPickerState','pbOpenSession',
     /* D51D */ 'pbOpenExercise','pbPendingSession','RANKS',
     /* D52 */ 'LOOP_SOCIAL','socialState','socialView','SOCIAL_RULES_VERSION',
-    /* D52B */ 'SOCIAL_MIN_PASSWORD'];
+    /* D52B */ 'SOCIAL_MIN_PASSWORD',
+    /* Phase A — activity logging */ 'ACTIVITY_TYPES','activityDraft','recentShown','RECENT_STEP',
+    'hasActiveDraftNow','dismissedMissedDates'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +
