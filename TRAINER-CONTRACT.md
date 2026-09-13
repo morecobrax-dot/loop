@@ -8058,3 +8058,178 @@ source is 27KB larger, about 1.3% of `index.html`.
   incline cable fly's finish, the Pallof press) are drawn foreshortened, and the
   Pallof press has no arrow.
 - Not yet seen on a physical phone.
+
+## §88 — D59: The workout dock, and a figure drawn from shapes
+
+**Status.** Prepared as LOOP 6.0 (`loop-v137`), release candidate on
+`rc/loop-6.0`; not deployed. `DATA_KEYS` 15, schema 1, no migration,
+`TRAINER_ENGINE_VERSION` 0.1.1-shadow, Session Score weights 40/30/18/12.
+Nothing that prescribes, progresses, scores, records or awards changed, and
+no name reaches a different drawing.
+
+### What the workout screen was
+
+Measured at 390×844 on a real Push A session:
+
+- The navigation had no surface and no edge. Scrolling sets were cut off by
+  nothing, and the row sat 12px above a home-indicator inset that was added to
+  it rather than taken as the larger of the two.
+- Previous was bare text beside a bordered Skip — two visual systems in one
+  row — and disabled it faded to 35%, which read as a control that failed to
+  draw.
+- The review step stacked a lone Back row above a separate footer holding
+  Finish Workout: two bars, 145px, where every other step has one.
+- The header (count, rail, title) started at x=40 and everything under it at
+  x=20, because the head carried side padding inside an already padded scroll.
+- Ticking a set moved that set 10px right. The Bodyweight box was a white
+  native square. Swap sat 2px low and Bodyweight 1px low beside + Note. The
+  remove control had a smaller radius than the field beside it.
+- The pinned rest card covered the next set's weight and reps, so the
+  athlete's next move after ticking a set was a scroll.
+- Rotated, Skip ran 713px wide under a 560px exercise column.
+
+### The dock
+
+- One row in LOOP's footer language: the sheet surface, a hairline above,
+  `max(12px, env(safe-area-inset-bottom))` below.
+- Previous and Back are secondary controls in Skip's shape (48px, 7px radius,
+  surface and border, 104px wide); the forward control takes the rest of the row
+  and Next and Finish keep the accent. Disabled keeps its outline and loses its
+  surface.
+- The review step renders Back and Finish Workout in the same dock; the
+  `wsFinishBar` holder stays for a workout with no exercises and is emptied in
+  the stepper.
+- While a rest runs, its readout sits directly above the dock and the dock's
+  hairline steps aside, so the two read as one footer rather than a double rule.
+- At 560px and wider the dock and the readout keep to the content column;
+  rotated on a phone the dock gives back 8px of padding, never control height.
+- After a tick, `revealSetRow()` scrolls the next set just clear of the pinned
+  rest card (or the sheet's foot) — only when it is hidden, never past its own
+  top, without animation under reduced motion. It writes nothing. The pinned
+  card carries a solid shelf so no sliver of the set beneath shows between it
+  and the dock.
+- What Previous, Skip, Next, Back and Finish do is untouched:
+  `prevWorkoutStep`, `skipWorkoutStep`, `nextWorkoutStep`, `goToWorkoutStep`
+  and `saveLog` are byte-identical; `toggleSetComplete` gains the one call that
+  reveals the next set.
+
+### The figure
+
+Phase B drew every bone as a round-capped stroke of one width with its own
+outline, so every knee, ankle and elbow showed as a circle and an ankle was as
+thick as a calf.
+
+- Each segment is now a closed silhouette laid along its bone from a width
+  profile (`PROFILE`, `PROFILE_FRONT`): a thigh carries its mass high, a calf
+  swells behind the shin to an ankle under 55% of its width, an upper arm tapers
+  to the elbow and a forearm to a wrist under 60% of its width; the side-view
+  trunk has a seat, a waist and a chest, the front-view trunk shoulders, lats,
+  a waist and hips laid on the actual joints. Hands are small rounds; the head
+  is 5.4 (was 6).
+- A chain — each arm, each leg, the trunk and neck — is one path whose outline
+  is painted under its fill, so joints show no seam. Flat LOOP two-tone only;
+  the shaded anatomy of 5.2 was reverted and is not revisited.
+- Bone lengths and every pose are unchanged except the corrections below. A
+  face-down side view (`flip`) mirrors front and back so a calf stays behind a
+  shin.
+- The same figure is drawn at every size; a thumbnail is not separate art.
+
+### Grounding
+
+A grounding audit measured every solid chain's distal end against the floor and
+every support the drawing draws, and a contact audit measured every pad, seat,
+bench top, box, step and roller against the body.
+
+- Corrected: walking lunge (one grounded lunge; see below); pike push-up (hips
+  high with the arms in line with the trunk, hands and toes on the floor — its
+  feet were 10 units up in 5.9); Meadows row rear foot and landmine press front
+  foot (3.6 up in 5.9); dips (a taller station, so the feet clearly hang instead
+  of hovering 3–4 units up); glute bridge, leg raise, reverse crunch, V-up and
+  flutter-kick arms; the superman's belly; the box squat, seated calf raise,
+  weighted sit-up and Russian twist seats; the Turkish get-up's seat and
+  supporting hand; the ab wheel's far knee; the captain's chair frame.
+- Walking lunge: D57 drew the next moment as a faint second body. Its only
+  planted foot hid behind the solid front foot and its other foot was in the
+  air, so it read as a person floating beside the lunge. It is removed; the
+  drawing is one lunge — front shin vertical over a flat front foot, rear knee
+  lowered to just above the floor, rear toes on it — and the arrow along the
+  floor.
+- Contacts: 83 of 86 supports touch the body. The other three are not body
+  contacts: the leg press sled riding its rail, and the two sleds.
+- Five drawings pass close to a surface on purpose and Contract 165 names them:
+  the lat pulldown's arms over the thigh pad, the superman's lifted legs, the
+  leg extension's hands on the thighs, the machine crunch's hands at the
+  handles, the ab wheel's hands on its hub.
+
+### Mapping
+
+`exerciseVisualKey`, `byName`, `resolveExerciseId` and every consumer are
+unchanged. In a real browser: Build With LOOP 56 Program Studio rows and Build
+My Own (Push / Legs / Pull / Arms) 38 rows, every picture its name's drawing;
+six workouts (Push A, Pull A, Legs B, Arms A, Full Body A, Core A), 35
+exercises, every logger row, stepper head and How To correct; a swap changed
+the row and the stepper picture and swapping back restored them; a retyped name
+updated; a custom name got no picture and no How To; all 186 picker, Program
+Studio and swap-sheet rows correct. The workout card's exercise list shows
+names only, as before.
+
+### Performance
+
+Real browser at 4× CPU throttle, medians of seven fresh pages, all 168
+drawings:
+
+| | 5.9 | 6.0 |
+|---|---|---|
+| Elements, every thumbnail | 6,710 | 2,934 |
+| Elements, every How To drawing | 9,202 | 3,697 |
+| Thumbnails into the DOM, to a painted frame | 125 ms | 73 ms |
+| How To drawings, to a painted frame | 138 ms | 84 ms |
+| Building every thumbnail's markup | 143 ms | 148 ms |
+| Markup, every thumbnail | 458 KB | 573 KB |
+
+The figure reports its own extent as it is drawn and formats coordinates from
+integer tenths, so framing no longer re-reads every body path; output was
+confirmed byte-identical across the change. The vendored library grew about
+7 KB.
+
+### Verification
+
+- **Contract 165** — 43 assertions: the dock's surface, inset, shape, disabled
+  state, single review dock, rest footer, column and landscape padding; the
+  navigation semantics; header edge, completed-set gutter mark, Bodyweight box,
+  action-row centre line, remove radius, rest-card shelf; the reveal driven on
+  measured geometry (hidden, visible, no card, outside the stepper, not the
+  current exercise, never past its own top, reduced motion) and never writing;
+  no stroked capsules, filled silhouettes under their own outline, one path per
+  chain, the same figure at every size; distal proportions from the profiles
+  and measured on a rendered standing figure; bone lengths; the grounding rule
+  over all 168 drawings with its five named hovers; the corrected contacts;
+  fewer elements.
+- **Repointed, with reasons in place** — Contract 110's "the forward action
+  dominates the navigation" (Previous is now a fixed-width secondary control
+  that never takes the accent, and the forward control still takes the rest of
+  the row); Contract 114's "filled only on the review step" (Finish now lives in
+  the dock beside Back); Contract 116's "the navigation carries the bottom
+  inset itself" (the larger of 12px and the indicator, not the sum); Contract
+  164's walking lunge (one grounded lunge) and its face lookup, which now reads
+  the head radius from the renderer — a literal 6 would have found no face and
+  passed every face-clearance check on nothing.
+- **Mutation check** — 18 deliberate breakages, 18 caught: the dock without its
+  surface, the inset summed, Previous back to bare text, disabled fading,
+  Finish back in a second bar, a double rule under the rest readout, the head
+  double-inset, a completed set shifting, no reveal, a reveal past the set's
+  top, a reveal that writes, stroked capsules, a path per segment, an ankle as
+  wide as the calf, a separate thumbnail figure, bridge arms floating, plank
+  forearms lifted, the head back to 6.
+- `npm run verify` 6572 / 0; audit 87, audit:program 335, audit:cardio 261,
+  audit:gps 43, audit:dates 40 × 7 zones.
+
+### Known and recorded
+
+- The Liftoff reference screenshots named in the brief did not arrive in the
+  session; the figure follows the written direction.
+- The figure is deliberately flat and simplified: no faces, no muscle lines,
+  no shading.
+- Thumbnail markup is about a quarter larger while the DOM is less than half;
+  every thumbnail is still built once into the sprite.
+- Not yet seen on a physical phone.

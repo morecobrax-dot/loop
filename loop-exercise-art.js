@@ -60,7 +60,7 @@ var ExerciseArt = (function(){
 'use strict';
 
 var G = 106;                                   // floor
-var B = { torso:25, neck:3.2, head:6, ua:14, fa:12.5, th:19.5, sh:18.5, ft:7.4 };
+var B = { torso:25, neck:3.2, head:5.4, ua:14, fa:12.5, th:19.5, sh:18.5, ft:7.4 };
 var W = { torso:12.4, torsoF:16.5, neck:5, ua:6.4, fa:5.4, th:8.8, sh:6.8, ft:4, edge:1.6 };
 var C = {
   nearCore:'#4F5A6B', nearEdge:'#7A879C',
@@ -77,7 +77,29 @@ var C = {
 function rad(a){ return a * Math.PI / 180; }
 function mv(p, a, l){ return [p[0] + Math.sin(rad(a)) * l, p[1] + Math.cos(rad(a)) * l]; }
 function n1(v){ return Math.round(v * 10) / 10; }
-function P(p){ return n1(p[0]) + ' ' + n1(p[1]); }
+/* Tenths as text, built from integers: the same characters n1() prints, without
+   converting a fractional number to a string for every point of every path. */
+function f1(t){
+  if(t < 0) return '-' + f1(-t);
+  var r = t % 10;
+  return r ? ((t - r) / 10) + '.' + r : '' + (t / 10);
+}
+function P(p){ return f1(Math.round(p[0] * 10)) + ' ' + f1(Math.round(p[1] * 10)); }
+/* A body path's point: formatted exactly as P() formats it, and recorded in
+   the extent of the chain being drawn (see chainPath), so the frame can take
+   the figure's size without parsing its markup back out. */
+var CHAIN_BOX = [Infinity, Infinity, -Infinity, -Infinity], FIG_BOX = null;
+function PB(p){
+  var tx = Math.round(p[0] * 10), ty = Math.round(p[1] * 10), x = tx / 10, y = ty / 10, b = CHAIN_BOX;
+  if(x < b[0]) b[0] = x; if(x > b[2]) b[2] = x;
+  if(y < b[1]) b[1] = y; if(y > b[3]) b[3] = y;
+  return f1(tx) + ' ' + f1(ty);
+}
+function growFigure(x0, y0, x1, y1){
+  if(!FIG_BOX) return;
+  if(x0 < FIG_BOX[0]) FIG_BOX[0] = x0; if(y0 < FIG_BOX[1]) FIG_BOX[1] = y0;
+  if(x1 > FIG_BOX[2]) FIG_BOX[2] = x1; if(y1 > FIG_BOX[3]) FIG_BOX[3] = y1;
+}
 function lerp(a, b, t){ return a + (b - a) * t; }
 function lerpAng(a, b, t){ var d = b - a; while(d > 180) d -= 360; while(d < -180) d += 360; return a + d * t; }
 function angleOf(a, b){ return Math.atan2(b[0] - a[0], b[1] - a[1]) * 180 / Math.PI; }
@@ -184,47 +206,169 @@ function mixPose(view, a, b, t){
 }
 
 /* ---------- body ---------- */
-function seg(a, b, w, core, edge){
-  var d = 'M' + P(a) + 'L' + P(b);
-  return '<path d="' + d + '" stroke="' + edge + '" stroke-width="' + n1(w + W.edge) + '"/>' +
-         '<path d="' + d + '" stroke="' + core + '" stroke-width="' + n1(w) + '"/>';
+/* THE FIGURE IS DRAWN FROM SHAPES (D59). Phase B drew every bone as a stroke
+   of one width with a round end and its own outline: a knee, an ankle or an
+   elbow showed as a circle, an ankle was as thick as a calf and a wrist as
+   thick as a forearm — people assembled from capsules.
+
+   Each segment is now a closed silhouette laid along its bone from a short
+   PROFILE: how far the body reaches on either side of the bone at a few
+   stations. A thigh carries its mass high and narrows into the knee, a calf
+   swells behind the shin and thins to a small ankle, an upper arm tapers from
+   the shoulder to the elbow and a forearm to the wrist; the trunk has a chest,
+   a waist and a seat.
+
+   A chain — a leg, an arm, the trunk and neck — is ONE path. Its outline is
+   painted under its fill, so the fill covers every seam inside the chain and
+   only the outside edge shows: a limb reads as one limb, with no bubble at the
+   joint. Bone lengths, poses and every joint are exactly what they were; this
+   changes how a body is drawn, never where it is. */
+
+/* [t along the bone, +90 side, -90 side]. In the side view the +90 side of a
+   limb is the front of the body, of the trunk and neck the back, of the foot
+   its top. Front-view profiles are [t, outer, inner]. Values are half-widths. */
+var PROFILE = {
+  trunk: [[0, 5.6, 4.4], [0.13, 6.4, 4.7], [0.42, 4.8, 4.8], [0.72, 5.6, 6.1], [0.9, 5.9, 6.3], [1, 5.3, 5.4]],
+  neck:  [[0, 2.7, 2.5], [1, 2.2, 2.1]],
+  th:    [[0, 4.5, 5.1], [0.3, 5.0, 4.6], [0.72, 3.9, 3.6], [1, 3.2, 3.15]],
+  sh:    [[0, 3.1, 3.3], [0.3, 2.9, 4.5], [0.68, 2.2, 2.8], [1, 1.55, 1.8]],
+  foot:  [[0, 1.3, 1.7], [0.22, 2.4, 1.7], [0.72, 1.45, 1.7], [1, 0.95, 1.35]],
+  ua:    [[0, 3.4, 3.5], [0.3, 3.35, 3.55], [0.64, 3.0, 2.8], [1, 2.2, 2.3]],
+  fa:    [[0, 2.3, 2.35], [0.3, 2.7, 2.5], [1, 1.35, 1.4]]
+};
+var PROFILE_FRONT = {
+  th:   [[0, 3.2, 3.8], [0.25, 4.1, 4.1], [0.72, 3.6, 3.3], [1, 3.2, 3.0]],
+  sh:   [[0, 3.2, 3.1], [0.32, 3.9, 4.1], [0.72, 2.5, 2.6], [1, 1.6, 1.6]],
+  ua:   [[0, 3.8, 2.8], [0.28, 3.9, 3.1], [0.66, 2.9, 2.8], [1, 2.4, 2.3]],
+  fa:   [[0, 2.5, 2.3], [0.3, 2.85, 2.5], [1, 1.45, 1.4]],
+  foot: [[0, 1.9, 1.9], [0.7, 1.55, 1.55], [1, 1.1, 1.1]],
+  neck: [[0, 2.7, 2.7], [1, 2.2, 2.2]]
+};
+var HAND_R = 1.95;
+
+/* One segment's silhouette, clockwise, as quadratic curves only — every number
+   in the path is a point, which is what bounds() reads. `plusFirst` puts the
+   profile's first width on the +90 side of the bone; `capA`/`capB` flatten the
+   round ends (1 is a half circle). */
+function segmentPath(a, b, prof, plusFirst, capA, capB, scale){
+  var dx = b[0] - a[0], dy = b[1] - a[1], L = Math.sqrt(dx * dx + dy * dy);
+  if(L < 0.05) return '';
+  var ux = dx / L, uy = dy / L, nx = uy, ny = -ux, k = prof.length, plus = [], minus = [], i;
+  for(i = 0; i < k; i++){
+    var t = prof[i][0], wp = (plusFirst ? prof[i][1] : prof[i][2]) * scale, wm = (plusFirst ? prof[i][2] : prof[i][1]) * scale;
+    var cx = a[0] + dx * t, cy = a[1] + dy * t;
+    plus.push([cx + nx * wp, cy + ny * wp]);
+    minus.push([cx - nx * wm, cy - ny * wm]);
+  }
+  var c0 = (prof[0][1] + prof[0][2]) / 2 * scale * capA, c1 = (prof[k - 1][1] + prof[k - 1][2]) / 2 * scale * capB;
+  return 'M' + PB(plus[0]) + sidePath(plus) + capPath(plus[k - 1], minus[k - 1], ux, uy, c1) +
+    sidePath(minus.slice().reverse()) + capPath(minus[0], plus[0], -ux, -uy, c0) + 'Z';
+}
+/* A smooth side through the stations: the inner stations are control points
+   and the curve passes through the midpoints between them. */
+function sidePath(q){
+  var n = q.length, s = '';
+  if(n === 2) return 'L' + PB(q[1]);
+  for(var i = 1; i < n - 1; i++){
+    var end = i === n - 2 ? q[n - 1] : [(q[i][0] + q[i + 1][0]) / 2, (q[i][1] + q[i + 1][1]) / 2];
+    s += 'Q' + PB(q[i]) + ' ' + PB(end);
+  }
+  return s;
+}
+/* The round end of a segment, from one side to the other, reaching `c` past it. */
+function capPath(from, to, ux, uy, c){
+  var tip = [(from[0] + to[0]) / 2 + ux * c, (from[1] + to[1]) / 2 + uy * c];
+  return 'Q' + PB([from[0] + ux * c, from[1] + uy * c]) + ' ' + PB(tip) + 'T' + PB(to);
+}
+/* A small closed round (a hand), clockwise, in quadratic curves. */
+function roundPath(c, r){
+  var x = c[0], y = c[1];
+  return 'M' + PB([x - r, y]) + 'Q' + PB([x - r, y - r]) + ' ' + PB([x, y - r]) + 'T' + PB([x + r, y]) + 'T' + PB([x, y + r]) + 'T' + PB([x - r, y]) + 'Z';
+}
+/* The foot runs from behind the ankle (the heel) to the toe. */
+function footPath(ankle, toe, prof, plusFirst, scale){
+  var dx = toe[0] - ankle[0], dy = toe[1] - ankle[1], L = Math.sqrt(dx * dx + dy * dy) || 1;
+  var heel = [ankle[0] - dx / L * 2, ankle[1] - dy / L * 2];
+  return segmentPath(heel, toe, prof, plusFirst, 1, 0.85, scale);
+}
+/* The trunk seen from the front: shoulders, lats, waist, hips and seat, laid
+   on the actual shoulder and hip joints so a lean, a shrug, a foreshortened
+   hinge or a figure lying on the floor all carry it with them. */
+function torsoFrontPath(J){
+  var hc = J.hc, sc = J.sc, lS = J.lS, rS = J.rS, lH = J.lH, rH = J.rH;
+  var ux = sc[0] - hc[0], uy = sc[1] - hc[1], U = Math.sqrt(ux * ux + uy * uy) || 1;
+  var vx = rS[0] - lS[0], vy = rS[1] - lS[1], V = Math.sqrt(vx * vx + vy * vy) || 1;
+  ux /= U; uy /= U; vx /= V; vy /= V;
+  var at = function(p, up, right){ return [p[0] + ux * up + vx * right, p[1] + uy * up + vy * right]; };
+  var mix = function(p, q, t){ return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]; };
+  var q = [
+    at(lS, 1.6, 1.3), at(sc, 2.4, 0), at(rS, 1.6, -1.3), at(rS, -0.8, 2.3),
+    at(mix(rS, rH, 0.36), 0, 1.2), at(mix(rS, rH, 0.7), 0, 1.4), at(rH, -0.8, 2.8), at(rH, -3.2, 1.6),
+    at(hc, -3.8, 0),
+    at(lH, -3.2, -1.6), at(lH, -0.8, -2.8), at(mix(lS, lH, 0.7), 0, -1.4), at(mix(lS, lH, 0.36), 0, -1.2), at(lS, -0.8, -2.3)
+  ];
+  var n = q.length, mid = function(i){ var a = q[i % n], b = q[(i + 1) % n]; return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; };
+  var s = 'M' + PB(mid(n - 1));
+  for(var i = 0; i < n; i++) s += 'Q' + PB(q[i]) + ' ' + PB(mid(i));
+  return s + 'Z';
+}
+/* A chain is drawn once: fill over its own outline. A second position is one
+   flat silhouette. */
+function chainPath(d, core, edge, ghost){
+  var b = CHAIN_BOX, w = ghost ? 0.4 : 0.8;          // half the outline's width
+  CHAIN_BOX = [Infinity, Infinity, -Infinity, -Infinity];
+  if(!d) return '';
+  growFigure(b[0] - w, b[1] - w, b[2] + w, b[3] + w);
+  return ghost
+    ? '<path d="' + d + '" fill="' + edge + '" stroke="' + edge + '" stroke-width="0.8"/>'
+    : '<path d="' + d + '" fill="' + core + '" stroke="' + edge + '" stroke-width="1.6" paint-order="stroke"/>';
 }
 function headDot(c, core, edge){
-  return '<circle cx="' + n1(c[0]) + '" cy="' + n1(c[1]) + '" r="' + B.head + '" fill="' + core +
+  var x = n1(c[0]), y = n1(c[1]), r = B.head + 0.8;
+  growFigure(x - r, y - r, x + r, y + r);
+  return '<circle cx="' + x + '" cy="' + y + '" r="' + B.head + '" fill="' + core +
     '" stroke="' + edge + '" stroke-width="1.5"/>';
 }
 /* parts: 'all' | 'arms' | 'legs' | 'nearArm' */
 function figure(J, tone, parts){
   parts = parts || 'all';
   var ghost = tone === 'ghost';
-  var near = ghost ? [C.nearEdge, C.nearEdge] : [C.nearCore, C.nearEdge];
-  var far  = ghost ? [C.nearEdge, C.nearEdge] : [C.farCore, C.farEdge];
-  var tor  = ghost ? [C.nearEdge, C.nearEdge] : [C.torsoCore, C.torsoEdge];
   var all = parts === 'all', arms = all || parts === 'arms' || parts === 'nearArm', legs = all || parts === 'legs';
-  var s = '';
+  var s = '', near = [C.nearCore, C.nearEdge], far = [C.farCore, C.farEdge], tor = [C.torsoCore, C.torsoEdge];
+  var draw = function(d, tone2){ return chainPath(d, tone2[0], tone2[1], ghost); };
   if(J.view === 'side'){
-    if(arms && parts !== 'nearArm') s += seg(J.fE, J.fW, W.fa - 0.4, far[0], far[1]) + seg(J.sh, J.fE, W.ua - 0.4, far[0], far[1]);
-    if(legs) s += seg(J.fA, J.fT, W.ft, far[0], far[1]) + seg(J.fK, J.fA, W.sh - 0.4, far[0], far[1]) + seg(J.hip, J.fK, W.th - 0.5, far[0], far[1]);
+    /* A face-down drawing mirrors front and back, so a calf stays behind a shin. */
+    var pf = !J.flip, F = PROFILE;
+    var arm = function(E, Wr, sc){
+      return segmentPath(J.sh, E, F.ua, pf, 0.9, 1, sc) + segmentPath(E, Wr, F.fa, pf, 1, 1, sc) + roundPath(Wr, HAND_R * sc);
+    };
+    var leg = function(K, A, T, sc){
+      return segmentPath(J.hip, K, F.th, pf, 0.8, 1, sc) + segmentPath(K, A, F.sh, pf, 1, 1, sc) + footPath(A, T, F.foot, pf, sc);
+    };
+    if(arms && parts !== 'nearArm') s += draw(arm(J.fE, J.fW, 0.96), far);
+    if(legs) s += draw(leg(J.fK, J.fA, J.fT, 0.96), far);
     if(all){
-      s += seg(J.hip, J.sh, W.torso, tor[0], tor[1]);
-      s += seg(J.sh, J.nk, W.neck, near[0], near[1]) + headDot(J.head, near[0], near[1]);
+      s += draw(segmentPath(J.hip, J.sh, F.trunk, pf, 0.62, 0.34, 1) + segmentPath(J.sh, J.nk, F.neck, pf, 1, 1, 1), tor);
+      s += ghost ? headDot(J.head, C.nearEdge, C.nearEdge) : headDot(J.head, near[0], near[1]);
     }
-    if(legs) s += seg(J.hip, J.nK, W.th, near[0], near[1]) + seg(J.nK, J.nA, W.sh, near[0], near[1]) + seg(J.nA, J.nT, W.ft, near[0], near[1]);
-    if(arms) s += seg(J.sh, J.nE, W.ua, near[0], near[1]) + seg(J.nE, J.nW, W.fa, near[0], near[1]);
+    if(legs) s += draw(leg(J.nK, J.nA, J.nT, 1), near);
+    if(arms) s += draw(arm(J.nE, J.nW, 1), near);
   } else {
-    if(legs){
-      s += seg(J.lH, J.lK, W.th, near[0], near[1]) + seg(J.lK, J.lA, W.sh, near[0], near[1]) + seg(J.lA, J.lT, W.ft, near[0], near[1]);
-      s += seg(J.rH, J.rK, W.th, near[0], near[1]) + seg(J.rK, J.rA, W.sh, near[0], near[1]) + seg(J.rA, J.rT, W.ft, near[0], near[1]);
-    }
+    var FF = PROFILE_FRONT;
+    /* Which side of a front-view limb is its outer side: away from the body's midline. */
+    var outerFirst = function(a, b, centre){
+      var dx = b[0] - a[0], dy = b[1] - a[1];
+      return dy * ((a[0] + b[0]) / 2 - centre[0]) - dx * ((a[1] + b[1]) / 2 - centre[1]) >= 0;
+    };
+    var limb = function(a, b, prof, centre, capA){ return segmentPath(a, b, prof, outerFirst(a, b, centre), capA, 1, 1); };
+    var armF = function(S, E, Wr){ return limb(S, E, FF.ua, J.sc, 0.9) + limb(E, Wr, FF.fa, J.sc, 1) + roundPath(Wr, HAND_R + 0.05); };
+    var legF = function(H, K, A, T){ return limb(H, K, FF.th, J.hc, 0.8) + limb(K, A, FF.sh, J.hc, 1) + segmentPath(A, T, FF.foot, true, 1, 0.85, 1); };
+    if(legs) s += draw(legF(J.lH, J.lK, J.lA, J.lT), near) + draw(legF(J.rH, J.rK, J.rA, J.rT), near);
     if(all){
-      s += seg(J.hc, J.sc, W.torsoF, tor[0], tor[1]);
-      s += seg(J.lS, J.rS, 7.2, tor[0], tor[1]) + seg(J.lH, J.rH, 8, tor[0], tor[1]);
-      s += seg(J.sc, J.nk, W.neck, near[0], near[1]) + headDot(J.head, near[0], near[1]);
+      s += draw(torsoFrontPath(J) + segmentPath(J.sc, J.nk, FF.neck, true, 1, 1, 1), tor);
+      s += ghost ? headDot(J.head, C.nearEdge, C.nearEdge) : headDot(J.head, near[0], near[1]);
     }
-    if(arms){
-      s += seg(J.lS, J.lE, W.ua, near[0], near[1]) + seg(J.lE, J.lW, W.fa, near[0], near[1]);
-      s += seg(J.rS, J.rE, W.ua, near[0], near[1]) + seg(J.rE, J.rW, W.fa, near[0], near[1]);
-    }
+    if(arms) s += draw(armF(J.lS, J.lE, J.lW), near) + draw(armF(J.rS, J.rE, J.rW), near);
   }
   return s;
 }
@@ -738,8 +882,8 @@ function holdMark(frame, shapes, size){
 }
 
 /* ---------- framing ---------- */
-function bounds(markup){
-  var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+function bounds(markup, seed){
+  var x0 = seed ? seed[0] : Infinity, y0 = seed ? seed[1] : Infinity, x1 = seed ? seed[2] : -Infinity, y1 = seed ? seed[3] : -Infinity;
   function take(x, y, r){ r = r || 0; if(x - r < x0) x0 = x - r; if(y - r < y0) y0 = y - r; if(x + r > x1) x1 = x + r; if(y + r > y1) y1 = y + r; }
   var m, re = /<path d="([^"]+)"[^>]*?stroke-width="([\d.]+)"/g;
   while((m = re.exec(markup))){
@@ -778,21 +922,28 @@ function render(def, opts){
   var J = solve(def.view, solidPose);
   var O = otherPose ? solve(def.view, otherPose) : null;
   J.size = size; if(O) O.size = size;
+  J.flip = !!def.flip; if(O) O.flip = J.flip;
   var ghost = def.ghost || 'all';
   if(thumb && ghost === 'all') ghost = def.thumbGhost || 'none';     // whole-body ghosts only at full size
   if(!O) ghost = 'none';
-  var drawn = [], ghostDrawn = [];
-  var s = drawProps(J, def.scene, drawn);
+  /* Props are framed by reading their markup; the figure reports its own
+     extent while it is drawn (FIG_BOX), which is the same numbers without
+     re-parsing every body path. */
+  var drawn = [], ghostDrawn = [], props = '', part;
+  FIG_BOX = [Infinity, Infinity, -Infinity, -Infinity];
+  var s = (part = drawProps(J, def.scene, drawn)); props += part;
   if(ghost !== 'none'){
-    s += '<g opacity="' + (thumb ? 0.26 : 0.22) + '">' + drawProps(O, def.gear, ghostDrawn) + figure(O, 'ghost', ghost) + '</g>';
+    part = drawProps(O, def.gear, ghostDrawn); props += part;
+    s += '<g opacity="' + (thumb ? 0.26 : 0.22) + '">' + part + figure(O, 'ghost', ghost) + '</g>';
   }
-  s += drawProps(J, def.behind, drawn);
-  if(!def.gearFront) s += drawProps(J, def.gear, drawn);
+  s += (part = drawProps(J, def.behind, drawn)); props += part;
+  if(!def.gearFront){ s += (part = drawProps(J, def.gear, drawn)); props += part; }
   s += figure(J, 'solid');
-  if(def.gearFront) s += drawProps(J, def.gear, drawn);
-  s += drawProps(J, def.front, drawn);
+  if(def.gearFront){ s += (part = drawProps(J, def.gear, drawn)); props += part; }
+  s += (part = drawProps(J, def.front, drawn)); props += part;
   if(def.armOver) s += figure(J, 'solid', 'nearArm');
-  var frame = framed(bounds(s), def, J, size);
+  var figBox = FIG_BOX; FIG_BOX = null;
+  var frame = framed(bounds(props, figBox), def, J, size);
   var memo = PLACED && PLACED.get(def), marks = memo && memo[size];
   if(marks == null){
     var arch = archetypeOf(def), shapes = null;
@@ -835,7 +986,7 @@ function fit(view, make, lo, hi, joint, targetY){
   }
   return make((lo + hi) / 2);
 }
-return { render: render, solve: solve, fit: fit, G: G, B: B, _mix: mixPose };
+return { render: render, solve: solve, fit: fit, G: G, B: B, PROFILE: PROFILE, PROFILE_FRONT: PROFILE_FRONT, HAND_R: HAND_R, _mix: mixPose };
 })();
 
 /* The drawings, the names that reach them, and the cues.
@@ -1040,15 +1191,15 @@ function build(){
     gear:[['db', { at:'nW', along:'nfa', aoff:90, len:4.4 }]], track:'nW' },
 
   dip: { view:'side', arch:'dynamic', path:'line', key:'start',
-    scene:[['rail', { a:[40, 60.5], b:[84, 60.5], w:3.2 }], ['post', { a:[42, 61], b:[42, G] }], ['post', { a:[82, 61], b:[82, G] }]],
-    start:{ pin:['nW', [62, 58.4]], trunk:160, neck:168, nua:-95, nfa:20, fua:-99, ffa:16, nth:22, nsh:-56, fth:14, fsh:-62 },
-    end:  { pin:['nW', [62, 58.4]], trunk:172, neck:176, nua:4, nfa:2, fua:0, ffa:-2, nth:14, nsh:-48, fth:8, fsh:-54 },
+    scene:[['rail', { a:[40, 54.5], b:[84, 54.5], w:3.2 }], ['post', { a:[42, 55], b:[42, G] }], ['post', { a:[82, 55], b:[82, G] }]],
+    start:{ pin:['nW', [62, 52.4]], trunk:160, neck:168, nua:-95, nfa:20, fua:-99, ffa:16, nth:22, nsh:-56, fth:14, fsh:-62 },
+    end:  { pin:['nW', [62, 52.4]], trunk:172, neck:176, nua:4, nfa:2, fua:0, ffa:-2, nth:14, nsh:-48, fth:8, fsh:-54 },
     track:'sh' },
 
   dip_weighted: { view:'side', arch:'dynamic', path:'line', key:'start',
-    scene:[['rail', { a:[40, 60.5], b:[84, 60.5], w:3.2 }], ['post', { a:[42, 61], b:[42, G] }], ['post', { a:[82, 61], b:[82, G] }]],
-    start:{ pin:['nW', [62, 58.4]], trunk:160, neck:168, nua:-95, nfa:20, fua:-99, ffa:16, nth:22, nsh:-56, fth:14, fsh:-62 },
-    end:  { pin:['nW', [62, 58.4]], trunk:172, neck:176, nua:4, nfa:2, fua:0, ffa:-2, nth:14, nsh:-48, fth:8, fsh:-54 },
+    scene:[['rail', { a:[40, 54.5], b:[84, 54.5], w:3.2 }], ['post', { a:[42, 55], b:[42, G] }], ['post', { a:[82, 55], b:[82, G] }]],
+    start:{ pin:['nW', [62, 52.4]], trunk:160, neck:168, nua:-95, nfa:20, fua:-99, ffa:16, nth:22, nsh:-56, fth:14, fsh:-62 },
+    end:  { pin:['nW', [62, 52.4]], trunk:172, neck:176, nua:4, nfa:2, fua:0, ffa:-2, nth:14, nsh:-48, fth:8, fsh:-54 },
     gear:[['rod', { a:'hip', b:'belt', c:'dim', w:1.2 }], ['disc', { at:'belt', dy:4, r:5.2 }]],
     track:'sh' },
 
@@ -1068,7 +1219,7 @@ function build(){
 
   /* Chest and shoulders: presses, flys, push-ups, raises. */
   (function(H){
-  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, handsAt = H.handsAt;
+  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, handsAt = H.handsAt, sideHands = H.sideHands;
   var BENCH = ['bench', { x1:24, x2:84, y:78 }];
 
   /* Reclined on an incline bench, seat top at y=86. */
@@ -1209,8 +1360,8 @@ function build(){
     track:'sh' },
 
   pike_pushup: { view:'side', arch:'dynamic', path:'line', key:'end',
-    start:{ pin:['nW', [82, 103.2]], trunk:24, neck:18, nth:-38, nsh:-38, fth:-38, fsh:-38, nft:0, fft:0, nua:-70, nfa:36, fua:-74, ffa:32 },
-    end:  { pin:['nW', [82, 103.2]], trunk:48, neck:40, nth:-48, nsh:-48, fth:-48, fsh:-48, nft:0, fft:0, nua:2, nfa:2, fua:-2, ffa:-2 },
+    start:sideHands({ pin:['nT', [18.1, 104.8]], trunk:58.5, neck:48.5, nth:-54, nsh:-54, fth:-54, fsh:-54, nft:0, fft:0 }, [82, 103.2], [81.2, 103.4], -1),
+    end:  { pin:['nW', [82, 103.2]], trunk:48.5, neck:40.5, nth:-41.8, nsh:-41.8, fth:-41.8, fsh:-41.8, nft:0, fft:0, nua:48.5, nfa:48.5, fua:46.5, ffa:46.5 },
     track:'sh' },
 
   band_chest_press: { view:'side', arch:'cable', path:'line', ghost:'arms', crop:'upper', gearFront:true,
@@ -1257,8 +1408,8 @@ function build(){
     gear:[['db', { at:'lW', a:0, len:4.4 }], ['db', { at:'rW', a:0, len:4.4 }]], track:'rW' },
 
   landmine_press: { view:'side', arch:'press', ghost:'arms',
-    start:{ pin:['fK', [58, G - 4]], trunk:172, neck:176, fth:0, fsh:-90, fft:-80, nth:94, nsh:0, nua:26, nfa:160, fua:-4, ffa:-2 },
-    end:  { pin:['fK', [58, G - 4]], trunk:168, neck:172, fth:0, fsh:-90, fft:-80, nth:94, nsh:0, nua:140, nfa:140, fua:-4, ffa:-2 },
+    start:H.planted({ pin:['fK', [58, G - 4]], trunk:172, neck:176, fth:0, fsh:-90, fft:-80, nua:26, nfa:160, fua:-4, ffa:-2, nft:90 }, [77.5, 104.3], null),
+    end:  H.planted({ pin:['fK', [58, G - 4]], trunk:168, neck:172, fth:0, fsh:-90, fft:-80, nua:140, nfa:140, fua:-4, ffa:-2, nft:90 }, [77.5, 104.3], null),
     gear:[['rod', { a:[14, G - 1], b:'nW', w:2.4 }], ['plate', { at:'nW', r:4.6, dx:-4, dy:2 }]], track:'nW' },
 
   band_shoulder_press: { view:'side', arch:'cable', path:'line', ghost:'arms', crop:'upper',
@@ -1386,8 +1537,8 @@ function build(){
   var HT_TOP    = planted({ pin:['sh', [36, 85.8]], trunk:-90, neck:-112, nua:96, nfa:84, fua:92, ffa:80 }, HT_FEET[0], HT_FEET[1]);
   /* Glute bridge: shoulders on the floor, feet planted. */
   var GB_FEET = [[74, 104.3], [70, 104.5]];
-  var GB_BOTTOM = planted({ pin:['sh', [34, G - 6.2]], trunk:-90, neck:-94, nua:88, nfa:88, fua:84, ffa:84 }, GB_FEET[0], GB_FEET[1]);
-  var GB_TOP    = planted({ pin:['sh', [34, G - 6.2]], trunk:-62, neck:-80, nua:88, nfa:88, fua:84, ffa:84 }, GB_FEET[0], GB_FEET[1]);
+  var GB_BOTTOM = planted({ pin:['sh', [34, G - 6.2]], trunk:-90, neck:-94, nua:82.5, nfa:82.5, fua:82.3, ffa:82.3 }, GB_FEET[0], GB_FEET[1]);
+  var GB_TOP    = planted({ pin:['sh', [34, G - 6.2]], trunk:-62, neck:-80, nua:82.5, nfa:82.5, fua:82.3, ffa:82.3 }, GB_FEET[0], GB_FEET[1]);
 
   H.add({
 
@@ -1410,8 +1561,8 @@ function build(){
     gear:[['plate', { at:'nW', r:7.4, dy:6 }]], gearFront:true, track:'nW' },
 
   row_meadows: { view:'side', arch:'press', ghost:'arms',
-    start:S({ trunk:116, neck:132, nua:2, nfa:0, fua:40, ffa:30, nth:-10, nsh:-4, fth:36, fsh:-22 }),
-    end:  S({ trunk:116, neck:132, nua:-80, nfa:34, fua:40, ffa:30, nth:-10, nsh:-4, fth:36, fsh:-22 }),
+    start:planted(S({ trunk:116, neck:132, nua:2, nfa:0, fua:40, ffa:30, nth:-10, nsh:-4 }), null, [67.2, 104.5]),
+    end:  planted(S({ trunk:116, neck:132, nua:-80, nfa:34, fua:40, ffa:30, nth:-10, nsh:-4 }), null, [67.2, 104.5]),
     gear:[['rod', { a:[10, G - 1], b:'nW', extB:5, w:2.4 }], ['plate', { at:'nW', r:5.4, dx:5.6, dy:-2.2 }]], track:'nW' },
 
   row_dumbbell: { view:'side', arch:'press', ghost:'arms', scene:[BRACE_BENCH],
@@ -1598,7 +1749,7 @@ function build(){
     track:'head' },
 
   superman_hold: { view:'side', arch:'hold',
-    end:{ pin:['hip', [60, G - 6.2]], trunk:100, neck:106, nth:-100, nsh:-100, fth:-98, fsh:-98, nft:-90, fft:-90, nua:118, nfa:118, fua:114, ffa:114 } },
+    end:{ pin:['hip', [60, G - 5.1]], trunk:100, neck:106, nth:-100, nsh:-100, fth:-98, fsh:-98, nft:-90, fft:-90, nua:118, nfa:118, fua:114, ffa:114 } },
 
   kb_swing: { view:'side', arch:'hinge', path:'trace', key:'end',
     start:S({ trunk:118, neck:134, nth:26, nsh:-14, fth:22, fsh:-16, nua:-18, nfa:-20, fua:-22, ffa:-24 }),
@@ -1638,7 +1789,7 @@ function build(){
   /* Lying leg curl: face down on the pad, knees just past its end and in line
      with the machine's pivot, hands on the grips. The roller sits behind the
      ankles and travels round the knee as the heels curl toward the glutes. */
-  leg_curl: { view:'side', arch:'machine', path:'trace', ghost:'legs',
+  leg_curl: { view:'side', arch:'machine', path:'trace', ghost:'legs', flip:true,
     scene:[['pad', { a:[14, 80], b:[64, 80], w:6 }], ['post', { a:[24, 83], b:[24, G] }], ['post', { a:[56, 83], b:[56, G] }],
       ['post', { a:[14, 83], b:[14, 90] }]],
     start:sideHands({ pin:['hip', [48, 74]], trunk:-90, neck:-96, nth:90, nsh:90, fth:90, fsh:90, nft:0, fft:0 }, [14, 88], [15, 88.5], 1),
@@ -1689,8 +1840,8 @@ function build(){
     return planted({ pin:['hip', [40, 88]], trunk:-125, neck:-140, nua:24, nfa:68, fua:20, ffa:64, nft:-135, fft:-135 }, ankle, [ankle[0] - 1.2, ankle[1] + 1.2]);
   }
   /* Lunges: split stance, front foot planted, rear heel up. */
-  var LUNGE_FEET = [[72, 104.3], [21.2, 95.5]];
-  function lunge(hip, arms){ return planted(ext({ pin:['hip', hip], trunk:178, neck:178, nft:90, fft:-20 }, arms), LUNGE_FEET[0], LUNGE_FEET[1]); }
+  var LUNGE_FEET = [[72, 104.3], [20.5, 100.0]];
+  function lunge(hip, arms){ return planted(ext({ pin:['hip', hip], trunk:178, neck:178, nft:90, fft:-49 }, arms), LUNGE_FEET[0], LUNGE_FEET[1]); }
   var DB_SIDES = { nua:2, nfa:0, fua:-2, ffa:-2 };
   var HANDS_ON_HIPS = { nua:-30, nfa:60, fua:-34, ffa:56 };
   /* Bulgarian split squat: rear instep on a bench. */
@@ -1714,7 +1865,7 @@ function build(){
   var CS_TOE = [76, 99.4];
   function seatedCalf(footAngle){
     var ankle = [CS_TOE[0] - Math.sin(footAngle * Math.PI / 180) * 7.4, CS_TOE[1] - Math.cos(footAngle * Math.PI / 180) * 7.4];
-    return planted({ pin:['hip', [48, 83.5]], trunk:178, neck:180, nft:footAngle, fft:footAngle, nua:30, nfa:60, fua:26, ffa:56 }, ankle, [ankle[0] - 1, ankle[1]]);
+    return planted({ pin:['hip', [48, 84.9]], trunk:178, neck:180, nft:footAngle, fft:footAngle, nua:30, nfa:60, fua:26, ffa:56 }, ankle, [ankle[0] - 1, ankle[1]]);
   }
 
   H.add({
@@ -1731,7 +1882,7 @@ function build(){
     gear:[['plate', { at:'rack' }]], gearFront:true, track:'hip', trackOffset:[-9, 0] },
 
   box_squat: { view:'side', arch:'dynamic', path:'line', both:true,
-    scene:[['plinth', { at:'hip', dx:-4, dy:6.4, w:16 }]],
+    scene:[['plinth', { at:'hip', dx:-4, dy:5.2, w:16 }]],
     start:sq(ext({ trunk:180 }, barBack(180))),
     end:  sq(ext({ nth:80, nsh:-8, trunk:138, neck:146 }, barBack(138))),
     gear:[['plate', { at:'back' }]], track:'hip', trackOffset:[-12, -2] },
@@ -1798,11 +1949,14 @@ function build(){
     end:  lunge([52.5, 85.8], DB_SIDES),
     gear:[['db', { at:'fW', a:90, len:4.8 }], ['db', { at:'nW', a:90, len:4.8 }]], track:'hip', trackOffset:[0, -8] },
 
-  /* Walking lunge: the lunge is the drawing; the ghost is the next moment —
-     standing up over the front foot as the back leg swings through — and the
-     arrow says the athlete travels forward. */
-  lunge_walking: { view:'side', arch:'locomotion', thumbGhost:'none',
-    start:planted({ pin:['hip', [69, 66.8]], trunk:178, neck:178, fth:56, fsh:-14, fft:60, nua:-16, nfa:-8, fua:18, ffa:36, nft:90 }, LUNGE_FEET[0], null),
+  /* Walking lunge: one grounded lunge, and an arrow along the floor saying the
+     athlete travels forward. D57 drew the next moment as a faint second body —
+     standing over the front foot as the back leg swings through — but its only
+     planted foot hid exactly behind the solid front foot and its other foot was
+     in the air, so it read as a person hovering beside the lunge (D59). The
+     front shin is vertical over a flat front foot, the rear knee is lowered to
+     just above the floor and the rear toes are on it. */
+  lunge_walking: { view:'side', arch:'locomotion',
     end:  lunge([52.5, 85.8], { nua:16, nfa:30, fua:-14, ffa:-6 }),
     travel:{ dir:1 } },
 
@@ -1925,15 +2079,15 @@ function build(){
   }
   /* Ab wheel: hands on the wheel's hub. */
   function wheelPose(nth, trunk, hubX){
-    var p = kneel([36, G - 4.4], { nth:nth, fth:nth - 2, trunk:trunk, neck:trunk + 6 });
+    var p = kneel([36, G - 4.4], { nth:nth, fth:nth, trunk:trunk, neck:trunk + 6 });
     return sideHands(p, [hubX, G - 4.4], [hubX - 1, G - 4.4], 1);
   }
   /* Captain's chair: forearms on the pads, back on the pad. */
-  function chair(o){ return ext({ pin:['nE', [60, 52]], nua:0, nfa:90, fua:-2, ffa:88, trunk:180, neck:180, nft:90, fft:90 }, o); }
+  function chair(o){ return ext({ pin:['nE', [60, 46]], nua:0, nfa:90, fua:-2, ffa:88, trunk:180, neck:180, nft:90, fft:90 }, o); }
   /* Hanging from a bar at (60, 16). */
   function hanging(o){ return ext({ pin:['nW', [60, 16]], nua:180, nfa:180, fua:176, ffa:176, trunk:180, neck:180 }, o); }
   /* Seated V for Russian twists, seen from the front. */
-  function vSit(o){ return ext({ pin:['hc', [60, 99]], torsoScale:0.9, thighScale:0.62, shinScale:0.46, lth:146, lsh:30, rth:146, rsh:30, sw:7.2 }, o); }
+  function vSit(o){ return ext({ pin:['hc', [60, 101.6]], torsoScale:0.9, thighScale:0.62, shinScale:0.46, lth:146, lsh:70, rth:146, rsh:70, sw:7.2 }, o); }
   /* Decline bench: surface from (18, 92) up to (76, 71). */
   var DECLINE = { trunk:-70, hip:[46.9, 72.3] };
   function decline(o){ return ext({ pin:['hip', DECLINE.hip], nth:110, nsh:30, fth:108, fsh:28, nft:90, fft:90 }, o); }
@@ -1987,8 +2141,8 @@ function build(){
     track:'nK' },
 
   reverse_crunch: { view:'side', arch:'dynamic', key:'end',
-    start:{ pin:['sh', [36, G - 6.2]], trunk:-90, neck:-94, nua:88, nfa:88, fua:84, ffa:84, nth:180, nsh:90, fth:176, fsh:86, nft:180, fft:176 },
-    end:  { pin:['sh', [36, G - 6.2]], trunk:-64, neck:-86, nua:88, nfa:88, fua:84, ffa:84, nth:-150, nsh:110, fth:-154, fsh:106, nft:200, fft:196 },
+    start:{ pin:['sh', [36, G - 6.2]], trunk:-90, neck:-94, nua:82.5, nfa:82.5, fua:82.3, ffa:82.3, nth:180, nsh:90, fth:176, fsh:86, nft:180, fft:176 },
+    end:  { pin:['sh', [36, G - 6.2]], trunk:-64, neck:-86, nua:82.5, nfa:82.5, fua:82.3, ffa:82.3, nth:-150, nsh:110, fth:-154, fsh:106, nft:200, fft:196 },
     track:'nK' },
 
   decline_situp: { view:'side', arch:'dynamic', key:'end',
@@ -2000,11 +2154,11 @@ function build(){
 
   weighted_situp: { view:'side', arch:'dynamic', key:'end',
     start:kneesUp(supine(ext({ trunk:-90 }, folded(-90)))),
-    end:  kneesUp(supine(ext({ trunk:-162, neck:-170 }, folded(-162)))),
+    end:  kneesUp(supine(ext({ trunk:-162, neck:-170, pin:['hip', [62, G - 4.4]] }, folded(-162)))),
     gear:[['disc', { at:'chest', r:5.6 }]], gearFront:true, track:'head' },
 
   v_up: { view:'side', arch:'dynamic', key:'end',
-    start:supine({ trunk:-90, neck:-90, nua:-90, nfa:-90, fua:-92, ffa:-92, nth:90, nsh:90, fth:92, fsh:92, nft:170, fft:170 }),
+    start:supine({ trunk:-90, neck:-90, nua:-82.5, nfa:-82.5, fua:-82.3, ffa:-82.3, nth:90, nsh:90, fth:92, fsh:92, nft:170, fft:170 }),
     end:  supine({ trunk:-138, neck:-128, nua:146, nfa:146, fua:142, ffa:142, nth:138, nsh:138, fth:136, fsh:136, nft:210, fft:208 }),
     track:'nW' },
 
@@ -2019,14 +2173,14 @@ function build(){
     track:'nW' },
 
   flutter_kicks: { view:'side', arch:'dynamic', both:true,
-    start:supine({ trunk:-98, neck:-112, nua:88, nfa:88, fua:84, ffa:84, nth:112, nsh:112, fth:98, fsh:98, nft:190, fft:180 }),
-    end:  supine({ trunk:-98, neck:-112, nua:88, nfa:88, fua:84, ffa:84, nth:98, nsh:98, fth:112, fsh:112, nft:180, fft:190 }),
+    start:supine({ trunk:-98, neck:-112, nua:74.8, nfa:74.8, fua:74.7, ffa:74.7, nth:112, nsh:112, fth:98, fsh:98, nft:190, fft:180 }),
+    end:  supine({ trunk:-98, neck:-112, nua:74.8, nfa:74.8, fua:74.7, ffa:74.7, nth:98, nsh:98, fth:112, fsh:112, nft:180, fft:190 }),
     track:'nA' },
 
   /* ---- leg raises ---- */
   leg_raise: { view:'side', arch:'dynamic', key:'end',
-    start:supine({ nua:88, nfa:88, fua:84, ffa:84, nth:94, nsh:94, fth:92, fsh:92, nft:180, fft:180 }),
-    end:  supine({ nua:88, nfa:88, fua:84, ffa:84, nth:176, nsh:176, fth:172, fsh:172, nft:260, fft:256 }),
+    start:supine({ nua:82.5, nfa:82.5, fua:82.3, ffa:82.3, nth:94, nsh:94, fth:92, fsh:92, nft:180, fft:180 }),
+    end:  supine({ nua:82.5, nfa:82.5, fua:82.3, ffa:82.3, nth:176, nsh:176, fth:172, fsh:172, nft:260, fft:256 }),
     track:'nA' },
 
   hanging_leg_raise: { view:'side', arch:'dynamic', key:'end', ground:false,
@@ -2042,7 +2196,7 @@ function build(){
     track:'nK' },
 
   leg_raise_machine: { view:'side', arch:'machine', path:'trace', key:'end',
-    scene:[['pad', { a:[50, 36], b:[50, 76], w:6 }], ['post', { a:[50, 76], b:[50, G] }], ['pad', { a:[52, 55.6], b:[76, 55.6], w:4 }], ['post', { a:[74, 57], b:[74, G] }]],
+    scene:[['pad', { a:[50, 30], b:[50, 70], w:6 }], ['post', { a:[50, 70], b:[50, G] }], ['pad', { a:[52, 49.6], b:[76, 49.6], w:4 }], ['post', { a:[74, 51], b:[74, G] }]],
     start:chair({ nth:0, nsh:0, fth:-2, fsh:-2 }),
     end:  chair({ nth:100, nsh:4, fth:96, fsh:0 }),
     track:'nK' },
@@ -2097,8 +2251,8 @@ function build(){
     track:'nK' },
 
   turkish_getup: { view:'side', arch:'dynamic', key:'end',
-    start:planted(supine({ trunk:-90, neck:-94, nua:180, nfa:180, fua:90, ffa:90, fth:90, fsh:90, fft:170 }), [88, 104.3], null),
-    end:  planted(sideHands(supine({ trunk:-150, neck:-156, nua:180, nfa:180, fth:90, fsh:90, fft:170 }), null, [36, G - 2.7], 1), [88, 104.3], null),
+    start:planted(supine({ trunk:-90, neck:-94, nua:180, nfa:180, fua:82.3, ffa:82.3, fth:90, fsh:90, fft:170 }), [88, 104.3], null),
+    end:  planted(sideHands(supine({ trunk:-150, neck:-156, nua:180, nfa:180, fth:90, fsh:90, fft:170, pin:['hip', [62, G - 4.6]] }), null, [38.5, G - 2.7], 1), [88, 104.3], null),
     gear:[['kettlebell', { at:'nW', inverted:true }]], track:'head' },
 
   med_ball_slam: { view:'side', arch:'dynamic', key:'end',

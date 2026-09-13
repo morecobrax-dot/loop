@@ -11903,10 +11903,18 @@ function testWarmupEntry(app){
      flat accent — same dominance, more depth. The assertion is stronger: the
      gradient token must itself be built from the accent pair, so the button
      cannot drift onto a colour the system does not own. */
+  /* D59 repoints the last clause. Previous was bare text beside a bordered
+     Skip, two visual systems in one row, and disabled it faded to a label that
+     looked broken. It is now a secondary control in Skip's own shape. The
+     balance this assertion exists for is unchanged and held more strictly:
+     Previous keeps a fixed width and never carries the accent, the forward
+     control takes the rest of the row, and Next and Finish carry the gradient. */
   T('the forward action dominates the navigation',
     /\.ws-nav-fwd\.is-next, \.ws-nav-fwd\.is-finish\{[\s\S]{0,120}background: var\(--grad-accent\)/.test(css) &&
     /--grad-accent: linear-gradient\(135deg, var\(--accent\), var\(--accent-2\)\);/.test(css) &&
-    /\.ws-nav-btn\{ background: none; border: none;/.test(css));
+    /\.ws-nav-btn\{\s*flex: 0 0 auto; min-width: 104px;\s*background: var\(--surface-2\);/.test(css) &&
+    /\.ws-nav-fwd\{\s*flex: 1;/.test(css) &&
+    !/grad-accent|var\(--accent\)/.test(css.slice(css.indexOf('.ws-nav-btn{'), css.indexOf('}', css.indexOf('.ws-nav-btn{')))));
   T('and skip takes that same slot without taking its emphasis',
     /\.ws-nav-fwd\.is-skip\{[\s\S]{0,160}background: var\(--surface-2\)/.test(css) &&
     /\.ws-nav-fwd\{\s*flex: 1;/.test(css));
@@ -12373,8 +12381,22 @@ function testWorkoutJourney(app){
     !/<div class="sheet-actions">\s*<button class="btn-primary"[^>]*onclick="saveLog/.test(src));
   T('the sheet carries an empty holder instead',
     /<div class="sheet-actions" id="wsFinishBar"><\/div>/.test(src));
-  T('and it is filled only on the review step',
-    /finishBar\.innerHTML = \(i === STEP_FINISH\)/.test(src));
+  /* D59 repoints this. Finishing still exists on the review step and nowhere
+     else, but it now lives in the navigation dock beside Back: the review step
+     used to stack a lone Back row above a second footer holding Finish Workout,
+     two bars where every other step has one. The holder stays in the sheet for
+     the one case with no journey (a workout with no exercises) and is emptied
+     inside the stepper. */
+  T('and it is filled only on the review step', (() => {
+    const fn = fnSrc(src, 'renderWorkoutStep');
+    const review = fn.slice(fn.indexOf('} else if(i === STEP_FINISH){'), fn.indexOf('} else {', fn.indexOf('} else if(i === STEP_FINISH){')));
+    const exercise = fn.slice(fn.indexOf('} else {', fn.indexOf('} else if(i === STEP_FINISH){')));
+    const warmup = fn.slice(fn.indexOf('if(i === STEP_WARMUP){'), fn.indexOf('} else if(i === STEP_FINISH){'));
+    return /class="ws-nav-fwd is-finish" onclick="saveLog\(this\)">Finish Workout</.test(review) &&
+      !/saveLog/.test(exercise) && !/saveLog/.test(warmup) &&
+      /if\(finishBar\) finishBar\.innerHTML = '';/.test(fn) &&
+      (fn.match(/saveLog\(this\)/g) || []).length === 2;          // the review dock, and the no-exercise holder
+  })());
   T('withheld by not existing, not by being dimmed',
     !/wsFinishBar[\s\S]{0,200}(opacity|visibility|pointer-events)/.test(src));
 
@@ -12694,8 +12716,12 @@ function testWorkoutNavStates(app){
   /* The finish bar is emptied on every step but the review, and an empty flex
      container with padding and a border-top is a visible ruled strip. */
   T('an empty finish bar takes no space', /\.sheet-actions:empty\{ display: none; \}/.test(css));
+  /* D59 repoints the value, not the rule. The dock still carries the bottom
+     inset itself; it is now the LARGER of 12px and the home-indicator inset
+     rather than their sum, because the sum left a 12px dead strip under the
+     controls on every phone with an indicator. A phone without one keeps 12px. */
   T('the navigation carries the bottom inset itself',
-    /\.ws-nav\{[\s\S]{0,240}calc\(var\(--space-3\) \+ env\(safe-area-inset-bottom, 0px\)\)/.test(css));
+    /\.ws-nav\{[\s\S]{0,240}max\(var\(--space-3\), env\(safe-area-inset-bottom, 0px\)\)/.test(css));
   T('both controls clear the touch minimum',
     /\.ws-nav-btn, \.ws-nav-fwd\{\s*min-height: 48px;/.test(css));
 
@@ -23076,7 +23102,10 @@ async function testExerciseVisualTruth(){
       const parts = m[1].split('M').filter(Boolean).map(seg => { const n = nums(seg), p = []; for(let i = 0; i + 1 < n.length; i += 2) p.push([n[i], n[i + 1]]); return p; });
       strokes.push(parts);
     }
-    re = /<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="6" fill="#4F5A6B"/g;
+    /* D59 — the head's radius is read from the renderer rather than written in:
+       it was 6 and is now B.head, and a literal 6 would have found no face at
+       all and let every face-clearance check below pass on nothing. */
+    re = new RegExp('<circle cx="(-?[\\d.]+)" cy="(-?[\\d.]+)" r="' + B.head + '" fill="#4F5A6B"', 'g');
     while((m = re.exec(solid))) faces.push([+m[1], +m[2]]);
     re = /<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="([\d.]+)" fill="#232A34"/g;
     while((m = re.exec(solid))) loads.push([+m[1], +m[2], +m[3]]);
@@ -23245,9 +23274,17 @@ async function testExerciseVisualTruth(){
       box.w <= 24 && P.sh[0] >= box.x && P.sh[0] <= box.x + box.w && P.hip[0] > box.x + box.w + 4);
     const K = XA.solve('side', defs.plank.end), line = Math.abs((K.nA[0] - K.sh[0]) * (K.sh[1] - K.hip[1]) - (K.sh[0] - K.hip[0]) * (K.nA[1] - K.sh[1])) / dist(K.sh, K.nA);
     T('plank: elbows under the shoulders and one straight line from shoulders to ankles', Math.abs(K.nE[0] - K.sh[0]) <= 2 && line <= 2.5);
-    const W0 = XA.solve('side', defs.lunge_walking.start), W1 = XA.solve('side', defs.lunge_walking.end), t = firstStroke(full.lunge_walking);
-    T('walking lunge: the back leg comes through in the ghost and the arrow travels ahead of the front foot',
-      W0.fA[0] > W1.fA[0] + 30 && W0.fA[1] < G - 6 && t[0][0] > W1.nT[0]);
+    /* D59 repoints this. D57 drew the back leg coming through as a faint second
+       body; its only planted foot hid behind the solid front foot and its other
+       foot was in the air, so it read as a person floating beside the lunge. The
+       drawing is now one grounded lunge and the travel arrow, and what is held is
+       that it stays grounded and still travels. */
+    const W1 = XA.solve('side', defs.lunge_walking.end), t = firstStroke(full.lunge_walking);
+    T('walking lunge: one grounded lunge — no second body, front shin over a flat front foot, rear knee low, rear toes down',
+      !defs.lunge_walking.start && !/<g opacity/.test(XA.render(defs.lunge_walking, { size:'full' })) &&
+      Math.abs(W1.nA[0] - W1.nK[0]) <= 2 && Math.abs(W1.nT[1] - W1.nA[1]) <= 0.5 && W1.nA[1] >= G - 2 &&
+      W1.fK[1] > W1.hip[1] + 10 && W1.fK[1] >= G - 8 && W1.fT[1] >= G - 1.6 && W1.fT[0] < W1.hip[0] - 25);
+    T('and the arrow travels forward along the floor, ahead of the front foot', t[0][0] > W1.nT[0] && t[0][1] >= G - 8);
     const PP = XA.solve('front', defs.pallof_press.end), cab = defs.pallof_press.gear.find(g => g[0] === 'cable')[1].from;
     T('Pallof press: the cable comes in level from the anchor beside the athlete', defs.pallof_press.view === 'front' &&
       Math.abs(cab[1] - PP.mid[1]) <= 4 && Math.abs(cab[0] - PP.mid[0]) > 30);
@@ -23268,6 +23305,278 @@ async function testExerciseVisualTruth(){
     Object.keys(d).forEach(key => { if(key !== 'start' && key !== 'end') o[key] = d[key]; });
     o.end = d[pose]; o.arch = 'hold';
     return o;
+  }
+}
+
+/* =========================================================
+   CONTRACT 165 — THE WORKOUT DOCK AND THE FIGURE (D59)
+   ---------------------------------------------------------
+   Two refinements. Neither changes what LOOP prescribes,
+   records or awards, and neither changes which drawing a name
+   reaches.
+
+   THE DOCK. Previous, Skip, Next and Finish are one row in
+   LOOP's footer language: the sheet's surface, a hairline
+   above, one height and one radius, the forward control taking
+   the rest of the row. Unavailable keeps its shape. The review
+   step has one dock, not two bars. The bottom inset is the
+   larger of 12px and the home indicator. Ticking a set brings
+   the next set clear of the pinned rest card — a scroll, and
+   nothing else.
+
+   THE FIGURE. Every body segment is a filled silhouette laid
+   on its bone from a width profile, and a chain is one path
+   with its outline under its fill, so a joint shows no seam and
+   no bubble. Wrists, ankles, elbows and knees are narrower than
+   the forearm, calf, upper arm and thigh they end. The same
+   figure is drawn at every size. Anything that rests on the
+   floor or a support touches it.
+   ========================================================= */
+async function testWorkoutDockAndFigure(){
+  section('CONTRACT 165 — the workout dock and the figure (D59)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, XA = ctx.ExerciseArt, defs = ctx.EXERCISE_ART.definitions(), G = XA.G, B = XA.B;
+  const keys = Object.keys(defs);
+  /* A rule by its exact selector at the start of a line — `.ws-nav{` must not
+     find `.sheet-page .ws-nav{`. */
+  const ruleAt = (text, sel) => {
+    const i = text.indexOf('\n' + sel + '{');
+    return i < 0 ? '' : text.slice(i + 1, text.indexOf('}', i));
+  };
+  const landscape = (() => {
+    const i = css.indexOf('@media (orientation: landscape) and (max-height: 500px){');
+    return i < 0 ? '' : css.slice(i, i + 3000);
+  })();
+
+  sub('the navigation is one dock');
+  const nav = ruleAt(css, '.ws-nav');
+  T('it sits on the sheet surface under a hairline, like every LOOP footer',
+    /border-top: 1px solid var\(--border\); background: var\(--surface\);/.test(nav));
+  T('the bottom inset is the larger of 12px and the home indicator, never their sum',
+    /max\(var\(--space-3\), env\(safe-area-inset-bottom, 0px\)\)/.test(nav) && !/calc\(var\(--space-3\) \+ env\(safe-area-inset-bottom/.test(nav));
+  T('Previous and Back take the same height and radius as the forward control',
+    /\.ws-nav-btn, \.ws-nav-fwd\{\s*min-height: 48px;[^}]*border-radius: var\(--radius-md\);/.test(css));
+  T('in the same shape as Skip — a surface and a border, not bare text',
+    /flex: 0 0 auto; min-width: 104px;\s*background: var\(--surface-2\); border: 1px solid var\(--border\);/.test(ruleAt(css, '.ws-nav-btn')) &&
+    /background: var\(--surface-2\); border-color: var\(--border\);/.test(ruleAt(css, '.ws-nav-fwd.is-skip')));
+  T('unavailable keeps its shape rather than fading to something that looks broken', (() => {
+    const r = ruleAt(css, '.ws-nav-btn:disabled');
+    return /background: transparent; border-color: var\(--border-quiet\); color: var\(--text-faint\);/.test(r) && !/opacity/.test(r);
+  })());
+  T('the review step has one dock: Back and Finish Workout side by side, and no second bar', (() => {
+    const fn = fnSrc(src, 'renderWorkoutStep');
+    const i = fn.indexOf('} else if(i === STEP_FINISH){'), review = fn.slice(i, fn.indexOf('} else {', i));
+    return (review.match(/<button type="button"/g) || []).length === 2 &&
+      /onclick="goToWorkoutStep\([^"]*\)">Back</.test(review) && /class="ws-nav-fwd is-finish" onclick="saveLog\(this\)">Finish Workout</.test(review) &&
+      /if\(finishBar\) finishBar\.innerHTML = '';/.test(fn);
+  })());
+  T('while a rest runs, its readout and the dock read as one footer rather than a double rule',
+    /\.ws-rest:not\(\[hidden\]\) \+ \.ws-nav\{ border-top-color: transparent; \}/.test(css) &&
+    /id="wsRest" hidden onclick="jumpToRestingExercise\(\)"><\/button>\s*<div class="ws-nav" id="wsNav">/.test(src));
+  T('rotated or wide, the dock and the rest readout keep to the content column', (() => {
+    const i = css.indexOf('@media (min-width: 560px){'), block = i < 0 ? '' : css.slice(i, i + 2400);
+    return /\.sheet-page \.ws-nav\{\s*padding-left: max\(var\(--space-5\), calc\(\(100% - 560px\) \/ 2\)\);\s*padding-right: max\(var\(--space-5\), calc\(\(100% - 560px\) \/ 2\)\);/.test(block) &&
+      /\.sheet-page \.ws-rest\{\s*width: min\(560px, calc\(100% - var\(--space-5\) \* 2\)\);/.test(block);
+  })());
+  T('a phone on its side gives back dock padding, never control height',
+    /\.ws-nav\{ padding-top: var\(--space-2\); padding-bottom: max\(var\(--space-2\), env\(safe-area-inset-bottom, 0px\)\); \}/.test(landscape) &&
+    !/\.ws-nav-(btn|fwd)[^{]*\{[^}]*min-height/.test(landscape));
+  T('what the controls do is untouched: one way back, Skip only flags, the forward slot is the state',
+    /goToWorkoutStep\(logStepIndex - 1, 'back'\);/.test(fnSrc(src, 'prevWorkoutStep')) &&
+    /row\.dataset\.skipped = '1';\s*nextWorkoutStep\(\);/.test(fnSrc(src, 'skipWorkoutStep')) &&
+    /const fwd = !complete\s*\? \{ cls:'is-skip',/.test(fnSrc(src, 'renderWorkoutStep')));
+
+  sub('the screen shares one set of edges');
+  T('the head takes no side padding of its own, so it starts where the exercise does',
+    /padding: var\(--space-4\) 0 var\(--space-3\);/.test(ruleAt(css, '.ws-head')));
+  T('a completed set keeps its place; its mark sits in the gutter', (() => {
+    const r = ruleAt(css, '.stepper-on .ws-current .set-row.completed'), mark = ruleAt(css, '.stepper-on .ws-current .set-row.completed::before');
+    return /background: none; box-shadow: none;/.test(r) && !/padding/.test(r) &&
+      /left: -10px;/.test(mark) && /background: var\(--success\);/.test(mark) &&
+      /position: relative;/.test(ruleAt(css, '.stepper-on .ws-current .set-row'));
+  })());
+  T('the bodyweight box is drawn in LOOP\'s control style, in the same 20px box',
+    /-webkit-appearance: none; appearance: none;/.test(ruleAt(css, '.bw-toggle input[type="checkbox"]')) &&
+    /background-color: var\(--accent\); border-color: var\(--accent\);/.test(ruleAt(css, '.bw-toggle input[type="checkbox"]:checked')) &&
+    /\.bw-toggle input\{ width: 20px; height: 20px; \}/.test(css));
+  T('Swap, Note and Bodyweight sit on one centre line',
+    /\.ex-actions \.ex-act\{ margin-top: 0; \}/.test(css) && /\.ex-actions \.ex-note-btn\{ vertical-align: top; \}/.test(css) &&
+    /\.ex-actions \.bw-toggle\{[^}]*margin-top: 0; margin-bottom: 0; \}/.test(css));
+  T('the remove control takes the radius of the field beside it', /border-radius: var\(--radius-md\);/.test(ruleAt(css, '.rm-ex')));
+  T('the pinned rest card leaves no slot for the set beneath it to show through',
+    /box-shadow: var\(--shadow-md\), 0 28px 0 4px var\(--surface\);/.test(ruleAt(css, '.stepper-on .ws-current .rest-panel')));
+
+  sub('ticking a set brings the next one into reach');
+  T('the reveal happens on completing a set, never on un-completing one', (() => {
+    const fn = fnSrc(src, 'toggleSetComplete');
+    const on = fn.slice(fn.indexOf('if(isDone){'), fn.indexOf('} else if(panel && panel._interval){'));
+    return /if\(next\) revealNextSetAfterLayout\(next\);/.test(on) && (fn.match(/revealNextSetAfterLayout/g) || []).length === 1;
+  })());
+  T('and it only scrolls: nothing is written, nothing is redrawn',
+    !/LOOPStore|persist|localStorage|innerHTML|classList\.(add|remove|toggle)|dataset\.[a-zA-Z]+ =|\.value =/.test(fnSrc(src, 'revealSetRow')));
+  /* A set row, its exercise and the scrolling sheet, with the geometry a
+     390x844 phone measured: the scrollport runs 65–771 with 16px of bottom
+     padding, and the pinned rest card is 86px tall. */
+  const reveal = (o) => {
+    const calls = [];
+    const scroll = { getBoundingClientRect: () => ({ top:65, bottom:771 }), scrollBy: a => calls.push(a) };
+    const panel = { style:{ display: o.card === false ? 'none' : 'flex' }, offsetHeight: o.card === false ? 0 : 86 };
+    const host = {};
+    const exRow = { classList:{ contains: c => c === 'ws-current' ? o.current !== false : false },
+      closest: sel => sel === '.stepper-on' ? (o.stepper === false ? null : host) : sel === '.sheet-scroll' ? scroll : null,
+      querySelector: sel => sel === '.rest-panel' ? panel : null };
+    const setRow = { closest: sel => sel === '.ex-log-row' ? exRow : null, getBoundingClientRect: () => o.box };
+    const cs = ctx.getComputedStyle, mm = ctx.window.matchMedia;
+    ctx.getComputedStyle = () => ({ paddingBottom:'16px' });
+    if(o.reduce) ctx.window.matchMedia = q => ({ matches: /reduce/.test(q), addEventListener(){} });
+    try{ ctx.revealSetRow(setRow); } finally { ctx.getComputedStyle = cs; ctx.window.matchMedia = mm; }
+    return calls;
+  };
+  (() => {
+    const hidden = reveal({ box:{ top:619.25, bottom:738.25 } });
+    /* 81.25 here; the browser scrolled 81, because scroll positions land on whole pixels. */
+    T('a set left under the rest card scrolls clear of it — by the 81px the browser measured',
+      hidden.length === 1 && Math.abs(hidden[0].top - 81.25) < 0.01 && hidden[0].behavior === 'smooth', JSON.stringify(hidden));
+    T('a set already in view does not move', reveal({ box:{ top:420, bottom:539 } }).length === 0);
+    const noCard = reveal({ box:{ top:640, bottom:759 }, card:false });
+    T('with no rest running it clears the foot of the sheet instead', noCard.length === 1 && Math.abs(noCard[0].top - 8) < 0.01, JSON.stringify(noCard));
+    T('outside the stepper it never scrolls', reveal({ box:{ top:619.25, bottom:738.25 }, stepper:false }).length === 0);
+    T('nor for an exercise that is not the one on screen', reveal({ box:{ top:619.25, bottom:738.25 }, current:false }).length === 0);
+    const tall = reveal({ box:{ top:85, bottom:760 } });
+    T('it never scrolls a set past its own top', tall.length === 1 && Math.abs(tall[0].top - 12) < 0.01, JSON.stringify(tall));
+    T('and with reduced motion it jumps rather than glides', reveal({ box:{ top:619.25, bottom:738.25 }, reduce:true })[0].behavior === 'auto');
+  })();
+
+  sub('the figure is drawn from shapes');
+  const bodyFill = /<path d="[^"]+" fill="(#4F5A6B|#313946|#485365)" stroke="[^"]+" stroke-width="1\.6" paint-order="stroke"\/>/g;
+  const renders = {};
+  keys.forEach(k => { renders[k] = { thumb: XA.render(defs[k], { size:'thumb' }), full: XA.render(defs[k], { size:'full' }) }; });
+  T('no body segment is a stroked capsule any more, at either size', (() => {
+    const bad = keys.filter(k => /stroke="(#4F5A6B|#313946|#485365)"/.test(renders[k].thumb + renders[k].full));
+    return bad.length === 0 ? true : bad.slice(0, 6).join(', ');
+  })() === true);
+  T('every solid body part is a filled silhouette with its outline under its fill', keys.every(k => {
+    const paths = (renders[k].full.replace(/<g opacity="[^"]*">[\s\S]*?<\/g>/g, '').match(/<path d="[^"]+" fill="(#4F5A6B|#313946|#485365)"[^>]*\/>/g) || []);
+    return paths.length >= 3 && paths.every(p => /paint-order="stroke"/.test(p));
+  }));
+  T('a limb is one path from shoulder to hand and hip to foot, so its joints show no seam', (() => {
+    const count = svg => (svg.replace(/<g opacity="[^"]*">[\s\S]*?<\/g>/g, '').match(bodyFill) || []).length;
+    const segs = svg => (svg.match(bodyFill) || []).map(p => (p.match(/M/g) || []).length);
+    const side = renders.curl_barbell.full, front = renders.lateral_raise.full;
+    return count(side) === 5 && count(front) === 5 &&
+      JSON.stringify(segs(side.replace(/<g opacity="[^"]*">[\s\S]*?<\/g>/g, '')).sort()) === JSON.stringify([2, 3, 3, 3, 3]);
+  })());
+  T('the same figure is drawn at every size — a thumbnail is not separate art', (() => {
+    const bodies = svg => (svg.replace(/<g opacity="[^"]*">[\s\S]*?<\/g>/g, '').match(bodyFill) || []).join('');
+    return ['curl_barbell', 'squat_back', 'lat_pulldown', 'plank', 'pec_deck'].every(k => bodies(renders[k].thumb) === bodies(renders[k].full));
+  })());
+
+  sub('distal joints are smaller than the limbs they end');
+  const Pf = XA.PROFILE, width = (prof, i) => prof[i][1] + prof[i][2], widest = prof => Math.max.apply(null, prof.map((s, i) => width(prof, i)));
+  const last = prof => width(prof, prof.length - 1);
+  T('the ankle is less than 55% of the calf', last(Pf.sh) / widest(Pf.sh) < 0.55);
+  T('the wrist is less than 60% of the forearm', last(Pf.fa) / widest(Pf.fa) < 0.6);
+  T('the knee narrows out of the thigh, and the elbow out of the upper arm',
+    last(Pf.th) / widest(Pf.th) < 0.75 && last(Pf.ua) / widest(Pf.ua) < 0.75);
+  T('the calf swells behind the shin, and the thigh carries its mass high', (() => {
+    const belly = Pf.sh.reduce((b, s) => width(Pf.sh, Pf.sh.indexOf(s)) > width(Pf.sh, Pf.sh.indexOf(b)) ? s : b);
+    return belly[2] > belly[1] + 1 && Pf.th.findIndex((s, i) => width(Pf.th, i) === widest(Pf.th)) <= 1;
+  })());
+  T('the trunk has a seat, a waist and a chest', (() => {
+    const t = Pf.trunk, waist = t.find(s => s[0] > 0.3 && s[0] < 0.55), chest = t.find(s => s[0] > 0.8 && s[0] < 0.95);
+    return !!waist && !!chest && t[0][1] > t[0][2] && chest[2] > waist[2] + 1;
+  })());
+  T('a hand is a small round, well under half the head', XA.HAND_R < 0.4 * B.head);
+  T('bone lengths are the ones every pose was solved on; only the head is smaller',
+    B.torso === 25 && B.neck === 3.2 && B.ua === 14 && B.fa === 12.5 && B.th === 19.5 && B.sh === 18.5 && B.ft === 7.4 && B.head === 5.4);
+  T('measured on a standing figure, its ankle is under 55% of its calf', (() => {
+    const J = XA.solve('side', defs.curl_barbell.end);
+    const svg = renders.curl_barbell.full.replace(/<g opacity="[^"]*">[\s\S]*?<\/g>/g, '');
+    const legs = (svg.match(/<path d="[^"]+" fill="#4F5A6B"[^>]*\/>/g) || []).map(p => p.match(/d="([^"]+)"/)[1]).filter(d => (d.match(/M/g) || []).length === 3);
+    const pts = legs.map(d => sampleSubpaths(d)[1]).filter(Boolean);
+    const shin = pts.find(p => p.some(q => Math.abs(q[1] - J.nA[1]) < 1 && Math.abs(q[0] - J.nA[0]) < 5));
+    if(!shin) return 'no near shin';
+    const at = y => { const xs = shin.filter(q => Math.abs(q[1] - y) < 0.9).map(q => q[0]); return xs.length ? Math.max.apply(null, xs) - Math.min.apply(null, xs) : 0; };
+    const calf = at(J.nK[1] + (J.nA[1] - J.nK[1]) * 0.32), ankle = at(J.nA[1] - 1);
+    return calf > 0 && ankle / calf < 0.55 ? true : 'ankle ' + ankle.toFixed(1) + ' calf ' + calf.toFixed(1);
+  })() === true);
+
+  sub('nothing that rests on something floats above it');
+  /* For every drawing and every solid chain, the lowest point of its distal part
+     (forearm and hand, shin and foot, or the trunk) either rests on the floor or
+     a support beneath it, or is clearly clear of them. A near miss — between
+     0.9 and 4.5 units — is a contact that floats. Five drawings pass close to a
+     surface on purpose, and say so. */
+  const HOVER = {
+    lat_pulldown: 'the pulling arms pass over the end of the thigh pad; nothing rests on it',
+    superman_hold: 'the legs lift off the floor, which is the exercise',
+    leg_extension: 'the hands rest on the thighs, beside the seat',
+    machine_crunch: 'the hands hold the handles beside the chest pad',
+    ab_wheel: 'the hands hold the wheel\'s hub, and the wheel is on the floor'
+  };
+  const floats = [];
+  keys.forEach(k => groundingNearMisses(renders[k].full, defs[k], G).forEach(d => { if(!HOVER[k]) floats.push(k + ' ' + d.chain + ' ' + d.gap); }));
+  T('no unintended floating contact in any of the ' + keys.length + ' drawings', floats.length === 0, floats.join('; '));
+  T('and every intended hover is still a real drawing that still hovers', Object.keys(HOVER).every(k => defs[k] && groundingNearMisses(renders[k].full, defs[k], G).length > 0));
+  T('the D59 corrections hold: bridge and supine arms, the sit-up and twist seats, the pike push-up, the meadows and landmine stances', (() => {
+    const onFloor = (k, pose, joints) => { const J = XA.solve(defs[k].view, defs[k][pose]); return joints.every(j => J[j][1] >= G - 4); };
+    return onFloor('glute_bridge', 'end', ['nW', 'fW']) && onFloor('leg_raise', 'end', ['nW']) && onFloor('reverse_crunch', 'end', ['nW']) &&
+      onFloor('pike_pushup', 'end', ['nW', 'nT']) && onFloor('pike_pushup', 'start', ['nW', 'nT']) &&
+      onFloor('row_meadows', 'start', ['nA', 'fA']) && onFloor('landmine_press', 'start', ['nA']) &&
+      XA.solve('side', defs.weighted_situp.end).hip[1] >= G - 5 && XA.solve('front', defs.russian_twist.start).hc[1] >= G - 5;
+  })());
+
+  sub('the drawings got lighter to build');
+  T('fewer elements: under 3,200 across every thumbnail, where D57 needed over 6,000', (() => {
+    const n = keys.reduce((s, k) => s + (renders[k].thumb.match(/<(path|circle|rect)/g) || []).length, 0);
+    return n < 3200 ? true : n;
+  })() === true);
+  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+
+  /* Points along every subpath of an absolute M/L/Q/T path. */
+  function sampleSubpaths(d){
+    const nums = t => (String(t).match(/-?\d+(\.\d+)?/g) || []).map(parseFloat);
+    const out = []; let cur = null, pt = null, ctrl = null, m; const re = /([MLQTZ])([^MLQTZ]*)/g;
+    while((m = re.exec(d))){
+      const c = m[1], n = nums(m[2]);
+      if(c === 'M'){ cur = []; out.push(cur); pt = [n[0], n[1]]; cur.push(pt); ctrl = null; }
+      else if(c === 'L'){ pt = [n[0], n[1]]; cur.push(pt); ctrl = null; }
+      else if(c === 'Q' || c === 'T'){
+        const q = c === 'Q' ? [n[0], n[1]] : (ctrl ? [2 * pt[0] - ctrl[0], 2 * pt[1] - ctrl[1]] : pt), e = c === 'Q' ? [n[2], n[3]] : [n[0], n[1]];
+        for(let i = 1; i <= 6; i++){ const t = i / 6, u = 1 - t; cur.push([u * u * pt[0] + 2 * u * t * q[0] + t * t * e[0], u * u * pt[1] + 2 * u * t * q[1] + t * t * e[1]]); }
+        ctrl = q; pt = e;
+      }
+    }
+    return out;
+  }
+  function groundingNearMisses(svg, def, floorY){
+    const solid = svg.replace(/<g opacity="[^"]*">[\s\S]*?<\/g>/g, '');
+    const supports = [], pads = [], out = [];
+    if(def.ground !== false) supports.push({ top:floorY, x0:-1e9, x1:1e9 });
+    let m, re = /<rect x="(-?[\d.]+)" y="(-?[\d.]+)" width="([\d.]+)" height="([\d.]+)" rx="[\d.]+" fill="#2A313C"/g;
+    while((m = re.exec(solid))) supports.push({ top:+m[2] - 0.6, x0:+m[1] - 0.6, x1:+m[1] + +m[3] + 0.6 });
+    re = /<path d="M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)" stroke="#586478" stroke-width="([\d.]+)"\/>/g;
+    while((m = re.exec(solid))){ const a = [+m[1], +m[2]], b = [+m[3], +m[4]]; if(Math.abs(b[1] - a[1]) <= 0.35 * Math.abs(b[0] - a[0])) pads.push({ a, b, r:+m[5] / 2 }); }
+    const segDist = (p, a, b) => { const vx = b[0] - a[0], vy = b[1] - a[1], wx = p[0] - a[0], wy = p[1] - a[1], L = vx * vx + vy * vy; let t = L ? (wx * vx + wy * vy) / L : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(wx - vx * t, wy - vy * t); };
+    re = /<path d="([^"]+)" fill="(#4F5A6B|#313946|#485365)" stroke="[^"]+" stroke-width="1\.6" paint-order="stroke"\/>/g;
+    let n = 0;
+    while((m = re.exec(solid))){
+      n++;
+      const subs = sampleSubpaths(m[1]), trunk = m[2] === '#485365';
+      const pts = [].concat.apply([], trunk ? subs.slice(0, 1) : subs.slice(1));
+      if(!pts.length) continue;
+      let low = pts[0]; pts.forEach(p => { if(p[1] > low[1]) low = p; });
+      const y = low[1] + 0.8;
+      let gap = Infinity;
+      supports.forEach(s => { if(low[0] >= s.x0 && low[0] <= s.x1 && s.top >= y - 3) gap = Math.min(gap, s.top - y); });
+      pads.forEach(p => { if(Math.max(p.a[1], p.b[1]) >= low[1] - 1) gap = Math.min(gap, segDist(low, p.a, p.b) - p.r - 0.8); });
+      if(gap > 0.9 && gap < 4.5) out.push({ chain:(trunk ? 'trunk' : 'limb') + '#' + n, gap:+gap.toFixed(2) });
+    }
+    return out;
   }
 }
 
@@ -23398,6 +23707,7 @@ async function main(){
   await testRankShowcaseMotion();
   await testBrandMark();
   await testExerciseVisualTruth();
+  await testWorkoutDockAndFigure();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
