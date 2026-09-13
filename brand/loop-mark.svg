@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<title>LOOP</title>
+<desc>LOOP brand mark. Canonical master: every icon, favicon and the launch mark
+are derived from this file by build-brand.js. Do not edit the derived files.
+
+Construction on a 1024 grid centred on (512,512): a rounded-square loop whose
+stroke centreline is a 448px square with 120px corners, drawn 128px wide
+(outer extent 576px, square counter 320px). The L is exactly
+the loop's lower-left quarter: the left side, the bottom-left corner and the
+bottom side, ending on the tangent points of the two neighbouring corners. The
+rest of the loop passes beneath the L's two ends: each is cut square 12px
+beyond the L, and a short shadow falls on it there. Every edge is a straight
+line or a circular arc; the drawing is mirror-symmetric about the diagonal from
+the bottom-left corner to the top-right corner.</desc>
+<defs>
+<linearGradient id="loop-field" x1="512" y1="0" x2="512" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#111A2B"/><stop offset="1" stop-color="#04070D"/></linearGradient>
+<radialGradient id="loop-bloom" cx="360" cy="664" r="460" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4CC2FF" stop-opacity="0.16"/><stop offset="1" stop-color="#4CC2FF" stop-opacity="0"/></radialGradient>
+<linearGradient id="loop-lit" x1="224" y1="408" x2="616" y2="800" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7AE7FF"/><stop offset="1" stop-color="#2E6BFF"/></linearGradient>
+<linearGradient id="loop-deep" x1="224" y1="224" x2="800" y2="800" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2D63EE"/><stop offset="1" stop-color="#122874"/></linearGradient>
+<linearGradient id="loop-edge" x1="224" y1="0" x2="254" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.24"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+<linearGradient id="loop-edge-fade" x1="0" y1="408" x2="0" y2="616" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.7" stop-color="#FFFFFF" stop-opacity="0.6"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+<mask id="loop-edge-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><rect x="224" y="408" width="30" height="208" fill="url(#loop-edge-fade)"/></mask>
+<linearGradient id="loop-tuck-a" x1="0" y1="396" x2="0" y2="356" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#02040A" stop-opacity="0.5"/><stop offset="1" stop-color="#02040A" stop-opacity="0"/></linearGradient>
+<linearGradient id="loop-tuck-b" x1="628" y1="0" x2="668" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#02040A" stop-opacity="0.5"/><stop offset="1" stop-color="#02040A" stop-opacity="0"/></linearGradient>
+<clipPath id="loop-under"><path d="M224.3917 396 A184 184 0 0 1 408 224 H616 A184 184 0 0 1 800 408 V616 A184 184 0 0 1 628 799.6083 L628 670.6992 A56 56 0 0 0 672 616 V408 A56 56 0 0 0 616 352 H408 A56 56 0 0 0 353.3008 396 Z"/></clipPath>
+</defs>
+<g id="field">
+<rect width="1024" height="1024" fill="url(#loop-field)"/>
+<rect id="bloom" width="1024" height="1024" fill="url(#loop-bloom)"/>
+</g>
+<g id="mark">
+<path id="loop" fill="url(#loop-deep)" d="M224.3917 396 A184 184 0 0 1 408 224 H616 A184 184 0 0 1 800 408 V616 A184 184 0 0 1 628 799.6083 L628 670.6992 A56 56 0 0 0 672 616 V408 A56 56 0 0 0 616 352 H408 A56 56 0 0 0 353.3008 396 Z"/>
+<g id="tuck" clip-path="url(#loop-under)">
+<rect x="200" y="356" width="368" height="40" fill="url(#loop-tuck-a)"/>
+<rect x="628" y="432" width="40" height="368" fill="url(#loop-tuck-b)"/>
+</g>
+<path id="l" fill="url(#loop-lit)" d="M224 408 V616 A184 184 0 0 0 408 800 H616 V672 H408 A56 56 0 0 1 352 616 V408 Z"/>
+<rect mask="url(#loop-edge-mask)" x="224" y="408" width="30" height="208" fill="url(#loop-edge)"/>
+</g>
+</svg>

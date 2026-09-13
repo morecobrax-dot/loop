@@ -8,15 +8,18 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LOOP">
-<meta name="theme-color" content="#0A0C10">
+<meta name="theme-color" content="#070B12">
 <meta name="description" content="LOOP — training log, progression and personal records.">
 <link rel="manifest" href="manifest.webmanifest">
 <script>
 /* Runs before first paint: if the intro already played this session, hide it
-   immediately so a refresh never flashes the wordmark. Touches no user data. */
+   immediately so a refresh never flashes the launch mark. Touches no user data. */
 try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.classList.add('intro-skip'); }catch(e){}
 </script>
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230A0C10'/%3E%3Ccircle cx='90' cy='90' r='44' fill='none' stroke='%235B8CFF' stroke-width='14'/%3E%3C/svg%3E">
+<!-- Phase D: every icon is derived from brand/loop-mark.svg by build-brand.js. -->
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
 
@@ -226,89 +229,49 @@ h1{
 h1 .dot{ color: var(--accent); }
 
 /* =========================================================
-   LAUNCH INTRO
-   Sequence (~1.4s): wordmark settles → outer letters fade →
-   focal O slides to centre and hands off to the ring mark →
-   ring expands past the viewport → fades to reveal Today.
-   Everything animates on transform/opacity only, so it stays
-   on the compositor and holds 60fps on iPhone.
+   LAUNCH  (Phase D)
+   The opening screen is the app icon's own mark on the app's
+   own ground. It rises into place in a third of a second, and
+   the app takes over the moment it has loaded. The mark is
+   derived from brand/loop-mark.svg by build-brand.js, so the
+   icon and the opening screen cannot drift apart. Transform
+   and opacity only; nothing loops.
    ========================================================= */
 html.intro-skip #introOverlay{ display: none !important; }
 #introOverlay{
   position: fixed; inset: 0; z-index: 999;
-  background: var(--bg);
+  /* The icon's own bloom, barely there, on the app's ground. */
+  background: radial-gradient(56% 42% at 50% 50%, rgba(76,194,255,0.07), transparent 72%), var(--bg);
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
   will-change: opacity;
 }
 #introOverlay.intro-done{
   opacity: 0;
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 .intro-stage{
-  position: relative;
   display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100%;
 }
-.intro-wordmark{
-  display: flex; align-items: baseline; justify-content: center;
-  font-family: 'Space Grotesk', sans-serif; font-weight: 700;
-  font-size: 44px; letter-spacing: -0.01em; color: #FFFFFF;
-  animation: introSettle 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.intro-ch{ display: inline-block; will-change: transform, opacity; }
-.intro-dot{ color: var(--accent); }
-
-/* The three non-focal glyphs recede first */
-.intro-l, .intro-o1, .intro-p, .intro-dot{
-  animation: introFade 0.34s cubic-bezier(0.4, 0, 1, 1) 0.34s both;
-}
-/* The focal O holds, then drifts to centre as the ring takes over */
-.intro-o2{
-  animation: introFocal 0.40s cubic-bezier(0.4, 0, 0.2, 1) 0.52s both;
-}
-
-.intro-ring{
-  position: absolute; top: 50%; left: 50%;
-  width: 46px; height: 46px; margin: -23px 0 0 -23px;
-  opacity: 0;
-  animation: introRing 0.74s cubic-bezier(0.5, 0, 0.2, 1) 0.60s both;
+.intro-mark{
+  display: block; width: 112px; height: 112px;
+  animation: introMark 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
-.intro-ring circle{
-  fill: none; stroke: var(--accent); stroke-width: 9;
-}
-
-@keyframes introSettle{
-  from{ opacity: 0; transform: scale(0.94); }
+@keyframes introMark{
+  from{ opacity: 0; transform: scale(0.92); }
   to{ opacity: 1; transform: scale(1); }
 }
-@keyframes introFade{
-  from{ opacity: 1; }
-  to{ opacity: 0; }
-}
-@keyframes introFocal{
-  0%{ opacity: 1; transform: scale(1); }
-  55%{ opacity: 1; transform: scale(1.06); }
-  100%{ opacity: 0; transform: scale(1.15); }
-}
-/* Expands well past the viewport so the ring's interior becomes the reveal */
-@keyframes introRing{
-  0%{   opacity: 0; transform: scale(0.7); }
-  18%{  opacity: 1; transform: scale(1); }
-  70%{  opacity: 1; }
-  100%{ opacity: 0; transform: scale(46); }
-}
-
-/* Reduced motion: same beats, no zoom — a plain fade instead. */
+/* Reduced motion: the same mark, a short fade in and out, no scale. */
 @media (prefers-reduced-motion: reduce){
-  .intro-wordmark{ animation: introSettle 0.2s ease both; }
-  .intro-l, .intro-o1, .intro-p, .intro-dot, .intro-o2{
-    animation: introFade 0.25s ease 0.35s both;
-  }
-  .intro-ring{ animation: none; opacity: 0; }
+  .intro-mark{ animation: introMarkFade 0.18s ease both; }
   #introOverlay.intro-done{ transition: opacity 0.2s ease; }
+}
+@keyframes introMarkFade{
+  from{ opacity: 0; }
+  to{ opacity: 1; }
 }
 .header-actions{ display: flex; align-items: center; gap: 8px; }
 .plan-chip{
@@ -6852,21 +6815,32 @@ html, body{ max-width: 100%; overflow-x: hidden; }
      Dynamic Island. Height is the device's own inset — zero on desktop. -->
 <div class="top-scrim" aria-hidden="true"></div>
 
-<!-- LAUNCH INTRO — purely visual, sits above the app while it boots behind.
-     Reuses the existing wordmark (Space Grotesk 700) and the existing ring
-     mark from the app icon. Removed from the DOM once done. -->
+<!-- LAUNCH — purely visual, sits above the app while it boots behind. Phase D:
+     the app icon's own mark, written here by build-brand.js from
+     brand/loop-mark.svg. Do not edit between the markers. Removed from the DOM
+     once done. -->
 <div id="introOverlay" aria-hidden="true">
   <div class="intro-stage">
-    <div class="intro-wordmark" id="introWordmark">
-      <span class="intro-ch intro-l">L</span>
-      <span class="intro-ch intro-o1">O</span>
-      <span class="intro-ch intro-o2" id="introFocalO">O</span>
-      <span class="intro-ch intro-p">P</span>
-      <span class="intro-ch intro-dot">.</span>
-    </div>
-    <svg class="intro-ring" id="introRing" viewBox="0 0 100 100" aria-hidden="true">
-      <circle cx="50" cy="50" r="38" />
-    </svg>
+    <!-- LOOP-MARK-BEGIN --><svg xmlns="http://www.w3.org/2000/svg" width="112" height="112" viewBox="192 192 640 640" class="intro-mark" aria-hidden="true" focusable="false"><defs>
+<linearGradient id="loop-field" x1="512" y1="0" x2="512" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#111A2B"/><stop offset="1" stop-color="#04070D"/></linearGradient>
+<radialGradient id="loop-bloom" cx="360" cy="664" r="460" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4CC2FF" stop-opacity="0.16"/><stop offset="1" stop-color="#4CC2FF" stop-opacity="0"/></radialGradient>
+<linearGradient id="loop-lit" x1="224" y1="408" x2="616" y2="800" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7AE7FF"/><stop offset="1" stop-color="#2E6BFF"/></linearGradient>
+<linearGradient id="loop-deep" x1="224" y1="224" x2="800" y2="800" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2D63EE"/><stop offset="1" stop-color="#122874"/></linearGradient>
+<linearGradient id="loop-edge" x1="224" y1="0" x2="254" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.24"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+<linearGradient id="loop-edge-fade" x1="0" y1="408" x2="0" y2="616" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.7" stop-color="#FFFFFF" stop-opacity="0.6"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+<mask id="loop-edge-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><rect x="224" y="408" width="30" height="208" fill="url(#loop-edge-fade)"/></mask>
+<linearGradient id="loop-tuck-a" x1="0" y1="396" x2="0" y2="356" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#02040A" stop-opacity="0.5"/><stop offset="1" stop-color="#02040A" stop-opacity="0"/></linearGradient>
+<linearGradient id="loop-tuck-b" x1="628" y1="0" x2="668" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#02040A" stop-opacity="0.5"/><stop offset="1" stop-color="#02040A" stop-opacity="0"/></linearGradient>
+<clipPath id="loop-under"><path d="M224.3917 396 A184 184 0 0 1 408 224 H616 A184 184 0 0 1 800 408 V616 A184 184 0 0 1 628 799.6083 L628 670.6992 A56 56 0 0 0 672 616 V408 A56 56 0 0 0 616 352 H408 A56 56 0 0 0 353.3008 396 Z"/></clipPath>
+</defs><g id="mark">
+<path id="loop" fill="url(#loop-deep)" d="M224.3917 396 A184 184 0 0 1 408 224 H616 A184 184 0 0 1 800 408 V616 A184 184 0 0 1 628 799.6083 L628 670.6992 A56 56 0 0 0 672 616 V408 A56 56 0 0 0 616 352 H408 A56 56 0 0 0 353.3008 396 Z"/>
+<g id="tuck" clip-path="url(#loop-under)">
+<rect x="200" y="356" width="368" height="40" fill="url(#loop-tuck-a)"/>
+<rect x="628" y="432" width="40" height="368" fill="url(#loop-tuck-b)"/>
+</g>
+<path id="l" fill="url(#loop-lit)" d="M224 408 V616 A184 184 0 0 0 408 800 H616 V672 H408 A56 56 0 0 1 352 616 V408 Z"/>
+<rect mask="url(#loop-edge-mask)" x="224" y="408" width="30" height="208" fill="url(#loop-edge)"/>
+</g></svg><!-- LOOP-MARK-END -->
   </div>
 </div>
 
@@ -13502,6 +13476,24 @@ const LOOP_UPDATES = [
     changes: [
       'With Reduce Motion turned on, ranks change at once with a short fade instead of sliding and lifting',
       'The eight emblems themselves are exactly as they were'
+    ]
+  },
+  {
+    id: 'v5-8',
+    version: 'LOOP 5.8',
+    title: 'A New Icon',
+    date: '2027-01-20',
+    swVersion: 'loop-v135',
+    summary: 'LOOP has a new icon: one continuous loop, with an L as its lit first quarter.',
+    newFeatures: [],
+    improvements: [
+      'A new app icon for the Home Screen, app switchers and installs, drawn to stay clear from full size down to the smallest browser tab',
+      'LOOP now opens on that same mark, which appears for a moment and hands straight over to the app, instead of the animated wordmark',
+      'Browser tabs and bookmarks now show the LOOP icon'
+    ],
+    bugFixes: [],
+    changes: [
+      'If LOOP is already on your Home Screen, your phone may keep showing the old icon'
     ]
   }
 ];
@@ -41595,7 +41587,9 @@ function initIntro(){
   try{ sessionStorage.setItem(INTRO_SESSION_KEY, '1'); }catch(e){}
 
   const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  setTimeout(() => { introAnimationDone = true; maybeDismissIntro(); }, reduced ? 620 : 1400);
+  /* Phase D: the mark rises in 0.36s and holds briefly; the overlay then lifts
+     as soon as the app is ready too. */
+  setTimeout(() => { introAnimationDone = true; maybeDismissIntro(); }, reduced ? 260 : 560);
 
   // Failsafe: if boot stalls for any reason, never leave the user stuck.
   setTimeout(() => { introAppReady = true; introAnimationDone = true; maybeDismissIntro(); }, 6000);

@@ -7770,3 +7770,152 @@ finger.
   at 390px wide), so the lift begins during the last few pixels of travel.
 - In portrait the neighbouring ranks barely show at the edges (as in 5.6), so
   the tap-to-neighbour gesture is mostly a landscape affordance.
+
+## §86 — Phase D: One mark, every icon
+
+**Status.** Prepared as LOOP 5.8 (`loop-v135`), release candidate awaiting the
+owner's visual approval; not deployed. `DATA_KEYS` 15, schema 1, no migration,
+`TRAINER_ENGINE_VERSION` 0.1.1-shadow, Session Score weights 40/30/18/12. No
+screen of the app changed except the opening one.
+
+### What the icon was
+
+- Three drawings of one idea, in three blues: the manifest PNGs (a ring with a
+  dot, about #6B94FF), the `apple-touch-icon` (a plain ring, #5B8CFF) and the
+  launch intro's ring (`--accent`, #4CC2FF).
+- The `apple-touch-icon` was an inline SVG data URI, a format iOS does not take
+  for Home Screen icons.
+- Both manifest PNGs were declared `"any maskable"`, one image forced to serve
+  two purposes that want different compositions.
+- No favicon at all.
+- The ring-and-dot read as a generic power, record or notification glyph, not
+  as LOOP, and sat small (about 44%) and flat in its tile.
+
+### How the mark was chosen
+
+A bounded study of L/O constructions rendered at 256, 180, 64, 32 and 16px
+before anything was committed. What the pixels said:
+
+- A flat left side joined to a round right side reads as **D** (an open squircle
+  with a square corner; a circle whose lower-left becomes an L).
+- A circle cut by a notch reads as **C**, **G**, or a progress ring.
+- An L inside a disc reads as a **clock**.
+- A square spiral reads as letters, and is busy at 32px.
+- A single opening with a gradient along the loop loses the L entirely.
+- The rounded-square O was the only form that stayed obvious at 16px. Split into
+  a lit L and the loop that wraps it, the L became perceptible — but as hard
+  cuts it read as a broken square. With the loop passing beneath the L's two
+  ends, it reads as one continuous loop whose first quarter is lit.
+
+### The construction
+
+On a 1024 grid centred on (512,512): a rounded-square loop whose stroke
+centreline is a 448px square with 120px corners, drawn 128px wide — outer
+extent 576px (56.25%), corner radii 184px outside and 56px inside, square
+counter 320px.
+
+- **The L** is exactly the loop's lower-left quarter: the left side, the
+  bottom-left corner and the bottom side, ending on the tangent points of the
+  two neighbouring corners.
+- **The loop** is the other three quarters, each end cut square 12px beyond
+  the L, on the corner arcs.
+- **The tuck.** A shadow falls on the loop where it passes beneath each end of
+  the L. A straight gradient can follow the band only because the fade is
+  short: 40px back from the cut, both edges of the band are still on the arc
+  and cover about the same length of it, so the shadow is even across the band
+  and has faded before the band straightens. Each gradient spans the whole
+  corner, so no rectangle edge crosses the band. (Built first as rectangles
+  sized to the band, which left hard edges where the band turns; then as
+  stepped slices of the band, which showed fan-shaped banding at 1024. Both
+  were measured and replaced.)
+- Every edge is a straight line or a circular arc. The drawing is
+  mirror-symmetric about the diagonal from the bottom-left corner to the
+  top-right corner, and centred on the canonical centre; its extent is 224 to
+  800 on both axes.
+
+### Colour and material
+
+- Field: a midnight navy vertical gradient, #111A2B to #04070D, with one soft
+  bloom of the accent (#4CC2FF at 16%) behind the L.
+- The L: LOOP's own gradient, #7AE7FF to accent-2 #2E6BFF, with a faint lit
+  edge along its stem that fades out before the corner.
+- The loop: deep LOOP blue, #2D63EE to #122874.
+- No glass, no filters, no raster. Tab sizes drop the bloom, the tuck and the
+  lit edge (all sub-pixel there) and draw the mark larger in its squircle.
+
+### One source, derived assets
+
+`brand/loop-mark.svg` is the master. `build-brand.js` derives, through a
+headless Chromium browser over the DevTools Protocol (no image library):
+
+| file | purpose | composition |
+|---|---|---|
+| `icon-192.png`, `icon-512.png` | manifest `any` | own squircle, transparent corners |
+| `icon-maskable-192.png`, `icon-maskable-512.png` | manifest `maskable` | full bleed, opaque |
+| `apple-touch-icon.png` | iOS Home Screen, 180px | full bleed, opaque (RGB, no alpha) |
+| `favicon.svg`, `favicon-32.png` | browser tabs | flat, mark at 68.75% |
+| `index.html` launch mark | opening screen | the mark alone, between `LOOP-MARK-BEGIN/END` |
+
+`brand/icons.json` records the master's hash and every output's hash and
+size. Rebuilding produces byte-identical files. The build asks the browser to
+close itself: on Windows the executable that is started hands off to a separate
+browser process and exits, so killing it left the browser running — the first
+runs of these tools left 175 orphaned processes before this was found.
+
+The manifest and the page's theme colour are the app's own ground, #070B12.
+The `qa/` folder's temporary manifest still points at `icon-192.png` and
+`icon-512.png` under a combined purpose; it is unchanged and still resolves.
+
+### The opening screen
+
+The launch intro's wordmark and 46× ring zoom are gone. The overlay shows the
+same mark on the app's ground with the icon's faint bloom: it rises from 92% in
+0.36s, holds until 0.56s (0.26s under reduced motion, a fade with no scale),
+and lifts in 0.28s once the app is also ready. The six-second failsafe and the
+once-per-session rule are unchanged, and it is still removed from the page when
+done.
+
+### Measured
+
+- On the committed PNGs, the mark's box is centred to 0px in every file
+  (512, 192, both maskable sizes, 180, favicon 32) and fills 56.25% (56.67% at
+  180 after pixel rounding). The brightness-weighted centroid sits about 6% of
+  the icon toward the lower left: the lit L, by design; the geometry is exact.
+- Maskable: the farthest mark pixel is 165.6px from centre of a 204.8px safe
+  radius at 512.
+- In Chromium against the dev server: no manifest errors, no installability
+  errors, every icon served with the right type and size, the service worker
+  active on `loop-v135`, and the launch mark centred on the viewport to 0.00px.
+
+### Verification
+
+- **Contract 163** — 32 assertions: the construction restated and compared to
+  the master's path data, symmetry, extent and radii; the record against the
+  master and every file; the favicon SVG and the launch mark byte-identical to
+  their derivations; manifest entries, sizes, purposes and colours; head links;
+  a PNG reader measuring opacity, squircle corners, centring, proportion, the
+  maskable safe zone and the lit L at favicon size; the launch markup, timing,
+  failsafe and reduced motion; the service worker's shell and the header
+  wordmark untouched.
+- **Mutation check** — 13 deliberate breakages, 13 caught: the master edited
+  without rebuilding, an icon overwritten, a combined purpose, a hand-edited
+  launch mark, a thicker stroke, the inline iOS icon restored, a transparent
+  maskable icon, the mark 4px off centre, part of the mark in the maskable crop,
+  a mirrored favicon, the wordmark intro restored, a long launch animation, a
+  hand-edited favicon SVG. Pixel breakages were written with a PNG encoder and
+  their recorded hashes updated, so only the pixel assertion could catch them.
+- `npm run verify` 6469 / 0; audit 87, audit:program 335, audit:cardio 261,
+  audit:gps 43, audit:dates 40 × 7 zones.
+
+### Known and recorded
+
+- iOS keeps the icon it took when LOOP was added to the Home Screen. Existing
+  installs keep the old icon until LOOP is added again; What's New says so and
+  nothing more. The README's claim that data survives removing the Home Screen
+  icon has not been verified on current iOS, so re-adding is treated as a
+  possible data reset: export a backup first.
+- No `apple-touch-startup-image`: LOOP never had native launch images, so iOS
+  shows a plain screen before the page paints and then this opening screen.
+- Not yet seen on a physical iPhone; the iOS contexts in the review proof are an
+  approximation of the system mask.
+- The build needs a Chromium browser (Edge or Chrome, or `LOOP_BROWSER`).

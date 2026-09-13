@@ -18,12 +18,20 @@ One-time setup, then LOOP lives at a permanent URL on your iPhone Home Screen.
 
 4. On the next page click **uploading an existing file**.
 
-5. Drag in **all five files** from this folder:
+5. Drag in **all ten files** from this folder:
    - `index.html`
    - `manifest.webmanifest`
    - `sw.js`
    - `icon-192.png`
    - `icon-512.png`
+   - `icon-maskable-192.png`
+   - `icon-maskable-512.png`
+   - `apple-touch-icon.png`
+   - `favicon.svg`
+   - `favicon-32.png`
+
+   The icons are all derived from `brand/loop-mark.svg` by `node build-brand.js`;
+   edit the master and rebuild rather than editing an icon.
 
 6. Click **Commit changes**.
 
@@ -85,7 +93,7 @@ cannot delete your history, PRs, XP, or an unfinished workout.
 **"404 — not found"** — Pages takes a minute after first setup. Wait and refresh.
 
 **Icon didn't appear / app opens in a browser tab** — Make sure you used Safari,
-and that `manifest.webmanifest` and both icon PNGs uploaded alongside `index.html`.
+and that `manifest.webmanifest` and the icon files uploaded alongside `index.html`.
 
 **Update didn't show up** — You forgot to bump `CACHE_VERSION` in `sw.js`. Bump it
 and commit. If it's still stubborn: delete the Home Screen icon and re-add it.

@@ -1,0 +1,53 @@
+{
+  "note": "Derived from brand/loop-mark.svg by build-brand.js. Rebuild after changing the master.",
+  "master": {
+    "file": "brand/loop-mark.svg",
+    "sha256": "45441fbcdbcddae101fb64464dbd4a8b8bc6eaa70b70b11aeb98f060dd990a7d"
+  },
+  "outputs": {
+    "icon-192.png": {
+      "purpose": "any",
+      "width": 192,
+      "height": 192,
+      "sha256": "45390c3da9f7bef35bf65d5b51a356b2a21f36bfe9eca9f16a4b625beea7cd31"
+    },
+    "icon-512.png": {
+      "purpose": "any",
+      "width": 512,
+      "height": 512,
+      "sha256": "1889fa7bb023e4772425d44ecea78ceaf3d758bd6fe85e12acd628c854596d55"
+    },
+    "icon-maskable-192.png": {
+      "purpose": "maskable",
+      "width": 192,
+      "height": 192,
+      "sha256": "e3892037110d295e25fa6b529787939aadcb9cb7d764dc23f93afae0aaff8c41"
+    },
+    "icon-maskable-512.png": {
+      "purpose": "maskable",
+      "width": 512,
+      "height": 512,
+      "sha256": "81f759259d2445b65ac99791230418a482279bed3a2dd88fd7a82f24986c5858"
+    },
+    "apple-touch-icon.png": {
+      "purpose": "apple-touch-icon",
+      "width": 180,
+      "height": 180,
+      "sha256": "f1c4375baad5dd529276aa083f7075cdb9869e320315a95a21d7146e9e2c9391"
+    },
+    "favicon-32.png": {
+      "purpose": "favicon",
+      "width": 32,
+      "height": 32,
+      "sha256": "82b37bfc791bcab0c1f833f1dde79c9817abce0cd21ae58e042b1c44f349501c"
+    },
+    "favicon.svg": {
+      "purpose": "favicon",
+      "sha256": "deb12e07139b3d78f405ab867d27bc35a9f1fd75de097465b910d9329cf517ef"
+    },
+    "index.html#launch": {
+      "purpose": "launch",
+      "sha256": "26ae0c290b63fb7940dd219d47c0a67393f2da3c5efbaa618c88f8b877279e0c"
+    }
+  }
+}

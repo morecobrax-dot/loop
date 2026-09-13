@@ -22765,6 +22765,263 @@ async function testRankShowcaseMotion(){
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
+/* =========================================================
+   CONTRACT 163 — ONE MARK, EVERY ICON (Phase D)
+   ---------------------------------------------------------
+   LOOP's mark has one source, brand/loop-mark.svg, and
+   build-brand.js derives every icon, favicon and the launch
+   mark from it. These assertions hold the drawing to its
+   construction, every derived file to the master it came
+   from, and the files themselves to what an installed app
+   needs: sizes, purposes, opacity, the maskable safe zone,
+   and a centre measured on the pixels that ship.
+   ========================================================= */
+async function testBrandMark(){
+  section('CONTRACT 163 — brand mark and app icons (Phase D)');
+  const fs = require('fs'), zlib = require('zlib'), crypto = require('crypto'), path = require('path');
+  const ROOT = path.dirname(H.APP_PATH);
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const read = f => { try{ return fs.readFileSync(path.join(ROOT, f)); }catch(e){ return null; } };
+  const lf = t => String(t).split('\r\n').join('\n');
+  const sha = b => crypto.createHash('sha256').update(b).digest('hex');
+  const masterBuf = read('brand/loop-mark.svg');
+  const master = masterBuf ? lf(masterBuf.toString('utf8')) : '';
+  let build = null;
+  try{ build = require(path.join(ROOT, 'build-brand.js')); }catch(e){}
+  let record = null;
+  try{ record = JSON.parse(read('brand/icons.json').toString('utf8')); }catch(e){}
+  const app = H.loadApp();
+
+  /* A PNG reader for the 8-bit RGB and RGBA files the build writes. */
+  function decodePng(buf){
+    if(!buf || buf.readUInt32BE(0) !== 0x89504E47) throw new Error('not a PNG');
+    let off = 8, w = 0, h = 0, type = 0;
+    const idat = [];
+    while(off < buf.length){
+      const len = buf.readUInt32BE(off), kind = buf.toString('ascii', off + 4, off + 8);
+      const data = buf.slice(off + 8, off + 8 + len);
+      if(kind === 'IHDR'){
+        w = data.readUInt32BE(0); h = data.readUInt32BE(4); type = data[9];
+        if(data[8] !== 8 || data[12] !== 0) throw new Error('unsupported PNG layout');
+      } else if(kind === 'IDAT') idat.push(data);
+      else if(kind === 'IEND') break;
+      off += 12 + len;
+    }
+    const bpp = type === 6 ? 4 : type === 2 ? 3 : 0;
+    if(!bpp) throw new Error('unsupported colour type ' + type);
+    const raw = zlib.inflateSync(Buffer.concat(idat));
+    const stride = w * bpp, px = Buffer.alloc(w * h * 4);
+    let prev = Buffer.alloc(stride), cur = Buffer.alloc(stride);
+    for(let y = 0; y < h; y++){
+      const base = y * (stride + 1), ft = raw[base];
+      for(let x = 0; x < stride; x++){
+        const a = x >= bpp ? cur[x - bpp] : 0, b = prev[x], c = x >= bpp ? prev[x - bpp] : 0;
+        let v = raw[base + 1 + x];
+        if(ft === 1) v += a;
+        else if(ft === 2) v += b;
+        else if(ft === 3) v += (a + b) >> 1;
+        else if(ft === 4){ const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c); v += (pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c); }
+        cur[x] = v & 255;
+      }
+      for(let x = 0; x < w; x++){
+        const i = (y * w + x) * 4, j = x * bpp;
+        px[i] = cur[j]; px[i + 1] = cur[j + 1]; px[i + 2] = cur[j + 2]; px[i + 3] = bpp === 4 ? cur[j + 3] : 255;
+      }
+      const t = prev; prev = cur; cur = t;
+    }
+    return { w, h, type, px, at(x, y){ const i = (y * w + x) * 4; return [px[i], px[i + 1], px[i + 2], px[i + 3]]; } };
+  }
+  const png = f => { try{ return decodePng(read(f)); }catch(e){ return null; } };
+  /* A pixel belongs to the mark when it carries the mark's blue: brighter
+     than anything the midnight field and its faint bloom can produce. */
+  const isMark = p => p[3] > 128 && p[2] >= 90 && p[2] - p[0] >= 40;
+  const markBox = img => {
+    let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1, count = 0, far = 0;
+    const cx = img.w / 2, cy = img.h / 2;
+    for(let y = 0; y < img.h; y++) for(let x = 0; x < img.w; x++){
+      if(!isMark(img.at(x, y))) continue;
+      count++;
+      if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+      far = Math.max(far, Math.hypot(x + 0.5 - cx, y + 0.5 - cy));
+    }
+    return { x0, y0, x1, y1, count, far, cx: (x0 + x1 + 1) / 2, cy: (y0 + y1 + 1) / 2, width: x1 - x0 + 1, height: y1 - y0 + 1 };
+  };
+
+  sub('the master is the construction it says it is');
+  T('one canonical master exists, named LOOP, on a 1024 grid',
+    !!master && /<title>LOOP<\/title>/.test(master) && /viewBox="0 0 1024 1024"/.test(master) &&
+    /<g id="field">/.test(master) && /<g id="mark">/.test(master));
+  const pathOf = id => (master.match(new RegExp('<path id="' + id + '"[^>]*\\sd="([^"]+)"')) || [])[1] || '';
+  /* The construction, restated here rather than imported, so the drawing is
+     checked against the numbers and not against itself. */
+  const K = (() => {
+    const c = 512, h = 224, R = 120, W = 128, g = 12, w = W / 2, ro = R + w, ri = R - w;
+    const L = c - h, T = c - h, Rt = c + h, B = c + h, n = v => +v.toFixed(4);
+    const Lp = `M${L - w} ${T + R} V${B - R} A${ro} ${ro} 0 0 0 ${L + R} ${B + w} H${Rt - R} V${B - w} H${L + R} A${ri} ${ri} 0 0 1 ${L + w} ${B - R} V${T + R} Z`;
+    const yCut = T + R - g, xCut = Rt - R + g;
+    const Op = `M${n(L + R - Math.sqrt(ro * ro - g * g))} ${yCut} A${ro} ${ro} 0 0 1 ${L + R} ${T - w} H${Rt - R} A${ro} ${ro} 0 0 1 ${Rt + w} ${T + R} V${B - R} A${ro} ${ro} 0 0 1 ${xCut} ${n(B - R + Math.sqrt(ro * ro - g * g))} L${xCut} ${n(B - R + Math.sqrt(ri * ri - g * g))} A${ri} ${ri} 0 0 0 ${Rt - w} ${B - R} V${T + R} A${ri} ${ri} 0 0 0 ${Rt - R} ${T + w} H${L + R} A${ri} ${ri} 0 0 0 ${n(L + R - Math.sqrt(ri * ri - g * g))} ${yCut} Z`;
+    return { Lp, Op };
+  })();
+  T('the L is exactly the loop\'s lower-left quarter: a 128px stroke on a 448px square with 120px corners',
+    pathOf('l') === K.Lp, pathOf('l'));
+  T('the loop is the other three quarters, cut square 12px beyond each end of the L',
+    pathOf('loop') === K.Op, pathOf('loop'));
+  /* Every point the outlines pass through, walked from the path data. */
+  const walk = d => {
+    const tok = d.match(/[MVHALZ]|-?\d+(?:\.\d+)?/g) || [];
+    const pts = []; let i = 0, x = 0, y = 0, cmd = '';
+    const num = () => parseFloat(tok[i++]);
+    while(i < tok.length){
+      if(/^[MVHALZ]$/.test(tok[i])) cmd = tok[i++];
+      if(cmd === 'M' || cmd === 'L'){ x = num(); y = num(); pts.push([x, y]); }
+      else if(cmd === 'V'){ y = num(); pts.push([x, y]); }
+      else if(cmd === 'H'){ x = num(); pts.push([x, y]); }
+      else if(cmd === 'A'){ i += 5; x = num(); y = num(); pts.push([x, y]); }
+      else if(cmd === 'Z'){ if(i < tok.length && !/^[MVHALZ]$/.test(tok[i])) break; }
+      else break;
+    }
+    return pts;
+  };
+  const ptsL = walk(pathOf('l')), ptsO = walk(pathOf('loop'));
+  T('the drawing is mirror-symmetric about the diagonal from bottom-left to top-right', (() => {
+    const has = (set, p) => set.some(q => Math.abs(q[0] - p[0]) < 1e-3 && Math.abs(q[1] - p[1]) < 1e-3);
+    const mirror = p => [1024 - p[1], 1024 - p[0]];
+    return ptsL.length === 8 && ptsO.length === 12 && ptsL.every(p => has(ptsL, mirror(p))) && ptsO.every(p => has(ptsO, mirror(p)));
+  })());
+  T('and centred on the canonical centre: its extent is 224 to 800 on both axes', (() => {
+    const all = ptsL.concat(ptsO);
+    const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
+    return Math.min(...xs) === 224 && Math.max(...xs) === 800 && Math.min(...ys) === 224 && Math.max(...ys) === 800;
+  })());
+  T('every corner is one radius family: 184 outside, 56 inside, nothing else', (() => {
+    const radii = [...master.matchAll(/<path id="(?:l|loop)"[^>]*\sd="([^"]+)"/g)]
+      .map(m => [...m[1].matchAll(/A(\d+(?:\.\d+)?) (\d+(?:\.\d+)?)/g)].map(a => a[1] + '/' + a[2])).flat();
+    return radii.length === 8 && radii.every(r => r === '184/184' || r === '56/56');
+  })());
+  T('the colour is LOOP\'s own: the L runs to accent-2, the field is the app\'s midnight', (() => {
+    return /id="loop-lit"[^>]*>[\s\S]*?stop-color="#2E6BFF"/.test(master) && /--accent-2: #2E6BFF;/.test(src) &&
+      /id="loop-field"[\s\S]*?stop-color="#04070D"/.test(master) && !/<filter|feGaussianBlur|<image/.test(master);
+  })());
+
+  sub('every derived file comes from this master, and says so');
+  T('the build record names the master, and the master has not changed since',
+    !!record && record.master.file === 'brand/loop-mark.svg' && record.master.sha256 === sha(Buffer.from(master)),
+    record ? 'recorded ' + record.master.sha256.slice(0, 12) + ' now ' + sha(Buffer.from(master)).slice(0, 12) : 'no record');
+  T('every file it built is the file on disk', (() => {
+    if(!record || !build) return 'no record or no build script';
+    const want = build.OUTPUTS.map(o => o.file).concat(['favicon.svg']);
+    const bad = want.filter(f => {
+      const r = record.outputs[f], b = read(f);
+      if(!r || !b) return true;
+      return sha(f.endsWith('.svg') ? Buffer.from(lf(b.toString('utf8'))) : b) !== r.sha256;
+    });
+    return bad.length ? bad.join(', ') : true;
+  })() === true);
+  T('the favicon SVG is the flat composition of the master, byte for byte',
+    !!build && lf((read('favicon.svg') || '').toString('utf8')) === build.composeFlat(master));
+  T('the launch mark in index.html is the master\'s, byte for byte', (() => {
+    if(!build) return false;
+    const s = lf(src), a = s.indexOf(build.OPEN), b = s.indexOf(build.CLOSE);
+    return a !== -1 && b > a && s.slice(a + build.OPEN.length, b) === build.composeLaunch(master) &&
+      record.outputs['index.html#launch'].sha256 === sha(Buffer.from(build.composeLaunch(master)));
+  })());
+  T('no second drawing of the mark survives: no inline data-URI icon, no old ring',
+    !/<link rel="(?:apple-touch-icon|icon)"[^>]*href="data:/.test(src) && !/%3Ccircle cx='90' cy='90' r='44'/.test(src) &&
+    !/intro-ring|introRing|intro-wordmark/.test(src));
+
+  sub('the installed app gets the right files');
+  let manifest = null;
+  try{ manifest = JSON.parse(read('manifest.webmanifest').toString('utf8')); }catch(e){}
+  T('the manifest lists two "any" icons and two maskable ones, never one image for both', (() => {
+    if(!manifest) return 'no manifest';
+    const icons = manifest.icons || [];
+    const sig = icons.map(i => i.src + ':' + i.sizes + ':' + i.purpose).sort().join(' ');
+    return sig === 'icon-192.png:192x192:any icon-512.png:512x512:any icon-maskable-192.png:192x192:maskable icon-maskable-512.png:512x512:maskable' ? true : sig;
+  })() === true);
+  T('each listed icon exists at exactly the size it claims', (() => {
+    if(!manifest) return false;
+    return manifest.icons.every(i => { const img = png(i.src); return !!img && (img.w + 'x' + img.h) === i.sizes && i.type === 'image/png'; });
+  })());
+  T('the install colours are the app\'s own ground',
+    !!manifest && manifest.background_color === '#070B12' && manifest.theme_color === '#070B12' &&
+    /--bg: #070B12;/.test(src) && /<meta name="theme-color" content="#070B12">/.test(src));
+  T('iPhone gets a 180px PNG, and every browser a favicon',
+    /<link rel="apple-touch-icon" href="apple-touch-icon\.png">/.test(src) &&
+    /<link rel="icon" href="favicon\.svg" type="image\/svg\+xml">/.test(src) &&
+    /<link rel="icon" href="favicon-32\.png" sizes="32x32" type="image\/png">/.test(src) &&
+    !!png('apple-touch-icon.png') && png('apple-touch-icon.png').w === 180 && png('favicon-32.png').w === 32);
+
+  sub('measured on the pixels that ship');
+  const any512 = png('icon-512.png'), mask512 = png('icon-maskable-512.png'), touch = png('apple-touch-icon.png'), fav = png('favicon-32.png');
+  T('the Home Screen icon is fully opaque, as iOS requires', (() => {
+    if(!touch) return false;
+    if(touch.type === 2) return true;
+    for(let i = 3; i < touch.px.length; i += 4) if(touch.px[i] !== 255) return false;
+    return true;
+  })());
+  T('so is every maskable icon', [mask512, png('icon-maskable-192.png')].every(img => {
+    if(!img) return false;
+    for(let i = 3; i < img.px.length; i += 4) if(img.px[i] !== 255) return false;
+    return true;
+  }));
+  T('an "any" icon is its own squircle: clear corners, solid middle', !!any512 &&
+    [[0, 0], [511, 0], [0, 511], [511, 511]].every(([x, y]) => any512.at(x, y)[3] === 0) &&
+    any512.at(256, 256)[3] === 255 && any512.at(256, 0)[3] > 0 && any512.at(0, 256)[3] > 0);
+  const centred = (img, label) => {
+    if(!img) return label + ': missing';
+    const b = markBox(img);
+    const ok = Math.abs(b.cx - img.w / 2) <= 1 && Math.abs(b.cy - img.h / 2) <= 1 && Math.abs(b.width - b.height) <= 1;
+    return ok ? true : label + ' centre ' + b.cx + ',' + b.cy + ' size ' + b.width + 'x' + b.height;
+  };
+  T('the mark sits on the icon\'s centre, measured, at 512, 192 and 180', (() => {
+    const r = [centred(any512, 'any-512'), centred(png('icon-192.png'), 'any-192'), centred(touch, 'touch-180'), centred(mask512, 'maskable-512')];
+    return r.every(x => x === true) ? true : r.filter(x => x !== true).join('; ');
+  })() === true);
+  T('and fills 56% of it, the proportion the master is drawn at', (() => {
+    const b = markBox(any512);
+    return Math.abs(b.width / 512 - 576 / 1024) <= 0.006 ? true : (b.width / 512).toFixed(4);
+  })() === true);
+  T('nothing of the mark comes near the maskable crop: all of it within 80% of the icon', (() => {
+    if(!mask512) return false;
+    const b = markBox(mask512);
+    return b.far <= 0.4 * 512 - 8 ? true : 'farthest mark pixel at ' + b.far.toFixed(1) + 'px of a 204.8px safe radius';
+  })() === true);
+  T('at favicon size the L is still the lit part, at the lower left', (() => {
+    if(!fav) return false;
+    let n = 0, sx = 0, sy = 0, marks = 0;
+    for(let y = 0; y < 32; y++) for(let x = 0; x < 32; x++){
+      const p = fav.at(x, y);
+      if(isMark(p)) marks++;
+      if(p[3] > 200 && p[1] >= 150 && p[2] >= 200){ n++; sx += x + 0.5; sy += y + 0.5; }
+    }
+    return marks >= 120 && n >= 20 && sx / n < 16 && sy / n > 16 ? true : { marks, lit: n, cx: sx / n, cy: sy / n };
+  })() === true);
+
+  sub('the opening screen is the same mark, briefly');
+  T('the launch shows the mark, not the old wordmark and ring',
+    /<div id="introOverlay" aria-hidden="true">\s*<div class="intro-stage">\s*<!-- LOOP-MARK-BEGIN --><svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="112" height="112" viewBox="192 192 640 640" class="intro-mark" aria-hidden="true" focusable="false">/.test(src));
+  T('it rises in a third of a second and never loops', (() => {
+    const rule = cssRule(css, '.intro-mark{');
+    const m = rule.match(/animation: introMark ([\d.]+)s/);
+    return !!m && +m[1] <= 0.4 && !/infinite/.test(rule) && /@keyframes introMark\{\s*from\{ opacity: 0; transform: scale\(0\.92\); \}/.test(css);
+  })());
+  T('and the app takes over as soon as it is ready: the hold is short, the failsafe unchanged',
+    /reduced \? 260 : 560\);/.test(src) && /introAppReady = true; introAnimationDone = true; maybeDismissIntro\(\); \}, 6000\);/.test(src) &&
+    /sessionStorage\.setItem\(INTRO_SESSION_KEY, '1'\)/.test(src));
+  T('reduced motion keeps the mark and drops the scale',
+    /@media \(prefers-reduced-motion: reduce\)\{\s*\.intro-mark\{ animation: introMarkFade 0\.18s ease both; \}/.test(css));
+  T('the launch ground is the app\'s own, with the icon\'s faint bloom',
+    /#introOverlay\{[\s\S]{0,200}rgba\(76,194,255,0\.07\)[\s\S]{0,60}var\(--bg\)/.test(css));
+
+  sub('nothing else moved');
+  T('the service worker still caches only the app shell',
+    /ASSETS = \[\s*'\.\/',\s*'\.\/index\.html',\s*'\.\/manifest\.webmanifest'\s*\]/.test(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8')));
+  T('the header wordmark is untouched', /<h1>LOOP<span class="dot">\.<\/span><\/h1>/.test(src));
+  T('no storage key was added', (app.ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', app.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -22890,6 +23147,7 @@ async function main(){
   await testExerciseSwaps();
   await testExerciseVisuals();
   await testRankShowcaseMotion();
+  await testBrandMark();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
