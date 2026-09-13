@@ -6627,6 +6627,19 @@ header{
 }
 .sheet{ max-width: 100%; }
 .overlay .sheet{ max-height: 100vh; max-height: 100dvh; }
+/* D60 — the workout sheet takes its height from its page, which is fixed to
+   the whole screen, never from viewport units. Installed on an iPhone with the
+   translucent status bar, 100vh and 100dvh come up a status bar short of the
+   screen, so the cap above stopped the sheet — and the dock at its foot — that
+   far above the bottom, and the page's own background showed as a dark strip
+   under the dock. Home's tab bar is anchored the same way (fixed, bottom: 0)
+   and keeps the inset as padding inside its own surface; so does whatever ends
+   this sheet: the dock, or the finish bar of a workout with no exercises.
+   Scoped to the workout on purpose: the other page sheets get the same cap,
+   but several end in a block that never took the inset, and the short sheet is
+   what keeps their last row off the home indicator. Outranks both viewport
+   caps, rotated or not. */
+#logOverlay .sheet.sheet-page{ max-height: 100%; }
 .sheet-scroll{ overscroll-behavior: contain; }
 
 @media (orientation: landscape) and (max-height: 500px){
@@ -14154,6 +14167,20 @@ const LOOP_UPDATES = [
     bugFixes: [
       'The walking lunge no longer shows a faint second figure floating beside it',
       'Feet no longer float above the floor in the pike push-up, Meadows row and landmine press, and on dips they now clearly hang'
+    ],
+    changes: []
+  },
+  {
+    id: 'v6-1',
+    version: 'LOOP 6.1',
+    title: 'A Seamless Workout Bar',
+    date: '2027-02-10',
+    swVersion: 'loop-v138',
+    summary: 'The bar at the bottom of a workout now runs all the way to the bottom of an iPhone screen.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'On iPhone, a dark strip could show below the bar at the bottom of a workout, so the bar looked like a separate layer. The bar now reaches the bottom edge, like the tab bar on Today, and its buttons stay clear of the home indicator'
     ],
     changes: []
   }

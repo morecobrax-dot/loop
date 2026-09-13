@@ -8233,3 +8233,127 @@ confirmed byte-identical across the change. The vendored library grew about
 - Thumbnail markup is about a quarter larger while the DOM is less than half;
   every thumbnail is still built once into the sprite.
 - Not yet seen on a physical phone.
+
+## §89 — D60: The workout reaches the bottom edge
+
+**Status.** Shipped in LOOP 6.1 (`loop-v138`), a maintenance release on 6.0
+(§88). One CSS rule; no script, markup, storage or behaviour changed.
+`DATA_KEYS` 15, schema 1, no migration, `TRAINER_ENGINE_VERSION` 0.1.1-shadow,
+Session Score weights 40/30/18/12.
+
+### What the owner saw
+
+The first finding from a physical phone against 6.0, which §88 recorded as not
+yet seen on one: on an iPhone the workout dock ended above a separate dark
+strip, so it read as a bar laid over another layer, while Today's tab bar on
+the same phone runs into the bottom edge. The owner's screenshots did not
+arrive in the session, so the defect was reproduced before anything changed.
+
+### Why
+
+- The strip was the workout page itself. `#logOverlay` is an
+  `.overlay.overlay-page`: `position: fixed; inset: 0`, `background: var(--bg)`.
+  Its sheet asked for `height: 100%; max-height: 100%` (`.sheet.sheet-page`),
+  but the rotation-safety rule `.overlay .sheet{ max-height: 100vh; max-height:
+  100dvh; }` has the same specificity and comes later, so it won — and again
+  inside the rotated media query. Bottom sheets escape that rule through
+  `.overlay:not(.overlay-page) .sheet`, so it had come to govern page sheets
+  only.
+- Installed with `viewport-fit=cover` and the `black-translucent` status bar,
+  iOS resolves `100vh` and `100dvh` a status bar short of the screen, while a
+  fixed element at `inset: 0` still covers all of it. The sheet stopped that
+  far above the bottom and the dock at its foot with it: the dock's 34px inset
+  was spent above the home-indicator zone, and the page's #070B12 showed under
+  the dock's #0E141F.
+- Reproduced in headless Edge with the iPhone's insets emulated
+  (`Emulation.setSafeAreaInsetsOverride`, 47 / 34) and the installed app's
+  units modelled in a copy of the page (`100dvh` → `calc(100dvh - 47px)`): at
+  390×844 the sheet ended at 797, the element under the bottom pixel was
+  `#logOverlay`, and the buttons ended 81px above the edge. At 375×812 the strip
+  was 44px. Rotated there is no status bar, and no strip.
+
+### Home
+
+Today's tab bar is `position: fixed; bottom: 0` with
+`padding-bottom: env(safe-area-inset-bottom)` inside its own surface. It never
+asks the viewport how tall it is; it hangs from the edge of the fixed
+containing block, which is the screen. Reused as a principle rather than as
+code: the workout sheet now takes its height from its fixed page — the same
+edge — and whatever ends the sheet keeps the inset inside its own surface.
+
+### The fix
+
+- `#logOverlay .sheet.sheet-page{ max-height: 100%; }`, written beside the cap
+  it overrides. At 1,2,0 it outranks both viewport caps, whatever the media
+  query or the order.
+- The sheet now runs 0–844 and the dock 749–844; the dock's own padding keeps
+  its buttons at 810, one inset above the edge. A workout with no exercises
+  ends in the finish bar (`calc(14px + env(safe-area-inset-bottom))`) and
+  reaches the edge the same way.
+- No extra height, negative margin, spacer, script or device check. Where the
+  viewport units already match the page, as on desktop and Android, nothing
+  moves.
+
+### Why only the workout
+
+All 20 full-page sheets carry the same cap, and the audit found the same strip
+under every one. Seven of them end in a block that never took the bottom
+inset — `pbOverlay`, `socialOverlay`, `exPickerOverlay`, `pastProgramOverlay`
+and `myTrainingOverlay` in a scroll with 16px of padding, `rankOverlay` in
+`#rankLive` with none, `prepOverlay` in `.prep-actions` with 16px — and on
+those the short sheet is what has been keeping the last row off the home
+indicator. Filled, My Training's last row scrolled to 817 against an indicator
+zone that starts at 810, and prep's buttons would sit 16px from the edge. Those
+screens are outside D60. Extending the fix is recorded as a follow-up: give
+those seven the inset, then generalise the rule to
+`.overlay .sheet.sheet-page`, which Contract 166 already accepts.
+
+### What did not change
+
+- The D59 dock. The computed styles of the dock, both buttons, the rest readout
+  and the finish bar are identical before and after in five states: the first
+  exercise with Previous disabled, a set ticked with rest running, a middle
+  exercise with the readout, the final exercise, and the review step with Back
+  and Finish Workout — 104×48 and 238×48, the radius, the hairline, the colours,
+  the 34px inset. Only its position changed, 47px down to the edge.
+- Content clearance. A 13-set exercise scrolled to the end keeps the same
+  28.1px between its last control and the rest readout; the scroll area gains
+  the 47px the strip took (590 → 637, or 532 → 579 with the readout showing).
+- The other 19 full-page screens measure exactly as they did.
+- Rotated at 844×390 and with the keyboard up on a page resized to 390×508
+  there is no strip; rotated with the units made 20px short, still none.
+
+### Verification
+
+- **Contract 166** — 15 assertions. It reads the stylesheet as a cascade rather
+  than matching a line: every rule that can land on the workout sheet, in any
+  media query, weighed by importance, specificity and order, with `<html>` and
+  `<body>` given the classes the app sets on them (read from the source). It
+  holds that the sheet's `max-height` and `height` are each one unconditional
+  100% that outranks every competitor, while stepping and with no exercises;
+  that the page is fixed to every edge with nothing sizing it; that the sheet
+  takes no padding, margin or border below its foot; and that it ends in the
+  dock or the finish bar, each painting its own surface with the inset inside,
+  only one of them present. Two assertions check the reading itself. On
+  production 6.0 it fails exactly the two `max-height` assertions.
+- **Mutation check** — 16 breakages, 16 caught: the fix removed; the fix only in
+  portrait; a later equal-weight cap; the base cap made `!important`; a
+  viewport height on the sheet; a cap that lands only while the body is
+  page-locked; a rotated cap that outranks the fix; the page sized by the
+  viewport; the page no longer fixed; padding below the sheet; a wide-screen
+  margin under it; the dock without its surface; the dock without the inset;
+  the finish bar without the inset; a block after the finish bar; the stepper
+  no longer emptying the finish bar. Two controls pass, as they should: the
+  generalised page-sheet rule, and a later cap that loses on specificity.
+- The 17 contracts that touch page sheets, the dock, the insets and rotation
+  621 / 0; `npm run verify` 6587 / 0; audit 87, audit:program 335,
+  audit:cardio 261, audit:gps 43, audit:dates 40 × 7 zones.
+
+### Known and recorded
+
+- The phone is modelled, not observed: the insets are the browser's own
+  emulation and the viewport units are rewritten in a copy of the page. The fix
+  does not rest on the model — it uses no viewport unit at all.
+- On iOS the keyboard slides over an unchanged page, so while it is up the dock
+  sits beneath it, as in 6.0.
+- The other page sheets keep their strip until the follow-up above.

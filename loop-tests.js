@@ -23580,6 +23580,219 @@ async function testWorkoutDockAndFigure(){
   }
 }
 
+/* CONTRACT 166 — D60. Installed on an iPhone, the workout dock ended above a
+   dark strip. `.sheet.sheet-page` asked for `max-height: 100%`, but a later
+   `.overlay .sheet{ max-height: 100dvh }` of equal weight won, and there 100vh
+   and 100dvh come up a status bar short of the screen while the fixed page
+   still covers all of it — so the sheet, and the dock at its foot, stopped
+   short and the page's own background showed underneath. That was a cascade
+   collision, which a text match on one rule cannot see: the next cap could
+   come from any selector in any media query. So this contract reads the
+   stylesheet as a cascade — every rule that can land on the workout sheet,
+   weighed by importance, specificity and order — and holds the outcome. */
+async function testWorkoutSheetReachesTheEdge(){
+  section('CONTRACT 166 — the workout reaches the bottom edge (D60)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+
+  /* Split on a separator outside brackets, so `:not(.a, .b)` and
+     `calc(14px + env(...))` stay whole. */
+  const splitTop = (s, sep) => {
+    const out = []; let depth = 0, cur = '';
+    for(const ch of s){
+      if(ch === '(' || ch === '[') depth++;
+      else if(ch === ')' || ch === ']') depth--;
+      if(depth === 0 && ch === sep){ out.push(cur); cur = ''; } else cur += ch;
+    }
+    out.push(cur);
+    return out.map(x => x.trim()).filter(Boolean);
+  };
+  /* Style rules in source order, each with the media queries around it. */
+  const rules = [];
+  (function walk(text, media){
+    let i = 0;
+    while(i < text.length){
+      const open = text.indexOf('{', i);
+      if(open < 0) break;
+      const head = text.slice(i, open).trim();
+      let depth = 1, j = open + 1;
+      while(depth && j < text.length){ if(text[j] === '{') depth++; else if(text[j] === '}') depth--; j++; }
+      const body = text.slice(open + 1, j - 1);
+      if(/^@(media|supports)\b/.test(head)) walk(body, media.concat(head));
+      else if(head[0] !== '@') rules.push({ head, media, decls: splitTop(body, ';') });
+      i = j;
+    }
+  })(css.slice(7).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/@(import|charset|namespace)[^;{]*;/g, ' '), []);
+
+  /* A selector as compounds, each with the combinator joining it to the one
+     before; a compound as what it asks of one element. */
+  const parseSelector = sel => {
+    const parts = []; let depth = 0, cur = '', comb = ' ';
+    for(const ch of sel){
+      if(ch === '(' || ch === '[') depth++;
+      else if(ch === ')' || ch === ']') depth--;
+      if(depth === 0 && /[\s>+~]/.test(ch)){
+        if(cur){ parts.push({ comb, text: cur }); cur = ''; comb = ' '; }
+        if(ch === '>' || ch === '+' || ch === '~') comb = ch;
+        continue;
+      }
+      cur += ch;
+    }
+    if(cur) parts.push({ comb, text: cur });
+    return parts;
+  };
+  const parseCompound = text => {
+    const c = { tag: null, ids: [], classes: [], others: 0, nots: [], pseudoElement: false };
+    (text.match(/::?[\w-]+(?:\((?:[^()]|\([^()]*\))*\))?|#[\w-]+|\.[\w-]+|\[[^\]]*\]|\*|[a-zA-Z][\w-]*/g) || []).forEach(t => {
+      if(/^::|^:(before|after|first-line|first-letter)$/.test(t)) c.pseudoElement = true;
+      else if(/^:not\(/.test(t)) c.nots.push(t.slice(5, -1));
+      else if(/^:where\(/.test(t)) {}
+      else if(t[0] === ':' || t[0] === '[') c.others++;
+      else if(t[0] === '#') c.ids.push(t.slice(1));
+      else if(t[0] === '.') c.classes.push(t.slice(1));
+      else if(t !== '*') c.tag = t.toLowerCase();
+    });
+    return c;
+  };
+  const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+  const specificity = sel => parseSelector(sel).reduce((s, p) => {
+    const c = parseCompound(p.text);
+    const n = c.nots.map(x => splitTop(x, ',').map(specificity).sort(cmp).pop() || [0, 0, 0]);
+    const sum = k => n.reduce((a, x) => a + x[k], 0);
+    return [s[0] + c.ids.length + sum(0), s[1] + c.classes.length + c.others + sum(1), s[2] + (c.tag ? 1 : 0) + (c.pseudoElement ? 1 : 0) + sum(2)];
+  }, [0, 0, 0]);
+  /* Whether a compound could be this element. The workout's own elements are
+     known exactly; <html> and <body> may carry any of the classes the app sets
+     on them as it runs, or none. What a stylesheet cannot know (:hover, an
+     attribute, a sibling) counts as possible — the contract errs towards a
+     rule landing. */
+  const could = (c, el) => {
+    if(c.tag && c.tag !== el.tag) return false;
+    if(c.ids.some(id => id !== el.id)) return false;
+    if(el.anyClass) return true;
+    if(c.classes.some(k => el.classes.indexOf(k) === -1)) return false;
+    if(el.optional) return true;
+    return c.nots.every(x => splitTop(x, ',').every(alt => {
+      const parts = parseSelector(alt), n = parts.length === 1 ? parseCompound(parts[0].text) : null;
+      const certain = n && !n.others && !n.pseudoElement && !n.nots.length && (n.tag || n.ids.length || n.classes.length);
+      return !(certain && could(n, el));
+    }));
+  };
+  const lands = (sel, chain) => {
+    const parts = parseSelector(sel);
+    if(!parts.length || parseCompound(parts[parts.length - 1].text).pseudoElement) return false;
+    const at = (pi, ei) => {
+      if(ei < 0 || !could(parseCompound(parts[pi].text), chain[ei])) return false;
+      if(pi === 0) return true;
+      if(parts[pi].comb === '>') return at(pi - 1, ei - 1);
+      if(parts[pi].comb === ' '){ for(let k = ei - 1; k >= 0; k--) if(at(pi - 1, k)) return true; return false; }
+      return true;
+    };
+    return at(parts.length - 1, chain.length - 1);
+  };
+  const declared = (chain, prop) => {
+    const out = [];
+    rules.forEach((r, ri) => {
+      const hit = splitTop(r.head, ',').filter(sel => lands(sel, chain));
+      if(!hit.length) return;
+      const spec = hit.map(specificity).sort(cmp).pop();
+      r.decls.forEach((d, di) => {
+        const k = d.indexOf(':');
+        if(k < 0 || d.slice(0, k).trim().toLowerCase() !== prop) return;
+        const raw = d.slice(k + 1).trim(), important = /!\s*important\s*$/i.test(raw);
+        out.push({ prop, selector: r.head.replace(/\s+/g, ' '), media: r.media, spec, order: ri * 1000 + di, important, value: raw.replace(/!\s*important\s*$/i, '').trim() });
+      });
+    });
+    return out;
+  };
+  const beats = (a, b) => a.important !== b.important ? a.important : (cmp(a.spec, b.spec) || a.order - b.order) > 0;
+  const winner = list => list.filter(d => !list.some(o => o !== d && beats(o, d)));
+  const show = list => list.map(d => (d.media.length ? d.media.join(' ') + ' ' : '') + d.selector + '{ ' + d.prop + ': ' + d.value + (d.important ? ' !important' : '') + ' }').join(' | ') || 'none';
+  const VIEWPORT = /[\d.](?:[dsl]?vh|vmin|vmax)\b/i;
+
+  /* The classes the app gives <html> and <body>, read from the source so a
+     new one is modelled the day it is added; if one is ever set from a
+     variable, either may carry any class. */
+  const vocabulary = which => {
+    const calls = [...src.matchAll(new RegExp('document\\.' + which + '\\.classList\\.(?:add|remove|toggle)\\(\\s*([^)]*)\\)', 'g'))].map(m => m[1]);
+    const literal = calls.map(a => (a.match(/^'([\w-]+)'/) || [])[1]);
+    return { classes: literal.filter(Boolean), anyClass: literal.some(x => !x) || new RegExp('document\\.' + which + '\\.(className|setAttribute\\(\\s*.class)').test(src) };
+  };
+  const html = Object.assign({ tag: 'html', id: null, optional: true }, vocabulary('documentElement'));
+  const body = Object.assign({ tag: 'body', id: null, optional: true }, vocabulary('body'));
+  const page = stepper => ({ tag: 'div', id: 'logOverlay', classes: ['overlay', 'overlay-page', 'open'].concat(stepper ? ['stepper-on'] : []) });
+  const sheet = { tag: 'div', id: null, classes: ['sheet', 'sheet-page'] };
+  const STATES = [[true, 'stepping through a workout'], [false, 'a workout with no exercises']];
+
+  sub('the reading of the cascade is itself right');
+  (() => {
+    const chain = [html, body, page(true), sheet], pageChain = [html, body, page(true)];
+    T('it knows what the app puts on <body> while a workout is open', body.classes.indexOf('page-locked') !== -1, JSON.stringify(body));
+    T('it finds the rules that really land on the sheet, and not the ones that do not',
+      lands('.overlay .sheet', chain) && lands('.sheet.sheet-page', chain) && lands('#logOverlay > .sheet', chain) && lands('body .sheet', chain) &&
+      lands('body.page-locked .overlay', pageChain) && lands('.stepper-on > .sheet', chain) && lands('.overlay-page:not(.stepper-off) .sheet', chain) &&
+      !lands('.overlay:not(.overlay-page) .sheet', chain) && !lands('#howToOverlay .sheet', chain) && !lands('.sheet.sheet-page::before', chain) &&
+      !lands('.overlay > .sheet-scroll', chain) && !lands('#logOverlay > .overlay .sheet', chain) && !lands('.ob-hero > *', pageChain) &&
+      !lands('.stepper-on > .sheet', [html, body, page(false), sheet]));
+    T('and weighs them the way a browser does',
+      cmp(specificity('#logOverlay .sheet.sheet-page'), specificity('.overlay .sheet')) > 0 &&
+      cmp(specificity('.overlay:not(.overlay-page) .sheet'), [0, 3, 0]) === 0 &&
+      beats({ important: true, spec: [0, 1, 0], order: 1 }, { important: false, spec: [1, 0, 0], order: 2 }) &&
+      beats({ important: false, spec: [0, 2, 0], order: 9 }, { important: false, spec: [0, 2, 0], order: 3 }));
+  })();
+
+  sub('the workout sheet takes its height from its page, never from the viewport');
+  STATES.forEach(([stepper, label]) => {
+    const chain = [html, body, page(stepper), sheet];
+    ['max-height', 'height'].forEach(prop => {
+      const all = declared(chain, prop), won = winner(all), caps = all.filter(d => VIEWPORT.test(d.value));
+      T(label + ': its ' + prop + ' is one unconditional 100% that outranks every other ' + prop + ' able to reach it, viewport caps included, in any media query',
+        won.length === 1 && !won[0].media.length && won[0].value === '100%',
+        'winner: ' + show(won) + ' — ' + caps.length + ' viewport-relative of ' + all.length + ': ' + show(all));
+    });
+  });
+
+  sub('the page is the whole screen, the edge Home\'s tab bar hangs from');
+  STATES.forEach(([stepper, label]) => {
+    const chain = [html, body, page(stepper)];
+    const pos = winner(declared(chain, 'position')), inset = winner(declared(chain, 'inset'));
+    const sizing = ['top', 'bottom', 'height', 'max-height'].reduce((a, p) => a.concat(declared(chain, p)), []);
+    T(label + ': the page is fixed to every edge of the screen and nothing else sizes it',
+      pos.length === 1 && pos[0].value === 'fixed' && !pos[0].media.length &&
+      inset.length === 1 && inset[0].value === '0' && !inset[0].media.length && sizing.length === 0,
+      show(pos) + ' / ' + show(inset) + ' / ' + show(sizing));
+  });
+
+  sub('nothing sits under the foot of the sheet');
+  STATES.forEach(([stepper, label]) => {
+    const chain = [html, body, page(stepper), sheet];
+    const bottomOf = d => {
+      const v = splitTop(d.value.replace(/\s+/g, ' '), ' ');
+      if(d.prop === 'padding' || d.prop === 'margin' || d.prop === 'border-width') return v[2] || v[0];
+      if(d.prop === 'border' || d.prop === 'border-bottom') return /(^| )(none|0|0px)( |$)/.test(d.value) ? '0' : d.value;
+      return d.value;
+    };
+    const dead = ['padding', 'padding-bottom', 'margin', 'margin-bottom', 'border', 'border-bottom', 'border-width', 'border-bottom-width']
+      .reduce((a, p) => a.concat(declared(chain, p)), [])
+      .filter(d => !/^(0|0px|auto|none)$/.test(bottomOf(d)));
+    T(label + ': the sheet takes no padding, margin or border below its last block, so no strip can open beneath it', dead.length === 0, show(dead));
+  });
+
+  sub('whatever ends the sheet carries the home indicator inside its own surface');
+  const nav = cssRule(css, '\n.ws-nav{'), bar = cssRule(css, '\n.sheet-actions{');
+  T('the sheet ends with the dock and, after it, only the finish bar',
+    /<div class="ws-nav" id="wsNav"><\/div>\s*(<!--[\s\S]*?-->\s*)?<div class="sheet-actions" id="wsFinishBar"><\/div>\s*<\/div>\s*<\/div>/.test(src));
+  T('the dock paints its own surface and takes the inset as padding inside it',
+    /background: var\(--surface\);/.test(nav) && /max\(var\(--space-3\), env\(safe-area-inset-bottom, 0px\)\)/.test(nav));
+  T('so does the finish bar', /background: var\(--surface\);/.test(bar) && /calc\(14px \+ env\(safe-area-inset-bottom, 0px\)\)/.test(bar));
+  T('and only one of the two is ever there: the stepper empties the finish bar, a workout with no exercises empties the dock', (() => {
+    const fn = fnSrc(src, 'renderWorkoutStep');
+    return /if\(!rows\.length\)\{[\s\S]{0,200}nav\.innerHTML = '';[\s\S]{0,200}bar\.innerHTML =/.test(fn) && /if\(finishBar\) finishBar\.innerHTML = '';/.test(fn) &&
+      /\.ws-nav:empty\{ display: none; \}/.test(css) && /\.sheet-actions:empty\{ display: none; \}/.test(css);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -23708,6 +23921,7 @@ async function main(){
   await testBrandMark();
   await testExerciseVisualTruth();
   await testWorkoutDockAndFigure();
+  await testWorkoutSheetReachesTheEdge();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
