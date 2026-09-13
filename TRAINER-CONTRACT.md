@@ -7565,3 +7565,208 @@ machine is its own drawing under Reverse Pec Deck Fly and the machine aliases.
 - The first picker opening in a session builds every drawing it lists
   (~110ms on a desktop). Browsers with idle callbacks build the definitions
   ahead of time; Safari builds them on first use.
+
+## §85 — Phase C: The rank ladder moves like an object
+
+**Status.** Prepared as LOOP 5.7 (`loop-v134`), release candidate. The approved
+emblems are byte-identical (every rank at 208, 120 and 30px, uid-normalised,
+sha256 `48039f1c…97ebbd`, rendered by the 5.6 build D54 approved). `DATA_KEYS`
+15, schema 1, no migration, `TRAINER_ENGINE_VERSION` 0.1.1-shadow, Session Score
+weights 40/30/18/12, nothing written to storage.
+
+### What the ladder was
+
+Measured on 5.6 before any change:
+
+- The track travelled on a 0.42s CSS transition that started from wherever the
+  finger let go, and each panel's size and light changed on its own 0.3s
+  transition. Two clocks, so mid-swipe the depth lagged the position.
+- Every touch was captured at touch-down, and a flick was `|dx| > 36px` inside
+  260ms, however the finger actually moved at the end.
+- The athlete's own rank carries a progress bar and every other rank one line,
+  so panels were 368px and 362px tall at 390×844. Centred in the track, every
+  emblem sat 3px off the others' line and rose and fell as it passed.
+- The atmosphere flipped at the drag's midpoint.
+- Eight identical dots.
+- The footer's band stopped 104px short of the bottom edge at 390×844, leaving
+  a visible seam where the page's lower light began.
+
+### One position
+
+`rankRender(pos)` is the whole frame. `pos` is a rank index — fractional while
+moving, past either end while resisting — and from it: the track transform, each
+panel's depth (scale 1 → 0.93 and opacity 1 → 0.34 over one rank of distance),
+the rail gem's transform and one atmosphere opacity. Only values that changed
+are written; a frame reads no layout and builds nothing. Geometry is measured by
+`rankMeasure()` on open and on every size change, in fractional pixels with the
+ladder's transforms lifted: `offsetLeft` rounding alone left the centred ring
+0.25px off at 390px wide.
+
+### The gesture
+
+A touch is a scroll until it has travelled 10px and sideways leads vertical by
+1.15:1; ties go to the scroll. Only then does the ladder claim the pointer
+(`setPointerCapture`), and the drag is rebased at that point so the ladder starts
+moving without jumping the slop. The
+wrap keeps `touch-action: pan-y`. Past either end the ladder yields
+`(1 − 1/(x·0.55/d + 1))·d`: it resists harder the further it is pulled and never
+reaches a full panel. A second finger is ignored; a gesture the browser takes
+(`pointercancel`) settles on the nearest rank without a throw; a finger put on a
+moving ladder holds it exactly where it is; a tap on the rank beside the centre
+goes to it.
+
+### The release
+
+`rankSettleTarget(startPos, dragPx, vPx, step, heading)` is pure:
+
+| gesture | result |
+|---|---|
+| tap, small drag, exactly a third of a panel | stays |
+| slow drag past a third | the rank the drag reached (at least one) |
+| flick (≥ 0.35px/ms, ≥ 24px after the slop) | exactly one rank, however hard |
+| throw back against the drag | cancels, however far the drag went |
+| long drag, then a throw | one rank past the finger |
+| flick on a ladder still arriving | one past where it was going |
+| grabbed in flight, let go slowly | the nearest rank |
+
+Release speed is read over the last 100ms of movement, and a finger that rested
+60ms before lifting threw nothing.
+
+**Found in browser QA.** The first version of the flick rule counted from where
+the ladder physically was once it lagged a rank or more behind its destination,
+so four quick flicks from Rookie could land short of rank 5. It now counts from
+the further of the ladder and its destination.
+
+### The spring
+
+Critically damped, ω = 17, evaluated in closed form against the clock, so a
+dropped frame changes nothing about where the ladder is and a 1.4s watchdog
+lands it if frames stop. From rest it never passes its rank; it commits (the
+ceremony) within 0.35s and is at rest within 0.6s. The release velocity is
+honoured up to ω × remaining distance × 1.15, where a critically damped spring
+passes its target by under a ten-thousandth of the distance.
+
+**Found while writing the contract.** The ceiling first floored the distance at a
+third of a panel, which let a hard flick released just short of a rank sail
+~0.11 panel (about 35px) past it and come back. The floor is gone.
+
+### The light
+
+Two opaque atmosphere layers (`#rankAtmosBase`, `#rankAtmosBlend`), each the
+existing three gradients painted from `RANK_VISUALS` over `#05070C`. The upper
+layer's opacity is the fraction between the two ranks either side of the
+ladder, so the mix is exact — halfway between ELITE and VETERAN is halfway
+between their light — and does not dim mid-swipe as two translucent layers
+would. Either layer may hold either rank, chosen to repaint the least: one paint
+per rank that comes into play (a sweep from rank 2 to rank 7 and back paints
+ten times in all), and every frame between is one opacity write. A jump of two ranks or more dips the
+track and the light together (260ms) instead of racing emblems past the eye.
+
+### The rail and the way home
+
+Eight segments in ladder order: the ranks behind the athlete filled, their own
+lit and marked YOU, the ranks ahead as hairlines. One gem rides the rail with
+the ladder in the colour of the rank in view, over a caption `RANK N OF 8`.
+Every segment is a 44px-tall button that goes straight to its rank, labelled
+with the rank, its position and the athlete's relation to it. "My rank" appears
+only away from the athlete's own rank, on the side their rank lies, holds its
+place in the layout (absolute, visibility-toggled), leaves from where it is, and
+hands focus to the ladder when used. The footer now sits at the bottom of the
+screen and the ladder takes the height above it, so the whole stage is the swipe
+surface and the rail is in reach of a thumb.
+
+Ranks leave and arrive through a 32px soft edge (`.rank-trackmask`, a mask on
+an inner element) instead of a hard cut, so a neighbour's first letters or the
+end of its progress bar never sit sliced against the side of the screen — the
+real-browser proof showed both ("23", "OR", a stray "0") on 5.6's hard edge.
+The mask changes no geometry, and it sits inside the stage so the stage's
+keyboard focus ring is not faded with it.
+
+### The ceremony
+
+When a new rank lands: a 1.8% lift of the emblem's own `<svg>` box over 380ms on
+the compositor, so it scales about the centre of its ring, with the existing
+light pass (once, never looped) as its glint. The previous arrival is cancelled
+first; landing again on the same rank, opening and re-centring are quiet. A live
+region announces the rank that landed.
+
+The pass now runs 0.95s from 0.12s instead of 1.45s from 0.18s. Measured, it is
+the only part of the whole showcase that lays out and paints every frame — the
+band animates inside the SVG, which no browser composites — so its length is its
+cost as well as its feel. Its art is untouched: the band is part of the approved
+renderer and only the CSS timing changed.
+
+### Reduced motion
+
+The real `prefers-reduced-motion` query. Every state change is kept and lands at
+once: no glide, no dip, no lift, no timers. Depth stays as light only (no
+scale), and a landing is a 160ms fade on the emblem. A drag still follows the
+finger.
+
+### Contracts repointed, with reasons
+
+- **Contract 120** — "release settles deterministically" matched the pointer
+  handler's settle line; the rule moved into `rankSettleTarget()`, so it is now
+  called. "rankGo survives as the one place the index moves" became rankGoTo:
+  rail, way home and Home/End go to a rank rather than step, and `rankGo()` steps
+  through it. Still exactly one clamped writer.
+- **Contract 128** — the flick threshold, the settle rule and the end resistance
+  matched lines of the old handler; each is now asserted by calling the pure
+  function, with the same thresholds (finger travel before a flick ≥ 32px; a
+  third of a panel). The atmosphere's "cross-fades and stops" pinned a 0.5s
+  transition; the cross-fade is now the ladder's own position and has no
+  transition to lag the finger. "It follows the gesture" pinned
+  `rankNearestIndex`; it is now pinned to the frame the drag renders.
+
+### Verification
+
+- **Contract 162** — 75 assertions: the approved emblem hash; intent, capture
+  and the real handlers driven by a test clock (vertical, diagonal, wandering
+  tap, slow drag, flick, throw-back, second finger, browser cancel, neighbour
+  tap, held ladder, rubber band); the release table; velocity; the spring; the
+  frame's writes and non-reads; the soft edge; the exact light mix at every 0.05
+  of the ladder and the paint count; the rail's markup, states, labels and
+  targets; jump vs glide and cancellation; the way home; the ceremony and the
+  length of the glint; reduced motion; rotation, generations, close and reopen;
+  storage.
+- **Mutation check** — 25 deliberate re-breakings, 25 caught, each by the
+  assertion written for it.
+- **A real rendering browser** — headless Edge driven over the DevTools
+  Protocol, with touch input through the browser's own input pipeline, at
+  390×844, 375×812 and 844×390. The centred ring sits within 0.015px of the
+  stage's centre in all 45 settled states measured, and within 0.005px of its
+  own frame mid-drag and mid-arrival. A flick runs 95–97 frames from release to
+  rest, monotonic, with no overshoot and no frame over 25ms. Also exercised: a
+  slow drag, four rapid flicks from Rookie (landing on rank 5), a pull past
+  Legend (105px of travel for 285px of finger), a rail jump, the way home, the
+  real `prefers-reduced-motion` query, a rotation with the finger still down
+  (held at 4.3266, still 4.3266 after, re-measured, landed centred) and twenty
+  open/close cycles.
+- **Traced** — at rest: nothing. A drag inside one rank: no layout, about 0.2ms
+  of style and 0.08ms of paint bookkeeping per frame, and 0.5ms of raster in 2.5s
+  (no emblem is re-rasterised). A whole swipe, release and landing with the light
+  pass off: 4 layouts (the caption's digit and the pill). The light pass is the
+  only per-frame layout: 142 layouts and 19ms in its window at 0.95s, down from
+  234 and 32ms at 1.45s.
+- `npm run verify` 6437 / 0; audit 87, audit:program 335, audit:cardio 261,
+  audit:gps 43, audit:dates 40 × 7 zones.
+
+### Known and recorded
+
+- The preview pane used during development pauses rendering while hidden:
+  `requestAnimationFrame`, ResizeObserver and `resize` all stop. Motion was
+  exercised there with a timer-driven frame shim and synthetic pointer events;
+  the frame timing, trace counts and screenshots come from a real rendering
+  browser (headless Edge, real touch input).
+- Not yet run on a physical iPhone. The per-frame writes are transform and
+  opacity on layers promoted with `will-change`, and Chromium's trace confirms
+  no layout and no re-raster while dragging; WebKit's handling of eight promoted
+  panels, the masked edge and the atmosphere repaint on a 3× display is
+  unmeasured.
+- The light pass still lays out and paints every frame while it runs, because
+  it animates inside the SVG. Making it compositor-only would change the
+  approved renderer, so only its timing changed here.
+- The ceremony commits when the ladder is 0.03 of a panel from rest (about 9px
+  at 390px wide), so the lift begins during the last few pixels of travel.
+- In portrait the neighbouring ranks barely show at the edges (as in 5.6), so
+  the tap-to-neighbour gesture is mostly a landscape affordance.

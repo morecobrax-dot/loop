@@ -221,7 +221,8 @@ function loadApp(initialStore){
     /* Phase A — activity logging */ 'ACTIVITY_TYPES','activityDraft','recentShown','RECENT_STEP',
     'hasActiveDraftNow','dismissedMissedDates',
     /* Phase B — arms, swaps and exercise art */ 'PLAN_CATEGORIES','ARM_WEEKLY_DIRECT_CAP','ARM_SESSION_DIRECT_CAP',
-    'ARM_GROUPS','SPLIT_ROLES','SPLIT_PRESETS','ROLE_AREAS','EXERCISE_LIBRARY','logStepIndex','workoutEditState'];
+    'ARM_GROUPS','SPLIT_ROLES','SPLIT_PRESETS','ROLE_AREAS','EXERCISE_LIBRARY','logStepIndex','workoutEditState',
+    /* Phase C — rank showcase motion */ 'RANK_MOTION','_rankCar','rankShowcaseIndex','_rankDrag'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

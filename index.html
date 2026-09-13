@@ -749,28 +749,51 @@ html.intro-skip #introOverlay{ display: none !important; }
 .rank-sheet{ background: #05070C; position: relative; overflow: hidden; }
 /* D30.5 — PER-RANK PAGE ATMOSPHERE
    The whole page transforms by rank, not just the card. Three pooled layers
-   drawn from the centred rank's OWN material (--rk-gem / --rk-metal / --rk-deep,
-   set by positionRankTrack) so the page can never drift out of step with the
-   medal, and --rk-lift, taken from the existing glow ladder, so each rank sits
-   more elevated than the last. Static gradients: no blur, no filter, no
-   animation — it costs one paint and cross-fades on rank change. */
+   drawn from the rank's OWN material (--rk-gem / --rk-metal / --rk-deep) so the
+   page can never drift out of step with the medal, their intensity taken from
+   the existing glow ladder so each rank sits more elevated than the last.
+   Static gradients: no blur, no filter, no animation.
+   Phase C — the light moves WITH the ladder. Two opaque layers hold the ranks
+   either side of the ladder's position and the upper one's opacity is the
+   fraction between them, so halfway from ELITE to VETERAN the page is exactly
+   halfway between their light. Opaque, so the mix is exact instead of dimming
+   mid-swipe; a layer repaints only when a new rank comes into play, and every
+   frame between is one opacity write. Nothing here runs on its own. */
 .rank-atmos{
   position: absolute; inset: 0; pointer-events: none; z-index: 0;
-  transition: opacity 0.5s var(--ease), background 0.5s var(--ease);
+}
+.rank-atmos-layer{
+  position: absolute; inset: 0;
   background:
     radial-gradient(120% 62% at 50% -6%, var(--rk-gem, transparent), transparent 66%),
     radial-gradient(90% 52% at 50% 108%, var(--rk-metal, transparent), transparent 70%),
-    linear-gradient(180deg, var(--rk-deep, transparent), transparent 46%);
+    linear-gradient(180deg, var(--rk-deep, transparent), transparent 46%),
+    #05070C;
 }
-@media (prefers-reduced-motion: reduce){ .rank-atmos{ transition: none; } }
+.rank-atmos-layer + .rank-atmos-layer{ opacity: 0; will-change: opacity; }
 .rank-stagearea{ flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center;
   position: relative; z-index: 1; }
 .rank-trackwrap{
   overflow: hidden; touch-action: pan-y; cursor: grab; outline: none;
   padding: var(--space-4) 0;
+  /* Phase C — the ladder takes every pixel between the header and the rail,
+     with the rank centred in it: the whole stage is the swipe surface, and
+     the footer's band reaches the bottom edge instead of stopping short of it
+     in a visible seam. */
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center;
 }
-.rank-trackwrap:active{ cursor: grabbing; }
+.rank-trackwrap:active, .rank-trackwrap.is-dragging{ cursor: grabbing; }
 .rank-trackwrap:focus-visible{ box-shadow: inset 0 0 0 2px var(--accent); border-radius: var(--radius-lg); }
+/* Phase C — ranks leave and arrive through a soft edge rather than a hard cut,
+   so a neighbour's first letters or the end of its progress bar never sit
+   sliced against the side of the screen. The fade is its own element, inside
+   the stage, so the stage's keyboard focus ring is not faded with it; it
+   changes no geometry, so nothing it covers can move off centre. */
+.rank-trackmask{
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+}
 .rank-track{ display: flex; gap: 22px; align-items: center; will-change: transform; }
 /* D30.6 — NO CARD. Each rank is a full-page composition: the panel is a
    transparent column of type and emblem, and the PAGE behind it carries the
@@ -787,10 +810,12 @@ html.intro-skip #introOverlay{ display: none !important; }
      week strip scopes its own. */
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
-  opacity: 0.34; transform: scale(0.93);
+  /* Phase C — a panel's depth (its size and its light) is written by the
+     ladder from its own position every frame, so the panel carries no
+     transition: a transition chasing per-frame values is lag under the finger.
+     Each panel is its own layer, so those writes never repaint an emblem. */
+  will-change: transform, opacity;
 }
-.rank-panel.rank-front{ opacity: 1; transform: scale(1); }
 .rank-state{
   display: inline-block; padding: 3px 10px; border-radius: 999px;
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
@@ -820,6 +845,10 @@ html.intro-skip #introOverlay{ display: none !important; }
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
   font-weight: 700; letter-spacing: 0.06em; color: var(--text-faint); margin-top: 14px;
 }
+/* Phase C — one footer height for every rank. The progress block is taller
+   than a note, and panels of two heights centred in the track put every
+   emblem on a different line, so the ladder bobbed as it moved. */
+.rank-foot{ display: flow-root; min-height: 40px; }
 
 /* D30.6 — THE LIGHT PASS, ON THE EMBLEM ONLY.
    The band lives INSIDE the SVG, clipped to the emblem's own outline, so it
@@ -828,7 +857,12 @@ html.intro-skip #introOverlay{ display: none !important; }
    diagonal slab across the card. It runs once when a rank settles into the
    centre — not a loop — and only on the centred emblem. */
 .rank-shine{ opacity: 0; }
-.rank-front .rank-shine-bar{ animation: rankShine 1.45s cubic-bezier(0.33,0,0.2,1) 0.18s 1 both; }
+/* Phase C — the pass is now the glint that accompanies a rank locking in, so it
+   runs in 0.95s from 0.12s rather than 1.45s from 0.18s. Measured, it is the one
+   part of a landing that lays out and paints every frame (the band animates
+   inside the SVG, which no browser composites), so a shorter pass is also a
+   third less main-thread work per landing. */
+.rank-front .rank-shine-bar{ animation: rankShine 0.95s cubic-bezier(0.33,0,0.2,1) 0.12s 1 both; }
 .rank-front .rank-shine{ opacity: 1; }
 @keyframes rankShine{
   from{ transform: rotate(18deg) translateX(0); }
@@ -849,23 +883,88 @@ html.intro-skip #introOverlay{ display: none !important; }
 .rank-bar{ height: 4px; border-radius: 2px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .rank-bar span{ display: block; height: 100%; border-radius: 2px; background: var(--accent); }
 /* D30.5 — the footer is ANCHORED, not floating: one grounded band, separated
-   by a hairline, holding the ladder indicator and the route deeper. The arrows
+   by a hairline, holding the ladder's rail and the route deeper. The arrows
    are gone — the gesture is the navigation. */
 .rank-footer{
   flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
-  gap: var(--space-2); padding-top: var(--space-4);
+  gap: var(--space-2); padding-top: var(--space-3);
   border-top: 1px solid rgba(140,170,220,0.10);
   background: linear-gradient(180deg, transparent, rgba(0,0,0,0.28));
 }
-/* The dots are the ladder: eight rungs, the current one drawn as a longer
-   filled bar so position reads without counting. */
-.rank-dots{ display: flex; align-items: center; gap: 6px; }
-.rank-dot{
-  width: 5px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.18);
-  transition: background 0.24s var(--ease), width 0.24s var(--ease);
+/* Phase C — THE RAIL replaces the dots. Eight identical circles said "there is
+   a list" and nothing about it. The rail is the ladder drawn as a control: one
+   segment per rank in order, the ranks behind the athlete filled, their own
+   lit and marked YOU, the ranks ahead drawn as hairlines. The gem is its one
+   moving part — it rides the rail with the ladder and wears the colour of the
+   rank in view — so where you are looking and where you stand read at a
+   glance, without counting. Every segment is a full-height target that takes
+   the ladder straight to its rank. */
+.rank-rail{ width: min(calc(100vw - 32px), 360px); }
+.rank-rail-head{
+  position: relative; height: 30px;
+  display: flex; align-items: center; justify-content: center;
 }
-.rank-dot.on{ width: 18px; background: var(--accent); }
-@media (prefers-reduced-motion: reduce){ .rank-dot{ transition: none; } }
+.rank-rail-pos{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.14em; color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
+/* The way home speaks the same pill language as the state label above the
+   rank, and sits on the side of the rail where the athlete's rank lies. It
+   holds its place in the layout, so nothing moves when it comes and goes. */
+.rank-return{
+  position: absolute; top: 2px; right: 0;
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
+  border-radius: 999px; border: 1px solid rgba(76,194,255,0.38); background: rgba(76,194,255,0.08);
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  opacity: 0; visibility: hidden; transform: translateX(6px);
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease), visibility 0s linear 0.2s;
+}
+.rank-return::after{ content: ''; position: absolute; inset: -9px -6px; }
+.rank-return.is-left{ right: auto; left: 0; transform: translateX(-6px); }
+.rank-return.is-shown{
+  opacity: 1; visibility: visible; transform: none;
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease), visibility 0s;
+}
+.rank-return:not(.is-left){ flex-direction: row-reverse; }
+.rank-return:not(.is-left) .rank-return-chev{ transform: scaleX(-1); }
+.rank-return:active{ opacity: 0.7; }
+.rank-return:focus-visible{ outline: none; box-shadow: 0 0 0 2px var(--accent); }
+.rank-rail-track{ position: relative; display: flex; height: 44px; }
+.rank-rail-seg{
+  position: relative; flex: 1 1 0; min-width: 0; height: 44px; margin: 0; padding: 0;
+  background: none; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.rank-rail-bar{
+  position: absolute; left: 2px; right: 2px; top: 14px; height: 4px; border-radius: 2px;
+  background: rgba(140,170,220,0.16);
+}
+.rank-rail-seg.is-achieved .rank-rail-bar{ background: rgba(76,194,255,0.45); }
+.rank-rail-seg.is-current .rank-rail-bar{ background: var(--accent); box-shadow: 0 0 10px rgba(76,194,255,0.45); }
+.rank-rail-seg:active .rank-rail-bar{ opacity: 0.7; }
+.rank-rail-you{
+  position: absolute; left: 50%; top: 27px; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700; line-height: 1;
+  letter-spacing: 0.12em; text-indent: 0.12em; color: var(--accent);
+}
+.rank-rail-seg:focus-visible{ outline: none; }
+.rank-rail-seg:focus-visible::after{
+  content: ''; position: absolute; inset: 4px 0; border-radius: 8px;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+/* The gem: a cut stone set into the rail. A zero-size anchor carries the
+   transform; the stone is drawn around it, so its centre IS the position. */
+.rank-rail-thumb{
+  position: absolute; left: 0; top: 16px; width: 0; height: 0;
+  pointer-events: none; will-change: transform;
+}
+.rank-rail-thumb::before{
+  content: ''; position: absolute; left: -5px; top: -5px; width: 10px; height: 10px;
+  border-radius: 2px; transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--thumb-hi, #A8DFFF), var(--thumb-lo, #1E6FAE));
+  box-shadow: 0 0 0 2.5px #05070C, 0 0 12px var(--thumb-glow, rgba(76,194,255,0.55));
+}
 /* D26: this control really does go somewhere — it opens the profile — but drawn
    in the faint caption grey it read as disabled. The accent is the app's own
    language for a secondary text link, the same voice as .sheet-back, and at
@@ -881,7 +980,15 @@ html.intro-skip #introOverlay{ display: none !important; }
 .rank-profile-link:active{ opacity: 0.7; }
 @media (prefers-reduced-motion: reduce){
   .rank-track{ transition: none !important; }
-  .rank-panel{ transition: none; }
+  .rank-return, .rank-return.is-shown{ transition: none; }
+}
+/* Phase C — a short portrait screen keeps the whole rank and its rail on
+   screen: the emblem steps down in size, never in design. */
+@media (orientation: portrait) and (max-height: 640px){
+  .rank-trackwrap{ padding: var(--space-2) 0; }
+  .rank-medal-wrap{ padding: 8px 0 6px; }
+  .rank-medal-wrap svg{ width: 150px; height: 150px; }
+  .rank-title{ font-size: 24px; margin-top: 8px; }
 }
 .today-greet{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 21px; color: var(--text); }
 .today-sub{ font-size: 12px; color: var(--text-faint); margin-top: 3px; display: flex; align-items: center; gap: 8px; }
@@ -6512,8 +6619,12 @@ header{
   .rank-medal-wrap{ padding: 6px 0 2px; }
   .rank-medal-wrap svg{ width: 84px; height: 84px; }
   .rank-title{ font-size: 19px; margin-top: 6px; }
-  .rank-footer{ padding-top: var(--space-2); gap: var(--space-1); }
-  .rank-profile-link{ margin-top: 0; }
+  /* Phase C — the rail and the way deeper sit side by side: stacked, the rail
+     alone would cost this screen the room the emblem needs. */
+  .rank-footer{ flex-direction: row; justify-content: center; column-gap: var(--space-6);
+    padding-top: var(--space-1); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .rank-rail{ width: min(44vw, 340px); }
+  .rank-profile-link{ margin: 0; }
   .sheet-scroll{ padding-top: 14px; padding-bottom: 12px; }
   .sheet h2{ font-size: 17px; }
   /* Phase B — How To goes side by side: stacked, the picture alone is taller
@@ -7600,20 +7711,33 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <span class="workout-topbar-spacer"></span>
     </div>
     <!-- D30.5: the page itself carries the rank's atmosphere. Painted behind
-         everything, driven by the centred rank's own material. -->
-    <div class="rank-atmos" id="rankAtmos" aria-hidden="true"></div>
+         everything, driven by the rank's own material. Phase C: two layers, so
+         the light can sit between two ranks while the ladder does. -->
+    <div class="rank-atmos" id="rankAtmos" aria-hidden="true">
+      <div class="rank-atmos-layer" id="rankAtmosBase"></div>
+      <div class="rank-atmos-layer" id="rankAtmosBlend"></div>
+    </div>
     <div class="rank-stagearea">
       <div class="rank-trackwrap" id="rankTrackWrap" tabindex="0" role="region" aria-label="Rank ladder. Swipe or use arrow keys to browse ranks.">
-        <div class="rank-track" id="rankTrack"></div>
+        <div class="rank-trackmask">
+          <div class="rank-track" id="rankTrack"></div>
+        </div>
       </div>
-      <!-- Anchored footer: the ladder indicator and the way deeper sit on one
+      <!-- Anchored footer: the ladder's rail and the way deeper sit on one
            grounded band rather than floating under the card. -->
       <div class="rank-footer">
-        <div class="rank-dots" id="rankDots" aria-hidden="true"></div>
+        <div class="rank-rail" id="rankRail">
+          <div class="rank-rail-head">
+            <span class="rank-rail-pos" id="rankRailPos"></span>
+            <button type="button" class="rank-return" id="rankReturn" onclick="rankReturnToMine()" tabindex="-1" aria-hidden="true"><svg class="rank-return-chev" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" focusable="false"><path d="M7.5 2.5L4 6l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>My rank</span></button>
+          </div>
+          <div class="rank-rail-track" id="rankRailTrack" role="group" aria-label="Jump to a rank"></div>
+        </div>
         <button type="button" class="rank-profile-link" onclick="closeRankShowcase(); openProfile()">
           Full profile &amp; achievements</button>
       </div>
     </div>
+    <div class="sr-only" id="rankLive" aria-live="polite" aria-atomic="true"></div>
   </div>
 </div>
 
@@ -13353,6 +13477,31 @@ const LOOP_UPDATES = [
     changes: [
       'When your week has an Arms day, LOOP counts arm work across the whole week and trims extra curls and pushdowns from your other days instead of piling them on. Compound lifts are never removed',
       'The small swap menu beside each exercise name has been replaced by the Swap button'
+    ]
+  },
+  {
+    id: 'v5-7',
+    version: 'LOOP 5.7',
+    title: 'Your Rank Ladder',
+    date: '2027-01-13',
+    swVersion: 'loop-v134',
+    summary: 'Swiping through your ranks now follows your finger, and a new rail shows the whole ladder at a glance.',
+    newFeatures: [
+      'A rank rail replaces the dots under your rank: one segment for each of the eight ranks. The ranks you have earned are filled, yours is marked YOU, and a small gem shows which rank you are looking at. Tap any segment to go straight to that rank',
+      'My rank — whenever you are looking at a rank that isn’t yours, a button above the rail takes you straight back to it'
+    ],
+    improvements: [
+      'Swiping between ranks follows your finger exactly and keeps the momentum of your swipe as it settles on the next rank, instead of snapping into place',
+      'The colour of the page shifts with the swipe itself, so halfway between two ranks the screen is halfway between their light',
+      'When a rank settles in the centre, its emblem locks in with a small lift as the light passes over it',
+      'A swipe that starts up or down is left alone, so the ranks only move when you mean to move them'
+    ],
+    bugFixes: [
+      'Swiping between ranks no longer makes the emblems rise and fall slightly as they pass through the centre'
+    ],
+    changes: [
+      'With Reduce Motion turned on, ranks change at once with a short fade instead of sliding and lifting',
+      'The eight emblems themselves are exactly as they were'
     ]
   }
 ];
@@ -23669,14 +23818,470 @@ function rankCardHtml(r, i, p){
   const aria = r.name + ', rank ' + (i + 1) + ' of ' + RANKS.length + ', ' +
     (state === 'current' ? 'current rank, Level ' + p.level + ', ' : state === 'achieved' ? 'achieved, ' : 'not yet reached, ') +
     range.toLowerCase().replace('-', ' through ') + '.';
+  /* Phase C — the footer sits in a box every panel reserves at the same
+     height. The athlete's own rank carries a progress bar and every other
+     rank one line, so the panels were 6px apart in height and, centred in the
+     track, each emblem rose and fell as the ladder carried it past. */
   return '<article class="rank-panel rank-' + state + '" role="group" aria-roledescription="rank"' +
       ' aria-label="' + escapeAttr(aria) + '">' +
     '<div class="rank-state">' + stateLabel + '</div>' +
     '<h3 class="rank-title">' + escapeHtml(r.name) + '</h3>' +
     '<div class="rank-range">' + escapeHtml(range) + '</div>' +
     '<div class="rank-medal-wrap">' + rankMedalSvg(r.name, 208, { showcase: true }) + '</div>' +
-    footer +
+    '<div class="rank-foot">' + footer + '</div>' +
   '</article>';
+}
+
+/* =========================================================
+   THE LADDER MOVES LIKE AN OBJECT  (Phase C)
+   ---------------------------------------------------------
+   One continuous position, in ranks, drives everything that
+   moves: the track, each panel's depth, the rail's gem, the
+   caption and the page's light. Nothing is switched by class
+   while the ladder moves, so no part of the page can disagree
+   with another about where it is.
+
+   THE GESTURE is a scroll until it has shown it is sideways
+   (intentSlop, intentRatio). From then the ladder follows the
+   finger 1:1, and past either end it resists harder the
+   further it is pulled.
+
+   THE RELEASE is decided by rankSettleTarget() from what the
+   finger said last: a slow drag moves past a third of a panel;
+   a flick moves exactly one rank; a throw back against the
+   drag cancels it. The ladder then travels on a critically
+   damped spring that starts at the finger's own speed, so a
+   release continues the gesture instead of restarting it, and
+   a finger put on a moving ladder holds it where it is.
+
+   THE CEREMONY is small and happens once, when a rank lands:
+   the light passes over the emblem and it locks in with a
+   1.8% lift. No spin, no particles, nothing that loops.
+
+   COST. Geometry is measured when the showcase opens and when
+   its size changes, never per frame. A frame writes the track
+   transform, the depth of panels whose depth changed, the
+   gem's transform and one opacity; the eight emblems are built
+   once, when the showcase opens. The spring is evaluated in
+   closed form against the clock, so a dropped frame changes
+   nothing about where the ladder is.
+   ========================================================= */
+const RANK_MOTION = {
+  intentSlop: 10,         // px a touch travels before it can be anything but a tap
+  intentRatio: 1.15,      // ...and sideways must lead vertical by this much to be a swipe
+  flickVelocity: 0.35,    // px/ms at release
+  flickDistance: 24,      // px after the slop: 34px of finger travel, clear of tap wander
+  velocityWindowMs: 100,  // release speed is read over the last 100ms of movement
+  restMs: 60,             // a finger that rested this long before lifting threw nothing
+  rubber: 0.55,           // resistance past either end
+  omega: 17,              // spring stiffness, critically damped: lands in ~0.33s
+  commitDistance: 0.03,   // a rank has landed once the ladder is this close, in ranks
+  jumpFade: 260,          // ms: a jump of two ranks or more cuts through dark
+  depthScale: 0.07,       // a neighbour one rank away is 7% smaller...
+  depthFade: 0.66         // ...and holds a third of the light
+};
+const _rankCar = { pos: 0, vel: 0, raf: 0, gen: 0, depth: 0, watchdog: 0, jumpTimer: 0,
+  geom: null, atmos: null, nearest: -1, mine: 0, landed: -1, arrival: null, fades: null,
+  motionQuery: null, ro: null };
+
+function rankNow(){
+  return (typeof performance !== 'undefined' && performance && typeof performance.now === 'function')
+    ? performance.now() : Date.now();
+}
+function rankReducedMotion(){
+  try{
+    if(!_rankCar.motionQuery && window.matchMedia) _rankCar.motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    return !!(_rankCar.motionQuery && _rankCar.motionQuery.matches);
+  }catch(e){ return false; }
+}
+
+/* Past either end the ladder yields less than the finger moves, and the
+   resistance grows with distance: it approaches `dimension` and never reaches
+   it. Odd, so both ends behave the same. */
+function rankRubber(overshoot, dimension){
+  const d = Math.max(1, dimension), x = Math.abs(overshoot);
+  return (overshoot < 0 ? -1 : 1) * (1 - 1 / (x * RANK_MOTION.rubber / d + 1)) * d;
+}
+
+/* Where a released gesture comes to rest. Pure, so the rule is asserted
+   directly rather than through a finger.
+     startPos  where the ladder was when the finger landed, in ranks
+     dragPx    horizontal travel since the gesture became a swipe
+               (negative = toward the higher ranks)
+     vPx       release velocity in px/ms, same sign
+     step      one panel, in px
+     heading   the rank the ladder was travelling to when the finger landed */
+function rankSettleTarget(startPos, dragPx, vPx, step, heading){
+  const M = RANK_MOTION, last = RANKS.length - 1;
+  const s = Math.max(1, step || 1);
+  const clamp = i => Math.max(0, Math.min(last, i));
+  const start = clamp(Math.round(startPos));
+  const home = heading === undefined ? start : clamp(heading);
+  const dx = dragPx || 0, v = vPx || 0;
+  const at = startPos - dx / s;                       // the ladder under the finger
+  const dragDir = dx < 0 ? 1 : -1, throwDir = v < 0 ? 1 : -1;
+  if(Math.abs(v) >= M.flickVelocity){
+    /* The last thing the finger said wins: a throw back against the drag
+       cancels it, whatever distance came first. */
+    if(dx !== 0 && throwDir !== dragDir) return home;
+    if(Math.abs(dx) >= M.flickDistance){
+      /* One rank past the further of where the ladder is and where it was
+         already going. A throw on a ladder still arriving counts from its
+         destination, so a run of quick flicks never spends one of them
+         re-reaching the same rank — however far the ladder lags behind. */
+      const base = throwDir > 0 ? Math.max(home, Math.floor(at)) : Math.min(home, Math.ceil(at));
+      return clamp(base + throwDir);
+    }
+  }
+  /* Grabbed in flight and let go slowly: the rank it is nearest. */
+  if(Math.abs(startPos - start) > 0.02) return clamp(Math.round(at));
+  if(Math.abs(dx) > s / 3) return clamp(start + dragDir * Math.max(1, Math.round(Math.abs(dx) / s)));
+  return start;
+}
+
+/* Release speed over the last moments of movement. A finger that rested
+   before it lifted threw nothing, however fast it moved before. */
+function rankReleaseVelocity(samples, now){
+  if(!samples || samples.length < 2) return 0;
+  const last = samples[samples.length - 1];
+  if(now - last.t > RANK_MOTION.restMs) return 0;
+  let first = null;
+  for(let i = samples.length - 2; i >= 0; i--){
+    if(last.t - samples[i].t > RANK_MOTION.velocityWindowMs) break;
+    first = samples[i];
+  }
+  if(!first || last.t <= first.t) return 0;
+  return (last.x - first.x) / (last.t - first.t);
+}
+
+/* A critically damped spring in closed form: displacement and velocity (units
+   per second) at time t seconds, from displacement x0 and velocity v0. Exact
+   at any frame rate, and from rest it never overshoots. */
+function rankSpringAt(x0, v0, t, omega){
+  const w = omega || RANK_MOTION.omega;
+  const e = Math.exp(-w * t), b = v0 + w * x0;
+  return { x: (x0 + b * t) * e, v: (v0 - w * b * t) * e };
+}
+
+/* Read when the showcase opens or changes size — never per frame. Each
+   panel's own measured position is kept rather than index × step: panel
+   widths land on fractional pixels, and a multiplied step drifts further from
+   true centre with every rank. */
+function rankMeasure(){
+  const wrap = document.getElementById('rankTrackWrap');
+  const track = document.getElementById('rankTrack');
+  if(!wrap || !track) return null;
+  const panels = Array.prototype.slice.call(track.children || [])
+    .filter(el => el && el.classList && el.classList.contains('rank-panel'));
+  if(!panels.length){ _rankCar.geom = null; return null; }
+  const rail = document.getElementById('rankRailTrack');
+  const box = el => (typeof el.getBoundingClientRect === 'function')
+    ? el.getBoundingClientRect() : { left: el.offsetLeft || 0, width: el.offsetWidth || 0 };
+  /* Measured with the ladder's own transforms lifted, in fractional pixels:
+     offsetLeft rounds to whole pixels, and at 390px wide that rounding alone
+     left the centred ring a quarter-pixel off true centre. The transforms are
+     written straight back by the render that follows, before any paint. */
+  track.style.transform = 'none';
+  panels.forEach(el => { el.style.transform = 'none'; el._rkDepth = -1; });
+  const t = box(track), w = box(wrap);
+  const rects = panels.map(box);
+  const offsets = rects.map(r => r.left - t.left);
+  const width = rects[0].width;
+  _rankCar.geom = {
+    track, panels, offsets,
+    step: (panels.length > 1 && offsets[1] > offsets[0]) ? offsets[1] - offsets[0] : width + 22,
+    center: (w.left + w.width / 2) - t.left - width / 2,
+    railWidth: rail ? box(rail).width : 0,
+    thumb: document.getElementById('rankRailThumb')
+  };
+  return _rankCar.geom;
+}
+function rankStep(){
+  const g = _rankCar.geom || rankMeasure();
+  return (g && g.step) || 300;
+}
+
+/* ONE FRAME. `pos` is a rank index — fractional while the ladder moves, past
+   either end while it resists. Writes transforms and opacity, only where they
+   changed, and reads no layout. */
+function rankRender(pos){
+  if(!(pos === pos)) return;                       // NaN never reaches the page
+  _rankCar.pos = pos;
+  const g = _rankCar.geom || rankMeasure();
+  if(!g) return;
+  const last = g.panels.length - 1;
+  let shown = pos;
+  if(pos < 0) shown = rankRubber(pos * g.step, g.step) / g.step;
+  else if(pos > last) shown = last + rankRubber((pos - last) * g.step, g.step) / g.step;
+  const inside = Math.max(0, Math.min(last, shown));
+  const lo = Math.floor(inside), hi = Math.min(last, lo + 1), frac = inside - lo;
+  const offset = g.offsets[lo] + (g.offsets[hi] - g.offsets[lo]) * frac + (shown - inside) * g.step;
+  g.track.style.transform = 'translate3d(' + (g.center - offset).toFixed(2) + 'px,0,0)';
+
+  /* Depth: the centred rank at full size and light, a neighbour smaller and
+     dimmer, continuously in between. Reduced motion keeps the light, not the
+     size. */
+  const flat = rankReducedMotion();
+  for(let i = 0; i <= last; i++){
+    const d = Math.min(1, Math.abs(i - shown));
+    const key = Math.round(d * 1000) + (flat ? 2000 : 0);
+    const el = g.panels[i];
+    if(el._rkDepth === key) continue;
+    el._rkDepth = key;
+    el.style.opacity = (1 - RANK_MOTION.depthFade * d).toFixed(3);
+    el.style.transform = flat ? 'none' : 'scale(' + (1 - RANK_MOTION.depthScale * d).toFixed(4) + ')';
+  }
+  if(g.thumb && g.railWidth){
+    g.thumb.style.transform = 'translate3d(' + (g.railWidth * (inside + 0.5) / g.panels.length).toFixed(2) + 'px,0,0)';
+  }
+  rankAtmosphereAt(lo, hi, frac);
+  const nearest = Math.round(inside);
+  if(nearest !== _rankCar.nearest){
+    _rankCar.nearest = nearest;
+    rankNearestChanged(nearest);
+  }
+}
+
+/* The page's light at a ladder position: (1 − frac) of the rank below and
+   frac of the rank above. Two opaque layers make the mix exact — the upper
+   layer's opacity IS the weight — and either may hold either rank, so which
+   holds which is chosen to repaint the least: one paint per rank that comes
+   into play, and every frame between is an opacity write. */
+function rankAtmosphereAt(lo, hi, frac){
+  const a = _rankCar.atmos || (_rankCar.atmos = {
+    base: document.getElementById('rankAtmosBase'),
+    top: document.getElementById('rankAtmosBlend'), b: -1, t: -1, o: -1 });
+  if(!a.base || !a.top) return;
+  const f = frac < 0.002 ? 0 : frac > 0.998 ? 1 : frac;
+  /* A layer whose weight is zero needs no paint at all. */
+  const cost = (baseRank, topRank, topWeight) =>
+    (topWeight < 1 && a.b !== baseRank ? 1 : 0) + (topWeight > 0 && a.t !== topRank ? 1 : 0);
+  const straight = cost(lo, hi, f) <= cost(hi, lo, 1 - f);
+  const baseRank = straight ? lo : hi, topRank = straight ? hi : lo, w = straight ? f : 1 - f;
+  if(w < 1 && a.b !== baseRank){ paintRankAtmosphere(baseRank, a.base); a.b = baseRank; }
+  if(w > 0 && a.t !== topRank){ paintRankAtmosphere(topRank, a.top); a.t = topRank; }
+  const o = Math.round(w * 1000) / 1000;
+  if(o !== a.o){ a.o = o; a.top.style.opacity = String(o); }
+}
+
+/* What changes when a different rank is nearest the centre: the caption, the
+   gem's colour, and whether the way home is offered. Rare by nature, so it is
+   not a per-frame cost. */
+function rankNearestChanged(i){
+  const r = RANKS[i];
+  if(!r) return;
+  const cap = document.getElementById('rankRailPos');
+  if(cap) cap.textContent = 'RANK ' + (i + 1) + ' OF ' + RANKS.length;
+  const thumb = _rankCar.geom && _rankCar.geom.thumb;
+  if(thumb && thumb.style && typeof thumb.style.setProperty === 'function'){
+    const v = RANK_VISUALS[r.name] || RANK_VISUALS.ROOKIE;
+    thumb.style.setProperty('--thumb-hi', mixHex(v.gem[0], '#FFFFFF', 0.45));
+    thumb.style.setProperty('--thumb-lo', v.gem[1]);
+    thumb.style.setProperty('--thumb-glow', hexA(v.gem[0], 0.55));
+  }
+  rankUpdateReturn(i);
+}
+
+/* The ladder as a control: one segment per rank, in order. The ranks behind
+   the athlete are filled, their own is lit and marked, the ranks ahead are
+   hairlines. The gem rides the rail with the ladder and wears the colour of
+   the rank in view. Every segment goes straight to its rank. */
+function rankRailHtml(p){
+  const mine = rankIndexOf(p.rank);
+  return RANKS.map((r, i) => {
+    const state = i < mine ? 'achieved' : i === mine ? 'current' : 'locked';
+    const said = state === 'current' ? 'your rank' : state === 'achieved' ? 'achieved' : 'not yet reached';
+    return '<button type="button" class="rank-rail-seg is-' + state + '" onclick="rankGoTo(' + i + ')"' +
+      ' aria-label="' + escapeAttr(r.name + ', rank ' + (i + 1) + ' of ' + RANKS.length + ', ' + said) + '">' +
+      '<span class="rank-rail-bar" aria-hidden="true"></span>' +
+      (state === 'current' ? '<span class="rank-rail-you" aria-hidden="true">YOU</span>' : '') +
+    '</button>';
+  }).join('') + '<span class="rank-rail-thumb" id="rankRailThumb" aria-hidden="true"></span>';
+}
+
+/* A rank has landed. The ceremony belongs to arriving somewhere new: landing
+   back where the gesture started, opening, and re-centring are quiet. */
+function rankLanded(i, quiet){
+  const car = _rankCar, g = car.geom;
+  const arrived = !quiet && i !== car.landed;
+  car.landed = i;
+  if(g) g.panels.forEach((c, k) => c.classList.toggle('rank-front', k === i));
+  document.querySelectorAll('.rank-rail-seg').forEach((s, k) => {
+    if(k === i) s.setAttribute('aria-current', 'true'); else s.removeAttribute('aria-current');
+  });
+  if(!arrived) return;
+  rankArrive(g ? g.panels[i] : null);
+  const r = RANKS[i], live = document.getElementById('rankLive');
+  if(live && r) live.textContent = r.name + ', rank ' + (i + 1) + ' of ' + RANKS.length + ', ' +
+    (i === car.mine ? 'your rank' : i < car.mine ? 'achieved' : 'not yet reached');
+}
+
+/* The emblem locks in: 1.8% up and back, on the emblem's own box, so it
+   scales about the centre of its ring. Reduced motion keeps a short fade.
+   The previous arrival is always cancelled first, so a run of swipes can
+   never stack them. */
+function rankArrive(panel){
+  rankCancel('arrival');
+  if(!panel || typeof panel.querySelector !== 'function') return;
+  const flat = rankReducedMotion();
+  const el = panel.querySelector(flat ? '.rank-medal-wrap' : '.rank-medal-wrap svg');
+  if(!el || typeof el.animate !== 'function') return;
+  try{
+    _rankCar.arrival = flat
+      ? el.animate([{ opacity: 0.7 }, { opacity: 1 }], { duration: 160, easing: 'linear' })
+      : el.animate([
+          { transform: 'scale(1)' },
+          { transform: 'scale(1.018)', offset: 0.35 },
+          { transform: 'scale(1)' }
+        ], { duration: 380, easing: 'cubic-bezier(0.3, 0, 0.2, 1)' });
+  }catch(e){ _rankCar.arrival = null; }
+}
+function rankCancel(key){
+  const a = _rankCar[key];
+  (Array.isArray(a) ? a : [a]).forEach(x => { if(x){ try{ x.cancel(); }catch(e){} } });
+  _rankCar[key] = null;
+}
+
+function rankStopAnimation(keepFade){
+  const car = _rankCar;
+  car.gen++;
+  if(car.raf && typeof cancelAnimationFrame === 'function'){ try{ cancelAnimationFrame(car.raf); }catch(e){} }
+  car.raf = 0;
+  car.vel = 0;
+  clearTimeout(car.watchdog);
+  clearTimeout(car.jumpTimer);
+  car.jumpTimer = 0;
+  if(!keepFade) rankCancel('fades');
+}
+
+/* Travel to a rank on the spring. `vIndex` is the ladder's velocity in ranks
+   per ms, so the motion carries on from the finger instead of starting over. */
+function rankAnimateTo(target, vIndex){
+  const car = _rankCar;
+  rankStopAnimation(true);
+  const gen = car.gen;
+  const x0 = car.pos - target;
+  if(rankReducedMotion() || typeof requestAnimationFrame !== 'function' ||
+     (Math.abs(x0) < 0.0015 && Math.abs(vIndex || 0) < 0.00002)){
+    rankRender(target);
+    rankLanded(target);
+    return;
+  }
+  const w = RANK_MOTION.omega;
+  /* The throw is honoured up to the speed the remaining distance can absorb:
+     a critically damped spring passes its rank only when it starts faster
+     than omega × distance, and at 1.15× that it passes by under a
+     ten-thousandth of the distance. A hard flick released just short of a
+     rank settles into it instead of sailing past and coming back. */
+  const cap = w * Math.abs(x0) * 1.15;
+  const v0 = Math.max(-cap, Math.min(cap, (vIndex || 0) * 1000));
+  const t0 = rankNow();
+  let landed = false;
+  const finish = () => {
+    if(gen !== car.gen) return;
+    car.gen++;                                     // this travel is over; none of it runs again
+    if(car.raf && typeof cancelAnimationFrame === 'function'){ try{ cancelAnimationFrame(car.raf); }catch(e){} }
+    car.raf = 0; car.vel = 0;
+    clearTimeout(car.watchdog);
+    rankRender(target);
+    if(!landed){ landed = true; rankLanded(target); }
+  };
+  const frame = () => {
+    if(gen !== car.gen) return;
+    /* A requestAnimationFrame that answers synchronously would recurse; it
+       gets the resting state instead. */
+    if(car.depth > 2){ finish(); return; }
+    car.depth++;
+    try{
+      const t = Math.max(0, (rankNow() - t0) / 1000);
+      const s = rankSpringAt(x0, v0, t, w);
+      if((Math.abs(s.x) < 0.0015 && Math.abs(s.v) < 0.02) || t > 1.2){ finish(); return; }
+      car.vel = s.v / 1000;
+      rankRender(target + s.x);
+      if(!landed && Math.abs(s.x) < RANK_MOTION.commitDistance && Math.abs(s.v) < 0.6){
+        landed = true;
+        rankLanded(target);
+      }
+      car.raf = requestAnimationFrame(frame);
+    } finally { car.depth--; }
+  };
+  /* The clock decides where the ladder is, not the frames: if frames stop
+     arriving, it still lands exactly on its rank. */
+  car.watchdog = setTimeout(finish, 1400);
+  car.raf = requestAnimationFrame(frame);
+}
+
+/* A jump of two ranks or more cuts through dark — the track and the page's
+   light dip together — rather than racing six emblems past the eye, then
+   glides the last part of the way in. */
+function rankJumpTo(target){
+  const car = _rankCar, g = car.geom;
+  rankStopAnimation();
+  const gen = car.gen;
+  const dir = target > car.pos ? 1 : -1;
+  const frames = [{ opacity: 1 }, { opacity: 0.1, offset: 0.4 }, { opacity: 1 }];
+  const timing = { duration: RANK_MOTION.jumpFade, easing: 'ease-in-out' };
+  car.fades = [g && g.track, document.getElementById('rankAtmos')]
+    .filter(el => el && typeof el.animate === 'function')
+    .map(el => { try{ return el.animate(frames, timing); }catch(e){ return null; } });
+  car.jumpTimer = setTimeout(() => {
+    car.jumpTimer = 0;
+    if(gen !== car.gen) return;
+    rankRender(target - dir * 0.45);
+    rankAnimateTo(target, 0);
+  }, Math.round(RANK_MOTION.jumpFade * 0.4));
+}
+
+/* THE ONE PLACE THE INDEX MOVES. The destination is committed the moment it
+   is decided, so a key press or a rail tap mid-flight builds on where the
+   ladder is going, not where it was, and the page catches up. `glide` keeps
+   the travel continuous (arrow keys, a finger's release); without it, a
+   destination two or more ranks away is jumped to. */
+function rankGoTo(index, vIndex, glide){
+  rankShowcaseIndex = Math.max(0, Math.min(RANKS.length - 1, index));
+  const car = _rankCar;
+  const v = vIndex === undefined ? (car.raf ? car.vel : 0) : vIndex;
+  const at = Math.max(0, Math.min(RANKS.length - 1, car.pos));
+  if(!glide && car.geom && !rankReducedMotion() && Math.abs(rankShowcaseIndex - at) >= 1.5) rankJumpTo(rankShowcaseIndex);
+  else rankAnimateTo(rankShowcaseIndex, v);
+}
+function rankGo(delta){
+  rankGoTo(Math.max(0, Math.min(RANKS.length - 1, rankShowcaseIndex + delta)), undefined, true);
+}
+
+/* The way home. Offered only while a rank other than the athlete's is in
+   view, on the side their rank lies, and it holds its place in the layout so
+   nothing moves when it comes and goes. */
+function rankUpdateReturn(view){
+  const btn = document.getElementById('rankReturn');
+  if(!btn) return;
+  const away = view !== _rankCar.mine;
+  btn.classList.toggle('is-shown', away);
+  /* It leaves from where it is, rather than crossing sides as it fades. */
+  if(away) btn.classList.toggle('is-left', _rankCar.mine < view);
+  btn.setAttribute('aria-hidden', away ? 'false' : 'true');
+  btn.tabIndex = away ? 0 : -1;
+}
+function rankReturnToMine(){
+  const btn = document.getElementById('rankReturn');
+  /* The control disappears once it has done its job, so focus is handed to
+     the ladder rather than dropped on the page. */
+  if(btn && document.activeElement === btn){
+    const wrap = document.getElementById('rankTrackWrap');
+    if(wrap){ try{ wrap.focus({ preventScroll: true }); }catch(e){} }
+  }
+  rankGoTo(_rankCar.mine);
+}
+
+/* Draws the settled rank from freshly read geometry: after opening, and
+   whenever the page changes size. A ladder in motion — under a finger or on
+   its way somewhere — keeps moving and simply uses the new geometry. */
+function positionRankTrack(animate){
+  if(animate){ rankGoTo(rankShowcaseIndex); return; }
+  rankMeasure();
+  if(_rankDrag || _rankCar.raf || _rankCar.jumpTimer){ rankRender(_rankCar.pos); return; }
+  rankRender(rankShowcaseIndex);
+  rankLanded(rankShowcaseIndex, true);
 }
 
 function openRankShowcase(){
@@ -23686,67 +24291,38 @@ function openRankShowcase(){
   const p = getCurrentProgression();
   const track = document.getElementById('rankTrack');
   track.innerHTML = RANKS.map((r, i) => rankCardHtml(r, i, p)).join('');
+  const rail = document.getElementById('rankRailTrack');
+  if(rail) rail.innerHTML = rankRailHtml(p);
+  const live = document.getElementById('rankLive');
+  if(live) live.textContent = '';
   /* The first question the screen answers is "where am I?" — it opens on the
      athlete's rank every time, never on Rookie, never on a remembered spot. */
   rankShowcaseIndex = rankIndexOf(p.rank);
-  document.getElementById('rankDots').innerHTML = RANKS.map((r, i) =>
-    '<span class="rank-dot' + (i === rankShowcaseIndex ? ' on' : '') + '"></span>').join('');
+  rankStopAnimation();
+  Object.assign(_rankCar, { mine: rankShowcaseIndex, pos: rankShowcaseIndex,
+    nearest: -1, landed: -1, geom: null, atmos: null });
+  _rankDrag = null;
   ov.classList.add('open');
   document.body.classList.add('page-locked');
-  paintRankAtmosphere(rankShowcaseIndex);
   positionRankTrack(false);
+  rankUpdateReturn(rankShowcaseIndex);
   wireRankCarousel();
 }
 function closeRankShowcase(){
+  rankStopAnimation();
+  rankCancel('arrival');
+  _rankDrag = null;
   const ov = document.getElementById('rankOverlay');
   if(ov) ov.classList.remove('open');
   document.body.classList.remove('page-locked');
 }
 
-function rankStep(){
-  const wrap = document.getElementById('rankTrackWrap');
-  const card = document.querySelector('.rank-panel');
-  if(!wrap || !card) return 300;
-  const gap = 14;
-  /* offsetWidth, deliberately: rect width includes the 0.94 scale on
-     non-front cards, and measuring a scaled card drifted the centering by
-     more pixels for every step. Layout width ignores transforms. */
-  return card.offsetWidth + gap;
-}
-function positionRankTrack(animate, dragOffset){
-  const track = document.getElementById('rankTrack');
-  const wrap = document.getElementById('rankTrackWrap');
-  if(!track || !wrap) return;
-  /* Positioned from the target card's own layout offset rather than
-     index × step: card widths land on half-pixels (78vw), and multiplying a
-     rounded step drifted the centre by another pixel per rank. Reading the
-     one card's offsetLeft keeps every stop within a pixel of true centre. */
-  const cards = track.children;
-  const card = cards[rankShowcaseIndex] || cards[0];
-  if(!card) return;
-  const center = (wrap.clientWidth - card.offsetWidth) / 2;
-  const x = center - card.offsetLeft + (dragOffset || 0);
-  track.style.transition = animate ? 'transform 0.42s cubic-bezier(0.22,1,0.36,1)' : 'none';
-  track.style.transform = 'translate3d(' + x + 'px,0,0)';
-  document.querySelectorAll('.rank-dot').forEach((d, i) => d.classList.toggle('on', i === rankShowcaseIndex));
-  document.querySelectorAll('.rank-panel').forEach((c, i) => c.classList.toggle('rank-front', i === rankShowcaseIndex));
-  paintRankAtmosphere(dragOffset ? rankNearestIndex(dragOffset) : rankShowcaseIndex);
-}
-
-/* Which rank the page is closest to mid-drag, so the atmosphere changes with
-   the gesture rather than snapping only on release. */
-function rankNearestIndex(dragOffset){
-  const step = rankStep();
-  const shifted = rankShowcaseIndex - (dragOffset / step);
-  return Math.max(0, Math.min(RANKS.length - 1, Math.round(shifted)));
-}
-
-/* The page wears the centred rank's own material. Nothing new is invented:
-   the hues are that rank's gem and metal, and the intensity rides the existing
-   glow ladder (0 → 0.38), so a higher rank is literally a more elevated page. */
-function paintRankAtmosphere(i){
-  const el = document.getElementById('rankAtmos');
-  if(!el) return;
+/* The page wears the rank's own material. Nothing new is invented: the hues
+   are that rank's gem and metal, and the intensity rides the existing glow
+   ladder (0 → 0.38), so a higher rank is literally a more elevated page. */
+function paintRankAtmosphere(i, el){
+  el = el || document.getElementById('rankAtmosBase');
+  if(!el || !el.style || typeof el.style.setProperty !== 'function') return;
   const r = RANKS[i]; if(!r) return;
   const v = RANK_VISUALS[r.name] || RANK_VISUALS.ROOKIE;
   /* Measured: riding the raw glow ladder left ROOKIE at 4% alpha — invisible
@@ -23765,54 +24341,84 @@ function hexA(hex, a){
   const c = [1,3,5].map(k => parseInt(hex.substr(k,2), 16));
   return 'rgba(' + c.join(',') + ',' + Math.max(0, Math.min(1, a)).toFixed(3) + ')';
 }
-function rankGo(delta){
-  rankShowcaseIndex = Math.max(0, Math.min(RANKS.length - 1, rankShowcaseIndex + delta));
-  positionRankTrack(true);
-}
 
 /* Pointer-driven, one listener set, wired once. The wrap declares
-   touch-action: pan-y, so vertical scrolling stays the browser's and the
-   horizontal axis is ours. Release resolves deterministically: past a third
-   of a card or flicked, move one; otherwise settle back. Never half-way. */
+   touch-action: pan-y, so a vertical pan belongs to the browser from its
+   first pixel, and this code claims a gesture only once it has shown it is
+   sideways: until then there is no pointer capture and nothing moves. */
 function wireRankCarousel(){
   const wrap = document.getElementById('rankTrackWrap');
   if(!wrap || wrap.dataset.wired === '1') return;
   wrap.dataset.wired = '1';
   wrap.addEventListener('pointerdown', e => {
-    _rankDrag = { x0: e.clientX, t0: Date.now(), dx: 0 };
-    try{ wrap.setPointerCapture(e.pointerId); }catch(err){}
+    if(e.button > 0) return;
+    if(_rankDrag && _rankDrag.mode === 'drag') return;   // a second finger is not a new gesture
+    const moving = !!(_rankCar.raf || _rankCar.jumpTimer);
+    /* A finger on a moving ladder holds it exactly where it is. */
+    if(moving) rankStopAnimation();
+    _rankDrag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, t0: rankNow(), dx: 0,
+      mode: 'pending', startPos: _rankCar.pos, heading: rankShowcaseIndex, moving, samples: [] };
   });
   wrap.addEventListener('pointermove', e => {
-    if(!_rankDrag) return;
-    let dx = e.clientX - _rankDrag.x0;
-    /* Rubber-band at the ends: the ladder has a first and last rank, and a
-       swipe past either should feel like resistance rather than a dead stop
-       or a card sliding into empty space. */
-    const atStart = rankShowcaseIndex === 0 && dx > 0;
-    const atEnd = rankShowcaseIndex === RANKS.length - 1 && dx < 0;
-    if(atStart || atEnd) dx *= 0.32;
-    _rankDrag.dx = dx;
-    positionRankTrack(false, dx);
+    const d = _rankDrag;
+    if(!d || e.pointerId !== d.id || d.mode === 'scroll') return;
+    if(d.mode === 'pending'){
+      const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+      if(Math.abs(dx) < RANK_MOTION.intentSlop && Math.abs(dy) < RANK_MOTION.intentSlop) return;
+      if(Math.abs(dx) < Math.abs(dy) * RANK_MOTION.intentRatio){
+        d.mode = 'scroll';                         // vertical intent: a scroll, and it stays one
+        return;
+      }
+      /* Sideways intent. The ladder takes the gesture from this point, so it
+         starts moving without jumping the slop. */
+      d.mode = 'drag';
+      d.x0 = e.clientX;
+      wrap.classList.add('is-dragging');
+      try{ wrap.setPointerCapture(e.pointerId); }catch(err){}
+    }
+    d.dx = e.clientX - d.x0;
+    d.samples.push({ t: rankNow(), x: e.clientX });
+    if(d.samples.length > 16) d.samples.shift();
+    rankRender(d.startPos - d.dx / rankStep());
   });
-  const release = () => {
-    if(!_rankDrag) return;
-    const { dx, t0 } = _rankDrag;
+  const release = e => {
+    const d = _rankDrag;
+    if(!d || e.pointerId !== d.id) return;
     _rankDrag = null;
-    const step = rankStep();
-    /* D30.5 — a flick has to be a flick. At 24px the threshold sat inside the
-       range a finger wanders during an ordinary tap (~10-16px of slop), so a
-       sloppy press could change rank. 36px is still a small deliberate
-       gesture and is clear of tap jitter. The settle rule itself — a third of
-       a card, or a flick — is unchanged. */
-    const fast = Math.abs(dx) > 36 && (Date.now() - t0) < 260;
-    if(Math.abs(dx) > step / 3 || fast) rankGo(dx < 0 ? 1 : -1);
-    else positionRankTrack(true);
+    wrap.classList.remove('is-dragging');
+    if(d.mode !== 'drag'){
+      if(d.mode === 'pending' && e.type === 'pointerup' && !d.moving && rankNow() - d.t0 < 500){
+        /* A tap on the rank beside the centre goes to it. */
+        const g = _rankCar.geom;
+        const hit = e.target && typeof e.target.closest === 'function' ? e.target.closest('.rank-panel') : null;
+        const k = g && hit ? g.panels.indexOf(hit) : -1;
+        if(k > -1 && Math.abs(k - rankShowcaseIndex) === 1){ rankGoTo(k); return; }
+      }
+      /* Held, or interrupted by a scroll: it goes on to where it was going. */
+      if(d.moving || Math.abs(_rankCar.pos - rankShowcaseIndex) > 0.001) rankGoTo(rankShowcaseIndex);
+      return;
+    }
+    if(e.type !== 'pointerup'){
+      /* The browser took the gesture: settle on the nearest rank, no throw. */
+      rankGoTo(Math.max(0, Math.min(RANKS.length - 1, Math.round(_rankCar.pos))), 0, true);
+      return;
+    }
+    const now = rankNow(), step = rankStep();
+    const lastSample = d.samples[d.samples.length - 1];
+    if(!lastSample || lastSample.x !== e.clientX){
+      d.samples.push({ t: now, x: e.clientX });
+      d.dx = e.clientX - d.x0;
+    }
+    const v = rankReleaseVelocity(d.samples, now);
+    rankGoTo(rankSettleTarget(d.startPos, d.dx, v, step, d.heading), -v / step, true);
   };
   wrap.addEventListener('pointerup', release);
   wrap.addEventListener('pointercancel', release);
   wrap.addEventListener('keydown', e => {
     if(e.key === 'ArrowRight'){ rankGo(1); e.preventDefault(); }
     if(e.key === 'ArrowLeft'){ rankGo(-1); e.preventDefault(); }
+    if(e.key === 'Home'){ rankGoTo(0); e.preventDefault(); }
+    if(e.key === 'End'){ rankGoTo(RANKS.length - 1); e.preventDefault(); }
   });
   /* D30.5 — the track is positioned in pixels, so a viewport change leaves it
      holding the old geometry: measured, rotating to landscape left the centred
@@ -23827,6 +24433,17 @@ function wireRankCarousel(){
   };
   window.addEventListener('resize', recentre);
   window.addEventListener('orientationchange', recentre);
+  /* Phase C — a resize event is not guaranteed to follow a change of layout:
+     measured in an emulated rotation, none arrived and the emblem sat 212px
+     off-centre. The wrap reports its own size, after layout and before that
+     frame is painted, however it changed — and re-centring writes transforms
+     only, so it can never resize what is being observed. */
+  if(typeof ResizeObserver === 'function'){
+    try{
+      _rankCar.ro = new ResizeObserver(recentre);
+      _rankCar.ro.observe(wrap);
+    }catch(e){ _rankCar.ro = null; }
+  }
 }
 
 /* Superlinear curve: early levels are quick, later levels take substantially

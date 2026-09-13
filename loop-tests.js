@@ -13458,9 +13458,17 @@ function testRankIdentity(app){
     /rankShowcaseIndex = rankIndexOf\(p\.rank\);/.test(src));
   T('a second tap cannot open it twice',
     /if\(ov\.classList\.contains\('open'\)\) return;/.test(src));
-  T('release settles deterministically — a third of a card or a flick, one step',
-    /Math\.abs\(dx\) > step \/ 3 \|\| fast\) rankGo\(dx < 0 \? 1 : -1\);/.test(src) &&
-    /else positionRankTrack\(true\);/.test(src));
+  /* Phase C moved the release rule out of the pointer handler into one pure
+     function, rankSettleTarget(), so the guarantee is asserted by calling it
+     rather than by matching the line that used to hold it: past a third of a
+     panel, or a flick, moves exactly one rank; anything less settles back. */
+  T('release settles deterministically — a third of a card or a flick, one step', (() => {
+    const f = ctx.rankSettleTarget, s = 300;
+    if(typeof f !== 'function') return false;
+    return f(4, -(s / 3 + 2), 0, s) === 5 && f(4, s / 3 + 2, 0, s) === 3 &&
+      f(4, -(s / 3 - 2), 0, s) === 4 && f(4, -40, -0.8, s) === 5 && f(4, 40, 0.8, s) === 3 &&
+      f(4, -200, -5, s) === 5 && f(4, 0, 0, s) === 4;
+  })());
   T('the index can never leave the taxonomy',
     /Math\.max\(0, Math\.min\(RANKS\.length - 1, rankShowcaseIndex \+ delta\)\)/.test(src));
   T('vertical stays the browser\'s: the wrap declares pan-y',
@@ -13477,8 +13485,13 @@ function testRankIdentity(app){
     /id="rankTrackWrap" tabindex="0" role="region" aria-label="Rank ladder\./.test(src));
   T('the arrow chrome is gone, not merely hidden',
     !/rank-arrow/.test(src) && !/aria-label="Previous rank"/.test(src));
-  T('rankGo survives as the one place the index moves',
-    /function rankGo\(delta\)\{/.test(src) &&
+  /* Phase C: a rail segment, the way home and Home / End go TO a rank rather
+     than stepping by one, so the single clamped writer is now rankGoTo() and
+     rankGo() is a step expressed through it. Same guarantee — exactly one
+     place moves the index — asserted where it now lives. */
+  T('rankGoTo is the one place the index moves, and rankGo steps through it',
+    /function rankGoTo\(index, vIndex, glide\)\{\s*rankShowcaseIndex = Math\.max\(0, Math\.min\(RANKS\.length - 1, index\)\);/.test(src) &&
+    /function rankGo\(delta\)\{\s*rankGoTo\(/.test(src) &&
     (src.match(/rankShowcaseIndex = Math\.max/g) || []).length === 1);
   T('carousel listeners are wired once', /wrap\.dataset\.wired === '1'\) return;/.test(src));
 
@@ -14748,15 +14761,28 @@ async function testRankShowcaseExperience(){
   T('no arrow chrome remains', !/rank-arrow/.test(src));
   T('the old nav container is gone with it, not left dead',
     !/rank-nav/.test(src) && /\.rank-footer\{/.test(css));
+  /* Phase C replaced the pointer handler. A touch now has to show sideways
+     intent before it is a swipe at all, and the release rule and the end
+     resistance became pure functions. The three guarantees below are the same
+     ones, asserted by calling those functions instead of matching lines that
+     no longer exist. */
   T('a flick threshold clear of tap slop', (() => {
-    const m = src.match(/const fast = Math\.abs\(dx\) > (\d+) &&/);
-    return m && +m[1] >= 32;                      // tap slop is ~10-16px
+    const M = ctx.RANK_MOTION || {};
+    /* finger travel before a flick can count: the intent slop, then the flick
+       distance measured from where the swipe began */
+    const travel = (M.intentSlop || 0) + (M.flickDistance || 0);   // tap slop is ~10-16px
+    return travel >= 32 && ctx.rankSettleTarget(4, -(M.flickDistance - 4), -1.5, 318) === 4;
   })());
-  T('the settle rule itself is unchanged',
-    /Math\.abs\(dx\) > step \/ 3 \|\| fast\) rankGo\(dx < 0 \? 1 : -1\);/.test(src));
-  T('the ends resist rather than dead-stop',
-    /const atStart = rankShowcaseIndex === 0 && dx > 0;/.test(src) &&
-    /if\(atStart \|\| atEnd\) dx \*= 0\.32;/.test(src));
+  T('the settle rule itself is unchanged: a third of a panel, or a flick', (() => {
+    const f = ctx.rankSettleTarget, s = 318;
+    return f(4, -(s / 3 + 1), 0, s) === 5 && f(4, -(s / 3 - 1), 0, s) === 4 && f(4, -30, -0.6, s) === 5;
+  })());
+  T('the ends resist rather than dead-stop', (() => {
+    const r = ctx.rankRubber, d = 318;
+    const a = r(100, d), b = r(300, d), c = r(3000, d);
+    return a > 0 && a < 100 && b > a && c > b && c < d && r(-100, d) === -a &&
+      /if\(pos < 0\) shown = rankRubber\(/.test(src) && /else if\(pos > last\) shown = last \+ rankRubber\(/.test(src);
+  })());
   T('rotation re-centres the track instead of holding stale pixels',
     /window\.addEventListener\('resize', recentre\);/.test(src) &&
     /window\.addEventListener\('orientationchange', recentre\);/.test(src));
@@ -14795,11 +14821,20 @@ async function testRankShowcaseExperience(){
     for(let i = 1; i < alphas.length; i++) if(alphas[i] <= alphas[i-1]) return alphas;
     return alphas[0] >= 0.10 && alphas[7] >= 0.28;
   })() === true);
-  T('the atmosphere never animates — it cross-fades and stops',
-    /\.rank-atmos\{[\s\S]{0,260}transition: opacity/.test(css) &&
-    !/\.rank-atmos\{[\s\S]{0,260}animation:/.test(css));
+  /* Phase C: the cross-fade is no longer a 0.5s transition that plays after
+     the rank has changed. It IS the ladder's position — one opacity per frame
+     between two opaque layers — so it moves exactly as far as the finger does
+     and stops when the finger stops. Still no animation of its own, and now
+     no transition either: a transition would lag behind the finger. */
+  T('the atmosphere never animates — it cross-fades with the ladder and stops', (() => {
+    const layer = cssRule(css, '.rank-atmos-layer{');
+    const blend = cssRule(css, '.rank-atmos-layer + .rank-atmos-layer{');
+    return !!layer && !/animation:|transition:/.test(cssRule(css, '.rank-atmos{') + layer + blend) &&
+      /opacity: 0;/.test(blend) && /a\.top\.style\.opacity = String\(o\)/.test(src);
+  })());
   T('and it follows the gesture, not just the release',
-    /paintRankAtmosphere\(dragOffset \? rankNearestIndex\(dragOffset\) : rankShowcaseIndex\)/.test(src));
+    /rankAtmosphereAt\(lo, hi, frac\);/.test(fnSrc(src, 'rankRender')) &&
+    /rankRender\(d\.startPos - d\.dx \/ rankStep\(\)\);/.test(src));
 
   sub('the shine belongs to this page only');
   T('the renderer itself still animates nothing', (() => {
@@ -22289,6 +22324,447 @@ async function testExerciseVisuals(){
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
+/* =========================================================
+   CONTRACT 162 — THE RANK LADDER MOVES LIKE AN OBJECT (Phase C)
+   ---------------------------------------------------------
+   The approved emblems are untouched: what changed is how they
+   move. One continuous position drives the track, each panel's
+   depth, the rail's gem and the page's light. A touch is a
+   scroll until it is sideways; a release is decided by one pure
+   rule and travels on a critically damped spring; a rank lands
+   once, with a small ceremony that reduced motion reduces to a
+   fade. The dots are gone: an eight-segment rail shows the
+   ladder, the athlete's own rank, and the way back to it.
+   ========================================================= */
+async function testRankShowcaseMotion(){
+  section('CONTRACT 162 — rank showcase motion (Phase C)');
+  const fs = require('fs');
+  const crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+  const M = ctx.RANK_MOTION || {};
+  const car = ctx._rankCar || {};
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  /* Stand-ins that record what the ladder writes. */
+  const STEP = 318, CENTER = 47, RAIL = 360;
+  const recorder = () => {
+    const writes = [];
+    const style = new Proxy({}, { set(o, k, v){ writes.push(k); o[k] = v; return true; } });
+    const cls = new Set();
+    const child = { anims: [], asked: [], animate(frames, timing){
+      const a = { frames, timing, cancelled: false, cancel(){ this.cancelled = true; } }; this.anims.push(a); return a; } };
+    return { style, writes, cls, child,
+      classList: { add: c => cls.add(c), remove: c => cls.delete(c), contains: c => cls.has(c),
+        toggle: (c, f) => { (f === undefined ? !cls.has(c) : f) ? cls.add(c) : cls.delete(c); } },
+      setAttribute(){}, removeAttribute(){},
+      querySelector(sel){ child.asked.push(sel); return child; },
+      animate(frames, timing){ return child.animate(frames, timing); } };
+  };
+  const paints = { count: 0 };
+  const atmosLayer = () => ({ style: { opacity: '', setProperty(k){ if(k === '--rk-gem') paints.count++; } } });
+  let geo = null;
+  const install = () => {
+    const panels = (ctx.RANKS || []).map(recorder);
+    geo = { track: recorder(), panels, offsets: panels.map((_, i) => i * STEP), step: STEP, center: CENTER,
+      railWidth: RAIL, thumb: { style: { setProperty(k, v){ this[k] = v; } } } };
+    car.geom = geo;
+    car.atmos = { base: atmosLayer(), top: atmosLayer(), b: -1, t: -1, o: -1 };
+    return geo;
+  };
+  const reset = i => {
+    ctx.rankStopAnimation();
+    install();
+    car.mine = 4; car.nearest = -1; car.landed = i;
+    ctx._rankDrag = null;
+    ctx.rankShowcaseIndex = i;
+    ctx.rankRender(i);
+  };
+
+  sub('the emblems are the approved emblems, byte for byte');
+  T('every rank renders exactly what was approved, at every size', (() => {
+    const out = [];
+    (ctx.RANKS || []).forEach(r => [[208, { showcase: true }], [120, undefined], [30, undefined]].forEach(([size, opts]) =>
+      out.push(ctx.rankMedalSvg(r.name, size, opts).replace(/rk\d+/g, 'rk'))));
+    const h = crypto.createHash('sha256').update(out.join('\n')).digest('hex');
+    /* Rendered by the LOOP 5.6 build (4063e79) whose emblems D54 approved. A
+       change here is a redesign, and needs that approval, not a new hash. */
+    return h === '48039f1cd6d16b0f798d76d16784b451f71e93e71fcaf2cb5d754d8e4597ebbd' ? true : h;
+  })() === true);
+  T('motion lives outside the emblem: the track, the panel, and the emblem\'s own box',
+    !/animate|animation/i.test(fnSrc(src, 'rankMedalSvg')) &&
+    /panel\.querySelector\(flat \? '\.rank-medal-wrap' : '\.rank-medal-wrap svg'\)/.test(src) &&
+    !/rankMedalSvg|<svg/.test(fnSrc(src, 'rankRender')));
+
+  sub('a touch is a scroll until it is sideways');
+  T('it must travel past a slop, and sideways must lead',
+    M.intentSlop >= 8 && M.intentRatio > 1 &&
+    /if\(Math\.abs\(dx\) < RANK_MOTION\.intentSlop && Math\.abs\(dy\) < RANK_MOTION\.intentSlop\) return;/.test(src) &&
+    /if\(Math\.abs\(dx\) < Math\.abs\(dy\) \* RANK_MOTION\.intentRatio\)\{\s*d\.mode = 'scroll';/.test(src));
+  T('the finger is captured only once the gesture is a swipe', (() => {
+    const w = fnSrc(src, 'wireRankCarousel');
+    const down = w.slice(w.indexOf("'pointerdown'"), w.indexOf("'pointermove'"));
+    const move = w.slice(w.indexOf("'pointermove'"), w.indexOf('const release'));
+    return !/setPointerCapture/.test(down) && move.indexOf("d.mode = 'drag';") !== -1 &&
+      move.indexOf("d.mode = 'drag';") < move.indexOf('setPointerCapture');
+  })());
+  T('vertical stays the browser\'s', /\.rank-trackwrap\{[\s\S]{0,120}touch-action: pan-y;/.test(css));
+
+  /* The real handlers, driven by a clock the test owns. */
+  const wrap = ctx.document.getElementById('rankTrackWrap');
+  const handlers = {}, captured = [];
+  const realAdd = wrap.addEventListener, realNow = ctx.rankNow;
+  wrap.dataset.wired = '';
+  wrap.addEventListener = (type, fn) => { handlers[type] = fn; };
+  wrap.setPointerCapture = id => captured.push(id);
+  ctx.wireRankCarousel();
+  let clock = 1000;
+  ctx.rankNow = () => clock;
+  const run = steps => steps.forEach(([dt, type, x, y, extra]) => {
+    clock += dt;
+    if(handlers[type]) handlers[type](Object.assign({ type, pointerId: 1, clientX: x, clientY: y, button: 0, target: null }, extra || {}));
+  });
+
+  reset(4); captured.length = 0;
+  run([[0, 'pointerdown', 200, 400], [16, 'pointermove', 197, 388], [16, 'pointermove', 193, 350], [16, 'pointermove', 186, 300], [16, 'pointerup', 186, 300]]);
+  T('a vertical pan never moves the ladder', car.pos === 4 && ctx.rankShowcaseIndex === 4 && captured.length === 0,
+    'pos ' + car.pos + ' idx ' + ctx.rankShowcaseIndex);
+  reset(4); captured.length = 0;
+  run([[0, 'pointerdown', 200, 400], [16, 'pointermove', 188, 388], [16, 'pointermove', 170, 370], [16, 'pointerup', 170, 370]]);
+  T('nor does a diagonal one: a tie goes to the scroll', car.pos === 4 && ctx.rankShowcaseIndex === 4 && captured.length === 0);
+  reset(4); captured.length = 0;
+  run([[0, 'pointerdown', 200, 400], [30, 'pointermove', 206, 404], [30, 'pointerup', 207, 403]]);
+  T('a tap that wanders a few pixels changes nothing', car.pos === 4 && ctx.rankShowcaseIndex === 4 && captured.length === 0);
+
+  sub('the ladder follows the finger, and the release decides');
+  reset(4); captured.length = 0;
+  { const steps = [[0, 'pointerdown', 300, 400]];
+    for(let k = 1; k <= 20; k++) steps.push([20, 'pointermove', 300 - 5 * k, 401]);
+    run(steps); }
+  const midPos = car.pos;
+  T('mid-drag the ladder is exactly under the finger, less the slop',
+    Math.abs(midPos - (4 + 90 / STEP)) < 1e-9 && captured.length === 1, String(midPos));
+  run([[0, 'pointermove', 150, 401], [20, 'pointermove', 150, 401], [140, 'pointerup', 150, 401]]);
+  T('a slow drag past a third of a panel moves one rank', ctx.rankShowcaseIndex === 5 && car.pos === 5 && car.landed === 5);
+  reset(4);
+  run([[0, 'pointerdown', 300, 400], [16, 'pointermove', 290, 400], [16, 'pointermove', 270, 400], [16, 'pointermove', 250, 400], [16, 'pointerup', 250, 400]]);
+  T('a flick moves one rank', ctx.rankShowcaseIndex === 5 && car.pos === 5);
+  reset(4);
+  { const steps = [[0, 'pointerdown', 300, 400]];
+    for(let k = 1; k <= 15; k++) steps.push([20, 'pointermove', 300 - 10 * k, 400]);
+    for(let k = 1; k <= 4; k++) steps.push([12, 'pointermove', 150 + 20 * k, 400]);
+    steps.push([0, 'pointerup', 230, 400]);
+    run(steps); }
+  T('a throw back against the drag cancels it', ctx.rankShowcaseIndex === 4 && car.pos === 4);
+  reset(4);
+  run([[0, 'pointerdown', 300, 400], [16, 'pointermove', 280, 400], [16, 'pointermove', 200, 400],
+       [0, 'pointerdown', 100, 420, { pointerId: 2 }], [16, 'pointermove', 20, 420, { pointerId: 2 }],
+       [200, 'pointerup', 200, 400]]);
+  T('a second finger is not a second gesture', ctx.rankShowcaseIndex === 4 && car.pos === 4,
+    'idx ' + ctx.rankShowcaseIndex + ' pos ' + car.pos);
+  reset(4);
+  run([[0, 'pointerdown', 300, 400], [16, 'pointermove', 280, 400], [16, 'pointermove', 60, 400], [16, 'pointercancel', 60, 400]]);
+  T('a gesture the browser takes settles on the nearest rank, with no throw', ctx.rankShowcaseIndex === 5 && car.pos === 5);
+  reset(4);
+  run([[0, 'pointerdown', 380, 400, { target: { closest: () => geo.panels[5] } }], [60, 'pointerup', 380, 400, { target: { closest: () => geo.panels[5] } }]]);
+  T('a tap on the rank beside the centre goes to it', ctx.rankShowcaseIndex === 5);
+  reset(4);
+  { /* a ladder mid-travel: a frame pending, part of the way to rank 5 */
+    ctx.rankShowcaseIndex = 5; car.pos = 4.4; car.raf = 424242;
+    run([[0, 'pointerdown', 300, 400]]);
+    const held = car.raf === 0 && ctx._rankDrag && ctx._rankDrag.startPos === 4.4 && ctx._rankDrag.heading === 5 && car.pos === 4.4;
+    run([[200, 'pointerup', 300, 400]]);
+    T('a finger on a moving ladder holds it where it is, and letting go lets it finish',
+      held && ctx.rankShowcaseIndex === 5 && car.pos === 5); }
+  reset(0);
+  { const steps = [[0, 'pointerdown', 100, 400]];
+    for(let k = 1; k <= 20; k++) steps.push([20, 'pointermove', 100 + 20 * k, 400]);
+    run(steps); }
+  const pulled = geo.track.style.transform;
+  run([[140, 'pointerup', 500, 400]]);
+  T('past the first rank it resists, then comes home', (() => {
+    const tx = parseFloat(/translate3d\((-?[\d.]+)px/.exec(pulled)[1]) - CENTER;
+    const expected = ctx.rankRubber(380, STEP);
+    return Math.abs(tx - expected) < 0.01 && tx < 380 / 2 && car.pos === 0 && ctx.rankShowcaseIndex === 0;
+  })());
+  ctx.rankNow = realNow;
+  wrap.addEventListener = realAdd;
+
+  sub('the release rule, asserted directly');
+  const f = ctx.rankSettleTarget, s = STEP;
+  T('a tap, a small drag, and exactly a third all stay', f(4, 0, 0, s) === 4 && f(4, -60, 0, s) === 4 && f(4, -(s / 3), 0, s) === 4);
+  T('just past a third moves one, either way', f(4, -(s / 3 + 1), 0, s) === 5 && f(4, s / 3 + 1, 0, s) === 3);
+  T('a flick moves one, either way; a twitch shorter than a flick does not',
+    f(4, -30, -0.6, s) === 5 && f(4, 30, 0.6, s) === 3 && f(4, -(M.flickDistance - 4), -1.5, s) === 4);
+  T('however hard the throw, one rank', f(4, -120, -6, s) === 5);
+  T('a throw back against the drag cancels, however far the drag went', f(4, -250, 0.9, s) === 4 && f(4, 250, -0.9, s) === 4);
+  T('a long drag then a throw goes one past the finger', f(4, -1.5 * s, -1, s) === 6);
+  T('a flick on a ladder still arriving counts from where it was going', f(4.93, -40, -1, s, 5) === 6 && f(4.3, -40, -1, s, 6) === 7);
+  T('and backwards from there too', f(4.93, 40, 1, s, 5) === 4);
+  T('grabbed in flight and let go slowly, it takes the nearest rank', f(4.3, -100, 0, s, 5) === 5 && f(4.3, 20, 0, s, 5) === 4);
+  T('the ends clamp', f(7, -300, -1, s) === 7 && f(0, 300, 1, s) === 0 && f(0, 40, 0.8, s) === 0);
+  const V = ctx.rankReleaseVelocity;
+  T('release speed is the last 100ms of movement',
+    Math.abs(V([{ t: 0, x: 0 }, { t: 50, x: -50 }, { t: 100, x: -100 }, { t: 150, x: -150 }], 160) + 1) < 1e-9 &&
+    Math.abs(V([{ t: 0, x: 0 }, { t: 100, x: -300 }, { t: 180, x: -310 }, { t: 200, x: -312 }], 205) + 0.12) < 1e-9);
+  T('a finger that rested before lifting threw nothing',
+    V([{ t: 0, x: 0 }, { t: 50, x: -100 }], 50 + M.restMs + 1) === 0 &&
+    V([{ t: 0, x: 0 }, { t: 400, x: -200 }, { t: 600, x: -201 }], 600) === 0 && V([{ t: 0, x: 5 }], 0) === 0);
+
+  sub('the spring lands without bouncing');
+  const S = ctx.rankSpringAt;
+  T('from rest it closes monotonically and never passes its rank', (() => {
+    let prev = 1;
+    for(let t = 0; t <= 2; t += 0.002){ const x = S(1, 0, t, M.omega).x; if(x < -1e-12 || x > prev + 1e-12) return t; prev = x; }
+    return true;
+  })() === true);
+  T('it lands (the ceremony) inside 0.35s and is at rest inside 0.6s',
+    S(1, 0, 0.35, M.omega).x < M.commitDistance && S(1, 0, 0.6, M.omega).x < 0.0015);
+  T('no throw it accepts can carry it visibly past its rank', (() => {
+    for(const x0 of [0.02, 0.05, 0.3, 0.7, 1.5]){
+      const v0 = -M.omega * x0 * 1.15;                 // the ceiling rankAnimateTo applies
+      let min = 0;
+      for(let t = 0; t <= 2; t += 0.0005){ const x = S(x0, v0, t, M.omega).x; if(x < min) min = x; }
+      if(min < -1e-4 * x0) return x0 + ': ' + min;
+    }
+    return /const cap = w \* Math\.abs\(x0\) \* 1\.15;/.test(src);
+  })() === true);
+  T('the clock, not the frame count, decides where it is',
+    /const t = Math\.max\(0, \(rankNow\(\) - t0\) \/ 1000\);/.test(src) && /car\.watchdog = setTimeout\(finish, 1400\);/.test(src));
+
+  sub('one position drives the page');
+  reset(2);
+  ctx.rankRender(2.5);
+  T('the track sits where the position says, to the hundredth of a pixel', (() => {
+    const tx = parseFloat(/translate3d\((-?[\d.]+)px/.exec(geo.track.style.transform)[1]);
+    return Math.abs(tx - (CENTER - 2.5 * STEP)) < 0.006 ? true : tx;
+  })() === true);
+  T('the ranks either side share the depth; the rest sit back',
+    geo.panels[2].style.transform === 'scale(0.9650)' && geo.panels[3].style.transform === 'scale(0.9650)' &&
+    geo.panels[2].style.opacity === '0.670' && geo.panels[0].style.transform === 'scale(0.9300)' &&
+    geo.panels[0].style.opacity === '0.340' && geo.panels[7].style.opacity === '0.340');
+  T('a frame writes only transform and opacity', (() => {
+    const keys = new Set();
+    geo.panels.concat([geo.track]).forEach(p => p.writes.forEach(k => keys.add(k)));
+    return [...keys].every(k => k === 'transform' || k === 'opacity') ? true : [...keys];
+  })() === true);
+  T('and a panel whose depth did not change is not written at all', (() => {
+    geo.panels.forEach(p => { p.writes.length = 0; });
+    ctx.rankRender(2.5);
+    return geo.panels.every(p => p.writes.length === 0);
+  })());
+  T('a frame reads no layout and builds nothing', (() => {
+    const bodies = ['rankRender', 'rankAtmosphereAt', 'rankNearestChanged'].map(n => fnSrc(src, n));
+    return bodies.every(b => b && !/getBoundingClientRect|offset(Left|Top|Width|Height)|client(Width|Height)|innerHTML|rankMedalSvg|getComputedStyle/.test(b));
+  })());
+  T('the eight emblems are built once, when the showcase opens', (() => {
+    const mentions = (src.match(/rankCardHtml\(/g) || []).length;       // its definition and one call
+    return mentions === 2 && /track\.innerHTML = RANKS\.map\(\(r, i\) => rankCardHtml\(r, i, p\)\)\.join\(''\);/.test(fnSrc(src, 'openRankShowcase'));
+  })());
+  reset(4);
+  T('the gem sits on the rank in view, and the caption names its place',
+    geo.thumb.style.transform === 'translate3d(' + (RAIL * 4.5 / 8).toFixed(2) + 'px,0,0)' &&
+    ctx.document.getElementById('rankRailPos').textContent === 'RANK 5 OF 8' &&
+    /^#[0-9a-f]{6}$/i.test(geo.thumb.style['--thumb-hi'] || ''));
+  T('nothing that is not a number reaches the page', (() => { ctx.rankRender(NaN); return car.pos === 4; })());
+  T('ranks leave through a soft edge that moves nothing and leaves the focus ring whole', (() => {
+    const mask = cssRule(css, '.rank-trackmask{');
+    return /<div class="rank-trackmask">\s*<div class="rank-track" id="rankTrack"><\/div>\s*<\/div>/.test(src) &&
+      /-webkit-mask-image: linear-gradient\(90deg, transparent/.test(mask) &&
+      /\n\s*mask-image: linear-gradient\(90deg, transparent/.test(mask) &&
+      !/mask|transform|margin|padding|width/.test(mask.slice(mask.indexOf('{') + 1).replace(/\/\*[\s\S]*?\*\//g, '').replace(/-webkit-mask-image|mask-image/g, '')) &&
+      /\.rank-trackwrap:focus-visible\{ box-shadow: inset/.test(css);
+  })());
+  T('every panel reserves the same footer, so no emblem bobs as the ladder moves',
+    /'<div class="rank-foot">' \+ footer \+ '<\/div>'/.test(src) && /\.rank-foot\{ display: flow-root; min-height: \d+px; \}/.test(css) &&
+    !/transition/.test(cssRule(css, '.rank-panel{').replace(/\/\*[\s\S]*?\*\//g, '')));
+
+  sub('the page\'s light is exactly the ladder\'s position');
+  T('two opaque layers, the upper one\'s opacity the only thing a frame writes',
+    /#05070C;/.test(cssRule(css, '.rank-atmos-layer{')) &&
+    /\.rank-atmos-layer \+ \.rank-atmos-layer\{ opacity: 0; will-change: opacity; \}/.test(css) &&
+    /id="rankAtmosBase"/.test(src) && /id="rankAtmosBlend"/.test(src));
+  reset(0);
+  T('at every position the mix is (1 − fraction) of the rank below and the fraction above', (() => {
+    const a = car.atmos;
+    const weight = rank => (a.t === rank ? +a.o : 0) + (a.b === rank ? 1 - (+a.o) : 0);
+    const positions = [];
+    for(let p = 0; p <= 7; p += 0.05) positions.push(p);
+    for(let p = 7; p >= 0; p -= 0.07) positions.push(p);
+    for(const p of positions){
+      const lo = Math.floor(p), hi = Math.min(7, lo + 1), fr = p - lo;
+      ctx.rankAtmosphereAt(lo, hi, fr);
+      const f2 = fr < 0.002 ? 0 : fr > 0.998 ? 1 : fr;
+      if(lo === hi){ if(Math.abs(weight(lo) - 1) > 0.001) return p; continue; }
+      if(Math.abs(weight(lo) - (1 - f2)) > 0.001 || Math.abs(weight(hi) - f2) > 0.001) return p.toFixed(2);
+    }
+    return true;
+  })() === true);
+  T('and a rank is painted once as it comes into play, never per frame', (() => {
+    reset(4);
+    paints.count = 0;
+    for(let p = 4.02; p < 4.98; p += 0.02) ctx.rankRender(p);
+    const within = paints.count;                      // rank 5 enters: one paint
+    paints.count = 0;
+    for(let p = 1; p <= 6; p += 0.01) ctx.rankRender(p);
+    const sweep = paints.count;
+    return within === 1 && sweep <= 8 ? true : within + ' / ' + sweep;
+  })() === true);
+
+  sub('the rail replaces the dots');
+  T('no dot survives anywhere', !/rank-dot|rankDots/.test(src));
+  const railOf = (rank, level) => ctx.rankRailHtml({ rank, level });
+  T('eight segments, in order, each going straight to its rank', (() => {
+    const html = railOf('ELITE', 23);
+    const calls = [...html.matchAll(/onclick="rankGoTo\((\d)\)"/g)].map(m => +m[1]);
+    return calls.length === 8 && calls.every((v, i) => v === i) && (html.match(/id="rankRailThumb"/g) || []).length === 1;
+  })());
+  T('behind the athlete filled, their own rank lit and marked, ahead drawn as hairlines', (() => {
+    const html = railOf('ELITE', 23);
+    const states = [...html.matchAll(/class="rank-rail-seg is-(\w+)"/g)].map(m => m[1]);
+    return states.join(',') === 'achieved,achieved,achieved,achieved,current,locked,locked,locked' &&
+      (html.match(/rank-rail-you/g) || []).length === 1 &&
+      railOf('ROOKIE', 2).indexOf('is-achieved') === -1 && (railOf('LEGEND', 61).match(/is-achieved/g) || []).length === 7;
+  })());
+  T('every segment says which rank it is and where the athlete stands', (() => {
+    const html = railOf('ELITE', 23);
+    return /aria-label="ELITE, rank 5 of 8, your rank"/.test(html) && /aria-label="ROOKIE, rank 1 of 8, achieved"/.test(html) &&
+      /aria-label="LEGEND, rank 8 of 8, not yet reached"/.test(html);
+  })());
+  T('each is a full-height touch target, and the rail is a named group',
+    /height: 44px;/.test(cssRule(css, '.rank-rail-seg{')) &&
+    /id="rankRailTrack" role="group" aria-label="Jump to a rank"/.test(src));
+  T('a far segment cuts through dark; an arrow key glides; neither can stack', await (async () => {
+    reset(4);
+    ctx.rankGoTo(0);
+    const jumping = !!car.jumpTimer;
+    const dip = geo.track.child.anims.length === 1 && geo.track.child.anims[0].frames.some(k => k.opacity <= 0.3);
+    ctx.rankGoTo(1);                                   // a second tap before the first lands
+    const superseded = geo.track.child.anims[0].cancelled === true;
+    await sleep(Math.round(M.jumpFade * 0.4) + 60);
+    const landed = car.pos === 1 && ctx.rankShowcaseIndex === 1 && car.landed === 1;
+    reset(4);
+    ctx.rankGo(1); ctx.rankGo(1); ctx.rankGo(1);
+    const glided = !car.jumpTimer && car.pos === 7 && ctx.rankShowcaseIndex === 7;
+    return jumping && dip && superseded && landed && glided ? true : [jumping, dip, superseded, landed, glided].join(',');
+  })() === true);
+
+  sub('the way home');
+  { const btn = ctx.document.getElementById('rankReturn');
+    const attrs = {};
+    btn.setAttribute = (k, v) => { attrs[k] = v; };
+    car.mine = 4;
+    ctx.rankUpdateReturn(4);
+    const home = !btn.classList.contains('is-shown') && attrs['aria-hidden'] === 'true' && btn.tabIndex === -1;
+    ctx.rankUpdateReturn(6);
+    const ahead = btn.classList.contains('is-shown') && btn.classList.contains('is-left') && attrs['aria-hidden'] === 'false' && btn.tabIndex === 0;
+    ctx.rankUpdateReturn(4);
+    const leaves = !btn.classList.contains('is-shown') && btn.classList.contains('is-left');
+    ctx.rankUpdateReturn(1);
+    const behind = btn.classList.contains('is-shown') && !btn.classList.contains('is-left');
+    T('it is offered only away from the athlete\'s own rank, on the side their rank lies', home && ahead && behind);
+    T('and it leaves from where it is rather than crossing sides as it fades', leaves);
+    reset(7); car.mine = 4;
+    ctx.rankReturnToMine();
+    T('it goes home', ctx.rankShowcaseIndex === 4); }
+  T('it holds its place in the layout, so nothing moves when it comes and goes', (() => {
+    const r = cssRule(css, '.rank-return{');
+    return /position: absolute;/.test(r) && /visibility: hidden;/.test(r) && /opacity: 0;/.test(r) &&
+      /\.rank-return\.is-shown\{[\s\S]{0,40}opacity: 1; visibility: visible;/.test(css);
+  })());
+  T('the showcase still opens on the athlete\'s own rank, and remembers it for the way home',
+    /rankShowcaseIndex = rankIndexOf\(p\.rank\);/.test(src) && /mine: rankShowcaseIndex, pos: rankShowcaseIndex,/.test(src));
+
+  sub('the ceremony is small, and happens once');
+  reset(4);
+  ctx.rankLanded(5);
+  const tick = geo.panels[5].child.anims[0];
+  T('a new rank lands with one lift of under 3%, over well under half a second, on the emblem', (() => {
+    if(!tick) return 'no arrival';
+    const peaks = tick.frames.map(k => +((/scale\(([\d.]+)\)/.exec(k.transform || '') || [])[1] || 1));
+    const peak = Math.max(...peaks);
+    return peak > 1.005 && peak <= 1.03 && tick.timing.duration <= 450 && !tick.timing.iterations &&
+      geo.panels[5].child.asked.indexOf('.rank-medal-wrap svg') !== -1 &&
+      !tick.frames.some(k => /rotate/.test(k.transform || ''));
+  })());
+  ctx.rankLanded(5);
+  T('landing again on the same rank adds nothing', geo.panels[5].child.anims.length === 1);
+  ctx.rankLanded(6);
+  T('the next arrival cancels the last, so nothing stacks', tick && tick.cancelled && geo.panels[6].child.anims.length === 1);
+  reset(4);
+  ctx.rankLanded(4, true);
+  T('opening and re-centring are quiet', geo.panels[4].child.anims.length === 0);
+  T('the light pass still plays once per landing and never loops', (() => {
+    const m = css.match(/\.rank-front \.rank-shine-bar\{ animation: rankShine [^;]+;/);
+    const region = css.slice(css.indexOf('.rank-sheet{'), css.indexOf('.today-greet{'));
+    return !!m && / 1 both/.test(m[0]) && !/infinite/.test(region);
+  })());
+  T('and it is a glint that arrives with the lift, not a second and a half behind it', (() => {
+    /* Measured: the pass is the only part of a landing that lays out and paints
+       every frame, so its length is its cost as well as its feel. */
+    const m = css.match(/\.rank-front \.rank-shine-bar\{ animation: rankShine ([\d.]+)s [^;]*? ([\d.]+)s 1 both;/);
+    return !!m && +m[1] <= 1 && +m[2] <= 0.15 ? true : (m ? m[1] + 's from ' + m[2] + 's' : 'rule not found');
+  })() === true);
+
+  sub('reduced motion keeps every state and loses the choreography');
+  { const realRM = ctx.rankReducedMotion;
+    ctx.rankReducedMotion = () => true;
+    try{
+      reset(4);
+      T('depth is kept as light, never as size', geo.panels.every(p => p.style.transform === 'none') && geo.panels[3].style.opacity === '0.340');
+      ctx.rankGoTo(0);
+      T('a far rank is reached at once — no fade, no glide, no timer', car.pos === 0 && ctx.rankShowcaseIndex === 0 && !car.jumpTimer && !car.raf);
+      const flatTick = geo.panels[0].child.anims[0];
+      T('and it arrives with a short fade on the emblem, not a lift',
+        !!flatTick && flatTick.timing.duration <= 200 && flatTick.frames.every(k => k.transform === undefined && k.opacity !== undefined) &&
+        geo.panels[0].child.asked.indexOf('.rank-medal-wrap') !== -1);
+    } finally { ctx.rankReducedMotion = realRM; } }
+  T('the media query is the one the app reads, and the CSS agrees',
+    /window\.matchMedia\('\(prefers-reduced-motion: reduce\)'\)/.test(fnSrc(src, 'rankReducedMotion')) &&
+    /\.rank-return, \.rank-return\.is-shown\{ transition: none; \}/.test(css) &&
+    /\.rank-front \.rank-shine-bar\{ animation: none; \}/.test(css));
+
+  sub('it survives rotation, rapid input and reopening');
+  T('a change of size re-measures, including when no resize event arrives',
+    /new ResizeObserver\(recentre\)/.test(src) && /_rankCar\.ro\.observe\(wrap\);/.test(src) &&
+    /window\.addEventListener\('orientationchange', recentre\);/.test(src));
+  T('a ladder in motion keeps moving through it, on the new geometry',
+    /if\(_rankDrag \|\| _rankCar\.raf \|\| _rankCar\.jumpTimer\)\{ rankRender\(_rankCar\.pos\); return; \}/.test(fnSrc(src, 'positionRankTrack')));
+  T('every travel carries a generation, so a superseded one can never write', (() => {
+    const stop = fnSrc(src, 'rankStopAnimation'), anim = fnSrc(src, 'rankAnimateTo');
+    return /car\.gen\+\+;/.test(stop) && /if\(gen !== car\.gen\) return;/.test(anim) && /clearTimeout\(car\.jumpTimer\);/.test(stop);
+  })());
+  T('closing stops everything it started', (() => {
+    const close = fnSrc(src, 'closeRankShowcase');
+    return /rankStopAnimation\(\);/.test(close) && /rankCancel\('arrival'\);/.test(close) && /_rankDrag = null;/.test(close);
+  })());
+  T('and reopening starts clean', await (async () => {
+    reset(3);
+    ctx.rankGoTo(7);
+    ctx.document.getElementById('rankOverlay').classList.remove('open');
+    ctx.closeRankShowcase();
+    const stopped = !car.jumpTimer && !car.raf;
+    ctx.openRankShowcase();
+    const p = ctx.getCurrentProgression();
+    const fresh = ctx.rankShowcaseIndex === ctx.rankIndexOf(p.rank) && car.mine === ctx.rankIndexOf(p.rank) &&
+      car.landed === ctx.rankIndexOf(p.rank) && car.atmos === null;
+    ctx.closeRankShowcase();
+    await sleep(Math.round(M.jumpFade * 0.4) + 40);
+    return stopped && fresh && ctx.rankShowcaseIndex === ctx.rankIndexOf(p.rank) ? true : [stopped, fresh, ctx.rankShowcaseIndex].join(',');
+  })() === true);
+
+  sub('it reads, and writes nothing');
+  T('no storage anywhere in the motion', (() => {
+    const region = src.slice(src.indexOf('THE LADDER MOVES LIKE AN OBJECT'), src.indexOf('function wireRankCarousel'));
+    return !/LOOPStore|localStorage|sessionStorage|setItem|indexedDB/.test(stripComments(region)) &&
+      !/LOOPStore|localStorage|setItem/.test(fnSrc(src, 'wireRankCarousel'));
+  })());
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -22413,6 +22889,7 @@ async function main(){
   await testArmsSessions();
   await testExerciseSwaps();
   await testExerciseVisuals();
+  await testRankShowcaseMotion();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
