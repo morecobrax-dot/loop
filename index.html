@@ -8906,6 +8906,8 @@ function solve(view, pose){ return view === 'front' ? frontJoints(pose) : sideJo
 
 /* In-between poses mix ANGLES, so a traced joint follows the arc it really
    travels and every bone keeps its length along the way. */
+/* Pose keys that are lengths or positions, mixed straight rather than round the circle. */
+var LINEAR_KEYS = { cx:1, hipY:1, sw:1, hw:1, shrug:1, torsoScale:1, thighScale:1, shinScale:1, uaScale:1, faScale:1, lfaS:1, rfaS:1, nuaS:1, nfaS:1, fuaS:1, ffaS:1 };
 function mixPose(view, a, b, t){
   var base = view === 'front' ? FRONT_DEFAULT : SIDE_DEFAULT;
   var out = {}; var k, keys = {};
@@ -8915,7 +8917,7 @@ function mixPose(view, a, b, t){
     if(va == null || vb == null){ out[k] = va != null ? va : vb; continue; }
     if(k === 'pin') out[k] = [va[0], [lerp(va[1][0], vb[1][0], t), lerp(va[1][1], vb[1][1], t)]];
     else if(Array.isArray(va)) out[k] = [lerp(va[0], vb[0], t), lerp(va[1], vb[1], t)];
-    else if(typeof va === 'number' && /^(cx|hipY|sw|hw|shrug|torsoScale|thighScale|shinScale|uaScale|faScale|lfaS|rfaS|nuaS|nfaS|fuaS|ffaS)$/.test(k)) out[k] = lerp(va, vb, t);
+    else if(typeof va === 'number' && LINEAR_KEYS[k] === 1) out[k] = lerp(va, vb, t);
     else if(typeof va === 'number') out[k] = lerpAng(va, vb, t);
     else out[k] = t < 0.5 ? va : vb;
   }
@@ -8969,7 +8971,19 @@ function figure(J, tone, parts){
 }
 
 /* ---------- equipment ---------- */
-function jp(J, ref){ return typeof ref === 'string' ? J[ref] : ref; }
+/* A point equipment attaches to: a joint by name, a fixed [x, y], or a place
+   ON a limb — { seg:['nK', 'nA'], t:0.8, n:6 } is 80% of the way from knee
+   to ankle and 6 off the limb to its left, so a roller or an arm pad turns
+   with the limb it rests on. */
+function jp(J, ref){
+  if(typeof ref === 'string') return J[ref];
+  if(ref && ref.seg){
+    var a = J[ref.seg[0]], b = J[ref.seg[1]], t = ref.t == null ? 0.5 : ref.t;
+    var p = [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
+    return ref.n ? mv(p, angleOf(a, b) + 90, ref.n) : p;
+  }
+  return ref;
+}
 /* The two ends of a straight piece. `off` moves it sideways off its own line
    (positive is to the right of a->b, so behind a back drawn hip->shoulder);
    `extA`/`extB` stretch it past either end. */
@@ -9125,57 +9139,343 @@ var PROPS = {
   guide: function(J, o){
     var x = jp(J, o.at)[0] + (o.dx || 0);
     return line([x, o.top == null ? 8 : o.top], [x, G], C.frameEdge, o.w || 2.6);
-  },
-  /* A flight: the athlete leaves the ground and lands somewhere else. */
-  arc: function(J, o){
-    var thumb = J.size === 'thumb', a = o.from, b = o.to;
-    var c = [(a[0] + b[0]) / 2 + (o.cx || 0), Math.min(a[1], b[1]) - (o.h || 14)];
-    return '<path d="M' + P(a) + 'Q' + P(c) + ' ' + P(b) + '" stroke="' + C.accent + '" stroke-width="' + (thumb ? 2.8 : 2) + '"/>' +
-      arrowHead(b, angleOf(c, b), thumb ? 3.6 : 3);
-  },
-  /* The whole athlete travels: a straight arrow in the motion colour. */
-  travel: function(J, o){
-    var thumb = J.size === 'thumb', a = o.from, b = o.to;
-    return line(a, b, C.accent, thumb ? 2.8 : 2) + arrowHead(b, angleOf(a, b), thumb ? 3.6 : 3);
   }
 };
-function drawProps(J, list){
+/* Draw a list of props; `kept`, when given, collects each prop's markup by
+   type so the arrow's safe zones can be read from what was actually drawn. */
+function drawProps(J, list, kept){
   var s = '';
-  (list || []).forEach(function(pr){ var fn = PROPS[pr[0]]; if(fn) s += fn(J, pr[1] || {}); });
+  (list || []).forEach(function(pr){
+    var fn = PROPS[pr[0]]; if(!fn) return;
+    var m = fn(J, pr[1] || {});
+    if(kept) kept.push([pr[0], m]);
+    s += m;
+  });
   return s;
 }
 
 /* ---------- motion ---------- */
-function tracePoints(def){
-  var pts = [];
-  for(var i = 0; i <= 12; i++){
-    var J = solve(def.view, mixPose(def.view, def.start, def.end, i / 12));
-    var p = jp(J, def.track);
-    if(def.trackOffset) p = off(p, def.trackOffset[0], def.trackOffset[1]);
-    pts.push(p);
+/* ARCHETYPES. The kind of movement decides how its arrow is drawn, so the
+   same kind of lift is annotated the same way on every drawing.
+
+     press       a load driven in a line — presses, rows, pulls: a straight
+                 arrow beside the line the load travels
+     hinge       the hips carry a load up and down the legs: a straight arrow
+                 beside the load path, clear of the legs
+     arc         a limb turning about one joint — curls, raises, flys,
+                 extensions: a curved arrow outside the arc
+     cable       the same, where a cable or band carries the load: the arrow
+                 keeps clear of the line as well as the limb
+     machine     a handle, pad or sled the machine guides: the arrow follows
+                 the machine's own path
+     dynamic     the body itself moves — push-ups, squats, crunches, jumps:
+                 the arrow follows the joint that tells the story
+     locomotion  the athlete travels: one arrow at ground level ahead of
+                 whatever leads, never over the head
+     hold        a position held still: no arrow at all, only a small hold
+                 mark in a clear corner
+
+   `arch` names it on every definition. `path` can override the geometry it
+   implies: 'trace' (the joint's true arc, angles mixed), 'line' (straight,
+   start to finish), 'pivot' (an arc about a fixed machine pivot) or
+   'flight' (take-off to landing). */
+var ARCH_PATH = { press:'line', hinge:'line', arc:'trace', cable:'trace', machine:'line', dynamic:'trace', locomotion:null, hold:null };
+function archetypeOf(def){
+  if(def.arch && ARCH_PATH.hasOwnProperty(def.arch)) return def.arch;
+  if(def.hold) return 'hold';
+  if(def.travel) return 'locomotion';
+  return 'dynamic';
+}
+function dist(a, b){ var dx = b[0] - a[0], dy = b[1] - a[1]; return Math.sqrt(dx * dx + dy * dy); }
+function trackAt(def, pose){
+  var p = jp(solve(def.view, pose), def.track);
+  return def.trackOffset ? off(p, def.trackOffset[0], def.trackOffset[1]) : p;
+}
+/* The path's shape and direction, before it is placed. */
+function pathShape(def){
+  var mode = def.path || ARCH_PATH[archetypeOf(def)] || 'trace';
+  var a = trackAt(def, def.start), b = trackAt(def, def.end), pts = [], i, u, v;
+  if(mode === 'line') return [a, b];
+  if(mode === 'pivot'){
+    var c = def.pivot, r = dist(c, a);
+    var t0 = Math.atan2(a[1] - c[1], a[0] - c[0]), dt = Math.atan2(b[1] - c[1], b[0] - c[0]) - t0;
+    while(dt > Math.PI) dt -= 2 * Math.PI;
+    while(dt < -Math.PI) dt += 2 * Math.PI;
+    for(i = 0; i <= 12; i++) pts.push([c[0] + Math.cos(t0 + dt * i / 12) * r, c[1] + Math.sin(t0 + dt * i / 12) * r]);
+    return pts;
   }
+  if(mode === 'flight'){
+    var m = [(a[0] + b[0]) / 2, Math.min(a[1], b[1]) - (def.flight || 14) * 2];
+    for(i = 0; i <= 12; i++){ u = i / 12; v = 1 - u; pts.push([v * v * a[0] + 2 * v * u * m[0] + u * u * b[0], v * v * a[1] + 2 * v * u * m[1] + u * u * b[1]]); }
+    return pts;
+  }
+  for(i = 0; i <= 12; i++) pts.push(trackAt(def, mixPose(def.view, def.start, def.end, i / 12)));
   return pts;
 }
+
+/* Polylines by arc length. */
+function cumul(p){ var c = [0]; for(var i = 1; i < p.length; i++) c.push(c[i - 1] + dist(p[i - 1], p[i])); return c; }
+function pointAt(p, c, s){
+  var i = 1;
+  while(i < p.length - 1 && c[i] < s) i++;
+  var span = c[i] - c[i - 1], t = span ? (s - c[i - 1]) / span : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return [lerp(p[i - 1][0], p[i][0], t), lerp(p[i - 1][1], p[i][1], t)];
+}
+function between(p, c, s0, s1, n){
+  var out = [];
+  for(var k = 0; k < n; k++) out.push(pointAt(p, c, s0 + (s1 - s0) * k / (n - 1)));
+  return out;
+}
+/* A movement too small to carry an arrowhead is drawn at the shortest length
+   that can: the path grows along its own ends, so it still points true. */
+function lengthened(p, want){
+  var L = cumul(p)[p.length - 1];
+  if(L >= want || L < 0.3) return p;
+  var e = (want - L) / 2, a = p[0], a2 = p[1], b = p[p.length - 1], b2 = p[p.length - 2];
+  var da = dist(a2, a) || 1, db = dist(b2, b) || 1;
+  return [[a[0] + (a[0] - a2[0]) / da * e, a[1] + (a[1] - a2[1]) / da * e]].concat(p,
+    [[b[0] + (b[0] - b2[0]) / db * e, b[1] + (b[1] - b2[1]) / db * e]]);
+}
+/* Slide a path sideways along its own normal. A curve pushed past its own
+   centre folds over itself, and that candidate is refused. */
+function shifted(p, d){
+  if(!d) return p;
+  var out = [], i;
+  for(i = 0; i < p.length; i++){
+    var a = p[Math.max(0, i - 1)], b = p[Math.min(p.length - 1, i + 1)];
+    var tx = b[0] - a[0], ty = b[1] - a[1], l = Math.sqrt(tx * tx + ty * ty) || 1;
+    out.push([p[i][0] - ty / l * d, p[i][1] + tx / l * d]);
+  }
+  for(i = 1; i < p.length; i++){
+    if((out[i][0] - out[i - 1][0]) * (p[i][0] - p[i - 1][0]) + (out[i][1] - out[i - 1][1]) * (p[i][1] - p[i - 1][1]) <= 0) return null;
+  }
+  return out;
+}
+
+/* SAFE ZONES. What an arrow must keep clear of, each with a weight: the face
+   most of all, then the load and the working joint, the torso, the machine,
+   the limbs, and the faint second position least. Equipment is read from the
+   drawing itself, so a new prop is protected the moment it is drawn. */
+var PROP_WEIGHT = { plate:4, disc:4, dbFace:4, db:4, kettlebell:4, medball:4, wheel:4,
+  pad:2.6, lever:2.6, bar:2.6, bench:2.2, sled:2.2, rod:2.2,
+  column:1.8, stack:1.8, rail:1.8, box:1.8, plinth:1.8, post:1.6, step:1.6, wall:1.6, guide:1.4, mat:1,
+  cable:1.6, band:1.6, strap:1.4, rope:1.4, anchor:1.4 };
+function shapesOf(markup, w, list){
+  var m, i, re = /<path d="([^"]+)"[^>]*?stroke-width="([\d.]+)"/g;
+  while((m = re.exec(markup))){
+    var nums = (m[1].match(/-?\d+(\.\d+)?/g) || []).map(parseFloat), r = parseFloat(m[2]) / 2 + 0.4;
+    if(nums.length === 2) list.push({ a:[nums[0], nums[1]], b:[nums[0], nums[1]], r:r, w:w });
+    for(i = 2; i + 1 < nums.length; i += 2) list.push({ a:[nums[i - 2], nums[i - 1]], b:[nums[i], nums[i + 1]], r:r, w:w });
+  }
+  re = /<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="([\d.]+)"/g;
+  while((m = re.exec(markup))){ var c = [parseFloat(m[1]), parseFloat(m[2])]; list.push({ a:c, b:c, r:parseFloat(m[3]) + 0.7, w:w }); }
+  re = /<rect x="(-?[\d.]+)" y="(-?[\d.]+)" width="([\d.]+)" height="([\d.]+)"/g;
+  while((m = re.exec(markup))){
+    var x = parseFloat(m[1]), y = parseFloat(m[2]);
+    list.push({ box:[x - 0.6, y - 0.6, x + parseFloat(m[3]) + 0.6, y + parseFloat(m[4]) + 0.6], w:w });
+  }
+}
+function propShapes(drawn, scale, list){
+  drawn.forEach(function(d){ shapesOf(d[1], (PROP_WEIGHT[d[0]] || 1.6) * scale, list); });
+}
+function bodyShapes(J, parts, scale, list){
+  function cap(a, b, width, w){ list.push({ a:a, b:b, r:width / 2 + 0.8, w:w * scale }); }
+  var all = parts === 'all', arms = all || parts === 'arms', legs = all || parts === 'legs';
+  if(J.view === 'side'){
+    if(arms){ cap(J.sh, J.nE, W.ua, 2.4); cap(J.nE, J.nW, W.fa, 2.4); cap(J.sh, J.fE, W.ua, 1.8); cap(J.fE, J.fW, W.fa, 1.8); }
+    if(legs){
+      cap(J.hip, J.nK, W.th, 2); cap(J.nK, J.nA, W.sh, 2); cap(J.nA, J.nT, W.ft, 1.2);
+      cap(J.hip, J.fK, W.th, 1.6); cap(J.fK, J.fA, W.sh, 1.6); cap(J.fA, J.fT, W.ft, 1);
+    }
+    if(all){ cap(J.hip, J.sh, W.torso, 3); cap(J.sh, J.head, W.neck, 3); cap(J.head, J.head, B.head * 2, 7); }
+  } else {
+    if(arms){ cap(J.lS, J.lE, W.ua, 2.4); cap(J.lE, J.lW, W.fa, 2.4); cap(J.rS, J.rE, W.ua, 2.4); cap(J.rE, J.rW, W.fa, 2.4); }
+    if(legs){
+      cap(J.lH, J.lK, W.th, 2); cap(J.lK, J.lA, W.sh, 2); cap(J.lA, J.lT, W.ft, 1.2);
+      cap(J.rH, J.rK, W.th, 2); cap(J.rK, J.rA, W.sh, 2); cap(J.rA, J.rT, W.ft, 1.2);
+    }
+    if(all){ cap(J.hc, J.sc, W.torsoF, 3); cap(J.lS, J.rS, 7.2, 3); cap(J.lH, J.rH, 8, 3); cap(J.sc, J.head, W.neck, 3); cap(J.head, J.head, B.head * 2, 7); }
+  }
+}
+function sceneShapes(def, J, O, ghostParts, drawn, ghostDrawn){
+  var list = [];
+  propShapes(drawn, 1, list);
+  bodyShapes(J, 'all', 1, list);
+  if(O && ghostParts !== 'none'){ bodyShapes(O, ghostParts, 0.35, list); propShapes(ghostDrawn, 0.35, list); }
+  if(def.track) [J, O].forEach(function(X){ if(X){ var p = jp(X, def.track); list.push({ a:p, b:p, r:2.6, w:3 }); } });
+  list.forEach(function(sh){
+    sh.bb = sh.box ? sh.box : [Math.min(sh.a[0], sh.b[0]) - sh.r, Math.min(sh.a[1], sh.b[1]) - sh.r, Math.max(sh.a[0], sh.b[0]) + sh.r, Math.max(sh.a[1], sh.b[1]) + sh.r];
+  });
+  return list;
+}
+/* Only the shapes near a candidate can touch it. */
+function nearby(pts, shapes, gap){
+  var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, i, out = [];
+  for(i = 0; i < pts.length; i++){
+    if(pts[i][0] < x0) x0 = pts[i][0]; if(pts[i][0] > x1) x1 = pts[i][0];
+    if(pts[i][1] < y0) y0 = pts[i][1]; if(pts[i][1] > y1) y1 = pts[i][1];
+  }
+  x0 -= gap; y0 -= gap; x1 += gap; y1 += gap;
+  for(i = 0; i < shapes.length; i++){
+    var b = shapes[i].bb;
+    if(b[0] <= x1 && b[2] >= x0 && b[1] <= y1 && b[3] >= y0) out.push(shapes[i]);
+  }
+  return out;
+}
+function clearanceTo(p, sh){
+  if(sh.box){
+    var bx = Math.max(sh.box[0] - p[0], 0, p[0] - sh.box[2]), by = Math.max(sh.box[1] - p[1], 0, p[1] - sh.box[3]);
+    return Math.sqrt(bx * bx + by * by);
+  }
+  var ax = sh.a[0], ay = sh.a[1], vx = sh.b[0] - ax, vy = sh.b[1] - ay, wx = p[0] - ax, wy = p[1] - ay, L = vx * vx + vy * vy;
+  var t = L ? (wx * vx + wy * vy) / L : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  var ex = wx - vx * t, ey = wy - vy * t;
+  return Math.sqrt(ex * ex + ey * ey) - sh.r;
+}
+/* Mean weighted intrusion of a set of points into the protected shapes. */
+function intrusion(pts, shapes, gap){
+  var s = 0;
+  for(var i = 0; i < pts.length; i++){
+    for(var j = 0; j < shapes.length; j++){
+      var d = clearanceTo(pts[i], shapes[j]);
+      if(d < gap) s += shapes[j].w * (gap - d);
+    }
+  }
+  return s / pts.length;
+}
+
+/* The arrow's own proportions, per size. `gap` is the clear space it keeps. */
+var ARROW = {
+  full:  { w:1.9, head:3, gap:3.4, min:15, max:44, pad:7 },
+  thumb: { w:3,   head:3.8, gap:2.4, min:17, max:48, pad:3 }
+};
 function arrowHead(b, ang, hw){
   var tip = mv(b, ang, hw), l = mv(b, ang + 150, hw * 1.2), r = mv(b, ang - 150, hw * 1.2);
   return '<path d="M' + P(l) + 'L' + P(tip) + 'L' + P(r) + 'Z" fill="' + C.accent + '" stroke="' + C.accent + '" stroke-width="0.8"/>';
 }
-function motionPath(def, size){
-  if(!def.track || !def.start || def.hold) return '';
-  var pts = tracePoints(def);
-  var d = 'M' + P(pts[0]);
-  for(var j = 1; j < pts.length; j++) d += 'L' + P(pts[j]);
-  var thumb = size === 'thumb', hw = thumb ? 3.6 : 3;
-  var s = '<path d="' + d + '" stroke="' + C.accent + '" stroke-width="' + (thumb ? 2.8 : 2) + '"/>' +
-    arrowHead(pts[pts.length - 1], angleOf(pts[pts.length - 3], pts[pts.length - 1]), hw);
-  if(def.both) s += arrowHead(pts[0], angleOf(pts[2], pts[0]), hw);   // a two-way movement
+function headPoints(q, both, hw){
+  var n = q.length, e = q[n - 1], a = angleOf(q[Math.max(0, n - 3)], e), pts = [mv(e, a, hw), mv(e, a + 150, hw * 1.2), mv(e, a - 150, hw * 1.2)];
+  if(both){ var s0 = q[0], b = angleOf(q[Math.min(n - 1, 2)], s0); pts.push(mv(s0, b, hw), mv(s0, b + 150, hw * 1.2), mv(s0, b - 150, hw * 1.2)); }
+  return pts;
+}
+function arrowMarkup(q, both, size){
+  var S = ARROW[size], n = q.length, straight = true, i;
+  for(i = 1; i < n - 1 && straight; i++){
+    var ax = q[n - 1][0] - q[0][0], ay = q[n - 1][1] - q[0][1], l = Math.sqrt(ax * ax + ay * ay) || 1;
+    if(Math.abs((q[i][0] - q[0][0]) * ay - (q[i][1] - q[0][1]) * ax) / l > 0.35) straight = false;
+  }
+  var pts = straight ? [q[0], q[n - 1]] : q, d = 'M' + P(pts[0]);
+  for(i = 1; i < pts.length; i++) d += 'L' + P(pts[i]);
+  var s = '<path d="' + d + '" stroke="' + C.accent + '" stroke-width="' + S.w + '"/>' + arrowHead(q[n - 1], angleOf(q[Math.max(0, n - 3)], q[n - 1]), S.head);
+  if(both) s += arrowHead(q[0], angleOf(q[Math.min(n - 1, 2)], q[0]), S.head);
   return s;
 }
-/* A static hold says so with a pause mark instead of a path. */
-function holdMark(box, size){
-  var x = box[2] - 2, y = box[1] + 3, h = size === 'thumb' ? 9 : 7;
-  return '<path d="M' + P([x, y]) + 'L' + P([x, y + h]) + 'M' + P([x + 4.6, y]) + 'L' + P([x + 4.6, y + h]) +
-    '" stroke="' + C.accent + '" stroke-width="' + (size === 'thumb' ? 2.8 : 2.2) + '"/>';
+/* How far a point strays outside the frame the drawing already needs. */
+function outside(p, frame){
+  var m = frame.inset, x0 = frame.x + m, y0 = frame.y + m, x1 = frame.x + frame.side - m, y1 = frame.y + frame.side - m;
+  return Math.max(x0 - p[0], 0, p[0] - x1) + Math.max(y0 - p[1], 0, p[1] - y1);
+}
+/* Place the arrow: every trim of the path's length and every sideways slide,
+   scored on what it would cover, how far it moved from the true path, how
+   much of the path it gave up, and whether it would widen the frame. The
+   smallest honest change wins. A definition may pin the side, the slide or
+   the trim when the movement needs saying one particular way. */
+function placeArrow(def, shapes, frame, size){
+  var S = ARROW[size], o = def.arrow || {};
+  var p = lengthened(pathShape(def), S.min), c = cumul(p), L = c[c.length - 1];
+  if(!(L > 0.5)) return '';
+  var both = !!def.both, keepMax = Math.min(1, S.max / L), wins = [], seen = {};
+  var trims = o.trim ? [o.trim] : [[0, 1], [0.1, 0.9], [0.2, 0.8], [0, 0.75], [0.25, 1], [0.4, 1]];
+  /* A long sweep keeps its middle and its finish, at a length that still reads. */
+  if(!o.trim && keepMax < 1) trims = trims.concat([[0.5 - keepMax * 0.38, 0.5 + keepMax * 0.38], [1 - keepMax * 0.76, 1]]);
+  trims.forEach(function(w){
+    var k = Math.min(w[1] - w[0], keepMax), mid = (w[0] + w[1]) / 2;
+    var s0 = Math.max(0, Math.min(1 - k, mid - k / 2)), key = s0.toFixed(3) + ':' + k.toFixed(3);
+    if(k * L < Math.min(S.min, L) - 0.01 || seen[key]) return;
+    seen[key] = 1; wins.push([s0, s0 + k]);
+  });
+  if(!wins.length) wins.push([0, 1]);          // a trim that would leave too little to carry a head
+  var sides = o.side ? [o.side] : [1, -1], floor = def.ground !== false;
+  var best = null, bestScore = Infinity, bestAt = null, bases = {};
+  /* Candidates are scored on nine points; the winner is drawn from sixteen. */
+  function baseFor(wi, n){
+    var key = wi + ':' + (n || 9);
+    if(bases[key]) return bases[key];
+    var w = wins[wi], base = between(p, c, w[0] * L, w[1] * L, n || 9);
+    if(o.shift) base = base.map(function(pt){ return [pt[0] + o.shift[0], pt[1] + o.shift[1]]; });
+    return (bases[key] = base);
+  }
+  function tryOne(wi, d, sd){
+    if(d < 0 || (!d && sd < 0)) return;
+    var w = wins[wi], fixed = 0.012 * d * d + 3 * (1 - (w[1] - w[0]));
+    if(fixed >= bestScore) return;
+    var q = shifted(baseFor(wi), d * sd);
+    if(!q) return;
+    var pts = q.concat(headPoints(q, both, S.head)), out = 0, n = pts.length, i, j, len = 0;
+    for(i = 0; i < n; i++) out += outside(pts[i], frame) + (floor ? 40 * Math.max(0, pts[i][1] - (G - 3)) : 0);
+    for(i = 1; i < q.length; i++) len += dist(q[i - 1], q[i]);
+    /* Sliding a curve outward lengthens it; past the cap it costs. */
+    var score = fixed + 3 * out / n + (len > S.max ? 0.6 * (len - S.max) : 0);
+    if(score >= bestScore) return;
+    /* The scene's cost, point by point, abandoned as soon as it cannot win. */
+    var near = nearby(pts, shapes, S.gap), k = 11 / n;
+    for(i = 0; i < n && score < bestScore; i++){
+      for(j = 0; j < near.length; j++){
+        var dd = clearanceTo(pts[i], near[j]);
+        if(dd < S.gap) score += k * near[j].w * (S.gap - dd);
+      }
+    }
+    if(score < bestScore - 1e-9){ bestScore = score; best = q; bestAt = [wi, d, sd]; }
+  }
+  /* Coarse: a few trims and slides on both sides. Fine: every trim, and the
+     slides either side of the coarse winner. */
+  var slides = o.slide != null ? [].concat(o.slide) : [0, 5, 10, 16, 23];
+  var coarseWins = [0, 2, 4].filter(function(i){ return i < wins.length; });
+  if(!coarseWins.length) coarseWins = [0];
+  coarseWins.forEach(function(wi){ slides.forEach(function(d){ sides.forEach(function(sd){ tryOne(wi, d, sd); }); }); });
+  if(bestAt && o.slide == null){
+    var d0 = bestAt[1], sd0 = bestAt[2] || 1;
+    wins.forEach(function(w, wi){ [d0 - 2.5, d0, d0 + 2.5, d0 + 5].forEach(function(d){ tryOne(wi, d, sd0); }); });
+  }
+  if(!best) return '';
+  var fine = shifted(baseFor(bestAt[0], 16), bestAt[1] * (bestAt[2] || 1));
+  return arrowMarkup(fine || best, both, size);
+}
+/* Locomotion: the athlete, or the sled, travels. The arrow sits at ground
+   level ahead of whatever leads in the direction of travel. */
+function travelArrow(def, shapes, size){
+  var t = def.travel || {}, S = ARROW[size], dir = t.dir < 0 ? -1 : 1, y = t.y != null ? t.y : G - 6;
+  var len = t.len || 18, gap = (t.gap || 5) + S.head, lead = null;
+  shapes.forEach(function(sh){
+    var xs;
+    if(sh.box){ if(sh.box[3] < y - 4 || sh.box[1] > y + 4) return; xs = [sh.box[0], sh.box[2]]; }
+    else {
+      if(Math.max(sh.a[1], sh.b[1]) + sh.r < y - 4 || Math.min(sh.a[1], sh.b[1]) - sh.r > y + 4) return;
+      xs = [Math.min(sh.a[0], sh.b[0]) - sh.r, Math.max(sh.a[0], sh.b[0]) + sh.r];
+    }
+    var x = dir > 0 ? xs[1] : xs[0];
+    if(lead === null || (dir > 0 ? x > lead : x < lead)) lead = x;
+  });
+  if(lead === null) lead = 60;
+  return arrowMarkup([[lead + dir * gap, y], [lead + dir * (gap + len), y]], false, size);
+}
+/* A static hold: a small hold mark beside the figure, in the nearest clear
+   space above or beside it — never against the face, never adrift in a corner. */
+function holdMark(frame, shapes, size){
+  var thumb = size === 'thumb', h = thumb ? 9 : 7, g = thumb ? 4.6 : 4.4, b = frame.box, lift = thumb ? 4 : 6;
+  var spots = [[(b[0] + b[2]) / 2 - g / 2, b[1] - h - lift], [b[2] - g - 6, b[1] - h - lift], [b[0] + 6, b[1] - h - lift], [b[2] + lift, b[1]], [b[0] - g - lift, b[1]],
+    [frame.x + frame.side - frame.inset - g, frame.y + frame.inset]];
+  var best = spots[0], bestPen = Infinity;
+  spots.forEach(function(s, i){
+    var pts = [[s[0], s[1]], [s[0], s[1] + h], [s[0] + g, s[1]], [s[0] + g, s[1] + h]], out = 0;
+    pts.forEach(function(p){ out += outside(p, frame); });
+    var pen = 10 * intrusion(pts, shapes, 4.5) + 3 * out / 4 + i * 0.05;
+    if(pen < bestPen - 1e-9){ bestPen = pen; best = s; }
+  });
+  return '<path d="M' + P(best) + 'L' + P([best[0], best[1] + h]) + 'M' + P([best[0] + g, best[1]]) + 'L' + P([best[0] + g, best[1] + h]) +
+    '" stroke="' + C.accent + '" stroke-width="' + (thumb ? 2.8 : 2.2) + '"/>';
 }
 
 /* ---------- framing ---------- */
@@ -9194,8 +9494,21 @@ function bounds(markup){
   if(x0 === Infinity) return [0, 0, 120, 120];
   return [x0, y0, x1, y1];
 }
+/* A square frame around a box, padded. A thumbnail of arm work frames the
+   upper body: the legs carry no information there and cost the arms half
+   their size. */
+function framed(box, def, J, size){
+  var thumb = size === 'thumb', b = box.slice();
+  if(thumb && def.crop === 'upper') b[3] = Math.min(b[3], (J.view === 'side' ? J.hip[1] : J.hc[1]) + 14);
+  if(thumb && def.crop === 'lower') b[1] = Math.max(b[1], (J.view === 'side' ? J.hip[1] : J.hc[1]) - 8);
+  var pad = ARROW[size].pad, side = Math.max(b[2] - b[0], b[3] - b[1], thumb ? 40 : 58) + pad * 2;
+  return { x:(b[0] + b[2]) / 2 - side / 2, y:(b[1] + b[3]) / 2 - side / 2, side:side, inset:pad + 1.5, box:b };
+}
 
 /* ---------- the one public entry ---------- */
+/* The arrow and hold mark depend only on the drawing and the size, so each
+   is placed once and remembered. */
+var PLACED = typeof WeakMap === 'function' ? new WeakMap() : null;
 function render(def, opts){
   opts = opts || {};
   var size = opts.size === 'full' ? 'full' : 'thumb';
@@ -9208,34 +9521,37 @@ function render(def, opts){
   J.size = size; if(O) O.size = size;
   var ghost = def.ghost || 'all';
   if(thumb && ghost === 'all') ghost = def.thumbGhost || 'none';     // whole-body ghosts only at full size
-  var s = drawProps(J, def.scene);
-  if(O && ghost !== 'none'){
-    s += '<g opacity="' + (thumb ? 0.26 : 0.22) + '">' + drawProps(O, def.gear) + figure(O, 'ghost', ghost) + '</g>';
+  if(!O) ghost = 'none';
+  var drawn = [], ghostDrawn = [];
+  var s = drawProps(J, def.scene, drawn);
+  if(ghost !== 'none'){
+    s += '<g opacity="' + (thumb ? 0.26 : 0.22) + '">' + drawProps(O, def.gear, ghostDrawn) + figure(O, 'ghost', ghost) + '</g>';
   }
-  s += drawProps(J, def.behind);
-  if(!def.gearFront) s += drawProps(J, def.gear);
+  s += drawProps(J, def.behind, drawn);
+  if(!def.gearFront) s += drawProps(J, def.gear, drawn);
   s += figure(J, 'solid');
-  if(def.gearFront) s += drawProps(J, def.gear);
-  s += drawProps(J, def.front);
+  if(def.gearFront) s += drawProps(J, def.gear, drawn);
+  s += drawProps(J, def.front, drawn);
   if(def.armOver) s += figure(J, 'solid', 'nearArm');
-  s += motionPath(def, size);
-  var box = bounds(s);
-  if(def.hold) s += holdMark(box, size);
-  /* Frame what is drawn. A thumbnail of arm work frames the upper body: the
-     legs carry no information there and cost the arms half their size. */
-  if(thumb && def.crop === 'upper'){
-    var hipY = J.view === 'side' ? J.hip[1] : J.hc[1];
-    box[3] = Math.min(box[3], hipY + 14);
+  var frame = framed(bounds(s), def, J, size);
+  var memo = PLACED && PLACED.get(def), marks = memo && memo[size];
+  if(marks == null){
+    var arch = archetypeOf(def), shapes = null;
+    marks = '';
+    if(arch === 'locomotion' || arch === 'hold' || (def.track && def.start)) shapes = sceneShapes(def, J, O, ghost, drawn, ghostDrawn);
+    if(arch === 'locomotion') marks = travelArrow(def, shapes, size);
+    else if(arch !== 'hold' && !def.depth && def.track && def.start) marks = placeArrow(def, shapes, frame, size);
+    if(arch === 'hold') marks = { hold:true, shapes:shapes };
+    if(PLACED && typeof marks === 'string'){ memo = memo || {}; memo[size] = marks; PLACED.set(def, memo); }
   }
-  if(thumb && def.crop === 'lower'){
-    var hipL = J.view === 'side' ? J.hip[1] : J.hc[1];
-    box[1] = Math.max(box[1], hipL - 8);
+  if(marks && typeof marks === 'string'){
+    var bx = bounds(marks), fb = frame.box;
+    frame = framed([Math.min(fb[0], bx[0]), Math.min(fb[1], bx[1]), Math.max(fb[2], bx[2]), Math.max(fb[3], bx[3])], def, J, size);
+    s += marks;
+  } else if(marks && marks.hold){
+    s += holdMark(frame, marks.shapes, size);
   }
-  var pad = thumb ? 3 : 7;
-  var w = box[2] - box[0], h = box[3] - box[1];
-  var side = Math.max(w, h, thumb ? 40 : 58) + pad * 2;
-  var cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
-  var vx = n1(cx - side / 2), vy = n1(cy - side / 2);
+  var vx = n1(frame.x), vy = n1(frame.y), side = frame.side;
   var ground = def.ground === false ? '' :
     '<path d="M' + n1(vx) + ' ' + (G + 0.9) + 'L' + n1(vx + side) + ' ' + (G + 0.9) + '" stroke="' + C.ground + '" stroke-width="1.8"/>';
   var label = opts.label ? ' role="img" aria-label="' + String(opts.label).replace(/[<>&"]/g, '') + '"' : ' aria-hidden="true"';
@@ -9311,8 +9627,8 @@ function build(){
     }
     /* Upper-arm and forearm angles that put a hand at `hand` from `shoulder`; the
        elbow bends to the `bend` side (+1 or -1) of the shoulder-hand line. */
-    function armTo(shoulder, hand, bend){
-      var ua = ExerciseArt.B.ua, fa = ExerciseArt.B.fa;
+    function armTo(shoulder, hand, bend, uaScale, faScale){
+      var ua = ExerciseArt.B.ua * (uaScale || 1), fa = ExerciseArt.B.fa * (faScale || 1);
       var dx = hand[0] - shoulder[0], dy = hand[1] - shoulder[1];
       var d = Math.max(Math.min(Math.sqrt(dx * dx + dy * dy), ua + fa - 0.01), Math.abs(ua - fa) + 0.01);
       var base = Math.atan2(dx, dy) * 180 / Math.PI;
@@ -9321,10 +9637,12 @@ function build(){
       var e = [shoulder[0] + Math.sin(t * Math.PI / 180) * ua, shoulder[1] + Math.cos(t * Math.PI / 180) * ua];
       return [t, Math.atan2(hand[0] - e[0], hand[1] - e[1]) * 180 / Math.PI];
     }
-    /* A front pose whose two hands meet exactly at `hand`. */
+    /* A front pose whose two hands meet exactly at `hand`, honouring any
+       foreshortening the pose gives the arms (an arm reaching toward the
+       viewer is drawn shorter). */
     function handsAt(pose, hand, bendL, bendR){
-      var J = ExerciseArt.solve('front', pose), r = extend({}, pose);
-      var L = armTo(J.lS, hand, bendL == null ? 1 : bendL), R = armTo(J.rS, hand, bendR == null ? -1 : bendR);
+      var J = ExerciseArt.solve('front', pose), r = extend({}, pose), us = pose.uaScale, fs = pose.faScale;
+      var L = armTo(J.lS, hand, bendL == null ? 1 : bendL, us, fs), R = armTo(J.rS, hand, bendR == null ? -1 : bendR, us, fs);
       r.la = -L[0]; r.lfa = -L[1]; r.ra = R[0]; r.rfa = R[1];
       return r;
     }
@@ -9348,137 +9666,140 @@ function build(){
   H.add({
 
   /* ---- elbow flexion ---- */
-  curl_barbell: { view:'side', crop:'upper', ghost:'arms',
+  curl_barbell: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
     start:S({ nua:6, nfa:14, fua:2, ffa:10 }),
     end:  S({ nua:18, nfa:152, fua:14, ffa:148 }),
     gear:[['plate', { at:'nW', r:7.4 }]], track:'nW' },
 
-  curl_dumbbell: { view:'side', crop:'upper', ghost:'arms',
+  curl_dumbbell: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
     start:S({ nua:6, nfa:14, fua:-2, ffa:4 }),
     end:  S({ nua:18, nfa:152, fua:-2, ffa:4 }),
     gear:[['dbFace', { at:'fW' }], ['dbFace', { at:'nW' }]], track:'nW' },
 
-  curl_hammer: { view:'side', crop:'upper', ghost:'arms',
+  curl_hammer: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
     start:S({ nua:6, nfa:14, fua:-2, ffa:4 }),
     end:  S({ nua:18, nfa:150, fua:-2, ffa:4 }),
     gear:[['db', { at:'fW', along:'ffa', aoff:90 }], ['db', { at:'nW', along:'nfa', aoff:90 }]], track:'nW' },
 
-  curl_incline_db: { view:'side', crop:'upper', ghost:'arms',
+  curl_incline_db: { view:'side', arch:'arc', arrow:{ trim:[0.45, 1] }, crop:'upper', ghost:'arms',
     scene:[['pad', { a:[38, 91], b:[62, 91], w:5 }], ['post', { a:[50, 94], b:[50, G] }], ['pad', { a:[42, 90], b:[25, 63], w:5 }]],
     start:{ pin:['hip', [48, 85.5]], trunk:-148, neck:-162, nua:2, nfa:6, fua:-2, ffa:2, nth:90, nsh:-6, fth:90, fsh:-12 },
     end:  { pin:['hip', [48, 85.5]], trunk:-148, neck:-162, nua:2, nfa:158, fua:-2, ffa:2, nth:90, nsh:-6, fth:90, fsh:-12 },
     gear:[['dbFace', { at:'fW' }], ['dbFace', { at:'nW' }]], track:'nW' },
 
-  curl_preacher: { view:'side', crop:'upper', ghost:'arms', armOver:true,
+  curl_preacher: { view:'side', arch:'arc', crop:'upper', ghost:'arms', armOver:true,
     scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['post', { a:[62, 79], b:[60, G] }]],
     front:[['pad', { a:[52.4, 67.4], b:[64.6, 75.4], w:7 }]],
     start:seat({ trunk:176, nua:58, nfa:64, fua:54, ffa:60 }),
     end:  seat({ trunk:176, nua:58, nfa:158, fua:54, ffa:154 }),
     gear:[['plate', { at:'nW', r:6.6 }]], track:'nW' },
 
-  curl_cable: { view:'side', crop:'upper', ghost:'arms',
+  curl_cable: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
     scene:[['column', { x:96, top:44 }]],
     start:S({ trunk:176, nua:10, nfa:30, fua:6, ffa:26 }),
     end:  S({ trunk:176, nua:18, nfa:150, fua:14, ffa:146 }),
     gear:[['cable', { from:[92, 98], to:'nW', grip:'bar' }]], track:'nW' },
 
-  cable_hammer_curl: { view:'side', crop:'upper', ghost:'arms',
+  cable_hammer_curl: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
     scene:[['column', { x:96, top:44 }]],
     start:S({ trunk:176, nua:10, nfa:30, fua:6, ffa:26 }),
     end:  S({ trunk:176, nua:18, nfa:150, fua:14, ffa:146 }),
     gear:[['cable', { from:[92, 98], to:'nW', grip:'rope' }]], track:'nW' },
 
-  concentration_curl: { view:'side', crop:'upper', ghost:'arms',
+  concentration_curl: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
     scene:[['bench', { x1:20, x2:58, y:92 }]],
     start:{ pin:['hip', [44, 86]], trunk:132, neck:142, nua:8, nfa:4, fua:44, ffa:34, nth:90, nsh:-8, fth:90, fsh:-12 },
     end:  { pin:['hip', [44, 86]], trunk:132, neck:142, nua:8, nfa:162, fua:44, ffa:34, nth:90, nsh:-8, fth:90, fsh:-12 },
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
-  machine_curl: { view:'side', crop:'upper', ghost:'arms', armOver:true,
+  machine_curl: { view:'side', arch:'machine', path:'trace', crop:'upper', ghost:'arms', armOver:true,
     scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['post', { a:[67, 79], b:[67, G] }]],
     front:[['pad', { a:[52.6, 66.4], b:[65.4, 74], w:7 }]],
     start:seat({ trunk:176, nua:60, nfa:66, fua:56, ffa:62 }),
     end:  seat({ trunk:176, nua:60, nfa:166, fua:56, ffa:162 }),
     gear:[['lever', { pivot:[64.6, 71], to:'nW', handle:true }]], track:'nW' },
 
-  band_curl: { view:'side', crop:'upper', ghost:'arms',
+  band_curl: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
     start:S({ nua:6, nfa:14, fua:2, ffa:10 }),
     end:  S({ nua:18, nfa:152, fua:14, ffa:148 }),
     gear:[['band', { from:'nA', fdx:3, fdy:1, to:'nW', bowX:3 }]], track:'nW' },
 
   /* ---- elbow extension ---- */
-  triceps_pushdown: { view:'side', crop:'upper', ghost:'arms',
+  triceps_pushdown: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
     scene:[['column', { x:96, top:12 }]],
     start:S({ pin:['nA', [54, 104.3]], trunk:170, neck:166, nua:14, nfa:112, fua:10, ffa:108 }),
     end:  S({ pin:['nA', [54, 104.3]], trunk:170, neck:166, nua:12, nfa:10, fua:8, ffa:6 }),
     gear:[['cable', { from:[92, 18], to:'nW', grip:'bar' }]], track:'nW' },
 
-  rope_pushdown: { view:'side', crop:'upper', ghost:'arms',
+  rope_pushdown: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
     scene:[['column', { x:96, top:12 }]],
     start:S({ pin:['nA', [54, 104.3]], trunk:170, neck:166, nua:14, nfa:112, fua:10, ffa:108 }),
     end:  S({ pin:['nA', [54, 104.3]], trunk:170, neck:166, nua:12, nfa:6, fua:8, ffa:2 }),
     gear:[['cable', { from:[92, 18], to:'nW', grip:'rope' }]], track:'nW' },
 
-  band_pushdown: { view:'side', crop:'upper', ghost:'arms',
+  band_pushdown: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
     scene:[['wall', { x:94, top:10 }], ['anchor', { at:[92, 22] }]],
     start:S({ pin:['nA', [54, 104.3]], trunk:170, neck:166, nua:14, nfa:112, fua:10, ffa:108 }),
     end:  S({ pin:['nA', [54, 104.3]], trunk:170, neck:166, nua:12, nfa:10, fua:8, ffa:6 }),
     gear:[['band', { from:[92, 22], to:'nW', bowX:2 }]], track:'nW' },
 
-  overhead_ext_cable: { view:'side', crop:'upper', ghost:'arms',
-    scene:[['column', { x:22, top:10 }]],
-    start:S({ pin:['nA', [64, 104.3]], trunk:156, neck:162, nua:166, nfa:-30, fua:162, ffa:-34, nth:-10, nsh:6, fth:16, fsh:-6 }),
-    end:  S({ pin:['nA', [64, 104.3]], trunk:156, neck:162, nua:166, nfa:170, fua:162, ffa:166, nth:-10, nsh:6, fth:16, fsh:-6 }),
-    gear:[['cable', { from:[26, 16], to:'nW', grip:'bar' }]], track:'nW' },
+  /* Overhead cable extension: facing away from a pulley set at chest height,
+     elbows high beside the head. The rope starts behind the head and the
+     forearms extend forward and up while the upper arms stay put. */
+  overhead_ext_cable: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
+    scene:[['column', { x:20, top:30 }]],
+    start:S({ pin:['nA', [66, 104.3]], trunk:160, neck:166, nua:170, nfa:-20, fua:166, ffa:-24, nth:-12, nsh:4, fth:18, fsh:-6 }),
+    end:  S({ pin:['nA', [66, 104.3]], trunk:160, neck:166, nua:170, nfa:166, fua:166, ffa:162, nth:-12, nsh:4, fth:18, fsh:-6 }),
+    gear:[['cable', { from:[24, 50], to:'nW', grip:'bar' }]], track:'nW' },
 
-  overhead_rope_ext: { view:'side', crop:'upper', ghost:'arms',
-    scene:[['column', { x:22, top:10 }]],
-    start:S({ pin:['nA', [64, 104.3]], trunk:156, neck:162, nua:166, nfa:-30, fua:162, ffa:-34, nth:-10, nsh:6, fth:16, fsh:-6 }),
-    end:  S({ pin:['nA', [64, 104.3]], trunk:156, neck:162, nua:166, nfa:170, fua:162, ffa:166, nth:-10, nsh:6, fth:16, fsh:-6 }),
-    gear:[['cable', { from:[26, 16], to:'nW', grip:'rope' }]], track:'nW' },
+  overhead_rope_ext: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
+    scene:[['column', { x:20, top:30 }]],
+    start:S({ pin:['nA', [66, 104.3]], trunk:160, neck:166, nua:170, nfa:-20, fua:166, ffa:-24, nth:-12, nsh:4, fth:18, fsh:-6 }),
+    end:  S({ pin:['nA', [66, 104.3]], trunk:160, neck:166, nua:170, nfa:166, fua:166, ffa:162, nth:-12, nsh:4, fth:18, fsh:-6 }),
+    gear:[['cable', { from:[24, 50], to:'nW', grip:'rope' }]], track:'nW' },
 
-  overhead_ext_triceps: { view:'side', crop:'upper', ghost:'arms',
+  overhead_ext_triceps: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
     start:S({ nua:176, nfa:-14, fua:172, ffa:-18 }),
     end:  S({ nua:176, nfa:178, fua:172, ffa:174 }),
     gear:[['db', { at:'nW', along:'nfa', ahead:3.4, len:4.2 }]], track:'nW' },
 
-  band_triceps_ext: { view:'side', crop:'upper', ghost:'arms',
+  band_triceps_ext: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
     start:S({ nua:176, nfa:-14, fua:172, ffa:-18 }),
     end:  S({ nua:176, nfa:178, fua:172, ffa:174 }),
     gear:[['band', { from:'nA', fdx:-2, to:'nW', bowX:-7 }]], track:'nW' },
 
-  skullcrusher: { view:'side', ghost:'arms',
+  skullcrusher: { view:'side', arch:'arc', ghost:'arms',
     scene:[['bench', { x1:24, x2:84, y:78 }]],
     start:sup({ nua:190, nfa:-26, fua:188, ffa:-30 }),
     end:  sup({ nua:190, nfa:182, fua:188, ffa:180 }),
     gear:[['plate', { at:'nW', r:6.6 }]], track:'nW' },
 
-  triceps_kickback: { view:'side', ghost:'arms',
+  triceps_kickback: { view:'side', arch:'arc', arrow:{ trim:[0.35, 1], slide:[4, 7, 10] }, ghost:'arms',
     scene:[['bench', { x1:24, x2:82, y:90 }]],
     start:{ pin:['fW', [74, 90]], trunk:100, neck:104, fua:0, ffa:0, fth:8, fsh:-90, fft:0, nth:24, nsh:-16, nua:-80, nfa:2 },
     end:  { pin:['fW', [74, 90]], trunk:100, neck:104, fua:0, ffa:0, fth:8, fsh:-90, fft:0, nth:24, nsh:-16, nua:-80, nfa:-78 },
     gear:[['db', { at:'nW', along:'nfa', aoff:90, len:4.4 }]], track:'nW' },
 
-  dip: { view:'side', key:'start',
+  dip: { view:'side', arch:'dynamic', path:'line', key:'start',
     scene:[['rail', { a:[40, 60.5], b:[84, 60.5], w:3.2 }], ['post', { a:[42, 61], b:[42, G] }], ['post', { a:[82, 61], b:[82, G] }]],
     start:{ pin:['nW', [62, 58.4]], trunk:160, neck:168, nua:-95, nfa:20, fua:-99, ffa:16, nth:22, nsh:-56, fth:14, fsh:-62 },
     end:  { pin:['nW', [62, 58.4]], trunk:172, neck:176, nua:4, nfa:2, fua:0, ffa:-2, nth:14, nsh:-48, fth:8, fsh:-54 },
     track:'sh' },
 
-  dip_weighted: { view:'side', key:'start',
+  dip_weighted: { view:'side', arch:'dynamic', path:'line', key:'start',
     scene:[['rail', { a:[40, 60.5], b:[84, 60.5], w:3.2 }], ['post', { a:[42, 61], b:[42, G] }], ['post', { a:[82, 61], b:[82, G] }]],
     start:{ pin:['nW', [62, 58.4]], trunk:160, neck:168, nua:-95, nfa:20, fua:-99, ffa:16, nth:22, nsh:-56, fth:14, fsh:-62 },
     end:  { pin:['nW', [62, 58.4]], trunk:172, neck:176, nua:4, nfa:2, fua:0, ffa:-2, nth:14, nsh:-48, fth:8, fsh:-54 },
     gear:[['rod', { a:'hip', b:'belt', c:'dim', w:1.2 }], ['disc', { at:'belt', dy:4, r:5.2 }]],
     track:'sh' },
 
-  bench_dip: { view:'side', key:'start',
+  bench_dip: { view:'side', arch:'dynamic', path:'line', key:'start',
     scene:[['bench', { x1:20, x2:54, y:80 }]],
     start:planted({ pin:['nW', [52, 80]], trunk:178, neck:180, nua:-100, nfa:10, fua:-104, ffa:6, nft:90, fft:90 }, [86, 103.4], [82, 103.6]),
     end:  planted({ pin:['nW', [52, 80]], trunk:178, neck:180, nua:-14, nfa:-12, fua:-18, ffa:-16, nft:90, fft:90 }, [86, 103.4], [82, 103.6]),
     track:'sh' },
 
-  bench_press_close_grip: { view:'side', ghost:'arms',
+  bench_press_close_grip: { view:'side', arch:'press', ghost:'arms',
     scene:[['bench', { x1:24, x2:84, y:78 }]],
     start:sup({ nua:24, nfa:176, fua:20, ffa:174 }),
     end:  sup({ nua:176, nfa:178, fua:172, ffa:176 }),
@@ -9488,7 +9809,7 @@ function build(){
 
   /* Chest and shoulders: presses, flys, push-ups, raises. */
   (function(H){
-  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend;
+  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, handsAt = H.handsAt;
   var BENCH = ['bench', { x1:24, x2:84, y:78 }];
 
   /* Reclined on an incline bench, seat top at y=86. */
@@ -9515,223 +9836,247 @@ function build(){
   H.add({
 
   /* ---- barbell and dumbbell presses ---- */
-  bench_press_barbell: { view:'side', ghost:'arms', scene:[BENCH],
+  bench_press_barbell: { view:'side', arch:'press', ghost:'arms', scene:[BENCH],
     start:sup({ nua:40, nfa:185, fua:36, ffa:182 }),
     end:  sup({ nua:176, nfa:178, fua:172, ffa:176 }),
     gear:[['plate', { at:'nW' }]], track:'nW' },
 
-  bench_press_smith: { view:'side', ghost:'arms', scene:[['rail', { a:[49, 14], b:[49, G], w:2.4 }], ['rail', { a:[53, 14], b:[53, G], w:2.4 }], BENCH],
+  bench_press_smith: { view:'side', arch:'machine', ghost:'arms', scene:[['rail', { a:[49, 14], b:[49, G], w:2.4 }], ['rail', { a:[53, 14], b:[53, G], w:2.4 }], BENCH],
     start:sup({ nua:40, nfa:185, fua:36, ffa:182 }),
     end:  sup({ nua:176, nfa:178, fua:172, ffa:176 }),
     gear:[['plate', { at:'nW' }]], track:'nW' },
 
-  bench_press_db: { view:'side', ghost:'arms', scene:[BENCH],
+  bench_press_db: { view:'side', arch:'press', ghost:'arms', scene:[BENCH],
     start:sup({ nua:44, nfa:186, fua:40, ffa:183 }),
     end:  sup({ nua:176, nfa:178, fua:172, ffa:176 }),
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
-  bench_press_incline_bb: { view:'side', ghost:'arms', scene:INCLINE_SCENE,
+  bench_press_incline_bb: { view:'side', arch:'press', ghost:'arms', scene:INCLINE_SCENE,
     start:incline({ nua:22, nfa:175, fua:18, ffa:172 }),
     end:  incline({ nua:178, nfa:180, fua:174, ffa:176 }),
     gear:[['plate', { at:'nW' }]], track:'nW' },
 
-  incline_press_db: { view:'side', ghost:'arms', scene:INCLINE_SCENE,
+  incline_press_db: { view:'side', arch:'press', ghost:'arms', scene:INCLINE_SCENE,
     start:incline({ nua:26, nfa:176, fua:22, ffa:173 }),
     end:  incline({ nua:178, nfa:180, fua:174, ffa:176 }),
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
-  db_floor_press: { view:'side', ghost:'arms',
+  db_floor_press: { view:'side', arch:'press', ghost:'arms',
     start:floor({ nua:76, nfa:180, fua:72, ffa:178 }),
     end:  floor({ nua:180, nfa:180, fua:176, ffa:178 }),
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
   /* ---- machines ---- */
-  chest_press_machine: { view:'side', ghost:'arms',
+  chest_press_machine: { view:'side', arch:'machine', ghost:'arms',
     scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 56], w:5.4 }], ['column', { x:94, top:26 }]],
     start:seat({ trunk:178, nua:-68, nfa:88, fua:-72, ffa:84 }),
     end:  seat({ trunk:178, nua:84, nfa:88, fua:80, ffa:84 }),
     gear:[['lever', { pivot:[90, 34], to:'nW', handle:true }]], track:'nW' },
 
-  incline_machine_press: { view:'side', ghost:'arms',
+  incline_machine_press: { view:'side', arch:'machine', ghost:'arms',
     scene:[['pad', { a:[40, 92], b:[62, 92], w:5 }], ['post', { a:[51, 95], b:[51, G] }], ['pad', { a:[42, 89], b:[30, 58], w:5.4 }], ['column', { x:96, top:14 }]],
     start:seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:-40, nfa:130, fua:-44, ffa:126 }),
     end:  seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:138, nfa:136, fua:134, ffa:132 }),
     gear:[['lever', { pivot:[92, 20], to:'nW', handle:true }]], track:'nW' },
 
-  machine_shoulder_press: { view:'side', ghost:'arms',
+  machine_shoulder_press: { view:'side', arch:'machine', ghost:'arms',
     scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 54], w:5.4 }], ['column', { x:26, top:6 }]],
     start:seat({ trunk:178, nua:-40, nfa:178, fua:-44, ffa:176 }),
     end:  seat({ trunk:178, nua:174, nfa:178, fua:170, ffa:176 }),
     gear:[['lever', { pivot:[30, 16], to:'nW', handle:true }]], track:'nW' },
 
   /* ---- flys (front and top-down views: the arms move across the body) ---- */
-  chest_fly_cable: { view:'front', ghost:'arms',
+  chest_fly_cable: { view:'front', arch:'cable', ghost:'arms',
     scene:[['column', { x:12, top:8 }], ['column', { x:108, top:8 }]],
     start:F({ la:104, lfa:98, ra:104, rfa:98 }),
     end:  F({ la:14, lfa:-46, ra:14, rfa:-46 }),
     gear:[['cable', { from:[16, 15], to:'lW' }], ['cable', { from:[104, 15], to:'rW' }]], track:'rW' },
 
-  chest_fly_incline_cable: { view:'front', ghost:'arms',
+  /* Low-to-high cable fly: from the low pulleys the hands sweep up and in to
+     meet in front of the upper chest — not overhead. Reaching forward, the
+     arms are drawn foreshortened. */
+  chest_fly_incline_cable: { view:'front', arch:'cable', path:'line', arrow:{ trim:[0, 0.7] }, ghost:'arms',
     scene:[['column', { x:12, top:60 }], ['column', { x:108, top:60 }]],
     start:F({ la:36, lfa:40, ra:36, rfa:40 }),
-    end:  F({ la:150, lfa:204, ra:150, rfa:204 }),
+    end:  handsAt(F({ uaScale:0.62, faScale:0.62 }), [60.3, 52]),
     gear:[['cable', { from:[16, 98], to:'lW' }], ['cable', { from:[104, 98], to:'rW' }]], track:'rW' },
 
-  pec_deck: { view:'front', ghost:'arms',
-    scene:[['box', { x:47, y:29.5, w:26, h:52 }]],
-    start:FS({ la:96, lfa:180, ra:96, rfa:180 }),
-    end:  FS({ la:90, lfa:182, ra:90, rfa:182, uaScale:0.32 }),
-    track:'rE' },
+  /* Pec deck: back on the pad, upper arms level, forearms against upright pads
+     that swing from pivots overhead. The open stretch is the drawing; the pads
+     meeting in front of the chest is the ghost, and the arrow closes inward. */
+  pec_deck: { view:'front', arch:'machine', path:'line', key:'start', ghost:'all', thumbGhost:'none',
+    scene:[['box', { x:49, y:30, w:22, h:52 }], ['pad', { a:[46, 83], b:[74, 83], w:5 }], ['post', { a:[60, 86], b:[60, G] }],
+      ['rail', { a:[36, 20], b:[84, 20], w:3 }]],
+    start:FS({ la:92, lfa:180, ra:92, rfa:180 }),
+    end:  FS({ la:-90, lfa:180, ra:-90, rfa:180, uaScale:0.32 }),
+    gear:[['lever', { pivot:[55, 20], to:'lW', dy:-3 }], ['lever', { pivot:[65, 20], to:'rW', dy:-3 }],
+      ['pad', { a:'lE', b:'lW', extA:1, extB:3, w:7 }], ['pad', { a:'rE', b:'rW', extA:1, extB:3, w:7 }]],
+    track:'rW' },
 
-  db_floor_fly: { view:'front', ghost:'arms', ground:false,
-    scene:[['mat', { x:6, y:40, w:108, h:40 }]],
-    start:{ pin:['hc', [74, 60]], rot:-90, la:88, lfa:88, ra:88, rfa:88, lth:4, lsh:4, rth:4, rsh:4 },
-    end:  { pin:['hc', [74, 60]], rot:-90, la:40, lfa:-30, ra:40, rfa:-30, uaScale:0.7, faScale:0.7, lth:4, lsh:4, rth:4, rsh:4 },
+  /* DB floor fly, seen from above: arms open wide on the floor with a soft
+     bend (the drawing); the weights meet over the chest (the ghost). */
+  db_floor_fly: { view:'front', arch:'arc', key:'start', ghost:'all', thumbGhost:'none', ground:false,
+    scene:[['mat', { x:6, y:30, w:108, h:60 }]],
+    start:{ pin:['hc', [74, 60]], rot:-90, la:84, lfa:70, ra:84, rfa:70, lth:4, lsh:4, rth:4, rsh:4 },
+    end:  { pin:['hc', [74, 60]], rot:-90, la:24, lfa:-40, ra:24, rfa:-40, uaScale:0.45, faScale:0.45, lth:4, lsh:4, rth:4, rsh:4 },
     gear:[['dbFace', { at:'lW', r:3.8 }], ['dbFace', { at:'rW', r:3.8 }]], track:'rW' },
 
   /* ---- push-ups ---- */
-  pushup: { view:'side', key:'end',
+  pushup: { view:'side', arch:'dynamic', path:'line', key:'end',
     start:plank([-100, 8], [-104, 4], [82, 103.2]),
     end:  plank([2, 0], [-2, -2], [82, 103.2]),
     track:'sh' },
 
-  pushup_close: { view:'side', key:'end',
+  pushup_close: { view:'side', arch:'dynamic', path:'line', key:'end',
     start:plank([-118, 4], [-122, 0], [78, 103.2]),
     end:  plank([-10, -8], [-14, -12], [78, 103.2]),
     track:'sh' },
 
-  pushup_incline: { view:'side', key:'end',
+  pushup_incline: { view:'side', arch:'dynamic', path:'line', key:'end',
     scene:[['bench', { x1:74, x2:104, y:80 }]],
     start:ExerciseArt.fit('side', function(a){ return { pin:['nW', [82, 79.4]], trunk:a, neck:a - 8, nth:a - 180, nsh:a - 180, fth:a - 180, fsh:a - 180, nft:0, fft:0, nua:-120, nfa:26, fua:-124, ffa:22 }; }, 60, 170, 'nT', G - 1.2),
     end:  ExerciseArt.fit('side', function(a){ return { pin:['nW', [82, 79.4]], trunk:a, neck:a - 8, nth:a - 180, nsh:a - 180, fth:a - 180, fsh:a - 180, nft:0, fft:0, nua:6, nfa:6, fua:2, ffa:2 }; }, 60, 170, 'nT', G - 1.2),
     track:'sh' },
 
-  pushup_plyo: { view:'side', key:'end',
+  pushup_plyo: { view:'side', arch:'dynamic', path:'line', key:'end',
     start:plank([-100, 8], [-104, 4], [82, 103.2]),
     end:  plank([10, 12], [6, 8], [84, 95], 0),
-    track:'nW' },
+    track:'sh' },
 
-  pushup_plyo_box: { view:'side', key:'end',
+  pushup_plyo_box: { view:'side', arch:'dynamic', path:'line', key:'end',
     scene:[['box', { x:76, y:96, w:14, h:10 }]],
     start:plank([-100, 8], [-104, 4], [70, 103.2]),
     end:  ExerciseArt.fit('side', function(a){ return { pin:['nW', [83, 95.2]], trunk:a, neck:a - 8, nth:a - 180, nsh:a - 180, fth:a - 180, fsh:a - 180, nft:0, fft:0, nua:2, nfa:2, fua:-2, ffa:-2 }; }, 60, 160, 'nT', G - 1.2),
-    track:'nW' },
+    track:'sh' },
 
-  pike_pushup: { view:'side', key:'end',
+  pike_pushup: { view:'side', arch:'dynamic', path:'line', key:'end',
     start:{ pin:['nW', [82, 103.2]], trunk:24, neck:18, nth:-38, nsh:-38, fth:-38, fsh:-38, nft:0, fft:0, nua:-70, nfa:36, fua:-74, ffa:32 },
     end:  { pin:['nW', [82, 103.2]], trunk:48, neck:40, nth:-48, nsh:-48, fth:-48, fsh:-48, nft:0, fft:0, nua:2, nfa:2, fua:-2, ffa:-2 },
     track:'sh' },
 
-  band_chest_press: { view:'side', ghost:'arms', crop:'upper', gearFront:true,
+  band_chest_press: { view:'side', arch:'cable', path:'line', ghost:'arms', crop:'upper', gearFront:true,
     start:S({ nua:-66, nfa:88, fua:-70, ffa:84, nth:-6, fth:10, fsh:-4 }),
     end:  S({ nua:88, nfa:90, fua:84, ffa:86, nth:-6, fth:10, fsh:-4 }),
     gear:[['band', { from:'sh', fdx:-5, fdy:2, to:'nW', bowY:-3 }]], track:'nW' },
 
-  med_ball_chest_pass: { view:'side', ghost:'arms', crop:'upper',
+  med_ball_chest_pass: { view:'side', arch:'press', ghost:'arms', crop:'upper',
     start:S({ nua:-40, nfa:96, fua:-44, ffa:92, nth:-8, fth:14, fsh:-6 }),
     end:  S({ trunk:172, nua:84, nfa:86, fua:80, ffa:82, nth:-10, fth:16, fsh:-8 }),
     gear:[['medball', { at:'nW', dx:5 }]], track:'nW' },
 
   /* ---- overhead presses ---- */
-  overhead_press_bb: { view:'side', ghost:'arms', crop:'upper',
+  overhead_press_bb: { view:'side', arch:'press', ghost:'arms', crop:'upper',
     start:S({ nua:34, nfa:168, fua:30, ffa:166 }),
     end:  S({ nua:178, nfa:180, fua:174, ffa:178 }),
     gear:[['plate', { at:'nW' }]], track:'nW' },
 
-  push_press: { view:'side', ghost:'all', key:'start',
+  push_press: { view:'side', arch:'press', ghost:'all', key:'start',
     start:S({ trunk:176, nth:24, nsh:-24, fth:20, fsh:-26, nua:34, nfa:168, fua:30, ffa:166 }),
     end:  S({ nua:178, nfa:180, fua:174, ffa:178 }),
     gear:[['plate', { at:'nW' }]], track:'nW' },
 
-  db_push_press: { view:'side', ghost:'all', key:'start',
+  db_push_press: { view:'side', arch:'press', ghost:'all', key:'start',
     start:S({ trunk:176, nth:24, nsh:-24, fth:20, fsh:-26, nua:30, nfa:170, fua:26, ffa:168 }),
     end:  S({ nua:178, nfa:180, fua:174, ffa:178 }),
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
-  kb_push_press: { view:'side', ghost:'all', key:'start',
+  kb_push_press: { view:'side', arch:'press', ghost:'all', key:'start',
     start:S({ trunk:176, nth:24, nsh:-24, fth:20, fsh:-26, nua:28, nfa:170, fua:-4, ffa:-2 }),
     end:  S({ nua:178, nfa:180, fua:-4, ffa:-2 }),
     gear:[['kettlebell', { at:'nW', inverted:true, dx:-2 }]], track:'nW' },
 
-  shoulder_press_db: { view:'front', ghost:'arms',
+  shoulder_press_db: { view:'front', arch:'press', ghost:'arms',
     scene:[['box', { x:48, y:31.5, w:24, h:52 }]],
     start:FS({ la:92, lfa:178, ra:92, rfa:178 }),
     end:  FS({ la:156, lfa:170, ra:156, rfa:170 }),
     gear:[['db', { at:'lW', a:90, len:4.4 }], ['db', { at:'rW', a:90, len:4.4 }]], track:'rW' },
 
-  shoulder_press_arnold: { view:'front', ghost:'arms', key:'start',
+  shoulder_press_arnold: { view:'front', arch:'press', ghost:'arms', key:'start',
     scene:[['box', { x:48, y:31.5, w:24, h:52 }]],
     start:FS({ la:-12, lfa:176, ra:-12, rfa:176, uaScale:0.75 }),
     end:  FS({ la:168, lfa:176, ra:168, rfa:176 }),
     gear:[['db', { at:'lW', a:0, len:4.4 }], ['db', { at:'rW', a:0, len:4.4 }]], track:'rW' },
 
-  landmine_press: { view:'side', ghost:'arms',
+  landmine_press: { view:'side', arch:'press', ghost:'arms',
     start:{ pin:['fK', [58, G - 4]], trunk:172, neck:176, fth:0, fsh:-90, fft:-80, nth:94, nsh:0, nua:26, nfa:160, fua:-4, ffa:-2 },
     end:  { pin:['fK', [58, G - 4]], trunk:168, neck:172, fth:0, fsh:-90, fft:-80, nth:94, nsh:0, nua:140, nfa:140, fua:-4, ffa:-2 },
     gear:[['rod', { a:[14, G - 1], b:'nW', w:2.4 }], ['plate', { at:'nW', r:4.6, dx:-4, dy:2 }]], track:'nW' },
 
-  band_shoulder_press: { view:'side', ghost:'arms', crop:'upper',
+  band_shoulder_press: { view:'side', arch:'cable', path:'line', ghost:'arms', crop:'upper',
     start:S({ nua:34, nfa:168, fua:30, ffa:166 }),
     end:  S({ nua:178, nfa:180, fua:174, ffa:178 }),
     gear:[['band', { from:'nA', fdx:3, to:'nW', bowX:10 }]], track:'nW' },
 
   /* ---- raises and rear delts ---- */
-  lateral_raise: { view:'front', ghost:'arms',
-    start:F({ la:10, lfa:8, ra:10, rfa:8 }),
-    end:  F({ la:88, lfa:86, ra:88, rfa:86 }),
-    gear:[['db', { at:'lW', a:0, len:4.8 }], ['db', { at:'rW', a:0, len:4.8 }]], track:'rW' },
+  /* Lateral raise: a soft bend held in the elbows, the weights rise out to
+     the sides until the arms are level with the shoulders. */
+  lateral_raise: { view:'front', arch:'arc', ghost:'arms',
+    start:F({ la:12, lfa:4, ra:12, rfa:4 }),
+    end:  F({ la:86, lfa:74, ra:86, rfa:74 }),
+    gear:[['dbFace', { at:'lW', r:4.2 }], ['dbFace', { at:'rW', r:4.2 }]], track:'rW' },
 
-  lateral_raise_cable: { view:'front', ghost:'arms',
+  lateral_raise_cable: { view:'front', arch:'cable', ghost:'arms',
     scene:[['column', { x:12, top:60 }]],
-    start:F({ la:-14, lfa:-16, ra:8, rfa:6 }),
-    end:  F({ la:-14, lfa:-16, ra:90, rfa:88 }),
+    start:F({ la:-14, lfa:-16, ra:10, rfa:4 }),
+    end:  F({ la:-14, lfa:-16, ra:86, rfa:76 }),
     gear:[['cable', { from:[16, 98], to:'rW' }]], track:'rW' },
 
-  front_raise: { view:'side', ghost:'arms', crop:'upper',
+  front_raise: { view:'side', arch:'arc', ghost:'arms', crop:'upper',
     start:S({ nua:4, nfa:4, fua:0, ffa:0 }),
     end:  S({ nua:92, nfa:92, fua:0, ffa:0 }),
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
-  upright_row: { view:'front', ghost:'arms',
+  upright_row: { view:'front', arch:'press', ghost:'arms',
     start:F({ la:8, lfa:-26, ra:8, rfa:-26 }),
     end:  F({ la:104, lfa:-52, ra:104, rfa:-52 }),
     gear:[['barFront', { half:26, pr:7.6 }]], track:'rW' },
 
-  rear_delt_fly: { view:'front', ghost:'arms',
-    start:F({ torsoScale:0.2, neckTilt:180, la:4, lfa:2, ra:4, rfa:2, lth:10, lsh:-6, rth:10, rsh:-6 }),
-    end:  F({ torsoScale:0.2, neckTilt:180, la:86, lfa:86, ra:86, rfa:86, lth:10, lsh:-6, rth:10, rsh:-6 }),
-    gear:[['db', { at:'lW', a:0, len:4.4 }], ['db', { at:'rW', a:0, len:4.4 }]], track:'rW' },
+  /* Rear delt fly, from the front: hinged forward with soft knees, so the
+     torso all but disappears behind the shoulders and the head hangs below
+     them, looking at the floor; the arms rise out wide to level. */
+  rear_delt_fly: { view:'front', arch:'arc', ghost:'arms',
+    start:F({ torsoScale:0.22, neckTilt:180, lth:12, lsh:-8, rth:12, rsh:-8, la:4, lfa:0, ra:4, rfa:0 }),
+    end:  F({ torsoScale:0.22, neckTilt:180, lth:12, lsh:-8, rth:12, rsh:-8, la:84, lfa:74, ra:84, rfa:74 }),
+    gear:[['dbFace', { at:'lW', r:4 }], ['dbFace', { at:'rW', r:4 }]], track:'rW' },
 
-  reverse_pec_deck: { view:'front', ghost:'arms', armOver:true,
-    front:[['box', { x:50, y:35.5, w:20, h:30 }]],
+  /* Reverse pec deck, from behind: chest on the pad (its edges show either
+     side of the back), the arms sweep from in front of the chest out to a T
+     on handles that swing from pivots overhead. */
+  reverse_pec_deck: { view:'front', arch:'machine', path:'line', ghost:'all', thumbGhost:'none',
+    scene:[['box', { x:46, y:44, w:28, h:34 }], ['pad', { a:[46, 83], b:[74, 83], w:5 }], ['post', { a:[60, 86], b:[60, G] }],
+      ['rail', { a:[28, 24], b:[92, 24], w:3 }]],
     start:FS({ la:90, lfa:90, ra:90, rfa:90, uaScale:0.3, faScale:0.3 }),
     end:  FS({ la:90, lfa:90, ra:90, rfa:90 }),
+    gear:[['lever', { pivot:[54, 24], to:'lW', dy:-4.5 }], ['lever', { pivot:[66, 24], to:'rW', dy:-4.5 }],
+      ['rod', { a:'lW', ady:-4.5, b:'lW', bdy:4.5, w:2.6 }], ['rod', { a:'rW', ady:-4.5, b:'rW', bdy:4.5, w:2.6 }]],
     track:'rW' },
 
-  face_pull: { view:'side', ghost:'arms', crop:'upper',
+  face_pull: { view:'side', arch:'cable', path:'line', ghost:'arms', crop:'upper',
     scene:[['column', { x:98, top:12 }]],
     start:S({ trunk:176, nua:106, nfa:104, fua:102, ffa:100 }),
     end:  S({ trunk:178, nua:-78, nfa:150, fua:-82, ffa:146 }),
     gear:[['cable', { from:[94, 24], to:'nW', grip:'rope' }]], track:'nW' },
 
-  band_face_pull: { view:'side', ghost:'arms', crop:'upper',
+  band_face_pull: { view:'side', arch:'cable', path:'line', ghost:'arms', crop:'upper',
     scene:[['wall', { x:96, top:12 }], ['anchor', { at:[94, 30] }]],
     start:S({ trunk:176, nua:104, nfa:102, fua:100, ffa:98 }),
     end:  S({ trunk:178, nua:-78, nfa:150, fua:-82, ffa:146 }),
     gear:[['band', { from:[94, 30], to:'nW' }]], track:'nW' },
 
-  band_pull_apart: { view:'front', ghost:'arms', gearFront:true,
-    start:F({ la:88, lfa:110, ra:88, rfa:110, uaScale:0.45, faScale:0.45 }),
+  /* Band pull-apart: arms straight at shoulder height, from in front of the
+     chest out to a T with the band stretched across the chest. */
+  band_pull_apart: { view:'front', arch:'cable', path:'line', ghost:'all', thumbGhost:'none', gearFront:true,
+    start:F({ la:90, lfa:90, ra:90, rfa:90, uaScale:0.3, faScale:0.3 }),
     end:  F({ la:90, lfa:90, ra:90, rfa:90 }),
-    gear:[['band', { from:'lW', to:'rW', bowY:1 }]], track:'rW', both:true },
+    gear:[['band', { from:'lW', to:'rW', bowY:3 }]], track:'rW' },
 
-  reverse_snow_angel: { view:'front', ghost:'arms', ground:false,
+  reverse_snow_angel: { view:'front', arch:'arc', ghost:'arms', ground:false,
     scene:[['mat', { x:6, y:40, w:108, h:40 }]],
     start:{ pin:['hc', [48, 60]], rot:90, la:10, lfa:8, ra:10, rfa:8, lth:4, lsh:2, rth:4, rsh:2 },
     end:  { pin:['hc', [48, 60]], rot:90, la:160, lfa:166, ra:160, rfa:166, lth:4, lsh:2, rth:4, rsh:2 },
     track:'rW' },
 
-  shrug: { view:'front', ghost:'none',
+  shrug: { view:'front', arch:'press', ghost:'none',
     start:F({ la:4, lfa:2, ra:4, rfa:2 }),
     end:  F({ la:4, lfa:2, ra:4, rfa:2, shrug:5 }),
     gear:[['barFront', { half:28, pr:8.4, dy:0 }]], track:'rS', trackOffset:[4, -3] }
@@ -9740,12 +10085,21 @@ function build(){
 
   /* Back and posterior chain: rows, pulldowns, pull-ups, hinges, bridges. */
   (function(H){
-  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted;
+  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted, sideHands = H.sideHands;
 
   /* Front views. */
   function FS(o){ return ext({ pin:['hc', [60, 79.5]], thighScale:0.34, lth:18, lsh:4, rth:18, rsh:4 }, o); }
-  /* Bent-over row stance. */
-  function bent(o){ return S(ext({ trunk:120, neck:132, nth:30, nsh:-16, fth:26, fsh:-18 }, o)); }
+  /* HINGES are solved from where the hips and the load must be, not from joint
+     angles. Both feet stay planted; the hips travel BACK behind the heels while
+     the knees stay soft, so a bar that hangs from the hands stays over mid-foot
+     (the ankle is at x 58, mid-foot about 61.5) and close to the legs. */
+  var HINGE_FEET = [[58, 104.3], [55, 104.5]];
+  function hinge(hip, o){ return planted(ext({ pin:['hip', hip] }, o), HINGE_FEET[0], HINGE_FEET[1]); }
+  /* Standing tall at the top of a hinge: soft knees, hips over the heels. */
+  function hingeTop(o){ return hinge([57, 66.6], ext({ trunk:180, neck:180 }, o)); }
+  /* Bent-over row stance: torso about 35 degrees above level, hips back, the
+     hanging bar over mid-foot. */
+  function bent(o){ return hinge([44, 70.5], ext({ trunk:125, neck:136 }, o)); }
   /* Bench-supported single-arm position (far knee and hand on the bench). */
   function braced(o){ return ext({ pin:['fW', [74, 90]], trunk:100, neck:104, fua:0, ffa:0, fth:8, fsh:-90, fft:0, nth:24, nsh:-16 }, o); }
   var BRACE_BENCH = ['bench', { x1:24, x2:82, y:90 }];
@@ -9756,6 +10110,8 @@ function build(){
         nua:armN[0], nfa:armN[1], fua:armF[0], ffa:armF[1] };
     }, 60, 150, 'nT', G - 1.2);
   }
+  /* Seated at the pulldown: thighs level under the pad, a slight lean back. */
+  function pulldownSeat(o){ return ext({ pin:['hip', [46, 84.5]], trunk:172, neck:176, nth:90, nsh:-4, fth:88, fsh:-8 }, o); }
   /* Hanging from a bar seen end-on at (60, 16). */
   function hang(o){ return ext({ pin:['nW', [60, 16]], nth:4, nsh:-8, fth:8, fsh:-4 }, o); }
   /* A straight line of body leaning back from planted feet (TRX, towel rows). */
@@ -9777,184 +10133,204 @@ function build(){
   H.add({
 
   /* ---- rows ---- */
-  row_barbell: { view:'side', ghost:'arms',
-    start:bent({ nua:4, nfa:2, fua:0, ffa:-2 }),
-    end:  bent({ nua:-74, nfa:38, fua:-78, ffa:34 }),
+  row_barbell: { view:'side', arch:'press', arrow:{ side:1, shift:[6, 4] }, ghost:'arms',
+    start:bent({ nua:0, nfa:0, fua:-4, ffa:-4 }),
+    end:  sideHands(bent({}), [57.6, 70.6], [56.8, 71.2], -1),
     gear:[['plate', { at:'nW' }]], track:'nW' },
 
-  pendlay_row: { view:'side', ghost:'arms', key:'start',
-    start:S({ trunk:98, neck:108, nth:46, nsh:-26, fth:42, fsh:-28, nua:2, nfa:0, fua:-2, ffa:-4 }),
-    end:  S({ trunk:98, neck:108, nth:46, nsh:-26, fth:42, fsh:-28, nua:-98, nfa:24, fua:-102, ffa:20 }),
-    gear:[['plate', { at:'nW', dy:-1 }]], track:'nW' },
+  /* Pendlay row: torso level, every rep starts and ends with the bar on the floor. */
+  pendlay_row: { view:'side', arch:'press', arrow:{ side:1 }, ghost:'arms', key:'start',
+    start:sideHands(hinge([42, 74], { trunk:96, neck:104 }), [64, 96.8], [63.2, 97.2], -1),
+    end:  sideHands(hinge([42, 74], { trunk:96, neck:104 }), [57.5, 81], [56.7, 81.6], -1),
+    gear:[['plate', { at:'nW', dy:0.8 }]], track:'nW' },
 
-  seal_row: { view:'side', ghost:'arms',
+  seal_row: { view:'side', arch:'press', ghost:'arms',
     scene:[['bench', { x1:30, x2:86, y:62, h:5 }]],
     start:{ pin:['hip', [48, 55.8]], trunk:90, neck:96, nth:-90, nsh:-90, fth:-90, fsh:-90, nft:0, fft:0, nua:2, nfa:0, fua:-2, ffa:-2 },
     end:  { pin:['hip', [48, 55.8]], trunk:90, neck:96, nth:-90, nsh:-90, fth:-90, fsh:-90, nft:0, fft:0, nua:-122, nfa:4, fua:-126, ffa:0 },
     gear:[['plate', { at:'nW', r:7.4, dy:6 }]], gearFront:true, track:'nW' },
 
-  row_meadows: { view:'side', ghost:'arms',
-    start:bent({ trunk:116, nua:2, nfa:0, fua:40, ffa:30, nth:-10, nsh:-4, fth:36, fsh:-22 }),
-    end:  bent({ trunk:116, nua:-80, nfa:34, fua:40, ffa:30, nth:-10, nsh:-4, fth:36, fsh:-22 }),
+  row_meadows: { view:'side', arch:'press', ghost:'arms',
+    start:S({ trunk:116, neck:132, nua:2, nfa:0, fua:40, ffa:30, nth:-10, nsh:-4, fth:36, fsh:-22 }),
+    end:  S({ trunk:116, neck:132, nua:-80, nfa:34, fua:40, ffa:30, nth:-10, nsh:-4, fth:36, fsh:-22 }),
     gear:[['rod', { a:[10, G - 1], b:'nW', extB:5, w:2.4 }], ['plate', { at:'nW', r:5.4, dx:5.6, dy:-2.2 }]], track:'nW' },
 
-  row_dumbbell: { view:'side', ghost:'arms', scene:[BRACE_BENCH],
+  row_dumbbell: { view:'side', arch:'press', ghost:'arms', scene:[BRACE_BENCH],
     start:braced({ nua:0, nfa:0 }),
     end:  braced({ nua:-120, nfa:22 }),
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
-  kb_row: { view:'side', ghost:'arms', scene:[BRACE_BENCH],
+  kb_row: { view:'side', arch:'press', ghost:'arms', scene:[BRACE_BENCH],
     start:braced({ nua:0, nfa:0 }),
     end:  braced({ nua:-120, nfa:22 }),
     gear:[['kettlebell', { at:'nW', dy:-2 }]], track:'nW' },
 
-  renegade_row: { view:'side', ghost:'arms',
+  renegade_row: { view:'side', arch:'press', ghost:'arms',
     start:plankFrom(['fW', [80, 98.6]], [2, 0], [0, 0]),
     end:  plankFrom(['fW', [80, 98.6]], [-128, 24], [0, 0]),
     gear:[['db', { at:'fW', a:90, len:4.6 }], ['db', { at:'nW', a:90, len:4.6 }]], track:'nW' },
 
-  row_cable_seated: { view:'side', ghost:'arms',
+  row_cable_seated: { view:'side', arch:'cable', path:'line', ghost:'arms',
     scene:[['pad', { a:[26, 96], b:[52, 96], w:5 }], ['post', { a:[39, 99], b:[39, G] }], ['post', { a:[92, 88], b:[92, G] }], ['column', { x:102, top:60 }]],
     start:{ pin:['hip', [44, 90]], trunk:164, neck:170, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:84, nfa:84, fua:80, ffa:80 },
     end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:-62, ffa:82 },
     gear:[['cable', { from:[98, 78], to:'nW', grip:'bar' }]], track:'nW' },
 
-  row_machine: { view:'side', ghost:'arms',
+  row_machine: { view:'side', arch:'machine', ghost:'arms',
     scene:[['pad', { a:[36, 92], b:[58, 92], w:5 }], ['post', { a:[47, 95], b:[47, G] }], ['post', { a:[74, 78], b:[74, G] }], ['column', { x:96, top:40 }]],
     front:[['pad', { a:[66, 58], b:[66, 80], w:6.4 }]],
     start:seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:84, nfa:86, fua:80, ffa:82 }),
     end:  seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:-64, nfa:86, fua:-68, ffa:82 }),
     gear:[['lever', { pivot:[92, 46], to:'nW', handle:true }]], track:'nW' },
 
-  tbar_row: { view:'side', ghost:'arms',
-    start:bent({ trunk:118, nua:6, nfa:4, fua:2, ffa:0 }),
-    end:  bent({ trunk:118, nua:-66, nfa:44, fua:-70, ffa:40 }),
+  tbar_row: { view:'side', arch:'press', ghost:'arms',
+    start:bent({ nua:4, nfa:2, fua:0, ffa:-2 }),
+    end:  sideHands(bent({}), [58.4, 69.6], [57.6, 70.2], -1),
     gear:[['rod', { a:[14, G - 1], b:'nW', w:2.4 }], ['plate', { at:'nW', r:7.2, dx:4, dy:2 }], ['rod', { a:'nW', adx:-4, b:'nW', bdx:4, w:2.2 }]], track:'nW' },
 
-  trx_row: { view:'side', ghost:'all',
+  trx_row: { view:'side', arch:'dynamic', path:'line', ghost:'all',
     scene:[['anchor', { at:[98, 10] }]],
     start:leanBack(-138, { nua:136, nfa:136, fua:132, ffa:132 }),
     end:  leanBack(-150, { nua:-52, nfa:128, fua:-56, ffa:124 }),
     gear:[['strap', { from:[98, 10], to:'nW' }]], track:'sh' },
 
-  band_row: { view:'side', ghost:'arms', crop:'upper',
+  band_row: { view:'side', arch:'cable', path:'line', ghost:'arms', crop:'upper',
     scene:[['wall', { x:98, top:10 }], ['anchor', { at:[96, 60] }]],
     start:S({ trunk:178, nua:84, nfa:86, fua:80, ffa:82 }),
     end:  S({ trunk:180, nua:-60, nfa:88, fua:-64, ffa:84 }),
     gear:[['band', { from:[96, 60], to:'nW', bowY:2 }]], track:'nW' },
 
-  towel_door_row: { view:'side', ghost:'all',
+  towel_door_row: { view:'side', arch:'dynamic', path:'line', ghost:'all',
     scene:[['wall', { x:100, top:6 }], ['anchor', { at:[98, 58] }]],
     start:leanBack(-155, { nua:96, nfa:96, fua:92, ffa:92 }, [76, 104.3]),
     end:  leanBack(-166, { nua:-56, nfa:106, fua:-60, ffa:102 }, [76, 104.3]),
     gear:[['strap', { from:[98, 58], to:'nW' }]], track:'sh' },
 
   /* ---- vertical pulls ---- */
-  lat_pulldown: { view:'front', ghost:'arms',
-    scene:[['column', { x:60, top:0 }], ['pad', { a:[48, 71.5], b:[72, 71.5], w:4.2 }]],
-    start:FS({ la:158, lfa:170, ra:158, rfa:170 }),
-    end:  FS({ la:118, lfa:200, ra:118, rfa:200 }),
-    gear:[['barFront', { half:26, plates:false }]], gearFront:true, track:'rW' },
+  /* Lat pulldown: seated, thighs locked under the pad, the bar pulled from
+     arm's length overhead straight down to the upper chest. The cable drops
+     from a pulley above the bar; the machine's column stands in front. */
+  lat_pulldown: { view:'side', arch:'cable', path:'line', ghost:'arms',
+    scene:[['pad', { a:[34, 90.5], b:[56, 90.5], w:5 }], ['post', { a:[45, 93], b:[45, G] }],
+      ['column', { x:88, top:14 }], ['rail', { a:[88, 17], b:[58, 17], w:3 }],
+      ['pad', { a:[58, 77.4], b:[67, 77.4], w:6 }], ['post', { a:[72, 78], b:[72, G] }]],
+    start:sideHands(pulldownSeat(), [57.5, 34], [56.7, 34.6], -1),
+    end:  sideHands(pulldownSeat(), [57.5, 62.5], [56.7, 63], -1),
+    gear:[['cable', { from:[60, 18], to:'nW', grip:'bar' }]], track:'nW' },
 
-  lat_pulldown_single: { view:'front', ghost:'arms',
-    scene:[['column', { x:78, top:0 }], ['pad', { a:[48, 71.5], b:[72, 71.5], w:4.2 }]],
-    start:FS({ la:14, lfa:20, ra:168, rfa:176 }),
-    end:  FS({ la:14, lfa:20, ra:120, rfa:196 }),
-    gear:[['cable', { from:[78, 4], to:'rW' }]], track:'rW' },
+  /* One-arm pulldown: the same seat, one handle; the elbow drives down to the
+     side while the free hand rests on the thigh. */
+  lat_pulldown_single: { view:'side', arch:'cable', path:'line', ghost:'arms',
+    scene:[['pad', { a:[34, 90.5], b:[56, 90.5], w:5 }], ['post', { a:[45, 93], b:[45, G] }],
+      ['column', { x:88, top:14 }], ['rail', { a:[88, 17], b:[58, 17], w:3 }],
+      ['pad', { a:[58, 77.4], b:[67, 77.4], w:6 }], ['post', { a:[72, 78], b:[72, G] }]],
+    start:sideHands(pulldownSeat({ fua:18, ffa:74 }), [57.5, 34], null, -1),
+    end:  sideHands(pulldownSeat({ fua:18, ffa:74 }), [56.5, 61], null, -1),
+    gear:[['cable', { from:[60, 18], to:'nW' }]], track:'nW' },
 
-  straight_arm_pulldown: { view:'side', ghost:'arms',
+  straight_arm_pulldown: { view:'side', arch:'cable', ghost:'arms',
     scene:[['column', { x:98, top:10 }]],
     start:S({ pin:['nA', [54, 104.3]], trunk:162, neck:164, nth:4, nsh:-6, fth:10, fsh:-8, nua:148, nfa:150, fua:144, ffa:146 }),
     end:  S({ pin:['nA', [54, 104.3]], trunk:162, neck:164, nth:4, nsh:-6, fth:10, fsh:-8, nua:-6, nfa:-4, fua:-10, ffa:-8 }),
     gear:[['cable', { from:[94, 16], to:'nW', grip:'bar' }]], track:'nW' },
 
-  db_pullover: { view:'side', ghost:'arms',
-    scene:[['bench', { x1:24, x2:84, y:78 }]],
-    start:sup({ nua:-118, nfa:-124, fua:-122, ffa:-128 }),
-    end:  sup({ nua:180, nfa:180, fua:176, ffa:176 }),
+  /* DB pullover, lying ACROSS a bench (seen end-on): upper back on the pad,
+     hips dropped a little, feet flat. Straight arms lower the weight behind
+     the head, then pull it back over the chest. */
+  db_pullover: { view:'side', arch:'arc', ghost:'arms',
+    scene:[['box', { x:25, y:79, w:20, h:5.5 }], ['post', { a:[35, 84.5], b:[35, G] }], ['rail', { a:[27, G - 1], b:[43, G - 1], w:2.2 }]],
+    start:planted({ pin:['sh', [34, 73.8]], trunk:-97, neck:-96, nua:-94, nfa:-96, fua:-98, ffa:-100 }, [82, 104.3], [79, 104.5]),
+    end:  planted({ pin:['sh', [34, 73.8]], trunk:-97, neck:-96, nua:178, nfa:178, fua:174, ffa:174 }, [82, 104.3], [79, 104.5]),
     gear:[['db', { at:'nW', along:'nfa', ahead:3.8, len:4.2 }]], track:'nW' },
 
-  pullup: { view:'front', ghost:'all', key:'end', ground:false,
+  pullup: { view:'front', arch:'dynamic', path:'line', arrow:{ shift:[0, 24] }, ghost:'all', key:'end', ground:false,
     scene:[['rod', { a:[14, 18], b:[106, 18], w:2.6 }]],
     start:{ pin:['lW', [38, 18]], la:164, lfa:176, ra:164, rfa:176, lth:2, lsh:8, rth:2, rsh:8 },
     end:  { pin:['lW', [38, 18]], la:126, lfa:206, ra:126, rfa:206, lth:4, lsh:14, rth:4, rsh:14 },
     track:'head' },
 
-  chinup: { view:'side', ghost:'all', key:'end', ground:false,
+  chinup: { view:'side', arch:'dynamic', path:'line', ghost:'all', key:'end', ground:false,
     scene:[['bar', { at:[60, 16], r:2.6 }], ['rod', { a:[40, 16], b:[80, 16], c:'dim', w:1.4 }]],
     start:hang({ trunk:178, nua:178, nfa:180, fua:174, ffa:176 }),
     end:  hang({ trunk:168, neck:176, nua:-14, nfa:162, fua:-18, ffa:158, nth:24, nsh:-20, fth:28, fsh:-16 }),
     track:'head' },
 
-  pullup_weighted: { view:'front', ghost:'all', key:'end', ground:false,
+  pullup_weighted: { view:'front', arch:'dynamic', path:'line', arrow:{ shift:[0, 24] }, ghost:'all', key:'end', ground:false,
     scene:[['rod', { a:[14, 18], b:[106, 18], w:2.6 }]],
     start:{ pin:['lW', [38, 18]], la:164, lfa:176, ra:164, rfa:176, lth:2, lsh:8, rth:2, rsh:8 },
     end:  { pin:['lW', [38, 18]], la:126, lfa:206, ra:126, rfa:206, lth:4, lsh:14, rth:4, rsh:14 },
     gear:[['rod', { a:'lap', b:'lap', bdy:14, c:'dim', w:1.2 }], ['disc', { at:'lap', dy:18, r:5.6 }]], gearFront:true,
     track:'head' },
 
-  assisted_pullup: { view:'side', ghost:'all', key:'end',
-    scene:[['bar', { at:[60, 16], r:2.6 }], ['post', { a:[40, 12], b:[40, G] }]],
+  assisted_pullup: { view:'side', arch:'machine', ghost:'all', key:'end',
+    scene:[['post', { a:[40, 10], b:[40, G] }], ['rod', { a:[40, 14], b:[65, 14], w:2.6 }], ['bar', { at:[60, 16], r:2.6 }]],
     start:hang({ trunk:178, nua:178, nfa:180, fua:174, ffa:176, nth:88, nsh:-2, fth:86, fsh:-4 }),
     end:  hang({ trunk:170, neck:176, nua:-14, nfa:162, fua:-18, ffa:158, nth:88, nsh:-2, fth:86, fsh:-4 }),
     gear:[['pad', { a:'nK', adx:-8, ady:3, b:'nK', bdx:6, bdy:3, w:4.6 }], ['rod', { a:'nK', adx:-6, ady:4, b:[40, 70], c:'dim', w:2 }]],
     track:'head' },
 
   /* ---- hinges ---- */
-  deadlift_conventional: { view:'side', key:'start',
+  deadlift_conventional: { view:'side', arch:'hinge', key:'start',
     start:S({ trunk:120, neck:136, nth:64, nsh:-22, fth:62, fsh:-26, nua:-6, nfa:-4, fua:-10, ffa:-8 }),
     end:  S({ nua:4, nfa:2, fua:0, ffa:0 }),
     gear:[['plate', { at:'nW', dy:3 }]], track:'nW' },
 
-  sumo_deadlift: { view:'front', key:'start',
+  sumo_deadlift: { view:'front', arch:'hinge', key:'start',
     start:{ pin:['lA', [36, 104.3]], hipY:74, lth:62, lsh:6, rth:62, rsh:6, lean:0, la:-2, lfa:-4, ra:-2, rfa:-4, torsoScale:0.7 },
     end:  { pin:['lA', [36, 104.3]], lth:26, lsh:4, rth:26, rsh:4, la:4, lfa:2, ra:4, rfa:2 },
     gear:[['barFront', { half:40, pr:8.4 }]], track:'rW' },
 
-  deficit_deadlift: { view:'side', key:'start',
+  deficit_deadlift: { view:'side', arch:'hinge', key:'start',
     scene:[['step', { x:40, w:36, h:5 }]],
     start:S({ pin:['nA', [58, 99.3]], trunk:118, neck:134, nth:68, nsh:-24, fth:64, fsh:-26, nua:-6, nfa:-4, fua:-10, ffa:-8 }),
     end:  S({ pin:['nA', [58, 99.3]], nua:4, nfa:2, fua:0, ffa:0 }),
     gear:[['plate', { at:'nW', dy:3 }]], track:'nW' },
 
-  trap_bar_deadlift: { view:'side', key:'start',
+  trap_bar_deadlift: { view:'side', arch:'hinge', key:'start',
     start:S({ trunk:138, neck:150, nth:74, nsh:-30, fth:72, fsh:-34, nua:-2, nfa:0, fua:-6, ffa:-4 }),
     end:  S({ nua:2, nfa:0, fua:-2, ffa:-2 }),
     gear:[['plate', { at:'nW', r:7.8 }], ['rod', { a:'nW', adx:-15, b:'nW', bdx:15, w:2.4 }]], gearFront:true, track:'nW' },
 
-  rack_pull: { view:'side', key:'start',
+  rack_pull: { view:'side', arch:'hinge', key:'start',
     scene:[['rail', { a:[76, 20], b:[76, G], w:2.8 }], ['rod', { a:[70, 76], b:[82, 76], w:2.4 }]],
     start:S({ trunk:140, neck:152, nth:30, nsh:-14, fth:26, fsh:-16, nua:-8, nfa:-6, fua:-12, ffa:-10 }),
     end:  S({ nua:4, nfa:2, fua:0, ffa:0 }),
     gear:[['plate', { at:'nW' }]], track:'nW' },
 
-  db_deadlift: { view:'side', key:'start',
+  db_deadlift: { view:'side', arch:'hinge', key:'start',
     start:S({ trunk:124, neck:138, nth:62, nsh:-22, fth:60, fsh:-26, nua:-4, nfa:-2, fua:-8, ffa:-6 }),
     end:  S({ nua:4, nfa:2, fua:0, ffa:0 }),
     gear:[['db', { at:'nW', a:90, len:5 }]], track:'nW' },
 
-  deadlift_romanian: { view:'side', key:'start',
-    start:S({ trunk:104, neck:116, nth:-6, nsh:-14, fth:-10, fsh:-16, nua:4, nfa:2, fua:0, ffa:0 }),
-    end:  S({ nua:4, nfa:2, fua:0, ffa:0 }),
+  /* Romanian deadlift: from standing, the hips push back with soft knees and
+     the bar slides down the thighs to just below the knee, hanging over
+     mid-foot. The hinged bottom is the drawing; standing tall is the ghost. */
+  deadlift_romanian: { view:'side', arch:'hinge', arrow:{ side:-1 }, both:true,
+    start:hingeTop({ nua:10, nfa:6, fua:6, ffa:2 }),
+    end:  sideHands(hinge([47, 69], { trunk:104, neck:112 }), [61.5, 87.6], [60.7, 88], -1),
     gear:[['plate', { at:'nW', dy:2 }]], track:'nW' },
 
-  db_rdl: { view:'side', key:'start',
-    start:S({ trunk:104, neck:116, nth:-6, nsh:-14, fth:-10, fsh:-16, nua:4, nfa:2, fua:0, ffa:0 }),
-    end:  S({ nua:4, nfa:2, fua:0, ffa:0 }),
-    gear:[['db', { at:'nW', a:90, len:5 }]], track:'nW' },
+  db_rdl: { view:'side', arch:'hinge', arrow:{ side:-1 }, both:true,
+    start:hingeTop({ nua:8, nfa:4, fua:4, ffa:0 }),
+    end:  sideHands(hinge([47, 69], { trunk:104, neck:112 }), [62, 88.6], [61.2, 89], -1),
+    gear:[['db', { at:'fW', a:90, len:5 }], ['db', { at:'nW', a:90, len:5 }]], track:'nW' },
 
-  single_leg_rdl: { view:'side', key:'start',
-    start:S({ trunk:96, neck:104, nth:6, nsh:-6, fth:-84, fsh:-84, fft:0, nua:2, nfa:0, fua:-2, ffa:-2 }),
-    end:  S({ nth:0, nsh:0, fth:-6, fsh:-60, fft:30, nua:4, nfa:2, fua:0, ffa:0 }),
-    gear:[['dbFace', { at:'nW' }]], track:'head' },
+  /* Single-leg RDL: the standing knee stays soft, the free leg rises in line
+     with the torso, and the weight hangs in front of the standing shin. */
+  single_leg_rdl: { view:'side', arch:'hinge', arrow:{ side:-1 }, both:true,
+    start:planted({ pin:['hip', [57, 66.6]], trunk:180, neck:180, fth:-12, fsh:-36, fft:40, nua:6, nfa:4, fua:2, ffa:0 }, HINGE_FEET[0], null),
+    end:  sideHands(planted({ pin:['hip', [53, 67.5]], trunk:108, neck:114, fth:-72, fsh:-72, fft:0 }, HINGE_FEET[0], null), [70.5, 88], [69.7, 88.4], -1),
+    gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
-  good_morning: { view:'side', key:'start',
-    start:S({ trunk:98, neck:108, nth:-8, nsh:-14, fth:-12, fsh:-16, nua:-110, nfa:50, fua:-114, ffa:46 }),
-    end:  S({ nua:-40, nfa:156, fua:-44, ffa:152 }),
-    gear:[['plate', { at:'back', dx:0, dy:-1 }]], track:'head' },
+  /* Good morning: bar on the upper back, soft knees, the hips travel back as
+     the chest lowers toward level. */
+  good_morning: { view:'side', arch:'hinge', path:'trace', both:true,
+    start:hingeTop({ nua:-40, nfa:160, fua:-44, ffa:156 }),
+    end:  hinge([46.5, 68.5], { trunk:102, neck:112, nua:-118, nfa:82, fua:-122, ffa:78 }),
+    gear:[['plate', { at:'back', dy:-1 }]], track:'back' },
 
   /* 45-degree back extension: feet low behind, thighs on the pad, torso rises to a straight line. */
-  back_extension: { view:'side', key:'end',
+  back_extension: { view:'side', arch:'dynamic', key:'end',
     scene:[['pad', { a:'hip', b:'nK', off:7.6, extA:-2, extB:-8, w:6 }], ['post', { a:'hip', adx:6, ady:12, b:[70, G] }],
       ['rod', { a:'nT', adx:-2.7, ady:5.8, b:'nT', bdx:5.8, bdy:-2.7, w:2.6 }], ['post', { a:'nT', adx:1.6, ady:1.6, b:[34, G] }],
       ['bar', { at:'nA', r:2.4, dx:-3.4, dy:-3.4 }]],
@@ -9962,66 +10338,70 @@ function build(){
     end:  ext({ pin:['nA', [30, 90]], nth:-45, nsh:-45, fth:-45, fsh:-45, nft:45, fft:45, trunk:135, neck:138 }, folded(135)),
     track:'head' },
 
-  superman_hold: { view:'side', hold:true,
+  superman_hold: { view:'side', arch:'hold',
     end:{ pin:['hip', [60, G - 6.2]], trunk:100, neck:106, nth:-100, nsh:-100, fth:-98, fsh:-98, nft:-90, fft:-90, nua:118, nfa:118, fua:114, ffa:114 } },
 
-  kb_swing: { view:'side', key:'end',
+  kb_swing: { view:'side', arch:'hinge', path:'trace', key:'end',
     start:S({ trunk:118, neck:134, nth:26, nsh:-14, fth:22, fsh:-16, nua:-18, nfa:-20, fua:-22, ffa:-24 }),
     end:  S({ nua:92, nfa:92, fua:88, ffa:88 }),
     gear:[['kettlebell', { at:'nW', dx:2 }]], track:'nW' },
 
-  cable_pull_through: { view:'side', key:'start',
+  cable_pull_through: { view:'side', arch:'hinge', key:'start',
     scene:[['column', { x:14, top:50 }]],
     start:S({ trunk:106, neck:118, nth:14, nsh:-12, fth:8, fsh:-14, nua:-24, nfa:-30, fua:-28, ffa:-34 }),
     end:  S({ nua:-4, nfa:-6, fua:-8, ffa:-10 }),
     gear:[['cable', { from:[18, 100], to:'nW', grip:'rope' }]], track:'hip' },
 
-  hip_thrust: { view:'side', key:'end',
+  hip_thrust: { view:'side', arch:'hinge', arrow:{ shift:[0, 3], slide:[0, 2.5, 5] }, key:'end',
     scene:[['bench', { x1:8, x2:38, y:91, h:5 }]],
     start:HT_BOTTOM, end:HT_TOP,
     gear:[['plate', { at:'lap' }]], gearFront:true, track:'hip' },
 
-  hip_thrust_machine: { view:'side', key:'end',
+  hip_thrust_machine: { view:'side', arch:'machine', arrow:{ shift:[0, 3], slide:[0, 2.5, 5] }, key:'end',
     scene:[['pad', { a:[8, 93.4], b:[38, 93.4], w:5 }], ['post', { a:[22, 96], b:[22, G] }], ['post', { a:[100, 66], b:[100, G] }]],
     start:HT_BOTTOM, end:HT_TOP,
     gear:[['lever', { pivot:[100, 68], to:'lap', dy:-2, roller:4.2 }]], gearFront:true, track:'hip' },
 
-  glute_bridge: { view:'side', key:'end',
+  glute_bridge: { view:'side', arch:'hinge', key:'end',
     start:GB_BOTTOM, end:GB_TOP, track:'hip' },
 
-  single_leg_glute_bridge: { view:'side', key:'end',
+  single_leg_glute_bridge: { view:'side', arch:'hinge', key:'end',
     start:ext(GB_BOTTOM, { fth:104, fsh:104, fft:170 }),
     end:  ext(GB_TOP, { fth:118, fsh:118, fft:190 }),
     track:'hip' },
 
-  nordic_curl: { view:'side', key:'end',
+  nordic_curl: { view:'side', arch:'dynamic', key:'end',
     scene:[['mat', { x:30, y:103.6, w:42, h:2.4 }], ['pad', { a:[33, 93.4], b:[45, 93.4], w:5 }], ['post', { a:[34, 94], b:[28, G] }]],
     start:ext({ pin:['nK', [58, 100.2]], nth:0, nsh:-90, fth:0, fsh:-90, nft:-90, fft:-90, trunk:180, neck:180 }, folded(180)),
     end:  { pin:['nK', [58, 100.2]], nth:-58, nsh:-90, fth:-58, fsh:-90, nft:-90, fft:-90, trunk:122, neck:118, nua:84, nfa:96, fua:80, ffa:92 },
     track:'head' },
 
-  leg_curl: { view:'side', ghost:'legs',
-    scene:[['pad', { a:[20, 80], b:[76, 80], w:6 }], ['post', { a:[30, 83], b:[30, G] }], ['post', { a:[66, 83], b:[66, G] }]],
-    start:{ pin:['hip', [48, 74]], trunk:-90, neck:-96, nth:90, nsh:90, fth:90, fsh:90, nft:0, fft:0, nua:0, nfa:-40, fua:-4, ffa:-44 },
-    end:  { pin:['hip', [48, 74]], trunk:-90, neck:-96, nth:90, nsh:-160, fth:90, fsh:-164, nft:-70, fft:-70, nua:0, nfa:-40, fua:-4, ffa:-44 },
-    gear:[['lever', { pivot:[68, 74], to:'nA', roller:3.6 }]], gearFront:true, track:'nA' },
+  /* Lying leg curl: face down on the pad, knees just past its end and in line
+     with the machine's pivot, hands on the grips. The roller sits behind the
+     ankles and travels round the knee as the heels curl toward the glutes. */
+  leg_curl: { view:'side', arch:'machine', path:'trace', ghost:'legs',
+    scene:[['pad', { a:[14, 80], b:[64, 80], w:6 }], ['post', { a:[24, 83], b:[24, G] }], ['post', { a:[56, 83], b:[56, G] }],
+      ['post', { a:[14, 83], b:[14, 90] }]],
+    start:sideHands({ pin:['hip', [48, 74]], trunk:-90, neck:-96, nth:90, nsh:90, fth:90, fsh:90, nft:0, fft:0 }, [14, 88], [15, 88.5], 1),
+    end:  sideHands({ pin:['hip', [48, 74]], trunk:-90, neck:-96, nth:90, nsh:-160, fth:90, fsh:-164, nft:-70, fft:-70 }, [14, 88], [15, 88.5], 1),
+    gear:[['lever', { pivot:[67.5, 74], to:{ seg:['nK', 'nA'], t:0.86, n:7.6 }, roller:4.4 }]], track:'nA' },
 
-  glute_kickback_cable: { view:'side', ghost:'legs',
+  glute_kickback_cable: { view:'side', arch:'cable', ghost:'legs',
     scene:[['column', { x:96, top:20 }]],
     start:S({ pin:['fA', [62, 104.3]], trunk:130, neck:136, fth:10, fsh:-4, nth:0, nsh:-40, nft:80, nua:70, nfa:74, fua:66, ffa:70 }),
     end:  S({ pin:['fA', [62, 104.3]], trunk:130, neck:136, fth:10, fsh:-4, nth:-78, nsh:-70, nft:30, nua:70, nfa:74, fua:66, ffa:70 }),
     gear:[['cable', { from:[92, 100], to:'nA' }]], track:'nA' },
 
-  farmers_carry: { view:'side', ghost:'none',
+  farmers_carry: { view:'side', arch:'locomotion', ghost:'none',
     start:S({ pin:['nA', [50, 104.3]], nth:-20, nsh:-6, fth:20, fsh:-14, nua:2, nfa:0, fua:-2, ffa:-2 }),
     end:  S({ pin:['nA', [66, 104.3]], nth:20, nsh:-14, fth:-20, fsh:-6, nua:2, nfa:0, fua:-2, ffa:-2 }),
     gear:[['db', { at:'fW', a:90, len:5.4, hw:7 }], ['db', { at:'nW', a:90, len:5.4, hw:7 }]],
-    front:[['travel', { from:[48, 16], to:[78, 16] }]] },
+    travel:{ dir:1 } },
 
-  power_clean: { view:'side', key:'end',
+  power_clean: { view:'side', arch:'dynamic', path:'line', key:'end',
     start:S({ trunk:120, neck:136, nth:64, nsh:-22, fth:62, fsh:-26, nua:-6, nfa:-4, fua:-10, ffa:-8 }),
-    end:  S({ trunk:176, nth:34, nsh:-30, fth:30, fsh:-32, nua:62, nfa:-170, fua:58, ffa:-174 }),
-    gear:[['plate', { at:'nW' }]], track:'nW' }
+    end:  S({ trunk:176, nth:34, nsh:-30, fth:30, fsh:-32, nua:96, nfa:-84, fua:92, ffa:-88 }),
+    gear:[['plate', { at:'nW', dx:2 }]], gearFront:true, track:'nW' }
   });
   })(EXV);
 
@@ -10043,9 +10423,11 @@ function build(){
   /* Hack squat: back on a sled that rides rails parallel to the torso, feet on a platform. */
   var HACK_FEET = [[74, 101], [71, 101.2]];
   function hack(hip){ return planted({ pin:['hip', hip], trunk:-160, neck:-172, nua:40, nfa:180, fua:36, ffa:176, nft:90, fft:90 }, HACK_FEET[0], HACK_FEET[1]); }
-  /* 45-degree leg press: reclined seat, the platform rides a 45-degree line. */
-  function press(ankle){
-    return planted({ pin:['hip', [44, 84]], trunk:-120, neck:-126, nua:56, nfa:58, fua:52, ffa:54, nft:-135, fft:-135 }, ankle, [ankle[0] - 1.5, ankle[1] + 1]);
+  /* 45-degree leg press: the ankle rides a line parallel to the rail, s units
+     along it; the sole stays square to the plate. */
+  function legPress(s){
+    var ankle = [42.1 + 0.7071 * s, 92.1 - 0.7071 * s];
+    return planted({ pin:['hip', [40, 88]], trunk:-125, neck:-140, nua:24, nfa:68, fua:20, ffa:64, nft:-135, fft:-135 }, ankle, [ankle[0] - 1.2, ankle[1] + 1.2]);
   }
   /* Lunges: split stance, front foot planted, rear heel up. */
   var LUNGE_FEET = [[72, 104.3], [21.2, 95.5]];
@@ -10079,148 +10461,159 @@ function build(){
   H.add({
 
   /* ---- squats ---- */
-  squat_back: { view:'side', both:true,
+  squat_back: { view:'side', arch:'dynamic', path:'line', both:true,
     start:sq(ext({ trunk:180 }, barBack(180))),
     end:  sq(ext({ nth:88, nsh:-28, trunk:142, neck:150 }, barBack(142))),
     gear:[['plate', { at:'back' }]], track:'hip', trackOffset:[-9, 0] },
 
-  squat_front: { view:'side', both:true,
+  squat_front: { view:'side', arch:'dynamic', path:'line', both:true,
     start:sq(ext({ trunk:180 }, rackArms(180))),
     end:  sq(ext({ nth:92, nsh:-34, trunk:160, neck:166 }, rackArms(160))),
     gear:[['plate', { at:'rack' }]], gearFront:true, track:'hip', trackOffset:[-9, 0] },
 
-  box_squat: { view:'side', both:true,
+  box_squat: { view:'side', arch:'dynamic', path:'line', both:true,
     scene:[['plinth', { at:'hip', dx:-4, dy:6.4, w:16 }]],
     start:sq(ext({ trunk:180 }, barBack(180))),
     end:  sq(ext({ nth:80, nsh:-8, trunk:138, neck:146 }, barBack(138))),
     gear:[['plate', { at:'back' }]], track:'hip', trackOffset:[-12, -2] },
 
-  squat_smith: { view:'side', both:true,
+  squat_smith: { view:'side', arch:'machine', both:true,
     scene:[['guide', { at:'back', top:6 }]],
     start:sq(ext({ trunk:180 }, barBack(180))),
     end:  sq(ext({ nth:90, nsh:-20, trunk:150, neck:158 }, barBack(150))),
     gear:[['plate', { at:'back', r:7.4 }]], track:'hip', trackOffset:[-9, 0] },
 
-  squat_goblet: { view:'side', both:true,
+  squat_goblet: { view:'side', arch:'dynamic', path:'line', both:true,
     start:sq({ nua:24, nfa:170, fua:20, ffa:166 }),
     end:  sq({ nth:92, nsh:-32, trunk:158, neck:164, nua:14, nfa:170, fua:10, ffa:166 }),
     gear:[['db', { at:'nW', a:180, len:4.2, hw:6.6 }]], gearFront:true, track:'hip', trackOffset:[-9, 0] },
 
-  squat_goblet_kb: { view:'side', both:true,
+  squat_goblet_kb: { view:'side', arch:'dynamic', path:'line', both:true,
     start:sq({ nua:24, nfa:170, fua:20, ffa:166 }),
     end:  sq({ nth:92, nsh:-32, trunk:158, neck:164, nua:14, nfa:170, fua:10, ffa:166 }),
     gear:[['kettlebell', { at:'nW', dy:-1 }]], gearFront:true, track:'hip', trackOffset:[-9, 0] },
 
-  squat_hack: { view:'side', ghost:'legs', both:true,
+  squat_hack: { view:'side', arch:'machine', ghost:'legs', both:true,
     scene:[['rail', { a:'hip', b:'sh', off:15, extA:12, extB:26, w:3 }], ['pad', { a:'hip', b:'sh', off:9.4, extA:3, extB:2, w:6 }], ['step', { x:62, w:30, h:3 }]],
     start:hack([58.8, 67.2]),
     end:  hack([64.84, 84.79]),
     track:'hip', trackOffset:[-4, 0] },
 
-  leg_press: { view:'side', ghost:'legs', key:'start',
-    scene:[['rail', { a:[58, 104], b:[104, 58], w:3 }], ['pad', { a:[30, 92.6], b:[54, 92.6], w:5 }], ['post', { a:[42, 95], b:[42, G] }],
-      ['pad', { a:'hip', b:'sh', off:9.2, extA:-2, extB:4, w:6 }]],
-    start:press([58.85, 69.15]),
-    end:  press([70.16, 57.84]),
-    gear:[['pad', { a:'nA', b:'nT', off:-5.4, extA:5, extB:4, w:5 }]], track:'nA' },
+  /* 45-degree leg press. The sled rides a rail at 45 degrees and the
+     footplate stands square to it. Back on the reclined pad, hips on the
+     seat, feet flat on the plate: the knees come deep toward the chest, then
+     the legs press the sled up the rail. */
+  leg_press: { view:'side', arch:'machine', key:'start', both:true, ghost:'legs',
+    scene:[['rail', { a:[50.6, 103.4], b:[101.5, 52.5], w:3.2 }], ['post', { a:[99, 55], b:[99, G] }],
+      ['pad', { a:[30, 94.6], b:[50, 92.6], w:5 }], ['post', { a:[40, 96], b:[40, G] }],
+      ['pad', { a:'hip', b:'sh', off:9.2, extA:-3, extB:5, w:6 }]],
+    start:legPress(19.9),
+    end:  legPress(38.9),
+    gear:[['rod', { a:'nA', adx:1, ady:-3.8, b:'nA', bdx:12.3, bdy:7.5, w:2.4 }],
+      ['pad', { a:'nA', adx:7.35, ady:12.45, b:'nA', bdx:17.25, bdy:2.55, w:5 }],
+      ['pad', { a:'nA', adx:7.35, ady:2.55, b:'nA', bdx:-5.38, bdy:-10.18, w:4.6 }]],
+    track:'nA' },
 
-  bodyweight_squat: { view:'side', both:true,
+  bodyweight_squat: { view:'side', arch:'dynamic', path:'line', both:true,
     start:sq({ nua:4, nfa:2, fua:0, ffa:-2 }),
     end:  sq({ nth:92, nsh:-32, trunk:150, neck:158, nua:92, nfa:92, fua:88, ffa:88 }),
     track:'hip', trackOffset:[-9, 0] },
 
-  band_squat: { view:'side', both:true, gearFront:true,
+  band_squat: { view:'side', arch:'dynamic', path:'line', both:true, gearFront:true,
     start:sq({ nua:22, nfa:168, fua:18, ffa:164 }),
     end:  sq({ nth:92, nsh:-32, trunk:156, neck:162, nua:12, nfa:160, fua:8, ffa:156 }),
     gear:[['band', { from:'nT', fdx:-3, to:'nW', bowX:3 }]], track:'hip', trackOffset:[-9, 0] },
 
-  wall_sit: { view:'side', hold:true,
+  wall_sit: { view:'side', arch:'hold',
     scene:[['wall', { x:24, top:30 }]],
     end:{ pin:['hip', [36.2, 85.8]], trunk:180, neck:180, nth:90, nsh:0, fth:90, fsh:-4, nft:90, fft:90, nua:14, nfa:84, fua:10, ffa:80 } },
 
-  squat_to_press: { view:'side', key:'end', thumbGhost:'legs',
+  squat_to_press: { view:'side', arch:'press', key:'end', thumbGhost:'legs',
     start:sq({ nth:92, nsh:-32, trunk:156, neck:162, nua:30, nfa:176, fua:26, ffa:172 }),
     end:  sq({ nua:176, nfa:178, fua:172, ffa:176 }),
     gear:[['db', { at:'nW', a:90, len:4.6 }]], track:'nW' },
 
   /* ---- lunges and single-leg work ---- */
-  lunge: { view:'side', both:true,
+  lunge: { view:'side', arch:'dynamic', path:'line', arrow:{ side:1, slide:[9, 12, 15] }, both:true,
     start:lunge([46.6, 76], DB_SIDES),
     end:  lunge([52.5, 85.8], DB_SIDES),
     gear:[['db', { at:'fW', a:90, len:4.8 }], ['db', { at:'nW', a:90, len:4.8 }]], track:'hip', trackOffset:[0, -8] },
 
-  lunge_walking: { view:'side',
-    start:lunge([46.6, 76], { nua:-14, nfa:-6, fua:16, ffa:30 }),
+  /* Walking lunge: the lunge is the drawing; the ghost is the next moment —
+     standing up over the front foot as the back leg swings through — and the
+     arrow says the athlete travels forward. */
+  lunge_walking: { view:'side', arch:'locomotion', thumbGhost:'none',
+    start:planted({ pin:['hip', [69, 66.8]], trunk:178, neck:178, fth:56, fsh:-14, fft:60, nua:-16, nfa:-8, fua:18, ffa:36, nft:90 }, LUNGE_FEET[0], null),
     end:  lunge([52.5, 85.8], { nua:16, nfa:30, fua:-14, ffa:-6 }),
-    front:[['travel', { from:[36, 34], to:[68, 34] }]] },
+    travel:{ dir:1 } },
 
-  bodyweight_lunge: { view:'side', both:true,
+  bodyweight_lunge: { view:'side', arch:'dynamic', path:'line', arrow:{ side:1, slide:[9, 12, 15] }, both:true,
     start:lunge([46.6, 76], HANDS_ON_HIPS),
     end:  lunge([52.5, 85.8], HANDS_ON_HIPS),
     track:'hip', trackOffset:[0, -10] },
 
-  split_squat_bulgarian: { view:'side', both:true,
+  split_squat_bulgarian: { view:'side', arch:'dynamic', path:'line', arrow:{ side:1, slide:[9, 12, 15] }, both:true,
     scene:[['bench', { x1:-2, x2:25, y:86 }]],
     start:bss([52, 73]),
     end:  bss([50, 86]),
     gear:[['db', { at:'fW', a:90, len:4.8 }], ['db', { at:'nW', a:90, len:4.8 }]], track:'hip', trackOffset:[0, -9] },
 
-  step_up: { view:'side', scene:[STEP_BOX],
+  step_up: { view:'side', arch:'dynamic', path:'line', scene:[STEP_BOX],
     start:stepStart({ nua:-30, nfa:-10, fua:30, ffa:60 }),
     end:  stepTop({ nua:30, nfa:60, fua:-30, ffa:-10 }),
     track:'hip', trackOffset:[-8, 0] },
 
-  db_step_up: { view:'side', scene:[STEP_BOX],
+  db_step_up: { view:'side', arch:'dynamic', path:'line', scene:[STEP_BOX],
     start:stepStart(DB_SIDES),
     end:  stepTop(DB_SIDES),
     gear:[['db', { at:'fW', a:90, len:4.8 }], ['db', { at:'nW', a:90, len:4.8 }]], track:'hip', trackOffset:[-8, 0] },
 
   /* ---- jumps ---- */
-  lateral_bound: { view:'front',
+  lateral_bound: { view:'front', arch:'dynamic', path:'flight',
     start:LB_START, end:LB_END,
-    front:[['arc', { from:at('front', LB_START, 'hc'), to:at('front', LB_END, 'hc'), h:14 }]] },
+    track:'hc', flight:14 },
 
-  box_jump: { view:'side',
+  box_jump: { view:'side', arch:'dynamic', path:'flight',
     scene:[['step', { x:66, w:32, h:26 }]],
     start:BJ_START, end:BJ_END,
-    front:[['arc', { from:at('side', BJ_START, 'hip'), to:at('side', BJ_END, 'hip'), h:16 }]] },
+    track:'hip', flight:16 },
 
-  broad_jump: { view:'side',
+  broad_jump: { view:'side', arch:'dynamic', path:'flight',
     start:BR_START, end:BR_END,
-    front:[['arc', { from:at('side', BR_START, 'hip'), to:at('side', BR_END, 'hip'), h:20 }]] },
+    track:'hip', flight:20 },
 
   /* ---- machines and isolation ---- */
-  leg_extension: { view:'side', ghost:'legs',
+  leg_extension: { view:'side', arch:'machine', path:'trace', ghost:'legs',
     scene:[['pad', { a:[34, 86.6], b:[68, 86.6], w:5 }], ['pad', { a:[40, 84], b:[38, 50], w:5.4 }], ['post', { a:[50, 89], b:[50, G] }], ['post', { a:[40, 89], b:[36, G] }]],
     start:{ pin:['hip', [50, 80]], trunk:176, neck:178, nth:90, fth:88, nsh:-4, fsh:-6, nft:90, fft:90, nua:30, nfa:40, fua:26, ffa:36 },
     end:  { pin:['hip', [50, 80]], trunk:176, neck:178, nth:90, fth:88, nsh:88, fsh:84, nft:170, fft:166, nua:30, nfa:40, fua:26, ffa:36 },
     gear:[['lever', { pivot:[69.5, 80], to:'nA', roller:3.4 }]], gearFront:true, track:'nA' },
 
-  calf_raise: { view:'side', crop:'lower',
+  calf_raise: { view:'side', arch:'dynamic', path:'line', crop:'lower',
     scene:[['step', { x:64, w:16, h:6 }]],
     start:{ pin:['nT', [68, 97.4]], nft:112, fft:112, trunk:180, nua:4, nfa:2, fua:0, ffa:-2 },
     end:  { pin:['nT', [68, 97.4]], nft:50, fft:50, trunk:180, nua:4, nfa:2, fua:0, ffa:-2 },
     track:'nA', trackOffset:[-5.5, 0] },
 
-  calf_raise_seated: { view:'side', crop:'lower', ghost:'legs',
+  calf_raise_seated: { view:'side', arch:'machine', arrow:{ shift:[0, -7] }, crop:'lower', ghost:'legs',
     scene:[['pad', { a:[30, 92], b:[58, 92], w:5 }], ['post', { a:[44, 95], b:[44, G] }], ['step', { x:70, w:14, h:4 }]],
     start:seatedCalf(112),
     end:  seatedCalf(60),
     gear:[['pad', { a:'nK', adx:-7, ady:-6.4, b:'nK', bdx:5, bdy:-6.4, w:5 }]], gearFront:true,
     track:'nA', trackOffset:[-5.5, 0] },
 
-  hip_abduction: { view:'front', ghost:'legs', both:true,
+  hip_abduction: { view:'front', arch:'machine', path:'trace', ghost:'legs', both:true,
     scene:[['box', { x:44, y:26, w:32, h:56 }]],
     start:FS({ lth:8, lsh:10, rth:8, rsh:10, la:20, lfa:10, ra:20, rfa:10 }),
     end:  FS({ thighScale:0.7, lth:60, lsh:14, rth:60, rsh:14, la:20, lfa:10, ra:20, rfa:10 }),
     gear:[['pad', { a:'lK', adx:-5.6, ady:-5, b:'lK', bdx:-5.6, bdy:5, w:4.4 }], ['pad', { a:'rK', adx:5.6, ady:-5, b:'rK', bdx:5.6, bdy:5, w:4.4 }]], gearFront:true,
     track:'rK' },
 
-  band_lateral_walk: { view:'front', ghost:'legs',
+  band_lateral_walk: { view:'front', arch:'locomotion', ghost:'legs',
     start:F({ pin:['lA', [44, 104.3]], thighScale:0.86, lth:6, lsh:2, rth:6, rsh:2, la:40, lfa:-30, ra:40, rfa:-30 }),
     end:  F({ pin:['lA', [36, 104.3]], thighScale:0.86, lth:20, lsh:8, rth:20, rsh:8, la:40, lfa:-30, ra:40, rfa:-30 }),
     gear:[['band', { from:'lK', fdy:-2, to:'rK', dy:-2 }]], gearFront:true,
-    front:[['travel', { from:[42, 16], to:[74, 16] }]] }
+    travel:{ dir:1 } }
   });
   })(EXV);
 
@@ -10294,187 +10687,193 @@ function build(){
   H.add({
 
   /* ---- planks and holds ---- */
-  plank: { view:'side', hold:true, end:forearmPlank() },
+  plank: { view:'side', arch:'hold', end:forearmPlank() },
 
-  weighted_plank: { view:'side', hold:true, end:forearmPlank(),
+  weighted_plank: { view:'side', arch:'hold', end:forearmPlank(),
     gear:[['pad', { a:'hip', b:'sh', off:9.6, extA:-4, extB:-6, w:3.6 }]] },
 
-  side_plank: { view:'front', hold:true,
+  side_plank: { view:'front', arch:'hold',
     end:sidePlank(function(r){ return { la:8, lfa:-40 }; }) },
 
-  side_plank_reach: { view:'front', both:true, key:'start',
+  side_plank_reach: { view:'front', arch:'dynamic', both:true, key:'start',
     start:sidePlank(function(r){ return { la:180 - r, lfa:180 - r }; }),
     end:  sidePlank(function(r){ return { la:36 - r, lfa:10 - r }; }),
     track:'lW' },
 
-  hollow_hold: { view:'side', hold:true,
+  hollow_hold: { view:'side', arch:'hold',
     end:supine({ trunk:-102, neck:-112, nua:-110, nfa:-110, fua:-112, ffa:-112, nth:104, nsh:104, fth:102, fsh:102, nft:180, fft:180 }) },
 
   /* ---- crunches and sit-ups ---- */
-  crunch: { view:'side', key:'end',
+  crunch: { view:'side', arch:'dynamic', key:'end',
     start:kneesUp(supine(ext({ trunk:-90 }, behindHead(-90)))),
     end:  kneesUp(supine(ext({ trunk:-122, neck:-138 }, behindHead(-122)))),
     track:'sh' },
 
-  machine_crunch: { view:'side', key:'end',
+  machine_crunch: { view:'side', arch:'machine', path:'trace', key:'end',
     scene:[['pad', { a:[36, 92], b:[60, 92], w:5 }], ['post', { a:[48, 95], b:[48, G] }], ['post', { a:[30, 30], b:[30, G] }]],
     start:seat({ trunk:176, neck:178, nua:30, nfa:176, fua:26, ffa:172 }),
     end:  seat({ trunk:132, neck:126, nua:-14, nfa:132, fua:-18, ffa:128 }),
     gear:[['pad', { a:'sh', b:'hip', off:9.6, extA:-3, extB:-13, w:5 }], ['lever', { pivot:[30, 34], to:'sh', dy:-4 }]],
     track:'head' },
 
-  cable_crunch: { view:'side', key:'end',
+  cable_crunch: { view:'side', arch:'cable', key:'end',
     scene:[['column', { x:104, top:6 }]],
     start:ropeCrunch(156, 150),
     end:  ropeCrunch(66, 40),
     gear:[['cable', { from:[100, 12], to:'nW', grip:'rope' }]], track:'head' },
 
-  bicycle_crunch: { view:'side', both:true,
+  bicycle_crunch: { view:'side', arch:'dynamic', both:true,
     start:supine(ext({ trunk:-124, neck:-144, nth:-160, nsh:100, nft:170, fth:100, fsh:100, fft:180 }, behindHead(-124))),
     end:  supine(ext({ trunk:-124, neck:-144, fth:-160, fsh:100, fft:170, nth:100, nsh:100, nft:180 }, behindHead(-124))),
     track:'nK' },
 
-  reverse_crunch: { view:'side', key:'end',
+  reverse_crunch: { view:'side', arch:'dynamic', key:'end',
     start:{ pin:['sh', [36, G - 6.2]], trunk:-90, neck:-94, nua:88, nfa:88, fua:84, ffa:84, nth:180, nsh:90, fth:176, fsh:86, nft:180, fft:176 },
     end:  { pin:['sh', [36, G - 6.2]], trunk:-64, neck:-86, nua:88, nfa:88, fua:84, ffa:84, nth:-150, nsh:110, fth:-154, fsh:106, nft:200, fft:196 },
     track:'nK' },
 
-  decline_situp: { view:'side', key:'end',
+  decline_situp: { view:'side', arch:'dynamic', key:'end',
     scene:[['pad', { a:[18, 92], b:[76, 71], w:5 }], ['post', { a:[24, 94], b:[22, G] }], ['post', { a:[70, 74], b:[74, G] }],
       ['bar', { at:'nA', dx:2.4, dy:-3.8, r:2.8 }]],
     start:decline(ext({ trunk:DECLINE.trunk, neck:DECLINE.trunk - 4 }, folded(DECLINE.trunk))),
     end:  decline(ext({ trunk:150, neck:146 }, folded(150))),
     track:'head' },
 
-  weighted_situp: { view:'side', key:'end',
+  weighted_situp: { view:'side', arch:'dynamic', key:'end',
     start:kneesUp(supine(ext({ trunk:-90 }, folded(-90)))),
     end:  kneesUp(supine(ext({ trunk:-162, neck:-170 }, folded(-162)))),
     gear:[['disc', { at:'chest', r:5.6 }]], gearFront:true, track:'head' },
 
-  v_up: { view:'side', key:'end',
+  v_up: { view:'side', arch:'dynamic', key:'end',
     start:supine({ trunk:-90, neck:-90, nua:-90, nfa:-90, fua:-92, ffa:-92, nth:90, nsh:90, fth:92, fsh:92, nft:170, fft:170 }),
     end:  supine({ trunk:-138, neck:-128, nua:146, nfa:146, fua:142, ffa:142, nth:138, nsh:138, fth:136, fsh:136, nft:210, fft:208 }),
     track:'nW' },
 
-  dead_bug: { view:'side', both:true, key:'end',
+  dead_bug: { view:'side', arch:'dynamic', both:true, key:'end',
     start:supine({ nua:180, nfa:180, fua:176, ffa:176, nth:180, nsh:90, fth:176, fsh:86, nft:180, fft:176 }),
     end:  supine({ nua:-100, nfa:-100, fua:176, ffa:176, nth:180, nsh:90, fth:98, fsh:98, nft:180, fft:188 }),
     track:'nW' },
 
-  bird_dog: { view:'side', key:'end',
+  bird_dog: { view:'side', arch:'dynamic', key:'end',
     start:kneel([40, G - 4.4], { nth:0, fth:0, trunk:100, neck:104, nua:0, nfa:0, fua:-2, ffa:-2 }),
     end:  kneel([40, G - 4.4], { nth:0, trunk:100, neck:102, nua:104, nfa:104, fua:-2, ffa:-2, fth:-84, fsh:-84, fft:-84 }),
     track:'nW' },
 
-  flutter_kicks: { view:'side', both:true,
+  flutter_kicks: { view:'side', arch:'dynamic', both:true,
     start:supine({ trunk:-98, neck:-112, nua:88, nfa:88, fua:84, ffa:84, nth:112, nsh:112, fth:98, fsh:98, nft:190, fft:180 }),
     end:  supine({ trunk:-98, neck:-112, nua:88, nfa:88, fua:84, ffa:84, nth:98, nsh:98, fth:112, fsh:112, nft:180, fft:190 }),
     track:'nA' },
 
   /* ---- leg raises ---- */
-  leg_raise: { view:'side', key:'end',
+  leg_raise: { view:'side', arch:'dynamic', key:'end',
     start:supine({ nua:88, nfa:88, fua:84, ffa:84, nth:94, nsh:94, fth:92, fsh:92, nft:180, fft:180 }),
     end:  supine({ nua:88, nfa:88, fua:84, ffa:84, nth:176, nsh:176, fth:172, fsh:172, nft:260, fft:256 }),
     track:'nA' },
 
-  hanging_leg_raise: { view:'side', key:'end', ground:false,
+  hanging_leg_raise: { view:'side', arch:'dynamic', key:'end', ground:false,
     scene:[['bar', { at:[60, 16], r:2.6 }], ['rod', { a:[40, 16], b:[80, 16], c:'dim', w:1.4 }]],
     start:hanging({ nth:4, nsh:4, fth:0, fsh:0, nft:40, fft:40 }),
     end:  hanging({ nth:96, nsh:96, fth:92, fsh:92, nft:180, fft:176 }),
     track:'nA' },
 
-  hanging_knee_raise: { view:'side', key:'end', ground:false,
+  hanging_knee_raise: { view:'side', arch:'dynamic', key:'end', ground:false,
     scene:[['bar', { at:[60, 16], r:2.6 }], ['rod', { a:[40, 16], b:[80, 16], c:'dim', w:1.4 }]],
     start:hanging({ nth:4, nsh:4, fth:0, fsh:0, nft:40, fft:40 }),
     end:  hanging({ nth:104, nsh:6, fth:100, fsh:2, nft:80, fft:76 }),
     track:'nK' },
 
-  leg_raise_machine: { view:'side', key:'end',
+  leg_raise_machine: { view:'side', arch:'machine', path:'trace', key:'end',
     scene:[['pad', { a:[50, 36], b:[50, 76], w:6 }], ['post', { a:[50, 76], b:[50, G] }], ['pad', { a:[52, 55.6], b:[76, 55.6], w:4 }], ['post', { a:[74, 57], b:[74, G] }]],
     start:chair({ nth:0, nsh:0, fth:-2, fsh:-2 }),
     end:  chair({ nth:100, nsh:4, fth:96, fsh:0 }),
     track:'nK' },
 
-  ab_wheel: { view:'side', key:'end',
+  ab_wheel: { view:'side', arch:'dynamic', path:'line', key:'end',
     start:wheelPose(22, 110, 54),
     end:  wheelPose(-64, 100, 100),
     gear:[['wheel', { at:'nW' }]], track:'nW' },
 
   /* ---- rotation and anti-rotation ---- */
-  russian_twist: { view:'front', both:true,
+  russian_twist: { view:'front', arch:'dynamic', both:true,
     start:handsAt(vSit({ lean:-12 }), [38, 84]),
     end:  handsAt(vSit({ lean:12 }), [82, 84]),
     track:'mid' },
 
-  weighted_russian_twist: { view:'front', both:true,
+  weighted_russian_twist: { view:'front', arch:'dynamic', both:true,
     start:handsAt(vSit({ lean:-12 }), [38, 84]),
     end:  handsAt(vSit({ lean:12 }), [82, 84]),
     gear:[['medball', { at:'mid', r:5.2 }]], gearFront:true, track:'mid' },
 
-  woodchop_cable: { view:'front', key:'end',
+  woodchop_cable: { view:'front', arch:'cable', path:'line', arrow:{ trim:[0.05, 0.78] }, key:'end',
     scene:[['column', { x:106, top:8 }]],
     start:handsAt(F({ pin:['lA', [44, 104.3]], lth:14, lsh:6, rth:14, rsh:6, lean:6 }), [88, 30]),
     end:  handsAt(F({ pin:['lA', [44, 104.3]], lth:18, lsh:8, rth:18, rsh:8, lean:-8 }), [34, 88]),
     gear:[['cable', { from:[102, 14], to:'mid' }]], track:'mid' },
 
-  band_woodchop: { view:'front', key:'end',
+  band_woodchop: { view:'front', arch:'cable', path:'line', arrow:{ trim:[0.05, 0.78] }, key:'end',
     scene:[['wall', { x:104, top:6 }], ['anchor', { at:[102, 18] }]],
     start:handsAt(F({ pin:['lA', [44, 104.3]], lth:14, lsh:6, rth:14, rsh:6, lean:6 }), [88, 30]),
     end:  handsAt(F({ pin:['lA', [44, 104.3]], lth:18, lsh:8, rth:18, rsh:8, lean:-8 }), [34, 88]),
     gear:[['band', { from:[102, 18], to:'mid', bowY:2 }]], track:'mid' },
 
-  pallof_press: { view:'side', both:true, key:'end',
-    scene:[['column', { x:18, top:40 }]],
-    start:sideHands(S({ nth:8, nsh:-10, fth:14, fsh:-6 }), [66, 52], [65, 53], 1),
-    end:  sideHands(S({ nth:8, nsh:-10, fth:14, fsh:-6 }), [84, 52], [83, 53], 1),
-    gear:[['cable', { from:[22, 50], to:'nW' }]], track:'nW' },
+  /* Pallof press. The anchor is BESIDE the athlete: facing us, the cable
+     comes in level from the column at the side to the handle at the chest.
+     The press runs straight out toward the viewer, which no arrow can draw
+     truthfully — so the bent-arm start is the ghost and there is no arrow. */
+  pallof_press: { view:'front', arch:'cable', depth:true, key:'end', ghost:'arms',
+    scene:[['column', { x:106, top:34 }]],
+    start:handsAt(F({ pin:['lA', [46, 104.3]], lth:12, lsh:6, rth:12, rsh:6 }), [60.3, 50]),
+    end:  handsAt(F({ pin:['lA', [46, 104.3]], lth:12, lsh:6, rth:12, rsh:6, uaScale:0.5, faScale:0.5 }), [60.3, 55]),
+    gear:[['cable', { from:[102, 52], to:'mid' }]], track:'mid' },
 
-  side_bend: { view:'front', both:true,
+  side_bend: { view:'front', arch:'dynamic', both:true,
     start:F({ lean:0, ra:2, rfa:0, la:150, lfa:-130 }),
     end:  F({ lean:18, ra:2, rfa:0, la:150, lfa:-130 }),
     gear:[['dbFace', { at:'rW', r:4.2 }]], track:'head' },
 
   /* ---- full-body and conditioning ---- */
-  mountain_climber: { view:'side', both:true,
+  mountain_climber: { view:'side', arch:'dynamic', both:true,
     start:climber(true),
     end:  climber(false),
     track:'nK' },
 
-  turkish_getup: { view:'side', key:'end',
+  turkish_getup: { view:'side', arch:'dynamic', key:'end',
     start:planted(supine({ trunk:-90, neck:-94, nua:180, nfa:180, fua:90, ffa:90, fth:90, fsh:90, fft:170 }), [88, 104.3], null),
     end:  planted(sideHands(supine({ trunk:-150, neck:-156, nua:180, nfa:180, fth:90, fsh:90, fft:170 }), null, [36, G - 2.7], 1), [88, 104.3], null),
     gear:[['kettlebell', { at:'nW', inverted:true }]], track:'head' },
 
-  med_ball_slam: { view:'side', key:'end',
+  med_ball_slam: { view:'side', arch:'dynamic', key:'end',
     start:athletic({ pin:['hip', [58, 67]], trunk:178, neck:180, nua:176, nfa:178, fua:172, ffa:176 }),
     end:  sideHands(athletic({ pin:['hip', [50, 80]], trunk:122, neck:134 }), [82, G - 12], [81, G - 11]),
     gear:[['medball', { at:'nW', dy:5, r:6 }]], track:'nW' },
 
-  med_ball_rotational_throw: { view:'front', key:'end',
-    start:handsAt(F({ pin:['lA', [40, 104.3]], lth:12, lsh:6, rth:12, rsh:6, lean:4 }), [78, 72]),
-    end:  handsAt(F({ pin:['lA', [40, 104.3]], lth:12, lsh:6, rth:12, rsh:6, lean:-6 }), [30, 56]),
+  /* Rotational throw: loaded at the far hip, the ball swings across the body
+     and is released at chest height to the other side. */
+  med_ball_rotational_throw: { view:'front', arch:'dynamic', arrow:{ trim:[0.35, 1] }, key:'start',
+    start:handsAt(F({ pin:['lA', [40, 104.3]], lth:12, lsh:6, rth:12, rsh:6, lean:5 }), [76, 72]),
+    end:  handsAt(F({ pin:['lA', [40, 104.3]], lth:12, lsh:6, rth:12, rsh:6, lean:-6 }), [30, 54]),
     gear:[['medball', { at:'mid', r:5.6 }]], track:'mid' },
 
-  battle_rope_slam: { view:'side', key:'end',
+  battle_rope_slam: { view:'side', arch:'dynamic', key:'end',
     start:athletic({ trunk:164, neck:170, nua:150, nfa:160, fua:146, ffa:156 }),
     end:  athletic({ pin:['hip', [54, 76]], trunk:136, neck:148, nua:40, nfa:30, fua:36, ffa:26 }),
     gear:[['rope', { from:'nW', to:[110, G - 2], amp:3, steps:6 }]], track:'nW' },
 
-  battle_rope_wave: { view:'side', both:true,
+  battle_rope_wave: { view:'side', arch:'dynamic', both:true,
     start:athletic({ pin:['hip', [54, 76]], trunk:150, neck:162, nua:70, nfa:110, fua:36, ffa:56 }),
     end:  athletic({ pin:['hip', [54, 76]], trunk:150, neck:162, nua:36, nfa:56, fua:70, ffa:110 }),
     gear:[['rope', { from:'nW', to:[110, G - 2], amp:4.5, steps:8 }]], track:'nW' },
 
-  sled_push: { view:'side',
+  sled_push: { view:'side', arch:'locomotion',
     scene:[['sled', { x:SLED_X }]],
     end:sideHands(planted({ pin:['hip', [44, 72]], trunk:128, neck:112 }, [58, 96], [26, 104.3]), [SLED_X + 1, G - 27], [SLED_X + 2, G - 26], 1),
-    front:[['travel', { from:[48, 40], to:[80, 40] }]] },
+    travel:{ dir:1 } },
 
-  sled_pull: { view:'side',
+  sled_pull: { view:'side', arch:'locomotion',
     scene:[['sled', { x:SLED_X }]],
     end:sideHands(planted({ pin:['hip', [48, 70]], trunk:-164, neck:-174 }, [30, 104.3], [56, 104.5]), [70, 74], [69, 75], 1),
     gear:[['strap', { from:[SLED_X + 3, G - 7], to:'nW' }]],
-    front:[['travel', { from:[70, 30], to:[38, 30] }]] }
+    travel:{ dir:-1 } }
   });
   })(EXV);
 
@@ -13495,6 +13894,29 @@ const LOOP_UPDATES = [
     changes: [
       'If LOOP is already on your Home Screen, your phone may keep showing the old icon'
     ]
+  },
+  {
+    id: 'v5-9',
+    version: 'LOOP 5.9',
+    title: 'Truer Exercise Drawings',
+    date: '2027-01-27',
+    swVersion: 'loop-v136',
+    summary: 'Every exercise drawing was checked against how the movement is really done, and the ones that were off now show it properly.',
+    newFeatures: [],
+    improvements: [
+      'Movement arrows now sit beside the body, clear of your face, hands and the weight, and are sized to the movement instead of sweeping across the picture',
+      'Presses, rows and pulldowns show a straight arrow along the path the weight travels',
+      'The Romanian deadlift, good morning and bent-over rows now push the hips back and keep the weight close to the legs, over the middle of the foot',
+      'The pec deck, reverse pec deck, lat pulldown, leg press and leg curl now show the machine itself: the seat, the pads and the path each one moves on',
+      'Walking exercises like the walking lunge, farmer’s carry and sled push show their arrow at floor level in the direction you travel, and the walking lunge shows the back leg stepping through',
+      'On planks and other holds the hold mark now sits above the body, clear of the head'
+    ],
+    bugFixes: [
+      'The DB pullover is now drawn lying across the bench, as its instructions say',
+      'The Pallof press now shows the cable coming in from the side, not from behind',
+      'The incline cable fly no longer finishes with the hands overhead, and the lateral raise keeps the slight elbow bend its instructions describe'
+    ],
+    changes: []
   }
 ];
 

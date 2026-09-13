@@ -7919,3 +7919,142 @@ done.
 - Not yet seen on a physical iPhone; the iOS contexts in the review proof are an
   approximation of the system mask.
 - The build needs a Chromium browser (Edge or Chrome, or `LOOP_BROWSER`).
+
+## §87 — D57: The exercise drawings tell the truth
+
+**Status.** Shipped in LOOP 5.9 (`loop-v136`). A refinement of the Phase B
+drawings (§84), not a rebuild: the same 168 drawings under the same keys,
+reached by the same 217 names. `DATA_KEYS` 15, schema 1, no migration,
+`TRAINER_ENGINE_VERSION` 0.1.1-shadow, Session Score weights 40/30/18/12.
+Nothing that decides what an athlete trains, logs or earns was touched.
+
+### What the audit found
+
+Every drawing was rendered at How To size and at the 40, 44 and 52px thumbnail
+sizes and judged against the movement itself: 15 PASS, 117 MINOR REFINE,
+26 MAJOR REFINE, 10 REDRAW.
+
+- The arrow was the traced path of the working joint, drawn ON that joint: over
+  the hand, the weight and often the face, in about 120 drawings.
+- Mixing joint angles bent straight presses and rows into U-shaped arrows (7).
+- Hinges pushed the hips forward of the heels. The Romanian deadlift's bar hung
+  far in front of the toes with the arrow curling back to the hips; bent-over,
+  Pendlay and T-bar rows hung the bar ahead of mid-foot.
+- Front-view machines did not read as machines: the pec deck had no arm pads
+  and a two-pixel arrow pointing down; the reverse pec deck's pad covered the
+  head; the lat pulldowns had no readable seat or thigh pad and finished with
+  the bar at the forehead; the leg press rail floated apart from its footplate.
+- Travel arrows floated over the head; hold marks sat against the face.
+- Drawings contradicted their cues: the DB pullover lay along the bench ("lie
+  across"), the Pallof press put the anchor behind the athlete ("side-on"), the
+  lateral raise locked the elbows ("slight bend"), and the incline cable fly
+  finished with the hands overhead.
+
+### The arrow system
+
+- **Archetypes.** Every definition names one: `press`, `hinge`, `arc`, `cable`,
+  `machine`, `dynamic`, `locomotion` or `hold` (25, 15, 15, 27, 19, 56, 5, 6).
+  The archetype decides the arrow's geometry — a straight line for presses,
+  rows, hinges and machine paths; the joint's true arc for arcs, cables and
+  bodyweight; take-off to landing for jumps — and whether there is an arrow at
+  all. `path` overrides the geometry where a movement needs it.
+- **Safe zones.** The traced path fixes the arrow's shape and direction;
+  placement slides it along its own normal and trims its ends until it clears
+  what matters, weighted: face 7, load 4, torso and working joint 3, machine
+  contact 2.2–2.6, limbs 2–2.4, cables and bands 1.4–1.6, the faint second
+  position 0.35. Equipment is read back from the drawn markup, so a new prop is
+  protected the moment it is drawn. Arrows stay inside the frame the drawing
+  already needs and above the floor, and a curve slid outward past the length
+  cap costs. A coarse pass then a fine pass keep the search to about thirty
+  candidates; the result is remembered per drawing and size.
+- **Holds** have no arrow; the two-bar hold mark sits above the body.
+  **Locomotion** draws one arrow at ground level ahead of whatever leads — the
+  front foot, the sled — pointing the way the athlete travels. A movement that
+  runs **toward the viewer** (the Pallof press, `depth:true`) is not faked with
+  an arrow.
+- A definition can pin the side, slide, trim or shift (`arrow:{…}`) where a
+  movement needs saying one particular way; 18 do.
+
+### Movement truth and equipment
+
+- **Hinges are solved from where the hips and the load must be.** Both feet stay
+  planted, the hips travel back behind the heels, the knees stay soft. Romanian
+  and DB Romanian deadlift: hips 11 behind the ankle, 27° of knee bend, the bar
+  over mid-foot just below the knee and against the shins, a straight two-way
+  arrow in front of the legs; standing tall is the ghost. Good morning: bar on
+  the upper back, hips back, chest lowered toward level. Single-leg RDL: soft
+  standing knee, free leg in line with the torso, weight in front of the shin.
+  Bent-over and T-bar rows hang the bar over mid-foot; the Pendlay row starts
+  and ends on the floor with a level torso.
+- **Machines.** Pec deck: back pad, seat, forearm pads on levers from overhead
+  pivots; the open stretch is drawn and a level arrow closes inward. Reverse pec
+  deck: seen from behind, chest pad edges beside the back, arms sweeping out to
+  a T on handles. Lat pulldown and one-arm pulldown: side view, seat, thigh pad
+  over the knees, cable dropping from a pulley above the bar, a straight pull to
+  the upper chest. Leg press: a 45° rail, a footplate square to it on a
+  carriage, the feet riding a line parallel to the rail, the deep bottom drawn.
+  Leg curl: prone on the pad, hands on the grips, the roller behind the ankles
+  turning with the shin round the knee's pivot. Assisted pull-up: the bar on a
+  visible bracket.
+- **Free weights and bodyweight.** Lateral raise: a held elbow bend, dumbbells
+  end-on, arms finishing level. Incline cable fly: the hands meet in front of
+  the chest. Overhead cable and rope extension: a pulley at chest height behind
+  the athlete, the rope starting behind the head. DB pullover: across a bench
+  seen end-on. Pallof press: front view, the cable level from the column
+  beside. Walking lunge: the ghost stands up over the front foot as the back
+  leg swings through. Rear delt fly: hinged, head dropped below the shoulders,
+  knees soft. Power clean: caught in the rack with the elbows high.
+
+### Mapping, coverage and How To
+
+- 217 names reach 168 drawings; 0 missing, 0 orphans. `exerciseVisualKey`,
+  `byName`, `resolveExerciseId` and every surface are unchanged, so builder
+  autofill, swaps, the picker, Program Studio, the stepper, exercise detail and
+  How To reach exactly the drawings they did.
+- In a real browser, six real workouts (Push A, Pull A, Legs B, Arms A, Full
+  Body A, Core A) were started and How To opened for all 35 exercises: every
+  logger thumbnail pointed at its own drawing and every sheet drew it. A swap
+  changed the picture and swapping back restored it; a retyped name updated it;
+  an unknown custom name got none; all 186 picker, Program Studio and swap-sheet
+  rows carried the right drawing.
+- The How To layout was not changed. Measured at 375×812, 390×844 and 844×390
+  at 3×: nothing scrolls; art to title 16px, title to Works 10px, Works to cues
+  16px (12 in landscape); the nearest arrow is 17.8px inside the art tile in
+  portrait and 10.2px in landscape.
+
+### Performance
+
+In a real browser at 4× CPU throttle, medians of seven cold pages: building the
+definitions is about 11ms faster (a regular expression per pose key became a
+lookup); drawing all 168 thumbnails for the first time costs about 45–70ms more,
+about 0.3ms each, once; markup per drawing is slightly smaller; the vendored
+source is 27KB larger, about 1.3% of `index.html`.
+
+### Verification
+
+- **Contract 164** — 59 assertions on the rendered SVG and the solved poses:
+  archetypes and their arrows; face, load, frame, floor and size clearance for
+  every arrow; the hinges, rows, pulldowns, pec decks, leg press, leg curl,
+  lateral raise, cable fly, overhead extensions, pullover, plank, walking lunge
+  and Pallof press. Contract 161 is unchanged and still passes.
+- **Mutation check** — 7 deliberate breakages, 7 caught: the Romanian deadlift's
+  hips pushed forward again, arrows traced back onto the limb, travel arrows over
+  the head, a plank given an arrow, the pec deck swinging over the head, the leg
+  curl roller fixed instead of turning with the shin, the pulldown finishing at
+  the forehead.
+- `npm run verify` 6528 / 0; audit 87, audit:program 335, audit:cardio 261,
+  audit:gps 43, audit:dates 40 × 7 zones.
+
+### Known and recorded
+
+- WORKS tags come from `musclesForExercise`, which also feeds recovery and
+  workout building, so they were reported and not changed: Med Ball Rotational
+  Throw shows Back · Biceps (the keyword scan finds "row" inside "throw");
+  Battle Rope Slams, Battle Rope Waves, Broad Jump, Lateral Bound, Med Ball
+  Slam, Power Clean, Sled Pull, Sled Push and Turkish Get-Up have no primary
+  muscle, so their How To has no Works row; Farmer's Carry lists only Abs.
+- Front views keep their limits. A hinged rear delt fly reads by its dropped
+  head and soft knees, not a visible torso; arms reaching toward the viewer (the
+  incline cable fly's finish, the Pallof press) are drawn foreshortened, and the
+  Pallof press has no arrow.
+- Not yet seen on a physical phone.

@@ -23022,6 +23022,255 @@ async function testBrandMark(){
   T('the trainer is untouched', app.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
+/* =========================================================
+   CONTRACT 164 — EXERCISE VISUALS TELL THE TRUTH (D57)
+   ---------------------------------------------------------
+   Phase B gave every prescribable exercise a drawing; D57
+   audited all 168 against the movement itself. These
+   assertions hold what that audit fixed, measured on the SVG
+   the app actually renders and on the solved poses behind it:
+
+     - every drawing names its archetype, and the archetype
+       decides the arrow: a hold has none, locomotion travels
+       at ground level, a movement toward the viewer is not
+       faked with one;
+     - every arrow keeps its safe zones — off the face, off
+       the load, inside the frame, above the floor, sized to
+       the movement;
+     - the movements the audit found physically wrong stay
+       right: hinges push the hips back and keep the load over
+       mid-foot, the pulldown sits under its pad and pulls to
+       the chest, the pec deck closes inward, the leg press
+       rides its rail, the leg curl's roller turns with the
+       shin, the plank holds its line.
+
+   Which drawing a name reaches is Contract 161's, and is not
+   re-asserted here.
+   ========================================================= */
+async function testExerciseVisualTruth(){
+  section('CONTRACT 164 — exercise visuals tell the truth (D57)');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, XA = ctx.ExerciseArt, defs = ctx.EXERCISE_ART.definitions(), G = XA.G, B = XA.B;
+  const keys = Object.keys(defs);
+  const ARCH = ['press', 'hinge', 'arc', 'cable', 'machine', 'dynamic', 'locomotion', 'hold'];
+  const ACCENT = '#4CC2FF';
+  const nums = t => (String(t).match(/-?\d+(\.\d+)?/g) || []).map(parseFloat);
+  const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const deg = r => r * 180 / Math.PI;
+  /* Angle between two limb vectors, 0 when they run straight on. */
+  const bend = (a, b, c) => {
+    const u = [b[0] - a[0], b[1] - a[1]], v = [c[0] - b[0], c[1] - b[1]];
+    return deg(Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (Math.hypot(u[0], u[1]) * Math.hypot(v[0], v[1]))))));
+  };
+  /* Read a rendered drawing back: the frame, the accent marks, the solid
+     heads and the loads. The faint second position is left out — the rules
+     are about what the eye lands on. */
+  function read(svg){
+    const vb = nums(svg.match(/viewBox="([^"]+)"/)[1]);
+    const solid = svg.replace(/<g opacity="[^"]*">[\s\S]*?<\/g>/g, '');
+    const strokes = [], heads = [], loads = [], faces = [];
+    let m, re = /<path d="([^"]+)"([^>]*)\/>/g;
+    while((m = re.exec(solid))){
+      if(m[2].indexOf('fill="' + ACCENT + '"') !== -1){ heads.push(nums(m[1])); continue; }
+      if(m[2].indexOf('stroke="' + ACCENT + '"') === -1) continue;
+      const parts = m[1].split('M').filter(Boolean).map(seg => { const n = nums(seg), p = []; for(let i = 0; i + 1 < n.length; i += 2) p.push([n[i], n[i + 1]]); return p; });
+      strokes.push(parts);
+    }
+    re = /<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="6" fill="#4F5A6B"/g;
+    while((m = re.exec(solid))) faces.push([+m[1], +m[2]]);
+    re = /<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="([\d.]+)" fill="#232A34"/g;
+    while((m = re.exec(solid))) loads.push([+m[1], +m[2], +m[3]]);
+    /* Every point along the accent strokes, a unit and a half apart. */
+    const pts = [];
+    strokes.forEach(parts => parts.forEach(p => p.forEach((q, i) => {
+      pts.push(q);
+      if(i + 1 < p.length){ const r = p[i + 1], k = Math.ceil(dist(q, r) / 1.5); for(let j = 1; j < k; j++) pts.push([q[0] + (r[0] - q[0]) * j / k, q[1] + (r[1] - q[1]) * j / k]); }
+    })));
+    return { vb, strokes, heads, faces, loads, pts };
+  }
+  const full = {}, thumb = {};
+  keys.forEach(k => { full[k] = read(XA.render(defs[k], { size:'full' })); thumb[k] = read(XA.render(defs[k], { size:'thumb' })); });
+  const firstStroke = r => (r.strokes[0] && r.strokes[0][0]) || [[NaN, NaN], [NaN, NaN]];
+  const HOLDS = ['hollow_hold', 'plank', 'side_plank', 'superman_hold', 'wall_sit', 'weighted_plank'];
+  const TRAVEL = ['band_lateral_walk', 'farmers_carry', 'lunge_walking', 'sled_pull', 'sled_push'];
+  const moving = keys.filter(k => ['hold', 'locomotion'].indexOf(defs[k].arch) === -1 && !defs[k].depth);
+
+  sub('every drawing names the kind of movement it shows');
+  T('every definition declares one of the eight archetypes',
+    keys.every(k => ARCH.indexOf(defs[k].arch) !== -1), keys.filter(k => ARCH.indexOf(defs[k].arch) === -1).join(', '));
+  T('every archetype is in use', ARCH.every(a => keys.some(k => defs[k].arch === a)));
+  T('the holds are exactly the positions held still',
+    JSON.stringify(keys.filter(k => defs[k].arch === 'hold').sort()) === JSON.stringify(HOLDS));
+  T('locomotion is exactly what travels',
+    JSON.stringify(keys.filter(k => defs[k].arch === 'locomotion').sort()) === JSON.stringify(TRAVEL));
+  T('hinges, presses, arcs, cables and machines are each drawn as themselves',
+    defs.deadlift_romanian.arch === 'hinge' && defs.bench_press_barbell.arch === 'press' && defs.lateral_raise.arch === 'arc' &&
+    defs.overhead_ext_cable.arch === 'cable' && defs.pec_deck.arch === 'machine' && defs.leg_press.arch === 'machine' && defs.pushup.arch === 'dynamic');
+
+  sub('the archetype decides the arrow');
+  const holdOk = HOLDS.filter(k => [full[k], thumb[k]].every(r => r.heads.length === 0 && r.strokes.length === 1 &&
+    r.strokes[0].length === 2 && r.strokes[0].every(bar => bar.length === 2 && Math.abs(bar[0][0] - bar[1][0]) < 0.01)));
+  T('a hold carries no arrow — only its two-bar hold mark', holdOk.length === HOLDS.length, HOLDS.filter(k => holdOk.indexOf(k) === -1).join(', '));
+  const travelBad = TRAVEL.filter(k => [full[k], thumb[k]].some(r => {
+    if(r.heads.length !== 1 || r.strokes.length !== 1) return true;
+    const p = firstStroke(r), a = p[0], b = p[p.length - 1];
+    const dir = defs[k].travel && defs[k].travel.dir < 0 ? -1 : 1;
+    return Math.abs(a[1] - b[1]) > 0.5 || a[1] < G - 12 || (b[0] - a[0]) * dir <= 0 || r.faces.some(f => a[1] < f[1] + 20);
+  }));
+  T('locomotion travels at ground level, the way the athlete moves — never over the head', travelBad.length === 0, travelBad.join(', '));
+  T('a press toward the viewer is not faked with an arrow',
+    defs.pallof_press.depth === true && full.pallof_press.strokes.length === 0 && thumb.pallof_press.heads.length === 0 &&
+    keys.filter(k => defs[k].depth).join() === 'pallof_press');
+  const arrowBad = moving.filter(k => [full[k], thumb[k]].some(r => r.strokes.length !== 1 || r.heads.length !== (defs[k].both ? 2 : 1)));
+  T('every other movement has exactly one arrow, two-headed only when it goes both ways (' + moving.length + ')',
+    arrowBad.length === 0, arrowBad.join(', '));
+  T('the Romanian deadlift and the squats go down and back up; a curl goes one way',
+    defs.deadlift_romanian.both === true && defs.squat_back.both === true && !defs.curl_barbell.both);
+
+  sub('arrows keep their safe zones');
+  const withArrow = moving.concat(TRAVEL);
+  const clear = (k, fn) => full[k].pts.reduce((mn, p) => Math.min(mn, fn(p, full[k])), Infinity);
+  const faceClear = k => clear(k, (p, r) => r.faces.reduce((m2, f) => Math.min(m2, dist(p, f) - B.head), Infinity));
+  const faceBad = withArrow.concat(HOLDS).filter(k => faceClear(k) < 1.5);
+  T('no arrow or hold mark crosses a face', faceBad.length === 0, faceBad.map(k => k + ' ' + faceClear(k).toFixed(1)).join(', '));
+  const loadClear = k => clear(k, (p, r) => r.loads.reduce((m2, l) => Math.min(m2, dist(p, l) - l[2]), Infinity));
+  const loadBad = withArrow.filter(k => loadClear(k) < 1);
+  T('no arrow sits on the weight', loadBad.length === 0, loadBad.map(k => k + ' ' + loadClear(k).toFixed(1)).join(', '));
+  const edgeOf = r => r.pts.reduce((mn, p) => Math.min(mn, p[0] - r.vb[0], p[1] - r.vb[1], r.vb[0] + r.vb[2] - p[0], r.vb[1] + r.vb[3] - p[1]), Infinity);
+  const edgeBad = keys.filter(k => full[k].pts.length && edgeOf(full[k]) < 6).concat(keys.filter(k => thumb[k].pts.length && edgeOf(thumb[k]) < 2));
+  T('no arrow touches the frame', edgeBad.length === 0, edgeBad.join(', '));
+  const floorBad = withArrow.filter(k => defs[k].ground !== false && full[k].pts.some(p => p[1] > G - 2));
+  T('no arrow runs below the floor', floorBad.length === 0, floorBad.join(', '));
+  const lengthOf = k => full[k].strokes.reduce((s, parts) => s + parts.reduce((s2, p) => s2 + p.slice(1).reduce((s3, q, i) => s3 + dist(p[i], q), 0), 0), 0);
+  const sizeBad = withArrow.filter(k => lengthOf(k) < 12 || lengthOf(k) > 60);
+  T('every arrow is sized to the movement — long enough to point, never frame-sized', sizeBad.length === 0,
+    sizeBad.map(k => k + ' ' + lengthOf(k).toFixed(0)).join(', '));
+  T('the arrow was placed, not traced onto the limb: a curl\'s arrow clears the hand it describes', (() => {
+    const J = XA.solve('side', defs.curl_barbell.end), hand = J.nW;
+    return full.curl_barbell.pts.every(p => dist(p, hand) > 7.4 + 2);
+  })());
+
+  sub('hinges push the hips back and keep the load on the legs');
+  ['deadlift_romanian', 'db_rdl'].forEach(k => {
+    const top = XA.solve('side', defs[k].start), J = XA.solve('side', defs[k].end);
+    T(k + ': the hips sit behind the heels at the bottom', J.hip[0] < J.nA[0] - 4, 'hip ' + J.hip[0].toFixed(1) + ' ankle ' + J.nA[0].toFixed(1));
+    T(k + ': the knees stay soft, not locked and not squatting', bend(J.hip, J.nK, J.nA) >= 10 && bend(J.hip, J.nK, J.nA) <= 40,
+      bend(J.hip, J.nK, J.nA).toFixed(0) + ' degrees');
+    T(k + ': the load hangs over mid-foot, against the legs', J.nW[0] >= J.nA[0] - 1 && J.nW[0] <= J.nA[0] + 8 && Math.abs(J.nW[0] - J.nK[0]) <= 8);
+    T(k + ': the load travels straight down the thighs', Math.abs(J.nW[0] - top.nW[0]) <= 0.25 * Math.abs(J.nW[1] - top.nW[1]));
+    T(k + ': and its arrow runs in front of the legs, beside the load', full[k].pts.every(p => p[0] > J.nK[0] + 4));
+  });
+  (() => {
+    const J = XA.solve('side', defs.good_morning.end);
+    T('good morning: bar on the upper back, hips back, chest lowered toward level',
+      defs.good_morning.gear.some(g => g[0] === 'plate' && g[1].at === 'back') && J.hip[0] < J.nA[0] - 4 && defs.good_morning.end.trunk <= 120);
+  })();
+  ['row_barbell', 'tbar_row'].forEach(k => {
+    const J = XA.solve('side', defs[k].start);
+    T(k + ': hinged with the hips back, the hanging bar over mid-foot', J.hip[0] < J.nA[0] - 6 && J.nW[0] >= J.nA[0] - 1 && J.nW[0] <= J.nA[0] + 9);
+  });
+  (() => {
+    const d = defs.pendlay_row, J = XA.solve('side', d.start), plate = d.gear.find(g => g[0] === 'plate')[1];
+    T('Pendlay row: torso level and the bar starts on the floor', Math.abs(d.start.trunk - 90) <= 10 && J.nW[1] + (plate.dy || 0) + (plate.r || 8.4) >= G - 1.5);
+    const S = XA.solve('side', defs.single_leg_rdl.end);
+    T('single-leg RDL: the free leg rises in line with the torso and the weight hangs in front of the standing shin',
+      Math.abs(defs.single_leg_rdl.end.fth - (defs.single_leg_rdl.end.trunk - 180)) <= 12 && S.nW[0] > S.nK[0] + 4 && bend(S.hip, S.nK, S.nA) <= 30);
+  })();
+
+  sub('the machines are the machines');
+  ['lat_pulldown', 'lat_pulldown_single'].forEach(k => {
+    const d = defs[k], J0 = XA.solve('side', d.start), J = XA.solve('side', d.end);
+    const seat = d.scene.find(g => g[0] === 'pad' && g[1].a[1] === g[1].b[1] && g[1].a[1] > J.hip[1]);
+    const thigh = d.scene.find(g => g[0] === 'pad' && g[1].a[1] < J.hip[1] && g[1].a[0] > J.hip[0]);
+    const pulley = d.gear.find(g => g[0] === 'cable')[1].from;
+    T(k + ': seated, with the thighs held under a pad', !!seat && !!thigh && thigh[1].a[0] < J.nK[0] + 2 && thigh[1].b[0] > J.hip[0] + 10 &&
+      J.nK[1] - thigh[1].a[1] > 3 && J.nK[1] - thigh[1].a[1] < 10);
+    T(k + ': the cable drops from a pulley above the bar', pulley[1] < J0.nW[1] - 15 && Math.abs(pulley[0] - J0.nW[0]) < 6);
+    T(k + ': the pull runs straight down to the upper chest, below the chin', J.nW[1] > J.head[1] + B.head && J.nW[1] < J.hip[1] - 12 &&
+      Math.abs(J.nW[0] - J0.nW[0]) <= 3 && full[k].heads.length === 1);
+  });
+  (() => {
+    const d = defs.pec_deck, open = XA.solve('front', d.start), shut = XA.solve('front', d.end), s = firstStroke(full.pec_deck);
+    T('pec deck: seated against the back pad with the forearms on upright pads', d.key === 'start' &&
+      ['lE', 'rE'].every(e => d.gear.some(g => g[0] === 'pad' && g[1].a === e)) && d.scene.some(g => g[0] === 'box'));
+    T('pec deck: the upper arms are level at chest height in the stretch', Math.abs(open.rE[1] - open.rS[1]) <= 3 && Math.abs(open.lE[1] - open.lS[1]) <= 3);
+    T('pec deck: the pads close inward — the arrow is level and points to the midline',
+      s.every(p => Math.abs(p[1] - s[0][1]) <= 1.5) && Math.abs(s[s.length - 1][0] - 60) < Math.abs(s[0][0] - 60) && Math.abs(shut.rW[0] - 60) < Math.abs(open.rW[0] - 60));
+  })();
+  (() => {
+    const d = defs.reverse_pec_deck, J = XA.solve('front', d.end), s = firstStroke(full.reverse_pec_deck);
+    T('reverse pec deck: arms finish in a level T and the arrow sweeps outward',
+      Math.abs(J.rW[1] - J.rS[1]) <= 3 && Math.abs(s[s.length - 1][0] - 60) > Math.abs(s[0][0] - 60));
+  })();
+  (() => {
+    const d = defs.leg_press, rail = d.scene.find(g => g[0] === 'rail')[1], J0 = XA.solve('side', d.start), J1 = XA.solve('side', d.end);
+    const railAng = deg(Math.atan2(rail.b[1] - rail.a[1], rail.b[0] - rail.a[0]));
+    const pathAng = deg(Math.atan2(J1.nA[1] - J0.nA[1], J1.nA[0] - J0.nA[0]));
+    const plate = d.gear.filter(g => g[0] === 'pad').pop()[1];
+    const plateAng = deg(Math.atan2(plate.bdy - plate.ady, plate.bdx - plate.adx));
+    T('leg press: the feet ride a line parallel to the sled\'s rail', Math.abs(railAng - pathAng) <= 3, railAng.toFixed(1) + ' vs ' + pathAng.toFixed(1));
+    T('leg press: the footplate stands square to the rail', Math.abs(Math.abs(plateAng - railAng) - 90) <= 5);
+    T('leg press: the drawing is the deep bottom, knees bent past a right angle', d.key === 'start' && bend(J0.hip, J0.nK, J0.nA) >= 90);
+  })();
+  (() => {
+    const d = defs.leg_curl, lev = d.gear.find(g => g[0] === 'lever')[1];
+    const rollerOK = ['start', 'end'].every(p => {
+      const J = XA.solve('side', d[p]), svg = XA.render(ext164(d, p), { size:'full' });
+      const m = svg.replace(/<g opacity="[^"]*">[\s\S]*?<\/g>/g, '').match(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="4.4" fill="#2A313C"/);
+      if(!m) return false;
+      const c = [+m[1], +m[2]], a = J.nK, b = J.nA;
+      const off = Math.abs((b[0] - a[0]) * (a[1] - c[1]) - (a[0] - c[0]) * (b[1] - a[1])) / dist(a, b);
+      return Math.abs(off - lev.to.n) <= 0.6;
+    });
+    const J = XA.solve('side', d.end);
+    T('leg curl: face down on the pad, the roller behind the ankles in both positions', d.start.trunk === -90 && rollerOK);
+    T('leg curl: the heels curl well past a right angle toward the glutes', bend(J.hip, J.nK, J.nA) >= 100);
+  })();
+
+  sub('free weights and bodyweight move the way the cues say');
+  (() => {
+    const J = XA.solve('front', defs.lateral_raise.end);
+    T('lateral raise: arms finish level with the shoulders, elbows softly bent, the dumbbells end-on',
+      Math.abs(J.rW[1] - J.rS[1]) <= 6 && bend(J.rS, J.rE, J.rW) >= 5 && bend(J.rS, J.rE, J.rW) <= 30 &&
+      defs.lateral_raise.gear.every(g => g[0] === 'dbFace'));
+    const F = XA.solve('front', defs.chest_fly_incline_cable.end);
+    T('low-to-high cable fly: the hands meet in front of the chest, not overhead', F.rW[1] > F.rS[1] && Math.abs(F.rW[0] - F.lW[0]) < 2);
+    ['overhead_ext_cable', 'overhead_rope_ext'].forEach(k => {
+      const d = defs[k], S0 = XA.solve('side', d.start), from = d.gear.find(g => g[0] === 'cable')[1].from;
+      T(k + ': facing away from a pulley between hip and head height, the rope starting behind the head',
+        from[0] < S0.hip[0] - 20 && from[1] > S0.head[1] && from[1] < S0.hip[1] && S0.nW[0] < S0.head[0]);
+    });
+    const P = XA.solve('side', defs.db_pullover.end), box = defs.db_pullover.scene.find(g => g[0] === 'box')[1];
+    T('DB pullover: lying across a bench seen end-on, the shoulders on it and the hips beyond it',
+      box.w <= 24 && P.sh[0] >= box.x && P.sh[0] <= box.x + box.w && P.hip[0] > box.x + box.w + 4);
+    const K = XA.solve('side', defs.plank.end), line = Math.abs((K.nA[0] - K.sh[0]) * (K.sh[1] - K.hip[1]) - (K.sh[0] - K.hip[0]) * (K.nA[1] - K.sh[1])) / dist(K.sh, K.nA);
+    T('plank: elbows under the shoulders and one straight line from shoulders to ankles', Math.abs(K.nE[0] - K.sh[0]) <= 2 && line <= 2.5);
+    const W0 = XA.solve('side', defs.lunge_walking.start), W1 = XA.solve('side', defs.lunge_walking.end), t = firstStroke(full.lunge_walking);
+    T('walking lunge: the back leg comes through in the ghost and the arrow travels ahead of the front foot',
+      W0.fA[0] > W1.fA[0] + 30 && W0.fA[1] < G - 6 && t[0][0] > W1.nT[0]);
+    const PP = XA.solve('front', defs.pallof_press.end), cab = defs.pallof_press.gear.find(g => g[0] === 'cable')[1].from;
+    T('Pallof press: the cable comes in level from the anchor beside the athlete', defs.pallof_press.view === 'front' &&
+      Math.abs(cab[1] - PP.mid[1]) <= 4 && Math.abs(cab[0] - PP.mid[0]) > 30);
+  })();
+
+  sub('nothing else moved');
+  T('the renderer still reads no user data and makes no request', !/LOOPStore|localStorage|fetch\(|XMLHttpRequest/.test(stripComments(XA.render.toString())));
+  T('drawings still render the same way twice', XA.render(defs.leg_press, { size:'full' }) === XA.render(defs.leg_press, { size:'full' }));
+  T('every drawing still inlines small (thumb ≤ 8000, full ≤ 10000 chars)',
+    keys.every(k => XA.render(defs[k], { size:'thumb' }).length <= 8000 && XA.render(defs[k], { size:'full' }).length <= 10000));
+  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+
+  /* A definition drawn with only one of its two positions, for reading back
+     one pose's equipment on its own. */
+  function ext164(d, pose){
+    const o = {};
+    Object.keys(d).forEach(key => { if(key !== 'start' && key !== 'end') o[key] = d[key]; });
+    o.end = d[pose]; o.arch = 'hold';
+    return o;
+  }
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -23148,6 +23397,7 @@ async function main(){
   await testExerciseVisuals();
   await testRankShowcaseMotion();
   await testBrandMark();
+  await testExerciseVisualTruth();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
