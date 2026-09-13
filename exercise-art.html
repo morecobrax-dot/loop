@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOOP — Exercise Art</title>
+<!--
+  Exercise Art — design review tool (Phase B).
+
+  Shows every drawing in loop-exercise-art.js exactly as the app renders it:
+  the 44px and 52px thumbnails the workout screens use, the large How To
+  picture, the cues, and every name that reaches the drawing. The app vendors
+  the same file byte for byte (sync-exercise-art.js, held by a contract), so
+  what is reviewed here is what athletes see.
+
+  Nothing here is part of the app. It reads no user data and makes no request
+  beyond its own files.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<style>
+  /* LOOP's own tokens, so the review surface reads as the product. */
+  :root{
+    --bg:#070B12; --surface:#0E141F; --surface-2:#151D2B; --surface-3:#1C2636;
+    --border:#243044; --text:#EEF1F5; --text-dim:#9AA6B8; --text-faint:#737E92;
+    --accent:#4CC2FF; --accent-soft:rgba(76,194,255,0.12);
+    --mono:'JetBrains Mono',ui-monospace,monospace; --display:'Space Grotesk',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body{ margin:0; background:var(--bg); color:var(--text); font:14px/1.45 var(--body); }
+  header{ position:sticky; top:0; z-index:2; background:rgba(7,11,18,0.94); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--border); padding:16px 20px 14px; }
+  .top{ display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; max-width:1180px; margin:0 auto; }
+  h1{ font:700 20px/1.1 var(--display); letter-spacing:-0.01em; margin:0; }
+  .count{ font:600 11px var(--mono); letter-spacing:0.08em; text-transform:uppercase; color:var(--text-faint); }
+  .tools{ display:flex; gap:10px; flex-wrap:wrap; max-width:1180px; margin:12px auto 0; }
+  input[type=search]{ flex:1; min-width:220px; min-height:40px; padding:0 12px; font:16px var(--body);
+    color:var(--text); background:var(--surface-2); border:1px solid var(--border); border-radius:10px; }
+  input[type=search]:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .seg{ display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .seg button{ min-height:40px; padding:0 14px; background:var(--surface-2); color:var(--text-dim); border:0;
+    font:600 12px var(--body); cursor:pointer; }
+  .seg button[aria-pressed=true]{ background:var(--accent-soft); color:var(--accent); }
+  main{ max-width:1180px; margin:0 auto; padding:18px 20px 60px;
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:12px; }
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .card[hidden]{ display:none; }
+  .card-top{ display:flex; gap:10px; align-items:flex-start; }
+  .thumbs{ display:flex; flex-direction:column; gap:6px; }
+  .t{ background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:2px; }
+  .t svg, .full svg{ display:block; width:100%; height:100%; }
+  .t44{ width:44px; height:44px; } .t52{ width:52px; height:52px; border-radius:10px; }
+  .full{ flex:1; aspect-ratio:1/1; background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:6px; }
+  .id{ font:600 11px var(--mono); color:var(--accent); letter-spacing:0.02em; word-break:break-all; }
+  .names{ font-size:12.5px; color:var(--text); }
+  .names span{ color:var(--text-faint); }
+  ol{ margin:0; padding-left:18px; color:var(--text-dim); font-size:12.5px; }
+  .compact main{ grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); }
+  .compact .full, .compact ol, .compact .names{ display:none; }
+  .empty{ grid-column:1/-1; color:var(--text-dim); padding:30px 0; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Exercise Art</h1>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="tools">
+    <input type="search" id="q" placeholder="Filter by drawing id or exercise name" aria-label="Filter drawings" autocomplete="off">
+    <div class="seg" role="group" aria-label="Layout">
+      <button type="button" id="layoutFull" aria-pressed="true">Full</button>
+      <button type="button" id="layoutCompact" aria-pressed="false">Thumbnails</button>
+    </div>
+  </div>
+</header>
+<main id="grid"></main>
+<script src="loop-exercise-art.js"></script>
+<script>
+(function(){
+  var defs = EXERCISE_ART.definitions();
+  var byName = EXERCISE_ART.byName;
+  var names = {};
+  Object.keys(byName).forEach(function(n){ (names[byName[n]] = names[byName[n]] || []).push(n); });
+  var ids = Object.keys(defs).sort();
+  var grid = document.getElementById('grid');
+  var q = document.getElementById('q');
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+  function card(id){
+    var d = defs[id], thumb = '', full = '';
+    try{ thumb = ExerciseArt.render(d, { size:'thumb' }); full = ExerciseArt.render(d, { size:'full' }); }
+    catch(e){ full = '<p>' + esc(e.message) + '</p>'; }
+    var listed = names[id] || [];
+    return '<article class="card" data-search="' + esc((id + ' ' + listed.join(' ')).toLowerCase()) + '">' +
+      '<div class="id">' + esc(id) + '</div>' +
+      '<div class="card-top"><div class="thumbs"><div class="t t44">' + thumb + '</div><div class="t t52">' + thumb + '</div></div>' +
+      '<div class="full">' + full + '</div></div>' +
+      '<div class="names">' + (listed.length ? '<span>Also reached by </span>' + esc(listed.join(', ')) : '<span>Canonical id</span>') + '</div>' +
+      '<ol>' + (EXERCISE_ART.howTo[id] || []).map(function(c){ return '<li>' + esc(c) + '</li>'; }).join('') + '</ol>' +
+    '</article>';
+  }
+  grid.innerHTML = ids.map(card).join('');
+  var cards = Array.prototype.slice.call(grid.querySelectorAll('.card'));
+  function filter(){
+    var v = q.value.trim().toLowerCase(), shown = 0;
+    cards.forEach(function(c){ var hit = !v || c.getAttribute('data-search').indexOf(v) !== -1; c.hidden = !hit; if(hit) shown++; });
+    document.getElementById('count').textContent = shown + ' of ' + ids.length + ' drawings';
+  }
+  q.addEventListener('input', filter);
+  function layout(compact){
+    document.body.classList.toggle('compact', compact);
+    document.getElementById('layoutFull').setAttribute('aria-pressed', String(!compact));
+    document.getElementById('layoutCompact').setAttribute('aria-pressed', String(compact));
+  }
+  document.getElementById('layoutFull').addEventListener('click', function(){ layout(false); });
+  document.getElementById('layoutCompact').addEventListener('click', function(){ layout(true); });
+  var initial = new URLSearchParams(location.search).get('q');
+  if(initial){ q.value = initial; }
+  filter();
+})();
+</script>
+</body>
+</html>

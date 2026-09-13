@@ -2477,6 +2477,92 @@ function oracleTemplate(ctx, entry) {
     }
   }
 
+  /* ---------- 22. ARMS SESSIONS (Phase B) ---------- */
+  section('22. Arms sessions: the athlete\'s split, the week\'s arm volume');
+  {
+    /* The oracle's own reading of arm work — by the movement's words, not the
+       registry the generator uses — and its own restatement of the ceilings. */
+    const ISO_BI = /\bcurl\b/i;
+    /* A glute kickback is not a triceps kickback; the oracle has to know that too. */
+    const ISO_TRI = /pushdown|triceps kickback|skull ?crusher|triceps? extension|(rope|cable) extension/i;
+    const CPD_TRI = /\bdips?\b|close-grip bench/i;
+    const WEEK_CAP = { new:{ balanced:6, arms:8 }, intermediate:{ balanced:10, arms:14 }, experienced:{ balanced:12, arms:16 } };
+    const SESSION_CAP = { new:6, intermediate:8, experienced:9 };
+    const armLoad = (list, g) => list.reduce((n, x) => {
+      const sets = parseInt(x.sets, 10) || 3;
+      if (g === 'biceps' && ISO_BI.test(x.name) && !/leg curl|nordic/i.test(x.name)) return n + sets;
+      if (g === 'triceps' && ISO_TRI.test(x.name)) return n + sets;
+      if (g === 'triceps' && CPD_TRI.test(x.name) && !/bench dips?|chair/i.test(x.name)) return n + sets * 0.5;
+      if (g === 'triceps' && /bench dips?|chair triceps dips?/i.test(x.name)) return n + sets * 0.5;
+      return n;
+    }, 0);
+    const ARM_WORDS = /curl|pushdown|extension|kickback|skull|dip|close-grip|diamond|lateral raise/i;
+
+    let armsWeeks = 0, armsDays = 0, overCap = [], junk = [], bad = [], compoundsCut = [], wrongDays = [], stray = [];
+    const lib = (goal, equipment) => ctx.builderPlanFor(equipment, goal);
+    ['hypertrophy','strength','general'].forEach(goal => ['full','home'].forEach(equipment =>
+      ['new','intermediate','experienced'].forEach(experience => ['balanced','arms'].forEach(emphasis =>
+        ['short','standard','extended'].forEach(sessionLength => [4, 5, 6].forEach(frequency => {
+          const planId = lib(goal, equipment);
+          ctx.splitOptionsFor(frequency, experience, planId).map(o => o.roles).forEach(roles => {
+            const def = ctx.generateProgram({ goal, experience, equipment, emphasis, sessionLength, weeks:6,
+              days: ctx.builderDefaultDays(frequency), split: roles, startDate:'2026-11-02' });
+            const label = [goal, equipment, experience, emphasis, sessionLength, roles.join('/')].join(' · ');
+            const v = ctx.validateProgram(def);
+            if (!v.valid) bad.push(label + ': ' + v.errors.join('; '));
+            const days = oracleWorkoutDays(def);
+            const cats = days.map(d => def.schedule[d].category);
+            if (JSON.stringify(cats) !== JSON.stringify(roles)) wrongDays.push(label + ' -> ' + cats.join('/'));
+            const hasArms = roles.indexOf('arms') !== -1;
+            if (!hasArms){
+              if (days.some(d => def.schedule[d].omit !== undefined)) stray.push(label);
+              return;
+            }
+            armsWeeks++;
+            const sessions = days.map(d => ({ d, e: def.schedule[d], list: ctx.builderTemplateOf(def.schedule[d]).exercises }));
+            ['biceps','triceps'].forEach(g => {
+              const total = sessions.reduce((n, s) => n + armLoad(s.list, g), 0);
+              const cap = WEEK_CAP[experience][emphasis];
+              const removable = sessions.some(s => {
+                const trains = s.list.filter(x => armLoad([x], g) > 0);
+                const iso = trains.filter(x => (g === 'biceps' ? ISO_BI : ISO_TRI).test(x.name));
+                return iso.length && s.list.length > 1 && (s.e.category !== 'arms' || trains.length > 1);
+              });
+              if (total > cap && removable) overCap.push(label + ' ' + g + ' ' + total + ' > ' + cap);
+            });
+            sessions.filter(s => s.e.category === 'arms').forEach(s => {
+              armsDays++;
+              const off = s.list.filter(x => !ARM_WORDS.test(x.name));
+              if (off.length) junk.push(label + ': ' + off.map(x => x.name).join(', '));
+              ['biceps','triceps'].forEach(g => {
+                const load = armLoad(s.list, g);
+                const trains = s.list.filter(x => armLoad([x], g) > 0);
+                if (load > SESSION_CAP[experience] && trains.length > 1 &&
+                    trains.some(x => (g === 'biceps' ? ISO_BI : ISO_TRI).test(x.name)))
+                  overCap.push(label + ' arms-day ' + g + ' ' + load + ' > ' + SESSION_CAP[experience]);
+                if (!trains.length) junk.push(label + ': the Arms day lost all ' + g + ' work');
+              });
+            });
+            sessions.forEach(s => (s.e.omit || []).forEach(n => {
+              if (!(ISO_BI.test(n) || ISO_TRI.test(n))) compoundsCut.push(label + ': ' + n);
+            }));
+          });
+        }))))));
+    ok('Arms weeks were actually exercised (' + armsWeeks + ' weeks, ' + armsDays + ' Arms days)', armsWeeks > 100 && armsDays >= armsWeeks);
+    ok('every Arms program is valid', bad.length === 0, bad.slice(0, 3).join(' | '));
+    ok('every week is built exactly as the athlete split it', wrongDays.length === 0, wrongDays.slice(0, 3).join(' | '));
+    ok('a week without an Arms day is never trimmed for arms', stray.length === 0, stray.slice(0, 3).join(' | '));
+    ok('weekly and per-session arm work stays under the ceilings wherever anything removable remains',
+      overCap.length === 0, overCap.slice(0, 4).join(' | '));
+    ok('an Arms day trains the arms, and keeps both biceps and triceps', junk.length === 0, junk.slice(0, 4).join(' | '));
+    ok('only single-joint arm work is ever trimmed, never a compound', compoundsCut.length === 0, compoundsCut.slice(0, 3).join(' | '));
+    ok('an arms priority never inserts an Arms day into a split without one', (() => {
+      const def = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate', equipment:'full', emphasis:'arms',
+        sessionLength:'standard', weeks:6, days: ctx.builderDefaultDays(3), split:['push','pull','legs'], startDate:'2026-11-02' });
+      return oracleWorkoutDays(def).every(d => def.schedule[d].category !== 'arms');
+    })());
+  }
+
   /* ---------- 12. NOTHING WAS WRITTEN ---------- */
   section('12. Generation has no side effects');
 

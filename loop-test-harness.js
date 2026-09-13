@@ -219,7 +219,9 @@ function loadApp(initialStore){
     /* D52 */ 'LOOP_SOCIAL','socialState','socialView','SOCIAL_RULES_VERSION',
     /* D52B */ 'SOCIAL_MIN_PASSWORD',
     /* Phase A — activity logging */ 'ACTIVITY_TYPES','activityDraft','recentShown','RECENT_STEP',
-    'hasActiveDraftNow','dismissedMissedDates'];
+    'hasActiveDraftNow','dismissedMissedDates',
+    /* Phase B — arms, swaps and exercise art */ 'PLAN_CATEGORIES','ARM_WEEKLY_DIRECT_CAP','ARM_SESSION_DIRECT_CAP',
+    'ARM_GROUPS','SPLIT_ROLES','SPLIT_PRESETS','ROLE_AREAS','EXERCISE_LIBRARY','logStepIndex','workoutEditState'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

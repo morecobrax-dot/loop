@@ -4748,7 +4748,12 @@ function sampleSchedule(ctx){
     sat: { type:'rest' }, sun: { type:'rest' }
   };
 }
-const DSTR = n => { const d = new Date(Date.now() - n*86400000);
+/* Calendar days, not milliseconds. This subtracted n × 24h, so in the first
+   hour after midnight a date 56 days out that crossed a clocks-go-back change
+   landed on the day BEFORE the one meant — "a week inside a gap" then read week
+   8 instead of week 9 and failed on nothing but the time the suite ran. Noon
+   of the local day is at least eleven hours from any DST shift. */
+const DSTR = n => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
 
 function testProgramModel(app){
@@ -6510,8 +6515,11 @@ function testD10Consolidation(app){
     return m.indexOf('exc-summary') < m.indexOf('ex-context-detail');
   })());
   T('exercise actions share one row', /class="ex-actions"/.test(exMarkup));
-  T('Replace is still a named action, not a glyph',
-    />Replace</.test(exMarkup) && exMarkup.indexOf('⋯') === -1);
+  /* Phase B renamed the action Swap — the sheet now offers the engine's
+     matches, more for the same muscle, and search, so "replace" undersold
+     it. What this protects is unchanged: a named action, never a glyph. */
+  T('Swap is still a named action, not a glyph',
+    />Swap</.test(exMarkup) && exMarkup.indexOf('⋯') === -1);
   T('add-set and rest share one footer', /class="ex-log-foot"/.test(exMarkup));
   T('the unit label is printed once per exercise, not once per set',
     exMarkup.indexOf('class="sets-head"') !== -1 &&
@@ -6529,8 +6537,21 @@ function testD10Consolidation(app){
     const m = exMarkup.replace(/<!--[\s\S]*?-->/g, ' ');
     return m.indexOf('recommend-wrap') < m.indexOf('ex-context-detail');
   })());
-  T('it is refreshed wherever those blocks are rewritten',
-    (src.match(/refreshExContext\(row\)/g) || []).length >= 3);
+  /* Was a count of literal `refreshExContext(row)` calls (at least three: the
+     row builder, the old swap select and Replace). Phase B folded both swap
+     paths into one primitive, so the count dropped while the rule held. The
+     rule itself is asserted instead: every function that rewrites the
+     last-time block the summary reads also refreshes the summary. */
+  T('it is refreshed wherever those blocks are rewritten', (() => {
+    const writers = [];
+    const re = /\nfunction (\w+)\(/g; let m;
+    while((m = re.exec(src))){
+      const body = fnSrc(src, m[1]);
+      if(/last-time-wrap/.test(body) && /\.innerHTML = lastTimeHtml\(/.test(body)) writers.push(m[1]);
+    }
+    const missing = writers.filter(n => !/refreshExContext\(/.test(fnSrc(src, n)));
+    return writers.length >= 1 && missing.length === 0 ? true : 'writers ' + writers.join(',') + ' missing ' + missing.join(',');
+  })() === true);
 
   sub('TRAIN opens where the athlete actually trains');
   T('the hard-coded default is gone from the render path',
@@ -9843,10 +9864,18 @@ function testD13Presentation(app){
     ctx.ORDER.every(c => ctx.CATEGORY_DISPLAY_ORDER.indexOf(c) !== -1));
   /* ORDER also drives nextCategory() rotation, so reordering it would change
      which workout an athlete is offered next — not a display decision. */
+  /* Phase B added Arms as a real session role, so the registry gained an
+     eighth category — APPENDED, so the seven it had keep their positions. The
+     rotation this protects (which workout an athlete is offered next) now
+     reads PLAN_CATEGORIES, the seven the plan libraries cover, precisely so
+     that adding a role cannot change it: a plan with no Arms templates must
+     never be offered an Arms day it cannot fill. */
   T('the canonical order was NOT reordered',
-    JSON.stringify(ctx.ORDER) === JSON.stringify(['push','pull','legs','upper','lower','core','fullbody']));
-  T('rotation still reads the canonical order',
-    /const idx = ORDER\.indexOf\(last\)/.test(src));
+    JSON.stringify(ctx.ORDER.slice(0, 7)) === JSON.stringify(['push','pull','legs','upper','lower','core','fullbody']) &&
+    ctx.ORDER[7] === 'arms' && ctx.ORDER.length === 8, JSON.stringify(ctx.ORDER));
+  T('rotation still reads the same seven, in the same order',
+    /const idx = PLAN_CATEGORIES\.indexOf\(last\)/.test(src) &&
+    JSON.stringify(ctx.PLAN_CATEGORIES) === JSON.stringify(['push','pull','legs','upper','lower','core','fullbody']));
   T('the athlete\'s own categories are promoted', (() => {
     ctx.schedule = { mon:'legs', tue:'rest', wed:'rest', thu:'rest', fri:'rest', sat:'rest', sun:'rest' };
     const d = ctx.categoriesForDisplay();
@@ -12887,14 +12916,19 @@ function testWorkoutEditor(app){
      rewrote "chose not to do this" into "never planned". Both halves are
      asserted: ordinary setless exercises still vanish, skipped ones persist
      with empty sets and their flag, never with fabricated performance. */
+  /* Phase B — both pushes pass through withPlan(), which attaches the record of
+     a swap (`planned`) when the workout carried one, exactly as saveLog writes
+     it. The shapes these protect are otherwise byte-for-byte what they were. */
   T('a setless exercise is dropped unless it is a skip, which survives as one',
-    /if\(!sets\.length\)\{\s*if\(ex\.skipped\) exercises\.push\(\{ name, effort:'', bodyweight, sets: \[\], skipped: true \}\);\s*return;\s*\}/.test(saveFn));
+    /if\(!sets\.length\)\{\s*if\(ex\.skipped\) exercises\.push\(withPlan\(\{ name, effort:'', bodyweight, sets: \[\], skipped: true \}\)\);\s*return;\s*\}/.test(saveFn));
   T('and recording real sets ends the skip — the correction wins', (() => {
     /* The performed branch pushes without the skipped flag, so an exercise
        that gains sets in the editor comes out as performed work. */
-    const at = saveFn.indexOf("exercises.push({ name, effort, bodyweight, sets });");
+    const at = saveFn.indexOf("exercises.push(withPlan({ name, effort, bodyweight, sets }));");
     return at !== -1 && !/skipped/.test(saveFn.slice(at, at + 60));
   })());
+  T('withPlan only ever adds the plan record, never anything else',
+    /const withPlan = o => \{ if\(planned\) o\.planned = planned; return o; \};/.test(saveFn));
   T('an unrecorded set type stays unrecorded rather than becoming "working"',
     /if\(isKnownSetType\(s\.type\)\) o\.type = s\.type;/.test(saveFn) &&
     /if\(value\) s\.type = value; else delete s\.type;/.test(src));
@@ -21755,6 +21789,506 @@ async function testActivityLogging(){
   }
 }
 
+/* =========================================================
+   CONTRACT 159 — ARMS AS A SESSION ROLE  (Phase B)
+   ---------------------------------------------------------
+   Arms is a real role — in the registry, the split builder,
+   Program Studio, the generator and the plan libraries — not a
+   renamed custom workout. Three things are held here:
+
+     · the week is reasoned about as a whole: direct arm work
+       is capped per week and per session, by experience and by
+       priority, and compounds are never what gets trimmed;
+     · the athlete owns the split: an Arms day appears only
+       where the athlete's split has one, and a split without one
+       is never given one;
+     · nothing that existed before moves: weeks without an Arms
+       day are exactly what they were, and the rotation that
+       offers the next workout still reads the same seven.
+   ========================================================= */
+async function testArmsSessions(){
+  section('CONTRACT 159 — arms as a session role (Phase B)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  sub('the role exists everywhere a role does');
+  T('SPLIT_ROLES offers Arms', (ctx.SPLIT_ROLES || []).some(r => r.id === 'arms' && r.label === 'Arms'));
+  T('it has a label and a short label', ctx.CAT_LABEL.arms === 'Arms' && ctx.CAT_SHORT.arms === 'ARMS');
+  T('it is in the registry and the display order',
+    ctx.ORDER.indexOf('arms') !== -1 && ctx.CATEGORY_DISPLAY_ORDER.indexOf('arms') !== -1);
+  T('it has a colour of its own', /--arms: #[0-9A-F]{6};/i.test(src) && /\.cat-chip\.arms\b/.test(src));
+  T('the workout logger can file a session as Arms', /class="cat-opt[^"]*" data-cat="arms"/.test(src));
+  T('the day editor can set a day to Arms', /class="cat-opt[^"]*" data-val="arms"/.test(src));
+  T('it warms up and cools down like any session',
+    !!(ctx.PREP_SEQUENCES && ctx.PREP_SEQUENCES.arms) && !!(ctx.COOLDOWN_SEQUENCES && ctx.COOLDOWN_SEQUENCES.arms));
+
+  sub('the rotation that offers the next workout is unchanged');
+  T('it reads the seven plan categories, not the registry', /const idx = PLAN_CATEGORIES\.indexOf\(last\)/.test(src));
+  T('and an Arms session is followed by Push, never by another role it cannot fill', (() => {
+    const real = ctx.workoutLog;
+    try{
+      ctx.workoutLog = [{ id:'a1', date:'2026-05-19', category:'arms', title:'Arms', notes:'', exercises:[] }];
+      ctx.invalidateSortedLogCache();
+      const next = ctx.getNextCategory();
+      return next === 'push' ? true : next;
+    }finally{ ctx.workoutLog = real; ctx.invalidateSortedLogCache(); }
+  })() === true);
+
+  sub('the libraries that can train arms carry real Arms sessions');
+  const PRIMARY = n => ((ctx.musclesForExercise(n) || {}).primary || []);
+  const ALL = n => { const m = ctx.musclesForExercise(n) || {}; return (m.primary || []).concat(m.secondary || []); };
+  ['balanced','strength','home','hypertrophy'].forEach(plan => {
+    const list = (ctx.DEFAULT_PLANS[plan].templates.arms || []);
+    T(plan + ' has at least four Arms sessions', list.length >= 4, String(list.length));
+    list.forEach(t => {
+      const muscles = t.exercises.map(x => PRIMARY(x.name));
+      const bi = muscles.some(m => m.indexOf('biceps') !== -1);
+      const tri = muscles.some(m => m.indexOf('triceps') !== -1);
+      /* Unrelated means it trains no arm muscle even secondarily and is not a
+         shoulder or forearm accessory. A diamond push-up is chest-primary in
+         LOOP's attribution and still belongs: its triceps work is the point. */
+      const off = t.exercises.filter((x, i) => !ALL(x.name).some(m => m === 'biceps' || m === 'triceps') &&
+        !muscles[i].some(m => m === 'shoulders' || m === 'forearms'));
+      T(plan + ' · ' + t.name + ' trains both biceps and triceps, and nothing unrelated',
+        bi && tri && off.length === 0, off.map(x => x.name).join(', '));
+      const mins = ctx.computeWorkoutDuration(t);
+      T(plan + ' · ' + t.name + ' is a focused session (15–40 min)', mins >= 15 && mins <= 40, String(mins));
+    });
+  });
+  T('home Arms sessions need no cable or machine', (ctx.DEFAULT_PLANS.home.templates.arms || [])
+    .every(t => t.exercises.every(x => !/cable|machine|rope|pulldown/i.test(x.name))));
+  T('libraries without arms content offer no Arms day to fill',
+    !(ctx.DEFAULT_PLANS.athletic.templates.arms || []).length && !(ctx.DEFAULT_PLANS.upperlower.templates.arms || []).length);
+
+  sub('the athlete owns the split');
+  [4, 5, 6].forEach(n => {
+    const opts = ctx.splitOptionsFor(n, 'intermediate', 'hypertrophy') || [];
+    T(n + ' days: an Arms split is on offer', opts.some(o => (o.roles || []).indexOf('arms') !== -1),
+      opts.map(o => (o.roles || []).join('/')).join(' | '));
+    T(n + ' days: and it is never the first option', opts.length > 0 && (opts[0].roles || []).indexOf('arms') === -1);
+  });
+  T('a library with no Arms sessions never offers an Arms split',
+    [4, 5, 6].every(n => (ctx.splitOptionsFor(n, 'intermediate', 'athletic') || []).every(o => o.roles.indexOf('arms') === -1)));
+  T('a compound credited to the arms counts as half a set, isolation in full',
+    ctx.armSetsIn([{ name:'Close-Grip Bench Press', sets:4 }, { name:'Triceps Pushdown', sets:3 }], 'triceps') === 5);
+  const gen = (split, extra) => ctx.generateProgram(Object.assign({ goal:'hypertrophy', experience:'intermediate',
+    equipment:'full', sessionLength:'standard', emphasis:'balanced', weeks:6, startDate:'2026-11-02',
+    days: ctx.builderDefaultDays(split.length), split }, extra || {}));
+  const cats = def => ctx.PROGRAM_DAY_KEYS.filter(k => def.schedule[k] && def.schedule[k].type === 'workout')
+    .map(k => def.schedule[k].category);
+  {
+    const def = gen(['push','pull','legs','arms']);
+    T('a chosen Push / Pull / Legs / Arms week is built exactly as chosen',
+      JSON.stringify(cats(def)) === JSON.stringify(['push','pull','legs','arms']), cats(def).join(','));
+    T('and it validates', ctx.validateProgram(def).valid, ctx.validateProgram(def).errors.join('; '));
+    const noArms = gen(['push','pull','legs'], { emphasis:'arms' });
+    T('an arms priority never adds an Arms day to a split without one',
+      cats(noArms).indexOf('arms') === -1, cats(noArms).join(','));
+    T('a week with no Arms day is never trimmed by the arm balance',
+      ctx.PROGRAM_DAY_KEYS.every(k => !noArms.schedule[k] || noArms.schedule[k].omit === undefined));
+  }
+
+  sub('weekly and per-session arm volume');
+  const exps = ['new','intermediate','experienced'];
+  const SPLITS = [['push','pull','legs','arms'], ['push','pull','legs','upper','arms'], ['push','pull','legs','upper','lower','arms']];
+  let checked = 0;
+  const direct = {};
+  exps.forEach(experience => ['balanced','arms'].forEach(emphasis => SPLITS.forEach(split =>
+    ['hypertrophy','strength'].forEach(goal => ['standard','extended'].forEach(sessionLength => {
+      const def = gen(split, { experience, emphasis, goal, sessionLength });
+      const label = [experience, emphasis, goal, sessionLength, split.join('/')].join(' · ');
+      const week = ctx.weeklyArmDirectSets(def.schedule);
+      const cap = ctx.armWeeklyCap(experience, emphasis);
+      /* Over the cap is allowed in exactly one situation: nothing the balance
+         may remove is left — only compound work, which is preserved, and the
+         Arms day's last movement for that muscle. Anything else is junk volume
+         the balance should have taken. */
+      const trimmable = g => ctx.PROGRAM_DAY_KEYS.some(k => {
+        const e = def.schedule[k];
+        if(!e || e.type !== 'workout' || Array.isArray(e.exercises)) return false;
+        const list = ctx.builderTemplateOf(e).exercises;
+        const trains = list.filter(x => ctx.builderPrimariesOf(x.name).indexOf(g) !== -1);
+        if(!trains.some(x => ctx.armIsolationMovement(x.name)) || list.length <= 1) return false;
+        return e.category !== 'arms' || trains.length > 1;
+      });
+      ['biceps','triceps'].forEach(g => {
+        if(week[g] > cap && trimmable(g)) T('weekly direct arm sets within the cap: ' + label + ' ' + g, false,
+          g + ' ' + week[g] + ' cap ' + cap);
+      });
+      ctx.PROGRAM_DAY_KEYS.forEach(k => {
+        const e = def.schedule[k];
+        if(!e || e.type !== 'workout' || e.category !== 'arms') return;
+        const tpl = ctx.builderTemplateOf(e);
+        const ceiling = ctx.ARM_SESSION_DIRECT_CAP[experience];
+        ['biceps','triceps'].forEach(g => {
+          const sets = ctx.armSetsIn(tpl.exercises, g);
+          if(sets > ceiling) T('Arms session within its per-muscle ceiling: ' + label + ' ' + g, false, sets + ' > ' + ceiling);
+          if(sets < 1) T('Arms session keeps work for both heads: ' + label + ' ' + g, false, String(sets));
+        });
+        (e.omit || []).forEach(n => {
+          if(!ctx.armIsolationMovement(n)) T('only isolation work is ever trimmed: ' + label, false, n);
+        });
+      });
+      if(!ctx.validateProgram(def).valid) T('valid: ' + label, false, ctx.validateProgram(def).errors.join('; '));
+      if(goal === 'hypertrophy' && sessionLength === 'standard' && split.length === 4) direct[experience + ':' + emphasis] = week.biceps + week.triceps;
+      checked++;
+    })))));
+  T('every combination checked (' + checked + ')', checked === exps.length * 2 * SPLITS.length * 2 * 2);
+  T('weekly caps rise with experience',
+    ctx.armWeeklyCap('new','balanced') < ctx.armWeeklyCap('intermediate','balanced') &&
+    ctx.armWeeklyCap('intermediate','balanced') <= ctx.armWeeklyCap('experienced','balanced'));
+  T('a priority raises the cap and never lowers the volume',
+    exps.every(x => ctx.armWeeklyCap(x, 'arms') > ctx.armWeeklyCap(x, 'balanced') &&
+      direct[x + ':arms'] >= direct[x + ':balanced']), JSON.stringify(direct));
+  T('a beginner\'s arm week is smaller than an intermediate\'s',
+    direct['new:balanced'] <= direct['intermediate:balanced'], JSON.stringify(direct));
+
+  sub('the athlete\'s own sessions are theirs');
+  {
+    const def = gen(['push','pull','legs','arms'], { emphasis:'arms', experience:'new' });
+    const armsDay = ctx.PROGRAM_DAY_KEYS.find(k => def.schedule[k] && def.schedule[k].category === 'arms');
+    const own = ['EZ-Bar Curl','Hammer Curl','Preacher Curl','Cable Curl','Rope Triceps Pushdown','Skullcrusher','Overhead Rope Extension','Triceps Kickback']
+      .map(name => ({ name, sets:4, reps:'8-12', effort:'8' }));
+    def.schedule[armsDay].exercises = own;
+    delete def.schedule[armsDay].omit;
+    const beforeOwn = JSON.stringify(def.schedule[armsDay]);
+    ctx.builderBalanceArmVolume(def.schedule, 'new', 'arms');
+    T('an athlete-built Arms session is never trimmed, however large',
+      JSON.stringify(def.schedule[armsDay]) === beforeOwn);
+  }
+
+  sub('Program Studio can make any session an Arms session');
+  T('the role select lists every role, Arms included', /SPLIT_ROLES\.map\(r => '<option value="' \+ r\.id \+ '"'/.test(src));
+  T('changing a role rebuilds from that role\'s own templates', /function pbSetSessionRole\(dayKey, roleId\)\{/.test(src));
+
+  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+}
+
+/* =========================================================
+   CONTRACT 160 — SWAPPING AN EXERCISE  (Phase B)
+   ---------------------------------------------------------
+   A swap changes today's exercise and nothing that happened.
+   What must hold:
+
+     · the slot is kept — sets, reps, effort — and the load is
+       never carried across: the replacement's load comes from
+       its OWN history or is honestly absent;
+     · the save records what was performed AND what the plan had
+       written (`planned`), never one pretending to be the other;
+     · the record survives a draft, an edit and a backup, and a
+       correction back to the planned exercise clears it;
+     · progression, PRs and history stay with the exercise that
+       did the work.
+   ========================================================= */
+async function testExerciseSwaps(){
+  section('CONTRACT 160 — swapping an exercise (Phase B)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+
+  /* A logger row with every control the swap, the draft and the save read. */
+  const liveRow = (name, sets, dataset) => {
+    const inp = v => ({ value:String(v == null ? '' : v), checked:false, disabled:false, dataset:{} });
+    const nameIn = inp(name), bwIn = inp(''), effortIn = inp('8');
+    const setRows = sets.map(s => {
+      const cls = new Set(); if(s.done) cls.add('completed');
+      const q = { '.set-weight-in':inp(s.w), '.set-reps-in':inp(s.r), '.set-rir-in':inp(s.rir == null ? '' : s.rir) };
+      return { dataset:{}, classList:{ add:c=>cls.add(c), remove:c=>cls.delete(c), toggle(){}, contains:c=>cls.has(c) },
+        querySelector: sel => q[sel] || null, querySelectorAll: () => [] };
+    });
+    const row = { dataset: Object.assign({}, dataset || {}),
+      querySelector: sel => ({ '.ex-name-in':nameIn, '.ex-bw-in':bwIn, '.ex-effort-in':effortIn })[sel] || null,
+      querySelectorAll: sel => sel === '.set-row' ? setRows : [],
+      closest: () => row, _sets: setRows };
+    return row;
+  };
+  const history = [];
+  for(let i = 0; i < 6; i++){
+    history.push({ id:'sw' + i, date:D(40 - i*5), category:'push', title:'Push', notes:'',
+      exercises:[EX('Bench Press', [S(225,8,2,'working'), S(225,8,2,'working')]),
+                 EX('Dumbbell Bench Press', [S(70,10,2,'working'), S(70,10,2,'working')])] });
+  }
+  const app = await H.loadAppBooted({ workoutLog: JSON.stringify(history), dataSchemaVersion:'1' });
+  const ctx = app.ctx, dom = app.dom;
+  const rawBefore = app.store.workoutLog;
+  const benchEvidence = JSON.stringify(ctx.exerciseSessionHistory('Bench Press', 5));
+  const benchRec = JSON.stringify(ctx.buildProgressionRecommendation('Bench Press', '6-8', '185'));
+
+  sub('the record of a swap is one pure rule');
+  T('a different exercise records what was planned',
+    JSON.stringify(ctx.plannedProvenance('Bench Press', 'Machine Chest Press')) ===
+    JSON.stringify({ name:'Bench Press', exerciseId:'bench_press_barbell' }));
+  T('the same exercise, however it is typed, records nothing',
+    ctx.plannedProvenance('Bench Press', '  bench press ') === null);
+  T('a row nobody planned records nothing', ctx.plannedProvenance('', 'Machine Chest Press') === null);
+  T('an uncatalogued plan is still named, with its own stable id',
+    ctx.plannedProvenance('Seal Row', 'Barbell Row').exerciseId === 'unmapped:seal row');
+
+  sub('a planned row knows its slot');
+  T('rows started from a plan carry the exercise they were written with',
+    /const slotName = meta\.slotName \|\| \(\(meta\.targetSets \|\| meta\.targetReps\) && name \? name : ''\);/.test(fnSrc(src, 'addLogExerciseRow')) &&
+    /row\.dataset\.slotName = slotName;/.test(fnSrc(src, 'addLogExerciseRow')));
+  T('and a draft carries the slot through a reload',
+    /slotName: row\.dataset\.slotName \|\| ''/.test(fnSrc(src, 'captureActiveDraft')) &&
+    /slotRecommended: row\.dataset\.slotRecommended \|\| ''/.test(fnSrc(src, 'captureActiveDraft')));
+
+  sub('swapping before the first set');
+  const row = liveRow('Bench Press', [{ w:225, r:8 }, { w:225, r:8 }, { w:225, r:8 }],
+    { slotName:'Bench Press', slotKey:'k1', targetSets:'3', targetReps:'6-8', recommended:'185',
+      rxEffort:'8', rxLoad:'230', shadowRecId:'rec1', shadowFeedback:'right' });
+  dom.setRows([row]);
+  const prefBefore = JSON.stringify(ctx.inferredPreference('Bench Press'));
+  const got = ctx.swapLogExercise(row, 'Machine Chest Press');
+  T('the swap happens in place', got === row && row.querySelector('.ex-name-in').value === 'Machine Chest Press');
+  T('set count is the slot\'s', row._sets.length === 3);
+  T('reps are the slot\'s', row._sets.every(s => s.querySelector('.set-reps-in').value === '8'));
+  T('target sets, reps and effort are the slot\'s',
+    row.dataset.targetSets === '3' && row.dataset.targetReps === '6-8' && row.dataset.rxEffort === '8');
+  T('every weight is cleared, none carried across', row._sets.every(s => s.querySelector('.set-weight-in').value === ''));
+  T('with no history for the replacement, no load is invented', row.dataset.rxLoad === undefined, String(row.dataset.rxLoad));
+  T('the plan\'s starting weight is set aside, not applied to another exercise',
+    row.dataset.recommended === undefined && row.dataset.slotRecommended === '185');
+  T('the prediction made for the old exercise is unlinked',
+    row.dataset.shadowRecId === undefined && row.dataset.shadowFeedback === undefined);
+  T('the swap is recorded as a preference signal, as it always was',
+    JSON.stringify(ctx.inferredPreference('Bench Press')) !== prefBefore);
+  T('the stepper says what it stands in for, with the way back',
+    /Instead of <b>Bench Press<\/b>/.test(ctx.workoutStepSwapHtml(row)) && /undoExerciseSwapAt/.test(ctx.workoutStepSwapHtml(row)));
+
+  sub('a replacement with its own history gets its own load');
+  ctx.swapLogExercise(row, 'Dumbbell Bench Press');
+  const dbRec = ctx.buildProgressionRecommendation('Dumbbell Bench Press', '6-8', null);
+  T('the load is the progression engine\'s answer for THIS exercise',
+    String(row.dataset.rxLoad) === String(dbRec.weight), row.dataset.rxLoad + ' vs ' + dbRec.weight);
+  T('and never the barbell\'s', String(row.dataset.rxLoad) !== '225' && String(row.dataset.rxLoad) !== '230');
+
+  sub('nothing to swap, nothing changes');
+  T('swapping to the same exercise is a no-op', ctx.swapLogExercise(row, 'dumbbell bench press') === null);
+  T('an empty name is a no-op', ctx.swapLogExercise(row, '   ') === null);
+  {
+    const done = liveRow('Cable Fly', [{ w:30, r:12, done:true }, { w:30, r:12, done:true }], { slotName:'Cable Fly', targetSets:'2', targetReps:'12-15' });
+    T('an exercise with every set logged cannot be swapped — the work is done',
+      ctx.swapLogExercise(done, 'Pec Deck') === null && done.querySelector('.ex-name-in').value === 'Cable Fly');
+  }
+  T('a mid-exercise swap splits the row, leaving finished sets with the exercise that did them',
+    /const done = all\.filter\(sr => sr\.classList && sr\.classList\.contains\('completed'\)\);/.test(fnSrc(src, 'splitRowForSwap')) &&
+    /todo\.forEach\(sr => sr\.remove\(\)\);/.test(fnSrc(src, 'splitRowForSwap')) &&
+    /row\.dataset\.targetSets = String\(done\.length\);/.test(fnSrc(src, 'splitRowForSwap')) &&
+    /slotName: exerciseSlotName\(row\)/.test(fnSrc(src, 'splitRowForSwap')));
+
+  sub('the draft, the save, the edit and the backup all keep the record');
+  dom.document.getElementById('logOverlay').classList.add('open');
+  dom.document.getElementById('logTitle').value = 'Push A';
+  const draft = ctx.captureActiveDraft();
+  T('the draft keeps the slot', draft && draft.exercises[0].meta.slotName === 'Bench Press' &&
+    draft.exercises[0].meta.slotRecommended === '185' && draft.exercises[0].meta.recommended === '');
+  const n0 = ctx.workoutLog.length;
+  ctx.saveLog();
+  const entry = ctx.workoutLog[ctx.workoutLog.length - 1];
+  T('the save wrote one workout', ctx.workoutLog.length === n0 + 1);
+  T('the performed exercise owns the record', entry.exercises[0].name === 'Dumbbell Bench Press');
+  T('and the plan is recorded beside it, not instead of it',
+    JSON.stringify(entry.exercises[0].planned) === JSON.stringify({ name:'Bench Press', exerciseId:'bench_press_barbell' }));
+  T('what LOOP asked for is the slot, with the replacement\'s own load',
+    entry.exercises[0].rx && entry.exercises[0].rx.sets === 3 && entry.exercises[0].rx.reps === '6-8' &&
+    String(entry.exercises[0].rx.load) === String(dbRec.weight));
+  await H.settle(250);
+  T('it reached storage intact', JSON.stringify(JSON.parse(app.store.workoutLog).slice(-1)[0].exercises[0].planned) ===
+    JSON.stringify(entry.exercises[0].planned));
+  T('no earlier workout was touched', JSON.stringify(JSON.parse(app.store.workoutLog).slice(0, history.length)) ===
+    JSON.stringify(JSON.parse(rawBefore)));
+
+  sub('history and progression stay with the exercise that did the work');
+  T('the planned exercise gains no session it did not have',
+    JSON.stringify(ctx.exerciseSessionHistory('Bench Press', 5)) === benchEvidence);
+  T('so its next recommendation is exactly what it was',
+    JSON.stringify(ctx.buildProgressionRecommendation('Bench Press', '6-8', '185')) === benchRec);
+  T('the performed exercise\'s history includes the session',
+    ctx.exerciseSessionHistory('Dumbbell Bench Press', 10).length >= 0 &&
+    ctx.workoutLog.some(l => l.id === entry.id && l.exercises.some(e => e.name === 'Dumbbell Bench Press')));
+  T('histories are never merged by the swap',
+    !ctx.workoutLog.some(l => l.id === entry.id && l.exercises.some(e => e.name === 'Bench Press')));
+  T('day detail shows what it stood in for', /log-ex-planned">Instead of \$\{escapeHtml\(ex\.planned\.name\)\}/.test(fnSrc(src, 'openDayDetail')));
+
+  {
+    ctx.workoutEditState = { id: entry.id, origin:'day', draft: JSON.parse(JSON.stringify(entry)),
+      baseline: JSON.stringify(entry), dirty:true, saving:false };
+    ctx.saveWorkoutEdits();
+    const edited = ctx.workoutLog.find(l => l.id === entry.id);
+    T('a correction keeps the record of the plan',
+      JSON.stringify(edited.exercises[0].planned) === JSON.stringify(entry.exercises[0].planned));
+    await H.settle(1100);
+    ctx.workoutEditState = null;
+    const back = JSON.parse(JSON.stringify(edited)); back.exercises[0].name = 'Bench Press';
+    ctx.workoutEditState = { id: entry.id, origin:'day', draft: back, baseline: JSON.stringify(edited), dirty:true, saving:false };
+    ctx.saveWorkoutEdits();
+    const corrected = ctx.workoutLog.find(l => l.id === entry.id);
+    T('correcting it to the planned exercise clears the record — nothing was swapped after all',
+      corrected.exercises[0].name === 'Bench Press' && corrected.exercises[0].planned === undefined);
+    await H.settle(1100);
+    ctx.workoutEditState = null;
+  }
+  {
+    const payload = { app:'LOOP', schemaVersion:1, exportedAt:'2026-05-20T09:00:00Z', data:{
+      workoutLog: JSON.stringify([{ id:'imp1', date:'2026-05-18', category:'push', title:'Push', notes:'',
+        exercises:[{ name:'Machine Chest Press', effort:'8', bodyweight:false, sets:[S(120,10,2)],
+          planned:{ name:'Bench Press', exerciseId:'bench_press_barbell' } }] }]) } };
+    await ctx.importAllData({ files:[{ text: async () => JSON.stringify(payload) }], value:'' });
+    await H.settle(200);
+    const imported = JSON.parse(app.store.workoutLog).find(w => w.id === 'imp1');
+    T('a backup restores the record of the plan untouched',
+      imported && JSON.stringify(imported.exercises[0].planned) === JSON.stringify({ name:'Bench Press', exerciseId:'bench_press_barbell' }));
+  }
+
+  sub('the swap sheet offers the right things first');
+  {
+    const o = ctx.exerciseSwapOptions('Bench Press', { workoutExerciseIds:['chest_fly_cable'], slotName:'Bench Press' });
+    T('the engine\'s matches lead', o.ranked.length > 0 && o.ranked.every(r => r.exerciseId !== 'bench_press_barbell'));
+    T('the wider list trains the same primary muscle', o.muscle === 'chest' &&
+      o.more.every(m => (ctx.musclesForExercise(m.name).primary || []).indexOf('chest') !== -1 ||
+        (ctx.getCanonicalExercise(ctx.resolveExerciseId(m.name)) || { primary:[] }).primary.indexOf('chest') !== -1));
+    T('it repeats nothing already offered, or already in the workout',
+      o.more.every(m => o.ranked.every(r => r.displayName !== m.name) && m.name !== 'Cable Fly' && m.name !== 'Bench Press'));
+    T('it is a short list, never the library', o.more.length <= 12);
+    T('closest movements come first', o.more.length < 2 || o.more[0].samePattern || !o.more.some(m => m.samePattern));
+    const back = ctx.exerciseSwapOptions('Hammer Curl', { slotName:'Barbell Curl' });
+    T('a swapped row offers the way back to the plan first, and only there',
+      back.back === 'Barbell Curl' && back.ranked.every(r => r.displayName !== 'Barbell Curl'));
+    T('an uncatalogued exercise still gets same-muscle options',
+      ctx.exerciseSwapOptions('Chair Triceps Dips', {}).more.length > 0);
+  }
+  T('the sheet keeps its promise about today', /Replaces this exercise for today's workout only/.test(src));
+  T('every swap goes through the one primitive',
+    /swapLogExercise\(row, canon\.displayName\)/.test(fnSrc(src, 'applySubstitution')) &&
+    /swapLogExercise\(row, clean\)/.test(fnSrc(src, 'applySubstitutionByName')) &&
+    (src.match(/function swapLogExercise\(/g) || []).length === 1);
+  T('the old select that overwrote the prescription is gone', !/onchange="swapLogExercise\(this\)"/.test(src) &&
+    !/function refreshSwapOptions\(/.test(src));
+
+  sub('nothing protected moved');
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+}
+
+/* =========================================================
+   CONTRACT 161 — EXERCISE ART  (Phase B)
+   ---------------------------------------------------------
+   One drawing for every exercise LOOP can prescribe, drawn by
+   one renderer, shown by one set of helpers everywhere. The
+   coverage is asserted, not claimed: every name the plans,
+   the extensions, the registry and the picker can put in front
+   of an athlete reaches a drawing, every drawing renders, and
+   every drawing is reached. Nothing is fetched, nothing is
+   copied, and a name LOOP does not know gets no picture rather
+   than a wrong one.
+   ========================================================= */
+async function testExerciseVisuals(){
+  section('CONTRACT 161 — exercise art (Phase B)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const libPath = H.APP_PATH.replace(/index\.html$/, 'loop-exercise-art.js');
+  const lib = fs.existsSync(libPath) ? fs.readFileSync(libPath, 'utf8') : '';
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx;
+
+  sub('one vendored source, byte for byte');
+  T('the drawings are vendored, not linked', /LOOP-EXERCISE-ART-BEGIN/.test(src) && !/<script[^>]*\ssrc=/.test(src));
+  T('the vendored copy has not drifted from loop-exercise-art.js', (() => {
+    if(!lib) return 'loop-exercise-art.js not found';
+    const a = src.indexOf('LOOP-EXERCISE-ART-BEGIN */'), b = src.indexOf('/* LOOP-EXERCISE-ART-END */');
+    if(a < 0 || b < 0) return 'markers missing';
+    const norm = t => t.split('\r\n').join('\n').trim();
+    return norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b)) === norm(lib) ? true : 'drifted — run node sync-exercise-art.js';
+  })() === true);
+  T('the sync script and the review page exist',
+    fs.existsSync(H.APP_PATH.replace(/index\.html$/, 'sync-exercise-art.js')) &&
+    fs.existsSync(H.APP_PATH.replace(/index\.html$/, 'exercise-art.html')));
+  const art = src.slice(src.indexOf('LOOP-EXERCISE-ART-BEGIN */'), src.indexOf('/* LOOP-EXERCISE-ART-END */'));
+  T('nothing in it reaches the network', !/https?:\/\/(?!www\.w3\.org\/2000\/svg)|fetch\(|XMLHttpRequest|<image|url\(/.test(stripComments(art)));
+  T('nothing in it reads or writes storage', !/LOOPStore|localStorage|indexedDB/.test(stripComments(art)));
+
+  sub('every prescribable exercise reaches an exact drawing');
+  const names = new Set();
+  ctx.exPickerIndex().forEach(e => names.add(e.name));
+  Object.keys(ctx.DEFAULT_PLANS).forEach(p => Object.keys(ctx.DEFAULT_PLANS[p].templates).forEach(cat =>
+    ctx.DEFAULT_PLANS[p].templates[cat].forEach(t => t.exercises.forEach(x => names.add(x.name)))));
+  ctx.PROGRAM_EXTENSIONS.forEach(x => x.exercises.forEach(e => names.add(e.name)));
+  ctx.CANONICAL_EXERCISES.forEach(e => names.add(e.displayName));
+  const defs = ctx.EXERCISE_ART.definitions();
+  const missing = [...names].filter(n => !ctx.exerciseVisualKey(n));
+  T('coverage is complete (' + names.size + ' names, ' + ctx.exPickerIndex().length + ' exercises)',
+    missing.length === 0, missing.join(', '));
+  const reached = {};
+  names.forEach(n => { const k = ctx.exerciseVisualKey(n); if(k) reached[k] = true; });
+  const orphans = Object.keys(defs).filter(k => !reached[k]);
+  T('every drawing is reached by a prescribable name (' + Object.keys(defs).length + ' drawings)', orphans.length === 0, orphans.join(', '));
+  T('a canonical exercise is drawn under its canonical id', ctx.CANONICAL_EXERCISES.every(e =>
+    ctx.exerciseVisualKey(e.displayName) === e.id), ctx.CANONICAL_EXERCISES.filter(e => ctx.exerciseVisualKey(e.displayName) !== e.id).map(e => e.id).join(','));
+  [['Pendlay Row','pendlay_row','row_barbell'], ['T-Bar Row','tbar_row','row_machine'], ['Glute Bridge','glute_bridge','hip_thrust'],
+   ['Seated Calf Raise','calf_raise_seated','calf_raise'], ['Hanging Leg Raise','hanging_leg_raise','leg_raise'],
+   ['Walking Lunge','lunge_walking','lunge'], ['Kettlebell Goblet Squat','squat_goblet_kb','squat_goblet']].forEach(([n, k, id]) =>
+    T(n + ' is drawn as itself while history still counts it as ' + id,
+      ctx.exerciseVisualKey(n) === k && ctx.resolveExerciseId(n) === id));
+  T('a name LOOP does not know gets no picture, not a wrong one',
+    ctx.exerciseVisualKey('My Garage Contraption') === null && ctx.exerciseThumbHtml('My Garage Contraption') === '');
+
+  sub('every drawing renders, small and large');
+  const bad = [], heavy = [], cueless = [];
+  Object.keys(defs).forEach(k => {
+    let t = '', f = '';
+    try{ t = ctx.ExerciseArt.render(defs[k], { size:'thumb' }); f = ctx.ExerciseArt.render(defs[k], { size:'full' }); }
+    catch(e){ bad.push(k + ': ' + e.message); return; }
+    if(!/^<svg viewBox="[-\d. ]+"/.test(t) || /NaN|undefined|Infinity/.test(t + f)) bad.push(k);
+    if(t.length > 8000 || f.length > 10000) heavy.push(k + ' ' + t.length + '/' + f.length);
+    const cues = ctx.EXERCISE_ART.howTo[k];
+    if(!Array.isArray(cues) || cues.length < 1 || cues.length > 3 || cues.some(c => !c || c.length > 48)) cueless.push(k);
+  });
+  T('no drawing throws or produces a broken number', bad.length === 0, bad.join('; '));
+  T('every drawing stays small enough to inline', heavy.length === 0, heavy.join('; '));
+  T('every drawing has one to three short cues', cueless.length === 0, cueless.join(', '));
+  T('the same drawing renders identically every time',
+    ctx.ExerciseArt.render(defs.squat_back, { size:'thumb' }) === ctx.ExerciseArt.render(defs.squat_back, { size:'thumb' }));
+  T('thumbnails are decorative to a screen reader unless they are the control',
+    /aria-hidden="true"/.test(ctx.exerciseThumbHtml('Bench Press', { static:true })) &&
+    /aria-label="How to do Bench Press"/.test(ctx.exerciseThumbHtml('Bench Press')));
+
+  sub('one system, everywhere an exercise is shown');
+  T('the logger row', /exerciseThumbHtml\(name\)/.test(fnSrc(src, 'addLogExerciseRow')));
+  T('the workout stepper', /exerciseThumbHtml\(name, \{ size: 'lg' \}\)/.test(fnSrc(src, 'renderWorkoutStep')));
+  T('the swap sheet', /exerciseThumbHtml\(name, \{ static: true \}\)/.test(fnSrc(src, 'substitutionOptionHtml')));
+  T('Program Studio', /exerciseThumbHtml\(name, \{ static: true \}\)/.test(fnSrc(src, 'pbExerciseRowHtml')));
+  T('the exercise picker', /exerciseThumbHtml\(name, \{ static: true \}\)/.test(fnSrc(src, 'exPickerRowHtml')));
+  T('exercise detail', /exerciseThumbHtml\(name, \{ static: true \}\)/.test(fnSrc(src, 'renderExDetail')));
+  T('and no screen repeats the picture it already shows',
+    /\.stepper-on \.ex-log-name-row \.ex-thumb\{ display: none; \}/.test(src));
+  T('the picture follows the name on the row, so a swap swaps it',
+    /refreshExerciseThumb\(target\)/.test(fnSrc(src, 'swapLogExercise')) &&
+    /exerciseThumbHtml\(nameEl \? nameEl\.value : ''\)/.test(fnSrc(src, 'refreshExerciseThumb')));
+
+  sub('How To');
+  T('a sheet exists for it', /id="howToOverlay"/.test(src) && /id="howToCues"/.test(src));
+  T('it shows the movement, what it works and the cues', (() => {
+    const fn = fnSrc(src, 'openHowTo');
+    return /exerciseArtSvg\(key, 'full'\)/.test(fn) && /musclesForExercise\(clean\)/.test(fn) && /howToCues\(clean\)/.test(fn);
+  })());
+  T('it opens for a known exercise and not for an unknown one', (() => {
+    const ov = ctx.document.getElementById('howToOverlay');
+    ov.classList.remove('open');
+    ctx.openHowTo('My Garage Contraption');
+    const unknown = ov.classList.contains('open');
+    ctx.openHowTo('Hammer Curl');
+    const known = ov.classList.contains('open') && /Palms facing each other/.test(ctx.document.getElementById('howToCues').innerHTML);
+    ctx.closeHowTo();
+    return !unknown && known;
+  })());
+
+  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -21876,6 +22410,9 @@ async function main(){
   await testSplitOwnership();
   await testSocialFoundation();
   await testActivityLogging();
+  await testArmsSessions();
+  await testExerciseSwaps();
+  await testExerciseVisuals();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

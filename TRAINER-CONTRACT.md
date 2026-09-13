@@ -7385,3 +7385,183 @@ in-flight drafts are no longer a consideration.
   month and year ends, both DST changes and a leap day, in seven zones. Swapping
   `localDateStr()` for the UTC day fails it in all six non-UTC zones (22
   failures); the real code passes in all seven.
+
+## §84 — Phase B: Arms days, swaps that keep the record honest, and a drawing for every exercise
+
+**Status.** Shipped in LOOP 5.6 (`loop-v133`). Three things arrived together
+because they meet in the same place — the exercise in front of the athlete:
+Arms became a real session role, swapping an exercise became one primitive
+that records what happened instead of overwriting it, and every exercise LOOP
+can prescribe got an exact drawing and a How To. `DATA_KEYS` 15, schema 1, no
+migration, `TRAINER_ENGINE_VERSION` 0.1.1-shadow, Session Score weights
+40/30/18/12, no historical record rewritten.
+
+### Arms is a role, not a renamed workout
+
+`arms` is in the registry (`ORDER`, labels, colour, logger and day-editor
+pickers, warm-up and cool-down sequences), in `SPLIT_ROLES` and `ROLE_AREAS`,
+and in the Balanced, Strength, Home and Hypertrophy libraries with four
+sessions each (20–30 minutes; every one trains both biceps and triceps, with
+shoulder or forearm accessories at most). Athletic and Upper/Lower have none,
+so their split offers never include an Arms day they could not fill.
+
+**The rotation did not move.** `ORDER` gained `arms` at the end, and
+`getNextCategory()` now reads `PLAN_CATEGORIES` — the seven the plan libraries
+cover — so an Arms session in history is followed by Push, exactly as any
+category outside the rotation always was. Contract 92 was repointed to say
+this rather than weakened: the first seven keep their order, and rotation reads
+the same seven.
+
+**The athlete owns the split (D51E holds).** Arms presets are appended to the
+4-, 5- and 6-day offers, never first. A chosen Push / Pull / Legs / Arms week is
+built exactly as chosen, and an arms *priority* never inserts an Arms day into
+a split that has none — it only raises the ceiling below.
+
+### Arm volume is a property of the week
+
+A week with an Arms day is balanced as a whole by `builderBalanceArmVolume()`:
+
+| experience   | weekly cap (normal / arms priority) | per-session cap |
+|--------------|-------------------------------------|-----------------|
+| new          | 6 / 8                               | 6               |
+| intermediate | 10 / 14                             | 8               |
+| experienced  | 12 / 16                             | 9               |
+
+Single-joint arm work counts in full. **A compound the registry credits to an
+arm muscle counts as half a set** (`ARM_COMPOUND_SHARE`): a close-grip press or
+a dip is real triceps work shared with the chest and shoulders. The first
+implementation counted compounds in full and the new contracts caught what that
+meant — a beginner's Strength week at ten triceps sets against a cap of six,
+all of it compound, with nothing the balance was allowed to remove.
+
+What the balance may remove is narrow and deterministic: only isolation arm
+work, from other days before the Arms day, extensions before library work,
+never the last movement for a muscle on the Arms day, never an athlete-owned
+session, never a compound. A week over its cap is therefore legal in exactly
+one situation — nothing removable is left — and both the contract and the
+program audit assert that, not a bare cap. The depth allocator applies the same
+ceilings when it adds extension work. Weeks without an Arms day never pass
+through any of this: all 28,224 previously generated programs in the answer
+matrix hash byte-identical before and after; the 4,032 new hashes are the new
+Arms splits.
+
+### A swap is one primitive, and history stays what happened
+
+The legacy `↻` select (which overwrote the prescription from a category list)
+and Replace (which kept a stale load) are gone. Every path — the swap sheet,
+Back to the plan, Undo — goes through `swapLogExercise(row, name)`.
+
+- **Kept: the slot.** Sets still to do, their reps, target effort and rest
+  belong to the session. They do not change.
+- **Reset: everything that belongs to the exercise.** Weights empty; the
+  template's starting weight is set aside (`data-slot-recommended`) and only
+  restored on the way back; the load is re-derived from the replacement's OWN
+  history by the progression engine, or absent — in which case the coach states
+  reps and effort and says nothing about weight. Last time, notes, warm-up and
+  the shadow marker follow the new exercise. Bodyweight follows the registry or
+  a plan that prescribes the exercise as Bodyweight.
+- **Provenance.** A planned row remembers its slot (`data-slot-name`, carried
+  through drafts). At save, `plannedProvenance(slot, performed)` writes
+  `planned: { name, exerciseId }` beside the performed exercise when they differ
+  and nothing when they do not. `name` still owns the sets, PRs and progression
+  evidence; the plan's exercise gains nothing it did not do. D43 fulfilment is
+  session-level and unaffected: the slot was trained, just not as written. The
+  editor keeps `planned` through a correction and clears it when the correction
+  makes the exercise the planned one; backup import carries it untouched.
+- **Mid-exercise.** Finished sets stay with the exercise that did them: the row
+  splits, the original keeps its completed sets (its `targetSets` becomes what
+  it did), and a new row carries the remaining sets and the same slot. A row
+  whose every set is logged cannot be swapped. Undo on a split-off row returns
+  its sets to the original rather than leaving the exercise in the workout twice.
+
+The sheet leads with what is being swapped, then the plan's own exercise (when
+already swapped), the engine's matches, up to twelve more exercises for the
+same primary muscle ordered by pattern then role, and search last — never the
+library first. Exclusions, "never" preferences, equipment the gym profile marks
+missing and exercises already in the workout are filtered from every list.
+
+### One drawing per exercise, one renderer, one set of helpers
+
+`loop-exercise-art.js` is the source of truth, vendored byte-for-byte into
+index.html between `LOOP-EXERCISE-ART-BEGIN/END` by `sync-exercise-art.js`
+(held by Contract 161), reviewed in `exercise-art.html`. The figure is solved
+from segment angles on fixed bone lengths with one pinned contact, and a few
+poses are solved numerically (planks land their toes, planted feet stay put),
+so no drawing can grow a limb. Two positions, a faint ghost, one cyan motion
+path. No raster, no network, no copied art. Definitions are built on first use.
+
+- **Keys.** A canonical exercise is drawn under its canonical id. Uncatalogued
+  names and seven aliases that share an id for history but are visibly
+  different movements (Pendlay Row, T-Bar Row, Glute Bridge, Seated Calf Raise,
+  Hanging Leg Raise, Walking Lunge, Kettlebell Goblet Squat) are listed by
+  normalised name. A name that reaches no drawing gets no picture.
+- **Coverage.** 217 prescribable names (186 exercises in the picker index) →
+  168 drawings, 100%, every drawing reached, each with one to three cues. 41
+  drawings are shared by genuinely identical movements (Bench Press / Flat Bench
+  Press / Speed Bench Press; Bench Dips / Chair Triceps Dips; Close-Grip /
+  Diamond Push-Up; the lat pulldown grips; and so on).
+- **Surfaces.** Logger row, stepper head, swap sheet, Program Studio, exercise
+  picker and exercise detail all call `exerciseThumbHtml()`; in the stepper the
+  row's copy is hidden so no screen repeats a picture. Thumbnails reference one
+  hidden sprite: inlining made the picker 640KB and ~8,800 nodes rebuilt per
+  keystroke; with the sprite it is 74KB, ~1,550 nodes, 2ms per search.
+- **How To.** The movement drawn large, the muscles from `musclesForExercise()`
+  (the attribution every other screen uses) and the cues, side by side in short
+  landscape.
+
+**Drawn with a stated compromise.** Pallof Press is drawn in profile with the
+cable anchored behind the athlete: the anti-rotation load comes from the side,
+which a single 2D view cannot show. "Rear Delt Fly" is drawn as the bent-over
+dumbbell version while the registry's equipment for that id is Machine; the
+machine is its own drawing under Reverse Pec Deck Fly and the machine aliases.
+
+### Contracts repointed, with reasons
+
+- **Contract 92** — `ORDER` pinned to seven; now the seven keep their positions
+  with Arms appended, and rotation is pinned to `PLAN_CATEGORIES`.
+- **Contract 65** — "Replace is still a named action" became Swap, same
+  rule (a named action, never a glyph). "Refreshed wherever those blocks are
+  rewritten" counted three literal calls; the two swap paths are now one, so
+  the rule itself is asserted: every function that rewrites the last-time block
+  refreshes the summary.
+- **Contract 117** — the editor's pushes go through `withPlan()`; the pinned
+  shapes are otherwise identical, and a new assertion pins that `withPlan` adds
+  only `planned`.
+- **Test fixture `DSTR`** (Contract 57) — subtracted milliseconds, so between
+  midnight and 1am a date 56 days out that crossed a clocks-go-back change landed
+  a day early and "a week inside a gap" failed. It failed identically on the
+  pre-Phase-B build; it now counts calendar days from local noon.
+
+### Verification
+
+- **Contracts 159 / 160 / 161** — 68 / 50 / 34 assertions: the role everywhere,
+  rotation, library content, split ownership, 72 volume combinations across
+  experience, priority, goal, length and split; the swap before the first set,
+  own-history load, blocked and no-op swaps, draft, save, storage, edit,
+  correction and backup; history, progression evidence and PR ownership; the
+  swap sheet's ordering; vendoring, coverage, rendering, surfaces and How To.
+- **Mutation check** — 9 deliberate re-breakings (save stops writing
+  `planned`; a swap keeps the old weight; the template starting weight survives
+  a swap; the editor drops `planned`; a drawing goes missing; the vendored copy
+  drifts; compounds count in full; the balance stops trimming; How To opens for
+  an unknown name). 9 of 9 caught.
+- **Program audit §22** — an independent oracle (its own reading of arm work by
+  the movement's words, its own restated ceilings) across 3 goals × 2 equipment
+  × 3 experiences × 2 emphases × 3 lengths × 4–6 days × every offered split.
+- **Browser** (390×844, 375×812, 844×390): Build With LOOP to a Push / Pull /
+  Legs / Arms program with an arms priority; Program Studio's Arms session;
+  swap before a set, reload, split mid-exercise, Undo, save, day detail showing
+  "Instead of"; the picker at 186 thumbnails; How To portrait and landscape.
+- `npm run verify` 6362 / 0; audit 87, audit:program 335, audit:cardio 261,
+  audit:gps 43, audit:dates 40 × 7 zones.
+
+### Known and recorded
+
+- Editing a saved workout drops each exercise's `rx` (the D47 record of what was
+  prescribed). This predates Phase B; `planned` is carried, `rx` is not. Raised
+  separately rather than changed inside this release.
+- A program workout's phase label sits 8px into the stepper head's border. Also
+  pre-existing, measured on the pre-Phase-B build, raised separately.
+- The first picker opening in a session builds every drawing it lists
+  (~110ms on a desktop). Browsers with idle callbacks build the definitions
+  ahead of time; Safari builds them on first use.
