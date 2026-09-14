@@ -8774,3 +8774,233 @@ chosen.
   fourth is one scroll away.
 - The mode itself is not stored with the draft: a resumed week that happens to
   equal a preset shows as that preset. Its roles are the same either way.
+
+## §93 — D63: The machines a commercial gym has
+
+**Status.** Shipped in LOOP 6.5 (`loop-v142`). `DATA_KEYS` 15, schema 1, no
+migration, no new storage key, `TRAINER_ENGINE_VERSION` 0.1.1-shadow.
+Progression, Live Set Coach, Session Score, Activity, rank, social, the D62
+builder and the saved-workout Swap are untouched. No plan template and no
+program extension changed.
+
+### What the library had
+
+Measured before anything was added: 62 registry exercises, 186 picker entries,
+168 drawings, no picker entry without a drawing or cues. 21 entries were filed
+under Machine, but only 12 were registry machines. The other nine took the word
+from their names, and two of those were duplicates of a registry entry (Machine
+Crunch beside Ab Crunch Machine, Hip Abduction Machine beside Hip Abduction).
+41 entries had unknown equipment.
+
+- **Strongest:** quads (leg press, hack squat, leg extension, Smith squat) and
+  chest (chest press, pec deck, Smith bench, incline machine press).
+- **Weakest:** triceps (no machine); calves (one exercise and nothing for Swap to
+  offer); hamstrings ("Seated Leg Curl" was an alias of Leg Curl and drew the
+  lying curl with "Lie face down"); the biceps, shoulder, glute and core
+  machines the plans prescribe had no identity, so Swap could not rank them.
+- **`movementPatternFor` read "ma‑chin‑e" as a chin-up.** Every uncatalogued
+  machine name was a vertical pull, so Swap from Incline Machine Press or
+  Machine Curl ranked nothing and Time Mode treated crunch machines as compounds.
+- **Five machine drawings entering the batch drew stretching levers.** The pivot
+  was not one the handles could turn about, so the lever changed length between
+  the two positions: incline press 65.1 → 37.4, shoulder press 45.0 → 29.4,
+  crunch 31.7 → 49.7, curl 10.9 → 15.2, hip thrust 45.3 → 42.0.
+
+### The batch — fourteen
+
+| Exercise | id | Kind | Primary / secondary | Pattern | Gym needs |
+|---|---|---|---|---|---|
+| Machine Lateral Raise | `lateral_raise_machine` | new | shoulders | vertical push | Lateral Raise |
+| Smith Machine Shoulder Press | `shoulder_press_smith` | new | shoulders / triceps | vertical push | Smith Machine + Adjustable Bench |
+| Smith Machine Incline Press | `bench_press_incline_smith` | new | chest / triceps, shoulders | horizontal push | Smith Machine + Adjustable Bench |
+| Seated Dip Machine | `dip_machine` | new | triceps / chest, shoulders | horizontal push | Seated Dip |
+| Machine Triceps Extension | `triceps_extension_machine` | new | triceps | isolation | Triceps Extension |
+| Leg Press Calf Raise | `calf_raise_leg_press` | new | calves | isolation | Leg Press |
+| Seated Leg Curl | `leg_curl_seated` | split from Leg Curl | hamstrings | hinge | Leg Curl |
+| Seated Calf Raise | `calf_raise_seated` | split from Calf Raise | calves | isolation | Calf Raise |
+| Reverse Pec Deck | `reverse_pec_deck` | split from Rear Delt Fly | shoulders / back | horizontal pull | Pec Deck |
+| Machine Shoulder Press | `shoulder_press_machine` | given an identity | shoulders / triceps | vertical push | Shoulder Press |
+| Incline Machine Press | `incline_press_machine` | given an identity | chest / triceps, shoulders | horizontal push | Incline Press |
+| Machine Curl | `curl_machine` | given an identity | biceps | isolation | Biceps Curl |
+| Hip Thrust Machine | `hip_thrust_machine` | given an identity | glutes / hamstrings | hinge | Hip Thrust Machine |
+| Ab Crunch Machine | `crunch_machine` | given an identity | abs | core | Ab Crunch |
+
+Every one is `equipment:'Machine'` in the registry with an explicit
+`EXERCISE_EQUIPMENT` requirement. Six gym-profile items were added to Machines
+(Incline Press, Lateral Raise, Biceps Curl, Triceps Extension, Seated Dip,
+Ab Crunch). An existing profile has never seen them, so they read as unknown,
+never unavailable. The picker now files 26 entries under Machine, 25 of them
+from the registry. Only Leg Raise Machine, a knee-raise station, still takes the
+word from its name. Unknown equipment stays at 41.
+
+### Identity, decided from how each one loads
+
+- **Split, because the history was never the same movement.** A seated leg
+  curl loads the hamstrings hip-flexed on its own machine at its own weights.
+  A seated calf raise loads the soleus with the knee bent, and a reverse pec
+  deck is not the dumbbell fly Rear Delt Fly is drawn and prescribed as. The
+  aliases `seated leg curl`, `seated calf raise`, `reverse pec deck` and
+  `machine rear delt` moved to the new entries. Rear Delt Fly is now filed as a
+  dumbbell movement.
+- **Given an identity:** the five machines the Balanced Machines and
+  Hypertrophy plans already prescribe by name. Names that were the same
+  movement spelled another way became aliases, not entries: Machine Crunch,
+  Reverse Pec Deck Fly, Hip Abduction Machine, and Machine Preacher Curl (moved
+  from the barbell Preacher Curl to Machine Curl).
+- **Search aliases** for the names on the machines and the "X machine" names
+  people type: iso-lateral and plate-loaded chest press and row, calf press,
+  glute drive, rear delt machine, triceps machine, biceps machine, leg curl /
+  leg extension / leg press / hack squat / lat pulldown / pec deck machine.
+- Resolution stays derived. Thirteen names LOOP already knew now resolve to a
+  different id. No stored record is rewritten, and PRs and progression still
+  read history by the name that was logged.
+
+### Held back and rejected
+
+- **Seated Back Extension — held back.** Its drawing passed, but Swap did not.
+  The muscle registry files the lower back under Back with the lats, and no
+  other lower-back movement has an identity (the 45° back extension has none
+  and counts as a hamstring exercise). The only honest alternative Swap could
+  rank was Deadlift, and its same-muscle list was lat pulldowns. It waits for the
+  bodyweight batch, beside a catalogued back extension.
+- **Hip Adduction** — the registry has no adductor group, so any mapping would
+  be false. This is a registry weakness, reported rather than patched.
+- **Assisted Pull-Up and Assisted Dip** — the weight on these machines is a
+  counterweight, so more is easier. Progression reads more as better, and
+  changing that is progression work.
+- **Pendulum Squat, Machine High Row, Glute Kickback Machine, Belt Squat** —
+  their geometry varies by manufacturer. Drawing one without a verified
+  reference would be fabricated precision.
+- **Decline Machine Press** (little programming value beside the chest press and
+  pec deck), **Rotary Torso** (low value, loaded rotation, unreadable at 44
+  pixels), **Pullover** (rare), **plate-loaded front pulldown and iso-lateral
+  variants** (the same movement: aliases at most).
+
+### The drawings
+
+- `pivotFor(a, b, k)` places a lever's pivot on the perpendicular bisector of
+  its two contacts, so a lever turns instead of stretching. Every lever in the
+  batch is the same length in both positions. The reverse pec deck is exempt by
+  projection: its handles swing horizontally, and a view from behind
+  foreshortens them.
+- New drawings use the renderer's existing props (pads, levers, rails,
+  columns, steps) and figure. Smith presses rise vertically between two rails,
+  and the leg press calf raise moves the ankles only. The seated leg curl's
+  ankles are flexed so its feet hang clear of the floor under the D59
+  grounding check.
+- Drawings are keyed by the canonical id. `EXERCISE_VISUAL_BY_NAME` entries for
+  names that are now aliases were removed, and old keys were renamed
+  (`machine_curl` → `curl_machine` and so on).
+- Machine Chest Press and Machine Row have the same stretching lever
+  (19.8 and 23.2 units). They are not in the batch and are recorded below.
+
+### Swap keeps the movement's intent
+
+- **`substitutionRoleOf(id, name)`.** `classifyExerciseType` reads names, and
+  every machine name reads as a compound. Where the registry says a movement can
+  never lead a session (an isolation or core pattern, or `NEVER_PRIMARY_IDS`),
+  Swap now treats it as an accessory. Measured before the change: a Reverse Pec
+  Deck ranked fifth for a Barbell Row, and a Machine Lateral Raise third for a
+  Machine Shoulder Press.
+- **Accessory work must train its muscle as the alternative's primary.**
+  Assisting it is not enough. Measured before: Seated Back Extension third for
+  Seated Leg Curl, and Nordic Curl and Good Morning for Hip Abduction.
+  Compounds keep the wider rule.
+- Across the batch as a whole, 234 of 439 existing names have a different ranked
+  list. The pairs a gym-goer reaches for now lead: Leg Curl ↔ Seated Leg Curl,
+  the three calf raises, Lateral Raise → Machine Lateral Raise, Rear Delt Fly ↔
+  Reverse Pec Deck, Hip Thrust ↔ Hip Thrust Machine, DB Shoulder Press → Machine
+  and Smith Shoulder Press, Pushdown → Machine Triceps Extension, Dip → Seated
+  Dip Machine.
+
+### Programs
+
+- **`LIBRARY_EXTRAS`** lists the seven machines no template or extension
+  prescribes, each with the sessions it belongs in and the prescription LOOP
+  writes when one is added. `libraryPrescriptionFor`, Program Studio's
+  suggestion and the saved-workout day list read it. The generator never places
+  them: its sessions are references into the templates, and changing a template
+  would rewrite every program built on it.
+- **Generated programs** change only through truer identity: 177 of 7,936 in the
+  answer matrix, all full-gym.
+  - A session that already had two curls stops gaining a third, because Machine
+    Curl is now known to be a curl.
+  - A seated calf raise no longer blocks a standing one.
+  - A shoulder priority can lead with Machine Shoulder Press.
+  - Across 31,744 sessions: the most exercises (11) and most sets (35) are
+    unchanged; no session repeats an exercise; sessions with three curls fell
+    from 88 to 2; 61 legs sessions pair a seated with a standing calf raise; the
+    most weekly calf sets stays 12.
+- **Read-time effects on templates:**
+  - Roles change in two arms templates. Only a primary's prescription is ever
+    adjusted, so nothing a program prescribes changes.
+  - The primary changes in three core templates, which no program schedules.
+  - Balanced Pull d-pl3 now shows Main / Build / Finish.
+  - Time tiers change in six templates, where crunch machines stop counting as
+    compounds.
+- Isolation machines join `NEVER_PRIMARY_IDS`. The pressing and hip machines
+  can still lead a session.
+
+### Notes, history, restore
+
+A note is stored with the id its name had when it was written. `noteIndex()`
+re-resolves an `unmapped:` id through the registry on every read, so a note
+written on Machine Shoulder Press follows it to `shoulder_press_machine`. The
+stored note is never rewritten. A note written under a moved alias (for example
+a "Seated Leg Curl" row saved under `leg_curl`) stays with the entry it was
+written under, because the note never stored its name.
+
+### Verification
+
+- **Contract 170** — 72 assertions:
+  - Identity and aliases: one entry per movement, no collisions, the plans'
+    spellings and machine labels resolving together, split movements kept
+    apart.
+  - Complete metadata and stated equipment.
+  - Sessions and prescriptions: no template or extension naming an added
+    machine; Program Studio adding and replacing with the declared prescription.
+  - Drawings: under their ids, rendered, distinct, showing the machine; rigid
+    levers, one arrow each; Smith presses on their rails; the seated leg curl,
+    calf press and lateral raise mechanics.
+  - Search and both filters.
+  - Swap both ways: intent, the key pairs, rows never offered a rear-delt fly,
+    accessory alternatives training the muscle as their own.
+  - History, notes, reload and restore.
+- **Repointed with reasons:** Contract 161 (Seated Calf Raise now has its own
+  identity) and Contract 165 (the crunch machine no longer hovers, so its
+  exemption is gone).
+- **Mutation check** — 23 of 23 caught. Production 6.4 fails 17.
+- **Physical** — headless Edge with the iPhone's insets at 390×844, 375×812 and
+  844×390, through the real controls:
+  - Search and filters: `machine`, `calf press`, `rear delt machine`, `triceps
+    machine`, `leg curl machine`; the Machine filter (26); Calves + Machine;
+    Hamstrings + Machine.
+  - Adding three at once gives 3 sets each, with 40px list and 52px stepper
+    thumbnails.
+  - Swap to Leg Curl and back with the thumbnail following; How To.
+  - Recent after logging.
+  - A saved workout with its prescriptions and its Swap.
+  - Program Studio with the declared prescriptions.
+  - The gym profile's 17 machines with no overflow; no page errors.
+- **Performance** (6.4 → 6.5, medians):
+  - Index size: +21 KB (+0.97%), +5 KB gzipped.
+  - Drawings: 168 → 175, built in 24.9 → 25.3 ms.
+  - Picker: first open 80.9 → 86.9 ms, warm render 3.1 → 3.3 ms.
+  - How To first open 3.9 → 4.2 ms; Program Studio render 0.9 → 1.0 ms.
+- `npm run verify` 6769 / 0; audit 87, audit:program 335, audit:cardio 261,
+  audit:gps 43, audit:dates 40 × 7 zones.
+
+### Known and recorded
+
+- **Time Mode still takes a movement's role from its name.** Machine Lateral
+  Raise and Reverse Pec Deck keep compound tiers when a workout is shortened,
+  as Leg Curl and Leg Extension already do. The registry's role would re-tier
+  30 of 156 saved workouts, which is its own decision.
+- **Swap gives any bodyweight movement the "available" bonus** when the gym is
+  not set up. Nordic Curl therefore leads the leg curls' lists, with the other
+  leg curl second.
+- **Machine Chest Press and Machine Row draw stretching levers** (19.8 and 23.2
+  units). Fixing them changes approved drawings outside this batch.
+- **Calf Raise is filed as a machine but drawn on a step**, and the home plan
+  prescribes it without one. This predates the batch.
+- **Hip abduction is filed as a hinge,** so its alternatives are hip thrusts.

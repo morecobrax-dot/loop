@@ -10039,14 +10039,36 @@ function build(){
     }
     /* Where a pose puts a joint. */
     function at(view, pose, joint){ return ExerciseArt.solve(view, pose)[joint]; }
+    /* The pivot of a rigid lever that meets a contact at `a` in one position and
+       `b` in the other: on the perpendicular bisector of the chord between them,
+       `k` chord-lengths from its middle, the sign choosing the side. A lever
+       drawn from anywhere else would have to stretch between the two drawings. */
+    function pivotFor(a, b, k){
+      var m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], dx = b[0] - a[0], dy = b[1] - a[1];
+      return [m[0] - dy * k, m[1] + dx * k];
+    }
     function add(defs){ for(var k in defs) EXV_DEFS[k] = defs[k]; }
     return { G:G, FOOT:FOOT, S:S, supineBench:supineBench, seated:seated, BENCH_TOP:BENCH_TOP,
-      legTo:legTo, planted:planted, armTo:armTo, handsAt:handsAt, sideHands:sideHands, at:at, add:add, extend:extend };
+      legTo:legTo, planted:planted, armTo:armTo, handsAt:handsAt, sideHands:sideHands, at:at, pivotFor:pivotFor, add:add, extend:extend };
   })();
 
   /* Arms: elbow flexion and extension. */
   (function(H){
-  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted;
+  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted, sideHands = H.sideHands, at = H.at, pivotFor = H.pivotFor;
+
+  /* Arm machines: seated, the upper arms on a pad that slopes away from the
+     chest and the elbows over the machine's cam. The handle turns about the
+     elbow, so the lever is the same length in both positions. */
+  var ARM_ELBOW = at('side', seat({ nua:60, nfa:66 }), 'nE');
+  var ARM_SCENE = [['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }],
+    ['post', { a:[66, 80], b:[70, G] }], ['column', { x:88, top:46 }], ['rail', { a:[88, 50], b:[ARM_ELBOW[0] + 2, ARM_ELBOW[1] + 1], w:2.6 }]];
+  var ARM_PAD = [['pad', { a:[52.4, 64.8], b:[67.4, 73.6], w:7 }]];
+  /* Seated dip machine: upright against the back pad, the handles on a lever
+     that pivots behind the seat, level with the middle of their path. */
+  var DIP_SEAT = { pin:['hip', [50, 86]], trunk:178, neck:180, nth:90, nsh:-8, fth:88, fsh:-12 };
+  var DIP_TOP = [58, 72.5], DIP_LOW = [57, 86.5];
+  var DIP_PIVOT = pivotFor(DIP_TOP, DIP_LOW, 2.1);
+
   H.add({
 
   /* ---- elbow flexion ---- */
@@ -10096,12 +10118,11 @@ function build(){
     end:  { pin:['hip', [44, 86]], trunk:132, neck:142, nua:8, nfa:162, fua:44, ffa:34, nth:90, nsh:-8, fth:90, fsh:-12 },
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
-  machine_curl: { view:'side', arch:'machine', path:'trace', crop:'upper', ghost:'arms', armOver:true,
-    scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['post', { a:[67, 79], b:[67, G] }]],
-    front:[['pad', { a:[52.6, 66.4], b:[65.4, 74], w:7 }]],
-    start:seat({ trunk:176, nua:60, nfa:66, fua:56, ffa:62 }),
-    end:  seat({ trunk:176, nua:60, nfa:166, fua:56, ffa:162 }),
-    gear:[['lever', { pivot:[64.6, 71], to:'nW', handle:true }]], track:'nW' },
+  curl_machine: { view:'side', arch:'machine', path:'pivot', pivot:ARM_ELBOW, crop:'upper', ghost:'arms', armOver:true,
+    scene:ARM_SCENE, front:ARM_PAD,
+    start:seat({ nua:60, nfa:66, fua:56, ffa:62 }),
+    end:  seat({ nua:60, nfa:166, fua:56, ffa:162 }),
+    gear:[['lever', { pivot:ARM_ELBOW, to:{ seg:['nE', 'nW'], t:1.12 }, handle:true }]], track:'nW' },
 
   band_curl: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
     start:S({ nua:6, nfa:14, fua:2, ffa:10 }),
@@ -10164,6 +10185,15 @@ function build(){
     end:  { pin:['fW', [74, 90]], trunk:100, neck:104, fua:0, ffa:0, fth:8, fsh:-90, fft:0, nth:24, nsh:-16, nua:-80, nfa:-78 },
     gear:[['db', { at:'nW', along:'nfa', aoff:90, len:4.4 }]], track:'nW' },
 
+  /* Machine triceps extension: the curl machine's frame used the other way.
+     The forearms start bent up and extend down the line of the pad, a roller
+     against the wrists. */
+  triceps_extension_machine: { view:'side', arch:'machine', path:'pivot', pivot:ARM_ELBOW, crop:'upper', ghost:'arms', armOver:true,
+    scene:ARM_SCENE, front:ARM_PAD,
+    start:seat({ nua:60, nfa:170, fua:56, ffa:166 }),
+    end:  seat({ nua:60, nfa:70, fua:56, ffa:66 }),
+    gear:[['lever', { pivot:ARM_ELBOW, to:{ seg:['nE', 'nW'], t:1, n:4.2 }, roller:3 }]], track:'nW' },
+
   dip: { view:'side', arch:'dynamic', path:'line', key:'start',
     scene:[['rail', { a:[40, 54.5], b:[84, 54.5], w:3.2 }], ['post', { a:[42, 55], b:[42, G] }], ['post', { a:[82, 55], b:[82, G] }]],
     start:{ pin:['nW', [62, 52.4]], trunk:160, neck:168, nua:-95, nfa:20, fua:-99, ffa:16, nth:22, nsh:-56, fth:14, fsh:-62 },
@@ -10183,6 +10213,14 @@ function build(){
     end:  planted({ pin:['nW', [52, 80]], trunk:178, neck:180, nua:-14, nfa:-12, fua:-18, ffa:-16, nft:90, fft:90 }, [86, 103.4], [82, 103.6]),
     track:'sh' },
 
+  /* Seated dip machine: the handles pressed down from beside the ribs to
+     straight arms at the hips. */
+  dip_machine: { view:'side', arch:'machine', path:'pivot', pivot:DIP_PIVOT, ghost:'arms',
+    scene:[['column', { x:DIP_PIVOT[0] - 5, top:36 }], ['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 54], w:5.4 }]],
+    start:sideHands(DIP_SEAT, DIP_TOP, [57.4, 73], -1),
+    end:  sideHands(DIP_SEAT, DIP_LOW, [56.4, 87], -1),
+    gear:[['lever', { pivot:DIP_PIVOT, to:'nW', handle:true }], ['rod', { a:'nW', adx:-2.2, b:'nW', bdx:4.6, w:2.4 }]], gearFront:true, track:'nW' },
+
   bench_press_close_grip: { view:'side', arch:'press', ghost:'arms',
     scene:[['bench', { x1:24, x2:84, y:78 }]],
     start:sup({ nua:24, nfa:176, fua:20, ffa:174 }),
@@ -10193,7 +10231,7 @@ function build(){
 
   /* Chest and shoulders: presses, flys, push-ups, raises. */
   (function(H){
-  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, handsAt = H.handsAt, sideHands = H.sideHands;
+  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, handsAt = H.handsAt, sideHands = H.sideHands, at = H.at, pivotFor = H.pivotFor;
   var BENCH = ['bench', { x1:24, x2:84, y:78 }];
 
   /* Reclined on an incline bench, seat top at y=86. */
@@ -10217,6 +10255,25 @@ function build(){
   /* Front view seated: thighs toward the viewer. */
   function FS(o){ return ext({ pin:['hc', [60, 79.5]], thighScale:0.34, lth:18, lsh:4, rth:18, rsh:4 }, o); }
 
+  /* Machine shoulder press: the handles rise from shoulder height to overhead
+     on a lever that pivots behind the seat. */
+  var SP_LOW = [53, 59.5], SP_TOP = [58.5, 36];
+  var SP_PIVOT = pivotFor(SP_LOW, SP_TOP, -1.15);
+  /* Incline machine press: up and forward from the upper chest, on a lever
+     that pivots behind and above the backrest. */
+  var IP_START = seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:-40, nfa:130, fua:-44, ffa:126 });
+  var IP_END = seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:138, nfa:136, fua:134, ffa:132 });
+  var IP_PIVOT = pivotFor(at('side', IP_START, 'nW'), at('side', IP_END, 'nW'), -1.5);
+  /* Smith presses: the bar rides two vertical rails, so the hands travel a
+     vertical line between them. */
+  function smithRails(x, top){ return [['rail', { a:[x - 2.2, top], b:[x - 2.2, G], w:2.4 }], ['rail', { a:[x + 2.2, top], b:[x + 2.2, G], w:2.4 }]]; }
+  var SMITH_INCLINE_X = 50.5, SMITH_PRESS_X = 56.5;
+  var SMITH_SEAT = { pin:['hip', [46, 86]], trunk:180, neck:180, nth:90, nsh:-8, fth:88, fsh:-12 };
+  /* Machine lateral raise, from the front: seated, pads on the outer upper
+     arms, the levers turning about pivots in line with the shoulders. */
+  var LR_START = FS({ la:12, lfa:4, ra:12, rfa:4 }), LR_END = FS({ la:88, lfa:62, ra:88, rfa:62 });
+  var LR_LS = at('front', LR_START, 'lS'), LR_RS = at('front', LR_START, 'rS');
+
   H.add({
 
   /* ---- barbell and dumbbell presses ---- */
@@ -10229,6 +10286,11 @@ function build(){
     start:sup({ nua:40, nfa:185, fua:36, ffa:182 }),
     end:  sup({ nua:176, nfa:178, fua:172, ffa:176 }),
     gear:[['plate', { at:'nW' }]], track:'nW' },
+
+  bench_press_incline_smith: { view:'side', arch:'machine', ghost:'arms', scene:smithRails(SMITH_INCLINE_X, 24).concat(INCLINE_SCENE),
+    start:sideHands(incline({}), [SMITH_INCLINE_X, 57.5], [SMITH_INCLINE_X - 0.6, 58.1], 1),
+    end:  sideHands(incline({}), [SMITH_INCLINE_X, 38.2], [SMITH_INCLINE_X - 0.6, 38.8], 1),
+    gear:[['plate', { at:'nW', r:7.8 }]], track:'nW' },
 
   bench_press_db: { view:'side', arch:'press', ghost:'arms', scene:[BENCH],
     start:sup({ nua:44, nfa:186, fua:40, ffa:183 }),
@@ -10257,17 +10319,22 @@ function build(){
     end:  seat({ trunk:178, nua:84, nfa:88, fua:80, ffa:84 }),
     gear:[['lever', { pivot:[90, 34], to:'nW', handle:true }]], track:'nW' },
 
-  incline_machine_press: { view:'side', arch:'machine', ghost:'arms',
-    scene:[['pad', { a:[40, 92], b:[62, 92], w:5 }], ['post', { a:[51, 95], b:[51, G] }], ['pad', { a:[42, 89], b:[30, 58], w:5.4 }], ['column', { x:96, top:14 }]],
-    start:seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:-40, nfa:130, fua:-44, ffa:126 }),
-    end:  seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:138, nfa:136, fua:134, ffa:132 }),
-    gear:[['lever', { pivot:[92, 20], to:'nW', handle:true }]], track:'nW' },
+  incline_press_machine: { view:'side', arch:'machine', path:'pivot', pivot:IP_PIVOT, ghost:'arms',
+    scene:[['column', { x:IP_PIVOT[0], top:IP_PIVOT[1] - 8 }], ['pad', { a:[40, 92], b:[62, 92], w:5 }], ['post', { a:[51, 95], b:[51, G] }], ['pad', { a:[42, 89], b:[30, 58], w:5.4 }]],
+    start:IP_START, end:IP_END,
+    gear:[['lever', { pivot:IP_PIVOT, to:'nW', handle:true }]], track:'nW' },
 
-  machine_shoulder_press: { view:'side', arch:'machine', ghost:'arms',
-    scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 54], w:5.4 }], ['column', { x:26, top:6 }]],
-    start:seat({ trunk:178, nua:-40, nfa:178, fua:-44, ffa:176 }),
-    end:  seat({ trunk:178, nua:174, nfa:178, fua:170, ffa:176 }),
-    gear:[['lever', { pivot:[30, 16], to:'nW', handle:true }]], track:'nW' },
+  shoulder_press_machine: { view:'side', arch:'machine', path:'pivot', pivot:SP_PIVOT, ghost:'arms',
+    scene:[['column', { x:SP_PIVOT[0], top:SP_PIVOT[1] - 10 }], ['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 54], w:5.4 }]],
+    start:sideHands(seat({ trunk:178 }), SP_LOW, [52.4, 60.1], 1),
+    end:  sideHands(seat({ trunk:178 }), SP_TOP, [57.9, 36.6], 1),
+    gear:[['lever', { pivot:SP_PIVOT, to:'nW', handle:true }]], track:'nW' },
+
+  shoulder_press_smith: { view:'side', arch:'machine', ghost:'arms', crop:'upper',
+    scene:smithRails(SMITH_PRESS_X, 20).concat([['pad', { a:[34, 92], b:[58, 92], w:5 }], ['post', { a:[46, 95], b:[46, G] }], ['pad', { a:[38.4, 90], b:[38.4, 50], w:5.4 }]]),
+    start:sideHands(SMITH_SEAT, [SMITH_PRESS_X, 58.5], [SMITH_PRESS_X - 0.6, 59.1], -1),
+    end:  sideHands(SMITH_SEAT, [SMITH_PRESS_X, 36.2], [SMITH_PRESS_X - 0.6, 36.8], -1),
+    gear:[['plate', { at:'nW', r:7.4 }]], track:'nW' },
 
   /* ---- flys (front and top-down views: the arms move across the body) ---- */
   chest_fly_cable: { view:'front', arch:'cable', ghost:'arms',
@@ -10405,6 +10472,15 @@ function build(){
     end:  F({ la:-14, lfa:-16, ra:86, rfa:76 }),
     gear:[['cable', { from:[16, 98], to:'rW' }]], track:'rW' },
 
+  lateral_raise_machine: { view:'front', arch:'machine', path:'trace', ghost:'arms',
+    scene:[['box', { x:49, y:34, w:22, h:46 }], ['pad', { a:[46, 83], b:[74, 83], w:5 }], ['post', { a:[60, 86], b:[60, G] }],
+      ['post', { a:LR_LS, b:[LR_LS[0], 30] }], ['post', { a:LR_RS, b:[LR_RS[0], 30] }], ['rail', { a:[LR_LS[0] - 1, 30], b:[LR_RS[0] + 1, 30], w:3 }]],
+    behind:[['lever', { pivot:LR_LS, to:{ seg:['lS', 'lE'], t:0.9, n:-4.6 } }], ['lever', { pivot:LR_RS, to:{ seg:['rS', 'rE'], t:0.9, n:4.6 } }]],
+    start:LR_START, end:LR_END,
+    gear:[['pad', { a:{ seg:['lS', 'lE'], t:0.6, n:-4.4 }, b:{ seg:['lS', 'lE'], t:1.02, n:-4.4 }, w:5 }],
+      ['pad', { a:{ seg:['rS', 'rE'], t:0.6, n:4.4 }, b:{ seg:['rS', 'rE'], t:1.02, n:4.4 }, w:5 }]],
+    gearFront:true, track:'rE' },
+
   front_raise: { view:'side', arch:'arc', ghost:'arms', crop:'upper',
     start:S({ nua:4, nfa:4, fua:0, ffa:0 }),
     end:  S({ nua:92, nfa:92, fua:0, ffa:0 }),
@@ -10469,7 +10545,7 @@ function build(){
 
   /* Back and posterior chain: rows, pulldowns, pull-ups, hinges, bridges. */
   (function(H){
-  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted, sideHands = H.sideHands;
+  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted, sideHands = H.sideHands, at = H.at, pivotFor = H.pivotFor;
 
   /* Front views. */
   function FS(o){ return ext({ pin:['hc', [60, 79.5]], thighScale:0.34, lth:18, lsh:4, rth:18, rsh:4 }, o); }
@@ -10513,6 +10589,19 @@ function build(){
   var GB_FEET = [[74, 104.3], [70, 104.5]];
   var GB_BOTTOM = planted({ pin:['sh', [34, G - 6.2]], trunk:-90, neck:-94, nua:82.5, nfa:82.5, fua:82.3, ffa:82.3 }, GB_FEET[0], GB_FEET[1]);
   var GB_TOP    = planted({ pin:['sh', [34, G - 6.2]], trunk:-62, neck:-80, nua:82.5, nfa:82.5, fua:82.3, ffa:82.3 }, GB_FEET[0], GB_FEET[1]);
+  /* The hip thrust machine's pad turns on a lever from the far post: its pivot
+     keeps the roller the same distance away at the bottom and the top. */
+  var HT_PIVOT = (function(){
+    var a = at('side', HT_BOTTOM, 'lap'), b = at('side', HT_TOP, 'lap');
+    a = [a[0], a[1] - 2]; b = [b[0], b[1] - 2];
+    return pivotFor(a, b, ((a[0] + b[0]) / 2 - 100) / (b[1] - a[1]));
+  })();
+  /* Seated leg curl: thighs level under a hold-down pad, the knees just past
+     the seat and in line with the pivot; the roller sits behind the ankles and
+     curls them down and back under the seat, ankles flexed so the feet hang
+     clear of the floor. */
+  function legCurlSeat(nsh, fsh){ return { pin:['hip', [48, 80]], trunk:172, neck:176, nth:90, fth:88, nsh:nsh, fsh:fsh, nft:nsh + 108, fft:fsh + 108, nua:14, nfa:70, fua:10, ffa:66 }; }
+  var LEG_CURL_KNEE = at('side', legCurlSeat(80, 76), 'nK');
 
   H.add({
 
@@ -10722,6 +10811,7 @@ function build(){
     end:  ext({ pin:['nA', [30, 90]], nth:-45, nsh:-45, fth:-45, fsh:-45, nft:45, fft:45, trunk:135, neck:138 }, folded(135)),
     track:'head' },
 
+
   superman_hold: { view:'side', arch:'hold',
     end:{ pin:['hip', [60, G - 5.1]], trunk:100, neck:106, nth:-100, nsh:-100, fth:-98, fsh:-98, nft:-90, fft:-90, nua:118, nfa:118, fua:114, ffa:114 } },
 
@@ -10742,9 +10832,9 @@ function build(){
     gear:[['plate', { at:'lap' }]], gearFront:true, track:'hip' },
 
   hip_thrust_machine: { view:'side', arch:'machine', arrow:{ shift:[0, 3], slide:[0, 2.5, 5] }, key:'end',
-    scene:[['pad', { a:[8, 93.4], b:[38, 93.4], w:5 }], ['post', { a:[22, 96], b:[22, G] }], ['post', { a:[100, 66], b:[100, G] }]],
+    scene:[['pad', { a:[8, 93.4], b:[38, 93.4], w:5 }], ['post', { a:[22, 96], b:[22, G] }], ['post', { a:[100, HT_PIVOT[1] - 2], b:[100, G] }]],
     start:HT_BOTTOM, end:HT_TOP,
-    gear:[['lever', { pivot:[100, 68], to:'lap', dy:-2, roller:4.2 }]], gearFront:true, track:'hip' },
+    gear:[['lever', { pivot:HT_PIVOT, to:'lap', dy:-2, roller:4.2 }]], gearFront:true, track:'hip' },
 
   glute_bridge: { view:'side', arch:'hinge', key:'end',
     start:GB_BOTTOM, end:GB_TOP, track:'hip' },
@@ -10769,6 +10859,14 @@ function build(){
     start:sideHands({ pin:['hip', [48, 74]], trunk:-90, neck:-96, nth:90, nsh:90, fth:90, fsh:90, nft:0, fft:0 }, [14, 88], [15, 88.5], 1),
     end:  sideHands({ pin:['hip', [48, 74]], trunk:-90, neck:-96, nth:90, nsh:-160, fth:90, fsh:-164, nft:-70, fft:-70 }, [14, 88], [15, 88.5], 1),
     gear:[['lever', { pivot:[67.5, 74], to:{ seg:['nK', 'nA'], t:0.86, n:7.6 }, roller:4.4 }]], track:'nA' },
+
+  leg_curl_seated: { view:'side', arch:'machine', path:'trace', ghost:'legs', key:'end',
+    scene:[['pad', { a:[30, 86.6], b:[60, 86.6], w:5 }], ['pad', { a:[36, 84], b:[31, 50], w:5.4 }], ['post', { a:[44, 89], b:[44, G] }], ['post', { a:[34, 89], b:[30, G] }],
+      ['post', { a:LEG_CURL_KNEE, b:[LEG_CURL_KNEE[0] + 4, G] }]],
+    front:[['pad', { a:{ seg:['hip', 'nK'], t:0.58, n:7.2 }, b:{ seg:['hip', 'nK'], t:0.96, n:7.2 }, w:5.4 }]],
+    start:legCurlSeat(80, 76),
+    end:  legCurlSeat(-34, -38),
+    gear:[['lever', { pivot:LEG_CURL_KNEE, to:{ seg:['nK', 'nA'], t:0.86, n:-6.6 }, roller:3.6 }]], gearFront:true, track:'nA' },
 
   glute_kickback_cable: { view:'side', arch:'cable', ghost:'legs',
     scene:[['column', { x:96, top:20 }]],
@@ -10837,6 +10935,16 @@ function build(){
   var BR_END   = S({ pin:['nA', [92, 104.3]], trunk:140, neck:150, nth:82, nsh:-30, fth:80, fsh:-32, nua:84, nfa:88, fua:80, ffa:84 });
   /* Seated calf raise: toes fixed on the block, the heel lifts the knee against the pad. */
   var CS_TOE = [76, 99.4];
+  /* Leg press calf raise: the legs long and still, the balls of the feet on the
+     lower edge of the footplate. The ankles alone move the sled a short way up
+     the rail, so the plate, its bracket and the carriage are placed from the
+     ball of the foot, along and across the rail. */
+  var CALF_PRESS_ANKLE = [73.2, 71.1];
+  var BALL = { seg:['nA', 'nT'], t:0.62 };
+  function calfPress(foot){
+    return planted({ pin:['hip', [40, 88]], trunk:-125, neck:-140, nua:24, nfa:68, fua:20, ffa:64, nft:foot, fft:foot },
+      CALF_PRESS_ANKLE, [CALF_PRESS_ANKLE[0] - 1.2, CALF_PRESS_ANKLE[1] + 1.2]);
+  }
   function seatedCalf(footAngle){
     var ankle = [CS_TOE[0] - Math.sin(footAngle * Math.PI / 180) * 7.4, CS_TOE[1] - Math.cos(footAngle * Math.PI / 180) * 7.4];
     return planted({ pin:['hip', [48, 84.9]], trunk:178, neck:180, nft:footAngle, fft:footAngle, nua:30, nfa:60, fua:26, ffa:56 }, ankle, [ankle[0] - 1, ankle[1]]);
@@ -10989,6 +11097,17 @@ function build(){
     gear:[['pad', { a:'nK', adx:-7, ady:-6.4, b:'nK', bdx:5, bdy:-6.4, w:5 }]], gearFront:true,
     track:'nA', trackOffset:[-5.5, 0] },
 
+  calf_raise_leg_press: { view:'side', arch:'machine', path:'line', key:'end', ghost:'legs',
+    scene:[['rail', { a:[50.6, 103.4], b:[101.5, 52.5], w:3.2 }], ['post', { a:[99, 55], b:[99, G] }],
+      ['pad', { a:[30, 94.6], b:[50, 92.6], w:5 }], ['post', { a:[40, 96], b:[40, G] }],
+      ['pad', { a:'hip', b:'sh', off:9.2, extA:-3, extB:5, w:6 }]],
+    start:calfPress(-108),
+    end:  calfPress(-165),
+    gear:[['rod', { a:BALL, adx:-1.56, ady:-11.17, b:BALL, bdx:12.52, bdy:2.9, w:2.4 }],
+      ['pad', { a:BALL, adx:6.29, ady:9.12, b:BALL, bdx:18.32, bdy:-2.9, w:5 }],
+      ['pad', { a:BALL, adx:3.39, ady:-1.27, b:BALL, bdx:-10.39, bdy:-15.06, w:4.6 }]],
+    track:BALL },
+
   hip_abduction: { view:'front', arch:'machine', path:'trace', ghost:'legs', both:true,
     scene:[['box', { x:44, y:26, w:32, h:56 }]],
     start:FS({ lth:8, lsh:10, rth:8, rsh:10, la:20, lfa:10, ra:20, rfa:10 }),
@@ -11096,12 +11215,14 @@ function build(){
     end:  kneesUp(supine(ext({ trunk:-122, neck:-138 }, behindHead(-122)))),
     track:'sh' },
 
-  machine_crunch: { view:'side', arch:'machine', path:'trace', key:'end',
-    scene:[['pad', { a:[36, 92], b:[60, 92], w:5 }], ['post', { a:[48, 95], b:[48, G] }], ['post', { a:[30, 30], b:[30, G] }]],
-    start:seat({ trunk:176, neck:178, nua:30, nfa:176, fua:26, ffa:172 }),
-    end:  seat({ trunk:132, neck:126, nua:-14, nfa:132, fua:-18, ffa:128 }),
-    gear:[['pad', { a:'sh', b:'hip', off:9.6, extA:-3, extB:-13, w:5 }], ['lever', { pivot:[30, 34], to:'sh', dy:-4 }]],
-    track:'head' },
+  /* Ab crunch machine: the chest pad and its handles on a lever that turns about
+     the hips, so the pad stays on the chest as the torso curls. */
+  crunch_machine: { view:'side', arch:'machine', path:'trace', key:'end',
+    scene:[['column', { x:24, top:44 }], ['pad', { a:[36, 92], b:[60, 92], w:5 }], ['post', { a:[48, 95], b:[48, G] }], ['rail', { a:[24, 84], b:[50, 86], w:2.6 }]],
+    start:seat({ trunk:176, neck:178, nua:40, nfa:130, fua:36, ffa:126 }),
+    end:  seat({ trunk:132, neck:126, nua:-4, nfa:86, fua:-8, ffa:82 }),
+    gear:[['lever', { pivot:[50, 86], to:{ seg:['hip', 'sh'], t:0.86, n:-3.2 } }], ['pad', { a:'sh', b:'hip', off:8.6, extA:-1, extB:-9, w:5.4 }]],
+    gearFront:true, track:'head' },
 
   cable_crunch: { view:'side', arch:'cable', key:'end',
     scene:[['column', { x:104, top:6 }]],
@@ -11272,14 +11393,11 @@ var EXERCISE_VISUAL_BY_NAME = {
   'pendlay row':'pendlay_row',
   't-bar row':'tbar_row', 't bar row':'tbar_row',
   'glute bridge':'glute_bridge',
-  'seated calf raise':'calf_raise_seated',
   'hanging leg raise':'hanging_leg_raise',
   'walking lunge':'lunge_walking',
   'kettlebell goblet squat':'squat_goblet_kb',
-  'reverse pec deck':'reverse_pec_deck', 'machine rear delt':'reverse_pec_deck',
 
   /* Uncatalogued names LOOP prescribes. */
-  'ab crunch machine':'machine_crunch', 'machine crunch':'machine_crunch',
   'ab wheel rollout':'ab_wheel',
   'assisted pull-up':'assisted_pullup',
   'back extension':'back_extension',
@@ -11330,18 +11448,13 @@ var EXERCISE_VISUAL_BY_NAME = {
   'flat db press':'bench_press_db',
   'flutter kicks':'flutter_kicks',
   'hanging knee raise':'hanging_knee_raise',
-  'hip abduction machine':'hip_abduction',
-  'hip thrust machine':'hip_thrust_machine',
   'hollow body hold':'hollow_hold',
-  'incline machine press':'incline_machine_press',
   'incline push-up':'pushup_incline',
   'kb row':'kb_row', 'single-arm kb row':'kb_row',
   'kettlebell push press':'kb_push_press',
   'kettlebell swing':'kb_swing',
   'lateral bound':'lateral_bound',
   'leg raise machine':'leg_raise_machine',
-  'machine curl':'machine_curl',
-  'machine shoulder press':'machine_shoulder_press',
   'med ball chest pass':'med_ball_chest_pass', 'med ball chest throw':'med_ball_chest_pass',
   'med ball rotational throw':'med_ball_rotational_throw',
   'med ball slam':'med_ball_slam',
@@ -11357,7 +11470,6 @@ var EXERCISE_VISUAL_BY_NAME = {
   'push press':'push_press',
   'rack pull':'rack_pull',
   'reverse crunch':'reverse_crunch',
-  'reverse pec deck fly':'reverse_pec_deck',
   'reverse snow angel':'reverse_snow_angel',
   'rope triceps pushdown':'rope_pushdown',
   'russian twist':'russian_twist',
@@ -11403,7 +11515,7 @@ var EXERCISE_HOW_TO = {
   curl_cable:['Stand tall facing the low pulley', 'Elbows fixed at your sides', 'Squeeze at the top, lower slowly'],
   cable_hammer_curl:['Rope held with thumbs up', 'Elbows fixed at your sides', 'Lower slowly under tension'],
   concentration_curl:['Elbow braced against the inner thigh', 'Curl toward the shoulder', 'Lower to full extension'],
-  machine_curl:['Arms flat on the pad, elbows on the pivot', 'Curl through the full range', 'Control the return'],
+  curl_machine:['Arms flat on the pad, elbows on the pivot', 'Curl through the full range', 'Control the return'],
   band_curl:['Stand on the band, elbows at your sides', 'Curl against the stretch', 'Lower slowly'],
   triceps_pushdown:['Elbows pinned at your sides', 'Press down to straight arms', 'Let the bar rise only to 90°'],
   rope_pushdown:['Elbows pinned at your sides', 'Press down and spread the rope', 'Control the return'],
@@ -11414,21 +11526,25 @@ var EXERCISE_HOW_TO = {
   band_triceps_ext:['Band behind you, hands overhead', 'Extend the elbows fully', 'Upper arms stay still'],
   skullcrusher:['Lie flat, arms angled back slightly', 'Bend only at the elbows', 'Extend without flaring'],
   triceps_kickback:['Brace on the bench, upper arm parallel', 'Extend back to a straight arm', 'Upper arm stays still'],
+  triceps_extension_machine:['Upper arms flat on the pad', 'Extend to straight arms', 'Bend back slowly under control'],
   dip:['Start tall with locked arms', 'Lower until the upper arm is level', 'Press back up, shoulders down'],
   dip_weighted:['Belt load hangs still between the legs', 'Lower until the upper arm is level', 'Press up without swinging'],
   bench_dip:['Hands on the bench edge, hips close', 'Bend the elbows straight back', 'Press up to straight arms'],
+  dip_machine:['Sit tall, handles beside the ribs', 'Press down to straight arms', 'Let them rise slowly, shoulders down'],
   bench_press_close_grip:['Hands shoulder-width, elbows tucked', 'Lower to the lower chest', 'Press up over the shoulders'],
 
   /* chest and shoulders */
   bench_press_barbell:['Feet planted, shoulder blades pinned', 'Lower to the mid chest', 'Press up and slightly back'],
   bench_press_smith:['Set the bench so the bar meets mid chest', 'Lower under control', 'Press to straight arms'],
+  bench_press_incline_smith:['Set the bench so the bar meets the upper chest', 'Lower under control', 'Press straight up to straight arms'],
   bench_press_db:['Dumbbells over the chest, feet planted', 'Lower to chest level', 'Press up and together'],
   bench_press_incline_bb:['Bench at 30–45°, blades pinned', 'Lower to the upper chest', 'Press straight up'],
   incline_press_db:['Bench at 30–45°, weights at chest', 'Lower with elbows under wrists', 'Press up over the chest'],
   db_floor_press:['Lie on the floor, knees bent', 'Lower until the elbows touch', 'Press straight up'],
   chest_press_machine:['Handles at mid-chest height', 'Press forward to straight arms', 'Return slowly, chest up'],
-  incline_machine_press:['Back on the pad, handles at upper chest', 'Press up and forward', 'Control the return'],
-  machine_shoulder_press:['Handles at shoulder height', 'Press overhead to straight arms', 'Lower under control'],
+  incline_press_machine:['Back on the pad, handles at upper chest', 'Press up and forward', 'Control the return'],
+  shoulder_press_machine:['Handles at shoulder height', 'Press overhead to straight arms', 'Lower under control'],
+  shoulder_press_smith:['Bench upright, bar just in front of the face', 'Press straight up to straight arms', 'Lower to chin height, ribs down'],
   chest_fly_cable:['Slight bend in the elbows, fixed', 'Hug the handles together', 'Open to a stretch slowly'],
   chest_fly_incline_cable:['Pulleys low, slight elbow bend', 'Sweep up and together', 'Lower back to a stretch'],
   pec_deck:['Back on the pad, arms at chest height', 'Squeeze the pads together', 'Open slowly to a stretch'],
@@ -11451,6 +11567,7 @@ var EXERCISE_HOW_TO = {
   band_shoulder_press:['Stand on the band, hands at shoulders', 'Press straight overhead', 'Lower slowly'],
   lateral_raise:['Slight bend in the elbows', 'Raise out to shoulder height', 'Lower slowly, no swinging'],
   lateral_raise_cable:['Pulley low on the opposite side', 'Raise out to shoulder height', 'Lower under control'],
+  lateral_raise_machine:['Sit tall, pads on the outer arms', 'Raise the elbows to shoulder height', 'Lower slowly, shoulders down'],
   front_raise:['Arm straight, weight in front', 'Raise to shoulder height', 'Lower slowly'],
   upright_row:['Grip about shoulder-width', 'Pull up with the elbows leading', 'Stop at chest height'],
   rear_delt_fly:['Hinge forward, back flat', 'Raise the arms out wide', 'Squeeze the shoulder blades'],
@@ -11503,6 +11620,7 @@ var EXERCISE_HOW_TO = {
   single_leg_glute_bridge:['One foot planted, other leg long', 'Drive up through the heel', 'Keep the hips level'],
   nordic_curl:['Kneel with the heels anchored', 'Lower forward as one line', 'Catch yourself, pull back up'],
   leg_curl:['Lie face down, pad above the heels', 'Curl the heels toward the glutes', 'Lower slowly'],
+  leg_curl_seated:['Knees in line with the pivot, pad snug', 'Curl the heels down under the seat', 'Return slowly to straight legs'],
   glute_kickback_cable:['Strap on the ankle, hinge slightly', 'Kick the leg straight back', 'Return without arching'],
   farmers_carry:['Heavy weights at your sides', 'Stand tall and walk', 'Short, steady steps'],
   power_clean:['Start like a deadlift', 'Jump and shrug the bar up', 'Catch on the shoulders, elbows high'],
@@ -11532,6 +11650,7 @@ var EXERCISE_HOW_TO = {
   leg_extension:['Pad on the lower shins', 'Extend to straight legs', 'Lower slowly'],
   calf_raise:['Balls of the feet on the step', 'Rise as high as possible', 'Lower the heels below the step'],
   calf_raise_seated:['Pad on the knees, toes on the block', 'Push the heels up', 'Lower to a full stretch'],
+  calf_raise_leg_press:['Knees soft, balls of the feet on the edge', 'Press through the balls of the feet', 'Lower the heels slowly to a stretch'],
   hip_abduction:['Sit tall, pads outside the knees', 'Push the knees apart', 'Return slowly'],
   band_lateral_walk:['Band above the knees, hips back', 'Step sideways', 'Keep tension on the band'],
 
@@ -11542,7 +11661,7 @@ var EXERCISE_HOW_TO = {
   side_plank_reach:['Hold a side plank', 'Reach up, then thread under', 'Keep the hips lifted'],
   hollow_hold:['Lower back pressed to the floor', 'Lift the shoulders and legs', 'Hold without arching'],
   crunch:['Knees bent, feet flat', 'Curl the shoulders up', 'Lower slowly'],
-  machine_crunch:['Pads on the chest', 'Curl the torso forward', 'Return with control'],
+  crunch_machine:['Pad on the chest, hands on the handles', 'Curl the torso forward', 'Return with control'],
   cable_crunch:['Kneel, rope beside the head', 'Curl down toward the knees', 'Rise slowly'],
   bicycle_crunch:['Shoulders lifted, hands by the head', 'Bring one knee in, other leg long', 'Alternate with control'],
   reverse_crunch:['Knees bent over the hips', 'Curl the hips off the floor', 'Lower slowly'],
@@ -14407,6 +14526,31 @@ const LOOP_UPDATES = [
       'Opening Build my own again, or changing a session\u2019s role, no longer throws away edits you had made to the program without asking first'
     ],
     changes: []
+  },
+  {
+    id: 'v6-5',
+    version: 'LOOP 6.5',
+    title: 'The Gym\u2019s Machines',
+    date: '2026-09-14',
+    swVersion: 'loop-v142',
+    summary: 'Fourteen machines from a normal gym now have their own drawing, How To, search names and swaps.',
+    newFeatures: [
+      'New machines to add, search for and swap: Machine Lateral Raise, Seated Dip Machine, Machine Triceps Extension, Leg Press Calf Raise, and the Smith Machine Incline Press and Shoulder Press',
+      'Seated Leg Curl, Seated Calf Raise and Reverse Pec Deck are exercises of their own, and Progress no longer counts them as Leg Curl, Calf Raise and Rear Delt Fly'
+    ],
+    improvements: [
+      'Incline Machine Press, Machine Shoulder Press, Machine Curl, Hip Thrust Machine and Ab Crunch Machine can now be suggested in Swap, including for their free-weight versions',
+      'Search finds machines by the names on them, such as Calf Press, Glute Drive, Rear Delt Machine and Triceps Machine',
+      'Swap no longer suggests a rear delt fly for a row or a lateral raise for a shoulder press, and offers isolation work only exercises that train the same muscle',
+      'The shoulder press, incline press, curl, hip thrust and ab crunch machine drawings now swing their levers around a fixed pivot instead of stretching them'
+    ],
+    bugFixes: [
+      'Seated Leg Curl showed the lying leg curl, face down, with its cues',
+      'When a workout was shortened to fit your time, an ab crunch machine was treated like a main lift and kept over accessory work'
+    ],
+    changes: [
+      'Rear Delt Fly is filed under Dumbbell, matching its drawing, now that the machine version has its own entry'
+    ]
   }
 ];
 
@@ -26943,7 +27087,9 @@ function movementPatternFor(name){
   if(/bench|chest press|push-up|push up|fly|flye|pec deck|dip/.test(n)) return 'horizontal_push';
   if(/overhead press|shoulder press|push press|arnold|pike|lateral raise|front raise/.test(n)) return 'vertical_push';
   if(/row|face pull/.test(n)) return 'horizontal_pull';
-  if(/pulldown|pull-up|pull up|chin|lat pull|pullover/.test(n)) return 'vertical_pull';
+  /* D63 — `chin` as a word: 'machine' contains it, and every uncatalogued
+     machine was being filed as a vertical pull. */
+  if(/pulldown|pull-up|pull up|\bchin|lat pull|pullover/.test(n)) return 'vertical_pull';
   if(/romanian|rdl|deadlift|good morning|hip thrust|glute|leg curl/.test(n)) return 'hinge';
   if(/lunge|split squat|step-up|step up/.test(n)) return 'lunge';
   if(/squat|leg press|leg extension|hack/.test(n)) return 'squat';
@@ -27253,6 +27399,15 @@ const TRAINER_LOG_KEY = 'trainerLog';
 const TRAINER_LOG_MAX = 2000;         // retention cap; see §17
 
 /* ---------- 1. CANONICAL EXERCISE IDENTITY ----------
+   D63 — THE MACHINES A COMMERCIAL GYM HAS. Fourteen movements joined the
+   registry: machines LOOP had no entry for at all (lateral raise, seated dip,
+   triceps extension, leg press calf raise, the Smith incline and shoulder
+   presses); three that shared another movement's history
+   though they load differently (Seated Leg Curl from Leg Curl, Seated Calf Raise
+   from Calf Raise, Reverse Pec Deck from the dumbbell Rear Delt Fly); and five
+   the plans already prescribed by name without an identity, so Swap could not
+   offer them and a word in the name decided their equipment. Names that were
+   the same movement spelled another way became aliases, not new entries.
    Aliases are matched on an exact normalized string, never fuzzily.
    Fuzzy matching is precisely what would merge "Bench Press" with
    "Smith Machine Bench Press", so it is deliberately absent. */
@@ -27260,25 +27415,31 @@ const CANONICAL_EXERCISES = [
   { id:'bench_press_barbell',   displayName:'Bench Press',            aliases:['bench press','barbell bench press','bb bench press','flat bench press','flat barbell bench press'], pattern:'horizontal_push', equipment:'Barbell',  primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
   { id:'bench_press_incline_bb',displayName:'Incline Bench Press',    aliases:['incline bench press','incline barbell bench press','incline bench','incline barbell press'], pattern:'horizontal_push', equipment:'Barbell', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
   { id:'bench_press_smith',     displayName:'Smith Machine Bench Press', aliases:['smith machine bench press','smith bench press','smith machine bench'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
+  { id:'bench_press_incline_smith', displayName:'Smith Machine Incline Press', aliases:['smith machine incline press','smith incline press','smith machine incline bench press','smith incline bench press','incline smith press'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
   { id:'bench_press_db',        displayName:'Dumbbell Bench Press',   aliases:['dumbbell bench press','db bench press','dumbbell chest press','db bench'], pattern:'horizontal_push', equipment:'Dumbbell', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
   { id:'incline_press_db',      displayName:'Incline Dumbbell Press', aliases:['incline dumbbell press','incline db press','incline dumbbell bench press'], pattern:'horizontal_push', equipment:'Dumbbell', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
-  { id:'chest_press_machine',   displayName:'Machine Chest Press',    aliases:['machine chest press','chest press machine','seated chest press'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
+  { id:'chest_press_machine',   displayName:'Machine Chest Press',    aliases:['machine chest press','chest press machine','seated chest press','iso-lateral chest press','plate-loaded chest press','converging chest press'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
+  { id:'incline_press_machine', displayName:'Incline Machine Press',  aliases:['incline machine press','machine incline press','incline chest press machine','incline press machine','iso-lateral incline press','plate-loaded incline press'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
   { id:'chest_fly_cable',       displayName:'Cable Fly',              aliases:['cable fly','cable flye','cable crossover','cable chest fly'], pattern:'horizontal_push', equipment:'Cable', primary:['chest'], secondary:[], supports1RM:false },
-  { id:'pec_deck',              displayName:'Pec Deck',               aliases:['pec deck','pec deck fly','machine fly','machine chest fly'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:[], supports1RM:true },
+  { id:'pec_deck',              displayName:'Pec Deck',               aliases:['pec deck','pec deck fly','machine fly','machine chest fly','pec deck machine'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:[], supports1RM:true },
   { id:'pushup',                displayName:'Push-Up',                aliases:['push-up','push up','pushup','pushups','push-ups'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:false, bodyweight:true },
   { id:'dip',                   displayName:'Dip',                    aliases:['dip','dips','chest dip','tricep dip','triceps dip'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:false, bodyweight:true },
+  { id:'dip_machine',           displayName:'Seated Dip Machine',     aliases:['seated dip machine','seated dip','dip machine','machine dip','triceps dip machine','tricep dip machine','seated triceps press','triceps press machine'], pattern:'horizontal_push', equipment:'Machine', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:true },
 
   { id:'overhead_press_bb',     displayName:'Overhead Press',         aliases:['overhead press','barbell overhead press','ohp','standing overhead press','military press','shoulder press barbell'], pattern:'vertical_push', equipment:'Barbell', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
   { id:'shoulder_press_db',     displayName:'Dumbbell Shoulder Press',aliases:['dumbbell shoulder press','db shoulder press','seated dumbbell shoulder press','dumbbell overhead press'], pattern:'vertical_push', equipment:'Dumbbell', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
+  { id:'shoulder_press_machine',displayName:'Machine Shoulder Press', aliases:['machine shoulder press','shoulder press machine','seated shoulder press machine','machine overhead press','iso-lateral shoulder press'], pattern:'vertical_push', equipment:'Machine', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
+  { id:'shoulder_press_smith',  displayName:'Smith Machine Shoulder Press', aliases:['smith machine shoulder press','smith shoulder press','smith machine overhead press','smith overhead press','smith machine military press'], pattern:'vertical_push', equipment:'Machine', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
   { id:'lateral_raise',         displayName:'Lateral Raise',          aliases:['lateral raise','side raise','dumbbell lateral raise','db lateral raise','side lateral raise'], pattern:'vertical_push', equipment:'Dumbbell', primary:['shoulders'], secondary:[], supports1RM:false },
+  { id:'lateral_raise_machine', displayName:'Machine Lateral Raise',  aliases:['machine lateral raise','lateral raise machine','machine lateral raises','machine side raise','side raise machine'], pattern:'vertical_push', equipment:'Machine', primary:['shoulders'], secondary:[], supports1RM:false },
   { id:'front_raise',           displayName:'Front Raise',            aliases:['front raise','dumbbell front raise'], pattern:'vertical_push', equipment:'Dumbbell', primary:['shoulders'], secondary:[], supports1RM:false },
   { id:'face_pull',             displayName:'Face Pull',              aliases:['face pull','face pulls','cable face pull'], pattern:'horizontal_pull', equipment:'Cable', primary:['shoulders'], secondary:['back'], supports1RM:false },
 
   { id:'row_barbell',           displayName:'Barbell Row',            aliases:['barbell row','bent over row','bent-over row','bb row','barbell bent over row','pendlay row'], pattern:'horizontal_pull', equipment:'Barbell', primary:['back'], secondary:['biceps'], supports1RM:true },
   { id:'row_dumbbell',          displayName:'Dumbbell Row',           aliases:['dumbbell row','db row','one arm dumbbell row','single arm dumbbell row','one-arm row'], pattern:'horizontal_pull', equipment:'Dumbbell', primary:['back'], secondary:['biceps'], supports1RM:true },
   { id:'row_cable_seated',      displayName:'Seated Cable Row',       aliases:['seated cable row','cable row','seated row'], pattern:'horizontal_pull', equipment:'Cable', primary:['back'], secondary:['biceps'], supports1RM:false },
-  { id:'row_machine',           displayName:'Machine Row',            aliases:['machine row','chest supported row','chest-supported row','t-bar row','t bar row'], pattern:'horizontal_pull', equipment:'Machine', primary:['back'], secondary:['biceps'], supports1RM:true },
-  { id:'lat_pulldown',          displayName:'Lat Pulldown',           aliases:['lat pulldown','lat pull down','pulldown','lat pull-down','wide grip pulldown'], pattern:'vertical_pull', equipment:'Cable', primary:['back'], secondary:['biceps'], supports1RM:false },
+  { id:'row_machine',           displayName:'Machine Row',            aliases:['machine row','chest supported row','chest-supported row','t-bar row','t bar row','seated machine row','iso-lateral row','plate-loaded row','low row machine'], pattern:'horizontal_pull', equipment:'Machine', primary:['back'], secondary:['biceps'], supports1RM:true },
+  { id:'lat_pulldown',          displayName:'Lat Pulldown',           aliases:['lat pulldown','lat pull down','pulldown','lat pull-down','wide grip pulldown','lat pulldown machine'], pattern:'vertical_pull', equipment:'Cable', primary:['back'], secondary:['biceps'], supports1RM:false },
   { id:'pullup',                displayName:'Pull-Up',                aliases:['pull-up','pull up','pullup','pullups','pull-ups'], pattern:'vertical_pull', equipment:'Bodyweight', primary:['back'], secondary:['biceps'], supports1RM:false, bodyweight:true },
   { id:'chinup',                displayName:'Chin-Up',                aliases:['chin-up','chin up','chinup','chinups'], pattern:'vertical_pull', equipment:'Bodyweight', primary:['back'], secondary:['biceps'], supports1RM:false, bodyweight:true },
   { id:'shrug',                 displayName:'Shrug',                  aliases:['shrug','shrugs','barbell shrug','dumbbell shrug'], pattern:'isolation', equipment:'Barbell', primary:['back'], secondary:[], supports1RM:true },
@@ -27286,15 +27447,17 @@ const CANONICAL_EXERCISES = [
   { id:'squat_back',            displayName:'Back Squat',             aliases:['squat','back squat','barbell squat','barbell back squat','bb squat'], pattern:'squat', equipment:'Barbell', primary:['quads'], secondary:['glutes','hamstrings'], supports1RM:true },
   { id:'squat_front',           displayName:'Front Squat',            aliases:['front squat','barbell front squat'], pattern:'squat', equipment:'Barbell', primary:['quads'], secondary:['glutes'], supports1RM:true },
   { id:'squat_smith',           displayName:'Smith Machine Squat',    aliases:['smith machine squat','smith squat'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:['glutes'], supports1RM:true },
-  { id:'leg_press',             displayName:'Leg Press',              aliases:['leg press','machine leg press'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:['glutes'], supports1RM:true },
-  { id:'leg_extension',         displayName:'Leg Extension',          aliases:['leg extension','leg extensions','quad extension'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:[], supports1RM:false },
+  { id:'leg_press',             displayName:'Leg Press',              aliases:['leg press','machine leg press','leg press machine'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:['glutes'], supports1RM:true },
+  { id:'leg_extension',         displayName:'Leg Extension',          aliases:['leg extension','leg extensions','quad extension','leg extension machine'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:[], supports1RM:false },
   { id:'lunge',                 displayName:'Lunge',                  aliases:['lunge','lunges','walking lunge','dumbbell lunge'], pattern:'lunge', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
   { id:'split_squat_bulgarian', displayName:'Bulgarian Split Squat',  aliases:['bulgarian split squat','split squat','rear foot elevated split squat'], pattern:'lunge', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
 
   { id:'deadlift_conventional', displayName:'Deadlift',               aliases:['deadlift','conventional deadlift','barbell deadlift'], pattern:'hinge', equipment:'Barbell', primary:['back','hamstrings'], secondary:['glutes'], supports1RM:true },
   { id:'deadlift_romanian',     displayName:'Romanian Deadlift',      aliases:['romanian deadlift','rdl','romanian dead lift','barbell rdl'], pattern:'hinge', equipment:'Barbell', primary:['hamstrings'], secondary:['glutes','back'], supports1RM:true },
-  { id:'leg_curl',              displayName:'Leg Curl',               aliases:['leg curl','leg curls','lying leg curl','seated leg curl','hamstring curl'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
+  { id:'leg_curl',              displayName:'Leg Curl',               aliases:['leg curl','leg curls','lying leg curl','lying hamstring curl','prone leg curl','hamstring curl','leg curl machine','lying leg curl machine'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
+  { id:'leg_curl_seated',       displayName:'Seated Leg Curl',        aliases:['seated leg curl','seated leg curls','seated hamstring curl','machine seated leg curl'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
   { id:'hip_thrust',            displayName:'Hip Thrust',             aliases:['hip thrust','barbell hip thrust','glute bridge'], pattern:'hinge', equipment:'Barbell', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
+  { id:'hip_thrust_machine',    displayName:'Hip Thrust Machine',     aliases:['hip thrust machine','machine hip thrust','glute drive','glute drive machine','plate-loaded hip thrust'], pattern:'hinge', equipment:'Machine', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
 
   { id:'curl_barbell',          displayName:'Barbell Curl',           aliases:['barbell curl','bb curl','ez bar curl','ez-bar curl'], pattern:'isolation', equipment:'Barbell', primary:['biceps'], secondary:[], supports1RM:false },
   { id:'curl_dumbbell',         displayName:'Dumbbell Curl',          aliases:['dumbbell curl','db curl','bicep curl','biceps curl','alternating dumbbell curl'], pattern:'isolation', equipment:'Dumbbell', primary:['biceps'], secondary:[], supports1RM:false },
@@ -27302,9 +27465,13 @@ const CANONICAL_EXERCISES = [
   { id:'triceps_pushdown',      displayName:'Triceps Pushdown',       aliases:['triceps pushdown','tricep pushdown','cable pushdown','rope pushdown','pushdown'], pattern:'isolation', equipment:'Cable', primary:['triceps'], secondary:[], supports1RM:false },
   { id:'skullcrusher',          displayName:'Skullcrusher',           aliases:['skullcrusher','skull crusher','lying triceps extension','ez bar skullcrusher'], pattern:'isolation', equipment:'Barbell', primary:['triceps'], secondary:[], supports1RM:false },
   { id:'overhead_ext_triceps',  displayName:'Overhead Triceps Extension', aliases:['overhead triceps extension','overhead tricep extension','cable overhead extension'], pattern:'isolation', equipment:'Cable', primary:['triceps'], secondary:[], supports1RM:false },
-  { id:'calf_raise',            displayName:'Calf Raise',             aliases:['calf raise','calf raises','standing calf raise','seated calf raise'], pattern:'isolation', equipment:'Machine', primary:['calves'], secondary:[], supports1RM:false },
+  { id:'triceps_extension_machine', displayName:'Machine Triceps Extension', aliases:['machine triceps extension','machine tricep extension','triceps extension machine','tricep extension machine','triceps machine','tricep machine'], pattern:'isolation', equipment:'Machine', primary:['triceps'], secondary:[], supports1RM:false },
+  { id:'calf_raise',            displayName:'Calf Raise',             aliases:['calf raise','calf raises','standing calf raise'], pattern:'isolation', equipment:'Machine', primary:['calves'], secondary:[], supports1RM:false },
+  { id:'calf_raise_seated',     displayName:'Seated Calf Raise',      aliases:['seated calf raise','seated calf raises','seated calf machine','machine seated calf raise'], pattern:'isolation', equipment:'Machine', primary:['calves'], secondary:[], supports1RM:false },
+  { id:'calf_raise_leg_press',  displayName:'Leg Press Calf Raise',   aliases:['leg press calf raise','leg press calf raises','calf press','calf press on leg press','leg press calf press'], pattern:'isolation', equipment:'Machine', primary:['calves'], secondary:[], supports1RM:false },
 
-  { id:'rear_delt_fly',         displayName:'Rear Delt Fly',          aliases:['rear delt fly','reverse pec deck','reverse fly','rear delt raise','bent over rear delt fly','machine rear delt'], pattern:'horizontal_pull', equipment:'Machine', primary:['shoulders'], secondary:['back'], supports1RM:false },
+  { id:'rear_delt_fly',         displayName:'Rear Delt Fly',          aliases:['rear delt fly','reverse fly','rear delt raise','bent over rear delt fly','dumbbell rear delt fly','db rear delt fly'], pattern:'horizontal_pull', equipment:'Dumbbell', primary:['shoulders'], secondary:['back'], supports1RM:false },
+  { id:'reverse_pec_deck',      displayName:'Reverse Pec Deck',       aliases:['reverse pec deck','reverse pec deck fly','machine rear delt','machine rear delt fly','rear delt machine','reverse fly machine','machine reverse fly'], pattern:'horizontal_pull', equipment:'Machine', primary:['shoulders'], secondary:['back'], supports1RM:false },
   { id:'lateral_raise_cable',   displayName:'Cable Lateral Raise',    aliases:['cable lateral raise','cable side raise'], pattern:'vertical_push', equipment:'Cable', primary:['shoulders'], secondary:[], supports1RM:false },
   { id:'shoulder_press_arnold', displayName:'Arnold Press',           aliases:['arnold press','arnolds'], pattern:'vertical_push', equipment:'Dumbbell', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
   { id:'upright_row',           displayName:'Upright Row',            aliases:['upright row','cable upright row'], pattern:'vertical_push', equipment:'Barbell', primary:['shoulders'], secondary:['back'], supports1RM:false },
@@ -27312,20 +27479,22 @@ const CANONICAL_EXERCISES = [
   { id:'straight_arm_pulldown', displayName:'Straight-Arm Pulldown',  aliases:['straight arm pulldown','straight-arm pulldown','cable pullover','lat pullover'], pattern:'vertical_pull', equipment:'Cable', primary:['back'], secondary:[], supports1RM:false },
   { id:'row_meadows',           displayName:'Meadows Row',            aliases:['meadows row','landmine row'], pattern:'horizontal_pull', equipment:'Barbell', primary:['back'], secondary:['biceps'], supports1RM:true },
   { id:'curl_incline_db',       displayName:'Incline Dumbbell Curl',  aliases:['incline dumbbell curl','incline db curl','incline curl'], pattern:'isolation', equipment:'Dumbbell', primary:['biceps'], secondary:[], supports1RM:false },
-  { id:'curl_preacher',         displayName:'Preacher Curl',          aliases:['preacher curl','ez bar preacher curl','machine preacher curl'], pattern:'isolation', equipment:'Barbell', primary:['biceps'], secondary:[], supports1RM:false },
+  { id:'curl_preacher',         displayName:'Preacher Curl',          aliases:['preacher curl','ez bar preacher curl'], pattern:'isolation', equipment:'Barbell', primary:['biceps'], secondary:[], supports1RM:false },
   { id:'curl_cable',            displayName:'Cable Curl',             aliases:['cable curl','cable bicep curl','rope curl'], pattern:'isolation', equipment:'Cable', primary:['biceps'], secondary:[], supports1RM:false },
+  { id:'curl_machine',          displayName:'Machine Curl',           aliases:['machine curl','machine bicep curl','machine biceps curl','bicep curl machine','biceps curl machine','biceps machine','bicep machine','machine preacher curl','preacher curl machine'], pattern:'isolation', equipment:'Machine', primary:['biceps'], secondary:[], supports1RM:false },
   { id:'bench_press_close_grip',displayName:'Close-Grip Bench Press', aliases:['close-grip bench press','close grip bench press','cgbp'], pattern:'horizontal_push', equipment:'Barbell', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:true },
   { id:'chest_fly_incline_cable',displayName:'Incline Cable Fly',     aliases:['incline cable fly','low to high cable fly','low-to-high fly'], pattern:'horizontal_push', equipment:'Cable', primary:['chest'], secondary:[], supports1RM:false },
-  { id:'squat_hack',            displayName:'Hack Squat',             aliases:['hack squat','machine hack squat'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:['glutes'], supports1RM:true },
+  { id:'squat_hack',            displayName:'Hack Squat',             aliases:['hack squat','machine hack squat','hack squat machine'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:['glutes'], supports1RM:true },
   { id:'squat_goblet',          displayName:'Goblet Squat',           aliases:['goblet squat','dumbbell goblet squat','kettlebell goblet squat'], pattern:'squat', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
   { id:'good_morning',          displayName:'Good Morning',           aliases:['good morning','good mornings','barbell good morning'], pattern:'hinge', equipment:'Barbell', primary:['hamstrings'], secondary:['glutes','back'], supports1RM:true },
   { id:'nordic_curl',           displayName:'Nordic Curl',            aliases:['nordic curl','nordic hamstring curl','glute ham raise','ghr'], pattern:'hinge', equipment:'Bodyweight', primary:['hamstrings'], secondary:['glutes'], supports1RM:false, bodyweight:true },
-  { id:'hip_abduction',         displayName:'Hip Abduction',          aliases:['hip abduction','abduction machine','hip abductor'], pattern:'hinge', equipment:'Machine', primary:['glutes'], secondary:[], supports1RM:false },
+  { id:'hip_abduction',         displayName:'Hip Abduction',          aliases:['hip abduction','abduction machine','hip abductor','hip abduction machine','seated hip abduction','machine hip abduction'], pattern:'hinge', equipment:'Machine', primary:['glutes'], secondary:[], supports1RM:false },
 
   { id:'plank',                 displayName:'Plank',                  aliases:['plank','planks','front plank'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, timed:true },
   { id:'crunch',                displayName:'Crunch',                 aliases:['crunch','crunches','ab crunch'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true },
   { id:'leg_raise',             displayName:'Leg Raise',              aliases:['leg raise','leg raises','hanging leg raise'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true },
-  { id:'cable_crunch',          displayName:'Cable Crunch',           aliases:['cable crunch','kneeling cable crunch'], pattern:'core', equipment:'Cable', primary:['abs'], secondary:[], supports1RM:false }
+  { id:'cable_crunch',          displayName:'Cable Crunch',           aliases:['cable crunch','kneeling cable crunch'], pattern:'core', equipment:'Cable', primary:['abs'], secondary:[], supports1RM:false },
+  { id:'crunch_machine',        displayName:'Ab Crunch Machine',      aliases:['ab crunch machine','machine crunch','crunch machine','abdominal crunch machine','machine ab crunch'], pattern:'core', equipment:'Machine', primary:['abs'], secondary:[], supports1RM:false }
 ];
 
 /* Alias index built once. Any alias colliding across two entries is a data
@@ -30931,6 +31100,34 @@ function getProgramExtension(id){
   return PROGRAM_EXTENSIONS.find(e => e.id === id) || null;
 }
 
+/* =========================================================
+   THE LIBRARY BEYOND THE PLANS  (Phase D63)
+   ---------------------------------------------------------
+   Machines an athlete can choose that no plan template and no
+   extension prescribes. The generator never places them: its
+   sessions are references into the templates, and changing a
+   template would rewrite every program built on it. They are
+   chosen — in the picker, in Swap, in Program Studio — and each
+   says which sessions it belongs in and the sets, reps and
+   effort LOOP writes when one is added, the same shape the
+   library and the extensions already use. Movements a template
+   does prescribe take the template's prescription, as before.
+   ========================================================= */
+const LIBRARY_EXTRAS = [
+  { id:'lateral_raise_machine',     roles:['push','upper','fullbody'], sets:3, reps:'12\u201315', effort:'7' },
+  { id:'shoulder_press_smith',      roles:['push','upper','fullbody'], sets:3, reps:'6\u201310', effort:'7\u20138' },
+  { id:'bench_press_incline_smith', roles:['push','upper','fullbody'], sets:3, reps:'6\u201310', effort:'7\u20138' },
+  { id:'dip_machine',               roles:['push','upper','arms'],     sets:3, reps:'8\u201312', effort:'7\u20138' },
+  { id:'triceps_extension_machine', roles:['push','upper','arms'],     sets:3, reps:'10\u201315', effort:'7' },
+  { id:'leg_curl_seated',           roles:['legs','lower','fullbody'], sets:3, reps:'10\u201315', effort:'7' },
+  { id:'calf_raise_leg_press',      roles:['legs','lower','fullbody'], sets:3, reps:'12\u201320', effort:'7' }
+];
+function libraryExtraFor(name){
+  let id = null;
+  try{ id = resolveExerciseId(name); }catch(e){ return null; }
+  return (id && LIBRARY_EXTRAS.find(x => x.id === id)) || null;
+}
+
 /* Which extensions a plan family may use. The home library is dumbbell /
    bodyweight / band territory; gym-marked entries never reach it. */
 function extensionAllowedForPlan(ext, planId){
@@ -31064,7 +31261,9 @@ const NEVER_PRIMARY_IDS = [
   'lateral_raise', 'lateral_raise_cable', 'front_raise', 'upright_row',
   'chest_fly_cable', 'chest_fly_incline_cable', 'rear_delt_fly', 'face_pull',
   'straight_arm_pulldown', 'leg_extension', 'leg_curl', 'hip_abduction',
-  'nordic_curl', 'shrug', 'calf_raise'
+  'nordic_curl', 'shrug', 'calf_raise',
+  /* D63 */ 'lateral_raise_machine', 'reverse_pec_deck', 'leg_curl_seated',
+  'calf_raise_seated', 'calf_raise_leg_press'
 ];
 
 /* ---------- ROLE ----------
@@ -33273,6 +33472,9 @@ function pbSuggestedExercise(def, entry, name){
       if(!canon && normalizeExerciseName(ex.name) === key) canon = ex;
     }));
   }catch(err){}
+  /* D63 — a machine the plans never prescribe brings its own prescription
+     rather than borrowing whatever happens to sit above it in the session. */
+  if(!canon){ try{ canon = libraryExtraFor(name); }catch(err){} }
   const src = canon || peer || null;
   const out = { name: clean0(name), sets: src ? src.sets : 3,
     reps: src ? src.reps : (peer ? peer.reps : '8\u201312'),
@@ -33438,7 +33640,7 @@ function exPickerKeyOf(name){
 }
 
 /* D61 — WHAT A NAME SAYS ABOUT ITS EQUIPMENT. The registry carries equipment
-   for the 62 movements it knows; the library's other names carried none, so
+   for every movement it knows; the library's other names carried none, so
    filtering by Dumbbell found 13 exercises and hid DB Floor Press and Seated
    DB Shoulder Press. This reads only what a name states outright — DB, Band,
    Cable, Machine, Push-Up — the way musclesForExercise() falls back to
@@ -33641,6 +33843,13 @@ function exPickerForCategory(category, already, limit){
       out.push(byKey[key] || { name: String(ex.name).trim(), key, muscles: [], primaryMuscles: [], equipment: null });
     });
   }catch(e){}
+  /* D63 — then the machines no plan prescribes that belong in this kind of day. */
+  try{
+    (LIBRARY_EXTRAS || []).forEach(x => {
+      if(x.roles.indexOf(category) === -1 || have[x.id] || out.some(o => o.key === x.id) || !byKey[x.id]) return;
+      out.push(byKey[x.id]);
+    });
+  }catch(e){}
   return out.slice(0, limit);
 }
 
@@ -33662,6 +33871,11 @@ function libraryPrescriptionFor(name, category){
   try{
     const ext = PROGRAM_EXTENSIONS || [];
     for(let i = 0; i < ext.length; i++){ const hit = find(ext[i].exercises); if(hit) return hit; }
+  }catch(e){}
+  /* D63 — a machine no plan prescribes still has the prescription it declares. */
+  try{
+    const extra = libraryExtraFor(name), canon = extra && getCanonicalExercise(extra.id);
+    if(canon) return { name: canon.displayName, sets: extra.sets, reps: extra.reps, effort: extra.effort, recommended: '\u2014' };
   }catch(e){}
   return null;
 }
@@ -37595,7 +37809,13 @@ function noteIndex(){
   _noteIndex = {};
   (exerciseNotes.notes || []).forEach(n => {
     if(!n || n.archived || !n.exerciseId) return;
-    (_noteIndex[n.exerciseId] = _noteIndex[n.exerciseId] || []).push(n);
+    /* D63 — an `unmapped:` id carries the exact name it was written under. When
+       the registry later learns that name (Machine Shoulder Press became a
+       canonical exercise), the note is filed under the identity the name has
+       now. Derived on every read; the stored note is never rewritten. */
+    let key = n.exerciseId;
+    if(String(key).indexOf('unmapped:') === 0){ try{ key = resolveExerciseId(String(key).slice(9)) || key; }catch(e){} }
+    (_noteIndex[key] = _noteIndex[key] || []).push(n);
   });
   // Newest first, so "the latest note" is always index 0.
   Object.keys(_noteIndex).forEach(k => {
@@ -37916,6 +38136,18 @@ function substitutionRole(type){
   if(type === 'cable' || type === 'isolation') return 'accessory';
   return 'other';
 }
+/* D63 — THE ROLE THE REGISTRY ALREADY KNOWS. The type above is read from a
+   name, and every machine's name reads as a compound: measured on the D63
+   machines, a Reverse Pec Deck ranked fifth for a Barbell Row and a Machine
+   Lateral Raise third for a Machine Shoulder Press. Where the registry says a
+   movement can never lead a session — an isolation or core pattern, or a
+   NEVER_PRIMARY_IDS veto — it is an accessory here as well. The name still
+   decides for everything the registry does not describe. */
+function substitutionRoleOf(exerciseId, name, isBodyweight){
+  const canon = exerciseId ? getCanonicalExercise(exerciseId) : null;
+  if(canon && (canon.pattern === 'isolation' || canon.pattern === 'core' || NEVER_PRIMARY_IDS.indexOf(canon.id) !== -1)) return 'accessory';
+  return substitutionRole(classifyExerciseType(name || '', !!isBodyweight));
+}
 
 /* Canonical pattern is authoritative; the name-based classifier is only a
    fallback for exercises outside the registry. */
@@ -37991,6 +38223,12 @@ function substitutionHardReject(originalId, candidate, context){
   if(origPrimary.length){
     const candMuscles = (candidate.primary || []).concat(candidate.secondary || []);
     if(overlapCount(origPrimary, candMuscles) === 0) return 'no_muscle_overlap';
+    /* D63 — accessory work exists to train its primary muscle, so its substitute
+       must train that muscle as ITS primary too. Assisting it is not enough: a
+       seated back extension involves the hamstrings and was offered third for a
+       seated leg curl. A compound keeps the wider rule, because a close-grip
+       press really is an honest answer to a taken bench. */
+    if(context.originalAccessory && overlapCount(origPrimary, candidate.primary || []) === 0) return 'no_primary_overlap';
   }
   return null;
 }
@@ -38043,8 +38281,8 @@ function scoreSubstitutionCandidate(original, candidate, context){
   // training role
   const origType = classifyExerciseType(original ? original.displayName : '', false);
   const candType = classifyExerciseType(candidate.displayName, false);
-  const origRole = substitutionRole(origType);
-  const candRole = substitutionRole(candType);
+  const origRole = substitutionRoleOf(original && original.id, original ? original.displayName : '');
+  const candRole = substitutionRoleOf(candidate.id, candidate.displayName);
   if(origRole === candRole) score += C.type.sameRole;
   else score += C.type.differentRole;
   // Don't turn an accessory or machine movement into a heavy barbell lift.
@@ -38102,6 +38340,8 @@ function substitutionContext(exerciseId, context){
   return {
     originalPattern: substitutionPatternFor(exerciseId, canon ? canon.displayName : (context.name || '')),
     originalPrimary: (canon && canon.primary) || [],
+    /* D63 — whether the original is accessory work, by the registry's own role. */
+    originalAccessory: !!canon && substitutionRoleOf(exerciseId, canon.displayName) === 'accessory',
     workoutExerciseIds: context.workoutExerciseIds || []
   };
 }
@@ -38407,6 +38647,12 @@ const GYM_EQUIPMENT = [
   { id:'leg_curl',               displayName:'Leg Curl',             category:'machines', coarse:'Machines' },
   { id:'calf_raise_machine',     displayName:'Calf Raise',           category:'machines', coarse:'Machines' },
   { id:'hip_abduction_machine',  displayName:'Hip Abduction',        category:'machines', coarse:'Machines' },
+  { id:'incline_press_machine',     displayName:'Incline Press',     category:'machines', coarse:'Machines' },
+  { id:'lateral_raise_machine',     displayName:'Lateral Raise',     category:'machines', coarse:'Machines' },
+  { id:'curl_machine',              displayName:'Biceps Curl',       category:'machines', coarse:'Machines' },
+  { id:'triceps_extension_machine', displayName:'Triceps Extension', category:'machines', coarse:'Machines' },
+  { id:'dip_machine',               displayName:'Seated Dip',        category:'machines', coarse:'Machines' },
+  { id:'ab_crunch_machine',         displayName:'Ab Crunch',         category:'machines', coarse:'Machines' },
 
   // ---- CARDIO ----
   { id:'treadmill',      displayName:'Treadmill',            category:'cardio', coarse:null },
@@ -38464,22 +38710,28 @@ const EXERCISE_EQUIPMENT = {
   bench_press_incline_bb: ['barbell', 'adjustable_bench'],
   bench_press_close_grip: ['barbell', ANY_BENCH],
   bench_press_smith:      ['smith_machine', ANY_BENCH],
+  bench_press_incline_smith: ['smith_machine', 'adjustable_bench'],
   bench_press_db:         ['dumbbells', ANY_BENCH],
   incline_press_db:       ['dumbbells', 'adjustable_bench'],
   chest_press_machine:    ['chest_press_machine'],
+  incline_press_machine:  ['incline_press_machine'],
   pec_deck:               ['pec_deck'],
   chest_fly_cable:        [['cable_crossover','functional_trainer']],
   chest_fly_incline_cable:[['cable_crossover','functional_trainer'], 'adjustable_bench'],
   pushup:                 [],
   dip:                    [['dip_station','assisted_pullup']],
+  dip_machine:            ['dip_machine'],
 
   // vertical push
   overhead_press_bb:      ['barbell'],
   shoulder_press_db:      ['dumbbells'],
+  shoulder_press_machine: ['shoulder_press_machine'],
+  shoulder_press_smith:   ['smith_machine', 'adjustable_bench'],
   shoulder_press_arnold:  ['dumbbells'],
   lateral_raise:          ['dumbbells'],
   front_raise:            ['dumbbells'],
   lateral_raise_cable:    [ANY_CABLE],
+  lateral_raise_machine:  ['lateral_raise_machine'],
   upright_row:            ['barbell'],
   landmine_press:         ['barbell','landmine'],
 
@@ -38494,7 +38746,8 @@ const EXERCISE_EQUIPMENT = {
   chinup:                 [['pullup_bar','assisted_pullup']],
   face_pull:              [ANY_CABLE],
   straight_arm_pulldown:  [ANY_CABLE],
-  rear_delt_fly:          ['pec_deck'],           // reverse pec deck
+  rear_delt_fly:          ['dumbbells'],
+  reverse_pec_deck:       ['pec_deck'],
   shrug:                  ['barbell'],
 
   // squat / lunge
@@ -38513,7 +38766,9 @@ const EXERCISE_EQUIPMENT = {
   deadlift_romanian:      ['barbell'],
   good_morning:           ['barbell', ANY_RACK],
   hip_thrust:             [['barbell','hip_thrust_machine'], ANY_BENCH],
+  hip_thrust_machine:     ['hip_thrust_machine'],
   leg_curl:               ['leg_curl'],
+  leg_curl_seated:        ['leg_curl'],
   hip_abduction:          ['hip_abduction_machine'],
   nordic_curl:            [],
 
@@ -38524,16 +38779,21 @@ const EXERCISE_EQUIPMENT = {
   curl_hammer:            ['dumbbells'],
   curl_incline_db:        ['dumbbells','adjustable_bench'],
   curl_cable:             [ANY_CABLE],
+  curl_machine:           ['curl_machine'],
   triceps_pushdown:       [ANY_CABLE],
   overhead_ext_triceps:   [ANY_CABLE],
+  triceps_extension_machine: ['triceps_extension_machine'],
   skullcrusher:           [['barbell','ez_curl_bar'], ANY_BENCH],
   calf_raise:             ['calf_raise_machine'],
+  calf_raise_seated:      ['calf_raise_machine'],
+  calf_raise_leg_press:   ['leg_press'],
 
   // core
   plank:                  [],
   crunch:                 [],
   leg_raise:              [],
-  cable_crunch:           [ANY_CABLE]
+  cable_crunch:           [ANY_CABLE],
+  crunch_machine:         ['ab_crunch_machine']
 };
 
 /* Fallback for any canonical exercise not explicitly mapped above, derived
@@ -41157,7 +41417,7 @@ function exerciseSwapOptions(name, context){
   /* Closeness is the engine's own vocabulary: the same movement pattern, then
      the same training role, so a press is offered presses before flys. */
   const patternOf = n => { try{ return substitutionPatternFor(resolveExerciseId(n), n); }catch(err){ return null; } };
-  const roleOf = n => { try{ return substitutionRole(classifyExerciseType(n, exerciseIsBodyweight(n))); }catch(err){ return null; } };
+  const roleOf = n => { try{ return substitutionRoleOf(resolveExerciseId(n), n, exerciseIsBodyweight(n)); }catch(err){ return null; } };
   const myPattern = patternOf(clean), myRole = roleOf(clean);
   out.more = exPickerIndex().filter(e => {
     const nk = normalizeExerciseName(e.name);

@@ -1065,14 +1065,36 @@ function build(){
     }
     /* Where a pose puts a joint. */
     function at(view, pose, joint){ return ExerciseArt.solve(view, pose)[joint]; }
+    /* The pivot of a rigid lever that meets a contact at `a` in one position and
+       `b` in the other: on the perpendicular bisector of the chord between them,
+       `k` chord-lengths from its middle, the sign choosing the side. A lever
+       drawn from anywhere else would have to stretch between the two drawings. */
+    function pivotFor(a, b, k){
+      var m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], dx = b[0] - a[0], dy = b[1] - a[1];
+      return [m[0] - dy * k, m[1] + dx * k];
+    }
     function add(defs){ for(var k in defs) EXV_DEFS[k] = defs[k]; }
     return { G:G, FOOT:FOOT, S:S, supineBench:supineBench, seated:seated, BENCH_TOP:BENCH_TOP,
-      legTo:legTo, planted:planted, armTo:armTo, handsAt:handsAt, sideHands:sideHands, at:at, add:add, extend:extend };
+      legTo:legTo, planted:planted, armTo:armTo, handsAt:handsAt, sideHands:sideHands, at:at, pivotFor:pivotFor, add:add, extend:extend };
   })();
 
   /* Arms: elbow flexion and extension. */
   (function(H){
-  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted;
+  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted, sideHands = H.sideHands, at = H.at, pivotFor = H.pivotFor;
+
+  /* Arm machines: seated, the upper arms on a pad that slopes away from the
+     chest and the elbows over the machine's cam. The handle turns about the
+     elbow, so the lever is the same length in both positions. */
+  var ARM_ELBOW = at('side', seat({ nua:60, nfa:66 }), 'nE');
+  var ARM_SCENE = [['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }],
+    ['post', { a:[66, 80], b:[70, G] }], ['column', { x:88, top:46 }], ['rail', { a:[88, 50], b:[ARM_ELBOW[0] + 2, ARM_ELBOW[1] + 1], w:2.6 }]];
+  var ARM_PAD = [['pad', { a:[52.4, 64.8], b:[67.4, 73.6], w:7 }]];
+  /* Seated dip machine: upright against the back pad, the handles on a lever
+     that pivots behind the seat, level with the middle of their path. */
+  var DIP_SEAT = { pin:['hip', [50, 86]], trunk:178, neck:180, nth:90, nsh:-8, fth:88, fsh:-12 };
+  var DIP_TOP = [58, 72.5], DIP_LOW = [57, 86.5];
+  var DIP_PIVOT = pivotFor(DIP_TOP, DIP_LOW, 2.1);
+
   H.add({
 
   /* ---- elbow flexion ---- */
@@ -1122,12 +1144,11 @@ function build(){
     end:  { pin:['hip', [44, 86]], trunk:132, neck:142, nua:8, nfa:162, fua:44, ffa:34, nth:90, nsh:-8, fth:90, fsh:-12 },
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
-  machine_curl: { view:'side', arch:'machine', path:'trace', crop:'upper', ghost:'arms', armOver:true,
-    scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['post', { a:[67, 79], b:[67, G] }]],
-    front:[['pad', { a:[52.6, 66.4], b:[65.4, 74], w:7 }]],
-    start:seat({ trunk:176, nua:60, nfa:66, fua:56, ffa:62 }),
-    end:  seat({ trunk:176, nua:60, nfa:166, fua:56, ffa:162 }),
-    gear:[['lever', { pivot:[64.6, 71], to:'nW', handle:true }]], track:'nW' },
+  curl_machine: { view:'side', arch:'machine', path:'pivot', pivot:ARM_ELBOW, crop:'upper', ghost:'arms', armOver:true,
+    scene:ARM_SCENE, front:ARM_PAD,
+    start:seat({ nua:60, nfa:66, fua:56, ffa:62 }),
+    end:  seat({ nua:60, nfa:166, fua:56, ffa:162 }),
+    gear:[['lever', { pivot:ARM_ELBOW, to:{ seg:['nE', 'nW'], t:1.12 }, handle:true }]], track:'nW' },
 
   band_curl: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
     start:S({ nua:6, nfa:14, fua:2, ffa:10 }),
@@ -1190,6 +1211,15 @@ function build(){
     end:  { pin:['fW', [74, 90]], trunk:100, neck:104, fua:0, ffa:0, fth:8, fsh:-90, fft:0, nth:24, nsh:-16, nua:-80, nfa:-78 },
     gear:[['db', { at:'nW', along:'nfa', aoff:90, len:4.4 }]], track:'nW' },
 
+  /* Machine triceps extension: the curl machine's frame used the other way.
+     The forearms start bent up and extend down the line of the pad, a roller
+     against the wrists. */
+  triceps_extension_machine: { view:'side', arch:'machine', path:'pivot', pivot:ARM_ELBOW, crop:'upper', ghost:'arms', armOver:true,
+    scene:ARM_SCENE, front:ARM_PAD,
+    start:seat({ nua:60, nfa:170, fua:56, ffa:166 }),
+    end:  seat({ nua:60, nfa:70, fua:56, ffa:66 }),
+    gear:[['lever', { pivot:ARM_ELBOW, to:{ seg:['nE', 'nW'], t:1, n:4.2 }, roller:3 }]], track:'nW' },
+
   dip: { view:'side', arch:'dynamic', path:'line', key:'start',
     scene:[['rail', { a:[40, 54.5], b:[84, 54.5], w:3.2 }], ['post', { a:[42, 55], b:[42, G] }], ['post', { a:[82, 55], b:[82, G] }]],
     start:{ pin:['nW', [62, 52.4]], trunk:160, neck:168, nua:-95, nfa:20, fua:-99, ffa:16, nth:22, nsh:-56, fth:14, fsh:-62 },
@@ -1209,6 +1239,14 @@ function build(){
     end:  planted({ pin:['nW', [52, 80]], trunk:178, neck:180, nua:-14, nfa:-12, fua:-18, ffa:-16, nft:90, fft:90 }, [86, 103.4], [82, 103.6]),
     track:'sh' },
 
+  /* Seated dip machine: the handles pressed down from beside the ribs to
+     straight arms at the hips. */
+  dip_machine: { view:'side', arch:'machine', path:'pivot', pivot:DIP_PIVOT, ghost:'arms',
+    scene:[['column', { x:DIP_PIVOT[0] - 5, top:36 }], ['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 54], w:5.4 }]],
+    start:sideHands(DIP_SEAT, DIP_TOP, [57.4, 73], -1),
+    end:  sideHands(DIP_SEAT, DIP_LOW, [56.4, 87], -1),
+    gear:[['lever', { pivot:DIP_PIVOT, to:'nW', handle:true }], ['rod', { a:'nW', adx:-2.2, b:'nW', bdx:4.6, w:2.4 }]], gearFront:true, track:'nW' },
+
   bench_press_close_grip: { view:'side', arch:'press', ghost:'arms',
     scene:[['bench', { x1:24, x2:84, y:78 }]],
     start:sup({ nua:24, nfa:176, fua:20, ffa:174 }),
@@ -1219,7 +1257,7 @@ function build(){
 
   /* Chest and shoulders: presses, flys, push-ups, raises. */
   (function(H){
-  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, handsAt = H.handsAt, sideHands = H.sideHands;
+  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, handsAt = H.handsAt, sideHands = H.sideHands, at = H.at, pivotFor = H.pivotFor;
   var BENCH = ['bench', { x1:24, x2:84, y:78 }];
 
   /* Reclined on an incline bench, seat top at y=86. */
@@ -1243,6 +1281,25 @@ function build(){
   /* Front view seated: thighs toward the viewer. */
   function FS(o){ return ext({ pin:['hc', [60, 79.5]], thighScale:0.34, lth:18, lsh:4, rth:18, rsh:4 }, o); }
 
+  /* Machine shoulder press: the handles rise from shoulder height to overhead
+     on a lever that pivots behind the seat. */
+  var SP_LOW = [53, 59.5], SP_TOP = [58.5, 36];
+  var SP_PIVOT = pivotFor(SP_LOW, SP_TOP, -1.15);
+  /* Incline machine press: up and forward from the upper chest, on a lever
+     that pivots behind and above the backrest. */
+  var IP_START = seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:-40, nfa:130, fua:-44, ffa:126 });
+  var IP_END = seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:138, nfa:136, fua:134, ffa:132 });
+  var IP_PIVOT = pivotFor(at('side', IP_START, 'nW'), at('side', IP_END, 'nW'), -1.5);
+  /* Smith presses: the bar rides two vertical rails, so the hands travel a
+     vertical line between them. */
+  function smithRails(x, top){ return [['rail', { a:[x - 2.2, top], b:[x - 2.2, G], w:2.4 }], ['rail', { a:[x + 2.2, top], b:[x + 2.2, G], w:2.4 }]]; }
+  var SMITH_INCLINE_X = 50.5, SMITH_PRESS_X = 56.5;
+  var SMITH_SEAT = { pin:['hip', [46, 86]], trunk:180, neck:180, nth:90, nsh:-8, fth:88, fsh:-12 };
+  /* Machine lateral raise, from the front: seated, pads on the outer upper
+     arms, the levers turning about pivots in line with the shoulders. */
+  var LR_START = FS({ la:12, lfa:4, ra:12, rfa:4 }), LR_END = FS({ la:88, lfa:62, ra:88, rfa:62 });
+  var LR_LS = at('front', LR_START, 'lS'), LR_RS = at('front', LR_START, 'rS');
+
   H.add({
 
   /* ---- barbell and dumbbell presses ---- */
@@ -1255,6 +1312,11 @@ function build(){
     start:sup({ nua:40, nfa:185, fua:36, ffa:182 }),
     end:  sup({ nua:176, nfa:178, fua:172, ffa:176 }),
     gear:[['plate', { at:'nW' }]], track:'nW' },
+
+  bench_press_incline_smith: { view:'side', arch:'machine', ghost:'arms', scene:smithRails(SMITH_INCLINE_X, 24).concat(INCLINE_SCENE),
+    start:sideHands(incline({}), [SMITH_INCLINE_X, 57.5], [SMITH_INCLINE_X - 0.6, 58.1], 1),
+    end:  sideHands(incline({}), [SMITH_INCLINE_X, 38.2], [SMITH_INCLINE_X - 0.6, 38.8], 1),
+    gear:[['plate', { at:'nW', r:7.8 }]], track:'nW' },
 
   bench_press_db: { view:'side', arch:'press', ghost:'arms', scene:[BENCH],
     start:sup({ nua:44, nfa:186, fua:40, ffa:183 }),
@@ -1283,17 +1345,22 @@ function build(){
     end:  seat({ trunk:178, nua:84, nfa:88, fua:80, ffa:84 }),
     gear:[['lever', { pivot:[90, 34], to:'nW', handle:true }]], track:'nW' },
 
-  incline_machine_press: { view:'side', arch:'machine', ghost:'arms',
-    scene:[['pad', { a:[40, 92], b:[62, 92], w:5 }], ['post', { a:[51, 95], b:[51, G] }], ['pad', { a:[42, 89], b:[30, 58], w:5.4 }], ['column', { x:96, top:14 }]],
-    start:seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:-40, nfa:130, fua:-44, ffa:126 }),
-    end:  seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:138, nfa:136, fua:134, ffa:132 }),
-    gear:[['lever', { pivot:[92, 20], to:'nW', handle:true }]], track:'nW' },
+  incline_press_machine: { view:'side', arch:'machine', path:'pivot', pivot:IP_PIVOT, ghost:'arms',
+    scene:[['column', { x:IP_PIVOT[0], top:IP_PIVOT[1] - 8 }], ['pad', { a:[40, 92], b:[62, 92], w:5 }], ['post', { a:[51, 95], b:[51, G] }], ['pad', { a:[42, 89], b:[30, 58], w:5.4 }]],
+    start:IP_START, end:IP_END,
+    gear:[['lever', { pivot:IP_PIVOT, to:'nW', handle:true }]], track:'nW' },
 
-  machine_shoulder_press: { view:'side', arch:'machine', ghost:'arms',
-    scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 54], w:5.4 }], ['column', { x:26, top:6 }]],
-    start:seat({ trunk:178, nua:-40, nfa:178, fua:-44, ffa:176 }),
-    end:  seat({ trunk:178, nua:174, nfa:178, fua:170, ffa:176 }),
-    gear:[['lever', { pivot:[30, 16], to:'nW', handle:true }]], track:'nW' },
+  shoulder_press_machine: { view:'side', arch:'machine', path:'pivot', pivot:SP_PIVOT, ghost:'arms',
+    scene:[['column', { x:SP_PIVOT[0], top:SP_PIVOT[1] - 10 }], ['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 54], w:5.4 }]],
+    start:sideHands(seat({ trunk:178 }), SP_LOW, [52.4, 60.1], 1),
+    end:  sideHands(seat({ trunk:178 }), SP_TOP, [57.9, 36.6], 1),
+    gear:[['lever', { pivot:SP_PIVOT, to:'nW', handle:true }]], track:'nW' },
+
+  shoulder_press_smith: { view:'side', arch:'machine', ghost:'arms', crop:'upper',
+    scene:smithRails(SMITH_PRESS_X, 20).concat([['pad', { a:[34, 92], b:[58, 92], w:5 }], ['post', { a:[46, 95], b:[46, G] }], ['pad', { a:[38.4, 90], b:[38.4, 50], w:5.4 }]]),
+    start:sideHands(SMITH_SEAT, [SMITH_PRESS_X, 58.5], [SMITH_PRESS_X - 0.6, 59.1], -1),
+    end:  sideHands(SMITH_SEAT, [SMITH_PRESS_X, 36.2], [SMITH_PRESS_X - 0.6, 36.8], -1),
+    gear:[['plate', { at:'nW', r:7.4 }]], track:'nW' },
 
   /* ---- flys (front and top-down views: the arms move across the body) ---- */
   chest_fly_cable: { view:'front', arch:'cable', ghost:'arms',
@@ -1431,6 +1498,15 @@ function build(){
     end:  F({ la:-14, lfa:-16, ra:86, rfa:76 }),
     gear:[['cable', { from:[16, 98], to:'rW' }]], track:'rW' },
 
+  lateral_raise_machine: { view:'front', arch:'machine', path:'trace', ghost:'arms',
+    scene:[['box', { x:49, y:34, w:22, h:46 }], ['pad', { a:[46, 83], b:[74, 83], w:5 }], ['post', { a:[60, 86], b:[60, G] }],
+      ['post', { a:LR_LS, b:[LR_LS[0], 30] }], ['post', { a:LR_RS, b:[LR_RS[0], 30] }], ['rail', { a:[LR_LS[0] - 1, 30], b:[LR_RS[0] + 1, 30], w:3 }]],
+    behind:[['lever', { pivot:LR_LS, to:{ seg:['lS', 'lE'], t:0.9, n:-4.6 } }], ['lever', { pivot:LR_RS, to:{ seg:['rS', 'rE'], t:0.9, n:4.6 } }]],
+    start:LR_START, end:LR_END,
+    gear:[['pad', { a:{ seg:['lS', 'lE'], t:0.6, n:-4.4 }, b:{ seg:['lS', 'lE'], t:1.02, n:-4.4 }, w:5 }],
+      ['pad', { a:{ seg:['rS', 'rE'], t:0.6, n:4.4 }, b:{ seg:['rS', 'rE'], t:1.02, n:4.4 }, w:5 }]],
+    gearFront:true, track:'rE' },
+
   front_raise: { view:'side', arch:'arc', ghost:'arms', crop:'upper',
     start:S({ nua:4, nfa:4, fua:0, ffa:0 }),
     end:  S({ nua:92, nfa:92, fua:0, ffa:0 }),
@@ -1495,7 +1571,7 @@ function build(){
 
   /* Back and posterior chain: rows, pulldowns, pull-ups, hinges, bridges. */
   (function(H){
-  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted, sideHands = H.sideHands;
+  var G = H.G, S = H.S, sup = H.supineBench, seat = H.seated, ext = H.extend, planted = H.planted, sideHands = H.sideHands, at = H.at, pivotFor = H.pivotFor;
 
   /* Front views. */
   function FS(o){ return ext({ pin:['hc', [60, 79.5]], thighScale:0.34, lth:18, lsh:4, rth:18, rsh:4 }, o); }
@@ -1539,6 +1615,19 @@ function build(){
   var GB_FEET = [[74, 104.3], [70, 104.5]];
   var GB_BOTTOM = planted({ pin:['sh', [34, G - 6.2]], trunk:-90, neck:-94, nua:82.5, nfa:82.5, fua:82.3, ffa:82.3 }, GB_FEET[0], GB_FEET[1]);
   var GB_TOP    = planted({ pin:['sh', [34, G - 6.2]], trunk:-62, neck:-80, nua:82.5, nfa:82.5, fua:82.3, ffa:82.3 }, GB_FEET[0], GB_FEET[1]);
+  /* The hip thrust machine's pad turns on a lever from the far post: its pivot
+     keeps the roller the same distance away at the bottom and the top. */
+  var HT_PIVOT = (function(){
+    var a = at('side', HT_BOTTOM, 'lap'), b = at('side', HT_TOP, 'lap');
+    a = [a[0], a[1] - 2]; b = [b[0], b[1] - 2];
+    return pivotFor(a, b, ((a[0] + b[0]) / 2 - 100) / (b[1] - a[1]));
+  })();
+  /* Seated leg curl: thighs level under a hold-down pad, the knees just past
+     the seat and in line with the pivot; the roller sits behind the ankles and
+     curls them down and back under the seat, ankles flexed so the feet hang
+     clear of the floor. */
+  function legCurlSeat(nsh, fsh){ return { pin:['hip', [48, 80]], trunk:172, neck:176, nth:90, fth:88, nsh:nsh, fsh:fsh, nft:nsh + 108, fft:fsh + 108, nua:14, nfa:70, fua:10, ffa:66 }; }
+  var LEG_CURL_KNEE = at('side', legCurlSeat(80, 76), 'nK');
 
   H.add({
 
@@ -1748,6 +1837,7 @@ function build(){
     end:  ext({ pin:['nA', [30, 90]], nth:-45, nsh:-45, fth:-45, fsh:-45, nft:45, fft:45, trunk:135, neck:138 }, folded(135)),
     track:'head' },
 
+
   superman_hold: { view:'side', arch:'hold',
     end:{ pin:['hip', [60, G - 5.1]], trunk:100, neck:106, nth:-100, nsh:-100, fth:-98, fsh:-98, nft:-90, fft:-90, nua:118, nfa:118, fua:114, ffa:114 } },
 
@@ -1768,9 +1858,9 @@ function build(){
     gear:[['plate', { at:'lap' }]], gearFront:true, track:'hip' },
 
   hip_thrust_machine: { view:'side', arch:'machine', arrow:{ shift:[0, 3], slide:[0, 2.5, 5] }, key:'end',
-    scene:[['pad', { a:[8, 93.4], b:[38, 93.4], w:5 }], ['post', { a:[22, 96], b:[22, G] }], ['post', { a:[100, 66], b:[100, G] }]],
+    scene:[['pad', { a:[8, 93.4], b:[38, 93.4], w:5 }], ['post', { a:[22, 96], b:[22, G] }], ['post', { a:[100, HT_PIVOT[1] - 2], b:[100, G] }]],
     start:HT_BOTTOM, end:HT_TOP,
-    gear:[['lever', { pivot:[100, 68], to:'lap', dy:-2, roller:4.2 }]], gearFront:true, track:'hip' },
+    gear:[['lever', { pivot:HT_PIVOT, to:'lap', dy:-2, roller:4.2 }]], gearFront:true, track:'hip' },
 
   glute_bridge: { view:'side', arch:'hinge', key:'end',
     start:GB_BOTTOM, end:GB_TOP, track:'hip' },
@@ -1795,6 +1885,14 @@ function build(){
     start:sideHands({ pin:['hip', [48, 74]], trunk:-90, neck:-96, nth:90, nsh:90, fth:90, fsh:90, nft:0, fft:0 }, [14, 88], [15, 88.5], 1),
     end:  sideHands({ pin:['hip', [48, 74]], trunk:-90, neck:-96, nth:90, nsh:-160, fth:90, fsh:-164, nft:-70, fft:-70 }, [14, 88], [15, 88.5], 1),
     gear:[['lever', { pivot:[67.5, 74], to:{ seg:['nK', 'nA'], t:0.86, n:7.6 }, roller:4.4 }]], track:'nA' },
+
+  leg_curl_seated: { view:'side', arch:'machine', path:'trace', ghost:'legs', key:'end',
+    scene:[['pad', { a:[30, 86.6], b:[60, 86.6], w:5 }], ['pad', { a:[36, 84], b:[31, 50], w:5.4 }], ['post', { a:[44, 89], b:[44, G] }], ['post', { a:[34, 89], b:[30, G] }],
+      ['post', { a:LEG_CURL_KNEE, b:[LEG_CURL_KNEE[0] + 4, G] }]],
+    front:[['pad', { a:{ seg:['hip', 'nK'], t:0.58, n:7.2 }, b:{ seg:['hip', 'nK'], t:0.96, n:7.2 }, w:5.4 }]],
+    start:legCurlSeat(80, 76),
+    end:  legCurlSeat(-34, -38),
+    gear:[['lever', { pivot:LEG_CURL_KNEE, to:{ seg:['nK', 'nA'], t:0.86, n:-6.6 }, roller:3.6 }]], gearFront:true, track:'nA' },
 
   glute_kickback_cable: { view:'side', arch:'cable', ghost:'legs',
     scene:[['column', { x:96, top:20 }]],
@@ -1863,6 +1961,16 @@ function build(){
   var BR_END   = S({ pin:['nA', [92, 104.3]], trunk:140, neck:150, nth:82, nsh:-30, fth:80, fsh:-32, nua:84, nfa:88, fua:80, ffa:84 });
   /* Seated calf raise: toes fixed on the block, the heel lifts the knee against the pad. */
   var CS_TOE = [76, 99.4];
+  /* Leg press calf raise: the legs long and still, the balls of the feet on the
+     lower edge of the footplate. The ankles alone move the sled a short way up
+     the rail, so the plate, its bracket and the carriage are placed from the
+     ball of the foot, along and across the rail. */
+  var CALF_PRESS_ANKLE = [73.2, 71.1];
+  var BALL = { seg:['nA', 'nT'], t:0.62 };
+  function calfPress(foot){
+    return planted({ pin:['hip', [40, 88]], trunk:-125, neck:-140, nua:24, nfa:68, fua:20, ffa:64, nft:foot, fft:foot },
+      CALF_PRESS_ANKLE, [CALF_PRESS_ANKLE[0] - 1.2, CALF_PRESS_ANKLE[1] + 1.2]);
+  }
   function seatedCalf(footAngle){
     var ankle = [CS_TOE[0] - Math.sin(footAngle * Math.PI / 180) * 7.4, CS_TOE[1] - Math.cos(footAngle * Math.PI / 180) * 7.4];
     return planted({ pin:['hip', [48, 84.9]], trunk:178, neck:180, nft:footAngle, fft:footAngle, nua:30, nfa:60, fua:26, ffa:56 }, ankle, [ankle[0] - 1, ankle[1]]);
@@ -2015,6 +2123,17 @@ function build(){
     gear:[['pad', { a:'nK', adx:-7, ady:-6.4, b:'nK', bdx:5, bdy:-6.4, w:5 }]], gearFront:true,
     track:'nA', trackOffset:[-5.5, 0] },
 
+  calf_raise_leg_press: { view:'side', arch:'machine', path:'line', key:'end', ghost:'legs',
+    scene:[['rail', { a:[50.6, 103.4], b:[101.5, 52.5], w:3.2 }], ['post', { a:[99, 55], b:[99, G] }],
+      ['pad', { a:[30, 94.6], b:[50, 92.6], w:5 }], ['post', { a:[40, 96], b:[40, G] }],
+      ['pad', { a:'hip', b:'sh', off:9.2, extA:-3, extB:5, w:6 }]],
+    start:calfPress(-108),
+    end:  calfPress(-165),
+    gear:[['rod', { a:BALL, adx:-1.56, ady:-11.17, b:BALL, bdx:12.52, bdy:2.9, w:2.4 }],
+      ['pad', { a:BALL, adx:6.29, ady:9.12, b:BALL, bdx:18.32, bdy:-2.9, w:5 }],
+      ['pad', { a:BALL, adx:3.39, ady:-1.27, b:BALL, bdx:-10.39, bdy:-15.06, w:4.6 }]],
+    track:BALL },
+
   hip_abduction: { view:'front', arch:'machine', path:'trace', ghost:'legs', both:true,
     scene:[['box', { x:44, y:26, w:32, h:56 }]],
     start:FS({ lth:8, lsh:10, rth:8, rsh:10, la:20, lfa:10, ra:20, rfa:10 }),
@@ -2122,12 +2241,14 @@ function build(){
     end:  kneesUp(supine(ext({ trunk:-122, neck:-138 }, behindHead(-122)))),
     track:'sh' },
 
-  machine_crunch: { view:'side', arch:'machine', path:'trace', key:'end',
-    scene:[['pad', { a:[36, 92], b:[60, 92], w:5 }], ['post', { a:[48, 95], b:[48, G] }], ['post', { a:[30, 30], b:[30, G] }]],
-    start:seat({ trunk:176, neck:178, nua:30, nfa:176, fua:26, ffa:172 }),
-    end:  seat({ trunk:132, neck:126, nua:-14, nfa:132, fua:-18, ffa:128 }),
-    gear:[['pad', { a:'sh', b:'hip', off:9.6, extA:-3, extB:-13, w:5 }], ['lever', { pivot:[30, 34], to:'sh', dy:-4 }]],
-    track:'head' },
+  /* Ab crunch machine: the chest pad and its handles on a lever that turns about
+     the hips, so the pad stays on the chest as the torso curls. */
+  crunch_machine: { view:'side', arch:'machine', path:'trace', key:'end',
+    scene:[['column', { x:24, top:44 }], ['pad', { a:[36, 92], b:[60, 92], w:5 }], ['post', { a:[48, 95], b:[48, G] }], ['rail', { a:[24, 84], b:[50, 86], w:2.6 }]],
+    start:seat({ trunk:176, neck:178, nua:40, nfa:130, fua:36, ffa:126 }),
+    end:  seat({ trunk:132, neck:126, nua:-4, nfa:86, fua:-8, ffa:82 }),
+    gear:[['lever', { pivot:[50, 86], to:{ seg:['hip', 'sh'], t:0.86, n:-3.2 } }], ['pad', { a:'sh', b:'hip', off:8.6, extA:-1, extB:-9, w:5.4 }]],
+    gearFront:true, track:'head' },
 
   cable_crunch: { view:'side', arch:'cable', key:'end',
     scene:[['column', { x:104, top:6 }]],
@@ -2298,14 +2419,11 @@ var EXERCISE_VISUAL_BY_NAME = {
   'pendlay row':'pendlay_row',
   't-bar row':'tbar_row', 't bar row':'tbar_row',
   'glute bridge':'glute_bridge',
-  'seated calf raise':'calf_raise_seated',
   'hanging leg raise':'hanging_leg_raise',
   'walking lunge':'lunge_walking',
   'kettlebell goblet squat':'squat_goblet_kb',
-  'reverse pec deck':'reverse_pec_deck', 'machine rear delt':'reverse_pec_deck',
 
   /* Uncatalogued names LOOP prescribes. */
-  'ab crunch machine':'machine_crunch', 'machine crunch':'machine_crunch',
   'ab wheel rollout':'ab_wheel',
   'assisted pull-up':'assisted_pullup',
   'back extension':'back_extension',
@@ -2356,18 +2474,13 @@ var EXERCISE_VISUAL_BY_NAME = {
   'flat db press':'bench_press_db',
   'flutter kicks':'flutter_kicks',
   'hanging knee raise':'hanging_knee_raise',
-  'hip abduction machine':'hip_abduction',
-  'hip thrust machine':'hip_thrust_machine',
   'hollow body hold':'hollow_hold',
-  'incline machine press':'incline_machine_press',
   'incline push-up':'pushup_incline',
   'kb row':'kb_row', 'single-arm kb row':'kb_row',
   'kettlebell push press':'kb_push_press',
   'kettlebell swing':'kb_swing',
   'lateral bound':'lateral_bound',
   'leg raise machine':'leg_raise_machine',
-  'machine curl':'machine_curl',
-  'machine shoulder press':'machine_shoulder_press',
   'med ball chest pass':'med_ball_chest_pass', 'med ball chest throw':'med_ball_chest_pass',
   'med ball rotational throw':'med_ball_rotational_throw',
   'med ball slam':'med_ball_slam',
@@ -2383,7 +2496,6 @@ var EXERCISE_VISUAL_BY_NAME = {
   'push press':'push_press',
   'rack pull':'rack_pull',
   'reverse crunch':'reverse_crunch',
-  'reverse pec deck fly':'reverse_pec_deck',
   'reverse snow angel':'reverse_snow_angel',
   'rope triceps pushdown':'rope_pushdown',
   'russian twist':'russian_twist',
@@ -2429,7 +2541,7 @@ var EXERCISE_HOW_TO = {
   curl_cable:['Stand tall facing the low pulley', 'Elbows fixed at your sides', 'Squeeze at the top, lower slowly'],
   cable_hammer_curl:['Rope held with thumbs up', 'Elbows fixed at your sides', 'Lower slowly under tension'],
   concentration_curl:['Elbow braced against the inner thigh', 'Curl toward the shoulder', 'Lower to full extension'],
-  machine_curl:['Arms flat on the pad, elbows on the pivot', 'Curl through the full range', 'Control the return'],
+  curl_machine:['Arms flat on the pad, elbows on the pivot', 'Curl through the full range', 'Control the return'],
   band_curl:['Stand on the band, elbows at your sides', 'Curl against the stretch', 'Lower slowly'],
   triceps_pushdown:['Elbows pinned at your sides', 'Press down to straight arms', 'Let the bar rise only to 90°'],
   rope_pushdown:['Elbows pinned at your sides', 'Press down and spread the rope', 'Control the return'],
@@ -2440,21 +2552,25 @@ var EXERCISE_HOW_TO = {
   band_triceps_ext:['Band behind you, hands overhead', 'Extend the elbows fully', 'Upper arms stay still'],
   skullcrusher:['Lie flat, arms angled back slightly', 'Bend only at the elbows', 'Extend without flaring'],
   triceps_kickback:['Brace on the bench, upper arm parallel', 'Extend back to a straight arm', 'Upper arm stays still'],
+  triceps_extension_machine:['Upper arms flat on the pad', 'Extend to straight arms', 'Bend back slowly under control'],
   dip:['Start tall with locked arms', 'Lower until the upper arm is level', 'Press back up, shoulders down'],
   dip_weighted:['Belt load hangs still between the legs', 'Lower until the upper arm is level', 'Press up without swinging'],
   bench_dip:['Hands on the bench edge, hips close', 'Bend the elbows straight back', 'Press up to straight arms'],
+  dip_machine:['Sit tall, handles beside the ribs', 'Press down to straight arms', 'Let them rise slowly, shoulders down'],
   bench_press_close_grip:['Hands shoulder-width, elbows tucked', 'Lower to the lower chest', 'Press up over the shoulders'],
 
   /* chest and shoulders */
   bench_press_barbell:['Feet planted, shoulder blades pinned', 'Lower to the mid chest', 'Press up and slightly back'],
   bench_press_smith:['Set the bench so the bar meets mid chest', 'Lower under control', 'Press to straight arms'],
+  bench_press_incline_smith:['Set the bench so the bar meets the upper chest', 'Lower under control', 'Press straight up to straight arms'],
   bench_press_db:['Dumbbells over the chest, feet planted', 'Lower to chest level', 'Press up and together'],
   bench_press_incline_bb:['Bench at 30–45°, blades pinned', 'Lower to the upper chest', 'Press straight up'],
   incline_press_db:['Bench at 30–45°, weights at chest', 'Lower with elbows under wrists', 'Press up over the chest'],
   db_floor_press:['Lie on the floor, knees bent', 'Lower until the elbows touch', 'Press straight up'],
   chest_press_machine:['Handles at mid-chest height', 'Press forward to straight arms', 'Return slowly, chest up'],
-  incline_machine_press:['Back on the pad, handles at upper chest', 'Press up and forward', 'Control the return'],
-  machine_shoulder_press:['Handles at shoulder height', 'Press overhead to straight arms', 'Lower under control'],
+  incline_press_machine:['Back on the pad, handles at upper chest', 'Press up and forward', 'Control the return'],
+  shoulder_press_machine:['Handles at shoulder height', 'Press overhead to straight arms', 'Lower under control'],
+  shoulder_press_smith:['Bench upright, bar just in front of the face', 'Press straight up to straight arms', 'Lower to chin height, ribs down'],
   chest_fly_cable:['Slight bend in the elbows, fixed', 'Hug the handles together', 'Open to a stretch slowly'],
   chest_fly_incline_cable:['Pulleys low, slight elbow bend', 'Sweep up and together', 'Lower back to a stretch'],
   pec_deck:['Back on the pad, arms at chest height', 'Squeeze the pads together', 'Open slowly to a stretch'],
@@ -2477,6 +2593,7 @@ var EXERCISE_HOW_TO = {
   band_shoulder_press:['Stand on the band, hands at shoulders', 'Press straight overhead', 'Lower slowly'],
   lateral_raise:['Slight bend in the elbows', 'Raise out to shoulder height', 'Lower slowly, no swinging'],
   lateral_raise_cable:['Pulley low on the opposite side', 'Raise out to shoulder height', 'Lower under control'],
+  lateral_raise_machine:['Sit tall, pads on the outer arms', 'Raise the elbows to shoulder height', 'Lower slowly, shoulders down'],
   front_raise:['Arm straight, weight in front', 'Raise to shoulder height', 'Lower slowly'],
   upright_row:['Grip about shoulder-width', 'Pull up with the elbows leading', 'Stop at chest height'],
   rear_delt_fly:['Hinge forward, back flat', 'Raise the arms out wide', 'Squeeze the shoulder blades'],
@@ -2529,6 +2646,7 @@ var EXERCISE_HOW_TO = {
   single_leg_glute_bridge:['One foot planted, other leg long', 'Drive up through the heel', 'Keep the hips level'],
   nordic_curl:['Kneel with the heels anchored', 'Lower forward as one line', 'Catch yourself, pull back up'],
   leg_curl:['Lie face down, pad above the heels', 'Curl the heels toward the glutes', 'Lower slowly'],
+  leg_curl_seated:['Knees in line with the pivot, pad snug', 'Curl the heels down under the seat', 'Return slowly to straight legs'],
   glute_kickback_cable:['Strap on the ankle, hinge slightly', 'Kick the leg straight back', 'Return without arching'],
   farmers_carry:['Heavy weights at your sides', 'Stand tall and walk', 'Short, steady steps'],
   power_clean:['Start like a deadlift', 'Jump and shrug the bar up', 'Catch on the shoulders, elbows high'],
@@ -2558,6 +2676,7 @@ var EXERCISE_HOW_TO = {
   leg_extension:['Pad on the lower shins', 'Extend to straight legs', 'Lower slowly'],
   calf_raise:['Balls of the feet on the step', 'Rise as high as possible', 'Lower the heels below the step'],
   calf_raise_seated:['Pad on the knees, toes on the block', 'Push the heels up', 'Lower to a full stretch'],
+  calf_raise_leg_press:['Knees soft, balls of the feet on the edge', 'Press through the balls of the feet', 'Lower the heels slowly to a stretch'],
   hip_abduction:['Sit tall, pads outside the knees', 'Push the knees apart', 'Return slowly'],
   band_lateral_walk:['Band above the knees, hips back', 'Step sideways', 'Keep tension on the band'],
 
@@ -2568,7 +2687,7 @@ var EXERCISE_HOW_TO = {
   side_plank_reach:['Hold a side plank', 'Reach up, then thread under', 'Keep the hips lifted'],
   hollow_hold:['Lower back pressed to the floor', 'Lift the shoulders and legs', 'Hold without arching'],
   crunch:['Knees bent, feet flat', 'Curl the shoulders up', 'Lower slowly'],
-  machine_crunch:['Pads on the chest', 'Curl the torso forward', 'Return with control'],
+  crunch_machine:['Pad on the chest, hands on the handles', 'Curl the torso forward', 'Return with control'],
   cable_crunch:['Kneel, rope beside the head', 'Curl down toward the knees', 'Rise slowly'],
   bicycle_crunch:['Shoulders lifted, hands by the head', 'Bring one knee in, other leg long', 'Alternate with control'],
   reverse_crunch:['Knees bent over the hips', 'Curl the hips off the floor', 'Lower slowly'],

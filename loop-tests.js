@@ -22310,10 +22310,17 @@ async function testExerciseVisuals(){
   T('a canonical exercise is drawn under its canonical id', ctx.CANONICAL_EXERCISES.every(e =>
     ctx.exerciseVisualKey(e.displayName) === e.id), ctx.CANONICAL_EXERCISES.filter(e => ctx.exerciseVisualKey(e.displayName) !== e.id).map(e => e.id).join(','));
   [['Pendlay Row','pendlay_row','row_barbell'], ['T-Bar Row','tbar_row','row_machine'], ['Glute Bridge','glute_bridge','hip_thrust'],
-   ['Seated Calf Raise','calf_raise_seated','calf_raise'], ['Hanging Leg Raise','hanging_leg_raise','leg_raise'],
+   ['Hanging Leg Raise','hanging_leg_raise','leg_raise'],
    ['Walking Lunge','lunge_walking','lunge'], ['Kettlebell Goblet Squat','squat_goblet_kb','squat_goblet']].forEach(([n, k, id]) =>
     T(n + ' is drawn as itself while history still counts it as ' + id,
       ctx.exerciseVisualKey(n) === k && ctx.resolveExerciseId(n) === id));
+  /* D63 — Seated Calf Raise was the fourth of these: drawn as itself while its
+     history was Calf Raise's. A seated calf raise loads the soleus with the knee
+     bent, on its own machine and at its own weights, so it now has its own
+     identity, and the drawing it already had is its canonical one. */
+  T('Seated Calf Raise now has its own identity, drawn under it (D63)',
+    ctx.exerciseVisualKey('Seated Calf Raise') === 'calf_raise_seated' && ctx.resolveExerciseId('Seated Calf Raise') === 'calf_raise_seated' &&
+    ctx.resolveExerciseId('Standing Calf Raise') === 'calf_raise');
   T('a name LOOP does not know gets no picture, not a wrong one',
     ctx.exerciseVisualKey('My Garage Contraption') === null && ctx.exerciseThumbHtml('My Garage Contraption') === '');
 
@@ -23538,13 +23545,13 @@ async function testWorkoutDockAndFigure(){
   /* For every drawing and every solid chain, the lowest point of its distal part
      (forearm and hand, shin and foot, or the trunk) either rests on the floor or
      a support beneath it, or is clearly clear of them. A near miss — between
-     0.9 and 4.5 units — is a contact that floats. Five drawings pass close to a
-     surface on purpose, and say so. */
+     0.9 and 4.5 units — is a contact that floats. Four drawings pass close to a
+     surface on purpose, and say so. (D63: the fifth, the crunch machine, now has
+     its hands on the chest pad's handles and no longer hovers.) */
   const HOVER = {
     lat_pulldown: 'the pulling arms pass over the end of the thigh pad; nothing rests on it',
     superman_hold: 'the legs lift off the floor, which is the exercise',
     leg_extension: 'the hands rest on the thighs, beside the seat',
-    machine_crunch: 'the hands hold the handles beside the chest pad',
     ab_wheel: 'the hands hold the wheel\'s hub, and the wheel is on the floor'
   };
   const floats = [];
@@ -24539,6 +24546,326 @@ async function testBuildMyOwnContinue(){
   });
 }
 
+/* =========================================================
+   CONTRACT 170 — THE MACHINES A COMMERCIAL GYM HAS (D63)
+   ---------------------------------------------------------
+   Fourteen machine exercises joined the canonical registry. A
+   new exercise exists only when all of it exists: one identity
+   its names resolve to, muscles and explicit equipment, a place
+   in sessions and a prescription, a drawing that is truthful
+   about the machine, search and both filters, Swap in both
+   directions, and a history that is its own. This holds each of
+   those for every one of the fourteen, and the few shared rules
+   they depend on.
+   ========================================================= */
+async function testMachineCoverage(){
+  section('CONTRACT 170 — machine coverage (D63)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, XA = ctx.ExerciseArt, defs = ctx.EXERCISE_ART.definitions();
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const BATCH = ['lateral_raise_machine', 'shoulder_press_machine', 'shoulder_press_smith', 'reverse_pec_deck',
+    'incline_press_machine', 'bench_press_incline_smith', 'dip_machine', 'triceps_extension_machine', 'curl_machine',
+    'leg_curl_seated', 'calf_raise_seated', 'calf_raise_leg_press', 'hip_thrust_machine', 'crunch_machine'];
+  const canon = id => ctx.getCanonicalExercise(id);
+  const PATTERNS = ['horizontal_push', 'vertical_push', 'horizontal_pull', 'vertical_pull', 'squat', 'lunge', 'hinge', 'isolation', 'core'];
+  const MUSCLES = Object.keys(ctx.MUSCLE_LABELS);
+
+  sub('one identity each, and names that are one movement resolve together');
+  guard('identity', () => {
+    const all = ctx.CANONICAL_EXERCISES;
+    T('the fourteen are all in the registry', BATCH.every(id => !!canon(id)), BATCH.filter(id => !canon(id)).join(','));
+    T('canonical ids are unique', new Set(all.map(e => e.id)).size === all.length);
+    T('no two entries share a display name', new Set(all.map(e => ctx.normalizeExerciseName(e.displayName))).size === all.length);
+    T('every display name resolves to its own entry', all.every(e => ctx.resolveExerciseId(e.displayName) === e.id),
+      all.filter(e => ctx.resolveExerciseId(e.displayName) !== e.id).map(e => e.id).join(','));
+    ctx.buildAliasIndex();
+    T('no alias belongs to two exercises', ctx.buildExerciseIdReport().aliasCollisions.length === 0,
+      JSON.stringify(ctx.buildExerciseIdReport().aliasCollisions));
+    T('every alias of the fourteen resolves to its own exercise',
+      BATCH.every(id => canon(id).aliases.every(a => ctx.resolveExerciseId(a) === id)));
+    const same = [['Machine Crunch', 'crunch_machine'], ['Reverse Pec Deck Fly', 'reverse_pec_deck'], ['Rear Delt Machine', 'reverse_pec_deck'],
+      ['Hip Abduction Machine', 'hip_abduction'], ['Machine Preacher Curl', 'curl_machine'], ['Glute Drive', 'hip_thrust_machine'],
+      ['Seated Dip', 'dip_machine'], ['Calf Press', 'calf_raise_leg_press'], ['Iso-Lateral Row', 'row_machine'], ['Plate-Loaded Chest Press', 'chest_press_machine']];
+    T('the plans\' own spellings and the labels on the machines reach the same movement',
+      same.every(([n, id]) => ctx.resolveExerciseId(n) === id), same.filter(([n, id]) => ctx.resolveExerciseId(n) !== id).map(x => x[0]).join(','));
+    const apart = [['Seated Leg Curl', 'leg_curl_seated'], ['Lying Leg Curl', 'leg_curl'], ['Leg Curl', 'leg_curl'],
+      ['Seated Calf Raise', 'calf_raise_seated'], ['Standing Calf Raise', 'calf_raise'], ['Reverse Pec Deck', 'reverse_pec_deck'],
+      ['Bent Over Rear Delt Fly', 'rear_delt_fly'], ['Preacher Curl', 'curl_preacher']];
+    T('movements that load differently keep separate identities', apart.every(([n, id]) => ctx.resolveExerciseId(n) === id));
+    T('the dumbbell rear delt fly is filed as a dumbbell movement now that the machine has its own entry',
+      canon('rear_delt_fly').equipment === 'Dumbbell' && JSON.stringify(ctx.EXERCISE_EQUIPMENT.rear_delt_fly) === JSON.stringify(['dumbbells']));
+    const idx = ctx.exPickerIndex();
+    T('the picker lists each movement once', new Set(idx.map(e => e.key)).size === idx.length &&
+      BATCH.every(id => idx.filter(e => e.key === id).length === 1));
+  });
+
+  sub('complete metadata, with equipment that is stated, not guessed');
+  guard('metadata', () => {
+    const bad = BATCH.filter(id => {
+      const e = canon(id);
+      return !(PATTERNS.indexOf(e.pattern) !== -1 && e.equipment === 'Machine' && e.primary.length >= 1 &&
+        e.primary.concat(e.secondary).every(m => MUSCLES.indexOf(m) !== -1) && e.primary.every(m => e.secondary.indexOf(m) === -1) &&
+        typeof e.supports1RM === 'boolean' && e.aliases.length >= 3);
+    });
+    T('pattern, machine equipment, primary and secondary muscles, 1RM support and aliases on every one', bad.length === 0, bad.join(','));
+    T('one primary muscle each — involvement stays secondary', BATCH.every(id => canon(id).primary.length === 1));
+    T('How To and every muscle surface read the registry\'s answer', BATCH.every(id => {
+      const m = ctx.musclesForExercise(canon(id).displayName);
+      return m.primary.join() === canon(id).primary.join() && m.secondary.join() === canon(id).secondary.join();
+    }));
+    const req = BATCH.filter(id => {
+      if(!Object.prototype.hasOwnProperty.call(ctx.EXERCISE_EQUIPMENT, id)) return true;
+      return !ctx.getExerciseEquipmentRequirements(id).every(g => g.length && g.every(q => !!ctx.getGymEquipment(q)));
+    });
+    T('each names the gym equipment it needs, and every item is one the gym profile lists', req.length === 0, req.join(','));
+    T('new machines are equipment an existing gym profile has simply never seen — unknown, never unavailable',
+      ['incline_press_machine', 'lateral_raise_machine', 'curl_machine', 'triceps_extension_machine', 'dip_machine', 'ab_crunch_machine']
+        .every(q => ctx.getGymEquipment(q) && ctx.getGymEquipment(q).category === 'machines' && ctx.getEquipmentStatus(q) === ctx.GYM_STATUS.UNKNOWN));
+    const idx = ctx.exPickerIndex();
+    T('the picker files every one under Machine from the registry, not from its name',
+      BATCH.every(id => { const e = idx.find(x => x.key === id); return e && e.equipment === 'Machine' && !e.equipmentFromName; }));
+    T('only one machine in the picker still takes its equipment from a word in its name (Leg Raise Machine, a knee-raise station)',
+      JSON.stringify(idx.filter(e => e.equipmentFromName && e.equipment === 'Machine').map(e => e.name)) === JSON.stringify(['Leg Raise Machine']));
+    T('the picker has more machines and no more unknown equipment than 6.4 had (21 machines, 41 unknown)',
+      idx.filter(e => e.equipment === 'Machine').length > 21 && idx.filter(e => !e.equipment).length <= 41,
+      idx.filter(e => e.equipment === 'Machine').length + ' machines, ' + idx.filter(e => !e.equipment).length + ' unknown');
+  });
+
+  sub('sessions and prescriptions, without the generator placing them');
+  guard('programs', () => {
+    const extras = ctx.LIBRARY_EXTRAS;
+    const inTemplates = {};
+    Object.keys(ctx.DEFAULT_PLANS).forEach(p => Object.keys(ctx.DEFAULT_PLANS[p].templates).forEach(cat =>
+      ctx.DEFAULT_PLANS[p].templates[cat].forEach(t => t.exercises.forEach(x => {
+        const id = ctx.resolveExerciseId(x.name);
+        (inTemplates[id] = inTemplates[id] || new Set()).add(cat);
+      }))));
+    ctx.PROGRAM_EXTENSIONS.forEach(x => x.exercises.forEach(e => { const id = ctx.resolveExerciseId(e.name); (inTemplates[id] = inTemplates[id] || new Set()).add('ext'); }));
+    T('every one either has a plan\'s prescription already or declares its own — never neither',
+      BATCH.every(id => !!inTemplates[id] !== !!extras.find(x => x.id === id)));
+    T('no plan template and no extension names a machine the library adds, so no existing program changes shape',
+      extras.every(x => !inTemplates[x.id]));
+    const roleOK = (x) => x.roles.length > 0 && x.roles.every(r => {
+      if(ctx.ORDER.indexOf(r) === -1) return false;
+      if(r === 'fullbody') return true;
+      if(r === 'arms') return canon(x.id).primary.some(m => ctx.ARM_GROUPS.indexOf(m) !== -1);
+      const want = ctx.CATEGORY_GROUPS[r] || [];
+      if(canon(x.id).primary.some(m => want.indexOf(m) !== -1)) return true;
+      /* an accessory may finish a session its assisting muscles belong to */
+      return ctx.exerciseIsNeverPrimary(canon(x.id).displayName) && canon(x.id).secondary.some(m => want.indexOf(m) !== -1);
+    });
+    T('each added machine belongs in sessions that train what it trains', extras.every(roleOK), extras.filter(x => !roleOK(x)).map(x => x.id).join(','));
+    T('and each writes a whole prescription', extras.every(x => x.sets >= 2 && x.sets <= 5 && /^\d+–\d+$/.test(x.reps) && /^\d(–\d)?$/.test(x.effort)));
+    T('adding any of the fourteen to a workout or a saved workout finds a prescription',
+      BATCH.every(id => { const rx = ctx.libraryPrescriptionFor(canon(id).displayName); return rx && rx.sets && rx.reps && rx.effort; }));
+    const lc = ctx.libraryPrescriptionFor('Seated Leg Curl');
+    T('a machine no plan prescribes brings its declared prescription', lc.sets === 3 && lc.reps === '10–15' && lc.effort === '7');
+    const tail = ctx.exPickerForCategory('legs', [], 400).map(e => e.key);
+    T('a saved Legs workout is offered the leg machines after the day\'s own library, and not the shoulder ones',
+      ['leg_curl_seated', 'calf_raise_leg_press'].every(id => tail.indexOf(id) !== -1) &&
+      tail.indexOf('lateral_raise_machine') === -1 && tail.indexOf('leg_curl_seated') > tail.indexOf(ctx.exPickerKeyOf('Leg Press')));
+    const never = ['lateral_raise_machine', 'reverse_pec_deck', 'leg_curl_seated', 'calf_raise_seated', 'calf_raise_leg_press',
+      'curl_machine', 'triceps_extension_machine', 'crunch_machine'];
+    const lead = ['shoulder_press_machine', 'shoulder_press_smith', 'incline_press_machine', 'bench_press_incline_smith', 'dip_machine', 'hip_thrust_machine'];
+    T('isolation machines can never lead a session or take a heavy low-rep prescription',
+      never.every(id => ctx.exerciseIsNeverPrimary(canon(id).displayName)) && never.every(id => never.concat(lead).indexOf(id) !== -1));
+    T('the pressing and hip machines still can', lead.every(id => !ctx.exerciseIsNeverPrimary(canon(id).displayName)));
+    T('the NEVER_PRIMARY list names only registry exercises', ctx.NEVER_PRIMARY_IDS.every(id => !!canon(id)));
+  });
+  guard('program studio', () => {
+    ctx.confirm = () => true;
+    ctx.pbState = { step: 0, dir: 'fwd', known: {}, mode: 'create', editingId: null, draft: null, edited: false,
+      answers: { goal: 'hypertrophy', experience: 'intermediate', equipment: 'full', emphasis: 'balanced',
+        sessionLength: 'standard', weeks: 8, frequency: 4, days: ['mon', 'tue', 'thu', 'fri'], startDate: '2026-11-02' } };
+    ctx.pbState.step = ctx.pbSteps().length;
+    const def = ctx.pbDraft();
+    const day = ctx.PROGRAM_DAY_KEYS.find(k => def.schedule[k] && def.schedule[k].type === 'workout' && ['lower', 'legs'].indexOf(def.schedule[k].category) !== -1);
+    ctx.pbAddExercise(day, 'Seated Leg Curl');
+    const list = ctx.pbSessionExercises(ctx.pbDraft(), day);
+    const added = list[list.length - 1];
+    T('Program Studio adds a machine with its own prescription, not the exercise above it',
+      added && added.name === 'Seated Leg Curl' && added.sets === 3 && added.reps === '10–15' && added.effort === '7', JSON.stringify(added));
+    const v = ctx.validateProgram(ctx.pbDraft());
+    T('and the program still validates', v.valid, (v.errors || []).join('; '));
+    ctx.pbReplaceExercise(day, list.length - 1, 'Leg Press Calf Raise');
+    const swapped = ctx.pbSessionExercises(ctx.pbDraft(), day).slice(-1)[0];
+    T('replacing it keeps the slot\'s prescription, as every replacement does', swapped.name === 'Leg Press Calf Raise' && swapped.reps === '10–15');
+    ctx.pbState = null;
+  });
+
+  sub('a drawing that is the machine, for every one');
+  guard('drawings', () => {
+    const render = {};
+    BATCH.forEach(id => { render[id] = { thumb: XA.render(defs[id], { size:'thumb' }), full: XA.render(defs[id], { size:'full' }) }; });
+    T('each is drawn under its own id, and every alias reaches the same drawing',
+      BATCH.every(id => ctx.exerciseVisualKey(canon(id).displayName) === id && canon(id).aliases.every(a => ctx.exerciseVisualKey(a) === id)));
+    T('each renders at both sizes with no broken numbers', BATCH.every(id => /^<svg viewBox="[-\d. ]+"/.test(render[id].thumb) && !/NaN|undefined|Infinity/.test(render[id].thumb + render[id].full)));
+    T('no two share a picture', new Set(BATCH.map(id => render[id].full)).size === BATCH.length);
+    const machineProps = ['pad', 'lever', 'rail', 'column', 'post', 'step', 'box', 'bar'];
+    const bare = BATCH.filter(id => {
+      const props = [].concat(defs[id].scene || [], defs[id].gear || [], defs[id].front || [], defs[id].behind || []).map(p => p[0]);
+      return props.filter(p => machineProps.indexOf(p) !== -1).length < 3;
+    });
+    T('each shows the machine: its seat, pads, frame or rails, not a figure alone', bare.length === 0, bare.join(','));
+    T('each works against a lever, a cable-free guide or a pad it moves — the path of resistance is drawn',
+      BATCH.every(id => [].concat(defs[id].gear || [], defs[id].behind || [], defs[id].scene || []).some(p => ['lever', 'plate', 'pad'].indexOf(p[0]) !== -1)));
+    T('the How To cues are one to three short lines that say what to do', BATCH.every(id => {
+      const c = ctx.howToCues(canon(id).displayName);
+      return c.length === 3 && c.every(x => x.length <= 48);
+    }));
+    const jp = (J, ref) => {
+      if(typeof ref === 'string') return J[ref];
+      if(ref && ref.seg){
+        const a = J[ref.seg[0]], b = J[ref.seg[1]], t = ref.t == null ? 0.5 : ref.t;
+        const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+        if(!ref.n) return p;
+        const ang = (Math.atan2(b[0] - a[0], b[1] - a[1]) * 180 / Math.PI + 90) * Math.PI / 180;
+        return [p[0] + Math.sin(ang) * ref.n, p[1] + Math.cos(ang) * ref.n];
+      }
+      return ref;
+    };
+    /* A lever turns about its pivot; it does not stretch. The reverse pec deck is
+       the exception by projection, not by construction: its handles swing in a
+       horizontal plane that a view from behind foreshortens. */
+    const stretch = [];
+    BATCH.filter(id => id !== 'reverse_pec_deck').forEach(id => {
+      const d = defs[id];
+      [].concat(d.gear || [], d.behind || [], d.front || []).filter(p => p[0] === 'lever').forEach(p => {
+        const len = ['start', 'end'].map(k => { const J = XA.solve(d.view, d[k]); const to = jp(J, p[1].to);
+          return Math.hypot(p[1].pivot[0] - to[0] - (p[1].dx || 0), p[1].pivot[1] - to[1] - (p[1].dy || 0)); });
+        if(Math.abs(len[0] - len[1]) > 0.5) stretch.push(id + ' ' + len.map(v => v.toFixed(1)).join('/'));
+      });
+    });
+    T('every machine lever keeps its length from one position to the other', stretch.length === 0, stretch.join('; '));
+    const arrows = BATCH.filter(id => ((render[id].full.match(/fill="#4CC2FF"/g) || []).length !== 1));
+    T('each dynamic movement carries one arrow with one head', arrows.length === 0, arrows.join(','));
+    const smith = ['shoulder_press_smith', 'bench_press_incline_smith'].every(id => {
+      const d = defs[id], a = XA.solve('side', d.start).nW, b = XA.solve('side', d.end).nW;
+      const rails = d.scene.filter(p => p[0] === 'rail' && p[1].a[0] === p[1].b[0]).map(p => p[1].a[0]);
+      return Math.abs(a[0] - b[0]) < 0.3 && rails.length === 2 && Math.abs((rails[0] + rails[1]) / 2 - a[0]) < 0.3;
+    });
+    T('a Smith press travels straight up between its two rails', smith);
+    const curlJ = [XA.solve('side', defs.leg_curl_seated.start), XA.solve('side', defs.leg_curl_seated.end)];
+    T('the seated leg curl curls the heels down and under, about a knee held in line with the pivot',
+      curlJ[1].nA[1] > curlJ[0].nA[1] + 8 && curlJ[1].nA[0] < curlJ[1].nK[0] && Math.abs(curlJ[0].nK[0] - defs.leg_curl_seated.gear[0][1].pivot[0]) < 0.5);
+    const calfJ = [XA.solve('side', defs.calf_raise_leg_press.start), XA.solve('side', defs.calf_raise_leg_press.end)];
+    T('the leg press calf raise moves the ankles, not the knees', Math.abs(calfJ[0].nK[0] - calfJ[1].nK[0]) < 0.3 && Math.abs(calfJ[0].nA[1] - calfJ[1].nA[1]) < 0.3 &&
+      Math.hypot(calfJ[0].hip[0] - calfJ[0].nA[0], calfJ[0].hip[1] - calfJ[0].nA[1]) > 36);
+    const lr = [XA.solve('front', defs.lateral_raise_machine.start), XA.solve('front', defs.lateral_raise_machine.end)];
+    T('the machine lateral raise lifts the elbows level with the shoulders and no higher', Math.abs(lr[1].rE[1] - lr[1].rS[1]) < 2 && lr[0].rE[1] > lr[0].rS[1] + 10);
+  });
+
+  sub('search and both filters find every one');
+  guard('picker', () => {
+    const first = q => (ctx.exPickerMatches(q)[0] || {}).key;
+    T('searching a display name finds it first', BATCH.every(id => first(canon(id).displayName) === id), BATCH.filter(id => first(canon(id).displayName) !== id).join(','));
+    const q = [['rear delt machine', 'reverse_pec_deck'], ['calf press', 'calf_raise_leg_press'], ['triceps machine', 'triceps_extension_machine'], ['leg curl machine', 'leg_curl'],
+      ['seated dip', 'dip_machine'], ['smith incline press', 'bench_press_incline_smith'], ['glute drive', 'hip_thrust_machine'], ['crunch machine', 'crunch_machine']];
+    T('the names on the machines themselves find them', q.every(([s, id]) => first(s) === id), q.filter(([s, id]) => first(s) !== id).map(x => x[0]).join(','));
+    const st = ctx.exPickerNewState('workout', {});
+    T('filtering by each one\'s muscle keeps it', BATCH.every(id => ctx.exPickerResults(st, { muscle: canon(id).primary[0] }).some(e => e.key === id)));
+    T('filtering by Machine keeps all fourteen', BATCH.every(id => ctx.exPickerResults(st, { equipment: 'Machine' }).some(e => e.key === id)));
+    T('and both filters together still find them', BATCH.every(id => ctx.exPickerResults(st, { muscle: canon(id).primary[0], equipment: 'Machine' }).some(e => e.key === id)));
+    T('a thumbnail in every list row', BATCH.every(id => /<use href="#exart-/.test(ctx.exPickerRowHtml(canon(id).displayName, '')) ||
+      /<svg/.test(ctx.exPickerRowHtml(canon(id).displayName, ''))));
+  });
+
+  sub('Swap, both ways, keeping the movement\'s intent');
+  guard('swap', () => {
+    const ranked = id => ctx.rankSubstitutionCandidates(id, {}).map(r => r.exerciseId);
+    const empty = BATCH.filter(id => !ranked(id).length);
+    T('every one has ranked alternatives', empty.length === 0, empty.join(','));
+    const intent = BATCH.filter(id => ctx.rankSubstitutionCandidates(id, {}).some(r => {
+      const c = canon(r.exerciseId), o = canon(id);
+      const pat = c.pattern === o.pattern || (ctx.SUBSTITUTION_CONFIG.relatedPatterns[o.pattern] || []).indexOf(c.pattern) !== -1;
+      return !pat || !o.primary.some(m => c.primary.concat(c.secondary).indexOf(m) !== -1);
+    }));
+    T('every alternative is the same or a related movement that trains the same muscle', intent.length === 0, intent.join(','));
+    const pairs = [['leg_curl', 'leg_curl_seated', 2], ['leg_curl_seated', 'leg_curl', 2], ['calf_raise', 'calf_raise_seated', 2], ['calf_raise', 'calf_raise_leg_press', 2],
+      ['calf_raise_seated', 'calf_raise', 2], ['lateral_raise', 'lateral_raise_machine', 3], ['rear_delt_fly', 'reverse_pec_deck', 2], ['reverse_pec_deck', 'rear_delt_fly', 2],
+      ['hip_thrust', 'hip_thrust_machine', 1], ['hip_thrust_machine', 'hip_thrust', 1], ['shoulder_press_db', 'shoulder_press_machine', 2], ['triceps_pushdown', 'triceps_extension_machine', 2],
+      ['dip', 'dip_machine', 2], ['crunch', 'crunch_machine', 3], ['chest_press_machine', 'incline_press_machine', 3], ['curl_machine', 'curl_barbell', 5], ['bench_press_incline_bb', 'incline_press_machine', 5]];
+    const miss = pairs.filter(([a, b, n]) => ranked(a).slice(0, n).indexOf(b) === -1);
+    T('the machine a gym-goer reaches for is among the first alternatives, and the free-weight one comes back', miss.length === 0, miss.map(p => p[0] + '→' + p[1]).join(', '));
+    T('a row is never offered a rear-delt fly, and a shoulder press never a lateral raise',
+      ['row_barbell', 'row_machine', 'row_dumbbell'].every(id => ranked(id).indexOf('reverse_pec_deck') === -1) &&
+      ['shoulder_press_machine', 'shoulder_press_smith', 'shoulder_press_db'].every(id => ranked(id).indexOf('lateral_raise_machine') === -1));
+    T('a movement the registry says cannot lead is an accessory to Swap, whatever its name says',
+      ['lateral_raise_machine', 'reverse_pec_deck', 'curl_machine', 'leg_curl_seated'].every(id => ctx.substitutionRoleOf(id, canon(id).displayName) === 'accessory') &&
+      ctx.substitutionRoleOf('shoulder_press_machine', 'Machine Shoulder Press') === 'compound' &&
+      ctx.substitutionRoleOf(null, 'Garage Machine Press') === ctx.substitutionRole(ctx.classifyExerciseType('Garage Machine Press', false)));
+    const leaks = ctx.CANONICAL_EXERCISES.filter(o => ctx.substitutionRoleOf(o.id, o.displayName) === 'accessory')
+      .filter(o => ctx.rankSubstitutionCandidates(o.id, {}).concat(ctx.rankSubstitutionCandidates(o.id, { relaxed: true }))
+        .some(r => canon(r.exerciseId).primary.every(m => o.primary.indexOf(m) === -1))).map(o => o.id);
+    T('accessory work is only offered movements that train its muscle as their own, never ones that merely assist it', leaks.length === 0, leaks.join(','));
+    T('the swap sheet offers every one something', BATCH.every(id => { const o = ctx.exerciseSwapOptions(canon(id).displayName, {}); return o.ranked.length + o.more.length > 0; }));
+    T('a planned slot swapped to its sibling machine records what the plan asked for',
+      JSON.stringify(ctx.plannedProvenance('Leg Curl', 'Seated Leg Curl')) === JSON.stringify({ name: 'Leg Curl', exerciseId: 'leg_curl' }));
+    T('"machine" no longer reads as a chin-up', ctx.movementPatternFor('Leg Raise Machine') === 'core' && ctx.movementPatternFor('Garage Glute Machine') === 'hinge' &&
+      ctx.movementPatternFor('Chin-Up') === 'vertical_pull' && ctx.movementPatternFor('Wide Grip Chin') === 'vertical_pull');
+  });
+
+  sub('history is each movement\'s own — logged, repeated, reloaded, restored');
+  {
+    const store = { dataSchemaVersion:'1',
+      workoutLog: JSON.stringify([
+        WK('m1', 21, 'legs', [EX('Leg Curl', [S(90, 10), S(90, 10)]), EX('Seated Calf Raise', [S(70, 15), S(70, 15)])]),
+        WK('m2', 14, 'legs', [EX('Seated Leg Curl', [S(120, 10), S(120, 9)]), EX('Calf Raise', [S(180, 12)])]),
+        WK('m3', 7, 'legs', [EX('Seated Leg Curl', [S(125, 10), S(125, 10)]), EX('Seated Calf Raise', [S(80, 15)])]),
+        WK('m4', 3, 'push', [EX('Machine Shoulder Press', [S(100, 10)]), EX('Reverse Pec Deck Fly', [S(60, 15)]), EX('Machine Crunch', [S(80, 15)])])
+      ]),
+      exerciseNotes: JSON.stringify({ version:1, notes:[
+        { id:'n_old', exerciseId:'unmapped:machine shoulder press', text:'Seat on notch 4', createdAt:'2026-09-01T10:00:00Z', updatedAt:'2026-09-01T10:00:00Z', archived:false },
+        { id:'n_rpd', exerciseId:'unmapped:reverse pec deck fly', text:'Handles in the middle position', createdAt:'2026-09-02T10:00:00Z', updatedAt:'2026-09-02T10:00:00Z', archived:false }
+      ] })
+    };
+    const hist = await H.loadAppBooted(store);
+    const c2 = hist.ctx;
+    guard('history', () => {
+      const dates = id => c2.getExerciseHistoryById(id).map(h => h.workoutId).sort().join(',');
+      T('the seated leg curl\'s history is its sessions, and the lying curl\'s is its own', dates('leg_curl_seated') === 'm2,m3' && dates('leg_curl') === 'm1');
+      T('the seated calf raise no longer counts the standing one, or the reverse', dates('calf_raise_seated') === 'm1,m3' && dates('calf_raise') === 'm2');
+      const cap = c2.getExerciseCapability('Seated Leg Curl');
+      T('its capability reads its own sessions — the heavier seated loads are not mixed into Leg Curl',
+        cap && cap.currentCapability.basedOnSessions === 2 && c2.getExerciseCapability('Leg Curl').currentCapability.basedOnSessions === 1);
+      const prs = c2.computeExercisePREvents('Seated Leg Curl');
+      T('and its PRs come only from its own sets', prs.every(p => p.date === D(7) || p.date === D(14)));
+      const top = c2.mostTrainedExercises(20).map(m => m.label);
+      T('Progress lists them as the separate movements they are', top.indexOf('Seated Leg Curl') !== -1 && top.indexOf('Leg Curl') !== -1 &&
+        top.indexOf('Reverse Pec Deck') !== -1 && top.indexOf('Ab Crunch Machine') !== -1);
+      T('a note written under a name before LOOP knew it follows the name to its identity',
+        c2.getExerciseNotesByName('Machine Shoulder Press').map(n => n.id).join() === 'n_old' &&
+        c2.getExerciseNotesByName('Reverse Pec Deck').map(n => n.id).join() === 'n_rpd' &&
+        c2.getLatestExerciseNoteByName('Shoulder Press Machine').id === 'n_old');
+      T('and the stored note is untouched', JSON.parse(hist.store.exerciseNotes).notes[0].exerciseId === 'unmapped:machine shoulder press');
+      T('workout history is exactly what was logged', JSON.parse(hist.store.workoutLog).map(w => w.exercises.map(e => e.name).join('+')).join('|') ===
+        'Leg Curl+Seated Calf Raise|Seated Leg Curl+Calf Raise|Seated Leg Curl+Seated Calf Raise|Machine Shoulder Press+Reverse Pec Deck Fly+Machine Crunch');
+    });
+    const again = await H.loadAppBooted(hist.store);
+    guard('reload', () => {
+      T('after a reload every name resolves the same way', ['Seated Leg Curl', 'Seated Calf Raise', 'Machine Crunch', 'Reverse Pec Deck Fly'].every(n =>
+        again.ctx.resolveExerciseId(n) === c2.resolveExerciseId(n)) && again.ctx.getExerciseHistoryById('leg_curl_seated').length === 2);
+    });
+    const payload = { app:'LOOP', schemaVersion:1, exportedAt:'2026-09-14T09:00:00Z', data:{ workoutLog: hist.store.workoutLog, exerciseNotes: hist.store.exerciseNotes } };
+    const fresh = await H.loadAppBooted({ dataSchemaVersion:'1' });
+    await fresh.ctx.importAllData({ files:[{ text: async () => JSON.stringify(payload) }], value:'' });
+    await H.settle(200);
+    const restored = await H.loadAppBooted(fresh.store);          // import ends in a reload
+    guard('restore', () => {
+      T('a restored backup keeps the separate histories and the notes', restored.ctx.getExerciseHistoryById('leg_curl_seated').length === 2 &&
+        restored.ctx.getExerciseHistoryById('leg_curl').length === 1 && restored.ctx.getExerciseNotesByName('Machine Shoulder Press').length === 1);
+    });
+  }
+
+  sub('nothing protected moved');
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+  T('the progression engine still reads history by the name that was logged', /const ex = l\.exercises\.find\(e => e\.name\.trim\(\)\.toLowerCase\(\) === key\);/.test(fnSrc(src, 'getExerciseFullHistory')));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -24671,6 +24998,7 @@ async function main(){
   await testWorkoutBuilder();
   await testWorkoutClosure();
   await testBuildMyOwnContinue();
+  await testMachineCoverage();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
