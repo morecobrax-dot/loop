@@ -22158,6 +22158,11 @@ async function testExerciseSwaps(){
   sub('the draft, the save, the edit and the backup all keep the record');
   dom.document.getElementById('logOverlay').classList.add('open');
   dom.document.getElementById('logTitle').value = 'Push A';
+  /* D62 — saveLog no longer files a workout as Push when nothing chose a
+     category. This fixture is a Push A session, which startTemplateLog would
+     have started with pendingLogCategory = 'push'; it now says so instead of
+     leaning on the default that was removed. */
+  ctx.pendingLogCategory = 'push';
   const draft = ctx.captureActiveDraft();
   T('the draft keeps the slot', draft && draft.exercises[0].meta.slotName === 'Bench Press' &&
     draft.exercises[0].meta.slotRecommended === '185' && draft.exercises[0].meta.recommended === '');
@@ -24110,6 +24115,291 @@ async function testWorkoutBuilder(){
   })());
 }
 
+/* CONTRACT 168 — D62. Four truths the 6.2 builder left open: removing the
+   exercise on screen left a blank page until the athlete navigated; a workout
+   built from nothing was filed as Push; a saved workout's exercise could only be
+   replaced by removing it and adding another at the bottom; and every What's
+   New entry from 3.0 was dated in the future. Removal is driven through
+   removeLogExerciseRow on a live list of rows with real sets, and asserted on
+   what the athlete sees — the count, the title, the picture, the rail, the
+   current row and its sets — as well as on the index and the saved draft. */
+async function testWorkoutClosure(){
+  section('CONTRACT 168 — closing the builder (D62)');
+  const fs = require('fs');
+  const path = require('path');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, doc = ctx.document;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+
+  /* A workout row as the stepper, the removal and the draft read one. */
+  let rows = [];
+  const flags = () => { const c = new Set(); return { add: x => c.add(x), remove: x => c.delete(x),
+    toggle: (x, f) => { if(f === undefined ? !c.has(x) : f) c.add(x); else c.delete(x); }, contains: x => c.has(x) }; };
+  const field = v => ({ value: v, checked: false, dataset: {}, classList: flags() });
+  const mkRow = (name, done) => {
+    const sets = done.map(d => {
+      const cls = flags(); if(d) cls.add('completed');
+      const inputs = { '.set-weight-in': field(d ? '100' : ''), '.set-reps-in': field(d ? '8' : ''), '.set-rir-in': field('') };
+      return { dataset: {}, classList: cls, querySelector: sel => inputs[sel] || null, querySelectorAll: () => [] };
+    });
+    const q = { '.ex-name-in': field(name), '.ex-bw-in': field(''), '.ex-effort-in': field(''),
+      '.rest-panel': { _interval: null, dataset: {}, style: { display: 'none' }, classList: flags() } };
+    const row = { dataset: {}, classList: flags(), _name: name, _sets: sets,
+      querySelector: sel => sel === '.set-row.completed' ? (sets.find(s => s.classList.contains('completed')) || null) : (q[sel] || null),
+      querySelectorAll: sel => sel === '.set-row' ? sets : [],
+      closest: sel => sel === '.ex-log-row' ? row : null,
+      remove: () => { const i = rows.indexOf(row); if(i !== -1) rows.splice(i, 1); } };
+    return row;
+  };
+  const NAMES = ['Bench Press', 'Barbell Row', 'Back Squat', 'Lateral Raise', 'Plank'];
+  const workout = (done) => {
+    rows = NAMES.map((n, i) => mkRow(n, (done && done[i]) || [false, false, false]));
+    app.dom.setRows(rows);
+    doc.getElementById('logOverlay').classList.add('open');
+    doc.getElementById('prepCard').dataset.available = '';
+    ctx.confirm = () => true;
+  };
+  const at = i => { ctx.logStepIndex = i; ctx.renderWorkoutStep(); };
+  const xOf = row => ({ closest: sel => sel === '.ex-log-row' ? row : null });
+  const seen = () => {
+    const head = doc.getElementById('wsHead').innerHTML;
+    const segs = head.match(/class="ws-seg[^"]*"/g) || [];
+    return {
+      count: (head.match(/Exercise (\d+) of (\d+)/) || []).slice(1).map(Number).join('/'),
+      title: (head.match(/<h3 class="ws-name">([^<]*)<\/h3>/) || [])[1],
+      head, rail: segs.length, now: segs.findIndex(c => /ws-seg-now/.test(c)),
+      current: rows.filter(r => r.classList.contains('ws-current')).map(r => r._name)
+    };
+  };
+  const pictured = (head, name) => head.indexOf(ctx.exerciseArtUse(ctx.exerciseVisualKey(name))) !== -1;
+
+  sub('removing the exercise on screen is one transition');
+  guard('removing a middle exercise', () => {
+    workout(); at(1);
+    const moved = rows[2];
+    ctx.removeLogExerciseRow(xOf(rows[1]));
+    const v = seen();
+    T('a middle exercise: the next one takes its place at once — Exercise 2 of 4',
+      ctx.logStepIndex === 1 && v.count === '2/4' && v.title === 'Back Squat' && rows[1] === moved, JSON.stringify(v.count + ' ' + v.title));
+    T('its picture, its rail stop and nothing of the removed exercise',
+      pictured(v.head, 'Back Squat') && !pictured(v.head, 'Barbell Row') && v.rail === 4 && v.now === 1 &&
+      JSON.stringify(v.current) === JSON.stringify(['Back Squat']));
+  });
+  guard('removing the last exercise', () => {
+    workout(); at(4);
+    ctx.removeLogExerciseRow(xOf(rows[4]));
+    const v = seen();
+    T('the last exercise: the new last one — Exercise 4 of 4',
+      ctx.logStepIndex === 3 && v.count === '4/4' && v.title === 'Lateral Raise' && v.now === 3 && pictured(v.head, 'Lateral Raise'));
+  });
+  guard('removing the first exercise', () => {
+    workout(); at(0);
+    ctx.removeLogExerciseRow(xOf(rows[0]));
+    const v = seen();
+    T('the first exercise: the next one — Exercise 1 of 4, with no way back before it',
+      ctx.logStepIndex === 0 && v.count === '1/4' && v.title === 'Barbell Row' && v.now === 0 &&
+      /class="ws-nav-btn" onclick="prevWorkoutStep\(\)" disabled/.test(doc.getElementById('wsNav').innerHTML));
+  });
+  guard('removing the only exercise', () => {
+    rows = [mkRow('Plank', [false])]; app.dom.setRows(rows);
+    doc.getElementById('logOverlay').classList.add('open');
+    at(0);
+    ctx.removeLogExerciseRow(xOf(rows[0]));
+    const head = doc.getElementById('wsHead').innerHTML;
+    T('the only exercise: straight to the empty workout, with Add exercises and no Finish Workout',
+      rows.length === 0 && doc.getElementById('logOverlay').classList.contains('ws-empty') && /Build your workout/.test(head) &&
+      /Add exercises/.test(doc.getElementById('wsFinishBar').innerHTML) && !/saveLog/.test(doc.getElementById('wsFinishBar').innerHTML) &&
+      doc.getElementById('wsNav').innerHTML === '');
+  });
+  guard('removing an exercise before the current one', () => {
+    workout(); at(3);
+    ctx.removeLogExerciseRow(xOf(rows[1]));
+    const v = seen();
+    T('an exercise before the one on screen: the athlete stays on the same exercise, never a different one',
+      v.title === 'Lateral Raise' && v.count === '3/4' && ctx.logStepIndex === 2);
+  });
+  guard('removing two quickly', () => {
+    workout(); at(1);
+    ctx.removeLogExerciseRow(xOf(rows[1]));
+    ctx.removeLogExerciseRow(xOf(rows[1]));
+    const v = seen();
+    T('two in a row: each tap removes the exercise then on screen', v.count === '2/3' && v.title === 'Lateral Raise' &&
+      JSON.stringify(rows.map(r => r._name)) === JSON.stringify(['Bench Press', 'Lateral Raise', 'Plank']));
+  });
+  guard('sets stay with their own exercise', () => {
+    workout([null, [true, true, true], [true, false, false], null, null]);
+    at(1);
+    ctx.removeLogExerciseRow(xOf(rows[1]));
+    const v = seen();
+    const segs = doc.getElementById('wsHead').innerHTML.match(/class="ws-seg[^"]*"/g) || [];
+    T('the exercise that moves up brings its own sets, and the rail shows its own state',
+      v.title === 'Back Squat' && rows[1]._sets[0].classList.contains('completed') && !rows[1]._sets[1].classList.contains('completed') &&
+      !/ws-seg-done/.test(segs[1] || ''));
+  });
+  guard('performed work is asked about', () => {
+    workout([null, [true, false, false], null, null, null]);
+    at(1);
+    const asked = [];
+    ctx.confirm = m => { asked.push(m); return false; };
+    ctx.removeLogExerciseRow(xOf(rows[1]));
+    T('an exercise with logged sets asks first, and a no leaves everything as it was',
+      asked.length === 1 && /Barbell Row/.test(asked[0]) && rows.length === 5 && seen().title === 'Barbell Row');
+    ctx.confirm = m => { asked.push(m); return true; };
+    ctx.removeLogExerciseRow(xOf(rows[2]));
+    T('and one with nothing logged goes without a question', asked.length === 1 && rows.length === 4);
+  });
+  guard('remove then add', () => {
+    workout(); at(1);
+    ctx.removeLogExerciseRow(xOf(rows[1]));
+    const keep = ctx.addLogExerciseRow;
+    ctx.addLogExerciseRow = n => { rows.push(mkRow(n, [false, false, false])); };
+    ctx.addPickedToWorkout(['Face Pull'], 'step');
+    ctx.addLogExerciseRow = keep;
+    const v = seen();
+    T('adding straight after a removal keeps the athlete where they are, and counts the new exercise',
+      v.count === '2/5' && v.title === 'Back Squat' && rows[4]._name === 'Face Pull');
+  });
+  guard('remove then reload', () => {
+    workout([[true, true, true], [true, false, false], null, null, null]);
+    at(1);
+    ctx.confirm = () => true;
+    ctx.removeLogExerciseRow(xOf(rows[0]));
+    const draft = ctx.captureActiveDraft();
+    T('the saved draft holds the remaining exercises in order, each with its own sets',
+      !!draft && JSON.stringify(draft.exercises.map(e => e.name)) === JSON.stringify(['Barbell Row', 'Back Squat', 'Lateral Raise', 'Plank']) &&
+      draft.exercises[0].sets[0].completed === true && draft.exercises[0].sets[1].completed === false,
+      draft && JSON.stringify(draft.exercises.map(e => e.name)));
+    rows = draft.exercises.map(e => mkRow(e.name, e.sets.map(s => s.completed)));
+    app.dom.setRows(rows);
+    ctx.syncWorkoutStepper({ reset: true });
+    const v = seen();
+    T('and reopened, the workout resumes on the first exercise still to do', v.title === 'Barbell Row' && v.count === '1/4' && v.now === 0);
+  });
+
+  sub('a workout built from scratch is not filed as Push');
+  await (async () => {
+    try{
+      rows = []; app.dom.setRows(rows);
+      ctx.pendingLogCategory = 'legs';
+      ctx.logCategoryChosen = true;
+      await ctx.openFreeformLog();
+      T('it starts with no category and nothing chosen', ctx.pendingLogCategory === null && ctx.logCategoryChosen === false);
+    }catch(e){ T('the freeform start — threw ' + e.message, false); }
+  })();
+  guard('suggestions', () => {
+    const suggest = names => ctx.suggestWorkoutCategory(names.map(n => mkRow(n, [false, false, false])));
+    T('a pressing workout is suggested as Push, a pulling one as Pull',
+      suggest(['Bench Press', 'Incline Dumbbell Press', 'Triceps Pushdown']) === 'push' && suggest(['Barbell Row', 'Lat Pulldown', 'Barbell Curl']) === 'pull');
+    T('biceps and triceps as Arms, not Upper Body; chest and back as Upper Body; abs as Core',
+      suggest(['Barbell Curl', 'Triceps Pushdown']) === 'arms' && suggest(['Bench Press', 'Barbell Row']) === 'upper' && suggest(['Plank', 'Crunch']) === 'core');
+    const legs = suggest(['Back Squat', 'Romanian Deadlift', 'Leg Curl']);
+    const planned = ctx.scheduledTrainCategories().filter(c => c === 'legs' || c === 'lower');
+    T('a leg workout takes the word the athlete\'s plan uses for it', planned.length === 1 ? legs === planned[0] : legs === null, legs + ' ' + planned);
+    T('a tie that is not the same promise twice — biceps alone fits Pull and Arms — is not answered',
+      suggest(['Barbell Curl', 'Hammer Curl']) === null, String(suggest(['Barbell Curl', 'Hammer Curl'])));
+    T('one exercise, or a mix of everything, is not a confident answer',
+      suggest(['Bench Press']) === null && suggest(['Bench Press', 'Back Squat', 'Barbell Row']) === null);
+  });
+  guard('the review step', () => {
+    const picker = doc.getElementById('logCategoryPicker'), note = doc.getElementById('logCategoryNote');
+    picker.style.display = 'block';
+    ctx.logCategoryChosen = false;
+    const r1 = ['Bench Press', 'Incline Dumbbell Press'].map(n => mkRow(n, [true]));
+    T('a clear workout shows its suggestion, and says it is one',
+      ctx.applyCategorySuggestion(r1) === 'push' && ctx.pendingLogCategory === 'push' && note.hidden === false && /Suggested/.test(note.textContent));
+    const r2 = ['Bench Press', 'Back Squat', 'Barbell Row'].map(n => mkRow(n, [true]));
+    T('an unclear one selects nothing and asks', ctx.applyCategorySuggestion(r2) === null && ctx.pendingLogCategory === null && /Choose/.test(note.textContent));
+    ctx.chooseLogCategory('fullbody');
+    ctx.applyCategorySuggestion(r1);
+    T('once the athlete chooses, nothing overrides it', ctx.pendingLogCategory === 'fullbody' && ctx.logCategoryChosen === true && note.hidden === true);
+    picker.style.display = 'none';
+    ctx.pendingLogCategory = 'pull'; ctx.logCategoryChosen = false;
+    ctx.applyCategorySuggestion(r1);
+    T('a workout started from a saved one keeps the category it came with', ctx.pendingLogCategory === 'pull');
+  });
+  guard('saving', () => {
+    const before = ctx.workoutLog.length, flagged = [];
+    const keepFlag = ctx.flagFieldError, keepQ = doc.querySelector;
+    ctx.flagFieldError = el => flagged.push(el);
+    doc.querySelector = sel => ({ sel });
+    doc.getElementById('logTitle').value = 'My session';
+    ctx.pendingLogCategory = null;
+    ctx.saveLog(null);
+    T('saving with no category points at the chips and files nothing',
+      flagged.length === 1 && flagged[0].sel === '#logCategoryPicker .cat-select' && ctx.workoutLog.length === before);
+    ctx.flagFieldError = keepFlag; doc.querySelector = keepQ;
+  });
+  guard('drafts', () => {
+    rows = [mkRow('Bench Press', [true])]; app.dom.setRows(rows);
+    doc.getElementById('logOverlay').classList.add('open');
+    doc.getElementById('logCategoryPicker').style.display = 'block';
+    ctx.pendingLogCategory = null; ctx.logCategoryChosen = false;
+    const d = ctx.captureActiveDraft();
+    T('a draft keeps an unchosen category as none, and says it was not chosen', d.category === null && d.categoryChosen === false);
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    T('and a resumed draft never gains Push it was not given, nor treats an old default as a choice',
+      /pendingLogCategory = draft\.category \|\| null;/.test(fnSrc(src, 'restoreDraftToSheet')) &&
+      /logCategoryChosen = !!draft\.categoryChosen \|\| !draft\.showCategoryPicker;/.test(fnSrc(src, 'restoreDraftToSheet')) &&
+      !/pendingLogCategory \|\| 'push'|draft\.category \|\| 'push'|pendingLogCategory = 'push'/.test(src));
+  });
+
+  sub('replacing a saved workout\'s exercise keeps its place and what the athlete set');
+  guard('replacement', () => {
+    const tplRow = (name, sets, reps, effort, weight) => {
+      const q = { '.t-name-in': field(name), '.t-sets-in': field(sets), '.t-reps-in': field(reps), '.t-effort-in': field(effort),
+        '.t-weight-in': field(weight), '.ex-thumb-slot': { innerHTML: '' } };
+      const row = { querySelector: sel => q[sel] || null, closest: sel => sel === '.ex-log-row' ? row : null, _q: q };
+      return row;
+    };
+    const tpl = [tplRow('Bench Press', '5', '5', '8', '185 lb'), tplRow('Barbell Row', '4', '6-8', '7', '135 lb'), tplRow('Overhead Press', '', '', '', '')];
+    const keepQA = doc.querySelectorAll;
+    doc.querySelectorAll = sel => sel === '#tplExercises .ex-log-row' ? tpl : sel === '#tplExercises .t-name-in' ? tpl.map(r => r._q['.t-name-in']) : keepQA(sel);
+    ctx.pendingTplCategory = 'push';
+    ctx.openTemplateExercisePicker({ closest: sel => sel === '.ex-log-row' ? tpl[0] : null });
+    T('a row\'s Swap opens the picker to replace that row, one tap, no dock',
+      ctx.exPickerState.target === 'template' && ctx.exPickerState.replaceIdx === 0 &&
+      doc.getElementById('exPickerTitle').textContent === 'Replace exercise' && !/xp-pick/.test(doc.getElementById('exPickerBody').innerHTML));
+    ctx.exPickerToggle('Incline Dumbbell Press');
+    const q0 = tpl[0]._q;
+    T('the movement changes in place; sets, reps and effort stay; the old starting weight goes',
+      q0['.t-name-in'].value === 'Incline Dumbbell Press' && q0['.t-sets-in'].value === '5' && q0['.t-reps-in'].value === '5' &&
+      q0['.t-effort-in'].value === '8' && q0['.t-weight-in'].value === '' && ctx.exPickerState === null &&
+      JSON.stringify(tpl.map(r => r._q['.t-name-in'].value)) === JSON.stringify(['Incline Dumbbell Press', 'Barbell Row', 'Overhead Press']) &&
+      /class="ex-thumb/.test(q0['.ex-thumb-slot'].innerHTML));
+    ctx.replaceTemplateExercise(2, 'Dumbbell Shoulder Press');
+    const q2 = tpl[2]._q;
+    T('a row with no prescription of its own takes the library\'s', q2['.t-name-in'].value === 'Dumbbell Shoulder Press' && !!q2['.t-sets-in'].value && !!q2['.t-reps-in'].value);
+    ctx.replaceTemplateExercise(1, 'Barbell Row');
+    T('choosing the movement a row already has changes nothing', tpl[1]._q['.t-weight-in'].value === '135 lb');
+    doc.querySelectorAll = keepQA;
+    const src = fs.readFileSync(H.APP_PATH, 'utf8');
+    T('every saved-workout row offers it', /onclick="openTemplateExercisePicker\(this\)" aria-label="Swap exercise">Swap</.test(fnSrc(src, 'addTplExerciseRow')));
+  });
+
+  sub('What\'s New dates are the days releases came out');
+  guard('release dates', () => {
+    const list = ctx.LOOP_UPDATES;
+    const iso = d => /^\d{4}-\d{2}-\d{2}$/.test(d) && new Date(d + 'T00:00:00Z').toISOString().slice(0, 10) === d;
+    /* The latest civil date anywhere on Earth right now (UTC+14): an entry may be
+       dated today wherever it was released, never later. */
+    const edge = new Date(Date.now() + 14 * 3600e3).toISOString().slice(0, 10);
+    const future = list.filter(u => u.date > edge).map(u => u.version + ' ' + u.date);
+    T('every entry is a real calendar date', list.every(u => iso(u.date)));
+    T('no entry is dated after the day it is anywhere right now', future.length === 0, JSON.stringify(future));
+    const backwards = list.filter((u, i) => i > 0 && u.date < list[i - 1].date).map(u => u.version + ' ' + u.date);
+    T('and no release is dated before the one listed ahead of it', backwards.length === 0, JSON.stringify(backwards));
+    /* sw.js beside the app under test, or beside the harness when the app is a copy elsewhere. */
+    const harnessFile = Object.keys(require.cache).find(k => require.cache[k].exports === H);
+    const swPath = [path.join(path.dirname(H.APP_PATH), 'sw.js'), harnessFile && path.join(path.dirname(harnessFile), 'sw.js')].find(p => p && fs.existsSync(p));
+    const sw = (fs.readFileSync(swPath, 'utf8').match(/CACHE_VERSION = '([^']+)'/) || [])[1];
+    T('so the newest by date is the last entry, and the cache it names is the one sw.js ships',
+      ctx.getLatestUpdateId() === list[list.length - 1].id && list[list.length - 1].swVersion === sw, ctx.getLatestUpdateId() + ' ' + sw);
+    const by = id => (list.find(u => u.id === id) || {}).date;
+    T('6.2 is dated the day it deployed (7b11b13, Pages 2026-09-14 06:34 New York), and 6.1 the day before',
+      by('v6-2') === '2026-09-14' && by('v6-1') === '2026-09-13' && by('v6-0') === '2026-09-13' && by('v5-4') === '2026-09-11');
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -24240,6 +24530,7 @@ async function main(){
   await testWorkoutDockAndFigure();
   await testWorkoutSheetReachesTheEdge();
   await testWorkoutBuilder();
+  await testWorkoutClosure();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

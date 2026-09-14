@@ -8527,3 +8527,152 @@ editor, the swap sheet and Today are unchanged.
 - The D60 follow-up still applies to the other page sheets; the picker now
   reaches the edge.
 - Not yet seen on a physical phone.
+
+## §91 — D62: Closing the builder
+
+**Status.** Shipped in LOOP 6.3 (`loop-v140`), a maintenance release on 6.2.
+`DATA_KEYS` 15, schema 1, no migration, `TRAINER_ENGINE_VERSION` 0.1.1-shadow,
+Session Score weights 40/30/18/12.
+
+### Removing an exercise
+
+- **Root cause.** `removeLogExerciseRow` took the row out of the DOM and saved
+  the draft, and never touched the stepper. The stepper shows only the
+  `.ws-current` row, so the page went blank; `#wsHead` kept the removed
+  exercise's name, picture and rail and `#wsNav` its buttons; `logStepIndex`
+  could point past the end. The screen recovered only when a navigation called
+  `renderWorkoutStep`, which clamps the index. Stale index, and no render.
+- **Fix.** `onWorkoutRowRemoved(at, name)`, in the same task as the removal:
+  the step moves down one when an exercise before it goes and stays on the same
+  position when the current one goes — the next exercise, or the new last one
+  through the clamp — and `renderWorkoutStep` draws it, or the D61 empty
+  workout when none remain. The list returns to its top without the step slide,
+  whose first frame is transparent. The change is announced. No timeout, no
+  reload, no placeholder row.
+- **Logged work.** An exercise with a completed set asks the history editor's
+  own question before it goes; one with nothing logged goes at once. Sets, rest
+  panel and swap provenance live on the row, and the rest readout finds its
+  exercise by row, so nothing of a removed exercise attaches to another.
+- **Physical.** 390×844 and 375×812, the real ✕, every animation frame for
+  300ms after each tap sampled (about 50 per tap): middle, last, first, two in a
+  row, remove then add, swap then remove, a finished final exercise, the only
+  exercise, remove then reload. No frame lacked exactly one current exercise
+  matching the head, or the empty workout.
+
+### A workout built from scratch
+
+- **The Push default** entered in four places: `openFreeformLog`
+  (`pendingLogCategory = 'push'`), `captureActiveDraft` and
+  `restoreDraftToSheet` (`|| 'push'`), and `saveLog` (`|| 'push'`). It also gave
+  every such workout the push warm-up.
+- **Now** it starts with no category and `logCategoryChosen` false, and offers
+  the general warm-up (`PREP_SEQUENCE_FALLBACK`). On the review step
+  `applyCategorySuggestion()` selects a suggestion and says it is one, or
+  selects nothing and asks. A chip tap is the athlete's answer and nothing
+  overrides it. `saveLog` files nothing without a category and points at the
+  chips. A draft keeps `category: null` and `categoryChosen`; an older draft's
+  Push default is not taken as a choice. A workout started from a saved one
+  keeps the category it came with.
+- **The suggestion** uses what LOOP already measures: the leading groups from
+  `deriveWorkoutProfile` must all sit inside one category's promise in
+  `CATEGORY_GROUPS`, and the tightest such promise wins. Arms promises biceps
+  and triceps (the program check makes no claim about Arms, which would
+  otherwise call an arms workout Upper Body). Legs and Lower Body make the same
+  promise, so the athlete's plan supplies the word. One exercise, a mix, or any
+  other tie — biceps alone fits Pull and Arms — gets no suggestion.
+- **No neutral category** was added: every reader of a saved workout expects
+  one of the eight, so a workout LOOP cannot classify is one the athlete
+  classifies. Saved history is untouched.
+
+### Release dates
+
+- 6.2 read 2027-02-17. Commit `7b11b13` was made 2026-09-13 22:45 −04:00; its
+  first Pages deployment ran 2026-09-14 10:34:42Z, 06:34 in New York. It came
+  out on **2026-09-14**.
+- The same authored weekly cadence had dated every entry from 3.0 to 6.2 in the
+  future, by 1 to 156 days. `updatesNewestFirst()` orders releases by date, so
+  correcting 6.2 alone would have made 6.1 (then 2027-02-10) the latest release
+  — the one the What's New badge and the cache pairing read. Each of the 33 was
+  set to the New York civil date of the first successful Pages deployment at or
+  after the commit that introduced its cache version; every one had such a run.
+  1.0 was already true.
+
+  | Release | Was | Is | Release | Was | Is |
+  |---|---|---|---|---|---|
+  | 3.0 | 2026-08-31 | 2026-08-30 | 4.7 | 2026-11-04 | 2026-09-04 |
+  | 3.1 | 2026-09-01 | 2026-08-30 | 4.8 | 2026-11-11 | 2026-09-04 |
+  | 3.2 | 2026-09-02 | 2026-08-30 | 4.9 | 2026-11-18 | 2026-09-04 |
+  | 3.3 | 2026-09-03 | 2026-08-30 | 5.0 | 2026-11-25 | 2026-09-05 |
+  | 3.4 | 2026-09-04 | 2026-08-30 | 5.1 | 2026-12-02 | 2026-09-06 |
+  | 3.5 | 2026-09-05 | 2026-08-31 | 5.2 | 2026-12-09 | 2026-09-06 |
+  | 3.6 | 2026-09-06 | 2026-09-01 | 5.3 | 2026-12-16 | 2026-09-06 |
+  | 3.7 | 2026-09-07 | 2026-09-01 | 5.4 | 2026-12-23 | 2026-09-11 |
+  | 3.8 | 2026-09-08 | 2026-09-01 | 5.5 | 2026-12-30 | 2026-09-12 |
+  | 3.9 | 2026-09-09 | 2026-09-01 | 5.6 | 2027-01-06 | 2026-09-13 |
+  | 4.0 | 2026-09-16 | 2026-09-02 | 5.7 | 2027-01-13 | 2026-09-13 |
+  | 4.1 | 2026-09-23 | 2026-09-02 | 5.8 | 2027-01-20 | 2026-09-13 |
+  | 4.2 | 2026-09-30 | 2026-09-03 | 5.9 | 2027-01-27 | 2026-09-13 |
+  | 4.3 | 2026-10-07 | 2026-09-03 | 6.0 | 2027-02-03 | 2026-09-13 |
+  | 4.4 | 2026-10-14 | 2026-09-03 | 6.1 | 2027-02-10 | 2026-09-13 |
+  | 4.5 | 2026-10-21 | 2026-09-03 | 6.2 | 2027-02-17 | 2026-09-14 |
+  | 4.6 | 2026-10-28 | 2026-09-03 | | | |
+
+- **The guard** (Contract 168): every date is a real calendar date; none is
+  later than the civil date anywhere on Earth at the moment the suite runs
+  (UTC+14); none is earlier than the entry listed before it; and the newest by
+  date is the last entry and names the cache `sw.js` ships. The suite runs
+  before every release, so a future date cannot ship again.
+
+### Replacing a saved workout's exercise
+
+D61's remove and add put the replacement at the bottom with the library's
+prescription, losing the slot's place and the athlete's sets, reps and effort.
+It is now a true replacement: each saved-workout row has Swap, which opens the
+picker in replace mode (one tap, no dock). `replaceTemplateExercise()` keeps the
+row's position and its sets, reps and effort — Program Studio's rule — drops the
+starting weight, which belonged to the old movement, takes the library's
+prescription only for a row with none, and changes nothing when the chosen
+movement is the one the row already has (compared by `exPickerKeyOf`, the
+registry's id).
+
+### What did not change
+
+D61's picker — its layout, search, filters, multi-select, numbering, dock,
+quick picks, and Program Studio and saved-workout integration — the D59 dock
+and the D60 edge; progression, the Live Set Coach, Session Score, program
+revisions, activity, ranks, social, and exercise art and definitions.
+
+### Verification
+
+- **Contract 168** — 36 assertions, driven on a live list of rows with real
+  sets and asserted on what is on screen: middle, last, first, only, an
+  exercise before the current one, two in a row, sets staying with their
+  exercise, the question for logged work and none otherwise, remove then add,
+  remove then a saved and reopened draft; no Push at the start, the
+  suggestions and the non-answers, the review step's suggestion, question and
+  respect for a choice, a saved workout's own category, saving refused without
+  a category, drafts; Swap in place with the prescription kept, the load
+  dropped, a bare row filled and the same movement ignored; the release-date
+  guard and 6.2's evidenced date.
+- **Repointed** — the Phase B swap-save fixture now states the Push A category
+  that starting it from a template would have set; it had leaned on the removed
+  default. The harness bridge gains `logCategoryChosen` and `pendingTplCategory`.
+- **Mutation check** — 19 of 19 caught, each by its own assertion: removal
+  without a render, an index that does not follow an earlier removal, logged
+  work removed without asking, every removal asking, a Push start, saving
+  without a category, a chosen category overridden, a template re-suggested, a
+  tie answered, one exercise answered, Arms called Upper Body, a draft storing
+  Push, Swap adding at the bottom, replacement losing the prescription or
+  keeping the load, Swap multi-selecting, a future date, 6.2's cadence date,
+  and an earlier release dated after a later one. Production 6.2 fails 22.
+- `npm run verify` 6675 / 0; audit 87, audit:program 335, audit:cardio 261,
+  audit:gps 43, audit:dates 40 × 7 zones; physical QA at 390×844 and 375×812.
+
+### Known and recorded
+
+- The suggestion is deliberately conservative: a full-body mix, one exercise
+  or a curls-only session is asked about.
+- Finish Workout lives only on the review step, so no path saves around the
+  question.
+- The weekly release-date cadence is retired; a release is dated the day it
+  deploys.

@@ -3513,6 +3513,9 @@ textarea{ resize: vertical; min-height: 56px; }
 .field-error{ border-color: var(--error) !important; box-shadow: 0 0 0 3px var(--error-soft) !important; animation: fieldShake 0.35s var(--ease); }
 
 .cat-select{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
+/* D62 — the line that says a category is a suggestion, or asks for one. */
+.cat-note{ margin: 4px 0 0; font-size: var(--fs-meta); line-height: 1.4; color: var(--text-dim); }
+.cat-select.field-error{ border-radius: var(--radius-md); }
 .cat-opt{
   text-align: center; padding: 15px 4px; border-radius: var(--radius-md); border: 1px solid var(--border);
   background: var(--surface-2); color: var(--text-dim); font-size: 12px; font-weight: 600; cursor: pointer;
@@ -7384,15 +7387,17 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 
     <div id="logCategoryPicker" style="display:none">
       <label>Category</label>
+      <!-- D62 — what LOOP suggests from the exercises, or that it cannot tell. -->
+      <p class="cat-note" id="logCategoryNote" hidden></p>
       <div class="cat-select">
-        <div class="cat-opt sel-push" data-cat="push" onclick="pickLogCategory('push')">Push</div>
-        <div class="cat-opt sel-pull" data-cat="pull" onclick="pickLogCategory('pull')">Pull</div>
-        <div class="cat-opt sel-legs" data-cat="legs" onclick="pickLogCategory('legs')">Legs</div>
-        <div class="cat-opt sel-core" data-cat="core" onclick="pickLogCategory('core')">Core</div>
-        <div class="cat-opt sel-upper" data-cat="upper" onclick="pickLogCategory('upper')">Upper Body</div>
-        <div class="cat-opt sel-lower" data-cat="lower" onclick="pickLogCategory('lower')">Lower Body</div>
-        <div class="cat-opt sel-fullbody" data-cat="fullbody" onclick="pickLogCategory('fullbody')">Full Body</div>
-        <div class="cat-opt sel-arms" data-cat="arms" onclick="pickLogCategory('arms')">Arms</div>
+        <div class="cat-opt sel-push" data-cat="push" onclick="chooseLogCategory('push')">Push</div>
+        <div class="cat-opt sel-pull" data-cat="pull" onclick="chooseLogCategory('pull')">Pull</div>
+        <div class="cat-opt sel-legs" data-cat="legs" onclick="chooseLogCategory('legs')">Legs</div>
+        <div class="cat-opt sel-core" data-cat="core" onclick="chooseLogCategory('core')">Core</div>
+        <div class="cat-opt sel-upper" data-cat="upper" onclick="chooseLogCategory('upper')">Upper Body</div>
+        <div class="cat-opt sel-lower" data-cat="lower" onclick="chooseLogCategory('lower')">Lower Body</div>
+        <div class="cat-opt sel-fullbody" data-cat="fullbody" onclick="chooseLogCategory('fullbody')">Full Body</div>
+        <div class="cat-opt sel-arms" data-cat="arms" onclick="chooseLogCategory('arms')">Arms</div>
       </div>
     </div>
 
@@ -13200,6 +13205,9 @@ let historySubView = 'calendar';
 let historyCalMonth = null;
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 let pendingLogCategory = null;
+/* D62 — whether the athlete picked the category of a workout they built
+   themselves. Until they do, LOOP only suggests one. */
+let logCategoryChosen = false;
 let pendingTplCategory = null;
 let editingTemplateId = null;
 let currentEditDay = null;
@@ -13689,7 +13697,7 @@ const LOOP_UPDATES = [
     id: 'v3-0',
     version: 'LOOP 3.0',
     title: 'Programs That Develop',
-    date: '2026-08-31',
+    date: '2026-08-30',
     swVersion: 'loop-v107',
     summary: 'Longer programs now change how you train as they go — when there is a real reason to.',
     newFeatures: [
@@ -13707,7 +13715,7 @@ const LOOP_UPDATES = [
     id: 'v3-1',
     version: 'LOOP 3.1',
     title: 'Finishing a Program',
-    date: '2026-09-01',
+    date: '2026-08-30',
     swVersion: 'loop-v108',
     summary: 'Programs now have an ending, and your next one starts from where you left off.',
     newFeatures: [
@@ -13727,7 +13735,7 @@ const LOOP_UPDATES = [
     id: 'v3-2',
     version: 'LOOP 3.2',
     title: 'Are You Actually Improving?',
-    date: '2026-09-02',
+    date: '2026-08-30',
     swVersion: 'loop-v109',
     summary: 'LOOP now tells you where your strength is genuinely going — and stays quiet when there is not enough training to say.',
     newFeatures: [
@@ -13746,7 +13754,7 @@ const LOOP_UPDATES = [
     id: 'v3-3',
     version: 'LOOP 3.3',
     title: 'Program Results',
-    date: '2026-09-03',
+    date: '2026-08-30',
     swVersion: 'loop-v110',
     summary: 'A finished program now tells you what your training actually did — and stays honest about what it cannot tell.',
     newFeatures: [
@@ -13768,7 +13776,7 @@ const LOOP_UPDATES = [
     id: 'v3-4',
     version: 'LOOP 3.4',
     title: 'Cleaner Program History',
-    date: '2026-09-04',
+    date: '2026-08-30',
     swVersion: 'loop-v111',
     summary: 'Extra workouts stay your own — they no longer count as training your program asked for.',
     newFeatures: [],
@@ -13786,7 +13794,7 @@ const LOOP_UPDATES = [
     id: 'v3-5',
     version: 'LOOP 3.5',
     title: 'What\u2019s Next',
-    date: '2026-09-05',
+    date: '2026-08-31',
     swVersion: 'loop-v112',
     summary: 'Finishing a program now leads somewhere \u2014 with your setup carried forward and your goal still yours to change.',
     newFeatures: [
@@ -13805,7 +13813,7 @@ const LOOP_UPDATES = [
     id: 'v3-6',
     version: 'LOOP 3.6',
     title: 'Planned vs. Completed',
-    date: '2026-09-06',
+    date: '2026-09-01',
     swVersion: 'loop-v113',
     summary: 'Program recaps now separate the sessions your program planned from the extra training you chose to do.',
     newFeatures: [],
@@ -13825,7 +13833,7 @@ const LOOP_UPDATES = [
     id: 'v3-7',
     version: 'LOOP 3.7',
     title: 'Consistency, Counted Right',
-    date: '2026-09-07',
+    date: '2026-09-01',
     swVersion: 'loop-v114',
     summary: 'Consistency now measures the planned sessions you completed, not how many workouts you did.',
     newFeatures: [],
@@ -13844,7 +13852,7 @@ const LOOP_UPDATES = [
     id: 'v3-8',
     version: 'LOOP 3.8',
     title: 'Clearer After You Train',
-    date: '2026-09-08',
+    date: '2026-09-01',
     swVersion: 'loop-v115',
     summary: 'Finishing a workout tells you what actually happened, and fixing a set works the way logging one does.',
     newFeatures: [],
@@ -13863,7 +13871,7 @@ const LOOP_UPDATES = [
     id: 'v3-9',
     version: 'LOOP 3.9',
     title: 'What You Trained',
-    date: '2026-09-09',
+    date: '2026-09-01',
     swVersion: 'loop-v116',
     summary: 'Today now shows the muscles your week actually went into, and a completed week is clearly complete again.',
     newFeatures: [
@@ -13881,7 +13889,7 @@ const LOOP_UPDATES = [
     id: 'v4-0',
     version: 'LOOP 4.0',
     title: 'Progress, At A Glance',
-    date: '2026-09-16',
+    date: '2026-09-02',
     swVersion: 'loop-v117',
     summary: 'Progress now opens with what is actually changing in your training, and keeps the detail one tap away.',
     newFeatures: [
@@ -13904,7 +13912,7 @@ const LOOP_UPDATES = [
     id: 'v4-1',
     version: 'LOOP 4.1',
     title: 'Train With Intent',
-    date: '2026-09-23',
+    date: '2026-09-02',
     swVersion: 'loop-v118',
     summary: 'Finishing a workout now tells you how closely you executed the session LOOP actually prescribed, and what to change next time.',
     newFeatures: [
@@ -13927,7 +13935,7 @@ const LOOP_UPDATES = [
     id: 'v4-2',
     version: 'LOOP 4.2',
     title: 'The Right Muscles',
-    date: '2026-09-30',
+    date: '2026-09-03',
     swVersion: 'loop-v119',
     summary: 'LOOP now recognises far more exercise variations and credits them to the muscles they actually train.',
     newFeatures: [],
@@ -13947,7 +13955,7 @@ const LOOP_UPDATES = [
     id: 'v4-3',
     version: 'LOOP 4.3',
     title: 'Smarter Next Sets',
-    date: '2026-10-07',
+    date: '2026-09-03',
     swVersion: 'loop-v120',
     summary: 'Next Time now waits for enough training evidence before giving you a specific target — and still moves decisively when you have earned it.',
     newFeatures: [],
@@ -13968,7 +13976,7 @@ const LOOP_UPDATES = [
     id: 'v4-4',
     version: 'LOOP 4.4',
     title: 'A Coach Between Sets',
-    date: '2026-10-14',
+    date: '2026-09-03',
     swVersion: 'loop-v121',
     summary: 'LOOP now reads each working set as you finish it and tells you what the rest of the exercise should look like.',
     newFeatures: [
@@ -13990,7 +13998,7 @@ const LOOP_UPDATES = [
     id: 'v4-5',
     version: 'LOOP 4.5',
     title: 'Your Plan, Your History',
-    date: '2026-10-21',
+    date: '2026-09-03',
     swVersion: 'loop-v122',
     summary: 'Changing your training days now only changes what is ahead of you.',
     newFeatures: [],
@@ -14006,7 +14014,7 @@ const LOOP_UPDATES = [
     id: 'v4-6',
     version: 'LOOP 4.6',
     title: 'Make It Your Program',
-    date: '2026-10-28',
+    date: '2026-09-03',
     swVersion: 'loop-v123',
     summary: 'A generated program is now a draft you can shape before you start it.',
     newFeatures: [
@@ -14026,7 +14034,7 @@ const LOOP_UPDATES = [
     id: 'v4-7',
     version: 'LOOP 4.7',
     title: 'Your Program Stays Yours',
-    date: '2026-11-04',
+    date: '2026-09-04',
     swVersion: 'loop-v124',
     summary: 'Program work is saved as you go, and changes to a running program apply forward.',
     newFeatures: [
@@ -14050,7 +14058,7 @@ const LOOP_UPDATES = [
     id: 'v4-8',
     version: 'LOOP 4.8',
     title: 'Your Program, Clearer',
-    date: '2026-11-11',
+    date: '2026-09-04',
     swVersion: 'loop-v125',
     summary: 'My Training now shows your sessions, your unfinished work, and only what is still true.',
     newFeatures: [
@@ -14074,7 +14082,7 @@ const LOOP_UPDATES = [
     id: 'v4-9',
     version: 'LOOP 4.9',
     title: 'Train Your Way',
-    date: '2026-11-18',
+    date: '2026-09-04',
     swVersion: 'loop-v126',
     summary: 'You choose how your week is built. LOOP programs inside it.',
     newFeatures: [
@@ -14096,7 +14104,7 @@ const LOOP_UPDATES = [
     id: 'v5-0',
     version: 'LOOP 5.0',
     title: 'Train With Friends',
-    date: '2026-11-25',
+    date: '2026-09-05',
     swVersion: 'loop-v127',
     summary: 'An optional account, private invites, and a leaderboard with the people you train with.',
     newFeatures: [
@@ -14115,7 +14123,7 @@ const LOOP_UPDATES = [
     id: 'v5-1',
     version: 'LOOP 5.1',
     title: 'Friends, Switched On',
-    date: '2026-12-02',
+    date: '2026-09-06',
     swVersion: 'loop-v128',
     summary: 'Friends is now actually available, and you sign in with a password.',
     newFeatures: [
@@ -14141,7 +14149,7 @@ const LOOP_UPDATES = [
     id: 'v5-2',
     version: 'LOOP 5.2',
     title: 'Clearer Training Visuals',
-    date: '2026-12-09',
+    date: '2026-09-06',
     swVersion: 'loop-v129',
     summary: 'A more detailed warm-up figure, and a body map big enough to read.',
     newFeatures: [],
@@ -14159,7 +14167,7 @@ const LOOP_UPDATES = [
     id: 'v5-3',
     version: 'LOOP 5.3',
     title: 'Back to the Simpler Figures',
-    date: '2026-12-16',
+    date: '2026-09-06',
     swVersion: 'loop-v130',
     summary: 'The detailed anatomy drawing from 5.2 is reversed.',
     newFeatures: [],
@@ -14174,7 +14182,7 @@ const LOOP_UPDATES = [
     id: 'v5-4',
     version: 'LOOP 5.4',
     title: 'Rank Emblems, Properly Finished',
-    date: '2026-12-23',
+    date: '2026-09-11',
     swVersion: 'loop-v131',
     summary: 'The same eight emblems, with the geometry finally squared up.',
     newFeatures: [],
@@ -14192,7 +14200,7 @@ const LOOP_UPDATES = [
     id: 'v5-5',
     version: 'LOOP 5.5',
     title: 'Log What Else You Did',
-    date: '2026-12-30',
+    date: '2026-09-12',
     swVersion: 'loop-v132',
     summary: 'The Cardio tab is gone. Golf, a walk or a game is now a quick note on Today.',
     newFeatures: [
@@ -14215,7 +14223,7 @@ const LOOP_UPDATES = [
     id: 'v5-6',
     version: 'LOOP 5.6',
     title: 'Arms Days, Swaps and How To',
-    date: '2027-01-06',
+    date: '2026-09-13',
     swVersion: 'loop-v133',
     summary: 'Arms is a session of its own, swapping an exercise keeps your plan honest, and every exercise shows you how it moves.',
     newFeatures: [
@@ -14238,7 +14246,7 @@ const LOOP_UPDATES = [
     id: 'v5-7',
     version: 'LOOP 5.7',
     title: 'Your Rank Ladder',
-    date: '2027-01-13',
+    date: '2026-09-13',
     swVersion: 'loop-v134',
     summary: 'Swiping through your ranks now follows your finger, and a new rail shows the whole ladder at a glance.',
     newFeatures: [
@@ -14263,7 +14271,7 @@ const LOOP_UPDATES = [
     id: 'v5-8',
     version: 'LOOP 5.8',
     title: 'A New Icon',
-    date: '2027-01-20',
+    date: '2026-09-13',
     swVersion: 'loop-v135',
     summary: 'LOOP has a new icon: one continuous loop, with an L as its lit first quarter.',
     newFeatures: [],
@@ -14281,7 +14289,7 @@ const LOOP_UPDATES = [
     id: 'v5-9',
     version: 'LOOP 5.9',
     title: 'Truer Exercise Drawings',
-    date: '2027-01-27',
+    date: '2026-09-13',
     swVersion: 'loop-v136',
     summary: 'Every exercise drawing was checked against how the movement is really done, and the ones that were off now show it properly.',
     newFeatures: [],
@@ -14304,7 +14312,7 @@ const LOOP_UPDATES = [
     id: 'v6-0',
     version: 'LOOP 6.0',
     title: 'A Finished Workout Screen',
-    date: '2027-02-03',
+    date: '2026-09-13',
     swVersion: 'loop-v137',
     summary: 'The workout controls now sit together in one bar, and the exercise figures look like people instead of joined capsules.',
     newFeatures: [],
@@ -14326,7 +14334,7 @@ const LOOP_UPDATES = [
     id: 'v6-1',
     version: 'LOOP 6.1',
     title: 'A Seamless Workout Bar',
-    date: '2027-02-10',
+    date: '2026-09-13',
     swVersion: 'loop-v138',
     summary: 'The bar at the bottom of a workout now runs all the way to the bottom of an iPhone screen.',
     newFeatures: [],
@@ -14340,7 +14348,7 @@ const LOOP_UPDATES = [
     id: 'v6-2',
     version: 'LOOP 6.2',
     title: 'Build a Workout Faster',
-    date: '2027-02-17',
+    date: '2026-09-14',
     swVersion: 'loop-v139',
     summary: 'Starting a workout from scratch and adding exercises is one clear flow: search, browse by muscle or equipment, and add several at once.',
     newFeatures: [
@@ -14361,6 +14369,28 @@ const LOOP_UPDATES = [
     ],
     changes: [
       'The ↻ menu in the saved-workout sheet is replaced by Add exercises'
+    ]
+  },
+  {
+    id: 'v6-3',
+    version: 'LOOP 6.3',
+    title: 'Smoother Workout Edits',
+    date: '2026-09-14',
+    swVersion: 'loop-v140',
+    summary: 'Removing an exercise moves straight on, a workout you build yourself is no longer filed as Push, Swap replaces a saved workout\u2019s exercise in place, and What\u2019s New shows the real release dates.',
+    newFeatures: [],
+    improvements: [
+      'Swap on a saved workout\u2019s exercise replaces it where it is, keeping the sets, reps and effort you set for it',
+      'On the review step of a workout you built yourself, LOOP suggests what kind of workout it was when your exercises make it clear, and asks when they don\u2019t'
+    ],
+    bugFixes: [
+      'Removing the exercise on screen now goes straight to the next one \u2014 or the new last one, or Add exercises when none are left \u2014 instead of a blank page until you tapped somewhere else',
+      'A workout built from scratch was filed as Push unless you changed it. It now has no category until you choose one or keep LOOP\u2019s suggestion',
+      'What\u2019s New showed future dates for LOOP 3.0 to 6.2. Each now shows the day it actually came out'
+    ],
+    changes: [
+      'Removing an exercise that already has logged sets asks first, as editing a past workout already does',
+      'A workout you build from scratch offers the general warm-up, because LOOP no longer assumes it is a Push day'
     ]
   }
 ];
@@ -33598,12 +33628,18 @@ function openWorkoutExercisePicker(from){
   exPickerShow('Add exercises');
 }
 
-/* From the saved-workout sheet, which stays open underneath. */
-function openTemplateExercisePicker(){
-  const names = Array.prototype.map.call(document.querySelectorAll('#tplExercises .t-name-in'),
-    input => input.value.trim()).filter(Boolean);
-  exPickerState = exPickerNewState('template', { category: pendingTplCategory || null, already: names });
-  exPickerShow('Add exercises');
+/* From the saved-workout sheet, which stays open underneath. A row's Swap
+   passes its own button: that opens the same picker to replace that row, in
+   place (D62), rather than to add. */
+function openTemplateExercisePicker(btn){
+  const inputs = Array.prototype.slice.call(document.querySelectorAll('#tplExercises .t-name-in'));
+  const names = inputs.map(input => input.value.trim()).filter(Boolean);
+  const row = btn && btn.closest ? btn.closest('.ex-log-row') : null;
+  const rows = Array.prototype.slice.call(document.querySelectorAll('#tplExercises .ex-log-row'));
+  const replaceIdx = row ? rows.indexOf(row) : -1;
+  exPickerState = exPickerNewState('template', { category: pendingTplCategory || null, already: names,
+    replaceIdx: replaceIdx === -1 ? null : replaceIdx });
+  exPickerShow(replaceIdx === -1 ? 'Add exercises' : 'Replace exercise');
 }
 
 function exPickerShow(title){
@@ -33695,7 +33731,7 @@ function exPickerResults(st, over){
 
 /* ---------- choosing ---------- */
 function exPickerIsPicking(st){
-  return !!st && !(st.target === 'program' && st.replaceIdx !== null);
+  return !!st && st.replaceIdx === null;
 }
 function exPickerToggle(name){
   const st = exPickerState;
@@ -33748,7 +33784,8 @@ function exPickerApply(st, names){
   } else if(st.target === 'workout'){
     addPickedToWorkout(names, st.from);
   } else if(st.target === 'template'){
-    addPickedToTemplate(names);
+    if(st.replaceIdx === null) addPickedToTemplate(names);
+    else replaceTemplateExercise(st.replaceIdx, names[0]);
   }
 }
 
@@ -33775,6 +33812,34 @@ function addPickedToWorkout(names, from){
   const live = document.getElementById('coachLive');
   if(live) live.textContent = names.length === 1 ? names[0] + ' added.' : names.length + ' exercises added.';
   try{ persistDraftNow(); }catch(e){}
+}
+
+/* D62 — REPLACING A SAVED WORKOUT'S EXERCISE, IN ITS PLACE. The row keeps its
+   position and the sets, reps and effort the athlete wrote for that slot —
+   Program Studio's rule for a replacement (pbReplaceExercise) — and drops its
+   starting weight, which belonged to the movement being replaced. A row with no
+   prescription of its own takes the library's, as an added one does. Choosing
+   the movement the row already has changes nothing. */
+function replaceTemplateExercise(idx, name){
+  const row = Array.prototype.slice.call(document.querySelectorAll('#tplExercises .ex-log-row'))[idx];
+  const clean = String(name || '').trim().slice(0, 60);
+  if(!row || !clean) return;
+  const nameIn = row.querySelector('.t-name-in');
+  if(!nameIn || exPickerKeyOf(nameIn.value) === exPickerKeyOf(clean)) return;
+  nameIn.value = clean;
+  const slot = row.querySelector('.ex-thumb-slot');
+  if(slot) slot.innerHTML = exerciseThumbHtml(clean);
+  const sets = row.querySelector('.t-sets-in'), reps = row.querySelector('.t-reps-in');
+  const effort = row.querySelector('.t-effort-in'), weight = row.querySelector('.t-weight-in');
+  if(sets && reps && String(sets.value).trim() && String(reps.value).trim()){
+    if(weight) weight.value = '';
+  } else {
+    const rx = libraryPrescriptionFor(clean, pendingTplCategory);
+    if(sets) sets.value = rx && rx.sets ? rx.sets : '';
+    if(reps) reps.value = rx && rx.reps ? rx.reps : '';
+    if(effort) effort.value = rx && rx.effort ? rx.effort : '';
+    if(weight) weight.value = rx && rx.recommended && rx.recommended !== '—' ? rx.recommended : '';
+  }
 }
 
 /* INTO A SAVED WORKOUT, with the sets, reps and effort the library writes for
@@ -39829,7 +39894,8 @@ function captureActiveDraft(){
   return {
     version: 1,
     id: pendingDraftId || (pendingDraftId = 'draft_' + Date.now()),
-    category: pendingLogCategory || 'push',
+    category: pendingLogCategory || null,
+    categoryChosen: logCategoryChosen,
     title: document.getElementById('logTitle').value,
     date: document.getElementById('logDate').value,
     notes: document.getElementById('logNotes').value,
@@ -39896,7 +39962,11 @@ function restoreDraftToSheet(draft){
   /* A resumed workout does not warm up again. Older drafts have no flag, so
      the started-check below still covers them. */
   warmupDoneForDraft = draft.warmupDone ? pendingDraftId : warmupDoneForDraft;
-  pendingLogCategory = draft.category || 'push';
+  /* D62 — a draft keeps a category only if it had one; an older freeform draft
+     carries the Push default it was given, which was never the athlete's choice,
+     so it is suggested afresh on review rather than taken as chosen. */
+  pendingLogCategory = draft.category || null;
+  logCategoryChosen = !!draft.categoryChosen || !draft.showCategoryPicker;
 
   document.getElementById('logCategoryPicker').style.display = draft.showCategoryPicker ? 'block' : 'none';
   document.getElementById('logSheetTitle').textContent = 'Resume ' + (CAT_LABEL[pendingLogCategory] || '') + ' Workout';
@@ -40307,6 +40377,9 @@ function renderWorkoutStep(opts){
     nav.innerHTML = '';
     nav.dataset.fwd = '';
   } else if(i === STEP_FINISH){
+    /* D62 — a workout the athlete built gets its category here, from what is
+       in it now, until they pick one themselves. */
+    applyCategorySuggestion(rows);
     head.innerHTML =
       '<div class="ws-k">Finish</div>' +
       workoutStepBarHtml(rows, i) +
@@ -40661,7 +40734,11 @@ async function openFreeformLog(){
      a workout normally counts; it is simply not the program’s work. */
   pendingWorkoutOrigin = 'freeform';
   pendingWorkoutProgramId = null;
-  pendingLogCategory = 'push';
+  /* D62 — a workout built from nothing is not a Push workout. It has no
+     category until the athlete picks one on the review step, where LOOP may
+     suggest one from what is in it. The warm-up it offers is the general one. */
+  pendingLogCategory = null;
+  logCategoryChosen = false;
   pendingDraftStartedAt = new Date().toISOString();
   pendingDraftId = 'draft_' + Date.now();
   document.getElementById('logCategoryPicker').style.display = 'block';
@@ -40674,7 +40751,9 @@ async function openFreeformLog(){
   /* D61 — no blank row. A workout built from nothing opens on what to do next
      (renderWorkoutStep's empty state), and exercises arrive from the picker
      with their names already right. Any name can still be typed into a row. */
-  pickLogCategory('push');
+  pickLogCategory(null);
+  const note = document.getElementById('logCategoryNote');
+  if(note){ note.hidden = true; note.textContent = ''; }
   openLogSheet();
   const topbar = document.getElementById('logTopbarTitle');
   if(topbar) topbar.textContent = 'Workout';
@@ -40683,6 +40762,69 @@ async function openFreeformLog(){
 function pickLogCategory(cat){
   pendingLogCategory = cat;
   document.querySelectorAll('.cat-opt').forEach(el => el.classList.toggle('on', el.dataset.cat === cat));
+}
+
+/* D62 — a tap on a category chip is the athlete's answer, and from then on
+   nothing overrides it. Chips are clicks rather than inputs, so the draft is
+   saved here rather than by the input listener. */
+function chooseLogCategory(cat){
+  logCategoryChosen = true;
+  pickLogCategory(cat);
+  const note = document.getElementById('logCategoryNote');
+  if(note){ note.hidden = true; note.textContent = ''; }
+  try{ scheduleDraftSave(); }catch(e){}
+}
+
+/* D62 — WHAT KIND OF WORKOUT, FROM WHAT IS IN IT. A workout built from nothing
+   used to be filed as Push unless the athlete noticed the chips. This suggests
+   a category only when the workout says so plainly: its leading muscle groups
+   (deriveWorkoutProfile, the program explanation's own measure) all sit inside
+   one category's promise (CATEGORY_GROUPS, the program check's own map), and
+   that category is the tightest such promise. Arms promises biceps and triceps
+   — the program check makes no claim about Arms, but without it an arms
+   workout would be called Upper Body. Legs and Lower Body promise the same
+   groups, so the athlete's own plan decides the word. Anything else — one
+   exercise, a full-body mix, a tie — is not a confident answer, and the
+   athlete is asked. */
+function suggestWorkoutCategory(rows){
+  const exercises = (rows || []).map(r => ({
+    name: ((r.querySelector('.ex-name-in') || {}).value || '').trim(),
+    sets: r.querySelectorAll('.set-row').length || 3
+  })).filter(x => x.name);
+  if(exercises.length < 2) return null;
+  let prof = null;
+  try{ prof = deriveWorkoutProfile({ exercises }); }catch(e){ return null; }
+  if(!prof || !prof.primary || !prof.primary.length) return null;
+  const promises = Object.assign({ arms: ['biceps','triceps'] }, CATEGORY_GROUPS);
+  const fits = Object.keys(promises).filter(c => Array.isArray(promises[c]) &&
+    prof.primary.every(g => promises[c].indexOf(g) !== -1));
+  if(!fits.length) return null;
+  const tightest = Math.min.apply(null, fits.map(c => promises[c].length));
+  const best = fits.filter(c => promises[c].length === tightest);
+  if(best.length === 1) return best[0];
+  const same = best.every(c => promises[c].slice().sort().join() === promises[best[0]].slice().sort().join());
+  if(!same) return null;
+  let planned = [];
+  try{ planned = best.filter(c => scheduledTrainCategories().indexOf(c) !== -1); }catch(e){}
+  return planned.length === 1 ? planned[0] : null;
+}
+
+/* On the review step of a workout the athlete built, until they choose: the
+   suggestion is shown selected and said to be one, or nothing is selected and
+   they are asked. A template workout's category came with it and is left. */
+function applyCategorySuggestion(rows){
+  const picker = document.getElementById('logCategoryPicker');
+  if(!picker || picker.style.display === 'none' || logCategoryChosen) return null;
+  const suggested = suggestWorkoutCategory(rows);
+  pickLogCategory(suggested);
+  const note = document.getElementById('logCategoryNote');
+  if(note){
+    note.textContent = suggested
+      ? 'Suggested from your exercises — tap another if this was something else.'
+      : 'Choose what kind of workout this was.';
+    note.hidden = false;
+  }
+  return suggested;
 }
 
 function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
@@ -41275,13 +41417,45 @@ function toggleSetMore(btn){
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
+/* D62 — REMOVING AN EXERCISE IS ONE TRANSITION. This used to take the row out of
+   the DOM and stop: the stepper still pointed at a step that no longer existed,
+   no row was current, and the head kept the removed exercise's name, picture
+   and rail until the athlete navigated somewhere. Now the removal, the step it
+   leaves the athlete on and the render happen in the same task, so no frame is
+   ever drawn for an exercise that is gone. Work already logged on it is the
+   one thing worth a question — the same one the history editor asks — and an
+   exercise with nothing logged goes at once. */
 function removeLogExerciseRow(btn){
   const row = btn.closest('.ex-log-row');
   if(!row) return;
+  if(exerciseRowStarted(row) && !confirm('Remove ' + workoutStepName(row) + '? Its logged sets will not be saved.')) return;
   const panel = row.querySelector('.rest-panel');
   if(panel && panel._interval){ clearInterval(panel._interval); panel._interval = null; }
+  const at = workoutStepRows().indexOf(row);
+  const name = workoutStepName(row);
   row.remove();
+  onWorkoutRowRemoved(at, name);
   persistDraftNow();
+}
+
+/* The step stays on the same exercise when one before it goes, and on the same
+   position when the current one goes — which is the next exercise, or the new
+   last one when the last goes. renderWorkoutStep clamps to the rows that exist
+   and, with none left, draws the empty workout. The new exercise starts at its
+   top, without the step slide, which starts from a blank frame. */
+function onWorkoutRowRemoved(at, name){
+  if(logStepIndex !== STEP_WARMUP && logStepIndex !== STEP_FINISH && at !== -1 && at < logStepIndex) logStepIndex--;
+  renderWorkoutStep();
+  const ov = document.getElementById('logOverlay');
+  const scroll = ov && ov.querySelector ? ov.querySelector('.sheet-scroll') : null;
+  if(scroll) scroll.scrollTop = 0;
+  const rows = workoutStepRows();
+  const live = document.getElementById('coachLive');
+  if(live){
+    const now = rows[logStepIndex];
+    live.textContent = (name ? name + ' removed. ' : 'Exercise removed. ') +
+      (!rows.length ? 'No exercises left.' : now ? 'Exercise ' + (logStepIndex + 1) + ' of ' + rows.length + ', ' + workoutStepName(now) + '.' : '');
+  }
 }
 
 function setRIR(btn, v){
@@ -42166,6 +42340,16 @@ function saveLog(btn){
   const date = document.getElementById('logDate').value || localDateStr();
   const notes = document.getElementById('logNotes').value.trim();
   if(!title){ flagFieldError(document.getElementById('logTitle')); return; }
+  /* D62 — nothing is filed under a category nobody chose or LOOP could not
+     suggest. The review step shows the chips; this points at them. */
+  if(!pendingLogCategory){
+    const note = document.getElementById('logCategoryNote');
+    if(note){ note.textContent = 'Choose what kind of workout this was.'; note.hidden = false; }
+    const grid = document.querySelector('#logCategoryPicker .cat-select');
+    flagFieldError(grid);
+    if(grid && grid.scrollIntoView) grid.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return;
+  }
 
   const rows = document.querySelectorAll('#logExercises .ex-log-row');
   const exercises = [];
@@ -42248,7 +42432,7 @@ function saveLog(btn){
   const newEntry = {
     id: Date.now().toString(),
     title,
-    category: pendingLogCategory || 'push',
+    category: pendingLogCategory,
     date,
     notes,
     exercises: realExercises
@@ -42765,7 +42949,8 @@ function closeTplSheet(){ document.getElementById('tplOverlay').classList.remove
 /* D61 — a row arrives from the picker with its name and the library's
    prescription already filled, so it leads with the exercise's picture where
    the ↻ menu of the day's library used to be; the picker does that job now,
-   with search and filters. The name stays editable. */
+   with search and filters. The name stays editable, and Swap (D62) replaces the
+   row's movement in place. */
 function addTplExerciseRow(name, sets, reps, effort, recommended){
   const wrap = document.getElementById('tplExercises');
   const row = document.createElement('div');
@@ -42775,6 +42960,9 @@ function addTplExerciseRow(name, sets, reps, effort, recommended){
       <span class="ex-thumb-slot">${name ? exerciseThumbHtml(name) : ''}</span>
       <input type="text" placeholder="Exercise name" class="t-name-in" value="${name?escapeAttr(name):''}">
       <button class="rm-ex" onclick="this.closest('.ex-log-row').remove()" aria-label="Remove exercise">${closeIconSvg(13)}</button>
+    </div>
+    <div class="ex-actions">
+      <button type="button" class="ex-act ex-replace-btn" onclick="openTemplateExercisePicker(this)" aria-label="Swap exercise">Swap</button>
     </div>
     <div class="ex-grid" style="margin-top:10px">
       <div><label>Sets</label><input type="number" class="t-sets-in" value="${sets||''}"></div>
