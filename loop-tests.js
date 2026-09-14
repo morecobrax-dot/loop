@@ -2913,8 +2913,12 @@ async function testSubstitutionEquipment(){
     ['smith_machine','chest_press_machine','bench','dumbbells'].forEach(e => ctx.setEquipmentAvailable(e, true));
     const r = ctx.rankSubstitutionCandidates('bench_press_barbell', {});
     T('available candidates surface', r.some(x => x.equipmentStatus === 'available'));
+    /* D64 — repointed. Bench Press now ranks Incline Push-Up, which needs no gym
+       equipment at all; since D63.5 such a candidate says "No equipment needed"
+       rather than claiming the gym has it. Every available candidate is still
+       labelled, truthfully. */
     T('available candidates are labelled',
-      r.filter(x => x.equipmentStatus === 'available').every(x => x.reasons.includes('Available at your gym')));
+      r.filter(x => x.equipmentStatus === 'available').every(x => x.reasons.includes('Available at your gym') || x.reasons.includes('No equipment needed')));
     T('an available candidate outranks an unknown one of equal intent',
       r[0].equipmentStatus === 'available');
   }
@@ -22238,8 +22242,10 @@ async function testExerciseSwaps(){
     const back = ctx.exerciseSwapOptions('Hammer Curl', { slotName:'Barbell Curl' });
     T('a swapped row offers the way back to the plan first, and only there',
       back.back === 'Barbell Curl' && back.ranked.every(r => r.displayName !== 'Barbell Curl'));
+    /* D64 — repointed: Chair Triceps Dips became an alias of Bench Dip. Band
+       Triceps Pushdown is still uncatalogued, and still gets the same muscle's list. */
     T('an uncatalogued exercise still gets same-muscle options',
-      ctx.exerciseSwapOptions('Chair Triceps Dips', {}).more.length > 0);
+      ctx.resolveExerciseId('Band Triceps Pushdown').indexOf('unmapped:') === 0 && ctx.exerciseSwapOptions('Band Triceps Pushdown', {}).more.length > 0);
   }
   T('the sheet keeps its promise about today', /Replaces this exercise for today's workout only/.test(src));
   T('every swap goes through the one primitive',
@@ -22309,8 +22315,7 @@ async function testExerciseVisuals(){
   T('every drawing is reached by a prescribable name (' + Object.keys(defs).length + ' drawings)', orphans.length === 0, orphans.join(', '));
   T('a canonical exercise is drawn under its canonical id', ctx.CANONICAL_EXERCISES.every(e =>
     ctx.exerciseVisualKey(e.displayName) === e.id), ctx.CANONICAL_EXERCISES.filter(e => ctx.exerciseVisualKey(e.displayName) !== e.id).map(e => e.id).join(','));
-  [['Pendlay Row','pendlay_row','row_barbell'], ['T-Bar Row','tbar_row','row_machine'], ['Glute Bridge','glute_bridge','hip_thrust'],
-   ['Hanging Leg Raise','hanging_leg_raise','leg_raise'],
+  [['Pendlay Row','pendlay_row','row_barbell'], ['T-Bar Row','tbar_row','row_machine'],
    ['Walking Lunge','lunge_walking','lunge'], ['Kettlebell Goblet Squat','squat_goblet_kb','squat_goblet']].forEach(([n, k, id]) =>
     T(n + ' is drawn as itself while history still counts it as ' + id,
       ctx.exerciseVisualKey(n) === k && ctx.resolveExerciseId(n) === id));
@@ -22318,6 +22323,15 @@ async function testExerciseVisuals(){
      history was Calf Raise's. A seated calf raise loads the soleus with the knee
      bent, on its own machine and at its own weights, so it now has its own
      identity, and the drawing it already had is its canonical one. */
+  /* D64 — Glute Bridge and Hanging Leg Raise were two more. A floor glute bridge
+     is a bodyweight movement that shared the barbell Hip Thrust's history and its
+     barbell-and-bench requirement; a hanging leg raise needs a bar and shared the
+     history of a lying leg raise that needs nothing. Each is now its own identity,
+     drawn under the drawing it already had. */
+  T('Glute Bridge and Hanging Leg Raise now have identities of their own, drawn under them (D64)',
+    ctx.exerciseVisualKey('Glute Bridge') === 'glute_bridge' && ctx.resolveExerciseId('Glute Bridge') === 'glute_bridge' &&
+    ctx.exerciseVisualKey('Hanging Leg Raise') === 'hanging_leg_raise' && ctx.resolveExerciseId('Hanging Leg Raise') === 'hanging_leg_raise' &&
+    ctx.resolveExerciseId('Hip Thrust') === 'hip_thrust' && ctx.resolveExerciseId('Leg Raise') === 'leg_raise');
   T('Seated Calf Raise now has its own identity, drawn under it (D63)',
     ctx.exerciseVisualKey('Seated Calf Raise') === 'calf_raise_seated' && ctx.resolveExerciseId('Seated Calf Raise') === 'calf_raise_seated' &&
     ctx.resolveExerciseId('Standing Calf Raise') === 'calf_raise');
@@ -24657,7 +24671,9 @@ async function testMachineCoverage(){
       return ctx.exerciseIsNeverPrimary(canon(x.id).displayName) && canon(x.id).secondary.some(m => want.indexOf(m) !== -1);
     });
     T('each added machine belongs in sessions that train what it trains', extras.every(roleOK), extras.filter(x => !roleOK(x)).map(x => x.id).join(','));
-    T('and each writes a whole prescription', extras.every(x => x.sets >= 2 && x.sets <= 5 && /^\d+–\d+$/.test(x.reps) && /^\d(–\d)?$/.test(x.effort)));
+    /* D64 — repointed to allow a per-side count: Side-Lying Hip Abduction is
+       prescribed 12–15/side, the way the plans' own templates write unilateral work. */
+    T('and each writes a whole prescription', extras.every(x => x.sets >= 2 && x.sets <= 5 && /^\d+–\d+(\/side)?$/.test(x.reps) && /^\d(–\d)?$/.test(x.effort)));
     T('adding any of the fourteen to a workout or a saved workout finds a prescription',
       BATCH.every(id => { const rx = ctx.libraryPrescriptionFor(canon(id).displayName); return rx && rx.sets && rx.reps && rx.effort; }));
     const lc = ctx.libraryPrescriptionFor('Seated Leg Curl');
@@ -25042,7 +25058,12 @@ async function testMachineIntegrity(){
       picked('Machine').indexOf('Leg Press Calf Raise') !== -1 && picked('Bodyweight').indexOf('Calf Raise') !== -1);
     T('its names still reach the one identity its history is under', ['Calf Raise', 'Calf Raises', 'Standing Calf Raise'].every(n => ctx.resolveExerciseId(n) === 'calf_raise'));
     T('it still logs a load, as it always has', calf.bodyweight !== true && ctx.exerciseIsBodyweight('Calf Raise') === false && ctx.exerciseIsNeverPrimary('Calf Raise'));
-    T('programs place it where they did: the calf extension is still gym-only', ctx.getProgramExtension('x_calf').gym === true);
+    /* D64 — repointed. The calf extension was still gym-only, though Calf Raise
+       needs no equipment. D64 opened it to home programs after simulating every
+       generated program: 300 of 7,936 change, all home-family, calf work rises
+       from 2.8 to 5.8 weekly sets, and no session grows past its time band. */
+    T('the calf extension is open to home programs, because Calf Raise needs nothing (D64)', ctx.getProgramExtension('x_calf').gym === false &&
+      ctx.extensionAllowedForPlan(ctx.getProgramExtension('x_calf'), 'home'));
     const why = (n, id) => { const r = ctx.exerciseSwapOptions(n, {}).ranked.find(x => x.exerciseId === id); return r ? r.reasons : null; };
     const unset = why('Seated Calf Raise', 'calf_raise');
     T('with no gym set up, Swap says it needs no equipment instead of claiming the gym has it',
@@ -25101,10 +25122,375 @@ async function testMachineIntegrity(){
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   T('no storage key was added', ctx.DATA_KEYS.length === 15);
   T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
-  T('no exercise was added: the registry and the drawings are the size D63 left them',
-    ctx.CANONICAL_EXERCISES.length === 76 && !defs.back_extension_seated);
+  /* D64 — repointed: D64 added 21 bodyweight identities and two drawings. The
+     seated back extension D63 held back is still held. */
+  T('the registry is the 76 of D63.5 plus the 21 of D64, and the seated back extension is still held',
+    ctx.CANONICAL_EXERCISES.length === 97 && !defs.back_extension_seated);
   T('Swap still takes a movement\'s role from the registry as D63 shipped it', ctx.substitutionRoleOf('lateral_raise_machine', 'Machine Lateral Raise') === 'accessory' &&
     ctx.substitutionRoleOf('shoulder_press_machine', 'Machine Shoulder Press') === 'compound');
+}
+
+/* =========================================================
+   CONTRACT 172 — BODYWEIGHT COVERAGE AND SWAP TRUTH (D64)
+   ---------------------------------------------------------
+   Twenty-one bodyweight movements became identities: one each,
+   with the equipment they really need (nothing, a surface, a bar
+   or a band), their muscles and pattern, a drawing and cues, a
+   place in sessions and a prescription, search and both filters,
+   and a history of their own that neither steals from nor lends
+   to a loaded or assisted variation. Swap now reads a catalogued
+   movement entirely from the registry — role, heavy-barbell
+   class, holds and core motion — and falls back to names only
+   for what the registry does not describe.
+   ========================================================= */
+async function testBodyweightCoverage(){
+  section('CONTRACT 172 — bodyweight coverage and Swap truth (D64)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, XA = ctx.ExerciseArt, defs = ctx.EXERCISE_ART.definitions();
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const canon = id => ctx.getCanonicalExercise(id);
+  const SURFACE = ['bench', 'adjustable_bench', 'plyo_box'];
+  /* id: [display name, equipment class, primary, pattern] — the batch as shipped. */
+  const BATCH = {
+    pushup_incline: ['Incline Push-Up', 'surface', 'chest', 'horizontal_push'],
+    pushup_close: ['Close-Grip Push-Up', 'none', 'triceps', 'horizontal_push'],
+    pike_pushup: ['Pike Push-Up', 'none', 'shoulders', 'vertical_push'],
+    bench_dip: ['Bench Dip', 'surface', 'triceps', 'horizontal_push'],
+    inverted_row: ['Inverted Row', 'rack', 'back', 'horizontal_pull'],
+    glute_bridge: ['Glute Bridge', 'none', 'glutes', 'hinge'],
+    single_leg_glute_bridge: ['Single-Leg Glute Bridge', 'none', 'glutes', 'hinge'],
+    bodyweight_squat: ['Bodyweight Squat', 'none', 'quads', 'squat'],
+    step_up: ['Step-Up', 'surface', 'quads', 'lunge'],
+    wall_sit: ['Wall Sit', 'none', 'quads', 'squat'],
+    side_plank: ['Side Plank', 'none', 'abs', 'core'],
+    hollow_hold: ['Hollow Body Hold', 'none', 'abs', 'core'],
+    dead_bug: ['Dead Bug', 'none', 'abs', 'core'],
+    bird_dog: ['Bird Dog', 'none', 'abs', 'core'],
+    mountain_climber: ['Mountain Climber', 'none', 'abs', 'core'],
+    russian_twist: ['Russian Twist', 'none', 'abs', 'core'],
+    bicycle_crunch: ['Bicycle Crunch', 'none', 'abs', 'core'],
+    hanging_leg_raise: ['Hanging Leg Raise', 'bar', 'abs', 'core'],
+    hanging_knee_raise: ['Hanging Knee Raise', 'bar', 'abs', 'core'],
+    band_lateral_walk: ['Lateral Band Walk', 'band', 'glutes', 'isolation'],
+    hip_abduction_side_lying: ['Side-Lying Hip Abduction', 'none', 'glutes', 'isolation']
+  };
+  const IDS = Object.keys(BATCH);
+  const HOLDS = ['side_plank', 'hollow_hold', 'wall_sit'];
+  const PATTERNS = ['horizontal_push', 'vertical_push', 'horizontal_pull', 'vertical_pull', 'squat', 'lunge', 'hinge', 'isolation', 'core'];
+
+  sub('one identity each, and names that are one movement resolve together');
+  guard('identity', () => {
+    T('all twenty-one are in the registry under the names they are known by', IDS.every(id => canon(id) && canon(id).displayName === BATCH[id][0]),
+      IDS.filter(id => !canon(id) || canon(id).displayName !== BATCH[id][0]).join(','));
+    T('every identity in the registry is unique', new Set(ctx.CANONICAL_EXERCISES.map(e => e.id)).size === ctx.CANONICAL_EXERCISES.length);
+    T('every alias reaches exactly its own identity, and no alias is claimed twice',
+      IDS.every(id => canon(id).aliases.indexOf(ctx.normalizeExerciseName(canon(id).displayName)) !== -1 && canon(id).aliases.every(a => ctx.resolveExerciseId(a) === id)) &&
+      ctx.buildExerciseIdReport().aliasCollisions.length === 0);
+    const same = (names, id) => names.every(n => ctx.resolveExerciseId(n) === id);
+    T('the names the plans use for one movement are one history',
+      same(['Close-Grip Push-up', 'Diamond Push-Up'], 'pushup_close') && same(['Bench Dips', 'Chair Triceps Dips'], 'bench_dip') &&
+      same(['Band Lateral Walk', 'Lateral Band Walk'], 'band_lateral_walk') && same(['Box Step-Up', 'Step-Up'], 'step_up') &&
+      same(['Mountain Climbers'], 'mountain_climber') && same(['Triceps Dips', 'Triceps Dip'], 'dip') && same(['Slow Tempo Push-Up', 'Push-Up'], 'pushup'));
+    T('a bodyweight movement no longer shares a loaded or harder movement\'s history',
+      ctx.resolveExerciseId('Glute Bridge') !== ctx.resolveExerciseId('Hip Thrust') && ctx.resolveExerciseId('Hanging Leg Raise') !== ctx.resolveExerciseId('Leg Raise') &&
+      canon('hip_thrust').aliases.indexOf('glute bridge') === -1 && canon('leg_raise').aliases.indexOf('hanging leg raise') === -1);
+    T('loaded and assisted variations keep histories of their own',
+      ['Weighted Pull-Up', 'Pull-Up (weighted)', 'Weighted Dips', 'Weighted Plank', 'Weighted Russian Twist', 'DB Step-Up', 'Assisted Pull-Up'].every(n => ctx.resolveExerciseId(n).indexOf('unmapped:') === 0) &&
+      ctx.resolveExerciseId('Weighted Pull-Up') !== ctx.resolveExerciseId('Pull-Up (weighted)'));
+  });
+
+  sub('explicit equipment: nothing, a surface, a bar or a band — never a guess');
+  guard('equipment', () => {
+    const req = id => ctx.getExerciseEquipmentRequirements(id);
+    const cls = id => {
+      const r = req(id);
+      if(!r || !Object.prototype.hasOwnProperty.call(ctx.EXERCISE_EQUIPMENT, id)) return 'implicit';
+      if(!r.length) return 'none';
+      const flat = JSON.stringify(r);
+      if(flat === JSON.stringify([SURFACE])) return 'surface';
+      if(flat === JSON.stringify([['pullup_bar']])) return 'bar';
+      if(flat === JSON.stringify([['bands']])) return 'band';
+      if(flat === JSON.stringify([['power_rack', 'squat_rack', 'smith_machine']])) return 'rack';
+      return flat;
+    };
+    const wrong = IDS.filter(id => cls(id) !== BATCH[id][1]);
+    T('every one states its requirement explicitly, and it is the one the movement has', wrong.length === 0, wrong.map(id => id + ' ' + cls(id)).join(', '));
+    T('the coarse filing matches: bodyweight work under Bodyweight, the band walk under Band',
+      IDS.every(id => canon(id).equipment === (id === 'band_lateral_walk' ? 'Band' : 'Bodyweight')));
+    T('a plyo box is gym equipment, and a profile that never listed it reads it as unknown', !!ctx.getGymEquipment('plyo_box') &&
+      ctx.getGymEquipment('plyo_box').coarse === 'Bodyweight' && ctx.EQUIPMENT_OPTIONS.indexOf('Bodyweight') !== -1);
+    ctx.GYM_EQUIPMENT.forEach(e => ctx.setEquipmentAvailable(e.id, false));
+    T('with no equipment at all, the no-equipment movements stay available and the rest do not',
+      IDS.every(id => ctx.canPerformExercise(id) === (BATCH[id][1] === 'none' ? 'available' : 'unavailable')));
+    ['bench', 'pullup_bar', 'bands'].forEach(e => ctx.setEquipmentAvailable(e, true));
+    T('a bench, a pull-up bar and a band unlock exactly the movements that need them',
+      ['pushup_incline', 'bench_dip', 'step_up', 'hanging_leg_raise', 'hanging_knee_raise', 'band_lateral_walk'].every(id => ctx.canPerformExercise(id) === 'available') &&
+      ctx.canPerformExercise('inverted_row') === 'unavailable');
+    ctx.gymProfile.configuredAt = null; ctx.gymProfile.equipment = {}; ctx.invalidateGymCaches();
+  });
+
+  sub('muscles, pattern, role and how each one is logged');
+  guard('metadata', () => {
+    const MUSCLES = Object.keys(ctx.MUSCLE_LABELS);
+    T('each trains the primary muscle it is filed under, in LOOP\'s own vocabulary',
+      IDS.every(id => canon(id).primary.join() === BATCH[id][2] && canon(id).primary.concat(canon(id).secondary).every(m => MUSCLES.indexOf(m) !== -1)));
+    T('each has the movement pattern it is filed under, from the existing vocabulary', IDS.every(id => canon(id).pattern === BATCH[id][3] && PATTERNS.indexOf(canon(id).pattern) !== -1));
+    T('holds are marked as holds, and nothing else is', IDS.every(id => (canon(id).timed === true) === (HOLDS.indexOf(id) !== -1)));
+    T('moving core work carries its motion', ['dead_bug', 'bird_dog', 'mountain_climber', 'russian_twist', 'bicycle_crunch', 'hanging_leg_raise', 'hanging_knee_raise', 'crunch', 'cable_crunch', 'crunch_machine', 'leg_raise']
+      .every(id => ['flexion', 'leg_raise', 'anti_extension', 'rotation'].indexOf(canon(id).motion) !== -1));
+    T('each is logged as bodyweight work, except the band walk, which never was',
+      IDS.every(id => ctx.exerciseIsBodyweight(BATCH[id][0]) === (id !== 'band_lateral_walk')) && ctx.exerciseIsBodyweight('Weighted Pull-Up') === false);
+    T('small work never leads a session: bench dips, wall sits and both bridges',
+      ['bench_dip', 'wall_sit', 'glute_bridge', 'single_leg_glute_bridge'].every(id => ctx.exerciseIsNeverPrimary(BATCH[id][0])) &&
+      !ctx.exerciseIsNeverPrimary('Inverted Row') && !ctx.exerciseIsNeverPrimary('Bodyweight Squat') && !ctx.exerciseIsNeverPrimary('Pike Push-Up'));
+  });
+
+  sub('a drawing of the movement itself, and cues that match it');
+  guard('drawings', () => {
+    T('each is drawn under its own id, and every alias reaches that drawing',
+      IDS.every(id => ctx.exerciseVisualKey(BATCH[id][0]) === id && canon(id).aliases.every(a => ctx.exerciseVisualKey(a) === id)));
+    const svg = {};
+    IDS.forEach(id => { svg[id] = { t: XA.render(defs[id], { size:'thumb' }), f: XA.render(defs[id], { size:'full' }) }; });
+    T('each renders at both sizes with no broken numbers', IDS.every(id => /^<svg viewBox="[-\d. ]+"/.test(svg[id].t) && !/NaN|undefined|Infinity/.test(svg[id].t + svg[id].f)));
+    const heads = id => (svg[id].f.match(/fill="#4CC2FF"/g) || []).length;
+    T('a hold carries no arrow; a moving exercise one, or two heads where it moves both ways',
+      IDS.every(id => HOLDS.indexOf(id) !== -1 ? (defs[id].arch === 'hold' && heads(id) === 0) : heads(id) === (defs[id].both ? 2 : 1)), IDS.map(id => id + ':' + heads(id)).join(' '));
+    T('glute bridge and single-leg glute bridge are different pictures, as are push-up and pike push-up',
+      svg.glute_bridge.f !== svg.single_leg_glute_bridge.f && XA.render(defs.pushup, { size:'full' }) !== svg.pike_pushup.f);
+    T('three short cues each', IDS.every(id => { const c = ctx.howToCues(BATCH[id][0]); return c.length === 3 && c.every(x => x.length <= 48); }));
+    const ir = [XA.solve('side', defs.inverted_row.start), XA.solve('side', defs.inverted_row.end)];
+    const bar = defs.inverted_row.scene.find(p => p[0] === 'bar')[1].at;
+    const offLine = J => { const a = J.sh, b = J.nA, p = J.hip, vx = b[0] - a[0], vy = b[1] - a[1];
+      return Math.abs((p[0] - a[0]) * vy - (p[1] - a[1]) * vx) / Math.sqrt(vx * vx + vy * vy); };
+    T('Inverted Row: hands on the bar and heels on the floor in both drawings, the body one straight line',
+      ir.every(J => Math.hypot(J.nW[0] - bar[0], J.nW[1] - bar[1]) < 0.5 && J.nA[1] > ctx.ExerciseArt.G - 4.5 && offLine(J) < 1.5) &&
+      Math.abs(ir[0].nA[0] - ir[1].nA[0]) < 0.3 && ir[1].sh[1] < ir[0].sh[1] - 10);
+    const sl = [XA.solve('front', defs.hip_abduction_side_lying.start), XA.solve('front', defs.hip_abduction_side_lying.end)];
+    T('Side-Lying Hip Abduction: lying on the lower side, the top leg stacked then raised, the rest still',
+      sl.every(J => J.rH[1] > ctx.ExerciseArt.G - 6 && Math.abs(J.rA[1] - J.rH[1]) < 1) &&
+      Math.abs(sl[0].lA[1] - sl[0].lH[1]) < 1 && sl[1].lA[1] < sl[1].lH[1] - 15 && JSON.stringify(sl[0].head) === JSON.stringify(sl[1].head));
+  });
+
+  sub('search, both filters and one entry per movement');
+  guard('picker', () => {
+    const find = q => ctx.exPickerMatches(q).map(e => e.name);
+    T('the names people use find them', find('diamond push-up')[0] === 'Close-Grip Push-Up' && find('air squat')[0] === 'Bodyweight Squat' &&
+      find('australian pull-up')[0] === 'Inverted Row' && find('chair dips')[0] === 'Bench Dip' && find('band lateral walk')[0] === 'Lateral Band Walk' &&
+      find('side-lying leg raise')[0] === 'Side-Lying Hip Abduction');
+    const idx = ctx.exPickerIndex();
+    T('one picker entry per identity: merged names no longer list twice',
+      IDS.every(id => idx.filter(e => e.key === id).length === 1) && !idx.some(e => ['Diamond Push-Up', 'Chair Triceps Dips', 'Band Lateral Walk', 'Slow Tempo Push-Up', 'Triceps Dips', 'Box Step-Up', 'Mountain Climbers'].indexOf(e.name) !== -1));
+    const st0 = ctx.exPickerNewState('workout', {});
+    const under = eq => ctx.exPickerResults(st0, { equipment: eq }).map(e => e.key);
+    T('the Bodyweight filter lists every bodyweight one, and Band the band walk',
+      IDS.filter(id => id !== 'band_lateral_walk').every(id => under('Bodyweight').indexOf(id) !== -1) && under('Band').indexOf('band_lateral_walk') !== -1);
+    T('glutes with Bodyweight lists both bridges and the side-lying abduction',
+      ['glute_bridge', 'single_leg_glute_bridge', 'hip_abduction_side_lying'].every(id => ctx.exPickerResults(st0, { muscle:'glutes', equipment:'Bodyweight' }).map(e => e.key).indexOf(id) !== -1));
+  });
+
+  sub('Swap reads a catalogued movement from the registry, and names only for the rest');
+  guard('swap canonical', () => {
+    const disagree = [];
+    ctx.CANONICAL_EXERCISES.forEach(c => {
+      const want = ctx.registryRoleOf(c);
+      if(ctx.substitutionRoleOf(c.id, c.displayName) !== want || ctx.timeModeRoleOf(c.displayName).role !== want) disagree.push(c.id);
+    });
+    T('Swap and Time Mode give every catalogued movement the one role the registry gives it', disagree.length === 0, disagree.join(','));
+    T('so Push-Up, Pull-Up and Dip are compounds to Swap, and Lat Pulldown is not an accessory',
+      ['pushup', 'pullup', 'dip', 'lat_pulldown'].every(id => ctx.substitutionRoleOf(id, canon(id).displayName) === 'compound'));
+    T('a name the registry does not know is still read from the name',
+      ctx.substitutionRoleOf('unmapped:band triceps pushdown', 'Band Triceps Pushdown') === 'accessory' && ctx.substitutionRoleOf('unmapped:pendulum squat', 'Pendulum Squat') === 'compound' &&
+      ctx.substitutionIsHold('unmapped:superman hold', 'Superman Hold') === true);
+    T('a heavy barbell lift is the registry\'s barbell compound, not a name that sounds like one',
+      ctx.substitutionIsBarbellCompound('good_morning', 'Good Morning') && ctx.substitutionIsBarbellCompound('hip_thrust', 'Hip Thrust') &&
+      !ctx.substitutionIsBarbellCompound('lunge', 'Lunge') && !ctx.substitutionIsBarbellCompound('upright_row', 'Upright Row') && !ctx.substitutionIsBarbellCompound('split_squat_bulgarian', 'Bulgarian Split Squat'));
+    T('a hold and a moving exercise are not the same movement, and neither are two kinds of core work',
+      !ctx.substitutionSameKind('plank', 'Plank', 'crunch', 'Crunch') && ctx.substitutionSameKind('plank', 'Plank', 'side_plank', 'Side Plank') &&
+      !ctx.substitutionSameKind('hanging_leg_raise', 'Hanging Leg Raise', 'bird_dog', 'Bird Dog') && ctx.substitutionSameKind('hanging_leg_raise', 'Hanging Leg Raise', 'leg_raise', 'Leg Raise') &&
+      ctx.substitutionSameKind('bench_press_barbell', 'Bench Press', 'pushup', 'Push-Up'));
+    T('the code keeps one role rule, shared', /role = registryRoleOf\(canon\);/.test(fnSrc(src, 'timeModeRoleOf')) && /if\(canon\) return registryRoleOf\(canon\);/.test(fnSrc(src, 'substitutionRoleOf')));
+  });
+
+  sub('Swap offers the movement, not just the muscle');
+  guard('swap truth', () => {
+    const ranked = (id, ctxt) => ctx.rankSubstitutionCandidates(id, ctxt || {}).map(r => r.exerciseId);
+    T('Pull-Up: vertical pulls first', ranked('pullup').slice(0, 2).every(id => canon(id).pattern === 'vertical_pull') && ranked('pullup').indexOf('inverted_row') !== -1);
+    T('Push-Up: the incline push-up first, then presses', ranked('pushup')[0] === 'pushup_incline' && ranked('pushup').every(id => ['horizontal_push', 'vertical_push'].indexOf(canon(id).pattern) !== -1));
+    T('Nordic Curl: knee-flexion work before any hinge', ranked('nordic_curl').slice(0, 2).every(id => ['leg_curl', 'leg_curl_seated'].indexOf(id) !== -1));
+    T('Hip Abduction: lateral work only — the band walk and the side-lying raise',
+      ranked('hip_abduction').length === 2 && ['band_lateral_walk', 'hip_abduction_side_lying'].every(id => ranked('hip_abduction').indexOf(id) !== -1));
+    T('Plank: holds first; Hanging Leg Raise: leg raises first', ranked('plank').slice(0, 2).every(id => canon(id).timed === true) &&
+      ranked('hanging_leg_raise').slice(0, 2).every(id => canon(id).motion === 'leg_raise'));
+    T('Glute Bridge: bridges and hip thrusts, nothing that only assists the glutes', ranked('glute_bridge')[0] === 'single_leg_glute_bridge' &&
+      ranked('glute_bridge').every(id => canon(id).primary.indexOf('glutes') !== -1));
+    T('a taken bench still offers a machine, and the machines still offer the free weight back',
+      ranked('bench_press_barbell').some(id => ['bench_press_smith', 'chest_press_machine', 'incline_press_machine'].indexOf(id) !== -1) &&
+      ranked('hip_thrust_machine')[0] === 'hip_thrust');
+    const score = (orig, cand) => ctx.scoreSubstitutionCandidate(canon(orig), canon(cand), ctx.substitutionContext(orig, {})).score;
+    const before = score('bench_press_barbell', 'pushup');
+    ['bench', 'barbell'].forEach(e => ctx.setEquipmentAvailable(e, true));
+    const afterCfg = score('bench_press_barbell', 'pushup');
+    T('needing nothing earns the availability bonus only once a gym is set up', afterCfg - before === ctx.SUBSTITUTION_CONFIG.equipment.available);
+    ctx.gymProfile.configuredAt = null; ctx.gymProfile.equipment = {}; ctx.invalidateGymCaches();
+  });
+
+  sub('sessions and prescriptions');
+  guard('programs', () => {
+    T('adding any of them to a workout finds a prescription', IDS.every(id => { const rx = ctx.libraryPrescriptionFor(BATCH[id][0]); return rx && rx.sets && rx.reps && rx.effort; }));
+    T('the two no plan writes declare theirs, for the sessions that train what they train',
+      ['inverted_row', 'hip_abduction_side_lying'].every(id => ctx.LIBRARY_EXTRAS.some(x => x.id === id)) &&
+      ctx.exPickerForCategory('pull', [], 60).some(e => e.key === 'inverted_row') && ctx.exPickerForCategory('legs', [], 60).some(e => e.key === 'hip_abduction_side_lying'));
+    T('every name this batch merged or split still arrives with a prescription',
+      ['Leg Raise', 'Hanging Leg Raise', 'Glute Bridge', 'Hip Thrust', 'Close-Grip Push-Up', 'Bench Dip', 'Step-Up', 'Mountain Climber', 'Push-Up', 'Dip', 'Lateral Band Walk']
+        .every(n => { const rx = ctx.libraryPrescriptionFor(n); return rx && rx.sets && rx.reps && rx.effort; }));
+    T('Leg Raise, no longer found through Hanging Leg Raise, declares its own, listed for the days that train the abs',
+      ctx.LIBRARY_EXTRAS.some(x => x.id === 'leg_raise') && ['core', 'fullbody'].every(cat => ctx.exPickerForCategory(cat, [], 200).some(e => e.key === 'leg_raise')));
+    const tpl = (pid, cat, id) => ctx.DEFAULT_PLANS[pid].templates[cat].find(t => t.id === id);
+    const h1 = tpl('home', 'core', 'h-co1'), h2 = tpl('home', 'core', 'h-co2');
+    T('a hold never takes a lead lift\'s prescription, catalogued or not',
+      h1.exercises.every((x, i) => ctx.deriveExerciseRole(h1, i) === 'accessory') && h2.exercises.every((x, i) => ctx.deriveExerciseRole(h2, i) === 'accessory') &&
+      ctx.exerciseIsNeverPrimary('Superman Hold') && ctx.exerciseIsNeverPrimary("Farmer's Carry") && !ctx.exerciseIsNeverPrimary('Goblet Squat') && !ctx.exerciseIsNeverPrimary('Bodyweight Lunge'));
+    T('Home Core A under Muscle + Strength prescribes no reps to a hold', ctx.applyPrescription(h1.exercises, 'hybrid').every(x => !/Hold|Plank/.test(x.name) || /s$/.test(String(x.reps))));
+    T('the calf extension is open to home programs', ctx.extensionAllowedForPlan(ctx.getProgramExtension('x_calf'), 'home'));
+    const dup = [], calf = [];
+    ['home', 'minimal', 'dumbbells'].forEach(equipment => ['long', 'extended'].forEach(sessionLength => [3, 5, 6].forEach(frequency => {
+      const def = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate', equipment, weeks:6, days: ctx.builderDefaultDays(frequency), sessionLength, emphasis:'balanced' });
+      ctx.PROGRAM_DAY_KEYS.forEach(k => {
+        const t = ctx.builderTemplateOf(def.schedule[k]);
+        if(!t) return;
+        const ids = t.exercises.map(x => ctx.resolveExerciseId(x.name));
+        if(new Set(ids).size !== ids.length) dup.push(equipment + '/' + sessionLength + '/' + frequency + '/' + k);
+        if(ids.indexOf('calf_raise') !== -1) calf.push(k);
+      });
+    })));
+    T('generated home programs never repeat one movement inside a session', dup.length === 0, dup.slice(0, 4).join(', '));
+    T('and they train calves', calf.length > 0);
+    /* The identity merge made one home extension redundant, and a week that
+       filled Monday's two slots before Friday's first came out shorter at
+       Extended than at Long. Slots are now spent round by round. */
+    const kept = [], lighter = [];
+    const weekWork = P => ctx.PROGRAM_DAY_KEYS.reduce((w, k) => { const t = ctx.builderTemplateOf(P.schedule[k]); if(!t) return w;
+      w.sets += t.exercises.reduce((n, x) => n + (parseInt(x.sets, 10) || 3), 0); w.mins += ctx.computeWorkoutDuration(t); return w; }, { sets: 0, mins: 0 });
+    ['hypertrophy', 'strength', 'recomp', 'general'].forEach(goal => ['new', 'intermediate', 'experienced'].forEach(experience =>
+      ['full', 'home', 'dumbbells', 'minimal'].forEach(equipment => [2, 3, 4, 5, 6].forEach(frequency => {
+        const opts = { goal, experience, equipment, weeks:6, days: ctx.builderDefaultDays(frequency), emphasis:'balanced' };
+        const L = ctx.generateProgram(Object.assign({ sessionLength:'long' }, opts)), E = ctx.generateProgram(Object.assign({ sessionLength:'extended' }, opts));
+        const key = [goal, experience, equipment, frequency].join('/');
+        ctx.PROGRAM_DAY_KEYS.forEach(k => { const l = (L.schedule[k] && L.schedule[k].ext) || [], e = (E.schedule[k] && E.schedule[k].ext) || [];
+          if(l.some(x => e.indexOf(x) === -1)) kept.push(key + ' ' + k + ' [' + l + '] -> [' + e + ']'); });
+        const wl = weekWork(L), we = weekWork(E);
+        if(we.sets < wl.sets || we.mins < wl.mins) lighter.push(key);
+      }))));
+    T('a longer session adds to the shorter week instead of rearranging it: every Extended session keeps the extensions its Long session chose',
+      kept.length === 0, kept.slice(0, 3).join(' | '));
+    T('and an Extended week is never less work than a Long one, in sets or estimated minutes', lighter.length === 0, lighter.slice(0, 3).join(', '));
+    const coreExt = ctx.PROGRAM_EXTENSIONS.filter(x => x.groups.indexOf('abs') !== -1);
+    const armsCore = [];
+    ['hypertrophy', 'strength', 'general'].forEach(goal => ['new', 'intermediate'].forEach(experience => ['balanced', 'back'].forEach(emphasis =>
+      ['long', 'extended'].forEach(sessionLength => {
+        const def = ctx.generateProgram({ goal, experience, equipment:'full', weeks:6, days: ctx.builderDefaultDays(4), emphasis, sessionLength, split: ctx.SPLIT_PRESETS['4'][4] });
+        ctx.PROGRAM_DAY_KEYS.forEach(k => { const en = def.schedule[k];
+          if(en && en.category === 'arms' && (en.ext || []).some(id => coreExt.some(x => x.id === id))) armsCore.push([goal, experience, emphasis, sessionLength, k].join('/')); });
+      }))));
+    T('core extensions keep off an Arms day, which trains the arms', coreExt.length >= 2 && coreExt.every(x => x.slots.indexOf('arms') === -1) &&
+      ctx.SPLIT_PRESETS['4'][4].indexOf('arms') !== -1 && armsCore.length === 0, armsCore.slice(0, 3).join(', '));
+  });
+
+  sub('a bodyweight movement starts as bodyweight work');
+  {
+    /* Only the word Bodyweight on a row used to count. A Plank from a program's
+       extensions, an Inverted Row from the picker or a Chin-Up in a saved workout
+       started as loaded work with no load, was saved that way, and its records
+       split from the same movement's bodyweight sessions. */
+    const bw = await H.loadAppBooted({ dataSchemaVersion:'1', workoutLog: JSON.stringify([
+      WK('r1', 4, 'push', [EX('Dips', [S(45, 8)]), EX('Push-Up', [S('', 20)], true), EX('Plank', [S('', 45)])])
+    ]) });
+    const c = bw.ctx;
+    const starts = (n, rec) => c.rowStartsAsBodyweight(n, rec);
+    guard('bodyweight rows', () => {
+      T('a row that says nothing about load follows the movement: bodyweight for the new identities, a hold and a chin-up; loaded for a hip thrust, a band walk and a standing calf raise',
+        starts('Inverted Row', '\u2014') && starts('Side-Lying Hip Abduction') && starts('Hollow Body Hold', '') && starts('Chin-Up', 'Add load when 10 reps is easy') &&
+        !starts('Hip Thrust', '\u2014') && !starts('Lateral Band Walk', '\u2014') && !starts('Standing Calf Raise', '\u2014'));
+      T('what a row states wins: Bodyweight is bodyweight work, a starting weight is loaded', starts('Calf Raise', 'Bodyweight') && !starts('Pull-Up', '25') && !starts('Inverted Row', '10'));
+      T('the athlete\'s own last session wins over the identity when it carried a load, and an unticked session with no load does not count as one',
+        !starts('Dips', '\u2014') && starts('Push-Up', '\u2014') && starts('Plank', '\u2014'));
+    });
+    const keep = {};
+    ['addLogExerciseRow', 'workoutStepRows', 'syncWorkoutStepper', 'goToWorkoutStep', 'renderWorkoutStep', 'persistDraftNow', 'confirmOverwriteDraft', 'getTemplates', 'getProgramWorkoutForDate', 'openLogSheet']
+      .forEach(k => { keep[k] = c[k]; });
+    const rows = [];
+    Object.assign(c, { addLogExerciseRow: (...a) => rows.push(a), workoutStepRows: () => [], syncWorkoutStepper(){}, goToWorkoutStep(){}, renderWorkoutStep(){}, persistDraftNow(){},
+      confirmOverwriteDraft: async () => true, openLogSheet(){} });
+    const flags = () => rows.map(a => a[0] + '=' + (a[2] === true ? 'BW' : 'loaded')).join(', ');
+    let picked = '', program = '', saved = '';
+    try{
+      c.addPickedToWorkout(['Inverted Row', 'Side-Lying Hip Abduction', 'Hanging Knee Raise', 'Hip Thrust', 'Lateral Band Walk'], 'empty');
+      picked = flags(); rows.length = 0;
+      const base = c.DEFAULT_PLANS.home.templates.push[0];
+      const composed = c.composeProgramSession({ ext: ['x_plank', 'x_cg_pushup'] }, base);
+      c.getTemplates = () => [base];
+      c.getProgramWorkoutForDate = () => ({ template: composed, category: 'push' });
+      await c.startTemplateLog('push', base.id);
+      program = rows.slice(-2).map(a => a[0] + '=' + (a[2] === true ? 'BW' : 'loaded')).join(', '); rows.length = 0;
+      const mine = { id:'c-bw', name:'Bar-free pull', exercises:[{ name:'Inverted Row', sets:'3', reps:'8-12', effort:'7', recommended:'\u2014' },
+        { name:'Chin-Up', sets:'3', reps:'6', effort:'8', recommended:'Add load when 10 reps is easy' }, { name:'Hip Thrust', sets:'3', reps:'8', effort:'8', recommended:'135' }] };
+      c.getTemplates = () => [mine];
+      c.getProgramWorkoutForDate = () => null;
+      await c.startTemplateLog('pull', 'c-bw');
+      saved = flags();
+    }catch(e){ picked = picked || 'threw ' + e.message; }
+    Object.assign(c, keep);
+    T('added from the picker, each starts as the work it is', picked === 'Inverted Row=BW, Side-Lying Hip Abduction=BW, Hanging Knee Raise=BW, Hip Thrust=loaded, Lateral Band Walk=loaded', picked);
+    T('a program session\'s extensions start as bodyweight work: Plank and Close-Grip Push-up', program === 'Plank=BW, Close-Grip Push-up=BW', program);
+    T('a saved workout starts each row as the work it is, and a stated starting weight stays loaded', saved === 'Inverted Row=BW, Chin-Up=BW, Hip Thrust=loaded', saved);
+    T('nothing stored was touched', bw.store.workoutLog === JSON.stringify([WK('r1', 4, 'push', [EX('Dips', [S(45, 8)]), EX('Push-Up', [S('', 20)], true), EX('Plank', [S('', 45)])])]));
+  }
+
+  sub('histories stay with the movement that was logged');
+  {
+    const store = { dataSchemaVersion:'1', workoutLog: JSON.stringify([
+      WK('b1', 30, 'legs', [EX('Glute Bridge', [S('', 15), S('', 15)], true), EX('Hip Thrust', [S(185, 8), S(185, 8)])]),
+      WK('b2', 23, 'core', [EX('Hanging Leg Raise', [S('', 10)], true), EX('Leg Raise', [S('', 15)], true), EX('Russian Twist', [S('', 20)], true), EX('Weighted Russian Twist', [S(25, 15)])]),
+      WK('b3', 16, 'push', [EX('Diamond Push-Up', [S('', 12)], true), EX('Close-Grip Push-up', [S('', 15)], true), EX('Bench Dips', [S('', 15)], true), EX('Chair Triceps Dips', [S('', 12)], true)]),
+      WK('b4', 9, 'pull', [EX('Weighted Pull-Up', [S(25, 5)]), EX('Pull-Up', [S('', 8)], true), EX('Assisted Pull-Up', [S(60, 8)]), EX('Weighted Dips', [S(45, 6)]), EX('Triceps Dips', [S('', 12)], true)]),
+      WK('b5', 2, 'legs', [EX('DB Step-Up', [S(30, 10)]), EX('Box Step-Up', [S('', 12)], true), EX('Band Lateral Walk', [S('', 15)]), EX('Lateral Band Walk', [S('', 15)])])
+    ]) };
+    const hist = await H.loadAppBooted(store);
+    const c = hist.ctx;
+    guard('history', () => {
+      const ids = id => c.getExerciseHistoryById(id).map(h => h.workoutId + ':' + h.name).sort().join(',');
+      T('the glute bridge and the hip thrust are separate histories', ids('glute_bridge') === 'b1:Glute Bridge' && ids('hip_thrust') === 'b1:Hip Thrust');
+      T('the hanging leg raise and the lying leg raise are separate histories', ids('hanging_leg_raise') === 'b2:Hanging Leg Raise' && ids('leg_raise') === 'b2:Leg Raise');
+      T('two names for one movement are one history: close-grip push-ups, bench dips, band walks',
+        ids('pushup_close') === 'b3:Close-Grip Push-up,b3:Diamond Push-Up' && ids('bench_dip') === 'b3:Bench Dips,b3:Chair Triceps Dips' &&
+        ids('band_lateral_walk') === 'b5:Band Lateral Walk,b5:Lateral Band Walk');
+      T('loaded and assisted work never joins the bodyweight history',
+        ids('pullup') === 'b4:Pull-Up' && ids('dip') === 'b4:Triceps Dips' && ids('step_up') === 'b5:Box Step-Up' && ids('russian_twist') === 'b2:Russian Twist' &&
+        c.getExerciseHistoryById('unmapped:weighted pull-up').length === 1 && c.getExerciseHistoryById('unmapped:assisted pull-up').length === 1);
+      const pr = n => c.computeExercisePREvents(n);
+      T('records are still read by the name logged, with the load that was logged',
+        pr('Glute Bridge')[0].isBW === true && pr('Hip Thrust')[0].isBW === false && pr('Hip Thrust')[0].headline.next === 185 &&
+        pr('Weighted Pull-Up')[0].headline.type === 'weight' && pr('Pull-Up')[0].isBW === true);
+      T('nothing stored was touched', hist.store.workoutLog === store.workoutLog);
+    });
+    const again = await H.loadAppBooted(hist.store);
+    guard('reload', () => {
+      T('after a reload every name resolves the same way', ['Glute Bridge', 'Diamond Push-Up', 'Box Step-Up', 'Weighted Pull-Up', 'Hanging Leg Raise'].every(n =>
+        again.ctx.resolveExerciseId(n) === c.resolveExerciseId(n)) && again.ctx.getExerciseHistoryById('pushup_close').length === 2);
+    });
+  }
+
+  sub('nothing protected moved');
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+  T('the D63 machines are the identities they were', ['lateral_raise_machine', 'shoulder_press_machine', 'reverse_pec_deck', 'curl_machine', 'leg_curl_seated', 'calf_raise_seated',
+    'calf_raise_leg_press', 'hip_thrust_machine', 'crunch_machine', 'dip_machine', 'triceps_extension_machine', 'incline_press_machine', 'bench_press_incline_smith', 'shoulder_press_smith']
+    .every(id => canon(id) && canon(id).equipment === 'Machine' && ctx.exerciseVisualKey(canon(id).displayName) === id));
+  T('assisted movements are still held: no assisted identity in the registry', !ctx.CANONICAL_EXERCISES.some(e => /assist/.test(e.id + ' ' + e.aliases.join(' '))));
+  T('the lower-back movements are still held', !canon('back_extension') && !canon('superman_hold'));
 }
 
 async function main(){
@@ -25241,6 +25627,7 @@ async function main(){
   await testBuildMyOwnContinue();
   await testMachineCoverage();
   await testMachineIntegrity();
+  await testBodyweightCoverage();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

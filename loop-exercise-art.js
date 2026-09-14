@@ -1610,6 +1610,23 @@ function build(){
   function leanBack(angle, arms, anchorFoot){
     return ext({ pin:['nA', anchorFoot || [80, 104.3]], trunk:angle, neck:angle, nth:angle - 180, nsh:angle - 180, fth:angle - 180, fsh:angle - 180 }, arms);
   }
+  /* D64 — Inverted row: face up under a bar at hip height, heels on the floor, the
+     body one straight line that turns about the heels. The top is chosen, the
+     bar sits just above the sternum there, and the bottom is where straight arms
+     reach the same bar from the same heels, so hands and heels never move. */
+  var IR_ANKLE = [100, G - 3.4];
+  function irBody(a){ return { pin:['nA', IR_ANKLE], trunk:a, neck:a + 4, nth:a - 180, nsh:a - 180, fth:a - 181, fsh:a - 181, nft:178, fft:176 }; }
+  var IR_TOP_A = -116;
+  var IR_TOP_SH = at('side', irBody(IR_TOP_A), 'sh');
+  var IR_BAR = [IR_TOP_SH[0] + 3.2, IR_TOP_SH[1] - 8.4];
+  var IR_BOTTOM_A = (function(){
+    var reach = ExerciseArt.B.ua + ExerciseArt.B.fa - 0.6, lo = -100, hi = IR_TOP_A;
+    for(var i = 0; i < 60; i++){
+      var m = (lo + hi) / 2, sh = at('side', irBody(m), 'sh');
+      if(Math.sqrt((IR_BAR[0] - sh[0]) * (IR_BAR[0] - sh[0]) + (IR_BAR[1] - sh[1]) * (IR_BAR[1] - sh[1])) > reach) lo = m; else hi = m;
+    }
+    return (lo + hi) / 2;
+  })();
   /* Arms folded across the chest, turned with the torso. */
   function folded(trunk){ var r = trunk - 180; return { nua:20 + r, nfa:150 + r, fua:16 + r, ffa:146 + r }; }
 
@@ -1719,6 +1736,13 @@ function build(){
     start:leanBack(-155, { nua:96, nfa:96, fua:92, ffa:92 }, [76, 104.3]),
     end:  leanBack(-166, { nua:-56, nfa:106, fua:-60, ffa:102 }, [76, 104.3]),
     gear:[['strap', { from:[98, 58], to:'nW' }]], track:'sh' },
+
+  /* The rack's upright stands behind the athlete under the bar it holds. */
+  inverted_row: { view:'side', arch:'dynamic', path:'line', ghost:'all', key:'end',
+    scene:[['post', { a:[IR_BAR[0], IR_BAR[1] - 18], b:[IR_BAR[0], G], w:2.6 }], ['bar', { at:IR_BAR, r:2.6 }]],
+    start:sideHands(irBody(IR_BOTTOM_A), IR_BAR, [IR_BAR[0] - 0.8, IR_BAR[1] + 0.6], -1),
+    end:  sideHands(irBody(IR_TOP_A), IR_BAR, [IR_BAR[0] - 0.8, IR_BAR[1] + 0.6], -1),
+    track:'sh' },
 
   /* ---- vertical pulls ---- */
   /* Lat pulldown: seated, thighs locked under the pad, the bar pulled from
@@ -2160,7 +2184,14 @@ function build(){
     start:F({ pin:['lA', [44, 104.3]], thighScale:0.86, lth:6, lsh:2, rth:6, rsh:2, la:40, lfa:-30, ra:40, rfa:-30 }),
     end:  F({ pin:['lA', [36, 104.3]], thighScale:0.86, lth:20, lsh:8, rth:20, rsh:8, la:40, lfa:-30, ra:40, rfa:-30 }),
     gear:[['band', { from:'lK', fdy:-2, to:'rK', dy:-2 }]], gearFront:true,
-    travel:{ dir:1 } }
+    travel:{ dir:1 } },
+
+  /* D64 — Side-lying hip abduction, seen from the front: lying on the right side,
+     the head on the lower arm, the top leg raised straight from a stacked start. */
+  hip_abduction_side_lying: { view:'front', arch:'dynamic', path:'trace', ghost:'legs',
+    start:{ pin:['rH', [58, G - 5.2]], rot:90, ra:180, rfa:180, la:14, lfa:-46, lth:0, lsh:0, rth:0, rsh:0, neckTilt:-6 },
+    end:  { pin:['rH', [58, G - 5.2]], rot:90, ra:180, rfa:180, la:14, lfa:-46, lth:40, lsh:40, rth:0, rsh:0, neckTilt:-6 },
+    track:'lA' }
   });
   })(EXV);
 
@@ -2433,8 +2464,6 @@ var EXERCISE_VISUAL_BY_NAME = {
   /* Aliases that share a canonical id for history but are drawn as what they are. */
   'pendlay row':'pendlay_row',
   't-bar row':'tbar_row', 't bar row':'tbar_row',
-  'glute bridge':'glute_bridge',
-  'hanging leg raise':'hanging_leg_raise',
   'walking lunge':'lunge_walking',
   'kettlebell goblet squat':'squat_goblet_kb',
 
@@ -2445,7 +2474,6 @@ var EXERCISE_VISUAL_BY_NAME = {
   'band chest press':'band_chest_press',
   'band curl':'band_curl',
   'band face pull':'band_face_pull',
-  'band lateral walk':'band_lateral_walk', 'lateral band walk':'band_lateral_walk',
   'band pull-apart':'band_pull_apart',
   'band row':'band_row',
   'band shoulder press':'band_shoulder_press',
@@ -2454,21 +2482,15 @@ var EXERCISE_VISUAL_BY_NAME = {
   'band triceps pushdown':'band_pushdown',
   'battle rope slams':'battle_rope_slam',
   'battle rope waves':'battle_rope_wave',
-  'bench dips':'bench_dip', 'chair triceps dips':'bench_dip',
-  'bicycle crunch':'bicycle_crunch',
-  'bird dog':'bird_dog',
   'bodyweight lunge':'bodyweight_lunge',
-  'bodyweight squat':'bodyweight_squat',
   'box jump':'box_jump',
   'box squat':'box_squat',
-  'box step-up':'step_up',
   'broad jump':'broad_jump',
   'cable chop':'woodchop_cable', 'cable woodchop':'woodchop_cable',
   'cable glute kickback':'glute_kickback_cable',
   'cable hammer curl':'cable_hammer_curl',
   'cable pull-through':'cable_pull_through',
   'cable triceps pushdown':'triceps_pushdown',
-  'close-grip push-up':'pushup_close', 'diamond push-up':'pushup_close',
   'concentration curl':'concentration_curl',
   'db arnold press':'shoulder_press_arnold',
   'db bulgarian split squat':'split_squat_bulgarian',
@@ -2481,16 +2503,12 @@ var EXERCISE_VISUAL_BY_NAME = {
   'db renegade row':'renegade_row', 'renegade row':'renegade_row',
   'db romanian deadlift':'db_rdl',
   'db step-up':'db_step_up',
-  'dead bug':'dead_bug',
   'decline sit-up':'decline_situp',
   'deficit deadlift':'deficit_deadlift',
   'explosive push-up':'pushup_plyo', 'plyo push-up':'pushup_plyo',
   "farmer's carry":'farmers_carry',
   'flat db press':'bench_press_db',
   'flutter kicks':'flutter_kicks',
-  'hanging knee raise':'hanging_knee_raise',
-  'hollow body hold':'hollow_hold',
-  'incline push-up':'pushup_incline',
   'kb row':'kb_row', 'single-arm kb row':'kb_row',
   'kettlebell push press':'kb_push_press',
   'kettlebell swing':'kb_swing',
@@ -2499,12 +2517,10 @@ var EXERCISE_VISUAL_BY_NAME = {
   'med ball chest pass':'med_ball_chest_pass', 'med ball chest throw':'med_ball_chest_pass',
   'med ball rotational throw':'med_ball_rotational_throw',
   'med ball slam':'med_ball_slam',
-  'mountain climbers':'mountain_climber',
   'one-arm lat pulldown':'lat_pulldown_single', 'single-arm lat pulldown':'lat_pulldown_single',
   'overhead cable extension':'overhead_ext_cable',
   'overhead rope extension':'overhead_rope_ext',
   'pallof press':'pallof_press',
-  'pike push-up':'pike_pushup',
   'plyo box push-up':'pushup_plyo_box',
   'power clean':'power_clean',
   'pull-up weighted':'pullup_weighted', 'weighted pull-up':'pullup_weighted',
@@ -2513,17 +2529,13 @@ var EXERCISE_VISUAL_BY_NAME = {
   'reverse crunch':'reverse_crunch',
   'reverse snow angel':'reverse_snow_angel',
   'rope triceps pushdown':'rope_pushdown',
-  'russian twist':'russian_twist',
   'seal row':'seal_row',
   'seated db shoulder press':'shoulder_press_db',
-  'side plank':'side_plank',
   'side plank with reach':'side_plank_reach',
   'single-arm db row':'row_dumbbell',
   'single-leg deadlift':'single_leg_rdl', 'single-leg rdl':'single_leg_rdl',
-  'single-leg glute bridge':'single_leg_glute_bridge',
   'sled pull':'sled_pull',
   'sled push':'sled_push',
-  'slow tempo push-up':'pushup',
   'speed bench press':'bench_press_barbell',
   'squat to press':'squat_to_press',
   'standing band woodchop':'band_woodchop',
@@ -2532,12 +2544,10 @@ var EXERCISE_VISUAL_BY_NAME = {
   'superman hold':'superman_hold',
   'towel door row':'towel_door_row',
   'trap bar deadlift':'trap_bar_deadlift',
-  'triceps dips':'dip',
   'triceps kickback':'triceps_kickback',
   'trx row':'trx_row',
   'turkish get-up':'turkish_getup',
   'v-up':'v_up',
-  'wall sit':'wall_sit',
   'weighted dips':'dip_weighted',
   'weighted plank':'weighted_plank',
   'weighted russian twist':'weighted_russian_twist',
@@ -2633,6 +2643,7 @@ var EXERCISE_HOW_TO = {
   trx_row:['Lean back with a straight body', 'Pull the chest to the handles', 'Lower slowly'],
   band_row:['Band anchored at chest height', 'Pull the elbows back', 'Return slowly'],
   towel_door_row:['Towel secured in a closed door', 'Lean back, body straight', 'Pull the chest toward the door'],
+  inverted_row:['Hang under a bar at hip height, heels down', 'Pull the chest to the bar', 'Keep the body in one straight line'],
   lat_pulldown:['Thighs under the pad', 'Pull the bar to the upper chest', 'Let it rise to straight arms'],
   lat_pulldown_single:['One handle overhead', 'Pull the elbow down to the side', 'Return to a full stretch'],
   straight_arm_pulldown:['Arms straight, slight hinge', 'Sweep the bar down to the thighs', 'Return with control'],
@@ -2694,6 +2705,7 @@ var EXERCISE_HOW_TO = {
   calf_raise_leg_press:['Knees soft, balls of the feet on the edge', 'Press through the balls of the feet', 'Lower the heels slowly to a stretch'],
   hip_abduction:['Sit tall, pads outside the knees', 'Push the knees apart', 'Return slowly'],
   band_lateral_walk:['Band above the knees, hips back', 'Step sideways', 'Keep tension on the band'],
+  hip_abduction_side_lying:['Lie on your side, legs stacked', 'Raise the top leg, toes forward', 'Lower slowly, hips still'],
 
   /* core and conditioning */
   plank:['Elbows under the shoulders', 'Body in one straight line', 'Brace and breathe'],

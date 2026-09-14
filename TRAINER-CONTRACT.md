@@ -9199,3 +9199,287 @@ builder and Program revision history are untouched.
   work.** Legs A — Balanced keeps Leg Press, Leg Extension and Walking Lunge,
   because the two accessories are cut in the order the plan lists them. Time
   Mode's tier design is unchanged.
+
+## §95 — D64: Bodyweight coverage and Swap truth
+
+**Status.** Shipped in LOOP 6.7 (`loop-v144`). `DATA_KEYS` 15, schema 1, no
+migration, no new storage key, `TRAINER_ENGINE_VERSION` 0.1.1-shadow. The
+registry grows from 76 identities to 97. `workoutLog`, saved programs, saved
+workouts and notes are never rewritten. Progression philosophy, Live Set Coach,
+Session Score, the shadow trainer, Activity, rank, social, the D62 builder,
+Program revision history and the D63 machines are untouched.
+
+### The inventory
+
+- **Before.** The picker listed 192 rows: 37 under Bodyweight, 12 under Band and
+  41 with unknown equipment. Only nine bodyweight movements had an identity (Push-Up, Dip,
+  Pull-Up, Chin-Up, Calf Raise, Nordic Curl, Plank, Crunch, Leg Raise). The other
+  28 bodyweight rows were loose names: drawn, cued, prescribed by the plans, but
+  invisible to Swap's ranking, with no stated equipment.
+- **Misfiled aliases.**
+  - Glute Bridge was an alias of Hip Thrust. A floor bridge required a barbell
+    and a bench, ranked Hip Thrust Machine, Deadlift and Romanian Deadlift as its
+    best matches, and in 120 generated Muscle + Strength programs was written
+    like a main lift at 5–8 reps, effort 8.
+  - Hanging Leg Raise was an alias of Leg Raise, which requires nothing, so a
+    pull-up-bar movement read as needing no equipment.
+- **Duplicates.** One movement listed under two names: Close-Grip Push-up and
+  Diamond Push-Up, Bench Dips and Chair Triceps Dips, Band Lateral Walk and
+  Lateral Band Walk.
+- **Missing.** No bodyweight horizontal pull, and nothing lateral for Hip
+  Abduction to swap to.
+
+### Twenty-one identities
+
+| Family | Identity | Equipment | Pattern |
+|---|---|---|---|
+| Push | Incline Push-Up | a bench or a plyo box | horizontal push |
+| Push | Close-Grip Push-Up (Diamond, narrow, triangle) | none | horizontal push, triceps |
+| Push | Pike Push-Up | none | vertical push |
+| Push | Bench Dip (Bench Dips, Chair Triceps Dips) | a bench or a plyo box | horizontal push, never leads |
+| Pull | Inverted Row (body row, Australian pull-up) | a rack or Smith bar at hip height | horizontal pull |
+| Legs | Glute Bridge | none | hinge, never leads |
+| Legs | Single-Leg Glute Bridge | none | hinge, never leads |
+| Legs | Bodyweight Squat (air squat) | none | squat |
+| Legs | Step-Up (Box Step-Up) | a bench or a plyo box | lunge |
+| Legs | Wall Sit | none | squat, hold, never leads |
+| Abduction | Lateral Band Walk (Band Lateral Walk) | a band | isolation |
+| Abduction | Side-Lying Hip Abduction | none | isolation |
+| Core | Side Plank, Hollow Body Hold | none | holds |
+| Core | Dead Bug, Bird Dog, Mountain Climber | none | anti-extension |
+| Core | Russian Twist | none | rotation |
+| Core | Bicycle Crunch | none | flexion |
+| Core | Hanging Leg Raise, Hanging Knee Raise | a pull-up bar | leg raise |
+
+- **Fields.** Every one states its requirement explicitly in
+  `EXERCISE_EQUIPMENT`. The three surface movements share `ANY_SURFACE`
+  (`bench`, `adjustable_bench`, and a new `plyo_box` gym item filed under
+  Bodyweight). All except the band walk are `bodyweight:true`. Holds carry
+  `timed:true`, and moving core work carries a `motion`. Crunch, Cable Crunch and
+  Ab Crunch Machine are marked `flexion`, and Leg Raise is marked `leg_raise`.
+- **Aliases instead of identities.** Slow Tempo Push-Up joins Push-Up. Triceps
+  Dips and parallel bar dip join Dip. Mountain Climbers joins Mountain Climber.
+  Loaded and assisted versions stay unmapped with their own histories: Weighted
+  Pull-Up, Pull-Up (weighted), Weighted Dips, Weighted Plank, Weighted Russian
+  Twist, DB Step-Up and Assisted Pull-Up.
+- **Held.**
+  - Assisted Pull-Up and Assisted Dip. Logged as a weight, needing less help
+    reads as getting weaker. In a probe, going from 80 to 40 of assistance gave
+    no records, a falling trend and "stalled". Needing more help gave four
+    records and advice to add assistance.
+  - Back Extension and Superman Hold. Filed under hamstrings, Swap ranked
+    Nordic Curl and the leg curls, and the movement entered eight other lists.
+    Filed under back, its only ranked alternative was Deadlift.
+  - Towel Door Row and TRX Row. The gym profile has no item for improvised or
+    suspension equipment.
+- **Deferred.** The lunge family (Split Squat already means Bulgarian Split
+  Squat), Knee and Decline Push-Up, Monster Walk, Clamshell, Burpee, Bear Crawl,
+  plyometric push-ups, V-Up, Reverse Crunch, Flutter Kicks, Decline Sit-Up and
+  Ab Wheel.
+- **Drawings.** Inverted Row and Side-Lying Hip Abduction are new drawings, each
+  with three cues. The other 19 identities are reached by their ids, and their 21
+  name-map entries are removed. All 175 existing drawings render byte-identically
+  at both sizes, and no cue changed. The D59 grounding contract passes for all 177
+  drawings. Holds draw no arrow, and the five two-way movements draw two
+  heads.
+- **Prescriptions when added.** `LIBRARY_EXTRAS` declares:
+  - Inverted Row: 3 × 8–12 at effort 7–8, for Pull, Upper Body and Full Body.
+  - Side-Lying Hip Abduction: 3 × 12–15/side at effort 7, for Legs, Lower Body
+    and Full Body.
+  - Leg Raise: 3 × 10–15 at effort 7, for Core and Full Body. It had been found
+    through the Hanging Leg Raise rows while that was its alias, and Contract
+    170's rule keeps an extra to the days that train its muscle.
+
+### Swap reads the registry first
+
+- **Was.** A catalogued movement's role came from its name
+  (`substitutionRole(classifyExerciseType(name))`), as did heavy-barbell
+  escalation. Any two movements with the same pattern counted as "Same movement",
+  so a plank and a crunch were the same movement. A candidate needing nothing got
+  the +20 availability bonus even with no gym set up (§94 recorded this).
+- **Now.**
+  - `registryRoleOf(canon)` is the one role rule, shared by Swap
+    (`substitutionRoleOf`) and Time Mode (`timeModeRoleOf`). It returns
+    accessory for core, isolation and `NEVER_PRIMARY_IDS`, compound for a
+    multi-joint pattern, and other for anything else.
+  - `substitutionIsBarbellCompound` reads Barbell plus compound from the
+    registry.
+  - `substitutionSameKind` makes a same-pattern candidate "Same movement" (45)
+    only when both are holds or both move, and their core motions do not
+    differ. Otherwise it is "Similar movement" (18). The same test orders
+    Swap's same-muscle list.
+  - `sameResistance` (+6) prefers bodyweight for bodyweight and loaded for
+    loaded.
+  - A candidate needing nothing gets the bonus only once the gym is configured.
+    Its label stays "No equipment needed".
+- **Fallback.** A custom, legacy or uncatalogued name has no registry entry, so
+  every one of these functions keeps the name classifier for it.
+- **Results** (no gym set up):
+  - Push-Up → Incline Push-Up first
+  - Pull-Up → Chin-Up, Lat Pulldown, Inverted Row
+  - Hip Abduction → Lateral Band Walk, Side-Lying Hip Abduction (it had no
+    ranked match)
+  - Plank → Hollow Body Hold, Side Plank (were Crunch, Leg Raise)
+  - Hanging Leg Raise → Hanging Knee Raise, Leg Raise
+  - Glute Bridge → Single-Leg Glute Bridge, Hip Thrust Machine, Hip Thrust
+  - Nordic Curl → Leg Curl, Seated Leg Curl
+  - Dip → Close-Grip Push-Up, Seated Dip Machine, Bench Dip
+  - Crunch → Bicycle Crunch first
+  - A taken bench still offers machine presses, and Hip Thrust Machine still
+    offers Hip Thrust first.
+  - In the snapshot, 456 of the names both builds carry have a different Swap
+    list, and 103 names are new.
+
+### Bodyweight rows start as bodyweight work
+
+- **Found in the browser.** Starting a row checked only whether its
+  `recommended` text was exactly "Bodyweight". So a Plank from a program's
+  extensions (which carry "—"), an Inverted Row added from the picker, and a
+  Chin-Up in a saved workout all started with the Bodyweight box unticked.
+  They were saved as loaded work with no load. `wasSessionPR` compares only
+  sessions with the same flag, so those sessions split from the movement's
+  bodyweight records. 6.6 does the same for Plank, Pike Push-Up, Chin-Up and
+  Step-Up.
+- **Now.** `rowStartsAsBodyweight(name, recommended)` applies these rules in
+  order, in both `addPickedToWorkout` and `startTemplateLog`:
+  1. "Bodyweight" means bodyweight work.
+  2. A starting weight that is a number means loaded work.
+  3. When the athlete's own last session of that exact name carried a load, the
+     row starts loaded.
+  4. Otherwise the identity decides, as it already does for Swap.
+
+  Swap, drafts, split rows and the log keep the flags they have.
+- **Scope.** 45 of the 802 plan-template and extension rows now start as
+  bodyweight work for an athlete with no loaded record (Dips ×6, Box Step-Up ×3,
+  Plank ×3, Back Extension ×4 and others). No row that said Bodyweight becomes
+  loaded.
+
+### Programs
+
+- **Calf Raise eligibility.** `x_calf` is `gym:false`, since Calf Raise needs
+  nothing (§94). In isolation that change alters 300 home, dumbbell and minimal
+  programs. Their weekly calf sets go from 2.76 to 5.76, and no session exceeds
+  its cap.
+- **Slots are spent round by round.** `builderAllocateDepth` gives every
+  session its first extension before any session gets a second. Merging Diamond
+  Push-Up into Close-Grip Push-Up made one home extension redundant. The old
+  day-by-day fill then gave Extended home weeks (recomp, intermediate, five
+  days) five estimated minutes fewer than Long, which failed the program audit.
+  - Across 9,216 long and extended pairs, the Extended week drops a Long pick
+    in 142 (4,159 on 6.6). The remaining cases come from the wider time band
+    and the priority slot.
+  - An Extended week is never less work than a Long one, in sets or estimated
+    minutes.
+- **Core stays off an Arms day.** `x_plank` and `x_cable_crunch` no longer list
+  `arms`. Round by round, one landed on an Arms day inside the audit's combos.
+  On 6.6, 56 Arms-day sessions across those pairs carried one; now 0.
+- **Whole generator, 6.6 → 6.7** (7,936 programs): 2,134 differ. Identities and
+  eligibility alone change 1,771, and the allocator and core slots 662 (some
+  programs change for both).
+  - Same exercise twice in a session: 1,008 → 0
+  - Three of one pattern and muscle: 3,647 → 3,095
+  - An exercise on more than two days: 344 → 186
+  - Sessions over cap: 20 → 20
+  - Programs missing a major group: 1,502 → 1,502
+  - Minutes per session: 37.41 → 37.48
+  - Weekly sets: chest 9.74 → 9.61, shoulders 11.45 → 11.69, triceps
+    6.39 → 6.26, calves 4.16 → 4.28
+  - Saved programs compose from their stored recipes and are unchanged.
+- **Monotonicity.** The audit's rounded-minute check has 0 breaks. By exact
+  seconds, one short → standard step still breaks, and by sets four do
+  (strength, full). All five are template picks present in 6.6.
+- **Time Mode.** Invariants were re-checked on all 31,744 sessions and 156
+  templates at five lengths: 159,500 checks, 0 violations.
+
+### Verification
+
+- **Contract 172 `testBodyweightCoverage`** (74 assertions):
+  - identity, aliases, merges, splits, and loaded and assisted separation
+  - explicit equipment classes, an empty gym, and bench, bar and band unlocks
+  - muscles, patterns, holds, motions, logging and never-leads
+  - drawings, arrows, distinct pictures and cues, plus Inverted Row and
+    Side-Lying geometry
+  - search, one row per identity, and the Bodyweight, Band and glutes filters
+  - one role rule with the unknown-name fallback, and Swap truth for Pull-Up,
+    Push-Up, Nordic Curl, Hip Abduction, Plank, Hanging Leg Raise and Glute
+    Bridge
+  - the bonus only once configured
+  - prescriptions, including every merged and split name, and Leg Raise's own
+  - holds never leading, home calves, no duplicate movement in a session
+  - round-robin slots, Extended never lighter, and core off Arms days
+  - bodyweight rows from the picker, a saved workout and program extensions,
+    including a loaded record and a stated weight
+  - histories by identity, records by name, and nothing stored touched after a
+    reload
+  - the protected systems
+- **Repointed with reasons.**
+  - Contract 37: an available candidate may read "No equipment needed".
+  - Contract 160: its uncatalogued example is now Band Triceps Pushdown.
+  - Contract 164: Glute Bridge and Hanging Leg Raise have identities, drawn
+    under them.
+  - Contract 170: a per-side rep count is allowed.
+  - Contract 171: the calf extension is open to home programs, and the registry
+    is 97.
+- **Mutation check.** 32 of 32 mutations are caught, and production 6.6 fails 34
+  assertions.
+- **Longitudinal.** Six weeks were simulated: first exposure, three repeats,
+  swaps in and out with the plan slot recorded, and a program revision.
+  - Glute Bridge and Hip Thrust, Step-Up and DB Step-Up, Pull-Up and its
+    weighted and assisted versions, and Hanging and lying Leg Raise stay
+    separate.
+  - Diamond and Close-Grip Push-up form one history.
+  - Bodyweight moves get reps records and no invented load, while Hip Thrust's
+    recommendation is 175.
+  - The revision is valid, and the stored log is untouched.
+- **Physical.** Headless Edge with the iPhone's insets at 390×844, 375×812 and
+  844×390:
+  - alias search, Bodyweight (40 rows), Glutes + Bodyweight, Glutes + Band, and
+    the filter counts
+  - Popular in your plan and Recent
+  - multi-select into a workout, with bodyweight flags and exact row and stepper
+    drawings
+  - Swap sheets for Hip Abduction, Pull-Up, Plank and Push-Up, and a replacement
+    that updates the row and stepper drawings
+  - How To for four new movements, inside the frame
+  - a saved workout added, saved and started
+  - a Program Studio home Extended week with a session replaced through the
+    picker
+  - all 21 thumbnails inside their frames at 40, 44 and 52
+  - no horizontal overflow and no page errors
+- **Performance** (6.6 → 6.7, medians):
+  - index +15.5 KB (+4.0 KB gzipped)
+  - picker first open 90.2 → 88.4 ms, warm render 3.6 → 3.4 ms
+  - Bodyweight filter 0.6 → 0.6 ms
+  - How To first 4.2 → 4.1 ms
+  - Program Studio first 5.1 → 4.8 ms
+  - all 177 thumbnails cold 85.3 → 87.4 ms
+  - 12 generated programs 4.81 → 5.02 ms
+  - five cold Swaps 1.9 → 2.3 ms
+
+### Resolved from §94
+
+- Hip Abduction has lateral alternatives.
+- A movement needing nothing gets the availability bonus only once the gym is
+  configured.
+- Swap's role reads the registry for every catalogued movement.
+
+### Known and recorded
+
+- **Minimal and home programs share one plan,** so minimal programs still
+  prescribe kit their profile may lack.
+- **A note written before 6.7 on Glute Bridge or Hanging Leg Raise** was filed
+  under Hip Thrust or Leg Raise, and still appears there. Notes are never
+  rewritten. A note under an `unmapped:` name re-files itself, as in D63.
+- **Uncatalogued moving work can still lead a session:** Back Extension 2 ×
+  5–8 in one balanced core day under Muscle + Strength, and Cable Woodchop in a
+  strength core day. Only uncatalogued holds are vetoed.
+- **Pec Deck is still not in `NEVER_PRIMARY_IDS`.** Nordic Curl states no
+  anchor.
+- **No same-kind partner yet.** Wall Sit swaps to Leg Extension first,
+  Bodyweight Squat's best matches are loaded squats, and Russian Twist has no
+  second rotation movement.
+- **Picker gaps.** Crunch, Meadows Row and Upright Row still have no
+  prescription when added. Adding a movement to a saved workout can copy a plan's
+  text, such as "Add load when 10 reps is easy", into Starting weight (D61).
+- **A bodyweight-named movement trained with load** starts ticked until the
+  athlete logs it once with a load. From then on, their record decides.

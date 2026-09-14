@@ -10584,6 +10584,23 @@ function build(){
   function leanBack(angle, arms, anchorFoot){
     return ext({ pin:['nA', anchorFoot || [80, 104.3]], trunk:angle, neck:angle, nth:angle - 180, nsh:angle - 180, fth:angle - 180, fsh:angle - 180 }, arms);
   }
+  /* D64 — Inverted row: face up under a bar at hip height, heels on the floor, the
+     body one straight line that turns about the heels. The top is chosen, the
+     bar sits just above the sternum there, and the bottom is where straight arms
+     reach the same bar from the same heels, so hands and heels never move. */
+  var IR_ANKLE = [100, G - 3.4];
+  function irBody(a){ return { pin:['nA', IR_ANKLE], trunk:a, neck:a + 4, nth:a - 180, nsh:a - 180, fth:a - 181, fsh:a - 181, nft:178, fft:176 }; }
+  var IR_TOP_A = -116;
+  var IR_TOP_SH = at('side', irBody(IR_TOP_A), 'sh');
+  var IR_BAR = [IR_TOP_SH[0] + 3.2, IR_TOP_SH[1] - 8.4];
+  var IR_BOTTOM_A = (function(){
+    var reach = ExerciseArt.B.ua + ExerciseArt.B.fa - 0.6, lo = -100, hi = IR_TOP_A;
+    for(var i = 0; i < 60; i++){
+      var m = (lo + hi) / 2, sh = at('side', irBody(m), 'sh');
+      if(Math.sqrt((IR_BAR[0] - sh[0]) * (IR_BAR[0] - sh[0]) + (IR_BAR[1] - sh[1]) * (IR_BAR[1] - sh[1])) > reach) lo = m; else hi = m;
+    }
+    return (lo + hi) / 2;
+  })();
   /* Arms folded across the chest, turned with the torso. */
   function folded(trunk){ var r = trunk - 180; return { nua:20 + r, nfa:150 + r, fua:16 + r, ffa:146 + r }; }
 
@@ -10693,6 +10710,13 @@ function build(){
     start:leanBack(-155, { nua:96, nfa:96, fua:92, ffa:92 }, [76, 104.3]),
     end:  leanBack(-166, { nua:-56, nfa:106, fua:-60, ffa:102 }, [76, 104.3]),
     gear:[['strap', { from:[98, 58], to:'nW' }]], track:'sh' },
+
+  /* The rack's upright stands behind the athlete under the bar it holds. */
+  inverted_row: { view:'side', arch:'dynamic', path:'line', ghost:'all', key:'end',
+    scene:[['post', { a:[IR_BAR[0], IR_BAR[1] - 18], b:[IR_BAR[0], G], w:2.6 }], ['bar', { at:IR_BAR, r:2.6 }]],
+    start:sideHands(irBody(IR_BOTTOM_A), IR_BAR, [IR_BAR[0] - 0.8, IR_BAR[1] + 0.6], -1),
+    end:  sideHands(irBody(IR_TOP_A), IR_BAR, [IR_BAR[0] - 0.8, IR_BAR[1] + 0.6], -1),
+    track:'sh' },
 
   /* ---- vertical pulls ---- */
   /* Lat pulldown: seated, thighs locked under the pad, the bar pulled from
@@ -11134,7 +11158,14 @@ function build(){
     start:F({ pin:['lA', [44, 104.3]], thighScale:0.86, lth:6, lsh:2, rth:6, rsh:2, la:40, lfa:-30, ra:40, rfa:-30 }),
     end:  F({ pin:['lA', [36, 104.3]], thighScale:0.86, lth:20, lsh:8, rth:20, rsh:8, la:40, lfa:-30, ra:40, rfa:-30 }),
     gear:[['band', { from:'lK', fdy:-2, to:'rK', dy:-2 }]], gearFront:true,
-    travel:{ dir:1 } }
+    travel:{ dir:1 } },
+
+  /* D64 — Side-lying hip abduction, seen from the front: lying on the right side,
+     the head on the lower arm, the top leg raised straight from a stacked start. */
+  hip_abduction_side_lying: { view:'front', arch:'dynamic', path:'trace', ghost:'legs',
+    start:{ pin:['rH', [58, G - 5.2]], rot:90, ra:180, rfa:180, la:14, lfa:-46, lth:0, lsh:0, rth:0, rsh:0, neckTilt:-6 },
+    end:  { pin:['rH', [58, G - 5.2]], rot:90, ra:180, rfa:180, la:14, lfa:-46, lth:40, lsh:40, rth:0, rsh:0, neckTilt:-6 },
+    track:'lA' }
   });
   })(EXV);
 
@@ -11407,8 +11438,6 @@ var EXERCISE_VISUAL_BY_NAME = {
   /* Aliases that share a canonical id for history but are drawn as what they are. */
   'pendlay row':'pendlay_row',
   't-bar row':'tbar_row', 't bar row':'tbar_row',
-  'glute bridge':'glute_bridge',
-  'hanging leg raise':'hanging_leg_raise',
   'walking lunge':'lunge_walking',
   'kettlebell goblet squat':'squat_goblet_kb',
 
@@ -11419,7 +11448,6 @@ var EXERCISE_VISUAL_BY_NAME = {
   'band chest press':'band_chest_press',
   'band curl':'band_curl',
   'band face pull':'band_face_pull',
-  'band lateral walk':'band_lateral_walk', 'lateral band walk':'band_lateral_walk',
   'band pull-apart':'band_pull_apart',
   'band row':'band_row',
   'band shoulder press':'band_shoulder_press',
@@ -11428,21 +11456,15 @@ var EXERCISE_VISUAL_BY_NAME = {
   'band triceps pushdown':'band_pushdown',
   'battle rope slams':'battle_rope_slam',
   'battle rope waves':'battle_rope_wave',
-  'bench dips':'bench_dip', 'chair triceps dips':'bench_dip',
-  'bicycle crunch':'bicycle_crunch',
-  'bird dog':'bird_dog',
   'bodyweight lunge':'bodyweight_lunge',
-  'bodyweight squat':'bodyweight_squat',
   'box jump':'box_jump',
   'box squat':'box_squat',
-  'box step-up':'step_up',
   'broad jump':'broad_jump',
   'cable chop':'woodchop_cable', 'cable woodchop':'woodchop_cable',
   'cable glute kickback':'glute_kickback_cable',
   'cable hammer curl':'cable_hammer_curl',
   'cable pull-through':'cable_pull_through',
   'cable triceps pushdown':'triceps_pushdown',
-  'close-grip push-up':'pushup_close', 'diamond push-up':'pushup_close',
   'concentration curl':'concentration_curl',
   'db arnold press':'shoulder_press_arnold',
   'db bulgarian split squat':'split_squat_bulgarian',
@@ -11455,16 +11477,12 @@ var EXERCISE_VISUAL_BY_NAME = {
   'db renegade row':'renegade_row', 'renegade row':'renegade_row',
   'db romanian deadlift':'db_rdl',
   'db step-up':'db_step_up',
-  'dead bug':'dead_bug',
   'decline sit-up':'decline_situp',
   'deficit deadlift':'deficit_deadlift',
   'explosive push-up':'pushup_plyo', 'plyo push-up':'pushup_plyo',
   "farmer's carry":'farmers_carry',
   'flat db press':'bench_press_db',
   'flutter kicks':'flutter_kicks',
-  'hanging knee raise':'hanging_knee_raise',
-  'hollow body hold':'hollow_hold',
-  'incline push-up':'pushup_incline',
   'kb row':'kb_row', 'single-arm kb row':'kb_row',
   'kettlebell push press':'kb_push_press',
   'kettlebell swing':'kb_swing',
@@ -11473,12 +11491,10 @@ var EXERCISE_VISUAL_BY_NAME = {
   'med ball chest pass':'med_ball_chest_pass', 'med ball chest throw':'med_ball_chest_pass',
   'med ball rotational throw':'med_ball_rotational_throw',
   'med ball slam':'med_ball_slam',
-  'mountain climbers':'mountain_climber',
   'one-arm lat pulldown':'lat_pulldown_single', 'single-arm lat pulldown':'lat_pulldown_single',
   'overhead cable extension':'overhead_ext_cable',
   'overhead rope extension':'overhead_rope_ext',
   'pallof press':'pallof_press',
-  'pike push-up':'pike_pushup',
   'plyo box push-up':'pushup_plyo_box',
   'power clean':'power_clean',
   'pull-up weighted':'pullup_weighted', 'weighted pull-up':'pullup_weighted',
@@ -11487,17 +11503,13 @@ var EXERCISE_VISUAL_BY_NAME = {
   'reverse crunch':'reverse_crunch',
   'reverse snow angel':'reverse_snow_angel',
   'rope triceps pushdown':'rope_pushdown',
-  'russian twist':'russian_twist',
   'seal row':'seal_row',
   'seated db shoulder press':'shoulder_press_db',
-  'side plank':'side_plank',
   'side plank with reach':'side_plank_reach',
   'single-arm db row':'row_dumbbell',
   'single-leg deadlift':'single_leg_rdl', 'single-leg rdl':'single_leg_rdl',
-  'single-leg glute bridge':'single_leg_glute_bridge',
   'sled pull':'sled_pull',
   'sled push':'sled_push',
-  'slow tempo push-up':'pushup',
   'speed bench press':'bench_press_barbell',
   'squat to press':'squat_to_press',
   'standing band woodchop':'band_woodchop',
@@ -11506,12 +11518,10 @@ var EXERCISE_VISUAL_BY_NAME = {
   'superman hold':'superman_hold',
   'towel door row':'towel_door_row',
   'trap bar deadlift':'trap_bar_deadlift',
-  'triceps dips':'dip',
   'triceps kickback':'triceps_kickback',
   'trx row':'trx_row',
   'turkish get-up':'turkish_getup',
   'v-up':'v_up',
-  'wall sit':'wall_sit',
   'weighted dips':'dip_weighted',
   'weighted plank':'weighted_plank',
   'weighted russian twist':'weighted_russian_twist',
@@ -11607,6 +11617,7 @@ var EXERCISE_HOW_TO = {
   trx_row:['Lean back with a straight body', 'Pull the chest to the handles', 'Lower slowly'],
   band_row:['Band anchored at chest height', 'Pull the elbows back', 'Return slowly'],
   towel_door_row:['Towel secured in a closed door', 'Lean back, body straight', 'Pull the chest toward the door'],
+  inverted_row:['Hang under a bar at hip height, heels down', 'Pull the chest to the bar', 'Keep the body in one straight line'],
   lat_pulldown:['Thighs under the pad', 'Pull the bar to the upper chest', 'Let it rise to straight arms'],
   lat_pulldown_single:['One handle overhead', 'Pull the elbow down to the side', 'Return to a full stretch'],
   straight_arm_pulldown:['Arms straight, slight hinge', 'Sweep the bar down to the thighs', 'Return with control'],
@@ -11668,6 +11679,7 @@ var EXERCISE_HOW_TO = {
   calf_raise_leg_press:['Knees soft, balls of the feet on the edge', 'Press through the balls of the feet', 'Lower the heels slowly to a stretch'],
   hip_abduction:['Sit tall, pads outside the knees', 'Push the knees apart', 'Return slowly'],
   band_lateral_walk:['Band above the knees, hips back', 'Step sideways', 'Keep tension on the band'],
+  hip_abduction_side_lying:['Lie on your side, legs stacked', 'Raise the top leg, toes forward', 'Lower slowly, hips still'],
 
   /* core and conditioning */
   plank:['Elbows under the shoulders', 'Body in one straight line', 'Brace and breathe'],
@@ -14588,6 +14600,36 @@ const LOOP_UPDATES = [
     changes: [
       'Calf Raise is listed under Bodyweight, so Swap can suggest it at a gym without a calf machine. Its history, records and names are unchanged',
       'Hip Abduction is grouped with the finishing exercises in a program day'
+    ]
+  },
+  {
+    id: 'v6-7',
+    version: 'LOOP 6.7',
+    title: 'Bodyweight Training',
+    date: '2026-09-14',
+    swVersion: 'loop-v144',
+    summary: 'Inverted Row and Side-Lying Hip Abduction join the library, Swap can rank 21 more bodyweight and band exercises as best matches, and bodyweight exercises start as bodyweight work.',
+    newFeatures: [
+      'Inverted Row, a bodyweight row under a bar at hip height, and Side-Lying Hip Abduction, each with a drawing and How To cues'
+    ],
+    improvements: [
+      'Swap can now rank 21 more bodyweight and band exercises among its best matches, such as Incline Push-Up for Push-Up, Inverted Row for Pull-Up, and Lateral Band Walk or Side-Lying Hip Abduction for Hip Abduction',
+      'Swap reads each exercise from the exercise library instead of guessing from its name, so a hold is matched with holds first and a hanging leg raise with leg raises first',
+      'The new bodyweight exercises say what they need: a bench or box, a pull-up bar, a band, or a bar at hip height. The rest need no equipment',
+      'When a new program has longer sessions, the extra exercises are spread across the week a round at a time instead of filling one day before the next',
+      'New home, dumbbell and minimal-equipment programs can include calf raises'
+    ],
+    bugFixes: [
+      'Bodyweight exercises added from the exercise list, in a saved workout or from a program could start with Bodyweight unticked and be saved as weighted work with no weight. They now start as bodyweight work, unless you last logged that exercise with a weight or the workout gives it a starting weight',
+      'Glute Bridge counted as Hip Thrust: it needed a barbell and a bench, and new Muscle + Strength programs could prescribe it like a main lift',
+      'Hanging Leg Raise counted as Leg Raise, which needs no equipment, although it needs a pull-up bar',
+      'Close-Grip Push-up and Diamond Push-Up, Bench Dips and Chair Triceps Dips, and Band Lateral Walk and Lateral Band Walk were each listed twice in the exercise list',
+      'A new program could add a core exercise to an Arms day',
+      'Before a gym was set up, Swap gave exercises that need no equipment a ranking boost that other exercises could not get'
+    ],
+    changes: [
+      'Diamond Push-Up and Close-Grip Push-up are one exercise, Close-Grip Push-Up, listed under triceps. Box Step-Up is listed as Step-Up, Bench Dips and Chair Triceps Dips as Bench Dip, Band Lateral Walk as Lateral Band Walk, Mountain Climbers as Mountain Climber, Slow Tempo Push-Up as Push-Up and Triceps Dips as Dip. Workouts you already logged keep the names you logged',
+      'Weighted and assisted versions, such as Weighted Pull-Up, Weighted Dips, DB Step-Up and Assisted Pull-Up, stay separate from the bodyweight exercise and keep their own history'
     ]
   }
 ];
@@ -27460,8 +27502,12 @@ const CANONICAL_EXERCISES = [
   { id:'incline_press_machine', displayName:'Incline Machine Press',  aliases:['incline machine press','machine incline press','incline chest press machine','incline press machine','iso-lateral incline press','plate-loaded incline press'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:true },
   { id:'chest_fly_cable',       displayName:'Cable Fly',              aliases:['cable fly','cable flye','cable crossover','cable chest fly'], pattern:'horizontal_push', equipment:'Cable', primary:['chest'], secondary:[], supports1RM:false },
   { id:'pec_deck',              displayName:'Pec Deck',               aliases:['pec deck','pec deck fly','machine fly','machine chest fly','pec deck machine'], pattern:'horizontal_push', equipment:'Machine', primary:['chest'], secondary:[], supports1RM:true },
-  { id:'pushup',                displayName:'Push-Up',                aliases:['push-up','push up','pushup','pushups','push-ups'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:false, bodyweight:true },
-  { id:'dip',                   displayName:'Dip',                    aliases:['dip','dips','chest dip','tricep dip','triceps dip'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:false, bodyweight:true },
+  { id:'pushup',                displayName:'Push-Up',                aliases:['push-up','push up','pushup','pushups','push-ups','slow tempo push-up','tempo push-up'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:false, bodyweight:true },
+  { id:'pushup_incline',          displayName:'Incline Push-Up',        aliases:['incline push-up','incline push up','incline pushup','incline push-ups','hands-elevated push-up','bench push-up'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['chest'], secondary:['triceps','shoulders'], supports1RM:false, bodyweight:true },
+  { id:'pushup_close',            displayName:'Close-Grip Push-Up',     aliases:['close-grip push-up','close grip push-up','close-grip push up','close grip push up','close-grip pushup','diamond push-up','diamond push up','diamond pushup','diamond push-ups','narrow push-up','triangle push-up'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:false, bodyweight:true },
+  { id:'pike_pushup',             displayName:'Pike Push-Up',           aliases:['pike push-up','pike push up','pike pushup','pike push-ups'], pattern:'vertical_push', equipment:'Bodyweight', primary:['shoulders'], secondary:['triceps'], supports1RM:false, bodyweight:true },
+  { id:'dip',                   displayName:'Dip',                    aliases:['dip','dips','chest dip','tricep dip','triceps dip','triceps dips','tricep dips','parallel bar dip'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:false, bodyweight:true },
+  { id:'bench_dip',               displayName:'Bench Dip',              aliases:['bench dip','bench dips','chair dip','chair dips','chair triceps dip','chair triceps dips','bench triceps dip'], pattern:'horizontal_push', equipment:'Bodyweight', primary:['triceps'], secondary:['shoulders','chest'], supports1RM:false, bodyweight:true },
   { id:'dip_machine',           displayName:'Seated Dip Machine',     aliases:['seated dip machine','seated dip','dip machine','machine dip','triceps dip machine','tricep dip machine','seated triceps press','triceps press machine'], pattern:'horizontal_push', equipment:'Machine', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:true },
 
   { id:'overhead_press_bb',     displayName:'Overhead Press',         aliases:['overhead press','barbell overhead press','ohp','standing overhead press','military press','shoulder press barbell'], pattern:'vertical_push', equipment:'Barbell', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
@@ -27480,6 +27526,7 @@ const CANONICAL_EXERCISES = [
   { id:'lat_pulldown',          displayName:'Lat Pulldown',           aliases:['lat pulldown','lat pull down','pulldown','lat pull-down','wide grip pulldown','lat pulldown machine'], pattern:'vertical_pull', equipment:'Cable', primary:['back'], secondary:['biceps'], supports1RM:false },
   { id:'pullup',                displayName:'Pull-Up',                aliases:['pull-up','pull up','pullup','pullups','pull-ups'], pattern:'vertical_pull', equipment:'Bodyweight', primary:['back'], secondary:['biceps'], supports1RM:false, bodyweight:true },
   { id:'chinup',                displayName:'Chin-Up',                aliases:['chin-up','chin up','chinup','chinups'], pattern:'vertical_pull', equipment:'Bodyweight', primary:['back'], secondary:['biceps'], supports1RM:false, bodyweight:true },
+  { id:'inverted_row',            displayName:'Inverted Row',           aliases:['inverted row','inverted rows','body row','bodyweight row','australian pull-up','australian row'], pattern:'horizontal_pull', equipment:'Bodyweight', primary:['back'], secondary:['biceps'], supports1RM:false, bodyweight:true },
   { id:'shrug',                 displayName:'Shrug',                  aliases:['shrug','shrugs','barbell shrug','dumbbell shrug'], pattern:'isolation', equipment:'Barbell', primary:['back'], secondary:[], supports1RM:true },
 
   { id:'squat_back',            displayName:'Back Squat',             aliases:['squat','back squat','barbell squat','barbell back squat','bb squat'], pattern:'squat', equipment:'Barbell', primary:['quads'], secondary:['glutes','hamstrings'], supports1RM:true },
@@ -27489,13 +27536,16 @@ const CANONICAL_EXERCISES = [
   { id:'leg_extension',         displayName:'Leg Extension',          aliases:['leg extension','leg extensions','quad extension','leg extension machine'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:[], supports1RM:false },
   { id:'lunge',                 displayName:'Lunge',                  aliases:['lunge','lunges','walking lunge','dumbbell lunge'], pattern:'lunge', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
   { id:'split_squat_bulgarian', displayName:'Bulgarian Split Squat',  aliases:['bulgarian split squat','split squat','rear foot elevated split squat'], pattern:'lunge', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
+  { id:'step_up',                 displayName:'Step-Up',                aliases:['step-up','step up','step-ups','box step-up','box step up','bodyweight step-up'], pattern:'lunge', equipment:'Bodyweight', primary:['quads'], secondary:['glutes'], supports1RM:false, bodyweight:true },
 
   { id:'deadlift_conventional', displayName:'Deadlift',               aliases:['deadlift','conventional deadlift','barbell deadlift'], pattern:'hinge', equipment:'Barbell', primary:['back','hamstrings'], secondary:['glutes'], supports1RM:true },
   { id:'deadlift_romanian',     displayName:'Romanian Deadlift',      aliases:['romanian deadlift','rdl','romanian dead lift','barbell rdl'], pattern:'hinge', equipment:'Barbell', primary:['hamstrings'], secondary:['glutes','back'], supports1RM:true },
   { id:'leg_curl',              displayName:'Leg Curl',               aliases:['leg curl','leg curls','lying leg curl','lying hamstring curl','prone leg curl','hamstring curl','leg curl machine','lying leg curl machine'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
   { id:'leg_curl_seated',       displayName:'Seated Leg Curl',        aliases:['seated leg curl','seated leg curls','seated hamstring curl','machine seated leg curl'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
-  { id:'hip_thrust',            displayName:'Hip Thrust',             aliases:['hip thrust','barbell hip thrust','glute bridge'], pattern:'hinge', equipment:'Barbell', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
+  { id:'hip_thrust',            displayName:'Hip Thrust',             aliases:['hip thrust','barbell hip thrust'], pattern:'hinge', equipment:'Barbell', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
   { id:'hip_thrust_machine',    displayName:'Hip Thrust Machine',     aliases:['hip thrust machine','machine hip thrust','glute drive','glute drive machine','plate-loaded hip thrust'], pattern:'hinge', equipment:'Machine', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
+  { id:'glute_bridge',            displayName:'Glute Bridge',           aliases:['glute bridge','glute bridges','bodyweight glute bridge','floor glute bridge'], pattern:'hinge', equipment:'Bodyweight', primary:['glutes'], secondary:['hamstrings'], supports1RM:false, bodyweight:true },
+  { id:'single_leg_glute_bridge', displayName:'Single-Leg Glute Bridge',aliases:['single-leg glute bridge','single leg glute bridge','single-leg glute bridges','one-leg glute bridge','single-leg bridge'], pattern:'hinge', equipment:'Bodyweight', primary:['glutes'], secondary:['hamstrings'], supports1RM:false, bodyweight:true },
 
   { id:'curl_barbell',          displayName:'Barbell Curl',           aliases:['barbell curl','bb curl','ez bar curl','ez-bar curl'], pattern:'isolation', equipment:'Barbell', primary:['biceps'], secondary:[], supports1RM:false },
   { id:'curl_dumbbell',         displayName:'Dumbbell Curl',          aliases:['dumbbell curl','db curl','bicep curl','biceps curl','alternating dumbbell curl'], pattern:'isolation', equipment:'Dumbbell', primary:['biceps'], secondary:[], supports1RM:false },
@@ -27524,15 +27574,28 @@ const CANONICAL_EXERCISES = [
   { id:'chest_fly_incline_cable',displayName:'Incline Cable Fly',     aliases:['incline cable fly','low to high cable fly','low-to-high fly'], pattern:'horizontal_push', equipment:'Cable', primary:['chest'], secondary:[], supports1RM:false },
   { id:'squat_hack',            displayName:'Hack Squat',             aliases:['hack squat','machine hack squat','hack squat machine'], pattern:'squat', equipment:'Machine', primary:['quads'], secondary:['glutes'], supports1RM:true },
   { id:'squat_goblet',          displayName:'Goblet Squat',           aliases:['goblet squat','dumbbell goblet squat','kettlebell goblet squat'], pattern:'squat', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
+  { id:'bodyweight_squat',        displayName:'Bodyweight Squat',       aliases:['bodyweight squat','bodyweight squats','air squat','air squats','bw squat'], pattern:'squat', equipment:'Bodyweight', primary:['quads'], secondary:['glutes'], supports1RM:false, bodyweight:true },
+  { id:'wall_sit',                displayName:'Wall Sit',               aliases:['wall sit','wall sits','wall squat hold'], pattern:'squat', equipment:'Bodyweight', primary:['quads'], secondary:['glutes'], supports1RM:false, bodyweight:true, timed:true },
   { id:'good_morning',          displayName:'Good Morning',           aliases:['good morning','good mornings','barbell good morning'], pattern:'hinge', equipment:'Barbell', primary:['hamstrings'], secondary:['glutes','back'], supports1RM:true },
   { id:'nordic_curl',           displayName:'Nordic Curl',            aliases:['nordic curl','nordic hamstring curl','glute ham raise','ghr'], pattern:'hinge', equipment:'Bodyweight', primary:['hamstrings'], secondary:['glutes'], supports1RM:false, bodyweight:true },
   { id:'hip_abduction',         displayName:'Hip Abduction',          aliases:['hip abduction','abduction machine','hip abductor','hip abduction machine','seated hip abduction','machine hip abduction'], pattern:'isolation', equipment:'Machine', primary:['glutes'], secondary:[], supports1RM:false },
+  { id:'band_lateral_walk',       displayName:'Lateral Band Walk',      aliases:['lateral band walk','band lateral walk','banded lateral walk','lateral band walks','band side step','banded side step'], pattern:'isolation', equipment:'Band', primary:['glutes'], secondary:[], supports1RM:false },
+  { id:'hip_abduction_side_lying',displayName:'Side-Lying Hip Abduction',aliases:['side-lying hip abduction','side lying hip abduction','side-lying leg raise','side lying leg raise','lying hip abduction'], pattern:'isolation', equipment:'Bodyweight', primary:['glutes'], secondary:[], supports1RM:false, bodyweight:true },
 
   { id:'plank',                 displayName:'Plank',                  aliases:['plank','planks','front plank'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, timed:true },
-  { id:'crunch',                displayName:'Crunch',                 aliases:['crunch','crunches','ab crunch'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true },
-  { id:'leg_raise',             displayName:'Leg Raise',              aliases:['leg raise','leg raises','hanging leg raise'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true },
-  { id:'cable_crunch',          displayName:'Cable Crunch',           aliases:['cable crunch','kneeling cable crunch'], pattern:'core', equipment:'Cable', primary:['abs'], secondary:[], supports1RM:false },
-  { id:'crunch_machine',        displayName:'Ab Crunch Machine',      aliases:['ab crunch machine','machine crunch','crunch machine','abdominal crunch machine','machine ab crunch'], pattern:'core', equipment:'Machine', primary:['abs'], secondary:[], supports1RM:false }
+  { id:'side_plank',              displayName:'Side Plank',             aliases:['side plank','side planks','forearm side plank'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, timed:true },
+  { id:'hollow_hold',             displayName:'Hollow Body Hold',       aliases:['hollow body hold','hollow hold','hollow body','hollow holds'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, timed:true },
+  { id:'dead_bug',                displayName:'Dead Bug',               aliases:['dead bug','dead bugs','deadbug'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'anti_extension' },
+  { id:'bird_dog',                displayName:'Bird Dog',               aliases:['bird dog','bird dogs','birddog'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:['back','glutes'], supports1RM:false, bodyweight:true, motion:'anti_extension' },
+  { id:'mountain_climber',        displayName:'Mountain Climber',       aliases:['mountain climber','mountain climbers'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'anti_extension' },
+  { id:'russian_twist',           displayName:'Russian Twist',          aliases:['russian twist','russian twists'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'rotation' },
+  { id:'bicycle_crunch',          displayName:'Bicycle Crunch',         aliases:['bicycle crunch','bicycle crunches'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'flexion' },
+  { id:'crunch',                displayName:'Crunch',                 aliases:['crunch','crunches','ab crunch'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'flexion' },
+  { id:'leg_raise',             displayName:'Leg Raise',              aliases:['leg raise','leg raises','lying leg raise'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'leg_raise' },
+  { id:'hanging_leg_raise',       displayName:'Hanging Leg Raise',      aliases:['hanging leg raise','hanging leg raises','hanging straight leg raise'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'leg_raise' },
+  { id:'hanging_knee_raise',      displayName:'Hanging Knee Raise',     aliases:['hanging knee raise','hanging knee raises','hanging knee tuck'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'leg_raise' },
+  { id:'cable_crunch',          displayName:'Cable Crunch',           aliases:['cable crunch','kneeling cable crunch'], pattern:'core', equipment:'Cable', primary:['abs'], secondary:[], supports1RM:false, motion:'flexion' },
+  { id:'crunch_machine',        displayName:'Ab Crunch Machine',      aliases:['ab crunch machine','machine crunch','crunch machine','abdominal crunch machine','machine ab crunch'], pattern:'core', equipment:'Machine', primary:['abs'], secondary:[], supports1RM:false, motion:'flexion' }
 ];
 
 /* Alias index built once. Any alias colliding across two entries is a data
@@ -29338,6 +29401,14 @@ const TIME_MODE_COMPOUND_PATTERNS = ['horizontal_push','vertical_push','horizont
    still decides for everything the registry does not describe (custom,
    home-library and legacy names), exactly as it did before: a compound
    pattern AND a type that does not read as an accessory. */
+/* D64 — THE ONE ROLE A CATALOGUED MOVEMENT HAS. Time Mode (D63.5) and Swap both
+   read it here, so the two can never disagree about what a movement is. */
+function registryRoleOf(canon){
+  if(!canon) return null;
+  if(canon.pattern === 'core' || canon.pattern === 'isolation' || NEVER_PRIMARY_IDS.indexOf(canon.id) !== -1) return 'accessory';
+  return TIME_MODE_COMPOUND_PATTERNS.indexOf(canon.pattern) !== -1 ? 'compound' : 'other';
+}
+
 function timeModeRoleOf(name){
   let canon = null;
   try{ const id = resolveExerciseId(name); canon = id ? getCanonicalExercise(id) : null; }catch(e){}
@@ -29346,8 +29417,7 @@ function timeModeRoleOf(name){
   const compoundPattern = TIME_MODE_COMPOUND_PATTERNS.indexOf(pattern) !== -1;
   let role;
   if(canon){
-    const vetoed = isCore || pattern === 'isolation' || NEVER_PRIMARY_IDS.indexOf(canon.id) !== -1;
-    role = vetoed ? 'accessory' : (compoundPattern ? 'compound' : 'other');
+    role = registryRoleOf(canon);
   } else {
     const typeRole = substitutionRole(classifyExerciseType(name, false));
     role = !isCore && compoundPattern && typeRole !== 'accessory' ? 'compound' : typeRole;
@@ -31143,12 +31213,15 @@ const PROGRAM_EXTENSIONS = [
     slots:['lower','legs','fullbody'], exercises:[ { name:'Single-Leg Glute Bridge', sets:3, reps:'12\u201315', effort:'7' } ] },
   { id:'x_cg_pushup',    label:'Triceps bodyweight',  gym:false, groups:['triceps'],
     slots:['upper','push','fullbody','arms'], exercises:[ { name:'Close-Grip Push-up', sets:2, reps:'12\u201320', effort:'7' } ] },
-  { id:'x_calf',         label:'Calves',              gym:true,  groups:['calves'],
+  /* D64 — Calf Raise needs no equipment (D63.5), so a home program may use it. */
+  { id:'x_calf',         label:'Calves',              gym:false,  groups:['calves'],
     slots:['lower','legs','fullbody'], exercises:[ { name:'Standing Calf Raise', sets:3, reps:'12\u201320', effort:'7' } ] },
+  /* D64 — core extensions keep off an Arms day, which trains the arms (the
+     program audit's rule). Spending slots round by round let one land there. */
   { id:'x_cable_crunch', label:'Core cable',          gym:true,  groups:['abs'],
-    slots:['upper','push','pull','lower','legs','fullbody','arms'], exercises:[ { name:'Cable Crunch', sets:3, reps:'12\u201315', effort:'7' } ] },
+    slots:['upper','push','pull','lower','legs','fullbody'], exercises:[ { name:'Cable Crunch', sets:3, reps:'12\u201315', effort:'7' } ] },
   { id:'x_plank',        label:'Core bodyweight',     gym:false, groups:['abs'],
-    slots:['upper','push','pull','lower','legs','fullbody','arms'], exercises:[ { name:'Plank', sets:3, reps:'40\u201360s', effort:'7' } ] }
+    slots:['upper','push','pull','lower','legs','fullbody'], exercises:[ { name:'Plank', sets:3, reps:'40\u201360s', effort:'7' } ] }
 ];
 function getProgramExtension(id){
   return PROGRAM_EXTENSIONS.find(e => e.id === id) || null;
@@ -31174,7 +31247,13 @@ const LIBRARY_EXTRAS = [
   { id:'dip_machine',               roles:['push','upper','arms'],     sets:3, reps:'8\u201312', effort:'7\u20138' },
   { id:'triceps_extension_machine', roles:['push','upper','arms'],     sets:3, reps:'10\u201315', effort:'7' },
   { id:'leg_curl_seated',           roles:['legs','lower','fullbody'], sets:3, reps:'10\u201315', effort:'7' },
-  { id:'calf_raise_leg_press',      roles:['legs','lower','fullbody'], sets:3, reps:'12\u201320', effort:'7' }
+  { id:'calf_raise_leg_press',      roles:['legs','lower','fullbody'], sets:3, reps:'12\u201320', effort:'7' },
+  /* D64 */
+  { id:'inverted_row',              roles:['pull','upper','fullbody'], sets:3, reps:'8\u201312', effort:'7\u20138' },
+  { id:'hip_abduction_side_lying',  roles:['legs','lower','fullbody'], sets:3, reps:'12\u201315/side', effort:'7' },
+  /* Leg Raise was found through the plans' Hanging Leg Raise rows while that was
+     its alias. Split apart, it declares its own, for the days that train the abs. */
+  { id:'leg_raise',                 roles:['core','fullbody'],         sets:3, reps:'10\u201315', effort:'7' }
 ];
 function libraryExtraFor(name){
   let id = null;
@@ -31317,7 +31396,8 @@ const NEVER_PRIMARY_IDS = [
   'straight_arm_pulldown', 'leg_extension', 'leg_curl', 'hip_abduction',
   'nordic_curl', 'shrug', 'calf_raise',
   /* D63 */ 'lateral_raise_machine', 'reverse_pec_deck', 'leg_curl_seated',
-  'calf_raise_seated', 'calf_raise_leg_press'
+  'calf_raise_seated', 'calf_raise_leg_press',
+  /* D64 */ 'bench_dip', 'wall_sit', 'glute_bridge', 'single_leg_glute_bridge'
 ];
 
 /* ---------- ROLE ----------
@@ -31332,7 +31412,11 @@ const NEVER_PRIMARY_IDS = [
 function exerciseIsNeverPrimary(name){
   let canon = null;
   try{ const id = resolveExerciseId(name); canon = id ? getCanonicalExercise(id) : null; }catch(e){}
-  if(!canon) return false;                       // uncataloged: position decides
+  /* uncataloged: position decides — D64: except a name that reads as a hold.
+     Catalogued core work became accessory work in D64, and a session's lead
+     would otherwise fall to the first uncatalogued hold after it: Home Core A
+     under Muscle + Strength prescribed Superman Hold 3 × 5–8 at effort 8. */
+  if(!canon) return classifyExerciseType(name, false) === 'timed';
   if(NEVER_PRIMARY_IDS.indexOf(canon.id) !== -1) return true;
   return !!(canon.pattern && /isolation|core/.test(canon.pattern));
 }
@@ -32272,13 +32356,23 @@ function builderAllocateDepth(schedule, planId, emphasisId, simple, lengthId, ex
     const adds = x.exercises.reduce((n, e) => n + (parseInt(e.sets, 10) || 3), 0);
     return x.groups.some(g => ARM_GROUPS.indexOf(g) !== -1 && (current[g] || 0) + adds > armCeiling);
   };
-  days.forEach(k => {
+  /* D64 — SLOTS ARE SPENT ROUND BY ROUND. Every session takes its first
+     extension before any session takes a second. Filling one day's budget
+     before the next let a longer request rearrange a shorter one instead of
+     adding to it: with Diamond Push-Up and Close-Grip Push-up recognised as one
+     movement, an Extended home week gave Monday the curl Long gave Friday and
+     came out five estimated minutes shorter than Long. Round by round, a longer
+     request keeps what a shorter one chose and adds to it; the exceptions are
+     a wider time band letting a session take something the shorter band had to
+     leave out, and a priority slot drawing from what is left. */
+  const chosenBy = {}, closed = {};
+  for(let slot = 0; slot < budget; slot++) days.forEach(k => {
     const entry = schedule[k];
-    if(!budget) return;
+    if(closed[k]) return;
     const base = builderBaseTemplateOf(entry);
-    if(!base) return;
-    const chosen = [];
-    for(let slot = 0; slot < budget; slot++){
+    if(!base){ closed[k] = true; return; }
+    const chosen = chosenBy[k] || (chosenBy[k] = []);
+    {
       let best = null, bestKey = null;
       PROGRAM_EXTENSIONS.forEach(x => {
         if(usedExt[x.id]) return;                          // fresh work across the week
@@ -32302,13 +32396,13 @@ function builderAllocateDepth(schedule, planId, emphasisId, simple, lengthId, ex
         const key = (zeroFill ? 0 : (emphHit ? 1 : 2)) * 100000 + scarcity * 100 + PROGRAM_EXTENSIONS.indexOf(x);
         if(best === null || key < bestKey){ best = x; bestKey = key; }
       });
-      if(!best) break;
+      if(!best){ closed[k] = true; return; }
       /* Capacity check with the one real estimator: if this extension pushes
          the session past its band, the slot goes unspent. */
       const trial = composeProgramSession({ ext: chosen.concat([best.id]) }, base);
       let mins = 0;
       try{ mins = computeWorkoutDuration(trial); }catch(e){}
-      if(mins > cap) break;
+      if(mins > cap){ closed[k] = true; return; }
       chosen.push(best.id);
       usedExt[best.id] = true;
       best.groups.forEach(g => {
@@ -32325,8 +32419,8 @@ function builderAllocateDepth(schedule, planId, emphasisId, simple, lengthId, ex
         builderPrimariesOf(e.name).forEach(g => weekly[g] = (weekly[g] || 0) + sets);
       });
     }
-    if(chosen.length) entry.ext = chosen;
   });
+  days.forEach(k => { if(chosenBy[k] && chosenBy[k].length) schedule[k].ext = chosenBy[k]; });
 
   /* THE PRIORITY GETS ONE SLOT OF ITS OWN, AND ONLY ITS OWN.
 
@@ -34146,7 +34240,7 @@ function addPickedToWorkout(names, from){
     const count = Math.max(1, Math.min(8, parseInt(rx && rx.sets, 10) || 3));
     const sets = [];
     for(let i = 0; i < count; i++) sets.push({ weight: '', reps: '' });
-    addLogExerciseRow(name, '', !!(rx && rx.recommended === 'Bodyweight'), sets,
+    addLogExerciseRow(name, '', rowStartsAsBodyweight(name, rx && rx.recommended), sets,
       rx && rx.reps ? restSecondsForReps(rx.reps) : undefined);
   });
   if(before === 0) syncWorkoutStepper({ reset: true });
@@ -38148,7 +38242,11 @@ const SUBSTITUTION_CONFIG = {
     /* The reverse of differentRole: an accessory/machine movement should not
        be "upgraded" into a heavy barbell compound just because the muscle
        overlaps. A leg curl is not a deadlift. */
-    barbellEscalation: -28
+    barbellEscalation: -28,
+    /* D64 — among movements of equal intent, the same kind of resistance first:
+       a push-up for a push-up and a machine press for a barbell bench. Small on
+       purpose, below every intent signal; it orders equals and nothing more. */
+    sameResistance: 6
   },
   history: {
     perSession: 1.5,   // familiarity advantage
@@ -38193,14 +38291,40 @@ function substitutionRole(type){
 /* D63 — THE ROLE THE REGISTRY ALREADY KNOWS. The type above is read from a
    name, and every machine's name reads as a compound: measured on the D63
    machines, a Reverse Pec Deck ranked fifth for a Barbell Row and a Machine
-   Lateral Raise third for a Machine Shoulder Press. Where the registry says a
-   movement can never lead a session — an isolation or core pattern, or a
-   NEVER_PRIMARY_IDS veto — it is an accessory here as well. The name still
-   decides for everything the registry does not describe. */
+   Lateral Raise third for a Machine Shoulder Press.
+   D64 — and it is the registry's whole answer, not only its veto. A catalogued
+   movement takes registryRoleOf(), the role Time Mode reads: Push-Up, Pull-Up
+   and Dip used to be "other" here (their names state no equipment) and Lat
+   Pulldown an accessory ("cable"), so each paid a role penalty against the
+   compounds they replace. The name decides only for movements the registry
+   does not describe. */
 function substitutionRoleOf(exerciseId, name, isBodyweight){
   const canon = exerciseId ? getCanonicalExercise(exerciseId) : null;
-  if(canon && (canon.pattern === 'isolation' || canon.pattern === 'core' || NEVER_PRIMARY_IDS.indexOf(canon.id) !== -1)) return 'accessory';
+  if(canon) return registryRoleOf(canon);
   return substitutionRole(classifyExerciseType(name || '', !!isBodyweight));
+}
+/* D64 — a heavy barbell lift, canonical-first. The registry knows a lift's
+   equipment; a name only hints at it, and "lunge", "split squat" and "upright
+   row" read as barbell lifts while "good morning" did not. */
+function substitutionIsBarbellCompound(exerciseId, name){
+  const canon = exerciseId ? getCanonicalExercise(exerciseId) : null;
+  if(canon) return canon.equipment === 'Barbell' && registryRoleOf(canon) === 'compound';
+  return classifyExerciseType(name || '', false) === 'compound_barbell';
+}
+/* D64 — THE SAME KIND OF MOVEMENT, canonical-first. A shared pattern is not
+   always a shared movement. A hold and a moving exercise are not the same (a
+   plank is not a crunch): the registry marks holds timed, and the name decides
+   only for what it does not describe. And 'core' holds very different work, so
+   moving core work carries its motion — a hanging leg raise is not a bird dog. */
+function substitutionIsHold(exerciseId, name){
+  const canon = exerciseId ? getCanonicalExercise(exerciseId) : null;
+  if(canon) return canon.timed === true;
+  return classifyExerciseType(name || '', false) === 'timed';
+}
+function substitutionSameKind(aId, aName, bId, bName){
+  if(substitutionIsHold(aId, aName) !== substitutionIsHold(bId, bName)) return false;
+  const a = aId ? getCanonicalExercise(aId) : null, b = bId ? getCanonicalExercise(bId) : null;
+  return !(a && b && a.motion && b.motion && a.motion !== b.motion);
 }
 
 /* Canonical pattern is authoritative; the name-based classifier is only a
@@ -38297,7 +38421,10 @@ function scoreSubstitutionCandidate(original, candidate, context){
 
   // movement pattern
   const candPattern = substitutionPatternFor(candidate.id, candidate.displayName);
-  if(candPattern === context.originalPattern){
+  /* D64 — a shared pattern counts as the same movement only for the same kind
+     of movement (substitutionSameKind); otherwise it is a similar one. */
+  const sameKind = !original || substitutionSameKind(original.id, original.displayName, candidate.id, candidate.displayName);
+  if(candPattern === context.originalPattern && sameKind){
     score += C.pattern.same;
     reasons.push('Same movement');
   } else {
@@ -38326,24 +38453,32 @@ function scoreSubstitutionCandidate(original, candidate, context){
   // equipment — three-state, never punishing UNKNOWN
   const perform = canPerformExercise(candidate.id);
   if(perform === GYM_STATUS.AVAILABLE){
-    score += C.equipment.available;
     /* D63.5 — a movement that needs nothing is available anywhere, a gym not
-       set up yet included, so it says that instead of claiming the gym has it. */
+       set up yet included, so it says that instead of claiming the gym has it.
+       D64 — and it earns the bonus only once a gym profile exists. The bonus is
+       for the profile confirming the athlete can use a movement; before one is
+       set up nothing is confirmed, and scoring "needs nothing" as available
+       tilted every unconfigured athlete's list toward bodyweight work (§93) —
+       with D64's bodyweight identities, a Glute Bridge above the barbell Hip
+       Thrust for the Hip Thrust Machine. */
     const needs = getExerciseEquipmentRequirements(candidate.id);
-    reasons.push(needs && !needs.length ? 'No equipment needed' : 'Available at your gym');
+    const needsNothing = !!needs && !needs.length;
+    score += (needsNothing && !isGymProfileConfigured()) ? C.equipment.unknown : C.equipment.available;
+    reasons.push(needsNothing ? 'No equipment needed' : 'Available at your gym');
   } else {
     score += C.equipment.unknown;
   }
 
   // training role
-  const origType = classifyExerciseType(original ? original.displayName : '', false);
-  const candType = classifyExerciseType(candidate.displayName, false);
   const origRole = substitutionRoleOf(original && original.id, original ? original.displayName : '');
   const candRole = substitutionRoleOf(candidate.id, candidate.displayName);
   if(origRole === candRole) score += C.type.sameRole;
   else score += C.type.differentRole;
-  // Don't turn an accessory or machine movement into a heavy barbell lift.
-  if(candType === 'compound_barbell' && origType !== 'compound_barbell'){
+  // D64 — bodyweight for bodyweight, loaded for loaded, when all else is equal.
+  if(original && (original.equipment === 'Bodyweight') === (candidate.equipment === 'Bodyweight')) score += C.type.sameResistance;
+  // Don't turn an accessory, machine or bodyweight movement into a heavy barbell lift.
+  if(substitutionIsBarbellCompound(candidate.id, candidate.displayName) &&
+     !substitutionIsBarbellCompound(original && original.id, original ? original.displayName : '')){
     score += C.type.barbellEscalation;
   }
 
@@ -38685,6 +38820,7 @@ const GYM_EQUIPMENT = [
   { id:'adjustable_bench',displayName:'Adjustable Bench',category:'rack', coarse:'Barbell' },
   { id:'pullup_bar',      displayName:'Pull-Up Bar',     category:'rack', coarse:'Bodyweight' },
   { id:'dip_station',     displayName:'Dip Station',     category:'rack', coarse:'Bodyweight' },
+  { id:'plyo_box',        displayName:'Plyo Box',        category:'rack', coarse:'Bodyweight' },
 
   // ---- CABLE ----
   { id:'cable_crossover',   displayName:'Cable Crossover',   category:'cable', coarse:'Cables' },
@@ -38760,6 +38896,10 @@ function gymEquipmentByCategory(categoryId){
 const ANY_CABLE = ['cable_crossover','functional_trainer','lat_pulldown'];
 const ANY_BENCH = ['bench','adjustable_bench'];
 const ANY_RACK  = ['power_rack','squat_rack'];
+/* D64 — something sturdy at knee height to stand on, sit against or put the
+   hands or a foot on. A bench or a box both are; a chair at home is too, but
+   a gym profile does not list chairs. */
+const ANY_SURFACE = ['bench','adjustable_bench','plyo_box'];
 
 const EXERCISE_EQUIPMENT = {
   // horizontal push
@@ -38776,6 +38916,10 @@ const EXERCISE_EQUIPMENT = {
   chest_fly_cable:        [['cable_crossover','functional_trainer']],
   chest_fly_incline_cable:[['cable_crossover','functional_trainer'], 'adjustable_bench'],
   pushup:                 [],
+  pushup_incline:         [ANY_SURFACE],
+  pushup_close:           [],
+  pike_pushup:            [],
+  bench_dip:              [ANY_SURFACE],
   dip:                    [['dip_station','assisted_pullup']],
   dip_machine:            ['dip_machine'],
 
@@ -38801,6 +38945,8 @@ const EXERCISE_EQUIPMENT = {
   lat_pulldown:           ['lat_pulldown'],
   pullup:                 [['pullup_bar','assisted_pullup']],
   chinup:                 [['pullup_bar','assisted_pullup']],
+  /* A bar at hip height to hang under: a rack's or a Smith machine's. */
+  inverted_row:           [['power_rack','squat_rack','smith_machine']],
   face_pull:              [ANY_CABLE],
   straight_arm_pulldown:  [ANY_CABLE],
   rear_delt_fly:          ['dumbbells'],
@@ -38817,6 +38963,9 @@ const EXERCISE_EQUIPMENT = {
   leg_extension:          ['leg_extension'],
   lunge:                  ['dumbbells'],
   split_squat_bulgarian:  ['dumbbells', ANY_BENCH],
+  bodyweight_squat:       [],
+  wall_sit:               [],
+  step_up:                [ANY_SURFACE],
 
   // hinge
   deadlift_conventional:  ['barbell'],
@@ -38824,9 +38973,13 @@ const EXERCISE_EQUIPMENT = {
   good_morning:           ['barbell', ANY_RACK],
   hip_thrust:             [['barbell','hip_thrust_machine'], ANY_BENCH],
   hip_thrust_machine:     ['hip_thrust_machine'],
+  glute_bridge:           [],
+  single_leg_glute_bridge: [],
   leg_curl:               ['leg_curl'],
   leg_curl_seated:        ['leg_curl'],
   hip_abduction:          ['hip_abduction_machine'],
+  band_lateral_walk:      ['bands'],
+  hip_abduction_side_lying: [],
   nordic_curl:            [],
 
   // isolation
@@ -38851,6 +39004,15 @@ const EXERCISE_EQUIPMENT = {
   plank:                  [],
   crunch:                 [],
   leg_raise:              [],
+  side_plank:             [],
+  hollow_hold:            [],
+  dead_bug:               [],
+  bird_dog:               [],
+  mountain_climber:       [],
+  russian_twist:          [],
+  bicycle_crunch:         [],
+  hanging_leg_raise:      [['pullup_bar']],
+  hanging_knee_raise:     [['pullup_bar']],
   cable_crunch:           [ANY_CABLE],
   crunch_machine:         ['ab_crunch_machine']
 };
@@ -41109,7 +41271,7 @@ async function startTemplateLog(cat, tplId){
   const wrap = document.getElementById('logExercises');
   wrap.innerHTML = '';
   tpl.exercises.forEach(ex => {
-    const isBW = ex.recommended === 'Bodyweight';
+    const isBW = rowStartsAsBodyweight(ex.name, ex.recommended);
     const rec = isBW ? null : buildProgressionRecommendation(ex.name, ex.reps, ex.recommended);
     const weightVal = isBW ? '' : (rec && rec.weight != null ? rec.weight : '');
     const repVal = firstNumber(ex.reps) || ex.reps;
@@ -41406,6 +41568,25 @@ function plannedProvenance(slotName, performedName){
 /* Bodyweight is a property of the movement, and LOOP only knows it where it
    has said so: the registry's own flag, or a plan prescribing the exercise as
    Bodyweight. Anything else keeps its weight fields. */
+/* D64 — WHETHER A NEW ROW STARTS AS BODYWEIGHT WORK. Only the word Bodyweight
+   written on a row used to count, so a Plank from a program's extensions, an
+   Inverted Row added from the picker or a Chin-Up in a saved workout started as
+   loaded work with no load, was saved that way, and its records split from the
+   same movement's bodyweight sessions. Now a row that says Bodyweight is; a
+   starting weight that is a number is loaded work; otherwise the athlete's own
+   last session of that name decides when it carried a load, and the movement's
+   identity decides the rest, as it already does for Swap. Rows already in a
+   workout, drafts and the log keep exactly the flag they have. */
+function rowStartsAsBodyweight(name, recommended){
+  const rec = recommended == null ? '' : String(recommended).trim();
+  if(rec === 'Bodyweight') return true;
+  if(parseFloat(rec) > 0) return false;
+  try{
+    const prev = getPreviousSets(String(name || ''));
+    if(prev && !prev.bodyweight && prev.sets.some(x => parseFloat(x.weight) > 0)) return false;
+  }catch(e){}
+  return exerciseIsBodyweight(name);
+}
 function exerciseIsBodyweight(name){
   const key = normalizeExerciseName(name);
   if(!key) return false;
@@ -41477,6 +41658,8 @@ function exerciseSwapOptions(name, context){
      the same training role, so a press is offered presses before flys. */
   const patternOf = n => { try{ return substitutionPatternFor(resolveExerciseId(n), n); }catch(err){ return null; } };
   const roleOf = n => { try{ return substitutionRoleOf(resolveExerciseId(n), n, exerciseIsBodyweight(n)); }catch(err){ return null; } };
+  const myId = (() => { try{ return resolveExerciseId(clean); }catch(err){ return null; } })();
+  const kindOf = n => { try{ return substitutionSameKind(myId, clean, resolveExerciseId(n), n); }catch(err){ return true; } };
   const myPattern = patternOf(clean), myRole = roleOf(clean);
   out.more = exPickerIndex().filter(e => {
     const nk = normalizeExerciseName(e.name);
@@ -41487,7 +41670,7 @@ function exerciseSwapOptions(name, context){
     try{ if(canPerformExerciseByName(e.name) === GYM_STATUS.UNAVAILABLE) return false; }catch(err){}
     return true;
   }).map(e => {
-    const samePattern = !!myPattern && patternOf(e.name) === myPattern;
+    const samePattern = !!myPattern && patternOf(e.name) === myPattern && kindOf(e.name);
     const sameRole = !!myRole && roleOf(e.name) === myRole;
     return { name: e.name, equipment: e.equipment || null, samePattern, closeness: (samePattern ? 2 : 0) + (sameRole ? 1 : 0) };
   }).sort((a, b) => (b.closeness - a.closeness) || a.name.localeCompare(b.name))
