@@ -8357,3 +8357,173 @@ those seven the inset, then generalise the rule to
 - On iOS the keyboard slides over an unchanged page, so while it is up the dock
   sits beneath it, as in 6.0.
 - The other page sheets keep their strip until the follow-up above.
+
+## §90 — D61: Building a workout
+
+**Status.** Prepared as LOOP 6.2 (`loop-v139`), release candidate on
+`rc/loop-6.2`; not deployed — a flow and visual change, held for the owner's
+review. `DATA_KEYS` 15, schema 1, no migration, `TRAINER_ENGINE_VERSION`
+0.1.1-shadow, Session Score weights 40/30/18/12.
+
+### What building a workout was
+
+Four surfaces, no two alike. The owner's screenshots did not arrive, so this
+was audited from the code and thirteen real-browser frames at 390×844.
+
+- Log's "+ Log workout" opened the workout page on the warm-up step with eight
+  category chips — shown above every later step too — and one blank "Exercise
+  name" field. A second exercise came from "+ Add exercise" on the final review
+  step, below the notes: another blank field, typed from memory.
+- Train's "+ Add a Push workout", under the last card, opened the saved-workout
+  sheet on a blank row with a ↻ native menu of the day's library. Save with no
+  exercises did nothing.
+- Program Studio's picker (D51C) was the only search, and only Program Studio
+  could reach it: fifteen chips in two sideways rows (the chosen one could
+  scroll out of view; no summary, no clear), one exercise per visit.
+- Equipment was known for 62 of 186 exercises, so Dumbbell found 13.
+- A workout with every exercise removed offered Finish Workout, which saveLog
+  can only refuse.
+
+### The picker
+
+- **One surface.** `openExercisePicker` (Program Studio), `openWorkoutExercisePicker(from)`
+  and `openTemplateExercisePicker` build the same state and differ only in what
+  happens to what is chosen.
+- **Search first**, then Muscle and Equipment: pills that show what they are
+  set to and clear with their own ✕, and Clear for both filters and the search.
+  A filter's options open at the top of the list — in the header they pushed
+  the dock off a short or rotated screen. Every option shows how many exercises
+  it would leave, counted with the other filter and the search, and an option
+  that would leave none is disabled (it keeps its outline and loses its
+  surface). The count line names the filters it counts under. A new set of
+  results starts at its top; ticking a row keeps the athlete's place.
+- **Quick picks** while nothing is typed or filtered: Recent — the log, newest
+  session first, one entry per movement, logged sets only — or, with no
+  history, Popular in your plan; then Program Studio's Suggested for this
+  session (unchanged) or the saved workout's Suggested for its day.
+- **Several at once.** Rows tick, numbered in the order they will arrive, and
+  the same movement ticks in every list it appears in. A dock in the workout's
+  dock language — Clear, Add N exercises — appears once something is ticked.
+  Back adds nothing. Replacing stays one tap (`exPickerChoose`, same semantics).
+- **No dead end.** No match offers Clear filters, or adding the typed name as
+  the athlete's own.
+- **On a phone.** The sheet takes `max-height: 100%` beside the D60 workout
+  rule, and its foot owns the inset: the dock, or `calc(16px +
+  env(safe-area-inset-bottom))` on the list while nothing is ticked. The back
+  gesture closes the picker before the workout under it and re-arms the
+  workout's history entry.
+
+### Equipment from names
+
+`pickerEquipmentFromName()` follows the shape of `musclesForExercise()`: the
+registry's equipment always wins; otherwise only words a name states outright —
+Band; KB or Kettlebell; DB or Dumbbell (and Concentration Curl, Triceps
+Kickback); Cable, Rope or Pulldown; Machine, Smith or Pec Deck; Barbell, BB or
+Trap Bar; and bodyweight movements (push-, pull- and chin-ups, plank, crunch,
+sit-up, dips, dead bug, bird dog, hollow body, V-up, flutter kicks, mountain
+climbers, superman, wall sit, glute bridge, snow angel), never when weighted or
+assisted. 145 of 186 exercises now carry equipment — Dumbbell 13 → 29, and Band
+(12) and Kettlebell (4) can be browsed. The other 41 (med balls, sleds, battle
+ropes, boxes, TRX, weighted variants) stay unknown and are found under All
+equipment. It decides what a filter shows and the line under a row; nothing is
+stored.
+
+### Into a workout
+
+`addPickedToWorkout()` calls `addLogExerciseRow` with exactly what a typed row
+always had — no effort, no recommendation, no meta, so no prescription, target
+or slot — and empty set rows, so nothing untouched can be saved as done. The
+library supplies only what cannot become a record: how many rows (default 3),
+the rest that suits its reps, and whether it is a bodyweight movement. From an
+empty workout the stepper resets (the warm-up leads when offered, as for every
+workout); from the review step the athlete goes to the first new exercise; from
+an exercise they stay on it.
+
+### The empty workout
+
+- `openFreeformLog` lays out no row. The page opens on "Build your workout",
+  with Add exercises in the finish bar and "Start from a saved workout", which
+  closes the empty workout and opens Train — nothing is lost, because
+  `loadActiveDraft` never offers back a draft with no exercises. The topbar
+  reads Workout rather than the Push category a new workout defaults to.
+- While empty, the plain form (title, category, name, date, notes) is hidden.
+  The category chips show on the review step only (`ws-at-finish`).
+- The review step has Add exercises under its summary; each exercise has + Add
+  on its count line, tapped at 44px without making the line taller.
+
+### The saved workout and Train
+
+- The sheet says it is empty and Add exercises takes the accent's edge while it
+  is; rows lead with the exercise's picture; the ↻ menu and `swapTplExercise`
+  are gone; picked exercises carry the library's sets, reps, effort and
+  starting weight — what ↻ filled. Save with nothing flags Add exercises.
+- Train leads with a quick-start row — Empty workout, and New workout "For
+  <day>" — above the saved workouts, whose Start buttons stay the loudest thing
+  on the page. The add button under the last card is gone. Below 360px the two
+  stack.
+
+### What did not change
+
+`saveLog`, `addLogExerciseRow`, `captureActiveDraft`, `restoreDraftToSheet`,
+`persistDraftNow`, `startTemplateLog`, `buildProgressionRecommendation`,
+`onWorkoutRowAdded`, `syncWorkoutStepper`, `goToWorkoutStep`,
+`nextWorkoutStep`, `prevWorkoutStep`, `skipWorkoutStep`, `toggleSetComplete`,
+`pbAddExercise`, `pbReplaceExercise`, `pbSuggestedExercise`, `exPickerMatches`,
+`exPickerSuggestions` and `musclesForExercise` are byte-identical to 6.1. The
+D59 dock and the D60 edge are untouched; Log keeps "+ Log workout"; the history
+editor, the swap sheet and Today are unchanged.
+
+### Verification
+
+- **Contract 167** — 52 assertions: one picker and every entry point to it, no
+  blank rows; toggling by movement, order numbers, the dock, Add in tick order
+  with library prescriptions, Back adding nothing, replace as one tap; a picked
+  row's arguments identical to a typed row's, empty sets, bodyweight from the
+  library, where the athlete lands from each place; equipment stated or
+  unknown, the registry winning, every DB/Dumbbell name found under Dumbbell,
+  unknowns under no equipment; option counts equal to the results they leave,
+  zero options disabled, the scope line, Clear keeping the selection, the own
+  name; Recent newest-first, one per movement, logged only, then the plan's
+  most used; the empty workout, category on review, the saved-workout sheet and
+  its Save, Train's quick start; the picker's edge, its options in the list, the
+  list's top, the search keyboard, and the back gesture.
+- **Repointed, with reasons in place** — the tap-target contract's ↻ select
+  (now the picker's controls); the ↻ character (no option stands in for an
+  icon); Contract 114's "filled only on the review step" (saveLog once — the
+  empty holder carries Add exercises); Contract 165's single review dock (the
+  two are counted in the dock; the head's one button is the add action).
+- **Caught by existing contracts and fixed in code** — a second 560px rule
+  (rewritten with the dock's padding technique), a two-class `remove` the
+  stepper contract reads, and a `.ws-head` rule ahead of the one a contract
+  reads (now `#wsHead`).
+- **In the browser** — headless Edge with the iPhone's insets, driving the real
+  controls: 390×844 with and without history, 375×667, 320×568, 844×390,
+  768×1024, the keyboard (390×508), Program Studio add and replace, and back.
+  Every run measured no overflow and no missing control. Found and fixed there:
+  the option panel pushing the dock off a short screen, Train's tiles wrapping
+  at 375, an empty saved workout's Save out-shouting Add exercises, and a new
+  filter leaving the list mid-scroll.
+- **Mutation check** — 23 deliberate regressions, 23 caught: the blank row back,
+  ticking closing the picker, reversed order, Back adding, a prefilled load, a
+  prescribed effort, a weighted movement guessed as bodyweight, a name
+  overriding the registry, a zero option tappable, counts ignoring the other
+  filter, Clear dropping the selection, Recent counting unlogged exercises,
+  Recent oldest-first, Finish Workout back on an empty workout, the category on
+  every step, a silent empty Save, no quick start, the options back in the
+  header, review not moving on, replace becoming multi-select, the picker sheet
+  short again, back closing the workout under the picker, and ticking jumping
+  the list to its top. Production 6.1 fails 25 assertions.
+- `npm run verify` 6639 / 0; audit 87, audit:program 335, audit:cardio 261,
+  audit:gps 43, audit:dates 40 × 7 zones.
+
+### Known and recorded
+
+- The owner's screenshots did not arrive; Liftoff informed the principles only.
+- 41 exercises have no equipment by design — their names do not state one.
+- Repeating a past workout was not added: it would prefill last session's sets,
+  which saveLog records whether or not they are ticked.
+- The history editor's name field, the swap sheet and Today's Train anyway are
+  unchanged.
+- The D60 follow-up still applies to the other page sheets; the picker now
+  reaches the edge.
+- Not yet seen on a physical phone.

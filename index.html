@@ -1887,6 +1887,12 @@ body.first-use{ padding-bottom: 0; }
   .sheet-page .ob-actions{
     align-self: center; width: 560px;
   }
+  /* D61 — an empty workout's Add exercises sits in the finish bar, which keeps
+     to the same column as the dock it stands in for. */
+  #logOverlay .sheet-actions{
+    padding-left: max(var(--space-5), calc((100% - 560px) / 2));
+    padding-right: max(var(--space-5), calc((100% - 560px) / 2));
+  }
 }
 /* Trend icons carry direction in their shape; colour is reinforcement only. */
 .ti{ vertical-align: -2px; flex-shrink: 0; }
@@ -2565,12 +2571,25 @@ body.first-use{ padding-bottom: 0; }
 }
 .tpl-start:hover{ opacity: 0.94; }
 .tpl-start:active{ transform: scale(0.98); box-shadow: 0 2px 8px rgba(76,194,255,0.22); }
-.add-tpl-btn{
-  width: 100%; background: none; border: 1px dashed var(--border); color: var(--text-faint);
-  padding: 13px; border-radius: var(--radius-md); cursor: pointer; font-size: 13px; font-weight: 600; margin-top: 14px;
-  transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+/* D61 — Train's quick start: the two ways to make a workout, as one quiet row
+   above the saved workouts and their Start buttons, which stay the loudest
+   thing on the page. */
+.tq{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin: 2px 0 var(--space-4); }
+.tq-btn{
+  display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: 60px; padding: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text); text-align: left; cursor: pointer;
 }
-.add-tpl-btn:hover{ border-color: var(--accent); color: var(--accent); }
+.tq-btn:active{ background: var(--surface-2); }
+.tq-btn:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.tq-ic{
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0;
+  border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+}
+.tq-main{ display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tq-title{ font-family: 'Inter', sans-serif; font-size: var(--fs-body); font-weight: 600; line-height: 1.25; color: var(--text); }
+.tq-sub{ font-size: var(--fs-meta); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 359px){ .tq{ grid-template-columns: 1fr; } }
 
 /* ---- History ---- */
 .hist-filters{ display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
@@ -3525,6 +3544,20 @@ textarea{ resize: vertical; min-height: 56px; }
 .stepper-on .ex-log-row.ws-current,
 .stepper-on #wsReview.ws-current{ display: block; }
 .stepper-on #prepCard.ws-current{ display: block; }
+/* D61 — a workout's category is asked on the review step only. The picker
+   carries an inline display of its own (openFreeformLog shows it), which a
+   stylesheet can only outrank with !important. */
+#logOverlay.stepper-on:not(.ws-at-finish) #logCategoryPicker{ display: none !important; }
+/* An empty workout shows its head and the finish bar's Add exercises — not the
+   plain form's title, category, name, date and notes, which belong to a
+   workout that has something in it. */
+#logOverlay.ws-empty #logSheetTitle,
+#logOverlay.ws-empty #logSheetSub,
+#logOverlay.ws-empty #logPhaseContext,
+#logOverlay.ws-empty #wsReview{ display: none; }
+#logOverlay.ws-empty #logCategoryPicker,
+#logOverlay.ws-empty #prepCard{ display: none !important; }
+#logOverlay.ws-empty #wsHead{ border-bottom: none; }
 
 /* The current exercise is the screen, not a card on it: it drops the border
    it needed when eight of them were stacked. */
@@ -3579,6 +3612,34 @@ textarea{ resize: vertical; min-height: 56px; }
   margin: var(--space-3) 0 0;
 }
 .ws-lede{ font-size: 13px; line-height: 1.45; color: var(--text-dim); margin: 6px 0 0; }
+/* D61 — adding to a workout. On an exercise it is a quiet control on the count
+   line, tapped at 44px without making the line taller; on the review step it is
+   a secondary button under the summary; an empty workout offers the one
+   alternative to adding as a row under its lede. */
+.ws-k-add{
+  margin: -16px -4px -16px auto; min-height: 44px; padding: 0 4px 0 10px;
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer; color: var(--accent);
+  font-family: inherit; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.ws-add{
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: 44px; margin-top: var(--space-4); padding: 0 var(--space-4);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text); font-family: 'Inter', sans-serif; font-size: var(--fs-body); font-weight: 600; cursor: pointer;
+}
+.ws-add svg{ color: var(--accent); }
+.wb-alt{
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  width: 100%; min-height: 60px; margin-top: var(--space-6); padding: var(--space-3) var(--space-4);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text-faint); text-align: left; cursor: pointer;
+}
+.wb-alt-main{ display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wb-alt-title{ font-family: 'Inter', sans-serif; font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.wb-alt-sub{ font-size: var(--fs-meta); color: var(--text-faint); }
+.wb-add{ display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); width: 100%; min-height: 48px; }
+.ws-k-add:focus-visible, .ws-add:focus-visible, .wb-alt:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* One segment per exercise, carrying that exercise's real state — and the way
    to jump straight to it, so progress and navigation are the same control. */
@@ -3803,15 +3864,8 @@ textarea{ resize: vertical; min-height: 56px; }
   38%{ transform: scale(1.012); }
   100%{ transform: scale(1); }
 }
-.swap-select{
-  width: 44px; height: 44px; flex-shrink: 0; font-size: 16px; font-weight: 600; padding: 0;
-  border: 1px solid var(--border); color: var(--text-faint); background: var(--surface-2); border-radius: var(--radius-sm);
-  text-align: center; text-align-last: center; -webkit-appearance: none; appearance: none; cursor: pointer;
-}
-.swap-select:hover, .swap-select:focus{ outline: none; border-color: var(--accent); color: var(--accent); }
 .ex-log-name-row{ display:flex; gap:8px; align-items:center; }
 .ex-log-name-row input{ font-weight: 600; min-height: 44px; }
-.ex-log-name-row .swap-select{ min-height: 44px; }
 /* In the stepper the head carries the exercise's picture, so the row does not repeat it. */
 .stepper-on .ex-log-name-row .ex-thumb{ display: none; }
 .last-time-wrap:empty{ display: none; }
@@ -4613,63 +4667,122 @@ body.page-locked{ overflow: hidden; }
 }
 .pb-apply-note strong{ color: var(--text); font-weight: 600; }
 
-/* ---------- the exercise picker (D51C) ---------- */
+/* ---------- the exercise picker (D51C, D61) ---------- */
+/* The header holds the field and the two filters, so neither scrolls away from
+   the results they control. An open filter's options sit at the top of the list
+   itself, which keeps the header the same height on every screen. */
 .xp-search{
-  padding: 10px 16px 12px; border-bottom: 1px solid var(--border);
+  padding: var(--space-3) var(--space-4) var(--space-2); border-bottom: 1px solid var(--border);
   background: var(--bg); flex-shrink: 0;
 }
-.xp-search-lab{
-  display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
-  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--text-faint); margin-bottom: 6px;
-}
+.xp-search-field{ position: relative; }
+.xp-search-ic{ position: absolute; left: 13px; top: 50%; margin-top: -8px; color: var(--text-faint); pointer-events: none; }
 .xp-search-in{
-  width: 100%; min-height: 44px; padding: 0 12px; font-size: 16px;
+  width: 100%; min-height: 46px; padding: 0 12px 0 38px; font-size: 16px;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-md); color: var(--text); font-family: 'Inter', sans-serif;
 }
 .xp-search-in:focus{ outline: none; border-color: var(--accent); }
-.xp-filters{
-  display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px;
-  scrollbar-width: none; -webkit-overflow-scrolling: touch;
-}
-.xp-filters::-webkit-scrollbar{ display: none; }
-.xp-chip{
-  flex-shrink: 0; min-height: 44px; padding: 0 14px;
+.xp-filterbar{ display: flex; align-items: center; gap: var(--space-2); padding-top: var(--space-2); }
+/* A filter is one pill: what it is set to, and — once set — a way to clear it. */
+.xp-fwrap{
+  display: inline-flex; align-items: stretch; min-width: 0;
   background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
-  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-meta);
-  font-weight: 600; cursor: pointer; white-space: nowrap;
 }
-/* Selected state is border + text + weight, not colour alone. */
-.xp-chip.on{ background: var(--surface-3); border-color: var(--accent); color: var(--text); }
-.xp-chip:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.xp-fwrap.open{ border-color: var(--accent); }
+.xp-fwrap.on{ background: var(--accent-soft); border-color: var(--accent); }
+.xp-fbtn{
+  display: inline-flex; align-items: center; gap: 6px; min-height: 42px; min-width: 0;
+  padding: 0 12px 0 14px; background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600;
+  white-space: nowrap;
+}
+.xp-fbtn-txt{ overflow: hidden; text-overflow: ellipsis; }
+.xp-fbtn svg{ flex-shrink: 0; transition: transform 0.15s var(--ease); }
+.xp-fwrap.open .xp-fbtn svg{ transform: rotate(180deg); }
+.xp-fwrap.on .xp-fbtn{ color: var(--text); padding-right: 8px; }
+.xp-fx{
+  display: inline-flex; align-items: center; justify-content: center; width: 38px; flex-shrink: 0;
+  background: none; border: none; border-left: 1px solid var(--border-quiet); cursor: pointer;
+  color: var(--text-dim); border-radius: 0 999px 999px 0;
+}
+.xp-clear{
+  margin-left: auto; min-height: 44px; padding: 0 2px 0 8px; background: none; border: none; cursor: pointer;
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600;
+}
+.xp-fbtn:focus-visible, .xp-fx:focus-visible, .xp-clear:focus-visible, .xp-opt:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.xp-panel{ padding: var(--space-1) 0 var(--space-3); margin-bottom: var(--space-1); border-bottom: 1px solid var(--border-quiet); }
+.xp-panel[hidden]{ display: none; }
+.xp-opts{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.xp-opt{
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  min-height: 44px; padding: 0 12px; text-align: left; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text); font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600;
+}
+.xp-opt-n{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700; color: var(--text-faint); }
+/* Selected is a border, a tint and the count taking the accent — not colour alone. */
+.xp-opt.on{ background: var(--accent-soft); border-color: var(--accent); }
+.xp-opt.on .xp-opt-n{ color: var(--accent); }
+/* Would leave nothing: it keeps its outline and loses its surface, the way an
+   unavailable workout control does, rather than fading to look broken. */
+.xp-opt:disabled{ background: transparent; border-color: var(--border-quiet); color: var(--text-faint); cursor: default; }
 .xp-sec{
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
   font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-faint); margin: 18px 0 8px;
 }
-.xp-count{ font-weight: 400; letter-spacing: 0.04em; }
+.xp-sec:first-child{ margin-top: 6px; }
+.xp-count{ font-weight: 400; letter-spacing: 0.04em; text-align: right; }
 .xp-list{ display: flex; flex-direction: column; gap: 6px; }
 .xp-row{
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  width: 100%; min-height: 56px; padding: 10px 14px; text-align: left;
+  width: 100%; min-height: 56px; padding: 10px 12px 10px 14px; text-align: left;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-md); cursor: pointer;
 }
 .xp-row:active{ background: var(--surface-2); }
 .xp-row:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.xp-row.is-picked{ border-color: var(--accent); background: var(--surface-2); }
 .xp-row-main{ display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .xp-row-name{
   font-family: 'Inter', sans-serif; font-size: var(--fs-body); font-weight: 600;
   color: var(--text); line-height: 1.3;
 }
 .xp-row-meta{ font-size: var(--fs-meta); color: var(--text-faint); }
+.xp-row-end{ display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 .xp-row-in{
   flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
   letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim);
 }
+/* Unticked it is a plus in a ring; ticked it fills and shows the order the
+   exercise will arrive in. */
+.xp-pick{
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  border-radius: 50%; border: 1.5px solid var(--border); color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta); font-weight: 700;
+}
+.xp-row.is-picked .xp-pick{ background: var(--accent); border-color: var(--accent); color: #06121F; }
+.xp-go{ display: inline-flex; color: var(--text-faint); }
 .xp-empty{ font-size: var(--fs-support); line-height: 1.5; color: var(--text-dim); padding: 4px 0 20px; }
+.xp-empty p{ margin: 0; }
+.xp-empty-acts{ display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.xp-empty-btn{
+  min-height: 44px; padding: 0 var(--space-4); cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  color: var(--text); font-family: 'Inter', sans-serif; font-size: var(--fs-body); font-weight: 600;
+}
+/* The dock is the workout's dock: the same surface, hairline and controls. */
+.xp-dock[hidden]{ display: none; }
+/* The picker's topbar already absorbed the status bar, and the header under it
+   is part of the chrome, so the list starts right under the header. */
+#exPickerOverlay .sheet-scroll{ padding-top: var(--space-2); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+#exPickerOverlay.xp-picking .sheet-scroll{ padding-bottom: 16px; }
+/* At 560px and wider the header keeps to the list's column, the way the dock does. */
+@media (min-width: 560px){
+  #exPickerOverlay .xp-search{ padding-left: max(var(--space-4), calc((100% - 560px) / 2)); padding-right: max(var(--space-4), calc((100% - 560px) / 2)); }
+}
 
 
 .pb-rv-sec{
@@ -5337,9 +5450,19 @@ body.page-locked{ overflow: hidden; }
 .rm-ex:hover{ border-color: var(--danger); color: var(--danger); }
 
 .add-ex-btn{
-  width: 100%; min-height: 44px; background: none; border: 1px dashed var(--border); color: var(--text-faint);
-  padding: 10px; border-radius: var(--radius-md); cursor: pointer; font-size: 12.5px; font-weight: 600; margin-top: 8px;
+  width: 100%; min-height: 44px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  padding: 10px; border-radius: var(--radius-md); cursor: pointer; font-size: var(--fs-body); font-weight: 600; margin-top: 10px;
 }
+/* D61 — the saved-workout sheet says it is empty rather than showing a blank row. */
+.tpl-empty{
+  display: none; margin: 6px 0 0; padding: var(--space-4); border: 1px dashed var(--border); border-radius: var(--radius-md);
+  font-size: var(--fs-support); line-height: 1.5; color: var(--text-dim);
+}
+#tplExercises:empty + .tpl-empty{ display: block; }
+/* While the list is empty, adding is the only step that gets the athlete
+   anywhere, so it takes the accent's edge rather than sitting quieter than a
+   Save that has nothing to save. */
+#tplExercises:empty ~ .add-ex-btn{ border-color: var(--accent); color: var(--accent); }
 
 /* ---- EDIT A COMPLETED WORKOUT (D20) ----
    Reuses the sheet, the type scale and the field styling the rest of LOOP
@@ -6635,11 +6758,13 @@ header{
    under the dock. Home's tab bar is anchored the same way (fixed, bottom: 0)
    and keeps the inset as padding inside its own surface; so does whatever ends
    this sheet: the dock, or the finish bar of a workout with no exercises.
-   Scoped to the workout on purpose: the other page sheets get the same cap,
-   but several end in a block that never took the inset, and the short sheet is
-   what keeps their last row off the home indicator. Outranks both viewport
-   caps, rotated or not. */
-#logOverlay .sheet.sheet-page{ max-height: 100%; }
+   Scoped on purpose: the other page sheets get the same cap, but several end
+   in a block that never took the inset, and the short sheet is what keeps
+   their last row off the home indicator. D61 adds the exercise picker, whose
+   foot now owns the inset too — its dock, or its list's bottom padding when
+   nothing is ticked. Outranks both viewport caps, rotated or not. */
+#logOverlay .sheet.sheet-page,
+#exPickerOverlay .sheet.sheet-page{ max-height: 100%; }
 .sheet-scroll{ overscroll-behavior: contain; }
 
 @media (orientation: landscape) and (max-height: 500px){
@@ -6966,9 +7091,21 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 
   <div class="view" id="view-train">
+    <!-- D61 — the two ways to make a workout sit above the saved ones, where
+         the athlete arrives: build one as you go, or save a new one. The add
+         button used to sit under the last card. -->
+    <div class="tq" role="group" aria-label="Make a workout">
+      <button type="button" class="tq-btn" onclick="openFreeformLog()">
+        <span class="tq-ic"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 3.2v9.6M3.2 8h9.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <span class="tq-main"><span class="tq-title">Empty workout</span><span class="tq-sub">Build as you go</span></span>
+      </button>
+      <button type="button" class="tq-btn" id="trainAddBtn" onclick="openAddTemplate(activeTrainCategory)">
+        <span class="tq-ic"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.8 4h7M2.8 8h7M2.8 12h4.2M12.2 9.4v5.2M9.6 12h5.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+        <span class="tq-main"><span class="tq-title">New workout</span><span class="tq-sub" id="trainAddSub">Save one to reuse</span></span>
+      </button>
+    </div>
     <div class="hist-filters" id="trainChips"></div>
     <div class="tpl-grid" id="trainGrid"></div>
-    <button class="add-tpl-btn" id="trainAddBtn" onclick="openAddTemplate(activeTrainCategory)">+ Add a workout</button>
   </div>
 
   <div class="view" id="view-progress">
@@ -7273,7 +7410,6 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <input type="date" id="logDate">
       <label>Notes</label>
       <textarea id="logNotes" placeholder="How'd it feel? PRs, form cues, anything worth remembering."></textarea>
-      <button class="add-ex-btn" onclick="addLogExerciseRow()">+ Add exercise</button>
     </div>
     </div>
     </div>
@@ -7301,7 +7437,9 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <input type="text" id="tplName" placeholder="e.g. Pull C — Rows Focus">
     <label style="margin-top:18px">Exercises</label>
     <div id="tplExercises"></div>
-    <button class="add-ex-btn" onclick="addTplExerciseRow()">+ Add exercise</button>
+    <!-- D61 — shown only while the list above is empty. -->
+    <p class="tpl-empty">No exercises yet. Add them from LOOP's library — search by name, or browse by muscle and equipment.</p>
+    <button type="button" class="add-ex-btn" onclick="openTemplateExercisePicker()">Add exercises</button>
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeTplSheet()">Cancel</button>
@@ -7484,20 +7622,34 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 </div>
 
-<!-- EXERCISE PICKER (D51C) — one selection surface, used to add and to replace -->
+<!-- EXERCISE PICKER (D51C, D61) — one selection surface for Program Studio, a
+     workout and a saved workout: search, the two filters under it, and a dock
+     that appears once something is ticked. -->
 <div class="overlay overlay-page" id="exPickerOverlay">
   <div class="sheet sheet-page">
     <div class="workout-topbar">
-      <button class="workout-back" onclick="closeExercisePicker()" aria-label="Back to your program">‹</button>
-      <div class="workout-topbar-title" id="exPickerTitle">Add exercise</div>
+      <button class="workout-back" onclick="closeExercisePicker()" aria-label="Back">‹</button>
+      <div class="workout-topbar-title" id="exPickerTitle">Add exercises</div>
       <span class="workout-topbar-spacer"></span>
     </div>
     <div class="xp-search">
-      <label class="xp-search-lab" for="exPickerSearch">Search exercises</label>
-      <input type="search" id="exPickerSearch" class="xp-search-in" autocomplete="off"
-        placeholder="Search exercises" oninput="exPickerSearch(this.value)">
+      <label class="sr-only" for="exPickerSearch">Search exercises</label>
+      <div class="xp-search-field">
+        <svg class="xp-search-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.4 10.4L13.6 13.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input type="search" id="exPickerSearch" class="xp-search-in" autocomplete="off" autocorrect="off"
+          autocapitalize="off" spellcheck="false" enterkeyhint="search"
+          placeholder="Search exercises" oninput="exPickerSearch(this.value)">
+      </div>
+      <div class="xp-filterbar" id="exPickerFilterBar" role="group" aria-label="Filter exercises"></div>
     </div>
-    <div class="sheet-scroll"><div id="exPickerBody"></div></div>
+    <!-- A filter's options open at the top of the list, not inside the header:
+         in the header, ten muscles on a short or rotated screen pushed the dock
+         off the bottom. -->
+    <div class="sheet-scroll"><div class="xp-panel" id="exPickerPanel" hidden></div><div id="exPickerBody"></div></div>
+    <div class="ws-nav xp-dock" id="exPickerDock" hidden>
+      <button type="button" class="ws-nav-btn" onclick="exPickerClearSelection()">Clear</button>
+      <button type="button" class="ws-nav-fwd is-next" id="exPickerAddBtn" onclick="exPickerCommit()">Add exercises</button>
+    </div>
   </div>
 </div>
 
@@ -14183,6 +14335,33 @@ const LOOP_UPDATES = [
       'On iPhone, a dark strip could show below the bar at the bottom of a workout, so the bar looked like a separate layer. The bar now reaches the bottom edge, like the tab bar on Today, and its buttons stay clear of the home indicator'
     ],
     changes: []
+  },
+  {
+    id: 'v6-2',
+    version: 'LOOP 6.2',
+    title: 'Build a Workout Faster',
+    date: '2027-02-17',
+    swVersion: 'loop-v139',
+    summary: 'Starting a workout from scratch and adding exercises is one clear flow: search, browse by muscle or equipment, and add several at once.',
+    newFeatures: [
+      'Add exercises is the same screen everywhere you build — an empty workout, a workout in progress, a new saved workout and Program Studio. Search by name, browse by muscle or equipment, and tick several exercises before adding them',
+      'Your recent exercises come first, so what you did last time is one tap away. With no history yet, the exercises your plan uses most lead instead',
+      'Train starts with two quick actions: an empty workout, and a new saved workout'
+    ],
+    improvements: [
+      'The muscle and equipment filters sit right under the search, always show what they are set to, and say how many exercises each choice leaves — a choice that would leave none can’t be picked',
+      'Far more exercises can be found by equipment: Dumbbell went from 13 exercises to 29, and bands and kettlebells can now be browsed',
+      'An empty workout opens on what to do next instead of a blank exercise field, and what kind of workout it was is asked on the review step',
+      'Add more exercises from any exercise with + Add, or from the review step',
+      'A new saved workout fills in sets, reps and effort for the exercises LOOP knows'
+    ],
+    bugFixes: [
+      'Saving a new saved workout with no exercises now points you to Add exercises instead of doing nothing',
+      'A workout with every exercise removed no longer offers a Finish Workout button that could only show an error'
+    ],
+    changes: [
+      'The ↻ menu in the saved-workout sheet is replaced by Add exercises'
+    ]
   }
 ];
 
@@ -16103,6 +16282,10 @@ function gearIconSvg(size){
 function closeIconSvg(size){
   const px = size || 13;
   return `<svg width="${px}" height="${px}" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
+}
+function plusIconSvg(size){
+  const px = size || 13;
+  return `<svg width="${px}" height="${px}" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 3.2v9.6M3.2 8h9.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 }
 function chevronDownSvg(size){
   const px = size || 13;
@@ -22833,9 +23016,12 @@ function renderTrainView(){
     (getTemplates(activeTrainCategory) || []).map(t => templateCardHtml(t, activeTrainCategory, lw)).join('') ||
     trainEmptyStateHtml();
 
+  /* D61 — New workout saves under the kind of day chosen below it, and says
+     which. */
   const addBtn = document.getElementById('trainAddBtn');
-  addBtn.textContent = '+ Add ' + articleFor(CAT_LABEL[activeTrainCategory]) + ' ' + CAT_LABEL[activeTrainCategory] + ' workout';
-  addBtn.setAttribute('onclick', `openAddTemplate('${activeTrainCategory}')`);
+  if(addBtn) addBtn.setAttribute('onclick', `openAddTemplate('${activeTrainCategory}')`);
+  const addSub = document.getElementById('trainAddSub');
+  if(addSub) addSub.textContent = 'For ' + CAT_LABEL[activeTrainCategory];
 }
 /* Says what this screen is, why it matters, and what to do — and never tells an
    athlete who has eight workouts that they have none. */
@@ -33134,6 +33320,47 @@ function pbRename(){
 let exPickerState = null;
 let _exPickerIndex = null;
 
+/* The identity a name is filed under: the registry's id when it knows the
+   movement, otherwise the name itself. It is what the index collapses on, so
+   a recent exercise, a library row and a row already in the workout are
+   recognised as one movement however each happens to be spelled. */
+function exPickerKeyOf(name){
+  const clean = String(name || '').trim();
+  if(!clean) return '';
+  let id = null;
+  try{ id = resolveExerciseId(clean); }catch(e){ id = null; }
+  return (id && id.indexOf('unmapped:') !== 0) ? id : normalizeExerciseName(clean);
+}
+
+/* D61 — WHAT A NAME SAYS ABOUT ITS EQUIPMENT. The registry carries equipment
+   for the 62 movements it knows; the library's other names carried none, so
+   filtering by Dumbbell found 13 exercises and hid DB Floor Press and Seated
+   DB Shoulder Press. This reads only what a name states outright — DB, Band,
+   Cable, Machine, Push-Up — the way musclesForExercise() falls back to
+   keywords after the registry. A name that states nothing (Rack Pull, Med Ball
+   Slam, Weighted Dips) stays unknown and is found under All equipment rather
+   than filed under a guess. The registry always wins, and nothing here is
+   stored: it decides what a filter shows, and the line under a row. */
+const XP_EQUIPMENT_MARKERS = [
+  { equipment:'Band',       says:/\bbands?\b/ },
+  { equipment:'Kettlebell', says:/\b(kb|kettlebells?)\b/ },
+  { equipment:'Dumbbell',   says:/\b(db|dumbbells?)\b|\bconcentration curl\b|\btriceps kickback\b/ },
+  { equipment:'Cable',      says:/\bcables?\b|\brope (triceps|extension|pushdown)\b|\boverhead rope\b|\bpulldown\b/ },
+  { equipment:'Machine',    says:/\b(machine|smith)\b|\bpec deck\b/ },
+  { equipment:'Barbell',    says:/\b(barbell|bb)\b|\btrap bar\b/ },
+  { equipment:'Bodyweight', says:/\bbodyweight\b|\b(push|pull|chin)-?\s?ups?\b|\bplank\b|\bcrunch(es)?\b|\bsit-?\s?ups?\b|\bdips?\b|\bdead bug\b|\bbird dog\b|\bhollow body\b|\bv-?\s?up\b|\bflutter kicks?\b|\bmountain climbers?\b|\bsuperman\b|\bwall sit\b|\bglute bridge\b|\bsnow angel\b/,
+    unless:/\b(weighted|assisted)\b/ }
+];
+function pickerEquipmentFromName(name){
+  const key = normalizeExerciseName(name);
+  if(!key) return null;
+  for(let i = 0; i < XP_EQUIPMENT_MARKERS.length; i++){
+    const m = XP_EQUIPMENT_MARKERS[i];
+    if(m.says.test(key) && !(m.unless && m.unless.test(key))) return m.equipment;
+  }
+  return null;
+}
+
 /* Every exercise LOOP can offer, each with the metadata the picker shows and
    filters on. Built once. The canonical registry leads because it carries
    muscles and equipment; a template exercise with no canonical entry is still
@@ -33149,12 +33376,10 @@ function exPickerIndex(){
      collapsing them here uses knowledge LOOP has rather than adding any.
      Anything the registry does not recognise keeps its own name, because
      merging by guesswork is how a picker offers the wrong exercise. */
-  const idOf = n => { try{ return resolveExerciseId(n); }catch(e){ return null; } };
   const add = (name, extra) => {
     const clean = String(name || '').trim();
     if(!clean) return;
-    const id = idOf(clean);
-    const key = (id && id.indexOf('unmapped:') !== 0) ? id : normalizeExerciseName(clean);
+    const key = exPickerKeyOf(clean);
     if(!key) return;
     if(!byKey[key]) byKey[key] = Object.assign({ name: clean, key,
       muscles: [], primaryMuscles: [], equipment: null, pattern: null, aliases: [] }, extra || {});
@@ -33181,9 +33406,14 @@ function exPickerIndex(){
     (PROGRAM_EXTENSIONS || []).forEach(x => (x.exercises || []).forEach(ex => add(ex.name, {})));
   }catch(e){}
   /* Anything without canonical metadata still gets muscles, through the same
-     resolver every other surface uses — not through a table kept here. */
+     resolver every other surface uses — not through a table kept here — and
+     equipment, when its name states it. */
   Object.keys(byKey).forEach(k => {
     const e = byKey[k];
+    if(!e.equipment){
+      const said = pickerEquipmentFromName(e.name);
+      if(said){ e.equipment = said; e.equipmentFromName = true; }
+    }
     if(e.muscles.length) return;
     try{
       const m = musclesForExercise(e.name);
@@ -33244,98 +33474,431 @@ function exPickerSuggestions(category, already){
   return out.slice(0, 8);
 }
 
+/* D61 — THE ATHLETE'S OWN EXERCISES FIRST. Most workouts repeat most of the
+   last few, so the quickest add is the movement they did last time. Read from
+   the log, newest session first, one entry per movement and only for sets that
+   were actually logged. Nothing is recorded to produce it. */
+function exPickerRecent(limit){
+  const byKey = {};
+  exPickerIndex().forEach(e => { byKey[e.key] = e; });
+  const sessions = (Array.isArray(workoutLog) ? workoutLog : []).slice().sort((a, b) =>
+    String(b.date || '').localeCompare(String(a.date || '')) || String(b.id || '').localeCompare(String(a.id || '')));
+  const seen = {}, out = [];
+  for(let i = 0; i < sessions.length && out.length < limit; i++){
+    const list = sessions[i].exercises || [];
+    for(let j = 0; j < list.length && out.length < limit; j++){
+      const ex = list[j];
+      if(!ex || !ex.name || !(ex.sets && ex.sets.length)) continue;
+      const key = exPickerKeyOf(ex.name);
+      if(!key || seen[key]) continue;
+      seen[key] = true;
+      out.push(byKey[key] || { name: String(ex.name).trim(), key, muscles: [], primaryMuscles: [], equipment: null });
+    }
+  }
+  return out;
+}
+
+/* An athlete with no history has no recent exercises, but the plan they chose
+   already names the movements they will do most. Counted across its saved
+   workouts, most used first. */
+function exPickerFromPlan(limit){
+  const byKey = {};
+  exPickerIndex().forEach(e => { byKey[e.key] = e; });
+  const count = {}, first = {};
+  try{
+    (typeof ORDER !== 'undefined' ? ORDER : []).forEach(cat => (getTemplates(cat) || []).forEach(t =>
+      (t.exercises || []).forEach(ex => {
+        const key = exPickerKeyOf(ex.name);
+        if(!key) return;
+        count[key] = (count[key] || 0) + 1;
+        if(!first[key]) first[key] = String(ex.name).trim();
+      })));
+  }catch(e){}
+  return Object.keys(count)
+    .sort((a, b) => count[b] - count[a] || first[a].localeCompare(first[b]))
+    .slice(0, limit)
+    .map(k => byKey[k] || { name: first[k], key: k, muscles: [], primaryMuscles: [], equipment: null });
+}
+
+/* A saved workout is built for one kind of day, and the library already lists
+   that day's movements — what the old ↻ menu offered, now as rows with
+   pictures. Anything the workout already has is left out. */
+function exPickerForCategory(category, already, limit){
+  const have = {};
+  (already || []).forEach(n => { have[exPickerKeyOf(n)] = true; });
+  const byKey = {};
+  exPickerIndex().forEach(e => { byKey[e.key] = e; });
+  const out = [];
+  try{
+    ((EXERCISE_LIBRARY || {})[category] || []).forEach(ex => {
+      const key = exPickerKeyOf(ex.name);
+      if(!key || have[key] || out.some(o => o.key === key)) return;
+      out.push(byKey[key] || { name: String(ex.name).trim(), key, muscles: [], primaryMuscles: [], equipment: null });
+    });
+  }catch(e){}
+  return out.slice(0, limit);
+}
+
+/* The prescription LOOP already writes for a movement: the day's own library
+   first, then any other day's, then the generator's pool. Used to fill a saved
+   workout's sets, reps and effort, and to size a new workout row — never to
+   invent a load. */
+function libraryPrescriptionFor(name, category){
+  const key = exPickerKeyOf(name);
+  if(!key) return null;
+  const find = list => (list || []).find(ex => exPickerKeyOf(ex.name) === key) || null;
+  try{
+    const lib = EXERCISE_LIBRARY || {};
+    const own = category ? find(lib[category]) : null;
+    if(own) return own;
+    const cats = Object.keys(lib);
+    for(let i = 0; i < cats.length; i++){ const hit = find(lib[cats[i]]); if(hit) return hit; }
+  }catch(e){}
+  try{
+    const ext = PROGRAM_EXTENSIONS || [];
+    for(let i = 0; i < ext.length; i++){ const hit = find(ext[i].exercises); if(hit) return hit; }
+  }catch(e){}
+  return null;
+}
+
 /* ---------- opening ---------- */
+/* ONE PICKER, THREE PLACES. Program Studio, a workout in progress and a saved
+   workout being built all add through this surface, so search, filters and
+   recent exercises work the same way everywhere. The target only decides what
+   happens to the exercises chosen. Adding is multi-select — tick several, then
+   Add — because a workout is built from several. Replacing stays one tap. */
+function exPickerNewState(target, o){
+  return Object.assign({ target, dayKey: null, replaceIdx: null, from: null,
+    query: '', muscle: null, equipment: null, panel: null,
+    category: null, already: [], selected: [] }, o || {});
+}
+
 /* `replaceIdx` opens the same picker in replace mode. One surface, one index,
    one set of results — the only difference is what happens on tap. */
 function openExercisePicker(dayKey, replaceIdx){
   const def = pbDraft(); if(!def) return;
   const entry = def.schedule[dayKey]; if(!entry) return;
   const list = pbSessionExercises(def, dayKey);
-  exPickerState = { dayKey, replaceIdx: (typeof replaceIdx === 'number' ? replaceIdx : null),
-    query: '', muscle: null, equipment: null,
+  exPickerState = exPickerNewState('program', { dayKey,
+    replaceIdx: (typeof replaceIdx === 'number' ? replaceIdx : null),
     category: entry.category || null,
-    already: list.map(x => x.name) };
-  const t = document.getElementById('exPickerTitle');
-  if(t) t.textContent = exPickerState.replaceIdx === null ? 'Add exercise' : 'Replace exercise';
-  const q = document.getElementById('exPickerSearch');
-  if(q) q.value = '';
-  renderExercisePicker();
-  document.getElementById('exPickerOverlay').classList.add('open');
+    already: list.map(x => x.name) });
+  exPickerShow(exPickerState.replaceIdx === null ? 'Add exercises' : 'Replace exercise');
 }
 
-/* Back returns to the program exactly as it was left. The draft was never
-   touched by opening this, so there is nothing to restore and nothing to
-   regenerate — the session the athlete had open is still open. */
+/* From a workout in progress. `from` is where the athlete was — an empty
+   workout, the review step, or an exercise — and decides where they land. */
+function openWorkoutExercisePicker(from){
+  const names = workoutStepRows().map(r => {
+    const input = r.querySelector ? r.querySelector('.ex-name-in') : null;
+    return input ? input.value.trim() : '';
+  }).filter(Boolean);
+  exPickerState = exPickerNewState('workout', { from: from || 'step',
+    category: pendingLogCategory || null, already: names });
+  exPickerShow('Add exercises');
+}
+
+/* From the saved-workout sheet, which stays open underneath. */
+function openTemplateExercisePicker(){
+  const names = Array.prototype.map.call(document.querySelectorAll('#tplExercises .t-name-in'),
+    input => input.value.trim()).filter(Boolean);
+  exPickerState = exPickerNewState('template', { category: pendingTplCategory || null, already: names });
+  exPickerShow('Add exercises');
+}
+
+function exPickerShow(title){
+  const t = document.getElementById('exPickerTitle');
+  if(t) t.textContent = title;
+  const q = document.getElementById('exPickerSearch');
+  if(q){ q.value = ''; q.placeholder = 'Search ' + exPickerIndex().length + ' exercises'; }
+  const ov = document.getElementById('exPickerOverlay');
+  const scroll = ov && ov.querySelector ? ov.querySelector('.sheet-scroll') : null;
+  if(scroll) scroll.scrollTop = 0;
+  renderExercisePicker();
+  if(ov) ov.classList.add('open');
+}
+
+/* Back leaves exactly as the athlete came in: nothing ticked is added, and the
+   program, workout or saved workout underneath was never touched by opening
+   this, so there is nothing to restore. */
 function closeExercisePicker(){
+  const st = exPickerState;
   document.getElementById('exPickerOverlay').classList.remove('open');
   exPickerState = null;
-  renderProgramBuilderFlow();
+  if(!st || st.target === 'program') renderProgramBuilderFlow();
 }
 
+/* ---------- searching and filtering ---------- */
+/* A new set of results starts at its top. Ticking a row is not a new set, so
+   it never calls this. */
+function exPickerListTop(){
+  const ov = document.getElementById('exPickerOverlay');
+  const scroll = ov && ov.querySelector ? ov.querySelector('.sheet-scroll') : null;
+  if(scroll) scroll.scrollTop = 0;
+}
 function exPickerSearch(v){
   if(!exPickerState) return;
   exPickerState.query = v || '';
   renderExercisePicker();
+  exPickerListTop();
 }
 function exPickerFilter(kind, value){
   if(!exPickerState) return;
   exPickerState[kind] = exPickerState[kind] === value ? null : value;
+  exPickerState.panel = null;
   renderExercisePicker();
+  exPickerListTop();
+}
+/* From the option panel: sets exactly, and '' means any. Choosing closes the
+   panel, because the question it asked has been answered. */
+function exPickerSetFilter(kind, value){
+  if(!exPickerState) return;
+  exPickerState[kind] = value || null;
+  exPickerState.panel = null;
+  renderExercisePicker();
+  exPickerListTop();
+}
+function exPickerTogglePanel(kind){
+  if(!exPickerState) return;
+  exPickerState.panel = exPickerState.panel === kind ? null : kind;
+  renderExercisePicker();
+  /* The options open at the top of the list, so the list goes to its top. */
+  if(exPickerState.panel) exPickerListTop();
+}
+function exPickerClearFilters(){
+  if(!exPickerState) return;
+  exPickerState.muscle = null;
+  exPickerState.equipment = null;
+  exPickerState.panel = null;
+  renderExercisePicker();
+  exPickerListTop();
+}
+function exPickerClearAll(){
+  if(!exPickerState) return;
+  exPickerState.query = '';
+  const q = document.getElementById('exPickerSearch');
+  if(q) q.value = '';
+  exPickerClearFilters();
+}
+
+/* What is on screen for a state, with any of its query or filters swapped —
+   which is how each filter option knows how many exercises choosing it would
+   leave, before it is chosen. */
+function exPickerResults(st, over){
+  const pick = k => (over && Object.prototype.hasOwnProperty.call(over, k)) ? over[k] : st[k];
+  const muscle = pick('muscle'), equipment = pick('equipment');
+  let results = exPickerMatches(pick('query'));
+  if(muscle) results = results.filter(e => (e.primaryMuscles || []).indexOf(muscle) !== -1);
+  if(equipment) results = results.filter(e => e.equipment === equipment);
+  return results;
 }
 
 /* ---------- choosing ---------- */
+function exPickerIsPicking(st){
+  return !!st && !(st.target === 'program' && st.replaceIdx !== null);
+}
+function exPickerToggle(name){
+  const st = exPickerState;
+  if(!st) return;
+  if(!exPickerIsPicking(st)) return exPickerChoose(name);
+  const clean = String(name || '').trim().slice(0, 60);
+  const key = exPickerKeyOf(clean);
+  if(!key) return;
+  const at = st.selected.findIndex(s => s.key === key);
+  if(at === -1) st.selected.push({ name: clean, key });
+  else st.selected.splice(at, 1);
+  renderExercisePicker();
+}
+function exPickerClearSelection(){
+  if(!exPickerState) return;
+  exPickerState.selected = [];
+  renderExercisePicker();
+}
+/* No match is not a dead end: LOOP tracks any name, so the athlete can add the
+   one they typed. */
+function exPickerAddOwn(){
+  const st = exPickerState;
+  if(!st) return;
+  const name = String(st.query || '').trim().slice(0, 60);
+  if(!name) return;
+  if(!exPickerIsPicking(st)) return exPickerChoose(name);
+  const key = exPickerKeyOf(name);
+  if(!st.selected.some(s => s.key === key)) st.selected.push({ name, key });
+  exPickerClearAll();
+}
+
+/* One exercise, now: used by replace, and by anything that already knows what
+   it wants. */
 function exPickerChoose(name){
   if(!exPickerState) return;
-  const { dayKey, replaceIdx } = exPickerState;
-  if(replaceIdx === null) pbAddExercise(dayKey, name);
-  else pbReplaceExercise(dayKey, replaceIdx, name);
+  exPickerApply(exPickerState, [name]);
   closeExercisePicker();
+}
+/* Everything ticked, in the order it was ticked. */
+function exPickerCommit(){
+  const st = exPickerState;
+  if(!st || !st.selected.length) return;
+  exPickerApply(st, st.selected.map(s => s.name));
+  closeExercisePicker();
+}
+function exPickerApply(st, names){
+  if(st.target === 'program'){
+    if(st.replaceIdx === null) names.forEach(n => pbAddExercise(st.dayKey, n));
+    else pbReplaceExercise(st.dayKey, st.replaceIdx, names[0]);
+  } else if(st.target === 'workout'){
+    addPickedToWorkout(names, st.from);
+  } else if(st.target === 'template'){
+    addPickedToTemplate(names);
+  }
+}
+
+/* INTO A WORKOUT. Each exercise arrives the way a hand-typed one always did:
+   no prescription, no target and no prefilled load, so nothing an athlete did
+   not do can be saved as done. What the library does know is used where it
+   cannot become a record — how many empty set rows to lay out, the rest that
+   suits its reps, and whether it is a bodyweight movement. An empty workout
+   starts the way every workout starts; from the review step the athlete goes
+   to the first new exercise; mid-exercise they stay where they are. */
+function addPickedToWorkout(names, from){
+  const before = workoutStepRows().length;
+  names.forEach(name => {
+    const rx = libraryPrescriptionFor(name, pendingLogCategory);
+    const count = Math.max(1, Math.min(8, parseInt(rx && rx.sets, 10) || 3));
+    const sets = [];
+    for(let i = 0; i < count; i++) sets.push({ weight: '', reps: '' });
+    addLogExerciseRow(name, '', !!(rx && rx.recommended === 'Bodyweight'), sets,
+      rx && rx.reps ? restSecondsForReps(rx.reps) : undefined);
+  });
+  if(before === 0) syncWorkoutStepper({ reset: true });
+  else if(from === 'review') goToWorkoutStep(before, 'fwd');
+  else renderWorkoutStep();
+  const live = document.getElementById('coachLive');
+  if(live) live.textContent = names.length === 1 ? names[0] + ' added.' : names.length + ' exercises added.';
+  try{ persistDraftNow(); }catch(e){}
+}
+
+/* INTO A SAVED WORKOUT, with the sets, reps and effort the library writes for
+   each movement, exactly as the ↻ menu used to fill them. */
+function addPickedToTemplate(names){
+  names.forEach(name => {
+    const rx = libraryPrescriptionFor(name, pendingTplCategory);
+    addTplExerciseRow(name, rx && rx.sets, rx && rx.reps, rx && rx.effort, rx && rx.recommended);
+  });
 }
 
 /* ---------- rendering ---------- */
 const XP_MUSCLES = ['chest','back','shoulders','biceps','triceps','quads','hamstrings','glutes','calves','abs'];
-const XP_EQUIPMENT = ['Barbell','Dumbbell','Cable','Machine','Bodyweight'];
+/* In the order a gym is laid out. An option no exercise carries is not offered. */
+const XP_EQUIPMENT = ['Barbell','Dumbbell','Kettlebell','Cable','Machine','Band','Bodyweight'];
+
+function exPickerValueLabel(kind, value){
+  return kind === 'muscle' ? (MUSCLE_LABELS[value] || value) : value;
+}
+
+/* THE FILTERS ARE PART OF THE SEARCH, not a second screen. Two controls sit
+   under the field and always say what they are set to; each opens its options
+   in place, every option says how many exercises it would leave, and an option
+   that would leave none cannot be chosen — so combining filters never walks
+   the athlete into an empty list. */
+function exPickerFilterButtonHtml(st, kind){
+  const value = st[kind];
+  const name = kind === 'muscle' ? 'Muscle' : 'Equipment';
+  const shown = value ? exPickerValueLabel(kind, value) : name;
+  return '<span class="xp-fwrap' + (value ? ' on' : '') + (st.panel === kind ? ' open' : '') + '">' +
+    '<button type="button" class="xp-fbtn" onclick="exPickerTogglePanel(\'' + kind + '\')"' +
+      ' aria-expanded="' + (st.panel === kind) + '" aria-controls="exPickerPanel"' +
+      ' aria-label="' + escapeAttr(value ? name + ': ' + shown + '. Change' : 'Filter by ' + name.toLowerCase()) + '">' +
+      '<span class="xp-fbtn-txt">' + escapeHtml(shown) + '</span>' + chevronDownSvg(12) +
+    '</button>' +
+    (value ? '<button type="button" class="xp-fx" onclick="exPickerSetFilter(\'' + kind + '\',\'\')"' +
+      ' aria-label="' + escapeAttr('Clear ' + name.toLowerCase() + ' filter') + '">' + closeIconSvg(12) + '</button>' : '') +
+  '</span>';
+}
+
+function exPickerPanelHtml(st, kind){
+  const all = exPickerIndex();
+  const values = (kind === 'muscle' ? XP_MUSCLES : XP_EQUIPMENT)
+    .filter(v => kind === 'muscle' || all.some(e => e.equipment === v));
+  const opt = (value, label) => {
+    const n = exPickerResults(st, { [kind]: value || null }).length;
+    const on = (st[kind] || '') === value;
+    return '<button type="button" class="xp-opt' + (on ? ' on' : '') + '"' +
+      (n === 0 && !on ? ' disabled' : '') +
+      ' onclick="exPickerSetFilter(\'' + kind + '\',\'' + value + '\')" aria-pressed="' + on + '">' +
+      '<span class="xp-opt-name">' + escapeHtml(label) + '</span>' +
+      '<span class="xp-opt-n">' + n + '</span></button>';
+  };
+  return '<div class="xp-opts" role="group" aria-label="' + (kind === 'muscle' ? 'Muscle' : 'Equipment') + '">' +
+    opt('', kind === 'muscle' ? 'All muscles' : 'All equipment') +
+    values.map(v => opt(v, exPickerValueLabel(kind, v))).join('') +
+  '</div>';
+}
 
 function renderExercisePicker(){
   const body = document.getElementById('exPickerBody');
   if(!body || !exPickerState) return;
   const st = exPickerState;
-  let results = exPickerMatches(st.query);
-  if(st.muscle) results = results.filter(e => (e.primaryMuscles || []).indexOf(st.muscle) !== -1);
-  if(st.equipment) results = results.filter(e => e.equipment === st.equipment);
+  const picking = exPickerIsPicking(st);
+  const query = String(st.query || '').trim();
+  const searching = !!normalizeExerciseName(query);
+  const filtered = !!(st.muscle || st.equipment);
+  const results = exPickerResults(st);
 
-  const chip = (kind, value, label) =>
-    '<button type="button" class="xp-chip' + (st[kind] === value ? ' on' : '') + '"' +
-    ' onclick="exPickerFilter(\'' + kind + '\',\'' + value + '\')"' +
-    ' aria-pressed="' + (st[kind] === value) + '">' + escapeHtml(label) + '</button>';
+  const bar = document.getElementById('exPickerFilterBar');
+  if(bar) bar.innerHTML = exPickerFilterButtonHtml(st, 'muscle') + exPickerFilterButtonHtml(st, 'equipment') +
+    ((searching || filtered) ? '<button type="button" class="xp-clear" onclick="exPickerClearAll()">Clear</button>' : '');
+  const panel = document.getElementById('exPickerPanel');
+  if(panel){
+    panel.innerHTML = st.panel ? exPickerPanelHtml(st, st.panel) : '';
+    panel.hidden = !st.panel;
+  }
 
-  const filters =
-    '<div class="xp-filters" role="group" aria-label="Filter by muscle">' +
-      XP_MUSCLES.map(m => chip('muscle', m, MUSCLE_LABELS[m] || m)).join('') +
-    '</div>' +
-    '<div class="xp-filters" role="group" aria-label="Filter by equipment">' +
-      XP_EQUIPMENT.map(q => chip('equipment', q, q)).join('') +
-    '</div>';
-
-  /* Suggestions are for a blank search only. Once the athlete is looking for
-     something, the thing they are looking for is what should be on screen. */
-  let suggested = '';
-  if(!st.query && !st.muscle && !st.equipment){
-    const sug = exPickerSuggestions(st.category, st.already);
-    if(sug.length) suggested =
-      '<div class="xp-sec">Suggested for this session</div>' +
-      '<div class="xp-list">' + sug.map(x => exPickerRowHtml(x.name, x.label)).join('') + '</div>';
+  const rows = items => '<div class="xp-list">' + items.map(e => exPickerRowHtml(e.name, e.meta)).join('') + '</div>';
+  const withMeta = list => list.map(e => ({ name: e.name, meta: exPickerMetaOf(e) }));
+  let html = '';
+  /* The quick picks are for a blank search only. Once the athlete is looking
+     for something, the thing they are looking for is what should be on screen. */
+  if(!searching && !filtered){
+    const recent = exPickerRecent(6);
+    if(recent.length) html += '<div class="xp-sec">Recent</div>' + rows(withMeta(recent));
+    if(st.target === 'program'){
+      const sug = exPickerSuggestions(st.category, st.already);
+      if(sug.length) html += '<div class="xp-sec">Suggested for this session</div>' +
+        rows(sug.map(x => ({ name: x.name, meta: x.label })));
+    } else if(st.target === 'template'){
+      const lib = exPickerForCategory(st.category, st.already, 6);
+      if(lib.length) html += '<div class="xp-sec">Suggested for ' + escapeHtml(CAT_LABEL[st.category] || 'this workout') + '</div>' +
+        rows(withMeta(lib));
+    } else if(!recent.length){
+      const plan = exPickerFromPlan(6);
+      if(plan.length) html += '<div class="xp-sec">Popular in your plan</div>' + rows(withMeta(plan));
+    }
   }
 
   const count = results.length;
-  body.innerHTML = filters + suggested +
-    '<div class="xp-sec">' + (st.query ? 'Results' : 'All exercises') +
-      '<span class="xp-count" role="status" aria-live="polite">' + count +
-      (count === 1 ? ' exercise' : ' exercises') + '</span></div>' +
-    (count
-      ? '<div class="xp-list">' + results.map(e => exPickerRowHtml(e.name, exPickerMetaOf(e))).join('') + '</div>'
-      : '<p class="xp-empty">Nothing matches “' + escapeHtml(st.query) + '”. You can still type any' +
-        ' name into the exercise itself — LOOP will track it either way.</p>');
+  const scope = [st.muscle ? exPickerValueLabel('muscle', st.muscle) : '', st.equipment || ''].filter(Boolean).join(' · ');
+  html += '<div class="xp-sec">' + (searching || filtered ? 'Results' : 'All exercises') +
+    '<span class="xp-count" role="status" aria-live="polite">' + count + (count === 1 ? ' exercise' : ' exercises') +
+    (scope ? ' · ' + escapeHtml(scope) : '') + '</span></div>';
+  if(count){
+    html += rows(withMeta(results));
+  } else {
+    html += '<div class="xp-empty"><p>No exercises match' + (searching ? ' “' + escapeHtml(query) + '”' : '') +
+      (filtered ? (searching ? ' with ' : ' ') + escapeHtml(scope) : '') + '.</p>' +
+      '<div class="xp-empty-acts">' +
+        (filtered ? '<button type="button" class="xp-empty-btn" onclick="exPickerClearFilters()">Clear filters</button>' : '') +
+        (searching ? '<button type="button" class="xp-empty-btn" onclick="exPickerAddOwn()">Add “' + escapeHtml(query.slice(0, 60)) + '” as your own</button>' : '') +
+      '</div></div>';
+  }
+  body.innerHTML = html;
+
+  const n = picking ? st.selected.length : 0;
+  const dock = document.getElementById('exPickerDock');
+  if(dock) dock.hidden = n === 0;
+  const add = document.getElementById('exPickerAddBtn');
+  if(add) add.textContent = n === 1 ? 'Add 1 exercise' : 'Add ' + n + ' exercises';
+  const ov = document.getElementById('exPickerOverlay');
+  if(ov){ if(n > 0) ov.classList.add('xp-picking'); else ov.classList.remove('xp-picking'); }
 }
 
 function exPickerMetaOf(e){
@@ -33346,17 +33909,30 @@ function exPickerMetaOf(e){
   return parts.join(' · ');
 }
 
+/* A row says whether it is already in, and — while adding — whether it is
+   ticked and in what order it will arrive. The same movement ticks in every
+   list it appears in, because it is one movement. */
 function exPickerRowHtml(name, meta){
-  const already = exPickerState && (exPickerState.already || [])
-    .some(n => normalizeExerciseName(n) === normalizeExerciseName(name));
-  return '<button type="button" class="xp-row" onclick="exPickerChoose(\'' +
-    escapeAttr(String(name).replace(/'/g, "\\'")) + '\')">' +
+  const st = exPickerState;
+  const picking = exPickerIsPicking(st);
+  const key = exPickerKeyOf(name);
+  const already = !!st && (st.already || []).some(n => exPickerKeyOf(n) === key);
+  const at = picking ? st.selected.findIndex(s => s.key === key) : -1;
+  return '<button type="button" class="xp-row' + (at !== -1 ? ' is-picked' : '') + '"' +
+    ' onclick="' + (picking ? 'exPickerToggle' : 'exPickerChoose') + '(\'' +
+    escapeAttr(String(name).replace(/'/g, "\\'")) + '\')"' +
+    (picking ? ' aria-pressed="' + (at !== -1) + '"' : '') + '>' +
     '<span class="xp-row-lead">' + exerciseThumbHtml(name, { static: true }) +
     '<span class="xp-row-main">' +
       '<span class="xp-row-name">' + escapeHtml(name) + '</span>' +
       (meta ? '<span class="xp-row-meta">' + escapeHtml(meta) + '</span>' : '') +
     '</span></span>' +
-    (already ? '<span class="xp-row-in">In this session</span>' : '') +
+    '<span class="xp-row-end">' +
+      (already ? '<span class="xp-row-in">' + (st.target === 'program' ? 'In this session' : 'Added') + '</span>' : '') +
+      (picking
+        ? '<span class="xp-pick" aria-hidden="true">' + (at !== -1 ? String(at + 1) : plusIconSvg(12)) + '</span>'
+        : '<span class="xp-go" aria-hidden="true">' + chevronRightSvg() + '</span>') +
+    '</span>' +
   '</button>';
 }
 
@@ -39670,17 +40246,26 @@ function renderWorkoutStep(opts){
   const review = document.getElementById('wsReview');
   if(!head || !nav) return;
 
-  /* A workout with no exercises yet has nothing to step through. The plain
-     form shows, and with it the finish action — there is no journey to be at
-     the end of, so withholding it would just strand the athlete. */
+  /* D61 — A WORKOUT WITH NO EXERCISES IS A STARTING POINT, NOT A FORM. It has
+     nothing to step through and nothing that could be saved (saveLog refuses a
+     workout without a logged set), so it used to offer a Finish Workout that
+     could only fail, under a name field, a date, notes and eight category
+     chips. Now it says what to do, the one action that does it sits where the
+     thumb is — the finish bar, which owns the home indicator's inset — and the
+     way to a saved workout instead is one line under it. */
   if(!rows.length){
     sheet.classList.remove('stepper-on');
-    head.innerHTML = ''; nav.innerHTML = '';
+    sheet.classList.remove('ws-at-finish');
+    sheet.classList.add('ws-empty');
+    head.innerHTML = workoutBuilderEmptyHtml();
+    nav.innerHTML = '';
     const bar = document.getElementById('wsFinishBar');
     if(bar) bar.innerHTML =
-      '<button class="btn-primary" style="width:100%" onclick="saveLog(this)">Finish Workout</button>';
+      '<button type="button" class="btn-primary wb-add" onclick="openWorkoutExercisePicker(\'empty\')">' +
+        plusIconSvg(14) + 'Add exercises</button>';
     return;
   }
+  sheet.classList.remove('ws-empty');
   sheet.classList.add('stepper-on');
 
   if(logStepIndex !== STEP_WARMUP && logStepIndex !== STEP_FINISH){
@@ -39698,6 +40283,9 @@ function renderWorkoutStep(opts){
     prepCard.style.display = onEntry ? 'flex' : 'none';
   }
   if(review) review.classList.toggle('ws-current', i === STEP_FINISH);
+  /* D61 — what kind of workout this was is a question for the end, beside its
+     name and date, not a row of chips above every exercise of it. */
+  sheet.classList.toggle('ws-at-finish', i === STEP_FINISH);
 
   /* The finish action exists on the review step and nowhere else. Inside the
       stepper it lives in the navigation itself (D59): the review step used to
@@ -39723,7 +40311,11 @@ function renderWorkoutStep(opts){
       '<div class="ws-k">Finish</div>' +
       workoutStepBarHtml(rows, i) +
       '<h3 class="ws-name">Review and save</h3>' +
-      '<p class="ws-lede">' + escapeHtml(workoutStepSummaryLine(rows)) + '</p>';
+      '<p class="ws-lede">' + escapeHtml(workoutStepSummaryLine(rows)) + '</p>' +
+      /* D61 — the end of the workout is where "one more exercise" is decided,
+         so adding sits under the summary rather than below the notes. */
+      '<button type="button" class="ws-add" onclick="openWorkoutExercisePicker(\'review\')">' +
+        plusIconSvg(14) + 'Add exercises</button>';
     nav.innerHTML =
       '<button type="button" class="ws-nav-btn" onclick="goToWorkoutStep(' + (rows.length - 1) + ')">Back</button>' +
       '<button type="button" class="ws-nav-fwd is-finish" onclick="saveLog(this)">Finish Workout</button>';
@@ -39733,7 +40325,11 @@ function renderWorkoutStep(opts){
     const name = workoutStepName(row);
     head.innerHTML =
       '<div class="ws-k">Exercise ' + (i + 1) + ' of ' + rows.length +
-        (exerciseRowSkipped(row) ? '<span class="ws-k-flag">Skipped</span>' : '') + '</div>' +
+        (exerciseRowSkipped(row) ? '<span class="ws-k-flag">Skipped</span>' : '') +
+        /* D61 — adding one more is reachable from every exercise, as the
+           count it changes, without leaving the one on screen. */
+        '<button type="button" class="ws-k-add" onclick="openWorkoutExercisePicker(\'step\')"' +
+          ' aria-label="Add exercises to this workout">' + plusIconSvg(11) + 'Add</button></div>' +
       workoutStepBarHtml(rows, i) +
       /* Phase B — the exercise's picture sits beside its name and opens How
          To; a swapped exercise says what it stands in for, and offers the way
@@ -39793,6 +40389,28 @@ function workoutStepSummaryLine(rows){
   let out = done + ' of ' + rows.length + ' exercises logged';
   if(skipped) out += ' · ' + skipped + ' skipped';
   return out + '.';
+}
+
+/* D61 — the head of an empty workout: where the athlete is, what to do, and
+   the one alternative. The primary action is in the finish bar below. */
+function workoutBuilderEmptyHtml(){
+  return '<div class="ws-k">New workout</div>' +
+    '<h3 class="ws-name">Build your workout</h3>' +
+    '<p class="ws-lede">Add the exercises you are doing today. Search by name, or browse by muscle and equipment — you can add more at any point.</p>' +
+    '<button type="button" class="wb-alt" onclick="startFromSavedWorkout()">' +
+      '<span class="wb-alt-main">' +
+        '<span class="wb-alt-title">Start from a saved workout</span>' +
+        '<span class="wb-alt-sub">Pick one from your library instead</span>' +
+      '</span>' + chevronRightSvg() +
+    '</button>';
+}
+/* Nothing is lost by leaving: an empty workout is never offered back as a
+   draft (loadActiveDraft ignores one with no exercises), and the library is
+   where every saved workout starts from. */
+function startFromSavedWorkout(){
+  closeLogSheet();
+  switchTab('train');
+  try{ window.scrollTo(0, 0); }catch(e){}
 }
 
 function goToWorkoutStep(i, dir){
@@ -40053,9 +40671,13 @@ async function openFreeformLog(){
   document.getElementById('logDate').value = localDateStr();
   document.getElementById('logNotes').value = '';
   document.getElementById('logExercises').innerHTML = '';
-  addLogExerciseRow();
+  /* D61 — no blank row. A workout built from nothing opens on what to do next
+     (renderWorkoutStep's empty state), and exercises arrive from the picker
+     with their names already right. Any name can still be typed into a row. */
   pickLogCategory('push');
   openLogSheet();
+  const topbar = document.getElementById('logTopbarTitle');
+  if(topbar) topbar.textContent = 'Workout';
 }
 
 function pickLogCategory(cat){
@@ -42119,8 +42741,9 @@ function openAddTemplate(cat){
   document.getElementById('tplSheetTitle').textContent = 'New Workout';
   document.getElementById('tplSheetSub').textContent = 'Another workout you can run on ' + CAT_LABEL[cat] + ' day.';
   document.getElementById('tplName').value = '';
+  /* D61 — empty, not a blank row: the sheet says it has no exercises and the
+     one action under that opens the picker. */
   document.getElementById('tplExercises').innerHTML = '';
-  addTplExerciseRow();
   document.getElementById('tplOverlay').classList.add('open');
 }
 
@@ -42139,19 +42762,17 @@ function openEditTemplate(cat, id){
 
 function closeTplSheet(){ document.getElementById('tplOverlay').classList.remove('open'); }
 
+/* D61 — a row arrives from the picker with its name and the library's
+   prescription already filled, so it leads with the exercise's picture where
+   the ↻ menu of the day's library used to be; the picker does that job now,
+   with search and filters. The name stays editable. */
 function addTplExerciseRow(name, sets, reps, effort, recommended){
   const wrap = document.getElementById('tplExercises');
   const row = document.createElement('div');
   row.className = 'ex-log-row';
-  const libOptions = (EXERCISE_LIBRARY[pendingTplCategory] || []).map(ex =>
-    `<option value="${escapeAttr(ex.name)}">${escapeHtml(ex.name)}</option>`
-  ).join('');
   row.innerHTML = `
     <div class="ex-log-name-row">
-      <select class="swap-select" onchange="swapTplExercise(this)" title="Swap exercise">
-        <option value="">↻</option>
-        ${libOptions}
-      </select>
+      <span class="ex-thumb-slot">${name ? exerciseThumbHtml(name) : ''}</span>
       <input type="text" placeholder="Exercise name" class="t-name-in" value="${name?escapeAttr(name):''}">
       <button class="rm-ex" onclick="this.closest('.ex-log-row').remove()" aria-label="Remove exercise">${closeIconSvg(13)}</button>
     </div>
@@ -42164,20 +42785,6 @@ function addTplExerciseRow(name, sets, reps, effort, recommended){
     <input type="text" class="t-weight-in" placeholder="—" value="${(recommended && recommended!=='—')?escapeAttr(recommended):''}">
   `;
   wrap.appendChild(row);
-}
-
-function swapTplExercise(selectEl){
-  const chosenName = selectEl.value;
-  if(!chosenName) return;
-  const lib = (EXERCISE_LIBRARY[pendingTplCategory] || []).find(e => e.name === chosenName);
-  if(!lib) return;
-  const row = selectEl.closest('.ex-log-row');
-  row.querySelector('.t-name-in').value = lib.name;
-  row.querySelector('.t-sets-in').value = lib.sets || '';
-  row.querySelector('.t-reps-in').value = lib.reps || '';
-  row.querySelector('.t-effort-in').value = lib.effort || '';
-  row.querySelector('.t-weight-in').value = (lib.recommended && lib.recommended !== '—') ? lib.recommended : '';
-  selectEl.value = '';
 }
 
 function saveTemplate(btn){
@@ -42197,7 +42804,9 @@ function saveTemplate(btn){
       recommended: row.querySelector('.t-weight-in').value.trim() || '—'
     });
   });
-  if(exercises.length === 0) return;
+  /* D61 — a saved workout needs an exercise. Saying so beats a Save that did
+     nothing: the add action is flagged and focused, like an empty name field. */
+  if(exercises.length === 0){ flagFieldError(document.querySelector('#tplOverlay .add-ex-btn')); return; }
 
   if(editingTemplateId){
     const list = planData[pendingTplCategory];
@@ -42268,6 +42877,17 @@ window.addEventListener('popstate', () => {
     return;
   }
   const ov = document.getElementById('logOverlay');
+  /* D61 — the exercise picker also sits on top of the workout. Back closes the
+     picker, not the workout under it, and the workout takes its entry back so
+     the next back still leaves it the way it always has. */
+  const pickerOv = document.getElementById('exPickerOverlay');
+  if(pickerOv && pickerOv.classList.contains('open') && exPickerState && exPickerState.target === 'workout'){
+    closeExercisePicker();
+    if(ov && ov.classList.contains('open')){
+      try{ history.pushState({ loopWorkout: true }, ''); workoutHistoryPushed = true; }catch(e){}
+    }
+    return;
+  }
   if(ov && ov.classList.contains('open')){
     workoutHistoryPushed = false; // this pop consumed our entry
     closeLogSheet();

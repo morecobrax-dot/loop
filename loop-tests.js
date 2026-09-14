@@ -11081,7 +11081,13 @@ function testReliability(app){
   T('the bodyweight toggle grew its label, not its box',
     /\.bw-toggle\{[\s\S]{0,200}min-height: 44px/.test(css) &&
     /\.bw-toggle input\{ width: 20px; height: 20px; \}/.test(css));
-  T('the exercise swap control', /\.swap-select\{\s*width: 44px; height: 44px;/.test(css));
+  /* Repointed in D61: the saved-workout sheet's ↻ swap menu is gone — the shared
+     exercise picker replaced it, with search and filters — so the controls held
+     to 44px are the picker's: each filter option, Clear, and the filter pill
+     (42px inside its 1px border). */
+  T('the exercise picker that replaced the swap menu',
+    /\.xp-opt\{[\s\S]{0,120}min-height: 44px/.test(css) && /\.xp-clear\{[\s\S]{0,40}min-height: 44px/.test(css) &&
+    /\.xp-fbtn\{[\s\S]{0,60}min-height: 42px/.test(css) && /\.xp-fwrap\{[\s\S]{0,120}border: 1px solid var\(--border\)/.test(css));
   T('the profile chips', /\.pchip\{[\s\S]{0,60}min-height: 44px/.test(css));
   T('back out of a nested sheet', /\.sheet-back\{[\s\S]{0,220}min-height: 44px/.test(css));
   T('the update disclosure', /\.update-detail-toggle\{[\s\S]{0,180}min-height: 44px/.test(css));
@@ -11340,8 +11346,13 @@ function testComposition(app){
     const w = src.slice(src.indexOf('function warnIconSvg'), src.indexOf('function trendIconSvg'));
     return /viewBox="0 0 16 16"/.test(w) && /stroke="currentColor"/.test(w) && /aria-hidden="true"/.test(w);
   })());
-  T('the swap control keeps its character, because an <option> cannot hold markup',
-    /<option value="">↻/.test(src));
+  /* Repointed in D61: this kept the ↻ character because a native <option>
+     cannot hold an SVG. The select it lived in is gone (the picker replaced
+     it), so what holds now is that no <option> stands in for an icon, and the
+     picker's add mark is drawn from the family. */
+  T('no menu option stands in for an icon, and the picker\'s add mark is drawn',
+    !/<option value="">↻/.test(src) && /plusIconSvg\(12\)/.test(fnSrc(src, 'exPickerRowHtml')) &&
+    /viewBox="0 0 16 16"/.test(fnSrc(src, 'plusIconSvg')));
 
   sub('completing a set is felt, not just seen');
   /* Finishing a cardio session, lifting a day to drag it and a rest timer
@@ -12392,10 +12403,15 @@ function testWorkoutJourney(app){
     const review = fn.slice(fn.indexOf('} else if(i === STEP_FINISH){'), fn.indexOf('} else {', fn.indexOf('} else if(i === STEP_FINISH){')));
     const exercise = fn.slice(fn.indexOf('} else {', fn.indexOf('} else if(i === STEP_FINISH){')));
     const warmup = fn.slice(fn.indexOf('if(i === STEP_WARMUP){'), fn.indexOf('} else if(i === STEP_FINISH){'));
+    /* Repointed in D61: the no-exercise holder used to carry a second Finish
+       Workout, which could only fail there (saveLog refuses a workout with no
+       logged set). It now carries the action that can succeed, Add exercises,
+       so the review dock is the one place saveLog is called. */
     return /class="ws-nav-fwd is-finish" onclick="saveLog\(this\)">Finish Workout</.test(review) &&
       !/saveLog/.test(exercise) && !/saveLog/.test(warmup) &&
       /if\(finishBar\) finishBar\.innerHTML = '';/.test(fn) &&
-      (fn.match(/saveLog\(this\)/g) || []).length === 2;          // the review dock, and the no-exercise holder
+      (fn.match(/saveLog\(this\)/g) || []).length === 1 &&
+      /bar\.innerHTML =[\s\S]{0,160}openWorkoutExercisePicker\(\\'empty\\'\)/.test(fn);
   })());
   T('withheld by not existing, not by being dimmed',
     !/wsFinishBar[\s\S]{0,200}(opacity|visibility|pointer-events)/.test(src));
@@ -23369,7 +23385,16 @@ async function testWorkoutDockAndFigure(){
   T('the review step has one dock: Back and Finish Workout side by side, and no second bar', (() => {
     const fn = fnSrc(src, 'renderWorkoutStep');
     const i = fn.indexOf('} else if(i === STEP_FINISH){'), review = fn.slice(i, fn.indexOf('} else {', i));
-    return (review.match(/<button type="button"/g) || []).length === 2 &&
+    /* Repointed in D61: the review head gained one inline Add exercises button
+       under its summary. The dock is what this holds to two buttons, so the
+       count is taken from what is written into the navigation, and the head's
+       single button must be that add action — a control in the content, not a
+       second bar. */
+    const dock = review.slice(review.indexOf('nav.innerHTML ='));
+    const headPart = review.slice(0, review.indexOf('nav.innerHTML ='));
+    return (dock.match(/<button type="button"/g) || []).length === 2 &&
+      (headPart.match(/<button type="button"/g) || []).length === 1 &&
+      /class="ws-add" onclick="openWorkoutExercisePicker\(\\'review\\'\)"/.test(headPart) &&
       /onclick="goToWorkoutStep\([^"]*\)">Back</.test(review) && /class="ws-nav-fwd is-finish" onclick="saveLog\(this\)">Finish Workout</.test(review) &&
       /if\(finishBar\) finishBar\.innerHTML = '';/.test(fn);
   })());
@@ -23793,6 +23818,298 @@ async function testWorkoutSheetReachesTheEdge(){
   })());
 }
 
+/* CONTRACT 167 — D61. Building a workout had four unrelated surfaces: a blank
+   "Exercise name" field in a workout, a ↻ menu in the saved-workout sheet, a
+   prompt-free picker only Program Studio could reach, and a warm-up step with
+   eight category chips as the first screen of an empty workout. D61 makes one
+   picker the way every exercise is added, an empty workout a starting point,
+   and the filters part of the search. This holds the behaviour, driven through
+   the app's own functions, and the few structures the behaviour lives in. */
+async function testWorkoutBuilder(){
+  section('CONTRACT 167 — building a workout (D61)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, doc = ctx.document;
+  const body = () => doc.getElementById('exPickerBody').innerHTML;
+  /* A function that is missing or throws fails its assertions rather than
+     stopping the suite, which would hide every contract after this one. */
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+
+  sub('one picker is how every exercise is added');
+  T('Program Studio, a workout and a saved workout each open it, and only the target differs',
+    /exPickerNewState\('program'/.test(fnSrc(src, 'openExercisePicker')) &&
+    /exPickerNewState\('workout'/.test(fnSrc(src, 'openWorkoutExercisePicker')) &&
+    /exPickerNewState\('template'/.test(fnSrc(src, 'openTemplateExercisePicker')) &&
+    ['openExercisePicker', 'openWorkoutExercisePicker', 'openTemplateExercisePicker'].every(f => /exPickerShow\(/.test(fnSrc(src, f))));
+  T('every entry point leads to it: an empty workout, the review step, each exercise, and the saved-workout sheet', (() => {
+    const step = fnSrc(src, 'renderWorkoutStep');
+    return /openWorkoutExercisePicker\(\\'empty\\'\)/.test(step) && /openWorkoutExercisePicker\(\\'review\\'\)/.test(step) &&
+      /openWorkoutExercisePicker\(\\'step\\'\)/.test(step) && /onclick="openTemplateExercisePicker\(\)">Add exercises</.test(src) &&
+      /openExercisePicker\(/.test(fnSrc(src, 'pbOpenExercisePicker'));
+  })());
+  T('and no blank row is laid out to be typed into instead',
+    !/onclick="addLogExerciseRow\(\)"/.test(src) && !/onclick="addTplExerciseRow\(\)"/.test(src) &&
+    !/addLogExerciseRow\(/.test(fnSrc(src, 'openFreeformLog')) && !/addTplExerciseRow\(/.test(fnSrc(src, 'openAddTemplate')) &&
+    !/<select class="swap-select"/.test(src));
+
+  sub('adding is several at once; replacing is one tap');
+  guard('adding and replacing', () => {
+    const added = [];
+    const keep = ctx.addTplExerciseRow;
+    ctx.addTplExerciseRow = (...a) => added.push(a);
+    ctx.pendingTplCategory = 'push';
+    ctx.openTemplateExercisePicker();
+    T('a saved workout opens it to add', ctx.exPickerState && ctx.exPickerState.target === 'template' &&
+      doc.getElementById('exPickerTitle').textContent === 'Add exercises');
+    ctx.exPickerToggle('Face Pull');
+    ctx.exPickerToggle('Lat Pulldown');
+    ctx.exPickerToggle('Barbell Curl');
+    ctx.exPickerToggle('Lat Pulldown');
+    ctx.exPickerToggle('face pull');
+    T('ticking toggles, one movement however it is spelled',
+      JSON.stringify(ctx.exPickerState.selected.map(s => s.name)) === JSON.stringify(['Barbell Curl']),
+      JSON.stringify(ctx.exPickerState.selected));
+    ctx.exPickerToggle('Face Pull');
+    ctx.exPickerToggle('Lat Pulldown');
+    T('the dock appears with the count, and the rows carry the order they will arrive in',
+      doc.getElementById('exPickerDock').hidden === false &&
+      doc.getElementById('exPickerAddBtn').textContent === 'Add 3 exercises' &&
+      /class="xp-row is-picked"[^>]*onclick="exPickerToggle\('Barbell Curl'\)"[\s\S]*?<span class="xp-pick" aria-hidden="true">1</.test(body()) &&
+      /<span class="xp-pick" aria-hidden="true">3</.test(body()));
+    ctx.exPickerCommit();
+    T('Add brings them in, in the order they were ticked, and closes the picker',
+      JSON.stringify(added.map(a => a[0])) === JSON.stringify(['Barbell Curl', 'Face Pull', 'Lat Pulldown']) && ctx.exPickerState === null,
+      JSON.stringify(added.map(a => a[0])));
+    T('each with the sets, reps and effort the library writes for it',
+      added.every(a => a[1] && a[2] && a[3]), JSON.stringify(added));
+    added.length = 0;
+    ctx.openTemplateExercisePicker();
+    ctx.exPickerToggle('Face Pull');
+    ctx.closeExercisePicker();
+    T('Back adds nothing that was ticked', added.length === 0 && ctx.exPickerState === null);
+    ctx.addTplExerciseRow = keep;
+
+    const replaced = [];
+    const keepRep = ctx.pbReplaceExercise, keepDraft = ctx.pbDraft, keepSess = ctx.pbSessionExercises, keepRender = ctx.renderProgramBuilderFlow;
+    ctx.pbDraft = () => ({ schedule: { mon: { category: 'push' } } });
+    ctx.pbSessionExercises = () => [{ name: 'Bench Press' }];
+    ctx.pbReplaceExercise = (...a) => replaced.push(a);
+    ctx.renderProgramBuilderFlow = () => {};
+    ctx.openExercisePicker('mon', 0);
+    T('replace mode offers no ticks and no dock, only a way into each row',
+      doc.getElementById('exPickerTitle').textContent === 'Replace exercise' && !/xp-pick/.test(body()) &&
+      /onclick="exPickerChoose\(/.test(body()) && doc.getElementById('exPickerDock').hidden === true);
+    ctx.exPickerToggle('Incline Bench Press');
+    T('and one tap replaces', replaced.length === 1 && replaced[0][0] === 'mon' && replaced[0][1] === 0 &&
+      replaced[0][2] === 'Incline Bench Press' && ctx.exPickerState === null);
+    Object.assign(ctx, { pbReplaceExercise: keepRep, pbDraft: keepDraft, pbSessionExercises: keepSess, renderProgramBuilderFlow: keepRender });
+  });
+
+  sub('into a workout, exactly as a hand-typed exercise arrives');
+  guard('adding into a workout', () => {
+    const rows = [], steps = [];
+    const keep = { addLogExerciseRow: ctx.addLogExerciseRow, workoutStepRows: ctx.workoutStepRows, syncWorkoutStepper: ctx.syncWorkoutStepper,
+      goToWorkoutStep: ctx.goToWorkoutStep, renderWorkoutStep: ctx.renderWorkoutStep, persistDraftNow: ctx.persistDraftNow };
+    let existing = 0;
+    ctx.addLogExerciseRow = (...a) => rows.push(a);
+    ctx.workoutStepRows = () => new Array(existing).fill({});
+    ctx.syncWorkoutStepper = o => steps.push(['sync', o]);
+    ctx.goToWorkoutStep = (i, dir) => steps.push(['go', i, dir]);
+    ctx.renderWorkoutStep = () => steps.push(['render']);
+    ctx.persistDraftNow = () => steps.push(['persist']);
+    ctx.addPickedToWorkout(['Push-Up', 'Romanian Deadlift'], 'empty');
+    T('no prescription, no target and no slot — the arguments a typed row always had',
+      rows.every(a => a[1] === '' && a[5] === undefined && a[6] === undefined), JSON.stringify(rows.map(a => a.slice(1))));
+    T('and no load: every set it lays out is empty, so nothing untouched can be saved as done',
+      rows.every(a => Array.isArray(a[3]) && a[3].length >= 1 && a[3].every(s => s.weight === '' && s.reps === '')));
+    T('a bodyweight movement is marked as one, as the library marks it',
+      rows[0][2] === true && rows[1][2] === false, JSON.stringify(rows.map(a => a[2])));
+    T('an empty workout then starts the way every workout starts',
+      steps.some(s => s[0] === 'sync' && s[1] && s[1].reset === true) && steps.some(s => s[0] === 'persist'));
+    rows.length = 0; steps.length = 0; existing = 3;
+    ctx.addPickedToWorkout(['Plank'], 'review');
+    T('from the review step the athlete goes to the first new exercise',
+      steps.some(s => s[0] === 'go' && s[1] === 3 && s[2] === 'fwd'));
+    steps.length = 0;
+    ctx.addPickedToWorkout(['Plank'], 'step');
+    T('and from an exercise they stay on it', steps.some(s => s[0] === 'render') && !steps.some(s => s[0] === 'go' || s[0] === 'sync'));
+    Object.assign(ctx, keep);
+  });
+
+  sub('equipment is what the registry says, or what the name states — never a guess');
+  guard('equipment', () => {
+    const eq = n => ctx.pickerEquipmentFromName(n);
+    T('names that state their equipment are filed under it',
+      eq('DB Floor Press') === 'Dumbbell' && eq('Band Row') === 'Band' && eq('Rope Triceps Pushdown') === 'Cable' &&
+      eq('Wide-Grip Lat Pulldown') === 'Cable' && eq('Machine Crunch') === 'Machine' && eq('Trap Bar Deadlift') === 'Barbell' &&
+      eq('KB Row') === 'Kettlebell' && eq('Diamond Push-Up') === 'Bodyweight' && eq('Dead Bug') === 'Bodyweight');
+    T('names that do not stay unknown, including a loaded or assisted bodyweight movement',
+      [eq('Weighted Dips'), eq('Assisted Pull-Up'), eq('Battle Rope Slams'), eq('Med Ball Slam'), eq('Rack Pull'), eq('Sled Push')].every(v => v === null));
+    const idx = ctx.exPickerIndex();
+    T('the registry always wins where it speaks',
+      idx.filter(e => e.canonical).every(e => !e.equipmentFromName) &&
+      idx.filter(e => e.canonical).every(e => e.equipment === ((ctx.CANONICAL_EXERCISES.find(c => c.displayName === e.name) || {}).equipment || null)));
+    const st0 = ctx.exPickerNewState('workout', {});
+    T('every dumbbell exercise the library names is found under Dumbbell', (() => {
+      const under = ctx.exPickerResults(st0, { equipment: 'Dumbbell' }).map(e => e.name);
+      const named = idx.filter(e => /\b(DB|Dumbbell)\b/.test(e.name)).map(e => e.name);
+      return named.length > 10 && named.every(n => under.indexOf(n) !== -1) ? true : named.filter(n => under.indexOf(n) === -1).join(', ');
+    })() === true);
+    T('an unknown is found under All equipment, and under no equipment',
+      idx.filter(e => !e.equipment).every(e => ['Barbell','Dumbbell','Kettlebell','Cable','Machine','Band','Bodyweight']
+        .every(v => ctx.exPickerResults(st0, { equipment: v }).indexOf(e) === -1)) &&
+      idx.filter(e => !e.equipment).every(e => ctx.exPickerResults(st0).indexOf(e) !== -1));
+  });
+
+  sub('the filters are part of the search');
+  guard('the filters', () => {
+    const idx = ctx.exPickerIndex();
+    const st = ctx.exPickerNewState('workout', { muscle: 'calves' });
+    const panel = ctx.exPickerPanelHtml(st, 'equipment');
+    const opts = [...panel.matchAll(/<button type="button" class="xp-opt( on)?"( disabled)? onclick="exPickerSetFilter\('equipment','([^']*)'\)"[^>]*><span class="xp-opt-name">[^<]*<\/span><span class="xp-opt-n">(\d+)<\/span>/g)]
+      .map(m => ({ value: m[3], disabled: !!m[2], n: +m[4] }));
+    T('every option says how many exercises choosing it would leave',
+      opts.length >= 6 && opts.every(o => o.n === ctx.exPickerResults(st, { equipment: o.value || null }).length), JSON.stringify(opts));
+    T('and one that would leave none cannot be chosen, so combining never ends in an empty list',
+      opts.some(o => o.n === 0) && opts.every(o => o.disabled === (o.n === 0)));
+    T('equipment nobody carries is not offered', opts.every(o => !o.value || idx.some(e => e.equipment === o.value)));
+    const set = ctx.exPickerNewState('workout', { muscle: 'chest', equipment: 'Barbell' });
+    T('a set filter says what it is set to, with its own clear',
+      /xp-fwrap on[\s\S]*>Chest<[\s\S]*class="xp-fx"/.test(ctx.exPickerFilterButtonHtml(set, 'muscle')) &&
+      />Muscle</.test(ctx.exPickerFilterButtonHtml(ctx.exPickerNewState('workout', {}), 'muscle')) &&
+      !/xp-fx/.test(ctx.exPickerFilterButtonHtml(ctx.exPickerNewState('workout', {}), 'muscle')));
+    ctx.openWorkoutExercisePicker('step');
+    ctx.exPickerSetFilter('muscle', 'chest');
+    ctx.exPickerSetFilter('equipment', 'Barbell');
+    T('the count line names the filters it is counting under',
+      /<span class="xp-count"[^>]*>\d+ exercises? · Chest · Barbell<\/span>/.test(body()), body().slice(0, 200));
+    ctx.exPickerToggle('Bench Press');
+    ctx.exPickerSearch('press');
+    ctx.exPickerClearAll();
+    T('Clear resets the search and both filters and keeps what is ticked',
+      ctx.exPickerState.query === '' && ctx.exPickerState.muscle === null && ctx.exPickerState.equipment === null &&
+      ctx.exPickerState.selected.length === 1);
+    ctx.exPickerSearch('zzqq nothing');
+    T('no match offers the athlete\'s own name instead of a dead end', /onclick="exPickerAddOwn\(\)">Add “zzqq nothing” as your own</.test(body()));
+    ctx.exPickerAddOwn();
+    T('and adding it ticks it', ctx.exPickerState.selected.some(s => s.name === 'zzqq nothing') && ctx.exPickerState.query === '');
+    ctx.closeExercisePicker();
+  });
+
+  sub('the quick picks are the athlete\'s own, then their plan\'s');
+  guard('the quick picks', () => {
+    const set = (w, r) => ({ weight: String(w), reps: String(r) });
+    const keepLog = ctx.workoutLog;
+    ctx.workoutLog = [
+      { id: '1', date: '2026-09-01', title: 'Old', category: 'push', exercises: [{ name: 'Leg Press', sets: [set(200, 10)] }] },
+      { id: '2', date: '2026-09-10', title: 'New', category: 'push', exercises: [
+        { name: 'Barbell Bench Press', sets: [set(185, 5)] }, { name: 'Cable Fly', sets: [] }, { name: 'Face Pull', sets: [set(40, 15)] }] },
+      { id: '3', date: '2026-09-05', title: 'Mid', category: 'pull', exercises: [{ name: 'Bench Press', sets: [set(180, 5)] }, { name: 'Lat Pulldown', sets: [set(120, 10)] }] }
+    ];
+    const recent = ctx.exPickerRecent(6).map(e => e.name);
+    T('newest session first, one entry per movement, and only what was actually logged',
+      JSON.stringify(recent) === JSON.stringify(['Bench Press', 'Face Pull', 'Lat Pulldown', 'Leg Press']), JSON.stringify(recent));
+    T('and never more than asked for', ctx.exPickerRecent(2).length === 2);
+    ctx.openWorkoutExercisePicker('empty');
+    T('a workout leads with Recent when there is history', /^<div class="xp-sec">Recent<\/div>/.test(body()) && !/Popular in your plan/.test(body()));
+    ctx.exPickerSearch('row');
+    T('a search replaces the quick picks with its results', !/>Recent</.test(body()) && />Results</.test(body()));
+    ctx.closeExercisePicker();
+    ctx.workoutLog = [];
+    ctx.openWorkoutExercisePicker('empty');
+    const plan = ctx.exPickerFromPlan(6);
+    T('with no history it leads with the plan\'s most used movements',
+      /^<div class="xp-sec">Popular in your plan<\/div>/.test(body()) && plan.length > 0 && (() => {
+        const count = {};
+        ctx.ORDER.forEach(c => (ctx.getTemplates(c) || []).forEach(t => t.exercises.forEach(ex => {
+          const k = ctx.exPickerKeyOf(ex.name); count[k] = (count[k] || 0) + 1; })));
+        const top = Math.max.apply(null, Object.keys(count).map(k => count[k]));
+        return count[plan[0].key] === top;
+      })());
+    ctx.closeExercisePicker();
+    ctx.workoutLog = keepLog;
+  });
+
+  sub('an empty workout is a starting point, not a form');
+  guard('the empty workout', () => {
+    const step = fnSrc(src, 'renderWorkoutStep');
+    const empty = step.slice(step.indexOf('if(!rows.length){'), step.indexOf("sheet.classList.remove('ws-empty');"));
+    T('it says what to do, and the one action that does it sits in the finish bar',
+      /head\.innerHTML = workoutBuilderEmptyHtml\(\);/.test(empty) && /class="btn-primary wb-add" onclick="openWorkoutExercisePicker\(\\'empty\\'\)"/.test(empty) &&
+      !/saveLog/.test(empty) && /Build your workout/.test(ctx.workoutBuilderEmptyHtml()) &&
+      /onclick="startFromSavedWorkout\(\)"/.test(ctx.workoutBuilderEmptyHtml()));
+    T('without the form a workout with something in it needs',
+      /#logOverlay\.ws-empty #wsReview\{ display: none; \}/.test(css) &&
+      /#logOverlay\.ws-empty #logCategoryPicker,\s*#logOverlay\.ws-empty #prepCard\{ display: none !important; \}/.test(css));
+    T('a workout\'s category is asked on the review step only',
+      /sheet\.classList\.toggle\('ws-at-finish', i === STEP_FINISH\);/.test(step) &&
+      /#logOverlay\.stepper-on:not\(\.ws-at-finish\) #logCategoryPicker\{ display: none !important; \}/.test(css));
+    T('leaving for a saved workout loses nothing: an empty workout is never offered back',
+      /parsed && parsed\.exercises && parsed\.exercises\.length/.test(fnSrc(src, 'loadActiveDraft')) &&
+      /closeLogSheet\(\);\s*switchTab\('train'\);/.test(fnSrc(src, 'startFromSavedWorkout')));
+    T('and it is titled as a workout, not as the Push category it defaults to',
+      /topbar\.textContent = 'Workout';/.test(fnSrc(src, 'openFreeformLog')));
+  });
+
+  sub('the saved-workout sheet');
+  guard('the saved-workout sheet', () => {
+    T('empty, it says so, and adding takes the accent\'s edge over a Save with nothing to save',
+      /<p class="tpl-empty">/.test(src) && /#tplExercises:empty \+ \.tpl-empty\{ display: block; \}/.test(css) &&
+      /#tplExercises:empty ~ \.add-ex-btn\{ border-color: var\(--accent\); color: var\(--accent\); \}/.test(css));
+    T('a row leads with the exercise\'s picture', /exerciseThumbHtml\(name\)/.test(fnSrc(src, 'addTplExerciseRow')) &&
+      !/<select/.test(fnSrc(src, 'addTplExerciseRow')));
+    const flagged = [];
+    let persisted = 0;
+    const keep = { flagFieldError: ctx.flagFieldError, persistPlanData: ctx.persistPlanData };
+    const q = doc.querySelector, qa = doc.querySelectorAll;
+    ctx.flagFieldError = el => flagged.push(el);
+    ctx.persistPlanData = () => { persisted++; };
+    doc.querySelector = sel => ({ sel });
+    doc.getElementById('tplName').value = 'Push Z';
+    ctx.saveTemplate(null);
+    T('Save with no exercises points at Add exercises instead of doing nothing',
+      flagged.length === 1 && flagged[0] && flagged[0].sel === '#tplOverlay .add-ex-btn' && persisted === 0);
+    doc.querySelector = q; doc.querySelectorAll = qa;
+    Object.assign(ctx, keep);
+  });
+
+  sub('Train leads with how to make a workout');
+  guard('the Train quick start', () => {
+    const view = src.slice(src.indexOf('<div class="view" id="view-train">'), src.indexOf('<div class="view" id="view-progress">'));
+    T('an empty workout and a new saved workout, above the saved ones',
+      view.indexOf('class="tq"') !== -1 && view.indexOf('class="tq"') < view.indexOf('id="trainChips"') &&
+      /onclick="openFreeformLog\(\)"[\s\S]*?Empty workout/.test(view) && /id="trainAddBtn" onclick="openAddTemplate\(activeTrainCategory\)"[\s\S]*?New workout/.test(view));
+    T('the add button under the last card is gone, so neither action appears twice', !/add-tpl-btn/.test(src));
+    T('New workout says which day it saves under', /addSub\.textContent = 'For ' \+ CAT_LABEL\[activeTrainCategory\];/.test(fnSrc(src, 'renderTrainView')));
+    T('and on the narrowest phones the two stack rather than squeeze', /@media \(max-width: 359px\)\{ \.tq\{ grid-template-columns: 1fr; \} \}/.test(css));
+  });
+
+  sub('the picker is built for a phone');
+  T('its sheet reaches the bottom edge the way the workout\'s does, its foot owning the inset',
+    /#logOverlay \.sheet\.sheet-page,\s*#exPickerOverlay \.sheet\.sheet-page\{ max-height: 100%; \}/.test(css) &&
+    /class="ws-nav xp-dock" id="exPickerDock" hidden/.test(src) && /\.xp-dock\[hidden\]\{ display: none; \}/.test(css) &&
+    /#exPickerOverlay \.sheet-scroll\{ padding-top: var\(--space-2\); padding-bottom: calc\(16px \+ env\(safe-area-inset-bottom, 0px\)\); \}/.test(css) &&
+    /#exPickerOverlay\.xp-picking \.sheet-scroll\{ padding-bottom: 16px; \}/.test(css));
+  T('a filter\'s options open in the list, not the header, so a short or rotated screen never loses the dock', (() => {
+    const page = src.slice(src.indexOf('id="exPickerOverlay"'), src.indexOf('<!-- PAST PROGRAM'));
+    const header = page.slice(page.indexOf('<div class="xp-search">'), page.indexOf('<div class="sheet-scroll">'));
+    return header.length > 0 && header.indexOf('exPickerPanel') === -1 && (src.match(/id="exPickerPanel"/g) || []).length === 1 &&
+      /<div class="sheet-scroll"><div class="xp-panel" id="exPickerPanel" hidden><\/div><div id="exPickerBody"><\/div><\/div>/.test(page);
+  })());
+  T('a new set of results starts at its top; ticking a row keeps the athlete\'s place',
+    ['exPickerSearch', 'exPickerSetFilter', 'exPickerClearFilters'].every(f => /exPickerListTop\(\)/.test(fnSrc(src, f))) &&
+    !/exPickerListTop/.test(fnSrc(src, 'exPickerToggle')));
+  T('search is typed on a phone keyboard as a search', /enterkeyhint="search"/.test(src) && /autocorrect="off"/.test(src));
+  T('back closes the picker before the workout under it, and the workout keeps its own way back', (() => {
+    const h = src.slice(src.indexOf("window.addEventListener('popstate'"), src.indexOf('/* Last-chance flush if the page is being torn down'));
+    const picker = h.indexOf("exPickerState.target === 'workout'){"), workout = h.indexOf('closeLogSheet();');
+    return picker !== -1 && workout !== -1 && picker < workout &&
+      /closeExercisePicker\(\);\s*if\(ov && ov\.classList\.contains\('open'\)\)\{\s*try\{ history\.pushState\(\{ loopWorkout: true \}, ''\); workoutHistoryPushed = true; \}catch\(e\)\{\}\s*\}\s*return;/.test(h);
+  })());
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -23922,6 +24239,7 @@ async function main(){
   await testExerciseVisualTruth();
   await testWorkoutDockAndFigure();
   await testWorkoutSheetReachesTheEdge();
+  await testWorkoutBuilder();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
