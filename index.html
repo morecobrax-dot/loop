@@ -10264,6 +10264,12 @@ function build(){
   var IP_START = seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:-40, nfa:130, fua:-44, ffa:126 });
   var IP_END = seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:138, nfa:136, fua:134, ffa:132 });
   var IP_PIVOT = pivotFor(at('side', IP_START, 'nW'), at('side', IP_END, 'nW'), -1.5);
+  /* Machine chest press: forward from mid-chest to straight arms, the handles
+     hanging from a lever on a beam out of the stack. The pivot sits over the
+     middle of their path, so one lever reaches the chest and the lockout. */
+  var CP_START = seat({ trunk:178, nua:-68, nfa:88, fua:-72, ffa:84 });
+  var CP_END = seat({ trunk:178, nua:84, nfa:88, fua:80, ffa:84 });
+  var CP_PIVOT = pivotFor(at('side', CP_START, 'nW'), at('side', CP_END, 'nW'), -1.3);
   /* Smith presses: the bar rides two vertical rails, so the hands travel a
      vertical line between them. */
   function smithRails(x, top){ return [['rail', { a:[x - 2.2, top], b:[x - 2.2, G], w:2.4 }], ['rail', { a:[x + 2.2, top], b:[x + 2.2, G], w:2.4 }]]; }
@@ -10313,11 +10319,11 @@ function build(){
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
   /* ---- machines ---- */
-  chest_press_machine: { view:'side', arch:'machine', ghost:'arms',
-    scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 56], w:5.4 }], ['column', { x:94, top:26 }]],
-    start:seat({ trunk:178, nua:-68, nfa:88, fua:-72, ffa:84 }),
-    end:  seat({ trunk:178, nua:84, nfa:88, fua:80, ffa:84 }),
-    gear:[['lever', { pivot:[90, 34], to:'nW', handle:true }]], track:'nW' },
+  chest_press_machine: { view:'side', arch:'machine', path:'pivot', pivot:CP_PIVOT, ghost:'arms',
+    scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 56], w:5.4 }], ['column', { x:94, top:26 }],
+      ['rail', { a:[94, CP_PIVOT[1]], b:CP_PIVOT, w:3 }]],
+    start:CP_START, end:CP_END,
+    gear:[['lever', { pivot:CP_PIVOT, to:'nW', handle:true }]], track:'nW' },
 
   incline_press_machine: { view:'side', arch:'machine', path:'pivot', pivot:IP_PIVOT, ghost:'arms',
     scene:[['column', { x:IP_PIVOT[0], top:IP_PIVOT[1] - 8 }], ['pad', { a:[40, 92], b:[62, 92], w:5 }], ['post', { a:[51, 95], b:[51, G] }], ['pad', { a:[42, 89], b:[30, 58], w:5.4 }]],
@@ -10602,6 +10608,15 @@ function build(){
      clear of the floor. */
   function legCurlSeat(nsh, fsh){ return { pin:['hip', [48, 80]], trunk:172, neck:176, nth:90, fth:88, nsh:nsh, fsh:fsh, nft:nsh + 108, fft:fsh + 108, nua:14, nfa:70, fua:10, ffa:66 }; }
   var LEG_CURL_KNEE = at('side', legCurlSeat(80, 76), 'nK');
+  /* Machine row: chest on the pad, the handles on a lever that turns about a
+     pivot low on the pad's upright, under the middle of their path, so one
+     lever reaches the long arms and the ribs. It meets the grip, in the palm
+     just past the wrist. */
+  var ROW_START = seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:84, nfa:86, fua:80, ffa:82 });
+  var ROW_END = seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:-64, nfa:86, fua:-68, ffa:82 });
+  var ROW_GRIP = { seg:['nE', 'nW'], t:1.12 };
+  function gripOf(pose){ var e = at('side', pose, 'nE'), w = at('side', pose, 'nW'); return [e[0] + (w[0] - e[0]) * ROW_GRIP.t, e[1] + (w[1] - e[1]) * ROW_GRIP.t]; }
+  var ROW_PIVOT = pivotFor(gripOf(ROW_START), gripOf(ROW_END), -1.15);
 
   H.add({
 
@@ -10649,12 +10664,12 @@ function build(){
     end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:-62, ffa:82 },
     gear:[['cable', { from:[98, 78], to:'nW', grip:'bar' }]], track:'nW' },
 
-  row_machine: { view:'side', arch:'machine', ghost:'arms',
-    scene:[['pad', { a:[36, 92], b:[58, 92], w:5 }], ['post', { a:[47, 95], b:[47, G] }], ['post', { a:[74, 78], b:[74, G] }], ['column', { x:96, top:40 }]],
+  row_machine: { view:'side', arch:'machine', path:'pivot', pivot:ROW_PIVOT, ghost:'arms',
+    scene:[['pad', { a:[36, 92], b:[58, 92], w:5 }], ['post', { a:[47, 95], b:[47, G] }], ['post', { a:[74, 78], b:[74, G] }],
+      ['column', { x:96, top:40 }], ['rail', { a:[96, G - 2], b:[74, G - 2], w:3 }]],
     front:[['pad', { a:[66, 58], b:[66, 80], w:6.4 }]],
-    start:seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:84, nfa:86, fua:80, ffa:82 }),
-    end:  seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:-64, nfa:86, fua:-68, ffa:82 }),
-    gear:[['lever', { pivot:[92, 46], to:'nW', handle:true }]], track:'nW' },
+    start:ROW_START, end:ROW_END,
+    gear:[['lever', { pivot:ROW_PIVOT, to:ROW_GRIP, handle:true }]], track:'nW' },
 
   tbar_row: { view:'side', arch:'press', ghost:'arms',
     start:bent({ nua:4, nfa:2, fua:0, ffa:-2 }),
@@ -14550,6 +14565,29 @@ const LOOP_UPDATES = [
     ],
     changes: [
       'Rear Delt Fly is filed under Dumbbell, matching its drawing, now that the machine version has its own entry'
+    ]
+  },
+  {
+    id: 'v6-6',
+    version: 'LOOP 6.6',
+    title: 'Machines, Corrected',
+    date: '2026-09-14',
+    swVersion: 'loop-v143',
+    summary: 'Shortened workouts keep the right exercises, two machine drawings move like the real machines, and Calf Raise and Hip Abduction are filed correctly.',
+    newFeatures: [],
+    improvements: [
+      'When you shorten a workout to fit your time, LOOP now knows which exercises in its library are main lifts and which are accessory work, instead of guessing from their names'
+    ],
+    bugFixes: [
+      'Shortened workouts could drop Lat Pulldown or Seated Cable Row as accessory work while keeping Leg Curl, Leg Extension, Hip Abduction, Machine Curl, Machine Lateral Raise or Reverse Pec Deck as if it were a main lift',
+      'The Machine Chest Press and Machine Row drawings stretched their lever between the two positions instead of swinging it around a fixed pivot',
+      'Swap offered Hip Thrust and Hip Thrust Machine as the best matches for Hip Abduction',
+      'Calf Raise was listed under Machine, although it is drawn and described on a step',
+      'Swap said Available at your gym for exercises that need no equipment, even before a gym was set up'
+    ],
+    changes: [
+      'Calf Raise is listed under Bodyweight, so Swap can suggest it at a gym without a calf machine. Its history, records and names are unchanged',
+      'Hip Abduction is grouped with the finishing exercises in a program day'
     ]
   }
 ];
@@ -27466,7 +27504,7 @@ const CANONICAL_EXERCISES = [
   { id:'skullcrusher',          displayName:'Skullcrusher',           aliases:['skullcrusher','skull crusher','lying triceps extension','ez bar skullcrusher'], pattern:'isolation', equipment:'Barbell', primary:['triceps'], secondary:[], supports1RM:false },
   { id:'overhead_ext_triceps',  displayName:'Overhead Triceps Extension', aliases:['overhead triceps extension','overhead tricep extension','cable overhead extension'], pattern:'isolation', equipment:'Cable', primary:['triceps'], secondary:[], supports1RM:false },
   { id:'triceps_extension_machine', displayName:'Machine Triceps Extension', aliases:['machine triceps extension','machine tricep extension','triceps extension machine','tricep extension machine','triceps machine','tricep machine'], pattern:'isolation', equipment:'Machine', primary:['triceps'], secondary:[], supports1RM:false },
-  { id:'calf_raise',            displayName:'Calf Raise',             aliases:['calf raise','calf raises','standing calf raise'], pattern:'isolation', equipment:'Machine', primary:['calves'], secondary:[], supports1RM:false },
+  { id:'calf_raise',            displayName:'Calf Raise',             aliases:['calf raise','calf raises','standing calf raise'], pattern:'isolation', equipment:'Bodyweight', primary:['calves'], secondary:[], supports1RM:false },
   { id:'calf_raise_seated',     displayName:'Seated Calf Raise',      aliases:['seated calf raise','seated calf raises','seated calf machine','machine seated calf raise'], pattern:'isolation', equipment:'Machine', primary:['calves'], secondary:[], supports1RM:false },
   { id:'calf_raise_leg_press',  displayName:'Leg Press Calf Raise',   aliases:['leg press calf raise','leg press calf raises','calf press','calf press on leg press','leg press calf press'], pattern:'isolation', equipment:'Machine', primary:['calves'], secondary:[], supports1RM:false },
 
@@ -27488,7 +27526,7 @@ const CANONICAL_EXERCISES = [
   { id:'squat_goblet',          displayName:'Goblet Squat',           aliases:['goblet squat','dumbbell goblet squat','kettlebell goblet squat'], pattern:'squat', equipment:'Dumbbell', primary:['quads'], secondary:['glutes'], supports1RM:false },
   { id:'good_morning',          displayName:'Good Morning',           aliases:['good morning','good mornings','barbell good morning'], pattern:'hinge', equipment:'Barbell', primary:['hamstrings'], secondary:['glutes','back'], supports1RM:true },
   { id:'nordic_curl',           displayName:'Nordic Curl',            aliases:['nordic curl','nordic hamstring curl','glute ham raise','ghr'], pattern:'hinge', equipment:'Bodyweight', primary:['hamstrings'], secondary:['glutes'], supports1RM:false, bodyweight:true },
-  { id:'hip_abduction',         displayName:'Hip Abduction',          aliases:['hip abduction','abduction machine','hip abductor','hip abduction machine','seated hip abduction','machine hip abduction'], pattern:'hinge', equipment:'Machine', primary:['glutes'], secondary:[], supports1RM:false },
+  { id:'hip_abduction',         displayName:'Hip Abduction',          aliases:['hip abduction','abduction machine','hip abductor','hip abduction machine','seated hip abduction','machine hip abduction'], pattern:'isolation', equipment:'Machine', primary:['glutes'], secondary:[], supports1RM:false },
 
   { id:'plank',                 displayName:'Plank',                  aliases:['plank','planks','front plank'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, timed:true },
   { id:'crunch',                displayName:'Crunch',                 aliases:['crunch','crunches','ab crunch'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true },
@@ -29286,25 +29324,41 @@ const TIME_MODE_CONFIG = {
    Derived from the template's own ordering and the existing canonical
    metadata. Nothing is stored on the templates, so the plan data is
    untouched, and the tiering is never shown to the athlete. */
-/* Patterns that represent a major multi-joint movement. Used with the type
-   classifier rather than instead of it: Lateral Raise is a vertical_push by
-   pattern but an isolation by type, while Pull-Up is a genuine compound the
-   name-based type classifier reports as 'other'. Requiring a compound pattern
-   AND a non-accessory type gets both cases right. */
+/* Patterns that represent a major multi-joint movement. */
 const TIME_MODE_COMPOUND_PATTERNS = ['horizontal_push','vertical_push','horizontal_pull','vertical_pull','squat','hinge','lunge'];
+
+/* D63.5 — THE REGISTRY DECIDES FOR WHAT IT DESCRIBES. A role read from a
+   name reads what a movement is done on, not what it does: every "machine"
+   read as a compound, so a Machine Lateral Raise or a Reverse Pec Deck could
+   be protected as a session's major opposing movement, while a Lat Pulldown,
+   read as "cable", was an accessory and cut first. For a catalogued movement
+   the registry answers instead, with the same veto that stops a movement
+   leading a session (NEVER_PRIMARY_IDS, or an isolation or core pattern):
+   vetoed work is an accessory, a multi-joint pattern is a compound. The name
+   still decides for everything the registry does not describe (custom,
+   home-library and legacy names), exactly as it did before: a compound
+   pattern AND a type that does not read as an accessory. */
+function timeModeRoleOf(name){
+  let canon = null;
+  try{ const id = resolveExerciseId(name); canon = id ? getCanonicalExercise(id) : null; }catch(e){}
+  const pattern = canon ? canon.pattern : (typeof movementPatternFor === 'function' ? movementPatternFor(name) : 'other');
+  const isCore = pattern === 'core';
+  const compoundPattern = TIME_MODE_COMPOUND_PATTERNS.indexOf(pattern) !== -1;
+  let role;
+  if(canon){
+    const vetoed = isCore || pattern === 'isolation' || NEVER_PRIMARY_IDS.indexOf(canon.id) !== -1;
+    role = vetoed ? 'accessory' : (compoundPattern ? 'compound' : 'other');
+  } else {
+    const typeRole = substitutionRole(classifyExerciseType(name, false));
+    role = !isCore && compoundPattern && typeRole !== 'accessory' ? 'compound' : typeRole;
+  }
+  return { pattern, role, isCore, catalogued: !!canon };
+}
 
 function assignTimeTiers(exercises){
   const meta = exercises.map((ex, i) => {
-    let id = null;
-    try{ id = resolveExerciseId(ex.name); }catch(e){}
-    const canon = id ? getCanonicalExercise(id) : null;
-    const pattern = canon ? canon.pattern : (typeof movementPatternFor === 'function' ? movementPatternFor(ex.name) : 'other');
-    const typeRole = substitutionRole(classifyExerciseType(ex.name, false));
-    const isCore = pattern === 'core';
-    const isCompound = !isCore &&
-      TIME_MODE_COMPOUND_PATTERNS.indexOf(pattern) !== -1 &&
-      typeRole !== 'accessory';
-    return { index:i, exercise:ex, pattern, role: isCompound ? 'compound' : typeRole, isCore };
+    const r = timeModeRoleOf(ex.name);
+    return { index:i, exercise:ex, pattern:r.pattern, role:r.role, isCore:r.isCore };
   });
 
   const tiers = new Array(exercises.length).fill(4);
@@ -38273,7 +38327,10 @@ function scoreSubstitutionCandidate(original, candidate, context){
   const perform = canPerformExercise(candidate.id);
   if(perform === GYM_STATUS.AVAILABLE){
     score += C.equipment.available;
-    reasons.push('Available at your gym');
+    /* D63.5 — a movement that needs nothing is available anywhere, a gym not
+       set up yet included, so it says that instead of claiming the gym has it. */
+    const needs = getExerciseEquipmentRequirements(candidate.id);
+    reasons.push(needs && !needs.length ? 'No equipment needed' : 'Available at your gym');
   } else {
     score += C.equipment.unknown;
   }
@@ -38784,7 +38841,9 @@ const EXERCISE_EQUIPMENT = {
   overhead_ext_triceps:   [ANY_CABLE],
   triceps_extension_machine: ['triceps_extension_machine'],
   skullcrusher:           [['barbell','ez_curl_bar'], ANY_BENCH],
-  calf_raise:             ['calf_raise_machine'],
+  /* D63.5 — Calf Raise is the standing raise on a step it is drawn and cued
+     as, so it needs nothing. The calf machines have identities of their own. */
+  calf_raise:             [],
   calf_raise_seated:      ['calf_raise_machine'],
   calf_raise_leg_press:   ['leg_press'],
 

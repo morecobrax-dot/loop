@@ -9004,3 +9004,198 @@ written under, because the note never stored its name.
 - **Calf Raise is filed as a machine but drawn on a step**, and the home plan
   prescribes it without one. This predates the batch.
 - **Hip abduction is filed as a hinge,** so its alternatives are hip thrusts.
+
+## §94 — D63.5: Machine library integrity
+
+**Status.** Shipped in LOOP 6.6 (`loop-v143`). `DATA_KEYS` 15, schema 1, no
+migration, no new storage key, `TRAINER_ENGINE_VERSION` 0.1.1-shadow. No
+exercise was added. No plan template, program extension or generated program
+changed: all 7,936 generated programs are identical to 6.5's. Progression, Live
+Set Coach, Session Score, the shadow trainer, Activity, rank, social, the D62
+builder and Program revision history are untouched.
+
+### Time Mode takes a catalogued movement's role from the registry
+
+- **Root cause.** `assignTimeTiers` read a movement's role from its name:
+  `classifyExerciseType(name)` into `substitutionRole`. A name says what a
+  movement is done on, not what it does:
+  - "machine" read as a compound, so Leg Curl, Leg Extension, Machine Curl,
+    Machine Lateral Raise, Reverse Pec Deck and Leg Press Calf Raise were
+    compounds.
+  - "cable" and "pulldown" read as accessories, so Lat Pulldown and Seated Cable
+    Row were accessories.
+  - Hip Abduction's name reads as "other", which also passed as a compound.
+  - A machine with an isolation pattern still came back as a compound, because
+    the type role was returned whenever the pattern was not a compound pattern,
+    and tier selection reads `role === 'compound'`.
+- **Now.** `timeModeRoleOf(name)`:
+  - **Catalogued movements** are an accessory under the veto that already stops
+    them leading a session (`NEVER_PRIMARY_IDS`, or an isolation or core
+    pattern). Otherwise they are a compound when their pattern is a multi-joint
+    one, and "other" if not.
+  - **Anything the registry does not describe** (custom, home-library and legacy
+    names) keeps the old name rule unchanged.
+  - No exercise names are written into the rule.
+- **Roles that changed** for names in plans, extensions and the library:
+  - Compound → accessory: Leg Curl, Leg Extension, Hip Abduction (and Hip
+    Abduction Machine), Machine Curl, Reverse Pec Deck Fly.
+  - Accessory → compound: Lat Pulldown, Seated Cable Row (and Cable Row).
+  - Relabelled with no tier effect: core and "other" work (Ab Crunch Machine,
+    Machine Crunch, Plank, Skullcrusher). Core is tier 5 either way, and
+    "other" counts as an accessory.
+  - The same rule makes Machine Lateral Raise, Seated Leg Curl, Leg Press Calf
+    Raise and Upright Row accessories.
+- **Re-tier audit.** Every template and every generated program session was
+  compressed at 15, 30, 45, 60 and 90 minutes on 6.5 and on 6.6:
+  - Tiers changed in 47 of 156 templates; 34 give a different session at one
+    length or more.
+  - 3,711 of 31,744 program sessions changed, in 4,944 session-and-length cases
+    (228 distinct changes).
+  - Nothing else in the snapshot moved: programs, prescriptions, Main/Build
+    groups, swaps, muscles and picker.
+  - D63's estimate of 30 templates measured the veto alone. It still read
+    "cable" names as accessories.
+- **What changed in those sessions.**
+  - The primary lift keeps more sets in 1,709 cases and fewer in 799.
+  - Muscle coverage is the same in 2,839 cases, gains a group in 472, loses one
+    in 773 and trades one for another in 860.
+  - Gains are mostly back (703), because Lat Pulldown and Seated Cable Row are
+    kept.
+  - Losses are mostly hamstrings (783) and glutes (483): Leg Curl and Hip
+    Abduction are no longer protected, and most of those sessions keep a
+    Romanian deadlift or hip thrust. Biceps (220) come from Machine Curl. Shoulders
+    (147) are a tier-3 compound dropped by position once Lat Pulldown competes
+    with it.
+- **Invariants.** Checked over all 31,744 sessions and 156 templates at five
+  lengths (159,500 checks), with 0 violations:
+  - the primary and the opposing movement are kept
+  - no exercise is invented or duplicated
+  - at least three remain
+  - workload is monotonic in time
+  - no isolation movement is protected as the opposing compound
+- **History.** Tiers are derived when a session is compressed. `workoutLog`
+  holds what was trained, and `plannedMinutes` is stored when a workout starts.
+  Neither is read or rewritten by the new rule.
+
+### Machine Chest Press
+
+- **Defect.** The lever pivoted at [90, 34] on the stack column's face, in line
+  with the push. It measured 51.4 at the chest and 31.6 at lockout, a 19.8-unit
+  stretch.
+- **Correction.** A rigid lever must pivot on the perpendicular bisector of the
+  hand path. That path is level, so the bisector is vertical: above the athlete
+  or through the legs. The pivot is now [58.9, 29.8], on a beam out of the
+  unchanged stack column, and the handles hang from it. The lever is 37.8 in
+  both positions, and both poses are unchanged. At lockout the lever passes 17.4
+  units from the centre of the head. As on Incline Machine Press, the faint ghost
+  of the start position runs behind the head.
+
+### Machine Row
+
+- **Defect.** The lever pivoted at [92, 46] on the column. It measured 21.8 with
+  long arms and 45.0 at the ribs, a 23.2-unit stretch.
+- **Rejected geometry.**
+  - A pivot above the athlete either crossed the head or needed the start hands
+    lowered by 15 units. Even then the lever passed beside the face.
+  - A pivot at the base put the ring against the toes.
+- **Correction.**
+  - The pivot is now [73.2, 96.8], low on the chest pad's own upright, under the
+    middle of the path.
+  - The lever meets the grip, in the palm just past the wrist (`nE`→`nW`,
+    t 1.12). This is the Machine Curl's convention, and it moves the pivot onto
+    the upright.
+  - A floor rail joins the stack column to the upright's foot.
+  - The lever is 33.8 in both positions, and both poses are unchanged.
+  - On the rendered pixels, the ring clears the shin by 1.2 units at its widest
+    and sits above the foot. Contact with the shin at the first attempt, where
+    the lever met the wrist, was found this way.
+- **Library-wide.** Every lever in the 175 drawings keeps its length, except the
+  two horizontal swings drawn from the front: Pec Deck and Reverse Pec Deck,
+  which projection foreshortens. Rendered at both sizes, only these two drawings
+  differ from 6.5. Grounding (D59) is clean.
+
+### Calf Raise
+
+- **Was:** `equipment:'Machine'`, requiring `calf_raise_machine`. It is drawn on a
+  step with step cues, and the home plan prescribes it as Bodyweight.
+- **Now:** `equipment:'Bodyweight'`, requiring nothing.
+  - `bodyweight` stays unset, so it still logs a load.
+  - Its aliases, history, records and never-leads veto are unchanged.
+  - Seated Calf Raise and Leg Press Calf Raise stay machines.
+- **Effects.**
+  - The picker files 25 under Machine (was 26) and 37 under Bodyweight (was 36).
+    Calves with Machine lists the two calf machines; Calves with Bodyweight lists
+    Calf Raise.
+  - A gym without a calf machine can do it, so Swap offers it for Seated and Leg
+    Press Calf Raise. With an empty gym, Seated Calf Raise now gets Calf Raise,
+    where it had nothing.
+  - Programs are identical. The calf extension's own `gym:true` decides program
+    eligibility and is kept.
+- **Swap's wording.** The browser pass found "Available at your gym" under "Your
+  gym isn't set up yet". A candidate that needs nothing now reads "No equipment
+  needed". Its ranking bonus is unchanged.
+
+### Hip Abduction
+
+- **Was:** `pattern:'hinge'`.
+  - Swap's best matches were Hip Thrust Machine and Hip Thrust.
+  - Its glute list labelled Cable Glute Kickback "Same kind of movement" and
+    Single-Leg Glute Bridge "Related movement".
+  - Both hip thrusts ranked Hip Abduction among their own substitutes.
+  - Program days filed it with the main lifts.
+- **Now:** `pattern:'isolation'`, an existing pattern.
+  - Ranked lists, strict and relaxed, are empty. The sheet says "No direct
+    substitute found" and shows the other glute exercises with no similarity
+    labels.
+  - Neither hip thrust ranks it.
+  - In the six plan days that prescribe it, it is grouped under Finish. Legs B —
+    Full Sweep gains groups it did not have.
+  - Its aliases, drawing, muscle, equipment and veto are unchanged.
+
+### Verification
+
+- **Contract 171 `testMachineIntegrity`** (50 assertions):
+  - Registry role for every catalogued name; the fallback for five uncatalogued
+    names; the role moving when the registry does.
+  - A custom session's tiers and 15-minute cut.
+  - Every plan template's invariants; a workout trained in Time Mode staying
+    byte-identical; no storage written.
+  - Library-wide lever rigidity; the chest press beam and head clearance; the
+    row pivot on its upright, clear of the shin.
+  - Calf Raise equipment, filters, history, records, program eligibility, gym
+    availability, Swap and its wording.
+  - Hip Abduction's pattern, identity, swaps and grouping.
+  - The protected systems.
+- **Mutation check** — 18 of 18 caught. Production 6.5 fails 18.
+- **Physical** — headless Edge with the iPhone's insets at 390×844, 375×812 and
+  844×390:
+  - the picker's Calves + Machine and Calves + Bodyweight filters, and the
+    equipment counts
+  - the Swap sheets for Hip Abduction and Seated Calf Raise
+  - How To for Machine Chest Press, Machine Row, Calf Raise and Hip Abduction,
+    with content inside the frame
+  - the two machines at 40 (picker), 44 (Swap) and 52 px (stepper)
+  - no horizontal overflow and no page errors
+- **Performance** (6.5 → 6.6, medians):
+  - Tiering all 156 templates: 1.15/1.05 → 1.07/0.97 ms.
+  - Compressing them at five lengths: 15.4/14.5 → 14.3/13.9 ms.
+  - Index: +2.4 KB, +0.8 KB gzipped, before this entry.
+
+### Known and recorded
+
+- **Pec Deck is not in `NEVER_PRIMARY_IDS`,** so Time Mode and prescriptions
+  still treat it as a compound, although Cable Fly is vetoed. This is a registry
+  gap for its own pass.
+- **Hip Abduction's glute list is still mostly hip extension.** LOOP's abduction
+  exercises (Band Lateral Walk and Lateral Band Walk, one movement under two
+  names) are not catalogued, so nothing can rank as a direct substitute until one
+  is.
+- **Swap still gives a movement that needs nothing the availability bonus** when
+  the gym is not set up (§93). Only its label changed.
+- **Swap's role (`substitutionRoleOf`) still falls back to the name** for
+  catalogued movements that are not vetoed, so Lat Pulldown still reads as an
+  accessory there. Time Mode no longer does this.
+- **Some 15-minute lower sessions with no hinge compound now keep no hamstring
+  work.** Legs A — Balanced keeps Leg Press, Leg Extension and Walking Lunge,
+  because the two accessories are cut in the order the plan lists them. Time
+  Mode's tier design is unchanged.

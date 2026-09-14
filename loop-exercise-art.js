@@ -1290,6 +1290,12 @@ function build(){
   var IP_START = seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:-40, nfa:130, fua:-44, ffa:126 });
   var IP_END = seat({ pin:['hip', [52, 86]], trunk:-162, neck:-170, nua:138, nfa:136, fua:134, ffa:132 });
   var IP_PIVOT = pivotFor(at('side', IP_START, 'nW'), at('side', IP_END, 'nW'), -1.5);
+  /* Machine chest press: forward from mid-chest to straight arms, the handles
+     hanging from a lever on a beam out of the stack. The pivot sits over the
+     middle of their path, so one lever reaches the chest and the lockout. */
+  var CP_START = seat({ trunk:178, nua:-68, nfa:88, fua:-72, ffa:84 });
+  var CP_END = seat({ trunk:178, nua:84, nfa:88, fua:80, ffa:84 });
+  var CP_PIVOT = pivotFor(at('side', CP_START, 'nW'), at('side', CP_END, 'nW'), -1.3);
   /* Smith presses: the bar rides two vertical rails, so the hands travel a
      vertical line between them. */
   function smithRails(x, top){ return [['rail', { a:[x - 2.2, top], b:[x - 2.2, G], w:2.4 }], ['rail', { a:[x + 2.2, top], b:[x + 2.2, G], w:2.4 }]]; }
@@ -1339,11 +1345,11 @@ function build(){
     gear:[['dbFace', { at:'nW' }]], track:'nW' },
 
   /* ---- machines ---- */
-  chest_press_machine: { view:'side', arch:'machine', ghost:'arms',
-    scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 56], w:5.4 }], ['column', { x:94, top:26 }]],
-    start:seat({ trunk:178, nua:-68, nfa:88, fua:-72, ffa:84 }),
-    end:  seat({ trunk:178, nua:84, nfa:88, fua:80, ffa:84 }),
-    gear:[['lever', { pivot:[90, 34], to:'nW', handle:true }]], track:'nW' },
+  chest_press_machine: { view:'side', arch:'machine', path:'pivot', pivot:CP_PIVOT, ghost:'arms',
+    scene:[['pad', { a:[38, 92], b:[60, 92], w:5 }], ['post', { a:[49, 95], b:[49, G] }], ['pad', { a:[42, 90], b:[42, 56], w:5.4 }], ['column', { x:94, top:26 }],
+      ['rail', { a:[94, CP_PIVOT[1]], b:CP_PIVOT, w:3 }]],
+    start:CP_START, end:CP_END,
+    gear:[['lever', { pivot:CP_PIVOT, to:'nW', handle:true }]], track:'nW' },
 
   incline_press_machine: { view:'side', arch:'machine', path:'pivot', pivot:IP_PIVOT, ghost:'arms',
     scene:[['column', { x:IP_PIVOT[0], top:IP_PIVOT[1] - 8 }], ['pad', { a:[40, 92], b:[62, 92], w:5 }], ['post', { a:[51, 95], b:[51, G] }], ['pad', { a:[42, 89], b:[30, 58], w:5.4 }]],
@@ -1628,6 +1634,15 @@ function build(){
      clear of the floor. */
   function legCurlSeat(nsh, fsh){ return { pin:['hip', [48, 80]], trunk:172, neck:176, nth:90, fth:88, nsh:nsh, fsh:fsh, nft:nsh + 108, fft:fsh + 108, nua:14, nfa:70, fua:10, ffa:66 }; }
   var LEG_CURL_KNEE = at('side', legCurlSeat(80, 76), 'nK');
+  /* Machine row: chest on the pad, the handles on a lever that turns about a
+     pivot low on the pad's upright, under the middle of their path, so one
+     lever reaches the long arms and the ribs. It meets the grip, in the palm
+     just past the wrist. */
+  var ROW_START = seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:84, nfa:86, fua:80, ffa:82 });
+  var ROW_END = seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:-64, nfa:86, fua:-68, ffa:82 });
+  var ROW_GRIP = { seg:['nE', 'nW'], t:1.12 };
+  function gripOf(pose){ var e = at('side', pose, 'nE'), w = at('side', pose, 'nW'); return [e[0] + (w[0] - e[0]) * ROW_GRIP.t, e[1] + (w[1] - e[1]) * ROW_GRIP.t]; }
+  var ROW_PIVOT = pivotFor(gripOf(ROW_START), gripOf(ROW_END), -1.15);
 
   H.add({
 
@@ -1675,12 +1690,12 @@ function build(){
     end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:-62, ffa:82 },
     gear:[['cable', { from:[98, 78], to:'nW', grip:'bar' }]], track:'nW' },
 
-  row_machine: { view:'side', arch:'machine', ghost:'arms',
-    scene:[['pad', { a:[36, 92], b:[58, 92], w:5 }], ['post', { a:[47, 95], b:[47, G] }], ['post', { a:[74, 78], b:[74, G] }], ['column', { x:96, top:40 }]],
+  row_machine: { view:'side', arch:'machine', path:'pivot', pivot:ROW_PIVOT, ghost:'arms',
+    scene:[['pad', { a:[36, 92], b:[58, 92], w:5 }], ['post', { a:[47, 95], b:[47, G] }], ['post', { a:[74, 78], b:[74, G] }],
+      ['column', { x:96, top:40 }], ['rail', { a:[96, G - 2], b:[74, G - 2], w:3 }]],
     front:[['pad', { a:[66, 58], b:[66, 80], w:6.4 }]],
-    start:seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:84, nfa:86, fua:80, ffa:82 }),
-    end:  seat({ pin:['hip', [48, 86]], trunk:168, neck:172, nua:-64, nfa:86, fua:-68, ffa:82 }),
-    gear:[['lever', { pivot:[92, 46], to:'nW', handle:true }]], track:'nW' },
+    start:ROW_START, end:ROW_END,
+    gear:[['lever', { pivot:ROW_PIVOT, to:ROW_GRIP, handle:true }]], track:'nW' },
 
   tbar_row: { view:'side', arch:'press', ghost:'arms',
     start:bent({ nua:4, nfa:2, fua:0, ffa:-2 }),

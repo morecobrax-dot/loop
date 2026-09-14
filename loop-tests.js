@@ -24866,6 +24866,247 @@ async function testMachineCoverage(){
   T('the progression engine still reads history by the name that was logged', /const ex = l\.exercises\.find\(e => e\.name\.trim\(\)\.toLowerCase\(\) === key\);/.test(fnSrc(src, 'getExerciseFullHistory')));
 }
 
+/* =========================================================
+   CONTRACT 171 — MACHINE LIBRARY INTEGRITY (D63.5)
+   ---------------------------------------------------------
+   Four truths D63 left owing. Time Mode takes a catalogued
+   movement's role from the registry and reads a name only for
+   what the registry does not describe, so isolation machines
+   are never protected as compounds and nothing stored changes.
+   Every lever turns about its pivot instead of stretching,
+   including the chest press and the row. Calf Raise is filed
+   as the standing raise on a step it is drawn as, and Hip
+   Abduction is single-joint work rather than a hinge. The
+   identities, histories and records of all of them are the
+   ones they already had.
+   ========================================================= */
+async function testMachineIntegrity(){
+  section('CONTRACT 171 — machine library integrity (D63.5)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, XA = ctx.ExerciseArt, defs = ctx.EXERCISE_ART.definitions();
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const role = n => ctx.timeModeRoleOf(n).role;
+  const segDist = (p, a, b) => { const vx = b[0] - a[0], vy = b[1] - a[1], wx = p[0] - a[0], wy = p[1] - a[1], L = vx * vx + vy * vy;
+    const t = L ? Math.max(0, Math.min(1, (wx * vx + wy * vy) / L)) : 0; return Math.hypot(wx - vx * t, wy - vy * t); };
+  const jp = (J, ref) => {
+    if(typeof ref === 'string') return J[ref];
+    if(ref && ref.seg){
+      const a = J[ref.seg[0]], b = J[ref.seg[1]], t = ref.t == null ? 0.5 : ref.t;
+      const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      if(!ref.n) return p;
+      const ang = (Math.atan2(b[0] - a[0], b[1] - a[1]) * 180 / Math.PI + 90) * Math.PI / 180;
+      return [p[0] + Math.sin(ang) * ref.n, p[1] + Math.cos(ang) * ref.n];
+    }
+    return ref;
+  };
+
+  sub('Time Mode reads a catalogued movement\'s role from the registry');
+  guard('registry role', () => {
+    const vetoed = c => c.pattern === 'core' || c.pattern === 'isolation' || ctx.NEVER_PRIMARY_IDS.indexOf(c.id) !== -1;
+    const expected = c => vetoed(c) ? 'accessory' : (ctx.TIME_MODE_COMPOUND_PATTERNS.indexOf(c.pattern) !== -1 ? 'compound' : 'other');
+    const wrong = [];
+    ctx.CANONICAL_EXERCISES.forEach(c => [c.displayName].concat(c.aliases).forEach(n => {
+      const r = ctx.timeModeRoleOf(n);
+      if(!r.catalogued || r.pattern !== c.pattern || r.role !== expected(c)) wrong.push(n + ' ' + r.role);
+    }));
+    T('every catalogued movement, under every one of its names, takes its role from the registry', wrong.length === 0, wrong.slice(0, 6).join(', '));
+    T('Machine Lateral Raise and Reverse Pec Deck are accessories, not compounds', role('Machine Lateral Raise') === 'accessory' && role('Reverse Pec Deck') === 'accessory');
+    T('a name that reads "machine" no longer makes isolation work a compound',
+      ['Leg Curl', 'Seated Leg Curl', 'Leg Extension', 'Machine Curl', 'Leg Press Calf Raise', 'Hip Abduction Machine', 'Upright Row'].every(n => role(n) === 'accessory'));
+    T('and a name that reads "cable" no longer makes a compound an accessory', role('Lat Pulldown') === 'compound' && role('Seated Cable Row') === 'compound');
+    ctx.NEVER_PRIMARY_IDS.push('lat_pulldown');
+    const flipped = role('Lat Pulldown');
+    ctx.NEVER_PRIMARY_IDS.pop();
+    T('the answer moves with the registry, not with the spelling', flipped === 'accessory' && role('Lat Pulldown') === 'compound');
+    const nameRead = n => { const p = ctx.movementPatternFor(n), t = ctx.substitutionRole(ctx.classifyExerciseType(n, false));
+      return (p !== 'core' && ctx.TIME_MODE_COMPOUND_PATTERNS.indexOf(p) !== -1 && t !== 'accessory') ? 'compound' : t; };
+    const unknown = ['Pendulum Squat', 'Hammer Strength High Row', 'Cable Y Raise', 'Banded Monster Walk', 'My Garage Sled Push'];
+    T('a name the registry does not describe is still read from the name, exactly as before',
+      unknown.every(n => !ctx.timeModeRoleOf(n).catalogued && role(n) === nameRead(n)), unknown.map(n => n + ' ' + role(n)).join(', '));
+    T('so a custom squat is still protected and a custom raise is not', role('Pendulum Squat') === 'compound' && role('Cable Y Raise') === 'accessory');
+  });
+
+  sub('a session keeps its compounds and lets the isolation work go first');
+  guard('tiers', () => {
+    const mk = (name, sets) => ({ name, sets, reps:'8-12', effort:'8' });
+    const custom = { name:'Custom', exercises:[mk('Machine Shoulder Press', 4), mk('Machine Lateral Raise', 4), mk('Reverse Pec Deck', 4),
+      mk('Lat Pulldown', 4), mk('Triceps Pushdown', 3), mk('Pendulum Squat', 3)] };
+    const frozen = JSON.stringify(custom);
+    const tiers = ctx.assignTimeTiers(custom.exercises);
+    T('the pulldown is the major opposing movement, and the machine raises are accessories',
+      tiers[3] === 2 && tiers[1] >= 4 && tiers[2] >= 4 && tiers[5] === 3, JSON.stringify(tiers));
+    T('fifteen minutes keeps the press, the pulldown and the squat, and drops the raises',
+      ctx.compressWorkoutForTime(custom, 15).exercises.map(e => e.name).join(',') === 'Machine Shoulder Press,Lat Pulldown,Pendulum Squat');
+    T('the workout it compressed is untouched', JSON.stringify(custom) === frozen);
+    const bad = [];
+    Object.keys(ctx.DEFAULT_PLANS).forEach(pid => Object.keys(ctx.DEFAULT_PLANS[pid].templates).forEach(cat =>
+      (ctx.DEFAULT_PLANS[pid].templates[cat] || []).forEach(t => {
+        const tt = ctx.assignTimeTiers(t.exercises);
+        t.exercises.forEach((x, i) => { if(i > 0 && tt[i] <= 3 && role(x.name) !== 'compound') bad.push(t.id + ' ' + x.name + ' tier ' + tt[i]); });
+        const names = new Set(t.exercises.map(e => e.name)), primary = t.exercises[0].name, t2 = tt.indexOf(2);
+        [90, 60, 45, 30, 15].forEach(m => {
+          const kept = ctx.compressWorkoutForTime(t, m).exercises.map(e => e.name);
+          if(kept.indexOf(primary) === -1 || (t2 > 0 && kept.indexOf(t.exercises[t2].name) === -1) || !kept.every(n => names.has(n))) bad.push(t.id + ' @' + m);
+        });
+      })));
+    T('no plan template protects isolation work as a compound, and every length keeps its primary and opposing movements', bad.length === 0, bad.slice(0, 6).join('; '));
+  });
+
+  sub('nothing stored is re-tiered');
+  {
+    const started = new Date(Date.now() - 50 * 60000).toISOString(), ended = new Date(Date.now() - 18 * 60000).toISOString();
+    const trained = WK('tm1', 1, 'legs', [EX('Leg Press', [S(270, 10), S(270, 10)]), EX('Leg Extension', [S(90, 12), S(90, 12)]),
+      EX('Leg Curl', [S(80, 12), S(80, 12)]), EX('Walking Lunge', [S(40, 10), S(40, 10)])]);
+    Object.assign(trained, { plannedMinutes: 15, startedAt: started, endedAt: ended });
+    const store = { dataSchemaVersion:'1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify([trained]) };
+    const booted = await H.loadAppBooted(store);
+    const c = booted.ctx;
+    const logBefore = booted.store.workoutLog, plansBefore = JSON.stringify(c.DEFAULT_PLANS), keysBefore = Object.keys(booted.store).sort().join();
+    guard('stored', () => {
+      Object.keys(c.DEFAULT_PLANS).forEach(pid => Object.keys(c.DEFAULT_PLANS[pid].templates).forEach(cat =>
+        (c.DEFAULT_PLANS[pid].templates[cat] || []).forEach(t => [null, 90, 60, 45, 30, 15].forEach(m => { c.assignTimeTiers(t.exercises); c.compressWorkoutForTime(t, m); }))));
+      T('a workout trained in Time Mode under the old tiers is stored exactly as it was trained', booted.store.workoutLog === logBefore &&
+        JSON.parse(booted.store.workoutLog)[0].exercises.map(e => e.name + '×' + e.sets.length).join(',') === 'Leg Press×2,Leg Extension×2,Leg Curl×2,Walking Lunge×2');
+      T('and still shows the minutes it was planned for', /~15 min/.test(c.plannedVsActualHtml(c.workoutLog[0])));
+      T('re-tiering every template at every length writes nothing: plans and storage keys are unchanged',
+        JSON.stringify(c.DEFAULT_PLANS) === plansBefore && Object.keys(booted.store).sort().join() === keysBefore);
+    });
+  }
+
+  sub('every lever turns about its pivot');
+  guard('levers', () => {
+    /* Two swings move in a horizontal plane that a view from the front (or
+       behind) foreshortens; everything else must be the same length drawn
+       both ways. */
+    const PROJECTED = { pec_deck: 'front', reverse_pec_deck: 'front' };
+    const stretch = [];
+    Object.keys(defs).forEach(id => {
+      const d = defs[id];
+      if(!d.start || !d.end) return;
+      [].concat(d.gear || [], d.behind || [], d.front || [], d.scene || []).filter(p => p[0] === 'lever').forEach(p => {
+        const len = ['start', 'end'].map(k => { const J = XA.solve(d.view, d[k]); const to = jp(J, p[1].to);
+          return Math.hypot(p[1].pivot[0] - to[0] - (p[1].dx || 0), p[1].pivot[1] - to[1] - (p[1].dy || 0)); });
+        if(Math.abs(len[0] - len[1]) > 0.5 && PROJECTED[id] !== d.view) stretch.push(id + ' ' + len.map(v => v.toFixed(1)).join('/'));
+      });
+    });
+    T('no lever in the library stretches between its two drawings', stretch.length === 0, stretch.join('; '));
+    T('the only foreshortened ones are the two horizontal swings, and both are drawn from the front', Object.keys(PROJECTED).every(id => defs[id] && defs[id].view === 'front'));
+
+    const cp = defs.chest_press_machine, cpL = cp.gear.find(g => g[0] === 'lever')[1];
+    const cpJ = [XA.solve('side', cp.start), XA.solve('side', cp.end)];
+    const cpLen = J => Math.hypot(cpL.pivot[0] - jp(J, cpL.to)[0], cpL.pivot[1] - jp(J, cpL.to)[1]);
+    T('Machine Chest Press: one lever, the same length at the chest and at lockout', Math.abs(cpLen(cpJ[0]) - cpLen(cpJ[1])) < 0.5,
+      cpLen(cpJ[0]).toFixed(1) + '/' + cpLen(cpJ[1]).toFixed(1));
+    const beam = cp.scene.find(p => p[0] === 'rail' && Math.hypot(p[1].b[0] - cpL.pivot[0], p[1].b[1] - cpL.pivot[1]) < 0.01);
+    const column = cp.scene.find(p => p[0] === 'column');
+    T('its pivot hangs from the frame: a beam out of the stack column ends at it',
+      !!beam && !!column && Math.abs(beam[1].a[0] - column[1].x) < 0.01 && beam[1].a[1] >= column[1].top);
+    T('above the athlete, where the lever at lockout clears the head', cpL.pivot[1] < cpJ[1].head[1] - 10 && segDist(cpJ[1].head, cpL.pivot, jp(cpJ[1], cpL.to)) > 8);
+    T('and it is still a chest press: from the chest forward to straight arms, level',
+      cpJ[1].nW[0] - cpJ[0].nW[0] > 25 && Math.abs(cpJ[1].nW[1] - cpJ[0].nW[1]) < 5 && Math.abs(cpJ[0].nW[0] - cpJ[0].sh[0]) < 4);
+
+    const rm = defs.row_machine, rmL = rm.gear.find(g => g[0] === 'lever')[1];
+    const rmJ = [XA.solve('side', rm.start), XA.solve('side', rm.end)];
+    const rmGrip = rmJ.map(J => jp(J, rmL.to));
+    const rmLen = i => Math.hypot(rmL.pivot[0] - rmGrip[i][0], rmL.pivot[1] - rmGrip[i][1]);
+    T('Machine Row: one lever, the same length at long arms and at the ribs', Math.abs(rmLen(0) - rmLen(1)) < 0.5, rmLen(0).toFixed(1) + '/' + rmLen(1).toFixed(1));
+    T('it meets the grip, in the palm just past the wrist', rmL.to && rmL.to.seg && rmL.to.seg.join() === 'nE,nW' && rmL.to.t > 1 && rmL.to.t < 1.2);
+    const upright = rm.scene.find(p => p[0] === 'post' && p[1].a[0] === p[1].b[0] && Math.abs(p[1].a[0] - rmL.pivot[0]) < 1.5 &&
+      rmL.pivot[1] > Math.min(p[1].a[1], p[1].b[1]) && rmL.pivot[1] < Math.max(p[1].a[1], p[1].b[1]));
+    T('its pivot is on the chest pad\'s upright, not in the air', !!upright);
+    T('clear of the shin and above the foot', segDist(rmL.pivot, rmJ[1].nK, rmJ[1].nA) > 6.5 && rmL.pivot[1] < rmJ[1].nA[1] - 5,
+      segDist(rmL.pivot, rmJ[1].nK, rmJ[1].nA).toFixed(2));
+    const pad = rm.front.find(p => p[0] === 'pad')[1];
+    T('and it is still a row: the hands come back from in front of the chest pad to the ribs behind it',
+      rmJ[0].nW[0] > pad.a[0] + pad.w / 2 && rmJ[1].nW[0] < pad.a[0] - pad.w / 2 && rmJ[0].nW[0] - rmJ[1].nW[0] > 20);
+    const svgs = ['chest_press_machine', 'row_machine'].map(id => [XA.render(defs[id], { size:'thumb' }), XA.render(defs[id], { size:'full' })]);
+    T('both draw at every size with one arrow and no broken numbers', svgs.every(([t, f]) => !/NaN|undefined|Infinity/.test(t + f) &&
+      (f.match(/fill="#4CC2FF"/g) || []).length === 1 && (t.match(/fill="#4CC2FF"/g) || []).length === 1));
+  });
+
+  sub('Calf Raise is filed as the movement it is');
+  guard('calf', () => {
+    const calf = ctx.getCanonicalExercise('calf_raise');
+    T('the standing raise on a step it is drawn and cued as, needing nothing', calf.equipment === 'Bodyweight' &&
+      JSON.stringify(ctx.getExerciseEquipmentRequirements('calf_raise')) === '[]' &&
+      defs.calf_raise.scene.some(p => p[0] === 'step') && ctx.howToCues('Calf Raise').some(c => /step/i.test(c)));
+    T('the calf machines stay machines, each needing its own',
+      ['calf_raise_seated', 'calf_raise_leg_press'].every(id => ctx.getCanonicalExercise(id).equipment === 'Machine') &&
+      JSON.stringify(ctx.getExerciseEquipmentRequirements('calf_raise_seated')) === '[["calf_raise_machine"]]' &&
+      JSON.stringify(ctx.getExerciseEquipmentRequirements('calf_raise_leg_press')) === '[["leg_press"]]');
+    const picked = eq => ctx.exPickerResults({ query:'', muscle:'calves', equipment:eq }).map(e => e.name);
+    T('the Machine filter lists the two calf machines and not Calf Raise; Bodyweight lists Calf Raise',
+      picked('Machine').indexOf('Calf Raise') === -1 && picked('Machine').indexOf('Seated Calf Raise') !== -1 &&
+      picked('Machine').indexOf('Leg Press Calf Raise') !== -1 && picked('Bodyweight').indexOf('Calf Raise') !== -1);
+    T('its names still reach the one identity its history is under', ['Calf Raise', 'Calf Raises', 'Standing Calf Raise'].every(n => ctx.resolveExerciseId(n) === 'calf_raise'));
+    T('it still logs a load, as it always has', calf.bodyweight !== true && ctx.exerciseIsBodyweight('Calf Raise') === false && ctx.exerciseIsNeverPrimary('Calf Raise'));
+    T('programs place it where they did: the calf extension is still gym-only', ctx.getProgramExtension('x_calf').gym === true);
+    const why = (n, id) => { const r = ctx.exerciseSwapOptions(n, {}).ranked.find(x => x.exerciseId === id); return r ? r.reasons : null; };
+    const unset = why('Seated Calf Raise', 'calf_raise');
+    T('with no gym set up, Swap says it needs no equipment instead of claiming the gym has it',
+      !!unset && unset.indexOf('No equipment needed') !== -1 && unset.indexOf('Available at your gym') === -1, JSON.stringify(unset));
+    ctx.GYM_EQUIPMENT.forEach(e => ctx.setEquipmentAvailable(e.id, e.id !== 'calf_raise_machine'));
+    T('a gym without a calf machine can still do it, and not the seated raise', ctx.canPerformExercise('calf_raise') === 'available' && ctx.canPerformExercise('calf_raise_seated') === 'unavailable');
+    const ranked = n => ctx.exerciseSwapOptions(n, {}).ranked.map(r => r.exerciseId);
+    T('so Swap offers it for the seated raise that gym cannot do, and never the reverse',
+      ranked('Seated Calf Raise').indexOf('calf_raise') !== -1 && ranked('Calf Raise').indexOf('calf_raise_seated') === -1);
+    const lp = why('Seated Calf Raise', 'calf_raise_leg_press'), cr = why('Seated Calf Raise', 'calf_raise');
+    T('and in a gym that is set up, the leg press is the gym\'s while the calf raise still needs nothing',
+      !!lp && lp.indexOf('Available at your gym') !== -1 && !!cr && cr.indexOf('No equipment needed') !== -1, JSON.stringify([lp, cr]));
+    ctx.GYM_EQUIPMENT.forEach(e => ctx.setEquipmentAvailable(e.id, true));
+  });
+  {
+    const hist = await H.loadAppBooted({ dataSchemaVersion:'1', workoutLog: JSON.stringify([
+      WK('c1', 20, 'legs', [EX('Calf Raise', [S(180, 12), S(180, 12)])]),
+      WK('c2', 10, 'legs', [EX('Standing Calf Raise', [S(190, 12)])])]) });
+    const logged = hist.store.workoutLog;
+    guard('calf history', () => {
+      T('its history is every session logged under its names', hist.ctx.getExerciseHistoryById('calf_raise').map(h => h.workoutId).sort().join() === 'c1,c2');
+      const prs = hist.ctx.computeExercisePREvents('Calf Raise');
+      T('and its records are still read from the loads it was logged with', prs.length === 1 && prs[0].isBW === false && prs[0].headline.type === 'weight' && prs[0].headline.next === 180);
+      T('nothing stored was touched', hist.store.workoutLog === logged);
+    });
+  }
+
+  sub('Hip Abduction is not a hinge');
+  guard('hip', () => {
+    const hip = ctx.getCanonicalExercise('hip_abduction');
+    T('it is single-joint work, under a pattern LOOP already has', hip.pattern === 'isolation' &&
+      Object.prototype.hasOwnProperty.call(ctx.SUBSTITUTION_CONFIG.relatedPatterns, hip.pattern));
+    T('its identity is the one it had: every name, its drawing, its muscle, and it never leads a session',
+      hip.aliases.every(a => ctx.resolveExerciseId(a) === 'hip_abduction') && ctx.exerciseVisualKey('Hip Abduction Machine') === 'hip_abduction' &&
+      hip.primary.join() === 'glutes' && hip.equipment === 'Machine' && ctx.exerciseIsNeverPrimary('Hip Abduction') && role('Hip Abduction') === 'accessory');
+    const ranked = ctx.rankSubstitutionCandidates('hip_abduction', {}).concat(ctx.rankSubstitutionCandidates('hip_abduction', { relaxed:true }));
+    T('Swap ranks no hinge for it, strict or relaxed — Hip Thrust least of all',
+      ranked.every(r => ctx.getCanonicalExercise(r.exerciseId).pattern !== 'hinge') && ranked.every(r => ['hip_thrust', 'hip_thrust_machine'].indexOf(r.exerciseId) === -1),
+      ranked.map(r => r.displayName).join(','));
+    const sheet = ctx.exerciseSwapOptions('Hip Abduction', {});
+    T('the sheet claims no similar movement it does not have, and still offers the other glute exercises as exactly that',
+      sheet.more.length > 0 && sheet.muscle === 'glutes' && sheet.more.every(m => !m.samePattern && m.closeness < 2));
+    T('and neither hip thrust ranks Hip Abduction as its substitute', ['hip_thrust', 'hip_thrust_machine'].every(id =>
+      ctx.rankSubstitutionCandidates(id, {}).every(r => r.exerciseId !== 'hip_abduction')));
+    const placed = [];
+    Object.keys(ctx.DEFAULT_PLANS).forEach(pid => Object.keys(ctx.DEFAULT_PLANS[pid].templates).forEach(cat =>
+      (ctx.DEFAULT_PLANS[pid].templates[cat] || []).forEach(t => t.exercises.forEach((x, i) => {
+        if(ctx.resolveExerciseId(x.name) !== 'hip_abduction') return;
+        const g = ctx.deriveExerciseGroups(t);
+        placed.push(!!g && i >= g.finishStart);
+      }))));
+    T('in the workout view it sits with the finishing work, in every plan that prescribes it', placed.length > 0 && placed.every(Boolean), placed.join(','));
+  });
+
+  sub('nothing protected moved');
+  T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+  T('no exercise was added: the registry and the drawings are the size D63 left them',
+    ctx.CANONICAL_EXERCISES.length === 76 && !defs.back_extension_seated);
+  T('Swap still takes a movement\'s role from the registry as D63 shipped it', ctx.substitutionRoleOf('lateral_raise_machine', 'Machine Lateral Raise') === 'accessory' &&
+    ctx.substitutionRoleOf('shoulder_press_machine', 'Machine Shoulder Press') === 'compound');
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -24999,6 +25240,7 @@ async function main(){
   await testWorkoutClosure();
   await testBuildMyOwnContinue();
   await testMachineCoverage();
+  await testMachineIntegrity();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
