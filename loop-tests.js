@@ -24400,6 +24400,145 @@ async function testWorkoutClosure(){
   });
 }
 
+/* CONTRACT 169 — D62.5. Program Studio's split step moves on when a preset is
+   tapped, but Build my own had no way forward: the mode it set was never read,
+   so tapping it lit the recommended preset instead of opening the sessions,
+   and a week built session by session had no Continue. The athlete's only
+   exit was a preset, which replaced their week. Driven through the builder's
+   own functions and asserted on what the step and its footer render. */
+async function testBuildMyOwnContinue(){
+  section('CONTRACT 169 — Build My Own continues (D62.5)');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, doc = ctx.document;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const body = () => doc.getElementById('pbBody').innerHTML;
+  const foot = () => doc.getElementById('pbFoot').innerHTML;
+  const stepId = () => ctx.pbAtReview() ? 'review' : ctx.pbSteps()[ctx.pbState.step].id;
+  const DAYS = ['mon', 'tue', 'thu', 'fri'];
+  const atSplit = () => {
+    ctx.confirm = () => true;
+    ctx.pbState = { step: 0, dir: 'fwd', known: {}, mode: 'create', editingId: null, draft: null, edited: false,
+      answers: { goal: 'hypertrophy', experience: 'intermediate', equipment: 'full', emphasis: 'balanced',
+        sessionLength: 'standard', weeks: 8, frequency: 4, days: DAYS.slice(), startDate: '2026-11-02' } };
+    ctx.pbState.step = ctx.pbSteps().findIndex(s => s.id === 'split');
+    ctx.renderProgramBuilderFlow();
+  };
+  const roles = () => [...body().matchAll(/<select class="pb-cs-sel"[\s\S]*?<\/select>/g)]
+    .map(m => (m[0].match(/<option value="([^"]+)" selected>/) || [])[1]);
+  const continueOn = () => /<button class="btn-primary pb-go" onclick="pbNext\(\)" >\s*Continue<\/button>/.test(foot());
+
+  sub('Build my own opens the week and leads on from it');
+  guard('opening', () => {
+    atSplit();
+    T('a preset still moves on by itself, so the step has no footer until the athlete builds their own', foot() === '');
+    ctx.pbStartCustomSplit();
+    T('tapping Build my own opens a role for every session, starting from the recommended week',
+      roles().length === 4 && roles().every(Boolean) && ctx.pbState.customSplit === true, JSON.stringify(roles()));
+    T('and it is the card marked as chosen — the preset it started from is not lit',
+      /class="pb-split pb-split-custom on"/.test(body()) && !/class="pb-split on"/.test(body()));
+    T('Continue appears in the footer, the same primary control the days question uses', continueOn(), foot());
+  });
+  guard('choosing roles', () => {
+    atSplit(); ctx.pbStartCustomSplit();
+    ctx.pbSetCustomRole(1, 'arms');
+    ctx.pbSetCustomRole(3, 'legs');
+    T('choosing roles keeps the week open and Continue available',
+      JSON.stringify(roles()) === JSON.stringify(['upper', 'arms', 'upper', 'legs']) && continueOn());
+  });
+  guard('incomplete', () => {
+    atSplit(); ctx.pbStartCustomSplit();
+    ctx.pbState.answers.split = ['upper', 'arms'];
+    ctx.renderProgramBuilderFlow();
+    T('a week with a session still unassigned shows a disabled control that says so',
+      /onclick="pbNext\(\)" disabled>\s*Choose each session<\/button>/.test(foot()), foot());
+    ctx.pbNext();
+    T('and does not move on, even when asked to', stepId() === 'split');
+    ctx.pbState.answers.split = ['upper', 'lower', 'upper', 'legs', 'push'];
+    T('nor with more roles than training days', (ctx.pbNext(), stepId() === 'split'));
+  });
+  guard('continuing', () => {
+    atSplit(); ctx.pbStartCustomSplit();
+    ctx.pbSetCustomRole(1, 'arms');
+    const expected = ctx.pbSteps()[ctx.pbSteps().findIndex(s => s.id === 'split') + 1].id;
+    ctx.pbNext();
+    T('Continue is the builder\'s own next step, the one a preset would have reached', stepId() === expected, stepId() + ' vs ' + expected);
+    T('with the roles, the days and the mode as the athlete left them',
+      JSON.stringify(ctx.pbState.answers.split) === JSON.stringify(['upper', 'arms', 'upper', 'lower']) &&
+      JSON.stringify(ctx.pbState.answers.days) === JSON.stringify(DAYS) && ctx.pbState.customSplit === true);
+    ctx.pbGoBack();
+    T('back returns to the week, still open, still their own, with Continue',
+      stepId() === 'split' && JSON.stringify(roles()) === JSON.stringify(['upper', 'arms', 'upper', 'lower']) && continueOn());
+  });
+  guard('presets', () => {
+    atSplit(); ctx.pbStartCustomSplit();
+    const preset = ['push', 'pull', 'legs', 'arms'];
+    ctx.pbState.draft = { schedule: {} }; ctx.pbState.edited = true;
+    ctx.confirm = () => false;
+    ctx.pbSetSplit(preset);
+    T('declining a preset\'s rebuild keeps the athlete\'s week open as it was',
+      ctx.pbState.customSplit === true && JSON.stringify(ctx.pbState.answers.split) === JSON.stringify(['upper', 'lower', 'upper', 'lower']) && roles().length === 4);
+    ctx.confirm = () => true;
+    ctx.pbSetSplit(preset);
+    T('choosing a preset leaves Build my own', ctx.pbState.customSplit === false && JSON.stringify(ctx.pbState.answers.split) === JSON.stringify(preset));
+  });
+
+  sub('what the athlete made survives');
+  guard('the draft', () => {
+    atSplit(); ctx.pbStartCustomSplit();
+    ctx.pbSetCustomRole(1, 'arms');
+    ctx.pbState.step = ctx.pbSteps().length;
+    const def = ctx.pbDraft();
+    const days = ctx.PROGRAM_DAY_KEYS.filter(k => def.schedule[k] && def.schedule[k].type === 'workout');
+    T('the program is built on the athlete\'s days with the athlete\'s sessions',
+      JSON.stringify(days) === JSON.stringify(DAYS) && JSON.stringify(days.map(k => def.schedule[k].category)) === JSON.stringify(['upper', 'arms', 'upper', 'lower']));
+    ctx.pbRenameSession('mon', 'My Upper Day');
+    const d = ctx.pbState.draft;
+    ctx.pbJumpTo('split');
+    ctx.renderProgramBuilderFlow();
+    ctx.pbStartCustomSplit();
+    T('going back to the week, drawing it and opening Build my own again rebuild nothing', ctx.pbState.draft === d && ctx.pbState.edited === true);
+    ctx.pbNext();
+    T('Continue returns to the same program, with the name the athlete gave a session',
+      ctx.pbAtReview() && ctx.pbState.draft === d && d.schedule.mon.name === 'My Upper Day');
+    ctx.pbJumpTo('split');
+    const asked = [];
+    ctx.confirm = m => { asked.push(m); return false; };
+    ctx.pbSetCustomRole(0, 'push');
+    T('changing a role over edited work asks first, as any change to the week does, and a no changes nothing',
+      asked.length === 1 && /rebuild/.test(asked[0]) && ctx.pbState.draft === d && ctx.pbState.answers.split[0] === 'upper' && roles()[0] === 'upper');
+    ctx.confirm = () => true;
+    ctx.pbSetCustomRole(0, 'push');
+    T('and a yes is the rebuild it asked about', ctx.pbState.draft === null && ctx.pbState.answers.split[0] === 'push');
+  });
+  guard('leaving and returning', () => {
+    atSplit(); ctx.pbStartCustomSplit();
+    ctx.pbSetCustomRole(2, 'legs');
+    ctx.pbState.step = ctx.pbSteps().length;
+    ctx.pbDraft();
+    ctx.pbRenameSession('thu', 'Leg Day');
+    ctx.pbClose();
+    const rec = ctx.getStoredProgramDraft();
+    T('closing keeps the work in the draft LOOP already stores, under no new key',
+      !!rec && JSON.stringify(rec.answers.split) === JSON.stringify(['upper', 'lower', 'legs', 'lower']) && rec.draft.schedule.thu.name === 'Leg Day' &&
+      ctx.DATA_KEYS.length === 15);
+    ctx.openProgramBuilderFlow('create');
+    T('opening the builder again offers it back', ctx.pbState.resume === true && /Continue where you left off/.test(foot()));
+    ctx.pbResumeContinue();
+    T('and continuing restores the week, the days and the session names',
+      ctx.pbAtReview() && JSON.stringify(ctx.pbState.answers.split) === JSON.stringify(['upper', 'lower', 'legs', 'lower']) &&
+      JSON.stringify(ctx.pbState.answers.days) === JSON.stringify(DAYS) && ctx.pbState.draft.schedule.thu.name === 'Leg Day');
+    ctx.pbClose();
+    try{ ctx.clearProgramDraft(); }catch(e){}
+  });
+  guard('days', () => {
+    atSplit(); ctx.pbStartCustomSplit();
+    ctx.pbState.step = ctx.pbSteps().findIndex(s => s.id === 'days');
+    ctx.pbToggleDay('sat');
+    T('changing how many days there are still drops a week of the wrong length, and its mode with it (D51E)',
+      ctx.pbState.answers.split === null && ctx.pbState.customSplit === false);
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -24531,6 +24670,7 @@ async function main(){
   await testWorkoutSheetReachesTheEdge();
   await testWorkoutBuilder();
   await testWorkoutClosure();
+  await testBuildMyOwnContinue();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

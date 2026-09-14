@@ -14392,6 +14392,21 @@ const LOOP_UPDATES = [
       'Removing an exercise that already has logged sets asks first, as editing a past workout already does',
       'A workout you build from scratch offers the general warm-up, because LOOP no longer assumes it is a Push day'
     ]
+  },
+  {
+    id: 'v6-4',
+    version: 'LOOP 6.4',
+    title: 'Build My Own Continues',
+    date: '2026-09-14',
+    swVersion: 'loop-v141',
+    summary: 'Building your own week in Program Studio now opens your sessions and has a Continue to carry on with.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'In Program Studio, Build my own lit up the recommended week instead of opening your sessions, and a week you built session by session had no way to carry on except picking a preset. It now opens a role for every session, and Continue takes you to the next question with your week as you left it',
+      'Opening Build my own again, or changing a session\u2019s role, no longer throws away edits you had made to the program without asking first'
+    ],
+    changes: []
   }
 ];
 
@@ -32569,6 +32584,10 @@ function pbJumpTo(stepId){
 function pbNext(){
   if(!pbState) return;
   if(pbAtReview()) return;
+  /* D62.5 — a week of the athlete's own moves on only once every session has a
+     role; the Continue that calls this is disabled until then too. */
+  const here = pbSteps()[pbState.step];
+  if(here && here.id === 'split' && pbSplitIsCustom() && !pbCustomSplitComplete()) return;
   if(pbState.jumped){ pbState.jumped = false; pbState.step = pbSteps().length; }
   else pbState.step++;
   pbState.dir = 'fwd';
@@ -32702,12 +32721,16 @@ function pbSplitStepHtml(head){
   const opts = splitOptionsFor(days, a.experience || 'intermediate', planId);
   const cur = Array.isArray(a.split) ? a.split : null;
   const key = r => (r || []).join('|');
-  const custom = !!cur && !opts.some(o => key(o.roles) === key(cur));
+  /* D62.5 — Build my own is the mode the athlete chose, not a guess from the
+     roles. It starts from the recommended week, so reading it from the roles
+     alone matched a preset, lit that card and never opened the sessions. */
+  const custom = pbSplitIsCustom();
+  const presetOn = o => !custom && !!cur && key(cur) === key(o.roles);
 
   const cards = opts.map(o =>
-    '<button type="button" class="pb-split' + (cur && key(cur) === key(o.roles) ? ' on' : '') + '"' +
+    '<button type="button" class="pb-split' + (presetOn(o) ? ' on' : '') + '"' +
     ' onclick="pbSetSplit([' + o.roles.map(r => "'" + r + "'").join(',') + '])"' +
-    ' aria-pressed="' + (!!cur && key(cur) === key(o.roles)) + '">' +
+    ' aria-pressed="' + presetOn(o) + '">' +
       '<span class="pb-split-top">' +
         '<span class="pb-split-l">' + escapeHtml(o.label) + '</span>' +
         (o.recommended ? '<span class="pb-split-rec">Recommended</span>'
@@ -32741,13 +32764,40 @@ function pbSplitStepHtml(head){
       ' prescriptions inside it — and you can change any of them afterwards.</p>';
 }
 
+/* D62.5 — how many sessions the week has, whether the athlete is building it
+   themselves, and whether every one of those sessions has a role. */
+function pbSplitDays(){
+  const a = pbState.answers;
+  return (a.days && a.days.length) || parseInt(a.frequency, 10) || 3;
+}
+function pbSplitIsCustom(){
+  if(!pbState || !Array.isArray(pbState.answers.split)) return false;
+  if(pbState.customSplit) return true;
+  const a = pbState.answers;
+  const planId = builderPlanFor(a.equipment || 'full', a.goal || 'hypertrophy');
+  return !splitOptionsFor(pbSplitDays(), a.experience || 'intermediate', planId)
+    .some(o => o.roles.join('|') === a.split.join('|'));
+}
+function pbCustomSplitComplete(){
+  const split = pbState && pbState.answers.split;
+  return Array.isArray(split) && split.length === pbSplitDays() && split.every(r => !!splitRole(r));
+}
+
 /* Choosing a split is a constraint change, so it rebuilds — but choosing the
-   one already selected is not a change and must not offer to discard work. */
+   one already selected is not a change and must not offer to discard work.
+   A preset leaves Build my own (D62.5), unless the athlete declines the
+   rebuild, in which case their own week stays open as it was. */
 function pbSetSplit(roles){
   if(!pbState) return;
+  const wasCustom = !!pbState.customSplit;
+  pbState.customSplit = false;
   const cur = pbState.answers.split;
   if(Array.isArray(cur) && cur.join('|') === roles.join('|')){ pbNext(); return; }
   pbAnswer('split', roles);
+  if(pbState && pbState.answers.split !== roles && wasCustom){
+    pbState.customSplit = true;
+    renderProgramBuilderFlow();
+  }
 }
 
 /* Custom starts from whatever is on screen, so the athlete edits a real week
@@ -32761,11 +32811,21 @@ function pbStartCustomSplit(){
     ? a.split.slice()
     : (splitOptionsFor(days, a.experience || 'intermediate', planId)[0] || { roles: [] }).roles.slice();
   if(!base.length) return;
-  /* Nudge it off every preset so the custom rows stay open while editing. */
+  /* The custom rows stay open while editing because the mode is recorded, not
+     inferred (D62.5). Opening them is not a change to the week: a draft is
+     only dropped when the week it was built from is not the one on screen. */
+  const same = Array.isArray(a.split) && a.split.join('|') === base.join('|');
   pbState.answers.split = base;
   pbState.customSplit = true;
-  pbState.draft = null;
+  if(!same) pbState.draft = null;
   renderProgramBuilderFlow();
+  /* The sessions that just opened sit below the cards, under the Continue
+     that now leads on from them: bring them into view. */
+  try{
+    const rows = document.querySelector('#pbBody .pb-custom');
+    const reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if(rows && rows.scrollIntoView) rows.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+  }catch(e){}
 }
 
 function pbSetCustomRole(i, roleId){
@@ -32775,6 +32835,12 @@ function pbSetCustomRole(i, roleId){
   const next = (Array.isArray(a.split) ? a.split.slice() : []).slice(0, days);
   while(next.length < days) next.push('fullbody');
   if(next[i] === roleId) return;
+  /* D62.5 — the same question pbAnswer asks before a changed week replaces
+     work the athlete has done on the draft; declining leaves the role as it was. */
+  if(pbState.draft && pbState.edited && !confirm('Change this and rebuild? Your edits to the draft will be replaced.')){
+    renderProgramBuilderFlow();
+    return;
+  }
   next[i] = roleId;
   pbState.answers.split = next;
   pbState.draft = null;                      // a different week, so a new draft
@@ -32855,6 +32921,15 @@ function pbStepFootHtml(step){
   }
   if(step.id === 'emphasis'){
     return `<button class="btn-secondary pb-go" onclick="pbAnswer('emphasis','balanced')">Skip</button>`;
+  }
+  /* D62.5 — a preset card moves on when tapped, but a week the athlete builds
+     session by session is several choices, so it gets the same Continue the
+     days question has: the thumb reaches it, and it is disabled only while a
+     session is still without a role. */
+  if(step.id === 'split' && pbSplitIsCustom()){
+    const ready = pbCustomSplitComplete();
+    return `<button class="btn-primary pb-go" onclick="pbNext()" ${ready ? '' : 'disabled'}>
+      ${ready ? 'Continue' : 'Choose each session'}</button>`;
   }
   return '';
 }

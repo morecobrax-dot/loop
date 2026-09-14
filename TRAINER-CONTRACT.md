@@ -8676,3 +8676,101 @@ revisions, activity, ranks, social, and exercise art and definitions.
   question.
 - The weekly release-date cadence is retired; a release is dated the day it
   deploys.
+
+## §92 — D62.5: Build My Own continues
+
+**Status.** Shipped in LOOP 6.4 (`loop-v141`), a maintenance release on 6.3.
+`DATA_KEYS` 15, schema 1, no migration, no new storage key,
+`TRAINER_ENGINE_VERSION` 0.1.1-shadow. Program generation is unchanged.
+
+### The dead end
+
+The builder advances by answering: a single-choice question moves on when a
+tile is tapped, and the two multi-choice questions — days and emphasis — keep a
+footer button. The split step's preset cards advance through `pbSetSplit` →
+`pbAnswer` → `pbNext`. Build my own did not, for two reasons:
+
+- `pbStartCustomSplit` set `pbState.customSplit`, and nothing read it. The step
+  decided "custom" from the roles alone, and a custom week starts from the
+  recommended preset, so the first tap lit that preset's card and never opened
+  the sessions — measured at 390×844: 0 role selects, the Upper / Lower ×2 card
+  marked, no footer.
+- `pbStepFootHtml` returned nothing for the split step, so a week that did
+  differ from every preset had its role selects and no way forward. The only
+  exit was a preset card, which replaced the athlete's week.
+
+The intended transition already existed: `pbNext()`, the one the days
+question's Continue calls and the one `pbSetSplit` calls for a preset already
+chosen.
+
+### The fix
+
+- `pbSplitIsCustom()` reads the mode the athlete chose (or a week matching no
+  preset); the split step and its footer both use it, and a preset card is lit
+  only outside Build my own.
+- The footer shows the days question's own control — `btn-primary pb-go`,
+  Continue, calling `pbNext()` — while the athlete builds their own week. It is
+  disabled, reading "Choose each session", only while `pbCustomSplitComplete()`
+  is false: a role for exactly as many sessions as training days, every role a
+  known one. No other rule was invented; the builder had none, and
+  `pbSetCustomRole` already keeps the week that length.
+- `pbNext()` refuses to leave an incomplete custom week, so the rule is
+  structural rather than only a disabled button.
+- Opening Build my own brings the sessions into view (smoothly, instantly
+  under reduced motion), because they open below the cards and under the new
+  Continue.
+
+### What the athlete made
+
+- A preset leaves Build my own; if the athlete declines the rebuild it asks
+  for, their week stays open as it was.
+- Opening Build my own no longer drops the draft unless the week it was built
+  from is not the one on screen — it used to, on every tap, which made "go back
+  and look" a silent rebuild.
+- Changing a role over an edited draft asks `pbAnswer`'s own question first;
+  a no leaves the role, the week and the draft untouched. It used to rebuild
+  without asking.
+- Roles, days, frequency, the chosen split, session names and exercises all
+  live where they did — `pbState.answers` and the draft — and survive
+  Continue, Back, Adjust and the draft's leave-and-resume. Changing the number
+  of days still drops a week of the wrong length (D51E), and its mode with it.
+- Draft storage is unchanged: only an edited draft is stored, so a partial
+  configuration closed before any draft exists is not offered back, as before.
+
+### Verification
+
+- **Contract 169** — 22 assertions through the builder's own functions and its
+  rendered step and footer: no footer while presets lead; Build my own opening
+  four roles from the recommended week, its own card marked and no preset lit,
+  Continue present; roles kept while choosing; a disabled, labelled control
+  and no advance for an incomplete or over-long week; Continue reaching the
+  step after split with roles, days and mode intact; Back to the open week;
+  a declined preset keeping the week and an accepted one leaving the mode; the
+  draft built on the athlete's days and sessions; Adjust, redraw and reopening
+  rebuilding nothing and a renamed session surviving; the question before a
+  role change over edited work, no and yes; closing, resuming and the week,
+  days and names restored under no new key; a change of days still dropping
+  the week.
+- **Mutation check** — 11 of 11 caught: the mode never read, no Continue,
+  Continue never disabled, pbNext leaving an incomplete week, Continue calling
+  something else, the preset still lit, opening Build my own dropping the
+  draft, a role change without asking, a preset keeping the mode, a declined
+  preset closing the week, a change of days keeping the mode. Production 6.3
+  fails 13.
+- **Physical** — headless Edge with the iPhone's insets at 390×844, 375×812 and
+  844×390, through the real controls: Build my own opens the sessions in view,
+  Continue sits in the footer 46px (portrait) and 33px (rotated) above the
+  bottom edge, one primary control, no clipped selects; Continue → Experience →
+  Back → the same week; on to the program, which is the athlete's week; a
+  session renamed, Adjust and Continue back to the same draft and name; a role
+  change over that work asked and declined; closed and resumed with week and
+  names intact.
+- `npm run verify` 6697 / 0; audit 87, audit:program 335, audit:cardio 261,
+  audit:gps 43, audit:dates 40 × 7 zones.
+
+### Known and recorded
+
+- Rotated at 844×390, three of four session rows fit above Continue; the
+  fourth is one scroll away.
+- The mode itself is not stored with the draft: a resumed week that happens to
+  equal a preset shows as that preset. Its roles are the same either way.
