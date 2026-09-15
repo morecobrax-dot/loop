@@ -2251,15 +2251,16 @@ function build(){
   function chair(o){ return ext({ pin:['nE', [60, 46]], nua:0, nfa:90, fua:-2, ffa:88, trunk:180, neck:180, nft:90, fft:90 }, o); }
   /* Hanging from a bar at (60, 16). */
   function hanging(o){ return ext({ pin:['nW', [60, 16]], nua:180, nfa:180, fua:176, ffa:176, trunk:180, neck:180 }, o); }
-  /* Seated V for the weighted Russian twist, seen from the front. */
-  function vSit(o){ return ext({ pin:['hc', [60, 101.6]], torsoScale:0.9, thighScale:0.62, shinScale:0.46, lth:146, lsh:70, rth:146, rsh:70, sw:7.2 }, o); }
-  /* The Russian twist seen three-quarters from the front (D67): seat on the
-     floor, the trunk leaned back 34 degrees and facing us, the knees together
-     and bent to the right with the feet just off the floor. A front view turns
-     the far foot outward — backward, here — so the far leg is solved to land
-     that foot inside the near one, where it reads as the heel. Both positions
-     share every joint but the arms, so only the turn changes: the hands meet
-     beside one hip or the other, one arm across the body, the other elbow out. */
+  /* Both Russian twists seen three-quarters from the front (D67, D68): seat on
+     the floor, the trunk leaned back 34 degrees and facing us, the knees
+     together and bent to the right with the feet just off the floor. A front
+     view turns the far foot outward — backward, here — so the far leg is
+     solved to land that foot inside the near one, where it reads as the heel.
+     Every pose but the hands is identical, so only the turn changes: the
+     hands meet at one point, beside one hip or the other, one arm across the
+     body and the other elbow out. Bodyweight brings the hands low, near the
+     lap; the weighted twist (D68) brings them to the chest, where a held
+     medicine ball is drawn. */
   function twistSeat(hands){
     var p = { pin:['hc', [50, G - 4.4]], lean:-34, torsoScale:0.94, neckTilt:-24, sw:6.8, hw:0.6, uaScale:0.88, rth:143, rsh:53 };
     var J = ExerciseArt.solve('front', p);
@@ -2396,9 +2397,14 @@ function build(){
     end:  twistSeat([51.5, 93]),
     track:'mid' },
 
-  weighted_russian_twist: { view:'front', arch:'dynamic', both:true,
-    start:handsAt(vSit({ lean:-12 }), [38, 84]),
-    end:  handsAt(vSit({ lean:12 }), [82, 84]),
+  /* D68: the same seated, leaned-back twist as the bodyweight version, so the
+     posture reads correctly — the old drawing rocked an upright trunk side to
+     side over flat, splayed legs, a side bend rather than a twist. Both hands
+     hold one ball at the chest and travel together, arc lifted above the
+     head like the bodyweight twist's. */
+  weighted_russian_twist: { view:'front', arch:'dynamic', both:true, key:'end', path:'flight', flight:1, arrow:{ shift:[6, -33], slide:0 },
+    start:twistSeat([35, 88]),
+    end:  twistSeat([51.5, 88]),
     gear:[['medball', { at:'mid', r:5.2 }]], gearFront:true, track:'mid' },
 
   woodchop_cable: { view:'front', arch:'cable', path:'line', arrow:{ trim:[0.05, 0.78] }, key:'end',
@@ -2747,7 +2753,7 @@ var EXERCISE_HOW_TO = {
   leg_raise_machine:['Forearms on the pads, back flat', 'Bring the knees up', 'Lower with control'],
   ab_wheel:['Kneel, hands on the wheel', 'Roll out with a braced trunk', 'Pull back to the knees'],
   russian_twist:['Lean back, feet off the floor', 'Rotate the hands side to side', 'Turn from the ribs'],
-  weighted_russian_twist:['Hold the weight at the chest', 'Rotate side to side', 'Keep the chest tall'],
+  weighted_russian_twist:['Lean back, feet off the floor', 'Rotate the weight side to side', 'Keep the chest tall'],
   woodchop_cable:['Pulley high on one side', 'Pull across and down to the hip', 'Rotate through the torso'],
   band_woodchop:['Band anchored high', 'Chop across and down', 'Pivot the back foot'],
   pallof_press:['Stand side-on to the anchor', 'Press straight out from the chest', 'Resist the pull to rotate'],

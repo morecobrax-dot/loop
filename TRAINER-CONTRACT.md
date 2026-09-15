@@ -9977,3 +9977,93 @@ the floor, the hands travel side to side, and the turn is the trunk's.
   the ghost and the arc.
 - **The far leg is mostly hidden** behind the near leg, with its foot read as
   the near foot's heel.
+
+## §99 — D68: The weighted Russian twist, held and turned
+
+**Status.** Shipped in LOOP 7.1 (`loop-v148`). One drawing, its cues, and one
+now-dead helper removed. `DATA_KEYS` 15, schema 1, no migration, no new
+storage key, `TRAINER_ENGINE_VERSION` 0.1.1-shadow. `weighted_russian_twist`
+stays an unmapped name (`resolveExerciseId` returns `unmapped:...`) with its
+own history apart from `russian_twist`, its Swap role, program eligibility
+and prescriptions unchanged.
+
+### What was wrong (measured on 7.0)
+
+- **A side bend, not a twist — the exact D67 problem, in the other twist.**
+  The pose was still the old front-view seated V (`vSit`, `lean:-12`/`+12`):
+  an upright trunk rocking 9.4 units side to side over flat, splayed legs 47.5
+  units apart, with a second head 13.2 units beside the first in How To —
+  fixed for the bodyweight twist in D67, never carried over to this one.
+- **The ball read as resting on the far knee**, not held at the chest: `vSit`
+  held the hands at y 84 against a mostly-upright torso, so the ball sat low
+  and beside the leg rather than braced against the ribs.
+
+### The new drawing
+
+- **Shares its posture with `russian_twist` exactly.** Both now call the same
+  `twistSeat(hands)` (D67): seat on the floor, trunk leaned back 34°, knees
+  together and bent 90°/98° with the feet clear of the floor, the far leg
+  solved to tuck behind the near one. Every joint but the hands is
+  pixel-identical between the two twists — the seat, trunk, head and both
+  legs move together if either is ever retuned.
+- **Only the hand height differs.** `twistSeat([35, 88])` /
+  `twistSeat([51.5, 88])`: 88 sits at the chest joint (86.7) rather than the
+  bodyweight twist's 93, near the lap — the two exercises hold their hands
+  where each actually asks for them.
+- **One ball, held where the hands meet.** `gear:[['medball', { at:'mid',
+  r:5.2 }]], gearFront:true`: since `handsAt` converges both hands to one
+  point, the ball sits exactly there, drawn after the arms so it is never
+  occluded.
+- **The arrow is the bodyweight twist's own convention**, not a new one:
+  `path:'flight', flight:1, arrow:{ shift:[6, -33], slide:0 }` — one shallow,
+  level, double-headed arc 10+ units above the head, well inside the frame at
+  both sizes.
+- **The old seated-V helper (`vSit`) is removed**, not left dead — it had
+  exactly one caller, and that caller no longer exists.
+
+### Cues
+
+Changed to match the new posture, mirroring the bodyweight twist's own
+phrasing for the mechanics they now share: "Lean back, feet off the floor",
+"Rotate the weight side to side", "Keep the chest tall" (was "Hold the weight
+at the chest", "Rotate side to side", "Keep the chest tall" — accurate to the
+old upright-rocking pose, silent on the lean and the feet that the new pose
+now makes true).
+
+### Verification
+
+- **Contract 176** (30 assertions): identity (unmapped history, name map,
+  plan text, cues ≤48 characters, How To); pose (only arms move; seat, trunk,
+  head and legs pixel-identical to `russian_twist`'s own; lean 34° shared;
+  both knees 70–100°; hands meet at the ball; higher than the bodyweight
+  twist's own hands — at the chest; opposite sides; elbows bent; the elbow
+  clear of the knees); drawing (exactly one gear entry, ball radius and
+  `gearFront`; one visible head; two balls at full size (ghost's and solid's)
+  and one at thumbnail; ghost faint at full size and dropped at thumbnail;
+  the arrow above the head, level, narrower than the figure, nothing clipped,
+  at both sizes; the thumbnail figure over 80% of its frame); cleanup
+  (`vSit` gone from the source, not merely uncalled; the bodyweight twist's
+  own markup still hashes to D67's).
+- **Contract 175 repointed with reason:** its "nothing else moved" scope now
+  excludes `weighted_russian_twist` from the 176-drawing digest (175 remain,
+  new digest `c3a4b53669acdd2d`) and drops the `vSit`-based assertion that
+  this phase makes false on purpose; its byName pin stays, its howTo pin
+  narrows to `russian_twist`'s own cues only, since the weighted twist's are
+  now D68's, checked here instead.
+- **Mutation:** 17 of 17 caught, including the old `vSit` drawing restored,
+  moving legs, a sideways lean, hands that miss each other, hands dropped
+  back to the bodyweight twist's height, a second gear entry, the ball drawn
+  behind the arms, the ball resized, the arc across the body, a one-way
+  arrow, the elbow on the knee, straightened knees, a changed cue, the name
+  map entry dropped, the bodyweight twist changed alongside it, `vSit`
+  restored as dead code, and a renderer change.
+- **Physical:** Node and headless Edge render byte-identical markup for the
+  new drawing at both sizes.
+
+### Known and recorded
+
+- **The two twists are now coupled through `twistSeat`.** A future change to
+  the shared seat, trunk or legs moves both exercises' pictures at once;
+  Contract 176 pins the joints that must stay identical between them.
+- **The ball's ghost position is drawn only at full size**, matching every
+  other whole-body ghost's thumbnail rule.

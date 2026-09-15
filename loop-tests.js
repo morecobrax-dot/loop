@@ -25888,9 +25888,10 @@ async function testTrainLauncher(){
   const artFile = path.join(repo, 'loop-exercise-art.js');
   const a = src.indexOf('LOOP-EXERCISE-ART-BEGIN */'), b = src.indexOf('/* LOOP-EXERCISE-ART-END */');
   /* The drawings as shipped. A phase that changes a drawing on purpose moves these with its reason.
-     D67 moved them: it redrew the Russian twist and nothing else, which Contract 175 holds drawing by drawing. */
-  T('no drawing changed but on purpose: the art source and its vendored copy are D67\'s',
-    fs.existsSync(artFile) && sha(norm(fs.readFileSync(artFile, 'utf8'))) === 'b50108786faba2fb' && a > 0 && b > a && sha(norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b))) === 'b50108786faba2fb');
+     D67 redrew the Russian twist; D68 redrew the weighted Russian twist and removed vSit, its
+     now-dead helper — nothing else, which Contracts 175 and 176 hold drawing by drawing. */
+  T('no drawing changed but on purpose: the art source and its vendored copy are D68\'s',
+    fs.existsSync(artFile) && sha(norm(fs.readFileSync(artFile, 'utf8'))) === '78be015988bc102d' && a > 0 && b > a && sha(norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b))) === '78be015988bc102d');
   T('the muscle figure and the profile radar are drawn as they were', sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === 'a568afdf15633033' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
   T('the art exporter stays development tooling: the app and its worker never reference it',
     !/export-exercise-art|artifacts\/exercise-art-export/.test(src) && !/export-exercise-art|artifacts\//.test(fs.readFileSync(path.join(repo, 'sw.js'), 'utf8')));
@@ -26326,19 +26327,146 @@ async function testRussianTwistArt(){
 
   sub('nothing else moved');
   guard('scope', () => {
-    const others = Object.keys(defs).sort().filter(k => k !== 'russian_twist');
-    /* Every other drawing, at both sizes, as 6.9 drew them. A phase that changes a drawing on purpose moves this with its reason. */
-    T('all ' + others.length + ' other drawings are byte for byte the ones LOOP 6.9 shipped, the weighted twist among them',
-      others.length === 176 && others.indexOf('weighted_russian_twist') !== -1 &&
-      sha(others.map(k => k + '|' + XA.render(defs[k], { size:'full' }) + '|' + XA.render(defs[k], { size:'thumb' })).join('\n')) === '0c7c2c3f3c4e9b6f');
+    const others = Object.keys(defs).sort().filter(k => k !== 'russian_twist' && k !== 'weighted_russian_twist');
+    /* Every other drawing, at both sizes, as 7.0 drew them. A phase that changes a drawing on purpose moves this
+       with its reason. D68 moved this too: it redrew weighted_russian_twist and nothing else, which
+       Contract 176 holds drawing by drawing, so the weighted twist is excluded here rather than pinned. */
+    T('all ' + others.length + ' other drawings are byte for byte the ones LOOP 7.0 shipped',
+      others.length === 175 &&
+      sha(others.map(k => k + '|' + XA.render(defs[k], { size:'full' }) + '|' + XA.render(defs[k], { size:'thumb' })).join('\n')) === 'c3a4b53669acdd2d');
     const a = src.indexOf('LOOP-EXERCISE-ART-BEGIN */'), b = src.indexOf('/* LOOP-EXERCISE-ART-END */');
     const lib = norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b));
     const renderer = lib.slice(lib.indexOf('var ExerciseArt = (function(){'), lib.indexOf('var EXERCISE_ART = (function(){'));
     T('the renderer is untouched: no new option, no new rule', renderer.length > 40000 && sha(renderer) === '6f4ebcaeb25afe0c');
-    T('the names that reach drawings and every cue are as they were',
-      sha(JSON.stringify(ctx.EXERCISE_ART.byName)) === '25a5e81ed07285c4' && sha(JSON.stringify(ctx.EXERCISE_ART.howTo)) === 'cb39cc0fdb5b5538');
-    T('the weighted twist still sits in its own seated V', /weighted_russian_twist: \{ view:'front', arch:'dynamic', both:true,\s+start:handsAt\(vSit\(\{ lean:-12 \}\), \[38, 84\]\),/.test(lib));
+    T('the names that reach drawings are as they were', sha(JSON.stringify(ctx.EXERCISE_ART.byName)) === '25a5e81ed07285c4');
+    T('this drawing\'s own cues are unchanged; the weighted twist\'s are D68\'s, checked by Contract 176',
+      JSON.stringify(ctx.EXERCISE_ART.howTo.russian_twist) === '["Lean back, feet off the floor","Rotate the hands side to side","Turn from the ribs"]');
     T('the thumbnail budget holds', Object.keys(defs).reduce((s, k) => s + (XA.render(defs[k], { size:'thumb' }).match(/<(path|circle|rect)/g) || []).length, 0) < 3200);
+    T('no history, storage key, schema or trainer change', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
+      /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+  });
+}
+
+/* =========================================================
+   CONTRACT 176 — THE WEIGHTED RUSSIAN TWIST, HELD AND TURNED (D68)
+   ---------------------------------------------------------
+   The weighted Russian twist was still drawn as the old front-
+   view seated V: an upright trunk rocked side to side over flat,
+   splayed legs, the ball glued against the far knee — a side
+   bend, not a twist, and unrelated to how D67 fixed the
+   bodyweight version. It now shares that fix's exact seat, trunk,
+   head and legs (twistSeat) and differs only where it must: the
+   hands meet higher, at the chest, holding one ball, under the
+   same arc lifted above the head. The old seated-V helper (vSit)
+   is removed, not left dead. The identity, its unmapped history,
+   names, prescriptions and cues are the only other things that
+   move, and every other drawing — the bodyweight twist among
+   them — is untouched.
+   ========================================================= */
+async function testWeightedRussianTwistArt(){
+  section('CONTRACT 176 — the weighted Russian twist, held and turned (D68)');
+  const fs = require('fs');
+  const crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, XA = ctx.ExerciseArt, G = XA.G, defs = ctx.EXERCISE_ART.definitions();
+  const def = defs.weighted_russian_twist, sibling = defs.russian_twist;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const sha = t => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
+  const full = XA.render(def, { size:'full' }), thumb = XA.render(def, { size:'thumb' });
+  const J = [XA.solve('front', def.start), XA.solve('front', def.end)];
+  const S = [XA.solve('front', sibling.start), XA.solve('front', sibling.end)];
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const angleAt = (a, b, c) => { const u = [a[0] - b[0], a[1] - b[1]], v = [c[0] - b[0], c[1] - b[1]];
+    return Math.acos((u[0] * v[0] + u[1] * v[1]) / Math.hypot(u[0], u[1]) / Math.hypot(v[0], v[1])) * 180 / Math.PI; };
+  const nums = s => (String(s).match(/-?\d+(\.\d+)?/g) || []).map(Number);
+  const pairs = d => { const n = nums(d), out = []; for(let i = 0; i + 1 < n.length; i += 2) out.push([n[i], n[i + 1]]); return out; };
+  const a = src.indexOf('LOOP-EXERCISE-ART-BEGIN */'), b = src.indexOf('/* LOOP-EXERCISE-ART-END */');
+  const lib = src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b);
+
+  sub('the same exercise: an unmapped history of its own, names, prescriptions and cues');
+  guard('identity', () => {
+    T('both names still reach a drawing, each keeping its own id apart from the bodyweight twist',
+      ctx.exerciseVisualKey('Weighted Russian Twist') === 'weighted_russian_twist' && ctx.exerciseVisualKey('Russian Twist') === 'russian_twist' &&
+      ctx.resolveExerciseId('Weighted Russian Twist').indexOf('unmapped:') === 0 && ctx.resolveExerciseId('Weighted Russian Twist') !== ctx.resolveExerciseId('Russian Twist'));
+    T('the name map entry is exactly as before', src.indexOf("'weighted russian twist':'weighted_russian_twist',") !== -1);
+    T('the plans still prescribe it exactly as before', (src.match(/T\('Weighted Russian Twist',[^)]*\)/g) || []).join(' | ') === "T('Weighted Russian Twist',3,'12/side','7')");
+    T('the cues are truthful to the new pose, three of them, none over 48 characters',
+      JSON.stringify(ctx.EXERCISE_ART.howTo.weighted_russian_twist) === '["Lean back, feet off the floor","Rotate the weight side to side","Keep the chest tall"]' &&
+      ctx.EXERCISE_ART.howTo.weighted_russian_twist.every(c => c.length <= 48));
+    T('How To shows this drawing beside them', (() => {
+      ctx.openHowTo('Weighted Russian Twist');
+      const ok = ctx.document.getElementById('howToArt').innerHTML === full && /Keep the chest tall/.test(ctx.document.getElementById('howToCues').innerHTML);
+      ctx.closeHowTo();
+      return ok;
+    })());
+  });
+
+  sub('a seated hold and turn, sharing its posture with the bodyweight twist');
+  guard('pose', () => {
+    const moved = Object.keys(Object.assign({}, def.start, def.end)).filter(k => JSON.stringify(def.start[k]) !== JSON.stringify(def.end[k]));
+    T('the two positions differ only in the arms', moved.length > 0 && moved.every(k => ['la', 'lfa', 'ra', 'rfa'].indexOf(k) !== -1), moved.join(','));
+    T('the seat, trunk, head and both legs are pixel-identical to the bodyweight twist\'s own',
+      ['hc', 'sc', 'head', 'lH', 'rH', 'lK', 'rK', 'lA', 'rA', 'lT', 'rT'].every(j => dist(J[0][j], S[0][j]) < 0.01 && dist(J[1][j], S[1][j]) < 0.01));
+    T('the trunk leans back the same 34 degrees as the bodyweight twist, and does not bend sideways to turn',
+      def.start.lean === def.end.lean && def.start.lean === sibling.start.lean);
+    T('both knees bend between 70 and 100 degrees',
+      J.every(P => [angleAt(P.rH, P.rK, P.rA), angleAt(P.lH, P.lK, P.lA)].every(x => x >= 70 && x <= 100)),
+      J.map(P => angleAt(P.rH, P.rK, P.rA).toFixed(1) + '/' + angleAt(P.lH, P.lK, P.lA).toFixed(1)).join(' '));
+    T('the hands meet in both positions, at one point the ball sits on', J.every(P => dist(P.lW, P.rW) < 0.05));
+    const side = P => { const ax = P.sc[0] - P.hc[0], ay = P.sc[1] - P.hc[1], hx = P.lW[0] - P.hc[0], hy = P.lW[1] - P.hc[1], L = Math.hypot(ax, ay);
+      return { t: (hx * ax + hy * ay) / (L * L), off: (hx * ay - hy * ax) / L }; };
+    T('beside the trunk, higher than the bodyweight twist\'s own hands: at the chest',
+      J.every(P => { const s = side(P); return s.t > 0.3 && s.t < 0.9 && Math.abs(s.off) > 3 && Math.abs(s.off) < 12; }) &&
+      J[0].lW[1] < S[0].lW[1] - 3 && J[1].lW[1] < S[1].lW[1] - 3,
+      J.map(P => side(P).t.toFixed(2) + '@' + side(P).off.toFixed(1)).join(' ') + ' | hand y ' + J[0].lW[1] + ' vs bodyweight ' + S[0].lW[1]);
+    T('on one side of the trunk, then on the other', Math.sign(side(J[0]).off) === -Math.sign(side(J[1]).off));
+    T('every elbow is bent', J.every(P => angleAt(P.lS, P.lE, P.lW) < 160 && angleAt(P.rS, P.rE, P.rW) < 160));
+    const elbowToKnee = P => Math.min(dist(P.lE, P.rK), dist(P.rE, P.rK), dist(P.lE, P.lK), dist(P.rE, P.lK));
+    T('and the elbow that swings out keeps clear of the knees', J.every(P => elbowToKnee(P) > 7.4), J.map(P => elbowToKnee(P).toFixed(2)).join(' '));
+  });
+
+  sub('one held ball, a faint second position, one arc above the head');
+  guard('drawing', () => {
+    T('exactly one piece of gear: a ball at the hands, drawn in front of the figure',
+      Array.isArray(def.gear) && def.gear.length === 1 && def.gear[0][0] === 'medball' && def.gear[0][1].at === 'mid' && def.gear[0][1].r === 5.2 && def.gearFront === true);
+    const heads = (full.match(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="5\.4"/g) || []).map(nums);
+    T('one head: the second position\'s lies exactly under the first, and a thumbnail draws only one',
+      heads.length === 2 && JSON.stringify(heads[0]) === JSON.stringify(heads[1]) && (thumb.match(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="5\.4"/g) || []).length === 1);
+    const balls = (full.match(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="5\.2"/g) || []).map(nums);
+    T('two balls at full size — the ghost\'s where it was, the solid one where it is now — and only the solid one at thumbnail size',
+      balls.length === 2 && JSON.stringify(balls[0]) !== JSON.stringify(balls[1]) && (thumb.match(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="5\.2"/g) || []).length === 1);
+    T('the second position is faint at full size, and left out of a thumbnail like every whole-body ghost',
+      (full.match(/<g opacity="0\.22">/g) || []).length === 1 && !/<g opacity/.test(thumb));
+    const arrow = svg => {
+      const shafts = svg.match(/<path d="[^"]+" stroke="#4CC2FF"[^>]*\/>/g) || [], tips = svg.match(/<path d="[^"]+" fill="#4CC2FF"[^>]*\/>/g) || [];
+      const pts = [].concat.apply([], shafts.concat(tips).map(p => pairs(p.match(/d="([^"]+)"/)[1])));
+      const shaft = shafts.length ? pairs(shafts[0].match(/d="([^"]+)"/)[1]) : [];
+      return { shafts: shafts.length, tips: tips.length, pts, shaft };
+    };
+    const headTop = J[1].head[1] - XA.B.head - 0.75;
+    [['full', full], ['thumb', thumb]].forEach(([size, svg]) => {
+      const arr = arrow(svg), xs = arr.pts.map(p => p[0]), ys = arr.pts.map(p => p[1]);
+      T(size + ': one arrow, with a head at each end', arr.shafts === 1 && arr.tips === 2);
+      T(size + ': it sits above the head, clear of it, and level', ys.length > 0 && Math.max.apply(null, ys) < headTop - 3 &&
+        Math.abs(arr.shaft[0][1] - arr.shaft[arr.shaft.length - 1][1]) < 1, 'lowest ' + Math.max.apply(null, ys) + ' head top ' + headTop.toFixed(1));
+      T(size + ': and spans well under the athlete\'s own width', Math.max.apply(null, xs) - Math.min.apply(null, xs) < 0.6 * (J[1].rT[0] - (J[1].head[0] - XA.B.head)));
+      const vb = nums(svg.match(/viewBox="([^"]+)"/)[1]);
+      const inside = p => p[0] >= vb[0] && p[0] <= vb[0] + vb[2] && p[1] >= vb[1] && p[1] <= vb[1] + vb[3];
+      const all = [].concat.apply([], (svg.match(/<path d="([^"]+)"/g) || []).map(p => pairs(p.slice(9, -1))));
+      T(size + ': nothing is cut off by its frame', all.length > 50 && all.every(inside));
+    });
+    const body = pairs((thumb.replace(/<path d="[^"]+" (stroke|fill)="#4CC2FF"[^>]*\/>/g, '').replace(/<path d="M[^"]+" stroke="#2A313B"[^>]*\/>/, '').match(/<path d="[^"]+"/g) || []).join(' '));
+    const tvb = nums(thumb.match(/viewBox="([^"]+)"/)[1]), bx = body.map(p => p[0]);
+    T('a thumbnail frames the athlete large: the figure spans over 80% of its width',
+      (Math.max.apply(null, bx) - Math.min.apply(null, bx)) / tvb[2] > 0.8, ((Math.max.apply(null, bx) - Math.min.apply(null, bx)) / tvb[2]).toFixed(2));
+  });
+
+  sub('the old seated-V helper is gone, not merely orphaned');
+  guard('cleanup', () => {
+    T('vSit was removed along with its one caller, not left as dead code', !/function vSit\(/.test(lib) && !/\bvSit\(/.test(lib));
+    T('the bodyweight twist itself renders exactly as D67 shipped it',
+      sha(XA.render(sibling, { size:'full' })) === 'fd6674e49c315758' && sha(XA.render(sibling, { size:'thumb' })) === '70fa0def322bc3b7');
     T('no history, storage key, schema or trainer change', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
       /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
   });
@@ -26482,6 +26610,7 @@ async function main(){
   await testTrainLauncher();
   await testWeekHoldToSlide();
   await testRussianTwistArt();
+  await testWeightedRussianTwistArt();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
