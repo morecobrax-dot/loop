@@ -2602,8 +2602,6 @@ body.first-use{ padding-bottom: 0; }
 .tr-head .tr-label{ margin: 0; }
 .tr-count{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .tr-sec .tq{ margin: 0; }
-.tr-plan-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: var(--fs-card-title); line-height: 1.3; color: var(--text); margin: -2px 0 var(--space-2); }
-.tr-plan-name:empty{ display: none; }
 /* The chips run to the screen's edges, so a row that continues past the edge
    reads as one that scrolls. */
 .tr-chips{ margin: 0 -20px var(--space-3); padding: 0 20px 4px; scroll-padding-inline: 20px; }
@@ -2632,13 +2630,17 @@ body.first-use{ padding-bottom: 0; }
 }
 .tl-main:active{ background: var(--surface-2); }
 .tl-name{ font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; line-height: 1.25; color: var(--text); overflow-wrap: anywhere; }
-.tl-more{ display: inline-flex; vertical-align: -2px; margin-left: 3px; color: var(--text-faint); }
+.tl-more{ display: inline-flex; vertical-align: -2px; margin-left: 3px; color: var(--text-dim); }
 .tl-more svg{ width: 12px; height: 12px; }
 .tl-muscles{ font-size: 12.5px; line-height: 1.35; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tl-muscles-2{ color: var(--text-faint); }
 .tl-meta{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); line-height: 1.35; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .tl-tag{ color: var(--accent); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .tl-days{ letter-spacing: 0.04em; }
+/* D69.5 — the one thing a saved row says that a plan row never needs to: which
+   kind it is. The same faint meta tone, just bolder and spaced like a label,
+   so My workouts reads as its own kind of row without a second colour. */
+.tl-kind{ font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .tl-start{
   flex-shrink: 0; min-width: 72px; min-height: 44px; padding: 0 var(--space-4);
   display: inline-flex; align-items: center; justify-content: center;
@@ -2677,6 +2679,15 @@ body.first-use{ padding-bottom: 0; }
 .tl-empty-stack{ flex-direction: column; align-items: stretch; }
 .tl-empty-stack .empty-cta{ margin-top: 0; }
 @media (max-width: 359px){ .tl-empty{ flex-direction: column; align-items: stretch; } }
+/* D69.5 — My workouts, empty: the same notice Build workout already makes one
+   section up, so it is a line, not a poster. A quiet hairline (not a dashed
+   drop-zone) and an inline text action, not a second button competing with
+   Quick start's. */
+.tl-empty-mine{ padding: var(--space-2) var(--space-3); border-style: solid; border-color: var(--border-quiet); gap: var(--space-2); }
+.tl-empty-mine .tl-empty-text{ font-size: var(--fs-meta); }
+.tl-empty-cta-quiet{
+  min-height: 44px; padding: 0 var(--space-2); border: none; background: none; color: var(--accent); font-size: var(--fs-support);
+}
 
 /* Details: the one workout the athlete asked about. */
 .td-head{ display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin: -10px -10px 0 0; }
@@ -3409,11 +3420,16 @@ button.cal-cell:active{ transform: scale(0.92); }
 .ex-history-date{ font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-faint); margin-bottom: 8px; }
 .ex-history-sets{ display: flex; flex-wrap: wrap; gap: 6px; }
 .filter-chip{
-  flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
-  padding: 13px 15px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;
-  display: inline-flex; align-items: center; min-height: 44px;
+  flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+  padding: 13px 13px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; min-height: 44px; transition: transform 0.12s var(--ease);
 }
 .filter-chip.active{ background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+/* D69.5 — inactive chips recede toward the list's own surface, so the plan's
+   own kind sits closer to the row it filters; the active chip is the only one
+   that still lifts, cyan as before. */
+.filter-chip:active{ transform: scale(0.96); }
+@media (prefers-reduced-motion: reduce){ .filter-chip{ transition: none; } .filter-chip:active{ transform: none; } }
 .log-top{ display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .log-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px; }
 .log-date{ font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-faint); margin-top: 2px; }
@@ -7256,8 +7272,9 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <div id="trainMine"></div>
     </section>
     <section class="tr-sec" aria-labelledby="trainPlanLabel">
+      <!-- D69.5 — the plan's name already lives in the header's Plan chip,
+           always in view; repeating it here said nothing new. -->
       <h2 class="section-label tr-label" id="trainPlanLabel">My plan</h2>
-      <div class="tr-plan-name" id="trainPlanName"></div>
       <div class="hist-filters tr-chips" id="trainChips" role="group" aria-label="Plan workouts to show"></div>
       <div id="trainPlan"></div>
     </section>
@@ -14935,6 +14952,24 @@ const LOOP_UPDATES = [
     changes: [
       'The Weighted Russian Twist is still logged the same way, with the same muscles and history'
     ]
+  },
+  {
+    id: 'v7-2',
+    version: 'LOOP 7.2',
+    title: 'Train, Refined',
+    date: '2026-09-15',
+    swVersion: 'loop-v149',
+    summary: 'Train is calmer to look at: less repetition, a quieter empty state, and lighter filters.',
+    newFeatures: [],
+    improvements: [
+      'Your plan’s name no longer appears twice on Train — it stays in the Plan button at the top, where it always has',
+      'My workouts, when empty, is a shorter, quieter notice instead of a large dashed box',
+      'A workout you saved now shows its kind as a small label, so it’s easier to tell apart from your plan’s own workouts at a glance',
+      'The filter chips under My plan sit more quietly until you choose one, and press when you tap them like every other button on the screen',
+      'The arrow beside a workout’s name, which opens its details, is a touch easier to see'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -23938,7 +23973,7 @@ function trainRowHtml(kind, cat, t, view){
   const meta = [];
   if(next) meta.push('<span class="tl-tag">' + whole(next.today ? 'Today' : 'Next · ' + DAY_LABEL[next.key]) + '</span>');
   if(days.length) meta.push('<span class="tl-days">' + whole(days.map(d => DAY_LABEL[d]).join(' · ')) + '</span>');
-  if(kind === 'saved') meta.push(escapeHtml(whole(CAT_LABEL[cat] || cat)));
+  if(kind === 'saved') meta.push('<span class="tl-kind">' + escapeHtml(whole(CAT_LABEL[cat] || cat)) + '</span>');
   meta.push(whole(n + ' exercise' + (n === 1 ? '' : 's')));
   if(dur) meta.push(whole('~' + dur + ' min'));
   const muscles = trainMusclesHtml(shown);
@@ -23988,9 +24023,9 @@ function renderTrainMine(view){
     : '';
   host.innerHTML = mine.length
     ? `<ul class="tl-list" role="list">${rows.map(x => trainRowHtml('saved', x.cat, x.t, view)).join('')}</ul>${toggle}`
-    : `<div class="tl-empty">
+    : `<div class="tl-empty tl-empty-mine">
         <p class="tl-empty-text">Build a workout you can reuse anytime.</p>
-        <button type="button" class="tl-empty-cta" onclick="openAddTemplate()">Build workout</button>
+        <button type="button" class="tl-empty-cta tl-empty-cta-quiet" onclick="openAddTemplate()">Build workout</button>
       </div>`;
 }
 
@@ -24015,9 +24050,7 @@ function renderTrainPlan(view){
   const host = document.getElementById('trainPlan');
   if(!host) return;
   const chipsEl = document.getElementById('trainChips');
-  const nameEl = document.getElementById('trainPlanName');
   const plan = selectedPlanId ? DEFAULT_PLANS[selectedPlanId] : null;
-  if(nameEl) nameEl.textContent = plan ? plan.name : '';
   if(!plan || !planData){
     if(chipsEl) chipsEl.innerHTML = '';
     host.innerHTML = trainEmptyStateHtml();

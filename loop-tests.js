@@ -25882,6 +25882,28 @@ async function testTrainLauncher(){
     /\.tl-toggle:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css));
   T('the gradient budget still holds: no launcher surface adds one', !/gradient\(|--grad-/.test(stripComments(launcherCss)) && (css.match(/var\(--grad-accent\)/g) || []).length <= 4);
 
+  sub('D69.5 — a refinement pass, not a redesign: the same launcher, quieter in five places');
+  T('the plan\'s name is not repeated inside Train — the header\'s Plan chip already carries it, on every tab',
+    view.indexOf('id="trainPlanName"') === -1 && !/tr-plan-name/.test(css) && /id="currentPlanLabel"/.test(src));
+  T('My workouts, empty, reads as one quiet line: a solid hairline, not a dashed drop zone, and Build workout is a link, not a second button',
+    /<div class="tl-empty tl-empty-mine">/.test(fnSrc(src, 'renderTrainMine')) &&
+    /<button type="button" class="tl-empty-cta tl-empty-cta-quiet" onclick="openAddTemplate\(\)">Build workout<\/button>/.test(fnSrc(src, 'renderTrainMine')) &&
+    /\.tl-empty-mine\{[^}]*border-style: solid;[^}]*border-color: var\(--border-quiet\);/.test(css) &&
+    /\.tl-empty-cta-quiet\{[^}]*border: none;[^}]*background: none;[^}]*color: var\(--accent\);/.test(css));
+  T('a saved row\'s kind is a small bold label, not just another word in the meta line',
+    /meta\.push\('<span class="tl-kind">' \+ escapeHtml\(whole\(CAT_LABEL\[cat\] \|\| cat\)\) \+ '<\/span>'\)/.test(fnSrc(src, 'trainRowHtml')) &&
+    /\.tl-kind\{ font-weight: 700; letter-spacing: 0\.06em; text-transform: uppercase; \}/.test(css));
+  T('inactive filter chips sit on the list\'s own surface until chosen; the chosen one still lifts, cyan as before',
+    /\.filter-chip\{[^}]*background: var\(--surface\);/.test(css) && !/\.filter-chip\{[^}]*background: var\(--surface-2\);/.test(css) &&
+    /\.filter-chip\.active\{ background: var\(--accent-soft\); border-color: var\(--accent\); color: var\(--accent\); \}/.test(css));
+  T('chips press like every other control on this screen, and sit still when motion is reduced',
+    /\.filter-chip:active\{ transform: scale\(0\.96\); \}/.test(css) &&
+    /@media \(prefers-reduced-motion: reduce\)\{ \.filter-chip\{ transition: none; \} \.filter-chip:active\{ transform: none; \} \}/.test(css));
+  T('the chevron that opens Details reads a shade clearer than before', /\.tl-more\{[^}]*color: var\(--text-dim\);/.test(css));
+  T('none of this touched a class a mutation test protects: every launcher control is still at least 44px, unchanged',
+    /\.tl-start\{[^}]*min-height: 44px;/.test(css) && /\.tl-main\{[^}]*min-height: 64px;/.test(css) && /\.tl-empty-cta\{[^}]*min-height: 44px;/.test(css) &&
+    /\.filter-chip\{[^}]*min-height: 44px;/.test(css));
+
   sub('nothing protected moved');
   const norm = t => String(t).split('\r\n').join('\n').trim();
   const sha = t => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);

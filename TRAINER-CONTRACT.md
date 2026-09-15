@@ -10067,3 +10067,91 @@ now makes true).
   Contract 176 pins the joints that must stay identical between them.
 - **The ball's ghost position is drawn only at full size**, matching every
   other whole-body ghost's thumbnail rule.
+
+## §100 — D69.5: Train, refined
+
+**Status.** Shipped in LOOP 7.2 (`loop-v149`). A presentation-only pass over
+D65's launcher. `DATA_KEYS` 15, schema 1, no migration, no new storage key,
+`TRAINER_ENGINE_VERSION` 0.1.1-shadow. The information architecture (Quick
+start, My workouts, My plan), every start function, plan provenance, saved-
+workout semantics, the D61 picker and D62's removal/category behaviour are
+untouched. No card wall returned.
+
+### What was refined, and why
+
+- **The plan's name was said twice.** The header's Plan chip already names the
+  active plan on every tab, unconditionally; My plan repeated it a screen's
+  height below in the same words. The repeated line (`#trainPlanName`,
+  `.tr-plan-name`) is removed — the section heading "My plan" now runs
+  straight into its filter chips. The header chip is untouched; it is the
+  single place the plan's name lives inside Train.
+- **My workouts, empty, outweighed what it says.** A dashed drop-zone the
+  width of the screen, holding one sentence and a filled grey button reading
+  "Build workout" — the same words and the same action Quick start's own
+  Build workout card already offers one section up. The empty state
+  (`.tl-empty-mine`) is now a plain quiet hairline (`border-color:
+  var(--border-quiet)`, no dash) at roughly a third the padding, and its
+  action (`.tl-empty-cta-quiet`) is unstyled to a plain accent-coloured
+  link — restrained enough that it reads as a footnote, not a second call to
+  action. The sentence, the button's exact text and its `onclick` are
+  unchanged, so nothing an athlete relies on moved.
+- **A saved row and a plan row were the same row wearing a different word.**
+  Both use `.tl-list`/`.tl-row`/`.tl-main`/`.tl-start` — deliberately, so the
+  two systems stay visually related — but a saved row's only tell was its
+  kind spelled out in the same faint monospace as the exercise count next to
+  it ("Arms · 2 exercises..."). That word is now wrapped in `.tl-kind`
+  (bold, uppercase, letter-spaced — the same treatment `.tl-tag` and
+  `.tl-group-k` already use elsewhere for a label), so it reads as a small
+  tag rather than a stray word. Nothing else about the row changed: the same
+  meta composition, the same Start, the same Details button.
+- **Inactive filter chips outweighed the list they filter.** At
+  `background: var(--surface-2)` they sat a full step above the `--surface`
+  list beneath them — the most visually assertive element on the row aside
+  from Start. Inactive chips now sit on `var(--surface)`, receding toward the
+  list's own tone; `.filter-chip.active` (accent-soft fill, accent border and
+  text) is untouched, so the chosen kind still reads instantly. Horizontal
+  padding eased from 15px to 13px; the enforced 44px `min-height` did not
+  move, since it already governed the chip's touch height regardless of
+  padding. Chips gained the same press feedback every other control on the
+  screen already had (`transform: scale(0.96)` on `:active`, with a
+  `prefers-reduced-motion` guard) — the one true gap this pass found.
+- **The chevron beside a workout's name** — already the sole visual cue that
+  the row opens Details, with an accessible name ("Details for X") already
+  distinct from Start's ("Start X") — reads a shade clearer: `.tl-more`
+  moved from `--text-faint` to `--text-dim`. Its function was already
+  correct: two independent `<button>` elements side by side, not a nested
+  target, so a tap can never open Details and start a workout at once, and
+  a screen reader already told the two apart. Audited, not rebuilt.
+- **Quick start, the plan rows, Today's emphasis and the bottom-nav
+  clearance** were audited and left exactly as D65/D66 built them: already
+  compact, already distinguishing TODAY's filled Start from every outlined
+  one, already scrolling fully clear of the fixed tab bar with no clearance
+  of its own. Nothing to refine.
+
+### Verification
+
+- **Contract 173, extended** (7 new assertions, sub "D69.5"): the plan-name
+  line is gone from Train and the header's own chip still carries it; the
+  empty state's modifier classes and their quieter CSS; the kind label's
+  span and its typography; the filter chip's surface token and its
+  unchanged active state; the chip's press feedback and reduced-motion
+  guard; the chevron's new colour; every 44px touch target named in the
+  existing contract, unmoved.
+- **Mutation:** 10 of 10 caught — the plan-name line restored, the empty-
+  state modifier dropped, its button re-filled, its border re-dashed, the
+  kind label unwrapped, its styling removed, chips returned to the raised
+  surface, chip press feedback removed, the chevron faded back, and a touch
+  target shrunk.
+- **Full verify and all five audits green**, unaffected — nothing here
+  touches program, cardio, GPS or date logic.
+- **Physical:** headless Edge at 390×844, 375×812, 320×568, 430×932 and
+  844×390 (landscape), with 0/1/3/8/9 saved workouts, the Pull filter
+  active, a long plan-workout and a long saved-workout title, and scrolled
+  to the foot of the page. No horizontal overflow, no console errors, at
+  any size.
+
+### Known and recorded
+
+- **`.filter-chip` and `.tl-kind` are new hooks a later phase can lean on** if
+  Train ever needs a second kind of chip or tag; today only the Train
+  launcher renders either class.
