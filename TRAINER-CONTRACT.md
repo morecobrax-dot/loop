@@ -9483,3 +9483,191 @@ Program revision history and the D63 machines are untouched.
   text, such as "Add load when 10 reps is easy", into Starting weight (D61).
 - **A bodyweight-named movement trained with load** starts ticked until the
   athlete logs it once with a load. From then on, their record decides.
+
+## §96 — D65: Train is a launcher
+
+**Status.** Shipped in LOOP 6.8 (`loop-v145`). `DATA_KEYS` 15, schema 1, no
+migration, no new storage key, `TRAINER_ENGINE_VERSION` 0.1.1-shadow.
+`workoutLog`, `planData`, schedules, programs and their revisions are read,
+never rewritten, by anything this phase added. `startTemplateLog`,
+`openFreeformLog`, Today's hero and picker, the choosing card, the D61 picker and
+rows, D62's category truth, D62.5, the exercise library, every drawing and the
+muscle figure are byte-identical to 6.7.
+
+### What Train was
+
+- **Hierarchy.** Two tiles (Empty workout, New workout), eight category chips,
+  then one full card per workout in the chosen category only.
+- **Every card repeated** its name, emphasis line, count and duration, the
+  two-view body figure, a full-width gradient Start This Workout, and a
+  full-width Details row holding the exercise preview, radar, focus rows, Edit
+  and Delete.
+- **New workout** called `openAddTemplate(activeTrainCategory)`: a workout was
+  filed under whichever chip happened to be selected ("For Push").
+- **Saved and plan workouts were one list.** `planData[cat]` holds both; only
+  the `c-` id (minted by `saveTemplate` alone) says a workout is the athlete's.
+- **Measured at 390×844** (Balanced Machines, a program running): page 1887 px,
+  552 DOM nodes and 22 SVGs in the view, 4 body figures, 562 px of scrolling to
+  reach the third workout's Start, one Start in the first screen, render 2.9 ms
+  median (with layout).
+- **A shipped copy bug.** A category the plan had none of said "add a Push
+  workout below", with no button below it.
+
+### The launcher
+
+- **Order.** Resume (only while a draft holds work) → Quick start → My workouts
+  → My plan. Each section has a real heading (`h2`).
+- **Quick start.** Empty workout (`openFreeformLog`, "Train now") and Build
+  workout (`openAddTemplate()`, "Save to reuse"). The D61 stacking below 360 px
+  is kept.
+- **My workouts.** Every `c-` workout across all eight kinds, newest first by
+  the timestamp in its id. A row is a Details button (name, muscles, kind ·
+  count · duration) plus Start. Above four, the newest three show with Show all
+  N workouts; exactly four all show. Empty: "Build a workout you can reuse
+  anytime." with Build workout.
+- **My plan.** The plan's name, then chips (All first, then the plan's kinds:
+  the week's in the order it runs, then the rest). A kind holding only saved
+  workouts is not a chip. A deep link to an empty kind appends that chip,
+  active and dimmed, and keeps it in sight. All groups every plan workout
+  under its kind.
+- **Rows.** One list surface per group with dividers; no figures, no
+  gradients. Start is a 44 px pill (`accent-soft`); only the tagged session's
+  Start is filled.
+- **Details** (`#trainDetailOverlay`, an ordinary sheet): kind and plan, count
+  and duration, the Time Mode note, the plateau line, the body figure and
+  emphasis, every exercise, radar and focus. Rename (saved only) and Delete
+  workout sit quietly below the content. The foot is Edit workout and Start
+  workout. It stays open under Edit, so Cancel returns to it and Save redraws
+  it; a workout deleted underneath closes it. Start closes it first.
+- **Build workout's kind.** The saved-workout sheet shows eight kinds as a
+  radio group, in the workout picker's order, while creating only. Nothing is
+  chosen from Quick start; an empty kind's "Build a Legs workout" arrives
+  chosen. Save asks last, after the name and the exercises, and refuses without
+  a kind (`#tplKind` flagged). An edit keeps the kind the workout has.
+
+### What a row may claim
+
+- **What Start trains.** `trainStartSource` is `startTemplateLog`'s own choice:
+  the program's composed session when it scheduled exactly this `(cat, id)`
+  today, otherwise the workout. Then the same Time Mode copy. So a Monday with
+  a depth recipe reads "Today · 9 exercises · ~45 min" where the library
+  workout has 8, and a 30-minute Time Mode reads 5 exercises for Push B's 7.
+- **Today and Next.** `trainSessionOn(date)` resolves a day the way Today's
+  hero does: the running program's day (rest included) when one is active,
+  otherwise the plan schedule, with `dayTemplateFor` for the workout.
+  `trainNextUp` is today's session unless a workout is already logged today,
+  else the next day that has one; nothing while a draft is active. A row is
+  tagged only when that resolves to it.
+- **Days.** `trainWeekDays` marks each workout with the days of the current
+  Monday–Sunday week whose session it is (MON, FRI), minus the tagged day.
+- **The default kind** is the next session's kind when the plan lists it, then
+  today's scheduled kind, the week's, anything stocked, and the old fallback.
+  A chosen chip is still never overridden (D10).
+- **Empty kind.** "No Core workouts in Balanced Machines. Your plan trains Push,
+  Pull and Legs." names only the week's kinds that have workouts.
+
+### Start semantics, unchanged
+
+- **Empty** is `openFreeformLog`: no rows, no category, freeform, Add exercises
+  in the finish bar, a draft only once a set holds work.
+- **Saved and plan** are `startTemplateLog(cat, id)`, the call Today's hero
+  makes. Train's row and Today's Start began the identical session in the
+  browser: rows, targets, recommendations, slot names, load and effort, planned
+  minutes, `pendingWorkoutOrigin` 'program' and the program id. A plan workout
+  the program does not prescribe, and every saved workout, start as freeform.
+- **Unchanged along the way:** progression recommendations, Session Score, Live
+  Set Coach, Swap, the draft guard (`confirmOverwriteDraft`) and history.
+
+### Bottom clearance
+
+`body` keeps `padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px))`
+under the fixed `.tabbar`, whose own `padding-bottom` is the home-indicator
+inset. The launcher CSS has no inset, no fixed or sticky layer and no viewport
+unit. Measured with the page at its end, the last row sits 40 px above the tab
+bar at every size (163 px on 768×1024, where Train fits). Its Start is the
+element at its own centre.
+
+### Verification
+
+- **Contract 173** (68 assertions):
+  - the three paths and their functions
+  - one creation path (`'c-' + Date.now()` once, in `saveTemplate`), and no
+    writes by the launcher
+  - saved/plan identity and ordering; filters, All, empty kinds and no plan
+  - My workouts folding and empty state
+  - Today/Next on a training day, a rest day, after a logged workout, during a
+    draft and on an empty week
+  - a program whose week disagrees with the plan schedule
+  - composed-session and Time Mode row facts
+  - provenance through `startTemplateLog` for program, extra and saved starts
+  - Details routing, refresh and close
+  - Build workout's kind: none, preset, refused, saved, edit keeps id and kind
+  - bottom-clearance ownership; accessible names, 44 px targets and focus rings
+  - the gradient budget
+  - D64's art (`d8cebf12531da3d9` for source and vendored copy), the figure and
+    radar sources, the exporter absent from app and worker, and the protected
+    systems
+- **Repointed with reasons:**
+  - Contract 167's quick start: Build workout, above My workouts and My plan;
+    the kind is chosen, never a filter's.
+  - "The Train card is the choosing surface" and "the card stops shouting" now
+    name the card's remaining home, Today's workout picker. Their assertions are
+    unchanged.
+- **Mutation.** 32 of 32 regressions caught, among them:
+  - a borrowed category, a Start that bypasses `startTemplateLog`, or a program
+    ignored
+  - a wrong saved-id rule, a Save without a kind, or a default to Push
+  - an ignored filter; Details left open; an added inset
+  - a figure back in a row, or Time Mode ignored
+  - Resume missing; a changed drawing or figure
+  - a second minting path
+
+  The shipped 6.7 build fails 29 assertions.
+- **Physical.** Headless Edge with device insets at 390×844, 375×812, 320×568,
+  844×390 and 768×1024, all passing:
+  - A: Empty → picker → active → Resume
+  - B: Build → no kind refused → Push → My workouts
+  - C: a saved start
+  - D: a program's session from Train equal to Today's Start
+  - E: a Legs filter and a non-default start
+  - All (32 rows)
+  - F: Details → Edit → Cancel back to Details with filter and scroll kept →
+    Rename → Save redraws with id kept
+  - G: bottom clearance
+  - 12 saved folded and unfolded, long names wrapping, a one-workout kind
+    reached by deep link, and an empty kind building its own kind
+  - 44 px targets, no horizontal overflow, unique Start names
+
+### Performance (6.7 → 6.8, a program running)
+
+| Viewport | Page height | Scroll to 3rd plan Start | DOM nodes | Render (median) |
+|---|---|---|---|---|
+| 390×844 | 1887 → 938 px | 562 → 0 px | 552 → 86 | 2.9 → 0.8 ms |
+| 375×812 | 1887 → 956 px | 594 → 0 px | 552 → 86 | 2.8 → 0.9 ms |
+| 320×568 | 1894 → 1061 px | 845 → 340 px | 552 → 86 | 2.7 → 0.8 ms |
+| 844×390 | 1827 → 878 px | 956 → 353 px | 552 → 86 | 2.7 → 0.9 ms |
+| 768×1024 | 1850 → 1024 px | 345 → 0 px | 552 → 86 | 2.6 → 0.9 ms |
+
+- **With five saved workouts** at 390×844: 2256 → 1168 px, 677 → 116 nodes,
+  scroll to the third plan Start 562 → 189 px.
+- **All, 32 rows:** 407 nodes, 3.6 ms.
+- **First screen at 390×844:** 3 Starts, previously 1.
+
+### Known and recorded
+
+- **Saved workouts still live per plan** (`planData:<planId>`). Switching plans
+  shows that plan's saved workouts, as before.
+- **Today's picker still draws the full card.** "Change workout" and "Train
+  anyway" on Today are unchanged by this phase.
+- **Today's rest-day Next can name the wrong workout under a program (6.7 and
+  earlier, not changed here).** The hero previews the first workout of the next
+  scheduled category. Train and the week strip read the program's own session
+  for that date. With a five-day program (Mon, Tue, Wed, Fri, Sat), Thursday's
+  hero says "Next Friday · Push A" while the program, the week strip and Train
+  name Push B.
+- **Small screens.** On a 320×568 phone or a landscape phone, Quick start and My
+  workouts fill the first screen; the plan's first Start is one short scroll
+  away (340 px and 353 px, from 845 px and 956 px).
+- **Tag scope.** Days are this Monday–Sunday week's only. A saved workout is
+  tagged only in the edge case where it is a category's first workout and that
+  day's session.

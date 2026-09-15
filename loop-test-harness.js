@@ -224,7 +224,8 @@ function loadApp(initialStore){
     'ARM_GROUPS','SPLIT_ROLES','SPLIT_PRESETS','ROLE_AREAS','EXERCISE_LIBRARY','logStepIndex','workoutEditState',
     /* Phase C — rank showcase motion */ 'RANK_MOTION','_rankCar','rankShowcaseIndex','_rankDrag',
     /* D62 — the builder's category choice and the saved-workout sheet's day */ 'logCategoryChosen','pendingTplCategory',
-    /* D63 — the machines no plan prescribes, and what each kind of session promises */ 'LIBRARY_EXTRAS','CATEGORY_GROUPS'];
+    /* D63 — the machines no plan prescribes, and what each kind of session promises */ 'LIBRARY_EXTRAS','CATEGORY_GROUPS',
+    /* D65 — the Train launcher's filter, its open Details, and the sheet and draft state it reads */ 'activeTrainCategory','trainCategoryChosen','trainDetailKey','trainMineAll','editingTemplateId','activeDraftInfo','pendingWorkoutOrigin','pendingWorkoutProgramId'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

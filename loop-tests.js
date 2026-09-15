@@ -13391,7 +13391,8 @@ function testHomeAndTouch(app){
     /name="viewport"/.test(src) && !/maximum-scale|user-scalable=no/.test(src));
   T('Safari cannot inflate text on rotation', /-webkit-text-size-adjust: 100%;/.test(css));
 
-  sub('the Train card is the choosing surface');
+  /* D65 — Train lists rows now; this card is Today's workout picker's (pickerGridHtml). */
+  sub('the choosing card (Today\'s workout picker) is the choosing surface');
   T('the card carries the deep surface, not another flat sheet',
     /\.tpl-card\{[\s\S]{0,200}background: var\(--surface-gradient\);/.test(css));
   T('its name is set as a heading',
@@ -13746,7 +13747,8 @@ function testSurfaceConsolidation(app){
   T('discard is quiet text, not a competing button',
     /\.tw-discard\{[\s\S]{0,220}background: none; border: none;/.test(css));
 
-  sub('Train: the card stops shouting');
+  /* D65 — the card left Train for rows and Details (Contract 173); Today's picker still draws it. */
+  sub('the choosing card stops shouting');
   T('the radar left the default card and lives behind Details', (() => {
     const i = src.indexOf('function templateCardHtml');
     const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
@@ -24104,11 +24106,17 @@ async function testWorkoutBuilder(){
   sub('Train leads with how to make a workout');
   guard('the Train quick start', () => {
     const view = src.slice(src.indexOf('<div class="view" id="view-train">'), src.indexOf('<div class="view" id="view-progress">'));
-    T('an empty workout and a new saved workout, above the saved ones',
-      view.indexOf('class="tq"') !== -1 && view.indexOf('class="tq"') < view.indexOf('id="trainChips"') &&
-      /onclick="openFreeformLog\(\)"[\s\S]*?Empty workout/.test(view) && /id="trainAddBtn" onclick="openAddTemplate\(activeTrainCategory\)"[\s\S]*?New workout/.test(view));
+    /* D65 — New workout became Build workout and stopped saving under whichever
+       category happened to be on screen: the sheet asks for the kind instead
+       (Contract 173). Both ways to make a workout still lead Train, above the
+       saved workouts and the plan's. */
+    T('an empty workout and a built workout, above the saved and the plan workouts',
+      view.indexOf('class="tq"') !== -1 && view.indexOf('class="tq"') < view.indexOf('id="trainMine"') && view.indexOf('class="tq"') < view.indexOf('id="trainChips"') &&
+      /onclick="openFreeformLog\(\)"[\s\S]*?Empty workout/.test(view) && /id="trainBuildBtn" onclick="openAddTemplate\(\)"[\s\S]*?Build workout/.test(view));
     T('the add button under the last card is gone, so neither action appears twice', !/add-tpl-btn/.test(src));
-    T('New workout says which day it saves under', /addSub\.textContent = 'For ' \+ CAT_LABEL\[activeTrainCategory\];/.test(fnSrc(src, 'renderTrainView')));
+    T('Build workout saves under the kind the athlete chooses, never a filter\'s',
+      /const kind = \(cat && CAT_LABEL\[cat\]\) \? cat : null;/.test(fnSrc(src, 'openAddTemplate')) && !/trainAddSub|trainAddBtn/.test(src) &&
+      /if\(!pendingTplCategory\)\{ flagFieldError\(document\.getElementById\('tplKind'\)\); return; \}/.test(fnSrc(src, 'saveTemplate')));
     T('and on the narrowest phones the two stack rather than squeeze', /@media \(max-width: 359px\)\{ \.tq\{ grid-template-columns: 1fr; \} \}/.test(css));
   });
 
@@ -25493,6 +25501,403 @@ async function testBodyweightCoverage(){
   T('the lower-back movements are still held', !canon('back_extension') && !canon('superman_hold'));
 }
 
+/* =========================================================
+   CONTRACT 173 — TRAIN IS A LAUNCHER (D65)
+   ---------------------------------------------------------
+   Train stopped being a wall of identical cards for one
+   category and became three ways to start: an empty workout,
+   a workout the athlete saved, a workout from their plan.
+   None of them decides anything about a workout. Empty is
+   openFreeformLog (D61/D62). Building saves through the same
+   sheet and asks what kind of workout it is. Both lists start
+   through startTemplateLog, the call Today makes, so plan
+   provenance, the program's composed session, Time Mode and
+   the draft guard are what they were. A row repeats only what
+   Start will train, and "Today" or "Next" is the session Today
+   and the week strip name, or nothing at all.
+   ========================================================= */
+async function testTrainLauncher(){
+  section('CONTRACT 173 — Train is a launcher (D65)');
+  const fs = require('fs');
+  const path = require('path');
+  const crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const repo = path.dirname(Object.keys(require.cache).find(k => /loop-test-harness\.js$/.test(k)) || H.APP_PATH);
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const view = src.slice(src.indexOf('<div class="view" id="view-train">'), src.indexOf('<div class="view" id="view-progress">'));
+  const launcherCss = css.slice(css.indexOf('/* D65 — TRAIN IS A LAUNCHER.'), css.indexOf('/* ---- History ---- */'));
+  const launcherJs = src.slice(src.indexOf('TRAIN — THE LAUNCHER  (D65)'), src.indexOf('function setTrainCategory(cat){'));
+  const rowOf = b => {
+    const m = b.match(/data-kind="(\w+)" data-cat="(\w+)" data-id="([^"]+)"/) || [];
+    const s = b.match(/class="tl-start[^"]*" onclick="startTemplateLog\('(\w+)','([^']+)'\)"/) || [];
+    const d = b.match(/class="tl-main" onclick="openTrainDetail\('(\w+)','([^']+)'\)"/) || [];
+    const at = b.indexOf('<span class="tl-meta">');
+    const meta = at === -1 ? '' : b.slice(at, b.indexOf('</button>', at)).replace(/<[^>]*>/g, '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+    return { kind: m[1], cat: m[2], id: m[3], next: /^<li class="tl-row is-next"/.test(b), start: s[1] ? s[1] + '/' + s[2] : null,
+      details: d[1] ? d[1] + '/' + d[2] : null, meta, html: b };
+  };
+  const rows = html => String(html || '').split('<li class="tl-row').slice(1).map(b => rowOf('<li class="tl-row' + b.split('</li>')[0]));
+  const at = s => view.indexOf(s);
+
+  sub('three ways to start, and the card wall is gone');
+  T('Train reads Quick start, My workouts, My plan, in that order, with a place for Resume above them',
+    at('id="trainResume"') !== -1 && at('id="trainResume"') < at('class="tq"') && at('class="tq"') < at('id="trainMine"') &&
+    at('id="trainMine"') < at('id="trainChips"') && at('id="trainChips"') < at('id="trainPlan"') &&
+    /id="trainQuickLabel">Quick start<\/h2>/.test(view) && /id="trainMineLabel">My workouts<\/h2>/.test(view) && /id="trainPlanLabel">My plan<\/h2>/.test(view));
+  T('Empty workout is the D61 builder; Build workout is the saved-workout sheet, borrowing no category',
+    /<button type="button" class="tq-btn" onclick="openFreeformLog\(\)">[\s\S]*?<span class="tq-title">Empty workout<\/span><span class="tq-sub">Train now<\/span>/.test(view) &&
+    /<button type="button" class="tq-btn" id="trainBuildBtn" onclick="openAddTemplate\(\)">[\s\S]*?<span class="tq-title">Build workout<\/span><span class="tq-sub">Save to reuse<\/span>/.test(view));
+  T('no card grid, and the launcher draws no card, body figure or radar',
+    src.indexOf('id="trainGrid"') === -1 &&
+    ['renderTrainView', 'renderTrainMine', 'renderTrainPlan', 'trainRowHtml', 'renderTrainResume', 'trainEmptyStateHtml']
+      .every(f => fnSrc(src, f).length > 40 && !/templateCardHtml|bodyDiagramSvg|radarSvg/.test(fnSrc(src, f))));
+  T('one way to create a saved workout: every Build opens openAddTemplate, and only saveTemplate mints a c- id',
+    (src.match(/'c-' \+ Date\.now\(\)/g) || []).length === 1 && /'c-' \+ Date\.now\(\)/.test(fnSrc(src, 'saveTemplate')) &&
+    !/trainAddBtn|trainAddSub|add-tpl-btn/.test(src) && (view.match(/onclick="openAddTemplate\(/g) || []).length === 1 &&
+    /openAddTemplate\(\)/.test(fnSrc(src, 'renderTrainMine')) && /openAddTemplate\('\$\{cat\}'\)/.test(fnSrc(src, 'trainEmptyStateHtml')));
+  T('the launcher writes nothing: no storage, no plan data, no history',
+    launcherJs.length > 2000 && !/LOOPStore\.set|localStorage|setItem/.test(stripComments(launcherJs)) &&
+    !/planData\s*(\[[^\]]*\])?\s*(=[^=]|\.push|\.splice)/.test(stripComments(launcherJs)) && !/workoutLog\s*(=[^=]|\.push|\.splice)/.test(stripComments(launcherJs)));
+  T('a workout starting or ending redraws Train, and a link into one kind keeps its chip in sight',
+    /renderTodayWorkout\(\);\s*try\{ renderTrainView\(\); \}catch\(e\)\{\}/.test(fnSrc(src, 'renderResumeBanner')) &&
+    /setTrainCategory\(cat\);\s*switchTab\('train'\);\s*try\{ trainRevealActiveChip\(\); \}catch\(e\)\{\}/.test(fnSrc(src, 'goToTrainCategory')));
+  T('Today keeps its own picker and its own Start: the card still serves pickerGridHtml, and the hero still calls startTemplateLog',
+    /templateCardHtml\(t, cat, lw\)/.test(fnSrc(src, 'pickerGridHtml')) && /startTemplateLog\('\$\{cat\}','\$\{first\.id\}'\)/.test(fnSrc(src, 'renderTodayWorkout')));
+
+  const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('balanced'), dataSchemaVersion:'1' });
+  const ctx = app.ctx, doc = ctx.document;
+  const html = id => doc.getElementById(id).innerHTML;
+  const logRaw = JSON.stringify(ctx.workoutLog);
+  const storeKeys = Object.keys(app.store).sort().join(',');
+  const release = pinClock(ctx, '2026-09-14T12:00:00');   /* a Monday: Push on the balanced plan's week */
+  const tpl = (cat, id) => (ctx.getTemplates(cat) || []).find(t => t.id === id);
+  const EXS = n => DEFAULT_EXS.slice(0, n).map(e => Object.assign({}, e));
+  const DEFAULT_EXS = [{ name:'Barbell Curl', sets:'3', reps:'8-12', effort:'8', recommended:'—' }, { name:'Triceps Pushdown', sets:'3', reps:'10-12', effort:'8', recommended:'—' },
+    { name:'Hammer Curl', sets:'3', reps:'10-12', effort:'7', recommended:'—' }, { name:'Overhead Triceps Extension', sets:'3', reps:'10-12', effort:'7', recommended:'—' }];
+  const draw = () => { ctx.renderTrainView(); return { mine: rows(html('trainMine')), plan: rows(html('trainPlan')), chips: html('trainChips') }; };
+  try{
+    ctx.planData.push.push({ id:'c-1757000000000', name:'Garage Push', exercises: EXS(3) });
+    ctx.planData.arms.push({ id:'c-1758000000000', name:'Arm Pump', exercises: EXS(4) });
+
+    sub('my workouts and my plan are the same storage, read two ways');
+    await guard('the two lists', () => {
+      ctx.trainCategoryChosen = false;
+      const d = draw();
+      T('a c- id is the athlete\'s, anything else is the plan\'s', ctx.isSavedWorkoutId('c-1') && !ctx.isSavedWorkoutId('d1') && !ctx.isSavedWorkoutId('') && !ctx.isSavedWorkoutId(null));
+      T('My workouts lists every saved workout across kinds of session, newest first, and only those',
+        d.mine.map(r => r.kind + ':' + r.cat + '/' + r.id).join() === 'saved:arms/c-1758000000000,saved:push/c-1757000000000',
+        d.mine.map(r => r.cat + '/' + r.id).join());
+      T('My plan lists the plan\'s own workouts for the kind shown, and never a saved one',
+        d.plan.map(r => r.kind + ':' + r.cat + '/' + r.id).join() === 'plan:push/d1,plan:push/d2,plan:push/d-pu3,plan:push/d-pu4' &&
+        ctx.trainPlanWorkouts('push').every(t => !/^c-/.test(t.id)) && ctx.trainPlanWorkouts('push').length === 4, d.plan.map(r => r.id).join());
+      T('every row starts through startTemplateLog with its own kind and id, and opens its own Details',
+        d.mine.concat(d.plan).every(r => r.start === r.cat + '/' + r.id && r.details === r.cat + '/' + r.id));
+      T('a saved row says its kind; a plan row does not repeat the chip',
+        /^Arms · 4 exercises · ~\d+ min$/.test(d.mine[0].meta) && !/Push ·/.test(d.plan[1].meta), d.mine[0].meta + ' | ' + d.plan[1].meta);
+      T('rows name what each workout trains, and no row carries a figure', d.plan.every(r => /class="tl-muscles"/.test(r.html) && !/muscle-svg|<svg class/.test(r.html.replace(/<span class="tl-more"[\s\S]*?<\/span>/, ''))));
+    });
+
+    sub('Today and Next are LOOP\'s answer, or nothing');
+    await guard('next up', () => {
+      ctx.trainCategoryChosen = false;
+      let next = ctx.trainNextUp();
+      T('on a training day the session is today\'s: the first Push on a week with no program, as Today starts it',
+        next && next.cat === 'push' && next.id === 'd1' && next.today === true && next.key === 'mon' && ctx.dayTemplateFor('push', '2026-09-14').id === 'd1', JSON.stringify(next));
+      let d = draw();
+      T('Train opens on that session\'s kind, tags that one row, and fills only its Start',
+        ctx.activeTrainCategory === 'push' && d.plan.filter(r => r.next).map(r => r.id).join() === 'd1' && /class="tl-start is-next"/.test(d.plan[0].html) &&
+        !/is-next/.test(d.plan[1].html) && /^Today · FRI · 8 exercises · ~\d+ min$/.test(d.plan[0].meta), d.plan[0].meta);
+      const wed = withClockOn(ctx, '2026-09-16T12:00:00', () => { ctx.trainCategoryChosen = false; const n = ctx.trainNextUp(); const dd = draw(); return { n, active: ctx.activeTrainCategory, first: dd.plan[0] }; });
+      T('on a rest day it is the next day that trains, named by its day',
+        wed.n && wed.n.cat === 'legs' && wed.n.id === 'd-lg1' && wed.n.key === 'thu' && !wed.n.today && wed.active === 'legs' && /^Next · THU · /.test(wed.first.meta), JSON.stringify(wed.n) + ' ' + wed.first.meta);
+      ctx.workoutLog = [{ id:'w-today', date:'2026-09-14', category:'push', title:'Push A', exercises:[] }];
+      next = ctx.trainNextUp();
+      T('once today is trained, it is the next training day', next && next.cat === 'pull' && next.key === 'tue' && !next.today, JSON.stringify(next));
+      ctx.workoutLog = JSON.parse(logRaw);
+      ctx.hasActiveDraftNow = true;
+      ctx.activeDraftInfo = { title:'Push A — Chest Focus', mins: 12, summary:'Bench Press · 3/9 sets completed' };
+      d = draw();
+      T('while a workout is in progress nothing is tagged, and Resume leads Train',
+        ctx.trainNextUp() === null && !d.plan.concat(d.mine).some(r => r.next) && /Workout in progress/.test(html('trainResume')) &&
+        /onclick="resumeActiveWorkout\(\)"/.test(html('trainResume')) && /aria-label="Resume Push A — Chest Focus">Resume<\/button>/.test(html('trainResume')));
+      ctx.hasActiveDraftNow = false; ctx.activeDraftInfo = null;
+      d = draw();
+      T('and Resume leaves with it', html('trainResume') === '');
+      const keepSchedule = ctx.schedule;
+      ctx.schedule = { mon:'rest', tue:'rest', wed:'rest', thu:'rest', fri:'rest', sat:'rest', sun:'rest' };
+      ctx.trainCategoryChosen = false;
+      d = draw();
+      T('a week with nothing scheduled names nothing, and Train still opens', ctx.trainNextUp() === null && !d.plan.some(r => r.next) && typeof ctx.activeTrainCategory === 'string');
+      ctx.schedule = keepSchedule;
+    });
+
+    sub('a program running: provenance is still startTemplateLog\'s');
+    await guard('program provenance', async () => {
+      /* Monday's session carries a depth recipe, so the program's session and the
+         library's differ by an exercise and Train has to say which one Start trains. */
+      const week = ctx.buildTrainingWeek('balanced', ['mon', 'tue', 'thu', 'fri']);
+      week.mon = Object.assign({}, week.mon, { ext: ['x_plank'] });
+      const made = ctx.createProgram({ name:'Balanced Machines', durationWeeks: 8, schedule: week });
+      T('a program is running for the week', made && made.ok && ctx.hasActiveProgram() && ctx.getActiveProgram().id === made.program.id);
+      ctx.trainCategoryChosen = false;
+      const d = draw();
+      const today = ctx.getProgramWorkoutForDate('2026-09-14');
+      T('the week\'s days come from the program: Push A on Monday, Push B on Friday',
+        /^Today · /.test(d.plan[0].meta) && /^FRI · /.test(d.plan[1].meta) && d.plan[0].id === 'd1' && d.plan.filter(r => r.next).map(r => r.id).join() === today.template.id, d.plan[0].meta + ' | ' + d.plan[1].meta);
+      const shown = ctx.applyTimeModeToTemplate(today.template);
+      T('today\'s row states the session the program composed — not the library\'s — which is what Start trains',
+        today.template !== tpl('push', 'd1') && shown.exercises.length === tpl('push', 'd1').exercises.length + 1 &&
+        d.plan[0].meta === 'Today · ' + shown.exercises.length + ' exercises · ~' + ctx.computeWorkoutDuration(shown) + ' min', d.plan[0].meta);
+      ctx.renderTodayWorkout();
+      T('Train\'s Start for that row is the exact call Today\'s Start makes',
+        html('todayWorkout').indexOf("onclick=\"startTemplateLog('" + d.plan[0].cat + "','" + d.plan[0].id + "')\"") !== -1);
+      {
+        /* Today reads a running program's day before the plan's schedule; so does Train. */
+        const keepSchedule = ctx.schedule;
+        ctx.schedule = { mon:'rest', tue:'rest', wed:'rest', thu:'rest', fri:'rest', sat:'rest', sun:'rest' };
+        const owned = ctx.trainNextUp();
+        ctx.renderTodayWorkout();
+        const todayStarts = html('todayWorkout').indexOf("onclick=\"startTemplateLog('push','d1')\"") !== -1;
+        ctx.schedule = keepSchedule;
+        ctx.renderTodayWorkout();
+        T('while a program runs, its week decides — as it does on Today — even where the plan\'s own schedule says rest',
+          owned && owned.cat === 'push' && owned.id === 'd1' && owned.today === true && todayStarts, JSON.stringify(owned));
+      }
+      const keep = {};
+      ['addLogExerciseRow', 'openLogSheet', 'confirmOverwriteDraft', 'persistDraftNow'].forEach(k => { keep[k] = ctx[k]; });
+      const started = [];
+      Object.assign(ctx, { addLogExerciseRow: (...a) => started.push(a), openLogSheet(){}, confirmOverwriteDraft: async () => true, persistDraftNow(){} });
+      try{
+        await ctx.startTemplateLog(d.plan[0].cat, d.plan[0].id);
+        const program = { origin: ctx.pendingWorkoutOrigin, id: ctx.pendingWorkoutProgramId, cat: ctx.pendingLogCategory, rows: started.length };
+        started.length = 0;
+        await ctx.startTemplateLog('legs', 'd-lg3');
+        const extra = { origin: ctx.pendingWorkoutOrigin, id: ctx.pendingWorkoutProgramId, cat: ctx.pendingLogCategory };
+        started.length = 0;
+        await ctx.startTemplateLog('arms', 'c-1758000000000');
+        const saved = { origin: ctx.pendingWorkoutOrigin, id: ctx.pendingWorkoutProgramId, cat: ctx.pendingLogCategory, rows: started.length };
+        T('starting the program\'s session from Train is program work, with its program and every composed row',
+          program.origin === 'program' && program.id === made.program.id && program.cat === 'push' && program.rows === today.template.exercises.length, JSON.stringify(program));
+        T('a plan workout the program does not prescribe is extra training', extra.origin === 'freeform' && extra.id === null && extra.cat === 'legs', JSON.stringify(extra));
+        T('a saved workout is extra training under its own kind, with its own rows', saved.origin === 'freeform' && saved.id === null && saved.cat === 'arms' && saved.rows === 4, JSON.stringify(saved));
+      } finally { Object.assign(ctx, keep); }
+      ctx.selectedWorkoutMinutes = 30;
+      const tm = draw();
+      const b = ctx.applyTimeModeToTemplate(tpl('push', 'd2'));
+      T('with Time Mode on, a row states the shortened copy Start will train',
+        b.exercises.length < tpl('push', 'd2').exercises.length && tm.plan[1].meta === 'FRI · ' + b.exercises.length + ' exercises · ~' + ctx.computeWorkoutDuration(b) + ' min', tm.plan[1].meta);
+      ctx.selectedWorkoutMinutes = null;
+      draw();
+    });
+
+    sub('filters belong to the plan');
+    await guard('filters', () => {
+      const mineBefore = html('trainMine');
+      ctx.setTrainCategory('legs');
+      let d = { plan: rows(html('trainPlan')), chips: html('trainChips') };
+      T('choosing a kind shows only that kind, says which chip is on, and is remembered',
+        ctx.activeTrainCategory === 'legs' && ctx.trainCategoryChosen === true && d.plan.length === 4 && d.plan.every(r => r.cat === 'legs') &&
+        (d.chips.match(/aria-pressed="true"/g) || []).length === 1 && /class="filter-chip active" aria-pressed="true" onclick="setTrainCategory\('legs'\)">Legs</.test(d.chips));
+      T('My workouts is not filtered', html('trainMine') === mineBefore);
+      ctx.setTrainCategory('all');
+      d = { plan: rows(html('trainPlan')), chips: html('trainChips'), groups: (html('trainPlan').match(/<h3 class="tl-group-k">([^<]+)<\/h3>/g) || []).map(g => g.replace(/<[^>]+>/g, '')) };
+      T('All lists every plan workout, grouped by kind, the week\'s kinds first',
+        d.plan.length === 32 && d.groups.join() === 'Push,Pull,Legs,Upper Body,Lower Body,Core,Full Body,Arms' &&
+        /^<button type="button" class="filter-chip active" aria-pressed="true" onclick="setTrainCategory\('all'\)">All<\/button>/.test(d.chips.trim()), d.groups.join());
+      ctx.setTrainCategory('nonsense');
+      T('a kind that does not exist changes nothing', ctx.activeTrainCategory === 'all');
+      const keepCore = ctx.planData.core;
+      ctx.planData.core = [];
+      ctx.setTrainCategory('core');
+      const plan = html('trainPlan');
+      T('a kind with no plan workouts says so, names the week, and offers to build that kind',
+        /No Core workouts in Balanced Machines\. Your plan trains Push, Pull and Legs\./.test(plan) && /onclick="openAddTemplate\('core'\)">Build a Core workout<\/button>/.test(plan) &&
+        /class="filter-chip active is-empty" aria-pressed="true" onclick="setTrainCategory\('core'\)">Core</.test(html('trainChips')), plan.replace(/\s+/g, ' ').slice(0, 200));
+      ctx.planData.core = keepCore;
+      const keepArms = ctx.planData.arms;
+      ctx.planData.arms = keepArms.filter(t => /^c-/.test(t.id));
+      ctx.setTrainCategory('push');
+      T('a kind that holds only saved workouts is not a plan chip', !/setTrainCategory\('arms'\)/.test(html('trainChips')) && rows(html('trainMine')).some(r => r.cat === 'arms'));
+      ctx.planData.arms = keepArms;
+      const keepPlan = ctx.selectedPlanId;
+      ctx.selectedPlanId = null;
+      ctx.renderTrainView();
+      T('with no plan, the plan section asks for one', /Your workout library/.test(html('trainPlan')) && /onclick="openPlansManager\(\)">Choose a plan<\/button>/.test(html('trainPlan')) && html('trainChips') === '');
+      ctx.selectedPlanId = keepPlan;
+      ctx.renderTrainView();
+    });
+
+    sub('My workouts stays short and says what to do when empty');
+    await guard('my workouts', () => {
+      const saved = ORDER_OF(ctx).map(c => [c, ctx.planData[c]]);
+      const strip = () => ORDER_OF(ctx).forEach(c => { ctx.planData[c] = ctx.planData[c].filter(t => !/^c-/.test(t.id)); });
+      strip();
+      ctx.renderTrainView();
+      T('none saved: one line and one way to build', /<p class="tl-empty-text">Build a workout you can reuse anytime\.<\/p>/.test(html('trainMine')) &&
+        /onclick="openAddTemplate\(\)">Build workout<\/button>/.test(html('trainMine')) && doc.getElementById('trainMineCount').textContent === '');
+      for(let i = 0; i < 5; i++) ctx.planData.legs.push({ id:'c-17590000000' + i + '0', name:'Legs ' + i, exercises: EXS(2) });
+      ctx.trainMineAll = false;
+      ctx.renderTrainView();
+      T('more than four: the newest three, then Show all', rows(html('trainMine')).map(r => r.id).join() === 'c-1759000000040,c-1759000000030,c-1759000000020' &&
+        /aria-expanded="false" onclick="toggleTrainMine\(\)">Show all 5 workouts<\/button>/.test(html('trainMine')) && doc.getElementById('trainMineCount').textContent === '5');
+      ctx.toggleTrainMine();
+      T('Show all lists them all, and folds back', rows(html('trainMine')).length === 5 && /aria-expanded="true" onclick="toggleTrainMine\(\)">Show fewer<\/button>/.test(html('trainMine')));
+      ctx.trainMineAll = false;
+      ctx.planData.legs.pop();
+      ctx.renderTrainView();
+      T('four are all shown, with nothing to unfold', rows(html('trainMine')).length === 4 && !/toggleTrainMine/.test(html('trainMine')));
+      saved.forEach(([c, list]) => { ctx.planData[c] = list; });
+      ctx.renderTrainView();
+    });
+
+    sub('Details: one workout, and its maintenance, one tap away');
+    await guard('details', () => {
+      T('the sheet dismisses like every sheet, closes with a named button, and keeps Start as its loud action',
+        /<div class="overlay" id="trainDetailOverlay" onclick="backdropDismiss\(event, closeTrainDetail\)">/.test(src) &&
+        /<button type="button" class="td-close" onclick="closeTrainDetail\(\)" aria-label="Close details">/.test(src) &&
+        /<div class="sheet-actions">\s*<button type="button" class="btn-secondary" onclick="trainDetailEdit\(\)">Edit workout<\/button>\s*<button type="button" class="btn-primary" onclick="trainDetailStart\(\)">Start workout<\/button>/.test(src));
+      ctx.openTrainDetail('push', 'd1');
+      const ov = doc.getElementById('trainDetailOverlay');
+      const body = html('trainDetailBody');
+      const source = ctx.trainStartSource('push', tpl('push', 'd1'), ctx.getProgramWorkoutForDate('2026-09-14'));
+      const shown = ctx.applyTimeModeToTemplate(source);
+      T('a plan workout\'s Details: its kind and plan, the figure, every exercise the program composed for today, the profile — and no Rename',
+        ov.classList.contains('open') && ctx.trainDetailKey.cat === 'push' && ctx.trainDetailKey.id === 'd1' &&
+        doc.getElementById('trainDetailKicker').textContent === 'Plan workout · Push' && doc.getElementById('trainDetailTitle').textContent === 'Push A — Chest Focus' &&
+        /Balanced Machines$/.test(doc.getElementById('trainDetailSub').textContent) && doc.getElementById('trainDetailRename').hidden === true &&
+        /class="muscle-svg"/.test(body) && (body.match(/class="tpl-ex-row"/g) || []).length === shown.exercises.length && /tpl-radar-col/.test(body) &&
+        source !== tpl('push', 'd1') && /Today's session, as your program sets it\./.test(body));
+      const keep = { startTemplateLog: ctx.startTemplateLog, openEditTemplate: ctx.openEditTemplate, deleteTemplate: ctx.deleteTemplate };
+      const calls = [];
+      Object.assign(ctx, { startTemplateLog: (...a) => calls.push('start:' + a.join('/')), openEditTemplate: (...a) => calls.push('edit:' + a.join('/')), deleteTemplate: (...a) => calls.push('delete:' + a.join('/')) });
+      try{
+        ctx.trainDetailEdit();
+        ctx.trainDetailDelete();
+        T('Edit and Delete act on that workout through the existing sheet and the existing confirmation', calls.join() === 'edit:push/d1,delete:push/d1' && ov.classList.contains('open'), calls.join());
+        calls.length = 0;
+        ctx.trainDetailStart();
+        T('Start closes Details and starts that workout', calls.join() === 'start:push/d1' && !ov.classList.contains('open') && ctx.trainDetailKey === null, calls.join());
+        calls.length = 0;
+        ctx.openTrainDetail('arms', 'c-1758000000000');
+        ctx.trainDetailRename();
+        T('a saved workout\'s Details offer Rename, which is its edit sheet', doc.getElementById('trainDetailKicker').textContent === 'My workout · Arms' &&
+          doc.getElementById('trainDetailRename').hidden === false && !/Balanced Machines/.test(doc.getElementById('trainDetailSub').textContent) && calls.join() === 'edit:arms/c-1758000000000', calls.join());
+      } finally { Object.assign(ctx, keep); }
+      tpl('arms', 'c-1758000000000').name = 'Arm Pump, renamed';
+      ctx.renderTrainView();
+      T('a saved edit redraws the open Details', ov.classList.contains('open') && doc.getElementById('trainDetailTitle').textContent === 'Arm Pump, renamed');
+      const keepArms = ctx.planData.arms;
+      ctx.planData.arms = keepArms.filter(t => t.id !== 'c-1758000000000');
+      ctx.renderTrainView();
+      T('a workout deleted underneath closes its Details', !ov.classList.contains('open') && ctx.trainDetailKey === null);
+      ctx.planData.arms = keepArms;
+      tpl('arms', 'c-1758000000000').name = 'Arm Pump';
+      ctx.renderTrainView();
+    });
+
+    sub('Build workout asks what kind of workout it is');
+    await guard('build kind', () => {
+      ctx.openAddTemplate();
+      const kinds = html('tplKind');
+      T('from Quick start nothing is chosen, all eight kinds are offered, and the sheet says what saving does',
+        ctx.pendingTplCategory === null && doc.getElementById('tplKindWrap').hidden === false && (kinds.match(/role="radio"/g) || []).length === 8 &&
+        (kinds.match(/aria-checked="true"/g) || []).length === 0 && doc.getElementById('tplSheetSub').textContent === 'Save it once, then start it from Train anytime.');
+      ctx.openAddTemplate('legs');
+      T('from a kind, that kind arrives chosen', ctx.pendingTplCategory === 'legs' && /data-kind="legs" aria-checked="true"/.test(html('tplKind')) &&
+        (html('tplKind').match(/aria-checked="true"/g) || []).length === 1 && doc.getElementById('tplSheetSub').textContent === 'Another workout you can run on Legs day.');
+      ctx.openAddTemplate('nonsense');
+      T('a kind that does not exist arrives as no kind', ctx.pendingTplCategory === null);
+      ctx.chooseTplKind('pull');
+      ctx.chooseTplKind('nonsense');
+      T('choosing sets the kind; nonsense does not', ctx.pendingTplCategory === 'pull');
+      ctx.openEditTemplate('push', 'd1');
+      ctx.chooseTplKind('legs');
+      T('editing keeps the kind the workout has: the choice is hidden and inert', doc.getElementById('tplKindWrap').hidden === true && ctx.pendingTplCategory === 'push' && ctx.editingTemplateId === 'd1');
+
+      const keep = { flagFieldError: ctx.flagFieldError, persistPlanData: ctx.persistPlanData, renderAll: ctx.renderAll, closeTplSheet: ctx.closeTplSheet };
+      const qa = doc.querySelectorAll, q = doc.querySelector;
+      const flagged = [];
+      let persisted = 0;
+      const field = v => ({ value: v });
+      const row = { querySelector: sel => ({ '.t-name-in': field('Cable Curl'), '.t-sets-in': field('3'), '.t-reps-in': field('10-12'), '.t-effort-in': field('8'), '.t-weight-in': field('') })[sel] || null };
+      Object.assign(ctx, { flagFieldError: el => flagged.push(el), persistPlanData: () => { persisted++; }, renderAll(){}, closeTplSheet(){} });
+      doc.querySelectorAll = sel => sel === '#tplExercises .ex-log-row' ? [row] : qa(sel);
+      doc.querySelector = sel => ({ sel });
+      try{
+        ctx.openAddTemplate();
+        doc.getElementById('tplName').value = 'Cable Arms';
+        const before = JSON.stringify(ctx.planData);
+        ctx.saveTemplate(null);
+        T('Save with a name and exercises but no kind saves nothing, and points at the kind',
+          flagged.length === 1 && flagged[0] === doc.getElementById('tplKind') && persisted === 0 && JSON.stringify(ctx.planData) === before);
+        ctx.chooseTplKind('arms');
+        ctx.saveTemplate(null);
+        const made = ctx.planData.arms.filter(t => t.name === 'Cable Arms');
+        T('with a kind, it is saved under that kind as the athlete\'s workout',
+          made.length === 1 && /^c-\d+$/.test(made[0].id) && persisted === 1 && made[0].exercises.map(e => e.name).join() === 'Cable Curl' &&
+          ctx.trainSavedWorkouts().some(x => x.t === made[0] && x.cat === 'arms') && !ctx.trainPlanWorkouts('arms').some(t => t === made[0]));
+        const id = made[0].id;
+        ctx.openEditTemplate('arms', id);
+        doc.getElementById('tplName').value = 'Cable Arms, edited';
+        ctx.saveTemplate(null);
+        const edited = ctx.planData.arms.filter(t => t.id === id);
+        T('editing a saved workout keeps its id and its kind, and writes no history',
+          edited.length === 1 && edited[0].name === 'Cable Arms, edited' && !ORDER_OF(ctx).some(c => c !== 'arms' && ctx.planData[c].some(t => t.id === id)) &&
+          JSON.stringify(ctx.workoutLog) === logRaw);
+        ctx.planData.arms = ctx.planData.arms.filter(t => t.id !== id);
+      } finally { doc.querySelectorAll = qa; doc.querySelector = q; Object.assign(ctx, keep); }
+    });
+  } finally { release(); }
+
+  sub('the tab bar keeps its own clearance');
+  T('bottom clearance stays owned by the body, which clears the fixed tab bar and the home indicator',
+    /\nbody\{[^}]*padding-bottom: calc\(84px \+ env\(safe-area-inset-bottom, 0px\)\);/.test(css) &&
+    /\.tabbar\{[^}]*position: fixed; bottom: 0;[^}]*padding-bottom: env\(safe-area-inset-bottom, 0\);/.test(css));
+  T('the launcher adds none of its own: no inset, no fixed or sticky layer, no viewport-height box',
+    launcherCss.length > 2000 && !/safe-area|position:\s*(fixed|sticky)|100d?vh/.test(launcherCss));
+  T('Details keeps its foot where every sheet keeps it', /\n\.sheet-actions\{[^}]*padding: 14px 20px calc\(14px \+ env\(safe-area-inset-bottom, 0px\)\);/.test(css));
+
+  sub('built for a thumb and a screen reader');
+  T('every row Start names its workout, and every row button says it opens Details',
+    /aria-label="\$\{escapeAttr\('Start ' \+ name\)\}">Start<\/button>/.test(fnSrc(src, 'trainRowHtml')) && /<span class="sr-only">Details for <\/span>/.test(fnSrc(src, 'trainRowHtml')));
+  T('the chips say which is on, and the kind choice is a radio group',
+    /aria-pressed="\$\{on\}"/.test(fnSrc(src, 'renderTrainPlan')) && /id="tplKind" role="radiogroup" aria-labelledby="tplKindLabel"/.test(src) && /role=\\?"radio\\?"/.test(fnSrc(src, 'renderTplKind')));
+  T('every launcher control is at least 44px',
+    /\.tl-start\{[^}]*min-height: 44px;/.test(css) && /\.tl-main\{[^}]*min-height: 64px;/.test(css) && /\.tl-empty-cta\{[^}]*min-height: 44px;/.test(css) &&
+    /\.td-close\{[^}]*width: 44px; height: 44px;/.test(css) && /\.td-link\{[^}]*min-height: 44px;/.test(css) && /\.tpl-kind-opt\{[^}]*min-height: 44px;/.test(css) &&
+    /\.tl-toggle\{[^}]*min-height: 44px;/.test(css) && /\.filter-chip\{[^}]*min-height: 44px;/.test(css) && /\.tq-btn\{[^}]*min-height: 60px;/.test(css));
+  T('and each shows where focus is',
+    /\.tl-main:focus-visible, \.tl-start:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css) && /\.tl-empty-cta:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css) &&
+    /\.td-close:focus-visible, \.td-link:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css) && /\.tpl-kind-opt:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css) &&
+    /\.tl-toggle:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css));
+  T('the gradient budget still holds: no launcher surface adds one', !/gradient\(|--grad-/.test(stripComments(launcherCss)) && (css.match(/var\(--grad-accent\)/g) || []).length <= 4);
+
+  sub('nothing protected moved');
+  const norm = t => String(t).split('\r\n').join('\n').trim();
+  const sha = t => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
+  const artFile = path.join(repo, 'loop-exercise-art.js');
+  const a = src.indexOf('LOOP-EXERCISE-ART-BEGIN */'), b = src.indexOf('/* LOOP-EXERCISE-ART-END */');
+  /* D64's drawings, as shipped. A phase that changes a drawing on purpose moves these with its reason. */
+  T('no drawing changed: the art source and its vendored copy are D64\'s',
+    fs.existsSync(artFile) && sha(norm(fs.readFileSync(artFile, 'utf8'))) === 'd8cebf12531da3d9' && a > 0 && b > a && sha(norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b))) === 'd8cebf12531da3d9');
+  T('the muscle figure and the profile radar are drawn as they were', sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === 'a568afdf15633033' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
+  T('the art exporter stays development tooling: the app and its worker never reference it',
+    !/export-exercise-art|artifacts\/exercise-art-export/.test(src) && !/export-exercise-art|artifacts\//.test(fs.readFileSync(path.join(repo, 'sw.js'), 'utf8')));
+  T('no history, storage key, schema or trainer change', JSON.stringify(ctx.workoutLog) === logRaw && ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 &&
+    ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && Object.keys(app.store).filter(k => storeKeys.split(',').indexOf(k) === -1).every(k => /^programs|^planData:|^schedule:|^planStart:/.test(k)),
+    Object.keys(app.store).filter(k => storeKeys.split(',').indexOf(k) === -1).join(','));
+  T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+}
+/* The raw text of one top-level function, comments included — for pinning a drawing function byte for byte. */
+function fnSpan(src, name){
+  const i = src.indexOf('function ' + name + '(');
+  if(i < 0) return '';
+  const j = src.indexOf('\nfunction ', i + 10);
+  return src.slice(i, j < 0 ? undefined : j);
+}
+function ORDER_OF(ctx){ return ctx.ORDER.slice(); }
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -25628,6 +26033,7 @@ async function main(){
   await testMachineCoverage();
   await testMachineIntegrity();
   await testBodyweightCoverage();
+  await testTrainLauncher();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

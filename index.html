@@ -2590,6 +2590,127 @@ body.first-use{ padding-bottom: 0; }
 .tq-title{ font-family: 'Inter', sans-serif; font-size: var(--fs-body); font-weight: 600; line-height: 1.25; color: var(--text); }
 .tq-sub{ font-size: var(--fs-meta); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 359px){ .tq{ grid-template-columns: 1fr; } }
+/* D65 — TRAIN IS A LAUNCHER. Quick start, then the athlete's own workouts,
+   then the plan's, each workout one row: its name, what it trains, what it
+   takes, and Start. The body figure, the exercise list and the maintenance
+   actions are one tap away in Details, so twenty workouts read as a list
+   rather than twenty posters. One list surface per group, no gradients; the
+   only filled Start is the session LOOP says is next. */
+.tr-sec + .tr-sec{ margin-top: var(--space-6); }
+.tr-label{ margin: 0 0 var(--space-2); font-weight: 400; }
+.tr-head{ display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2); }
+.tr-head .tr-label{ margin: 0; }
+.tr-count{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.tr-sec .tq{ margin: 0; }
+.tr-plan-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: var(--fs-card-title); line-height: 1.3; color: var(--text); margin: -2px 0 var(--space-2); }
+.tr-plan-name:empty{ display: none; }
+/* The chips run to the screen's edges, so a row that continues past the edge
+   reads as one that scrolls. */
+.tr-chips{ margin: 0 -20px var(--space-3); padding: 0 20px 4px; scroll-padding-inline: 20px; }
+.tr-chips:empty{ display: none; }
+
+.tr-resume{
+  display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  border: 1px solid rgba(76,194,255,0.35); border-radius: var(--radius-lg); background: var(--accent-soft);
+}
+.tr-resume-main{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 4px 0; }
+.tr-resume-k{ font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.tr-resume-title{ font-size: var(--fs-body); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tr-resume-sub{ font-size: var(--fs-meta); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.tl-list{
+  list-style: none; margin: 0; padding: 0; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg);
+}
+.tl-row{ display: flex; align-items: center; gap: var(--space-2); padding-right: var(--space-3); }
+.tl-row + .tl-row{ border-top: 1px solid var(--border-quiet); }
+.tl-main{
+  flex: 1; min-width: 0; min-height: 64px; display: flex; flex-direction: column; justify-content: center; gap: 3px;
+  padding: 10px 0 10px var(--space-4); background: none; border: none; color: var(--text);
+  text-align: left; cursor: pointer; font-family: 'Inter', sans-serif;
+}
+.tl-main:active{ background: var(--surface-2); }
+.tl-name{ font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; line-height: 1.25; color: var(--text); overflow-wrap: anywhere; }
+.tl-more{ display: inline-flex; vertical-align: -2px; margin-left: 3px; color: var(--text-faint); }
+.tl-more svg{ width: 12px; height: 12px; }
+.tl-muscles{ font-size: 12.5px; line-height: 1.35; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-muscles-2{ color: var(--text-faint); }
+.tl-meta{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); line-height: 1.35; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.tl-tag{ color: var(--accent); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.tl-days{ letter-spacing: 0.04em; }
+.tl-start{
+  flex-shrink: 0; min-width: 72px; min-height: 44px; padding: 0 var(--space-4);
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 99px; border: 1px solid rgba(76,194,255,0.38); background: var(--accent-soft); color: var(--accent);
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-body); font-weight: 700; cursor: pointer;
+  transition: transform 0.12s var(--ease);
+}
+.tl-start.is-next{ background: var(--accent); border-color: var(--accent); color: #0C0E12; box-shadow: var(--shadow-accent); }
+.tl-start:active{ transform: scale(0.96); }
+.tl-main:focus-visible, .tl-start:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce){ .tl-start{ transition: none; } .tl-start:active{ transform: none; } }
+
+.tl-toggle{
+  display: block; width: 100%; min-height: 44px; margin-top: 4px; background: none; border: none; border-radius: var(--radius-md);
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.tl-toggle:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.tl-group + .tl-group{ margin-top: var(--space-4); }
+.tl-group-k{
+  margin: 0 0 6px 2px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint);
+}
+
+.tl-empty{
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: 1px dashed var(--border); border-radius: var(--radius-lg);
+}
+.tl-empty-text{ flex: 1; min-width: 0; margin: 0; font-size: var(--fs-support); line-height: 1.45; color: var(--text-dim); }
+.tl-empty-text strong{ display: block; color: var(--text); font-weight: 600; }
+.tl-empty-cta{
+  flex-shrink: 0; min-height: 44px; padding: 0 var(--space-3); border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.tl-empty-cta:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.tl-empty-stack{ flex-direction: column; align-items: stretch; }
+.tl-empty-stack .empty-cta{ margin-top: 0; }
+@media (max-width: 359px){ .tl-empty{ flex-direction: column; align-items: stretch; } }
+
+/* Details: the one workout the athlete asked about. */
+.td-head{ display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin: -10px -10px 0 0; }
+.td-kicker{ font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
+.td-close{
+  flex-shrink: 0; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: var(--radius-md); color: var(--text-faint); cursor: pointer;
+}
+.td-close:focus-visible, .td-link:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.td-note{ font-size: var(--fs-meta); color: var(--accent); margin: -8px 0 var(--space-2); }
+.td-figure{ display: flex; justify-content: center; padding: var(--space-2) 0 var(--space-1); }
+.td-figure .muscle-svg{ max-width: 124px; }
+#trainDetailBody .tpl-emphasis{ text-align: center; }
+.td-k{
+  margin: var(--space-4) 0 var(--space-1); font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-faint);
+}
+.td-manage{ display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border-quiet); }
+.td-link{
+  min-height: 44px; padding: 0 var(--space-4); background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text-dim); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.td-danger{ margin-left: auto; color: var(--danger); border-color: rgba(229,103,95,0.35); }
+
+/* The saved-workout sheet's kind choice (D65). */
+.tpl-kind{ display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; margin-top: 6px; }
+.tpl-kind.field-error{ border-radius: var(--radius-md); }
+.tpl-kind-opt{
+  min-height: 44px; padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+  line-height: 1.2; cursor: pointer;
+}
+.tpl-kind-opt[aria-checked="true"]{ border-color: var(--k); background: var(--ks); color: var(--k); }
+.tpl-kind-opt:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---- History ---- */
 .hist-filters{ display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
@@ -7094,21 +7215,41 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 
   <div class="view" id="view-train">
-    <!-- D61 — the two ways to make a workout sit above the saved ones, where
-         the athlete arrives: build one as you go, or save a new one. The add
-         button used to sit under the last card. -->
-    <div class="tq" role="group" aria-label="Make a workout">
-      <button type="button" class="tq-btn" onclick="openFreeformLog()">
-        <span class="tq-ic"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 3.2v9.6M3.2 8h9.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <span class="tq-main"><span class="tq-title">Empty workout</span><span class="tq-sub">Build as you go</span></span>
-      </button>
-      <button type="button" class="tq-btn" id="trainAddBtn" onclick="openAddTemplate(activeTrainCategory)">
-        <span class="tq-ic"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.8 4h7M2.8 8h7M2.8 12h4.2M12.2 9.4v5.2M9.6 12h5.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
-        <span class="tq-main"><span class="tq-title">New workout</span><span class="tq-sub" id="trainAddSub">Save one to reuse</span></span>
-      </button>
-    </div>
-    <div class="hist-filters" id="trainChips"></div>
-    <div class="tpl-grid" id="trainGrid"></div>
+    <!-- D65 — Train is a launcher, not a catalogue. Three ways to start, in the
+         order an athlete reaches for them: from nothing, from a workout they
+         saved, from their plan. Every Start runs through the functions Today and
+         the Log use, so nothing on this screen decides what a workout is, where
+         it came from, or how it progresses. -->
+    <div id="trainResume"></div>
+    <section class="tr-sec" aria-labelledby="trainQuickLabel">
+      <h2 class="section-label tr-label" id="trainQuickLabel">Quick start</h2>
+      <!-- D61 — the two ways to make a workout. D65 — named for what each does:
+           one trains now; the other saves a workout to reuse and asks what kind
+           it is, instead of borrowing whichever category was on screen. -->
+      <div class="tq" role="group" aria-labelledby="trainQuickLabel">
+        <button type="button" class="tq-btn" onclick="openFreeformLog()">
+          <span class="tq-ic"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 3.2v9.6M3.2 8h9.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+          <span class="tq-main"><span class="tq-title">Empty workout</span><span class="tq-sub">Train now</span></span>
+        </button>
+        <button type="button" class="tq-btn" id="trainBuildBtn" onclick="openAddTemplate()">
+          <span class="tq-ic"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.8 4h7M2.8 8h7M2.8 12h4.2M12.2 9.4v5.2M9.6 12h5.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+          <span class="tq-main"><span class="tq-title">Build workout</span><span class="tq-sub">Save to reuse</span></span>
+        </button>
+      </div>
+    </section>
+    <section class="tr-sec" aria-labelledby="trainMineLabel">
+      <div class="tr-head">
+        <h2 class="section-label tr-label" id="trainMineLabel">My workouts</h2>
+        <span class="tr-count" id="trainMineCount"></span>
+      </div>
+      <div id="trainMine"></div>
+    </section>
+    <section class="tr-sec" aria-labelledby="trainPlanLabel">
+      <h2 class="section-label tr-label" id="trainPlanLabel">My plan</h2>
+      <div class="tr-plan-name" id="trainPlanName"></div>
+      <div class="hist-filters tr-chips" id="trainChips" role="group" aria-label="Plan workouts to show"></div>
+      <div id="trainPlan"></div>
+    </section>
   </div>
 
   <div class="view" id="view-progress">
@@ -7432,6 +7573,31 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 </div>
 
+<!-- TRAIN · WORKOUT DETAILS (D65) — one workout before committing to it: what it
+     trains, its exercises, and the ways to change it. Start stays the loud
+     action; Rename and Delete sit quietly below the content. -->
+<div class="overlay" id="trainDetailOverlay" onclick="backdropDismiss(event, closeTrainDetail)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <div class="td-head">
+        <span class="td-kicker" id="trainDetailKicker"></span>
+        <button type="button" class="td-close" onclick="closeTrainDetail()" aria-label="Close details"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+      </div>
+      <h2 id="trainDetailTitle">Workout</h2>
+      <div class="sheet-sub" id="trainDetailSub"></div>
+      <div id="trainDetailBody"></div>
+      <div class="td-manage">
+        <button type="button" class="td-link" id="trainDetailRename" onclick="trainDetailRename()">Rename</button>
+        <button type="button" class="td-link td-danger" onclick="trainDetailDelete()">Delete workout</button>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn-secondary" onclick="trainDetailEdit()">Edit workout</button>
+      <button type="button" class="btn-primary" onclick="trainDetailStart()">Start workout</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD / EDIT TEMPLATE SHEET -->
 <div class="overlay" id="tplOverlay">
   <div class="sheet">
@@ -7440,6 +7606,13 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="sheet-sub" id="tplSheetSub">Add another way to train this lift.</div>
     <label>Workout name</label>
     <input type="text" id="tplName" placeholder="e.g. Pull C — Rows Focus">
+    <!-- D65 — a saved workout is filed under a kind of session, and the athlete
+         chooses it. Nothing is chosen unless they came from one kind. Shown only
+         while creating: an edit keeps the kind the workout already has. -->
+    <div id="tplKindWrap" hidden>
+      <label id="tplKindLabel">Kind of workout</label>
+      <div class="tpl-kind" id="tplKind" role="radiogroup" aria-labelledby="tplKindLabel" tabindex="-1"></div>
+    </div>
     <label style="margin-top:18px">Exercises</label>
     <div id="tplExercises"></div>
     <!-- D61 — shown only while the list above is empty. -->
@@ -13361,6 +13534,10 @@ let activeTrainCategory = 'push';
 /* Set once the athlete picks a category themselves; until then Train resolves
    its own starting point from their plan on every open. */
 let trainCategoryChosen = false;
+/* D65 — { cat, id } of the workout whose Details are open, or null. */
+let trainDetailKey = null;
+/* D65 — whether My workouts lists every saved workout or its newest few. */
+let trainMineAll = false;
 
 const DAY_ORDER = ['mon','tue','wed','thu','fri','sat','sun'];
 const DAY_LABEL = { mon:'MON', tue:'TUE', wed:'WED', thu:'THU', fri:'FRI', sat:'SAT', sun:'SUN' };
@@ -14630,6 +14807,35 @@ const LOOP_UPDATES = [
     changes: [
       'Diamond Push-Up and Close-Grip Push-up are one exercise, Close-Grip Push-Up, listed under triceps. Box Step-Up is listed as Step-Up, Bench Dips and Chair Triceps Dips as Bench Dip, Band Lateral Walk as Lateral Band Walk, Mountain Climbers as Mountain Climber, Slow Tempo Push-Up as Push-Up and Triceps Dips as Dip. Workouts you already logged keep the names you logged',
       'Weighted and assisted versions, such as Weighted Pull-Up, Weighted Dips, DB Step-Up and Assisted Pull-Up, stay separate from the bodyweight exercise and keep their own history'
+    ]
+  },
+  {
+    id: 'v6-8',
+    version: 'LOOP 6.8',
+    title: 'Start a Workout',
+    date: '2026-09-14',
+    swVersion: 'loop-v145',
+    summary: 'Train is now three ways to start: an empty workout, the workouts you built, and your plan’s workouts, each one row with its own Start.',
+    newFeatures: [
+      'Train is organized into Quick start, My workouts and My plan. Each workout is one row showing what it trains, how many exercises it has, about how long it takes, and Start',
+      'My plan shows your plan’s name and lists its workouts one kind of session at a time, or all of them together under All',
+      'The session planned for today is marked Today. On a rest day, or once you have logged a workout today, the next planned session is marked Next with its day',
+      'Tap a workout’s name to see its muscle diagram, every exercise and its training profile, and to edit or delete it. Workouts you built can also be renamed there',
+      'While a workout is in progress, Train shows it at the top with Resume'
+    ],
+    improvements: [
+      'Build workout asks what kind of workout you are saving, such as Push or Legs, instead of saving it under whichever category was selected on Train',
+      'The workouts you built are listed together under My workouts, whatever their kind. With more than four, the newest three show first and the rest are one tap away',
+      'Muscle diagrams moved into each workout’s details, so Train takes far less scrolling',
+      'Plan workouts show the days they are scheduled this week',
+      'Train’s filter buttons now tell screen readers which one is selected'
+    ],
+    bugFixes: [
+      'On Train, choosing a kind of workout your plan had none of said to add one below, where there was no button. It now offers to build one of that kind right there'
+    ],
+    changes: [
+      'New workout is now called Build workout',
+      'Starting a workout from Train works as before: a session your program schedules still counts as program work, and any other workout as extra training'
     ]
   }
 ];
@@ -17907,6 +18113,7 @@ function findNextTrainingDay(fromKey){
 function goToTrainCategory(cat){
   setTrainCategory(cat);
   switchTab('train');
+  try{ trainRevealActiveChip(); }catch(e){}
 }
 
 /* Local time only. "Still up" guessed at the athlete's night — it read as a
@@ -23176,7 +23383,10 @@ function setDayValue(val){
   closeDayEdit();
 }
 
-/* The choosing card (D24). Its default face answers one question — "what does
+/* D65 — Train lists workouts as rows and keeps this card for Today's workout
+   picker (pickerGridHtml), which is where it is still drawn.
+
+   The choosing card (D24). Its default face answers one question — "what does
    this workout train, and do I want it?" — with name, emphasis, two facts,
    the body visual, and Start. Everything else the card used to shout —
    radar profile, primary/secondary rows, permanent edit and delete buttons —
@@ -23248,71 +23458,409 @@ function scheduledTrainCategories(){
   });
   return seen;
 }
-/* Train opens where the athlete's own training is. Today's session first,
-   then the rest of their week, then anything they have built — and only if
-   none of that exists does it fall back to a fixed category. */
+/* Train opens where the athlete's own training is. D65 — the session LOOP says
+   is next, when the plan has it to show; then today's session, the rest of
+   their week, anything the plan holds — and only if none of that exists does it
+   fall back to a fixed category. */
 function defaultTrainCategory(){
+  try{
+    const next = trainNextUp();
+    if(next && trainPlanWorkouts(next.cat).some(t => t.id === next.id)) return next.cat;
+  }catch(e){}
+  const count = c => trainPlanWorkouts(c).length;
   const today = (typeof JS_DAY_TO_KEY !== 'undefined') ? JS_DAY_TO_KEY[new Date().getDay()] : null;
   const todayCat = (schedule && today) ? schedule[today] : null;
-  if(todayCat && todayCat !== 'rest' && trainCategoryCount(todayCat)) return todayCat;
-  const scheduled = scheduledTrainCategories().filter(trainCategoryCount);
+  if(todayCat && todayCat !== 'rest' && count(todayCat)) return todayCat;
+  const scheduled = scheduledTrainCategories().filter(count);
   if(scheduled.length) return scheduled[0];
-  const anyPopulated = ORDER.filter(trainCategoryCount);
+  const anyPopulated = ORDER.filter(count);
   if(anyPopulated.length) return anyPopulated[0];
   const planned = scheduledTrainCategories();
   return planned.length ? planned[0] : activeTrainCategory;
 }
 
-function renderTrainView(){
-  if(!trainCategoryChosen) activeTrainCategory = defaultTrainCategory();
+/* =========================================================
+   TRAIN — THE LAUNCHER  (D65)
+   ---------------------------------------------------------
+   One question: WHAT DO I WANT TO START?
+
+   Three answers, in the order an athlete reaches for them: a
+   workout built from nothing (openFreeformLog, D61/D62), one they
+   saved (planData entries with a 'c-' id, the only ids saveTemplate
+   creates), or one from their plan (every other entry: the selected
+   plan's workouts, edited or not). The two lists are the same
+   storage read two ways; nothing is copied, moved or re-keyed.
+
+   THIS SCREEN DECIDES NOTHING ABOUT A WORKOUT. Both lists start
+   through startTemplateLog(cat, id), the call Today's hero makes,
+   so prescriptions, the program's composed session, provenance,
+   Time Mode, progression and the in-progress guard are whatever
+   that function makes them. A row repeats only what Start will
+   train: its count and duration come from the source
+   startTemplateLog picks, through the same Time Mode copy.
+
+   "TODAY" AND "NEXT" ARE LOOP'S ANSWERS, NOT A GUESS. The session
+   on a date is the one Today's hero and the week strip's day card
+   name (the program's day when one is running, dayTemplateFor
+   otherwise), and a row is tagged only when that resolves to this
+   exact workout. While a workout is in progress nothing is tagged:
+   Resume is what comes next.
+   ========================================================= */
+function isSavedWorkoutId(id){ return /^c-/.test(String(id == null ? '' : id)); }
+
+/* The athlete's saved workouts across every kind of session, newest first. */
+function trainSavedWorkouts(){
+  const out = [];
+  ORDER.forEach(cat => {
+    let list = [];
+    try{ list = getTemplates(cat) || []; }catch(e){ list = []; }
+    list.forEach(t => { if(t && isSavedWorkoutId(t.id)) out.push({ cat, t }); });
+  });
+  const made = x => parseInt(String(x.t.id).slice(2), 10) || 0;
+  return out.sort((a, b) => made(b) - made(a));
+}
+/* The plan's own workouts in one kind of session. */
+function trainPlanWorkouts(cat){
+  let list = [];
+  try{ list = getTemplates(cat) || []; }catch(e){ list = []; }
+  return list.filter(t => t && !isSavedWorkoutId(t.id));
+}
+/* The kinds of session the plan has workouts for: the week's own first, in the
+   order it runs, then the rest of the plan. */
+function trainPlanCategories(){
   const inPlan = scheduledTrainCategories();
-  // The athlete's own categories lead; the rest stay reachable but recede.
-  const ordered = ORDER.slice().sort((a, b) => {
+  return ORDER.filter(c => trainPlanWorkouts(c).length).sort((a, b) => {
     const ai = inPlan.indexOf(a), bi = inPlan.indexOf(b);
     if(ai !== -1 && bi !== -1) return ai - bi;
     if(ai !== -1) return -1;
     if(bi !== -1) return 1;
     return ORDER.indexOf(a) - ORDER.indexOf(b);
   });
-  document.getElementById('trainChips').innerHTML = ordered.map(cat => `
-    <button class="filter-chip ${cat===activeTrainCategory?'active':''}${trainCategoryCount(cat)?'':' is-empty'}" onclick="setTrainCategory('${cat}')">${CAT_LABEL[cat]}</button>
-  `).join('');
-
-  const lw = lastWeightsMap();
-  // getTemplates() returns null before a plan is chosen; render the empty
-  // state rather than throwing if a render is reached in that window.
-  document.getElementById('trainGrid').innerHTML =
-    (getTemplates(activeTrainCategory) || []).map(t => templateCardHtml(t, activeTrainCategory, lw)).join('') ||
-    trainEmptyStateHtml();
-
-  /* D61 — New workout saves under the kind of day chosen below it, and says
-     which. */
-  const addBtn = document.getElementById('trainAddBtn');
-  if(addBtn) addBtn.setAttribute('onclick', `openAddTemplate('${activeTrainCategory}')`);
-  const addSub = document.getElementById('trainAddSub');
-  if(addSub) addSub.textContent = 'For ' + CAT_LABEL[activeTrainCategory];
 }
-/* Says what this screen is, why it matters, and what to do — and never tells an
-   athlete who has eight workouts that they have none. */
+
+/* The session LOOP trains on a date, resolved the way Today's hero resolves
+   today: the running program's day when there is one, the schedule's otherwise,
+   and dayTemplateFor for the workout. Null on a rest day or when nothing resolves. */
+function trainSessionOn(date){
+  const dateStr = localDateStr(date);
+  const key = JS_DAY_TO_KEY[date.getDay()];
+  let cat = null;
+  try{
+    const pd = hasActiveProgram() ? getProgramWorkoutForDate(dateStr) : null;
+    cat = pd ? ((pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest')
+             : (schedule ? schedule[key] : 'rest');
+  }catch(e){ return null; }
+  if(!cat || cat === 'rest') return null;
+  let tpl = null;
+  try{ tpl = dayTemplateFor(cat, dateStr); }catch(e){ tpl = null; }
+  return (tpl && tpl.id) ? { cat, id: tpl.id, key, dateStr } : null;
+}
+/* Today's session while it is still to do; once today is trained or rested,
+   the next day that has one. */
+function trainNextUp(){
+  if(hasActiveDraftNow) return null;
+  const todayStr = localDateStr();
+  let done = false;
+  try{ done = (workoutLog || []).some(l => l && l.date === todayStr); }catch(e){ done = false; }
+  const base = new Date(); base.setHours(0, 0, 0, 0);
+  for(let i = done ? 1 : 0; i <= 7; i++){
+    const d = new Date(base); d.setDate(base.getDate() + i);
+    const s = trainSessionOn(d);
+    if(s){ s.today = i === 0; return s; }
+  }
+  return null;
+}
+/* This week's days for each workout that is a day's session: 'push|d1' -> ['mon']. */
+function trainWeekDays(){
+  const out = {};
+  const base = new Date(); base.setHours(0, 0, 0, 0);
+  const mon = new Date(base); mon.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+  for(let i = 0; i < 7; i++){
+    const d = new Date(mon); d.setDate(mon.getDate() + i);
+    const s = trainSessionOn(d);
+    if(s) (out[s.cat + '|' + s.id] = out[s.cat + '|' + s.id] || []).push(s.key);
+  }
+  return out;
+}
+function trainTodayProgram(){
+  try{ return getProgramWorkoutForDate(localDateStr()); }catch(e){ return null; }
+}
+/* What Start trains for a workout: startTemplateLog's own choice — the program's
+   composed session when it scheduled exactly this workout today — then the
+   Time Mode copy it starts from. */
+function trainStartSource(cat, t, todayProgram){
+  if(todayProgram && todayProgram.template && todayProgram.category === cat && todayProgram.template.id === t.id){
+    return todayProgram.template;
+  }
+  return t;
+}
+function trainShown(src){
+  try{ return applyTimeModeToTemplate(src) || src; }catch(e){ return src; }
+}
+/* What a workout mainly trains, from the same totals and the same split as the
+   Details emphasis line: up to three names, the secondary half quieter. */
+function trainMusclesHtml(t){
+  let totals = {};
+  try{ totals = computeMuscleTotals(t) || {}; }catch(e){ return ''; }
+  const entries = Object.keys(totals).filter(k => totals[k] > 0).sort((a, b) => totals[b] - totals[a]);
+  if(!entries.length) return '';
+  const max = totals[entries[0]];
+  const label = k => escapeHtml(MUSCLE_LABELS[k] || k);
+  const primary = entries.filter(k => totals[k] >= max * 0.75).slice(0, 3);
+  const secondary = entries.filter(k => totals[k] < max * 0.75).slice(0, Math.max(0, 3 - primary.length));
+  return primary.map(label).join(' · ') +
+    (secondary.length ? '<span class="tl-muscles-2"> · ' + secondary.map(label).join(' · ') + '</span>' : '');
+}
+
+/* One workout as one row: a button that opens its Details, and Start. */
+function trainRowHtml(kind, cat, t, view){
+  const shown = trainShown(trainStartSource(cat, t, view.todayProgram));
+  const n = (shown.exercises || []).length;
+  let dur = null;
+  try{ dur = computeWorkoutDuration(shown); }catch(e){ dur = null; }
+  const next = (view.next && view.next.cat === cat && view.next.id === t.id) ? view.next : null;
+  const days = (view.week[cat + '|' + t.id] || []).filter(d => !next || d !== next.key);
+  /* Each fact wraps whole: a narrow row breaks between facts, never inside one. */
+  const whole = text => String(text).replace(/ /g, '\u00a0');
+  const meta = [];
+  if(next) meta.push('<span class="tl-tag">' + whole(next.today ? 'Today' : 'Next · ' + DAY_LABEL[next.key]) + '</span>');
+  if(days.length) meta.push('<span class="tl-days">' + whole(days.map(d => DAY_LABEL[d]).join(' · ')) + '</span>');
+  if(kind === 'saved') meta.push(escapeHtml(whole(CAT_LABEL[cat] || cat)));
+  meta.push(whole(n + ' exercise' + (n === 1 ? '' : 's')));
+  if(dur) meta.push(whole('~' + dur + ' min'));
+  const muscles = trainMusclesHtml(shown);
+  const name = t.name || 'Workout';
+  const c = onclickArg(cat), id = onclickArg(t.id);
+  return `
+    <li class="tl-row${next ? ' is-next' : ''}" data-kind="${kind}" data-cat="${escapeAttr(cat)}" data-id="${escapeAttr(t.id)}">
+      <button type="button" class="tl-main" onclick="openTrainDetail('${c}','${id}')">
+        <span class="tl-name"><span class="sr-only">Details for </span>${escapeHtml(name)}<span class="tl-more" aria-hidden="true">${chevronRightSvg()}</span></span>
+        ${muscles ? `<span class="tl-muscles">${muscles}</span>` : ''}
+        <span class="tl-meta">${meta.join(' · ')}</span>
+      </button>
+      <button type="button" class="tl-start${next ? ' is-next' : ''}" onclick="startTemplateLog('${c}','${id}')"
+        aria-label="${escapeAttr('Start ' + name)}">Start</button>
+    </li>`;
+}
+
+function renderTrainResume(){
+  const host = document.getElementById('trainResume');
+  if(!host) return;
+  if(!hasActiveDraftNow){ host.innerHTML = ''; return; }
+  const info = activeDraftInfo || { title: 'Workout', mins: null, summary: '' };
+  host.innerHTML = `
+    <div class="tr-resume">
+      <div class="tr-resume-main">
+        <span class="tr-resume-k">Workout in progress</span>
+        <span class="tr-resume-title">${escapeHtml(info.title)}</span>
+        ${info.summary ? `<span class="tr-resume-sub">${info.mins ? info.mins + ' min · ' : ''}${info.summary}</span>` : ''}
+      </div>
+      <button type="button" class="tl-start is-next" onclick="resumeActiveWorkout()"
+        aria-label="${escapeAttr('Resume ' + info.title)}">Resume</button>
+    </div>`;
+}
+
+function renderTrainMine(view){
+  const host = document.getElementById('trainMine');
+  if(!host) return;
+  const mine = trainSavedWorkouts();
+  const count = document.getElementById('trainMineCount');
+  if(count) count.textContent = mine.length ? String(mine.length) : '';
+  /* The newest three, and the rest one tap away, so a long library never pushes
+     the plan off the screen. Four are all shown: a toggle for one row is noise. */
+  const folded = !trainMineAll && mine.length > 4;
+  const rows = folded ? mine.slice(0, 3) : mine;
+  const toggle = mine.length > 4
+    ? `<button type="button" class="tl-toggle" id="trainMineToggle" aria-expanded="${!folded}" onclick="toggleTrainMine()">${folded ? 'Show all ' + mine.length + ' workouts' : 'Show fewer'}</button>`
+    : '';
+  host.innerHTML = mine.length
+    ? `<ul class="tl-list" role="list">${rows.map(x => trainRowHtml('saved', x.cat, x.t, view)).join('')}</ul>${toggle}`
+    : `<div class="tl-empty">
+        <p class="tl-empty-text">Build a workout you can reuse anytime.</p>
+        <button type="button" class="tl-empty-cta" onclick="openAddTemplate()">Build workout</button>
+      </div>`;
+}
+
+function toggleTrainMine(){
+  trainMineAll = !trainMineAll;
+  renderTrainView();
+  const again = document.getElementById('trainMineToggle');
+  if(again){ try{ again.focus({ preventScroll: true }); }catch(e){} }
+}
+
+/* The chip row scrolls sideways; the chosen chip is kept in sight. */
+function trainRevealActiveChip(){
+  const row = document.getElementById('trainChips');
+  const chip = row && row.querySelector ? row.querySelector('.filter-chip.active') : null;
+  if(!chip || !row.getBoundingClientRect) return;
+  const r = row.getBoundingClientRect(), c = chip.getBoundingClientRect();
+  if(!r.width) return;
+  if(c.left < r.left || c.right > r.right) row.scrollLeft += (c.left - r.left) - 20;
+}
+
+function renderTrainPlan(view){
+  const host = document.getElementById('trainPlan');
+  if(!host) return;
+  const chipsEl = document.getElementById('trainChips');
+  const nameEl = document.getElementById('trainPlanName');
+  const plan = selectedPlanId ? DEFAULT_PLANS[selectedPlanId] : null;
+  if(nameEl) nameEl.textContent = plan ? plan.name : '';
+  if(!plan || !planData){
+    if(chipsEl) chipsEl.innerHTML = '';
+    host.innerHTML = trainEmptyStateHtml();
+    return;
+  }
+  const cats = trainPlanCategories();
+  const active = activeTrainCategory;
+  if(chipsEl){
+    const focused = document.activeElement;
+    const hadFocus = !!(focused && focused.closest && focused.closest('#trainChips'));
+    const chipCats = cats.slice();
+    if(active !== 'all' && CAT_LABEL[active] && chipCats.indexOf(active) === -1) chipCats.push(active);
+    chipsEl.innerHTML = ['all'].concat(chipCats).map(c => {
+      const on = c === active;
+      const empty = c !== 'all' && !trainPlanWorkouts(c).length;
+      return `<button type="button" class="filter-chip${on ? ' active' : ''}${empty ? ' is-empty' : ''}" aria-pressed="${on}" onclick="setTrainCategory('${c}')">${c === 'all' ? 'All' : CAT_LABEL[c]}</button>`;
+    }).join('');
+    if(hadFocus){
+      const again = chipsEl.querySelector ? chipsEl.querySelector('.filter-chip.active') : null;
+      if(again){ try{ again.focus({ preventScroll: true }); }catch(e){} }
+    }
+    try{ trainRevealActiveChip(); }catch(e){}
+  }
+  if(active === 'all'){
+    host.innerHTML = cats.length ? cats.map(c => `
+      <div class="tl-group">
+        <h3 class="tl-group-k">${escapeHtml(CAT_LABEL[c])}</h3>
+        <ul class="tl-list" role="list">${trainPlanWorkouts(c).map(t => trainRowHtml('plan', c, t, view)).join('')}</ul>
+      </div>`).join('') : trainEmptyStateHtml();
+    return;
+  }
+  const list = trainPlanWorkouts(active);
+  host.innerHTML = list.length
+    ? `<ul class="tl-list" role="list">${list.map(t => trainRowHtml('plan', active, t, view)).join('')}</ul>`
+    : trainEmptyStateHtml();
+}
+
+/* ---------- Details: one workout, before committing to it ----------
+   What used to be every card's face and its Details row: the body figure, the
+   exercises, the profile and focus, and the maintenance actions — for the one
+   workout the athlete asked about. It stays open under Edit, so Cancel comes
+   back to it and Save redraws it; a workout deleted underneath closes it. */
+function openTrainDetail(cat, id){
+  const t = (getTemplates(cat) || []).find(x => x && x.id === id);
+  if(!t) return;
+  trainDetailKey = { cat, id };
+  renderTrainDetail();
+  const ov = document.getElementById('trainDetailOverlay');
+  if(ov) ov.classList.add('open');
+}
+function closeTrainDetail(){
+  trainDetailKey = null;
+  const ov = document.getElementById('trainDetailOverlay');
+  if(ov) ov.classList.remove('open');
+}
+function renderTrainDetail(){
+  const key = trainDetailKey;
+  if(!key) return;
+  const t = (getTemplates(key.cat) || []).find(x => x && x.id === key.id);
+  if(!t){ closeTrainDetail(); return; }
+  const saved = isSavedWorkoutId(t.id);
+  const src = trainStartSource(key.cat, t, trainTodayProgram());
+  const shown = trainShown(src);
+  const exercises = shown.exercises || [];
+  let dur = null;
+  try{ dur = computeWorkoutDuration(shown); }catch(e){ dur = null; }
+  let plateaus = [];
+  try{ plateaus = findPlateauedExercises(t); }catch(e){ plateaus = []; }
+  const plan = selectedPlanId ? DEFAULT_PLANS[selectedPlanId] : null;
+  const set = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
+  set('trainDetailKicker', (saved ? 'My workout' : 'Plan workout') + ' · ' + (CAT_LABEL[key.cat] || key.cat));
+  set('trainDetailTitle', t.name || 'Workout');
+  set('trainDetailSub', [exercises.length + ' exercise' + (exercises.length === 1 ? '' : 's'), dur ? '~' + dur + ' min' : null,
+    (!saved && plan) ? plan.name : null].filter(Boolean).join(' · '));
+  const rename = document.getElementById('trainDetailRename');
+  if(rename) rename.hidden = !saved;
+  const body = document.getElementById('trainDetailBody');
+  if(!body) return;
+  let profile = null;
+  try{ profile = computeWorkoutProfile(shown); }catch(e){ profile = null; }
+  body.innerHTML = `
+    ${src !== t ? `<div class="td-note">Today's session, as your program sets it.</div>` : ''}
+    ${timeModeNoteHtml(src)}
+    ${plateaus.length ? `<div class="plateau-flag">${warnIconSvg()} ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}</div>` : ''}
+    <div class="td-figure">${bodyDiagramSvg(shown)}</div>
+    ${tplEmphasisLine(shown)}
+    <h3 class="td-k">Exercises</h3>
+    <div class="tpl-ex-list">${exercises.map(ex =>
+      `<div class="tpl-ex-row"><span>${escapeHtml(ex.name)}</span><span>${escapeHtml(String(ex.sets))} × ${escapeHtml(String(ex.reps))}</span></div>`).join('')}</div>
+    ${profile ? `<div class="tpl-radar-col">${radarSvg(profile)}</div>` : ''}
+    ${muscleFocusHtml(shown)}`;
+}
+function trainDetailStart(){
+  const key = trainDetailKey;
+  if(!key) return;
+  closeTrainDetail();
+  startTemplateLog(key.cat, key.id);
+}
+function trainDetailEdit(){
+  const key = trainDetailKey;
+  if(key) openEditTemplate(key.cat, key.id);
+}
+/* Renaming is the edit sheet with its name field ready. The sheet takes focus
+   as it opens, so the field is focused after that. */
+function trainDetailRename(){
+  const key = trainDetailKey;
+  if(!key) return;
+  openEditTemplate(key.cat, key.id);
+  setTimeout(() => {
+    const name = document.getElementById('tplName');
+    if(name){ try{ name.focus(); name.select(); }catch(e){} }
+  }, 60);
+}
+/* deleteTemplate confirms, saves and redraws; the redraw closes these Details. */
+function trainDetailDelete(){
+  const key = trainDetailKey;
+  if(key) deleteTemplate(key.cat, key.id);
+}
+
+function renderTrainView(){
+  if(!trainCategoryChosen) activeTrainCategory = defaultTrainCategory();
+  /* Resolved once per draw: every row reads the same next session, the same
+     week and the same program day. */
+  const view = { next: trainNextUp(), week: trainWeekDays(), todayProgram: trainTodayProgram() };
+  renderTrainResume();
+  renderTrainMine(view);
+  renderTrainPlan(view);
+  if(trainDetailKey) renderTrainDetail();
+}
+/* The plan section's empty state says what is missing, why, and what to do —
+   and never tells an athlete whose plan has workouts that it has none. */
 function trainEmptyStateHtml(){
-  const populated = ORDER.filter(c => c !== activeTrainCategory && trainCategoryCount(c));
-  if(populated.length){
-    const names = populated.map(c => CAT_LABEL[c]);
-    const list = names.length > 1
-      ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]
-      : names[0];
-    return `<div class="empty"><div class="mark">○</div>
-      <h3>No ${escapeHtml(CAT_LABEL[activeTrainCategory])} workouts</h3>
-      <div>Your plan trains ${escapeHtml(list)}. Pick one of those above, or add ${articleFor(CAT_LABEL[activeTrainCategory])} ${escapeHtml(CAT_LABEL[activeTrainCategory])} workout below.</div>
+  const plan = selectedPlanId ? DEFAULT_PLANS[selectedPlanId] : null;
+  if(!plan || !planData){
+    return `<div class="tl-empty tl-empty-stack">
+      <p class="tl-empty-text"><strong>Your workout library</strong> Choosing a plan fills this in with workouts for your training days.</p>
+      <button class="empty-cta" type="button" onclick="openPlansManager()">Choose a plan</button>
     </div>`;
   }
-  return `<div class="empty"><div class="mark">○</div>
-    <h3>Your workout library</h3>
-    <div>Every workout you can start from Today lives here, grouped by the kind of session. Choosing a plan fills this in — or add your own below.</div>
-    <button class="empty-cta" type="button" onclick="openPlansManager()">Choose a plan</button>
-  </div>`;
+  const cat = activeTrainCategory;
+  if(cat === 'all' || !CAT_LABEL[cat]){
+    return `<div class="tl-empty">
+      <p class="tl-empty-text">${escapeHtml(plan.name)} has no workouts yet.</p>
+      <button type="button" class="tl-empty-cta" onclick="openAddTemplate()">Build workout</button>
+    </div>`;
+  }
+  const week = scheduledTrainCategories().filter(c => c !== cat && trainPlanWorkouts(c).length).map(c => CAT_LABEL[c]);
+  const list = week.length > 1 ? week.slice(0, -1).join(', ') + ' and ' + week[week.length - 1] : week[0];
+  const label = CAT_LABEL[cat];
+  return `<div class="tl-empty">
+      <p class="tl-empty-text">No ${escapeHtml(label)} workouts in ${escapeHtml(plan.name)}.${week.length ? ` Your plan trains ${escapeHtml(list)}.` : ''}</p>
+      <button type="button" class="tl-empty-cta" onclick="openAddTemplate('${cat}')">Build ${articleFor(label)} ${escapeHtml(label)} workout</button>
+    </div>`;
 }
 function setTrainCategory(cat){
+  if(cat !== 'all' && !CAT_LABEL[cat]) return;
   activeTrainCategory = cat;
   trainCategoryChosen = true;    // an explicit choice is never overridden
   renderTrainView();
@@ -40632,6 +41180,7 @@ async function renderResumeBanner(){
     activeDraftInfo = null;
   }
   renderTodayWorkout();
+  try{ renderTrainView(); }catch(e){}
 }
 
 let workoutHistoryPushed = false;
@@ -43497,14 +44046,21 @@ function deleteLog(id){
 
 /* ---------- ADD / EDIT TEMPLATE SHEET ---------- */
 function openAddTemplate(cat){
-  pendingTplCategory = cat;
+  /* D65 — Build workout arrives with no kind, and the sheet asks. A caller that
+     knows the kind — an empty plan category's "Build a Legs workout" — passes
+     it, and it arrives chosen. Nothing borrows a filter's category any more. */
+  const kind = (cat && CAT_LABEL[cat]) ? cat : null;
+  pendingTplCategory = kind;
   editingTemplateId = null;
   document.getElementById('tplSheetTitle').textContent = 'New Workout';
-  document.getElementById('tplSheetSub').textContent = 'Another workout you can run on ' + CAT_LABEL[cat] + ' day.';
+  document.getElementById('tplSheetSub').textContent = kind
+    ? 'Another workout you can run on ' + CAT_LABEL[cat] + ' day.'
+    : 'Save it once, then start it from Train anytime.';
   document.getElementById('tplName').value = '';
   /* D61 — empty, not a blank row: the sheet says it has no exercises and the
      one action under that opens the picker. */
   document.getElementById('tplExercises').innerHTML = '';
+  renderTplKind();
   document.getElementById('tplOverlay').classList.add('open');
 }
 
@@ -43518,10 +44074,29 @@ function openEditTemplate(cat, id){
   document.getElementById('tplName').value = tpl.name;
   document.getElementById('tplExercises').innerHTML = '';
   tpl.exercises.forEach(ex => addTplExerciseRow(ex.name, ex.sets, ex.reps, ex.effort, ex.recommended));
+  renderTplKind();
   document.getElementById('tplOverlay').classList.add('open');
 }
 
 function closeTplSheet(){ document.getElementById('tplOverlay').classList.remove('open'); }
+
+/* D65 — the kinds in the order the workout's own category picker lists them. */
+function renderTplKind(){
+  const wrap = document.getElementById('tplKindWrap');
+  const host = document.getElementById('tplKind');
+  if(!wrap || !host) return;
+  wrap.hidden = !!editingTemplateId;
+  host.innerHTML = ['push','pull','legs','core','upper','lower','fullbody','arms'].map(c => {
+    const v = c === 'fullbody' ? 'full' : c;
+    return `<button type="button" class="tpl-kind-opt" role="radio" data-kind="${c}" aria-checked="${pendingTplCategory === c}"` +
+      ` style="--k:var(--${v});--ks:var(--${v}-soft)" onclick="chooseTplKind('${c}')">${CAT_LABEL[c]}</button>`;
+  }).join('');
+}
+function chooseTplKind(cat){
+  if(editingTemplateId || !CAT_LABEL[cat]) return;
+  pendingTplCategory = cat;
+  document.querySelectorAll('#tplKind .tpl-kind-opt').forEach(b => b.setAttribute('aria-checked', String(b.dataset.kind === cat)));
+}
 
 /* D61 — a row arrives from the picker with its name and the library's
    prescription already filled, so it leads with the exercise's picture where
@@ -43572,6 +44147,10 @@ function saveTemplate(btn){
   /* D61 — a saved workout needs an exercise. Saying so beats a Save that did
      nothing: the add action is flagged and focused, like an empty name field. */
   if(exercises.length === 0){ flagFieldError(document.querySelector('#tplOverlay .add-ex-btn')); return; }
+  /* D65 — and a kind of session, which the athlete chose: asked last, like the
+     other two, and never assumed. */
+  if(!pendingTplCategory){ flagFieldError(document.getElementById('tplKind')); return; }
+  if(!planData || !Array.isArray(planData[pendingTplCategory])) return;
 
   if(editingTemplateId){
     const list = planData[pendingTplCategory];
