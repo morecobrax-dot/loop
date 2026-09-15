@@ -2251,8 +2251,22 @@ function build(){
   function chair(o){ return ext({ pin:['nE', [60, 46]], nua:0, nfa:90, fua:-2, ffa:88, trunk:180, neck:180, nft:90, fft:90 }, o); }
   /* Hanging from a bar at (60, 16). */
   function hanging(o){ return ext({ pin:['nW', [60, 16]], nua:180, nfa:180, fua:176, ffa:176, trunk:180, neck:180 }, o); }
-  /* Seated V for Russian twists, seen from the front. */
+  /* Seated V for the weighted Russian twist, seen from the front. */
   function vSit(o){ return ext({ pin:['hc', [60, 101.6]], torsoScale:0.9, thighScale:0.62, shinScale:0.46, lth:146, lsh:70, rth:146, rsh:70, sw:7.2 }, o); }
+  /* The Russian twist seen three-quarters from the front (D67): seat on the
+     floor, the trunk leaned back 34 degrees and facing us, the knees together
+     and bent to the right with the feet just off the floor. A front view turns
+     the far foot outward — backward, here — so the far leg is solved to land
+     that foot inside the near one, where it reads as the heel. Both positions
+     share every joint but the arms, so only the turn changes: the hands meet
+     beside one hip or the other, one arm across the body, the other elbow out. */
+  function twistSeat(hands){
+    var p = { pin:['hc', [50, G - 4.4]], lean:-34, torsoScale:0.94, neckTilt:-24, sw:6.8, hw:0.6, uaScale:0.88, rth:143, rsh:53 };
+    var J = ExerciseArt.solve('front', p);
+    var far = H.legTo(J.lH, [J.rA[0] + 0.8, J.rA[1] + 0.6]);
+    p.lth = -far[0]; p.lsh = -far[1];
+    return handsAt(p, hands, -1, 1);
+  }
   /* Decline bench: surface from (18, 92) up to (76, 71). */
   var DECLINE = { trunk:-70, hip:[46.9, 72.3] };
   function decline(o){ return ext({ pin:['hip', DECLINE.hip], nth:110, nsh:30, fth:108, fsh:28, nft:90, fft:90 }, o); }
@@ -2374,9 +2388,12 @@ function build(){
     gear:[['wheel', { at:'nW' }]], track:'nW' },
 
   /* ---- rotation and anti-rotation ---- */
-  russian_twist: { view:'front', arch:'dynamic', both:true,
-    start:handsAt(vSit({ lean:-12 }), [38, 84]),
-    end:  handsAt(vSit({ lean:12 }), [82, 84]),
+  /* Bodyweight, nothing in the hands. The hands travel from beside one hip to
+     beside the other while the legs hold still, and the turn is drawn as one
+     shallow arc lifted clear above the head rather than across the body. */
+  russian_twist: { view:'front', arch:'dynamic', both:true, key:'end', path:'flight', flight:1, arrow:{ shift:[6, -33], slide:0 },
+    start:twistSeat([35, 93]),
+    end:  twistSeat([51.5, 93]),
     track:'mid' },
 
   weighted_russian_twist: { view:'front', arch:'dynamic', both:true,

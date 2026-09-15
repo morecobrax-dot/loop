@@ -25887,9 +25887,10 @@ async function testTrainLauncher(){
   const sha = t => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
   const artFile = path.join(repo, 'loop-exercise-art.js');
   const a = src.indexOf('LOOP-EXERCISE-ART-BEGIN */'), b = src.indexOf('/* LOOP-EXERCISE-ART-END */');
-  /* D64's drawings, as shipped. A phase that changes a drawing on purpose moves these with its reason. */
-  T('no drawing changed: the art source and its vendored copy are D64\'s',
-    fs.existsSync(artFile) && sha(norm(fs.readFileSync(artFile, 'utf8'))) === 'd8cebf12531da3d9' && a > 0 && b > a && sha(norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b))) === 'd8cebf12531da3d9');
+  /* The drawings as shipped. A phase that changes a drawing on purpose moves these with its reason.
+     D67 moved them: it redrew the Russian twist and nothing else, which Contract 175 holds drawing by drawing. */
+  T('no drawing changed but on purpose: the art source and its vendored copy are D67\'s',
+    fs.existsSync(artFile) && sha(norm(fs.readFileSync(artFile, 'utf8'))) === 'b50108786faba2fb' && a > 0 && b > a && sha(norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b))) === 'b50108786faba2fb');
   T('the muscle figure and the profile radar are drawn as they were', sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === 'a568afdf15633033' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
   T('the art exporter stays development tooling: the app and its worker never reference it',
     !/export-exercise-art|artifacts\/exercise-art-export/.test(src) && !/export-exercise-art|artifacts\//.test(fs.readFileSync(path.join(repo, 'sw.js'), 'utf8')));
@@ -26186,6 +26187,163 @@ async function testWeekHoldToSlide(){
     /if\(to\) commitWeekMove\(from, to\);/.test(fnSrc(src, 'finishWeekDrag')));
 }
 
+/* =========================================================
+   CONTRACT 175 — THE RUSSIAN TWIST, DRAWN AS A TWIST (D67)
+   ---------------------------------------------------------
+   The Russian twist was drawn from the front as a seated V
+   whose trunk bent from side to side over flat, splayed legs,
+   with a second head beside the first: a side bend, not a
+   rotation. It is redrawn in the same renderer, three-quarters
+   from the front: the seat on the floor, the trunk leaned back,
+   the knees bent with the feet just off the floor, and two
+   positions that are identical but for the arms — the hands
+   together beside one hip, then beside the other — under one
+   shallow arc above the head. Nothing is in the hands, because
+   it is bodyweight. The identity, its names, muscles, equipment,
+   prescriptions and cues are unchanged, and so is every other
+   drawing, byte for byte.
+   ========================================================= */
+async function testRussianTwistArt(){
+  section('CONTRACT 175 — the Russian twist, drawn as a twist (D67)');
+  const fs = require('fs');
+  const crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
+  const ctx = app.ctx, XA = ctx.ExerciseArt, G = XA.G, defs = ctx.EXERCISE_ART.definitions(), def = defs.russian_twist;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const sha = t => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
+  const norm = t => String(t).split('\r\n').join('\n').trim();
+  const full = XA.render(def, { size:'full' }), thumb = XA.render(def, { size:'thumb' });
+  const J = [XA.solve('front', def.start), XA.solve('front', def.end)];
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const angleAt = (a, b, c) => { const u = [a[0] - b[0], a[1] - b[1]], v = [c[0] - b[0], c[1] - b[1]];
+    return Math.acos((u[0] * v[0] + u[1] * v[1]) / Math.hypot(u[0], u[1]) / Math.hypot(v[0], v[1])) * 180 / Math.PI; };
+  const nums = s => (String(s).match(/-?\d+(\.\d+)?/g) || []).map(Number);
+  const pairs = d => { const n = nums(d), out = []; for(let i = 0; i + 1 < n.length; i += 2) out.push([n[i], n[i + 1]]); return out; };
+  /* Points along every subpath of an absolute M/L/Q/T path. */
+  const subpaths = d => {
+    const out = []; let cur = null, pt = null, ctrl = null, m; const re = /([MLQTZ])([^MLQTZ]*)/g;
+    while((m = re.exec(d))){
+      const c = m[1], n = nums(m[2]);
+      if(c === 'M'){ cur = []; out.push(cur); pt = [n[0], n[1]]; cur.push(pt); ctrl = null; }
+      else if(c === 'L'){ pt = [n[0], n[1]]; cur.push(pt); ctrl = null; }
+      else if(c === 'Q' || c === 'T'){
+        const q = c === 'Q' ? [n[0], n[1]] : (ctrl ? [2 * pt[0] - ctrl[0], 2 * pt[1] - ctrl[1]] : pt), e = c === 'Q' ? [n[2], n[3]] : [n[0], n[1]];
+        for(let i = 1; i <= 6; i++){ const t = i / 6, u = 1 - t; cur.push([u * u * pt[0] + 2 * u * t * q[0] + t * t * e[0], u * u * pt[1] + 2 * u * t * q[1] + t * t * e[1]]); }
+        ctrl = q; pt = e;
+      }
+    }
+    return out;
+  };
+  /* The solid figure's chains, in the order a front view draws them: both legs, the trunk, then both arms. */
+  const solid = full.replace(/<g opacity="[^"]*">[\s\S]*?<\/g>/g, '');
+  const chains = (solid.match(/<path d="[^"]+" fill="#(4F5A6B|485365)" stroke="[^"]+" stroke-width="1\.6" paint-order="stroke"\/>/g) || [])
+    .map(p => ({ d: p.match(/d="([^"]+)"/)[1], trunk: /fill="#485365"/.test(p) }));
+  const lowest = pts => pts.reduce((y, p) => Math.max(y, p[1]), -Infinity);
+
+  sub('the same exercise: identity, names, muscles, equipment, prescriptions and cues');
+  guard('identity', () => {
+    T('the registry row is the one D64 shipped, character for character',
+      src.indexOf("{ id:'russian_twist',           displayName:'Russian Twist',          aliases:['russian twist','russian twists'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'rotation' },") !== -1 &&
+      (src.match(/id:'russian_twist'/g) || []).length === 1 && /\n\s*russian_twist:\s+\[\],/.test(src));
+    const e = ctx.getCanonicalExercise('russian_twist');
+    T('it is still bodyweight abs work with a rotation, and needs no equipment at all',
+      e.displayName === 'Russian Twist' && e.equipment === 'Bodyweight' && e.bodyweight === true && e.primary.join() === 'abs' && e.secondary.length === 0 &&
+      e.pattern === 'core' && e.motion === 'rotation' && e.supports1RM === false && JSON.stringify(ctx.EXERCISE_EQUIPMENT.russian_twist) === '[]' &&
+      ctx.exerciseIsBodyweight('Russian Twist') === true && (ctx.musclesForExercise('Russian Twist').primary || []).join() === 'abs');
+    T('every name reaches this drawing, and the weighted twist keeps its own',
+      ['Russian Twist', 'russian twist', 'Russian Twists', 'russian twists'].every(n => ctx.resolveExerciseId(n) === 'russian_twist' && ctx.exerciseVisualKey(n) === 'russian_twist') &&
+      ctx.exerciseVisualKey('Weighted Russian Twist') === 'weighted_russian_twist' && ctx.resolveExerciseId('Weighted Russian Twist') !== 'russian_twist');
+    T('the plans prescribe it exactly as before', (src.match(/T\('Russian Twist',[^)]*\)/g) || []).join(' | ') ===
+      "T('Russian Twist',3,'15/side','6','Bodyweight') | T('Russian Twist',3,'20/side','7') | T('Russian Twist',3,'20/side','7')");
+    T('the cues are unchanged, and How To shows this drawing beside them',
+      ctx.howToCues('Russian Twist').join(' | ') === 'Lean back, feet off the floor | Rotate the hands side to side | Turn from the ribs' && (() => {
+        ctx.openHowTo('Russian Twist');
+        const ok = ctx.document.getElementById('howToArt').innerHTML === full && /Turn from the ribs/.test(ctx.document.getElementById('howToCues').innerHTML);
+        ctx.closeHowTo();
+        return ok;
+      })());
+  });
+
+  sub('a seated rotation, not a side bend');
+  guard('pose', () => {
+    const moved = Object.keys(Object.assign({}, def.start, def.end)).filter(k => JSON.stringify(def.start[k]) !== JSON.stringify(def.end[k]));
+    T('the two positions differ only in the arms', moved.length > 0 && moved.every(k => ['la', 'lfa', 'ra', 'rfa'].indexOf(k) !== -1), moved.join(','));
+    T('so the seat, trunk, head and both legs hold still between them',
+      ['hc', 'sc', 'head', 'lS', 'rS', 'lH', 'rH', 'lK', 'rK', 'lA', 'rA', 'lT', 'rT'].every(j => dist(J[0][j], J[1][j]) < 0.01));
+    T('the trunk leans back between 30 and 45 degrees, and does not bend sideways to turn',
+      def.start.lean === def.end.lean && Math.abs(def.start.lean) >= 30 && Math.abs(def.start.lean) <= 45);
+    T('both knees bend between 70 and 100 degrees',
+      J.every(P => [angleAt(P.rH, P.rK, P.rA), angleAt(P.lH, P.lK, P.lA)].every(a => a >= 70 && a <= 100)),
+      J.map(P => angleAt(P.rH, P.rK, P.rA).toFixed(1) + '/' + angleAt(P.lH, P.lK, P.lA).toFixed(1)).join(' '));
+    const legs = chains.filter(c => !c.trunk).slice(0, 2), trunk = chains.find(c => c.trunk);
+    T('drawn as it is solved: two legs, then the trunk, then two arms', chains.length === 5 && chains[2].trunk && chains.filter(c => c.trunk).length === 1);
+    T('the seat rests on the floor', !!trunk && Math.abs(G - (lowest(subpaths(trunk.d)[0]) + 0.8)) < 0.9);
+    T('and both feet are clearly off it', legs.length === 2 && legs.every(c => G - (lowest([].concat.apply([], subpaths(c.d).slice(1))) + 0.8) >= 4.5));
+    T('the hands meet in both positions', J.every(P => dist(P.lW, P.rW) < 0.05));
+    const side = P => { const ax = P.sc[0] - P.hc[0], ay = P.sc[1] - P.hc[1], hx = P.lW[0] - P.hc[0], hy = P.lW[1] - P.hc[1], L = Math.hypot(ax, ay);
+      return { t: (hx * ax + hy * ay) / (L * L), off: (hx * ay - hy * ax) / L }; };
+    T('beside the trunk, at the height of the abdomen', J.every(P => { const s = side(P); return s.t > 0.2 && s.t < 0.7 && Math.abs(s.off) > 3 && Math.abs(s.off) < 12; }),
+      J.map(P => side(P).t.toFixed(2) + '@' + side(P).off.toFixed(1)).join(' '));
+    T('on one side of the trunk, then on the other', Math.sign(side(J[0]).off) === -Math.sign(side(J[1]).off));
+    T('every elbow is bent', J.every(P => angleAt(P.lS, P.lE, P.lW) < 160 && angleAt(P.rS, P.rE, P.rW) < 160));
+    const elbowToKnee = P => Math.min(dist(P.lE, P.rK), dist(P.rE, P.rK), dist(P.lE, P.lK), dist(P.rE, P.lK));
+    T('and the elbow that swings out keeps clear of the knees', J.every(P => elbowToKnee(P) > 7.4), J.map(P => elbowToKnee(P).toFixed(2)).join(' '));
+  });
+
+  sub('bodyweight, one faint second position, one arc above the head');
+  guard('drawing', () => {
+    T('nothing is in the hands: no prop, and no equipment colour anywhere in the drawing',
+      !def.gear && !def.scene && !def.behind && !def.front && !/#232A34|#A7B1C1|#6C7788|#2A313C|#39424F|#8C97A8/.test(full + thumb));
+    const heads = (full.match(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="([\d.]+)"/g) || []).map(nums);
+    T('one head: the second position\'s lies exactly under the first, and a thumbnail draws only one',
+      heads.length === 2 && JSON.stringify(heads[0]) === JSON.stringify(heads[1]) && (thumb.match(/<circle/g) || []).length === 1);
+    T('the second position is faint at full size, and left out of a thumbnail like every whole-body ghost',
+      (full.match(/<g opacity="0\.22">/g) || []).length === 1 && !/<g opacity/.test(thumb));
+    const arrow = svg => {
+      const shafts = svg.match(/<path d="[^"]+" stroke="#4CC2FF"[^>]*\/>/g) || [], tips = svg.match(/<path d="[^"]+" fill="#4CC2FF"[^>]*\/>/g) || [];
+      const pts = [].concat.apply([], shafts.concat(tips).map(p => pairs(p.match(/d="([^"]+)"/)[1])));
+      const shaft = shafts.length ? pairs(shafts[0].match(/d="([^"]+)"/)[1]) : [];
+      return { shafts: shafts.length, tips: tips.length, pts, shaft };
+    };
+    const headTop = J[1].head[1] - XA.B.head - 0.75;
+    [['full', full], ['thumb', thumb]].forEach(([size, svg]) => {
+      const a = arrow(svg), xs = a.pts.map(p => p[0]), ys = a.pts.map(p => p[1]);
+      T(size + ': one arrow, with a head at each end', a.shafts === 1 && a.tips === 2);
+      T(size + ': it sits above the head, clear of it, and level', ys.length > 0 && Math.max.apply(null, ys) < headTop - 3 &&
+        Math.abs(a.shaft[0][1] - a.shaft[a.shaft.length - 1][1]) < 1, 'lowest ' + Math.max.apply(null, ys) + ' head top ' + headTop.toFixed(1));
+      T(size + ': and spans well under the athlete\'s own width', Math.max.apply(null, xs) - Math.min.apply(null, xs) < 0.6 * (J[1].rT[0] - (J[1].head[0] - XA.B.head)));
+      const vb = nums(svg.match(/viewBox="([^"]+)"/)[1]);
+      const inside = p => p[0] >= vb[0] && p[0] <= vb[0] + vb[2] && p[1] >= vb[1] && p[1] <= vb[1] + vb[3];
+      const all = [].concat.apply([], (svg.match(/<path d="([^"]+)"/g) || []).map(p => pairs(p.slice(9, -1))));
+      T(size + ': nothing is cut off by its frame', all.length > 50 && all.every(inside));
+    });
+    const body = pairs((thumb.replace(/<path d="[^"]+" (stroke|fill)="#4CC2FF"[^>]*\/>/g, '').replace(/<path d="M[^"]+" stroke="#2A313B"[^>]*\/>/, '').match(/<path d="[^"]+"/g) || []).join(' '));
+    const tvb = nums(thumb.match(/viewBox="([^"]+)"/)[1]), bx = body.map(p => p[0]);
+    T('a thumbnail frames the athlete large: the figure spans over 80% of its width',
+      (Math.max.apply(null, bx) - Math.min.apply(null, bx)) / tvb[2] > 0.8, ((Math.max.apply(null, bx) - Math.min.apply(null, bx)) / tvb[2]).toFixed(2));
+  });
+
+  sub('nothing else moved');
+  guard('scope', () => {
+    const others = Object.keys(defs).sort().filter(k => k !== 'russian_twist');
+    /* Every other drawing, at both sizes, as 6.9 drew them. A phase that changes a drawing on purpose moves this with its reason. */
+    T('all ' + others.length + ' other drawings are byte for byte the ones LOOP 6.9 shipped, the weighted twist among them',
+      others.length === 176 && others.indexOf('weighted_russian_twist') !== -1 &&
+      sha(others.map(k => k + '|' + XA.render(defs[k], { size:'full' }) + '|' + XA.render(defs[k], { size:'thumb' })).join('\n')) === '0c7c2c3f3c4e9b6f');
+    const a = src.indexOf('LOOP-EXERCISE-ART-BEGIN */'), b = src.indexOf('/* LOOP-EXERCISE-ART-END */');
+    const lib = norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b));
+    const renderer = lib.slice(lib.indexOf('var ExerciseArt = (function(){'), lib.indexOf('var EXERCISE_ART = (function(){'));
+    T('the renderer is untouched: no new option, no new rule', renderer.length > 40000 && sha(renderer) === '6f4ebcaeb25afe0c');
+    T('the names that reach drawings and every cue are as they were',
+      sha(JSON.stringify(ctx.EXERCISE_ART.byName)) === '25a5e81ed07285c4' && sha(JSON.stringify(ctx.EXERCISE_ART.howTo)) === 'cb39cc0fdb5b5538');
+    T('the weighted twist still sits in its own seated V', /weighted_russian_twist: \{ view:'front', arch:'dynamic', both:true,\s+start:handsAt\(vSit\(\{ lean:-12 \}\), \[38, 84\]\),/.test(lib));
+    T('the thumbnail budget holds', Object.keys(defs).reduce((s, k) => s + (XA.render(defs[k], { size:'thumb' }).match(/<(path|circle|rect)/g) || []).length, 0) < 3200);
+    T('no history, storage key, schema or trainer change', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
+      /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -26323,6 +26481,7 @@ async function main(){
   await testBodyweightCoverage();
   await testTrainLauncher();
   await testWeekHoldToSlide();
+  await testRussianTwistArt();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

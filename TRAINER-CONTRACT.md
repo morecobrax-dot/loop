@@ -9877,3 +9877,103 @@ to the card's centre.
   Safari's touch-to-pointer mapping is covered by the non-passive touchmove
   refusal and the pointercancel and lostpointercapture paths, not by a device
   run.
+
+## §98 — D67: The Russian twist, drawn as a twist
+
+**Status.** Shipped in LOOP 7.0 (`loop-v147`). One drawing only. `DATA_KEYS`
+15, schema 1, no migration, no new storage key, `TRAINER_ENGINE_VERSION`
+0.1.1-shadow. The identity `russian_twist` is unchanged: Bodyweight, abs, core,
+`motion:'rotation'`, no equipment (`EXERCISE_EQUIPMENT` `[]`), its aliases,
+muscles, cues, plan prescriptions, Swap role, program eligibility and history.
+The renderer is unchanged, and every other drawing is byte-identical to 6.9.
+
+### What was wrong (measured on 6.9)
+
+- **A side bend, not a rotation.** The two positions were the front-view
+  seated V (`vSit`) with `lean:-12` and `lean:12`. `lean` tilts the trunk in
+  the picture plane, so the sternum swung 9.4 units side to side over hips that
+  stayed put.
+- **Splayed legs.** Thighs up and out, shins down and out, the feet 47.5 units
+  apart in the air: a butterfly sit, not knees together.
+- **A second head.** The default whole-body ghost drew the other position's
+  head 13.2 units beside the first in How To.
+- **Unreadable small.** The arms met at chest height to each side; at 40 to
+  52 px the figure was a blob under the arrow.
+
+### The new drawing
+
+- **View.** The front renderer, three-quarters. `twistSeat(hands)`:
+  - hips pinned on the floor (`hc` at G − 4.4)
+  - the trunk leaned back 34° (`lean:-34`, `torsoScale:0.94`) and facing the
+    viewer, the head held up (`neckTilt:-24`)
+  - knees together and bent to the right (`rth:143`, `rsh:53`: 90°), the feet
+    6 units off the floor
+- **The far leg.** A front view turns the left foot outward, which is backward
+  here. `H.legTo` solves the far leg to land its ankle inside the near foot
+  (near ankle + [0.8, 0.6]) with the hips 0.6 apart. The far foot reads as the
+  heel, and the far knee (98°) sits behind the near one.
+- **The arms.** `handsAt(pose, hands, -1, 1)`, the upper arms foreshortened
+  12% (`uaScale:0.88`).
+  - Solid (end): the hands meet at [51.5, 93] beside the trunk, the far arm
+    across the body, the other elbow out and 8 units clear of the knee.
+  - Ghost (start): the hands at [35, 93] on the other side of the trunk.
+- **Only the arms move.** Every pose key but `la`, `lfa`, `ra` and `rfa` is
+  identical, so the seat, trunk, head and legs are still.
+- **The ghost** is the default whole-body ghost. Its trunk, legs and head lie
+  exactly under the solid ones, so only the other arms show at full size, and
+  thumbnails drop it, as they drop every whole-body ghost.
+- **The arrow.** `path:'flight'`, `flight:1`, `arrow:{ shift:[6, -33],
+  slide:0 }`: one shallow, level, double-headed arc, 5.8 units above the top of
+  the head and 22 units wide against a 57-unit figure.
+- **Nothing in the hands.** No gear, and no prop colour anywhere.
+- `vSit` is untouched; `weighted_russian_twist` still uses it and is
+  byte-identical.
+
+### Cues
+
+Audited and unchanged: "Lean back, feet off the floor", "Rotate the hands side
+to side", "Turn from the ribs". None contradicts the drawing: the feet are off
+the floor, the hands travel side to side, and the turn is the trunk's.
+
+### Verification
+
+- **Contract 175** (35 assertions):
+  - identity: the registry row character for character, no equipment,
+    bodyweight, abs; every name reaches the drawing and the weighted twist
+    keeps its own; the three plan prescriptions; cues; How To shows the drawing
+  - pose: only the arms differ; seat, trunk, head and legs still; lean 30 to
+    45 and the same in both; both knees 70 to 100; seat on the floor; feet at
+    least 4.5 off it; hands meet, beside the trunk at abdomen height, on
+    opposite sides; elbows bent; the elbow clear of the knees
+  - drawing: no prop or prop colour; one visible head; a faint ghost at full
+    size and none in thumbnails; one double-headed arrow, above the head and
+    level at both sizes, narrower than the athlete; nothing clipped; the
+    thumbnail figure spans over 80% of its frame
+  - scope: the other 176 drawings byte-identical to 6.9 (one digest over both
+    sizes); the renderer's source; the name map and every cue; the weighted
+    twist's `vSit` definition; the thumbnail budget; no data or trainer change
+- **Repointed with reason:** Contract 173's art pin (the source and its vendored
+  copy) moves from D64's `d8cebf12531da3d9` to D67's `b50108786faba2fb`,
+  because D67 changed one drawing on purpose.
+- **Mutation:** 16 of 16 caught: the 6.9 drawing, a plate in the hands, legs
+  that move, a side bend, another drawing changed, the arc dropped across the
+  body, a one-way arrow, hands apart, feet on the floor, straight knees, a
+  tilted arc, a changed cue, a changed identity, a renderer change, the ghost
+  as a second person, and the elbow on the knee.
+- **Physical:** headless Edge at 390×844, 375×812 and 320×568 (3× density). Core
+  B (Balanced) starts with Russian Twist as bodyweight. Its row and 52 px
+  stepper thumbnails point at the drawing, and How To opened from the thumbnail
+  button shows it inside its frame with the cues. The picker's search lists
+  both twists with their own drawings, and thumbnails fit at 40, 44 and 52. In
+  that browser, only `russian_twist` renders differently from 6.9, at both
+  sizes. No page errors.
+
+### Known and recorded
+
+- **The weighted Russian twist keeps its 6.9 front-view drawing.** It was out of
+  scope, so the two twists now look different.
+- **The trunk cannot turn in the front renderer.** Its silhouette is the same in
+  both positions; the turn is carried by the arms, the side the hands are on,
+  the ghost and the arc.
+- **The far leg is mostly hidden** behind the near leg, with its foot read as
+  the near foot's heel.
