@@ -3480,7 +3480,11 @@ button.cal-cell:active{ transform: scale(0.92); }
 }
 .wk-day.wk-selected .wk-dl{ color: var(--text); font-weight: 800; }
 
-/* Lifted: bigger, raised, and above its neighbours. */
+/* Lifted: bigger, raised, and above its neighbours. D66 — it grows into the
+   lift from however it was pressed (transform and scale ease together), and
+   `translate` is left out of the transition so the card is exactly where the
+   finger is on every frame. touch-action here only answers a new touch; the
+   drag already under way is held by the strip's touchmove listener. */
 .wk-days.wk-drag-mode{ touch-action: none; }
 .wk-day.wk-dragging{
   z-index: 3; position: relative;
@@ -3488,7 +3492,9 @@ button.cal-cell:active{ transform: scale(0.92); }
   background: var(--surface-2);
   border-radius: var(--radius-md);
   opacity: 0.96;
-  transition: none;
+  transform: none; scale: 1.05;
+  will-change: translate;
+  transition: transform 140ms var(--ease), scale 140ms var(--ease), box-shadow 140ms var(--ease);
 }
 /* Where it came from. A transform leaves the layout box behind, so the slot
    is really still there — this makes it read as a slot rather than a gap. */
@@ -3506,13 +3512,18 @@ button.cal-cell:active{ transform: scale(0.92); }
 .wk-day.wk-drop-over{
   outline: 2px dashed var(--accent); background: var(--accent-soft);
 }
-.wk-day.wk-reject{ animation: wkReject 0.3s var(--ease); }
-@keyframes wkReject{
-  0%,100%{ transform: translateX(0); }
-  30%{ transform: translateX(-4px); }
-  70%{ transform: translateX(4px); }
-}
 .wk-day:not(.wk-dragging){ transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease); }
+/* D66 — release. The card eases into the day it was dropped on (or back into
+   its own slot) and sets down; a day it displaces slides into the slot it
+   left. Both finish exactly where the redrawn week puts them. */
+.wk-day.wk-settling{
+  z-index: 3; position: relative;
+  transition: translate 200ms cubic-bezier(0.2, 0.9, 0.3, 1), scale 200ms cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 200ms var(--ease);
+}
+.wk-day.wk-yielding{
+  z-index: 2; position: relative;
+  transition: translate 200ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
 
 .wk-undo-host{ display: none; }
 .wk-undo-host.open{ display: block; margin-top: var(--space-2); }
@@ -3554,9 +3565,9 @@ button.cal-cell:active{ transform: scale(0.92); }
 .tw-ex-more{ color: var(--text-faint); background: none; border-style: dashed; }
 
 @media (prefers-reduced-motion: reduce){
-  .wk-day.wk-reject{ animation: none; outline: 2px solid var(--danger); }
   .wk-day:not(.wk-dragging){ transition: none; }
-  .wk-day.wk-dragging{ transform: none !important; }
+  .wk-day.wk-dragging{ transform: none !important; scale: none; transition: none; }
+  .wk-day.wk-settling, .wk-day.wk-yielding{ transition: none; }
 }
 
 /* ---------- PR SET HIGHLIGHT (Phase D12) ----------
@@ -14837,6 +14848,30 @@ const LOOP_UPDATES = [
       'New workout is now called Build workout',
       'Starting a workout from Train works as before: a session your program schedules still counts as program work, and any other workout as extra training'
     ]
+  },
+  {
+    id: 'v6-9',
+    version: 'LOOP 6.9',
+    title: 'Hold to Move',
+    date: '2026-09-15',
+    swVersion: 'loop-v146',
+    summary: 'Moving a workout in This Week now stays under your finger from the moment you pick it up until it settles into its new day.',
+    newFeatures: [],
+    improvements: [
+      'A workout in This Week is picked up after a shorter hold (0.3 seconds, from 0.42), grows smoothly into its lifted look, and stays exactly where your finger holds it, including when you move up or down',
+      'When you let go, the workout slides into its new day and the day it swaps with slides into the old slot, before the week updates',
+      'Near the edge between two days, the highlighted day no longer flickers',
+      'Letting go far from the week, or back on the workout’s own day, sets it back in place without changing anything'
+    ],
+    bugFixes: [
+      'Moving your finger up or down while holding a workout in This Week scrolled the page and dropped the workout',
+      'A held workout jumped the first time it moved if your finger had drifted slightly during the hold, and popped larger when it was picked up',
+      'Letting go between two days, or on the workout’s own day, shook the workout as if the move was not allowed',
+      'Touching the screen with a second finger during a move cancelled it, and the second finger could select another day',
+      'If the app lost focus during a move, the workout stayed lifted',
+      'Pressing Enter or Space on a day in This Week did nothing. It now selects the day'
+    ],
+    changes: []
   }
 ];
 
@@ -22198,106 +22233,226 @@ function stepSelectedDay(delta){
 }
 
 /* =========================================================
-   DRAG TO RESCHEDULE  (Phase D12 · Fix 2)
+   DRAG TO RESCHEDULE  (Phase D12 · Fix 2, rebuilt in D66)
    ---------------------------------------------------------
-   Touch-first, not a desktop drag-and-drop bolted onto a
-   phone. A tap still selects; only a deliberate hold picks a
-   workout up, so opening a day never turns into moving it by
-   accident.
+   Touch-first. A tap selects a day; only a deliberate hold picks a
+   workout up, so opening a day never turns into moving it.
 
-   Movement is horizontal and clamped to the strip: a workout
-   cannot be flung into the page. The write goes through
-   swapScheduledDays(), the existing schedule writer — there is
-   no second schedule here.
+   BEFORE THE HOLD, THE GESTURE IS A PAGE SCROLL. Nothing is captured
+   and nothing is prevented on pointerdown. A finger that drifts past
+   the slop before the hold completes is handed back to the browser.
+
+   AFTER THE HOLD, THE GESTURE IS A DRAG, owned completely. The pointer
+   is captured, and the strip's non-passive touchmove listener refuses
+   the page scroll that `touch-action: pan-y` would otherwise start.
+   touch-action is fixed when a touch begins, so changing it mid-gesture
+   did nothing: a vertical wobble used to scroll the page and cancel
+   the drag.
+
+   THE CARD STAYS WHERE THE FINGER HOLDS IT. The grab offset is taken
+   when the hold completes, from where the finger is then, so drift
+   during the hold is never replayed as a jump. The card moves with
+   `translate` (one write per frame, no layout), follows the finger on
+   both axes, and lifts with `scale` around the point it is held by.
+
+   THE DESTINATION IS THE NEAREST DAY to the card's centre, from
+   geometry read once at lift, with a few pixels of hysteresis at each
+   boundary. Its own day is a destination (a no-op); a card taken well
+   away from the row has none.
+
+   RELEASE RESOLVES ONCE. The card settles into its destination, and the
+   day it displaces slides into the slot it left. Only then is the move
+   written, exactly once, through swapScheduledDays() — the existing
+   writer. There is no second schedule here. Anything that is not a
+   release (the browser taking the pointer, a second finger, the app
+   losing focus, a redraw) returns the strip to rest and writes nothing.
    ========================================================= */
 const WEEK_DRAG = {
-  holdMs: 420,        // long enough to be deliberate, short enough to feel instant
-  slopPx: 8           // finger drift that still counts as holding still
+  holdMs: 300,        // a deliberate hold, not a pause
+  slopPx: 10,         // finger drift that still counts as holding still
+  liftScale: 1.05,    // the lift itself is styled on .wk-dragging; this records it
+  settleMs: 200,      // release to rest
+  hysteresisPx: 6,    // the card's centre must pass a boundary by this much before the day changes
+  bandY: 0.75,        // how far above or below the row, in day heights, still aims at a day
+  bandX: 0.5,         // and beyond the first or last day, in day widths
+  clickGuardMs: 350   // the click a finished drag can still produce is not a tap
 };
 let _wkDrag = null;
+let _wkClickGuardUntil = 0;
+let _wkGuardsAttached = false;
 
-function weekCellFromPoint(x, y){
-  const strip = document.querySelector('#weekCard .wk-days');
-  if(!strip) return null;
-  /* The lifted cell is excluded from the hit test. It has been translated
-     under the finger, so its own rect sits over whatever it is being dragged
-     towards — including itself as the first match in DOM order, which made
-     every drop read as "back where it started". */
-  const cells = [...strip.querySelectorAll('.wk-day')]
-    .filter(c => !c.classList.contains('wk-dragging'));
-  /* Horizontal hit-testing only: the finger is allowed to wander off the
-     strip vertically without losing the day it is over. */
-  return cells.find(c => {
-    const r = c.getBoundingClientRect();
-    return x >= r.left && x <= r.right;
-  }) || null;
+function weekDragReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; }
 }
 
-function beginWeekDrag(cell, ev){
-  const strip = cell.parentElement;
-  const rect = cell.getBoundingClientRect();
-  _wkDrag.active = true;
-  _wkDrag.cell = cell;
-  _wkDrag.originKey = cell.dataset.key;
-  _wkDrag.startRect = rect;
-  _wkDrag.stripRect = strip.getBoundingClientRect();
+/* Each day's layout box, read once at lift. offset* are layout values, so
+   neither the pressed scale nor the lift can skew them; the strip is the
+   cells' offsetParent. */
+function measureWeekSlots(strip){
+  return [...strip.querySelectorAll('.wk-day')].map(c => ({
+    key: c.dataset.key, cell: c, x: c.offsetLeft, y: c.offsetTop, w: c.offsetWidth, h: c.offsetHeight
+  }));
+}
+
+/* The day a card centred at (cx, cy) is aimed at: the nearest day centre
+   along the row, kept until the centre is past the boundary by the hysteresis
+   (a tremor on a boundary never flips the day), and
+   none when the card is taken well away from the row. Geometry only — the
+   dragged element is never hit-tested, so it cannot get in its own way. */
+function weekDropTarget(slots, stripRect, cx, cy, currentKey){
+  if(!slots || !slots.length || !stripRect) return null;
+  const w = slots[0].w, h = slots[0].h;
+  const left = stripRect.left + Math.min(...slots.map(s => s.x));
+  const right = stripRect.left + Math.max(...slots.map(s => s.x + s.w));
+  const top = stripRect.top + Math.min(...slots.map(s => s.y));
+  const bottom = stripRect.top + Math.max(...slots.map(s => s.y + s.h));
+  if(cy < top - WEEK_DRAG.bandY * h || cy > bottom + WEEK_DRAG.bandY * h) return null;
+  if(cx < left - WEEK_DRAG.bandX * w || cx > right + WEEK_DRAG.bandX * w) return null;
+  const dist = s => Math.abs(cx - (stripRect.left + s.x + s.w / 2));
+  let best = slots[0];
+  slots.forEach(s => { if(dist(s) < dist(best)) best = s; });
+  const current = currentKey ? slots.find(s => s.key === currentKey) : null;
+  if(current && current !== best && dist(current) - dist(best) <= 2 * WEEK_DRAG.hysteresisPx) return current.key;
+  return best.key;
+}
+
+/* The hold completed: lift. The strip may have been redrawn, hidden or
+   scrolled away during the hold, in which case there is nothing to lift. */
+function beginWeekDrag(){
+  const d = _wkDrag;
+  if(!d || d.phase !== 'pending') return;
+  d.holdTimer = null;
+  const cell = d.cell, strip = d.strip;
+  if(!cell.isConnected || !strip.isConnected || !cell.getClientRects().length){ cleanupWeekDrag(); return; }
+  d.slots = measureWeekSlots(strip);
+  d.home = d.slots.find(s => s.cell === cell);
+  if(!d.home){ cleanupWeekDrag(); return; }
+  d.stripRect = strip.getBoundingClientRect();
+  /* Where the finger is now, not where it went down. */
+  d.offX = d.x - (d.stripRect.left + d.home.x);
+  d.offY = d.y - (d.stripRect.top + d.home.y);
+  d.phase = 'active';
+  d.overKey = d.originKey;
+  cell.style.transformOrigin = d.offX.toFixed(2) + 'px ' + d.offY.toFixed(2) + 'px';
+  cell.style.translate = '0px 0px';
   cell.classList.add('wk-dragging');
   strip.classList.add('wk-drag-mode');
   /* A selection may already have begun during the hold; drop it so no blue
      box survives into the drag. */
   try{ const sel = window.getSelection && window.getSelection(); if(sel && sel.removeAllRanges) sel.removeAllRanges(); }catch(e){}
+  /* Where it came from, as a slot. */
   const ph = document.createElement('div');
   ph.className = 'wk-placeholder';
-  ph.style.left   = (rect.left - _wkDrag.stripRect.left) + 'px';
-  ph.style.top    = (rect.top - _wkDrag.stripRect.top) + 'px';
-  ph.style.width  = rect.width + 'px';
-  ph.style.height = rect.height + 'px';
+  ph.style.left   = d.home.x + 'px';
+  ph.style.top    = d.home.y + 'px';
+  ph.style.width  = d.home.w + 'px';
+  ph.style.height = d.home.h + 'px';
   strip.appendChild(ph);
-  _wkDrag.placeholder = ph;
+  d.placeholder = ph;
   /* Every day the workout could land on is marked, so the athlete is never
      guessing where a drop is allowed. */
-  [...strip.querySelectorAll('.wk-day')].forEach(c => {
-    if(c !== cell) c.classList.add('wk-drop-ok');
-  });
+  d.slots.forEach(s => { const c = s.cell; if(c !== cell) c.classList.add('wk-drop-ok'); });
+  try{ strip.setPointerCapture(d.pointerId); }catch(e){}
   loopHaptic();
-  moveWeekDrag(ev);
+  moveWeekDrag();
 }
 
-function moveWeekDrag(ev){
-  if(!_wkDrag || !_wkDrag.active) return;
-  const dx = ev.clientX - _wkDrag.startX;
-  /* Clamped to the strip so the cell cannot be thrown out of the week. */
-  const min = _wkDrag.stripRect.left - _wkDrag.startRect.left;
-  const max = _wkDrag.stripRect.right - _wkDrag.startRect.right;
-  const clamped = Math.max(min, Math.min(max, dx));
-  _wkDrag.cell.style.transform = `translateX(${clamped}px) scale(1.06)`;
-  const over = weekCellFromPoint(ev.clientX, ev.clientY);
-  const strip = _wkDrag.cell.parentElement;
-  [...strip.querySelectorAll('.wk-day')].forEach(c => c.classList.toggle('wk-drop-over', c === over && c !== _wkDrag.cell));
-  _wkDrag.overKey = (over && over !== _wkDrag.cell) ? over.dataset.key : null;
-}
-
-function endWeekDrag(commit){
-  if(!_wkDrag) return;
+/* One frame: the card where the finger holds it, and the day it is aimed at.
+   A style write and, only when the day changes, its class — never layout. */
+function moveWeekDrag(){
   const d = _wkDrag;
-  if(d.holdTimer){ clearTimeout(d.holdTimer); d.holdTimer = null; }
-  if(d.active && d.cell){
-    const strip = d.cell.parentElement;
-    if(d.placeholder && d.placeholder.parentElement) d.placeholder.remove();
-    d.cell.classList.remove('wk-dragging');
-    d.cell.style.transform = '';
-    strip.classList.remove('wk-drag-mode');
-    [...strip.querySelectorAll('.wk-day')].forEach(c => c.classList.remove('wk-drop-ok', 'wk-drop-over'));
-    if(commit && d.overKey && d.overKey !== d.originKey){
-      commitWeekMove(d.originKey, d.overKey);
-    } else if(commit && !d.overKey){
-      /* Released somewhere that is not a day: say so quietly and put it back
-         rather than leaving a half-moved week. */
-      d.cell.classList.add('wk-reject');
-      setTimeout(() => d.cell && d.cell.classList.remove('wk-reject'), 320);
-    }
+  if(!d) return;
+  d.raf = 0;
+  if(d.phase !== 'active') return;
+  if(d.geometryDirty){ d.stripRect = d.strip.getBoundingClientRect(); d.geometryDirty = false; }
+  const left = d.x - d.offX, top = d.y - d.offY;
+  const tx = left - (d.stripRect.left + d.home.x), ty = top - (d.stripRect.top + d.home.y);
+  d.cell.style.translate = tx.toFixed(2) + 'px ' + ty.toFixed(2) + 'px';
+  const over = weekDropTarget(d.slots, d.stripRect, left + d.home.w / 2, top + d.home.h / 2, d.overKey);
+  if(over !== d.overKey){
+    d.slots.forEach(s => { if(s.cell !== d.cell) s.cell.classList.toggle('wk-drop-over', s.key === over); });
+    d.overKey = over;
   }
+}
+
+/* Release, resolved once: the card settles into the day it was aimed at, or
+   back into its own slot when that day is its own or there is none. A day it
+   displaces slides into the slot it left, which is what the swap will show. */
+function endWeekDrag(toKey){
+  const d = _wkDrag;
+  if(!d || d.phase !== 'active') return;
+  const cell = d.cell;
+  /* The release position is the transition's start, not the previous frame's. */
+  try{ if(typeof getComputedStyle === 'function') void getComputedStyle(cell).translate; }catch(e){}
+  d.phase = 'settling';
+  d.toKey = (toKey && toKey !== d.originKey && d.slots.some(s => s.key === toKey)) ? toKey : null;
+  _wkClickGuardUntil = Date.now() + WEEK_DRAG.clickGuardMs;
+  if(d.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(d.raf);
+  d.raf = 0;
+  try{ if(d.strip.hasPointerCapture && d.strip.hasPointerCapture(d.pointerId)) d.strip.releasePointerCapture(d.pointerId); }catch(e){}
+  d.slots.forEach(s => s.cell.classList.remove('wk-drop-ok', 'wk-drop-over'));
+  const dest = d.toKey ? d.slots.find(s => s.key === d.toKey) : d.home;
+  const dx = dest.x - d.home.x, dy = dest.y - d.home.y;
+  cell.classList.remove('wk-dragging');
+  cell.classList.add('wk-settling');
+  cell.style.translate = dx + 'px ' + dy + 'px';
+  if(d.toKey && dest.cell !== cell){
+    d.yielding = dest.cell;
+    dest.cell.classList.add('wk-yielding');
+    dest.cell.style.translate = (-dx) + 'px ' + (-dy) + 'px';
+  }
+  if(weekDragReducedMotion()){ finishWeekDrag(); return; }
+  /* Scale always eases back to rest, so its end is the settle's end even when the
+     card was released exactly over its slot and has no distance left to travel. */
+  d.settleDone = ev => { if(ev && ev.target === cell && (ev.propertyName === 'translate' || ev.propertyName === 'scale')) finishWeekDrag(); };
+  cell.addEventListener('transitionend', d.settleDone);
+  d.settleTimer = setTimeout(finishWeekDrag, WEEK_DRAG.settleMs + 60);
+}
+
+/* Landed: back to rest, then the one write. Whichever of the transition's end
+   and its fallback timer comes first does this; the other finds nothing. */
+function finishWeekDrag(){
+  const d = _wkDrag;
+  if(!d || d.phase !== 'settling') return;
+  const from = d.originKey, to = d.toKey;
+  cleanupWeekDrag();
+  if(to) commitWeekMove(from, to);
+}
+
+/* The one way back to rest. Everything a gesture can leave behind is removed
+   here, so no path can strand a lifted card, a highlight, a timer or a
+   captured pointer. */
+function cleanupWeekDrag(){
+  const d = _wkDrag;
   _wkDrag = null;
+  weekWindowListen(false);
+  if(!d) return;
+  if(d.holdTimer) clearTimeout(d.holdTimer);
+  if(d.settleTimer) clearTimeout(d.settleTimer);
+  if(d.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(d.raf);
+  if(d.settleDone && d.cell && d.cell.removeEventListener) d.cell.removeEventListener('transitionend', d.settleDone);
+  try{ if(d.strip.hasPointerCapture && d.strip.hasPointerCapture(d.pointerId)) d.strip.releasePointerCapture(d.pointerId); }catch(e){}
+  if(d.placeholder && d.placeholder.parentElement) d.placeholder.remove();
+  if(d.strip){
+    d.strip.classList.remove('wk-drag-mode');
+    [...d.strip.querySelectorAll('.wk-day')].forEach(c => {
+      c.classList.remove('wk-dragging', 'wk-settling', 'wk-yielding', 'wk-drop-ok', 'wk-drop-over');
+      c.style.translate = '';
+      c.style.transformOrigin = '';
+    });
+  }
+}
+
+/* Anything that is not a release. A lifted workout goes home, gently when the
+   strip is still there, and nothing is written. A release already settling
+   keeps its destination: the athlete let go on a day. */
+function cancelWeekDrag(opts){
+  const d = _wkDrag;
+  if(!d) return;
+  if(d.phase === 'settling'){ finishWeekDrag(); return; }
+  if(d.phase === 'active' && !(opts && opts.immediate) && d.cell.isConnected){ endWeekDrag(null); return; }
+  if(d.phase === 'active') _wkClickGuardUntil = Date.now() + WEEK_DRAG.clickGuardMs;
+  cleanupWeekDrag();
 }
 
 /* The move itself, through the writer D14 established as the only one that
@@ -22359,53 +22514,146 @@ function undoWeekMove(){
 }
 
 /* ---- pointer wiring ----
-   One delegated set of handlers on the strip, re-attached whenever the week
+   The strip listens for the start of a gesture, its click, and the touchmove it
+   must be able to refuse. The rest of a gesture is followed on window, from
+   pointerdown until the strip is back at rest, so a finger that leaves the
+   strip is still followed, and a second finger anywhere ends the gesture. */
+function weekWindowListen(on){
+  if(typeof window === 'undefined') return;
+  const method = on ? 'addEventListener' : 'removeEventListener';
+  if(typeof window[method] !== 'function') return;
+  window[method]('pointermove', weekPointerMove, true);
+  window[method]('pointerup', weekPointerUp, true);
+  window[method]('pointercancel', weekPointerCancel, true);
+  window[method]('pointerdown', weekOtherPointerDown, true);
+  window[method]('scroll', weekScrolled, on ? { capture: true, passive: true } : true);
+}
+
+function weekPointerDown(ev){
+  /* A new touch while the last drop is still landing lands it now. */
+  if(_wkDrag && _wkDrag.phase === 'settling') finishWeekDrag();
+  if(_wkDrag) cleanupWeekDrag();
+  if(!ev.isPrimary || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+  let cell = ev.target && ev.target.closest ? ev.target.closest('.wk-day') : null;
+  /* Landing may have redrawn the week under this very touch. */
+  if(cell && !cell.isConnected && typeof document.elementFromPoint === 'function'){
+    const hit = document.elementFromPoint(ev.clientX, ev.clientY);
+    cell = hit && hit.closest ? hit.closest('.wk-day') : null;
+  }
+  const strip = cell ? cell.parentElement : null;
+  if(!cell || !strip) return;
+  const d = _wkDrag = {
+    phase: 'pending', pointerId: ev.pointerId, strip, cell, originKey: cell.dataset.key,
+    downX: ev.clientX, downY: ev.clientY, x: ev.clientX, y: ev.clientY,
+    holdTimer: null, raf: 0, settleTimer: null, settleDone: null, overKey: null, toKey: null,
+    slots: null, home: null, stripRect: null, offX: 0, offY: 0, placeholder: null, yielding: null, geometryDirty: false
+  };
+  /* The hold decides between selecting and moving. Until it completes this
+     is an ordinary touch and behaves like one. */
+  d.holdTimer = setTimeout(() => { if(_wkDrag === d && d.phase === 'pending') beginWeekDrag(); }, WEEK_DRAG.holdMs);
+  weekWindowListen(true);
+}
+
+function weekPointerMove(ev){
+  const d = _wkDrag;
+  if(!d || ev.pointerId !== d.pointerId) return;
+  d.x = ev.clientX; d.y = ev.clientY;
+  if(d.phase === 'pending'){
+    /* Moving before the hold completes is a scroll or a swipe, not a pickup:
+       let the browser have it. */
+    const mx = d.x - d.downX, my = d.y - d.downY;
+    if(mx * mx + my * my > WEEK_DRAG.slopPx * WEEK_DRAG.slopPx) cleanupWeekDrag();
+    return;
+  }
+  if(d.phase === 'active' && !d.raf) d.raf = requestAnimationFrame(moveWeekDrag) || 0;
+}
+
+function weekPointerUp(ev){
+  const d = _wkDrag;
+  if(!d || ev.pointerId !== d.pointerId) return;
+  if(d.phase === 'pending'){ cleanupWeekDrag(); return; }   // a tap: its click selects the day
+  if(d.phase !== 'active') return;
+  d.x = ev.clientX; d.y = ev.clientY;
+  if(d.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(d.raf);
+  moveWeekDrag();
+  endWeekDrag(d.overKey);
+}
+
+function weekPointerCancel(ev){
+  const d = _wkDrag;
+  if(!d || ev.pointerId !== d.pointerId) return;
+  cancelWeekDrag();
+}
+
+/* Another pointer anywhere ends the gesture rather than joining it. */
+function weekOtherPointerDown(ev){
+  const d = _wkDrag;
+  if(!d || ev.pointerId === d.pointerId || d.phase === 'settling') return;
+  cancelWeekDrag();
+}
+
+/* The page can still scroll by wheel or by script; the strip moved, so read
+   where it is on the next frame rather than trusting the lift's reading. */
+function weekScrolled(){
+  const d = _wkDrag;
+  if(!d || d.phase !== 'active') return;
+  d.geometryDirty = true;
+  if(!d.raf) d.raf = requestAnimationFrame(moveWeekDrag) || 0;
+}
+
+/* A tap selects, through the click every button gets, so Enter and Space
+   select a day too. The click a finished drag can still produce is not a tap. */
+function weekDayClick(ev){
+  if(Date.now() < _wkClickGuardUntil){
+    _wkClickGuardUntil = 0;
+    ev.preventDefault();
+    ev.stopPropagation();
+    return;
+  }
+  if(_wkDrag) return;
+  const cell = ev.target && ev.target.closest ? ev.target.closest('.wk-day') : null;
+  if(cell) setSelectedDay(cell.dataset.key);
+}
+
+/* Losing the page ends a gesture: the app switcher, a phone call, a rotation. */
+function attachWeekDragGuards(){
+  if(_wkGuardsAttached || typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  _wkGuardsAttached = true;
+  const stop = () => { if(_wkDrag) cancelWeekDrag({ immediate: true }); };
+  window.addEventListener('blur', stop);
+  window.addEventListener('pagehide', stop);
+  window.addEventListener('resize', stop);
+  window.addEventListener('orientationchange', stop);
+  if(typeof document !== 'undefined' && document.addEventListener){
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') stop(); });
+  }
+}
+
+/* One delegated set of handlers per strip, re-attached whenever the week
    re-renders, so there is never a second listener on the same cell. */
 function attachWeekGestures(){
   const strip = document.querySelector('#weekCard .wk-days');
   if(!strip || strip.dataset.gestures === 'on') return;
   strip.dataset.gestures = 'on';
 
-  strip.addEventListener('pointerdown', ev => {
-    const cell = ev.target.closest('.wk-day');
-    if(!cell) return;
-    _wkDrag = { startX: ev.clientX, startY: ev.clientY, cell: null, active: false,
-                originKey: cell.dataset.key, overKey: null, moved: false, holdTimer: null };
-    /* The hold decides between selecting and moving. Until it fires this is
-       an ordinary tap and behaves like one. */
-    _wkDrag.holdTimer = setTimeout(() => {
-      if(_wkDrag && !_wkDrag.moved) beginWeekDrag(cell, ev);
-    }, WEEK_DRAG.holdMs);
-    try{ strip.setPointerCapture(ev.pointerId); }catch(e){}
+  strip.addEventListener('pointerdown', weekPointerDown);
+  strip.addEventListener('click', weekDayClick);
+  /* Once a hold has become a drag, the page may not scroll under it. Non-passive,
+     and registered before any touch begins, which is what lets iOS honour it. */
+  strip.addEventListener('touchmove', ev => {
+    if(_wkDrag && _wkDrag.phase === 'active' && ev.cancelable) ev.preventDefault();
+  }, { passive: false });
+  /* The browser taking the pointer from the strip ends the drag. A cell losing
+     the implicit touch capture to the strip is the drag starting, not ending. */
+  strip.addEventListener('lostpointercapture', ev => {
+    if(_wkDrag && _wkDrag.phase === 'active' && ev.pointerId === _wkDrag.pointerId && ev.target === strip) cancelWeekDrag();
   });
-
-  strip.addEventListener('pointermove', ev => {
-    if(!_wkDrag) return;
-    if(_wkDrag.active){ ev.preventDefault(); moveWeekDrag(ev); return; }
-    const dx = Math.abs(ev.clientX - _wkDrag.startX);
-    const dy = Math.abs(ev.clientY - _wkDrag.startY);
-    /* Moving before the hold completes means they are scrolling or swiping,
-       not picking a workout up. */
-    if(dx > WEEK_DRAG.slopPx || dy > WEEK_DRAG.slopPx){
-      _wkDrag.moved = true;
-      if(_wkDrag.holdTimer){ clearTimeout(_wkDrag.holdTimer); _wkDrag.holdTimer = null; }
-    }
-  });
-
-  strip.addEventListener('pointerup', ev => {
-    if(!_wkDrag) return;
-    const wasDrag = _wkDrag.active;
-    const key = _wkDrag.originKey;
-    const moved = _wkDrag.moved;
-    endWeekDrag(true);
-    if(!wasDrag && !moved && key) setSelectedDay(key);   // a plain tap selects
-  });
-  strip.addEventListener('pointercancel', () => endWeekDrag(false));
   /* Chrome will otherwise draw its own translucent copy of the cell and run a
      second, competing drag. */
   strip.addEventListener('dragstart', ev => ev.preventDefault());
   strip.addEventListener('selectstart', ev => { if(_wkDrag) ev.preventDefault(); });
-  strip.addEventListener('contextmenu', ev => { if(_wkDrag && _wkDrag.active) ev.preventDefault(); });
+  strip.addEventListener('contextmenu', ev => { if(_wkDrag) ev.preventDefault(); });
+  attachWeekDragGuards();
 }
 
 /* ---------- the selected day, when it is not today ----------
@@ -23117,6 +23365,8 @@ function weekOverview(){
 function renderWeekCard(){
   const el = document.getElementById('weekCard');
   if(!el) return;
+  /* D66 — the cells a gesture holds are about to be replaced: end it first. */
+  if(_wkDrag) cancelWeekDrag({ immediate: true });
   const wk = weekOverview();
 
   // One segment per planned session. A visual the athlete can read without

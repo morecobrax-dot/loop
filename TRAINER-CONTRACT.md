@@ -9671,3 +9671,209 @@ element at its own centre.
 - **Tag scope.** Days are this Monday–Sunday week's only. A saved workout is
   tagged only in the edge case where it is a category's first workout and that
   day's session.
+
+## §97 — D66: Hold to slide
+
+**Status.** Shipped in LOOP 6.9 (`loop-v146`). An interaction fix only.
+`DATA_KEYS` 15, schema 1, no migration, no new storage key,
+`TRAINER_ENGINE_VERSION` 0.1.1-shadow. The move is still `swapScheduledDays`
+through `commitWeekMove`, with its Undo, and the day-edit sheet's Move is
+untouched. This Week's layout, cells, colours, progress bar, hint and
+typography are unchanged. So are program revisions, progression, Session Score,
+the trainer and history.
+
+### What was wrong (measured on 6.8 with CDP touch input)
+
+- **The browser took the drag back.** `.wk-day` has `touch-action: pan-y`,
+  which is fixed when a touch begins. Adding `touch-action: none` to the strip
+  after the hold changed nothing, and `preventDefault` on `pointermove` cannot
+  stop a touch scroll. After a hold, a finger moving 72 px down scrolled the page
+  57 px, fired `pointercancel` and dropped the workout.
+- **Activation pop.** The inline `scale(1.06)` was applied with
+  `transition: none`: the card grew 2.76 px in one frame.
+- **Drift jump.** `beginWeekDrag` was handed the stale pointerdown event and
+  moved the card by pointer − pointerdown. Drift during the hold (up to the
+  8 px slop) was replayed on the first move: a 1 px finger move after a 6 px
+  drift moved the card 7 px.
+- **Detached from the finger.** Movement was `translateX` only, clamped to the
+  strip.
+- **Hit testing.**
+  - Each move read each cell's `getBoundingClientRect` (84 reads in 30 moves).
+  - A strict inside-the-rect test left the 2 px gaps with no day.
+  - Excluding the lifted cell left its own slot with no day.
+  - Releasing in a gap or on its own day ran the "rejected" shake.
+- **Teleport.** The drop wrote and `renderAll()` replaced the week in the same
+  task, so the workout appeared in its new day with no settle.
+- **Stuck and lost states.**
+  - No `lostpointercapture`, `blur`, `visibilitychange` or `pagehide` handling.
+    After a blur the card stayed lifted, with its placeholder and drag mode.
+  - A second finger overwrote the gesture: the first drag was lost and the
+    second finger's tap selected Wednesday.
+- **Taps.** The pointer was captured on every pointerdown, and a tap selected on
+  `pointerup`. Enter or Space on a focused day fired a click that nothing
+  handled.
+
+### Gesture model
+
+- **Hold** 300 ms (was 420). **Slop** 10 px as a distance (was 8 px per axis).
+- **Before the hold** nothing is captured and nothing is prevented. Moving past
+  the slop cleans the gesture up, and the browser scrolls.
+- **At the hold**, the day slots are measured once (`offsetLeft/Top/Width/Height`,
+  so neither the pressed scale nor the lift skews them), plus the strip rect.
+  - The grab offset comes from where the finger is then, and becomes the
+    `transform-origin`.
+  - The card lifts: `.wk-dragging` is `scale: 1.05` over 140 ms, easing from the
+    pressed `scale(0.94)` rather than popping.
+  - The slot keeps a placeholder, the other days are marked, the strip captures
+    the pointer, and one haptic fires (`loopHaptic`).
+- **After the hold** the strip's non-passive `touchmove` listener refuses the
+  scroll. It is registered before any touch begins, which is what iOS needs.
+
+### Finger tracking
+
+- `pointermove` records the position, and one `requestAnimationFrame` writes
+  `translate: tx ty`. Here tx = x − grabOffsetX − slotLeft, and likewise ty.
+- `translate` is excluded from every transition, so the card is where the
+  finger is on each frame: 0 px activation offset, and 0 px worst detachment over
+  every sampled frame at 390, 375 and 320.
+- A frame reads no geometry unless a scroll marked it dirty, causes no layout,
+  and toggles a destination class only when the day changes.
+
+### Drop target logic
+
+`weekDropTarget(slots, stripRect, cx, cy, current)` picks the nearest day centre
+to the card's centre.
+
+- **Hysteresis:** the day changes only once the centre is 6 px past the boundary.
+- **Band:** a card more than 0.75 day heights above or below the row, or half a
+  day width beyond its ends, has no destination.
+- Its own day is a destination (a no-op).
+- It never hit-tests the lifted element.
+
+### Release and cancel
+
+- **Release** resolves once (`endWeekDrag`).
+  - The card settles into the day it was aimed at (`.wk-settling`: translate and
+    scale over 200 ms), and the day it displaces slides into the vacated slot
+    (`.wk-yielding`).
+  - On the transition's end (translate or scale), or the 260 ms fallback,
+    `finishWeekDrag` returns the strip to rest and then calls
+    `commitWeekMove` once.
+  - A same-day release, or one outside the band, settles home and writes
+    nothing. There is no shake.
+  - Reduced motion lands and returns without animating.
+- **Cancel:**
+  - `pointercancel`, the strip losing capture, or a second pointer: home, gently.
+  - `blur`, `pagehide`, `resize`, `orientationchange` or a hidden page: at once.
+  - `renderWeekCard()` ends any gesture before it replaces the cells.
+  - A release already settling keeps its destination.
+  - A new touch during a landing finishes it first, then starts its own hold on
+    the redrawn cell.
+- **`cleanupWeekDrag`** is the single path back to rest. It removes the window
+  listeners, timers, the rAF, the transition listener, capture, the placeholder,
+  every drag class and the inline styles.
+- **Taps** select through the strip's `click`, so Enter and Space work.
+  - The click a finished drag leaves behind is swallowed within 350 ms.
+  - The guard only applies to clicks on the strip, so a quick tap on Undo is
+    never swallowed.
+
+### iOS safety
+
+- `touch-action: pan-y` stays on the cells, and the only `touch-action: none`
+  the week adds is on a strip in drag mode. Nothing global.
+- Pointer listeners are passive; the one blocking listener is the strip's
+  `touchmove`, whose handler is a single condition.
+- `-webkit-touch-callout: none`, scoped `user-select: none`, and `dragstart`,
+  `selectstart` and `contextmenu` refusal stay as D13 set them.
+
+### Schedule truth
+
+- The write is the D12 swap, once per successful move.
+  - Plan days trade places.
+  - The program's sessions trade places with their plan, category and template
+    ids unchanged, as one program revision.
+  - No template, saved workout or history is touched.
+- **Observed, unchanged from 6.8:** with a program running, `updateProgram`
+  records the swap as a forward-only revision effective next Monday (D51). The
+  current week's program days, which Today and the strip read, keep this week's
+  sessions.
+  - Moving Monday's Push onto today (Tuesday) leaves Tuesday showing Pull on
+    both builds, while the plan layer says Push.
+  - The settle lands the card where it was dropped, then the redrawn week shows
+    this week's program. Recorded, not changed.
+
+### Verification
+
+- **Contract 174** (48 assertions), with a scripted strip, fake timers and
+  frames:
+  - the hold and slop; no capture or prevention before the hold
+  - activation without a jump, and the grab origin
+  - 1:1 tracking on both axes
+  - touchmove refusal only while dragging
+  - the destination: nearest, own day, hysteresis both ways, the band, no hit
+    test
+  - a single highlight
+  - settle before one write; the yielding day
+  - click suppression, taps and keyboard
+  - same-day and outside-band no-ops
+  - slop hand-back, including a stale hold timer
+  - pointercancel, a second finger, capture loss (cell versus strip), losing
+    focus, redraw, and a new touch during landing
+  - the guards
+  - the real swap under a program: plan and program trade with ids unchanged as
+    one revision; `planData` and `workoutLog` identical
+  - CSS: pan-y kept, no global `touch-action: none`, non-passive touchmove,
+    frame purity, lift and settle transitions, reduced motion, D13
+    suppressions, the D12 writer
+- **Repointed with reasons:**
+  - Contract 86:
+    - drift is measured as a distance
+    - the tap moves to click
+    - "horizontal only" and "clamped" become "follows on both axes" and "no
+      destination off the row"
+    - hit testing reads geometry at lift
+    - a bad release returns home
+    - the rejected-drop write guard moves to `endWeekDrag`/`finishWeekDrag`
+    - reduced motion has no shake to keep
+  - The motion contract: "lifts, scales and clamps" becomes "lifts and scales",
+    and "shakes on an invalid drop" becomes "settles home".
+- **Mutation:** 32 of 32 regressions caught, including:
+  - a 420 ms hold, a 4 px slop, capture on pointerdown
+  - the pointerdown grab offset, centre-origin scale
+  - a scrollable drag, horizontal-only movement
+  - no hysteresis, no band
+  - a same-day write, a double write, a teleport, no yielding day
+  - ignored pointercancel, second finger or redraw; capture-loss confusion
+  - cleanup leaks
+  - a click after a drag, a tap that does not select, slop that still lifts
+  - a lost landing, global `touch-action: none`, per-frame geometry, a
+    transition on translate
+  - reduced motion, a bypassed swap, haptics per day, no blur guard, a
+    resurrected hold
+
+  The shipped 6.8 build fails 15 assertions.
+- **Physical:** headless Edge with real CDP touch, mouse and key input, 26
+  checks each at 390×844, 375×812 and 320×568, with a program running. Covered:
+  - brief cases 1 to 15
+  - boundary tremor
+  - a mouse drag and its click
+  - keyboard selection
+  - 40 moves with 0 geometry reads and 0 layouts
+  - a vertical move after the hold with no scroll and no `pointercancel`
+  - captures at activation, halfway, over the destination and release
+
+### Known and recorded
+
+- **Moves under a running program take effect next Monday** in the program
+  layer (D51 revisions). This week's cells keep this week's program sessions, so
+  a move within the current week can look undone after it lands. Unchanged from
+  6.8.
+- **Rest days are draggable** and swap like any day, as in 6.8.
+- **No live preview of the swap while hovering.** Neighbours move only on
+  release, so nothing shifts under the finger.
+- **The haptic is `navigator.vibrate(18)`,** which iOS Safari does not support.
+  iPhone gets no haptic.
+- **Evidence is headless Edge with touch emulation,** not a physical iPhone.
+  Safari's touch-to-pointer mapping is covered by the non-passive touchmove
+  refusal and the pointercancel and lostpointercapture paths, not by a device
+  run.

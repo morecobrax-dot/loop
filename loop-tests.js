@@ -9374,25 +9374,29 @@ function testWeekDrag(app){
 
   sub('a hold picks up, a tap selects');
   T('there is a deliberate hold threshold', ctx.WEEK_DRAG.holdMs >= 300 && ctx.WEEK_DRAG.holdMs <= 700);
+  /* D66 — drift is measured as a distance, and a tap selects through the click
+     every button gets, so Enter and Space select too. Contract 174 drives both. */
   T('drift during the hold cancels it, because that is a scroll',
-    /if\(dx > WEEK_DRAG\.slopPx \|\| dy > WEEK_DRAG\.slopPx\)/.test(src));
+    /if\(mx \* mx \+ my \* my > WEEK_DRAG\.slopPx \* WEEK_DRAG\.slopPx\) cleanupWeekDrag\(\);/.test(fnSrc(src, 'weekPointerMove')));
   T('a tap that never became a drag selects the day',
-    /if\(!wasDrag && !moved && key\) setSelectedDay\(key\);/.test(src));
+    /if\(cell\) setSelectedDay\(cell\.dataset\.key\);/.test(fnSrc(src, 'weekDayClick')) &&
+    /if\(d\.phase === 'pending'\)\{ cleanupWeekDrag\(\); return; \}/.test(fnSrc(src, 'weekPointerUp')));
   T('the cell does not open an editor on tap any more',
     !/class="wk-day[\s\S]{0,160}onclick="openDayEdit/.test(src));
 
-  sub('the lifted workout is visibly lifted, and cannot leave the week');
+  sub('the lifted workout is visibly lifted, and stays on the finger');
   T('it scales and raises', /\.wk-day\.wk-dragging\{[\s\S]{0,220}box-shadow: var\(--shadow-lg\)/.test(css));
-  T('movement is horizontal only', /translateX\(\$\{clamped\}px\)/.test(src) && !/translateY\(/.test(
-    src.slice(src.indexOf('function moveWeekDrag'), src.indexOf('function endWeekDrag'))));
-  T('it is clamped to the strip', (() => {
-    const fn = src.slice(src.indexOf('function moveWeekDrag'), src.indexOf('function endWeekDrag'));
-    return /Math\.max\(min, Math\.min\(max, dx\)\)/.test(fn);
-  })());
-  T('the lifted cell is excluded from its own hit test', (() => {
-    const fn = src.slice(src.indexOf('function weekCellFromPoint'), src.indexOf('function beginWeekDrag'));
-    return /!c\.classList\.contains\('wk-dragging'\)/.test(fn);
-  })());
+  /* D66 superseded "horizontal only" and "clamped to the strip": a card that
+     stopped at the row while the finger carried on was detached from the finger.
+     It now follows on both axes, and leaving the row is answered by the
+     destination (there is none), not by pinning the card. */
+  T('it follows the finger on both axes',
+    /d\.cell\.style\.translate = tx\.toFixed\(2\) \+ 'px ' \+ ty\.toFixed\(2\) \+ 'px';/.test(fnSrc(src, 'moveWeekDrag')));
+  T('a card taken away from the row has no destination, rather than a pinned position',
+    /if\(cy < top - WEEK_DRAG\.bandY \* h \|\| cy > bottom \+ WEEK_DRAG\.bandY \* h\) return null;/.test(fnSrc(src, 'weekDropTarget')));
+  T('the destination never hit-tests the lifted cell: it is read from the days\' geometry at lift',
+    !/elementFromPoint|getBoundingClientRect|wk-dragging/.test(fnSrc(src, 'weekDropTarget')) &&
+    /d\.slots = measureWeekSlots\(strip\);/.test(fnSrc(src, 'beginWeekDrag')));
 
   sub('drop targets are shown, and a bad drop is refused rather than broken');
   T('every other day is marked as a target', /c\.classList\.add\('wk-drop-ok'\)/.test(src));
@@ -9400,12 +9404,13 @@ function testWeekDrag(app){
     /\.wk-day\.wk-drop-ok\{[^}]*outline: 1px dashed/.test(css));
   T('the day under the finger is distinguished',
     /\.wk-day\.wk-drop-over\{[^}]*outline: 2px dashed/.test(css));
-  T('a release on nothing returns the workout and says so',
-    /d\.cell\.classList\.add\('wk-reject'\)/.test(src));
-  T('a rejected drop never writes', (() => {
-    const fn = src.slice(src.indexOf('function endWeekDrag'), src.indexOf('function commitWeekMove'));
-    return /commit && d\.overKey && d\.overKey !== d\.originKey/.test(fn);
-  })());
+  /* D66 — a release on nothing settles the workout back into its own slot. The
+     return is the message; a shake after it read as an error. */
+  T('a release on nothing returns the workout home',
+    /const dest = d\.toKey \? d\.slots\.find\(s => s\.key === d\.toKey\) : d\.home;/.test(fnSrc(src, 'endWeekDrag')));
+  T('a rejected drop never writes',
+    /d\.toKey = \(toKey && toKey !== d\.originKey && d\.slots\.some\(s => s\.key === toKey\)\) \? toKey : null;/.test(fnSrc(src, 'endWeekDrag')) &&
+    /if\(to\) commitWeekMove\(from, to\);/.test(fnSrc(src, 'finishWeekDrag')));
 
   sub('the move goes through the existing schedule writer');
   T('it calls swapScheduledDays, not a second scheduler',
@@ -9428,8 +9433,10 @@ function testWeekDrag(app){
   sub('motion is restrained and optional');
   T('reduced motion removes the lift transform',
     /prefers-reduced-motion[\s\S]{0,400}\.wk-day\.wk-dragging\{ transform: none/.test(css));
-  T('reduced motion keeps the rejection readable without the shake',
-    /prefers-reduced-motion[\s\S]{0,300}\.wk-day\.wk-reject\{ animation: none; outline: 2px solid/.test(css));
+  /* D66 — there is no shake left to keep readable; reduced motion lands and returns
+     without animating. */
+  T('reduced motion lands and returns without animating',
+    /prefers-reduced-motion[\s\S]{0,500}\.wk-day\.wk-settling, \.wk-day\.wk-yielding\{ transition: none; \}/.test(css));
   T('nothing about the drag loops', !/wkReject[\s\S]{0,120}infinite/.test(css));
 }
 
@@ -11402,10 +11409,12 @@ function testComposition(app){
   /* The drag interaction, the PR reveal and the set button's own animation
      already met this brief. Changing them would have been motion for its own
      sake. */
-  T('the drag still lifts, scales and clamps', /translateX\(\$\{clamped\}px\) scale\(1\.06\)/.test(src));
+  /* D66 rebuilt the drag (Contract 174): it lifts and scales from where it is held,
+     follows the finger instead of clamping, and settles home instead of shaking. */
+  T('the drag still lifts and scales', /\.wk-day\.wk-dragging\{[^}]*scale: 1\.05;/.test(css));
   T('it still leaves a placeholder behind', /\.wk-placeholder\{/.test(css));
   T('it still refuses text selection', /strip\.addEventListener\('selectstart'/.test(src));
-  T('it still shakes on an invalid drop', /@keyframes wkReject/.test(css));
+  T('an invalid drop settles home rather than shaking', !/@keyframes wkReject/.test(css) && /\.wk-day\.wk-settling\{/.test(css));
   T('the PR reveal is still a rise and a glow, with no confetti',
     /\.pr-callout-fresh\{ animation: prFreshIn 0\.3s var\(--ease\) both, prFreshGlow/.test(css));
 
@@ -25898,6 +25907,285 @@ function fnSpan(src, name){
 }
 function ORDER_OF(ctx){ return ctx.ORDER.slice(); }
 
+/* =========================================================
+   CONTRACT 174 — HOLD TO SLIDE (D66)
+   ---------------------------------------------------------
+   Moving a workout across This Week is a gesture, not a form.
+   Before the hold it is a page scroll. After the hold the
+   workout is on the finger: lifted from the point it was
+   held, followed on both axes without a jump, aimed at the
+   nearest day with hysteresis, and settled into that day
+   (or back home) before the move is written — once, through
+   swapScheduledDays. Cancel, a second finger, lost focus and
+   redraws always return the strip to rest, and the click a
+   drag leaves behind is never a tap.
+   ========================================================= */
+async function testWeekHoldToSlide(){
+  section('CONTRACT 174 — hold to slide (D66)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('balanced'), dataSchemaVersion:'1' });
+  const ctx = app.ctx, doc = ctx.document;
+
+  /* A strip of seven 48px days, 2px apart, at (20, 300): day i spans x 20+50i .. 68+50i, centre 44+50i. */
+  const mkCls = () => { const set = new Set(); return { add: (...c) => c.forEach(x => set.add(x)), remove: (...c) => c.forEach(x => set.delete(x)),
+    toggle: (c, f) => { const on = f === undefined ? !set.has(c) : !!f; if(on) set.add(c); else set.delete(c); return on; }, contains: c => set.has(c), size: () => set.size }; };
+  const fakeWeek = () => {
+    const strip = { dataset: {}, classList: mkCls(), style: {}, isConnected: true, children: [], cap: null, L: {},
+      getBoundingClientRect: () => ({ left: 20, top: 300, right: 368, bottom: 362, width: 348, height: 62 }),
+      appendChild(el){ el.parentElement = strip; el.remove = () => { el.parentElement = null; strip.children = strip.children.filter(x => x !== el); }; strip.children.push(el); return el; },
+      setPointerCapture(id){ strip.cap = id; }, hasPointerCapture(id){ return strip.cap === id; }, releasePointerCapture(id){ if(strip.cap === id) strip.cap = null; },
+      addEventListener(t, fn, o){ (strip.L[t] = strip.L[t] || []).push({ fn, o }); } };
+    const cells = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((key, i) => {
+      const c = { dataset: { key }, classList: mkCls(), style: {}, isConnected: true, parentElement: strip, L: {},
+        offsetLeft: i * 50, offsetTop: 0, offsetWidth: 48, offsetHeight: 62, getClientRects: () => [{}],
+        addEventListener(t, fn){ (c.L[t] = c.L[t] || []).push(fn); }, removeEventListener(t, fn){ c.L[t] = (c.L[t] || []).filter(x => x !== fn); } };
+      c.closest = sel => sel === '.wk-day' ? c : null;
+      return c;
+    });
+    strip.querySelectorAll = sel => sel === '.wk-day' ? cells : [];
+    return { strip, cells };
+  };
+  const centre = i => 44 + 50 * i;
+  const pe = (target, x, y, extra) => Object.assign({ pointerId: 7, pointerType: 'touch', isPrimary: true, button: 0, clientX: x, clientY: y, target,
+    prevented: false, stopped: false, preventDefault(){ this.prevented = true; }, stopPropagation(){ this.stopped = true; } }, extra || {});
+  const keep = { setTimeout: ctx.setTimeout, clearTimeout: ctx.clearTimeout, loopHaptic: ctx.loopHaptic, swapScheduledDays: ctx.swapScheduledDays,
+    renderAll: ctx.renderAll, setSelectedDay: ctx.setSelectedDay, showWeekUndo: ctx.showWeekUndo, querySelector: doc.querySelector, win: ctx.window };
+  let timers = [], swaps = [], selects = [], haptics = 0, renders = 0, winAdds = [], winRemoves = [];
+  const due = ms => timers.filter(t => !t.cleared && !t.ran && (ms === undefined || t.ms === ms));
+  const run = ms => due(ms).forEach(t => { t.ran = true; t.fn(); });
+  const { strip, cells } = fakeWeek();
+  const settleEnd = (cell, prop) => (cell.L.transitionend || []).slice().forEach(fn => fn({ target: cell, propertyName: prop }));
+  const atRest = () => ctx._wkDrag === null && strip.cap === null && strip.children.length === 0 && !strip.classList.contains('wk-drag-mode') &&
+    cells.every(c => c.classList.size() === 0 && !c.style.translate && !c.style.transformOrigin);
+  Object.assign(ctx, {
+    setTimeout: (fn, ms) => { const t = { id: timers.length + 1, fn, ms }; timers.push(t); return t.id; },
+    clearTimeout: id => { const t = timers.find(x => x.id === id); if(t) t.cleared = true; },
+    loopHaptic: () => { haptics++; return false; },
+    swapScheduledDays: (a, b) => { swaps.push(a + '>' + b); },
+    renderAll: () => { renders++; },
+    setSelectedDay: k => { selects.push(k); },
+    showWeekUndo: () => {}
+  });
+  ctx.window = Object.assign({}, keep.win, {
+    addEventListener: (t, fn, o) => { winAdds.push(t); }, removeEventListener: (t, fn, o) => { winRemoves.push(t); },
+    matchMedia: () => ({ matches: false, addEventListener(){} })
+  });
+  doc.querySelector = sel => sel === '#weekCard .wk-days' ? strip : null;
+  try{
+    ctx._wkDrag = null;
+    ctx.attachWeekGestures();
+    const L = t => (strip.L[t] || [])[0] || {};
+    const down = L('pointerdown').fn, click = L('click').fn, touchmove = L('touchmove'), lost = L('lostpointercapture').fn;
+    const touch = () => { const ev = { cancelable: true, prevented: false, preventDefault(){ this.prevented = true; } }; touchmove.fn(ev); return ev.prevented; };
+
+    sub('before the hold, the touch is the page\'s');
+    await guard('hold', () => {
+      T('the hold is deliberate, in the 250–350 ms a phone expects, with a small slop',
+        ctx.WEEK_DRAG.holdMs >= 250 && ctx.WEEK_DRAG.holdMs <= 350 && ctx.WEEK_DRAG.slopPx >= 6 && ctx.WEEK_DRAG.slopPx <= 12, ctx.WEEK_DRAG.holdMs + ' ms / ' + ctx.WEEK_DRAG.slopPx + ' px');
+      down(pe(cells[0], centre(0) + 6, 336));
+      T('pointerdown only starts a hold: nothing captured, lifted or prevented',
+        ctx._wkDrag && ctx._wkDrag.phase === 'pending' && strip.cap === null && cells.every(c => c.classList.size() === 0) &&
+        due(ctx.WEEK_DRAG.holdMs).length === 1 && !touch() && winAdds.indexOf('pointermove') !== -1);
+      ctx.weekPointerMove(pe(cells[0], centre(0) + 12, 341));
+      T('drift inside the slop is still a hold', ctx._wkDrag && ctx._wkDrag.phase === 'pending');
+      run(ctx.WEEK_DRAG.holdMs);
+      const d = ctx._wkDrag;
+      T('the hold lifts: raised, its slot kept, every other day marked, the pointer captured, one haptic',
+        d && d.phase === 'active' && cells[0].classList.contains('wk-dragging') && strip.classList.contains('wk-drag-mode') &&
+        cells.filter(c => c.classList.contains('wk-drop-ok')).length === 6 && !cells[0].classList.contains('wk-drop-ok') &&
+        strip.children.length === 1 && strip.children[0].className === 'wk-placeholder' && strip.children[0].style.left === '0px' && strip.children[0].style.width === '48px' &&
+        strip.cap === 7 && haptics === 1);
+      T('no jump: the card is exactly where it was, held from where the finger is now, not where it went down',
+        cells[0].style.translate === '0.00px 0.00px' && cells[0].style.transformOrigin === '36.00px 41.00px', cells[0].style.translate + ' / ' + cells[0].style.transformOrigin);
+      T('now the page may not scroll under it', touch() === true);
+      ctx.weekPointerMove(pe(cells[0], centre(0) + 13, 361));
+      T('it follows the finger one to one, on both axes', cells[0].style.translate === '1.00px 20.00px', cells[0].style.translate);
+      ctx.weekPointerMove(pe(cells[0], centre(0) + 400, 361, { pointerId: 9 }));
+      T('another pointer\'s moves are not this finger\'s', cells[0].style.translate === '1.00px 20.00px');
+    });
+
+    sub('the destination is the nearest day, held steady at its boundary');
+    await guard('destination', () => {
+      const slots = ctx.measureWeekSlots(strip), rect = strip.getBoundingClientRect();
+      const aim = (cx, cy, cur) => ctx.weekDropTarget(slots, rect, cx, cy, cur);
+      const mid = (centre(0) + centre(1)) / 2;
+      T('over a day, that day', aim(centre(2), 331, null) === 'wed' && aim(centre(6), 331, 'sat') === 'sun');
+      T('its own day is a destination too', aim(centre(0) + 3, 331, 'mon') === 'mon');
+      T('a tremor on a boundary keeps the day it had, from either side',
+        aim(mid, 331, 'mon') === 'mon' && aim(mid + 5, 331, 'mon') === 'mon' && aim(mid - 5, 331, 'tue') === 'tue' && aim(mid + 7, 331, 'mon') === 'tue');
+      T('a card taken well above, below or beyond the row has none',
+        aim(centre(3), 300 - 0.75 * 62 - 1, 'thu') === null && aim(centre(3), 362 + 0.75 * 62 + 1, 'thu') === null &&
+        aim(368 + 25, 331, 'sun') === null && aim(centre(3), 300 - 0.75 * 62 + 1, null) === 'thu');
+      T('the dragged element is never hit-tested', !/elementFromPoint|getBoundingClientRect/.test(fnSrc(src, 'weekDropTarget')));
+      ctx.weekPointerMove(pe(cells[0], centre(0) + 6 + 150, 336));
+      T('dragged over Thursday, Thursday alone is marked', ctx._wkDrag.overKey === 'thu' &&
+        cells.filter(c => c.classList.contains('wk-drop-over')).map(c => c.dataset.key).join() === 'thu');
+    });
+
+    sub('release resolves once: settle, then one write');
+    await guard('release', () => {
+      ctx.weekPointerMove(pe(cells[0], centre(0) + 6 + 100, 336));
+      ctx.weekPointerUp(pe(cells[0], centre(0) + 6 + 100, 336));
+      const d = ctx._wkDrag;
+      T('on release over Wednesday the card eases into Wednesday and Wednesday\'s day slides to Monday; nothing written yet',
+        d && d.phase === 'settling' && d.toKey === 'wed' && cells[0].classList.contains('wk-settling') && cells[0].style.translate === '100px 0px' &&
+        cells[2].classList.contains('wk-yielding') && cells[2].style.translate === '-100px 0px' && swaps.length === 0 && strip.cap === null &&
+        cells.every(c => !c.classList.contains('wk-drop-ok') && !c.classList.contains('wk-drop-over')), d && (d.phase + ' ' + d.toKey + ' ' + cells[0].style.translate));
+      settleEnd(cells[0], 'scale');
+      run();
+      T('landed: exactly one write, mon to wed, and the strip is at rest', swaps.join() === 'mon>wed' && renders === 1 && atRest(), swaps.join() + ' renders ' + renders);
+      T('one haptic for the whole drag, however many days it crossed', haptics === 1, haptics + ' haptics');
+      const guarded = pe(cells[2], centre(2), 336);
+      click(guarded);
+      T('the click a drag leaves behind selects nothing', guarded.prevented && guarded.stopped && selects.length === 0);
+      const tap = pe(cells[4], centre(4), 336);
+      down(tap);
+      ctx.weekPointerUp(pe(cells[4], centre(4), 336));
+      click(tap);
+      T('a tap is still a tap: it selects its day and lifts nothing', selects.join() === 'fri' && !tap.prevented && atRest() && due(ctx.WEEK_DRAG.holdMs).length === 0);
+      const key = pe(cells[5], centre(5), 336);
+      click(key);
+      T('and Enter or Space on a day, which click too, select it', selects.join() === 'fri,sat');
+    });
+
+    sub('a release that goes nowhere writes nothing');
+    await guard('no-op releases', () => {
+      down(pe(cells[1], centre(1), 336));
+      run(ctx.WEEK_DRAG.holdMs);
+      ctx.weekPointerMove(pe(cells[1], centre(1) + 8, 340));
+      ctx.weekPointerUp(pe(cells[1], centre(1) + 8, 340));
+      T('released over its own day, it settles home', ctx._wkDrag && ctx._wkDrag.phase === 'settling' && ctx._wkDrag.toKey === null && cells[1].style.translate === '0px 0px');
+      run();
+      T('and nothing is written', swaps.join() === 'mon>wed' && atRest());
+      down(pe(cells[3], centre(3), 336));
+      run(ctx.WEEK_DRAG.holdMs);
+      ctx.weekPointerMove(pe(cells[3], centre(3), 336 - 140));
+      ctx.weekPointerUp(pe(cells[3], centre(3), 336 - 140));
+      T('released far from the row, it settles home', ctx._wkDrag && ctx._wkDrag.toKey === null && cells[3].style.translate === '0px 0px' && cells.every(c => !c.classList.contains('wk-yielding')));
+      run();
+      T('and nothing is written', swaps.join() === 'mon>wed' && atRest());
+      ctx._wkClickGuardUntil = 0;
+    });
+
+    sub('before the hold, movement is a scroll');
+    await guard('slop', () => {
+      const lifts = haptics;
+      winRemoves = [];
+      down(pe(cells[3], centre(3), 336));
+      ctx.weekPointerMove(pe(cells[3], centre(3) + 3, 336 - 11));
+      run();
+      T('moving past the slop before the hold hands the touch back: nothing lifts, nothing is captured, nothing prevented',
+        atRest() && haptics === lifts && !touch() && winRemoves.indexOf('pointermove') !== -1);
+      const stale = timers.filter(t => t.cleared && t.ms === ctx.WEEK_DRAG.holdMs).pop();
+      if(stale) stale.fn();
+      T('and a hold timer that fires anyway, after the touch was handed back, lifts nothing', !!stale && atRest() && haptics === lifts);
+    });
+
+    sub('nothing can leave the strip stuck');
+    await guard('cancel', () => {
+      const lift = (i, id) => { down(pe(cells[i], centre(i), 336, { pointerId: id || 7 })); run(ctx.WEEK_DRAG.holdMs); ctx.weekPointerMove(pe(cells[i], centre(i) + 30, 336, { pointerId: id || 7 })); };
+      lift(1);
+      ctx.weekPointerCancel(pe(cells[1], centre(1) + 30, 336));
+      T('pointercancel returns the workout home, gently', ctx._wkDrag && ctx._wkDrag.phase === 'settling' && ctx._wkDrag.toKey === null);
+      run();
+      T('and leaves nothing behind', atRest() && swaps.length === 1);
+      lift(2);
+      ctx.weekOtherPointerDown(pe(cells[5], centre(5), 336, { pointerId: 8, isPrimary: false }));
+      run();
+      T('a second finger ends the drag the same way', atRest() && swaps.length === 1);
+      lift(4);
+      lost({ pointerId: 7, target: cells[4] });
+      T('a cell losing its implicit capture to the strip is the drag starting, not ending', ctx._wkDrag && ctx._wkDrag.phase === 'active');
+      lost({ pointerId: 7, target: strip });
+      run();
+      T('the strip losing the pointer ends it', atRest() && swaps.length === 1);
+      lift(5);
+      ctx.cancelWeekDrag({ immediate: true });
+      T('losing focus returns the strip to rest at once, with no timer left to finish', atRest() && due().length === 0 && swaps.length === 1);
+      ctx._wkClickGuardUntil = 0;
+      lift(6);
+      ctx.renderWeekCard();
+      T('a redraw ends any gesture before it replaces the cells', atRest());
+      lift(0);
+      ctx.weekPointerUp(pe(cells[0], centre(0) + 100, 336));
+      down(pe(cells[3], centre(3), 336, { pointerId: 12 }));
+      T('a new touch while the last drop is still landing lands it, once, and starts its own hold',
+        swaps.join() === 'mon>wed,mon>wed' && ctx._wkDrag && ctx._wkDrag.phase === 'pending' && ctx._wkDrag.originKey === 'thu');
+      run();
+      settleEnd(cells[0], 'translate');
+      T('and the old landing\'s timer and transition find nothing left to do', swaps.length === 2);
+      ctx.cleanupWeekDrag();
+      T('the guards cover losing the page', ['blur', 'pagehide', 'resize', 'orientationchange'].every(t => new RegExp("window\\.addEventListener\\('" + t + "', stop\\)").test(fnSrc(src, 'attachWeekDragGuards'))) &&
+        /visibilitychange[\s\S]{0,80}hidden/.test(fnSrc(src, 'attachWeekDragGuards')));
+    });
+
+    sub('scheduling truth');
+    await guard('truth', () => {
+      Object.assign(ctx, { swapScheduledDays: keep.swapScheduledDays });
+      const made = ctx.createProgram({ name:'Balanced Machines', durationWeeks: 8, schedule: ctx.buildTrainingWeek('balanced', ['mon', 'tue', 'thu', 'fri']) });
+      const p = ctx.getActiveProgram();
+      const ident = e => (e && e.type === 'workout') ? ['workout', e.planId, e.category, e.templateId].join('/') : 'rest';
+      const monEntry = ident(p.schedule.mon), wedEntry = ident(p.schedule.wed);
+      const planBefore = JSON.stringify(ctx.planData), logBefore = JSON.stringify(ctx.workoutLog);
+      const decisions = () => (ctx.getActiveProgram().revisions || []).filter(r => r && !r.baseline).length;
+      const revisions = decisions();
+      const planDayMon = ctx.schedule.mon, planDayWed = ctx.schedule.wed;
+      ctx._wkClickGuardUntil = 0;
+      down(pe(cells[0], centre(0), 336));
+      run(ctx.WEEK_DRAG.holdMs);
+      ctx.weekPointerMove(pe(cells[0], centre(0) + 100, 336));
+      ctx.weekPointerUp(pe(cells[0], centre(0) + 100, 336));
+      settleEnd(cells[0], 'translate');
+      run();
+      const q = ctx.getActiveProgram();
+      T('the move is the existing swap: the plan days trade places, and so do the program\'s sessions, each unchanged',
+        made && made.ok && ctx.schedule.mon === planDayWed && ctx.schedule.wed === planDayMon &&
+        ident(q.schedule.wed) === monEntry && ident(q.schedule.mon) === wedEntry && monEntry !== 'rest', ctx.schedule.mon + '/' + ctx.schedule.wed + ' ' + ident(q.schedule.wed));
+      T('as one revision of the program, with no workout, template or history touched',
+        decisions() === revisions + 1 && JSON.stringify(ctx.planData) === planBefore && JSON.stringify(ctx.workoutLog) === logBefore &&
+        ctx.DATA_KEYS.length === 15 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', decisions() + ' decisions');
+    });
+  } finally {
+    Object.assign(ctx, { setTimeout: keep.setTimeout, clearTimeout: keep.clearTimeout, loopHaptic: keep.loopHaptic, swapScheduledDays: keep.swapScheduledDays,
+      renderAll: keep.renderAll, setSelectedDay: keep.setSelectedDay, showWeekUndo: keep.showWeekUndo });
+    ctx.window = keep.win;
+    doc.querySelector = keep.querySelector;
+    ctx._wkDrag = null;
+  }
+
+  sub('built for a phone, and only while it drags');
+  T('before the hold the day cells still let the page scroll', /\.wk-day\{\s*touch-action: pan-y;/.test(css));
+  T('nothing takes the whole screen\'s touches: the week asks for touch-action none only on a strip in drag mode', (() => {
+    const rules = (stripComments(css).match(/[^{}]+\{[^}]*touch-action:\s*none[^}]*\}/g) || []).map(r => r.split('{')[0].trim());
+    const global = rules.filter(sel => sel.split(',').some(s => /^(html|body|\*|\.view|#mainApp|main)(\s|$|:)/.test(s.trim())));
+    const week = rules.filter(sel => /\.wk-/.test(sel));
+    return global.length === 0 && week.join() === '.wk-days.wk-drag-mode' ? true : 'global ' + global.join(' | ') + ' week ' + week.join(' | ');
+  })() === true);
+  T('the scroll is refused by a non-passive touchmove, and only once dragging',
+    /strip\.addEventListener\('touchmove', ev => \{\s*if\(_wkDrag && _wkDrag\.phase === 'active' && ev\.cancelable\) ev\.preventDefault\(\);\s*\}, \{ passive: false \}\);/.test(src));
+  T('pointerdown captures and prevents nothing', !/setPointerCapture|preventDefault/.test(fnSrc(src, 'weekPointerDown')));
+  T('a frame writes translate and reads geometry only after a scroll, never rendering',
+    /d\.cell\.style\.translate = /.test(fnSrc(src, 'moveWeekDrag')) &&
+    (fnSrc(src, 'moveWeekDrag').match(/getBoundingClientRect/g) || []).length === 1 && /if\(d\.geometryDirty\)\{ d\.stripRect = d\.strip\.getBoundingClientRect\(\);/.test(fnSrc(src, 'moveWeekDrag')) &&
+    !/render|innerHTML|offsetLeft|offsetWidth/.test(fnSrc(src, 'moveWeekDrag')) && !/render|innerHTML/.test(fnSrc(src, 'weekPointerMove')));
+  T('the lift eases from the press and never delays the finger',
+    /\.wk-day\.wk-dragging\{[^}]*transform: none; scale: 1\.05;[^}]*transition: transform 140ms var\(--ease\), scale 140ms var\(--ease\), box-shadow 140ms var\(--ease\);/.test(css) &&
+    !/\.wk-day\.wk-dragging\{[^}]*transition:[^;]*translate/.test(css));
+  T('the settle eases translate and scale, and the displaced day slides',
+    /\.wk-day\.wk-settling\{[^}]*transition: translate 200ms/.test(css) && /\.wk-day\.wk-yielding\{[^}]*transition: translate 200ms/.test(css));
+  T('reduced motion lands and returns without animating',
+    /prefers-reduced-motion[\s\S]{0,500}\.wk-day\.wk-settling, \.wk-day\.wk-yielding\{ transition: none; \}/.test(css) &&
+    /if\(weekDragReducedMotion\(\)\)\{ finishWeekDrag\(\); return; \}/.test(fnSrc(src, 'endWeekDrag')));
+  T('selection, the iOS callout and the native drag image stay refused on the strip only',
+    /\.wk-day\{[\s\S]{0,300}-webkit-touch-callout: none/.test(css) && /strip\.addEventListener\('dragstart', ev => ev\.preventDefault\(\)\)/.test(src) &&
+    /strip\.addEventListener\('selectstart'/.test(src) && /strip\.addEventListener\('contextmenu'/.test(src));
+  T('the write is still the one D12 used', /try\{ swapScheduledDays\(fromKey, toKey\); \}/.test(fnSrc(src, 'commitWeekMove')) &&
+    /if\(to\) commitWeekMove\(from, to\);/.test(fnSrc(src, 'finishWeekDrag')));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -26034,6 +26322,7 @@ async function main(){
   await testMachineIntegrity();
   await testBodyweightCoverage();
   await testTrainLauncher();
+  await testWeekHoldToSlide();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
