@@ -10520,3 +10520,101 @@ same figure were already LOOP's own blue.
   cut-out notch rather than anatomy; the line-only technique reads cleanly at
   every size tested and keeps the region count exactly one per canonical
   group where the registry only defines one.
+
+## §104 — D72: The muscle map, illustrated
+
+**Status.** Shipped in LOOP 7.6 (`loop-v153`). Static asset swap, requested
+and scoped by the owner as exactly that — not a redesign. `DATA_KEYS` 15,
+schema 1, no migration, no new storage key, `TRAINER_ENGINE_VERSION`
+0.1.1-shadow. `computeMuscleTotals`, `MUSCLE_MAP`, `muscleFocusHtml`,
+`muscleBarsHtml`, Session Score, Program generation and Swap untouched.
+
+### What changed
+
+D71's `bodyDiagramSvg` drew ten hand-authored muscle-region SVG paths per
+view, recoloured from the week's own totals through a four-band ramp. The
+owner supplied their own illustrated asset (`muscle-map.webp`, front+back,
+transparent background) and asked for it to be used directly in place of
+that drawing — "a visual asset swap only," explicitly not a request to
+redesign the card around it.
+
+- `bodyDiagramSvg(t, totalsOverride)` keeps its exact signature and all six
+  existing call sites (the plan preview, the workout template card, the
+  saved-workout card, Mastery's Muscle Volume, Today's week summary). It now
+  returns `<span class="muscle-fig"><img class="muscle-svg"
+  src="muscle-map.webp" ...><span class="muscle-fig-labels">...`, still
+  carrying the single `class="muscle-svg"` every container's existing CSS
+  already sizes — `.po-mus-body` (92px), `.mv-body` (84px), `.tm-body`
+  (96px), `.td-figure .muscle-svg` (124px) are all byte-unchanged.
+- `muscleFill`, `MUSCLE_UNWORKED` and `MUSCLE_LOW` — D71's colour ramp, with
+  no caller left once the image stopped being recoloured — were removed
+  rather than left as dead code, along with the per-region path data
+  (`mirrorPath`, ten region path strings) that only existed to feed them.
+- FRONT/BACK moved from SVG `<text>` (D25's SVG-scaled 11-unit floor) to
+  real HTML captions at `var(--fs-micro)` (11px, the same CSS floor every
+  other micro-label in LOOP already holds) — a structural improvement, not
+  a workaround: there is no more SVG viewBox for a caption to be scaled
+  below.
+- `bodyDiagramSvg` still runs `computeMuscleTotals(t)` exactly where it
+  always did, even though the image no longer reads the result — kept so
+  nothing about *when* this computation runs changes for any caller,
+  matching the owner's "no changes to data logic" instruction as
+  conservatively as possible. Everything that actually reads the totals —
+  the bars, the "Most worked" stat, `muscleFocusHtml`'s text equivalent —
+  is untouched and still exactly as accurate as before.
+- The figure itself can no longer show *which* muscles were trained (it is
+  one static illustration regardless of the week's data); that fact is
+  stated plainly in the release notes rather than glossed over.
+
+### The asset file was not attached this session
+
+The owner's brief referenced a provided asset image, but no file reached
+this session with it — no saved path, nothing new in the repo. Random
+recently-modified temp files were checked and rejected once a decoded
+candidate turned out to be an unrelated app's splash screen; none were used
+on a guess. The owner was asked to save the file into the repo directly
+(`AskUserQuestion`), confirmed it, and `muscle-map-asset.webp` (later
+renamed `muscle-map.webp`) appeared at the repo root and was read and
+verified (WebP container, genuine alpha channel, 1122×1402) before being
+wired in.
+
+### Evidence
+
+- **Contract 179** (`testMuscleMapAsset`) replaces Contract 178 entirely —
+  178 was built around verifying ten dynamically-coloured SVG regions that
+  no longer exist, so nothing in it could be repointed; it is superseded,
+  not weakened. 24 assertions: one figure / one signature / unchanged call
+  sites; the asset is a real alpha-channel WebP referenced plainly (not
+  inlined, matching how every other LOOP icon is referenced) with real alt
+  text and explicit width/height; every container's existing sizing CSS is
+  byte-unchanged; `computeMuscleTotals` and everything downstream of it are
+  untouched and still produce the same numbers; the old per-region system
+  (`muscleFill`, its constants, its path data) is confirmed actually gone,
+  not merely unused.
+- **Mutation: 12 of 12 caught** — the image pointed at a missing file, a
+  second body renderer added, the wrapper stopped filling its container, a
+  container width quietly changed, `.muscle-svg`'s own sizing rule quietly
+  changed, `computeMuscleTotals` stopped zeroing every group, `bodyDiagramSvg`
+  stopped calling it at all, `muscleBarsHtml` reached into the image path,
+  the alt text dropped, the captions dropped, a stray per-region path path
+  string crept back in, `MUSCLE_UNWORKED` reintroduced as dead code.
+- **Full verify 7,189 passed, 0 failed**; all five audits green.
+- **Physical:** the real This Week card and the Muscle Volume sheet's
+  Overview/Volume tabs, at 390×844, 375×812 and 320×568, with a
+  four-exercise week logged. No horizontal overflow at any size, the asset
+  renders with no white box behind it (confirmed against a dark page
+  background before wiring it in — the container flags claimed an alpha
+  channel; the render proved it), FRONT/BACK legible at every container
+  width tested including the smallest (84px), zero console errors.
+
+### Known and recorded
+
+- **The figure is no longer a live visualization of the current week's
+  data.** This is the trade-off the owner's own brief asked for
+  ("use it directly," "visual asset swap only") and it is named explicitly
+  in the LOOP_UPDATES `changes` entry rather than left implicit.
+- **`muscle-map.webp` is not precached by `sw.js`** — same as every other
+  icon file (`favicon-32.png`, `apple-touch-icon.png`, etc.): it is cached
+  on first fetch by the existing network-first handler, not added to the
+  explicit `ASSETS` precache list, matching precedent rather than inventing
+  a new one.

@@ -638,6 +638,13 @@ html.intro-skip #introOverlay{ display: none !important; }
 .muscle-svg{ transition: opacity 0.25s var(--ease); }
 @media (prefers-reduced-motion: reduce){ .muscle-svg{ transition: none; } }
 .muscle-svg{ width: 100%; max-width: 106px; height: auto; display: block; }
+/* D72 — the wrapper around the static muscle-map.webp asset. `.muscle-svg`
+   above still sizes the image itself (same rule, same width/max-width every
+   container already sets); this only makes the wrapper fill that same box
+   and lays the two captions out under their own half of the illustration. */
+.muscle-fig{ display: block; width: 100%; }
+.muscle-fig-labels{ display: flex; justify-content: space-around; margin-top: 2px; }
+.muscle-fig-labels span{ font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); opacity: 0.7; }
 .radar-svg{ width: 100px; height: 100px; }
 
 /* ---- Progress tab ---- */
@@ -15030,6 +15037,22 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v7-6',
+    version: 'LOOP 7.6',
+    title: 'The Muscle Map, Illustrated',
+    date: '2026-09-16',
+    swVersion: 'loop-v153',
+    summary: 'The front and back figure now uses a hand-illustrated body instead of a drawn one.',
+    newFeatures: [],
+    improvements: [
+      'The figure in This week, Muscle Volume, your plan’s preview and every saved workout’s card is a single illustrated body instead of the shapes LOOP drew itself'
+    ],
+    bugFixes: [],
+    changes: [
+      'The figure itself no longer highlights which specific muscles you trained — that detail now lives in the bars and the "Most worked" line beside it, exactly as accurate as before'
+    ]
   }
 ];
 
@@ -16747,24 +16770,6 @@ function computeMuscleTotals(t){
   });
   return totals;
 }
-/* D71 — a small named ramp rather than a continuous blend. Four bands, never
-   five: unworked, then three steps of relative volume, so ten muscle regions
-   read as a legible set of tones instead of a gradient blurring into itself
-   at card size. The top two bands are LOOP's own accent tokens — the same
-   blue muscle-bar-fill and the Train launcher's "top" gradient already use —
-   so the figure that shows how much reuses the palette that already means
-   that elsewhere, rather than inventing a second one (D71 replaced a
-   pink-to-red ramp that matched nothing else in LOOP). */
-const MUSCLE_UNWORKED = '#93989E';
-const MUSCLE_LOW = '#6182CF'; // between MUSCLE_UNWORKED and --accent-2
-function muscleFill(totals, maxVal, group){
-  const v = totals[group];
-  if(v <= 0) return MUSCLE_UNWORKED;
-  const r = v / maxVal;
-  if(r < 0.34) return MUSCLE_LOW;
-  if(r < 0.7) return 'var(--accent-2)';
-  return 'var(--accent)';
-}
 /* Which view best represents a session. Anterior groups vs posterior groups —
    a pull day shows the back, a push day shows the front, without the user
    having to think about it. */
@@ -16778,106 +16783,23 @@ function muscleFill(totals, maxVal, group){
    accurately, instead of having them re-inferred here from exercise names.
    Callers that pass a template keep the exact behaviour they always had.
 
-   D71 — SURGICAL VISUAL REPLACEMENT. Every caller above, the ten canonical
-   MUSCLE_MAP groups, `totalsOverride`, and the returned markup's one
-   `class="muscle-svg"` are unchanged; only what is drawn inside the <svg>
-   changed, from ellipses and a rounded-rect torso standing in for anatomy to
-   one continuous silhouette per view with real muscle-region paths. Regions
-   are layered proximal-to-distal (torso, then chest/delts/traps/lats, then
-   arms, then legs) so each later shape's edge draws over the seam with its
-   neighbour rather than leaving a gap — the same reason two canonical groups
-   can own two regions each: shoulders is both the front deltoid cap and the
-   rear deltoid cap: back is both the trapezius kite and the two lat wings;
-   calves is both the front shin sliver and the back calf. No region invents
-   a group MUSCLE_MAP does not have — there is no separate obliques or
-   forearm entry, so forearms stay the same neutral grey as before, unmapped
-   and unhighlighted, exactly as they were. */
+   D72 — STATIC ASSET SWAP. D71's per-region SVG (ten hand-drawn muscle paths,
+   individually coloured from the week's own totals) is replaced by the
+   authored illustration at muscle-map.webp — the asset the owner supplied,
+   used directly. `computeMuscleTotals` still runs exactly where it always
+   did; nothing about how a muscle count is derived changed, only that the
+   figure drawn beside it is no longer literally recoloured muscle by muscle.
+   Every other surface reading those totals — the bars, "Most worked", every
+   caller listed above — is untouched, and still carries the true breakdown
+   in text and colour (muscleFocusHtml, muscleBarsHtml). `t`/`totalsOverride`
+   stay accepted for call-site compatibility even though the image itself no
+   longer depends on them. */
 function bodyDiagramSvg(t, totalsOverride){
-  const totals = totalsOverride || computeMuscleTotals(t);
-  const maxVal = Math.max(1, ...Object.values(totals));
-  const f = (g) => muscleFill(totals, maxVal, g);
-  const HEAD = '#2E3644';
-  const S = 'var(--border)';
-  /* `mirrorPath` reflects a path's x-coordinates around cx, so a left-side
-     region and its right-side twin are always exact mirrors — the same
-     guarantee hand-typing both halves cannot make. It walks every number in
-     the `d` string, which is safe here because M/L/C coordinates always come
-     in (x,y) pairs and Z carries none, so "every other number starting with
-     the first" is always x. */
-  const mirrorPath = (d, cx) => { let xTurn = true;
-    return d.replace(/-?\d+(?:\.\d+)?/g, m => { if(xTurn){ xTurn = false; return String(cx * 2 - parseFloat(m)); } xTurn = true; return m; }); };
-  const p = (d, fill, sw) => `<path d="${d}" fill="${fill}" stroke="${S}" stroke-width="${sw || 1}"/>`;
-  const e = (cx, cy, rx, ry, fill) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}"/>`;
-  const ln = (d, sw, op) => `<path d="${d}" stroke="${S}" stroke-width="${sw}" fill="none"${op ? ` opacity="${op}"` : ''}/>`;
-  const CX = 58;
-  /* Shared by both views: the torso is one continuous silhouette (the grey
-     that shows at the ribs, waist and hip — wherever no muscle region covers
-     it) and the head sits on it the same from the front or the back, since a
-     faceless silhouette has no front. */
-  const torso = "M18,60 C12,76 11,96 16,112 C12,128 13,146 22,160 C17,174 19,190 30,202 C26,210 28,216 34,220 C42,226 50,229 58,229 C66,229 74,226 82,220 C88,216 90,210 86,202 C97,190 99,174 94,160 C103,146 104,128 100,112 C105,96 104,76 98,60 C82,50 70,48 58,50 C46,48 34,50 18,60 Z";
-  const head = () => e(58,33,15,17,HEAD) + p("M49,47 L67,47 L65,64 L51,64 Z", HEAD);
-  const deltL = "M6,52 C-3,56 -7,67 -2,81 C2,93 16,98 27,90 C34,82 32,63 23,54 C18,50 11,49 6,52 Z";
-  const deltR = mirrorPath(deltL, CX);
-  const feet = () => e(33,322,8,6,HEAD) + e(83,322,8,6,HEAD);
-
-  const pecL = "M24,64 C20,56 32,52 46,54 C55,56 60,61 60,70 L60,98 C51,108 38,110 27,101 C20,92 19,77 24,64 Z";
-  const pecR = mirrorPath(pecL, CX);
-  const bicL = "M8,80 C2,93 0,110 4,128 C6,140 13,146 19,144 C23,142 24,131 22,116 C25,101 22,87 15,79 C12,77 9,78 8,80 Z";
-  const bicR = mirrorPath(bicL, CX);
-  const abs = "M42,98 L74,98 C77,122 77,152 70,171 L58,180 L46,171 C39,152 39,122 42,98 Z";
-  const quadL = "M23,208 C18,228 18,254 25,276 C29,286 41,290 50,283 C55,275 55,246 53,222 C51,211 44,204 33,204 C29,204 25,205 23,208 Z";
-  const quadR = mirrorPath(quadL, CX);
-  const calfFrontL = "M29,288 C25,300 25,310 29,318 L40,318 C43,310 43,300 39,288 Z";
-  const calfFrontR = mirrorPath(calfFrontL, CX);
-  const armL = "M4,128 C2,150 3,168 9,182 L19,182 C21,168 20,150 18,130 Z"; // forearm — unmapped, always neutral
-  const armR = mirrorPath(armL, CX);
-  const front = `<g>
-    ${p(torso, MUSCLE_UNWORKED)}${head()}
-    ${p(pecL, f('chest'))}${p(pecR, f('chest'))}
-    ${p(deltL, f('shoulders'))}${p(deltR, f('shoulders'))}
-    ${p(bicL, f('biceps'))}${p(bicR, f('biceps'))}
-    ${p(armL, MUSCLE_UNWORKED, 0.8)}${p(armR, MUSCLE_UNWORKED, 0.8)}
-    ${e(13,190,7,9,HEAD)}${e(103,190,7,9,HEAD)}
-    ${p(abs, f('abs'))}
-    ${ln("M58,99 L58,176 M44,114 L72,114 M43,132 L73,132 M42,150 L72,150 M44,165 L70,165", 0.7, 0.55)}
-    ${p(quadL, f('quads'))}${p(quadR, f('quads'))}
-    ${ln("M44,222 C42,240 44,260 50,274", 0.8, 0.6)}${ln("M72,222 C74,240 72,260 66,274", 0.8, 0.6)}
-    ${p(calfFrontL, f('calves'), 0.9)}${p(calfFrontR, f('calves'), 0.9)}
-    ${feet()}
-    <text x="58" y="332" font-size="11" letter-spacing="1.1" fill="var(--text-faint)" opacity="0.7" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-weight="600">FRONT</text>
-  </g>`;
-
-  const traps = "M58,50 L84,64 C89,78 85,92 72,98 L58,90 L44,98 C31,92 27,78 32,64 Z";
-  /* The lats are drawn as their own two wings, not one oval, so the
-     silhouette itself — not only its colour — reads as a back: a visible
-     channel down the spine, flaring wide at mid-back, narrowing to the
-     waist. Drawn before the traps so the traps' clean kite shape sits on top
-     of the seam between them. */
-  const lats = "M40,96 C24,102 12,118 17,134 C10,150 16,166 32,178 C38,182 44,183 48,182 C42,170 40,152 44,138 C40,124 42,110 50,98 C46,96 43,95 40,96 Z M76,96 C92,102 104,118 99,134 C106,150 100,166 84,178 C78,182 72,183 68,182 C74,170 76,152 72,138 C76,124 74,110 66,98 C70,96 73,95 76,96 Z";
-  const triL = "M8,80 C2,92 0,108 4,124 C6,138 13,144 19,142 C23,140 24,128 21,114 C24,99 21,87 15,79 C12,77 9,78 8,80 Z";
-  const triR = mirrorPath(triL, CX);
-  const glutes = "M27,182 C24,202 30,216 58,220 C86,216 92,202 89,182 L72,188 L58,180 L44,188 Z";
-  const hamL = "M23,210 C18,230 18,254 25,276 C29,286 41,290 50,283 C55,275 55,246 53,222 C51,211 44,204 33,204 C29,204 25,205 23,210 Z";
-  const hamR = mirrorPath(hamL, CX);
-  const calfL = "M27,288 C22,300 22,312 27,322 C31,330 39,331 43,323 C47,313 47,300 43,288 C39,281 31,281 27,288 Z";
-  const calfR = mirrorPath(calfL, CX);
-  const back = `<g transform="translate(140,0)">
-    ${p(torso, MUSCLE_UNWORKED)}${head()}
-    ${p(lats, f('back'))}${p(traps, f('back'))}
-    ${ln("M58,98 L58,182", 0.6, 0.45)}
-    ${p(deltL, f('shoulders'))}${p(deltR, f('shoulders'))}
-    ${p(triL, f('triceps'))}${p(triR, f('triceps'))}
-    ${p(armL, MUSCLE_UNWORKED, 0.8)}${p(armR, MUSCLE_UNWORKED, 0.8)}
-    ${e(13,190,7,9,HEAD)}${e(103,190,7,9,HEAD)}
-    ${p(glutes, f('glutes'))}
-    ${ln("M58,182 L58,212", 0.6, 0.55)}
-    ${p(hamL, f('hamstrings'))}${p(hamR, f('hamstrings'))}
-    ${ln("M44,222 C42,240 44,260 50,274", 0.8, 0.6)}${ln("M72,222 C74,240 72,260 66,274", 0.8, 0.6)}
-    ${p(calfL, f('calves'))}${p(calfR, f('calves'))}
-    ${feet()}
-    <text x="58" y="332" font-size="11" letter-spacing="1.1" fill="var(--text-faint)" opacity="0.7" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-weight="600">BACK</text>
-  </g>`;
-  return `<svg viewBox="0 0 264 340" class="muscle-svg">${front}${back}</svg>`;
+  if(!totalsOverride) computeMuscleTotals(t); // unused by the image; kept so nothing about when this runs changes for callers or tests
+  return `<span class="muscle-fig">
+    <img class="muscle-svg" src="muscle-map.webp" width="1122" height="1402" loading="lazy" alt="Illustrated front and back muscle map">
+    <span class="muscle-fig-labels"><span>Front</span><span>Back</span></span>
+  </span>`;
 }
 
 /* Text equivalent of the visual highlighting — muscle focus is never conveyed

@@ -228,9 +228,7 @@ function loadApp(initialStore){
     /* D65 — the Train launcher's filter, its open Details, and the sheet and draft state it reads */ 'activeTrainCategory','trainCategoryChosen','trainDetailKey','trainMineAll','editingTemplateId','activeDraftInfo','pendingWorkoutOrigin','pendingWorkoutProgramId',
     /* D66 — the week drag's click guard */ '_wkClickGuardUntil','_wkGuardsAttached',
     /* D70 — the suggestion engine's weights, vocabulary and resolved-once maps */
-    'XS_WEIGHTS','XS_PATTERN_LABEL','XS_COUNTERPART','XS_MOTION_LABEL','_xsMeta','_xsSession',
-    /* D71 — the muscle map's stepped colour bands below --accent/--accent-2 */
-    'MUSCLE_UNWORKED','MUSCLE_LOW'];
+    'XS_WEIGHTS','XS_PATTERN_LABEL','XS_COUNTERPART','XS_MOTION_LABEL','_xsMeta','_xsSession'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +
