@@ -337,7 +337,9 @@ html.intro-skip #introOverlay{ display: none !important; }
 .plan-card-top{ display: flex; align-items: center; gap: 12px; }
 .plan-card-text{ flex: 1; min-width: 0; }
 .plan-card-diagram{ flex-shrink: 0; width: 76px; }
-.plan-card-diagram svg{ width: 76px; height: auto; display: block; }
+/* D76.5 — the figure's root, not every svg: the figure draws its layers as
+   nested <svg> viewports, which a bare `svg` selector would resize. */
+.plan-card-diagram .muscle-svg{ width: 76px; height: auto; display: block; }
 .plan-card-meta-row{ display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .plan-card-meta-chip{
   font-size: var(--fs-micro); font-weight: 600; color: var(--text-dim); background: var(--surface-3);
@@ -638,11 +640,18 @@ html.intro-skip #introOverlay{ display: none !important; }
 .muscle-svg{ transition: opacity 0.25s var(--ease); }
 @media (prefers-reduced-motion: reduce){ .muscle-svg{ transition: none; } }
 .muscle-svg{ width: 100%; max-width: 106px; height: auto; display: block; }
-/* D72 — the wrapper around the static muscle-map.webp asset. `.muscle-svg`
-   above still sizes the image itself (same rule, same width/max-width every
-   container already sets); this only makes the wrapper fill that same box
-   and lays the two captions out under their own half of the illustration. */
-.muscle-fig{ display: block; width: 100%; }
+/* D72 — the wrapper around the figure. `.muscle-svg` above sizes the figure
+   itself (same rule, same width/max-width every container already sets);
+   this only makes the wrapper fill that same box and lays the two captions
+   out under their own half of the illustration. D76.5 — the figure is an
+   <svg> of image layers again; its layers are nested viewports, so no rule
+   anywhere may size a bare `svg` inside a container that holds it. The
+   wrapper also stops at the figure's own max width: wider containers (Train
+   detail, the workout card) centre their child, and a full-width wrapper had
+   left the figure at the left edge with FRONT and BACK spread under empty
+   space — FRONT beneath the back view. */
+.muscle-fig{ display: block; width: 100%; max-width: 106px; }
+.td-figure .muscle-fig{ max-width: 124px; }
 .muscle-fig-labels{ display: flex; justify-content: space-around; margin-top: 2px; }
 .muscle-fig-labels span{ font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); opacity: 0.7; }
 .radar-svg{ width: 100px; height: 100px; }
@@ -15053,6 +15062,26 @@ const LOOP_UPDATES = [
     changes: [
       'The figure itself no longer highlights which specific muscles you trained — that detail now lives in the bars and the "Most worked" line beside it, exactly as accurate as before'
     ]
+  },
+  {
+    id: 'v7-7',
+    version: 'LOOP 7.7',
+    title: 'The Muscle Map, Lit Again',
+    date: '2026-09-16',
+    swVersion: 'loop-v154',
+    summary: 'The illustrated body lights up the muscles that were actually worked again, and how hard.',
+    newFeatures: [],
+    improvements: [
+      'Trained this week on Today, and This week, Muscle Volume and Mastery on Progress, light up the muscles your logged sets worked; your plan’s preview lights the muscles that plan trains, and each workout card and workout detail the muscles that workout trains',
+      'Each muscle lights along its own outline on the same illustrated body, in three strengths set by how its sets compare with the most-worked muscle: lightly worked, more, and most',
+      'Muscles nothing has worked stay an even, neutral grey'
+    ],
+    bugFixes: [
+      'On workout cards and in a workout’s detail, the figure sat against the left edge with FRONT under the back view; it is centred again, with each label under its own half'
+    ],
+    changes: [
+      'Undoes 7.6’s trade-off: the figure no longer shows the same six muscles in blue whatever you trained'
+    ]
   }
 ];
 
@@ -16783,23 +16812,53 @@ function computeMuscleTotals(t){
    accurately, instead of having them re-inferred here from exercise names.
    Callers that pass a template keep the exact behaviour they always had.
 
-   D72 — STATIC ASSET SWAP. D71's per-region SVG (ten hand-drawn muscle paths,
-   individually coloured from the week's own totals) is replaced by the
-   authored illustration at muscle-map.webp — the asset the owner supplied,
-   used directly. `computeMuscleTotals` still runs exactly where it always
-   did; nothing about how a muscle count is derived changed, only that the
-   figure drawn beside it is no longer literally recoloured muscle by muscle.
-   Every other surface reading those totals — the bars, "Most worked", every
-   caller listed above — is untouched, and still carries the true breakdown
-   in text and colour (muscleFocusHtml, muscleBarsHtml). `t`/`totalsOverride`
-   stay accepted for call-site compatibility even though the image itself no
-   longer depends on them. */
+   D72 — the figure became the owner's approved illustration, muscle-map.webp.
+
+   D76.5 — DYNAMIC HIGHLIGHTING ON THE APPROVED ART. That illustration paints
+   six groups blue whatever was trained, so drawing it as-is claims work that
+   was not done. build-muscle-map.js derives one image from it,
+   muscle-map-atlas.webp: the same figure with the highlight colour taken out
+   (same body, same alpha — the neutral base) and, packed below it, one lit
+   tile per canonical group per view, cut from that same figure, so a worked
+   muscle is drawn as exactly that muscle in the illustration's own blue.
+   MUSCLE_ATLAS, written between the markers by that script, places each tile:
+   [x, y, w, h] on the figure, [ax, ay] in the atlas. Every layer is a nested
+   <svg> viewport onto the one image, in the figure's own 1122 x 1402
+   coordinates — one coordinate system, one request, one decode, so an
+   overlay can never land beside its muscle or arrive after the body.
+
+   Intensity is D71's ramp, restored from the same totals the bars read:
+   unworked; under a third of the most-worked group; under 70%; the rest.
+   A band draws the group's tile at MUSCLE_BAND_OPACITY over its neutral
+   muscle, so several groups can show different levels at once. */
+/* MUSCLE-ATLAS-BEGIN */
+const MUSCLE_ATLAS = {"src":"muscle-map-atlas.webp","w":1152,"h":2848,"baseW":1122,"baseH":1402,"tiles":{"chest":[[160,256,288,192,0,2464]],"shoulders":[[64,224,480,192,0,2240],[576,256,480,160,640,2464]],"back":[[672,128,288,480,0,1440]],"biceps":[[96,352,416,160,0,2688]],"triceps":[[608,352,416,160,448,2688]],"abs":[[160,384,288,320,704,1440]],"quads":[[128,608,352,320,320,1440]],"hamstrings":[[640,736,320,224,384,1952]],"glutes":[[672,576,288,192,320,2464]],"calves":[[128,928,352,256,0,1952],[640,960,352,192,512,2240]]}};
+/* MUSCLE-ATLAS-END */
+const MUSCLE_BAND_OPACITY = [0, 0.4, 0.7, 1];
+function muscleBand(value, maxVal){
+  if(!(value > 0)) return 0;
+  const r = value / maxVal;
+  return r < 0.34 ? 1 : (r < 0.7 ? 2 : 3);
+}
 function bodyDiagramSvg(t, totalsOverride){
-  if(!totalsOverride) computeMuscleTotals(t); // unused by the image; kept so nothing about when this runs changes for callers or tests
-  return `<span class="muscle-fig">
-    <img class="muscle-svg" src="muscle-map.webp" width="1122" height="1402" loading="lazy" alt="Illustrated front and back muscle map">
-    <span class="muscle-fig-labels"><span>Front</span><span>Back</span></span>
-  </span>`;
+  const totals = totalsOverride || computeMuscleTotals(t);
+  const maxVal = Math.max(1, ...Object.values(totals));
+  const A = MUSCLE_ATLAS;
+  const layer = (x, y, w, h, ax, ay, op) =>
+    `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${ax} ${ay} ${w} ${h}"${op < 1 ? ` opacity="${op}"` : ''}><image href="${A.src}" width="${A.w}" height="${A.h}"/></svg>`;
+  const worked = [];
+  let lit = '';
+  Object.keys(A.tiles).forEach(g => {
+    const band = muscleBand(totals[g], maxVal);
+    if(!band) return;
+    worked.push({ g, band });
+    A.tiles[g].forEach(r => { lit += layer(r[0], r[1], r[2], r[3], r[4], r[5], MUSCLE_BAND_OPACITY[band]); });
+  });
+  const named = worked.sort((a, b) => b.band - a.band).map(w => (MUSCLE_LABELS[w.g] || w.g).toLowerCase());
+  const label = 'Front and back muscle map' + (named.length ? ', highlighting ' + named.join(', ') : '');
+  return `<span class="muscle-fig"><svg class="muscle-svg" viewBox="0 0 ${A.baseW} ${A.baseH}" role="img" aria-label="${label}">` +
+    layer(0, 0, A.baseW, A.baseH, 0, 0, 1) + lit +
+    `</svg><span class="muscle-fig-labels"><span>Front</span><span>Back</span></span></span>`;
 }
 
 /* Text equivalent of the visual highlighting — muscle focus is never conveyed

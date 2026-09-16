@@ -10618,3 +10618,149 @@ wired in.
   on first fetch by the existing network-first handler, not added to the
   explicit `ASSETS` precache list, matching precedent rather than inventing
   a new one.
+
+## §105 — D76.5: The muscle map, lit per group, on the approved art
+
+**Status.** Shipped in LOOP 7.7 (`loop-v154`). `DATA_KEYS` 15, schema 1, no
+migration, no new storage key, `TRAINER_ENGINE_VERSION` 0.1.1-shadow.
+`computeMuscleTotals`, `musclesForExercise`, `deriveWeekMuscleSets`,
+`muscleBarsHtml`, `muscleFocusHtml`, `computeMuscleGroupBreakdown`,
+`computeMuscleVolumeSince`, every surface renderer that calls the figure,
+`MUSCLE_MAP`, Session Score, progression and the suggestion engine are
+byte-identical to 7.6 (Contract 180 pins each function body).
+
+### The 7.6 limitation
+
+`muscle-map.webp`, approved in 7.6 and drawn as-is, paints chest,
+shoulders, quads, hamstrings, glutes and calves blue on every surface. A
+Pull workout's detail read "Back · Shoulders · Biceps" beside a figure with
+the chest, quads and calves lit and the back grey. The bars and "Most worked"
+stayed true; the figure did not.
+
+### Architecture
+
+- **Master, unedited.** `muscle-map.webp` (sha256 `8b8b51f3…a51a67`) stays in
+  the repository as the only source. The app no longer draws it directly.
+- **`build-muscle-map.js`** (headless Edge/Chrome over DevTools, the
+  `build-brand.js` pattern) derives, from the master alone:
+  `muscle-map-atlas.webp` (1152 × 2848, q0.9, 304,596 bytes),
+  `muscle-map-regions.png` (the owning group of every pixel, for the
+  contracts), `muscle-map.json` (hashes, every tile, the build's own checks),
+  and the `MUSCLE_ATLAS` table between `MUSCLE-ATLAS-BEGIN / END` in index.html.
+- **Shapes, not drawings.** The art is flat shapes on a navy body with navy
+  gaps. A shape is a 4-connected region at OKLab ΔE ≥ 0.06 from the measured
+  navy; every group shape is named by a seed point deep inside it (14–45 px
+  from any edge). Each pixel near a shape is owned by it with a coverage t —
+  its projection between navy and the shape's colour, i.e. the art's own
+  anti-aliasing. The back view's head outline touches the neck strips; above
+  y = 152 that component is only the ring, below it the ring is bright
+  (sum > 300) and the strips are not, and neck = what connects to either
+  strip's seed. Blue-tinted halo pixels on the silhouette past a navy
+  outline are owned by the nearest blue shape (the walk passes through any
+  pixel and claims only unowned, blue-tinted ones).
+- **Recolouring keeps the art.** A pixel moves by its own t in OKLab, keeping
+  its lightness texture, swapping the art's measured edge style — grey shapes
+  carry a soft bevel (+0.030 L four pixels in), blue shapes a faint pale edge
+  (+0.012 L, −0.012 C) — and gamut-mapping by chroma, never by clipping a
+  channel. (A first per-channel version turned the pale bevel on a lit
+  trapezius green: 8,758 pixels; now 0.)
+- **Neutral base.** Each blue shape takes the grey at its own rank among the
+  art's belly greys (cyan → biceps grey, mid blue → oblique grey, deep blue →
+  ab grey). Every other pixel, and every alpha value, is the master's.
+- **Lit tiles.** Shapes that are blue in the master keep the master's own
+  pixels; grey shapes take the blue interpolated at their lightness along the
+  art's own cyan / mid / deep. One tile per group per view, snapped to a
+  32 px grid with a 32 px gutter, so a tile's atlas offset is a whole number
+  of mip texels from its place on the figure and filters exactly like the
+  base beneath it.
+- **Rendering.** `bodyDiagramSvg(t, totalsOverride)` keeps its signature and
+  returns `<svg class="muscle-svg" viewBox="0 0 1122 1402">`: a nested `<svg>`
+  viewport onto the atlas for the base, and one per lit tile, each viewBox the
+  tile's atlas cell at scale 1. One image, one request, one decode, one
+  coordinate system. FRONT/BACK stay HTML captions outside it.
+
+### Canonical map (repository truth: MUSCLE_MAP's ten groups)
+
+| group | front | back |
+|---|---|---|
+| chest | both pectorals | — |
+| shoulders | both front deltoid caps | both rear deltoid caps |
+| back | — | neck/upper trapezius strips, the trapezius diamond, infraspinatus, both lats |
+| biceps | both upper-arm bellies | — |
+| triceps | — | both upper-arm bellies |
+| abs | six blocks, the lower plate, both oblique strips | — |
+| quads | both main quads, both outer quads | — |
+| hamstrings | — | both heads, both legs |
+| glutes | — | both |
+| calves | both lobes, both legs | both lobes, both legs |
+
+Obliques light with abs because LOOP's abs keywords are core work that
+includes them (twist, side bend, woodchop, pallof). Forearms, neck, knees,
+tibia, Achilles, IT band, the lower-back plate and the adductors are not LOOP
+groups and stay neutral. Left/right: area within 1.6%, mirrored centres
+within 1.41 px, for all twelve group-views.
+
+### Intensity
+
+D71's ramp, restored from the same totals: band 0 (not worked), 1 (under a
+third of the most-worked group), 2 (under 70%), 3 (the rest), against a floor
+of one (`Math.max(1, …)`). A band draws the tile at `MUSCLE_BAND_OPACITY`
+[0, 0.4, 0.7, 1] over the neutral muscle; several groups carry different
+bands at once. The accessible label names the lit groups, strongest first.
+
+### Call sites (seven; D72's report said six)
+
+planCardBody → plan aggregate (what the plan trains) · renderTodayMuscles →
+this week's working sets · templateCardHtml → that workout's planned sets ·
+renderTrainDetail → the session shown · progWeekMuscleHtml → this week ·
+renderProgVolume → this week · renderProgMuscles → the last 12 weeks. None
+changed; each now lights what it passes.
+
+### A 7.6 layout defect fixed with it
+
+`.muscle-fig` spanned wide containers, so on workout cards and in Train
+detail the figure hugged the left edge with FRONT under the back view (and
+Train detail's `justify-content: center` did nothing). The wrapper now stops
+at the figure's own max width (106 px; 124 px in `.td-figure`). And
+`.plan-card-diagram svg` became `.plan-card-diagram .muscle-svg` — the same
+76 px — because a bare `svg` selector would resize the nested viewports.
+
+### Evidence
+
+- **Contract 180** replaces 179 (49 assertions); **mutation 22/22** from a
+  clean 49/0 baseline with every support file present.
+- **Build checks, as encoded:** alpha identical to the master (0 diffs);
+  master blue left in the neutral base 24 of 205,368 pixels (1 as derived);
+  0 tile pixels outside their group; 0 green-leaning; 0 gutter ink; lighting
+  exactly the master's six groups reproduces it (mean 0.07, p99.9 6.1 levels
+  as derived — the remainder is layering at the silhouette's partial alpha).
+- **Physical, headless Edge at DPR 3 and 2:** the 15-scenario matrix through
+  the real This week card (15/15: LOOP's own totals → exactly the expected
+  tiles and opacities); device-pixel leakage for every group in every
+  container (76, 84, 92, 96, 106, 124 px) — 0 leaked pixels, 99–100% of each
+  group's interior lit; all seven call sites draw their own sets; card
+  geometry against the 7.6 build at 390, 375, 320, 430 px — Today, This
+  week, Volume, Mastery and the plan card identical in every box, workout
+  card and Train detail identical in size with the figure centred; no
+  horizontal overflow; no console errors.
+- **Renderer vs 7.6:** no softening (mean gradient −1.1% to +3.4%); encoding
+  q0.9 vs lossless p99 3–5 levels at card sizes; layering vs the master in the
+  same geometry p99 2–5.
+- **Cost:** one request (304,596 bytes, +97,428 over 7.6), decoded 12.5 MB
+  (7.6: 6.0 MB); per render 1.04 ms neutral, 1.15 push, 1.22 all lit (7.6:
+  ~1.0 ms), one frame; the string build 0.002 ms.
+- **No loading flash:** served 1.5 s late under a new URL, 65 frames went from
+  nothing to the fully lit figure in one step.
+
+### Known and recorded
+
+- **The figure depends on the atlas being cacheable**, which GitHub Pages
+  gives it (`Cache-Control: max-age=600`). Under `no-store` each layer
+  fetches the image separately and can arrive separately; a dev server run
+  with caching disabled shows that, production does not.
+- **Three harness artefacts looked like defects and were not** — a no-store
+  test server, DevTools' service-worker bypass (it alone made tiles cost
+  ~10 ms), and a probe on a page without a viewport meta. Each was reproduced,
+  isolated and removed before a number was reported.
+- **Safari was not run** (Windows). Nested `<svg>` viewports and `<image>`
+  are SVG 1.1 core.

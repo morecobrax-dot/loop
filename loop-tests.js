@@ -11231,14 +11231,14 @@ function testDesignSystem(app){
   })() === true);
   T('the outermost axis labels anchor to the edge so they are not clipped',
     /const anchor = isFirst \? 'start' : isLast \? 'end' : 'middle';/.test(src));
-  /* D72 — the body diagram is no longer an SVG at all (it is the authored
-     muscle-map.webp asset), so there is no viewBox left to shrink a label
-     against. The risk this sub exists for — a caption quietly rendering
-     below the floor because it lives in a scaled coordinate space — is
-     gone structurally: FRONT/BACK are now real CSS text at the same
-     var(--fs-micro) floor as every other micro-label in LOOP. */
+  /* D72 made FRONT/BACK real CSS text at the same var(--fs-micro) floor as
+     every other micro-label, instead of SVG text in a scaled coordinate
+     space. D76.5 made the figure an <svg> again — of image layers, in the
+     illustration's own 1122 x 1402 units, where a <text> would render about
+     twelve times smaller than its font-size says. So the captions must stay
+     outside it: no text inside the figure at all. */
   T('the body diagram\'s captions are real text at the floor, not SVG text scaled below it',
-    !/<svg viewBox="0 0 264 340"/.test(src) &&
+    !/<svg viewBox="0 0 264 340"/.test(src) && !/<text\b/.test(fnSrc(src, 'bodyDiagramSvg')) &&
     /\.muscle-fig-labels span\{[^}]*font-size: var\(--fs-micro\);/.test(css));
 
   sub('charts use the palette instead of restating it');
@@ -25992,10 +25992,13 @@ async function testTrainLauncher(){
      standing in for anatomy, replaced by one continuous silhouette per view
      with real muscle-region paths. D72 replaced THAT drawing on purpose too —
      the owner's own authored illustration (muscle-map.webp), used directly,
-     in place of the hand-drawn per-region SVG (Contract 179 holds this one).
-     radarSvg is untouched and keeps its original pin. */
-  T('the muscle figure is the owner\'s own asset now, on purpose (D72); the profile radar was not',
-    sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === '182ec3463c63f819' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
+     in place of the hand-drawn per-region SVG. D76.5 moved it on purpose
+     once more: the same approved illustration, now drawn as layers of
+     muscle-map-atlas.webp so each group lights from the week's own totals
+     again (Contract 180 holds this one). radarSvg is untouched and keeps
+     its original pin. */
+  T('the muscle figure is the approved illustration lit per group, on purpose (D76.5); the profile radar was not',
+    sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === '633c2c8292948a13' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
   T('the art exporter stays development tooling: the app and its worker never reference it',
     !/export-exercise-art|artifacts\/exercise-art-export/.test(src) && !/export-exercise-art|artifacts\//.test(fs.readFileSync(path.join(repo, 'sw.js'), 'utf8')));
   T('no history, storage key, schema or trainer change', JSON.stringify(ctx.workoutLog) === logRaw && ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 &&
@@ -27067,94 +27070,268 @@ async function testSmartSuggestions(){
 }
 
 /* =========================================================
-   CONTRACT 179 — THE MUSCLE MAP ASSET  (Phase D72)
+   CONTRACT 180 — THE MUSCLE MAP, LIT PER GROUP  (Phase D76.5)
    ---------------------------------------------------------
-   D71 gave bodyDiagramSvg a hand-drawn, per-region SVG that
-   recoloured ten muscle regions from the week's own totals.
-   D72 replaced that drawing with the owner's own authored
-   illustration (muscle-map.webp), used directly — a static
-   asset swap, not a redraw. Contract 178, built entirely
-   around verifying the per-region SVG's colours, no longer
-   has anything to hold: there are no regions left to isolate.
+   D72 made the figure the owner's approved illustration,
+   muscle-map.webp, drawn as-is — and that illustration paints
+   chest, shoulders, quads, hamstrings, glutes and calves blue
+   whatever was trained. D76.5 keeps the illustration and
+   lights it from the real totals again. build-muscle-map.js
+   derives, from muscle-map.webp alone, one atlas (a neutral
+   base: the same body with the highlight colour taken out;
+   and a lit tile per canonical group per view, cut from that
+   same figure), a region map naming the group that owns each
+   pixel, and a record of every hash and its own pixel checks.
 
-   This contract holds what a static-asset swap actually
-   promises: the asset is real and the right shape, it is
-   wired into the one body figure every anatomy surface still
-   shares, it fits the containers that already existed without
-   any of them changing, and — the brief's own hard line —
-   nothing about how a muscle count is derived, shown in the
-   bars, or stated in the "Most worked" stat moved even though
-   the figure beside them no longer recolours itself.
+   Contract 179 held the static swap: an <img> of the approved
+   asset that no longer read the totals. What it held that is
+   still true is held again here; what D76.5 reverses on
+   purpose — the figure not reading the totals — is replaced
+   by its opposite. Held here: the master is the approved file,
+   unedited; the atlas and region map are the ones the build
+   recorded; each canonical group owns only its own pixels, on
+   its own views, left and right alike; each group lights alone,
+   at D71's four bands, from the same totals the bars read; all
+   layers are one image in one coordinate system; no drawn
+   mannequin returns; every card keeps its geometry; every
+   call site passes what it always passed; and no function that
+   counts a set changed by a single byte.
    ========================================================= */
-async function testMuscleMapAsset(){
-  section('CONTRACT 179 — the muscle map asset (D72)');
+async function testMuscleMapOverlays(){
+  section('CONTRACT 180 — the muscle map, lit per group (D76.5)');
   const fs = require('fs');
   const path = require('path');
+  const crypto = require('crypto');
+  const ROOT = path.dirname(H.APP_PATH);
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
   const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const read = f => { try{ return fs.readFileSync(path.join(ROOT, f)); }catch(e){ return null; } };
+  const sha256 = b => crypto.createHash('sha256').update(b).digest('hex');
   const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
   const ctx = app.ctx;
   const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
-  const assetPath = path.join(path.dirname(H.APP_PATH), 'muscle-map.webp');
+  let build = null, record = null, regions = null;
+  try{ build = require(path.join(ROOT, 'build-muscle-map.js')); }catch(e){}
+  try{ record = JSON.parse(read('muscle-map.json').toString('utf8')); }catch(e){}
+  try{ regions = build.decodeGreyPNG(read('muscle-map-regions.png')); }catch(e){}
+  /* RIFF/WEBP container facts: VP8X flags and canvas size */
+  const webpFacts = buf => {
+    if(!buf || buf.slice(0, 4).toString() !== 'RIFF' || buf.slice(8, 12).toString() !== 'WEBP' || buf.slice(12, 16).toString() !== 'VP8X') return null;
+    const d = 20;
+    return { alpha: !!(buf[d] & 0x10), width: 1 + (buf[d + 4] | buf[d + 5] << 8 | buf[d + 6] << 16), height: 1 + (buf[d + 7] | buf[d + 8] << 8 | buf[d + 9] << 16) };
+  };
+  /* a rendered figure's layers: the base first, then [group, opacity] for each tile it drew */
+  const layersOf = html => {
+    const out = { base: 0, tiles: [], unknown: 0, images: [] };
+    const re = /<svg x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" viewBox="(\d+) (\d+) (\d+) (\d+)"(?: opacity="([\d.]+)")?><image href="([^"]+)" width="(\d+)" height="(\d+)"\/><\/svg>/g;
+    let m;
+    while((m = re.exec(html))){
+      const [x, y, w, h, vx, vy, vw, vh] = m.slice(1, 9).map(Number), op = m[9] === undefined ? 1 : Number(m[9]);
+      out.images.push({ href: m[10], w: Number(m[11]), h: Number(m[12]), scaleOne: vw === w && vh === h });
+      if(x === 0 && y === 0 && w === ctx.MUSCLE_ATLAS.baseW && h === ctx.MUSCLE_ATLAS.baseH && vx === 0 && vy === 0){ out.base++; continue; }
+      const g = Object.keys(ctx.MUSCLE_ATLAS.tiles).find(k => ctx.MUSCLE_ATLAS.tiles[k].some(r => r[0] === x && r[1] === y && r[2] === w && r[3] === h && r[4] === vx && r[5] === vy));
+      if(g) out.tiles.push([g, op]); else out.unknown++;
+    }
+    return out;
+  };
+  const litGroups = html => { const o = {}; layersOf(html).tiles.forEach(([g, op]) => { (o[g] = o[g] || []).push(op); }); return o; };
+  const expectedBands = totals => { const max = Math.max(1, ...Object.values(totals)); const e = {};
+    Object.keys(ctx.MUSCLE_MAP).forEach(g => { const v = totals[g]; if(!(v > 0)) return; const r = v / max; e[g] = r < 0.34 ? 0.4 : (r < 0.7 ? 0.7 : 1); }); return e; };
+  const drawsExactly = (html, want) => { const got = litGroups(html), L = layersOf(html);
+    if(L.base !== 1 || L.unknown) return false;
+    return Object.keys(ctx.MUSCLE_MAP).every(g => want[g] === undefined ? !got[g]
+      : (got[g] && got[g].length === ctx.MUSCLE_ATLAS.tiles[g].length && got[g].every(op => op === want[g]))); };
+  const GROUPS = Object.keys(ctx.MUSCLE_MAP);
 
-  sub('one figure, the same signature, the same callers');
-  guard('one figure', () => {
-    T('bodyDiagramSvg is still the only body renderer in LOOP',
-      (src.match(/function bodyDiagramSvg\(/g) || []).length === 1 && !/function muscleBodyHtml\(/.test(src));
-    T('totalsOverride and the template-object path both still work, and neither throws',
-      ctx.bodyDiagramSvg({ exercises: [{ name: 'Bench Press', sets: [{}, {}, {}] }] }).length > 0 &&
-      ctx.bodyDiagramSvg(null, { chest: 3 }).length > 0 &&
-      ctx.bodyDiagramSvg(null, {}).length > 0);
-    T('every rendered figure still carries exactly one muscle-svg root',
-      (ctx.bodyDiagramSvg(null, { chest: 3 }).match(/class="muscle-svg"/g) || []).length === 1);
-    T('and it is still called by the plan preview, the template card, Mastery and Today — unchanged call sites',
-      /bodyDiagramSvg\(planAggregateTemplate\(planDef\)\)/.test(src) && /bodyDiagramSvg\(null, data\.totals\)/.test(src) &&
-      /bodyDiagramSvg\(t\)/.test(src) && /bodyDiagramSvg\(shown\)/.test(src) && /bodyDiagramSvg\(null, wk\.totals\)/.test(src));
+  sub('the approved illustration is still the source, unedited');
+  guard('master', () => {
+    const master = read('muscle-map.webp'); const f = webpFacts(master);
+    T('muscle-map.webp is still the file the owner approved in 7.6, byte for byte',
+      !!master && sha256(master) === '8b8b51f3704f2b49a65895b9b3229692309758ad8d9c547b63f603b6d4a51a67');
+    T('it is a transparent WebP of 1122 x 1402', !!f && f.alpha && f.width === 1122 && f.height === 1402);
+    T('the build names it as its only master, and the record holds its hash',
+      !!build && build.MASTER === 'muscle-map.webp' && !!record && record.master.file === 'muscle-map.webp' &&
+      record.master.sha256 === sha256(master) && record.master.width === 1122 && record.master.height === 1402);
+    T('the figure draws the atlas derived from it, never a second body',
+      /const A = MUSCLE_ATLAS;/.test(fnSrc(src, 'bodyDiagramSvg')) && ctx.MUSCLE_ATLAS.src === 'muscle-map-atlas.webp' &&
+      !/muscle-map\.webp/.test(fnSrc(src, 'bodyDiagramSvg')) && (src.match(/function bodyDiagramSvg\(/g) || []).length === 1);
   });
 
-  sub('the illustration itself');
-  guard('the asset', () => {
-    T('muscle-map.webp exists beside index.html, the way every other static icon does',
-      fs.existsSync(assetPath));
-    const buf = fs.existsSync(assetPath) ? fs.readFileSync(assetPath) : Buffer.alloc(0);
-    T('it is a real WebP file', buf.slice(0, 4).toString() === 'RIFF' && buf.slice(8, 12).toString() === 'WEBP');
-    T('it carries an alpha channel, so it sits on LOOP\'s dark card with no white box behind it', (() => {
-      const i = buf.indexOf('VP8X');
-      if(i === -1) return false; // simple lossy WebP has no alpha chunk at all
-      const flags = buf[i + 8];
-      return !!(flags & 0x10);
-    })());
-    T('the <img> references it plainly, the same way favicon-32.png and apple-touch-icon.png are referenced',
-      /src="muscle-map\.webp"/.test(fnSrc(src, 'bodyDiagramSvg')) &&
-      !/src="data:/.test(fnSrc(src, 'bodyDiagramSvg')));
-    T('it carries real alt text and explicit width/height so nothing shifts while it loads',
-      /alt="Illustrated front and back muscle map"/.test(fnSrc(src, 'bodyDiagramSvg')) &&
-      /width="1122" height="1402"/.test(fnSrc(src, 'bodyDiagramSvg')));
-    T('FRONT and BACK still caption the two halves',
-      /<span>Front<\/span><span>Back<\/span>/.test(fnSrc(src, 'bodyDiagramSvg')));
+  sub('the atlas and region map are exactly what the build recorded');
+  guard('derived files', () => {
+    const atlas = read('muscle-map-atlas.webp'), regionsBuf = read('muscle-map-regions.png'), f = webpFacts(atlas);
+    T('muscle-map-atlas.webp exists and is the build\'s own output, unedited', !!atlas && !!record && sha256(atlas) === record.atlas.sha256 && atlas.length === record.atlas.bytes);
+    T('it is a transparent WebP of the size the table draws it at', !!f && f.alpha && f.width === ctx.MUSCLE_ATLAS.w && f.height === ctx.MUSCLE_ATLAS.h &&
+      record.atlas.width === f.width && record.atlas.height === f.height);
+    T('the region map is the build\'s own output, one value per pixel of the master', !!regionsBuf && sha256(regionsBuf) === record.regions.sha256 &&
+      !!regions && regions.width === 1122 && regions.height === 1402);
+    const text = src.split('\r\n').join('\n'); const a = text.indexOf(build.OPEN), b = text.indexOf(build.CLOSE);
+    T('index.html carries the table the build wrote from the record, between its markers',
+      a > 0 && b > a && text.slice(a + build.OPEN.length, b).trim() === build.tableSource(record));
+    T('the base is the master\'s own size, drawn in the master\'s own units',
+      ctx.MUSCLE_ATLAS.baseW === 1122 && ctx.MUSCLE_ATLAS.baseH === 1402 && /viewBox="0 0 \$\{A\.baseW\} \$\{A\.baseH\}"/.test(fnSrc(src, 'bodyDiagramSvg')));
   });
 
-  sub('sizing is inherited, not reinvented');
-  guard('containers', () => {
-    T('the existing .muscle-svg rule still sizes the figure — unchanged from before this phase',
-      /\.muscle-svg\{ width: 100%; max-width: 106px; height: auto; display: block; \}/.test(css));
-    T('every container that has always held this figure is untouched',
-      /\.po-mus-body\{ width: 92px; flex-shrink: 0; display: block; \}/.test(css) &&
-      /\.mv-body\{ width: 84px; flex-shrink: 0; \}/.test(css) &&
-      /\.tm-body\{ width: 96px; flex-shrink: 0; display: block; \}/.test(css) &&
-      /\.td-figure \.muscle-svg\{ max-width: 124px; \}/.test(css) &&
-      /\.tpl-muscle-col\{ flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; \}/.test(css));
-    T('the new wrapper only fills the box those containers already set — it does not resize them',
-      /\.muscle-fig\{ display: block; width: 100%; \}/.test(css));
-    T('a rendered figure fits a real container width with no overflow, at the smallest and largest in production',
-      (() => {
-        const svg = ctx.bodyDiagramSvg(null, { chest: 5 });
-        return /width="1122" height="1402"/.test(svg) && (1122 / 1402).toFixed(2) === '0.80';
-      })());
+  sub('the build\'s own pixel checks, as encoded');
+  guard('checks', () => {
+    const c = record.checks.encoded, d = record.checks.derived;
+    T('same body: every alpha value of the neutral base equals the master\'s', c.alphaDiffsFromMaster === 0 && d.alphaDiffsFromMaster === 0);
+    T('the highlight is gone from the neutral base: under one pixel in ten thousand of the master\'s blue remains',
+      d.highlightPixelsLeftInNeutralBase / d.masterBluePixels < 0.0001 && c.highlightPixelsLeftInNeutralBase / c.masterBluePixels < 0.0005);
+    T('no tile paints a pixel its group does not own, and nothing is drawn in the gutters',
+      c.tilePixelsOutsideTheirGroup === 0 && c.gutterPixels === 0 && d.tilePixelsOutsideTheirGroup === 0 && d.gutterPixels === 0);
+    T('no lit pixel was pushed toward green', c.greenLeaningLitPixels === 0 && d.greenLeaningLitPixels === 0);
+    T('lighting exactly the set the illustration showed reproduces the illustration',
+      d.approvedReconstruction.meanChannelDiff < 0.1 && d.approvedReconstruction.p999ChannelDiff < 8 && c.approvedReconstruction.meanChannelDiff < 1);
   });
 
-  sub('data logic is exactly as it was');
+  sub('each canonical group owns its own muscles, on its own views');
+  guard('regions', () => {
+    const W = regions.width, H = regions.height, split = record.viewSplitX;
+    T('the groups are MUSCLE_MAP\'s ten, in its order — none invented, none dropped',
+      JSON.stringify(record.groups) === JSON.stringify(GROUPS) && JSON.stringify(Object.keys(ctx.MUSCLE_ATLAS.tiles)) === JSON.stringify(GROUPS));
+    const VIEWS = { chest: 'front', biceps: 'front', abs: 'front', quads: 'front', back: 'back', triceps: 'back', glutes: 'back', hamstrings: 'back', shoulders: 'both', calves: 'both' };
+    T('each group is drawn on the views that show it: shoulders and calves on both, the rest on one',
+      GROUPS.every(g => { const t = ctx.MUSCLE_ATLAS.tiles[g]; const views = t.map(r => r[0] < split ? 'front' : 'back');
+        return VIEWS[g] === 'both' ? views.length === 2 && views.includes('front') && views.includes('back') : views.length === 1 && views[0] === VIEWS[g]; }));
+    const stats = GROUPS.map(() => ({ front: [0, 0, 0], back: [0, 0, 0], outside: 0 }));
+    let foreign = 0;
+    for(let y = 0; y < H; y++) for(let x = 0; x < W; x++){
+      const v = regions.values[y * W + x]; if(!v) continue;
+      if(v > GROUPS.length){ foreign++; continue; }
+      const g = GROUPS[v - 1], view = x < split ? 'front' : 'back', s = stats[v - 1];
+      s[view][0]++; s[view][1] += x; s[view][2] += y;
+      if(!ctx.MUSCLE_ATLAS.tiles[g].some(r => x >= r[0] && y >= r[1] && x < r[0] + r[2] && y < r[1] + r[3] && (r[0] < split) === (view === 'front'))) s.outside++;
+    }
+    T('every owned pixel belongs to one of the ten groups', foreign === 0);
+    T('every group owns pixels, and only on the views it is drawn on',
+      GROUPS.every((g, i) => { const s = stats[i]; return VIEWS[g] === 'both' ? s.front[0] > 1000 && s.back[0] > 1000 : (s[VIEWS[g]][0] > 1000 && s[VIEWS[g] === 'front' ? 'back' : 'front'][0] === 0); }));
+    T('every pixel a group owns sits inside that group\'s own tile on that view', stats.every(s => s.outside === 0));
+    /* left against right, about each view's own midline (the centre of all its muscle pixels) */
+    const axis = { front: 0, back: 0 }, cnt = { front: 0, back: 0 };
+    stats.forEach(s => ['front', 'back'].forEach(v => { axis[v] += s[v][1]; cnt[v] += s[v][0]; }));
+    axis.front /= cnt.front; axis.back /= cnt.back;
+    const side = GROUPS.map(() => ({}));
+    for(let y = 0; y < H; y++) for(let x = 0; x < W; x++){
+      const v = regions.values[y * W + x]; if(!v || v > GROUPS.length) continue;
+      const view = x < split ? 'front' : 'back', key = view + (x < axis[view] ? 'L' : 'R'), s = side[v - 1];
+      s[key] = s[key] || [0, 0]; s[key][0]++; s[key][1] += Math.abs(x - axis[view]);
+    }
+    const sym = GROUPS.map((g, i) => ['front', 'back'].filter(v => side[i][v + 'L'] || side[i][v + 'R']).map(v => {
+      const L = side[i][v + 'L'] || [0, 0], R = side[i][v + 'R'] || [0, 0];
+      return { ratio: Math.min(L[0], R[0]) / Math.max(L[0], R[0]), dx: Math.abs(L[1] / L[0] - R[1] / R[0]) }; })).flat();
+    T('left and right muscles mirror each other: equal area within 2%, mirrored centres within 2 px',
+      sym.length === 12 && sym.every(s => s.ratio >= 0.98 && s.dx <= 2));
+    T('forearms, obliques and adductors are still not groups of their own — nothing invented',
+      GROUPS.indexOf('forearms') === -1 && GROUPS.indexOf('obliques') === -1 && GROUPS.indexOf('adductors') === -1);
+  });
+
+  sub('one image, one coordinate system, nothing drawn by hand');
+  guard('layers', () => {
+    const all = {}; GROUPS.forEach(g => all[g] = 5);
+    const html = ctx.bodyDiagramSvg(null, all), L = layersOf(html);
+    const tileCount = GROUPS.reduce((n, g) => n + ctx.MUSCLE_ATLAS.tiles[g].length, 0);
+    T('every layer of every figure is the one atlas image, at its full size',
+      L.images.length === 1 + tileCount && L.images.every(i => i.href === ctx.MUSCLE_ATLAS.src && i.w === ctx.MUSCLE_ATLAS.w && i.h === ctx.MUSCLE_ATLAS.h) &&
+      (html.match(/<image /g) || []).length === L.images.length);
+    T('every layer maps atlas pixels to figure units one to one, in the figure\'s own 1122 x 1402 viewBox',
+      L.images.every(i => i.scaleOne) && /<svg class="muscle-svg" viewBox="0 0 1122 1402" role="img" aria-label="[^"]+">/.test(html) &&
+      (html.match(/class="muscle-svg"/g) || []).length === 1);
+    T('tiles sit on the 32 px grid on both sides, so a tile filters exactly as the base beneath it',
+      GROUPS.every(g => ctx.MUSCLE_ATLAS.tiles[g].every(r => r[0] % 32 === 0 && r[1] % 32 === 0 && r[4] % 32 === 0 && r[5] % 32 === 0)) &&
+      ctx.MUSCLE_ATLAS.w % 32 === 0 && ctx.MUSCLE_ATLAS.h % 32 === 0);
+    const cells = GROUPS.map(g => ctx.MUSCLE_ATLAS.tiles[g]).flat();
+    T('tiles stay on the figure, their atlas cells sit below the base, and no two cells overlap',
+      cells.every(r => r[0] + r[2] <= 1122 && r[1] + r[3] <= 1402 && r[5] >= 1402 && r[4] + r[2] <= ctx.MUSCLE_ATLAS.w && r[5] + r[3] <= ctx.MUSCLE_ATLAS.h) &&
+      cells.every((p, i) => cells.every((q, j) => i === j || p[4] + p[2] <= q[4] || q[4] + q[2] <= p[4] || p[5] + p[3] <= q[5] || q[5] + q[3] <= p[5])));
+    const fn = fnSrc(src, 'bodyDiagramSvg');
+    T('no drawn mannequin returns: no path, ellipse, rect, circle, polygon or text in the figure',
+      !/<(path|ellipse|rect|circle|polygon|text)\b/.test(fn) && !/<(path|ellipse|rect|circle|polygon|text)\b/.test(html) &&
+      !/mirrorPath|deltL|pecL|quadL|hamL|function muscleFill\(|MUSCLE_UNWORKED|MUSCLE_LOW/.test(src));
+    /* The install precache stays the app shell (the social and brand contracts hold that, and addAll is
+       all-or-nothing). The atlas is a same-origin GET, so the fetch handler stores it the first time a
+       figure draws — as it stored the 7.6 illustration and every icon — and serves it offline after. */
+    const sw = read('sw.js').toString('utf8');
+    T('the service worker keeps the atlas the way it keeps every file the app loads, and the atlas is the only figure file',
+      /if\(req\.method !== 'GET'\) return;/.test(sw) && /if\(new URL\(req\.url\)\.origin !== location\.origin\) return;/.test(sw) &&
+      /caches\.open\(CACHE_VERSION\)\.then\(c => c\.put\(req, copy\)\)/.test(sw) && /caches\.match\(req\)/.test(sw) &&
+      /\$\{A\.src\}/.test(fnSrc(src, 'bodyDiagramSvg')) && !/(href|src)="muscle-map/.test(src));
+  });
+
+  sub('each group lights alone, at the band its own totals earn');
+  guard('intensity', () => {
+    T('the bands are D71\'s, restored: none, under a third of the most-worked group, under 70%, the rest',
+      ctx.muscleBand(0, 10) === 0 && ctx.muscleBand(-1, 10) === 0 && ctx.muscleBand(NaN, 10) === 0 && ctx.muscleBand(undefined, 10) === 0 &&
+      ctx.muscleBand(33.9, 100) === 1 && ctx.muscleBand(34, 100) === 2 && ctx.muscleBand(69.9, 100) === 2 && ctx.muscleBand(70, 100) === 3 && ctx.muscleBand(100, 100) === 3);
+    T('and each band draws its tile at a restrained, rising opacity', JSON.stringify(ctx.MUSCLE_BAND_OPACITY) === '[0,0.4,0.7,1]');
+    T('with nothing worked, the figure is the neutral base alone',
+      drawsExactly(ctx.bodyDiagramSvg(null, {}), {}) && drawsExactly(ctx.bodyDiagramSvg(null, Object.fromEntries(GROUPS.map(g => [g, 0]))), {}) &&
+      !/highlighting/.test(ctx.bodyDiagramSvg(null, {})));
+    T('every group lights alone — its own tiles, and no other group\'s',
+      GROUPS.every(g => drawsExactly(ctx.bodyDiagramSvg(null, { [g]: 5 }), { [g]: 1 })));
+    const mixed = { chest: 10, calves: 7, back: 6.9, abs: 3.5, quads: 3.3, biceps: 0 };
+    T('several groups show different levels at once, straight from the totals',
+      drawsExactly(ctx.bodyDiagramSvg(null, mixed), { chest: 1, calves: 1, back: 0.7, abs: 0.7, quads: 0.4 }) &&
+      drawsExactly(ctx.bodyDiagramSvg(null, mixed), expectedBands(mixed)));
+    T('the most-worked group is always drawn at full strength, whatever the scale',
+      [1, 3, 12, 250].every(n => drawsExactly(ctx.bodyDiagramSvg(null, { back: n, chest: n / 2 }), expectedBands({ back: n, chest: n / 2 })) &&
+        litGroups(ctx.bodyDiagramSvg(null, { back: n, chest: n / 2 })).back.every(op => op === 1)));
+    T('a single set below one still counts against a floor of one, exactly as D71 did',
+      drawsExactly(ctx.bodyDiagramSvg(null, { chest: 0.5 }), { chest: 0.7 }));
+    const tpl = { exercises: [{ name: 'Bench Press', sets: 4 }, { name: 'Barbell Row', sets: 3 }, { name: 'Barbell Curl', sets: 1 }] };
+    T('a template lights from computeMuscleTotals, exactly as the bars would count it',
+      drawsExactly(ctx.bodyDiagramSvg(tpl), expectedBands(ctx.computeMuscleTotals(tpl))) && Object.keys(litGroups(ctx.bodyDiagramSvg(tpl))).length > 0);
+    T('the label says which muscles are lit, strongest first',
+      /aria-label="Front and back muscle map, highlighting chest, calves, back, abs, quads"/.test(ctx.bodyDiagramSvg(null, mixed)));
+    /* a plain object, compared before and after: a write to a frozen one fails silently outside strict mode */
+    const given = { chest: 3, back: 1 }, before = JSON.stringify(given);
+    T('drawing never alters the totals it was given', (() => { ctx.bodyDiagramSvg(null, given); ctx.bodyDiagramSvg(null, given); return JSON.stringify(given) === before; })());
+  });
+
+  sub('every call site still draws its own muscle set');
+  guard('call sites', () => {
+    T('seven callers, each passing exactly what it always passed',
+      (src.match(/bodyDiagramSvg\(/g) || []).length === 8 &&
+      /const diagram = bodyDiagramSvg\(planAggregateTemplate\(planDef\)\);/.test(fnSrc(src, 'planCardBody')) &&
+      /bodyDiagramSvg\(null, data\.totals\)/.test(fnSrc(src, 'renderTodayMuscles')) &&
+      /bodyDiagramSvg\(t\)/.test(fnSrc(src, 'templateCardHtml')) &&
+      /bodyDiagramSvg\(shown\)/.test(fnSrc(src, 'renderTrainDetail')) &&
+      /bodyDiagramSvg\(null, data\.totals\)/.test(fnSrc(src, 'progWeekMuscleHtml')) &&
+      /bodyDiagramSvg\(null, wk\.totals\)/.test(fnSrc(src, 'renderProgVolume')) &&
+      /bodyDiagramSvg\(synthetic\)/.test(fnSrc(src, 'renderProgMuscles')));
+    const plans = Object.keys(ctx.DEFAULT_PLANS);
+    T('a plan preview lights what that plan trains, for every plan',
+      plans.length > 0 && plans.every(id => drawsExactly(ctx.planCardBody(id, ctx.DEFAULT_PLANS[id], false), expectedBands(ctx.computeMuscleTotals(ctx.planAggregateTemplate(ctx.DEFAULT_PLANS[id]))))));
+  });
+
+  sub('every card keeps its place');
+  guard('sizing', () => {
+    T('the figure is still sized by the rules that always sized it',
+      /\.muscle-svg\{ width: 100%; max-width: 106px; height: auto; display: block; \}/.test(css) &&
+      /\.po-mus-body\{ width: 92px; flex-shrink: 0; display: block; \}/.test(css) && /\.mv-body\{ width: 84px; flex-shrink: 0; \}/.test(css) &&
+      /\.tm-body\{ width: 96px; flex-shrink: 0; display: block; \}/.test(css) && /\.td-figure \.muscle-svg\{ max-width: 124px; \}/.test(css) &&
+      /\.tpl-muscle-col\{ flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; \}/.test(css) &&
+      /\.plan-card-diagram\{ flex-shrink: 0; width: 76px; \}/.test(css));
+    T('the wrapper stops at the figure\'s own width, so wide cards centre it with each caption under its own half',
+      /\.muscle-fig\{ display: block; width: 100%; max-width: 106px; \}/.test(css) && /\.td-figure \.muscle-fig\{ max-width: 124px; \}/.test(css));
+    /* the layers are nested <svg> viewports: a rule that sizes a bare svg inside a figure container would crush them */
+    const CONTAINERS = /\.(plan-card-diagram|plan-card|tm-body|tm-card|tm-top|tpl-muscle-col|tpl-body|tpl-card|td-figure|po-mus-body|po-mus|po-card|mv-body|mv-top|mv-card|muscle-fig|muscle-svg)\b[^,{]*\ssvg\s*$/;
+    const offenders = []; css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/([^{}]+)\{/g, (m, sel) => { sel.split(',').forEach(s => { if(CONTAINERS.test(s.trim())) offenders.push(s.trim()); }); return m; });
+    T('no rule sizes a bare svg inside anything that holds the figure', offenders.length === 0 &&
+      /\.plan-card-diagram \.muscle-svg\{ width: 76px; height: auto; display: block; \}/.test(css));
+    T('Front and Back still caption the figure, outside it', /<span class="muscle-fig-labels"><span>Front<\/span><span>Back<\/span><\/span><\/span>`;/.test(fnSrc(src, 'bodyDiagramSvg')));
+  });
+
+  sub('no function that counts a set changed');
   guard('analytics safety', () => {
+    /* each function's own body, from its declaration to its closing brace, hashed against 7.6 */
+    const body = name => { const t = src.split('\r\n').join('\n'); const i = t.indexOf('\nfunction ' + name + '('); const j = t.indexOf('\n}\n', i + 1); return i < 0 || j < 0 ? '' : t.slice(i + 1, j + 2); };
+    const pin = name => crypto.createHash('sha256').update(body(name)).digest('hex').slice(0, 16);
+    const PINS = { computeMuscleTotals: 'd024a1d1c92503d5', musclesForExercise: 'bef4dd42e500bbdf', deriveWeekMuscleSets: '68fad1c28a5b366a',
+      muscleBarsHtml: 'f62dbfffc016e97a', muscleFocusHtml: 'bb716a3d4cb78d9b', computeMuscleGroupBreakdown: 'fc9459aa0dd6ab76', computeMuscleVolumeSince: 'bda470d98246eb8a',
+      progWeekMuscleHtml: 'd00a47b7078675f5', renderTodayMuscles: 'ab3aaccac840c85d', planAggregateTemplate: '147fc2f34f2972ad', planCardBody: 'f323be10f180e055' };
+    const moved = Object.keys(PINS).filter(n => pin(n) !== PINS[n]);
+    T('the set counting, the bars, Most worked and every summary that feeds the figure are byte-identical to 7.6' + (moved.length ? ' (moved: ' + moved.join(', ') + ')' : ''), moved.length === 0);
     T('the ten canonical groups and their keyword truth are byte-identical',
       JSON.stringify(ctx.MUSCLE_MAP) === JSON.stringify({
         chest: ['chest press','bench press','incline press','decline press','pec deck','chest fly','cable fly','push-up','push up','floor press','fly'],
@@ -27168,31 +27345,15 @@ async function testMuscleMapAsset(){
         glutes: ['hip thrust','glute','bridge','glute kickback','deadlift','squat','lunge'],
         calves: ['calf raise','calf']
       }));
-    T('computeMuscleTotals still reads the one shared resolver, untouched',
-      /musclesForExercise\(ex\.name\)\.primary\.forEach/.test(fnSrc(src, 'computeMuscleTotals')));
-    T('and it still starts every group at zero and counts only what was actually trained',
-      (() => { const t = ctx.computeMuscleTotals({ exercises: [{ name: 'Bench Press', sets: [{}, {}, {}] }] });
-        return t.chest === 3 && t.abs === 0 && t.quads === 0 && t.back === 0; })());
-    T('bodyDiagramSvg still runs computeMuscleTotals exactly where it always did, even though the figure no longer reads the result',
-      /if\(!totalsOverride\) computeMuscleTotals\(t\);/.test(fnSrc(src, 'bodyDiagramSvg')));
-    T('muscleFocusHtml, the text equivalent of the highlighting, is untouched',
-      /const entries = Object\.keys\(totals\)\.filter\(k => totals\[k\] > 0\)\.sort/.test(fnSrc(src, 'muscleFocusHtml')));
-    T('muscleBarsHtml — the bars beside the figure — is untouched and still computes its own widths from the same totals',
-      /const max = Math\.max\(\.\.\.Object\.values\(totals\)\);/.test(fnSrc(src, 'muscleBarsHtml')));
-    T('no new storage key, schema, migration or trainer change for a body that only draws differently',
+    T('computeMuscleTotals still starts every group at zero and counts only what was trained',
+      (() => { const t = ctx.computeMuscleTotals({ exercises: [{ name: 'Bench Press', sets: [{}, {}, {}] }] }); return t.chest === 3 && t.abs === 0 && t.quads === 0 && t.back === 0; })());
+    T('the figure reads totals exactly as D71 did: the caller\'s, or computeMuscleTotals\' own, against a floor of one',
+      /const totals = totalsOverride \|\| computeMuscleTotals\(t\);/.test(fnSrc(src, 'bodyDiagramSvg')) &&
+      /const maxVal = Math\.max\(1, \.\.\.Object\.values\(totals\)\);/.test(fnSrc(src, 'bodyDiagramSvg')));
+    T('drawing the figure stores nothing', !/LOOPStore|localStorage|persist|save[A-Z(]/.test(fnSrc(src, 'bodyDiagramSvg') + fnSrc(src, 'muscleBand')));
+    T('no new storage key, schema, migration or trainer change for a figure that only draws differently',
       ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
       /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
-  });
-
-  sub('the old per-region system is actually gone, not left as dead code');
-  guard('cleanup', () => {
-    T('muscleFill and its two colour constants were removed along with their only caller, not left orphaned',
-      !/function muscleFill\(/.test(src) && !/MUSCLE_UNWORKED/.test(src) && !/MUSCLE_LOW/.test(src));
-    T('no per-region path data survives anywhere in the function',
-      !/mirrorPath/.test(fnSrc(src, 'bodyDiagramSvg')) && !/deltL|pecL|quadL|hamL|lats|traps/.test(fnSrc(src, 'bodyDiagramSvg')));
-    T('forearms, obliques and adductors were never canonical groups and still are not — nothing was invented either way',
-      Object.keys(ctx.MUSCLE_MAP).indexOf('forearms') === -1 && Object.keys(ctx.MUSCLE_MAP).indexOf('obliques') === -1 &&
-      Object.keys(ctx.MUSCLE_MAP).indexOf('adductors') === -1);
   });
 }
 
@@ -27336,7 +27497,7 @@ async function main(){
   await testRussianTwistArt();
   await testWeightedRussianTwistArt();
   await testSmartSuggestions();
-  await testMuscleMapAsset();
+  await testMuscleMapOverlays();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

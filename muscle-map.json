@@ -1,0 +1,950 @@
+{
+  "note": "Derived from muscle-map.webp by build-muscle-map.js. Rebuild after changing the master or the shapes it names.",
+  "master": {
+    "file": "muscle-map.webp",
+    "sha256": "8b8b51f3704f2b49a65895b9b3229692309758ad8d9c547b63f603b6d4a51a67",
+    "width": 1122,
+    "height": 1402
+  },
+  "atlas": {
+    "file": "muscle-map-atlas.webp",
+    "sha256": "45eb8cf95572ec3bc9434d417f1e8eccad3ba6e143794f19cb3e34d190de98b1",
+    "width": 1152,
+    "height": 2848,
+    "bytes": 304596,
+    "quality": 0.9,
+    "grid": 32
+  },
+  "regions": {
+    "file": "muscle-map-regions.png",
+    "sha256": "748bb09711f9f5b201ece2bfe3c6a9b8b0e55aef16d17c5fc012581b6fc29539",
+    "values": "pixel = 1 + index of the owning group in groups, 0 = no group"
+  },
+  "base": {
+    "x": 0,
+    "y": 0,
+    "width": 1122,
+    "height": 1402
+  },
+  "groups": [
+    "chest",
+    "shoulders",
+    "back",
+    "biceps",
+    "triceps",
+    "abs",
+    "quads",
+    "hamstrings",
+    "glutes",
+    "calves"
+  ],
+  "viewSplitX": 561,
+  "tiles": [
+    {
+      "group": "chest",
+      "view": "front",
+      "x": 160,
+      "y": 256,
+      "w": 288,
+      "h": 192,
+      "ax": 0,
+      "ay": 2464
+    },
+    {
+      "group": "shoulders",
+      "view": "front",
+      "x": 64,
+      "y": 224,
+      "w": 480,
+      "h": 192,
+      "ax": 0,
+      "ay": 2240
+    },
+    {
+      "group": "shoulders",
+      "view": "back",
+      "x": 576,
+      "y": 256,
+      "w": 480,
+      "h": 160,
+      "ax": 640,
+      "ay": 2464
+    },
+    {
+      "group": "back",
+      "view": "back",
+      "x": 672,
+      "y": 128,
+      "w": 288,
+      "h": 480,
+      "ax": 0,
+      "ay": 1440
+    },
+    {
+      "group": "biceps",
+      "view": "front",
+      "x": 96,
+      "y": 352,
+      "w": 416,
+      "h": 160,
+      "ax": 0,
+      "ay": 2688
+    },
+    {
+      "group": "triceps",
+      "view": "back",
+      "x": 608,
+      "y": 352,
+      "w": 416,
+      "h": 160,
+      "ax": 448,
+      "ay": 2688
+    },
+    {
+      "group": "abs",
+      "view": "front",
+      "x": 160,
+      "y": 384,
+      "w": 288,
+      "h": 320,
+      "ax": 704,
+      "ay": 1440
+    },
+    {
+      "group": "quads",
+      "view": "front",
+      "x": 128,
+      "y": 608,
+      "w": 352,
+      "h": 320,
+      "ax": 320,
+      "ay": 1440
+    },
+    {
+      "group": "hamstrings",
+      "view": "back",
+      "x": 640,
+      "y": 736,
+      "w": 320,
+      "h": 224,
+      "ax": 384,
+      "ay": 1952
+    },
+    {
+      "group": "glutes",
+      "view": "back",
+      "x": 672,
+      "y": 576,
+      "w": 288,
+      "h": 192,
+      "ax": 320,
+      "ay": 2464
+    },
+    {
+      "group": "calves",
+      "view": "front",
+      "x": 128,
+      "y": 928,
+      "w": 352,
+      "h": 256,
+      "ax": 0,
+      "ay": 1952
+    },
+    {
+      "group": "calves",
+      "view": "back",
+      "x": 640,
+      "y": 960,
+      "w": 352,
+      "h": 192,
+      "ax": 512,
+      "ay": 2240
+    }
+  ],
+  "shapes": {
+    "chest": [
+      {
+        "view": "front",
+        "seed": [
+          251,
+          351
+        ],
+        "area": 12511,
+        "rgb": [
+          60,
+          193,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "front",
+        "seed": [
+          361,
+          351
+        ],
+        "area": 12491,
+        "rgb": [
+          59,
+          193,
+          251
+        ],
+        "highlighted": true
+      }
+    ],
+    "shoulders": [
+      {
+        "view": "front",
+        "seed": [
+          145,
+          320
+        ],
+        "area": 7836,
+        "rgb": [
+          12,
+          132,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "front",
+        "seed": [
+          460,
+          311
+        ],
+        "area": 7988,
+        "rgb": [
+          12,
+          134,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          665,
+          311
+        ],
+        "area": 7740,
+        "rgb": [
+          5,
+          123,
+          250
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          958,
+          308
+        ],
+        "area": 7552,
+        "rgb": [
+          5,
+          123,
+          250
+        ],
+        "highlighted": true
+      }
+    ],
+    "back": [
+      {
+        "view": "back",
+        "seed": [
+          760,
+          250
+        ],
+        "area": 9931,
+        "rgb": [
+          68,
+          81,
+          99
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "back",
+        "seed": [
+          866,
+          250
+        ],
+        "area": 9931,
+        "rgb": [
+          68,
+          81,
+          99
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "back",
+        "seed": [
+          777,
+          328
+        ],
+        "area": 8778,
+        "rgb": [
+          103,
+          114,
+          134
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "back",
+        "seed": [
+          852,
+          327
+        ],
+        "area": 8734,
+        "rgb": [
+          102,
+          113,
+          134
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "back",
+        "seed": [
+          725,
+          335
+        ],
+        "area": 2495,
+        "rgb": [
+          63,
+          74,
+          94
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "back",
+        "seed": [
+          903,
+          337
+        ],
+        "area": 2443,
+        "rgb": [
+          63,
+          74,
+          94
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "back",
+        "seed": [
+          737,
+          454
+        ],
+        "area": 12729,
+        "rgb": [
+          63,
+          76,
+          95
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "back",
+        "seed": [
+          886,
+          460
+        ],
+        "area": 12605,
+        "rgb": [
+          63,
+          76,
+          95
+        ],
+        "highlighted": false
+      }
+    ],
+    "biceps": [
+      {
+        "view": "front",
+        "seed": [
+          145,
+          429
+        ],
+        "area": 5526,
+        "rgb": [
+          87,
+          97,
+          119
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "front",
+        "seed": [
+          464,
+          427
+        ],
+        "area": 5513,
+        "rgb": [
+          86,
+          96,
+          117
+        ],
+        "highlighted": false
+      }
+    ],
+    "triceps": [
+      {
+        "view": "back",
+        "seed": [
+          658,
+          416
+        ],
+        "area": 5062,
+        "rgb": [
+          75,
+          87,
+          107
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "back",
+        "seed": [
+          969,
+          417
+        ],
+        "area": 5085,
+        "rgb": [
+          77,
+          90,
+          110
+        ],
+        "highlighted": false
+      }
+    ],
+    "abs": [
+      {
+        "view": "front",
+        "seed": [
+          272,
+          445
+        ],
+        "area": 2612,
+        "rgb": [
+          67,
+          79,
+          99
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "front",
+        "seed": [
+          340,
+          445
+        ],
+        "area": 2580,
+        "rgb": [
+          67,
+          79,
+          98
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "front",
+        "seed": [
+          277,
+          498
+        ],
+        "area": 2273,
+        "rgb": [
+          68,
+          80,
+          99
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "front",
+        "seed": [
+          332,
+          498
+        ],
+        "area": 2265,
+        "rgb": [
+          68,
+          80,
+          99
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "front",
+        "seed": [
+          280,
+          552
+        ],
+        "area": 1979,
+        "rgb": [
+          71,
+          82,
+          103
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "front",
+        "seed": [
+          330,
+          552
+        ],
+        "area": 1959,
+        "rgb": [
+          70,
+          82,
+          102
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "front",
+        "seed": [
+          306,
+          615
+        ],
+        "area": 6569,
+        "rgb": [
+          70,
+          82,
+          103
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "front",
+        "seed": [
+          230,
+          568
+        ],
+        "area": 6114,
+        "rgb": [
+          78,
+          89,
+          108
+        ],
+        "highlighted": false
+      },
+      {
+        "view": "front",
+        "seed": [
+          389,
+          561
+        ],
+        "area": 6069,
+        "rgb": [
+          78,
+          89,
+          108
+        ],
+        "highlighted": false
+      }
+    ],
+    "quads": [
+      {
+        "view": "front",
+        "seed": [
+          233,
+          734
+        ],
+        "area": 17289,
+        "rgb": [
+          25,
+          147,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "front",
+        "seed": [
+          378,
+          735
+        ],
+        "area": 17355,
+        "rgb": [
+          25,
+          148,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "front",
+        "seed": [
+          177,
+          780
+        ],
+        "area": 7339,
+        "rgb": [
+          5,
+          123,
+          249
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "front",
+        "seed": [
+          432,
+          793
+        ],
+        "area": 7246,
+        "rgb": [
+          5,
+          123,
+          250
+        ],
+        "highlighted": true
+      }
+    ],
+    "hamstrings": [
+      {
+        "view": "back",
+        "seed": [
+          712,
+          826
+        ],
+        "area": 7267,
+        "rgb": [
+          5,
+          123,
+          249
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          765,
+          832
+        ],
+        "area": 7512,
+        "rgb": [
+          4,
+          122,
+          249
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          860,
+          831
+        ],
+        "area": 7576,
+        "rgb": [
+          4,
+          123,
+          250
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          914,
+          834
+        ],
+        "area": 7344,
+        "rgb": [
+          5,
+          123,
+          249
+        ],
+        "highlighted": true
+      }
+    ],
+    "glutes": [
+      {
+        "view": "back",
+        "seed": [
+          755,
+          672
+        ],
+        "area": 11470,
+        "rgb": [
+          58,
+          192,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          870,
+          671
+        ],
+        "area": 11548,
+        "rgb": [
+          59,
+          193,
+          252
+        ],
+        "highlighted": true
+      }
+    ],
+    "calves": [
+      {
+        "view": "front",
+        "seed": [
+          184,
+          1021
+        ],
+        "area": 6285,
+        "rgb": [
+          59,
+          193,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "front",
+        "seed": [
+          248,
+          1036
+        ],
+        "area": 4303,
+        "rgb": [
+          59,
+          193,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "front",
+        "seed": [
+          361,
+          1039
+        ],
+        "area": 4314,
+        "rgb": [
+          59,
+          193,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "front",
+        "seed": [
+          425,
+          1022
+        ],
+        "area": 6291,
+        "rgb": [
+          59,
+          193,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          703,
+          1036
+        ],
+        "area": 6307,
+        "rgb": [
+          59,
+          193,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          759,
+          1036
+        ],
+        "area": 5606,
+        "rgb": [
+          60,
+          193,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          865,
+          1033
+        ],
+        "area": 5460,
+        "rgb": [
+          59,
+          193,
+          251
+        ],
+        "highlighted": true
+      },
+      {
+        "view": "back",
+        "seed": [
+          921,
+          1035
+        ],
+        "area": 6423,
+        "rgb": [
+          60,
+          194,
+          251
+        ],
+        "highlighted": true
+      }
+    ]
+  },
+  "tones": {
+    "cyan": [
+      60,
+      193,
+      251
+    ],
+    "mid": [
+      25,
+      147,
+      251
+    ],
+    "deep": [
+      5,
+      123,
+      249
+    ],
+    "light": [
+      87,
+      97,
+      119
+    ],
+    "middle": [
+      78,
+      89,
+      108
+    ],
+    "dark": [
+      68,
+      80,
+      99
+    ]
+  },
+  "navy": [
+    27,
+    36,
+    49
+  ],
+  "checks": {
+    "derived": {
+      "label": "as derived",
+      "alphaDiffsFromMaster": 0,
+      "masterBluePixels": 205368,
+      "highlightPixelsLeftInNeutralBase": 1,
+      "blueTintedPixelsTheBuildNeverTouched": 144,
+      "approvedReconstruction": {
+        "maxChannelDiff": 10.84,
+        "meanChannelDiff": 0.0728,
+        "p999ChannelDiff": 6.12
+      },
+      "tilePixelsOutsideTheirGroup": 0,
+      "greenLeaningLitPixels": 0,
+      "gutterPixels": 0
+    },
+    "encoded": {
+      "label": "as encoded",
+      "alphaDiffsFromMaster": 0,
+      "masterBluePixels": 205368,
+      "highlightPixelsLeftInNeutralBase": 24,
+      "blueTintedPixelsTheBuildNeverTouched": 134,
+      "approvedReconstruction": {
+        "maxChannelDiff": 21.28,
+        "meanChannelDiff": 0.596,
+        "p999ChannelDiff": 13.05
+      },
+      "tilePixelsOutsideTheirGroup": 0,
+      "greenLeaningLitPixels": 0,
+      "gutterPixels": 0,
+      "encodeMaxChannelDiff": 70,
+      "encodeMeanChannelDiff": 1.0526
+    },
+    "symmetry": {
+      "chest.front": {
+        "areaRatio": 0.9987,
+        "mirroredCentroidDx": 1.32,
+        "centroidDy": 0.04
+      },
+      "shoulders.front": {
+        "areaRatio": 0.9856,
+        "mirroredCentroidDx": 0.81,
+        "centroidDy": 0.8
+      },
+      "shoulders.back": {
+        "areaRatio": 0.9922,
+        "mirroredCentroidDx": 0.91,
+        "centroidDy": 0.54
+      },
+      "back.back": {
+        "areaRatio": 0.9939,
+        "mirroredCentroidDx": 1.28,
+        "centroidDy": 0.54
+      },
+      "biceps.front": {
+        "areaRatio": 0.9975,
+        "mirroredCentroidDx": 0.19,
+        "centroidDy": 0.3
+      },
+      "triceps.back": {
+        "areaRatio": 0.9973,
+        "mirroredCentroidDx": 0.49,
+        "centroidDy": 0.18
+      },
+      "abs.front": {
+        "areaRatio": 0.9987,
+        "mirroredCentroidDx": 1.35,
+        "centroidDy": 0.27
+      },
+      "quads.front": {
+        "areaRatio": 0.9905,
+        "mirroredCentroidDx": 0.57,
+        "centroidDy": 0.09
+      },
+      "hamstrings.back": {
+        "areaRatio": 0.9846,
+        "mirroredCentroidDx": 1.22,
+        "centroidDy": 0.28
+      },
+      "glutes.back": {
+        "areaRatio": 0.9959,
+        "mirroredCentroidDx": 0.37,
+        "centroidDy": 0.08
+      },
+      "calves.front": {
+        "areaRatio": 0.9902,
+        "mirroredCentroidDx": 0.82,
+        "centroidDy": 0.17
+      },
+      "calves.back": {
+        "areaRatio": 0.9913,
+        "mirroredCentroidDx": 1.41,
+        "centroidDy": 0.42
+      }
+    },
+    "haloPixels": 9843
+  }
+}
