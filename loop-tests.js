@@ -24050,15 +24050,38 @@ async function testWorkoutBuilder(){
       JSON.stringify(recent) === JSON.stringify(['Bench Press', 'Face Pull', 'Lat Pulldown', 'Leg Press']), JSON.stringify(recent));
     T('and never more than asked for', ctx.exPickerRecent(2).length === 2);
     ctx.openWorkoutExercisePicker('empty');
-    T('a workout leads with Recent when there is history', /^<div class="xp-sec">Recent<\/div>/.test(body()) && !/Popular in your plan/.test(body()));
+    /* D70 — REPOINTED, not relaxed. D61 put Recent first because nothing else
+       on the default screen knew anything about the workout. Something does
+       now, so Recent moved one section down and kept everything else: it is
+       still the athlete's own, still newest-session-first, still one entry per
+       movement, and it no longer repeats what the ranking above it just
+       offered. The two assertions D61 made here are both still made. */
+    T('a workout leads with what fits it, and Recent follows rather than leads', (() => {
+      const h = body();
+      return /^<div class="xp-sec">Suggested<\/div>/.test(h) && />Recent</.test(h) &&
+        h.indexOf('>Suggested<') < h.indexOf('>Recent<') && !/Popular in your plan/.test(h);
+    })(), body().slice(0, 140));
+    T('and nothing the suggestions offered is offered again underneath them', (() => {
+      const h = body();
+      const sec = t => h.slice(h.indexOf('>' + t + '<'), t === 'Suggested' ? h.indexOf('>Recent<') : h.indexOf('>All exercises<'));
+      const rows = t => (sec(t).match(/onclick="exPickerToggle\('([^']+)'\)"/g) || []);
+      const sug = rows('Suggested').map(s => ctx.exPickerKeyOf(s.replace(/.*\('|'\).*/g, '')));
+      return rows('Recent').every(r => sug.indexOf(ctx.exPickerKeyOf(r.replace(/.*\('|'\).*/g, ''))) === -1);
+    })());
     ctx.exPickerSearch('row');
-    T('a search replaces the quick picks with its results', !/>Recent</.test(body()) && />Results</.test(body()));
+    T('a search replaces the quick picks with its results', !/>Recent</.test(body()) && !/>Suggested</.test(body()) && />Results</.test(body()));
     ctx.closeExercisePicker();
     ctx.workoutLog = [];
     ctx.openWorkoutExercisePicker('empty');
     const plan = ctx.exPickerFromPlan(6);
-    T('with no history it leads with the plan\'s most used movements',
-      /^<div class="xp-sec">Popular in your plan<\/div>/.test(body()) && plan.length > 0 && (() => {
+    /* D70 — REPOINTED. Same fallback, same trigger (no history at all), one
+       section lower: the plan's most-used movements are what LOOP can say
+       when it knows nothing about this athlete, and what fits the workout is
+       what it can say when it knows nothing about them either. */
+    T('with no history the plan\'s most used movements are still what fills the gap',
+      /^<div class="xp-sec">Suggested<\/div>/.test(body()) &&
+      /<div class="xp-sec">Popular in your plan<\/div>/.test(body()) &&
+      !/>Recent</.test(body()) && plan.length > 0 && (() => {
         const count = {};
         ctx.ORDER.forEach(c => (ctx.getTemplates(c) || []).forEach(t => t.exercises.forEach(ex => {
           const k = ctx.exPickerKeyOf(ex.name); count[k] = (count[k] || 0) + 1; })));
@@ -26494,6 +26517,405 @@ async function testWeightedRussianTwistArt(){
   });
 }
 
+/* =========================================================
+   CONTRACT 177 — WHAT FITS THIS WORKOUT  (Phase D70)
+   ---------------------------------------------------------
+   The picker's default state used to be whichever list its
+   caller happened to be: Recent for everyone, the generator's
+   accessory pool for Program Studio, the day's library in
+   alphabetical order for a saved workout, and — for a workout
+   in progress, the surface an athlete actually adds from —
+   nothing at all beyond Recent and the whole library, A to Z.
+   None of the four read the workout being built.
+
+   D70 replaces all four with one deterministic ranking of the
+   library against the workout as it stands. What this contract
+   protects is that the ranking reads LOOP's own truth and only
+   LOOP's own truth, that it is the same every time, that it
+   suggests rather than acts, and that Swap — which answers a
+   different question properly — was left alone.
+
+   Nothing here pins a scenario's output. A list of expected
+   exercise names would pass a ranking that had stopped
+   working and been replaced by that list.
+   ========================================================= */
+async function testSmartSuggestions(){
+  section('CONTRACT 177 — what fits this workout (D70)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx, doc = app.dom.document;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const body = () => doc.getElementById('exPickerBody').innerHTML;
+  const state = o => ctx.exPickerNewState('workout', Object.assign({ category: null, already: [], selected: [] }, o || {}));
+  const rank = o => ctx.exPickerSuggested(state(o), o && o.limit);
+  const names = list => list.map(s => s.name);
+  const keys = list => list.map(s => s.key);
+  const score = (name, o) => {
+    const m = ctx.xsMeta()[ctx.exPickerKeyOf(name)];
+    return m ? ctx.scoreExerciseForContext(m.entry, ctx.exSuggestionContext(state(o))) : null;
+  };
+
+  sub('one engine, and it reads the workout in front of it');
+  guard('one engine', () => {
+    T('the picker asks one ranking for its default state, not one list per caller',
+      /const sug = exPickerSuggested\(st\);/.test(fnSrc(src, 'renderExercisePicker')) &&
+      !/<div class="xp-sec">Suggested for /.test(src) && !/Suggested for ' \+ escapeHtml\(CAT_LABEL/.test(src) &&
+      /<div class="xp-sec">Suggested<\/div>/.test(fnSrc(src, 'renderExercisePicker')));
+    T('and the four lists it replaced are its inputs now, not its rivals',
+      /exPickerForCategory\(cat, \[\], 999\)/.test(fnSrc(src, 'xsSessionTruth')) &&
+      /exPickerSuggestions\(cat, \[\], 0\)/.test(fnSrc(src, 'xsSessionTruth')) &&
+      typeof ctx.exPickerRecent === 'function' && typeof ctx.exPickerFromPlan === 'function');
+    T('an exercise ticked and not yet added already counts as part of the workout', (() => {
+      /* Waiting for Add would be a worse answer, later. */
+      const plain = rank({ category: 'push', already: ['Bench Press'] });
+      const ticked = rank({ category: 'push', already: ['Bench Press'],
+        selected: [{ name: 'Incline Bench Press', key: 'bench_press_incline_bb' }] });
+      return keys(ticked).indexOf('bench_press_incline_bb') === -1 &&
+        JSON.stringify(names(plain)) !== JSON.stringify(names(ticked)) &&
+        ctx.exSuggestionContext(state({ category: 'push', already: ['Bench Press'],
+          selected: [{ name: 'Incline Bench Press', key: 'bench_press_incline_bb' }] })).position === 2;
+    })());
+    T('an empty Push day and a Push day two presses deep are not given the same answer', (() => {
+      const a = names(rank({ category: 'push' }));
+      const b = names(rank({ category: 'push', already: ['Bench Press', 'Incline DB Press'] }));
+      return a.length && b.length && JSON.stringify(a) !== JSON.stringify(b);
+    })());
+    T('and neither is a Push day and a Pull day',
+      JSON.stringify(names(rank({ category: 'push' }))) !== JSON.stringify(names(rank({ category: 'pull' }))));
+    T('four to six of them, and fewer when fewer are strong',
+      ctx.ORDER.every(c => { const n = rank({ category: c }).length; return n >= 1 && n <= ctx.XS_WEIGHTS.limits.max; }),
+      ctx.ORDER.map(c => c + ':' + rank({ category: c }).length).join(' '));
+  });
+
+  sub('session fit is the plans\' own libraries — never a name');
+  guard('session fit', () => {
+    const truth = ctx.xsSessionTruth();
+    T('every category\'s movements come from the library, the extensions and D63\'s machines',
+      ctx.ORDER.every(c => truth.cats[c] && Object.keys(truth.cats[c].keys).length > 10) &&
+      ctx.LIBRARY_EXTRAS.every(x => x.roles.every(r => truth.cats[r] && truth.cats[r].keys[x.id])) &&
+      ctx.PROGRAM_EXTENSIONS.every(x => x.slots.every(s => x.exercises.every(e =>
+        truth.cats[s] && truth.cats[s].keys[ctx.exPickerKeyOf(e.name)]))));
+    T('a day\'s muscles and patterns are counted from those movements, not written down anywhere',
+      !/push:\s*\[/.test(fnSrc(src, 'xsSessionTruth')) &&
+      truth.cats.push.muscles.chest > truth.cats.push.muscles.abs &&
+      truth.cats.pull.muscles.back > truth.cats.pull.muscles.biceps &&
+      truth.cats.legs.muscles.quads > truth.cats.legs.muscles.calves);
+    T('how much of a day a muscle is decides how much its terms are worth',
+      ctx.xsShare(30, 30) === 1 && ctx.xsShare(10, 30) === 0.6 && ctx.xsShare(2, 30) === 0.3 && ctx.xsShare(0, 30) === 0);
+    T('a movement that belongs to another day is pushed out of this one\'s list', (() => {
+      const legDay = keys(rank({ category: 'legs' }));
+      const pushDay = keys(rank({ category: 'push' }));
+      return legDay.indexOf('bench_press_barbell') === -1 && pushDay.indexOf('leg_curl') === -1 &&
+        keys(rank({ category: 'core' })).indexOf('squat_back') === -1;
+    })());
+    T('and it is marked as belonging elsewhere rather than merely ranked low',
+      score('Leg Curl', { category: 'push' }).factors.session === ctx.XS_WEIGHTS.session.foreign);
+    T('a gap is worth what THE MUSCLE IT FILLS is worth to this day, not what the movement is', (() => {
+      /* A Deadlift belongs on a Pull day at back's rate. The gap it fills there
+         is the hamstrings, a tail muscle on that day — and crediting it at
+         back's rate ranked a deadlift above the vertical pull two rows in. */
+      const dl = score('Deadlift', { category: 'pull', already: ['Barbell Row', 'Seated Cable Row'] });
+      const pulldown = score('Lat Pulldown', { category: 'pull', already: ['Barbell Row', 'Seated Cable Row'] });
+      return dl.flags.muscleGap === 'hamstrings' && dl.factors.muscle > 0 &&
+        dl.factors.muscle < ctx.XS_WEIGHTS.muscle.gap && pulldown.score > dl.score;
+    })());
+  });
+
+  sub('movement complement — and the two patterns that are not movements');
+  guard('complement', () => {
+    const rows = score('Lat Pulldown', { category: 'pull', already: ['Barbell Row', 'Seated Cable Row'] });
+    const verticals = score('Lat Pulldown', { category: 'pull', already: ['Pull-Up'] });
+    T('a pattern the day is built from and this workout has none of is worth something',
+      rows.factors.movement > 0 && rows.flags.missingPattern === 'vertical_pull');
+    T('and the same movement is worth nothing extra once the workout has it',
+      verticals.factors.movement <= 0 && !verticals.flags.missingPattern);
+    T('a third of the same pattern is repetition, and is charged for', (() => {
+      const two = score('Cable Fly', { category: 'push', already: ['Bench Press', 'Incline DB Press'] });
+      const none = score('Cable Fly', { category: 'push', already: ['Overhead Press'] });
+      return two.factors.movement < 0 && none.factors.movement >= 0;
+    })());
+    T('isolation and core are categories, not movements: no day is ever told to add isolation',
+      !ctx.XS_PATTERN_LABEL.isolation && !ctx.XS_PATTERN_LABEL.core &&
+      !score('Barbell Curl', { category: 'pull', already: ['Barbell Row', 'Seated Cable Row'] }).flags.missingPattern);
+    T('so a Core day is ordered by the motion the registry gives it instead', (() => {
+      const list = rank({ category: 'core', already: ['Plank', 'Dead Bug'] });
+      const motions = list.filter(s => s.flags.missingMotion).map(s => s.flags.missingMotion);
+      return list.length >= 4 && motions.length >= 2 && motions.indexOf('anti_extension') === -1;
+    })());
+    T('and an Arms day is not capped at two curls because curls share a pattern',
+      rank({ category: 'arms', already: ['Barbell Curl', 'Triceps Pushdown'] }).length >= 4);
+    T('a raise is never described as pressing: only a compound may claim a pattern',
+      !score('Lateral Raise', { category: 'push', already: ['Bench Press', 'Incline DB Press'] }).flags.patternSpeakable &&
+      !!score('Overhead Press', { category: 'push', already: ['Bench Press', 'Incline DB Press'] }).flags.patternSpeakable);
+  });
+
+  sub('redundancy — suggest less is not forbid');
+  guard('redundancy', () => {
+    const list = rank({ category: 'push', already: ['Bench Press'] });
+    T('an exact duplicate is never suggested, however it was spelled',
+      keys(list).indexOf('bench_press_barbell') === -1 &&
+      keys(rank({ category: 'push', already: ['barbell bench press'] })).indexOf('bench_press_barbell') === -1);
+    T('but it is still in the list below, and still findable by name',
+      ctx.exPickerMatches('bench press').some(e => e.key === 'bench_press_barbell') &&
+      ctx.exPickerIndex().some(e => e.key === 'bench_press_barbell'));
+    T('and it is dropped by name, not merely scored too low to surface', (() => {
+      /* Lower the floor to nothing: what is in the workout must still be
+         absent, or the rule is only the floor's shadow. */
+      const keep = ctx.XS_WEIGHTS.limits.minScore;
+      ctx.XS_WEIGHTS.limits.minScore = -9999;
+      const wide = ctx.ORDER.every(c => {
+        const have = ctx.exPickerForCategory(c, [], 3).map(e => e.name);
+        if(!have.length) return true;
+        const out = keys(rank({ category: c, already: have, limit: 40 }));
+        return have.every(n => out.indexOf(ctx.exPickerKeyOf(n)) === -1);
+      });
+      ctx.XS_WEIGHTS.limits.minScore = keep;
+      return wide;
+    })());
+    T('an extremely close sibling is charged for, and only when the workout has its twin', (() => {
+      const withIt = score('Incline Bench Press', { category: 'push', already: ['Bench Press'] });
+      const without = score('Incline Bench Press', { category: 'push', already: ['Overhead Press'] });
+      return withIt.factors.redundancy === ctx.XS_WEIGHTS.redundancy.sameFamily && without.factors.redundancy === 0;
+    })());
+    T('the family is Swap\'s own, with the registry\'s core motion added',
+      ctx.xsMeta().bench_press_barbell.family === 'horizontal_push|chest|Barbell|' &&
+      ctx.xsMeta().dead_bug.family === 'core|abs|Bodyweight|anti_extension');
+    T('no list is five flavours of one idea',
+      ctx.ORDER.every(c => {
+        const l = rank({ category: c });
+        return l.length === new Set(l.map(s => s.divFamily)).size;
+      }));
+    T('two movements LOOP cannot tell apart are not two suggestions, and are not called the same either',
+      ctx.xsMeta()['trap bar deadlift'].divFamily === 'uncatalogued' &&
+      ctx.xsMeta()['trap bar deadlift'].family === 'key:trap bar deadlift' &&
+      ctx.xsMeta()['deficit deadlift'].family !== ctx.xsMeta()['trap bar deadlift'].family &&
+      rank({ category: 'pull', already: ['Barbell Row', 'Seated Cable Row'] })
+        .filter(s => s.divFamily === 'uncatalogued').length <= 1);
+  });
+
+  sub('equipment — the gym\'s answer, and never a guess for it');
+  guard('equipment', () => {
+    const keepProfile = JSON.parse(JSON.stringify(ctx.gymProfile));
+    ctx.gymProfile = { version: 1, configuredAt: '2026-01-01T00:00:00.000Z', equipment: {}, custom: [] };
+    ctx.GYM_EQUIPMENT.forEach(e => { ctx.gymProfile.equipment[e.id] = false; });
+    ctx.invalidateGymCaches();
+    const bare = rank({ category: 'fullbody', already: ['Push-Up', 'Bodyweight Squat'] });
+    T('an empty gym is never offered the barbell it does not have',
+      bare.length > 0 && bare.every(s => ctx.canPerformExercise(s.key) !== ctx.GYM_STATUS.UNAVAILABLE) &&
+      keys(bare).indexOf('squat_back') === -1 && keys(bare).indexOf('bench_press_barbell') === -1);
+    T('including one the registry never catalogued, whose own name states its equipment',
+      bare.every(s => !(s.entry.equipmentFromName && s.entry.equipment === 'Cable')) &&
+      /entry\.equipmentFromName/.test(fnSrc(src, 'xsPerform')));
+    T('and what it can do is confirmed rather than assumed',
+      bare.some(s => s.factors.equipment === ctx.XS_WEIGHTS.equipment.available));
+    ctx.gymProfile = { version: 1, configuredAt: null, equipment: {}, custom: [] };
+    ctx.invalidateGymCaches();
+    T('an unconfigured gym filters nothing — unknown is not no',
+      keys(rank({ category: 'legs' })).length >= 4 &&
+      ctx.exPickerIndex().filter(e => ctx.canPerformExercise(e.key) === ctx.GYM_STATUS.UNAVAILABLE).length === 0);
+    T('and nothing is scored as available, so no list tilts to bodyweight before a gym exists (D64)',
+      rank({ category: 'legs' }).every(s => s.factors.equipment === 0) &&
+      score('Plank', { category: 'core' }).factors.equipment === 0);
+    ctx.gymProfile = keepProfile;
+    ctx.invalidateGymCaches();
+  });
+
+  sub('the athlete\'s own history, under everything that matters');
+  guard('personal context', () => {
+    const keepLog = ctx.workoutLog;
+    const set = () => ({ weight: '100', reps: '8' });
+    ctx.workoutLog = [];
+    ctx.invalidateSortedLogCache();
+    const before = score('Hammer Curl', { category: 'pull', already: ['Barbell Row'] });
+    ctx.workoutLog = [1, 2, 3, 4, 5, 6, 7, 8].map(i => ({ id: String(i), date: '2026-0' + i + '-1' + i, title: 'S', category: 'pull',
+      exercises: [{ name: 'Hammer Curl', sets: [set()] }] }));
+    ctx.invalidateSortedLogCache();
+    const after = score('Hammer Curl', { category: 'pull', already: ['Barbell Row'] });
+    T('history lifts a movement the athlete actually trains', after.factors.history > before.factors.history);
+    T('but it is capped far below training intent, so familiarity orders equals and never decides',
+      after.factors.history <= ctx.XS_WEIGHTS.history.max &&
+      ctx.XS_WEIGHTS.history.max < ctx.XS_WEIGHTS.movement.missing &&
+      ctx.XS_WEIGHTS.plan.max < ctx.XS_WEIGHTS.movement.missing &&
+      ctx.XS_WEIGHTS.history.max < ctx.XS_WEIGHTS.muscle.gap);
+    T('one use is not a preference, and nothing recently trained is ever pushed down', (() => {
+      ctx.workoutLog = [{ id: '1', date: '2026-09-10', title: 'S', category: 'pull', exercises: [{ name: 'Hammer Curl', sets: [set()] }] }];
+      ctx.invalidateSortedLogCache();
+      const once = score('Hammer Curl', { category: 'pull', already: ['Barbell Row'] });
+      return once.factors.history > 0 && once.factors.history < ctx.XS_WEIGHTS.history.max && !once.flags.history &&
+        ctx.exPickerIndex().every(e => {
+          const s = ctx.scoreExerciseForContext(e, ctx.exSuggestionContext(state({ category: 'pull' })));
+          return s.factors.history >= 0;
+        });
+    })());
+    ctx.workoutLog = keepLog;
+    ctx.invalidateSortedLogCache();
+  });
+
+  sub('one reason, and it is about this workout before it is about the athlete');
+  guard('reasons', () => {
+    const list = rank({ category: 'pull', already: ['Barbell Row', 'Seated Cable Row'] });
+    T('every suggestion in a session that has a category says why, in one short sentence',
+      list.length > 0 && list.every(s => typeof s.reason === 'string' && s.reason && s.reason.length <= 42),
+      list.map(s => s.reason).join(' | '));
+    T('and it never shows a score, a percentage or a match',
+      list.every(s => !/\d|%|match|recommended for you/i.test(s.reason)) &&
+      !/xp-row-score|% match/.test(src), list.map(s => s.reason).join(' | '));
+    T('why it fits the workout outranks why the athlete knows it', (() => {
+      const f = fnSrc(src, 'xsReasonFor');
+      const at = t => f.indexOf(t);
+      return at('counterpart') < at('patternSpeakable') && at('patternSpeakable') < at('missingMotion') &&
+        at('missingMotion') < at('muscleGap') && at('muscleGap') < at('declared') &&
+        at('declared') < at('flags.history') && at('flags.history') < at('flags.plan');
+    })());
+    T('the words are LOOP\'s, not a model\'s, and nothing claims to be personalised that is not',
+      !/Recommended for you\b|Picked for you\b|smart pick|powered by|because we think|match score/i.test(src));
+  });
+
+  sub('the same workout ranks the same way, every time');
+  guard('determinism', () => {
+    const once = rank({ category: 'legs', already: ['Back Squat', 'Romanian Deadlift'] });
+    const twice = rank({ category: 'legs', already: ['Back Squat', 'Romanian Deadlift'] });
+    T('twice in a row is twice the same, scores included',
+      JSON.stringify(once.map(s => [s.name, s.score])) === JSON.stringify(twice.map(s => [s.name, s.score])));
+    T('nothing in the engine reads a clock or a random number',
+      ['xsMeta', 'xsSessionTruth', 'xsShare', 'exSuggestionContext', 'scoreExerciseForContext',
+       'xsReasonFor', 'xsCompare', 'xsDiversify', 'rankExerciseSuggestions', 'xsPerform']
+      .every(fn => !/Math\.random|Date\.now|new Date|performance\.now/.test(fnSrc(src, fn))));
+    T('a tie is broken by the factors in the order they are weighted, then by the name',
+      ctx.xsCompare({ score: 2, factors: {}, uses: 0, sessions: 0, name: 'A' },
+                    { score: 1, factors: {}, uses: 0, sessions: 0, name: 'B' }) < 0 &&
+      ctx.xsCompare({ score: 1, factors: { session: 2 }, uses: 0, sessions: 0, name: 'Z' },
+                    { score: 1, factors: { session: 1 }, uses: 0, sessions: 0, name: 'A' }) < 0 &&
+      ctx.xsCompare({ score: 1, factors: {}, uses: 0, sessions: 0, name: 'Alpha' },
+                    { score: 1, factors: {}, uses: 0, sessions: 0, name: 'Beta' }) < 0);
+    T('and the order does not depend on the order the library happens to be in', (() => {
+      const keep = ctx._xsMeta;
+      const a = names(rank({ category: 'push', already: ['Bench Press'] }));
+      ctx._xsMeta = null;
+      const b = names(rank({ category: 'push', already: ['Bench Press'] }));
+      ctx._xsMeta = keep;
+      return JSON.stringify(a) === JSON.stringify(b);
+    })());
+    T('why one ranked above another can be shown in full, to a developer', (() => {
+      const p = ctx.exSuggestionProof(state({ category: 'pull', already: ['Barbell Row', 'Seated Cable Row'] }),
+        'Lat Pulldown', 'Machine Row');
+      return p.a && p.b && p.a.score > p.b.score && /Lat Pulldown ranks higher/.test(p.verdict) &&
+        p.lines.length === 2 && /session/.test(p.lines[0]) && p.context.category === 'pull' && p.context.position === 2;
+    })());
+  });
+
+  sub('it ranks. It does not act');
+  guard('no mutation', () => {
+    const shot = () => JSON.stringify({
+      log: ctx.workoutLog, plan: ctx.planData, schedule: ctx.schedule, gym: ctx.gymProfile,
+      templates: ctx.ORDER.map(c => ctx.getTemplates(c)), prefs: ctx.exercisePrefs, profile: ctx.athleteProfile,
+      picker: ctx.exPickerState, pending: ctx.pendingLogCategory
+    });
+    const before = shot();
+    ctx.ORDER.forEach(c => { rank({ category: c }); rank({ category: c, already: ['Bench Press'], selected: [{ name: 'Plank', key: 'plank' }] }); });
+    ctx.exSuggestionProof(state({ category: 'push' }), 'Bench Press', 'Pec Deck');
+    T('ranking every category, twice over, changes nothing anywhere', shot() === before);
+    T('and the engine contains no way to change anything: it returns rows, it does not call the things that would',
+      ['scoreExerciseForContext', 'rankExerciseSuggestions', 'xsDiversify', 'exSuggestionContext', 'exPickerSuggested']
+      .every(fn => !/LOOPStore|addLogExerciseRow|pbAddExercise|pbReplaceExercise|saveLog|\.splice\(|persist|localStorage/.test(fnSrc(src, fn))));
+    T('no storage key, schema, migration or trainer weight moved for any of it',
+      ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
+      !/XS_STORAGE|SUGGESTION_KEY|suggestionState/.test(src) &&
+      /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+  });
+
+  sub('a movement LOOP has never heard of is unknown, not wrong');
+  guard('unmapped', () => {
+    const custom = 'Jacob’s Sled Drag';
+    T('an unmapped name ranks without throwing, and is given no pattern it does not have', (() => {
+      const k = ctx.exPickerKeyOf(custom);
+      const entry = { name: custom, key: k, muscles: [], primaryMuscles: [], equipment: null, pattern: null };
+      const s = ctx.scoreExerciseForContext(entry, ctx.exSuggestionContext(state({ category: 'push' })));
+      return s && s.pattern === null && s.movePattern === null && !s.flags.missingPattern && typeof s.score === 'number';
+    })());
+    T('the library\'s own uncatalogued names carry no invented pattern either',
+      ctx.exPickerIndex().filter(e => !e.canonical).every(e => ctx.xsMeta()[e.key].pattern === null) &&
+      ctx.exPickerIndex().filter(e => e.canonical).every(e =>
+        ctx.xsMeta()[e.key].pattern === (ctx.CANONICAL_EXERCISES.find(c => c.id === e.key) || {}).pattern));
+    T('and a custom exercise is still searchable and still addable',
+      ctx.exPickerMatches('bench').length > 0 && /exPickerAddOwn/.test(src));
+  });
+
+  sub('the picker\'s default state');
+  guard('the default state', () => {
+    ctx.pendingLogCategory = 'push';
+    ctx.openWorkoutExercisePicker('step');
+    T('Suggested leads, and Recent follows it rather than the other way round', (() => {
+      const h = body();
+      return /^<div class="xp-sec">Suggested<\/div>/.test(h) &&
+        (h.indexOf('>Recent<') === -1 || h.indexOf('>Suggested<') < h.indexOf('>Recent<'));
+    })(), body().slice(0, 120));
+    T('a suggested row is an ordinary picker row carrying one quiet reason',
+      /<div class="xp-sec">Suggested<\/div><div class="xp-list"><button type="button" class="xp-row"/.test(body()) &&
+      /<span class="xp-row-meta xp-why">[^<]+<\/span>/.test(body()) &&
+      /\.xp-why\{ color: var\(--text-dim\); \}/.test(css));
+    T('and there is no recommendation card, badge, score or percentage anywhere in it',
+      !/xp-sug-card|xp-badge|\d+% match/.test(body()) && !/<span class="xp-row-meta xp-why">[^<]*\d/.test(body()));
+    T('ticking an exercise re-ranks what is offered, before anything is added', (() => {
+      const first = body();
+      ctx.exPickerToggle('Overhead Press');
+      const after = body();
+      return ctx.exPickerState.selected.length === 1 && after !== first &&
+        !/onclick="exPickerToggle\('Overhead Press'\)"[^>]*>[\s\S]{0,400}?xp-row-meta xp-why/.test(
+          after.slice(after.indexOf('Suggested'), after.indexOf('>Recent<') === -1 ? after.indexOf('All exercises') : after.indexOf('>Recent<')));
+    })());
+    T('and a search replaces the whole default state with what was searched for', (() => {
+      ctx.exPickerSearch('row');
+      const h = body();
+      return !/>Suggested</.test(h) && !/>Recent</.test(h) && />Results</.test(h);
+    })());
+    ctx.exPickerClearAll();
+    T('the Add dock is still outside the scrolling list, so no amount of it can push Add off screen',
+      /<div class="sheet-scroll"><div class="xp-panel" id="exPickerPanel" hidden><\/div><div id="exPickerBody"><\/div><\/div>\s*<div class="ws-nav xp-dock" id="exPickerDock" hidden>/.test(src));
+    ctx.closeExercisePicker();
+    ctx.pendingLogCategory = null;
+  });
+
+  sub('replace is not add, and Swap is still Swap');
+  guard('replace', () => {
+    T('the picker in replace mode offers no add-ranked suggestions at all',
+      ctx.exPickerSuggested(ctx.exPickerNewState('program', { category: 'push', already: ['Bench Press'], replaceIdx: 0 })).length === 0 &&
+      ctx.exPickerSuggested(ctx.exPickerNewState('template', { category: 'pull', already: ['Barbell Row'], replaceIdx: 2 })).length === 0);
+    T('while adding through the same picker still does',
+      ctx.exPickerSuggested(ctx.exPickerNewState('program', { category: 'push', already: ['Bench Press'] })).length > 0);
+    T('the substitution engine is untouched — its own config, its own ranking, its own reasons',
+      /pattern: \{\s*same: 45,/.test(src) && /minScore: 15,/.test(src) && /maxPerVariantFamily: 2/.test(src) &&
+      typeof ctx.rankSubstitutionCandidates === 'function' && typeof ctx.applyVariationDiversity === 'function' &&
+      !/XS_WEIGHTS|rankExerciseSuggestions|exSuggestionContext/.test(fnSrc(src, 'rankSubstitutionCandidates')) &&
+      !/XS_WEIGHTS|rankExerciseSuggestions/.test(fnSrc(src, 'exerciseSwapOptions')) &&
+      !/XS_WEIGHTS/.test(fnSrc(src, 'scoreSubstitutionCandidate')));
+    T('and it still answers a replacement with movement compatibility first', (() => {
+      const r = ctx.rankSubstitutionCandidates('bench_press_barbell', {});
+      return r.length > 0 && r.every(x => ['horizontal_push', 'vertical_push'].indexOf(
+        ctx.substitutionPatternFor(x.exerciseId, x.displayName)) !== -1);
+    })());
+  });
+
+  sub('nothing protected moved');
+  guard('protected', () => {
+    T('exercise identity, aliases and history resolution are exactly as they were',
+      ctx.CANONICAL_EXERCISES.length === 97 && ctx.resolveExerciseId('flat bench press') === 'bench_press_barbell' &&
+      ctx.resolveExerciseId('never heard of it') === 'unmapped:never heard of it');
+    T('Program Studio still writes its own prescription, and the engine never touches one',
+      /pbSuggestedExercise\(def, e, clean\)/.test(fnSrc(src, 'pbAddExercise')) &&
+      !/XS_WEIGHTS|rankExerciseSuggestions/.test(fnSrc(src, 'pbSuggestedExercise')) &&
+      !/sets|reps|effort|recommended/.test(fnSrc(src, 'rankExerciseSuggestions')));
+    T('a workout still receives an added exercise exactly as a hand-typed one',
+      /rowStartsAsBodyweight\(name, rx && rx\.recommended\)/.test(fnSrc(src, 'addPickedToWorkout')) &&
+      !/XS_WEIGHTS/.test(fnSrc(src, 'addPickedToWorkout')));
+    T('search, the filters, multi-select, the dock and the custom fallback are all still there',
+      /function exPickerMatches/.test(src) && /function exPickerSetFilter/.test(src) &&
+      /function exPickerToggle/.test(src) && /id="exPickerAddBtn"/.test(src) && /function exPickerAddOwn/.test(src));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -26633,6 +27055,7 @@ async function main(){
   await testWeekHoldToSlide();
   await testRussianTwistArt();
   await testWeightedRussianTwistArt();
+  await testSmartSuggestions();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

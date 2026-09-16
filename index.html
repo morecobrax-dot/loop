@@ -4902,6 +4902,9 @@ body.page-locked{ overflow: hidden; }
   color: var(--text); line-height: 1.3;
 }
 .xp-row-meta{ font-size: var(--fs-meta); color: var(--text-faint); }
+/* D70 — a reason is a statement, not metadata, so it sits one step out of the
+   background. Quiet: no accent, no badge, no colour of its own. */
+.xp-why{ color: var(--text-dim); }
 .xp-row-end{ display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 .xp-row-in{
   flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
@@ -14970,6 +14973,28 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v7-3',
+    version: 'LOOP 7.3',
+    title: 'What Fits This Workout',
+    date: '2026-09-16',
+    swVersion: 'loop-v150',
+    summary: 'Adding an exercise now starts with the ones that make sense for the workout you are actually building.',
+    newFeatures: [
+      'Suggested — when you open Add exercises, LOOP now leads with a short list chosen for the workout in front of it: the kind of day it is, what you have already put in it, the movements it is missing and the equipment your gym has. Each one says why in a few words, like “Adds vertical pulling” or “Targets triceps”'
+    ],
+    improvements: [
+      'The suggestions change as you tick exercises, before you press Add — pick an incline press and the list stops offering you more chest pressing',
+      'What is already in your workout is never suggested back to you, and near-copies of it are pushed down. Everything is still there in the list and in search',
+      'Exercises your gym does not have are left out of the suggestions. If you have not set your gym up, nothing is assumed either way',
+      'Recent is still there, one section down, and no longer repeats what the suggestions just offered',
+      'Program Studio and saved workouts get the same suggestions the workout screen does, instead of three different lists'
+    ],
+    bugFixes: [],
+    changes: [
+      'Swap is unchanged. Replacing an exercise still asks the substitution engine, which ranks on movement compatibility — a different question from what to add next, and it keeps its own answer'
+    ]
   }
 ];
 
@@ -34805,8 +34830,12 @@ function exPickerMatches(query){
 
 /* What this session is missing, from the pool the generator itself draws on.
    PROGRAM_EXTENSIONS declares which session types each accessory suits, so
-   the suggestion is the program logic answering rather than a new opinion. */
-function exPickerSuggestions(category, already){
+   the suggestion is the program logic answering rather than a new opinion.
+
+   D70 — `limit` of 0 means all of them. The eight were a list length, and this
+   is now read as truth (xsSessionTruth) as well as shown: Push alone declares
+   eleven, and a truth map must not stop at the eighth. */
+function exPickerSuggestions(category, already, limit){
   const have = {};
   (already || []).forEach(n => { have[normalizeExerciseName(n)] = true; });
   const out = [];
@@ -34820,7 +34849,7 @@ function exPickerSuggestions(category, already){
       });
     });
   }catch(e){}
-  return out.slice(0, 8);
+  return limit === 0 ? out : out.slice(0, limit || 8);
 }
 
 /* D61 — THE ATHLETE'S OWN EXERCISES FIRST. Most workouts repeat most of the
@@ -34893,6 +34922,559 @@ function exPickerForCategory(category, already, limit){
     });
   }catch(e){}
   return out.slice(0, limit);
+}
+
+/* =========================================================
+   WHAT FITS THIS WORKOUT  (Phase D70)
+   ---------------------------------------------------------
+   ONE ranking engine, not a fifth list.
+
+   Everything above answers a different question — what did I
+   do last (exPickerRecent), what does this kind of day
+   contain (exPickerForCategory), what does the generator add
+   to it (exPickerSuggestions), what does my plan use most
+   (exPickerFromPlan) — and the picker showed whichever one
+   its caller happened to be. None of them read the workout
+   being built, so a Push day two bench presses deep still
+   opened on the library in alphabetical order.
+
+   This reads the workout as it stands and ranks the library
+   against it. It invents nothing. Session truth is the three
+   lists above, movement truth is the registry's own pattern,
+   motion and primary-muscle fields, equipment truth is the
+   gym profile through canPerformExercise(), and history is
+   the same session tally Swap ranks on. There is no model,
+   no score shown to the athlete, no stored state, no tier
+   list of "best" exercises and no randomness: the same
+   workout against the same library ranks the same way, on
+   any device, forever.
+
+   And it RANKS. It never adds, removes, reorders, re-sets or
+   re-prescribes anything — every suggestion is a row the
+   athlete taps, or does not.
+   ========================================================= */
+
+/* Weighted in the order they matter. Never shown to the athlete: what reaches
+   the screen is the order, and one sentence saying why. */
+const XS_WEIGHTS = {
+  /* 1 — does this belong in this kind of session at all */
+  session:    { declared: 40, muscleOnly: 14, foreign: -45, programmed: 10 },
+  /* 2 — a primary muscle this workout has not trained yet */
+  muscle:     { gap: 28, light: 8 },
+  /* 3 — a movement the session usually contains and this one lacks */
+  movement:   { missing: 24, counterpart: 8, missingMotion: 12, repeat: -12 },
+  /* 4 — the same movement in a different wrapper */
+  redundancy: { sameFamily: -30 },
+  /* 5 — equipment. UNAVAILABLE is a filter, not a penalty, and UNKNOWN never
+     costs anything: an unconfigured gym must not bias a ranking. */
+  equipment:  { available: 12, unknown: 0 },
+  /* 6 — suitability, from the registry's own role truth. Opening is a question
+     only an empty workout asks; "this never leads a session" is true at every
+     position, and quietly, so a Lateral Raise sits under the overhead press it
+     ties with rather than above it. */
+  opener:     { compound: 14, neverPrimary: -24, neverPrimaryLater: -8 },
+  /* 7 — the athlete's own history, capped far under training intent */
+  history:    { perSession: 2, max: 12 },
+  /* 8 — how often their own plan prescribes it */
+  plan:       { perUse: 1.5, max: 6 },
+  /* minScore is a floor on being worth offering at all, not a floor on being
+     valid. Below it sit the movements that belong to a different day and were
+     only reachable because this one happens to touch the same muscle — a lat
+     pulldown under a Core day's three abs movements. Four good suggestions is
+     a better answer than four good ones and two apologies. */
+  limits:     { max: 6, minScore: 30, perFamily: 1, perMuscle: 2, perPattern: 2 }
+};
+
+/* Plain words for the registry's patterns. Only the patterns a sentence can
+   name: 'isolation' and 'core' are categories rather than movements, and for
+   those the muscle says more than the pattern would. */
+const XS_PATTERN_LABEL = {
+  horizontal_push: 'horizontal pressing',
+  vertical_push:   'overhead pressing',
+  horizontal_pull: 'rowing',
+  vertical_pull:   'vertical pulling',
+  squat:           'squatting',
+  hinge:           'hip hinging',
+  lunge:           'single-leg work'
+};
+/* The opposing half of a pair — the relationship every plan in LOOP is written
+   around, not a preference. Used to say "complements" rather than "adds". */
+const XS_COUNTERPART = {
+  horizontal_push: 'horizontal_pull', horizontal_pull: 'horizontal_push',
+  vertical_push:   'vertical_pull',   vertical_pull:   'vertical_push',
+  squat:           'hinge',           hinge:           'squat'
+};
+const XS_MOTION_LABEL = {
+  flexion: 'trunk flexion', leg_raise: 'leg raises',
+  anti_extension: 'anti-extension work', rotation: 'rotation'
+};
+
+/* Everything static about a movement, resolved once. The registry is a list,
+   so getCanonicalExercise() is a scan; scoring two hundred candidates on every
+   tick would scan it six hundred times. Nothing cached here can change while
+   the app is running — equipment status deliberately is NOT cached, because
+   the athlete can change their gym and the ranking must follow. */
+let _xsMeta = null;
+function xsMeta(){
+  if(_xsMeta) return _xsMeta;
+  const byId = {};
+  try{ (CANONICAL_EXERCISES || []).forEach(c => { byId[c.id] = c; }); }catch(e){}
+  const meta = {};
+  exPickerIndex().forEach(e => {
+    const canon = byId[e.key] || null;
+    const primaries = (e.primaryMuscles || []).slice();
+    meta[e.key] = {
+      entry: e,
+      pattern: e.pattern || null,
+      motion: (canon && canon.motion) || null,
+      primaries,
+      muscle: primaries[0] || '?',
+      /* Swap's own variation family — pattern, primary muscles and required
+         equipment (D33) — with the registry's core motion added, because two
+         anti-extension holds are one idea however differently they are named.
+         A movement the registry does not describe is its own family: merging
+         unknowns by guesswork is how a picker offers the wrong exercise. */
+      family: canon
+        ? [canon.pattern || '?', (canon.primary || []).join('+'), canon.equipment || '?', canon.motion || ''].join('|')
+        : 'key:' + e.key,
+      /* TWO QUESTIONS, TWO SAFE ANSWERS. "Is this the same as something the
+         workout already has?" — of an unknown movement LOOP cannot say yes, so
+         it says no, and `family` above keeps it to itself. "Am I offering five
+         versions of one idea?" — of unknown movements LOOP cannot say no, so
+         they share one place in the list and it offers one. Three deadlift
+         variants the registry has never heard of are not three suggestions. */
+      divFamily: canon
+        ? [canon.pattern || '?', (canon.primary || []).join('+'), canon.equipment || '?', canon.motion || ''].join('|')
+        : 'uncatalogued',
+      compound: (() => { try{ return registryRoleOf(canon) === 'compound'; }catch(err){ return false; } })(),
+      neverPrimary: (() => { try{ return exerciseIsNeverPrimary(e.name); }catch(err){ return false; } })()
+    };
+  });
+  _xsMeta = meta;
+  return _xsMeta;
+}
+
+/* WHICH MOVEMENTS EACH KIND OF DAY IS MADE OF, read from the three places
+   LOOP already says so: the plans' own libraries, the machines D63 added for
+   each role, and the accessories the generator is allowed to spend a slot on.
+   Nothing is classified by its name here. A movement no list names is not
+   declared for any session, and the engine says so rather than guessing.
+
+   From that, two derived facts per category — which primary muscles its
+   movements train, and which patterns it is built out of — so "this Pull day
+   has no vertical pull" is LOOP's own library talking. */
+let _xsSession = null;
+function xsSessionTruth(){
+  if(_xsSession) return _xsSession;
+  const meta = xsMeta();
+  const cats = {}, anywhere = {};
+  (typeof ORDER !== 'undefined' ? ORDER : []).forEach(cat => {
+    const keys = {};
+    try{ exPickerForCategory(cat, [], 999).forEach(e => { keys[e.key] = true; }); }catch(e){}
+    try{ exPickerSuggestions(cat, [], 0).forEach(x => {
+      const k = exPickerKeyOf(x.name); if(k) keys[k] = true; }); }catch(e){}
+    const muscles = {}, patterns = {};
+    Object.keys(keys).forEach(k => {
+      anywhere[k] = true;
+      const m = meta[k];
+      if(!m) return;
+      m.primaries.forEach(x => { muscles[x] = (muscles[x] || 0) + 1; });
+      if(m.pattern) patterns[m.pattern] = (patterns[m.pattern] || 0) + 1;
+    });
+    const muscleMax = xsTopCount(muscles);
+    /* How many muscles this day is really about. A Core day is one; a Legs day
+       is four. It decides how much of a short list any one muscle may take —
+       two abs movements out of six is most of a Core day thrown away, and four
+       glute movements out of six is a Legs day that forgot the rest of itself. */
+    const spread = Object.keys(muscles).filter(x => xsShare(muscles[x], muscleMax) >= 0.6).length;
+    cats[cat] = { keys, muscles, patterns, muscleMax, spread, patternMax: xsTopCount(patterns) };
+  });
+  _xsSession = { cats, anywhere };
+  return _xsSession;
+}
+function xsTopCount(map){
+  let max = 0;
+  Object.keys(map || {}).forEach(k => { if(map[k] > max) max = map[k]; });
+  return max;
+}
+
+/* HOW MUCH OF THIS DAY THIS IS. Every session term is worth this much of
+   itself, and the whole difference between a smart list and a merely valid one
+   lives here. A Pull day names thirty back movements and two for the abs: back
+   IS the session, abs is its tail, and a ranking that treats "you have not
+   trained abs" as equal to "you have no vertical pull" offers a plank to an
+   athlete two rows deep. LOOP's own libraries counted that, so the weighting
+   is the plans talking rather than an opinion added here.
+
+   Three steps rather than the raw ratio, so movements that plainly belong
+   equally score equally and an order never turns on a rounding. */
+function xsShare(count, max){
+  if(!count || !max) return 0;
+  const r = count / max;
+  return r >= 0.5 ? 1 : (r >= 0.2 ? 0.6 : 0.3);
+}
+
+/* How often the athlete's own saved workouts prescribe each movement. Walked
+   fresh, because saved workouts change while the app is open. */
+function xsPlanTally(){
+  const count = {};
+  try{
+    (typeof ORDER !== 'undefined' ? ORDER : []).forEach(cat => (getTemplates(cat) || []).forEach(t =>
+      (t.exercises || []).forEach(ex => {
+        const k = exPickerKeyOf(ex.name);
+        if(k) count[k] = (count[k] || 0) + 1;
+      })));
+  }catch(e){}
+  return count;
+}
+/* History is Swap's tally, already built and already cached — one truth about
+   what the athlete trains, not a second walk over the log. */
+function xsHistoryFor(key, tally){
+  if(!tally || !key) return 0;
+  return tally[key] || tally['unmapped:' + key] || 0;
+}
+
+/* THE WORKOUT AS IT STANDS. Committed exercises and the ones ticked in this
+   picker and not yet added count the same: an athlete who has just ticked an
+   Incline Press is building a workout with an incline press in it, and waiting
+   for them to press Add before saying so would be a worse answer, later.
+
+   Every field is optional. A workout with no category, a movement the registry
+   does not know, an athlete with no history — each drops its own term rather
+   than being guessed at. */
+function exSuggestionContext(st){
+  st = st || {};
+  const meta = xsMeta();
+  const names = (st.already || []).concat((st.selected || []).map(s => s.name));
+  const have = {}, patterns = {}, motions = {}, primaries = {}, families = {};
+  names.forEach(n => {
+    const key = exPickerKeyOf(n);
+    if(!key || have[key]) return;
+    have[key] = true;
+    const m = meta[key];
+    if(!m) return;
+    if(m.pattern) patterns[m.pattern] = (patterns[m.pattern] || 0) + 1;
+    if(m.motion) motions[m.motion] = (motions[m.motion] || 0) + 1;
+    m.primaries.forEach(x => { primaries[x] = (primaries[x] || 0) + 1; });
+    families[m.family] = true;
+  });
+  return {
+    source: st.target || null,
+    replacing: st.replaceIdx !== null && st.replaceIdx !== undefined,
+    category: st.category || null,
+    have, patterns, motions, primaries, families,
+    position: Object.keys(have).length,
+    planTally: xsPlanTally(),
+    historyTally: (() => { try{ return substitutionSessionTally(); }catch(e){ return {}; } })()
+  };
+}
+
+/* ONE CANDIDATE AGAINST ONE WORKOUT. Returns the factors as well as the total,
+   so the ranking can be argued with (exSuggestionProof) rather than trusted. */
+function scoreExerciseForContext(entry, ctx){
+  const W = XS_WEIGHTS;
+  const key = entry && entry.key;
+  const m = xsMeta()[key] || { primaries: [], pattern: null, motion: null, muscle: '?', family: 'key:' + key, compound: false, neverPrimary: false };
+  const truth = xsSessionTruth();
+  const cat = (ctx.category && truth.cats[ctx.category]) || null;
+  const f = { session: 0, muscle: 0, movement: 0, redundancy: 0, equipment: 0, opener: 0, history: 0, plan: 0 };
+  const flags = {};
+
+  /* How much of this kind of day this movement's own muscles are. Its best
+     one counts: a Deadlift is a back movement on a Pull day and a hamstring
+     movement on a Legs day, and it belongs to both. */
+  let share = 1;
+  if(cat){
+    share = 0;
+    m.primaries.forEach(x => { const s = xsShare(cat.muscles[x] || 0, cat.muscleMax); if(s > share) share = s; });
+    /* Being in this day's library is itself evidence, so a movement LOOP
+       prescribes here never falls all the way to nothing on a muscle it has
+       no entry for. */
+    if(cat.keys[key] && share < 0.3) share = 0.3;
+  }
+  const patShare = (m.pattern && cat) ? xsShare(cat.patterns[m.pattern] || 0, cat.patternMax) : 1;
+  /* Only the six patterns that name a movement count as one. 'isolation' and
+     'core' are categories — the substitution engine already declines to treat
+     them as roles (relatedPatterns) — and reading them as movements ranked a
+     curl above the vertical pull a Pull day was missing, then capped an Arms
+     day at two isolations and a Core day at two core movements. */
+  const isMovement = !!(m.pattern && XS_PATTERN_LABEL[m.pattern]);
+
+  /* 1 — SESSION FIT. Declared for this day, or at least trains something this
+     day trains, or belongs to a different day altogether. */
+  if(cat){
+    if(cat.keys[key]){ f.session = W.session.declared * share; flags.declared = true; }
+    else if(m.primaries.some(x => cat.muscles[x])) f.session = W.session.muscleOnly * share;
+    else f.session = W.session.foreign;
+  } else if(truth.anywhere[key]){
+    /* No category to fit — a freeform workout before its first exercise. What
+       is left that is true: LOOP's plans prescribe this movement somewhere. */
+    f.session = W.session.programmed;
+  }
+
+  /* 2 — PRIMARY MUSCLE FIT. A muscle the workout has not trained is worth
+     more than a third helping of one it has. Diminishing, never a penalty:
+     this is ranking, not a correction of the athlete's choices.
+
+     Weighted by the share of THE MUSCLE IT FILLS, not the movement's best.
+     A Deadlift belongs on a Pull day at back's centrality, but the gap it
+     fills there is the hamstrings — a tail muscle on that day — and crediting
+     it at back's rate put a deadlift above the vertical pull two rows in. */
+  let gap = null, least = -1, leastShare = 0;
+  m.primaries.forEach(x => {
+    const n = ctx.primaries[x] || 0;
+    const s = cat ? xsShare(cat.muscles[x] || 0, cat.muscleMax) : 1;
+    if(least === -1 || n < least || (n === least && s > leastShare)){ least = n; leastShare = s; gap = x; }
+  });
+  if(m.primaries.length && least === 0){
+    f.muscle = W.muscle.gap * leastShare;
+    flags.muscleGap = gap;
+  } else if(least === 1){
+    f.muscle = W.muscle.light * leastShare;
+  }
+
+  /* 3 — MOVEMENT COMPLEMENT. A pattern this kind of day is built out of and
+     this workout has none of. On an empty workout every pattern is missing, so
+     nothing is: the bonus would be a constant, and the reason a lie.
+
+     Only the six patterns that name a movement. 'isolation' and 'core' are
+     categories — the substitution engine already declines to treat them as
+     roles (relatedPatterns) — and "adds isolation" would rank a curl above the
+     vertical pull a Pull day is actually missing. Inside core work the motion
+     below carries that job instead. */
+  if(isMovement){
+    const here = ctx.patterns[m.pattern] || 0;
+    if(here === 0 && patShare > 0 && ctx.position > 0){
+      f.movement += W.movement.missing * patShare;
+      flags.missingPattern = m.pattern;
+      /* Said as "complements" rather than "adds", and only where a compound
+         can honestly claim it: a Lateral Raise is filed under vertical_push
+         and is not overhead pressing. */
+      if(m.compound) flags.patternSpeakable = true;
+      const opp = XS_COUNTERPART[m.pattern];
+      if(opp && (ctx.patterns[opp] || 0) >= 2){
+        f.movement += W.movement.counterpart * patShare;
+        if(m.compound) flags.counterpart = opp;
+      }
+    } else if(here > 1){
+      /* Three horizontal presses is repetition worth noticing. Two is a
+         workout. The penalty is modest and it lands on every candidate of that
+         pattern equally, so a chest day — where one pattern IS the session —
+         is ordered by muscle rather than pushed around. */
+      f.movement += W.movement.repeat * (here - 1);
+    }
+  }
+  /* Inside core work the pattern is always 'core' and what varies is the
+     motion: a day of anti-extension holds is missing rotation the way a Pull
+     day is missing a vertical pull. This sits outside the block above because
+     on a Core day EVERY candidate is 'core', and charging them all the
+     repetition penalty cancelled the one signal that told them apart. */
+  if(m.motion && !ctx.motions[m.motion] && (ctx.patterns[m.pattern] || 0) > 0){
+    f.movement += W.movement.missingMotion;
+    flags.missingMotion = m.motion;
+  }
+
+  /* 4 — REDUNDANCY. The same movement in a different wrapper. An exact
+     duplicate never reaches here: it is filtered out of the suggestions
+     entirely, and stays findable by search, as everything does. */
+  if(ctx.families[m.family]){ f.redundancy = W.redundancy.sameFamily; flags.sameFamily = true; }
+
+  /* 5 — EQUIPMENT. Confirmed available is worth something; unknown is worth
+     nothing either way. D64's rule survives intact: "needs nothing" only
+     counts as confirmation once a gym profile exists, or every athlete who has
+     not set one up gets a list that tilts to bodyweight. */
+  const status = xsPerform(entry);
+  if(status === GYM_STATUS.AVAILABLE){
+    let needs = null, configured = false;
+    try{ needs = getExerciseEquipmentRequirements(key); }catch(e){}
+    try{ configured = isGymProfileConfigured(); }catch(e){}
+    const needsNothing = !!needs && !needs.length;
+    f.equipment = (needsNothing && !configured) ? W.equipment.unknown : W.equipment.available;
+    if(f.equipment) flags.equipment = needsNothing ? 'none' : 'available';
+  }
+
+  /* 6 — SUITABILITY, asked only where it is a real question. An empty workout
+     is deciding what to open with, and LOOP already knows which movements lead
+     a session and which never do (registryRoleOf, exerciseIsNeverPrimary).
+     There is no universal "best exercise" score here and no tier list: on a
+     Core day no candidate is a compound, so the bonus is nobody's and the
+     ranking is untouched. */
+  if(ctx.position === 0){
+    /* Scaled like every other session term: a compound that barely belongs to
+       this day is not a good way to open it. Without this a Lat Pulldown
+       opened a Push day on the strength of being a compound. */
+    if(m.compound) { f.opener = W.opener.compound * share; flags.opener = true; }
+    else if(m.neverPrimary) f.opener = W.opener.neverPrimary;
+  } else if(m.neverPrimary){
+    f.opener = W.opener.neverPrimaryLater;
+  }
+
+  /* 7 and 8 — the athlete's own history, then their plan's. Both capped well
+     below every training term: familiarity orders equals, it does not decide. */
+  const sessions = xsHistoryFor(key, ctx.historyTally);
+  if(sessions > 0){
+    f.history = Math.min(sessions * W.history.perSession, W.history.max);
+    if(sessions >= 3) flags.history = sessions;
+  }
+  const uses = ctx.planTally[key] || 0;
+  if(uses > 0){
+    f.plan = Math.min(uses * W.plan.perUse, W.plan.max);
+    if(uses >= 2) flags.plan = uses;
+  }
+
+  /* A tenth of a point is finer than any of this deserves, and it keeps
+     0.30000000000000004 out of the proof lines and out of the tie-breaks. */
+  let total = 0;
+  Object.keys(f).forEach(k => { f[k] = Math.round(f[k] * 10) / 10; total += f[k]; });
+  return {
+    key, name: entry.name, entry,
+    score: Math.round(total * 10) / 10,
+    factors: f, flags, sessions, uses, status,
+    family: m.family, divFamily: m.divFamily, pattern: m.pattern,
+    movePattern: isMovement ? m.pattern : null, muscle: m.muscle,
+    reason: xsReasonFor(flags, ctx)
+  };
+}
+
+/* ONE SENTENCE, and it is about this workout before it is about the athlete.
+   Fixed priority, so the same factors always produce the same words. No
+   score, no percentage, nothing LOOP cannot stand behind. */
+function xsReasonFor(flags, ctx){
+  if(flags.counterpart && XS_PATTERN_LABEL[flags.counterpart]) return 'Complements your ' + XS_PATTERN_LABEL[flags.counterpart];
+  if(flags.patternSpeakable && XS_PATTERN_LABEL[flags.missingPattern]) return 'Adds ' + XS_PATTERN_LABEL[flags.missingPattern];
+  if(flags.missingMotion && XS_MOTION_LABEL[flags.missingMotion]) return 'Adds ' + XS_MOTION_LABEL[flags.missingMotion];
+  if(flags.muscleGap) return 'Targets ' + String(MUSCLE_LABELS[flags.muscleGap] || flags.muscleGap).toLowerCase();
+  if(flags.declared && ctx.category) return 'Fits ' + (CAT_LABEL[ctx.category] || ctx.category);
+  if(flags.equipment === 'none') return 'No equipment needed';
+  if(flags.history) return 'You use this often';
+  if(flags.plan) return 'Common in your plan';
+  return '';
+}
+
+/* Deterministic to the last place: the total, then the factors in the order
+   they are weighted, then the plan, then history, then the name. No clock, no
+   insertion order, nothing that could differ between two runs. */
+function xsCompare(a, b){
+  return (b.score - a.score) ||
+         (b.factors.session - a.factors.session) ||
+         (b.factors.muscle - a.factors.muscle) ||
+         (b.factors.movement - a.factors.movement) ||
+         (b.uses - a.uses) || (b.sessions - a.sessions) ||
+         a.name.localeCompare(b.name);
+}
+
+/* The list still refuses to be five flavours of one idea — Swap's own rule
+   (applyVariationDiversity), applied to what is offered rather than to what is
+   scored. The ranking below the surface is untouched; an exercise held back
+   here is still one search away. */
+function xsDiversify(ranked, limit, spread){
+  const L = XS_WEIGHTS.limits;
+  /* No one muscle takes more than its share of the list. Derived, not chosen:
+     a day built around one muscle may fill the list with it, a day built
+     around four gets two apiece. */
+  const perMuscle = Math.max(L.perMuscle, Math.ceil(limit / Math.max(1, spread || limit)));
+  const fam = {}, mus = {}, pat = {}, out = [];
+  for(let i = 0; i < ranked.length && out.length < limit; i++){
+    const r = ranked[i];
+    const p = r.movePattern || '?';
+    if((fam[r.divFamily] || 0) >= L.perFamily) continue;
+    if((mus[r.muscle] || 0) >= perMuscle) continue;
+    /* Capped on movement patterns only, for the same reason. */
+    if(r.movePattern && (pat[p] || 0) >= L.perPattern) continue;
+    fam[r.divFamily] = (fam[r.divFamily] || 0) + 1;
+    mus[r.muscle] = (mus[r.muscle] || 0) + 1;
+    pat[p] = (pat[p] || 0) + 1;
+    out.push(r);
+  }
+  return out;
+}
+
+/* CAN THE ATHLETE DO THIS ONE. The registry answers first and always wins.
+   Where it has nothing to say — a library or custom name it has never
+   catalogued — D61's picker has already read what the NAME states outright
+   (Cable Woodchop, Band Row), and that is the same vocabulary
+   COARSE_EQUIPMENT_FALLBACK speaks, so the answer is looked up rather than
+   guessed at. Without both, the answer stays UNKNOWN, which is never 'no'. */
+function xsPerform(entry){
+  let status = GYM_STATUS.UNKNOWN;
+  try{ status = canPerformExercise(entry.key); }catch(e){}
+  if(status !== GYM_STATUS.UNKNOWN) return status;
+  if(!entry.equipmentFromName || !entry.equipment) return status;
+  try{
+    const coarse = COARSE_EQUIPMENT_FALLBACK[entry.equipment];
+    if(!coarse) return status;
+    if(!coarse.length) return GYM_STATUS.AVAILABLE;
+    let anyUnknown = false;
+    for(let i = 0; i < coarse.length; i++){
+      const s = groupStatus(Array.isArray(coarse[i]) ? coarse[i] : [coarse[i]]);
+      if(s === GYM_STATUS.UNAVAILABLE) return GYM_STATUS.UNAVAILABLE;
+      if(s === GYM_STATUS.UNKNOWN) anyUnknown = true;
+    }
+    return anyUnknown ? GYM_STATUS.UNKNOWN : GYM_STATUS.AVAILABLE;
+  }catch(e){}
+  return status;
+}
+
+/* THE PRIMITIVE. A workout context in, a ranked few out. Pure: it reads the
+   library, the gym profile and the log, and writes nothing anywhere. */
+function rankExerciseSuggestions(ctx, limit){
+  const W = XS_WEIGHTS;
+  const scored = [];
+  exPickerIndex().forEach(entry => {
+    /* Already in this workout, or ticked to be. Suggesting it again is not a
+       suggestion. It stays in the list below, and in every search. */
+    if(ctx.have[entry.key]) return;
+    /* The gym says this one is not there. UNKNOWN is not "no". */
+    if(xsPerform(entry) === GYM_STATUS.UNAVAILABLE) return;
+    const s = scoreExerciseForContext(entry, ctx);
+    if(s.score < W.limits.minScore) return;
+    scored.push(s);
+  });
+  scored.sort(xsCompare);
+  const truth = xsSessionTruth();
+  const cat = (ctx.category && truth.cats[ctx.category]) || null;
+  return xsDiversify(scored, typeof limit === 'number' ? limit : W.limits.max, cat ? cat.spread : 0);
+}
+
+/* What the picker's default state shows.
+
+   REPLACE MODE GETS NONE. A replacement is a question about the row being
+   replaced — what else trains this, on equipment that is free — and LOOP
+   already answers it properly in the substitution engine (D33, D63, D64),
+   which ranks movement compatibility above everything. Answering it with the
+   ranking for "what should this workout have next" would be a different
+   question confidently answered wrong. */
+function exPickerSuggested(st, limit){
+  if(!st || st.replaceIdx !== null && st.replaceIdx !== undefined) return [];
+  return rankExerciseSuggestions(exSuggestionContext(st), limit);
+}
+
+/* WHY X RANKED ABOVE Y, in full, for whoever has to argue with the ranking.
+   Not a production surface: the athlete sees an order and one sentence, never
+   arithmetic. */
+function exSuggestionProof(st, a, b){
+  const ctx = exSuggestionContext(st || exPickerState || {});
+  const meta = xsMeta();
+  const of = n => {
+    const k = exPickerKeyOf(n);
+    return meta[k] ? scoreExerciseForContext(meta[k].entry, ctx) : null;
+  };
+  const A = of(a), B = of(b);
+  const line = s => !s ? '(not in the library)' :
+    s.name + ' — ' + s.score + '  [' +
+    Object.keys(s.factors).filter(k => s.factors[k])
+      .map(k => k + ' ' + (s.factors[k] > 0 ? '+' : '') + s.factors[k]).join(', ') + ']' +
+    (s.reason ? '  "' + s.reason + '"' : '');
+  return {
+    context: { category: ctx.category, position: ctx.position, patterns: ctx.patterns,
+      primaries: ctx.primaries, replacing: ctx.replacing },
+    a: A, b: B, lines: [line(A), line(B)],
+    verdict: (A && B)
+      ? (A.score === B.score
+          ? 'level on score; the tie-break takes ' + (xsCompare(A, B) <= 0 ? A.name : B.name)
+          : (A.score > B.score ? A.name : B.name) + ' ranks higher')
+      : 'one of them is not in the library'
+  };
 }
 
 /* The prescription LOOP already writes for a movement: the day's own library
@@ -35255,18 +35837,27 @@ function renderExercisePicker(){
   /* The quick picks are for a blank search only. Once the athlete is looking
      for something, the thing they are looking for is what should be on screen. */
   if(!searching && !filtered){
-    const recent = exPickerRecent(6);
+    /* D70 — WHAT FITS THIS WORKOUT, FIRST. Ranked against what the workout
+       already has, including what is ticked and not yet added. One section:
+       there were three, one per caller — "Suggested for this session" from the
+       generator's pool, "Suggested for Push" alphabetically, and nothing at
+       all for a workout in progress — and none of them read the workout. */
+    const sug = exPickerSuggested(st);
+    if(sug.length) html += '<div class="xp-sec">Suggested</div><div class="xp-list">' +
+      sug.map(s => exPickerRowHtml(s.name, exPickerMetaOf(s.entry), s.reason)).join('') + '</div>';
+    const picked = {};
+    sug.forEach(s => { picked[s.key] = true; });
+    /* Recent stays what D61 made it — the quickest add is still often the
+       movement they did last time — one section further down, and shorter when
+       the suggestions above already answered the question. Nothing is offered
+       twice: what the ranking surfaced is not repeated here. */
+    const cap = sug.length ? 4 : 6;
+    const recent = exPickerRecent(12).filter(e => !picked[e.key]).slice(0, cap);
     if(recent.length) html += '<div class="xp-sec">Recent</div>' + rows(withMeta(recent));
-    if(st.target === 'program'){
-      const sug = exPickerSuggestions(st.category, st.already);
-      if(sug.length) html += '<div class="xp-sec">Suggested for this session</div>' +
-        rows(sug.map(x => ({ name: x.name, meta: x.label })));
-    } else if(st.target === 'template'){
-      const lib = exPickerForCategory(st.category, st.already, 6);
-      if(lib.length) html += '<div class="xp-sec">Suggested for ' + escapeHtml(CAT_LABEL[st.category] || 'this workout') + '</div>' +
-        rows(withMeta(lib));
-    } else if(!recent.length){
-      const plan = exPickerFromPlan(6);
+    else {
+      /* No history at all. The plan they chose still names the movements they
+         will do most, whatever this particular workout needs next. */
+      const plan = exPickerFromPlan(12).filter(e => !picked[e.key]).slice(0, cap);
       if(plan.length) html += '<div class="xp-sec">Popular in your plan</div>' + rows(withMeta(plan));
     }
   }
@@ -35307,8 +35898,13 @@ function exPickerMetaOf(e){
 
 /* A row says whether it is already in, and — while adding — whether it is
    ticked and in what order it will arrive. The same movement ticks in every
-   list it appears in, because it is one movement. */
-function exPickerRowHtml(name, meta){
+   list it appears in, because it is one movement.
+
+   D70 — a suggested row says why in the line the others use for equipment and
+   muscles. One line, the same row, the same height: a reason worth reading is
+   worth more there than "Barbell · Back, Biceps", which every other list on
+   this screen still shows. */
+function exPickerRowHtml(name, meta, why){
   const st = exPickerState;
   const picking = exPickerIsPicking(st);
   const key = exPickerKeyOf(name);
@@ -35321,7 +35917,8 @@ function exPickerRowHtml(name, meta){
     '<span class="xp-row-lead">' + exerciseThumbHtml(name, { static: true }) +
     '<span class="xp-row-main">' +
       '<span class="xp-row-name">' + escapeHtml(name) + '</span>' +
-      (meta ? '<span class="xp-row-meta">' + escapeHtml(meta) + '</span>' : '') +
+      (why ? '<span class="xp-row-meta xp-why">' + escapeHtml(why) + '</span>'
+           : (meta ? '<span class="xp-row-meta">' + escapeHtml(meta) + '</span>' : '')) +
     '</span></span>' +
     '<span class="xp-row-end">' +
       (already ? '<span class="xp-row-in">' + (st.target === 'program' ? 'In this session' : 'Added') + '</span>' : '') +

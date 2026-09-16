@@ -10155,3 +10155,130 @@ untouched. No card wall returned.
 - **`.filter-chip` and `.tl-kind` are new hooks a later phase can lean on** if
   Train ever needs a second kind of chip or tag; today only the Train
   launcher renders either class.
+
+## §101 — D70: What fits this workout
+
+**Status.** Shipped in LOOP 7.3 (`loop-v150`). One deterministic ranking
+engine behind the exercise picker's default state. `DATA_KEYS` 15, schema 1,
+no migration, no new storage key, no persisted score, `TRAINER_ENGINE_VERSION`
+0.1.1-shadow. Progression, Session Score, the trainer, history, prescriptions,
+Program generation, exercise identity and the exercise art are untouched.
+
+### What was wrong
+
+The picker's default state was whichever list its caller happened to be.
+`exPickerRecent` for everyone; `exPickerSuggestions` (the generator's accessory
+pool, filtered by `slots`, in array order) for Program Studio;
+`exPickerForCategory` (the day's library, alphabetically) for a saved workout;
+`exPickerFromPlan` for a workout with no history. None of the four read the
+workout being built, so a Push day two bench presses deep opened on "Bench
+Press, Cable Fly, Close-Grip..." — a list, not a recommendation. Equipment was
+respected only by Swap. Redundancy was exact-name only. Exercises ticked and
+not yet added affected nothing.
+
+### The engine
+
+`rankExerciseSuggestions(context, limit)` over `scoreExerciseForContext`.
+Pure: it reads the library, the gym profile and the log, and writes nothing.
+Its candidate pool is `exPickerIndex()`. Its session truth is read *through*
+`exPickerForCategory` and `exPickerSuggestions`, so the two lists it replaced
+are now its inputs rather than its rivals and their existing contracts keep
+protecting live behaviour.
+
+Factors, in the order they are weighted: session fit (declared for this day /
+trains a muscle this day trains / belongs elsewhere), primary-muscle gap,
+movement complement, redundancy, equipment, suitability, history, plan
+familiarity. `XS_WEIGHTS` holds every number; none reaches the athlete.
+
+- **Centrality is the idea that makes it work.** Every session term is scaled
+  by `xsShare` — how much of this kind of day the movement's muscle (or
+  pattern) actually is, counted from LOOP's own libraries. A Pull day names
+  thirty back movements and two for the abs; without this, "you have not
+  trained abs" weighed the same as "you have no vertical pull" and the engine
+  offered a plank to an athlete two rows deep.
+- **The muscle gap is credited at the rate of the muscle it fills**, not the
+  movement's best. A Deadlift belongs on a Pull day at back's rate; the gap it
+  fills there is the hamstrings.
+- **`isolation` and `core` are categories, not movements.** They earn no
+  missing-pattern bonus, pay no repetition penalty and are not capped — the
+  substitution engine already declines to treat them as roles
+  (`relatedPatterns`). Inside core work the registry's `motion` does that job.
+- **Two families, two safe answers.** `family` (pattern + primaries +
+  equipment + motion, Swap's own key) decides redundancy against the workout;
+  an unknown movement is its own family, so LOOP never claims sameness it
+  cannot check. `divFamily` decides variety within the list; all unknown
+  movements share one, so LOOP never offers five things it cannot tell apart.
+- **Diversity caps are derived.** No muscle takes more than its share of the
+  list: `ceil(limit / spread)`, where `spread` is how many muscles the day is
+  really about. A Core day is one; a Legs day is four.
+- **Equipment.** `UNAVAILABLE` filters; `UNKNOWN` never costs. D64's rule is
+  intact — "needs nothing" counts as confirmation only once a profile exists.
+  Where the registry is silent, `xsPerform` falls back to D61's own
+  name-derived equipment through `COARSE_EQUIPMENT_FALLBACK`, and to nothing
+  else.
+- **Determinism.** No clock, no randomness, no insertion order. Ties break on
+  the factors in weight order, then plan uses, then sessions, then the name.
+- **One reason.** `xsReasonFor`, fixed priority, favouring why it fits this
+  workout over why the athlete knows it. No score, no percentage, no "match".
+  A pattern is only spoken of where a compound can honestly claim it — a
+  Lateral Raise is filed under `vertical_push` and is not overhead pressing.
+- **`exSuggestionProof`** returns the full factor breakdown for two
+  candidates. Developer-facing; the athlete sees an order and one sentence.
+
+### What it may not do
+
+It ranks. It never adds, removes, reorders, re-sets, re-prescribes, changes a
+category or touches progression. Exact duplicates are dropped from the
+suggestions and stay in the list and in search — suggest less is not forbid.
+
+### Replace is not add
+
+`exPickerSuggested` returns nothing in replace mode. A replacement is a
+question about the row being replaced, and D33/D63/D64's substitution engine
+answers it on movement compatibility. `SUBSTITUTION_CONFIG`,
+`rankSubstitutionCandidates`, `applyVariationDiversity` and
+`exerciseSwapOptions` are byte-unchanged and contract-pinned as such.
+
+### Evidence
+
+- **Contract 177** (`testSmartSuggestions`), 63 assertions across thirteen
+  subs. No scenario's output is pinned: a list of expected exercise names
+  would pass a ranking that had been replaced by that list.
+- **Contracts repointed, not relaxed:** the two D61 assertions about which
+  section leads the picker. Recent moved one section down and kept every
+  property D61 asserted, plus a new one — it never repeats what the ranking
+  above it just offered.
+- **Mutation: 25 of 25 caught**, including session fit ignored, centrality
+  dropped, the gap credited at the wrong muscle, complement removed,
+  repetition made free, `isolation`/`core` read as movements, core motion
+  ignored, duplicates re-offered, near-duplicates made free, the gym ignored,
+  an unconfigured gym read as fully equipped, the name fallback removed,
+  history and plan raised above intent, ticked exercises uncounted, diversity
+  removed, unknowns merged, the tie-break randomised, a raise called pressing,
+  replace answered with the add ranking, the engine mutating the log, Recent
+  restored to the top, and the reason label taking the accent.
+- **Full verify 7,081 (`ee889ac`) → 7,145 passed, 0 failed**; all five audits
+  green.
+- **Physical:** headless Edge at 390×844, 375×812 and 320×568 — Suggested,
+  Recent, Popular in your plan, multi-select with the dock, search, the muscle
+  filter, a Core day, a no-category workout, and the keyboard open. No
+  horizontal overflow, no clipped reason, no row over 78px, no console errors.
+  The Add dock measured on-screen at 320×295 on this build and on `ee889ac`
+  alike — it is a sibling of `.sheet-scroll`, so no amount of suggestion
+  content can reach it.
+- **Performance** (391-row library, 191 movements): first picker open 54ms,
+  cold rank 10.6ms (builds `xsMeta` and `xsSessionTruth` once), warm rank
+  0.8ms, re-rank after one tick 0.9ms, after five 0.6ms, full re-render on
+  tick 3.5ms, search render 15.5ms.
+
+### Known and recorded
+
+- **The plan tally is the selected plan's.** On `balanced`, Machine Chest
+  Press is prescribed five times and Bench Press once, so the machine press
+  outranks the barbell on an empty Push day. That is the athlete's own
+  programme talking and is left alone.
+- **An uncatalogued movement whose name states nothing** (Rack Pull, Med Ball
+  Slam) stays `UNKNOWN` for equipment and is never filtered. Unknown is not
+  "no", and D70 does not change that.
+- **A suggestion has no reason at all** where a workout has no category and no
+  flag fires. The row falls back to its ordinary equipment-and-muscle line.
