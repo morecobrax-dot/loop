@@ -16621,10 +16621,30 @@ async function testProgressCommandCentre(){
       !/if\(!none\) return '';/.test(body));
 
     /* The rest-day branch omitted the program row entirely, so the feature
-       vanished from Today one day in three. */
+       vanished from Today one day in three.
+       D77A — the row moved out of the daily card into the Training Foundation,
+       which renderToday draws on every day whatever the day holds, so it can no
+       longer vanish with the day's type. What this protects is unchanged: no
+       day of the week loses the way into a program. Held structurally (the
+       Foundation carries the row in each state without a running program, the
+       daily card carries it in none) and on the rendered page. */
     T('a rest day still carries the program row', (() => {
-      const j = src.indexOf('<div class="tw tw-rest">');
-      return src.slice(j - 400, j + 200).indexOf('programContextHtml()') !== -1;
+      const found = fnSrc(src, 'trainingFoundationHtml');
+      return /renderTrainingFoundation\(\)/.test(fnSrc(src, 'renderToday'))
+        && (found.match(/programContextHtml\(\)/g) || []).length >= 3
+        && fnSrc(src, 'renderTodayWorkout').indexOf('programContextHtml()') === -1;
+    })());
+    T('and every day of the week draws it', (() => {
+      const bad = [];
+      ['2026-09-14T15:00:00Z', '2026-09-15T15:00:00Z', '2026-09-16T15:00:00Z', '2026-09-17T15:00:00Z',
+       '2026-09-18T15:00:00Z', '2026-09-19T15:00:00Z', '2026-09-20T15:00:00Z'].forEach(iso => withClockOn(ctx, iso, () => {
+        try{
+          ctx.renderToday();
+          const html = doc.getElementById('todayFoundation').innerHTML;
+          if(!/openProgramBuilderFlow\('create'\)|openPrograms\(\)|openMyTraining\(\)|openFoundation\(\)/.test(html)) bad.push(iso);
+        }catch(e){ bad.push(iso + ' threw ' + e.message); }
+      }));
+      return bad.length === 0;
     })());
 
     T('My Training states the way into a program when none is running',
@@ -17584,10 +17604,17 @@ async function testLiveSetCoach(){
     const drifted = coach(HYP, [{ weight:120, reps:10, rir:5 }]);
     T('the coach cannot drift away from the prescribed load',
       drifted.action === 'hold', drifted.action + ' ' + drifted.load);
+    /* D77A — a deload can now also be the athlete's own decision, taken from
+       Home, and it ends. The question is still asked of the PROGRAM RECORD
+       through one resolver rather than a policy of the coach's own: the coach
+       asks programDeloadActiveOn, which reads the training block, which reads
+       the program's own phases through getCurrentProgramWeek/getBlockForWeek. */
     T('phase truth comes from the program, not a second phase policy', (() => {
-      const i = src.indexOf('function liveSetEvidence');
-      const body = src.slice(i, i + 2200);
-      return /getCurrentTrainingPhase/.test(body);
+      const body = fnSrc(src, 'liveSetEvidence');
+      return /programDeloadActiveOn\(/.test(body) && !/phaseType\s*===\s*'deload'/.test(body)
+        && /deriveBlockState\(/.test(fnSrc(src, 'programDeloadActiveOn'))
+        && /getCurrentProgramWeek\(/.test(fnSrc(src, 'planPhaseOn'))
+        && /getBlockForWeek\(/.test(fnSrc(src, 'planPhaseOn'));
     })());
   }
 
@@ -27357,6 +27384,853 @@ async function testMuscleMapOverlays(){
   });
 }
 
+/* =========================================================
+   CONTRACT 181 — TRAINING FOUNDATION + DELOAD CYCLE  (Phase D77A)
+   ---------------------------------------------------------
+   Home gains a Training Foundation below This Week, and a
+   program gains a TRAINING BLOCK: Accumulation, Intensification,
+   Deload or Peak, counted in qualified training weeks, closed
+   only by an explicit Rebuild.
+
+   What is held here:
+     · the block is stored ON the program record (`cycle`), no
+       new DATA_KEY, and reading or rendering it writes nothing
+     · a training week is D43-fulfilled planned sessions that D49
+       says were carried out — never calendar time — and two
+       idle weeks are a break that restarts the count
+     · the suggestion appears at six training weeks, is never
+       acted on by LOOP, and "Not now" backs off in training
+     · a deload is a program week, the Live Set Coach holds load
+       inside it, and nothing in history is rewritten by it
+     · Rebuild closes the block into a snapshot and opens the
+       next in Accumulation; only the moves CYCLE_MOVES names
+       are possible, and a repeated tap is refused
+     · a Plan-only athlete gets structure and no phases; an
+       athlete with neither gets one way in
+     · scenarios A–N, a seeded year of training, and the civil
+       date arithmetic across both DST changes
+   ========================================================= */
+async function testTrainingFoundation(){
+  section('CONTRACT 181 — training foundation and the deload cycle (D77A)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx;
+  const doc = ctx.document;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = (day, fn) => withClockOn(ctx, day + 'T12:00:00', fn);
+  /* an independent civil calendar: UTC arithmetic on the parts, no local Date */
+  const addDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n));
+    return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0'); };
+  const W = n => addDays('2026-01-05', 7 * n);            // Monday of program week n+1
+  const text = html => String(html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  const reset = () => {
+    ctx.programsStore = { version: 1, activeProgramId: null, programs: [] };
+    ctx.workoutLog = [];
+    ctx.selectedPlanId = 'balanced';
+    ctx.schedule = Object.assign({}, ctx.DEFAULT_PLANS.balanced.defaultSchedule);
+    ctx.invalidateProgramCache();
+    clearCaches(ctx);
+  };
+  const weekOf = days => {
+    const s = {};
+    ctx.PROGRAM_DAY_KEYS.forEach(k => { s[k] = { type: 'rest' }; });
+    Object.keys(days).forEach(k => {
+      const tpl = (ctx.getTemplates(days[k]) || [])[0];
+      s[k] = { type: 'workout', planId: 'balanced', category: days[k], templateId: tpl.id };
+    });
+    return s;
+  };
+  const MWF = { mon: 'push', wed: 'pull', fri: 'legs' };
+  const make = o => {
+    const opts = o || {};
+    const r = ctx.createProgram(Object.assign({ name: 'Block Test', durationWeeks: 16, goal: 'hypertrophy',
+      schedule: weekOf(opts.days || MWF), startDate: W(0) }, opts.program || {}));
+    if(!r.ok) throw new Error('createProgram: ' + r.errors.join(','));
+    ctx.setActiveProgram(r.program.id);
+    ctx.invalidateProgramCache();
+    return r.program;
+  };
+  let seq = 0;
+  const session = (p, date, cat, sets) => {
+    const n = sets == null ? 3 : sets;
+    const w = { id: 'd77-' + (++seq), date, category: cat, title: cat, notes: '', origin: 'program', programId: p.id,
+      exercises: ['Bench Press', 'Barbell Row', 'Back Squat'].map(name => ({ name, rx: { sets: 3, reps: '8-10' },
+        sets: Array.from({ length: n }, () => ({ weight: '100', reps: '8', rir: '2', type: 'working', completed: true })) })) };
+    ctx.workoutLog.push(w);
+    return w;
+  };
+  const refresh = () => { ctx.invalidateProgramCache(); clearCaches(ctx); };
+  /* one program week of Mon/Wed/Fri; `skip` names offsets not trained */
+  const trainWeek = (p, monday, o) => {
+    const opts = o || {};
+    [[0, 'push'], [2, 'pull'], [4, 'legs']].forEach(([off, cat]) => {
+      if((opts.skip || []).indexOf(off) !== -1) return;
+      session(p, addDays(monday, off + (opts.shift || 0)), cat, opts.sets);
+    });
+    refresh();
+  };
+  const st = (p, day) => ctx.deriveBlockState(ctx.getProgram(p.id), day);
+  const act = (p, action, day, o) => ctx.applyBlockAction(p.id, action, Object.assign({ today: day }, o || {}));
+  const card = day => pin(day, () => { ctx.renderTrainingFoundation(); return doc.getElementById('todayFoundation').innerHTML; });
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  /* ---------------------------------------------------------------- */
+  sub('civil dates: whole days across both DST changes');
+  guard('civil dates', () => {
+    T('daysBetweenDates counts a spring-forward week as seven days',
+      ctx.daysBetweenDates('2026-03-02', '2026-03-09') === 7 && ctx.daysBetweenDates('2026-03-29', '2026-04-05') === 7);
+    T('and a fall-back week as seven', ctx.daysBetweenDates('2026-10-26', '2026-11-02') === 7 && ctx.daysBetweenDates('2026-10-19', '2026-10-26') === 7);
+    T('it rounds rather than floors, so no local midnight loses a day', /Math\.round\(/.test(fnSrc(src, 'daysBetweenDates')) && !/Math\.floor\(/.test(fnSrc(src, 'daysBetweenDates')));
+    let bad = 0;
+    for(let i = 0; i < 400; i++){
+      const a = addDays('2026-01-01', i);
+      if(ctx.civilAddDays(a, 1) !== addDays(a, 1) || ctx.civilAddDays(a, 7) !== addDays(a, 7) || ctx.civilAddDays(a, -1) !== addDays(a, -1)) bad++;
+      const [y, m, d] = a.split('-').map(Number);
+      const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+      if(ctx.civilMonday(a) !== addDays(a, -((dow + 6) % 7))) bad++;
+    }
+    T('civilAddDays and civilMonday agree with an independent calendar for 400 consecutive days', bad === 0, bad + ' mismatches');
+    reset();
+    const p = make({ program: { startDate: '2026-03-02' } });
+    T('a program week that contains a DST change is one week, not six days',
+      ctx.getCurrentProgramWeek(ctx.getProgram(p.id), '2026-03-09') === 2 && ctx.getCurrentProgramWeek(ctx.getProgram(p.id), '2026-03-08') === 1);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('A — week one: Accumulation, no suggestion');
+  guard('A', () => {
+    reset();
+    const p = make();
+    session(p, W(0), 'push');
+    refresh();
+    const s = st(p, addDays(W(0), 2));
+    T('the block begins in Accumulation', s.phase === 'accumulation' && s.phaseSource === 'default', s.phase + '/' + s.phaseSource);
+    T('it is block week 1 of block 1', s.blockWeek === 1 && s.blockNumber === 1 && s.blockId === 'tb1' && s.history.length === 0);
+    T('one session of three is not yet a training week', s.trainingWeeks === 0 && s.weeks.length === 1 && s.weeks[0].done === 1 && s.weeks[0].planned === 3);
+    T('nothing is suggested and nothing is eligible', !s.suggest && !s.eligible);
+    T('the moves are the athlete\'s to make: Intensification or a deload', same(s.moves, ['intensification', 'deload']));
+    const html = card(addDays(W(0), 2));
+    T('Home names the program, its week, the phase and the block week',
+      /Block Test/.test(text(html)) && /Week 1 of 16/.test(text(html)) && />Accumulation</.test(html) && /Block week 1/.test(text(html)));
+    T('and says what the program is: its focus, days and split', /Muscle Growth · 3 days a week · Push, Pull, Legs/.test(text(html)));
+    T('with no foot and no deload language', !/fd-foot/.test(html) && !/deload/i.test(text(html)));
+    T('reading and rendering the block wrote nothing onto the program', ctx.getProgram(p.id).cycle === undefined);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('B — six calendar weeks, two training weeks: no suggestion');
+  guard('B', () => {
+    reset();
+    const p = make();
+    [null, [2, 4], [2, 4], null, [2, 4], [2, 4]].forEach((skip, i) => trainWeek(p, W(i), { skip: skip || [] }));
+    const s = st(p, addDays(W(5), 5));
+    T('only the two fully trained weeks count', s.trainingWeeks === 2 && s.blockWeek === 3, s.trainingWeeks + '/' + s.blockWeek);
+    T('forty-two days is not six training weeks', !s.suggest && !s.eligible);
+    T('a week with a session in it is not a break', s.restartedFrom === null);
+
+    reset();
+    const q = make();
+    for(let i = 0; i < 6; i++) trainWeek(q, W(i), { sets: 1 });
+    const sq = st(q, addDays(W(5), 5));
+    T('every session logged but none carried out: D43 matched them all', sq.weeks.every(w => w.slots.every(x => x.workoutId)));
+    T('and D49 counts none of them, so no training week exists', sq.trainingWeeks === 0 && !sq.suggest);
+
+    reset();
+    const r = make();
+    const sr = st(r, addDays(W(6), 0));
+    T('six weeks with no training at all is no training weeks, and a break', sr.trainingWeeks === 0 && sr.restartedFrom !== null && !sr.suggest);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('C — six training weeks: eligible, suggested, never started');
+  let C = null;
+  guard('C', () => {
+    reset();
+    const p = make();
+    for(let i = 0; i < 6; i++) trainWeek(p, W(i));
+    C = p;
+    const tue = st(p, addDays(W(5), 1));
+    T('on the Tuesday of week six, five weeks are complete and nothing is suggested', tue.trainingWeeks === 5 && !tue.suggest);
+    const s = st(p, addDays(W(5), 4));
+    T('once week six is carried out, six training weeks are complete', s.trainingWeeks === 6 && s.eligible && s.suggest);
+    T('the phase is still the athlete\'s Accumulation — nothing moved', s.phase === 'accumulation' && s.deload === null && s.deloadPending === null);
+    const html = card(addDays(W(5), 4));
+    T('Home shows the suggestion as a quiet foot', /fd-foot-suggest/.test(html) && /role="status"/.test(html) && /6 training weeks complete/.test(text(html)));
+    T('with Review deload and Not now, and nothing else', /openBlockAction\('deload', true\)/.test(html) && /declineDeloadSuggestion\(this\)/.test(html)
+      && (html.match(/<button/g) || []).length === 3);
+    T('its words make no claim about the body',
+      !/overtrain|nervous system|\bCNS\b|hormon|injur|recover(y|ing) fail|fatigue/i.test(text(html)));
+    T('showing it wrote nothing', ctx.getProgram(p.id).cycle === undefined);
+    pin(addDays(W(5), 4), () => {
+      ctx.openBlockAction('deload', true);
+      const body = text(doc.getElementById('blockActionBody').innerHTML);
+      T('Review deload explains why, what a deload is, what changes and what stays',
+        /Why now/.test(body) && /What a deload is/.test(body) && /What changes/.test(body) && /What stays/.test(body)
+        && /6 training weeks/.test(body) && /Mon, Feb 9 through Sun, Feb 15|Mon, Feb 16 through Sun, Feb 22/.test(body), body.slice(0, 240));
+      T('it promises only what the product does: the coach holds load, sessions are not rewritten',
+        /coach holds your load/.test(body) && /aren’t rewritten/.test(body) && /PRs, Session Scores and progress stay exactly as they are/.test(body));
+      T('the decision is Start deload or Cancel', doc.getElementById('blockActionGo').textContent === 'Start deload' && /closeBlockAction\(\)">Cancel</.test(src));
+      T('opening the review changed nothing', ctx.getProgram(p.id).cycle === undefined && doc.getElementById('blockActionOverlay').classList.contains('open'));
+      ctx.closeBlockAction();
+      T('Cancel closes it and still nothing is recorded', !doc.getElementById('blockActionOverlay').classList.contains('open') && ctx.getProgram(p.id).cycle === undefined);
+    });
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('D — imperfect attendance still trains a block');
+  guard('D', () => {
+    T('the rule: all but one planned session, and never less than half',
+      ctx.blockWeekRequirement(1) === 1 && ctx.blockWeekRequirement(2) === 1 && ctx.blockWeekRequirement(3) === 2 &&
+      ctx.blockWeekRequirement(4) === 3 && ctx.blockWeekRequirement(5) === 4 && ctx.blockWeekRequirement(6) === 5);
+    T('half is a floor the allowance can never go under, whatever it is set to', (() => {
+      const was = ctx.BLOCK_RULES.missesAllowed;
+      ctx.BLOCK_RULES.missesAllowed = 4;
+      try{ return ctx.blockWeekRequirement(4) === 2 && ctx.blockWeekRequirement(6) === 3 && ctx.blockWeekRequirement(7) === 4 && ctx.blockWeekRequirement(1) === 1; }
+      finally{ ctx.BLOCK_RULES.missesAllowed = was; }
+    })());
+    reset();
+    const p = make();
+    [[], [2], [], [4], [], [0]].forEach((skip, i) => trainWeek(p, W(i), { skip }));
+    const s = st(p, addDays(W(5), 5));
+    T('a missed session a week, three weeks out of six, still makes six training weeks', s.trainingWeeks === 6 && s.suggest, s.trainingWeeks);
+    trainWeek(p, W(6), { skip: [2, 4] });
+    const s2 = st(p, addDays(W(6), 5));
+    T('one session of three does not count', s2.trainingWeeks === 6 && s2.weeks[6].qualified === false);
+
+    reset();
+    const q = make();
+    for(let i = 0; i < 6; i++) trainWeek(q, W(i), { shift: 1 });
+    T('sessions a day late are the same planned sessions (D43), so they count', st(q, addDays(W(5), 6)).trainingWeeks === 6);
+
+    reset();
+    const four = make({ days: { mon: 'push', tue: 'pull', thu: 'legs', fri: 'push' } });
+    [[0, 'push'], [1, 'pull'], [3, 'legs']].forEach(([o, c]) => session(four, addDays(W(0), o), c));
+    [[0, 'push'], [1, 'pull']].forEach(([o, c]) => session(four, addDays(W(1), o), c));
+    refresh();
+    const sf = st(four, addDays(W(1), 6));
+    T('on four days a week, three count and two do not', sf.weeks[0].qualified && !sf.weeks[1].qualified && sf.trainingWeeks === 1);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('E — Not now: no nagging, asked again only after more training');
+  guard('E', () => {
+    reset();
+    const p = make();
+    for(let i = 0; i < 6; i++) trainWeek(p, W(i));
+    const sat = addDays(W(5), 5);
+    const r = act(p, 'decline', sat);
+    T('Not now is recorded', r.ok && ctx.getProgram(p.id).cycle.current.declines.length === 1
+      && same(ctx.getProgram(p.id).cycle.current.declines[0], { on: sat, trainingWeeks: 6 }));
+    T('and the suggestion is gone at once', !st(p, sat).suggest && st(p, sat).eligible);
+    T('turning it down twice is refused — there is nothing left to turn down', !act(p, 'decline', sat).ok && ctx.getProgram(p.id).cycle.current.declines.length === 1);
+    T('the next day it has not come back', !st(p, addDays(sat, 1)).suggest);
+    T('the Foundation card carries no foot', !/fd-foot/.test(card(addDays(sat, 1))));
+    trainWeek(p, W(6));
+    const s7 = st(p, addDays(W(6), 5));
+    T('after one more training week it is offered again', s7.trainingWeeks === 7 && s7.suggest && s7.askAgainAt === 7);
+    T('declined again, it waits two more', act(p, 'decline', addDays(W(6), 5)).ok && st(p, addDays(W(6), 5)).askAgainAt === 9);
+    trainWeek(p, W(7));
+    T('one more week is not enough', !st(p, addDays(W(7), 5)).suggest);
+    trainWeek(p, W(8));
+    T('two more is', st(p, addDays(W(8), 5)).suggest && st(p, addDays(W(8), 5)).trainingWeeks === 9);
+    T('every day the app is open without training adds nothing',
+      [1, 2, 3, 4, 5, 6].every(d => st(p, addDays(W(8), 5 + d)).trainingWeeks === 9));
+    pin(addDays(W(8), 6), () => {
+      const s = st(p, addDays(W(8), 6));
+      ctx.renderFoundationDetail();
+      const body = text(doc.getElementById('foundationBody').innerHTML);
+      T('the deload stays one tap away in the Foundation sheet', s.moves.indexOf('deload') !== -1 && /Review deload/.test(body));
+    });
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('F — a deload started: scheduled, then under way');
+  let F = null;
+  guard('F', () => {
+    reset();
+    const p = make();
+    for(let i = 0; i < 6; i++) trainWeek(p, W(i));
+    F = p;
+    const sat = addDays(W(5), 5);
+    const logBefore = JSON.stringify(ctx.workoutLog);
+    const r = pin(sat, () => {
+      ctx.openBlockAction('deload', true);
+      ctx.confirmBlockAction(doc.getElementById('blockActionGo'));
+      return ctx.getProgram(p.id).cycle;
+    });
+    T('Start deload records one deload event', !!r && r.current.events.length === 1 && r.current.events[0].phase === 'deload');
+    const ev = r.current.events[0];
+    T('for the whole next program week, Monday to Sunday', ev.from === W(6) && ev.to === addDays(W(6), 6), ev.from + '..' + ev.to);
+    T('remembering that it was suggested, and after how much training', ev.suggested === true && ev.trainingWeeks === 6 && ev.afterWeeks === 6);
+    T('no workout was touched', JSON.stringify(ctx.workoutLog) === logBefore);
+    T('the review closed', !doc.getElementById('blockActionOverlay').classList.contains('open'));
+    const pend = st(p, addDays(sat, 1));
+    T('before it begins it is pending and can be cancelled', same(pend.deloadPending, { from: W(6), to: addDays(W(6), 6) }) && same(pend.moves, ['cancelDeload']) && pend.phase === 'accumulation');
+    T('Home says when it starts', /Starts Mon, Feb 16 · through Sun, Feb 22/.test(text(card(addDays(sat, 1)))));
+    T('and the coach is not in a deload yet', !ctx.programDeloadActiveOn(ctx.getProgram(p.id), addDays(sat, 1)));
+    const mon = st(p, W(6));
+    T('on its Monday the block is in Deload', mon.phase === 'deload' && mon.phaseSource === 'athlete' && mon.deload.active);
+    T('its first day can still be withdrawn, and not yet rebuilt', same(mon.moves, ['cancelDeload']));
+    const html = card(addDays(W(6), 2));
+    T('Home shows Deload in its own tone, with its end date', /fd-phase fd-phase-deload">Deload</.test(html) && /Through Sun, Feb 22/.test(text(html)) && /A planned lighter week/.test(text(html)));
+    T('the Live Set Coach is told it is a lighter week', ctx.programDeloadActiveOn(ctx.getProgram(p.id), addDays(W(6), 2)));
+    pin(addDays(W(6), 2), () => {
+      const row = H.mkExRow('Bench Press', false, [{ w: 100, r: 10, rir: 5, completed: true }]);
+      T('liveSetEvidence carries the deload flag inside the window', ctx.liveSetEvidence(row).deload === true);
+      T('and the workout sheet names the phase', /WEEK 7 · DELOAD/.test(ctx.workoutPhaseContextHtml()));
+    });
+    pin(addDays(W(5), 3), () => {
+      const row = H.mkExRow('Bench Press', false, [{ w: 100, r: 10, rir: 5, completed: true }]);
+      T('and not before it', ctx.liveSetEvidence(row).deload === false);
+    });
+    trainWeek(p, W(6));
+    T('training in the deload week does not add training weeks', st(p, addDays(W(6), 5)).trainingWeeks === 6);
+    T('from its second day the block may be rebuilt', same(st(p, addDays(W(6), 1)).moves, ['rebuild']));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('G — the deload finished: Rebuild offered, nothing automatic');
+  guard('G', () => {
+    const p = F;
+    ctx.programsStore.activeProgramId = p.id;
+    refresh();
+    const s = st(p, W(7));
+    T('after its Sunday the deload is complete and waiting on Rebuild', s.phase === 'deload' && s.deload.complete && s.awaitingRebuild && same(s.moves, ['rebuild']));
+    T('the coach is back to normal', !ctx.programDeloadActiveOn(ctx.getProgram(p.id), W(7)));
+    const html = card(W(7));
+    T('Home offers Rebuild', /Start your next block when you’re ready/.test(text(html)) && /openBlockAction\('rebuild'\)/.test(html)
+      && />Deload</.test(html) && /Complete/.test(text(html)));
+    pin(W(7), () => T('the workout sheet does not call a finished deload a deload', ctx.workoutPhaseContextHtml() === ''));
+    trainWeek(p, W(7)); trainWeek(p, W(8)); trainWeek(p, W(9));
+    const later = st(p, addDays(W(9), 5));
+    T('weeks later, with training, nothing has moved by itself', later.phase === 'deload' && later.awaitingRebuild && !later.suggest && later.blockNumber === 1);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('H — Rebuild: the block is kept, the next begins in Accumulation');
+  guard('H', () => {
+    const p = F;
+    const day = addDays(W(10), 2);
+    const before = H.snapshot(ctx);
+    const logBefore = JSON.stringify(ctx.workoutLog);
+    const r = pin(day, () => { ctx.openBlockAction('rebuild'); const b = text(doc.getElementById('blockActionBody').innerHTML);
+      T('the review says the block is kept and the next starts in Accumulation', /is kept as it is/.test(b) && /starts today in Accumulation/.test(b));
+      ctx.confirmBlockAction(doc.getElementById('blockActionGo')); return ctx.getProgram(p.id).cycle; });
+    const h = r.history[0];
+    T('one closed block', r.history.length === 1 && h.id === 'tb1' && h.closedBy === 'rebuild' && typeof h.closedAt === 'string');
+    T('it keeps its dates: program start to the day before Rebuild', h.start === W(0) && h.end === addDays(day, -1));
+    T('its phases as dated runs', same(h.phases.map(x => [x.phase, x.source, x.from, x.to]),
+      [['accumulation', 'default', W(0), addDays(W(6), -1)], ['deload', 'athlete', W(6), addDays(day, -1)]]), JSON.stringify(h.phases));
+    T('its deload, and why it was suggested', same(h.deloads, [{ from: W(6), to: addDays(W(6), 6), source: 'athlete', suggested: true, trainingWeeks: 6, afterWeeks: 6, endedEarly: false }]), JSON.stringify(h.deloads));
+    T('its training, its plan identity and its name', h.trainingWeeks === 6 && h.qualifiedWeeks === 6 && same(h.revision, { start: null, end: null }) && h.programName === 'Block Test');
+    const s = st(p, day);
+    T('the new block is block 2, in Accumulation, at block week 1', s.blockId === 'tb2' && s.blockNumber === 2 && s.blockStart === day
+      && s.phase === 'accumulation' && s.blockWeek === 1 && s.trainingWeeks === 0 && !s.suggest && !s.awaitingRebuild);
+    T('a second Rebuild the same day is refused', !act(p, 'rebuild', day).ok && ctx.getProgram(p.id).cycle.history.length === 1);
+    T('no workout, PR, XP, rank or trainer record changed', JSON.stringify(ctx.workoutLog) === logBefore && H.diffSnapshot(before, H.snapshot(ctx), []).ok,
+      H.diffSnapshot(before, H.snapshot(ctx), []).violations.join(','));
+    T('a day inside the closed block still reads as what it was', ctx.trainingPhaseOn(ctx.getProgram(p.id), addDays(W(6), 3)).phase === 'deload'
+      && ctx.trainingPhaseOn(ctx.getProgram(p.id), W(2)).phase === 'accumulation' && ctx.trainingPhaseOn(ctx.getProgram(p.id), W(2)).closed === true);
+    pin(addDays(day, 1), () => { ctx.renderFoundationDetail(); const b = text(doc.getElementById('foundationBody').innerHTML);
+      T('the Foundation sheet lists the previous block, with the phases it went through', /Previous blocks/.test(b)
+        && /Block 1 · Jan 5 – Mar 17 6 training weeks · Accumulation → Deload · deload from Feb 16/.test(b), b.slice(-260)); });
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('F, the same day — a deload that begins today can be withdrawn, not rebuilt');
+  guard('F2', () => {
+    reset();
+    const q = make();
+    for(let i = 0; i < 6; i++) trainWeek(q, W(i));
+    const r2 = act(q, 'deload', W(6));
+    T('started on an untrained Monday, the deload begins that day', r2.ok && r2.state.phase === 'deload' && r2.state.deload.from === W(6) && r2.state.deload.to === addDays(W(6), 6));
+    T('same-day: Rebuild is refused, cancelling is allowed', !act(q, 'rebuild', W(6)).ok && same(r2.state.moves, ['cancelDeload']));
+    const c = act(q, 'cancelDeload', W(6));
+    T('cancelled, it leaves no trace and the block is back in Accumulation', c.ok && ctx.getProgram(q.id).cycle.current.events.length === 0 && c.state.phase === 'accumulation');
+    T('and it can be started again', act(q, 'deload', W(6)).ok && ctx.getProgram(q.id).cycle.current.events.length === 1);
+    T('a second deload on top of it is refused', !act(q, 'deload', W(6)).ok && ctx.getProgram(q.id).cycle.current.events.length === 1);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('I — Peak, only where the program supports it');
+  guard('I', () => {
+    reset();
+    const p = make({ program: { goal: 'strength' } });
+    for(let i = 0; i < 3; i++) trainWeek(p, W(i));
+    const d = addDays(W(2), 5);
+    T('Accumulation cannot jump to Peak', !act(p, 'peak', d).ok);
+    const r = act(p, 'intensification', d);
+    T('Intensification is the athlete\'s move, from today', r.ok && r.state.phase === 'intensification' && r.state.phaseSource === 'athlete' && r.state.phaseSince === d);
+    T('a strength program then offers Peak', same(r.state.moves, ['peak', 'deload']));
+    const pk = act(p, 'peak', addDays(d, 2));
+    T('and Peak leads only to a deload', pk.ok && pk.state.phase === 'peak' && same(pk.state.moves, ['deload']));
+    T('Peak cannot go back to Intensification', !act(p, 'intensification', addDays(d, 3)).ok);
+
+    reset();
+    const q = make();
+    trainWeek(q, W(0));
+    const rq = act(q, 'intensification', addDays(W(0), 5));
+    T('a muscle-growth program is not offered Peak', rq.ok && same(rq.state.moves, ['deload']) && !act(q, 'peak', addDays(W(0), 6)).ok);
+
+    reset();
+    const w = make({ program: { blocks: [{ id: 'x1', name: 'Build', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 12, description: '' },
+      { id: 'x2', name: 'Top', order: 2, phaseType: 'peak', startWeek: 13, endWeek: 16, description: '' }] } });
+    T('unless the athlete wrote a Peak into its phases', ctx.programSupportsPeak(ctx.getProgram(w.id)));
+    T('unknown moves are refused', !act(w, 'explode', W(0)).ok && !act(w, 'rebuild', W(0)).ok && ctx.getProgram(w.id).cycle === undefined);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('J — Plan only: structure, no phases, no enrolment');
+  guard('J', () => {
+    reset();
+    const storeBefore = JSON.stringify(app.store);
+    const f = pin('2026-09-16', () => ctx.deriveTrainingFoundation('2026-09-16'));
+    T('the athlete on a plan is described from the plan', f.kind === 'plan' && f.planName === 'Balanced Machines');
+    const html = pin('2026-09-16', () => { ctx.renderTrainingFoundation(); return doc.getElementById('todayFoundation').innerHTML; });
+    T('"Based on" the plan, with its days and split', /Based on Balanced Machines/.test(text(html)) && /4 days a week · Push, Pull, Legs/.test(text(html)), text(html));
+    T('and not one phase, block or deload word', !/accumulation|intensification|deload|peak|block|phase|rebuild/i.test(text(html)));
+    T('the way into a program is the existing one', /openProgramBuilderFlow\('create'\)/.test(html) && (html.match(/<button/g) || []).length === 1);
+    T('rendering it enrolled nobody and stored nothing', ctx.getPrograms().length === 0 && JSON.stringify(app.store) === storeBefore);
+    pin('2026-09-16', () => { ctx.openFoundation();
+      T('and there is no block sheet to open without a program', !doc.getElementById('foundationOverlay').classList.contains('open')); });
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('K — no program and no plan: one way in');
+  guard('K', () => {
+    reset();
+    ctx.selectedPlanId = null; ctx.schedule = null;
+    const html = pin('2026-09-16', () => { ctx.renderTrainingFoundation(); return doc.getElementById('todayFoundation').innerHTML; });
+    T('"Build a program to create your training foundation."', /Build a program to create your training foundation\./.test(text(html)));
+    T('with exactly one call to action, the builder', (html.match(/<button/g) || []).length === 1 && /openProgramBuilderFlow\('create'\)/.test(html));
+    T('and no invented week, phase or program', !/Week \d|accumulation|deload|Block week/i.test(text(html)));
+    reset();
+    const p = make();
+    pin('2026-09-16', () => ctx.pauseProgram(p.id));
+    ctx.programsStore.activeProgramId = null;
+    ctx.selectedPlanId = null; ctx.schedule = null;
+    refresh();
+    const html2 = pin('2026-09-16', () => { ctx.renderTrainingFoundation(); return doc.getElementById('todayFoundation').innerHTML; });
+    T('with saved programs it offers them instead', /Start a program to create your training foundation\./.test(text(html2)) && /openPrograms\(\)/.test(html2));
+    reset();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('L — gaps: absence never advances the block');
+  guard('L', () => {
+    reset();
+    const p = make();
+    for(let i = 0; i < 4; i++) trainWeek(p, W(i));
+    const d0 = act(p, 'decline', addDays(W(3), 5));
+    T('(a Not now cannot be recorded before six weeks)', !d0.ok);
+    const sun = st(p, addDays(W(5), 6));
+    T('a fortnight away is not two training weeks', sun.trainingWeeks === 4 && sun.blockWeek === 5 && !sun.suggest);
+    const mon = st(p, W(6));
+    T('two whole idle weeks are a break: the count starts again', mon.trainingWeeks === 0 && mon.blockWeek === 1 && mon.restartedFrom === W(6));
+    T('the phase is not changed by the break', mon.phase === 'accumulation' && mon.blockId === 'tb1');
+    trainWeek(p, W(6)); trainWeek(p, W(7));
+    T('training again counts from the return', st(p, addDays(W(7), 5)).trainingWeeks === 2);
+    for(let i = 8; i < 12; i++) trainWeek(p, W(i));
+    T('so a deload is suggested six weeks after coming back, not one', !st(p, addDays(W(10), 5)).suggest && st(p, addDays(W(11), 5)).suggest);
+    pin(addDays(W(11), 6), () => { ctx.renderFoundationDetail();
+      T('the Foundation sheet says the count restarted after a break', /Counting again from Mon, Feb 16, after a break from this program/.test(text(doc.getElementById('foundationBody').innerHTML))); });
+
+    reset();
+    const q = make();
+    [0, 1, 2, 4, 5, 6].forEach(i => trainWeek(q, W(i)));
+    const sq = st(q, addDays(W(6), 5));
+    T('one missed week is not a break: it simply does not count', sq.trainingWeeks === 6 && sq.restartedFrom === null && sq.weeks[3].qualified === false && sq.suggest);
+
+    reset();
+    const z = make();
+    for(let i = 0; i < 5; i++) trainWeek(z, W(i));
+    pin(addDays(W(5), 0), () => ctx.pauseProgram(z.id));
+    const paused = st(z, addDays(W(6), 2));
+    T('a paused program takes no moves and suggests nothing', paused.paused && paused.moves.length === 0 && !paused.suggest && !paused.running);
+    T('Home says it is paused', /Paused/.test(text(card(addDays(W(6), 2)))));
+    pin(W(8), () => ctx.resumeProgram(z.id));
+    refresh();
+    const back = st(z, W(8));
+    T('resumed after three weeks away, the count restarts rather than jumping to six', back.trainingWeeks === 0 && back.restartedFrom === W(8) && !back.suggest);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('M — a revision mid-block keeps the block and its history');
+  guard('M', () => {
+    reset();
+    const p = make();
+    for(let i = 0; i < 6; i++) trainWeek(p, W(i));
+    const sat = addDays(W(5), 5);
+    act(p, 'decline', sat);
+    const cycleBefore = JSON.stringify(ctx.getProgram(p.id).cycle);
+    const weeksBefore = JSON.stringify(st(p, sat).weeks.map(w => [w.monday, w.planned, w.done, w.qualified]));
+    const logBefore = JSON.stringify(ctx.workoutLog);
+    pin(sat, () => ctx.updateProgram(p.id, { schedule: weekOf({ mon: 'push', tue: 'pull', thu: 'legs', fri: 'push' }) }));
+    refresh();
+    const prog = ctx.getProgram(p.id);
+    T('the edit became a forward-only revision', Array.isArray(prog.revisions) && prog.revisions.some(r => r.effectiveFrom === W(6)));
+    T('the block record survived the edit untouched', JSON.stringify(prog.cycle) === cycleBefore);
+    T('the weeks already trained read exactly as before', JSON.stringify(st(p, sat).weeks.map(w => [w.monday, w.planned, w.done, w.qualified])) === weeksBefore);
+    T('and no workout changed', JSON.stringify(ctx.workoutLog) === logBefore);
+    pin(sat, () => ctx.updateProgram(p.id, { name: 'Renamed Block', goal: 'strength' }));
+    T('renaming or refocusing the program keeps its block', JSON.stringify(ctx.getProgram(p.id).cycle) === cycleBefore);
+    const dl = act(p, 'deload', addDays(W(6), 0));
+    const rb = act(p, 'rebuild', addDays(W(7), 0));
+    const h = ctx.getProgram(p.id).cycle.history[0];
+    T('the closed block records which plan it began and ended under', dl.ok && rb.ok && h.revision.start === W(0) && h.revision.end === W(6), JSON.stringify(h.revision));
+    const phasesBefore = JSON.stringify(h.phases);
+    ctx.updateProgram(p.id, { blocks: [{ id: 'y1', name: 'All deload', order: 1, phaseType: 'deload', startWeek: 1, endWeek: 16, description: '' }] });
+    refresh();
+    T('rewriting the program\'s phases later cannot restate a closed block',
+      JSON.stringify(ctx.getProgram(p.id).cycle.history[0].phases) === phasesBefore && ctx.trainingPhaseOn(ctx.getProgram(p.id), W(2)).phase === 'accumulation');
+    T('nor does it pull the open block into an inherited deload', st(p, addDays(W(7), 2)).phase === 'accumulation');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('N — switching programs starts a new block, per program');
+  guard('N', () => {
+    reset();
+    const a = make({ program: { name: 'Program A' } });
+    for(let i = 0; i < 6; i++) trainWeek(a, W(i));
+    act(a, 'decline', addDays(W(5), 5));
+    const aCycle = JSON.stringify(ctx.getProgram(a.id).cycle);
+    const b = make({ program: { name: 'Program B', startDate: W(6) } });
+    trainWeek(b, W(6));
+    const sb = st(b, addDays(W(6), 5));
+    T('the new program has its own first block, from its own start', sb.blockId === 'tb1' && sb.blockStart === W(6) && sb.history.length === 0 && sb.declines === 0 && sb.trainingWeeks === 1);
+    T('it inherits nothing: no declines, no phase, no training weeks', ctx.getProgram(b.id).cycle === undefined && sb.phase === 'accumulation');
+    const sa = st(a, addDays(W(6), 5));
+    T('the program left behind is not running: no moves, no suggestion', sa.lifecycle === 'past' && !sa.running && sa.moves.length === 0 && !sa.suggest);
+    T('and its record is untouched', JSON.stringify(ctx.getProgram(a.id).cycle) === aCycle);
+    T('a decision on the new program writes only to it', act(b, 'intensification', addDays(W(6), 5)).ok && JSON.stringify(ctx.getProgram(a.id).cycle) === aCycle);
+    const f = pin(addDays(W(6), 5), () => ctx.deriveTrainingFoundation(addDays(W(6), 5)));
+    T('Home describes the program now active', f.kind === 'program' && f.name === 'Program B');
+    ctx.setActiveProgram(a.id);
+    refresh();
+    const back = st(a, W(9));
+    T('returning to the first program: its block continues, but three weeks away restart the count', back.blockId === 'tb1' && back.running && back.trainingWeeks === 0 && back.restartedFrom === W(9) && back.declines === 0);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the program\'s own phases: approved transitions, inherited ones ignored');
+  guard('authored', () => {
+    reset();
+    const p = make({ program: { goal: 'strength', blocks: [
+      { id: 'a1', name: 'Build', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 4, description: '' },
+      { id: 'a2', name: 'Push', order: 2, phaseType: 'intensification', startWeek: 5, endWeek: 8, description: '' },
+      { id: 'a3', name: 'Down', order: 3, phaseType: 'deload', startWeek: 9, endWeek: 9, description: '' },
+      { id: 'a4', name: 'Again', order: 4, phaseType: 'rebuild', startWeek: 10, endWeek: 12, description: '' },
+      { id: 'a5', name: 'Top', order: 5, phaseType: 'peak', startWeek: 13, endWeek: 14, description: '' } ] } });
+    for(let i = 0; i < 8; i++) trainWeek(p, W(i));
+    T('week 2 is the program\'s Accumulation', st(p, W(1)).phase === 'accumulation' && st(p, W(1)).phaseSource === 'plan');
+    pin(addDays(W(2), 2), () => { ctx.renderFoundationDetail(); const b = text(doc.getElementById('foundationBody').innerHTML);
+      T('the Foundation sheet names the next transition the program has written', /Next Your program’s phases move to Intensification on Mon, Feb 2\./.test(b), b.slice(0, 400)); });
+    pin(W(5), () => { ctx.renderFoundationDetail(); const b = text(doc.getElementById('foundationBody').innerHTML);
+      T('and the phases this block has been through', /Phases this block Accumulation Jan 5 – Feb 1 Intensification Feb 2 – now/.test(b)
+        && /move to Deload on Mon, Mar 2/.test(b), b.slice(0, 500)); });
+    T('week 5 is its Intensification, a transition the athlete approved in setting it up', st(p, W(4)).phase === 'intensification' && st(p, W(4)).phaseSource === 'plan' && st(p, W(4)).phaseSince === W(4));
+    const tue8 = st(p, addDays(W(7), 1));
+    T('a written deload inside the next week replaces the suggestion', tue8.trainingWeeks === 7 && tue8.eligible && !tue8.suggest && tue8.planDeloadAhead === W(8) && tue8.moves.indexOf('deload') === -1);
+    T('Home names it', /Your program’s phases begin one Mon, Mar 2/.test(text(card(addDays(W(7), 1)))));
+    const mon9 = st(p, W(8));
+    T('on its first day the block is in the written deload, and cannot be rebuilt yet', mon9.phase === 'deload' && mon9.phaseSource === 'plan' && mon9.deload.active && mon9.moves.length === 0);
+    T('the coach holds load inside it', ctx.programDeloadActiveOn(ctx.getProgram(p.id), addDays(W(8), 2)));
+    T('it cannot be cancelled from Home — it is the program\'s', same(st(p, addDays(W(8), 2)).moves, ['rebuild']));
+    const w10 = st(p, W(9));
+    T('when it ends the block waits on Rebuild even though the program moves on', w10.phase === 'deload' && w10.awaitingRebuild && w10.deload.to === addDays(W(8), 6));
+    const rb = act(p, 'rebuild', addDays(W(9), 2));
+    T('Rebuild inside the program\'s Accumulation opens block 2 in Accumulation', rb.ok && rb.state.phase === 'accumulation' && rb.state.phaseSource === 'default');
+    trainWeek(p, W(10)); trainWeek(p, W(11));
+    const w13 = st(p, W(12));
+    T('the program\'s next boundary, Peak, applies inside block 2 from its first day', w13.phase === 'peak' && w13.phaseSource === 'plan' && w13.phaseSince === W(12) && w13.blockNumber === 2);
+    const h = ctx.getProgram(p.id).cycle.history[0];
+    T('block 1 kept all of it', same(h.phases.map(x => x.phase + ':' + x.source), ['accumulation:plan', 'intensification:plan', 'deload:plan'])
+      && h.deloads.length === 1 && h.deloads[0].source === 'plan' && h.deloads[0].suggested === false);
+    pin(W(12), () => { const note = ctx.programBlockNoteHtml(ctx.getProgram(p.id));
+      T('Program detail stays quiet while the block and the program agree', note === ''); });
+    reset();
+    const plain = make();
+    trainWeek(plain, W(0));
+    pin(addDays(W(0), 4), () => T('and quiet for a first block nobody has changed', ctx.programBlockNoteHtml(ctx.getProgram(plain.id)) === ''));
+    act(plain, 'intensification', addDays(W(0), 4));
+    pin(addDays(W(0), 5), () => T('but says so once the athlete moves it', /Your training block moved to Intensification Fri, Jan 9\./.test(text(ctx.programBlockNoteHtml(ctx.getProgram(plain.id))))));
+
+    reset();
+    const q = make({ program: { blocks: [
+      { id: 'b1', name: 'Build', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 6, description: '' },
+      { id: 'b2', name: 'Push', order: 2, phaseType: 'intensification', startWeek: 7, endWeek: 16, description: '' } ] } });
+    for(let i = 0; i < 6; i++) trainWeek(q, W(i));
+    act(q, 'deload', addDays(W(5), 5));
+    const rq = act(q, 'rebuild', addDays(W(7), 2));
+    T('Rebuild in the middle of the program\'s Intensification still opens in Accumulation', rq.ok && rq.state.phase === 'accumulation' && rq.state.blockStart === addDays(W(7), 2));
+    T('later weeks of that same written phase do not pull it back', st(q, W(10)).phase === 'accumulation');
+    pin(W(10), () => { const note = text(ctx.programBlockNoteHtml(ctx.getProgram(q.id)));
+      T('and Program detail explains why Home says Accumulation', /Your training block is in Accumulation since you rebuilt Wed, Feb 25\./.test(note), note); });
+    const mv = act(q, 'intensification', W(10));
+    T('an athlete move stands against an older written phase', mv.ok && st(q, W(11)).phase === 'intensification' && st(q, W(11)).phaseSource === 'athlete');
+
+    reset();
+    const e = make({ program: { goal: 'strength', blocks: [
+      { id: 'c1', name: 'Build', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 4, description: '' },
+      { id: 'c2', name: 'Push', order: 2, phaseType: 'intensification', startWeek: 5, endWeek: 8, description: '' },
+      { id: 'c3', name: 'Top', order: 3, phaseType: 'peak', startWeek: 9, endWeek: 10, description: '' } ] } });
+    for(let i = 0; i < 3; i++) trainWeek(e, W(i));
+    T('the athlete may move ahead of the written plan', act(e, 'intensification', W(2)).ok
+      && st(e, W(3)).phase === 'intensification' && st(e, W(3)).phaseSource === 'athlete');
+    T('the day before the plan\'s Peak, the block is still in Intensification', st(e, addDays(W(8), -1)).phase === 'intensification');
+    T('and the plan\'s own later boundary applies from its day, over the older move', st(e, W(8)).phase === 'peak'
+      && st(e, W(8)).phaseSource === 'plan' && st(e, W(8)).phaseSince === W(8));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('guards: finished, foreign, malformed and not-yet-started programs');
+  guard('guards', () => {
+    reset();
+    const p = make();
+    for(let i = 0; i < 6; i++) trainWeek(p, W(i));
+    pin(addDays(W(5), 5), () => ctx.completeProgram(p.id));
+    const before = JSON.stringify(ctx.getProgram(p.id));
+    T('a completed program refuses every block action, and says why', ['decline', 'deload', 'intensification', 'rebuild']
+      .every(a => act(p, a, addDays(W(5), 5)).error === 'A finished program keeps its record as it is.')
+      && JSON.stringify(ctx.getProgram(p.id)) === before);
+
+    reset();
+    const q = make();
+    for(let i = 0; i < 6; i++) trainWeek(q, W(i));
+    ctx.getProgram(q.id).cycle = { version: 2, current: { start: W(0), events: [{ phase: 'weird', from: W(0) }] }, future: true };
+    const raw = JSON.stringify(ctx.getProgram(q.id).cycle);
+    refresh();
+    const sq = st(q, addDays(W(5), 5));
+    T('a record from a newer LOOP is read as the implicit block, with no moves and no suggestion',
+      sq.blockId === 'tb1' && sq.moves.length === 0 && !sq.suggest && sq.trainingWeeks === 6);
+    T('and is never written, with the reason given', ['decline', 'deload', 'intensification']
+      .every(a => act(q, a, addDays(W(5), 5)).error === 'This block was recorded by a newer version of LOOP.')
+      && JSON.stringify(ctx.getProgram(q.id).cycle) === raw);
+
+    reset();
+    const two = make();
+    for(let i = 0; i < 8; i++) trainWeek(two, W(i));
+    ctx.getProgram(two.id).cycle = { version: 1, current: { id: 'tb1', start: W(0), declines: [], events: [
+      { phase: 'deload', from: W(6), to: addDays(W(6), 6), at: 'x' }, { phase: 'deload', from: W(9), to: addDays(W(9), 6), at: 'y' }] }, history: [] };
+    refresh();
+    const c2 = act(two, 'cancelDeload', addDays(W(8), 2));
+    T('an imported record holding a past and a future deload: cancelling removes only the one not yet begun',
+      c2.ok && same(ctx.getProgram(two.id).cycle.current.events.map(e => e.from), [W(6)]));
+
+    reset();
+    const m = make();
+    for(let i = 0; i < 6; i++) trainWeek(m, W(i));
+    ctx.getProgram(m.id).cycle = { version: 1, current: { id: 'tb3', start: W(0), events: 'not-a-list', declines: [null, { on: 'garbage' }] },
+      history: [{ id: 'tb1', start: '2025-01-01', end: '2025-02-01', phases: [] }, { junk: true }, { id: 'tb2', start: 'bad', end: 7 }] };
+    refresh();
+    const sm = st(m, addDays(W(5), 5));
+    T('a malformed record still reads: bad entries are skipped', sm.blockId === 'tb3' && sm.suggest && sm.history.length === 1);
+    const w = act(m, 'decline', addDays(W(5), 5));
+    const c = ctx.getProgram(m.id).cycle;
+    T('writing to it keeps every history entry, readable or not', w.ok && c.history.length === 3 && same(c.history[1], { junk: true }));
+
+    reset();
+    const n = make({ program: { startDate: W(2) } });
+    const sn = st(n, W(0));
+    T('a program that starts next week has no moves and no suggestion', sn.notStarted && sn.moves.length === 0 && !sn.suggest && sn.phase === 'accumulation');
+    T('Home says when its block starts, and claims no week of it yet', /Starts Mon, Jan 19/.test(text(card(W(0)))) && !/Week \d+ of/.test(text(card(W(0)))));
+    reset();
+    const nd = make({ program: { startDate: W(2), blocks: [{ id: 'd1', name: 'Ease in', order: 1, phaseType: 'deload', startWeek: 1, endWeek: 1, description: '' },
+      { id: 'd2', name: 'Build', order: 2, phaseType: 'accumulation', startWeek: 2, endWeek: 16, description: '' }] } });
+    T('a written deload in a program not yet begun does not hold the coach before it begins',
+      !ctx.programDeloadActiveOn(ctx.getProgram(nd.id), W(1)) && ctx.programDeloadActiveOn(ctx.getProgram(nd.id), addDays(W(2), 1)));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('storage: inside the program, no new key, nothing written by reading');
+  await (async () => {
+    try{
+      reset();
+      const p = make();
+      for(let i = 0; i < 6; i++) trainWeek(p, W(i));
+      await H.settle(20);
+      T('DATA_KEYS is unchanged: the block needs no store of its own', same(ctx.DATA_KEYS, ['workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan',
+        'activeWorkoutDraft', 'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog', 'cardioLog', 'cardioDraft', 'gymProfile',
+        'exerciseNotes', 'programs', 'onboarding']) && ctx.DATA_SCHEMA_VERSION === 1);
+      T('no foundation, deload or mesocycle key exists anywhere in the source',
+        !/LOOPStore\.(get|set)\(\s*'(trainingFoundation|deloadState|mesocycle|blocks?|cycle)/.test(src));
+      const storeBefore = JSON.stringify(app.store);
+      const progBefore = JSON.stringify(ctx.programsStore);
+      pin(addDays(W(5), 5), () => {
+        ctx.renderToday();
+        ctx.openFoundation(); ctx.renderFoundationDetail(); ctx.closeFoundation();
+        ctx.openBlockAction('deload', true); ctx.closeBlockAction();
+        ctx.workoutPhaseContextHtml(); ctx.programPhaseLineHtml(); ctx.programBlockNoteHtml(ctx.getProgram(p.id));
+        ctx.programDeloadActiveOn(ctx.getProgram(p.id));
+      });
+      await H.settle(20);
+      T('rendering Home, the sheet and the review writes nothing at all', JSON.stringify(app.store) === storeBefore && JSON.stringify(ctx.programsStore) === progBefore);
+      T('no read path can write', ['deriveBlockState', 'walkBlock', 'trainingPhaseOn', 'cycleOf', 'planPhaseOn', 'deriveTrainingFoundation',
+        'trainingFoundationHtml', 'renderTrainingFoundation', 'renderFoundationDetail', 'renderBlockAction', 'foundationFootHtml',
+        'programDeloadActiveOn', 'programBlockNoteHtml', 'workoutPhaseContextHtml', 'blockPhaseRuns', 'programNextWrittenPhase']
+        .every(fn => fnSrc(src, fn) && !/persistPrograms|applyBlockAction|LOOPStore|\.cycle\s*=|updateProgram\(/.test(fnSrc(src, fn))));
+      T('only the athlete\'s two decisions reach the write path', (() => {
+        const calls = [...src.matchAll(/applyBlockAction\(/g)].length;
+        return calls === 3 && /applyBlockAction\(/.test(fnSrc(src, 'confirmBlockAction')) && /applyBlockAction\(/.test(fnSrc(src, 'declineDeloadSuggestion'));
+      })());
+      T('the write path touches only the block record', (() => {
+        const body = fnSrc(src, 'applyBlockAction');
+        return /p\.cycle = c;/.test(body) && !/workoutLog|\.schedule\s*=|\.blocks\s*=|\.revisions|\.rx\b|sets|addProgramRevision|updateProgram\(/.test(body);
+      })());
+      act(p, 'decline', addDays(W(5), 5));
+      await H.settle(20);
+      const saved = JSON.parse(app.store[ctx.PROGRAMS_KEY]);
+      T('a decision is saved inside the programs store, on the program', saved.programs.find(x => x.id === p.id).cycle.current.declines.length === 1);
+      T('createProgram never copies a block record from its input', (() => {
+        const r = ctx.createProgram({ name: 'Copy', durationWeeks: 8, schedule: weekOf(MWF), startDate: W(0), cycle: ctx.getProgram(p.id).cycle });
+        return r.ok && r.program.cycle === undefined;
+      })());
+    }catch(e){ T('storage — threw ' + (e && e.stack || e), false); }
+  })();
+
+  /* ---------------------------------------------------------------- */
+  sub('determinism and cost');
+  guard('determinism', () => {
+    reset();
+    const p = make();
+    for(let i = 0; i < 12; i++) trainWeek(p, W(i), { skip: i % 4 === 3 ? [2] : [] });
+    const day = addDays(W(11), 5);
+    const strip = s => JSON.stringify(Object.assign({}, s, { history: null }));
+    refresh();
+    const a = strip(st(p, day));
+    ctx.workoutLog.reverse(); refresh();
+    const b = strip(st(p, day));
+    T('the order history arrives in changes nothing', a === b);
+    const first = st(p, day);
+    T('a second read on the same day is the memo, not a second walk', st(p, day) === first);
+    ctx.workoutLog.push({ id: 'late', date: day, category: 'core', title: 'x', notes: '', exercises: [] });
+    T('a new workout drops the memo', st(p, day) !== first);
+    ctx.workoutLog.pop(); refresh();
+    T('and Home clears it with the other program caches', /_blockStateCache = null/.test(fnSrc(src, 'invalidateProgramCache')));
+
+    reset();
+    const big = make({ program: { durationWeeks: 104, goal: 'strength' } });
+    for(let i = 0; i < 100; i++) trainWeek(big, W(i));
+    const t0 = Date.now();
+    const s = st(big, addDays(W(99), 5));
+    const cold = Date.now() - t0;
+    const t1 = Date.now();
+    for(let i = 0; i < 200; i++) st(big, addDays(W(99), 5));
+    const warm = Date.now() - t1;
+    console.log('    100 trained weeks: first derive ' + cold + 'ms, 200 memoised reads ' + warm + 'ms');
+    T('two years of training derives in well under a second, once', s.trainingWeeks === 100 && cold < 1500, cold + 'ms');
+    T('and two hundred renders after that cost next to nothing', warm < 150, warm + 'ms');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Home: placement and restraint');
+  guard('home', () => {
+    const view = src.slice(src.indexOf('<div class="view active" id="view-today">'), src.indexOf('<div class="view" id="view-train">'));
+    const at = id => view.indexOf('id="' + id + '"');
+    T('the Foundation sits after the day and the week, before the rest', at('todayWorkout') < at('weekCard') && at('weekCard') < at('todayFoundation') && at('todayFoundation') < at('readinessCard'));
+    T('the daily card no longer carries the program row', fnSrc(src, 'renderTodayWorkout').indexOf('programContextHtml()') === -1);
+    T('a running program is described once, by the Foundation', !/getProgramProgress|programPhaseLineHtml|Week \$\{/.test(fnSrc(src, 'programContextHtml')));
+    T('one phase chip, one accent, deload in the warning tone only',
+      /\.fd-phase\{[^}]*color: var\(--accent\)/.test(css) && /\.fd-phase-deload\{ color: var\(--warning\); background: var\(--warning-soft\); \}/.test(css)
+      && !/\.fd[a-z-]*\{[^}]*(gradient|animation|#[0-9a-fA-F]{3,6})/.test(css));
+    T('every control on the card is a real 44px target', /\.fd-act, \.fd-act-quiet\{[^}]*min-height: 44px/.test(css) && /\.fd-main\{[^}]*min-height: 44px/.test(css) && /\.fdd-move\{[^}]*min-height: 56px/.test(css));
+    T('the card takes the shared material in the grouped rule', /\.wk-card, \.cl-empty, \.cw-card, \.log-lens, \.gym-summary, \.fd\{/.test(css)
+      && !/(^|\n)\.fd\{[^}]*box-shadow/.test(css));
+    T('inside the card the entry row stacks, so its name is never cut', /\.fd-entry \.tw-program\{[^}]*flex-direction: column/.test(css)
+      && /\.fd-entry \.tw-program-name, \.fd-entry \.tw-program-meta\{ white-space: normal; \}/.test(css));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a year of training, simulated');
+  guard('longitudinal', () => {
+    reset();
+    const rnd = H.mulberry32(77001);
+    const A = make({ program: { name: 'Year', durationWeeks: 60, goal: 'strength' } });
+    let B = null;
+    const start = W(0), days = 7 * 56;
+    const counts = { sessions: 0, declines: 0, deloads: 0, rebuilds: 0, moves: 0, refusedRepeats: 0, restarts: 0, drift: 0, logWrites: 0, bad: [] };
+    let prevPhase = null, prevBlock = null, lastRestart = null, cancelled = false;
+    for(let i = 0; i <= days; i++){
+      const day = addDays(start, i), week = Math.floor(i / 7), dow = i % 7;
+      /* the story: an absence, a program switch and back, a revision, a pause */
+      const away = week >= 17 && week <= 21;          // a long absence: five weeks
+      const onB = week >= 30 && week <= 31;
+      if(week === 30 && dow === 0){ B = make({ program: { name: 'Interlude', startDate: day, durationWeeks: 4 } }); }
+      if(week === 32 && dow === 0){ ctx.setActiveProgram(A.id); refresh(); }
+      if(week === 24 && dow === 2){ pin(day, () => ctx.updateProgram(A.id, { schedule: weekOf({ mon: 'push', wed: 'pull', fri: 'legs', sat: 'push' }) })); refresh(); }
+      if(week === 40 && dow === 0){ pin(day, () => ctx.pauseProgram(A.id)); refresh(); }
+      if(week === 42 && dow === 0){ pin(day, () => ctx.resumeProgram(A.id)); refresh(); }
+      const paused = week >= 40 && week <= 41;
+      const cat = { 0: 'push', 2: 'pull', 4: 'legs' }[dow];
+      if(cat && !away && !paused && rnd() < 0.86){ session(onB ? B : A, day, cat, rnd() < 0.06 ? 1 : 3); counts.sessions++; refresh(); }
+      if(onB) continue;
+
+      const logHash = JSON.stringify(ctx.workoutLog);
+      const s = st(A, day);
+      const p = ctx.getProgram(A.id);
+      if(!s){ counts.bad.push(day + ' no state'); continue; }
+      /* invariants, every day */
+      if(s.blockWeek < 1 || s.trainingWeeks < 0) counts.bad.push(day + ' negative position');
+      if(s.suggest && !(s.trainingWeeks >= 6 && s.running && ['accumulation', 'intensification', 'peak'].indexOf(s.phase) !== -1)) counts.bad.push(day + ' suggestion without six training weeks');
+      if(s.phase === 'deload' && s.deload && s.deload.active !== ctx.programDeloadActiveOn(p, day)) counts.bad.push(day + ' coach disagrees with the block');
+      if(s.restartedFrom && s.restartedFrom !== lastRestart){ counts.restarts++; lastRestart = s.restartedFrom; }
+      if(prevPhase && prevBlock === s.blockId && prevPhase !== s.phase && s.phaseSince !== day) { counts.drift++; counts.bad.push(day + ' phase moved from ' + prevPhase + ' to ' + s.phase + ' with nothing dated today'); }
+      const c = ctx.cycleOf(p);
+      const ids = c.history.map(h => h.id).concat([c.current.id]);
+      if(new Set(ids).size !== ids.length) counts.bad.push(day + ' duplicate block id');
+      c.history.forEach((h, k) => {
+        if(h.end < h.start) counts.bad.push(day + ' block ends before it starts');
+        const next = c.history[k + 1] ? c.history[k + 1].start : c.current.start;
+        if(next !== addDays(h.end, 1)) counts.bad.push(day + ' blocks not contiguous ' + h.end + '→' + next);
+        if(!(h.deloads || []).some(x => x.from >= h.start && x.from <= h.end)) counts.bad.push(day + ' closed block without its deload');
+        if(h.phases[0].from !== h.start || h.phases[h.phases.length - 1].to !== h.end) counts.bad.push(day + ' snapshot does not cover its block');
+      });
+      if(c.current.events.filter(e => e.phase === 'deload').length > 1) counts.bad.push(day + ' two deloads in one block');
+
+      /* the athlete */
+      if(dow === 5 && s.suggest){
+        if(counts.declines < 2 && rnd() < 0.7){
+          const r = act(A, 'decline', day); if(r.ok) counts.declines++; else counts.bad.push(day + ' decline refused ' + r.error);
+          if(act(A, 'decline', day).ok) counts.bad.push(day + ' decline accepted twice'); else counts.refusedRepeats++;
+        } else {
+          const r = act(A, 'deload', day, { suggested: true }); if(r.ok) counts.deloads++; else counts.bad.push(day + ' deload refused ' + r.error);
+          if(act(A, 'deload', day).ok) counts.bad.push(day + ' deload accepted twice'); else counts.refusedRepeats++;
+          if(!cancelled && r.ok && rnd() < 0.5){ const cc = act(A, 'cancelDeload', day); if(cc.ok){ cancelled = true; counts.deloads--; } }
+        }
+      } else if(s.awaitingRebuild && s.moves.indexOf('rebuild') !== -1 && (dow === 0 || dow === 2) && rnd() < 0.8){
+        const r = act(A, 'rebuild', day); if(r.ok) counts.rebuilds++; else counts.bad.push(day + ' rebuild refused ' + r.error);
+        if(r.ok && (r.state.phase !== 'accumulation' || r.state.blockWeek !== 1)) counts.bad.push(day + ' new block not at Accumulation week 1');
+        if(act(A, 'rebuild', day).ok) counts.bad.push(day + ' rebuild accepted twice'); else counts.refusedRepeats++;
+      } else if(dow === 3 && s.blockWeek >= 3 && s.moves.indexOf('intensification') !== -1 && rnd() < 0.35){
+        if(act(A, 'intensification', day).ok) counts.moves++;
+      } else if(dow === 3 && s.moves.indexOf('peak') !== -1 && rnd() < 0.25){
+        if(act(A, 'peak', day).ok) counts.moves++;
+      }
+      if(JSON.stringify(ctx.workoutLog) !== logHash) counts.logWrites++;
+      const after = st(A, day);
+      prevPhase = after.phase; prevBlock = after.blockId;
+      if(dow === 6){
+        const again = JSON.stringify(Object.assign({}, after, { history: null }));
+        refresh();
+        if(JSON.stringify(Object.assign({}, st(A, day), { history: null })) !== again) counts.bad.push(day + ' derivation not repeatable');
+      }
+    }
+    const fin = ctx.cycleOf(ctx.getProgram(A.id));
+    console.log('    ' + (days + 1) + ' days simulated: ' + JSON.stringify(Object.assign({}, counts, { bad: counts.bad.length,
+      blocks: fin.history.map(h => h.start + '..' + h.end + ' tw' + h.trainingWeeks + ' ' + h.phases.map(x => x.phase[0]).join('')) })));
+    T('a year produced several full cycles', counts.rebuilds >= 3 && fin.history.length === counts.rebuilds, JSON.stringify(counts).slice(0, 200));
+    T('suggestions were declined and later deloads taken', counts.declines === 2 && counts.deloads >= 3);
+    T('breaks restarted the count (the absence, the switch, the pause)', counts.restarts >= 3, 'restarts ' + counts.restarts);
+    T('every repeated tap was refused, so no block or deload was recorded twice', counts.refusedRepeats >= counts.rebuilds + counts.declines + counts.deloads);
+    T('no block action ever wrote to the workout log', counts.logWrites === 0);
+    T('no phase moved without a decision or a written transition dated that day', counts.drift === 0);
+    T('every invariant held on every day', counts.bad.length === 0, counts.bad.slice(0, 4).join(' | '));
+    T('the program switched to kept its own record', !B || ctx.getProgram(B.id).cycle === undefined);
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -27498,6 +28372,7 @@ async function main(){
   await testWeightedRussianTwistArt();
   await testSmartSuggestions();
   await testMuscleMapOverlays();
+  await testTrainingFoundation();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

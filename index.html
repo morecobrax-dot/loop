@@ -1990,6 +1990,110 @@ body.first-use{ padding-bottom: 0; }
 .wk-foot-done .wk-foot-k{ color: var(--success); background: var(--success-soft); }
 .wk-hint{ font-size: var(--fs-micro); color: var(--text-faint); margin-top: 8px; text-align: center; }
 
+/* ---------- TRAINING FOUNDATION (Phase D77A) ----------
+   The block beneath the week: This Week's material and header, one phase chip,
+   and a foot only when the block has something to say. Deload keeps the
+   warning tone the phase list already gives it; nothing else is coloured. */
+.fd{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  margin-top: var(--space-3); overflow: hidden;
+}
+.fd-main, .fd-body{
+  display: flex; flex-direction: column; align-items: stretch; gap: 3px; width: 100%;
+  padding: 14px 14px 12px; text-align: left; font-family: inherit; color: inherit;
+}
+.fd-main{ background: none; border: none; cursor: pointer; min-height: 44px; }
+.fd-main:active{ background: var(--surface-2); }
+.fd-main:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.fd-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.fd-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
+.fd-count{ font-size: 12px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+.fd-count b{ color: var(--text); font-weight: 700; }
+.fd-name{ font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-shape{ font-size: 12px; line-height: 1.45; color: var(--text-dim); }
+.fd-phase-row{ display: flex; align-items: center; gap: var(--space-2); margin-top: 8px; min-width: 0; }
+.fd-phase{
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace; color: var(--accent); background: var(--accent-soft);
+  border-radius: var(--radius-sm); padding: 3px 7px; flex-shrink: 0;
+}
+.fd-phase-deload{ color: var(--warning); background: var(--warning-soft); }
+.fd-pos{ flex: 1; min-width: 0; font-size: 12px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-go{ display: flex; flex-shrink: 0; color: var(--text-faint); }
+.fd-empty{ margin: 0; font-size: 13px; line-height: 1.45; color: var(--text-dim); }
+.fd-note{ margin: 4px 0 0; font-size: 12px; line-height: 1.45; color: var(--text-faint); }
+.fd-foot{
+  display: flex; flex-direction: column; gap: 4px; margin: 0 14px; padding: 10px 0 12px;
+  border-top: 1px solid var(--border-quiet); font-size: 12px; line-height: 1.45; color: var(--text-dim);
+}
+.fd-foot-line{ display: flex; align-items: center; gap: 7px; color: var(--text); font-weight: 600; }
+.fd-foot-a{ display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: 6px; }
+.fd-act, .fd-act-quiet{
+  min-height: 44px; padding: 0 16px; border-radius: var(--radius-md); cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  transition: transform 0.12s var(--ease);
+}
+.fd-act{ background: var(--accent-soft); color: var(--accent); border: 1px solid transparent; }
+.fd-act-quiet{ background: none; color: var(--text-dim); border: 1px solid var(--border-quiet); }
+.fd-act:active, .fd-act-quiet:active{ transform: scale(0.97); }
+.fd-act:disabled, .fd-act-quiet:disabled{ opacity: 0.5; }
+.fd-entry{ padding: 0 14px; }
+/* The shared entry row, stacked here: the card is narrower than the daily hero it
+   was drawn for, and side by side its name was cut to "BUILD MY P...". */
+.fd-entry .tw-program{
+  flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px;
+  margin-bottom: 0; padding: 10px 0 12px; border-bottom: none; border-top: 1px solid var(--border-quiet);
+}
+.fd-entry .tw-program-name, .fd-entry .tw-program-meta{ white-space: normal; }
+/* the review: the decision gets the width, Cancel only what it needs */
+.sheet-actions .ba-cancel{ flex: 0 0 auto; padding-left: 22px; padding-right: 22px; }
+@media (max-width: 360px){ .sheet-actions .ba-cancel{ padding-left: 14px; padding-right: 14px; } }
+
+/* the Foundation sheet and the block review */
+.fdd-now{
+  display: flex; flex-direction: column; gap: 3px; padding: var(--space-4);
+  background: var(--surface-2); border: 1px solid var(--border-quiet); border-left: 2px solid var(--accent);
+  border-radius: var(--radius-lg);
+}
+.fdd-now-deload{ border-left-color: var(--warning); }
+.fdd-k, .fdd-sec, .ba-sec{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint);
+}
+.fdd-phase{ font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 700; color: var(--text); }
+.fdd-purpose{ font-size: 12.5px; line-height: 1.45; color: var(--text-dim); }
+.fdd-meta{ margin-top: 4px; font-size: 12px; line-height: 1.45; color: var(--text-faint); }
+.fdd-sec{ margin: 22px 0 6px; }
+.fdd-row{
+  display: flex; justify-content: space-between; gap: 12px; padding: 9px 0;
+  border-bottom: 1px solid var(--border-quiet); font-size: 13px; color: var(--text-dim);
+}
+.fdd-row span:first-child{ color: var(--text); }
+.fdd-row span:last-child{ text-align: right; font-variant-numeric: tabular-nums; }
+.fdd-row-on span:last-child{ color: var(--success); }
+.fdd-text{ margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-dim); }
+.fdd-note{ margin: 8px 0 0; font-size: 12px; line-height: 1.45; color: var(--text-faint); }
+.fdd-next{ margin-bottom: 10px; }
+.fdd-hist{ display: flex; flex-direction: column; gap: 2px; padding: 9px 0; border-bottom: 1px solid var(--border-quiet); }
+.fdd-hist-t{ font-size: 13px; color: var(--text); }
+.fdd-hist-s{ font-size: 12px; line-height: 1.45; color: var(--text-dim); }
+.fdd-moves{ display: flex; flex-direction: column; gap: 8px; }
+.fdd-move{
+  display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 56px; padding: 10px 14px;
+  text-align: left; background: var(--surface-2); border: 1px solid var(--border-quiet);
+  border-radius: var(--radius-md); cursor: pointer; font-family: inherit; color: inherit;
+}
+.fdd-move:active{ transform: scale(0.99); }
+.fdd-move-t{ font-size: 14px; font-weight: 700; color: var(--text); }
+.fdd-move-s{ font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+.fdd-link{
+  display: block; min-height: 44px; margin: 18px 0 0; padding: 0; background: none; border: none;
+  font-family: inherit; font-size: 13px; font-weight: 700; color: var(--accent); cursor: pointer;
+}
+.ba-sec{ margin: 16px 0 4px; }
+.ba-text{ margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; color: var(--text-dim); }
+.phase-block-note{ margin-top: var(--space-2); padding: 0 2px; font-size: 12px; line-height: 1.45; color: var(--text-dim); }
+
 /* One sentence saying where this athlete is, before any number. */
 
 
@@ -6601,16 +6705,9 @@ button.ex-thumb:focus-visible{ outline: 2px solid var(--accent); outline-offset:
 }
 .prog-delete:active{ color: var(--danger); }
 
-/* ---------- TRAINING PHASES (Phase D7B) ---------- */
-.tw-phase-row{ display: flex; align-items: baseline; gap: var(--space-2); margin: -4px 0 10px; flex-wrap: wrap; }
-.tw-phase{
-  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.12em;
-  font-family: 'JetBrains Mono', monospace; color: var(--accent);
-  background: var(--accent-soft); border-radius: var(--radius-sm); padding: 3px 7px;
-}
-.tw-phase-deload{ color: var(--warning); background: var(--warning-soft); }
-.tw-phase-none{ color: var(--text-faint); background: var(--surface-3); letter-spacing: 0.06em; }
-.tw-phase-sub{ font-size: 11px; color: var(--text-faint); }
+/* ---------- TRAINING PHASES (Phase D7B) ----------
+   D77A — the Today phase chip (.tw-phase*) went with the program row it sat
+   under; the Training Foundation's .fd-phase replaces it. */
 
 /* current-phase summary */
 .phase-current{
@@ -6768,7 +6865,7 @@ button.ex-thumb:focus-visible{ outline: 2px solid var(--accent); outline-offset:
    standalone cards take the full material, repeated rows and tiles take the
    quiet boundary only (fourteen ambient shadows in one list is cost without
    meaning), and the shared secondary button becomes a raised control. */
-.wk-card, .cl-empty, .cw-card, .log-lens, .gym-summary{
+.wk-card, .cl-empty, .cw-card, .log-lens, .gym-summary, .fd{
   border-color: var(--border-quiet);
   box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
 }
@@ -7248,6 +7345,10 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 
     <!-- 2 — how is my week going -->
     <div id="weekCard"></div>
+
+    <!-- 2b — what am I training toward: the program, its phase and block.
+         After the day and the week, never above them. -->
+    <div id="todayFoundation"></div>
 
     <!-- 3 — today's context -->
     <div id="readinessCard"></div>
@@ -7965,6 +8066,33 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeProgramDetail()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRAINING FOUNDATION (Phase D77A) — where the training block stands. Reading
+     it changes nothing; every block decision goes through the review sheet below. -->
+<div class="overlay" id="foundationOverlay" onclick="backdropDismiss(event, closeFoundation)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <div id="foundationBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeFoundation()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- A block decision, explained before it is made. After the Foundation sheet
+     so it opens above it. -->
+<div class="overlay" id="blockActionOverlay" onclick="backdropDismiss(event, closeBlockAction)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <div id="blockActionBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-primary" id="blockActionGo" style="flex:1" onclick="confirmBlockAction(this)">Confirm</button>
+      <button class="btn-secondary ba-cancel" onclick="closeBlockAction()">Cancel</button>
     </div>
   </div>
 </div>
@@ -15082,6 +15210,32 @@ const LOOP_UPDATES = [
     changes: [
       'Undoes 7.6’s trade-off: the figure no longer shows the same six muscles in blue whatever you trained'
     ]
+  },
+  {
+    id: 'v7-8',
+    version: 'LOOP 7.8',
+    title: 'Your Training Foundation',
+    date: '2026-09-16',
+    swVersion: 'loop-v155',
+    summary: 'Home now shows what your program is building toward: its phase, where your training block stands, and when a deload is worth considering.',
+    newFeatures: [
+      'Training Foundation on Home, below This Week: your program, its focus, days and split, the phase your training block is in, and its week',
+      'Tap it for the detail: which weeks counted, your deload status, the steps you can take next, your schedule and your earlier blocks',
+      'After six training weeks — weeks in which you carried out your program’s planned sessions — LOOP suggests a deload. Review it or choose Not now; it asks again only after more training',
+      'Start a deload and that program week becomes a planned lighter week: the coach between sets holds your load instead of adding weight',
+      'When the deload is done, Rebuild keeps the block you finished and starts the next one in Accumulation',
+      'Move to Intensification when you choose to, and on to Peak on strength-focused programs'
+    ],
+    improvements: [
+      'Weeks without training never count toward a deload, and two weeks away in a row start the count again',
+      'Without a program, the Foundation shows your plan’s days and split, with the way into a program'
+    ],
+    bugFixes: [
+      'Where clocks change for daylight saving, a program begun before the spring change started each new week a day late'
+    ],
+    changes: [
+      'Your program’s name, week and phase, and the way to start a program, moved from the top of Today’s card into the Training Foundation'
+    ]
   }
 ];
 
@@ -17566,12 +17720,12 @@ function liveSetEvidence(exRow){
      program saying the work should feel easy, and the coach must not correct
      it upward. Wrapped because a malformed program can never be allowed to
      stop the workout screen working. */
+  /* D77A — asked of the training block, which holds both a deload the program's
+     phases schedule and one the athlete started from Home, and which knows when
+     a deload has ended. */
   try{
     const prog = hasActiveProgram() ? getActiveProgram() : null;
-    if(prog){
-      const ph = getCurrentTrainingPhase(prog, localDateStr());
-      if(ph && ph.phaseType === 'deload') out.deload = true;
-    }
+    if(prog && programDeloadActiveOn(prog, localDateStr())) out.deload = true;
   }catch(e){}
   return out;
 }
@@ -23054,10 +23208,12 @@ function renderTodayWorkout(){
     /* D46B — a rest day is still a day inside a program, and a rest day with
        no program is still a day the athlete might want one. This branch used
        to omit the program row entirely, so the feature disappeared from Today
-       on every rest day. */
+       on every rest day.
+       D77A — the row moved out of this card into the Training Foundation,
+       which Home draws on every day, rest or training, so it can no longer
+       vanish with the day's type. This card is only the day. */
     el.innerHTML = `
       <div class="tw tw-rest">
-        ${programContextHtml()}
         <div class="tw-label">Today</div>
         <div class="tw-title">Rest Day</div>
         ${nextPreview || `<div class="tw-meta">No training days set yet</div>`}
@@ -23093,7 +23249,6 @@ function renderTodayWorkout(){
 
   el.innerHTML = `
     <div class="tw tw-${cat}">
-      ${programContextHtml()}
       <div class="tw-label">Today's Workout</div>
       <div class="tw-title">${CAT_LABEL[cat]}</div>
       <div class="tw-meta">${first ? escapeHtml(first.name) + ' · ' + meta : meta}</div>
@@ -23680,6 +23835,7 @@ function renderToday(){
   renderReadinessCard();
   renderTodayWorkout();
   renderWeekCard();
+  try{ renderTrainingFoundation(); }catch(e){}
   renderTodayInsights();
   try{ renderTodayMuscles(); }catch(e){}
 
@@ -31104,10 +31260,16 @@ function getProgramsByStatus(status){ return getPrograms().filter(p => p.status 
    Week comes from the program's own start date, never from workout history,
    so missing a session never shifts which week the athlete is in. Paused
    days are subtracted, which is what keeps a resumed program honest. */
+/* D77A — ROUNDED, NOT FLOORED. Two local midnights are a whole number of civil
+   days apart, but not always a whole number of 24-hour spans: the week that
+   springs forward holds a 23-hour day. Flooring 6.96 days made Monday 9 March
+   2026 read as day 6 of a program that began Monday 2 March, so from spring
+   until autumn every program week turned over on a Tuesday. A DST shift is an
+   hour, never half a day, so rounding recovers the civil count exactly. */
 function daysBetweenDates(fromStr, toStr){
   const a = new Date(fromStr + 'T00:00:00'), b = new Date(toStr + 'T00:00:00');
   if(isNaN(a) || isNaN(b)) return null;
-  return Math.floor((b - a) / 86400000);
+  return Math.round((b - a) / 86400000);
 }
 function getCurrentProgramWeek(program, todayStr){
   const p = program || getActiveProgram();
@@ -31434,7 +31596,8 @@ function programTrainingDayCount(program){
    Structural only. Counts sessions that already exist in workoutLog; it does
    not judge them, and there is deliberately no "program score". */
 let _programProgressCache = null;
-function invalidateProgramCache(){ _programProgressCache = null; _planFulfillCache = null; }
+let _blockStateCache = null;   // D77A — deriveBlockState's memo, dropped with the rest
+function invalidateProgramCache(){ _programProgressCache = null; _planFulfillCache = null; _blockStateCache = null; }
 
 function getProgramProgress(program, todayStr){
   const p = program || getActiveProgram();
@@ -31940,29 +32103,33 @@ function moveProgramPhase(programId, blockId, direction){
 /* Compact phase line for Today. Renders nothing without a program, and says
    so plainly when a program has no phase covering this week rather than
    inventing one. */
+/* D77A — the phase Today states is the TRAINING BLOCK's (deriveBlockState),
+   which the program's own phases feed, so Home can never call a deload week
+   Intensification. The Training Foundation draws it; this is the same line
+   for any other caller. */
 function programPhaseLineHtml(){
   let p = null;
   try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ return ''; }
   if(!p) return '';
-  const ph = getPhaseProgress(p);
-  if(!ph) return '';
-  if(!ph.inPhase){
-    return `<span class="tw-phase tw-phase-none">No structured phase</span>`;
-  }
-  const cls = ph.phaseType === 'deload' ? ' tw-phase-deload' : '';
-  return `<span class="tw-phase${cls}">${escapeHtml((ph.typeLabel || ph.name).toUpperCase())}</span>
-          <span class="tw-phase-sub">Week ${ph.weekInPhase} of ${ph.totalWeeks}</span>`;
+  let st = null;
+  try{ st = deriveBlockState(p); }catch(e){ return ''; }
+  return foundationPhaseLineHtml(st);
 }
 
 /* The subtle label shown on the workout sheet. Context only — the workout
-   itself is completely unaffected by which phase it falls in. */
+   itself is completely unaffected by which phase it falls in.
+   D77A — the block's phase beside the program's week, the same phase Home
+   shows. A finished deload waiting on Rebuild is not a phase to train in, so
+   the label says nothing rather than call that session a deload. */
 function workoutPhaseContextHtml(){
   let p = null;
   try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ return ''; }
   if(!p) return '';
-  const ph = getPhaseProgress(p);
-  if(!ph || !ph.inPhase) return '';
-  return `<div class="log-phase-context">WEEK ${ph.week} · ${escapeHtml((ph.typeLabel || ph.name).toUpperCase())}</div>`;
+  let st = null, week = null;
+  try{ st = deriveBlockState(p); week = getCurrentProgramWeek(p); }catch(e){ return ''; }
+  if(!st || !st.phase || st.notStarted || week === null) return '';
+  if(st.phase === 'deload' && !(st.deload && st.deload.active)) return '';
+  return `<div class="log-phase-context">WEEK ${week} · ${escapeHtml(cyclePhaseLabel(st.phase).toUpperCase())}</div>`;
 }
 
 function phaseStatusLabel(status){
@@ -32021,7 +32188,37 @@ function currentPhaseSummaryHtml(program){
       <div class="phase-bar"><span style="width:${ph.percent}%"></span></div>
       ${ph.purpose ? `<div class="phase-current-purpose">${escapeHtml(ph.purpose)}</div>` : ''}
       ${ph.nextPhase ? `<div class="phase-next">Next · ${escapeHtml(ph.nextPhase.name)} · week ${ph.nextPhase.startWeek}</div>` : ''}
-    </div>`;
+    </div>${programBlockNoteHtml(program)}`;
+}
+
+/* D77A — these phases are the program's written plan. Where the athlete's
+   training block stands somewhere else (a deload they started, a phase they
+   moved to, a block they rebuilt), say so here rather than let the plan and
+   Home appear to disagree. */
+function programBlockNoteHtml(program){
+  let st = null;
+  try{
+    if(!program || !hasActiveProgram() || getActiveProgram().id !== program.id) return '';
+    st = deriveBlockState(program);
+  }catch(e){ return ''; }
+  if(!st || !st.running || st.notStarted || !st.phase) return '';
+  if(st.phase === planPhaseOn(program, localDateStr()) && st.phaseSource === 'plan') return '';
+  /* A first block nobody has changed is exactly what the program describes. */
+  if(st.phaseSource === 'default' && st.blockNumber === 1) return '';
+  const label = cyclePhaseLabel(st.phase);
+  let text;
+  if(st.phase === 'deload' && st.deload){
+    text = st.deload.complete
+      ? 'Your training block finished its deload ' + blockDateLabel(st.deload.to, true) + '. Rebuild from Home when you’re ready.'
+      : 'Your training block is in a deload through ' + blockDateLabel(st.deload.to, true) + '.';
+  } else if(st.phaseSource === 'athlete'){
+    text = 'Your training block moved to ' + label + ' ' + blockDateLabel(st.phaseSince, true) + '.';
+  } else if(st.blockNumber > 1){
+    text = 'Your training block is in ' + label + ' since you rebuilt ' + blockDateLabel(st.blockStart, true) + '.';
+  } else {
+    text = 'Your training block is in ' + label + '.';
+  }
+  return `<div class="phase-block-note">${escapeHtml(text)}</div>`;
 }
 
 /* ---- phase editor ---- */
@@ -37543,6 +37740,523 @@ function deriveProgramPlanFulfillment(program, log){
   return out;
 }
 
+/* =========================================================
+   TRAINING BLOCKS  (Phase D77A)
+   ---------------------------------------------------------
+   A program runs a set number of weeks and may carry phases
+   the athlete wrote (D7). What it could not say is where the
+   athlete is in a TRAINING BLOCK: how much real training has
+   gone in since the last deload, whether a deload is timely,
+   and what comes after one.
+
+   A BLOCK is one continuous stretch of a program's training.
+   Its phase is one of Accumulation, Intensification, Deload
+   or Peak. "Normal training" is not a fifth phase; it is any
+   of the three that are not Deload. REBUILD is not a phase at
+   all: it is the act of closing a block and starting the next
+   one in Accumulation.
+
+   STORED INSIDE THE PROGRAM. `programs` already owns every
+   fact about a program and already round-trips through backup
+   and import, so the block lives on the program record as
+   `cycle` — no DATA_KEY, no second store:
+
+     cycle: { version: 1,
+       current: { id, start, revision, events: [], declines: [] },
+       history: [ closed blocks, oldest first ] }
+
+   Only decisions are stored: the phase changes and deloads the
+   athlete approved, the suggestions they turned down, and a
+   snapshot of each block when they closed it. A program with
+   no `cycle` has one implicit block from its own start date,
+   and reading a block never writes one.
+
+   TRAINING WEEKS, NOT CALENDAR WEEKS. A week moves the block
+   forward only when it holds real program training, read from
+   the facts LOOP already derives: D43 decides which planned
+   session each program workout fulfilled, and D49 decides
+   whether that workout carried out what it prescribed. Time
+   passing, an open app or a missed fortnight counts for
+   nothing — and two whole weeks without any program training
+   is a break, after which the count starts again.
+
+   NOTHING STARTS ITSELF. LOOP may suggest a deload; only the
+   athlete starts one, moves phase, or rebuilds. A phase change
+   the athlete wrote into the program's own phases is their
+   earlier decision, and is honoured as one.
+
+   NOT A PRESCRIPTION ENGINE. A deload reuses the one deload
+   behaviour LOOP already has — the Live Set Coach will not
+   push load up in a planned lighter week — and changes no
+   sets, reps or loads. Completed workouts, PRs, Session Scores,
+   progression evidence and earlier program revisions are read
+   here and never written.
+   ========================================================= */
+const BLOCK_RULES = {
+  /* Training weeks in a block before a deload is suggested. */
+  deloadAfterWeeks: 6,
+  /* Planned sessions a week may miss and still count — one skipped session
+     never costs the week, but a week is never carried by less than half of
+     its planned training. */
+  missesAllowed: 1,
+  /* A deload is one program week. */
+  deloadWeeks: 1,
+  /* Whole weeks in a row with no program training at all. A gap that long
+     has been rest, whatever caused it — travel, illness, a pause — so the
+     count toward a deload starts again after it, instead of resuming as if
+     the athlete had trained straight through. */
+  breakWeeks: 2
+};
+const CYCLE_NORMAL_PHASES = ['accumulation', 'intensification', 'peak'];
+/* The only moves there are. Anything else is refused, so no phase can be
+   reached silently or out of order. */
+const CYCLE_MOVES = {
+  accumulation:    ['intensification', 'deload'],
+  intensification: ['peak', 'deload'],
+  peak:            ['deload'],
+  deload:          ['rebuild']
+};
+function isBlockDate(v){ return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v); }
+
+/* Civil-date arithmetic. setDate walks calendar days, so a DST change can
+   never move a date. */
+function civilAddDays(dateStr, n){
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return localDateStr(d);
+}
+function civilMonday(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return localDateStr(d);
+}
+
+/* The program's block record, read-only and tolerant. A program saved before
+   D77A, or one that has never had a block decision, answers with its implicit
+   first block. An entry this version cannot read is left out of the READING,
+   never out of the record. */
+function cycleOf(program){
+  const raw = program && program.cycle;
+  if(raw && raw.version === 1 && raw.current && isBlockDate(raw.current.start)){
+    const cur = raw.current;
+    const history = (Array.isArray(raw.history) ? raw.history : [])
+      .filter(h => h && isBlockDate(h.start) && isBlockDate(h.end));
+    return { version: 1, history,
+      current: Object.assign({}, cur, {
+        id: (typeof cur.id === 'string' && cur.id) ? cur.id : 'tb' + (history.length + 1),
+        events: (Array.isArray(cur.events) ? cur.events : []).filter(e => e && isBlockDate(e.from)
+          && (e.phase === 'deload' ? (isBlockDate(e.to) && e.to >= e.from) : CYCLE_NORMAL_PHASES.indexOf(e.phase) !== -1)),
+        declines: (Array.isArray(cur.declines) ? cur.declines : []).filter(x => x && isBlockDate(x.on))
+      }) };
+  }
+  return { version: 1, history: [],
+    current: { id: 'tb1', start: (program && isBlockDate(program.startDate)) ? program.startDate : localDateStr(),
+      revision: null, events: [], declines: [] } };
+}
+/* A record written by a newer LOOP is read as if absent and never written. */
+function cycleIsForeign(program){
+  const raw = program && program.cycle;
+  return !!(raw && typeof raw.version === 'number' && raw.version !== 1);
+}
+
+/* The revision of the plan in force on a date — the program's identity for a
+   block. null is the original schedule, which is all LOOP knows before any
+   revision was recorded. */
+function programRevisionOn(program, dateStr){
+  const revs = program && Array.isArray(program.revisions) ? program.revisions : [];
+  let chosen = null;
+  revs.forEach(r => {
+    if(r && r.effectiveFrom && String(r.effectiveFrom) <= String(dateStr)
+      && (!chosen || String(r.effectiveFrom) >= String(chosen.effectiveFrom))) chosen = r;
+  });
+  return chosen ? chosen.effectiveFrom : null;
+}
+
+/* The phase the program's OWN phases give a date, read through
+   getCurrentProgramWeek exactly as every existing phase surface reads it, with
+   one difference that only matters looking back: a paused program's week
+   stands still from the day it was paused, but the days before that were
+   lived at their own weeks. Before the program began there is no phase.
+   Rebuild, as a phase the athlete wrote, is the start of a build; Custom says
+   nothing about the cycle. */
+function planPhaseOn(program, dateStr){
+  if(!program || !isBlockDate(program.startDate) || !isBlockDate(dateStr) || dateStr < program.startDate) return null;
+  let view = program, ref = dateStr;
+  if(program.status === 'paused' && isBlockDate(program.pausedOnDate)){
+    view = Object.assign({}, program, { status: 'active' });
+    if(ref > program.pausedOnDate) ref = program.pausedOnDate;
+  }
+  let b = null;
+  try{
+    const w = getCurrentProgramWeek(view, ref);
+    b = w === null ? null : getBlockForWeek(program, w);
+  }catch(e){ b = null; }
+  if(!b) return null;
+  const t = b.phaseType;
+  if(t === 'accumulation' || t === 'intensification' || t === 'deload' || t === 'peak') return t;
+  if(t === 'rebuild') return 'accumulation';
+  return null;
+}
+
+/* THE BLOCK, DAY BY DAY. One forward walk from the open block's first day
+   resolves the phase of every date up to `toStr`. Home, the workout screen,
+   the Live Set Coach and the snapshot kept at Rebuild all read it, so the
+   rules are read one way, not four.
+
+   A BLOCK BEGINS IN ACCUMULATION. The program's own phases still move it, but
+   only where they change INSIDE the block: a phase the program had already
+   entered when the block began belongs to the block before, so a Rebuild in
+   the middle of a written Intensification opens in Accumulation, and the
+   program's next boundary — a transition the athlete approved when they set
+   the program up — applies from its first day. The first block begins with
+   the program, so every phase the program wrote is its own.
+
+   Between the athlete's own phase change and the program's, the more recent
+   one stands. A deload outranks both from its first day; the latest one to
+   have begun is the one described. */
+function walkBlock(program, c, toStr, visit){
+  const cur = c.current;
+  const firstBlock = c.history.length === 0;
+  const events = cur.events.slice().sort((a, b) =>
+    String(a.from).localeCompare(String(b.from)) || String(a.at || '').localeCompare(String(b.at || '')));
+  const moves = events.filter(e => e.phase !== 'deload');
+  const athleteDeload = events.find(e => e.phase === 'deload') || null;
+  const planDeloads = [];
+  let run = null, lastPlanNormal = null, lastMove = null, mi = 0, now = null;
+  let d = cur.start, guard = 0;
+  while(d <= toStr && guard++ < 5000){
+    const pp = planPhaseOn(program, d);
+    if(!run) run = { phase: pp, since: d, counts: firstBlock };
+    else if(pp !== run.phase) run = { phase: pp, since: d, counts: true };
+    if(run.counts && pp === 'deload'){
+      const last = planDeloads[planDeloads.length - 1];
+      if(last && last.from === run.since) last.to = d;
+      else planDeloads.push({ from: d, to: d, source: 'plan', suggested: false });
+    }
+    if(run.counts && CYCLE_NORMAL_PHASES.indexOf(pp) !== -1) lastPlanNormal = run;
+    while(mi < moves.length && moves[mi].from <= d) lastMove = moves[mi++];
+
+    let dl = (athleteDeload && athleteDeload.from <= d) ? athleteDeload : null;
+    const pd = planDeloads[planDeloads.length - 1];
+    if(pd && (!dl || pd.from > dl.from)) dl = pd;
+    if(dl){
+      now = { phase: 'deload', source: dl === athleteDeload ? 'athlete' : 'plan', since: dl.from,
+        deload: { from: dl.from, to: dl.to, active: d <= dl.to, complete: d > dl.to,
+          source: dl === athleteDeload ? 'athlete' : 'plan', suggested: !!dl.suggested } };
+    } else if(lastMove && (!lastPlanNormal || lastMove.from >= lastPlanNormal.since)){
+      now = { phase: lastMove.phase, source: 'athlete', since: lastMove.from };
+    } else if(lastPlanNormal){
+      now = { phase: lastPlanNormal.phase, source: 'plan', since: lastPlanNormal.since };
+    } else {
+      now = { phase: 'accumulation', source: 'default', since: cur.start };
+    }
+    if(visit) visit(d, now);
+    d = civilAddDays(d, 1);
+  }
+  /* A deload the program's phases are still running on the last day read
+     carries on into the plan's future; its end is the plan's, not today. */
+  const open = planDeloads[planDeloads.length - 1];
+  if(open && open.to === toStr){
+    let n = civilAddDays(toStr, 1), g = 0;
+    while(g++ < 800 && planPhaseOn(program, n) === 'deload'){ open.to = n; n = civilAddDays(n, 1); }
+    if(now && now.deload && now.deload.source === 'plan' && now.deload.from === open.from){
+      now.deload.to = open.to; now.deload.active = toStr <= open.to; now.deload.complete = toStr > open.to;
+    }
+  }
+  const deloads = planDeloads.map(x => ({ from: x.from, to: x.to, source: 'plan', suggested: false }));
+  if(athleteDeload && athleteDeload.from <= toStr){
+    deloads.push({ from: athleteDeload.from, to: athleteDeload.to, source: 'athlete',
+      suggested: !!athleteDeload.suggested, trainingWeeks: athleteDeload.trainingWeeks != null ? athleteDeload.trainingWeeks : null,
+      afterWeeks: athleteDeload.afterWeeks != null ? athleteDeload.afterWeeks : null });
+  }
+  deloads.sort((a, b) => a.from.localeCompare(b.from));
+  return { now: now || { phase: 'accumulation', source: 'default', since: cur.start },
+    deloads, firstDeloadFrom: deloads.length ? deloads[0].from : null };
+}
+
+/* THE PHASE ON A DATE. A date inside a closed block answers from the snapshot
+   taken when it closed — what the block actually was, which a later edit to
+   the program's phases cannot restate — and never invents one it lacks. */
+function trainingPhaseOn(program, dateStr, cycle){
+  const c = cycle || cycleOf(program);
+  const day = dateStr || localDateStr();
+  const cur = c.current;
+  if(day < cur.start){
+    const h = c.history.slice().reverse().find(x => day >= x.start && day <= x.end);
+    if(!h) return { phase: null, source: null, since: null, closed: true, blockId: null };
+    const seg = (Array.isArray(h.phases) ? h.phases : []).find(s => s && day >= s.from && day <= s.to);
+    return { phase: seg ? seg.phase : null, source: seg ? seg.source : null, since: seg ? seg.from : null,
+      closed: true, blockId: h.id || null };
+  }
+  return Object.assign({ closed: false, blockId: cur.id }, walkBlock(program, c, day).now);
+}
+
+/* Whether the program says this is a lighter week — the question the Live
+   Set Coach asks. A deload that has finished is not a lighter week, and a
+   program that has not begun has none. */
+function programDeloadActiveOn(program, dateStr){
+  if(!program) return false;
+  try{
+    const day = dateStr || localDateStr();
+    if(program.startDate && program.startDate > day) return false;
+    const st = deriveBlockState(program, day);
+    return !!(st && st.phase === 'deload' && st.deload && st.deload.active);
+  }catch(e){ return false; }
+}
+
+/* Peak is optional and only offered where the program is about expressing
+   strength, or where the athlete already wrote a Peak into its phases. */
+function programSupportsPeak(program){
+  if(!program) return false;
+  if(program.goal === 'strength' || program.goal === 'recomp') return true;
+  return Array.isArray(program.blocks) && program.blocks.some(b => b && b.phaseType === 'peak');
+}
+
+/* DID THIS WORKOUT CARRY OUT WHAT IT PRESCRIBED. D49's own definition, asked
+   of a whole session: an exercise is complete when its working sets reach the
+   prescribed count, or two where nothing was prescribed, and a session is
+   carried out when at least half of what it asked for was completed. A
+   warm-up is not a working set and a set marked not done is not performed.
+   Unlike D49's load evidence, a bodyweight movement counts here: whether the
+   work was done is a question of sets and reps, not of load. */
+function sessionCarriedOut(w){
+  const list = (w && Array.isArray(w.exercises)) ? w.exercises : [];
+  let asked = 0, done = 0;
+  list.forEach(ex => {
+    const sets = Array.isArray(ex && ex.sets) ? ex.sets : [];
+    const rxSets = (ex && ex.rx && ex.rx.sets > 0) ? ex.rx.sets : null;
+    if(!sets.length && !rxSets) return;
+    asked++;
+    const working = sets.filter(st => isWorkingSet(st) !== false
+      && !(st && st.completed === false) && parseFloat(st && st.reps) > 0).length;
+    if(working >= (rxSets || PROGRESSION_EVIDENCE.minSetsWithoutRx)) done++;
+  });
+  return asked > 0 && done * 2 >= asked;
+}
+
+/* How many of a week's planned sessions must be carried out for it to count. */
+function blockWeekRequirement(planned){
+  return Math.max(1, planned - BLOCK_RULES.missesAllowed, Math.ceil(planned / 2));
+}
+
+/* When a deload the athlete starts today would run: the rest of this program
+   week when its training has not begun and most of it is still ahead,
+   otherwise the whole of the next one. Program weeks run Monday to Sunday, as
+   programDateFor lays them out, so a deload is a program week rather than
+   seven arbitrary days. */
+function deloadWindowFor(state, todayStr){
+  const today = todayStr || localDateStr();
+  const monday = civilMonday(today);
+  const wk = (state && state.weeks || []).find(w => w.monday === monday) || null;
+  const ahead = wk ? wk.slots.filter(s => s.date >= today).length : 0;
+  const startNow = !wk || (wk.done === 0 && ahead >= Math.ceil(wk.planned / 2));
+  const from = startNow ? today : civilAddDays(monday, 7);
+  const to = civilAddDays(civilMonday(from), 7 * BLOCK_RULES.deloadWeeks - 1);
+  return { from, to };
+}
+
+/* THE BLOCK, DERIVED. Pure: the program record and workout history in, what
+   LOOP can truthfully say about the block out. Memoised per program, day,
+   block record and history, and dropped with the other program caches, so
+   Home reads it once rather than walking history on every render. */
+function deriveBlockState(program, todayStr){
+  if(!program) return null;
+  const today = todayStr || localDateStr();
+  const logLen = (typeof workoutLog !== 'undefined' && workoutLog) ? workoutLog.length : 0;
+  const key = [program.id, today, program.status, program.pausedOnDate || '', program.pausedDays || 0,
+    program.startDate, program.durationWeeks, logLen, program.updatedAt || '',
+    Array.isArray(program.revisions) ? program.revisions.length : 0,
+    (typeof programsStore !== 'undefined' && programsStore && programsStore.activeProgramId) || '',
+    JSON.stringify(program.cycle || null), JSON.stringify(program.blocks || null)].join('|');
+  if(_blockStateCache && _blockStateCache.key === key) return _blockStateCache.value;
+
+  const c = cycleOf(program);
+  const cur = c.current;
+  const lifecycle = deriveProgramLifecycle(program, today);
+  const notStarted = !!(program.startDate && program.startDate > today);
+  /* A block that has not begun is described as it will begin. */
+  const walk = walkBlock(program, c, cur.start > today ? cur.start : today);
+  const now = walk.now;
+  const pending = cur.events.find(e => e.phase === 'deload' && e.from > today) || null;
+  /* Training stops counting where the block's first deload begins: after it,
+     the step left in this block is Rebuild. */
+  const cutoff = walk.firstDeloadFrom && walk.firstDeloadFrom <= today ? walk.firstDeloadFrom : null;
+
+  const fulfil = deriveProgramPlanFulfillment(program);
+  const members = programWorkouts(program);
+  const byId = {};
+  members.forEach(w => { if(w && w.id) byId[w.id] = w; });
+  const thisMonday = civilMonday(today);
+  const groups = {};
+  (fulfil.slots || []).forEach(s => {
+    if(!s || !isBlockDate(s.date) || s.date < cur.start || (cutoff && s.date >= cutoff)) return;
+    const monday = civilMonday(s.date);
+    if(monday > thisMonday) return;                       // weeks that have not happened
+    (groups[monday] = groups[monday] || []).push(s);
+  });
+
+  /* A BREAK: breakWeeks whole weeks in a row, inside this block and before
+     this week, without a single program workout. Whatever the reason, that
+     time was rest; the count toward a deload starts again after it. */
+  const trained = {};
+  members.forEach(w => {
+    if(w && isBlockDate(w.date) && w.date >= cur.start && w.date <= today) trained[civilMonday(w.date)] = true;
+  });
+  let countFrom = civilMonday(cur.start), idle = 0, restartedFrom = null, g = 0;
+  for(let m = civilMonday(cur.start); m < thisMonday && (!cutoff || m < cutoff) && g++ < 600; m = civilAddDays(m, 7)){
+    if(trained[m]){ idle = 0; continue; }
+    if(++idle >= BLOCK_RULES.breakWeeks){ countFrom = civilAddDays(m, 7); restartedFrom = countFrom; }
+  }
+
+  const weeks = Object.keys(groups).sort().map(monday => {
+    const slots = groups[monday].map(s => ({ date: s.date, dayKey: s.dayKey, category: s.category, workoutId: s.workoutId || null }));
+    const planned = slots.length;
+    const required = blockWeekRequirement(planned);
+    /* As of `today`: training dated later has not happened yet on that day. */
+    const done = slots.filter(s => s.workoutId && byId[s.workoutId] && byId[s.workoutId].date <= today
+      && sessionCarriedOut(byId[s.workoutId])).length;
+    return { monday, slots, planned, required, done, qualified: done >= required,
+      current: monday === thisMonday, counted: monday >= countFrom };
+  });
+  const counted = weeks.filter(w => w.counted);
+  const trainingWeeks = counted.filter(w => w.qualified).length;
+  const blockWeek = counted.filter(w => w.qualified && !w.current).length + 1;
+
+  const running = lifecycle === 'active' && program.status === 'active';
+  const normal = CYCLE_NORMAL_PHASES.indexOf(now.phase) !== -1;
+  /* A deload the program's own phases begin inside the next week is the
+     athlete's plan already; LOOP does not offer a second one on top of it. */
+  let planDeloadAhead = null;
+  if(normal && running && !notStarted){
+    let prev = planPhaseOn(program, today);
+    for(let i = 1; i <= 7; i++){
+      const day = civilAddDays(today, i);
+      const pp = planPhaseOn(program, day);
+      if(pp === 'deload' && prev !== 'deload'){ planDeloadAhead = day; break; }
+      prev = pp;
+    }
+  }
+  /* Each "Not now" asks again later than the last — after one more training
+     week, then two more, then three — counted in training, never in days, so
+     an app left open cannot bring it back. A break clears them: the block is
+     counting again from rest. */
+  const declines = cur.declines.filter(x => x.on >= countFrom);
+  const k = declines.length;
+  const askAgainAt = k ? Math.max(BLOCK_RULES.deloadAfterWeeks, (declines[k - 1].trainingWeeks || 0) + k)
+    : BLOCK_RULES.deloadAfterWeeks;
+  const eligible = running && !notStarted && normal && !pending && !cycleIsForeign(program)
+    && trainingWeeks >= BLOCK_RULES.deloadAfterWeeks;
+  const suggest = eligible && !planDeloadAhead && trainingWeeks >= askAgainAt;
+
+  let moves = [];
+  if(running && !notStarted && !cycleIsForeign(program)){
+    if(pending) moves = ['cancelDeload'];
+    else if(now.phase === 'deload' && now.deload){
+      /* A deload that begins today can still be withdrawn: nothing has been
+         lived under it. Rebuild waits until a deload day is behind the block,
+         so the block it closes always holds its deload. */
+      if(now.deload.source === 'athlete' && now.deload.from === today) moves = ['cancelDeload'];
+      else if(cutoff && cutoff < today) moves = ['rebuild'];
+    } else {
+      moves = (CYCLE_MOVES[now.phase] || []).filter(m => (m !== 'peak' || programSupportsPeak(program))
+        && (m !== 'deload' || !planDeloadAhead));
+    }
+  }
+
+  const value = {
+    programId: program.id, lifecycle, running, paused: program.status === 'paused', notStarted,
+    blockId: cur.id, blockNumber: c.history.length + 1, blockStart: cur.start,
+    phase: now.phase, phaseSource: now.source, phaseSince: now.since || null,
+    deload: now.deload || null,
+    deloadPending: pending ? { from: pending.from, to: pending.to } : null,
+    awaitingRebuild: !!(now.deload && now.deload.complete),
+    deloads: walk.deloads.filter(x => x.from <= today),
+    weeks, trainingWeeks, blockWeek, countFrom, restartedFrom,
+    eligible, suggest, declines: k, askAgainAt, planDeloadAhead,
+    moves, peakSupported: programSupportsPeak(program),
+    history: c.history
+  };
+  _blockStateCache = { key, value };
+  return value;
+}
+
+/* THE ONE WRITE PATH FOR A BLOCK DECISION. Every move is checked against what
+   the derived block allows on that day, so the product can only express the
+   transitions CYCLE_MOVES names, and a repeated tap finds the move already
+   made and is refused. `opts.today` exists for the contracts; the product
+   never passes it. */
+function applyBlockAction(programId, action, opts){
+  const o = opts || {};
+  const p = getProgram(programId);
+  if(!p) return { ok: false, error: 'Program not found' };
+  if(p.status === 'completed') return { ok: false, error: 'A finished program keeps its record as it is.' };
+  if(cycleIsForeign(p)) return { ok: false, error: 'This block was recorded by a newer version of LOOP.' };
+  const today = o.today || localDateStr();
+  const st = deriveBlockState(p, today);
+  if(action === 'decline'){
+    if(!st.suggest) return { ok: false, error: 'There is no deload suggestion to turn down.' };
+  } else if(st.moves.indexOf(action) === -1){
+    return { ok: false, error: 'That is not a step this block can take now.' };
+  }
+  const read = cycleOf(p);
+  /* Written from the stored record where there is one, so an entry this
+     version could not read still survives the write. */
+  const stored = (p.cycle && p.cycle.version === 1 && p.cycle.current && isBlockDate(p.cycle.current.start))
+    ? JSON.parse(JSON.stringify(p.cycle)) : null;
+  const c = stored || JSON.parse(JSON.stringify(read));
+  if(!Array.isArray(c.history)) c.history = [];
+  if(!Array.isArray(c.current.events)) c.current.events = [];
+  if(!Array.isArray(c.current.declines)) c.current.declines = [];
+  c.current.id = read.current.id;
+  if(!stored) c.current.revision = programRevisionOn(p, c.current.start);
+  const at = new Date().toISOString();
+
+  if(action === 'intensification' || action === 'peak'){
+    c.current.events.push({ phase: action, from: today, at });
+  } else if(action === 'deload'){
+    const win = deloadWindowFor(st, today);
+    c.current.events.push({ phase: 'deload', from: win.from, to: win.to, at,
+      suggested: !!o.suggested && st.suggest, trainingWeeks: st.trainingWeeks,
+      afterWeeks: BLOCK_RULES.deloadAfterWeeks });
+  } else if(action === 'cancelDeload'){
+    /* Only a deload nothing has been lived under can be withdrawn, so removing
+       it rewrites no history. */
+    c.current.events = c.current.events.filter(e => !(e && e.phase === 'deload' && isBlockDate(e.from) && e.from >= today));
+  } else if(action === 'decline'){
+    c.current.declines.push({ on: today, trainingWeeks: st.trainingWeeks });
+  } else if(action === 'rebuild'){
+    /* The moves guarantee a deload day already lies behind the block, so the
+       block closes yesterday and still holds it. */
+    const start = read.current.start;
+    const end = today > start ? civilAddDays(today, -1) : start;
+    const phases = [];
+    walkBlock(p, read, end, (d, res) => {
+      const last = phases[phases.length - 1];
+      if(last && last.phase === res.phase && last.source === res.source) last.to = d;
+      else phases.push({ phase: res.phase, source: res.source, from: d, to: d });
+    });
+    c.history.push({
+      id: read.current.id, start, end,
+      closedBy: 'rebuild', closedAt: at,
+      programName: p.name,
+      revision: { start: programRevisionOn(p, start), end: programRevisionOn(p, end) },
+      trainingWeeks: st.trainingWeeks,
+      qualifiedWeeks: st.weeks.filter(w => w.qualified).length,
+      restartedFrom: st.restartedFrom,
+      phases,
+      deloads: st.deloads.filter(x => x.from <= end).map(x => Object.assign({}, x, { endedEarly: x.to >= today })),
+      declines: read.current.declines.map(x => ({ on: x.on, trainingWeeks: x.trainingWeeks }))
+    });
+    c.current = { id: 'tb' + (c.history.length + 1), start: today, revision: programRevisionOn(p, today),
+      events: [], declines: [] };
+  }
+  p.cycle = c;
+  p.updatedAt = at;
+  invalidateProgramCache();
+  persistPrograms();
+  return { ok: true, program: p, state: deriveBlockState(p, today) };
+}
+
 /* ---------- THE COMPLETION SUMMARY ----------
    Pure and derived: program truth plus immutable history in, facts out.
    Nothing here is persisted, and nothing claims more than the log supports. */
@@ -38330,15 +39044,408 @@ function programContextHtml(){
         <span class="tw-program-meta">${saved.length} saved · or build a new one ›</span>
       </button>`;
   }
-  const prog = getProgramProgress(p);
-  if(!prog) return '';
-  // The phase itself is rendered by programPhaseLineHtml() on its own row.
-  return `
-    <button class="tw-program" onclick="openProgramDetail('${escapeAttr(p.id)}')">
-      <span class="tw-program-name">${escapeHtml(p.name)}</span>
-      <span class="tw-program-meta">Week ${prog.week} / ${prog.totalWeeks}</span>
-    </button>
-    <div class="tw-phase-row">${programPhaseLineHtml()}</div>`;
+  /* D77A — a running program is the Training Foundation's to describe: its
+     phase, where the block stands and its week, in one place below This Week.
+     This row now speaks only when there is no running program to describe. */
+  return '';
+}
+
+/* =========================================================
+   TRAINING FOUNDATION  (Phase D77A)
+   ---------------------------------------------------------
+   "What am I training toward, where am I in the block, and
+   what comes next?" — answered on Home below This Week: the
+   day, then the week, then the block.
+
+   THREE HONEST STATES.
+     program  its identity, weekly shape, phase and block week,
+              every value read from the program and the derived
+              block, none supplied to fill a layout
+     plan     no program, so no phase and no block: only what
+              the plan genuinely knows, said to be the plan's,
+              with the way into a program — never an enrolment
+     none     nothing to describe; one way in
+
+   A deload suggestion is a quiet foot on this card, never a
+   banner of its own, and every change is the athlete's.
+   ========================================================= */
+function blockDateLabel(dateStr, weekday){
+  if(!isBlockDate(dateStr)) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', weekday
+    ? { weekday: 'short', month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric' });
+}
+function cyclePhaseLabel(phase){
+  const t = getProgramPhase(phase);
+  return t ? t.label : '';
+}
+/* A week's shape in the order it is trained, each kind named once. */
+function foundationSplit(labels){
+  const seen = {};
+  return labels.filter(l => l && !seen[l] && (seen[l] = true));
+}
+
+function deriveTrainingFoundation(todayStr){
+  const today = todayStr || localDateStr();
+  let p = null, saved = 0;
+  try{ p = getActiveProgram(); }catch(e){ p = null; }
+  try{ saved = getPrograms().length; }catch(e){ saved = 0; }
+  if(p && p.status !== 'completed'){
+    if(deriveProgramLifecycle(p, today) === 'ended') return { kind: 'finished', saved };
+    const sched = programPlanOn(p, today) || {};
+    const days = PROGRAM_DAY_KEYS.filter(k => sched[k] && sched[k].type === 'workout');
+    const goal = p.goal && TRAINING_GOALS[p.goal] ? TRAINING_GOALS[p.goal].label : null;
+    let progress = null;
+    try{ progress = getProgramProgress(p, today); }catch(e){ progress = null; }
+    return { kind: 'program', program: p, name: p.name, goal, days,
+      split: foundationSplit(days.map(k => CAT_LABEL[sched[k].category] || programShortName(sched[k].name))),
+      /* a program that has not begun has no week to be in yet */
+      week: progress && !(p.startDate > today) ? progress.week : null, totalWeeks: progress ? progress.totalWeeks : p.durationWeeks,
+      block: deriveBlockState(p, today), saved };
+  }
+  const plan = (selectedPlanId && DEFAULT_PLANS[selectedPlanId]) || null;
+  const days = schedule ? DAY_ORDER.filter(d => schedule[d] && schedule[d] !== 'rest') : [];
+  if(plan && days.length){
+    return { kind: 'plan', planName: plan.name, days,
+      split: foundationSplit(days.map(d => CAT_LABEL[schedule[d]] || '')), saved };
+  }
+  return { kind: 'none', saved };
+}
+
+/* Where the block stands, in words — shared by the card, the sheet and the
+   screen reader, so they cannot describe it differently. */
+function foundationPosition(st){
+  if(!st) return '';
+  if(st.notStarted) return 'Starts ' + blockDateLabel(st.blockStart, true);
+  if(st.paused) return 'Paused';
+  if(st.phase === 'deload' && st.deload){
+    return st.deload.complete ? 'Complete' : 'Through ' + blockDateLabel(st.deload.to, true);
+  }
+  return 'Block week ' + st.blockWeek;
+}
+function foundationPhaseLineHtml(st){
+  if(!st || !st.phase) return '';
+  return `<span class="fd-phase${st.phase === 'deload' ? ' fd-phase-deload' : ''}">${escapeHtml(cyclePhaseLabel(st.phase))}</span>`
+    + `<span class="fd-pos">${escapeHtml(foundationPosition(st))}</span>`;
+}
+
+/* The one line under the card, when the block has something to say. */
+function foundationFootHtml(st){
+  if(!st || !st.running) return '';
+  if(st.suggest){
+    return `<div class="fd-foot fd-foot-suggest" role="status">
+        <span class="fd-foot-line"><span class="wk-foot-k">Deload</span>${st.trainingWeeks} training weeks complete</span>
+        <span class="fd-foot-s">Consider a planned lighter week before your next build.</span>
+        <span class="fd-foot-a">
+          <button type="button" class="fd-act" onclick="openBlockAction('deload', true)">Review deload</button>
+          <button type="button" class="fd-act-quiet" onclick="declineDeloadSuggestion(this)">Not now</button>
+        </span>
+      </div>`;
+  }
+  if(st.deloadPending){
+    return `<div class="fd-foot"><span class="fd-foot-line"><span class="wk-foot-k">Deload</span>Starts ${escapeHtml(blockDateLabel(st.deloadPending.from, true))} · through ${escapeHtml(blockDateLabel(st.deloadPending.to, true))}</span></div>`;
+  }
+  /* The phase row above already names the deload and its dates; the foot only
+     adds what it means for the next session, or the one step left. */
+  if(st.phase === 'deload' && st.deload && st.deload.active){
+    return `<div class="fd-foot"><span class="fd-foot-s">A planned lighter week. The coach holds your load instead of adding weight.</span></div>`;
+  }
+  if(st.awaitingRebuild && st.moves.indexOf('rebuild') !== -1){
+    return `<div class="fd-foot"><span class="fd-foot-line"><span class="wk-foot-k">Next</span>Start your next block when you’re ready</span>
+        <span class="fd-foot-a"><button type="button" class="fd-act" onclick="openBlockAction('rebuild')">Rebuild</button></span>
+      </div>`;
+  }
+  if(st.planDeloadAhead){
+    return `<div class="fd-foot"><span class="fd-foot-line"><span class="wk-foot-k">Deload</span>Your program’s phases begin one ${escapeHtml(blockDateLabel(st.planDeloadAhead, true))}</span></div>`;
+  }
+  return '';
+}
+
+function trainingFoundationHtml(f){
+  if(!f) return '';
+  const top = right => `<span class="fd-top"><span class="fd-title">Training Foundation</span>${right || ''}</span>`;
+  if(f.kind === 'finished'){
+    return `<section class="fd fd-finished" aria-label="Training foundation">
+        <div class="fd-body">${top()}</div>
+        <div class="fd-entry">${programContextHtml()}</div>
+      </section>`;
+  }
+  if(f.kind === 'none'){
+    return `<section class="fd fd-none" aria-label="Training foundation">
+        <div class="fd-body">${top()}
+          <p class="fd-empty">${f.saved ? 'Start a program to create your training foundation.' : 'Build a program to create your training foundation.'}</p>
+        </div>
+        <div class="fd-entry">${programContextHtml()}</div>
+      </section>`;
+  }
+  if(f.kind === 'plan'){
+    return `<section class="fd fd-plan" aria-label="Training foundation">
+        <div class="fd-body">${top()}
+          <span class="fd-name">Based on ${escapeHtml(f.planName)}</span>
+          <span class="fd-shape">${f.days.length} day${f.days.length === 1 ? '' : 's'} a week${f.split.length ? ' · ' + escapeHtml(f.split.join(', ')) : ''}</span>
+        </div>
+        <div class="fd-entry">${programContextHtml()}</div>
+      </section>`;
+  }
+  const st = f.block;
+  const shape = [f.goal, f.days.length + ' day' + (f.days.length === 1 ? '' : 's') + ' a week', f.split.join(', ')]
+    .filter(Boolean).join(' · ');
+  const count = f.week ? `<span class="fd-count">Week <b>${f.week}</b> of ${f.totalWeeks}</span>` : '';
+  const spoken = ['Training foundation', f.name, f.week ? 'week ' + f.week + ' of ' + f.totalWeeks : '',
+    st && st.phase ? cyclePhaseLabel(st.phase) + ', ' + foundationPosition(st) : '',
+    shape, 'Opens details'].filter(Boolean).join('. ') + '.';
+  return `<section class="fd fd-program" aria-label="Training foundation">
+      <button type="button" class="fd-main" onclick="openFoundation()" aria-label="${escapeAttr(spoken)}">
+        ${top(count)}
+        <span class="fd-name">${escapeHtml(f.name)}</span>
+        <span class="fd-shape">${escapeHtml(shape)}</span>
+        <span class="fd-phase-row">${foundationPhaseLineHtml(st)}<span class="fd-go" aria-hidden="true">${chevronRightSvg()}</span></span>
+      </button>
+      ${foundationFootHtml(st)}
+    </section>`;
+}
+
+function renderTrainingFoundation(){
+  const el = document.getElementById('todayFoundation');
+  if(!el) return;
+  let f = null;
+  try{ f = deriveTrainingFoundation(); }catch(e){ f = null; }
+  el.innerHTML = f ? trainingFoundationHtml(f) : '';
+}
+
+/* ---------- the detail sheet ---------- */
+function openFoundation(){
+  let f = null;
+  try{ f = deriveTrainingFoundation(); }catch(e){ f = null; }
+  if(!f || f.kind !== 'program') return;     // only a program has a block to open
+  renderFoundationDetail();
+  document.getElementById('foundationOverlay').classList.add('open');
+}
+function closeFoundation(){
+  document.getElementById('foundationOverlay').classList.remove('open');
+}
+function foundationMoveHtml(move, st){
+  const t = {
+    intensification: ['Start Intensification', 'Heavier loading, with performance quality first.'],
+    peak:            ['Start Peak', 'Optional. A short, specific push, most useful before testing a lift.'],
+    deload:          ['Review deload', st.suggest ? 'Suggested now.'
+      : 'LOOP suggests one after ' + BLOCK_RULES.deloadAfterWeeks + ' training weeks; you can take one sooner.'],
+    rebuild:         ['Rebuild', 'Close this block and start the next one in Accumulation.'],
+    cancelDeload:    ['Cancel deload', 'Nothing has been trained under it yet, so nothing changes.']
+  }[move];
+  if(!t) return '';
+  return `<button type="button" class="fdd-move" onclick="openBlockAction('${move}', ${move === 'deload' && st.suggest ? 'true' : 'false'})">
+      <span class="fdd-move-t">${escapeHtml(t[0])}</span><span class="fdd-move-s">${escapeHtml(t[1])}</span></button>`;
+}
+function foundationDeloadText(st){
+  if(st.deloadPending) return 'Scheduled from ' + blockDateLabel(st.deloadPending.from, true) + ' through ' + blockDateLabel(st.deloadPending.to, true) + '.';
+  if(st.phase === 'deload' && st.deload){
+    const whose = st.deload.source === 'plan' ? 'Set by your program’s phases' : 'You started it';
+    return st.deload.complete
+      ? 'Completed ' + blockDateLabel(st.deload.to, true) + '. Rebuild when you’re ready to start the next block.'
+      : whose + ': ' + blockDateLabel(st.deload.from, true) + ' through ' + blockDateLabel(st.deload.to, true) + '.';
+  }
+  if(st.planDeloadAhead) return 'Your program’s phases begin one ' + blockDateLabel(st.planDeloadAhead, true) + '.';
+  if(st.suggest) return 'Suggested now — ' + st.trainingWeeks + ' training weeks complete.';
+  if(st.eligible){
+    const n = st.askAgainAt - st.trainingWeeks;
+    return 'You chose Not now. LOOP will mention it again after ' + n + ' more training week' + (n === 1 ? '' : 's') + '.';
+  }
+  return 'LOOP suggests one after ' + BLOCK_RULES.deloadAfterWeeks + ' training weeks. This block has '
+    + st.trainingWeeks + ' so far.';
+}
+/* The phases the open block has been through, as dated runs — the same walk
+   the Rebuild snapshot takes, so the sheet and the kept record agree. Read only
+   when the sheet opens, never on Home. */
+function blockPhaseRuns(program, st, todayStr){
+  const runs = [];
+  if(!program || !st || st.notStarted) return runs;
+  try{
+    walkBlock(program, cycleOf(program), todayStr || localDateStr(), (d, res) => {
+      const last = runs[runs.length - 1];
+      if(last && last.phase === res.phase) last.to = d;
+      else runs.push({ phase: res.phase, from: d, to: d });
+    });
+  }catch(e){ return []; }
+  return runs;
+}
+/* The next change the program's own phases have written, within its timeline:
+   a fact about the plan the athlete approved, which the block follows unless a
+   deload comes first. */
+function programNextWrittenPhase(program, st, todayStr){
+  if(!program || !st || !st.running || st.phase === 'deload') return null;
+  const today = todayStr || localDateStr();
+  let prev = planPhaseOn(program, today);
+  for(let i = 1; i <= 7 * 16; i++){
+    const d = civilAddDays(today, i);
+    const pp = planPhaseOn(program, d);
+    if(pp && pp !== prev && pp !== st.phase) return { phase: pp, from: d };
+    prev = pp;
+  }
+  return null;
+}
+function renderFoundationDetail(){
+  const body = document.getElementById('foundationBody');
+  if(!body) return;
+  const f = deriveTrainingFoundation();
+  /* The program finished, paused into another or was removed while the sheet
+     was open: there is no block left to describe, so the sheet steps aside. */
+  if(!f || f.kind !== 'program'){ body.innerHTML = ''; closeFoundation(); return; }
+  const st = f.block, p = f.program;
+  const type = getProgramPhase(st.phase);
+  const isDeload = st.phase === 'deload';
+  const meta = ['Block ' + st.blockNumber];
+  if(!isDeload) meta.push(st.notStarted ? 'starts ' + blockDateLabel(st.blockStart, true) : (st.paused ? 'paused' : 'block week ' + st.blockWeek));
+  meta.push(st.phaseSource === 'athlete' ? (isDeload ? 'you started it ' : 'you moved to it ') + blockDateLabel(st.phaseSince, true)
+    : st.phaseSource === 'plan' ? 'set by your program’s phases'
+    : (st.blockNumber > 1 ? 'since you rebuilt ' + blockDateLabel(st.blockStart, true) : 'every block starts in Accumulation'));
+  const weeks = st.weeks.filter(w => w.counted).slice().reverse().slice(0, 8).map(w => {
+    const label = w.current ? 'This week' : 'Week of ' + blockDateLabel(w.monday);
+    const verdict = w.qualified ? 'counts' : (w.current ? 'in progress' : 'doesn’t count');
+    return `<div class="fdd-row${w.qualified ? ' fdd-row-on' : ''}"><span>${escapeHtml(label)}</span>
+      <span>${w.done} of ${w.planned} · ${verdict}</span></div>`;
+  }).join('');
+  const today = localDateStr();
+  const runs = blockPhaseRuns(p, st, today);
+  const runRows = runs.length > 1 ? runs.map((r, i) => `<div class="fdd-row"><span>${escapeHtml(cyclePhaseLabel(r.phase))}</span>
+      <span>${escapeHtml(blockDateLabel(r.from))} – ${i === runs.length - 1 ? 'now' : escapeHtml(blockDateLabel(r.to))}</span></div>`).join('') : '';
+  const written = programNextWrittenPhase(p, st, today);
+  const nextLine = written ? `<p class="fdd-text fdd-next">Your program’s phases move to ${escapeHtml(cyclePhaseLabel(written.phase))} on ${escapeHtml(blockDateLabel(written.from, true))}.</p>` : '';
+  const hist = st.history.slice().reverse().map((h, i) => {
+    const seq = [];
+    (Array.isArray(h.phases) ? h.phases : []).forEach(s => { if(s && s.phase && seq[seq.length - 1] !== s.phase) seq.push(s.phase); });
+    const dl = Array.isArray(h.deloads) && h.deloads.length ? h.deloads[0] : null;
+    return `<div class="fdd-hist"><span class="fdd-hist-t">Block ${st.history.length - i} · ${escapeHtml(blockDateLabel(h.start))} – ${escapeHtml(blockDateLabel(h.end))}</span>
+      <span class="fdd-hist-s">${h.trainingWeeks || 0} training week${h.trainingWeeks === 1 ? '' : 's'}${seq.length ? ' · ' + escapeHtml(seq.map(cyclePhaseLabel).join(' → ')) : ''}${dl ? ' · deload from ' + escapeHtml(blockDateLabel(dl.from)) : ''}</span></div>`;
+  }).join('');
+  const sched = programPlanOn(p, localDateStr()) || {};
+  const days = PROGRAM_DAY_KEYS.filter(k => sched[k] && sched[k].type === 'workout')
+    .map(k => { let tpl = null; try{ tpl = resolveProgramWorkout(sched[k]); }catch(e){ tpl = null; }
+      return `<div class="fdd-row"><span>${DAY_LABEL_FULL[k]}</span><span>${escapeHtml((tpl && programShortName(tpl.name)) || CAT_LABEL[sched[k].category] || 'Session')}</span></div>`; }).join('');
+  body.innerHTML = `
+    <h2>Training Foundation</h2>
+    <div class="sheet-sub">${escapeHtml(p.name)}${f.week ? ' · week ' + f.week + ' of ' + f.totalWeeks : ''}</div>
+    <div class="fdd-now${st.phase === 'deload' ? ' fdd-now-deload' : ''}">
+      <span class="fdd-k">Current phase</span>
+      <span class="fdd-phase">${escapeHtml(cyclePhaseLabel(st.phase))}</span>
+      ${type ? `<span class="fdd-purpose">${escapeHtml(type.purpose)}</span>` : ''}
+      <span class="fdd-meta">${escapeHtml(meta.join(' · '))}</span>
+    </div>
+    ${runRows ? `<div class="fdd-sec">Phases this block</div>${runRows}` : ''}
+    <div class="fdd-sec">Training weeks</div>
+    ${weeks || '<p class="fdd-text">No planned training in this block yet.</p>'}
+    <p class="fdd-note">A week counts when you carry out all but one of its planned sessions, and at least half. Weeks without training never move the block on, and two in a row start the count again.</p>
+    ${st.restartedFrom ? `<p class="fdd-note">Counting again from ${escapeHtml(blockDateLabel(st.restartedFrom, true))}, after a break from this program.</p>` : ''}
+    <div class="fdd-sec">Deload</div>
+    <p class="fdd-text">${escapeHtml(foundationDeloadText(st))}</p>
+    ${st.moves.length || nextLine ? `<div class="fdd-sec">Next</div>${nextLine}${st.moves.length ? `<div class="fdd-moves">${st.moves.map(m => foundationMoveHtml(m, st)).join('')}</div>` : ''}` : ''}
+    <div class="fdd-sec">Schedule</div>
+    ${days || '<p class="fdd-text">No training days set.</p>'}
+    ${hist ? `<div class="fdd-sec">Previous blocks</div>${hist}` : ''}
+    <button type="button" class="fdd-link" onclick="closeFoundation(); openProgramDetail('${escapeAttr(p.id)}')">Program details</button>`;
+}
+
+/* ---------- a block decision, reviewed before it is made ---------- */
+let blockActionPending = null;
+function openBlockAction(action, suggested){
+  const f = deriveTrainingFoundation();
+  if(!f || f.kind !== 'program' || f.block.moves.indexOf(action) === -1) return;
+  blockActionPending = { action, suggested: !!suggested, programId: f.program.id };
+  renderBlockAction(f);
+  document.getElementById('blockActionOverlay').classList.add('open');
+}
+function closeBlockAction(){
+  document.getElementById('blockActionOverlay').classList.remove('open');
+  blockActionPending = null;
+}
+/* What the block's own lifts did, from D39's evidence gates. Only ever a
+   count of lifts it can speak for — never a claim about the body. */
+function blockTrendSentence(program, st){
+  try{
+    const today = localDateStr();
+    const ws = programWorkouts(program).filter(w => w.date >= st.blockStart && w.date <= today);
+    const perf = derivePerformanceProgress(ws);
+    const up = (perf.exercises || []).filter(r => r.direction === 'improving').length;
+    if(up) return up + (up === 1 ? ' lift has' : ' lifts have') + ' trended up across them.';
+  }catch(e){}
+  return '';
+}
+function renderBlockAction(f){
+  const body = document.getElementById('blockActionBody');
+  const go = document.getElementById('blockActionGo');
+  if(!body || !go || !blockActionPending) return;
+  const st = f.block, a = blockActionPending.action;
+  let html = '', label = '';
+  if(a === 'deload'){
+    const win = deloadWindowFor(st, localDateStr());
+    const why = st.trainingWeeks >= BLOCK_RULES.deloadAfterWeeks
+      ? 'You’ve completed ' + st.trainingWeeks + ' training weeks in this block — weeks in which you carried out your program’s planned sessions.'
+      : 'This block has ' + st.trainingWeeks + ' training week' + (st.trainingWeeks === 1 ? '' : 's') + ' so far. LOOP usually suggests a deload after '
+        + BLOCK_RULES.deloadAfterWeeks + ', but when to take one is your call.';
+    const trend = blockTrendSentence(f.program, st);
+    label = 'Start deload';
+    html = `<h2>Deload</h2><div class="sheet-sub">A planned lighter week</div>
+      <div class="ba-sec">Why now</div><p class="ba-text">${escapeHtml(why + (trend ? ' ' + trend : ''))}</p>
+      <div class="ba-sec">What a deload is</div><p class="ba-text">A week of deliberately lighter training — lighter loads or fewer hard sets — taken before the next block of work.</p>
+      <div class="ba-sec">What changes</div><p class="ba-text">${escapeHtml(blockDateLabel(win.from, true))} through ${escapeHtml(blockDateLabel(win.to, true))} becomes your deload. During it the coach holds your load instead of adding weight. Your planned sessions aren’t rewritten, so train them lighter.</p>
+      <div class="ba-sec">What stays</div><p class="ba-text">Every workout you’ve logged, your PRs, Session Scores and progress stay exactly as they are.</p>`;
+  } else if(a === 'rebuild'){
+    const n = st.trainingWeeks;
+    label = 'Rebuild';
+    html = `<h2>Rebuild</h2><div class="sheet-sub">Start your next block</div>
+      <p class="ba-text">Block ${st.blockNumber} — ${escapeHtml(blockDateLabel(st.blockStart))} to yesterday, ${n} training week${n === 1 ? '' : 's'} and its deload — is kept as it is.</p>
+      <p class="ba-text">Block ${st.blockNumber + 1} starts today in Accumulation. Your program, its schedule and your sessions carry on unchanged.</p>`;
+  } else if(a === 'intensification' || a === 'peak'){
+    const t = getProgramPhase(a);
+    label = a === 'peak' ? 'Start Peak' : 'Start Intensification';
+    html = `<h2>${escapeHtml(t.label)}</h2><div class="sheet-sub">${escapeHtml(a === 'peak' ? 'Optional' : t.note)}</div>
+      <p class="ba-text">${escapeHtml(t.purpose)}</p>
+      <p class="ba-text">From today this block is in ${escapeHtml(t.label)}. LOOP records the change; your planned sessions stay as they are.</p>`;
+  } else if(a === 'cancelDeload'){
+    const dl = st.deloadPending || st.deload;
+    label = 'Cancel deload';
+    html = `<h2>Cancel deload</h2><div class="sheet-sub">${dl ? escapeHtml(blockDateLabel(dl.from, true) + ' through ' + blockDateLabel(dl.to, true)) : ''}</div>
+      <p class="ba-text">Nothing has been trained under it yet, so nothing changes. Your block carries on in ${escapeHtml(cyclePhaseLabel(blockPhaseBefore(f.program, st)))}.</p>`;
+  }
+  body.innerHTML = html;
+  go.textContent = label;
+  go.disabled = false;
+  /* Beside "Cancel deload", a plain Cancel would read as the same decision. */
+  const keep = document.querySelector('#blockActionOverlay .ba-cancel');
+  if(keep) keep.textContent = a === 'cancelDeload' ? 'Keep deload' : 'Cancel';
+}
+/* The phase a withdrawn deload returns the block to. */
+function blockPhaseBefore(program, st){
+  const c = cycleOf(program);
+  const without = JSON.parse(JSON.stringify(c));
+  without.current.events = without.current.events.filter(e => e.phase !== 'deload');
+  const day = st.deloadPending ? st.deloadPending.from : localDateStr();
+  const ph = trainingPhaseOn(program, day, without);
+  return ph && ph.phase !== 'deload' ? ph.phase : 'accumulation';
+}
+function confirmBlockAction(btn){
+  const pend = blockActionPending;
+  if(!pend || (btn && btn.disabled)) return;
+  if(btn) btn.disabled = true;
+  const r = applyBlockAction(pend.programId, pend.action, { suggested: pend.suggested });
+  if(!r.ok){
+    if(btn) btn.disabled = false;
+    alert(r.error || 'That did not save. Nothing changed.');
+    return;
+  }
+  closeBlockAction();
+  const ov = document.getElementById('foundationOverlay');
+  if(ov && ov.classList.contains('open')) renderFoundationDetail();
+  renderToday();
+}
+function declineDeloadSuggestion(btn){
+  if(btn && btn.disabled) return;
+  const f = deriveTrainingFoundation();
+  if(!f || f.kind !== 'program' || !f.block.suggest) return;
+  if(btn) btn.disabled = true;
+  const r = applyBlockAction(f.program.id, 'decline');
+  if(!r.ok && btn) btn.disabled = false;
+  renderToday();
 }
 
 /* ---- list ---- */

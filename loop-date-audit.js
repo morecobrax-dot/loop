@@ -499,6 +499,81 @@ async function run(){
       bad + ' mismatches ' + JSON.stringify(seeds));
   }
 
+  /* ---------------------------------------------------------
+     J — training blocks (D77A) count civil weeks in every zone
+     A block's training weeks, its program weeks and a deload's window are
+     all civil dates. Built from local-midnight Date objects they drift by a
+     day wherever a clock change sits between two midnights: floor() on 167
+     hours read the week of the US spring change as six days, so program
+     week 2 began a day late. Held here in every zone of the matrix, across
+     the US and EU changes in both directions.
+     --------------------------------------------------------- */
+  sub('training blocks: civil weeks, program weeks and deload windows');
+  {
+    const oracleAdd = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n));
+      return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0'); };
+    const civil = [], weeks = [], spans = [];
+    ['2026-02-23', '2026-10-12'].forEach(start => {
+      for(let i = 0; i < 70; i++){
+        const day = oracleAdd(start, i);
+        if(ctx.civilAddDays(day, 1) !== oracleAdd(day, 1) || ctx.civilAddDays(day, -1) !== oracleAdd(day, -1)
+          || ctx.civilMonday(day) !== oracleMondayOf(day)) civil.push(day);
+        if(ctx.daysBetweenDates(day, oracleAdd(day, 7)) !== 7 || ctx.daysBetweenDates(start, day) !== i) spans.push(day);
+      }
+    });
+    ok('civilAddDays and civilMonday match the oracle through all four clock changes', civil.length === 0, civil.slice(0, 4).join(' '));
+    ok('every seven-day span is seven days, and every day is its own distance from the start', spans.length === 0, spans.slice(0, 4).join(' '));
+
+    const tplId = c => ctx.DEFAULT_PLANS.balanced.templates[c][0].id;
+    const entry = c => ({ type: 'workout', planId: 'balanced', category: c, templateId: tplId(c) });
+    const schedule = { mon: entry('push'), tue: { type: 'rest' }, wed: entry('pull'), thu: { type: 'rest' },
+      fri: entry('legs'), sat: { type: 'rest' }, sun: { type: 'rest' } };
+    ctx.programsStore = { version: 1, activeProgramId: null, programs: [] };
+    const made = ctx.createProgram({ name: 'DST Block', durationWeeks: 12, goal: 'strength', startDate: '2026-02-23', schedule });
+    const p = made.program;
+    for(let i = 0; i < 70; i++){
+      const day = oracleAdd('2026-02-23', i);
+      if(ctx.getCurrentProgramWeek(p, day) !== Math.floor(i / 7) + 1) weeks.push(day + '=' + ctx.getCurrentProgramWeek(p, day));
+    }
+    ok('a program week is seven civil days, never six, across the US and EU spring changes', weeks.length === 0, weeks.slice(0, 4).join(' '));
+
+    const saved = ctx.workoutLog;
+    ctx.workoutLog = [];
+    for(let w = 0; w < 6; w++){
+      [[0, 'push'], [2, 'pull'], [4, 'legs']].forEach(([o, c]) => {
+        const d = oracleAdd('2026-02-23', 7 * w + o);
+        ctx.workoutLog.push({ id: 'dst' + d, date: d, category: c, title: c, notes: '', origin: 'program', programId: p.id,
+          exercises: [{ name: 'Bench Press', rx: { sets: 2, reps: '8-10' }, sets: [SET(135, 8), SET(135, 8)] }] });
+      });
+    }
+    clearCaches(ctx); ctx.invalidateProgramCache();
+    const st = ctx.deriveBlockState(p, '2026-04-04');
+    const mondays = st.weeks.map(x => x.monday);
+    const expect = [0, 1, 2, 3, 4, 5].map(w => oracleAdd('2026-02-23', 7 * w));
+    ok('six trained weeks straddling both spring changes are six training weeks', st.trainingWeeks === 6 && st.suggest,
+      'trainingWeeks ' + st.trainingWeeks);
+    ok('and each one is keyed to its real Monday', JSON.stringify(mondays) === JSON.stringify(expect), mondays.join(' '));
+    const win = ctx.deloadWindowFor(st, '2026-04-04');
+    ok('a deload chosen that Saturday runs Monday to Sunday of the next week', win.from === '2026-04-06' && win.to === '2026-04-12', win.from + '..' + win.to);
+
+    /* what "today" is for the block: the local calendar day at the instant */
+    const bad = [];
+    ['2026-04-04T23:30:00Z', '2026-04-05T03:30:00Z', '2026-04-05T12:00:00Z', '2026-04-06T02:00:00Z'].forEach(iso => {
+      withClock(ctx, iso, () => {
+        const local = oracleLocalDate(new Date(iso).getTime(), TZ);
+        ctx.invalidateProgramCache();
+        const s = ctx.deriveBlockState(p);
+        const current = s.weeks.find(x => x.current);
+        if((current ? current.monday : oracleMondayOf(local)) !== oracleMondayOf(local)) bad.push(iso + ' current week ' + (current && current.monday) + ' oracle ' + oracleMondayOf(local));
+        if(s.trainingWeeks !== 6) bad.push(iso + ' trainingWeeks ' + s.trainingWeeks);
+      });
+    });
+    ok('at any instant, the block\'s current week is the local calendar week', bad.length === 0, bad.slice(0, 3).join(' | '));
+    ctx.workoutLog = saved;
+    ctx.programsStore = { version: 1, activeProgramId: null, programs: [] };
+    clearCaches(ctx); ctx.invalidateProgramCache();
+  }
+
   section('RESULT — TZ=' + TZ);
   console.log('  passed: ' + PASS + ' | failed: ' + FAIL);
   if(FINDINGS.length){

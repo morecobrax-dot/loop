@@ -10764,3 +10764,176 @@ at the figure's own max width (106 px; 124 px in `.td-figure`). And
   isolated and removed before a number was reported.
 - **Safari was not run** (Windows). Nested `<svg>` viewports and `<image>`
   are SVG 1.1 core.
+
+## §106 — D77A: Training Foundation and the deload cycle
+
+**Status.** Shipped in LOOP 7.8 (`loop-v155`). `DATA_KEYS` 15, schema 1, no
+migration, no new storage key, `TRAINER_ENGINE_VERSION` 0.1.1-shadow. No
+prescription, set, rep, load, RIR target, PR, Session Score, XP, rank or
+progression rule changed. Outside the new block model, the only behavioural
+change is `daysBetweenDates` rounding instead of flooring (a DST fix, below).
+
+### The gap
+
+A program had a length and, optionally, phases written in advance (D7). It
+had no training block: nothing counted the real training done since the last
+deload, nothing suggested one, a deload could only be written into the phases
+beforehand, and nothing closed a block and began the next. Today showed the
+program's name, week and written phase as a strip at the top of the daily card.
+
+### Storage — `cycle`, on the program record
+
+```
+cycle: { version: 1,
+  current: { id: 'tbN', start, revision, events: [], declines: [] },
+  history: [ { id, start, end, closedBy: 'rebuild', closedAt, programName,
+               revision: { start, end }, trainingWeeks, qualifiedWeeks, restartedFrom,
+               phases:  [ { phase, source, from, to } ],
+               deloads: [ { from, to, source, suggested, trainingWeeks, afterWeeks, endedEarly } ],
+               declines: [ { on, trainingWeeks } ] } ] }
+events:  { phase: 'intensification' | 'peak', from, at }
+         { phase: 'deload', from, to, at, suggested, trainingWeeks, afterWeeks }
+```
+
+Only decisions are stored. A program without `cycle` has one implicit block,
+`tb1`, from its own start date, and reading or rendering never writes one.
+Why here: the `programs` store already owns every fact about a program and
+already travels through backup and import; a block belongs to one program,
+so a switch cannot leak one; `updateProgram` assigns whitelisted keys only, so
+edits and D51 revisions leave `cycle` untouched; `createProgram` builds a fresh
+record, so a copy or a next program never inherits a block. A record whose
+version is not 1 is read as the implicit block, offers no moves or
+suggestion, and is never written. Unreadable entries are skipped when read and
+kept when written. The one write path is `applyBlockAction`, reached only from
+the review sheet's confirm and from Not now.
+
+### Rules (`deriveBlockState`, memoised per program, day, record and log)
+
+- **Training week.** Monday-aligned. Planned sessions and their fulfilment
+  are D43's (`deriveProgramPlanFulfillment`: the schedule in force on each
+  date, D51 revisions included, ±2 days, category). A planned session counts
+  as done when its workout is dated on or before the day asked and
+  `sessionCarriedOut` holds — D49's definition asked of a session: working
+  sets only (not warm-ups, not sets marked not done, reps > 0), an exercise
+  complete at its prescribed sets or two without one, the session carried out
+  when at least half its exercises are. RIR is not read. A week counts at
+  `max(1, planned − 1, ⌈planned / 2⌉)`.
+- **Break.** Two whole weeks in a row inside the block, before this one,
+  without any program workout: the count restarts the following Monday and
+  earlier declines lapse. The phase is not changed.
+- **Cutoff.** Weeks from the block's first deload on never count.
+- **Suggestion.** Program active and running, started, phase Accumulation,
+  Intensification or Peak, no pending deload, record readable, ≥ 6 training
+  weeks, no deload written into the program's phases beginning within 7 days,
+  and training weeks ≥ `askAgainAt` (after k declines: the last decline's
+  count + k — one more week, then two, then three).
+- **Moves** (`CYCLE_MOVES`). Accumulation → Intensification | Deload;
+  Intensification → Peak | Deload; Peak → Deload; Deload → Rebuild. Peak only
+  for strength or recomp goals, or where a Peak is written. A pending deload
+  offers only Cancel; an athlete's deload that begins today offers only
+  Cancel; Rebuild waits until the block's first deload day is behind it; a
+  written deload on its first day offers nothing. Every action is validated
+  against the derived moves for that day, so a repeated tap is refused.
+- **Deload window.** The rest of this Monday–Sunday program week when its
+  training has not begun and at least half of it is ahead; otherwise the next
+  whole week.
+- **Phase on a date** (`walkBlock`, one forward walk from the block's start,
+  read by Home, the workout label, the Live Set Coach and the Rebuild
+  snapshot). The latest deload to have begun outranks everything; otherwise
+  the more recent of the athlete's latest move and the program's latest
+  written normal phase that began inside the block; otherwise Accumulation.
+  The first block begins with the program, so every written phase is its own.
+  A later block ignores a written phase already under way when it began —
+  Rebuild opens in Accumulation — and honours the next written boundary from
+  its first day. Written Rebuild reads as Accumulation; Custom says nothing.
+  A date in a closed block answers from its snapshot.
+- **Rebuild.** The snapshot closes the block the day before; `tb(N+1)` starts
+  today.
+- **Coach.** `liveSetEvidence` asks `programDeloadActiveOn` — true only inside
+  an active deload, never before a program begins. D50B's hold is unchanged.
+
+### Home and sheets
+
+`#todayFoundation` after `#weekCard`, before readiness. Program: title and
+program week, name, focus · days a week · split, one phase chip (accent;
+Deload in the warning tone) with block week or deload position, and a foot
+only when the block has something to say — the suggestion (Review deload /
+Not now), a pending deload's dates, an active deload's meaning, Rebuild, or a
+written deload beginning soon. Plan only: "Based on <plan>", its days and
+split, and the existing way into a program — no phase, block or deload word.
+Neither: "Build a program to create your training foundation." and one call to
+action. The daily card no longer carries the program row
+(`programContextHtml` now speaks only when no program is running, from inside
+the Foundation). The Foundation sheet: current phase and purpose, the phases
+this block has been through, training weeks and why each counted, deload
+status, next steps and the next written transition, schedule, previous blocks
+with their phase sequence, and Program details. Each decision opens a review
+first; the deload review says why, what a deload is, what changes (the coach
+holds load; sessions are not rewritten) and what stays. Program detail notes
+when the block stands somewhere the written phases do not.
+
+### DST fix
+
+`daysBetweenDates` floored the difference of two local midnights, so a span
+crossing the spring change read 167 hours as six days. Measured on 7.7 in New
+York: a program started 2026-03-02 read week 1 on 03-09 and week 2 on 03-16 —
+every new week began a day late until the autumn change. It now rounds.
+
+### Evidence
+
+- **Contract 181** (192 assertions): scenarios A–N; the rule floor under any
+  allowance; guards (completed, foreign, malformed, not started, an imported
+  past + future deload); storage (no new key, nothing written by reading,
+  write path confined, saved inside `programs`); determinism and memo cost;
+  placement and restraint; written-phase transitions; a seeded 393-day
+  simulation — absence, switch, revision, pause, declines, deloads, rebuilds —
+  checking every day for duplicate or overlapping blocks, snapshots without
+  their deload, phase drift, log writes and non-repeatable derivation.
+- **Mutation 45/45** from a clean 192/0 baseline.
+- **Repointed with reasons:** the rest-day program row (now drawn every day by
+  the Foundation, held structurally and on a rendered week), and the coach's
+  phase source (one resolver over the program record). The material rule
+  gained `.fd`; no vocabulary contract changed.
+- **Date audit** gains six block checks in every zone (47 × 7, 0 failures);
+  the flooring mutant fails in New York and London and passes in UTC.
+- **Headless Edge:** 390 × 844, 375 × 812, 430 × 932, 320 × 568 in Accumulation,
+  deload suggested, deload under way, Rebuild offered, plan only and no
+  program, plus pending, finished, paused, not started and rebuilt; sheets and
+  reviews at 390 and 320 — no horizontal overflow, no clipped text, every
+  control ≥ 44 px, no console errors.
+- **Cost** (`renderToday`, JS only, headless Edge, median of 30 × 3 rounds,
+  7.7 → 7.8): 12 trained weeks 2.0 → 2.2 ms cold, 0.9 → 1.0 warm; 52 weeks
+  7.9 → 8.5 cold, 4.0 → 3.9 warm. The block derivation costs 0.2 / 1.0 ms
+  cold and nothing measurable once memoised; a block read no longer walks
+  history on every render.
+
+### Known and recorded
+
+- D43's planned slots are laid out without paused days, so training in the
+  weeks a pause adds to a program's end is not counted toward a block.
+- Written phases for dates before a resume are read through D7's week
+  arithmetic, which subtracts all paused days; a snapshot of a paused program
+  with written phases can place a written run days away from where it was.
+- Training outside the program neither counts nor ends a break.
+- A written boundary can move a block where an athlete's move could not (a
+  written Intensification after the athlete's Peak); it is the program they
+  approved.
+- A block left in a finished deload stays "Deload · Complete" until Rebuild.
+- Blocks of a completed program are kept in its record but not shown.
+- Safari was not run (Windows).
+
+### D77B handoff — deferred, deliberately
+
+1. **Deload prescription.** Nothing lowers sets, volume, load or the RIR
+   target for sessions inside a deload window. `PRESCRIPTION_PROFILES` has no
+   deload profile, `applyPrescription` touches primary movements only, and
+   D37's `programPhaseRxForWeek` resolves a written phase's `rx` by program
+   week — it knows nothing of athlete-started phases or blocks.
+2. **Phase prescriptions.** Accumulation, Intensification and Peak change no
+   rep range, effort or load; D77B decides whether the block's phase or the
+   written phase selects `rx`.
+3. **Next time.** `buildProgressionRecommendation` and D49 evidence do not
+   know a deload window; D77B decides whether increases are withheld during a
+   deload and how loads resume after it.
+4. **Session Score** is not adjusted for a planned lighter week.
+5. **Rebuild re-entry** carries no load reset or ramp.
