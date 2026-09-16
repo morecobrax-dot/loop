@@ -18050,12 +18050,20 @@ async function testSocialFoundation(){
   {
     T('publishing is fire-and-forget where a workout is saved',
       /socialPublishSoon\(\);/.test(code) && !/await socialPublishSoon/.test(code));
+    /* REPOINTED IN D80A, NOT WEAKENED. This measured the FIRST
+       socialPublishSoon() in the file and expected it to be the workout's.
+       D80A added a second, legitimate caller — signing in publishes in the
+       background, which is what socialPublishStats() already did there — so
+       the first occurrence moved. What is protected is unchanged and is now
+       found by what it is: the call inside the workout save runs only in the
+       branch where the log write succeeded. */
     T('and it happens only after the log write succeeded', (() => {
-      const fn = fnSrc(src, 'finishWorkout') || code;
-      const i = code.indexOf('socialPublishSoon();');
-      const j = code.lastIndexOf('persistLog().then(ok => {', i);
-      const k = code.lastIndexOf('if(ok){', i);
-      return i !== -1 && j !== -1 && k !== -1 && j < k && k < i;
+      const fin = fnSrc(src, 'saveLog');
+      const at = fin.indexOf('socialPublishSoon();');
+      const j = fin.lastIndexOf('persistLog().then(ok => {', at);
+      const k = fin.lastIndexOf('if(ok){', at);
+      const e = fin.indexOf('} else {', at);
+      return at !== -1 && j !== -1 && k !== -1 && j < k && k < at && at < e;
     })());
     T('the fire-and-forget wrapper cannot throw',
       /try\{/.test(fnSrc(src, 'socialPublishSoon')) &&
@@ -18142,8 +18150,22 @@ async function testSocialFoundation(){
        Reading them would put the session in whatever browser opened the
        link — which is the magic-link failure D52B exists to avoid. The
        confirmation is what the trip is for; the session is not. */
+    /* REPOINTED IN D80A, NOT WEAKENED. The address bar was banned outright,
+       which was the simplest true statement while LOOP read nothing from it.
+       Invite links (?invite=<token>) now have to be read, so the ban is on
+       what actually matters and is stated twice over: no session material is
+       read from a URL anywhere — no hash, no access_token, no refresh_token —
+       and the query string is read in exactly one function, for exactly one
+       parameter, which is handed to the server as a capability to ASK. */
     T('no session is ever read out of a URL',
-      !/location\.hash|access_token=|URLSearchParams|location\.search/.test(code));
+      !/location\.hash|access_token=|refresh_token=|type=recovery/.test(code));
+    T('the address bar is read in exactly one place, for the invite and nothing else', (() => {
+      const reads = code.match(/location\.search|URLSearchParams/g) || [];
+      const fn = fnSrc(src, 'socialCaptureInviteFromUrl');
+      const gets = fn.match(/\.get\('([^']+)'\)/g) || [];
+      return reads.length === 2 && /location\.search/.test(fn) && /URLSearchParams/.test(fn) &&
+        gets.length === 1 && gets[0] === ".get('invite')";
+    })(), (code.match(/.{0,30}(location\.search|URLSearchParams).{0,30}/g) || []).join(' | '));
 
     /* The three signed-out screens. Rendered rather than read, because
        the defect this guards against is a control that is described but
@@ -18184,9 +18206,19 @@ async function testSocialFoundation(){
       /font-size:\s*16px/.test(cssRule(src, '.soc-in')), cssRule(src, '.soc-in'));
 
     /* A session running out is not the same event as leaving. */
+    /* REPOINTED IN D80A. The old assertion pinned the defect D80A fixes:
+       socialRequest cleared the session whenever a refresh did not succeed,
+       for ANY reason — no signal, a timeout, a 503 — and that is why athletes
+       were signed out of Friends. What it meant to protect still holds and is
+       asserted more precisely: one retry and never a loop, and a session is
+       cleared when GoTrue REFUSES the refresh token, in the one place that
+       decides that. Contract 183 proves the behaviour against a GoTrue mock. */
     T('a session that cannot be refreshed is cleared, not retried forever',
       /!o\.retried/.test(fnSrc(src, 'socialRequest')) &&
-      /socialClearSession\(\)/.test(fnSrc(src, 'socialRequest')));
+      !/socialClearSession\(\)/.test(fnSrc(src, 'socialRequest')) &&
+      /verdict === 'rejected'/.test(fnSrc(src, 'socialRenewSession')) &&
+      /socialSessionEnded\(\)/.test(fnSrc(src, 'socialRenewSession')) &&
+      /socialClearSession\(\)/.test(fnSrc(src, 'socialSessionEnded')));
     ctx.socialState.expired = true; ctx.socialView.notice = null;
     T('and the sign-in screen explains it rather than looking like data loss',
       /session ended/i.test(screen('signin')));
@@ -28513,6 +28545,773 @@ async function testMuscleFocusChips(){
   });
 }
 
+/* =========================================================
+   CONTRACT 183 — FRIENDS REBUILD  (Phase D80A)
+
+   The owner kept being signed out of Friends. The cause was not
+   the backend: socialRequest treated ANY refresh that did not
+   come back perfect — no signal, a timeout, a 409 while two
+   renewals queued, a 503, the phone locking mid-request — as the
+   end of the session, and deleted the refresh token that could
+   have renewed it. Access tokens last an hour, so nearly every
+   visit to Friends and every workout finished at a gym went down
+   that path. Two renewals racing could also wipe the session one
+   of them had just installed, leaving "Pick a username" with no
+   way out.
+
+   Proved here against a GoTrue mock that follows supabase/auth's
+   own refresh rules (counter sessions: one behind is allowed,
+   further behind outside ten seconds ends the session), then the
+   rest of D80A: invite links, the friend list, the weekly
+   leaderboard, the comparison, and what may cross the network.
+
+   AUTH · INVITES · FRIENDSHIP · LEADERBOARD · COMPARISON ·
+   PRIVACY · MIGRATION 0002
+   ========================================================= */
+async function testFriendsRebuild(){
+  section('CONTRACT 183 — Friends rebuild: sessions that stay, invite links, the week (D80A)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  const MIN = 60 * 1000;
+  const TOKEN = 'Abc_def-GHIjklMNOpqrSTUvwxYZ0123456789abcde';   // 43 URL-safe characters
+  const T43 = /^[A-Za-z0-9_-]{43}$/;
+
+  /* ---------------------------------------------------------------
+     A GoTrue that behaves like supabase/auth's refresh token grant
+     (algorithm v2), plus the few PostgREST routes Friends calls.
+     Faults are per-request and explicit, so every result below
+     names exactly what went wrong on the wire.
+     --------------------------------------------------------------- */
+  function mkBackend(opts){
+    const o = opts || {};
+    const b = { now: Date.UTC(2026, 8, 16, 12, 0, 0), sessions: {}, access: {}, seq: 0,
+      refreshCalls: 0, rotations: 0, calls: [], faults: [], published: { stats: [], weeks: [] },
+      userId: '11111111-1111-4111-8111-111111111111', email: 'athlete@example.com',
+      hub: null, rpc: {}, logout: [] };
+    b.session = () => {
+      const id = 's' + (++b.seq);
+      b.sessions[id] = { id, counter: 0, last: b.now, alive: true };
+      return b.sessions[id];
+    };
+    b.issue = (s, userId) => {
+      const at = 'at.' + s.id + '.' + (++b.seq);
+      b.access[at] = { sid: s.id, exp: b.now + 3600 * 1000, userId: userId || b.userId };
+      return { access_token: at, token_type: 'bearer', expires_in: 3600,
+        refresh_token: 'rt.' + s.id + '.' + s.counter, user: { id: userId || b.userId, email: b.email,
+          email_confirmed_at: '2026-01-01T00:00:00Z' } };
+    };
+    b.signedInSession = () => { const s = b.session(); return b.issue(s); };
+    b.handle = (url, init) => {
+      const u = new URL(url);
+      const body = init && init.body ? JSON.parse(init.body) : null;
+      const auth = (init && init.headers && init.headers.Authorization) || '';
+      b.calls.push({ path: u.pathname + u.search, method: (init && init.method) || 'GET', auth, body });
+      if(u.pathname === '/auth/v1/token' && u.searchParams.get('grant_type') === 'refresh_token'){
+        b.refreshCalls++;
+        const m = /^rt\.(s\d+)\.(\d+)$/.exec(String(body && body.refresh_token));
+        const s = m && b.sessions[m[1]];
+        if(!s || !s.alive) return [400, { code: 400, error_code: 'refresh_token_not_found', msg: 'Invalid Refresh Token: Refresh Token Not Found' }];
+        const diff = s.counter - Number(m[2]);
+        if(diff === 0){ s.counter++; b.rotations++; }
+        else if(diff === 1 || Math.abs(b.now - s.last) < 10000){ /* reuse allowed: current token again */ }
+        else { s.alive = false; return [400, { code: 400, error_code: 'refresh_token_already_used', msg: 'Invalid Refresh Token: Already Used' }]; }
+        s.last = b.now;
+        return [200, b.issue(s, o.refreshUserId)];
+      }
+      if(u.pathname === '/auth/v1/logout'){
+        b.logout.push(u.searchParams.get('scope') || 'global');
+        const at = b.access[auth.replace('Bearer ', '')];
+        if(at){
+          if((u.searchParams.get('scope') || 'global') === 'global') Object.values(b.sessions).forEach(x => { x.alive = false; });
+          else b.sessions[at.sid].alive = false;
+        }
+        return [204, null];
+      }
+      if(u.pathname.startsWith('/rest/v1/')){
+        const at = b.access[auth.replace('Bearer ', '')];
+        if(!auth) return [401, { code: '42501', message: 'permission denied' }];
+        if(!at) return [401, { code: 'PGRST301', message: 'JWT cryptographic operation failed' }];
+        if(b.now >= at.exp) return [401, { code: 'PGRST303', message: 'JWT expired' }];
+        const name = u.pathname.slice('/rest/v1/'.length);
+        if(name === 'social_stats'){ b.published.stats.push(body); return [201, null]; }
+        if(name === 'social_weekly'){ b.published.weeks.push(body); return [201, null]; }
+        if(name.startsWith('profiles')) return [200, o.noProfile ? [] : [{ username: 'cobra', invite_code: 'K7M2P9QX' }]];
+        if(name.startsWith('rpc/')){
+          const fn = name.slice(4);
+          if(b.rpc[fn]) return b.rpc[fn](body);
+          if(fn === 'loop_friends_hub') return [200, b.hub || { status: 'ok', week: body.p_week,
+            profile: { username: 'cobra', invite_code: 'K7M2P9QX' },
+            people: [{ user_id: b.userId, username: 'cobra', is_self: true, level: 3, rank: 'ROOKIE', lifetime_xp: 900,
+              week_xp: null, week_workouts: null, prev_xp: null, prev_workouts: null }],
+            requests: [], invites: [] }];
+          if(fn === 'loop_create_invite_link') return [200, { status: 'created', id: 'inv-1', token: TOKEN,
+            expires_at: new Date(b.now + 7 * 864e5).toISOString() }];
+          return [404, { code: 'PGRST202', message: 'Could not find the function public.' + fn }];
+        }
+        return [200, []];
+      }
+      return [404, { message: 'requested path is invalid' }];
+    };
+    b.fetch = async (url, init) => {
+      const f = b.faults.length && (b.faults[0].match ? b.faults[0].match(url) : true) ? b.faults.shift() : null;
+      await pause(1);
+      if(f && f.drop) throw new TypeError('Load failed');
+      if(f && f.hang){
+        return new Promise((resolve, reject) => {
+          const sig = init && init.signal;
+          if(sig) sig.addEventListener('abort', () => { const e = new Error('aborted'); e.name = 'AbortError'; reject(e); });
+        });
+      }
+      let status, payload;
+      if(f && f.status){ status = f.status; payload = f.body || { message: 'injected' }; b.calls.push({ path: url, injected: status }); }
+      else [status, payload] = b.handle(url, init);
+      if(f && f.lose){ throw new TypeError('Load failed'); }
+      await pause(f && f.slow ? f.slow : 1);
+      return { status, ok: status >= 200 && status < 300,
+        json: async () => { if(payload === null) throw new SyntaxError('Unexpected end of JSON input'); return JSON.parse(JSON.stringify(payload)); } };
+    };
+    return b;
+  }
+
+  /* One LOOP, wired to a backend, with a clock the backend shares and a
+     workout already logged so publishing has something true to say. */
+  const HISTORY = (() => {
+    const today = new Date(); const pad = n => String(n).padStart(2, '0');
+    const d = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+    return JSON.stringify([{ id: 'c183w1', date: d, category: 'push', title: 'Push Day', notes: '',
+      exercises: [{ name: 'Bench Press', bodyweight: false, sets: [
+        { weight: '135', reps: '8', rir: '2', type: 'working' }, { weight: '135', reps: '8', rir: '2', type: 'working' }] }] }]);
+  })();
+  async function mkLoop(b, opts){
+    const o = opts || {};
+    const store = Object.assign({ dataSchemaVersion: '1', workoutLog: o.history === undefined ? HISTORY : o.history }, o.store || {});
+    const app = H.loadApp(store);
+    const ctx = app.ctx;
+    const R = Date;
+    ctx.Date = class extends R { constructor(...a){ if(a.length === 0) super(b.now); else super(...a); } static now(){ return b.now; } };
+    ctx.AbortController = AbortController;
+    ctx.URLSearchParams = URLSearchParams;
+    ctx.location = { protocol: 'https:', origin: 'https://example.test', pathname: '/loop/', search: o.search || '', hash: '', href: '', reload(){} };
+    ctx.__replaced = [];
+    ctx.history = { state: null, pushState(){}, back(){}, replaceState: (s, t, url) => { ctx.__replaced.push(url); } };
+    ctx.fetch = b.fetch;
+    await H.settle(250);
+    return { app, ctx, store: app.store };
+  }
+  /* Until nothing has gone out for a while: the background publish that
+     signing in starts must land before a test moves the clock, or a request
+     sent a moment BEFORE expiry would be counted as sent after it. */
+  async function quiet(b){
+    let n = -1, still = 0;
+    for(let i = 0; i < 100 && still < 3; i++){
+      await pause(15);
+      still = b.calls.length === n ? still + 1 : 0;
+      n = b.calls.length;
+    }
+  }
+  async function signedInLoop(b, opts){
+    const L = await mkLoop(b, opts);
+    await L.ctx.socialAdoptSession(b.signedInSession());
+    await quiet(b);
+    return L;
+  }
+  const settleNet = () => pause(40);
+  const bodyHtml = ctx => ctx.document.getElementById('socialBody').innerHTML || '';
+
+  /* ===================================================== AUTH */
+  sub('AUTH — only GoTrue refusing the refresh token ends a session');
+  {
+    const cases = [
+      ['no signal', { drop: true }, 'offline'],
+      ['a 503', { status: 503, body: { message: 'upstream connect error' } }, 'auth_unavailable'],
+      ['a 409 while renewals queue', { status: 409, body: { code: 409, error_code: 'conflict', msg: 'Too many concurrent token refresh requests' } }, 'auth_unavailable'],
+      ['a 429', { status: 429, body: { code: 429, error_code: 'over_request_rate_limit', msg: 'rate limit' } }, 'auth_unavailable'],
+      ['a gateway refusing the API key', { status: 401, body: { message: 'Invalid API key' } }, 'auth_unavailable'],
+      ['the response lost after the server rotated', { lose: true }, 'offline']
+    ];
+    for(const [label, fault, expectErr] of cases){
+      const b = mkBackend();
+      const L = await signedInLoop(b);
+      const before = JSON.parse(L.store.socialSession).session.refresh_token;
+      b.now += 70 * MIN;
+      b.faults.push(Object.assign({ match: u => /grant_type=refresh_token/.test(u) }, fault));
+      const r = await L.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' });
+      T('a refresh that meets ' + label + ' leaves the athlete signed in', L.ctx.socialSignedIn() && L.ctx.socialState.expired === false,
+        JSON.stringify(r));
+      T('  and the stored session is untouched', JSON.parse(L.store.socialSession).session.refresh_token === before);
+      T('  and the request says why, instead of "signed out"', r.ok === false && r.error === expectErr, r.error);
+      const again = await L.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' });
+      T('  and the next request renews and succeeds', again.ok === true && L.ctx.socialSignedIn(), JSON.stringify(again).slice(0, 120));
+    }
+  }
+  {
+    for(const code of ['refresh_token_not_found', 'refresh_token_already_used', 'session_expired']){
+      const b = mkBackend();
+      const L = await signedInLoop(b);
+      b.now += 70 * MIN;
+      b.faults.push({ match: u => /grant_type=refresh_token/.test(u), status: 400, body: { code: 400, error_code: code, msg: 'Invalid Refresh Token' } });
+      const r = await L.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' });
+      T('GoTrue refusing with ' + code + ' ends the session', !L.ctx.socialSignedIn() && r.error === 'signed_out');
+      T('  it is recorded as an ending, not a sign out', L.ctx.socialState.expired === true);
+      T('  the address is kept for the sign-in screen', L.ctx.socialView.email === 'athlete@example.com');
+      T('  and the stored session is cleared', JSON.parse(L.store.socialSession).session === null);
+      L.ctx.socialView.stage = 'signin'; L.ctx.renderSocial();
+      T('  and the sign-in screen says the session ended', /session ended/i.test(bodyHtml(L.ctx)));
+    }
+  }
+  sub('AUTH — one renewal for everyone, and no replay');
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    b.now += 70 * MIN;
+    b.refreshCalls = 0;
+    const mark = b.calls.length;
+    const rs = await Promise.all([
+      L.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' }),
+      L.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' }),
+      L.ctx.socialRest('/profiles?select=username,invite_code&user_id=eq.' + b.userId)
+    ]);
+    T('three requests that find the token expired make one refresh', b.refreshCalls === 1, b.refreshCalls);
+    T('and all three succeed', rs.every(r => r.ok), rs.map(r => r.error).join(','));
+    T('and none of them was sent with the dead token (renewed before use)',
+      b.calls.slice(mark).filter(c => /rest\/v1/.test(c.path) && b.access[c.auth.replace('Bearer ', '')] &&
+        b.access[c.auth.replace('Bearer ', '')].exp <= b.now).length === 0);
+  }
+  {
+    /* A request sent with the old token whose 401 arrives after the renewal. */
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    const oldAt = L.ctx.socialState.session.access_token;
+    b.now += 70 * MIN;
+    L.ctx.socialState.session.expires_at = b.now + 30 * MIN;           // the phone believes it is fresh
+    b.faults.push({ match: u => /loop_friends_hub/.test(u), slow: 60 });
+    const slow = L.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' });
+    await pause(5);
+    L.ctx.socialState.session.expires_at = 0;                          // a second caller renews meanwhile
+    await L.ctx.socialRest('/profiles?select=username&user_id=eq.' + b.userId);
+    const refreshesBefore = b.refreshCalls;
+    const r = await slow;
+    T('(setup) the slow request went out with the old token', b.calls.some(c => c.auth === 'Bearer ' + oldAt));
+    T('a 401 for a token already replaced retries with the new one', r.ok === true, JSON.stringify(r).slice(0, 120));
+    T('without renewing a second time', b.refreshCalls === refreshesBefore, refreshesBefore + ' -> ' + b.refreshCalls);
+  }
+  {
+    /* Another window renewed twice. This one must not replay its stale token. */
+    const b = mkBackend();
+    const shared = {};
+    const A = await signedInLoop(b);
+    Object.assign(shared, A.store);
+    const Bw = await mkLoop(b, { store: Object.assign({}, shared) });
+    const bind = (L) => {
+      L.ctx.window.storage.get = async k => shared[k] !== undefined ? { key: k, value: shared[k] } : null;
+      L.ctx.window.storage.set = async (k, v) => { shared[k] = v; };
+    };
+    bind(A); bind(Bw);
+    await Bw.ctx.socialLoad();
+    for(let i = 0; i < 2; i++){
+      b.now += 70 * MIN;
+      await A.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' });
+    }
+    b.now += 70 * MIN;
+    const r = await Bw.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' });
+    T('a second window picks up the session the first one renewed', r.ok && Bw.ctx.socialSignedIn(), JSON.stringify(r).slice(0, 120));
+    T('so the server never sees a replayed token and never ends the session', Object.values(b.sessions).every(s => s.alive));
+  }
+  {
+    const b = mkBackend({ refreshUserId: '22222222-2222-4222-8222-222222222222' });
+    const L = await signedInLoop(b);
+    b.now += 70 * MIN;
+    await L.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' });
+    T('a refresh that answers with a different account is refused, never installed',
+      !L.ctx.socialSignedIn() || L.ctx.socialState.session.user_id === b.userId);
+  }
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    b.now += 70 * MIN;
+    b.faults.push({ match: u => /grant_type=refresh_token/.test(u), slow: 60 });
+    const pending = L.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' });
+    await pause(10);
+    await L.ctx.socialClearSession();                                  // signed out while renewing
+    await pending;
+    T('signing out during a renewal is not undone when it lands', !L.ctx.socialSignedIn() && JSON.parse(L.store.socialSession).session === null);
+    T('and is not reported as an ending', L.ctx.socialState.expired === false);
+  }
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    L.ctx.SOCIAL_TIMING.fetchTimeoutMs = 60;
+    b.faults.push({ match: u => /loop_friends_hub/.test(u), hang: true });
+    const t0 = Date.now();
+    /* Raced against a guard, because a request that is never aborted never
+       settles — and an await on it does not fail, it ends the run with exit 0
+       and no RESULT. The D80A mutation check found exactly that. */
+    const r = await Promise.race([
+      L.ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' }),
+      pause(3000).then(() => ({ ok:false, error:'still waiting after 3s (no timeout fired)' }))
+    ]);
+    T('a request that never answers fails as a timeout', r.ok === false && r.error === 'timeout', r.error);
+    T('  in its own time limit, not the phone\'s', Date.now() - t0 < 1000);
+    T('  and the athlete is still signed in', L.ctx.socialSignedIn());
+    L.ctx.SOCIAL_TIMING.fetchTimeoutMs = 15000;
+    T('the time limit is fifteen seconds', /fetchTimeoutMs:\s*15000/.test(code));
+  }
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    await L.ctx.socialSignOut();
+    T('signing out asks GoTrue for scope=local, never the global default', b.logout.length === 1 && b.logout[0] === 'local', b.logout.join(','));
+    T('  and GoTrue ended exactly that session', Object.values(b.sessions).length === 1 && Object.values(b.sessions)[0].alive === false);
+  }
+  {
+    /* The shipped race: two requests fail renewal together. No crash, no half state. */
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    b.now += 70 * MIN;
+    b.faults.push({ match: u => /grant_type=refresh_token/.test(u), status: 400, body: { code: 400, error_code: 'refresh_token_not_found', msg: 'x' } });
+    const errs = [];
+    const onRej = e => errs.push(e);
+    process.on('unhandledRejection', onRej);
+    await Promise.all([L.ctx.socialRpc('loop_friends_hub', {}), L.ctx.socialRpc('loop_my_requests', {}), L.ctx.socialPublishAll()]);
+    await pause(30);
+    process.removeListener('unhandledRejection', onRej);
+    T('three requests ending the same session together do not throw', errs.length === 0, errs.map(String).join('|'));
+    T('  and leave no half state (no session, no profile)', !L.ctx.socialSignedIn() && L.ctx.socialState.profile === null);
+  }
+
+  sub('AUTH — the five states, and no sign-in flash');
+  {
+    const b = mkBackend();
+    const S = await signedInLoop(b);
+    const stored = Object.assign({}, S.store);
+    const app = H.loadApp(stored);
+    const early = app.ctx.socialAuthState();
+    app.ctx.renderSocial();
+    const earlyHtml = app.ctx.document.getElementById('socialBody').innerHTML;
+    T('before the stored record is read, Friends is restoring', early === 'restoring', early);
+    T('  and shows no sign-in form', /Restoring your session/.test(earlyHtml) && !/socEmail/.test(earlyHtml));
+    await H.settle(120);
+    T('after it is read, the session is signed in', app.ctx.socialAuthState() !== 'restoring' && app.ctx.socialSignedIn());
+    const broken = H.loadApp({ dataSchemaVersion: '1', socialSession: '{not json' });
+    await H.settle(120);
+    T('an unreadable record still finishes restoring (signed out, not stuck)', broken.ctx.socialAuthState() === 'signed_out');
+    const L = await signedInLoop(b);
+    L.ctx.socialState.friends = null; L.ctx.socialState.status = 'loading';
+    L.ctx.renderSocial();
+    T('signed in and loading shows the loading state', L.ctx.socialAuthState() === 'loading' && /Loading friends/.test(bodyHtml(L.ctx)) && !/socEmail/.test(bodyHtml(L.ctx)));
+    L.ctx.socialState.status = 'error'; L.ctx.socialState.error = 'auth_unavailable';
+    L.ctx.renderSocial();
+    T('signed in with a failed load shows the error with Try again', L.ctx.socialAuthState() === 'error' &&
+      /Could not reach Friends\. You are still signed in\./.test(bodyHtml(L.ctx)) && /socialDoRetry/.test(bodyHtml(L.ctx)) && !/socEmail/.test(bodyHtml(L.ctx)));
+    L.ctx.socialState.error = 'offline';
+    L.ctx.renderSocial();
+    T('offline with nothing loaded says Friends is unavailable offline', /Friends is unavailable offline\. Your training is unaffected\./.test(bodyHtml(L.ctx)));
+    L.ctx.socialState.friends = null;
+    L.ctx.renderSocial();
+    T('  and never says it is loading at the same time', /unavailable offline/.test(bodyHtml(L.ctx)) &&
+      !/Loading friends|soc-skel/.test(bodyHtml(L.ctx)));
+    L.ctx.socialState.profile = null; L.ctx.socialState.profileState = 'unknown'; L.ctx.socialState.status = 'loading';
+    L.ctx.renderSocial();
+    T('a profile not yet loaded is a wait, never the username step', !/id="socName"/.test(bodyHtml(L.ctx)));
+    L.ctx.socialState.profileState = 'none';
+    L.ctx.renderSocial();
+    T('only a server-confirmed missing profile asks for a username', /id="socName"/.test(bodyHtml(L.ctx)));
+    T('  and that screen always has a way out', /socialDoSignOut/.test(bodyHtml(L.ctx)));
+  }
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    L.ctx.socialState.profile = null; L.ctx.socialState.profileState = 'none';
+    b.rpc = {};
+    const origHandle = b.handle;
+    b.handle = (url, init) => {
+      if(/\/rest\/v1\/profiles$/.test(new URL(url).pathname) && init.method === 'POST')
+        return [409, { code: '23505', message: 'duplicate key value violates unique constraint "profiles_pkey"' }];
+      return origHandle(url, init);
+    };
+    const r = await L.ctx.socialSetUsername('cobra');
+    T('choosing a username the account already has loads it instead of calling it taken',
+      r.ok === true && L.ctx.socialState.profile && L.ctx.socialState.profile.username === 'cobra', JSON.stringify(r));
+  }
+
+  /* ===================================================== INVITES */
+  sub('INVITES — the address bar, read once, for one thing');
+  {
+    const b = mkBackend();
+    const L = await mkLoop(b, { search: '?invite=' + TOKEN + '&utm_source=x' });
+    T('an invite link is parked in storage outside DATA_KEYS', JSON.parse(L.store.socialPendingInvite).token === TOKEN &&
+      L.ctx.DATA_KEYS.indexOf('socialPendingInvite') === -1);
+    T('and the address is cleaned at once', L.ctx.__replaced.length === 1 && L.ctx.__replaced[0] === '/loop/', JSON.stringify(L.ctx.__replaced));
+    T('and Friends opens to show it', L.ctx.document.getElementById('socialOverlay').classList.contains('open'));
+    L.ctx.renderSocial();
+    T('signed out, the sign-in screen says an invite is waiting', /invited to connect on LOOP/.test(bodyHtml(L.ctx)) && /socEmail/.test(bodyHtml(L.ctx)));
+    T('and so does the Settings row', /An invite is waiting/.test(L.ctx.socialSettingsRowHtml()));
+    const code8 = await mkLoop(b, { search: '?invite=k7m2p9qx' });
+    T('a legacy 8-character invite code is accepted, uppercased', JSON.parse(code8.store.socialPendingInvite).token === 'K7M2P9QX');
+    for(const bad of ['?invite=%3Cscript%3E', '?invite=' + TOKEN + 'x', '?invite=', '?friend=alex']){
+      const junk = await mkLoop(b, { search: bad });
+      T('a malformed or foreign parameter is ignored: ' + bad, !junk.store.socialPendingInvite && !junk.ctx.socialState.pendingInvite);
+    }
+    const none = await mkLoop(b, { search: '' });
+    T('no parameter, no change to the address', none.ctx.__replaced.length === 0);
+  }
+  {
+    const b = mkBackend();
+    const L = await mkLoop(b);
+    T('invite links are built from this page, not a hard-coded host',
+      L.ctx.socialInviteUrl(TOKEN) === 'https://example.test/loop/?invite=' + TOKEN);
+    T('a pasted full link is understood', L.ctx.socialInviteToken('Join me https://example.test/loop/?invite=' + TOKEN) === TOKEN);
+    T('a bare token is understood', L.ctx.socialInviteToken('  ' + TOKEN + ' ') === TOKEN);
+    T('anything else is not', L.ctx.socialInviteToken('https://example.test/loop/?friend=alex') === null &&
+      L.ctx.socialInviteToken('alex') === null);
+    T('?friend=<username> is not a thing LOOP reads', !/friend=/.test(code.replace(/\?friend=alex/g, '')));
+  }
+  sub('INVITES — surviving sign in, sign up and reloads');
+  {
+    const b = mkBackend();
+    const L = await mkLoop(b, { search: '?invite=' + TOKEN });
+    const relaunched = await mkLoop(b, { store: Object.assign({}, L.store) });
+    T('a reload keeps the waiting invite', relaunched.ctx.socialState.pendingInvite && relaunched.ctx.socialState.pendingInvite.token === TOKEN);
+    await relaunched.ctx.socialAdoptSession(b.signedInSession());
+    await relaunched.ctx.socialSignOut();
+    T('signing in and out does not lose it', relaunched.ctx.socialState.pendingInvite && relaunched.ctx.socialState.pendingInvite.token === TOKEN);
+    const stale = JSON.parse(L.store.socialPendingInvite);
+    stale.capturedAt = b.now - 15 * 864e5;
+    const old = await mkLoop(b, { store: Object.assign({}, L.store, { socialPendingInvite: JSON.stringify(stale) }) });
+    T('an unanswered invite older than any link can live is dropped', old.ctx.socialState.pendingInvite === null);
+  }
+  sub('INVITES — what the recipient sees');
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b, { search: '?invite=' + TOKEN });
+    const show = async (status, extra) => {
+      b.rpc.loop_preview_invite_link = () => [200, Object.assign({ status }, extra || {})];
+      await L.ctx.socialSetPendingInvite(TOKEN);
+      await L.ctx.socialPreviewPendingInvite();
+      L.ctx.socialState.friends = []; L.ctx.socialState.status = 'ready';
+      L.ctx.renderSocial();
+      return bodyHtml(L.ctx);
+    };
+    let h = await show('ok', { username: 'alex' });
+    T('a valid link: "@alex invited you to connect on LOOP." with Add friend', /@alex invited you to connect on LOOP\./.test(h) && />Add friend</.test(h));
+    T('  the preview request carries the token and nothing else', JSON.stringify(b.calls.filter(c => /loop_preview_invite_link/.test(c.path)).pop().body) === JSON.stringify({ p_token: TOKEN }));
+    h = await show('self');
+    T('your own link says so, with no Add friend', /your own invite link/.test(h) && !/socialDoAcceptInvite/.test(h));
+    h = await show('expired');
+    T('an expired link says it expired', /has expired/.test(h) && !/socialDoAcceptInvite/.test(h));
+    T('  and is not kept to be said again after a reload', L.store.socialPendingInvite === undefined);
+    h = await show('revoked');
+    T('a reset link says it was reset', /reset by the person who shared it/.test(h));
+    h = await show('invalid');
+    T('a link nobody made says it does not work', /does not work/.test(h));
+    h = await show('full');
+    T('a used-up link says so', /used too many times/.test(h));
+    h = await show('already_friends', { username: 'alex' });
+    T('an existing friend is told they are already friends', /already friends with @alex/.test(h));
+    b.rpc.loop_preview_invite_link = () => [503, { message: 'down' }];
+    await L.ctx.socialSetPendingInvite(TOKEN);
+    await L.ctx.socialPreviewPendingInvite();
+    L.ctx.renderSocial();
+    T('an invite that could not be checked offers Try again, and is kept', /Could not check your invite/.test(bodyHtml(L.ctx)) &&
+      /socialDoRetry/.test(bodyHtml(L.ctx)) && JSON.parse(L.store.socialPendingInvite).token === TOKEN);
+  }
+  sub('INVITES — sharing your own link');
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    L.ctx.socialState.backend = 'links';
+    await L.ctx.socialEnsureInviteLink();
+    T('a link is created and kept for re-sharing', L.ctx.socialState.invite && L.ctx.socialState.invite.token === TOKEN &&
+      JSON.parse(L.store.socialSession).invite.token === TOKEN);
+    const shared = [];
+    let sharedSync = false;
+    L.ctx.navigator.share = data => { sharedSync = true; shared.push(data); return Promise.resolve(); };
+    L.ctx.socialDoInvite(null);
+    T('Invite friend opens the share sheet on the tap itself, with nothing awaited first', sharedSync === true);
+    await settleNet();
+    T('  with this page\'s link', shared[0] && shared[0].url === 'https://example.test/loop/?invite=' + TOKEN);
+    T('  and a message with the username, never the email', /@cobra invited you/.test(shared[0].text) && !/@example\.com/.test(JSON.stringify(shared[0])));
+    T('  and says it was shared', /Invite shared/.test(bodyHtml(L.ctx)) || /Invite shared/.test(L.ctx.socialView.notice || ''));
+    L.ctx.socialView.notice = null;
+    L.ctx.navigator.share = () => { const e = new Error('cancel'); e.name = 'AbortError'; return Promise.reject(e); };
+    L.ctx.socialDoInvite(null); await settleNet();
+    T('closing the share sheet is not an error and says nothing', L.ctx.socialView.notice === null);
+    delete L.ctx.navigator.share;
+    const copied = [];
+    L.ctx.navigator.clipboard = { writeText: t => { copied.push(t); return Promise.resolve(); } };
+    L.ctx.socialDoInvite(null); await settleNet();
+    T('without Web Share the link is copied, and the screen says so', copied[0] === 'https://example.test/loop/?invite=' + TOKEN && /Link copied/.test(L.ctx.socialView.notice));
+    L.ctx.socialState.friends = []; L.ctx.socialState.status = 'ready';
+    L.ctx.navigator.clipboard = { writeText: () => Promise.reject(new Error('denied')) };
+    L.ctx.socialDoCopyInvite(null); await settleNet();
+    T('with no clipboard the link is shown in a field to copy by hand', L.ctx.socialView.linkShown === true && /id="socLinkField"/.test(bodyHtml(L.ctx)));
+    L.ctx.socialState.invite.expires_at = new Date(b.now + 864e5).toISOString();
+    T('a link with under two days left is not shared again', L.ctx.socialInviteReady() === false);
+    L.ctx.socialState.invite.expires_at = new Date(b.now + 6 * 864e5).toISOString();
+    L.ctx.socialApplyHub({ status: 'ok', people: [], requests: [], invites: [], profile: { username: 'cobra', invite_code: 'K7M2P9QX' } }, '2026-09-14');
+    T('a remembered link the server no longer honours is forgotten', L.ctx.socialState.invite === null);
+  }
+
+  /* ===================================================== FRIENDSHIP */
+  sub('FRIENDSHIP — the list, the empty state, and removing');
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    L.ctx.socialState.backend = 'links';
+    const me = { user_id: b.userId, username: 'cobra', is_self: true, level: 3, rank: 'ROOKIE', lifetime_xp: 900, week_xp: 120, week_workouts: 1, prev_xp: 0, prev_workouts: 0 };
+    L.ctx.socialApplyHub({ status: 'ok', people: [me], requests: [], invites: [], profile: { username: 'cobra', invite_code: 'K7M2P9QX' } }, '2026-09-14');
+    L.ctx.socialState.status = 'ready';
+    L.ctx.renderSocial();
+    const empty = bodyHtml(L.ctx);
+    T('with no friends: "Train with friends."', /Train with friends\./.test(empty));
+    T('  "Share an invite to compare progress each week."', /Share an invite to compare progress each week\./.test(empty));
+    T('  with Invite friend', /soc-empty-box[\s\S]*socialDoInvite[\s\S]*Invite friend/.test(empty));
+    T('the hub has its sections, in the brief\'s order', (() => {
+      const order = ['My friends', 'Invite', 'Weekly leaderboard', 'Progress'].map(s => empty.indexOf('<div class="sec-head">' + s));
+      return order.every(i => i !== -1) && order.every((v, i) => i === 0 || order[i - 1] < v);
+    })());
+    T('the header identity is a username, level and rank, and the primary action is Invite friend',
+      /soc-idn[\s\S]*@cobra[\s\S]*Level \d+ · [A-Z][a-z]+[\s\S]*Invite friend/.test(empty));
+    const alex = { user_id: '33333333-3333-4333-8333-333333333333', username: 'alex', is_self: false, level: 14, rank: 'ATHLETE',
+      lifetime_xp: 22000, week_xp: 840, week_workouts: 3, prev_xp: 610, prev_workouts: 2, friends_since: '2026-08-01T00:00:00Z' };
+    L.ctx.socialApplyHub({ status: 'ok', people: [me, alex], requests: [], invites: [], profile: { username: 'cobra', invite_code: 'K7M2P9QX' } }, '2026-09-14');
+    L.ctx.renderSocial();
+    const one = bodyHtml(L.ctx);
+    T('a friend row shows username, level, rank and this week', /@alex/.test(one) && /Level 14 · Athlete/.test(one) && /3 workouts<span>this week/.test(one));
+    T('  and taps through to compare', /socialOpenCompare\('33333333-3333-4333-8333-333333333333'\)/.test(one));
+    T('  and has no remove control of its own', !/Remove/.test(one.split('Weekly leaderboard')[0]));
+    L.ctx.socialOpenCompare(alex.user_id);
+    T('removing lives behind the overflow menu', !/Remove friend/.test(bodyHtml(L.ctx)));
+    L.ctx.socialToggleMenu();
+    T('  which offers Remove friend', /Remove friend/.test(bodyHtml(L.ctx)));
+    L.ctx.socialAskRemove();
+    T('  and asks before doing it', /Remove @alex\?/.test(bodyHtml(L.ctx)) && b.calls.every(c => !/loop_remove_friend/.test(c.path)));
+    b.rpc.loop_remove_friend = body => [200, 'removed'];
+    b.hub = { status: 'ok', people: [me], requests: [], invites: [], profile: { username: 'cobra', invite_code: 'K7M2P9QX' } };
+    await L.ctx.socialDoRemove(null);
+    const rm = b.calls.filter(c => /loop_remove_friend/.test(c.path));
+    T('confirming sends the account id and nothing else', rm.length === 1 && JSON.stringify(rm[0].body) === JSON.stringify({ other: alex.user_id }));
+    T('the list comes from the server afterwards, not from an optimistic edit', b.calls.findIndex(c => /loop_friends_hub/.test(c.path) &&
+      b.calls.indexOf(c) > b.calls.indexOf(rm[0])) !== -1 && !L.ctx.socialState.friends.some(p => p.username === 'alex'));
+    T('the athlete is back on the hub, told it happened', L.ctx.socialView.pane === 'hub' && /Removed @alex/.test(L.ctx.socialView.notice));
+  }
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    await L.ctx.socialSetPendingInvite(TOKEN);
+    b.rpc.loop_accept_invite_link = () => [200, { status: 'connected', username: 'alex' }];
+    const r = await L.ctx.socialAcceptPendingInvite();
+    const acc = b.calls.filter(c => /loop_accept_invite_link/.test(c.path));
+    T('Add friend sends the token and nothing else', acc.length === 1 && JSON.stringify(acc[0].body) === JSON.stringify({ p_token: TOKEN }));
+    T('a connection clears the invite and reloads the list', r.ok && r.status === 'connected' && L.ctx.socialState.pendingInvite === null &&
+      b.calls.some(c => /loop_friends_hub/.test(c.path) && b.calls.indexOf(c) > b.calls.indexOf(acc[0])));
+    await L.ctx.socialSetPendingInvite(TOKEN);
+    b.rpc.loop_accept_invite_link = () => [503, { message: 'down' }];
+    const r2 = await L.ctx.socialAcceptPendingInvite();
+    T('an unreachable server keeps the invite for a retry', r2.status === 'unavailable' && L.ctx.socialState.pendingInvite && L.ctx.socialState.pendingInvite.token === TOKEN);
+    b.rpc.loop_accept_invite_link = () => [200, { status: 'no_profile' }];
+    const r3 = await L.ctx.socialAcceptPendingInvite();
+    T('no username yet keeps the invite for after choosing one', r3.status === 'no_profile' && L.ctx.socialState.pendingInvite !== null);
+  }
+
+  /* ===================================================== LEADERBOARD */
+  sub('LEADERBOARD — the week, ranked, deterministically');
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b, { history: '[]' });
+    const P = (name, xp, n, self) => ({ user_id: 'u-' + name, username: name, is_self: !!self, level: 5, rank: 'TRAINEE',
+      lifetime_xp: 5000, week_xp: xp, week_workouts: n, prev_xp: null, prev_workouts: null });
+    const people = [P('zed', 500, 2), P('Amy', 840, 3), P('bob', 500, 1), P('cobra', 620, 2, true), P('_under', 500, 1), P('quiet', null, null), P('Alpha', null, null), P('zero', 0, 0)];
+    const board = ppl => { L.ctx.socialState.friends = ppl; return L.ctx.socialWeeklyBoard(); };
+    const one = board(people.slice());
+    T('ranked by XP earned this week', one.filter(r => r.position !== null).map(r => r.username).join(',') === 'Amy,cobra,_under,bob,zed,zero',
+      one.map(r => r.username + ':' + r.position).join(' '));
+    T('equal XP shares a place: 1, 2, 3, 3, 3, 6', one.filter(r => r.position !== null).map(r => r.position).join(',') === '1,2,3,3,3,6');
+    T('within a tie, plain character order — not the phone\'s locale', /socialNameOrder/.test(fnSrc(src, 'socialWeeklyBoard')) &&
+      !/localeCompare/.test(fnSrc(src, 'socialNameOrder')));
+    T('0 XP published is ranked; no row at all is not', one.find(r => r.username === 'zero').position === 6 &&
+      one.find(r => r.username === 'quiet').position === null);
+    T('the unranked follow everyone ranked, by name', one.slice(-2).map(r => r.username).join(',') === 'Alpha,quiet');
+    const shuffled = board(people.slice().reverse());
+    T('the same rows in any order give the same board', JSON.stringify(shuffled) === JSON.stringify(one));
+    L.ctx.socialState.friends = people; L.ctx.socialState.status = 'ready'; L.ctx.socialState.backend = 'links'; L.ctx.socialState.week = '2026-09-14';
+    L.ctx.socialState.profile = { username: 'cobra', invite_code: 'K7M2P9QX' }; L.ctx.socialState.profileState = 'found';
+    L.ctx.renderSocial();
+    const html = bodyHtml(L.ctx);
+    T('rows read "1 @Amy 840 XP"', /<span class="soc-lb-p" aria-hidden="true">1<\/span><span class="soc-lb-who" aria-hidden="true"><span class="soc-lb-n">@Amy<\/span>[\s\S]*?840 XP/.test(html));
+    T('the athlete\'s own row is "You", marked quietly', /soc-lb-r soc-lb-me[^>]*><span class="soc-lb-p" aria-hidden="true">2<\/span>[\s\S]*?>You</.test(html));
+    T('a friend with no row reads "No update", not 0 XP', /soc-lb-quiet[\s\S]*?@quiet[\s\S]*?No update/.test(html));
+    T('the week is named on the board', /Week of /.test(html) && /Monday to Sunday/.test(html));
+    T('each row is announced whole to a screen reader', /aria-label="Place 1, @Amy, 840 XP, 3 workouts"/.test(html));
+    const many = [P('cobra', 10, 1, true)];
+    for(let i = 0; i < 20; i++) many.push(P('f' + String(i).padStart(2, '0'), 1000 - i, 1));
+    L.ctx.socialState.friends = many; L.ctx.socialView.allBoard = false;
+    L.ctx.renderSocial();
+    const big = bodyHtml(L.ctx);
+    T('with 20 friends: ten rows, plus the athlete\'s own below the cut', (big.match(/class="soc-lb-r/g) || []).length === 11 && /soc-lb-me/.test(big) && /Show all 21/.test(big));
+    L.ctx.socialToggleAll('allBoard');
+    T('  and Show all shows all 21', (bodyHtml(L.ctx).match(/class="soc-lb-r/g) || []).length === 21);
+    T('  and My friends shows six, with Show all 20', /Show all 20/.test(bodyHtml(L.ctx)) && (bodyHtml(L.ctx).split('Weekly leaderboard')[0].match(/class="soc-fr"/g) || []).length === 6);
+    L.ctx.socialState.backend = 'codes';
+    L.ctx.renderSocial();
+    T('a project without weekly rows shows a total-XP leaderboard and says so', /Leaderboard<span class="sec-hint">Total XP/.test(bodyHtml(L.ctx)));
+  }
+  sub('LEADERBOARD — the week is LOOP\'s own XP, grouped once, by the session\'s own Monday');
+  {
+    const b = mkBackend();
+    const hist = JSON.stringify([
+      { id: 'lw-sun', date: '2026-09-13', category: 'push', title: 'Push', notes: '', exercises: [{ name: 'Bench Press', bodyweight: false, sets: [{ weight: '135', reps: '8', rir: '2' }] }] },
+      { id: 'tw-mon', date: '2026-09-14', category: 'pull', title: 'Pull', notes: '', exercises: [{ name: 'Barbell Row', bodyweight: false, sets: [{ weight: '135', reps: '8', rir: '2' }, { weight: '135', reps: '8', rir: '2' }] }] },
+      { id: 'tw-empty', date: '2026-09-15', category: 'pull', title: 'Pull', notes: '', exercises: [{ name: 'Barbell Row', bodyweight: false, sets: [] }] }
+    ]);
+    const L = await mkLoop(b, { history: hist });
+    const [lw, tw] = L.ctx.socialWeekRows(['2026-09-07', '2026-09-14']);
+    const tl = L.ctx.getXPTimelineCached().timeline;
+    T('Sunday belongs to the week it ends', lw.workouts === 1 && lw.weekly_xp === tl.find(t => t.id === 'lw-sun').xpTotal, JSON.stringify(lw));
+    T('Monday starts the next', tw.workouts === 1 && tw.weekly_xp === tl.find(t => t.id === 'tw-mon').xpTotal, JSON.stringify(tw));
+    T('a session with no sets earns and counts nothing', tw.workouts === 1);
+    T('the week is summed from the timeline, never recalculated', /getXPTimelineCached\(\)\.timeline/.test(fnSrc(src, 'socialWeekRows')) &&
+      /computeCardioXPTimeline\(\)\.timeline/.test(fnSrc(src, 'socialWeekRows')) && !/calculateWorkoutXP|calculateSetXP|computeCardioSessionXP/.test(fnSrc(src, 'socialWeekRows')));
+    T('grouped by LOOP\'s civil week key, not cardio\'s UTC-shifted one', /weekStartKey\(t\.date\)/.test(fnSrc(src, 'socialWeekRows')) && !/t\.week\b/.test(fnSrc(src, 'socialWeekRows')));
+    T('cardio streak tiers are never claimed by a week', !/streakXP/.test(fnSrc(src, 'socialWeekRows')));
+    T('the viewer\'s week is their civil Monday', /weekStartKey\(localDateStr\(\)\)/.test(fnSrc(src, 'socialCurrentWeek')));
+    T('publishing sends this week and last week, never older', /addDaysISO\(now, -7\), now/.test(fnSrc(src, 'socialPublishWeeks')));
+  }
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b);
+    L.ctx.socialState.backend = 'links';
+    await L.ctx.socialPublishAll();
+    const wk = b.published.weeks[0];
+    T('a weekly publish is two rows', Array.isArray(wk) && wk.length === 2);
+    T('each row holds exactly user_id, week_start, weekly_xp, workouts, rules_version', wk.every(r =>
+      Object.keys(r).sort().join(',') === 'rules_version,user_id,week_start,weekly_xp,workouts'), JSON.stringify(wk));
+    T('the rows are this athlete\'s own and on Mondays', wk.every(r => r.user_id === b.userId && new Date(r.week_start + 'T00:00:00').getDay() === 1));
+    const n = b.published.weeks.length;
+    await L.ctx.socialPublishAll();
+    T('an unchanged week is not sent again', b.published.weeks.length === n);
+    const self = L.ctx.socialSelfCurrent({ user_id: b.userId, is_self: true, username: 'cobra', level: 1, rank: 'ROOKIE', lifetime_xp: 0,
+      week_xp: 1, week_workouts: 1, prev_xp: 1, prev_workouts: 1 });
+    T('the athlete\'s own row shows exactly what was published', self.week_xp === wk[1].weekly_xp && self.week_workouts === wk[1].workouts && self.prev_xp === wk[0].weekly_xp);
+  }
+
+  /* ===================================================== COMPARISON */
+  sub('COMPARISON — the same shareable fields, side by side, no verdict');
+  {
+    const b = mkBackend();
+    const L = await signedInLoop(b, { history: '[]' });
+    const me = { user_id: b.userId, username: 'cobra', is_self: true, level: 12, rank: 'ATHLETE', lifetime_xp: 18420, week_xp: 620, week_workouts: 2, prev_xp: 910, prev_workouts: 4 };
+    const alex = { user_id: 'u-alex', username: 'alex', is_self: false, level: 14, rank: 'ATHLETE', lifetime_xp: 22000,
+      week_xp: 840, week_workouts: 3, prev_xp: null, prev_workouts: null, week_updated_at: '2026-09-16T08:00:00Z',
+      email: 'alex@example.com', invite_code: 'SECRET88', weight: 225, notes: 'private' };
+    L.ctx.socialState.backend = 'links'; L.ctx.socialState.status = 'ready';
+    L.ctx.socialApplyHub({ status: 'ok', people: [me, alex], requests: [], invites: [], profile: { username: 'cobra', invite_code: 'K7M2P9QX' } }, '2026-09-14');
+    T('whatever the server sends, a person is only the shareable fields', Object.keys(L.ctx.socialState.friends[1]).sort().join(',') ===
+      'friends_since,is_self,level,lifetime_xp,prev_workouts,prev_xp,rank,updated_at,user_id,username,week_workouts,week_xp');
+    L.ctx.socialOpenCompare('u-alex');
+    const html = bodyHtml(L.ctx);
+    const txt = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    T('titled "You and @alex"', /You and @alex/.test(txt));
+    ['Level', 'Rank', 'This week', 'Workouts', 'Last week', 'Change'].forEach(k => T('shows ' + k, txt.indexOf(k) !== -1));
+    T('alex\'s week is shown as published', /840 XP/.test(txt));
+    T('your change is shown as a plain signed number', /Change\s*−290 XP/.test(txt), txt.slice(txt.indexOf('Change'), txt.indexOf('Change') + 30));
+    T('a week alex never published reads No update, and his change is not invented', /No update/.test(txt) && /Change\s*−290 XP\s*—/.test(txt));
+    T('no verdict anywhere', !/ahead|behind|winning|losing|better|worse|beat|crushing|lagging/i.test(txt));
+    T('no weights, notes, codes or email reach the screen', !/225|private|SECRET88|alex@example\.com/.test(html));
+    T('laid out as a table for assistive technology', /role="table"/.test(html) && /role="rowheader"/.test(html) && /role="columnheader"/.test(html));
+    L.ctx.closeSocial();
+    T('the Back button returns to Friends before leaving it', L.ctx.socialView.pane === 'hub');
+  }
+
+  /* ===================================================== PRIVACY */
+  sub('PRIVACY — what may cross the network, and what never does');
+  {
+    const b = mkBackend();
+    const empty = await signedInLoop(b, { history: '[]' });
+    empty.ctx.socialState.backend = 'links';
+    const r = await empty.ctx.socialPublishAll();
+    T('a phone with no training publishes nothing — never 0 XP over real numbers',
+      r.stats.error === 'no_history' && r.weeks.error === 'no_history' && b.published.stats.length === 0 && b.published.weeks.length === 0);
+    const b2 = mkBackend();
+    const L = await signedInLoop(b2);
+    L.ctx.socialState.binding = { userId: b2.userId, publishAllowed: false, previousUserId: 'someone-else' };
+    L.ctx.socialState.published = null;
+    const r2 = await L.ctx.socialPublishAll();
+    T('an unclaimed phone publishes neither stats nor weeks', r2.stats.error === 'unclaimed' && r2.weeks.error === 'unclaimed');
+    T('stats still carry only the snapshot and the user id', /socialSnapshot\(\)/.test(fnSrc(src, 'socialPublishStats')) &&
+      /user_id: socialState\.session\.user_id/.test(fnSrc(src, 'socialPublishStats')));
+    T('the weekly publisher reads timelines, never the raw log',
+      !/workoutLog|\.exercises|\.sets|rir|bodyweight|notes/.test(fnSrc(src, 'socialWeekRows') + fnSrc(src, 'socialPublishWeeks')));
+    T('the hub never renders an email before the Account section', !/session\.email/.test(
+      fnSrc(src, 'socialFriendsHtml') + fnSrc(src, 'socialMyFriendsHtml') + fnSrc(src, 'socialBoardHtml') +
+      fnSrc(src, 'socialCompareHtml') + fnSrc(src, 'socialInviteCardHtml')));
+    T('the invite token and pending invite live outside DATA_KEYS, so no backup holds them',
+      L.ctx.DATA_KEYS.indexOf('socialSession') === -1 && L.ctx.DATA_KEYS.indexOf('socialPendingInvite') === -1 &&
+      (await L.ctx.allDataKeys()).every(k => k !== 'socialPendingInvite' && k !== 'socialSession'));
+    T('there is still no user search or directory', !/search_users|find_user|username=ilike|username=like|loop_search/i.test(code));
+    T('no service-role or secret credential crept in', !/service_role|sb_secret_/.test(code));
+    T('Friends makes no vibration calls (there is no semantic haptics layer to use)',
+      !/vibrate|loopHaptic/.test(['socialDoInvite','socialDoAcceptInvite','socialDoRemove','socialCopyInviteUrl','socialDoResetInvite'].map(f => fnSrc(src, f)).join('')));
+    T('the client never decides a friendship: accept and remove are server functions', /loop_accept_invite_link/.test(fnSrc(src, 'socialAcceptPendingInvite')) &&
+      !/friendships/.test(fnSrc(src, 'socialAcceptPendingInvite') + fnSrc(src, 'socialRemoveFriend')));
+  }
+
+  /* ===================================================== MIGRATION 0002 */
+  sub('MIGRATION 0002 — links and weeks, denied by default');
+  {
+    const path = H.APP_PATH.replace(/index\.html$/, 'supabase/migrations/0002_friends_links_and_weeks.sql');
+    let sql = '';
+    try{ sql = fs.readFileSync(path, 'utf8'); }catch(e){}
+    const plain = sql.replace(/--[^\n]*/g, '');
+    T('the migration is checked in', sql.length > 4000, String(sql.length));
+    ['friend_invites', 'social_weekly'].forEach(t =>
+      T(t + ' has row level security enabled', new RegExp('alter table public\\.' + t + '\\s+enable row level security').test(plain)));
+    T('friend_invites has no policy: only the functions reach it', !/create policy \w+ on public\.friend_invites/.test(plain));
+    T('no policy is permissive', !/using \(true\)|with check \(true\)/i.test(plain));
+    T('weekly rows are written only as their owner', /social_weekly_insert[\s\S]*?with check \(user_id = auth\.uid\(\)\)/.test(plain) &&
+      /social_weekly_update[\s\S]*?using \(user_id = auth\.uid\(\)\)[\s\S]*?with check \(user_id = auth\.uid\(\)\)/.test(plain));
+    T('and read only by the owner and accepted friends', /social_weekly_select[\s\S]*?user_id = auth\.uid\(\)[\s\S]*?loop_are_friends\(user_id, auth\.uid\(\)\)/.test(plain));
+    T('no delete policy on weekly rows', !/for delete[\s\S]{0,40}social_weekly|social_weekly_delete/.test(plain));
+    T('tokens are stored as SHA-256 only', /token_hash\s+bytea not null/.test(plain) && /sha256\(convert_to\(/.test(plain) &&
+      !/\btoken\s+text\s+not null/.test(plain.split('create or replace function')[0]));
+    T('tokens come from gen_random_uuid, not random()', /uuid_send\(gen_random_uuid\(\)\) \|\| uuid_send\(gen_random_uuid\(\)\)/.test(plain) &&
+      !/random\(\)/.test(plain.split('loop_create_invite_link')[1].split('$;')[0]));
+    T('links expire in seven days and are capped', /interval '7 days'/.test(plain) && /uses >= 20/.test(plain) && /offset 4/.test(plain) && /rate_limited/.test(plain));
+    T('self, expired, revoked and duplicate are refused in the accept function', ['self', 'expired', 'revoked', 'already_friends'].every(s =>
+      new RegExp("'status', '" + s + "'").test(plain.split('loop_accept_invite_link')[1])));
+    T('a friendship is still created only by a function, ordered and deduplicated', /insert into public\.friendships \(user_a, user_b\)\s*values \(least\(me, inv\.inviter\), greatest\(me, inv\.inviter\)\)\s*on conflict do nothing/.test(plain));
+    T('the week is a Monday, within sane bounds, written in a recent window', /extract\(isodow from week_start\) = 1/.test(plain) &&
+      /weekly_xp >= 0 and weekly_xp <= 50000/.test(plain) && /workouts >= 0 and workouts <= 100/.test(plain) && /- 371/.test(plain));
+    T('updated_at is the server\'s clock', /new\.updated_at := now\(\)/.test(plain));
+    {
+      const fns = (plain.match(/create or replace function public\.(loop_\w+)\(([^)]*)\)/g) || []);
+      const bodies = plain.split(/create or replace function public\./).slice(1);
+      const definers = bodies.filter(b => /security definer/.test(b.split('$')[0]));
+      T('every security definer function states that someone is signed in', definers.length === 5 &&
+        definers.every(b => /if me is null then/.test(b)), definers.length);
+      const revokes = plain.match(/revoke execute on function[^;]+;/g) || [];
+      T('every function has its execute revoked from PUBLIC and anon', revokes.length === fns.length &&
+        revokes.every(r => /from public, anon/.test(r)), revokes.length + ' of ' + fns.length);
+      T('execute is granted back only to authenticated', (plain.match(/grant execute on function[^;]+;/g) || []).every(g => /to authenticated;/.test(g)));
+      T('the trigger guard is executable by nobody', /revoke execute on function public\.loop_social_weekly_guard\(\)\s+from public, anon, authenticated;/.test(plain));
+      T('both tables revoke every default privilege before granting', /revoke all on table public\.friend_invites from public, anon, authenticated;/.test(plain) &&
+        /revoke all on table public\.social_weekly\s+from public, anon, authenticated;/.test(plain) &&
+        /grant select, insert, update on table public\.social_weekly to authenticated;/.test(plain) &&
+        !/grant[^;]*on table public\.friend_invites/.test(plain));
+    }
+    T('the hub is one function for the whole screen', /loop_friends_hub\(p_week date\)/.test(plain) &&
+      /'people'/.test(plain) && /'requests'/.test(plain) && /'invites'/.test(plain));
+    T('the hub never touches auth.users, so it cannot return an email', !/auth\.users/.test(plain));
+    T('the client loads it in one call', /socialRpc\('loop_friends_hub'/.test(fnSrc(src, 'socialLoadFriends')) &&
+      !/socialRpc\([^)]*\)[\s\S]*forEach[\s\S]*socialRpc/.test(fnSrc(src, 'socialLoadFriends')));
+    const setup = (() => { try{ return fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'SOCIAL-SETUP.md'), 'utf8'); }catch(e){ return ''; } })();
+    T('SOCIAL-SETUP.md tells the owner to apply 0002', /0002_friends_links_and_weeks\.sql/.test(setup));
+    T('and lists the new fields that cross the network', /weekly XP/i.test(setup) && /workout count/i.test(setup));
+  }
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -28656,6 +29455,7 @@ async function main(){
   await testMuscleMapOverlays();
   await testTrainingFoundation();
   await testMuscleFocusChips();
+  await testFriendsRebuild();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
@@ -28733,3 +29533,14 @@ async function main(){
 }
 
 main().catch(e => { console.error('SUITE ERROR:', e); process.exit(1); });
+
+/* A RUN THAT STOPS HALFWAY MUST NOT PASS. A test awaiting a promise that can
+   never settle does not throw: the event loop empties, Node exits 0, and
+   RESULT is never printed — green by exit code with most contracts unrun.
+   main() always leaves through process.exit, which does not emit beforeExit,
+   so reaching it means main never finished. Found by D80A's mutation check,
+   when a removed request timeout left one request waiting forever. */
+process.on('beforeExit', () => {
+  console.error('\nSUITE DID NOT FINISH: a test is awaiting a promise that never settles.');
+  process.exit(1);
+});

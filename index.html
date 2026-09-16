@@ -2438,9 +2438,10 @@ body.first-use{ padding-bottom: 0; }
 .reset-btn:hover{ background: rgba(229,103,95,0.1); }
 
 /* ---- Settings row button (e.g. What's New) ---- */
-/* ---------- friends (D52) ----------
+/* ---------- friends (D52, rebuilt D80A) ----------
    LOOP's own type, surfaces and spacing. This is supporting functionality and
-   is composed to sit behind Today and Workout, not beside them. */
+   is composed to sit behind Today and Workout, not beside them: grouped lists
+   with hairlines rather than a wall of cards, one accent, no podium. */
 .soc-head{ padding: 4px 0 2px; }
 .soc-h{
   font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-title);
@@ -2453,6 +2454,7 @@ body.first-use{ padding-bottom: 0; }
   background: var(--surface); border: 1px solid var(--border);
   border-left: 2px solid var(--accent); border-radius: var(--radius-md); color: var(--text);
 }
+.soc-notice-ok{ border-left-color: var(--success); }
 .soc-field{ display: block; margin: 18px 0 0; }
 .soc-lab{
   display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
@@ -2465,10 +2467,6 @@ body.first-use{ padding-bottom: 0; }
   color: var(--text); font-family: 'Inter', sans-serif;
 }
 .soc-in:focus{ outline: none; border-color: var(--accent); }
-.soc-in-code{
-  font-family: 'JetBrains Mono', monospace; letter-spacing: 0.18em;
-  text-transform: uppercase; text-align: center;
-}
 .soc-go{ width: 100%; margin-top: 16px; }
 .soc-alt{
   display: block; width: 100%; min-height: 46px; margin-top: 8px;
@@ -2478,54 +2476,235 @@ body.first-use{ padding-bottom: 0; }
 .soc-alt:active{ color: var(--accent); }
 .soc-alt:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-md); }
 
-/* The leaderboard. Position, the rank LOOP already gave them, the name, the
-   level. No podium, no confetti — this is a training product. */
-.soc-board{ display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-.soc-row{
-  display: flex; align-items: center; gap: 11px; min-height: 60px; padding: 9px 12px;
+/* Waiting states: a line that says what is happening, and a quiet shape of
+   the list to come. Never the sign-in screen while a session is restoring. */
+.soc-wait{
+  display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 10px;
+  font-size: var(--fs-support); color: var(--text-dim);
+}
+.soc-wait-dot{
+  width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
+  animation: socPulse 1.2s ease-in-out infinite;
+}
+@keyframes socPulse{ 0%,100%{ opacity: 0.25; } 50%{ opacity: 1; } }
+.soc-skel{ display: flex; flex-direction: column; gap: 1px; margin-top: 10px;
+  border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-quiet); }
+.soc-skel span{ display: block; height: 56px; background: var(--surface); }
+.soc-skel span:nth-child(2){ opacity: 0.7; }
+.soc-skel span:nth-child(3){ opacity: 0.45; }
+@media (prefers-reduced-motion: reduce){ .soc-wait-dot{ animation: none; opacity: 0.8; } }
+
+/* Identity: who is signed in, and the one primary action. */
+.soc-idn{
+  display: flex; align-items: center; gap: 11px; margin-top: 12px; padding: 12px 0 4px;
+}
+.soc-idn-medal{ flex: 0 0 34px; display: flex; align-items: center; }
+.soc-idn-medal svg{ display: block; }
+.soc-idn-who{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.soc-idn-n{
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-card-title); font-weight: 700;
+  color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.soc-idn-m{ font-size: var(--fs-meta); color: var(--text-dim); }
+/* The primary action of this screen, in the screen's own restrained voice:
+   the gradient button is Today's and Workout's, and an invite card above it
+   would otherwise put two of them on one screen. */
+.soc-idn-go{
+  flex: 0 0 auto; min-height: 44px; padding: 0 15px; border-radius: var(--radius-md);
+  background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-support); font-weight: 700; cursor: pointer;
+}
+.soc-idn-go:active{ transform: scale(0.97); }
+.soc-idn-go:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.soc-sync{
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding: 10px 12px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
 }
-.soc-me{ border-color: var(--accent); background: var(--accent-soft); }
-.soc-pos{
-  flex: 0 0 20px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-support);
-  font-weight: 700; color: var(--text-faint); font-variant-numeric: tabular-nums;
+.soc-sync-t{ flex: 1; min-width: 150px; font-size: var(--fs-support); color: var(--text-dim); line-height: 1.4; }
+.soc-retry{
+  flex: 0 0 auto; min-height: 44px; padding: 0 14px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 700; cursor: pointer;
 }
-.soc-me .soc-pos{ color: var(--accent); }
-.soc-medal{ flex: 0 0 30px; display: flex; align-items: center; }
-.soc-medal svg{ display: block; }
-.soc-who{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.soc-name{
-  font-size: var(--fs-support); font-weight: 600; color: var(--text);
+.soc-retry:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.soc-sub-head{
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); margin: 16px 0 2px;
+}
+
+/* One grouped list, hairlines between rows. */
+.soc-list{
+  list-style: none; margin: 0; padding: 0; background: var(--surface);
+  border: 1px solid var(--border-quiet); border-radius: var(--radius-md); overflow: hidden;
+}
+.soc-list li + li{ border-top: 1px solid var(--border-quiet); }
+.soc-fr{
+  width: 100%; display: flex; align-items: center; gap: 11px; min-height: 60px; padding: 9px 12px;
+  background: none; border: none; color: inherit; text-align: left; cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+.soc-fr:active{ background: var(--surface-2); }
+.soc-fr:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.soc-fr-medal{ flex: 0 0 28px; display: flex; align-items: center; }
+.soc-fr-medal svg{ display: block; }
+.soc-fr-who{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.soc-fr-n{
+  font-size: var(--fs-body); font-weight: 600; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.soc-meta{
-  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
-  color: var(--text-faint); font-variant-numeric: tabular-nums;
+.soc-fr-m{
+  font-size: var(--fs-meta); color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.soc-lvl{ flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px; }
-/* line-height 1 clipped the digits: measured, every level number overflowed
-   its own box and read as if it had a line struck through it. */
-.soc-lvl b{
-  font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 700; color: var(--text);
-  font-variant-numeric: tabular-nums; line-height: 1.15;
+.soc-fr-wk{
+  flex: 0 0 auto; max-width: 42%; display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+  font-size: var(--fs-meta); font-weight: 600; color: var(--text-dim); text-align: right;
+  font-variant-numeric: tabular-nums;
 }
-/* var(--fs-micro), not a smaller number invented here: 11px is LOOP's floor
-   and the reason it exists is that 160 rendered elements were once under it. */
-.soc-lvl span{
-  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
-  letter-spacing: 0.09em; color: var(--text-faint); line-height: 1;
+.soc-fr-wk span{ font-size: var(--fs-micro); font-weight: 500; color: var(--text-faint); }
+.soc-fr-chev{ flex: 0 0 auto; font-size: var(--fs-card-title); color: var(--text-faint); }
+.soc-quiet{ color: var(--text-faint); font-weight: 500; }
+.soc-more-btn{
+  display: block; width: 100%; min-height: 44px; margin-top: 4px; background: none; border: none;
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600; cursor: pointer;
 }
-.soc-empty{ font-size: var(--fs-support); color: var(--text-dim); line-height: 1.5; margin: 10px 0 0; }
-.soc-stale{ font-size: var(--fs-meta); color: var(--text-faint); margin: 0 0 8px; }
+.soc-more-btn:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-md); }
+
+.soc-empty-box{
+  padding: 16px 14px; background: var(--surface); border: 1px solid var(--border-quiet);
+  border-radius: var(--radius-md);
+}
+.soc-empty-t{ font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-card-title); font-weight: 700; color: var(--text); }
+.soc-empty-s{ font-size: var(--fs-support); color: var(--text-dim); line-height: 1.5; margin: 5px 0 12px; }
+
+/* Invite: the link, two ways to send it, and a way to take it back. */
+.soc-link{
+  padding: 12px; background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-md);
+}
+.soc-link-l{ font-size: var(--fs-meta); color: var(--text-dim); margin-bottom: 10px; }
+.soc-link-u{ margin-bottom: 10px; font-size: 16px; }
+.soc-link-a{ display: flex; gap: 8px; }
+.soc-link-btn{
+  flex: 1; min-height: 44px; padding: 0 12px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-support); font-weight: 600; cursor: pointer;
+}
+.soc-link-primary{ border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.soc-link-btn:disabled{ opacity: 0.5; }
+.soc-link-btn:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.soc-empty-box .soc-link-btn{ width: 100%; }
+.soc-paste-go{ width: 100%; margin-top: 8px; }
+.soc-text-btn{
+  display: block; min-height: 44px; margin-top: 4px; padding: 0; background: none; border: none;
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600;
+  text-align: left; cursor: pointer;
+}
+.soc-text-btn:disabled{ opacity: 0.5; }
+.soc-text-btn:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* An invite someone sent. */
+.soc-ic{
+  margin-top: 12px; padding: 14px; background: var(--accent-soft);
+  border: 1px solid rgba(76,194,255,0.35); border-radius: var(--radius-md);
+}
+.soc-ic-quiet{ margin-bottom: 8px; }
+.soc-ic-t{ font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-card-title); font-weight: 700; color: var(--text); line-height: 1.3; }
+.soc-ic-s{ font-size: var(--fs-support); color: var(--text-dim); margin-top: 5px; line-height: 1.45; }
+.soc-ic .soc-go{ margin-top: 12px; }
+.soc-ic-alt{ margin-top: 4px; min-height: 44px; }
+
+/* The weekly leaderboard: place, name, XP. You, marked quietly. */
+.soc-lb{
+  list-style: none; margin: 0; padding: 0; background: var(--surface);
+  border: 1px solid var(--border-quiet); border-radius: var(--radius-md); overflow: hidden;
+}
+.soc-lb-r{ display: flex; align-items: center; gap: 12px; min-height: 50px; padding: 7px 12px; }
+.soc-lb-r + .soc-lb-r{ border-top: 1px solid var(--border-quiet); }
+.soc-lb-me{ background: var(--accent-soft); }
+.soc-lb-p{
+  flex: 0 0 22px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-support);
+  font-weight: 700; color: var(--text-faint); font-variant-numeric: tabular-nums; text-align: center;
+}
+.soc-lb-me .soc-lb-p{ color: var(--accent); }
+.soc-lb-who{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.soc-lb-n{ font-size: var(--fs-body); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.soc-lb-w{ font-size: var(--fs-micro); color: var(--text-faint); }
+.soc-lb-x{
+  flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-support);
+  font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.soc-lb-quiet .soc-lb-n, .soc-lb-quiet .soc-lb-x{ color: var(--text-faint); font-weight: 500; }
+.soc-lb-quiet .soc-lb-x{ font-family: 'Inter', sans-serif; font-size: var(--fs-meta); }
+
+.soc-prog{
+  background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-md); padding: 2px 12px;
+}
+.soc-prog-r{
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 42px; padding: 10px 0;
+}
+.soc-prog-r + .soc-prog-r{ border-top: 1px solid var(--border-quiet); }
+.soc-prog-r span{ font-size: var(--fs-meta); color: var(--text-faint); flex-shrink: 0; }
+.soc-prog-r b{ font-size: var(--fs-support); font-weight: 600; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Compare: the same fields side by side, with no verdict. */
+.soc-cmp-top{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 8px; }
+.soc-back{
+  min-height: 44px; padding: 0 4px; background: none; border: none; color: var(--accent);
+  font-family: 'Inter', sans-serif; font-size: var(--fs-support); font-weight: 600; cursor: pointer;
+}
+.soc-more{
+  min-width: 44px; min-height: 44px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text-dim); font-size: var(--fs-micro); letter-spacing: 0.12em; cursor: pointer;
+}
+.soc-back:focus-visible, .soc-more:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.soc-menu{
+  display: flex; flex-direction: column; margin: 0 0 10px auto; width: max-content; min-width: 180px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
+}
+.soc-menu-i{
+  min-height: 46px; padding: 0 14px; background: none; border: none; text-align: left; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: var(--fs-support); font-weight: 600; color: var(--text);
+}
+.soc-danger{ color: var(--danger); }
+.soc-menu-i:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.soc-confirm{
+  margin: 0 0 12px; padding: 14px; background: var(--surface);
+  border: 1px solid var(--danger); border-radius: var(--radius-md);
+}
+.soc-confirm-t{ font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-card-title); font-weight: 700; color: var(--text); }
+.soc-confirm-s{ font-size: var(--fs-support); color: var(--text-dim); line-height: 1.45; margin: 6px 0 12px; }
+.soc-confirm-a{ display: flex; gap: 8px; }
+.soc-danger-btn{ border-color: var(--danger); color: var(--danger); background: rgba(229,103,95,0.1); }
+.soc-cmp-grid{
+  margin-top: 14px; background: var(--surface); border: 1px solid var(--border-quiet);
+  border-radius: var(--radius-md); padding: 0 12px;
+}
+.soc-cmp-r{
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.1fr);
+  align-items: baseline; gap: 8px; min-height: 44px; padding: 11px 0;
+}
+.soc-cmp-r + .soc-cmp-r{ border-top: 1px solid var(--border-quiet); }
+.soc-cmp-h{ padding: 10px 0 8px; }
+/* Not uppercased: a username is shown exactly as its owner typed it. */
+.soc-cmp-h span{
+  font-size: var(--fs-meta); font-weight: 700; letter-spacing: 0.01em;
+  color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.soc-cmp-k{ font-size: var(--fs-meta); color: var(--text-faint); }
+.soc-cmp-v{
+  font-size: var(--fs-support); font-weight: 600; color: var(--text); text-align: right;
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
 
 /* Accept and decline carry a mark as well as a colour, so they are
    distinguishable without relying on green versus grey. */
 .soc-req{
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 60px;
-  padding: 9px 12px; margin-top: 6px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 56px;
+  padding: 7px 12px; margin-top: 6px;
+  background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-md);
 }
-.soc-req-n{ flex: 1; min-width: 90px; font-size: var(--fs-support); font-weight: 600; color: var(--text); }
+.soc-req-n{ flex: 1; min-width: 90px; font-size: var(--fs-support); font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 .soc-req-p{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
   letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-faint);
@@ -2541,33 +2720,13 @@ body.first-use{ padding-bottom: 0; }
 .soc-no{ background: none; border: 1px solid var(--border); color: var(--text-dim); }
 .soc-yes:focus-visible, .soc-no:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.soc-code{
-  display: flex; align-items: center; gap: 12px; padding: 13px 14px; margin-top: 4px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-}
-.soc-code-l{
-  flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
-  font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-faint);
-}
-.soc-code-v{
-  flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 17px;
-  font-weight: 700; letter-spacing: 0.13em; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis;
-}
-.soc-copy{
-  flex: 0 0 auto; min-height: 44px; padding: 0 14px; background: var(--surface-2);
-  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-dim);
-  font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600; cursor: pointer;
-}
-.soc-copy:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
-
 .soc-acct{
-  background: var(--surface); border: 1px solid var(--border);
+  background: var(--surface); border: 1px solid var(--border-quiet);
   border-radius: var(--radius-md); padding: 4px 14px; margin-top: 4px;
 }
 .soc-acct-r{
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding: 11px 0; border-bottom: 1px solid var(--border);
+  padding: 11px 0; border-bottom: 1px solid var(--border-quiet);
 }
 .soc-acct-r:last-child{ border-bottom: none; }
 .soc-acct-r span{ font-size: var(--fs-meta); color: var(--text-faint); flex-shrink: 0; }
@@ -15273,6 +15432,34 @@ const LOOP_UPDATES = [
     changes: [
       'The plan workout detail sheet’s plain muscle-name line ("Abs · Shoulders · Back") is replaced by the ranked chips; the Train picker card and its list rows keep the plain line for now'
     ]
+  },
+  {
+    id: 'v8-0',
+    version: 'LOOP 8.0',
+    title: 'Train With Friends',
+    date: '2026-09-16',
+    swVersion: 'loop-v157',
+    summary: 'Friends keeps you signed in, invites travel as a link, and the leaderboard is about this week.',
+    newFeatures: [
+      'Invite friend shares a link — send it however you like, and they add you from it',
+      'A weekly leaderboard: XP earned Monday to Sunday, with you marked and ties sharing a place',
+      'Tap a friend to see your level, rank and weeks side by side',
+      'Remove a friend from their page, behind •••, with a confirmation first'
+    ],
+    improvements: [
+      'When the signal is weak or Friends cannot be reached, you stay signed in — it says it could not connect and offers Try again',
+      'A calmer Friends screen: your friends, your invite link, the week, and your progress',
+      'Have a link but opened LOOP from the home screen? Paste it into Friends'
+    ],
+    bugFixes: [
+      'Fixed Friends signing you out after a connection hiccup — now only a session that has really ended asks you to sign in',
+      'Fixed Friends sometimes asking you to pick the username you already have',
+      'Signing out of Friends on one device no longer signs you out on your others'
+    ],
+    changes: [
+      'Invites are shared as links; the code box is gone, and a pasted link or code still works',
+      'A phone with no training logged never shares numbers over the ones your own phone published'
+    ]
   }
 ];
 
@@ -15343,40 +15530,93 @@ function socialConfigured(){
    not know about. DATA_KEYS stays 15 and a LOOP backup remains what it always
    was: training data, and no credentials. */
 const SOCIAL_STORE_KEY = 'socialSession';
+/* D80A — an invite link someone sent, parked until it is answered. Outside
+   DATA_KEYS for the same reason as the session: it is a capability to connect,
+   not training, and it has no business in a backup. It survives signing in,
+   creating an account and relaunching, and nothing else keeps it. */
+const SOCIAL_INVITE_KEY = 'socialPendingInvite';
+
+/* How long LOOP waits for Friends, and how early it renews. */
+const SOCIAL_TIMING = {
+  fetchTimeoutMs: 15000,                              // a request silent this long has failed
+  refreshMarginMs: 60 * 1000,                         // renew a token with under a minute left BEFORE using it
+  inviteReuseMs: 2 * 24 * 60 * 60 * 1000,             // share a link again only while it has 2+ days left
+  pendingInviteMaxAgeMs: 14 * 24 * 60 * 60 * 1000,    // an unanswered link older than any link can live is dropped
+  republishMs: 6 * 60 * 60 * 1000                     // identical numbers are not re-sent inside this window
+};
+
 let socialState = {
   session: null,      // { access_token, refresh_token, expires_at, user_id, email }
   binding: null,      // { userId, boundAt, publishAllowed }
   profile: null,      // { username, invite_code }
-  friends: null,
+  profileState: 'unknown', // unknown | found | none — only a server-confirmed 'none' asks for a username
+  friends: null,      // me + my friends from the last load that succeeded
   requests: null,
-  status: 'idle',
+  restored: false,    // D80A: the stored record has been read; until then Friends says so instead of guessing
+  status: 'idle',     // the social DATA, not the session: idle | loading | ready | error
   error: null,
   expired: false,     // a session that ran out, as opposed to a deliberate sign out
-  lastPublished: null
+  lastPublished: null,
+  published: null,    // { stats, weeks, at } — what was last sent, so an unchanged week is not re-sent
+  backend: null,      // null until known | 'links' (migration 0002) | 'codes' (0001 only)
+  week: null,         // the civil Monday the loaded weekly numbers belong to
+  invite: null,       // { id, token, expires_at } — this athlete's own shareable link
+  inviteIds: null,    // ids of the links the server still honours
+  pendingInvite: null,// { token, capturedAt } — a link someone else sent, not yet answered
+  renewError: null,   // why the last renewal got no verdict: 'offline', 'timeout', ...
+  invitePreview: null // { token, kind, status, username } — what the server said about it
 };
 
-async function socialLoad(){
-  if(!socialConfigured()) return;
+async function socialReadRecord(){
   try{
     const r = await LOOPStore.get(SOCIAL_STORE_KEY);
-    if(r && r.value){
-      const v = JSON.parse(r.value);
+    return r && r.value ? JSON.parse(r.value) : null;
+  }catch(e){ return null; }
+}
+
+async function socialLoad(){
+  try{
+    if(!socialConfigured()) return;
+    const v = await socialReadRecord();
+    if(v){
       socialState.session = v.session || null;
       socialState.binding = v.binding || null;
       socialState.profile = v.profile || null;
       socialState.lastPublished = v.lastPublished || null;
+      socialState.published = v.published || null;
+      socialState.invite = v.invite || null;
+      if(socialState.profile && socialState.profile.username) socialState.profileState = 'found';
     }
+    try{
+      const p = await LOOPStore.get(SOCIAL_INVITE_KEY);
+      const pending = p && p.value ? JSON.parse(p.value) : null;
+      if(pending && pending.token && Date.now() - (Number(pending.capturedAt) || 0) < SOCIAL_TIMING.pendingInviteMaxAgeMs)
+        socialState.pendingInvite = { token: String(pending.token), capturedAt: Number(pending.capturedAt) || Date.now() };
+    }catch(e){}
   }catch(e){ /* an unreadable social record is not a reason to fail boot */ }
+  finally{ socialState.restored = true; }
 }
 async function socialPersist(){
   try{
     await LOOPStore.set(SOCIAL_STORE_KEY, JSON.stringify({
       session: socialState.session, binding: socialState.binding,
-      profile: socialState.profile, lastPublished: socialState.lastPublished
+      profile: socialState.profile, lastPublished: socialState.lastPublished,
+      published: socialState.published, invite: socialState.invite
     }));
   }catch(e){}
 }
 function socialSignedIn(){ return !!(socialState.session && socialState.session.access_token); }
+
+/* THE FIVE STATES FRIENDS CAN BE IN, decided in one place and nowhere else.
+   A stored session is SIGNED IN until GoTrue itself says otherwise — a failed
+   request is a social error with a retry, never a sign-in screen. */
+function socialAuthState(){
+  if(!socialState.restored) return 'restoring';
+  if(!socialSignedIn()) return 'signed_out';
+  if(socialState.status === 'loading') return 'loading';
+  if(socialState.status === 'error') return 'error';
+  return 'ready';
+}
 
 /* ---------- HTTP ---------- */
 /* One place that talks to the network, so there is one place that handles a
@@ -15385,40 +15625,64 @@ function socialSignedIn(){ return !!(socialState.session && socialState.session.
 async function socialRequest(path, opts){
   if(!socialConfigured()) return { ok:false, error:'not_configured' };
   const o = opts || {};
+  const authed = o.auth !== false;
+  /* A token about to run out is renewed BEFORE it is spent — once, for every
+     request that needs it — rather than each of them failing and renewing. */
+  if(authed && !o.retried && socialSignedIn()){
+    const fresh = await socialEnsureFreshSession();
+    if(fresh === 'rejected' || !socialSignedIn()) return { ok:false, error:'signed_out' };
+    /* Could not renew a token that has already run out: sending it anyway only
+       earns a 401 and a second renewal attempt against the same outage. */
+    if(fresh === 'unavailable' && !(socialState.session.expires_at > Date.now()))
+      return { ok:false, error: socialState.renewError === 'offline' ? 'offline' : 'auth_unavailable' };
+  }
   const headers = Object.assign({
     'apikey': LOOP_SOCIAL.anonKey,
     'Content-Type': 'application/json'
   }, o.headers || {});
-  if(o.auth !== false && socialSignedIn())
-    headers['Authorization'] = 'Bearer ' + socialState.session.access_token;
+  const sentWith = authed && socialSignedIn() ? socialState.session.access_token : null;
+  if(sentWith) headers['Authorization'] = 'Bearer ' + sentWith;
+  /* Silence is a failure too. Without a limit, one bar of signal in a gym
+     leaves the screen waiting for as long as the phone cares to. */
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => { try{ ctl.abort(); }catch(e){} }, SOCIAL_TIMING.fetchTimeoutMs) : null;
+  const stop = () => { if(timer) clearTimeout(timer); };
   let res;
   try{
     res = await fetch(LOOP_SOCIAL.url + path, {
       method: o.method || 'GET', headers,
-      body: o.body === undefined ? undefined : JSON.stringify(o.body)
+      body: o.body === undefined ? undefined : JSON.stringify(o.body),
+      signal: ctl ? ctl.signal : undefined
     });
   }catch(e){
+    stop();
+    if(e && e.name === 'AbortError') return { ok:false, error:'timeout' };
     return { ok:false, error:'offline' };
   }
-  /* One retry, and only after a genuine refresh. A refresh loop on a revoked
-     token would sign the athlete out of a working app. */
-  if(res.status === 401 && o.auth !== false && !o.retried && socialState.session){
-    const refreshed = await socialRefresh();
-    if(refreshed) return socialRequest(path, Object.assign({}, o, { retried:true }));
-    /* Keep the address so the sign-in screen can say whose session ended and
-       fill the field in. It is the athlete’s own email on the athlete’s own
-       phone; nothing about it becomes visible to anyone else. */
-    const who = socialState.session.email || '';
-    await socialClearSession();
-    socialState.expired = true;
-    if(who) socialView.email = who;
-    return { ok:false, error:'signed_out' };
+  /* A 401 is a question about the token, and it gets one answer. */
+  if(res.status === 401 && sentWith && !o.retried){
+    stop();
+    const current = socialState.session && socialState.session.access_token;
+    /* Another request renewed it while this one was in the air. Use the new
+       token; renewing a second time is how rotations multiply. */
+    if(current && current !== sentWith) return socialRequest(path, Object.assign({}, o, { retried:true }));
+    const verdict = await socialRenewSession();
+    if(verdict === 'refreshed') return socialRequest(path, Object.assign({}, o, { retried:true }));
+    if(verdict === 'rejected' || !socialSignedIn()) return { ok:false, error:'signed_out' };
+    /* Nobody answered. That says nothing about whether the athlete is signed
+       in, so they still are. */
+    return { ok:false, status: 401, error:'auth_unavailable' };
   }
   let data = null;
-  try{ data = await res.json(); }catch(e){ data = null; }
+  try{ data = await res.json(); }catch(e){
+    if(e && e.name === 'AbortError'){ stop(); return { ok:false, error:'timeout' }; }
+    data = null;
+  }
+  stop();
   if(!res.ok){
     return { ok:false, status: res.status,
       error: (data && (data.error_description || data.msg || data.message || data.error)) || 'request_failed',
+      code: (data && (data.error_code || data.code)) || null,
       data };
   }
   return { ok:true, data };
@@ -15427,6 +15691,18 @@ async function socialRequest(path, opts){
 function socialRest(path, opts){ return socialRequest('/rest/v1' + path, opts); }
 function socialRpc(fn, args){
   return socialRequest('/rest/v1/rpc/' + fn, { method:'POST', body: args || {} });
+}
+/* Only for failures that are about reaching Friends at all. */
+function socialNetProblem(r){
+  if(!r || r.ok) return null;
+  if(r.error === 'offline') return 'You are offline.';
+  if(r.error === 'timeout' || r.error === 'auth_unavailable' || (r.status && r.status >= 500))
+    return 'Could not reach Friends. Try again in a moment.';
+  return null;
+}
+function socialIsMissing(r){
+  /* PostgREST's "no such function / table": the 0002 migration is not applied. */
+  return !!(r && !r.ok && r.status === 404 && /^PGRST20[25]$/.test(String(r.code || '')));
 }
 
 /* ---------- AUTH ----------
@@ -15532,15 +15808,106 @@ async function socialResendVerification(email){
   return { ok:true };
 }
 
+/* ---------- THE SESSION LIFECYCLE (D80A) ----------
+
+   THE BUG THIS REPLACES. Friends asked for its data with an access token that
+   lives an hour, so most visits — and every workout finished at a gym, which
+   publishes — first had to renew it. Any renewal that did not come back
+   perfect was treated as the END of the session and the refresh token was
+   deleted: no signal, a timeout, a 503, a 409 while two renewals queued, the
+   phone locked between the request and its answer. That token was the one
+   thing that could have renewed it. Worse, two requests renewing at once
+   could each decide: one failure wiped the session the other had just
+   installed, which left the athlete either signed out or asked to pick the
+   username they already had — with nothing on that screen to get out.
+
+   Now:
+   - one renewal at a time, shared by every caller;
+   - a request whose token was replaced while it was in flight retries with the
+     new one instead of renewing again;
+   - a token with under a minute left is renewed before it is used;
+   - a newer session another LOOP window already stored is used, never replayed
+     over (GoTrue ends the whole session when a token two rotations old
+     returns);
+   - ONLY GoTrue refusing the refresh token ends a session. Everything else
+     leaves the athlete signed in and says Friends could not be reached. */
+let socialRenewFlight = null;
+
+function socialRenewSession(){
+  if(socialRenewFlight) return socialRenewFlight;
+  const held = socialState.session;
+  const flight = (async () => {
+    let verdict = 'unavailable';
+    try{ verdict = await socialRefresh(); }catch(e){ verdict = 'unavailable'; }
+    try{
+      if(verdict === 'rejected' && held && socialState.session === held) await socialSessionEnded();
+    }catch(e){}
+    return verdict;
+  })();
+  socialRenewFlight = flight;
+  flight.then(() => { if(socialRenewFlight === flight) socialRenewFlight = null; });
+  return flight;
+}
+
+async function socialEnsureFreshSession(){
+  const s = socialState.session;
+  if(!s || !s.access_token || !s.refresh_token) return 'fresh';
+  if(typeof s.expires_at === 'number' && s.expires_at - Date.now() > SOCIAL_TIMING.refreshMarginMs) return 'fresh';
+  return socialRenewSession();
+}
+
+/* 'refreshed'  — a renewed session is installed
+   'rejected'   — GoTrue refused this refresh token: the session is over
+   'unavailable'— no usable answer: the session is NOT over
+   'superseded' — signed out, or signed in again, while this was in the air */
 async function socialRefresh(){
-  const rt = socialState.session && socialState.session.refresh_token;
-  if(!rt) return false;
-  const r = await socialRequest('/auth/v1/token?grant_type=refresh_token',
-    { method:'POST', auth:false, body: { refresh_token: rt } });
-  if(!r.ok || !r.data || !r.data.access_token) return false;
-  socialState.session = socialSessionFrom(r.data);
+  const held = socialState.session;
+  if(!held || !held.refresh_token) return 'rejected';
+  let refreshToken = held.refresh_token;
+  /* ANOTHER LOOP WINDOW MAY ALREADY HAVE RENEWED IT. Two tabs, or the installed
+     app beside a browser tab, share one stored session and each keeps its own
+     copy in memory. To GoTrue a token two rotations old is a replay, and its
+     answer to a replay is to end the session on every device — so the stored
+     copy is read first and a newer one for the same account wins. */
+  const stored = await socialReadRecord();
+  const newer = stored && stored.session;
+  let next = null;
+  if(newer && newer.user_id === held.user_id && newer.refresh_token &&
+     newer.refresh_token !== held.refresh_token &&
+     (Number(newer.expires_at) || 0) >= (Number(held.expires_at) || 0)){
+    if((Number(newer.expires_at) || 0) - Date.now() > SOCIAL_TIMING.refreshMarginMs) next = newer;
+    else refreshToken = newer.refresh_token;
+  }
+  if(!next){
+    const r = await socialRequest('/auth/v1/token?grant_type=refresh_token',
+      { method:'POST', auth:false, body: { refresh_token: refreshToken } });
+    const verdict = socialRefreshVerdict(r);
+    socialState.renewError = verdict === 'unavailable' ? (r.error || 'unavailable') : null;
+    if(verdict !== 'refreshed') return verdict;
+    next = socialSessionFrom(r.data);
+    /* A refresh renews a session. It can never change whose session it is. */
+    if(!next.user_id || next.user_id !== held.user_id) return 'rejected';
+  }
+  if(socialState.session !== held) return 'superseded';
+  socialState.session = next;
   await socialPersist();
-  return true;
+  return 'refreshed';
+}
+
+/* What GoTrue's answer means for the session. It answers 400 for a refresh
+   token that is unknown, already used, or whose session expired, was revoked
+   or was signed out — that is a verdict. No answer, a timeout, a 409 while
+   renewals queue, a 429, a 5xx, or a gateway refusing the API key is not a
+   verdict on the athlete, and the session stays. */
+function socialRefreshVerdict(r){
+  if(r && r.ok && r.data && r.data.access_token && r.data.refresh_token) return 'refreshed';
+  if(!r || !r.status) return 'unavailable';
+  if(r.status === 400) return 'rejected';
+  if((r.status === 401 || r.status === 403) &&
+     /refresh_token|session_(not_found|expired)|user_(banned|not_found)|invalid_grant/i
+       .test(String(r.code || '') + ' ' + String(r.error || '')))
+    return 'rejected';
+  return 'unavailable';
 }
 
 function socialSessionFrom(d){
@@ -15553,12 +15920,22 @@ function socialSessionFrom(d){
   };
 }
 
+/* GoTrue said the session is over. Keep the address so the sign-in screen can
+   say whose session ended and fill the field in. It is the athlete's own email
+   on the athlete's own phone; nothing about it becomes visible to anyone. */
+async function socialSessionEnded(){
+  const who = (socialState.session && socialState.session.email) || '';
+  await socialClearSession();
+  socialState.expired = true;
+  if(who) socialView.email = who;
+}
+
 /* ---------- THE BINDING ----------
 
    THE INTEGRITY REQUIREMENT OF THIS WHOLE PHASE. This device holds one
-   athlete’s training history, and XP published from it is a claim about who
+   athlete's training history, and XP published from it is a claim about who
    did that training. If Alice signs out and Bob signs in on her phone,
-   nothing may publish Alice’s work under Bob’s name.
+   nothing may publish Alice's work under Bob's name.
 
    So the local dataset records which account it belongs to. A new account
    binds and may publish. The same account returning is business as usual. A
@@ -15575,15 +15952,16 @@ async function socialAdoptSession(d){
   } else if(prior.userId === uid){
     socialState.binding = Object.assign({}, prior, { publishAllowed: prior.publishAllowed !== false });
   } else {
-    /* Someone else’s history is on this device. Sign them in, show them their
+    /* Someone else's history is on this device. Sign them in, show them their
        friends — and publish nothing until they claim it. */
     socialState.binding = { userId: uid, boundAt: new Date().toISOString(),
       publishAllowed: false, previousUserId: prior.userId };
     socialState.profile = null;
+    socialState.profileState = 'unknown';
   }
   await socialPersist();
   await socialLoadProfile();
-  if(socialState.binding.publishAllowed) socialPublishStats();
+  if(socialState.binding.publishAllowed) socialPublishSoon();
   return { ok:true };
 }
 
@@ -15592,8 +15970,9 @@ async function socialClaimThisHistory(){
   if(!socialState.binding) return;
   socialState.binding.publishAllowed = true;
   delete socialState.binding.previousUserId;
+  socialState.published = null;
   await socialPersist();
-  await socialPublishStats();
+  await socialPublishAll();
   renderSocial();
 }
 
@@ -15602,14 +15981,25 @@ async function socialClaimThisHistory(){
 async function socialClearSession(){
   socialState.session = null;
   socialState.profile = null;
+  socialState.profileState = 'unknown';
   socialState.friends = null;
   socialState.requests = null;
+  socialState.invite = null;
+  socialState.inviteIds = null;
+  socialState.invitePreview = null;
+  socialState.published = null;
+  socialState.backend = null;
+  socialState.status = 'idle';
   socialState.error = null;
   await socialPersist();
 }
 async function socialSignOut(){
   if(socialSignedIn()){
-    try{ await socialRequest('/auth/v1/logout', { method:'POST' }); }catch(e){}
+    /* scope=local. GoTrue's default is GLOBAL, which ended the athlete's
+       session on every other device and install they use — including the
+       phone in their pocket, the next time it renewed. Signing out of LOOP
+       here signs out here. */
+    try{ await socialRequest('/auth/v1/logout?scope=local', { method:'POST' }); }catch(e){}
   }
   await socialClearSession();
   socialState.expired = false;   /* leaving on purpose is not an expiry */
@@ -15634,13 +16024,22 @@ function socialUsernameProblem(name){
   return null;
 }
 
+/* The username step appears only when the SERVER has said this account has no
+   profile. A profile that simply has not loaded yet is a loading state. */
 async function socialLoadProfile(){
   if(!socialSignedIn()) return null;
   const uid = socialState.session.user_id;
   const r = await socialRest('/profiles?select=username,invite_code&user_id=eq.' + uid);
-  if(r.ok && Array.isArray(r.data) && r.data.length){
-    socialState.profile = { username: r.data[0].username, invite_code: r.data[0].invite_code };
-    await socialPersist();
+  if(!socialSignedIn() || socialState.session.user_id !== uid) return null;
+  if(r.ok && Array.isArray(r.data)){
+    if(r.data.length){
+      socialState.profile = { username: r.data[0].username, invite_code: r.data[0].invite_code };
+      socialState.profileState = 'found';
+      await socialPersist();
+    } else {
+      socialState.profile = null;
+      socialState.profileState = 'none';
+    }
   }
   return socialState.profile;
 }
@@ -15662,15 +16061,23 @@ async function socialSetUsername(name){
     : await socialRest('/profiles', { method:'POST',
         headers:{ Prefer:'return=representation' }, body: row });
   if(!r.ok){
+    /* The primary key, not the name: this account already HAS a profile and
+       the screen was drawn from stale information. Load it instead of telling
+       the athlete their own name is taken. */
+    if(/profiles_pkey/.test(String(r.error || ''))){
+      await socialLoadProfile();
+      if(socialState.profile && socialState.profile.username) return { ok:true, existing:true };
+    }
     /* 23505 is the unique index on username_key doing its job. */
     const taken = /duplicate key|23505|already exists/i.test(String(r.error || ''));
-    return { ok:false, error: taken ? 'That username is taken.' : 'That did not save. Try again.' };
+    return { ok:false, error: taken ? 'That username is taken.' : (socialNetProblem(r) || 'That did not save. Try again.') };
   }
   const got = Array.isArray(r.data) ? r.data[0] : r.data;
   socialState.profile = { username: (got && got.username) || clean,
     invite_code: (got && got.invite_code) || (socialState.profile && socialState.profile.invite_code) };
+  socialState.profileState = 'found';
   await socialPersist();
-  await socialPublishStats();
+  await socialPublishAll();
   return { ok:true };
 }
 
@@ -15697,45 +16104,199 @@ function socialSnapshot(){
 
 /* Never awaited by anything that matters. A workout finishing, a set landing
    and a rest timer running are local events; this is a background courtesy
-   that is allowed to fail. */
+   that is allowed to fail.
+
+   D80A — NOTHING IS NEVER PUBLISHED OVER SOMETHING. An invite link opened in
+   Safari instead of the installed app lands in a browser with its own, empty
+   storage. Signing in there binds that empty history to the account, and used
+   to publish 0 XP over the athlete's real numbers. A device with no XP has
+   nothing to say about anyone's progression, so it says nothing. */
 async function socialPublishStats(){
   if(!socialSignedIn() || !socialState.profile) return { ok:false, error:'not_ready' };
   if(!socialState.binding || socialState.binding.publishAllowed === false)
     return { ok:false, error:'unclaimed' };
   let snap;
   try{ snap = socialSnapshot(); }catch(e){ return { ok:false, error:'no_snapshot' }; }
+  if(!(snap.lifetime_xp > 0)) return { ok:false, error:'no_history' };
   const body = Object.assign({ user_id: socialState.session.user_id }, snap);
+  const sig = JSON.stringify(body);
+  const prev = socialState.published || {};
+  if(prev.stats === sig && Date.now() - (Number(prev.statsAt) || 0) < SOCIAL_TIMING.republishMs)
+    return { ok:true, unchanged:true };
   const r = await socialRest('/social_stats', { method:'POST',
     headers:{ Prefer:'resolution=merge-duplicates' }, body });
   if(r.ok){
     socialState.lastPublished = new Date().toISOString();
+    socialState.published = Object.assign({}, socialState.published, { stats: sig, statsAt: Date.now() });
     await socialPersist();
   }
   return r;
+}
+
+/* D80A — THE WEEK, READ FROM THE SAME TIMELINES. Weekly XP is not a second
+   calculation. It is the XP LOOP's own timelines already attached to each
+   workout and each cardio session, summed by the civil week — Monday to
+   Sunday, on this athlete's own calendar — the session was logged in.
+   Workouts are the sessions those same timelines counted. The week a session
+   belongs to is decided once, here, from its own date, and published under
+   that Monday: every friend then reads the same number for the same week, and
+   no device ever regroups somebody else's training.
+
+   Cardio streak tiers belong to a run of weeks, not to any one, so they stay
+   in lifetime XP only and a week never claims them. */
+function socialCurrentWeek(){ return weekStartKey(localDateStr()); }
+
+function socialWeekRows(weeks){
+  const out = {};
+  weeks.forEach(w => { out[w] = { week_start: w, weekly_xp: 0, workouts: 0 }; });
+  let counted = 0;
+  getXPTimelineCached().timeline.forEach(t => {
+    const isWorkout = (t.workoutCountAfter || 0) > counted;
+    counted = t.workoutCountAfter || counted;
+    const row = out[weekStartKey(t.date)];
+    if(!row) return;
+    row.weekly_xp += Math.max(0, Math.round(t.xpTotal || 0));
+    if(isWorkout) row.workouts += 1;
+  });
+  computeCardioXPTimeline().timeline.forEach(t => {
+    const row = out[weekStartKey(t.date)];
+    if(!row) return;
+    row.weekly_xp += Math.max(0, Math.round(t.xp || 0));
+    if(typeof t.base === 'number') row.workouts += 1;
+  });
+  return weeks.map(w => out[w]);
+}
+
+/* This week and last week, every time: an edit to last week's session is
+   corrected rather than frozen, and weeks further back are never rewritten. */
+async function socialPublishWeeks(){
+  if(!socialSignedIn() || !socialState.profile) return { ok:false, error:'not_ready' };
+  if(!socialState.binding || socialState.binding.publishAllowed === false)
+    return { ok:false, error:'unclaimed' };
+  if(socialState.backend === 'codes') return { ok:false, error:'unsupported' };
+  let rows;
+  try{
+    if(!(socialSnapshot().lifetime_xp > 0)) return { ok:false, error:'no_history' };
+    const now = socialCurrentWeek();
+    rows = socialWeekRows([addDaysISO(now, -7), now]);
+  }catch(e){ return { ok:false, error:'no_snapshot' }; }
+  const uid = socialState.session.user_id;
+  const body = rows.map(r => Object.assign({ user_id: uid, rules_version: SOCIAL_RULES_VERSION }, r));
+  const sig = JSON.stringify(body);
+  const prev = socialState.published || {};
+  if(prev.weeks === sig && Date.now() - (Number(prev.weeksAt) || 0) < SOCIAL_TIMING.republishMs)
+    return { ok:true, unchanged:true };
+  const r = await socialRest('/social_weekly', { method:'POST',
+    headers:{ Prefer:'resolution=merge-duplicates,return=minimal' }, body });
+  if(r.ok){
+    socialState.published = Object.assign({}, socialState.published, { weeks: sig, weeksAt: Date.now() });
+    await socialPersist();
+  } else if(socialIsMissing(r)){
+    socialState.backend = 'codes';
+  }
+  return r;
+}
+
+async function socialPublishAll(){
+  const stats = await socialPublishStats();
+  const weeks = await socialPublishWeeks();
+  return { stats, weeks };
 }
 
 /* Called where a workout finishes. Deliberately not awaited: if this throws,
    hangs or the phone is in a basement, the workout is already saved. */
 function socialPublishSoon(){
   if(!socialConfigured() || !socialSignedIn()) return;
-  try{ Promise.resolve(socialPublishStats()).catch(() => {}); }catch(e){}
+  try{ Promise.resolve(socialPublishAll()).catch(() => {}); }catch(e){}
 }
 
 /* ---------- FRIENDS ---------- */
+/* ONE ROUND TRIP. loop_friends_hub (migration 0002) returns this athlete's
+   profile, everyone in the circle with level, rank, total XP and this week's
+   and last week's numbers, pending requests and the invite links still
+   honoured — one query, however many friends. A project that has only 0001
+   gets the two calls D52 made. */
 async function socialLoadFriends(){
   if(!socialSignedIn()) return;
-  const [lb, rq] = await Promise.all([
-    socialRpc('loop_friends_leaderboard'),
-    socialRpc('loop_my_requests')
-  ]);
-  if(lb.ok && Array.isArray(lb.data)) socialState.friends = lb.data;
-  if(rq.ok && Array.isArray(rq.data)) socialState.requests = rq.data;
-  socialState.error = (lb.ok && rq.ok) ? null : (lb.error || rq.error);
+  const uid = socialState.session.user_id;
+  const week = socialCurrentWeek();
+  socialState.status = 'loading';
+  let ok = false, error = null;
+  if(socialState.backend !== 'codes'){
+    const r = await socialRpc('loop_friends_hub', { p_week: week });
+    if(r.ok && r.data && r.data.status === 'ok'){
+      if(socialSignedIn() && socialState.session.user_id === uid) socialApplyHub(r.data, week);
+      socialState.backend = 'links';
+      ok = true;
+    } else if(socialIsMissing(r)){
+      socialState.backend = 'codes';
+    } else {
+      error = r.error || (r.data && r.data.status) || 'request_failed';
+    }
+  }
+  if(socialState.backend === 'codes' && !ok && !error){
+    const [lb, rq] = await Promise.all([
+      socialRpc('loop_friends_leaderboard'),
+      socialRpc('loop_my_requests')
+    ]);
+    if(socialSignedIn() && socialState.session.user_id === uid){
+      if(lb.ok && Array.isArray(lb.data)) socialState.friends = lb.data.map(socialPersonFrom);
+      if(rq.ok && Array.isArray(rq.data)) socialState.requests = rq.data;
+    }
+    ok = lb.ok && rq.ok;
+    error = ok ? null : (lb.error || rq.error);
+    if(ok && socialState.profileState !== 'found') await socialLoadProfile();
+  }
+  /* Signed out, or somebody else signed in, while this was loading. */
+  if(!socialSignedIn() || socialState.session.user_id !== uid) return;
+  socialState.status = ok ? 'ready' : 'error';
+  socialState.error = ok ? null : error;
   return socialState.friends;
 }
 
+function socialInt(v, dflt){
+  const n = Math.round(Number(v));
+  return isFinite(n) && n >= 0 ? n : dflt;
+}
+function socialKnownRank(r){
+  const s = String(r || '').toUpperCase();
+  return RANKS.some(k => k.name === s) ? s : 'ROOKIE';
+}
+/* Everything a friend's row may hold, and nothing else — whatever the server
+   sends, the screen only ever sees these fields. */
+function socialPersonFrom(p){
+  const nOrNull = v => (v === null || v === undefined) ? null : socialInt(v, 0);
+  return {
+    user_id: String(p.user_id || ''), username: String(p.username || ''), is_self: !!p.is_self,
+    level: Math.max(1, socialInt(p.level, 1)), rank: socialKnownRank(p.rank),
+    lifetime_xp: socialInt(p.lifetime_xp, 0),
+    week_xp: nOrNull(p.week_xp), week_workouts: nOrNull(p.week_workouts),
+    prev_xp: nOrNull(p.prev_xp), prev_workouts: nOrNull(p.prev_workouts),
+    updated_at: p.week_updated_at || p.stats_updated_at || p.updated_at || null,
+    friends_since: p.friends_since || null
+  };
+}
+function socialApplyHub(d, week){
+  socialState.friends = (Array.isArray(d.people) ? d.people : []).map(socialPersonFrom);
+  socialState.requests = Array.isArray(d.requests) ? d.requests : [];
+  socialState.week = week;
+  socialState.inviteIds = (Array.isArray(d.invites) ? d.invites : []).map(i => String(i.id));
+  if(d.profile && d.profile.username){
+    socialState.profile = { username: d.profile.username, invite_code: d.profile.invite_code };
+    socialState.profileState = 'found';
+  } else if(d.profile === null){
+    socialState.profile = null;
+    socialState.profileState = 'none';
+  }
+  /* A link this phone remembers but the server no longer honours was reset
+     elsewhere, ran out or was used up. A dead link is never shared. */
+  if(socialState.invite && socialState.inviteIds.indexOf(String(socialState.invite.id)) === -1)
+    socialState.invite = null;
+  socialPersist();
+}
+
 /* THE ORDER IS DECIDED HERE so every device sorts a tie the same way. Total XP
-   is LOOP’s own metric — there is no leaderboard score — and the tie-break is
+   is LOOP's own metric — there is no leaderboard score — and the tie-break is
    the username, which is stable and unique, so a reload never reshuffles
    anyone. */
 function socialLeaderboard(){
@@ -15745,13 +16306,49 @@ function socialLeaderboard(){
   return rows.map((r, i) => Object.assign({ position: i + 1 }, r));
 }
 
+/* D80A — the week, ranked. By the XP each athlete's own device published for
+   this Monday. Equal XP shares a place (1, 2, 2, 4): two people who earned the
+   same did not finish in different positions. Within a tie the list reads by
+   username, compared as plain characters — never the phone's locale, which
+   could order the same names differently on two devices. Nobody without a row
+   for the week is ranked: they have not published one, and "no update" is the
+   truth where 0 XP would be a claim. */
+function socialNameOrder(a, b){
+  const x = String(a.username).toLowerCase(), y = String(b.username).toLowerCase();
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+function socialWeeklyBoard(){
+  const people = (socialState.friends || []).map(socialSelfCurrent);
+  const ranked = people.filter(p => p.week_xp !== null)
+    .sort((a, b) => (b.week_xp - a.week_xp) || socialNameOrder(a, b));
+  const quiet = people.filter(p => p.week_xp === null).sort(socialNameOrder);
+  return ranked.map(p => Object.assign({ position: 1 + ranked.filter(o => o.week_xp > p.week_xp).length }, p))
+    .concat(quiet.map(p => Object.assign({ position: null }, p)));
+}
+
+/* This athlete's own row shows this phone's numbers — exactly the numbers LOOP
+   publishes — so it is never behind by a sync. Only while this phone may
+   publish for the account: a phone holding someone else's history shows what
+   the account itself published. */
+function socialSelfCurrent(p){
+  if(!p || !p.is_self || !socialState.binding || socialState.binding.publishAllowed === false) return p;
+  try{
+    const snap = socialSnapshot();
+    if(!(snap.lifetime_xp > 0)) return p;
+    const now = socialState.week || socialCurrentWeek();
+    const [prev, cur] = socialWeekRows([addDaysISO(now, -7), now]);
+    return Object.assign({}, p, { level: snap.level, rank: socialKnownRank(snap.rank), lifetime_xp: snap.lifetime_xp,
+      week_xp: cur.weekly_xp, week_workouts: cur.workouts, prev_xp: prev.weekly_xp, prev_workouts: prev.workouts });
+  }catch(e){ return p; }
+}
+
 async function socialSendInvite(code){
   const clean = String(code || '').trim().toUpperCase();
   if(!clean) return { ok:false, error:'Enter a code.' };
   if(socialState.profile && clean === String(socialState.profile.invite_code || '').toUpperCase())
-    return { ok:false, error:'That is your own code.' };
+    return { ok:false, status:'self', error:'That is your own code.' };
   const r = await socialRpc('loop_send_friend_request', { code: clean });
-  if(!r.ok) return { ok:false, error: r.error === 'offline' ? 'You are offline.' : 'That did not send.' };
+  if(!r.ok) return { ok:false, status:'unavailable', error: socialNetProblem(r) || 'That did not send.' };
   const MSG = {
     sent:'Request sent.', accepted:'You are now connected.',
     already_pending:'You have already asked.', already_friends:'You are already connected.',
@@ -15777,7 +16374,7 @@ async function socialDeclineRequest(id){
 async function socialRemoveFriend(userId){
   const r = await socialRpc('loop_remove_friend', { other: userId });
   await socialLoadFriends();
-  return { ok: r.ok };
+  return { ok: r.ok && String(r.data) === 'removed' };
 }
 async function socialRotateCode(){
   const r = await socialRpc('loop_rotate_invite_code');
@@ -15788,23 +16385,181 @@ async function socialRotateCode(){
   return r;
 }
 
+/* ---------- INVITE LINKS (D80A) ----------
+
+   A LINK IS A CAPABILITY TO ASK, CHECKED BY THE SERVER. ?invite=<token> where
+   the token is 244 random bits minted by the database, stored there only as a
+   SHA-256 hash, tied to the athlete who made it, expiring after seven days and
+   revocable. It is never a username (?friend=alex would let anyone connect to
+   anyone), never a session, and never read for anything else.
+
+   Opening one while signed in shows who sent it and asks. Opening one signed
+   out parks it in storage; it is still waiting after signing in or creating
+   an account, and after a reload. A project without migration 0002 falls back
+   to the 0001 invite code carried the same way, where adding sends a request
+   the other athlete accepts. */
+const SOCIAL_LINK_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
+const SOCIAL_CODE_RE = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/;
+let socialInviteArrived = false;
+
+function socialInviteUrl(token){
+  return location.origin + location.pathname + '?invite=' + encodeURIComponent(token);
+}
+function socialInviteToken(raw){
+  const s = String(raw || '').trim();
+  const m = /[?&]invite=([A-Za-z0-9_-]+)/.exec(s);
+  const t = m ? m[1] : s;
+  if(SOCIAL_LINK_TOKEN_RE.test(t)) return t;
+  if(SOCIAL_CODE_RE.test(t.toUpperCase())) return t.toUpperCase();
+  return null;
+}
+
+/* THE ADDRESS BAR IS READ FOR ONE THING, IN ONE PLACE. The invite parameter —
+   never a session, and never anything GoTrue appends. It is removed from the
+   address at once, so a reload, a bookmark or a screenshot does not carry it. */
+async function socialCaptureInviteFromUrl(){
+  if(!socialConfigured()) return false;
+  let raw = null;
+  try{ raw = new URLSearchParams(location.search || '').get('invite'); }catch(e){ return false; }
+  if(raw === null) return false;
+  try{ history.replaceState(null, '', location.pathname); }catch(e){}
+  const token = socialInviteToken(raw);
+  if(!token) return false;
+  await socialSetPendingInvite(token);
+  socialInviteArrived = true;
+  return true;
+}
+
+async function socialSetPendingInvite(token){
+  socialState.pendingInvite = { token: token, capturedAt: Date.now() };
+  socialState.invitePreview = null;
+  try{ await LOOPStore.set(SOCIAL_INVITE_KEY, JSON.stringify(socialState.pendingInvite)); }catch(e){}
+}
+async function socialClearPendingInvite(){
+  socialState.pendingInvite = null;
+  socialState.invitePreview = null;
+  try{ await LOOPStore.remove(SOCIAL_INVITE_KEY); }catch(e){}
+}
+
+/* Who sent it, and whether it still works. Asked of the server every time:
+   the link can have been reset or used up since it was sent. */
+async function socialPreviewPendingInvite(){
+  const p = socialState.pendingInvite;
+  if(!p || !socialSignedIn()) return null;
+  let preview;
+  if(SOCIAL_LINK_TOKEN_RE.test(p.token)){
+    const r = await socialRpc('loop_preview_invite_link', { p_token: p.token });
+    if(r.ok && r.data && r.data.status)
+      preview = { kind:'link', status: String(r.data.status), username: r.data.username || null };
+    else if(socialIsMissing(r)) preview = { kind:'link', status:'unsupported' };
+    else preview = { kind:'link', status:'unavailable' };
+  } else {
+    const own = socialState.profile && String(socialState.profile.invite_code || '').toUpperCase();
+    if(own && own === p.token) preview = { kind:'code', status:'self' };
+    else {
+      const r = await socialRpc('loop_preview_invite', { code: p.token });
+      if(r.ok && Array.isArray(r.data))
+        preview = r.data.length ? { kind:'code', status:'ok', username: r.data[0].username } : { kind:'code', status:'invalid' };
+      else preview = { kind:'code', status:'unavailable' };
+    }
+  }
+  if(socialState.pendingInvite !== p) return null;
+  socialState.invitePreview = Object.assign({ token: p.token }, preview);
+  /* A link that can never work is said once, on this screen, and not stored to be
+     said again after every reload. One that can — or that could not be checked —
+     stays until it is answered. */
+  if(preview.status !== 'ok' && preview.status !== 'unavailable'){
+    try{ await LOOPStore.remove(SOCIAL_INVITE_KEY); }catch(e){}
+  }
+  return socialState.invitePreview;
+}
+
+/* Answers that settle a link are final and the link is let go. Being offline
+   is not an answer, so the invite stays for a retry. */
+const SOCIAL_INVITE_FINAL = ['connected','requested','already_friends','already_pending','self',
+  'invalid','expired','revoked','full','unsupported'];
+
+async function socialAcceptPendingInvite(){
+  const p = socialState.pendingInvite;
+  if(!p) return { ok:false, status:'invalid' };
+  const named = socialState.invitePreview && socialState.invitePreview.username;
+  let out;
+  if(SOCIAL_LINK_TOKEN_RE.test(p.token)){
+    const r = await socialRpc('loop_accept_invite_link', { p_token: p.token });
+    if(r.ok && r.data && r.data.status)
+      out = { status: String(r.data.status), username: r.data.username || named || null };
+    else out = { status: socialIsMissing(r) ? 'unsupported' : (r.error === 'signed_out' ? 'signed_out' : 'unavailable') };
+  } else {
+    const r = await socialSendInvite(p.token);
+    const map = { sent:'requested', accepted:'connected', invalid_code:'invalid' };
+    out = { status: map[r.status] || r.status || 'unavailable', username: named || null };
+  }
+  if(SOCIAL_INVITE_FINAL.indexOf(out.status) !== -1) await socialClearPendingInvite();
+  if(SOCIAL_LINK_TOKEN_RE.test(p.token) && (out.status === 'connected' || out.status === 'already_friends'))
+    await socialLoadFriends();
+  out.ok = out.status === 'connected' || out.status === 'requested';
+  return out;
+}
+
+/* This athlete's own link: reused while it has days left, minted when not. */
+function socialInviteReady(){
+  const inv = socialState.invite;
+  if(socialState.backend === 'codes') return !!(socialState.profile && socialState.profile.invite_code);
+  return !!(inv && inv.token && Date.parse(inv.expires_at) - Date.now() > SOCIAL_TIMING.inviteReuseMs);
+}
+function socialOwnInviteToken(){
+  if(socialState.backend === 'codes') return socialState.profile && socialState.profile.invite_code;
+  return socialInviteReady() ? socialState.invite.token : null;
+}
+async function socialEnsureInviteLink(){
+  if(socialInviteReady()) return { ok:true };
+  if(socialState.backend === 'codes') return { ok:false, error:'no_code' };
+  const r = await socialRpc('loop_create_invite_link');
+  if(socialIsMissing(r)){ socialState.backend = 'codes'; return { ok: socialInviteReady() }; }
+  const d = r.ok ? (r.data || {}) : {};
+  if(d.status !== 'created' || !SOCIAL_LINK_TOKEN_RE.test(String(d.token || '')))
+    return { ok:false, error: d.status || r.error || 'request_failed', net: socialNetProblem(r) };
+  socialState.invite = { id: String(d.id), token: String(d.token), expires_at: d.expires_at };
+  if(socialState.inviteIds) socialState.inviteIds.push(String(d.id));
+  await socialPersist();
+  return { ok:true };
+}
+/* Reset: every link this athlete ever shared stops working, and a new one is
+   ready. On a 0001 project the code rotates instead. */
+async function socialResetInviteLinks(){
+  if(socialState.backend === 'codes'){
+    const r = await socialRotateCode();
+    return { ok: r.ok };
+  }
+  const r = await socialRpc('loop_revoke_invite_links');
+  if(!r.ok || !r.data || r.data.status !== 'revoked') return { ok:false, net: socialNetProblem(r) };
+  socialState.invite = null;
+  socialState.inviteIds = [];
+  await socialPersist();
+  return socialEnsureInviteLink();
+}
+
 /* ---------- FRIENDS, THE SCREEN ----------
    Supporting functionality, and composed like it. Friends is not competing
    with Today or Workout for attention: it answers who am I connected to and
-   how are we doing, using the rank identity LOOP already has, and then stops. */
-let socialView = { email:'', stage:'signin', busy:false, notice:null };
+   how is the week going, using the rank identity LOOP already has, and stops. */
+let socialView = { email:'', stage:'signin', busy:false, notice:null, tone:null,
+  pane:'hub', compareId:null, menuOpen:false, confirmRemove:false,
+  allFriends:false, allBoard:false, pasteOpen:false, linkShown:false };
+let socialHubFlight = null;
 
 function socialSettingsRowHtml(){
   if(!socialConfigured()) return '';
   const signed = socialSignedIn();
   const name = socialState.profile && socialState.profile.username;
+  const desc = socialState.pendingInvite ? 'An invite is waiting'
+    : signed ? (name ? 'Signed in as @' + escapeHtml(name) : 'Choose your username')
+    : 'Add friends and compare your week';
   return '<label style="margin-top:22px">Friends</label>' +
     '<button class="settings-row-btn" onclick="openSocial()">' +
       '<span class="settings-row-main">' +
         '<span class="settings-row-title">Friends</span>' +
-        '<span class="settings-row-desc">' + (signed
-          ? (name ? 'Signed in as @' + escapeHtml(name) : 'Choose your username')
-          : 'Add friends and share a private leaderboard') + '</span>' +
+        '<span class="settings-row-desc">' + desc + '</span>' +
       '</span>' +
       '<span class="settings-row-arrow">›</span>' +
     '</button>';
@@ -15817,23 +16572,109 @@ function renderSettingsSocialRow(){
 function openSocial(){
   if(!socialConfigured()) return;
   try{ closeSettings(); }catch(e){}
-  socialView.notice = null;
+  socialView.notice = null; socialView.tone = null;
+  socialView.pane = 'hub'; socialView.compareId = null;
+  socialView.menuOpen = false; socialView.confirmRemove = false;
+  socialView.linkShown = false; socialView.pasteOpen = false;
   renderSocial();
   document.getElementById('socialOverlay').classList.add('open');
-  if(socialSignedIn()) socialLoadFriends().then(renderSocial);
+  socialRefreshHub();
 }
+/* The one Back button walks back through Friends before it leaves it. */
 function closeSocial(){
+  if(socialView.pane === 'compare'){ socialCloseCompare(); return; }
   document.getElementById('socialOverlay').classList.remove('open');
   renderSettingsSocialRow();
+}
+
+/* Everything opening Friends does, once at a time. The athlete's own week is
+   published first, so their row is current before anyone's is read. */
+function socialRefreshHub(){
+  if(socialHubFlight) return socialHubFlight;
+  const flight = (async () => {
+    try{
+      if(!socialSignedIn()) return;
+      if(!socialState.friends){ socialState.status = 'loading'; renderSocial(); }
+      try{ await socialPublishAll(); }catch(e){}
+      await socialLoadFriends();
+      renderSocial();
+      if(socialSignedIn() && socialState.profile && socialState.pendingInvite){
+        await socialPreviewPendingInvite();
+        renderSocial();
+      }
+      if(socialSignedIn() && socialState.profile && socialState.status === 'ready' && !socialInviteReady()){
+        await socialEnsureInviteLink();
+        renderSocial();
+      }
+    }catch(e){ try{ renderSocial(); }catch(e2){} }
+  })();
+  socialHubFlight = flight;
+  flight.then(() => { if(socialHubFlight === flight) socialHubFlight = null; });
+  return flight;
 }
 
 function renderSocial(){
   const el = document.getElementById('socialBody');
   if(!el) return;
-  el.innerHTML = !socialSignedIn() ? socialSignedOutHtml()
-    : (!socialState.profile || !socialState.profile.username) ? socialUsernameHtml()
-    : socialFriendsHtml();
+  let html;
+  try{
+    const state = socialAuthState();
+    html = state === 'restoring' ? socialRestoringHtml()
+      : state === 'signed_out' ? socialSignedOutHtml()
+      : socialState.profileState === 'none' ? socialUsernameHtml()
+      : !(socialState.profile && socialState.profile.username) ? socialPendingProfileHtml(state)
+      : socialView.pane === 'compare' ? socialCompareHtml()
+      : socialFriendsHtml();
+  }catch(e){
+    html = '<p class="soc-notice" role="status">Friends could not be shown. Close it and open it again.</p>';
+  }
+  el.innerHTML = html;
   renderSettingsSocialRow();
+}
+
+function socialNoticeHtml(){
+  if(!socialView.notice) return '';
+  return '<p class="soc-notice' + (socialView.tone === 'ok' ? ' soc-notice-ok' : '') + '" role="status">' +
+    escapeHtml(socialView.notice) + '</p>';
+}
+
+function socialRestoringHtml(){
+  return '<div class="soc-wait" role="status" aria-live="polite">' +
+    '<span class="soc-wait-dot" aria-hidden="true"></span>Restoring your session…</div>';
+}
+
+/* Signed in, but whose name we have not heard back about yet. Never the
+   username step on a guess, never the sign-in screen: a wait, or a retry. */
+function socialPendingProfileHtml(state){
+  if(state === 'error'){
+    return '<div class="soc-head"><h2 class="soc-h">Friends</h2></div>' +
+      socialNoticeHtml() + socialSyncHtml(true) +
+      '<button type="button" class="soc-alt" onclick="socialDoSignOut()">Sign out</button>';
+  }
+  return '<div class="soc-head"><h2 class="soc-h">Friends</h2></div>' + socialSkeletonHtml();
+}
+
+function socialSkeletonHtml(){
+  return '<div class="soc-wait" role="status" aria-live="polite">' +
+      '<span class="soc-wait-dot" aria-hidden="true"></span>Loading friends…</div>' +
+    '<div class="soc-skel" aria-hidden="true"><span></span><span></span><span></span></div>';
+}
+
+/* The line that says the list could not be refreshed, and offers to try again.
+   It sits above whatever loaded last, which stays readable. */
+function socialSyncHtml(nothingCached){
+  if(socialAuthState() !== 'error') return '';
+  const offline = socialState.error === 'offline' ||
+    (typeof navigator !== 'undefined' && navigator.onLine === false);
+  const msg = offline
+    ? (nothingCached ? 'Friends is unavailable offline. Your training is unaffected.'
+                     : 'Offline — showing what loaded earlier.')
+    : (nothingCached ? 'Could not reach Friends. You are still signed in.'
+                     : 'Could not refresh Friends. Showing what loaded earlier.');
+  return '<div class="soc-sync" role="status">' +
+    '<span class="soc-sync-t">' + msg + '</span>' +
+    '<button type="button" class="soc-retry" onclick="socialDoRetry(this)">Try again</button>' +
+  '</div>';
 }
 
 /* Signed out, in three states: sign in, create an account, and the wait for a
@@ -15847,6 +16688,11 @@ function socialSignedOutHtml(){
     || (socialState.expired && socialView.stage === 'signin'
       ? 'Your session ended. Sign in again — nothing on this phone changed.' : null);
   const notice = msg ? '<p class="soc-notice" role="status">' + escapeHtml(msg) + '</p>' : '';
+  /* An invite is waiting. Say so before asking for anything. */
+  const invited = socialState.pendingInvite
+    ? '<div class="soc-ic soc-ic-quiet" role="status"><div class="soc-ic-t">You have been invited to connect on LOOP.</div>' +
+        '<div class="soc-ic-s">Sign in or create an account, and the invite will be right here.</div></div>'
+    : '';
   const emailField = id =>
     '<label class="soc-field"><span class="soc-lab" id="' + id + 'Lab">Email</span>' +
       '<input type="email" id="' + id + '" class="soc-in" autocomplete="email" inputmode="email"' +
@@ -15861,7 +16707,7 @@ function socialSignedOutHtml(){
       ' autocapitalize="none" autocorrect="off" spellcheck="false" aria-labelledby="' + id + 'Lab"></label>';
 
   if(socialView.stage === 'verify'){
-    return '<div class="soc-head"><h2 class="soc-h">Confirm your email</h2>' +
+    return invited + '<div class="soc-head"><h2 class="soc-h">Confirm your email</h2>' +
       '<p class="soc-sub">We sent a confirmation link to <strong>' +
       escapeHtml(socialView.email) + '</strong>. Open it, then come back here and sign in.</p></div>' +
       notice +
@@ -15873,8 +16719,8 @@ function socialSignedOutHtml(){
   }
 
   if(socialView.stage === 'signup'){
-    return '<div class="soc-head"><h2 class="soc-h">Create an account</h2>' +
-      '<p class="soc-sub">Only for friends and your private leaderboard. Your workouts stay on' +
+    return invited + '<div class="soc-head"><h2 class="soc-h">Create an account</h2>' +
+      '<p class="soc-sub">Only for friends and your weekly leaderboard. Your workouts stay on' +
       ' this phone either way.</p></div>' +
       notice +
       emailField('socEmail') +
@@ -15888,8 +16734,8 @@ function socialSignedOutHtml(){
       '<button type="button" class="soc-alt" onclick="socialGoSignIn()">I already have one</button>';
   }
 
-  return '<div class="soc-head"><h2 class="soc-h">Train with friends</h2>' +
-    '<p class="soc-sub">Sign in to share a private leaderboard with people you train with.' +
+  return invited + '<div class="soc-head"><h2 class="soc-h">Train with friends</h2>' +
+    '<p class="soc-sub">Sign in to compare your week with people you train with.' +
     ' Your workouts stay on this phone either way — an account is only for friends.</p></div>' +
     notice +
     emailField('socEmail') +
@@ -15900,30 +16746,92 @@ function socialSignedOutHtml(){
 }
 
 function socialUsernameHtml(){
-  const notice = socialView.notice
-    ? '<p class="soc-notice" role="status">' + escapeHtml(socialView.notice) + '</p>' : '';
+  const invited = socialState.pendingInvite
+    ? '<p class="soc-sub">Then your invite is next.</p>' : '';
   return '<div class="soc-head"><h2 class="soc-h">Pick a username</h2>' +
-    '<p class="soc-sub">This is what friends see. Your email stays private.</p></div>' +
-    notice +
+    '<p class="soc-sub">This is what friends see. Your email stays private.</p>' + invited + '</div>' +
+    socialNoticeHtml() +
     '<label class="soc-field"><span class="soc-lab" id="socNameLab">Username</span>' +
       '<input type="text" id="socName" class="soc-in" autocomplete="username" autocapitalize="none"' +
       ' spellcheck="false" maxlength="20" aria-labelledby="socNameLab" placeholder="cobra"></label>' +
     '<p class="soc-fine">3–20 characters. Letters, numbers and underscores.</p>' +
-    '<button class="btn-primary soc-go" onclick="socialDoUsername(this)">Continue</button>';
+    '<button class="btn-primary soc-go" onclick="socialDoUsername(this)">Continue</button>' +
+    /* Always a way out: this screen used to be a dead end. */
+    '<button type="button" class="soc-alt" onclick="socialDoSignOut()">Sign out</button>';
+}
+
+function socialNum(n){ return Number(n || 0).toLocaleString(); }
+function socialTitleCase(rank){
+  const s = String(rank || '');
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
+function socialWorkoutsWord(n){ return n === 1 ? '1 workout' : socialNum(n) + ' workouts'; }
+function socialWeekLabel(week){
+  try{
+    return 'Week of ' + new Date(week + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' });
+  }catch(e){ return 'This week'; }
+}
+function socialShortDate(iso){
+  try{
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+  }catch(e){ return ''; }
+}
+
+/* The invite someone sent, answered in place: who, and one button. */
+function socialInviteCardHtml(){
+  const p = socialState.pendingInvite;
+  if(!p) return '';
+  const v = socialState.invitePreview;
+  const busy = socialView.busy;
+  const who = v && v.username ? '@' + escapeHtml(v.username) : 'A friend';
+  const card = (title, sub, actions) =>
+    '<div class="soc-ic" role="region" aria-label="Invite">' +
+      '<div class="soc-ic-t">' + title + '</div>' + (sub ? '<div class="soc-ic-s">' + sub + '</div>' : '') +
+      actions + '</div>';
+  const dismiss = label => '<button type="button" class="soc-alt soc-ic-alt" onclick="socialDoDismissInvite()">' + label + '</button>';
+  if(!v) return card('Checking your invite…', '', '');
+  if(v.status === 'ok'){
+    return card(who + ' invited you to connect on LOOP.',
+      v.kind === 'code'
+        ? 'Adding sends a request. You are connected when they accept.'
+        : 'You will see each other’s level, rank and weekly XP.',
+      '<button class="btn-primary soc-go" onclick="socialDoAcceptInvite(this)"' + (busy ? ' disabled' : '') + '>Add friend</button>' +
+      dismiss('Not now'));
+  }
+  const MSG = {
+    self: ['This is your own invite link.', 'Share it with a friend instead.'],
+    already_friends: ['You are already friends with ' + who + '.', ''],
+    expired: ['This invite link has expired.', 'Ask your friend to send a new one.'],
+    revoked: ['This invite link was reset by the person who shared it.', 'Ask them to send the new one.'],
+    full: ['This invite link has been used too many times.', 'Ask your friend to send a new one.'],
+    invalid: ['This invite link does not work.', 'Check that the whole link was copied, or ask for a new one.'],
+    unsupported: ['This invite needs a newer version of Friends.', 'Ask your friend to send their invite again.'],
+    no_profile: ['Pick a username first.', '']
+  };
+  if(v.status === 'unavailable'){
+    return card('Could not check your invite.', 'Friends could not be reached. The invite is saved.',
+      '<button class="btn-primary soc-go" onclick="socialDoRetry(this)">Try again</button>' + dismiss('Forget this invite'));
+  }
+  const m = MSG[v.status] || MSG.invalid;
+  return card(m[0], m[1], dismiss('Dismiss'));
 }
 
 function socialFriendsHtml(){
   const me = socialState.profile;
-  const rows = socialLeaderboard();
+  const snap = (() => { try{ return socialSnapshot(); }catch(e){ return { level:1, rank:'ROOKIE', lifetime_xp:0 }; } })();
+  const people = (socialState.friends || []).map(socialSelfCurrent);
+  const self = people.find(p => p.is_self);
+  const friends = people.filter(p => !p.is_self).sort(socialNameOrder);
   const reqs = socialState.requests || [];
-  const incoming = reqs.filter(r => r.direction === 'incoming');
-  const outgoing = reqs.filter(r => r.direction === 'outgoing');
   const unclaimed = socialState.binding && socialState.binding.publishAllowed === false;
-  const notice = socialView.notice
-    ? '<p class="soc-notice" role="status">' + escapeHtml(socialView.notice) + '</p>' : '';
+  const loaded = socialState.friends !== null;
+  const myRank = unclaimed && self ? self.rank : socialKnownRank(snap.rank);
+  const myLevel = unclaimed && self ? self.level : snap.level;
 
   /* The account-switch guard, stated rather than silently applied. This phone
-     already held someone else’s training when this account signed in. */
+     already held someone else's training when this account signed in. */
   const claim = unclaimed
     ? '<div class="soc-claim">' +
         '<div class="soc-claim-t">Whose training is on this phone?</div>' +
@@ -15934,84 +16842,283 @@ function socialFriendsHtml(){
       '</div>'
     : '';
 
-  const board = rows.length
-    ? '<div class="soc-board">' + rows.map(r =>
-        '<div class="soc-row' + (r.is_self ? ' soc-me' : '') + '"' +
-          ' aria-label="' + escapeAttr('Position ' + r.position + ', ' + r.username +
-            ', level ' + r.level + ', rank ' + r.rank) + '">' +
-          '<span class="soc-pos">' + r.position + '</span>' +
-          '<span class="soc-medal" aria-hidden="true">' + rankMedalSvg(r.rank, 30) + '</span>' +
-          '<span class="soc-who">' +
-            '<span class="soc-name">@' + escapeHtml(r.username) + (r.is_self ? ' · you' : '') + '</span>' +
-            '<span class="soc-meta">' + escapeHtml(String(r.rank)) + ' · ' +
-              Number(r.lifetime_xp || 0).toLocaleString() + ' XP</span>' +
-          '</span>' +
-          '<span class="soc-lvl"><b>' + r.level + '</b><span>LVL</span></span>' +
-        '</div>').join('') + '</div>'
+  const identity =
+    '<div class="soc-idn">' +
+      '<span class="soc-idn-medal" aria-hidden="true">' + rankMedalSvg(myRank, 34) + '</span>' +
+      '<span class="soc-idn-who">' +
+        '<span class="soc-idn-n">@' + escapeHtml(me.username) + '</span>' +
+        '<span class="soc-idn-m">Level ' + myLevel + ' · ' + escapeHtml(socialTitleCase(myRank)) + '</span>' +
+      '</span>' +
+      '<button type="button" class="soc-idn-go" onclick="socialDoInvite(this)">Invite friend</button>' +
+    '</div>';
+
+  /* Nothing loaded yet: a wait while loading, and only the retry line when the
+     load failed — never both, which would say "unavailable" and "loading" at once. */
+  const body = !loaded
+    ? (socialAuthState() === 'error' ? '' : socialSkeletonHtml())
+    : socialMyFriendsHtml(friends) + socialInviteSectionHtml(reqs) +
+      socialBoardHtml() + socialProgressHtml(self, snap, unclaimed);
+
+  return '<div class="soc-hub">' + socialInviteCardHtml() + socialNoticeHtml() + claim + identity +
+    socialSyncHtml(!loaded) + body + socialAccountHtml() + '</div>';
+}
+
+function socialMyFriendsHtml(friends){
+  const head = '<div class="sec-head">My friends' + (friends.length ? '<span class="sec-hint">' + friends.length + '</span>' : '') + '</div>';
+  if(!friends.length){
+    return head + '<div class="soc-empty-box">' +
+      '<div class="soc-empty-t">Train with friends.</div>' +
+      '<p class="soc-empty-s">Share an invite to compare progress each week.</p>' +
+      '<button type="button" class="soc-link-btn soc-link-primary" onclick="socialDoInvite(this)">Invite friend</button>' +
+    '</div>';
+  }
+  const LIMIT = 6;
+  const shown = socialView.allFriends ? friends : friends.slice(0, LIMIT);
+  const rows = shown.map(f => {
+    const week = socialState.backend === 'codes'
+      ? '<span class="soc-fr-wk">' + socialNum(f.lifetime_xp) + ' XP<span>total</span></span>'
+      : f.week_workouts === null
+      ? '<span class="soc-fr-wk soc-quiet">No update<span>this week</span></span>'
+      : '<span class="soc-fr-wk">' + socialWorkoutsWord(f.week_workouts) + '<span>this week</span></span>';
+    return '<li><button type="button" class="soc-fr" onclick="socialOpenCompare(\'' + escapeAttr(f.user_id) + '\')"' +
+      ' aria-label="' + escapeAttr('@' + f.username + ', level ' + f.level + ', ' + socialTitleCase(f.rank) +
+        (socialState.backend === 'codes' ? ', ' + socialNum(f.lifetime_xp) + ' XP total'
+          : f.week_workouts === null ? ', no update this week' : ', ' + socialWorkoutsWord(f.week_workouts) + ' this week') +
+        '. Compare progress') + '">' +
+      '<span class="soc-fr-medal" aria-hidden="true">' + rankMedalSvg(f.rank, 28) + '</span>' +
+      '<span class="soc-fr-who"><span class="soc-fr-n">@' + escapeHtml(f.username) + '</span>' +
+        '<span class="soc-fr-m">Level ' + f.level + ' · ' + escapeHtml(socialTitleCase(f.rank)) + '</span></span>' +
+      week +
+      '<span class="soc-fr-chev" aria-hidden="true">›</span>' +
+    '</button></li>';
+  }).join('');
+  const more = friends.length > LIMIT
+    ? '<button type="button" class="soc-more-btn" onclick="socialToggleAll(\'allFriends\')">' +
+        (socialView.allFriends ? 'Show fewer' : 'Show all ' + friends.length) + '</button>'
     : '';
+  return head + '<ul class="soc-list" aria-label="My friends">' + rows + '</ul>' + more;
+}
 
-  const alone = rows.length <= 1
-    ? '<p class="soc-empty">Invite someone you train with — share your code below and ' +
-      'you will both appear here.</p>' : '';
-
+function socialInviteSectionHtml(reqs){
+  const codes = socialState.backend === 'codes';
+  const token = socialOwnInviteToken();
+  const busy = socialView.busy;
+  const incoming = reqs.filter(r => r.direction === 'incoming');
+  const outgoing = reqs.filter(r => r.direction === 'outgoing');
+  let link;
+  if(token){
+    const inv = socialState.invite;
+    const exp = !codes && inv && inv.expires_at ? socialShortDate(inv.expires_at) : '';
+    link = '<div class="soc-link">' +
+      '<div class="soc-link-l">' + (codes ? 'Your invite link' : 'Your invite link' + (exp ? ' · works until ' + escapeHtml(exp) : '')) + '</div>' +
+      (socialView.linkShown
+        ? '<input type="text" readonly class="soc-in soc-link-u" id="socLinkField" aria-label="Your invite link" value="' +
+            escapeAttr(socialInviteUrl(token)) + '" onfocus="this.select()">'
+        : '') +
+      '<div class="soc-link-a">' +
+        '<button type="button" class="soc-link-btn soc-link-primary" onclick="socialDoInvite(this)">Share link</button>' +
+        '<button type="button" class="soc-link-btn" onclick="socialDoCopyInvite(this)">Copy link</button>' +
+      '</div>' +
+      (codes ? '<p class="soc-fine">Friends who open it send you a request to accept.</p>' : '') +
+      '<button type="button" class="soc-text-btn" onclick="socialDoResetInvite(this)"' + (busy ? ' disabled' : '') + '>' +
+        (codes ? 'Reset link — the old one stops working' : 'Reset link — links you shared stop working') + '</button>' +
+    '</div>';
+  } else {
+    link = '<div class="soc-link"><div class="soc-link-l">Your invite link</div>' +
+      '<button type="button" class="soc-link-btn soc-link-primary" onclick="socialDoInvite(this)"' + (busy ? ' disabled' : '') + '>Create invite link</button></div>';
+  }
   const inHtml = incoming.length
-    ? '<div class="sec-head">Wants to connect</div>' + incoming.map(r =>
+    ? '<div class="soc-sub-head">Wants to connect</div>' + incoming.map(r =>
         '<div class="soc-req">' +
           '<span class="soc-req-n">@' + escapeHtml(r.username) + '</span>' +
           '<span class="soc-req-a">' +
             /* Drawn marks, not characters — D14's rule, and it is also what
                makes accept and decline tell apart without relying on colour. */
-            '<button type="button" class="soc-yes" onclick="socialDoAccept(\'' + r.id + '\')">' +
+            '<button type="button" class="soc-yes" onclick="socialDoAccept(\'' + escapeAttr(r.id) + '\')">' +
               checkIconSvg(13) + '<span>Accept</span></button>' +
-            '<button type="button" class="soc-no" onclick="socialDoDecline(\'' + r.id + '\')">' +
+            '<button type="button" class="soc-no" onclick="socialDoDecline(\'' + escapeAttr(r.id) + '\')">' +
               closeIconSvg(12) + '<span>Decline</span></button>' +
           '</span>' +
         '</div>').join('') : '';
-
   const outHtml = outgoing.length
-    ? '<div class="sec-head">Waiting on</div>' + outgoing.map(r =>
+    ? '<div class="soc-sub-head">Waiting on</div>' + outgoing.map(r =>
         '<div class="soc-req">' +
           '<span class="soc-req-n">@' + escapeHtml(r.username) + '</span>' +
           '<span class="soc-req-p">Pending</span>' +
-          '<button type="button" class="soc-no" onclick="socialDoDecline(\'' + r.id + '\')">Cancel</button>' +
+          '<button type="button" class="soc-no" onclick="socialDoDecline(\'' + escapeAttr(r.id) + '\')">Cancel</button>' +
         '</div>').join('') : '';
+  const paste = socialView.pasteOpen
+    ? '<label class="soc-field"><span class="soc-lab" id="socPasteLab">Invite link</span>' +
+        '<input type="text" id="socPaste" class="soc-in" autocomplete="off" autocapitalize="none" spellcheck="false"' +
+        ' aria-labelledby="socPasteLab" placeholder="Paste the link a friend sent"></label>' +
+      '<button type="button" class="soc-link-btn soc-paste-go" onclick="socialDoPasteInvite(this)">Open invite</button>'
+    : '<button type="button" class="soc-text-btn" onclick="socialTogglePaste()">Have an invite link? Paste it</button>';
+  return '<div class="sec-head">Invite</div>' + link + inHtml + outHtml + paste;
+}
 
-  const stale = socialState.error === 'offline'
-    ? '<p class="soc-stale">Offline — showing the last list this phone loaded.</p>' : '';
+function socialBoardHtml(){
+  const codes = socialState.backend === 'codes';
+  if(codes){
+    /* Without weekly rows there is no week to rank. Say which number this is. */
+    const rows = socialLeaderboard().map(socialSelfCurrent);
+    return '<div class="sec-head">Leaderboard<span class="sec-hint">Total XP</span></div>' +
+      '<ol class="soc-lb" aria-label="Leaderboard by total XP">' + rows.map(r =>
+        '<li class="soc-lb-r' + (r.is_self ? ' soc-lb-me' : '') + '">' +
+          '<span class="soc-lb-p">' + r.position + '</span>' +
+          '<span class="soc-lb-n">' + (r.is_self ? 'You' : '@' + escapeHtml(r.username)) + '</span>' +
+          '<span class="soc-lb-x">' + socialNum(r.lifetime_xp) + ' XP</span>' +
+        '</li>').join('') + '</ol>';
+  }
+  const board = socialWeeklyBoard();
+  const LIMIT = 10;
+  const selfIndex = board.findIndex(r => r.is_self);
+  let shown = socialView.allBoard ? board : board.slice(0, LIMIT);
+  if(!socialView.allBoard && selfIndex >= LIMIT) shown = shown.concat([board[selfIndex]]);
+  const week = socialState.week || socialCurrentWeek();
+  const rows = shown.map(r => {
+    const who = r.is_self ? 'You' : '@' + escapeHtml(r.username);
+    const label = r.position === null
+      ? (r.is_self ? 'You' : '@' + r.username) + ', no update this week'
+      : 'Place ' + r.position + ', ' + (r.is_self ? 'you' : '@' + r.username) + ', ' + socialNum(r.week_xp) + ' XP' +
+        (r.week_workouts !== null ? ', ' + socialWorkoutsWord(r.week_workouts) : '');
+    return '<li class="soc-lb-r' + (r.is_self ? ' soc-lb-me' : '') + (r.position === null ? ' soc-lb-quiet' : '') + '"' +
+      ' aria-label="' + escapeAttr(label) + '">' +
+      '<span class="soc-lb-p" aria-hidden="true">' + (r.position === null ? '–' : r.position) + '</span>' +
+      '<span class="soc-lb-who" aria-hidden="true"><span class="soc-lb-n">' + who + '</span>' +
+        (r.position !== null && r.week_workouts !== null ? '<span class="soc-lb-w">' + socialWorkoutsWord(r.week_workouts) + '</span>' : '') +
+      '</span>' +
+      '<span class="soc-lb-x" aria-hidden="true">' + (r.position === null ? 'No update' : socialNum(r.week_xp) + ' XP') + '</span>' +
+    '</li>';
+  }).join('');
+  const more = board.length > LIMIT
+    ? '<button type="button" class="soc-more-btn" onclick="socialToggleAll(\'allBoard\')">' +
+        (socialView.allBoard ? 'Show fewer' : 'Show all ' + board.length) + '</button>'
+    : '';
+  return '<div class="sec-head">Weekly leaderboard<span class="sec-hint">' + escapeHtml(socialWeekLabel(week)) + '</span></div>' +
+    '<ol class="soc-lb" aria-label="' + escapeAttr('Weekly leaderboard, ' + socialWeekLabel(week) + ', by XP earned this week') + '">' +
+      rows + '</ol>' + more +
+    '<p class="soc-fine">XP earned Monday to Sunday. Everyone’s own phone counts their week.</p>';
+}
 
-  return notice + claim +
-    '<div class="sec-head">Your leaderboard</div>' + stale + board + alone +
-    inHtml + outHtml +
-    '<div class="sec-head">Add a friend</div>' +
-    '<div class="soc-code">' +
-      '<div class="soc-code-l">Your invite code</div>' +
-      '<div class="soc-code-v">' + escapeHtml(String((me && me.invite_code) || '—')) + '</div>' +
-      '<button type="button" class="soc-copy" onclick="socialCopyCode(this)">Copy</button>' +
-    '</div>' +
-    '<label class="soc-field"><span class="soc-lab" id="socInviteLab">Enter their code</span>' +
-      '<input type="text" id="socInvite" class="soc-in soc-in-code" autocapitalize="characters"' +
-      ' autocomplete="off" spellcheck="false" maxlength="8" aria-labelledby="socInviteLab"' +
-      /* Not the athlete's own code: a placeholder that shows YOUR code in the
-         field for THEIR code reads as if it were already filled in. */
-      ' placeholder="Their 8-character code"></label>' +
-    '<button class="btn-primary soc-go" onclick="socialDoInvite(this)">Send request</button>' +
-    '<div class="sec-head">Account</div>' +
+function socialProgressHtml(self, snap, unclaimed){
+  const p = self || { week_xp:null, week_workouts:null, prev_xp:null, prev_workouts:null };
+  const line = (label, xp, n) =>
+    '<div class="soc-prog-r"><span>' + label + '</span><b>' +
+      (xp === null || xp === undefined ? 'No update' : socialNum(xp) + ' XP' + (n !== null && n !== undefined ? ' · ' + socialWorkoutsWord(n) : '')) +
+    '</b></div>';
+  const change = (p.week_xp !== null && p.prev_xp !== null)
+    ? '<div class="soc-prog-r"><span>Change</span><b>' + socialSigned(p.week_xp - p.prev_xp) + ' XP</b></div>' : '';
+  return '<div class="sec-head">Progress</div>' +
+    '<div class="soc-prog">' +
+      line('This week', p.week_xp, p.week_workouts) +
+      line('Last week', p.prev_xp, p.prev_workouts) +
+      change +
+      '<div class="soc-prog-r"><span>Total</span><b>' +
+        (unclaimed && self ? socialNum(self.lifetime_xp) : socialNum(snap.lifetime_xp)) + ' XP</b></div>' +
+    '</div>';
+}
+function socialSigned(n){
+  const v = Math.round(Number(n) || 0);
+  return v > 0 ? '+' + socialNum(v) : v < 0 ? '−' + socialNum(-v) : '0';
+}
+
+function socialAccountHtml(){
+  const me = socialState.profile || {};
+  return '<div class="sec-head">Account</div>' +
     '<div class="soc-acct">' +
-      '<div class="soc-acct-r"><span>Username</span><b>@' + escapeHtml(me.username) + '</b></div>' +
+      '<div class="soc-acct-r"><span>Username</span><b>@' + escapeHtml(me.username || '') + '</b></div>' +
       '<div class="soc-acct-r"><span>Email</span><b>' +
         escapeHtml(String((socialState.session && socialState.session.email) || '—')) + '</b></div>' +
     '</div>' +
-    '<p class="soc-fine">Only you can see your email. Your workouts and programs stay on this' +
-      ' phone — signing out does not touch them.</p>' +
+    '<p class="soc-fine">Only you can see your email. Friends see your username, level, rank and' +
+      ' weekly XP and workout count — never your workouts, weights or notes. Signing out does not' +
+      ' touch anything on this phone.</p>' +
     '<button type="button" class="soc-alt" onclick="socialDoRename()">Change username</button>' +
     '<button type="button" class="soc-alt" onclick="socialDoSignOut()">Sign out</button>';
 }
+
+/* ---------- COMPARE ----------
+   Two columns of the same shareable fields, side by side, and no verdict:
+   no "ahead", no "behind", no colour for better or worse. */
+function socialCompareHtml(){
+  const people = (socialState.friends || []).map(socialSelfCurrent);
+  const f = people.find(p => p.user_id === socialView.compareId && !p.is_self);
+  if(!f){
+    return '<div class="soc-cmp-top"><button type="button" class="soc-back" onclick="socialCloseCompare()">‹ Friends</button></div>' +
+      '<p class="soc-notice" role="status">That friend is no longer on your list.</p>';
+  }
+  const me = people.find(p => p.is_self) || { level:1, rank:'ROOKIE', week_xp:null, week_workouts:null, prev_xp:null };
+  const name = '@' + escapeHtml(f.username);
+  const xp = v => v === null || v === undefined ? '<span class="soc-quiet">No update</span>' : socialNum(v) + ' XP';
+  const cnt = v => v === null || v === undefined ? '<span class="soc-quiet">—</span>' : socialNum(v);
+  const chg = p => (p.week_xp === null || p.prev_xp === null) ? '<span class="soc-quiet">—</span>' : socialSigned(p.week_xp - p.prev_xp) + ' XP';
+  const row = (label, a, b) =>
+    '<div class="soc-cmp-r" role="row"><span class="soc-cmp-k" role="rowheader">' + label + '</span>' +
+      '<span class="soc-cmp-v" role="cell">' + a + '</span><span class="soc-cmp-v" role="cell">' + b + '</span></div>';
+  const menu = socialView.menuOpen && !socialView.confirmRemove
+    ? '<div class="soc-menu" role="menu"><button type="button" role="menuitem" class="soc-menu-i soc-danger" onclick="socialAskRemove()">Remove friend</button></div>'
+    : '';
+  const confirmBox = socialView.confirmRemove
+    ? '<div class="soc-confirm" role="alertdialog" aria-labelledby="socRmT">' +
+        '<div class="soc-confirm-t" id="socRmT">Remove ' + name + '?</div>' +
+        '<p class="soc-confirm-s">You will stop seeing each other’s progress. You can reconnect with a new invite.</p>' +
+        '<div class="soc-confirm-a">' +
+          '<button type="button" class="soc-link-btn soc-danger-btn" onclick="socialDoRemove(this)"' + (socialView.busy ? ' disabled' : '') + '>Remove</button>' +
+          '<button type="button" class="soc-link-btn" onclick="socialCancelRemove()">Cancel</button>' +
+        '</div>' +
+      '</div>'
+    : '';
+  const updated = socialState.backend === 'codes' ? 'Total XP'
+    : f.updated_at ? 'Updated ' + escapeHtml(socialShortDate(f.updated_at)) : 'No update yet';
+  const week = socialState.week || socialCurrentWeek();
+  return '<div class="soc-cmp">' +
+    '<div class="soc-cmp-top">' +
+      '<button type="button" class="soc-back" onclick="socialCloseCompare()">‹ Friends</button>' +
+      '<button type="button" class="soc-more" aria-label="More options for ' + escapeAttr('@' + f.username) + '"' +
+        ' aria-haspopup="menu" aria-expanded="' + (socialView.menuOpen ? 'true' : 'false') + '" onclick="socialToggleMenu()">' +
+        '<span aria-hidden="true">•••</span></button>' +
+    '</div>' + menu + confirmBox + socialNoticeHtml() +
+    '<div class="soc-head"><h2 class="soc-h">You and ' + name + '</h2>' +
+      '<p class="soc-sub">' + escapeHtml(socialWeekLabel(week)) + ' · ' + updated + '</p></div>' +
+    '<div class="soc-cmp-grid" role="table" aria-label="' + escapeAttr('You and @' + f.username + ', side by side') + '">' +
+      '<div class="soc-cmp-r soc-cmp-h" role="row"><span role="columnheader"></span>' +
+        '<span class="soc-cmp-v" role="columnheader">You</span><span class="soc-cmp-v" role="columnheader">' + name + '</span></div>' +
+      row('Level', me.level, f.level) +
+      row('Rank', escapeHtml(socialTitleCase(me.rank)), escapeHtml(socialTitleCase(f.rank))) +
+      (socialState.backend === 'codes'
+        ? row('Total', socialNum(me.lifetime_xp) + ' XP', socialNum(f.lifetime_xp) + ' XP')
+        : row('This week', xp(me.week_xp), xp(f.week_xp)) +
+          row('Workouts', cnt(me.week_workouts), cnt(f.week_workouts)) +
+          row('Last week', xp(me.prev_xp), xp(f.prev_xp)) +
+          row('Change', chg(me), chg(f))) +
+    '</div>' +
+    '<p class="soc-fine">Friends share level, rank, weekly XP and workout counts. Never workouts, exercises, weights or notes.</p>' +
+  '</div>';
+}
+
+function socialOpenCompare(userId){
+  socialView.pane = 'compare'; socialView.compareId = String(userId);
+  socialView.menuOpen = false; socialView.confirmRemove = false; socialView.notice = null;
+  renderSocial();
+  try{ const s = document.querySelector('#socialOverlay .sheet-scroll'); if(s) s.scrollTop = 0; }catch(e){}
+}
+function socialCloseCompare(){
+  socialView.pane = 'hub'; socialView.compareId = null;
+  socialView.menuOpen = false; socialView.confirmRemove = false;
+  renderSocial();
+}
+function socialToggleMenu(){ socialView.menuOpen = !socialView.menuOpen; renderSocial(); }
+function socialAskRemove(){ socialView.confirmRemove = true; socialView.menuOpen = false; renderSocial(); }
+function socialCancelRemove(){ socialView.confirmRemove = false; renderSocial(); }
+function socialToggleAll(key){ socialView[key] = !socialView[key]; renderSocial(); }
+function socialTogglePaste(){ socialView.pasteOpen = !socialView.pasteOpen; renderSocial(); }
 
 /* ---------- actions ---------- */
 function socialBusy(btn, on){
   socialView.busy = on;
   if(btn) btn.disabled = on;
 }
+function socialSay(msg, tone){ socialView.notice = msg; socialView.tone = tone || null; }
 /* The field is read before the render that replaces it, so a typed email
    survives moving between sign in and create. A password never does. */
 function socialCaptureEmail(){
@@ -16027,7 +17134,7 @@ async function socialDoSignIn(btn){
   socialBusy(btn, true);
   const r = await socialSignIn(socialView.email, pw ? pw.value : '');
   socialBusy(btn, false);
-  if(r.ok){ socialView.notice = null; await socialLoadFriends(); }
+  if(r.ok){ socialView.notice = null; renderSocial(); await socialRefreshHub(); }
   else {
     socialView.notice = r.error;
     /* An unconfirmed address is not a failed sign-in, it is an unfinished
@@ -16047,7 +17154,7 @@ async function socialDoCreate(btn){
   const r = await socialCreateAccount(socialView.email, a);
   socialBusy(btn, false);
   if(r.ok && r.verify){ socialView.stage = 'verify'; socialView.email = r.email; socialView.notice = null; }
-  else if(r.ok){ socialView.notice = null; await socialLoadFriends(); }
+  else if(r.ok){ socialView.notice = null; renderSocial(); await socialRefreshHub(); }
   else socialView.notice = r.error;
   renderSocial();
 }
@@ -16064,56 +17171,168 @@ async function socialDoUsername(btn){
   socialBusy(btn, true);
   const r = await socialSetUsername(input ? input.value : '');
   socialBusy(btn, false);
-  socialView.notice = r.ok ? null : r.error;
-  if(r.ok) await socialLoadFriends();
+  socialSay(r.ok ? null : r.error);
   renderSocial();
+  if(r.ok) await socialRefreshHub();
 }
 async function socialDoRename(){
   const next = prompt('Username', (socialState.profile && socialState.profile.username) || '');
   if(next === null) return;
   const r = await socialSetUsername(next);
-  socialView.notice = r.ok ? 'Username updated.' : r.error;
+  socialSay(r.ok ? 'Username updated.' : r.error, r.ok ? 'ok' : null);
   if(r.ok) await socialLoadFriends();
   renderSocial();
 }
-async function socialDoInvite(btn){
-  const input = document.getElementById('socInvite');
+async function socialDoRetry(btn){
   socialBusy(btn, true);
-  const r = await socialSendInvite(input ? input.value : '');
+  socialView.notice = null;
+  socialState.invitePreview = null;
+  await socialRefreshHub();
   socialBusy(btn, false);
-  socialView.notice = r.message || r.error;
+  renderSocial();
+}
+
+/* SHARE WITHOUT WAITING. iOS only lets a tap open the share sheet while the
+   tap is still current, so the link is prepared when Friends opens and the
+   share happens on this tap with nothing awaited before it. If it is not ready
+   yet, this tap prepares it and the next one shares. */
+function socialDoInvite(btn){
+  if(socialView.busy) return;
+  const token = socialOwnInviteToken();
+  if(!token){ socialDoPrepareInvite(btn); return; }
+  const url = socialInviteUrl(token);
+  const name = socialState.profile && socialState.profile.username;
+  const text = (name ? '@' + name + ' invited you' : 'You are invited') + ' to train together on LOOP.';
+  if(typeof navigator !== 'undefined' && typeof navigator.share === 'function'){
+    let shared;
+    try{ shared = navigator.share({ title:'LOOP', text: text, url: url }); }catch(e){ shared = Promise.reject(e); }
+    Promise.resolve(shared).then(() => {
+      socialSay('Invite shared.', 'ok'); renderSocial();
+    }, e => {
+      if(e && e.name === 'AbortError') return;          // the athlete closed the sheet
+      socialCopyInviteUrl(url, null);
+    });
+    return;
+  }
+  socialCopyInviteUrl(url, btn);
+}
+function socialDoCopyInvite(btn){
+  const token = socialOwnInviteToken();
+  if(!token){ socialDoPrepareInvite(btn); return; }
+  socialCopyInviteUrl(socialInviteUrl(token), btn);
+}
+function socialCopyInviteUrl(url, btn){
+  const done = ok => {
+    if(ok){
+      socialSay('Link copied. Send it to someone you train with.', 'ok');
+      socialView.linkShown = false;
+    } else {
+      /* Nothing to copy with: show the link itself, selected, to copy by hand. */
+      socialSay('Copy the link below and send it to a friend.', null);
+      socialView.linkShown = true;
+    }
+    renderSocial();
+    if(!ok){ try{ const f = document.getElementById('socLinkField'); if(f){ f.focus(); f.select(); } }catch(e){} }
+  };
+  try{
+    if(navigator.clipboard && typeof navigator.clipboard.writeText === 'function'){
+      navigator.clipboard.writeText(url).then(() => done(true), () => done(false));
+      return;
+    }
+  }catch(e){}
+  done(false);
+}
+async function socialDoPrepareInvite(btn){
+  socialBusy(btn, true);
+  socialView.notice = null;
+  const r = await socialEnsureInviteLink();
+  socialBusy(btn, false);
+  if(r.ok) socialSay('Your invite link is ready. Tap Share link to send it.', 'ok');
+  else socialSay(r.net || (r.error === 'no_profile' ? 'Pick a username first.'
+    : r.error === 'rate_limited' ? 'Too many new links today. Try again tomorrow.'
+    : 'Could not create an invite link just now.'));
+  renderSocial();
+}
+async function socialDoResetInvite(btn){
+  if(!confirm('Reset your invite link? Links you already shared will stop working.')) return;
+  socialBusy(btn, true);
+  const r = await socialResetInviteLinks();
+  socialBusy(btn, false);
+  socialSay(r.ok ? 'New link ready. Old links no longer work.' : (r.net || 'Could not reset the link just now.'), r.ok ? 'ok' : null);
+  renderSocial();
+}
+async function socialDoPasteInvite(btn){
+  const input = document.getElementById('socPaste');
+  const token = socialInviteToken(input ? input.value : '');
+  if(!token){ socialSay('That does not look like a LOOP invite link.'); renderSocial(); return; }
+  socialBusy(btn, true);
+  await socialSetPendingInvite(token);
+  socialView.pasteOpen = false; socialView.notice = null;
+  await socialPreviewPendingInvite();
+  socialBusy(btn, false);
+  renderSocial();
+  try{ const s = document.querySelector('#socialOverlay .sheet-scroll'); if(s) s.scrollTop = 0; }catch(e){}
+}
+async function socialDoAcceptInvite(btn){
+  socialBusy(btn, true);
+  const r = await socialAcceptPendingInvite();
+  socialBusy(btn, false);
+  const who = r.username ? '@' + r.username : 'your friend';
+  if(r.status === 'connected') socialSay('You and ' + who + ' are now friends.', 'ok');
+  else if(r.status === 'requested') socialSay('Request sent to ' + who + '. You are connected when they accept.', 'ok');
+  else if(r.status === 'already_friends') socialSay('You are already friends with ' + who + '.', 'ok');
+  else if(r.status === 'already_pending') socialSay('You have already asked ' + who + '.', 'ok');
+  else if(r.status === 'no_profile'){ socialState.profileState = 'none'; socialSay(null); }
+  else if(r.status === 'unavailable' || r.status === 'signed_out') {
+    socialState.invitePreview = Object.assign({}, socialState.invitePreview, { status:'unavailable' });
+    socialSay(null);
+  }
+  else {
+    const MSG = { expired:'That invite link has expired.', revoked:'That invite link was reset.',
+      full:'That invite link has been used too many times.', self:'That is your own invite link.',
+      too_many_friends:'You have reached the friend limit.', too_many_pending:'Too many pending requests.' };
+    socialSay(MSG[r.status] || 'That invite link does not work.');
+  }
+  renderSocial();
+}
+async function socialDoDismissInvite(){
+  await socialClearPendingInvite();
+  socialView.notice = null;
   renderSocial();
 }
 /* Accept and remove are NOT optimistic: a list that shows a friendship the
    backend refused would be a lie the athlete cannot see through. */
 async function socialDoAccept(id){
   const r = await socialAcceptRequest(id);
-  socialView.notice = r.ok ? null : 'Could not accept that just now.';
+  socialSay(r.ok ? 'Connected.' : 'Could not accept that just now.', r.ok ? 'ok' : null);
   renderSocial();
 }
 async function socialDoDecline(id){
   const r = await socialDeclineRequest(id);
-  socialView.notice = r.ok ? null : 'Could not do that just now.';
+  socialSay(r.ok ? null : 'Could not do that just now.');
   renderSocial();
 }
-async function socialDoRemove(userId, name){
-  if(!confirm('Remove @' + name + '? You can reconnect with a new invite.')) return;
-  const r = await socialRemoveFriend(userId);
-  socialView.notice = r.ok ? null : 'Could not remove that just now.';
+async function socialDoRemove(btn){
+  const f = (socialState.friends || []).find(p => p.user_id === socialView.compareId && !p.is_self);
+  if(!f){ socialCloseCompare(); return; }
+  socialBusy(btn, true);
+  const r = await socialRemoveFriend(f.user_id);
+  socialBusy(btn, false);
+  if(r.ok){
+    socialView.pane = 'hub'; socialView.compareId = null;
+    socialView.confirmRemove = false; socialView.menuOpen = false;
+    socialSay('Removed @' + f.username + '.', 'ok');
+  } else {
+    socialSay(socialNetProblem(r) || 'Could not remove that just now.');
+  }
   renderSocial();
 }
 async function socialDoSignOut(){
   if(!confirm('Sign out? Your workouts, programs and records stay on this phone.')) return;
   await socialSignOut();
   socialView.stage = 'signin'; socialView.notice = null;
+  socialView.pane = 'hub'; socialView.compareId = null;
   renderSocial();
-}
-function socialCopyCode(btn){
-  const code = socialState.profile && socialState.profile.invite_code;
-  if(!code) return;
-  try{ navigator.clipboard.writeText(code); btn.textContent = 'Copied'; }
-  catch(e){ btn.textContent = 'Copy failed'; }
-  setTimeout(() => { try{ btn.textContent = 'Copy'; }catch(e){} }, 1600);
 }
 
 /* ---------- BOOT ---------- */
@@ -16136,6 +17355,9 @@ async function boot(){
      launch, Today and Workout must never wait on a backend, and a phone with
      no signal boots exactly as it always did. */
   try{ await socialLoad(); }catch(e){}
+  /* D80A — an invite link this launch was opened with: read from the address,
+     parked in storage and removed from the address. Still no network. */
+  try{ await socialCaptureInviteFromUrl(); }catch(e){}
 
   try{
     const su = await LOOPStore.get('lastSeenUpdateId');
@@ -16185,6 +17407,8 @@ async function boot(){
   /* One observer owns the background lock for every overlay, including any
      restored during boot. */
   initPageIsolation();
+  /* D80A — opened from an invite link: show it, now that the app is on screen. */
+  try{ if(socialInviteArrived) openSocial(); }catch(e){}
   try{
     const sm = document.getElementById('summaryMark');
     if(sm && !sm.innerHTML) sm.innerHTML = checkIconSvg(30);

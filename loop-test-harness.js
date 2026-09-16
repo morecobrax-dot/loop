@@ -233,7 +233,10 @@ function loadApp(initialStore){
     /* D77A — the training block's rules, its moves, its memo and the pending review */
     'BLOCK_RULES','CYCLE_MOVES','CYCLE_NORMAL_PHASES','_blockStateCache','_programProgressCache','blockActionPending',
     /* D78 — the muscle-focus chip cap and its rank vocabulary */
-    'MUSCLE_FOCUS_MAX_CHIPS','MUSCLE_FOCUS_RANK_WORDS'];
+    'MUSCLE_FOCUS_MAX_CHIPS','MUSCLE_FOCUS_RANK_WORDS',
+    /* D80A — the session lifecycle, invite links and the Friends screen's own state */
+    'SOCIAL_STORE_KEY','SOCIAL_INVITE_KEY','SOCIAL_TIMING','SOCIAL_LINK_TOKEN_RE','SOCIAL_CODE_RE','SOCIAL_INVITE_FINAL',
+    'socialRenewFlight','socialHubFlight','socialInviteArrived'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

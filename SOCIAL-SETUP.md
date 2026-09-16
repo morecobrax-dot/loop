@@ -1,4 +1,4 @@
-# LOOP — social setup (D52 / D52B)
+# LOOP — social setup (D52 / D52B / D80A)
 
 Friends and the private leaderboard need a backend. The code is shipped and
 tested; the project is not created, because credentials cannot be invented.
@@ -13,8 +13,12 @@ Everything below is about fifteen minutes.
 
 ## What this adds, and what it does not
 
-Crosses the network: a **username**, your **friendships**, and the **XP, level
-and rank you already earned**.
+Crosses the network: a **username**, your **friendships**, the **XP, level
+and rank you already earned**, and — since D80A — for each week you publish,
+that week's **weekly XP** and **workout count** (strength workouts plus cardio
+sessions, counted by LOOP's own XP timelines, under the Monday of the week they
+were logged in). Invite links add one more thing the server holds but nobody can
+read: a SHA-256 hash of each link's token, who made it, and when it expires.
 
 Never crosses it: workouts, exercises, loads, reps, RIR, bodyweight, readiness,
 programs, notes, PRs, settings — and your **email**, which belongs to
@@ -34,8 +38,12 @@ Signing in adds identity. It does not move your training anywhere.
 
 ## 2. Apply the schema
 
-The whole backend is one checked-in file:
-`supabase/migrations/0001_social_foundation.sql`
+The whole backend is two checked-in files, applied in order:
+
+1. `supabase/migrations/0001_social_foundation.sql` — profiles, stats,
+   requests, friendships (D52)
+2. `supabase/migrations/0002_friends_links_and_weeks.sql` — invite links, the
+   weekly leaderboard, and the one-query Friends screen (D80A)
 
 Either:
 
@@ -46,9 +54,38 @@ supabase db push
 
 or open **SQL Editor → New query**, paste the file, and run it.
 
-It creates four tables, enables row level security on every one of them, and
+0001 creates four tables, enables row level security on every one of them, and
 installs the functions that are the only way to create a friend request or a
-friendship. Nothing in it is optional.
+friendship. 0002 adds `friend_invites` (row level security on, **no policy at
+all** — only its functions reach it) and `social_weekly` (readable by the
+athlete and accepted friends, writable only by its owner), and the functions
+`loop_create_invite_link`, `loop_preview_invite_link`,
+`loop_accept_invite_link`, `loop_revoke_invite_links` and
+`loop_friends_hub`. Both files are safe to run again. Nothing in either is
+optional.
+
+### Applying 0002 to a project that already runs 0001
+
+Open **SQL Editor → New query**, paste `0002_friends_links_and_weeks.sql`, run
+it. Nothing else changes and no data moves.
+
+Until it is applied, the shipped app still works: it detects the missing
+functions and falls back to 0001 — invite links carry the invite **code**,
+adding someone sends a request they accept, and the leaderboard ranks **total
+XP** and says so. Once it is applied, the next time anyone opens Friends they
+get links that connect in one tap and the weekly leaderboard.
+
+To check from outside, with nothing but the publishable key (no account):
+
+```bash
+curl -s -X POST "https://<ref>.supabase.co/rest/v1/rpc/loop_friends_hub" \
+  -H "apikey: <publishable key>" -H "Content-Type: application/json" \
+  -d '{"p_week":"2026-09-14"}'
+```
+
+- `{"code":"PGRST202",...}` (404) — 0002 is **not** applied yet.
+- `{"code":"42501",...,"message":"permission denied for function loop_friends_hub"}`
+  (401) — 0002 **is** applied, and anonymous callers are refused, as they must be.
 
 ## 3. Turn on email and password
 
@@ -123,11 +160,16 @@ cannot be verified from one account — half of what matters is what the *other*
 person can and cannot see.
 
 1. Alice creates an account, clicks the confirmation email, signs in, takes a
-   username, and sees herself alone on the leaderboard.
+   username, and sees herself alone on the weekly leaderboard.
 2. Bob does the same.
-3. Alice copies her invite code to Bob. Bob enters it.
-4. Alice accepts. Both leaderboards show both athletes, in the same order.
-5. Alice removes Bob. Both lists drop back to one.
+3. Alice taps **Invite friend** and sends Bob the link. Bob opens it, sees
+   "@alice invited you to connect on LOOP", and taps **Add friend**. Both
+   Friends screens now show both athletes, and the weekly leaderboard is in the
+   same order on both phones.
+4. Alice opens her own link: LOOP says it is her own. Alice taps **Reset link**;
+   Bob opening the old link is told it was reset.
+5. Alice removes Bob (open Bob → ••• → Remove friend → Remove). Both lists
+   drop back to one.
 
 Then the part that matters more:
 
@@ -150,6 +192,15 @@ Then the part that matters more:
 8. **A stranger sees nothing.** With no friendship between them, Bob querying
    `/rest/v1/profiles?user_id=eq.<alice-uuid>` must return `[]`.
 
+Two for D80A:
+
+- **Bob cannot write Alice's week.** Same console call as step 7, to
+  `/rest/v1/social_weekly` with body
+  `{ "user_id": "<alice-uuid>", "week_start": "<a Monday>", "weekly_xp": 99999 }`.
+  It must return **401 or 403**.
+- **Signing out is local.** Signed in as Alice on two devices, sign out on one.
+  The other stays signed in — including after an hour, when its token renews.
+
 Two more, specific to a password:
 
 9. **An unconfirmed account cannot sign in.** Create one and try before
@@ -167,14 +218,19 @@ app**, not from Safari. Check that:
   iOS chooses — is enough to make the following sign-in work;
 - iOS offers to save the password, and offers it back on the sign-in screen;
 - focusing a field does **not** zoom the page;
-- the session is still there after force-quitting and reopening.
+- the session is still there after force-quitting and reopening — and after
+  an hour away, and after finishing a workout with poor signal;
+- an invite link tapped on the phone opens in Safari, not the installed app
+  (iOS does not hand links to home-screen apps). Either accept it there, or
+  copy the link and use **Have an invite link? Paste it** inside the app.
 
 ---
 
 ## Removing an account
 
 `select public.loop_delete_account();` while signed in as that user removes the
-profile, the stats, the requests and the friendships. It cannot touch anything
+profile, the stats, the requests and the friendships — and, through their
+foreign keys, the weekly rows and invite links. It cannot touch anything
 on a phone: the training lives there, not here.
 
 ## Optional, later: a branded confirmation email
@@ -203,3 +259,5 @@ server — which is the local-first architecture this phase exists to preserve.
 
 For a private leaderboard between people who train together, that trade is the
 right way round. It is worth knowing before it is ever described as a ranking.
+The weekly numbers are the same kind of claim: computed on the athlete's own
+phone, bounded by the database to sane values, and not proof.

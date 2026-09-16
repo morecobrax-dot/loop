@@ -10937,3 +10937,173 @@ every new week began a day late until the autumn change. It now rounds.
    deload and how loads resume after it.
 4. **Session Score** is not adjusted for a planned lighter week.
 5. **Rebuild re-entry** carries no load reset or ramp.
+
+## §107 — D80A: Friends that stay signed in, invite links, the week
+
+**Status.** Shipped in LOOP 8.0 (`loop-v157`). `DATA_KEYS` 15, schema 1, no
+local migration. One new storage key outside `DATA_KEYS`
+(`socialPendingInvite`). One new backend migration,
+`supabase/migrations/0002_friends_links_and_weeks.sql`, which the owner applies;
+until it is applied the client runs on 0001 (invite codes carried as links, a
+total-XP leaderboard). No progression, XP, level, rank, Session Score, trainer,
+program or workout-log behaviour changed: social reads LOOP's outputs and
+defines none.
+
+### The sign-out bug — root cause
+
+Friends asked for its data with an access token that lives an hour, so most
+visits — and every workout finished at a gym, which publishes — first had to
+renew it. `socialRequest` treated **any** renewal that did not come back
+perfect as the end of the session and deleted the refresh token: no signal, a
+timeout, a 409 while two renewals queued, a 429, a 5xx, the phone locking
+between the request and its answer. That refresh token was the one thing that
+could have renewed the session. The athlete next saw "Your session ended".
+
+Three more defects made it worse:
+
+- **No single flight.** The screen fired two RPCs at once; both found the
+  token expired and both renewed. When one renewal failed and the other
+  succeeded, the failure's `socialClearSession()` wiped the session the other
+  had just installed — or the success reinstalled a session after the profile
+  had been cleared, which left **"Pick a username"** on screen for an account
+  that already had one. Choosing it again POSTed a duplicate profile and was
+  told "That username is taken"; that screen had no sign-out. A third path read
+  `socialState.session.email` after another flight had nulled the session and
+  threw, leaving Friends un-rendered.
+- **Rotations multiplied.** A 401 that arrived after another request had
+  already renewed triggered a second renewal. With GoTrue's refresh algorithm
+  v2 a token one rotation behind is forgiven, two behind (outside ten seconds)
+  **ends the session on the server** — so doubled rotations turned an ordinary
+  lost write into a destroyed session.
+- **Global sign-out.** GoTrue's `/logout` defaults to `scope=global`. Signing
+  out anywhere — the D52B QA build on the same phone, a laptop — ended the
+  athlete's session on every device. The temporary build at `/loop/qa/` still
+  carries the 5.1 client, still signs out globally against the same project,
+  and is still served; `qa/README.md` says to delete it, and it should be.
+
+**Reproduced, not reasoned.** `mock-supabase.js` (scratch) transcribes
+`supabase/auth` `internal/tokens/service.go` for both refresh algorithms and
+`internal/api/logout.go` for scopes; error shapes were measured anonymously
+against the live project (400 `validation_failed`, 401 `PGRST301`, 401 `42501`,
+404 `PGRST202`). LOOP's real client code, in the harness, was driven through 15
+journeys under both algorithms. On the shipped 7.9 client: forced sign-outs
+with the server session still valid (503/409/429 during renewal; the gym
+publish on weak signal; lost renewal response), the "Pick a username" dead end
+(503 and network drop during renewal), server-destroyed sessions (slow second
+401 plus lost writes; two windows sharing storage), global sign-out from
+another install, and uncaught TypeErrors. On 8.0: none, except the control where
+the server really revoked the session — which signs out, with the notice.
+
+### Session lifecycle
+
+- `socialRenewSession()` — one renewal at a time, shared by every caller.
+- `socialRequest` renews a token with under a minute left **before** using it;
+  a 401 for a token already replaced while in flight retries with the new one
+  and never renews again; one retry, never a loop.
+- `socialRefresh()` reads the stored session first and uses a newer one another
+  window saved, so a stale token is never replayed; a refresh can never change
+  whose session it is.
+- `socialRefreshVerdict()` — **only** a 400 from GoTrue's token endpoint (or a
+  401/403 naming the refresh token, session or user) is `rejected`. No answer,
+  a 15-second timeout (`AbortController`), 409, 429, 5xx or a gateway refusing
+  the API key is `unavailable`: the athlete stays signed in and Friends says it
+  could not be reached, with Try again.
+- Sign out sends `scope=local`.
+- `socialAuthState()` — `restoring` (the stored record not yet read) ·
+  `signed_out` · `loading` · `ready` · `error`. The username step appears only
+  when the server confirmed there is no profile; a duplicate on
+  `profiles_pkey` loads the existing profile.
+
+### Invite links
+
+`?invite=<token>`: 32 bytes from two `gen_random_uuid()` (244 random bits),
+43 URL-safe characters, stored only as SHA-256 in `friend_invites` (RLS on, no
+policy, no grant). Seven-day expiry, reset revokes all, at most five live
+links, 20 uses a link, 20 new links a day. `loop_preview_invite_link` returns
+a username only for a live link held by a signed-in caller;
+`loop_accept_invite_link` refuses self, expired, revoked, full and duplicate,
+and creates the ordered friendship atomically. The address bar is read in one
+function for one parameter, cleaned with `history.replaceState` at once, and
+the invite parked under `socialPendingInvite` so it survives sign in, sign up,
+the confirmation email and reloads; a link that can never work is said once and
+not stored. Share is Web Share on the tap itself (the link is prepared when
+Friends opens, so nothing is awaited first — iOS requires it), then clipboard,
+then a field to copy by hand. A 0001 project carries the invite code instead;
+adding then sends a request the inviter accepts.
+
+### The week
+
+`socialWeekRows` sums the XP LOOP's own timelines already attached to each
+workout and cardio session (`getXPTimelineCached().timeline`,
+`computeCardioXPTimeline().timeline`) by `weekStartKey(date)` — the civil
+Monday of the day the athlete logged it — and counts the sessions those
+timelines counted. Cardio streak tiers belong to no single week and stay in
+lifetime XP only. Each device publishes this week and last week to
+`social_weekly` under that Monday; every friend reads the same row for the same
+week, so no device regroups another athlete's training. `loop_friends_hub`
+returns profile, circle, both weeks, requests and live link ids in one query.
+Ranked by weekly XP; equal XP shares a place (1, 2, 2, 4); ties list by
+username compared as characters, not locale; no row is "No update", not 0.
+The athlete's own row shows this phone's numbers — the numbers it publishes.
+
+### Privacy
+
+New remote fields: `week_start`, `weekly_xp`, `workouts`, `rules_version` per
+athlete per week; invite hashes and their inviter, expiry, revocation and use
+count. `socialPersonFrom` whitelists what a screen may show of a person.
+Nothing publishes from a phone with no XP — an invite link opened in Safari's
+empty storage used to bind and publish 0 over the athlete's real numbers. The
+comparison shows level, rank, this week, workouts, last week and change, with
+no verdict and no exercise or weight.
+
+### Verification
+
+- **Contract 183** (205 assertions): AUTH against an in-suite GoTrue mock,
+  INVITES, FRIENDSHIP, LEADERBOARD, COMPARISON, PRIVACY, MIGRATION 0002.
+  Mutation-checked: 24 client mutants, every one caught.
+- **Contract 156** repointed three assertions with reasons (§ the comments in
+  `loop-tests.js`): the first `socialPublishSoon()` is no longer the workout's,
+  the address bar may be read for the invite only, and clearing on refresh
+  failure was the defect itself.
+- **Real PostgreSQL** (PGlite 0.5.8, PostgreSQL 18.3) with Supabase's roles,
+  `auth.uid()` from request claims and Supabase's default privileges: 112
+  adversarial checks of 0001 + 0002, both applied twice. 14 migration mutants, every one caught.
+- **End to end**: 143 checks driving LOOP's client through flows A–P against
+  the mock GoTrue and the real migrations behind a PostgREST emulation.
+- **A suite that could stop halfway and pass.** The mutation check removed the
+  request timeout and Contract 183's hanging request never settled: the event
+  loop emptied, Node exited 0, and `RESULT` was never printed — green by exit
+  code. The test now races a guard timer, and `loop-tests.js` exits 1 from
+  `beforeExit`, which only a run that never reached its own `process.exit` can
+  hit.
+- **Not run**: the live project with real accounts. No test accounts exist that
+  this phase may sign into, and none were created; the live backend was probed
+  anonymously only. Migration 0002 was verified on PGlite, not on the project.
+- **Browser**: every Friends state at 320×568, 375×812, 390×844 and 430×932 —
+  no horizontal overflow, every control at least 44px.
+
+### D80B — sharing one workout (design only, not implemented)
+
+- **Snapshot, not a link to live data.** `shared_workouts(id, sender,
+  recipient, payload jsonb, schema_version, created_at, expires_at, revoked_at)`,
+  inserted only by `loop_share_workout(recipient, payload)` — which checks the
+  two are friends, validates the payload against a whitelist and a size cap
+  (16 KB), and rate-limits (20 a day). Immutable; the sender may revoke; rows
+  expire after 30 days; RLS lets the recipient read rows addressed to them only
+  while `loop_are_friends` holds.
+- **Payload v1.** `sharedWorkoutId`, `schemaVersion: 1`, `sender { userId,
+  username }`, `title`, `createdAt`, optional `note` (≤ 280), and `exercises[]`
+  of `{ order, exerciseId, name, sets, reps, effort: { kind: 'rir'|'rpe'|'none',
+  target } }` — the prescription. Built from the saved workout or plan template,
+  never from `workoutLog`.
+- **Never in it.** Performed weights or reps, logged RIR, PRs, Session Score,
+  private notes, bodyweight, dates trained, programs, trainer data, email.
+- **Recipient.** Friends lists "Shared with you"; opening shows a read-only
+  preview; **Save to My Workouts** creates a local, recipient-owned saved
+  workout (exercise ids resolved against the recipient's library, unknown names
+  kept as custom exercises), marked "From @username" locally. No sync back;
+  the sender never learns what the recipient did with it; Dismiss deletes the
+  row.
+- **Contracts to write with it.** The builder reads template fields only; the
+  payload key set is exact; the server rejects a non-friend, an oversized or
+  extra-keyed payload, and a read after unfriending.
