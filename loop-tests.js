@@ -24441,12 +24441,46 @@ async function testWorkoutClosure(){
   guard('release dates', () => {
     const list = ctx.LOOP_UPDATES;
     const iso = d => /^\d{4}-\d{2}-\d{2}$/.test(d) && new Date(d + 'T00:00:00Z').toISOString().slice(0, 10) === d;
-    /* The latest civil date anywhere on Earth right now (UTC+14): an entry may be
-       dated today wherever it was released, never later. */
-    const edge = new Date(Date.now() + 14 * 3600e3).toISOString().slice(0, 10);
-    const future = list.filter(u => u.date > edge).map(u => u.version + ' ' + u.date);
+    /* D70.5 — THE RELEASE TIMEZONE IS AMERICA/NEW_YORK, and the guard has to
+       ask LOOP's question rather than an easier one.
+
+       This edge used to be UTC+14, which answers "could this date exist
+       somewhere on Earth yet?" — and the answer is yes for fourteen hours
+       before it is true in New York. LOOP 7.3 shipped through that gap: the
+       release ran at 2026-09-15 20:54 New York, which is already 2026-09-16
+       in UTC, and the entry went out dated a day into the future. The command
+       that produced the date was `TZ=America/New_York date`, which on a Git
+       Bash with no tzdata silently reports UTC — so the authoring mistake and
+       the guard agreed with each other, and nothing caught it.
+
+       Intl carries the zone database in Node and in every browser LOOP
+       supports, so it is the primary answer. The fallback is UTC-5, Eastern
+       standard time: the New York civil date is never EARLIER than that, so a
+       fallback can only ever be stricter than the truth. It can never let a
+       future date through, which is the whole job. */
+    const nyToday = (() => {
+      try{
+        const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York',
+          year: 'numeric', month: '2-digit', day: '2-digit' });
+        const d = f.format(new Date());
+        if(/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+      }catch(e){}
+      return new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10);
+    })();
+    const future = list.filter(u => u.date > nyToday).map(u => u.version + ' ' + u.date);
     T('every entry is a real calendar date', list.every(u => iso(u.date)));
-    T('no entry is dated after the day it is anywhere right now', future.length === 0, JSON.stringify(future));
+    T('no entry is dated after today in New York, the timezone LOOP releases in',
+      future.length === 0, 'today in NY is ' + nyToday + '; ahead of it: ' + JSON.stringify(future));
+    /* Asserted against this suite's own source, so the hole cannot be
+       reopened quietly by whoever edits the guard next. */
+    const selfSrc = fs.readFileSync(__filename, 'utf8');
+    T('and the guard asks New York rather than "somewhere on Earth" — UTC+14 is what let LOOP 7.3 through',
+      /timeZone: 'America\/New_York'/.test(selfSrc) && !/14 \* 3600e3/.test(selfSrc));
+    /* A release day can hold more than one release — 6.5 through 6.8 all
+       shipped on 2026-09-14 and 6.9 through 7.3 all on 2026-09-15 — so the
+       ordering rule below is "not earlier", never "strictly later". */
+    T('several releases may share a day, and the list proves it',
+      list.some((u, i) => i > 0 && u.date === list[i - 1].date));
     const backwards = list.filter((u, i) => i > 0 && u.date < list[i - 1].date).map(u => u.version + ' ' + u.date);
     T('and no release is dated before the one listed ahead of it', backwards.length === 0, JSON.stringify(backwards));
     /* sw.js beside the app under test, or beside the harness when the app is a copy elsewhere. */
@@ -24458,6 +24492,12 @@ async function testWorkoutClosure(){
     const by = id => (list.find(u => u.id === id) || {}).date;
     T('6.2 is dated the day it deployed (7b11b13, Pages 2026-09-14 06:34 New York), and 6.1 the day before',
       by('v6-2') === '2026-09-14' && by('v6-1') === '2026-09-13' && by('v6-0') === '2026-09-13' && by('v5-4') === '2026-09-11');
+    /* D70.5 — 7.3 is pinned to the day it actually deployed, against the
+       commit's own timestamp: 7f152ea, 2026-09-15 20:54:40 -0400. It shipped
+       dated 2026-09-16 because the authoring command reported UTC and the
+       UTC+14 guard agreed. Both are fixed; this holds the corrected date. */
+    T('7.3 is dated the New York day it deployed (7f152ea, 2026-09-15 20:54 -0400), not the UTC day',
+      by('v7-3') === '2026-09-15' && by('v7-2') === '2026-09-15', by('v7-3'));
   });
 }
 
@@ -26896,6 +26936,98 @@ async function testSmartSuggestions(){
       return r.length > 0 && r.every(x => ['horizontal_push', 'vertical_push'].indexOf(
         ctx.substitutionPatternFor(x.exerciseId, x.displayName)) !== -1);
     })());
+  });
+
+  sub('D70.5 — where in the workout this is');
+  guard('session shape', () => {
+    const truth = ctx.xsSessionTruth();
+    const ctxOf = o => ctx.exSuggestionContext(state(o));
+    T('a session\'s shape is read from the plans\' own templates, never written down',
+      ctx.ORDER.every(c => typeof truth.cats[c].foundation === 'number' && typeof truth.cats[c].size === 'number') &&
+      /DEFAULT_PLANS/.test(fnSrc(src, 'xsSessionShape')) && /registryRoleOf/.test(fnSrc(src, 'xsMeta')) &&
+      !/push:\s*\d|arms:\s*\d/.test(fnSrc(src, 'xsSessionShape')),
+      ctx.ORDER.map(c => c + ' ' + truth.cats[c].foundation + '/' + truth.cats[c].size).join(' '));
+    T('a day built on compounds wants some, and a day built on isolation wants none',
+      truth.cats.push.foundation >= 1 && truth.cats.legs.foundation >= 1 && truth.cats.fullbody.foundation >= 1 &&
+      truth.cats.arms.foundation === 0 && truth.cats.core.foundation === 0);
+    T('stage comes from what the workout CONTAINS, not from how many rows it has', (() => {
+      const heavy = ctxOf({ category: 'fullbody', already: ['Bench Press', 'Barbell Row', 'Back Squat'] });
+      const light = ctxOf({ category: 'fullbody', already: ['Cable Curl', 'Lateral Raise', 'Crunch'] });
+      return heavy.position === light.position && heavy.foundation === 3 && light.foundation === 0 &&
+        heavy.stage !== light.stage && light.stage === 'early';
+    })());
+    T('and it is a pure function of position, foundation and size',
+      ctx.xsStageOf(0, 0, 2, 5) === 'start' && ctx.xsStageOf(2, 0, 2, 5) === 'early' &&
+      ctx.xsStageOf(2, 2, 2, 5) === 'middle' && ctx.xsStageOf(5, 2, 2, 5) === 'late' &&
+      /* a four-exercise day is late once it holds four, not at three — LATE
+         means "a whole session is already built", not "near the end" */
+      ctx.xsStageOf(4, 0, 0, 4) === 'late' && ctx.xsStageOf(3, 0, 0, 4) === 'middle');
+    T('Arms and Core are never waiting for a compound, at any depth',
+      [0, 1, 2, 3, 4, 5, 6, 7].every(n => ['arms', 'core'].every(c =>
+        ctx.xsStageOf(n, 0, truth.cats[c].foundation, truth.cats[c].size) !== 'early')));
+    T('while the day\'s foundational work is uncovered, a foundational movement rises', (() => {
+      const early = score('Bench Press', { category: 'push', already: ['Lateral Raise'] });
+      const mid = score('Bench Press', { category: 'push', already: ['Overhead Press', 'Dumbbell Shoulder Press'] });
+      return early.factors.shape > 0 && !!early.flags.foundation && mid.factors.shape <= 0;
+    })());
+    T('once the session is already a full one, a NEW compound that fills nothing settles', (() => {
+      const late = score('Leg Press', { category: 'legs',
+        already: ['Back Squat', 'Romanian Deadlift', 'Lunge', 'Leg Curl', 'Calf Raise'] });
+      return late.factors.shape === ctx.XS_WEIGHTS.shape.lateCompound && !!late.flags.lateCompound;
+    })());
+    T('but a serious missing movement outranks where you happen to be standing', (() => {
+      /* Same late Full Body workout: the vertical pull it has never done keeps
+         every point of being missing, and is not charged for arriving late. */
+      const gap = score('Lat Pulldown', { category: 'fullbody',
+        already: ['Back Squat', 'Bench Press', 'Barbell Row', 'Overhead Press', 'Romanian Deadlift'] });
+      return gap.factors.shape === 0 && !gap.flags.lateCompound &&
+        (!!gap.flags.missingPattern || !!gap.flags.muscleGap) && gap.factors.movement > 0;
+    })());
+    T('isolation is never charged for arriving late — only compounds are', (() => {
+      const lateIso = score('Cable Curl', { category: 'arms',
+        already: ['Barbell Curl', 'Hammer Curl', 'Triceps Pushdown', 'Overhead Triceps Extension', 'Preacher Curl'] });
+      const lateCore = score('Bicycle Crunch', { category: 'core',
+        already: ['Plank', 'Dead Bug', 'Russian Twist', 'Hanging Leg Raise', 'Cable Crunch'] });
+      return lateIso.factors.shape >= 0 && lateCore.factors.shape >= 0;
+    })());
+    T('nothing is ever removed from the list for being late — the signal only reorders', (() => {
+      const late = { category: 'legs', already: ['Back Squat', 'Romanian Deadlift', 'Lunge', 'Leg Curl', 'Calf Raise'] };
+      const penalised = score('Leg Press', late);
+      /* The stage reaches the SCORE and nothing else. If it ever reaches the
+         filter it becomes a hard block, which is the one thing this signal is
+         not allowed to be — so the filter is asserted not to know about it. */
+      const filter = fnSrc(src, 'rankExerciseSuggestions');
+      return typeof penalised.score === 'number' && !/stage/.test(filter) &&
+        ctx.exPickerMatches('leg press').some(e => e.key === 'leg_press') &&
+        ctx.exPickerResults(state(late)).some(e => e.key === 'leg_press');
+    })());
+    T('specialization survives: a fifth chest press is still findable and still choosable',
+      ctx.exPickerMatches('bench press').some(e => e.key === 'bench_press_barbell') &&
+      ctx.exPickerResults(state({ category: 'push',
+        already: ['Bench Press', 'Incline Bench Press', 'Dumbbell Bench Press', 'Cable Fly'] }))
+        .filter(e => (ctx.xsMeta()[e.key] || {}).muscle === 'chest').length > 3);
+    T('a ticked exercise moves the workout\'s shape before anything is added', (() => {
+      const before = ctxOf({ category: 'push', already: ['Bench Press', 'Lateral Raise'] });
+      const after = ctxOf({ category: 'push', already: ['Bench Press', 'Lateral Raise'],
+        selected: [{ name: 'Overhead Press', key: 'overhead_press_bb' }] });
+      return after.foundation === before.foundation + 1 && before.stage === 'early' && after.stage !== 'early';
+    })());
+    T('an uncatalogued movement is never counted as foundation — unknown stays unknown',
+      ctxOf({ category: 'push', already: ['Jacob’s Sled Drag', 'Explosive Push-Up'] }).foundation === 0);
+    T('D70\'s own weights were not retuned to make room for it',
+      ctx.XS_WEIGHTS.session.declared === 40 && ctx.XS_WEIGHTS.session.foreign === -45 &&
+      ctx.XS_WEIGHTS.muscle.gap === 28 && ctx.XS_WEIGHTS.movement.missing === 24 &&
+      ctx.XS_WEIGHTS.redundancy.sameFamily === -30 && ctx.XS_WEIGHTS.equipment.available === 12 &&
+      ctx.XS_WEIGHTS.history.max === 12 && ctx.XS_WEIGHTS.plan.max === 6 &&
+      ctx.XS_WEIGHTS.limits.minScore === 30 && ctx.XS_WEIGHTS.limits.max === 6);
+    T('and the new signal is smaller than every training term it sits beside',
+      Math.abs(ctx.XS_WEIGHTS.shape.foundation) < ctx.XS_WEIGHTS.muscle.gap &&
+      Math.abs(ctx.XS_WEIGHTS.shape.lateCompound) < ctx.XS_WEIGHTS.muscle.gap &&
+      Math.abs(ctx.XS_WEIGHTS.shape.lateCompound) < ctx.XS_WEIGHTS.movement.missing);
+    T('the athlete is never told about a stage: the reasons are the same concrete ones',
+      !/late|finisher|early in your workout|exercise \d+ recommendation/i.test(fnSrc(src, 'xsReasonFor')) &&
+      ctx.ORDER.every(c => rank({ category: c, already: ctx.exPickerForCategory(c, [], 5).map(e => e.name) })
+        .every(s => !/late|finisher|stage/i.test(s.reason || ''))));
   });
 
   sub('nothing protected moved');

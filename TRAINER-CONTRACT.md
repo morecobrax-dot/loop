@@ -10282,3 +10282,132 @@ answers it on movement compatibility. `SUBSTITUTION_CONFIG`,
   "no", and D70 does not change that.
 - **A suggestion has no reason at all** where a workout has no category and no
   flag fires. The row falls back to its ordinary equipment-and-muscle line.
+
+## §102 — D70.5: Session shape, and release dates that are true
+
+**Status.** Shipped in LOOP 7.4 (`loop-v151`). A controlled extension of D70,
+not a rebuild: one new factor, no second engine, and D70's weights untouched.
+`DATA_KEYS` 15, schema 1, no migration, no new storage key, no stored stage,
+`TRAINER_ENGINE_VERSION` 0.1.1-shadow. Swap is byte-unchanged.
+
+### Part A — the release-date bug
+
+**What happened.** LOOP 7.3 shipped dated `2026-09-16`. It deployed at
+`2026-09-15 20:54:40 -0400`, so in New York — the timezone LOOP releases in —
+it was still the 15th. Two independent faults had to agree:
+
+- The date was produced with `TZ=America/New_York date`. Git Bash on the
+  owner's machine carries no tzdata, so it silently reports UTC and even
+  labels the output `GMT`. The command meant to ask New York asked UTC, and
+  was believed.
+- Contract 168's guard allowed any date up to `Date.now() + 14h` (UTC+14).
+  That answers "could this date exist somewhere on Earth yet?", which is true
+  for fourteen hours before it is true in New York. It is a different question
+  from "was this LOOP's release day".
+
+Neither fault alone would have shipped a wrong date. Together they agreed with
+each other, and nothing caught it.
+
+**The fix.**
+
+- `v7-3` is corrected to `2026-09-15`. No other historical date is touched —
+  D62 already corrected 33 entries from Pages evidence, and none of those has
+  been shown wrong since.
+- The guard derives today from `Intl.DateTimeFormat` with
+  `timeZone: 'America/New_York'`, which carries the zone database in Node and
+  in every browser LOOP supports. Its fallback is UTC-5, Eastern standard: the
+  New York civil date is never *earlier* than that, so a fallback can only
+  ever be stricter than the truth and can never admit a future date. A too-
+  strict fallback fails loudly; a too-loose one ships silently, which is the
+  failure mode being removed.
+- Three assertions were added beside the existing ones: the New York bound; a
+  structural assertion, read from the suite's own source, holding the guard to
+  that zone and forbidding the UTC+14 expression; and a pin on 7.3's corrected
+  date carrying the commit timestamp as its evidence. Same-day releases remain
+  allowed, and the list is asserted to still contain some, so the ordering
+  rule can never harden into "strictly later".
+
+**Proof.** Re-dating `v7-3` back to `2026-09-16` in a copy of `index.html` now
+fails Contract 168 twice — on the New York bound and on the pin. Restoring the
+UTC+14 edge, or swapping the zone to UTC, fails the structural assertion.
+
+### Part B — session shape
+
+D70 knew what fits a workout but not where in the workout the athlete was: a
+candidate that makes sense as exercise one is not the same answer at exercise
+six.
+
+- **`xsSessionShape(cat, meta)`** reads two numbers per category from the
+  plans' own templates — the median number of foundational movements a session
+  of that kind opens with, and the median number of exercises it holds.
+  Nothing is hard-coded. This is what stops "exercise 1 = compound, exercise 5
+  = isolation" becoming a law: Arms and Core answer `foundation: 0`, because
+  their templates contain no compounds at all, so they are never waiting for
+  one. Medians rather than means, so one long template cannot move a category
+  and both numbers stay whole.
+- **`xsStageOf(position, foundation, target, size)`** gives START / EARLY /
+  MIDDLE / LATE from what the workout *contains*. Bench, Row and Squat is a
+  different workout from Cable Curl, Lateral Raise and Crunch though both hold
+  three: the first is MIDDLE, the second EARLY. LATE means "a whole session of
+  this kind is already built", not "near the end" — a Legs day whose templates
+  run to four would otherwise read as late at three.
+- **Foundation is counted by `registryRoleOf` through `xsMeta`.** A movement
+  the registry has never catalogued counts for nothing: inventing a role would
+  put a workout into a stage it has not reached.
+- **One factor, `XS_WEIGHTS.shape`.** `foundation: 8` lifts a foundational
+  movement that belongs to this day while the day's foundation is uncovered.
+  `lateCompound: -14` lets a NEW heavy compound settle once the session is
+  full — and only one carrying neither `missingPattern` nor `muscleGap`, so a
+  genuinely absent movement keeps every point of being absent. Both are
+  smaller than every training term beside them, asserted arithmetically.
+- **The stage reaches the score and nothing else.** `rankExerciseSuggestions`
+  never sees it, and Contract 177 asserts its filter does not contain the word
+  — so nothing is ever removed from the list for being late.
+- **No new reason copy.** The athlete is never told about a stage.
+
+### Evidence
+
+- **Simulation: 736 distinct workout states**, built by walking every plan
+  template of every category prefix by prefix, plus freeform states, across
+  three equipment profiles — 2,208 rankings per build, 4,416 across D70 and
+  D70.5. Late-stage states where a new compound filling no gap ranks first: 0
+  of 121 (the pathology this phase targeted). States where a missing pattern
+  still reaches the top three: 98.2%. Exact duplicates, duplicate families,
+  empty lists and equipment-invalid suggestions: zero in every profile.
+  Compounds suggested: Core 0%, Arms 28.6%, Push 42.2%, Pull 46.5%, Legs
+  73.5%, Full Body 94.4% — each day keeps its own character. Only 4.7% of
+  template walks returned an identical list at every prefix.
+- **Compound-only lists** occur 149 times, concentrated in `upper` and
+  `fullbody` at START/EARLY where compounds should dominate; only 6 are LATE,
+  and 65 of 121 late states still offer a compound, which is what a soft
+  signal looks like next to a hard block.
+- **Change from D70:** 21-33% of states by equipment profile. Of the A-V
+  hand-written matrix one scenario changed — P, five exercises into a Legs
+  day, where a sixth Leg Press no longer outranks the glute and quad
+  accessories.
+- **Contract 177 extended** by sixteen assertions in a new sub. **Mutation
+  17/17** on the new work — stage frozen, composition ignored, targets
+  hard-coded, either half of the factor removed, the late penalty firing
+  through a gap or onto isolation, Arms/Core given a foundation, candidates
+  blocked instead of ranked, ticked exercises uncounted, unknowns counted as
+  foundation, the signal inflated, D70's own weights retuned, a stage leaked
+  into a reason, the date guard loosened to UTC+14 or to UTC, and 7.3
+  re-dated. **D70's own 25 mutations all still die.**
+- **Full verify 7,145 → 7,164 passed, 0 failed**; all five audits green.
+- **Physical:** headless Edge at 390×844, 375×812 and 320×568 across empty,
+  early, late, Core and Arms workouts, multi-select, search, the muscle filter
+  and the keyboard. No horizontal overflow, no clipped reason, no console
+  errors. Two flags at 320 were measured against `7f152ea` and are identical
+  on both builds: rows reaching 91px are long names wrapping at 320 wide, and
+  the dock is on screen at 320×295 once the relayout settles.
+
+### Known and recorded
+
+- **A Legs day's `size` is 4**, so it reads LATE from four exercises — earlier
+  than a Push day, which reads LATE from five. That is the plans' own shape,
+  not a tuning choice.
+- **The late penalty cannot fire on an Arms or Core day's own work**, because
+  no isolation movement is a compound. Those days stay ordered by muscle and
+  motion exactly as D70 ordered them.
+- **A fifth chest press is still one search away.** Specialization is never
+  blocked; it simply stops being what LOOP volunteers.

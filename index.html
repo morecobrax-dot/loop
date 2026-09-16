@@ -14978,7 +14978,7 @@ const LOOP_UPDATES = [
     id: 'v7-3',
     version: 'LOOP 7.3',
     title: 'What Fits This Workout',
-    date: '2026-09-16',
+    date: '2026-09-15',
     swVersion: 'loop-v150',
     summary: 'Adding an exercise now starts with the ones that make sense for the workout you are actually building.',
     newFeatures: [
@@ -14995,6 +14995,25 @@ const LOOP_UPDATES = [
     changes: [
       'Swap is unchanged. Replacing an exercise still asks the substitution engine, which ranks on movement compatibility — a different question from what to add next, and it keeps its own answer'
     ]
+  },
+  {
+    id: 'v7-4',
+    version: 'LOOP 7.4',
+    title: 'Where You Are In The Workout',
+    date: '2026-09-15',
+    swVersion: 'loop-v151',
+    summary: 'Suggestions now read how far into a workout you are, not just what is in it.',
+    newFeatures: [],
+    improvements: [
+      'A workout that has not had a main lift yet leans toward one, and a workout that already holds a full session leans away from adding another heavy compound — unless it fills a movement you genuinely have not trained, which still comes first',
+      'How much foundation a day wants is read from your plan’s own sessions, so an Arms day and a Core day are never waiting for a compound',
+      'Ticking an exercise counts toward this straight away, before you press Add',
+      'Nothing is ever hidden for coming late in a workout. Every exercise is still in the list, still searchable, still yours to choose'
+    ],
+    bugFixes: [
+      'What’s New showed LOOP 7.3 as released on 16 September. It was released on the 15th — the date had been taken from UTC rather than from New York, where LOOP releases. The entry is corrected, and LOOP now checks every release date against New York time instead of against the earliest timezone on Earth'
+    ],
+    changes: []
   }
 ];
 
@@ -34973,6 +34992,14 @@ const XS_WEIGHTS = {
      position, and quietly, so a Lateral Raise sits under the overhead press it
      ties with rather than above it. */
   opener:     { compound: 14, neverPrimary: -24, neverPrimaryLater: -8 },
+  /* 6b — where in the workout this is (D70.5). Deliberately the smallest
+     signal that changes anything: it orders candidates that are otherwise
+     level and it never overrules a real gap. `foundation` lifts a
+     foundational movement while the day's foundational work is still
+     uncovered; `lateCompound` lets a NEW heavy compound settle once the
+     session is nearly full — and only one that fills no missing pattern and
+     no missing muscle, so a genuinely absent movement still wins. */
+  shape:      { foundation: 8, lateCompound: -14 },
   /* 7 — the athlete's own history, capped far under training intent */
   history:    { perSession: 2, max: 12 },
   /* 8 — how often their own plan prescribes it */
@@ -35081,13 +35108,15 @@ function xsSessionTruth(){
       m.primaries.forEach(x => { muscles[x] = (muscles[x] || 0) + 1; });
       if(m.pattern) patterns[m.pattern] = (patterns[m.pattern] || 0) + 1;
     });
+    const shape = xsSessionShape(cat, meta);
     const muscleMax = xsTopCount(muscles);
     /* How many muscles this day is really about. A Core day is one; a Legs day
        is four. It decides how much of a short list any one muscle may take —
        two abs movements out of six is most of a Core day thrown away, and four
        glute movements out of six is a Legs day that forgot the rest of itself. */
     const spread = Object.keys(muscles).filter(x => xsShare(muscles[x], muscleMax) >= 0.6).length;
-    cats[cat] = { keys, muscles, patterns, muscleMax, spread, patternMax: xsTopCount(patterns) };
+    cats[cat] = { keys, muscles, patterns, muscleMax, spread, patternMax: xsTopCount(patterns),
+      foundation: shape.foundation, size: shape.size };
   });
   _xsSession = { cats, anywhere };
   return _xsSession;
@@ -35096,6 +35125,68 @@ function xsTopCount(map){
   let max = 0;
   Object.keys(map || {}).forEach(k => { if(map[k] > max) max = map[k]; });
   return max;
+}
+
+/* WHAT A SESSION OF THIS KIND IS SHAPED LIKE  (Phase D70.5)
+   ---------------------------------------------------------
+   Two numbers per category, read from the sessions LOOP's own plans are
+   written as: how many foundational movements one typically opens with, and
+   how many exercises it typically holds. Nothing is hard-coded — a Push day
+   answers two and five because the plans say so, and an Arms day answers zero
+   because its templates contain no compounds at all. That is what keeps the
+   position signal from becoming the rule the brief forbids, "exercise 1 =
+   compound, exercise 5 = isolation": on a Core or Arms day the foundation
+   target IS zero, so there is no foundation phase to be in.
+
+   Medians rather than means, so one unusually long template cannot move a
+   category, and so both numbers are whole. */
+function xsSessionShape(cat, meta){
+  const compounds = [], sizes = [];
+  try{
+    Object.keys(DEFAULT_PLANS || {}).forEach(pid => {
+      (((DEFAULT_PLANS[pid] || {}).templates || {})[cat] || []).forEach(tpl => {
+        const list = (tpl.exercises || []);
+        let n = 0;
+        list.forEach(ex => {
+          const m = meta[exPickerKeyOf(ex.name)];
+          if(m && m.compound) n++;
+        });
+        compounds.push(n);
+        sizes.push(list.length);
+      });
+    });
+  }catch(e){}
+  return { foundation: xsMedian(compounds), size: xsMedian(sizes) };
+}
+function xsMedian(list){
+  if(!list || !list.length) return 0;
+  const s = list.slice().sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
+/* WHERE IN THE WORKOUT THIS IS. Four stages, derived from what the workout
+   already CONTAINS rather than from how many rows it has — a workout holding
+   a bench press, a row and a squat has established something a workout
+   holding a cable curl, a lateral raise and a crunch has not, though both
+   hold three.
+
+   START    nothing in it yet
+   EARLY    the day's foundational work is not covered yet
+   MIDDLE   it is covered, and there is room left
+   LATE     the workout already holds a full session of this kind
+
+   LATE is "you have built a whole session already", not "you are near the
+   end" — a Legs day whose templates run to four would otherwise read as late
+   at three, which is the middle of a workout, not the end of one.
+
+   A category whose templates contain no compounds has a foundation target of
+   zero, so it is never EARLY: an Arms day is not waiting for a compound and a
+   Core day is not missing one. Nothing here blocks anything; it is one more
+   input to a ranking. */
+function xsStageOf(position, foundation, target, size){
+  if(!position) return 'start';
+  if(foundation < target) return 'early';
+  return position >= Math.max(3, size || 5) ? 'late' : 'middle';
 }
 
 /* HOW MUCH OF THIS DAY THIS IS. Every session term is worth this much of
@@ -35147,6 +35238,7 @@ function exSuggestionContext(st){
   const meta = xsMeta();
   const names = (st.already || []).concat((st.selected || []).map(s => s.name));
   const have = {}, patterns = {}, motions = {}, primaries = {}, families = {};
+  let foundation = 0;
   names.forEach(n => {
     const key = exPickerKeyOf(n);
     if(!key || have[key]) return;
@@ -35157,13 +35249,24 @@ function exSuggestionContext(st){
     if(m.motion) motions[m.motion] = (motions[m.motion] || 0) + 1;
     m.primaries.forEach(x => { primaries[x] = (primaries[x] || 0) + 1; });
     families[m.family] = true;
+    /* D70.5 — foundational work already in the workout, by the registry's own
+       role (registryRoleOf, through xsMeta). A movement LOOP has never
+       catalogued counts for nothing here: unknown is unknown, and inventing a
+       role for it would put a workout in a stage it has not reached. */
+    if(m.compound) foundation++;
   });
+  const truth = xsSessionTruth();
+  const shape = (st.category && truth.cats[st.category]) || null;
+  const position = Object.keys(have).length;
   return {
     source: st.target || null,
     replacing: st.replaceIdx !== null && st.replaceIdx !== undefined,
     category: st.category || null,
     have, patterns, motions, primaries, families,
-    position: Object.keys(have).length,
+    position, foundation,
+    /* Ticked-but-uncommitted exercises are counted above, so ticking a heavy
+       compound moves the workout's stage before anything is added. */
+    stage: xsStageOf(position, foundation, shape ? shape.foundation : 0, shape ? shape.size : 0),
     planTally: xsPlanTally(),
     historyTally: (() => { try{ return substitutionSessionTally(); }catch(e){ return {}; } })()
   };
@@ -35177,7 +35280,7 @@ function scoreExerciseForContext(entry, ctx){
   const m = xsMeta()[key] || { primaries: [], pattern: null, motion: null, muscle: '?', family: 'key:' + key, compound: false, neverPrimary: false };
   const truth = xsSessionTruth();
   const cat = (ctx.category && truth.cats[ctx.category]) || null;
-  const f = { session: 0, muscle: 0, movement: 0, redundancy: 0, equipment: 0, opener: 0, history: 0, plan: 0 };
+  const f = { session: 0, muscle: 0, movement: 0, redundancy: 0, equipment: 0, opener: 0, shape: 0, history: 0, plan: 0 };
   const flags = {};
 
   /* How much of this kind of day this movement's own muscles are. Its best
@@ -35307,6 +35410,24 @@ function scoreExerciseForContext(entry, ctx){
     else if(m.neverPrimary) f.opener = W.opener.neverPrimary;
   } else if(m.neverPrimary){
     f.opener = W.opener.neverPrimaryLater;
+  }
+
+  /* 6b — WHERE IN THE WORKOUT THIS IS (D70.5). A candidate that makes sense as
+     exercise one does not always make the same sense as exercise six.
+
+     Two soft nudges and no third. While the day's foundational work is still
+     uncovered, a foundational movement that belongs to this day rises a
+     little. Once the session is nearly full, a NEW heavy compound settles a
+     little — but only one that fills nothing: the moment it carries a missing
+     pattern or an untrained muscle it keeps every point of that, because a
+     serious gap outranks where you happen to be standing. Nothing is ever
+     removed from the list for being late. */
+  if(ctx.stage === 'early' && m.compound && share >= 0.6){
+    f.shape = W.shape.foundation * share;
+    flags.foundation = true;
+  } else if(ctx.stage === 'late' && m.compound && !flags.missingPattern && !flags.muscleGap){
+    f.shape = W.shape.lateCompound;
+    flags.lateCompound = true;
   }
 
   /* 7 and 8 — the athlete's own history, then their plan's. Both capped well
@@ -35466,7 +35587,8 @@ function exSuggestionProof(st, a, b){
       .map(k => k + ' ' + (s.factors[k] > 0 ? '+' : '') + s.factors[k]).join(', ') + ']' +
     (s.reason ? '  "' + s.reason + '"' : '');
   return {
-    context: { category: ctx.category, position: ctx.position, patterns: ctx.patterns,
+    context: { category: ctx.category, position: ctx.position, stage: ctx.stage,
+      foundation: ctx.foundation, patterns: ctx.patterns,
       primaries: ctx.primaries, replacing: ctx.replacing },
     a: A, b: B, lines: [line(A), line(B)],
     verdict: (A && B)
