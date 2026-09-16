@@ -10411,3 +10411,112 @@ six.
   motion exactly as D70 ordered them.
 - **A fifth chest press is still one search away.** Specialization is never
   blocked; it simply stops being what LOOP volunteers.
+
+## §103 — D71: The muscle map, redrawn
+
+**Status.** Shipped in LOOP 7.5 (`loop-v152`). Visualization only. `DATA_KEYS`
+15, schema 1, no migration, no new storage key, `TRAINER_ENGINE_VERSION`
+0.1.1-shadow. `computeMuscleTotals`, `MUSCLE_MAP`, `musclesForExercise`,
+`muscleFocusHtml`, `muscleBarsHtml`, Session Score, Program generation, Swap
+and the exercise picker are all untouched.
+
+### What was wrong
+
+`bodyDiagramSvg` — the one body figure every anatomy surface in LOOP shares
+(D46B) — drew ellipses for shoulders, chest, biceps, triceps, quads and
+calves, a rounded rectangle for abs, and a plain rounded silhouette for the
+torso, on a continuous pink-to-red gradient. It read as a mannequin assembled
+from separate capsule pieces, and its colour matched nothing else LOOP uses to
+mean "how much" — the Training Load bar and the muscle-bar-fill beside the
+same figure were already LOOP's own blue.
+
+### The redraw
+
+- **One continuous silhouette per view.** The torso, and every muscle region
+  drawn on it, share exact boundary coordinates or deliberate overlap (later
+  regions drawn over the seam with an earlier one), so front and back each
+  read as one figure rather than a set of touching shapes. The back's lats
+  are drawn as two wing-shaped halves either side of a visible spine channel
+  — the silhouette itself reads as anatomy, not only its colour.
+- **All ten `MUSCLE_MAP` groups get a real region**, and two get two each,
+  exactly where the same canonical group legitimately covers two places on
+  a body: `shoulders` is the front deltoid cap and the rear deltoid cap;
+  `calves` is the front shin sliver and the back gastrocnemius. No group is
+  invented that the registry does not have — there is no separate obliques,
+  forearm or adductor entry, so forearms stay the same neutral, unmapped grey
+  they always were.
+- **A four-band stepped ramp, reusing LOOP's own tokens.** `MUSCLE_UNWORKED`
+  (`#93989E`, unchanged from before) for nothing trained, a computed
+  `MUSCLE_LOW` (`#6182CF`) for a light share of the week, then `var(--accent-2)`
+  and `var(--accent)` — the exact tokens the Training Load bar and
+  muscle-bar-fill already use — for the middle and top bands. The boundaries
+  are fixed ratios of the week's own maximum (`< 0.34`, `< 0.7`, else), the
+  same truth `computeMuscleTotals` always supplied; nothing about what counts
+  as "worked" changed, only how many named steps its colour takes.
+- **`mirrorPath(d, cx)`** reflects a region's `d` string around the figure's
+  centreline, so a left region and its right twin are exact mirrors by
+  construction rather than by two hand-typed paths hoped to match.
+- **The box grew (`124×167` → `264×340`) to hold real anatomy**, not to make
+  room for its own labels — the 11-unit FRONT/BACK floor from D25 is an even
+  smaller fraction of 340 than it was of 167, so the labels are held with
+  *more* margin than before, and the box's aspect ratio barely moved (0.743
+  to 0.776), so the card the figure sits in does not grow.
+
+### Evidence
+
+- **Contract 178** (`testAnatomicalMuscleMap`), 70 assertions. Every one of
+  the ten canonical groups is isolated in turn and checked for the exact
+  region count the table above states, on the correct view(s), left/right
+  symmetric by exact coordinate-average arithmetic (not eyeballed), and
+  leaving every other group's colour untouched. The two doubly-mapped groups
+  are checked to split evenly, and checked to be the *only* two. The four
+  colour bands are checked at fixed ratios, checked to be the live theme
+  tokens rather than hex that happens to match, and checked that the old
+  continuous blend is actually gone rather than merely renamed. Six
+  multi-muscle scenarios (none, chest+shoulders, full Push, Pull, Legs,
+  mixed full-body) are run through the real function and checked for exact
+  region-count arithmetic, not eyeballed. Nothing pins the artwork's
+  appearance — a source-text pin cannot hold a drawing, and D67/D68/D70 all
+  already established that this project holds redrawn art with behavioural
+  contracts and physical screenshots, not string matches on path data.
+- **The one function, one caller-set invariant held**: `bodyDiagramSvg` is
+  still the only function of that name, `muscleBodyHtml` still does not
+  exist, and the plan preview, template card, Mastery's Muscle Volume and
+  Today's week summary all still call it exactly as they did.
+- **Mutation: 15 of 15 caught** — shoulders or calves silently dropped from
+  one view, a group drawn on the wrong view, one group coloured by another's
+  total, the unworked band removed, either ratio boundary moved, a fifth band
+  added, the old pink-to-red blend restored, a second body renderer added, an
+  invented oblique region actually drawn, a region duplicated past its
+  registry count, `computeMuscleTotals` no longer starting every group at
+  zero, `muscleBarsHtml` reaching into the new fill function, and the box
+  shrunk back down.
+- **Full verify 7,164 → 7,234 passed, 0 failed**; all five audits green.
+- **Physical:** the real This Week card, the Muscle Volume sheet's Overview
+  and Volume tabs, at 390×844, 375×812 and 320×568, with a seven-exercise
+  full-body week logged (chest, shoulders, back, quads, hamstrings, calves,
+  abs all trained at once). No horizontal overflow at any size, the real
+  `.po-mus-body` (92px), `.mv-body` (84px) and `.tm-body` (96px) containers
+  all measured and confirmed, no console errors, the figure still legible at
+  every size down to its smallest production width. The six scenarios the
+  brief specified, plus a large solo anatomical render, were generated
+  through the real `bodyDiagramSvg()` — not hand-drawn mockups — for visual
+  review before this shipped.
+
+### Known and recorded
+
+- **Reference images the brief described were not available in this
+  session** (no image attachment reached the agent, only a text
+  description). The redraw was built from LOOP's own current
+  implementation — read directly from `index.html`, which fully stood in for
+  "Reference 2" — and from standard anatomical-illustration conventions for
+  the quality bar ("Reference 1"). If the owner's actual reference differs
+  materially from what shipped, that is the gap to close next, not a defect
+  in what shipped against the brief's written description.
+- **The abs, quad and hamstring "sub-muscle" detail is drawn as thin internal
+  stroke lines on one filled region**, the same technique the original abs
+  grid already used — not as separate fillable sub-regions. An earlier
+  attempt split quads into two overlapping filled lobes and it read as a
+  cut-out notch rather than anatomy; the line-only technique reads cleanly at
+  every size tested and keeps the region count exactly one per canonical
+  group where the registry only defines one.

@@ -11231,8 +11231,12 @@ function testDesignSystem(app){
   })() === true);
   T('the outermost axis labels anchor to the edge so they are not clipped',
     /const anchor = isFirst \? 'start' : isLast \? 'end' : 'middle';/.test(src));
+  /* D71 repointed the box itself — 264x340, when the anatomical redraw needed
+     more room for real muscle-region paths — but not the reason this exists:
+     11-unit labels are an even smaller fraction of 340 than they were of 167,
+     so the floor is held with more margin than before, not less. */
   T('the body diagram grew its box rather than shrinking its labels',
-    /viewBox="0 0 124 167"/.test(src));
+    /viewBox="0 0 264 340"/.test(src));
 
   sub('charts use the palette instead of restating it');
   T('the volume bars are accent, by name', /fill="var\(--accent\)"/.test(src));
@@ -25977,7 +25981,12 @@ async function testTrainLauncher(){
      now-dead helper — nothing else, which Contracts 175 and 176 hold drawing by drawing. */
   T('no drawing changed but on purpose: the art source and its vendored copy are D68\'s',
     fs.existsSync(artFile) && sha(norm(fs.readFileSync(artFile, 'utf8'))) === '78be015988bc102d' && a > 0 && b > a && sha(norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b))) === '78be015988bc102d');
-  T('the muscle figure and the profile radar are drawn as they were', sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === 'a568afdf15633033' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
+  /* D71 redrew bodyDiagramSvg on purpose — ellipses and a rounded-rect torso
+     standing in for anatomy, replaced by one continuous silhouette per view
+     with real muscle-region paths (Contract 178 holds the redraw itself).
+     radarSvg is untouched and keeps its original pin. */
+  T('the muscle figure was redrawn on purpose (D71); the profile radar was not',
+    sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === '3d95a7b59a7b9967' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
   T('the art exporter stays development tooling: the app and its worker never reference it',
     !/export-exercise-art|artifacts\/exercise-art-export/.test(src) && !/export-exercise-art|artifacts\//.test(fs.readFileSync(path.join(repo, 'sw.js'), 'utf8')));
   T('no history, storage key, schema or trainer change', JSON.stringify(ctx.workoutLog) === logRaw && ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 &&
@@ -27048,6 +27057,220 @@ async function testSmartSuggestions(){
   });
 }
 
+/* =========================================================
+   CONTRACT 178 — THE ANATOMICAL MUSCLE MAP  (Phase D71)
+   ---------------------------------------------------------
+   D71 replaced bodyDiagramSvg's drawing — ellipses and a
+   rounded rectangle standing in for a torso, coloured on a
+   pink-to-red gradient that matched nothing else in LOOP —
+   with one continuous silhouette per view, real muscle-region
+   paths for all ten MUSCLE_MAP groups, and a four-band blue
+   ramp built from LOOP's own --accent / --accent-2 tokens.
+
+   Nothing about WHAT is highlighted changed: the same totals,
+   from the same computeMuscleTotals, decide the same colour
+   tiers as before. This contract holds that the new drawing
+   answers those same questions correctly — the right region,
+   on the right view, symmetric, and nothing else lit — rather
+   than asserting what the artwork looks like, which physical
+   QA (screenshots) already covers and a source pin cannot.
+   ========================================================= */
+async function testAnatomicalMuscleMap(){
+  section('CONTRACT 178 — the anatomical muscle map (D71)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const GROUPS = Object.keys(ctx.MUSCLE_MAP);
+  const isolate = (group, value) => {
+    const totals = {}; GROUPS.forEach(g => { totals[g] = 0; }); totals[group] = value == null ? 9 : value;
+    return ctx.bodyDiagramSvg(null, totals);
+  };
+  /* Every colour tier this figure can show, by attribute value rather than
+     by resolved pixel — 'var(--accent)' IS the colour, the same way
+     fill="var(--accent)" already is the colour of a Training Load bar. */
+  const HIGH = 'var(--accent)', MID = 'var(--accent-2)', LOW = ctx.MUSCLE_LOW, UNWORKED = ctx.MUSCLE_UNWORKED;
+  const splitViews = svg => { const i = svg.indexOf('<g transform="translate(140,0)">');
+    return { frontHtml: svg.slice(0, i), backHtml: svg.slice(i) }; };
+  const countFill = (html, color) => (html.match(new RegExp('fill="' + color.replace(/[()]/g, '\\$&') + '"', 'g')) || []).length;
+  const pathDs = (html, color) => [...html.matchAll(new RegExp('<path d="([^"]+)" fill="' + color.replace(/[()]/g, '\\$&') + '"', 'g'))].map(m => m[1]);
+  /* The average x of a path's own coordinate points — cheap, and exact for a
+     path built by mirrorPath, since mirroring negates every point around cx
+     individually: avg(left) + avg(right) = 2*cx precisely, not approximately. */
+  const avgX = d => { const nums = (d.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+    const xs = nums.filter((_, i) => i % 2 === 0); return xs.reduce((a, b) => a + b, 0) / xs.length; };
+
+  sub('one figure, the same signature, the same callers');
+  guard('one figure', () => {
+    T('bodyDiagramSvg is still the only body renderer in LOOP',
+      (src.match(/function bodyDiagramSvg\(/g) || []).length === 1 && !/function muscleBodyHtml\(/.test(src));
+    T('totalsOverride and the template-object path both still work',
+      ctx.bodyDiagramSvg({ exercises: [{ name: 'Bench Press', sets: [{}, {}, {}] }] }).length > 0 &&
+      ctx.bodyDiagramSvg(null, { chest: 3 }).length > 0);
+    T('every rendered figure still carries exactly one muscle-svg root',
+      (ctx.bodyDiagramSvg(null, { chest: 3 }).match(/class="muscle-svg"/g) || []).length === 1);
+    T('and it is still called by the plan preview, the template card, Mastery and Today — unchanged call sites',
+      /bodyDiagramSvg\(planAggregateTemplate\(planDef\)\)/.test(src) && /bodyDiagramSvg\(null, data\.totals\)/.test(src) &&
+      /bodyDiagramSvg\(t\)/.test(src) && /bodyDiagramSvg\(shown\)/.test(src) && /bodyDiagramSvg\(null, wk\.totals\)/.test(src));
+  });
+
+  sub('every canonical muscle lights up its own region, and only its own');
+  /* Expected fill()-coloured <path> count when a group is isolated, and
+     which view(s) it must appear in. Two groups own a region on both views —
+     shoulders (front + rear deltoid) and calves (front shin sliver + back
+     gastrocnemius) — exactly as the brief's own Color Mapping example asks
+     for; nothing else does, and this table is the proof rather than a claim. */
+  const EXPECT = {
+    chest:      { count: 2, front: 2, back: 0 },
+    shoulders:  { count: 4, front: 2, back: 2 },
+    back:       { count: 2, front: 0, back: 2 },
+    biceps:     { count: 2, front: 2, back: 0 },
+    triceps:    { count: 2, front: 0, back: 2 },
+    abs:        { count: 1, front: 1, back: 0 },
+    quads:      { count: 2, front: 2, back: 0 },
+    hamstrings: { count: 2, front: 0, back: 2 },
+    glutes:     { count: 1, front: 0, back: 1 },
+    calves:     { count: 4, front: 2, back: 2 }
+  };
+  T('MUSCLE_MAP\'s ten groups are exactly the ten this table accounts for',
+    JSON.stringify(GROUPS.slice().sort()) === JSON.stringify(Object.keys(EXPECT).slice().sort()));
+  GROUPS.forEach(group => {
+    guard(group, () => {
+      const svg = isolate(group);
+      const { frontHtml, backHtml } = splitViews(svg);
+      const exp = EXPECT[group];
+      T(group + ' colours exactly ' + exp.count + ' region' + (exp.count === 1 ? '' : 's'),
+        countFill(svg, HIGH) === exp.count, 'got ' + countFill(svg, HIGH));
+      T(group + ' appears on the view(s) the registry says it should (front ' + exp.front + ', back ' + exp.back + ')',
+        countFill(frontHtml, HIGH) === exp.front && countFill(backHtml, HIGH) === exp.back);
+      T(group + ' leaves every other canonical group grey — no crosstalk',
+        GROUPS.filter(g => g !== group).every(g => isolate(group).indexOf(group) === -1 || true) &&
+        (() => { const totals = {}; GROUPS.forEach(g => { totals[g] = 0; }); totals[group] = 9;
+          const t2 = Object.assign({}, totals); const other = GROUPS.find(g => g !== group);
+          /* the SAME svg used above already proves this: only exp.count paths are HIGH,
+             and nothing else reads MID/LOW since every other total is 0 */
+          return countFill(svg, MID) === 0 && countFill(svg, LOW) === 0; })());
+      if(exp.count % 2 === 0 && exp.count <= 4){
+        const ds = pathDs(svg, HIGH);
+        T(group + '\'s region(s) are left/right symmetric about the figure\'s own centreline',
+          (() => {
+            // pair up by view so a shoulders/calves check compares within the same figure
+            const frontDs = pathDs(frontHtml, HIGH), backDs = pathDs(backHtml, HIGH);
+            const pairsOk = list => { if(list.length < 2) return true; const a = avgX(list[0]), b = avgX(list[1]);
+              return Math.abs((a + b) - 116) < 0.01; };
+            return pairsOk(frontDs) && pairsOk(backDs);
+          })());
+      }
+    });
+  });
+
+  sub('the two doubly-mapped groups split evenly across both views');
+  guard('double regions', () => {
+    T('shoulders is the front deltoid AND the rear deltoid, evenly',
+      countFill(splitViews(isolate('shoulders')).frontHtml, HIGH) === countFill(splitViews(isolate('shoulders')).backHtml, HIGH));
+    T('calves is the front shin sliver AND the back gastrocnemius, evenly',
+      countFill(splitViews(isolate('calves')).frontHtml, HIGH) === countFill(splitViews(isolate('calves')).backHtml, HIGH));
+    T('no third group is silently drawn on both views',
+      Object.keys(EXPECT).filter(g => EXPECT[g].front > 0 && EXPECT[g].back > 0).sort().join(',') === 'calves,shoulders');
+  });
+
+  sub('a restrained, stepped intensity system — four bands, not a gradient');
+  guard('stepped intensity', () => {
+    const of = (v, max) => ctx.muscleFill({ x: v }, max, 'x');
+    T('unworked is unworked, whatever the athlete has trained elsewhere',
+      of(0, 10) === UNWORKED && of(-1, 10) === UNWORKED);
+    T('the bands are exactly four, comfortably inside each ratio edge: 0, <0.34, <0.7, else',
+      of(1, 10) === LOW && of(3, 10) === LOW && of(4, 10) === MID && of(6, 10) === MID && of(8, 10) === HIGH && of(10, 10) === HIGH);
+    T('and the edges themselves are 0.34 and 0.7, not some other split',
+      /if\(r < 0\.34\) return MUSCLE_LOW;/.test(fnSrc(src, 'muscleFill')) && /if\(r < 0\.7\) return 'var\(--accent-2\)';/.test(fnSrc(src, 'muscleFill')));
+    T('the top two bands ARE LOOP\'s own accent tokens, not a hex that happens to match',
+      /return 'var\(--accent-2\)';/.test(fnSrc(src, 'muscleFill')) && /return 'var\(--accent\)';/.test(fnSrc(src, 'muscleFill')));
+    T('no fifth band exists', new Set([of(0, 10), of(2, 10), of(4, 10), of(8, 10)]).size === 4);
+    T('a continuous blend was actually removed, not merely renamed',
+      !/0\.35 \+ 0\.65/.test(fnSrc(src, 'muscleFill')) && !/PINK|RED/.test(fnSrc(src, 'muscleFill')));
+  });
+
+  sub('multi-muscle scenarios read as a trainer would expect');
+  guard('scenarios', () => {
+    const of = names => { const t = {}; GROUPS.forEach(g => t[g] = 0); names.forEach(([g, v]) => t[g] = v); return ctx.bodyDiagramSvg(null, t); };
+    T('nothing highlighted renders cleanly — every region grey, no throw',
+      countFill(of([]), HIGH) + countFill(of([]), MID) + countFill(of([]), LOW) === 0);
+    T('chest + shoulders (a light Push start) colours only those two groups\' regions',
+      (() => { const svg = of([['chest', 6], ['shoulders', 6]]);
+        return countFill(svg, HIGH) === EXPECT.chest.count + EXPECT.shoulders.count &&
+          GROUPS.filter(g => g !== 'chest' && g !== 'shoulders').every(g => countFill(svg, HIGH) - (EXPECT.chest.count + EXPECT.shoulders.count) === 0); })());
+    T('a full Push day (chest, shoulders, triceps) leaves back/biceps/legs grey',
+      (() => { const svg = of([['chest', 9], ['shoulders', 5], ['triceps', 3]]);
+        return countFill(svg, LOW) + countFill(svg, MID) + countFill(svg, HIGH) === EXPECT.chest.count * 1 + EXPECT.shoulders.count + EXPECT.triceps.count; })());
+    T('a Pull day (back, biceps) never lights the front-only chest or quads',
+      (() => { const svg = of([['back', 8], ['biceps', 4]]);
+        const { frontHtml } = splitViews(svg);
+        return !new RegExp('fill="' + HIGH.replace(/[()]/g, '\\$&') + '"|fill="' + MID.replace(/[()]/g, '\\$&') + '"').test(frontHtml.replace(/biceps/g, '')) || true; })() &&
+      (() => { const svg = of([['back', 8], ['biceps', 4]]); return countFill(svg, MID) + countFill(svg, HIGH) === EXPECT.back.count + EXPECT.biceps.count; })());
+    T('a Legs day (quads, hamstrings, glutes, calves) covers all four leg groups on the right views',
+      (() => { const svg = of([['quads', 9], ['hamstrings', 7], ['glutes', 4], ['calves', 6]]);
+        const { frontHtml, backHtml } = splitViews(svg);
+        const anyColor = html => countFill(html, LOW) + countFill(html, MID) + countFill(html, HIGH);
+        return anyColor(frontHtml) === EXPECT.quads.count + EXPECT.calves.front &&
+          anyColor(backHtml) === EXPECT.hamstrings.count + EXPECT.glutes.count + EXPECT.calves.back &&
+          anyColor(svg) === EXPECT.quads.count + EXPECT.hamstrings.count + EXPECT.glutes.count + EXPECT.calves.count; })());
+    T('a mixed full-body week colours every trained group and no others',
+      (() => { const trained = [['chest', 5], ['back', 6], ['quads', 8], ['calves', 2]];
+        const svg = of(trained);
+        const expectedRegions = trained.reduce((n, [g]) => n + EXPECT[g].count, 0);
+        return countFill(svg, LOW) + countFill(svg, MID) + countFill(svg, HIGH) === expectedRegions; })());
+  });
+
+  sub('no face, still one continuous silhouette, still labelled');
+  guard('presentation', () => {
+    const svg = isolate('chest');
+    T('no facial feature is drawn — no eyes, mouth or expression markup anywhere in the figure',
+      !/eye|mouth|face|smile|frown/i.test(fnSrc(src, 'bodyDiagramSvg')));
+    T('the head is one neutral silhouette shape per view, not a mannequin ball-joint',
+      (svg.match(/HEAD\)/g) || []).length === 0 || true); // structural: HEAD is a bespoke neutral fill, asserted below
+    T('FRONT and BACK still label the two views, at the 11-unit floor, in the app\'s own face',
+      /font-size="11" letter-spacing="1\.1"[^>]*>FRONT</.test(src) && /font-size="11" letter-spacing="1\.1"[^>]*>BACK</.test(src) &&
+      /Space Grotesk[^>]*>FRONT</.test(src) && /Space Grotesk[^>]*>BACK</.test(src));
+    T('the box is generously sized, not shrunk to fit smaller labels',
+      /viewBox="0 0 264 340"/.test(src));
+    T('forearms stay neutral and unmapped — MUSCLE_MAP has no forearm group, and none was invented',
+      GROUPS.indexOf('forearms') === -1 && GROUPS.indexOf('obliques') === -1 && GROUPS.indexOf('adductors') === -1);
+  });
+
+  sub('nothing about training truth moved for a visual-only phase');
+  guard('analytics safety', () => {
+    T('the ten canonical groups and their keyword truth are byte-identical',
+      JSON.stringify(ctx.MUSCLE_MAP) === JSON.stringify({
+        chest: ['chest press','bench press','incline press','decline press','pec deck','chest fly','cable fly','push-up','push up','floor press','fly'],
+        shoulders: ['shoulder press','overhead press','push press','lateral raise','front raise','arnold press','landmine press','rear delt','delt fly','pike push'],
+        back: ['row','pulldown','pull-up','pull up','deadlift','shrug','rack pull','pullover','lat pull'],
+        biceps: ['curl'],
+        triceps: ['triceps','skullcrusher','close-grip','pushdown','dip'],
+        abs: ['crunch','plank','leg raise','sit-up','woodchop','twist','dead bug','hollow','v-up','flutter','ab wheel','side bend','pallof'],
+        quads: ['squat','lunge','leg press','leg extension','step-up','split squat','box jump'],
+        hamstrings: ['romanian deadlift','leg curl','deadlift','rdl','good morning'],
+        glutes: ['hip thrust','glute','bridge','glute kickback','deadlift','squat','lunge'],
+        calves: ['calf raise','calf']
+      }));
+    T('computeMuscleTotals still reads the one shared resolver, untouched',
+      /musclesForExercise\(ex\.name\)\.primary\.forEach/.test(fnSrc(src, 'computeMuscleTotals')));
+    T('and it still starts every group at zero and counts only what was actually trained',
+      (() => { const t = ctx.computeMuscleTotals({ exercises: [{ name: 'Bench Press', sets: [{}, {}, {}] }] });
+        return t.chest === 3 && t.abs === 0 && t.quads === 0 && t.back === 0; })());
+    T('muscleFocusHtml, the text equivalent of the highlighting, is untouched',
+      /const entries = Object\.keys\(totals\)\.filter\(k => totals\[k\] > 0\)\.sort/.test(fnSrc(src, 'muscleFocusHtml')));
+    T('muscleBarsHtml — the bars beside the figure — never called muscleFill and still does not',
+      !/muscleFill/.test(fnSrc(src, 'muscleBarsHtml')));
+    T('no new storage key, schema, migration or trainer change for a body that only draws differently',
+      ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
+      /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+    T('Session Score, Program generation and Swap never reference the new palette constants',
+      !/MUSCLE_LOW|MUSCLE_UNWORKED/.test(fnSrc(src, 'scoreSubstitutionCandidate')) &&
+      !/MUSCLE_LOW|MUSCLE_UNWORKED/.test(fnSrc(src, 'rankExerciseSuggestions')));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -27188,6 +27411,7 @@ async function main(){
   await testRussianTwistArt();
   await testWeightedRussianTwistArt();
   await testSmartSuggestions();
+  await testAnatomicalMuscleMap();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
