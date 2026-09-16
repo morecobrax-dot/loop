@@ -28230,6 +28230,288 @@ async function testTrainingFoundation(){
     T('the program switched to kept its own record', !B || ctx.getProgram(B.id).cycle === undefined);
   });
 }
+/* =========================================================
+   CONTRACT 182 — MUSCLE FOCUS CHIPS  (Phase D78)
+   ---------------------------------------------------------
+   The plan-workout detail sheet named every muscle group a
+   workout touches as one flat, alphabetised text line —
+   "Abs · Shoulders · Back" said nothing about which muscle the
+   workout is actually FOR. This replaces that one line, in that
+   one sheet, with compact ranked chips.
+
+   What is held here:
+     · the ranking is a planned-prescription computation
+       (t.exercises[].sets), read through musclesForExercise —
+       the one resolver the body map and recovery already trust
+       — never workout history
+     · the order is a strict sort, not a blended score: total
+       PRIMARY sets first, total SECONDARY (assisting) sets only
+       as a tie-break, the canonical label alphabetically only
+       once both counts agree
+     · a group whose only measured contribution anywhere in the
+       workout is secondary never earns its own chip while any
+       primary-bearing group exists
+     · at most four chips render; a fifth-and-beyond group folds
+       into one "+N" that still names its groups to a screen
+       reader
+     · rank is colour, in LOOP's one accent family, never a
+       second palette keyed to muscle identity
+     · the body map and the chips are proved to agree: the exact
+       set of primary-trained groups, not merely "close enough"
+     · nothing is stored, and rendering mutates neither the
+       template nor any protected state
+   ========================================================= */
+async function testMuscleFocusChips(){
+  section('CONTRACT 182 — muscle focus chips (D78)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx;
+  const doc = ctx.document;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  /* A planned template — exercises with prescribed sets only, exactly the
+     shape renderTrainDetail hands to bodyDiagramSvg and now to the chips.
+     No `.exercises[].sets` set here is ever read from workoutLog. */
+  const tpl = exs => ({ id: 'qa', name: 'QA', exercises: exs.map(e => ({ name: e[0], sets: e[1] || 3, reps: '8-12' })) });
+  /* The RANKED chips only — "emph-chip-r\d", never the "+N" overflow chip
+     (a different kind of element) and never the container (whose own class,
+     "emph-chips", would otherwise false-match as a prefix of "emph-chip"). */
+  const chipSpans = html => [...String(html).matchAll(/<span class="emph-chip emph-chip-r\d"[^>]*>([^<]*)<\/span>/g)].map(m => m[1]);
+  const chipClasses = html => [...String(html).matchAll(/<span class="(emph-chip emph-chip-r\d)"/g)].map(m => m[1]);
+  const ariaLabels = html => [...String(html).matchAll(/aria-label="([^"]*)"/g)].map(m => m[1]);
+  /* Every chip ELEMENT — ranked or "+N" — as distinct from the plural
+     container class, which "emph-chip " (with the trailing space) cannot
+     match. */
+  const allChipElements = html => (String(html).match(/class="emph-chip /g) || []).length;
+
+  sub('the old line is gone from the one sheet in scope; other call sites are untouched');
+  guard('call sites', () => {
+    const detailBody = fnSrc(src, 'renderTrainDetail');
+    T('the workout-detail sheet no longer calls the plain emphasis line', detailBody.indexOf('tplEmphasisLine(') === -1);
+    T('it calls the new chip renderer instead, right where the text line sat', /muscleFocusChipsHtml\(shown\)/.test(detailBody));
+    const cardBody = fnSrc(src, 'templateCardHtml');
+    T('the Train picker card (a candidate for later reuse, not touched here) still uses the plain line', /tplEmphasisLine\(t\)/.test(cardBody));
+    T('and its Details disclosure still carries the untouched Primary/Secondary block', /muscleFocusHtml\(t\)/.test(cardBody));
+    const rowBody = fnSrc(src, 'trainMusclesHtml');
+    T('the Train row summary (another candidate) is likewise untouched', /computeMuscleTotals\(t\)/.test(rowBody) && !/muscleFocusChipsHtml/.test(rowBody));
+  });
+
+  sub('rendered in the real sheet: the plain text is gone, the chips are there');
+  guard('rendered sheet', () => {
+    const t = (ctx.getTemplates('push') || [])[0];
+    ctx.openTrainDetail('push', t.id);
+    const html = doc.getElementById('trainDetailBody').innerHTML;
+    ctx.closeTrainDetail();
+    T('no plain emphasis line renders in the detail sheet', html.indexOf('class="tpl-emphasis"') === -1);
+    T('the chip row renders in its place', html.indexOf('class="emph-chips"') !== -1);
+    T('it sits after the figure and before Exercises', html.indexOf('td-figure') < html.indexOf('emph-chips')
+      && html.indexOf('emph-chips') < html.indexOf('>Exercises<'));
+  });
+
+  sub('PRIMARY exposure dominates — never outrun by a bigger SECONDARY total elsewhere');
+  guard('primary dominates', () => {
+    /* chest: 3 exercises x 3 sets = 9 primary, 0 secondary.
+       triceps: 6 primary (Skullcrusher alone) PLUS 9 secondary (from the
+       three Bench Press sets above) = 15 total exposure — bigger than
+       chest's 9 by any blended measure, yet chest must still rank first,
+       because the rule reads primary sets only until they differ. */
+    const t = tpl([['Bench Press', 3], ['Bench Press', 3], ['Bench Press', 3], ['Skullcrusher', 6]]);
+    const r = ctx.computeMuscleFocusRanking(t);
+    const chest = r.find(x => x.key === 'chest'), triceps = r.find(x => x.key === 'triceps');
+    T('chest is the higher primary total', chest.primarySets === 9 && chest.secondarySets === 0);
+    T('triceps carries more total exposure but a lower primary total', triceps.primarySets === 6 && triceps.secondarySets === 9
+      && (triceps.primarySets + triceps.secondarySets) > (chest.primarySets + chest.secondarySets));
+    T('chest still ranks first — a blended score would have said triceps', r[0].key === 'chest' && r[1].key === 'triceps');
+  });
+
+  sub('SECONDARY involvement is a tie-break, never alphabetical smuggled in');
+  guard('secondary tie-break, not alphabetical', () => {
+    /* shoulders, back and chest all reach primarySets=3. Only shoulders
+       picks up extra secondary (from the Bench Press's own secondary list),
+       and "Shoulders" sorts LAST alphabetically among the three — so if the
+       chips came out shoulders-first, alphabetical order cannot be why. */
+    const t = tpl([['Machine Shoulder Press', 3], ['Lat Pulldown', 3], ['Bench Press', 3]]);
+    const r = ctx.computeMuscleFocusRanking(t);
+    const by = k => r.find(x => x.key === k);
+    T('all three tie on primary sets', by('shoulders').primarySets === 3 && by('back').primarySets === 3 && by('chest').primarySets === 3);
+    T('only shoulders carries secondary sets here', by('shoulders').secondarySets === 3 && by('back').secondarySets === 0 && by('chest').secondarySets === 0);
+    T('shoulders ranks first on that secondary tie-break, despite sorting last alphabetically',
+      r[0].key === 'shoulders', r.map(x => x.key).join(','));
+    T('back and chest are now a TRUE tie (equal primary, equal secondary), and alphabetical decides between them',
+      r[1].key === 'back' && r[2].key === 'chest', r.map(x => x.key).join(','));
+  });
+
+  sub('the sort itself reaches alphabetical only as a last resort');
+  guard('comparator structure', () => {
+    const body = fnSrc(src, 'computeMuscleFocusRanking');
+    const cmp = body.slice(body.indexOf('.sort('), body.indexOf('.sort(') + 220);
+    T('primary is compared before secondary, and secondary before the label', (() => {
+      const p = cmp.indexOf('primary[b]'), s = cmp.indexOf('secondary[b]'), l = cmp.indexOf('localeCompare');
+      return p !== -1 && s !== -1 && l !== -1 && p < s && s < l;
+    })());
+    T('no numeric weight is blended into one score (no multiplication of the two counts)', !/primary\[[ab]\]\s*\*|secondary\[[ab]\]\s*\*/.test(cmp));
+  });
+
+  sub('an assisting-only group never earns its own chip while a primary group exists');
+  guard('assisting-only exclusion', () => {
+    /* Bench Press's secondary list (triceps, shoulders) never appears as a
+       primary anywhere in this template, yet each carries real set volume. */
+    const t = tpl([['Bench Press', 6]]);
+    const html = ctx.muscleFocusChipsHtml(t);
+    const chips = chipSpans(html);
+    T('chest — the one primary target — gets its chip', chips.length === 1 && chips[0] === 'Chest');
+    T('triceps, secondary-only, never gets a chip', chips.indexOf('Triceps') === -1);
+    T('shoulders, secondary-only, never gets a chip', chips.indexOf('Shoulders') === -1);
+    T('and neither is smuggled into an overflow either — there is none to have', html.indexOf('emph-chip-more') === -1);
+  });
+
+  sub('the brief’s own example, computed — not hard-coded');
+  guard('worked example', () => {
+    /* Leg Press / Machine Shoulder Press / Lat Pulldown / Hip Thrust /
+       Cable Woodchop / Side Plank — the exact list the brief gave as an
+       example, with an explicit instruction not to assume its order. */
+    const t = tpl([['Leg Press', 3], ['Machine Shoulder Press', 3], ['Lat Pulldown', 3], ['Hip Thrust', 3], ['Cable Woodchop', 3], ['Side Plank', 3]]);
+    const r = ctx.computeMuscleFocusRanking(t);
+    T('five groups were ever a primary target here', r.filter(x => x.primarySets > 0).length === 5);
+    T('abs leads — two of the six exercises are built for it', r[0].key === 'abs' && r[0].primarySets === 6);
+    T('glutes is second: it is Hip Thrust’s own primary AND Leg Press’s secondary', r[1].key === 'glutes'
+      && r[1].primarySets === 3 && r[1].secondarySets === 3);
+    T('back, quads and shoulders tie at 3/0 and land in alphabetical order',
+      r[2].key === 'back' && r[3].key === 'quads' && r[4].key === 'shoulders');
+    const html = ctx.muscleFocusChipsHtml(t);
+    T('the card shows the top three and folds the rest into one +2',
+      chipSpans(html).join(',') === 'Abs,Glutes,Back' && html.indexOf('>+2<') !== -1);
+    T('the +2 still names what it is hiding, for a screen reader', /And 2 more: Quads, Shoulders/.test(ariaLabels(html).join(' | ')));
+  });
+
+  sub('the display cap: three or four, never a chip wall');
+  guard('display cap', () => {
+    T('the cap is four', ctx.MUSCLE_FOCUS_MAX_CHIPS === 4);
+    const one = tpl([['Cable Crunch', 4], ['Hanging Leg Raise', 4]]);           // single-muscle-dominant
+    T('one meaningful group shows one chip, no overflow', chipSpans(ctx.muscleFocusChipsHtml(one)).length === 1
+      && ctx.muscleFocusChipsHtml(one).indexOf('emph-chip-more') === -1);
+    const three = tpl([['Barbell Curl', 3], ['Triceps Pushdown', 3], ['Cable Crunch', 3]]);
+    T('three meaningful groups show all three, no overflow', chipSpans(ctx.muscleFocusChipsHtml(three)).length === 3
+      && ctx.muscleFocusChipsHtml(three).indexOf('emph-chip-more') === -1);
+    const four = tpl([['Back Squat', 3], ['Leg Curl', 3], ['Standing Calf Raise', 3], ['Cable Crunch', 3]]);
+    const r4 = ctx.computeMuscleFocusRanking(four).filter(x => x.primarySets > 0);
+    if(r4.length === 4){
+      const h4 = ctx.muscleFocusChipsHtml(four);
+      T('exactly four meaningful groups show all four, still no overflow', chipSpans(h4).length === 4 && h4.indexOf('emph-chip-more') === -1);
+    }
+    const eight = tpl([['Bench Press', 3], ['Back Squat', 3], ['Lat Pulldown', 3], ['Overhead Press', 3], ['Hip Thrust', 3], ['Barbell Curl', 3], ['Cable Crunch', 3], ['Standing Calf Raise', 3]]);
+    const r8 = ctx.computeMuscleFocusRanking(eight).filter(x => x.primarySets > 0);
+    const h8 = ctx.muscleFocusChipsHtml(eight);
+    T('an 8-exercise, many-muscle workout still shows at most three chips plus one +N',
+      r8.length > 4 && chipSpans(h8).length === 3 && h8.indexOf('emph-chip-more') !== -1, 'meaningful groups=' + r8.length);
+    T('every DOM chip together never exceeds four elements', allChipElements(h8) <= 4);
+  });
+
+  sub('unknown or unmapped exercises never crash the ranking');
+  guard('unknown metadata', () => {
+    const t = tpl([['Zzznotarealmovement', 3], ['Totally Made Up Exercise', 4]]);
+    let ranked = null, html = null, threw = null;
+    try{ ranked = ctx.computeMuscleFocusRanking(t); html = ctx.muscleFocusChipsHtml(t); }catch(e){ threw = e; }
+    T('no exception is thrown', !threw, threw && threw.message);
+    T('an entirely unmapped workout ranks nothing and renders nothing', Array.isArray(ranked) && ranked.length === 0 && html === '');
+    const mix = tpl([['Zzznotarealmovement', 3], ['Bench Press', 3]]);
+    T('a partly-unmapped workout still ranks what it does know', ctx.computeMuscleFocusRanking(mix).some(x => x.key === 'chest'));
+    T('and an empty exercise list is equally safe', ctx.muscleFocusChipsHtml({ exercises: [] }) === '' && ctx.muscleFocusChipsHtml(null) === '');
+  });
+
+  sub('deterministic and stable — the same workout always ranks the same way');
+  guard('determinism', () => {
+    const t = tpl([['Leg Press', 3], ['Machine Shoulder Press', 3], ['Lat Pulldown', 3], ['Hip Thrust', 3], ['Cable Woodchop', 3], ['Side Plank', 3]]);
+    const a = JSON.stringify(ctx.computeMuscleFocusRanking(t));
+    const b = JSON.stringify(ctx.computeMuscleFocusRanking(t));
+    T('the same input ranks identically twice', a === b);
+    const reversed = tpl([['Side Plank', 3], ['Cable Woodchop', 3], ['Hip Thrust', 3], ['Lat Pulldown', 3], ['Machine Shoulder Press', 3], ['Leg Press', 3]]);
+    const c = JSON.stringify(ctx.computeMuscleFocusRanking(reversed));
+    T('the exercise order in the workout does not change the ranking', a === c);
+  });
+
+  sub('the rank order in the DOM matches the numeric ranking, and rank IS the colour');
+  guard('rank order and intensity', () => {
+    const t = tpl([['Bench Press', 3], ['Back Squat', 3], ['Lat Pulldown', 3], ['Overhead Press', 3], ['Hip Thrust', 3]]);
+    const ranked = ctx.computeMuscleFocusRanking(t).filter(x => x.primarySets > 0);
+    const html = ctx.muscleFocusChipsHtml(t);
+    const labels = chipSpans(html), classes = chipClasses(html);
+    T('the visible chips read top to bottom in ranked order', labels.join(',') === ranked.slice(0, 3).map(r => r.label).join(','));
+    T('rank one through three carry strictly their own tier class, in order', classes[0] === 'emph-chip emph-chip-r1'
+      && classes[1] === 'emph-chip emph-chip-r2' && classes[2] === 'emph-chip emph-chip-r3');
+    T('no chip is coloured by which muscle it is — the CSS keys only on rank', !new RegExp('\\.emph-chip-(chest|back|shoulders|abs|quads|glutes|hamstrings|calves|biceps|triceps)\\b').test(css));
+  });
+
+  sub('restrained colour: LOOP’s one accent family, fading toward neutral — no rainbow');
+  guard('colour restraint', () => {
+    T('rank one and two are the accent blue, at different strengths', /\.emph-chip-r1\{[^}]*rgba\(76,194,255,0\.28\)[^}]*var\(--accent\)/.test(css)
+      && /\.emph-chip-r2\{[^}]*rgba\(76,194,255,0\.16\)[^}]*var\(--accent\)/.test(css));
+    T('rank three fades further and rank four is the app’s own neutral surface tone',
+      /\.emph-chip-r3\{[^}]*rgba\(76,194,255,0\.08\)/.test(css) && /\.emph-chip-r4\{[^}]*var\(--surface-3\)[^}]*var\(--text-faint\)/.test(css));
+    const i = css.indexOf('MUSCLE FOCUS CHIPS');
+    const block = css.slice(i, css.indexOf('.emph-chip-more', i) + 100).replace(/rgba?\(76,\s?194,\s?255[^)]*\)/g, '');
+    T('no hue outside the accent family and the app’s own neutrals appears in that block',
+      !/--danger|--warning|--success|#[0-9a-f]{3,6}/i.test(block), block);
+    T('the container wraps instead of scrolling sideways', /\.emph-chips\{[^}]*flex-wrap:\s*wrap/.test(css));
+  });
+
+  sub('no fake percentages, and no visible "Primary"/"Secondary" muscle-role labels');
+  guard('no fake precision', () => {
+    const templates = ['push', 'pull', 'legs', 'core', 'arms', 'fullbody', 'upper', 'lower']
+      .map(cat => (ctx.getTemplates(cat) || [])[0]).filter(Boolean);
+    let sawPercent = false, sawRoleWord = false;
+    templates.forEach(t => {
+      const html = ctx.muscleFocusChipsHtml(t);
+      if(/%/.test(html)) sawPercent = true;
+      /* the visible chip TEXT must be a muscle name only — role vocabulary is
+         permitted in the aria-label (the brief's own suggested phrasing) but
+         never as what a sighted athlete reads on the chip itself */
+      chipSpans(html).forEach(label => { if(/primary|secondary/i.test(label)) sawRoleWord = true; });
+    });
+    T('no chip anywhere shows a numeric percentage', !sawPercent);
+    T('no visible chip label reads "Primary" or "Secondary"', !sawRoleWord);
+  });
+
+  sub('the chips and the body map read the same primary truth');
+  guard('body-map consistency', () => {
+    const cats = ['push', 'pull', 'legs', 'core', 'arms', 'fullbody', 'upper', 'lower'];
+    let mismatches = [];
+    cats.forEach(cat => {
+      const t = (ctx.getTemplates(cat) || [])[0];
+      if(!t) return;
+      const totals = ctx.computeMuscleTotals(t);
+      const litByMap = Object.keys(totals).filter(k => totals[k] > 0).sort();
+      const litByChips = ctx.computeMuscleFocusRanking(t).filter(r => r.primarySets > 0).map(r => r.key).sort();
+      if(JSON.stringify(litByMap) !== JSON.stringify(litByChips)) mismatches.push(cat + ': map=' + litByMap + ' chips=' + litByChips);
+      /* every group the body map lights is at least NAMED somewhere in the
+         chip surface — visibly, or inside the "+N" disclosure. */
+      const html = ctx.muscleFocusChipsHtml(t);
+      const named = chipSpans(html).concat(ariaLabels(html).join(' ').match(/[A-Za-z]+/g) || []);
+      litByMap.forEach(k => { if(named.indexOf(ctx.MUSCLE_LABELS[k] || k) === -1) mismatches.push(cat + ': ' + k + ' lit on the map but not named anywhere in the chips'); });
+    });
+    T('the exact set of primary-trained groups agrees between the body map and the chip ranking', mismatches.length === 0, mismatches.join(' | '));
+  });
+
+  sub('data safety: nothing is stored, nothing protected changes, no input is mutated');
+  guard('data safety', () => {
+    T('no new storage key and no schema change', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1);
+    const before = H.snapshot(ctx);
+    const t = tpl([['Leg Press', 3], ['Machine Shoulder Press', 3], ['Lat Pulldown', 3], ['Hip Thrust', 3], ['Cable Woodchop', 3], ['Side Plank', 3]]);
+    const beforeTpl = JSON.stringify(t);
+    for(let i = 0; i < 25; i++){ ctx.computeMuscleFocusRanking(t); ctx.muscleFocusChipsHtml(t); }
+    ['push', 'pull', 'legs', 'core', 'arms', 'fullbody'].forEach(cat => {
+      const rt = (ctx.getTemplates(cat) || [])[0];
+      if(rt) ctx.openTrainDetail(cat, rt.id);
+    });
+    ctx.closeTrainDetail();
+    const after = H.snapshot(ctx);
+    T('the template handed in is not mutated', beforeTpl === JSON.stringify(t));
+    T('NOTHING protected changed from repeated ranking and rendering', H.diffSnapshot(before, after, []).ok,
+      H.diffSnapshot(before, after, []).violations.join(','));
+    T('drawing the chips stores nothing', !/LOOPStore|localStorage|persist|save[A-Z(]/.test(fnSrc(src, 'computeMuscleFocusRanking') + fnSrc(src, 'muscleFocusChipsHtml')));
+  });
+}
 
 async function main(){
   const started = Date.now();
@@ -28373,6 +28655,7 @@ async function main(){
   await testSmartSuggestions();
   await testMuscleMapOverlays();
   await testTrainingFoundation();
+  await testMuscleFocusChips();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

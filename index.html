@@ -2820,7 +2820,7 @@ body.first-use{ padding-bottom: 0; }
 .td-note{ font-size: var(--fs-meta); color: var(--accent); margin: -8px 0 var(--space-2); }
 .td-figure{ display: flex; justify-content: center; padding: var(--space-2) 0 var(--space-1); }
 .td-figure .muscle-svg{ max-width: 124px; }
-#trainDetailBody .tpl-emphasis{ text-align: center; }
+#trainDetailBody .emph-chips{ justify-content: center; }
 .td-k{
   margin: var(--space-4) 0 var(--space-1); font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
   font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-faint);
@@ -3986,6 +3986,24 @@ textarea{ resize: vertical; min-height: 56px; }
 }
 .ws-chip-p{ background: var(--accent-soft); color: var(--accent); }
 .ws-chip-s{ background: var(--surface-3); color: var(--text-dim); }
+
+/* ---------- MUSCLE FOCUS CHIPS (Phase D78) ----------
+   Same idiom as .ws-chip — compact rounded blocks, a quiet uppercase micro
+   label — carried across four intensity steps in LOOP's one accent instead
+   of a flat primary/secondary split. Rank fades from a bright accent fill to
+   the neutral surface tone the rest of the app already uses for "quiet";
+   nothing here is a second, muscle-keyed palette. */
+.emph-chips{ display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: var(--space-2) 0 var(--space-1); }
+.emph-chip{
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; padding: 4px 9px; border-radius: var(--radius-md);
+  border: 1px solid transparent; white-space: nowrap;
+}
+.emph-chip-r1{ background: rgba(76,194,255,0.28); color: var(--accent); border-color: rgba(76,194,255,0.4); }
+.emph-chip-r2{ background: rgba(76,194,255,0.16); color: var(--accent); }
+.emph-chip-r3{ background: rgba(76,194,255,0.08); color: var(--text-dim); }
+.emph-chip-r4{ background: var(--surface-3); color: var(--text-faint); }
+.emph-chip-more{ background: var(--surface-3); color: var(--text-faint); font-weight: 700; }
 
 /* Navigation sits above the finish action, so moving through the workout and
    ending it are never the same tap. */
@@ -15236,6 +15254,25 @@ const LOOP_UPDATES = [
     changes: [
       'Your program’s name, week and phase, and the way to start a program, moved from the top of Today’s card into the Training Foundation'
     ]
+  },
+  {
+    id: 'v7-9',
+    version: 'LOOP 7.9',
+    title: 'What This Workout Trains',
+    date: '2026-09-16',
+    swVersion: 'loop-v156',
+    summary: 'A workout’s muscle line becomes ranked chips — a glance now says which muscles it mostly trains, and in what order.',
+    newFeatures: [
+      'Plan workout detail shows compact muscle-focus chips below the body map, ranked by how much of the workout is actually built around each one'
+    ],
+    improvements: [
+      'The strongest focus reads brightest; the rest fade toward quiet, in LOOP’s one accent colour — no per-muscle colour coding',
+      'A workout with many muscle groups shows its top few and folds the rest into one "+N" rather than listing everything'
+    ],
+    bugFixes: [],
+    changes: [
+      'The plan workout detail sheet’s plain muscle-name line ("Abs · Shoulders · Back") is replaced by the ranked chips; the Train picker card and its list rows keep the plain line for now'
+    ]
   }
 ];
 
@@ -16953,6 +16990,88 @@ function computeMuscleTotals(t){
   });
   return totals;
 }
+
+/* =========================================================
+   MUSCLE FOCUS CHIPS  (Phase D78)
+   ---------------------------------------------------------
+   "Abs · Shoulders · Back" named every group a workout touches,
+   alphabetised by nothing in particular. This ranks the same
+   canonical groups by real prescribed work, so the result reads
+   as the workout's identity — what it is FOR — not an ingredient
+   list.
+
+   PLANNED, NOT TRAINED. Built from t.exercises[].sets, the same
+   prescribed numbers computeMuscleTotals and the body map above
+   already read — never workoutLog. A session logged last week
+   can never reorder a workout that has not started yet.
+
+   ONE TRUTH, TWO TALLIES. musclesForExercise is the single
+   resolver every muscle surface already trusts (canonical
+   registry -> named override -> family rule -> keyword scan).
+   Its `primary` sets are tallied one way, its `secondary`
+   (assisting) sets another — the same split RECOVERY_CONFIG's
+   primaryWeight/secondaryWeight treats as full vs. partial
+   contribution — kept here as two separate counts rather than
+   one blended score. A blend can let enough assisting volume
+   from OTHER exercises outrank the muscle a workout is actually
+   built around; a strict sort on primary first cannot.
+
+   THE ORDER IS A SORT, NOT A SCORE:
+     1. total planned PRIMARY sets, high to low
+     2. total planned SECONDARY (assisting) sets, high to low —
+        ties only; assisting volume never beats a primary gap
+     3. the canonical label, alphabetically — the one tie-break
+        left once both counts agree, so two equally-worked
+        groups always land in the same order
+   No number is invented, weighted or shown; the rank itself,
+   and its colour, are the whole of what is communicated. */
+function computeMuscleFocusRanking(t){
+  const primary = {}, secondary = {};
+  Object.keys(MUSCLE_MAP).forEach(k => { primary[k] = 0; secondary[k] = 0; });
+  (t && Array.isArray(t.exercises) ? t.exercises : []).forEach(ex => {
+    const sets = parseInt(ex && ex.sets) || 3;
+    let m = { primary: [], secondary: [] };
+    try{ m = musclesForExercise(ex && ex.name) || m; }catch(e){ /* unmapped: contributes nothing, never throws */ }
+    (m.primary || []).forEach(g => { if(g in primary) primary[g] += sets; });
+    (m.secondary || []).forEach(g => { if(g in secondary) secondary[g] += sets; });
+  });
+  const label = k => MUSCLE_LABELS[k] || k;
+  return Object.keys(MUSCLE_MAP)
+    .filter(k => primary[k] > 0 || secondary[k] > 0)
+    .sort((a, b) => (primary[b] - primary[a]) || (secondary[b] - secondary[a]) || label(a).localeCompare(label(b)))
+    .map(k => ({ key: k, label: label(k), primarySets: primary[k], secondarySets: secondary[k] }));
+}
+
+/* THE RENDERED CHIPS. Up to four groups this workout genuinely trains as a
+   PRIMARY target — an assisting-only group (secondary sets but never a
+   primary hit anywhere in the workout) never earns its own chip, which is
+   what keeps a bench day's triceps from crowding out its chest. Any
+   remainder folds into one quiet "+N", named in full for a screen reader.
+   Colour intensity is rank, in LOOP's one accent family — never a second
+   palette keyed to muscle identity. */
+const MUSCLE_FOCUS_MAX_CHIPS = 4;
+const MUSCLE_FOCUS_RANK_WORDS = ['primary focus', 'secondary focus', 'supporting focus', 'minor focus'];
+function muscleFocusChipsHtml(t){
+  let ranked = [];
+  try{ ranked = computeMuscleFocusRanking(t); }catch(e){ return ''; }
+  let shown = ranked.filter(r => r.primarySets > 0);
+  /* Nothing was ever a PRIMARY target — every exercise unmapped, or every
+     match purely assisting. Fall back to whatever truth exists rather than
+     hide it because the strong signal happens to be absent. */
+  if(!shown.length) shown = ranked;
+  if(!shown.length) return '';
+  const overflow = shown.length > MUSCLE_FOCUS_MAX_CHIPS ? shown.slice(3) : [];
+  const visible = overflow.length ? shown.slice(0, 3) : shown.slice(0, MUSCLE_FOCUS_MAX_CHIPS);
+  const chips = visible.map((r, i) => {
+    const rank = Math.min(i + 1, MUSCLE_FOCUS_RANK_WORDS.length);
+    return `<span class="emph-chip emph-chip-r${rank}" role="listitem" aria-label="${escapeAttr(r.label + ', ' + MUSCLE_FOCUS_RANK_WORDS[rank - 1])}">${escapeHtml(r.label)}</span>`;
+  }).join('');
+  const more = overflow.length
+    ? `<span class="emph-chip emph-chip-more" role="listitem" aria-label="${escapeAttr('And ' + overflow.length + ' more: ' + overflow.map(r => r.label).join(', '))}">+${overflow.length}</span>`
+    : '';
+  return `<div class="emph-chips" role="list" aria-label="This workout's muscle focus, strongest first">${chips}${more}</div>`;
+}
+
 /* Which view best represents a session. Anterior groups vs posterior groups —
    a pull day shows the back, a push day shows the front, without the user
    having to think about it. */
@@ -24362,7 +24481,7 @@ function renderTrainDetail(){
     ${timeModeNoteHtml(src)}
     ${plateaus.length ? `<div class="plateau-flag">${warnIconSvg()} ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}</div>` : ''}
     <div class="td-figure">${bodyDiagramSvg(shown)}</div>
-    ${tplEmphasisLine(shown)}
+    ${muscleFocusChipsHtml(shown)}
     <h3 class="td-k">Exercises</h3>
     <div class="tpl-ex-list">${exercises.map(ex =>
       `<div class="tpl-ex-row"><span>${escapeHtml(ex.name)}</span><span>${escapeHtml(String(ex.sets))} × ${escapeHtml(String(ex.reps))}</span></div>`).join('')}</div>

@@ -231,7 +231,9 @@ function loadApp(initialStore){
     'XS_WEIGHTS','XS_PATTERN_LABEL','XS_COUNTERPART','XS_MOTION_LABEL','_xsMeta','_xsSession',
     /* D76.5 — the muscle map's tile table and its band opacities */ 'MUSCLE_ATLAS','MUSCLE_BAND_OPACITY',
     /* D77A — the training block's rules, its moves, its memo and the pending review */
-    'BLOCK_RULES','CYCLE_MOVES','CYCLE_NORMAL_PHASES','_blockStateCache','_programProgressCache','blockActionPending'];
+    'BLOCK_RULES','CYCLE_MOVES','CYCLE_NORMAL_PHASES','_blockStateCache','_programProgressCache','blockActionPending',
+    /* D78 — the muscle-focus chip cap and its rank vocabulary */
+    'MUSCLE_FOCUS_MAX_CHIPS','MUSCLE_FOCUS_RANK_WORDS'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +
