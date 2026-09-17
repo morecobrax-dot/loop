@@ -11282,3 +11282,146 @@ has no revoke and no sent list.
 - **Not run**: the live project with real accounts, and 0003 on the live
   project — it is applied by the owner. The D80A two-account owner check is
   still outstanding.
+
+## §109 — D81: Workout identity — an icon and a colour for every workout
+
+**Status.** Shipped in LOOP 8.2 (`loop-v159`). `DATA_KEYS` 15, schema 1, no
+local migration, no new storage key. One new backend migration,
+`supabase/migrations/0004_shared_workout_identity.sql`, which the owner applies
+after 0003; without it sharing still works and a workout's look simply does not
+travel. No prescription, program generation, trainer, progression, Session
+Score, XP, rank, exercise registry, exercise art, muscle map, Friends auth,
+leaderboard or history truth changed.
+
+### The model
+
+- **Derived until chosen.** `workoutIdentity(source, category)` is the one
+  resolver: a choice the athlete made wins; otherwise the kind of session —
+  LOOP's eight categories each map to their own icon; otherwise the plain bar
+  (`workout`, slate). The workout title is never read to guess. It is pure: it
+  writes nothing, so no stored workout is rewritten to materialise a default.
+- **What is stored.** `identity: { iconId?, colorId? }` — two registry keys,
+  never SVG, never a colour value — and only the parts that differ from LOOP's
+  own pick (`workoutIdentityRecord`): choosing the kind's own icon stores
+  nothing; Default clears the colour. Unknown or malformed ids (a newer LOOP's
+  icon, an array, `__proto__`) draw as the default and are never rewritten.
+- **Where it lives.** On the thing it describes: a template in `planData` (plan
+  and saved workouts alike, since Edit Workout edits both), a workout draft, and
+  a logged session. A session started from a workout with a chosen look records
+  that look when it is saved, so History does not change when the workout later
+  does; sessions without one — and every session before D81 — derive from their
+  category.
+- **Programs.** Nothing is stored in programs or their revisions. A program
+  session that references a workout is composed from it and so carries its
+  identity; a session the athlete wrote inside a program takes its kind's.
+
+### The icon set
+
+Twenty choices — Push, Pull, Upper Body, Lower Body, Full Body, Chest, Back,
+Shoulders, Arms, Biceps, Triceps, Legs, Quads, Hamstrings, Calves, Core,
+Machines, Cables, Bodyweight, Free Weights — plus the fallback bar. Native
+vector, drawn to the cardio family's grid: 24×24, artwork inside 3–21, stroke
+1.6, round caps and joins, no fills, one head radius (1.9). Push, Pull and Legs
+are their lifts — a bench press, a pull-up, a back squat — and Full Body is a
+jumping jack. The upper body is one torso silhouette read four ways (plain,
+pecs, spine and scapulae, abdominals); Lower Body is the hips; Biceps is one
+flexed arm, Arms both. A muscle a limb is too narrow to show at 20px is drawn
+as the lift that loads it: Triceps the dip (every back-of-arm silhouette read
+as a sock), Quads the lunge, Hamstrings the hip hinge. Calves, whose shape does
+read, is the backs of both lower legs. Equipment stands on the floor;
+Bodyweight is a push-up. The reference image was studied, not traced, and is
+not in LOOP. Each drawing was judged rendered at 18–36px in headless Edge, and
+in the app's own picker, before it was kept.
+
+### Colour
+
+Nine curated colours, each an existing token: blue (`--push`), cyan
+(`--upper`), green (`--full`), olive (`--arms`), amber (`--pull`), orange
+(`--lower`), rose (`--core`), violet (`--legs`), and slate (`--text-dim`). Red
+is left out (LOOP's danger), and so is the accent (LOOP's "act"). Each icon has
+a default colour; the eight kinds default to their own category colour, so a
+default Push workout looks as Push already looked elsewhere in LOOP. The colour
+reaches the icon, a faint wash on a tile where a surface anchors on it, and the
+Home hero's existing edge — never the card.
+
+### Rendering
+
+One primitive, `workoutIconHtml(identity, size, opts)`, and one convenience,
+`workoutIdentityHtml(source, category, size, opts)`. The artwork is put in the
+page once, as an SVG sprite built from the registry; every icon is a `<use>` of
+it. Four sizes: xs 18px (a heavier stroke), sm 22px, md 28px, lg 36px, and a
+tile variant. Decorative by default (`aria-hidden`), since the workout's name is
+always beside it.
+
+### Surfaces
+
+Train rows (My workouts and My plan) · Details (a tile beside the title) · Home
+(the planned, active and finished hero, whose left edge takes the identity
+colour; the workout picker's cards) · My Training's week · Program detail's
+schedule · the active workout's top bar · History (a workout row's icon replaces
+its category bar; cardio and activity rows keep their neutral mark; the selected
+day's card) · the shared-workout preview.
+
+### Customising
+
+Edit Workout puts the workout's icon beside its name as a 48px button. It opens
+**Icon & color**: a live row drawn with Train's own row classes and the same
+primitive, a grid of the twenty icons (four columns at 320px, five from 375px),
+Default and the nine colours. The current icon is a radio with `aria-checked`
+and an accent ring; a chosen colour carries a tick and a ring and is named in
+words. Choosing a kind while creating updates the default. Everything waits in
+`tplIdentityDraft` for **Save Workout**; Cancel ends the draft and the stored
+workout is exactly as it was. Motion is a 0.97 press and a ring, removed under
+reduced motion. LOOP has no duplicate action; the only copies of a workout are a
+saved shared workout and a restored backup, and both carry the identity.
+
+### Sharing (D80B) — snapshot version 2
+
+- Version 2 is version 1 plus an optional `identity: { iconId?, colorId? }`. It
+  is sent only for a workout with a chosen look; everything else stays version 1.
+- The receiving check takes version 2 with an identity of exactly those keys and
+  id-shaped values; an id this LOOP does not know draws as the default.
+- Saving a shared workout copies a known identity onto the copy.
+- **Without 0004** the server refuses version 2 (0003 reports the identity as an
+  unexpected field, or the version as unsupported) and stores nothing; LOOP sends
+  the same workout again as version 1, once. **LOOP 8.1** opening a version-2
+  share says it came from a newer LOOP and asks to update.
+- **0004** widens the version constraint to 1 or 2 and replaces
+  `loop_share_workout` with 0003's function plus the version handling and the
+  identity check — every other line identical, verified line by line — and the
+  rebuilt snapshot includes the identity. Grants are restated.
+
+### Verification
+
+- **Contract 185** (113 assertions): REGISTRY, COLOURS, DERIVED, RENDERING,
+  CUSTOMISE, SURFACES, SESSION, PROGRAM, BACKUP, D80B, DATA SAFETY.
+  Mutation-checked: 32 client mutants, each breaking one identity
+  decision in index.html (among them putting back the two-legs Legs and the old
+  Hamstrings drawing), all caught by its own assertions, none left to the
+  end-to-end flows.
+- Contract 184 and two older contracts repointed where markup gained a class or
+  a call (the Train row's `has-wi`, the freeform top bar), claims unchanged; the
+  Home hero's own 300-character bound was met by restructuring, not loosened.
+  One cardio icon check caught the Arms head duplicating the jump rope's tag; the
+  head moved 0.1 unit.
+- **Real PostgreSQL**: 32 checks of 0004 after 0001–0003 applied twice, and the
+  0003 server's answer to version 2; the 0003 suite (112) passes on both schemas;
+  11 of 11 0004 mutants caught.
+- **End to end**: the sharing flows gained S (with 0004 the look travels to the
+  recipient's preview and saved copy) and T (without 0004 the share falls back
+  to version 1 in two requests and still reads "Workout sent").
+- **Browser**: Home, Train, Details, Edit Workout, the picker, History and My
+  Training at 320×568, 375×812, 390×844 and 430×932 — nothing past the edge,
+  every new control at least 44px, no label broken mid-word; the active top bar
+  and the shared preview at 375×812; the redrawn Legs, Quads and Hamstrings on
+  Train's rows and in the picker at 390×844, with Cancel leaving the workout
+  as it was.
+- **Found and fixed on the way**: an array `["blue"]` was read as the colour
+  `blue` by a property lookup, and a category of `__proto__` reached the
+  prototype; ids are now own-property strings only. And at the release gate,
+  the shipped sprite rendered at phone density showed Legs, Quads and
+  Hamstrings — two legs from the front or from behind — reading as the letter
+  W. Alternatives were rendered side by side (a leg in profile, closed thighs,
+  a single calf, several hinges, a calf raise); the squat, the lunge and the
+  hinge were kept, and Contract 185 now requires the six lift icons to be
+  figures, so a two-legs drawing cannot come back unnoticed.

@@ -238,7 +238,11 @@ function loadApp(initialStore){
     'SOCIAL_STORE_KEY','SOCIAL_INVITE_KEY','SOCIAL_TIMING','SOCIAL_LINK_TOKEN_RE','SOCIAL_CODE_RE','SOCIAL_INVITE_FINAL',
     'socialRenewFlight','socialHubFlight','socialInviteArrived',
     /* D80B — the shared-workout snapshot's rules and the share sheet's state */
-    'SHARE_SCHEMA_VERSION','SHARE_LIMITS','SHARE_ID_RE','SHARE_UUID_RE','shareView'];
+    'SHARE_SCHEMA_VERSION','SHARE_LIMITS','SHARE_ID_RE','SHARE_UUID_RE','shareView',
+    /* D81 — the workout identity registry, its palette and the editing state */
+    'SHARE_IDENTITY_VERSION','_WI_TORSO','WORKOUT_ICONS','WORKOUT_ICON_CHOICES','WORKOUT_FALLBACK_ICON','CATEGORY_WORKOUT_ICON',
+    'WORKOUT_COLORS','WORKOUT_COLOR_CHOICES','WORKOUT_ICON_SIZES','WORKOUT_IDENTITY_ID_RE','_wiSpriteReady',
+    'tplIdentityDraft','pendingWorkoutIdentity'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

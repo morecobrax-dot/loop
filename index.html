@@ -2900,6 +2900,96 @@ body.first-use{ padding-bottom: 0; }
 .tr-resume-title{ font-size: var(--fs-body); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tr-resume-sub{ font-size: var(--fs-meta); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* ---------- workout identity (D81) ----------
+   One icon, four sizes, coloured by the workout's identity. The colour
+   reaches the icon, a faint wash behind it where a surface anchors on it,
+   and an edge a surface already had — never the card itself. */
+.wi{
+  --wi: var(--text-dim); --wi-soft: rgba(154,166,184,0.12);
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--wi); line-height: 0; vertical-align: middle;
+}
+.wi svg{
+  width: 100%; height: 100%; display: block; overflow: visible;
+  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+}
+.wi-xs{ width: 18px; height: 18px; }
+.wi-sm{ width: 22px; height: 22px; }
+.wi-md{ width: 28px; height: 28px; }
+.wi-lg{ width: 36px; height: 36px; }
+/* Optically the same line at the smallest size. */
+.wi-xs svg{ stroke-width: 1.8; }
+.wi-tile{ box-sizing: content-box; border-radius: var(--radius-lg); background: var(--wi-soft); }
+.wi-tile.wi-sm{ padding: 6px; }
+.wi-tile.wi-md{ padding: 7px; }
+.wi-tile.wi-lg{ padding: 8px; }
+.wi-c-blue{ --wi: var(--push); --wi-soft: var(--push-soft); }
+.wi-c-cyan{ --wi: var(--upper); --wi-soft: var(--upper-soft); }
+.wi-c-green{ --wi: var(--full); --wi-soft: var(--full-soft); }
+.wi-c-olive{ --wi: var(--arms); --wi-soft: var(--arms-soft); }
+.wi-c-amber{ --wi: var(--pull); --wi-soft: var(--pull-soft); }
+.wi-c-orange{ --wi: var(--lower); --wi-soft: var(--lower-soft); }
+.wi-c-rose{ --wi: var(--core); --wi-soft: var(--core-soft); }
+.wi-c-violet{ --wi: var(--legs); --wi-soft: var(--legs-soft); }
+.wi-c-slate{ --wi: var(--text-dim); --wi-soft: rgba(154,166,184,0.12); }
+/* Surfaces. Each keeps its own type; the icon only leads it. */
+.tl-main.has-wi{ flex-direction: row; align-items: center; justify-content: flex-start; gap: var(--space-3); }
+.tl-text{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.td-title{ display: flex; align-items: center; gap: var(--space-3); margin-top: 2px; }
+.td-title h2{ margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.td-title + .sheet-sub{ margin-top: 6px; }
+.tw.tw-wi{ border-left-color: var(--wi); }
+.tw-title.has-wi{ display: flex; align-items: center; gap: 10px; }
+.tw-title.has-wi > span:last-child{ min-width: 0; overflow-wrap: anywhere; }
+.sd-title.has-wi, .tpl-name.has-wi{ display: flex; align-items: center; gap: 10px; }
+.sd-title.has-wi > span:last-child, .tpl-name.has-wi > span:last-child{ min-width: 0; overflow-wrap: anywhere; }
+.mt-day-wi{ flex: 0 0 22px; width: 22px; display: inline-flex; justify-content: center; }
+.workout-topbar-title .wi{ margin-right: 6px; vertical-align: -4px; }
+.share-title{ display: flex; align-items: center; gap: var(--space-3); }
+.share-title .soc-h{ margin: 0; min-width: 0; }
+/* Edit Workout: the icon sits beside the name it belongs to. */
+.tpl-name-row{ display: flex; align-items: center; gap: var(--space-2); }
+.tpl-name-row input{ flex: 1; min-width: 0; }
+.wi-edit{
+  flex: 0 0 auto; width: 48px; height: 48px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer;
+}
+.wi-edit .wi-tile{ border-radius: var(--radius-md); }
+.wi-edit:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The picker: a live row, a grid of icons, a row of colours. */
+.wi-preview{ margin: 2px 0 4px; }
+.wi-preview .tl-main{ cursor: default; }
+.wi-grid{ display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; }
+.wi-opt{
+  min-height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  padding: 8px 2px; background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg);
+  color: var(--text-dim); font-family: 'Inter', sans-serif; cursor: pointer;
+  transition: border-color 0.15s var(--ease), background-color 0.15s var(--ease), transform 0.12s var(--ease);
+}
+.wi-opt[aria-checked="true"]{ border-color: var(--accent); background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.wi-opt:active{ transform: scale(0.97); }
+.wi-opt-l{ font-size: var(--fs-micro); line-height: 1.2; text-align: center; overflow-wrap: normal; hyphens: manual; -webkit-hyphens: manual; }
+.wi-swatches{ display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.wi-sw{
+  width: 44px; height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: 50%; cursor: pointer;
+}
+.wi-sw-dot{
+  width: 30px; height: 30px; border-radius: 50%; background: var(--wi); color: #0C0E12;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 2px var(--surface-2); transition: box-shadow 0.15s var(--ease);
+}
+.wi-sw[aria-checked="true"] .wi-sw-dot{ box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--text); }
+.wi-sw-default{
+  width: auto; min-width: 44px; padding: 0 14px; margin-right: 6px; gap: 7px; border: 1px solid var(--border); border-radius: 99px;
+  color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: var(--fs-meta); font-weight: 600;
+}
+.wi-sw-default .wi-sw-dot{ width: 12px; height: 12px; box-shadow: none; }
+.wi-sw-default[aria-checked="true"]{ border-color: var(--text); color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.wi-color-name{ font-size: var(--fs-meta); color: var(--text-dim); margin: 8px 0 0; }
+.wi-opt:focus-visible, .wi-sw:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce){ .wi-opt, .wi-sw-dot{ transition: none; } .wi-opt:active{ transform: none; } }
+
 .tl-list{
   list-style: none; margin: 0; padding: 0; overflow: hidden;
   background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg);
@@ -7968,7 +8058,10 @@ html, body{ max-width: 100%; overflow-x: hidden; }
         <button type="button" class="td-close" onclick="closeTrainDetail()" aria-label="Close details"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
         </span>
       </div>
-      <h2 id="trainDetailTitle">Workout</h2>
+      <div class="td-title">
+        <span id="trainDetailIdentity"></span>
+        <h2 id="trainDetailTitle">Workout</h2>
+      </div>
       <div class="sheet-sub" id="trainDetailSub"></div>
       <div id="trainDetailBody"></div>
       <div class="td-manage">
@@ -8003,8 +8096,13 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="sheet-scroll">
     <h2 id="tplSheetTitle">New Workout</h2>
     <div class="sheet-sub" id="tplSheetSub">Add another way to train this lift.</div>
-    <label>Workout name</label>
-    <input type="text" id="tplName" placeholder="e.g. Pull C — Rows Focus">
+    <label for="tplName">Workout name</label>
+    <!-- D81 — the workout's icon and colour sit beside its name. Changes wait
+         for Save Workout, like every other field on this sheet. -->
+    <div class="tpl-name-row">
+      <button type="button" class="wi-edit" id="tplIdentityBtn" onclick="openIdentityPicker()" aria-haspopup="dialog" aria-label="Icon and color"></button>
+      <input type="text" id="tplName" placeholder="e.g. Pull C — Rows Focus">
+    </div>
     <!-- D65 — a saved workout is filed under a kind of session, and the athlete
          chooses it. Nothing is chosen unless they came from one kind. Shown only
          while creating: an edit keeps the kind the workout already has. -->
@@ -8021,6 +8119,23 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeTplSheet()">Cancel</button>
       <button class="btn-primary" onclick="saveTemplate(this)">Save Workout</button>
+    </div>
+  </div>
+</div>
+
+<!-- WORKOUT ICON & COLOR (D81) — opened from Edit Workout. A choice here waits
+     for that sheet's Save; Done only closes this one. -->
+<div class="overlay" id="wiOverlay" onclick="backdropDismiss(event, closeIdentityPicker)">
+  <div class="sheet" role="dialog" aria-labelledby="wiTitle">
+    <div class="sheet-scroll">
+      <div class="td-head">
+        <span class="td-kicker" id="wiTitle">Icon &amp; color</span>
+        <button type="button" class="td-close" onclick="closeIdentityPicker()" aria-label="Close"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+      </div>
+      <div id="wiPickerBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn-primary" onclick="closeIdentityPicker()">Done</button>
     </div>
   </div>
 </div>
@@ -15556,6 +15671,27 @@ const LOOP_UPDATES = [
     changes: [
       'Sharing appears once the Friends server has been updated for it. Until then, nothing in Friends changes'
     ]
+  },
+  {
+    id: 'v8-2',
+    version: 'LOOP 8.2',
+    title: 'Workout Icons',
+    date: '2026-09-17',
+    swVersion: 'loop-v159',
+    summary: 'Every workout has an icon and a color, so Push, Pull, Legs and Core are easy to tell apart at a glance.',
+    newFeatures: [
+      'Workouts lead with an icon in Train, their details, Today, My Training, History and the workout in progress',
+      'Choose a workout’s icon and color in Edit Workout: twenty icons, nine colors, or Default',
+      'A workout you share brings its icon and color, once Friends is updated for it'
+    ],
+    improvements: [
+      'A workout you never customize shows the icon and color of its kind of session, with nothing to set up',
+      'A finished workout keeps the look it had when you trained it, even if you change that workout later'
+    ],
+    bugFixes: [],
+    changes: [
+      'History rows lead with the workout’s icon instead of a coloured bar'
+    ]
   }
 ];
 
@@ -17264,6 +17400,10 @@ function socialTogglePaste(){ socialView.pasteOpen = !socialView.pasteOpen; rend
    without the other ever knowing.
    ========================================================= */
 const SHARE_SCHEMA_VERSION = 1;
+/* D81 — version 2 is version 1 plus the icon and colour the sender chose,
+   { iconId?, colorId? }, and nothing else. It is sent only for a workout that
+   has one; everything else stays version 1, which every LOOP since 8.1 reads. */
+const SHARE_IDENTITY_VERSION = 2;
 const SHARE_LIMITS = { title: 60, note: 280, exercises: 20, name: 60, reps: 20, effort: 12, sets: 20, bytes: 8192 };
 const SHARE_ID_RE = /^[a-z0-9_]{1,48}$/;
 /* Share ids and friends' user ids are the database's uuids; nothing else is
@@ -17320,7 +17460,11 @@ function buildShareableWorkoutSnapshot(source, category){
   }
   if(!exercises.length) return { ok:false, error:'empty' };
   if(exercises.length > SHARE_LIMITS.exercises) return { ok:false, error:'too_many' };
-  const snapshot = { v: SHARE_SCHEMA_VERSION, title: title, category: category, exercises: exercises };
+  /* Presentation, never training data: two registry ids at most. */
+  const identity = workoutIdentityRecordOf(source, category);
+  const snapshot = identity
+    ? { v: SHARE_IDENTITY_VERSION, title: title, category: category, identity: identity, exercises: exercises }
+    : { v: SHARE_SCHEMA_VERSION, title: title, category: category, exercises: exercises };
   /* The database measures its own JSON text, which spaces every separator; the
      margin keeps a snapshot accepted here from being refused there. */
   if(shareByteLength(JSON.stringify(snapshot)) + 400 > SHARE_LIMITS.bytes) return { ok:false, error:'too_large' };
@@ -17333,7 +17477,9 @@ function shareSnapshotWithNote(snapshot, note){
   const text = String(note == null ? '' : note).replace(/\r\n?/g, '\n')
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim();
   if(shareLength(text) > SHARE_LIMITS.note) return { ok:false, error:'note' };
-  const out = { v: snapshot.v, title: snapshot.title, category: snapshot.category, exercises: snapshot.exercises };
+  const out = { v: snapshot.v, title: snapshot.title, category: snapshot.category };
+  if(snapshot.identity) out.identity = snapshot.identity;
+  out.exercises = snapshot.exercises;
   if(text) out.note = text;
   /* The builder measured the workout; a long note can still tip it over. */
   if(shareByteLength(JSON.stringify(out)) + 400 > SHARE_LIMITS.bytes) return { ok:false, error:'too_large' };
@@ -17346,8 +17492,18 @@ function shareSnapshotWithNote(snapshot, note){
 function validateSharedSnapshot(p){
   const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
   if(!p || typeof p !== 'object' || Array.isArray(p)) return { ok:false, error:'invalid' };
-  if(p.v !== SHARE_SCHEMA_VERSION) return { ok:false, error:'unsupported_version' };
-  if(Object.keys(p).some(k => ['v','title','category','note','exercises'].indexOf(k) === -1)) return { ok:false, error:'invalid' };
+  if(p.v !== SHARE_SCHEMA_VERSION && p.v !== SHARE_IDENTITY_VERSION) return { ok:false, error:'unsupported_version' };
+  const topKeys = p.v === SHARE_IDENTITY_VERSION ? ['v','title','category','note','identity','exercises'] : ['v','title','category','note','exercises'];
+  if(Object.keys(p).some(k => topKeys.indexOf(k) === -1)) return { ok:false, error:'invalid' };
+  /* An icon or colour this LOOP does not know is not an error — it draws as
+     the default — but the shape of the field is held exactly. */
+  if(has(p, 'identity') && p.identity !== null){
+    const idn = p.identity;
+    if(!idn || typeof idn !== 'object' || Array.isArray(idn)) return { ok:false, error:'invalid' };
+    if(Object.keys(idn).some(k => k !== 'iconId' && k !== 'colorId')) return { ok:false, error:'invalid' };
+    if(['iconId','colorId'].some(k => has(idn, k) && idn[k] !== null && (typeof idn[k] !== 'string' || !WORKOUT_IDENTITY_ID_RE.test(idn[k]))))
+      return { ok:false, error:'invalid' };
+  }
   if(typeof p.title !== 'string' || !shareCleanText(p.title) || shareLength(p.title) > SHARE_LIMITS.title) return { ok:false, error:'invalid' };
   if(ORDER.indexOf(p.category) === -1) return { ok:false, error:'invalid' };
   if(has(p, 'note') && p.note !== null && (typeof p.note !== 'string' || shareLength(p.note) > SHARE_LIMITS.note)) return { ok:false, error:'invalid' };
@@ -17456,6 +17612,9 @@ async function importSharedWorkout(payload, sharedId){
   const shaped = sharedTemplateFromSnapshot(payload);
   const tpl = { id: nextSavedWorkoutId(), name: uniqueSavedWorkoutName(shaped.name), exercises: shaped.exercises };
   if(sharedId) tpl.sharedId = String(sharedId);
+  /* D81 — the sender's icon and colour come with it; the copy is theirs to change. */
+  const identity = workoutIdentityRecordOf(payload, cat);
+  if(identity) tpl.identity = identity;
   planData[cat].push(tpl);
   const saved = await persistPlanData();
   if(saved === false){
@@ -17702,6 +17861,16 @@ async function shareSend(btn){
   renderShareWorkout();
   let res;
   try{ res = await socialShareWorkout(f.user_id, noted.snapshot); }catch(e){ res = { status: 'unavailable' }; }
+  /* D81 — a server without 0004 refuses version 2 (as a version it does not
+     know, or 0003's unknown field). Nothing was stored, so the workout goes
+     again as version 1 — the same plan, without its icon and colour. */
+  if(noted.snapshot.v === SHARE_IDENTITY_VERSION &&
+     (res.status === 'unsupported_version' || (res.status === 'invalid_payload' && res.reason === 'unexpected_field'))){
+    const plain = { v: SHARE_SCHEMA_VERSION, title: noted.snapshot.title, category: noted.snapshot.category };
+    plain.exercises = noted.snapshot.exercises;
+    if(noted.snapshot.note) plain.note = noted.snapshot.note;
+    try{ res = await socialShareWorkout(f.user_id, plain); }catch(e){ res = { status: 'unavailable' }; }
+  }
   shareView.busy = false;
   shareView.result = { status: res.status, who: f.username, id: res.id || null };
   if(res.status === 'unsupported'){ socialState.sharesSupported = false; socialPersist(); }
@@ -17831,7 +18000,8 @@ function socialSharedPreviewHtml(){
   const already = findImportedShare(open.id);
   return top +
     '<div class="soc-head"><div class="share-k">Shared by ' + (open.from ? '@' + escapeHtml(open.from) : 'a friend') + (when ? ' · ' + escapeHtml(when) : '') + '</div>' +
-      '<h2 class="soc-h">' + escapeHtml(shareCleanText(p.title)) + '</h2>' +
+      '<div class="share-title">' + workoutIdentityHtml(p, p.category, 'md', { tile: true }) +
+        '<h2 class="soc-h">' + escapeHtml(shareCleanText(p.title)) + '</h2></div>' +
       '<p class="soc-sub">' + [p.exercises.length + ' exercise' + (p.exercises.length === 1 ? '' : 's'),
         escapeHtml(CAT_LABEL[p.category] || ''), dur ? '~' + dur + ' min' : null].filter(Boolean).join(' · ') + '</p></div>' +
     (p.note ? '<blockquote class="share-note-q">' + escapeHtml(p.note) + '</blockquote>' : '') +
@@ -23837,6 +24007,217 @@ function promptCardioWeight(){ openCardioEntry('weight'); }
 
 
 /* =========================================================
+   WORKOUT IDENTITY  (Phase D81)
+   ---------------------------------------------------------
+   Every workout has an icon and a colour, so Push and Pull,
+   Legs and Core are told apart at a glance by shape as well as
+   by name. Most workouts never choose one.
+
+   DERIVED UNTIL CHOSEN. workoutIdentity() is the one answer
+   to "what does this workout look like": a choice the athlete
+   made wins; otherwise the kind of session decides; otherwise
+   the plain bar. It is pure and it writes nothing, so a workout
+   nobody customised stays exactly as it was stored, and an old
+   backup is a new-looking one without being rewritten.
+
+   STABLE IDS, NOT ARTWORK. A workout stores at most
+   identity: { iconId, colorId } — two registry keys, never SVG,
+   never a hex value — and only the parts that differ from what
+   LOOP would pick. An id this LOOP does not know draws as the
+   default, never as a broken box.
+
+   ONE DRAWING, MANY PLACES. The artwork lives here once, as an
+   SVG sprite put in the page once; every surface draws a <use>
+   of it through workoutIconHtml(), in one of four sizes. The
+   colour is an accent on the icon and, where a surface already
+   had one, its edge — never the card.
+
+   Drawn to the cardio family's grid: 24x24, artwork inside
+   3-21, 1.6 stroke, round caps and joins, no fills, one head
+   radius (1.9). Figures for movements, one torso read four
+   ways for the upper body, the legs from the front and behind,
+   and the equipment as it stands on the floor.
+   ========================================================= */
+/* The torso Upper Body, Chest, Back and Core share, so they are one
+   silhouette read four ways rather than four inventions. */
+const _WI_TORSO =
+  '<path d="M10.2 2.6v1.8C9.2 5.4 7.6 5.6 6 5.9 4.2 6.2 3.2 7.6 3.3 9.6l.3 4.2c.1.8 1.3 1 1.5.2l.3-3.4"/>' +
+  '<path d="M13.8 2.6v1.8c1 1 2.6 1.2 4.2 1.5 1.8.3 2.8 1.7 2.7 3.7l-.3 4.2c-.1.8-1.3 1-1.5.2l-.3-3.4"/>' +
+  '<path d="M7.1 9.4c.3 3.8 1.1 7.4 1.7 11h6.4c.6-3.6 1.4-7.2 1.7-11"/>';
+
+const WORKOUT_ICONS = {
+  /* a bench press: the bar and its plates, the pressing arm, the head on the bench */
+  push: { label:'Push', color:'blue', art:
+    '<path d="M6.4 6.6h11.2"/><path d="M8.2 4.4v4.4M15.8 4.4v4.4"/><path d="M12 6.6v8"/>' +
+    '<circle cx="6.2" cy="12.8" r="1.9"/><path d="M3.4 15h17.2M6.4 15v4.6M17.6 15v4.6"/>' },
+  /* a pull-up at the top: hands wide on the bar, elbows down */
+  pull: { label:'Pull', color:'amber', art:
+    '<path d="M3 3.6h18"/><circle cx="12" cy="8.2" r="1.9"/>' +
+    '<path d="M6.4 3.6 5.6 8.4 9 11.6M17.6 3.6l.8 4.8-3.4 3.2"/>' +
+    '<path d="M9 11.6h6M9.8 11.8l.9 5.4h2.6l.9-5.4"/><path d="M11 17.2 10.2 21M13 17.2l.8 3.8"/>' },
+  upper: { label:'Upper Body', short:'Upper', color:'cyan', art:
+    _WI_TORSO + '<path d="M12 16.8v3.6"/>' },
+  /* the waistband, the hips, the thighs */
+  lower: { label:'Lower Body', short:'Lower', color:'orange', art:
+    '<path d="M5.2 3.4h13.6"/>' +
+    '<path d="M5.2 3.4c-.8 2.6-.8 5.4 0 8 .6 2.2.6 4.6.2 7.8h4.4l.8-6.8c.2-1.6.8-2.8 1.4-2.8s1.2 1.2 1.4 2.8l.8 6.8h4.4c-.4-3.2-.4-5.6.2-7.8.8-2.6.8-5.4 0-8"/>' },
+  /* a jumping jack: the whole body moving at once */
+  fullbody: { label:'Full Body', color:'green', art:
+    '<circle cx="12" cy="4.2" r="1.9"/><path d="M9.4 8.2h5.2M9.4 8.2 5.2 3.6M14.6 8.2l4.2-4.6"/>' +
+    '<path d="M9.4 8.2l1.2 6.2h2.8l1.2-6.2"/><path d="M10.8 14.4 7 21M13.2 14.4 17 21"/>' },
+  chest: { label:'Chest', color:'blue', art:
+    _WI_TORSO + '<path d="M7.4 8.4c1.2 2.6 3.2 3.2 4.6 1.8 1.4 1.4 3.4.8 4.6-1.8M12 6.2v4"/>' },
+  back: { label:'Back', color:'amber', art:
+    _WI_TORSO + '<path d="M12 5.6v14.8M9.4 7.6c-.9 1.2-1 2.8-.1 4.2M14.6 7.6c.9 1.2 1 2.8.1 4.2"/>' },
+  /* the torso cut at the chest, the deltoids marked */
+  shoulders: { label:'Shoulders', color:'cyan', art:
+    '<path d="M10.2 2.8v1.8C9.2 5.6 7.6 5.8 6 6.1 4.2 6.4 3.2 7.8 3.3 9.8l.3 4.2c.1.8 1.3 1 1.5.2l.3-3.4M13.8 2.8v1.8c1 1 2.6 1.2 4.2 1.5 1.8.3 2.8 1.7 2.7 3.7l-.3 4.2c-.1.8-1.3 1-1.5.2l-.3-3.4"/>' +
+    '<path d="M7.1 9.6c.2 2.4.6 4.6 1 6.8h7.8c.4-2.2.8-4.4 1-6.8"/><path d="M6.4 6.3c1 1.2 1.2 3 .6 4.6M17.6 6.3c-1 1.2-1.2 3-.6 4.6"/>' },
+  /* both arms flexed: the whole of an arm day */
+  arms: { label:'Arms', color:'olive', art:
+    '<circle cx="12" cy="5.1" r="1.9"/>' +
+    '<path d="M9.6 9.2c-1-1.4-2.4-2-3.4-1.4l-.6-2.8C5.4 4 4.4 3.4 3.6 3.8c-.9.4-1.2 1.4-.9 2.2l1 5.4c.3 1.4 1.4 2 2.8 1.8l3.2-.4"/>' +
+    '<path d="M14.4 9.2c1-1.4 2.4-2 3.4-1.4l.6-2.8c.2-1 1.2-1.6 2-1.2.9.4 1.2 1.4.9 2.2l-1 5.4c-.3 1.4-1.4 2-2.8 1.8l-3.2-.4"/>' +
+    '<path d="M9.6 9.2h4.8M9.6 12.8l.8 7.6h3.2l.8-7.6"/>' },
+  /* one arm flexed side-on: the biceps peak */
+  biceps: { label:'Biceps', color:'olive', art:
+    '<path d="M3 13c1.8-.8 3.6-2 5.4-3 2.4-1.3 4.8-.8 6.2 1.2l.6-2.8c-.6-1-.6-2.4.2-3.2 1-1 2.8-1 3.8 0 .6.6.8 1.6.6 2.4l.6 5.4c.4 3.6-1.6 6.4-5 6.8-4.2.6-8.6.2-12.4-1Z"/>' +
+    '<path d="M15.2 8.4c1 0 1.8-.4 2.4-1.2M9.2 15.6c1.8-1.2 3.8-1.2 5.6 0"/>' },
+  /* a dip on parallel bars: the movement that loads the triceps */
+  triceps: { label:'Triceps', color:'olive', art:
+    '<path d="M4.2 21V11.2h5.2M19.8 21V11.2h-5.2"/><circle cx="12" cy="4.4" r="1.9"/>' +
+    '<path d="M9.4 11.2l.8-3.8h3.6l.8 3.8M10.2 7.4 12 13.8l1.8-6.4"/><path d="M12 13.8l-1.6 4.4 2.8 1.4"/>' },
+  /* a back squat at the bottom: bar across the shoulders, knees out. Push, Pull
+     and Legs are the three lifts. (A front view of two legs read as a W.) */
+  legs: { label:'Legs', color:'violet', art:
+    '<circle cx="12" cy="4.1" r="1.9"/><path d="M3.4 8.2h17.2"/><path d="M5.2 6v4.4M18.8 6v4.4"/>' +
+    '<path d="M9.4 8.2l1.2 5.4h2.8l1.2-5.4"/><path d="M10.6 13.6 6.6 15.2l.6 5.6M13.4 13.6l4 1.6-.6 5.6"/>' },
+  /* a lunge: a leg is too narrow to show its muscles at 20px, so the quads
+     are the lift that loads them, as Triceps is the dip */
+  quads: { label:'Quads', color:'violet', art:
+    '<circle cx="12.6" cy="4" r="1.9"/><path d="M12.4 7.2 11.8 12.6"/>' +
+    '<path d="M11.8 12.6h5.6l.4 7.8h2.2"/><path d="M11.8 12.6 8.8 18.4 4.4 20.4"/>' },
+  /* a hip hinge: hips back, back flat, arms hanging */
+  hamstrings: { label:'Hamstrings', short:'Ham­strings', color:'orange', art:
+    '<circle cx="16.4" cy="8.4" r="1.9"/><path d="M13.2 8.7 5.3 7.2"/>' +
+    '<path d="M5.3 7.2l2 6.5-.5 6.7h2.4"/><path d="M11.8 8.4v7.7"/>' },
+  /* knee to heel from behind, each calf full at the top */
+  calves: { label:'Calves', color:'violet', art:
+    '<path d="M7 3c-2.4 2.4-2.8 6-1.4 9 1 2.2 1.4 4.6 1.2 7L6.4 21h3.2v-1.8c.2-2.6.8-5.2 1.2-7.8.4-2.8.2-5.8-.6-8.4M17 3c2.4 2.4 2.8 6 1.4 9-1 2.2-1.4 4.6-1.2 7l.4 2h-3.2v-1.8c-.2-2.6-.8-5.2-1.2-7.8-.4-2.8-.2-5.8.6-8.4"/>' +
+    '<path d="M8.2 5.4c-.6 1.6-.4 3.6.8 5.2M15.8 5.4c.6 1.6.4 3.6-.8 5.2"/>' },
+  core: { label:'Core', color:'rose', art:
+    _WI_TORSO + '<path d="M12 9.6v8.8M9.2 11.8h5.6M9.4 14.6h5.2M9.8 17.4h4.4"/>' },
+  /* a selectorised machine: the weight stack, the pulley arm, the seat */
+  machines: { label:'Machines', color:'cyan', art:
+    '<rect x="3.6" y="3.4" width="5" height="17" rx="1"/><path d="M3.6 13.2h5M3.6 15.8h5M3.6 18.4h5"/>' +
+    '<path d="M8.6 6.4h5.6v4.2"/><path d="M11.8 14.8h7M18.2 14.8l1-6.8M15.4 14.8v5.6M12.6 20.4h5.6"/>' },
+  /* a cable tower: the pulley, the cable, the handle */
+  cables: { label:'Cables', color:'violet', art:
+    '<path d="M5 20.4V3.6M19 20.4V3.6M5 3.6h14"/><circle cx="12" cy="6.2" r="1.3"/>' +
+    '<path d="M12 7.5v5.3"/><path d="M12 12.8 9.6 17h4.8Z"/><path d="M3.4 20.4h3.2M17.4 20.4h3.2"/>' },
+  /* a push-up: the plank, the arm to the floor */
+  bodyweight: { label:'Bodyweight', short:'Body­weight', color:'green', art:
+    '<circle cx="19" cy="7.6" r="1.9"/><path d="M16.8 9.8 5 14.6l-1.2 2.4"/>' +
+    '<path d="M15.4 10.4l.8 3.2-.6 3.4"/><path d="M13.8 17h4M2.8 17h2.6"/>' },
+  freeweights: { label:'Free Weights', color:'amber', art:
+    '<path d="M8.6 12h6.8"/><rect x="5.8" y="7.6" width="2.8" height="8.8" rx="1.2"/>' +
+    '<rect x="15.4" y="7.6" width="2.8" height="8.8" rx="1.2"/><path d="M4.2 10v4M19.8 10v4"/>' },
+  /* no kind known: the bar LOOP's Train tab already draws */
+  workout: { label:'Workout', color:'slate', art:
+    '<path d="M3 12h18"/><rect x="5.4" y="7.4" width="2.4" height="9.2" rx="1.2"/>' +
+    '<rect x="16.2" y="7.4" width="2.4" height="9.2" rx="1.2"/><path d="M9.8 9.4v5.2M14.2 9.4v5.2"/>' }
+};
+/* What the athlete can choose, in the picker's order. The plain bar is not
+   a choice: it is what a workout of no known kind already shows. */
+const WORKOUT_ICON_CHOICES = ['push','pull','upper','lower','fullbody','chest','back','shoulders','arms','biceps',
+  'triceps','legs','quads','hamstrings','calves','core','machines','cables','bodyweight','freeweights'];
+const WORKOUT_FALLBACK_ICON = 'workout';
+/* LOOP's eight kinds of session, each already drawn. */
+const CATEGORY_WORKOUT_ICON = { push:'push', pull:'pull', legs:'legs', upper:'upper', lower:'lower',
+  core:'core', fullbody:'fullbody', arms:'arms' };
+/* The curated palette: LOOP's own category tones, which were already chosen
+   to sit together on one screen, plus a neutral. Red is left out on purpose —
+   in LOOP it means danger. The accent is left out too: it means "act". */
+const WORKOUT_COLORS = {
+  blue:   { label:'Blue' },   cyan:   { label:'Cyan' },  green:  { label:'Green' },
+  olive:  { label:'Olive' },  amber:  { label:'Amber' }, orange: { label:'Orange' },
+  rose:   { label:'Rose' },   violet: { label:'Violet' }, slate: { label:'Slate' }
+};
+const WORKOUT_COLOR_CHOICES = ['blue','cyan','green','olive','amber','orange','rose','violet','slate'];
+const WORKOUT_ICON_SIZES = ['xs','sm','md','lg'];
+const WORKOUT_IDENTITY_ID_RE = /^[a-z0-9_]{1,24}$/;
+
+/* THE ONE ANSWER. A choice the athlete made, then the kind of session, then
+   the plain bar; a colour the athlete chose, or the icon's own. */
+/* An id is a string the registry holds as its own key — not ["blue"], which a
+   property lookup would quietly read as "blue", and not "toString". */
+function workoutIconIdOk(id){ return typeof id === 'string' && Object.prototype.hasOwnProperty.call(WORKOUT_ICONS, id); }
+function workoutColorIdOk(id){ return typeof id === 'string' && Object.prototype.hasOwnProperty.call(WORKOUT_COLORS, id); }
+function workoutCategoryIcon(category){
+  return typeof category === 'string' && Object.prototype.hasOwnProperty.call(CATEGORY_WORKOUT_ICON, category)
+    ? CATEGORY_WORKOUT_ICON[category] : WORKOUT_FALLBACK_ICON;
+}
+function workoutIdentity(source, category){
+  const own = source && source.identity && typeof source.identity === 'object' ? source.identity : null;
+  const derived = workoutCategoryIcon(category);
+  const iconId = own && typeof own.iconId === 'string' && WORKOUT_ICON_CHOICES.indexOf(own.iconId) !== -1 ? own.iconId : derived;
+  const chosenColor = !!(own && workoutColorIdOk(own.colorId));
+  return {
+    iconId,
+    colorId: chosenColor ? own.colorId : WORKOUT_ICONS[iconId].color,
+    derivedIconId: derived,
+    customIcon: iconId !== derived,
+    customColor: chosenColor
+  };
+}
+/* What a workout stores: only what differs from LOOP's own pick, and only ids
+   LOOP knows. Nothing to store is null, so the field is simply left out. */
+function workoutIdentityRecord(iconId, colorId, category){
+  const derived = workoutCategoryIcon(category);
+  const out = {};
+  if(typeof iconId === 'string' && WORKOUT_ICON_CHOICES.indexOf(iconId) !== -1 && iconId !== derived) out.iconId = iconId;
+  if(workoutColorIdOk(colorId)) out.colorId = colorId;
+  return Object.keys(out).length ? out : null;
+}
+function workoutIdentityRecordOf(source, category){
+  const own = source && source.identity && typeof source.identity === 'object' ? source.identity : null;
+  return own ? workoutIdentityRecord(own.iconId, own.colorId, category) : null;
+}
+
+/* The artwork, once, as a sprite every icon points into. */
+function workoutIconSpriteHtml(){
+  return '<svg id="wiSprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"' +
+    ' style="position:absolute;width:0;height:0;overflow:hidden">' +
+    Object.keys(WORKOUT_ICONS).map(id => '<symbol id="wi-' + id + '" viewBox="0 0 24 24">' + WORKOUT_ICONS[id].art + '</symbol>').join('') +
+    '</svg>';
+}
+function ensureWorkoutIconSprite(){
+  try{
+    if(document.getElementById('wiSprite')) return true;
+    if(!document.body || typeof document.body.insertAdjacentHTML !== 'function') return false;
+    document.body.insertAdjacentHTML('afterbegin', workoutIconSpriteHtml());
+    return !!document.getElementById('wiSprite');
+  }catch(e){ return false; }
+}
+let _wiSpriteReady = false;
+
+/* THE ONE PRIMITIVE. Decorative by default — the workout's name is always
+   beside it — or an image with a name when it stands alone. */
+function workoutIconHtml(identity, size, opts){
+  if(!_wiSpriteReady) _wiSpriteReady = ensureWorkoutIconSprite();
+  const o = opts || {};
+  const iconId = identity && workoutIconIdOk(identity.iconId) ? identity.iconId : WORKOUT_FALLBACK_ICON;
+  const colorId = identity && workoutColorIdOk(identity.colorId) ? identity.colorId : WORKOUT_ICONS[iconId].color;
+  const sz = WORKOUT_ICON_SIZES.indexOf(size) !== -1 ? size : 'sm';
+  const a11y = o.label ? 'role="img" aria-label="' + escapeAttr(o.label) + '"' : 'aria-hidden="true"';
+  return '<span class="wi wi-' + sz + ' wi-c-' + colorId + (o.tile ? ' wi-tile' : '') + '" data-wi="' + iconId + '" ' + a11y + '>' +
+    '<svg viewBox="0 0 24 24" focusable="false"><use href="#wi-' + iconId + '"/></svg></span>';
+}
+function workoutIdentityHtml(source, category, size, opts){
+  return workoutIconHtml(workoutIdentity(source, category), size, opts);
+}
+
+/* =========================================================
    CARDIO ICON FAMILY
    ---------------------------------------------------------
    One icon per canonical activity, keyed by the id that
@@ -25278,10 +25659,13 @@ function renderTodayWorkout(){
      decision mid-session. One title, one Resume, one quiet Discard. */
   if(hasActiveDraftNow){
     const info = activeDraftInfo || { title: 'Workout', mins: null, summary: '' };
+    /* D81 — the workout under way looks like the workout that was started. */
+    const wid = info.identity || workoutIdentity(null, null);
+    const title = workoutIconHtml(wid, 'md') + '<span>' + escapeHtml(info.title) + '</span>';
     el.innerHTML = `
-      <div class="tw tw-${cat === 'rest' ? 'fullbody' : cat} tw-active">
+      <div class="tw tw-wi wi-c-${wid.colorId} tw-${cat === 'rest' ? 'fullbody' : cat} tw-active">
         <div class="tw-label">Workout in progress</div>
-        <div class="tw-title">${escapeHtml(info.title)}</div>
+        <div class="tw-title has-wi">${title}</div>
         <div class="tw-meta">${info.mins ? info.mins + ' min · ' : ''}${info.summary}</div>
         <button class="tw-cta" onclick="resumeActiveWorkout()">Resume</button>
         <button class="tw-discard" onclick="discardActiveWorkout()">Discard workout</button>
@@ -25293,10 +25677,11 @@ function renderTodayWorkout(){
      offering the plan with a Resume that no longer means anything. The
      summary is one tap; a second session stays quietly possible. */
   if(doneToday){
+    const wid = workoutIdentity(doneToday, doneToday.category);
     el.innerHTML = `
-      <div class="tw tw-${doneToday.category || cat} tw-done-hero">
+      <div class="tw tw-${doneToday.category || cat} tw-done-hero tw-wi wi-c-${wid.colorId}">
         <div class="tw-label">Workout complete</div>
-        <div class="tw-title">${escapeHtml(doneToday.title || CAT_LABEL[doneToday.category] || 'Workout')}</div>
+        <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(doneToday.title || CAT_LABEL[doneToday.category] || 'Workout')}</span></div>
         <div class="tw-meta">Completed today · ${doneToday.exercises.length} exercise${doneToday.exercises.length===1?'':'s'} · ${sessionVolume(doneToday).toLocaleString()} lb</div>
         <button class="tw-cta tw-cta-done" onclick="openDayDetail('${todayStr}')">View Summary</button>
         <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train again'}</button>
@@ -25373,10 +25758,11 @@ function renderTodayWorkout(){
     ? `<button class="tw-cta" onclick="startTemplateLog('${cat}','${first.id}')">Start Workout</button>`
     : `<button class="tw-cta tw-cta-ghost" onclick="goToTrainCategory('${cat}')">Add a ${CAT_LABEL[cat]} workout</button>`;
 
+  const wid = workoutIdentity(first, cat);
   el.innerHTML = `
-    <div class="tw tw-${cat}">
+    <div class="tw tw-${cat} tw-wi wi-c-${wid.colorId}">
       <div class="tw-label">Today's Workout</div>
-      <div class="tw-title">${CAT_LABEL[cat]}</div>
+      <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${CAT_LABEL[cat]}</span></div>
       <div class="tw-meta">${first ? escapeHtml(first.name) + ' · ' + meta : meta}</div>
       ${timeModeNoteHtml(first)}
       ${cta}
@@ -26118,7 +26504,7 @@ function templateCardHtml(t, cat, lastWeights){
     (t.exercises.length > 8 ? `<div class="tpl-ex-more">+ ${t.exercises.length - 8} more</div>` : '');
   return `
     <div class="tpl-card${cat ? ' cat-' + cat : ''}">
-      <div class="tpl-name">${escapeHtml(t.name)}</div>
+      <div class="tpl-name has-wi">${workoutIdentityHtml(t, cat, 'sm')}<span>${escapeHtml(t.name)}</span></div>
       ${tplEmphasisLine(t)}
       <div class="tpl-meta-row">
         <span class="tpl-meta">${t.exercises.length} exercises</span>
@@ -26333,10 +26719,13 @@ function trainRowHtml(kind, cat, t, view){
   const c = onclickArg(cat), id = onclickArg(t.id);
   return `
     <li class="tl-row${next ? ' is-next' : ''}" data-kind="${kind}" data-cat="${escapeAttr(cat)}" data-id="${escapeAttr(t.id)}">
-      <button type="button" class="tl-main" onclick="openTrainDetail('${c}','${id}')">
+      <button type="button" class="tl-main has-wi" onclick="openTrainDetail('${c}','${id}')">
+        ${workoutIdentityHtml(t, cat, 'sm')}
+        <span class="tl-text">
         <span class="tl-name"><span class="sr-only">Details for </span>${escapeHtml(name)}<span class="tl-more" aria-hidden="true">${chevronRightSvg()}</span></span>
         ${muscles ? `<span class="tl-muscles">${muscles}</span>` : ''}
         <span class="tl-meta">${meta.join(' · ')}</span>
+        </span>
       </button>
       <button type="button" class="tl-start${next ? ' is-next' : ''}" onclick="startTemplateLog('${c}','${id}')"
         aria-label="${escapeAttr('Start ' + name)}">Start</button>
@@ -26475,6 +26864,8 @@ function renderTrainDetail(){
   const set = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
   set('trainDetailKicker', (saved ? 'My workout' : 'Plan workout') + ' · ' + (CAT_LABEL[key.cat] || key.cat));
   set('trainDetailTitle', t.name || 'Workout');
+  const identity = document.getElementById('trainDetailIdentity');
+  if(identity) identity.innerHTML = workoutIdentityHtml(t, key.cat, 'md', { tile: true });
   set('trainDetailSub', [exercises.length + ' exercise' + (exercises.length === 1 ? '' : 's'), dur ? '~' + dur + ' min' : null,
     (!saved && plan) ? plan.name : null].filter(Boolean).join(' · '));
   const rename = document.getElementById('trainDetailRename');
@@ -26818,7 +27209,7 @@ function renderSelectedDay(){
           <span class="sd-date">${escapeHtml(nice)}</span>
           <span class="cat-chip ${entry.category}">${CAT_LABEL[entry.category]}</span>
         </div>
-        <div class="sd-title">${escapeHtml(entry.title)}</div>
+        <div class="sd-title has-wi">${workoutIdentityHtml(entry, entry.category, 'sm')}<span>${escapeHtml(entry.title)}</span></div>
         <div class="sd-meta">${escapeHtml(meta)}</div>
         ${prs.length ? `<div class="sd-prs">${prs.length} new record${prs.length === 1 ? '' : 's'}</div>` : ''}
         <span class="sd-go">View full workout ${chevronRightSvg()}</span>
@@ -26914,7 +27305,7 @@ function recentWorkoutsHtml(limit){
     try{ prs = getSessionPRs(l).length; }catch(e){}
     return `
       <button type="button" class="rw-row" onclick="openDayDetail('${l.date}')">
-        <span class="rw-accent cat-${l.category}"></span>
+        ${workoutIdentityHtml(l, l.category, 'sm')}
         <span class="rw-body">
           <span class="rw-title">${escapeHtml(l.title)}</span>
           <span class="rw-meta">${formatDateShort(l.date)} · ${exCount} exercise${exCount===1?'':'s'} · ${setCount} set${setCount===1?'':'s'}</span>
@@ -41861,7 +42252,7 @@ function myTrainingState(){
   const days = [];
   DAY_ORDER.forEach(d => {
     let cat = (schedule && schedule[d]) || 'rest';
-    let name = null, minutes = null, templateId = null;
+    let name = null, minutes = null, templateId = null, source = null;
     if(program){
       try{
         /* D51C — the plan in force on this day of the CURRENT week. A change
@@ -41875,7 +42266,7 @@ function myTrainingState(){
             cat = entry.category || cat;
             templateId = entry.templateId || null;
             const tpl = resolveProgramWorkout(entry);
-            if(tpl){ name = tpl.name; minutes = computeWorkoutDuration(tpl); }
+            if(tpl){ name = tpl.name; minutes = computeWorkoutDuration(tpl); source = tpl; }
           }
         }
       }catch(e){}
@@ -41883,10 +42274,12 @@ function myTrainingState(){
     if(!name && cat !== 'rest'){
       try{
         const tpl = (getTemplates(cat) || [])[0];
-        if(tpl){ name = tpl.name; minutes = computeWorkoutDuration(tpl); templateId = tpl.id; }
+        if(tpl){ name = tpl.name; minutes = computeWorkoutDuration(tpl); templateId = tpl.id; source = tpl; }
       }catch(e){}
     }
-    days.push({ key:d, label:DAY_LABEL[d], fullLabel:DAY_LABEL_FULL[d], cat, name, minutes, templateId, rest: cat === 'rest' });
+    days.push({ key:d, label:DAY_LABEL[d], fullLabel:DAY_LABEL_FULL[d], cat, name, minutes, templateId, rest: cat === 'rest',
+      /* D81 — the session's own look: the workout it resolves to, or its kind. */
+      identity: cat === 'rest' ? null : workoutIdentity(source, cat) });
   });
 
   let phase = null, week = null, totalWeeks = null;
@@ -42154,6 +42547,7 @@ function renderMyTraining(){
     return `
       <div class="mt-day mt-${state}">
         <span class="mt-day-k">${escapeHtml(d.label)}</span>
+        <span class="mt-day-wi">${d.identity ? workoutIconHtml(d.identity, 'sm') : ''}</span>
         <span class="mt-day-body">
           ${d.rest
             ? `<span class="mt-day-rest">Rest</span>`
@@ -42709,6 +43103,7 @@ function renderProgramDetail(){
     const tpl = resolveProgramWorkout(e);
     return `
       <div class="prog-day"><span class="prog-day-key">${escapeHtml(DAY_LABEL_FULL[day].slice(0,3))}</span>
+        ${tpl ? workoutIdentityHtml(tpl, e.category, 'xs') : ''}
         <span class="prog-day-name">${tpl ? escapeHtml(tpl.name) : '<span class="prog-day-missing">Workout no longer available</span>'}</span></div>`;
   }).join('');
 
@@ -45267,6 +45662,10 @@ let pendingDraftId = null;
    what that workout is. */
 let pendingWorkoutOrigin = null;
 let pendingWorkoutProgramId = null;
+/* D81 — the icon and colour the athlete chose for the workout this session
+   was started from, if they chose one. Carried like provenance, so the
+   session and its history look like the workout that was trained. */
+let pendingWorkoutIdentity = null;
 
 function captureActiveDraft(){
   const overlay = document.getElementById('logOverlay');
@@ -45337,6 +45736,7 @@ function captureActiveDraft(){
        started today, whatever the athlete did to their program in between. */
     origin: pendingWorkoutOrigin || null,
     originProgramId: pendingWorkoutProgramId || null,
+    identity: pendingWorkoutIdentity || null,
     /* Whether this workout is past its warm-up. Purely presentational — no
        reader of a saved workout has ever looked at it, and workoutLog is not
        involved. */
@@ -45366,6 +45766,7 @@ async function clearActiveDraft(){
   pendingDraftId = null;
   pendingWorkoutOrigin = null;
   pendingWorkoutProgramId = null;
+  pendingWorkoutIdentity = null;
   try{ await LOOPStore.set(DRAFT_KEY, 'null'); }catch(e){}
   renderResumeBanner();
 }
@@ -45390,6 +45791,7 @@ function restoreDraftToSheet(draft){
      guessed into a program. */
   pendingWorkoutOrigin = draft.origin || null;
   pendingWorkoutProgramId = draft.originProgramId || null;
+  pendingWorkoutIdentity = workoutIdentityRecordOf(draft, draft.category);
   /* A resumed workout does not warm up again. Older drafts have no flag, so
      the started-check below still covers them. */
   warmupDoneForDraft = draft.warmupDone ? pendingDraftId : warmupDoneForDraft;
@@ -45501,7 +45903,8 @@ async function renderResumeBanner(){
     activeDraftInfo = {
       title: draft.title || CAT_LABEL[draft.category] || 'Workout',
       mins: started ? Math.max(1, Math.round((new Date() - started) / 60000)) : null,
-      summary: draftSummaryLine(draft)
+      summary: draftSummaryLine(draft),
+      identity: workoutIdentity(draft, draft.category)
     };
   } else {
     activeDraftInfo = null;
@@ -46041,11 +46444,17 @@ function syncWorkoutStepper(opts){
   renderWorkoutStep();
 }
 
+/* The workout's name in the top bar, led by its icon (D81). */
+function renderLogTopbarTitle(label){
+  const t = document.getElementById('logTopbarTitle');
+  if(!t) return;
+  const text = label || CAT_LABEL[pendingLogCategory] || 'Workout';
+  t.innerHTML = workoutIdentityHtml({ identity: pendingWorkoutIdentity }, pendingLogCategory, 'xs') + '<span>' + escapeHtml(text) + '</span>';
+}
 function openLogSheet(){
   document.getElementById('logOverlay').classList.add('open');
   document.body.classList.add('page-locked');
-  const t = document.getElementById('logTopbarTitle');
-  if(t) t.textContent = (CAT_LABEL[pendingLogCategory] || 'Workout');
+  renderLogTopbarTitle();
   // Give the workout its own history entry so the iPhone back gesture returns
   // to the previous LOOP screen instead of leaving the app.
   if(!workoutHistoryPushed){
@@ -46129,6 +46538,7 @@ async function startTemplateLog(cat, tplId){
       pendingWorkoutProgramId = _op.id;
     }
   }catch(e){}
+  pendingWorkoutIdentity = workoutIdentityRecordOf(planned, cat);
   /* Time Mode works on a COPY. The saved template keeps every exercise and
      set it was programmed with, whatever the athlete picked for today. */
   const tpl = applyTimeModeToTemplate(planned);
@@ -46166,6 +46576,7 @@ async function openFreeformLog(){
      a workout normally counts; it is simply not the program’s work. */
   pendingWorkoutOrigin = 'freeform';
   pendingWorkoutProgramId = null;
+  pendingWorkoutIdentity = null;
   /* D62 — a workout built from nothing is not a Push workout. It has no
      category until the athlete picks one on the review step, where LOOP may
      suggest one from what is in it. The warm-up it offers is the general one. */
@@ -46187,8 +46598,7 @@ async function openFreeformLog(){
   const note = document.getElementById('logCategoryNote');
   if(note){ note.hidden = true; note.textContent = ''; }
   openLogSheet();
-  const topbar = document.getElementById('logTopbarTitle');
-  if(topbar) topbar.textContent = 'Workout';
+  renderLogTopbarTitle('Workout');
 }
 
 function pickLogCategory(cat){
@@ -47915,6 +48325,12 @@ function saveLog(btn){
     if(pendingWorkoutOrigin === 'program' && pendingWorkoutProgramId)
       newEntry.programId = pendingWorkoutProgramId;
   }
+  /* D81 — presentation only, and only when chosen: the look the workout had
+     when it was trained, so History does not change when its template does.
+     Nothing that reads history for training ever looks at it. */
+  const _identity = pendingWorkoutIdentity
+    ? workoutIdentityRecord(pendingWorkoutIdentity.iconId, pendingWorkoutIdentity.colorId, pendingLogCategory) : null;
+  if(_identity) newEntry.identity = _identity;
   workoutLog.push(newEntry);
   // Caches must be invalidated now so the PR/XP computations below see the new
   // entry. The actual write to storage happens once, at the end, where its
@@ -48387,7 +48803,9 @@ function openAddTemplate(cat){
   /* D61 — empty, not a blank row: the sheet says it has no exercises and the
      one action under that opens the picker. */
   document.getElementById('tplExercises').innerHTML = '';
+  tplIdentityDraft = null;
   renderTplKind();
+  renderTplIdentityButton();
   document.getElementById('tplOverlay').classList.add('open');
 }
 
@@ -48401,11 +48819,19 @@ function openEditTemplate(cat, id){
   document.getElementById('tplName').value = tpl.name;
   document.getElementById('tplExercises').innerHTML = '';
   tpl.exercises.forEach(ex => addTplExerciseRow(ex.name, ex.sets, ex.reps, ex.effort, ex.recommended));
+  /* A working copy: nothing below touches the stored workout until Save. */
+  tplIdentityDraft = workoutIdentityRecordOf(tpl, cat);
   renderTplKind();
+  renderTplIdentityButton();
   document.getElementById('tplOverlay').classList.add('open');
 }
 
-function closeTplSheet(){ document.getElementById('tplOverlay').classList.remove('open'); }
+/* Cancel and Save both end here; an unsaved icon or colour ends with them. */
+function closeTplSheet(){
+  document.getElementById('tplOverlay').classList.remove('open');
+  closeIdentityPicker(true);
+  tplIdentityDraft = null;
+}
 
 /* D65 — the kinds in the order the workout's own category picker lists them. */
 function renderTplKind(){
@@ -48423,6 +48849,94 @@ function chooseTplKind(cat){
   if(editingTemplateId || !CAT_LABEL[cat]) return;
   pendingTplCategory = cat;
   document.querySelectorAll('#tplKind .tpl-kind-opt').forEach(b => b.setAttribute('aria-checked', String(b.dataset.kind === cat)));
+  /* The default icon is the kind's, so choosing a kind can change it. */
+  renderTplIdentityButton();
+}
+
+/* ---------- D81 — the workout's icon and colour, while editing ----------
+   tplIdentityDraft holds the explicit choices ({ iconId?, colorId? } or null)
+   for the sheet that is open. It is written into the workout by saveTemplate
+   and nowhere else, so Cancel leaves the stored workout exactly as it was. */
+let tplIdentityDraft = null;
+function tplIdentityNow(){ return workoutIdentity({ identity: tplIdentityDraft }, pendingTplCategory); }
+function renderTplIdentityButton(){
+  const btn = document.getElementById('tplIdentityBtn');
+  if(!btn) return;
+  const id = tplIdentityNow();
+  btn.innerHTML = workoutIconHtml(id, 'md', { tile: true });
+  btn.setAttribute('aria-label', 'Icon and color: ' + WORKOUT_ICONS[id.iconId].label + ', ' +
+    (id.customColor ? WORKOUT_COLORS[id.colorId].label : 'default color') + '. Change');
+}
+function openIdentityPicker(){
+  renderIdentityPicker();
+  const ov = document.getElementById('wiOverlay');
+  if(ov) ov.classList.add('open');
+}
+function closeIdentityPicker(quiet){
+  const ov = document.getElementById('wiOverlay');
+  if(ov) ov.classList.remove('open');
+  if(!quiet){
+    renderTplIdentityButton();
+    const btn = document.getElementById('tplIdentityBtn');
+    if(btn){ try{ btn.focus({ preventScroll: true }); }catch(e){} }
+  }
+}
+function chooseWorkoutIcon(iconId){
+  if(WORKOUT_ICON_CHOICES.indexOf(iconId) === -1) return;
+  tplIdentityDraft = workoutIdentityRecord(iconId, tplIdentityDraft && tplIdentityDraft.colorId, pendingTplCategory);
+  renderIdentityPicker();
+  renderTplIdentityButton();
+}
+/* '' is Default: the chosen icon's own colour. */
+function chooseWorkoutColor(colorId){
+  const now = tplIdentityNow();
+  tplIdentityDraft = workoutIdentityRecord(now.iconId, colorId || null, pendingTplCategory);
+  renderIdentityPicker();
+  renderTplIdentityButton();
+}
+function renderIdentityPicker(){
+  const host = document.getElementById('wiPickerBody');
+  if(!host) return;
+  const id = tplIdentityNow();
+  const cat = pendingTplCategory;
+  const nameEl = document.getElementById('tplName');
+  const name = (nameEl && nameEl.value ? nameEl.value.trim() : '') || (editingTemplateId ? 'Workout' : 'New workout');
+  let n = 0;
+  try{ n = document.querySelectorAll('#tplExercises .ex-log-row').length; }catch(e){ n = 0; }
+  const meta = [cat ? CAT_LABEL[cat] : null, n + ' exercise' + (n === 1 ? '' : 's')].filter(Boolean).join(' · ');
+  /* The live preview is a Train row drawn by the same primitive and classes. */
+  const preview =
+    '<div class="tl-list wi-preview" aria-hidden="true"><div class="tl-row"><div class="tl-main has-wi">' +
+      workoutIconHtml(id, 'sm') +
+      '<span class="tl-text"><span class="tl-name">' + escapeHtml(name) + '</span>' +
+      '<span class="tl-meta">' + escapeHtml(meta) + '</span></span>' +
+    '</div></div></div>';
+  const icons = WORKOUT_ICON_CHOICES.map(ic => {
+    const on = ic === id.iconId;
+    const shown = { iconId: ic, colorId: id.customColor ? id.colorId : WORKOUT_ICONS[ic].color };
+    return '<button type="button" class="wi-opt" role="radio" aria-checked="' + on + '"' +
+      ' aria-label="' + escapeAttr(WORKOUT_ICONS[ic].label + (ic === id.derivedIconId && cat ? ', the default for ' + CAT_LABEL[cat] : '')) + '"' +
+      ' onclick="chooseWorkoutIcon(\'' + ic + '\')">' + workoutIconHtml(shown, 'md') +
+      '<span class="wi-opt-l" aria-hidden="true">' + escapeHtml(WORKOUT_ICONS[ic].short || WORKOUT_ICONS[ic].label) + '</span></button>';
+  }).join('');
+  const ownColor = WORKOUT_ICONS[id.iconId].color;
+  const swatch = colorId => {
+    const on = colorId ? (id.customColor && id.colorId === colorId) : !id.customColor;
+    if(!colorId){
+      return '<button type="button" class="wi-sw wi-sw-default wi-c-' + ownColor + '" role="radio" aria-checked="' + on + '"' +
+        ' aria-label="' + escapeAttr('Default color, ' + WORKOUT_COLORS[ownColor].label) + '" onclick="chooseWorkoutColor(\'\')">' +
+        '<span class="wi-sw-dot" aria-hidden="true"></span>' + (on ? checkIconSvg(12) : '') + 'Default</button>';
+    }
+    return '<button type="button" class="wi-sw wi-c-' + colorId + '" role="radio" aria-checked="' + on + '"' +
+      ' aria-label="' + escapeAttr(WORKOUT_COLORS[colorId].label) + '" onclick="chooseWorkoutColor(\'' + colorId + '\')">' +
+      '<span class="wi-sw-dot" aria-hidden="true">' + (on ? checkIconSvg(14) : '') + '</span></button>';
+  };
+  host.innerHTML = preview +
+    '<label id="wiIconLabel">Icon</label>' +
+    '<div class="wi-grid" role="radiogroup" aria-labelledby="wiIconLabel">' + icons + '</div>' +
+    '<label id="wiColorLabel" style="margin-top:18px">Color</label>' +
+    '<div class="wi-swatches" role="radiogroup" aria-labelledby="wiColorLabel">' + swatch('') + WORKOUT_COLOR_CHOICES.map(swatch).join('') + '</div>' +
+    '<p class="wi-color-name">' + escapeHtml(id.customColor ? WORKOUT_COLORS[id.colorId].label : 'Default · ' + WORKOUT_COLORS[ownColor].label) + '</p>';
 }
 
 /* D61 — a row arrives from the picker with its name and the library's
@@ -48479,16 +48993,24 @@ function saveTemplate(btn){
   if(!pendingTplCategory){ flagFieldError(document.getElementById('tplKind')); return; }
   if(!planData || !Array.isArray(planData[pendingTplCategory])) return;
 
+  /* D81 — only choices that differ from the kind's own look are kept. */
+  const identity = tplIdentityDraft
+    ? workoutIdentityRecord(tplIdentityDraft.iconId, tplIdentityDraft.colorId, pendingTplCategory) : null;
   if(editingTemplateId){
     const list = planData[pendingTplCategory];
     const idx = list.findIndex(t => t.id === editingTemplateId);
-    /* D80B — an edited copy of a shared workout is still that copy, so the same
-       share can never be saved into My Workouts a second time. */
-    if(idx > -1) list[idx] = list[idx].sharedId
-      ? { id: editingTemplateId, name, exercises, sharedId: list[idx].sharedId }
-      : { id: editingTemplateId, name, exercises };
+    if(idx > -1){
+      const next = { id: editingTemplateId, name, exercises };
+      /* D80B — an edited copy of a shared workout is still that copy, so the same
+         share can never be saved into My Workouts a second time. */
+      if(list[idx].sharedId) next.sharedId = list[idx].sharedId;
+      if(identity) next.identity = identity;
+      list[idx] = next;
+    }
   } else {
-    planData[pendingTplCategory].push({ id: 'c-' + Date.now(), name, exercises });
+    const tpl = { id: 'c-' + Date.now(), name, exercises };
+    if(identity) tpl.identity = identity;
+    planData[pendingTplCategory].push(tpl);
   }
   persistPlanData();
   renderAll();

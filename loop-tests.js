@@ -24179,8 +24179,10 @@ async function testWorkoutBuilder(){
     T('leaving for a saved workout loses nothing: an empty workout is never offered back',
       /parsed && parsed\.exercises && parsed\.exercises\.length/.test(fnSrc(src, 'loadActiveDraft')) &&
       /closeLogSheet\(\);\s*switchTab\('train'\);/.test(fnSrc(src, 'startFromSavedWorkout')));
+    /* D81 — repointed: the top bar is drawn by renderLogTopbarTitle, which leads
+       the name with the workout's icon. The claim is unchanged: "Workout". */
     T('and it is titled as a workout, not as the Push category it defaults to',
-      /topbar\.textContent = 'Workout';/.test(fnSrc(src, 'openFreeformLog')));
+      /renderLogTopbarTitle\('Workout'\);/.test(fnSrc(src, 'openFreeformLog')));
   });
 
   sub('the saved-workout sheet');
@@ -25673,7 +25675,8 @@ async function testTrainLauncher(){
   const rowOf = b => {
     const m = b.match(/data-kind="(\w+)" data-cat="(\w+)" data-id="([^"]+)"/) || [];
     const s = b.match(/class="tl-start[^"]*" onclick="startTemplateLog\('(\w+)','([^']+)'\)"/) || [];
-    const d = b.match(/class="tl-main" onclick="openTrainDetail\('(\w+)','([^']+)'\)"/) || [];
+    /* D81 — the row button also carries has-wi, for its leading icon. */
+    const d = b.match(/class="tl-main[^"]*" onclick="openTrainDetail\('(\w+)','([^']+)'\)"/) || [];
     const at = b.indexOf('<span class="tl-meta">');
     const meta = at === -1 ? '' : b.slice(at, b.indexOf('</button>', at)).replace(/<[^>]*>/g, '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
     return { kind: m[1], cat: m[2], id: m[3], next: /^<li class="tl-row is-next"/.test(b), start: s[1] ? s[1] + '/' + s[2] : null,
@@ -29488,7 +29491,7 @@ async function testWorkoutSharing(){
     const V = p => c.validateSharedSnapshot(p).ok ? 'ok' : c.validateSharedSnapshot(p).error;
     const good = () => JSON.parse(JSON.stringify(b.snapshot));
     T('every snapshot the builder makes passes the receiving check', V(good()) === 'ok' && V(note.snapshot) === 'ok');
-    T('a newer schema is recognised as newer, not as broken', V(Object.assign(good(), { v: 2 })) === 'unsupported_version');
+    T('a newer schema is recognised as newer, not as broken', V(Object.assign(good(), { v: 3 })) === 'unsupported_version');
     T('an unexpected field anywhere is refused', V(Object.assign(good(), { weight: 225 })) === 'invalid' &&
       V((() => { const g = good(); g.exercises[0].weight = '225 lb'; return g; })()) === 'invalid');
     T('types are exact: sets a whole number, reps a string, ids in shape', V((() => { const g = good(); g.exercises[0].sets = '3'; return g; })()) === 'invalid' &&
@@ -29778,7 +29781,7 @@ async function testWorkoutSharing(){
       ['socialCloseShared', 'socialDoSaveShared', 'socialDoDismissShared'].every(f => /socialSharedToTop\(\)/.test(fnSrc(src, f))));
 
     const states = [
-      ['a newer LOOP\'s snapshot', () => [200, { status: 'ok', id: SID(3), from: 'bob', created_at: null, schema_version: 2, payload: { v: 2, title: 'x', category: 'push', exercises: [] } }], /newer version of LOOP\. Update LOOP to open it\./],
+      ['a newer LOOP\'s snapshot', () => [200, { status: 'ok', id: SID(3), from: 'bob', created_at: null, schema_version: 3, payload: { v: 3, title: 'x', category: 'push', exercises: [] } }], /newer version of LOOP\. Update LOOP to open it\./],
       ['a malformed snapshot', () => [200, { status: 'ok', id: SID(3), from: 'bob', created_at: null, schema_version: 1, payload: { v: 1, title: 'x', category: 'push', exercises: [{ name: 'Dip', sets: 3, reps: '8', weight: '225 lb' }] } }], /couldn’t be read/],
       ['a share that is gone', () => [200, { status: 'not_found' }], /no longer available/],
       ['an expired share', () => [200, { status: 'expired' }], /no longer available/],
@@ -29847,7 +29850,8 @@ async function testWorkoutSharing(){
     c.socialApplyHub(s.hub(), c.socialState.week);
     await pause(20);
     T('if it is still on the server, the next hub load hides it and clears it', c.socialState.shares.length === 0 && s.rpcCalls('loop_remove_shared_workout').length === 2);
-    T('editing the copy keeps its link to the share, so it still cannot be saved twice', /list\[idx\]\.sharedId\s*\?\s*\{ id: editingTemplateId, name, exercises, sharedId: list\[idx\]\.sharedId \}/.test(fnSrc(src, 'saveTemplate')));
+    T('editing the copy keeps its link to the share, so it still cannot be saved twice', /if\(list\[idx\]\.sharedId\) next\.sharedId = list\[idx\]\.sharedId;/.test(fnSrc(src, 'saveTemplate')) &&
+      /list\[idx\] = next;/.test(fnSrc(src, 'saveTemplate')));
     const third = await c.importSharedWorkout(snap, SID(2));
     T('a different share of the same workout is a new copy with the next number', third.ok && third.name === 'Push — Chest Focus 3');
     const cased = await c.importSharedWorkout(Object.assign({}, snap, { title: 'PUSH — CHEST FOCUS' }), SID(3));
@@ -29860,7 +29864,7 @@ async function testWorkoutSharing(){
     c.LOOPStore.set = origSet;
     T('if the phone cannot write it, nothing is added and it says so', failed.ok === false && failed.error === 'save_failed' && c.planData.legs.length === count);
     T('a malformed snapshot is never saved', (await c.importSharedWorkout({ v: 1, title: 'x', category: 'push', exercises: [{ name: 'Dip', sets: 3, reps: '8', weight: '225' }] }, SID(5))).ok === false);
-    T('nor one from a newer LOOP', (await c.importSharedWorkout({ v: 2, title: 'x', category: 'push', exercises: [{ name: 'Dip', sets: 3, reps: '8' }] }, SID(6))).error === 'unsupported_version');
+    T('nor one from a newer LOOP', (await c.importSharedWorkout({ v: 3, title: 'x', category: 'push', exercises: [{ name: 'Dip', sets: 3, reps: '8' }] }, SID(6))).error === 'unsupported_version');
     const tpl = c.planData.push.find(t => t.id === copy.id);
     tpl.exercises[0].sets = '5';
     T('the copy is independent: changing it changes nothing that was received', snap.exercises[0].sets === 3);
@@ -29991,6 +29995,481 @@ async function testWorkoutSharing(){
       const order = ['My friends', 'Invite', 'Weekly leaderboard', 'Progress'].map(x => h.indexOf('<div class="sec-head">' + x));
       return order.every(i => i !== -1) && order.every((v, i) => i === 0 || order[i - 1] < v);
     })());
+  }
+}
+
+/* =========================================================
+   CONTRACT 185 — WORKOUT IDENTITY  (Phase D81)
+
+   Every workout has an icon and a colour. Most never choose
+   one: the kind of session decides, and nothing is written.
+   An athlete who does choose stores two registry ids on the
+   workout itself — never artwork, never a colour value — and
+   every surface draws them through one primitive, from one
+   sprite.
+
+   What is proved here: the registry is complete and drawn to
+   one grid; the palette is LOOP's own tokens; the derived
+   identity is deterministic and falls back gracefully; the
+   editor's choices wait for Save and vanish on Cancel; each
+   surface shows the same identity; a session carries the look
+   of the workout it was started from into history; programs,
+   backups and DATA_KEYS are untouched; and a shared workout's
+   identity travels as snapshot version 2, with version 1 as
+   the fallback, through migration 0004.
+
+   REGISTRY · COLOURS · DERIVED · RENDERING · CUSTOMISE ·
+   SURFACES · SESSION · PROGRAM · BACKUP · D80B · DATA SAFETY
+   ========================================================= */
+async function testWorkoutIdentity(){
+  section('CONTRACT 185 — Workout identity: an icon and a colour for every workout (D81)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  const icons = html => (String(html || '').match(/data-wi="(\w+)"/g) || []).map(m => m.slice(9, -1));
+  const colours = html => (String(html || '').match(/class="wi wi-\w+ wi-c-(\w+)/g) || []).map(m => m.split('wi-c-')[1]);
+  const TWENTY = ['push','pull','upper','lower','fullbody','chest','back','shoulders','arms','biceps','triceps','legs','quads',
+    'hamstrings','calves','core','machines','cables','bodyweight','freeweights'];
+  const SID = n => 'aaaaaaaa-0000-4000-8000-' + String(n).padStart(12, '0');
+
+  /* ===================================================== REGISTRY */
+  sub('REGISTRY — twenty workout icons and a fallback, drawn to one grid');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    await H.settle(150);
+    const c = app.ctx;
+    T('the twenty the brief names can be chosen, in the picker\'s order', JSON.stringify(c.WORKOUT_ICON_CHOICES) === JSON.stringify(TWENTY));
+    T('plus one fallback that is not a choice: the plain bar', c.WORKOUT_FALLBACK_ICON === 'workout' &&
+      Object.keys(c.WORKOUT_ICONS).length === 21 && TWENTY.indexOf('workout') === -1);
+    T('ids are stable, lowercase registry keys', Object.keys(c.WORKOUT_ICONS).every(id => /^[a-z0-9_]{1,24}$/.test(id) && c.WORKOUT_IDENTITY_ID_RE.test(id)));
+    T('every icon has a label and a default colour from the palette', Object.keys(c.WORKOUT_ICONS).every(id =>
+      typeof c.WORKOUT_ICONS[id].label === 'string' && c.WORKOUT_ICONS[id].label.length > 0 &&
+      Object.prototype.hasOwnProperty.call(c.WORKOUT_COLORS, c.WORKOUT_ICONS[id].color)));
+    const tagsOf = id => c.WORKOUT_ICONS[id].art.match(/<[a-z]+[^>]*\/>/g) || [];
+    T('the artwork is vector strokes only: paths, circles and rects', Object.keys(c.WORKOUT_ICONS).every(id =>
+      tagsOf(id).length > 0 && tagsOf(id).every(t => /^<(path|circle|rect) /.test(t)) &&
+      tagsOf(id).join('') === c.WORKOUT_ICONS[id].art));
+    T('no fills, no strokes of their own, no text, no images, no colour values in the art', Object.keys(c.WORKOUT_ICONS).every(id =>
+      !/fill=|stroke=|<text|<image|href|#[0-9a-f]{3,6}\b|rgb|url\(/i.test(c.WORKOUT_ICONS[id].art)));
+    T('everything is inside the 24-unit box', Object.keys(c.WORKOUT_ICONS).every(id => {
+      const art = c.WORKOUT_ICONS[id].art;
+      const abs = [];
+      (art.match(/d="([^"]+)"/g) || []).forEach(d => (d.match(/[ML]\s*-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?/g) || [])
+        .forEach(m => m.slice(1).trim().split(/\s+/).forEach(v => abs.push(parseFloat(v)))));
+      (art.match(/(?:cx|cy|x|y)="(-?\d+(?:\.\d+)?)"/g) || []).forEach(a => abs.push(parseFloat(a.split('"')[1])));
+      return abs.every(v => v >= 0 && v <= 24);
+    }));
+    T('every figure shares one head radius', Object.keys(c.WORKOUT_ICONS).every(id =>
+      (c.WORKOUT_ICONS[id].art.match(/<circle [^>]*r="([\d.]+)"/g) || []).every(t => /r="1\.9"/.test(t) || /r="1\.3"/.test(t))));
+    T('no two icons are the same drawing', new Set(Object.keys(c.WORKOUT_ICONS).map(id => c.WORKOUT_ICONS[id].art)).size === 21);
+    T('Biceps and Triceps are different drawings with different silhouettes',
+      c.WORKOUT_ICONS.biceps.art !== c.WORKOUT_ICONS.triceps.art && !/_WI_TORSO/.test(fnSrc(src, 'workoutIconSpriteHtml')) &&
+      tagsOf('biceps').filter(t => tagsOf('triceps').indexOf(t) !== -1).length === 0);
+    T('Full Body is not a kettlebell, and Free Weights is a weight', !/kettle/i.test(src.slice(src.indexOf('fullbody: {'), src.indexOf('chest: {'))) &&
+      /<rect /.test(c.WORKOUT_ICONS.freeweights.art));
+    T('the artwork exists once, in the registry: no screen carries its own copy', (() => {
+      const dupes = [];
+      const torso = c._WI_TORSO.match(/<[a-z]+[^>]*\/>/g) || [];
+      torso.forEach(tag => { if(src.split(tag).length - 1 !== 1) dupes.push('torso ' + tag.slice(0, 40)); });
+      Object.keys(c.WORKOUT_ICONS).forEach(id => tagsOf(id).forEach(tag => {
+        if(torso.indexOf(tag) !== -1) return;
+        if(src.split(tag).length - 1 !== 1) dupes.push(id + ' ' + tag.slice(0, 40));
+      }));
+      return dupes.length === 0;
+    })(), 'duplicated artwork');
+    /* A leg is too narrow to carry its muscles at 20px: drawn as two legs, Legs, Quads and
+       Hamstrings read as the letter W on a phone. They are the lifts instead, as Triceps is the dip. */
+    T('the three lifts (Push, Pull, Legs) and the muscles drawn as the lift that loads them (Triceps, Quads, Hamstrings) are each a figure with one head',
+      ['push','pull','legs','triceps','quads','hamstrings'].every(id => (c.WORKOUT_ICONS[id].art.match(/<circle [^>]*\/>/g) || []).length === 1 &&
+        /<circle [^>]*r="1\.9"/.test(c.WORKOUT_ICONS[id].art)));
+    T('the four torso drawings are one silhouette read four ways', ['upper','chest','back','core'].every(id => /_WI_TORSO \+/.test(src.slice(src.indexOf('  ' + id + ': {'), src.indexOf('  ' + id + ': {') + 120))));
+  }
+
+  /* ===================================================== COLOURS */
+  sub('COLOURS — LOOP\'s own tones, curated, and a neutral');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    T('nine colours, in order', JSON.stringify(c.WORKOUT_COLOR_CHOICES) === JSON.stringify(['blue','cyan','green','olive','amber','orange','rose','violet','slate']) &&
+      Object.keys(c.WORKOUT_COLORS).length === 9);
+    const tokens = { blue:'push', cyan:'upper', green:'full', olive:'arms', amber:'pull', orange:'lower', rose:'core', violet:'legs' };
+    T('each is an existing category token, with its soft partner', Object.keys(tokens).every(id =>
+      new RegExp('\\.wi-c-' + id + '\\{ --wi: var\\(--' + tokens[id] + '\\); --wi-soft: var\\(--' + tokens[id] + '-soft\\); \\}').test(css) &&
+      new RegExp('--' + tokens[id] + ':\\s*#').test(css)));
+    T('slate is LOOP\'s dim text tone', /\.wi-c-slate\{ --wi: var\(--text-dim\);/.test(css));
+    T('no red (it means danger) and not the accent (it means act)', !/wi-c-red|--wi: var\(--danger\)|--wi: var\(--accent\)|--wi: var\(--error\)/.test(css) &&
+      c.WORKOUT_COLOR_CHOICES.indexOf('red') === -1);
+    T('no colour value is ever stored or set inline: only ids and classes', !/style="[^"]*--wi/.test(code) && !/#[0-9a-fA-F]{6}/.test(fnSrc(src, 'workoutIconHtml')));
+    T('each kind of session defaults to its own category colour', ['push','pull','legs','upper','lower','core','fullbody','arms'].every(cat => {
+      const id = c.workoutIdentity(null, cat);
+      return id.colorId === { push:'blue', pull:'amber', legs:'violet', upper:'cyan', lower:'orange', core:'rose', fullbody:'green', arms:'olive' }[cat];
+    }));
+  }
+
+  /* ===================================================== DERIVED */
+  sub('DERIVED — a default for every workout, without configuration or writes');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    T('A — a Push workout with no metadata is Push, in blue', JSON.stringify(c.workoutIdentity({ name:'Push A', exercises:[] }, 'push')) ===
+      JSON.stringify({ iconId:'push', colorId:'blue', derivedIconId:'push', customIcon:false, customColor:false }));
+    T('B — a Pull workout is Pull, in amber', c.workoutIdentity({ name:'Pull A' }, 'pull').iconId === 'pull' && c.workoutIdentity({ name:'Pull A' }, 'pull').colorId === 'amber');
+    T('every one of LOOP\'s eight kinds has its own icon', c.ORDER.every(cat => c.CATEGORY_WORKOUT_ICON[cat] === cat && c.WORKOUT_ICON_CHOICES.indexOf(cat) !== -1));
+    T('C — a workout of no known kind gets the plain bar in slate', ['', null, undefined, 'cardio', 'freeform', '__proto__', 'toString', ['push'], 7].every(cat => {
+      /* A crash here is the failure it guards against: the name '__proto__' reaching the prototype. */
+      let id;
+      try{ id = c.workoutIdentity({ name:'Something' }, cat); }catch(e){ return false; }
+      return !!id && id.iconId === 'workout' && id.colorId === 'slate' && !id.customIcon && !id.customColor;
+    }));
+    T('the title is never read to guess: a "Leg Day" filed under Push is Push', c.workoutIdentity({ name:'Leg Day Quads Calves' }, 'push').iconId === 'push');
+    T('M — an unknown icon or colour id draws as the default, never broken', (() => {
+      const a = c.workoutIdentity({ identity:{ iconId:'kettlebell_2030', colorId:'magenta' } }, 'legs');
+      const b = c.workoutIdentity({ identity:{ iconId:'workout', colorId:'#ff0000' } }, 'core');
+      const d = c.workoutIdentity({ identity:'push' }, 'pull');
+      const e = c.workoutIdentity({ identity:{ iconId: 7, colorId: ['blue'] } }, 'upper');
+      return a.iconId === 'legs' && a.colorId === 'violet' && b.iconId === 'core' && b.colorId === 'rose' &&
+        d.iconId === 'pull' && d.colorId === 'amber' && e.iconId === 'upper' && e.colorId === 'cyan';
+    })());
+    T('  and the primitive draws a fallback for anything', /data-wi="workout"/.test(c.workoutIconHtml(null)) &&
+      /data-wi="workout"/.test(c.workoutIconHtml({ iconId:'__proto__', colorId:'constructor' })) && /wi-c-slate/.test(c.workoutIconHtml({ iconId:'toString' })));
+    T('a chosen colour without a chosen icon keeps the kind\'s icon', JSON.stringify(c.workoutIdentity({ identity:{ colorId:'rose' } }, 'push')) ===
+      JSON.stringify({ iconId:'push', colorId:'rose', derivedIconId:'push', customIcon:false, customColor:true }));
+    T('a chosen icon without a chosen colour takes that icon\'s own colour', JSON.stringify(c.workoutIdentity({ identity:{ iconId:'hamstrings' } }, 'legs')) ===
+      JSON.stringify({ iconId:'hamstrings', colorId:'orange', derivedIconId:'legs', customIcon:true, customColor:false }));
+    const t = { id:'d1', name:'Push A', exercises:[{ name:'Dip', sets:'3', reps:'8' }], identity:{ iconId:'chest' } };
+    const before = JSON.stringify(t);
+    const one = JSON.stringify(c.workoutIdentity(t, 'push'));
+    T('deterministic, and it never writes to the workout', one === JSON.stringify(c.workoutIdentity(t, 'push')) && JSON.stringify(t) === before);
+    T('what is stored is only what differs from LOOP\'s own pick', JSON.stringify(c.workoutIdentityRecord('push', null, 'push')) === 'null' &&
+      JSON.stringify(c.workoutIdentityRecord('chest', null, 'push')) === '{"iconId":"chest"}' &&
+      JSON.stringify(c.workoutIdentityRecord('push', 'blue', 'push')) === '{"colorId":"blue"}' &&
+      JSON.stringify(c.workoutIdentityRecord('nope', 'nope', 'push')) === 'null' &&
+      JSON.stringify(c.workoutIdentityRecord('workout', 'slate', null)) === '{"colorId":"slate"}');
+    T('the resolver reads the workout\'s identity and category, nothing else', !/workoutLog|exercises|\.name|trainer|getPR|history/.test(stripComments(fnSrc(src, 'workoutIdentity'))));
+  }
+
+  /* ===================================================== RENDERING */
+  sub('RENDERING — one primitive, one sprite, four sizes');
+  {
+    const app = await H.loadAppBooted({ workoutLog: '[]' }, 300);
+    const c = app.ctx, doc = c.document;
+    T('one function draws a workout icon', (src.match(/function workoutIconHtml\(/g) || []).length === 1 &&
+      (code.match(/<use href="#wi-/g) || []).length === 1 && /<use href="#wi-/.test(fnSrc(src, 'workoutIconHtml')));
+    T('every surface asks for it by identity, never by artwork', (code.match(/WORKOUT_ICONS\[[^\]]+\]\.art/g) || []).length === 1 &&
+      /WORKOUT_ICONS\[id\]\.art/.test(fnSrc(src, 'workoutIconSpriteHtml')));
+    T('the sprite is built from the registry and put in the page once', !!doc.getElementById('wiSprite') && c._wiSpriteReady === true &&
+      (doc.body.innerHTML.match(/id="wiSprite"/g) || []).length <= 1 &&
+      Object.keys(c.WORKOUT_ICONS).every(id => c.workoutIconSpriteHtml().indexOf('<symbol id="wi-' + id + '" viewBox="0 0 24 24">') !== -1));
+    T('the four sizes are the only sizes', JSON.stringify(c.WORKOUT_ICON_SIZES) === '["xs","sm","md","lg"]' &&
+      /\.wi-xs\{ width: 18px; height: 18px; \}/.test(css) && /\.wi-sm\{ width: 22px; height: 22px; \}/.test(css) &&
+      /\.wi-md\{ width: 28px; height: 28px; \}/.test(css) && /\.wi-lg\{ width: 36px; height: 36px; \}/.test(css) &&
+      /class="wi wi-sm/.test(c.workoutIconHtml({ iconId:'push' }, 'huge')));
+    T('every call site names a size from the system', (code.match(/workout(?:Icon|Identity)Html\([^;]*?'(\w+)'/g) || []).every(m => /'(xs|sm|md|lg)'/.test(m)));
+    T('decorative by default, and an image with a name when asked', /aria-hidden="true"/.test(c.workoutIconHtml({ iconId:'push' }, 'sm')) &&
+      /role="img" aria-label="Chest workout"/.test(c.workoutIconHtml({ iconId:'chest' }, 'md', { label:'Chest workout' })) &&
+      /focusable="false"/.test(c.workoutIconHtml({ iconId:'push' }, 'sm')));
+    T('one line weight, rounded, from the stylesheet', /\.wi svg\{[\s\S]{0,160}fill: none; stroke: currentColor; stroke-width: 1\.6; stroke-linecap: round; stroke-linejoin: round;/.test(css));
+    T('the colour is an accent: a faint wash only on a tile', /\.wi-tile\{ box-sizing: content-box; border-radius: var\(--radius-lg\); background: var\(--wi-soft\); \}/.test(css) &&
+      !/\.tl-row[^{]*\{[^}]*--wi/.test(css) && !/\.tpl-card[^{]*\{[^}]*var\(--wi\)/.test(css));
+    /* P — twenty workouts on one screen */
+    const P = Array.from({ length: 20 }, (_, i) => ({ id: 'c-' + (1790000000000 + i), name: 'Workout ' + i, exercises: [{ name: 'Dip', sets: '3', reps: '8', effort: '7', recommended: '—' }],
+      identity: i % 3 ? { iconId: TWENTY[i], colorId: c.WORKOUT_COLOR_CHOICES[i % 9] } : undefined }));
+    P.forEach((t, i) => c.planData[c.ORDER[i % 8]].push(t));
+    c.trainMineAll = true;
+    c.renderTrainView();
+    const mine = doc.getElementById('trainMine').innerHTML;
+    const artTags = [].concat(...Object.keys(c.WORKOUT_ICONS).map(id => c.WORKOUT_ICONS[id].art.match(/<[a-z]+[^>]*\/>/g) || []));
+    T('P — twenty saved workouts draw twenty icons, each a single <use>, no artwork repeated', icons(mine).length === 20 &&
+      (mine.match(/<use href="#wi-/g) || []).length === 20 && !/<symbol/.test(mine) && artTags.every(t => mine.indexOf(t) === -1),
+      icons(mine).length + ' icons');
+    T('  each row as tall as before: the icon sits beside the text, not above it', /\.tl-main\.has-wi\{ flex-direction: row; align-items: center;/.test(css) &&
+      /\.tl-main\{[^}]*min-height: 64px;/.test(css));
+  }
+
+  /* ===================================================== CUSTOMISE */
+  sub('CUSTOMISE — Edit Workout: choices wait for Save, and Cancel keeps nothing');
+  await guard('customise', async () => {
+    const app = await H.loadAppBooted({ workoutLog: '[]' }, 300);
+    const c = app.ctx, doc = c.document;
+    const keep = { persistPlanData: c.persistPlanData, renderAll: c.renderAll };
+    const qa = doc.querySelectorAll;
+    let persisted = 0;
+    const field = v => ({ value: v });
+    const row = { querySelector: sel => ({ '.t-name-in': field('Machine Chest Press'), '.t-sets-in': field('3'), '.t-reps-in': field('8-12'), '.t-effort-in': field('7'), '.t-weight-in': field('') })[sel] || null };
+    Object.assign(c, { persistPlanData: () => { persisted++; return true; }, renderAll(){} });
+    doc.querySelectorAll = sel => sel === '#tplExercises .ex-log-row' ? [row] : qa(sel);
+    try{
+      const tpl = c.planData.push.find(t => t.id === 'd1');
+      const stored = JSON.stringify(tpl);
+      const btnEl = doc.getElementById('tplIdentityBtn');
+      const said = [];
+      btnEl.setAttribute = (k, v) => said.push(k + '=' + v);
+      c.openEditTemplate('push', 'd1');
+      T('Edit Workout shows the workout\'s icon beside its name, as a control', /data-wi="push"/.test(btnEl.innerHTML) &&
+        /<button type="button" class="wi-edit" id="tplIdentityBtn" onclick="openIdentityPicker\(\)" aria-haspopup="dialog"/.test(src) &&
+        said.indexOf('aria-label=Icon and color: Push, default color. Change') !== -1, said.join(' | '));
+      c.openIdentityPicker();
+      const picker = doc.getElementById('wiPickerBody').innerHTML;
+      T('the picker: a live row, twenty icons, Default and nine colours', icons(picker).length === 21 &&
+        (picker.match(/class="wi-opt"/g) || []).length === 20 && (picker.match(/class="wi-sw /g) || []).length === 10 &&
+        /class="tl-list wi-preview"/.test(picker) && /Push A — Chest Focus/.test(picker));
+      T('  the current icon is selected, by state, not colour alone', /aria-checked="true" aria-label="Push, the default for Push"/.test(picker) &&
+        (picker.match(/class="wi-opt" role="radio" aria-checked="true"/g) || []).length === 1);
+      T('  Default is selected until a colour is chosen, and says so in words', /wi-sw-default[^>]*role="radio" aria-checked="true"/.test(picker) && /Default · Blue/.test(picker));
+      T('  every control is a named radio in a labelled group', /role="radiogroup" aria-labelledby="wiIconLabel"/.test(picker) &&
+        /role="radiogroup" aria-labelledby="wiColorLabel"/.test(picker) && (picker.match(/role="radio"[^>]*aria-label="[^"]+"/g) || []).length === 30);
+      c.chooseWorkoutIcon('chest');
+      T('D — choosing an icon updates the row and the button at once', /data-wi="chest"/.test(doc.getElementById('tplIdentityBtn').innerHTML) &&
+        /class="tl-list wi-preview"[\s\S]*?data-wi="chest"/.test(doc.getElementById('wiPickerBody').innerHTML));
+      T('  and has written nothing', JSON.stringify(c.planData.push.find(t => t.id === 'd1')) === stored && persisted === 0);
+      c.closeIdentityPicker();
+      c.closeTplSheet();
+      T('H — Cancel keeps nothing: the workout is as it was', JSON.stringify(c.planData.push.find(t => t.id === 'd1')) === stored && persisted === 0 && c.tplIdentityDraft === null);
+      c.openEditTemplate('push', 'd1');
+      T('  and reopening shows the stored look, not the abandoned one', /data-wi="push"/.test(doc.getElementById('tplIdentityBtn').innerHTML));
+      c.chooseWorkoutIcon('chest');
+      c.saveTemplate(null);
+      T('D — icon only: saved as { iconId: "chest" }', JSON.stringify(c.planData.push.find(t => t.id === 'd1').identity) === '{"iconId":"chest"}' && persisted === 1);
+      c.openEditTemplate('push', 'd1');
+      c.chooseWorkoutColor('rose');
+      c.saveTemplate(null);
+      T('F — both: { iconId: "chest", colorId: "rose" }', JSON.stringify(c.planData.push.find(t => t.id === 'd1').identity) === '{"iconId":"chest","colorId":"rose"}');
+      c.openEditTemplate('push', 'd1');
+      c.openIdentityPicker();
+      const chosen = doc.getElementById('wiPickerBody').innerHTML;
+      T('  a chosen colour is marked with a tick and a ring, and named in words — not by colour alone',
+        /class="wi-sw wi-c-rose" role="radio" aria-checked="true" aria-label="Rose"[^>]*><span class="wi-sw-dot" aria-hidden="true"><svg/.test(chosen) &&
+        (chosen.match(/aria-checked="true"/g) || []).length === 2 && /<p class="wi-color-name">Rose<\/p>/.test(chosen) &&
+        /\.wi-sw\[aria-checked="true"\] \.wi-sw-dot\{ box-shadow: 0 0 0 2px var\(--surface-2\), 0 0 0 4px var\(--text\); \}/.test(css));
+      c.closeIdentityPicker();
+      c.closeTplSheet();
+      c.openEditTemplate('push', 'd1');
+      c.chooseWorkoutColor('');
+      c.saveTemplate(null);
+      T('G — Default takes the colour back to the icon\'s own', JSON.stringify(c.planData.push.find(t => t.id === 'd1').identity) === '{"iconId":"chest"}' &&
+        c.workoutIdentity(c.planData.push.find(t => t.id === 'd1'), 'push').colorId === 'blue');
+      c.openEditTemplate('push', 'd1');
+      c.chooseWorkoutIcon('push');
+      c.saveTemplate(null);
+      T('  and choosing the kind\'s own icon again stores nothing at all', !('identity' in c.planData.push.find(t => t.id === 'd1')));
+      c.openEditTemplate('push', 'd1');
+      c.chooseWorkoutColor('olive');
+      c.saveTemplate(null);
+      T('E — colour only: { colorId: "olive" }, the icon still the kind\'s', JSON.stringify(c.planData.push.find(t => t.id === 'd1').identity) === '{"colorId":"olive"}');
+      c.openEditTemplate('push', 'd1');
+      c.chooseWorkoutIcon('nonsense');
+      c.chooseWorkoutColor('#ff0000');
+      c.saveTemplate(null);
+      T('nonsense choices are ignored or cleared, never stored', !('identity' in c.planData.push.find(t => t.id === 'd1')) ||
+        JSON.stringify(c.planData.push.find(t => t.id === 'd1').identity) === '{"colorId":"olive"}');
+      c.openAddTemplate();
+      doc.getElementById('tplName').value = 'Garage Legs';
+      T('a new workout has no kind yet: the plain bar', /data-wi="workout"/.test(doc.getElementById('tplIdentityBtn').innerHTML));
+      c.chooseTplKind('legs');
+      T('  choosing a kind changes the default to that kind\'s', /data-wi="legs"/.test(doc.getElementById('tplIdentityBtn').innerHTML));
+      c.chooseWorkoutIcon('quads');
+      c.chooseWorkoutColor('amber');
+      c.saveTemplate(null);
+      const made = c.planData.legs.find(t => t.name === 'Garage Legs');
+      T('a new saved workout is created with its identity', made && /^c-\d+$/.test(made.id) && JSON.stringify(made.identity) === '{"iconId":"quads","colorId":"amber"}');
+      const others = JSON.stringify(Object.keys(c.planData).filter(k => k !== 'legs').map(k => c.planData[k]));
+      c.deleteTemplate = c.deleteTemplate;
+      const confirmKeep = c.confirm;
+      c.confirm = () => true;
+      c.deleteTemplate('legs', made.id);
+      c.confirm = confirmKeep;
+      T('J — deleting it leaves nothing behind: the identity lived on the workout', !c.planData.legs.some(t => t.id === made.id) &&
+        JSON.stringify(Object.keys(c.planData).filter(k => k !== 'legs').map(k => c.planData[k])) === others &&
+        !Object.keys(app.store).some(k => /identity|wi-|workoutIcon/i.test(k)));
+      T('the picker moves quietly: a small press and a ring, and none with reduced motion',
+        /\.wi-opt:active\{ transform: scale\(0\.97\); \}/.test(css) && /@media \(prefers-reduced-motion: reduce\)\{ \.wi-opt, \.wi-sw-dot\{ transition: none; \} \.wi-opt:active\{ transform: none; \} \}/.test(css) &&
+        !/@keyframes wi/.test(css));
+      T('every control in the picker and editor is at least 44px', /\.wi-opt\{[^}]*min-height: 72px;/.test(css) && /\.wi-sw\{[^}]*width: 44px; height: 44px;/.test(css) &&
+        /\.wi-edit\{[^}]*width: 48px; height: 48px;/.test(css) && /\.wi-sw-default\{[^}]*min-width: 44px;/.test(css));
+      T('I — LOOP has no duplicate action: the only copies are a shared workout\'s import and a backup', !/function duplicateTemplate|function copyTemplate|Duplicate workout/.test(code));
+    } finally { doc.querySelectorAll = qa; Object.assign(c, keep); }
+  });
+
+  /* ===================================================== SURFACES */
+  sub('SURFACES — the same identity wherever the workout appears');
+  await guard('surfaces', async () => {
+    const app = await H.loadAppBooted({ workoutLog: '[]' }, 300);
+    const c = app.ctx, doc = c.document;
+    const tpl = c.planData.push.find(t => t.id === 'd1');
+    tpl.identity = { iconId: 'chest', colorId: 'rose' };
+    c.renderTrainView();
+    const plan = doc.getElementById('trainPlan').innerHTML + doc.getElementById('trainMine').innerHTML;
+    c.setTrainCategory && c.setTrainCategory('push');
+    c.renderTrainView();
+    const push = doc.getElementById('trainPlan').innerHTML;
+    T('Train: each plan row leads with its icon, the customised one in its colour', /data-kind="plan" data-cat="push" data-id="d1"[\s\S]*?class="wi wi-sm wi-c-rose" data-wi="chest"/.test(push));
+    T('  and a row nobody customised shows its kind\'s', /data-cat="push" data-id="d2"[\s\S]*?class="wi wi-sm wi-c-blue" data-wi="push"/.test(push));
+    c.openTrainDetail('push', 'd1');
+    T('Details: a tile beside the title', /class="wi wi-md wi-c-rose wi-tile" data-wi="chest"/.test(doc.getElementById('trainDetailIdentity').innerHTML) &&
+      /<div class="td-title">\s*<span id="trainDetailIdentity"><\/span>\s*<h2 id="trainDetailTitle">/.test(src));
+    c.closeTrainDetail();
+    const card = c.templateCardHtml(tpl, 'push', {});
+    T('Home\'s workout picker cards lead with it', /<div class="tpl-name has-wi"><span class="wi wi-sm wi-c-rose" data-wi="chest"/.test(card));
+    const hero = fnSrc(src, 'renderTodayWorkout');
+    T('Home: the planned, active and finished hero each show the workout\'s icon and take its colour for their edge',
+      (hero.match(/tw-title has-wi/g) || []).length === 3 && (hero.match(/tw-wi wi-c-\$\{wid\.colorId\}/g) || []).length === 3 &&
+      /const wid = workoutIdentity\(first, cat\);/.test(hero) && /const wid = workoutIdentity\(doneToday, doneToday\.category\);/.test(hero) &&
+      /\.tw\.tw-wi\{ border-left-color: var\(--wi\); \}/.test(css));
+    const st = c.myTrainingState();
+    T('My Training: every training day carries the identity of the workout it resolves to', st.days.every(d => d.rest ? d.identity === null : d.identity && d.identity.iconId) &&
+      /<span class="mt-day-wi">\$\{d\.identity \? workoutIconHtml\(d\.identity, 'sm'\) : ''\}<\/span>/.test(src));
+    T('Program detail: each scheduled day\'s workout leads with its icon', /\$\{tpl \? workoutIdentityHtml\(tpl, e\.category, 'xs'\) : ''\}/.test(fnSrc(src, 'renderProgramDetail')));
+    T('the workout under way: the top bar leads with it', /workoutIdentityHtml\(\{ identity: pendingWorkoutIdentity \}, pendingLogCategory, 'xs'\)/.test(fnSrc(src, 'renderLogTopbarTitle')) &&
+      /renderLogTopbarTitle\(\);/.test(fnSrc(src, 'openLogSheet')));
+    const legacy = { id: 'cardio_1', date: '2026-09-10', activityName: 'Run', duration: 30 };
+    T('History: a workout row\'s icon replaces the category bar; cardio keeps its neutral mark', /workoutIdentityHtml\(l, l\.category, 'sm'\)/.test(fnSrc(src, 'recentWorkoutsHtml')) &&
+      !/rw-accent cat-/.test(fnSrc(src, 'recentWorkoutsHtml')) && /rw-accent rw-accent-other/.test(fnSrc(src, 'historyOtherRowHtml')) && !!legacy);
+    T('  and the selected day\'s card leads with it', /sd-title has-wi">\$\{workoutIdentityHtml\(entry, entry\.category, 'sm'\)\}/.test(fnSrc(src, 'renderSelectedDay')));
+    T('Shared workouts: the preview leads with the snapshot\'s identity', /workoutIdentityHtml\(p, p\.category, 'md', \{ tile: true \}\)/.test(fnSrc(src, 'socialSharedPreviewHtml')));
+    T('no surface recolours a card: the colour classes sit on icons and on the hero\'s edge only', (code.match(/wi-c-\$\{/g) || []).length === 3 &&
+      (code.match(/' wi-c-' \+/g) || []).length === 1);
+  });
+
+  /* ===================================================== SESSION */
+  sub('SESSION — a workout keeps its look through the session and into history');
+  await guard('session', async () => {
+    const app = await H.loadAppBooted({ workoutLog: '[]' }, 300);
+    const c = app.ctx, doc = c.document;
+    const tpl = c.planData.pull.find(t => t.id === (c.planData.pull[0] || {}).id);
+    tpl.identity = { iconId: 'back', colorId: 'violet' };
+    /* The sheet itself needs a real DOM; what the start decides is checked on
+       the line that decides it, then drawn. */
+    T('starting a customised workout carries its identity', /pendingWorkoutIdentity = workoutIdentityRecordOf\(planned, cat\);/.test(fnSrc(src, 'startTemplateLog')) &&
+      fnSrc(src, 'startTemplateLog').indexOf('pendingWorkoutIdentity = workoutIdentityRecordOf(planned, cat);') < fnSrc(src, 'startTemplateLog').indexOf('openLogSheet();') &&
+      JSON.stringify(c.workoutIdentityRecordOf(tpl, 'pull')) === '{"iconId":"back","colorId":"violet"}');
+    c.pendingWorkoutIdentity = c.workoutIdentityRecordOf(tpl, 'pull');
+    c.pendingLogCategory = 'pull';
+    c.renderLogTopbarTitle();
+    T('  the top bar shows it', /data-wi="back"/.test(doc.getElementById('logTopbarTitle').innerHTML) && /<span>Pull<\/span>/.test(doc.getElementById('logTopbarTitle').innerHTML));
+    T('  the draft carries it, so a resumed workout looks the same', /identity: pendingWorkoutIdentity \|\| null,/.test(fnSrc(src, 'captureActiveDraft')) &&
+      /pendingWorkoutIdentity = workoutIdentityRecordOf\(draft, draft\.category\);/.test(fnSrc(src, 'restoreDraftToSheet')));
+    T('  and the saved session records it, only when chosen', /if\(_identity\) newEntry\.identity = _identity;/.test(src) &&
+      /const _identity = pendingWorkoutIdentity\s*\? workoutIdentityRecord\(pendingWorkoutIdentity\.iconId, pendingWorkoutIdentity\.colorId, pendingLogCategory\) : null;/.test(src));
+    T('a freeform workout carries none', /pendingWorkoutIdentity = null;/.test(fnSrc(src, 'openFreeformLog')) && /pendingWorkoutIdentity = null;/.test(fnSrc(src, 'clearActiveDraft')));
+    const entry = { id: '1790000000001', date: '2026-09-15', title: 'Pull A', category: 'pull', exercises: [], identity: { iconId: 'back', colorId: 'violet' } };
+    const plain = { id: '1790000000002', date: '2026-09-14', title: 'Legs', category: 'legs', exercises: [] };
+    tpl.identity = { iconId: 'pull' };
+    T('history shows the look a session was trained with, even after the workout changes', /data-wi="back"/.test(c.workoutIdentityHtml(entry, entry.category, 'sm')) &&
+      /data-wi="legs"/.test(c.workoutIdentityHtml(plain, plain.category, 'sm')));
+    T('nothing that reads history for training looks at identity', !/\.identity/.test(stripComments(['computeExercisePREvents', 'getXPTimelineCached', 'computeConsistencyData', 'getSessionPRs', 'buildProgressionRecommendation', 'computeWorkoutDuration']
+      .map(f => { try{ return fnSrc(src, f); }catch(e){ return ''; } }).join(''))));
+    c.discardActiveWorkout && (c.hasActiveDraftNow = false);
+  });
+
+  /* ===================================================== PROGRAM */
+  sub('PROGRAM — sessions show the workout they resolve to; program data is untouched');
+  await guard('program', async () => {
+    const app = await H.loadAppBooted({ workoutLog: '[]' }, 300);
+    const c = app.ctx;
+    const tpl = c.planData.push.find(t => t.id === 'd1');
+    tpl.identity = { iconId: 'shoulders' };
+    const composed = c.composeProgramSession({ type:'workout', planId:'balanced', category:'push', templateId:'d1', rx:'hybrid', lead: 2 }, tpl, null);
+    T('N — a program session built from a workout shows that workout\'s identity', c.workoutIdentity(composed, 'push').iconId === 'shoulders');
+    const own = c.composeProgramSession({ type:'workout', planId:null, category:'legs', name:'My legs', exercises:[{ name:'Leg Press', sets:'3', reps:'10' }] }, null, null);
+    T('  a session the athlete wrote takes its kind\'s', c.workoutIdentity(own, 'legs').iconId === 'legs' && !('identity' in own));
+    const store = JSON.stringify(c.programsStore);
+    c.planData.push.find(t => t.id === 'd1').identity = { iconId: 'chest', colorId: 'rose' };
+    T('O — changing a workout\'s look writes nothing to programs or their revisions', JSON.stringify(c.programsStore) === store);
+    T('  the composer, the revisions and the program model never mention identity', ['composeProgramSession', 'materializeProgramPlan', 'addProgramRevision', 'resolveProgramWorkout', 'createProgram', 'updateProgram']
+      .every(f => !/identity/.test(stripComments(fnSrc(src, f)))));
+  });
+
+  /* ===================================================== BACKUP */
+  sub('BACKUP — identity travels with the workout; old data needs nothing');
+  await guard('backup', async () => {
+    const plan = JSON.parse(JSON.stringify(H.loadApp().ctx.DEFAULT_PLANS.balanced.templates));
+    plan.push[0].identity = { iconId: 'chest', colorId: 'rose' };
+    const withId = await H.loadAppBooted({ workoutLog: '[]', 'planData:balanced': JSON.stringify(plan) }, 300);
+    T('K — a stored identity loads and draws', withId.ctx.workoutIdentity(withId.ctx.planData.push[0], 'push').iconId === 'chest');
+    T('  the backup is the stored plan, so its identity is in it', (await withId.ctx.allDataKeys()).indexOf('planData:balanced') !== -1 &&
+      /"identity":\{"iconId":"chest","colorId":"rose"\}/.test(withId.store['planData:balanced']));
+    T('  export writes stored values as they are, and import fills an empty plan from them',
+      /data\[k\] = r\.value;/.test(fnSrc(src, 'exportAllData')) && /if\(isEmpty\)\{ await LOOPStore\.set\(k, incoming\[k\]\); filled\+\+; \}/.test(fnSrc(src, 'importAllData')));
+    const old = JSON.parse(JSON.stringify(H.loadApp().ctx.DEFAULT_PLANS.balanced.templates));
+    const raw = JSON.stringify(old);
+    const legacy = await H.loadAppBooted({ workoutLog: '[]', 'planData:balanced': raw }, 300);
+    T('L — a plan saved before identity loads, draws its defaults, and is not rewritten', legacy.store['planData:balanced'] === raw &&
+      legacy.ctx.planData.push.every(t => !('identity' in t) && legacy.ctx.workoutIdentity(t, 'push').iconId === 'push'));
+    const bad = JSON.parse(raw);
+    bad.pull[0].identity = { iconId: 'from_the_future', colorId: 'ultraviolet' };
+    const badRaw = JSON.stringify(bad);
+    const future = await H.loadAppBooted({ workoutLog: '[]', 'planData:balanced': badRaw }, 300);
+    T('M — an identity from a newer LOOP draws the default and is kept as stored', future.store['planData:balanced'] === badRaw &&
+      future.ctx.workoutIdentity(future.ctx.planData.pull[0], 'pull').iconId === 'pull');
+    T('no migration runs for identity: the schema is still 1', H.loadApp().ctx.DATA_SCHEMA_VERSION === 1 && !/identity/.test(fnSrc(src, 'runMigrations')));
+  });
+
+  /* ===================================================== D80B */
+  sub('D80B — a shared workout brings its identity, and never breaks without 0004');
+  await guard('d80b', async () => {
+    const app = H.loadApp({ workoutLog: '[]' });
+    await H.settle(150);
+    const c = app.ctx;
+    const src1 = { name: 'Push A', exercises: [{ name: 'Dip', sets: '3', reps: '8', effort: '7' }] };
+    const src2 = Object.assign({}, src1, { identity: { iconId: 'chest', colorId: 'rose', svg: '<path/>' } });
+    const b1 = c.buildShareableWorkoutSnapshot(src1, 'push'), b2 = c.buildShareableWorkoutSnapshot(src2, 'push');
+    T('a workout without a chosen look shares as version 1, exactly as before', b1.ok && b1.snapshot.v === 1 && !('identity' in b1.snapshot));
+    T('a workout with one shares as version 2, carrying only its two ids', b2.ok && b2.snapshot.v === 2 &&
+      JSON.stringify(b2.snapshot.identity) === '{"iconId":"chest","colorId":"rose"}' && c.SHARE_IDENTITY_VERSION === 2);
+    const V = p => { const r = c.validateSharedSnapshot(p); return r.ok ? 'ok' : r.error; };
+    const good = () => JSON.parse(JSON.stringify(b2.snapshot));
+    T('the receiving check takes version 2 with an identity, and version 1 without', V(good()) === 'ok' && V(b1.snapshot) === 'ok' &&
+      V(Object.assign(JSON.parse(JSON.stringify(b1.snapshot)), { identity: { iconId: 'chest' } })) === 'invalid');
+    T('  an identity field with anything else, or a value that is not an id, is refused', V(Object.assign(good(), { identity: { iconId: 'chest', svg: 'x' } })) === 'invalid' &&
+      V(Object.assign(good(), { identity: { colorId: '#ff0000' } })) === 'invalid' && V(Object.assign(good(), { identity: 'chest' })) === 'invalid');
+    T('  an id this LOOP does not know is not an error: it draws as the default', V(Object.assign(good(), { identity: { iconId: 'from_2031' } })) === 'ok');
+    T('the note keeps the identity', JSON.stringify(c.shareSnapshotWithNote(b2.snapshot, 'Go').snapshot.identity) === '{"iconId":"chest","colorId":"rose"}');
+    await c.loadPlanData('balanced');
+    const saved = await c.importSharedWorkout(Object.assign(good(), { title: 'From Alex' }), SID(1));
+    const copy = c.planData.push.find(t => t.id === saved.id);
+    T('Q — saving a shared workout keeps the sender\'s look on the copy, the athlete\'s to change', saved.ok && copy && JSON.stringify(copy.identity) === '{"iconId":"chest","colorId":"rose"}');
+    const junk = await c.importSharedWorkout(Object.assign(good(), { title: 'From the future', identity: { iconId: 'hologram', colorId: 'plasma' } }), SID(2));
+    T('  an unknown look is not copied: the copy takes the kind\'s default', junk.ok && !('identity' in c.planData.push.find(t => t.id === junk.id)));
+    const send = fnSrc(src, 'shareSend');
+    T('a server without 0004 refuses version 2; LOOP sends the same plan again as version 1, once', /noted\.snapshot\.v === SHARE_IDENTITY_VERSION &&/.test(send) &&
+      /res\.status === 'unsupported_version' \|\| \(res\.status === 'invalid_payload' && res\.reason === 'unexpected_field'\)/.test(send) &&
+      (send.match(/socialShareWorkout\(/g) || []).length === 2 && /const plain = \{ v: SHARE_SCHEMA_VERSION,/.test(send) && !/plain\.identity/.test(send));
+    const sql = (() => { try{ return fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'supabase/migrations/0004_shared_workout_identity.sql'), 'utf8'); }catch(e){ return ''; } })();
+    const plain = sql.replace(/--[^\n]*/g, '');
+    const s3 = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'supabase/migrations/0003_shared_workouts.sql'), 'utf8').replace(/\r\n/g, '\n');
+    const f3 = s3.slice(s3.indexOf('create or replace function public.loop_share_workout('), s3.indexOf('$$;', s3.indexOf('create or replace function public.loop_share_workout(')) + 3).split('\n');
+    const f4 = sql.replace(/\r\n/g, '\n');
+    T('migration 0004 is checked in and changes the one function and the version list', sql.length > 3000 &&
+      /alter table public\.shared_workouts drop constraint if exists shared_workouts_version_known;/.test(plain) &&
+      /add constraint shared_workouts_version_known check \(schema_version in \(1, 2\)\);/.test(plain) &&
+      (plain.match(/create or replace function/g) || []).length === 1);
+    T('  every other line of 0003\'s function is kept', f3.filter(l => f4.split('\n').indexOf(l) === -1).length === 4);
+    T('  identity is two optional ids of a fixed shape, and only in version 2', /v_key not in \('iconId', 'colorId'\)/.test(plain) &&
+      (plain.match(/!~ '\^\[a-z0-9_\]\{1,24\}\$'/g) || []).length === 2 && /or \(v_key = 'identity' and v_version < 2\)/.test(plain));
+    T('  stored rebuilt, never as sent', /'identity', v_identity,/.test(plain) && /values \(me, p_recipient, v_version, v_title, v_category, v_count, v_clean\)/.test(plain));
+    T('  and execute is still for signed-in users only', /revoke execute on function public\.loop_share_workout\(uuid, jsonb\) from public, anon;/.test(plain) &&
+      /grant execute on function public\.loop_share_workout\(uuid, jsonb\) to authenticated;/.test(plain) && !/service_role|auth\.users/.test(plain));
+    const setup = (() => { try{ return fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'SOCIAL-SETUP.md'), 'utf8'); }catch(e){ return ''; } })();
+    T('SOCIAL-SETUP.md tells the owner to apply 0004 after 0003', /0004_shared_workout_identity\.sql/.test(setup));
+  });
+
+  /* ===================================================== DATA SAFETY */
+  sub('DATA SAFETY — no new key, no logic touched');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    T('DATA_KEYS is unchanged at 15, and no key names identity', c.DATA_KEYS.length === 15 && !c.DATA_KEYS.some(k => /identity|icon|colou?r/i.test(k)));
+    T('identity is stored on the workout it describes: a template, a draft or a session (and copied into a share)', (code.match(/\.identity = /g) || []).length === 5 &&
+      /if\(snapshot\.identity\) out\.identity = snapshot\.identity;/.test(fnSrc(src, 'shareSnapshotWithNote')) &&
+      /next\.identity = identity;/.test(src) && /tpl\.identity = identity;/.test(fnSrc(src, 'saveTemplate')) && /tpl\.identity = identity;/.test(fnSrc(src, 'importSharedWorkout')) &&
+      /newEntry\.identity = _identity;/.test(src));
+    T('the identity code reads no training logic', !/workoutLog|trainerLog|getPR|sessionScore|xp|rank|readiness|recommend/i.test(stripComments(
+      src.slice(src.indexOf('WORKOUT IDENTITY  (Phase D81)'), src.indexOf('CARDIO ICON FAMILY')))));
+    T('the exercise library, the muscle map and the art are untouched by it', !/identity|workoutIcon/i.test(stripComments(
+      ['musclesForExercise', 'exerciseArtSvg', 'bodyDiagramSvg', 'resolveExerciseId', 'exPickerIndex'].map(f => { try{ return fnSrc(src, f); }catch(e){ return ''; } }).join(''))));
   }
 }
 
@@ -30139,6 +30618,7 @@ async function main(){
   await testMuscleFocusChips();
   await testFriendsRebuild();
   await testWorkoutSharing();
+  await testWorkoutIdentity();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

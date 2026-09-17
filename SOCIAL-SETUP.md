@@ -1,4 +1,4 @@
-# LOOP — social setup (D52 / D52B / D80A / D80B)
+# LOOP — social setup (D52 / D52B / D80A / D80B / D81)
 
 Friends and the private leaderboard need a backend. The code is shipped and
 tested; the project is not created, because credentials cannot be invented.
@@ -25,7 +25,9 @@ plan: its title, its kind of session, a note if you write one, and for each
 exercise its name, LOOP's exercise id, sets, rep target and effort target. The
 server keeps it only until your friend saves or dismisses it (at most 30 days),
 and nobody can change it after it is sent. Weights never travel — not the
-starting-weight hints, not anything you lifted.
+starting-weight hints, not anything you lifted. Since D81, if you gave that
+workout its own icon or colour, those two choices go with it as registry names
+(`chest`, `rose`) — never a picture, never anything about your training.
 
 Never crosses it: your workout history, loads, performed reps, RIR, bodyweight,
 readiness, programs, private notes, PRs, Session Score, settings — and your
@@ -45,7 +47,7 @@ Signing in adds identity. It does not move your training anywhere.
 
 ## 2. Apply the schema
 
-The whole backend is three checked-in files, applied in order:
+The whole backend is four checked-in files, applied in order:
 
 1. `supabase/migrations/0001_social_foundation.sql` — profiles, stats,
    requests, friendships (D52)
@@ -53,6 +55,8 @@ The whole backend is three checked-in files, applied in order:
    weekly leaderboard, and the one-query Friends screen (D80A)
 3. `supabase/migrations/0003_shared_workouts.sql` — sharing a workout with a
    friend (D80B)
+4. `supabase/migrations/0004_shared_workout_identity.sql` — a shared workout's
+   icon and colour (D81)
 
 Either:
 
@@ -128,6 +132,28 @@ The limits it enforces, per sender: **30 shares a day**, **10 an hour to the
 same friend**; per recipient, **50 waiting** at once. A snapshot holds at most
 **20 exercises** and **8 KB**; a title **60** characters, a note **280**. The
 same workout still waiting in the same friend's inbox is not sent twice.
+
+### Applying 0004 to a project that runs 0003
+
+Open **SQL Editor → New query**, paste `0004_shared_workout_identity.sql`, run
+it. It needs 0003 first — it replaces 0003's `loop_share_workout` — so if 0003
+is ever run again, run 0004 again after it. Nothing else changes and no data
+moves.
+
+Until it is applied, sharing still works: LOOP sends a workout that has its own
+icon or colour as snapshot version 2, the server refuses a version it does not
+know, and LOOP sends the same workout again as version 1, without its look. Once
+it is applied, the look goes with it.
+
+To check, in the SQL editor:
+
+```sql
+select pg_get_constraintdef(oid) from pg_constraint
+ where conname = 'shared_workouts_version_known';
+```
+
+- `CHECK ((schema_version = 1))` — 0004 is **not** applied yet.
+- `CHECK ((schema_version = ANY (ARRAY[1, 2])))` — 0004 **is** applied.
 
 ## 3. Turn on email and password
 
