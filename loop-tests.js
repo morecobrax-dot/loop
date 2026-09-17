@@ -30433,6 +30433,24 @@ async function testWorkoutIdentity(){
     T('Q — saving a shared workout keeps the sender\'s look on the copy, the athlete\'s to change', saved.ok && copy && JSON.stringify(copy.identity) === '{"iconId":"chest","colorId":"rose"}');
     const junk = await c.importSharedWorkout(Object.assign(good(), { title: 'From the future', identity: { iconId: 'hologram', colorId: 'plasma' } }), SID(2));
     T('  an unknown look is not copied: the copy takes the kind\'s default', junk.ok && !('identity' in c.planData.push.find(t => t.id === junk.id)));
+    /* Shared with you: the row draws the look from the hub's summary (0004), through
+       the same record the saved copy keeps, so the row, the preview and the copy agree. */
+    const row = summary => { c.socialState.shares = [c.socialShareFrom(Object.assign({ id: SID(9), from: 'alex', title: 'Chest Day', exercises: 5, created_at: new Date().toISOString(), viewed: false }, summary))]; return c.socialSharedWithYouHtml(); };
+    const chest = row({ category: 'push', identity: { iconId: 'chest', colorId: 'rose' } });
+    T('Shared with you: each row leads with the workout\'s icon, in its colour, before it is opened', icons(chest).join() === 'chest' && colours(chest).join() === 'rose' &&
+      /soc-sh-dot" aria-hidden="true"><\/span><span class="wi wi-sm/.test(chest) && /data-wi="chest" aria-hidden="true"/.test(chest));
+    const v1row = row({ category: 'legs' });
+    T('  a share without a chosen look (every one from a server without 0004) shows its kind\'s', icons(v1row).join() === 'legs' && colours(v1row).join() === 'violet');
+    T('  a summary\'s look is kept only as a record this LOOP can draw; anything else is dropped',
+      JSON.stringify(c.socialShareFrom({ id: SID(3), category: 'push', identity: { iconId: 'chest', colorId: 'rose', svg: '<path/>' } }).identity) === '{"iconId":"chest","colorId":"rose"}' &&
+      [{ iconId: ['chest'] }, 'chest', { iconId: 'from_2031', colorId: 'plasma' }, { iconId: 'push' }, [], 7].every(bad => c.socialShareFrom({ id: SID(4), category: 'push', identity: bad }).identity === null) &&
+      icons(row({ category: 'pull', identity: { iconId: 'hologram' } })).join() === 'pull' && c.socialShareFrom({ id: SID(5), category: 'core' }).identity === null);
+    T('  the row\'s look matches the preview and the saved copy', (() => {
+      const payload = Object.assign(good(), { title: 'Chest Day' });
+      const summaryId = c.socialShareFrom({ id: SID(6), category: payload.category, identity: payload.identity }).identity;
+      return JSON.stringify(summaryId) === JSON.stringify(c.workoutIdentityRecordOf(payload, payload.category)) &&
+        c.workoutIdentity({ identity: summaryId }, 'push').iconId === c.workoutIdentity(payload, 'push').iconId;
+    })());
     const send = fnSrc(src, 'shareSend');
     T('a server without 0004 refuses version 2; LOOP sends the same plan again as version 1, once', /noted\.snapshot\.v === SHARE_IDENTITY_VERSION &&/.test(send) &&
       /res\.status === 'unsupported_version' \|\| \(res\.status === 'invalid_payload' && res\.reason === 'unexpected_field'\)/.test(send) &&
@@ -30442,11 +30460,21 @@ async function testWorkoutIdentity(){
     const s3 = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'supabase/migrations/0003_shared_workouts.sql'), 'utf8').replace(/\r\n/g, '\n');
     const f3 = s3.slice(s3.indexOf('create or replace function public.loop_share_workout('), s3.indexOf('$$;', s3.indexOf('create or replace function public.loop_share_workout(')) + 3).split('\n');
     const f4 = sql.replace(/\r\n/g, '\n');
-    T('migration 0004 is checked in and changes the one function and the version list', sql.length > 3000 &&
+    T('migration 0004 is checked in and changes two functions and the version list', sql.length > 3000 &&
       /alter table public\.shared_workouts drop constraint if exists shared_workouts_version_known;/.test(plain) &&
       /add constraint shared_workouts_version_known check \(schema_version in \(1, 2\)\);/.test(plain) &&
-      (plain.match(/create or replace function/g) || []).length === 1);
+      (plain.match(/create or replace function/g) || []).length === 2 &&
+      /create or replace function public\.loop_share_workout\(/.test(plain) && /create or replace function public\.loop_friends_hub\(/.test(plain));
     T('  every other line of 0003\'s function is kept', f3.filter(l => f4.split('\n').indexOf(l) === -1).length === 4);
+    /* LOOP 8.3 — the hub, so Shared with you can draw a share's icon without opening it. */
+    const h3 = s3.slice(s3.indexOf('create or replace function public.loop_friends_hub('), s3.indexOf('$$;', s3.indexOf('create or replace function public.loop_friends_hub(')) + 3).split('\n');
+    const h4 = f4.slice(f4.indexOf('create or replace function public.loop_friends_hub('), f4.indexOf('$$;', f4.indexOf('create or replace function public.loop_friends_hub(')) + 3);
+    T('  the hub is 0003\'s with one addition: each share\'s two ids, rebuilt, and nothing else of the snapshot',
+      h3.filter(l => h4.split('\n').indexOf(l) === -1).length === 2 &&
+      /sw\.payload -> 'identity' as identity/.test(h4) && (h4.match(/payload/g) || []).length === 1 &&
+      /jsonb_build_object\('identity', jsonb_strip_nulls\(jsonb_build_object\(\n\s*'iconId', x\.identity ->> 'iconId', 'colorId', x\.identity ->> 'colorId'\)\)\)/.test(h4) &&
+      /revoke execute on function public\.loop_friends_hub\(date\) from public, anon;/.test(plain) &&
+      /grant execute on function public\.loop_friends_hub\(date\) to authenticated;/.test(plain));
     T('  identity is two optional ids of a fixed shape, and only in version 2', /v_key not in \('iconId', 'colorId'\)/.test(plain) &&
       (plain.match(/!~ '\^\[a-z0-9_\]\{1,24\}\$'/g) || []).length === 2 && /or \(v_key = 'identity' and v_version < 2\)/.test(plain));
     T('  stored rebuilt, never as sent', /'identity', v_identity,/.test(plain) && /values \(me, p_recipient, v_version, v_title, v_category, v_count, v_clean\)/.test(plain));

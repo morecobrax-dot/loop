@@ -19,7 +19,13 @@
 --   * LOOP 8.1 opening a version-2 share says it came from a newer LOOP and
 --     asks to update, rather than guessing.
 --
--- Requires 0003. Safe to run twice. If 0003 is ever run again, run this after it.
+-- It also replaces loop_friends_hub: 0003's, with one addition. Each share in
+-- Shared with you carries its two ids beside its title, so LOOP can show the
+-- workout's icon without opening the share (opening marks it seen). The ids are
+-- rebuilt from the stored, already-checked snapshot; nothing else of it leaves.
+--
+-- Requires 0003. Safe to run twice. If 0002 or 0003 is ever run again, run this
+-- after them.
 --
 -- Apply with:  supabase db push       (or paste into the SQL editor)
 -- =============================================================================
@@ -267,6 +273,104 @@ begin
 end;
 $$;
 
+-- The Friends hub — 0003's, with each shared workout's icon and colour ids.
+create or replace function public.loop_friends_hub(p_week date)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  me   uuid := auth.uid();
+  prev date;
+begin
+  if me is null then return jsonb_build_object('status', 'not_signed_in'); end if;
+  if p_week is null or extract(isodow from p_week) <> 1 then
+    return jsonb_build_object('status', 'invalid_week');
+  end if;
+  prev := p_week - 7;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'week', p_week,
+    'profile', (select jsonb_build_object('username', p.username, 'invite_code', p.invite_code)
+                  from public.profiles p where p.user_id = me),
+    'people', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'user_id', p.user_id,
+               'username', p.username,
+               'is_self', p.user_id = me,
+               'level', coalesce(s.level, 1),
+               'rank', coalesce(s.rank, 'ROOKIE'),
+               'lifetime_xp', coalesce(s.lifetime_xp, 0),
+               'stats_updated_at', s.updated_at,
+               'week_xp', w.weekly_xp,
+               'week_workouts', w.workouts,
+               'week_updated_at', w.updated_at,
+               'prev_xp', pw.weekly_xp,
+               'prev_workouts', pw.workouts,
+               'friends_since', f.created_at
+             ) order by p.username_key)
+        from (
+          select me as uid
+          union
+          select case when fr.user_a = me then fr.user_b else fr.user_a end
+            from public.friendships fr
+           where fr.user_a = me or fr.user_b = me
+        ) c
+        join public.profiles p        on p.user_id = c.uid
+        left join public.social_stats s   on s.user_id = c.uid
+        left join public.social_weekly w  on w.user_id = c.uid and w.week_start = p_week
+        left join public.social_weekly pw on pw.user_id = c.uid and pw.week_start = prev
+        left join public.friendships f    on f.user_a = least(me, c.uid) and f.user_b = greatest(me, c.uid)
+    ), '[]'::jsonb),
+    'requests', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', r.id,
+               'direction', case when r.from_user = me then 'outgoing' else 'incoming' end,
+               'username', p.username,
+               'created_at', r.created_at
+             ) order by r.created_at)
+        from public.friend_requests r
+        join public.profiles p
+          on p.user_id = case when r.from_user = me then r.to_user else r.from_user end
+       where r.from_user = me or r.to_user = me
+    ), '[]'::jsonb),
+    'invites', coalesce((
+      select jsonb_agg(jsonb_build_object('id', i.id, 'expires_at', i.expires_at, 'uses', i.uses)
+             order by i.created_at desc)
+        from public.friend_invites i
+       where i.inviter = me and i.revoked_at is null and i.expires_at > now() and i.uses < 20
+    ), '[]'::jsonb),
+    'shares', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', x.id,
+               'from', x.username,
+               'title', x.title,
+               'category', x.category,
+               'exercises', x.exercise_count,
+               'created_at', x.created_at,
+               'viewed', x.viewed_at is not null
+             ) || case when jsonb_typeof(x.identity) = 'object' and (x.identity ? 'iconId' or x.identity ? 'colorId')
+                  then jsonb_build_object('identity', jsonb_strip_nulls(jsonb_build_object(
+                         'iconId', x.identity ->> 'iconId', 'colorId', x.identity ->> 'colorId')))
+                  else '{}'::jsonb end
+             order by x.created_at desc)
+        from (
+          select sw.id, p.username, sw.title, sw.category, sw.exercise_count, sw.created_at, sw.viewed_at,
+                 sw.payload -> 'identity' as identity
+            from public.shared_workouts sw
+            left join public.profiles p on p.user_id = sw.sender
+           where sw.recipient = me and sw.created_at > now() - interval '30 days'
+           order by sw.created_at desc
+           limit 20
+        ) x
+    ), '[]'::jsonb)
+  );
+end;
+$$;
+
 -- =============================================================================
 -- GRANTS
 -- =============================================================================
@@ -274,3 +378,5 @@ $$;
 -- this file alone leaves the function exactly as locked down as 0003 did.
 revoke execute on function public.loop_share_workout(uuid, jsonb) from public, anon;
 grant execute on function public.loop_share_workout(uuid, jsonb) to authenticated;
+revoke execute on function public.loop_friends_hub(date) from public, anon;
+grant execute on function public.loop_friends_hub(date) to authenticated;

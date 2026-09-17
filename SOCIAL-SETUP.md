@@ -136,24 +136,32 @@ same workout still waiting in the same friend's inbox is not sent twice.
 ### Applying 0004 to a project that runs 0003
 
 Open **SQL Editor → New query**, paste `0004_shared_workout_identity.sql`, run
-it. It needs 0003 first — it replaces 0003's `loop_share_workout` — so if 0003
-is ever run again, run 0004 again after it. Nothing else changes and no data
-moves.
+it. It needs 0003 first — it replaces 0003's `loop_share_workout` and
+`loop_friends_hub` — so if 0002 or 0003 is ever run again, run 0004 again after
+it. Nothing else changes and no data moves. If you applied the LOOP 8.2 version
+of 0004, run this one too: it is safe to run twice, and it adds the hub change.
 
 Until it is applied, sharing still works: LOOP sends a workout that has its own
 icon or colour as snapshot version 2, the server refuses a version it does not
 know, and LOOP sends the same workout again as version 1, without its look. Once
-it is applied, the look goes with it.
+it is applied, the look goes with it, and Shared with you lists each share's two
+ids — `iconId` and `colorId`, rebuilt from the stored snapshot, nothing else of
+it — so a row can show the workout's icon without opening the share (opening
+marks it seen).
 
 To check, in the SQL editor:
 
 ```sql
 select pg_get_constraintdef(oid) from pg_constraint
  where conname = 'shared_workouts_version_known';
+select position('''identity''' in pg_get_functiondef('public.loop_friends_hub(date)'::regprocedure)) > 0
+    as hub_lists_identity;
 ```
 
 - `CHECK ((schema_version = 1))` — 0004 is **not** applied yet.
 - `CHECK ((schema_version = ANY (ARRAY[1, 2])))` — 0004 **is** applied.
+- `hub_lists_identity` `false` with version 2 allowed — the LOOP 8.2 version of
+  0004 is applied; run the current file. `true` — 0004 is fully applied.
 
 ## 3. Turn on email and password
 

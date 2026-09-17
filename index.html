@@ -3136,6 +3136,7 @@ body.first-use{ padding-bottom: 0; }
 .soc-sh{ padding-left: 10px; }
 .soc-sh-dot{ flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
 .soc-sh.is-new .soc-sh-dot{ background: var(--accent); }
+.soc-sh .wi{ flex: 0 0 auto; margin-left: -4px; }
 .soc-sh.is-new .soc-fr-n{ color: var(--text); }
 
 /* The saved-workout sheet's kind choice (D65). */
@@ -15692,6 +15693,24 @@ const LOOP_UPDATES = [
     changes: [
       'History rows lead with the workout’s icon instead of a coloured bar'
     ]
+  },
+  {
+    id: 'v8-3',
+    version: 'LOOP 8.3',
+    title: 'Icons in Shared with You',
+    date: '2026-09-17',
+    swVersion: 'loop-v160',
+    summary: 'Shared with you shows each workout’s icon before you open it.',
+    newFeatures: [
+      'Workouts in Shared with you lead with their icon, in the color their sender chose'
+    ],
+    improvements: [
+      'Seeing a shared workout’s icon doesn’t mark it as opened'
+    ],
+    bugFixes: [],
+    changes: [
+      'Like sharing, this appears once Friends is updated for it. A workout shared before that update shows the icon of its kind'
+    ]
   }
 ];
 
@@ -17880,13 +17899,18 @@ async function shareSend(btn){
 }
 
 /* ---------- receiving ---------- */
-/* A share as the Friends screen may show it: who, what, how big, when, seen. */
+/* A share as the Friends screen may show it: who, what, how big, when, seen —
+   and, from a hub with 0004, the icon and colour its sender chose, kept only as
+   a record this LOOP can draw (an id it does not know draws the kind's own), so
+   the row matches the preview without opening the share, which would mark it seen. */
 function socialShareFrom(s){
+  const category = s && ORDER.indexOf(s.category) !== -1 ? s.category : null;
   return {
     id: s && SHARE_UUID_RE.test(String(s.id || '')) ? String(s.id) : '',
     from: s && s.from ? String(s.from) : '',
     title: shareCleanText(s && s.title) || 'Workout',
-    category: s && ORDER.indexOf(s.category) !== -1 ? s.category : null,
+    category,
+    identity: s && s.identity ? workoutIdentityRecordOf({ identity: s.identity }, category) : null,
     exercises: socialInt(s && s.exercises, 0),
     created_at: (s && s.created_at) || null,
     viewed: !!(s && s.viewed)
@@ -17922,6 +17946,7 @@ function socialSharedWithYouHtml(){
     return '<li><button type="button" class="soc-fr soc-sh' + (s.viewed ? '' : ' is-new') + '" onclick="socialOpenShared(\'' + escapeAttr(s.id) + '\')"' +
       ' aria-label="' + escapeAttr((s.viewed ? '' : 'New: ') + s.title + ', from ' + who + ', ' + count + (when ? ', ' + when : '') + '. Preview') + '">' +
       '<span class="soc-sh-dot" aria-hidden="true"></span>' +
+      workoutIdentityHtml(s, s.category, 'sm') +
       '<span class="soc-fr-who"><span class="soc-fr-n">' + escapeHtml(s.title) + '</span>' +
         '<span class="soc-fr-m">from ' + escapeHtml(who) + ' · ' + count + (when ? ' · ' + escapeHtml(when) : '') + '</span></span>' +
       '<span class="soc-fr-chev" aria-hidden="true">›</span>' +

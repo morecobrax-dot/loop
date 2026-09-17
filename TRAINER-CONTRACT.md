@@ -11285,8 +11285,9 @@ has no revoke and no sent list.
 
 ## §109 — D81: Workout identity — an icon and a colour for every workout
 
-**Status.** Shipped in LOOP 8.2 (`loop-v159`). `DATA_KEYS` 15, schema 1, no
-local migration, no new storage key. One new backend migration,
+**Status.** Shipped in LOOP 8.2 (`loop-v159`); Shared with you's rows gained
+the icon in LOOP 8.3 (`loop-v160`). `DATA_KEYS` 15, schema 1, no local
+migration, no new storage key. One new backend migration,
 `supabase/migrations/0004_shared_workout_identity.sql`, which the owner applies
 after 0003; without it sharing still works and a workout's look simply does not
 travel. No prescription, program generation, trainer, progression, Session
@@ -11360,7 +11361,7 @@ Train rows (My workouts and My plan) · Details (a tile beside the title) · Hom
 colour; the workout picker's cards) · My Training's week · Program detail's
 schedule · the active workout's top bar · History (a workout row's icon replaces
 its category bar; cardio and activity rows keep their neutral mark; the selected
-day's card) · the shared-workout preview.
+day's card) · the shared-workout preview · Friends' Shared with you rows (8.3).
 
 ### Customising
 
@@ -11390,32 +11391,47 @@ saved shared workout and a restored backup, and both carry the identity.
   `loop_share_workout` with 0003's function plus the version handling and the
   identity check — every other line identical, verified line by line — and the
   rebuilt snapshot includes the identity. Grants are restated.
+- **The hub (8.3).** 0004 also replaces `loop_friends_hub`: 0003's, with one
+  addition. A share's summary lists `identity` only when its stored snapshot has
+  one, rebuilt from the two ids (`->> 'iconId'`, `->> 'colorId'`) so nothing else
+  of the snapshot can leave. Shared with you then draws the icon without opening
+  the share, which would mark it seen. `socialShareFrom` keeps the ids only as
+  `workoutIdentityRecordOf` would store them, so the row, the preview and the
+  saved copy agree: an id this LOOP does not know draws the kind's own in all
+  three. A share from a server without 0004 is version 1 and has no look, so its
+  row showing its kind's icon is exactly right.
 
 ### Verification
 
-- **Contract 185** (113 assertions): REGISTRY, COLOURS, DERIVED, RENDERING,
+- **Contract 185** (118 assertions): REGISTRY, COLOURS, DERIVED, RENDERING,
   CUSTOMISE, SURFACES, SESSION, PROGRAM, BACKUP, D80B, DATA SAFETY.
-  Mutation-checked: 32 client mutants, each breaking one identity
+  Mutation-checked: 35 client mutants, each breaking one identity
   decision in index.html (among them putting back the two-legs Legs and the old
-  Hamstrings drawing), all caught by its own assertions, none left to the
-  end-to-end flows.
+  Hamstrings drawing, and dropping or not checking the look on a Shared with you
+  row), all caught by its own assertions, none left to the end-to-end flows.
 - Contract 184 and two older contracts repointed where markup gained a class or
   a call (the Train row's `has-wi`, the freeform top bar), claims unchanged; the
   Home hero's own 300-character bound was met by restructuring, not loosened.
   One cardio icon check caught the Arms head duplicating the jump rope's tag; the
   head moved 0.1 unit.
-- **Real PostgreSQL**: 32 checks of 0004 after 0001–0003 applied twice, and the
-  0003 server's answer to version 2; the 0003 suite (112) passes on both schemas;
-  11 of 11 0004 mutants caught.
+- **Real PostgreSQL**: 42 checks of 0004 after 0001–0003 applied twice — the
+  sends, the hub's summaries (including a stored snapshot written by the table's
+  owner with extra fields in its identity, which still lists only the two ids),
+  and a 0003 server's answers; the 0003 suite (112) passes on both schemas;
+  15 of 15 0004 mutants caught. The owner's two check queries were run on both
+  schemas.
 - **End to end**: the sharing flows gained S (with 0004 the look travels to the
-  recipient's preview and saved copy) and T (without 0004 the share falls back
-  to version 1 in two requests and still reads "Workout sent").
+  recipient's Shared with you row, unopened, then the preview and saved copy)
+  and T (without 0004 the share falls back to version 1 in two requests, still
+  reads "Workout sent", and its row shows the kind's icon).
 - **Browser**: Home, Train, Details, Edit Workout, the picker, History and My
   Training at 320×568, 375×812, 390×844 and 430×932 — nothing past the edge,
   every new control at least 44px, no label broken mid-word; the active top bar
   and the shared preview at 375×812; the redrawn Legs, Quads and Hamstrings on
   Train's rows and in the picker at 390×844, with Cancel leaving the workout
-  as it was.
+  as it was; Shared with you's rows at all four sizes — 60px rows, the 22px icon
+  drawn and decorative, long titles and names cut with an ellipsis, nothing past
+  the edge.
 - **Found and fixed on the way**: an array `["blue"]` was read as the colour
   `blue` by a property lookup, and a category of `__proto__` reached the
   prototype; ids are now own-property strings only. And at the release gate,
