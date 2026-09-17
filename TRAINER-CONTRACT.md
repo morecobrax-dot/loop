@@ -11107,3 +11107,178 @@ no verdict and no exercise or weight.
 - **Contracts to write with it.** The builder reads template fields only; the
   payload key set is exact; the server rejects a non-friend, an oversized or
   extra-keyed payload, and a read after unfriending.
+
+## §108 — D80B: Sharing a workout with a friend
+
+**Status.** Shipped in LOOP 8.1 (`loop-v158`). `DATA_KEYS` 15, schema 1, no
+local migration, no new storage key. One new backend migration,
+`supabase/migrations/0003_shared_workouts.sql`, which the owner applies after
+0002; until it is applied no Share action appears anywhere and Friends is
+exactly 8.0. No trainer, progression, live set coach, Session Score, program
+revision, XP, rank, activity, muscle map, exercise art, suggestion or
+workout-history behaviour changed: sharing reads a workout's plan and writes one
+ordinary saved workout, and defines nothing else.
+
+This section supersedes the design sketch at the end of §107 where the two
+differ; each difference is named below.
+
+### What is shared, and from where
+
+- **One source: a workout's Details.** A saved workout (`c-…`) or a plan
+  workout. On the day the running program sets that workout, the source is the
+  program's session as it stands this week — `trainStartSource`, the same
+  session Start trains and Details already shows. Time Mode is not applied: a
+  shorter day chosen for today is the athlete's day, not the workout.
+- **Held: completed and in-progress workouts.** A logged session records its
+  plan (`ex.rx`) only from D47 on and only for exercises LOOP prescribed, and
+  that record carries the load. A snapshot built from one would be incomplete,
+  or built from what was lifted. Held until a plan-only record exists.
+- **Held: program sessions not reachable through Details.** The program detail
+  schedule is not interactive; sessions an athlete authored inside a program
+  are shared by opening them as the day's workout.
+
+### The snapshot — schema version 1
+
+`buildShareableWorkoutSnapshot(source, category)` is the only builder. It reads
+each exercise's `name`, `sets`, `reps` and `effort` and nothing else, never
+modifies its source, and builds the same snapshot for the same workout:
+
+    { v: 1, title, category, note?, exercises: [ { id?, name, sets, reps, effort? } ] }
+
+- `title` — the workout's name, control characters and runs of space collapsed,
+  at most 60 code points (a longer name is shortened to 59 and `…`); an unnamed
+  workout is "<Kind> workout".
+- `category` — one of LOOP's eight kinds of session.
+- `exercises` — 1 to 20, in order. An unnamed row is skipped.
+  - `id` — present only when the name resolves to a registry id of the shape
+    `^[a-z0-9_]{1,48}$`.
+  - `name` — at most 60 code points; a longer one is refused, not cut.
+  - `sets` — a whole number 1–20, from the template's text.
+  - `reps` — text, 1–20 code points, exactly as written ("8–12", "to failure").
+  - `effort` — text, at most 12 code points, omitted when empty. **Text, not
+    §107's `{ kind, target }`:** LOOP's templates write effort as text on one
+    scale ("7–8"), so there is nothing structured to convert faithfully.
+- `note` — added by `shareSnapshotWithNote` at the moment of sharing: at most 280
+  code points, line breaks kept, other control characters removed.
+- Size — at most 8 KB as the database measures its own JSON; the client keeps a
+  400-byte margin, and checks again once the note is added. (§107 said 16 KB.)
+
+**Never in it**, by construction rather than by filtering: the starting-weight
+hint a template carries (`recommended`), performed weights or reps, RIR, PRs,
+Session Score, ratings, private or exercise notes, bodyweight, GPS or activity
+data, dates or history, progression recommendations, coach or trainer output,
+readiness, program history, and anything about the account. **No sender in the
+snapshot** (§107 put one there): the server attaches the sender's username when
+the recipient opens it.
+
+Every one of the 156 plan workouts LOOP ships builds a valid snapshot, loses no
+set count, rep target or effort, and saving one rebuilds the identical
+snapshot.
+
+### Server — migration 0003
+
+- `shared_workouts(id, sender, recipient, schema_version, title, category,
+  exercise_count, payload, created_at, viewed_at)`. Constraints: not to
+  yourself, version 1, title 1–60, a known kind, 1–20 exercises, payload an
+  object of at most 8 KB. **Immutable after send**: a trigger refuses any
+  change but `viewed_at`, and that only once. RLS on, **no policy and no
+  grant** — only the functions reach it (§107 had a recipient read policy).
+- `shared_workout_sends(sender, recipient, sent_at)` — a 24-hour ledger for
+  rate limits, since saved and dismissed shares are deleted. RLS on, no policy,
+  no grant.
+- `loop_share_workout(p_recipient, p_payload)` — signed in, not to yourself, a
+  profile, **an accepted friend** (`loop_are_friends`), then the payload field
+  by field: only the keys above, the version, every type, length and range,
+  and the id shape. What is stored is **rebuilt** from the validated values,
+  never the caller's JSON. One send at a time per sender
+  (`pg_advisory_xact_lock`), so parallel requests cannot slip past a check. The
+  identical workout still waiting for the same friend returns `already_sent`.
+  Limits: **30 a day** per sender, **10 an hour** to one friend, **50 waiting**
+  per recipient (§107 said 20 a day). Shares expire after **30 days**.
+- `loop_open_shared_workout(p_id)` — the recipient only; marks it seen once;
+  an expired share is deleted and reported expired.
+- `loop_remove_shared_workout(p_id)` — the recipient only.
+- `loop_friends_hub(p_week)` — 0002's hub plus `shares`: id, sender username,
+  title, kind, exercise count, sent time and seen, newest first, at most 20,
+  never the snapshot. Still one call for the whole screen.
+- Execute revoked from PUBLIC and anon on every function, granted back to
+  authenticated; the trigger guard is executable by nobody.
+
+**Friendship ends.** No new share can be sent. A share already delivered stays
+readable and saveable until the recipient saves or dismisses it or it expires:
+it was sent while they were friends. (§107 proposed cutting it off.) The sender
+has no revoke and no sent list.
+
+### Client
+
+- **Share appears only when it can work** — `canShareWorkouts()`: Friends
+  configured, signed in, and `socialState.sharesSupported === true`, learned
+  from a hub that lists shares and remembered in the existing social record.
+  A backend without 0003 answers without `shares`, or `PGRST202` to a send;
+  both set it false.
+- **The share sheet**: can't share (says why) · sign in · loading friends ·
+  not available yet · couldn't load friends · pick (friends only, username,
+  level and rank; a field that filters your own friends above eight — no search
+  of anyone else) · confirm ("Share “X” with @alex?", the exact exercise list,
+  an optional note, Cancel and Share) · sending · failed · done. After a
+  refusal that will not change, Back returns to the friends and Close ends it.
+- **"Sent" only after the server said so.** `sent` and `already_sent` are
+  successes; offline and unreachable offer Try again with the friend still
+  chosen; a note too long keeps Share; every other answer says plainly that
+  nothing was sent. A double tap sends once. `not_friends` reloads the friend
+  list.
+- **Shared with you** sits above My friends: a quiet dot for new, the title,
+  who, how many exercises, when. Settings says a workout was shared. No push,
+  no badge, no vibration (there is no semantic haptics layer).
+- **Preview** fetches the one snapshot on open and checks it again: a newer
+  version says to update LOOP, a malformed one says it can't be read, a gone or
+  expired one says so. Exercise names: a registry id this LOOP knows under
+  another spelling takes this LOOP's name; otherwise the name as sent, which is
+  that exercise when this LOOP knows the exact name, and is kept as written and
+  flagged "Not in your exercise library — saved as written" when neither the
+  registry nor the exercise picker knows it. Never matched to a lookalike. The
+  duration is `computeWorkoutDuration` of the copy that would be saved. A
+  failed save or dismiss is said beside the buttons; after Save, Dismiss or
+  Back, Friends returns to its top, where the notice is.
+- **The bottom edge.** Friends is a page whose scroll runs to the screen's
+  edge, and it had no bottom safe-area inset (one of the page sheets D60's
+  audit listed). A preview ends in its actions: measured in headless Edge at
+  390×844 with a 34px home indicator, Dismiss ended 16px from the edge, inside
+  the indicator. `#socialOverlay .sheet-scroll` now carries the inset; it
+  clears the edge by 50px, and the rest of Friends gains the same room.
+- **Save to My Workouts** — `importSharedWorkout`: validates, adds an ordinary
+  saved workout (`c-…`) in that kind of session with the five fields every
+  saved workout has — `recommended` is LOOP's blank, a missing effort takes the
+  editor's default `'7'` — under a name that is never in use
+  (case-insensitive, "Push — Chest Focus 2"). If `persistPlanData` does not
+  confirm the write, nothing is added. The copy keeps only `sharedId`, so the
+  same share can never be saved twice — editing it keeps that link — and a
+  share whose removal did not reach the server is cleared at the next hub load.
+  The copy records nothing about who sent it (§107 proposed "From @username").
+- **Dismiss** removes it on the server first; offline, it stays and says so.
+- **Ids in handlers** — share ids and friends' user ids must be UUIDs before
+  they are written into a button.
+
+### Verification
+
+- **Contract 184** (190 assertions): SNAPSHOT BUILDER, SHARE SOURCES,
+  SENDER FLOW (every server answer), INBOX, PREVIEW, SAVE TO MY WORKOUTS,
+  PRIVACY, MIGRATION 0003 (held to its text), D80A REGRESSION.
+  Mutation-checked: 32 mutants — 31 in index.html and one in 0003's text — every one caught by the contract itself.
+- **Real PostgreSQL** (PGlite, Supabase's roles, `auth.uid()` from request
+  claims, Supabase's default privileges): 111 adversarial checks of 0003 after
+  0001 + 0002, all applied twice. 28 migration mutants, every one caught by a
+  named check.
+- **End to end**: 104 checks driving two LOOP clients through QA scenarios A–Q
+  (and R, capability and sign-out) against the mock GoTrue and the real
+  migrations behind a PostgREST emulation.
+- **Browser**: sixteen sharing states — Friends with shares, three previews top
+  and bottom (a note, twenty exercises with a long name, an unknown exercise
+  from a long username), Details with Share, the picker, confirm, offline, 503
+  and success — at 320×568, 375×812, 390×844 and 430×932: no horizontal
+  overflow, every control at least 44px. Also the picker with twenty friends
+  and its filter, a same-name save, and the preview's last action against a
+  34px home indicator in headless Edge.
+- **Not run**: the live project with real accounts, and 0003 on the live
+  project — it is applied by the owner. The D80A two-account owner check is
+  still outstanding.

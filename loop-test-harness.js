@@ -236,7 +236,9 @@ function loadApp(initialStore){
     'MUSCLE_FOCUS_MAX_CHIPS','MUSCLE_FOCUS_RANK_WORDS',
     /* D80A — the session lifecycle, invite links and the Friends screen's own state */
     'SOCIAL_STORE_KEY','SOCIAL_INVITE_KEY','SOCIAL_TIMING','SOCIAL_LINK_TOKEN_RE','SOCIAL_CODE_RE','SOCIAL_INVITE_FINAL',
-    'socialRenewFlight','socialHubFlight','socialInviteArrived'];
+    'socialRenewFlight','socialHubFlight','socialInviteArrived',
+    /* D80B — the shared-workout snapshot's rules and the share sheet's state */
+    'SHARE_SCHEMA_VERSION','SHARE_LIMITS','SHARE_ID_RE','SHARE_UUID_RE','shareView'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

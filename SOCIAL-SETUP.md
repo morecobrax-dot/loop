@@ -1,4 +1,4 @@
-# LOOP — social setup (D52 / D52B / D80A)
+# LOOP — social setup (D52 / D52B / D80A / D80B)
 
 Friends and the private leaderboard need a backend. The code is shipped and
 tested; the project is not created, because credentials cannot be invented.
@@ -20,9 +20,16 @@ sessions, counted by LOOP's own XP timelines, under the Monday of the week they
 were logged in). Invite links add one more thing the server holds but nobody can
 read: a SHA-256 hash of each link's token, who made it, and when it expires.
 
-Never crosses it: workouts, exercises, loads, reps, RIR, bodyweight, readiness,
-programs, notes, PRs, settings — and your **email**, which belongs to
-authentication and is never visible to a friend.
+Since D80B, **only when you share a workout with a friend**, that one workout's
+plan: its title, its kind of session, a note if you write one, and for each
+exercise its name, LOOP's exercise id, sets, rep target and effort target. The
+server keeps it only until your friend saves or dismisses it (at most 30 days),
+and nobody can change it after it is sent. Weights never travel — not the
+starting-weight hints, not anything you lifted.
+
+Never crosses it: your workout history, loads, performed reps, RIR, bodyweight,
+readiness, programs, private notes, PRs, Session Score, settings — and your
+**email**, which belongs to authentication and is never visible to a friend.
 
 Signing in adds identity. It does not move your training anywhere.
 
@@ -38,12 +45,14 @@ Signing in adds identity. It does not move your training anywhere.
 
 ## 2. Apply the schema
 
-The whole backend is two checked-in files, applied in order:
+The whole backend is three checked-in files, applied in order:
 
 1. `supabase/migrations/0001_social_foundation.sql` — profiles, stats,
    requests, friendships (D52)
 2. `supabase/migrations/0002_friends_links_and_weeks.sql` — invite links, the
    weekly leaderboard, and the one-query Friends screen (D80A)
+3. `supabase/migrations/0003_shared_workouts.sql` — sharing a workout with a
+   friend (D80B)
 
 Either:
 
@@ -61,8 +70,12 @@ all** — only its functions reach it) and `social_weekly` (readable by the
 athlete and accepted friends, writable only by its owner), and the functions
 `loop_create_invite_link`, `loop_preview_invite_link`,
 `loop_accept_invite_link`, `loop_revoke_invite_links` and
-`loop_friends_hub`. Both files are safe to run again. Nothing in either is
-optional.
+`loop_friends_hub`. 0003 adds `shared_workouts` and `shared_workout_sends`
+(row level security on, **no policy and no grant** — only its functions reach
+them), the functions `loop_share_workout`, `loop_open_shared_workout` and
+`loop_remove_shared_workout`, and a new version of `loop_friends_hub` that also
+lists the shares waiting for you. Every file is safe to run again. Nothing in
+any of them is optional.
 
 ### Applying 0002 to a project that already runs 0001
 
@@ -86,6 +99,35 @@ curl -s -X POST "https://<ref>.supabase.co/rest/v1/rpc/loop_friends_hub" \
 - `{"code":"PGRST202",...}` (404) — 0002 is **not** applied yet.
 - `{"code":"42501",...,"message":"permission denied for function loop_friends_hub"}`
   (401) — 0002 **is** applied, and anonymous callers are refused, as they must be.
+
+### Applying 0003 to a project that already runs 0002
+
+Open **SQL Editor → New query**, paste `0003_shared_workouts.sql`, run it.
+Nothing else changes and no data moves. It must run **after** 0002, because it
+replaces 0002's `loop_friends_hub`; if 0002 is ever run again, run 0003 again
+after it.
+
+Until it is applied, the shipped app shows no way to share: the Share button
+appears in a workout's Details only once Friends has loaded from a backend that
+lists shares. Once it is applied, the next time an athlete opens Friends the
+button appears.
+
+To check from outside, with nothing but the publishable key (no account):
+
+```bash
+curl -s -X POST "https://<ref>.supabase.co/rest/v1/rpc/loop_share_workout" \
+  -H "apikey: <publishable key>" -H "Content-Type: application/json" \
+  -d '{"p_recipient":"00000000-0000-0000-0000-000000000000","p_payload":{}}'
+```
+
+- `{"code":"PGRST202",...}` (404) — 0003 is **not** applied yet.
+- `{"code":"42501",...,"message":"permission denied for function loop_share_workout"}`
+  (401) — 0003 **is** applied, and anonymous callers are refused.
+
+The limits it enforces, per sender: **30 shares a day**, **10 an hour to the
+same friend**; per recipient, **50 waiting** at once. A snapshot holds at most
+**20 exercises** and **8 KB**; a title **60** characters, a note **280**. The
+same workout still waiting in the same friend's inbox is not sent twice.
 
 ## 3. Turn on email and password
 
@@ -201,6 +243,32 @@ Two for D80A:
 - **Signing out is local.** Signed in as Alice on two devices, sign out on one.
   The other stays signed in — including after an hour, when its token renews.
 
+Four for D80B, with Alice and Bob friends and Carol a friend of neither:
+
+- **Sharing works, and carries no weights.** Alice opens a saved workout's
+  Details → Share → Bob → Share. Bob's Friends shows it under **Shared with
+  you**; the preview lists every exercise with sets, reps and effort and no
+  weight anywhere. **Save to My Workouts** adds it to Bob's saved workouts;
+  editing it there changes nothing on Alice's phone.
+- **Nobody reads a table directly.** Same console call as step 7, as a GET to
+  `/rest/v1/shared_workouts`. It must return **401, 403 or 404** — never rows.
+- **Only friends.** With Carol signed in, from the console:
+  ```js
+  fetch(LOOP_SOCIAL.url + '/rest/v1/rpc/loop_share_workout', {
+    method: 'POST',
+    headers: { apikey: LOOP_SOCIAL.anonKey,
+               Authorization: 'Bearer ' + socialState.session.access_token,
+               'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_recipient: '<bob-uuid>', p_payload: { v: 1, title: 'x',
+      category: 'push', exercises: [{ name: 'Dip', sets: 3, reps: '8' }] } })
+  }).then(r => r.json())
+  ```
+  It must return `{"status":"not_friends"}`.
+- **Only the recipient opens it.** Before Bob saves or dismisses it, find the
+  share's id in the SQL editor (`select id from public.shared_workouts;`). Carol
+  calling `loop_open_shared_workout` with body `{ "p_id": "<that id>" }` must
+  return `{"status":"not_found"}`.
+
 Two more, specific to a password:
 
 9. **An unconfirmed account cannot sign in.** Create one and try before
@@ -230,8 +298,9 @@ app**, not from Safari. Check that:
 
 `select public.loop_delete_account();` while signed in as that user removes the
 profile, the stats, the requests and the friendships — and, through their
-foreign keys, the weekly rows and invite links. It cannot touch anything
-on a phone: the training lives there, not here.
+foreign keys, the weekly rows, invite links and any shared workouts sent or
+waiting. It cannot touch anything on a phone: the training lives there, not
+here, and a workout a friend already saved is theirs.
 
 ## Optional, later: a branded confirmation email
 

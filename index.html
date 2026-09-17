@@ -2442,6 +2442,10 @@ body.first-use{ padding-bottom: 0; }
    LOOP's own type, surfaces and spacing. This is supporting functionality and
    is composed to sit behind Today and Workout, not beside them: grouped lists
    with hairlines rather than a wall of cards, one accent, no podium. */
+/* D80B — Friends is a page whose scroll runs to the screen's bottom edge, and a
+   shared workout's preview ends in its actions. Measured at 390x844 with a 34px
+   home indicator: Dismiss ended 16px from the edge, inside the indicator. */
+#socialOverlay .sheet-scroll{ padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 .soc-head{ padding: 4px 0 2px; }
 .soc-h{
   font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-title);
@@ -2990,6 +2994,59 @@ body.first-use{ padding-bottom: 0; }
   border-radius: var(--radius-md); color: var(--text-dim); font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .td-danger{ margin-left: auto; color: var(--danger); border-color: rgba(229,103,95,0.35); }
+/* D80B — Share sits beside Close in the Details header. */
+.td-head-acts{ display: inline-flex; align-items: center; gap: 2px; }
+.td-share{ color: var(--text-dim); }
+.td-share[hidden]{ display: none; }
+.td-share:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* D80B — the share sheet and the shared-workout preview. The same quiet lists
+   as Friends: hairline rows, one accent, no cards stacked on cards. */
+.share-h{
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-section); font-weight: 700;
+  color: var(--text); margin: 6px 0 0; line-height: 1.25; text-wrap: balance; overflow-wrap: anywhere;
+}
+.share-sub{ font-size: var(--fs-support); color: var(--text-dim); line-height: 1.5; margin: 8px 0 14px; }
+.share-k{
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 6px; overflow-wrap: anywhere;
+}
+.share-find{ margin: 0 0 10px; }
+.share-list{ margin-bottom: 4px; }
+.share-none{ padding: 14px 12px; font-size: var(--fs-support); color: var(--text-faint); }
+.share-ex{
+  list-style: none; margin: 12px 0 0; padding: 0 12px; background: var(--surface);
+  border: 1px solid var(--border-quiet); border-radius: var(--radius-md);
+}
+.share-ex-r{ display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 11px 0; }
+.share-ex-r + .share-ex-r{ border-top: 1px solid var(--border-quiet); }
+.share-ex-n{
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;
+  font-size: var(--fs-support); font-weight: 600; color: var(--text); overflow-wrap: anywhere;
+}
+.share-ex-flag{ font-size: var(--fs-micro); font-weight: 500; color: var(--warning); }
+.share-ex-rx{
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right;
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta); color: var(--text-dim);
+  font-variant-numeric: tabular-nums; max-width: 45%;
+}
+.share-ex-rx span{ font-family: 'Inter', sans-serif; font-size: var(--fs-micro); color: var(--text-faint); }
+.share-note{ height: auto; min-height: 72px; padding: 11px 13px; line-height: 1.45; resize: vertical; }
+.share-note-q{
+  margin: 12px 0 0; padding: 10px 13px; border-left: 2px solid var(--accent); background: var(--surface);
+  border-radius: var(--radius-sm); font-size: var(--fs-support); color: var(--text); line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.share-done{ display: flex; flex-direction: column; align-items: flex-start; padding: 8px 0 4px; }
+.share-done-mark{
+  width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--success); background: var(--success-soft); margin-bottom: 6px;
+}
+/* Shared with you: a quiet dot marks what has not been opened yet. */
+.soc-sh{ padding-left: 10px; }
+.soc-sh-dot{ flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
+.soc-sh.is-new .soc-sh-dot{ background: var(--accent); }
+.soc-sh.is-new .soc-fr-n{ color: var(--text); }
 
 /* The saved-workout sheet's kind choice (D65). */
 .tpl-kind{ display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; margin-top: 6px; }
@@ -7906,7 +7963,10 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="sheet-scroll">
       <div class="td-head">
         <span class="td-kicker" id="trainDetailKicker"></span>
+        <span class="td-head-acts">
+        <button type="button" class="td-close td-share" id="trainDetailShare" hidden onclick="openShareWorkout()" aria-label="Share with a friend"><svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 10V2.2M5.2 4.8L8 2l2.8 2.8M4.5 7.2H3.8a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1h-.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button type="button" class="td-close" onclick="closeTrainDetail()" aria-label="Close details"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+        </span>
       </div>
       <h2 id="trainDetailTitle">Workout</h2>
       <div class="sheet-sub" id="trainDetailSub"></div>
@@ -7920,6 +7980,20 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <button type="button" class="btn-secondary" onclick="trainDetailEdit()">Edit workout</button>
       <button type="button" class="btn-primary" onclick="trainDetailStart()">Start workout</button>
     </div>
+  </div>
+</div>
+
+<!-- SHARE A WORKOUT (D80B) — one workout, one friend, one snapshot of its plan -->
+<div class="overlay" id="shareWorkoutOverlay" onclick="backdropDismiss(event, closeShareWorkout)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <div class="td-head">
+        <span class="td-kicker">Share workout</span>
+        <button type="button" class="td-close" onclick="closeShareWorkout()" aria-label="Close"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+      </div>
+      <div id="shareWorkoutBody"></div>
+    </div>
+    <div class="sheet-actions" id="shareWorkoutActions"></div>
   </div>
 </div>
 
@@ -15460,6 +15534,28 @@ const LOOP_UPDATES = [
       'Invites are shared as links; the code box is gone, and a pasted link or code still works',
       'A phone with no training logged never shares numbers over the ones your own phone published'
     ]
+  },
+  {
+    id: 'v8-1',
+    version: 'LOOP 8.1',
+    title: 'Share a Workout',
+    date: '2026-09-16',
+    swVersion: 'loop-v158',
+    summary: 'Send a friend one of your workouts. They preview it and save a copy that is theirs.',
+    newFeatures: [
+      'Share a workout from its Details: choose a friend, see exactly what they will get, and add a note if you like',
+      'Shared with you in Friends: who sent it, every exercise with sets, reps and effort, and about how long it takes',
+      'Save to My Workouts adds your own copy. Change it however you like; the one your friend sent stays as it was'
+    ],
+    improvements: [
+      'Only the plan travels: exercises, sets, reps and effort. Your weights, history, notes and records stay on your phone',
+      'Saving never replaces a workout you already have. A copy with the same name gets the next number',
+      'An exercise your LOOP does not know is kept exactly as written, and the preview says so'
+    ],
+    bugFixes: [],
+    changes: [
+      'Sharing appears once the Friends server has been updated for it. Until then, nothing in Friends changes'
+    ]
   }
 ];
 
@@ -15564,7 +15660,11 @@ let socialState = {
   inviteIds: null,    // ids of the links the server still honours
   pendingInvite: null,// { token, capturedAt } — a link someone else sent, not yet answered
   renewError: null,   // why the last renewal got no verdict: 'offline', 'timeout', ...
-  invitePreview: null // { token, kind, status, username } — what the server said about it
+  invitePreview: null,// { token, kind, status, username } — what the server said about it
+  /* D80B — shared workouts */
+  shares: null,       // summaries of workouts friends shared with this athlete, from the last hub load
+  sharesSupported: null, // null unknown | true (migration 0003) | false — remembered, so Share never shows before it works
+  sharedOpen: null    // { id, status, from, created_at, payload } — the one share being previewed
 };
 
 async function socialReadRecord(){
@@ -15585,6 +15685,7 @@ async function socialLoad(){
       socialState.lastPublished = v.lastPublished || null;
       socialState.published = v.published || null;
       socialState.invite = v.invite || null;
+      socialState.sharesSupported = typeof v.sharesSupported === 'boolean' ? v.sharesSupported : null;
       if(socialState.profile && socialState.profile.username) socialState.profileState = 'found';
     }
     try{
@@ -15601,7 +15702,8 @@ async function socialPersist(){
     await LOOPStore.set(SOCIAL_STORE_KEY, JSON.stringify({
       session: socialState.session, binding: socialState.binding,
       profile: socialState.profile, lastPublished: socialState.lastPublished,
-      published: socialState.published, invite: socialState.invite
+      published: socialState.published, invite: socialState.invite,
+      sharesSupported: socialState.sharesSupported
     }));
   }catch(e){}
 }
@@ -15987,6 +16089,8 @@ async function socialClearSession(){
   socialState.invite = null;
   socialState.inviteIds = null;
   socialState.invitePreview = null;
+  socialState.shares = null;
+  socialState.sharedOpen = null;
   socialState.published = null;
   socialState.backend = null;
   socialState.status = 'idle';
@@ -16242,6 +16346,8 @@ async function socialLoadFriends(){
     if(socialSignedIn() && socialState.session.user_id === uid){
       if(lb.ok && Array.isArray(lb.data)) socialState.friends = lb.data.map(socialPersonFrom);
       if(rq.ok && Array.isArray(rq.data)) socialState.requests = rq.data;
+      /* A project without 0002 has no 0003 either: nothing to share with. */
+      if(lb.ok){ socialState.sharesSupported = false; socialState.shares = []; }
     }
     ok = lb.ok && rq.ok;
     error = ok ? null : (lb.error || rq.error);
@@ -16292,6 +16398,15 @@ function socialApplyHub(d, week){
      elsewhere, ran out or was used up. A dead link is never shared. */
   if(socialState.invite && socialState.inviteIds.indexOf(String(socialState.invite.id)) === -1)
     socialState.invite = null;
+  /* D80B — a hub that lists shares is a backend that can take them. A share
+     this phone already saved (its copy remembers the share) left the inbox
+     then, or should have: it is cleared again here and never shown twice. */
+  socialState.sharesSupported = Array.isArray(d.shares);
+  socialState.shares = (Array.isArray(d.shares) ? d.shares : []).map(socialShareFrom).filter(s => {
+    if(!s.id) return false;
+    if(findImportedShare(s.id)){ Promise.resolve(socialRemoveShared(s.id)).catch(() => {}); return false; }
+    return true;
+  });
   socialPersist();
 }
 
@@ -16544,7 +16659,7 @@ async function socialResetInviteLinks(){
    with Today or Workout for attention: it answers who am I connected to and
    how is the week going, using the rank identity LOOP already has, and stops. */
 let socialView = { email:'', stage:'signin', busy:false, notice:null, tone:null,
-  pane:'hub', compareId:null, menuOpen:false, confirmRemove:false,
+  pane:'hub', compareId:null, sharedId:null, menuOpen:false, confirmRemove:false,
   allFriends:false, allBoard:false, pasteOpen:false, linkShown:false };
 let socialHubFlight = null;
 
@@ -16552,7 +16667,9 @@ function socialSettingsRowHtml(){
   if(!socialConfigured()) return '';
   const signed = socialSignedIn();
   const name = socialState.profile && socialState.profile.username;
+  const unseen = signed ? (socialState.shares || []).filter(s => !s.viewed).length : 0;
   const desc = socialState.pendingInvite ? 'An invite is waiting'
+    : unseen ? (unseen === 1 ? 'A workout was shared with you' : unseen + ' workouts were shared with you')
     : signed ? (name ? 'Signed in as @' + escapeHtml(name) : 'Choose your username')
     : 'Add friends and compare your week';
   return '<label style="margin-top:22px">Friends</label>' +
@@ -16573,7 +16690,7 @@ function openSocial(){
   if(!socialConfigured()) return;
   try{ closeSettings(); }catch(e){}
   socialView.notice = null; socialView.tone = null;
-  socialView.pane = 'hub'; socialView.compareId = null;
+  socialView.pane = 'hub'; socialView.compareId = null; socialView.sharedId = null;
   socialView.menuOpen = false; socialView.confirmRemove = false;
   socialView.linkShown = false; socialView.pasteOpen = false;
   renderSocial();
@@ -16583,6 +16700,7 @@ function openSocial(){
 /* The one Back button walks back through Friends before it leaves it. */
 function closeSocial(){
   if(socialView.pane === 'compare'){ socialCloseCompare(); return; }
+  if(socialView.pane === 'shared'){ socialCloseShared(); return; }
   document.getElementById('socialOverlay').classList.remove('open');
   renderSettingsSocialRow();
 }
@@ -16624,6 +16742,7 @@ function renderSocial(){
       : socialState.profileState === 'none' ? socialUsernameHtml()
       : !(socialState.profile && socialState.profile.username) ? socialPendingProfileHtml(state)
       : socialView.pane === 'compare' ? socialCompareHtml()
+      : socialView.pane === 'shared' ? socialSharedPreviewHtml()
       : socialFriendsHtml();
   }catch(e){
     html = '<p class="soc-notice" role="status">Friends could not be shown. Close it and open it again.</p>';
@@ -16860,7 +16979,7 @@ function socialFriendsHtml(){
       socialBoardHtml() + socialProgressHtml(self, snap, unclaimed);
 
   return '<div class="soc-hub">' + socialInviteCardHtml() + socialNoticeHtml() + claim + identity +
-    socialSyncHtml(!loaded) + body + socialAccountHtml() + '</div>';
+    socialSyncHtml(!loaded) + (loaded ? socialSharedWithYouHtml() : '') + body + socialAccountHtml() + '</div>';
 }
 
 function socialMyFriendsHtml(friends){
@@ -17112,6 +17231,667 @@ function socialAskRemove(){ socialView.confirmRemove = true; socialView.menuOpen
 function socialCancelRemove(){ socialView.confirmRemove = false; renderSocial(); }
 function socialToggleAll(key){ socialView[key] = !socialView[key]; renderSocial(); }
 function socialTogglePaste(){ socialView.pasteOpen = !socialView.pasteOpen; renderSocial(); }
+
+/* =========================================================
+   SHARED WORKOUTS  (Phase D80B)
+   ---------------------------------------------------------
+   "I want you to try this workout." One athlete sends one
+   friend one workout; the friend previews it and, if they
+   like it, saves it into their own saved workouts, where it
+   is simply theirs.
+
+   A SNAPSHOT OF A PLAN, NEVER OF A PERFORMANCE. What leaves
+   the phone is built in exactly one place,
+   buildShareableWorkoutSnapshot, from a workout's
+   PRESCRIPTION: its title, its kind of session, and for each
+   exercise its identity, sets, reps and effort target. It
+   never reads a weight — not the starting-weight hint a
+   template carries, not a logged set, not a load LOOP
+   suggested — and it never reads history, notes, RIR, PRs,
+   Session Score, bodyweight, dates or the trainer. Completed
+   workouts are not a share source: a logged session's plan
+   was only ever recorded for the exercises LOOP prescribed,
+   so a snapshot built from one would be incomplete or built
+   from what was lifted.
+
+   NOT CLOUD STORAGE. The server keeps a share only until the
+   recipient saves or dismisses it (or 30 days pass), refuses
+   any field outside the snapshot, and lets nobody edit one
+   after it is sent. The recipient's copy is an ordinary saved
+   workout in their plan — the storage every saved workout
+   already uses — so nothing new is kept on the phone, nothing
+   syncs, and sender and recipient can each edit their own
+   without the other ever knowing.
+   ========================================================= */
+const SHARE_SCHEMA_VERSION = 1;
+const SHARE_LIMITS = { title: 60, note: 280, exercises: 20, name: 60, reps: 20, effort: 12, sets: 20, bytes: 8192 };
+const SHARE_ID_RE = /^[a-z0-9_]{1,48}$/;
+/* Share ids and friends' user ids are the database's uuids; nothing else is
+   ever written into a button's handler. */
+const SHARE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/* Plain, single-line text: control characters become spaces, runs of space
+   collapse. The server applies the same rule and refuses what is left over. */
+function shareCleanText(v){
+  return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+/* Measured in code points, as the database's char_length measures it, so an
+   emoji can never make a title that passes here fail there. */
+function shareLength(s){ return Array.from(String(s)).length; }
+function shareByteLength(str){
+  let n = 0;
+  for(const ch of String(str)){
+    const c = ch.codePointAt(0);
+    n += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+  }
+  return n;
+}
+
+/* THE ONE BUILDER. A workout-shaped source — a saved workout, a plan workout,
+   or the program's session as it stands today — in; a versioned snapshot out.
+   Reads name, sets, reps and effort and nothing else. Deterministic: the same
+   workout always builds the same snapshot, and the source is never modified. */
+function buildShareableWorkoutSnapshot(source, category){
+  if(!source || !Array.isArray(source.exercises)) return { ok:false, error:'no_workout' };
+  if(ORDER.indexOf(category) === -1) return { ok:false, error:'category' };
+  let title = shareCleanText(source.name);
+  if(!title) title = (CAT_LABEL[category] || 'Shared') + ' workout';
+  if(shareLength(title) > SHARE_LIMITS.title) title = Array.from(title).slice(0, SHARE_LIMITS.title - 1).join('').trim() + '…';
+  const exercises = [];
+  for(let i = 0; i < source.exercises.length; i++){
+    const ex = source.exercises[i] || {};
+    const name = shareCleanText(ex.name);
+    if(!name) continue;                     // an unnamed row is not an exercise
+    if(shareLength(name) > SHARE_LIMITS.name) return { ok:false, error:'name', name: name };
+    const sets = parseInt(ex.sets, 10);
+    if(!(sets >= 1 && sets <= SHARE_LIMITS.sets)) return { ok:false, error:'sets', name: name };
+    const reps = shareCleanText(ex.reps);
+    if(!reps || shareLength(reps) > SHARE_LIMITS.reps) return { ok:false, error:'reps', name: name };
+    const effort = shareCleanText(ex.effort);
+    if(shareLength(effort) > SHARE_LIMITS.effort) return { ok:false, error:'effort', name: name };
+    const out = {};
+    const id = resolveExerciseId(name);
+    if(isCanonicalId(id) && SHARE_ID_RE.test(id)) out.id = id;
+    out.name = name;
+    out.sets = sets;
+    out.reps = reps;
+    if(effort) out.effort = effort;
+    exercises.push(out);
+  }
+  if(!exercises.length) return { ok:false, error:'empty' };
+  if(exercises.length > SHARE_LIMITS.exercises) return { ok:false, error:'too_many' };
+  const snapshot = { v: SHARE_SCHEMA_VERSION, title: title, category: category, exercises: exercises };
+  /* The database measures its own JSON text, which spaces every separator; the
+     margin keeps a snapshot accepted here from being refused there. */
+  if(shareByteLength(JSON.stringify(snapshot)) + 400 > SHARE_LIMITS.bytes) return { ok:false, error:'too_large' };
+  return { ok:true, snapshot: snapshot };
+}
+
+/* The note is written at the moment of sharing, for this friend, and is the
+   only free text a snapshot carries. Line breaks are kept. */
+function shareSnapshotWithNote(snapshot, note){
+  const text = String(note == null ? '' : note).replace(/\r\n?/g, '\n')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim();
+  if(shareLength(text) > SHARE_LIMITS.note) return { ok:false, error:'note' };
+  const out = { v: snapshot.v, title: snapshot.title, category: snapshot.category, exercises: snapshot.exercises };
+  if(text) out.note = text;
+  /* The builder measured the workout; a long note can still tip it over. */
+  if(shareByteLength(JSON.stringify(out)) + 400 > SHARE_LIMITS.bytes) return { ok:false, error:'too_large' };
+  return { ok:true, snapshot: out };
+}
+
+/* What a received snapshot must be before LOOP will show or save it — the
+   server's rules, checked again here, because a future LOOP may share a
+   version this one does not understand. */
+function validateSharedSnapshot(p){
+  const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  if(!p || typeof p !== 'object' || Array.isArray(p)) return { ok:false, error:'invalid' };
+  if(p.v !== SHARE_SCHEMA_VERSION) return { ok:false, error:'unsupported_version' };
+  if(Object.keys(p).some(k => ['v','title','category','note','exercises'].indexOf(k) === -1)) return { ok:false, error:'invalid' };
+  if(typeof p.title !== 'string' || !shareCleanText(p.title) || shareLength(p.title) > SHARE_LIMITS.title) return { ok:false, error:'invalid' };
+  if(ORDER.indexOf(p.category) === -1) return { ok:false, error:'invalid' };
+  if(has(p, 'note') && p.note !== null && (typeof p.note !== 'string' || shareLength(p.note) > SHARE_LIMITS.note)) return { ok:false, error:'invalid' };
+  if(!Array.isArray(p.exercises) || p.exercises.length < 1 || p.exercises.length > SHARE_LIMITS.exercises) return { ok:false, error:'invalid' };
+  for(const ex of p.exercises){
+    if(!ex || typeof ex !== 'object' || Array.isArray(ex)) return { ok:false, error:'invalid' };
+    if(Object.keys(ex).some(k => ['id','name','sets','reps','effort'].indexOf(k) === -1)) return { ok:false, error:'invalid' };
+    if(typeof ex.name !== 'string' || !shareCleanText(ex.name) || shareLength(ex.name) > SHARE_LIMITS.name) return { ok:false, error:'invalid' };
+    if(!Number.isInteger(ex.sets) || ex.sets < 1 || ex.sets > SHARE_LIMITS.sets) return { ok:false, error:'invalid' };
+    if(typeof ex.reps !== 'string' || !shareCleanText(ex.reps) || shareLength(ex.reps) > SHARE_LIMITS.reps) return { ok:false, error:'invalid' };
+    if(has(ex, 'effort') && ex.effort !== null && (typeof ex.effort !== 'string' || shareLength(ex.effort) > SHARE_LIMITS.effort)) return { ok:false, error:'invalid' };
+    if(has(ex, 'id') && ex.id !== null && (typeof ex.id !== 'string' || !SHARE_ID_RE.test(ex.id))) return { ok:false, error:'invalid' };
+  }
+  return { ok:true };
+}
+
+/* WHICH EXERCISE THIS IS, ON THIS PHONE.
+   - The sender's registry id is known here and the name says the same: kept.
+   - The id is known here but the name reads differently in this LOOP (an
+     alias this version spells otherwise): this LOOP's name for that same
+     movement. Identity wins over spelling.
+   - Otherwise the name as sent. If this LOOP recognises that exact name — the
+     registry, or any exercise the picker offers — it is that exercise, as
+     every name in LOOP is; if not, it is kept as written, as a custom
+     exercise — never matched to a movement that merely looks similar. An id
+     this LOOP does not know (a newer exercise, or one no longer listed) is
+     treated the same way. */
+function sharedExerciseName(ex){
+  const sent = shareCleanText(ex && ex.name);
+  const local = resolveExerciseId(sent);
+  const canon = ex && ex.id ? getCanonicalExercise(ex.id) : null;
+  if(canon){
+    if(local === ex.id) return { name: sent, status:'known' };
+    return { name: canon.displayName, status:'renamed' };
+  }
+  if(isCanonicalId(local)) return { name: sent, status:'known' };
+  let offered = false;
+  try{
+    const key = exPickerKeyOf(sent);
+    offered = !!key && exPickerIndex().some(e => e.key === key);
+  }catch(e){ offered = false; }
+  return { name: sent, status: offered ? 'known' : 'custom' };
+}
+
+/* The snapshot as an ordinary saved workout: the same five fields every saved
+   workout has. No weight travels, so the starting-weight hint is LOOP's blank,
+   and a missing effort takes the default the workout editor itself applies. */
+function sharedTemplateFromSnapshot(snapshot){
+  return {
+    name: shareCleanText(snapshot.title),
+    exercises: snapshot.exercises.map(ex => ({
+      name: sharedExerciseName(ex).name,
+      sets: String(ex.sets),
+      reps: shareCleanText(ex.reps),
+      effort: shareCleanText(ex.effort) || '7',
+      recommended: '—'
+    }))
+  };
+}
+
+/* Never overwrite, never merge: a name already in use gets the next free
+   number — "Push — Chest Focus 2" — across every workout in the plan. */
+function uniqueSavedWorkoutName(title){
+  const taken = new Set();
+  ORDER.forEach(cat => (getTemplates(cat) || []).forEach(t => {
+    if(t && t.name) taken.add(shareCleanText(t.name).toLowerCase());
+  }));
+  const base = shareCleanText(title) || 'Shared workout';
+  if(!taken.has(base.toLowerCase())) return base;
+  for(let n = 2; n < 1000; n++){
+    const candidate = base + ' ' + n;
+    if(!taken.has(candidate.toLowerCase())) return candidate;
+  }
+  return base + ' ' + Date.now();
+}
+function nextSavedWorkoutId(){
+  const taken = new Set();
+  ORDER.forEach(cat => (getTemplates(cat) || []).forEach(t => { if(t && t.id) taken.add(String(t.id)); }));
+  let stamp = Date.now();
+  while(taken.has('c-' + stamp)) stamp++;
+  return 'c-' + stamp;
+}
+/* The saved workout a share already became, if any. */
+function findImportedShare(sharedId){
+  let found = null;
+  ORDER.forEach(cat => (getTemplates(cat) || []).forEach(t => {
+    if(!found && t && t.sharedId && String(t.sharedId) === String(sharedId)) found = { cat: cat, t: t };
+  }));
+  return found;
+}
+
+/* SAVE TO MY WORKOUTS. Checks the snapshot, then adds it where every saved
+   workout lives, through the same shape the workout editor writes. The saved
+   copy remembers which share it came from, only so that the same share can
+   never be saved twice; nothing else about the share stays on the phone. If
+   the write does not land, nothing is added. */
+async function importSharedWorkout(payload, sharedId){
+  const check = validateSharedSnapshot(payload);
+  if(!check.ok) return { ok:false, error: check.error };
+  const cat = payload.category;
+  if(!planData || !Array.isArray(planData[cat])) return { ok:false, error:'no_plan' };
+  if(sharedId){
+    const already = findImportedShare(sharedId);
+    if(already) return { ok:true, already:true, name: already.t.name, cat: already.cat, id: already.t.id };
+  }
+  const shaped = sharedTemplateFromSnapshot(payload);
+  const tpl = { id: nextSavedWorkoutId(), name: uniqueSavedWorkoutName(shaped.name), exercises: shaped.exercises };
+  if(sharedId) tpl.sharedId = String(sharedId);
+  planData[cat].push(tpl);
+  const saved = await persistPlanData();
+  if(saved === false){
+    planData[cat] = planData[cat].filter(t => t !== tpl);
+    return { ok:false, error:'save_failed' };
+  }
+  try{ renderAll(); }catch(e){}
+  return { ok:true, name: tpl.name, cat: cat, id: tpl.id };
+}
+
+/* ---------- sending ---------- */
+function canShareWorkouts(){
+  return socialConfigured() && socialSignedIn() && socialState.sharesSupported === true;
+}
+
+async function socialShareWorkout(recipientId, payload){
+  const r = await socialRpc('loop_share_workout', { p_recipient: recipientId, p_payload: payload });
+  if(r.ok && r.data && r.data.status)
+    return { status: String(r.data.status), id: r.data.id || null, reason: r.data.reason || null };
+  if(socialIsMissing(r)) return { status:'unsupported' };
+  if(r.error === 'signed_out') return { status:'signed_out' };
+  if(r.error === 'offline') return { status:'offline' };
+  return { status:'unavailable' };
+}
+
+/* Every answer the server can give, said plainly. Only 'sent' and
+   'already_sent' are successes; everything else sent nothing. */
+function shareResultMessage(status, who){
+  const at = who ? '@' + who : 'your friend';
+  const M = {
+    sent: 'Workout sent to ' + at + '.',
+    already_sent: 'Already waiting in ' + at + '’s Friends.',
+    not_friends: 'You and ' + at + ' aren’t friends anymore. Nothing was sent.',
+    rate_limited: 'You’ve shared a lot of workouts today. Try again tomorrow.',
+    too_frequent: 'You’ve just sent ' + at + ' a few workouts. Try again in a little while.',
+    inbox_full: at + ' has a lot of shared workouts waiting. Try again once they’ve looked at some.',
+    no_profile: 'Choose a username in Friends first.',
+    self: 'You can’t share a workout with yourself.',
+    note: 'Notes can be up to ' + SHARE_LIMITS.note + ' characters. Shorten it to share.',
+    too_large: 'With that note, this workout is too long to share. Shorten the note.',
+    unsupported: 'Sharing workouts isn’t switched on for Friends yet.',
+    signed_out: 'Your Friends session ended. Sign in to share.',
+    not_signed_in: 'Your Friends session ended. Sign in to share.',
+    offline: 'You’re offline. Nothing was sent.',
+    unavailable: 'Couldn’t reach Friends. Nothing was sent.'
+  };
+  return M[status] || 'This workout can’t be shared as it is. Nothing was sent.';
+}
+function shareBuildProblem(built){
+  const E = {
+    empty: 'This workout has no exercises to share.',
+    too_many: 'Workouts with more than ' + SHARE_LIMITS.exercises + ' exercises can’t be shared yet.',
+    too_large: 'This workout is too long to share.',
+    name: 'An exercise name is too long to share' + (built && built.name ? ': ' + built.name : '') + '.',
+    sets: (built && built.name ? built.name + ' has' : 'An exercise has') + ' a set count LOOP can’t share (1–' + SHARE_LIMITS.sets + ').',
+    reps: (built && built.name ? built.name + ' has' : 'An exercise has') + ' a rep target LOOP can’t share.',
+    effort: (built && built.name ? built.name + ' has' : 'An exercise has') + ' an effort target too long to share.'
+  };
+  return E[built && built.error] || 'This workout can’t be shared.';
+}
+
+let shareView = { key:null, built:null, step:'pick', friendId:null, filter:'', note:'', busy:false, loading:false, result:null };
+
+/* From a workout's Details: what is shared is what those Details describe —
+   the saved or plan workout, or the program's session as it stands this week
+   when that is what the program set for today. Time Mode is left out: a
+   shorter session chosen for today is this athlete's day, not the workout. */
+function shareSourceForDetail(){
+  const key = trainDetailKey;
+  if(!key) return null;
+  const t = (getTemplates(key.cat) || []).find(x => x && x.id === key.id);
+  if(!t) return null;
+  let src = t;
+  try{ src = trainStartSource(key.cat, t, trainTodayProgram()) || t; }catch(e){ src = t; }
+  return { cat: key.cat, id: key.id, source: src };
+}
+
+function openShareWorkout(){
+  const picked = shareSourceForDetail();
+  if(!picked) return;
+  const built = buildShareableWorkoutSnapshot(picked.source, picked.cat);
+  shareView = { key: { cat: picked.cat, id: picked.id }, built: built, step: built.ok ? 'pick' : 'blocked',
+    friendId: null, filter: '', note: '', busy: false, loading: false, result: null };
+  const ov = document.getElementById('shareWorkoutOverlay');
+  renderShareWorkout();
+  if(ov) ov.classList.add('open');
+  if(built.ok && socialSignedIn() && socialState.friends === null){
+    shareView.loading = true;
+    renderShareWorkout();
+    Promise.resolve(socialLoadFriends()).catch(() => {}).then(() => { shareView.loading = false; renderShareWorkout(); });
+  }
+}
+function closeShareWorkout(){
+  const ov = document.getElementById('shareWorkoutOverlay');
+  if(ov) ov.classList.remove('open');
+  shareView.busy = false;
+}
+
+function shareFriends(){
+  return (socialState.friends || []).filter(p => p && !p.is_self && SHARE_UUID_RE.test(String(p.user_id || ''))).slice().sort(socialNameOrder);
+}
+function shareChosenFriend(){
+  return shareFriends().find(p => p.user_id === shareView.friendId) || null;
+}
+
+function shareExerciseListHtml(exercises, resolve){
+  return '<ol class="share-ex">' + exercises.map(ex => {
+    const r = resolve ? sharedExerciseName(ex) : { name: ex.name, status: 'known' };
+    const flag = r.status === 'custom'
+      ? '<span class="share-ex-flag">Not in your exercise library — saved as written</span>' : '';
+    return '<li class="share-ex-r"><span class="share-ex-n">' + escapeHtml(r.name) + flag + '</span>' +
+      '<span class="share-ex-rx">' + escapeHtml(String(ex.sets)) + ' × ' + escapeHtml(ex.reps) +
+      (ex.effort ? '<span>Effort ' + escapeHtml(ex.effort) + '</span>' : '') + '</span></li>';
+  }).join('') + '</ol>';
+}
+
+function renderShareWorkout(){
+  const body = document.getElementById('shareWorkoutBody');
+  const acts = document.getElementById('shareWorkoutActions');
+  if(!body || !acts) return;
+  const v = shareView;
+  const built = v.built;
+  const title = built && built.ok ? built.snapshot.title : '';
+  const closeBtn = label => '<button type="button" class="btn-secondary" onclick="closeShareWorkout()">' + label + '</button>';
+  let html = '', actions = '';
+
+  if(!built || !built.ok){
+    html = '<h2 class="share-h">Can’t share this workout</h2><p class="share-sub">' + escapeHtml(shareBuildProblem(built)) + '</p>';
+    actions = closeBtn('Close');
+  } else if(!socialSignedIn()){
+    html = '<h2 class="share-h">Sign in to Friends to share</h2><p class="share-sub">Workouts are shared with friends you’ve connected with in Friends.</p>';
+    actions = closeBtn('Close') + '<button type="button" class="btn-primary" onclick="closeShareWorkout();openSocial()">Open Friends</button>';
+  } else if(v.step === 'done'){
+    const who = v.result && v.result.who;
+    html = '<div class="share-done" role="status"><span class="share-done-mark" aria-hidden="true">' + checkIconSvg(22) + '</span>' +
+      '<h2 class="share-h">' + escapeHtml(shareResultMessage(v.result.status, who)) + '</h2>' +
+      '<p class="share-sub">' + (v.result.status === 'sent'
+        ? 'They’ll find “' + escapeHtml(title) + '” under Shared with you in Friends.'
+        : 'Nothing new was sent.') + '</p></div>';
+    actions = '<button type="button" class="btn-primary" onclick="closeShareWorkout()">Done</button>';
+  } else if(v.loading && socialState.friends === null){
+    html = '<h2 class="share-h">Share “' + escapeHtml(title) + '”</h2>' +
+      '<div class="soc-wait" role="status" aria-live="polite"><span class="soc-wait-dot" aria-hidden="true"></span>Loading your friends…</div>';
+    actions = closeBtn('Cancel');
+  } else if(socialState.sharesSupported !== true && socialState.friends !== null){
+    html = '<h2 class="share-h">Not available yet</h2><p class="share-sub">' + escapeHtml(shareResultMessage('unsupported')) + '</p>';
+    actions = closeBtn('Close');
+  } else if(socialState.friends === null){
+    html = '<h2 class="share-h">Share “' + escapeHtml(title) + '”</h2><p class="share-sub">Couldn’t load your friends. Check your connection and try again.</p>';
+    actions = closeBtn('Close') + '<button type="button" class="btn-primary" onclick="openShareWorkout()">Try again</button>';
+  } else if(v.step === 'pick'){
+    const friends = shareFriends();
+    html = '<h2 class="share-h">Share “' + escapeHtml(title) + '”</h2>' +
+      '<p class="share-sub">Choose a friend. They get the exercises, sets, reps and effort — not your weights, history or notes.</p>';
+    if(!friends.length){
+      html += '<div class="soc-empty-box"><div class="soc-empty-t">No friends yet.</div>' +
+        '<p class="soc-empty-s">Invite someone you train with from Friends, then share workouts with them.</p></div>';
+      actions = closeBtn('Close') + '<button type="button" class="btn-primary" onclick="closeShareWorkout();openSocial()">Open Friends</button>';
+    } else {
+      if(friends.length > 8){
+        html += '<label class="soc-field share-find"><span class="soc-lab" id="shareFindLab">Find a friend</span>' +
+          '<input type="text" id="shareFind" class="soc-in" autocomplete="off" autocapitalize="none" spellcheck="false"' +
+          ' aria-labelledby="shareFindLab" value="' + escapeAttr(v.filter) + '" oninput="shareFilterFriends(this.value)" placeholder="Username"></label>';
+      }
+      html += '<ul class="soc-list share-list" id="shareFriendList" aria-label="Your friends">' + shareFriendRowsHtml(friends) + '</ul>';
+      actions = closeBtn('Cancel');
+    }
+  } else {
+    /* confirm, sending and failed all show exactly what is about to go */
+    const f = shareChosenFriend();
+    const who = f ? f.username : (v.result && v.result.who) || '';
+    const snap = built.snapshot;
+    html = '<h2 class="share-h">Share “' + escapeHtml(title) + '” with @' + escapeHtml(who) + '?</h2>' +
+      '<p class="share-sub">' + snap.exercises.length + ' exercise' + (snap.exercises.length === 1 ? '' : 's') + ' · ' +
+        escapeHtml(CAT_LABEL[snap.category] || '') + '. Your weights, history and notes stay on this phone.</p>' +
+      (v.step === 'failed' ? '<p class="soc-notice" role="alert">' + escapeHtml(shareResultMessage(v.result.status, who)) + '</p>' : '') +
+      shareExerciseListHtml(snap.exercises, false) +
+      '<label class="soc-field"><span class="soc-lab" id="shareNoteLab">Note for @' + escapeHtml(who) + ' (optional)</span>' +
+        '<textarea id="shareNote" class="soc-in share-note" maxlength="' + SHARE_LIMITS.note + '" rows="2" aria-labelledby="shareNoteLab"' +
+        ' oninput="shareNoteInput(this.value)" placeholder="Why you like it"' + (v.busy ? ' disabled' : '') + '>' + escapeHtml(v.note) + '</textarea></label>';
+    const retryable = v.step === 'failed' && ['offline', 'unavailable'].indexOf(v.result.status) !== -1;
+    /* A note that is too long is fixed right here, so Share stays. */
+    const fixable = v.step === 'failed' && ['note', 'too_large'].indexOf(v.result.status) !== -1;
+    const final = v.step === 'failed' && !retryable && !fixable;
+    actions = final
+      ? '<button type="button" class="btn-secondary" onclick="shareBack()">Back</button><button type="button" class="btn-primary" onclick="closeShareWorkout()">Close</button>'
+      : '<button type="button" class="btn-secondary" onclick="closeShareWorkout()"' + (v.busy ? ' disabled' : '') + '>Cancel</button>' +
+        '<button type="button" class="btn-primary" onclick="shareSend(this)"' + (v.busy ? ' disabled' : '') + '>' +
+          (v.busy ? 'Sharing…' : retryable ? 'Try again' : 'Share') + '</button>';
+  }
+  body.innerHTML = html;
+  acts.innerHTML = actions;
+}
+
+function shareFriendRowsHtml(friends){
+  const q = shareCleanText(shareView.filter).toLowerCase();
+  const shown = q ? friends.filter(f => String(f.username).toLowerCase().indexOf(q) !== -1) : friends;
+  if(!shown.length) return '<li class="share-none">No friend called “' + escapeHtml(q) + '”.</li>';
+  return shown.map(f =>
+    '<li><button type="button" class="soc-fr" onclick="shareChoose(\'' + escapeAttr(f.user_id) + '\')"' +
+      ' aria-label="' + escapeAttr('Share with @' + f.username + ', level ' + f.level + ', ' + socialTitleCase(f.rank)) + '">' +
+      '<span class="soc-fr-medal" aria-hidden="true">' + rankMedalSvg(f.rank, 28) + '</span>' +
+      '<span class="soc-fr-who"><span class="soc-fr-n">@' + escapeHtml(f.username) + '</span>' +
+        '<span class="soc-fr-m">Level ' + f.level + ' · ' + escapeHtml(socialTitleCase(f.rank)) + '</span></span>' +
+      '<span class="soc-fr-chev" aria-hidden="true">›</span>' +
+    '</button></li>').join('');
+}
+/* Filtering redraws the list only, so the field keeps focus while typing. */
+function shareFilterFriends(value){
+  shareView.filter = String(value || '');
+  const list = document.getElementById('shareFriendList');
+  if(list) list.innerHTML = shareFriendRowsHtml(shareFriends());
+}
+function shareNoteInput(value){ shareView.note = String(value == null ? '' : value); }
+function shareChoose(userId){
+  shareView.friendId = String(userId);
+  shareView.step = 'confirm';
+  shareView.result = null;
+  renderShareWorkout();
+}
+function shareBack(){
+  if(shareView.busy) return;
+  shareView.step = 'pick';
+  shareView.result = null;
+  renderShareWorkout();
+}
+
+/* SEND. The workout itself is never touched: sharing reads a snapshot that was
+   already built, so any failure leaves the athlete exactly where they were, and
+   "sent" is only ever said after the server said it. */
+async function shareSend(btn){
+  if(shareView.busy) return;
+  const f = shareChosenFriend();
+  if(!f || !shareView.built || !shareView.built.ok) return;
+  const noted = shareSnapshotWithNote(shareView.built.snapshot, shareView.note);
+  if(!noted.ok){
+    shareView.step = 'failed';
+    shareView.result = { status: noted.error, who: f.username };
+    renderShareWorkout();
+    return;
+  }
+  shareView.busy = true;
+  if(btn) btn.disabled = true;
+  renderShareWorkout();
+  let res;
+  try{ res = await socialShareWorkout(f.user_id, noted.snapshot); }catch(e){ res = { status: 'unavailable' }; }
+  shareView.busy = false;
+  shareView.result = { status: res.status, who: f.username, id: res.id || null };
+  if(res.status === 'unsupported'){ socialState.sharesSupported = false; socialPersist(); }
+  if(res.status === 'not_friends') Promise.resolve(socialLoadFriends()).catch(() => {});
+  shareView.step = (res.status === 'sent' || res.status === 'already_sent') ? 'done' : 'failed';
+  renderShareWorkout();
+}
+
+/* ---------- receiving ---------- */
+/* A share as the Friends screen may show it: who, what, how big, when, seen. */
+function socialShareFrom(s){
+  return {
+    id: s && SHARE_UUID_RE.test(String(s.id || '')) ? String(s.id) : '',
+    from: s && s.from ? String(s.from) : '',
+    title: shareCleanText(s && s.title) || 'Workout',
+    category: s && ORDER.indexOf(s.category) !== -1 ? s.category : null,
+    exercises: socialInt(s && s.exercises, 0),
+    created_at: (s && s.created_at) || null,
+    viewed: !!(s && s.viewed)
+  };
+}
+function socialRemoveShared(id){
+  return socialRpc('loop_remove_shared_workout', { p_id: id }).then(r => ({
+    ok: !!(r.ok && r.data && (r.data.status === 'removed' || r.data.status === 'not_found')), r: r }));
+}
+
+/* "2h ago", "Yesterday", "Sep 14" — from the server's timestamp, with the day
+   boundary taken from this phone's own calendar. */
+function shareRelativeTime(iso){
+  const t = Date.parse(iso);
+  if(isNaN(t)) return '';
+  const diff = Date.now() - t;
+  if(diff < 60e3) return 'just now';
+  if(diff < 3600e3) return Math.floor(diff / 60e3) + 'm ago';
+  const sent = localDateStr(new Date(t));
+  const today = localDateStr();
+  if(sent === today) return Math.floor(diff / 3600e3) + 'h ago';
+  if(sent === addDaysISO(today, -1)) return 'Yesterday';
+  return socialShortDate(iso);
+}
+
+function socialSharedWithYouHtml(){
+  const list = socialState.shares || [];
+  if(!list.length) return '';
+  const rows = list.map(s => {
+    const who = s.from ? '@' + s.from : 'a friend';
+    const count = s.exercises + ' exercise' + (s.exercises === 1 ? '' : 's');
+    const when = shareRelativeTime(s.created_at);
+    return '<li><button type="button" class="soc-fr soc-sh' + (s.viewed ? '' : ' is-new') + '" onclick="socialOpenShared(\'' + escapeAttr(s.id) + '\')"' +
+      ' aria-label="' + escapeAttr((s.viewed ? '' : 'New: ') + s.title + ', from ' + who + ', ' + count + (when ? ', ' + when : '') + '. Preview') + '">' +
+      '<span class="soc-sh-dot" aria-hidden="true"></span>' +
+      '<span class="soc-fr-who"><span class="soc-fr-n">' + escapeHtml(s.title) + '</span>' +
+        '<span class="soc-fr-m">from ' + escapeHtml(who) + ' · ' + count + (when ? ' · ' + escapeHtml(when) : '') + '</span></span>' +
+      '<span class="soc-fr-chev" aria-hidden="true">›</span>' +
+    '</button></li>';
+  }).join('');
+  return '<div class="sec-head">Shared with you<span class="sec-hint">' + list.length + '</span></div>' +
+    '<ul class="soc-list" aria-label="Workouts shared with you">' + rows + '</ul>';
+}
+
+function socialOpenShared(id){
+  const key = String(id);
+  if(!SHARE_UUID_RE.test(key)) return;
+  socialView.pane = 'shared';
+  socialView.sharedId = key;
+  socialView.notice = null; socialView.tone = null;
+  const cached = socialState.sharedOpen && socialState.sharedOpen.id === key && socialState.sharedOpen.status === 'ok';
+  if(!cached) socialState.sharedOpen = { id: key, status: 'loading' };
+  renderSocial();
+  try{ const s = document.querySelector('#socialOverlay .sheet-scroll'); if(s) s.scrollTop = 0; }catch(e){}
+  if(!cached) socialLoadShared(key);
+}
+/* The whole snapshot is fetched only when one share is opened — the Friends
+   screen itself carries summaries. Opening it is what marks it seen. */
+async function socialLoadShared(id){
+  const r = await socialRpc('loop_open_shared_workout', { p_id: id });
+  if(socialView.sharedId !== id) return;
+  let open;
+  if(r.ok && r.data && r.data.status === 'ok'){
+    const check = validateSharedSnapshot(r.data.payload);
+    open = check.ok
+      ? { id: id, status: 'ok', from: r.data.from || '', created_at: r.data.created_at || null, payload: r.data.payload }
+      : { id: id, status: check.error === 'unsupported_version' ? 'unsupported' : 'invalid' };
+    (socialState.shares || []).forEach(s => { if(s.id === id) s.viewed = true; });
+  } else if(r.ok && r.data && (r.data.status === 'not_found' || r.data.status === 'expired')){
+    open = { id: id, status: 'gone' };
+    socialState.shares = (socialState.shares || []).filter(s => s.id !== id);
+  } else {
+    open = { id: id, status: r.error === 'offline' ? 'offline' : 'unavailable' };
+  }
+  socialState.sharedOpen = open;
+  renderSocial();
+}
+function socialCloseShared(){
+  socialView.pane = 'hub';
+  socialView.sharedId = null;
+  renderSocial();
+  socialSharedToTop();
+}
+/* Back on Friends from a preview, which can be twenty exercises long: the top,
+   where Shared with you and any notice about what just happened are. */
+function socialSharedToTop(){
+  try{ const s = document.querySelector('#socialOverlay .sheet-scroll'); if(s) s.scrollTop = 0; }catch(e){}
+}
+
+function socialSharedPreviewHtml(){
+  const open = socialState.sharedOpen && socialState.sharedOpen.id === socialView.sharedId ? socialState.sharedOpen : null;
+  const top = '<div class="soc-cmp-top"><button type="button" class="soc-back" onclick="socialCloseShared()">‹ Friends</button></div>';
+  if(!open || open.status === 'loading'){
+    return top + '<div class="soc-wait" role="status" aria-live="polite"><span class="soc-wait-dot" aria-hidden="true"></span>Opening the workout…</div>';
+  }
+  if(open.status === 'offline' || open.status === 'unavailable'){
+    return top + '<div class="soc-sync" role="status"><span class="soc-sync-t">' +
+      (open.status === 'offline' ? 'You’re offline. This workout opens once you’re connected.' : 'Couldn’t reach Friends just now.') +
+      '</span><button type="button" class="soc-retry" onclick="socialOpenShared(\'' + escapeAttr(open.id) + '\')">Try again</button></div>';
+  }
+  if(open.status === 'gone') return top + '<p class="soc-notice" role="status">This shared workout is no longer available.</p>';
+  if(open.status === 'unsupported') return top + '<p class="soc-notice" role="status">This workout was shared from a newer version of LOOP. Update LOOP to open it.</p>';
+  if(open.status !== 'ok') return top + '<p class="soc-notice" role="status">This shared workout couldn’t be read.</p>';
+
+  const p = open.payload;
+  const shaped = sharedTemplateFromSnapshot(p);
+  let dur = null;
+  try{ dur = computeWorkoutDuration(shaped); }catch(e){ dur = null; }
+  const when = shareRelativeTime(open.created_at);
+  const canSave = !!(planData && Array.isArray(planData[p.category]));
+  const already = findImportedShare(open.id);
+  return top +
+    '<div class="soc-head"><div class="share-k">Shared by ' + (open.from ? '@' + escapeHtml(open.from) : 'a friend') + (when ? ' · ' + escapeHtml(when) : '') + '</div>' +
+      '<h2 class="soc-h">' + escapeHtml(shareCleanText(p.title)) + '</h2>' +
+      '<p class="soc-sub">' + [p.exercises.length + ' exercise' + (p.exercises.length === 1 ? '' : 's'),
+        escapeHtml(CAT_LABEL[p.category] || ''), dur ? '~' + dur + ' min' : null].filter(Boolean).join(' · ') + '</p></div>' +
+    (p.note ? '<blockquote class="share-note-q">' + escapeHtml(p.note) + '</blockquote>' : '') +
+    shareExerciseListHtml(p.exercises, true) +
+    '<p class="soc-fine">Weights aren’t shared — you choose your own. Once saved, it’s your workout: change it however you like.</p>' +
+    (canSave ? '' : '<p class="soc-notice" role="status">Choose a plan first — saved workouts live in your plan.</p>') +
+    /* Beside the buttons, not above a long list: a save or dismiss that did not
+       work is said where the athlete tapped. */
+    socialNoticeHtml() +
+    '<button type="button" class="btn-primary soc-go" onclick="socialDoSaveShared(this)"' + (canSave && !socialView.busy ? '' : ' disabled') + '>' +
+      (already ? 'Already in My Workouts' : 'Save to My Workouts') + '</button>' +
+    '<button type="button" class="soc-alt" onclick="socialDoDismissShared(this)"' + (socialView.busy ? ' disabled' : '') + '>Dismiss</button>';
+}
+
+async function socialDoSaveShared(btn){
+  const open = socialState.sharedOpen;
+  if(!open || open.status !== 'ok' || socialView.busy) return;
+  socialBusy(btn, true);
+  const res = await importSharedWorkout(open.payload, open.id);
+  socialBusy(btn, false);
+  if(!res.ok){
+    const E = { no_plan: 'Choose a plan first — saved workouts live in your plan.',
+      save_failed: 'Couldn’t save it on this phone. Nothing was changed.',
+      unsupported_version: 'This workout was shared from a newer version of LOOP. Update LOOP to save it.' };
+    socialSay(E[res.error] || 'This shared workout couldn’t be saved.');
+    renderSocial();
+    return;
+  }
+  /* It is theirs now. The share leaves the inbox; if that request does not get
+     through, the next time Friends loads it is cleared then, because the saved
+     copy remembers which share it was. */
+  socialState.shares = (socialState.shares || []).filter(s => s.id !== open.id);
+  socialState.sharedOpen = null;
+  socialView.pane = 'hub';
+  socialView.sharedId = null;
+  socialSay((res.already ? 'Already in My Workouts as “' : 'Saved to My Workouts as “') + res.name + '”.', 'ok');
+  renderSocial();
+  socialSharedToTop();
+  Promise.resolve(socialRemoveShared(open.id)).catch(() => {});
+}
+
+async function socialDoDismissShared(btn){
+  const id = socialView.sharedId;
+  if(!id || socialView.busy) return;
+  socialBusy(btn, true);
+  let res;
+  try{ res = await socialRemoveShared(id); }catch(e){ res = { ok:false, r:{ error:'unavailable' } }; }
+  socialBusy(btn, false);
+  if(res.ok){
+    socialState.shares = (socialState.shares || []).filter(s => s.id !== id);
+    socialState.sharedOpen = null;
+    socialView.pane = 'hub';
+    socialView.sharedId = null;
+    socialSay('Dismissed.', 'ok');
+  } else {
+    socialSay(res.r && res.r.error === 'offline' ? 'You’re offline. Dismiss it once you’re connected.' : 'Couldn’t dismiss it just now. Try again.');
+  }
+  renderSocial();
+  if(res.ok) socialSharedToTop();
+}
 
 /* ---------- actions ---------- */
 function socialBusy(btn, on){
@@ -17837,7 +18617,10 @@ async function loadPlanData(id){
 
 async function persistPlanData(){
   invalidateRepRangeCache();
-  try{ await LOOPStore.set('planData:' + selectedPlanId, JSON.stringify(planData)); }catch(e){}
+  /* D80B — says whether the write landed, so saving a shared workout never
+     reports success for a copy that is not on the phone. Every other caller
+     ignores the answer, exactly as before. */
+  try{ return await LOOPStore.set('planData:' + selectedPlanId, JSON.stringify(planData)); }catch(e){ return false; }
 }
 async function persistLog(){
   invalidateSortedLogCache();
@@ -25696,6 +26479,9 @@ function renderTrainDetail(){
     (!saved && plan) ? plan.name : null].filter(Boolean).join(' · '));
   const rename = document.getElementById('trainDetailRename');
   if(rename) rename.hidden = !saved;
+  /* D80B — only once Friends is signed in and its backend takes shares. */
+  const share = document.getElementById('trainDetailShare');
+  if(share) share.hidden = !canShareWorkouts();
   const body = document.getElementById('trainDetailBody');
   if(!body) return;
   let profile = null;
@@ -47696,7 +48482,11 @@ function saveTemplate(btn){
   if(editingTemplateId){
     const list = planData[pendingTplCategory];
     const idx = list.findIndex(t => t.id === editingTemplateId);
-    if(idx > -1) list[idx] = { id: editingTemplateId, name, exercises };
+    /* D80B — an edited copy of a shared workout is still that copy, so the same
+       share can never be saved into My Workouts a second time. */
+    if(idx > -1) list[idx] = list[idx].sharedId
+      ? { id: editingTemplateId, name, exercises, sharedId: list[idx].sharedId }
+      : { id: editingTemplateId, name, exercises };
   } else {
     planData[pendingTplCategory].push({ id: 'c-' + Date.now(), name, exercises });
   }

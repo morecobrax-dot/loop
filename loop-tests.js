@@ -29312,6 +29312,688 @@ async function testFriendsRebuild(){
   }
 }
 
+/* =========================================================
+   CONTRACT 184 — SHARED WORKOUTS  (Phase D80B)
+
+   "I want you to try this workout." One athlete sends one
+   friend one workout; the friend previews it and saves it into
+   their own saved workouts, where it is simply theirs.
+
+   What is proved here: the ONE snapshot builder reads a plan and
+   never a performance; the share sheet only ever says "sent"
+   after the server said so, and says every refusal plainly; the
+   recipient's inbox is summaries, the preview fetches one
+   snapshot, and saving writes an ordinary saved workout that
+   never overwrites anything and can't be saved twice; nothing
+   private crosses the network; and migration 0003 is denied by
+   default, friends-only, immutable after send and rate limited.
+
+   The migration's behaviour is additionally proved against a
+   real PostgreSQL with Supabase's roles (outside this suite, see
+   SOCIAL-SETUP.md); here it is held to its text.
+
+   SNAPSHOT BUILDER · SENDER FLOW · INBOX · PREVIEW · IMPORT ·
+   PRIVACY · MIGRATION 0003 · D80A REGRESSION
+   ========================================================= */
+async function testWorkoutSharing(){
+  section('CONTRACT 184 — Shared workouts: a plan sent to a friend, saved as their own (D80B)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  const ME = '11111111-1111-4111-8111-111111111111';
+  const BOB = '22222222-2222-4222-8222-222222222222';
+  const SID = n => 'aaaaaaaa-0000-4000-8000-' + String(n).padStart(12, '0');
+  const CTRL = n => String.fromCharCode(n);
+  const TEMPLATE = () => [
+    { name: 'Machine Chest Press', sets: '3', reps: '8–12', effort: '7–8', recommended: '100 → 110 → 125 lb' },
+    { name: 'Incline DB Press', sets: '3', reps: '8–12', effort: '7–8', recommended: '50 lb' },
+    { name: 'Pec Deck', sets: '3', reps: '12–15', effort: '7', recommended: '90 lb' },
+    { name: 'Triceps Dips', sets: '3', reps: '10–15', effort: '7', recommended: 'Same as last time' },
+    { name: 'My Secret Finisher', sets: '2', reps: 'to failure', effort: '9', recommended: '—' }
+  ];
+  const me = { user_id: ME, username: 'cobra', is_self: true, level: 3, rank: 'ROOKIE', lifetime_xp: 900,
+    week_xp: 120, week_workouts: 1, prev_xp: 0, prev_workouts: 0 };
+  const bob = { user_id: BOB, username: 'bob', is_self: false, level: 14, rank: 'ATHLETE', lifetime_xp: 22000,
+    week_xp: 840, week_workouts: 3, prev_xp: 610, prev_workouts: 2 };
+
+  /* A Friends backend: the RPCs the share flow calls, each answerable per test,
+     every request recorded with its body, and faults that lose the request. */
+  function mkServer(){
+    const s = { now: Date.UTC(2026, 8, 16, 16, 0, 0), calls: [], rpc: {}, faults: [], shares: [], sessions: 0 };
+    s.hub = () => ({ status: 'ok', profile: { username: 'cobra', invite_code: 'K7M2P9QX' }, people: [me, bob],
+      requests: [], invites: [], shares: s.shares });
+    s.fetch = async (url, init) => {
+      const u = new URL(url);
+      const body = init && init.body ? JSON.parse(init.body) : null;
+      s.calls.push({ path: u.pathname, body });
+      await pause(1);
+      const f = s.faults.length && (!s.faults[0].match || s.faults[0].match(u.pathname)) ? s.faults.shift() : null;
+      if(f && f.drop) throw new TypeError('Load failed');
+      if(f && f.delay) await pause(f.delay);
+      let status = 200, payload = null;
+      if(f && f.status){ status = f.status; payload = f.body || { message: 'injected' }; }
+      else if(u.pathname.startsWith('/rest/v1/rpc/')){
+        const fn = u.pathname.slice('/rest/v1/rpc/'.length);
+        if(s.rpc[fn]) [status, payload] = s.rpc[fn](body);
+        else if(fn === 'loop_friends_hub') payload = s.hub();
+        else if(fn === 'loop_create_invite_link') payload = { status: 'created', id: 'inv-1',
+          token: 'Abc_def-GHIjklMNOpqrSTUvwxYZ0123456789abcde', expires_at: new Date(s.now + 7 * 864e5).toISOString() };
+        else { status = 404; payload = { code: 'PGRST202', message: 'Could not find the function public.' + fn }; }
+      }
+      else if(u.pathname.startsWith('/rest/v1/profiles')) payload = [{ username: 'cobra', invite_code: 'K7M2P9QX' }];
+      else if(u.pathname.startsWith('/rest/v1/')){ status = 201; payload = null; }
+      else { status = 404; payload = { message: 'requested path is invalid' }; }
+      return { status, ok: status >= 200 && status < 300,
+        json: async () => { if(payload === null || payload === undefined) throw new SyntaxError('Unexpected end of JSON input'); return JSON.parse(JSON.stringify(payload)); } };
+    };
+    s.rpcCalls = fn => s.calls.filter(c => c.path === '/rest/v1/rpc/' + fn);
+    return s;
+  }
+  async function mkLoop(s, opts){
+    const o = opts || {};
+    const app = H.loadApp(Object.assign({ dataSchemaVersion: '1', workoutLog: '[]' }, o.store || {}));
+    const ctx = app.ctx;
+    const R = Date;
+    ctx.Date = class extends R { constructor(...a){ if(a.length === 0) super(s.now); else super(...a); } static now(){ return s.now; } };
+    ctx.AbortController = AbortController;
+    ctx.URLSearchParams = URLSearchParams;
+    ctx.location = { protocol: 'https:', origin: 'https://example.test', pathname: '/loop/', search: '', hash: '', href: '', reload(){} };
+    ctx.history = { state: null, pushState(){}, back(){}, replaceState(){} };
+    ctx.fetch = s.fetch;
+    await H.settle(250);
+    return { app, ctx, store: app.store };
+  }
+  async function signedIn(s, opts){
+    const L = await mkLoop(s, opts);
+    s.sessions++;
+    await L.ctx.socialAdoptSession({ access_token: 'at.' + s.sessions, token_type: 'bearer', expires_in: 3600,
+      refresh_token: 'rt.' + s.sessions, user: { id: ME, email: 'athlete@example.com', email_confirmed_at: '2026-01-01T00:00:00Z' } });
+    await L.ctx.socialLoadFriends();
+    await pause(30);
+    return L;
+  }
+  const html = (ctx, id) => ctx.document.getElementById(id).innerHTML || '';
+  const text = h => String(h).replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+  const sheet = ctx => html(ctx, 'shareWorkoutBody') + html(ctx, 'shareWorkoutActions');
+  async function addSaved(L, cat, name, exercises){
+    const id = L.ctx.nextSavedWorkoutId();
+    L.ctx.planData[cat].push({ id, name, exercises });
+    await L.ctx.persistPlanData();
+    return id;
+  }
+  const snapshotOf = (name, exercises, cat) => ({ v: 1, title: name, category: cat || 'push', exercises });
+
+  /* ===================================================== SNAPSHOT BUILDER */
+  sub('SNAPSHOT BUILDER — one builder, a plan in, a versioned snapshot out');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    await H.settle(150);
+    const c = app.ctx;
+    const t = { id: 'c-1', name: 'Push — Chest Focus', exercises: TEMPLATE(), notes: 'private', date: '2026-09-01', sharedId: SID(9) };
+    const before = JSON.stringify(t);
+    const b = c.buildShareableWorkoutSnapshot(t, 'push');
+    T('a saved workout builds', b.ok === true, JSON.stringify(b));
+    T('the snapshot is exactly: schema version, title, kind, and each exercise\'s identity, sets, reps and effort',
+      JSON.stringify(b.snapshot) === JSON.stringify({ v: 1, title: 'Push — Chest Focus', category: 'push', exercises: [
+        { id: 'chest_press_machine', name: 'Machine Chest Press', sets: 3, reps: '8–12', effort: '7–8' },
+        { id: 'incline_press_db', name: 'Incline DB Press', sets: 3, reps: '8–12', effort: '7–8' },
+        { id: 'pec_deck', name: 'Pec Deck', sets: 3, reps: '12–15', effort: '7' },
+        { id: 'dip', name: 'Triceps Dips', sets: 3, reps: '10–15', effort: '7' },
+        { name: 'My Secret Finisher', sets: 2, reps: 'to failure', effort: '9' }] }), JSON.stringify(b.snapshot));
+    T('the starting-weight hint never travels', !/lb|Same as last time|→|recommended/.test(JSON.stringify(b.snapshot)));
+    T('nor anything else on the source: notes, dates, ids, share links', !/private|2026-09-01|c-1|aaaaaaaa/.test(JSON.stringify(b.snapshot)));
+    T('the source is never modified', JSON.stringify(t) === before);
+    T('deterministic: the same workout builds the same snapshot', JSON.stringify(c.buildShareableWorkoutSnapshot(t, 'push')) === JSON.stringify(b));
+    T('the schema version is 1', c.SHARE_SCHEMA_VERSION === 1 && b.snapshot.v === 1);
+    const logged = { name: 'Logged', exercises: [{ name: 'Bench Press', sets: [{ weight: '225', reps: '5', rir: '1' }], rx: { sets: 3, reps: '5', load: '225', effort: '8' },
+      planned: { sets: 3 }, bodyweight: false, notes: 'felt heavy' }] };
+    const lb = c.buildShareableWorkoutSnapshot(logged, 'push');
+    T('a performed session is not a plan: logged sets are not a set count, so it does not build', lb.ok === false && lb.error === 'sets', JSON.stringify(lb));
+    const body = fnSrc(src, 'buildShareableWorkoutSnapshot');
+    T('the builder reads name, sets, reps and effort — no weight, hint, RIR, note, load, history or score',
+      !/recommended|weight|\brir\b|notes?\b|\.load|\.rx\b|workoutLog|history|bodyweight|score|readiness|trainer|date/i.test(stripComments(body)));
+    const ALL = n => Array.from({ length: n }, (_, i) => ({ name: 'Custom Move ' + (i + 1), sets: '3', reps: '10', effort: '7' }));
+    T('20 exercises share', c.buildShareableWorkoutSnapshot({ name: 'x', exercises: ALL(20) }, 'fullbody').ok);
+    T('21 do not', c.buildShareableWorkoutSnapshot({ name: 'x', exercises: ALL(21) }, 'fullbody').error === 'too_many');
+    T('unnamed rows are skipped, not sent', c.buildShareableWorkoutSnapshot({ name: 'x', exercises: [{ name: ' ', sets: '3', reps: '5' }, { name: 'Dip', sets: '3', reps: '8' }] }, 'push').snapshot.exercises.length === 1);
+    T('nothing to share is said so', c.buildShareableWorkoutSnapshot({ name: 'x', exercises: [] }, 'push').error === 'empty');
+    T('sets must be 1–20', ['0', '21', 'abc', ''].every(v => c.buildShareableWorkoutSnapshot({ name: 'x', exercises: [{ name: 'Dip', sets: v, reps: '8' }] }, 'push').error === 'sets'));
+    T('reps are required and at most 20 characters', c.buildShareableWorkoutSnapshot({ name: 'x', exercises: [{ name: 'Dip', sets: '3', reps: '' }] }, 'push').error === 'reps' &&
+      c.buildShareableWorkoutSnapshot({ name: 'x', exercises: [{ name: 'Dip', sets: '3', reps: 'r'.repeat(21) }] }, 'push').error === 'reps');
+    T('effort is optional and at most 12 characters', !('effort' in c.buildShareableWorkoutSnapshot({ name: 'x', exercises: [{ name: 'Dip', sets: '3', reps: '8' }] }, 'push').snapshot.exercises[0]) &&
+      c.buildShareableWorkoutSnapshot({ name: 'x', exercises: [{ name: 'Dip', sets: '3', reps: '8', effort: 'e'.repeat(13) }] }, 'push').error === 'effort');
+    T('an exercise name over 60 characters is refused, not cut', c.buildShareableWorkoutSnapshot({ name: 'x', exercises: [{ name: 'n'.repeat(61), sets: '3', reps: '8' }] }, 'push').error === 'name');
+    const long = c.buildShareableWorkoutSnapshot({ name: 'T'.repeat(75), exercises: [{ name: 'Dip', sets: '3', reps: '8' }] }, 'push').snapshot.title;
+    T('a title over 60 characters is shortened to 60, visibly', Array.from(long).length === 60 && long.slice(-1) === '…', long);
+    const dirty = c.buildShareableWorkoutSnapshot({ name: 'Push' + CTRL(0) + CTRL(10) + '  Day' + CTRL(9), exercises: [{ name: 'Dip' + CTRL(13), sets: ' 3 ', reps: ' 8 ' }] }, 'push').snapshot;
+    T('control characters and runs of space become single spaces', dirty.title === 'Push Day' && dirty.exercises[0].name === 'Dip' && dirty.exercises[0].reps === '8');
+    T('an untitled workout is named for its kind', c.buildShareableWorkoutSnapshot({ name: '', exercises: [{ name: 'Dip', sets: '3', reps: '8' }] }, 'legs').snapshot.title === 'Legs workout');
+    T('only LOOP\'s kinds of session', c.buildShareableWorkoutSnapshot({ name: 'x', exercises: [{ name: 'Dip', sets: '3', reps: '8' }] }, 'cardio').error === 'category');
+    const E4 = String.fromCodePoint(0x1F4AA);
+    const heavy = Array.from({ length: 20 }, () => ({ name: E4.repeat(60), sets: '3', reps: E4.repeat(20), effort: E4.repeat(12) }));
+    T('a snapshot too large for the server is refused before sending', c.buildShareableWorkoutSnapshot({ name: 'x', exercises: heavy }, 'push').error === 'too_large');
+    T('lengths are counted as the database counts them (one emoji is one character)', c.shareLength(E4 + 'ab') === 3 && c.shareByteLength(E4) === 4);
+    T('registry ids travel only in the shape the server accepts', c.SHARE_ID_RE.test('chest_press_machine') && !c.SHARE_ID_RE.test('unmapped:dip') && !c.SHARE_ID_RE.test('Bad-Id'));
+
+    const note = c.shareSnapshotWithNote(b.snapshot, 'Slow on the way down.' + CTRL(13) + CTRL(10) + 'Trust me.' + CTRL(7));
+    T('the note is the one free text, line breaks kept, control characters removed', note.ok && note.snapshot.note === 'Slow on the way down.' + CTRL(10) + 'Trust me.');
+    T('  it never changes the snapshot it is added to', !('note' in b.snapshot));
+    T('  an empty note adds no field', !('note' in c.shareSnapshotWithNote(b.snapshot, '   ').snapshot));
+    T('  and 280 characters is the limit', c.shareSnapshotWithNote(b.snapshot, 'n'.repeat(280)).ok && c.shareSnapshotWithNote(b.snapshot, 'n'.repeat(281)).error === 'note');
+    const near = c.buildShareableWorkoutSnapshot({ name: 'x', exercises: Array.from({ length: 20 }, () => ({ name: E4.repeat(52), sets: '3', reps: E4.repeat(20), effort: E4.repeat(12) })) }, 'push');
+    T('  a note that tips a large workout past the server\'s size is caught before sending', near.ok && c.shareSnapshotWithNote(near.snapshot, E4.repeat(280)).error === 'too_large');
+    T('C1 control characters are cleaned too (the server refuses every control character)', c.shareCleanText('a' + CTRL(0x85) + 'b' + CTRL(0x9f)) === 'a b');
+
+    const V = p => c.validateSharedSnapshot(p).ok ? 'ok' : c.validateSharedSnapshot(p).error;
+    const good = () => JSON.parse(JSON.stringify(b.snapshot));
+    T('every snapshot the builder makes passes the receiving check', V(good()) === 'ok' && V(note.snapshot) === 'ok');
+    T('a newer schema is recognised as newer, not as broken', V(Object.assign(good(), { v: 2 })) === 'unsupported_version');
+    T('an unexpected field anywhere is refused', V(Object.assign(good(), { weight: 225 })) === 'invalid' &&
+      V((() => { const g = good(); g.exercises[0].weight = '225 lb'; return g; })()) === 'invalid');
+    T('types are exact: sets a whole number, reps a string, ids in shape', V((() => { const g = good(); g.exercises[0].sets = '3'; return g; })()) === 'invalid' &&
+      V((() => { const g = good(); g.exercises[0].reps = 8; return g; })()) === 'invalid' &&
+      V((() => { const g = good(); g.exercises[0].id = 'DROP TABLE'; return g; })()) === 'invalid');
+    T('no exercises, or more than 20, is refused', V(Object.assign(good(), { exercises: [] })) === 'invalid' &&
+      V(Object.assign(good(), { exercises: Array.from({ length: 21 }, () => ({ name: 'Dip', sets: 3, reps: '8' })) })) === 'invalid');
+
+    /* Every workout LOOP ships builds, loses nothing, and survives the trip. */
+    let n = 0, fails = 0, lossy = 0, trip = 0;
+    Object.keys(c.DEFAULT_PLANS).forEach(pid => Object.keys(c.DEFAULT_PLANS[pid].templates).forEach(cat =>
+      c.DEFAULT_PLANS[pid].templates[cat].forEach(tp => {
+        n++;
+        const r = c.buildShareableWorkoutSnapshot(tp, cat);
+        if(!r.ok || c.validateSharedSnapshot(r.snapshot).ok !== true){ fails++; return; }
+        tp.exercises.forEach((ex, i) => {
+          const s = r.snapshot.exercises[i];
+          if(String(s.sets) !== String(ex.sets) || s.reps !== ex.reps || (s.effort || '') !== (ex.effort || '')) lossy++;
+        });
+        const again = c.buildShareableWorkoutSnapshot(c.sharedTemplateFromSnapshot(r.snapshot), cat);
+        if(JSON.stringify(again.snapshot) !== JSON.stringify(r.snapshot)) trip++;
+      })));
+    T('every plan workout LOOP ships (' + n + ') builds a valid snapshot', n > 100 && fails === 0, fails);
+    T('  with every set count, rep target and effort exactly as written', lossy === 0, lossy);
+    T('  and saving one rebuilds the identical snapshot', trip === 0, trip);
+  }
+
+  /* ===================================================== SHARE SOURCES */
+  sub('SHARE SOURCES — what Details describe, never a performed session');
+  {
+    const s = mkServer();
+    const L = await signedIn(s);
+    const c = L.ctx;
+    const id = await addSaved(L, 'push', 'Push — Chest Focus', TEMPLATE());
+    c.openTrainDetail('push', id);
+    T('a saved workout\'s Details offer Share with a friend', c.document.getElementById('trainDetailShare').hidden === false &&
+      /aria-label="Share with a friend"/.test(src));
+    T('the source is the saved workout itself', c.shareSourceForDetail().source === c.planData.push.find(t => t.id === id));
+    c.closeTrainDetail();
+    c.openTrainDetail('push', 'd1');
+    T('a plan workout\'s Details offer it too', c.document.getElementById('trainDetailShare').hidden === false &&
+      c.shareSourceForDetail().source.id === 'd1');
+    c.closeTrainDetail();
+    const detail = fnSrc(src, 'shareSourceForDetail');
+    T('on a program day the source is the session the program set, the same one Start trains', /trainStartSource\(key\.cat, t, trainTodayProgram\(\)\)/.test(detail));
+    T('Time Mode is not applied: a shorter day is this athlete\'s, not the workout', !/trainShown|applyTimeMode/.test(stripComments(detail)));
+    const entry = (src.match(/onclick="openShareWorkout\(\)"/g) || []).length;
+    T('Share is reached only from Details (and its own Try again): never the logger, a finished workout or history', entry === 2 &&
+      /id="trainDetailShare"[^>]*onclick="openShareWorkout\(\)"/.test(src) && /onclick="openShareWorkout\(\)"/.test(fnSrc(src, 'renderShareWorkout')) &&
+      !/openShareWorkout/.test(['renderHistoryCalendar', 'renderWorkoutEditor', 'openLogSheet', 'startTemplateLog'].map(f => fnSrc(src, f)).join('')), entry);
+  }
+
+  /* ===================================================== SENDER FLOW */
+  sub('SENDER FLOW — pick a friend, confirm, and "sent" only when the server said so');
+  {
+    const s = mkServer();
+    const L = await signedIn(s);
+    const c = L.ctx;
+    T('this backend lists shares, so it takes them', c.socialState.sharesSupported === true);
+    const id = await addSaved(L, 'push', 'Push — Chest Focus', TEMPLATE());
+    c.openTrainDetail('push', id);
+    c.openShareWorkout();
+    T('the sheet opens on the friend picker', c.document.getElementById('shareWorkoutOverlay').classList.contains('open') && c.shareView.step === 'pick');
+    const pick = sheet(c);
+    T('  titled with the workout', /Share “Push — Chest Focus”/.test(pick));
+    T('  saying what goes and what does not', /They get the exercises, sets, reps and effort — not your weights, history or notes\./.test(pick));
+    T('  one row per friend: username, level and rank; never yourself', /@bob/.test(pick) && /Level 14 · Athlete/.test(pick) && !/@cobra/.test(pick));
+    T('  with no search field for two friends', !/id="shareFind"/.test(pick));
+    c.shareChoose(BOB);
+    const confirm = sheet(c);
+    T('choosing asks first: Share “X” with @bob?', /Share “Push — Chest Focus” with @bob\?/.test(confirm));
+    T('  showing exactly what will be sent, and no weights', /Machine Chest Press/.test(confirm) && /3 × 8–12/.test(confirm) && /Effort 7–8/.test(confirm) && !/lb|Same as last time/.test(confirm));
+    T('  with Cancel and Share, and Cancel sends nothing', /onclick="closeShareWorkout\(\)">Cancel</.test(confirm) && /onclick="shareSend\(this\)">Share</.test(confirm));
+    T('  and nothing has gone to the server yet', s.rpcCalls('loop_share_workout').length === 0);
+    c.shareNoteInput('Try it Monday.');
+    s.rpc.loop_share_workout = body => [200, { status: 'sent', id: SID(1) }];
+    const tapped = c.shareSend(null);
+    T('while sending, both buttons are disabled and it says Sharing…', /Sharing…/.test(sheet(c)) && (sheet(c).match(/ disabled/g) || []).length >= 2);
+    await c.shareSend(null);                          // a second tap while the first is in flight
+    await tapped;
+    const sent = s.rpcCalls('loop_share_workout');
+    T('one tap, one request, even when tapped twice', sent.length === 1, sent.length);
+    T('the request is the recipient and the snapshot, and nothing else', sent.length === 1 &&
+      Object.keys(sent[0].body).sort().join(',') === 'p_payload,p_recipient' && sent[0].body.p_recipient === BOB &&
+      Object.keys(sent[0].body.p_payload).sort().join(',') === 'category,exercises,note,title,v');
+    T('the note is in it, as typed', sent[0].body.p_payload.note === 'Try it Monday.');
+    T('the server said sent, so the sheet says: Workout sent to @bob.', c.shareView.step === 'done' && /Workout sent to @bob\./.test(sheet(c)) &&
+      /under Shared with you in Friends/.test(sheet(c)) && />Done</.test(sheet(c)));
+    c.closeShareWorkout();
+
+    /* every other answer */
+    const cases = [
+      ['already_sent', 'done', /Already waiting in @bob’s Friends\./, false],
+      ['not_friends', 'failed', /You and @bob aren’t friends anymore\. Nothing was sent\./, false],
+      ['rate_limited', 'failed', /shared a lot of workouts today\. Try again tomorrow\./, false],
+      ['too_frequent', 'failed', /just sent @bob a few workouts\. Try again in a little while\./, false],
+      ['inbox_full', 'failed', /@bob has a lot of shared workouts waiting/, false],
+      ['no_profile', 'failed', /Choose a username in Friends first\./, false],
+      ['invalid_payload', 'failed', /can’t be shared as it is\. Nothing was sent\./, false]
+    ];
+    for(const [status, step, message] of cases){
+      c.openTrainDetail('push', id); c.openShareWorkout(); c.shareChoose(BOB);
+      s.rpc.loop_share_workout = () => [200, { status, reason: 'x' }];
+      await c.shareSend(null);
+      const h = sheet(c);
+      T(status + ': ' + (step === 'done' ? 'a success, said as it is' : 'nothing sent, said plainly'), c.shareView.step === step && message.test(h), text(h).slice(0, 160));
+      if(step !== 'done') T('  and never "Workout sent", and no Try again button for an answer that will not change', !/Workout sent/.test(h) && !/>Try again</.test(h) && !/>Share</.test(h) &&
+        />Close</.test(h) && /onclick="shareBack\(\)">Back</.test(h));
+      c.closeShareWorkout();
+    }
+    T('not_friends reloads the friend list from the server', s.rpcCalls('loop_friends_hub').length >= 2);
+
+    const retryable = [
+      ['offline', () => { s.faults.push({ match: p => /loop_share_workout/.test(p), drop: true }); }, /You’re offline\. Nothing was sent\./],
+      ['a 503', () => { s.rpc.loop_share_workout = () => [503, { message: 'upstream connect error' }]; }, /Couldn’t reach Friends\. Nothing was sent\./]
+    ];
+    for(const [label, arrange, message] of retryable){
+      c.openTrainDetail('push', id); c.openShareWorkout(); c.shareChoose(BOB);
+      arrange();
+      await c.shareSend(null);
+      const h = sheet(c);
+      T(label + ': nothing sent, with Try again and the friend still chosen', c.shareView.step === 'failed' && message.test(h) && />Try again</.test(h) &&
+        c.shareView.friendId === BOB && !/Workout sent/.test(h), text(h).slice(0, 160));
+      s.rpc.loop_share_workout = () => [200, { status: 'sent', id: SID(2) }];
+      await c.shareSend(null);
+      T('  Try again sends it', c.shareView.step === 'done' && /Workout sent to @bob\./.test(sheet(c)));
+      c.closeShareWorkout();
+    }
+
+    c.openTrainDetail('push', id); c.openShareWorkout(); c.shareChoose(BOB);
+    s.rpc.loop_share_workout = () => [404, { code: 'PGRST202', message: 'Could not find the function public.loop_share_workout' }];
+    await c.shareSend(null);
+    T('a backend without 0003: "Not available yet", remembered', /Not available yet/.test(sheet(c)) && c.socialState.sharesSupported === false &&
+      JSON.parse(L.store.socialSession).sharesSupported === false);
+    c.closeShareWorkout();
+    c.renderTrainDetail();
+    T('  and Share leaves the Details sheet', c.document.getElementById('trainDetailShare').hidden === true);
+    c.socialState.sharesSupported = true;
+
+    c.openTrainDetail('push', id); c.openShareWorkout(); c.shareChoose(BOB);
+    s.rpc.loop_share_workout = () => [401, { code: 'PGRST301', message: 'JWT cryptographic operation failed' }];
+    s.faults.push({ match: p => /\/auth\/v1\/token/.test(p), status: 400, body: { code: 400, error_code: 'refresh_token_not_found', msg: 'Invalid Refresh Token' } });
+    await c.shareSend(null);
+    await pause(20);
+    T('a session that ended says so and asks to sign in; nothing claims sent', !/Workout sent/.test(sheet(c)) &&
+      (/Sign in to Friends to share/.test(sheet(c)) || /session ended/.test(sheet(c))), text(sheet(c)).slice(0, 160));
+    c.closeShareWorkout();
+
+    const s2 = mkServer();
+    const many = Array.from({ length: 12 }, (_, i) => ({ user_id: '33333333-3333-4333-8333-' + String(i).padStart(12, '0'), username: 'friend' + String(i).padStart(2, '0'),
+      is_self: false, level: 2, rank: 'ROOKIE', lifetime_xp: 100 }));
+    s2.hub = () => ({ status: 'ok', profile: { username: 'cobra', invite_code: 'K7M2P9QX' }, people: [me].concat(many).concat([{ user_id: "x');alert(1);//", username: 'mallory', is_self: false, level: 1, rank: 'ROOKIE' }]),
+      requests: [], invites: [], shares: [] });
+    const L2 = await signedIn(s2);
+    const id2 = await addSaved(L2, 'legs', 'Legs', [{ name: 'Leg Press', sets: '3', reps: '10', effort: '7' }]);
+    L2.ctx.openTrainDetail('legs', id2); L2.ctx.openShareWorkout();
+    const big = sheet(L2.ctx);
+    T('with more than 8 friends, a field to find one among your friends (not a user search)', /id="shareFind"/.test(big) && /Find a friend/.test(big));
+    T('a row whose id is not an account id is never offered', !/mallory/.test(big) && !/alert/.test(big));
+    L2.ctx.shareFilterFriends('friend1');
+    const filtered = html(L2.ctx, 'shareFriendList');
+    T('typing narrows your friends, locally', (filtered.match(/soc-fr"/g) || []).length === 2 && /@friend10/.test(filtered) && /@friend11/.test(filtered) &&
+      s2.calls.every(x => !/search|ilike/.test(x.path)));
+    L2.ctx.shareFilterFriends('zzz');
+    T('  and says when nobody matches', /No friend called “zzz”/.test(html(L2.ctx, 'shareFriendList')));
+    L2.ctx.closeShareWorkout();
+
+    const s3 = mkServer();
+    s3.hub = () => ({ status: 'ok', profile: { username: 'cobra', invite_code: 'K7M2P9QX' }, people: [me], requests: [], invites: [], shares: [] });
+    const L3 = await signedIn(s3);
+    const id3 = await addSaved(L3, 'push', 'Solo', [{ name: 'Dip', sets: '3', reps: '8' }]);
+    L3.ctx.openTrainDetail('push', id3); L3.ctx.openShareWorkout();
+    T('no friends yet: says so, and offers Friends', /No friends yet\./.test(sheet(L3.ctx)) && /Open Friends/.test(sheet(L3.ctx)));
+    L3.ctx.closeShareWorkout();
+
+    const s4 = mkServer();
+    const L4 = await signedIn(s4);
+    const id4 = await addSaved(L4, 'fullbody', 'Too Big', Array.from({ length: 21 }, (_, i) => ({ name: 'Move ' + i, sets: '3', reps: '8' })));
+    L4.ctx.openTrainDetail('fullbody', id4); L4.ctx.openShareWorkout();
+    T('a workout that cannot be shared says why, with no Share button', L4.ctx.shareView.step === 'blocked' &&
+      /Workouts with more than 20 exercises can’t be shared yet\./.test(sheet(L4.ctx)) && !/>Share</.test(sheet(L4.ctx)));
+    L4.ctx.closeShareWorkout();
+  }
+
+  /* ===================================================== INBOX */
+  sub('INBOX — Shared with you: summaries in the one hub call');
+  {
+    const s = mkServer();
+    const now = new Date(Date.UTC(2026, 8, 16, 16, 0, 0));
+    s.shares = [
+      { id: SID(1), from: 'bob', title: 'Push — Chest Focus', category: 'push', exercises: 6, created_at: new Date(now - 5 * 60e3).toISOString(), viewed: false },
+      { id: SID(2), from: 'alex', title: 'Leg Day', category: 'legs', exercises: 1, created_at: new Date(now - 3 * 864e5).toISOString(), viewed: true },
+      { id: 'not-a-uuid', from: 'mallory', title: 'x', category: 'push', exercises: 1, created_at: now.toISOString(), viewed: false }
+    ];
+    const L = await signedIn(s);
+    const c = L.ctx;
+    c.socialState.status = 'ready';
+    c.renderSocial();
+    const h = html(c, 'socialBody');
+    T('Friends has a Shared with you section with its count', /<div class="sec-head">Shared with you<span class="sec-hint">2<\/span>/.test(h));
+    T('  above My friends', h.indexOf('Shared with you') !== -1 && h.indexOf('Shared with you') < h.indexOf('>My friends'));
+    T('  each row: title, who, how many exercises, when', /Push — Chest Focus/.test(h) && /from @bob · 6 exercises · 5m ago/.test(text(h)) && /from @alex · 1 exercise ·/.test(text(h)));
+    T('  new ones marked, quietly', /soc-fr soc-sh is-new/.test(h) && (h.match(/is-new/g) || []).length === 1);
+    T('  a row whose id is not a share id is dropped', !/mallory/.test(h));
+    T('Settings says a workout is waiting (one unseen)', /A workout was shared with you/.test(c.socialSettingsRowHtml()));
+    T('the whole screen is still one hub call', s.rpcCalls('loop_friends_hub').length === 1 && s.calls.every(x => !/shared_workouts|loop_open_shared_workout/.test(x.path)));
+    T('no push, no badge on the app icon, no vibration', !/Notification\.|setAppBadge|vibrate|showNotification/.test(
+      ['socialSharedWithYouHtml', 'socialApplyHub', 'socialOpenShared', 'socialLoadShared', 'shareSend', 'socialDoSaveShared'].map(f => fnSrc(src, f)).join('')));
+
+    const T0 = Date.UTC(2026, 8, 16, 16, 0, 0);
+    const iso = ms => new Date(T0 - ms).toISOString();
+    T('times read naturally: just now, minutes, hours', c.shareRelativeTime(iso(20e3)) === 'just now' && c.shareRelativeTime(iso(7 * 60e3)) === '7m ago');
+    T('  a clock slightly behind the server still says just now', c.shareRelativeTime(new Date(T0 + 90e3).toISOString()) === 'just now');
+    T('  nonsense says nothing', c.shareRelativeTime('garbage') === '' && c.shareRelativeTime(null) === '');
+
+    const s0 = mkServer();
+    s0.hub = () => ({ status: 'ok', profile: { username: 'cobra', invite_code: 'K7M2P9QX' }, people: [me, bob], requests: [], invites: [] });
+    const L0 = await signedIn(s0);
+    L0.ctx.socialState.status = 'ready'; L0.ctx.renderSocial();
+    T('a backend without 0003 (no shares in the hub): no section, sharing marked unavailable, friends as before',
+      !/Shared with you/.test(html(L0.ctx, 'socialBody')) && L0.ctx.socialState.sharesSupported === false && /@bob/.test(html(L0.ctx, 'socialBody')));
+    const id0 = await addSaved(L0, 'push', 'P', [{ name: 'Dip', sets: '3', reps: '8' }]);
+    L0.ctx.openTrainDetail('push', id0);
+    T('  and no Share button anywhere', L0.ctx.document.getElementById('trainDetailShare').hidden === true);
+  }
+
+  /* ===================================================== PREVIEW */
+  sub('PREVIEW — one snapshot fetched on open, no weights, truthful');
+  {
+    const s = mkServer();
+    s.shares = [{ id: SID(1), from: 'bob', title: 'Push — Chest Focus', category: 'push', exercises: 5, created_at: new Date(s.now - 3600e3 * 2).toISOString(), viewed: false }];
+    const snap = { v: 1, title: 'Push — Chest Focus', category: 'push', note: 'Line one' + CTRL(10) + '<b>two</b>', exercises: [
+      { id: 'chest_press_machine', name: 'Machine Chest Press', sets: 3, reps: '8–12', effort: '7–8' },
+      { id: 'bench_press_barbell', name: 'Flat Barbell Bench Classic', sets: 4, reps: '5', effort: '8' },
+      { id: 'future_move_2027', name: 'Future Move', sets: 3, reps: '10' },
+      { name: 'Flat DB Press', sets: 3, reps: '8–10', effort: '8' },
+      { name: 'My Secret Finisher', sets: 2, reps: 'to failure', effort: '9' }] };
+    s.rpc.loop_open_shared_workout = body => [200, { status: 'ok', id: body.p_id, from: 'bob', created_at: new Date(s.now - 7200e3).toISOString(), schema_version: 1, payload: snap }];
+    const L = await signedIn(s);
+    const c = L.ctx;
+    c.openSocial();
+    await pause(30);
+    c.socialOpenShared(SID(1));
+    T('opening shows a wait, never an empty sheet', /Opening the workout…/.test(html(c, 'socialBody')) || c.socialState.sharedOpen.status === 'ok');
+    await pause(30);
+    const opens = s.rpcCalls('loop_open_shared_workout');
+    T('the full snapshot is fetched once, by share id only', opens.length === 1 && JSON.stringify(opens[0].body) === JSON.stringify({ p_id: SID(1) }));
+    const h = html(c, 'socialBody');
+    const t = text(h);
+    T('Shared by @bob, and when', /Shared by @bob · 2h ago/.test(t), t.slice(0, 80));
+    T('the title, exercise count, kind and LOOP\'s own duration estimate', /Push — Chest Focus/.test(t) && /5 exercises · Push · ~\d+ min/.test(t));
+    T('the note, as text (never as markup), line breaks kept', /<blockquote class="share-note-q">Line one\n&lt;b&gt;two&lt;\/b&gt;<\/blockquote>/.test(h) || /<blockquote class="share-note-q">Line one\r?\n&lt;b&gt;two&lt;\/b&gt;<\/blockquote>/.test(h));
+    T('every exercise with sets × reps and effort', /Machine Chest Press/.test(t) && /3 × 8–12 Effort 7–8/.test(t) && /2 × to failure Effort 9/.test(t));
+    T('a known id with this LOOP\'s other name for it shows this LOOP\'s name', /Bench Press 4 × 5/.test(t) && !/Flat Barbell Bench Classic/.test(t));
+    T('an exercise this LOOP does not know is flagged, and kept as written', /Future Move Not in your exercise library — saved as written/.test(t) &&
+      /My Secret Finisher Not in your exercise library/.test(t));
+    T('an exercise LOOP offers but the registry does not list is not flagged', /Flat DB Press 3 × 8–10/.test(t));
+    T('it says weights are not shared, and that a saved copy is theirs', /Weights aren’t shared — you choose your own\./.test(t) && /Once saved, it’s your workout/.test(t));
+    T('Save to My Workouts (primary) and Dismiss', /class="btn-primary soc-go" onclick="socialDoSaveShared\(this\)">Save to My Workouts</.test(h) && />Dismiss</.test(h));
+    T('opening marks it seen here too', c.socialState.shares[0].viewed === true && !/A workout was shared/.test(c.socialSettingsRowHtml()));
+    c.socialCloseShared();
+    T('Back returns to Friends', c.socialView.pane === 'hub' && /Shared with you/.test(html(c, 'socialBody')));
+    c.socialOpenShared(SID(1));
+    T('reopening the same share uses what was fetched', s.rpcCalls('loop_open_shared_workout').length === 1);
+    c.socialCloseShared();
+    c.socialOpenShared("x');alert(1);//");
+    T('an id that is not a share id opens nothing', c.socialView.pane === 'hub' && s.rpcCalls('loop_open_shared_workout').length === 1);
+
+    /* Two shares opened in quick succession: the first answer arrives last. */
+    const slow = { v: 1, title: 'The First One', category: 'legs', exercises: [{ name: 'Leg Press', sets: 3, reps: '10' }] };
+    const fast = { v: 1, title: 'The Second One', category: 'pull', exercises: [{ name: 'Lat Pulldown', sets: 3, reps: '10' }] };
+    const keep = s.rpc.loop_open_shared_workout;
+    s.rpc.loop_open_shared_workout = body => [200, { status: 'ok', id: body.p_id, from: 'bob', created_at: null, schema_version: 1,
+      payload: body.p_id === SID(8) ? slow : fast }];
+    s.faults.push({ match: p => /loop_open_shared_workout/.test(p), delay: 80 });
+    c.socialOpenShared(SID(8));
+    await pause(5);
+    c.socialCloseShared();
+    c.socialOpenShared(SID(9));
+    await pause(160);
+    T('a slow answer for a share already left never replaces the one open now', c.socialState.sharedOpen && c.socialState.sharedOpen.id === SID(9) &&
+      /The Second One/.test(text(html(c, 'socialBody'))) && !/The First One|Opening the workout/.test(text(html(c, 'socialBody'))));
+    c.socialCloseShared();
+    s.rpc.loop_open_shared_workout = keep;
+    c.socialState.sharedOpen = null;
+    T('leaving a preview, saving or dismissing returns to the top of Friends, where the notice is',
+      ['socialCloseShared', 'socialDoSaveShared', 'socialDoDismissShared'].every(f => /socialSharedToTop\(\)/.test(fnSrc(src, f))));
+
+    const states = [
+      ['a newer LOOP\'s snapshot', () => [200, { status: 'ok', id: SID(3), from: 'bob', created_at: null, schema_version: 2, payload: { v: 2, title: 'x', category: 'push', exercises: [] } }], /newer version of LOOP\. Update LOOP to open it\./],
+      ['a malformed snapshot', () => [200, { status: 'ok', id: SID(3), from: 'bob', created_at: null, schema_version: 1, payload: { v: 1, title: 'x', category: 'push', exercises: [{ name: 'Dip', sets: 3, reps: '8', weight: '225 lb' }] } }], /couldn’t be read/],
+      ['a share that is gone', () => [200, { status: 'not_found' }], /no longer available/],
+      ['an expired share', () => [200, { status: 'expired' }], /no longer available/],
+      ['a server error', () => [503, { message: 'down' }], /Couldn’t reach Friends just now\.[\s\S]*Try again/]
+    ];
+    for(const [label, answer, message] of states){
+      c.socialState.sharedOpen = null;
+      s.rpc.loop_open_shared_workout = answer;
+      c.socialOpenShared(SID(3));
+      await pause(30);
+      const hh = html(c, 'socialBody');
+      T(label + ': said plainly, and nothing can be saved', message.test(text(hh)) && !/Save to My Workouts/.test(hh) && !/225/.test(hh), text(hh).slice(0, 120));
+      c.socialCloseShared();
+    }
+    c.socialState.sharedOpen = null;
+    s.faults.push({ match: p => /loop_open_shared_workout/.test(p), drop: true });
+    c.socialOpenShared(SID(3));
+    await pause(30);
+    T('offline: opens once connected, with Try again', /You’re offline\. This workout opens once you’re connected\./.test(text(html(c, 'socialBody'))) && /Try again/.test(html(c, 'socialBody')));
+    c.closeSocial();
+    T('closing Friends from a preview closes the preview', c.socialView.sharedId === null);
+    T('the preview\'s last action clears the iPhone home indicator (Friends\' scroll carries the bottom inset)',
+      /\n#socialOverlay \.sheet-scroll\{ padding-bottom: calc\(16px \+ env\(safe-area-inset-bottom, 0px\)\); \}/.test(src.replace(/\r\n/g, '\n')));
+  }
+
+  /* ===================================================== IMPORT */
+  sub('SAVE TO MY WORKOUTS — an ordinary saved workout, never an overwrite, never twice');
+  {
+    const s = mkServer();
+    s.shares = [{ id: SID(1), from: 'bob', title: 'Push — Chest Focus', category: 'push', exercises: 3, created_at: new Date(s.now).toISOString(), viewed: false }];
+    const snap = { v: 1, title: 'Push — Chest Focus', category: 'push', exercises: [
+      { id: 'chest_press_machine', name: 'Machine Chest Press', sets: 3, reps: '8–12', effort: '7–8' },
+      { id: 'bench_press_barbell', name: 'Flat Barbell Bench Classic', sets: 4, reps: '5' },
+      { name: 'Future Move', sets: 2, reps: '10', effort: '6' }] };
+    s.rpc.loop_open_shared_workout = body => [200, { status: 'ok', id: body.p_id, from: 'bob', created_at: new Date(s.now).toISOString(), schema_version: 1, payload: snap }];
+    s.rpc.loop_remove_shared_workout = () => [200, { status: 'removed' }];
+    const L = await signedIn(s);
+    const c = L.ctx;
+    const mine = await addSaved(L, 'pull', 'Push — Chest Focus', [{ name: 'Lat Pulldown', sets: '4', reps: '10', effort: '8', recommended: '120 lb' }]);
+    const mineJson = JSON.stringify(c.planData.pull.find(t => t.id === mine));
+    const savedBefore = c.trainSavedWorkouts().length;
+    c.openSocial(); await pause(30);
+    c.socialOpenShared(SID(1)); await pause(30);
+    await c.socialDoSaveShared(null);
+    await pause(30);
+    const copy = c.planData.push.find(t => t.sharedId === SID(1));
+    T('one new saved workout, under the kind it was shared as', !!copy && c.trainSavedWorkouts().length === savedBefore + 1);
+    T('  with an ordinary saved-workout id', copy && /^c-\d+$/.test(copy.id) && c.isSavedWorkoutId(copy.id));
+    T('  named without overwriting: "Push — Chest Focus 2"', copy && copy.name === 'Push — Chest Focus 2');
+    T('  the athlete\'s own workout of that name untouched', JSON.stringify(c.planData.pull.find(t => t.id === mine)) === mineJson);
+    T('  each exercise the five fields a saved workout has; no weight, so the hint is blank', copy && copy.exercises.every(e =>
+      Object.keys(e).sort().join(',') === 'effort,name,recommended,reps,sets' && e.recommended === '—'));
+    T('  sets as the editor writes them, reps as sent, a missing effort the editor\'s default', copy &&
+      copy.exercises[0].sets === '3' && copy.exercises[0].reps === '8–12' && copy.exercises[1].effort === '7' && copy.exercises[2].effort === '6');
+    T('  a known id takes this LOOP\'s name; an unknown exercise is kept exactly as written', copy &&
+      copy.exercises[1].name === 'Bench Press' && copy.exercises[2].name === 'Future Move' && c.resolveExerciseId('Future Move').indexOf('unmapped:') === 0);
+    T('  written to the plan\'s own storage, no new storage key', JSON.parse(L.store['planData:' + c.selectedPlanId]).push.some(t => t.id === copy.id) &&
+      c.DATA_KEYS.length === 15);
+    T('Friends says where it went, and the share leaves the inbox', /Saved to My Workouts as “Push — Chest Focus 2”\./.test(text(html(c, 'socialBody'))) &&
+      c.socialView.pane === 'hub' && c.socialState.shares.length === 0);
+    const rm = s.rpcCalls('loop_remove_shared_workout');
+    T('  and from the server, by id only', rm.length === 1 && JSON.stringify(rm[0].body) === JSON.stringify({ p_id: SID(1) }));
+
+    const again = await c.importSharedWorkout(snap, SID(1));
+    T('the same share saved again is recognised, not copied', again.ok && again.already === true && c.planData.push.filter(t => t.sharedId === SID(1)).length === 1);
+    c.socialApplyHub(s.hub(), c.socialState.week);
+    await pause(20);
+    T('if it is still on the server, the next hub load hides it and clears it', c.socialState.shares.length === 0 && s.rpcCalls('loop_remove_shared_workout').length === 2);
+    T('editing the copy keeps its link to the share, so it still cannot be saved twice', /list\[idx\]\.sharedId\s*\?\s*\{ id: editingTemplateId, name, exercises, sharedId: list\[idx\]\.sharedId \}/.test(fnSrc(src, 'saveTemplate')));
+    const third = await c.importSharedWorkout(snap, SID(2));
+    T('a different share of the same workout is a new copy with the next number', third.ok && third.name === 'Push — Chest Focus 3');
+    const cased = await c.importSharedWorkout(Object.assign({}, snap, { title: 'PUSH — CHEST FOCUS' }), SID(3));
+    T('names are compared as the athlete reads them, ignoring case', cased.name === 'PUSH — CHEST FOCUS 4', cased.name);
+
+    const origSet = c.LOOPStore.set;
+    c.LOOPStore.set = async (k, v) => (/^planData:/.test(k) ? false : origSet.call(c.LOOPStore, k, v));
+    const count = c.planData.legs.length;
+    const failed = await c.importSharedWorkout({ v: 1, title: 'Leg Day', category: 'legs', exercises: [{ name: 'Leg Press', sets: 3, reps: '10' }] }, SID(4));
+    c.LOOPStore.set = origSet;
+    T('if the phone cannot write it, nothing is added and it says so', failed.ok === false && failed.error === 'save_failed' && c.planData.legs.length === count);
+    T('a malformed snapshot is never saved', (await c.importSharedWorkout({ v: 1, title: 'x', category: 'push', exercises: [{ name: 'Dip', sets: 3, reps: '8', weight: '225' }] }, SID(5))).ok === false);
+    T('nor one from a newer LOOP', (await c.importSharedWorkout({ v: 2, title: 'x', category: 'push', exercises: [{ name: 'Dip', sets: 3, reps: '8' }] }, SID(6))).error === 'unsupported_version');
+    const tpl = c.planData.push.find(t => t.id === copy.id);
+    tpl.exercises[0].sets = '5';
+    T('the copy is independent: changing it changes nothing that was received', snap.exercises[0].sets === 3);
+
+    s.shares = [{ id: SID(7), from: 'bob', title: 'Dismiss me', category: 'core', exercises: 1, created_at: new Date(s.now).toISOString(), viewed: true }];
+    await c.socialLoadFriends();
+    s.rpc.loop_open_shared_workout = body => [200, { status: 'ok', id: body.p_id, from: 'bob', created_at: null, schema_version: 1, payload: { v: 1, title: 'Dismiss me', category: 'core', exercises: [{ name: 'Plank', sets: 3, reps: '30s' }] } }];
+    c.socialOpenShared(SID(7)); await pause(30);
+    s.faults.push({ match: p => /loop_remove_shared_workout/.test(p), drop: true });
+    await c.socialDoDismissShared(null);
+    T('Dismiss offline keeps it, and says to try once connected', c.socialView.pane === 'shared' && /Dismiss it once you’re connected/.test(text(html(c, 'socialBody'))) &&
+      c.socialState.shares.length === 1);
+    {
+      const h = html(c, 'socialBody');
+      T('  said beside the buttons, below the exercise list, where the athlete tapped', h.indexOf('Dismiss it once') > h.indexOf('class="share-ex"') &&
+        h.indexOf('Dismiss it once') < h.indexOf('socialDoSaveShared') && h.indexOf('soc-notice') > h.indexOf('class="share-ex"'));
+    }
+    const before = c.trainSavedWorkouts().length;
+    await c.socialDoDismissShared(null);
+    T('Dismiss removes it from the server and the inbox, and saves nothing', c.socialView.pane === 'hub' && c.socialState.shares.length === 0 &&
+      /Dismissed\./.test(text(html(c, 'socialBody'))) && c.trainSavedWorkouts().length === before);
+  }
+
+  /* ===================================================== PRIVACY */
+  sub('PRIVACY — what may cross the network, and what never does');
+  {
+    const start = src.lastIndexOf('/*', src.indexOf('SHARED WORKOUTS  (Phase D80B)'));
+    const end = src.indexOf('/* ---------- actions ---------- */', start);
+    const block = stripComments(src.slice(start, end));
+    T('the share code is one block', start !== -1 && end > start);
+    const rpcs = [...new Set((block.match(/socialRpc\('(\w+)'/g) || []).map(m => m.slice(11, -1)))].sort();
+    T('it calls exactly three server functions: share, open, remove', rpcs.join(',') === 'loop_open_shared_workout,loop_remove_shared_workout,loop_share_workout', rpcs.join(','));
+    T('it never calls REST tables directly', !/socialRest\(/.test(block));
+    T('the send carries the recipient\'s account id and the snapshot, nothing about the sender', /socialRpc\('loop_share_workout', \{ p_recipient: recipientId, p_payload: payload \}\)/.test(block) &&
+      !/session\.(user_id|email)|profile\.username/.test(fnSrc(src, 'socialShareWorkout') + fnSrc(src, 'shareSend')));
+    T('the one snapshot sent is the builder\'s, with the note added', /shareSnapshotWithNote\(shareView\.built\.snapshot, shareView\.note\)/.test(fnSrc(src, 'shareSend')) &&
+      /buildShareableWorkoutSnapshot\(picked\.source, picked\.cat\)/.test(fnSrc(src, 'openShareWorkout')) &&
+      (code.match(/buildShareableWorkoutSnapshot\(/g) || []).length === 2);
+    T('the share code reads no training record: no log, history, PRs, score, readiness, bodyweight or trainer', !/workoutLog|cardioLog|dailyReadiness|trainerLog|athleteProfile|exerciseNotes|getPR|sessionScore|bodyweight/i.test(block));
+    T('no email is shown anywhere in sharing', !/\.email/.test(block));
+    T('no vibration', !/vibrate|loopHaptic/.test(block));
+    T('no new local storage: the only write is the plan\'s own, through persistPlanData', !/LOOPStore\.(set|remove)|localStorage/.test(block) && /await persistPlanData\(\)/.test(block));
+    T('DATA_KEYS is unchanged at 15', H.loadApp().ctx.DATA_KEYS.length === 15);
+    T('no service-role or secret credential', !/service_role|sb_secret_/.test(code));
+    T('no user search or directory', !/search_users|find_user|username=ilike|loop_search/i.test(code));
+  }
+
+  /* ===================================================== MIGRATION 0003 */
+  sub('MIGRATION 0003 — shared workouts, denied by default');
+  {
+    const path = H.APP_PATH.replace(/index\.html$/, 'supabase/migrations/0003_shared_workouts.sql');
+    let sql = '';
+    try{ sql = fs.readFileSync(path, 'utf8'); }catch(e){}
+    const plain = sql.replace(/--[^\n]*/g, '');
+    const fn = name => { const i = plain.indexOf('function public.' + name + '('); return i === -1 ? '' : plain.slice(i, plain.indexOf('$$;', i)); };
+    T('the migration is checked in', sql.length > 4000, String(sql.length));
+    ['shared_workouts', 'shared_workout_sends'].forEach(t => {
+      T(t + ' has row level security and no policy: only the functions reach it', new RegExp('alter table public\\.' + t + '\\s+enable row level security').test(plain) &&
+        !new RegExp('create policy[^;]+on public\\.' + t + '\\b').test(plain));
+      T('  every default privilege on it is revoked, and none granted back', new RegExp('revoke all on table public\\.' + t + '\\s+from public, anon, authenticated;').test(plain) &&
+        !new RegExp('grant[^;]+on table public\\.' + t + '\\b').test(plain));
+    });
+    T('the table holds only a share: sender, recipient, version, title, kind, count, snapshot, times',
+      /create table if not exists public\.shared_workouts \(\s*id\s+uuid primary key default gen_random_uuid\(\),\s*sender\s+uuid not null references public\.profiles\(user_id\) on delete cascade,\s*recipient\s+uuid not null references public\.profiles\(user_id\) on delete cascade,\s*schema_version smallint not null,\s*title\s+text not null,\s*category\s+text not null,\s*exercise_count smallint not null,\s*payload\s+jsonb not null,\s*created_at\s+timestamptz not null default now\(\),\s*viewed_at\s+timestamptz/.test(plain));
+    T('  and constrains it: never to yourself, version 1, 60-character title, 1–20 exercises, 8 KB', /sender <> recipient/.test(plain) && /schema_version = 1/.test(plain) &&
+      /char_length\(title\) between 1 and 60/.test(plain) && /exercise_count between 1 and 20/.test(plain) && /octet_length\(payload::text\) <= 8192/.test(plain));
+    T('a share cannot be edited after it is sent: only viewed_at, only once', /create trigger \w+\s+before update on public\.shared_workouts/.test(plain) &&
+      /old\.viewed_at is not null and new\.viewed_at is distinct from old\.viewed_at/.test(fn('loop_shared_workouts_guard')) &&
+      /errcode = '42501'/.test(fn('loop_shared_workouts_guard')));
+    const share = fn('loop_share_workout');
+    T('sending: signed in, not to yourself, only to an accepted friend', /if me is null then/.test(share) && /'self'/.test(share) &&
+      /not public\.loop_are_friends\(me, p_recipient\)/.test(share) && /'not_friends'/.test(share));
+    T('  the sender is the caller, never a parameter', /values \(me, p_recipient/.test(share) && !/p_sender/.test(plain));
+    T('  the snapshot is checked field by field; anything unexpected is refused', /'unexpected_field'/.test(share) &&
+      /not in \('v', 'title', 'category', 'note', 'exercises'\)/.test(share) && /not in \('id', 'name', 'sets', 'reps', 'effort'\)/.test(share));
+    T('  version, title, note, exercise count, names, sets, reps, effort and ids all bounded', /'unsupported_version'/.test(share) && /280/.test(share) &&
+      /> 20/.test(share) && /\^\[a-z0-9_\]\{1,48\}\$/.test(share) && /'too_large'/.test(share));
+    T('  and it stores the snapshot it rebuilt, not the one it was given', /jsonb_strip_nulls\(jsonb_build_object\(/.test(share) && !/values \([^)]*p_payload/.test(share));
+    T('rate limits: 30 a day per sender, 10 an hour to one friend, 50 waiting per recipient', />= 30/.test(share) && /'rate_limited'/.test(share) &&
+      />= 10/.test(share) && /'too_frequent'/.test(share) && />= 50/.test(share) && /'inbox_full'/.test(share));
+    T('an identical share still waiting is reported, not duplicated', /'already_sent'/.test(share));
+    T('one send at a time per sender, so parallel requests cannot slip past the duplicate check or a limit',
+      share.indexOf("perform pg_advisory_xact_lock(hashtextextended('loop_share_workout:' || me::text, 0));") !== -1 &&
+      share.indexOf('pg_advisory_xact_lock') < share.indexOf("'already_sent'") && share.indexOf('pg_advisory_xact_lock') < share.indexOf("'rate_limited'"));
+    T('shares expire after 30 days', /interval '30 days'/.test(share) && /interval '30 days'/.test(fn('loop_open_shared_workout')));
+    T('opening and removing are the recipient\'s alone', /recipient = me/.test(fn('loop_open_shared_workout')) && /recipient = me/.test(fn('loop_remove_shared_workout')));
+    const hub = fn('loop_friends_hub');
+    T('the hub lists summaries of the caller\'s own shares, never a snapshot', /'shares'/.test(hub) && /recipient = me/.test(hub) && !/payload/.test(hub));
+    {
+      const bodies = plain.split(/create or replace function public\./).slice(1);
+      const definers = bodies.filter(b => /security definer/.test(b.split('$$')[0]));
+      T('every security definer function pins its search_path and checks the caller', definers.length === 4 &&
+        definers.every(b => /set search_path = public/.test(b.split('$$')[0]) && /if me is null then/.test(b)), definers.length);
+      T('execute is revoked from PUBLIC and anon on all of them', ['loop_share_workout(uuid, jsonb)', 'loop_open_shared_workout(uuid)', 'loop_remove_shared_workout(uuid)', 'loop_friends_hub(date)']
+        .every(f => new RegExp('revoke execute on function public\\.' + f.replace(/[()]/g, '\\$&') + '\\s+from public, anon;').test(plain)));
+      T('and granted back only to signed-in users', (plain.match(/grant execute on function[^;]+;/g) || []).length === 4 &&
+        (plain.match(/grant execute on function[^;]+;/g) || []).every(g => /to authenticated;/.test(g)));
+      T('the trigger guard is executable by nobody', /revoke execute on function public\.loop_shared_workouts_guard\(\)\s+from public, anon, authenticated;/.test(plain));
+    }
+    T('nothing touches auth.users, so no email can come back', !/auth\.users/.test(plain));
+    T('re-runnable: every object is created if not exists or replaced', !/create table public|create index (?!if not exists)|create function /.test(plain) &&
+      /drop trigger if exists shared_workouts_guard on public\.shared_workouts;\s*create trigger shared_workouts_guard/.test(plain));
+    const setup = (() => { try{ return fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'SOCIAL-SETUP.md'), 'utf8'); }catch(e){ return ''; } })();
+    T('SOCIAL-SETUP.md tells the owner to apply 0003 and what it sends', /0003_shared_workouts\.sql/.test(setup) && /weights/i.test(setup));
+  }
+
+  /* ===================================================== D80A REGRESSION */
+  sub('D80A REGRESSION — Friends and its session are as they were');
+  {
+    const s = mkServer();
+    const L = await signedIn(s);
+    const c = L.ctx;
+    T('signed in, the hub is one call and the friends are there', c.socialSignedIn() && s.rpcCalls('loop_friends_hub').length === 1 && c.socialState.friends.some(p => p.username === 'bob'));
+    const stored = JSON.parse(L.store.socialSession);
+    T('the stored social record keeps its D80A fields, plus one capability flag', stored.session && stored.session.refresh_token === 'rt.1' &&
+      stored.binding && stored.binding.userId === ME && stored.sharesSupported === true);
+    const L2 = await mkLoop(s, { store: { socialSession: L.store.socialSession } });
+    T('a relaunch is still signed in, and still knows sharing works, before any request', L2.ctx.socialSignedIn() && L2.ctx.socialState.sharesSupported === true);
+    const id = await addSaved(L2, 'push', 'P', [{ name: 'Dip', sets: '3', reps: '8' }]);
+    const plan = JSON.stringify(L2.ctx.planData);
+    await L2.ctx.socialSignOut();
+    L2.ctx.openTrainDetail('push', id);
+    T('signing out: no Share, no shares in memory, every workout in place', L2.ctx.document.getElementById('trainDetailShare').hidden === true &&
+      L2.ctx.socialState.shares === null && JSON.stringify(L2.ctx.planData) === plan);
+    T('the codes-only fallback (no 0002) marks sharing unavailable', /if\(lb\.ok\)\{ socialState\.sharesSupported = false; socialState\.shares = \[\]; \}/.test(fnSrc(src, 'socialLoadFriends')));
+    T('the Friends screen\'s order is unchanged below the new section', (() => {
+      const h = c.socialFriendsHtml();
+      const order = ['My friends', 'Invite', 'Weekly leaderboard', 'Progress'].map(x => h.indexOf('<div class="sec-head">' + x));
+      return order.every(i => i !== -1) && order.every((v, i) => i === 0 || order[i - 1] < v);
+    })());
+  }
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -29456,6 +30138,7 @@ async function main(){
   await testTrainingFoundation();
   await testMuscleFocusChips();
   await testFriendsRebuild();
+  await testWorkoutSharing();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
