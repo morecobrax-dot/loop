@@ -31646,14 +31646,14 @@ async function testMasteryPodium(){
     T('3rd sits after both in visual order',
       /\.mpod-p3\{ order: 3; \}/.test(css));
     const sizes = [1, 2, 3].map(p => {
-      const svg = ctx.masteryPodiumBadge(p, p === 1 ? 68 : 56);
-      return parseInt(/width="(\d+)"/.exec(svg)[1], 10);
+      const img = ctx.masteryPodiumMedalHtml(p, p === 1 ? 72 : 58);
+      return parseInt(/width="(\d+)"/.exec(img)[1], 10);
     });
     T('1st is only modestly larger than 2nd/3rd, never dramatically so',
       sizes[0] > sizes[1] && sizes[0] <= sizes[1] * 1.5);
     T('2nd and 3rd share one scale', sizes[1] === sizes[2]);
-    T('every badge size the app actually requests stays inside the brief’s 48–72px range',
-      /place === 1 \? 68 : 56/.test(fnSrc(src, 'masteryPodiumCardHtml')));
+    T('every medal size the app actually requests stays inside the brief’s 48–72px range',
+      /place === 1 \? 72 : 58/.test(fnSrc(src, 'masteryPodiumCardHtml')));
   });
 
   sub('podium edge cases: zero, one, two, three or more');
@@ -31711,30 +31711,37 @@ async function testMasteryPodium(){
   });
 
   /* ---------------------------------------------------------------- */
-  sub('the badge is a distinct family from the Rank Emblem');
-  guard('badge distinctness', () => {
-    const badgeFn = fnSrc(src, 'masteryPodiumBadge');
-    T('masteryPodiumBadge exists as one shared primitive', badgeFn.length > 0);
-    T('it takes a place and renders the family from one function, not three hand-coded designs',
-      /function masteryPodiumBadge\(place, ?size\)/.test(src));
-    T('it shares no colour constants with RANK_VISUALS', (() => {
-      const rankColors = [];
-      Object.values(ctx.RANK_VISUALS).forEach(v => { rankColors.push(...v.metal, ...v.gem); });
-      const badgeColors = Object.values(ctx.MASTERY_PODIUM_COLORS).flatMap(c => [c.hi, c.lo]);
-      return badgeColors.every(c => rankColors.indexOf(c) === -1);
+  /* D86.1 — the generated masteryPodiumBadge was replaced outright by the
+     owner's own medal artwork (mastery-medal-1/2/3.png). Nothing here draws
+     a badge any more; these assertions hold the real asset wiring instead. */
+  sub('the podium uses the owner’s real medal art, not generated artwork');
+  guard('real medal assets', () => {
+    T('the generated SVG badge primitive is gone, not left unused',
+      typeof ctx.masteryPodiumBadge === 'undefined' &&
+      !/function masteryPodiumBadge/.test(src) &&
+      !/MASTERY_PODIUM_COLORS/.test(src));
+    T('one small function names which asset each place uses — no per-place branching elsewhere',
+      /function masteryPodiumMedalHtml\(place, ?size\)/.test(src));
+    T('every place maps to its own real file', (() => {
+      const map = ctx.MASTERY_PODIUM_MEDAL;
+      return map[1] === 'mastery-medal-1.png' && map[2] === 'mastery-medal-2.png' && map[3] === 'mastery-medal-3.png';
     })());
-    T('it draws no wings, no gem facets, no armor frame — a medal, not a crest',
-      !/wing|facet|armor|crest/i.test(badgeFn));
-    T('it is decorative markup, not a second accessible object',
-      /aria-hidden="true"/.test(badgeFn) && !/role="img"/.test(badgeFn));
     for(const place of [1, 2, 3]){
-      const svg = ctx.masteryPodiumBadge(place, 64);
-      T('place ' + place + ' renders as a well-formed, self-contained svg',
-        /^<svg/.test(svg) && svg.indexOf('</svg>') === svg.length - 6);
-      T('and shows its own place number', new RegExp('>' + place + '<').test(svg));
+      const img = ctx.masteryPodiumMedalHtml(place, 64);
+      T('place ' + place + ' renders as a real <img> pointing at its own file, not a data URI or placeholder',
+        new RegExp('<img class="mpod-medal" src="mastery-medal-' + place + '\\.png"').test(img));
+      T('and the actual file exists in the repository, at a sane delivered size', (() => {
+        const stat = fs.statSync(H.APP_PATH.replace(/index\.html$/, 'mastery-medal-' + place + '.png'));
+        return stat.size > 1000 && stat.size < 300000;
+      })());
     }
-    T('1st carries the one small structural addition the brief asked for',
-      /place === 1[\s\S]{0,400}path/.test(badgeFn));
+    T('the image is decorative — the card’s own aria-label already states place, name, level and progress',
+      /alt=""/.test(ctx.masteryPodiumMedalHtml(1, 64)));
+    T('1st and 2nd/3rd are genuinely different files, not the same medal recoloured by CSS',
+      ctx.MASTERY_PODIUM_MEDAL[1] !== ctx.MASTERY_PODIUM_MEDAL[2] &&
+      ctx.MASTERY_PODIUM_MEDAL[2] !== ctx.MASTERY_PODIUM_MEDAL[3]);
+    T('the image cannot be dragged or long-press-saved out from under the button’s own tap',
+      /\.mpod-medal\{[^}]*pointer-events: none/.test(css));
   });
 
   /* ---------------------------------------------------------------- */

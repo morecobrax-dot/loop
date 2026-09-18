@@ -247,8 +247,9 @@ function loadApp(initialStore){
     'PBT_CONFIG','pbtSelectedExercise','_pbtScrollTimer',
     /* D85 — the phase overlay's rules and the phase the open workout began in */
     'PHASE_PRESCRIPTION','pendingWorkoutPhase','_phaseRxCache',
-    /* D86 — the Mastery Leaders podium's own config and badge palette */
-    'MASTERY_UI_CONFIG','MASTERY_PODIUM_COLORS'];
+    /* D86 — the Mastery Leaders podium's own config; D86.1 — which real
+       medal asset each place uses */
+    'MASTERY_UI_CONFIG','MASTERY_PODIUM_MEDAL'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +
