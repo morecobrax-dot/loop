@@ -3636,6 +3636,32 @@ body.first-use{ padding-bottom: 0; }
   position: absolute; right: 0; top: 50%; transform: translateY(-50%);
   color: var(--text-faint); pointer-events: none; display: flex;
 }
+/* =========================================================
+   D83 — MULTI-LIFT CAROUSEL
+   ---------------------------------------------------------
+   Native horizontal scroll + scroll-snap, not a hand-built drag
+   engine: the browser already gives momentum, iPhone-correct
+   axis locking (so the Strength page keeps scrolling vertically
+   under a thumb that started on the card), and a snap that
+   settles on exactly one page. The header (name/picker) sits
+   above the strip and is common to every page; only the hero,
+   the climb and its summary swipe.
+   ========================================================= */
+.pbt-carousel{
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+  margin: 0 -18px; scrollbar-width: none; -ms-overflow-style: none;
+}
+.pbt-carousel::-webkit-scrollbar{ display: none; }
+/* Every page shares the carousel's height (flex stretch, so swiping between a
+   tall chart and the short single-PR marker never resizes the card) — centred
+   rather than top-anchored, so the shorter page reads as composed, not like
+   content that ran out partway down an empty box. */
+.pbt-page{
+  flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always;
+  padding: 0 18px; box-sizing: border-box;
+  display: flex; flex-direction: column; justify-content: center;
+}
 .pbt-hero{ margin-top: 14px; }
 .pbt-hero-label{ font-size: 11.5px; color: var(--text-dim); font-weight: 600; }
 .pbt-hero-num{
@@ -3645,21 +3671,36 @@ body.first-use{ padding-bottom: 0; }
 .pbt-hero-num span{ font-size: 16px; color: var(--text-faint); margin-left: 4px; font-weight: 500; }
 .pbt-chart-svg{ width: 100%; height: 128px; display: block; margin-top: 6px; }
 /* ONLY ONE PR: no line has two ends to draw, so this is a marker, not a
-   degenerate chart pretending to be one. */
-.pbt-single{
-  display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 14px;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
-}
-.pbt-single-dot{
-  flex: 0 0 10px; width: 10px; height: 10px; border-radius: 50%;
-  background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft);
-}
-.pbt-single-text{ font-size: 12.5px; color: var(--text-dim); line-height: 1.45; }
-/* These tiles hold short pairs and signed deltas, not a single big figure —
-   the shared .snap-num size (tuned for exDetailStats' plain numbers) wrapped
-   "185 → 230" onto two lines in a 2-column tile at 320px. Smaller here only. */
+   degenerate chart pretending to be one — the same value framed twice, as
+   "your best" and as "when you set it," never a fake climb. */
+.pbt-single{ margin-top: 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.pbt-single-label{ font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.pbt-single-row{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.pbt-single-val{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; color: var(--text); }
+.pbt-single-val span{ font-size: 13px; color: var(--text-faint); font-weight: 500; }
+.pbt-single-date{ font-size: 12px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; }
+.pbt-single-note{ font-size: 12.5px; color: var(--text-dim); line-height: 1.4; margin-top: 8px; }
+/* The gain and the milestone count — the two things the chart itself
+   cannot say. First-to-current and the latest date are not repeated here:
+   the chart's own end labels already carry them. */
 .pbt-stats{ margin-top: 14px; }
 .pbt-stats .snap-num{ font-size: 15.5px; line-height: 1.3; }
+
+/* PAGE INDICATOR — dots plus a plain "N of M", so position never depends on
+   counting dots alone. A 44px tap target lives in the button's own padding;
+   only the small visible mark is drawn. */
+.pbt-dots{ display: flex; justify-content: center; align-items: center; gap: 2px; margin-top: 14px; }
+.pbt-dot{
+  appearance: none; background: none; border: none; padding: 12px; margin: 0;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.pbt-dot-mark{ width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); opacity: 0.5; transition: transform 0.15s var(--ease), opacity 0.15s var(--ease), background 0.15s var(--ease); }
+.pbt-dot.active .pbt-dot-mark{ background: var(--accent); opacity: 1; transform: scale(1.5); }
+.pbt-pagenum{ text-align: center; font-size: 11px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce){
+  .pbt-dot-mark{ transition: none; }
+}
+
 /* EMPTY — describes what will appear, the same rule the dashboard's own
    empty state already follows rather than a grid of zeroes. */
 .pbt-empty{ text-align: center; padding: 26px 20px; }
@@ -15790,6 +15831,24 @@ const LOOP_UPDATES = [
     improvements: [
       'LOOP picks the lift with the most convincing progression to show first, automatically',
       'A lift with only one PR still gets a clean card — never a broken chart with nowhere to go'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v8-5',
+    version: 'LOOP 8.5',
+    title: 'Swipe Through Your Best Lifts',
+    date: '2026-09-17',
+    swVersion: 'loop-v162',
+    summary: 'Personal Best Timeline now swipes between your best lifts, not just one.',
+    newFeatures: [
+      'Swipe the Personal Best Timeline to move between your most meaningful lifts, with a page indicator to match',
+      'The exercise picker still reaches every lift you’ve ever logged, even ones off the swipe strip'
+    ],
+    improvements: [
+      'Each lift’s climb reads at a glance: current best up top, the gain and PR count below it',
+      'The current PR now stands out clearly from the ones on the way to it'
     ],
     bugFixes: [],
     changes: []
@@ -28226,7 +28285,8 @@ function formatPREventHeadline(ev){
    next render computes and nothing else.
    ========================================================= */
 const PBT_CONFIG = {
-  maxDots: 8   // milestones actually drawn; the stats row always states the true count
+  maxDots: 8,               // milestones actually drawn; the stats row always states the true count
+  maxCarouselExercises: 5   // swipe pages built from ranking; the picker still reaches every exercise (D83)
 };
 
 /* The exercise's own kind of record: heaviest weight, or — for a bodyweight
@@ -28256,20 +28316,20 @@ function computePBTCandidates(){
   return getAllLoggedExerciseNames().map(computePersonalBestTimeline).filter(t => t.milestones.length > 0);
 }
 
-/* DEFAULT SELECTION. Most milestones wins first — "enough PR history to make
-   the chart meaningful" — then the largest first-to-current improvement,
-   then the most recently set PR, then the name, so the choice is fully
-   deterministic. A lift with only its opening PR has nowhere left to climb
-   (its first milestone and its current one are the same one, a 0% gain by
-   construction), so it only ever wins by being the sole exercise logged. */
-function pickDefaultPBTExercise(candidates){
-  const list = candidates || computePBTCandidates();
-  if(!list.length) return null;
+/* RANKING (D82, extracted for reuse in D83). Most milestones wins first —
+   "enough PR history to make the chart meaningful" — then the largest
+   first-to-current improvement, then the most recently set PR, then the
+   name, so the order is fully deterministic. A lift with only its opening
+   PR has nowhere left to climb (its first milestone and its current one
+   are the same one, a 0% gain by construction), so it only ever ranks
+   first by being the sole exercise logged. One ranking, reused by the
+   default pick and by the carousel's page order — never a second model. */
+function rankPBTCandidates(list){
   const pctGain = t => {
     const first = t.milestones[0].value, last = t.milestones[t.milestones.length - 1].value;
     return first > 0 ? (last - first) / first : 0;
   };
-  const ranked = list.slice().sort((a, b) => {
+  return list.slice().sort((a, b) => {
     if(b.milestones.length !== a.milestones.length) return b.milestones.length - a.milestones.length;
     const g = pctGain(b) - pctGain(a);
     if(g) return g;
@@ -28277,7 +28337,43 @@ function pickDefaultPBTExercise(candidates){
     if(aLast !== bLast) return new Date(bLast) - new Date(aLast);
     return a.exerciseName.localeCompare(b.exerciseName);
   });
-  return ranked[0].exerciseName;
+}
+function pickDefaultPBTExercise(candidates){
+  const list = candidates || computePBTCandidates();
+  if(!list.length) return null;
+  return rankPBTCandidates(list)[0].exerciseName;
+}
+
+/* ONE DERIVATION PASS (D83). computePBTCandidates() is read exactly once;
+   the ranking, the carousel's page set and every page's own numbers are
+   all built from that same result, so opening Strength with several
+   timelines to show costs one pass over the log, not one per page.
+   Nothing here is stored — a render-local model, discarded after use. */
+function pbtPageModel(t){
+  const { exerciseName, isBW, unit, milestones } = t;
+  const first = milestones[0], current = milestones[milestones.length - 1];
+  const gain = current.value - first.value;
+  const gainPercent = first.value > 0 ? Math.round((gain / first.value) * 100) : null;
+  return { exerciseName, isBW, unit, milestones, displayMilestones: pbtDisplayMilestones(milestones),
+    current, first, gain, gainPercent, firstDate: first.date, latestDate: current.date };
+}
+function buildPersonalBestTimelineModel(){
+  const candidates = computePBTCandidates();
+  if(!candidates.length){ pbtSelectedExercise = null; return { candidates, ranked:[], carousel:[], activeExercise:null, pages:[] }; }
+  const ranked = rankPBTCandidates(candidates);
+  if(!pbtSelectedExercise || !candidates.some(t => t.exerciseName === pbtSelectedExercise)){
+    pbtSelectedExercise = ranked[0].exerciseName;
+  }
+  const activeExercise = pbtSelectedExercise;
+  /* The swipe set is the top-ranked few, in rank order — restrained on
+     purpose. If the athlete's own pick (via the picker) sits outside that
+     set, it is included too, wherever it naturally ranks, so nothing the
+     athlete is actually looking at ever falls off the strip; it is not
+     stored anywhere and reverts to just the top set the moment a
+     top-ranked exercise is chosen again. */
+  const carousel = ranked.filter((t, i) => i < PBT_CONFIG.maxCarouselExercises || t.exerciseName === activeExercise);
+  const pages = carousel.map(pbtPageModel);
+  return { candidates, ranked, carousel, activeExercise, pages };
 }
 
 /* VERY LONG HISTORY: the dots actually drawn are capped so the card stays
@@ -32368,7 +32464,7 @@ function trophyIconSvg(){
    language e1rmLineSvg already established (gradient underfill, a glowing
    halo on the newest point, faded dots on the rest) so this reads as LOOP's
    own chart rather than a second chart language living beside the first. */
-function pbtTimelineSvg(points, isBW){
+function pbtTimelineSvg(points, isBW, exerciseName, trueCount, uid){
   const w = 320, h = 128, padL = 16, padR = 16, padT = 30, padB = 24;
   const n = points.length;
   const values = points.map(p => p.value);
@@ -32379,7 +32475,13 @@ function pbtTimelineSvg(points, isBW){
   const coords = points.map((p, i) => [xFor(i), yFor(p.value)]);
   const pathD = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
   const fillD = pathD + ` L${coords[n-1][0].toFixed(1)},${h-padB} L${coords[0][0].toFixed(1)},${h-padB} Z`;
-  const dots = coords.slice(0, -1).map(c => `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="3" fill="var(--accent)" opacity="0.45"/>`).join('');
+  /* Three-tier hierarchy (D83): the earliest PR is a small, muted mark; the
+     ones between are a normal accent dot; the current one — the
+     destination — is the only one with a halo. Not every dot is a beacon. */
+  const dots = coords.slice(0, -1).map((c, i) => {
+    const isFirst = i === 0;
+    return `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${isFirst ? 2.6 : 3.4}" fill="var(--accent)" opacity="${isFirst ? 0.35 : 0.55}"/>`;
+  }).join('');
   const last = coords[n - 1];
   const nowDot = `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="7.5" fill="var(--accent-soft)"/>` +
     `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.6" fill="var(--accent)"/>`;
@@ -32391,15 +32493,66 @@ function pbtTimelineSvg(points, isBW){
   }).join('');
   const firstDate = `<text x="${coords[0][0].toFixed(1)}" y="${h-6}" font-size="11" text-anchor="start" font-family="'JetBrains Mono', monospace" fill="var(--text-faint)">${escapeHtml(formatDateShort(points[0].date))}</text>`;
   const lastDate = `<text x="${last[0].toFixed(1)}" y="${h-6}" font-size="11" text-anchor="end" font-family="'JetBrains Mono', monospace" fill="var(--text-faint)">${escapeHtml(formatDateShort(points[n-1].date))}</text>`;
-  return `<svg class="pbt-chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Progression from ${points[0].value} to ${points[n-1].value} ${isBW ? 'reps' : 'pounds'}">
-    <defs><linearGradient id="pbtFill" x1="0" y1="0" x2="0" y2="1">
+  /* D83 — several of these can be in the DOM at once (one per carousel
+     page), so the gradient needs a page-unique id: a duplicate <linearGradient
+     id> is undefined behaviour once more than one chart is on the page. */
+  const gid = 'pbtFill' + (uid == null ? '' : uid);
+  const unitWord = isBW ? 'reps' : 'pounds';
+  const label = `${exerciseName} personal best progression from ${points[0].value} to ${points[n-1].value} ${unitWord} across ${trueCount} personal record${trueCount === 1 ? '' : 's'}.`;
+  return `<svg class="pbt-chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="${escapeAttr(label)}">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="var(--accent)" stop-opacity="0.18"/>
       <stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
     </linearGradient></defs>
-    <path d="${fillD}" fill="url(#pbtFill)"/>
+    <path d="${fillD}" fill="url(#${gid})"/>
     <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>
     ${dots}${nowDot}${valueLabels}${firstDate}${n > 1 ? lastDate : ''}
   </svg>`;
+}
+
+function pbtReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; }
+}
+
+/* One carousel page: the hero, the climb (or the single-PR marker), and a
+   short summary that never repeats what the chart already says — the
+   chart's own end labels already carry the first and current dates, so
+   this states only what the chart cannot: the gain, and how many PRs. */
+function pbtPageHtml(p, index){
+  const { exerciseName, isBW, milestones, displayMilestones, current, first, gain, gainPercent } = p;
+  const unitWord = isBW ? (current.value === 1 ? 'rep' : 'reps') : 'lb';
+
+  if(milestones.length === 1){
+    return `<div class="pbt-page" data-exercise="${escapeAttr(exerciseName)}">
+      <div class="pbt-hero">
+        <span class="pbt-hero-label">Current best</span>
+        <div class="pbt-hero-num">${current.value}<span>${escapeHtml(' ' + unitWord)}</span></div>
+      </div>
+      <div class="pbt-single">
+        <span class="pbt-single-label">First PR</span>
+        <div class="pbt-single-row">
+          <span class="pbt-single-val">${current.value}<span>${escapeHtml(' ' + unitWord)}</span></span>
+          <span class="pbt-single-date">${escapeHtml(formatDateShort(first.date))}</span>
+        </div>
+      </div>
+      <p class="pbt-single-note">Log ${escapeHtml(exerciseName)} again and beat it to start the climb.</p>
+    </div>`;
+  }
+
+  const stats = [
+    { label:'Since first PR', value:`${gain > 0 ? '+' : ''}${gain} ${unitWord}${gainPercent !== null ? ' (' + (gainPercent >= 0 ? '+' : '') + gainPercent + '%)' : ''}` },
+    { label:'PR milestones', value:String(milestones.length) }
+  ];
+  return `<div class="pbt-page" data-exercise="${escapeAttr(exerciseName)}">
+    <div class="pbt-hero">
+      <span class="pbt-hero-label">Current best</span>
+      <div class="pbt-hero-num">${current.value}<span>${escapeHtml(' ' + unitWord)}</span></div>
+    </div>
+    ${pbtTimelineSvg(displayMilestones, isBW, exerciseName, milestones.length, index)}
+    <div class="snapshot pbt-stats">${stats.map(s =>
+      `<div class="snap-item"><div class="snap-label">${escapeHtml(s.label)}</div><div class="snap-num">${escapeHtml(s.value)}</div></div>`
+    ).join('')}</div>
+  </div>`;
 }
 
 function pbtChooseExercise(name){
@@ -32407,15 +32560,62 @@ function pbtChooseExercise(name){
   renderPersonalBestTimeline();
 }
 
-/* D82 — the Personal Best Timeline card: one exercise's all-time-best climb,
-   big and prominent, with a compact picker to look at a different lift. */
+/* A dot (or any non-swipe jump) moves with a smooth scroll normally, an
+   instant one under Reduce Motion — the destination is what matters; the
+   glide there is the part that's optional. */
+function pbtGoToPage(index){
+  const el = document.getElementById('pbtCarousel');
+  if(!el) return;
+  const pages = el.querySelectorAll('.pbt-page');
+  if(!pages[index]) return;
+  el.scrollTo({ left: index * el.clientWidth, behavior: pbtReducedMotion() ? 'auto' : 'smooth' });
+}
+
+/* SWIPE. Native scroll does the moving; this only notices, once scrolling
+   settles, which page is now in front, and — without touching the
+   carousel's own DOM or its scroll position — updates the picker, the dots
+   and the live region to match. Debounced so a single flick updates once,
+   not on every pixel of momentum. */
+let _pbtScrollTimer = null;
+function pbtOnCarouselScroll(){
+  clearTimeout(_pbtScrollTimer);
+  _pbtScrollTimer = setTimeout(pbtSettleCarousel, 120);
+}
+function pbtSettleCarousel(){
+  const el = document.getElementById('pbtCarousel');
+  if(!el) return;
+  const count = el.querySelectorAll('.pbt-page').length;
+  if(!count) return;
+  const w = el.clientWidth || 1;
+  const index = Math.max(0, Math.min(count - 1, Math.round(el.scrollLeft / w)));
+  const model = buildPersonalBestTimelineModel();
+  const page = model.carousel[index];
+  if(!page || page.exerciseName === pbtSelectedExercise) return;
+  pbtSelectedExercise = page.exerciseName;
+  pbtSyncCarouselChrome(model.carousel, index);
+}
+function pbtSyncCarouselChrome(carousel, index){
+  const sel = document.getElementById('pbtExerciseSelect');
+  if(sel) sel.value = carousel[index].exerciseName;
+  document.querySelectorAll('#pbtDots .pbt-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === index);
+    d.setAttribute('aria-current', i === index ? 'true' : 'false');
+  });
+  const num = document.getElementById('pbtPageNum');
+  if(num) num.textContent = (index + 1) + ' of ' + carousel.length;
+  const live = document.getElementById('pbtLive');
+  if(live) live.textContent = carousel[index].exerciseName + ', ' + (index + 1) + ' of ' + carousel.length;
+}
+
+/* D82/D83 — the Personal Best Timeline card: a swipeable strip of the
+   athlete's most meaningful lifts, one exercise per page, with a compact
+   picker to jump straight to any of them. */
 function renderPersonalBestTimeline(){
   const host = document.getElementById('progPBTimeline');
   if(!host) return;
-  const candidates = computePBTCandidates();
+  const model = buildPersonalBestTimelineModel();
 
-  if(!candidates.length){
-    pbtSelectedExercise = null;
+  if(!model.pages.length){
     host.innerHTML = `
       <section class="pbt-card pbt-empty">
         <span class="pbt-eyebrow">Personal Best Timeline</span>
@@ -32426,39 +32626,28 @@ function renderPersonalBestTimeline(){
     return;
   }
 
-  /* A manual choice survives leaving the tab and coming back; it only resets
-     to the automatic pick if it stops being a valid one — nothing chosen
-     yet, or that exercise's history is gone. */
-  if(!pbtSelectedExercise || !candidates.some(t => t.exerciseName === pbtSelectedExercise)){
-    pbtSelectedExercise = pickDefaultPBTExercise(candidates);
-  }
-  const timeline = candidates.find(t => t.exerciseName === pbtSelectedExercise) || candidates[0];
-  const { exerciseName, isBW, milestones } = timeline;
-  const first = milestones[0], current = milestones[milestones.length - 1];
-  const unitWord = isBW ? (current.value === 1 ? 'rep' : 'reps') : 'lb';
-  const netValue = current.value - first.value;
-  const netPct = first.value > 0 ? Math.round((netValue / first.value) * 100) : null;
+  const { candidates, carousel, pages, activeExercise } = model;
+  const activeIndex = Math.max(0, carousel.findIndex(t => t.exerciseName === activeExercise));
 
   /* computePBTCandidates() already lists exercises in getAllLoggedExerciseNames'
      alphabetical order (map/filter preserve it), so the picker needs no sort
-     of its own — one source of truth for the order, not two that could drift. */
+     of its own — one source of truth for the order, not two that could drift.
+     It always offers every eligible exercise, whether or not it made the
+     restrained swipe set below. */
   const options = candidates.map(t =>
-    `<option value="${escapeAttr(t.exerciseName)}"${t.exerciseName === exerciseName ? ' selected' : ''}>${escapeHtml(t.exerciseName)}</option>`
+    `<option value="${escapeAttr(t.exerciseName)}"${t.exerciseName === activeExercise ? ' selected' : ''}>${escapeHtml(t.exerciseName)}</option>`
   ).join('');
 
-  const bodyHtml = milestones.length === 1
-    ? `<div class="pbt-single">
-         <span class="pbt-single-dot" aria-hidden="true"></span>
-         <span class="pbt-single-text">Set on ${escapeHtml(formatDateShort(first.date))}. Log ${escapeHtml(exerciseName)} again and beat it to start the climb.</span>
-       </div>`
-    : pbtTimelineSvg(pbtDisplayMilestones(milestones), isBW);
+  const pagesHtml = pages.map((p, i) => pbtPageHtml(p, i)).join('');
 
-  const stats = [{ label:'PR milestones', value:String(milestones.length) }];
-  if(milestones.length > 1){
-    stats.push({ label:'First → current', value:`${first.value}→${current.value}` });
-    stats.push({ label:'Since first PR', value:`${netValue > 0 ? '+' : ''}${netValue} ${unitWord}${netPct !== null ? ' (' + (netPct >= 0 ? '+' : '') + netPct + '%)' : ''}` });
-  }
-  stats.push({ label:'Latest PR', value: formatDateShort(current.date) });
+  const dotsHtml = pages.length > 1 ? `
+      <div class="pbt-dots" id="pbtDots" role="group" aria-label="Choose a lift">
+        ${pages.map((p, i) => `<button type="button" class="pbt-dot${i === activeIndex ? ' active' : ''}"
+          aria-current="${i === activeIndex ? 'true' : 'false'}" aria-label="${escapeAttr(p.exerciseName)}, ${i + 1} of ${pages.length}"
+          onclick="pbtGoToPage(${i})"><span class="pbt-dot-mark" aria-hidden="true"></span></button>`).join('')}
+      </div>
+      <div class="pbt-pagenum" id="pbtPageNum" aria-hidden="true">${activeIndex + 1} of ${pages.length}</div>`
+    : '';
 
   host.innerHTML = `
     <section class="pbt-card" aria-label="Personal Best Timeline">
@@ -32469,15 +32658,17 @@ function renderPersonalBestTimeline(){
         </select>
         <span class="pbt-pick-chevron" aria-hidden="true">${chevronDownSvg(15)}</span>
       </div>
-      <div class="pbt-hero">
-        <span class="pbt-hero-label">Current best</span>
-        <div class="pbt-hero-num">${current.value}<span>${escapeHtml(' ' + unitWord)}</span></div>
-      </div>
-      ${bodyHtml}
-      <div class="snapshot pbt-stats">${stats.map(s =>
-        `<div class="snap-item"><div class="snap-label">${escapeHtml(s.label)}</div><div class="snap-num">${escapeHtml(s.value)}</div></div>`
-      ).join('')}</div>
+      <div class="pbt-carousel" id="pbtCarousel" onscroll="pbtOnCarouselScroll()">${pagesHtml}</div>
+      ${dotsHtml}
+      <p class="sr-only" id="pbtLive" aria-live="polite">${escapeHtml(activeExercise)}, ${activeIndex + 1} of ${pages.length}</p>
     </section>`;
+
+  /* A fresh render — opening the tab, coming back to it, or a picker choice
+     that changed the page set — lands exactly on the active page at once.
+     No animation here: sliding through several pages every time Strength
+     opens would be the "stuck half-page" feeling this is meant to avoid. */
+  const el = document.getElementById('pbtCarousel');
+  if(el) el.scrollLeft = activeIndex * el.clientWidth;
 }
 
 function renderProgStrength(){

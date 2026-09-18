@@ -243,8 +243,8 @@ function loadApp(initialStore){
     'SHARE_IDENTITY_VERSION','_WI_TORSO','WORKOUT_ICONS','WORKOUT_ICON_CHOICES','WORKOUT_FALLBACK_ICON','CATEGORY_WORKOUT_ICON',
     'WORKOUT_COLORS','WORKOUT_COLOR_CHOICES','WORKOUT_ICON_SIZES','WORKOUT_IDENTITY_ID_RE','_wiSpriteReady',
     'tplIdentityDraft','pendingWorkoutIdentity',
-    /* D82 — the Personal Best Timeline card's own display cap and selection state */
-    'PBT_CONFIG','pbtSelectedExercise'];
+    /* D82/D83 — the Personal Best Timeline card's own config and carousel state */
+    'PBT_CONFIG','pbtSelectedExercise','_pbtScrollTimer'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

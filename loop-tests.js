@@ -30502,7 +30502,7 @@ async function testWorkoutIdentity(){
 }
 
 /* =========================================================
-   CONTRACT 186 — PERSONAL BEST TIMELINE  (Phase D82)
+   CONTRACT 186 — PERSONAL BEST TIMELINE  (Phase D82 + D83)
 
    One lift's own climb, felt rather than read: the athlete's
    all-time bests for one exercise, drawn as a short line of
@@ -30514,21 +30514,31 @@ async function testWorkoutIdentity(){
    volume and rep-at-weight hits, so the card reads as one number
    climbing, never three units interleaved.
 
+   D83 turned the single card into a swipeable strip of the
+   athlete's most meaningful lifts — one ranking (rankPBTCandidates)
+   reused by the default pick and the carousel's own order, capped
+   at PBT_CONFIG.maxCarouselExercises, with the picker still one tap
+   from any eligible exercise, in or out of that restrained set.
+
    What is proved here: milestones are derived correctly and in
-   order; the default exercise is chosen deterministically; the
-   empty, single-PR and multi-PR states each render cleanly; a
-   long history is capped for display without losing the true
-   count; the picker offers exactly the eligible exercises and a
-   manual choice survives a re-render; nothing here writes to
-   workoutLog, adds a DATA_KEY, or touches training, XP, rank or
-   progression logic.
+   order; the default exercise is chosen deterministically, by the
+   one ranking every consumer shares; the empty, single-PR, multi-PR
+   and long-history states each render cleanly; a long history is
+   capped for display without losing the true count; the carousel
+   is capped, in rank order, and grows by exactly one when the
+   picker reaches outside it; the picker always offers every
+   eligible exercise; the strip's own markup (pages, dots, the live
+   region, chart aria-labels, gradient ids) is correct and
+   collision-free; nothing here writes to workoutLog, adds a
+   DATA_KEY, or touches training, XP, rank or progression logic.
 
    DERIVATION · ORDERING · DEFAULT SELECTION · EMPTY ·
    SINGLE PR · MULTI PR · LONG HISTORY · PICKER · RENDERING ·
-   MOBILE SAFETY · DATA SAFETY
+   MOBILE SAFETY · DATA SAFETY · RANKING REUSE · CAROUSEL MODEL ·
+   CAROUSEL RENDERING · MILESTONE HIERARCHY
    ========================================================= */
 async function testPersonalBestTimeline(){
-  section('CONTRACT 186 — Personal Best Timeline: one lift\'s own climb (D82)');
+  section('CONTRACT 186 — Personal Best Timeline: one lift\'s own climb, and the strip of them (D82 + D83)');
   const fs = require('fs');
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
   const code = stripComments(src);
@@ -30693,13 +30703,14 @@ async function testPersonalBestTimeline(){
     const html = c.document.getElementById('progPBTimeline').innerHTML;
     T('N — no chart is drawn for one point', !/pbt-chart-svg/.test(html) && /pbt-single/.test(html));
     T('  the single PR still shows the big current-best number', /pbt-hero-num">135<span> lb<\/span>/.test(html));
-    T('  the stats row is the short form: milestones and the date, not a first-to-current pair or a net gain',
-      (html.match(/snap-label">([^<]+)</g) || []).length === 2 && /PR milestones/.test(html) && /Latest PR/.test(html) &&
-      !/First → current/.test(html) && !/Since first PR/.test(html));
+    T('  it is framed as a first PR — the same value, and when it was set — not a stats grid pretending there is more to say',
+      /pbt-single-label">First PR/.test(html) && /pbt-single-val">135<span> lb<\/span>/.test(html) && /pbt-single-date">JAN 12/.test(html) &&
+      !/snapshot pbt-stats/.test(html));
+    T('  it says plainly what happens next', /Log Barbell Row again and beat it to start the climb\./.test(html));
   });
 
   /* ===================================================== MULTI PR */
-  sub('MULTI PR — the hero value, the climb, and all four supporting stats');
+  sub('MULTI PR — the hero value, the climb, and only the two things it cannot already say');
   await guard('multi', async () => {
     const app = H.loadApp({ workoutLog: '[]' });
     const c = app.ctx;
@@ -30714,7 +30725,8 @@ async function testPersonalBestTimeline(){
       html.indexOf('pbt-hero-num') < html.indexOf('pbt-chart-svg'));
     T('  the climb is drawn: one <path> line, one dot per milestone, the newest one lit', /pbt-chart-svg/.test(html) &&
       (html.match(/<circle /g) || []).length === (3 - 1) + 2 /* one faded dot per earlier milestone, plus the halo pair on the newest */);
-    T('  all four supporting stats are present', ['PR milestones','First → current','Since first PR','Latest PR'].every(l => html.includes(l)));
+    T('  D83 — only the gain and the milestone count are stated; first-to-current and the latest date are not repeated, since the chart\'s own end labels already carry them',
+      html.includes('Since first PR') && html.includes('PR milestones') && !html.includes('First → current') && !html.includes('Latest PR'));
     T('  the stats reuse LOOP\'s own stat-tile component, not a bespoke one', /class="snapshot pbt-stats"/.test(html) && /snap-item/.test(html));
     T('P — picking a different exercise from the control re-renders the card for it', (() => {
       c.workoutLog.push(session(D(0), 'Overhead Press', 95, 6));
@@ -30804,10 +30816,10 @@ async function testPersonalBestTimeline(){
       /width: 100%/.test(css.slice(css.indexOf('.pbt-chart-svg'), css.indexOf('.pbt-chart-svg') + 80)));
     T('  the card and its stats grid are fluid width, never a fixed pixel width', !/\.pbt-card\{[^}]*width:\s*\d/.test(css) && !/\.pbt-stats\{[^}]*width:\s*\d/.test(css));
     T('  the value labels and dates are small, legible marks, not a dense axis', /font-size="1[0-2](\.5)?"/.test(fnSrc(src, 'pbtTimelineSvg')));
-    T('  decorative marks are aria-hidden: the trophy, the chevron, the single-PR dot', /pbt-empty-glyph" aria-hidden="true"/.test(code) &&
-      /pbt-pick-chevron" aria-hidden="true"/.test(code) && /pbt-single-dot" aria-hidden="true"/.test(code));
-    T('  the chart itself is announced in words for anyone who cannot see it',
-      /role="img" aria-label="Progression from \$\{points\[0\]\.value\} to \$\{points\[n-1\]\.value\}/.test(code));
+    T('  decorative marks are aria-hidden: the trophy, the picker chevron, the dot marks', /pbt-empty-glyph" aria-hidden="true"/.test(code) &&
+      /pbt-pick-chevron" aria-hidden="true"/.test(code) && /pbt-dot-mark" aria-hidden="true"/.test(code));
+    T('  the chart itself is announced in words for anyone who cannot see it, naming the lift and the true PR count',
+      /`\$\{exerciseName\} personal best progression from \$\{points\[0\]\.value\} to \$\{points\[n-1\]\.value\} \$\{unitWord\} across \$\{trueCount\} personal record/.test(code));
   }
 
   /* ===================================================== DATA SAFETY */
@@ -30832,6 +30844,109 @@ async function testPersonalBestTimeline(){
       !/workoutLog\s*=|workoutLog\.(push|splice)|\.exercises\s*=|\.exercises\.(push|splice)|\.sets\s*=|\.sets\.(push|splice)|persistPlanData|LOOPStore\.set/.test(stripComments(pbtBlock)));
     T('the PR engine it depends on (computeExercisePREvents) is exactly what Contract 185 already measured',
       /function computeExercisePREvents\(exerciseName\)\{/.test(code));
+  }
+
+  /* ===================================================== D83 — RANKING REUSE */
+  sub('D83 — one ranking, reused: the default pick, the carousel\'s order and its first page always agree');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    c.workoutLog = [
+      session(D(0),'Squat',225,5), session(D(7),'Squat',245,5), session(D(14),'Squat',275,5),
+      session(D(0),'Bench Press',185,5), session(D(7),'Bench Press',205,5),
+      session(D(0),'Deadlift',275,5)
+    ];
+    T('pickDefaultPBTExercise and rankPBTCandidates share one sort — no second ranking model exists',
+      /function pickDefaultPBTExercise\(candidates\)\{\r?\n  const list = candidates \|\| computePBTCandidates\(\);\r?\n  if\(!list\.length\) return null;\r?\n  return rankPBTCandidates\(list\)\[0\]\.exerciseName;\r?\n\}/.test(code));
+    const cands = c.computePBTCandidates();
+    const model = c.buildPersonalBestTimelineModel();
+    T('W — the model\'s active exercise is exactly pickDefaultPBTExercise\'s answer on a fresh load',
+      model.activeExercise === c.pickDefaultPBTExercise(cands));
+    T('  the model\'s own ranking is rankPBTCandidates\' output, unmodified', JSON.stringify(model.ranked.map(t=>t.exerciseName)) ===
+      JSON.stringify(c.rankPBTCandidates(cands).map(t=>t.exerciseName)));
+    T('  the first carousel page is the ranking\'s own winner', model.carousel[0].exerciseName === model.ranked[0].exerciseName &&
+      model.pages[0].exerciseName === model.ranked[0].exerciseName);
+  }
+
+  /* ===================================================== D83 — CAROUSEL MODEL */
+  sub('D83 — a restrained, capped swipe set in rank order; the picker still reaches everything');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    const names = ['Bench Press','Squat','Deadlift','Overhead Press','Pull-Up','Barbell Row','Front Squat'];
+    c.workoutLog = names.map((n, i) => [session(D(i), n, 100 + i, 5), session(D(i+30), n, 110 + i, 5)]).flat();
+    T('X — with more eligible exercises than the cap, the carousel holds exactly PBT_CONFIG.maxCarouselExercises',
+      c.buildPersonalBestTimelineModel().carousel.length === c.PBT_CONFIG.maxCarouselExercises);
+    T('  the carousel is the top of the ranking, in rank order — never re-sorted, never alphabetical',
+      JSON.stringify(c.buildPersonalBestTimelineModel().carousel.map(t=>t.exerciseName)) ===
+      JSON.stringify(c.rankPBTCandidates(c.computePBTCandidates()).slice(0, c.PBT_CONFIG.maxCarouselExercises).map(t=>t.exerciseName)));
+
+    const ranked = c.rankPBTCandidates(c.computePBTCandidates());
+    const offList = ranked[ranked.length - 1].exerciseName; // the lowest-ranked, definitely outside the cap
+    c.pbtSelectedExercise = offList;
+    const withOff = c.buildPersonalBestTimelineModel();
+    T('Y — choosing an exercise outside the top set adds it, without dropping any of the top-ranked ones',
+      withOff.carousel.length === c.PBT_CONFIG.maxCarouselExercises + 1 &&
+      ranked.slice(0, c.PBT_CONFIG.maxCarouselExercises).every(t => withOff.carousel.some(p => p.exerciseName === t.exerciseName)) &&
+      withOff.carousel.some(p => p.exerciseName === offList));
+    const expectedWithOff = ranked.filter((t, i) => i < c.PBT_CONFIG.maxCarouselExercises || t.exerciseName === offList);
+    T('  it sits at its own rank position, not just appended — the carousel stays in one consistent order',
+      JSON.stringify(withOff.carousel.map(t=>t.exerciseName)) === JSON.stringify(expectedWithOff.map(t=>t.exerciseName)));
+    T('  nothing was written anywhere to remember this — it is a property of pbtSelectedExercise alone',
+      c.DATA_KEYS.length === 15);
+
+    c.pbtSelectedExercise = ranked[0].exerciseName;
+    const backToTop = c.buildPersonalBestTimelineModel();
+    T('Z — choosing a top-ranked exercise again shrinks the carousel back to just the top set',
+      backToTop.carousel.length === c.PBT_CONFIG.maxCarouselExercises);
+
+    c.renderPersonalBestTimeline();
+    const html = c.document.getElementById('progPBTimeline').innerHTML;
+    const options = (html.match(/<option value="([^"]+)"/g) || []).map(m => m.slice(15, -1));
+    T('  AA — the picker lists all 7, the carousel only 5', options.length === 7 &&
+      names.every(n => options.includes(n)) && (html.match(/class="pbt-page"/g) || []).length === c.PBT_CONFIG.maxCarouselExercises);
+  }
+
+  /* ===================================================== D83 — CAROUSEL RENDERING */
+  sub('D83 — the strip itself: one page per lift, a dot per page, no duplicate gradient ids');
+  await guard('carousel rendering', async () => {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    c.workoutLog = [
+      session(D(0),'Bench Press',185,8), session(D(21),'Bench Press',205,5), session(D(42),'Bench Press',230,2),
+      session(D(0),'Squat',225,5), session(D(7),'Squat',245,5),
+      session(D(0),'Deadlift',275,5), session(D(14),'Deadlift',315,5)
+    ];
+    c.pbtSelectedExercise = null;
+    c.renderPersonalBestTimeline();
+    const host = c.document.getElementById('progPBTimeline');
+    const html = host.innerHTML;
+    const pageNames = (html.match(/data-exercise="([^"]+)"/g) || []).map(m => m.slice(15, -1));
+    T('BB — every page carries which exercise it is, in carousel order, for precise addressing',
+      pageNames.length === 3 && JSON.stringify(pageNames) === JSON.stringify(c.buildPersonalBestTimelineModel().carousel.map(t=>t.exerciseName)));
+    T('  a dot exists for every page, no more, no fewer, and the active one is marked without relying on colour alone',
+      (html.match(/class="pbt-dot/g) || []).length >= 3 && /class="pbt-dot active"/.test(html) &&
+      /aria-current="true"/.test(html) && (html.match(/aria-current="false"/g) || []).length === 2);
+    T('  the page count is spoken in words too, not just three dots', /id="pbtPageNum" aria-hidden="true">1 of 3</.test(html));
+    T('  a live region announces the active page for anyone using a screen reader while swiping',
+      /id="pbtLive" aria-live="polite">Bench Press, 1 of 3/.test(html));
+    T('  three charts can share the page without fighting over one gradient id', (() => {
+      const ids = (html.match(/id="pbtFill\d+"/g) || []);
+      return ids.length === 3 && new Set(ids).size === 3;
+    })());
+    T('CC — a single exercise never shows a page indicator at all — there is nothing to page through',
+      (() => { c.workoutLog = [session(D(0),'Bench Press',185,8)]; c.pbtSelectedExercise = null; c.renderPersonalBestTimeline();
+        return !/pbt-dots/.test(c.document.getElementById('progPBTimeline').innerHTML); })());
+  });
+
+  /* ===================================================== D83 — MILESTONE HIERARCHY */
+  sub('D83 — three tiers, not one: the earliest PR recedes, the current one is the destination');
+  {
+    const src2 = fnSrc(src, 'pbtTimelineSvg');
+    T('DD — the first milestone is smaller and more muted than the ones between it and the current PR',
+      /isFirst \? 2\.6 : 3\.4/.test(src2) && /isFirst \? 0\.35 : 0\.55/.test(src2));
+    T('  only the current milestone gets the halo — a glow is the exception, not the rule for every dot',
+      (fnSrc(src, 'pbtTimelineSvg').match(/accent-soft/g) || []).length === 1);
   }
 }
 async function main(){
