@@ -16085,6 +16085,26 @@ const LOOP_UPDATES = [
       'An eight-week program ran two days past the end of its own eighth week'
     ],
     changes: []
+  },
+  {
+    id: 'v9-2',
+    version: 'LOOP 9.2',
+    title: 'Pausing a Program',
+    date: '2026-09-18',
+    swVersion: 'loop-v169',
+    summary: 'Pausing a program now actually suspends it \u2014 nothing is due while you are away, and nothing is held against you for it.',
+    newFeatures: [],
+    improvements: [
+      'While a program is paused, no session is due, none is marked missed, and your consistency is not charged for the days you were away',
+      'A pause delays a program rather than shortening it \u2014 your sessions stay on their usual weekdays and the program runs on until it has asked for everything it planned',
+      'Pausing or resuming from Program Detail now tells you if it could not be saved, instead of looking like it worked'
+    ],
+    bugFixes: [
+      'Sessions that fell inside a pause were counted as planned and reported missed once you came back',
+      'Those same days were held against your consistency, for training you had explicitly suspended',
+      'Finishing a program while it was paused lost the pause from its record and jumped its week forward'
+    ],
+    changes: []
   }
 ];
 
@@ -21417,7 +21437,21 @@ function computeConsistencyData(){
       const wasPlanned = plannedDayKeys.indexOf(dayKey) !== -1;
       /* Planned AND knowable AND already due — the only sessions the athlete
          can fairly be measured against. */
-      if(wasPlanned && !beforeHistory && !isFuture){
+      /* D90 — a day the athlete had explicitly suspended was never a promise
+         they made, so it is not an opportunity they can be measured against.
+         The FORMULA is untouched; only the opportunity set shrinks, which is
+         the same repair the program's own slot grid gets.
+
+         KNOWN BOUNDARY: LOOP does not record which program was active on a
+         past date, so this asks the program that is active NOW. For the single
+         active program every athlete actually has that is exact; an athlete who
+         paused program A, trained B, and later returns would see A's spans
+         applied to B's weeks. Recording per-date program ownership is a bigger
+         change than fixing a denominator, and it is written up rather than
+         guessed at. */
+      const suspendedDay = wasPlanned && !beforeHistory && !isFuture
+        && (() => { try{ return dateIsSuspended(getActiveProgram(), key); }catch(e){ return false; } })();
+      if(wasPlanned && !beforeHistory && !isFuture && !suspendedDay){
         plannedKnown++;
         planSlots.push({ date: key, category: schedule ? schedule[dayKey] : null,
           week: CONSISTENCY_WEEKS - 1 - w, workoutId: null });
@@ -21436,7 +21470,7 @@ function computeConsistencyData(){
         state = dayPRs > 0 ? 'pr' : 'trained';
       } else if(isFuture){
         state = 'future';
-      } else if(wasPlanned && !beforeHistory){
+      } else if(wasPlanned && !beforeHistory && !suspendedDay){
         state = 'missed'; missed++;
       }
 
@@ -34527,6 +34561,80 @@ function daysBetweenDates(fromStr, toStr){
    late read as a missed session PLUS an extra one, and what let
    the card render "4 of 3 planned sessions logged".
    ========================================================= */
+/* =========================================================
+   PAUSE AS SUSPENDED TIME  (Phase D90)
+   ---------------------------------------------------------
+   D88 finding E10. A pause freezes the athlete's progress, but
+   the slot grid is pinned to WEEKDAYS and knew nothing about it,
+   so the sessions that fell inside a pause stayed on the calendar
+   as opportunities nobody could have taken. They were counted as
+   planned, reported missed, and charged against adherence.
+
+   THE FIX IS NOT TO MOVE THE GRID. Adding pausedDays to a slot's
+   date would land Monday's session on a Thursday, which changes
+   what the program IS. A weekday-pinned schedule stays weekday-
+   pinned; what a pause removes is the OBLIGATION, not the shape.
+
+   So a pause is stored as a SPAN of civil dates, [from, to), and
+   a planned opportunity whose date falls inside one simply did
+   not exist. It cannot be due, missed, fulfilled, additional, or
+   part of any denominator. There is one place that decides this —
+   programPlannedSlots — so every surface that reads slots
+   inherits it without knowing pause exists.
+
+   WHAT COULD NOT BE REPAIRED, AND IS NOT PRETENDED OTHERWISE.
+   Before D90 a resume NULLED pausedOnDate and only added to a
+   running pausedDays total, so for any pause already resumed the
+   WHEN is gone. A total number of days cannot be turned back into
+   dates, and guessing would be inventing history. Programs with
+   no `pauses` array therefore behave exactly as they did before —
+   see FINDINGS-D88.md. Only pauses recorded from D90 on carry
+   spans.
+
+   THE RECORD IS ADDITIVE, and the precedent is §106's
+   program.cycle: an optional sub-record inside `programs`, absent
+   on every older program, tolerated everywhere it is read. No new
+   DATA_KEY, and no schema bump, because nothing already stored
+   changes meaning.
+   ========================================================= */
+function pauseSpansOf(program){
+  if(!program || !Array.isArray(program.pauses)) return [];
+  const out = [];
+  program.pauses.forEach(s => {
+    if(!s || !isBlockDate(s.from)) return;
+    const to = isBlockDate(s.to) ? s.to : null;
+    if(to !== null && to <= s.from) return;      // an empty span suspends nothing
+    out.push({ from: s.from, to: to });
+  });
+  return out.sort((a, b) => a.from.localeCompare(b.from));
+}
+
+/* Is this civil date inside a pause? `to` is EXCLUSIVE: the day the athlete
+   resumed is a training day again. An open span (to === null) runs to today —
+   a pause that has not ended yet suspends everything from its start. */
+function dateIsSuspended(program, dateStr, todayStr){
+  if(!dateStr) return false;
+  const spans = pauseSpansOf(program);
+  if(!spans.length) return false;
+  const today = todayStr || localDateStr();
+  for(const s of spans){
+    const end = s.to === null ? civilAddDays(today, 1) : s.to;
+    if(dateStr >= s.from && dateStr < end) return true;
+  }
+  return false;
+}
+
+/* Whole days spent paused, from the spans rather than from the banked total.
+   Used only for reporting; nothing schedules from it. */
+function suspendedDayCount(program, todayStr){
+  const today = todayStr || localDateStr();
+  return pauseSpansOf(program).reduce((n, s) => {
+    const end = s.to === null ? civilAddDays(today, 1) : s.to;
+    const d = daysBetweenDates(s.from, end);
+    return n + (d > 0 ? d : 0);
+  }, 0);
+}
+
 function programWeekMonday(program){
   if(!program || !program.startDate) return null;
   const start = new Date(program.startDate + 'T00:00:00');
@@ -34962,6 +35070,26 @@ function programEndDate(program){
   if(!monday) return null;
   const d = new Date(monday + 'T00:00:00');
   if(isNaN(d)) return null;
+  /* D90 — a paused program's end comes from its own (extended) grid, not from
+     adding banked days to the start. Adding pausedDays moved the end without
+     moving the slots, so the extra days sat inside the timeline with nothing
+     planned on them — the same incoherence D89 removed for the unpaused case.
+     The grid already runs exactly long enough to restore the opportunities the
+     pause took away, so the last week it reaches IS the end. */
+  const spans = pauseSpansOf(program);
+  if(spans.length){
+    const slots = programPlannedSlots(program);
+    if(slots.length){
+      const lastWeek = slots[slots.length - 1].week;
+      return programDateFor(program, lastWeek, PROGRAM_DAY_KEYS[PROGRAM_DAY_KEYS.length - 1]);
+    }
+  }
+  /* No spans means either a program that was never paused (pausedDays 0, so
+     this is exactly D89's answer) or one paused BEFORE D90, whose span dates
+     are unrecoverable. For the latter the banked total is the only pause truth
+     that exists, so it keeps extending the end exactly as it did — shortening
+     a running program because LOOP can no longer explain its own history would
+     be the worse error. */
   d.setDate(d.getDate() + program.durationWeeks * 7 - 1 + (program.pausedDays || 0));
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
@@ -34985,7 +35113,12 @@ function getMissedProgramDays(program, limit){
     /* D51C — every one of these dates is in the past, so each asks the plan
        that was in force then. Reading the current plan reported days as
        missed that the program had not yet been asked to prescribe. */
-    const entry = programEntryOn(p, JS_DAY_TO_KEY[cursor.getDay()], ds);
+    /* D90 — this walks the calendar itself rather than the slot grid, so the
+       suspension filter in programPlannedSlots does not reach it. A day the
+       athlete had explicitly suspended was never owed, and must never be
+       reported missed, overdue or as something to catch up on. */
+    const entry = dateIsSuspended(p, ds, today) ? { type: 'rest' }
+      : programEntryOn(p, JS_DAY_TO_KEY[cursor.getDay()], ds);
     if(entry.type === 'workout' && !logged.has(ds)){
       const tpl = resolveProgramWorkout(entry);
       out.push({ date: ds, category: entry.category, name: tpl ? tpl.name : null });
@@ -35191,9 +35324,19 @@ function resumeProgramInMemory(p){
   if(!p || p.status !== 'paused') return false;
   // Time spent paused is added on, so the athlete resumes at the week they
   // left rather than being pushed forward by the calendar.
+  const today = localDateStr();
   if(p.pausedOnDate){
-    const away = daysBetweenDates(p.pausedOnDate, localDateStr());
+    const away = daysBetweenDates(p.pausedOnDate, today);
     if(away && away > 0) p.pausedDays = (p.pausedDays || 0) + away;
+  }
+  /* D90 — close the open span on the resume day. `to` is EXCLUSIVE, so today is
+     a training day again: an athlete who pauses and resumes on the same day
+     suspends nothing, and the span is dropped rather than stored as empty. */
+  if(Array.isArray(p.pauses)){
+    const open = p.pauses.filter(s => s && !s.to);
+    open.forEach(s => { s.to = today; });
+    p.pauses = p.pauses.filter(s => s && s.from && s.to && s.to > s.from);
+    if(!p.pauses.length) delete p.pauses;
   }
   p.pausedOnDate = null;
   p.status = 'active';
@@ -35214,8 +35357,17 @@ async function pauseProgram(programId){
   return commitProgramChange(() => {
     const p = getProgram(programId || programsStore.activeProgramId);
     if(!p || p.status !== 'active') return false;
+    const today = localDateStr();
     p.status = 'paused';
-    p.pausedOnDate = localDateStr();
+    p.pausedOnDate = today;
+    /* D90 — the span is opened HERE, because a resume clears pausedOnDate and a
+       running total of days cannot say when the pause happened. An open span
+       (to: null) suspends everything from today until it is closed. A second
+       span cannot be opened while one is open: the status check above already
+       refuses to pause a program that is paused, and the guard below makes that
+       structural rather than incidental. */
+    if(!Array.isArray(p.pauses)) p.pauses = [];
+    if(!p.pauses.some(s => s && !s.to)) p.pauses.push({ from: today, to: null });
     p.updatedAt = new Date().toISOString();
     return true;
   });
@@ -35230,6 +35382,24 @@ async function completeProgram(programId){
   return commitProgramChange(() => {
     const p = getProgram(programId || programsStore.activeProgramId);
     if(!p || p.status === 'completed') return false;
+    /* D90 — finishing a PAUSED program used to leave pausedOnDate set forever
+       and bank none of the days it was paused for. The week stopped freezing
+       the instant status left 'paused', so the displayed week jumped forward at
+       the moment of completion, and the final pause simply vanished from the
+       record. A program that ends while suspended ends WITH that suspension in
+       its history: the span is closed on the completion day and the days are
+       banked, exactly as a resume would have done. */
+    if(p.status === 'paused' && p.pausedOnDate){
+      const today = localDateStr();
+      const away = daysBetweenDates(p.pausedOnDate, today);
+      if(away && away > 0) p.pausedDays = (p.pausedDays || 0) + away;
+      if(Array.isArray(p.pauses)){
+        p.pauses.forEach(s => { if(s && !s.to) s.to = today; });
+        p.pauses = p.pauses.filter(s => s && s.from && s.to && s.to > s.from);
+        if(!p.pauses.length) delete p.pauses;
+      }
+      p.pausedOnDate = null;
+    }
     p.status = 'completed';
     p.completedAt = new Date().toISOString();
     p.updatedAt = p.completedAt;
@@ -41134,11 +41304,43 @@ let _planFulfillCache = null;
    getCurrentProgramWeek's business and not this one's. The remaining
    limitation is recorded in FINDINGS-D88.md rather than described wrongly
    here. */
-function programPlannedSlots(program){
+/* How many opportunities the program asked for, ignoring any pause: the number
+   it would have had if the athlete had never stopped. D90 restores exactly this
+   many, so a pause DELAYS a program rather than deleting part of it. */
+function programIntendedSlotCount(program){
+  if(!program || !program.startDate) return 0;
+  const weeks = parseInt(program.durationWeeks, 10) || 0;
+  let n = 0;
+  for(let w = 1; w <= weeks; w++){
+    PROGRAM_DAY_KEYS.forEach(k => {
+      const date = programDateFor(program, w, k);
+      if(!date || date < program.startDate) return;
+      const e = programPlanOn(program, date)[k];
+      if(e && e.type === 'workout') n++;
+    });
+  }
+  return n;
+}
+
+/* A pause cannot run the grid forever, and a program cannot be extended without
+   limit. Generation stops here however much time was suspended. */
+const PROGRAM_MAX_EXTRA_WEEKS = 104;
+
+function programPlannedSlots(program, todayStr){
   const out = [];
   if(!program || !program.startDate) return out;
   const weeks = parseInt(program.durationWeeks, 10) || 0;
-  for(let w = 1; w <= weeks; w++){
+  /* D90 — the grid keeps its weekday shape and simply runs longer. Weeks past
+     the program's own length are generated ONLY while suspended time has taken
+     opportunities away, and generation stops the moment the intended count is
+     back — so the final week may legitimately be partial, and no phantom extra
+     session is ever created. With no pause recorded, `extra` stays 0 and this
+     produces exactly what D89 produced. */
+  const suspended = pauseSpansOf(program).length > 0;
+  const intended = suspended ? programIntendedSlotCount(program) : 0;
+  const limit = suspended ? weeks + PROGRAM_MAX_EXTRA_WEEKS : weeks;
+  for(let w = 1; w <= limit; w++){
+    if(suspended && out.length >= intended) break;
     /* D51 — each week answers to the schedule that was in force when it
        happened. Reading one mutable schedule for every week is what let a
        change made today restate how many sessions were planned in a week
@@ -41161,6 +41363,12 @@ function programPlannedSlots(program){
          contains those days — programDateFor is unchanged, and the week still
          starts on its Monday — they are simply not opportunities. */
       if(date < program.startDate) return;
+      /* D90 — the athlete had suspended this program on this date, so no
+         session was owed. Removing the slot HERE is what makes every surface
+         agree: fulfilment, the missed marks, the block weeks and the progress
+         ratio all read this array and none of them has to know pause exists. */
+      if(suspended && dateIsSuspended(program, date, todayStr)) return;
+      if(suspended && out.length >= intended) return;
       const e = programPlanOn(program, date)[k];
       if(!e || e.type !== 'workout') return;
       out.push({ week:w, dayKey:k, date, category:e.category || null, workoutId:null });
@@ -43258,6 +43466,12 @@ function programDayState(program, dayKey, week){
     const today = localDateStr();
     if(date > today) return null;                       // upcoming: say nothing
     if(date < program.startDate) return null;           // before the program existed
+    /* D90 — suspended: the athlete had paused the program, so nothing was owed.
+       This has to be asked HERE as well as in the slot grid, because absence of
+       a slot is what this function reads as "missed" — removing the opportunity
+       without saying why would have turned every paused day into a missed one,
+       which is the exact defect E10 describes. */
+    if(dateIsSuspended(program, date, today)) return null;
     /* D43 — was this planned session fulfilled by training that belongs to
        this program? It used to ask only whether ANY workout shared the
        date, so a freeform session marked the program’s day complete. */
@@ -44188,9 +44402,27 @@ function renderProgramDetail(){
       <button class="prog-delete" onclick="doDeleteProgram()">Delete program</button>
     </div>`;
 }
-function doPauseProgram(){ pauseProgram(detailProgramId); renderProgramDetail(); }
-function doResumeProgram(){ resumeProgram(detailProgramId); renderProgramDetail(); }
-function doActivateProgram(){ setActiveProgram(detailProgramId); renderProgramDetail(); }
+/* D90 — these three were the callers D89 missed. They fired the now-async
+   mutators and re-rendered in the same tick, so Program Detail redrew from
+   memory before the write resolved and a refused write was never surfaced —
+   exactly the class of defect D88's E2 described, still live at three sites
+   while §111 claimed every caller awaited. They await now, and a refusal is
+   told to the athlete rather than swallowed. */
+async function doPauseProgram(){
+  const ok = await pauseProgram(detailProgramId);
+  renderProgramDetail();
+  if(!ok) alert("That didn't save, so the program is still running. Nothing was changed — try again.");
+}
+async function doResumeProgram(){
+  const ok = await resumeProgram(detailProgramId);
+  renderProgramDetail();
+  if(!ok) alert("That didn't save, so the program is still paused. Nothing was changed — try again.");
+}
+async function doActivateProgram(){
+  const ok = await setActiveProgram(detailProgramId);
+  renderProgramDetail();
+  if(!ok) alert("That didn't save. Nothing was changed — try again.");
+}
 async function doCompleteProgram(){
   /* D40 — one program-history calculator. This used to call a pre-D38
      summary that attributed workouts to a program by date alone, so the

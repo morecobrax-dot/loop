@@ -11670,3 +11670,113 @@ grid pause-aware cannot be done by shifting it a number of days without moving
 Monday's session to a Thursday, so it is a schedule-model question, not a
 chronology one. D89 leaves pause semantics exactly as they were and does not
 pretend otherwise. It is written up in FINDINGS-D88.md.
+
+## §112 — D90: Pause as suspended time
+
+Closes D88 finding E10, raised by D89.
+
+**The defect.** A program's schedule is pinned to civil WEEKDAYS. A pause was
+banked in DAYS. The athlete's progress week froze, and the program's end date
+moved out — but the slot grid knew nothing about any of it, so every session
+that fell inside a pause stayed on the calendar as an opportunity nobody could
+have taken. Those sessions were counted as planned, reported missed on Program
+Detail and on the My Training week map, and charged against adherence. The
+asymmetry is the whole bug: `pausedDays` reached the counter and the end date,
+and never reached the grid.
+
+**The fix is not to move the grid.** `newSlotDate = originalSlotDate +
+pausedDays` would land Monday's session on a Thursday, which changes what the
+program IS. A pause does not reshape a program; it removes an OBLIGATION. So a
+pause is stored as a SPAN of civil dates, `[from, to)`, and a planned
+opportunity whose date falls inside one simply did not exist: it cannot be due,
+missed, fulfilled, additional, or part of any denominator.
+
+**One place decides, and two consumers deliberately ask again.**
+`programPlannedSlots` drops suspended dates, so D43 fulfilment, the progress
+ratio, `deriveBlockState`'s weeks and the completion summary all inherit the
+rule without knowing pause exists. Two consumers do not read that array and are
+fixed at their own sites: `getMissedProgramDays` walks the calendar itself, and
+`programDayState` reads the ABSENCE of a slot as "missed" — so removing the
+opportunity without telling it why would have turned every paused day INTO a
+missed one, which is precisely the defect being fixed. Both are asserted.
+
+**A pause delays a program, it does not delete part of it.** The grid keeps its
+weekday shape and runs on, generating weeks past the program's own length only
+while suspended time has taken opportunities away, and stopping the moment the
+number the program originally asked for has existed. The final week may
+therefore be legitimately partial, and no phantom session is ever created.
+`programEndDate` follows the grid it now has, replacing D89's raw
+`+ pausedDays`; with no pause recorded the answer is byte-identical to D89's.
+Extension is bounded by `PROGRAM_MAX_EXTRA_WEEKS` so a pause left open cannot
+run the grid forever.
+
+**Paused time never advances the qualification clock, and §106 keeps its own
+rule about breaks.** A paused week has no training, so it was never qualified;
+that part already held. What D90 add, is the explicit test that it stays true.
+What D90 deliberately does NOT do is exempt a pause from the break rule. §106
+says a gap of `BLOCK_RULES.breakWeeks` is rest "whatever caused it — travel,
+illness, a pause", and `loop-tests.js` has pinned since D77A that three weeks
+away restarts the count rather than jumping to six. The deload clock measures
+accumulated training stress, not intent. A pause SHORTER than the break window
+keeps every week already earned; a longer one restarts, exactly as any other
+absence does. Changing that would be a product decision about what a deload is
+for, not a pause fix, and the brief that commissioned D90 defers to the existing
+contract where one deliberately says otherwise. It does.
+
+**D44 measures the same days, minus the ones nobody promised.** Consistency
+never read a program at all — its opportunities come from the athlete's live
+weekly `schedule`, and its own comment says so. The formula is untouched; a day
+the athlete had explicitly suspended is simply not an opportunity they can be
+measured against, and is not marked missed either. KNOWN BOUNDARY: LOOP does not
+record which program was active on a past date, so this asks the program that is
+active now. For the single active program every athlete actually has that is
+exact; an athlete who paused program A, trained B, and later returned would see
+A's spans applied to B's weeks. Recording per-date program ownership is a larger
+change than fixing a denominator, and it is written down rather than guessed at.
+
+**Two defects found while auditing, and fixed here.** Finishing a PAUSED program
+used to leave `pausedOnDate` set for ever and bank none of the days it had been
+paused for — so the displayed week jumped forward at the instant of completion
+and the final pause vanished from the record. And three Program Detail handlers
+— `doPauseProgram`, `doResumeProgram`, `doActivateProgram` — fired the async
+mutators and re-rendered in the same tick, so a refused write was never
+surfaced. §111 claimed every caller awaited; these three did not. They do now,
+and a refusal is told to the athlete.
+
+**What could not be repaired, and is not pretended otherwise.** Before D90 a
+resume NULLED `pausedOnDate` and only added to a running `pausedDays` total. The
+start is destroyed, the end was never written, and a scalar sum cannot be
+decomposed: after two pauses of five and nine days the record holds `14`,
+indistinguishable from one fourteen-day pause. **Historical pause spans are
+unrecoverable, so they are not invented.** A program with no `pauses` array is
+not treated as ever having been paused, and its end date still extends by the
+banked total exactly as it did before D90 — giving an athlete a *different*
+wrong answer would be worse than the one they have already seen. Only pauses
+recorded from D90 on carry spans. That boundary is asserted, not assumed.
+
+**Storage.** `pauses` is an optional array on the program record, absent on every
+program that has never been paused and deleted again when a pause turns out to
+have been empty. The precedent is §106's `program.cycle`: an optional sub-record
+inside `programs`, tolerated when absent. `DATA_KEYS` remains 15 — pause truth
+belongs to the program, not to a key of its own — and `DATA_SCHEMA_VERSION`
+remains 1 with no migration, because nothing already stored changes meaning.
+Pause and resume go through D89's `commitProgramChange`, so a refused write
+reports failure, leaves the program exactly as it was, and creates no phantom
+span and no phantom extension.
+
+**Verification.** 8,451 assertions, 0 failures; Contract 191 adds 59, and the
+brief's own A–Z matrix runs as an executable reproducer at 43/43. Program audit
+335, data 87, cardio 261, GPS 43, the full date matrix — all identical to the
+pre-change baseline. Every pause scenario is driven through the real mutators
+with the clock pinned, never by hand-writing a span, so what is asserted is what
+the app writes. Both DST changes are covered; a pause across spring-forward
+suspends exactly seven days and one across the autumn change exactly fourteen.
+All seven possible start weekdays are exercised.
+
+**Known limitations.** D89's E10 is closed for pauses recorded from now on only.
+`_consistencyCache` is still not keyed by day (D88 finding E5), so a resume may
+not show in the consistency panel until something else invalidates it. My
+Training still says nothing about a paused program — `hasActiveProgram()` is
+false while paused, so `programStatusWord`'s own 'Paused' branch is unreachable
+and the tab falls back to the plan schedule; that is pre-existing, it is not made
+worse here, and it is recorded rather than redesigned in a correctness phase.

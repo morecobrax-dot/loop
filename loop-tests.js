@@ -14270,8 +14270,13 @@ async function testTodayAndHistoryTruth(){
     /* D44 turned this into a block — the same eligibility test now also records
        the planned opportunity so it can be matched one-to-one — so the pin
        follows the condition rather than the exact statement that followed it. */
-    T('a day counts as planned only when knowable and already due',
-      /if\(wasPlanned && !beforeHistory && !isFuture\)\{[\s\S]{0,200}plannedKnown\+\+;/.test(src));
+    /* D90 — a fourth term: a day the athlete had explicitly suspended was never
+       a promise they made, so it is not an opportunity either. The formula is
+       untouched; only the set of days that can enter it changed. */
+    T('a day counts as planned only when knowable, already due, and not suspended',
+      /if\(wasPlanned && !beforeHistory && !isFuture && !suspendedDay\)\{[\s\S]{0,200}plannedKnown\+\+;/.test(src));
+    T('and a suspended day is not marked missed either',
+      /else if\(wasPlanned && !beforeHistory && !suspendedDay\)\{/.test(src));
   }
 
   sub('a genuinely missed session still counts');
@@ -32425,6 +32430,375 @@ async function testProgramChronology(){
   });
 }
 
+/* =========================================================
+   CONTRACT 191 — PAUSE AS SUSPENDED TIME  (Phase D90)
+   ---------------------------------------------------------
+   Closes D88 finding E10.
+
+   A pause means the athlete has temporarily stopped following
+   this program. It does NOT mean "keep scheduling sessions and
+   mark me down for missing them", and it does NOT mean "move
+   Monday's workout to Thursday".
+
+   THE GRID NEVER MOVES. A program's schedule is a map of
+   WEEKDAYS, so adding paused days to a slot's date would change
+   what the program IS. What a pause removes is the OBLIGATION.
+   A pause is therefore stored as a SPAN of civil dates, [from,
+   to), and a planned opportunity inside one simply did not
+   exist: it cannot be due, missed, fulfilled, additional, or in
+   any denominator.
+
+   ONE PLACE DECIDES. programPlannedSlots drops suspended dates,
+   so fulfilment, the progress ratio, the block weeks and the
+   completion summary all inherit it without knowing pause
+   exists. Two consumers do NOT read that array and are fixed at
+   their own sites, deliberately: getMissedProgramDays walks the
+   calendar itself, and programDayState reads the ABSENCE of a
+   slot as "missed" — so removing an opportunity without telling
+   it why would have turned every paused day into a missed one,
+   which is the very defect being fixed.
+
+   A PAUSE DELAYS A PROGRAM, IT DOES NOT DELETE PART OF IT. The
+   grid runs on, weekday-pinned, until the number of
+   opportunities the program originally asked for has existed —
+   so the final week may legitimately be partial, and no phantom
+   session is ever created.
+
+   WHAT CANNOT BE REPAIRED, AND IS NOT PRETENDED OTHERWISE.
+   Before D90 a resume NULLED pausedOnDate and only added to a
+   running total, so for any pause already resumed the WHEN is
+   gone. A number of days cannot be turned back into dates.
+   Programs with no `pauses` array therefore behave EXACTLY as
+   they did before, including the old end-date rule. Only pauses
+   recorded from D90 on carry spans. That boundary is asserted
+   here, not hidden.
+
+   DELIBERATELY NOT CHANGED: §106 treats a long absence as a
+   break that restarts the deload count, "whatever caused it —
+   travel, illness, a pause". The deload clock measures training
+   stress, not intent, so a pause long enough to be a break is
+   still a break. A pause SHORTER than BLOCK_RULES.breakWeeks
+   keeps every week already earned, and no pause ever ADVANCES
+   the count. Both are pinned below.
+   ========================================================= */
+async function testPauseSuspension(){
+  section('CONTRACT 191 — pause as suspended time (D90)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx;
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const addDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number);
+    const t = new Date(Date.UTC(y, m - 1, d + n));
+    return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0'); };
+
+  const MWF = { mon: 'push', wed: 'pull', fri: 'legs' };
+  const weekOf = days => {
+    const s = {};
+    ctx.PROGRAM_DAY_KEYS.forEach(k => { s[k] = { type: 'rest' }; });
+    Object.keys(days).forEach(k => {
+      const tpl = (ctx.getTemplates(days[k]) || [])[0];
+      s[k] = { type: 'workout', planId: 'balanced', category: days[k], templateId: tpl && tpl.id };
+    });
+    return s;
+  };
+  const reset = () => {
+    ctx.programsStore = { version: 1, programs: [], activeProgramId: null, draft: null };
+    ctx.workoutLog = [];
+    ctx.invalidateProgramCache(); ctx.invalidateSortedLogCache();
+    if(ctx.invalidateConsistencyCache) ctx.invalidateConsistencyCache();
+  };
+  const mk = async (startDate, weeks, days) => {
+    const r = await ctx.createProgram({ name: 'D90', goal: 'strength',
+      durationWeeks: weeks || 8, schedule: weekOf(days || MWF), startDate });
+    if(!r.ok) throw new Error('createProgram: ' + (r.errors || []).join(','));
+    await ctx.setActiveProgram(r.program.id);
+    return ctx.getProgram(r.program.id);
+  };
+  /* Pause/resume read the clock directly, so the span dates are the scenario's
+     dates only while it is pinned. The real mutators are used throughout —
+     never a hand-written span — so what is asserted is what the app writes. */
+  const at = async (day, fn) => {
+    const real = ctx.localDateStr;
+    ctx.localDateStr = d => d === undefined ? day : real(d);
+    try{ return await fn(); } finally { ctx.localDateStr = real; }
+  };
+  const pauseOn = (p, day) => at(day, () => ctx.pauseProgram(p.id));
+  const resumeOn = (p, day) => at(day, () => ctx.resumeProgram(p.id));
+  const did = (p, date, cat) => {
+    ctx.workoutLog.push({ id: 'w' + date + cat, date, category: cat, title: cat, programId: p.id, notes: '',
+      exercises: [{ name: 'Bench Press', sets: [
+        { weight: '135', reps: '8', rir: '2', type: 'working', completed: true },
+        { weight: '135', reps: '8', rir: '2', type: 'working', completed: true },
+        { weight: '135', reps: '8', rir: '2', type: 'working', completed: true }] }] });
+    ctx.invalidateSortedLogCache(); ctx.invalidateProgramCache();
+  };
+  const slots = p => ctx.programPlannedSlots(ctx.getProgram(p.id));
+  const due = (p, date) => slots(p).some(s => s.date === date);
+  const MON = '2026-03-02', WED = '2026-03-04';
+
+  /* ---------------------------------------------------------------- */
+  sub('the span is what the app writes, and a resume closes it');
+  await guard('spans', async () => {
+    reset();
+    const p = await mk(MON, 8);
+    T('a program starts with no pause record at all', !ctx.getProgram(p.id).pauses);
+    T('pausing opens a span from today, still open', (await pauseOn(p, '2026-03-10')) === true
+      && JSON.stringify(ctx.getProgram(p.id).pauses) === '[{"from":"2026-03-10","to":null}]',
+      JSON.stringify(ctx.getProgram(p.id).pauses));
+    T('resuming closes it on the resume day', (await resumeOn(p, '2026-03-13')) === true
+      && JSON.stringify(ctx.getProgram(p.id).pauses) === '[{"from":"2026-03-10","to":"2026-03-13"}]',
+      JSON.stringify(ctx.getProgram(p.id).pauses));
+    T('`to` is EXCLUSIVE: the resume day is a training day again',
+      ctx.dateIsSuspended(ctx.getProgram(p.id), '2026-03-12')
+      && !ctx.dateIsSuspended(ctx.getProgram(p.id), '2026-03-13'));
+    T('and the day it was paused IS suspended',
+      ctx.dateIsSuspended(ctx.getProgram(p.id), '2026-03-10'));
+    reset();
+    const q = await mk(MON, 8);
+    for(let i = 0; i < 12; i++){ await pauseOn(q, '2026-03-09'); await resumeOn(q, '2026-03-09'); }
+    T('twelve same-day pause/resume cycles leave no span and no duplicate',
+      !ctx.getProgram(q.id).pauses && ctx.getProgram(q.id).status === 'active');
+    T('an open span cannot be opened twice', /if\(!p\.pauses\.some\(s => s && !s\.to\)\) p\.pauses\.push/.test(src));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a suspended date is not an obligation, on any surface');
+  await guard('not due', async () => {
+    reset();
+    const p = await mk(MON, 8);
+    await pauseOn(p, '2026-03-10');                 // Tue
+    await resumeOn(p, '2026-03-13');                // Fri
+    T('the Wednesday inside the pause is not due', !due(p, '2026-03-11'));
+    T('the Monday before it is still due', due(p, '2026-03-09'));
+    T('the Friday it resumed on is due', due(p, '2026-03-13'));
+    T('it is never reported missed',
+      !ctx.getMissedProgramDays(ctx.getProgram(p.id)).some(m => m.date === '2026-03-11'));
+    T('and the week map says nothing rather than "missed"',
+      ctx.programDayState(ctx.getProgram(p.id), 'wed', 2) === null,
+      String(ctx.programDayState(ctx.getProgram(p.id), 'wed', 2)));
+    /* The two consumers that do NOT read the slot array need their own guard;
+       without it, removing the slot would have MADE the day read as missed. */
+    T('getMissedProgramDays asks about suspension itself, because it walks the calendar',
+      /dateIsSuspended\(p, ds, today\) \? \{ type: 'rest' \}/.test(src));
+    T('programDayState asks too, because absence of a slot is what it reads as missed',
+      /if\(dateIsSuspended\(program, date, today\)\) return null;/.test(src));
+  });
+
+  await guard('no accidental fulfilment', async () => {
+    reset();
+    const p = await mk(MON, 8);
+    await pauseOn(p, '2026-03-10');
+    await resumeOn(p, '2026-03-13');
+    did(p, '2026-03-12', 'pull');                   // inside the suspended Wednesday's old shift window
+    const f = ctx.deriveProgramPlanFulfillment(ctx.getProgram(p.id));
+    T('a suspended slot is not in the array at all, so nothing can fulfil it',
+      !f.slots.some(s => s.date === '2026-03-11'));
+    T('training done during a pause is the athlete\'s own, counted as additional',
+      f.additional === 1, 'additional=' + f.additional);
+    T('it is not counted as a fulfilment', f.fulfilled === 0);
+    T('and D43\'s accounting still adds up', f.fulfilled + f.unfulfilled === f.planned);
+  });
+
+  await guard('the ordinary shift window is untouched', async () => {
+    reset();
+    const p = await mk(MON, 8);
+    did(p, '2026-03-07', 'legs');                   // Friday trained Saturday
+    const f = ctx.deriveProgramPlanFulfillment(ctx.getProgram(p.id));
+    T('a session one day late still fulfils its slot when nothing was suspended',
+      !!(f.slots.find(s => s.date === '2026-03-06') || {}).workoutId);
+    T('PLAN_SHIFT_DAYS is unchanged', ctx.PLAN_SHIFT_DAYS === 2);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a pause delays the program rather than deleting part of it');
+  await guard('duration', async () => {
+    reset();
+    const p = await mk(MON, 4);
+    const plainEnd = ctx.programEndDate(ctx.getProgram(p.id));
+    const plainCount = slots(p).length;
+    await pauseOn(p, addDays(MON, 21));
+    T('a paused program is never finished, however much calendar time passes',
+      ctx.deriveProgramLifecycle(ctx.getProgram(p.id), '2027-01-01') === 'paused'
+      && !ctx.programIsFinished(ctx.getProgram(p.id), '2027-01-01'));
+    /* Those two both go through deriveProgramLifecycle, which checks `status`
+       BEFORE it asks programTimelineEnded — so they pass even with the timeline
+       guard removed, and a mutation that removed it survived them. The guard is
+       load-bearing for getProgramWorkoutForDate, which calls programTimelineEnded
+       DIRECTLY and stops prescribing anything once it answers true. Asserted at
+       the guard itself now, and at the caller that is actually exposed. */
+    T('programTimelineEnded itself refuses to end a paused program',
+      ctx.programTimelineEnded(ctx.getProgram(p.id), '2027-01-01') === false);
+    T('so a paused program still resolves its own sessions rather than going blank',
+      (() => { const r = ctx.getProgramWorkoutForDate(addDays(MON, 14), ctx.getProgram(p.id));
+        return !r.ended; })());
+    T('and an ACTIVE program past its end is still correctly over',
+      (() => { const q = Object.assign({}, ctx.getProgram(p.id), { status: 'active', pauses: undefined });
+        delete q.pauses;
+        return ctx.programTimelineEnded(q, '2027-01-01') === true; })());
+    await resumeOn(p, addDays(MON, 35));
+    T('the end moves out, because the program was delayed',
+      ctx.programEndDate(ctx.getProgram(p.id)) > plainEnd);
+    T('the program still asks for exactly what it always asked for',
+      slots(p).length === plainCount, slots(p).length + ' vs ' + plainCount);
+    T('every restored slot is still on one of its configured weekdays',
+      slots(p).every(s => ['mon', 'wed', 'fri'].indexOf(s.dayKey) !== -1));
+    T('and not one of them lands inside the pause',
+      slots(p).every(s => !ctx.dateIsSuspended(ctx.getProgram(p.id), s.date)));
+    T('the grid is never moved by adding days to a date',
+      !/originalSlotDate \+ pausedDays|date\s*\+\s*pausedDays/.test(src));
+    T('extension is bounded, so a long pause cannot run the grid forever',
+      typeof ctx.PROGRAM_MAX_EXTRA_WEEKS === 'number' && ctx.PROGRAM_MAX_EXTRA_WEEKS > 0);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the qualification clock freezes, and §106 keeps its own rule');
+  await guard('blocks', async () => {
+    reset();
+    const p = await mk(MON, 12);
+    for(let w = 0; w < 4; w++){
+      did(p, addDays(MON, w * 7), 'push'); did(p, addDays(MON, w * 7 + 2), 'pull'); did(p, addDays(MON, w * 7 + 4), 'legs');
+    }
+    T('four trained weeks are four qualified weeks',
+      ctx.deriveBlockState(ctx.getProgram(p.id), addDays(MON, 27)).trainingWeeks === 4);
+    await pauseOn(p, addDays(MON, 28));
+    const during = ctx.deriveBlockState(ctx.getProgram(p.id), addDays(MON, 32));
+    T('a paused week does not ADVANCE the qualified-week count', during.trainingWeeks === 4);
+    T('no deload is suggested on paused calendar time', !during.suggest);
+    T('and a paused program offers no block move at all', during.paused && during.moves.length === 0);
+    await resumeOn(p, addDays(MON, 35));
+    const back = ctx.deriveBlockState(ctx.getProgram(p.id), addDays(MON, 35));
+    T('a pause shorter than a break keeps every week already earned',
+      back.trainingWeeks === 4 && back.restartedFrom === null,
+      'weeks=' + back.trainingWeeks);
+    T('BLOCK_RULES are untouched',
+      ctx.BLOCK_RULES.deloadAfterWeeks === 6 && ctx.BLOCK_RULES.breakWeeks === 2);
+  });
+
+  await guard('a long pause is still a break, deliberately', async () => {
+    reset();
+    const p = await mk(MON, 16);
+    for(let w = 0; w < 4; w++){
+      did(p, addDays(MON, w * 7), 'push'); did(p, addDays(MON, w * 7 + 2), 'pull'); did(p, addDays(MON, w * 7 + 4), 'legs');
+    }
+    await pauseOn(p, addDays(MON, 28));
+    await resumeOn(p, addDays(MON, 49));            // three weeks away
+    const long = ctx.deriveBlockState(ctx.getProgram(p.id), addDays(MON, 49));
+    /* §106: "A gap that long has been rest, whatever caused it — travel,
+       illness, a pause." The deload clock measures accumulated training stress,
+       not intent, so D90 does NOT make an explicit pause exempt. Changing this
+       would be a product decision about what a deload is for, not a pause fix. */
+    T('three weeks away restarts the count, whatever the reason — the §106 rule stands',
+      long.trainingWeeks === 0 && long.restartedFrom !== null);
+    T('and the break rule still says the reason does not matter',
+      /whatever caused it/.test(src) || /Whatever the reason/.test(src));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('D44 measures the same days, minus the ones nobody promised');
+  await guard('consistency', async () => {
+    T('the formula is untouched: the target is still what was knowable',
+      /const target = plannedKnown \|\| null;/.test(src));
+    T('only the opportunity set changed',
+      /if\(wasPlanned && !beforeHistory && !isFuture && !suspendedDay\)/.test(src));
+    T('and a suspended day is not marked missed either',
+      /else if\(wasPlanned && !beforeHistory && !suspendedDay\)/.test(src));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('persistence, and what happens when the store says no');
+  await guard('persistence', async () => {
+    reset();
+    const p = await mk(MON, 8);
+    const real = ctx.window.storage.set;
+    ctx.window.storage.set = async () => { throw new Error('QuotaExceededError'); };
+    const refusedPause = await pauseOn(p, '2026-03-09');
+    ctx.window.storage.set = real;
+    T('a refused pause reports failure', refusedPause === false);
+    T('the program is still running', ctx.getProgram(p.id).status === 'active');
+    T('and no phantom span was left behind', !ctx.getProgram(p.id).pauses);
+
+    await pauseOn(p, '2026-03-09');
+    ctx.window.storage.set = async () => { throw new Error('QuotaExceededError'); };
+    const refusedResume = await resumeOn(p, '2026-03-13');
+    ctx.window.storage.set = real;
+    T('a refused resume reports failure', refusedResume === false);
+    T('the program is still paused, with its span still open',
+      ctx.getProgram(p.id).status === 'paused'
+      && JSON.stringify(ctx.getProgram(p.id).pauses) === '[{"from":"2026-03-09","to":null}]');
+    T('pause and resume both go through the one awaited commit path',
+      /async function pauseProgram\(/.test(src) && /async function resumeProgram\(/.test(src)
+      && /commitProgramChange\(/.test(fnSrc(src, 'pauseProgram'))
+      && /commitProgramChange\(/.test(fnSrc(src, 'resumeProgram')));
+    /* D89 claimed every caller awaited; these three did not, and a refusal was
+       never surfaced on Program Detail. */
+    T('and Program Detail awaits them rather than re-rendering from memory',
+      ['doPauseProgram', 'doResumeProgram', 'doActivateProgram']
+        .every(fn => new RegExp('async function ' + fn + '\\(').test(src)
+          && /await /.test(fnSrc(src, fn))));
+  });
+
+  await guard('finishing while paused', async () => {
+    reset();
+    const p = await mk(MON, 4);
+    await pauseOn(p, addDays(MON, 7));
+    await at(addDays(MON, 21), () => ctx.completeProgram(p.id));
+    const done = ctx.getProgram(p.id);
+    T('completing a paused program closes its span rather than losing it',
+      Array.isArray(done.pauses) && done.pauses.length === 1 && done.pauses[0].to === addDays(MON, 21),
+      JSON.stringify(done.pauses));
+    T('and clears the stale pause marker', done.pausedOnDate === null);
+    T('the days it spent paused are banked', done.pausedDays >= 14, String(done.pausedDays));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('programs keep their own pause, and old ones keep their old answer');
+  await guard('isolation and legacy', async () => {
+    reset();
+    const a = await mk(MON, 8);
+    await pauseOn(a, '2026-03-09');
+    const b = await mk('2026-03-16', 8);
+    T('the paused program keeps its record when another takes over',
+      JSON.stringify(ctx.getProgram(a.id).pauses) === '[{"from":"2026-03-09","to":null}]');
+    T('and no pause state leaks onto the new one', !ctx.getProgram(b.id).pauses);
+
+    /* The honest boundary: a pause resumed before D90 left only a running day
+       total, and a total cannot be turned back into dates. Such a program must
+       therefore answer EXACTLY as it did before — a different wrong answer
+       would be worse than the one its athlete has already seen. */
+    const legacy = { id: 'legacy', name: 'L', durationWeeks: 4, startDate: MON, status: 'active',
+      pausedDays: 14, pausedOnDate: null, schedule: weekOf(MWF), blocks: [] };
+    T('a program with no span record is not treated as ever having been paused',
+      ctx.pauseSpansOf(legacy).length === 0 && !ctx.dateIsSuspended(legacy, '2026-03-11'));
+    T('and its end date still extends by the banked total, exactly as before D90',
+      ctx.daysBetweenDates(ctx.programDateFor(legacy, 4, 'sun'), ctx.programEndDate(legacy)) === 14);
+    T('no pause span is ever invented from a number of days',
+      !/pausedDays[\s\S]{0,80}pauses\.push|pauses\.push[\s\S]{0,80}pausedDays/.test(src));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('nothing protected moved');
+  await guard('protected', async () => {
+    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('the local schema is still 1, with no migration',
+      ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('pause truth lives on the program, not in a key of its own',
+      !ctx.DATA_KEYS.some(k => /pause|timeline/i.test(k)));
+    T('the trainer is still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    /* D89's chronology is the floor this is built on. */
+    reset();
+    const p = await mk(WED, 8);
+    let bad = 0;
+    for(let w = 1; w <= 8; w++) for(const k of ctx.PROGRAM_DAY_KEYS){
+      const d = ctx.programDateFor(ctx.getProgram(p.id), w, k);
+      if(ctx.programCalendarWeek(ctx.getProgram(p.id), d) !== w) bad++;
+    }
+    T('D89 holds: the counter is still the exact inverse of the grid', bad === 0, bad + ' mismatches');
+    T('D89 holds: a mid-week start still has no pre-start slot',
+      slots(p).every(s => s.date >= WED));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -32576,6 +32950,7 @@ async function main(){
   await testMasteryPodium();
   await testStabilization();
   await testProgramChronology();
+  await testPauseSuspension();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

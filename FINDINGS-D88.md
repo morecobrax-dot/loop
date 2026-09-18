@@ -232,7 +232,27 @@ These are server-side and owner-applied; a client release cannot change them.
 
 ---
 
-## E10 — A pause is banked in days, but the grid is pinned to weekdays · P2 · PROVEN *(raised by D89)*
+## E10 — A pause is banked in days, but the grid is pinned to weekdays · P2 · **CLOSED in D90 (LOOP 9.2), forward only**
+
+> **Closed for pauses recorded from D90 on.** A pause is now a SPAN of civil
+> dates on the program record, and a planned opportunity inside one did not
+> exist: not due, not missed, not fulfillable, not in any denominator. The grid
+> keeps its weekdays and simply runs longer, until the number of opportunities
+> the program originally asked for has existed.
+>
+> **The historical boundary is real and is not papered over.** Before D90 a
+> resume nulled `pausedOnDate` and only added to a running `pausedDays` total,
+> so for any pause already resumed the start is destroyed, the end was never
+> written, and the total cannot be decomposed. Those programs are NOT repaired
+> and NOT guessed at — a program with no `pauses` array behaves exactly as it
+> did before, including the old end-date rule.
+>
+> Also fixed while auditing: completing a paused program used to leave
+> `pausedOnDate` set for ever and bank none of its days, and three Program
+> Detail handlers never awaited the async mutators despite §111 claiming every
+> caller did. See TRAINER-CONTRACT.md §112 and Contract 191. Original analysis
+> below.
+
 
 Found while closing E1, and deliberately left alone rather than folded into it.
 

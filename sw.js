@@ -8,7 +8,7 @@
  * is never touched by this file — clearing caches here cannot affect a single
  * logged set.
  */
-const CACHE_VERSION = 'loop-v168';
+const CACHE_VERSION = 'loop-v169';
 const ASSETS = [
   './',
   './index.html',
