@@ -30501,6 +30501,339 @@ async function testWorkoutIdentity(){
   }
 }
 
+/* =========================================================
+   CONTRACT 186 — PERSONAL BEST TIMELINE  (Phase D82)
+
+   One lift's own climb, felt rather than read: the athlete's
+   all-time bests for one exercise, drawn as a short line of
+   milestones, big current value first. It reads no PR a second
+   way — computePersonalBestTimeline is a thin filter over the
+   PR engine Contract 184/185 already trust (computeExercisePREvents),
+   keeping only the one metric an exercise's own kind of record
+   is (weight, or reps for a bodyweight move) and dropping 1RM,
+   volume and rep-at-weight hits, so the card reads as one number
+   climbing, never three units interleaved.
+
+   What is proved here: milestones are derived correctly and in
+   order; the default exercise is chosen deterministically; the
+   empty, single-PR and multi-PR states each render cleanly; a
+   long history is capped for display without losing the true
+   count; the picker offers exactly the eligible exercises and a
+   manual choice survives a re-render; nothing here writes to
+   workoutLog, adds a DATA_KEY, or touches training, XP, rank or
+   progression logic.
+
+   DERIVATION · ORDERING · DEFAULT SELECTION · EMPTY ·
+   SINGLE PR · MULTI PR · LONG HISTORY · PICKER · RENDERING ·
+   MOBILE SAFETY · DATA SAFETY
+   ========================================================= */
+async function testPersonalBestTimeline(){
+  section('CONTRACT 186 — Personal Best Timeline: one lift\'s own climb (D82)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const D = n => { const d = new Date('2026-01-01T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const wSet = (ex, sets) => ({ id:'s'+Math.random(), date:D(0), category:'push', title:'x', notes:'', exercises: ex.map((name,i) => ({ name, bodyweight:false, sets: sets[i] })) });
+  const session = (date, name, weight, reps, isBW) => ({ id:'s'+date+name, date, category:'push', title:'x', notes:'',
+    exercises:[{ name, bodyweight: !!isBW, sets:[{ weight: isBW ? '' : String(weight), reps:String(reps) }] }] });
+
+  /* ===================================================== DERIVATION */
+  sub('DERIVATION — the exercise\'s own metric, only when it is a new all-time best');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    c.workoutLog = [
+      session(D(0), 'Bench Press', 185, 8),
+      session(D(7), 'Bench Press', 195, 6),
+      session(D(14), 'Bench Press', 185, 8),   // not a PR: must not appear
+      session(D(21), 'Bench Press', 205, 5),
+      session(D(28), 'Bench Press', 215, 4),
+      session(D(35), 'Bench Press', 225, 3),
+      session(D(42), 'Bench Press', 230, 2)
+    ];
+    const t = c.computePersonalBestTimeline('Bench Press');
+    T('A — reads as one honest climb: 185 → 205 → 215 → 225 → 230, plus the mid-way 195', !t.isBW && t.unit === 'lb' &&
+      JSON.stringify(t.milestones.map(m => m.value)) === JSON.stringify([185, 195, 205, 215, 225, 230]));
+    T('  the non-PR repeat of 185 on day 14 is not a milestone', t.milestones.every(m => m.date !== D(14)));
+    T('  every milestone date is a session that actually set it', t.milestones.every(m => c.workoutLog.some(l => l.date === m.date)));
+
+    T('B — a bodyweight move is read by reps, never a weight it has none of', (() => {
+      c.workoutLog = [session(D(5), 'Pull-Up', null, 5, true), session(D(12), 'Pull-Up', null, 8, true)];
+      const bw = c.computePersonalBestTimeline('Pull-Up');
+      return bw.isBW && bw.unit === 'reps' && JSON.stringify(bw.milestones.map(m => m.value)) === JSON.stringify([5, 8]);
+    })());
+
+    T('C — 1RM, volume and rep-at-weight PRs never appear in this timeline', (() => {
+      c.workoutLog = [
+        { id:'x1', date:D(0), category:'push', title:'x', notes:'', exercises:[{ name:'Overhead Press', bodyweight:false, sets:[{ weight:'95', reps:'5' }] }] },
+        /* same weight, more reps: a rep-at-weight PR and a volume PR, but not a weight PR */
+        { id:'x2', date:D(7), category:'push', title:'x', notes:'', exercises:[{ name:'Overhead Press', bodyweight:false, sets:[{ weight:'95', reps:'10' }] }] }
+      ];
+      const events = c.computeExercisePREvents('Overhead Press');
+      const hasNonWeightHit = events.some(ev => ev.hits.some(h => h.type !== 'weight'));
+      const ohp = c.computePersonalBestTimeline('Overhead Press');
+      return hasNonWeightHit && ohp.milestones.length === 1 && ohp.milestones[0].value === 95;
+    })());
+
+    T('D — an exercise no one has logged has no milestones, and nothing throws', (() => {
+      const none = c.computePersonalBestTimeline('Nonexistent Exercise');
+      return Array.isArray(none.milestones) && none.milestones.length === 0;
+    })());
+
+    T('the metric rule is exactly computeExercisePREvents\' own branch (isBW ? reps : weight), not a new one',
+      /function pbtMetricFor\(isBW\)\{ return isBW \? 'reps' : 'weight'; \}/.test(code));
+    T('the timeline is read from computeExercisePREvents, not a second PR engine',
+      /const events = computeExercisePREvents\(exerciseName\);/.test(fnSrc(src, 'computePersonalBestTimeline')));
+  }
+
+  /* ===================================================== ORDERING */
+  sub('ORDERING — oldest first, strictly by date, ending at the true current best');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    c.workoutLog = [
+      session(D(42), 'Deadlift', 315, 3),
+      session(D(0), 'Deadlift', 275, 5),
+      session(D(21), 'Deadlift', 295, 4),
+      session(D(7), 'Deadlift', 285, 5)
+    ];
+    const t = c.computePersonalBestTimeline('Deadlift');
+    const dates = t.milestones.map(m => new Date(m.date).getTime());
+    T('milestones are strictly ascending by date regardless of the log\'s own order', dates.every((d, i) => i === 0 || d > dates[i-1]));
+    T('the first milestone is the earliest logged best, the last is the true current best',
+      t.milestones[0].value === 275 && t.milestones[t.milestones.length-1].value === 315);
+  }
+
+  /* ===================================================== DEFAULT SELECTION */
+  sub('DEFAULT SELECTION — most milestones, then gain, then recency, then name; fully deterministic');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    c.workoutLog = [
+      session(D(0), 'Overhead Press', 95, 5),                                    // 1 milestone: 0% gain, by construction
+      session(D(0), 'Bench Press', 185, 8), session(D(7), 'Bench Press', 195, 6) // 2 milestones, a real climb
+    ];
+    T('E — a lift with only its opening PR (a 0% gain, having nowhere else to climb from) loses to one with a real progression',
+      c.pickDefaultPBTExercise(c.computePBTCandidates()) === 'Bench Press');
+
+    c.workoutLog = [
+      session(D(0), 'Squat', 225, 5), session(D(7), 'Squat', 235, 5), session(D(14), 'Squat', 245, 5),      // 3 milestones, +8.9%
+      session(D(0), 'Bench Press', 185, 5), session(D(7), 'Bench Press', 205, 5)                             // 2 milestones, +10.8%
+    ];
+    T('F — with an unequal milestone count, more milestones wins outright, even with a smaller % gain',
+      c.pickDefaultPBTExercise(c.computePBTCandidates()) === 'Squat');
+
+    /* Equal count (2), equal last-PR date (so recency cannot decide this one), unequal gain,
+       and an alphabetical order that would pick the WRONG lift if gain were skipped. */
+    c.workoutLog = [
+      session(D(0), 'Ohp', 225, 5), session(D(7), 'Ohp', 232, 5),          // 2 milestones, +3.1%
+      session(D(0), 'Zed Curl', 185, 5), session(D(7), 'Zed Curl', 205, 5)  // 2 milestones, +10.8%, same last date, later name
+    ];
+    T('G — an equal milestone count is broken by the larger first-to-current gain, not by name or recency',
+      c.pickDefaultPBTExercise(c.computePBTCandidates()) === 'Zed Curl');
+
+    /* Equal count (2) and equal % gain (exactly 10% each, by construction), so gain cannot
+       decide this one; the more recent PR (Zeta's) must win even though its name sorts
+       later — if recency were skipped, falling straight to name would wrongly pick Alpha. */
+    c.workoutLog = [
+      session(D(5), 'Alpha Curl', 100, 5), session(D(9), 'Alpha Curl', 110, 5),   // +10%, latest day 9
+      session(D(5), 'Zeta Curl', 200, 5), session(D(50), 'Zeta Curl', 220, 5)     // +10%, latest day 50
+    ];
+    T('H — an equal count and equal gain is broken by the more recently set PR, not by name',
+      c.pickDefaultPBTExercise(c.computePBTCandidates()) === 'Zeta Curl');
+
+    /* Equal count, equal gain (10%), and the SAME last-PR date: only the name can decide,
+       and the pick must not depend on which order the candidates happen to be built in. */
+    c.workoutLog = [
+      session(D(0), 'Alpha Curl', 100, 5), session(D(7), 'Alpha Curl', 110, 5),  // +10%, latest day 7
+      session(D(0), 'Zeta Curl', 200, 5), session(D(7), 'Zeta Curl', 220, 5)     // +10%, latest day 7 — a genuine full tie
+    ];
+    const eq = c.computePBTCandidates();
+    T('I — a full tie is broken by name, so the pick never depends on iteration order',
+      c.pickDefaultPBTExercise(eq) === 'Alpha Curl' && c.pickDefaultPBTExercise(eq) === c.pickDefaultPBTExercise(eq.slice().reverse()));
+
+    T('J — the pick is stable across repeated calls with the same data (no randomness, no mutation of the pool)', (() => {
+      const cands = c.computePBTCandidates();
+      const a = c.pickDefaultPBTExercise(cands), b = c.pickDefaultPBTExercise(cands);
+      return a === b && a != null;
+    })());
+
+    T('K — an exercise logged but never a valid PR (no parseable weight or reps) is not offered as a candidate', (() => {
+      c.workoutLog = [{ id:'bad', date:D(0), category:'push', title:'x', notes:'', exercises:[{ name:'Junk Row', bodyweight:false, sets:[{ weight:'', reps:'' }] }] }];
+      return c.computePBTCandidates().every(t => t.exerciseName !== 'Junk Row');
+    })());
+
+    T('L — no logged exercises at all: no candidates, and the default pick is null, not a crash',
+      (() => { c.workoutLog = []; return c.computePBTCandidates().length === 0 && c.pickDefaultPBTExercise([]) === null; })());
+  }
+
+  /* ===================================================== EMPTY */
+  sub('EMPTY — no eligible history: encouraging, explains itself, never a broken chart');
+  await guard('empty', async () => {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    c.pbtSelectedExercise = 'leftover from a previous render';
+    c.renderPersonalBestTimeline();
+    const html = c.document.getElementById('progPBTimeline').innerHTML;
+    T('M — the empty card names the feature, is encouraging, and says when it will appear',
+      /pbt-empty/.test(html) && /Personal Best Timeline/.test(html) && /climb/i.test(html) && !/pbt-chart-svg/.test(html));
+    T('  a stale selection does not survive an empty log', c.pbtSelectedExercise === null);
+  });
+
+  /* ===================================================== SINGLE PR */
+  sub('SINGLE PR — shown cleanly, never a line chart with one end');
+  await guard('single', async () => {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    c.workoutLog = [session(D(11), 'Barbell Row', 135, 8)];
+    c.pbtSelectedExercise = null;
+    c.renderPersonalBestTimeline();
+    const html = c.document.getElementById('progPBTimeline').innerHTML;
+    T('N — no chart is drawn for one point', !/pbt-chart-svg/.test(html) && /pbt-single/.test(html));
+    T('  the single PR still shows the big current-best number', /pbt-hero-num">135<span> lb<\/span>/.test(html));
+    T('  the stats row is the short form: milestones and the date, not a first-to-current pair or a net gain',
+      (html.match(/snap-label">([^<]+)</g) || []).length === 2 && /PR milestones/.test(html) && /Latest PR/.test(html) &&
+      !/First → current/.test(html) && !/Since first PR/.test(html));
+  });
+
+  /* ===================================================== MULTI PR */
+  sub('MULTI PR — the hero value, the climb, and all four supporting stats');
+  await guard('multi', async () => {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    c.workoutLog = [session(D(0),'Bench Press',185,8), session(D(21),'Bench Press',205,5), session(D(42),'Bench Press',230,2)];
+    c.pbtSelectedExercise = null;
+    c.renderPersonalBestTimeline();
+    const host = c.document.getElementById('progPBTimeline');
+    const html = host.innerHTML;
+    T('O — the card names the exercise, the primitive rendering it (never a second markup path)',
+      /pbt-select/.test(html) && />Bench Press<\/option>/.test(html));
+    T('  the current best is big and prominent, above the climb', /pbt-hero-num">230<span> lb<\/span>/.test(html) &&
+      html.indexOf('pbt-hero-num') < html.indexOf('pbt-chart-svg'));
+    T('  the climb is drawn: one <path> line, one dot per milestone, the newest one lit', /pbt-chart-svg/.test(html) &&
+      (html.match(/<circle /g) || []).length === (3 - 1) + 2 /* one faded dot per earlier milestone, plus the halo pair on the newest */);
+    T('  all four supporting stats are present', ['PR milestones','First → current','Since first PR','Latest PR'].every(l => html.includes(l)));
+    T('  the stats reuse LOOP\'s own stat-tile component, not a bespoke one', /class="snapshot pbt-stats"/.test(html) && /snap-item/.test(html));
+    T('P — picking a different exercise from the control re-renders the card for it', (() => {
+      c.workoutLog.push(session(D(0), 'Overhead Press', 95, 6));
+      c.renderPersonalBestTimeline(); // refresh candidate list
+      c.pbtChooseExercise('Overhead Press');
+      const now = c.document.getElementById('progPBTimeline').innerHTML;
+      return c.pbtSelectedExercise === 'Overhead Press' && />Overhead Press<\/option>/.test(now) && /pbt-hero-num">95/.test(now);
+    })());
+    T('  a manual choice survives a plain re-render (leaving the tab and coming back)', (() => {
+      c.renderPersonalBestTimeline();
+      return c.pbtSelectedExercise === 'Overhead Press';
+    })());
+    T('  a manual choice resets to the automatic pick only once it stops being valid', (() => {
+      c.workoutLog = c.workoutLog.filter(l => !l.exercises.some(e => e.name === 'Overhead Press'));
+      c.renderPersonalBestTimeline();
+      return c.pbtSelectedExercise !== 'Overhead Press' && c.pbtSelectedExercise === c.pickDefaultPBTExercise(c.computePBTCandidates());
+    })());
+  });
+
+  /* ===================================================== LONG HISTORY */
+  sub('LONG HISTORY — capped for display, never approximated in the stats');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    const many = [];
+    for(let i = 0; i < 20; i++) many.push({ date: 'd' + i, value: 100 + i * 5 });
+    const shown = c.pbtDisplayMilestones(many);
+    T('Q — a long history is capped at PBT_CONFIG.maxDots for display', shown.length <= c.PBT_CONFIG.maxDots && shown.length > 2);
+    T('  the true first and current milestones are always among the ones drawn', shown[0].date === 'd0' && shown[shown.length-1].date === 'd19');
+    T('  the sampled dots stay in chronological order', shown.every((m,i) => i === 0 || many.indexOf(m) > many.indexOf(shown[i-1])));
+    T('  a history at or under the cap is never sampled', c.pbtDisplayMilestones(many.slice(0, c.PBT_CONFIG.maxDots)).length === c.PBT_CONFIG.maxDots);
+
+    await guard('long history render', async () => {
+      c.workoutLog = [];
+      for(let i = 0; i < 20; i++) c.workoutLog.push(session(D(i * 7), 'Leg Press', 300 + i * 10, 5));
+      c.pbtSelectedExercise = 'Leg Press';
+      c.renderPersonalBestTimeline();
+      const html = c.document.getElementById('progPBTimeline').innerHTML;
+      const dotsDrawn = (html.match(/font-weight="500"/g) || []).length + (html.match(/font-weight="700"/g) || []).length;
+      T('R — the stats still state the true count (20), even though far fewer dots are drawn', /snap-num">20</.test(html));
+      T('  the drawn value labels never exceed the display cap', dotsDrawn <= c.PBT_CONFIG.maxDots);
+    });
+  }
+
+  /* ===================================================== PICKER */
+  sub('PICKER — exactly the eligible exercises, alphabetically, one honest control');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    c.workoutLog = [
+      session(D(0), 'Zercher Squat', 135, 5), session(D(7), 'Zercher Squat', 145, 5),
+      session(D(0), 'Ab Wheel Rollout', 0, 5, true),
+      { id:'junk', date:D(0), category:'push', title:'x', notes:'', exercises:[{ name:'Never A PR', bodyweight:false, sets:[{ weight:'', reps:'' }] }] }
+    ];
+    c.pbtSelectedExercise = null;
+    c.renderPersonalBestTimeline();
+    const html = c.document.getElementById('progPBTimeline').innerHTML;
+    const options = (html.match(/<option value="([^"]+)"/g) || []).map(m => m.slice(15, -1));
+    T('S — the picker offers every exercise with at least one milestone, and nothing else',
+      options.length === 2 && options.includes('Zercher Squat') && options.includes('Ab Wheel Rollout') && !options.includes('Never A PR'));
+    T('  the picker is alphabetical, not insertion order', JSON.stringify(options) === JSON.stringify(options.slice().sort((a,b)=>a.localeCompare(b))));
+    T('  the picker is a real select the athlete can operate, named for what it does',
+      /aria-label="Exercise — tap to change"/.test(html) && /onchange="pbtChooseExercise\(this\.value\)"/.test(html));
+    T('  the chevron affordance is decorative; the name is carried by the select itself', /pbt-pick-chevron" aria-hidden="true"/.test(html));
+    T('  the exercise actually showing is the one marked selected in its own option',
+      new RegExp('value="' + c.pbtSelectedExercise + '" selected').test(html));
+  }
+
+  /* ===================================================== RENDERING / PLACEMENT */
+  sub('RENDERING — one primitive, called from the Strength tab, ahead of everything else there');
+  {
+    T('T — the static host sits inside the Strength panel, before the rest of it',
+      /id="ppanel-strength"[\s\S]{0,40}<div id="progPBTimeline"><\/div>[\s\S]{0,120}<div id="progReady">/.test(src));
+    T('  renderProgStrength renders the timeline first, before Ready to progress and the rest', (() => {
+      const body = fnSrc(src, 'renderProgStrength');
+      const i1 = body.indexOf('renderPersonalBestTimeline();'), i2 = body.indexOf('computeProgressionBuckets()');
+      return i1 !== -1 && i2 !== -1 && i1 < i2;
+    })());
+    T('  the card is a single function\'s output — one render path, not markup duplicated elsewhere',
+      (code.match(/class="pbt-card/g) || []).length === 2 /* the normal card and the empty-state variant */);
+  }
+
+  /* ===================================================== MOBILE SAFETY */
+  sub('MOBILE SAFETY — scalable art, a 44px-class control, decorative icons, no fixed widths to overflow');
+  {
+    T('U — the chart is a scalable viewBox, not a fixed-pixel image', /viewBox="0 0 \$\{w\} \$\{h\}"/.test(fnSrc(src, 'pbtTimelineSvg')) &&
+      /width: 100%/.test(css.slice(css.indexOf('.pbt-chart-svg'), css.indexOf('.pbt-chart-svg') + 80)));
+    T('  the card and its stats grid are fluid width, never a fixed pixel width', !/\.pbt-card\{[^}]*width:\s*\d/.test(css) && !/\.pbt-stats\{[^}]*width:\s*\d/.test(css));
+    T('  the value labels and dates are small, legible marks, not a dense axis', /font-size="1[0-2](\.5)?"/.test(fnSrc(src, 'pbtTimelineSvg')));
+    T('  decorative marks are aria-hidden: the trophy, the chevron, the single-PR dot', /pbt-empty-glyph" aria-hidden="true"/.test(code) &&
+      /pbt-pick-chevron" aria-hidden="true"/.test(code) && /pbt-single-dot" aria-hidden="true"/.test(code));
+    T('  the chart itself is announced in words for anyone who cannot see it',
+      /role="img" aria-label="Progression from \$\{points\[0\]\.value\} to \$\{points\[n-1\]\.value\}/.test(code));
+  }
+
+  /* ===================================================== DATA SAFETY */
+  sub('DATA SAFETY — purely derived, no DATA_KEY, workoutLog never written');
+  {
+    const app = H.loadApp({ workoutLog: '[]' });
+    const c = app.ctx;
+    const log = [session(D(0),'Bench Press',185,8), session(D(21),'Bench Press',205,5), session(D(11),'Barbell Row',135,8),
+      session(D(5),'Pull-Up',null,5,true)];
+    const before = JSON.stringify(log);
+    c.workoutLog = JSON.parse(before);
+    c.computePBTCandidates(); c.pickDefaultPBTExercise(); c.renderPersonalBestTimeline();
+    c.pbtChooseExercise('Barbell Row'); c.renderPersonalBestTimeline();
+    T('V — nothing here ever rewrites workoutLog: it reads exactly what it was given, byte for byte', JSON.stringify(c.workoutLog) === before);
+    T('DATA_KEYS is unchanged at 15, and no key names this feature', c.DATA_KEYS.length === 15 &&
+      !c.DATA_KEYS.some(k => /personalBest|pbTimeline|\bpbt\b/i.test(k)));
+    T('no local schema or migration was added for it', c.DATA_SCHEMA_VERSION === 1 && !/personalBest|pbTimeline/i.test(fnSrc(src, 'runMigrations')));
+    const pbtBlock = src.slice(src.indexOf('PERSONAL BEST TIMELINE  (Phase D82)'), src.indexOf('LOOP PROGRESSION ENGINE — Level, Rank, XP, Milestones'));
+    T('the computation reads no training-truth, XP, rank or progression logic',
+      !/trainerLog|sessionScore|calculateXP|calculateRank|progressionEngine|prescri/i.test(stripComments(pbtBlock)));
+    T('it never mutates a workout, a program, or the exercise it describes — no write path back to source data',
+      !/workoutLog\s*=|workoutLog\.(push|splice)|\.exercises\s*=|\.exercises\.(push|splice)|\.sets\s*=|\.sets\.(push|splice)|persistPlanData|LOOPStore\.set/.test(stripComments(pbtBlock)));
+    T('the PR engine it depends on (computeExercisePREvents) is exactly what Contract 185 already measured',
+      /function computeExercisePREvents\(exerciseName\)\{/.test(code));
+  }
+}
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -30647,6 +30980,7 @@ async function main(){
   await testFriendsRebuild();
   await testWorkoutSharing();
   await testWorkoutIdentity();
+  await testPersonalBestTimeline();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

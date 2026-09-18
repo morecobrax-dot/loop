@@ -3606,6 +3606,69 @@ body.first-use{ padding-bottom: 0; }
 .pd-empty-s{ font-size: 12px; color: var(--text-faint); line-height: 1.45; }
 
 /* =========================================================
+   D82 — PERSONAL BEST TIMELINE
+   ---------------------------------------------------------
+   Its own elevated hero treatment — the gradient .cd-hero
+   already established for "one number that matters" — rather
+   than the flatter .pd-card list look around it on the Strength
+   tab. This is the one card here meant to read as a flagship.
+   ========================================================= */
+.pbt-card{
+  margin-top: 12px; padding: 18px; border-radius: var(--radius-xl);
+  background: linear-gradient(160deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border);
+}
+.pbt-eyebrow{
+  display: block; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+/* The exercise name IS the control: a bold heading that happens to be a
+   native select, so "selected exercise name" and "compact picker" are the
+   same element rather than two things fighting for the same line. */
+.pbt-pick{ position: relative; margin-top: 8px; }
+.pbt-select{
+  width: 100%; appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  background: transparent; border: none; padding: 0 26px 0 0; margin: 0; color: var(--text);
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 19px; border-radius: 0;
+}
+.pbt-select:focus{ outline: none; box-shadow: none; border-color: transparent; }
+.pbt-pick-chevron{
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  color: var(--text-faint); pointer-events: none; display: flex;
+}
+.pbt-hero{ margin-top: 14px; }
+.pbt-hero-label{ font-size: 11.5px; color: var(--text-dim); font-weight: 600; }
+.pbt-hero-num{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 42px; line-height: 1.05;
+  color: var(--text); margin-top: 2px; font-variant-numeric: tabular-nums;
+}
+.pbt-hero-num span{ font-size: 16px; color: var(--text-faint); margin-left: 4px; font-weight: 500; }
+.pbt-chart-svg{ width: 100%; height: 128px; display: block; margin-top: 6px; }
+/* ONLY ONE PR: no line has two ends to draw, so this is a marker, not a
+   degenerate chart pretending to be one. */
+.pbt-single{
+  display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 14px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.pbt-single-dot{
+  flex: 0 0 10px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.pbt-single-text{ font-size: 12.5px; color: var(--text-dim); line-height: 1.45; }
+/* These tiles hold short pairs and signed deltas, not a single big figure —
+   the shared .snap-num size (tuned for exDetailStats' plain numbers) wrapped
+   "185 → 230" onto two lines in a 2-column tile at 320px. Smaller here only. */
+.pbt-stats{ margin-top: 14px; }
+.pbt-stats .snap-num{ font-size: 15.5px; line-height: 1.3; }
+/* EMPTY — describes what will appear, the same rule the dashboard's own
+   empty state already follows rather than a grid of zeroes. */
+.pbt-empty{ text-align: center; padding: 26px 20px; }
+.pbt-empty-glyph{ display: inline-flex; color: var(--accent); opacity: 0.65; }
+.pbt-empty-glyph svg{ width: 30px; height: 30px; }
+.pbt-empty-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; color: var(--text); margin-top: 12px; }
+.pbt-empty-sub{ font-size: 12.5px; color: var(--text-faint); margin-top: 8px; line-height: 1.55; }
+
+/* =========================================================
    D25 — PROGRESS EXPERIENCE
    ---------------------------------------------------------
    Presentation only: every figure still comes from the same
@@ -7743,6 +7806,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
          tab toggled a container inside a display:none sibling — a tap that
          visibly did nothing. -->
     <div class="seg-panel" id="ppanel-strength" style="display:none">
+      <div id="progPBTimeline"></div>
       <div id="progReady"></div>
       <div id="progAllRecords"></div>
       <div id="progExercises"></div>
@@ -15711,6 +15775,24 @@ const LOOP_UPDATES = [
     changes: [
       'Like sharing, this appears once Friends is updated for it. A workout shared before that update shows the icon of its kind'
     ]
+  },
+  {
+    id: 'v8-4',
+    version: 'LOOP 8.4',
+    title: 'Personal Best Timeline',
+    date: '2026-09-17',
+    swVersion: 'loop-v161',
+    summary: 'See one lift climb, PR by PR — your first, your current, and everything in between.',
+    newFeatures: [
+      'A new Personal Best Timeline card on Progress → Strength shows one exercise’s all-time bests as a climbing line',
+      'Switch which exercise it shows from a picker built into the card itself'
+    ],
+    improvements: [
+      'LOOP picks the lift with the most convincing progression to show first, automatically',
+      'A lift with only one PR still gets a clean card — never a broken chart with nowhere to go'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -28125,6 +28207,93 @@ function formatPREventHeadline(ev){
 }
 
 /* =========================================================
+   PERSONAL BEST TIMELINE  (Phase D82)
+   ---------------------------------------------------------
+   One lift's own climb, never a mix of records. Every other PR
+   surface in LOOP (the Records card, PR badges, PR Hunter) already
+   reads "personal best" from computeExercisePREvents above — this
+   does too, rather than inventing a second definition. From that
+   same event stream it keeps exactly one metric per exercise:
+   heaviest weight for a loaded lift, most reps for a bodyweight
+   move — the same branch computeExercisePREvents itself takes —
+   and drops 1RM, volume and rep-at-weight hits. The result reads
+   as one honest number climbing (185 → 205 → 215 → 225 → 230),
+   never three different units interleaved on one line.
+
+   PURELY DERIVED, like the engine it reads. No DATA_KEY, no
+   schema, no migration, and nothing here ever writes to
+   workoutLog — editing or deleting a session changes what the
+   next render computes and nothing else.
+   ========================================================= */
+const PBT_CONFIG = {
+  maxDots: 8   // milestones actually drawn; the stats row always states the true count
+};
+
+/* The exercise's own kind of record: heaviest weight, or — for a bodyweight
+   move, which has no external load — most reps. The same rule
+   computeExercisePREvents itself branches on (ex.bodyweight). */
+function pbtMetricFor(isBW){ return isBW ? 'reps' : 'weight'; }
+
+/* One exercise's true PR climb: only the sessions where its OWN metric hit a
+   new all-time best, oldest first, each holding the true value the best
+   stood at from that day on. */
+function computePersonalBestTimeline(exerciseName){
+  const events = computeExercisePREvents(exerciseName);
+  if(!events.length) return { exerciseName, isBW:false, unit:'lb', milestones:[] };
+  const isBW = events[0].isBW;
+  const metric = pbtMetricFor(isBW);
+  const milestones = [];
+  events.slice().reverse().forEach(ev => {
+    const hit = ev.hits.find(h => h.type === metric);
+    if(hit) milestones.push({ date: ev.date, value: hit.next });
+  });
+  return { exerciseName, isBW, unit: isBW ? 'reps' : 'lb', milestones };
+}
+
+/* Every logged exercise with at least one milestone of its own kind — what
+   the picker offers, and what the default pick is chosen from. */
+function computePBTCandidates(){
+  return getAllLoggedExerciseNames().map(computePersonalBestTimeline).filter(t => t.milestones.length > 0);
+}
+
+/* DEFAULT SELECTION. Most milestones wins first — "enough PR history to make
+   the chart meaningful" — then the largest first-to-current improvement,
+   then the most recently set PR, then the name, so the choice is fully
+   deterministic. A lift with only its opening PR has nowhere left to climb
+   (its first milestone and its current one are the same one, a 0% gain by
+   construction), so it only ever wins by being the sole exercise logged. */
+function pickDefaultPBTExercise(candidates){
+  const list = candidates || computePBTCandidates();
+  if(!list.length) return null;
+  const pctGain = t => {
+    const first = t.milestones[0].value, last = t.milestones[t.milestones.length - 1].value;
+    return first > 0 ? (last - first) / first : 0;
+  };
+  const ranked = list.slice().sort((a, b) => {
+    if(b.milestones.length !== a.milestones.length) return b.milestones.length - a.milestones.length;
+    const g = pctGain(b) - pctGain(a);
+    if(g) return g;
+    const aLast = a.milestones[a.milestones.length - 1].date, bLast = b.milestones[b.milestones.length - 1].date;
+    if(aLast !== bLast) return new Date(bLast) - new Date(aLast);
+    return a.exerciseName.localeCompare(b.exerciseName);
+  });
+  return ranked[0].exerciseName;
+}
+
+/* VERY LONG HISTORY: the dots actually drawn are capped so the card stays
+   readable, but the first PR, the current PR and the true count are never
+   approximated — only the milestones in between are sampled, evenly, and
+   both ends are always kept. */
+function pbtDisplayMilestones(milestones){
+  const n = milestones.length;
+  if(n <= PBT_CONFIG.maxDots) return milestones;
+  const keep = new Set([0, n - 1]);
+  const slots = PBT_CONFIG.maxDots - 2;
+  for(let k = 1; k <= slots; k++) keep.add(Math.round((k / (slots + 1)) * (n - 1)));
+  return Array.from(keep).sort((a, b) => a - b).map(i => milestones[i]);
+}
+
+/* =========================================================
    LOOP PROGRESSION ENGINE — Level, Rank, XP, Milestones
    ---------------------------------------------------------
    ARCHITECTURE: XP is never stored as a mutable running total.
@@ -29911,6 +30080,10 @@ function computeMuscleVolumeSince(fromDate){
    ========================================================= */
 let progTab = 'overview';
 let progRange = 12;
+/* D82 — which exercise the Personal Best Timeline shows. Ephemeral by design
+   (no DATA_KEY): it starts at the automatic pick every fresh load, and only
+   remembers a manual choice for as long as this session stays open. */
+let pbtSelectedExercise = null;
 let progSelectedWeek = null;
 let exDetailName = null;
 let exDetailMetric = '1rm';
@@ -32190,7 +32363,127 @@ function trophyIconSvg(){
   return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4.5 2.5h7v3a3.5 3.5 0 0 1-7 0v-3Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M4.5 3.5h-2v1a2 2 0 0 0 2 2M11.5 3.5h2v1a2 2 0 0 1-2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 9v3M5.5 13.5h5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 }
 
+/* D82 — the milestone climb itself: only the dots the caller passed (already
+   capped by pbtDisplayMilestones for a long history), the same luminous-line
+   language e1rmLineSvg already established (gradient underfill, a glowing
+   halo on the newest point, faded dots on the rest) so this reads as LOOP's
+   own chart rather than a second chart language living beside the first. */
+function pbtTimelineSvg(points, isBW){
+  const w = 320, h = 128, padL = 16, padR = 16, padT = 30, padB = 24;
+  const n = points.length;
+  const values = points.map(p => p.value);
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = Math.max(1, max - min);
+  const xFor = i => n === 1 ? (padL + (w - padL - padR) / 2) : padL + (i / (n - 1)) * (w - padL - padR);
+  const yFor = v => padT + (1 - (v - min) / range) * (h - padT - padB);
+  const coords = points.map((p, i) => [xFor(i), yFor(p.value)]);
+  const pathD = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
+  const fillD = pathD + ` L${coords[n-1][0].toFixed(1)},${h-padB} L${coords[0][0].toFixed(1)},${h-padB} Z`;
+  const dots = coords.slice(0, -1).map(c => `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="3" fill="var(--accent)" opacity="0.45"/>`).join('');
+  const last = coords[n - 1];
+  const nowDot = `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="7.5" fill="var(--accent-soft)"/>` +
+    `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.6" fill="var(--accent)"/>`;
+  const valueLabels = coords.map((c, i) => {
+    const isLast = i === n - 1;
+    return `<text x="${c[0].toFixed(1)}" y="${(c[1] - 12).toFixed(1)}" font-size="${isLast ? 12 : 11}"` +
+      ` font-weight="${isLast ? 700 : 500}" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}"` +
+      ` font-family="'JetBrains Mono', monospace" fill="${isLast ? 'var(--text)' : 'var(--text-faint)'}">${points[i].value}</text>`;
+  }).join('');
+  const firstDate = `<text x="${coords[0][0].toFixed(1)}" y="${h-6}" font-size="11" text-anchor="start" font-family="'JetBrains Mono', monospace" fill="var(--text-faint)">${escapeHtml(formatDateShort(points[0].date))}</text>`;
+  const lastDate = `<text x="${last[0].toFixed(1)}" y="${h-6}" font-size="11" text-anchor="end" font-family="'JetBrains Mono', monospace" fill="var(--text-faint)">${escapeHtml(formatDateShort(points[n-1].date))}</text>`;
+  return `<svg class="pbt-chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Progression from ${points[0].value} to ${points[n-1].value} ${isBW ? 'reps' : 'pounds'}">
+    <defs><linearGradient id="pbtFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${fillD}" fill="url(#pbtFill)"/>
+    <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}${nowDot}${valueLabels}${firstDate}${n > 1 ? lastDate : ''}
+  </svg>`;
+}
+
+function pbtChooseExercise(name){
+  pbtSelectedExercise = name;
+  renderPersonalBestTimeline();
+}
+
+/* D82 — the Personal Best Timeline card: one exercise's all-time-best climb,
+   big and prominent, with a compact picker to look at a different lift. */
+function renderPersonalBestTimeline(){
+  const host = document.getElementById('progPBTimeline');
+  if(!host) return;
+  const candidates = computePBTCandidates();
+
+  if(!candidates.length){
+    pbtSelectedExercise = null;
+    host.innerHTML = `
+      <section class="pbt-card pbt-empty">
+        <span class="pbt-eyebrow">Personal Best Timeline</span>
+        <span class="pbt-empty-glyph" aria-hidden="true">${trophyIconSvg()}</span>
+        <h3 class="pbt-empty-title">Your climb starts here</h3>
+        <p class="pbt-empty-sub">Log the same lift a couple of times and this card fills in with every all-time best you've set for it.</p>
+      </section>`;
+    return;
+  }
+
+  /* A manual choice survives leaving the tab and coming back; it only resets
+     to the automatic pick if it stops being a valid one — nothing chosen
+     yet, or that exercise's history is gone. */
+  if(!pbtSelectedExercise || !candidates.some(t => t.exerciseName === pbtSelectedExercise)){
+    pbtSelectedExercise = pickDefaultPBTExercise(candidates);
+  }
+  const timeline = candidates.find(t => t.exerciseName === pbtSelectedExercise) || candidates[0];
+  const { exerciseName, isBW, milestones } = timeline;
+  const first = milestones[0], current = milestones[milestones.length - 1];
+  const unitWord = isBW ? (current.value === 1 ? 'rep' : 'reps') : 'lb';
+  const netValue = current.value - first.value;
+  const netPct = first.value > 0 ? Math.round((netValue / first.value) * 100) : null;
+
+  /* computePBTCandidates() already lists exercises in getAllLoggedExerciseNames'
+     alphabetical order (map/filter preserve it), so the picker needs no sort
+     of its own — one source of truth for the order, not two that could drift. */
+  const options = candidates.map(t =>
+    `<option value="${escapeAttr(t.exerciseName)}"${t.exerciseName === exerciseName ? ' selected' : ''}>${escapeHtml(t.exerciseName)}</option>`
+  ).join('');
+
+  const bodyHtml = milestones.length === 1
+    ? `<div class="pbt-single">
+         <span class="pbt-single-dot" aria-hidden="true"></span>
+         <span class="pbt-single-text">Set on ${escapeHtml(formatDateShort(first.date))}. Log ${escapeHtml(exerciseName)} again and beat it to start the climb.</span>
+       </div>`
+    : pbtTimelineSvg(pbtDisplayMilestones(milestones), isBW);
+
+  const stats = [{ label:'PR milestones', value:String(milestones.length) }];
+  if(milestones.length > 1){
+    stats.push({ label:'First → current', value:`${first.value}→${current.value}` });
+    stats.push({ label:'Since first PR', value:`${netValue > 0 ? '+' : ''}${netValue} ${unitWord}${netPct !== null ? ' (' + (netPct >= 0 ? '+' : '') + netPct + '%)' : ''}` });
+  }
+  stats.push({ label:'Latest PR', value: formatDateShort(current.date) });
+
+  host.innerHTML = `
+    <section class="pbt-card" aria-label="Personal Best Timeline">
+      <span class="pbt-eyebrow">Personal Best Timeline</span>
+      <div class="pbt-pick">
+        <select class="pbt-select" id="pbtExerciseSelect" onchange="pbtChooseExercise(this.value)" aria-label="Exercise — tap to change">
+          ${options}
+        </select>
+        <span class="pbt-pick-chevron" aria-hidden="true">${chevronDownSvg(15)}</span>
+      </div>
+      <div class="pbt-hero">
+        <span class="pbt-hero-label">Current best</span>
+        <div class="pbt-hero-num">${current.value}<span>${escapeHtml(' ' + unitWord)}</span></div>
+      </div>
+      ${bodyHtml}
+      <div class="snapshot pbt-stats">${stats.map(s =>
+        `<div class="snap-item"><div class="snap-label">${escapeHtml(s.label)}</div><div class="snap-num">${escapeHtml(s.value)}</div></div>`
+      ).join('')}</div>
+    </section>`;
+}
+
 function renderProgStrength(){
+  /* D82 — one exercise's own PR climb, first: the card most meant to be felt
+     rather than read. */
+  renderPersonalBestTimeline();
   /* D25: one pass per host, in the order the question is asked — what is
      ready to move now, the load context and records, then the full per-lift
      directory. (This used to render progReady and then prepend to its own
