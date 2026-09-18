@@ -143,7 +143,33 @@ Nothing is persisted — every value is derived — so this reads to the athlete
 
 ---
 
-## E6 — `computePRs` latches a loaded lift to bodyweight, permanently · P2 · PROVEN
+## E6 — `computePRs` latches a loaded lift to bodyweight, permanently · P2 · **CLOSED in D91 (LOOP 9.3)**
+
+> **Closed, and it was wider than recorded here.** LOOP answered "is this lift
+> loaded or bodyweight?" in four places, each its own way: `computePRs` (the
+> first stored SET, blank ⇒ bodyweight), `computeExercisePREvents` and
+> `computeXPTimeline` (the earliest session's box), `renderExDetail` (the
+> latest session's). The root cause is a sentinel collision: `saveLog` writes
+> `'BW'` for a bodyweight row and `''` for a blank loaded row, and both parse
+> to `NaN`.
+>
+> One rule now, `deriveExercisePRMode`, computed once per log for every lift
+> (`prModesByLift`) and read by all four through `prModeOf`. A lift is what its
+> EARLIEST DECLARING session said — the rule the event and XP engines already
+> used — where a tick (or `'BW'`) declares bodyweight, a load above zero on an
+> unticked row declares loaded, and blank, zero or unreadable weights declare
+> nothing. With no declaration anywhere: the registry's bodyweight flag, then
+> zeros keep a lift loaded as they always did, then UNKNOWN, with no PR invented.
+>
+> Measured against 9.2 on 400 generated histories in which every lift's first
+> session declares its kind: records, the timeline, Mastery's record count, XP
+> and levels are byte-identical. Every change elsewhere traces to 9.2 taking a
+> lift's kind from a session that declared nothing, or from storage order
+> between same-day sessions. `computePRs` named a different record from the
+> event engine in 860 of 2,000 lifts on 9.2 — ties credited by storage order
+> among them — and in 0 now. See TRAINER-CONTRACT.md §113 and Contract 192.
+> What D91 found and deliberately left is E11–E16 below. Original analysis below.
+
 
 ```js
 const isBW = ex.bodyweight || isNaN(w);
@@ -275,6 +301,96 @@ rule that paused time is not training time is untouched.
 Fixing this properly is a schedule-model decision, not a chronology one — either
 pauses are banked in whole weeks, or the grid gains a notion of suspended spans.
 Both change what a program *is*, which is why it is written down here instead.
+
+---
+
+## E11 — Within a lift's kind, the XP engine and the records count different sessions · P3 · PROVEN
+
+Found in D91. The event engine — records, the timeline, the summary's New
+Records — counts reps from EVERY session of a bodyweight lift, including a
+weighted one and a row saved unticked with no weight (the history editor adds
+rows that way, with no bodyweight toggle). The XP engine counts only sessions
+whose box matches the lift's kind. So such a session can show a record on the
+workout summary with no XP line beside it.
+
+Pre-existing: 259 of 2,000 lifts across 400 ordinary generated histories on both
+9.2 and 9.3. In histories where 9.2 took a lift's kind from a session that
+declared nothing, 342 → 451 on 9.3, because those lifts now have records at all.
+
+**Why it was not fixed in D91.** D91 made the XP engine take the lift's KIND from
+the shared rule; which sessions count within it is untouched. Aligning the two
+was tried and measured: it moved lifetime XP in 83 of 400 ordinary histories and
+levels in 3. XP is Rank's input, which D91 was told not to touch. It needs a
+decision on which rule is right — most likely "a session that declares nothing
+counts toward the lift's own kind in both" — and then its own phase.
+
+The same phase should give the XP engine's `prTrackers` a null prototype, as D91
+gave the PR engines' maps: keyed by what athletes type, a lift named
+"constructor" or "__proto__" finds an inherited value there and never earns PR
+XP. (On 9.2 `computePRs` dropped those names too; it no longer does.)
+
+## E12 — The Log's PR marks judge each session inside its own box · P3 · PROVEN
+
+Found in D91. `getSessionPRs` / `wasSessionPR` — the Log calendar's PR dot, a
+day's "N new records", the Recent list's chip, the Day Detail callout and the
+consistency view's `'pr'` day — compare a session's heaviest weight (most reps if
+ticked) only with earlier sessions with the SAME box, and know nothing of
+reps-at-weight, 1RM or volume records. For a lift that changes kind (bodyweight
+dips, then weighted) they mark sessions the records never call PRs; for a rep PR
+at an unchanged load they mark nothing. They never read a blank weight as
+bodyweight and do not depend on storage order, so E6 itself does not occur here.
+
+**Why it was not fixed in D91.** Their count feeds `computeWorkoutQuality`
+(Session Score) and the D44 consistency view, both protected in D91. Moving them
+onto the shared mode and the event engine is a Session Score / D44 decision.
+
+## E13 — Case variants of one name are counted twice by `computeAllPREvents` · P3 · PROVEN
+
+Found by the D91 mapping. Every PR engine groups by the trimmed, lower-cased
+name, but `getAllLoggedExerciseNames` lists raw spellings. So "Bench Press" and
+"bench press" both call `computeExercisePREvents`, and each returns the SAME
+events: counts double on the Records card, All records, Volume's Records cell and
+Mastery's record count, and the lift appears twice among Personal Best Timeline
+candidates. Separately, one canonical exercise spelled two ways in LOOP's own
+plans ("Barbell Bench Press" / "Bench Press") splits PR history — that one is
+contracted (Contract 172, §95: records are read by the name logged).
+
+**Why it was not fixed in D91.** De-duplicating changes Mastery scoring, which
+D91 was told not to touch, and the name-versus-identity question is the
+exercise-identity phase D91 was told not to open.
+
+## E14 — "1e999" or "Infinity" typed as a weight is read as an infinite load outside the PR engines · P3 · PROVEN
+
+The weight field is text, and `parseFloat` turns both into `Infinity`. On 9.2 that
+produced "Weight PR: Infinity lb", +15 XP, an "Infinity lb" timeline hero and a
+broken Exercise Detail chart; D91 made every PR engine, the timeline and
+Exercise Detail refuse it. The Training Load card still reads it through weekly
+volume and prints "+Infinity% vs the first half of this window", and other
+volume and trainer code reads the same value.
+
+**Why it was not fixed in D91.** The root repair is validating the field when a
+set is saved — a logging change, not a PR one.
+
+## E15 — Two value details still differ between PR surfaces · P4 · PROVEN
+
+Found by the D91 mapping; D91 changed WHICH kind applies, not these values.
+(a) Every PR engine reads only the FIRST row of a name in a workout, so a lift
+typed twice in one workout never counts its second row toward a record. On 9.2
+`computePRs` alone read both and could name a record the rest ignored; D91
+aligned it for agreement. Whether a mid-exercise split can produce this in the
+UI was not reproduced. (b) Exercise Detail's "Best ever" counts a heaviest set
+logged with no reps, carrying the reps shown from another set; the event engine
+needs reps beside a load before it is a record.
+
+**Why it was not fixed in D91.** Both change what a session's best IS — PR
+definitions D91 was told not to recalibrate.
+
+## E16 — The trainer's capability model still reads the latest session's box · P4 · HIGH
+
+`computeExerciseCapability` classifies a lift from `sessions[0].bodyweight`, the
+newest session. It names no record and is not a PR surface, but it is a fifth
+answer to the same question. The trainer is 0.1.1-shadow and was protected in
+D91; a later trainer phase should read `prModeOf`.
 
 ---
 

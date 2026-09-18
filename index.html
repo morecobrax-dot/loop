@@ -16105,6 +16105,27 @@ const LOOP_UPDATES = [
       'Finishing a program while it was paused lost the pause from its record and jumped its week forward'
     ],
     changes: []
+  },
+  {
+    id: 'v9-3',
+    version: 'LOOP 9.3',
+    title: 'Personal Bests',
+    date: '2026-09-18',
+    swVersion: 'loop-v170',
+    summary: 'Records, the personal-best timeline, Exercise Detail and XP now agree on whether a lift is loaded or bodyweight.',
+    newFeatures: [],
+    improvements: [
+      'A set you log with reps but no weight now counts as a weight you did not write down, not as a bodyweight set',
+      'Exercise Detail’s best now matches your records and personal-best timeline, including for a lift you have logged both with and without added weight'
+    ],
+    bugFixes: [
+      'One set logged with reps but no weight could make LOOP treat a loaded lift as a bodyweight exercise for good',
+      'That also stopped weight recommendations telling you when an increase would match or beat your best',
+      'A bodyweight exercise whose first session was saved without a tick or a weight showed no personal bests at all, and its later records earned no XP',
+      'Two parts of LOOP could credit the same personal best to different days',
+      'A lift logged with no weights at all showed a best of “0 lb × 0”'
+    ],
+    changes: []
   }
 ];
 
@@ -19945,6 +19966,8 @@ function invalidateSortedLogCache(){
   // Mastery is derived from the same log; a stale index would show a level the
   // history no longer supports.
   if(typeof invalidateAllMasteryCaches === 'function') invalidateAllMasteryCaches();
+  // D91 — every lift's PR mode, and its record, are derived from the same log, once.
+  if(typeof invalidatePRCaches === 'function') invalidatePRCaches();
 }
 
 function getNextCategory(){
@@ -20766,7 +20789,9 @@ function compute1RMTrend(exerciseName){
     l.exercises.forEach(ex => {
       if(ex.name.trim().toLowerCase() !== key || ex.bodyweight) return;
       let best = 0;
-      (ex.sets || []).forEach(s => { const e1 = estimate1RM(s.weight, s.reps); if(e1 > best) best = e1; });
+      /* D91 — a weight typed as "1e999" parses to Infinity; it is not a lift, and
+         it used to break Exercise Detail's chart. */
+      (ex.sets || []).forEach(s => { const e1 = estimate1RM(s.weight, s.reps); if(Number.isFinite(e1) && e1 > best) best = e1; });
       if(best > 0) points.push({ date: l.date, value: Math.round(best) });
     });
   });
@@ -28494,7 +28519,7 @@ function getExerciseFullHistory(exerciseName){
   const sessions = [];
   sortedLog().forEach(l => {
     const ex = l.exercises.find(e => e.name.trim().toLowerCase() === key);
-    if(ex && ex.sets && ex.sets.length) sessions.push({ date: l.date, sets: ex.sets, bodyweight: !!ex.bodyweight });
+    if(ex && ex.sets && ex.sets.length) sessions.push({ date: l.date, id: l.id, sets: ex.sets, bodyweight: !!ex.bodyweight });
   });
   return sessions;
 }
@@ -28538,6 +28563,154 @@ function renderExerciseHistoryList(){
 const PR_PRIORITY = ['weight', 'reps_at_weight', '1rm', 'volume', 'reps'];
 const PR_TYPE_LABEL = { weight:'Weight PR', reps_at_weight:'Rep PR', '1rm':'Est. 1RM PR', volume:'Volume PR', reps:'Rep PR' };
 
+/* =========================================================
+   WHAT KIND OF LIFT IS THIS?  (Phase D91)
+   ---------------------------------------------------------
+   D88 finding E6. LOOP answered this one question in several
+   places, each its own way:
+
+     computePRs              per SET, `ex.bodyweight || isNaN(weight)`,
+                             and the first set met in STORAGE order
+                             latched the mode for the whole exercise
+     computeExercisePREvents the EARLIEST session's bodyweight box
+     computeXPTimeline       the earliest entry's box, then locked
+     renderExDetail          the LATEST session's box
+
+   So one set logged with reps and a cleared weight — which saveLog
+   stores on purpose — made a loaded lift bodyweight for ever in
+   computePRs while every other engine kept it loaded, and identical
+   facts stored in a different order gave a different answer. The
+   root cause: saveLog writes 'BW' for a bodyweight row and '' for a
+   loaded row left blank. Both parse to NaN, so isNaN(weight) could
+   not tell "no external load" from "load not written down". Missing
+   data was being read as a declaration.
+
+   ONE RULE NOW, asked by every engine that decides it. A lift is
+   what its EARLIEST DECLARING session said it was — the rule the PR
+   event engine, and through it every record, the Personal Best
+   Timeline and the XP engine, already used. D91 keeps that rule and
+   stops a session that said nothing from deciding it. A session
+   declares:
+
+     bodyweight  its row was ticked, or carries the 'BW' marker
+     loaded      a load above zero was written on an unticked row
+     nothing     every weight blank, zero or unreadable
+
+   "Carried a load" means above zero, exactly as it does for the
+   logger's own starting state (D64, rowStartsAsBodyweight).
+
+   When no session declares at all, the registry's own bodyweight
+   flag decides: the athlete's record first, the movement's identity
+   second — the order D64 and §95 already set. Failing that, a lift
+   whose only loads are zeros stays the loaded lift it was recorded
+   as, which is what every engine already called it; and a lift with
+   no load written anywhere is UNKNOWN, with no PR invented for it.
+
+   The earliest declaration is found by date, then id — never by the
+   order the history happens to be stored or read in.
+   ========================================================= */
+const PR_MODE = { LOADED: 'loaded', BODYWEIGHT: 'bodyweight', UNKNOWN: 'unknown' };
+
+/* What one stored weight value says: 'load' a positive number, 'zero' a number
+   that is not external load (0 or less), 'bw' the marker saveLog writes on a
+   ticked row, 'none' nothing written or nothing readable. The same parseFloat
+   the PR values use, so a value and its classification can never disagree
+   about whether a string is a number. */
+const LOAD_EVIDENCE = { LOAD: 'load', ZERO: 'zero', BW: 'bw', NONE: 'none' };
+function loadEvidenceOf(weight){
+  if(weight === null || weight === undefined) return LOAD_EVIDENCE.NONE;
+  const s = String(weight).trim();
+  if(!s) return LOAD_EVIDENCE.NONE;
+  if(s.toUpperCase() === 'BW') return LOAD_EVIDENCE.BW;
+  const n = parseFloat(s);
+  if(!Number.isFinite(n)) return LOAD_EVIDENCE.NONE;
+  return n > 0 ? LOAD_EVIDENCE.LOAD : LOAD_EVIDENCE.ZERO;
+}
+
+/* What one session of a lift declares, or null when it declares nothing. A
+   ticked row is bodyweight whatever else it holds — a ticked row always stores
+   'BW', so a number there is malformed, and that is the guard against the mirror
+   image of E6: a stray value turning a push-up into a loaded lift. */
+function sessionPRDeclaration(entry){
+  if(!entry) return null;
+  if(entry.bodyweight === true || entry.isBW === true) return PR_MODE.BODYWEIGHT;
+  const sets = entry.sets || [];
+  let marker = false;
+  for(let i = 0; i < sets.length; i++){
+    const k = loadEvidenceOf(sets[i] && sets[i].weight);
+    if(k === LOAD_EVIDENCE.LOAD) return PR_MODE.LOADED;
+    if(k === LOAD_EVIDENCE.BW) marker = true;
+  }
+  return marker ? PR_MODE.BODYWEIGHT : null;
+}
+
+/* When a session happened, and which of two came first: by date, then by id —
+   a total order, so "the earliest" is the same session whatever order the
+   history arrives in. A date that cannot be read sorts last. */
+function prSessionTime(e){
+  const t = Date.parse(e && e.date);
+  return Number.isFinite(t) ? t : Infinity;
+}
+function prSessionBefore(a, b, ta, tb){
+  if(ta === undefined) ta = prSessionTime(a);
+  if(tb === undefined) tb = prSessionTime(b);
+  if(ta !== tb) return ta < tb;
+  return String(a.id || '').localeCompare(String(b.id || '')) < 0;
+}
+
+/* The one answer. `entries` is one lift's history as the caller already holds
+   it — { date, id, bodyweight | isBW, sets }, one per workout, the first row of
+   that name, which is how every PR engine reads a workout — so nothing here
+   re-scans the log. */
+function deriveExercisePRMode(entries, exerciseName){
+  let first = null, firstAt = 0, mode = null, zeroLoad = false;
+  (entries || []).forEach(e => {
+    if(!e) return;
+    const said = sessionPRDeclaration(e);
+    if(said){
+      const at = prSessionTime(e);
+      if(!first || prSessionBefore(e, first, at, firstAt)){ first = e; firstAt = at; mode = said; }
+    }
+    else if((e.sets || []).some(s => s && loadEvidenceOf(s.weight) === LOAD_EVIDENCE.ZERO)) zeroLoad = true;
+  });
+  if(mode) return mode;
+  try{ if(exerciseName && exerciseIsBodyweight(exerciseName)) return PR_MODE.BODYWEIGHT; }catch(e){}
+  return zeroLoad ? PR_MODE.LOADED : PR_MODE.UNKNOWN;
+}
+
+/* Every logged lift's mode in one pass, from exactly the sessions each PR engine
+   reads: the first row of that name in each workout, when that row logged sets.
+   Computed once per change to the log and read by every engine through
+   prModeOf, so they cannot disagree — and Progress, which asks once per lift,
+   never re-derives it. Cleared with the log's other derived caches; the identity
+   and length check is a second guard, not the first. */
+let _prModesCache = null, _prRecordsCache = null;
+function invalidatePRCaches(){ _prModesCache = null; _prRecordsCache = null; }
+function prModesByLift(){
+  if(_prModesCache && _prModesCache.log === workoutLog && _prModesCache.n === workoutLog.length) return _prModesCache.modes;
+  /* Keyed by what athletes type, so no prototype: a lift called "toString" is a lift. */
+  const byKey = Object.create(null), nameOf = Object.create(null);
+  workoutLog.forEach(l => {
+    const seen = Object.create(null);
+    (l.exercises || []).forEach(ex => {
+      if(!ex || !ex.name) return;
+      const key = ex.name.trim().toLowerCase();
+      if(seen[key]) return;
+      seen[key] = true;
+      if(!(ex.sets && ex.sets.length)) return;
+      (byKey[key] = byKey[key] || []).push({ date: l.date, id: l.id, bodyweight: !!ex.bodyweight, sets: ex.sets });
+      if(!nameOf[key]) nameOf[key] = ex.name;
+    });
+  });
+  const out = Object.create(null);
+  Object.keys(byKey).forEach(k => { out[k] = deriveExercisePRMode(byKey[k], nameOf[k]); });
+  _prModesCache = { log: workoutLog, n: workoutLog.length, modes: Object.freeze(out) };
+  return _prModesCache.modes;
+}
+function prModeOf(exerciseName){
+  return prModesByLift()[String(exerciseName || '').trim().toLowerCase()] || PR_MODE.UNKNOWN;
+}
+
 /* Walks an exercise's full history chronologically and returns every PR event ever hit,
    most recent first. Tracks heaviest weight, most reps at a given weight, estimated 1RM,
    single-session volume, and (for bodyweight moves) max reps. */
@@ -28546,11 +28719,19 @@ function computeExercisePREvents(exerciseName){
   const sessions = [];
   workoutLog.forEach(l => {
     const ex = l.exercises.find(e => e.name.trim().toLowerCase() === key);
-    if(ex && ex.sets && ex.sets.length) sessions.push({ date: l.date, sets: ex.sets, isBW: !!ex.bodyweight });
+    if(ex && ex.sets && ex.sets.length) sessions.push({ date: l.date, id: l.id, sets: ex.sets, isBW: !!ex.bodyweight });
   });
   if(!sessions.length) return [];
   sessions.sort((a,b) => new Date(a.date) - new Date(b.date));
-  const isBW = sessions[0].isBW;
+  /* D91 — this was `sessions[0].isBW`. It is still the earliest session that
+     decides, but asked of the one shared rule, so a session that declared
+     nothing — a row left unticked with no load written — can no longer decide
+     it, and every other engine gets the same answer. A lift whose history
+     declares no mode has no PR to report, rather than a guessed one. What
+     counts AS a PR below is untouched. */
+  const prMode = prModeOf(exerciseName);
+  if(prMode === PR_MODE.UNKNOWN) return [];
+  const isBW = prMode === PR_MODE.BODYWEIGHT;
 
   let bestWeight = 0, bestReps = 0, best1RM = 0, bestVolume = 0;
   const bestRepsAtWeight = {};
@@ -28560,7 +28741,7 @@ function computeExercisePREvents(exerciseName){
     const hits = [];
     if(isBW){
       let sessionMaxReps = 0;
-      s.sets.forEach(set => { const r = parseFloat(set.reps); if(!isNaN(r) && r > sessionMaxReps) sessionMaxReps = r; });
+      s.sets.forEach(set => { const r = parseFloat(set.reps); if(Number.isFinite(r) && r > sessionMaxReps) sessionMaxReps = r; });
       if(sessionMaxReps > bestReps){
         hits.push({ type:'reps', prev: bestReps, next: sessionMaxReps });
         bestReps = sessionMaxReps;
@@ -28570,7 +28751,7 @@ function computeExercisePREvents(exerciseName){
       const repsAtW = {};
       s.sets.forEach(set => {
         const w = parseFloat(set.weight), r = parseFloat(set.reps);
-        if(isNaN(w) || isNaN(r)) return;
+        if(!Number.isFinite(w) || !Number.isFinite(r)) return;
         sessionVolume += w * r;
         if(w > sessionMaxWeight) sessionMaxWeight = w;
         const e1 = estimate1RM(w, r);
@@ -29615,7 +29796,7 @@ function prSetIndexFor(sets, hit, isBW){
       if(isNaN(w) || isNaN(r) || w !== parseFloat(hit.weight)) return;
       v = r;
     }
-    if(v !== null && !isNaN(v) && v > best){ best = v; bestIdx = i; }
+    if(v !== null && Number.isFinite(v) && v > best){ best = v; bestIdx = i; }
   });
   return bestIdx;
 }
@@ -29641,7 +29822,9 @@ function sessionPRSets(entry){
           if(sessionOnly.indexOf(type) === -1) sessionOnly.push(type);
           return;
         }
-        const idx = prSetIndexFor(ex.sets, h, !!ex.bodyweight);
+        /* D91 — the lift's own kind, as the event that holds this hit says, not
+           this row's box: a hit is always read in the mode that produced it. */
+        const idx = prSetIndexFor(ex.sets, h, ev.isBW === true);
         if(idx < 0) return;
         bySet[exIdx] = bySet[exIdx] || {};
         /* One badge per set, and the strongest claim wins — PR_PRIORITY is
@@ -29730,6 +29913,10 @@ function addDaysISO(dateStr, days){
    an edit or a delete is never itself an XP source. */
 function computeXPTimeline(){
   const chronological = [...workoutLog].sort((a,b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id));
+  /* D91 — what kind of lift each one is comes from the one shared rule, over the
+     same sessions the PR event engine reads, so an XP line can never name a
+     different kind of record from the summary beside it. */
+  const prModes = prModesByLift();
 
   const timeline = [];
   let lifetimeXP = 0, workoutCount = 0, prCount = 0, maxStreakEver = 0;
@@ -29765,22 +29952,29 @@ function computeXPTimeline(){
         const key = ex.name.trim().toLowerCase();
         if(seenThisEntry.has(key)) return;
         seenThisEntry.add(key);
+        /* D91 — the lift's kind used to be this first entry's box, locked, so a
+           first row left unticked with no load written made a bodyweight lift
+           "loaded" here for ever and none of its records ever earned XP. The kind
+           now comes from the shared rule; which sessions count within it is
+           exactly as before. */
+        const mode = prModes[key];
+        if(!mode || mode === PR_MODE.UNKNOWN) return;
         const isBW = !!ex.bodyweight;
-        if(!prTrackers[key]) prTrackers[key] = { isBW, bestWeight:0, bestReps:0, best1RM:0, bestVolume:0, bestRepsAtWeight:{} };
+        if(!prTrackers[key]) prTrackers[key] = { isBW: mode === PR_MODE.BODYWEIGHT, bestWeight:0, bestReps:0, best1RM:0, bestVolume:0, bestRepsAtWeight:{} };
         const t = prTrackers[key];
         if(t.isBW !== isBW) return;
 
         const hits = [];
         if(isBW){
           let sessionMaxReps = 0;
-          (ex.sets||[]).forEach(s => { const r = parseFloat(s.reps); if(!isNaN(r) && r > sessionMaxReps) sessionMaxReps = r; });
+          (ex.sets||[]).forEach(s => { const r = parseFloat(s.reps); if(Number.isFinite(r) && r > sessionMaxReps) sessionMaxReps = r; });
           if(sessionMaxReps > t.bestReps){ hits.push('reps'); t.bestReps = sessionMaxReps; }
         } else {
           let sessionMaxWeight = 0, sessionVolume = 0, session1RM = 0;
           const repsAtW = {};
           (ex.sets||[]).forEach(s => {
             const w = parseFloat(s.weight), r = parseFloat(s.reps);
-            if(isNaN(w) || isNaN(r)) return;
+            if(!Number.isFinite(w) || !Number.isFinite(r)) return;
             sessionVolume += w * r;
             if(w > sessionMaxWeight) sessionMaxWeight = w;
             const e1 = estimate1RM(w, r);
@@ -29961,29 +30155,67 @@ function renderProfile(){
 
 
 /* ---------- RENDER: PROGRESS ---------- */
+/* D91 — the root of E6. This used to classify PER SET with
+   `ex.bodyweight || isNaN(weight)`, let the first set it met seed the mode, and
+   then discard every later set of the other mode — walking workoutLog in STORAGE
+   order. So one blank-weight set could make a loaded lift bodyweight for ever,
+   and identical facts stored in a different order gave a different answer.
+
+   Now it reads exactly the sessions the PR event engine reads — the first row
+   of each name in each workout — takes each lift's mode from the one shared map,
+   and counts exactly the sets that engine counts toward the same record: the
+   heaviest load above zero with reps logged beside it, or the most reps. A tie
+   goes to the earliest session to reach the best, by date and then id — the
+   session the event engine credits — so where a session is stored never decides
+   it. Still one pass over the log with no sort and nothing re-derived: Progress
+   asks this once per lift, several times a render. */
 function computePRs(){
-  const map = {};
-  workoutLog.forEach(l => {
-    l.exercises.forEach(ex => {
+  /* Asked once per lift on Progress with the log unchanged, so computed once per
+     log, like the modes it reads. Callers get copies: nothing can edit the cache. */
+  const fresh = c => c && c.log === workoutLog && c.n === workoutLog.length;
+  if(fresh(_prRecordsCache)) return _prRecordsCache.records.map(r => Object.assign({}, r));
+  const modes = prModesByLift();
+  const rec = Object.create(null), at = Object.create(null), seenIn = Object.create(null);
+  for(let i = 0; i < workoutLog.length; i++){
+    const l = workoutLog[i];
+    const exs = (l && l.exercises) || [];
+    for(let j = 0; j < exs.length; j++){
+      const ex = exs[j];
+      if(!ex || !ex.name) continue;
       const key = ex.name.trim().toLowerCase();
-      (ex.sets||[]).forEach(s => {
-        const w = parseFloat(s.weight);
-        const r = parseFloat(s.reps) || 0;
-        const isBW = ex.bodyweight || isNaN(w);
-        if(!map[key]){
-          map[key] = { name: ex.name, isBW, weight: isBW ? null : w, reps: r, date: l.date };
-          return;
+      if(seenIn[key] === i) continue;               // the first row of that name in a workout
+      seenIn[key] = i;
+      const mode = modes[key];
+      /* UNKNOWN: nothing in the history says what kind of lift this is, so there
+         is no record to report — a load nobody wrote down is not a personal best
+         of anything. */
+      if(!mode || mode === PR_MODE.UNKNOWN || !(ex.sets && ex.sets.length)) continue;
+      const isBW = mode === PR_MODE.BODYWEIGHT;
+      let topW = null, topR = null;                 // this session's best set, the first to reach it
+      for(let k = 0; k < ex.sets.length; k++){
+        const st = ex.sets[k];
+        if(!st) continue;
+        const r = parseFloat(st.reps);
+        if(!Number.isFinite(r)) continue;
+        if(isBW){ if(r > 0 && (topR === null || r > topR)) topR = r; }
+        else {
+          const w = parseFloat(st.weight);
+          if(Number.isFinite(w) && w > 0 && (topW === null || w > topW)){ topW = w; topR = r; }
         }
-        if(map[key].isBW !== isBW) return;
-        if(isBW){
-          if(r > map[key].reps) map[key] = { name: ex.name, isBW, weight: null, reps: r, date: l.date };
-        } else {
-          if(w > map[key].weight) map[key] = { name: ex.name, isBW, weight: w, reps: r, date: l.date };
-        }
-      });
-    });
-  });
-  return Object.values(map).sort((a,b) => new Date(b.date) - new Date(a.date));
+      }
+      if(topR === null) continue;
+      const v = isBW ? topR : topW;
+      const cur = rec[key];
+      const best = cur ? (isBW ? cur.reps : cur.weight) : null;
+      if(!cur || v > best || (v === best && prSessionBefore(l, at[key]))){
+        rec[key] = { name: ex.name, isBW, weight: isBW ? null : topW, reps: topR, date: l.date };
+        at[key] = l;
+      }
+    }
+  }
+  const records = Object.keys(rec).map(k => rec[k]).sort((a,b) => new Date(b.date) - new Date(a.date));
+  _prRecordsCache = { log: workoutLog, n: workoutLog.length, records };
+  return records.map(r => Object.assign({}, r));
 }
 
 function computeWeeklyVolume(weeksBack){
@@ -33521,15 +33753,24 @@ function renderExDetail(){
     return;
   }
 
-  const isBW = sessions[0].bodyweight;
+  /* D91 — this read `sessions[0].bodyweight`, and sessions come newest-first, so
+     the LATEST session decided, where the PR events and the timeline beside it
+     used the earliest. It asks the one shared rule now, so this sheet can never
+     describe a lift in a different unit from them. */
+  const prMode = prModeOf(name);
+  /* D91 — a value that parses to Infinity ("1e999", "Infinity") is no more a
+     number than a blank is, and is read the same way, so no figure on this sheet
+     can become "Infinity lb". */
+  const num = x => { const n = parseFloat(x); return Number.isFinite(n) ? n : NaN; };
+  const isBW = prMode === PR_MODE.BODYWEIGHT;
   const best = { w:0, r:0 };
   sessions.forEach(s => s.sets.forEach(st => {
-    const w = parseFloat(st.weight), r = parseFloat(st.reps);
+    const w = num(st.weight), r = num(st.reps);
     if(isBW){ if(!isNaN(r) && r > best.r){ best.r = r; } }
     else if(!isNaN(w) && (w > best.w || (w === best.w && r > best.r))){ best.w = w; best.r = r || best.r; }
   }));
   const topSet = s => {
-    const valid = s.sets.map(x => ({w:parseFloat(x.weight), r:parseFloat(x.reps)})).filter(x => !isNaN(x.r));
+    const valid = s.sets.map(x => ({w:num(x.weight), r:num(x.reps)})).filter(x => !isNaN(x.r));
     if(!valid.length) return null;
     if(isBW) return valid.reduce((a,b)=>b.r>a.r?b:a);
     /* D88 — the seed has to come from the FILTERED list. Seeding from valid[0]
@@ -33555,7 +33796,11 @@ function renderExDetail(){
     <div class="snapshot" style="margin-top:14px">
       <div class="snap-item"><div class="snap-label">Most recent</div><div class="snap-num">${fmtSet(cur)}</div></div>
       <div class="snap-item"><div class="snap-label">Previous session</div><div class="snap-num">${fmtSet(prev)}</div></div>
-      <div class="snap-item"><div class="snap-label">Best ever</div><div class="snap-num">${isBW ? best.r + ' reps' : best.w + ' lb × ' + best.r}</div></div>
+      <div class="snap-item"><div class="snap-label">Best ever</div><div class="snap-num">${
+        /* D91 — a lift whose history declares no mode has no best to state. It
+           used to fall into the loaded branch and print "0 lb × 0": a record of a
+           load never recorded. */
+        prMode === PR_MODE.UNKNOWN ? '—' : (isBW ? best.r + ' reps' : best.w + ' lb × ' + best.r)}</div></div>
       <div class="snap-item"><div class="snap-label">Sessions</div><div class="snap-num">${sessions.length}</div></div>
     </div>` + exerciseMasteryHtml(name);
 
@@ -33566,7 +33811,7 @@ function renderExDetail(){
     points = compute1RMTrend(name);
   } else {
     points = chrono.map(s => {
-      const valid = s.sets.map(x => ({w:parseFloat(x.weight), r:parseFloat(x.reps)})).filter(x => !isNaN(x.r));
+      const valid = s.sets.map(x => ({w:num(x.weight), r:num(x.reps)})).filter(x => !isNaN(x.r));
       if(!valid.length) return null;
       let v;
       if(exDetailMetric === 'volume') v = valid.reduce((n,x) => n + ((isNaN(x.w)?0:x.w) * x.r), 0);

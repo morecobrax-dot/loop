@@ -32799,6 +32799,385 @@ async function testPauseSuspension(){
   });
 }
 
+/* =========================================================
+   CONTRACT 192 — ONE ANSWER TO "WHAT KIND OF LIFT IS THIS?"  (Phase D91)
+   ---------------------------------------------------------
+   Closes D88 finding E6.
+
+   LOOP answered one question in several places, each its own way:
+     computePRs              per SET, blank weight => bodyweight, and the
+                             first set in STORAGE order latched the lift
+     computeExercisePREvents the EARLIEST session's bodyweight box
+     computeXPTimeline       the earliest entry's box, then locked
+     renderExDetail          the LATEST session's bodyweight box
+   One blank-weight set could make a loaded lift bodyweight for ever in
+   the first while the rest kept it loaded, and the first's answer
+   changed if identical facts were stored in another order.
+
+   Root cause: saveLog writes 'BW' for a bodyweight row and '' for a
+   loaded row left blank, and BOTH parse to NaN, so isNaN(weight) read
+   missing data as a declaration.
+
+   ONE RULE (deriveExercisePRMode), and every engine that decides it
+   asks it: a lift is what its EARLIEST DECLARING session said — the
+   rule the event engine, and so every record, the timeline and XP,
+   already used — where a session declares bodyweight when its row was
+   ticked (or carries 'BW'), loaded when a load above zero was written
+   on an unticked row, and nothing otherwise. A session that declares
+   nothing never decides. With no declaration anywhere: the registry's
+   bodyweight flag, then zeros keep a lift loaded as they always did,
+   then UNKNOWN — no PR invented.
+
+   UNCHANGED, and asserted: what counts AS a PR, and every history in
+   which a lift's first session declared its mode.
+   ========================================================= */
+async function testPRModeConsistency(){
+  section('CONTRACT 192 — one answer to "what kind of lift is this?" (D91)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx;
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const S = (w, r) => ({ weight: w, reps: String(r), rir: '2', type: 'working', completed: true });
+  const E = (name, sets, bw) => ({ name, bodyweight: !!bw, sets });
+  let idn = 0;
+  const W = (date, exs) => ({ id: 'd91-' + String(++idn).padStart(3, '0') + '-' + date, date, category: 'push', title: 'x', notes: '', exercises: exs });
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); };
+  const pr = name => ctx.computePRs().find(p => p.name.trim().toLowerCase() === name.toLowerCase()) || null;
+  const ev = name => ctx.computeExercisePREvents(name);
+  const mode = name => ctx.deriveExercisePRMode(ctx.getExerciseFullHistory(name), name);
+  const pbt = name => ctx.computePersonalBestTimeline(name);
+  const LABEL = { weight: 'Weight PR', reps_at_weight: 'Rep PR', '1rm': 'Est. 1RM PR', volume: 'Volume PR', reps: 'Rep PR' };
+  /* The XP engine's PR lines for one lift, and the event engine's records, in
+     the same words: the summary shows both, so they must be the same list. */
+  const xpLines = name => ctx.computeXPTimeline().timeline
+    .map(t => [t.date, t.breakdown.filter(b => b.label.endsWith(' — ' + name)).map(b => b.label.split(' — ')[0])])
+    .filter(x => x[1].length).map(x => x[0] + ':' + x[1].join('+')).join(' ');
+  const evLines = name => ev(name).slice().reverse().map(e => e.date + ':' + LABEL[e.headline.type]).join(' ');
+  const detailBest = name => { ctx.openExDetail(name);
+    const st = ctx.document.getElementById('exDetailStats').innerHTML;
+    return (st.match(/Best ever<\/div><div class="snap-num">([^<]*)/) || [])[1] || null; };
+  /* The invariant the phase exists for: every engine gives the same answer —
+     the XP engine included, which reads the lift's kind from prModesByLift. */
+  const agree = name => {
+    const m = mode(name), p = pr(name), e = ev(name), t = pbt(name);
+    if((ctx.prModesByLift()[name.toLowerCase()] || 'unknown') !== m) return false;
+    if(m === 'bodyweight' && !xpLines(name).split(/ (?=\d{4}-\d\d-\d\d:)/).filter(Boolean).every(x => /:Rep PR$/.test(x))) return false;
+    if(m === 'unknown') return !p && !e.length && !t.milestones.length && !xpLines(name) && detailBest(name) === '—';
+    const want = m === 'bodyweight';
+    return !!p && p.isBW === want && e.length > 0 && e[0].isBW === want && t.isBW === want
+      && (want ? / reps$/ : / lb × /).test(String(detailBest(name)));
+  };
+  const blankAt = pos => {
+    const sess = [[S('135', 8)], [S('145', 8)], [S('155', 6)]];
+    sess[pos] = [S('', 12)].concat(pos === 0 ? [S('135', 8)] : []);
+    return [W('2026-08-03', [E('Bench Press', sess[0])]), W('2026-08-10', [E('Bench Press', sess[1])]),
+      W('2026-08-17', [E('Bench Press', sess[2])])];
+  };
+
+  /* ---------------------------------------------------------------- */
+  sub('what one stored weight says');
+  await guard('evidence', async () => {
+    for(const [label, w] of [['undefined', undefined], ['null', null], ['an empty string', ''], ['whitespace', '   ']]){
+      T('a weight of ' + label + ' says nothing', ctx.loadEvidenceOf(w) === 'none');
+    }
+    T('a positive number is a load, whole or decimal', ctx.loadEvidenceOf('135') === 'load' && ctx.loadEvidenceOf('27.5') === 'load');
+    T('zero and negatives are numbers that are not external load — kept apart from blank, never read as bodyweight',
+      ctx.loadEvidenceOf('0') === 'zero' && ctx.loadEvidenceOf('-20') === 'zero');
+    T('text that is not a number says nothing', ctx.loadEvidenceOf('abc') === 'none' && ctx.loadEvidenceOf('NaN') === 'none'
+      && ctx.loadEvidenceOf('Infinity') === 'none');
+    T('the BW marker saveLog writes is bodyweight, in any case', ctx.loadEvidenceOf('BW') === 'bw' && ctx.loadEvidenceOf('bw') === 'bw');
+    T('the same parseFloat the PR values use, so the two cannot disagree about a string',
+      /const n = parseFloat\(s\);/.test(fnSrc(src, 'loadEvidenceOf')));
+  });
+
+  sub('what one session declares');
+  await guard('declaration', async () => {
+    const d = e => ctx.sessionPRDeclaration(e);
+    T('a ticked row is bodyweight', d({ bodyweight: true, sets: [S('BW', 10)] }) === 'bodyweight' && d({ isBW: true, sets: [] }) === 'bodyweight');
+    T('even with a stray number on it — the mirror image of E6 is guarded',
+      d({ bodyweight: true, sets: [S('180', 10)] }) === 'bodyweight');
+    T('a load above zero on an unticked row is loaded, wherever it sits in the session',
+      d({ bodyweight: false, sets: [S('', 12), S('135', 8)] }) === 'loaded' && d({ bodyweight: false, sets: [S('BW', 5), S('95', 8)] }) === 'loaded');
+    T('the BW marker on an unticked row is bodyweight', d({ bodyweight: false, sets: [S('BW', 10)] }) === 'bodyweight');
+    T('blank, zero and unreadable weights declare nothing',
+      d({ bodyweight: false, sets: [S('', 12)] }) === null && d({ bodyweight: false, sets: [S('0', 12), S('', 8)] }) === null
+      && d({ bodyweight: false, sets: [S('abc', 5)] }) === null && d({ bodyweight: false, sets: [] }) === null);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('one blank set cannot erase real load evidence');
+  await guard('E6', async () => {
+    seed(blankAt(0));
+    T('a blank FIRST set leaves a loaded lift loaded — the exact E6 case',
+      mode('Bench Press') === 'loaded' && pr('Bench Press').isBW === false && pr('Bench Press').weight === 155);
+    T('and every engine agrees about it — the XP lines name exactly the records the summary shows',
+      agree('Bench Press') && xpLines('Bench Press') === evLines('Bench Press') && evLines('Bench Press') !== '');
+    seed(blankAt(1)); T('so does a blank middle session', mode('Bench Press') === 'loaded' && agree('Bench Press'));
+    seed(blankAt(2)); T('and a blank latest one', mode('Bench Press') === 'loaded' && agree('Bench Press'));
+    seed([W('2026-08-03', [E('Bench Press', [S('', 12), S('', 10)])]), W('2026-08-10', [E('Bench Press', [S('145', 8), S('', 6)])]),
+      W('2026-08-17', [E('Bench Press', [S('155', 6)])])]);
+    T('and a first session with no load written at all', mode('Bench Press') === 'loaded' && agree('Bench Press')
+      && pr('Bench Press').weight === 155);
+    seed(blankAt(0));
+    T('the trainer\'s PR peak exists again, so "this would match or beat your best" can be said',
+      !!ctx.computePRs().find(p => p.name === 'Bench Press' && !p.isBW));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the order history is stored or read in cannot change the answer');
+  await guard('order', async () => {
+    const base = [W('2026-08-03', [E('Bench Press', [S('', 10), S('135', 8)])]),
+      W('2026-08-10', [E('Bench Press', [S('145', 8)])]), W('2026-08-17', [E('Bench Press', [S('155', 6)])])];
+    const perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+    const answers = perms.map(o => { seed(o.map(i => base[i])); const p = pr('Bench Press');
+      return mode('Bench Press') + '/' + p.isBW + '/' + p.weight + '/' + p.date + '/' + evLines('Bench Press') + '/' + xpLines('Bench Press'); });
+    T('all six storage orders of the same facts give the identical answer', new Set(answers).size === 1, answers.join(' | '));
+    const mixed = [{ date: '2026-08-03', id: 'a', bodyweight: true, sets: [S('BW', 12)] },
+      { date: '2026-08-10', id: 'b', bodyweight: false, sets: [S('45', 8)] }, { date: '2026-08-17', id: 'c', bodyweight: false, sets: [S('', 9)] }];
+    const orders = perms.map(o => ctx.deriveExercisePRMode(o.map(i => mixed[i]), 'Dips'));
+    T('the rule itself reads WHEN each session happened, never where it sits in the list', new Set(orders).size === 1
+      && orders[0] === 'bodyweight', orders.join(','));
+    T('two sessions on the same date are settled by id, whichever is stored first',
+      ctx.deriveExercisePRMode([{ date: '2026-08-03', id: 'a', bodyweight: true, sets: [] }, { date: '2026-08-03', id: 'b', bodyweight: false, sets: [S('60', 8)] }], 'x')
+      === ctx.deriveExercisePRMode([{ date: '2026-08-03', id: 'b', bodyweight: false, sets: [S('60', 8)] }, { date: '2026-08-03', id: 'a', bodyweight: true, sets: [] }], 'x'));
+    /* A wider facet of E6 than D88 recorded, found by diffing 300 generated
+       histories against the shipped 9.2 build: computePRs broke a tie in load by
+       STORAGE order, while the event engine credits the EARLIEST session to reach
+       a load (it only fires on a strictly greater one). So the two engines named
+       different days for the same PR in 219 of 300 shuffled histories. */
+    seed([W('2026-08-17', [E('Bench Press', [S('155', 5)])]), W('2026-08-03', [E('Bench Press', [S('155', 6)])]),
+      W('2026-08-10', [E('Bench Press', [S('145', 8)])])]);
+    const credited = ev('Bench Press').find(e => e.hits.some(h => h.type === 'weight' && h.next === 155));
+    T('a tie in load is credited to the same session by both engines',
+      pr('Bench Press').date === '2026-08-03' && credited && credited.date === '2026-08-03',
+      pr('Bench Press').date + ' vs ' + (credited && credited.date));
+    T('computePRs settles a tie by date and id, never by where a session is stored',
+      /prSessionBefore\(l, at\[key\]\)/.test(fnSrc(src, 'computePRs')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a lift that changes kind keeps the rule it always had');
+  await guard('mixed', async () => {
+    /* Weighted dips after months of bodyweight ones are a real history, not
+       corruption. The event engine — every record, the timeline, the summary,
+       mastery counts — and the XP engine always took the FIRST session's kind;
+       only Exercise Detail took the latest, so it disagreed with the rest. D91
+       keeps the rule the rest used, and brings Exercise Detail into line. */
+    seed([W('2026-08-03', [E('Dips', [S('BW', 12)], true)]), W('2026-08-10', [E('Dips', [S('45', 8)])]),
+      W('2026-08-17', [E('Dips', [S('50', 8)])])]);
+    T('bodyweight first, then weighted: bodyweight, in every engine', mode('Dips') === 'bodyweight' && agree('Dips'));
+    T('with the same records the event engine always gave it, and the same XP', evLines('Dips') === '2026-08-03:Rep PR'
+      && xpLines('Dips') === evLines('Dips') && pr('Dips').reps === 12, evLines('Dips') + ' / ' + xpLines('Dips'));
+    T('and Exercise Detail no longer contradicts them', detailBest('Dips') === '12 reps', detailBest('Dips'));
+    seed([W('2026-08-03', [E('Dips', [S('45', 6)])]), W('2026-08-10', [E('Dips', [S('BW', 12)], true)]),
+      W('2026-08-17', [E('Dips', [S('BW', 15)], true)])]);
+    T('weighted first, then bodyweight: loaded, in every engine', mode('Dips') === 'loaded' && agree('Dips')
+      && evLines('Dips') === '2026-08-03:Weight PR' && xpLines('Dips') === evLines('Dips') && detailBest('Dips') === '45 lb × 6');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a session that declared nothing never decides — in either direction');
+  await guard('mirror', async () => {
+    /* The mirror of E6. A row left unticked with no load written — the history
+       editor adds rows that way — used to decide the whole lift as LOADED when it
+       came first, and every bodyweight record after it vanished. */
+    seed([W('2026-08-03', [E('Push-Up', [S('', 14)])]), W('2026-08-10', [E('Push-Up', [S('BW', 16)], true)]),
+      W('2026-08-17', [E('Push-Up', [S('BW', 20)], true)])]);
+    T('an undeclared first session does not make a push-up loaded', mode('Push-Up') === 'bodyweight' && agree('Push-Up'));
+    T('its bodyweight records are all there again', evLines('Push-Up') === '2026-08-03:Rep PR 2026-08-10:Rep PR 2026-08-17:Rep PR',
+      evLines('Push-Up'));
+    T('and the ticked sessions earn their XP again — 9.2 locked the XP engine to "loaded" and awarded none',
+      xpLines('Push-Up') === '2026-08-10:Rep PR 2026-08-17:Rep PR', xpLines('Push-Up'));
+    T('the XP engine takes the lift\'s kind from the shared rule, and counts sessions within it exactly as before',
+      /prModesByLift\(\)/.test(fnSrc(src, 'computeXPTimeline')) && /isBW: mode === PR_MODE\.BODYWEIGHT/.test(fnSrc(src, 'computeXPTimeline'))
+      && /if\(t\.isBW !== isBW\) return;/.test(fnSrc(src, 'computeXPTimeline')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('true bodyweight movements keep bodyweight behaviour');
+  await guard('bodyweight', async () => {
+    seed([W('2026-08-03', [E('Push-Up', [S('BW', 15), S('BW', 12)], true)]), W('2026-08-10', [E('Push-Up', [S('BW', 18)], true)]),
+      W('2026-08-17', [E('Push-Up', [S('BW', 20)], true)])]);
+    T('a ticked push-up is bodyweight, everywhere', mode('Push-Up') === 'bodyweight' && agree('Push-Up'));
+    T('and keeps its rep PRs', pr('Push-Up').reps === 20 && ev('Push-Up').every(x => x.headline.type === 'reps'));
+    seed([W('2026-08-03', [E('Push-Up', [S('', 15)])]), W('2026-08-10', [E('Push-Up', [S('', 18)])])]);
+    T('an unticked push-up with no load written anywhere is bodyweight because the registry says so, in every engine',
+      mode('Push-Up') === 'bodyweight' && pr('Push-Up').reps === 18 && agree('Push-Up'));
+    seed([W('2026-08-03', [E('Mystery Hold', [S('', 15)])]), W('2026-08-10', [E('Mystery Hold', [S('', 18)])])]);
+    T('the registry is only consulted when history declares nothing: an unknown name stays unknown',
+      mode('Mystery Hold') === 'unknown' && agree('Mystery Hold'));
+    seed([W('2026-08-03', [E('Push-Up', [S('25', 12)])]), W('2026-08-10', [E('Push-Up', [S('35', 10)])])]);
+    T('and it never overrides what the athlete wrote: a push-up logged with load is a loaded lift',
+      mode('Push-Up') === 'loaded' && agree('Push-Up') && xpLines('Push-Up') === evLines('Push-Up'));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('zero is a number, not a declaration');
+  await guard('zero', async () => {
+    seed([W('2026-08-03', [E('Pull-Up', [S('0', 8)])]), W('2026-08-10', [E('Pull-Up', [S('BW', 10)], true)]),
+      W('2026-08-17', [E('Pull-Up', [S('BW', 12)], true)])]);
+    T('a zero typed once cannot outweigh the ticks that follow it', mode('Pull-Up') === 'bodyweight' && agree('Pull-Up'));
+    seed([W('2026-08-03', [E('Mystery Hold', [S('0', 10)])]), W('2026-08-10', [E('Mystery Hold', [S('0', 12)])])]);
+    T('a lift whose only loads are zeros stays the loaded lift it was recorded as, with the records it always had',
+      mode('Mystery Hold') === 'loaded' && evLines('Mystery Hold') === '2026-08-10:Rep PR'
+      && xpLines('Mystery Hold') === evLines('Mystery Hold') && detailBest('Mystery Hold') === '0 lb × 12',
+      evLines('Mystery Hold') + ' / ' + detailBest('Mystery Hold'));
+    T('and zero is never the heaviest load: there is no weight record at 0 lb', !pr('Mystery Hold'));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('unknown is honest, and not permanent');
+  await guard('unknown', async () => {
+    seed([W('2026-08-03', [E('Mystery Move', [S('', 10), S('', 12)])])]);
+    T('a lift with reps and no load anywhere has no PR — not a loaded one, not a false bodyweight one',
+      mode('Mystery Move') === 'unknown' && agree('Mystery Move'));
+    seed([W('2026-08-03', [E('Mystery Move', [S('', 10)])]), W('2026-08-10', [E('Mystery Move', [S('100', 8)])])]);
+    T('and the first real load makes it loaded: nothing was latched', mode('Mystery Move') === 'loaded' && agree('Mystery Move'));
+    seed([]);
+    T('with no history at all there is nothing to report anywhere', mode('Bench Press') === 'unknown'
+      && !pr('Bench Press') && !ev('Bench Press').length && !pbt('Bench Press').milestones.length);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a number too large to be real is not a load');
+  await guard('infinity', async () => {
+    /* The weight field is text, so "1e999" or "Infinity" can be typed, and both
+       parse to Infinity. isNaN(Infinity) is false, so every engine counted it: a
+       "Weight PR: Infinity lb", +15 XP, an "Infinity lb" hero on the timeline and
+       on Exercise Detail. The classifier already refused it; now the values do too. */
+    T('the classifier refuses it', ctx.loadEvidenceOf('1e999') === 'none' && ctx.loadEvidenceOf('-Infinity') === 'none');
+    seed([W('2026-08-03', [E('Bench Press', [S('135', 8)])]), W('2026-08-10', [E('Bench Press', [S('1e999', 5)])]),
+      W('2026-08-17', [E('Bench Press', [S('140', 6), S('Infinity', 6)])])]);
+    T('no record, event or XP line is built from it', evLines('Bench Press') === '2026-08-03:Weight PR 2026-08-17:Weight PR'
+      && xpLines('Bench Press') === evLines('Bench Press') && pr('Bench Press').weight === 140, evLines('Bench Press'));
+    T('the timeline climbs through real loads only', pbt('Bench Press').milestones.map(m => m.value).join(',') === '135,140');
+    const shown = [];
+    for(const m of ['1rm', 'weight', 'volume', 'reps']){
+      ctx.openExDetail('Bench Press'); ctx.setExMetric(m);
+      ['exDetailStats', 'exDetailTrend', 'exDetailChart'].forEach(id => shown.push(ctx.document.getElementById(id).innerHTML));
+    }
+    T('and Exercise Detail never prints Infinity or draws NaN, on any chart', !/Infinity|NaN/.test(shown.join(' ')));
+    T('every PR engine refuses a non-finite value, not merely NaN',
+      (fnSrc(src, 'computeExercisePREvents').match(/Number\.isFinite\(/g) || []).length >= 3
+      && (fnSrc(src, 'computeXPTimeline').match(/Number\.isFinite\(/g) || []).length >= 3
+      && (fnSrc(src, 'computePRs').match(/Number\.isFinite\(/g) || []).length >= 2 && !/isNaN\(/.test(fnSrc(src, 'computePRs')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('every engine uses the one rule');
+  await guard('one rule', async () => {
+    T('it is computed once per log, for every lift, from the sessions every engine reads',
+      /deriveExercisePRMode\(/.test(fnSrc(src, 'prModesByLift')) && /prModesByLift\(\)/.test(fnSrc(src, 'prModeOf')));
+    T('computePRs reads it', /prModesByLift\(\)/.test(fnSrc(src, 'computePRs')));
+    T('computeExercisePREvents reads it', /prModeOf\(/.test(fnSrc(src, 'computeExercisePREvents')));
+    T('Exercise Detail reads it', /prModeOf\(/.test(fnSrc(src, 'renderExDetail')));
+    T('the XP engine reads it', /prModesByLift\(\)/.test(fnSrc(src, 'computeXPTimeline')));
+    T('and it is cleared with the log\'s other derived caches', /invalidatePRCaches\(\)/.test(fnSrc(src, 'invalidateSortedLogCache'))
+      && /_prModesCache = null/.test(fnSrc(src, 'invalidatePRCaches')) && /_prRecordsCache = null/.test(fnSrc(src, 'invalidatePRCaches')));
+    T('the Personal Best Timeline inherits it from the event stream, as D82 designed',
+      /computeExercisePREvents\(exerciseName\)/.test(fnSrc(src, 'computePersonalBestTimeline'))
+      && /events\[0\]\.isBW/.test(fnSrc(src, 'computePersonalBestTimeline')));
+    T('a record is marked on its set in the mode that produced it, not by that row\'s box',
+      /prSetIndexFor\(ex\.sets, h, ev\.isBW === true\)/.test(fnSrc(src, 'sessionPRSets')));
+    T('there is exactly one mode classifier in the file', (src.match(/function deriveExercisePRMode\(/g) || []).length === 1);
+    T('no engine reads a missing weight as bodyweight, or lets the first or last session decide by position',
+      !/ex\.bodyweight \|\| isNaN\(w\)/.test(src)
+      && !/sessions\[0\]\.(isBW|bodyweight)/.test(fnSrc(src, 'computeExercisePREvents') + fnSrc(src, 'renderExDetail')));
+  });
+
+  await guard('cache', async () => {
+    /* Progress asks for a record once per lift, so the mode is computed once per
+       log. A cache is only safe if it can never outlive the log it describes. */
+    const log = [W('2026-08-03', [E('Dips', [S('BW', 12)], true)]), W('2026-08-10', [E('Dips', [S('45', 8)])])];
+    seed(log);
+    const before = ctx.prModeOf('Dips') + ' ' + pr('Dips').reps;
+    log[0].exercises[0] = E('Dips', [S('40', 12)]);          // edited in place: same array, same length
+    ctx.invalidateSortedLogCache();
+    T('an edit in place is seen once the log\'s caches are cleared, as every save does',
+      before === 'bodyweight 12' && ctx.prModeOf('Dips') === 'loaded' && pr('Dips').weight === 45, before);
+    ctx.workoutLog = [W('2026-08-03', [E('Dips', [S('BW', 9)], true)])];                  // replaced, caches NOT cleared
+    T('and a log that is replaced outright is seen even before they are', ctx.prModeOf('Dips') === 'bodyweight' && pr('Dips').reps === 9);
+    ctx.workoutLog.push(W('2026-08-01', [E('Dips', [S('20', 6)])]));                        // grown, caches NOT cleared
+    T('as is a log that grows', ctx.prModeOf('Dips') === 'loaded' && pr('Dips').weight === 20);
+    const one = ctx.computePRs();
+    one[0].weight = 9999; one.length = 0;
+    T('and nothing a caller does to a record it was handed can change the next answer', pr('Dips').weight === 20);
+  });
+
+  await guard('names', async () => {
+    /* The maps are keyed by what athletes type. A plain object would hand back
+       its own prototype for a lift called "toString": skipped when the map is
+       built, and answered with a function instead of a mode. */
+    seed([W('2026-08-03', [E('toString', [S('BW', 8)], true)]), W('2026-08-10', [E('toString', [S('BW', 10)], true)]),
+      W('2026-08-03', [E('constructor', [S('50', 10)])]), W('2026-08-10', [E('constructor', [S('60', 10)])])]);
+    T('a lift is a lift whatever it is called — even "toString" or "constructor"',
+      ctx.prModeOf('toString') === 'bodyweight' && pr('toString').reps === 10
+      && ctx.prModeOf('constructor') === 'loaded' && pr('constructor').weight === 60);
+    T('and a name never logged is unknown, never something the map inherited',
+      ['valueOf', 'hasOwnProperty', '__proto__', 'Never Logged'].every(n => ctx.prModeOf(n) === 'unknown'));
+  });
+
+  await guard('set badges', async () => {
+    /* A ticked row always stores 'BW', so a ticked row holding numbers is
+       malformed — but when a loaded lift's record lands on one, the badge has to
+       go on the heaviest set, as a weight record says, not the one with most reps. */
+    const day = W('2026-08-10', [E('Bench Press', [S('185', 3), S('100', 12)], true)]);
+    seed([W('2026-08-03', [E('Bench Press', [S('135', 8)])]), day]);
+    const marks = ctx.sessionPRSets(day).sets[0] || {};
+    T('a weight record is marked on the heaviest set', marks[0] === 'weight' && marks[1] === undefined, JSON.stringify(marks));
+  });
+
+  await guard('surfaces agree', async () => {
+    seed(blankAt(0));
+    ctx.openExDetail('Bench Press');
+    const stats = ctx.document.getElementById('exDetailStats').innerHTML;
+    T('Exercise Detail shows the lift in pounds', /Best ever<\/div><div class="snap-num">155 lb × 6/.test(stats),
+      (stats.match(/Best ever<\/div><div class="snap-num">([^<]*)/) || [])[1]);
+    T('with no NaN anywhere on the sheet', !/NaN|Infinity/.test(stats));
+    const t = pbt('Bench Press');
+    T('the Personal Best Timeline climbs in pounds', t.isBW === false && t.unit === 'lb'
+      && t.milestones.map(m => m.value).join(',') === '135,145,155');
+    seed(blankAt(0).slice(0, 2));
+    const done = ev('Bench Press');
+    T('and the workout-completion PR is a load PR, with the XP line to match', done.length > 0 && done[0].isBW === false
+      && done[0].headline.type === 'weight' && xpLines('Bench Press') === evLines('Bench Press'));
+    seed([W('2026-08-03', [E('Mystery Move', [S('', 10)])])]);
+    ctx.openExDetail('Mystery Move');
+    const u = ctx.document.getElementById('exDetailStats').innerHTML;
+    T('a lift with no load written anywhere no longer claims a "0 lb × 0" best', !/0 lb × 0/.test(u)
+      && /Best ever<\/div><div class="snap-num">—/.test(u));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('PR definitions are untouched');
+  await guard('definitions', async () => {
+    seed([W('2026-08-03', [E('Bench Press', [S('135', 8)])]), W('2026-08-10', [E('Bench Press', [S('135', 10)])]),
+      W('2026-08-17', [E('Bench Press', [S('145', 6)])])]);
+    const hits = ev('Bench Press').slice().reverse().map(x => x.hits.map(h => h.type).join('+'));
+    /* The exact sequence the pre-D91 engine produced for this history, verified
+       against the shipped 9.2 build: the first session sets the opening load PR,
+       the second earns reps-at-weight, 1RM and volume at the same load, the third
+       a new load. A history whose first session declares its kind is untouched. */
+    T('reps-at-weight, 1RM, volume and weight events still fire exactly as before',
+      JSON.stringify(hits) === '["weight","reps_at_weight+1rm+volume","weight"]', JSON.stringify(hits));
+    T('the priority order that picks a headline is unchanged',
+      Array.isArray(ctx.PR_PRIORITY) && ctx.PR_PRIORITY[0] === 'weight');
+    T('a weight PR still requires a positive load', /sessionMaxWeight > bestWeight && sessionMaxWeight > 0/.test(src));
+    T('workout history is never written by any of it',
+      ['computePRs', 'computeExercisePREvents', 'deriveExercisePRMode', 'loadEvidenceOf', 'sessionPRDeclaration', 'prModesByLift']
+        .every(fn => !/workoutLog\s*(=[^=]|\.push|\.splice)|LOOPStore\.set/.test(fnSrc(src, fn))));
+  });
+
+  sub('nothing protected moved');
+  await guard('protected', async () => {
+    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('the local schema is still 1, with no migration',
+      ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('the trainer is still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -32951,6 +33330,7 @@ async function main(){
   await testStabilization();
   await testProgramChronology();
   await testPauseSuspension();
+  await testPRModeConsistency();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -11780,3 +11780,135 @@ Training still says nothing about a paused program — `hasActiveProgram()` is
 false while paused, so `programStatusWord`'s own 'Paused' branch is unreachable
 and the tab falls back to the plan schedule; that is pre-existing, it is not made
 worse here, and it is recorded rather than redesigned in a correctness phase.
+
+## §113 — D91: One answer to "what kind of lift is this?"
+
+Closes D88 finding E6, and more of it than D88 recorded.
+
+**Four answers to one question.** LOOP decided whether a lift is loaded or
+bodyweight in four independent places, each its own way:
+
+- `computePRs` inferred it PER SET with `ex.bodyweight || isNaN(weight)`, let
+  the first set it met seed the mode, discarded every later set of the other
+  mode, and walked `workoutLog` in STORAGE order.
+- `computeExercisePREvents` took the EARLIEST session's bodyweight box — and
+  through it every record, the Personal Best Timeline, the workout summary's New
+  Records and Mastery's record count.
+- `computeXPTimeline` took the earliest entry's box and locked it.
+- `renderExDetail` took the LATEST session's (its history is newest-first).
+
+So one set logged with reps and a cleared weight — which `saveLog` stores on
+purpose — made a loaded lift bodyweight for ever in `computePRs` while every
+other engine kept it loaded, and identical facts stored in another order gave
+another answer. The athlete-facing cost: the weight recommendation's "this would
+match or beat your best" could never be said again for that lift. And for a lift
+logged both ways, Exercise Detail described it in different units from the
+records beside it.
+
+**The root cause is a sentinel collision.** `saveLog` writes the literal `'BW'`
+for a bodyweight row and `''` for a loaded row left blank. Both parse to `NaN`,
+so `isNaN(weight)` cannot tell "no external load" from "load not written down",
+and `computePRs` read missing data as a declaration.
+
+**One rule.** `deriveExercisePRMode`: a lift is what its EARLIEST DECLARING
+session said. That is the rule the event engine and the XP engine already used;
+D91 keeps it, and stops a session that said nothing from deciding it. A session
+declares (`sessionPRDeclaration`):
+
+- **bodyweight** — its row was ticked, or carries the `'BW'` marker. A number on
+  a ticked row is ignored: a ticked row always stores `'BW'`, so a number there
+  is malformed, and this is the guard against the mirror image of E6.
+- **loaded** — a load above zero was written on an unticked row. "Carried a
+  load" means above zero here exactly as it does for the logger's own starting
+  state (D64, `rowStartsAsBodyweight`).
+- **nothing** — every weight blank, zero or unreadable.
+
+When no session declares at all, the registry's own `bodyweight: true` decides —
+the athlete's record first, the movement's identity second, the order D64 and
+§95 already set. Failing that, a lift whose only loads are zeros stays the loaded
+lift it was recorded as, which is what every engine already called it: zero is a
+number, kept apart from blank, and never read as bodyweight. And a lift with no
+load written anywhere is **UNKNOWN**: it has no PR, rather than a guessed one.
+
+`loadEvidenceOf` decides what one stored value says with the same `parseFloat`
+the PR values use, and both refuse a non-finite result: a weight typed as
+"1e999" or "Infinity" is no load at all. On 9.2 it made "Weight PR: Infinity lb",
+earned 15 XP and put "Infinity lb" on the timeline and Exercise Detail.
+
+**Order.** The earliest declaration is found by date, then id (`prSessionTime`,
+`prSessionBefore`) — never by where a session is stored or which is read first.
+`computePRs` settles a tie in its best value the same way, so it credits the
+session the event engine credits. On 9.2 the two named a different record in 860
+of 2,000 generated lifts, ties among them; 0 now.
+
+**One computation, one map.** `prModesByLift` derives every lift's mode once per
+log, from exactly the sessions every PR engine reads — the first row of each name
+in each workout that logged sets — and `computePRs`, `computeExercisePREvents`,
+`computeXPTimeline` and `renderExDetail` all read it (`prModeOf`). They cannot
+disagree, and Progress, which asks once per lift, never re-derives it. The map
+and `computePRs`' records are cleared with the log's other derived caches in
+`invalidateSortedLogCache`, and also check which log they describe (identity and
+length), so a replaced or grown log is never answered from a stale one;
+`computePRs` hands callers copies. The maps are keyed by what athletes type, so
+they have no prototype: a lift called "toString" or "constructor" is a lift, not
+an inherited function (9.2's `computePRs` silently dropped "constructor").
+
+**Performance.** Median of seven, the same generated history through both builds:
+a warm Progress → Strength render takes 97.5 ms on 9.2 and 57.9 ms now at 1,500
+sessions (300 sessions: 23.5 → 14.8 ms) — `computePRs` used to run in full once
+per lift per render. Exercise Detail, warm: 8.1 → 9.6 ms at 1,500 sessions, 2.5 →
+2.8 ms at 300. Building the map costs about 4 ms at 1,500 sessions, once per
+change to the log.
+
+**PR definitions did not move, and that was measured.** Across 400 generated
+histories in which every lift's first session declares its kind — the ordinary
+case, with blank sets, weighted-then-bodyweight lifts and editor rows inside
+them — the event stream, Mastery's record count, lifetime XP and every level are
+byte-identical to 9.2. In 400 "wild" histories, every change traces to one of two
+causes: 9.2 took a lift's kind from a session that declared nothing (119 lifts),
+or from whichever same-day session was stored first (6). What counts as a PR —
+heaviest load, most reps, reps-at-weight, 1RM, volume, the priority that picks a
+headline, ties within the event engine, first-event behaviour — is untouched.
+
+**What changes for an athlete.** A blank-weight set never makes a lift
+bodyweight. A bodyweight lift whose first session was saved unticked with no
+weight — the history editor adds rows that way — gets its records back (9.2 had
+none), and the XP for its ticked sessions. Exercise Detail's best agrees with the
+records for a lift logged both ways: bodyweight dips that later took a belt read
+"12 reps" there, as they always did on the timeline, where 9.2 said "50 lb × 8".
+A lift logged with no weights at all shows "—" instead of "0 lb × 0".
+
+**Identity is unchanged, deliberately.** Every engine groups by the logged name,
+trimmed and lower-cased, and always has. Folding records onto canonical ids is
+an exercise-identity phase D91 was told not to open (FINDINGS E13).
+
+**Deliberately left, and written up in FINDINGS-D88.md.** E11: within a lift's
+kind the XP engine counts only sessions whose box matches, the records count all
+of them — aligning them moved XP in 83 of 400 ordinary histories, and XP is
+Rank's input. E12: the Log's PR marks judge each session inside its own box and
+feed Session Score and D44. E13: case variants of a name double-count in
+`computeAllPREvents` and Mastery. E14: "1e999" as a weight still reaches the
+Training Load card. E15: first-row-only and Exercise Detail's weight-only best.
+E16: the trainer's capability model reads the latest session's box.
+
+**Data safety.** A derivation fix only. No history is rewritten, no migration,
+`DATA_KEYS` remains 15, the local schema remains 1, the trainer remains
+`0.1.1-shadow`. Nothing in the PR path writes storage.
+
+**Mutation testing.** 32 mutants — every target the brief named, plus the
+caches, the finite guards and the maps' prototype — each run against Contract 192
+alone, so its catching them is not borrowed from another contract crashing
+first. 31 are caught. The 32nd removes the event engine's explicit "unknown has
+no PR" guard and is equivalent by construction: every weight of an unknown lift
+is blank or unreadable, which the value filter already skips, and the whole
+suite passes it (8,532/0). The guard stays, as the rule's statement at the point
+records are built and its defence if that filter ever changes.
+
+**Verification.** Contract 192 adds 78 assertions. The brief's A–Z matrix runs as
+an executable reproducer at 43/43, including every storage order, both
+directions of mixed history, the registry fallback, zeros, the ticked-row guard,
+and 1,500 sessions of five lifts. Every What's New line was proven against the
+shipped 9.2 build first, and proven gone now: 7/7. Every earlier PR and Personal
+Best Timeline assertion passes untouched, and the timeline and Exercise Detail
+render pixel-identical to 9.2 at 320, 375, 390 and 430 for a lift 9.2 already
+had right.
