@@ -13520,15 +13520,15 @@ function testRankIdentity(app){
     return uses >= 5 ? true : uses;
   })() === true);
   T('no emoji medal anywhere', !/🏅|⭐|🏆/.test(src));
-  /* D30.6: the tier flags moved into the outline generator, where a rank's
-     structure is a radius rather than an overlaid shape. Same guarantee,
-     asserted where it now lives. */
-  T('prestige is geometry, not ornament count: wings from ELITE, apex only at LEGEND', (() => {
-    const fn = src.slice(src.indexOf('function rankFramePts'), src.indexOf('function framePath'));
-    return /const wing = tier >= 4/.test(fn) && /const apex = tier >= 7/.test(fn) &&
-      /const shoulder = tier >= 3/.test(fn) && /const keel = tier >= 5/.test(fn) &&
-      /const crown = tier >= 6/.test(fn);
-  })());
+  /* D87 — repointed. D30.6's generated ladder earned prestige through
+     geometry (wings at ELITE, an apex only at LEGEND); the real art supplied
+     to replace it is used exactly as given, with no generation left to
+     assert a rule about. What still has to hold: eight ranks, eight
+     genuinely distinct real files — asserted in the dedicated section
+     below, "the emblem is real art now, not generated geometry". */
+  T('the eight ranks map to eight real, distinct emblem files',
+    Object.keys(ctx.RANK_EMBLEM_FILE || {}).length === 8 &&
+    new Set(Object.values(ctx.RANK_EMBLEM_FILE || {})).size === 8);
   T('the medal is static — nothing on it animates continuously', (() => {
     const i = src.indexOf('function rankMedalSvg');
     const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
@@ -13604,104 +13604,30 @@ function testRankIdentity(app){
   T('reduced motion keeps the snap and loses the flourish',
     /\.rank-track\{ transition: none !important; \}/.test(css));
 
-  sub('the emblem BUILDS — the ladder is readable from the silhouette alone (D30.6)');
-  /* D30.6 rebuilt the artwork: the frame is now ONE generated outline rather
-     than a ring with shapes laid on it, so the old token checks (r="48.5",
-     dasharray "7 15.54", "M52 100 L60 114", the octagon) describe a
-     representation that no longer exists. Every guarantee they protected is
-     re-asserted below against the new geometry, and measured rather than
-     matched — which is strictly stronger, because it tests the visual claim
-     (does the ladder read without colour or text?) instead of a proxy. */
-  const medals = (ctx.RANKS || []).map(r => ctx.rankMedalSvg(r.name, 120));
-  const countIn = (svg, re) => (svg.match(re) || []).length;
-  const frames = (ctx.RANKS || []).map((r, i) => ctx.rankFramePts(i));
-  const areaOf = pts => { let A = 0;
-    for(let i = 0; i < pts.length; i++){ const q = pts[(i + 1) % pts.length];
-      A += pts[i][0] * q[1] - q[0] * pts[i][1]; }
-    return Math.abs(A / 2); };
-  const maxR = pts => Math.max(...pts.map(q => Math.hypot(q[0] - 60, q[1] - 60)));
-
-  T('the silhouette itself grows, rank by rank — the greyscale test', (() => {
-    const areas = frames.map(areaOf);
-    for(let i = 1; i < areas.length; i++) if(areas[i] <= areas[i-1]) return areas.map(Math.round);
-    return true;
-  })() === true, 'silhouette area per tier');
-  T('ROOKIE has the smallest silhouette and LEGEND the largest', (() => {
-    const areas = frames.map(areaOf);
-    return areas[0] === Math.min(...areas) && areas[7] === Math.max(...areas);
-  })());
-  T('no rank is a repeat of the one below it', (() => {
-    /* Two identical outlines would mean a rank that earned nothing. */
-    const sig = frames.map(f => f.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join('|'));
-    return new Set(sig).size === sig.length;
-  })());
-  T('every emblem stays inside its box — no clipped ornament', (() => {
-    return frames.every(f => maxR(f) <= 57.5);
-  })(), 'max vertex radius');
-  T('element complexity never falls', (() => {
-    const counts = medals.map(m => countIn(m, /<(circle|path|polygon)/g));
-    for(let i = 1; i < counts.length; i++) if(counts[i] < counts[i-1]) return counts;
-    return counts[0] === Math.min(...counts) && counts[7] === Math.max(...counts) ? true : counts;
-  })() === true);
-
-  sub('each structural idea arrives at its own rank, and is part of the outline');
-  /* The chassis is generated: a shoulder or a wing is a longer RADIUS at that
-     angle, so it cannot be a triangle stuck to a ring. Each is asserted by
-     measuring the outline it produces. */
-  const widthAt = (pts, deg) => {
-    const i = Math.round((deg / 360) * pts.length) % pts.length;
-    return Math.hypot(pts[i][0] - 60, pts[i][1] - 60);
-  };
-  T('TRAINEE earns a bezel the round chassis did not have',
-    Math.abs(areaOf(frames[1]) - areaOf(frames[0])) > 100);
-  T('ATHLETE breaks the circle into a hexagon', (() => {
-    const r = frames[2].map(q => Math.hypot(q[0] - 60, q[1] - 60));
-    return (Math.max(...r) - Math.min(...r)) > 3;      // a circle has zero spread
-  })());
-  T('COMPETITOR gains shoulders, ELITE extends them into wings', (() => {
-    const shoulder = widthAt(frames[3], 90) - widthAt(frames[2], 90);
-    const wing = widthAt(frames[4], 90) - widthAt(frames[3], 90);
-    return shoulder > 2 && wing > 5;
-  })());
-  T('VETERAN adds weight below', widthAt(frames[5], 180) - widthAt(frames[4], 180) > 3);
-  T('MASTER raises a crest above', widthAt(frames[6], 0) - widthAt(frames[5], 0) > 3);
-  T('LEGEND finishes the crown', widthAt(frames[7], 0) - widthAt(frames[6], 0) > 1);
-  T('and none of it is a spike bolted on — extensions ARE the outline', (() => {
-    const fn = src.slice(src.indexOf('function rankFramePts'), src.indexOf('function framePath'));
-    return /R \+= [\d.]+ \* \(near\(90/.test(fn) && /pts\.push\(\[60 \+ R \* Math\.cos\(a\)/.test(fn);
-  })());
-
-  sub('the stone is cut, not drawn');
-  T('facets are shaded by their angle to one light, not filled flat', (() => {
-    const fn = src.slice(src.indexOf('function facetShade'), src.indexOf('function polyPts'));
-    return fn.indexOf('Math.hypot(nx, ny)') !== -1 && fn.indexOf('mixHex(lo, hi') !== -1;
-  })());
-  T('the gem earns facets up the ladder', (() => {
-    const fn = src.slice(src.indexOf('function rankGem'), src.indexOf('/* ---------- THE CHASSIS'));
-    return fn.indexOf('tier >= 6 ? 10 : tier >= 3 ? 8 : 6') !== -1;
-  })());
-  T('it has a table, a crown, star facets and a pavilion', (() => {
-    const fn = src.slice(src.indexOf('function rankGem'), src.indexOf('/* ---------- THE CHASSIS'));
-    return /table/.test(fn) && /girdle/.test(fn) && /Star facets/.test(fn) && /Pavilion/.test(fn);
-  })());
-  T('and the family really does render more polygons higher up', (() => {
-    const polys = medals.map(m => countIn(m, /<polygon/g));
-    return polys[0] < polys[7] && polys[0] === Math.min(...polys);
-  })());
+  /* D87 — repointed, all three sub-sections below. D30.6's ladder was
+     legible in greyscale because it was one generated outline per tier —
+     the silhouette itself grew from ROOKIE to LEGEND, independent of colour.
+     The owner's real art does not carry that same guarantee across every
+     tier: five of the eight supplied emblems (COMPETITOR through LEGEND)
+     share the same diamond/compass silhouette and differ mainly by material
+     and gem colour, the way the brief's own reference images showed them.
+     That is an honest, reportable difference from the old system, not a
+     regression to silently paper over — the brief asked for these exact
+     files, unmodified, and asserting silhouette-alone legibility would be
+     asserting something false about the shipped art. What still genuinely
+     holds — eight distinct files, correctly mapped, real and not a stub —
+     is proven in "the emblem is real art now, not generated geometry"
+     above. The gem-cutting and lit-metal internals these sections measured
+     (facetShade, rankGem, the generated gradient) no longer exist at all. */
   T('the glow ladder rises and never washes out', (() => {
     const glows = (ctx.RANKS || []).map(r => (ctx.RANK_VISUALS[r.name] || {}).glow || 0);
     for(let i = 1; i < glows.length; i++) if(glows[i] < glows[i-1]) return glows;
     return glows[0] === 0 && glows[7] <= 0.45 ? true : glows;
   })() === true);
-  T('the renderer is deterministic apart from its gradient ids',
-    ctx.rankMedalSvg('ELITE', 80).replace(/rk\d+/g, 'rk') === ctx.rankMedalSvg('ELITE', 80).replace(/rk\d+/g, 'rk'));
   /* D30.6: there is no card to cast light into — the PAGE carries the rank's
-     atmosphere now, and the emblem's own glow is rendered inside the SVG. */
+     atmosphere now (paintRankAtmosphere, tested in its own section below). */
   T('there is no card behind the rank — the page is the composition',
     !/rank-card/.test(src) && /\.rank-panel\{[\s\S]{0,420}background: none; border: none;/.test(css));
-  T('the emblem throws its own light, from its own stone',
-    /<circle cx="60" cy="60" r="56" fill="url\(#h' \+ uid/.test(src) &&
-    /r="24" fill="' \+ v\.gem\[0\]/.test(src));
   T('current, achieved and locked stay three distinguishable states',
     /\.rank-current \.rank-medal-wrap\{ filter: brightness/.test(css) &&
     /\.rank-achieved \.rank-medal-wrap\{ filter: saturate/.test(css) &&
@@ -14933,72 +14859,41 @@ async function testRankShowcaseExperience(){
     /rankAtmosphereAt\(lo, hi, frac\);/.test(fnSrc(src, 'rankRender')) &&
     /rankRender\(d\.startPos - d\.dx \/ rankStep\(\)\);/.test(src));
 
-  sub('the shine belongs to this page only');
-  T('the renderer itself still animates nothing', (() => {
-    const i = src.indexOf('function rankMedalSvg');
-    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
-    return !/animate|animation/i.test(fn);
+  /* D87 — repointed. rankMedalSvg no longer generates an outline, a bevel, a
+     metal gradient or a shine: it names one of eight real emblem files
+     (rank-emblem-*.png, supplied by the owner and used as-is) and returns an
+     <img>. Every guarantee below about generated geometry — the clip-to-
+     outline shine, the metal gradient stop count, the bevel/rim-light paths,
+     "complexity never falls" measured in SVG element counts — describes a
+     representation that no longer exists, the same way D30.6 retired the
+     ring-with-shapes-laid-on-it checks before it. What actually matters now
+     — one real, distinct, correctly-mapped file per rank, and no leftover
+     generated markup anywhere — is asserted here instead. */
+  sub('the emblem is real art now, not generated geometry');
+  T('there is no generated silhouette, gem or shine left in the source',
+    !/function rankFramePts|function rankFrameFit|function rankGem|function facetShade/.test(src) &&
+    !/rank-shine/.test(src));
+  T('every rank names its own real file, and no two share one', (() => {
+    const files = (ctx.RANKS || []).map(r => {
+      const m = ctx.rankMedalSvg(r.name, 64).match(/src="([^"]+)"/);
+      return m && m[1];
+    });
+    return files.every(Boolean) && new Set(files).size === files.length;
   })());
-  /* D30.6 moved the light INSIDE the emblem. The old version clipped a CSS
-     pseudo-element to a rectangular wrapper, which is exactly why it rendered
-     on device as a grey diagonal slab across the card. It is now an SVG band
-     clipped to the emblem's own generated outline, so light can only ever
-     appear on the object — a stronger guarantee than "scoped to a card". */
-  T('the light is clipped to the emblem\'s own outline, never a rectangle', (() => {
-    const i = src.indexOf('function rankMedalSvg');
-    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
-    return /<clipPath id="c' \+ uid \+ '"><path d="' \+ outline/.test(fn) &&
-      /class="rank-shine" clip-path="url\(#c'/.test(fn);
+  T('each file is the real supplied art, not a placeholder or a stub', (() => {
+    const fsMod = require('fs');
+    return (ctx.RANKS || []).every(r => {
+      const file = ctx.RANK_EMBLEM_FILE[r.name];
+      const p = H.APP_PATH.replace(/index\.html$/, file);
+      if(!fsMod.existsSync(p)) return false;
+      const size = fsMod.statSync(p).size;
+      return size > 1000 && size < 300000;
+    });
   })());
-  T('it exists only in showcase mode, so every reused medal is untouched', (() => {
-    const chip = ctx.rankMedalSvg('LEGEND', 30);
-    const page = ctx.rankMedalSvg('LEGEND', 208, { showcase: true });
-    return !/rank-shine/.test(chip) && !/clipPath/.test(chip) && /rank-shine/.test(page);
-  })());
-  T('only the centred emblem catches it',
-    /\.rank-front \.rank-shine-bar\{ animation: rankShine/.test(css) &&
-    /\.rank-shine\{ opacity: 0; \}/.test(css));
-  T('it passes once when a rank settles — it is not a loop', (() => {
-    const m = css.match(/\.rank-front \.rank-shine-bar\{ animation: rankShine [^;]+;/);
-    return !!m && !/infinite/.test(m[0]) && / 1 both/.test(m[0]);
-  })());
-  T('it moves on the compositor alone — no filter, no shadow', (() => {
-    const i = css.indexOf('@keyframes rankShine');
-    const kf = css.slice(i, css.indexOf('}', css.indexOf('to{', i)));
-    return /transform: rotate\(18deg\) translateX/.test(kf) && !/filter|box-shadow/.test(kf);
-  })());
-  T('reduced motion drops the pass entirely, losing no information', (() => {
-    /* Every facet is shaded in the SVG itself, so the emblem's material
-       survives with the pass off. */
-    const i = css.indexOf('@media (prefers-reduced-motion: reduce){\n  .rank-front .rank-shine-bar');
-    const blk = css.slice(css.indexOf('.rank-front .rank-shine-bar{ animation: none;'), 200 + css.indexOf('.rank-front .rank-shine-bar{ animation: none;'));
-    return blk.indexOf('animation: none') !== -1 && /\.rank-shine, \.rank-front \.rank-shine\{ opacity: 0; \}/.test(css);
-  })());
-  T('and no page-wide or card-wide sweep survives anywhere',
-    !/medalShine/.test(src) && !/rank-card/.test(src));
-
-  sub('the emblems are lit metal, and the ladder is untouched');
-  T('the metal carries a specular band, not a two-stop ramp', (() => {
-    const i = src.indexOf("'<linearGradient id=\"m' + uid");
-    const g = src.slice(i, i + 460);
-    return (g.match(/<stop offset=/g) || []).length >= 4 && /mixHex\(v\.metal\[0\], '#FFFFFF'/.test(g);
-  })());
-  T('the specular is derived from the rank\'s own metal', /function mixHex\(/.test(src));
-  /* D30.6: the bevel is no longer a fixed arc laid over a ring — it is an
-     inset repeat of each rank's OWN outline, so the edge turns correctly
-     whatever silhouette that rank earned. Every tier still has one. */
-  T('every tier turns its edge with a bevel and a rim light, from its own outline', (() => {
-    const i = src.indexOf('function rankMedalSvg');
-    const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
-    return /framePath\(pts, 0\.905\)/.test(fn) && /Bevel: an inset repeat of the same outline/.test(fn) &&
-      /framePath\(pts, 0\.965\)/.test(fn) && /Rim light along the top of the outline/.test(fn);
-  })());
-  T('and the complexity ladder still holds after the rebuild', (() => {
-    const medals = (ctx.RANKS || []).map(r => ctx.rankMedalSvg(r.name, 120));
-    const counts = medals.map(m => (m.match(/<(circle|path|polygon)/g) || []).length);
-    for(let i = 1; i < counts.length; i++) if(counts[i] < counts[i-1]) return counts;
-    return counts[0] === Math.min(...counts) && counts[7] === Math.max(...counts);
-  })() === true);
+  T('the image is decorative — every call site already speaks the rank as real text',
+    /alt=""/.test(ctx.rankMedalSvg('ROOKIE', 64)));
+  T('the renderer is fully deterministic — same rank and size, byte-identical output',
+    ctx.rankMedalSvg('ELITE', 80) === ctx.rankMedalSvg('ELITE', 80));
 
   sub('rank truth is presentation-only, exactly as before');
   T('thresholds untouched',
@@ -19101,141 +18996,32 @@ async function testProgramOwnership(){
   }
 
   /* ---------------------------------------------------------- */
-  sub('the rank emblems are centred and one size');
+  /* D87 — repointed in full. Every assertion this block held was a
+     regression guard on the GENERATED medal's own geometry: centring the
+     ring on its composition origin rather than its bounding box (D51D/D53),
+     the stone's chamber offset, dash-pattern perimeter math, a dangling
+     clip-path id, a shared key light between two SVG gradients, and the
+     single alignment transform (D54). rankFramePts, rankFrameFit,
+     framePerimeter, frameDashes and rankGem no longer exist — the emblem is
+     real supplied art now, not a composed silhouette, so there is no
+     centring math, chamber, dash pattern or clip-path left for these to
+     protect. What still genuinely matters from this block — the taxonomy
+     itself is unchanged, and every rank still has a real, distinct image —
+     is asserted below; the image-specific properties (distinct files,
+     decorative markup, determinism) live in Contract 128's own "the emblem
+     is real art now, not generated geometry" section rather than being
+     duplicated here. */
+  sub('the rank taxonomy is unchanged underneath the new art');
   {
     const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
-    const bbox = pts => {
-      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-      pts.forEach(pt => { if(pt[0] < x0) x0 = pt[0]; if(pt[0] > x1) x1 = pt[0];
-        if(pt[1] < y0) y0 = pt[1]; if(pt[1] > y1) y1 = pt[1]; });
-      return { w:x1-x0, h:y1-y0, cx:(x0+x1)/2, cy:(y0+y1)/2, x0, x1, y0, y1 };
-    };
-    const fitted = tier => {
-      const pts = ctx.rankFramePts(tier);
-      const f = ctx.rankFrameFit(pts);
-      return bbox(pts.map(pt => [
-        60 - 60*f.scale + f.scale*f.dx + f.scale*pt[0],
-        60 - 60*f.scale + f.scale*f.dy + f.scale*pt[1] ]));
-    };
-    const boxes = ctx.RANKS.map((r, i) => fitted(i));
-    /* Where the composition origin — and so the chamber, the stone, the halo
-       and the light spill — actually lands after the fit. */
-    const originOf = tier => {
-      const f = ctx.rankFrameFit(ctx.rankFramePts(tier));
-      return [ 60 - 60*f.scale + f.scale*f.dx + f.scale*60,
-               60 - 60*f.scale + f.scale*f.dy + f.scale*60 ];
-    };
-    const origins = ctx.RANKS.map((r, i) => originOf(i));
-
-    /* THE PERMANENT RULE: AN EMBLEM IS CENTRED ON ITS RING, NEVER ON ITS BOX.
-
-       D51D centred each silhouette's bounding box. That is right for a
-       symmetric emblem and wrong for the three that carry an ornament:
-       VETERAN's keel, MASTER's crest and LEGEND's apex make their boxes
-       off-centre BY DESIGN, so squaring the box shoved the ring — and the
-       stone inside it — the other way. Measured under that fit, chamber
-       centre against a box centre of 60: VETERAN 56.38, MASTER 59.28,
-       LEGEND 61.19. Worst case 3.62 units, 6.3px at showcase size.
-
-       An ornament extends the outline in its own direction; it does not move
-       the object. So the bounding-box centre is NO LONGER expected to be 60,
-       and asserting that it is would re-introduce the defect. What is
-       asserted instead is stricter and is the rule any future change must
-       keep: the canonical ring/chamber origin lands dead centre on every
-       rank, and the ornament is free to extend past it. */
-    T('every emblem is centred on its ring, not its bounding box',
-      origins.every(o => Math.abs(o[0] - 60) < 0.001 && Math.abs(o[1] - 60) < 0.001),
-      origins.map(o => o[0].toFixed(3) + ',' + o[1].toFixed(3)).join(' '));
-    /* And the mechanism itself, so a future refactor cannot quietly go back
-       to bbox centring while the numbers happen to line up. */
-    T('and the fit derives from the origin rather than the box', (() => {
-      const fn = fnSrc(src, 'rankFrameFit');
-      return /Math\.abs\(pt\[0\] - 60\)/.test(fn) && /Math\.abs\(pt\[1\] - 60\)/.test(fn)
-        && !/\(x0 \+ x1\) \/ 2/.test(fn);
-    })());
-    /* Hand-declared: the viewBox is 0 0 120 120, so 104 of it is the extent
-       the family is sized to. Measured about the ORIGIN, since that is now the
-       anchor — LEGEND's bbox is 101.7 because its apex and keel are not the
-       same length, which is the silhouette doing its job. */
-    T('every emblem is sized to the same extent about its centre',
-      boxes.every(b => Math.abs(2 * Math.max(60 - b.x0, b.x1 - 60,
-                                             60 - b.y0, b.y1 - 60) - 104) < 0.01),
-      boxes.map(b => (2 * Math.max(60 - b.x0, b.x1 - 60,
-                                   60 - b.y0, b.y1 - 60)).toFixed(1)).join(' '));
-    T('and none of them touches the edge',
-      boxes.every(b => b.x0 >= 0 && b.y0 >= 0 && b.x1 <= 120 && b.y1 <= 120));
-
-    /* ---- D54: the finish faults, each measured before it was fixed ---- */
-
-    /* The stone was composed at (60,62) while its well was at (60,60), so on
-       every emblem in the set the gem sat two units low inside its own
-       chamber — 3.5px at showcase size. */
-    T('the stone shares the chamber\'s centre, not two units under it',
-      /const cx = 60, cy = 60;/.test(fnSrc(src, 'rankGem')));
-    T('and nothing in the medal is anchored to the old 62 line',
-      !/cy="62"/.test(ctx.rankMedalSvg('ELITE', 210, { showcase:true })));
-
-    /* Ornament dashes were absolute user units on outlines whose perimeter
-       runs 242 to 313, so the same 70/210 covered 28.9% of ROOKIE's rim and
-       22.4% of LEGEND's, and the plate ticks wrapped past their own start. */
-    T('the rim highlight is the same arc on every rank', (() => {
-      return ctx.RANKS.every((r, i) => {
-        const len = ctx.framePerimeter(ctx.rankFramePts(i), 0.965);
-        const d = ctx.frameDashes(len, 1, 0.25).split(' ').map(Number);
-        return Math.abs(d[0] / (d[0] + d[1]) - 0.25) < 0.001;
-      });
-    })());
-    T('the plate ticks meet themselves exactly', (() => {
-      return ctx.RANKS.every((r, i) => {
-        const len = ctx.framePerimeter(ctx.rankFramePts(i), 0.84);
-        const d = ctx.frameDashes(len, 14, 0.35).split(' ').map(Number);
-        return Math.abs(len / (d[0] + d[1]) - 14) < 0.001;
-      });
-    })());
-
-    /* A clip-path pointing at an id that was never defined. The .replace()
-       meant to strip it was applied to the last concatenated fragment and
-       matched nothing, so the frame was either flatly darkened by 42% or the
-       layer was dropped, depending on the engine. */
-    T('no layer references a clip path that does not exist', (() => {
-      const svg = ctx.rankMedalSvg('MASTER', 210, { showcase:true });
-      const refs = [...new Set((svg.match(/url\(#([a-zA-Z0-9]+)\)/g) || [])
-        .map(u => u.slice(5, -1)))];
-      return refs.every(id => svg.indexOf('id="' + id + '"') !== -1);
-    })(), (() => {
-      const svg = ctx.rankMedalSvg('MASTER', 210, { showcase:true });
-      return [...new Set((svg.match(/url\(#([a-zA-Z0-9]+)\)/g) || [])
-        .map(u => u.slice(5, -1)))].filter(id => svg.indexOf('id="' + id + '"') === -1).join(',');
-    })());
-
-    /* The well and the stone in it were lit from two slightly different
-       places — close enough to read as a mistake rather than a decision. */
-    T('the chamber and the stone share one key light', (() => {
-      const svg = ctx.rankMedalSvg('ELITE', 210, {});
-      const well = svg.match(/id="w[a-z0-9]+" cx="([\d.]+)" cy="([\d.]+)"/);
-      const gem  = svg.match(/id="gt[a-z0-9]+" cx="([\d.]+)" cy="([\d.]+)"/);
-      return !!well && !!gem && well[1] === gem[1] && well[2] === gem[2];
-    })());
-    T('no vertex is truncated by a radius clamp',
-      !/R = Math\.min\(R, 56\)/.test(code));
-    T('one transform owns the alignment, not seven nudges',
-      (fnSrc(src, 'rankMedalSvg').match(/translate\(/g) || []).length === 1);
-
-    /* The design itself is untouched. */
     T('the eight ranks are unchanged',
       ctx.RANKS.map(r => r.name).join(',') ===
       'ROOKIE,TRAINEE,ATHLETE,COMPETITOR,ELITE,VETERAN,MASTER,LEGEND',
       ctx.RANKS.map(r => r.name).join(','));
     T('their level thresholds are unchanged',
-      ctx.RANKS.map(r => r.min).join(',') === '1,5,10,20,30,40,50,50'.slice(0, 0) + ctx.RANKS.map(r => r.min).join(','));
-    T('every rank still has its own silhouette',
-      new Set(ctx.RANKS.map((r,i) => JSON.stringify(ctx.rankFramePts(i)))).size === ctx.RANKS.length);
-    T('the medal still carries its name for a screen reader',
-      /aria-label="LEGEND emblem"/.test(ctx.rankMedalSvg('LEGEND', 208, {})));
-    T('and its groups are balanced markup', (() => {
-      const svg = ctx.rankMedalSvg('LEGEND', 208, { showcase:true });
-      return (svg.match(/<g(\s|>)/g) || []).length === (svg.match(/<\/g>/g) || []).length;
-    })());
+      ctx.RANKS.map(r => r.min).join(',') === '1,5,10,15,20,30,40,50');
+    T('every rank still resolves to its own real emblem file',
+      new Set(ctx.RANKS.map(r => ctx.RANK_EMBLEM_FILE[r.name])).size === ctx.RANKS.length);
   }
 
   sub('the Progress overview keeps one rhythm');
@@ -22578,13 +22364,16 @@ async function testRankShowcaseMotion(){
     (ctx.RANKS || []).forEach(r => [[208, { showcase: true }], [120, undefined], [30, undefined]].forEach(([size, opts]) =>
       out.push(ctx.rankMedalSvg(r.name, size, opts).replace(/rk\d+/g, 'rk'))));
     const h = crypto.createHash('sha256').update(out.join('\n')).digest('hex');
-    /* Rendered by the LOOP 5.6 build (4063e79) whose emblems D54 approved. A
-       change here is a redesign, and needs that approval, not a new hash. */
-    return h === '48039f1cd6d16b0f798d76d16784b451f71e93e71fcaf2cb5d754d8e4597ebbd' ? true : h;
+    /* D87 — the hash itself is the approval this pin exists to require, not
+       a bypass of it: LOOP 8.9's build (see the D87 commit) replaced the
+       D54-approved generated emblems with the owner's own supplied art,
+       used exactly as given. A change here again is still a redesign and
+       still needs a new approval, not a quiet new hash. */
+    return h === '8a3ca26391d8390afeba13d90a224dbeeae5ef675b9d72607242b9dcb893e7b5' ? true : h;
   })() === true);
   T('motion lives outside the emblem: the track, the panel, and the emblem\'s own box',
     !/animate|animation/i.test(fnSrc(src, 'rankMedalSvg')) &&
-    /panel\.querySelector\(flat \? '\.rank-medal-wrap' : '\.rank-medal-wrap svg'\)/.test(src) &&
+    /panel\.querySelector\(flat \? '\.rank-medal-wrap' : '\.rank-medal-wrap img'\)/.test(src) &&
     !/rankMedalSvg|<svg/.test(fnSrc(src, 'rankRender')));
 
   sub('a touch is a scroll until it is sideways');
@@ -22874,8 +22663,9 @@ async function testRankShowcaseMotion(){
     if(!tick) return 'no arrival';
     const peaks = tick.frames.map(k => +((/scale\(([\d.]+)\)/.exec(k.transform || '') || [])[1] || 1));
     const peak = Math.max(...peaks);
+    // D87: the arrival lift now targets the real emblem <img>, not a generated <svg>.
     return peak > 1.005 && peak <= 1.03 && tick.timing.duration <= 450 && !tick.timing.iterations &&
-      geo.panels[5].child.asked.indexOf('.rank-medal-wrap svg') !== -1 &&
+      geo.panels[5].child.asked.indexOf('.rank-medal-wrap img') !== -1 &&
       !tick.frames.some(k => /rotate/.test(k.transform || ''));
   })());
   ctx.rankLanded(5);
@@ -22885,17 +22675,16 @@ async function testRankShowcaseMotion(){
   reset(4);
   ctx.rankLanded(4, true);
   T('opening and re-centring are quiet', geo.panels[4].child.anims.length === 0);
-  T('the light pass still plays once per landing and never loops', (() => {
-    const m = css.match(/\.rank-front \.rank-shine-bar\{ animation: rankShine [^;]+;/);
-    const region = css.slice(css.indexOf('.rank-sheet{'), css.indexOf('.today-greet{'));
-    return !!m && / 1 both/.test(m[0]) && !/infinite/.test(region);
-  })());
-  T('and it is a glint that arrives with the lift, not a second and a half behind it', (() => {
-    /* Measured: the pass is the only part of a landing that lays out and paints
-       every frame, so its length is its cost as well as its feel. */
-    const m = css.match(/\.rank-front \.rank-shine-bar\{ animation: rankShine ([\d.]+)s [^;]*? ([\d.]+)s 1 both;/);
-    return !!m && +m[1] <= 1 && +m[2] <= 0.15 ? true : (m ? m[1] + 's from ' + m[2] + 's' : 'rule not found');
-  })() === true);
+  /* D87 — repointed. The generated shine lived INSIDE the SVG's own outline
+     clip, which is exactly why it cannot exist on a raster emblem: there is
+     no equivalent "clip to the image's own silhouette" mechanism for an
+     <img>, and the brief that replaced the art explicitly asked to let the
+     supplied art carry the style rather than add a decorative pass over it.
+     The two properties that mattered — the landing plays once, not a loop —
+     are still proven above, on the lift itself (duration <= 450,
+     !tick.timing.iterations); there is no separate shine left to time. */
+  T('no shine layer survives the emblem becoming real art',
+    !/rank-shine/.test(css) && !/@keyframes rankShine/.test(css));
 
   sub('reduced motion keeps every state and loses the choreography');
   { const realRM = ctx.rankReducedMotion;
@@ -22912,8 +22701,7 @@ async function testRankShowcaseMotion(){
     } finally { ctx.rankReducedMotion = realRM; } }
   T('the media query is the one the app reads, and the CSS agrees',
     /window\.matchMedia\('\(prefers-reduced-motion: reduce\)'\)/.test(fnSrc(src, 'rankReducedMotion')) &&
-    /\.rank-return, \.rank-return\.is-shown\{ transition: none; \}/.test(css) &&
-    /\.rank-front \.rank-shine-bar\{ animation: none; \}/.test(css));
+    /\.rank-return, \.rank-return\.is-shown\{ transition: none; \}/.test(css));
 
   sub('it survives rotation, rapid input and reopening');
   T('a change of size re-measures, including when no resize event arrives',

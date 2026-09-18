@@ -249,7 +249,9 @@ function loadApp(initialStore){
     'PHASE_PRESCRIPTION','pendingWorkoutPhase','_phaseRxCache',
     /* D86 — the Mastery Leaders podium's own config; D86.1 — which real
        medal asset each place uses */
-    'MASTERY_UI_CONFIG','MASTERY_PODIUM_MEDAL'];
+    'MASTERY_UI_CONFIG','MASTERY_PODIUM_MEDAL',
+    /* D87 — which real emblem asset each rank uses */
+    'RANK_EMBLEM_FILE'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

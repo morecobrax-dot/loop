@@ -812,7 +812,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 }
 /* The emblem is the hero of the page now that nothing frames it. */
 .rank-medal-wrap{ display: flex; justify-content: center; padding: 14px 0 10px; }
-.rank-medal-wrap svg{ display: block; }
+.rank-medal-wrap img{ display: block; }
 /* Not yet reached: still fully visible and still desirable — the athlete is
    browsing a ladder they want to climb — just holding less light. */
 .rank-locked .rank-medal-wrap{ filter: saturate(0.62) brightness(0.78); }
@@ -829,30 +829,6 @@ html.intro-skip #introOverlay{ display: none !important; }
    emblem on a different line, so the ladder bobbed as it moved. */
 .rank-foot{ display: flow-root; min-height: 40px; }
 
-/* D30.6 — THE LIGHT PASS, ON THE EMBLEM ONLY.
-   The band lives INSIDE the SVG, clipped to the emblem's own outline, so it
-   can only ever appear on the object. The previous version clipped a CSS
-   pseudo-element to a rectangular wrapper, which is why it rendered as a grey
-   diagonal slab across the card. It runs once when a rank settles into the
-   centre — not a loop — and only on the centred emblem. */
-.rank-shine{ opacity: 0; }
-/* Phase C — the pass is now the glint that accompanies a rank locking in, so it
-   runs in 0.95s from 0.12s rather than 1.45s from 0.18s. Measured, it is the one
-   part of a landing that lays out and paints every frame (the band animates
-   inside the SVG, which no browser composites), so a shorter pass is also a
-   third less main-thread work per landing. */
-.rank-front .rank-shine-bar{ animation: rankShine 0.95s cubic-bezier(0.33,0,0.2,1) 0.12s 1 both; }
-.rank-front .rank-shine{ opacity: 1; }
-@keyframes rankShine{
-  from{ transform: rotate(18deg) translateX(0); }
-  to{ transform: rotate(18deg) translateX(310px); }
-}
-/* Reduced motion: no travel. The emblem keeps its computed material — every
-   facet is shaded in the SVG itself, so nothing is lost with the pass off. */
-@media (prefers-reduced-motion: reduce){
-  .rank-front .rank-shine-bar{ animation: none; }
-  .rank-shine, .rank-front .rank-shine{ opacity: 0; }
-}
 .rank-progress{ margin-top: 10px; }
 .rank-progress-top{
   display: flex; justify-content: space-between;
@@ -966,7 +942,7 @@ html.intro-skip #introOverlay{ display: none !important; }
 @media (orientation: portrait) and (max-height: 640px){
   .rank-trackwrap{ padding: var(--space-2) 0; }
   .rank-medal-wrap{ padding: 8px 0 6px; }
-  .rank-medal-wrap svg{ width: 150px; height: 150px; }
+  .rank-medal-wrap img{ width: 150px; height: 150px; }
   .rank-title{ font-size: 24px; margin-top: 8px; }
 }
 .today-greet{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 21px; color: var(--text); }
@@ -7567,7 +7543,7 @@ header{
   .rank-panel{ width: min(62vw, 300px); padding: 2px 8px 4px; }
   .rank-trackwrap{ padding: var(--space-1) 0; }
   .rank-medal-wrap{ padding: 6px 0 2px; }
-  .rank-medal-wrap svg{ width: 84px; height: 84px; }
+  .rank-medal-wrap img{ width: 84px; height: 84px; }
   .rank-title{ font-size: 19px; margin-top: 6px; }
   /* Phase C — the rail and the way deeper sit side by side: stacked, the rail
      alone would cost this screen the room the emblem needs. */
@@ -16004,6 +15980,20 @@ const LOOP_UPDATES = [
     newFeatures: [],
     improvements: [
       'The 1st, 2nd and 3rd place badges on the Mastery Leaders podium are now dedicated medal artwork for each place'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v8-9',
+    version: 'LOOP 8.9',
+    title: 'Rank Emblems',
+    date: '2026-09-18',
+    swVersion: 'loop-v166',
+    summary: 'Every rank now wears its own real emblem, from Rookie to Legend.',
+    newFeatures: [],
+    improvements: [
+      'All eight rank emblems — Home, Profile, the rank showcase and level-up — are now dedicated artwork for each rank'
     ],
     bugFixes: [],
     changes: []
@@ -28670,34 +28660,6 @@ function rankLevelRangeLabel(r){
   return r.max === Infinity ? ('Level ' + r.min + '+') : ('Level ' + r.min + '–' + r.max);
 }
 
-/* One medal, eight materials. Drawn geometry only: a bevelled metal ring, a
-   dark inner well, a faceted gem lit from above, and a specular arc. Wings
-   join at ELITE and the apex only at LEGEND, so prestige is carried by
-   geometry and light rather than ornament count. Static on purpose — the
-   references look expensive because nothing on them is blinking. */
-let _rankUid = 0;
-/* One medal family that BUILDS (D23.1). The gem is the athlete's progression
-   energy; the housing around it is the rank they earned, and the housing is
-   what evolves — each tier keeps everything below it and adds one structural
-   idea, so the eight read as a single medal growing more prestigious rather
-   than eight recolours:
-
-     0 ROOKIE      the foundation: one ring, dark well, a simple four-facet gem
-     1 TRAINEE     + a second hairline ring
-     2 ATHLETE     + a hexagonal frame behind the ring (first silhouette break)
-     3 COMPETITOR  + armored segmentation on the ring and a top crest tip
-     4 ELITE       + full geometric wings, an inner halo, a rim light
-     5 VETERAN     + weight: heavier ring, broader wings, a lower crest point
-     6 MASTER      + the crown begins: upper crest, split outer arcs,
-                     an inner second layer in the gem
-     7 LEGEND      + the finished pinnacle, an outer armor octagon, and the
-                     one dual-material gem — violet core in gold outer facets
-
-   Grayscale-safe on purpose: every step above is geometry, so the ladder
-   survives with the colour removed. Everything is static; the light lives in
-   gradients, not animation. */
-/* Blend two hex colours. Used to derive a medal's specular band from its own
-   metal rather than introducing a second palette to keep in step. */
 function mixHex(a, b, t){
   const p = h => [1,3,5].map(i => parseInt(h.substr(i,2), 16));
   const A = p(a), B = p(b);
@@ -28705,363 +28667,46 @@ function mixHex(a, b, t){
 }
 
 /* =========================================================
-   THE RANK EMBLEM  (rebuilt, D30.6)
+   THE RANK EMBLEM  (real art, D87)
    ---------------------------------------------------------
-   Rebuilt from "a ring with shapes placed around it" into one
-   designed medallion. Three rules drive the whole family:
-
-   1. THE SILHOUETTE IS ONE PATH. Shoulders, wings, keel and
-      crown are not overlaid triangles — they are vertices of
-      the SAME closed outline, so every extension is
-      structurally part of the chassis and can never read as
-      a spike stuck to a circle.
-   2. LIGHT IS COMPUTED, NOT DRAWN. Every facet is shaded by
-      the angle its normal makes with one fixed light (upper
-      left). Facets turned toward it go near-white; facets
-      turned away go dark. That single rule is what separates
-      a polished object from a flat polygon.
-   3. COMPLEXITY COMES FROM STRUCTURE. Higher ranks earn more
-      frame vertices, more gem facets and richer material —
-      never more decoration.
-
-   One renderer, one rank source. `opts.showcase` adds only the
-   detail that is invisible at chip size and the clip the
-   page-only shine rides in; the artwork itself is identical
-   everywhere, so Home, Progress and Profile improve too.
-   ========================================================= */
-
-/* Facet shading. n is the outward normal of the facet; the light sits upper
-   left. Returns the base colour pushed toward its highlight or its shadow. */
-function facetShade(hi, lo, nx, ny){
-  const len = Math.hypot(nx, ny) || 1;
-  const d = (nx / len) * -0.60 + (ny / len) * -0.80;   // dot with the light
-  return mixHex(lo, hi, Math.max(0, Math.min(1, (d + 1) / 2)));
-}
-function polyPts(cx, cy, R, n, rot, squash){
-  const p = [];
-  for(let k = 0; k < n; k++){
-    const t = rot + (k / n) * Math.PI * 2;
-    p.push([cx + R * Math.cos(t), cy + R * (squash || 1) * Math.sin(t)]);
-  }
-  return p;
-}
-const ptsStr = p => p.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ');
-
-/* ---------- THE GEMSTONE ----------
-   A brilliant cut seen from above: a flat table, a ring of crown facets each
-   individually lit, and the darker pavilion showing through beneath. The
-   table carries the internal light; the girdle keeps the silhouette crisp. */
-function rankGem(v, tier, uid){
-  /* D53 — THE STONE SITS ON THE COMPOSITION ORIGIN, NOT TWO UNITS UNDER IT.
-     The chamber is drawn at (60,60) and the stone was composed at (60,62), so
-     on every emblem in the set the gem sat 2 units low in its own well — 3.5px
-     at showcase size, and the single clearest reason the medals read as
-     not-quite-finished up close. The pavilion below keeps its own offset,
-     because a stone showing its underside is depth rather than misalignment. */
-  const cx = 60, cy = 60;
-  const R = 15.5 + Math.min(3, tier * 0.42);          // grows a little with rank
-  const nFac = tier >= 6 ? 10 : tier >= 3 ? 8 : 6;    // more facets, higher rank
-  const hi = mixHex(v.gem[0], '#FFFFFF', 0.55);
-  const lo = mixHex(v.gem[1], '#05070C', 0.30);
-  const girdle = polyPts(cx, cy, R, nFac, -Math.PI / 2);
-  const table = polyPts(cx, cy - 0.8, R * 0.44, nFac, -Math.PI / 2);
-  let out = '';
-  /* Pavilion: the stone's underside, read through the crown. Darkest, and
-     offset downward so the stone has a below. */
-  out += '<polygon points="' + ptsStr(polyPts(cx, cy + 2.4, R * 0.92, nFac, -Math.PI / 2)) +
-    '" fill="' + mixHex(v.gem[1], '#05070C', 0.55) + '"/>';
-  /* Crown facets, each lit by its own normal. */
-  for(let k = 0; k < nFac; k++){
-    const g0 = girdle[k], g1 = girdle[(k + 1) % nFac];
-    const t0 = table[k], t1 = table[(k + 1) % nFac];
-    const mx = (g0[0] + g1[0]) / 2 - cx, my = (g0[1] + g1[1]) / 2 - cy;
-    out += '<polygon points="' + ptsStr([g0, g1, t1, t0]) +
-      '" fill="' + facetShade(hi, lo, mx, my) + '"/>';
-  }
-  /* Star facets: the short triangles from table corners to the girdle points,
-     which is what gives a real stone its scintillation. */
-  for(let k = 0; k < nFac; k++){
-    const g = girdle[k], t0 = table[(k - 1 + nFac) % nFac], t1 = table[k];
-    out += '<polygon points="' + ptsStr([g, t1, t0]) + '" fill="' +
-      facetShade(hi, lo, g[0] - cx, g[1] - cy) + '" fill-opacity="0.55"/>';
-  }
-  /* The table: the stone's internal light. */
-  out += '<polygon points="' + ptsStr(table) + '" fill="url(#gt' + uid + ')"/>';
-  /* One specular chip on the light-facing shoulder, and the crisp girdle. */
-  out += '<polygon points="' + ptsStr([table[0], table[nFac - 1], girdle[nFac - 1]]) +
-    '" fill="#FFFFFF" fill-opacity="' + (0.34 + Math.min(0.18, tier * 0.025)).toFixed(2) + '"/>';
-  out += '<polygon points="' + ptsStr(girdle) + '" fill="none" stroke="' +
-    mixHex(v.gem[0], '#FFFFFF', 0.35) + '" stroke-opacity="0.55" stroke-width="0.9" stroke-linejoin="round"/>';
-  return out;
-}
-
-/* ---------- THE CHASSIS ----------
-   One closed outline per rank. Vertices are generated on a radius function,
-   so a shoulder or a wing is a longer radius at that angle — part of the
-   outline, never a shape laid on top of it. */
-function rankFramePts(tier){
-  const N = 96, pts = [];
-  const shoulder = tier >= 3 ? 1 : 0;            // COMPETITOR+: angular shoulders
-  const wing = tier >= 4 ? 1 : 0;                // ELITE+: the shoulders extend
-  const keel = tier >= 5 ? 1 : 0;                // VETERAN+: weight below
-  const crown = tier >= 6 ? 1 : 0;               // MASTER+: the crest above
-  const apex = tier >= 7 ? 1 : 0;                // LEGEND: the finished pinnacle
-  for(let i = 0; i < N; i++){
-    const a = (i / N) * Math.PI * 2 - Math.PI / 2;   // 0 = top, clockwise
-    const deg = (a + Math.PI / 2) * 180 / Math.PI;
-    let R = 40;
-    /* TRAINEE: the first upgrade is a machined bezel — twelve shallow lobes
-       around the same round chassis. Measured: without it ROOKIE and TRAINEE
-       had byte-identical silhouettes, and the ladder has to be readable from
-       the outline alone. */
-    if(tier === 1) R = 41 + Math.cos(deg * Math.PI / 15) * 1.1;
-    /* ATHLETE+: the circle becomes a hexagon — the first break of the round. */
-    if(tier >= 2){
-      const k = ((deg % 60) + 60) % 60 - 30;
-      R = 40 / Math.cos(k * Math.PI / 180) * 0.995;
-    }
-    /* Angular distance from a target bearing, falling off smoothly — this is
-       what lets a feature swell the outline instead of being drawn onto it.
-       (It inverted the distance at first, which put VETERAN's keel above the
-       emblem and MASTER's crest below it.) */
-    const near = (target, width) => {
-      const d = Math.abs(((deg - target + 540) % 360) - 180);
-      return d < width ? Math.cos((d / width) * Math.PI / 2) : 0;
-    };
-    /* Shoulders and wings ride the SAME radius, so they grow out of the
-       outline rather than being pinned to it. */
-    if(shoulder) R += 4.5 * (near(90, 26) + near(270, 26));
-    if(wing) R += 9.5 * (near(90, 17) + near(270, 17));
-    if(keel) R += 7.5 * near(180, 13);
-    if(crown) R += 6 * near(0, 15);
-    if(apex) R += 4 * (near(0, 30) + near(330, 9) + near(30, 9));
-    /* D51D — THE CLAMP IS GONE. It kept the farthest vertex inside the box,
-       but it did so by flattening it: LEGEND's apex — the single point the
-       top rank's whole silhouette builds toward — was one of 96 points sitting
-       exactly on R=56, cut off square. rankFrameFit below now scales each
-       emblem to the box, so nothing needs truncating to fit. */
-    pts.push([60 + R * Math.cos(a), 60 + R * Math.sin(a)]);
-  }
-  return pts;
-}
-
-/* ONE ALIGNMENT OWNER FOR EIGHT EMBLEMS.
-
-   Every rank is drawn in the same 120-unit box, but the silhouettes are not
-   the same size or the same shape, and three of them are not centred in it:
-
-     ROOKIE      80.0 x 80.0   centre (60.0, 60.0)
-     ELITE      107.6 x 91.9   centre (60.0, 60.0)
-     VETERAN    107.6 x 99.4   centre (60.0, 63.8)   <- the keel hangs low
-     MASTER     107.6 x 105.4  centre (60.0, 60.8)
-     LEGEND     107.6 x 109.4  centre (60.0, 58.8)   <- the crest rides high
-
-   Two visible consequences, both of which read as sloppy work up close. The
-   emblem sags or floats inside its own box — VETERAN by 3.75 units, which is
-   6.5px at showcase size. And ROOKIE's ink covers 74% of the width LEGEND's
-   does, so at one rendered size the medals visibly change size as you move
-   along the ladder.
-
-   The fix is not seven nudges. It is one transform, derived from each
-   silhouette's own bounds: centre it, then scale it to a common extent. The
-   SHAPES are untouched — the bezel, the hexagon, the shoulders, the wings,
-   the keel, the crest and the apex all stay exactly as designed, and the
-   ladder still reads from the outline alone. Only the fit changes. */
-/* D53 — CENTRING THE BOUNDING BOX WAS CENTRING THE WRONG THING.
-
-   The fit above used to move each silhouette so its bounding box sat in the
-   middle of the 120 box. That is correct for a symmetric emblem and wrong for
-   the three that carry an ornament: VETERAN has a keel below, MASTER a crest
-   above, LEGEND an apex. Their boxes are off-centre BECAUSE of the ornament,
-   so squaring the box shoved the ring — and the stone inside it — the other
-   way. Measured, chamber centre in a box whose centre is 60:
-
-     VETERAN  56.38   (3.62 high, 6.3px at showcase size)
-     MASTER   59.28
-     LEGEND   61.19
-
-   An ornament extends the outline in its own direction; it does not move the
-   object. So the fit now holds the composition origin (60,60) fixed and sizes
-   from the farthest point about THAT centre. The ring is concentric with the
-   box on all eight, the keel still hangs below and the crest still rides
-   above, and nothing is clipped because the scale is derived from the extent
-   that actually matters. */
-const RANK_FIT_EXTENT = 104;      // of 120, leaving the bevel and rim room
-function rankFrameFit(pts){
-  let m = 0;
-  pts.forEach(pt => {
-    const dx = Math.abs(pt[0] - 60), dy = Math.abs(pt[1] - 60);
-    if(dx > m) m = dx;
-    if(dy > m) m = dy;
-  });
-  /* dx/dy stay in the returned shape so the transform below is unchanged;
-     they are zero by construction now that the origin is the anchor. */
-  return { scale: (RANK_FIT_EXTENT / 2) / Math.max(m, 1), dx: 0, dy: 0 };
-}
-
-/* Ornament dash patterns have to CLOSE. The rim light, the armour ticks and
-   LEGEND's inlay were specified in absolute user units — 70/210, 9/17,
-   34/250 — on outlines whose perimeter runs from 251 (ROOKIE) to 355
-   (LEGEND). The same numbers therefore covered a different fraction of each
-   emblem and, worse, left a visible mismatch where the pattern wrapped past
-   the start. Deriving them from the real perimeter makes the highlight the
-   same arc on every rank and makes the ticks meet themselves exactly. */
-function framePerimeter(pts, scale){
-  const s = scale || 1;
-  let L = 0;
-  for(let i = 0; i < pts.length; i++){
-    const a = pts[i], b = pts[(i + 1) % pts.length];
-    L += Math.hypot((b[0] - a[0]) * s, (b[1] - a[1]) * s);
-  }
-  return L;
-}
-/* n whole repeats of a dash+gap around the path, so the last one meets the
-   first. `frac` is the dash's share of one repeat. */
-function frameDashes(len, repeats, frac){
-  const period = len / Math.max(1, Math.round(repeats));
-  /* Four places, not two. At two the ticks came out to 13.997 repeats instead
-     of 14 — 0.06 units of drift over a 260-unit ring, invisible in itself, but
-     the entire reason this function exists is that the pattern must meet
-     itself exactly. */
-  return (period * frac).toFixed(4) + " " + (period * (1 - frac)).toFixed(4);
-}
-function framePath(pts, scale){
-  const s = scale || 1;
-  return pts.map((p, i) => (i ? 'L' : 'M') +
-    (60 + (p[0] - 60) * s).toFixed(1) + ',' + (60 + (p[1] - 60) * s).toFixed(1)).join(' ') + 'Z';
-}
-
+   D23/D30.6 built one medal that grew more prestigious by
+   geometry — a generated SVG ring, gem and ornament set, eight
+   tiers of the same drawn object. D87 replaces that generated
+   art with the owner's own emblem images (rank-emblem-*.png):
+   one file per rank, used exactly as supplied. Nothing else
+   about rank changes — RANKS, RANK_VISUALS (still read by the
+   page atmosphere and the carousel rail thumb, below), the XP
+   and level math, and every call site's own layout are untouched.
+   rankMedalSvg keeps its name and signature — nine call sites
+   across Friends, Home, Profile, the showcase and the level-up
+   flow already call it — but it now names a file and returns an
+   <img>, not a generator. */
+const RANK_EMBLEM_FILE = {
+  ROOKIE:     'rank-emblem-rookie.png',
+  TRAINEE:    'rank-emblem-trainee.png',
+  ATHLETE:    'rank-emblem-athlete.png',
+  COMPETITOR: 'rank-emblem-competitor.png',
+  ELITE:      'rank-emblem-elite.png',
+  VETERAN:    'rank-emblem-veteran.png',
+  MASTER:     'rank-emblem-master.png',
+  LEGEND:     'rank-emblem-legend.png'
+};
+/* Decorative everywhere: every call site already states the athlete's rank
+   and level as real text, in its own aria-label or as adjacent visible
+   copy (the showcase panel's own aria-label, the header chip's aria-label,
+   the profile's "LEVEL N" / rank name text, the level-up banner's label).
+   A second, separate announcement of "<rank> emblem" would only repeat it. */
+/* No loading="lazy": the showcase carousel keeps all eight panels in the DOM
+   at once and moves between them with a transform, not real document scroll
+   — the browser's intersection-based lazy heuristic was built for the
+   latter and behaves inconsistently against the former. Each file is a few
+   tens of KB, so loading all eight the moment the showcase opens costs
+   nothing worth trading reliability for. */
 function rankMedalSvg(rankName, size, opts){
-  const v = RANK_VISUALS[rankName] || RANK_VISUALS.ROOKIE;
-  const tier = rankIndexOf(rankName);
-  const uid = 'rk' + (++_rankUid);
-  const showcase = !!(opts && opts.showcase);
-  const apex = rankName === 'LEGEND';
-  const M = 'url(#m' + uid + ')';
-  const pts = rankFramePts(tier);
-  const outline = framePath(pts);
-  const metalHi = mixHex(v.metal[0], '#FFFFFF', 0.62);
-  const metalLo = mixHex(v.metal[1], '#05070C', 0.42);
-  /* Centre and size, computed from this silhouette's own bounds. Written as
-     one transform on one group so the frame, the chamber, the stone and every
-     highlight keep exactly the relationship they were composed with. */
-  const fit = rankFrameFit(pts);
-  /* Measured on the paths these actually stroke, so every ornament closes. */
-  const rimLen = framePerimeter(pts, 0.965);
-  const plateLen = framePerimeter(pts, 0.84);
-  const inlayLen = framePerimeter(pts, 0.925);
-  const _fs = fit.scale;
-  const fitT = 'translate(' + (60 - 60 * _fs + _fs * fit.dx).toFixed(3) + ',' +
-    (60 - 60 * _fs + _fs * fit.dy).toFixed(3) + ') scale(' + _fs.toFixed(4) + ')';
-
-  return '<svg class="rank-medal' + (showcase ? ' rank-medal-lg' : '') + '" viewBox="0 0 120 120"' +
-    ' width="' + size + '" height="' + size + '"' +
-    ' role="img" aria-label="' + escapeAttr(rankName + ' emblem') + '">' +
-    '<defs>' +
-      /* Metal: a four-stop angled ramp with a specular band across the upper
-         third — a two-stop fill is what made the old frame read as flat. */
-      '<linearGradient id="m' + uid + '" x1="0.12" y1="0" x2="0.88" y2="1">' +
-        '<stop offset="0" stop-color="' + metalHi + '"/>' +
-        '<stop offset="0.26" stop-color="' + mixHex(v.metal[0], '#FFFFFF', 0.30) + '"/>' +
-        '<stop offset="0.55" stop-color="' + v.metal[0] + '"/>' +
-        '<stop offset="1" stop-color="' + metalLo + '"/>' +
-      '</linearGradient>' +
-      /* The underside: the frame turning away from the key light. */
-      '<linearGradient id="u' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
-        '<stop offset="0.42" stop-color="' + metalLo + '" stop-opacity="0"/>' +
-        '<stop offset="1" stop-color="' + metalLo + '" stop-opacity="0.6"/>' +
-      '</linearGradient>' +
-      /* The recessed chamber the stone sits in. ONE KEY LIGHT: this and the
-         stone's table below share an origin, so the well and the gem in it
-         are lit from the same place. They were at (0.42,0.36) and (0.40,0.32),
-         close enough to look like a mistake rather than a decision. */
-      '<radialGradient id="w' + uid + '" cx="0.38" cy="0.30" r="0.72">' +
-        '<stop offset="0" stop-color="#131A26"/><stop offset="1" stop-color="#05070C"/>' +
-      '</radialGradient>' +
-      /* The stone's table — its internal light. */
-      '<radialGradient id="gt' + uid + '" cx="0.38" cy="0.30" r="0.78">' +
-        '<stop offset="0" stop-color="' + mixHex(v.gem[0], '#FFFFFF', 0.78) + '"/>' +
-        '<stop offset="0.55" stop-color="' + v.gem[0] + '"/>' +
-        '<stop offset="1" stop-color="' + mixHex(v.gem[1], '#05070C', 0.15) + '"/>' +
-      '</radialGradient>' +
-      (v.glow ? '<radialGradient id="h' + uid + '">' +
-        '<stop offset="0.45" stop-color="' + v.gem[0] + '" stop-opacity="' + (v.glow * 0.9).toFixed(3) + '"/>' +
-        '<stop offset="1" stop-color="' + v.gem[0] + '" stop-opacity="0"/></radialGradient>' : '') +
-      /* The shine rides inside the emblem's own outline, so light can only
-         ever appear ON the object — never as a rectangle across a card. */
-      (showcase ? '<clipPath id="c' + uid + '"><path d="' + outline + '"/></clipPath>' +
-        '<linearGradient id="s' + uid + '" x1="0" y1="0" x2="1" y2="0">' +
-          '<stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/>' +
-          '<stop offset="0.42" stop-color="#FFFFFF" stop-opacity="0.30"/>' +
-          '<stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.62"/>' +
-          '<stop offset="0.58" stop-color="#FFFFFF" stop-opacity="0.30"/>' +
-          '<stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>' +
-        '</linearGradient>' : '') +
-    '</defs>' +
-    /* THE ONE ALIGNMENT TRANSFORM. Everything the emblem is made of sits
-       inside it, so centring and fitting can never pull the stone off the
-       frame or the rim light off the edge. */
-    '<g transform="' + fitT + '">' +
-    /* Light the stone throws past the frame. */
-    (v.glow ? '<circle cx="60" cy="60" r="56" fill="url(#h' + uid + ')"/>' : '') +
-    /* THE CHASSIS — one outline, drawn once as material. */
-    '<path d="' + outline + '" fill="' + M + '"/>' +
-    /* D53 — A REAL UNDERSIDE. This was a full-strength copy of the outline
-       carrying clip-path="url(#w<uid>c)" — an id that is never defined,
-       because the .replace() meant to strip it was applied to the last
-       concatenated fragment rather than the whole string and matched nothing.
-       An undefined clip reference is handled differently across engines, so
-       the frame was either flatly darkened by 42% or the layer vanished. Both
-       are wrong and neither is the stated intent. The underside is now what
-       it always meant to be: the lower body falling into shadow. */
-    '<path d="' + outline + '" fill="url(#u' + uid + ')"/>' +
-    /* Bevel: an inset repeat of the same outline, so the edge turns. */
-    '<path d="' + framePath(pts, 0.905) + '" fill="none" stroke="' + metalLo +
-      '" stroke-opacity="0.55" stroke-width="1.6" stroke-linejoin="round"/>' +
-    /* Rim light along the top of the outline — the edge that faces the light. */
-    '<path d="' + framePath(pts, 0.965) + '" fill="none" stroke="' +
-      mixHex(v.metal[0], '#FFFFFF', 0.75) + '" stroke-opacity="0.42" stroke-width="1.2"' +
-      /* One arc, a quarter of the rim, starting off the top-left shoulder —
-         the same sweep on every rank instead of whatever 70 units happened to
-         cover. */
-      ' stroke-linejoin="round" stroke-dasharray="' + frameDashes(rimLen, 1, 0.25) +
-      '" stroke-dashoffset="' + (-rimLen * 0.07).toFixed(2) + '"/>' +
-    /* TRAINEE+: a second structural layer inside the frame. */
-    (tier >= 1 ? '<path d="' + framePath(pts, 0.84) + '" fill="none" stroke="' + M +
-      '" stroke-width="' + (tier >= 5 ? 3.4 : 2.2) + '" stroke-linejoin="round"/>' : '') +
-    /* COMPETITOR+: the ring reads as armour plate rather than a band. */
-    (tier >= 3 ? '<path d="' + framePath(pts, 0.84) + '" fill="none" stroke="#05070C"' +
-      ' stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="' +
-      frameDashes(plateLen, 14, 0.35) + '" stroke-linejoin="round"/>' : '') +
-    /* The chamber. */
-    '<circle cx="60" cy="60" r="30.5" fill="url(#w' + uid + ')"/>' +
-    '<circle cx="60" cy="60" r="30.5" fill="none" stroke="' + metalLo +
-      '" stroke-opacity="0.8" stroke-width="1.2"/>' +
-    /* ELITE+: a fine gem-lit halo around the chamber. */
-    (tier >= 4 ? '<circle cx="60" cy="60" r="26.5" fill="none" stroke="' + v.gem[0] +
-      '" stroke-opacity="0.30" stroke-width="1"/>' : '') +
-    /* MASTER and LEGEND had two engraved arcs here. They read as stray lines
-       across the chamber rather than as engraving, so the inner ring is left
-       clean — the extra sophistication at these ranks comes from the crown,
-       the crest and the second material, not from marks inside the well. */
-    /* LEGEND: the second material — a gold inlay following the crest. */
-    (apex ? '<path d="' + framePath(pts, 0.925) + '" fill="none" stroke="' + v.gem[1] +
-      '" stroke-opacity="0.5" stroke-width="1.4" stroke-linejoin="round"' +
-      ' stroke-dasharray="' + frameDashes(inlayLen, 1, 0.12) +
-      '" stroke-dashoffset="' + (-inlayLen * 0.06).toFixed(2) + '"/>' : '') +
-    /* THE STONE. */
-    '<g>' + rankGem(v, tier, uid) + '</g>' +
-    /* Its light spilling onto the chamber floor — concentric with the stone
-       and the well. A symmetric radial glow offset two units downward has no
-       direction to justify it and simply reads as a third misaligned layer. */
-    '<circle cx="60" cy="60" r="24" fill="' + v.gem[0] + '" fill-opacity="' +
-      (0.06 + v.glow * 0.22).toFixed(3) + '"/>' +
-    /* The showcase-only light pass, clipped to the emblem itself. */
-    (showcase ? '<g class="rank-shine" clip-path="url(#c' + uid + ')">' +
-      '<rect class="rank-shine-bar" x="-150" y="-30" width="66" height="180"' +
-      ' transform="rotate(18 60 60)" fill="url(#s' + uid + ')"/></g>' : '') +
-    '</g>' +
-  '</svg>';
+  const o = opts || {};
+  const file = RANK_EMBLEM_FILE[rankName] || RANK_EMBLEM_FILE.ROOKIE;
+  return '<img class="rank-medal' + (o.showcase ? ' rank-medal-lg' : '') +
+    '" src="' + file + '" width="' + size + '" height="' + size + '" alt="">';
 }
 
 /* ---------- the showcase ---------- */
@@ -29403,7 +29048,7 @@ function rankArrive(panel){
   rankCancel('arrival');
   if(!panel || typeof panel.querySelector !== 'function') return;
   const flat = rankReducedMotion();
-  const el = panel.querySelector(flat ? '.rank-medal-wrap' : '.rank-medal-wrap svg');
+  const el = panel.querySelector(flat ? '.rank-medal-wrap' : '.rank-medal-wrap img');
   if(!el || typeof el.animate !== 'function') return;
   try{
     _rankCar.arrival = flat
