@@ -14,7 +14,16 @@ certain but the end-to-end trigger was reasoned rather than executed.
 
 ---
 
-## E1 — Program weeks are numbered from two different anchors · P1 · PROVEN
+## E1 — Program weeks are numbered from two different anchors · P1 · **CLOSED in D89 (LOOP 9.1)**
+
+> **Closed.** One origin (`programWeekMonday`), two named quantities:
+> `programCalendarWeek` for WHERE a date sits in the layout, and
+> `getCurrentProgramWeek` for HOW FAR the athlete has got. Identical whenever
+> nothing has been banked by a pause. The fulfilment matcher, the progress
+> ratio, the planned-slot set and the end date all count from that one origin
+> now. See TRAINER-CONTRACT.md §111 and Contract 190. The original analysis is
+> kept below because it is what the fix was measured against.
+
 
 `getCurrentProgramWeek` (`index.html`, "week counted from the START DATE")
 counts weeks from the program's start date. `programDateFor` /
@@ -46,7 +55,13 @@ programs — a phase of its own, not a stabilization fix.
 
 ---
 
-## E2 — Every program mutation reports success before its write can land · P1 · PROVEN
+## E2 — Every program mutation reports success before its write can land · P1 · **CLOSED in D89 (LOOP 9.1)**
+
+> **Closed.** `commitProgramChange` snapshots the store, applies the change,
+> AWAITS the write, and restores the snapshot whole if the store refused it. All
+> eight mutators are async and every caller — app and suites — awaits them. See
+> TRAINER-CONTRACT.md §111 and Contract 190. Original analysis below.
+
 
 `createProgram`, `updateProgram`, `setActiveProgram`, `pauseProgram`,
 `resumeProgram`, `completeProgram`, the draft save/clear pair and the block
@@ -214,6 +229,32 @@ Four things worth a later pass, none exploitable as shipped:
 4. `loop_are_friends` and `loop_request_between` are unscoped two-UUID oracles.
 
 These are server-side and owner-applied; a client release cannot change them.
+
+---
+
+## E10 — A pause is banked in days, but the grid is pinned to weekdays · P2 · PROVEN *(raised by D89)*
+
+Found while closing E1, and deliberately left alone rather than folded into it.
+
+`pausedDays` is an integer count of days. It is subtracted by the athlete's week
+counter and added to the program's end date, and **ignored by the slot grid** —
+`programDateFor` has no `pausedDays` term and cannot sensibly have one, because
+shifting a weekday-pinned schedule by an arbitrary number of days lands Monday's
+session on a Thursday.
+
+So a program paused for two weeks keeps its slots on their original calendar
+dates. Those two weeks of opportunities sit in the past, unfulfilled, while the
+athlete's counter correctly says they are still in the week they left. Adherence
+is charged for sessions that were never trainable.
+
+D89 made both sides of the *matcher* pause-blind, which fixed the separate and
+worse defect where the shift window stopped working entirely from the third week
+of any paused program. It did not change what a pause means, and the contracted
+rule that paused time is not training time is untouched.
+
+Fixing this properly is a schedule-model decision, not a chronology one — either
+pauses are banked in whole weeks, or the grid gains a notion of suspended spans.
+Both change what a program *is*, which is why it is written down here instead.
 
 ---
 

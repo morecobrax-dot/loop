@@ -16065,6 +16065,26 @@ const LOOP_UPDATES = [
       'A workout in progress could lose its Resume button while still being saved on the device'
     ],
     changes: []
+  },
+  {
+    id: 'v9-1',
+    version: 'LOOP 9.1',
+    title: 'Program Weeks',
+    date: '2026-09-18',
+    swVersion: 'loop-v168',
+    summary: 'Programs that start mid-week now count their weeks, and your sessions, the same way a program started on a Monday does.',
+    newFeatures: [],
+    improvements: [
+      'A program week now means one thing everywhere in LOOP \u2014 the week your program lays out, whatever day you began on',
+      'If a change to a program cannot be saved to your device, LOOP says so instead of reporting success'
+    ],
+    bugFixes: [
+      'A session trained a day late could count as a missed session AND an extra one, but only if your program started mid-week',
+      'A program card could say you had logged more sessions than it had planned',
+      'A program that began mid-week counted sessions from the days before it started against you',
+      'An eight-week program ran two days past the end of its own eighth week'
+    ],
+    changes: []
   }
 ];
 
@@ -25810,7 +25830,7 @@ function hideWeekUndo(){
   if(_weekUndo && _weekUndo.timer) clearTimeout(_weekUndo.timer);
   _weekUndo = null;
 }
-function undoWeekMove(){
+async function undoWeekMove(){
   if(!_weekUndo || !_weekUndo.snapshot) return;
   const s = _weekUndo.snapshot;
   try{
@@ -25818,7 +25838,7 @@ function undoWeekMove(){
     Object.assign(schedule, s.schedule);
     persistSchedule();
     if(s.program){
-      updateProgram(s.program.id, { schedule: s.program.schedule });
+      await updateProgram(s.program.id, { schedule: s.program.schedule });
       invalidateProgramCache();
     }
   }catch(e){}
@@ -26903,7 +26923,7 @@ function leastUsedTemplateId(program, cat, exceptDay){
    layer and, when a program is active, that program's own entry — because the
    program is what every reader consults first. Writing one without the other
    is what made day edits silently do nothing. */
-function setScheduledCategory(dayKey, cat){
+async function setScheduledCategory(dayKey, cat){
   if(!dayKey || !schedule) return;
   schedule[dayKey] = cat;
   persistSchedule();
@@ -26919,7 +26939,7 @@ function setScheduledCategory(dayKey, cat){
           ? { type:'workout', planId:selectedPlanId, category:cat, templateId:tplId }
           : { type:'rest' };
       }
-      updateProgram(p.id, { schedule: next });
+      await updateProgram(p.id, { schedule: next });
       invalidateProgramCache();
     }
   }catch(e){ /* the plan layer above still stands on its own */ }
@@ -26927,7 +26947,7 @@ function setScheduledCategory(dayKey, cat){
 
 /* Swapping two days has to move BOTH layers, or the program keeps the old week
    while the plan claims the new one. */
-function swapScheduledDays(a, b){
+async function swapScheduledDays(a, b){
   if(!a || !b || a === b || !schedule) return;
   const tmp = schedule[a];
   schedule[a] = schedule[b];
@@ -26940,7 +26960,7 @@ function swapScheduledDays(a, b){
       const ta = next[a];
       next[a] = next[b] || { type:'rest' };
       next[b] = ta || { type:'rest' };
-      updateProgram(p.id, { schedule: next });
+      await updateProgram(p.id, { schedule: next });
       invalidateProgramCache();
     }
   }catch(e){}
@@ -34350,6 +34370,54 @@ async function persistPrograms(){
   catch(e){ return false; }
 }
 
+/* =========================================================
+   ONE COMMIT PATH FOR EVERY PROGRAM CHANGE  (Phase D89)
+   ---------------------------------------------------------
+   D88 finding E2: every program mutator was a SYNCHRONOUS function
+   that called an ASYNCHRONOUS persistPrograms() without awaiting it
+   and then returned ok:true in the same tick. That return value was
+   structurally incapable of describing the write. On a device whose
+   store refused it, the builder reported success and switched the
+   athlete onto a new program, Today began prescribing from it, and
+   on the next launch the program did not exist.
+
+   Rather than eight hand-written rollbacks — where the one field
+   somebody forgets is the one that corrupts the store — the whole
+   programsStore is snapshotted, the change is applied in memory,
+   the write is AWAITED, and on refusal the snapshot is put back
+   whole. A mutation that declines (returns false / ok:false) never
+   reaches the store at all.
+
+   The rule this enforces is the one the cardio paths have always
+   followed and the program layer did not: nothing tells the athlete
+   a program was saved unless it is actually on the device. */
+const PROGRAM_SAVE_REFUSED = 'That change could not be saved to this device.';
+
+async function commitProgramChange(apply){
+  const snapshot = JSON.stringify(programsStore);
+  const restore = () => {
+    try{ programsStore = JSON.parse(snapshot); }catch(e){}
+    invalidateProgramCache();
+  };
+  let outcome;
+  try{ outcome = apply(); }
+  catch(e){ restore(); throw e; }
+  // The mutation itself declined — nothing changed, so there is nothing to write.
+  if(outcome === false || (outcome && outcome.ok === false)) return outcome;
+  invalidateProgramCache();
+  let saved = false;
+  try{ saved = await persistPrograms(); }catch(e){ saved = false; }
+  if(saved === true) return outcome;
+  restore();
+  /* Both shapes, because the program mutators report `errors` (an array) and
+     §106's block action reports `error` (a string). A refusal has to be legible
+     to whichever one called. */
+  if(outcome && typeof outcome === 'object')
+    return Object.assign({}, outcome, { ok:false, saved:false,
+      errors:[PROGRAM_SAVE_REFUSED], error:PROGRAM_SAVE_REFUSED, program:null });
+  return false;
+}
+
 /* ---------- THE PROGRAM DRAFT, DURABLY  (Phase D51C) ----------
    A draft is an unfinished program the athlete is still shaping. Before this
    it lived in `pbState` and nowhere else, so closing the builder, switching
@@ -34371,14 +34439,21 @@ function getStoredProgramDraft(){
   const d = programsStore.draft;
   return (d && d.draft) ? d : null;
 }
-function saveProgramDraft(record){
+/* D89 — the draft is hours of an athlete's authoring work, so its write is
+   reported too. It deliberately does NOT roll the draft out of memory when the
+   store refuses: the builder is still open and the athlete is still editing,
+   and throwing their work away to match a failed disk write would be the very
+   loss this is meant to report. The answer travels; the draft stays. */
+async function saveProgramDraft(record){
   programsStore.draft = record;
-  persistPrograms();
+  return (await persistPrograms()) === true;
 }
-function clearProgramDraft(){
+async function clearProgramDraft(){
   if(!programsStore.draft) return false;
+  const kept = programsStore.draft;
   delete programsStore.draft;
-  persistPrograms();
+  const saved = await persistPrograms();
+  if(saved !== true){ programsStore.draft = kept; return false; }
   return true;
 }
 
@@ -34414,12 +34489,77 @@ function daysBetweenDates(fromStr, toStr){
   if(isNaN(a) || isNaN(b)) return null;
   return Math.round((b - a) / 86400000);
 }
+/* =========================================================
+   PROGRAM TIME  (Phase D89)
+   ---------------------------------------------------------
+   ONE ORIGIN. A program's weeks are laid out from the MONDAY of
+   the civil week containing its start date. That was already the
+   rule programDateFor documented and built the slot grid from;
+   it has to be, because a program's schedule is a map of WEEKDAYS
+   (mon, tue, …) and a weekday only means something inside a civil
+   week. This helper is that origin, named once, so the grid and
+   everything that reads the grid cannot drift apart again.
+
+   TWO QUANTITIES, BOTH COUNTED FROM IT, DELIBERATELY NOT THE SAME:
+
+     programCalendarWeek(p, date)  WHERE a date sits in the
+       program's layout. The exact inverse of programDateFor.
+       Pause-blind, because the grid is: a schedule pinned to
+       weekdays cannot slide by a number of days without landing
+       Monday's session on a Thursday. This is the canonical
+       answer to "which program week is this date in?", and it is
+       what a planned slot's own .week means.
+
+     getCurrentProgramWeek(p, today)  HOW FAR THE ATHLETE HAS GOT,
+       which is the calendar week less the time the program spent
+       paused, frozen while it is paused, and clamped to the
+       program's length. Paused time is not training time — that
+       is a contracted product rule, not an implementation detail.
+
+   With pausedDays === 0, which is every program that was never
+   paused, THE TWO ARE IDENTICAL. They diverge only by banked
+   paused time, which is the one difference that is meant to exist.
+
+   D88 finding E1 was that these two were counted from DIFFERENT
+   origins — the grid from Monday, the counter from the start date
+   — so for any program not started on a Monday they disagreed for
+   part of every week. That is what let a session trained one day
+   late read as a missed session PLUS an extra one, and what let
+   the card render "4 of 3 planned sessions logged".
+   ========================================================= */
+function programWeekMonday(program){
+  if(!program || !program.startDate) return null;
+  const start = new Date(program.startDate + 'T00:00:00');
+  if(isNaN(start.getTime())) return null;
+  const startIdx = (start.getDay() + 6) % 7;            // Monday = 0
+  const monday = new Date(start);
+  monday.setDate(monday.getDate() - startIdx);
+  return localDateStr(monday);
+}
+
+/* WHERE a civil date sits in the program's own layout. The inverse of
+   programDateFor: programCalendarWeek(p, programDateFor(p, w, k)) === w for
+   every week w and weekday k the grid contains. Unclamped on purpose — a
+   caller that needs "no later than the last week" says so itself, and a date
+   past the end must not silently read as the final week. */
+function programCalendarWeek(program, dateStr){
+  const monday = programWeekMonday(program);
+  if(!monday || !dateStr) return null;
+  const n = daysBetweenDates(monday, dateStr);
+  if(n === null) return null;
+  return Math.floor(n / 7) + 1;
+}
+
 function getCurrentProgramWeek(program, todayStr){
   const p = program || getActiveProgram();
   if(!p || !p.startDate) return null;
   // While paused the week freezes at the day it was paused.
   const ref = (p.status === 'paused' && p.pausedOnDate) ? p.pausedOnDate : (todayStr || localDateStr());
-  const raw = daysBetweenDates(p.startDate, ref);
+  /* D89 — counted from the same Monday the grid is, so that with no paused
+     time this is exactly programCalendarWeek. It used to count from the start
+     date, which is why it lagged the grid by the start weekday's offset. */
+  const monday = programWeekMonday(p);
+  const raw = monday === null ? null : daysBetweenDates(monday, ref);
   if(raw === null) return null;
   const elapsed = raw - (p.pausedDays || 0);
   if(elapsed < 0) return 1;                       // starts in the future
@@ -34784,6 +34924,16 @@ function getProgramProgress(program, todayStr){
   const _extra = _fulfil.additional;
   const perWeek = programTrainingDayCount(p);
   const weeksElapsed = Math.max(0, Math.min(week === null ? 0 : week, p.durationWeeks));
+  /* D89 — planned-to-date is COUNTED FROM THE SAME SLOTS the numerator filters,
+     not multiplied out of a week number. perWeek * weeksElapsed used the
+     pause-aware training week while `completed` counted grid slots dated up to
+     today, so the two described different populations and a program started
+     mid-week could render "4 of 3 planned sessions logged". §66's rule is that
+     both sides describe planned sessions; counting the same array twice is the
+     only way that stays true, and it cannot exceed by construction. */
+  const plannedToDate = _fulfil.planningKnown
+    ? (_fulfil.slots || []).filter(x => x.date <= today && (!endStr || x.date <= endStr)).length
+    : perWeek * weeksElapsed;
   const value = {
     week, totalWeeks: p.durationWeeks,
     blockName: block ? block.name : null,
@@ -34791,8 +34941,10 @@ function getProgramProgress(program, todayStr){
     completedSessions: completed,
     additionalSessions: _extra,
     planningKnown: _fulfil.planningKnown,
-    plannedSessions: perWeek * weeksElapsed,
-    totalPlannedSessions: perWeek * p.durationWeeks,
+    plannedSessions: plannedToDate,
+    /* The whole program's ask, likewise counted rather than multiplied, so a
+       mid-week start's shortened first week is reflected here too. */
+    totalPlannedSessions: _fulfil.planningKnown ? _fulfil.planned : perWeek * p.durationWeeks,
     status: p.status
   };
   _programProgressCache = { key, value };
@@ -34800,7 +34952,15 @@ function getProgramProgress(program, todayStr){
 }
 function programEndDate(program){
   if(!program || !program.startDate) return null;
-  const d = new Date(program.startDate + 'T00:00:00');
+  /* D89 — the program ends when its own grid does. Counting durationWeeks * 7
+     from the START DATE ran the program past the last day the grid contains,
+     by exactly the start weekday's offset from Monday: an 8-week program begun
+     on a Wednesday reported an end date two days after its own final Sunday.
+     Banked paused time is still added on, because a paused program genuinely
+     has that much longer to run. */
+  const monday = programWeekMonday(program);
+  if(!monday) return null;
+  const d = new Date(monday + 'T00:00:00');
   if(isNaN(d)) return null;
   d.setDate(d.getDate() + program.durationWeeks * 7 - 1 + (program.pausedDays || 0));
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -34924,7 +35084,12 @@ function validateProgram(input){
 function newProgramId(){ return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7); }
 function newBlockId(){ return 'b_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7); }
 
-function createProgram(input){
+/* D89 — async, and the ok it returns now describes the WRITE, not merely the
+   validation. See commitProgramChange. */
+async function createProgram(input){
+  return commitProgramChange(() => createProgramInMemory(input));
+}
+function createProgramInMemory(input){
   const draft = Object.assign({
     name:'', goal:null, durationWeeks:8, schedule:{}, blocks:[], startDate: localDateStr()
   }, input || {});
@@ -34978,14 +35143,15 @@ function createProgram(input){
   };
   programsStore.programs.push(program);
   programsStore.activeProgramId = program.id;      // a new program becomes active
-  invalidateProgramCache();
-  persistPrograms();
   return { ok:true, errors:[], program };
 }
 
 /* Edits affect FUTURE planning only. No workout in workoutLog is touched,
    and no completed session is reinterpreted. */
-function updateProgram(programId, patch){
+async function updateProgram(programId, patch){
+  return commitProgramChange(() => updateProgramInMemory(programId, patch));
+}
+function updateProgramInMemory(programId, patch){
   const p = getProgram(programId);
   if(!p) return { ok:false, errors:['Program not found'], program:null };
   const merged = Object.assign({}, p, patch || {});
@@ -35016,32 +35182,12 @@ function updateProgram(programId, patch){
   try{ refreshProgramName(p); }catch(e){}
   p.durationWeeks = parseInt(p.durationWeeks, 10);
   p.updatedAt = new Date().toISOString();
-  invalidateProgramCache();
-  persistPrograms();
   return { ok:true, errors:[], program:p };
 }
 
-function setActiveProgram(programId){
-  const p = getProgram(programId);
-  if(!p) return false;
-  programsStore.activeProgramId = programId;
-  if(p.status === 'paused') resumeProgram(programId);
-  invalidateProgramCache();
-  persistPrograms();
-  return true;
-}
-function pauseProgram(programId){
-  const p = getProgram(programId || programsStore.activeProgramId);
-  if(!p || p.status !== 'active') return false;
-  p.status = 'paused';
-  p.pausedOnDate = localDateStr();
-  p.updatedAt = new Date().toISOString();
-  invalidateProgramCache();
-  persistPrograms();
-  return true;
-}
-function resumeProgram(programId){
-  const p = getProgram(programId || programsStore.activeProgramId);
+/* Resuming in memory only. setActiveProgram needs this work WITHOUT a second
+   commit inside its own, so the rule lives here and both callers share it. */
+function resumeProgramInMemory(p){
   if(!p || p.status !== 'paused') return false;
   // Time spent paused is added on, so the athlete resumes at the week they
   // left rather than being pushed forward by the calendar.
@@ -35052,33 +35198,55 @@ function resumeProgram(programId){
   p.pausedOnDate = null;
   p.status = 'active';
   p.updatedAt = new Date().toISOString();
-  invalidateProgramCache();
-  persistPrograms();
   return true;
 }
-function completeProgram(programId){
-  const p = getProgram(programId || programsStore.activeProgramId);
-  if(!p || p.status === 'completed') return false;
-  p.status = 'completed';
-  p.completedAt = new Date().toISOString();
-  p.updatedAt = p.completedAt;
-  if(programsStore.activeProgramId === p.id) programsStore.activeProgramId = null;
-  invalidateProgramCache();
-  persistPrograms();
-  return true;
+
+async function setActiveProgram(programId){
+  return commitProgramChange(() => {
+    const p = getProgram(programId);
+    if(!p) return false;
+    programsStore.activeProgramId = programId;
+    if(p.status === 'paused') resumeProgramInMemory(p);
+    return true;
+  });
+}
+async function pauseProgram(programId){
+  return commitProgramChange(() => {
+    const p = getProgram(programId || programsStore.activeProgramId);
+    if(!p || p.status !== 'active') return false;
+    p.status = 'paused';
+    p.pausedOnDate = localDateStr();
+    p.updatedAt = new Date().toISOString();
+    return true;
+  });
+}
+async function resumeProgram(programId){
+  return commitProgramChange(() => {
+    const p = getProgram(programId || programsStore.activeProgramId);
+    return resumeProgramInMemory(p);
+  });
+}
+async function completeProgram(programId){
+  return commitProgramChange(() => {
+    const p = getProgram(programId || programsStore.activeProgramId);
+    if(!p || p.status === 'completed') return false;
+    p.status = 'completed';
+    p.completedAt = new Date().toISOString();
+    p.updatedAt = p.completedAt;
+    if(programsStore.activeProgramId === p.id) programsStore.activeProgramId = null;
+    return true;
+  });
 }
 /* Programs are never removed as a side effect of anything — only an explicit
    delete removes one, and completed programs stay in history by default. */
-function deleteProgram(programId){
-  const before = (programsStore.programs || []).length;
-  programsStore.programs = (programsStore.programs || []).filter(p => p && p.id !== programId);
-  const removed = programsStore.programs.length !== before;
-  if(removed){
+async function deleteProgram(programId){
+  return commitProgramChange(() => {
+    const before = (programsStore.programs || []).length;
+    programsStore.programs = (programsStore.programs || []).filter(p => p && p.id !== programId);
+    if(programsStore.programs.length === before) return false;
     if(programsStore.activeProgramId === programId) programsStore.activeProgramId = null;
-    invalidateProgramCache();
-    persistPrograms();
-  }
-  return removed;
+    return true;
+  });
 }
 
 /* Structural summary shown when the last week is done. Uses only metrics that
@@ -35195,7 +35363,7 @@ function getPhaseProgress(program, todayStr){
 /* ---------- EDITING ----------
    Phases live inside the program's own blocks array, so every edit goes
    through updateProgram() and inherits its validation. No second store. */
-function addProgramPhase(programId, input){
+async function addProgramPhase(programId, input){
   const p = getProgram(programId);
   if(!p) return { ok:false, errors:['Program not found'] };
   const blocks = sortedProgramPhases(p).slice();
@@ -35211,7 +35379,7 @@ function addProgramPhase(programId, input){
   });
   return updateProgram(programId, { blocks: renumberPhases(blocks) });
 }
-function updateProgramPhase(programId, blockId, patch){
+async function updateProgramPhase(programId, blockId, patch){
   const p = getProgram(programId);
   if(!p) return { ok:false, errors:['Program not found'] };
   const blocks = sortedProgramPhases(p).map(b => b.id === blockId ? Object.assign({}, b, patch || {}) : Object.assign({}, b));
@@ -35221,7 +35389,7 @@ function updateProgramPhase(programId, blockId, patch){
   target.endWeek = parseInt(target.endWeek, 10);
   return updateProgram(programId, { blocks: renumberPhases(blocks) });
 }
-function deleteProgramPhase(programId, blockId){
+async function deleteProgramPhase(programId, blockId){
   const p = getProgram(programId);
   if(!p) return { ok:false, errors:['Program not found'] };
   const blocks = sortedProgramPhases(p).filter(b => b.id !== blockId);
@@ -35236,7 +35404,7 @@ function renumberPhases(blocks){
 }
 /* Moving a phase swaps its week range with its neighbour's, keeping every
    phase the same length and the program continuous. */
-function moveProgramPhase(programId, blockId, direction){
+async function moveProgramPhase(programId, blockId, direction){
   const p = getProgram(programId);
   if(!p) return { ok:false, errors:['Program not found'] };
   const blocks = sortedProgramPhases(p);
@@ -35430,7 +35598,7 @@ function setPhaseType(id){
   const desc = document.getElementById('phaseDesc');
   if(desc) desc.placeholder = (getProgramPhase(id)||{}).purpose || '';
 }
-function submitPhaseEditor(){
+async function submitPhaseEditor(){
   const p = getProgram(detailProgramId);
   if(!p) return;
   const patch = {
@@ -35441,20 +35609,20 @@ function submitPhaseEditor(){
     description: document.getElementById('phaseDesc').value
   };
   const res = editingPhaseId
-    ? updateProgramPhase(detailProgramId, editingPhaseId, patch)
-    : addProgramPhase(detailProgramId, patch);
+    ? await updateProgramPhase(detailProgramId, editingPhaseId, patch)
+    : await addProgramPhase(detailProgramId, patch);
   const err = document.getElementById('phaseError');
   if(!res.ok){ if(err) err.textContent = res.errors.join(' · '); return; }
   closePhaseEditor();
 }
-function doDeletePhase(){
+async function doDeletePhase(){
   if(!editingPhaseId) return;
   if(!confirm('Delete this phase? The program and your history are not affected.')) return;
-  deleteProgramPhase(detailProgramId, editingPhaseId);
+  await deleteProgramPhase(detailProgramId, editingPhaseId);
   closePhaseEditor();
 }
-function doMovePhase(blockId, dir){
-  moveProgramPhase(detailProgramId, blockId, dir);
+async function doMovePhase(blockId, dir){
+  await moveProgramPhase(detailProgramId, blockId, dir);
   renderProgramDetail();
 }
 function doAddPhase(){ openPhaseEditor(null); }
@@ -37317,7 +37485,11 @@ function pbUsableStoredDraft(){
   if(!rec || !rec.draft || !rec.draft.schedule) return null;
   if(rec.mode === 'edit'){
     const prog = rec.editingId ? getProgram(rec.editingId) : null;
-    if(!prog || prog.status === 'completed'){ clearProgramDraft(); return null; }
+    if(!prog || prog.status === 'completed'){
+      // housekeeping only; see note above. Never left as a bare floating promise.
+      Promise.resolve(clearProgramDraft()).catch(() => {});
+      return null;
+    }
   }
   return rec;
 }
@@ -37380,8 +37552,8 @@ function openProgramBuilderFlow(mode){
    twice — activation offered to resume a program that was already running, and
    Discard did not discard. Both callers now end the draft rather than delete
    half of it. */
-function pbEndDraft(){
-  clearProgramDraft();
+async function pbEndDraft(){
+  await clearProgramDraft();
   if(pbState){ pbState.draft = null; pbState.edited = false; }
 }
 
@@ -37416,10 +37588,11 @@ function pbStartOver(){
 
 /* Discard from inside the studio. Removes the draft and nothing else — the
    active program and every workout stay exactly as they were. */
-function pbDiscardDraft(){
+async function pbDiscardDraft(){
   if(!pbState) return;
   if(!confirm('Discard this draft? Your training history and current program are not affected.')) return;
-  pbEndDraft();
+  // D89 — awaited, so the draft is gone from the DEVICE before the builder closes.
+  await pbEndDraft();
   pbClose();
 }
 
@@ -37910,12 +38083,12 @@ function pbRegenerateDraft(fresh){
    which session is expanded, scroll position, the step the athlete was on,
    and every other piece of screen state — none of it is their work, and
    restoring it would only make resuming feel stale. */
-function pbPersistDraft(){
+async function pbPersistDraft(){
   /* Only work worth resuming is stored. A draft nobody has touched is
      reproducible from the answers, so keeping it would mean offering to
      resume something the athlete never made. */
   if(!pbState || !pbState.draft || !pbState.edited) return;
-  saveProgramDraft({
+  await saveProgramDraft({
     answers: pbState.answers,
     known: pbState.known,
     mode: pbState.mode,
@@ -39976,7 +40149,7 @@ async function pbCommit(btn){
     /* Editing changes what is PLANNED. The start date is deliberately left
        alone: moving it would silently re-date every week the athlete has
        already trained through. */
-    result = updateProgram(pbState.editingId, {
+    result = await updateProgram(pbState.editingId, {
       name: def.name, nameByAthlete: def.nameByAthlete,
       split: def.split, splitByAthlete: def.splitByAthlete,
       goal: def.goal, durationWeeks: def.durationWeeks,
@@ -39987,7 +40160,7 @@ async function pbCommit(btn){
       applyFrom: pbState.applyFrom === 'next' ? 'next' : 'week'
     });
   } else {
-    result = createProgram({
+    result = await createProgram({
       name: def.name, nameByAthlete: def.nameByAthlete,
       split: def.split, splitByAthlete: def.splitByAthlete,
       goal: def.goal, durationWeeks: def.durationWeeks,
@@ -40947,9 +41120,20 @@ const PLAN_SHIFT_DAYS = 2;
 let _planFulfillCache = null;
 
 /* Every planned session this program actually prescribes, as calendar
-   slots. Derived from the program’s own schedule and its week arithmetic,
-   so a paused program produces no phantom slots — the week count is
-   already frozen by getCurrentProgramWeek while paused. */
+   slots. Derived from the program’s own schedule and its week arithmetic.
+
+   D89 — THE GRID IS PAUSE-BLIND, and the paragraph that used to sit here
+   claimed otherwise: it said a paused program produces no phantom slots
+   "because the week count is already frozen by getCurrentProgramWeek while
+   paused". This function has never called getCurrentProgramWeek. The claim
+   was not merely inert — believing it is what left pass 2 of the matcher
+   comparing a pause-adjusted week against a slot week that never moves, so
+   for a paused program the shift window stopped working entirely from the
+   third week on. Slots keep their calendar dates through a pause; what a
+   pause moves is the athlete's progress through them, which is
+   getCurrentProgramWeek's business and not this one's. The remaining
+   limitation is recorded in FINDINGS-D88.md rather than described wrongly
+   here. */
 function programPlannedSlots(program){
   const out = [];
   if(!program || !program.startDate) return out;
@@ -40968,6 +41152,15 @@ function programPlannedSlots(program){
          too. Asking each day what was planned for THAT day makes the guarantee
          structural: a revision effective from a date cannot alter any date
          before it, whatever granularity it was created at. */
+      /* D89 — a program cannot have asked for a session before it existed.
+         Week 1 runs from the Monday of the start date's week, so a program
+         started on a Wednesday has week-1 slots on the Monday and Tuesday
+         BEFORE it began. Those were counted as planned sessions and could
+         never be fulfilled, permanently capping adherence below 100% for
+         every athlete who did not happen to start on a Monday. The grid still
+         contains those days — programDateFor is unchanged, and the week still
+         starts on its Monday — they are simply not opportunities. */
+      if(date < program.startDate) return;
       const e = programPlanOn(program, date)[k];
       if(!e || e.type !== 'workout') return;
       out.push({ week:w, dayKey:k, date, category:e.category || null, workoutId:null });
@@ -41084,8 +41277,16 @@ function deriveProgramPlanFulfillment(program, log){
   }
   out.planningKnown = true;
 
+  /* D89 — the shift pass compares a workout's week against slot.week, and
+     slot.week is a CALENDAR week: programPlannedSlots numbers its slots by the
+     grid. Asking getCurrentProgramWeek for the workout's week compared the two
+     different anchors of D88's finding E1, so for any program not started on a
+     Monday a session trained one day late fell outside the slot's week and
+     read as a missed session plus an extra one. Both sides now count from the
+     same origin. Pause-blind on purpose: a slot's week never moves, so the
+     week a date is compared against must not move either. */
   const used = assignWorkoutsToPlannedSlots(slots, members,
-    d => getCurrentProgramWeek(program, d));
+    d => programCalendarWeek(program, d));
 
   out.fulfilled = slots.filter(x => x.workoutId).length;
   out.unfulfilled = out.planned - out.fulfilled;
@@ -41542,7 +41743,13 @@ function deriveBlockState(program, todayStr){
    transitions CYCLE_MOVES names, and a repeated tap finds the move already
    made and is refused. `opts.today` exists for the contracts; the product
    never passes it. */
-function applyBlockAction(programId, action, opts){
+/* D89 — §106's single write path now reports the WRITE. A block transition the
+   store refused used to return ok:true, so the athlete was told their deload
+   had started and the block's own record said otherwise on the next launch. */
+async function applyBlockAction(programId, action, opts){
+  return commitProgramChange(() => applyBlockActionInMemory(programId, action, opts));
+}
+function applyBlockActionInMemory(programId, action, opts){
   const o = opts || {};
   const p = getProgram(programId);
   if(!p) return { ok: false, error: 'Program not found' };
@@ -41610,7 +41817,6 @@ function applyBlockAction(programId, action, opts){
   p.cycle = c;
   p.updatedAt = at;
   invalidateProgramCache();
-  persistPrograms();
   return { ok: true, program: p, state: deriveBlockState(p, today) };
 }
 
@@ -42780,11 +42986,11 @@ function blockPhaseBefore(program, st){
   const ph = trainingPhaseOn(program, day, without);
   return ph && ph.phase !== 'deload' ? ph.phase : 'accumulation';
 }
-function confirmBlockAction(btn){
+async function confirmBlockAction(btn){
   const pend = blockActionPending;
   if(!pend || (btn && btn.disabled)) return;
   if(btn) btn.disabled = true;
-  const r = applyBlockAction(pend.programId, pend.action, { suggested: pend.suggested });
+  const r = await applyBlockAction(pend.programId, pend.action, { suggested: pend.suggested });
   if(!r.ok){
     if(btn) btn.disabled = false;
     alert(r.error || 'That did not save. Nothing changed.');
@@ -42795,12 +43001,12 @@ function confirmBlockAction(btn){
   if(ov && ov.classList.contains('open')) renderFoundationDetail();
   renderToday();
 }
-function declineDeloadSuggestion(btn){
+async function declineDeloadSuggestion(btn){
   if(btn && btn.disabled) return;
   const f = deriveTrainingFoundation();
   if(!f || f.kind !== 'program' || !f.block.suggest) return;
   if(btn) btn.disabled = true;
-  const r = applyBlockAction(f.program.id, 'decline');
+  const r = await applyBlockAction(f.program.id, 'decline');
   if(!r.ok && btn) btn.disabled = false;
   renderToday();
 }
@@ -42911,7 +43117,7 @@ function renderProgramBuilder(){
       : `<div class="pnote">This plan has no multi-day structure to start from. Pick another plan.</div>`}
     <div class="pnote" id="builderError"></div>`;
 }
-function submitProgramBuilder(){
+async function submitProgramBuilder(){
   if(!builderDraft) return;
   const nameEl = document.getElementById('builderName');
   if(nameEl) builderDraft.name = nameEl.value;
@@ -42935,7 +43141,7 @@ function submitProgramBuilder(){
     schedule[day] = { type:'workout', planId:builderDraft.planId, category:cat, templateId:list[idx].id };
   });
 
-  const res = createProgram({
+  const res = await createProgram({
     name: builderDraft.name, goal: builderDraft.goal,
     durationWeeks: builderDraft.durationWeeks, schedule: schedule
   });
@@ -43067,16 +43273,16 @@ function programDayState(program, dayKey, week){
 /* The calendar date of a given day in a given program week. */
 function programDateFor(program, week, dayKey){
   const idx = PROGRAM_DAY_KEYS.indexOf(dayKey);
-  if(idx === -1 || !program.startDate) return null;
-  const start = new Date(program.startDate + 'T00:00:00');
-  if(isNaN(start.getTime())) return null;
+  if(idx === -1 || !program || !program.startDate) return null;
   /* Week 1 is the week containing the start date, counted from its Monday, so
      a program that starts on a Wednesday still has a Monday in week 1 — it is
-     simply in the past and therefore never marked missed. */
-  const startIdx = (start.getDay() + 6) % 7;            // Monday = 0
-  const monday = new Date(start);
-  monday.setDate(monday.getDate() - startIdx);
-  const d = new Date(monday);
+     simply in the past, and D89 stops it being counted as a session anyone
+     failed to do. The origin is programWeekMonday, shared with
+     programCalendarWeek and getCurrentProgramWeek so the layout and the
+     counters cannot disagree about where a week starts. */
+  const monday = programWeekMonday(program);
+  if(!monday) return null;
+  const d = new Date(monday + 'T00:00:00');
   d.setDate(d.getDate() + (week - 1) * 7 + idx);
   return localDateStr(d);
 }
@@ -43236,9 +43442,9 @@ function mtResumeDraft(){
   if(pbState && pbState.resume) pbResumeContinue();
 }
 
-function mtDiscardDraft(){
+async function mtDiscardDraft(){
   if(!confirm('Discard this draft? Your training history and current program are not affected.')) return;
-  clearProgramDraft();
+  await clearProgramDraft();
   renderMyTraining();
 }
 
@@ -43878,7 +44084,7 @@ function renderTrainingSetup(){
 
 /* Writes the schedule, and nothing else. Historical training is never touched —
    this changes what LOOP will ask for next, not what already happened. */
-function applyTrainingSetup(){
+async function applyTrainingSetup(){
   if(!setupDraft || !setupDraft.days.length) return;
   const week = buildTrainingWeek(setupDraft.planId, setupDraft.days);
   DAY_ORDER.forEach(d => {
@@ -43894,10 +44100,10 @@ function applyTrainingSetup(){
      and start date survive. */
   try{
     if(hasActiveProgram()){
-      updateProgram(getActiveProgram().id, { schedule: week });
+      await updateProgram(getActiveProgram().id, { schedule: week });
     } else {
       const plan = DEFAULT_PLANS[setupDraft.planId];
-      createProgram({
+      await createProgram({
         name: plan ? plan.name : 'My Training',
         goal: (athleteProfile && athleteProfile.goal) || null,
         durationWeeks: 8,
@@ -43985,7 +44191,7 @@ function renderProgramDetail(){
 function doPauseProgram(){ pauseProgram(detailProgramId); renderProgramDetail(); }
 function doResumeProgram(){ resumeProgram(detailProgramId); renderProgramDetail(); }
 function doActivateProgram(){ setActiveProgram(detailProgramId); renderProgramDetail(); }
-function doCompleteProgram(){
+async function doCompleteProgram(){
   /* D40 — one program-history calculator. This used to call a pre-D38
      summary that attributed workouts to a program by date alone, so the
      alert could report a different workout and PR count than the
@@ -43994,13 +44200,13 @@ function doCompleteProgram(){
      date fallback that never claims a session another program owns. */
   const dp = getProgram(detailProgramId);
   const s = dp ? deriveProgramCompletion(dp, localDateStr()) : null;
-  completeProgram(detailProgramId);
+  await completeProgram(detailProgramId);
   renderProgramDetail();
   if(s) alert(`Program complete — ${s.name}\n\n${s.weeks} weeks\n${s.completedSessions} workouts\n${s.prs} record${s.prs===1?'':'s'}`);
 }
-function doDeleteProgram(){
+async function doDeleteProgram(){
   if(!confirm('Delete this program? Your workout history is not affected.')) return;
-  deleteProgram(detailProgramId);
+  await deleteProgram(detailProgramId);
   closeProgramDetail();
   openPrograms();
 }

@@ -529,7 +529,7 @@ async function run(){
     const schedule = { mon: entry('push'), tue: { type: 'rest' }, wed: entry('pull'), thu: { type: 'rest' },
       fri: entry('legs'), sat: { type: 'rest' }, sun: { type: 'rest' } };
     ctx.programsStore = { version: 1, activeProgramId: null, programs: [] };
-    const made = ctx.createProgram({ name: 'DST Block', durationWeeks: 12, goal: 'strength', startDate: '2026-02-23', schedule });
+    const made = await ctx.createProgram({ name: 'DST Block', durationWeeks: 12, goal: 'strength', startDate: '2026-02-23', schedule });
     const p = made.program;
     for(let i = 0; i < 70; i++){
       const day = oracleAdd('2026-02-23', i);

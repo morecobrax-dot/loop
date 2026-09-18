@@ -330,14 +330,15 @@ function oracleTemplate(ctx, entry) {
   section('11b. Named program combinations, built and read back');
 
   const combos = [[4,3],[4,4],[6,4],[6,5],[8,3],[8,4],[8,6]];
-  combos.forEach(([weeks, freq]) => {
+  // D89 — for..of: createProgram/deleteProgram await their writes now.
+  for(const [weeks, freq] of combos){
     const label = weeks + 'wk/' + freq + 'day';
     const days = ctx.builderDefaultDays(freq);
     const def = ctx.generateProgram({ weeks, days, goal:'hypertrophy', equipment:'full' });
-    const res = ctx.createProgram({ name: def.name, goal: def.goal,
+    const res = await ctx.createProgram({ name: def.name, goal: def.goal,
       durationWeeks: def.durationWeeks, schedule: def.schedule, blocks: def.blocks,
       startDate: '2026-08-05' });                       // a Wednesday, deliberately
-    if (!ok(label + ' saves', res.ok, (res.errors || []).join('; '))) return;
+    if (!ok(label + ' saves', res.ok, (res.errors || []).join('; '))) continue;
     const prog = res.program;
 
     ok(label + ' keeps its length', prog.durationWeeks === weeks, String(prog.durationWeeks));
@@ -370,8 +371,8 @@ function oracleTemplate(ctx, entry) {
     ok(label + ' Today sees the same days the program has',
       DAYS.filter(k => synced[k] !== 'rest').join(',') === oracleWorkoutDays(prog).join(','));
 
-    ctx.deleteProgram(prog.id);                         // fixture store, not the user's
-  });
+    await ctx.deleteProgram(prog.id);                         // fixture store, not the user's
+  }
 
   /* ---------- 13. EXPLAINABILITY  (Phase D34) ----------
      Every combination must produce a coherent, truthful explanation. The
@@ -663,7 +664,7 @@ function oracleTemplate(ctx, entry) {
   {
     const orig = ctx.generateProgram({ goal:'hypertrophy', equipment:'full', emphasis:'chest',
       sessionLength:'short', weeks:8, days:['mon','tue','thu','fri'] });
-    const res = ctx.createProgram({ name: orig.name, goal: orig.goal,
+    const res = await ctx.createProgram({ name: orig.name, goal: orig.goal,
       durationWeeks: orig.durationWeeks, schedule: orig.schedule, blocks: orig.blocks,
       startDate: '2026-08-05', emphasis: orig.emphasis, sessionLength: orig.sessionLength });
     ok('shaping inputs persist with the program', res.ok
@@ -681,7 +682,7 @@ function oracleTemplate(ctx, entry) {
     const legacyExpl = ctx.deriveProgramExplanation(legacy);
     ok('a legacy program without metadata still explains itself',
       !!legacyExpl && !!legacyExpl.headline && legacyExpl.emphasis === null);
-    ctx.deleteProgram(stored.id);
+    await ctx.deleteProgram(stored.id);
   }
 
   /* Deriving explanations is read-only. */
@@ -1144,7 +1145,7 @@ function oracleTemplate(ctx, entry) {
   {
     const def = ctx.generateProgram({ goal:'recomp', experience:'experienced', equipment:'full',
       emphasis:'chest', sessionLength:'extended', weeks:8, days:['mon','tue','thu','fri'] });
-    const res = ctx.createProgram({ name:def.name, goal:def.goal, durationWeeks:def.durationWeeks,
+    const res = await ctx.createProgram({ name:def.name, goal:def.goal, durationWeeks:def.durationWeeks,
       schedule:def.schedule, blocks:def.blocks, startDate:'2026-08-05',
       emphasis:def.emphasis, sessionLength:def.sessionLength, experience:def.experience });
     ok('a prescribed program saves', res.ok, (res.errors || []).join('; '));
@@ -1157,7 +1158,7 @@ function oracleTemplate(ctx, entry) {
     const d0 = DAYS.find(k => bogus.schedule[k].type === 'workout');
     bogus.schedule[d0].rx = 'not_a_profile';
     ok('an unknown profile id is refused', !ctx.validateProgram(bogus).valid);
-    ctx.deleteProgram(res.program.id);
+    await ctx.deleteProgram(res.program.id);
   }
 
   /* --- legacy programs are untouched --- */
@@ -1523,7 +1524,7 @@ function oracleTemplate(ctx, entry) {
     const defA = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
       equipment:'full', emphasis:'chest', sessionLength:'long', weeks:8,
       days:['mon','tue','thu','fri'] });
-    const A = ctx.createProgram({ name:'Program A', goal:defA.goal, durationWeeks:8,
+    const A = await ctx.createProgram({ name:'Program A', goal:defA.goal, durationWeeks:8,
       schedule:defA.schedule, blocks:defA.blocks, startDate:'2026-01-05',
       emphasis:'chest', sessionLength:defA.sessionLength, experience:defA.experience });
     ok('Program A saves', A.ok, (A.errors || []).join('; '));
@@ -1532,7 +1533,7 @@ function oracleTemplate(ctx, entry) {
     const defB = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
       equipment:'full', emphasis:'back', sessionLength:'long', weeks:8,
       days:['mon','tue','thu','fri'] });
-    const B = ctx.createProgram({ name:'Program B', goal:defB.goal, durationWeeks:8,
+    const B = await ctx.createProgram({ name:'Program B', goal:defB.goal, durationWeeks:8,
       schedule:defB.schedule, blocks:defB.blocks, startDate:'2026-06-01',
       emphasis:'back', sessionLength:defB.sessionLength, experience:defB.experience });
     ok('Program B saves', B.ok, (B.errors || []).join('; '));
@@ -1546,8 +1547,8 @@ function oracleTemplate(ctx, entry) {
     ok('the store grew by exactly two', ctx.getPrograms().length === before + 2,
       String(ctx.getPrograms().length - before));
     ok('only one program is active', ctx.programsStore.activeProgramId === B.program.id);
-    ctx.deleteProgram(A.program.id);
-    ctx.deleteProgram(B.program.id);
+    await ctx.deleteProgram(A.program.id);
+    await ctx.deleteProgram(B.program.id);
   }
 
   /* --- derivation is pure and cheap --- */

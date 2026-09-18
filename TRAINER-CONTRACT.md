@@ -11563,3 +11563,110 @@ makes it real. Memoised in `_phaseRxCache`, dropped by `invalidateProgramCache`.
   the library while a deload runs is freeform and is neither lightened nor
   marked — which is what D41 provenance already says it is.
 - Safari was not run (Windows).
+
+## §111 — D89: Program chronology, and program writes that tell the truth
+
+Closes the two P1 findings D88 raised and deliberately did not fix: E1, the
+program week/slot anchor mismatch, and E2, program mutators reporting success
+before persistence completed.
+
+**One origin.** A program's weeks are laid out from the MONDAY of the civil week
+containing its start date. They have to be: a program's schedule is a map of
+WEEKDAYS, and a weekday only means something inside a civil week. `programDateFor`
+had always built the grid that way and said so in its own comment. What D88 found
+is that a second counter, `getCurrentProgramWeek`, counted from the start DATE —
+so for any program not begun on a Monday the two disagreed for part of every week.
+The anchor was not chosen by taste here; the schedule's own shape chose it, and
+`programDateFor` had written it down years earlier. `programWeekMonday` is that
+origin, named once, and everything counts from it.
+
+**Two quantities, named separately, because the system genuinely needs both.**
+
+- `programCalendarWeek(p, date)` — WHERE a date sits in the layout. The exact
+  inverse of `programDateFor`: for every week and weekday the grid contains,
+  `programCalendarWeek(p, programDateFor(p, w, k)) === w`, verified for all seven
+  possible start weekdays. Pause-blind, because the grid is: a schedule pinned to
+  weekdays cannot slide by a number of days without landing Monday's session on a
+  Thursday. Unclamped, so a date past the end does not read as the final week.
+  This is the canonical answer to "which program week is this date in?", and it is
+  what a planned slot's own `.week` means.
+- `getCurrentProgramWeek(p, today)` — HOW FAR THE ATHLETE HAS GOT: the calendar
+  week less banked paused time, frozen while paused, clamped to the program's
+  length. **With `pausedDays === 0` the two are identical.** They diverge only by
+  paused time, which is the one difference that is meant to exist, because paused
+  time is not training time — a rule the suite has contracted since D37 and which
+  D89 preserves unchanged.
+
+**What the mismatch actually cost.** `slot.week` is a grid week, and D43's shift
+pass compared it against the other counter. A session trained one day late — well
+inside `PLAN_SHIFT_DAYS` — therefore fell outside its own slot's week and read as
+a missed session PLUS an extra one, but only for athletes who did not happen to
+start on a Monday. The identical program and the identical training, started on a
+Monday, fulfilled correctly. Proven both ways before anything was changed.
+
+**A second, quieter cost, and a comment that was wrong.** `programPlannedSlots`
+carried a paragraph claiming a paused program produces no phantom slots "because
+the week count is already frozen by `getCurrentProgramWeek` while paused". That
+function has never called `getCurrentProgramWeek`. The claim was not merely inert:
+believing it is what left the matcher comparing a pause-adjusted week against a
+slot week that never moves, so for a paused program the shift window stopped
+working entirely from the third week on. Both sides are pause-blind now, and the
+paragraph says what the code does.
+
+**A program cannot have asked for a session before it existed.** Week 1 runs from
+the Monday of the start date's week, so a Wednesday start had week-1 slots on the
+Monday and Tuesday before it began. Those counted as planned and could never be
+fulfilled, capping adherence below 100% permanently for anyone who did not start
+on a Monday — while `programDayState` and `getMissedProgramDays` both refused to
+call them missed, so no surface would ever admit the opportunity existed. The grid
+still contains those days; they are simply not opportunities.
+
+**Both sides of the ratio count the same array.** `getProgramProgress` derived
+`completedSessions` from slots dated up to today and `plannedSessions` from
+`perWeek * weeksElapsed`. Two populations, one ratio — which is how the card could
+render "4 of 3 planned sessions logged". Planned-to-date is now counted from the
+same slots the numerator filters, and the whole-program ask is the slot count
+rather than a multiplication, so a mid-week start's shorter first week is honest
+in both. §66's rule was already "both sides describe planned sessions"; counting
+the same array twice is the only way that stays true.
+
+**The program ends when its own grid does.** `programEndDate` measured
+`durationWeeks * 7` from the start date, running the program past the last day the
+grid contains by exactly the start weekday's offset — two days, for a Wednesday
+start. Those days were inside the timeline, so a session was prescribed for them
+with no slot to fulfil. Banked paused time is still added on, because a paused
+program really does run that much longer.
+
+**E2 — one commit path, and it awaits.** Every program mutator was a synchronous
+function calling an asynchronous `persistPrograms()` without awaiting it, then
+returning `ok:true` in the same tick — a value structurally incapable of
+describing the write. `commitProgramChange` snapshots the store, applies the
+change in memory, AWAITS the write, and restores the snapshot WHOLE if the store
+refused it. Eight hand-written rollbacks would have had eight chances to forget a
+field; one snapshot has none. A mutation that declines never reaches the store at
+all. `createProgram`, `updateProgram`, `setActiveProgram`, `pauseProgram`,
+`resumeProgram`, `completeProgram`, `deleteProgram` and §106's `applyBlockAction`
+are async now, and every caller — in the app and in the suites — awaits them.
+
+**Nothing was migrated, because nothing about this was ever stored.** Adherence
+has been derived since D43 and `completeProgram` snapshots only status and a
+timestamp, so correcting the derivation cannot falsify a completed program's
+history: the same stored truth simply reads correctly now. `DATA_KEYS` remains 15,
+the local schema remains 1 with no migration, no week number is written to storage,
+D51 still resolves a revision by civil date and never by week number, D44's own
+window is untouched, and the trainer remains `0.1.1-shadow`.
+
+**Verification.** 8,391 assertions across the full suite, 0 failures; Contract 190
+adds 87 and every one of its chronology checks runs on all seven possible start
+weekdays, so none of them can pass by the suite happening to run on a Monday.
+Program audit 335, data 87, cardio 261, GPS 43, the full date matrix — all green,
+all identical to the pre-change baseline. The program audit already built its
+fixtures on a Wednesday start, deliberately, which is why it exercised E1 directly.
+
+**Known limitation, recorded rather than described wrongly.** A pause is banked in
+DAYS while the grid is pinned to weekdays, so a paused program's slots keep their
+original calendar dates and the days spent paused remain unfulfilled. Making the
+grid pause-aware cannot be done by shifting it a number of days without moving
+Monday's session to a Thursday, so it is a schedule-model question, not a
+chronology one. D89 leaves pause semantics exactly as they were and does not
+pretend otherwise. It is written up in FINDINGS-D88.md.

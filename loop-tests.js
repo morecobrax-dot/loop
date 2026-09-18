@@ -65,9 +65,19 @@ function pinClock(ctx, iso){
   ctx.Date = Fake;
   return () => { ctx.Date = Real; };   /* nests correctly: restores whatever was installed */
 }
+/* D89 — thenable-aware. `try{ return fn(); } finally { release(); }` restored
+   the clock the instant an ASYNC fn returned its promise, so everything after
+   the first await inside it ran against the real date. Sync callers are
+   unaffected: their release still happens on the same tick. */
 function withClockOn(ctx, iso, fn){
   const release = pinClock(ctx, iso);
-  try{ return fn(); } finally { release(); }
+  let out;
+  try{ out = fn(); }
+  catch(e){ release(); throw e; }
+  if(out && typeof out.then === 'function')
+    return out.then(v => { release(); return v; }, e => { release(); throw e; });
+  release();
+  return out;
 }
 
 /* THE NAVIGATION BAR HAS FOUR TABS.
@@ -4760,7 +4770,7 @@ function sampleSchedule(ctx){
 const DSTR = n => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
 
-function testProgramModel(app){
+async function testProgramModel(app){
   section('CONTRACT 54 — program model, blocks and weeks');
   const ctx = app.ctx;
   ctx.programsStore = { version:1, activeProgramId:null, programs:[] };
@@ -4776,7 +4786,7 @@ function testProgramModel(app){
       .every(id => !!ctx.getProgramPhase(id)));
 
   sub('creation');
-  const res = ctx.createProgram({ name:'Summer Hypertrophy', goal:'hypertrophy',
+  const res = await ctx.createProgram({ name:'Summer Hypertrophy', goal:'hypertrophy',
     durationWeeks:12, schedule:sampleSchedule(ctx), startDate: DSTR(0) });
   T('a program is created', res.ok === true && !!res.program);
   const p = res.program;
@@ -4807,7 +4817,7 @@ function testProgramModel(app){
   sub('week calculation comes from the program, not from history');
   T('week 1 on the start date',
     ctx.getCurrentProgramWeek(p, DSTR(0)) === 1);
-  ctx.updateProgram(p.id, { startDate: DSTR(35) });          // started 5 weeks ago
+  await ctx.updateProgram(p.id, { startDate: DSTR(35) });          // started 5 weeks ago
   T('five weeks in reads as week 6', ctx.getCurrentProgramWeek(p) === 6);
   T('week is capped at the program length',
     ctx.getCurrentProgramWeek(p, DSTR(-400)) === 12);
@@ -4823,7 +4833,7 @@ function testProgramModel(app){
              return before === after; })());
 
   sub('blocks');
-  ctx.updateProgram(p.id, { blocks:[
+  await ctx.updateProgram(p.id, { blocks:[
     { id:'b1', name:'Accumulation', order:1, phaseType:'accumulation', startWeek:1,  endWeek:4 },
     { id:'b2', name:'Progressive Overload', order:2, phaseType:'intensification', startWeek:5, endWeek:8 },
     { id:'b3', name:'Deload', order:3, phaseType:'deload', startWeek:9, endWeek:9 },
@@ -4868,11 +4878,28 @@ function testProgramModel(app){
   const pr = ctx.getProgramProgress(prog);
   T('progress reports the week', pr.week === 6 && pr.totalWeeks === 12);
   T('progress names the block', pr.blockName === 'Progressive Overload');
-  T('planned sessions derive from the schedule', pr.plannedSessions === 4 * 6);
+  /* D89 — this asserted perWeek * weeksElapsed (4 * 6). That expression counted
+     planned sessions through the END of the current week while completedSessions
+     counted only slots dated up to TODAY, so the two sides described different
+     populations — which is how a mid-week start could render "4 of 3 planned
+     sessions logged". Both sides now count the same slot array, so the honest
+     assertions are the relationships, and they hold whatever weekday the suite
+     happens to run on. */
+  {
+    const fulfil = ctx.deriveProgramPlanFulfillment(prog);
+    const todayKey = ctx.localDateStr();
+    const dueByToday = (fulfil.slots || []).filter(s => s.date <= todayKey).length;
+    T('planned sessions derive from the schedule', pr.plannedSessions === dueByToday);
+    T('and never count a session the program has not asked for yet',
+      pr.plannedSessions <= pr.totalPlannedSessions);
+    T('so completed can never exceed planned', pr.completedSessions <= pr.plannedSessions);
+    T('the whole ask is the slot count, not a multiplication',
+      pr.totalPlannedSessions === fulfil.planned);
+  }
   T('no program score is produced', pr.score === undefined && pr.rating === undefined);
 
   sub('pause and resume keep the week honest');
-  T('pause works', ctx.pauseProgram(p.id) === true);
+  T('pause works', await ctx.pauseProgram(p.id) === true);
   T('status is paused', ctx.getProgram(p.id).status === 'paused');
   T('a paused program is not deleted', !!ctx.getProgram(p.id));
   const frozen = ctx.getCurrentProgramWeek(ctx.getProgram(p.id));
@@ -4884,7 +4911,7 @@ function testProgramModel(app){
   ctx.getProgram(p.id).pausedOnDate = DSTR(14);
   const weekAtPause = Math.floor((35 - 14) / 7) + 1;         // = 4
   const calendarWeek = Math.floor(35 / 7) + 1;               // = 6
-  T('resume works', ctx.resumeProgram(p.id) === true);
+  T('resume works', await ctx.resumeProgram(p.id) === true);
   T('paused days were banked', ctx.getProgram(p.id).pausedDays >= 14);
   T('resuming returns to the week left off',
     ctx.getCurrentProgramWeek(ctx.getProgram(p.id)) === weekAtPause,
@@ -4894,7 +4921,7 @@ function testProgramModel(app){
   T('status is active again', ctx.getProgram(p.id).status === 'active');
 
   sub('completion');
-  T('complete works', ctx.completeProgram(p.id) === true);
+  T('complete works', await ctx.completeProgram(p.id) === true);
   T('status is completed', ctx.getProgram(p.id).status === 'completed');
   T('a completed program stays in history', getProgramCount(ctx) === 1);
   T('it is no longer the active program', ctx.getActiveProgram() === null || ctx.hasActiveProgram() === false);
@@ -4912,7 +4939,7 @@ function testProgramModel(app){
     typeof ctx.getProgramCompletionSummary === 'undefined');
 
   sub('multiple programs coexist');
-  const second = ctx.createProgram({ name:'Strength Block', goal:'strength',
+  const second = await ctx.createProgram({ name:'Strength Block', goal:'strength',
     durationWeeks:6, schedule:sampleSchedule(ctx), startDate: DSTR(0) });
   T('a second program is created', second.ok === true);
   T('both are retained', getProgramCount(ctx) === 2);
@@ -4920,8 +4947,8 @@ function testProgramModel(app){
     ctx.getPrograms().some(x => x.status === 'completed'));
   T('the new one is active', ctx.getActiveProgram().id === second.program.id);
   T('switching active does not delete the other',
-    (() => { ctx.setActiveProgram(p.id); return getProgramCount(ctx) === 2; })());
-  ctx.setActiveProgram(second.program.id);
+    (async () => { await ctx.setActiveProgram(p.id); return getProgramCount(ctx) === 2; })());
+  await ctx.setActiveProgram(second.program.id);
 
   sub('validation refuses malformed programs instead of storing them');
   const bad = [
@@ -4941,10 +4968,12 @@ function testProgramModel(app){
        blocks:[{id:'a',name:'A',startWeek:1,endWeek:4},{id:'b',name:'B',startWeek:3,endWeek:6}] }, 'overlapping blocks']
   ];
   const countBefore = getProgramCount(ctx);
-  bad.forEach(([input, why]) => {
-    const r = ctx.createProgram(input);
+  // D89 — for..of: createProgram awaits its write now, and forEach would drop
+  // the promise on the floor.
+  for(const [input, why] of bad){
+    const r = await ctx.createProgram(input);
     T('refused: ' + why, r.ok === false && r.errors.length > 0);
-  });
+  }
   T('no malformed program was stored', getProgramCount(ctx) === countBefore);
   T('validation never throws on junk',
     (() => { try{ ctx.validateProgram(null); ctx.validateProgram(undefined);
@@ -4953,30 +4982,30 @@ function testProgramModel(app){
   sub('editing affects planning, never history');
   const editable = ctx.getActiveProgram();
   const logBefore = JSON.stringify(ctx.workoutLog);
-  const up = ctx.updateProgram(editable.id, { name:'Renamed', durationWeeks:10 });
+  const up = await ctx.updateProgram(editable.id, { name:'Renamed', durationWeeks:10 });
   T('edit succeeds', up.ok === true);
   T('name changed', ctx.getProgram(editable.id).name === 'Renamed');
   T('duration changed', ctx.getProgram(editable.id).durationWeeks === 10);
   T('workout history untouched by an edit', JSON.stringify(ctx.workoutLog) === logBefore);
   T('an invalid edit is refused and changes nothing',
-    (() => { const before = ctx.getProgram(editable.id).name;
-             const r = ctx.updateProgram(editable.id, { name:'' });
+    (async () => { const before = ctx.getProgram(editable.id).name;
+             const r = await ctx.updateProgram(editable.id, { name:'' });
              return r.ok === false && ctx.getProgram(editable.id).name === before; })());
   T('editing an unknown program is refused',
-    ctx.updateProgram('nope', { name:'x' }).ok === false);
+    (await ctx.updateProgram('nope', { name:'x' })).ok === false);
 
   sub('rapid editing stays consistent');
-  for(let i = 0; i < 60; i++) ctx.updateProgram(editable.id, { name:'Rapid ' + i });
+  for(let i = 0; i < 60; i++) await ctx.updateProgram(editable.id, { name:'Rapid ' + i });
   T('60 rapid edits land deterministically', ctx.getProgram(editable.id).name === 'Rapid 59');
   T('rapid edits created no duplicate programs', getProgramCount(ctx) === countBefore);
-  for(let i = 0; i < 20; i++){ ctx.pauseProgram(editable.id); ctx.resumeProgram(editable.id); }
+  for(let i = 0; i < 20; i++){ await ctx.pauseProgram(editable.id); await ctx.resumeProgram(editable.id); }
   T('rapid pause/resume ends active', ctx.getProgram(editable.id).status === 'active');
 
   sub('delete removes only that program');
   const keepId = ctx.getPrograms().find(x => x.id !== editable.id).id;
-  T('delete reports success', ctx.deleteProgram(editable.id) === true);
+  T('delete reports success', await ctx.deleteProgram(editable.id) === true);
   T('the other program survives', !!ctx.getProgram(keepId));
-  T('deleting an unknown id reports false', ctx.deleteProgram('nope') === false);
+  T('deleting an unknown id reports false', await ctx.deleteProgram('nope') === false);
   T('workout history survives a program delete', JSON.stringify(ctx.workoutLog) === logBefore);
 }
 function getProgramCount(ctx){ return ctx.getPrograms().length; }
@@ -5020,7 +5049,7 @@ async function testProgramIntegration(){
     const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('upperlower') });
     await H.settle(300);
     const ctx = app.ctx;
-    const created = ctx.createProgram({ name:'P', goal:'hypertrophy', durationWeeks:8,
+    const created = await ctx.createProgram({ name:'P', goal:'hypertrophy', durationWeeks:8,
       schedule: sampleSchedule(ctx), startDate: DSTR(0) });
     T('program created', created.ok === true);
     const tpl = ctx.resolveProgramWorkout(created.program.schedule.mon);
@@ -5043,7 +5072,7 @@ async function testProgramIntegration(){
     const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('upperlower') });
     await H.settle(300);
     const ctx = app.ctx;
-    const created = ctx.createProgram({ name:'P', durationWeeks:8,
+    const created = await ctx.createProgram({ name:'P', durationWeeks:8,
       schedule: sampleSchedule(ctx), startDate: DSTR(0) });
     const tpl = ctx.resolveProgramWorkout(created.program.schedule.mon);
     const firstExercise = tpl.exercises[0].name;
@@ -5062,7 +5091,7 @@ async function testProgramIntegration(){
     await H.settle(300);
     const ctx = app.ctx;
     T('gym is unconfigured', ctx.isGymProfileConfigured() === false);
-    const r = ctx.createProgram({ name:'No Gym', durationWeeks:4,
+    const r = await ctx.createProgram({ name:'No Gym', durationWeeks:4,
       schedule: sampleSchedule(ctx), startDate: DSTR(0) });
     T('a program can still be created', r.ok === true);
     const tpl = ctx.resolveProgramWorkout(r.program.schedule.mon);
@@ -5075,7 +5104,7 @@ async function testProgramIntegration(){
     const app = await H.loadAppBooted({});
     await H.settle(300);
     const ctx = app.ctx;
-    const r = ctx.createProgram({ name:'M', durationWeeks:4,
+    const r = await ctx.createProgram({ name:'M', durationWeeks:4,
       schedule: sampleSchedule(ctx), startDate: DSTR(21) });
     const before = JSON.stringify(r.program.schedule);
     const missed = ctx.getMissedProgramDays(r.program);
@@ -5108,12 +5137,12 @@ async function testProgramSafety(){
   const cardioBefore = JSON.stringify(ctx.cardioLog);
 
   sub('create, edit, pause, resume, complete a program');
-  const r = ctx.createProgram({ name:'Safety', goal:'strength', durationWeeks:8,
+  const r = await ctx.createProgram({ name:'Safety', goal:'strength', durationWeeks:8,
     schedule: sampleSchedule(ctx), startDate: DSTR(7) });
-  ctx.updateProgram(r.program.id, { name:'Safety 2' });
-  ctx.pauseProgram(r.program.id); ctx.resumeProgram(r.program.id);
+  await ctx.updateProgram(r.program.id, { name:'Safety 2' });
+  await ctx.pauseProgram(r.program.id); await ctx.resumeProgram(r.program.id);
   ctx.getProgramProgress(); ctx.getMissedProgramDays();
-  ctx.completeProgram(r.program.id);
+  await ctx.completeProgram(r.program.id);
   clearCaches(ctx);
   const after = H.snapshot(ctx);
 
@@ -5179,9 +5208,9 @@ async function testProgramSafety(){
     const app2 = await H.loadAppBooted({});
     await H.settle(300);
     const c2 = app2.ctx;
-    const made = c2.createProgram({ name:'Backup Program', goal:'hypertrophy', durationWeeks:12,
+    const made = await c2.createProgram({ name:'Backup Program', goal:'hypertrophy', durationWeeks:12,
       schedule: sampleSchedule(c2), startDate: DSTR(14) });
-    c2.updateProgram(made.program.id, { blocks:[
+    await c2.updateProgram(made.program.id, { blocks:[
       { id:'b1', name:'Accumulation', order:1, phaseType:'accumulation', startWeek:1, endWeek:6 },
       { id:'b2', name:'Peak', order:2, phaseType:'peak', startWeek:7, endWeek:12 } ]});
     await H.settle(300);
@@ -5219,7 +5248,7 @@ async function testProgramSafety(){
   {
     const app3 = await H.loadAppBooted({});
     await H.settle(300);
-    const made = app3.ctx.createProgram({ name:'Persisted', durationWeeks:6,
+    const made = await app3.ctx.createProgram({ name:'Persisted', durationWeeks:6,
       schedule: sampleSchedule(app3.ctx), startDate: DSTR(0) });
     await H.settle(300);
     const reopened = await H.loadAppBooted(app3.store);
@@ -5248,16 +5277,16 @@ function fourPhaseBlocks(){
     { id:'ph4', name:'Rebuild',       order:4, phaseType:'rebuild',         startWeek:10, endWeek:12 }
   ];
 }
-function makePhasedProgram(ctx, weeksAgo){
+async function makePhasedProgram(ctx, weeksAgo){
   ctx.programsStore = { version:1, activeProgramId:null, programs:[] };
   ctx.invalidateProgramCache();
-  const r = ctx.createProgram({ name:'Summer Hypertrophy', goal:'hypertrophy', durationWeeks:12,
+  const r = await ctx.createProgram({ name:'Summer Hypertrophy', goal:'hypertrophy', durationWeeks:12,
     schedule: sampleSchedule(ctx), startDate: DSTR(weeksAgo * 7) });
-  ctx.updateProgram(r.program.id, { blocks: fourPhaseBlocks() });
+  await ctx.updateProgram(r.program.id, { blocks: fourPhaseBlocks() });
   return ctx.getProgram(r.program.id);
 }
 
-function testTrainingPhases(app){
+async function testTrainingPhases(app){
   section('CONTRACT 57 — training phases resolve, progress and never decide');
   const ctx = app.ctx;
 
@@ -5273,7 +5302,7 @@ function testTrainingPhases(app){
     banned.filter(b => allCopy.indexOf(b) !== -1).join(','));
 
   sub('current phase resolution — week 6 of a four-phase program');
-  const p = makePhasedProgram(ctx, 5);            // started 5 weeks ago => week 6
+  const p = await makePhasedProgram(ctx, 5);            // started 5 weeks ago => week 6
   T('program is at week 6', ctx.getCurrentProgramWeek(p) === 6);
   const cur = ctx.getCurrentTrainingPhase(p);
   T('current phase resolves', !!cur && cur.name === 'Progressive Overload');
@@ -5296,12 +5325,12 @@ function testTrainingPhases(app){
   sub('next phase');
   T('next phase resolves by week order', ph.nextPhase && ph.nextPhase.name === 'Deload');
   T('next phase reports its start week', ph.nextPhase.startWeek === 9);
-  const last = makePhasedProgram(ctx, 11);        // week 12 = final phase
+  const last = await makePhasedProgram(ctx, 11);        // week 12 = final phase
   T('the final phase reports no next phase', ctx.getNextTrainingPhase(last) === null);
   T('the final week is flagged', ctx.getPhaseProgress(last).isFinalWeek === true);
 
   sub('past / current / upcoming derive from position');
-  const sched = ctx.getProgramPhaseSchedule(makePhasedProgram(ctx, 5));
+  const sched = ctx.getProgramPhaseSchedule(await makePhasedProgram(ctx, 5));
   T('four phases listed', sched.length === 4);
   T('earlier phase reads as past', sched[0].status === 'past');
   T('the containing phase reads as current', sched[1].status === 'current');
@@ -5312,7 +5341,7 @@ function testTrainingPhases(app){
     sched.every(r => !!r.typeLabel && typeof r.purpose === 'string'));
 
   sub('a deload phase is a LABEL, never a decision');
-  const dl = makePhasedProgram(ctx, 8);           // week 9 = the deload week
+  const dl = await makePhasedProgram(ctx, 8);           // week 9 = the deload week
   const dlp = ctx.getPhaseProgress(dl);
   T('the athlete is in their planned deload', dlp.phaseType === 'deload');
   T('it is a single week', dlp.totalWeeks === 1);
@@ -5335,7 +5364,7 @@ function testTrainingPhases(app){
 
   sub('phases never transition on their own');
   {
-    const prog = makePhasedProgram(ctx, 3);       // week 4 = last week of phase 1
+    const prog = await makePhasedProgram(ctx, 3);       // week 4 = last week of phase 1
     const before = ctx.getCurrentTrainingPhase(prog).name;
     for(let i = 0; i < 30; i++){ ctx.getPhaseProgress(prog); ctx.getNextTrainingPhase(prog); }
     T('reading a phase 30 times does not advance it',
@@ -5348,15 +5377,15 @@ function testTrainingPhases(app){
   }
 
   sub('editing phases');
-  const ep = makePhasedProgram(ctx, 5);
+  const ep = await makePhasedProgram(ctx, 5);
   T('rename a phase',
-    ctx.updateProgramPhase(ep.id, 'ph2', { name:'Heavy Block' }).ok === true &&
+    (await ctx.updateProgramPhase(ep.id, 'ph2', { name:'Heavy Block' })).ok === true &&
     ctx.getProgram(ep.id).blocks.find(b => b.id === 'ph2').name === 'Heavy Block');
   T('change a phase type',
-    ctx.updateProgramPhase(ep.id, 'ph4', { phaseType:'peak' }).ok === true &&
+    (await ctx.updateProgramPhase(ep.id, 'ph4', { phaseType:'peak' })).ok === true &&
     ctx.getProgram(ep.id).blocks.find(b => b.id === 'ph4').phaseType === 'peak');
   T('set a custom description',
-    ctx.updateProgramPhase(ep.id, 'ph1', { description:'Build the base.' }).ok === true);
+    (await ctx.updateProgramPhase(ep.id, 'ph1', { description:'Build the base.' })).ok === true);
   T('a custom description overrides the type purpose',
     ctx.phasePurposeText(ctx.getProgram(ep.id).blocks.find(b => b.id === 'ph1')) === 'Build the base.');
   T('a phase with no description falls back to its type purpose',
@@ -5364,11 +5393,11 @@ function testTrainingPhases(app){
 
   sub('adding and deleting phases');
   {
-    const prog = makePhasedProgram(ctx, 0);
-    const addRes = ctx.addProgramPhase(prog.id, { name:'Extra', phaseType:'custom', startWeek:13, endWeek:14 });
+    const prog = await makePhasedProgram(ctx, 0);
+    const addRes = await ctx.addProgramPhase(prog.id, { name:'Extra', phaseType:'custom', startWeek:13, endWeek:14 });
     T('a phase beyond the program length is refused', addRes.ok === false);
     T('the program still has four phases', ctx.getProgram(prog.id).blocks.length === 4);
-    const del = ctx.deleteProgramPhase(prog.id, 'ph3');
+    const del = await ctx.deleteProgramPhase(prog.id, 'ph3');
     T('delete succeeds', del.ok === true);
     T('only that phase was removed',
       ctx.getProgram(prog.id).blocks.length === 3 &&
@@ -5384,8 +5413,8 @@ function testTrainingPhases(app){
 
   sub('reordering keeps the program continuous');
   {
-    const prog = makePhasedProgram(ctx, 0);
-    const res = ctx.moveProgramPhase(prog.id, 'ph3', 'up');   // deload before intensification
+    const prog = await makePhasedProgram(ctx, 0);
+    const res = await ctx.moveProgramPhase(prog.id, 'ph3', 'up');   // deload before intensification
     T('move succeeds', res.ok === true);
     const after = ctx.sortedProgramPhases(ctx.getProgram(prog.id));
     T('the moved phase now starts earlier', after[1].id === 'ph3');
@@ -5398,33 +5427,33 @@ function testTrainingPhases(app){
     T('no phase runs past the program',
       after.every(b => b.endWeek <= ctx.getProgram(prog.id).durationWeeks));
     T('moving past the end is refused',
-      ctx.moveProgramPhase(prog.id, after[0].id, 'up').ok === false);
+      (await ctx.moveProgramPhase(prog.id, after[0].id, 'up')).ok === false);
     T('workout history untouched by reordering',
-      (() => { const logBefore = JSON.stringify(ctx.workoutLog);
-               ctx.moveProgramPhase(prog.id, 'ph2', 'down');
-               ctx.moveProgramPhase(prog.id, 'ph2', 'up');
+      (async () => { const logBefore = JSON.stringify(ctx.workoutLog);
+               await ctx.moveProgramPhase(prog.id, 'ph2', 'down');
+               await ctx.moveProgramPhase(prog.id, 'ph2', 'up');
                return JSON.stringify(ctx.workoutLog) === logBefore; })());
   }
 
   sub('malformed and legacy phase data is handled gracefully');
   {
-    const prog = makePhasedProgram(ctx, 0);
+    const prog = await makePhasedProgram(ctx, 0);
     T('overlapping phases are refused',
-      ctx.updateProgramPhase(prog.id, 'ph2', { startWeek:3 }).ok === false);
+      (await ctx.updateProgramPhase(prog.id, 'ph2', { startWeek:3 })).ok === false);
     T('inverted ranges are refused',
-      ctx.updateProgramPhase(prog.id, 'ph2', { startWeek:8, endWeek:5 }).ok === false);
+      (await ctx.updateProgramPhase(prog.id, 'ph2', { startWeek:8, endWeek:5 })).ok === false);
     T('a phase past the program is refused',
-      ctx.updateProgramPhase(prog.id, 'ph4', { endWeek:99 }).ok === false);
+      (await ctx.updateProgramPhase(prog.id, 'ph4', { endWeek:99 })).ok === false);
     T('an unknown phase type is refused',
-      ctx.updateProgramPhase(prog.id, 'ph1', { phaseType:'not_a_phase' }).ok === false);
+      (await ctx.updateProgramPhase(prog.id, 'ph1', { phaseType:'not_a_phase' })).ok === false);
     T('editing an unknown phase id is refused',
-      ctx.updateProgramPhase(prog.id, 'nope', { name:'x' }).ok === false);
+      (await ctx.updateProgramPhase(prog.id, 'nope', { name:'x' })).ok === false);
     T('a refused edit leaves the program unchanged',
       ctx.getProgram(prog.id).blocks.find(b => b.id === 'ph2').startWeek === 5);
     T('a program with NO blocks does not crash',
-      (() => { const r = ctx.createProgram({ name:'NoPhases', durationWeeks:4,
+      (async () => { const r = await ctx.createProgram({ name:'NoPhases', durationWeeks:4,
                  schedule: sampleSchedule(ctx), startDate: DSTR(0) });
-               ctx.updateProgram(r.program.id, { blocks: [] });
+               await ctx.updateProgram(r.program.id, { blocks: [] });
                const prg = ctx.getProgram(r.program.id);
                return ctx.getProgramPhaseSchedule(prg).length === 0 &&
                       ctx.getCurrentTrainingPhase(prg) === null; })());
@@ -5445,14 +5474,14 @@ function testTrainingPhases(app){
 
   sub('pause behaviour from D7A is not regressed');
   {
-    const prog = makePhasedProgram(ctx, 5);       // week 6, intensification
+    const prog = await makePhasedProgram(ctx, 5);       // week 6, intensification
     T('starts in the intensification phase',
       ctx.getCurrentPhaseType(prog) === 'intensification');
-    ctx.pauseProgram(prog.id);
+    await ctx.pauseProgram(prog.id);
     T('the phase freezes while paused',
       ctx.getCurrentPhaseType(ctx.getProgram(prog.id)) === 'intensification');
     ctx.getProgram(prog.id).pausedOnDate = DSTR(21);
-    ctx.resumeProgram(prog.id);
+    await ctx.resumeProgram(prog.id);
     T('paused time did not advance the phase',
       ctx.getCurrentProgramWeek(ctx.getProgram(prog.id)) === 3);
     T('the athlete is back in the phase covering that week',
@@ -5462,15 +5491,15 @@ function testTrainingPhases(app){
 
   sub('rapid editing stays consistent');
   {
-    const prog = makePhasedProgram(ctx, 0);
-    for(let i = 0; i < 40; i++) ctx.updateProgramPhase(prog.id, 'ph1', { name:'Rapid ' + i });
+    const prog = await makePhasedProgram(ctx, 0);
+    for(let i = 0; i < 40; i++) await ctx.updateProgramPhase(prog.id, 'ph1', { name:'Rapid ' + i });
     T('40 rapid edits land deterministically',
       ctx.getProgram(prog.id).blocks.find(b => b.id === 'ph1').name === 'Rapid 39');
     T('rapid edits create no duplicate phases',
       ctx.getProgram(prog.id).blocks.length === 4);
     T('phase ids stay unique',
       new Set(ctx.getProgram(prog.id).blocks.map(b => b.id)).size === 4);
-    for(let i = 0; i < 10; i++){ ctx.moveProgramPhase(prog.id,'ph2','down'); ctx.moveProgramPhase(prog.id,'ph2','up'); }
+    for(let i = 0; i < 10; i++){ await ctx.moveProgramPhase(prog.id,'ph2','down'); await ctx.moveProgramPhase(prog.id,'ph2','up'); }
     T('rapid reordering keeps weeks contiguous',
       (() => { const a = ctx.sortedProgramPhases(ctx.getProgram(prog.id));
                return a.every((b,i) => i === 0 || b.startWeek === a[i-1].endWeek + 1); })());
@@ -5496,9 +5525,9 @@ async function testPhaseIsolation(){
   const cardioBefore = JSON.stringify(ctx.cardioLog);
 
   sub('build a full phase structure and read it repeatedly');
-  const prog = makePhasedProgram(ctx, 5);
-  ctx.updateProgramPhase(prog.id, 'ph3', { description:'Planned lighter week.' });
-  ctx.moveProgramPhase(prog.id, 'ph4', 'up');
+  const prog = await makePhasedProgram(ctx, 5);
+  await ctx.updateProgramPhase(prog.id, 'ph3', { description:'Planned lighter week.' });
+  await ctx.moveProgramPhase(prog.id, 'ph4', 'up');
   for(let i = 0; i < 25; i++){
     ctx.getPhaseProgress(); ctx.getNextTrainingPhase(); ctx.getProgramPhaseSchedule();
     ctx.programPhaseLineHtml(); ctx.workoutPhaseContextHtml();
@@ -5612,7 +5641,7 @@ async function testPhaseIsolation(){
     T('the current week still resolves after restore',
       restored.ctx.getCurrentProgramWeek(rp) === ctx.getCurrentProgramWeek(ctx.getActiveProgram()));
     T('a paused program restores paused',
-      (() => { ctx.pauseProgram(ctx.getActiveProgram().id);
+      (async () => { await ctx.pauseProgram(ctx.getActiveProgram().id);
                return ctx.getActiveProgram().status === 'paused'; })());
   }
 }
@@ -8216,7 +8245,7 @@ async function testMyTrainingSafety(){
 
     ctx.openTrainingSetup();
     ctx.setupDraft.days = ['mon','wed','fri'];
-    ctx.applyTrainingSetup();
+    await ctx.applyTrainingSetup();
     clearCaches(ctx);
 
     T('the schedule DID change — that was the point',
@@ -8256,7 +8285,7 @@ async function testMyTrainingSafety(){
 /* =========================================================
    CONTRACT 77 — one write path for the week
    ========================================================= */
-function testScheduleWritePath(app){
+async function testScheduleWritePath(app){
   section('CONTRACT 77 — week scheduling writes what the app reads');
   const ctx = app.ctx;
   const fs = require('fs');
@@ -8299,7 +8328,7 @@ function testScheduleWritePath(app){
     week.tue = { type:'workout', planId:'upperlower', category:'lower', templateId:'ul-l1' };
     week.thu = { type:'workout', planId:'upperlower', category:'upper', templateId:'ul-u2' };
     week.fri = { type:'workout', planId:'upperlower', category:'lower', templateId:'ul-l2' };
-    const res = ctx.createProgram({ name:'T', goal:null, durationWeeks:8, schedule: week });
+    const res = await ctx.createProgram({ name:'T', goal:null, durationWeeks:8, schedule: week });
     T('a program is active for this scenario', !!res.ok && ctx.hasActiveProgram());
 
     const logBefore = JSON.stringify(ctx.workoutLog);
@@ -9725,7 +9754,7 @@ async function testProgramBuilderStress(){
   const rawBefore = JSON.stringify(ctx.programsStore);
   ctx.builderDraft.name = '';
   ctx.builderDraft.durationWeeks = 9999;
-  try{ ctx.submitProgramBuilder(); }catch(e){}
+  try{ await ctx.submitProgramBuilder(); }catch(e){}
   T('nothing was created', count() === n0);
   T('the store is byte-identical — no half-written cycle',
     JSON.stringify(ctx.programsStore) === rawBefore);
@@ -9735,13 +9764,13 @@ async function testProgramBuilderStress(){
   nameInput().value = 'Cycle One';
   ctx.builderDraft.durationWeeks = 8;
   ctx.builderDraft.structure = null;
-  try{ ctx.submitProgramBuilder(); }catch(e){}
+  try{ await ctx.submitProgramBuilder(); }catch(e){}
   T('exactly one cycle exists', count() === n0 + 1);
   T('the draft is cleared on success', ctx.builderDraft === null);
 
   /* Submitting again with no draft must be a no-op — this is the rapid
      double-tap on Create, which is where duplicates come from. */
-  for(let i = 0; i < 10; i++){ try{ ctx.submitProgramBuilder(); }catch(e){} }
+  for(let i = 0; i < 10; i++){ try{ await ctx.submitProgramBuilder(); }catch(e){} }
   T('repeated submits cannot duplicate it', count() === n0 + 1);
 
   ctx.openProgramBuilder();
@@ -9749,7 +9778,7 @@ async function testProgramBuilderStress(){
   nameInput().value = '';
   nameInput().value = 'Cycle Two';
   ctx.builderDraft.structure = null;
-  try{ ctx.submitProgramBuilder(); }catch(e){}
+  try{ await ctx.submitProgramBuilder(); }catch(e){}
   T('a second cycle can be created immediately', count() === n0 + 2);
   T('the two are distinct', (() => {
     const ids = (ctx.programsStore.programs || []).map(p => p.id);
@@ -15497,7 +15526,7 @@ async function testProgramExplainability(){
   {
     const def = ctx.generateProgram({ goal:'hypertrophy', equipment:'full', emphasis:'chest',
       sessionLength:'short', weeks:8, days:['mon','tue','thu','fri'] });
-    const res = ctx.createProgram({ name: def.name, goal: def.goal,
+    const res = await ctx.createProgram({ name: def.name, goal: def.goal,
       durationWeeks: def.durationWeeks, schedule: def.schedule, blocks: def.blocks,
       startDate: '2026-08-05', emphasis: def.emphasis, sessionLength: def.sessionLength });
     T('the program saves with its shaping ids', res.ok && res.program.emphasis === 'chest'
@@ -15521,7 +15550,7 @@ async function testProgramExplainability(){
     T('the editor prefills both ids',
       /answers\.emphasis = existing\.emphasis/.test(src)
       && /answers\.sessionLength = existing\.sessionLength/.test(src));
-    ctx.deleteProgram(res.program.id);
+    await ctx.deleteProgram(res.program.id);
   }
 
   sub('claims are grounded in composition');
@@ -15701,7 +15730,7 @@ async function testSessionDepth(){
     const day = DAYS.find(k => bogus.schedule[k].type === 'workout');
     bogus.schedule[day].ext = ['x_does_not_exist'];
     T('an unknown extension id is refused', !ctx.validateProgram(bogus).valid);
-    const res = ctx.createProgram({ name:def.name, goal:def.goal, durationWeeks:def.durationWeeks,
+    const res = await ctx.createProgram({ name:def.name, goal:def.goal, durationWeeks:def.durationWeeks,
       schedule:def.schedule, blocks:def.blocks, startDate:'2026-08-05',
       emphasis:def.emphasis, sessionLength:def.sessionLength, experience:def.experience });
     T('a deep program saves', res.ok, (res.errors || []).join('; '));
@@ -15710,7 +15739,7 @@ async function testSessionDepth(){
       stored.indexOf('x_') !== -1 && !/\"minutes\"|\"score\"|\"effective\"|\"coverage\"/.test(stored));
     T('experience persists beside the other shaping ids',
       res.program.experience === 'experienced');
-    ctx.deleteProgram(res.program.id);
+    await ctx.deleteProgram(res.program.id);
   }
 
   sub('claims stay directional');
@@ -15831,7 +15860,7 @@ async function testTrainingPrescription(){
   {
     const def = ctx.generateProgram(Object.assign({ goal:'recomp', experience:'experienced',
       sessionLength:'extended' }, base, { goal:'recomp', experience:'experienced', sessionLength:'extended' }));
-    const res = ctx.createProgram({ name:def.name, goal:def.goal, durationWeeks:def.durationWeeks,
+    const res = await ctx.createProgram({ name:def.name, goal:def.goal, durationWeeks:def.durationWeeks,
       schedule:def.schedule, blocks:def.blocks, startDate:'2026-08-05',
       emphasis:def.emphasis, sessionLength:def.sessionLength, experience:def.experience });
     T('a prescribed program saves', res.ok, (res.errors || []).join('; '));
@@ -15843,7 +15872,7 @@ async function testTrainingPrescription(){
     const d0 = DAYS.find(k => bogus.schedule[k].type === 'workout');
     bogus.schedule[d0].rx = 'not_a_profile';
     T('an unknown profile id is refused', !ctx.validateProgram(bogus).valid);
-    ctx.deleteProgram(res.program.id);
+    await ctx.deleteProgram(res.program.id);
   }
 
   sub('legacy programs are untouched');
@@ -16064,7 +16093,7 @@ async function testTemporalProgramming(){
   sub('storage stays ids, legacy stays legacy');
   {
     const str = mk({ goal:'strength', experience:'intermediate' });
-    const res = ctx.createProgram({ name:str.name, goal:str.goal, durationWeeks:str.durationWeeks,
+    const res = await ctx.createProgram({ name:str.name, goal:str.goal, durationWeeks:str.durationWeeks,
       schedule:str.schedule, blocks:str.blocks, startDate:'2026-08-05',
       emphasis:str.emphasis, sessionLength:str.sessionLength, experience:str.experience });
     T('a phased program saves', res.ok, (res.errors || []).join('; '));
@@ -16075,7 +16104,7 @@ async function testTemporalProgramming(){
     const bogus = JSON.parse(JSON.stringify(str));
     bogus.blocks[0].rx = 'not_a_profile';
     T('an unknown phase prescription is refused', !ctx.validateProgram(bogus).valid);
-    ctx.deleteProgram(res.program.id);
+    await ctx.deleteProgram(res.program.id);
 
     const legacyEntry = { type:'workout', planId:'hypertrophy', category:'upper', templateId:'h-u1' };
     T('a block with no prescription resolves exactly as before',
@@ -16212,14 +16241,14 @@ async function testProgramLifecycle(){
     const defA = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
       equipment:'full', emphasis:'chest', sessionLength:'long', weeks:8,
       days:['mon','tue','thu','fri'] });
-    const A = ctx.createProgram({ name:'A', goal:defA.goal, durationWeeks:8,
+    const A = await ctx.createProgram({ name:'A', goal:defA.goal, durationWeeks:8,
       schedule:defA.schedule, blocks:defA.blocks, startDate:'2026-01-05',
       emphasis:'chest', sessionLength:defA.sessionLength, experience:defA.experience });
     const snapA = JSON.stringify(A.program);
     const defB = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
       equipment:'full', emphasis:'back', sessionLength:'long', weeks:8,
       days:['mon','tue','thu','fri'] });
-    const B = ctx.createProgram({ name:'B', goal:defB.goal, durationWeeks:8,
+    const B = await ctx.createProgram({ name:'B', goal:defB.goal, durationWeeks:8,
       schedule:defB.schedule, blocks:defB.blocks, startDate:'2026-06-01',
       emphasis:'back', sessionLength:defB.sessionLength, experience:defB.experience });
     T('both programs exist', !!ctx.getProgram(A.program.id) && !!ctx.getProgram(B.program.id));
@@ -16227,7 +16256,7 @@ async function testProgramLifecycle(){
     T('they are distinct instances', A.program.id !== B.program.id);
     T('exactly one is active', ctx.programsStore.activeProgramId === B.program.id);
     T('the earlier one keeps its own emphasis', ctx.getProgram(A.program.id).emphasis === 'chest');
-    ctx.deleteProgram(A.program.id); ctx.deleteProgram(B.program.id);
+    await ctx.deleteProgram(A.program.id); await ctx.deleteProgram(B.program.id);
   }
 
   sub('history is one source, read-only, and unpersisted where derived');
@@ -17744,7 +17773,7 @@ async function testProgramRevisions(){
     const def = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
       equipment:'full', emphasis:'balanced', weeks:8, days:['mon','thu'],
       sessionLength:'standard', startDate: START });
-    const created = ctx.createProgram(def);
+    const created = await ctx.createProgram(def);
     T('a program can be created to edit', created.ok, JSON.stringify(created.errors));
     if(created.ok){
       const id = created.program.id;
@@ -17752,7 +17781,7 @@ async function testProgramRevisions(){
       const def3 = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
         equipment:'full', emphasis:'balanced', weeks:8, days:['mon','wed','fri'],
         sessionLength:'standard', startDate: START });
-      const up = ctx.updateProgram(id, { schedule: def3.schedule });
+      const up = await ctx.updateProgram(id, { schedule: def3.schedule });
       T('the edit succeeds', up.ok, JSON.stringify(up.errors));
       const after = ctx.getProgram(id);
       T('it recorded a revision rather than overwriting',
@@ -17786,13 +17815,13 @@ async function testProgramRevisions(){
     const def = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
       equipment:'full', emphasis:'balanced', weeks:8, days:['mon','thu'],
       sessionLength:'standard', startDate:'2099-01-05' });
-    const created = ctx.createProgram(def);
+    const created = await ctx.createProgram(def);
     if(created.ok){
       const id = created.program.id;
       const def3 = ctx.generateProgram({ goal:'hypertrophy', experience:'intermediate',
         equipment:'full', emphasis:'balanced', weeks:8, days:['mon','wed','fri'],
         sessionLength:'standard', startDate:'2099-01-05' });
-      ctx.updateProgram(id, { schedule: def3.schedule });
+      await ctx.updateProgram(id, { schedule: def3.schedule });
       const after = ctx.getProgram(id);
       T('no revision is recorded for a program yet to begin',
         !after.revisions || !after.revisions.length,
@@ -18742,7 +18771,7 @@ async function testSplitOwnership(){
       /programPlanOn\(/.test(fnSrc(src, 'programScheduleOn')) &&
       !/prescriptionRevisions|exerciseRevisions|sessionRevisions/.test(code));
     T('active edits still route through the revision path',
-      /reviseProgramPlan\(/.test(fnSrc(src, 'updateProgram')));
+      /reviseProgramPlan\(/.test(fnSrc(src, 'updateProgramInMemory')));
   }
 }
 
@@ -18893,7 +18922,7 @@ async function testProgramOwnership(){
   sub('a draft never outranks the program being trained');
   {
     const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
-    ctx.createProgram({ name:'Live', goal:'hypertrophy', durationWeeks:8, startDate: START,
+    await ctx.createProgram({ name:'Live', goal:'hypertrophy', durationWeeks:8, startDate: START,
       schedule:{ mon:{ type:'workout', planId:'ul', category:'upper', templateId:'t',
         name:'Upper', exercises:[{ name:'Bench Press', sets:3, reps:'8-10', effort:'8' }] } } });
     builder(ctx);
@@ -18910,7 +18939,7 @@ async function testProgramOwnership(){
   sub('every session is one tap from its own editor');
   {
     const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
-    ctx.createProgram({ name:'Live', nameByAthlete:true, goal:'hypertrophy', durationWeeks:8,
+    await ctx.createProgram({ name:'Live', nameByAthlete:true, goal:'hypertrophy', durationWeeks:8,
       startDate: START,
       schedule:{
         mon:{ type:'workout', planId:'ul', category:'upper', templateId:'t1', name:'Upper A',
@@ -18941,7 +18970,7 @@ async function testProgramOwnership(){
   sub('add-a-session opens the session it just made');
   {
     const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
-    ctx.createProgram({ name:'Live', nameByAthlete:true, goal:'hypertrophy', durationWeeks:8,
+    await ctx.createProgram({ name:'Live', nameByAthlete:true, goal:'hypertrophy', durationWeeks:8,
       startDate: START,
       schedule:{ mon:{ type:'workout', planId:'ul', category:'upper', templateId:'t',
         name:'Upper', exercises:[{ name:'Bench Press', sets:3, reps:'8-10', effort:'8' }] } } });
@@ -19066,7 +19095,7 @@ async function testProgramOwnership(){
       /programPlanOn\(/.test(fnSrc(src, 'programScheduleOn')) &&
       !/prescriptionRevisions|exerciseRevisions|sessionRevisions/.test(code));
     T('active edits still route through the revision path',
-      /reviseProgramPlan\(/.test(fnSrc(src, 'updateProgram')));
+      /reviseProgramPlan\(/.test(fnSrc(src, 'updateProgramInMemory')));
     T('rendering My Training writes nothing',
       !/LOOPStore\.set|persistPrograms\(|persistLog\(/.test(fnSrc(src, 'renderMyTraining')) &&
       !/LOOPStore\.set|persistPrograms\(/.test(fnSrc(src, 'myTrainingSessionsHtml')));
@@ -19294,7 +19323,7 @@ async function testDurablePrograms(){
       T('the live write path takes a choice, never a caller-supplied date',
         /programRevisionDate\(/.test(fnSrc(src, 'reviseProgramPlan')));
       T('and updateProgram routes through it',
-        /reviseProgramPlan\(/.test(fnSrc(src, 'updateProgram')));
+        /reviseProgramPlan\(/.test(fnSrc(src, 'updateProgramInMemory')));
       const prog = mk();
       ctx.reviseProgramPlan(prog, PLAN_2, 'next');
       T('a live revision on a program whose weeks are over changes no week',
@@ -19411,13 +19440,13 @@ async function testDurablePrograms(){
   sub('discard removes the draft and nothing else');
   {
     const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
-    const made = ctx.createProgram({ name:'Live', goal:'hypertrophy', durationWeeks:8,
+    const made = await ctx.createProgram({ name:'Live', goal:'hypertrophy', durationWeeks:8,
       startDate: START, schedule:{ mon: sess('upper','Upper', UPPER_V1) } });
     const snap = JSON.stringify(made.program);
     builder(ctx);
     ctx.pbRenameSession(ctx.pbSessions(ctx.pbDraft())[0].dayKey, 'Something');
     T('a draft can exist alongside a live program', !!ctx.getStoredProgramDraft());
-    ctx.pbDiscardDraft();
+    await ctx.pbDiscardDraft();
     T('discard removes it', ctx.getStoredProgramDraft() === null);
     T('the live program is byte-identical', JSON.stringify(ctx.getProgram(made.program.id)) === snap);
   }
@@ -19426,7 +19455,7 @@ async function testDurablePrograms(){
   sub('editing a running program starts from that program');
   {
     const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
-    const made = ctx.createProgram({ name:'My Program', goal:'hypertrophy', durationWeeks:8,
+    const made = await ctx.createProgram({ name:'My Program', goal:'hypertrophy', durationWeeks:8,
       startDate:'2026-08-03',
       schedule:{ mon: sess('upper','Upper A', [{ name:'Lat Pulldown', sets:3, reps:'10-12', effort:'7' }]) } });
     const id = made.program.id;
@@ -23775,7 +23804,7 @@ async function testWorkoutBuilder(){
   const body = () => doc.getElementById('exPickerBody').innerHTML;
   /* A function that is missing or throws fails its assertions rather than
      stopping the suite, which would hide every contract after this one. */
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
 
   sub('one picker is how every exercise is added');
   T('Program Studio, a workout and a saved workout each open it, and only the target differs',
@@ -23795,7 +23824,7 @@ async function testWorkoutBuilder(){
     !/<select class="swap-select"/.test(src));
 
   sub('adding is several at once; replacing is one tap');
-  guard('adding and replacing', () => {
+  await guard('adding and replacing', () => {
     const added = [];
     const keep = ctx.addTplExerciseRow;
     ctx.addTplExerciseRow = (...a) => added.push(a);
@@ -23848,7 +23877,7 @@ async function testWorkoutBuilder(){
   });
 
   sub('into a workout, exactly as a hand-typed exercise arrives');
-  guard('adding into a workout', () => {
+  await guard('adding into a workout', () => {
     const rows = [], steps = [];
     const keep = { addLogExerciseRow: ctx.addLogExerciseRow, workoutStepRows: ctx.workoutStepRows, syncWorkoutStepper: ctx.syncWorkoutStepper,
       goToWorkoutStep: ctx.goToWorkoutStep, renderWorkoutStep: ctx.renderWorkoutStep, persistDraftNow: ctx.persistDraftNow };
@@ -23879,7 +23908,7 @@ async function testWorkoutBuilder(){
   });
 
   sub('equipment is what the registry says, or what the name states — never a guess');
-  guard('equipment', () => {
+  await guard('equipment', () => {
     const eq = n => ctx.pickerEquipmentFromName(n);
     T('names that state their equipment are filed under it',
       eq('DB Floor Press') === 'Dumbbell' && eq('Band Row') === 'Band' && eq('Rope Triceps Pushdown') === 'Cable' &&
@@ -23904,7 +23933,7 @@ async function testWorkoutBuilder(){
   });
 
   sub('the filters are part of the search');
-  guard('the filters', () => {
+  await guard('the filters', () => {
     const idx = ctx.exPickerIndex();
     const st = ctx.exPickerNewState('workout', { muscle: 'calves' });
     const panel = ctx.exPickerPanelHtml(st, 'equipment');
@@ -23939,7 +23968,7 @@ async function testWorkoutBuilder(){
   });
 
   sub('the quick picks are the athlete\'s own, then their plan\'s');
-  guard('the quick picks', () => {
+  await guard('the quick picks', () => {
     const set = (w, r) => ({ weight: String(w), reps: String(r) });
     const keepLog = ctx.workoutLog;
     ctx.workoutLog = [
@@ -23996,7 +24025,7 @@ async function testWorkoutBuilder(){
   });
 
   sub('an empty workout is a starting point, not a form');
-  guard('the empty workout', () => {
+  await guard('the empty workout', () => {
     const step = fnSrc(src, 'renderWorkoutStep');
     const empty = step.slice(step.indexOf('if(!rows.length){'), step.indexOf("sheet.classList.remove('ws-empty');"));
     T('it says what to do, and the one action that does it sits in the finish bar',
@@ -24019,7 +24048,7 @@ async function testWorkoutBuilder(){
   });
 
   sub('the saved-workout sheet');
-  guard('the saved-workout sheet', () => {
+  await guard('the saved-workout sheet', () => {
     T('empty, it says so, and adding takes the accent\'s edge over a Save with nothing to save',
       /<p class="tpl-empty">/.test(src) && /#tplExercises:empty \+ \.tpl-empty\{ display: block; \}/.test(css) &&
       /#tplExercises:empty ~ \.add-ex-btn\{ border-color: var\(--accent\); color: var\(--accent\); \}/.test(css));
@@ -24041,7 +24070,7 @@ async function testWorkoutBuilder(){
   });
 
   sub('Train leads with how to make a workout');
-  guard('the Train quick start', () => {
+  await guard('the Train quick start', () => {
     const view = src.slice(src.indexOf('<div class="view" id="view-train">'), src.indexOf('<div class="view" id="view-progress">'));
     /* D65 — New workout became Build workout and stopped saving under whichever
        category happened to be on screen: the sheet asks for the kind instead
@@ -24095,7 +24124,7 @@ async function testWorkoutClosure(){
   const path = require('path');
   const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
   const ctx = app.ctx, doc = ctx.document;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
 
   /* A workout row as the stepper, the removal and the draft read one. */
   let rows = [];
@@ -24140,7 +24169,7 @@ async function testWorkoutClosure(){
   const pictured = (head, name) => head.indexOf(ctx.exerciseArtUse(ctx.exerciseVisualKey(name))) !== -1;
 
   sub('removing the exercise on screen is one transition');
-  guard('removing a middle exercise', () => {
+  await guard('removing a middle exercise', () => {
     workout(); at(1);
     const moved = rows[2];
     ctx.removeLogExerciseRow(xOf(rows[1]));
@@ -24151,14 +24180,14 @@ async function testWorkoutClosure(){
       pictured(v.head, 'Back Squat') && !pictured(v.head, 'Barbell Row') && v.rail === 4 && v.now === 1 &&
       JSON.stringify(v.current) === JSON.stringify(['Back Squat']));
   });
-  guard('removing the last exercise', () => {
+  await guard('removing the last exercise', () => {
     workout(); at(4);
     ctx.removeLogExerciseRow(xOf(rows[4]));
     const v = seen();
     T('the last exercise: the new last one — Exercise 4 of 4',
       ctx.logStepIndex === 3 && v.count === '4/4' && v.title === 'Lateral Raise' && v.now === 3 && pictured(v.head, 'Lateral Raise'));
   });
-  guard('removing the first exercise', () => {
+  await guard('removing the first exercise', () => {
     workout(); at(0);
     ctx.removeLogExerciseRow(xOf(rows[0]));
     const v = seen();
@@ -24166,7 +24195,7 @@ async function testWorkoutClosure(){
       ctx.logStepIndex === 0 && v.count === '1/4' && v.title === 'Barbell Row' && v.now === 0 &&
       /class="ws-nav-btn" onclick="prevWorkoutStep\(\)" disabled/.test(doc.getElementById('wsNav').innerHTML));
   });
-  guard('removing the only exercise', () => {
+  await guard('removing the only exercise', () => {
     rows = [mkRow('Plank', [false])]; app.dom.setRows(rows);
     doc.getElementById('logOverlay').classList.add('open');
     at(0);
@@ -24177,14 +24206,14 @@ async function testWorkoutClosure(){
       /Add exercises/.test(doc.getElementById('wsFinishBar').innerHTML) && !/saveLog/.test(doc.getElementById('wsFinishBar').innerHTML) &&
       doc.getElementById('wsNav').innerHTML === '');
   });
-  guard('removing an exercise before the current one', () => {
+  await guard('removing an exercise before the current one', () => {
     workout(); at(3);
     ctx.removeLogExerciseRow(xOf(rows[1]));
     const v = seen();
     T('an exercise before the one on screen: the athlete stays on the same exercise, never a different one',
       v.title === 'Lateral Raise' && v.count === '3/4' && ctx.logStepIndex === 2);
   });
-  guard('removing two quickly', () => {
+  await guard('removing two quickly', () => {
     workout(); at(1);
     ctx.removeLogExerciseRow(xOf(rows[1]));
     ctx.removeLogExerciseRow(xOf(rows[1]));
@@ -24192,7 +24221,7 @@ async function testWorkoutClosure(){
     T('two in a row: each tap removes the exercise then on screen', v.count === '2/3' && v.title === 'Lateral Raise' &&
       JSON.stringify(rows.map(r => r._name)) === JSON.stringify(['Bench Press', 'Lateral Raise', 'Plank']));
   });
-  guard('sets stay with their own exercise', () => {
+  await guard('sets stay with their own exercise', () => {
     workout([null, [true, true, true], [true, false, false], null, null]);
     at(1);
     ctx.removeLogExerciseRow(xOf(rows[1]));
@@ -24202,7 +24231,7 @@ async function testWorkoutClosure(){
       v.title === 'Back Squat' && rows[1]._sets[0].classList.contains('completed') && !rows[1]._sets[1].classList.contains('completed') &&
       !/ws-seg-done/.test(segs[1] || ''));
   });
-  guard('performed work is asked about', () => {
+  await guard('performed work is asked about', () => {
     workout([null, [true, false, false], null, null, null]);
     at(1);
     const asked = [];
@@ -24214,7 +24243,7 @@ async function testWorkoutClosure(){
     ctx.removeLogExerciseRow(xOf(rows[2]));
     T('and one with nothing logged goes without a question', asked.length === 1 && rows.length === 4);
   });
-  guard('remove then add', () => {
+  await guard('remove then add', () => {
     workout(); at(1);
     ctx.removeLogExerciseRow(xOf(rows[1]));
     const keep = ctx.addLogExerciseRow;
@@ -24225,7 +24254,7 @@ async function testWorkoutClosure(){
     T('adding straight after a removal keeps the athlete where they are, and counts the new exercise',
       v.count === '2/5' && v.title === 'Back Squat' && rows[4]._name === 'Face Pull');
   });
-  guard('remove then reload', () => {
+  await guard('remove then reload', () => {
     workout([[true, true, true], [true, false, false], null, null, null]);
     at(1);
     ctx.confirm = () => true;
@@ -24252,7 +24281,7 @@ async function testWorkoutClosure(){
       T('it starts with no category and nothing chosen', ctx.pendingLogCategory === null && ctx.logCategoryChosen === false);
     }catch(e){ T('the freeform start — threw ' + e.message, false); }
   })();
-  guard('suggestions', () => {
+  await guard('suggestions', () => {
     const suggest = names => ctx.suggestWorkoutCategory(names.map(n => mkRow(n, [false, false, false])));
     T('a pressing workout is suggested as Push, a pulling one as Pull',
       suggest(['Bench Press', 'Incline Dumbbell Press', 'Triceps Pushdown']) === 'push' && suggest(['Barbell Row', 'Lat Pulldown', 'Barbell Curl']) === 'pull');
@@ -24266,7 +24295,7 @@ async function testWorkoutClosure(){
     T('one exercise, or a mix of everything, is not a confident answer',
       suggest(['Bench Press']) === null && suggest(['Bench Press', 'Back Squat', 'Barbell Row']) === null);
   });
-  guard('the review step', () => {
+  await guard('the review step', () => {
     const picker = doc.getElementById('logCategoryPicker'), note = doc.getElementById('logCategoryNote');
     picker.style.display = 'block';
     ctx.logCategoryChosen = false;
@@ -24283,7 +24312,7 @@ async function testWorkoutClosure(){
     ctx.applyCategorySuggestion(r1);
     T('a workout started from a saved one keeps the category it came with', ctx.pendingLogCategory === 'pull');
   });
-  guard('saving', () => {
+  await guard('saving', () => {
     const before = ctx.workoutLog.length, flagged = [];
     const keepFlag = ctx.flagFieldError, keepQ = doc.querySelector;
     ctx.flagFieldError = el => flagged.push(el);
@@ -24295,7 +24324,7 @@ async function testWorkoutClosure(){
       flagged.length === 1 && flagged[0].sel === '#logCategoryPicker .cat-select' && ctx.workoutLog.length === before);
     ctx.flagFieldError = keepFlag; doc.querySelector = keepQ;
   });
-  guard('drafts', () => {
+  await guard('drafts', () => {
     rows = [mkRow('Bench Press', [true])]; app.dom.setRows(rows);
     doc.getElementById('logOverlay').classList.add('open');
     doc.getElementById('logCategoryPicker').style.display = 'block';
@@ -24310,7 +24339,7 @@ async function testWorkoutClosure(){
   });
 
   sub('replacing a saved workout\'s exercise keeps its place and what the athlete set');
-  guard('replacement', () => {
+  await guard('replacement', () => {
     const tplRow = (name, sets, reps, effort, weight) => {
       const q = { '.t-name-in': field(name), '.t-sets-in': field(sets), '.t-reps-in': field(reps), '.t-effort-in': field(effort),
         '.t-weight-in': field(weight), '.ex-thumb-slot': { innerHTML: '' } };
@@ -24343,7 +24372,7 @@ async function testWorkoutClosure(){
   });
 
   sub('What\'s New dates are the days releases came out');
-  guard('release dates', () => {
+  await guard('release dates', () => {
     const list = ctx.LOOP_UPDATES;
     const iso = d => /^\d{4}-\d{2}-\d{2}$/.test(d) && new Date(d + 'T00:00:00Z').toISOString().slice(0, 10) === d;
     /* D70.5 — THE RELEASE TIMEZONE IS AMERICA/NEW_YORK, and the guard has to
@@ -24416,7 +24445,7 @@ async function testBuildMyOwnContinue(){
   section('CONTRACT 169 — Build My Own continues (D62.5)');
   const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
   const ctx = app.ctx, doc = ctx.document;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
   const body = () => doc.getElementById('pbBody').innerHTML;
   const foot = () => doc.getElementById('pbFoot').innerHTML;
   const stepId = () => ctx.pbAtReview() ? 'review' : ctx.pbSteps()[ctx.pbState.step].id;
@@ -24434,7 +24463,7 @@ async function testBuildMyOwnContinue(){
   const continueOn = () => /<button class="btn-primary pb-go" onclick="pbNext\(\)" >\s*Continue<\/button>/.test(foot());
 
   sub('Build my own opens the week and leads on from it');
-  guard('opening', () => {
+  await guard('opening', () => {
     atSplit();
     T('a preset still moves on by itself, so the step has no footer until the athlete builds their own', foot() === '');
     ctx.pbStartCustomSplit();
@@ -24444,14 +24473,14 @@ async function testBuildMyOwnContinue(){
       /class="pb-split pb-split-custom on"/.test(body()) && !/class="pb-split on"/.test(body()));
     T('Continue appears in the footer, the same primary control the days question uses', continueOn(), foot());
   });
-  guard('choosing roles', () => {
+  await guard('choosing roles', () => {
     atSplit(); ctx.pbStartCustomSplit();
     ctx.pbSetCustomRole(1, 'arms');
     ctx.pbSetCustomRole(3, 'legs');
     T('choosing roles keeps the week open and Continue available',
       JSON.stringify(roles()) === JSON.stringify(['upper', 'arms', 'upper', 'legs']) && continueOn());
   });
-  guard('incomplete', () => {
+  await guard('incomplete', () => {
     atSplit(); ctx.pbStartCustomSplit();
     ctx.pbState.answers.split = ['upper', 'arms'];
     ctx.renderProgramBuilderFlow();
@@ -24462,7 +24491,7 @@ async function testBuildMyOwnContinue(){
     ctx.pbState.answers.split = ['upper', 'lower', 'upper', 'legs', 'push'];
     T('nor with more roles than training days', (ctx.pbNext(), stepId() === 'split'));
   });
-  guard('continuing', () => {
+  await guard('continuing', () => {
     atSplit(); ctx.pbStartCustomSplit();
     ctx.pbSetCustomRole(1, 'arms');
     const expected = ctx.pbSteps()[ctx.pbSteps().findIndex(s => s.id === 'split') + 1].id;
@@ -24475,7 +24504,7 @@ async function testBuildMyOwnContinue(){
     T('back returns to the week, still open, still their own, with Continue',
       stepId() === 'split' && JSON.stringify(roles()) === JSON.stringify(['upper', 'arms', 'upper', 'lower']) && continueOn());
   });
-  guard('presets', () => {
+  await guard('presets', () => {
     atSplit(); ctx.pbStartCustomSplit();
     const preset = ['push', 'pull', 'legs', 'arms'];
     ctx.pbState.draft = { schedule: {} }; ctx.pbState.edited = true;
@@ -24489,7 +24518,7 @@ async function testBuildMyOwnContinue(){
   });
 
   sub('what the athlete made survives');
-  guard('the draft', () => {
+  await guard('the draft', () => {
     atSplit(); ctx.pbStartCustomSplit();
     ctx.pbSetCustomRole(1, 'arms');
     ctx.pbState.step = ctx.pbSteps().length;
@@ -24516,7 +24545,7 @@ async function testBuildMyOwnContinue(){
     ctx.pbSetCustomRole(0, 'push');
     T('and a yes is the rebuild it asked about', ctx.pbState.draft === null && ctx.pbState.answers.split[0] === 'push');
   });
-  guard('leaving and returning', () => {
+  await guard('leaving and returning', async () => {
     atSplit(); ctx.pbStartCustomSplit();
     ctx.pbSetCustomRole(2, 'legs');
     ctx.pbState.step = ctx.pbSteps().length;
@@ -24534,9 +24563,9 @@ async function testBuildMyOwnContinue(){
       ctx.pbAtReview() && JSON.stringify(ctx.pbState.answers.split) === JSON.stringify(['upper', 'lower', 'legs', 'lower']) &&
       JSON.stringify(ctx.pbState.answers.days) === JSON.stringify(DAYS) && ctx.pbState.draft.schedule.thu.name === 'Leg Day');
     ctx.pbClose();
-    try{ ctx.clearProgramDraft(); }catch(e){}
+    try{ await ctx.clearProgramDraft(); }catch(e){}
   });
-  guard('days', () => {
+  await guard('days', () => {
     atSplit(); ctx.pbStartCustomSplit();
     ctx.pbState.step = ctx.pbSteps().findIndex(s => s.id === 'days');
     ctx.pbToggleDay('sat');
@@ -24563,7 +24592,7 @@ async function testMachineCoverage(){
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
   const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
   const ctx = app.ctx, XA = ctx.ExerciseArt, defs = ctx.EXERCISE_ART.definitions();
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
   const BATCH = ['lateral_raise_machine', 'shoulder_press_machine', 'shoulder_press_smith', 'reverse_pec_deck',
     'incline_press_machine', 'bench_press_incline_smith', 'dip_machine', 'triceps_extension_machine', 'curl_machine',
     'leg_curl_seated', 'calf_raise_seated', 'calf_raise_leg_press', 'hip_thrust_machine', 'crunch_machine'];
@@ -24572,7 +24601,7 @@ async function testMachineCoverage(){
   const MUSCLES = Object.keys(ctx.MUSCLE_LABELS);
 
   sub('one identity each, and names that are one movement resolve together');
-  guard('identity', () => {
+  await guard('identity', () => {
     const all = ctx.CANONICAL_EXERCISES;
     T('the fourteen are all in the registry', BATCH.every(id => !!canon(id)), BATCH.filter(id => !canon(id)).join(','));
     T('canonical ids are unique', new Set(all.map(e => e.id)).size === all.length);
@@ -24601,7 +24630,7 @@ async function testMachineCoverage(){
   });
 
   sub('complete metadata, with equipment that is stated, not guessed');
-  guard('metadata', () => {
+  await guard('metadata', () => {
     const bad = BATCH.filter(id => {
       const e = canon(id);
       return !(PATTERNS.indexOf(e.pattern) !== -1 && e.equipment === 'Machine' && e.primary.length >= 1 &&
@@ -24633,7 +24662,7 @@ async function testMachineCoverage(){
   });
 
   sub('sessions and prescriptions, without the generator placing them');
-  guard('programs', () => {
+  await guard('programs', () => {
     const extras = ctx.LIBRARY_EXTRAS;
     const inTemplates = {};
     Object.keys(ctx.DEFAULT_PLANS).forEach(p => Object.keys(ctx.DEFAULT_PLANS[p].templates).forEach(cat =>
@@ -24675,7 +24704,7 @@ async function testMachineCoverage(){
     T('the pressing and hip machines still can', lead.every(id => !ctx.exerciseIsNeverPrimary(canon(id).displayName)));
     T('the NEVER_PRIMARY list names only registry exercises', ctx.NEVER_PRIMARY_IDS.every(id => !!canon(id)));
   });
-  guard('program studio', () => {
+  await guard('program studio', () => {
     ctx.confirm = () => true;
     ctx.pbState = { step: 0, dir: 'fwd', known: {}, mode: 'create', editingId: null, draft: null, edited: false,
       answers: { goal: 'hypertrophy', experience: 'intermediate', equipment: 'full', emphasis: 'balanced',
@@ -24697,7 +24726,7 @@ async function testMachineCoverage(){
   });
 
   sub('a drawing that is the machine, for every one');
-  guard('drawings', () => {
+  await guard('drawings', () => {
     const render = {};
     BATCH.forEach(id => { render[id] = { thumb: XA.render(defs[id], { size:'thumb' }), full: XA.render(defs[id], { size:'full' }) }; });
     T('each is drawn under its own id, and every alias reaches the same drawing',
@@ -24759,7 +24788,7 @@ async function testMachineCoverage(){
   });
 
   sub('search and both filters find every one');
-  guard('picker', () => {
+  await guard('picker', () => {
     const first = q => (ctx.exPickerMatches(q)[0] || {}).key;
     T('searching a display name finds it first', BATCH.every(id => first(canon(id).displayName) === id), BATCH.filter(id => first(canon(id).displayName) !== id).join(','));
     const q = [['rear delt machine', 'reverse_pec_deck'], ['calf press', 'calf_raise_leg_press'], ['triceps machine', 'triceps_extension_machine'], ['leg curl machine', 'leg_curl'],
@@ -24774,7 +24803,7 @@ async function testMachineCoverage(){
   });
 
   sub('Swap, both ways, keeping the movement\'s intent');
-  guard('swap', () => {
+  await guard('swap', () => {
     const ranked = id => ctx.rankSubstitutionCandidates(id, {}).map(r => r.exerciseId);
     const empty = BATCH.filter(id => !ranked(id).length);
     T('every one has ranked alternatives', empty.length === 0, empty.join(','));
@@ -24824,7 +24853,7 @@ async function testMachineCoverage(){
     };
     const hist = await H.loadAppBooted(store);
     const c2 = hist.ctx;
-    guard('history', () => {
+    await guard('history', () => {
       const dates = id => c2.getExerciseHistoryById(id).map(h => h.workoutId).sort().join(',');
       T('the seated leg curl\'s history is its sessions, and the lying curl\'s is its own', dates('leg_curl_seated') === 'm2,m3' && dates('leg_curl') === 'm1');
       T('the seated calf raise no longer counts the standing one, or the reverse', dates('calf_raise_seated') === 'm1,m3' && dates('calf_raise') === 'm2');
@@ -24845,7 +24874,7 @@ async function testMachineCoverage(){
         'Leg Curl+Seated Calf Raise|Seated Leg Curl+Calf Raise|Seated Leg Curl+Seated Calf Raise|Machine Shoulder Press+Reverse Pec Deck Fly+Machine Crunch');
     });
     const again = await H.loadAppBooted(hist.store);
-    guard('reload', () => {
+    await guard('reload', () => {
       T('after a reload every name resolves the same way', ['Seated Leg Curl', 'Seated Calf Raise', 'Machine Crunch', 'Reverse Pec Deck Fly'].every(n =>
         again.ctx.resolveExerciseId(n) === c2.resolveExerciseId(n)) && again.ctx.getExerciseHistoryById('leg_curl_seated').length === 2);
     });
@@ -24854,7 +24883,7 @@ async function testMachineCoverage(){
     await fresh.ctx.importAllData({ files:[{ text: async () => JSON.stringify(payload) }], value:'' });
     await H.settle(200);
     const restored = await H.loadAppBooted(fresh.store);          // import ends in a reload
-    guard('restore', () => {
+    await guard('restore', () => {
       T('a restored backup keeps the separate histories and the notes', restored.ctx.getExerciseHistoryById('leg_curl_seated').length === 2 &&
         restored.ctx.getExerciseHistoryById('leg_curl').length === 1 && restored.ctx.getExerciseNotesByName('Machine Shoulder Press').length === 1);
     });
@@ -24887,7 +24916,7 @@ async function testMachineIntegrity(){
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
   const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
   const ctx = app.ctx, XA = ctx.ExerciseArt, defs = ctx.EXERCISE_ART.definitions();
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
   const role = n => ctx.timeModeRoleOf(n).role;
   const segDist = (p, a, b) => { const vx = b[0] - a[0], vy = b[1] - a[1], wx = p[0] - a[0], wy = p[1] - a[1], L = vx * vx + vy * vy;
     const t = L ? Math.max(0, Math.min(1, (wx * vx + wy * vy) / L)) : 0; return Math.hypot(wx - vx * t, wy - vy * t); };
@@ -24904,7 +24933,7 @@ async function testMachineIntegrity(){
   };
 
   sub('Time Mode reads a catalogued movement\'s role from the registry');
-  guard('registry role', () => {
+  await guard('registry role', () => {
     const vetoed = c => c.pattern === 'core' || c.pattern === 'isolation' || ctx.NEVER_PRIMARY_IDS.indexOf(c.id) !== -1;
     const expected = c => vetoed(c) ? 'accessory' : (ctx.TIME_MODE_COMPOUND_PATTERNS.indexOf(c.pattern) !== -1 ? 'compound' : 'other');
     const wrong = [];
@@ -24930,7 +24959,7 @@ async function testMachineIntegrity(){
   });
 
   sub('a session keeps its compounds and lets the isolation work go first');
-  guard('tiers', () => {
+  await guard('tiers', () => {
     const mk = (name, sets) => ({ name, sets, reps:'8-12', effort:'8' });
     const custom = { name:'Custom', exercises:[mk('Machine Shoulder Press', 4), mk('Machine Lateral Raise', 4), mk('Reverse Pec Deck', 4),
       mk('Lat Pulldown', 4), mk('Triceps Pushdown', 3), mk('Pendulum Squat', 3)] };
@@ -24965,7 +24994,7 @@ async function testMachineIntegrity(){
     const booted = await H.loadAppBooted(store);
     const c = booted.ctx;
     const logBefore = booted.store.workoutLog, plansBefore = JSON.stringify(c.DEFAULT_PLANS), keysBefore = Object.keys(booted.store).sort().join();
-    guard('stored', () => {
+    await guard('stored', () => {
       Object.keys(c.DEFAULT_PLANS).forEach(pid => Object.keys(c.DEFAULT_PLANS[pid].templates).forEach(cat =>
         (c.DEFAULT_PLANS[pid].templates[cat] || []).forEach(t => [null, 90, 60, 45, 30, 15].forEach(m => { c.assignTimeTiers(t.exercises); c.compressWorkoutForTime(t, m); }))));
       T('a workout trained in Time Mode under the old tiers is stored exactly as it was trained', booted.store.workoutLog === logBefore &&
@@ -24977,7 +25006,7 @@ async function testMachineIntegrity(){
   }
 
   sub('every lever turns about its pivot');
-  guard('levers', () => {
+  await guard('levers', () => {
     /* Two swings move in a horizontal plane that a view from the front (or
        behind) foreshortens; everything else must be the same length drawn
        both ways. */
@@ -25028,7 +25057,7 @@ async function testMachineIntegrity(){
   });
 
   sub('Calf Raise is filed as the movement it is');
-  guard('calf', () => {
+  await guard('calf', () => {
     const calf = ctx.getCanonicalExercise('calf_raise');
     T('the standing raise on a step it is drawn and cued as, needing nothing', calf.equipment === 'Bodyweight' &&
       JSON.stringify(ctx.getExerciseEquipmentRequirements('calf_raise')) === '[]' &&
@@ -25068,7 +25097,7 @@ async function testMachineIntegrity(){
       WK('c1', 20, 'legs', [EX('Calf Raise', [S(180, 12), S(180, 12)])]),
       WK('c2', 10, 'legs', [EX('Standing Calf Raise', [S(190, 12)])])]) });
     const logged = hist.store.workoutLog;
-    guard('calf history', () => {
+    await guard('calf history', () => {
       T('its history is every session logged under its names', hist.ctx.getExerciseHistoryById('calf_raise').map(h => h.workoutId).sort().join() === 'c1,c2');
       const prs = hist.ctx.computeExercisePREvents('Calf Raise');
       T('and its records are still read from the loads it was logged with', prs.length === 1 && prs[0].isBW === false && prs[0].headline.type === 'weight' && prs[0].headline.next === 180);
@@ -25077,7 +25106,7 @@ async function testMachineIntegrity(){
   }
 
   sub('Hip Abduction is not a hinge');
-  guard('hip', () => {
+  await guard('hip', () => {
     const hip = ctx.getCanonicalExercise('hip_abduction');
     T('it is single-joint work, under a pattern LOOP already has', hip.pattern === 'isolation' &&
       Object.prototype.hasOwnProperty.call(ctx.SUBSTITUTION_CONFIG.relatedPatterns, hip.pattern));
@@ -25134,7 +25163,7 @@ async function testBodyweightCoverage(){
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
   const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
   const ctx = app.ctx, XA = ctx.ExerciseArt, defs = ctx.EXERCISE_ART.definitions();
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
   const canon = id => ctx.getCanonicalExercise(id);
   const SURFACE = ['bench', 'adjustable_bench', 'plyo_box'];
   /* id: [display name, equipment class, primary, pattern] — the batch as shipped. */
@@ -25166,7 +25195,7 @@ async function testBodyweightCoverage(){
   const PATTERNS = ['horizontal_push', 'vertical_push', 'horizontal_pull', 'vertical_pull', 'squat', 'lunge', 'hinge', 'isolation', 'core'];
 
   sub('one identity each, and names that are one movement resolve together');
-  guard('identity', () => {
+  await guard('identity', () => {
     T('all twenty-one are in the registry under the names they are known by', IDS.every(id => canon(id) && canon(id).displayName === BATCH[id][0]),
       IDS.filter(id => !canon(id) || canon(id).displayName !== BATCH[id][0]).join(','));
     T('every identity in the registry is unique', new Set(ctx.CANONICAL_EXERCISES.map(e => e.id)).size === ctx.CANONICAL_EXERCISES.length);
@@ -25187,7 +25216,7 @@ async function testBodyweightCoverage(){
   });
 
   sub('explicit equipment: nothing, a surface, a bar or a band — never a guess');
-  guard('equipment', () => {
+  await guard('equipment', () => {
     const req = id => ctx.getExerciseEquipmentRequirements(id);
     const cls = id => {
       const r = req(id);
@@ -25217,7 +25246,7 @@ async function testBodyweightCoverage(){
   });
 
   sub('muscles, pattern, role and how each one is logged');
-  guard('metadata', () => {
+  await guard('metadata', () => {
     const MUSCLES = Object.keys(ctx.MUSCLE_LABELS);
     T('each trains the primary muscle it is filed under, in LOOP\'s own vocabulary',
       IDS.every(id => canon(id).primary.join() === BATCH[id][2] && canon(id).primary.concat(canon(id).secondary).every(m => MUSCLES.indexOf(m) !== -1)));
@@ -25233,7 +25262,7 @@ async function testBodyweightCoverage(){
   });
 
   sub('a drawing of the movement itself, and cues that match it');
-  guard('drawings', () => {
+  await guard('drawings', () => {
     T('each is drawn under its own id, and every alias reaches that drawing',
       IDS.every(id => ctx.exerciseVisualKey(BATCH[id][0]) === id && canon(id).aliases.every(a => ctx.exerciseVisualKey(a) === id)));
     const svg = {};
@@ -25259,7 +25288,7 @@ async function testBodyweightCoverage(){
   });
 
   sub('search, both filters and one entry per movement');
-  guard('picker', () => {
+  await guard('picker', () => {
     const find = q => ctx.exPickerMatches(q).map(e => e.name);
     T('the names people use find them', find('diamond push-up')[0] === 'Close-Grip Push-Up' && find('air squat')[0] === 'Bodyweight Squat' &&
       find('australian pull-up')[0] === 'Inverted Row' && find('chair dips')[0] === 'Bench Dip' && find('band lateral walk')[0] === 'Lateral Band Walk' &&
@@ -25276,7 +25305,7 @@ async function testBodyweightCoverage(){
   });
 
   sub('Swap reads a catalogued movement from the registry, and names only for the rest');
-  guard('swap canonical', () => {
+  await guard('swap canonical', () => {
     const disagree = [];
     ctx.CANONICAL_EXERCISES.forEach(c => {
       const want = ctx.registryRoleOf(c);
@@ -25299,7 +25328,7 @@ async function testBodyweightCoverage(){
   });
 
   sub('Swap offers the movement, not just the muscle');
-  guard('swap truth', () => {
+  await guard('swap truth', () => {
     const ranked = (id, ctxt) => ctx.rankSubstitutionCandidates(id, ctxt || {}).map(r => r.exerciseId);
     T('Pull-Up: vertical pulls first', ranked('pullup').slice(0, 2).every(id => canon(id).pattern === 'vertical_pull') && ranked('pullup').indexOf('inverted_row') !== -1);
     T('Push-Up: the incline push-up first, then presses', ranked('pushup')[0] === 'pushup_incline' && ranked('pushup').every(id => ['horizontal_push', 'vertical_push'].indexOf(canon(id).pattern) !== -1));
@@ -25322,7 +25351,7 @@ async function testBodyweightCoverage(){
   });
 
   sub('sessions and prescriptions');
-  guard('programs', () => {
+  await guard('programs', () => {
     T('adding any of them to a workout finds a prescription', IDS.every(id => { const rx = ctx.libraryPrescriptionFor(BATCH[id][0]); return rx && rx.sets && rx.reps && rx.effort; }));
     T('the two no plan writes declare theirs, for the sessions that train what they train',
       ['inverted_row', 'hip_abduction_side_lying'].every(id => ctx.LIBRARY_EXTRAS.some(x => x.id === id)) &&
@@ -25394,7 +25423,7 @@ async function testBodyweightCoverage(){
     ]) });
     const c = bw.ctx;
     const starts = (n, rec) => c.rowStartsAsBodyweight(n, rec);
-    guard('bodyweight rows', () => {
+    await guard('bodyweight rows', () => {
       T('a row that says nothing about load follows the movement: bodyweight for the new identities, a hold and a chin-up; loaded for a hip thrust, a band walk and a standing calf raise',
         starts('Inverted Row', '\u2014') && starts('Side-Lying Hip Abduction') && starts('Hollow Body Hold', '') && starts('Chin-Up', 'Add load when 10 reps is easy') &&
         !starts('Hip Thrust', '\u2014') && !starts('Lateral Band Walk', '\u2014') && !starts('Standing Calf Raise', '\u2014'));
@@ -25444,7 +25473,7 @@ async function testBodyweightCoverage(){
     ]) };
     const hist = await H.loadAppBooted(store);
     const c = hist.ctx;
-    guard('history', () => {
+    await guard('history', () => {
       const ids = id => c.getExerciseHistoryById(id).map(h => h.workoutId + ':' + h.name).sort().join(',');
       T('the glute bridge and the hip thrust are separate histories', ids('glute_bridge') === 'b1:Glute Bridge' && ids('hip_thrust') === 'b1:Hip Thrust');
       T('the hanging leg raise and the lying leg raise are separate histories', ids('hanging_leg_raise') === 'b2:Hanging Leg Raise' && ids('leg_raise') === 'b2:Leg Raise');
@@ -25461,7 +25490,7 @@ async function testBodyweightCoverage(){
       T('nothing stored was touched', hist.store.workoutLog === store.workoutLog);
     });
     const again = await H.loadAppBooted(hist.store);
-    guard('reload', () => {
+    await guard('reload', () => {
       T('after a reload every name resolves the same way', ['Glute Bridge', 'Diamond Push-Up', 'Box Step-Up', 'Weighted Pull-Up', 'Hanging Leg Raise'].every(n =>
         again.ctx.resolveExerciseId(n) === c.resolveExerciseId(n)) && again.ctx.getExerciseHistoryById('pushup_close').length === 2);
     });
@@ -25616,7 +25645,7 @@ async function testTrainLauncher(){
          library's differ by an exercise and Train has to say which one Start trains. */
       const week = ctx.buildTrainingWeek('balanced', ['mon', 'tue', 'thu', 'fri']);
       week.mon = Object.assign({}, week.mon, { ext: ['x_plank'] });
-      const made = ctx.createProgram({ name:'Balanced Machines', durationWeeks: 8, schedule: week });
+      const made = await ctx.createProgram({ name:'Balanced Machines', durationWeeks: 8, schedule: week });
       T('a program is running for the week', made && made.ok && ctx.hasActiveProgram() && ctx.getActiveProgram().id === made.program.id);
       ctx.trainCategoryChosen = false;
       const d = draw();
@@ -26126,9 +26155,9 @@ async function testWeekHoldToSlide(){
     });
 
     sub('scheduling truth');
-    await guard('truth', () => {
+    await guard('truth', async () => {
       Object.assign(ctx, { swapScheduledDays: keep.swapScheduledDays });
-      const made = ctx.createProgram({ name:'Balanced Machines', durationWeeks: 8, schedule: ctx.buildTrainingWeek('balanced', ['mon', 'tue', 'thu', 'fri']) });
+      const made = await ctx.createProgram({ name:'Balanced Machines', durationWeeks: 8, schedule: ctx.buildTrainingWeek('balanced', ['mon', 'tue', 'thu', 'fri']) });
       const p = ctx.getActiveProgram();
       const ident = e => (e && e.type === 'workout') ? ['workout', e.planId, e.category, e.templateId].join('/') : 'rest';
       const monEntry = ident(p.schedule.mon), wedEntry = ident(p.schedule.wed);
@@ -26212,7 +26241,7 @@ async function testRussianTwistArt(){
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
   const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
   const ctx = app.ctx, XA = ctx.ExerciseArt, G = XA.G, defs = ctx.EXERCISE_ART.definitions(), def = defs.russian_twist;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
   const sha = t => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
   const norm = t => String(t).split('\r\n').join('\n').trim();
   const full = XA.render(def, { size:'full' }), thumb = XA.render(def, { size:'thumb' });
@@ -26244,7 +26273,7 @@ async function testRussianTwistArt(){
   const lowest = pts => pts.reduce((y, p) => Math.max(y, p[1]), -Infinity);
 
   sub('the same exercise: identity, names, muscles, equipment, prescriptions and cues');
-  guard('identity', () => {
+  await guard('identity', () => {
     T('the registry row is the one D64 shipped, character for character',
       src.indexOf("{ id:'russian_twist',           displayName:'Russian Twist',          aliases:['russian twist','russian twists'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'rotation' },") !== -1 &&
       (src.match(/id:'russian_twist'/g) || []).length === 1 && /\n\s*russian_twist:\s+\[\],/.test(src));
@@ -26268,7 +26297,7 @@ async function testRussianTwistArt(){
   });
 
   sub('a seated rotation, not a side bend');
-  guard('pose', () => {
+  await guard('pose', () => {
     const moved = Object.keys(Object.assign({}, def.start, def.end)).filter(k => JSON.stringify(def.start[k]) !== JSON.stringify(def.end[k]));
     T('the two positions differ only in the arms', moved.length > 0 && moved.every(k => ['la', 'lfa', 'ra', 'rfa'].indexOf(k) !== -1), moved.join(','));
     T('so the seat, trunk, head and both legs hold still between them',
@@ -26294,7 +26323,7 @@ async function testRussianTwistArt(){
   });
 
   sub('bodyweight, one faint second position, one arc above the head');
-  guard('drawing', () => {
+  await guard('drawing', () => {
     T('nothing is in the hands: no prop, and no equipment colour anywhere in the drawing',
       !def.gear && !def.scene && !def.behind && !def.front && !/#232A34|#A7B1C1|#6C7788|#2A313C|#39424F|#8C97A8/.test(full + thumb));
     const heads = (full.match(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="([\d.]+)"/g) || []).map(nums);
@@ -26327,7 +26356,7 @@ async function testRussianTwistArt(){
   });
 
   sub('nothing else moved');
-  guard('scope', () => {
+  await guard('scope', () => {
     const others = Object.keys(defs).sort().filter(k => k !== 'russian_twist' && k !== 'weighted_russian_twist');
     /* Every other drawing, at both sizes, as 7.0 drew them. A phase that changes a drawing on purpose moves this
        with its reason. D68 moved this too: it redrew weighted_russian_twist and nothing else, which
@@ -26372,7 +26401,7 @@ async function testWeightedRussianTwistArt(){
   const app = await H.loadAppBooted({ dataSchemaVersion:'1' });
   const ctx = app.ctx, XA = ctx.ExerciseArt, G = XA.G, defs = ctx.EXERCISE_ART.definitions();
   const def = defs.weighted_russian_twist, sibling = defs.russian_twist;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
   const sha = t => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
   const full = XA.render(def, { size:'full' }), thumb = XA.render(def, { size:'thumb' });
   const J = [XA.solve('front', def.start), XA.solve('front', def.end)];
@@ -26386,7 +26415,7 @@ async function testWeightedRussianTwistArt(){
   const lib = src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b);
 
   sub('the same exercise: an unmapped history of its own, names, prescriptions and cues');
-  guard('identity', () => {
+  await guard('identity', () => {
     T('both names still reach a drawing, each keeping its own id apart from the bodyweight twist',
       ctx.exerciseVisualKey('Weighted Russian Twist') === 'weighted_russian_twist' && ctx.exerciseVisualKey('Russian Twist') === 'russian_twist' &&
       ctx.resolveExerciseId('Weighted Russian Twist').indexOf('unmapped:') === 0 && ctx.resolveExerciseId('Weighted Russian Twist') !== ctx.resolveExerciseId('Russian Twist'));
@@ -26404,7 +26433,7 @@ async function testWeightedRussianTwistArt(){
   });
 
   sub('a seated hold and turn, sharing its posture with the bodyweight twist');
-  guard('pose', () => {
+  await guard('pose', () => {
     const moved = Object.keys(Object.assign({}, def.start, def.end)).filter(k => JSON.stringify(def.start[k]) !== JSON.stringify(def.end[k]));
     T('the two positions differ only in the arms', moved.length > 0 && moved.every(k => ['la', 'lfa', 'ra', 'rfa'].indexOf(k) !== -1), moved.join(','));
     T('the seat, trunk, head and both legs are pixel-identical to the bodyweight twist\'s own',
@@ -26428,7 +26457,7 @@ async function testWeightedRussianTwistArt(){
   });
 
   sub('one held ball, a faint second position, one arc above the head');
-  guard('drawing', () => {
+  await guard('drawing', () => {
     T('exactly one piece of gear: a ball at the hands, drawn in front of the figure',
       Array.isArray(def.gear) && def.gear.length === 1 && def.gear[0][0] === 'medball' && def.gear[0][1].at === 'mid' && def.gear[0][1].r === 5.2 && def.gearFront === true);
     const heads = (full.match(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="5\.4"/g) || []).map(nums);
@@ -26464,7 +26493,7 @@ async function testWeightedRussianTwistArt(){
   });
 
   sub('the old seated-V helper is gone, not merely orphaned');
-  guard('cleanup', () => {
+  await guard('cleanup', () => {
     T('vSit was removed along with its one caller, not left as dead code', !/function vSit\(/.test(lib) && !/\bvSit\(/.test(lib));
     T('the bodyweight twist itself renders exactly as D67 shipped it',
       sha(XA.render(sibling, { size:'full' })) === 'fd6674e49c315758' && sha(XA.render(sibling, { size:'thumb' })) === '70fa0def322bc3b7');
@@ -26502,7 +26531,7 @@ async function testSmartSuggestions(){
   const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
   const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
   const ctx = app.ctx, doc = app.dom.document;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
   const body = () => doc.getElementById('exPickerBody').innerHTML;
   const state = o => ctx.exPickerNewState('workout', Object.assign({ category: null, already: [], selected: [] }, o || {}));
   const rank = o => ctx.exPickerSuggested(state(o), o && o.limit);
@@ -26514,7 +26543,7 @@ async function testSmartSuggestions(){
   };
 
   sub('one engine, and it reads the workout in front of it');
-  guard('one engine', () => {
+  await guard('one engine', () => {
     T('the picker asks one ranking for its default state, not one list per caller',
       /const sug = exPickerSuggested\(st\);/.test(fnSrc(src, 'renderExercisePicker')) &&
       !/<div class="xp-sec">Suggested for /.test(src) && !/Suggested for ' \+ escapeHtml\(CAT_LABEL/.test(src) &&
@@ -26546,7 +26575,7 @@ async function testSmartSuggestions(){
   });
 
   sub('session fit is the plans\' own libraries — never a name');
-  guard('session fit', () => {
+  await guard('session fit', () => {
     const truth = ctx.xsSessionTruth();
     T('every category\'s movements come from the library, the extensions and D63\'s machines',
       ctx.ORDER.every(c => truth.cats[c] && Object.keys(truth.cats[c].keys).length > 10) &&
@@ -26580,7 +26609,7 @@ async function testSmartSuggestions(){
   });
 
   sub('movement complement — and the two patterns that are not movements');
-  guard('complement', () => {
+  await guard('complement', () => {
     const rows = score('Lat Pulldown', { category: 'pull', already: ['Barbell Row', 'Seated Cable Row'] });
     const verticals = score('Lat Pulldown', { category: 'pull', already: ['Pull-Up'] });
     T('a pattern the day is built from and this workout has none of is worth something',
@@ -26608,7 +26637,7 @@ async function testSmartSuggestions(){
   });
 
   sub('redundancy — suggest less is not forbid');
-  guard('redundancy', () => {
+  await guard('redundancy', () => {
     const list = rank({ category: 'push', already: ['Bench Press'] });
     T('an exact duplicate is never suggested, however it was spelled',
       keys(list).indexOf('bench_press_barbell') === -1 &&
@@ -26652,7 +26681,7 @@ async function testSmartSuggestions(){
   });
 
   sub('equipment — the gym\'s answer, and never a guess for it');
-  guard('equipment', () => {
+  await guard('equipment', () => {
     const keepProfile = JSON.parse(JSON.stringify(ctx.gymProfile));
     ctx.gymProfile = { version: 1, configuredAt: '2026-01-01T00:00:00.000Z', equipment: {}, custom: [] };
     ctx.GYM_EQUIPMENT.forEach(e => { ctx.gymProfile.equipment[e.id] = false; });
@@ -26679,7 +26708,7 @@ async function testSmartSuggestions(){
   });
 
   sub('the athlete\'s own history, under everything that matters');
-  guard('personal context', () => {
+  await guard('personal context', () => {
     const keepLog = ctx.workoutLog;
     const set = () => ({ weight: '100', reps: '8' });
     ctx.workoutLog = [];
@@ -26710,7 +26739,7 @@ async function testSmartSuggestions(){
   });
 
   sub('one reason, and it is about this workout before it is about the athlete');
-  guard('reasons', () => {
+  await guard('reasons', () => {
     const list = rank({ category: 'pull', already: ['Barbell Row', 'Seated Cable Row'] });
     T('every suggestion in a session that has a category says why, in one short sentence',
       list.length > 0 && list.every(s => typeof s.reason === 'string' && s.reason && s.reason.length <= 42),
@@ -26730,7 +26759,7 @@ async function testSmartSuggestions(){
   });
 
   sub('the same workout ranks the same way, every time');
-  guard('determinism', () => {
+  await guard('determinism', () => {
     const once = rank({ category: 'legs', already: ['Back Squat', 'Romanian Deadlift'] });
     const twice = rank({ category: 'legs', already: ['Back Squat', 'Romanian Deadlift'] });
     T('twice in a row is twice the same, scores included',
@@ -26763,7 +26792,7 @@ async function testSmartSuggestions(){
   });
 
   sub('it ranks. It does not act');
-  guard('no mutation', () => {
+  await guard('no mutation', () => {
     const shot = () => JSON.stringify({
       log: ctx.workoutLog, plan: ctx.planData, schedule: ctx.schedule, gym: ctx.gymProfile,
       templates: ctx.ORDER.map(c => ctx.getTemplates(c)), prefs: ctx.exercisePrefs, profile: ctx.athleteProfile,
@@ -26783,7 +26812,7 @@ async function testSmartSuggestions(){
   });
 
   sub('a movement LOOP has never heard of is unknown, not wrong');
-  guard('unmapped', () => {
+  await guard('unmapped', () => {
     const custom = 'Jacob’s Sled Drag';
     T('an unmapped name ranks without throwing, and is given no pattern it does not have', (() => {
       const k = ctx.exPickerKeyOf(custom);
@@ -26800,7 +26829,7 @@ async function testSmartSuggestions(){
   });
 
   sub('the picker\'s default state');
-  guard('the default state', () => {
+  await guard('the default state', () => {
     ctx.pendingLogCategory = 'push';
     ctx.openWorkoutExercisePicker('step');
     T('Suggested leads, and Recent follows it rather than the other way round', (() => {
@@ -26835,7 +26864,7 @@ async function testSmartSuggestions(){
   });
 
   sub('replace is not add, and Swap is still Swap');
-  guard('replace', () => {
+  await guard('replace', () => {
     T('the picker in replace mode offers no add-ranked suggestions at all',
       ctx.exPickerSuggested(ctx.exPickerNewState('program', { category: 'push', already: ['Bench Press'], replaceIdx: 0 })).length === 0 &&
       ctx.exPickerSuggested(ctx.exPickerNewState('template', { category: 'pull', already: ['Barbell Row'], replaceIdx: 2 })).length === 0);
@@ -26855,7 +26884,7 @@ async function testSmartSuggestions(){
   });
 
   sub('D70.5 — where in the workout this is');
-  guard('session shape', () => {
+  await guard('session shape', () => {
     const truth = ctx.xsSessionTruth();
     const ctxOf = o => ctx.exSuggestionContext(state(o));
     T('a session\'s shape is read from the plans\' own templates, never written down',
@@ -26947,7 +26976,7 @@ async function testSmartSuggestions(){
   });
 
   sub('nothing protected moved');
-  guard('protected', () => {
+  await guard('protected', () => {
     T('exercise identity, aliases and history resolution are exactly as they were',
       ctx.CANONICAL_EXERCISES.length === 97 && ctx.resolveExerciseId('flat bench press') === 'bench_press_barbell' &&
       ctx.resolveExerciseId('never heard of it') === 'unmapped:never heard of it');
@@ -27004,7 +27033,7 @@ async function testMuscleMapOverlays(){
   const sha256 = b => crypto.createHash('sha256').update(b).digest('hex');
   const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
   const ctx = app.ctx;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.message), false); } };
   let build = null, record = null, regions = null;
   try{ build = require(path.join(ROOT, 'build-muscle-map.js')); }catch(e){}
   try{ record = JSON.parse(read('muscle-map.json').toString('utf8')); }catch(e){}
@@ -27039,7 +27068,7 @@ async function testMuscleMapOverlays(){
   const GROUPS = Object.keys(ctx.MUSCLE_MAP);
 
   sub('the approved illustration is still the source, unedited');
-  guard('master', () => {
+  await guard('master', () => {
     const master = read('muscle-map.webp'); const f = webpFacts(master);
     T('muscle-map.webp is still the file the owner approved in 7.6, byte for byte',
       !!master && sha256(master) === '8b8b51f3704f2b49a65895b9b3229692309758ad8d9c547b63f603b6d4a51a67');
@@ -27053,7 +27082,7 @@ async function testMuscleMapOverlays(){
   });
 
   sub('the atlas and region map are exactly what the build recorded');
-  guard('derived files', () => {
+  await guard('derived files', () => {
     const atlas = read('muscle-map-atlas.webp'), regionsBuf = read('muscle-map-regions.png'), f = webpFacts(atlas);
     T('muscle-map-atlas.webp exists and is the build\'s own output, unedited', !!atlas && !!record && sha256(atlas) === record.atlas.sha256 && atlas.length === record.atlas.bytes);
     T('it is a transparent WebP of the size the table draws it at', !!f && f.alpha && f.width === ctx.MUSCLE_ATLAS.w && f.height === ctx.MUSCLE_ATLAS.h &&
@@ -27068,7 +27097,7 @@ async function testMuscleMapOverlays(){
   });
 
   sub('the build\'s own pixel checks, as encoded');
-  guard('checks', () => {
+  await guard('checks', () => {
     const c = record.checks.encoded, d = record.checks.derived;
     T('same body: every alpha value of the neutral base equals the master\'s', c.alphaDiffsFromMaster === 0 && d.alphaDiffsFromMaster === 0);
     T('the highlight is gone from the neutral base: under one pixel in ten thousand of the master\'s blue remains',
@@ -27081,7 +27110,7 @@ async function testMuscleMapOverlays(){
   });
 
   sub('each canonical group owns its own muscles, on its own views');
-  guard('regions', () => {
+  await guard('regions', () => {
     const W = regions.width, H = regions.height, split = record.viewSplitX;
     T('the groups are MUSCLE_MAP\'s ten, in its order — none invented, none dropped',
       JSON.stringify(record.groups) === JSON.stringify(GROUPS) && JSON.stringify(Object.keys(ctx.MUSCLE_ATLAS.tiles)) === JSON.stringify(GROUPS));
@@ -27122,7 +27151,7 @@ async function testMuscleMapOverlays(){
   });
 
   sub('one image, one coordinate system, nothing drawn by hand');
-  guard('layers', () => {
+  await guard('layers', () => {
     const all = {}; GROUPS.forEach(g => all[g] = 5);
     const html = ctx.bodyDiagramSvg(null, all), L = layersOf(html);
     const tileCount = GROUPS.reduce((n, g) => n + ctx.MUSCLE_ATLAS.tiles[g].length, 0);
@@ -27154,7 +27183,7 @@ async function testMuscleMapOverlays(){
   });
 
   sub('each group lights alone, at the band its own totals earn');
-  guard('intensity', () => {
+  await guard('intensity', () => {
     T('the bands are D71\'s, restored: none, under a third of the most-worked group, under 70%, the rest',
       ctx.muscleBand(0, 10) === 0 && ctx.muscleBand(-1, 10) === 0 && ctx.muscleBand(NaN, 10) === 0 && ctx.muscleBand(undefined, 10) === 0 &&
       ctx.muscleBand(33.9, 100) === 1 && ctx.muscleBand(34, 100) === 2 && ctx.muscleBand(69.9, 100) === 2 && ctx.muscleBand(70, 100) === 3 && ctx.muscleBand(100, 100) === 3);
@@ -27184,7 +27213,7 @@ async function testMuscleMapOverlays(){
   });
 
   sub('every call site still draws its own muscle set');
-  guard('call sites', () => {
+  await guard('call sites', () => {
     T('seven callers, each passing exactly what it always passed',
       (src.match(/bodyDiagramSvg\(/g) || []).length === 8 &&
       /const diagram = bodyDiagramSvg\(planAggregateTemplate\(planDef\)\);/.test(fnSrc(src, 'planCardBody')) &&
@@ -27200,7 +27229,7 @@ async function testMuscleMapOverlays(){
   });
 
   sub('every card keeps its place');
-  guard('sizing', () => {
+  await guard('sizing', () => {
     T('the figure is still sized by the rules that always sized it',
       /\.muscle-svg\{ width: 100%; max-width: 106px; height: auto; display: block; \}/.test(css) &&
       /\.po-mus-body\{ width: 92px; flex-shrink: 0; display: block; \}/.test(css) && /\.mv-body\{ width: 84px; flex-shrink: 0; \}/.test(css) &&
@@ -27218,7 +27247,7 @@ async function testMuscleMapOverlays(){
   });
 
   sub('no function that counts a set changed');
-  guard('analytics safety', () => {
+  await guard('analytics safety', () => {
     /* each function's own body, from its declaration to its closing brace, hashed against 7.6 */
     const body = name => { const t = src.split('\r\n').join('\n'); const i = t.indexOf('\nfunction ' + name + '('); const j = t.indexOf('\n}\n', i + 1); return i < 0 || j < 0 ? '' : t.slice(i + 1, j + 2); };
     const pin = name => crypto.createHash('sha256').update(body(name)).digest('hex').slice(0, 16);
@@ -27286,7 +27315,7 @@ async function testTrainingFoundation(){
   const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
   const ctx = app.ctx;
   const doc = ctx.document;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
   const pin = (day, fn) => withClockOn(ctx, day + 'T12:00:00', fn);
   /* an independent civil calendar: UTC arithmetic on the parts, no local Date */
   const addDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n));
@@ -27311,12 +27340,12 @@ async function testTrainingFoundation(){
     return s;
   };
   const MWF = { mon: 'push', wed: 'pull', fri: 'legs' };
-  const make = o => {
+  const make = async o => {
     const opts = o || {};
-    const r = ctx.createProgram(Object.assign({ name: 'Block Test', durationWeeks: 16, goal: 'hypertrophy',
+    const r = await ctx.createProgram(Object.assign({ name: 'Block Test', durationWeeks: 16, goal: 'hypertrophy',
       schedule: weekOf(opts.days || MWF), startDate: W(0) }, opts.program || {}));
     if(!r.ok) throw new Error('createProgram: ' + r.errors.join(','));
-    ctx.setActiveProgram(r.program.id);
+    await ctx.setActiveProgram(r.program.id);
     ctx.invalidateProgramCache();
     return r.program;
   };
@@ -27340,13 +27369,13 @@ async function testTrainingFoundation(){
     refresh();
   };
   const st = (p, day) => ctx.deriveBlockState(ctx.getProgram(p.id), day);
-  const act = (p, action, day, o) => ctx.applyBlockAction(p.id, action, Object.assign({ today: day }, o || {}));
+  const act = async (p, action, day, o) => await ctx.applyBlockAction(p.id, action, Object.assign({ today: day }, o || {}));
   const card = day => pin(day, () => { ctx.renderTrainingFoundation(); return doc.getElementById('todayFoundation').innerHTML; });
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
   /* ---------------------------------------------------------------- */
   sub('civil dates: whole days across both DST changes');
-  guard('civil dates', () => {
+  await guard('civil dates', async () => {
     T('daysBetweenDates counts a spring-forward week as seven days',
       ctx.daysBetweenDates('2026-03-02', '2026-03-09') === 7 && ctx.daysBetweenDates('2026-03-29', '2026-04-05') === 7);
     T('and a fall-back week as seven', ctx.daysBetweenDates('2026-10-26', '2026-11-02') === 7 && ctx.daysBetweenDates('2026-10-19', '2026-10-26') === 7);
@@ -27361,16 +27390,16 @@ async function testTrainingFoundation(){
     }
     T('civilAddDays and civilMonday agree with an independent calendar for 400 consecutive days', bad === 0, bad + ' mismatches');
     reset();
-    const p = make({ program: { startDate: '2026-03-02' } });
+    const p = await make({ program: { startDate: '2026-03-02' } });
     T('a program week that contains a DST change is one week, not six days',
       ctx.getCurrentProgramWeek(ctx.getProgram(p.id), '2026-03-09') === 2 && ctx.getCurrentProgramWeek(ctx.getProgram(p.id), '2026-03-08') === 1);
   });
 
   /* ---------------------------------------------------------------- */
   sub('A — week one: Accumulation, no suggestion');
-  guard('A', () => {
+  await guard('A', async () => {
     reset();
-    const p = make();
+    const p = await make();
     session(p, W(0), 'push');
     refresh();
     const s = st(p, addDays(W(0), 2));
@@ -27389,9 +27418,9 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('B — six calendar weeks, two training weeks: no suggestion');
-  guard('B', () => {
+  await guard('B', async () => {
     reset();
-    const p = make();
+    const p = await make();
     [null, [2, 4], [2, 4], null, [2, 4], [2, 4]].forEach((skip, i) => trainWeek(p, W(i), { skip: skip || [] }));
     const s = st(p, addDays(W(5), 5));
     T('only the two fully trained weeks count', s.trainingWeeks === 2 && s.blockWeek === 3, s.trainingWeeks + '/' + s.blockWeek);
@@ -27399,14 +27428,14 @@ async function testTrainingFoundation(){
     T('a week with a session in it is not a break', s.restartedFrom === null);
 
     reset();
-    const q = make();
+    const q = await make();
     for(let i = 0; i < 6; i++) trainWeek(q, W(i), { sets: 1 });
     const sq = st(q, addDays(W(5), 5));
     T('every session logged but none carried out: D43 matched them all', sq.weeks.every(w => w.slots.every(x => x.workoutId)));
     T('and D49 counts none of them, so no training week exists', sq.trainingWeeks === 0 && !sq.suggest);
 
     reset();
-    const r = make();
+    const r = await make();
     const sr = st(r, addDays(W(6), 0));
     T('six weeks with no training at all is no training weeks, and a break', sr.trainingWeeks === 0 && sr.restartedFrom !== null && !sr.suggest);
   });
@@ -27414,9 +27443,9 @@ async function testTrainingFoundation(){
   /* ---------------------------------------------------------------- */
   sub('C — six training weeks: eligible, suggested, never started');
   let C = null;
-  guard('C', () => {
+  await guard('C', async () => {
     reset();
-    const p = make();
+    const p = await make();
     for(let i = 0; i < 6; i++) trainWeek(p, W(i));
     C = p;
     const tue = st(p, addDays(W(5), 1));
@@ -27431,7 +27460,7 @@ async function testTrainingFoundation(){
     T('its words make no claim about the body',
       !/overtrain|nervous system|\bCNS\b|hormon|injur|recover(y|ing) fail|fatigue/i.test(text(html)));
     T('showing it wrote nothing', ctx.getProgram(p.id).cycle === undefined);
-    pin(addDays(W(5), 4), () => {
+    await pin(addDays(W(5), 4), () => {
       ctx.openBlockAction('deload', true);
       const body = text(doc.getElementById('blockActionBody').innerHTML);
       T('Review deload explains why, what a deload is, what changes and what stays',
@@ -27448,7 +27477,7 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('D — imperfect attendance still trains a block');
-  guard('D', () => {
+  await guard('D', async () => {
     T('the rule: all but one planned session, and never less than half',
       ctx.blockWeekRequirement(1) === 1 && ctx.blockWeekRequirement(2) === 1 && ctx.blockWeekRequirement(3) === 2 &&
       ctx.blockWeekRequirement(4) === 3 && ctx.blockWeekRequirement(5) === 4 && ctx.blockWeekRequirement(6) === 5);
@@ -27459,7 +27488,7 @@ async function testTrainingFoundation(){
       finally{ ctx.BLOCK_RULES.missesAllowed = was; }
     })());
     reset();
-    const p = make();
+    const p = await make();
     [[], [2], [], [4], [], [0]].forEach((skip, i) => trainWeek(p, W(i), { skip }));
     const s = st(p, addDays(W(5), 5));
     T('a missed session a week, three weeks out of six, still makes six training weeks', s.trainingWeeks === 6 && s.suggest, s.trainingWeeks);
@@ -27468,12 +27497,12 @@ async function testTrainingFoundation(){
     T('one session of three does not count', s2.trainingWeeks === 6 && s2.weeks[6].qualified === false);
 
     reset();
-    const q = make();
+    const q = await make();
     for(let i = 0; i < 6; i++) trainWeek(q, W(i), { shift: 1 });
     T('sessions a day late are the same planned sessions (D43), so they count', st(q, addDays(W(5), 6)).trainingWeeks === 6);
 
     reset();
-    const four = make({ days: { mon: 'push', tue: 'pull', thu: 'legs', fri: 'push' } });
+    const four = await make({ days: { mon: 'push', tue: 'pull', thu: 'legs', fri: 'push' } });
     [[0, 'push'], [1, 'pull'], [3, 'legs']].forEach(([o, c]) => session(four, addDays(W(0), o), c));
     [[0, 'push'], [1, 'pull']].forEach(([o, c]) => session(four, addDays(W(1), o), c));
     refresh();
@@ -27483,22 +27512,22 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('E — Not now: no nagging, asked again only after more training');
-  guard('E', () => {
+  await guard('E', async () => {
     reset();
-    const p = make();
+    const p = await make();
     for(let i = 0; i < 6; i++) trainWeek(p, W(i));
     const sat = addDays(W(5), 5);
-    const r = act(p, 'decline', sat);
+    const r = await act(p, 'decline', sat);
     T('Not now is recorded', r.ok && ctx.getProgram(p.id).cycle.current.declines.length === 1
       && same(ctx.getProgram(p.id).cycle.current.declines[0], { on: sat, trainingWeeks: 6 }));
     T('and the suggestion is gone at once', !st(p, sat).suggest && st(p, sat).eligible);
-    T('turning it down twice is refused — there is nothing left to turn down', !act(p, 'decline', sat).ok && ctx.getProgram(p.id).cycle.current.declines.length === 1);
+    T('turning it down twice is refused — there is nothing left to turn down', !(await act(p, 'decline', sat)).ok && ctx.getProgram(p.id).cycle.current.declines.length === 1);
     T('the next day it has not come back', !st(p, addDays(sat, 1)).suggest);
     T('the Foundation card carries no foot', !/fd-foot/.test(card(addDays(sat, 1))));
     trainWeek(p, W(6));
     const s7 = st(p, addDays(W(6), 5));
     T('after one more training week it is offered again', s7.trainingWeeks === 7 && s7.suggest && s7.askAgainAt === 7);
-    T('declined again, it waits two more', act(p, 'decline', addDays(W(6), 5)).ok && st(p, addDays(W(6), 5)).askAgainAt === 9);
+    T('declined again, it waits two more', (await act(p, 'decline', addDays(W(6), 5))).ok && st(p, addDays(W(6), 5)).askAgainAt === 9);
     trainWeek(p, W(7));
     T('one more week is not enough', !st(p, addDays(W(7), 5)).suggest);
     trainWeek(p, W(8));
@@ -27516,16 +27545,16 @@ async function testTrainingFoundation(){
   /* ---------------------------------------------------------------- */
   sub('F — a deload started: scheduled, then under way');
   let F = null;
-  guard('F', () => {
+  await guard('F', async () => {
     reset();
-    const p = make();
+    const p = await make();
     for(let i = 0; i < 6; i++) trainWeek(p, W(i));
     F = p;
     const sat = addDays(W(5), 5);
     const logBefore = JSON.stringify(ctx.workoutLog);
-    const r = pin(sat, () => {
+    const r = await pin(sat, async () => {
       ctx.openBlockAction('deload', true);
-      ctx.confirmBlockAction(doc.getElementById('blockActionGo'));
+      await ctx.confirmBlockAction(doc.getElementById('blockActionGo'));
       return ctx.getProgram(p.id).cycle;
     });
     T('Start deload records one deload event', !!r && r.current.events.length === 1 && r.current.events[0].phase === 'deload');
@@ -27560,7 +27589,7 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('G — the deload finished: Rebuild offered, nothing automatic');
-  guard('G', () => {
+  await guard('G', () => {
     const p = F;
     ctx.programsStore.activeProgramId = p.id;
     refresh();
@@ -27578,14 +27607,14 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('H — Rebuild: the block is kept, the next begins in Accumulation');
-  guard('H', () => {
+  await guard('H', async () => {
     const p = F;
     const day = addDays(W(10), 2);
     const before = H.snapshot(ctx);
     const logBefore = JSON.stringify(ctx.workoutLog);
-    const r = pin(day, () => { ctx.openBlockAction('rebuild'); const b = text(doc.getElementById('blockActionBody').innerHTML);
+    const r = await pin(day, async () => { ctx.openBlockAction('rebuild'); const b = text(doc.getElementById('blockActionBody').innerHTML);
       T('the review says the block is kept and the next starts in Accumulation', /is kept as it is/.test(b) && /starts today in Accumulation/.test(b));
-      ctx.confirmBlockAction(doc.getElementById('blockActionGo')); return ctx.getProgram(p.id).cycle; });
+      await ctx.confirmBlockAction(doc.getElementById('blockActionGo')); return ctx.getProgram(p.id).cycle; });
     const h = r.history[0];
     T('one closed block', r.history.length === 1 && h.id === 'tb1' && h.closedBy === 'rebuild' && typeof h.closedAt === 'string');
     T('it keeps its dates: program start to the day before Rebuild', h.start === W(0) && h.end === addDays(day, -1));
@@ -27596,7 +27625,7 @@ async function testTrainingFoundation(){
     const s = st(p, day);
     T('the new block is block 2, in Accumulation, at block week 1', s.blockId === 'tb2' && s.blockNumber === 2 && s.blockStart === day
       && s.phase === 'accumulation' && s.blockWeek === 1 && s.trainingWeeks === 0 && !s.suggest && !s.awaitingRebuild);
-    T('a second Rebuild the same day is refused', !act(p, 'rebuild', day).ok && ctx.getProgram(p.id).cycle.history.length === 1);
+    T('a second Rebuild the same day is refused', !(await act(p, 'rebuild', day)).ok && ctx.getProgram(p.id).cycle.history.length === 1);
     T('no workout, PR, XP, rank or trainer record changed', JSON.stringify(ctx.workoutLog) === logBefore && H.diffSnapshot(before, H.snapshot(ctx), []).ok,
       H.diffSnapshot(before, H.snapshot(ctx), []).violations.join(','));
     T('a day inside the closed block still reads as what it was', ctx.trainingPhaseOn(ctx.getProgram(p.id), addDays(W(6), 3)).phase === 'deload'
@@ -27608,50 +27637,50 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('F, the same day — a deload that begins today can be withdrawn, not rebuilt');
-  guard('F2', () => {
+  await guard('F2', async () => {
     reset();
-    const q = make();
+    const q = await make();
     for(let i = 0; i < 6; i++) trainWeek(q, W(i));
-    const r2 = act(q, 'deload', W(6));
+    const r2 = await act(q, 'deload', W(6));
     T('started on an untrained Monday, the deload begins that day', r2.ok && r2.state.phase === 'deload' && r2.state.deload.from === W(6) && r2.state.deload.to === addDays(W(6), 6));
-    T('same-day: Rebuild is refused, cancelling is allowed', !act(q, 'rebuild', W(6)).ok && same(r2.state.moves, ['cancelDeload']));
-    const c = act(q, 'cancelDeload', W(6));
+    T('same-day: Rebuild is refused, cancelling is allowed', !(await act(q, 'rebuild', W(6))).ok && same(r2.state.moves, ['cancelDeload']));
+    const c = await act(q, 'cancelDeload', W(6));
     T('cancelled, it leaves no trace and the block is back in Accumulation', c.ok && ctx.getProgram(q.id).cycle.current.events.length === 0 && c.state.phase === 'accumulation');
-    T('and it can be started again', act(q, 'deload', W(6)).ok && ctx.getProgram(q.id).cycle.current.events.length === 1);
-    T('a second deload on top of it is refused', !act(q, 'deload', W(6)).ok && ctx.getProgram(q.id).cycle.current.events.length === 1);
+    T('and it can be started again', (await act(q, 'deload', W(6))).ok && ctx.getProgram(q.id).cycle.current.events.length === 1);
+    T('a second deload on top of it is refused', !(await act(q, 'deload', W(6))).ok && ctx.getProgram(q.id).cycle.current.events.length === 1);
   });
 
   /* ---------------------------------------------------------------- */
   sub('I — Peak, only where the program supports it');
-  guard('I', () => {
+  await guard('I', async () => {
     reset();
-    const p = make({ program: { goal: 'strength' } });
+    const p = await make({ program: { goal: 'strength' } });
     for(let i = 0; i < 3; i++) trainWeek(p, W(i));
     const d = addDays(W(2), 5);
-    T('Accumulation cannot jump to Peak', !act(p, 'peak', d).ok);
-    const r = act(p, 'intensification', d);
+    T('Accumulation cannot jump to Peak', !(await act(p, 'peak', d)).ok);
+    const r = await act(p, 'intensification', d);
     T('Intensification is the athlete\'s move, from today', r.ok && r.state.phase === 'intensification' && r.state.phaseSource === 'athlete' && r.state.phaseSince === d);
     T('a strength program then offers Peak', same(r.state.moves, ['peak', 'deload']));
-    const pk = act(p, 'peak', addDays(d, 2));
+    const pk = await act(p, 'peak', addDays(d, 2));
     T('and Peak leads only to a deload', pk.ok && pk.state.phase === 'peak' && same(pk.state.moves, ['deload']));
-    T('Peak cannot go back to Intensification', !act(p, 'intensification', addDays(d, 3)).ok);
+    T('Peak cannot go back to Intensification', !(await act(p, 'intensification', addDays(d, 3))).ok);
 
     reset();
-    const q = make();
+    const q = await make();
     trainWeek(q, W(0));
-    const rq = act(q, 'intensification', addDays(W(0), 5));
-    T('a muscle-growth program is not offered Peak', rq.ok && same(rq.state.moves, ['deload']) && !act(q, 'peak', addDays(W(0), 6)).ok);
+    const rq = await act(q, 'intensification', addDays(W(0), 5));
+    T('a muscle-growth program is not offered Peak', rq.ok && same(rq.state.moves, ['deload']) && !(await act(q, 'peak', addDays(W(0), 6))).ok);
 
     reset();
-    const w = make({ program: { blocks: [{ id: 'x1', name: 'Build', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 12, description: '' },
+    const w = await make({ program: { blocks: [{ id: 'x1', name: 'Build', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 12, description: '' },
       { id: 'x2', name: 'Top', order: 2, phaseType: 'peak', startWeek: 13, endWeek: 16, description: '' }] } });
     T('unless the athlete wrote a Peak into its phases', ctx.programSupportsPeak(ctx.getProgram(w.id)));
-    T('unknown moves are refused', !act(w, 'explode', W(0)).ok && !act(w, 'rebuild', W(0)).ok && ctx.getProgram(w.id).cycle === undefined);
+    T('unknown moves are refused', !(await act(w, 'explode', W(0))).ok && !(await act(w, 'rebuild', W(0))).ok && ctx.getProgram(w.id).cycle === undefined);
   });
 
   /* ---------------------------------------------------------------- */
   sub('J — Plan only: structure, no phases, no enrolment');
-  guard('J', () => {
+  await guard('J', () => {
     reset();
     const storeBefore = JSON.stringify(app.store);
     const f = pin('2026-09-16', () => ctx.deriveTrainingFoundation('2026-09-16'));
@@ -27667,7 +27696,7 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('K — no program and no plan: one way in');
-  guard('K', () => {
+  await guard('K', async () => {
     reset();
     ctx.selectedPlanId = null; ctx.schedule = null;
     const html = pin('2026-09-16', () => { ctx.renderTrainingFoundation(); return doc.getElementById('todayFoundation').innerHTML; });
@@ -27675,8 +27704,8 @@ async function testTrainingFoundation(){
     T('with exactly one call to action, the builder', (html.match(/<button/g) || []).length === 1 && /openProgramBuilderFlow\('create'\)/.test(html));
     T('and no invented week, phase or program', !/Week \d|accumulation|deload|Block week/i.test(text(html)));
     reset();
-    const p = make();
-    pin('2026-09-16', () => ctx.pauseProgram(p.id));
+    const p = await make();
+    await pin('2026-09-16', async () => await ctx.pauseProgram(p.id));
     ctx.programsStore.activeProgramId = null;
     ctx.selectedPlanId = null; ctx.schedule = null;
     refresh();
@@ -27687,11 +27716,11 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('L — gaps: absence never advances the block');
-  guard('L', () => {
+  await guard('L', async () => {
     reset();
-    const p = make();
+    const p = await make();
     for(let i = 0; i < 4; i++) trainWeek(p, W(i));
-    const d0 = act(p, 'decline', addDays(W(3), 5));
+    const d0 = await act(p, 'decline', addDays(W(3), 5));
     T('(a Not now cannot be recorded before six weeks)', !d0.ok);
     const sun = st(p, addDays(W(5), 6));
     T('a fortnight away is not two training weeks', sun.trainingWeeks === 4 && sun.blockWeek === 5 && !sun.suggest);
@@ -27706,19 +27735,19 @@ async function testTrainingFoundation(){
       T('the Foundation sheet says the count restarted after a break', /Counting again from Mon, Feb 16, after a break from this program/.test(text(doc.getElementById('foundationBody').innerHTML))); });
 
     reset();
-    const q = make();
+    const q = await make();
     [0, 1, 2, 4, 5, 6].forEach(i => trainWeek(q, W(i)));
     const sq = st(q, addDays(W(6), 5));
     T('one missed week is not a break: it simply does not count', sq.trainingWeeks === 6 && sq.restartedFrom === null && sq.weeks[3].qualified === false && sq.suggest);
 
     reset();
-    const z = make();
+    const z = await make();
     for(let i = 0; i < 5; i++) trainWeek(z, W(i));
-    pin(addDays(W(5), 0), () => ctx.pauseProgram(z.id));
+    await pin(addDays(W(5), 0), async () => await ctx.pauseProgram(z.id));
     const paused = st(z, addDays(W(6), 2));
     T('a paused program takes no moves and suggests nothing', paused.paused && paused.moves.length === 0 && !paused.suggest && !paused.running);
     T('Home says it is paused', /Paused/.test(text(card(addDays(W(6), 2)))));
-    pin(W(8), () => ctx.resumeProgram(z.id));
+    await pin(W(8), async () => await ctx.resumeProgram(z.id));
     refresh();
     const back = st(z, W(8));
     T('resumed after three weeks away, the count restarts rather than jumping to six', back.trainingWeeks === 0 && back.restartedFrom === W(8) && !back.suggest);
@@ -27726,30 +27755,30 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('M — a revision mid-block keeps the block and its history');
-  guard('M', () => {
+  await guard('M', async () => {
     reset();
-    const p = make();
+    const p = await make();
     for(let i = 0; i < 6; i++) trainWeek(p, W(i));
     const sat = addDays(W(5), 5);
-    act(p, 'decline', sat);
+    await act(p, 'decline', sat);
     const cycleBefore = JSON.stringify(ctx.getProgram(p.id).cycle);
     const weeksBefore = JSON.stringify(st(p, sat).weeks.map(w => [w.monday, w.planned, w.done, w.qualified]));
     const logBefore = JSON.stringify(ctx.workoutLog);
-    pin(sat, () => ctx.updateProgram(p.id, { schedule: weekOf({ mon: 'push', tue: 'pull', thu: 'legs', fri: 'push' }) }));
+    await pin(sat, async () => await ctx.updateProgram(p.id, { schedule: weekOf({ mon: 'push', tue: 'pull', thu: 'legs', fri: 'push' }) }));
     refresh();
     const prog = ctx.getProgram(p.id);
     T('the edit became a forward-only revision', Array.isArray(prog.revisions) && prog.revisions.some(r => r.effectiveFrom === W(6)));
     T('the block record survived the edit untouched', JSON.stringify(prog.cycle) === cycleBefore);
     T('the weeks already trained read exactly as before', JSON.stringify(st(p, sat).weeks.map(w => [w.monday, w.planned, w.done, w.qualified])) === weeksBefore);
     T('and no workout changed', JSON.stringify(ctx.workoutLog) === logBefore);
-    pin(sat, () => ctx.updateProgram(p.id, { name: 'Renamed Block', goal: 'strength' }));
+    await pin(sat, async () => await ctx.updateProgram(p.id, { name: 'Renamed Block', goal: 'strength' }));
     T('renaming or refocusing the program keeps its block', JSON.stringify(ctx.getProgram(p.id).cycle) === cycleBefore);
-    const dl = act(p, 'deload', addDays(W(6), 0));
-    const rb = act(p, 'rebuild', addDays(W(7), 0));
+    const dl = await act(p, 'deload', addDays(W(6), 0));
+    const rb = await act(p, 'rebuild', addDays(W(7), 0));
     const h = ctx.getProgram(p.id).cycle.history[0];
     T('the closed block records which plan it began and ended under', dl.ok && rb.ok && h.revision.start === W(0) && h.revision.end === W(6), JSON.stringify(h.revision));
     const phasesBefore = JSON.stringify(h.phases);
-    ctx.updateProgram(p.id, { blocks: [{ id: 'y1', name: 'All deload', order: 1, phaseType: 'deload', startWeek: 1, endWeek: 16, description: '' }] });
+    await ctx.updateProgram(p.id, { blocks: [{ id: 'y1', name: 'All deload', order: 1, phaseType: 'deload', startWeek: 1, endWeek: 16, description: '' }] });
     refresh();
     T('rewriting the program\'s phases later cannot restate a closed block',
       JSON.stringify(ctx.getProgram(p.id).cycle.history[0].phases) === phasesBefore && ctx.trainingPhaseOn(ctx.getProgram(p.id), W(2)).phase === 'accumulation');
@@ -27758,13 +27787,13 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('N — switching programs starts a new block, per program');
-  guard('N', () => {
+  await guard('N', async () => {
     reset();
-    const a = make({ program: { name: 'Program A' } });
+    const a = await make({ program: { name: 'Program A' } });
     for(let i = 0; i < 6; i++) trainWeek(a, W(i));
-    act(a, 'decline', addDays(W(5), 5));
+    await act(a, 'decline', addDays(W(5), 5));
     const aCycle = JSON.stringify(ctx.getProgram(a.id).cycle);
-    const b = make({ program: { name: 'Program B', startDate: W(6) } });
+    const b = await make({ program: { name: 'Program B', startDate: W(6) } });
     trainWeek(b, W(6));
     const sb = st(b, addDays(W(6), 5));
     T('the new program has its own first block, from its own start', sb.blockId === 'tb1' && sb.blockStart === W(6) && sb.history.length === 0 && sb.declines === 0 && sb.trainingWeeks === 1);
@@ -27772,10 +27801,10 @@ async function testTrainingFoundation(){
     const sa = st(a, addDays(W(6), 5));
     T('the program left behind is not running: no moves, no suggestion', sa.lifecycle === 'past' && !sa.running && sa.moves.length === 0 && !sa.suggest);
     T('and its record is untouched', JSON.stringify(ctx.getProgram(a.id).cycle) === aCycle);
-    T('a decision on the new program writes only to it', act(b, 'intensification', addDays(W(6), 5)).ok && JSON.stringify(ctx.getProgram(a.id).cycle) === aCycle);
+    T('a decision on the new program writes only to it', (await act(b, 'intensification', addDays(W(6), 5))).ok && JSON.stringify(ctx.getProgram(a.id).cycle) === aCycle);
     const f = pin(addDays(W(6), 5), () => ctx.deriveTrainingFoundation(addDays(W(6), 5)));
     T('Home describes the program now active', f.kind === 'program' && f.name === 'Program B');
-    ctx.setActiveProgram(a.id);
+    await ctx.setActiveProgram(a.id);
     refresh();
     const back = st(a, W(9));
     T('returning to the first program: its block continues, but three weeks away restart the count', back.blockId === 'tb1' && back.running && back.trainingWeeks === 0 && back.restartedFrom === W(9) && back.declines === 0);
@@ -27783,9 +27812,9 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('the program\'s own phases: approved transitions, inherited ones ignored');
-  guard('authored', () => {
+  await guard('authored', async () => {
     reset();
-    const p = make({ program: { goal: 'strength', blocks: [
+    const p = await make({ program: { goal: 'strength', blocks: [
       { id: 'a1', name: 'Build', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 4, description: '' },
       { id: 'a2', name: 'Push', order: 2, phaseType: 'intensification', startWeek: 5, endWeek: 8, description: '' },
       { id: 'a3', name: 'Down', order: 3, phaseType: 'deload', startWeek: 9, endWeek: 9, description: '' },
@@ -27808,7 +27837,7 @@ async function testTrainingFoundation(){
     T('it cannot be cancelled from Home — it is the program\'s', same(st(p, addDays(W(8), 2)).moves, ['rebuild']));
     const w10 = st(p, W(9));
     T('when it ends the block waits on Rebuild even though the program moves on', w10.phase === 'deload' && w10.awaitingRebuild && w10.deload.to === addDays(W(8), 6));
-    const rb = act(p, 'rebuild', addDays(W(9), 2));
+    const rb = await act(p, 'rebuild', addDays(W(9), 2));
     T('Rebuild inside the program\'s Accumulation opens block 2 in Accumulation', rb.ok && rb.state.phase === 'accumulation' && rb.state.phaseSource === 'default');
     trainWeek(p, W(10)); trainWeek(p, W(11));
     const w13 = st(p, W(12));
@@ -27819,33 +27848,33 @@ async function testTrainingFoundation(){
     pin(W(12), () => { const note = ctx.programBlockNoteHtml(ctx.getProgram(p.id));
       T('Program detail stays quiet while the block and the program agree', note === ''); });
     reset();
-    const plain = make();
+    const plain = await make();
     trainWeek(plain, W(0));
     pin(addDays(W(0), 4), () => T('and quiet for a first block nobody has changed', ctx.programBlockNoteHtml(ctx.getProgram(plain.id)) === ''));
-    act(plain, 'intensification', addDays(W(0), 4));
+    await act(plain, 'intensification', addDays(W(0), 4));
     pin(addDays(W(0), 5), () => T('but says so once the athlete moves it', /Your training block moved to Intensification Fri, Jan 9\./.test(text(ctx.programBlockNoteHtml(ctx.getProgram(plain.id))))));
 
     reset();
-    const q = make({ program: { blocks: [
+    const q = await make({ program: { blocks: [
       { id: 'b1', name: 'Build', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 6, description: '' },
       { id: 'b2', name: 'Push', order: 2, phaseType: 'intensification', startWeek: 7, endWeek: 16, description: '' } ] } });
     for(let i = 0; i < 6; i++) trainWeek(q, W(i));
-    act(q, 'deload', addDays(W(5), 5));
-    const rq = act(q, 'rebuild', addDays(W(7), 2));
+    await act(q, 'deload', addDays(W(5), 5));
+    const rq = await act(q, 'rebuild', addDays(W(7), 2));
     T('Rebuild in the middle of the program\'s Intensification still opens in Accumulation', rq.ok && rq.state.phase === 'accumulation' && rq.state.blockStart === addDays(W(7), 2));
     T('later weeks of that same written phase do not pull it back', st(q, W(10)).phase === 'accumulation');
     pin(W(10), () => { const note = text(ctx.programBlockNoteHtml(ctx.getProgram(q.id)));
       T('and Program detail explains why Home says Accumulation', /Your training block is in Accumulation since you rebuilt Wed, Feb 25\./.test(note), note); });
-    const mv = act(q, 'intensification', W(10));
+    const mv = await act(q, 'intensification', W(10));
     T('an athlete move stands against an older written phase', mv.ok && st(q, W(11)).phase === 'intensification' && st(q, W(11)).phaseSource === 'athlete');
 
     reset();
-    const e = make({ program: { goal: 'strength', blocks: [
+    const e = await make({ program: { goal: 'strength', blocks: [
       { id: 'c1', name: 'Build', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 4, description: '' },
       { id: 'c2', name: 'Push', order: 2, phaseType: 'intensification', startWeek: 5, endWeek: 8, description: '' },
       { id: 'c3', name: 'Top', order: 3, phaseType: 'peak', startWeek: 9, endWeek: 10, description: '' } ] } });
     for(let i = 0; i < 3; i++) trainWeek(e, W(i));
-    T('the athlete may move ahead of the written plan', act(e, 'intensification', W(2)).ok
+    T('the athlete may move ahead of the written plan', (await act(e, 'intensification', W(2))).ok
       && st(e, W(3)).phase === 'intensification' && st(e, W(3)).phaseSource === 'athlete');
     T('the day before the plan\'s Peak, the block is still in Intensification', st(e, addDays(W(8), -1)).phase === 'intensification');
     T('and the plan\'s own later boundary applies from its day, over the older move', st(e, W(8)).phase === 'peak'
@@ -27854,18 +27883,23 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('guards: finished, foreign, malformed and not-yet-started programs');
-  guard('guards', () => {
+  await guard('guards', async () => {
     reset();
-    const p = make();
+    const p = await make();
     for(let i = 0; i < 6; i++) trainWeek(p, W(i));
-    pin(addDays(W(5), 5), () => ctx.completeProgram(p.id));
+    await pin(addDays(W(5), 5), async () => await ctx.completeProgram(p.id));
     const before = JSON.stringify(ctx.getProgram(p.id));
-    T('a completed program refuses every block action, and says why', ['decline', 'deload', 'intensification', 'rebuild']
-      .every(a => act(p, a, addDays(W(5), 5)).error === 'A finished program keeps its record as it is.')
-      && JSON.stringify(ctx.getProgram(p.id)) === before);
+    // D89 — a loop, not .every: act awaits its write now and every() cannot.
+    let refusedAll = true;
+    for(const a of ['decline', 'deload', 'intensification', 'rebuild']){
+      const r = await act(p, a, addDays(W(5), 5));
+      if(!r || r.error !== 'A finished program keeps its record as it is.') refusedAll = false;
+    }
+    T('a completed program refuses every block action, and says why',
+      refusedAll && JSON.stringify(ctx.getProgram(p.id)) === before);
 
     reset();
-    const q = make();
+    const q = await make();
     for(let i = 0; i < 6; i++) trainWeek(q, W(i));
     ctx.getProgram(q.id).cycle = { version: 2, current: { start: W(0), events: [{ phase: 'weird', from: W(0) }] }, future: true };
     const raw = JSON.stringify(ctx.getProgram(q.id).cycle);
@@ -27873,39 +27907,43 @@ async function testTrainingFoundation(){
     const sq = st(q, addDays(W(5), 5));
     T('a record from a newer LOOP is read as the implicit block, with no moves and no suggestion',
       sq.blockId === 'tb1' && sq.moves.length === 0 && !sq.suggest && sq.trainingWeeks === 6);
-    T('and is never written, with the reason given', ['decline', 'deload', 'intensification']
-      .every(a => act(q, a, addDays(W(5), 5)).error === 'This block was recorded by a newer version of LOOP.')
-      && JSON.stringify(ctx.getProgram(q.id).cycle) === raw);
+    let refusedForeign = true;
+    for(const a of ['decline', 'deload', 'intensification']){
+      const r = await act(q, a, addDays(W(5), 5));
+      if(!r || r.error !== 'This block was recorded by a newer version of LOOP.') refusedForeign = false;
+    }
+    T('and is never written, with the reason given',
+      refusedForeign && JSON.stringify(ctx.getProgram(q.id).cycle) === raw);
 
     reset();
-    const two = make();
+    const two = await make();
     for(let i = 0; i < 8; i++) trainWeek(two, W(i));
     ctx.getProgram(two.id).cycle = { version: 1, current: { id: 'tb1', start: W(0), declines: [], events: [
       { phase: 'deload', from: W(6), to: addDays(W(6), 6), at: 'x' }, { phase: 'deload', from: W(9), to: addDays(W(9), 6), at: 'y' }] }, history: [] };
     refresh();
-    const c2 = act(two, 'cancelDeload', addDays(W(8), 2));
+    const c2 = await act(two, 'cancelDeload', addDays(W(8), 2));
     T('an imported record holding a past and a future deload: cancelling removes only the one not yet begun',
       c2.ok && same(ctx.getProgram(two.id).cycle.current.events.map(e => e.from), [W(6)]));
 
     reset();
-    const m = make();
+    const m = await make();
     for(let i = 0; i < 6; i++) trainWeek(m, W(i));
     ctx.getProgram(m.id).cycle = { version: 1, current: { id: 'tb3', start: W(0), events: 'not-a-list', declines: [null, { on: 'garbage' }] },
       history: [{ id: 'tb1', start: '2025-01-01', end: '2025-02-01', phases: [] }, { junk: true }, { id: 'tb2', start: 'bad', end: 7 }] };
     refresh();
     const sm = st(m, addDays(W(5), 5));
     T('a malformed record still reads: bad entries are skipped', sm.blockId === 'tb3' && sm.suggest && sm.history.length === 1);
-    const w = act(m, 'decline', addDays(W(5), 5));
+    const w = await act(m, 'decline', addDays(W(5), 5));
     const c = ctx.getProgram(m.id).cycle;
     T('writing to it keeps every history entry, readable or not', w.ok && c.history.length === 3 && same(c.history[1], { junk: true }));
 
     reset();
-    const n = make({ program: { startDate: W(2) } });
+    const n = await make({ program: { startDate: W(2) } });
     const sn = st(n, W(0));
     T('a program that starts next week has no moves and no suggestion', sn.notStarted && sn.moves.length === 0 && !sn.suggest && sn.phase === 'accumulation');
     T('Home says when its block starts, and claims no week of it yet', /Starts Mon, Jan 19/.test(text(card(W(0)))) && !/Week \d+ of/.test(text(card(W(0)))));
     reset();
-    const nd = make({ program: { startDate: W(2), blocks: [{ id: 'd1', name: 'Ease in', order: 1, phaseType: 'deload', startWeek: 1, endWeek: 1, description: '' },
+    const nd = await make({ program: { startDate: W(2), blocks: [{ id: 'd1', name: 'Ease in', order: 1, phaseType: 'deload', startWeek: 1, endWeek: 1, description: '' },
       { id: 'd2', name: 'Build', order: 2, phaseType: 'accumulation', startWeek: 2, endWeek: 16, description: '' }] } });
     T('a written deload in a program not yet begun does not hold the coach before it begins',
       !ctx.programDeloadActiveOn(ctx.getProgram(nd.id), W(1)) && ctx.programDeloadActiveOn(ctx.getProgram(nd.id), addDays(W(2), 1)));
@@ -27916,7 +27954,7 @@ async function testTrainingFoundation(){
   await (async () => {
     try{
       reset();
-      const p = make();
+      const p = await make();
       for(let i = 0; i < 6; i++) trainWeek(p, W(i));
       await H.settle(20);
       T('DATA_KEYS is unchanged: the block needs no store of its own', same(ctx.DATA_KEYS, ['workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan',
@@ -27944,15 +27982,17 @@ async function testTrainingFoundation(){
         return calls === 3 && /applyBlockAction\(/.test(fnSrc(src, 'confirmBlockAction')) && /applyBlockAction\(/.test(fnSrc(src, 'declineDeloadSuggestion'));
       })());
       T('the write path touches only the block record', (() => {
-        const body = fnSrc(src, 'applyBlockAction');
+        // D89 — the body moved into the in-memory half when the write became
+    // awaitable; the guarantee it states is unchanged.
+    const body = fnSrc(src, 'applyBlockActionInMemory');
         return /p\.cycle = c;/.test(body) && !/workoutLog|\.schedule\s*=|\.blocks\s*=|\.revisions|\.rx\b|sets|addProgramRevision|updateProgram\(/.test(body);
       })());
-      act(p, 'decline', addDays(W(5), 5));
+      await act(p, 'decline', addDays(W(5), 5));
       await H.settle(20);
       const saved = JSON.parse(app.store[ctx.PROGRAMS_KEY]);
       T('a decision is saved inside the programs store, on the program', saved.programs.find(x => x.id === p.id).cycle.current.declines.length === 1);
-      T('createProgram never copies a block record from its input', (() => {
-        const r = ctx.createProgram({ name: 'Copy', durationWeeks: 8, schedule: weekOf(MWF), startDate: W(0), cycle: ctx.getProgram(p.id).cycle });
+      T('createProgram never copies a block record from its input', (async () => {
+        const r = await ctx.createProgram({ name: 'Copy', durationWeeks: 8, schedule: weekOf(MWF), startDate: W(0), cycle: ctx.getProgram(p.id).cycle });
         return r.ok && r.program.cycle === undefined;
       })());
     }catch(e){ T('storage — threw ' + (e && e.stack || e), false); }
@@ -27960,9 +28000,9 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('determinism and cost');
-  guard('determinism', () => {
+  await guard('determinism', async () => {
     reset();
-    const p = make();
+    const p = await make();
     for(let i = 0; i < 12; i++) trainWeek(p, W(i), { skip: i % 4 === 3 ? [2] : [] });
     const day = addDays(W(11), 5);
     const strip = s => JSON.stringify(Object.assign({}, s, { history: null }));
@@ -27979,7 +28019,7 @@ async function testTrainingFoundation(){
     T('and Home clears it with the other program caches', /_blockStateCache = null/.test(fnSrc(src, 'invalidateProgramCache')));
 
     reset();
-    const big = make({ program: { durationWeeks: 104, goal: 'strength' } });
+    const big = await make({ program: { durationWeeks: 104, goal: 'strength' } });
     for(let i = 0; i < 100; i++) trainWeek(big, W(i));
     const t0 = Date.now();
     const s = st(big, addDays(W(99), 5));
@@ -27994,7 +28034,7 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('Home: placement and restraint');
-  guard('home', () => {
+  await guard('home', () => {
     const view = src.slice(src.indexOf('<div class="view active" id="view-today">'), src.indexOf('<div class="view" id="view-train">'));
     const at = id => view.indexOf('id="' + id + '"');
     T('the Foundation sits after the day and the week, before the rest', at('todayWorkout') < at('weekCard') && at('weekCard') < at('todayFoundation') && at('todayFoundation') < at('readinessCard'));
@@ -28012,10 +28052,10 @@ async function testTrainingFoundation(){
 
   /* ---------------------------------------------------------------- */
   sub('a year of training, simulated');
-  guard('longitudinal', () => {
+  await guard('longitudinal', async () => {
     reset();
     const rnd = H.mulberry32(77001);
-    const A = make({ program: { name: 'Year', durationWeeks: 60, goal: 'strength' } });
+    const A = await make({ program: { name: 'Year', durationWeeks: 60, goal: 'strength' } });
     let B = null;
     const start = W(0), days = 7 * 56;
     const counts = { sessions: 0, declines: 0, deloads: 0, rebuilds: 0, moves: 0, refusedRepeats: 0, restarts: 0, drift: 0, logWrites: 0, bad: [] };
@@ -28025,11 +28065,11 @@ async function testTrainingFoundation(){
       /* the story: an absence, a program switch and back, a revision, a pause */
       const away = week >= 17 && week <= 21;          // a long absence: five weeks
       const onB = week >= 30 && week <= 31;
-      if(week === 30 && dow === 0){ B = make({ program: { name: 'Interlude', startDate: day, durationWeeks: 4 } }); }
-      if(week === 32 && dow === 0){ ctx.setActiveProgram(A.id); refresh(); }
-      if(week === 24 && dow === 2){ pin(day, () => ctx.updateProgram(A.id, { schedule: weekOf({ mon: 'push', wed: 'pull', fri: 'legs', sat: 'push' }) })); refresh(); }
-      if(week === 40 && dow === 0){ pin(day, () => ctx.pauseProgram(A.id)); refresh(); }
-      if(week === 42 && dow === 0){ pin(day, () => ctx.resumeProgram(A.id)); refresh(); }
+      if(week === 30 && dow === 0){ B = await make({ program: { name: 'Interlude', startDate: day, durationWeeks: 4 } }); }
+      if(week === 32 && dow === 0){ await ctx.setActiveProgram(A.id); refresh(); }
+      if(week === 24 && dow === 2){ await pin(day, async () => await ctx.updateProgram(A.id, { schedule: weekOf({ mon: 'push', wed: 'pull', fri: 'legs', sat: 'push' }) })); refresh(); }
+      if(week === 40 && dow === 0){ await pin(day, async () => await ctx.pauseProgram(A.id)); refresh(); }
+      if(week === 42 && dow === 0){ await pin(day, async () => await ctx.resumeProgram(A.id)); refresh(); }
       const paused = week >= 40 && week <= 41;
       const cat = { 0: 'push', 2: 'pull', 4: 'legs' }[dow];
       if(cat && !away && !paused && rnd() < 0.86){ session(onB ? B : A, day, cat, rnd() < 0.06 ? 1 : 3); counts.sessions++; refresh(); }
@@ -28060,21 +28100,21 @@ async function testTrainingFoundation(){
       /* the athlete */
       if(dow === 5 && s.suggest){
         if(counts.declines < 2 && rnd() < 0.7){
-          const r = act(A, 'decline', day); if(r.ok) counts.declines++; else counts.bad.push(day + ' decline refused ' + r.error);
-          if(act(A, 'decline', day).ok) counts.bad.push(day + ' decline accepted twice'); else counts.refusedRepeats++;
+          const r = await act(A, 'decline', day); if(r.ok) counts.declines++; else counts.bad.push(day + ' decline refused ' + r.error);
+          if((await act(A, 'decline', day)).ok) counts.bad.push(day + ' decline accepted twice'); else counts.refusedRepeats++;
         } else {
-          const r = act(A, 'deload', day, { suggested: true }); if(r.ok) counts.deloads++; else counts.bad.push(day + ' deload refused ' + r.error);
-          if(act(A, 'deload', day).ok) counts.bad.push(day + ' deload accepted twice'); else counts.refusedRepeats++;
-          if(!cancelled && r.ok && rnd() < 0.5){ const cc = act(A, 'cancelDeload', day); if(cc.ok){ cancelled = true; counts.deloads--; } }
+          const r = await act(A, 'deload', day, { suggested: true }); if(r.ok) counts.deloads++; else counts.bad.push(day + ' deload refused ' + r.error);
+          if((await act(A, 'deload', day)).ok) counts.bad.push(day + ' deload accepted twice'); else counts.refusedRepeats++;
+          if(!cancelled && r.ok && rnd() < 0.5){ const cc = await act(A, 'cancelDeload', day); if(cc.ok){ cancelled = true; counts.deloads--; } }
         }
       } else if(s.awaitingRebuild && s.moves.indexOf('rebuild') !== -1 && (dow === 0 || dow === 2) && rnd() < 0.8){
-        const r = act(A, 'rebuild', day); if(r.ok) counts.rebuilds++; else counts.bad.push(day + ' rebuild refused ' + r.error);
+        const r = await act(A, 'rebuild', day); if(r.ok) counts.rebuilds++; else counts.bad.push(day + ' rebuild refused ' + r.error);
         if(r.ok && (r.state.phase !== 'accumulation' || r.state.blockWeek !== 1)) counts.bad.push(day + ' new block not at Accumulation week 1');
-        if(act(A, 'rebuild', day).ok) counts.bad.push(day + ' rebuild accepted twice'); else counts.refusedRepeats++;
+        if((await act(A, 'rebuild', day)).ok) counts.bad.push(day + ' rebuild accepted twice'); else counts.refusedRepeats++;
       } else if(dow === 3 && s.blockWeek >= 3 && s.moves.indexOf('intensification') !== -1 && rnd() < 0.35){
-        if(act(A, 'intensification', day).ok) counts.moves++;
+        if((await act(A, 'intensification', day)).ok) counts.moves++;
       } else if(dow === 3 && s.moves.indexOf('peak') !== -1 && rnd() < 0.25){
-        if(act(A, 'peak', day).ok) counts.moves++;
+        if((await act(A, 'peak', day)).ok) counts.moves++;
       }
       if(JSON.stringify(ctx.workoutLog) !== logHash) counts.logWrites++;
       const after = st(A, day);
@@ -28137,7 +28177,7 @@ async function testMuscleFocusChips(){
   const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
   const ctx = app.ctx;
   const doc = ctx.document;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
   /* A planned template — exercises with prescribed sets only, exactly the
      shape renderTrainDetail hands to bodyDiagramSvg and now to the chips.
      No `.exercises[].sets` set here is ever read from workoutLog. */
@@ -28154,7 +28194,7 @@ async function testMuscleFocusChips(){
   const allChipElements = html => (String(html).match(/class="emph-chip /g) || []).length;
 
   sub('the old line is gone from the one sheet in scope; other call sites are untouched');
-  guard('call sites', () => {
+  await guard('call sites', () => {
     const detailBody = fnSrc(src, 'renderTrainDetail');
     T('the workout-detail sheet no longer calls the plain emphasis line', detailBody.indexOf('tplEmphasisLine(') === -1);
     T('it calls the new chip renderer instead, right where the text line sat', /muscleFocusChipsHtml\(shown\)/.test(detailBody));
@@ -28166,7 +28206,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('rendered in the real sheet: the plain text is gone, the chips are there');
-  guard('rendered sheet', () => {
+  await guard('rendered sheet', () => {
     const t = (ctx.getTemplates('push') || [])[0];
     ctx.openTrainDetail('push', t.id);
     const html = doc.getElementById('trainDetailBody').innerHTML;
@@ -28178,7 +28218,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('PRIMARY exposure dominates — never outrun by a bigger SECONDARY total elsewhere');
-  guard('primary dominates', () => {
+  await guard('primary dominates', () => {
     /* chest: 3 exercises x 3 sets = 9 primary, 0 secondary.
        triceps: 6 primary (Skullcrusher alone) PLUS 9 secondary (from the
        three Bench Press sets above) = 15 total exposure — bigger than
@@ -28194,7 +28234,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('SECONDARY involvement is a tie-break, never alphabetical smuggled in');
-  guard('secondary tie-break, not alphabetical', () => {
+  await guard('secondary tie-break, not alphabetical', () => {
     /* shoulders, back and chest all reach primarySets=3. Only shoulders
        picks up extra secondary (from the Bench Press's own secondary list),
        and "Shoulders" sorts LAST alphabetically among the three — so if the
@@ -28211,7 +28251,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('the sort itself reaches alphabetical only as a last resort');
-  guard('comparator structure', () => {
+  await guard('comparator structure', () => {
     const body = fnSrc(src, 'computeMuscleFocusRanking');
     const cmp = body.slice(body.indexOf('.sort('), body.indexOf('.sort(') + 220);
     T('primary is compared before secondary, and secondary before the label', (() => {
@@ -28222,7 +28262,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('an assisting-only group never earns its own chip while a primary group exists');
-  guard('assisting-only exclusion', () => {
+  await guard('assisting-only exclusion', () => {
     /* Bench Press's secondary list (triceps, shoulders) never appears as a
        primary anywhere in this template, yet each carries real set volume. */
     const t = tpl([['Bench Press', 6]]);
@@ -28235,7 +28275,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('the brief’s own example, computed — not hard-coded');
-  guard('worked example', () => {
+  await guard('worked example', () => {
     /* Leg Press / Machine Shoulder Press / Lat Pulldown / Hip Thrust /
        Cable Woodchop / Side Plank — the exact list the brief gave as an
        example, with an explicit instruction not to assume its order. */
@@ -28254,7 +28294,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('the display cap: three or four, never a chip wall');
-  guard('display cap', () => {
+  await guard('display cap', () => {
     T('the cap is four', ctx.MUSCLE_FOCUS_MAX_CHIPS === 4);
     const one = tpl([['Cable Crunch', 4], ['Hanging Leg Raise', 4]]);           // single-muscle-dominant
     T('one meaningful group shows one chip, no overflow', chipSpans(ctx.muscleFocusChipsHtml(one)).length === 1
@@ -28277,7 +28317,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('unknown or unmapped exercises never crash the ranking');
-  guard('unknown metadata', () => {
+  await guard('unknown metadata', () => {
     const t = tpl([['Zzznotarealmovement', 3], ['Totally Made Up Exercise', 4]]);
     let ranked = null, html = null, threw = null;
     try{ ranked = ctx.computeMuscleFocusRanking(t); html = ctx.muscleFocusChipsHtml(t); }catch(e){ threw = e; }
@@ -28289,7 +28329,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('deterministic and stable — the same workout always ranks the same way');
-  guard('determinism', () => {
+  await guard('determinism', () => {
     const t = tpl([['Leg Press', 3], ['Machine Shoulder Press', 3], ['Lat Pulldown', 3], ['Hip Thrust', 3], ['Cable Woodchop', 3], ['Side Plank', 3]]);
     const a = JSON.stringify(ctx.computeMuscleFocusRanking(t));
     const b = JSON.stringify(ctx.computeMuscleFocusRanking(t));
@@ -28300,7 +28340,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('the rank order in the DOM matches the numeric ranking, and rank IS the colour');
-  guard('rank order and intensity', () => {
+  await guard('rank order and intensity', () => {
     const t = tpl([['Bench Press', 3], ['Back Squat', 3], ['Lat Pulldown', 3], ['Overhead Press', 3], ['Hip Thrust', 3]]);
     const ranked = ctx.computeMuscleFocusRanking(t).filter(x => x.primarySets > 0);
     const html = ctx.muscleFocusChipsHtml(t);
@@ -28312,7 +28352,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('restrained colour: LOOP’s one accent family, fading toward neutral — no rainbow');
-  guard('colour restraint', () => {
+  await guard('colour restraint', () => {
     T('rank one and two are the accent blue, at different strengths', /\.emph-chip-r1\{[^}]*rgba\(76,194,255,0\.28\)[^}]*var\(--accent\)/.test(css)
       && /\.emph-chip-r2\{[^}]*rgba\(76,194,255,0\.16\)[^}]*var\(--accent\)/.test(css));
     T('rank three fades further and rank four is the app’s own neutral surface tone',
@@ -28325,7 +28365,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('no fake percentages, and no visible "Primary"/"Secondary" muscle-role labels');
-  guard('no fake precision', () => {
+  await guard('no fake precision', () => {
     const templates = ['push', 'pull', 'legs', 'core', 'arms', 'fullbody', 'upper', 'lower']
       .map(cat => (ctx.getTemplates(cat) || [])[0]).filter(Boolean);
     let sawPercent = false, sawRoleWord = false;
@@ -28342,7 +28382,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('the chips and the body map read the same primary truth');
-  guard('body-map consistency', () => {
+  await guard('body-map consistency', () => {
     const cats = ['push', 'pull', 'legs', 'core', 'arms', 'fullbody', 'upper', 'lower'];
     let mismatches = [];
     cats.forEach(cat => {
@@ -28362,7 +28402,7 @@ async function testMuscleFocusChips(){
   });
 
   sub('data safety: nothing is stored, nothing protected changes, no input is mutated');
-  guard('data safety', () => {
+  await guard('data safety', () => {
     T('no new storage key and no schema change', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1);
     const before = H.snapshot(ctx);
     const t = tpl([['Leg Press', 3], ['Machine Shoulder Press', 3], ['Lat Pulldown', 3], ['Hip Thrust', 3], ['Cable Woodchop', 3], ['Side Plank', 3]]);
@@ -30818,7 +30858,7 @@ async function testPhasePrescription(){
   const src = fs.readFileSync(H.APP_PATH, 'utf8');
   const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
   const ctx = app.ctx;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
   const addDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n));
     return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0'); };
   const W = n => addDays('2026-01-05', 7 * n);
@@ -30835,7 +30875,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('the overlay is pure, and the program is never edited');
-  guard('purity', () => {
+  await guard('purity', () => {
     const a = BASE(), snapshot = JSON.stringify(a);
     const r1 = EP(a, 'deload'), r2 = EP(a, 'deload');
     T('the same exercises and phase give the same prescription twice', JSON.stringify(r1) === JSON.stringify(r2));
@@ -30854,7 +30894,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('ACCUMULATION is deliberately nothing');
-  guard('accumulation', () => {
+  await guard('accumulation', () => {
     const a = BASE();
     T('every exercise is prescribed exactly as the program wrote it',
       JSON.stringify(EP(a, 'accumulation')) === JSON.stringify(a));
@@ -30864,7 +30904,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('DELOAD: fewer working sets, never a movement removed');
-  guard('deload sets', () => {
+  await guard('deload sets', () => {
     const out = EP(BASE(), 'deload'), a = BASE();
     T('the session keeps every exercise', out.length === a.length);
     T('and keeps them in the order they were programmed',
@@ -30887,7 +30927,7 @@ async function testPhasePrescription(){
   });
 
   sub('DELOAD: more left in reserve, and no invented effort');
-  guard('deload effort', () => {
+  await guard('deload effort', () => {
     const out = EP(BASE(), 'deload'), a = BASE();
     T('an effort of 8 becomes 6 — one whole rep further from failure',
       out[0].effort === '6' && ctx.effortToRir(out[0].effort) === ctx.effortToRir(a[0].effort) + 1);
@@ -30904,7 +30944,7 @@ async function testPhasePrescription(){
   });
 
   sub('DELOAD can never make a session harder');
-  guard('deload never harder', () => {
+  await guard('deload never harder', () => {
     let harder = 0;
     for(let sets = 1; sets <= 6; sets++){
       for(let eff = 4; eff <= 10; eff++){
@@ -30919,7 +30959,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('INTENSIFICATION and PEAK lean on the primary, through D36’s own profiles');
-  guard('intensification', () => {
+  await guard('intensification', () => {
     const a = BASE(), out = EP(a, 'intensification');
     T('the primary is moved toward the heavier end of its range', out[0].reps === '5–8');
     T('accessory work is not touched', out.slice(1).every((x, i) => JSON.stringify(x) === JSON.stringify(a[i + 1])));
@@ -30929,7 +30969,7 @@ async function testPhasePrescription(){
     T('it reuses applyPrescription rather than inventing a second definition',
       /applyPrescription\(list, 'hybrid'\)/.test(src));
   });
-  guard('peak', () => {
+  await guard('peak', () => {
     const a = BASE(), out = EP(a, 'peak');
     T('the primary is expressed at the performance end', out[0].reps === '5–8');
     T('the primary keeps its volume', out[0].sets === a[0].sets);
@@ -30942,7 +30982,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('the floors are invariants, not accidents of the numbers shipped today');
-  guard('invariants under a moved config', () => {
+  await guard('invariants under a moved config', () => {
     const cfg = ctx.PHASE_PRESCRIPTION;
     const keepSet = cfg.deload.setFactor, keepDrop = cfg.peak.accessorySetDrop;
     try{
@@ -30986,18 +31026,18 @@ async function testPhasePrescription(){
     ctx.invalidateProgramCache();
     clearCaches(ctx);
   };
-  const make = o => {
+  const make = async o => {
     const opts = o || {};
-    const r = ctx.createProgram(Object.assign({ name: 'D85', durationWeeks: 16, goal: 'hypertrophy',
+    const r = await ctx.createProgram(Object.assign({ name: 'D85', durationWeeks: 16, goal: 'hypertrophy',
       schedule: weekOf(opts.days || { mon: 'push', wed: 'pull', fri: 'legs' }), startDate: W(0) }, opts.program || {}));
     if(!r.ok) throw new Error('createProgram: ' + r.errors.join(','));
-    ctx.setActiveProgram(r.program.id);
+    await ctx.setActiveProgram(r.program.id);
     ctx.invalidateProgramCache();
     return r.program;
   };
-  guard('dedup', () => {
+  await guard('dedup', async () => {
     reset();
-    const p = make();
+    const p = await make();
     T('a week whose written phase carries a profile for the same phase is treated as already prescribed',
       ctx.phaseAlreadyPrescribed({ blocks: [{ startWeek: 1, endWeek: 4, phaseType: 'intensification', rx: 'hybrid' }] },
         2, 'intensification') === true);
@@ -31036,13 +31076,13 @@ async function testPhasePrescription(){
     clearCaches(ctx);
     return w;
   };
-  guard('resolution', () => {
+  await guard('resolution', async () => {
     reset();
-    const p = make();
+    const p = await make();
     const normal = ctx.getProgramWorkoutForDate(W(1), p);
     T('an ordinary week resolves with no phase change', normal && normal.template && normal.phase === 'accumulation');
     const beforeSets = normal.template.exercises.map(x => x.sets).join(',');
-    const r = ctx.applyBlockAction(p.id, 'deload', { today: W(1) });
+    const r = await ctx.applyBlockAction(p.id, 'deload', { today: W(1) });
     T('a deload can be started for the contract', r.ok === true);
     ctx.invalidateProgramCache(); clearCaches(ctx);
     const st = ctx.deriveBlockState(ctx.getProgram(p.id), W(1));
@@ -31066,13 +31106,13 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('the trainer is unchanged, and an increase inside a deload becomes a hold');
-  guard('trainer policy', () => {
+  await guard('trainer policy', async () => {
     T('the engine version is not moved by a phase policy around it',
       ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('buildProgressionRecommendation itself knows nothing about a phase',
       !/deload|phase/i.test(fnSrc(src, 'buildProgressionRecommendation')));
     reset();
-    const p = make();
+    const p = await make();
     /* Two clean exposures at the top of the range with effort to spare. */
     session(p, W(0), 'push', { weight: 200, reps: 10, rir: 3 });
     session(p, addDays(W(1), 0), 'push', { weight: 200, reps: 10, rir: 3 });
@@ -31081,7 +31121,7 @@ async function testPhasePrescription(){
     const wrapped = ctx.progressionFor('Bench Press', '8–10', null);
     T('and outside a deload the policy changes nothing at all',
       JSON.stringify(wrapped) === JSON.stringify(plain));
-    const r = ctx.applyBlockAction(p.id, 'deload', { today: addDays(W(1), 1) });
+    const r = await ctx.applyBlockAction(p.id, 'deload', { today: addDays(W(1), 1) });
     T('a deload is started', r.ok === true);
     ctx.invalidateProgramCache(); clearCaches(ctx);
     const st = ctx.deriveBlockState(ctx.getProgram(p.id), addDays(W(1), 1));
@@ -31100,7 +31140,7 @@ async function testPhasePrescription(){
   });
 
   sub('the Live Set Coach will not push load up inside a deload');
-  guard('live set coach', () => {
+  await guard('live set coach', () => {
     const rx = { sets: 3, reps: '8–10', effort: 8, load: 200 };
     const performed = [{ weight: 200, reps: 10, rir: 3 }];
     const up = ctx.deriveNextSetCoach({ rx, performed, deload: false, exerciseName: 'Bench Press' });
@@ -31115,9 +31155,9 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('a deload session is training that happened, and is not evidence of decline');
-  guard('evidence', () => {
+  await guard('evidence', async () => {
     reset();
-    const p = make();
+    const p = await make();
     session(p, W(0), 'push', { weight: 200, reps: 10, rir: 3 });
     session(p, W(1), 'push', { weight: 200, reps: 10, rir: 3 });
     const before = ctx.exerciseSessionHistory('Bench Press', 5).length;
@@ -31132,9 +31172,9 @@ async function testPhasePrescription(){
     T('a session with no phase is ordinary evidence, as every pre-D85 session is',
       after.every(s => s.phase === null));
   });
-  guard('evidence fallback', () => {
+  await guard('evidence fallback', async () => {
     reset();
-    const p = make();
+    const p = await make();
     session(p, W(0), 'push', { weight: 150, reps: 8, rir: 2, phase: 'deload' });
     const only = ctx.exerciseSessionHistory('Bench Press', 5);
     T('an exercise trained ONLY inside a deload still has a history to work from',
@@ -31142,9 +31182,9 @@ async function testPhasePrescription(){
     T('so it is not reset to a starting weight it never used',
       ctx.buildProgressionRecommendation('Bench Press', '8–10', null).weight === 150);
   });
-  guard('PRs are untouched', () => {
+  await guard('PRs are untouched', async () => {
     reset();
-    const p = make();
+    const p = await make();
     session(p, W(0), 'push', { weight: 200, reps: 5, rir: 1 });
     session(p, W(1), 'push', { weight: 245, reps: 5, rir: 0, phase: 'deload' });
     const pr = ctx.computePRs().find(x => x.name.trim().toLowerCase() === 'bench press');
@@ -31154,7 +31194,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('Session Score judges the plan the athlete was actually given');
-  guard('session score', () => {
+  await guard('session score', () => {
     const two = { date: W(2), category:'push', title:'push', exercises: [
       { name:'Bench Press', rx:{ sets:2, reps:'8–10', effort:6 },
         sets: [ { weight:'180', reps:'9', rir:'2', type:'working', completed:true },
@@ -31171,7 +31211,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('a deload week is still the program’s training, not missed training');
-  guard('D43 / D44 safety', () => {
+  await guard('D43 / D44 safety', () => {
     /* D49's sessionCarriedOut — which D43 fulfilment and the block's own
        qualified-week count both read — asks whether the PRESCRIPTION was
        carried out. A deload asks for less, so completing less is still
@@ -31193,7 +31233,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('every prescription shape LOOP writes survives a deload');
-  guard('prescription matrix', () => {
+  await guard('prescription matrix', () => {
     const shapes = [
       { label:'a fixed rep count',        ex:{ name:'Back Squat', sets:3, reps:'5', effort:'8' } },
       { label:'a rep range',              ex:{ name:'Back Squat', sets:3, reps:'8–12', effort:'8' } },
@@ -31223,7 +31263,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('the phase a session was STARTED in is what it keeps');
-  guard('provenance', () => {
+  await guard('provenance', () => {
     T('the phase travels with the draft, so a workout finished tomorrow is still today’s workout',
       /phase: pendingWorkoutPhase \|\| null/.test(src));
     T('and is restored rather than re-derived when a draft is resumed',
@@ -31238,7 +31278,7 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('nothing about storage, dates or the block lifecycle moved');
-  guard('data and dates', () => {
+  await guard('data and dates', async () => {
     T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
     T('the schema is not bumped for a prescription overlay', String(ctx.DATA_SCHEMA_VERSION) === '1');
     T('the deload threshold is still six training weeks', ctx.BLOCK_RULES.deloadAfterWeeks === 6);
@@ -31253,7 +31293,7 @@ async function testPhasePrescription(){
     /* Long enough to still be running at BOTH clock changes — a program that
        has ended prescribes nothing, which would make this pass for the wrong
        reason. */
-    const p = make({ program: { startDate: '2026-01-05', durationWeeks: 52 } });
+    const p = await make({ program: { startDate: '2026-01-05', durationWeeks: 52 } });
     /* Wednesdays, Fridays and Mondays either side of both changes — the days
        this program actually trains. A rest day has no session and so no phase,
        which is its own assertion below. */
@@ -31272,9 +31312,9 @@ async function testPhasePrescription(){
 
   /* ---------------------------------------------------------------- */
   sub('a peak is still optional, and the dedup and the finished deload hold in place');
-  guard('peak optional', () => {
+  await guard('peak optional', async () => {
     reset();
-    const hyp = make();
+    const hyp = await make();
     T('a hypertrophy program does not support a peak', ctx.programSupportsPeak(hyp) === false);
     T('and a peak is not among the moves it is offered',
       (ctx.deriveBlockState(ctx.getProgram(hyp.id), W(1)).moves || []).indexOf('peak') === -1);
@@ -31298,7 +31338,7 @@ async function testPhasePrescription(){
       resolved.template.exercises.map(x => x.sets + '/' + x.reps).join(',')
         === bare.exercises.map(x => x.sets + '/' + x.reps).join(','));
     reset();
-    const str = make({ program: { goal: 'strength' } });
+    const str = await make({ program: { goal: 'strength' } });
     T('a strength program may have one', ctx.programSupportsPeak(str) === true);
     const sp = ctx.getProgram(str.id);
     sp.blocks = [{ startWeek: 1, endWeek: 16, phaseType: 'peak', rx: null, name: 'Peak' }];
@@ -31307,9 +31347,9 @@ async function testPhasePrescription(){
       ctx.trainingPhaseForPrescription(sp, W(1), 2).apply === true);
   });
 
-  guard('dedup in place', () => {
+  await guard('dedup in place', async () => {
     reset();
-    const p = make();
+    const p = await make();
     const w = ctx.getProgram(p.id);
     /* The program's own phases say Intensification for this week AND carry the
        profile that expresses it, so D37 has already moved the primary. */
@@ -31332,10 +31372,10 @@ async function testPhasePrescription(){
       ctx.trainingPhaseForPrescription(w, W(1), 2).apply === true);
   });
 
-  guard('a finished deload is over', () => {
+  await guard('a finished deload is over', async () => {
     reset();
-    const p = make();
-    const r = ctx.applyBlockAction(p.id, 'deload', { today: W(1) });
+    const p = await make();
+    const r = await ctx.applyBlockAction(p.id, 'deload', { today: W(1) });
     T('a deload is started for this check', r.ok === true);
     ctx.invalidateProgramCache(); clearCaches(ctx);
     const prog = ctx.getProgram(p.id);
@@ -31393,7 +31433,7 @@ async function testMasteryPodium(){
   const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
   const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
   const ctx = app.ctx, doc = app.dom.document;
-  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
 
   const D = n => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 10 + n);
     return d.toISOString().slice(0, 10); };
@@ -31411,7 +31451,7 @@ async function testMasteryPodium(){
 
   /* ---------------------------------------------------------------- */
   sub('the podium IS getTopExerciseMastery, not a second model');
-  guard('ranking identity', () => {
+  await guard('ranking identity', () => {
     seed([
       ...Array.from({ length: 9 }, (_, i) => session(D(i * 3), 'Bench Press', 185, 8)),
       ...Array.from({ length: 5 }, (_, i) => session(D(i * 3 + 1), 'Back Squat', 225, 5, 'legs')),
@@ -31433,7 +31473,7 @@ async function testMasteryPodium(){
 
   /* ---------------------------------------------------------------- */
   sub('podium geometry: 1st centre, 2nd left, 3rd right, at a restrained size');
-  guard('geometry and scale', () => {
+  await guard('geometry and scale', () => {
     T('1st is assigned a different visual order than 2nd, so it renders centred rather than merely first in source',
       /\.mpod-p1\{ order: 2;/.test(css) && /\.mpod-p2\{ order: 1; \}/.test(css));
     T('3rd sits after both in visual order',
@@ -31450,7 +31490,7 @@ async function testMasteryPodium(){
   });
 
   sub('podium edge cases: zero, one, two, three or more');
-  guard('zero', () => {
+  await guard('zero', () => {
     seed([]);
     const html = render();
     T('an empty log shows the empty state, not a fabricated leader',
@@ -31460,7 +31500,7 @@ async function testMasteryPodium(){
     T('the compact Top Muscle control is absent — nothing to summarise',
       !/class="mtm-control"/.test(html));
   });
-  guard('one', () => {
+  await guard('one', () => {
     seed([session(D(0), 'Solo Lift', 100, 8)]);
     const html = render();
     T('a single leader renders centred, alone', /class="mpod mpod-n1"/.test(html));
@@ -31468,7 +31508,7 @@ async function testMasteryPodium(){
     T('and no second or third pedestal implied anywhere in it',
       !/mpod-p2|mpod-p3/.test(html.slice(html.indexOf('class="mpod mpod-n1"'))));
   });
-  guard('two', () => {
+  await guard('two', () => {
     seed([session(D(0), 'Lift A', 100, 8), session(D(1), 'Lift B', 90, 6)]);
     const html = render();
     T('two leaders render as a balanced pair', /class="mpod mpod-n2"/.test(html));
@@ -31476,7 +31516,7 @@ async function testMasteryPodium(){
       (html.match(/class="mpod-card/g) || []).length === 2 &&
       !/mpod-p3/.test(html.slice(html.indexOf('class="mpod mpod-n2"'))));
   });
-  guard('three or more', () => {
+  await guard('three or more', () => {
     seed([
       session(D(0), 'Lift A', 100, 8), session(D(1), 'Lift B', 90, 6),
       session(D(2), 'Lift C', 80, 6), session(D(3), 'Lift D', 70, 6)
@@ -31490,7 +31530,7 @@ async function testMasteryPodium(){
 
   /* ---------------------------------------------------------------- */
   sub('ties use the existing deterministic order — no randomness');
-  guard('ties', () => {
+  await guard('ties', () => {
     // Identical histories: same points, so the ranking's own name tie-break decides.
     seed([session(D(0), 'Zeta Lift', 100, 8), session(D(0), 'Alpha Lift', 100, 8)]);
     const order1 = ctx.getTopExerciseMastery().map(m => m.exerciseId);
@@ -31508,7 +31548,7 @@ async function testMasteryPodium(){
      owner's own medal artwork (mastery-medal-1/2/3.png). Nothing here draws
      a badge any more; these assertions hold the real asset wiring instead. */
   sub('the podium uses the owner’s real medal art, not generated artwork');
-  guard('real medal assets', () => {
+  await guard('real medal assets', () => {
     T('the generated SVG badge primitive is gone, not left unused',
       typeof ctx.masteryPodiumBadge === 'undefined' &&
       !/function masteryPodiumBadge/.test(src) &&
@@ -31539,7 +31579,7 @@ async function testMasteryPodium(){
 
   /* ---------------------------------------------------------------- */
   sub('tapping a leader opens Exercise Detail by the LOGGED name');
-  guard('logged name, not canonical spelling', () => {
+  await guard('logged name, not canonical spelling', () => {
     // "Barbell Bench Press" is a real alias for bench_press_barbell, whose
     // own canonical displayName is the DIFFERENT string "Bench Press" — the
     // exact mismatch getExerciseCapability was already patched to avoid.
@@ -31567,7 +31607,7 @@ async function testMasteryPodium(){
       new RegExp("mastery-row-tap\" onclick=\"openExDetail\\('" + m.loggedName + "'\\)").test(rowsHtml) &&
       rowsHtml.indexOf("openExDetail('" + m.displayName + "')") === -1);
   });
-  guard('the tap actually opens the existing detail sheet — no second system', () => {
+  await guard('the tap actually opens the existing detail sheet — no second system', () => {
     seed([session(D(0), 'Bench Press', 185, 8)]);
     render();
     ctx.openExDetail('Bench Press');
@@ -31578,7 +31618,7 @@ async function testMasteryPodium(){
 
   /* ---------------------------------------------------------------- */
   sub('Top Muscle: one compact control, not a second directory');
-  guard('control + sheet', () => {
+  await guard('control + sheet', () => {
     seed([
       ...Array.from({ length: 6 }, (_, i) => session(D(i), 'Bench Press', 185, 8)),
       session(D(0), 'Back Squat', 225, 5, 'legs')
@@ -31615,7 +31655,7 @@ async function testMasteryPodium(){
     ctx.closeAllMuscleMastery();
     T('the sheet closes', !doc.getElementById('allMuscleMasteryOverlay').classList.contains('open'));
   });
-  guard('no muscle history hides the control gracefully', () => {
+  await guard('no muscle history hides the control gracefully', () => {
     // An uncatalogued name resolves to no canonical exercise, so it trains no
     // known muscle — real exercise mastery, zero muscle mastery.
     seed([session(D(0), 'Some Made Up Machine Nobody Catalogued', 50, 10)]);
@@ -31627,7 +31667,7 @@ async function testMasteryPodium(){
 
   /* ---------------------------------------------------------------- */
   sub('Mastery Leaders and Exercise Mastery read LIFETIME history');
-  guard('independent of the 12-week volume window', () => {
+  await guard('independent of the 12-week volume window', () => {
     // Every session is 200 days old — outside the 12-week (84-day) volume
     // window entirely, so Muscle Volume and Training Distribution have
     // nothing to show, but lifetime Mastery is unaffected by that window.
@@ -31650,7 +31690,7 @@ async function testMasteryPodium(){
 
   /* ---------------------------------------------------------------- */
   sub('mobile: 44px targets, no color-only signal, reduced motion');
-  guard('accessibility', () => {
+  await guard('accessibility', () => {
     seed([
       session(D(0), 'Lift A', 100, 8), session(D(1), 'Lift B', 90, 6), session(D(2), 'Lift C', 80, 5)
     ]);
@@ -31668,7 +31708,7 @@ async function testMasteryPodium(){
       /min-height: 44px/.test(css.slice(css.indexOf('.mpod-card{'), css.indexOf('.mpod-card{') + 400)) &&
       /min-height: 44px/.test(css.slice(css.indexOf('.mtm-control{'), css.indexOf('.mtm-control{') + 400)));
   });
-  guard('reduce motion', () => {
+  await guard('reduce motion', () => {
     T('the podium’s entrance is disabled under prefers-reduced-motion',
       /@media \(prefers-reduced-motion: reduce\)\{[\s\S]{0,120}\.mpod-card\{ animation: none/.test(css));
     T('navigation itself carries no dependency on that animation running',
@@ -31677,7 +31717,7 @@ async function testMasteryPodium(){
 
   /* ---------------------------------------------------------------- */
   sub('data safety — nothing about mastery truth changed');
-  guard('safety', () => {
+  await guard('safety', () => {
     seed([session(D(0), 'Bench Press', 185, 8)]);
     const before = JSON.stringify(ctx.getTopExerciseMastery());
     const beforeMuscle = JSON.stringify(ctx.getTopMuscleMastery());
@@ -32044,6 +32084,347 @@ async function testStabilization(){
   }
 }
 
+/* =========================================================
+   CONTRACT 190 — PROGRAM CHRONOLOGY + PERSISTENCE  (Phase D89)
+   ---------------------------------------------------------
+   Closes D88 findings E1 and E2. Two rules, both about truth.
+
+   ONE. PROGRAM TIME MEANS ONE THING.
+
+   A program's weeks are laid out from the MONDAY of the civil
+   week containing its start date. They have to be: a program's
+   schedule is a map of WEEKDAYS, and a weekday only means
+   something inside a civil week. programDateFor always built the
+   grid that way and said so; what D88 found is that a SECOND
+   counter, getCurrentProgramWeek, counted from the start DATE
+   instead — so for any program not begun on a Monday the two
+   disagreed for part of every week.
+
+   That is not cosmetic. slot.week is a grid week, and the shift
+   pass compared it against the other counter, so a session
+   trained one day late fell outside its own slot's week and read
+   as a missed session PLUS an extra one — but only for athletes
+   who did not happen to start on a Monday.
+
+   There are now TWO NAMED quantities counted from ONE origin:
+
+     programCalendarWeek(p, date)   WHERE a date sits in the
+       layout. The exact inverse of programDateFor. Pause-blind,
+       because the grid is: a schedule pinned to weekdays cannot
+       slide by a number of days without landing Monday's session
+       on a Thursday. This is the canonical answer to "which
+       program week is this date in?"
+
+     getCurrentProgramWeek(p, today)  HOW FAR THE ATHLETE HAS
+       GOT: the calendar week less banked paused time, frozen
+       while paused, clamped to the program's length.
+
+   With pausedDays === 0 — every program never paused — they are
+   IDENTICAL. They diverge only by paused time, which is the one
+   difference that is meant to exist, because paused time is not
+   training time and that is a contracted product rule.
+
+   TWO. A PROGRAM WRITE IS REPORTED HONESTLY.
+
+   Every mutator was synchronous, called an asynchronous
+   persistPrograms() without awaiting it, and returned ok:true in
+   the same tick — a value structurally incapable of describing
+   the write. One commit path now snapshots the store, applies
+   the change, AWAITS the write, and restores the snapshot whole
+   if the store refused it. Eight hand-written rollbacks would
+   have had eight chances to forget a field.
+
+   WHAT IS DELIBERATELY NOT CHANGED: D43's matching rules and its
+   one-to-one guarantee, D44's formula, D51's revision-by-date
+   resolution, §106's block records, the trainer, and every
+   stored field. Nothing is migrated, because nothing about this
+   was ever stored: adherence has always been derived.
+   ========================================================= */
+async function testProgramChronology(){
+  section('CONTRACT 190 — program chronology + persistence (D89)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx;
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+
+  const addDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number);
+    const t = new Date(Date.UTC(y, m - 1, d + n));
+    return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0'); };
+  const weekOf = days => {
+    const s = {};
+    ctx.PROGRAM_DAY_KEYS.forEach(k => { s[k] = { type: 'rest' }; });
+    Object.keys(days).forEach(k => {
+      const tpl = (ctx.getTemplates(days[k]) || [])[0];
+      s[k] = { type: 'workout', planId: 'balanced', category: days[k], templateId: tpl && tpl.id };
+    });
+    return s;
+  };
+  const MWF = { mon: 'push', wed: 'pull', fri: 'legs' };
+  const reset = () => {
+    ctx.programsStore = { version: 1, programs: [], activeProgramId: null, draft: null };
+    ctx.workoutLog = [];
+    ctx.invalidateProgramCache();
+    clearCaches(ctx);
+  };
+  const mk = async (startDate, weeks, days) => {
+    const r = await ctx.createProgram({ name: 'D89', goal: 'strength',
+      durationWeeks: weeks || 8, schedule: weekOf(days || MWF), startDate });
+    if(!r.ok) throw new Error('createProgram: ' + (r.errors || []).join(','));
+    await ctx.setActiveProgram(r.program.id);
+    return r.program;
+  };
+  const did = (p, date, cat) => {
+    ctx.workoutLog.push({ id: 'w' + date + cat, date, category: cat, title: cat, programId: p.id,
+      notes: '', exercises: [{ name: 'Bench Press', sets: [{ weight: '135', reps: '8', rir: '2', type: 'working', completed: true }] }] });
+    ctx.invalidateSortedLogCache(); ctx.invalidateProgramCache();
+  };
+
+  /* ---------------------------------------------------------------- */
+  sub('ONE ORIGIN: the counter is the exact inverse of the grid');
+  await guard('inverse', async () => {
+    reset();
+    // Every weekday as a start date, so this cannot pass by happening to run on a Monday.
+    for(const start of ['2026-03-02','2026-03-03','2026-03-04','2026-03-05','2026-03-06','2026-03-07','2026-03-08']){
+      reset();
+      const p = await mk(start, 8);
+      let bad = 0;
+      for(let w = 1; w <= 8; w++){
+        for(const k of ctx.PROGRAM_DAY_KEYS){
+          const d = ctx.programDateFor(p, w, k);
+          if(ctx.programCalendarWeek(p, d) !== w) bad++;
+        }
+      }
+      T('a program starting ' + start + ': every grid date reports its own week back',
+        bad === 0, bad + ' mismatches');
+      T('  and with no paused time the athlete counter agrees with the grid',
+        ctx.getCurrentProgramWeek(p, ctx.programDateFor(p, 3, 'wed')) === 3);
+    }
+  });
+
+  await guard('week boundaries', async () => {
+    reset();
+    const p = await mk('2026-03-04', 8);          // a Wednesday
+    T('the week turns over on the grid\'s Monday, not on the start weekday',
+      ctx.getCurrentProgramWeek(p, '2026-03-08') === 1 && ctx.getCurrentProgramWeek(p, '2026-03-09') === 2);
+    T('programCalendarWeek says the same about the same two days',
+      ctx.programCalendarWeek(p, '2026-03-08') === 1 && ctx.programCalendarWeek(p, '2026-03-09') === 2);
+    T('one date can never belong to two program weeks',
+      ctx.getCurrentProgramWeek(p, '2026-03-09') === ctx.programCalendarWeek(p, '2026-03-09'));
+    T('programCalendarWeek is UNCLAMPED, so a date past the end is not read as the last week',
+      ctx.programCalendarWeek(p, addDays('2026-03-02', 8 * 7)) === 9);
+    T('while the athlete counter clamps, because there is no week nine to be in',
+      ctx.getCurrentProgramWeek(p, addDays('2026-03-02', 8 * 7)) === 8);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a session trained inside the shift window fulfils its slot, whatever weekday the program began');
+  await guard('shift', async () => {
+    // The same slip, on all seven possible start weekdays.
+    for(let i = 0; i < 7; i++){
+      reset();
+      const start = addDays('2026-03-02', i);
+      const p = await mk(start, 8);
+      const slots = ctx.programPlannedSlots(p);
+      // the first Monday slot that is at least a week in, so a one-day slip stays inside the program
+      const slot = slots.filter(s => s.dayKey === 'mon')[1];
+      did(p, addDays(slot.date, 1), slot.category);          // trained one day late
+      const f = ctx.deriveProgramPlanFulfillment(p);
+      const hit = (f.slots || []).find(s => s.date === slot.date);
+      T('start ' + start + ': a session one day late fulfils the slot it was planned for',
+        !!(hit && hit.workoutId), JSON.stringify({ fulfilled: f.fulfilled, additional: f.additional }));
+      T('  and is not ALSO counted as extra training', f.additional === 0);
+    }
+  });
+
+  await guard('one-to-one survives', async () => {
+    reset();
+    const p = await mk('2026-03-04', 8);
+    const slots = ctx.programPlannedSlots(p);
+    const wed = slots.find(s => s.dayKey === 'wed' && s.date >= '2026-03-09');
+    const fri = slots.find(s => s.dayKey === 'fri' && s.date >= '2026-03-09');
+    // Thursday sits inside BOTH shift windows.
+    did(p, addDays(wed.date, 1), wed.category);
+    const f = ctx.deriveProgramPlanFulfillment(p);
+    const claims = (f.slots || []).filter(s => s.workoutId).length;
+    T('a session inside two shift windows fulfils exactly one slot', claims === 1);
+    T('and D43\'s accounting still adds up', f.fulfilled + f.unfulfilled === f.planned);
+    T('adherence can never exceed the plan', f.fulfilled <= f.planned);
+    T('the shift window itself is unchanged at two days', ctx.PLAN_SHIFT_DAYS === 2);
+    T('and D43\'s three matching passes are untouched',
+      /w\.date === slot\.date\s*\r?\n?\s*&& w\.category === slot\.category/.test(src)
+      && /Math\.abs\(daysBetweenDates\(slot\.date, w\.date\) \|\| 99\) <= PLAN_SHIFT_DAYS/.test(src));
+    T('and it is the CALENDAR week the matcher compares, not the athlete counter',
+      /d => programCalendarWeek\(program, d\)/.test(src));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a program cannot have asked for a session before it existed');
+  await guard('pre-start', async () => {
+    for(let i = 0; i < 7; i++){
+      reset();
+      const start = addDays('2026-03-02', i);
+      const p = await mk(start, 8);
+      const slots = ctx.programPlannedSlots(p);
+      T('start ' + start + ': no planned slot predates the program',
+        slots.every(s => s.date >= start),
+        JSON.stringify(slots.filter(s => s.date < start).map(s => s.date)));
+    }
+    reset();
+    const mon = await mk('2026-03-02', 8);
+    const monCount = ctx.programPlannedSlots(mon).length;
+    reset();
+    const wed = await mk('2026-03-04', 8);
+    const wedCount = ctx.programPlannedSlots(wed).length;
+    T('a Wednesday start genuinely asks for fewer sessions than a Monday one, and says so',
+      wedCount < monCount && wedCount === monCount - 1, monCount + ' vs ' + wedCount);
+    T('the grid itself still contains the whole first week — those days are simply not opportunities',
+      ctx.programDateFor(wed, 1, 'mon') === '2026-03-02');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('"N of fewer-than-N planned" is impossible by construction');
+  await guard('progress', async () => {
+    reset();
+    const p = await mk('2026-03-04', 8);
+    // train every opportunity up to and including the Monday of the next civil week
+    [['2026-03-04','pull'], ['2026-03-06','legs'], ['2026-03-09','push']].forEach(([d, c]) => did(p, d, c));
+    const pr = ctx.getProgramProgress(p, '2026-03-09');
+    T('completed never exceeds planned', pr.completedSessions <= pr.plannedSessions,
+      pr.completedSessions + ' of ' + pr.plannedSessions);
+    T('both numbers are counted from the same slots, not multiplied out of a week',
+      /\(_fulfil\.slots \|\| \[\]\)\.filter\(x => x\.date <= today/.test(src)
+      && !/plannedSessions: perWeek \* weeksElapsed/.test(src));
+    T('and the whole-program ask is the slot count too',
+      pr.totalPlannedSessions === ctx.programPlannedSlots(p).length);
+    T('planned-to-date never exceeds the whole ask',
+      pr.plannedSessions <= pr.totalPlannedSessions);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the program ends when its own grid does');
+  await guard('end', async () => {
+    for(let i = 0; i < 7; i++){
+      reset();
+      const start = addDays('2026-03-02', i);
+      const p = await mk(start, 8);
+      T('start ' + start + ': the end date is the last day of the last week',
+        ctx.programEndDate(p) === ctx.programDateFor(p, 8, 'sun'),
+        ctx.programEndDate(p) + ' vs ' + ctx.programDateFor(p, 8, 'sun'));
+    }
+    reset();
+    const p = await mk('2026-03-04', 8);
+    p.pausedDays = 10;
+    T('banked paused time still extends it, because a paused program really does run longer',
+      ctx.daysBetweenDates(ctx.programDateFor(p, 8, 'sun'), ctx.programEndDate(p)) === 10);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('paused time is still not training time');
+  await guard('pause', async () => {
+    reset();
+    const p = await mk('2026-03-04', 12);
+    const day = addDays('2026-03-02', 35);            // grid week 6
+    T('with nothing banked, the counter is the calendar week',
+      ctx.getCurrentProgramWeek(p, day) === ctx.programCalendarWeek(p, day));
+    p.pausedDays = 14;
+    T('two banked weeks put the athlete two weeks back, exactly as before D89',
+      ctx.getCurrentProgramWeek(p, day) === ctx.programCalendarWeek(p, day) - 2);
+    T('and the grid does not move with them — a slot keeps its calendar date',
+      ctx.programDateFor(p, 6, 'mon') === addDays('2026-03-02', 35));
+    p.pausedDays = 0;
+    p.status = 'paused';
+    p.pausedOnDate = addDays('2026-03-02', 21);
+    T('while paused the week freezes at the day it was paused',
+      ctx.getCurrentProgramWeek(p, day) === ctx.programCalendarWeek(p, p.pausedOnDate));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('E2 — no program change is reported as saved unless it is on the device');
+  await guard('refused writes', async () => {
+    reset();
+    const real = ctx.window.storage.set;
+    const refuse = () => { ctx.window.storage.set = async () => { throw new Error('QuotaExceededError'); }; };
+
+    const healthy = await ctx.createProgram({ name: 'Healthy', durationWeeks: 8,
+      schedule: weekOf(MWF), startDate: '2026-03-02' });
+    T('a working store still reports success, and the program is really stored',
+      healthy.ok === true && JSON.parse(ctx.__store.programs).programs.some(x => x.name === 'Healthy'));
+
+    const before = JSON.stringify(ctx.programsStore);
+    refuse();
+    const refused = await ctx.createProgram({ name: 'Refused', durationWeeks: 8,
+      schedule: weekOf(MWF), startDate: '2026-03-02' });
+    ctx.window.storage.set = real;
+    T('a refused create reports FAILURE', refused.ok === false);
+    T('and says why', (refused.errors || []).join('') === ctx.PROGRAM_SAVE_REFUSED);
+    T('and leaves no phantom program behind',
+      JSON.stringify(ctx.programsStore) === before);
+    T('including the active id, which a half-applied create would have moved',
+      ctx.programsStore.activeProgramId === JSON.parse(before).activeProgramId);
+
+    const p = ctx.getPrograms()[0];
+    const rec = JSON.stringify(p);
+    refuse();
+    const done = await ctx.completeProgram(p.id);
+    ctx.window.storage.set = real;
+    T('a refused complete reports false and the program is still active',
+      done === false && ctx.getProgram(p.id).status === 'active');
+    T('its record is byte-identical', JSON.stringify(ctx.getProgram(p.id)) === rec);
+
+    const n = ctx.getPrograms().length;
+    refuse();
+    const gone = await ctx.deleteProgram(p.id);
+    ctx.window.storage.set = real;
+    T('a refused delete reports false and the program is still there',
+      gone === false && !!ctx.getProgram(p.id) && ctx.getPrograms().length === n);
+
+    refuse();
+    const blocked = await ctx.applyBlockAction(p.id, 'deload', { today: '2026-03-02' });
+    ctx.window.storage.set = real;
+    T('a refused block action reports false with a reason',
+      blocked.ok === false && !!blocked.error);
+    T('and the block record is untouched', !ctx.getProgram(p.id).cycle);
+  });
+
+  await guard('one commit path', async () => {
+    T('every program mutator goes through it',
+      ['createProgram', 'updateProgram', 'setActiveProgram', 'pauseProgram', 'resumeProgram',
+       'completeProgram', 'deleteProgram', 'applyBlockAction']
+        .every(fn => /commitProgramChange\(/.test(fnSrc(src, fn))));
+    T('and each one is async, so its answer can describe the write',
+      ['createProgram', 'updateProgram', 'setActiveProgram', 'pauseProgram', 'resumeProgram',
+       'completeProgram', 'deleteProgram', 'applyBlockAction']
+        .every(fn => new RegExp('async function ' + fn + '\\(').test(src)));
+    T('the commit awaits the store and reads its answer',
+      /saved = await persistPrograms\(\);/.test(src) && /if\(saved === true\) return outcome;/.test(src));
+    T('a refusal restores the WHOLE store, not a hand-listed set of fields',
+      /programsStore = JSON\.parse\(snapshot\)/.test(src));
+    T('a mutation that declines never reaches the store at all',
+      /if\(outcome === false \|\| \(outcome && outcome\.ok === false\)\) return outcome;/.test(src));
+    T('no mutator still fires persistPrograms without reading the result',
+      ['createProgramInMemory', 'updateProgramInMemory', 'applyBlockActionInMemory']
+        .every(fn => !/persistPrograms\(/.test(fnSrc(src, fn))));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('nothing protected moved');
+  await guard('protected', async () => {
+    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('the local schema is still 1, with no migration',
+      ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('the trainer is still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('no week number is written to storage by this phase — chronology stays derived',
+      !/\.programWeek\s*=|\.calendarWeek\s*=|weekNumber:/.test(src));
+    T('D51 still resolves a revision by DATE, never by week number',
+      /String\(r\.effectiveFrom\) <= String\(dateStr\)/.test(src));
+    T('D44\'s own weekOf is untouched and still its own civil window',
+      /const n = daysBetweenDates\(firstMondayKey, dateStr\);/.test(src));
+    T('adherence is still derived, never stamped on a workout',
+      !/workoutId\s*:\s*w\.id[\s\S]{0,40}LOOPStore\.set/.test(src));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -32194,6 +32575,7 @@ async function main(){
   await testPhasePrescription();
   await testMasteryPodium();
   await testStabilization();
+  await testProgramChronology();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
