@@ -7223,10 +7223,22 @@ button.ex-thumb:focus-visible{ outline: 2px solid var(--accent); outline-offset:
 .phase-delete:active{ color: var(--danger); }
 
 /* workout sheet context label */
+/* The -8px top margin this carried snugged it under the sheet's subtitle, but
+   on the stepper — where that subtitle is hidden — it pulled the label up into
+   .ws-head's bottom border, which drew a rule straight through the text.
+   Present since D77A and reproduced on 8.5; found when D85 gave this label
+   something to say. It clears the divider instead. */
 .log-phase-context{
   font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.12em;
   font-family: 'JetBrains Mono', monospace; color: var(--text-faint);
-  margin: -8px 0 14px;
+  margin: 0 0 14px;
+}
+/* D85 — why this session is lighter, under the phase label it belongs to. The
+   pair reads as one block rather than two stacked chips. */
+.log-phase-context + .log-phase-note{ margin-top: -8px; }
+.log-phase-note{
+  font-size: 12px; line-height: 1.45; color: var(--text-dim);
+  margin: 0 0 14px;
 }
 
 /* ---------- RING TIMER (UX pass) ----------
@@ -8089,7 +8101,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div id="wsStage">
     <h2 id="logSheetTitle">Log Workout</h2>
     <div class="sheet-sub" id="logSheetSub">Record what you actually did today.</div>
-    <!-- Phase context only. The workout is not altered by which phase it falls in. -->
+    <!-- D85 — the phase, and what it changed about this session's prescription. -->
     <div id="logPhaseContext"></div>
 
     <!-- Optional prep. Never blocks the workout — the sheet below is fully
@@ -15852,6 +15864,25 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v8-6',
+    version: 'LOOP 8.6',
+    title: 'Deload Weeks That Are Actually Lighter',
+    date: '2026-09-18',
+    swVersion: 'loop-v163',
+    summary: 'A deload now changes the training, not just the label above it.',
+    newFeatures: [
+      'Starting a deload gives you fewer working sets and more reps left in reserve — same exercises, same order',
+      'Intensification and Peak now shift your main lift toward its heavier end, where your program supports it'
+    ],
+    improvements: [
+      'Your next-time weights hold steady through a deload instead of climbing mid-week',
+      'A deliberately lighter week is no longer read as lost strength when your training picks back up',
+      'Session Score judges the sets a deload actually asked for, not the ones it replaced'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -19687,6 +19718,7 @@ function parseRepRange(repsStr){
 function exerciseSessionHistory(exerciseName, limit){
   const key = exerciseName.trim().toLowerCase();
   const sessions = [];
+  const deloaded = [];                 // D85 — kept only as a last resort, below
   for(const l of sortedLog()){
     const ex = l.exercises.find(e => e.name.trim().toLowerCase() === key);
     if(ex && !ex.bodyweight && ex.sets && ex.sets.length){
@@ -19712,7 +19744,14 @@ function exerciseSessionHistory(exerciseName, limit){
          how much of it carried an effort reading, so both travel with the
          session rather than being re-derived by every caller. */
       const rx = ex.rx || null;
-      sessions.push({
+      /* D85 — a session trained inside an approved deload is training that
+         happened, but it is not evidence of what this exercise can carry: it
+         was PRESCRIBED to be easy. Judging the next exposure against it reads
+         a planned lighter week as lost strength. It is set aside rather than
+         dropped, so an exercise trained only during a deload still has a
+         history to work from. Sessions logged before D85 carry no phase and
+         are ordinary evidence, exactly as they have always been. */
+      (l.phase === 'deload' ? deloaded : sessions).push({
         date: l.date,
         weight: Math.max(...weights),
         topReps: Math.max(...reps),
@@ -19722,12 +19761,13 @@ function exerciseSessionHistory(exerciseName, limit){
         prescribedSets: (rx && rx.sets > 0) ? rx.sets : null,
         targetRir: (rx && rx.effort != null) ? effortToRir(rx.effort) : null,
         prescribedLoad: (rx && rx.load > 0) ? rx.load : null,
-        avgRir: rirs.length ? (rirs.reduce((a,b)=>a+b,0) / rirs.length) : null
+        avgRir: rirs.length ? (rirs.reduce((a,b)=>a+b,0) / rirs.length) : null,
+        phase: l.phase || null
       });
     }
     if(sessions.length >= (limit || 5)) break;
   }
-  return sessions;
+  return sessions.length ? sessions : deloaded.slice(0, limit || 5);
 }
 
 /* The intelligent progression engine — analyzes multi-session history, rep-range position,
@@ -19976,6 +20016,56 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
     why: `Keep ${w} lb and match your previous ${last.topReps} reps.`,
     tag: 'hold'
   };
+}
+
+/* =========================================================
+   PHASE POLICY OVER THE TRAINER  (Phase D85)
+   ---------------------------------------------------------
+   The engine above is not changed and not recalibrated: it is
+   asked the same question and gives the same answer it always
+   has. What changes is what LOOP does with an INCREASE during
+   a week the athlete deliberately made lighter.
+
+   Adding weight inside a deload would undo the one decision
+   the athlete actually made. So an increase becomes a hold —
+   a result this engine already produces, with the same shape
+   and the same tag, so every screen that reads a
+   recommendation keeps reading it the same way.
+
+   Nothing else is touched. Outside a deload this is identity,
+   which the contract pins mutant-for-mutant.
+   ========================================================= */
+function deloadActiveToday(){
+  try{
+    if(!hasActiveProgram()) return false;
+    return programDeloadActiveOn(getActiveProgram(), localDateStr());
+  }catch(e){ return false; }
+}
+
+function applyPhaseProgressionPolicy(rec, exerciseName, templateReps){
+  if(!rec || rec.tag !== 'increase' || !deloadActiveToday()) return rec;
+  /* The weight to hold is the last one actually trained outside a deload —
+     the same history the engine reads, which sets a deload's own sessions
+     aside. Falling back to the engine's own figure keeps a recommendation
+     rather than none at all. */
+  let hold = rec.weight;
+  try{
+    const prior = exerciseSessionHistory(exerciseName, 1);
+    if(prior.length && prior[0].phase !== 'deload' && prior[0].weight > 0) hold = prior[0].weight;
+  }catch(e){}
+  return {
+    weight: hold,
+    headline: `${hold} lb × ${templateReps}`,
+    why: `Deload week — keep ${hold} lb and leave more in reserve.`,
+    tag: 'hold'
+  };
+}
+
+/* What every screen asks. The engine's answer, then the phase policy. */
+function progressionFor(exerciseName, templateReps, templateRecommended){
+  return applyPhaseProgressionPolicy(
+    buildProgressionRecommendation(exerciseName, templateReps, templateRecommended),
+    exerciseName, templateReps);
 }
 
 /* =========================================================
@@ -26265,7 +26355,7 @@ function renderTodayInsights(){
   let ready = null, stalled = null;
   for(const n of names){
     if(ready && stalled) break;
-    const rec = buildProgressionRecommendation(n, repRangeForExercise(n), null);
+    const rec = progressionFor(n, repRangeForExercise(n), null);
     if(!rec) continue;
     if(!ready && rec.tag === 'increase') ready = n;
     if(!stalled && rec.tag === 'plateau') stalled = n;
@@ -30222,7 +30312,7 @@ function invalidateRepRangeCache(){ _repRangeCache = null; }
 function computeProgressionBuckets(){
   const ready = [], stalled = [], building = [];
   getAllLoggedExerciseNames().forEach(name => {
-    const rec = buildProgressionRecommendation(name, repRangeForExercise(name), null);
+    const rec = progressionFor(name, repRangeForExercise(name), null);
     if(!rec) return;
     if(rec.tag === 'increase') ready.push({ name, rec });
     else if(rec.tag === 'plateau') stalled.push({ name, rec });
@@ -34603,18 +34693,35 @@ function getProgramWorkoutForDate(dateStr, program){
      clamped to the last one and the program kept prescribing sessions into
      dates past its own end, indefinitely. */
   if(programTimelineEnded(p, dateStr || localDateStr()))
-    return { entry: { type:'rest' }, template:null, category:'rest', week:null, ended:true };
+    return { entry: { type:'rest' }, template:null, category:'rest', week:null, phase:null, ended:true };
   /* D51C — against the plan that was in force ON THIS DATE, not against
      today's. This is where a workout takes its prescription, so reading the
      current plan meant a session performed weeks ago resolved to whatever the
      program says now. */
   const entry = programEntryOn(p, key, dateStr || localDateStr());
-  if(entry.type !== 'workout') return { entry, template:null, category:entry.type };
+  /* A rest day has no session, so it has no phase to prescribe in — every
+     branch answers with the same keys so a caller never has to ask which
+     shape it got. */
+  if(entry.type !== 'workout') return { entry, template:null, category:entry.type, week:null, phase:null };
   /* The prescription for THIS program week, not for week 1. */
-  const week = getCurrentProgramWeek(p, dateStr || localDateStr());
+  const day = dateStr || localDateStr();
+  const week = getCurrentProgramWeek(p, day);
   const phaseRx = week === null ? null : programPhaseRxForWeek(p, week);
-  return { entry, template: resolveProgramWorkout(entry, phaseRx),
-    category: entry.category, week: week };
+  const template = resolveProgramWorkout(entry, phaseRx);
+  /* D85 — and then the phase the athlete's block actually stands in, applied
+     last and in one place, so what Today shows, what the week map draws, what
+     the review explains and what the athlete trains are the same session. */
+  let phase = null;
+  if(template && Array.isArray(template.exercises)){
+    const tp = trainingPhaseForPrescription(p, day, week);
+    phase = tp.phase;
+    if(tp.apply){
+      return { entry, category: entry.category, week, phase,
+        template: Object.assign({}, template,
+          { exercises: deriveEffectivePrescription(template.exercises, tp.phase) }) };
+    }
+  }
+  return { entry, template, category: entry.category, week: week, phase };
 }
 function programTrainingDayCount(program){
   const s = getProgramSchedule(program);
@@ -34626,7 +34733,8 @@ function programTrainingDayCount(program){
    not judge them, and there is deliberately no "program score". */
 let _programProgressCache = null;
 let _blockStateCache = null;   // D77A — deriveBlockState's memo, dropped with the rest
-function invalidateProgramCache(){ _programProgressCache = null; _planFulfillCache = null; _blockStateCache = null; }
+let _phaseRxCache = null;      // D85 — the phase a date's prescription is resolved in
+function invalidateProgramCache(){ _programProgressCache = null; _planFulfillCache = null; _blockStateCache = null; _phaseRxCache = null; }
 
 function getProgramProgress(program, todayStr){
   const p = program || getActiveProgram();
@@ -35145,11 +35253,13 @@ function programPhaseLineHtml(){
   return foundationPhaseLineHtml(st);
 }
 
-/* The subtle label shown on the workout sheet. Context only — the workout
-   itself is completely unaffected by which phase it falls in.
+/* The subtle label shown on the workout sheet.
    D77A — the block's phase beside the program's week, the same phase Home
    shows. A finished deload waiting on Rebuild is not a phase to train in, so
-   the label says nothing rather than call that session a deload. */
+   the label says nothing rather than call that session a deload.
+   D85 — the phase now CHANGES this session, so inside a deload the label says
+   what changed. One short line, and only where the athlete is looking at the
+   prescription it explains: the card is not the place to teach programming. */
 function workoutPhaseContextHtml(){
   let p = null;
   try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ return ''; }
@@ -35158,7 +35268,9 @@ function workoutPhaseContextHtml(){
   try{ st = deriveBlockState(p); week = getCurrentProgramWeek(p); }catch(e){ return ''; }
   if(!st || !st.phase || st.notStarted || week === null) return '';
   if(st.phase === 'deload' && !(st.deload && st.deload.active)) return '';
-  return `<div class="log-phase-context">WEEK ${week} · ${escapeHtml(cyclePhaseLabel(st.phase).toUpperCase())}</div>`;
+  const line = `<div class="log-phase-context">WEEK ${week} · ${escapeHtml(cyclePhaseLabel(st.phase).toUpperCase())}</div>`;
+  if(st.phase !== 'deload') return line;
+  return line + `<div class="log-phase-note">Fewer working sets and more left in reserve this week. Same exercises, same order.</div>`;
 }
 
 function phaseStatusLabel(status){
@@ -35717,6 +35829,198 @@ function composeProgramSession(entry, base, phaseRx){
      they are structurally accessories and are never re-prescribed. */
   if(rxId) ex = applyPrescription(ex, rxId);
   return Object.assign({}, base, { exercises: ex });
+}
+
+/* =========================================================
+   PHASE-AWARE PRESCRIPTION  (Phase D85)
+   ---------------------------------------------------------
+   D77A gave a program a TRAINING BLOCK whose phase the athlete
+   moves through — Accumulation, Intensification, Deload, and
+   optionally Peak. It changed no training: a deload was a label
+   over the same session. This is where a phase finally reaches
+   the prescription.
+
+   WHAT THIS IS NOT. It does not edit the program. The template,
+   its exercises and their order are untouched; §106's block
+   record is untouched; the trainer is untouched. This is an
+   OVERLAY applied when a session is resolved for a date, on the
+   way to the athlete — the same place D37's written phase has
+   always been applied, one step further along.
+
+   WHERE IT LANDS. getProgramWorkoutForDate is the one function
+   that answers "what does the program prescribe on this date",
+   for Today, the week map, the review and the live workout
+   alike. Putting the overlay there is what keeps those four
+   from disagreeing, and it is why nothing else in the app needs
+   to know a deload is happening to show one.
+
+   ONCE IT IS STARTED IT IS HISTORY. The session the athlete
+   starts is frozen into the log (rx per exercise, D41-style
+   provenance for the phase). Changing phase, program or block
+   afterwards cannot reach back into it.
+   ========================================================= */
+const PHASE_PRESCRIPTION = {
+  /* Bumped only if these rules change in a way that would make a stored
+     session's prescription mean something different than it did. Nothing
+     re-derives a finished session, so today it exists to be recorded, not
+     read. */
+  version: 1,
+  deload: {
+    /* Working sets scale by this and round, never below one. 3 -> 2 is the
+       case that matters most; a single-set exercise is left trainable rather
+       than removed, because a deload lowers demand and does not cancel
+       movements. */
+    setFactor: 2 / 3,
+    /* Points off LOOP's 0-10 effort scale. effortToRir is (10 - e) / 2, so
+       two points is one whole rep further from failure — 8 (1 RIR) becomes
+       6 (2 RIR). The floor stops a deload asking for an effort so low the
+       set stops being training. */
+    effortDrop: 2,
+    effortFloor: 5
+  },
+  /* Peak trims the work that is not the point of a peak, so the specific
+     work can be expressed fresh. Primaries are never trimmed. */
+  peak: { accessorySetDrop: 1 }
+};
+
+/* Working sets a deload asks for. Deterministic, and never zero.
+
+   The floor does not fire at the factor shipped today — two thirds of one set
+   rounds to one on its own — and that is the point of stating it anyway: it is
+   the invariant the factor must not be allowed to break, not a description of
+   what this arithmetic happens to do. Contract 187 proves it by moving the
+   factor, because a guard nothing exercises is a guard nobody can trust. */
+function deloadSets(sets){
+  const n = parseInt(sets, 10);
+  if(!(n > 0)) return sets;
+  return Math.max(1, Math.round(n * PHASE_PRESCRIPTION.deload.setFactor));
+}
+
+/* The same effort target, further from failure. An effort LOOP does not know
+   stays unknown: inventing a target here would hand Session Score and the
+   trainer a number nobody prescribed. A range collapses to one figure when
+   both ends land together rather than printing "5-5".
+
+   The floor is a floor and never a clamp: an effort already prescribed BELOW
+   it is left where it is. Raising it would be a deload asking for a harder set
+   than the program did, which is the one thing this phase may never do. */
+function deloadEffort(effort){
+  if(effort == null || effort === '') return effort;
+  const cfg = PHASE_PRESCRIPTION.deload;
+  const nums = String(effort).match(/\d+(?:\.\d+)?/g);
+  if(!nums) return effort;
+  const moved = nums.map(n => {
+    const e = parseFloat(n);
+    return Math.min(e, Math.max(cfg.effortFloor, e - cfg.effortDrop));
+  });
+  const uniq = moved.filter((v, i) => moved.indexOf(v) === i);
+  return uniq.join('–');
+}
+
+/* THE OVERLAY. Pure: exercises in, exercises out. No storage, no clock, no
+   program lookup — everything it needs to decide has already been decided by
+   the caller. Given the same exercises and the same phase it returns the same
+   prescription, which is what lets a contract pin it. */
+function deriveEffectivePrescription(exercises, phase, opts){
+  const list = Array.isArray(exercises) ? exercises : null;
+  if(!list || !list.length) return exercises;
+  const o = opts || {};
+
+  if(phase === 'deload'){
+    return list.map(ex => {
+      const next = Object.assign({}, ex);
+      if(ex.sets != null) next.sets = deloadSets(ex.sets);
+      if(ex.effort != null && ex.effort !== '') next.effort = deloadEffort(ex.effort);
+      return next;
+    });
+  }
+
+  /* Intensification and Peak lean on the primary through the profile table
+     D36/D37 already use, so "heavier, lower reps, main lift only" has one
+     definition in this app rather than two. applyPrescription's own guards
+     still hold: it moves a primary in one declared direction and never
+     overshoots, so a primary already prescribed heavy is left alone. */
+  if(phase === 'intensification') return applyPrescription(list, 'hybrid');
+
+  if(phase === 'peak'){
+    const lean = applyPrescription(list, 'hybrid');
+    const tpl = { exercises: lean };
+    return lean.map((ex, i) => {
+      if(deriveExerciseRole(tpl, i) !== 'accessory') return ex;
+      const n = parseInt(ex.sets, 10);
+      if(!(n > 0)) return ex;
+      /* Same invariant as a deload's, and stated once: a phase lowers demand,
+         it never deletes a movement. An earlier draft also guarded n > 1 above,
+         which read as protective but could not change any outcome this clamp
+         did not already decide — so it is gone rather than left to look useful.
+         Contract 187 proves the clamp against a moved drop. */
+      return Object.assign({}, ex, { sets: Math.max(1, n - PHASE_PRESCRIPTION.peak.accessorySetDrop) });
+    });
+  }
+
+  /* ACCUMULATION IS DELIBERATELY NOTHING. It is the phase the library's own
+     prescriptions were written for: a program's ordinary productive training
+     IS its accumulation. Adding volume here to prove this branch exists would
+     make every program harder the moment D85 shipped, for no reason the
+     athlete asked for. */
+  return o.copy ? list.map(ex => Object.assign({}, ex)) : list;
+}
+
+/* Has the program's OWN written phase already said this, through a
+   prescription? D37 resolves a written phase to a profile id and applies it
+   before we get here, so a week written as Intensification whose profile
+   already moved the primary must not be intensified a second time.
+
+   A written phase with no profile has changed no training — PRESCRIPTION_PROFILES
+   has no deload entry at all, which is exactly why a written deload has always
+   been a label — so there is nothing to double-apply and the overlay is what
+   finally makes it real. */
+function phaseAlreadyPrescribed(program, week, phase){
+  if(week == null || !phase) return false;
+  let b = null;
+  try{ b = getBlockForWeek(program, week); }catch(e){ return false; }
+  return !!(b && b.phaseType === phase && b.rx && getPrescriptionProfile(b.rx));
+}
+
+/* WHICH PHASE THIS DATE TRAINS IN, and whether the overlay has anything to
+   add. Phase resolution is §106's, unchanged and not re-derived here: a date
+   inside a closed block still answers from that block's snapshot, so a session
+   resolved for a past date reads the phase it was actually trained in.
+
+   MEMOISED PER DATE (_phaseRxCache, declared with the other program caches),
+   because this sits in a hot path: the week map resolves seven dates and Today
+   resolves one on every render, and each resolution otherwise walks the block
+   from its first day. Keyed on everything that can change the answer and
+   dropped with the other program caches, so a block decision or a program edit
+   is never served a stale phase. */
+function trainingPhaseForPrescription(program, dateStr, week){
+  const out = { phase: null, apply: false, deduped: false };
+  if(!program) return out;
+  const key = [program.id, dateStr, week, program.status, program.startDate, program.pausedDays || 0,
+    JSON.stringify(program.cycle || null), JSON.stringify(program.blocks || null),
+    Array.isArray(program.revisions) ? program.revisions.length : 0].join('|');
+  if(_phaseRxCache && _phaseRxCache.has(key)) return _phaseRxCache.get(key);
+  const value = computeTrainingPhaseForPrescription(program, dateStr, week, out);
+  if(!_phaseRxCache) _phaseRxCache = new Map();
+  /* A render asks for a handful of dates; anything beyond that is a history
+     sweep that should not be held on to. */
+  if(_phaseRxCache.size > 64) _phaseRxCache.clear();
+  _phaseRxCache.set(key, value);
+  return value;
+}
+function computeTrainingPhaseForPrescription(program, dateStr, week, out){
+  let st = null;
+  try{ st = trainingPhaseOn(program, dateStr); }catch(e){ return out; }
+  if(!st || !st.phase) return out;
+  /* A deload that has finished is not a lighter week — the block is waiting on
+     Rebuild, and its training is ordinary again. Same rule the workout label
+     and the Live Set Coach already use. */
+  if(st.phase === 'deload' && st.deload && !st.deload.active) return out;
+  out.phase = st.phase;
+  if(st.phase === 'peak' && !programSupportsPeak(program)) return out;
+  if(phaseAlreadyPrescribed(program, week, st.phase)){ out.deduped = true; return out; }
+  out.apply = st.phase === 'deload' || st.phase === 'intensification' || st.phase === 'peak';
+  return out;
 }
 
 const BUILDER_GOALS = [
@@ -46171,6 +46475,13 @@ let pendingDraftId = null;
    what that workout is. */
 let pendingWorkoutOrigin = null;
 let pendingWorkoutProgramId = null;
+/* D85 — the training phase this session was STARTED in. Decided with the rest
+   of the provenance and carried the same way, because that is what makes a
+   deload workout still a deload workout when it is finished after midnight,
+   after the window closed, or after the athlete rebuilt. Nothing infers it
+   later from the calendar: a session that predates D85 carries no phase and is
+   read as ordinary training, which is what it was. */
+let pendingWorkoutPhase = null;
 /* D81 — the icon and colour the athlete chose for the workout this session
    was started from, if they chose one. Carried like provenance, so the
    session and its history look like the workout that was trained. */
@@ -46245,6 +46556,7 @@ function captureActiveDraft(){
        started today, whatever the athlete did to their program in between. */
     origin: pendingWorkoutOrigin || null,
     originProgramId: pendingWorkoutProgramId || null,
+    phase: pendingWorkoutPhase || null,
     identity: pendingWorkoutIdentity || null,
     /* Whether this workout is past its warm-up. Purely presentational — no
        reader of a saved workout has ever looked at it, and workoutLog is not
@@ -46275,6 +46587,7 @@ async function clearActiveDraft(){
   pendingDraftId = null;
   pendingWorkoutOrigin = null;
   pendingWorkoutProgramId = null;
+  pendingWorkoutPhase = null;
   pendingWorkoutIdentity = null;
   try{ await LOOPStore.set(DRAFT_KEY, 'null'); }catch(e){}
   renderResumeBanner();
@@ -46300,6 +46613,10 @@ function restoreDraftToSheet(draft){
      guessed into a program. */
   pendingWorkoutOrigin = draft.origin || null;
   pendingWorkoutProgramId = draft.originProgramId || null;
+  /* D85 — the phase it was STARTED in, restored rather than re-derived. A
+     deload that ended overnight does not turn yesterday's session into
+     ordinary training. */
+  pendingWorkoutPhase = draft.phase || null;
   pendingWorkoutIdentity = workoutIdentityRecordOf(draft, draft.category);
   /* A resumed workout does not warm up again. Older drafts have no flag, so
      the started-check below still covers them. */
@@ -46319,7 +46636,7 @@ function restoreDraftToSheet(draft){
   document.getElementById('logExercises').innerHTML = '';
 
   (draft.exercises || []).forEach(ex => {
-    const rec = ex.bodyweight ? null : buildProgressionRecommendation(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended);
+    const rec = ex.bodyweight ? null : progressionFor(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended);
     addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, ex.meta || {});
   });
 
@@ -47027,10 +47344,15 @@ async function startTemplateLog(cat, tplId){
      session it composed (base + any depth recipe) is the one to train.
      Shown and trained can never disagree. Picking a different template from
      the picker still starts the plain library version, as before. */
+  let plannedPhase = null;
   try{
     const prog = getProgramWorkoutForDate(localDateStr());
     if(prog && prog.template && prog.category === cat && prog.template.id === tplId){
       planned = prog.template;
+      /* D85 \u2014 the phase that composed it, taken from the same resolution
+         rather than asked again, so the session and its record cannot
+         describe different phases. */
+      plannedPhase = prog.phase || null;
     }
   }catch(e){}
   if(!planned) return;
@@ -47040,11 +47362,15 @@ async function startTemplateLog(cat, tplId){
      training through a rest day, is extra training. */
   pendingWorkoutOrigin = 'freeform';
   pendingWorkoutProgramId = null;
+  pendingWorkoutPhase = null;
   try{
     const _op = hasActiveProgram() ? getActiveProgram() : null;
     if(_op && _op.id && programPrescribesTemplate(_op, cat, tplId)){
       pendingWorkoutOrigin = 'program';
       pendingWorkoutProgramId = _op.id;
+      /* Only the program's own work carries a phase: a phase is a property of
+         the plan, and training the athlete chose independently has none. */
+      pendingWorkoutPhase = plannedPhase;
     }
   }catch(e){}
   pendingWorkoutIdentity = workoutIdentityRecordOf(planned, cat);
@@ -47067,7 +47393,7 @@ async function startTemplateLog(cat, tplId){
   wrap.innerHTML = '';
   tpl.exercises.forEach(ex => {
     const isBW = rowStartsAsBodyweight(ex.name, ex.recommended);
-    const rec = isBW ? null : buildProgressionRecommendation(ex.name, ex.reps, ex.recommended);
+    const rec = isBW ? null : progressionFor(ex.name, ex.reps, ex.recommended);
     const weightVal = isBW ? '' : (rec && rec.weight != null ? rec.weight : '');
     const repVal = firstNumber(ex.reps) || ex.reps;
     const setCount = parseInt(ex.sets) || 3;
@@ -47085,6 +47411,7 @@ async function openFreeformLog(){
      a workout normally counts; it is simply not the program’s work. */
   pendingWorkoutOrigin = 'freeform';
   pendingWorkoutProgramId = null;
+  pendingWorkoutPhase = null;
   pendingWorkoutIdentity = null;
   /* D62 — a workout built from nothing is not a Push workout. It has no
      category until the athlete picks one on the review step, where LOOP may
@@ -47576,7 +47903,7 @@ function swapLogExercise(row, newName){
 
   let rec = null;
   if(!isBW){
-    try{ rec = buildProgressionRecommendation(clean, target.dataset.targetReps || '', target.dataset.recommended || null); }catch(e){ rec = null; }
+    try{ rec = progressionFor(clean, target.dataset.targetReps || '', target.dataset.recommended || null); }catch(e){ rec = null; }
   }
   if(rec && rec.weight != null && !isBW) target.dataset.rxLoad = rec.weight;
   else delete target.dataset.rxLoad;
@@ -48834,6 +49161,14 @@ function saveLog(btn){
     if(pendingWorkoutOrigin === 'program' && pendingWorkoutProgramId)
       newEntry.programId = pendingWorkoutProgramId;
   }
+  /* D85 — the phase this session was started in, written only when the
+     program's own work was trained in one. It is read by the progression
+     engine's evidence and by nothing else; history, PRs, Session Score, XP
+     and consistency never look at it. A session without it is not a claim
+     that it was ordinary training — it is the absence of a claim, which is
+     what every session logged before D85 honestly is. */
+  if(pendingWorkoutOrigin === 'program' && pendingWorkoutPhase)
+    newEntry.phase = pendingWorkoutPhase;
   /* D81 — presentation only, and only when chosen: the look the workout had
      when it was trained, so History does not change when its template does.
      Nothing that reads history for training ever looks at it. */
@@ -49078,7 +49413,7 @@ function computeNextTimeNotes(entry){
        screen could judge 6-8 work against an 8-12 target. Legacy sessions
        carry no rx and keep the existing template lookup. */
     const range = (ex.rx && ex.rx.reps) ? ex.rx.reps : repRangeForExercise(ex.name);
-    const rec = buildProgressionRecommendation(ex.name, range, null);
+    const rec = progressionFor(ex.name, range, null);
     if(!rec || !rec.why) return;
     /* D47 — 'reduce' was not in this list, so the one recommendation that
        tells an athlete to take weight OFF the bar could never reach them. It

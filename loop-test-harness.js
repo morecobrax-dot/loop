@@ -244,7 +244,9 @@ function loadApp(initialStore){
     'WORKOUT_COLORS','WORKOUT_COLOR_CHOICES','WORKOUT_ICON_SIZES','WORKOUT_IDENTITY_ID_RE','_wiSpriteReady',
     'tplIdentityDraft','pendingWorkoutIdentity',
     /* D82/D83 — the Personal Best Timeline card's own config and carousel state */
-    'PBT_CONFIG','pbtSelectedExercise','_pbtScrollTimer'];
+    'PBT_CONFIG','pbtSelectedExercise','_pbtScrollTimer',
+    /* D85 — the phase overlay's rules and the phase the open workout began in */
+    'PHASE_PRESCRIPTION','pendingWorkoutPhase','_phaseRxCache'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

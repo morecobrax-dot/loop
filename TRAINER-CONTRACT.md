@@ -11441,3 +11441,125 @@ saved shared workout and a restored backup, and both carry the identity.
   a single calf, several hinges, a calf raise); the squat, the lunge and the
   hinge were kept, and Contract 185 now requires the six lift icons to be
   figures, so a two-legs drawing cannot come back unnoticed.
+
+## §110 — D85: Phase-aware prescription
+
+**Status.** Shipped in LOOP 8.6 (`loop-v163`). `DATA_KEYS` 15, schema 1, no
+migration, no new storage key, `TRAINER_ENGINE_VERSION` 0.1.1-shadow. Session
+Score weights, D43 fulfilment, D44 consistency, D49 evidence rules, D50B's
+algorithm, PRs, XP and ranks are unchanged. This closes §106's D77B handoff
+items 1, 2, 3 and 5; item 4 (Session Score) needed no change, for the reason
+below.
+
+### The gap
+
+D77A gave a program a training block whose phase the athlete moves through,
+and changed no training. A deload was a label over the same session:
+`PRESCRIPTION_PROFILES` had no deload profile, `applyPrescription` touched
+primaries only, and D37's `programPhaseRxForWeek` resolved a WRITTEN phase by
+program week and knew nothing of a block. The trainer could add weight in the
+middle of a deload, and a deliberately light week entered D49's evidence as an
+ordinary exposure — that is, as lost strength.
+
+### Where a phase reaches the prescription
+
+`getProgramWorkoutForDate` is the one function that answers what the program
+prescribes on a date, for Today, the week map, the review and the live workout
+alike. The overlay is one call there, after D37's written-phase `rx`:
+
+```
+canonical template
+  -> written phase        programPhaseRxForWeek -> applyPrescription
+  -> block phase          trainingPhaseForPrescription -> deriveEffectivePrescription
+  -> snapshot at start    ex.sets/reps/effort frozen into the row, rx into the log
+```
+
+`deriveEffectivePrescription(exercises, phase)` is pure: exercises in,
+exercises out, no clock, no store, and the array it is handed is never
+modified. The program record is never written.
+
+- **Deload.** Every exercise: sets `max(1, round(n * 2/3))`; effort down
+  `effortDrop` 2 with floor 5, and the floor never RAISES an effort already
+  below it. `effortToRir` is `(10 - e) / 2`, so two points is one whole rep of
+  headroom. Reps are not rewritten, an effort LOOP does not know stays
+  unknown, and no exercise is removed or reordered.
+- **Intensification / Peak.** `applyPrescription(list, 'hybrid')` — D36's own
+  profile, primary only, with its existing one-direction and no-overshoot
+  guards, so no new numbers were invented. Peak additionally trims accessory
+  sets by one (`deriveExerciseRole`), never the primary, and prescribes no
+  maximal attempt. Peak applies only where `programSupportsPeak`.
+- **Accumulation is deliberately nothing.** The library's prescriptions already
+  are accumulation; inventing volume for it would have made every program
+  harder on upgrade.
+
+### Double application
+
+`phaseAlreadyPrescribed(program, week, phase)` is true only when the written
+phase for that week has the same `phaseType` AND carries an `rx` resolving to a
+real profile. A written Intensification with `rx` therefore stands the overlay
+down; a written Deload cannot, because no deload profile exists — which is
+exactly why a written deload was always a label, and why the overlay is what
+makes it real. Memoised in `_phaseRxCache`, dropped by `invalidateProgramCache`.
+
+### History, evidence and the trainer
+
+- **Provenance.** `pendingWorkoutPhase` follows D41's origin exactly: decided in
+  `startTemplateLog`, carried through the draft, restored on resume, written as
+  `newEntry.phase` only for `origin === 'program'`. A session started in a
+  deload stays one when it is finished after the window, after midnight, or
+  after a Rebuild. Nothing infers a phase from the calendar, so a session
+  logged before D85 carries none and is ordinary evidence.
+- **Evidence.** `exerciseSessionHistory` collects ordinary sessions and deload
+  sessions separately and returns the deload ones only when there are no others
+  — so a light week is never read as regression, the post-deload baseline is
+  automatically the last real training week, and an exercise trained only
+  during a deload still has a history. The workout stays in History; a genuine
+  PR set in a deload is still a PR.
+- **Trainer.** `buildProgressionRecommendation` is untouched and still knows
+  nothing of phases. `progressionFor()` wraps it with
+  `applyPhaseProgressionPolicy`, which turns an `increase` inside a deload into
+  a `hold` at the last non-deload weight — a tag the engine already produces,
+  so every consumer reads it unchanged. All six call sites use the wrapper.
+  `deriveNextSetCoach` already took a `deload` flag from D77A and was verified,
+  not changed.
+- **Session Score** needed nothing: `deriveSessionExecution` reads `ex.rx` off
+  the stored session, so a deload's two sets are judged as two. Completing the
+  prescription a deload actually gave is complete.
+
+### Evidence
+
+- **Contract 187** (125 assertions): purity and source immutability; the
+  per-phase profiles; deload set, effort and never-harder sweeps; the floors
+  proved by MOVING `setFactor` and `accessorySetDrop` rather than at the
+  shipped values; dedup in place and at the resolver; a finished deload;
+  an unsupported Peak reached through a cycle event; the trainer policy in and
+  out of a deload; evidence exclusion and its fallback; PRs; Session Score;
+  D43/D49 `sessionCarriedOut`; a nine-shape prescription matrix; provenance;
+  DATA_KEYS, schema, threshold and `CYCLE_MOVES` unchanged; both clock changes.
+- **Mutation 26/26** from a clean 125/0 baseline.
+- **Trainer regression:** 5,404 generated histories through
+  `buildProgressionRecommendation` produce a byte-identical sha256 on 804dfd6
+  (LOOP 8.5) and on this build.
+- **Full gate:** verify 8,176/0; program 335/0; audit 87/0; cardio 261/0; GPS
+  clean; date matrix 47 x 7 zones, 0 failures.
+- **Headless Edge** at 320x568, 375x812, 390x844 and 430x932, seeded with a
+  program inside an approved deload: the program's 3/3/3/2/3 working sets
+  resolve to 2/2/2/1/2, the workout sheet renders exactly those set rows,
+  effort drops 7-8 to 5-6, the phase label and its one-line explanation appear,
+  no horizontal overflow, no console errors, no control under 44px.
+
+### Known and recorded
+
+- An equivalent-mutant `n > 1` guard in the Peak trim was deleted rather than
+  left looking protective; the `max(1, ...)` clamps were KEPT because they
+  guard tunable constants, and the contract exercises them by moving those
+  constants.
+- `.log-phase-context` carried `margin-top: -8px`, which on the stepper pulled
+  it into `.ws-head`'s bottom border and drew a rule through the phase label.
+  Present since D77A, reproduced on 8.5, fixed here.
+- Home's first paint can draw the plan-only Foundation card before
+  `loadPrograms` resolves. Reproduced identically on 8.5; not D85's, not fixed.
+- Deload prescriptions apply to program sessions only. Training started from
+  the library while a deload runs is freeform and is neither lightened nor
+  marked — which is what D41 provenance already says it is.
+- Safari was not run (Windows).

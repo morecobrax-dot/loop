@@ -16843,13 +16843,24 @@ async function testExecutionIntelligence(){
 
     T('no second progression engine was introduced',
       !/function smartProgressionEngine|function deriveNextWeightRecommendation|function doubleProgressionEngine/.test(src));
+    /* D85 — repointed, same property. Both surfaces moved from calling the
+       engine directly to calling progressionFor(), which is the engine plus the
+       deload policy. The point of this check has always been that the
+       completion screen and the logger ask the SAME question, so it now names
+       the shared wrapper and asserts both ends of it rather than one. */
     T('and the completion screen shows the same function the logger will use', (() => {
       const i = src.indexOf('function computeNextTimeNotes');
       const body = src.slice(i, src.indexOf('function renderCooldownCard', i) > i
         ? src.indexOf('function renderCooldownCard', i) : i + 2000);
-      return /buildProgressionRecommendation\(/.test(body)
+      const j = src.indexOf('async function startTemplateLog');
+      const logger = src.slice(j, src.indexOf('\nasync function ', j + 40));
+      return /progressionFor\(/.test(body)
+        && /progressionFor\(/.test(logger)
         && !/computeShadowRecommendation/.test(body);
     })());
+    T('and that shared function is the engine with the phase policy around it, not a second engine',
+      /function progressionFor\([\s\S]{0,300}?buildProgressionRecommendation\(/.test(src)
+      && /applyPhaseProgressionPolicy\(/.test(src));
     T('a load reduction actually reaches the athlete', (() => {
       /* D49 — bounded by the next function rather than a character count. The
          count broke the moment the function grew, which is a property of the
@@ -30949,6 +30960,579 @@ async function testPersonalBestTimeline(){
       (fnSrc(src, 'pbtTimelineSvg').match(/accent-soft/g) || []).length === 1);
   }
 }
+/* =========================================================
+   CONTRACT 187 — PHASE-AWARE PRESCRIPTION  (Phase D85)
+   ---------------------------------------------------------
+   D77A gave a program a training block whose phase the athlete
+   moves through. It changed no training. This is where a phase
+   reaches the prescription — and, just as importantly, where it
+   stops.
+
+   What is held here:
+     · the overlay is PURE and never edits the program: same
+       exercises and phase in, same prescription out, source
+       untouched
+     · Accumulation is deliberately nothing; Deload lowers sets
+       and moves effort further from failure; Intensification
+       and Peak lean on the primary through D36's own profiles
+     · a deload never removes a movement, never reorders one,
+       and can never make anything harder
+     · an effort LOOP does not know stays unknown
+     · a written phase that already prescribed this is not
+       applied twice
+     · the trainer is unchanged: an INCREASE inside a deload
+       becomes a hold, and outside one nothing moves at all
+     · a deload session is training that happened, kept in
+       history and in PRs, and set aside as progression evidence
+       so a planned lighter week is never read as lost strength
+     · the phase is snapshotted when a session STARTS, so later
+       phase, program or block changes cannot reach into it
+     · sessions logged before D85 carry no phase and are
+       ordinary evidence, exactly as they always were
+   ========================================================= */
+async function testPhasePrescription(){
+  section('CONTRACT 187 — phase-aware prescription (D85)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const addDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n));
+    return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0'); };
+  const W = n => addDays('2026-01-05', 7 * n);
+  const num = v => parseFloat(String(v).match(/\d+(\.\d+)?/) ? String(v).match(/\d+(\.\d+)?/)[0] : NaN);
+
+  const BASE = () => ([
+    { name:'Barbell Bench Press', sets:4, reps:'8–10', effort:'8' },
+    { name:'Incline DB Press',    sets:3, reps:'10–12', effort:'7' },
+    { name:'Cable Fly',           sets:3, reps:'12–15', effort:'7' },
+    { name:'Lateral Raise',       sets:2, reps:'12–15', effort:'7' },
+    { name:'Triceps Pushdown',    sets:1, reps:'12–15', effort:'' }
+  ]);
+  const EP = (list, phase) => ctx.deriveEffectivePrescription(list, phase);
+
+  /* ---------------------------------------------------------------- */
+  sub('the overlay is pure, and the program is never edited');
+  guard('purity', () => {
+    const a = BASE(), snapshot = JSON.stringify(a);
+    const r1 = EP(a, 'deload'), r2 = EP(a, 'deload');
+    T('the same exercises and phase give the same prescription twice', JSON.stringify(r1) === JSON.stringify(r2));
+    T('the exercises handed in are not modified', JSON.stringify(a) === snapshot);
+    T('a new array is returned rather than the one passed in', r1 !== a);
+    T('each entry is a new object, so a caller cannot write through to the template', r1[0] !== a[0]);
+    ['accumulation','intensification','deload','peak'].forEach(ph => {
+      const before = JSON.stringify(a);
+      EP(a, ph);
+      T('resolving ' + ph + ' leaves the source untouched', JSON.stringify(a) === before);
+    });
+    T('an empty session is returned unchanged', EP([], 'deload').length === 0);
+    T('a missing session does not throw', EP(null, 'deload') === null);
+    T('an unknown phase changes nothing', JSON.stringify(EP(a, 'rebuild')) === JSON.stringify(a));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('ACCUMULATION is deliberately nothing');
+  guard('accumulation', () => {
+    const a = BASE();
+    T('every exercise is prescribed exactly as the program wrote it',
+      JSON.stringify(EP(a, 'accumulation')) === JSON.stringify(a));
+    T('and the structural claim is in the source, not only in behaviour',
+      /ACCUMULATION IS DELIBERATELY NOTHING/.test(src));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('DELOAD: fewer working sets, never a movement removed');
+  guard('deload sets', () => {
+    const out = EP(BASE(), 'deload'), a = BASE();
+    T('the session keeps every exercise', out.length === a.length);
+    T('and keeps them in the order they were programmed',
+      out.map(x => x.name).join('|') === a.map(x => x.name).join('|'));
+    T('4 working sets become 3', out[0].sets === 3);
+    T('3 become 2 — the case that matters most', out[1].sets === 2 && out[2].sets === 2);
+    T('2 become 1', out[3].sets === 1);
+    T('a single prescribed set stays trainable rather than becoming none', out[4].sets === 1);
+    let grew = 0;
+    for(let n = 1; n <= 12; n++){
+      const r = ctx.deloadSets(n);
+      if(r > n || r < 1) grew++;
+      if(n >= 2 && r >= n) grew++;                       // 2+ must actually come down
+    }
+    T('for every prescription from 1 to 12 sets the result is lower and at least one', grew === 0);
+    T('the rule is one centralised factor rather than scattered multipliers',
+      ctx.PHASE_PRESCRIPTION && ctx.PHASE_PRESCRIPTION.deload && ctx.PHASE_PRESCRIPTION.deload.setFactor > 0);
+    T('reps are not rewritten — a deload lowers demand, it does not change the movement',
+      out.every((x, i) => x.reps === a[i].reps));
+  });
+
+  sub('DELOAD: more left in reserve, and no invented effort');
+  guard('deload effort', () => {
+    const out = EP(BASE(), 'deload'), a = BASE();
+    T('an effort of 8 becomes 6 — one whole rep further from failure',
+      out[0].effort === '6' && ctx.effortToRir(out[0].effort) === ctx.effortToRir(a[0].effort) + 1);
+    T('no exercise is asked for a harder effort than the program wrote',
+      out.every((x, i) => !x.effort || !a[i].effort || num(x.effort) <= num(a[i].effort)));
+    T('an unknown effort stays unknown rather than being given a number',
+      out[4].effort === '' && ctx.deloadEffort(null) === null);
+    T('a range moves as a range', ctx.deloadEffort('7–8') === '5–6');
+    T('a range whose ends land together is stated once, not as "5–5"', ctx.deloadEffort('6–7') === '5');
+    T('the floor stops a deload asking for an effort that is not training',
+      num(ctx.deloadEffort('5')) >= ctx.PHASE_PRESCRIPTION.deload.effortFloor);
+    T('and it is a floor, not a clamp that could raise a low effort',
+      num(ctx.deloadEffort('5')) <= 5);
+  });
+
+  sub('DELOAD can never make a session harder');
+  guard('deload never harder', () => {
+    let harder = 0;
+    for(let sets = 1; sets <= 6; sets++){
+      for(let eff = 4; eff <= 10; eff++){
+        const one = [{ name:'Back Squat', sets, reps:'5–8', effort:String(eff) }];
+        const r = EP(one, 'deload')[0];
+        if(parseInt(r.sets, 10) > sets) harder++;
+        if(num(r.effort) > eff) harder++;
+      }
+    }
+    T('across every set count and effort LOOP prescribes, nothing goes up', harder === 0, harder + ' went up');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('INTENSIFICATION and PEAK lean on the primary, through D36’s own profiles');
+  guard('intensification', () => {
+    const a = BASE(), out = EP(a, 'intensification');
+    T('the primary is moved toward the heavier end of its range', out[0].reps === '5–8');
+    T('accessory work is not touched', out.slice(1).every((x, i) => JSON.stringify(x) === JSON.stringify(a[i + 1])));
+    T('no set count is added anywhere', out.every((x, i) => x.sets === a[i].sets));
+    T('a primary already prescribed heavy is left alone — the profile never overshoots',
+      EP([{ name:'Back Squat', sets:5, reps:'3–5', effort:'9' }], 'intensification')[0].reps === '3–5');
+    T('it reuses applyPrescription rather than inventing a second definition',
+      /applyPrescription\(list, 'hybrid'\)/.test(src));
+  });
+  guard('peak', () => {
+    const a = BASE(), out = EP(a, 'peak');
+    T('the primary is expressed at the performance end', out[0].reps === '5–8');
+    T('the primary keeps its volume', out[0].sets === a[0].sets);
+    T('accessory volume is trimmed so the specific work can be fresh',
+      out[2].sets === a[2].sets - 1 && out[3].sets === a[3].sets - 1);
+    T('a single-set accessory is left alone rather than removed', out[4].sets === 1);
+    T('no maximal attempt is prescribed anywhere in the phase rules',
+      !/1RM|one[- ]rep max|max attempt/i.test(fnSrc(src, 'deriveEffectivePrescription')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the floors are invariants, not accidents of the numbers shipped today');
+  guard('invariants under a moved config', () => {
+    const cfg = ctx.PHASE_PRESCRIPTION;
+    const keepSet = cfg.deload.setFactor, keepDrop = cfg.peak.accessorySetDrop;
+    try{
+      /* At the shipped factor, two thirds of one set already rounds to one, so
+         the floor never fires. Move the factor far enough that the arithmetic
+         alone would delete an exercise, and the floor has to be what stops it. */
+      cfg.deload.setFactor = 1 / 4;
+      let zeroed = 0;
+      for(let n = 1; n <= 12; n++) if(!(ctx.deloadSets(n) >= 1)) zeroed++;
+      T('however far the deload factor is moved, no exercise is ever reduced to no sets',
+        zeroed === 0, zeroed + ' reached zero');
+      cfg.deload.setFactor = 0;
+      T('even a factor of zero leaves every exercise trainable', ctx.deloadSets(5) === 1);
+    } finally { cfg.deload.setFactor = keepSet; }
+    try{
+      cfg.peak.accessorySetDrop = 5;
+      const out = EP([{ name:'Barbell Bench Press', sets:4, reps:'5–8', effort:'8' },
+                      { name:'Lateral Raise', sets:2, reps:'12–15', effort:'7' }], 'peak');
+      T('and a peak trim can never remove an accessory either', parseInt(out[1].sets, 10) === 1);
+    } finally { cfg.peak.accessorySetDrop = keepDrop; }
+    T('the shipped factor is restored for everything that follows',
+      cfg.deload.setFactor === keepSet && cfg.peak.accessorySetDrop === keepDrop);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a written phase that already prescribed this is not applied twice');
+  const weekOf = days => {
+    const s = {};
+    ctx.PROGRAM_DAY_KEYS.forEach(k => { s[k] = { type: 'rest' }; });
+    Object.keys(days).forEach(k => {
+      const tpl = (ctx.getTemplates(days[k]) || [])[0];
+      s[k] = { type: 'workout', planId: 'balanced', category: days[k], templateId: tpl.id };
+    });
+    return s;
+  };
+  const reset = () => {
+    ctx.programsStore = { version: 1, activeProgramId: null, programs: [] };
+    ctx.workoutLog = [];
+    ctx.selectedPlanId = 'balanced';
+    ctx.schedule = Object.assign({}, ctx.DEFAULT_PLANS.balanced.defaultSchedule);
+    ctx.invalidateProgramCache();
+    clearCaches(ctx);
+  };
+  const make = o => {
+    const opts = o || {};
+    const r = ctx.createProgram(Object.assign({ name: 'D85', durationWeeks: 16, goal: 'hypertrophy',
+      schedule: weekOf(opts.days || { mon: 'push', wed: 'pull', fri: 'legs' }), startDate: W(0) }, opts.program || {}));
+    if(!r.ok) throw new Error('createProgram: ' + r.errors.join(','));
+    ctx.setActiveProgram(r.program.id);
+    ctx.invalidateProgramCache();
+    return r.program;
+  };
+  guard('dedup', () => {
+    reset();
+    const p = make();
+    T('a week whose written phase carries a profile for the same phase is treated as already prescribed',
+      ctx.phaseAlreadyPrescribed({ blocks: [{ startWeek: 1, endWeek: 4, phaseType: 'intensification', rx: 'hybrid' }] },
+        2, 'intensification') === true);
+    T('a written phase with no profile has changed nothing, so there is nothing to double-apply',
+      ctx.phaseAlreadyPrescribed({ blocks: [{ startWeek: 1, endWeek: 4, phaseType: 'intensification', rx: null }] },
+        2, 'intensification') === false);
+    T('a written DELOAD can never carry a deload prescription, because no such profile exists',
+      Object.keys(ctx.PRESCRIPTION_PROFILES).every(id => {
+        const prof = ctx.PRESCRIPTION_PROFILES[id];
+        return !(prof.primarySets < 0);
+      }) && ctx.getPrescriptionProfile('deload') === null);
+    T('so a written deload and a block deload reduce the session once, not twice',
+      ctx.phaseAlreadyPrescribed({ blocks: [{ startWeek: 1, endWeek: 4, phaseType: 'deload', rx: 'base' }] },
+        2, 'deload') === true);
+    T('a different written phase does not suppress the block’s own',
+      ctx.phaseAlreadyPrescribed({ blocks: [{ startWeek: 1, endWeek: 4, phaseType: 'accumulation', rx: 'hybrid' }] },
+        2, 'deload') === false);
+    T('applying the overlay twice by hand would be visible, which is what the dedup prevents',
+      EP(EP(BASE(), 'deload'), 'deload')[0].sets === 2);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the session the program resolves for a date is the one that changed');
+  const session = (p, date, cat, o) => {
+    const opts = o || {};
+    const w = { id: 'd85-' + date + '-' + cat, date, category: cat, title: cat, notes: '',
+      origin: 'program', programId: p.id,
+      exercises: (opts.names || ['Bench Press']).map(name => ({ name,
+        rx: { sets: opts.rxSets == null ? 3 : opts.rxSets, reps: '8–10', effort: opts.rxEffort == null ? 8 : opts.rxEffort },
+        sets: Array.from({ length: opts.sets == null ? 3 : opts.sets }, () => ({
+          weight: String(opts.weight == null ? 200 : opts.weight), reps: String(opts.reps == null ? 8 : opts.reps),
+          rir: opts.rir == null ? '2' : String(opts.rir), type: 'working', completed: true })) })) };
+    if(opts.phase) w.phase = opts.phase;
+    ctx.workoutLog.push(w);
+    ctx.invalidateProgramCache();
+    clearCaches(ctx);
+    return w;
+  };
+  guard('resolution', () => {
+    reset();
+    const p = make();
+    const normal = ctx.getProgramWorkoutForDate(W(1), p);
+    T('an ordinary week resolves with no phase change', normal && normal.template && normal.phase === 'accumulation');
+    const beforeSets = normal.template.exercises.map(x => x.sets).join(',');
+    const r = ctx.applyBlockAction(p.id, 'deload', { today: W(1) });
+    T('a deload can be started for the contract', r.ok === true);
+    ctx.invalidateProgramCache(); clearCaches(ctx);
+    const st = ctx.deriveBlockState(ctx.getProgram(p.id), W(1));
+    const inside = st.deload ? st.deload.from : (st.deloadPending ? st.deloadPending.from : null);
+    T('the deload has a window', !!inside);
+    const dl = ctx.getProgramWorkoutForDate(inside, ctx.getProgram(p.id));
+    T('a date inside the window resolves in the deload phase', dl && dl.phase === 'deload');
+    const afterSets = dl.template.exercises.map(x => x.sets).join(',');
+    T('and its prescription is materially lighter than the same session outside it',
+      afterSets !== beforeSets
+      && dl.template.exercises.every((x, i) => parseInt(x.sets, 10) <= parseInt(normal.template.exercises[i].sets, 10))
+      && dl.template.exercises.some((x, i) => parseInt(x.sets, 10) < parseInt(normal.template.exercises[i].sets, 10)));
+    T('with the same exercises, in the same order',
+      dl.template.exercises.map(x => x.name).join('|') === normal.template.exercises.map(x => x.name).join('|'));
+    T('the program record itself still prescribes what it always did',
+      ctx.getProgramWorkoutForDate(W(1), ctx.getProgram(p.id)) && true);
+    const raw = ctx.resolveProgramWorkout(dl.entry, null);
+    T('and the underlying template is untouched — the overlay never wrote to it',
+      raw.exercises.map(x => x.sets).join(',') === beforeSets);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the trainer is unchanged, and an increase inside a deload becomes a hold');
+  guard('trainer policy', () => {
+    T('the engine version is not moved by a phase policy around it',
+      ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('buildProgressionRecommendation itself knows nothing about a phase',
+      !/deload|phase/i.test(fnSrc(src, 'buildProgressionRecommendation')));
+    reset();
+    const p = make();
+    /* Two clean exposures at the top of the range with effort to spare. */
+    session(p, W(0), 'push', { weight: 200, reps: 10, rir: 3 });
+    session(p, addDays(W(1), 0), 'push', { weight: 200, reps: 10, rir: 3 });
+    const plain = ctx.buildProgressionRecommendation('Bench Press', '8–10', null);
+    T('the engine offers an increase on that evidence', plain.tag === 'increase' && plain.weight > 200);
+    const wrapped = ctx.progressionFor('Bench Press', '8–10', null);
+    T('and outside a deload the policy changes nothing at all',
+      JSON.stringify(wrapped) === JSON.stringify(plain));
+    const r = ctx.applyBlockAction(p.id, 'deload', { today: addDays(W(1), 1) });
+    T('a deload is started', r.ok === true);
+    ctx.invalidateProgramCache(); clearCaches(ctx);
+    const st = ctx.deriveBlockState(ctx.getProgram(p.id), addDays(W(1), 1));
+    const from = st.deload ? st.deload.from : st.deloadPending.from;
+    withClockOn(ctx, from + 'T12:00:00', () => {
+      const held = ctx.progressionFor('Bench Press', '8–10', null);
+      T('inside the deload the same evidence holds instead of adding weight', held.tag === 'hold');
+      T('at the weight actually trained, not the increase', held.weight === 200);
+      T('and the reason says so plainly, without diagnosing the athlete',
+        /deload/i.test(held.why) && !/fatigue|overtrain|recovery|CNS|nervous/i.test(held.why));
+      T('the headline and the weight agree, so no screen contradicts another',
+        held.headline.indexOf(String(held.weight)) !== -1);
+      T('the engine underneath still says what it always said',
+        ctx.buildProgressionRecommendation('Bench Press', '8–10', null).tag === 'increase');
+    });
+  });
+
+  sub('the Live Set Coach will not push load up inside a deload');
+  guard('live set coach', () => {
+    const rx = { sets: 3, reps: '8–10', effort: 8, load: 200 };
+    const performed = [{ weight: 200, reps: 10, rir: 3 }];
+    const up = ctx.deriveNextSetCoach({ rx, performed, deload: false, exerciseName: 'Bench Press' });
+    const held = ctx.deriveNextSetCoach({ rx, performed, deload: true, exerciseName: 'Bench Press' });
+    T('an easy set outside a deload may earn more load', up.action === 'increase' && up.load > 200);
+    T('the same set inside one does not', held.action !== 'increase' && !(held.load > 200));
+    const bad = [{ weight: 200, reps: 3, rir: 0 }];
+    const down = ctx.deriveNextSetCoach({ rx, performed: bad, deload: true, exerciseName: 'Bench Press' });
+    T('a genuinely hard set may still be reduced inside a deload — safety is not suspended',
+      down.action === 'reduce' || down.load <= 200);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a deload session is training that happened, and is not evidence of decline');
+  guard('evidence', () => {
+    reset();
+    const p = make();
+    session(p, W(0), 'push', { weight: 200, reps: 10, rir: 3 });
+    session(p, W(1), 'push', { weight: 200, reps: 10, rir: 3 });
+    const before = ctx.exerciseSessionHistory('Bench Press', 5).length;
+    session(p, W(2), 'push', { weight: 170, reps: 6, rir: 4, sets: 2, rxSets: 2, phase: 'deload' });
+    T('the deload session is in the log and in history', ctx.workoutLog.length === 3);
+    const after = ctx.exerciseSessionHistory('Bench Press', 5);
+    T('but the progression engine does not read it as an exposure', after.length === before
+      && after.every(s => s.phase !== 'deload'));
+    T('so the lighter week is not mistaken for lost strength',
+      ctx.buildProgressionRecommendation('Bench Press', '8–10', null).tag !== 'decline');
+    T('and the baseline it resumes from is the last real training week', after[0].weight === 200);
+    T('a session with no phase is ordinary evidence, as every pre-D85 session is',
+      after.every(s => s.phase === null));
+  });
+  guard('evidence fallback', () => {
+    reset();
+    const p = make();
+    session(p, W(0), 'push', { weight: 150, reps: 8, rir: 2, phase: 'deload' });
+    const only = ctx.exerciseSessionHistory('Bench Press', 5);
+    T('an exercise trained ONLY inside a deload still has a history to work from',
+      only.length === 1 && only[0].weight === 150);
+    T('so it is not reset to a starting weight it never used',
+      ctx.buildProgressionRecommendation('Bench Press', '8–10', null).weight === 150);
+  });
+  guard('PRs are untouched', () => {
+    reset();
+    const p = make();
+    session(p, W(0), 'push', { weight: 200, reps: 5, rir: 1 });
+    session(p, W(1), 'push', { weight: 245, reps: 5, rir: 0, phase: 'deload' });
+    const pr = ctx.computePRs().find(x => x.name.trim().toLowerCase() === 'bench press');
+    T('a genuine record set during a deload is still a record — it was actually lifted',
+      pr && pr.weight === 245);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Session Score judges the plan the athlete was actually given');
+  guard('session score', () => {
+    const two = { date: W(2), category:'push', title:'push', exercises: [
+      { name:'Bench Press', rx:{ sets:2, reps:'8–10', effort:6 },
+        sets: [ { weight:'180', reps:'9', rir:'2', type:'working', completed:true },
+                { weight:'180', reps:'9', rir:'2', type:'working', completed:true } ] } ] };
+    const ex = ctx.deriveSessionExecution(two);
+    const judged = ex.exercises.find(x => x.judged !== false);
+    T('completing the two sets a deload prescribed is complete, not two thirds of three',
+      judged && judged.completion === 1);
+    T('the score reads the prescription stored on the session, never today’s template',
+      /const rx = ex && ex\.rx/.test(fnSrc(src, 'deriveSessionExecution')));
+    T('and the weights themselves are not changed by any of this',
+      /weights:\s*\{\s*completion:\s*0\.40,\s*reps:\s*0\.30,\s*effort:\s*0\.18,\s*load:\s*0\.12\s*\}/.test(src));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a deload week is still the program’s training, not missed training');
+  guard('D43 / D44 safety', () => {
+    /* D49's sessionCarriedOut — which D43 fulfilment and the block's own
+       qualified-week count both read — asks whether the PRESCRIPTION was
+       carried out. A deload asks for less, so completing less is still
+       completing it. */
+    const deloadSession = { date: W(2), exercises: [
+      { name:'Leg Press', rx:{ sets:2, reps:'10–12', effort:5 },
+        sets: [ { weight:'180', reps:'11', rir:'3', type:'working', completed:true },
+                { weight:'180', reps:'11', rir:'3', type:'working', completed:true } ] } ] };
+    T('two sets completed against a deload’s two carries the session out',
+      ctx.sessionCarriedOut(deloadSession) === true);
+    const short = JSON.parse(JSON.stringify(deloadSession));
+    short.exercises[0].sets = [short.exercises[0].sets[0]];
+    T('and one of those two does not, so the bar still means something',
+      ctx.sessionCarriedOut(short) === false);
+    T('neither the consistency formula nor the fulfilment rule was touched',
+      !/deload|phase/i.test(fnSrc(src, 'sessionCarriedOut'))
+      && !/deload/i.test(fnSrc(src, 'blockWeekRequirement')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('every prescription shape LOOP writes survives a deload');
+  guard('prescription matrix', () => {
+    const shapes = [
+      { label:'a fixed rep count',        ex:{ name:'Back Squat', sets:3, reps:'5', effort:'8' } },
+      { label:'a rep range',              ex:{ name:'Back Squat', sets:3, reps:'8–12', effort:'8' } },
+      { label:'a per-side prescription',  ex:{ name:'Walking Lunge', sets:2, reps:'10–12/leg', effort:'7' } },
+      { label:'a bodyweight movement',    ex:{ name:'Push-Up', sets:3, reps:'12–20', effort:'7', bodyweight:true } },
+      { label:'a machine movement',       ex:{ name:'Leg Press', sets:4, reps:'10–12', effort:'8' } },
+      { label:'no effort recorded',       ex:{ name:'Plank', sets:3, reps:'30s', effort:'' } },
+      { label:'a carried recommended load', ex:{ name:'Bench Press', sets:3, reps:'8–10', effort:'8', recommended:'185 lb' } },
+      { label:'a single working set',     ex:{ name:'Barbell Curl', sets:1, reps:'12–15', effort:'7' } },
+      { label:'five working sets',        ex:{ name:'Deadlift', sets:5, reps:'3–5', effort:'9' } }
+    ];
+    let bad = [];
+    shapes.forEach(s => {
+      const out = EP([s.ex], 'deload')[0];
+      const setsOk = parseInt(out.sets, 10) >= 1 && parseInt(out.sets, 10) <= parseInt(s.ex.sets, 10);
+      const repsOk = out.reps === s.ex.reps;
+      const effOk = s.ex.effort === '' ? out.effort === '' : num(out.effort) <= num(s.ex.effort);
+      const keptOk = out.name === s.ex.name
+        && (s.ex.bodyweight === undefined || out.bodyweight === s.ex.bodyweight)
+        && (s.ex.recommended === undefined || out.recommended === s.ex.recommended);
+      if(!(setsOk && repsOk && effOk && keptOk)) bad.push(s.label);
+      T(s.label + ' comes through lighter, with its reps and identity intact',
+        setsOk && repsOk && effOk && keptOk);
+    });
+    T('no prescription shape is mishandled', bad.length === 0, bad.join('; '));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the phase a session was STARTED in is what it keeps');
+  guard('provenance', () => {
+    T('the phase travels with the draft, so a workout finished tomorrow is still today’s workout',
+      /phase: pendingWorkoutPhase \|\| null/.test(src));
+    T('and is restored rather than re-derived when a draft is resumed',
+      /pendingWorkoutPhase = draft\.phase \|\| null/.test(src));
+    T('only the program’s own work carries a phase',
+      /pendingWorkoutOrigin === 'program' && pendingWorkoutPhase/.test(src));
+    T('a freeform workout explicitly carries none',
+      /pendingWorkoutOrigin = 'freeform';\r?\n  pendingWorkoutProgramId = null;\r?\n  pendingWorkoutPhase = null;/.test(src));
+    T('nothing ever infers a past session’s phase from the calendar',
+      !/phase = .*localDateStr|inferPhase|phaseFromDate/.test(src));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('nothing about storage, dates or the block lifecycle moved');
+  guard('data and dates', () => {
+    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('the schema is not bumped for a prescription overlay', String(ctx.DATA_SCHEMA_VERSION) === '1');
+    T('the deload threshold is still six training weeks', ctx.BLOCK_RULES.deloadAfterWeeks === 6);
+    T('the moves a block can make are unchanged',
+      JSON.stringify(ctx.CYCLE_MOVES) === JSON.stringify({ accumulation:['intensification','deload'],
+        intensification:['peak','deload'], peak:['deload'], deload:['rebuild'] }));
+    T('phase resolution still comes from §106 rather than a second calculation',
+      /trainingPhaseOn\(program, dateStr\)/.test(fnSrc(src, 'computeTrainingPhaseForPrescription')));
+    T('the overlay is dropped with the other program caches, so a decision is never served stale',
+      /_phaseRxCache = null/.test(fnSrc(src, 'invalidateProgramCache')));
+    reset();
+    /* Long enough to still be running at BOTH clock changes — a program that
+       has ended prescribes nothing, which would make this pass for the wrong
+       reason. */
+    const p = make({ program: { startDate: '2026-01-05', durationWeeks: 52 } });
+    /* Wednesdays, Fridays and Mondays either side of both changes — the days
+       this program actually trains. A rest day has no session and so no phase,
+       which is its own assertion below. */
+    const across = ['2026-03-04', '2026-03-06', '2026-03-09', '2026-03-11',
+                    '2026-10-28', '2026-10-30', '2026-11-02', '2026-11-04']
+      .map(d => { const r = ctx.getProgramWorkoutForDate(d, p); return r ? String(r.phase) : 'missing'; });
+    T('every training day either side of both clock changes resolves the same phase',
+      across.every(x => x === 'accumulation'), across.join(','));
+    T('a rest day answers with no phase rather than a missing key',
+      (() => { const r = ctx.getProgramWorkoutForDate('2026-03-07', p);
+        return r && 'phase' in r && r.phase === null; })());
+    T('and a day before the program began has none either',
+      (() => { const r = ctx.getProgramWorkoutForDate('2025-12-29', p);
+        return r && 'phase' in r && r.phase === null; })());
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a peak is still optional, and the dedup and the finished deload hold in place');
+  guard('peak optional', () => {
+    reset();
+    const hyp = make();
+    T('a hypertrophy program does not support a peak', ctx.programSupportsPeak(hyp) === false);
+    T('and a peak is not among the moves it is offered',
+      (ctx.deriveBlockState(ctx.getProgram(hyp.id), W(1)).moves || []).indexOf('peak') === -1);
+    /* A peak WRITTEN into the phases is a peak the athlete asked for, so §106
+       counts it as support — that route cannot produce an unsupported peak.
+       The route that can: the block was moved to Peak while the program was a
+       strength program, and its goal was changed afterwards. The block still
+       stands in Peak; the program no longer supports one. */
+    const moved = ctx.getProgram(hyp.id);
+    moved.cycle = { version: 1, history: [],
+      current: { id: 'tb1', start: moved.startDate, revision: null,
+        events: [{ phase: 'peak', from: W(1), at: '2026-01-12T00:00:00.000Z' }], declines: [] } };
+    ctx.invalidateProgramCache(); clearCaches(ctx);
+    const tp = ctx.trainingPhaseForPrescription(moved, W(1), 2);
+    T('the block genuinely stands in Peak', tp.phase === 'peak');
+    T('but a program that no longer supports one is never given a peak prescription',
+      tp.apply === false && ctx.programSupportsPeak(moved) === false);
+    const resolved = ctx.getProgramWorkoutForDate(W(1), moved);
+    const bare = ctx.resolveProgramWorkout(resolved.entry, null);
+    T('so the session it resolves is the program’s own, untouched',
+      resolved.template.exercises.map(x => x.sets + '/' + x.reps).join(',')
+        === bare.exercises.map(x => x.sets + '/' + x.reps).join(','));
+    reset();
+    const str = make({ program: { goal: 'strength' } });
+    T('a strength program may have one', ctx.programSupportsPeak(str) === true);
+    const sp = ctx.getProgram(str.id);
+    sp.blocks = [{ startWeek: 1, endWeek: 16, phaseType: 'peak', rx: null, name: 'Peak' }];
+    ctx.invalidateProgramCache(); clearCaches(ctx);
+    T('and there the peak does reach the prescription',
+      ctx.trainingPhaseForPrescription(sp, W(1), 2).apply === true);
+  });
+
+  guard('dedup in place', () => {
+    reset();
+    const p = make();
+    const w = ctx.getProgram(p.id);
+    /* The program's own phases say Intensification for this week AND carry the
+       profile that expresses it, so D37 has already moved the primary. */
+    w.blocks = [{ startWeek: 1, endWeek: 16, phaseType: 'intensification', rx: 'hybrid', name: 'Build' }];
+    ctx.invalidateProgramCache(); clearCaches(ctx);
+    const tp = ctx.trainingPhaseForPrescription(w, W(1), 2);
+    T('the block stands in the phase the program already wrote', tp.phase === 'intensification');
+    T('so the overlay stands down rather than intensifying it twice',
+      tp.apply === false && tp.deduped === true);
+    const once = ctx.getProgramWorkoutForDate(W(1), w);
+    const byPlanAlone = ctx.resolveProgramWorkout(once.entry, 'hybrid');
+    T('and the session is exactly what the written phase alone produces',
+      once.template.exercises.map(x => x.sets + '/' + x.reps).join(',')
+        === byPlanAlone.exercises.map(x => x.sets + '/' + x.reps).join(','));
+    /* Remove the profile and the written phase has changed nothing, so the
+       overlay is what makes the phase real. */
+    w.blocks = [{ startWeek: 1, endWeek: 16, phaseType: 'intensification', rx: null, name: 'Build' }];
+    ctx.invalidateProgramCache(); clearCaches(ctx);
+    T('a written phase that prescribed nothing does not suppress the overlay',
+      ctx.trainingPhaseForPrescription(w, W(1), 2).apply === true);
+  });
+
+  guard('a finished deload is over', () => {
+    reset();
+    const p = make();
+    const r = ctx.applyBlockAction(p.id, 'deload', { today: W(1) });
+    T('a deload is started for this check', r.ok === true);
+    ctx.invalidateProgramCache(); clearCaches(ctx);
+    const prog = ctx.getProgram(p.id);
+    const st = ctx.deriveBlockState(prog, W(1));
+    const to = st.deload ? st.deload.to : st.deloadPending.to;
+    const inside = ctx.trainingPhaseForPrescription(prog, to, ctx.getCurrentProgramWeek(prog, to));
+    T('the last day of the window is still a deload', inside.phase === 'deload' && inside.apply === true);
+    const after = addDays(to, 1);
+    const out = ctx.trainingPhaseForPrescription(prog, after, ctx.getCurrentProgramWeek(prog, after));
+    T('the day after it, training is ordinary again rather than permanently light',
+      out.apply === false);
+    const resolved = ctx.getProgramWorkoutForDate(after, prog);
+    const bare = ctx.resolveProgramWorkout(resolved.entry, null);
+    T('and the session resolves back to what the program prescribes',
+      resolved.template.exercises.map(x => x.sets).join(',') === bare.exercises.map(x => x.sets).join(','));
+    T('the block is waiting on Rebuild, not still deloading',
+      ctx.deriveBlockState(prog, after).awaitingRebuild === true);
+  });
+}
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -31096,6 +31680,7 @@ async function main(){
   await testWorkoutSharing();
   await testWorkoutIdentity();
   await testPersonalBestTimeline();
+  await testPhasePrescription();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
