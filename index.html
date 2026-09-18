@@ -2117,9 +2117,20 @@ body.first-use{ padding-bottom: 0; }
 .mastery-empty-text{ font-size: 12.5px; color: var(--text-dim); }
 .mastery-row{ padding: 10px 0; border-bottom: 1px solid var(--border); }
 .mastery-row:last-child{ border-bottom: none; }
+/* D86 — rows became buttons (tap opens Exercise Detail). Reset to exactly the
+   div they replace: full width, left-aligned, no button chrome of its own. */
+.mastery-row-tap{
+  display: block; width: 100%; background: none; border: none; border-bottom: 1px solid var(--border);
+  font-family: 'Inter', sans-serif; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mastery-row-tap:last-child{ border-bottom: none; }
+.mastery-row-tap:active{ background: var(--surface-2); }
+.mastery-row-tap:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
 .mastery-row-head{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
 .mastery-row-name{ font-size: 14px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mastery-row-meta{ margin-top: 6px; font-size: 11.5px; color: var(--text-faint); }
+/* D86 — meta now sits BETWEEN the head and the bar (read the fact, then see
+   it confirmed), so it carries margin on both sides instead of just the top. */
+.mastery-row-meta{ margin: 6px 0 7px; font-size: 11.5px; color: var(--text-faint); }
 .mastery-rest{ display: none; }
 .mastery-list.show-all .mastery-rest{ display: block; }
 /* D25: the disclosure is part of the section, not a large empty box under it —
@@ -2143,6 +2154,74 @@ body.first-use{ padding-bottom: 0; }
 .mastery-lvl-chip.ml4{ color: #0C0E12; background: var(--accent); border-color: var(--accent); }
 .mastery-lvl-chip.ml5{ color: #0C0E12; background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: var(--accent); }
 .mastery-bar.mlb1 span{ opacity: 0.55; }
+
+/* =========================================================
+   MASTERY LEADERS PODIUM + TOP MUSCLE CONTROL  (Phase D86)
+   ========================================================= */
+/* The compact control. Same tap-row language as everything else in Progress:
+   eyebrow, then a line that ends in a chevron. */
+.mtm-control{
+  display: block; width: 100%; margin-top: 10px; padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  font-family: 'Inter', sans-serif; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  min-height: 44px;
+}
+.mtm-control:active{ background: var(--surface-2); }
+.mtm-control:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.mtm-eyebrow{ display: block; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.mtm-row{ display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+.mtm-name{ font-family: 'Space Grotesk', sans-serif; font-size: 14.5px; font-weight: 700; color: var(--text);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mtm-go{ display: flex; margin-left: auto; color: var(--text-faint); flex-shrink: 0; }
+
+/* The podium. Source order stays rank order (1st, 2nd, 3rd) for a sane
+   reading/tab order; `order` alone moves 1st to the visual centre. */
+.mpod{ display: flex; align-items: flex-end; gap: 8px; margin-top: 14px; }
+.mpod-card{
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 14px 8px 12px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); font-family: 'Inter', sans-serif; text-align: center; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; min-height: 44px;
+}
+.mpod-card:active{ background: var(--surface-2); transform: scale(0.98); }
+.mpod-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.mpod-p1{ order: 2; background: var(--surface-2); padding-top: 10px; border-color: var(--border-quiet); }
+.mpod-p2{ order: 1; }
+.mpod-p3{ order: 3; }
+.mpod-place{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+}
+.mpod-p1 .mpod-place{ color: #C99A4A; }
+.mpod-badge{ display: flex; }
+.mpod-name{
+  font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  min-height: 2.5em;
+}
+.mpod-p1 .mpod-name{ font-size: 13.5px; }
+.mpod-card .mastery-bar{ width: 100%; }
+.mpod-meta{ font-size: var(--fs-micro); color: var(--text-faint); }
+/* Two leaders: no broken empty third pedestal — just a centred pair. */
+.mpod-n2{ justify-content: center; }
+.mpod-n2 .mpod-card{ flex: 0 1 140px; }
+.mpod-n2 .mpod-p1{ order: 1; } .mpod-n2 .mpod-p2{ order: 2; }
+/* One leader: centred alone, at the size the crowd would have given it. */
+.mpod-n1{ justify-content: center; }
+.mpod-n1 .mpod-card{ flex: 0 1 160px; }
+.mpod-empty{ padding: 22px 14px; text-align: center; }
+.mpod-empty-glyph{ display: inline-flex; color: var(--text-faint); opacity: 0.6; margin-bottom: 8px; }
+.mpod-empty-glyph svg{ width: 30px; height: 30px; }
+.mpod-empty-title{ font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
+.mpod-empty-sub{ margin: 4px 0 0; font-size: 12.5px; color: var(--text-dim); }
+/* A restrained settle-in — decorative only, never load-bearing for state. */
+.mpod-card{ animation: mpodIn 0.32s var(--ease) backwards; }
+.mpod-p2{ animation-delay: 0.03s; } .mpod-p1{ animation-delay: 0.07s; } .mpod-p3{ animation-delay: 0.11s; }
+@keyframes mpodIn{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce){
+  .mpod-card{ animation: none; }
+  .mpod-card:active{ transform: none; }
+}
 
 /* Push/pull/legs distribution. D25: the categories are shares of one whole,
    so they draw as ONE segmented bar plus a legend, not four disconnected
@@ -3753,19 +3832,11 @@ body.first-use{ padding-bottom: 0; }
   font-family: 'JetBrains Mono', monospace; letter-spacing: 0.03em;
 }
 
-/* Mastery summary: who leads, on one shared surface. */
-.mas-sum{
-  display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border);
-  border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-top: 4px;
-}
-.mas-sum-cell{ background: var(--surface); padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* D86 — the two-cell "Top exercise / Top muscle" summary this once was is
+   gone: the podium below states the top exercise and .mtm-control states the
+   top muscle. .mas-sum-k survives — the Muscle Volume card two sections down
+   still uses it for its own "Most worked" label. */
 .mas-sum-k{ font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
-.mas-sum-v{
-  font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mas-sum-s{ font-size: 11.5px; color: var(--text-dim); }
-.mas-sum-foot{ grid-column: 1 / -1; background: var(--surface); padding: 9px 14px; font-size: 11.5px; color: var(--text-faint); }
 
 /* Muscle volume: the body figure and the ranked bars are ONE component —
    the figure is the picture of the list, not a second analytic. */
@@ -7280,8 +7351,8 @@ button.ex-thumb:focus-visible{ outline: 2px solid var(--accent); outline-offset:
    if everything glows, nothing is important.
    ========================================================= */
 .pd-card, .lc-card, .cal-card, .mv-card, .tpl-card, .ob-mock, .ob-hero,
-.mas-sum, .vw-grid, .pd-tiles, .cl-tile, .tm-card, .settings-row-btn,
-.po-hero, .po-card,
+.vw-grid, .pd-tiles, .cl-tile, .tm-card, .settings-row-btn,
+.po-hero, .po-card, .mpod-card, .mtm-control,
 .prog-jump, .hdr-level, .plan-card, .mt-stat, .sub-card{
   border-color: var(--border-quiet);
   box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
@@ -8563,6 +8634,20 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeFoundation()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- D86 — every muscle with history, ranked. The Top Muscle control's detail. -->
+<div class="overlay" id="allMuscleMasteryOverlay" onclick="backdropDismiss(event, closeAllMuscleMastery)">
+  <div class="sheet">
+    <div class="sheet-scroll">
+      <h2>Muscle Mastery</h2>
+      <div class="sheet-sub">Primary and secondary work, ranked by training history.</div>
+      <div id="allMuscleMasteryBody"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeAllMuscleMastery()">Done</button>
     </div>
   </div>
 </div>
@@ -15880,6 +15965,24 @@ const LOOP_UPDATES = [
       'Your next-time weights hold steady through a deload instead of climbing mid-week',
       'A deliberately lighter week is no longer read as lost strength when your training picks back up',
       'Session Score judges the sets a deload actually asked for, not the ones it replaced'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v8-7',
+    version: 'LOOP 8.7',
+    title: 'Mastery Leaders',
+    date: '2026-09-18',
+    swVersion: 'loop-v164',
+    summary: 'Your top three lifts now stand on a podium, and muscle mastery moved to its own view.',
+    newFeatures: [
+      'A podium for your top three exercises by mastery, with a level, session count and progress toward the next level',
+      'A compact Top Muscle control that opens a full ranked view of every muscle you’ve trained'
+    ],
+    improvements: [
+      'Exercise Mastery rows are tappable now, opening straight into that exercise’s own detail',
+      'Mastery Leaders and Exercise Mastery no longer disappear just because you haven’t trained in the last 12 weeks'
     ],
     bugFixes: [],
     changes: []
@@ -32899,59 +33002,41 @@ function muscleBarsHtml(totals, caption, opts){
 }
 
 function renderProgMuscles(){
+  const el = document.getElementById('progMuscles');
+  /* D86 — the podium IS the top-exercise summary now, built from the same
+     ranking exercise mastery has always used; Top Muscle is one compact
+     control rather than a second summary cell beside it. No combined mastery
+     score is invented anywhere below. This reads LIFETIME history, unlike
+     the 12-week sections below, so it is derived and rendered independently
+     of them — see the note above `sum` for why that used to matter. */
+  const mas = getMasteryProgress();
+
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 84);
   const totals = computeMuscleVolumeSince(cutoff);
   const sum = Object.keys(totals).reduce((n,k) => n + totals[k], 0);
-  const el = document.getElementById('progMuscles');
-
-  if(!sum){
-    el.innerHTML = `
-      <div class="sec-head">Mastery<span class="sec-hint">from your training history</span></div>
-      <div class="mini-empty">Mastery grows as you repeat a movement across weeks and months. Log a few workouts and your strongest movements and muscle groups will appear here.</div>`;
-    return;
-  }
-  const rows = Object.keys(totals).map(k => ({ k, label: MUSCLE_LABELS[k], val: totals[k] }))
-    .filter(r => r.val > 0).sort((a,b) => b.val - a.val);
-  const top = rows[0];
-
-  // Reuses the existing anatomy renderer via a synthetic template shaped like
-  // the last 12 weeks of training, so there is only ever one body system.
-  const synthetic = { exercises: [] };
-  workoutLog.forEach(l => {
-    if(new Date(l.date + 'T00:00:00') < cutoff) return;
-    l.exercises.forEach(ex => synthetic.exercises.push({ name: ex.name, sets: (ex.sets||[]).length || 1 }));
-  });
-
-  // Push / pull / legs distribution from logged categories
-  const catSets = { push:0, pull:0, legs:0, core:0, fullbody:0 };
-  workoutLog.forEach(l => {
-    if(new Date(l.date + 'T00:00:00') < cutoff) return;
-    const n = l.exercises.reduce((m,ex) => m + (ex.sets||[]).length, 0);
-    if(catSets[l.category] !== undefined) catSets[l.category] += n;
-  });
-  const catTotal = Object.values(catSets).reduce((a,b)=>a+b,0) || 1;
-
-  /* D25: a concise summary leads — who leads, from data that already exists.
-     No combined mastery score is invented. */
-  const mas = getMasteryProgress();
-
-  el.innerHTML = `
-    ${mas.hasHistory ? `<div class="mas-sum">
-      <div class="mas-sum-cell"><span class="mas-sum-k">Top exercise</span>
-        <span class="mas-sum-v">${escapeHtml(mas.topExercise.displayName)}</span>
-        <span class="mas-sum-s">Level ${mas.topExercise.level}</span></div>
-      <div class="mas-sum-cell"><span class="mas-sum-k">Top muscle</span>
-        <span class="mas-sum-v">${mas.topMuscle ? escapeHtml(mas.topMuscle.label) : '—'}</span>
-        <span class="mas-sum-s">${mas.topMuscle ? `Level ${mas.topMuscle.level}` : ''}</span></div>
-      <div class="mas-sum-foot">${mas.exercisesTracked} exercise${mas.exercisesTracked===1?'':'s'} tracked</div>
-    </div>` : ''}
-    <div class="sec-head">Exercise mastery<span class="sec-hint">from your training history</span></div>
-    ${exerciseMasteryListHtml(5)}
-    <div class="sec-head">Muscle mastery<span class="sec-hint">primary and secondary work</span></div>
-    ${muscleMasteryHtml()}
-    <div class="muscle-foot">Training history, not a measure of strength.</div>
-    <div class="sec-head">Muscle volume<span class="sec-hint">sets · last 12 weeks</span></div>
-    <div class="mv-card">
+  /* D86 — found while wiring the podium's own empty state: this whole
+     function used to return here, before drawing anything, whenever the last
+     12 weeks had no volume. Mastery is LIFETIME history, so an athlete who
+     had trained for a year and then took three months off saw "Mastery grows
+     as you repeat a movement" — false for them — and the podium's own empty
+     state could never be reached at all, since any recent volume already
+     guarantees a mastery entry to show. Mastery Leaders and Exercise Mastery
+     below now always render from `mas`; only the two genuinely 12-week
+     sections — Muscle volume and Training distribution — degrade on `sum`,
+     each on its own. */
+  let volumeHtml = `<div class="mini-empty">Log a few sets in the last 12 weeks to see which muscles you have worked most recently.</div>`;
+  if(sum){
+    const rows = Object.keys(totals).map(k => ({ k, label: MUSCLE_LABELS[k], val: totals[k] }))
+      .filter(r => r.val > 0).sort((a,b) => b.val - a.val);
+    const top = rows[0];
+    // Reuses the existing anatomy renderer via a synthetic template shaped like
+    // the last 12 weeks of training, so there is only ever one body system.
+    const synthetic = { exercises: [] };
+    workoutLog.forEach(l => {
+      if(new Date(l.date + 'T00:00:00') < cutoff) return;
+      l.exercises.forEach(ex => synthetic.exercises.push({ name: ex.name, sets: (ex.sets||[]).length || 1 }));
+    });
+    volumeHtml = `<div class="mv-card">
       <div class="mv-top">
         <div class="mv-body">${bodyDiagramSvg(synthetic)}</div>
         <div class="mv-info">
@@ -32961,7 +33046,28 @@ function renderProgMuscles(){
         </div>
       </div>
       <div class="mv-bars">${muscleBarsHtml(totals)}</div>
-    </div>
+    </div>`;
+  }
+
+  // Push / pull / legs distribution from logged categories. distributionHtml
+  // already degrades gracefully to its own empty line when nothing qualifies.
+  const catSets = { push:0, pull:0, legs:0, core:0, fullbody:0 };
+  workoutLog.forEach(l => {
+    if(new Date(l.date + 'T00:00:00') < cutoff) return;
+    const n = l.exercises.reduce((m,ex) => m + (ex.sets||[]).length, 0);
+    if(catSets[l.category] !== undefined) catSets[l.category] += n;
+  });
+  const catTotal = Object.values(catSets).reduce((a,b)=>a+b,0) || 1;
+
+  el.innerHTML = `
+    <div class="sec-head">Mastery Leaders<span class="sec-hint">from your training history</span></div>
+    ${topMuscleControlHtml(mas.topMuscle)}
+    ${masteryPodiumHtml(mas.podium)}
+    <div class="sec-head">Exercise mastery<span class="sec-hint">from your training history</span></div>
+    ${exerciseMasteryListHtml(MASTERY_UI_CONFIG.listInitial)}
+    ${mas.hasHistory ? `<div class="muscle-foot">Training history, not a measure of strength.</div>` : ''}
+    <div class="sec-head">Muscle volume<span class="sec-hint">sets · last 12 weeks</span></div>
+    ${volumeHtml}
     <div class="sec-head">Training distribution</div>
     ${distributionHtml(catSets, catTotal)}
     <div class="muscle-foot">Distribution of logged sets, not a judgement about balance.</div>`;
@@ -33245,6 +33351,12 @@ function getExerciseMastery(exerciseId){
   const points = masteryPointsFor(rec, prs, confidence);
   return Object.assign(masteryStanding(points), {
     exerciseId, displayName,
+    /* D86 — the name as it was actually LOGGED, for anything that navigates
+       to Exercise Detail. getExerciseFullHistory matches the raw string an
+       athlete typed, not the canonical spelling; displayName can differ from
+       it (the same reason getExerciseCapability above is looked up by this
+       same rec.names entry rather than by displayName). */
+    loggedName: Array.from(rec.names)[0],
     sessions: rec.sessions, prs,
     weeks: rec.weeks.size, months: rec.months.size,
     hasHistory: true, firstDate: rec.firstDate, lastDate: rec.lastDate
@@ -33327,6 +33439,9 @@ function getMasteryProgress(){
     musclesTracked: mus.length,
     topExercise: ex.length ? ex[0] : null,
     topMuscle: mus.length ? mus[0] : null,
+    /* D86 — the Mastery Leaders podium's own top three, from this same ranked
+       list so the podium and "topExercise" above can never disagree. */
+    podium: ex.slice(0, MASTERY_UI_CONFIG.podiumSize),
     hasHistory: ex.length > 0
   };
 }
@@ -33364,45 +33479,29 @@ function exerciseMasteryHtml(name){
       <div class="mastery-meta">${m.sessions} session${m.sessions===1?'':'s'} · ${m.months} month${m.months===1?'':'s'}${m.prs ? ' · ' + m.prs + ' record' + (m.prs===1?'':'s') : ''}</div>
     </div>`;
 }
-/* Progress > Muscles section. */
-function muscleMasteryHtml(){
-  const list = getTopMuscleMastery().filter(m => m.hasHistory);
-  if(!list.length){
-    return `<div class="mastery-empty-text" style="padding:14px 0">Muscle mastery builds as you log training.</div>`;
-  }
-  /* D25: top rankings lead; the rest disclose — never a second full-length
-     exercise-style list. Same disclosure control as exercise mastery. */
-  const row = m => `
-    <div class="mastery-row">
-      <div class="mastery-row-head">
-        <span class="mastery-row-name">${escapeHtml(m.label)}</span>
-        <span class="mastery-lvl-chip ml${Math.min(5, m.level)}">Level ${m.level}</span>
-      </div>
-      ${masteryBarHtml(m)}
-    </div>`;
-  const shown = list.slice(0, 5), rest = list.slice(5);
-  return `<div class="mastery-list">
-    ${shown.map(row).join('')}
-    ${rest.length ? `<div class="mastery-rest">${rest.map(row).join('')}</div>
-    <button type="button" class="mastery-more" onclick="toggleAllMastery(this)" aria-expanded="false">View all ${list.length}</button>` : ''}
-  </div>`;
-}
 /* The movements LOOP knows best. Shows the top few and keeps the rest one tap
    away, so this never becomes a second copy of the All Exercises directory. */
 /* D25: each row answers all four — movement, level (a chip that gains weight
    with the level), progress toward the next level from the existing
-   deterministic thresholds, and history depth on one compact line. */
+   deterministic thresholds, and history depth on one compact line.
+   D86 — tappable into the same Exercise Detail the podium opens (no second
+   detail system), and the meta line now leads the bar rather than following
+   it: read the fact, then see it confirmed, matching the podium's own order.
+   Deliberately carries no podium-style badge or rank number — the podium
+   already said who leads; repeating it here would be the same fact twice. */
 function masteryRowHtml(m){
+  const next = m.isMax ? 'max level' : (m.percent + '% to Level ' + (m.level + 1));
+  const spoken = m.displayName + ', Level ' + m.level + ', ' + m.sessions
+    + ' session' + (m.sessions === 1 ? '' : 's') + ', ' + next + '.';
   return `
-    <div class="mastery-row">
+    <button type="button" class="mastery-row mastery-row-tap" onclick="openExDetail('${escapeAttr(m.loggedName)}')" aria-label="${escapeAttr(spoken)}">
       <div class="mastery-row-head">
         <span class="mastery-row-name">${escapeHtml(m.displayName)}</span>
         <span class="mastery-lvl-chip ml${Math.min(5, m.level)}">Level ${m.level}</span>
       </div>
+      <div class="mastery-row-meta">${m.sessions} session${m.sessions===1?'':'s'} · ${escapeHtml(next)}</div>
       ${masteryBarHtml(m)}
-      <div class="mastery-row-meta">${m.sessions} session${m.sessions===1?'':'s'}${
-        m.isMax ? ' · max level' : ` · ${m.percent}% to Level ${m.level + 1}`}</div>
-    </div>`;
+    </button>`;
 }
 function exerciseMasteryListHtml(limit){
   const all = getTopExerciseMastery().filter(m => m.hasHistory);
@@ -33424,6 +33523,159 @@ function toggleAllMastery(btn){
   const open = list.classList.toggle('show-all');
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
   btn.textContent = open ? 'Show fewer' : ('View all ' + list.querySelectorAll('.mastery-row').length);
+}
+
+/* =========================================================
+   MASTERY LEADERS PODIUM  (Phase D86)
+   ---------------------------------------------------------
+   Consolidates the old side-by-side "Top exercise / Top muscle"
+   summary. The podium IS the top-exercise summary now — built
+   from the SAME ranking Exercise Mastery has always used
+   (getTopExerciseMastery: points desc, name asc — no second
+   model, no new tie-break). Top Muscle becomes one compact
+   control that opens the full ranked muscle list, so the tab
+   states each fact once.
+   ========================================================= */
+const MASTERY_UI_CONFIG = {
+  podiumSize: 3,     // leaders on the podium
+  listInitial: 5     // exercise rows shown before "View all"
+};
+
+/* ONE badge family for podium placement — flat, geometric, no facets, no
+   wings, no frame ornament, so it cannot be mistaken for the athlete-wide
+   Rank Emblem (rankMedalSvg). A medal, not a crest. 1st carries one small
+   paired mark for "slightly more structure"; all three are the same
+   construction in a different material, built off the same coordinates so
+   they read as one family. */
+const MASTERY_PODIUM_COLORS = {
+  1: { hi:'#F6D27A', lo:'#9C6A1E' },
+  2: { hi:'#D7E1EC', lo:'#7C8CA3' },
+  3: { hi:'#E3A374', lo:'#8C4E2C' }
+};
+let _mpbUid = 0;
+function masteryPodiumBadge(place, size){
+  const c = MASTERY_PODIUM_COLORS[place] || MASTERY_PODIUM_COLORS[3];
+  const uid = 'mpb' + (++_mpbUid);
+  const ring = mixHex(c.lo, '#05070C', 0.2);
+  const plate = mixHex(c.lo, '#05070C', 0.45);
+  /* A pair of small ticks just inside the bottom rim — the only structural
+     difference 1st carries. Restrained on purpose: this is a nod to a laurel,
+     not one drawn in full. */
+  const laurel = place === 1 ? (
+    '<path d="M23 47 Q18 51 20 57" fill="none" stroke="' + ring + '" stroke-width="2" stroke-linecap="round" opacity="0.8"/>' +
+    '<path d="M41 47 Q46 51 44 57" fill="none" stroke="' + ring + '" stroke-width="2" stroke-linecap="round" opacity="0.8"/>'
+  ) : '';
+  /* Decorative only: the card's own aria-label already states place, exercise,
+     level and progress, and .mpod-place repeats the ordinal as visible text —
+     role="img" would tell a screen reader this SVG stands on its own, which
+     it never does here. */
+  return '<svg class="mpb" width="' + size + '" height="' + size + '" viewBox="0 0 64 64" aria-hidden="true">' +
+    '<defs><linearGradient id="' + uid + '" x1="0.2" y1="0" x2="0.8" y2="1">' +
+      '<stop offset="0" stop-color="' + c.hi + '"/><stop offset="1" stop-color="' + c.lo + '"/>' +
+    '</linearGradient></defs>' +
+    laurel +
+    '<circle cx="32" cy="32" r="26" fill="url(#' + uid + ')" stroke="' + ring + '" stroke-width="1.5"/>' +
+    '<circle cx="32" cy="32" r="15" fill="' + plate + '"/>' +
+    '<circle cx="32" cy="32" r="15" fill="none" stroke="' + mixHex(c.hi, '#FFFFFF', 0.3) + '" stroke-width="1" opacity="0.4"/>' +
+    '<path d="M14 24 A26 26 0 0 1 44 12" fill="none" stroke="#FFFFFF" stroke-opacity="0.32" stroke-width="2" stroke-linecap="round"/>' +
+    '<text x="32" y="39.5" text-anchor="middle" font-family="\'Space Grotesk\', sans-serif" font-weight="700"' +
+      ' font-size="21" fill="' + c.hi + '">' + place + '</text>' +
+  '</svg>';
+}
+
+const MASTERY_PLACE_WORD = { 1:'1st', 2:'2nd', 3:'3rd' };
+function masteryPodiumCardHtml(m, place){
+  const size = place === 1 ? 68 : 56;
+  const next = m.isMax ? 'Max level' : (m.percent + '% to Level ' + (m.level + 1));
+  const spoken = MASTERY_PLACE_WORD[place] + ' — ' + m.displayName + ', Level ' + m.level + ', '
+    + m.sessions + ' session' + (m.sessions === 1 ? '' : 's') + ', ' + next + '.';
+  return `<button type="button" class="mpod-card mpod-p${place}" onclick="openExDetail('${escapeAttr(m.loggedName)}')" aria-label="${escapeAttr(spoken)}">
+      <span class="mpod-place" aria-hidden="true">${MASTERY_PLACE_WORD[place]}</span>
+      <span class="mpod-badge">${masteryPodiumBadge(place, size)}</span>
+      <span class="mpod-name">${escapeHtml(m.displayName)}</span>
+      <span class="mastery-lvl-chip ml${Math.min(5, m.level)}">Level ${m.level}</span>
+      ${masteryBarHtml(m)}
+      <span class="mpod-meta">${m.sessions} session${m.sessions === 1 ? '' : 's'} · ${escapeHtml(next)}</span>
+    </button>`;
+}
+
+/* Podium geometry: 1st centre, 2nd left, 3rd right — reordered from ranked
+   order into stage order with CSS `order`, so the source stays rank order for
+   assistive tech while the visual reads as a podium. Handles every count from
+   zero to three; a two-leader page never leaves a broken empty third
+   pedestal, and one leader is simply centred alone. */
+function masteryPodiumHtml(podium){
+  if(!podium.length){
+    return `<div class="mpod-empty">
+      <span class="mpod-empty-glyph" aria-hidden="true">${trophyIconSvg()}</span>
+      <div class="mpod-empty-title">Build your mastery.</div>
+      <p class="mpod-empty-sub">Exercises appear here as you train them over time.</p>
+    </div>`;
+  }
+  const cards = podium.map((m, i) => masteryPodiumCardHtml(m, i + 1)).join('');
+  return `<div class="mpod mpod-n${podium.length}" role="list" aria-label="Mastery leaders">${cards}</div>`;
+}
+
+/* The compact control — a summary, not a second directory. Opens the full
+   ranked muscle list; hides itself gracefully when there is nothing to show,
+   per the same hasHistory truth the old inline section always read. */
+function topMuscleControlHtml(topMuscle){
+  if(!topMuscle) return '';
+  const spoken = 'Top muscle: ' + topMuscle.label + ', Level ' + topMuscle.level + '. Opens all muscle mastery.';
+  return `<button type="button" class="mtm-control" onclick="openAllMuscleMastery()" aria-label="${escapeAttr(spoken)}">
+      <span class="mtm-eyebrow">Top Muscle</span>
+      <span class="mtm-row">
+        <span class="mtm-name">${escapeHtml(topMuscle.label)}</span>
+        <span class="mastery-lvl-chip ml${Math.min(5, topMuscle.level)}">Level ${topMuscle.level}</span>
+        <span class="mtm-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </span>
+    </button>`;
+}
+
+/* ---------- ALL MUSCLE MASTERY sheet ----------
+   Every muscle with history, in the same ranking Top Muscle already reads —
+   no cap and no disclosure, because this IS the "view all" destination. Same
+   row language as Exercise Mastery, so the tab does not teach two different
+   ways to read a bar. */
+function allMuscleMasteryHtml(){
+  const list = getTopMuscleMastery().filter(m => m.hasHistory);
+  if(!list.length){
+    return `<div class="mastery-empty-text" style="padding:14px 0">Muscle mastery builds as you log training.</div>`;
+  }
+  /* Exercise count only, deliberately: buildMuscleMastery only tallies
+     `sessions` from an exercise's PRIMARY movers, never its secondary ones
+     (mirrors the recovery model's split of the same two roles), while
+     `exercises` counts both. A muscle that only ever appears as a secondary
+     mover — Glutes on a squat day logged only as leg presses and lunges,
+     say — would print "0 sessions" beside a real, nonzero bar. `exercises`
+     has no such asymmetry and is truthful for every row without qualifying
+     it, which is worth more here than a second number. */
+  return `<div class="mastery-list">${list.map(m => `
+    <div class="mastery-row">
+      <div class="mastery-row-head">
+        <span class="mastery-row-name">${escapeHtml(m.label)}</span>
+        <span class="mastery-lvl-chip ml${Math.min(5, m.level)}">Level ${m.level}</span>
+      </div>
+      <div class="mastery-row-meta">${m.exercises} exercise${m.exercises === 1 ? '' : 's'}</div>
+      ${masteryBarHtml(m)}
+    </div>`).join('')}</div>`;
+}
+/* Named to avoid a collision: a source-slicing test elsewhere bounds itself by
+   searching for the start of a later function whose name begins the same way
+   "renderAllMuscleMastery" would have, and this file has more than one
+   legitimate "render all of something." Spelling that search target out even
+   in a comment would recreate the exact collision this note describes, so it
+   is deliberately left unquoted. */
+function renderMuscleMasterySheet(){
+  const el = document.getElementById('allMuscleMasteryBody');
+  if(el) el.innerHTML = allMuscleMasteryHtml();
+}
+function openAllMuscleMastery(){
+  renderMuscleMasterySheet();
+  document.getElementById('allMuscleMasteryOverlay').classList.add('open');
+}
+function closeAllMuscleMastery(){
+  document.getElementById('allMuscleMasteryOverlay').classList.remove('open');
 }
 
 /* ---------- EXERCISE DETAIL ---------- */

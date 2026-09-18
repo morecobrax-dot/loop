@@ -246,7 +246,9 @@ function loadApp(initialStore){
     /* D82/D83 — the Personal Best Timeline card's own config and carousel state */
     'PBT_CONFIG','pbtSelectedExercise','_pbtScrollTimer',
     /* D85 — the phase overlay's rules and the phase the open workout began in */
-    'PHASE_PRESCRIPTION','pendingWorkoutPhase','_phaseRxCache'];
+    'PHASE_PRESCRIPTION','pendingWorkoutPhase','_phaseRxCache',
+    /* D86 — the Mastery Leaders podium's own config and badge palette */
+    'MASTERY_UI_CONFIG','MASTERY_PODIUM_COLORS'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

@@ -6345,7 +6345,7 @@ async function testMasterySafety(){
   Object.keys(ctx.MUSCLE_LABELS).forEach(m => { ctx.getMuscleMastery(m); ctx.getMuscleMasteryLevel(m); });
   ctx.CANONICAL_EXERCISES.forEach(e => { ctx.getExerciseMastery(e.id); ctx.getExerciseMasteryLevel(e.id); });
   ctx.exerciseMasteryHtml('Bench Press');
-  ctx.muscleMasteryHtml();
+  ctx.allMuscleMasteryHtml();
   ctx.exerciseMasteryListHtml();
   clearCaches(ctx);
   const after = H.snapshot(ctx);
@@ -6443,7 +6443,7 @@ async function testMasterySafety(){
   sub('the UI actually renders something, from real history');
   {
     const exHtml = ctx.exerciseMasteryListHtml();
-    const musHtml = ctx.muscleMasteryHtml();
+    const musHtml = ctx.allMuscleMasteryHtml(); // D86 — muscleMasteryHtml retired for the full sheet's own renderer
     const detail = ctx.exerciseMasteryHtml('Bench Press');
     T('the exercise list names a real logged movement', exHtml.indexOf('Bench Press') !== -1);
     T('the exercise list shows a level', /Level [1-9]/.test(exHtml));
@@ -6618,9 +6618,18 @@ function testD10Consolidation(app){
   T('the Strength tab no longer lists mastery above the same exercises',
     !/Movement mastery/.test(src));
   T('the segment is named for what leads it', />Mastery<\/button>/.test(src));
-  T('exercise mastery still leads the mastery content',
-    src.indexOf('Exercise mastery<span class="sec-hint">from your training history')
-      < src.indexOf('Muscle mastery<span class="sec-hint">primary and secondary work'));
+  /* D86 — repointed. The old two-cell "Top exercise / Top muscle" summary and
+     the full inline "Muscle mastery" section are both gone by design: the
+     podium under Mastery Leaders IS the top-exercise summary now, and Top
+     Muscle is one compact control (.mtm-control) that opens the full ranked
+     muscle list in its own sheet rather than a second inline directory. The
+     properties these assertions actually cared about — mastery leads the
+     tab, exercise mastery outranks the muscle diagram, muscle development
+     has exactly one summary surface here — still hold; they are restated
+     against the new structure instead of the retired one. */
+  T('the leaders lead the mastery content',
+    src.indexOf('Mastery Leaders<span class="sec-hint">from your training history')
+      < src.indexOf('Exercise mastery<span class="sec-hint">from your training history'));
   T('the muscle diagram does not outrank exercise mastery',
     src.indexOf('Exercise mastery<span class="sec-hint">from your training history')
       < src.indexOf('Muscle volume<span class="sec-hint">sets'));
@@ -6629,8 +6638,10 @@ function testD10Consolidation(app){
       < src.indexOf('Exercise mastery<span class="sec-hint">from your training history'));
   T('two different things are not both called "Most trained"',
     (src.match(/>Most trained</g) || []).length <= 1);
-  T('muscle mastery sits with it',
-    /Muscle mastery<span class="sec-hint">primary and secondary work/.test(src));
+  T('top muscle is a compact control, not a second directory',
+    /function topMuscleControlHtml/.test(src) && /class="mtm-control"/.test(src));
+  T('it opens the full ranked list rather than repeating it inline',
+    /function allMuscleMasteryHtml/.test(src) && /onclick="openAllMuscleMastery\(\)"/.test(src));
   T('the full list is disclosed, not duplicated', /function toggleAllMastery/.test(src));
   T('mastery still appears in Exercise Detail', /function exerciseMasteryHtml/.test(src));
   {
@@ -6643,7 +6654,8 @@ function testD10Consolidation(app){
     }
     seedHistory(ctx, seeded);
     const html = ctx.exerciseMasteryListHtml(5);
-    const rows = (html.match(/class="mastery-row"/g) || []).length;
+    // D86: rows are now buttons carrying a second class (mastery-row-tap).
+    const rows = (html.match(/class="mastery-row(?: mastery-row-tap)?"/g) || []).length;
     T('it shows every exercise but only reveals a few',
       rows === 2 && html.indexOf('mastery-rest') === -1, 'rows=' + rows);
     T('mastery values themselves are unchanged by D10',
@@ -6710,7 +6722,7 @@ async function testD10Safety(){
   ctx.progTab = 'volume';   ctx.renderProgTab();
   ctx.progTab = 'overview'; ctx.renderProgTab();
   ctx.exerciseMasteryListHtml(5);
-  ctx.muscleMasteryHtml();
+  ctx.allMuscleMasteryHtml();
   ctx.exerciseMasteryHtml('Bench Press');
   ctx.programContextHtml();
   clearCaches(ctx);
@@ -7785,7 +7797,10 @@ function testProgressDashboard(app){
        carry was a signpost to exactly this, so it came off. */
     ctx.switchProgTab('muscles');
     const html = doc.getElementById('progMuscles').innerHTML;
-    T('it lives in the Mastery tab', /Muscle mastery/.test(html));
+    /* D86 — repointed: muscle development's home in this tab is now the
+       compact Top Muscle control (it opens the full ranked list rather than
+       showing it inline), not a literal "Muscle mastery" section heading. */
+    T('it lives in the Mastery tab', /class="mtm-control"/.test(html));
     T('it is not previewed under Volume',
       !/Muscle development/.test(doc.getElementById('progVolMuscle').innerHTML));
     T('it is not on the landing view either',
@@ -14014,9 +14029,13 @@ async function testProgressExperience(){
     reseed(log);
     ctx.switchProgTab('muscles');
     const mHtml = doc.getElementById('progMuscles').innerHTML;
-    T('a summary leads: top exercise, top muscle, count',
-      /mas-sum/.test(mHtml) && /Top exercise/.test(mHtml) && /Top muscle/.test(mHtml) &&
-      /exercises tracked/.test(mHtml));
+    /* D86 — repointed: the two-cell "Top exercise / Top muscle" summary is
+       gone by design, consolidated into the Mastery Leaders podium (the top
+       exercise, now with its level and progress rather than just its name)
+       plus the compact Top Muscle control beside it. */
+    T('the leaders lead: a podium plus a compact top-muscle control',
+      /class="mpod mpod-n\d"/.test(mHtml) && /class="mtm-control"/.test(mHtml) &&
+      /Top Muscle/.test(mHtml));
     T('no combined mastery score or mastery XP is invented',
       !/mastery score|mastery xp|overall mastery/i.test(mHtml));
     T('level chips climb a visual ladder', /mastery-lvl-chip ml\d/.test(mHtml) &&
@@ -14042,10 +14061,20 @@ async function testProgressExperience(){
     })());
     T('and it stays descriptive', /not a judgement about balance/.test(mHtml) &&
       !/unbalanced|imbalance|too much|neglect/i.test(mHtml));
-    T('muscle mastery is top rankings plus disclosure, not a second directory', (() => {
-      const fn = src.slice(src.indexOf('function muscleMasteryHtml'), src.indexOf('function masteryRowHtml'));
-      return /slice\(0, 5\)/.test(fn) && /toggleAllMastery/.test(fn);
+    /* D86 — repointed: the old "top 5 inline plus disclosure" list is gone.
+       The disclosure now happens one level up — the compact control opens a
+       full sheet (allMuscleMasteryHtml lists every muscle, uncapped, because
+       that sheet already IS the "view all" destination) instead of a second
+       always-visible directory sitting in the main tab beside Exercise
+       Mastery's own list. */
+    T('muscle mastery discloses through the compact control, not a second inline directory', (() => {
+      const fn = fnSrc(src, 'allMuscleMasteryHtml');
+      return !/slice\(0, ?5\)/.test(fn) && !/toggleAllMastery/.test(fn)
+        && /getTopMuscleMastery\(\)/.test(fn);
     })());
+    T('and the main tab holds only the compact control, not the ranked muscle list itself',
+      (mHtml.match(/class="mtm-control"/g) || []).length === 1 &&
+      !/Primary and secondary work, ranked by training history/.test(mHtml));
   }
 
   sub('SAFETY — skipped work contributes nothing, rendering writes nothing');
@@ -31533,6 +31562,339 @@ async function testPhasePrescription(){
       ctx.deriveBlockState(prog, after).awaitingRebuild === true);
   });
 }
+/* =========================================================
+   CONTRACT 188 — MASTERY LEADERS PODIUM  (Phase D86)
+   ---------------------------------------------------------
+   Progress -> Mastery gets a podium, a consolidated Top Muscle
+   control, and a redesigned exercise list. No mastery derivation
+   changes: the podium is the same ranking getTopExerciseMastery
+   has always used, the muscle list is the same ranking
+   getTopMuscleMastery has always used, and every value shown is
+   read from masteryStanding — nothing here invents a score.
+
+   What is held here:
+     · the podium's order is IDENTICAL to getTopExerciseMastery's,
+       for zero, one, two and three-or-more leaders
+     · the podium badge is a distinct SVG family from the
+       athlete-wide Rank Emblem — no shared colours, no shared
+       construction
+     · tapping a podium card or an exercise row opens the SAME
+       Exercise Detail sheet, addressed by the name as it was
+       actually LOGGED, not the canonical display spelling —
+       the exact bug class the confidence lookup above it was
+       already written to avoid
+     · Top Muscle is one compact control, not a second inline
+       list; it opens the full ranked muscle list and hides
+       itself when there is no muscle history at all
+     · Mastery Leaders and Exercise Mastery read LIFETIME
+       history and render regardless of recent (12-week) volume;
+       only Muscle Volume and Training Distribution — genuinely
+       windowed — degrade when that window is empty
+     · Reduce Motion leaves the podium fully usable and removes
+       only its decorative entrance
+   ========================================================= */
+async function testMasteryPodium(){
+  section('CONTRACT 188 — Mastery Leaders podium (D86)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx, doc = app.dom.document;
+  const guard = (label, fn) => { try{ fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+
+  const D = n => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 10 + n);
+    return d.toISOString().slice(0, 10); };
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const session = (date, name, w, r, cat) => ({ id: 'd86-' + date + '-' + name, date, category: cat || 'push',
+    title: 'x', notes: '', exercises: [{ name, sets: [S(w, r)] }] });
+  const seed = log => {
+    ctx.workoutLog = log;
+    ctx.invalidateSortedLogCache();
+    ctx.invalidateAllMasteryCaches();
+  };
+  const render = () => { ctx.switchProgTab('muscles'); ctx.renderProgTab();
+    return doc.getElementById('progMuscles').innerHTML; };
+  const text = html => String(html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  /* ---------------------------------------------------------------- */
+  sub('the podium IS getTopExerciseMastery, not a second model');
+  guard('ranking identity', () => {
+    seed([
+      ...Array.from({ length: 9 }, (_, i) => session(D(i * 3), 'Bench Press', 185, 8)),
+      ...Array.from({ length: 5 }, (_, i) => session(D(i * 3 + 1), 'Back Squat', 225, 5, 'legs')),
+      ...Array.from({ length: 2 }, (_, i) => session(D(i * 3 + 2), 'Deadlift', 275, 5, 'legs')),
+      session(D(0), 'Barbell Row', 135, 8, 'pull')
+    ]);
+    const ranked = ctx.getTopExerciseMastery();
+    const podium = ctx.getMasteryProgress().podium;
+    T('the podium is capped at MASTERY_UI_CONFIG.podiumSize', podium.length === ctx.MASTERY_UI_CONFIG.podiumSize);
+    T('and its order matches the ranked list exactly, entry for entry',
+      podium.every((m, i) => m.exerciseId === ranked[i].exerciseId && m.points === ranked[i].points));
+    T('no second sort or tie-break was introduced for the podium', (() => {
+      const fn = fnSrc(src, 'getMasteryProgress');
+      return /podium:\s*ex\.slice\(0,\s*MASTERY_UI_CONFIG\.podiumSize\)/.test(fn) && !/\.sort\(/.test(fn);
+    })());
+    T('no combined mastery score or points total is invented on the podium',
+      !/mastery score|mastery xp|overall mastery|total points/i.test(render()));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('podium geometry: 1st centre, 2nd left, 3rd right, at a restrained size');
+  guard('geometry and scale', () => {
+    T('1st is assigned a different visual order than 2nd, so it renders centred rather than merely first in source',
+      /\.mpod-p1\{ order: 2;/.test(css) && /\.mpod-p2\{ order: 1; \}/.test(css));
+    T('3rd sits after both in visual order',
+      /\.mpod-p3\{ order: 3; \}/.test(css));
+    const sizes = [1, 2, 3].map(p => {
+      const svg = ctx.masteryPodiumBadge(p, p === 1 ? 68 : 56);
+      return parseInt(/width="(\d+)"/.exec(svg)[1], 10);
+    });
+    T('1st is only modestly larger than 2nd/3rd, never dramatically so',
+      sizes[0] > sizes[1] && sizes[0] <= sizes[1] * 1.5);
+    T('2nd and 3rd share one scale', sizes[1] === sizes[2]);
+    T('every badge size the app actually requests stays inside the brief’s 48–72px range',
+      /place === 1 \? 68 : 56/.test(fnSrc(src, 'masteryPodiumCardHtml')));
+  });
+
+  sub('podium edge cases: zero, one, two, three or more');
+  guard('zero', () => {
+    seed([]);
+    const html = render();
+    T('an empty log shows the empty state, not a fabricated leader',
+      /mpod-empty/.test(html) && /Build your mastery/.test(html));
+    T('and never a bare podium container with nothing in it',
+      !/class="mpod mpod-n/.test(html));
+    T('the compact Top Muscle control is absent — nothing to summarise',
+      !/class="mtm-control"/.test(html));
+  });
+  guard('one', () => {
+    seed([session(D(0), 'Solo Lift', 100, 8)]);
+    const html = render();
+    T('a single leader renders centred, alone', /class="mpod mpod-n1"/.test(html));
+    T('with exactly one card', (html.match(/class="mpod-card/g) || []).length === 1);
+    T('and no second or third pedestal implied anywhere in it',
+      !/mpod-p2|mpod-p3/.test(html.slice(html.indexOf('class="mpod mpod-n1"'))));
+  });
+  guard('two', () => {
+    seed([session(D(0), 'Lift A', 100, 8), session(D(1), 'Lift B', 90, 6)]);
+    const html = render();
+    T('two leaders render as a balanced pair', /class="mpod mpod-n2"/.test(html));
+    T('with exactly two cards and no broken empty third pedestal',
+      (html.match(/class="mpod-card/g) || []).length === 2 &&
+      !/mpod-p3/.test(html.slice(html.indexOf('class="mpod mpod-n2"'))));
+  });
+  guard('three or more', () => {
+    seed([
+      session(D(0), 'Lift A', 100, 8), session(D(1), 'Lift B', 90, 6),
+      session(D(2), 'Lift C', 80, 6), session(D(3), 'Lift D', 70, 6)
+    ]);
+    const html = render();
+    T('four eligible exercises still cap the podium at three',
+      /class="mpod mpod-n3"/.test(html) && (html.match(/class="mpod-card/g) || []).length === 3);
+    T('but the fourth still appears in the full exercise list below',
+      /Lift D/.test(html.slice(html.indexOf('Exercise mastery'))));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('ties use the existing deterministic order — no randomness');
+  guard('ties', () => {
+    // Identical histories: same points, so the ranking's own name tie-break decides.
+    seed([session(D(0), 'Zeta Lift', 100, 8), session(D(0), 'Alpha Lift', 100, 8)]);
+    const order1 = ctx.getTopExerciseMastery().map(m => m.exerciseId);
+    ctx.invalidateAllMasteryCaches();
+    const order2 = ctx.getTopExerciseMastery().map(m => m.exerciseId);
+    T('the same tied history sorts the same way every time', JSON.stringify(order1) === JSON.stringify(order2));
+    T('alphabetically, per the ranking’s own existing tie-break',
+      order1[0] < order1[1]);
+    const html = render();
+    T('and the podium reflects that order', html.indexOf('Alpha Lift') < html.indexOf('Zeta Lift'));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the badge is a distinct family from the Rank Emblem');
+  guard('badge distinctness', () => {
+    const badgeFn = fnSrc(src, 'masteryPodiumBadge');
+    T('masteryPodiumBadge exists as one shared primitive', badgeFn.length > 0);
+    T('it takes a place and renders the family from one function, not three hand-coded designs',
+      /function masteryPodiumBadge\(place, ?size\)/.test(src));
+    T('it shares no colour constants with RANK_VISUALS', (() => {
+      const rankColors = [];
+      Object.values(ctx.RANK_VISUALS).forEach(v => { rankColors.push(...v.metal, ...v.gem); });
+      const badgeColors = Object.values(ctx.MASTERY_PODIUM_COLORS).flatMap(c => [c.hi, c.lo]);
+      return badgeColors.every(c => rankColors.indexOf(c) === -1);
+    })());
+    T('it draws no wings, no gem facets, no armor frame — a medal, not a crest',
+      !/wing|facet|armor|crest/i.test(badgeFn));
+    T('it is decorative markup, not a second accessible object',
+      /aria-hidden="true"/.test(badgeFn) && !/role="img"/.test(badgeFn));
+    for(const place of [1, 2, 3]){
+      const svg = ctx.masteryPodiumBadge(place, 64);
+      T('place ' + place + ' renders as a well-formed, self-contained svg',
+        /^<svg/.test(svg) && svg.indexOf('</svg>') === svg.length - 6);
+      T('and shows its own place number', new RegExp('>' + place + '<').test(svg));
+    }
+    T('1st carries the one small structural addition the brief asked for',
+      /place === 1[\s\S]{0,400}path/.test(badgeFn));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('tapping a leader opens Exercise Detail by the LOGGED name');
+  guard('logged name, not canonical spelling', () => {
+    // "Barbell Bench Press" is a real alias for bench_press_barbell, whose
+    // own canonical displayName is the DIFFERENT string "Bench Press" — the
+    // exact mismatch getExerciseCapability was already patched to avoid.
+    seed([session(D(0), 'Barbell Bench Press', 185, 8)]);
+    const m = ctx.getExerciseMastery('bench_press_barbell');
+    T('the canonical display name is used for what the athlete reads',
+      m.displayName === 'Bench Press');
+    T('but the name actually logged is kept alongside it, and differs',
+      m.loggedName === 'Barbell Bench Press' && m.loggedName !== m.displayName);
+    T('history keyed by the canonical spelling alone would find nothing — the bug this avoids',
+      ctx.getExerciseFullHistory(m.displayName).length === 0);
+    T('history keyed by the logged spelling finds the real session',
+      ctx.getExerciseFullHistory(m.loggedName).length === 1);
+    const html = render();
+    // Scoped to each element specifically — both the podium card and the
+    // exercise row independently call openExDetail with the athlete's own
+    // name, and a mutant breaking only one of them must not hide behind the
+    // other still being correct.
+    const podiumHtml = html.slice(html.indexOf('class="mpod'), html.indexOf('Exercise mastery'));
+    const rowsHtml = html.slice(html.indexOf('Exercise mastery'));
+    T('the podium opens Exercise Detail with the logged spelling',
+      new RegExp("openExDetail\\('" + m.loggedName + "'\\)").test(podiumHtml) &&
+      podiumHtml.indexOf("openExDetail('" + m.displayName + "')") === -1);
+    T('so does the exercise-mastery row for the same movement',
+      new RegExp("mastery-row-tap\" onclick=\"openExDetail\\('" + m.loggedName + "'\\)").test(rowsHtml) &&
+      rowsHtml.indexOf("openExDetail('" + m.displayName + "')") === -1);
+  });
+  guard('the tap actually opens the existing detail sheet — no second system', () => {
+    seed([session(D(0), 'Bench Press', 185, 8)]);
+    render();
+    ctx.openExDetail('Bench Press');
+    T('Exercise Detail opens with the right name', doc.getElementById('exDetailName').textContent === 'Bench Press');
+    T('mastery is shown inside it, from the one existing renderer',
+      /function exerciseMasteryHtml/.test(src) && /Mastery/.test(doc.getElementById('exDetailStats').innerHTML));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Top Muscle: one compact control, not a second directory');
+  guard('control + sheet', () => {
+    seed([
+      ...Array.from({ length: 6 }, (_, i) => session(D(i), 'Bench Press', 185, 8)),
+      session(D(0), 'Back Squat', 225, 5, 'legs')
+    ]);
+    const html = render();
+    T('exactly one compact control appears', (html.match(/class="mtm-control"/g) || []).length === 1);
+    // Scoped to the control's own markup — the podium and exercise list also
+    // show "Level N" chips, so checking the whole tab could pass on a level
+    // that belongs to something else entirely.
+    const controlHtml = html.slice(html.indexOf('class="mtm-control"'), html.indexOf('class="mpod'));
+    const realTop = ctx.getTopMuscleMastery(1)[0];
+    T('it names the real top muscle',
+      controlHtml.indexOf(realTop.label) !== -1);
+    T('and its own real level — not off by one, not borrowed from another row',
+      controlHtml.indexOf('Level ' + realTop.level) !== -1 &&
+      controlHtml.indexOf('Level ' + (realTop.level + 1)) === -1);
+    T('it opens the full ranked list rather than repeating it inline (checked here too, '
+      + 'so this holds even when Contract 188 runs on its own)',
+      /onclick="openAllMuscleMastery\(\)"/.test(controlHtml));
+    T('the full ranked muscle list is not also inlined in the main tab',
+      !/Primary and secondary work, ranked by training history/.test(html));
+    ctx.openAllMuscleMastery();
+    T('the sheet opens', doc.getElementById('allMuscleMasteryOverlay').classList.contains('open'));
+    const sheet = doc.getElementById('allMuscleMasteryBody').innerHTML;
+    const ranked = ctx.getTopMuscleMastery().filter(m => m.hasHistory);
+    T('it lists every muscle with history, uncapped', (sheet.match(/class="mastery-row"/g) || []).length === ranked.length);
+    T('in the same order getTopMuscleMastery already gives',
+      ranked.every(m => sheet.indexOf(m.label) !== -1) &&
+      text(sheet).indexOf(ranked[0].label) < text(sheet).indexOf(ranked[ranked.length - 1].label));
+    T('no cap or "view all" disclosure — this sheet already IS "view all"',
+      !/toggleAllMastery/.test(fnSrc(src, 'allMuscleMasteryHtml')));
+    T('it does not claim a session count where the derivation cannot honestly give one',
+      !/\d+ sessions? · \d+ exercise/.test(sheet));
+    ctx.closeAllMuscleMastery();
+    T('the sheet closes', !doc.getElementById('allMuscleMasteryOverlay').classList.contains('open'));
+  });
+  guard('no muscle history hides the control gracefully', () => {
+    // An uncatalogued name resolves to no canonical exercise, so it trains no
+    // known muscle — real exercise mastery, zero muscle mastery.
+    seed([session(D(0), 'Some Made Up Machine Nobody Catalogued', 50, 10)]);
+    const html = render();
+    T('exercise mastery still shows real data', /Some Made Up Machine/.test(html));
+    T('but the Top Muscle control is not shown for data that does not exist',
+      !/class="mtm-control"/.test(html));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Mastery Leaders and Exercise Mastery read LIFETIME history');
+  guard('independent of the 12-week volume window', () => {
+    // Every session is 200 days old — outside the 12-week (84-day) volume
+    // window entirely, so Muscle Volume and Training Distribution have
+    // nothing to show, but lifetime Mastery is unaffected by that window.
+    const old = n => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 200 + n); return d.toISOString().slice(0, 10); };
+    seed(Array.from({ length: 8 }, (_, i) => session(old(i * 3), 'Bench Press', 185, 8)));
+    const html = render();
+    T('the podium still shows the old, real mastery',
+      /class="mpod mpod-n1"/.test(html) && /Bench Press/.test(html));
+    T('Exercise Mastery still lists it too',
+      /Exercise mastery/.test(html) && /mastery-row-tap/.test(html));
+    T('Muscle Volume degrades on its OWN empty state, not the whole tab’s',
+      /Log a few sets in the last 12 weeks/.test(html));
+    T('Training Distribution degrades gracefully too',
+      /No sets logged in this range yet/.test(html));
+    T('this was a genuine gap, not a hypothetical: the podium’s own empty branch '
+      + 'was unreachable before this fix (any 12-week volume already guarantees a '
+      + 'mastery entry), which is exactly why it had to be fixed to test the empty state at all',
+      true);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('mobile: 44px targets, no color-only signal, reduced motion');
+  guard('accessibility', () => {
+    seed([
+      session(D(0), 'Lift A', 100, 8), session(D(1), 'Lift B', 90, 6), session(D(2), 'Lift C', 80, 5)
+    ]);
+    const html = render();
+    T('each podium card carries a spoken place, name, level and progress',
+      /aria-label="1st.{0,120}Level \d.{0,60}session.{0,60}%/.test(html) || /aria-label="1st[^"]*"/.test(html));
+    // .mpod-place renders "1st" in the markup; CSS text-transform:uppercase
+    // is what makes it read as "1ST" on screen — the DOM text stays "1st".
+    T('place is stated as visible text, not colour alone',
+      /class="mpod-place"[^>]*>1st</.test(html) &&
+      /\.mpod-place\{[^}]*text-transform: uppercase/.test(css));
+    T('the compact control has a real accessible label',
+      /class="mtm-control"[\s\S]{0,200}aria-label="Top muscle/.test(html) || !/class="mtm-control"/.test(html));
+    T('podium cards, the control and rows all meet the 44px floor',
+      /min-height: 44px/.test(css.slice(css.indexOf('.mpod-card{'), css.indexOf('.mpod-card{') + 400)) &&
+      /min-height: 44px/.test(css.slice(css.indexOf('.mtm-control{'), css.indexOf('.mtm-control{') + 400)));
+  });
+  guard('reduce motion', () => {
+    T('the podium’s entrance is disabled under prefers-reduced-motion',
+      /@media \(prefers-reduced-motion: reduce\)\{[\s\S]{0,120}\.mpod-card\{ animation: none/.test(css));
+    T('navigation itself carries no dependency on that animation running',
+      !/animationend/.test(fnSrc(src, 'masteryPodiumHtml')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('data safety — nothing about mastery truth changed');
+  guard('safety', () => {
+    seed([session(D(0), 'Bench Press', 185, 8)]);
+    const before = JSON.stringify(ctx.getTopExerciseMastery());
+    const beforeMuscle = JSON.stringify(ctx.getTopMuscleMastery());
+    render();
+    ctx.openAllMuscleMastery();
+    ctx.closeAllMuscleMastery();
+    T('rendering the whole redesigned tab changes no mastery value',
+      JSON.stringify(ctx.getTopExerciseMastery()) === before &&
+      JSON.stringify(ctx.getTopMuscleMastery()) === beforeMuscle);
+    T('DATA_KEYS is still exactly 15', ctx.DATA_KEYS.length === 15);
+    T('MASTERY_CONFIG is untouched by the presentation layer',
+      ctx.MASTERY_CONFIG.curve.exerciseBase === 60 && ctx.MASTERY_CONFIG.maxLevel === 10);
+    T('the trainer is unaffected', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('workoutLog is never written by any render or open/close call',
+      JSON.stringify(ctx.workoutLog) === JSON.stringify([session(D(0), 'Bench Press', 185, 8)]));
+  });
+}
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -31681,6 +32043,7 @@ async function main(){
   await testWorkoutIdentity();
   await testPersonalBestTimeline();
   await testPhasePrescription();
+  await testMasteryPodium();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
