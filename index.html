@@ -12929,17 +12929,36 @@ const MIGRATIONS = {
   // 1: async function migrateV1toV2(){ ... }
 };
 
+/* The per-plan keys that are legitimately dynamic: their suffix is a plan id,
+   so they cannot be listed, only recognised by prefix. */
+const DYNAMIC_KEY_PREFIXES = ['planData:', 'schedule:', 'planStart:'];
+
+/* D88 — is this a key a restore is allowed to write? Exactly the set export
+   emits, which is what allDataKeys() walks: the 15 DATA_KEYS plus the per-plan
+   prefixes. Anything outside it (a credential key held outside DATA_KEYS on
+   purpose, or a name a file simply invented) is not LOOP's to restore. */
+function isRestorableDataKey(key){
+  if(typeof key !== 'string' || !key) return false;
+  if(DATA_KEYS.indexOf(key) !== -1) return true;
+  return DYNAMIC_KEY_PREFIXES.some(p => key.startsWith(p) && key.length > p.length);
+}
+
 async function allDataKeys(){
   const known = DATA_KEYS.slice();
   const all = await LOOPStore.listKeys();
   all.forEach(k => {
-    if((k.startsWith('planData:') || k.startsWith('schedule:') || k.startsWith('planStart:')) && known.indexOf(k) === -1){
+    // Same prefix list isRestorableDataKey() uses, so export and restore can
+    // never drift apart on what counts as a per-plan key.
+    if(DYNAMIC_KEY_PREFIXES.some(p => k.startsWith(p)) && known.indexOf(k) === -1){
       known.push(k);
     }
   });
   return known;
 }
 
+/* Returns false if the snapshot could not be stored. D88 — this used to return
+   the snapshot object unconditionally, which is always truthy, so a caller had
+   no way to know the net it was about to rely on did not exist. */
 async function backupAllData(fromVersion){
   const keys = await allDataKeys();
   const snapshot = {};
@@ -12947,8 +12966,8 @@ async function backupAllData(fromVersion){
     const r = await LOOPStore.get(k);
     if(r && r.value !== undefined && r.value !== null) snapshot[k] = r.value;
   }
-  await LOOPStore.set(BACKUP_PREFIX + fromVersion, JSON.stringify({ takenAt: new Date().toISOString(), data: snapshot }));
-  return snapshot;
+  return (await LOOPStore.set(BACKUP_PREFIX + fromVersion,
+    JSON.stringify({ takenAt: new Date().toISOString(), data: snapshot }))) === true;
 }
 
 async function restoreBackup(fromVersion){
@@ -13014,8 +13033,15 @@ async function importAllData(input){
   }
   if(!confirm('Import this backup? Your existing workouts are kept — imported sessions are merged in alongside them.')) return;
 
-  // Safety net before touching anything
-  await backupAllData('preimport');
+  /* Safety net before touching anything. D88 — the result used to be discarded.
+     This is the largest single write LOOP ever makes, so it is also the most
+     likely to be refused by a store that is nearly full, and every later promise
+     that "your original data has been restored" is only worth the net existing.
+     If it cannot be taken, nothing is touched and the athlete is told why. */
+  if(!(await backupAllData('preimport'))){
+    alert("LOOP couldn't set aside a safety copy of your current data, so the import was stopped before it began. Nothing was changed. Free up some space on this device and try again.");
+    return;
+  }
 
   try{
     const incoming = payload.data;
@@ -13103,6 +13129,15 @@ async function importAllData(input){
     for(const k of Object.keys(incoming)){
       if(k === 'workoutLog' || k === 'cardioLog' || k === 'programs' || k === SCHEMA_KEY
         || k.startsWith(BACKUP_PREFIX)) continue;
+      /* D88 — a backup may only restore keys LOOP itself exports. The skip list
+         above is not the same thing as an allowlist: `socialSession` is not in
+         it, so a hand-edited backup opened on a signed-out phone wrote a
+         stranger's access and refresh tokens straight into the Friends session.
+         That is the mirror image of the rule this app already states on the
+         export side — credentials have no business in a backup file, in either
+         direction. Unknown key names were written verbatim too, and then never
+         exported, wiped or read again: storage nobody owns. */
+      if(!isRestorableDataKey(k)) continue;
       const existing = await LOOPStore.get(k);
       const isEmpty = !existing || !existing.value || existing.value === 'null';
       if(isEmpty){ await LOOPStore.set(k, incoming[k]); filled++; }
@@ -13120,11 +13155,21 @@ async function importAllData(input){
     if(hasPrograms) parts.push(`${addedPrograms} new program${addedPrograms===1?'':'s'} added`);
     if(filled) parts.push(`${filled} setting${filled===1?'':'s'} restored`);
     const summary = parts.length ? parts.join(', ') : 'nothing new to import — you already have this data';
+    /* D88 — the import succeeded, so the safety copy has nothing left to undo.
+       It was never removed before, which left a second verbatim copy of every
+       key sitting in storage for good: roughly double the space, on the same
+       device whose fullness is what makes a refused write possible at all. */
+    try{ await LOOPStore.remove(BACKUP_PREFIX + 'preimport'); }catch(e){}
     alert(`Import complete — ${summary}. LOOP will reload.`);
     location.reload();
   }catch(e){
-    await restoreBackup('preimport');
-    alert('The import ran into a problem. Your original data has been restored — nothing was lost.');
+    /* D88 — say what actually happened. restoreBackup returns false when there
+       was nothing to restore from, and claiming "nothing was lost" in that case
+       is the one message an athlete must be able to trust. */
+    const restored = await restoreBackup('preimport');
+    alert(restored
+      ? 'The import ran into a problem. Your original data has been restored — nothing was lost.'
+      : "The import ran into a problem, and LOOP could not read back the safety copy it made. Please check your data before logging anything else, and re-import your backup if something is missing.");
   }
 }
 
@@ -15997,6 +16042,29 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v9-0',
+    version: 'LOOP 9.0',
+    title: 'Stability',
+    date: '2026-09-18',
+    swVersion: 'loop-v167',
+    summary: 'A pass over the whole app: saving, restoring and working offline are all more honest about what actually happened.',
+    newFeatures: [],
+    improvements: [
+      'If a workout cannot be saved, LOOP now says so and keeps the session in progress instead of showing the summary',
+      'A backup can only restore LOOP\u2019s own training data \u2014 never a sign-in, and never a key it invented',
+      'Deleting all data now removes the safety copies an import left behind, as the warning always said it would',
+      'A part of a screen that cannot be drawn no longer takes the rest of the app down with it'
+    ],
+    bugFixes: [
+      'Deleting a workout could report success without removing it, and it came back on the next launch',
+      'Exercise Detail could show a load of NaN for a lift logged with reps but no weight',
+      'The finish screen could say you matched your previous reps when neither session recorded any',
+      'Training volume drew every planned week the same height and never marked a deload',
+      'A workout in progress could lose its Resume button while still being saved on the device'
+    ],
+    changes: []
   }
 ];
 
@@ -18602,14 +18670,29 @@ async function boot(){
   // current-schema data. Never initializes or overwrites existing user data.
   const migrationResult = await runMigrations();
 
+  /* D88 — the try/catch below only ever covered a value that fails to PARSE. A
+     value that parses to the wrong TYPE was assigned straight onto the global,
+     and `null` is the realistic one: LOOPStore.remove() falls back to writing
+     the literal string 'null' when a delete is refused, and 'null' is truthy.
+     workoutLog then became null and the first renderer to reach .find() threw
+     inside showMainApp() — which killed the rest of renderAll AND the rest of
+     boot, on every launch, with no way back from inside the app. A shape that
+     is wrong is data LOOP cannot read, so it is treated as absent, exactly as
+     loadCardioLog and loadReadiness already treat theirs. */
   try{
     const l = await LOOPStore.get('workoutLog');
-    if(l && l.value) workoutLog = JSON.parse(l.value);
+    if(l && l.value){
+      const parsed = JSON.parse(l.value);
+      if(Array.isArray(parsed)) workoutLog = parsed;
+    }
   }catch(e){}
 
   try{
     const dm = await LOOPStore.get('dismissedMissed');
-    if(dm && dm.value) dismissedMissedDates = JSON.parse(dm.value);
+    if(dm && dm.value){
+      const parsed = JSON.parse(dm.value);
+      if(Array.isArray(parsed)) dismissedMissedDates = parsed;
+    }
   }catch(e){}
 
   /* D52 — reads a stored session from disk. No network call happens here:
@@ -19057,7 +19140,15 @@ async function loadPlanData(id){
   let data = null;
   try{
     const r = await LOOPStore.get('planData:' + id);
-    if(r && r.value) data = JSON.parse(r.value);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      /* D88 — a plan is a map of category to templates. Anything else (an array,
+         a string, a number) is not a plan, and letting one through meant the
+         category backfill below wrote its keys onto the wrong kind of object and
+         the Train tab threw while rendering it. Treated as absent, so the plan's
+         own defaults are restored instead. */
+      if(parsed && typeof parsed === 'object' && !Array.isArray(parsed)) data = parsed;
+    }
   }catch(e){}
   /* Both paths normalise against ORDER so every category — including ones
      added in a later release — always has an array to hold templates. The
@@ -19111,17 +19202,31 @@ async function persistLog(){
   invalidateContextCache();
   invalidateRecoveryCache();
   invalidateShadowCache();
-  try{
-    await LOOPStore.set('workoutLog', JSON.stringify(workoutLog));
-    return true;
-  }catch(e){ return false; }
+  /* D88 — LOOPStore.set() reports a refused write by RETURNING false; it never
+     throws, so the catch below could never fire and this returned true for a
+     write that never landed. persistCardioLog was corrected for exactly this in
+     D-cardio; history — the primary record — was missed by that sweep, and it is
+     the one path where the lie costs the most: saveLog's ok branch clears the
+     draft, and clearing a draft writes four bytes, which still succeeds on the
+     full store that just refused the log. The session ended up in neither place.
+     Both rollbacks written against this result (saveLog, saveWorkoutEdits) were
+     unreachable code until this line passed the store's answer through. */
+  try{ return (await LOOPStore.set('workoutLog', JSON.stringify(workoutLog))) === true; }
+  catch(e){ return false; }
 }
 
 async function loadSchedule(id){
   let data = null;
   try{
     const r = await LOOPStore.get('schedule:' + id);
-    if(r && r.value) data = JSON.parse(r.value);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      /* D88 — a schedule is a weekday map. An array passed the truthiness check
+         and became the schedule, so every day resolved to undefined and Today
+         offered to "Add a undefined workout". Wrong shape is treated as absent,
+         which restores the plan's own default schedule. */
+      if(parsed && typeof parsed === 'object' && !Array.isArray(parsed)) data = parsed;
+    }
   }catch(e){}
   if(!data){
     data = Object.assign({}, DEFAULT_PLANS[id].defaultSchedule);
@@ -19423,6 +19528,15 @@ function resetAllData(){
     Object.keys(DEFAULT_PLANS).forEach(id => {
       keys.push('planData:' + id, 'schedule:' + id, 'planStart:' + id);
     });
+    /* D88 — the pre-import and pre-migration snapshots are verbatim copies of
+       the history this button says it permanently deletes, and nothing else ever
+       removed them. Listing the live keys catches every backup_v* actually
+       present, including one written by a schema version this build predates. */
+    try{
+      (await LOOPStore.listKeys()).forEach(k => {
+        if(k.startsWith(BACKUP_PREFIX) && keys.indexOf(k) === -1) keys.push(k);
+      });
+    }catch(e){}
     for(const k of keys){
       try{ await LOOPStore.remove(k); }catch(e){}
     }
@@ -24833,7 +24947,7 @@ function cardioCardHtml(c){
     ? c.activeCalories + ' active cal'
     : (c.calories ? c.calories + ' cal' : null);
   return `
-    <button type="button" class="ch-card" onclick="openCardioDetail('${c.id}')">
+    <button type="button" class="ch-card" onclick="openCardioDetail('${onclickArg(c.id)}')">
       <span class="ch-mark cd-tone-${st.tone}">${cardioIconSvg(c.activityId, 17)}</span>
       <span class="ch-main">
         <span class="ch-top">
@@ -25073,8 +25187,8 @@ function openCardioDetail(id){
     ${rec.caloriesEstimated ? `<div class="cd-detail-est">Calories are estimated from duration and body weight, not measured.</div>` : ''}
     ${rec.notes ? `<div class="cd-detail-notes">${escapeHtml(rec.notes)}</div>` : ''}
     <div class="cd-detail-actions">
-      <button class="btn-secondary" onclick="editCardioSession('${rec.id}')">Edit</button>
-      <button class="reset-btn" style="margin-top:0" onclick="deleteCardioSession('${rec.id}')">Delete</button>
+      <button class="btn-secondary" onclick="editCardioSession('${onclickArg(rec.id)}')">Edit</button>
+      <button class="reset-btn" style="margin-top:0" onclick="deleteCardioSession('${onclickArg(rec.id)}')">Delete</button>
     </div>`;
   document.getElementById('cardioDetailOverlay').classList.add('open');
 }
@@ -25940,7 +26054,7 @@ function renderOtherDayCard(el){
       ${shown ? `<div class="tw-exlist">${shown.exercises.slice(0, 4).map(e =>
         `<span class="tw-ex">${escapeHtml(e.name)}</span>`).join('')}${
         shown.exercises.length > 4 ? `<span class="tw-ex tw-ex-more">+${shown.exercises.length - 4} more</span>` : ''}</div>` : ''}
-      ${tpl ? `<button class="tw-cta" onclick="startTemplateLog('${escapeAttr(cat)}','${escapeAttr(tpl.id)}')">Start ${escapeHtml(tpl.name)}</button>` : ''}
+      ${tpl ? `<button class="tw-cta" onclick="startTemplateLog('${escapeAttr(cat)}','${onclickArg(tpl.id)}')">Start ${escapeHtml(tpl.name)}</button>` : ''}
       ${alts.length ? `<button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide other workouts' : 'Choose a different workout'}</button>` : ''}
       ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat)}</div>` : ''}
       <button type="button" class="tw-change" onclick="openDayEdit('${key}')">Change this day</button>
@@ -32542,7 +32656,7 @@ function renderProgStrength(){
   const readyHtml = ready.length ? `
     <div class="sec-head">Ready to progress<span class="sec-hint">from your own logged sessions</span></div>
     <div class="rank-list">${ready.slice(0,5).map(r => `
-      <div class="rank-row" onclick="openExDetail('${escapeAttr(r.name)}')">
+      <div class="rank-row" onclick="openExDetail('${onclickArg(r.name)}')">
         <div class="rank-name">${escapeHtml(r.name)}<span class="rank-sub">${escapeHtml(r.rec.why)}</span></div>
         <div class="rank-val up">${escapeHtml(r.rec.headline.split(' × ')[0])}</div>
       </div>`).join('')}</div>` : '';
@@ -32561,7 +32675,7 @@ function renderProgStrength(){
   document.getElementById('progExercises').innerHTML = `
     <div class="sec-head">All exercises<span class="sec-hint">tap for detail</span></div>
     ${trends.length ? `<div class="rank-list">${trends.map(t => `
-      <div class="rank-row" onclick="openExDetail('${escapeAttr(t.name)}')">
+      <div class="rank-row" onclick="openExDetail('${onclickArg(t.name)}')">
         <div class="rank-name">${escapeHtml(t.name)}<span class="rank-sub">${t.sessions} sessions</span></div>
         <div class="rank-val trend-${t.dir}">${trendIconSvg(trendDirOf(t.dir))} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</div>
       </div>`).join('')}</div>`
@@ -33160,7 +33274,7 @@ function masteryRowHtml(m){
   const spoken = m.displayName + ', Level ' + m.level + ', ' + m.sessions
     + ' session' + (m.sessions === 1 ? '' : 's') + ', ' + next + '.';
   return `
-    <button type="button" class="mastery-row mastery-row-tap" onclick="openExDetail('${escapeAttr(m.loggedName)}')" aria-label="${escapeAttr(spoken)}">
+    <button type="button" class="mastery-row mastery-row-tap" onclick="openExDetail('${onclickArg(m.loggedName)}')" aria-label="${escapeAttr(spoken)}">
       <div class="mastery-row-head">
         <span class="mastery-row-name">${escapeHtml(m.displayName)}</span>
         <span class="mastery-lvl-chip ml${Math.min(5, m.level)}">Level ${m.level}</span>
@@ -33226,7 +33340,7 @@ function masteryPodiumCardHtml(m, place){
   const next = m.isMax ? 'Max level' : (m.percent + '% to Level ' + (m.level + 1));
   const spoken = MASTERY_PLACE_WORD[place] + ' — ' + m.displayName + ', Level ' + m.level + ', '
     + m.sessions + ' session' + (m.sessions === 1 ? '' : 's') + ', ' + next + '.';
-  return `<button type="button" class="mpod-card mpod-p${place}" onclick="openExDetail('${escapeAttr(m.loggedName)}')" aria-label="${escapeAttr(spoken)}">
+  return `<button type="button" class="mpod-card mpod-p${place}" onclick="openExDetail('${onclickArg(m.loggedName)}')" aria-label="${escapeAttr(spoken)}">
       <span class="mpod-place" aria-hidden="true">${MASTERY_PLACE_WORD[place]}</span>
       <span class="mpod-badge">${masteryPodiumMedalHtml(place, size)}</span>
       <span class="mpod-name">${escapeHtml(m.displayName)}</span>
@@ -33363,7 +33477,15 @@ function renderExDetail(){
   const topSet = s => {
     const valid = s.sets.map(x => ({w:parseFloat(x.weight), r:parseFloat(x.reps)})).filter(x => !isNaN(x.r));
     if(!valid.length) return null;
-    return isBW ? valid.reduce((a,b)=>b.r>a.r?b:a) : valid.filter(x=>!isNaN(x.w)).reduce((a,b)=>b.w>a.w?b:a, valid[0]);
+    if(isBW) return valid.reduce((a,b)=>b.r>a.r?b:a);
+    /* D88 — the seed has to come from the FILTERED list. Seeding from valid[0]
+       meant one set logged with reps but a cleared weight (which saveLog stores,
+       by design) put NaN in the seed, and since every `b.w > NaN` is false the
+       seed was never replaced — the sheet printed "NaN lb x 12" for that lift on
+       every visit, even when later sets carried real weights. */
+    const weighed = valid.filter(x => !isNaN(x.w));
+    if(!weighed.length) return null;
+    return weighed.reduce((a,b)=>b.w>a.w?b:a);
   };
   const cur = topSet(sessions[0]);
   const prev = sessions[1] ? topSet(sessions[1]) : null;
@@ -33456,15 +33578,28 @@ function paintPlanChip(){
   if(el && plan) el.textContent = plan.name;
 }
 
+/* D88 — each surface is painted independently. These ran as one unbroken
+   sequence, so the first renderer to throw took every later one with it, and
+   because boot() calls this through showMainApp(), it took the rest of boot
+   too: the trainer, readiness, a resumed cardio session and the storage notice
+   all stopped loading, on every launch, for as long as the bad data sat there.
+   One unreadable corner of the app is now worth one unreadable corner.
+   The throw is still reported — this contains the blast radius, it does not
+   hide the fault. */
+function renderSurface(name, fn){
+  try{ fn(); }
+  catch(e){ console.error('LOOP render error in ' + name + ':', e); }
+}
+
 function renderAll(){
-  paintPlanChip();
-  renderToday();
-  renderCardioView();
-  renderTrainView();
-  renderLogPage();
-  if(historySubView === 'calendar') renderHistoryCalendar();
-  if(historySubView === 'exercise') renderExerciseHistorySelect();
-  renderProgress();
+  renderSurface('paintPlanChip', paintPlanChip);
+  renderSurface('renderToday', renderToday);
+  renderSurface('renderCardioView', renderCardioView);
+  renderSurface('renderTrainView', renderTrainView);
+  renderSurface('renderLogPage', renderLogPage);
+  if(historySubView === 'calendar') renderSurface('renderHistoryCalendar', renderHistoryCalendar);
+  if(historySubView === 'exercise') renderSurface('renderExerciseHistorySelect', renderExerciseHistorySelect);
+  renderSurface('renderProgress', renderProgress);
 }
 
 /* ---------- LOG SHEET ---------- */
@@ -35190,9 +35325,9 @@ function programPhasesHtml(program){
         <div class="phase-side">
           <span class="phase-status">${phaseStatusLabel(r.status)}</span>
           <div class="phase-move">
-            <button class="phase-move-btn" onclick="doMovePhase('${escapeAttr(b.id)}','up')" aria-label="Move earlier">↑</button>
-            <button class="phase-move-btn" onclick="doMovePhase('${escapeAttr(b.id)}','down')" aria-label="Move later">↓</button>
-            <button class="phase-move-btn phase-edit-btn" onclick="openPhaseEditor('${escapeAttr(b.id)}')" aria-label="Edit phase">Edit</button>
+            <button class="phase-move-btn" onclick="doMovePhase('${onclickArg(b.id)}','up')" aria-label="Move earlier">↑</button>
+            <button class="phase-move-btn" onclick="doMovePhase('${onclickArg(b.id)}','down')" aria-label="Move later">↓</button>
+            <button class="phase-move-btn phase-edit-btn" onclick="openPhaseEditor('${onclickArg(b.id)}')" aria-label="Edit phase">Edit</button>
           </div>
         </div>
       </div>`;
@@ -41805,7 +41940,7 @@ function programHistoryHtml(excludeId){
     <div class="sec-head">Past programs</div>
     <div class="ph-list">${list.map(x => {
       const sum = deriveProgramCompletion(x, localDateStr());
-      return `<button type="button" class="ph-row" onclick="openPastProgram('${escapeAttr(x.id)}')">
+      return `<button type="button" class="ph-row" onclick="openPastProgram('${onclickArg(x.id)}')">
         <span class="ph-main">
           <span class="ph-name">${escapeHtml(x.name)}</span>
           <span class="ph-meta">${x.startDate ? escapeHtml(formatDateShort(x.startDate)) : ''}${
@@ -42564,7 +42699,7 @@ function renderFoundationDetail(){
     <div class="fdd-sec">Schedule</div>
     ${days || '<p class="fdd-text">No training days set.</p>'}
     ${hist ? `<div class="fdd-sec">Previous blocks</div>${hist}` : ''}
-    <button type="button" class="fdd-link" onclick="closeFoundation(); openProgramDetail('${escapeAttr(p.id)}')">Program details</button>`;
+    <button type="button" class="fdd-link" onclick="closeFoundation(); openProgramDetail('${onclickArg(p.id)}')">Program details</button>`;
 }
 
 /* ---------- a block decision, reviewed before it is made ---------- */
@@ -42692,7 +42827,7 @@ function renderProgramsList(){
     const prog = getProgramProgress(p);
     const status = programStatusLabel(p);
     return `
-      <button class="prog-card" onclick="openProgramDetail('${escapeAttr(p.id)}')">
+      <button class="prog-card" onclick="openProgramDetail('${onclickArg(p.id)}')">
         <span class="prog-card-main">
           <span class="prog-card-name">${escapeHtml(p.name)}</span>
           <span class="prog-card-meta">${prog ? `Week ${prog.week} / ${prog.totalWeeks}` : p.durationWeeks + ' weeks'}${p.goal && TRAINING_GOALS[p.goal] ? ' · ' + escapeHtml(TRAINING_GOALS[p.goal].label) : ''}</span>
@@ -43356,7 +43491,7 @@ function renderMyTraining(){
         <span class="mt-act-sub">A few quick choices and LOOP builds it</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
       </button>`}
-      ${t.hasProgram ? `<button type="button" class="mt-act" onclick="openProgramDetail('${escapeAttr(t.programId)}')">
+      ${t.hasProgram ? `<button type="button" class="mt-act" onclick="openProgramDetail('${onclickArg(t.programId)}')">
         <span class="mt-act-main">Program details</span>
         <span class="mt-act-sub">Phases, start date and status</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
@@ -43479,14 +43614,18 @@ function cycleWeeks(program){
     ws.setDate(start.getDate() + i * 7);
     const monday = new Date(ws);
     monday.setDate(ws.getDate() - ((ws.getDay() + 6) % 7));
+    /* D88 — this read `program.phases`, a field no program has ever carried:
+       createProgram writes `blocks`, and getBlockForWeek is the one accessor for
+       them. The lookup therefore always returned null, so every week was
+       phase-less — which made PHASE_INTENT unreachable, drew every "planned" bar
+       at the same height, and meant the DL tag never appeared, under a caption
+       promising these bars are what the program intends for that week. Reading
+       through getBlockForWeek keeps one source of truth for which block owns a
+       week; note blocks name the field `phaseType`, not `type`. */
     let phase = null;
-    try{
-      const p = (program.phases || []).find(ph =>
-        (i + 1) >= (ph.startWeek || 1) && (i + 1) <= (ph.endWeek || total));
-      phase = p || null;
-    }catch(e){}
+    try{ phase = getBlockForWeek(program, i + 1); }catch(e){ phase = null; }
     weeks.push({ index: i + 1, weekStart: localDateStr(monday),
-      phaseType: phase ? (phase.type || 'custom') : null,
+      phaseType: phase ? (phase.phaseType || 'custom') : null,
       phaseName: phase ? (phase.name || '') : '' });
   }
   return weeks;
@@ -44115,8 +44254,8 @@ function renderExerciseNotesSheet(){
             <div class="note-row-text">${escapeHtml(n.text)}</div>
           </div>
           <div class="note-row-actions">
-            <button type="button" class="note-act" onclick="beginEditExerciseNote('${escapeAttr(n.id)}')" aria-label="Edit note">Edit</button>
-            <button type="button" class="note-act note-act-del" onclick="removeExerciseNote('${escapeAttr(n.id)}')" aria-label="Delete note">${closeIconSvg(12)}</button>
+            <button type="button" class="note-act" onclick="beginEditExerciseNote('${onclickArg(n.id)}')" aria-label="Edit note">Edit</button>
+            <button type="button" class="note-act note-act-del" onclick="removeExerciseNote('${onclickArg(n.id)}')" aria-label="Delete note">${closeIconSvg(12)}</button>
           </div>
         </div>`).join('')
     : `<div class="notes-empty">Nothing noted for this exercise yet.</div>`;
@@ -45218,7 +45357,7 @@ function renderGymProfile(){
       const on = items.filter(i => getEquipmentStatus(i.id) === GYM_STATUS.AVAILABLE).length;
       return `
       <div class="gym-cat" data-cat="${c.id}">
-        <button class="gym-cat-head" onclick="toggleGymCategory('${c.id}')" aria-expanded="false">
+        <button class="gym-cat-head" onclick="toggleGymCategory('${onclickArg(c.id)}')" aria-expanded="false">
           <span class="gym-cat-label">${escapeHtml(c.label)}</span>
           <span class="gym-cat-count" id="gymCount-${c.id}">${on}/${items.length}</span>
           <span class="gym-cat-arrow" id="gymArrow-${c.id}">›</span>
@@ -45262,7 +45401,7 @@ function renderGymCategory(catId){
     const status = getEquipmentStatus(item.id);
     const cls = status === GYM_STATUS.AVAILABLE ? 'on' : (status === GYM_STATUS.UNAVAILABLE ? 'off' : '');
     const mark = status === GYM_STATUS.AVAILABLE ? '✓' : (status === GYM_STATUS.UNAVAILABLE ? '' : '·');
-    return `<button class="gym-item ${cls}" onclick="toggleGymEquipment('${item.id}')">
+    return `<button class="gym-item ${cls}" onclick="toggleGymEquipment('${onclickArg(item.id)}')">
         <span class="gym-item-box">${mark}</span>
         <span class="gym-item-name">${escapeHtml(item.displayName)}</span>
       </button>`;
@@ -45280,7 +45419,7 @@ function renderGymCustomList(){
   el.innerHTML = list.length
     ? list.map(c => `<div class="gym-custom-row">
         <span class="gym-custom-label">${escapeHtml(c.label)}</span>
-        <button class="gym-custom-x" onclick="deleteCustomEquipment('${escapeHtml(c.id)}')" aria-label="Remove">×</button>
+        <button class="gym-custom-x" onclick="deleteCustomEquipment('${onclickArg(c.id)}')" aria-label="Remove">×</button>
       </div>`).join('')
     : '';
 }
@@ -46496,6 +46635,12 @@ async function loadActiveDraft(){
    fresh rather than stored, so a restored workout reflects current history. */
 function restoreDraftToSheet(draft){
   draftRestoring = true;
+  /* D88 — everything below runs inside try/finally so the flag is cleared even
+     if the restore throws. persistDraftNow and scheduleDraftSave both begin
+     `if(draftRestoring) return;`, so a flag left stuck at true silently turned
+     every later draft write into a no-op for the rest of the session: the next
+     workout the athlete started would not have been durable either. */
+  try{
   pendingDraftId = draft.id || ('draft_' + Date.now());
   pendingDraftStartedAt = draft.startedAt || new Date().toISOString();
   /* Older drafts predate provenance and stay unknown rather than being
@@ -46537,7 +46682,8 @@ function restoreDraftToSheet(draft){
     // The skip the athlete made before leaving is still their decision.
     if(ex.skipped) row.dataset.skipped = '1';
     const setRows = row.querySelectorAll('.set-row');
-    ex.sets.forEach((s, j) => {
+    // D88 — a draft row that lost its sets array must not abort the restore.
+    (Array.isArray(ex.sets) ? ex.sets : []).forEach((s, j) => {
       if(s.completed && setRows[j]){
         setRows[j].classList.add('completed');
         const btn = setRows[j].querySelector('.set-complete-btn');
@@ -46571,7 +46717,7 @@ function restoreDraftToSheet(draft){
   });
 
   if(draft.showCategoryPicker) pickLogCategory(pendingLogCategory);
-  draftRestoring = false;
+  }finally{ draftRestoring = false; }
   openLogSheet();
 }
 
@@ -46591,10 +46737,16 @@ async function discardActiveWorkout(){
 }
 
 function draftSummaryLine(draft){
-  const exWithWork = (draft.exercises||[]).filter(ex => ex.name && ex.sets.some(s => s.completed || (s.reps||'').trim()));
+  /* D88 — draft.exercises was guarded and ex.sets was not, on three consecutive
+     lines. renderResumeBanner is async and called bare at five sites, so a
+     throw here became an unhandled rejection that stopped Today re-rendering
+     the hero: the athlete's half-finished session lost its Resume button
+     entirely and read as lost, while still sitting on disk. */
+  const exes = (draft.exercises || []).map(ex => ({ name: ex && ex.name, sets: (ex && Array.isArray(ex.sets)) ? ex.sets : [] }));
+  const exWithWork = exes.filter(ex => ex.name && ex.sets.some(s => s.completed || (s.reps||'').trim()));
   const last = exWithWork[exWithWork.length - 1];
-  const totalDone = (draft.exercises||[]).reduce((n,ex) => n + ex.sets.filter(s => s.completed).length, 0);
-  const totalSets = (draft.exercises||[]).reduce((n,ex) => n + ex.sets.length, 0);
+  const totalDone = exes.reduce((n,ex) => n + ex.sets.filter(s => s.completed).length, 0);
+  const totalSets = exes.reduce((n,ex) => n + ex.sets.length, 0);
   if(!last) return `${totalDone}/${totalSets} sets completed`;
   return `${escapeHtml(last.name)} · ${totalDone}/${totalSets} sets completed`;
 }
@@ -46605,23 +46757,46 @@ function draftSummaryLine(draft){
    screen spent saying one thing. Now this function only resolves the draft
    truth and hands presentation to the single hero, which changes state. */
 let activeDraftInfo = null;
+/* D88 — this is async and every one of its five callers invokes it bare, so a
+   throw anywhere inside it became an UNHANDLED REJECTION rather than an error
+   anyone could see. It is also reached from renderToday, which means it sits
+   outside renderSurface's containment: the rejection is raised after renderToday
+   has already returned, so renderAll cannot catch it. The consequence was the
+   opposite of cosmetic — the rejection landed before renderTodayWorkout() at the
+   end of this function could run, so Today drew "Start Workout" for the planned
+   session instead of "Resume", and a half-logged workout that was still safely
+   on disk had no affordance anywhere in the app. Contained and reported here so
+   the hero still repaints, rather than being fixed at five call sites. */
 async function renderResumeBanner(){
   const el = document.getElementById('resumeBanner');
   if(el) el.innerHTML = '';
   const overlay = document.getElementById('logOverlay');
   if(overlay && overlay.classList.contains('open')) return;
 
-  const draft = await loadActiveDraft();
-  hasActiveDraftNow = !!draft;
-  if(draft){
-    const started = draft.startedAt ? new Date(draft.startedAt) : null;
-    activeDraftInfo = {
-      title: draft.title || CAT_LABEL[draft.category] || 'Workout',
-      mins: started ? Math.max(1, Math.round((new Date() - started) / 60000)) : null,
-      summary: draftSummaryLine(draft),
-      identity: workoutIdentity(draft, draft.category)
-    };
-  } else {
+  let draft = null;
+  try{
+    draft = await loadActiveDraft();
+    hasActiveDraftNow = !!draft;
+    if(draft){
+      const started = draft.startedAt ? new Date(draft.startedAt) : null;
+      activeDraftInfo = {
+        title: draft.title || CAT_LABEL[draft.category] || 'Workout',
+        mins: started ? Math.max(1, Math.round((new Date() - started) / 60000)) : null,
+        summary: draftSummaryLine(draft),
+        identity: workoutIdentity(draft, draft.category)
+      };
+    } else {
+      activeDraftInfo = null;
+    }
+  }catch(e){
+    /* D88 — resolving the draft must never stop the hero being drawn. This
+       function is async and all five callers invoke it bare, so a throw here
+       became an unhandled rejection, raised after renderToday had already
+       returned — outside renderSurface's reach. The two repaints below never
+       ran, so Today offered "Start Workout" for the planned session while a
+       half-logged one sat safely on disk with no way back to it. Reported, and
+       the banner falls back to showing no draft rather than to showing nothing. */
+    console.error('LOOP render error in renderResumeBanner:', e);
     activeDraftInfo = null;
   }
   renderTodayWorkout();
@@ -49093,7 +49268,14 @@ function saveLog(btn){
     const newReps = ex.sets.map(s => parseFloat(s.reps)).filter(n => !isNaN(n));
     const prevWeights = prev.sets.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
     const prevReps = prev.sets.map(s => parseFloat(s.reps)).filter(n => !isNaN(n));
+    /* D88 — the rep arrays need the same emptiness guard the weight arrays get.
+       Two weight-only sessions (every set logged with a load and a blank reps
+       field, which saveLog stores) left both rep arrays empty, and Math.max of
+       nothing is -Infinity on both sides, so "same reps" came out true from zero
+       rep data. The summary then told the athlete "Same weight, same reps as
+       last session" about reps they had never logged. */
     if(!newWeights.length || !prevWeights.length) return;
+    if(!newReps.length || !prevReps.length) return;
     const sameWeight = Math.max(...newWeights) === Math.max(...prevWeights);
     const sameReps = Math.max(...newReps) === Math.max(...prevReps);
     if(sameWeight && sameReps) matchedNames.push(ex.name);
@@ -49515,9 +49697,24 @@ function deleteJustLoggedWorkout(){
 
 function deleteLog(id){
   if(!confirm("Delete this workout from your history? This can't be undone.")) return;
+  const before = workoutLog.slice();
   workoutLog = workoutLog.filter(l => l.id !== id);
-  persistLog();
-  renderAll();
+  /* D88 — now that persistLog() reports the truth, honour it. Discarding it made
+     a refused delete look finished: the row vanished, and the workout was back
+     on the next launch. deleteCardioSession and deleteActivity have always put
+     memory back and said so; history does too now. */
+  persistLog().then(ok => {
+    if(!ok){
+      workoutLog = before;
+      invalidateSortedLogCache();
+      invalidateXPTimelineCache();
+      invalidateConsistencyCache();
+      renderAll();
+      alert("That didn't delete. Nothing was changed — try again.");
+      return;
+    }
+    renderAll();
+  });
 }
 
 /* ---------- ADD / EDIT TEMPLATE SHEET ---------- */

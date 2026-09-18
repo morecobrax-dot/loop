@@ -20604,9 +20604,14 @@ async function testWorkoutProvenance(){
   sub('drafts remember where they came from');
   T('a draft carries its origin', /origin: pendingWorkoutOrigin/.test(src));
   T('and the program it came from', /originProgramId: pendingWorkoutProgramId/.test(src));
+  /* D88 — this sliced a fixed 700 characters from the function's start, which
+     left the two assignments 3 characters inside the window. Adding any comment
+     above them failed the test without the restore changing at all. Sliced to
+     the function's real end now, so it measures the code and not the prose. */
   T('resuming restores both', (() => {
     const i = src.indexOf('function restoreDraftToSheet');
-    const body = src.slice(i, i + 700);
+    const end = src.indexOf('async function resumeActiveWorkout', i);
+    const body = src.slice(i, end > i ? end : i + 5000);
     return body.indexOf('pendingWorkoutOrigin = draft.origin') !== -1
       && body.indexOf('pendingWorkoutProgramId = draft.originProgramId') !== -1;
   })());
@@ -31690,6 +31695,355 @@ async function testMasteryPodium(){
       JSON.stringify(ctx.workoutLog) === JSON.stringify([session(D(0), 'Bench Press', 185, 8)]));
   });
 }
+/* =========================================================
+   CONTRACT 189 — STABILIZATION PASS  (Phase D88)
+   ---------------------------------------------------------
+   A product-wide audit, not a feature. Everything held here is
+   a defect that was PROVEN to exist in LOOP 8.9 and fixed, with
+   the assertion written so the specific mistake cannot come back.
+
+   The through-line is one rule stated three ways:
+
+     1. NEVER TELL THE ATHLETE SOMETHING LANDED WHEN IT DID NOT.
+        LOOPStore.set reports refusal by RETURNING false; it never
+        throws. persistLog ignored that and returned true anyway,
+        so a full store took the workout, saveLog's ok branch
+        cleared the draft (four bytes — that write fits), and the
+        session existed in neither place. Both rollbacks written
+        against that result had been unreachable code since the
+        day they were written.
+
+     2. DATA THAT IS THE WRONG SHAPE IS DATA LOOP CANNOT READ,
+        SO IT IS ABSENT — not assigned onto a global and left to
+        throw later. try/catch around JSON.parse only ever caught
+        a value that fails to PARSE. A value that parses to the
+        wrong TYPE went straight through, and 'null' is the
+        realistic one: LOOPStore.remove writes that literal string
+        when a delete is refused, and it is truthy.
+
+     3. ONE UNREADABLE CORNER IS WORTH ONE UNREADABLE CORNER.
+        renderAll ran eight renderers as an unbroken sequence, so
+        the first to throw took every later one with it — and
+        since boot() reaches it through showMainApp(), it took the
+        rest of boot too. The app still drew its header and tabs,
+        so it looked recoverable; Progress, History and Log were
+        empty on every launch with no route back.
+
+   Also held: apostrophe safety in inline handlers (escapeAttr
+   escapes " but not ', and an HTML entity is decoded before the
+   JS is compiled, so only JS-level escaping works — which is
+   what onclickArg already did at two sites out of the ones that
+   needed it); a restore may only write keys LOOP itself exports;
+   and two arithmetic defects that printed a wrong number.
+   ========================================================= */
+async function testStabilization(){
+  section('CONTRACT 189 — stabilization pass (D88)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const sw = fs.readFileSync(require('path').join(require('path').dirname(H.APP_PATH), 'sw.js'), 'utf8');
+  const body = (start, end) => { const i = src.indexOf(start); const j = src.indexOf(end, i);
+    return i === -1 ? '' : src.slice(i, j > i ? j : i + 4000); };
+
+  sub('a refused write is never reported as a save');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    T('persistLog returns the store\'s own answer rather than a bare true',
+      /return \(await LOOPStore\.set\('workoutLog'[\s\S]{0,60}\) === true;/.test(src));
+    // Behavioural: the only honest test is to actually refuse the write.
+    ctx.workoutLog = [{ id: 'x', date: '2026-01-01', category: 'push', exercises: [] }];
+    const okBefore = await ctx.persistLog();
+    T('with a working store it still reports success', okBefore === true);
+    const realSet = ctx.window.storage.set;
+    ctx.window.storage.set = async () => { throw new Error('QuotaExceededError'); };
+    const okAfter = await ctx.persistLog();
+    T('with a store that refuses the write it reports FAILURE, not success',
+      okAfter === false);
+    ctx.window.storage.set = realSet;
+    T('and it reports success again once the store recovers',
+      (await ctx.persistLog()) === true);
+  }
+
+  sub('a refused delete puts the workout back and says so');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    ctx.workoutLog = [{ id: 'keep', date: '2026-01-01', category: 'push', exercises: [] },
+                      { id: 'drop', date: '2026-01-02', category: 'pull', exercises: [] }];
+    let said = '';
+    ctx.alert = m => { said = String(m); };
+    ctx.confirm = () => true;
+    ctx.window.storage.set = async () => { throw new Error('full'); };
+    await ctx.deleteLog('drop');
+    await H.settle();
+    T('the workout is still in history after a refused delete',
+      ctx.workoutLog.length === 2 && ctx.workoutLog.some(l => l.id === 'drop'));
+    T('and the athlete is told it did not delete', /didn't delete/i.test(said));
+    T('deleteLog reads the persist result instead of discarding it',
+      /persistLog\(\)\.then\(ok =>/.test(body('function deleteLog(', 'function openAddTemplate')));
+  }
+
+  sub('wrong-shape stored data is treated as absent, never assigned');
+  {
+    // 'null' is what LOOPStore.remove writes when a delete is refused. Every
+    // one of these parses cleanly and is the wrong type.
+    for(const bad of ['null', '"a string"', '{}', '42']){
+      const app = await H.loadAppBooted({ workoutLog: bad, dataSchemaVersion: '1' });
+      T('workoutLog stored as ' + bad + ' leaves an array, not that value',
+        Array.isArray(app.ctx.workoutLog));
+      T('workoutLog stored as ' + bad + ' does not throw during boot',
+        !app.ctx.__errors.some(e => /is not a function|Cannot read prop/.test(e)));
+    }
+    for(const bad of ['null', '"x"', '{}']){
+      const app = await H.loadAppBooted({ dismissedMissed: bad, dataSchemaVersion: '1' });
+      T('dismissedMissed stored as ' + bad + ' leaves an array',
+        Array.isArray(app.ctx.dismissedMissedDates));
+    }
+    T('boot checks the TYPE and not only that the parse succeeded',
+      /const parsed = JSON\.parse\(l\.value\);[\s\S]{0,80}Array\.isArray\(parsed\)/.test(src));
+  }
+
+  sub('a plan and a schedule must be maps, not whatever parsed');
+  {
+    const app = await H.loadAppBooted({ 'planData:balanced': '[]', 'schedule:balanced': '[]', dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    T('an array stored as planData is rejected and the plan defaults restored',
+      ctx.planData && !Array.isArray(ctx.planData) && typeof ctx.planData === 'object');
+    T('and the plan actually has its categories back',
+      Array.isArray(ctx.getTemplates('push')));
+    T('an array stored as a schedule is rejected too',
+      ctx.schedule && !Array.isArray(ctx.schedule) && typeof ctx.schedule === 'object');
+    T('so a weekday resolves to a real category rather than undefined',
+      typeof ctx.schedule.mon === 'string' && ctx.schedule.mon.length > 0);
+  }
+
+  sub('one renderer that throws costs exactly one surface');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    const ran = [];
+    const names = ['renderToday', 'renderCardioView', 'renderTrainView', 'renderLogPage', 'renderProgress'];
+    names.forEach(n => { ctx[n] = () => { ran.push(n); }; });
+    ctx.renderToday = () => { ran.push('renderToday'); throw new TypeError('one bad row'); };
+    ctx.renderAll();
+    T('the throwing surface is attempted', ran.indexOf('renderToday') !== -1);
+    T('and every surface after it still renders',
+      ['renderCardioView', 'renderTrainView', 'renderLogPage', 'renderProgress']
+        .every(n => ran.indexOf(n) !== -1));
+    T('the failure is still reported rather than silently swallowed',
+      ctx.__errors.some(e => /render error in renderToday/.test(e)));
+    T('renderAll routes every surface through the isolating wrapper',
+      !/\n  renderToday\(\);/.test(body('function renderAll()', '\n}')));
+    /* renderResumeBanner is async and every caller invokes it bare, so it sits
+       OUTSIDE renderSurface: its rejection is raised after renderToday has
+       already returned. Under Node that ends the process; on a phone it meant
+       Today never repainted the hero, so a half-logged workout still safely on
+       disk lost its Resume button and read as lost. */
+    T('the async resume banner contains its own throw rather than rejecting',
+      /catch\(e\)\{[\s\S]{0,700}activeDraftInfo = null;\s*\}\s*renderTodayWorkout\(\);/
+        .test(fnSrc(src, 'renderResumeBanner')));
+    T('and the hero is repainted AFTER that catch, so it runs either way',
+      (() => { const f = fnSrc(src, 'renderResumeBanner');
+        const caught = f.indexOf("console.error('LOOP render error in renderResumeBanner:");
+        const paint = f.indexOf('renderTodayWorkout();');
+        return caught !== -1 && paint > caught; })());
+    T('a draft row with no sets no longer takes the banner down',
+      (() => { try{ ctx.draftSummaryLine({ exercises: [{ name: 'A' }, { name: 'B', sets: 'x' }] }); return true; }
+               catch(e){ return false; } })());
+  }
+
+  sub("an apostrophe in a name cannot break out of an inline handler");
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    // escapeAttr is not, and cannot be, sufficient here: the HTML parser decodes
+    // an entity BEFORE the JS is compiled, so &#39; arrives as a real quote.
+    T("escapeAttr leaves an apostrophe intact, so it is wrong for a JS string",
+      ctx.escapeAttr("O'Brien").indexOf("'") !== -1);
+    T('onclickArg escapes it for the JS string', ctx.onclickArg("O'Brien").indexOf("\\'") !== -1);
+    T('and escapes a backslash before the quote, so the escape cannot be escaped',
+      ctx.onclickArg("a\\'b").indexOf("\\\\") !== -1);
+    const payload = "x');globalThis.PWNED=1;//";
+    const attr = "openExDetail('" + ctx.onclickArg(payload) + "')";
+    /* The real question is whether a JS parser ends the argument early. Every
+       apostrophe the payload contributes must be backslash-escaped, so the only
+       UNescaped quotes left are the two the template itself wrote. */
+    const unescaped = (attr.match(/(^|[^\\])'/g) || []).length;
+    T('a breakout payload leaves exactly the two quotes the template opened and closed',
+      unescaped === 2);
+    T('the payload\'s own quote is escaped rather than closing the string',
+      attr.indexOf("x\\');globalThis") !== -1);
+    // Every handler that carries a name an athlete typed — or that arrived on a
+    // shared workout from another athlete — goes through onclickArg.
+    [['openExDetail', 4], ['deleteCustomEquipment', 1], ['toggleGymEquipment', 1],
+     ['beginEditExerciseNote', 1], ['removeExerciseNote', 1]].forEach(([fn, n]) => {
+      const re = new RegExp("onclick=\"" + fn + "\\('\\$\\{onclickArg\\(", 'g');
+      T(fn + ' is addressed with onclickArg at all ' + n + ' of its handler sites',
+        (src.match(re) || []).length === n);
+    });
+    T('no handler still passes a name through escapeAttr alone',
+      !/onclick="openExDetail\('\$\{escapeAttr\(/.test(src));
+    /* Program, block, template and cardio-record ids LOOK internal — the app
+       generates them — but importAllData merges programs and cardio by id
+       straight out of a backup file, and the gap-fill loop restores planData on
+       an empty key. onclickArg's own comment states the rule: a restored backup
+       can carry any id at all. Enum constants (a category, a set type, a weekday)
+       are not stored data and are deliberately left alone. */
+    ['doMovePhase', 'openPhaseEditor', 'openPastProgram', 'openProgramDetail',
+     'openCardioDetail', 'editCardioSession', 'deleteCardioSession']
+      .forEach(fn => {
+        const bad = new RegExp(fn + "\\('\\$\\{escapeAttr\\(", 'g');
+        T(fn + ' does not address a stored id with escapeAttr alone',
+          (src.match(bad) || []).length === 0);
+      });
+    /* startTemplateLog takes a category AND a template id. The category is an
+       ORDER enum and stays on escapeAttr; only the id can arrive from a plan a
+       backup restored, so only the id needs the stronger escape. */
+    T('startTemplateLog escapes its template id for the JS string',
+      /startTemplateLog\('\$\{escapeAttr\(cat\)\}','\$\{onclickArg\(tpl\.id\)\}'\)/.test(src));
+    T('every id that can arrive from a backup goes through onclickArg',
+      (src.match(/onclickArg\(/g) || []).length >= 19);
+  }
+
+  sub('a restore may only write keys LOOP itself exports');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    T('every DATA_KEY is restorable', ctx.DATA_KEYS.every(k => ctx.isRestorableDataKey(k)));
+    T('a per-plan key is restorable', ctx.isRestorableDataKey('planData:balanced')
+      && ctx.isRestorableDataKey('schedule:ppl') && ctx.isRestorableDataKey('planStart:x'));
+    T('a bare prefix with no plan id is not', !ctx.isRestorableDataKey('planData:'));
+    /* The one that matters: the session key lives outside DATA_KEYS precisely so
+       credentials never ride inside a backup. The export side already honoured
+       that; the import side did not, so a hand-edited file could plant a
+       stranger's access and refresh tokens on a signed-out phone. */
+    T('the Friends session key is NOT restorable from a backup file',
+      !ctx.isRestorableDataKey(ctx.SOCIAL_STORE_KEY));
+    T('nor is the pending-invite capability', !ctx.isRestorableDataKey(ctx.SOCIAL_INVITE_KEY));
+    T('nor is a key the file simply invented', !ctx.isRestorableDataKey('anything-else')
+      && !ctx.isRestorableDataKey('../evil') && !ctx.isRestorableDataKey(''));
+    T('a schema-version key is not restorable either', !ctx.isRestorableDataKey(ctx.SCHEMA_KEY));
+    T('the import gap-fill actually consults the allowlist',
+      /if\(!isRestorableDataKey\(k\)\) continue;/.test(src));
+    T('export and restore share one dynamic-prefix list, so they cannot drift',
+      Array.isArray(ctx.DYNAMIC_KEY_PREFIXES) && ctx.DYNAMIC_KEY_PREFIXES.length === 3
+      && /DYNAMIC_KEY_PREFIXES\.some\(p => k\.startsWith\(p\)\)/.test(src));
+  }
+
+  sub('the import safety net is real, or the import does not run');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    T('backupAllData reports whether the snapshot was stored',
+      (await ctx.backupAllData('t')) === true);
+    ctx.window.storage.set = async () => { throw new Error('full'); };
+    T('and reports false when it could not be', (await ctx.backupAllData('t2')) === false);
+    T('the importer refuses to start without a net',
+      /if\(!\(await backupAllData\('preimport'\)\)\)\{/.test(src));
+    T('a successful import prunes the safety copy instead of leaving it for good',
+      /LOOPStore\.remove\(BACKUP_PREFIX \+ 'preimport'\)/.test(src));
+    T('a failed restore is reported honestly rather than as "nothing was lost"',
+      /const restored = await restoreBackup\('preimport'\);/.test(src)
+      && /restored\s*\?/.test(src));
+    T('"permanently deletes" also removes the verbatim backup copies',
+      /k\.startsWith\(BACKUP_PREFIX\) && keys\.indexOf\(k\) === -1/.test(src));
+  }
+
+  sub('two numbers that were simply wrong');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    /* The logger stores a set when EITHER field is filled, so a set with reps
+       and a cleared weight is real data, not a corruption. */
+    T('a top set is never seeded from an unparseable weight',
+      /const weighed = valid\.filter\(x => !isNaN\(x\.w\)\);/.test(src));
+    T('and a session with no weighed set at all returns nothing to show',
+      /if\(!weighed\.length\) return null;/.test(src));
+    T('"same reps" is not claimed from two sessions that logged no reps',
+      /if\(!newReps\.length \|\| !prevReps\.length\) return;/.test(src));
+    // Math.max of nothing is -Infinity, and -Infinity === -Infinity.
+    T('which is the comparison that used to make that claim true',
+      Math.max(...[]) === Math.max(...[]));
+  }
+
+  sub('the training-volume chart reads the field programs actually have');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    /* Anchored on the broken EXPRESSION, not on the field name: the fix's own
+       comment names the field it removed, and an assertion that merely forbade
+       the name would fail on the prose explaining it. */
+    T('programs store their phases as blocks',
+      /blocks:\[\]/.test(src) && /Array\.isArray\(program\.blocks\)/.test(src));
+    T('and the chart no longer looks for a field no program carries',
+      !/\(program\.phases \|\| \[\]\)/.test(src));
+    T('it asks the one accessor that owns which block governs a week',
+      /phase = getBlockForWeek\(program, i \+ 1\);/.test(src));
+    const prog = { id: 'p1', name: 'T', durationWeeks: 6, startDate: '2026-03-02',
+      status: 'active', schedule: {}, blocks: [
+        { id: 'b1', name: 'Base', order: 1, phaseType: 'accumulation', startWeek: 1, endWeek: 4 },
+        { id: 'b2', name: 'Down', order: 2, phaseType: 'deload', startWeek: 5, endWeek: 5 },
+        { id: 'b3', name: 'Up', order: 3, phaseType: 'peak', startWeek: 6, endWeek: 6 } ] };
+    const weeks = ctx.cycleWeeks(prog);
+    T('every week of the cycle is labelled', weeks.length === 6);
+    T('the accumulation weeks carry their phase',
+      weeks.slice(0, 4).every(w => w.phaseType === 'accumulation'));
+    T('the deload week is recognised as a deload — it never was before',
+      weeks[4].phaseType === 'deload');
+    T('and the peak week as a peak', weeks[5].phaseType === 'peak');
+    T('so the intent multipliers the chart draws with are reachable at all',
+      ctx.PHASE_INTENT && ctx.PHASE_INTENT.deload !== undefined
+      && ctx.PHASE_INTENT.deload !== 1);
+  }
+
+  sub('a half-finished workout keeps its way back');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    T('a draft row that lost its sets array does not throw the summary line',
+      (() => { try{ ctx.draftSummaryLine({ exercises: [{ name: 'Bench Press' }] }); return true; }
+               catch(e){ return false; } })());
+    T('and the line still counts the rows that are intact',
+      /0\/0 sets completed/.test(ctx.draftSummaryLine({ exercises: [{ name: 'X' }] })));
+    /* draftRestoring gates every later draft write: persistDraftNow and
+       scheduleDraftSave both begin `if(draftRestoring) return;`. Left stuck at
+       true, the NEXT workout the athlete started would not have been durable. */
+    T('the restore clears its own flag in a finally, not on the happy path only',
+      /\}finally\{ draftRestoring = false; \}/.test(src));
+    T('and the flag is what gates draft writes, so leaving it set was durable loss',
+      /if\(draftRestoring\) return;/.test(src));
+  }
+
+  sub('the service worker cannot delete a working offline copy');
+  {
+    T('a failed install is allowed to fail instead of skipping waiting anyway',
+      !/\.catch\(\(\) => self\.skipWaiting\(\)\)/.test(sw));
+    T('activate still prunes every cache that is not the current one',
+      /keys\.filter\(k => k !== CACHE_VERSION\)\.map\(k => caches\.delete\(k\)\)/.test(sw));
+    T('the app-shell fallback answers navigations only',
+      /req\.mode === 'navigate'/.test(sw));
+    T('so an uncached image gets a network error, not the HTML document',
+      /return Response\.error\(\);/.test(sw));
+    T('non-GET and cross-origin requests are still left alone',
+      /req\.method !== 'GET'/.test(sw) && /!== location\.origin/.test(sw));
+  }
+
+  sub('nothing protected moved');
+  {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+    const ctx = app.ctx;
+    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('the local schema is still 1', ctx.DATA_SCHEMA_VERSION === 1);
+    T('the trainer is still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('Session Score weights are unchanged',
+      /completion: *\.?0?\.40[\s\S]{0,120}reps: *\.?0?\.30[\s\S]{0,120}effort: *\.?0?\.18[\s\S]{0,120}load: *\.?0?\.12/.test(src)
+      || /0\.40[\s\S]{0,140}0\.30[\s\S]{0,140}0\.18[\s\S]{0,140}0\.12/.test(body('EXEC_CONFIG', 'function deriveSessionExecution')));
+    T('no new storage key was added by this pass',
+      !/LOOPStore\.set\('(?!workoutLog|dismissedMissed|lastSeenUpdateId|selectedPlan|activeWorkoutDraft|athleteProfile|exercisePrefs|dailyReadiness|trainerLog|cardioLog|cardioDraft|gymProfile|exerciseNotes|programs|onboarding)[a-zA-Z]+'/.test(src));
+  }
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -31839,6 +32193,7 @@ async function main(){
   await testPersonalBestTimeline();
   await testPhasePrescription();
   await testMasteryPodium();
+  await testStabilization();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
