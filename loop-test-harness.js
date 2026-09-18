@@ -251,7 +251,10 @@ function loadApp(initialStore){
        medal asset each place uses */
     'MASTERY_UI_CONFIG','MASTERY_PODIUM_MEDAL',
     /* D87 — which real emblem asset each rank uses */
-    'RANK_EMBLEM_FILE'];
+    'RANK_EMBLEM_FILE',
+    /* D92 — the update notice's config, this page's build and the update state */
+    'APP_UPDATE_CONFIG','LOOP_BUILD','appRegistration','appUpdateRequested','appUpdateReloading','appUpdateLastCheck',
+    'appUpdateReady','appUpdateDismissed','appUpdateAnnounced','appUpdateGiveUp'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

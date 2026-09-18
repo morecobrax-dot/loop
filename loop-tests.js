@@ -33178,6 +33178,536 @@ async function testPRModeConsistency(){
   });
 }
 
+/* =========================================================
+   CONTRACT 193 — FAST WHEN THE NETWORK IS BAD, TRUTHFUL WHEN A
+   NEW VERSION IS READY  (Phase D92)
+   ---------------------------------------------------------
+   Closes D88 E3 and E4.
+
+   E3: sw.js answered the app shell with a bare fetch(). A dead
+   network rejects at once and was fine; lie-fi — connected but
+   useless — never rejects, so a valid offline copy sat unused
+   while LOOP hung for as long as the browser cared to wait
+   (> 20 s measured on the real worker path). Now the shell is
+   network-first with a 2.5 s deadline that covers the whole
+   body, the cached copy opens at the deadline, and the late
+   network copy refreshes the offline copy. Everything else
+   same-origin is served from the version's own cache first.
+   Found on the way: any response was cached, so one 503 from
+   Pages became the offline copy and LOOP opened offline as
+   "failure 503". Only a complete 2xx is kept now.
+
+   E4: a new worker called skipWaiting() on install, seized the
+   page running the old code, deleted its cache under it, and
+   nothing told the athlete. Now it waits; the page learns of it
+   from the lifecycle and offers "LOOP update ready"; the swap
+   happens only on the athlete's tap, and the page reloads
+   exactly once, on controllerchange.
+
+   The worker is run here for real, in its own context, on a
+   VIRTUAL clock: the actual 2.5 s deadline is exercised without
+   waiting 2.5 s. The page side is driven with fake workers.
+   Real-browser proof (real Edge, a real worker, a server that
+   is itself slow, stalled or refused) is in the D92 report.
+   ========================================================= */
+async function testNetworkAndUpdates(){
+  section('CONTRACT 193 — fast when the network is bad, truthful when a new version is ready (D92)');
+  const fs = require('fs');
+  const path = require('path');
+  const vm = require('vm');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const swSrc = fs.readFileSync(path.join(path.dirname(H.APP_PATH), 'sw.js'), 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+
+  /* ---------------- the worker, on a virtual clock ---------------- */
+  function worker(){
+    const clock = { now: 0, seq: 0, timers: new Map() };
+    const vSet = (fn, ms) => { const id = ++clock.seq; clock.timers.set(id, { at: clock.now + Math.max(0, +ms || 0), fn }); return id; };
+    const vClear = id => { clock.timers.delete(id); };
+    const flush = async () => { for(let i = 0; i < 30; i++) await new Promise(r => setImmediate(r)); };
+    const advance = async ms => {
+      const end = clock.now + ms;
+      for(;;){
+        await flush();
+        let next = null;
+        for(const [id, t] of clock.timers) if(t.at <= end && (!next || t.at < next[1].at || (t.at === next[1].at && id < next[0]))) next = [id, t];
+        if(!next) break;
+        clock.timers.delete(next[0]); clock.now = next[1].at; next[1].fn();
+      }
+      clock.now = end; await flush();
+    };
+    const SCOPE = 'https://loop.test/loop/', SW_URL = SCOPE + 'sw.js';
+    const abs = u => new URL(typeof u === 'string' ? u : u.url, SW_URL).href;
+    const store = new Map();
+    const cacheOf = name => {
+      const m = store.get(name);
+      return {
+        async match(req){ const e = m.get(abs(req)); return e ? new Response(e.body, { status: e.status, headers: e.headers }) : undefined; },
+        async put(req, res){ const body = await res.arrayBuffer(); m.set(abs(req), { status: res.status, headers: [...res.headers], body }); },
+        async addAll(reqs){
+          const got = [];
+          for(const r of reqs){ const res = await ctx.fetch(r); if(!res.ok) throw new TypeError('addAll: ' + res.status); got.push([r, res]); }
+          for(const [r, res] of got) await this.put(r, res);
+        },
+        async keys(){ return [...m.keys()]; }
+      };
+    };
+    const caches = {
+      async open(n){ if(!store.has(n)) store.set(n, new Map()); return cacheOf(n); },
+      async keys(){ return [...store.keys()]; },
+      async delete(n){ return store.delete(n); },
+      async match(req){ for(const n of store.keys()){ const r = await cacheOf(n).match(req); if(r) return r; } return undefined; }
+    };
+    /* the network, per path: what a server — or lie-fi — does with a request */
+    const routes = new Map();
+    const fetches = [];
+    const net = {
+      ok: (body, ms) => () => new Promise(res => vSet(() => res(new Response(body, { status: 200, headers: { 'content-type': 'text/html' } })), ms || 0)),
+      status: (code, ms) => () => new Promise(res => vSet(() => res(new Response('failure ' + code, { status: code })), ms || 0)),
+      stall: () => () => new Promise(() => {}),
+      refuse: ms => () => new Promise((res, rej) => vSet(() => rej(new TypeError('Failed to fetch')), ms || 0)),
+      /* headers at once, the body only after ms: a trickling connection */
+      trickle: (body, ms) => () => Promise.resolve(new Response(new ReadableStream({
+        start(c){ c.enqueue(new TextEncoder().encode(body.slice(0, 5))); vSet(() => { c.enqueue(new TextEncoder().encode(body.slice(5))); c.close(); }, ms); }
+      }), { status: 200 }))
+    };
+    const listeners = {};
+    let skips = 0, claims = 0;
+    class WRequest extends Request { constructor(input, init){ super(typeof input === 'string' ? new URL(input, SW_URL).href : input, init); } }
+    const ctx = {
+      addEventListener(t, f){ (listeners[t] = listeners[t] || []).push(f); },
+      skipWaiting(){ skips++; return Promise.resolve(); },
+      clients: { claim(){ claims++; return Promise.resolve(); } },
+      registration: { scope: SCOPE },
+      location: new URL(SW_URL),
+      caches,
+      fetch(req){ const url = abs(req); fetches.push({ url, cache: req.cache }); const h = routes.get(new URL(url).pathname); return h ? h(req) : Promise.reject(new TypeError('offline')); },
+      Request: WRequest, Response, Headers, URL, Promise, ReadableStream, TextEncoder,
+      setTimeout: vSet, clearTimeout: vClear, console
+    };
+    ctx.self = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(swSrc, ctx, { filename: 'sw.js' });
+    const run = (type, ev) => (listeners[type] || []).forEach(f => f(ev));
+    const api = {
+      clock, advance, routes, net, fetches, store, caches, ctx, abs,
+      get skips(){ return skips; }, get claims(){ return claims; },
+      /* The network here runs on the virtual clock, so a lifecycle event is
+         driven forward in time rather than awaited on its own. */
+      async install(){ const w = []; run('install', { waitUntil: p => w.push(p) }); const all = Promise.all(w); all.catch(() => {}); await advance(100); return all; },
+      async activate(){ const w = []; run('activate', { waitUntil: p => w.push(p) }); const all = Promise.all(w); all.catch(() => {}); await advance(100); return all; },
+      message(data, port){ run('message', { data, ports: port ? [port] : [] }); },
+      async seed(name, url, body){ const c = await caches.open(name); await c.put(url, new Response(body, { status: 200 })); },
+      async cached(name, url){ const c = store.get(name); const e = c && c.get(abs(url)); return e ? new TextDecoder().decode(e.body) : null; },
+      /* one fetch event; the answer is recorded with the virtual time it came */
+      request(url, mode, method){
+        const req = { url: abs(url), method: method || 'GET', mode: mode || 'no-cors', cache: 'default', headers: new Headers() };
+        const out = { responded: false, at: null, res: null, waits: [] };
+        const start = clock.now;              // `at` is the time the answer took, from this request
+        run('fetch', { request: req, respondWith(p){ out.responded = true; Promise.resolve(p).then(r => { out.at = clock.now - start; out.res = r; }); }, waitUntil(p){ out.waits.push(p); } });
+        return out;
+      },
+      async text(out){ return out.res && out.res.type !== 'error' ? out.res.clone().text() : (out.res ? 'network error' : null); }
+    };
+    return api;
+  }
+  const VERSION = (swSrc.match(/CACHE_VERSION = '([^']+)'/) || [])[1];
+  const SHELL = '/loop/', INDEX = '/loop/index.html', MANIFEST = '/loop/manifest.webmanifest';
+  async function installedWorker(){
+    const w = worker();
+    w.routes.set(SHELL, w.net.ok('<shell v1>')); w.routes.set(INDEX, w.net.ok('<shell v1>')); w.routes.set(MANIFEST, w.net.ok('{}'));
+    await w.install(); await w.activate();
+    w.fetches.length = 0;
+    return w;
+  }
+
+  /* A timeout is not a failure: every promise the worker makes on a stall, a
+     refusal, a 5xx, a failed install or a first visit is handled. */
+  const swRejections = [];
+  const onSwRejection = e => swRejections.push(e);
+  process.on('unhandledRejection', onSwRejection);
+
+  sub('a new version installs, and waits');
+  await guard('install', async () => {
+    const w = worker();
+    w.routes.set(SHELL, w.net.ok('<shell>')); w.routes.set(INDEX, w.net.ok('<shell>')); w.routes.set(MANIFEST, w.net.ok('{}'));
+    await w.install();
+    T('the install fills this version\'s cache with the app shell', (await w.cached(VERSION, './index.html')) === '<shell>' && (await w.cached(VERSION, './manifest.webmanifest')) === '{}');
+    T('fetched past the HTTP cache, so a version never keeps the previous one\'s index.html',
+      w.fetches.length === 3 && w.fetches.every(f => f.cache === 'reload'), JSON.stringify(w.fetches.map(f => f.cache)));
+    T('and it does NOT take over by itself — no skipWaiting on install', w.skips === 0);
+    T('no install path can call skipWaiting', !/skipWaiting/.test((swSrc.match(/addEventListener\('install'[\s\S]*?\n\}\);/) || [''])[0]));
+  });
+  await guard('failed install', async () => {
+    const w = worker();
+    await w.seed('loop-v1', './index.html', '<the working copy>');
+    w.routes.set(SHELL, w.net.ok('<new>')); w.routes.set(INDEX, w.net.ok('<new>')); w.routes.set(MANIFEST, w.net.status(500));
+    let failed = false; try{ await w.install(); }catch(e){ failed = true; }
+    T('an install that cannot fill its cache FAILS (D88)', failed);
+    T('it never skips waiting, and the working copy is untouched', w.skips === 0 && (await w.cached('loop-v1', './index.html')) === '<the working copy>');
+    T('and nothing of the failed version is kept', (await w.cached(VERSION, './index.html')) === null);
+  });
+  await guard('activate', async () => {
+    const w = worker();
+    await w.seed('loop-v1', './index.html', 'old'); await w.seed(VERSION, './index.html', 'new');
+    await w.activate();
+    T('activating prunes every other version and takes the open pages', (await w.caches.keys()).join() === VERSION && w.claims === 1);
+  });
+  await guard('messages', async () => {
+    const w = worker();
+    let reply = null;
+    w.message({ type: 'LOOP_VERSION' }, { postMessage: v => { reply = v; } });
+    T('asked which LOOP it is, a worker says: its cache version', reply && reply.version === VERSION, JSON.stringify(reply));
+    T('asking never activates it', w.skips === 0);
+    w.message({ type: 'LOOP_ACTIVATE' });
+    T('LOOP_ACTIVATE — and only that — makes a waiting worker take over', w.skips === 1);
+    w.message({ type: 'SOMETHING_ELSE' }); w.message(null);
+    T('anything else is ignored', w.skips === 1);
+  });
+
+  sub('the app shell: network first, never past the deadline');
+  await guard('deadline', async () => {
+    T('the deadline is 2.5 s, measured — and nothing the worker waits for outlives it', /const SHELL_DEADLINE_MS = 2500;/.test(swSrc) && !/SHELL_REFRESH_MS/.test(swSrc)
+      && /event\.waitUntil\(within\(keep, SHELL_DEADLINE_MS, null\)\);/.test(swSrc));
+    let w = await installedWorker();
+    w.routes.set(SHELL, w.net.ok('<fresh>', 100));
+    let r = w.request(SHELL, 'navigate'); await w.advance(3000);
+    T('A  a fast network: the fresh copy', (await w.text(r)) === '<fresh>' && r.at === 100, r.at + ' ms');
+    T('   and it becomes the offline copy', (await w.cached(VERSION, './index.html')) === '<fresh>');
+    w = await installedWorker();
+    w.routes.set(SHELL, w.net.ok('<fresh>', 1500));
+    r = w.request(SHELL, 'navigate'); await w.advance(3000);
+    T('B  slower but inside the deadline: still the network copy', (await w.text(r)) === '<fresh>' && r.at === 1500, r.at + ' ms');
+    w = await installedWorker();
+    w.routes.set(SHELL, w.net.ok('<late>', 4000));
+    r = w.request(SHELL, 'navigate'); await w.advance(3000);
+    T('C  slower than the deadline: the cached copy, AT the deadline', (await w.text(r)) === '<shell v1>' && r.at === 2500, r.at + ' ms');
+    await w.advance(2000);
+    T('I  and the late copy, once whole, still refreshes the offline copy while the worker runs', (await w.cached(VERSION, './index.html')) === '<late>');
+    w = await installedWorker();
+    w.routes.set(SHELL, w.net.stall());
+    r = w.request(SHELL, 'navigate'); await w.advance(2499);
+    T('D  a network that never answers: nothing is held back past the deadline…', r.at === null);
+    let settled = false; Promise.all(r.waits).then(() => { settled = true; });
+    await w.advance(1);
+    T('   …and at 2.5 s the cached copy opens', (await w.text(r)) === '<shell v1>' && r.at === 2500);
+    await w.advance(0);
+    T('   and the worker is let go at the same moment: a copy still in flight never keeps it busy, and so never holds back an update', settled);
+    w = await installedWorker();
+    w.routes.set(SHELL, w.net.refuse(15));
+    r = w.request(SHELL, 'navigate'); await w.advance(3000);
+    T('E  refused: the cached copy at once, not at the deadline', (await w.text(r)) === '<shell v1>' && r.at === 15, r.at + ' ms');
+    w = await installedWorker();
+    w.routes.set(SHELL, w.net.trickle('<trickled shell>', 10000));
+    r = w.request(SHELL, 'navigate'); await w.advance(3000);
+    /* the time first: under a headers-only deadline the answer is the network's,
+       whose body the paused clock never finishes — reading it would hang */
+    T('   headers in time but the body trickling: still the cached copy at the deadline', r.at === 2500 && (await w.text(r)) === '<shell v1>', r.at + ' ms');
+    w = await installedWorker();
+    w.routes.set(INDEX, w.net.stall());
+    r = w.request(INDEX + '?invite=abc', 'navigate'); await w.advance(3000);
+    T('   the shell with a query (?invite=…) is the shell too', (await w.text(r)) === '<shell v1>' && r.at === 2500);
+  });
+  await guard('cache truth', async () => {
+    const w = await installedWorker();
+    w.routes.set(SHELL, w.net.status(503, 50));
+    const r = w.request(SHELL, 'navigate'); await w.advance(3000);
+    T('a 503 from the server opens the cached app, not the error page', (await w.text(r)) === '<shell v1>' && r.at === 50);
+    T('and the error NEVER becomes the offline copy (it did: LOOP opened offline as "failure 503")', (await w.cached(VERSION, './index.html')) === '<shell v1>');
+  });
+  await guard('first visit', async () => {
+    let w = worker();
+    w.routes.set(SHELL, w.net.stall());
+    let r = w.request(SHELL, 'navigate'); await w.advance(20000);
+    T('F  nothing cached + a stalled network: no fake app — it waits for the network', r.at === null);
+    w = worker();
+    w.routes.set(SHELL, w.net.refuse(10));
+    r = w.request(SHELL, 'navigate'); await w.advance(100);
+    T('F  nothing cached + refused: an honest network error', r.res && r.res.type === 'error');
+    w = worker();
+    w.routes.set(SHELL, w.net.status(503, 10));
+    r = w.request(SHELL, 'navigate'); await w.advance(100);
+    T('F  nothing cached + a server error: the server\'s own answer, not an invented one', (await w.text(r)) === 'failure 503');
+  });
+
+  sub('every other file: this version\'s copy first');
+  await guard('assets', async () => {
+    let w = await installedWorker();
+    await w.seed(VERSION, 'icon-192.png', 'PNG-cached');
+    w.routes.set('/loop/icon-192.png', w.net.stall());
+    let r = w.request('icon-192.png', 'no-cors'); await w.advance(10);
+    T('G  a file this version already keeps: served at once, the network never asked', (await w.text(r)) === 'PNG-cached' && r.at === 0 && w.fetches.length === 0);
+    w.routes.set('/loop/rank-emblem-legend.png', w.net.ok('PNG-new', 200));
+    r = w.request('rank-emblem-legend.png', 'no-cors'); await w.advance(300);
+    await w.advance(10);
+    T('   a file seen for the first time comes from the network and is kept', (await w.text(r)) === 'PNG-new' && (await w.cached(VERSION, 'rank-emblem-legend.png')) === 'PNG-new');
+    w.routes.set('/loop/missing.png', w.net.status(404));
+    r = w.request('missing.png', 'no-cors'); await w.advance(10);
+    T('   an error is passed on but never kept', r.res && r.res.status === 404 && (await w.cached(VERSION, 'missing.png')) === null);
+    w = await installedWorker();
+    r = w.request('mastery-medal-2.png', 'no-cors'); await w.advance(10);
+    T('H  a file never seen, offline: an honest network error — never the HTML shell', r.res && r.res.type === 'error');
+    r = w.request('movement-library.html', 'navigate'); await w.advance(10);
+    T('   a navigation that is NOT the app never gets the app shell either', r.res && r.res.type === 'error');
+    r = w.request('https://api.supabase.co/rest/v1/x', 'cors'); const post = w.request('icon-192.png', 'no-cors', 'POST');
+    T('   cross-origin (Friends) and non-GET requests are left alone', r.responded === false && post.responded === false);
+  });
+  await new Promise(r => setTimeout(r, 30));
+  process.removeListener('unhandledRejection', onSwRejection);
+  T('no promise the worker makes is left rejected and unhandled — not on a stall, a refusal, a 5xx, a failed install or a first visit',
+    swRejections.length === 0, swRejections.map(String).join(' | '));
+
+  /* ---------------- the page ---------------- */
+  sub('the page learns of a new version from the lifecycle');
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const c = app.ctx;
+  const PAGE = c.LOOP_BUILD, N = c.loopBuildNumber(c.LOOP_BUILD);
+  const NEWER = 'loop-v' + (N + 1), OLDER = 'loop-v' + (N - 1);
+  class FakeWorker {
+    constructor(version, state){ this.version = version; this.state = state || 'installing'; this.ls = {}; this.posted = []; this.silent = false; }
+    addEventListener(t, f){ (this.ls[t] = this.ls[t] || []).push(f); }
+    postMessage(msg, ports){ this.posted.push(msg && msg.type); if(msg && msg.type === 'LOOP_VERSION' && ports && ports[0] && !this.silent) ports[0].postMessage({ version: this.version }); }
+    go(state){ this.state = state; (this.ls.statechange || []).forEach(f => f()); }
+  }
+  class FakeReg {
+    constructor(){ this.waiting = null; this.installing = null; this.ls = {}; this.updates = 0; this.offline = false; }
+    addEventListener(t, f){ (this.ls[t] = this.ls[t] || []).push(f); }
+    update(){ this.updates++; return this.offline ? Promise.reject(new TypeError('offline')) : Promise.resolve(); }
+    found(w){ this.installing = w; (this.ls.updatefound || []).forEach(f => f()); }
+  }
+  c.MessageChannel = class { constructor(){ const a = { onmessage: null }; this.port1 = a; this.port2 = { postMessage: d => Promise.resolve().then(() => a.onmessage && a.onmessage({ data: d })) }; } };
+  let reloads = 0, drafts = 0;
+  c.location.reload = () => { reloads++; };
+  const realPersist = c.persistDraftNow;
+  c.persistDraftNow = () => { drafts++; };
+  const el = c.document.getElementById('appUpdate');
+  const shown = () => el.hidden === false;
+  const settle = async () => { for(let i = 0; i < 20; i++) await new Promise(r => setImmediate(r)); };
+  const fresh = controller => {
+    c.appRegistration = null; c.appUpdateRequested = false; c.appUpdateReloading = false; c.appUpdateReady = false;
+    c.appUpdateDismissed = false; c.appUpdateAnnounced = false; c.appUpdateLastCheck = 0;
+    el.hidden = true; c.document.getElementById('appUpdateLive').textContent = '';
+    c.navigator.serviceWorker = { controller: controller || null };
+    reloads = 0; drafts = 0;
+    return new FakeReg();
+  };
+  await guard('page', async () => {
+    T('the page knows its own build, the cache version its release ships', PAGE === VERSION, PAGE + ' vs ' + VERSION);
+    T('builds are compared as numbers', c.appUpdateDecision('loop-v99', 'loop-v100', true) === 'offer' && c.loopBuildNumber('loop-v171') === 171);
+
+    let reg = fresh(null);
+    c.watchAppRegistration(reg);
+    const first = new FakeWorker(PAGE); reg.found(first); first.go('installed'); await settle();
+    T('K  a first install is not an update: no notice, no swap', !shown() && first.posted.indexOf('LOOP_ACTIVATE') === -1 && reloads === 0);
+
+    reg = fresh(new FakeWorker(PAGE, 'activated'));
+    c.watchAppRegistration(reg); await settle();
+    T('L  the same version, nothing waiting: no notice', !shown());
+
+    reg = fresh(new FakeWorker(PAGE, 'activated'));
+    c.watchAppRegistration(reg);
+    const next = new FakeWorker(NEWER); reg.found(next); await settle();
+    T('   a newer worker still installing is not announced yet', !shown());
+    next.go('installed'); await settle();
+    T('M  a newer worker installed and waiting: "LOOP update ready"', shown());
+    T('   announced once to assistive tech', c.document.getElementById('appUpdateLive').textContent === 'LOOP update ready');
+    c.document.getElementById('appUpdateLive').textContent = '';
+    c.renderAppUpdate(); c.renderAppUpdate();
+    T('   and only once: drawn again — as it is whenever a sheet closes — it is not announced again', c.document.getElementById('appUpdateLive').textContent === '');
+    T('N  and nothing happens by itself — no swap, no reload', next.posted.indexOf('LOOP_ACTIVATE') === -1 && reloads === 0);
+
+    reg = fresh(new FakeWorker(PAGE, 'activated'));
+    reg.waiting = new FakeWorker(NEWER, 'installed');
+    c.watchAppRegistration(reg); await settle();
+    T('   a newer worker ALREADY waiting when LOOP opens is found too (registration.waiting)', shown());
+
+    reg = fresh(new FakeWorker(OLDER, 'activated'));
+    const same = new FakeWorker(PAGE, 'installed'); reg.waiting = same;
+    c.watchAppRegistration(reg); await settle();
+    T('   a waiting worker for THIS page\'s own build is adopted quietly — no notice, no reload', !shown() && same.posted.indexOf('LOOP_ACTIVATE') !== -1 && reloads === 0);
+
+    reg = fresh(new FakeWorker(PAGE, 'activated'));
+    const older = new FakeWorker(OLDER, 'installed'); reg.waiting = older;
+    c.watchAppRegistration(reg); await settle();
+    T('   an OLDER waiting worker is neither offered nor adopted', !shown() && older.posted.indexOf('LOOP_ACTIVATE') === -1);
+
+    reg = fresh(new FakeWorker(PAGE, 'activated'));
+    c.watchAppRegistration(reg);
+    const broken = new FakeWorker(NEWER); reg.found(broken); broken.go('redundant'); await settle();
+    T('Q  a new version whose install failed: no notice', !shown());
+  });
+
+  sub('applying it is the athlete\'s tap, and reloads exactly once');
+  await guard('apply', async () => {
+    const reg = fresh(new FakeWorker(PAGE, 'activated'));
+    const next = new FakeWorker(NEWER, 'installed'); reg.waiting = next;
+    c.watchAppRegistration(reg); await settle();
+    c.applyAppUpdate(); await settle();
+    T('O  Update tells the WAITING worker to take over', next.posted.filter(x => x === 'LOOP_ACTIVATE').length === 1);
+    T('   and does not reload before the swap has happened', reloads === 0);
+    T('   the button says it is working, and cannot be pressed twice', c.document.getElementById('appUpdateGo').disabled === true && /Updating/.test(c.document.getElementById('appUpdateGo').textContent));
+    c.applyAppUpdate(); await settle();
+    T('   a second tap sends nothing more', next.posted.filter(x => x === 'LOOP_ACTIVATE').length === 1);
+    c.onAppControllerChange(); await settle();
+    T('   on controllerchange: exactly one reload, with the draft written first', reloads === 1 && drafts === 1);
+    c.onAppControllerChange(); c.onAppControllerChange(); await settle();
+    T('   and never a second one', reloads === 1);
+    T('   one controllerchange listener, added once at start — never per notice',
+      (src.match(/addEventListener\('controllerchange'/g) || []).length === 1 && /function initAppUpdates\(\)[\s\S]*?addEventListener\('controllerchange', onAppControllerChange\)/.test(src));
+  });
+  await guard('give up', async () => {
+    const reg = fresh(new FakeWorker(PAGE, 'activated'));
+    const stuck = new FakeWorker(NEWER, 'installed'); reg.waiting = stuck;
+    c.watchAppRegistration(reg); await settle();
+    const keep = c.APP_UPDATE_CONFIG.activateGiveUpMs;
+    c.APP_UPDATE_CONFIG.activateGiveUpMs = 30;
+    try{
+      c.applyAppUpdate();
+      await new Promise(r => setTimeout(r, 80)); await settle();
+      T('a swap that never happens is offered again — not papered over with a reload', reloads === 0 && c.appUpdateRequested === false && shown());
+    }finally{ c.APP_UPDATE_CONFIG.activateGiveUpMs = keep; }
+    T('and the wait outlasts Chrome\'s 30-second idle hand-over', keep >= 30000);
+  });
+  await guard('other windows', async () => {
+    fresh(new FakeWorker(NEWER, 'activated'));
+    c.onAppControllerChange(); await settle();
+    T('T  another window swapped the worker: this one does NOT reload, it says it is older', reloads === 0 && shown());
+    c.applyAppUpdate(); await settle();
+    T('   and its own Update, with nothing left waiting, is one reload', reloads === 1);
+    fresh(new FakeWorker(PAGE, 'activated'));
+    c.onAppControllerChange(); await settle();
+    T('   a worker for this page\'s own build taking over changes nothing', reloads === 0 && !shown());
+    const silent = new FakeWorker(NEWER, 'installed'); silent.silent = true;
+    const reg = fresh(new FakeWorker(PAGE, 'activated')); reg.waiting = silent;
+    const keep = c.APP_UPDATE_CONFIG.versionReplyMs;
+    c.APP_UPDATE_CONFIG.versionReplyMs = 20;
+    try{ c.watchAppRegistration(reg); await new Promise(r => setTimeout(r, 60)); await settle(); }
+    finally{ c.APP_UPDATE_CONFIG.versionReplyMs = keep; }
+    T('   a waiting worker that will not say its build is still offered — the athlete decides', shown());
+  });
+
+  sub('never over a workout, never nagging');
+  await guard('workout', async () => {
+    const reg = fresh(new FakeWorker(PAGE, 'activated'));
+    reg.waiting = new FakeWorker(NEWER, 'installed');
+    const qs = c.document.querySelector;
+    let sheet = true;
+    c.document.querySelector = sel => sel === '.overlay.open' && sheet ? {} : null;
+    try{
+      c.watchAppRegistration(reg); await settle();
+      T('P  found while a sheet (a workout) is open: nothing is drawn, nothing reloads', !shown() && reloads === 0 && c.appUpdateReady === true);
+      T('   and nothing is announced over the workout', c.document.getElementById('appUpdateLive').textContent === '');
+      sheet = false; c.renderAppUpdate();
+      T('   the notice appears once the sheet closes', shown() && c.document.getElementById('appUpdateLive').textContent === 'LOOP update ready');
+    }finally{ c.document.querySelector = qs; }
+    c.dismissAppUpdate();
+    T('   "Not now" hides it for the rest of this visit', !shown() && reloads === 0);
+    c.showAppUpdate();
+    T('   and a later check does not bring it back', !shown());
+    T('   page isolation\'s one sheet observer re-checks the notice — no second observer',
+      /new MutationObserver\(\(\) => \{\s*syncBackgroundScrollLock\(\);\s*syncSheetAccessibility\(\);\s*renderAppUpdate\(\);/.test(src)
+      && (src.match(/new MutationObserver\(/g) || []).length === 1
+      && /const sheetOpen = !!document\.querySelector\('\.overlay\.open'\)/.test(src));
+  });
+
+  sub('checking for updates');
+  await guard('checks', async () => {
+    const reg = fresh(new FakeWorker(PAGE, 'activated'));
+    c.appRegistration = reg;
+    c.appUpdateLastCheck = Date.now();
+    c.checkForAppUpdate(false);
+    T('R  returning to LOOP right after a check does not check again', reg.updates === 0);
+    c.appUpdateLastCheck = Date.now() - 16 * 60 * 1000;
+    c.checkForAppUpdate(false);
+    T('   after 15 minutes away, it checks', reg.updates === 1);
+    c.checkForAppUpdate(true);
+    T('   the hourly check while open always runs', reg.updates === 2);
+    reg.offline = true;
+    let threw = false;
+    try{ c.checkForAppUpdate(true); await settle(); }catch(e){ threw = true; }
+    T('S  a check while offline fails quietly', !threw && !shown() && reloads === 0);
+    T('   the cadence: back in the foreground at most every 15 min, hourly while open and visible',
+      c.APP_UPDATE_CONFIG.resumeCheckMinMs === 15 * 60 * 1000 && c.APP_UPDATE_CONFIG.openCheckEveryMs === 60 * 60 * 1000
+      && /if\(document\.visibilityState === 'visible'\) checkForAppUpdate\(false\)/.test(src) && /if\(document\.visibilityState === 'visible'\) checkForAppUpdate\(true\)/.test(src));
+    T('   the interval starts only once a real registration exists (never in tests, never without a worker)',
+      /Promise\.resolve\(sw\.register\('sw\.js'\)\)\.then\(reg => \{\s*if\(!reg\) return;/.test(src));
+  });
+  await guard('start', async () => {
+    /* 'load' waits for every stylesheet, the web fonts' too — and on lie-fi their
+       host may never answer. That must not mean the page never checks again. */
+    const keep = { add: c.window.addEventListener, st: c.setTimeout, si: c.setInterval, sw: c.navigator.serviceWorker };
+    let loads, timers, registers;
+    const boot = () => {
+      loads = []; timers = []; registers = 0;
+      fresh(null);
+      const reg = new FakeReg();
+      c.window.addEventListener = (t, f) => { if(t === 'load') loads.push(f); };
+      c.setTimeout = (f, ms) => { timers.push({ f, ms }); return timers.length; };
+      c.setInterval = () => 0;
+      c.navigator.serviceWorker = { controller: null, addEventListener(){}, register: () => { registers++; return Promise.resolve(reg); } };
+      c.initAppUpdates();
+      return { reg, latest: timers.find(t => t.ms === c.APP_UPDATE_CONFIG.startLatestMs) };
+    };
+    try{
+      let s = boot();
+      T('the worker is registered on load, not before — a first install never competes with LOOP\'s own first load',
+        loads.length === 1 && !!s.latest && registers === 0);
+      s.latest.f(); await settle();
+      T('   a load held back by another host still registers, at the latest after 10 s', registers === 1 && c.appRegistration === s.reg && c.APP_UPDATE_CONFIG.startLatestMs === 10000);
+      loads[0](); await settle();
+      T('   and a load that comes after that registers nothing twice', registers === 1);
+      s = boot();
+      loads[0](); await settle(); s.latest.f(); await settle();
+      T('   a normal load registers at once, and the latest-time fallback then does nothing', registers === 1 && c.appRegistration === s.reg);
+    }finally{
+      c.window.addEventListener = keep.add; c.setTimeout = keep.st; c.setInterval = keep.si; c.navigator.serviceWorker = keep.sw;
+    }
+  });
+  c.persistDraftNow = realPersist;
+
+  sub('the notice itself');
+  {
+    const css = (src.match(/\/\* ---- App update notice \(D92\) ----[\s\S]*?\.app-update \.btn-primary\{[^}]*\}/) || [''])[0];
+    T('plain words, no machinery: "LOOP update ready", "Update", "Not now"',
+      /<span class="app-update-text">LOOP update ready<\/span>/.test(src) && />Not now<\/button>/.test(src) && />Update<\/button>/.test(src)
+      && !/service worker|cache|version worker/i.test((src.match(/<div class="app-update" id="appUpdate"[\s\S]*?<\/div>/) || [''])[0]));
+    T('real buttons, 44 px tall', /<button type="button" class="app-update-later"/.test(src) && /<button type="button" class="btn-primary" id="appUpdateGo"/.test(src)
+      && /\.app-update-later\{[^}]*min-height: 44px/.test(css) && /\.app-update \.btn-primary\{[^}]*min-height: 44px/.test(css));
+    T('a row on the tab bar itself — its glass, its safe-area insets — so no second floating surface and nothing over the tabs',
+      /<div class="tabbar">\s*<!--[^>]*-->\s*<div class="app-update" id="appUpdate" hidden>/.test(src)
+      && /\.tabbar\{[^}]*display: flex; flex-wrap: wrap;/.test(src) && /\.app-update\{\s*flex: 0 0 100%;/.test(css)
+      && !/position:|env\(safe-area-inset-(left|right)|backdrop-filter|--glass/.test(css.replace(/\/\*[\s\S]*?\*\//g, '')));
+    T('while it shows, the page\'s clearance grows by exactly its height, so nothing scrolls under it',
+      /body:has\(#appUpdate:not\(\[hidden\]\)\)\{ padding-bottom: calc\(136px \+ env\(safe-area-inset-bottom, 0px\)\); \}/.test(css)
+      && /\.app-update\{[^}]*padding: var\(--space-2\) /.test(css) && 136 - 84 === 8 + 44);
+    T('the view\'s own short fade — which Reduce Motion already removes', /animation: viewfade 0\.22s var\(--ease\) both;/.test(css)
+      && /@media \(prefers-reduced-motion: reduce\)\{\s*\*\{ animation: none !important; transition: none !important; \}/.test(src));
+    T('announced through a polite live region, never by moving focus', /<p class="sr-only" id="appUpdateLive" aria-live="polite"><\/p>/.test(src) && !/appUpdate[A-Za-z]*\.focus\(/.test(src));
+  }
+
+  sub('no other host can hold LOOP hostage');
+  {
+    /* Real lie-fi stalls every host, not only LOOP's. The worker's deadline is
+       worth nothing if the page it serves then waits on fonts.googleapis.com. */
+    const styles = (src.match(/<style>[\s\S]*?<\/style>/g) || []).join('\n');
+    const remoteSheets = (src.match(/<link\b[^>]*>/g) || []).filter(l => /\brel="stylesheet"/.test(l) && /\bhref="https?:/.test(l));
+    T('no stylesheet imports another: an @import makes the whole stylesheet, and every script after it, wait for that host',
+      styles.length > 0 && !/@import/.test(styles));
+    T('every stylesheet from another host loads beside LOOP, never ahead of it — for another medium until it arrives',
+      remoteSheets.length > 0 && remoteSheets.every(l => /\bmedia="print"/.test(l) && /\bonload="this\.media='all'"/.test(l)));
+    T('the web fonts are still loaded, still with display=swap', remoteSheets.some(l => /href="https:\/\/fonts\.googleapis\.com\/css2\?[^"]*display=swap"/.test(l)));
+    T('no script from another host at all', !/<script\b[^>]*\bsrc=/.test(src));
+  }
+
+  sub('nothing protected moved');
+  T('D88: the install never skips waiting on failure, activate still prunes, the shell fallback is for the app\'s own navigations only',
+    !/\.catch\(\(\) => self\.skipWaiting\(\)\)/.test(swSrc) && /keys\.filter\(k => k !== CACHE_VERSION\)\.map\(k => caches\.delete\(k\)\)/.test(swSrc)
+    && /req\.mode === 'navigate'/.test(swSrc) && /return Response\.error\(\);/.test(swSrc));
+  T('the precache is still the app shell only', /ASSETS = \[\s*'\.\/',\s*'\.\/index\.html',\s*'\.\/manifest\.webmanifest'\s*\]/.test(swSrc));
+  T('DATA_KEYS is still 15, the schema 1, the trainer 0.1.1-shadow',
+    c.DATA_KEYS.length === 15 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -33331,6 +33861,7 @@ async function main(){
   await testProgramChronology();
   await testPauseSuspension();
   await testPRModeConsistency();
+  await testNetworkAndUpdates();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

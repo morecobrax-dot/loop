@@ -11912,3 +11912,200 @@ shipped 9.2 build first, and proven gone now: 7/7. Every earlier PR and Personal
 Best Timeline assertion passes untouched, and the timeline and Exercise Detail
 render pixel-identical to 9.2 at 320, 375, 390 and 430 for a lift 9.2 already
 had right.
+
+## §114 — D92: Fast when the network is bad, truthful when a new version is ready
+
+Closes D88 findings E3 and E4, and two defects found while closing them: the
+web fonts holding LOOP's first paint, and a 5xx kept as the offline copy.
+
+**E3, as it really was.** 9.3's worker answered LOOP's own launch with a bare
+`fetch`, network first, no timeout. On a connection that is on but not working —
+lie-fi, the case the worker exists for — the launch waited as long as the
+browser did. Measured on the real worker path, with the HTTP cache expired as
+Pages' `max-age=600` leaves it and the server holding the response open: 9.3
+had not opened after 20 s, three launches out of three.
+
+And real lie-fi stalls every host, not only LOOP's. The web fonts were
+`@import`ed inside LOOP's own stylesheet, so nothing painted and no script ran
+until fonts.googleapis.com answered. A deadline in the worker alone would have
+fixed nothing: the cached copy arrived on time and the page still sat at
+`readyState: 'loading'`. With LOOP's own host healthy and only the fonts' host
+silent, 9.3 showed nothing at all.
+
+**Three classes of request, each handled on purpose.**
+
+- *The app itself* — a navigation to the scope, or to `index.html` in it, with
+  any query (`?invite=`): network first, never past a deadline when this
+  version has a copy. A good connection still delivers a fresh deploy.
+- *Every other same-origin file*: the copy this version keeps, else the
+  network — kept once it arrives whole and 2xx — else an honest network error.
+  Never the HTML shell (D88's fix, kept). The cache belongs to one version and
+  is replaced whole on every release, so a stored icon IS this version's file;
+  asking the network first only made each image wait on lie-fi for a file
+  already on the phone.
+- *Other hosts, and anything but GET*: not intercepted. Friends keeps its own
+  15-second limit and its own honest states (D80A); the fonts are below.
+
+**The deadline is 2,500 ms, and it was measured, not picked.** `fetch()`
+resolves when headers arrive; on a trickling connection they come in time while
+the body takes a minute, so the deadline covers the whole body — the worker
+reads a copy of it before answering. The shell is 2.7 MB, 732 KB gzipped. On
+the real worker path it arrived whole in 1.5 s at 4 Mbps, 2.0 s at 3 Mbps and
+3.1 s at 2 Mbps. A connection an athlete would call working beats the deadline
+and still gets a fresh deploy; a stalled one costs 2.5 s instead of everything;
+a refused one opens the cached copy at once. The price: 9.3 painted the shell
+progressively as it streamed, so on a slow-but-working link its launch mark
+appeared early; 9.4 paints when the shell is whole. LOOP is usable at the same
+moment either way — its scripts are at the end of the document.
+
+**Only a complete 2xx is ever kept.** 9.3 cached whatever came back: one 503
+became the offline copy, and offline LOOP then opened as "failure 503" —
+reproduced on the shipped build. Same origin, so `ok` also rules out an opaque
+redirect.
+
+**A copy that misses the deadline** refreshes the offline copy if it arrives
+whole while the worker is still running. But the worker is held open for it only
+as long as the launch itself waits. Chrome will not let a new version take over
+from a worker with an event still open, and D92's first version held the late
+copy for up to 60 s: after a lie-fi launch, an athlete who tapped Update saw
+"Updating…" for 45 s, then the notice again, and no swap within 100 s. Bounded
+by the deadline, the same tap opens the new build in 3.5 s — the swap, then the
+new worker's own deadline on the stalled network. On a page already open: 1.0 s.
+
+**A first visit with nothing cached** has no copy to fall back on and no
+deadline: the network is the only honest answer. Nothing is fabricated, and a
+failure is the browser's own error page.
+
+**The fonts** now load through a stylesheet for another medium that switches
+itself on when it arrives (`media="print"`, `onload`), so no other host can
+hold LOOP's first paint or its scripts. Until they arrive LOOP is set in its
+fallback fonts, as it always was whenever they could not be fetched. On an
+ordinary open nobody sees a difference: the launch mark is up for about 0.6 s
+and the fonts are in before it lifts, cold or warm. An in-session reload, which
+skips the mark, shows fallback text for up to about 0.25 s when the fonts'
+stylesheet is not cached — 9.3 did the same for up to about 0.14 s, since
+`display=swap` always allowed it — and none when it is.
+
+**E4, as it was.** Reproduced on 9.3: a version deployed while LOOP was open
+installed, skipped waiting, claimed the running page and deleted that page's
+cache under it. Nothing told the athlete, and the page stayed on the old build
+until a relaunch — days, on an installed iPhone app.
+
+**Detected automatically, applied deliberately.** A new version installs and
+WAITS; the install no longer skips waiting, and a first install still activates
+at once. The page learns of it from the lifecycle, with no polling system:
+`registration.waiting` and `.installing` when LOOP opens, `updatefound` and
+then the new worker reaching `installed`, and `registration.update()` on a
+return to the foreground at most every 15 minutes and hourly while LOOP stays
+open and visible. The worker is registered when the page has loaded — so a
+first install never competes with LOOP's own first load — or after 10 s at the
+latest. `load` waits for the fonts too, and before that limit a launch whose
+fonts host never answered never registered, and so never learned of an update
+however long it stayed open.
+
+The page asks a worker which build it is (`LOOP_VERSION`, over a
+MessageChannel, 3 s to answer). A waiting worker for a newer build shows "LOOP
+update ready", with Update and Not now, as a row of the tab bar itself: its
+glass and its safe-area insets, 44-px targets, and the page's bottom clearance
+grows by exactly the row so nothing scrolls under it. Never on a first install.
+Never over a sheet — so never over a workout; it appears when the sheet
+closes. Announced once through a polite live region; focus never moves. The
+view's own short fade, which Reduce Motion removes.
+
+**Applying it.** Update tells the WAITING worker to take over — `LOOP_ACTIVATE`
+is the only thing that makes it skip waiting — and the page reloads exactly
+once, on `controllerchange`: never before it, never twice, and with the workout
+draft written first. A swap that never signals is offered again after 45 s
+rather than papered over with a reload. Chrome completes a swap only once the
+old worker is idle, and anything that wakes it after the tap — another window
+loading, the browser fetching an icon — costs its 30-second idle timeout
+(measured: about 1 s idle, about 30 s after a second window loaded).
+
+**Not updates, and so silent.** A first install. And a waiting worker that is
+already THIS page's build — a launch fetched the new page while the old worker
+was still in charge — is adopted with no notice and no reload; nothing the
+athlete sees changes. That is how phones on 9.3, whose worker has none of this,
+reach 9.4: one launch, no notice, no reload, and from then on lie-fi opens LOOP
+at the deadline.
+
+**Several windows.** Every window on the old build says the update is ready;
+only the one whose athlete tapped Update reloads. The others learn from
+`controllerchange` that their page is now older than the worker and keep
+saying so, without reloading, until their own athlete taps. A launch that is
+already the newest build adopts quietly.
+
+**Offline, and failed installs.** A check while offline fails quietly. Offline
+with a new version waiting, LOOP still opens — the old version, from its own
+cache, which is deleted only when the new version actually takes over. An
+install that cannot fill its cache fails (D88), shows nothing, and leaves the
+working version and its cache untouched.
+
+**Cache safety.** One cache per version, filled atomically at install and past
+the HTTP cache (`cache: 'reload'`: Pages' `max-age=600` could otherwise give a
+new version the OLD `index.html` as its offline copy), pruned only when a new
+version activates. The precache is still the app shell only. No user data is in
+any cache, and none of this reads or writes user data.
+
+**Performance.** Time until LOOP is usable — booted, painted, launch mark gone —
+from the launch, median of three, on the real worker path with the HTTP cache
+expired. Headless Edge on a desktop: a phone adds its own parse time to both
+columns alike.
+
+| the network | 9.3 | 9.4 |
+|---|---|---|
+| fast | 204 ms | 58 ms |
+| answers after 250 ms | 384 ms | 329 ms |
+| answers after 750 ms | 890 ms | 827 ms |
+| answers after 1.5 s | 1,633 ms | 1,574 ms |
+| answers after 3 s | 3,166 ms | 2,606 ms |
+| stalled (LOOP's host) | not open in 20 s | 2,597 ms |
+| stalled (every host) | not open in 20 s | 2,596 ms |
+| offline | 93 ms | 94 ms |
+| 4 Mbps | 1,511 ms | 1,548 ms |
+| 3 Mbps | 2,050 ms | 2,096 ms |
+| 2 Mbps | 3,131 ms | 2,599 ms |
+
+The gain on a fast network is the fonts: 9.3 could not paint before
+fonts.googleapis.com answered. Where the whole shell arrives inside the
+deadline, 9.4 costs the reading of the body before answering (37–46 ms at 3–4
+Mbps); past it, LOOP opens at 2.6 s whatever the network is doing. First paint
+on the trickling rows is the one thing that moved the other way: 9.3 painted its
+launch mark at 0.14–0.34 s while the rest streamed in, 9.4 at 1.5–2.6 s.
+
+**Data safety.** `DATA_KEYS` remains 15, the local schema remains 1, the trainer
+remains `0.1.1-shadow`. PR definitions, Session Score, Rank, Mastery, Programs,
+Friends and history are untouched.
+
+**Mutation testing.** 31 mutants, each run against Contract 193 alone so that
+catching them is never borrowed from another contract crashing first. They are
+every target the brief named — the deadline race removed, the fallback ignoring
+the cache, the network promise returned after the deadline, skipWaiting always,
+the notice on a first install, `registration.waiting` ignored, a reload before
+`controllerchange`, a reload twice, the failed-install protection removed, an
+uncached asset treated as a navigation — and every other promise above: a
+headers-only deadline, the precache through the HTTP cache, 5xx and asset
+errors kept, cross-origin intercepted, activate deleting the working cache, any
+waiting worker adopted, a late copy thrown away, a late copy holding the worker,
+a fabricated first visit, refused-but-waiting, Not now, the check throttle, the
+give-up, the draft write, the one announcement, the font `@import`, a blocking
+font link, registration on load only, and an unhandled rejection. All 31 are
+caught. Two only after the contract was fixed: the first sweep caught the
+headers-only deadline only by hanging the suite (the trickle check read the
+body before the time, and the paused clock never finishes it), and missed the
+notice announced on every render (the check read the live region's text, not
+how often it was written). Both now fail on an assertion.
+
+**Verification.** Contract 193 adds 91 assertions: a virtual-clock service
+worker — fake caches with an atomic `addAll`, a network per path that can
+answer, stall, refuse, fail or trickle — for the worker's side, and the page's
+real functions against fake workers and registrations for the page's. On the
+real worker path — headless Edge against a stand-in for Pages with Pages' own
+headers, every degraded launch with the fonts' host held too — the brief's
+scenarios A–J and K–T, two windows, a lie-fi launch whose fonts never arrive,
+and the 9.3 → 9.4 transition pass 38/38. Mobile QA at 320, 375, 390 and 430 with
+the iPhone's safe areas passes 68/68: normal, offline, lie-fi in the fallback
+fonts, update ready, update ready mid-workout, Not now, Reduce Motion, and a real
+tap on Update. Every line of the What's New entry was proven on the shipped 9.3
+and proven gone on 9.4, read from the build itself, 16/16. The whole suite passes
+8,623/0, and every audit is green. There is no physical-iPhone evidence in
+any of this: every run is headless Edge.

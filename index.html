@@ -20,9 +20,15 @@ try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.cla
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- D92 — the web fonts can never hold LOOP hostage. They used to arrive by
+     @import inside the stylesheet below, which made that whole stylesheet, and
+     every script after it, wait for fonts.googleapis.com: on lie-fi the app's
+     cached copy arrived at the deadline and still never painted. A stylesheet
+     for another medium never blocks, so this one loads beside the app and
+     switches itself on when it arrives. Until then LOOP is set in its fallback
+     fonts, as it always was whenever the web fonts could not be fetched. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;600;700&amp;display=swap" media="print" onload="this.media='all'">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
-
 :root{
   /* D21 base: the same dark system, pulled a few degrees toward navy so the
      app reads as a deep surface rather than a grey sheet. Every step keeps
@@ -354,7 +360,7 @@ html.intro-skip #introOverlay{ display: none !important; }
   background: var(--glass-bg);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   border-top: 1px solid var(--glass-border);
-  display: flex; z-index: 40; padding-bottom: env(safe-area-inset-bottom, 0);
+  display: flex; flex-wrap: wrap; z-index: 40; padding-bottom: env(safe-area-inset-bottom, 0);
   max-width: 640px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border);
   box-shadow: 0 -4px 12px rgba(0,0,0,0.18);
 }
@@ -373,6 +379,29 @@ html.intro-skip #introOverlay{ display: none !important; }
 .tab-btn.active{ color: var(--text); }
 .tab-btn.active .glyph{ border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .tab-btn:active{ transform: scale(0.94); }
+
+/* ---- App update notice (D92) ----
+   One quiet row on the tab bar itself, above its tabs, when a newer LOOP has
+   installed and is waiting. It is the bar's own glass and sits inside the bar's
+   own safe-area insets, so there is no second floating surface and nothing to
+   cover the tabs or the home indicator. Hidden whenever a sheet is open — so
+   never over a workout — and it never acts on its own: Update is the athlete's
+   tap. The view's own short fade; Reduce Motion drops it with everything else. */
+.app-update{
+  flex: 0 0 100%; display: flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-2) var(--space-3) 0 var(--space-4);
+  animation: viewfade 0.22s var(--ease) both;
+}
+.app-update[hidden]{ display: none; }
+/* The bar is 52 px taller while the row shows (8 px above a 44 px button), so
+   the page's own clearance grows by exactly that: nothing scrolls under it. */
+body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-inset-bottom, 0px)); }
+.app-update-text{ flex: 1; min-width: 0; font-size: var(--fs-support); font-weight: 600; color: var(--text); }
+.app-update-later{
+  min-height: 44px; padding: 0 var(--space-3); border: none; background: none; cursor: pointer;
+  color: var(--text-dim); font-size: var(--fs-support); font-weight: 600; border-radius: var(--radius-md);
+}
+.app-update .btn-primary{ flex: 0 0 auto; min-height: 44px; padding: 0 var(--space-4); }
 
 .view{ display: none; padding: 20px; max-width: 640px; margin: 0 auto; position: relative; z-index: 1; }
 .view.active{ display: block; animation: viewfade 0.22s var(--ease) both; }
@@ -8050,7 +8079,14 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     </div>
   </div>
 
+  <p class="sr-only" id="appUpdateLive" aria-live="polite"></p>
   <div class="tabbar">
+    <!-- D92 — shown only while a newer LOOP is installed and waiting, and never while a sheet is open -->
+    <div class="app-update" id="appUpdate" hidden>
+      <span class="app-update-text">LOOP update ready</span>
+      <button type="button" class="app-update-later" onclick="dismissAppUpdate()">Not now</button>
+      <button type="button" class="btn-primary" id="appUpdateGo" onclick="applyAppUpdate()">Update</button>
+    </div>
     <button class="tab-btn active" data-tab="today" onclick="switchTab('today')"><span class="glyph" id="tabIconToday"></span>Today</button>
     <button class="tab-btn" data-tab="train" onclick="switchTab('train')"><span class="glyph" id="tabIconTrain"></span>Train</button>
     <button class="tab-btn" data-tab="progress" onclick="switchTab('progress')"><span class="glyph" id="tabIconProgress"></span>Progress</button>
@@ -16126,6 +16162,28 @@ const LOOP_UPDATES = [
       'A lift logged with no weights at all showed a best of “0 lb × 0”'
     ],
     changes: []
+  },
+  {
+    id: 'v9-4',
+    version: 'LOOP 9.4',
+    title: 'Weak Signal and Updates',
+    date: '2026-09-18',
+    swVersion: 'loop-v171',
+    summary: 'LOOP now opens in a few seconds on a weak connection, and tells you when a new version is ready.',
+    newFeatures: [
+      'When a new version of LOOP is ready, “LOOP update ready” appears above the tabs, and you choose when to update'
+    ],
+    improvements: [
+      'On a weak or stalled connection, LOOP now opens from your phone within a few seconds instead of waiting for the network',
+      'An update never interrupts a workout: it waits until you leave the workout, and your workout is saved before LOOP restarts'
+    ],
+    bugFixes: [
+      'On a connection that was on but not really working, LOOP could wait for as long as your phone kept trying before it opened',
+      'A new version of LOOP took over in the background without telling you, and you stayed on the old one until you closed and reopened the app',
+      'One error from the server could become LOOP’s offline copy, so LOOP then opened offline as an error page',
+      'When the fonts server was slow to answer, LOOP waited for it before showing anything'
+    ],
+    changes: []
   }
 ];
 
@@ -21213,6 +21271,7 @@ function initPageIsolation(){
     const obs = new MutationObserver(() => {
       syncBackgroundScrollLock();
       syncSheetAccessibility();
+      renderAppUpdate();                    // D92 — the update notice steps aside while a sheet is open
     });
     document.querySelectorAll('.overlay').forEach(ov => {
       obs.observe(ov, { attributes: true, attributeFilter: ['class'] });
@@ -50767,13 +50826,220 @@ initIntro();
 // making the user wait out the failsafe behind a logo.
 boot().catch(err => { console.error('LOOP boot error:', err); markAppReady(); });
 
-/* Offline support: registers only when served over http(s) — a no-op when the
-   file is opened directly or run inside the claude.ai artifact sandbox. */
-if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+/* =========================================================
+   APP UPDATES  (Phase D92 — closes D88 E4)
+   ---------------------------------------------------------
+   A new LOOP used to take over by itself: its worker activated
+   the moment it installed, claimed the page still running the
+   old code, deleted that page's cache under it, and nothing
+   told the athlete — they stayed on the old build until they
+   happened to relaunch, which on an installed iPhone app can
+   be days.
+
+   Now a new version installs and WAITS, and the page learns of
+   it from the worker lifecycle itself, with no polling system:
+     · registration.waiting / .installing when LOOP opens
+     · updatefound, then the new worker reaching 'installed'
+     · registration.update() when LOOP returns to the
+       foreground (at most every 15 minutes), and hourly while
+       it stays open and visible
+   A waiting worker for a NEWER build than this page shows one
+   quiet notice, "LOOP update ready". Applying it is always the
+   athlete's tap: the waiting worker is told to take over, and
+   the page reloads exactly once, on controllerchange — never
+   before it, never twice, never without that tap. The notice is
+   never drawn over a sheet, so never over a workout, and the
+   draft is written before the reload as it is whenever the app
+   is left.
+
+   Two cases are not updates and show nothing:
+     · a first install — there is no old version;
+     · a waiting worker for THIS page's own build — the page
+       already is the new LOOP (a launch fetched it while the
+       old worker was still in charge). That worker is adopted
+       quietly, with no reload: nothing the athlete sees
+       changes; the offline copy and the fetch rules catch up
+       with the code already running.
+   Another LOOP window that swaps the worker makes this one say
+   "update ready" too if this page is now older than it — and
+   only the window whose athlete tapped Update reloads.
+
+   Registers only when served over http(s) — a no-op when the
+   file is opened directly or run inside the claude.ai artifact
+   sandbox.
+   ========================================================= */
+const APP_UPDATE_CONFIG = {
+  resumeCheckMinMs: 15 * 60 * 1000,   // a return to the foreground checks at most this often
+  openCheckEveryMs: 60 * 60 * 1000,   // an app left open and visible checks this often
+  versionReplyMs: 3000,               // how long a worker has to say which LOOP it is
+  /* After Update, how long before a swap that never happened is offered again.
+     Longer than it looks necessary on purpose: if anything reaches the old
+     worker after it is asked to step aside — another LOOP window loading, the
+     browser fetching an icon — Chrome restarts it and only completes the swap
+     once it has been idle for its 30-second timeout. Measured: about 1 s when
+     the app is idle, about 30 s when a second window had just loaded. */
+  activateGiveUpMs: 45000,
+  /* The worker is registered once the page has loaded, so a first install never
+     competes with LOOP's own first load. But 'load' also waits for the web
+     fonts, and on lie-fi their host may never answer — so this is the latest it
+     waits before registering anyway. Without it, a launch on a bad connection
+     never checked for an update again, however long it stayed open. */
+  startLatestMs: 10000
+};
+/* This page's own build: the cache version its release ships. */
+const LOOP_BUILD = (() => {
+  try{ const u = LOOP_UPDATES[LOOP_UPDATES.length - 1]; return (u && u.swVersion) || null; }catch(e){ return null; }
+})();
+
+let appRegistration = null;
+let appUpdateRequested = false;
+let appUpdateReloading = false;
+let appUpdateLastCheck = 0;
+let appUpdateReady = false;
+let appUpdateDismissed = false;
+let appUpdateAnnounced = false;
+let appUpdateGiveUp = null;
+
+/* 'loop-v171' → 171. Builds are compared as numbers, never as strings. */
+function loopBuildNumber(v){
+  const m = /(\d+)\s*$/.exec(String(v || ''));
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/* Which build a worker is, as it says when asked. One that does not answer in
+   time — an older LOOP, or one still starting — is unknown, never guessed. */
+function workerBuild(worker){
+  return new Promise(resolve => {
+    if(!worker || typeof MessageChannel !== 'function'){ resolve(null); return; }
+    let done = false, timer = null;
+    const finish = v => { if(done) return; done = true; clearTimeout(timer); resolve(v); };
+    timer = setTimeout(() => finish(null), APP_UPDATE_CONFIG.versionReplyMs);
+    try{
+      const ch = new MessageChannel();
+      ch.port1.onmessage = e => finish((e && e.data && e.data.version) || null);
+      worker.postMessage({ type: 'LOOP_VERSION' }, [ch.port2]);
+    }catch(e){ finish(null); }
   });
 }
+
+/* What a worker's build means for this page: 'offer' the update, quietly
+   'adopt' a waiting worker that is this page's own build, or nothing. A waiting
+   worker whose build cannot be learned is offered — the athlete still decides. */
+function appUpdateDecision(pageBuild, workerBuildValue, isWaiting){
+  const page = loopBuildNumber(pageBuild), worker = loopBuildNumber(workerBuildValue);
+  if(page === null || worker === null) return isWaiting ? 'offer' : 'none';
+  if(worker > page) return 'offer';
+  if(worker === page && isWaiting) return 'adopt';
+  return 'none';
+}
+
+async function considerAppWorker(worker, isWaiting){
+  const sw = navigator.serviceWorker;
+  if(!worker || !sw || !sw.controller) return;          // a first install is not an update
+  const decision = appUpdateDecision(LOOP_BUILD, await workerBuild(worker), isWaiting);
+  if(decision === 'adopt'){ try{ worker.postMessage({ type: 'LOOP_ACTIVATE' }); }catch(e){} }
+  else if(decision === 'offer') showAppUpdate();
+}
+
+function watchAppRegistration(reg){
+  appRegistration = reg;
+  const follow = w => {
+    if(!w || typeof w.addEventListener !== 'function') return;
+    w.addEventListener('statechange', () => { if(w.state === 'installed') considerAppWorker(w, true); });
+  };
+  if(reg.waiting) considerAppWorker(reg.waiting, true);
+  else follow(reg.installing);
+  if(typeof reg.addEventListener === 'function') reg.addEventListener('updatefound', () => follow(reg.installing));
+}
+
+/* Ask whether a newer LOOP has been deployed. Offline this simply fails, and
+   nothing else notices. */
+function checkForAppUpdate(force){
+  if(!appRegistration || typeof appRegistration.update !== 'function') return;
+  const now = Date.now();
+  if(!force && now - appUpdateLastCheck < APP_UPDATE_CONFIG.resumeCheckMinMs) return;
+  appUpdateLastCheck = now;
+  try{ Promise.resolve(appRegistration.update()).catch(() => {}); }catch(e){}
+}
+
+function onAppControllerChange(){
+  if(appUpdateRequested){ reloadForAppUpdate(); return; }
+  const sw = navigator.serviceWorker;
+  considerAppWorker(sw && sw.controller, false);
+}
+
+function reloadForAppUpdate(){
+  if(appUpdateReloading) return;
+  appUpdateReloading = true;
+  clearTimeout(appUpdateGiveUp);
+  try{ persistDraftNow(); }catch(e){}
+  location.reload();
+}
+
+function applyAppUpdate(){
+  if(appUpdateRequested) return;
+  appUpdateRequested = true;
+  renderAppUpdate();
+  const waiting = appRegistration && appRegistration.waiting;
+  /* No worker waiting: another window already swapped it, so this page is the
+     only thing still old, and a reload opens the new LOOP. */
+  if(!waiting){ reloadForAppUpdate(); return; }
+  try{ waiting.postMessage({ type: 'LOOP_ACTIVATE' }); }catch(e){}
+  /* A swap that never signals (the waiting worker was itself replaced) is
+     offered again rather than papered over with a reload. */
+  clearTimeout(appUpdateGiveUp);
+  appUpdateGiveUp = setTimeout(() => {
+    if(appUpdateReloading) return;
+    appUpdateRequested = false;
+    renderAppUpdate();
+  }, APP_UPDATE_CONFIG.activateGiveUpMs);
+}
+
+function dismissAppUpdate(){ appUpdateDismissed = true; renderAppUpdate(); }
+
+function showAppUpdate(){ appUpdateReady = true; renderAppUpdate(); }
+
+/* Visible only while an update is ready, not dismissed, and no sheet is open.
+   Announced once, the first time it is actually seen. Page isolation's one
+   observer — the one that already follows every sheet opening and closing —
+   calls this, so the notice needs no watcher of its own. */
+function renderAppUpdate(){
+  const el = document.getElementById('appUpdate');
+  if(!el) return;
+  const sheetOpen = !!document.querySelector('.overlay.open');
+  const visible = appUpdateReady && !appUpdateDismissed && !sheetOpen;
+  el.hidden = !visible;
+  const go = document.getElementById('appUpdateGo');
+  if(go){ go.disabled = appUpdateRequested; go.textContent = appUpdateRequested ? 'Updating…' : 'Update'; }
+  if(visible && !appUpdateAnnounced){
+    appUpdateAnnounced = true;
+    const live = document.getElementById('appUpdateLive');
+    if(live) live.textContent = 'LOOP update ready';
+  }
+}
+
+function initAppUpdates(){
+  const sw = navigator.serviceWorker;
+  if(!sw || !location.protocol.startsWith('http')) return;
+  if(typeof sw.addEventListener === 'function') sw.addEventListener('controllerchange', onAppControllerChange);
+  let started = false;
+  const start = () => {
+    if(started) return;
+    started = true;
+    Promise.resolve(sw.register('sw.js')).then(reg => {
+      if(!reg) return;
+      watchAppRegistration(reg);
+      appUpdateLastCheck = Date.now();        // the launch itself just checked
+      document.addEventListener('visibilitychange', () => {
+        if(document.visibilityState === 'visible') checkForAppUpdate(false);
+      });
+      setInterval(() => { if(document.visibilityState === 'visible') checkForAppUpdate(true); }, APP_UPDATE_CONFIG.openCheckEveryMs);
+    }).catch(() => {});
+  };
+  window.addEventListener('load', start);
+  setTimeout(start, APP_UPDATE_CONFIG.startLatestMs);
+}
+initAppUpdates();
 </script>
 
 </body>

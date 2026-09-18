@@ -83,7 +83,28 @@ this one is a refactor.
 
 ---
 
-## E3 — The service worker is network-first with no timeout · P1 · HIGH
+## E3 — The service worker is network-first with no timeout · P1 · HIGH · **CLOSED in D92 (LOOP 9.4)**
+
+> **Closed, and it was worse than recorded here.** Real lie-fi stalls every
+> host, not only LOOP's. The web fonts were `@import`ed inside LOOP's own
+> stylesheet, so the page waited on fonts.googleapis.com before it painted or
+> ran a line of script: with the shell served from cache on time, LOOP still sat
+> at `readyState: 'loading'` for as long as that host stayed silent.
+>
+> The app shell is still network-first — a good connection still delivers a
+> fresh deploy — but with a **2.5-second deadline over the whole body** (`fetch`
+> resolves at headers, and the shell is 2.7 MB, 732 KB gzipped). Measured on
+> the real worker path, the shell arrives whole in 1.5 s at 4 Mbps and 2.0 s at
+> 3 Mbps, so a connection an athlete would call working beats the deadline.
+> Past it, the copy this version keeps opens, and a network copy that arrives
+> whole later refreshes it. Only a complete 2xx is ever kept: 9.3 kept a single
+> 503 as its offline copy and then opened offline as "failure 503". Every other
+> same-origin file comes from this version's cache first. The fonts load beside
+> the app and switch themselves on when they arrive. On 9.3 a stalled
+> connection never opened LOOP within 20 s; 9.4 opens it at the deadline with
+> every host stalled. See TRAINER-CONTRACT.md §114 and Contract 193. Original
+> analysis below.
+
 
 `sw.js` answers every same-origin GET, including the navigation for
 `index.html`, with a bare `fetch(req)`. There is no `AbortController`, no race
@@ -105,7 +126,22 @@ non-navigation requests.
 
 ---
 
-## E4 — There is no service-worker update detection at all · P2 · PROVEN
+## E4 — There is no service-worker update detection at all · P2 · PROVEN · **CLOSED in D92 (LOOP 9.4)**
+
+> **Closed.** Reproduced on 9.3 first: a deploy while LOOP was open installed,
+> skipped waiting, claimed the running page and deleted its cache, and nothing
+> told the athlete — the page stayed on the old build until a relaunch. Now a
+> new version installs and WAITS. The page learns of it from the lifecycle
+> itself (`registration.waiting` and `.installing`, `updatefound` then
+> `installed`, and `registration.update()` on a return to the foreground at
+> most every 15 minutes and hourly while open) and shows "LOOP update ready" as
+> a row of the tab bar — never on a first install, never over a sheet, so never
+> over a workout. Update is the athlete's tap: the waiting worker is told to
+> take over and the page reloads exactly once, on `controllerchange`, with the
+> workout draft written first. A waiting worker that is already this page's own
+> build is adopted quietly. See TRAINER-CONTRACT.md §114 and Contract 193.
+> Original analysis below.
+
 
 The entire page-side service-worker code is a `register('sw.js')` call. Count of
 `registration.waiting`, `registration.installing`, `updatefound`,
@@ -431,6 +467,10 @@ Recorded so a later pass does not re-litigate them.
   real `Date`. No string-version comparison, so `loop-v9 > loop-v166` cannot
   occur.
 - **Boot is network-independent.** Boot completes with no `fetch` global at all.
+  *D92 correction: true of the script, not of the page. The harness never
+  parses CSS, and in a real browser the web fonts, imported inside LOOP's own
+  stylesheet, held the first paint and every script until fonts.googleapis.com
+  answered. Fixed in 9.4 (E3); Contract 193 holds it.*
 - **Layout.** 80 views at 320/375/390/430 across every tab and every overlay with
   a zero-argument opener: no page-level horizontal overflow, no duplicate runtime
   element ids, no console errors, no sub-32px tap targets.
