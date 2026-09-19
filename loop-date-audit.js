@@ -29,8 +29,13 @@
 const H = require('./loop-test-harness.js');
 const { execFileSync } = require('child_process');
 
+/* D93 added the zones the easy cases hide: Anchorage, Kolkata (+5:30, no DST),
+   Lord Howe (+10:30, a 30-minute DST shift), Kiritimati (+14) and Chatham
+   (+12:45, with DST). */
 const TZ_MATRIX = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver',
-                   'America/Los_Angeles', 'Europe/London', 'Asia/Tokyo'];
+                   'America/Los_Angeles', 'Europe/London', 'Asia/Tokyo',
+                   'America/Anchorage', 'Asia/Kolkata', 'Australia/Lord_Howe',
+                   'Pacific/Kiritimati', 'Pacific/Chatham'];
 
 let PASS = 0, FAIL = 0;
 const FINDINGS = [];
@@ -295,7 +300,12 @@ async function run(){
       ok('the denominator never exceeds what was knowable',
         cons.totalPlanned <= cons.plannedPerWeek * 2 + 2,
         'totalPlanned=' + cons.totalPlanned);
-      const future = cons.weeks.flatMap(w => w.days).filter(d => d.date > '2027-01-06');
+      /* D93 — "future" means after the LOCAL date of the pinned instant. At +13
+         and +14 that instant is already 7 January, and today is due, not
+         future — so the old fixed '2027-01-06' counted today as a future day
+         and failed this check in Chatham and Kiritimati. The app was right. */
+      const localToday = oracleLocalDate(new Date('2027-01-06T12:00:00Z').getTime(), TZ);
+      const future = cons.weeks.flatMap(w => w.days).filter(d => d.date > localToday);
       ok('no future day is marked missed',
         future.every(d => d.state !== 'missed'), future.length + ' future days');
       ok('a rest day is never a miss',
@@ -352,6 +362,12 @@ async function run(){
      UTC+ zone names the PREVIOUS calendar day. That is a real inconsistency
      in FORM; these tests ask whether it is a defect in BEHAVIOUR, which is
      the only thing that licenses changing production code.
+
+     D93 — licensed now by one rule, calendar logic in local civil dates, and
+     by the streak gap it forced: whole weeks only because rounding absorbed
+     6-to-8-day spans. Cardio now keys on weekStartKey like strength does. The
+     tests below are unchanged and still pass; Contract 194 holds the old and
+     new rules to the same weeks and streaks on 240 generated histories.
      --------------------------------------------------------- */
   sub('cardio week bucketing under a UTC+ zone and across DST');
   {
@@ -572,6 +588,87 @@ async function run(){
     ctx.workoutLog = saved;
     ctx.programsStore = { version: 1, activeProgramId: null, programs: [] };
     clearCaches(ctx); ctx.invalidateProgramCache();
+  }
+
+  /* ---------------------------------------------------------
+     D93 — one temporal truth, in THIS zone
+     ---------------------------------------------------------
+     Every clock change this zone makes in 2026, found from the
+     platform itself, crossed by the one civil day count and by
+     each "days ago" an athlete reads — and a cache rollover at
+     this zone's own local midnight, with nothing cleared in
+     between. Expected days come from the Intl oracle's local
+     dates and component arithmetic, never from the product.
+     --------------------------------------------------------- */
+  sub('D93: calendar days across this zone\'s own clock changes');
+  {
+    const oracleAdd = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n));
+      return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0'); };
+    const oracleDays = (a, b) => { const p = s => s.split('-').map(Number); const [ay, am, ad] = p(a), [by, bm, bd] = p(b);
+      return (Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000; };
+    const trans = [];
+    for(let t = new Date(2026, 0, 1, 12); t.getFullYear() === 2026; t.setDate(t.getDate() + 1)){
+      const n = new Date(t); n.setDate(t.getDate() + 1);
+      const shift = t.getTimezoneOffset() - n.getTimezoneOffset();
+      if(shift) trans.push({ day: oracleLocalDate(n.getTime(), TZ), shift });
+    }
+    if(!trans.length) ok('this zone keeps one offset all year, so there is no clock change to cross', true);
+    const W = (id, ymd, w) => ({ id, date: ymd, category: 'push', title: 'S', notes: '',
+      exercises: [{ name: 'Bench Press', bodyweight: false, sets: [SET(w || 135, 8)] }] });
+    trans.forEach(tr => {
+      const spring = tr.shift > 0;
+      ok('adjacent dates across ' + tr.day + ' (' + (spring ? 'forward ' : 'back ') + Math.abs(tr.shift) + ' min) are one day apart',
+        ctx.daysBetweenDates(oracleAdd(tr.day, -1), tr.day) === 1 && ctx.daysBetweenDates(tr.day, oracleAdd(tr.day, 1)) === 1
+        && ctx.daysBetweenDates(oracleAdd(tr.day, -3), oracleAdd(tr.day, 4)) === 7);
+      /* just past midnight after the short day; late on the long day */
+      const [y, m, d] = tr.day.split('-').map(Number);
+      const instant = spring ? new Date(y, m - 1, d + 1, 0, Math.round(tr.shift / 2)) : new Date(y, m - 1, d, 23, 60 + Math.round(tr.shift / 2));
+      const iso = instant.toISOString();
+      const localNow = oracleLocalDate(instant.getTime(), TZ);
+      const session = oracleAdd(localNow, spring ? -2 : -3);
+      const civil = oracleDays(session, localNow);
+      withClock(ctx, iso, () => {
+        ctx.workoutLog = [W('s', session)];
+        ctx.schedule = { mon: 'push', tue: 'push', wed: 'push', thu: 'push', fri: 'push', sat: 'push', sun: 'push' };
+        clearCaches(ctx);
+        ctx.renderTodayWorkout();
+        const card = ((ctx.document.getElementById('todayWorkout').innerHTML.match(/(Last done[^<·]*)/) || [])[1] || '').trim();
+        const cap = ctx.computeExerciseCapability('Bench Press').daysSinceLast;
+        const mus = ctx.computeTrainingContext().daysSinceMuscleTrained.chest;
+        ok('at ' + localNow + ' ' + String(instant.getHours()).padStart(2, '0') + ':' + String(instant.getMinutes()).padStart(2, '0')
+          + ', a session on ' + session + ' is ' + civil + ' days ago on the Train card, in capability and in muscle freshness',
+          card === 'Last done ' + civil + 'd ago' && cap === civil && mus === civil, JSON.stringify({ card, cap, mus }));
+        if(spring){
+          ctx.workoutLog = [W('p0', oracleAdd(tr.day, -7), 135), W('p1', tr.day, 185)];
+          clearCaches(ctx);
+          ctx.renderRecentPr();
+          const pr = (ctx.document.getElementById('recentPrCard').innerHTML.match(/· (Today|Yesterday|\d+ days ago)</) || [])[1];
+          ok('and the short day itself is "Yesterday", not "Today"', ctx.xpHistoryDateLabel(tr.day) === 'YESTERDAY' && pr === 'Yesterday',
+            ctx.xpHistoryDateLabel(tr.day) + ' / ' + pr);
+        }
+      });
+    });
+
+    /* this zone's own midnight, LOOP open across it, nothing cleared */
+    ctx.workoutLog = [W('w1', '2026-02-25')];
+    ctx.schedule = { mon: 'push', tue: 'rest', wed: 'pull', thu: 'rest', fri: 'legs', sat: 'rest', sun: 'rest' };
+    ctx.cardioLog = [{ id: 'k1', date: '2026-03-01', activity: 'run', activityName: 'Run', duration: 30, minutes: 30, distance: 5, unit: 'km', notes: '' }];
+    clearCaches(ctx);
+    if(ctx.invalidateCardioCache) ctx.invalidateCardioCache();
+    const before = new Date(2026, 2, 1, 23, 58).toISOString(), after = new Date(2026, 2, 2, 0, 2).toISOString();
+    let sun = null, mon = null;
+    withClock(ctx, before, () => { sun = { week: ctx.computeConsistencyData().weeks.slice(-1)[0].days[0].date,
+      sched: ctx.computeTrainingContext().scheduledToday, cardio: ctx.computeCardioStats().weekSessions }; });
+    withClock(ctx, after, () => { mon = { week: ctx.computeConsistencyData().weeks.slice(-1)[0].days[0].date,
+      sched: ctx.computeTrainingContext().scheduledToday, cardio: ctx.computeCardioStats().weekSessions }; });
+    const localAfter = oracleLocalDate(new Date(after).getTime(), TZ);
+    ok('open across this zone\'s midnight, nothing cleared: consistency, context and cardio are the new day\'s at 00:02',
+      sun.week === '2026-02-23' && mon.week === oracleMondayOf(localAfter) && sun.sched === 'rest' && mon.sched === 'push'
+      && sun.cardio === 1 && mon.cardio === 0, JSON.stringify({ sun, mon }));
+    ctx.cardioLog = [];
+    if(ctx.invalidateCardioCache) ctx.invalidateCardioCache();
+    ctx.workoutLog = [];
+    clearCaches(ctx);
   }
 
   section('RESULT — TZ=' + TZ);

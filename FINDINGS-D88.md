@@ -159,7 +159,24 @@ no reload loop, because there is no reload.
 
 ---
 
-## E5 — Date-dependent caches are not keyed by day and never roll over · P2 · HIGH
+## E5 — Date-dependent caches are not keyed by day and never roll over · P2 · HIGH · **CLOSED in D93 (LOOP 9.5)**
+
+> **Closed, and there were ten caches, not five.** Reproduced on 9.4 in eight
+> zones with LOOP left open from Sunday 23:58 to Monday 00:02 and nothing
+> written: 8 of 11 day-sensitive readings were still Sunday's. Beyond the five
+> named below, Muscle Mastery (summed from exercise points that include
+> capability confidence), the shadow trainer, the swap ranking, the cardio XP
+> streak — and the plan-fulfilment memo, which this entry wrongly lists as
+> already keyed by today: an unended pause runs to today, so a paused program's
+> slots moved every midnight under a key that never did. Every one now keeps the
+> local civil day it was worked out on and checks it at each read
+> (`currentDayKey`, or `trainerDayKey` where the engine reads the backtest-aware
+> clock), so a new day, a moved clock or a new timezone simply misses. And LOOP
+> notices the day itself: on returning to the foreground, and at the next local
+> midnight while it stays on screen, it redraws the tabs — never an open sheet.
+> Same-day renders are unchanged. See TRAINER-CONTRACT.md §115 and Contract 194.
+> Original analysis below.
+
 
 `_programProgressCache` and the plan-fulfilment cache deliberately put `today`
 in their key. Five siblings that are just as date-dependent do not:
@@ -234,7 +251,22 @@ wrong and a second consumer would inherit it.
 
 ---
 
-## E7 — Four sites still divide milliseconds by 86400000 · P3 · PROVEN
+## E7 — Four sites still divide milliseconds by 86400000 · P3 · PROVEN · **CLOSED in D93 (LOOP 9.5)**
+
+> **Closed, and there were nine.** All four below, plus the XP history's
+> TODAY / YESTERDAY label, the weekly volume comparison's day of the week, the
+> cardio streak's week gap (whole only because rounding absorbed the spans its
+> UTC week keys made), and two that no athlete reaches — the Recent PR card and
+> the plan-phase carousel, whose renderers are never called. Reproduced wrong on
+> 9.4 at both clock changes in every DST zone of the matrix, Lord Howe's
+> 30-minute ones included. Every calendar count now goes through
+> `daysBetweenDates`, which counts civil date boundaries (`civilDayNumber`)
+> instead of rounding elapsed time; cardio weeks are local civil Mondays, proven
+> to keep every session in the same week and every streak identical. Recovery's
+> decay stays elapsed time on purpose, as this entry judged. The symptom quoted
+> below happens only across a clock change (the span must contain one), not all
+> winter. See TRAINER-CONTRACT.md §115 and Contract 194. Original analysis below.
+
 
 `daysBetweenDates` is the corrected helper — both ends at local midnight,
 `Math.round`. These four take a time-of-day-bearing `now` and `Math.floor`:

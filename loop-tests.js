@@ -27384,7 +27384,11 @@ async function testTrainingFoundation(){
     T('daysBetweenDates counts a spring-forward week as seven days',
       ctx.daysBetweenDates('2026-03-02', '2026-03-09') === 7 && ctx.daysBetweenDates('2026-03-29', '2026-04-05') === 7);
     T('and a fall-back week as seven', ctx.daysBetweenDates('2026-10-26', '2026-11-02') === 7 && ctx.daysBetweenDates('2026-10-19', '2026-10-26') === 7);
-    T('it rounds rather than floors, so no local midnight loses a day', /Math\.round\(/.test(fnSrc(src, 'daysBetweenDates')) && !/Math\.floor\(/.test(fnSrc(src, 'daysBetweenDates')));
+    /* D93 — repointed. This pinned D77A's mechanism, rounding elapsed time,
+       which D93 replaces with a count of civil dates (Contract 194). The claim it
+       guards — no local midnight loses a day — now holds with no rounding at all. */
+    T('it counts civil dates, not elapsed time, so no local midnight loses a day',
+      /civilDayNumber\(fromStr\)/.test(fnSrc(src, 'daysBetweenDates')) && !/Math\.(floor|round)\(/.test(fnSrc(src, 'daysBetweenDates')));
     let bad = 0;
     for(let i = 0; i < 400; i++){
       const a = addDays('2026-01-01', i);
@@ -33708,6 +33712,451 @@ async function testNetworkAndUpdates(){
     c.DATA_KEYS.length === 15 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
+/* =========================================================
+   CONTRACT 194 — ONE TEMPORAL TRUTH (Phase D93: closes D88 E5 + E7)
+   ---------------------------------------------------------
+   Calendar questions are answered in local civil dates, never
+   in elapsed milliseconds, and every cached answer that depends
+   on today notices when today changes — with the app left open,
+   brought back from the background, or carried across a
+   timezone. The zone is switched at runtime (Node re-reads TZ),
+   so the daylight-saving cases are the same on any machine, and
+   the original zone is restored by name at the end.
+   ========================================================= */
+async function testLocalDayTruth(){
+  section('CONTRACT 194 — one temporal truth: local civil days, and caches that notice today changed (D93)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const c = app.ctx;
+  const homeTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const setTZ = tz => { process.env.TZ = tz; };
+  /* The sandbox's wall clock, movable. Local ISO strings are read in whatever
+     zone is current, exactly as the app reads the clock. */
+  const RealDate = c.Date;
+  let clockNow = null;
+  function FakeDate(...a){
+    const now = clockNow === null ? RealDate.now() : clockNow;
+    if(!new.target) return new RealDate(now).toString();
+    return a.length === 0 ? new RealDate(now) : new RealDate(...a);
+  }
+  FakeDate.prototype = RealDate.prototype;
+  FakeDate.now = () => clockNow === null ? RealDate.now() : clockNow;
+  FakeDate.UTC = RealDate.UTC; FakeDate.parse = RealDate.parse;
+  const at = iso => { clockNow = new RealDate(iso).getTime(); };
+  const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const plusDays = (s, n) => { const [y, m, d] = s.split('-').map(Number); return ymd(new Date(y, m - 1, d + n)); };
+  const hm = mins => String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(Math.round(mins % 60)).padStart(2, '0') + ':00';
+  /* This zone's clock changes in a year: the day whose local noon has another
+     offset from the noon before it. shift > 0 — the clocks went forward. */
+  const transitions = year => {
+    const out = [];
+    for(let t = new Date(year, 0, 1, 12); t.getFullYear() === year; t.setDate(t.getDate() + 1)){
+      const n = new Date(t); n.setDate(t.getDate() + 1);
+      const shift = t.getTimezoneOffset() - n.getTimezoneOffset();
+      if(shift) out.push({ day: ymd(n), shift });
+    }
+    return out;
+  };
+  const SET = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const W = (id, date, cat, name, n, w) => ({ id, date, category: cat, title: 'S', notes: '',
+    exercises: [{ name, bodyweight: false, sets: Array.from({ length: n || 3 }, () => SET(w || 135, 8)) }] });
+  const clearAll = () => ['invalidateSortedLogCache', 'invalidateXPTimelineCache', 'invalidateConsistencyCache',
+    'invalidateCapabilityCache', 'invalidateContextCache', 'invalidateRecoveryCache', 'invalidateShadowCache',
+    'invalidateCardioCache', 'invalidateProgramCache', 'invalidateSubstitutionCache']
+    .forEach(f => { try{ c[f](); }catch(e){} });
+
+  c.Date = FakeDate;
+  try{
+    /* ---------------------------------------------------------------- */
+    sub('one civil day count, and it never rounds');
+    await guard('civil count', async () => {
+      const d = c.daysBetweenDates;
+      T('P  the same day is 0', d('2026-06-15', '2026-06-15') === 0);
+      T('Q  adjacent days are 1, and R two days are 2', d('2026-06-15', '2026-06-16') === 1 && d('2026-06-15', '2026-06-17') === 2);
+      T('U  backwards is negative', d('2026-06-16', '2026-06-15') === -1 && d('2026-06-17', '2026-06-15') === -2);
+      T('V  across a month end', d('2026-01-31', '2026-02-01') === 1 && d('2026-04-30', '2026-05-01') === 1);
+      T('W  across a year end', d('2026-12-31', '2027-01-01') === 1 && d('2026-01-01', '2027-01-01') === 365);
+      T('X  a leap day counts, and only in a leap year', d('2028-02-28', '2028-03-01') === 2 && d('2027-02-28', '2027-03-01') === 1
+        && d('2028-01-01', '2029-01-01') === 366);
+      T('   an unreadable date is no count at all, not a guess', d('not a date', '2026-06-15') === null && d('2026-06-15', '') === null);
+      T('the count is civil date boundaries — an ordinal of the date\'s own components, no elapsed time, no rounding',
+        /function civilDayNumber\(dateStr\)\{[\s\S]*?return Date\.UTC\(d\.getFullYear\(\), d\.getMonth\(\), d\.getDate\(\)\) \/ 86400000;/.test(fnSrc(src, 'civilDayNumber'))
+        && /const a = civilDayNumber\(fromStr\), b = civilDayNumber\(toStr\);/.test(fnSrc(src, 'daysBetweenDates'))
+        && !/Math\.(round|floor|ceil)/.test(fnSrc(src, 'daysBetweenDates')) && !/Math\.(round|floor|ceil)/.test(fnSrc(src, 'civilDayNumber')));
+      const zones = ['UTC', 'America/New_York', 'America/Anchorage', 'Europe/London', 'Asia/Kolkata', 'Australia/Lord_Howe', 'Pacific/Kiritimati', 'Pacific/Chatham'];
+      const bad = [];
+      let crossings = 0;
+      zones.forEach(tz => {
+        setTZ(tz);
+        transitions(2026).forEach(tr => {
+          crossings++;
+          const before = plusDays(tr.day, -1), after = plusDays(tr.day, 1);
+          if(d(before, tr.day) !== 1 || d(tr.day, after) !== 1 || d(before, after) !== 2 || d(plusDays(tr.day, -3), plusDays(tr.day, 4)) !== 7)
+            bad.push(tz + ' ' + tr.day + ' (' + tr.shift + ' min)');
+        });
+      });
+      setTZ(homeTZ);
+      T('S/T  across every 2026 clock change in eight zones — 60 min and Lord Howe\'s 30, forward and back — adjacent dates are 1 day',
+        bad.length === 0 && crossings >= 10, crossings + ' crossings; wrong: ' + JSON.stringify(bad));
+    });
+
+    /* ---------------------------------------------------------------- */
+    sub('no calendar question is answered in elapsed milliseconds');
+    await guard('scan', async () => {
+      const code = stripComments(src);
+      const DAY = /\/\s*\(?\s*(?:7\s*\*\s*)?(?:86400000|864e5|8\.64e7|1000\s*\*\s*60\s*\*\s*60\s*\*\s*24|24\s*\*\s*60\s*\*\s*60\s*\*\s*1000|1000\s*\*\s*3600\s*\*\s*24|3600000\s*\*\s*24)\b/g;
+      const hits = [];
+      let m;
+      while((m = DAY.exec(code))){
+        const before = code.slice(0, m.index);
+        const fn = (before.match(/function\s+(\w+)\s*\([^)]*\)\s*\{(?![\s\S]*\nfunction\s)/) || [])[1]
+          || ((before.match(/function\s+(\w+)\s*\(/g) || []).slice(-1)[0] || '').replace(/function\s+|\s*\(/g, '');
+        hits.push(fn);
+      }
+      T('exactly two divisions by a day remain: the civil ordinal (exact, on UTC midnights) and recovery\'s decay (elapsed time on purpose)',
+        hits.length === 2 && hits.indexOf('civilDayNumber') !== -1 && hits.indexOf('computeMuscleRecovery') !== -1, JSON.stringify(hits));
+      T('no date is taken from UTC: a local date is never read off toISOString()',
+        !/toISOString\(\)\s*\.\s*(slice|substring|substr)\(\s*0\s*,\s*10\s*\)|toISOString\(\)\s*\.\s*split\(\s*'T'\s*\)/.test(code));
+      const sites = { renderTodayWorkout: 'the Train card', computeExerciseCapability: 'capability', computeTrainingContext: 'context',
+        progressCoverage: 'progress coverage', renderRecentPr: 'the Recent PR card', xpHistoryDateLabel: 'the XP history label',
+        getCurrentPhaseInfo: 'the plan phase week', renderProgVolume: 'the weekly volume comparison', computeCardioStreakWeeks: 'the cardio streak' };
+      const off = Object.keys(sites).filter(f => !/daysBetweenDates\(/.test(fnSrc(src, f)));
+      T('Z  every one of the nine day counts goes through the one helper', off.length === 0, JSON.stringify(off));
+      T('   recovery\'s decay says why it is elapsed time',
+        /deliberately ELAPSED time, not a calendar count/.test(src.slice(src.indexOf('function computeMuscleRecovery('), src.indexOf('function recoveryStateFromScore('))));
+    });
+
+    /* ---------------------------------------------------------------- */
+    sub('day counts are calendar counts across a clock change');
+    await guard('E7 sites', async () => {
+      for(const tz of ['America/New_York', 'Australia/Lord_Howe', 'Pacific/Chatham']){
+        setTZ(tz);
+        for(const tr of transitions(2026)){
+          const spring = tr.shift > 0;
+          /* Just past midnight after the short day, or late on the long day. */
+          const now = spring ? plusDays(tr.day, 1) + 'T' + hm(tr.shift / 2) : tr.day + 'T' + hm(24 * 60 + tr.shift / 2);
+          const civil = spring ? 2 : 3;
+          const session = plusDays(now.slice(0, 10), -civil);
+          at(now);
+          c.workoutLog = [W('s', session, 'push', 'Bench Press')];
+          c.schedule = { mon: 'push', tue: 'push', wed: 'push', thu: 'push', fri: 'push', sat: 'push', sun: 'push' };
+          clearAll();
+          c.renderTodayWorkout();
+          const card = (c.document.getElementById('todayWorkout').innerHTML.match(/(First time|Done today|Last done[^<·]*)/) || [])[1] || '';
+          const cap = c.computeExerciseCapability('Bench Press');
+          const muscle = c.computeTrainingContext().daysSinceMuscleTrained.chest;
+          const tag = tz + ' ' + (spring ? 'forward ' : 'back ') + Math.abs(tr.shift) + ' min, ' + now.replace('T', ' ');
+          T((spring ? 'S' : 'T') + '  ' + tag + ': the Train card, capability and muscle freshness all count ' + civil + ' days',
+            card.trim() === 'Last done ' + civil + 'd ago' && cap.daysSinceLast === civil && muscle === civil,
+            JSON.stringify({ card, cap: cap.daysSinceLast, muscle }));
+          const wk = spring ? 7 : 6;
+          c.workoutLog = [W('f', plusDays(now.slice(0, 10), -wk), 'push', 'Bench Press')];
+          clearAll();
+          T('   progress coverage: a first session ' + wk + ' days back is ' + (spring ? 'two weeks' : 'one week') + ' of history',
+            c.progressCoverage().weeksTracked === (spring ? 2 : 1), String(c.progressCoverage().weeksTracked));
+          if(spring){
+            /* One civil day apart across the short day itself. */
+            const yesterday = tr.day;
+            c.workoutLog = [W('p0', plusDays(yesterday, -7), 'push', 'Bench Press', 1, 135), W('p1', yesterday, 'push', 'Bench Press', 1, 185)];
+            clearAll();
+            c.renderRecentPr();
+            const pr = (c.document.getElementById('recentPrCard').innerHTML.match(/· (Today|Yesterday|\d+ days ago)</) || [])[1];
+            c.renderTodayWorkout();
+            const card1 = (c.document.getElementById('todayWorkout').innerHTML.match(/(Last done[^<·]*)/) || [])[1] || '';
+            T('Y/Z  the day after the short day, yesterday is "Yesterday" everywhere it is said',
+              c.xpHistoryDateLabel(yesterday) === 'YESTERDAY' && pr === 'Yesterday' && card1.trim() === 'Last done yesterday',
+              JSON.stringify({ label: c.xpHistoryDateLabel(yesterday), pr, card: card1 }));
+            c.planStartDate = plusDays(yesterday, -6);
+            T('   and a plan begun a week before that day is in its second week', c.getCurrentPhaseInfo().weekNum === 2, String(c.getCurrentPhaseInfo().weekNum));
+          }
+        }
+      }
+      setTZ(homeTZ);
+      at('2026-06-16T00:01:00');
+      c.workoutLog = [W('late', '2026-06-15', 'push', 'Bench Press')];
+      clearAll();
+      c.renderTodayWorkout();
+      const card2 = (c.document.getElementById('todayWorkout').innerHTML.match(/(Done today|Last done[^<·]*)/) || [])[1] || '';
+      T('Y  a session logged late yesterday is "yesterday" at 00:01, however few minutes have passed',
+        card2.trim() === 'Last done yesterday' && c.xpHistoryDateLabel('2026-06-15') === 'YESTERDAY', card2);
+    });
+
+    /* ---------------------------------------------------------------- */
+    sub('every cached answer that depends on today belongs to one day');
+    const weekOf = days => { const s = {}; c.PROGRAM_DAY_KEYS.forEach(k => { s[k] = { type: 'rest' }; });
+      Object.keys(days).forEach(k => { const t = (c.getTemplates(days[k]) || [])[0];
+        s[k] = { type: 'workout', planId: 'balanced', category: days[k], templateId: t && t.id }; }); return s; };
+    const paused = { id: 'p1', name: 'P', goal: 'strength', durationWeeks: 4, startDate: '2026-02-02', status: 'paused',
+      pausedOnDate: '2026-02-20', pausedDays: 0, pauses: [{ from: '2026-02-20', to: null }], schedule: weekOf({ mon: 'push', wed: 'pull', fri: 'legs' }), blocks: [] };
+    const seed = () => {
+      c.workoutLog = [
+        W('row1', '2026-01-05', 'pull', 'Barbell Row'), W('row2', '2026-01-08', 'pull', 'Barbell Row'),
+        W('row3', '2026-01-12', 'pull', 'Barbell Row'), W('row4', '2026-01-15', 'pull', 'Barbell Row'),
+        W('b1', '2026-02-23', 'push', 'Bench Press'), W('b2', '2026-02-25', 'push', 'Bench Press', 4),
+        W('b3', '2026-02-27', 'push', 'Bench Press', 5)
+      ];
+      c.schedule = { mon: 'push', tue: 'rest', wed: 'pull', thu: 'rest', fri: 'legs', sat: 'rest', sun: 'rest' };
+      c.cardioLog = [{ id: 'k0', date: '2026-02-16', activityId: 'run', activityName: 'Run', duration: '25', distance: '2.5', createdAt: '2026-02-16T10:00:00Z' },
+        { id: 'k1', date: '2026-03-01', activityId: 'run', activityName: 'Run', duration: '30', distance: '3', createdAt: '2026-03-01T10:00:00Z' }];
+      c.planStartDate = '2026-02-02';
+    };
+    const rowId = (() => { try{ return c.resolveExerciseId('Barbell Row'); }catch(e){ return null; } })();
+    const benchId = (() => { try{ return c.resolveExerciseId('Bench Press'); }catch(e){ return null; } })();
+    /* The swap picker's first choice for Barbell Row, given four sessions that go
+       stale at the same midnight: its confidence bonus falls from medium to low. */
+    seed(); clearAll();
+    const swapName = ((c.rankSubstitutionCandidates(rowId, {}) || [])[0] || {}).displayName || null;
+    const seedBase = seed;
+    const seedWithSwap = () => { seedBase(); if(swapName) c.workoutLog = c.workoutLog.concat(
+      ['2026-01-06', '2026-01-09', '2026-01-13', '2026-01-15'].map((d, i) => W('sw' + i, d, 'pull', swapName))); };
+    const probes = {
+      H: ['consistency', () => { const k = c.computeConsistencyData(); return k.weeks[k.weeks.length - 1].days.map(x => x.date + ':' + x.state).join(); }],
+      I: ['recovery', () => JSON.stringify(c.computeMuscleRecovery().chest)],
+      J: ['capability', () => { const k = c.computeExerciseCapability('Barbell Row'); return k.capabilityState + '|' + k.daysSinceLast + '|' + k.confidence.level; }],
+      K: ['context', () => { const k = c.computeTrainingContext(); return k.scheduledToday + '|' + JSON.stringify(k.daysSinceMuscleTrained) + '|' + k.workoutsThisWeek; }],
+      L: ['cardio', () => { const k = c.computeCardioStats(); return k.weekSessions + '|' + k.monthSessions; }],
+      L2: ['cardio XP streak', () => String(c.computeCardioXPTimeline().currentStreakWeeks)],
+      M: ['Mastery through capability', () => c.getExerciseMastery(rowId).points + '|' + (c.buildMuscleMastery().back || {}).points],
+      M2: ['the shadow trainer', () => JSON.stringify(c.computeShadowRecommendation('Barbell Row'))],
+      M3: ['swap ranking', () => JSON.stringify((c.rankSubstitutionCandidates(rowId, {}) || []).map(x => x.exerciseId + ':' + x.score))],
+      M4: ['a paused program\'s plan', () => c.deriveProgramPlanFulfillment(paused).slots.map(s => s.date).join()]
+    };
+    const read = () => { const o = {}; Object.keys(probes).forEach(k => { try{ o[k] = probes[k][1](); }catch(e){ o[k] = 'threw ' + e.message; } }); return o; };
+    const fresh = () => { const o = {}; Object.keys(probes).forEach(k => { clearAll(); try{ o[k] = probes[k][1](); }catch(e){ o[k] = 'threw ' + e.message; } }); return o; };
+    const stale = (got, want) => Object.keys(probes).filter(k => got[k] !== want[k]).map(k => probes[k][0]);
+    await guard('rollover', async () => {
+      T('   (the swap picker has a first choice for Barbell Row to go stale overnight: ' + swapName + ')', !!swapName);
+      for(const tz of ['America/New_York', 'Pacific/Kiritimati']){
+        setTZ(tz);
+        seedWithSwap(); clearAll();
+        at('2026-03-01T23:58:00');
+        const sunday = read();
+        at('2026-03-02T00:02:00');
+        const monday = read(), mondayFresh = fresh();
+        T('B/C  ' + tz + ': open across midnight, nothing written — every day-sensitive answer is today\'s at 00:02',
+          stale(monday, mondayFresh).length === 0, JSON.stringify(stale(monday, mondayFresh)));
+        T('N    and the new day changed them with no history changed at all', stale(sunday, mondayFresh).length >= 7,
+          stale(sunday, mondayFresh).length + ' of ' + Object.keys(probes).length + ' moved: ' + JSON.stringify(stale(sunday, mondayFresh)));
+        at('2026-03-04T09:00:00');
+        const wed = read();
+        T('E    a two-day jump reads the current day', stale(wed, fresh()).length === 0, JSON.stringify(stale(wed, fresh())));
+        at('2026-03-01T23:58:00');
+        const back = read();
+        T('F    a clock moved back to the day before reads that day, never the later one it has seen', stale(back, fresh()).length === 0 && stale(back, sunday).length === 0,
+          JSON.stringify(stale(back, fresh())));
+        /* The cardio streak counts back from this week or last: a run only two
+           weeks back keeps it alive on Sunday night and not on Monday. */
+        c.cardioLog = [{ id: 'k0', date: '2026-02-16', activityId: 'run', activityName: 'Run', duration: '25', distance: '2.5', createdAt: '2026-02-16T10:00:00Z' }];
+        c.invalidateCardioCache();
+        at('2026-03-01T23:58:00');
+        const s1 = c.computeCardioXPTimeline().currentStreakWeeks;
+        at('2026-03-02T00:02:00');
+        const s2 = c.computeCardioXPTimeline().currentStreakWeeks;
+        c.invalidateCardioCache();
+        const s3 = c.computeCardioXPTimeline().currentStreakWeeks;
+        T('L    the cardio streak alive on Sunday night is over at Monday midnight, with no run in either week', s1 === 1 && s2 === 0 && s3 === 0,
+          JSON.stringify([s1, s2, s3]));
+      }
+      setTZ(homeTZ);
+    });
+    await guard('same day', async () => {
+      setTZ('America/New_York');
+      seed(); clearAll();
+      at('2026-03-03T09:00:00');
+      const first = { cons: c.computeConsistencyData(), rec: c.computeMuscleRecovery(), cap: c.computeExerciseCapability('Barbell Row'),
+        ctx: c.computeTrainingContext(), card: c.computeCardioStats(), cxp: c.computeCardioXPTimeline(), mm: c.buildMuscleMastery(),
+        sh: c.computeShadowRecommendation('Bench Press'), sub: c.rankSubstitutionCandidates(benchId, {}), pf: c.deriveProgramPlanFulfillment(paused) };
+      at('2026-03-03T21:30:00');
+      const later = { cons: c.computeConsistencyData(), rec: c.computeMuscleRecovery(), cap: c.computeExerciseCapability('Barbell Row'),
+        ctx: c.computeTrainingContext(), card: c.computeCardioStats(), cxp: c.computeCardioXPTimeline(), mm: c.buildMuscleMastery(),
+        sh: c.computeShadowRecommendation('Bench Press'), sub: c.rankSubstitutionCandidates(benchId, {}), pf: c.deriveProgramPlanFulfillment(paused) };
+      const recomputed = Object.keys(first).filter(k => first[k] !== later[k]);
+      T('A/O  morning to evening, the same day: all ten caches answer from memory — the very same objects, nothing recomputed',
+        recomputed.length === 0, JSON.stringify(recomputed));
+      setTZ(homeTZ);
+    });
+    await guard('timezone', async () => {
+      seed(); clearAll();
+      setTZ('America/New_York');
+      at('2026-06-15T02:00:00Z');                                 // 22:00 on the 14th in New York, 11:00 on the 15th in Tokyo
+      const ny = read();
+      setTZ('Asia/Tokyo');
+      const tokyo = read(), tokyoFresh = fresh();
+      T('G  a new timezone that changes the date, with no restart: every answer is the new local day\'s',
+        stale(tokyo, tokyoFresh).length === 0 && stale(ny, tokyoFresh).length > 0, JSON.stringify(stale(tokyo, tokyoFresh)));
+      const tokyoAgain = read();
+      setTZ('America/New_York');
+      const nyAgain = read(), nyFresh = fresh();
+      T('   and back again: the earlier date is the earlier day\'s answer, not the later one\'s', stale(nyAgain, nyFresh).length === 0, JSON.stringify(stale(nyAgain, nyFresh)));
+      void tokyoAgain;
+      setTZ(homeTZ);
+    });
+    await guard('backtest clock', async () => {
+      /* Capability and recovery read the trainer's clock, which a backtest pins to
+         its cutoff; their caches follow THAT clock's day, not the wall's. */
+      setTZ('America/New_York');
+      seed(); clearAll();
+      at('2026-03-10T09:00:00');
+      const live = c.computeExerciseCapability('Barbell Row').daysSinceLast;
+      const replay = c.withHistoricalContext('2026-02-01', () => c.computeExerciseCapability('Barbell Row').daysSinceLast);
+      const liveAgain = c.computeExerciseCapability('Barbell Row').daysSinceLast;
+      T('a backtest reads its own day, and the live day is back afterwards', live === 54 && replay === 17 && liveAgain === 54,
+        JSON.stringify({ live, replay, liveAgain }));
+      /* withHistoricalContext clears every cache on the way in and out, which
+         would hide a cache keyed by the wrong clock. Move the trainer's clock
+         with nothing cleared: its caches must follow it on their own. */
+      c._simulatedNow = '2026-02-01T12:00:00';
+      const pinned = c.computeExerciseCapability('Barbell Row').daysSinceLast;
+      const pinnedRec = c.computeMuscleRecovery();
+      c._simulatedNow = null;
+      const back = c.computeExerciseCapability('Barbell Row').daysSinceLast;
+      T('   the trainer\'s caches follow the trainer\'s clock by themselves, with nothing cleared — in both directions',
+        pinned === 17 && back === 54 && pinnedRec !== c.computeMuscleRecovery(), JSON.stringify({ pinned, back }));
+      setTZ(homeTZ);
+    });
+
+    /* ---------------------------------------------------------------- */
+    sub('LOOP notices the new day itself — on return, and at midnight while it stays open');
+    await guard('notice', async () => {
+      setTZ('America/New_York');
+      seed(); clearAll();
+      const keep = { add: c.document.addEventListener, st: c.setTimeout, ct: c.clearTimeout, render: c.renderAll, vis: c.document.visibilityState };
+      const listeners = {}, timers = [];
+      let renders = 0, cleared = 0;
+      try{
+        c.document.addEventListener = (t, f) => { (listeners[t] = listeners[t] || []).push(f); };
+        c.setTimeout = (f, ms) => { timers.push({ f, ms }); return timers.length; };
+        c.clearTimeout = () => { cleared++; };
+        c.renderAll = () => { renders++; };
+        c.document.visibilityState = 'visible';
+        at('2026-03-01T23:58:00');
+        c.loopDay = '2026-03-01';
+        c.initLocalDay();
+        const vis = listeners.visibilitychange || [];
+        T('one listener of its own, for the foreground', vis.length === 1);
+        T('C  and ONE timer, for the next local midnight — a second past it — not an interval',
+          timers.length === 1 && timers[0].ms === 2 * 60 * 1000 + 1000 && !/setInterval/.test(fnSrc(src, 'armDayBoundary') + fnSrc(src, 'initLocalDay') + fnSrc(src, 'noticeNewDay')),
+          JSON.stringify(timers.map(t => t.ms)));
+        at('2026-03-02T00:00:01');
+        timers[0].f();
+        T('C  at midnight, still on screen: the tabs are redrawn once, for the new day, with no reload', renders === 1 && c.loopDay === '2026-03-02');
+        T('   and the next midnight is set, a whole day away', timers.length === 2 && timers[1].ms === 24 * 3600 * 1000);
+        T('   "the next midnight" is a calendar midnight: 22½ hours after 00:30 on the day clocks go forward, 24½ on the day they go back',
+          c.msUntilNextLocalDay(new RealDate(2026, 2, 8, 0, 30)) === 22.5 * 3600 * 1000
+          && c.msUntilNextLocalDay(new RealDate(2026, 10, 1, 0, 30)) === 24.5 * 3600 * 1000,
+          [c.msUntilNextLocalDay(new RealDate(2026, 2, 8, 0, 30)), c.msUntilNextLocalDay(new RealDate(2026, 10, 1, 0, 30))].map(x => x / 3600000).join(' h, ') + ' h');
+        at('2026-03-02T15:00:00');
+        c.document.visibilityState = 'hidden'; vis[0]();
+        const armedWhileHidden = timers.length;
+        T('   hidden: no timer left running, nothing drawn', armedWhileHidden === 2 && renders === 1 && cleared >= 2);
+        at('2026-03-03T07:10:00');
+        c.document.visibilityState = 'visible'; vis[0]();
+        T('D  back in the foreground after midnight: the new day at once, and midnight set again', renders === 2 && c.loopDay === '2026-03-03'
+          && timers.length === 3 && timers[2].ms === (16 * 60 + 50) * 60 * 1000 + 1000, JSON.stringify({ renders, day: c.loopDay, ms: timers[2] && timers[2].ms }));
+        at('2026-03-03T07:30:00');
+        c.document.visibilityState = 'hidden'; vis[0]();
+        c.document.visibilityState = 'visible'; vis[0]();
+        T('O  back on the same day: nothing redrawn', renders === 2);
+        /* Neither path reaches it hidden today — the listener checks first and the
+           timer is cleared on hide — so pin the rule itself, for any later caller:
+           a hidden page is never drawn, and the new day waits for the return. */
+        c.document.visibilityState = 'hidden';
+        at('2026-03-04T00:00:02');
+        const hiddenCall = c.noticeNewDay();
+        c.document.visibilityState = 'visible';
+        const shownCall = c.noticeNewDay();
+        T('   whoever asks, a hidden page is never drawn: the new day waits, and is drawn on return',
+          hiddenCall === false && shownCall === true && renders === 3 && c.loopDay === '2026-03-04', JSON.stringify({ hiddenCall, shownCall, renders }));
+        T('the foreground concern is separate from D92\'s: neither listener reaches into the other',
+          !/checkForAppUpdate|appRegistration/.test(fnSrc(src, 'initLocalDay') + fnSrc(src, 'noticeNewDay') + fnSrc(src, 'armDayBoundary'))
+          && !/noticeNewDay|armDayBoundary|loopDay/.test(fnSrc(src, 'initAppUpdates') + fnSrc(src, 'checkForAppUpdate'))
+          && /if\(document\.visibilityState === 'visible'\) checkForAppUpdate\(false\)/.test(src));
+      }finally{
+        c.document.addEventListener = keep.add; c.setTimeout = keep.st; c.clearTimeout = keep.ct; c.renderAll = keep.render;
+        c.document.visibilityState = keep.vis;
+        setTZ(homeTZ);
+      }
+      /* The real redraw, with a workout open. The sandbox cannot build set rows,
+         so the sheet is marked open the way the app marks it; the browser run
+         opens a real one and logs into it across midnight. */
+      setTZ('America/New_York');
+      seed(); clearAll();
+      at('2026-03-02T23:59:00');
+      const overlay = c.document.getElementById('logOverlay');
+      overlay.classList.add('open');
+      const storeBefore = JSON.stringify(c.__store);
+      c.loopDay = '2026-03-02';
+      at('2026-03-03T00:00:02');
+      const redrew = c.noticeNewDay();
+      T('a workout open at midnight is left open, and the redraw writes nothing',
+        redrew === true && overlay.classList.contains('open') && JSON.stringify(c.__store) === storeBefore);
+      overlay.classList.remove('open');
+      const redraw = fnSrc(src, 'renderAll') + fnSrc(src, 'noticeNewDay');
+      T('   the redraw is the tabs alone: no sheet is opened, closed or saved, and no cache is cleared',
+        !/open\w*Sheet|close\w*Sheet|persist\w*\(|LOOPStore|invalidate\w*\(/.test(redraw) && /renderAll\(\);/.test(fnSrc(src, 'noticeNewDay')));
+      setTZ(homeTZ);
+    });
+
+    /* ---------------------------------------------------------------- */
+    sub('cardio weeks moved to local Mondays, and no XP or streak moved with them');
+    await guard('cardio identity', async () => {
+      /* The pre-D93 rule, verbatim, as the oracle: the UTC date of each local
+         Monday, and weeks apart by rounding elapsed time. */
+      const oldStreak = (dates, now) => {
+        const weeks = new Set();
+        dates.forEach(ds => { const dt = new Date(ds + 'T00:00:00'); const mo = new Date(dt); mo.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); weeks.add(mo.toISOString().slice(0, 10)); });
+        const sorted = [...weeks].sort(); let maxEver = 1, run = 1;
+        for(let i = 1; i < sorted.length; i++){ const gap = Math.round((new Date(sorted[i]) - new Date(sorted[i - 1])) / (7 * 86400000)); if(gap === 1){ run++; maxEver = Math.max(maxEver, run); } else run = 1; }
+        const cws = new Date(now); cws.setHours(0, 0, 0, 0); cws.setDate(cws.getDate() - ((cws.getDay() + 6) % 7));
+        const thisMonday = cws.toISOString().slice(0, 10); const lastMonday = new Date(cws); lastMonday.setDate(lastMonday.getDate() - 7);
+        let current = 0;
+        if(weeks.has(thisMonday) || weeks.has(lastMonday.toISOString().slice(0, 10))){
+          const cursor = weeks.has(thisMonday) ? new Date(cws) : lastMonday;
+          while(weeks.has(cursor.toISOString().slice(0, 10))){ current++; cursor.setDate(cursor.getDate() - 7); }
+        }
+        return { current, maxEver: Math.max(maxEver, current), groups: dates.map(ds => { const dt = new Date(ds + 'T00:00:00'); const mo = new Date(dt); mo.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return mo.toISOString().slice(0, 10); }) };
+      };
+      let rnd = 194;
+      const r = n => { rnd = (rnd * 1103515245 + 12345) % 2147483648; return rnd % n; };
+      const diffs = [];
+      let histories = 0;
+      for(const tz of ['America/New_York', 'Europe/London', 'Australia/Lord_Howe', 'Pacific/Chatham', 'Pacific/Kiritimati', 'Asia/Kolkata']){
+        setTZ(tz);
+        for(let h = 0; h < 40; h++){
+          histories++;
+          const n = 1 + r(30);
+          const dates = Array.from({ length: n }, () => ymd(new Date(2026, 0, 1 + r(364)))).sort();
+          const nowIso = ymd(new Date(2026, 0, 1 + r(364))) + 'T' + hm(r(1440));
+          at(nowIso);
+          c.cardioLog = dates.map((ds, i) => ({ id: 'x' + i, date: ds, activityId: 'run', activityName: 'Run', duration: '30', distance: '3', createdAt: ds + 'T10:00:00Z' }));
+          c.invalidateCardioCache();
+          const now = new Date(clockNow);
+          const was = oldStreak(dates, now), is = c.computeCardioStreakWeeks();
+          const newGroups = dates.map(ds => c.weekStartKey(ds));
+          const samePartition = dates.every((a, i) => dates.every((b, j) => (was.groups[i] === was.groups[j]) === (newGroups[i] === newGroups[j])));
+          if(was.current !== is.current || was.maxEver !== is.maxEver || !samePartition) diffs.push(tz + ' ' + nowIso + ' ' + JSON.stringify({ was: [was.current, was.maxEver], is: [is.current, is.maxEver], samePartition }));
+        }
+      }
+      setTZ(homeTZ);
+      T(histories + ' generated cardio histories in six zones: every session in the same week as before, every streak identical',
+        diffs.length === 0, diffs.slice(0, 3).join(' | '));
+    });
+
+    /* ---------------------------------------------------------------- */
+    sub('nothing protected moved');
+    T('DATA_KEYS is still 15, the schema 1 with no migration, the trainer 0.1.1-shadow',
+      c.DATA_KEYS.length === 15 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('no new stored key: the day a cache belongs to lives in memory only', !c.DATA_KEYS.some(k => /day|clock|rollover/i.test(k)));
+    T('recovery, capability and trainer thresholds are unchanged', c.RECOVERY_CONFIG.halfLifeDays === 2 && c.RECOVERY_CONFIG.windowDays === 14
+      && c.CAPABILITY_CONFIG.staleDays === 45 && c.CAPABILITY_CONFIG.recentDays === 60 && c.TRAINER_CONFIG.evidence.staleDays === 45);
+  }finally{
+    c.Date = RealDate;
+    setTZ(homeTZ);
+  }
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -33862,6 +34311,7 @@ async function main(){
   await testPauseSuspension();
   await testPRModeConsistency();
   await testNetworkAndUpdates();
+  await testLocalDayTruth();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

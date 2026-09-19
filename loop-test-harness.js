@@ -161,7 +161,13 @@ function loadApp(initialStore){
     history: { pushState(){}, back(){} },
     alert(){}, confirm(){ return true; },
     Blob: class {}, URL: { createObjectURL:()=>'', revokeObjectURL(){} },
-    setTimeout, clearTimeout, setInterval, clearInterval,
+    /* No timer longer than ten minutes is ever scheduled here. No test waits
+       that long, and D93's wake-up for the next local midnight would otherwise
+       keep every loaded copy of the app in memory for hours. Contract 194
+       drives that timer through its own stub. */
+    setTimeout: (fn, ms, ...a) => (ms > 600000 ? { d93LongTimer: ms } : setTimeout(fn, ms, ...a)),
+    clearTimeout: t => { if(t && t.d93LongTimer) return; clearTimeout(t); },
+    setInterval, clearInterval,
     requestAnimationFrame: f => f(),
     Math, JSON, Date, Object, Array, String, Number, Boolean, RegExp, Error,
     parseInt, parseFloat, isNaN, Promise, Set, Map,
@@ -254,7 +260,8 @@ function loadApp(initialStore){
     'RANK_EMBLEM_FILE',
     /* D92 — the update notice's config, this page's build and the update state */
     'APP_UPDATE_CONFIG','LOOP_BUILD','appRegistration','appUpdateRequested','appUpdateReloading','appUpdateLastCheck',
-    'appUpdateReady','appUpdateDismissed','appUpdateAnnounced','appUpdateGiveUp'];
+    'appUpdateReady','appUpdateDismissed','appUpdateAnnounced','appUpdateGiveUp',
+    'loopDay','loopDayTimer'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

@@ -12109,3 +12109,151 @@ tap on Update. Every line of the What's New entry was proven on the shipped 9.3
 and proven gone on 9.4, read from the build itself, 16/16. The whole suite passes
 8,623/0, and every audit is green. There is no physical-iPhone evidence in
 any of this: every run is headless Edge.
+
+## §115 — D93: One temporal truth
+
+Closes D88 findings E5 and E7, and more of each than D88 recorded.
+
+**The rule.** A calendar question is answered in LOCAL CIVIL DATES, never in
+elapsed milliseconds; and any cached answer that depends on "today" notices when
+today changes.
+
+**E7, as it really was.** D88 listed four places that divided elapsed
+milliseconds by 86,400,000 to count days. There were nine, and every one was
+reproduced wrong on the shipped 9.4 in every daylight-saving zone of the matrix
+(New York, Anchorage, London, Lord Howe's 30-minute shift, Chatham): just past
+midnight after the clocks went forward, a session two civil days back read "Last
+done yesterday" on the Train card and 1 day in capability and in muscle
+freshness; late on the night they went back, a three-day-old one read "4d ago";
+the XP history label and the Recent PR card called yesterday "Today"; a plan
+begun a week earlier was still in week 1; and progress coverage counted a week
+of history as one week or two depending on the season. The five not in D88's
+list: the Recent PR card, the XP history label, the plan phase week, the weekly
+volume comparison's day of the week (right only where clocks change on a Sunday,
+where a cap absorbed it) and the cardio streak gap (right only because rounding
+absorbed the 6-to-8-day spans its UTC week keys produced). Zones without a clock
+change — UTC, Kolkata, Kiritimati — were never wrong, as expected.
+
+**One count.** `daysBetweenDates` is the one helper every calendar count now
+uses. D77A had made it right by rounding elapsed time — correct because no shift
+reaches half a day, but correct by construction only for that reason. It now
+counts civil date boundaries: `civilDayNumber` reads a date exactly as every
+other helper does and turns its year, month and day into an ordinal with
+`Date.UTC`, which keeps no daylight saving, so every day is exactly one apart.
+Every answer is the same as D77A's; none depends on rounding. The nine sites all
+call it, the Train card's copy is unchanged ("Done today", "Last done
+yesterday", "Last done Nd ago"), and the cardio week keys moved from the UTC date
+of a local Monday — a Sunday wherever the clock runs ahead of UTC — to
+`weekStartKey`, the local civil Monday strength already used. Held on 240
+generated histories in six zones against the old rule, kept verbatim as the
+oracle: every session in the same week, every streak identical.
+
+**Two divisions by a day remain, on purpose.** The civil ordinal itself (exact:
+it divides UTC midnights), and recovery's decay, which is deliberately elapsed
+time: training stress fades with hours rested, not with dates, the value is
+unfloored, and it is never shown as "N days ago". Contract 194 scans the whole
+app and fails if a third appears. The Friends invite windows are durations
+compared with server timestamps and are left alone.
+
+**E5, as it really was.** D88 named five caches and said the plan-fulfilment
+memo was already keyed by day. Ten caches answered "today" questions without
+knowing the day, and the plan-fulfilment memo was one of them. Reproduced on 9.4
+in all eight zones tried, with LOOP left open from Sunday 23:58 to Monday 00:02
+and nothing written: 8 of 11 readings were still Sunday's — consistency showed
+last week and no Monday; capability had not gone stale; today's schedule was
+still Sunday's rest; cardio still counted Sunday's run as this week; Muscle
+Mastery held 98 points where Exercise Mastery, summed fresh, gave 93; the shadow
+trainer had not demoted a lift gone stale; a paused program's planned slots had
+not moved.
+
+| cache | today enters through | keyed by |
+|---|---|---|
+| `_consistencyCache` | which twelve weeks; which days are due | wall-clock day |
+| `_recoveryCache` | decay since each session; the 14-day window | trainer-clock day |
+| `_capabilityCache` | staleness; the recent window; confidence | trainer-clock day |
+| `_contextCache` | today's schedule and readiness; the 14-day window; every engine it gathers | wall-clock day |
+| `_cardioCache` | this week; the last 30 days | wall-clock day |
+| `_cardioXPCache` | the current streak, counted back from this week | wall-clock day |
+| `_muscleMasteryCache` | exercise points include capability confidence | trainer-clock day |
+| `_shadowCache` | recommendations read capability staleness | trainer-clock day |
+| `_subRankCache` | candidates score capability confidence | trainer-clock day |
+| `_planFulfillCache` | an unended pause runs to today | wall-clock day, in its key |
+
+**One day key, read at every lookup.** `currentDayKey()` is the local civil
+date of the wall clock; `trainerDayKey()` is that of `trainerNow()`, the clock
+capability and recovery already compute against, which a backtest pins to its
+cutoff — so a replay's answers are keyed by the replay's day, and the live day
+is back when it ends. Each cache keeps the day it was worked out for beside its
+value and compares at every read; a map starts empty on a new day. Nothing is
+remembered at boot, so a cache made before midnight — or before the clock or the
+timezone moved the date — simply misses. Values keep their exact shape; nothing
+new is stored; the day lives in memory only.
+
+**Noticing the day without being asked.** Day-keyed caches make every read
+right; they cannot redraw a screen nobody touches, and LOOP draws on events — a
+Today card left lit across midnight would have gone on offering yesterday's
+session, Start button and all. So LOOP notices the new day itself and redraws
+the tabs with `renderAll`, which never touches an open sheet: on returning to
+the foreground (its own `visibilitychange` listener — D92's, which looks for a
+new version, is a separate concern with its own cadence and is untouched), and
+at the next local midnight while LOOP stays on screen, through one `setTimeout`
+set for that calendar midnight plus a second, set again after it fires, never an
+interval, and cleared whenever LOOP is hidden. "The next midnight" is a
+calendar one: 22½ hours after 00:30 on the day the clocks go forward.
+
+**Performance.** Warm renders on the same day are unchanged. Timed alternately
+in one process, 9.4 against 9.5, median of 25 on the same generated history:
+Home 52.46 ms on both at 1,500 sessions (10.39 vs 10.47 at 300); Progress →
+Strength 60.24 vs 60.90; Muscles 3.14 vs 3.16; Exercise Detail 10.42 vs 10.43.
+The cached Mastery read gains 10 µs (0.04 → 0.05 ms): the day checks
+themselves. Separate runs minutes apart drifted by up to 8% either way, which is
+why the comparison is interleaved. The first read of a new day recomputes what
+depends on the day, once, and costs less than a cold launch in either build —
+Home about 210 ms against 265 at 1,500 sessions, Mastery about 88 against 128 —
+because everything that depends only on history stays warm. 9.4's first read of
+a new day was cheap only because it returned yesterday's answers.
+
+**Data safety.** Derivation and cache only. No history, program or storage key is
+written or rewritten; `DATA_KEYS` remains 15, the local schema 1 with no
+migration, the trainer `0.1.1-shadow`. D44's formula, D89's chronology, D90's
+pause semantics, D91's PR modes and D92's update system are untouched.
+
+**Mutation testing.** 33 mutants, each run against Contract 194 alone on the
+release tree, all caught: the day taken out of each of the ten caches;
+elapsed-ms division restored at each of the nine sites; the helper rounding or
+flooring elapsed time; the ordinal read in UTC; the day token frozen at boot,
+read as the UTC date, or read off the wall clock for the trainer's caches;
+the foreground ignoring a new day; a new day noticed but not drawn; the wake-up
+made an interval, set for 24 hours, counted in elapsed hours or left running
+while hidden; a hidden page drawn; cardio weeks back to UTC dates. Four were
+caught only after the contract was strengthened, and each exposed a real gap:
+the cardio XP streak and the swap ranking survived because the first probes
+happened not to move at that midnight; the trainer-clock key survived because
+`withHistoricalContext` clears every cache on both sides and so hid a key read
+off the wrong clock (now pinned by moving the trainer's clock with nothing
+cleared); and removing the hidden-page guard survived because no path reaches it
+hidden today (now pinned as the rule for any later caller).
+
+**Verification.** Contract 194 adds 64 assertions and runs its daylight-saving
+and timezone cases in fixed zones by switching the process's zone at runtime, so
+they hold on any machine. One D77A assertion that pinned rounding is repointed to
+the civil count; its claim — no local midnight loses a day — is unchanged. The
+whole suite passes 8,687/0. The date audit now runs in twelve zones — Anchorage,
+Kolkata, Lord Howe, Kiritimati and Chatham added — with a D93 section in each
+crossing that zone's own 2026 clock changes and a midnight at that zone's own
+clock, against the Intl oracle: no failures. Adding them surfaced one fixture
+that assumed "today" was 6 January where it was already the 7th; the app was
+right. In a real browser at 320, 375, 390 and 430 with the zone pinned to New
+York and the page's clock running from 23:59:30, LOOP left open on Today turned
+to Monday by itself at midnight, Progress, cardio and Mastery read the new week,
+a workout open across midnight was left exactly as it was and stayed resumable,
+a page hidden through midnight ran no timer and caught up the moment it came
+back, and the day counts across the spring change read calendar days: 40/40.
+Every line of the What's New entry was proven on the shipped 9.4 and proven gone
+on 9.5, read from the build itself: 10/10. There is no physical-iPhone evidence
+in any of this: every run is headless Edge.
+
+**Deliberately left.** The Recent PR card and the plan-phase carousel are dead
+code — their renderers are never called and their elements are not in the
+markup. Their day counts were corrected with the rest, so a later phase that
+wires them back gets the rule, but they are not claimed as fixes anyone saw.

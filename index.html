@@ -16184,6 +16184,24 @@ const LOOP_UPDATES = [
       'When the fonts server was slow to answer, LOOP waited for it before showing anything'
     ],
     changes: []
+  },
+  {
+    id: 'v9-5',
+    version: 'LOOP 9.5',
+    title: 'Midnight and Clock Changes',
+    date: '2026-09-18',
+    swVersion: 'loop-v172',
+    summary: 'LOOP now moves to the new day at midnight on its own, and counts days by the calendar through every clock change.',
+    newFeatures: [],
+    improvements: [
+      'Left open past midnight, LOOP now moves to the new day by itself — Today, your week and your progress update without reopening the app'
+    ],
+    bugFixes: [
+      'Left open past midnight, parts of LOOP stayed on yesterday — your week, consistency, recovery, cardio totals and Mastery caught up only after you logged something or reopened the app',
+      'Around the spring and autumn clock changes, “Last done” could be a day off: a session two days ago read “yesterday” just after midnight, and one three days ago read “4d ago” late at night',
+      'Just after the clocks went forward, your XP history labeled the day before as “Today”'
+    ],
+    changes: []
   }
 ];
 
@@ -21294,9 +21312,11 @@ function getPhaseForCyclePos(pos){
 }
 
 function getCurrentPhaseInfo(){
-  const start = new Date(planStartDate + 'T00:00:00');
-  const now = new Date();
-  const diffDays = Math.floor((now - start) / (1000*60*60*24));
+  /* D93 — civil days since the plan began, not elapsed 24-hour blocks, which
+     turned the week over an hour late after every spring clock change. An
+     unreadable start date still reads as it always did. */
+  const civil = daysBetweenDates(planStartDate, localDateStr());
+  const diffDays = civil === null ? NaN : civil;
   const weekNum = Math.max(1, Math.floor(diffDays / 7) + 1);
   const cyclePos = ((weekNum - 1) % PHASE_CYCLE_LENGTH) + 1;
   const phase = getPhaseForCyclePos(cyclePos);
@@ -21435,7 +21455,9 @@ function renderRecentPr(){
   const events = computeAllPREvents();
   if(events.length === 0){ el.innerHTML = ''; return; }
   const top = events[0];
-  const daysAgo = Math.floor((new Date() - new Date(top.date + 'T00:00:00')) / (1000*60*60*24));
+  /* D93 — calendar days, so a PR set yesterday never reads "Today" in the first
+     hour after a spring clock change. */
+  const daysAgo = daysBetweenDates(top.date, localDateStr());
   if(daysAgo > 7){ el.innerHTML = ''; return; }
   const f = formatPREventHeadline(top);
   if(!f){ el.innerHTML = ''; return; }
@@ -21467,10 +21489,16 @@ function renderRecentPr(){
    ========================================================= */
 const CONSISTENCY_WEEKS = 12;
 let _consistencyCache = null;
+/* D93 (D88 E5) — which twelve weeks, and which days are already due, are both
+   counted from today. Kept only for the day it was worked out on: an app left
+   open from Sunday night into Monday kept Sunday's weeks while the weekly
+   volume beside it had already moved on. */
+let _consistencyDay = null;
 function invalidateConsistencyCache(){ _consistencyCache = null; }
 
 function computeConsistencyData(){
-  if(_consistencyCache) return _consistencyCache;
+  const day = currentDayKey();
+  if(_consistencyCache && _consistencyDay === day) return _consistencyCache;
 
   const now = new Date();
   const dayOffset = (now.getDay() + 6) % 7;
@@ -21635,6 +21663,7 @@ function computeConsistencyData(){
     hasEnoughData: totalWorkouts >= 3,
     rangeStart: weeks[0].start
   };
+  _consistencyDay = day;
   return _consistencyCache;
 }
 
@@ -21933,6 +21962,10 @@ function buildTrainerExplanation(state, perf, recSig, readySig, capSig, confiden
 
 /* ---------- ENGINE ENTRY POINT ---------- */
 let _shadowCache = {};
+/* D93 (D88 E5) — a recommendation reads capability, whose staleness can change
+   overnight, so recommendations are kept for one day. Only the input is kept
+   fresh; the engine and its thresholds are untouched (0.1.1-shadow). */
+let _shadowDay = null;
 function invalidateShadowCache(){ _shadowCache = {}; }
 
 function computeShadowRecommendation(exerciseName, options){
@@ -21940,6 +21973,8 @@ function computeShadowRecommendation(exerciseName, options){
   const name = (exerciseName || '').trim();
   if(!name) return null;
 
+  const day = trainerDayKey();
+  if(_shadowDay !== day){ _shadowCache = {}; _shadowDay = day; }
   const cacheKey = name.toLowerCase() + '|' + (opts.targetReps || '');
   if(_shadowCache[cacheKey] !== undefined) return _shadowCache[cacheKey];
 
@@ -22797,6 +22832,9 @@ const CARDIO_CORE_FIELDS = ['duration','distance','rpe'];
 
 let cardioLog = [];
 let _cardioCache = null;
+/* D93 (D88 E5) — "this week" and "the last 30 days" are counted from today,
+   so the stats belong to the day they were counted on. */
+let _cardioDay = null;
 function invalidateCardioCache(){
   _cardioCache = null;
   if(typeof _cardioXPCache !== 'undefined') _cardioXPCache = null;
@@ -22905,7 +22943,8 @@ function activityMetaText(a){
 
 /* ---------- STATS ---------- */
 function computeCardioStats(){
-  if(_cardioCache) return _cardioCache;
+  const day = currentDayKey();
+  if(_cardioCache && _cardioDay === day) return _cardioCache;
   /* Legacy sessions only. Shadowed once here rather than edited at each of
      the six uses below, so none of them can be missed. */
   const cardioLog = legacyCardioRecords();
@@ -22937,6 +22976,7 @@ function computeCardioStats(){
     longestSession: longest ? { minutes: Math.round(parseFloat(longest.duration)||0),
       activity: longest.activityName, date: longest.date } : null
   };
+  _cardioDay = day;
   return _cardioCache;
 }
 
@@ -25428,10 +25468,14 @@ function computeCardioSessionXP(session){
    the strength timeline. Returns per-session detail so the UI can explain
    where XP came from. */
 let _cardioXPCache = null;
+/* D93 — XP itself is history, but the current streak counts back from this
+   week, so the whole record belongs to the day it was built on. */
+let _cardioXPDay = null;
 function invalidateCardioXPCache(){ _cardioXPCache = null; }
 
 function computeCardioXPTimeline(){
-  if(_cardioXPCache) return _cardioXPCache;
+  const day = currentDayKey();
+  if(_cardioXPCache && _cardioXPDay === day) return _cardioXPCache;
 
   const chrono = legacyCardioRecords().sort((a,b) =>
     a.date.localeCompare(b.date) || (a.createdAt||'').localeCompare(b.createdAt||''));
@@ -25439,12 +25483,11 @@ function computeCardioXPTimeline(){
   const timeline = [];
   let lifetimeXP = 0, sessionCount = 0;
   const weekTotals = {};
-  const weekKey = (d) => {
-    const dt = new Date(d + 'T00:00:00');
-    const monday = new Date(dt);
-    monday.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
-    return monday.toISOString().slice(0,10);
-  };
+  /* D93 — the week is the local civil Monday, weekStartKey, as it is everywhere
+     else. It was the UTC date of that local midnight — a Sunday wherever the
+     clock runs ahead of UTC — which grouped the same sessions only because every
+     key was converted the same wrong way. */
+  const weekKey = (d) => weekStartKey(d);
 
   chrono.forEach(s => {
     const raw = computeCardioSessionXP(s);
@@ -25477,6 +25520,7 @@ function computeCardioXPTimeline(){
   _cardioXPCache = { timeline, lifetimeXP, sessionCount, streakXP,
     currentStreakWeeks: streak.current, maxStreakWeeks: streak.maxEver,
     weeklyTotals: weekTotals };
+  _cardioXPDay = day;
   return _cardioXPCache;
 }
 function computeCardioXPTotal(){ return computeCardioXPTimeline().lifetimeXP; }
@@ -25486,31 +25530,28 @@ function computeCardioXPTotal(){ return computeCardioXPTimeline().lifetimeXP; }
 function computeCardioStreakWeeks(sortedAsc){
   const rows = sortedAsc || legacyCardioRecords().sort((a,b) => a.date.localeCompare(b.date));
   if(!rows.length) return { current:0, maxEver:0 };
+  /* D93 — local civil Mondays, and weeks between them counted in calendar days.
+     These were UTC dates of local midnights, Sundays or Mondays depending on the
+     season, and the gap came out whole only because rounding absorbed the
+     6-to-8-day spans that produced. Same weeks, same runs, same streaks. */
   const weeks = new Set();
-  rows.forEach(s => {
-    const dt = new Date(s.date + 'T00:00:00');
-    const monday = new Date(dt);
-    monday.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
-    weeks.add(monday.toISOString().slice(0,10));
-  });
+  rows.forEach(s => { weeks.add(weekStartKey(s.date)); });
   const sorted = [...weeks].sort();
   let maxEver = 1, run = 1;
   for(let i=1;i<sorted.length;i++){
-    const prev = new Date(sorted[i-1]), cur = new Date(sorted[i]);
-    const gap = Math.round((cur - prev) / (7*86400000));
+    const gap = daysBetweenDates(sorted[i-1], sorted[i]) / 7;
     if(gap === 1){ run++; maxEver = Math.max(maxEver, run); }
     else run = 1;
   }
   // Current streak counts back from this week or last
-  const thisMonday = currentWeekStart().toISOString().slice(0,10);
-  const lastMonday = new Date(currentWeekStart()); lastMonday.setDate(lastMonday.getDate()-7);
-  const lastKey = lastMonday.toISOString().slice(0,10);
+  const thisMonday = weekStartKey(localDateStr());
+  const lastKey = addDaysISO(thisMonday, -7);
   let current = 0;
   if(weeks.has(thisMonday) || weeks.has(lastKey)){
-    let cursor = weeks.has(thisMonday) ? new Date(currentWeekStart()) : lastMonday;
-    while(weeks.has(cursor.toISOString().slice(0,10))){
+    let cursor = weeks.has(thisMonday) ? thisMonday : lastKey;
+    while(weeks.has(cursor)){
       current++;
-      cursor.setDate(cursor.getDate() - 7);
+      cursor = addDaysISO(cursor, -7);
     }
   }
   return { current, maxEver: Math.max(maxEver, current) };
@@ -26362,7 +26403,10 @@ function renderTodayWorkout(){
      and also covers a program reference that no longer resolves. */
   const first = (programDay && programDay.template) ? programDay.template : templates[0];
   const lastDone = sortedLog().find(l => l.category === cat);
-  const daysAgo = lastDone ? Math.floor((new Date() - new Date(lastDone.date + 'T00:00:00')) / 86400000) : null;
+  /* D93 (D88 E7) — calendar days since it was last done. Elapsed hours read a
+     two-day-old session as "yesterday" just after a spring clock change and a
+     three-day-old one as "4d ago" late on the night the clocks went back. */
+  const daysAgo = lastDone ? daysBetweenDates(lastDone.date, localDateStr()) : null;
   /* Time Mode compresses the PLANNED workout for display and for starting.
      The template itself is never modified — this is a derived copy. */
   const shown = first ? applyTimeModeToTemplate(first) : null;
@@ -29961,6 +30005,32 @@ function addDaysISO(dateStr, days){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
+/* D93 — ONE TEMPORAL TRUTH. A calendar question is answered with LOCAL CIVIL
+   DATES, never with elapsed milliseconds. Across a daylight-saving change a
+   local day is 23 or 25 hours long (23½ or 24½ on Lord Howe), so elapsed time
+   divided by 86,400,000 counted a two-day-old session as "yesterday" just after
+   midnight in spring, and a three-day-old one as "4d ago" late on the night the
+   clocks went back.
+
+   A date's civil ordinal counts its calendar components as days. Date.UTC keeps
+   no daylight saving, so every UTC midnight is exactly one day after the last,
+   and subtracting two ordinals counts the date boundaries between them. The
+   string is read exactly as every other date helper here reads it, then only
+   its year, month and day are used. */
+function civilDayNumber(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  if(isNaN(d)) return null;
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000;
+}
+
+/* The local civil day a date-dependent answer belongs to. Read from the clock on
+   EVERY lookup, never remembered, so a cache made before midnight — or before
+   the clock or the timezone moved the date — simply misses. currentDayKey is the
+   wall clock; trainerDayKey is the clock capability and recovery already
+   compute against, which a backtest pins to its own cutoff date. */
+function currentDayKey(){ return localDateStr(); }
+function trainerDayKey(){ return localDateStr(trainerNow()); }
+
 /* The single source of truth for the whole progression system. Walks every
    logged workout in chronological order exactly once, tracking running PR
    bests per exercise, running workout/PR counts, and running week-streak
@@ -30146,7 +30216,9 @@ function levelBarHtml(p){
 }
 
 function xpHistoryDateLabel(dateStr){
-  const daysAgo = Math.floor((new Date() - new Date(dateStr + 'T00:00:00')) / (1000*60*60*24));
+  /* D93 — TODAY and YESTERDAY are calendar words: a civil-day count, not
+     elapsed hours, which called yesterday TODAY after a spring clock change. */
+  const daysAgo = daysBetweenDates(dateStr, localDateStr());
   if(daysAgo === 0) return 'TODAY';
   if(daysAgo === 1) return 'YESTERDAY';
   return formatDateShort(dateStr);
@@ -30970,13 +31042,18 @@ function recencyDecay(daysAgo){
 }
 
 let _recoveryCache = null;
+/* D93 (D88 E5) — recovery changes with nothing but time, so the answer is kept
+   only for the day it was worked out on. A day with no training in it is still
+   a day of recovery, and it now shows. */
+let _recoveryDay = null;
 function invalidateRecoveryCache(){ _recoveryCache = null; }
 
 /* Core model. Walks only COMPLETED workouts (workoutLog); an in-progress
    draft is not part of workoutLog and therefore contributes nothing until
    the session is actually finished. */
 function computeMuscleRecovery(){
-  if(_recoveryCache) return _recoveryCache;
+  const day = trainerDayKey();
+  if(_recoveryCache && _recoveryDay === day) return _recoveryCache;
 
   const now = trainerNow();
   const muscles = Object.keys(MUSCLE_MAP);
@@ -30988,6 +31065,10 @@ function computeMuscleRecovery(){
   workoutLog.forEach(entry => {
     const d = new Date(entry.date + 'T00:00:00');
     if(isNaN(d)) return;
+    /* D93 — deliberately ELAPSED time, not a calendar count: this feeds an
+       exponential decay of training stress, which follows hours slept and
+       rested, not dates. Unfloored, so a clock change moves it by at most
+       1/24 of a day. Never shown as "N days ago". */
     const daysAgo = Math.max(0, (now - d) / 86400000);
     const inWindow = d >= cutoff;
     const decay = recencyDecay(daysAgo);
@@ -31043,6 +31124,7 @@ function computeMuscleRecovery(){
     };
   });
   _recoveryCache = out;
+  _recoveryDay = day;
   return out;
 }
 
@@ -31363,6 +31445,10 @@ function confidenceFromSessions(n){
    Everything derived from workoutLog. Returns null rather than guessing when
    an exercise has never been logged. */
 let _capabilityCache = null;
+/* D93 (D88 E5) — the day those answers were worked out for. Staleness, the
+   recent window, the current estimate and the confidence Mastery scores with
+   all move when the day does, with nothing written. */
+let _capabilityDay = null;
 function invalidateCapabilityCache(){ _capabilityCache = null; }
 /* =========================================================
    EXERCISE CAPABILITY ENGINE  (Phase 4)
@@ -31506,7 +31592,8 @@ function capabilityConfidence(sessionCount, daysSinceLast, cv){
 }
 
 function computeExerciseCapability(name){
-  if(!_capabilityCache) _capabilityCache = {};
+  const day = trainerDayKey();
+  if(!_capabilityCache || _capabilityDay !== day){ _capabilityCache = {}; _capabilityDay = day; }
   const key = (name || '').trim().toLowerCase();
   if(!key) return null;
   if(_capabilityCache[key]) return _capabilityCache[key];
@@ -31519,7 +31606,9 @@ function computeExerciseCapability(name){
   const use1RM = supports1RMEstimate(type);
 
   const now = trainerNow();
-  const daysSince = Math.floor((now - new Date(sessions[0].date + 'T00:00:00')) / 86400000);
+  /* D93 (D88 E7) — calendar days, so `stale` starts on the day it should, not
+     an hour either side of it whenever a clock change lies in between. */
+  const daysSince = daysBetweenDates(sessions[0].date, localDateStr(now));
 
   // ---- LIFETIME (all history) ----
   let lifetimeWeight = 0, lifetimeReps = 0, lifetimePair = null, lifetime1RM = 0;
@@ -32134,10 +32223,14 @@ async function runShadowEvaluation(context){
    A single snapshot answering "where does this athlete stand right now",
    assembled entirely from existing engines. No stored copy. */
 let _contextCache = null;
+/* D93 (D88 E5) — "right now" means today: today's schedule and readiness, the
+   14-day window, and every engine it gathers are answered per local day. */
+let _contextDay = null;
 function invalidateContextCache(){ _contextCache = null; }
 
 function computeTrainingContext(){
-  if(_contextCache) return _contextCache;
+  const day = currentDayKey();
+  if(_contextCache && _contextDay === day) return _contextCache;
 
   const cons = computeConsistencyData();
   const week = computeWeekSummary();
@@ -32164,7 +32257,7 @@ function computeTrainingContext(){
   const lastTrained = {};
   Object.keys(MUSCLE_MAP).forEach(m => { lastTrained[m] = null; });
   sortedLog().forEach(l => {
-    const d = Math.floor((new Date() - new Date(l.date + 'T00:00:00')) / 86400000);
+    const d = daysBetweenDates(l.date, day);           // D93 (D88 E7) — calendar days
     l.exercises.forEach(ex => {
       const n = (ex.name || '').toLowerCase();
       /* D48 — the shared resolver, so "when did I last train this" agrees
@@ -32256,6 +32349,7 @@ function computeTrainingContext(){
       };
     })()
   };
+  _contextDay = day;
   return _contextCache;
 }
 
@@ -32381,7 +32475,9 @@ function progressCoverage(){
   let weeksTracked = 0, firstDate = null;
   workoutLog.forEach(l => { if(!firstDate || l.date < firstDate) firstDate = l.date; });
   if(firstDate){
-    const days = Math.floor((Date.now() - new Date(firstDate + 'T00:00:00')) / 86400000);
+    /* D93 (D88 E7) — calendar days: a week of history read as two weeks late on
+       the night the clocks went back, and as one just after they went forward. */
+    const days = daysBetweenDates(firstDate, localDateStr());
     weeksTracked = Math.max(1, Math.ceil((days + 1) / 7));
   }
   return { weeksTracked, firstDate, sessions: workoutLog.length };
@@ -33036,8 +33132,9 @@ function renderProgVolume(){
      or a different phase is not a failure, and this tab is descriptive. */
   const start = currentWeekStart();
   const prevStart = new Date(start); prevStart.setDate(start.getDate() - 7);
-  const now = new Date();
-  const daysIn = Math.min(7, Math.floor((now - start) / 86400000) + 1);
+  /* D93 — the day of the week it is, counted in calendar days from Monday. The
+     elapsed-hours count only came out right where clocks change on a Sunday. */
+  const daysIn = Math.min(7, daysBetweenDates(localDateStr(start), localDateStr()) + 1);
   const prevCut = new Date(prevStart); prevCut.setDate(prevStart.getDate() + daysIn);
   const between = (l, a, b) => { const d = new Date(l.date + 'T00:00:00'); return d >= a && d < b; };
   const endCap = new Date(start); endCap.setDate(start.getDate() + 7);
@@ -33506,8 +33603,15 @@ function getTopExerciseMastery(limit){
    Reuses the existing muscle taxonomy and the canonical registry's own
    primary/secondary lists. No second muscle model is introduced. */
 let _muscleMasteryCache = null;
+/* D93 (D88 E5) — the totals add up exercise mastery, whose points include the
+   capability confidence that drops when a lift goes stale: a day can change
+   them with nothing logged. Kept for the day capability was read on, so Muscle
+   Mastery never disagrees with the Exercise Mastery it is summed from. Scoring
+   itself is untouched. */
+let _muscleMasteryDay = null;
 function buildMuscleMastery(){
-  if(_muscleMasteryCache) return _muscleMasteryCache;
+  const day = trainerDayKey();
+  if(_muscleMasteryCache && _muscleMasteryDay === day) return _muscleMasteryCache;
   const C = MASTERY_CONFIG.muscle;
   const totals = {};
   Object.keys(MUSCLE_LABELS).forEach(m => { totals[m] = { points:0, exercises:new Set(), sessions:0 }; });
@@ -33542,6 +33646,7 @@ function buildMuscleMastery(){
     });
   });
   _muscleMasteryCache = out;
+  _muscleMasteryDay = day;
   return out;
 }
 function getMuscleMastery(muscleId){ return buildMuscleMastery()[muscleId] || null; }
@@ -34816,16 +34921,18 @@ function getProgramsByStatus(status){ return getPrograms().filter(p => p.status 
    Week comes from the program's own start date, never from workout history,
    so missing a session never shifts which week the athlete is in. Paused
    days are subtracted, which is what keeps a resumed program honest. */
-/* D77A — ROUNDED, NOT FLOORED. Two local midnights are a whole number of civil
-   days apart, but not always a whole number of 24-hour spans: the week that
-   springs forward holds a 23-hour day. Flooring 6.96 days made Monday 9 March
-   2026 read as day 6 of a program that began Monday 2 March, so from spring
-   until autumn every program week turned over on a Tuesday. A DST shift is an
-   hour, never half a day, so rounding recovers the civil count exactly. */
+/* D77A found that two local midnights are a whole number of civil days apart
+   but not always a whole number of 24-hour spans: the week that springs forward
+   holds a 23-hour day, so flooring 6.96 days made Monday 9 March 2026 day 6 of a
+   program begun Monday 2 March. It fixed that by rounding elapsed time.
+
+   D93 — rounding was right, but only because no shift reaches half a day. The
+   count is now the one LOOP means: civil date boundaries between the two dates
+   (civilDayNumber), with no elapsed time involved at all. Every answer is the
+   same; none depends on rounding. The one helper every calendar count uses. */
 function daysBetweenDates(fromStr, toStr){
-  const a = new Date(fromStr + 'T00:00:00'), b = new Date(toStr + 'T00:00:00');
-  if(isNaN(a) || isNaN(b)) return null;
-  return Math.round((b - a) / 86400000);
+  const a = civilDayNumber(fromStr), b = civilDayNumber(toStr);
+  return a === null || b === null ? null : b - a;
 }
 /* =========================================================
    PROGRAM TIME  (Phase D89)
@@ -41764,13 +41871,18 @@ function assignWorkoutsToPlannedSlots(slots, workouts, weekOf, opts){
      3. the same program week and category — a session trained a day early
         or late is the same planned session, not a miss plus an extra
    Within each pass the pool is walked oldest-first with the id as tiebreak,
-   so array order can never quietly decide adherence. */
+   so array order can never quietly decide adherence.
+
+   D93 (D88 E5) — the memo is keyed by TODAY as well. A pause that has not
+   ended runs to today (dateIsSuspended), so while a program is paused every
+   new day suspends one more date and moves a slot past the end. D88 recorded
+   this cache as already keyed by day; it was not. */
 function deriveProgramPlanFulfillment(program, log){
   const out = { planned:0, fulfilled:0, unfulfilled:0, additional:0,
     totalWorkouts:0, planningKnown:false, slots:[] };
   if(!program || !program.startDate) return out;
   const useCache = !log;
-  const key = useCache ? [program.id, program.status, program.durationWeeks,
+  const key = useCache ? [program.id, currentDayKey(), program.status, program.durationWeeks,
     program.pausedDays || 0, program.startDate,
     (workoutLog ? workoutLog.length : 0)].join('|') : null;
   if(useCache && _planFulfillCache && _planFulfillCache.key === key)
@@ -45208,6 +45320,9 @@ function substitutionSessionTally(){
 }
 
 let _subRankCache = {};
+/* D93 (D88 E5) — a candidate's score includes its capability confidence, which
+   can drop overnight when a lift goes stale, so a ranking is kept for one day. */
+let _subRankDay = null;
 function invalidateSubstitutionCache(){ _subSessionTally = null; _subRankCache = {}; }
 
 function overlapCount(a, b){
@@ -45410,6 +45525,8 @@ function rankSubstitutionCandidates(exerciseId, context){
   const floor = context.relaxed
     ? SUBSTITUTION_CONFIG.limits.minScore * 0.45
     : SUBSTITUTION_CONFIG.limits.minScore;
+  const day = trainerDayKey();
+  if(_subRankDay !== day){ _subRankCache = {}; _subRankDay = day; }
   const cacheKey = exerciseId + '|' + (context.workoutExerciseIds || []).join(',') + (context.relaxed ? '|r' : '');
   if(_subRankCache[cacheKey]) return _subRankCache[cacheKey];
 
@@ -50825,6 +50942,75 @@ initIntro();
 // If boot fails for any reason, still release the intro promptly rather than
 // making the user wait out the failsafe behind a logo.
 boot().catch(err => { console.error('LOOP boot error:', err); markAppReady(); });
+
+/* =========================================================
+   LOCAL DAY  (Phase D93 — closes D88 E5)
+   ---------------------------------------------------------
+   Every cache whose answer depends on "today" keeps the local
+   civil day it was worked out on and is checked against the
+   clock at every lookup (currentDayKey / trainerDayKey), so the
+   first read after midnight — or after the clock or the
+   timezone moves the date — is today's. That makes every read
+   right. It cannot redraw a screen nobody touches: LOOP draws on
+   events, so a Today card left lit across midnight would go on
+   offering yesterday's session, Start button and all.
+
+   So LOOP notices a new day itself and redraws the tabs:
+     · on coming back to the foreground — the usual way to meet
+       a new day, since a phone asleep at midnight wakes into it;
+     · at the next local midnight while LOOP stays on screen —
+       one timer, set for that moment and set again after it,
+       never a running interval, and none while LOOP is hidden.
+   renderAll draws the tabs only: an open sheet, a workout in
+   progress, is left exactly as it is. Nothing is cleared — the
+   caches miss on their own.
+
+   D92's foreground listener, which looks for a new version, is
+   a different concern with its own cadence, and is untouched.
+   ========================================================= */
+let loopDay = localDateStr();        // the day the tabs were last drawn for
+let loopDayTimer = null;
+
+/* To the next local midnight, however long today is (setHours walks the
+   calendar, so a 23- or 25-hour day is still one day). */
+function msUntilNextLocalDay(from){
+  const now = from || new Date();
+  const next = new Date(now);
+  next.setHours(24, 0, 0, 0);
+  return next - now;
+}
+
+/* The tabs were drawn for another day: draw them for this one. */
+function noticeNewDay(){
+  if(document.visibilityState === 'hidden') return false;   // redrawn on return instead
+  const today = currentDayKey();
+  if(today === loopDay) return false;
+  loopDay = today;
+  renderAll();
+  return true;
+}
+
+/* A second past the next midnight, so the date has surely turned. If a moved
+   clock fires it early, nothing has changed yet and it is simply set again. */
+function armDayBoundary(){
+  clearTimeout(loopDayTimer);
+  loopDayTimer = null;
+  if(document.visibilityState !== 'visible') return;
+  loopDayTimer = setTimeout(() => {
+    loopDayTimer = null;
+    noticeNewDay();
+    armDayBoundary();
+  }, msUntilNextLocalDay() + 1000);
+}
+
+function initLocalDay(){
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') noticeNewDay();
+    armDayBoundary();
+  });
+  armDayBoundary();
+}
+initLocalDay();
 
 /* =========================================================
    APP UPDATES  (Phase D92 — closes D88 E4)
