@@ -12754,7 +12754,11 @@ audit:cardio 261, audit:gps 43, audit:dates 0 failures.
 **Order.** D95 was built on LOOP 9.8 (896ceb3). D96 was written and shipped as LOOP 9.9 while
 D95 waited for the owner, which is why §120 describes §119 as living on its own branch. D95-R
 then rebased D95 onto 9.9 (9e93bbe) and kept both sides whole: Contract 198 runs between 197
-and 199, and §119 sits between §118 and §120.
+and 199, and §119 sits between §118 and §120. The rebase also exposed that the migration
+sweep ran only on LF files: a Windows checkout (core.autocrlf) writes the migrations as CRLF,
+and the seven mutants with multi-line anchors could not be applied (reported loudly as anchor
+problems, never as kills). `e9-mutations.js` now normalises every copy to LF, as git stores
+them, and all 21 are killed on a CRLF checkout.
 
 **Protected.** DATA_KEYS 15, local schema 1, trainer 0.1.1-shadow; no client
 change, so no PWA version was bumped. D80A session behaviour untouched.
