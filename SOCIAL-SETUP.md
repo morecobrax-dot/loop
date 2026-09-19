@@ -47,7 +47,7 @@ Signing in adds identity. It does not move your training anywhere.
 
 ## 2. Apply the schema
 
-The whole backend is four checked-in files, applied in order:
+The whole backend is five checked-in files, applied in order:
 
 1. `supabase/migrations/0001_social_foundation.sql` — profiles, stats,
    requests, friendships (D52)
@@ -57,6 +57,9 @@ The whole backend is four checked-in files, applied in order:
    friend (D80B)
 4. `supabase/migrations/0004_shared_workout_identity.sql` — a shared workout's
    icon and colour (D81)
+5. `supabase/migrations/0005_e9_security_closure.sql` — the security closure
+   (D95): who can read a profile, what each role may hold, how invite codes are
+   made and guessed, and what a function will say about strangers
 
 Either:
 
@@ -162,6 +165,86 @@ select position('''identity''' in pg_get_functiondef('public.loop_friends_hub(da
 - `CHECK ((schema_version = ANY (ARRAY[1, 2])))` — 0004 **is** applied.
 - `hub_lists_identity` `false` with version 2 allowed — the LOOP 8.2 version of
   0004 is applied; run the current file. `true` — 0004 is fully applied.
+
+### Applying 0005 to a project that runs 0004 (the security closure, D95)
+
+Open **SQL Editor → New query**, paste `0005_e9_security_closure.sql`, run it. It
+needs 0001 and 0002; it applies with or without 0003 and 0004, and safely twice.
+Run it **after 0004** on a project that has it, and again after any re-run of
+0001, which it corrects. **LOOP itself needs no update**: every request the app
+makes is still allowed.
+
+It changes what the database says, and one thing about the data:
+
+- **A profile row is its owner's.** Before, a friend, or anyone with a pending
+  request to or from you, could read your whole profile row, including your
+  invite code. Friends still see each other's usernames and levels: they come
+  through the Friends functions, which are unchanged.
+- **Least privilege.** `profiles`, `social_stats`, `friend_requests` and
+  `friendships` no longer carry Supabase's default `GRANT ALL` for signed-in
+  users — including `TRUNCATE`, which is not subject to row level security.
+  `profiles` is granted by column: a client sets a username, never an invite
+  code, an id or a date.
+- **Invite codes.** Made from the database's cryptographic random source
+  (unbiased), and **guessing is limited to 20 wrong codes an hour per athlete**.
+  Codes issued before are re-issued **once** (every athlete gets a new one; the
+  app shows links, not codes, so nobody notices). This is the only change to
+  stored data: no profile, friendship, request, invite link or shared workout is
+  touched. Delete the last block of the file (the one headed "CODES ALREADY
+  ISSUED") if you would rather not.
+- **Two lookups answer only about you.** `loop_are_friends` and
+  `loop_request_between` used to say whether any two strangers were friends, or
+  had a pending request. The first now answers only for the person asking; the
+  second is no longer callable by athletes at all.
+
+Anonymous callers were already refused everywhere (measured on the live project
+with the publishable key alone: every table and function answers `42501`), so
+almost nothing 0005 changed is visible from outside. One thing is — the new table
+it creates. With nothing but the publishable key (no account):
+
+```bash
+curl -s "https://<ref>.supabase.co/rest/v1/invite_code_misses?select=*&limit=1" \
+  -H "apikey: <publishable key>"
+```
+
+- `{"code":"PGRST205",...}` (404) — 0005 is **not** applied yet.
+- `{"code":"42501",...,"message":"permission denied for table invite_code_misses"}`
+  (401) — 0005 **is** applied, and anonymous callers are refused. (If it still
+  says 404 a minute after applying, run `notify pgrst, 'reload schema';`.)
+
+What 0005 changed for signed-in athletes is visible from **inside**, in the SQL
+editor:
+
+```sql
+-- 1. The migration ran, and re-issued codes once.
+select obj_description('public.loop_new_invite_code()'::regprocedure, 'pg_proc') as marker;
+-- 2. A profile row is its owner's:
+select pg_get_expr(polqual, polrelid) from pg_policy where polname = 'profiles_select';
+-- 3. Signed-in users hold only what the app uses:
+select table_name, string_agg(privilege_type, ',' order by privilege_type) as authenticated_holds
+  from information_schema.table_privileges
+ where table_schema = 'public' and grantee = 'authenticated'
+ group by table_name order by table_name;
+-- 4. Nobody can execute the retired oracle or the trigger functions:
+select p.proname, has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and p.proname in ('loop_request_between', 'loop_touch_updated_at', 'loop_profiles_guard');
+```
+
+- `marker` is `csprng-v1` — 0005 is applied. Empty — it is **not**.
+- The policy is `(user_id = auth.uid())` and nothing about friends.
+- `social_stats` and `social_weekly` hold `INSERT,SELECT,UPDATE`;
+  `friend_requests` and `friendships` `DELETE,SELECT`; `profiles` `SELECT` (its
+  insert and update are column grants and are not listed here). `friend_invites`,
+  `invite_code_misses`, `shared_workouts` and `shared_workout_sends` do not
+  appear. Any `TRUNCATE`, `REFERENCES` or `TRIGGER` in this list is a leftover.
+- All three functions show `authenticated = false`.
+
+The same behaviour is proven on a real PostgreSQL — every attack run as the
+athlete who would make it — by `npm install --no-save @electric-sql/pglite` and
+`npm run test:sql`; `node supabase/tests/e9-mutations.js` breaks the migrations
+on purpose and requires that suite to notice.
 
 ## 3. Turn on email and password
 

@@ -320,6 +320,18 @@ nobody will be looking at the importer.
 
 ## E9 — Supabase policy notes · P2 · for owner-applied SQL
 
+> **D95: fix prepared, NOT closed — OWNER ACTION REQUIRED.** All four notes
+> were re-verified against the migrations on a real PostgreSQL (and the live
+> project's anonymous surface re-probed), and are fixed by
+> `supabase/migrations/0005_e9_security_closure.sql`; no client change. E9 stays
+> open until 0005 is confirmed applied on the live project (see SOCIAL-SETUP.md,
+> "Applying 0005"). D95 also found the notes were slightly short: a friend could
+> read `invite_code` because `profiles_select` allowed it, `authenticated` also
+> held `TRUNCATE` (which bypasses row level security) on four tables, an athlete
+> could insert a profile with a chosen `invite_code` (a code-existence oracle),
+> and `loop_are_friends` / `loop_request_between` answered for any two UUIDs.
+> Contract 198 and `supabase/tests/e9-security.js` hold the result.
+
 All 8 tables have RLS enabled, no policy uses `USING (true)` or
 `WITH CHECK (true)` on user data, no `SECURITY DEFINER` function is executable
 by `anon`, and all 18 pin `search_path` and gate on `auth.uid()`. The three
