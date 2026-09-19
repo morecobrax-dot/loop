@@ -75,7 +75,10 @@ function run(dir){
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'loop-e9-mut-'));
 const files = fs.readdirSync(SRC).filter(f => /\.sql$/.test(f));
-const reset = () => files.forEach(f => fs.copyFileSync(path.join(SRC, f), path.join(tmp, f)));
+/* Every copy is normalised to LF — how git stores these files. A working copy is
+   whatever the checkout made it (with core.autocrlf, CRLF), and a mutant's
+   multi-line anchor would then match nothing and the sweep could not run. */
+const reset = () => files.forEach(f => fs.writeFileSync(path.join(tmp, f), fs.readFileSync(path.join(SRC, f), 'utf8').replace(/\r\n/g, '\n')));
 reset();
 const base = run(tmp);
 console.log('baseline (unmutated copy): pass ' + base.pass + ', fail ' + base.fail);
