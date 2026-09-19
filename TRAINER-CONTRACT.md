@@ -12522,3 +12522,121 @@ physical-iPhone evidence in any of this: every run is headless Edge.
 **Deliberately left.** The Muscle panel shows leaders only; the full ranked muscle
 list stays in its sheet. `mastery-medal-1..3.png` are unused. The exercise list's
 own "View all" disclosure is unchanged.
+
+## §118 — D94B: Mastery, one system
+
+A refinement of §117. Presentation only: scoring, thresholds, levels, rankings and
+storage are exactly as they were (asserted against 9.7 on the same history).
+
+**The selector.** LOOP's own card surface (`--surface`, `--border-quiet`,
+`--radius-xl`, the same as the Mastery card beneath it) with two equal halves. The
+chosen half is the quiet tile a selected day wears on Today, a tint of the accent
+(`--accent-soft`) with a thin accent edge, and it slides between the halves on
+`transform` (0.22 s). There is no glow, gradient or shadow. Chosen text is
+`--text`; the other side is `--text-faint`. Each half is at least 44 px. The
+owner's icons are 26 px and sit at 45% opacity until their side is chosen, so the
+label leads. Type steps down at 389 and 359 px, so a label is never cut. The 9.7
+scroll-driven pill (`.mst-ind`, `--p`, the ResizeObserver and the scroller) is
+gone.
+
+**The switch: two states of the same card.** One card (`#mstShell`) holds one stage
+(`#mstStage`) holding both panels. The inactive panel is out of flow (absolute),
+invisible, `inert` and takes no pointer events. A switch (`setMasteryMode`)
+changes state in place and never rebuilds anything:
+- The incoming contents fade (0.2 s, ease-out, 30 ms delay) and step 8 px home
+  (0.22 s, 20 ms delay), so they are home by 240 ms (`MASTERY_SWITCH_MS`).
+- The outgoing contents fade and step 8 px toward their own tab (0.14 s,
+  ease-in), and are hidden only after they have faded. The two overlap, so the
+  card is never empty.
+- Exercise steps to the left and Muscle to the right, so the direction cue
+  points at each tab.
+- The card's height is locked at what it measures now, then eased to the new
+  panel's height (0.24 s) and released 40 ms after the switch ends. A switch
+  that interrupts another cancels the first one's release (held with a fake
+  clock).
+- `#progMuscles` takes no part in scroll anchoring (`overflow-anchor: none`), and
+  if `scrollY` changed during the switch it is restored to the pixel.
+- Choosing the mode already showing does nothing.
+- `masteryApply` is idempotent, so the tabs, `aria-selected`, the tab order,
+  `inert` and the tile can never disagree, however fast the taps come.
+
+9.7's swipe is kept, but only as a trigger. It uses passive listeners and fires
+on a deliberate flick, never a drag: `MASTERY_UI_CONFIG.swipe` sets it at 56 px
+or more, more than 1.8 × as sideways as vertical, within 700 ms. Under
+`prefers-reduced-motion` the new state is simply there: no fade, step, tile
+movement or height easing, and no animation runs.
+
+**ALL MUSCLES.** The D86 sheet (`allMuscleMasteryOverlay` and its four functions)
+is gone. Its list now sits in the Muscle panel, under the top three, as
+"All muscles". It is built by the same list component as "All exercises"
+(`masteryListHtml`: the first five, then "View all N"). It reads
+`getTopMuscleMastery()` filtered to "has history", in the ranking muscle mastery
+already has, with the top three included and no sort or second model. A muscle
+row uses the same row component (`masteryRankRowHtml`: name and level pill,
+meta, bar). It counts exercises, never sessions (§117), and it is a `<div>`,
+not a button: a muscle has no detail screen. The muscle leader cards are
+read-only list items for the same reason: no handler, no pointer and no press
+state. Exercise rows still open Exercise Detail by the logged name through
+`onclickArg`.
+
+**One level language.** Six tier colours (`.mptN, [data-tier="N"]` → `--tier`,
+`--tier-line`), one per badge, all different. They are read by the level pill,
+the leader card's bar, the row bar and the rail. A long row name wraps to a
+second line (clamped at two) instead of an ellipsis, and never runs under its
+pill. Exercise Detail's own mastery bar is untouched.
+
+**The badge system is one rail.** Six stages in an ordered list, Level 1 to 6+.
+Each has a level, the badge (46 px), a title and one line of history language
+(≤ 34 characters, two lines at most). They sit in one grid row of 110 px stages
+with a quiet connector from badge to badge, stopping short of both. It scrolls
+sideways with momentum and a proximity snap, shows no scrollbar and contains
+overscroll. It is a labelled region the keyboard can reach. It spans the view's
+20 px gutter, so on a phone the next stage is cut by the screen edge. It reads no
+safe-area inset itself; the shell owns the physical edge (D26), so in landscape
+it stops at the safe area. "Train consistently. Build history. Unlock higher
+levels." sits above it and "Training history, not a measure of strength." directly
+beneath. The section is 235 px tall at 375, 390 and 430 px, and 250 px at 320; 9.7's
+3 × 2 grid was 373 px at 390.
+
+**Order, identical in both modes.** Selector → header → top three → ALL list,
+inside the card, then the badge rail, then the 12-week sections, unchanged.
+Overview, Strength and Volume render byte-identically to 9.7 at 0, 12 and 300
+sessions.
+
+**Found while building it.**
+1. The rail first bled into the landscape safe area, which broke the suite's D26
+   rule that only the shell reads the insets. It now bleeds by the gutter only.
+2. The swipe's thresholds were bare numbers inside the mastery module, which
+   broke Contract 63's "no bare numeric thresholds" rule. They moved into
+   `MASTERY_UI_CONFIG`.
+3. The first mutation sweep left 8 of 74 survivors:
+   - The settle timer was only checked on real timers. A fake clock now holds
+     both the full-duration lock and "the newest switch owns the release".
+   - Row escaping and the row's `onclickArg` were covered only by a source
+     pattern. The handler is now run with a typed name containing `'` and
+     `<img>`.
+   - The copy checks could pass vacuously (`indexOf` returning -1).
+   - Nothing required the six tier colours to differ.
+   - Nothing kept muscle cards from looking tappable.
+
+**Data safety.** Nothing is written by a render or a switch. `DATA_KEYS` 15,
+schema 1, trainer 0.1.1-shadow.
+
+**Verification.** Contract 196 is revised (94 assertions; the 9.7 scroll-maths
+section went with the scroller). Contract 197 is new (79). Older test code in
+Contracts 64, 65, 66, 122, 188 and 189 named the sheet, the scroller's functions
+or the old `openExDetail` site count; it is repointed in 18 edits, each claim kept. The sheet's own open/close checks were retired with it, replaced
+by "the sheet is gone" and "the list is complete in the page".
+- The whole suite passes 9,031 / 0.
+- audit:program 335, audit 87, audit:cardio 261, audit:gps 43, audit:dates 0
+  failures across the zone matrix.
+- Mutation testing: 75 / 75 killed by Contracts 188, 196 and 197.
+- Browser QA in headless Edge at 320, 375, 390 and 430 passes 244 / 244. It
+  samples every frame of a switch in the page, driven by real touch. Every
+  switch took 239–242 ms, `scrollY` never moved and the lowest combined panel
+  opacity was 0.88. Also covered: rapid switching, Reduce Motion, landscape with
+  side insets, the rail swipe, long names, and the tab bar clear at the bottom.
+- There is no physical-iPhone evidence.
+
+**Deliberately left.** Swipe stays as a trigger, not a drag-follow. The D86.1 place
+medals remain unused on disk (§117).

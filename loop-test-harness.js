@@ -267,7 +267,9 @@ function loadApp(initialStore){
     'IMPORT_ERROR','BACKUP_MIGRATIONS','MIGRATIONS','BACKUP_MAX_DEPTH','importInFlight',
     /* D94A — the Mastery view's badge table, icons and the two bits of state that
        outlive a draw */
-    'MASTERY_BADGE_TIERS','MASTERY_ICONS','masteryMode','masteryPlay'];
+    'MASTERY_BADGE_TIERS','MASTERY_ICONS','masteryMode','masteryPlay',
+    /* D94B — how long a Mastery mode switch takes */
+    'MASTERY_SWITCH_MS'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +
