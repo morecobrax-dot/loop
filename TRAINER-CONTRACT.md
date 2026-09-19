@@ -12641,6 +12641,121 @@ by "the sheet is gone" and "the list is complete in the page".
 **Deliberately left.** Swipe stays as a trigger, not a drag-follow. The D86.1 place
 medals remain unused on disk (§117).
 
+## §119 — D95: Supabase security closure (D88 E9) — prepared, NOT closed until 0005 is live
+
+A focused security phase: no Friends redesign, no feature, no client change.
+Migration `supabase/migrations/0005_e9_security_closure.sql` is **owner-applied**;
+E9 is not closed until it is confirmed live (SOCIAL-SETUP.md, "Applying 0005").
+
+**Measured first, not assumed.** The live project answers an anonymous caller
+holding only the publishable key with `42501` on every table and every function
+(23 probed), and 404 for `invite_code_misses`, which does not exist yet. That
+proves the door is shut. Of 0005's changes only its new table is visible from
+outside: `invite_code_misses` answers 404 PGRST205 until 0005 is applied and 401
+42501 after — the owner's outside check, and the live state at 16:00Z was 404.
+The behaviour behind the door was measured on a real PostgreSQL (PGlite) with
+Supabase's roles and default privileges, running the checked-in migrations
+verbatim: an access matrix of anon, A, B, C, D (A↔B friends, B↔C friends, C a
+stranger to A, D with a pending request to A).
+
+**What D95 found, against D88's four notes.**
+1. *Invite code exposure — confirmed, and wider.* `profiles_select` let a
+   friend, and anyone with a pending request either way, read the whole row:
+   measured, A read B's and D's `invite_code`. A stranger could not. The code is
+   a reusable capability (`loop_send_friend_request`, `loop_preview_invite`), so
+   D, who had merely *asked* A, could read A's code. `friend_invites` (the
+   244-bit links, SHA-256 at rest) was already unreadable by any client role.
+2. *GRANT gap — confirmed, and worse than noted.* `authenticated` held ALL
+   seven privileges on `profiles`, `social_stats`, `friend_requests`,
+   `friendships`. Row level security stopped every row-level use — but
+   **TRUNCATE is not subject to row level security**: measured, A could
+   `TRUNCATE public.friendships`. Not reachable through PostgREST, so not
+   exploitable as shipped; still a grant no role needs. `profiles` also allowed
+   INSERT of a chosen `invite_code` (an insert of a taken code failed 23505: a
+   code-existence oracle for a signed-in athlete without a profile) and UPDATE
+   of `created_at`.
+3. *Weak generator — confirmed.* `random()`: reseeding the session (`setseed`)
+   made `loop_new_invite_code()` return the same code twice. 31 symbols × 8 =
+   39.6 bits. Behind a connection pool the state is shared across callers.
+4. *Unscoped oracles — confirmed.* `loop_are_friends(a, b)` told A that B and C
+   were friends; `loop_request_between(a, b)` told C that D had asked A. Both
+   are executable by every signed-in athlete (needed only because policies and a
+   DEFAULT are evaluated as the caller).
+
+**What 0005 does.**
+- `profiles_select` is `user_id = auth.uid()`. Friends' usernames and levels
+  still arrive through the SECURITY DEFINER functions, unchanged; the client
+  reads only its own row (Contract 198 holds that).
+- Every table is revoked from `public, anon, authenticated` and granted back
+  exactly what the app does: `profiles` SELECT, INSERT (user_id, username,
+  username_key), UPDATE (username, username_key); `social_stats`, `social_weekly`
+  SELECT/INSERT/UPDATE; `friend_requests`, `friendships` SELECT/DELETE. The
+  upsert the app makes writes its primary key in the SET clause, so those two
+  tables keep table-level UPDATE.
+- `loop_new_invite_code()` draws from `gen_random_uuid()` (skipping the version
+  and variant bytes) with rejection sampling at 248 = 8 × 31, so every symbol is
+  exactly uniform; `search_path = pg_catalog`. Guessing is limited to **20 wrong
+  codes an hour per athlete** across `loop_preview_invite` and
+  `loop_send_friend_request`, counted in `invite_code_misses` (RLS on, no
+  grant), checked before the code is looked at, so a throttled athlete learns
+  nothing about which codes exist (`rate_limited` from send; no rows from
+  preview, exactly as for a wrong code). Existing codes were made by the old
+  generator and are re-issued **once**, guarded by a marker
+  (`comment on function … is 'csprng-v1'`) so a second run re-issues none. The
+  app shows links, not codes, so nothing an athlete does changes.
+- `loop_are_friends` / `loop_request_between` answer only if `auth.uid()` is one
+  of the two (every legitimate caller is); `loop_request_between` and the three
+  trigger functions are no longer executable by any client role.
+
+**Token facts, for the record.** Invite *links*: 32 bytes from two
+`gen_random_uuid()` (244 random bits), base64url, 43 characters, SHA-256 at rest,
+unique index, 7-day expiry, 20 uses, revocable, at most five live, redeemed
+under a row lock; a dead link does not say whose it was. Invite *codes*: 39.6
+bits, unique constraint, rotation retries on collision, a first insert whose
+default collides is refused (23505) and stores nothing; throttled as above. The
+codes are a legacy path (the app shares links); retiring them is the roadmap's
+cleaner answer, not a D95 change.
+
+**Audited and left alone, on purpose.** All 18 SECURITY DEFINER functions
+already pin `search_path = public`, read the caller from `auth.uid()`, and take
+no identity as an argument; hijack was tried (hostile `upper`, `sha256`, `now`,
+`gen_random_uuid`, `substr` planted in `public`, and a caller's own temp table
+`profiles` first in their own search_path) and changed nothing. Every function
+that answers "does X exist?" for an id already answers a stranger and a made-up
+id identically (`loop_remove_friend`, `loop_accept_friend_request`,
+`loop_share_workout` — friend check before payload — `loop_open_/remove_shared_workout`).
+Username availability (`23505` on a username) remains: the sign-up screen needs
+it and a display name is not a secret. Supabase's own default privileges for
+*future* objects cannot be changed from a migration in this project; the suite
+fails if a new table or function is not classified.
+
+**Tests.** `supabase/tests/e9-security.js` — 168 checks on a real PostgreSQL
+(`npm run test:sql`, needs `npm install --no-save @electric-sql/pglite`; the
+product still has no dependencies): the access matrix, the catalog, every attack
+run as the athlete who would make it with the SQLSTATE named, generator
+uniformity (chi-square) and seed-independence, the throttle, collision handling,
+re-issue and its marker, the oracles, hijack, invite-link redemption, friendships,
+weekly and comparison scope, shared workouts, anon on every function.
+`supabase/tests/e9-mutations.js` — 21 mutants of the migrations, all killed.
+Against the pre-0005 chain the suite fails 32 checks — exactly E9. Contract 198
+(in `verify`) reads the chain and models the privileges it leaves, holds the
+client's six direct-table requests against the tightened grants (column by
+column), no secret in the browser, and that a refusal is a value, never an
+exception: 71 checks, 16 of 16 mutants killed. It is a tripwire; the database
+suite is the proof. The D80A/D80B/D81 real-Postgres suites (112, 112, 42) and the
+real-client flows (143) still pass on the chain including 0005. Two of the 116
+flows-share checks fail identically with and without 0005 (a program-setup step in
+that scratch harness, not social).
+
+**Whole suite.** `npm run verify` 9,102 / 0 (9,031 + Contract 198's 71); audit:program 335, audit 87,
+audit:cardio 261, audit:gps 43, audit:dates 0 failures.
+
+**Protected.** DATA_KEYS 15, local schema 1, trainer 0.1.1-shadow; no client
+change, so no PWA version was bumped. D80A session behaviour untouched.
+
+**Owed.** Apply 0005, then verify live (SOCIAL-SETUP.md). Two-account physical
+QA of Friends remains the owner's, as since D80A.
+
 ## §120 — D96: The eight final rank emblems
 
 (Numbered §120 because D95's record, §119, lives on its own unmerged branch.)

@@ -35462,6 +35462,279 @@ async function testMasteryOneSystem(){
 }
 
 /* =========================================================
+   CONTRACT 198 — SUPABASE SECURITY CLOSURE  (Phase D95, closes D88 E9)
+   ---------------------------------------------------------
+   The publishable key in index.html is public by design and is not a boundary.
+   The boundary is the database: row level security, table and function
+   privileges, scoped SECURITY DEFINER functions.
+
+   WHAT THIS CONTRACT IS, AND IS NOT. It runs inside `npm run verify`, which has
+   no dependencies and no database, so it reads the migration chain as text and
+   models the privileges the chain leaves behind. That is a tripwire, not proof:
+   the proof is supabase/tests/e9-security.js, which applies the same migrations
+   to a real PostgreSQL (PGlite) with Supabase's roles and default privileges and
+   runs every attack as the athlete who would make it (`npm run test:sql`), and
+   supabase/tests/e9-mutations.js, which breaks the migrations on purpose and
+   requires that suite to notice. This contract additionally holds the one thing
+   a database suite cannot: that the CLIENT still asks only for what the tightened
+   database grants, and that a refusal from it is a value, never a crash.
+   ========================================================= */
+async function testSocialSecurityClosure(){
+  section('CONTRACT 198 — Supabase security closure: the database says no (D95, closes D88 E9)');
+  const fs = require('fs');
+  const root = H.APP_PATH.replace(/index\.html$/, '');
+  const migDir = root + 'supabase/migrations/';
+  const files = fs.readdirSync(migDir).filter(f => /^\d{4}_.*\.sql$/.test(f)).sort();
+  const raw = files.map(f => fs.readFileSync(migDir + f, 'utf8').replace(/\r\n/g, '\n'));
+  const sqlCode = t => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ');
+  const code = raw.map(sqlCode);
+  const chain = code.join('\n');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+
+  /* The LAST definition of a function or policy in the chain is the one that is live. */
+  const lastDef = name => {
+    let out = '';
+    code.forEach(c => {
+      const re = new RegExp('create or replace function public\\.' + name + '\\([\\s\\S]*?\\$\\$[\\s\\S]*?\\$\\$;', 'g');
+      let m; while((m = re.exec(c))) out = m[0];
+    });
+    return out;
+  };
+  const lastPolicy = (table, name) => {
+    let out = '';
+    code.forEach(c => {
+      const re = new RegExp('create policy ' + name + ' on public\\.' + table + '[\\s\\S]*?;', 'g');
+      let m; while((m = re.exec(c))) out = m[0];
+    });
+    return out;
+  };
+
+  /* A model of who can do what once the whole chain has run, on Supabase, whose
+     default privileges hand ALL on every new table and function to anon and
+     authenticated (and PostgreSQL hands EXECUTE to PUBLIC). Statements are
+     applied in order: creation, then every revoke and grant. */
+  const ALLP = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'];
+  function model(){
+    const tbl = {}, fn = {}, cols = { insert: new Set(), update: new Set() };
+    const events = [];
+    code.forEach((c, fi) => {
+      const off = fi * 1e7;
+      let m;
+      const rt = /create table if not exists public\.(\w+)/g; while((m = rt.exec(c))) events.push({ at: off + m.index, k: 'table', name: m[1] });
+      const rf = /create or replace function public\.(\w+)\(/g; while((m = rf.exec(c))) events.push({ at: off + m.index, k: 'fn', name: m[1] });
+      const rg = /\b(revoke|grant)\s+([^;$]+?)\s+on\s+(table\s+|function\s+)?([^;$]+?)\s+(from|to)\s+([^;$']+?)['\s]*;/g;
+      while((m = rg.exec(c))) events.push({ at: off + m.index, k: m[1], privs: m[2].trim(), kind: (m[3] || 'table').trim(), objs: m[4], roles: m[6].split(',').map(s => s.trim()) });
+    });
+    events.sort((a, b) => a.at - b.at);
+    events.forEach(e => {
+      if(e.k === 'table'){ if(!tbl[e.name]) tbl[e.name] = { anon: new Set(ALLP), authenticated: new Set(ALLP), public: new Set() }; }
+      else if(e.k === 'fn'){ if(!fn[e.name]) fn[e.name] = { anon: true, authenticated: true, public: true }; }
+      else if(e.kind === 'function'){
+        const name = (/public\.(\w+)/.exec(e.objs) || [])[1];
+        if(name && fn[name]) e.roles.forEach(r => { if(r in fn[name]) fn[name][r] = e.k === 'grant'; });
+      } else {
+        const colGrant = /\(([^)]*)\)/.exec(e.privs);
+        const privs = e.privs.replace(/\([^)]*\)/g, '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+        const list = e.privs.trim().toLowerCase() === 'all' ? ALLP : privs;
+        const names = e.objs.split(',').map(s => (/public\.(\w+)/.exec(s) || [])[1]).filter(Boolean);
+        names.forEach(t => {
+          if(!tbl[t]) return;
+          if(colGrant && e.k === 'grant'){
+            const set = /insert/i.test(e.privs) ? cols.insert : /update/i.test(e.privs) ? cols.update : null;
+            if(set && e.roles.indexOf('authenticated') !== -1) colGrant[1].split(',').forEach(c => set.add(t + '.' + c.trim()));
+            return;
+          }
+          e.roles.forEach(r => { const key = r === 'public' ? 'public' : r; if(!tbl[t][key]) return;
+            list.forEach(p => { if(e.k === 'grant') tbl[t][key].add(p); else tbl[t][key].delete(p); }); });
+        });
+      }
+    });
+    return { tbl, fn, cols };
+  }
+
+  const EXPECT_TABLES = {   // what authenticated may hold; anon and PUBLIC hold nothing, ever
+    profiles: ['SELECT'], social_stats: ['INSERT', 'SELECT', 'UPDATE'], social_weekly: ['INSERT', 'SELECT', 'UPDATE'],
+    friend_requests: ['DELETE', 'SELECT'], friendships: ['DELETE', 'SELECT'],
+    friend_invites: [], invite_code_misses: [], shared_workouts: [], shared_workout_sends: []
+  };
+  const NO_ONE = ['loop_request_between', 'loop_touch_updated_at', 'loop_profiles_guard', 'loop_social_weekly_guard', 'loop_shared_workouts_guard'];
+
+  /* ------------------------------------------------------------------ */
+  sub('the migration chain, and the suite that runs it on a real database');
+  await guard('chain', () => {
+    T('the migrations are numbered without a gap, 0001 upward', files.every((f, i) => f.startsWith(String(i + 1).padStart(4, '0') + '_')), files.join());
+    T('0005 is the security closure, and the newest', /^0005_e9_security_closure\.sql$/.test(files[files.length - 1] || ''), files[files.length - 1]);
+    const pkg = JSON.parse(fs.readFileSync(root + 'package.json', 'utf8'));
+    T('the real-Postgres suite and its mutation sweep are checked in, and `npm run test:sql` runs the suite',
+      fs.existsSync(root + 'supabase/tests/e9-security.js') && fs.existsSync(root + 'supabase/tests/e9-mutations.js') && fs.existsSync(root + 'supabase/tests/shim.js') &&
+      /e9-security\.js/.test((pkg.scripts || {})['test:sql'] || ''), pkg.scripts);
+    T('the app itself still has no dependencies (the SQL suite needs PGlite; the product does not)', !pkg.dependencies && !pkg.devDependencies);
+    const suite = fs.readFileSync(root + 'supabase/tests/e9-security.js', 'utf8');
+    T('the suite names the SQLSTATE of every refusal, and runs anon, A, B, C, D and E', /denied\s*=/.test(suite) && ['A', 'B', 'C', 'D', 'E'].every(u => new RegExp("(ME|rpc|tryw)\\('" + u + "'").test(suite)) && /ANON\(/.test(suite));
+    T('and states the Supabase default privileges it runs under, because they are the point', /alter default privileges in schema public grant all on functions to anon, authenticated/.test(fs.readFileSync(root + 'supabase/tests/shim.js', 'utf8')));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('E9-C — the invite code generator that is actually live');
+  await guard('generator', () => {
+    const g = lastDef('loop_new_invite_code');
+    T('it is the 0005 generator, not 0001’s', g.length > 200 && /gen_random_uuid/.test(g), g.slice(0, 80));
+    T('it draws from gen_random_uuid() — the cryptographic source the 244-bit invite links already use — and never from random()', /uuid_send\(gen_random_uuid\(\)\)/.test(g) && !/\brandom\s*\(/.test(g));
+    T('it is unbiased: bytes at or above 248 (= 8 × 31) are discarded, so `byte mod 31` is uniform over the 31 symbols', /continue when b >= 248/.test(g) && /b % 31/.test(g) && (/alphabet constant text := '([^']+)'/.exec(g) || [])[1].length === 31);
+    T('it skips the UUID version and variant bytes (6 and 8), which are not random', /continue when i in \(6, 8\)/.test(g));
+    T('it pins its own search_path, because callers run it as the column DEFAULT', /set search_path = pg_catalog/.test(g));
+    T('the alphabet still has no O, 0, I, 1 or L (these are read aloud and typed)', !/[O01IL]/.test((/alphabet constant text := '([^']+)'/.exec(g) || [])[1]));
+    T('a code is 8 characters, which is 39.6 bits — so guessing one is throttled, in both functions that take one, before the code is looked at',
+      /while length\(code\) < 8/.test(g) && ['loop_preview_invite', 'loop_send_friend_request'].every(n => { const d = lastDef(n); return /invite_code_misses/.test(d) && /misses >= 20/.test(d) && d.indexOf('misses >= 20') < d.indexOf('invite_code = '); }));
+    T('the miss ledger is private: row level security on, nothing granted to any client role', /alter table public\.invite_code_misses enable row level security/.test(chain) && model().tbl.invite_code_misses && model().tbl.invite_code_misses.authenticated.size === 0 && model().tbl.invite_code_misses.anon.size === 0);
+    T('codes issued by the old generator are re-issued once, guarded by a marker so a second run re-issues none', /obj_description\('public\.loop_new_invite_code\(\)'::regprocedure, 'pg_proc'\)/.test(chain) && /comment on function public\.loop_new_invite_code\(\) is 'csprng-v1'/.test(chain));
+    T('the redemption path of the 244-bit links is untouched: hash at rest, seven days, twenty uses',
+      /sha256\(convert_to\(token, 'UTF8'\)\)/.test(lastDef('loop_create_invite_link')) && /interval '7 days'/.test(lastDef('loop_create_invite_link')) && /uses >= 20/.test(lastDef('loop_accept_invite_link')));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('E9-A and E9-D — who can read a profile, and what a function will say about strangers');
+  await guard('policy and oracles', () => {
+    const p = lastPolicy('profiles', 'profiles_select');
+    T('the live profiles_select is the owner’s row and nothing else', /using \(user_id = auth\.uid\(\)\)\s*;/.test(p) && !/loop_are_friends|loop_request_between|true/.test(p), p);
+    T('so no function is asked, in a policy, about a pair of strangers', !/loop_request_between/.test(['social_stats_select', 'social_weekly_select'].map(n => lastPolicy(n.replace(/_select$/, ''), n)).join('')) && !/loop_request_between/.test(lastPolicy('profiles', 'profiles_select')));
+    ['loop_are_friends', 'loop_request_between'].forEach(n => {
+      const d = lastDef(n);
+      T(n + ' answers only about the caller: it is false unless auth.uid() is one of the two', /auth\.uid\(\) in \(a, b\)/.test(d) && /auth\.uid\(\) is not null/.test(d), d.slice(0, 60));
+    });
+    T('social_stats and social_weekly are readable by the owner and by friends — not by any signed-in athlete',
+      ['social_stats', 'social_weekly'].every(t => { const pol = lastPolicy(t, t + '_select'); return /user_id = auth\.uid\(\)/.test(pol) && /loop_are_friends\(user_id, auth\.uid\(\)\)/.test(pol) && !/auth\.uid\(\) is not null|true\)/.test(pol); }));
+    T('no policy anywhere is unconditionally permissive', !/using \(true\)|with check \(true\)/i.test(chain));
+    T('there is no friendships or friend_requests INSERT policy: a relationship comes only from a function', !/create policy friendships_insert|create policy friend_requests_insert/.test(chain));
+    T('every SECURITY DEFINER function pins search_path to public, names auth.uid(), and takes no identity as an argument', (() => {
+      const names = {}; (chain.match(/create or replace function public\.(\w+)\(/g) || []).forEach(m => { names[/public\.(\w+)/.exec(m)[1]] = true; });
+      const bad = Object.keys(names).map(n => [n, lastDef(n)]).filter(([n, d]) => /security definer/.test(d.split('$$')[0]))
+        .filter(([n, d]) => !(/set search_path = public/.test(d.split('$$')[0]) && /auth\.uid\(\)/.test(d) && !/\((?:[^)]*,\s*)?(?:me|uid|caller|user_id|p_user|p_me)\s+uuid/i.test(d.split('returns')[0]))).map(([n]) => n);
+      return bad.length === 0 ? true : bad;
+    })() === true, 'see e9-security.js for the catalog-level proof');
+    T('no client role is granted anything by name, and nothing is ever granted to anon or PUBLIC', !/grant\s+[^;]+\s+to\s+[^;]*\b(anon|public)\b/.test(chain.replace(/revoke[^;]+;/g, '')), (chain.match(/grant\s+[^;]+\s+to\s+[^;]*\b(anon|public)\b/) || [''])[0]);
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('E9-B — the privileges the whole chain leaves behind (a model; e9-security.js reads the real catalog)');
+  await guard('grants', () => {
+    const M = model();
+    T('every table in the chain is classified here on purpose', Object.keys(M.tbl).every(t => t in EXPECT_TABLES), Object.keys(M.tbl).filter(t => !(t in EXPECT_TABLES)));
+    Object.keys(EXPECT_TABLES).forEach(t => {
+      if(!M.tbl[t]) return T(t + ' exists in the chain', false);
+      T(t + ': anon and PUBLIC hold nothing; authenticated holds exactly [' + EXPECT_TABLES[t].join(',') + ']',
+        M.tbl[t].anon.size === 0 && M.tbl[t].public.size === 0 && JSON.stringify([...M.tbl[t].authenticated].sort()) === JSON.stringify(EXPECT_TABLES[t]), [...M.tbl[t].authenticated].join());
+    });
+    T('no client role holds TRUNCATE, REFERENCES or TRIGGER on any table — TRUNCATE is not subject to row level security',
+      Object.keys(M.tbl).every(t => ['TRUNCATE', 'REFERENCES', 'TRIGGER'].every(p => !M.tbl[t].authenticated.has(p) && !M.tbl[t].anon.has(p))));
+    T('profiles is granted by column: insert user_id, username, username_key; update username, username_key — never invite_code or a timestamp',
+      JSON.stringify([...M.cols.insert].sort()) === JSON.stringify(['profiles.user_id', 'profiles.username', 'profiles.username_key']) &&
+      JSON.stringify([...M.cols.update].sort()) === JSON.stringify(['profiles.username', 'profiles.username_key']), [[...M.cols.insert], [...M.cols.update]]);
+    const okFns = Object.keys(M.fn);
+    T('every function is classified: executable by authenticated, or by no one', okFns.every(n => M.fn[n].authenticated === true ? !NO_ONE.includes(n) : NO_ONE.includes(n)), okFns.filter(n => M.fn[n].authenticated === NO_ONE.includes(n)));
+    T('no function is executable by anon or PUBLIC', okFns.every(n => !M.fn[n].anon && !M.fn[n].public), okFns.filter(n => M.fn[n].anon || M.fn[n].public));
+    T('the three helpers that policies and defaults evaluate as the calling role stay executable, and are now harmless',
+      ['loop_are_friends', 'loop_new_invite_code'].every(n => M.fn[n] && M.fn[n].authenticated));
+    T('the retired loop_request_between and every trigger function are executable by no client role', NO_ONE.filter(n => M.fn[n]).every(n => !M.fn[n].authenticated && !M.fn[n].anon && !M.fn[n].public));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('the client asks only for what the tightened database grants');
+  await guard('client compatibility', () => {
+    const M = model();
+    /* every direct table request the app can make goes through socialRest */
+    const calls = [];
+    for(let i = src.indexOf('socialRest('); i !== -1; i = src.indexOf('socialRest(', i + 1)){
+      const at = src.slice(Math.max(0, i - 9), i);
+      if(/function\s+$/.test(at)) continue;
+      let depth = 0, j = i + 'socialRest'.length;
+      for(; j < src.length; j++){ if(src[j] === '(') depth++; else if(src[j] === ')'){ depth--; if(!depth){ j++; break; } } }
+      calls.push(src.slice(i, j));
+    }
+    const inv = calls.map(c => ({ table: (/^socialRest\(\s*'\/([a-z_]+)/.exec(c) || [])[1], method: (/method\s*:\s*'(\w+)'/.exec(c) || [, 'GET'])[1],
+      merge: /merge-duplicates/.test(c), own: /user_id=eq\.'\s*\+\s*uid/.test(c), text: c }));
+    const sig = inv.map(x => x.table + ' ' + x.method + (x.merge ? ' merge' : '')).sort().join(' | ');
+    T('the whole direct-table surface is six requests: profiles GET/PATCH/POST, social_stats and social_weekly POST (upsert), friend_requests DELETE',
+      sig === ['friend_requests DELETE', 'profiles GET', 'profiles PATCH', 'profiles POST', 'social_stats POST merge', 'social_weekly POST merge'].join(' | '), sig);
+    const need = { GET: ['SELECT'], POST: ['INSERT'], PATCH: ['UPDATE'], DELETE: ['DELETE'] };
+    inv.forEach(x => {
+      const needs = need[x.method].concat(x.merge ? ['UPDATE'] : []);
+      const held = M.tbl[x.table] ? M.tbl[x.table].authenticated : new Set();
+      const viaCols = x.table === 'profiles' && x.method === 'POST' ? true : x.table === 'profiles' && x.method === 'PATCH' ? true : false;
+      T(x.table + ' ' + x.method + (x.merge ? ' (upsert)' : '') + ' is a request the database still allows', viaCols || needs.every(p => held.has(p)), [...held].join());
+    });
+    /* profiles: only ever the athlete's own row, and only the granted columns */
+    const rowKeys = (/const row = \{([^}]*)\}/.exec(src) || [, ''])[1].split(',').map(s => s.split(':')[0].trim()).filter(Boolean);
+    const patch = inv.find(x => x.table === 'profiles' && x.method === 'PATCH');
+    const patchKeys = (/body\s*:\s*\{([^}]*)\}/.exec(patch.text) || [, ''])[1].split(',').map(s => s.split(':')[0].trim()).filter(Boolean);
+    T('the profile INSERT sets user_id, username, username_key — each a column the database grants for insert', rowKeys.length === 3 && rowKeys.every(k => M.cols.insert.has('profiles.' + k)), rowKeys);
+    T('the profile PATCH sets username and username_key — each a column granted for update', patchKeys.length === 2 && patchKeys.every(k => M.cols.update.has('profiles.' + k)), patchKeys);
+    T('the app never chooses an invite_code: not in the insert, not in the patch', !rowKeys.includes('invite_code') && !patchKeys.includes('invite_code'));
+    T('the app reads only its OWN profile row: the one GET is filtered by the signed-in user id, and no request names another athlete’s row',
+      inv.filter(x => x.table === 'profiles' && x.method !== 'POST').every(x => x.own) && inv.filter(x => x.table === 'profiles').length === 3);
+    T('a friend’s or a requester’s username reaches the app through the definer functions — the hub, the request list, the preview — never a profile read',
+      ['loop_friends_hub', 'loop_my_requests', 'loop_friends_leaderboard', 'loop_preview_invite_link', 'loop_preview_invite'].every(n => code.length && src.indexOf("socialRpc('" + n + "'") !== -1));
+    /* every RPC the app calls exists, is executable by authenticated, and is not one the closure retired */
+    const rpcs = [...new Set((src.match(/socialRpc\('(loop_\w+)'/g) || []).map(s => /'(loop_\w+)'/.exec(s)[1]))];
+    T('every function the app calls (' + rpcs.length + ') is defined in the chain and executable by an authenticated athlete', rpcs.length >= 14 && rpcs.every(n => M.fn[n] && M.fn[n].authenticated && !M.fn[n].anon), rpcs.filter(n => !(M.fn[n] && M.fn[n].authenticated)));
+    T('and none is a function the closure removed from clients', rpcs.every(n => NO_ONE.indexOf(n) === -1));
+    T('the one new answer, "rate_limited" from a throttled code, is read by the app as a plain failure — it has its own message or falls back to "did not send"',
+      /MSG\[status\] \|\| 'That did not send\.'/.test(fnSrc(src, 'socialSendInvite')) && !/rate_limited/.test(fnSrc(src, 'socialSendInvite')));
+    T('and a rejected code is never counted as a save: sending only ever reports ok for "sent" or "accepted"', /const good = status === 'sent' \|\| status === 'accepted'/.test(src));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('no secret in the browser, and a refusal never reaches training');
+  await guard('secrets', () => {
+    const script = src.slice(src.indexOf('<script'), src.lastIndexOf('</script>'));
+    const codeOnly = stripComments(script);
+    T('no service_role or secret credential appears in the app’s code', !/service_role|serviceRole|SERVICE_ROLE|sb_secret_[A-Za-z0-9_-]{8,}/.test(codeOnly), (codeOnly.match(/.{0,30}(service_role|sb_secret_).{0,30}/) || [''])[0]);
+    T('no JWT-shaped credential is embedded either (eyJ… . … . …)', !/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/.test(src));
+    const keys = src.match(/sb_[a-z]+_[A-Za-z0-9_-]{20,}/g) || [];
+    T('the only Supabase key in the file is the browser-safe publishable one', keys.length >= 1 && keys.every(k => k === 'sb_publishable_hX1EfcElCEg3Vmo6UlSpnQ_uNA8e_65'), keys);
+    T('the migrations and the tests contain no key or JWT of any kind', [...raw, fs.readFileSync(root + 'supabase/tests/e9-security.js', 'utf8'), fs.readFileSync(root + 'supabase/tests/shim.js', 'utf8'), fs.readFileSync(root + 'supabase/tests/e9-mutations.js', 'utf8')]
+      .every(t => !/sb_(publishable|secret)_[A-Za-z0-9_-]{8,}|eyJ[A-Za-z0-9_-]{10,}\./.test(t)));
+  });
+  await guard('failure', async () => {
+    const app = H.loadApp({ dataSchemaVersion: '1', workoutLog: JSON.stringify([{ id: 'c198', date: '2026-09-14', category: 'push', title: 'Push Day', notes: '', exercises: [{ name: 'Bench Press', bodyweight: false, sets: [{ weight: '135', reps: '8', rir: '2', type: 'working', completed: true }] }] }]) });
+    await H.settle(250);
+    const ctx = app.ctx;
+    ctx.AbortController = AbortController;
+    const before = app.store.workoutLog;
+    const seen = [];
+    for(const [label, fetchImpl] of [
+      ['a dropped connection', async () => { throw new TypeError('Load failed'); }],
+      ['a permission refusal from the database (42501)', async () => ({ status: 403, ok: false, json: async () => ({ code: '42501', message: 'permission denied for table profiles' }) })],
+      ['a refusal for an anonymous caller', async () => ({ status: 401, ok: false, json: async () => ({ code: '42501', message: 'permission denied for function loop_friends_hub' }) })],
+      ['a server error', async () => ({ status: 503, ok: false, json: async () => ({ message: 'upstream' }) })]]){
+      ctx.fetch = fetchImpl;
+      let r, threw = null;
+      try{ r = await ctx.socialRpc('loop_friends_hub', { p_week: '2026-09-14' }); }catch(e){ threw = e; }
+      const t2 = (() => { try{ return ctx.socialRest('/profiles?select=username,invite_code&user_id=eq.x'); }catch(e){ return Promise.reject(e); } })();
+      let r2, threw2 = null; try{ r2 = await t2; }catch(e){ threw2 = e; }
+      seen.push([label, !threw && !threw2 && r && r.ok === false && r2 && r2.ok === false]);
+    }
+    seen.forEach(([label, ok]) => T(label + ' comes back as a value ({ ok:false }), not an exception', ok));
+    T('none of them touched the training log', app.store.workoutLog === before);
+    T('and none of them signed anyone out or wrote a session (there was none to lose)', !app.store.socialSession);
+  });
+
+  sub('protected baselines');
+  await guard('baselines', async () => {
+    const app = H.loadApp({ dataSchemaVersion: '1' }); await H.settle(150);
+    const ctx = app.ctx;
+    T('DATA_KEYS is 15, the local schema is 1, and the trainer is 0.1.1-shadow — this phase touched none of them', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('the app’s Supabase configuration is the same project and the same publishable key', /url: 'https:\/\/hqjrzkmtjduhknlvhprf\.supabase\.co'/.test(src) && /anonKey: 'sb_publishable_hX1EfcElCEg3Vmo6UlSpnQ_uNA8e_65'/.test(src));
+    const setup = fs.readFileSync(root + 'SOCIAL-SETUP.md', 'utf8');
+    T('SOCIAL-SETUP.md tells the owner to apply 0005, after 0004, and how to check it from outside and inside', /0005_e9_security_closure\.sql/.test(setup) && /after 0004|runs 0004|needs 0001 and 0002/i.test(setup) && /csprng-v1/.test(setup) && /loop_request_between/.test(setup));
+    const findings = fs.readFileSync(root + 'FINDINGS-D88.md', 'utf8');
+    const e9 = findings.slice(findings.indexOf('## E9 —'), findings.indexOf('## E10 —'));
+    T('FINDINGS-D88.md does not call E9 closed until the migration is confirmed live — it says what was prepared and what is owed', /D95/.test(e9) && (/CLOSED/.test(e9) ? /confirmed live|verified live/i.test(e9) : /not (yet )?closed|OWNER ACTION|awaiting|prepared/i.test(e9)), e9.slice(0, 160));
+  });
+}
+
+/* =========================================================
    CONTRACT 199 — THE EIGHT FINAL RANK EMBLEMS  (D96)
    ---------------------------------------------------------
    The owner's final sheet, "Rank 1" to "Rank 8", is the source of truth. Each
@@ -35837,6 +36110,7 @@ async function main(){
   await testBackupCompatibility();
   await testMasteryView();
   await testMasteryOneSystem();
+  await testSocialSecurityClosure();
   await testRankEmblemsD96();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
