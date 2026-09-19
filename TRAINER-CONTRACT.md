@@ -12747,8 +12747,14 @@ real-client flows (143) still pass on the chain including 0005. Two of the 116
 flows-share checks fail identically with and without 0005 (a program-setup step in
 that scratch harness, not social).
 
-**Whole suite.** `npm run verify` 9,102 / 0 (9,031 + Contract 198's 71); audit:program 335, audit 87,
+**Whole suite.** `npm run verify` 9,102 / 0 when first built on LOOP 9.8 (9,031 + Contract
+198's 71); rebased onto LOOP 9.9, 9,149 / 0 (9,078 + 71). audit:program 335, audit 87,
 audit:cardio 261, audit:gps 43, audit:dates 0 failures.
+
+**Order.** D95 was built on LOOP 9.8 (896ceb3). D96 was written and shipped as LOOP 9.9 while
+D95 waited for the owner, which is why §120 describes §119 as living on its own branch. D95-R
+then rebased D95 onto 9.9 (9e93bbe) and kept both sides whole: Contract 198 runs between 197
+and 199, and §119 sits between §118 and §120.
 
 **Protected.** DATA_KEYS 15, local schema 1, trainer 0.1.1-shadow; no client
 change, so no PWA version was bumped. D80A session behaviour untouched.
