@@ -12416,3 +12416,109 @@ has no multi-key transaction: a tab killed in the middle of a commit leaves the
 verified safety copy in storage, but nothing yet offers it back. Boot-time
 `runMigrations` still skips a missing step silently; it is unreachable while the
 schema is 1 and must be fixed by whichever phase adds the first real step.
+
+## §117 — D94A: The Mastery view
+
+A scoped rebuild of the top of Progress → Mastery. No scoring, storage or
+navigation changed; everything below is presentation.
+
+**One control, two panels.** Exercise Mastery and Muscle Mastery are a segmented
+control over two panels that stay mounted side by side in ONE horizontal
+scroll-snap scroller. A switch is only ever a scroll, so nothing is rebuilt and
+text and graphics travel together — they are the same element. The control is not
+animated on its own: its indicator is drawn from the scroller's scroll progress
+(`--p`, 0 → 1, `scrollLeft` over the scroller's own range), so a tap, a swipe and
+a half-finished drag can never disagree with what is on screen, and the label
+colour, `aria-selected`, the tab order and which panel is `inert` all follow the
+same number. The scroller's height is the two panels' heights blended by that
+number, so a taller panel arriving is never clipped mid-swipe. A tap calls
+`scrollTo` (smooth; under Reduce Motion, an instant jump); arrow keys, Home and
+End move between the tabs. The chosen panel survives a redraw (memory only, no
+key); a draw made while the tab is hidden is re-aligned when it appears, and a
+turn of the phone re-aligns it.
+
+**Leaders.** Three cards per panel, in rank order left to right — 1st, 2nd, 3rd,
+no stage reordering — one shared builder (`masteryLeaderCardHtml`) for exercises
+and muscles: place, badge, name, level pill, progress bar, and a two-line
+"N sessions / X% to LN". Zero leaders is an empty state, one is centred alone,
+two a centred pair. Muscle cards count exercises, never sessions (sessions only
+tally an exercise's primary movers, which would print "0 sessions" beside a real
+bar). Exercise cards still open Exercise Detail by the LOGGED name through
+`onclickArg`; muscle cards and "View all muscles" open the existing full list.
+The full exercise list stays beneath the exercise leaders, unchanged.
+
+**A badge per level, not per place.** The owner's six badges are the six tiers of
+the ladder — silver, blue, purple, gold, cyan, prismatic — and a card wears the
+badge of its LEVEL. The ladder runs to `MASTERY_CONFIG.maxLevel` = 10, so every
+level from 6 up wears the last badge, and the guide says "Level 6+". The level
+pill wears its badge's colour and always says its level in words. The guide below
+the view lists the six tiers (Foundation, Developing, Strong, Advanced, Elite,
+Master) in a 3 × 2 grid on a phone and 6 across on a wide screen. Its lines
+describe history, not strength, because mastery is "training history, not a
+measure of strength" and the reference's own copy ("strong performance", "top
+performance") said otherwise.
+
+**Assets.** Six badges resampled from 1254 × 1254 to 256 × 256 (51–75 KB) and two
+toggle icons to 128 × 128 (6–9 KB), bicubic, alpha kept, never redrawn or
+recoloured: `mastery-badge-1..6.png`, `mastery-icon-exercise.png`,
+`mastery-icon-muscle.png`. None is lazy-loaded (the off-screen panel must not wait
+for a swipe); all are fetched and decoded while the phone is idle after boot and
+again when the tab is drawn; they stay out of the precache (the shell is
+unchanged) and are cached on first use. The D86.1 place medals
+(`mastery-medal-1..3.png`) are no longer wired in and were left on disk.
+
+**Motion.** Once, when the tab is opened, and once more for the second panel the
+first time it is brought in: text and cards rise 8 px and fade, staggered 70 ms by
+rank; each progress bar slides into its own clip (not a scale, so a rounded end is
+never squashed); one diagonal sheen crosses each badge, masked to the badge's own
+silhouette by the same file. Everything is `transform` or `opacity`, every
+animation runs once, and nothing loops. Under `prefers-reduced-motion` the
+entrance is off, the switch is an instant jump, and every value is already where
+it belongs. The only always-on layer this view adds is the control's indicator.
+A redraw (logging, midnight) does not replay the entrance.
+
+**Found while building it.** (1) `offsetLeft` is relative to the page, not the
+scroller: with 20 px of page padding it put the control 20 px short of Muscle;
+progress now uses the scroller's own scroll range. (2) The ResizeObserver watched
+the scroller whose height the callback sets, producing "ResizeObserver loop
+completed with undelivered notifications" in the console; it now watches only the
+panels, a frame later. (3) A narrow-phone override sat before the rule it
+overrides, so it never applied. (4) `clamp(…vw…)` on a font size broke the suite's
+own "no typography in viewport units" rule; fixed sizes with breakpoints instead.
+(5) At 320 px the toggle label truncated ("Exercise Mas…") and the level pill
+wrapped to two lines; both fixed and held by the browser QA. (6) A short, fast
+drag is a flick and switches panels, as in any native carousel; a short, slow drag
+snaps back — the QA now holds both.
+
+**Where it differs from the reference image, and why.** (a) The reference's 3rd
+card wears a bronze badge; no bronze badge was supplied, and the reference's own
+legend makes Level 3 purple, so 2nd and 3rd can wear the same badge when they share
+a level. (b) The badge guide is 3 × 2, not six across: six across at 390 px leaves
+about 56 px per item and puts descriptions below the app's 11 px floor. (c) The
+guide's descriptions are history language, not the reference's performance
+language. (d) The mock's header and top navigation are not built: Progress already
+has its own segmented tabs and this phase does not touch navigation. (e) The
+supporting line is two lines, "18 sessions / 34% to L6", because one line does not
+fit a 90 px card. (f) The exercise panel keeps the existing "All exercises" list
+under the three leaders, so no exercise beyond the third loses its way in.
+
+**Data safety.** No history, program or storage key is written or read differently;
+`DATA_KEYS` 15, schema 1, trainer 0.1.1-shadow. Mastery scoring, levels, curves and
+the rankings the leaders read are untouched (asserted).
+
+**Verification.** Contract 196 adds 105 assertions; the whole suite passes 8,966/0; audit:program 335, audit 87, audit:cardio 261, audit:gps 43, audit:dates 12 zones 0 failures. Nine assertions in the
+D86-era contracts named the old podium geometry, the place medals, the Top Muscle
+control or a `Mastery Leaders` heading; each is repointed, claim kept, and two
+that had gone vacuous (`indexOf` returning -1) are restated properly. Contract 196
+alone kills 44 of 44 mutants; the first sweep found three real gaps (a maxed card
+was only tested with a pre-filled 100%, badge recolouring on `.mpod-medal` was not
+checked, the 44px floor and "1st is not enlarged" lived only in Contract 188), and
+two of its first-run "survivors" were a race between two overlapping sweeps.
+In a real browser at 320, 375, 390 and 430 — real touch swipes, taps, the
+animations counted with `document.getAnimations()`, Reduce Motion emulated,
+rotation, keyboard, empty history — 168 of 168 checks pass at every size. There is no
+physical-iPhone evidence in any of this: every run is headless Edge.
+
+**Deliberately left.** The Muscle panel shows leaders only; the full ranked muscle
+list stays in its sheet. `mastery-medal-1..3.png` are unused. The exercise list's
+own "View all" disclosure is unchanged.

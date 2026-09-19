@@ -264,7 +264,10 @@ function loadApp(initialStore){
     'loopDay','loopDayTimer',
     /* D94 — the import's failure categories, its migration registries, the depth
        bound and the one-import-at-a-time guard */
-    'IMPORT_ERROR','BACKUP_MIGRATIONS','MIGRATIONS','BACKUP_MAX_DEPTH','importInFlight'];
+    'IMPORT_ERROR','BACKUP_MIGRATIONS','MIGRATIONS','BACKUP_MAX_DEPTH','importInFlight',
+    /* D94A — the Mastery view's badge table, icons and the two bits of state that
+       outlive a draw */
+    'MASTERY_BADGE_TIERS','MASTERY_ICONS','masteryMode','masteryPlay'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

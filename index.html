@@ -2161,78 +2161,176 @@ body.first-use{ padding-bottom: 0; }
 .mastery-bar.mlb1 span{ opacity: 0.55; }
 
 /* =========================================================
-   MASTERY LEADERS PODIUM + TOP MUSCLE CONTROL  (Phase D86)
+   MASTERY VIEW  (Phase D86, rebuilt D94A)
+   ---------------------------------------------------------
+   One segmented control over two panels that live side by side in a single
+   horizontal scroller. The control is drawn from the scroller's own scroll
+   position (--p, 0 → 1), so a tap, a swipe and a half-finished drag always agree
+   with what is on screen. Everything that moves moves on transform or opacity.
    ========================================================= */
-/* The compact control. Same tap-row language as everything else in Progress:
-   eyebrow, then a line that ends in a chevron. */
-.mtm-control{
-  display: block; width: 100%; margin-top: 10px; padding: 10px 14px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  font-family: 'Inter', sans-serif; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
-  min-height: 44px;
+.mst{ margin-top: 12px; }
+.mst-toggle{
+  --p: 0;
+  position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border-quiet); border-radius: 999px;
 }
-.mtm-control:active{ background: var(--surface-2); }
-.mtm-control:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
-.mtm-eyebrow{ display: block; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
-.mtm-row{ display: flex; align-items: center; gap: 8px; margin-top: 3px; }
-.mtm-name{ font-family: 'Space Grotesk', sans-serif; font-size: 14.5px; font-weight: 700; color: var(--text);
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mtm-go{ display: flex; margin-left: auto; color: var(--text-faint); flex-shrink: 0; }
+.mst-ind{
+  position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px;
+  background: linear-gradient(180deg, rgba(76,194,255,0.20), rgba(46,107,255,0.10));
+  border: 1px solid rgba(76,194,255,0.6);
+  box-shadow: 0 0 16px rgba(76,194,255,0.20), inset 0 1px 0 rgba(255,255,255,0.08);
+  transform: translate3d(calc(var(--p) * 100%), 0, 0); will-change: transform; pointer-events: none;
+}
+.mst-seg{
+  position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 44px; padding: 0 8px; min-width: 0; background: none; border: none; border-radius: 999px;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 14px;
+  color: var(--text-dim); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: color 0.18s var(--ease);
+}
+.mst-seg span{ min-width: 0; line-height: 1.15; text-align: left; }
+.mst-seg.on{ color: var(--text); }
+.mst-seg:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.mst-ico{ flex: 0 0 auto; width: 30px; height: 30px; margin: -3px -2px; object-fit: contain; opacity: 0.6; pointer-events: none;
+  transition: opacity 0.18s var(--ease); }
+.mst-seg.on .mst-ico{ opacity: 1; }
 
-/* The podium. Source order stays rank order (1st, 2nd, 3rd) for a sane
-   reading/tab order; `order` alone moves 1st to the visual centre. */
-.mpod{ display: flex; align-items: flex-end; gap: 8px; margin-top: 14px; }
-.mpod-card{
-  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center;
-  gap: 6px; padding: 14px 8px 12px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); font-family: 'Inter', sans-serif; text-align: center; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; min-height: 44px;
+/* The scroller. Height is set from JS as the two panels' heights blended by the
+   scroll position, so a taller panel arriving is never clipped mid-swipe. */
+.mst-view{
+  display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; scroll-behavior: auto;
 }
-.mpod-card:active{ background: var(--surface-2); transform: scale(0.98); }
-.mpod-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
-.mpod-p1{ order: 2; background: var(--surface-2); padding-top: 10px; border-color: var(--border-quiet); }
-.mpod-p2{ order: 1; }
-.mpod-p3{ order: 3; }
+.mst-view::-webkit-scrollbar{ display: none; }
+.mst-panel{ flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; padding-bottom: 2px; }
+.mst-card{
+  padding: 16px 12px 14px; background: linear-gradient(180deg, var(--surface), rgba(14,20,31,0.55));
+  border: 1px solid var(--border-quiet); border-radius: var(--radius-xl);
+}
+.mst-head{ display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 10px; }
+.mst-title{
+  margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text);
+}
+.mst-hint{ font-size: var(--fs-micro); color: var(--text-faint); }
+/* The narrowest phones: less air around the label so it stays whole. */
+@media (max-width: 389px){ .mst-seg{ font-size: 13px; } }
+@media (max-width: 359px){
+  .mst-seg{ gap: 4px; padding: 0 4px; font-size: 11.5px; }
+  .mst-ico{ width: 24px; height: 24px; margin: 0; }
+  .mst-card{ padding-left: 10px; padding-right: 10px; }
+}
+.mst-sub{ margin: 6px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--text-dim); }
+.mst-list-head{
+  margin: 18px 0 2px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint);
+}
+.mst-more{
+  display: block; width: 100%; margin-top: 12px; min-height: 44px; background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-lg); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--accent);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mst-more:active{ background: var(--surface-2); }
+.mst-more:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The leaders — three cards in rank order, left to right. */
+.mpod, .mmc{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.mpod-n2, .mmc-n2{ grid-template-columns: repeat(2, minmax(0, 140px)); justify-content: center; }
+.mpod-n1, .mmc-n1{ grid-template-columns: minmax(0, 160px); justify-content: center; }
+.mpod-card, .mmc-card{
+  display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; min-height: 44px;
+  padding: 12px 6px 12px; background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border); border-radius: var(--radius-xl); font-family: 'Inter', sans-serif; text-align: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mpod-card:active, .mmc-card:active{ background: var(--surface-2); transform: scale(0.98); }
+.mpod-card:focus-visible, .mmc-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
 .mpod-place{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint);
 }
-.mpod-p1 .mpod-place{ color: #C99A4A; }
-.mpod-badge{ display: flex; }
-/* D86.1 — real medal art, not generated. object-fit guards against the
-   browser ever stretching it if width/height and the file's own aspect
-   ever disagree. pointer-events:none removes the image from hit-testing
-   entirely, so a long press always lands on the button underneath rather
-   than tripping the platform's native drag-image / save-image affordance —
-   which is also why no separate user-select rule is needed here. */
+.mpod-p1 .mpod-place, .mmc-p1 .mpod-place{ color: #E0B45C; }
+.mpod-p2 .mpod-place, .mmc-p2 .mpod-place{ color: #9FA9D6; }
+.mpod-p3 .mpod-place, .mmc-p3 .mpod-place{ color: #C4906A; }
+.mst-badgewrap{ display: flex; }
+/* The badge. object-fit guards against the browser ever stretching the art;
+   pointer-events:none removes the image from hit-testing, so a long press lands
+   on the button underneath rather than the platform's save-image affordance. */
+.mbadge{ position: relative; display: block; width: clamp(54px, 19vw, 72px); aspect-ratio: 1; flex: 0 0 auto; }
 .mpod-medal{ display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
-.mpod-name{
-  font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.25;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  min-height: 2.5em;
+/* One pass of light, masked to the badge's own silhouette by the same file, so
+   it only ever crosses the artwork. Idle it sits off to the side, invisible. */
+.msheen{ position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center; }
+.msheen::before{
+  content: ''; position: absolute; top: -10%; bottom: -10%; left: 0; width: 60%; opacity: 0;
+  background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.7) 50%, transparent 80%);
+  transform: translate3d(-130%, 0, 0);
 }
-.mpod-p1 .mpod-name{ font-size: 13.5px; }
-.mpod-card .mastery-bar{ width: 100%; }
-.mpod-meta{ font-size: var(--fs-micro); color: var(--text-faint); }
-/* Two leaders: no broken empty third pedestal — just a centred pair. */
-.mpod-n2{ justify-content: center; }
-.mpod-n2 .mpod-card{ flex: 0 1 140px; }
-.mpod-n2 .mpod-p1{ order: 1; } .mpod-n2 .mpod-p2{ order: 2; }
-/* One leader: centred alone, at the size the crowd would have given it. */
-.mpod-n1{ justify-content: center; }
-.mpod-n1 .mpod-card{ flex: 0 1 160px; }
+.mbt1 .msheen{ -webkit-mask-image: url(mastery-badge-1.png); mask-image: url(mastery-badge-1.png); }
+.mbt2 .msheen{ -webkit-mask-image: url(mastery-badge-2.png); mask-image: url(mastery-badge-2.png); }
+.mbt3 .msheen{ -webkit-mask-image: url(mastery-badge-3.png); mask-image: url(mastery-badge-3.png); }
+.mbt4 .msheen{ -webkit-mask-image: url(mastery-badge-4.png); mask-image: url(mastery-badge-4.png); }
+.mbt5 .msheen{ -webkit-mask-image: url(mastery-badge-5.png); mask-image: url(mastery-badge-5.png); }
+.mbt6 .msheen{ -webkit-mask-image: url(mastery-badge-6.png); mask-image: url(mastery-badge-6.png); }
+.mpod-name{
+  font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.25; max-width: 100%;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5em;
+}
+/* The level pill wears its badge's own colour, and always says its level in words. */
+.mastery-lvl-chip.mpill{ background: transparent; white-space: nowrap; padding: 2.5px 8px; }
+.mastery-lvl-chip.mpill.mpt1{ color: #C7CED9; border-color: rgba(199,206,217,0.45); }
+.mastery-lvl-chip.mpill.mpt2{ color: #5AA8FF; border-color: rgba(90,168,255,0.55); }
+.mastery-lvl-chip.mpill.mpt3{ color: #A78BFA; border-color: rgba(167,139,250,0.55); }
+.mastery-lvl-chip.mpill.mpt4{ color: #F0B94C; border-color: rgba(240,185,76,0.6); }
+.mastery-lvl-chip.mpill.mpt5{ color: #4FD6E8; border-color: rgba(79,214,232,0.55); }
+.mastery-lvl-chip.mpill.mpt6{ color: #F7C77E; border-color: rgba(247,199,126,0.65); }
+.mcb{ position: relative; width: 100%; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.mcb-fill{ position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+.mpod-meta{ display: flex; flex-direction: column; gap: 1px; font-size: var(--fs-micro); line-height: 1.3; color: var(--text-faint); }
 .mpod-empty{ padding: 22px 14px; text-align: center; }
 .mpod-empty-glyph{ display: inline-flex; color: var(--text-faint); opacity: 0.6; margin-bottom: 8px; }
 .mpod-empty-glyph svg{ width: 30px; height: 30px; }
 .mpod-empty-title{ font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
 .mpod-empty-sub{ margin: 4px 0 0; font-size: 12.5px; color: var(--text-dim); }
-/* A restrained settle-in — decorative only, never load-bearing for state. */
-.mpod-card{ animation: mpodIn 0.32s var(--ease) backwards; }
-.mpod-p2{ animation-delay: 0.03s; } .mpod-p1{ animation-delay: 0.07s; } .mpod-p3{ animation-delay: 0.11s; }
-@keyframes mpodIn{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: translateY(0); } }
+/* Narrowest phones — after the card rules, so they win. */
+@media (max-width: 359px){
+  .mpod, .mmc{ gap: 6px; }
+  .mpod-card, .mmc-card{ padding-left: 3px; padding-right: 3px; }
+}
+
+/* The entrance — played once when the tab is opened (and once for the second
+   panel when it is first brought in). Decorative only, never load-bearing for
+   state: without it every value is already where it belongs. */
+@keyframes mstRise{ from{ opacity: 0; transform: translate3d(0, 8px, 0); } to{ opacity: 1; transform: none; } }
+@keyframes mstFill{ from{ transform: translate3d(-101%, 0, 0); } to{ transform: none; } }
+@keyframes mstSheen{
+  0%{ transform: translate3d(-130%, 0, 0); opacity: 0; }
+  20%{ opacity: 1; }
+  100%{ transform: translate3d(260%, 0, 0); opacity: 0; }
+}
+.mst-panel.is-anim .mst-rise{ animation: mstRise 0.42s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+.mst-panel.is-anim .mpod-card, .mst-panel.is-anim .mmc-card{ --d: calc(var(--i, 0) * 70ms); }
+.mst-panel.is-anim .mpod-card .mst-rise, .mst-panel.is-anim .mmc-card .mst-rise{ animation-delay: var(--d); }
+.mst-panel.is-anim .mcb-fill{ animation: mstFill 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--d, 0ms) + 180ms); }
+.mst-panel.is-anim .msheen::before{ animation: mstSheen 0.9s ease-out 1 backwards; animation-delay: calc(var(--d, 0ms) + 420ms); }
+
+/* The badge legend. */
+.msys-sub{ margin: 8px 0 0; font-size: 12.5px; color: var(--text-dim); }
+.msys{ list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 8px; }
+.msys-item{ display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; min-width: 0; }
+.msys-item .mbadge{ width: 52px; margin-bottom: 4px; }
+.msys-lvl{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.msys-name{ font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text); }
+.msys-note{ font-size: var(--fs-micro); line-height: 1.35; color: var(--text-dim); max-width: 22ch; }
+@media (min-width: 560px){ .msys{ grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
 @media (prefers-reduced-motion: reduce){
-  .mpod-card{ animation: none; }
-  .mpod-card:active{ transform: none; }
+  .mst-panel.is-anim .mst-rise, .mst-panel.is-anim .mcb-fill, .mst-panel.is-anim .msheen::before{ animation: none; }
+  .mst-seg, .mst-ico{ transition: none; }
+  .mpod-card:active, .mmc-card:active{ transform: none; }
 }
 
 /* Push/pull/legs distribution. D25: the categories are shares of one whole,
@@ -7364,7 +7462,7 @@ button.ex-thumb:focus-visible{ outline: 2px solid var(--accent); outline-offset:
    ========================================================= */
 .pd-card, .lc-card, .cal-card, .mv-card, .tpl-card, .ob-mock, .ob-hero,
 .vw-grid, .pd-tiles, .cl-tile, .tm-card, .settings-row-btn,
-.po-hero, .po-card, .mpod-card, .mtm-control,
+.po-hero, .po-card, .mpod-card, .mmc-card, .mst-toggle, .mst-card,
 .prog-jump, .hdr-level, .plan-card, .mt-stat, .sub-card{
   border-color: var(--border-quiet);
   box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
@@ -16489,6 +16587,26 @@ const LOOP_UPDATES = [
       'A backup with a damaged setting could still be imported, leaving a setting LOOP couldn’t read'
     ],
     changes: []
+  },
+  {
+    id: 'v9-7',
+    version: 'LOOP 9.7',
+    title: 'A Clearer Mastery Tab',
+    date: '2026-09-19',
+    swVersion: 'loop-v174',
+    summary: 'Exercise Mastery and Muscle Mastery now sit side by side in one view — swipe or tap between them, each led by your top three.',
+    newFeatures: [
+      'Muscle Mastery has its own top three, beside Exercise Mastery — swipe or tap to switch between them',
+      'A mastery badge for every level, with a guide to what the levels mean'
+    ],
+    improvements: [
+      'Your top three read left to right — 1st, 2nd, 3rd — each with its level badge, progress bar and history',
+      'Bars fill in and badges catch the light once when the tab opens (skipped when Reduce Motion is on)'
+    ],
+    bugFixes: [],
+    changes: [
+      'The Top Muscle row is replaced by the Muscle Mastery panel'
+    ]
   }
 ];
 
@@ -19183,6 +19301,9 @@ async function boot(){
     const gm = document.getElementById('gearMark');
     if(gm && !gm.innerHTML) gm.innerHTML = gearIconSvg(15);
   }catch(e){}
+  /* D94A — the Mastery art is fetched and decoded while the phone is idle, so it
+     is already there when the tab is opened. */
+  try{ (typeof requestIdleCallback === 'function' ? requestIdleCallback : (f => setTimeout(f, 2500)))(() => masteryWarmAssets()); }catch(e){}
 }
 
 /* Honest surfacing: if storage can't persist, or a migration needed attention,
@@ -30863,6 +30984,7 @@ let exDetailMetric = '1rm';
 
 function switchProgTab(t){
   progTab = t;
+  if(t === 'muscles') masteryPlay = true;   // D94A — the entrance plays when the tab is opened
   document.querySelectorAll('#progSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.p === t));
   ['overview','strength','volume','muscles'].forEach(k => {
     const p = document.getElementById('ppanel-' + k);
@@ -33568,18 +33690,20 @@ function renderProgMuscles(){
   });
   const catTotal = Object.values(catSets).reduce((a,b)=>a+b,0) || 1;
 
+  /* D94A — Exercise and Muscle Mastery are one segmented view over two panels
+     (masteryViewHtml), the badge legend follows, and the two 12-week sections
+     below are unchanged. */
   el.innerHTML = `
-    <div class="sec-head">Mastery Leaders<span class="sec-hint">from your training history</span></div>
-    ${topMuscleControlHtml(mas.topMuscle)}
-    ${masteryPodiumHtml(mas.podium)}
-    <div class="sec-head">Exercise mastery<span class="sec-hint">from your training history</span></div>
-    ${exerciseMasteryListHtml(MASTERY_UI_CONFIG.listInitial)}
+    ${masteryViewHtml(mas)}
+    ${masteryBadgeSystemHtml()}
     ${mas.hasHistory ? `<div class="muscle-foot">Training history, not a measure of strength.</div>` : ''}
     <div class="sec-head">Muscle volume<span class="sec-hint">sets · last 12 weeks</span></div>
     ${volumeHtml}
     <div class="sec-head">Training distribution</div>
     ${distributionHtml(catSets, catTotal)}
     <div class="muscle-foot">Distribution of logged sets, not a judgement about balance.</div>`;
+  masteryPlay = false;
+  masteryAfterRender();
 }
 
 /* D25: the categories are shares of the same whole, so they draw as parts of
@@ -34058,40 +34182,100 @@ const MASTERY_UI_CONFIG = {
   listInitial: 5     // exercise rows shown before "View all"
 };
 
-/* D86.1 — the owner supplied the actual medal art (mastery-medal-1/2/3.png,
-   originals 1254x1254, resampled to 256x256 here — unchanged artwork, just
-   sized for how large a podium badge is ever shown). No generated badge:
-   this file just names which asset each place uses. */
-const MASTERY_PODIUM_MEDAL = { 1:'mastery-medal-1.png', 2:'mastery-medal-2.png', 3:'mastery-medal-3.png' };
-function masteryPodiumMedalHtml(place, size){
-  /* Decorative only: the card's own aria-label already states place, exercise,
-     level and progress, and .mpod-place repeats the ordinal as visible text —
-     alt text here would be a third, redundant announcement of the same rank. */
-  return '<img class="mpod-medal" src="' + (MASTERY_PODIUM_MEDAL[place] || MASTERY_PODIUM_MEDAL[3])
-    + '" width="' + size + '" height="' + size + '" alt="" loading="lazy">';
+/* D94A — the owner's badge art, one per LEVEL. The six files are the six tiers of
+   the mastery ladder, silver up to prismatic; a level past the last tier keeps
+   the last badge (the ladder itself runs to MASTERY_CONFIG.maxLevel, and nothing
+   about scoring changed). Originals 1254x1254, resampled to 256x256 — the same
+   artwork, sized for how large a badge is ever shown. Nothing here draws or
+   recolours a badge; each level names a file. The two toggle icons are the
+   owner's too (128x128). */
+const MASTERY_BADGE_TIERS = [
+  { level: 1, name: 'Foundation', file: 'mastery-badge-1.png', note: 'You’ve started building history.' },
+  { level: 2, name: 'Developing', file: 'mastery-badge-2.png', note: 'Returning regularly; history is growing.' },
+  { level: 3, name: 'Strong',     file: 'mastery-badge-3.png', note: 'A solid base of consistent sessions.' },
+  { level: 4, name: 'Advanced',   file: 'mastery-badge-4.png', note: 'Deep history, built over months.' },
+  { level: 5, name: 'Elite',      file: 'mastery-badge-5.png', note: 'Long, steady history and records set.' },
+  { level: 6, name: 'Master',     file: 'mastery-badge-6.png', note: 'Peak familiarity, sustained over time.' }
+];
+const MASTERY_ICONS = { exercise: 'mastery-icon-exercise.png', muscle: 'mastery-icon-muscle.png' };
+function masteryTier(level){
+  const n = Math.max(1, Math.min(MASTERY_BADGE_TIERS.length, Math.floor(Number(level)) || 1));
+  return MASTERY_BADGE_TIERS[n - 1];
+}
+
+/* Fetched and decoded before the Mastery tab is opened, so a badge never arrives
+   after the text beside it. Idempotent; a no-op where there is no Image. */
+const _masteryWarm = {};
+function masteryWarmAssets(){
+  if(typeof Image !== 'function') return;
+  MASTERY_BADGE_TIERS.map(t => t.file).concat(Object.keys(MASTERY_ICONS).map(k => MASTERY_ICONS[k])).forEach(f => {
+    if(_masteryWarm[f]) return;
+    try{
+      const im = new Image();
+      im.decoding = 'async';
+      im.src = f;
+      _masteryWarm[f] = im;
+      if(im.decode) im.decode().catch(() => {});
+    }catch(e){}
+  });
+}
+
+/* One badge: the real image, with a sheen layer that plays once when the tab
+   opens. The sheen is masked to the badge's own silhouette by the same file, so
+   the light only ever crosses the artwork, never the empty square around it. */
+function masteryBadgeHtml(level, size){
+  const t = masteryTier(level);
+  return '<span class="mbadge mbt' + t.level + '"><img class="mpod-medal" src="' + t.file
+    + '" width="' + size + '" height="' + size + '" alt="" decoding="async"><i class="msheen" aria-hidden="true"></i></span>';
 }
 
 const MASTERY_PLACE_WORD = { 1:'1st', 2:'2nd', 3:'3rd' };
-function masteryPodiumCardHtml(m, place){
-  const size = place === 1 ? 72 : 58;
-  const next = m.isMax ? 'Max level' : (m.percent + '% to Level ' + (m.level + 1));
-  const spoken = MASTERY_PLACE_WORD[place] + ' — ' + m.displayName + ', Level ' + m.level + ', '
-    + m.sessions + ' session' + (m.sessions === 1 ? '' : 's') + ', ' + next + '.';
-  return `<button type="button" class="mpod-card mpod-p${place}" onclick="openExDetail('${onclickArg(m.loggedName)}')" aria-label="${escapeAttr(spoken)}">
-      <span class="mpod-place" aria-hidden="true">${MASTERY_PLACE_WORD[place]}</span>
-      <span class="mpod-badge">${masteryPodiumMedalHtml(place, size)}</span>
-      <span class="mpod-name">${escapeHtml(m.displayName)}</span>
-      <span class="mastery-lvl-chip ml${Math.min(5, m.level)}">Level ${m.level}</span>
-      ${masteryBarHtml(m)}
-      <span class="mpod-meta">${m.sessions} session${m.sessions === 1 ? '' : 's'} · ${escapeHtml(next)}</span>
+
+/* The card both panels share, so Exercise and Muscle read as one system. Only
+   what differs is a parameter: whose name, what the meta says, and where a tap
+   goes. Every card states place, name, level and progress in TEXT — the badge
+   and the bar colour never carry a fact alone. */
+function masteryLeaderCardHtml(o){
+  const t = masteryTier(o.level);
+  const next = o.isMax ? 'Max level' : (o.percent + '% to Level ' + (o.level + 1));
+  const nextShort = o.isMax ? 'Max level' : (o.percent + '% to L' + (o.level + 1));
+  const spoken = MASTERY_PLACE_WORD[o.place] + ' — ' + o.name + ', Level ' + o.level + ', ' + o.metaSpoken + ', ' + next + '.' + (o.spokenTail || '');
+  const pct = o.isMax ? 100 : o.percent;
+  return `<button type="button" class="${o.cls} ${o.placeCls}" style="--i:${o.place}" onclick="${o.onclick}" aria-label="${escapeAttr(spoken)}">
+      <span class="mpod-place mst-rise" aria-hidden="true">${MASTERY_PLACE_WORD[o.place]}</span>
+      <span class="mst-rise mst-badgewrap">${masteryBadgeHtml(o.level, 72)}</span>
+      <span class="mpod-name mst-rise">${escapeHtml(o.name)}</span>
+      <span class="mastery-lvl-chip ml${Math.min(5, o.level)} mpill mpt${t.level} mst-rise">Level ${o.level}</span>
+      <span class="mcb" aria-hidden="true"><span class="mcb-fill" style="width:${pct}%"></span></span>
+      <span class="mpod-meta mst-rise"><span>${escapeHtml(o.metaLine)}</span><span>${escapeHtml(nextShort)}</span></span>
     </button>`;
 }
+function masteryPodiumCardHtml(m, place){
+  return masteryLeaderCardHtml({
+    cls: 'mpod-card', placeCls: 'mpod-p' + place, place,
+    name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax,
+    metaLine: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'),
+    metaSpoken: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'),
+    onclick: "openExDetail('" + onclickArg(m.loggedName) + "')"
+  });
+}
+function masteryMuscleCardHtml(m, place){
+  /* Exercise count, not sessions — buildMuscleMastery tallies sessions from an
+     exercise's PRIMARY movers only, so a muscle that only ever appears as a
+     secondary mover would print "0 sessions" beside a real bar. `exercises`
+     has no such asymmetry (see allMuscleMasteryHtml). */
+  const n = m.exercises + ' exercise' + (m.exercises === 1 ? '' : 's');
+  return masteryLeaderCardHtml({
+    cls: 'mmc-card', placeCls: 'mmc-p' + place, place,
+    name: m.label, level: m.level, percent: m.percent, isMax: m.isMax,
+    metaLine: n, metaSpoken: n, spokenTail: ' Opens all muscle mastery.',
+    onclick: 'openAllMuscleMastery()'
+  });
+}
 
-/* Podium geometry: 1st centre, 2nd left, 3rd right — reordered from ranked
-   order into stage order with CSS `order`, so the source stays rank order for
-   assistive tech while the visual reads as a podium. Handles every count from
-   zero to three; a two-leader page never leaves a broken empty third
-   pedestal, and one leader is simply centred alone. */
+/* Leaders in RANK order, left to right — 1st, 2nd, 3rd, as the eye reads them.
+   Zero leaders is an empty state, one is centred alone, two are a centred pair:
+   never a broken empty third slot. */
 function masteryPodiumHtml(podium){
   if(!podium.length){
     return `<div class="mpod-empty">
@@ -34101,23 +34285,183 @@ function masteryPodiumHtml(podium){
     </div>`;
   }
   const cards = podium.map((m, i) => masteryPodiumCardHtml(m, i + 1)).join('');
-  return `<div class="mpod mpod-n${podium.length}" role="list" aria-label="Mastery leaders">${cards}</div>`;
+  return `<div class="mpod mpod-n${podium.length}" role="list" aria-label="Exercise mastery leaders">${cards}</div>`;
+}
+function masteryMusclePodiumHtml(list){
+  if(!list.length){
+    return `<div class="mpod-empty">
+      <span class="mpod-empty-glyph" aria-hidden="true">${trophyIconSvg()}</span>
+      <div class="mpod-empty-title">Build your mastery.</div>
+      <p class="mpod-empty-sub">Muscles appear here as you log training.</p>
+    </div>`;
+  }
+  const cards = list.map((m, i) => masteryMuscleCardHtml(m, i + 1)).join('');
+  return `<div class="mmc mmc-n${list.length}" role="list" aria-label="Muscle mastery leaders">${cards}</div>`;
 }
 
-/* The compact control — a summary, not a second directory. Opens the full
-   ranked muscle list; hides itself gracefully when there is nothing to show,
-   per the same hasHistory truth the old inline section always read. */
-function topMuscleControlHtml(topMuscle){
-  if(!topMuscle) return '';
-  const spoken = 'Top muscle: ' + topMuscle.label + ', Level ' + topMuscle.level + '. Opens all muscle mastery.';
-  return `<button type="button" class="mtm-control" onclick="openAllMuscleMastery()" aria-label="${escapeAttr(spoken)}">
-      <span class="mtm-eyebrow">Top Muscle</span>
-      <span class="mtm-row">
-        <span class="mtm-name">${escapeHtml(topMuscle.label)}</span>
-        <span class="mastery-lvl-chip ml${Math.min(5, topMuscle.level)}">Level ${topMuscle.level}</span>
-        <span class="mtm-go" aria-hidden="true">${chevronRightSvg()}</span>
-      </span>
-    </button>`;
+/* ---------- THE MASTERY VIEW: one segmented control, two panels ----------
+   Both panels stay mounted side by side in ONE horizontal scroller, so a switch
+   is only ever a scroll — nothing is rebuilt, and text and graphics travel
+   together because they are the same element. The control does not animate on
+   its own: it is drawn from the scroller's own scroll position, so a tap, a
+   swipe and a half-finished drag can never disagree with what is on screen. */
+let masteryMode = 'exercise';   // survives a re-render; ephemeral, no DATA_KEY
+let masteryPlay = false;        // the entrance plays when the tab is OPENED, not on every redraw
+let _masteryRO = null, _masteryRaf = 0, _masteryPrevW = 0;
+
+function masteryToggleHtml(){
+  const ex = masteryMode !== 'muscle';
+  const tab = (key, label, on) => `<button type="button" role="tab" class="mst-seg${on ? ' on' : ''}" id="mstTab-${key}" data-mode="${key}"
+      aria-selected="${on ? 'true' : 'false'}" aria-controls="mstPanel-${key}" tabindex="${on ? '0' : '-1'}"
+      onclick="setMasteryMode('${key}')" onkeydown="masteryTabKey(event)">
+      <img class="mst-ico" src="${MASTERY_ICONS[key]}" width="30" height="30" alt="" decoding="async"><span>${label}</span></button>`;
+  return `<div class="mst-toggle" role="tablist" aria-label="Mastery view">
+      <span class="mst-ind" aria-hidden="true"></span>
+      ${tab('exercise', 'Exercise Mastery', ex)}${tab('muscle', 'Muscle Mastery', !ex)}
+    </div>`;
+}
+function masteryPanelHead(title, sub){
+  return `<div class="mst-head mst-rise"><h3 class="mst-title">${title}</h3><span class="mst-hint">From your training history</span></div>
+    <p class="mst-sub mst-rise">${sub}</p>`;
+}
+function masteryViewHtml(mas){
+  const muscles = getTopMuscleMastery().filter(m => m.hasHistory).slice(0, MASTERY_UI_CONFIG.podiumSize);
+  const ex = masteryMode !== 'muscle';
+  return `<div class="mst" id="mst"${masteryPlay ? ' data-play="1"' : ''}>
+    ${masteryToggleHtml()}
+    <div class="mst-view" id="mstView">
+      <section class="mst-panel${masteryPlay && ex ? ' is-anim' : ''}" id="mstPanel-exercise" role="tabpanel" aria-labelledby="mstTab-exercise"${ex ? '' : ' inert'}>
+        <div class="mst-card">
+          ${masteryPanelHead('Exercise mastery', 'Your most-trained movements, ranked by the history you have built with them.')}
+          ${masteryPodiumHtml(mas.podium)}
+          ${mas.hasHistory ? `<div class="mst-list-head mst-rise">All exercises</div>${exerciseMasteryListHtml(MASTERY_UI_CONFIG.listInitial)}` : ''}
+        </div>
+      </section>
+      <section class="mst-panel${masteryPlay && !ex ? ' is-anim' : ''}" id="mstPanel-muscle" role="tabpanel" aria-labelledby="mstTab-muscle"${ex ? ' inert' : ''}>
+        <div class="mst-card">
+          ${masteryPanelHead('Muscle mastery', 'The muscles your training has worked most, ranked by the history behind them.')}
+          ${masteryMusclePodiumHtml(muscles)}
+          ${muscles.length ? `<button type="button" class="mst-more mst-rise" onclick="openAllMuscleMastery()">View all muscles</button>` : ''}
+        </div>
+      </section>
+    </div>
+  </div>`;
+}
+
+/* What the six badges mean. Six levels, not ten: the ladder's last badge is the
+   one every level from 6 up wears, and the legend says so. */
+function masteryBadgeSystemHtml(){
+  const items = MASTERY_BADGE_TIERS.map(t => `<li class="msys-item">
+      <span class="mbadge mbt${t.level}"><img class="mpod-medal" src="${t.file}" width="52" height="52" alt="" decoding="async"></span>
+      <span class="msys-lvl">Level ${t.level}${t.level === MASTERY_BADGE_TIERS.length ? '+' : ''}</span>
+      <span class="msys-name">${t.name}</span>
+      <span class="msys-note">${t.note}</span>
+    </li>`).join('');
+  return `<div class="sec-head">The mastery badge system</div>
+    <p class="msys-sub">Train consistently. Build history. Unlock higher levels.</p>
+    <ol class="msys" aria-label="Mastery badge levels">${items}</ol>`;
+}
+
+function masteryEls(){
+  const v = document.getElementById('mstView');
+  const panels = v ? [].slice.call(v.querySelectorAll('.mst-panel')) : [];
+  return { root: document.getElementById('mst'), view: v, panels, toggle: document.querySelector('#mst .mst-toggle') };
+}
+function masteryReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; }
+}
+/* 0 = Exercise fully in view, 1 = Muscle fully in view. Null where the scroller
+   has no width yet (the Progress tab is not on screen). */
+function masterySpan(E){ return E.view ? E.view.scrollWidth - E.view.clientWidth : 0; }
+function masteryProgress(E){
+  if(!E.view || E.panels.length < 2) return null;
+  /* The scroller's own range, not the panels' page offsets: with two panels the
+     whole range is exactly one switch, wherever the view sits on the page. */
+  const span = masterySpan(E);
+  if(!(span > 0)) return null;
+  return Math.max(0, Math.min(1, E.view.scrollLeft / span));
+}
+/* Draws everything that depends on the scroll position — the control, the
+   height, which panel is live — from that one number. */
+function masterySync(){
+  const E = masteryEls();
+  const pr = masteryProgress(E);
+  if(pr === null) return;
+  if(E.toggle) E.toggle.style.setProperty('--p', pr.toFixed(4));
+  const h0 = E.panels[0].offsetHeight, h1 = E.panels[1].offsetHeight;
+  E.view.style.height = (h0 + (h1 - h0) * pr).toFixed(1) + 'px';
+  const idx = pr > 0.5 ? 1 : 0;
+  masteryMode = idx ? 'muscle' : 'exercise';
+  E.panels.forEach((p, i) => { p.inert = (i !== idx); });
+  [].slice.call(E.toggle ? E.toggle.querySelectorAll('.mst-seg') : []).forEach((b, i) => {
+    const on = i === idx;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+  });
+  /* The panel that was off screen at open plays its own entrance the first time
+     it is really brought in, so its bars fill when it can be seen. */
+  if(pr > 0.04 && E.root && E.root.dataset && E.root.dataset.play === '1') E.panels[1].classList.add('is-anim');
+}
+function masteryQueueSync(){
+  if(_masteryRaf) return;
+  const run = () => { _masteryRaf = 0; masterySync(); };
+  _masteryRaf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame(run) : (run(), 0);
+}
+/* Puts the scroller on the remembered panel with no animation — after a redraw,
+   a resize, or the tab coming on screen — then draws from it. */
+function masteryAlign(){
+  const E = masteryEls();
+  if(!E.view || E.panels.length < 2) return;
+  const idx = masteryMode === 'muscle' ? 1 : 0;
+  E.view.scrollLeft = idx * masterySpan(E);
+  masterySync();
+}
+function setMasteryMode(mode){
+  const E = masteryEls();
+  masteryMode = mode === 'muscle' ? 'muscle' : 'exercise';
+  if(!E.view || E.panels.length < 2) return;
+  /* Reduced motion: no glide, the panel is simply there. */
+  if(masteryReducedMotion()){ masteryAlign(); return; }
+  const idx = masteryMode === 'muscle' ? 1 : 0;
+  const left = idx * masterySpan(E);
+  try{ E.view.scrollTo({ left, behavior: 'smooth' }); }
+  catch(e){ E.view.scrollLeft = left; }
+  masterySync();
+}
+function masteryTabKey(ev){
+  const k = ev && ev.key;
+  if(k !== 'ArrowLeft' && k !== 'ArrowRight' && k !== 'Home' && k !== 'End') return;
+  if(ev.preventDefault) ev.preventDefault();
+  const to = (k === 'ArrowLeft' || k === 'Home') ? 'exercise' : 'muscle';
+  setMasteryMode(to);
+  const b = document.getElementById('mstTab-' + to);
+  if(b && b.focus) b.focus();
+}
+/* After every draw: line the scroller up, and keep it lined up. The observer is
+   what handles the two cases a draw cannot — the tab being drawn while it is
+   hidden (no width yet), and the phone turning. */
+function masteryAfterRender(){
+  masteryWarmAssets();
+  const E = masteryEls();
+  if(!E.view) return;
+  masteryAlign();
+  E.view.addEventListener('scroll', masteryQueueSync, { passive: true });
+  if(_masteryRO){ try{ _masteryRO.disconnect(); }catch(e){} _masteryRO = null; }
+  if(typeof ResizeObserver === 'function'){
+    /* Only the panels are observed — never the scroller, whose own height this
+       code sets — and the work is deferred to the next frame, so the observer can
+       never resize what it is watching inside its own callback. */
+    _masteryPrevW = E.panels[0].clientWidth;
+    _masteryRO = new ResizeObserver(() => {
+      const run = () => {
+        const w = E.panels[0].clientWidth;
+        if(w !== _masteryPrevW){ _masteryPrevW = w; masteryAlign(); } else masterySync();
+      };
+      if(typeof requestAnimationFrame === 'function') requestAnimationFrame(run); else run();
+    });
+    E.panels.forEach(p => _masteryRO.observe(p));
+  }
 }
 
 /* ---------- ALL MUSCLE MASTERY sheet ----------
