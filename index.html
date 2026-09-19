@@ -13002,18 +13002,33 @@ async function backupAllData(fromVersion){
     const r = await LOOPStore.get(k);
     if(r && r.value !== undefined && r.value !== null) snapshot[k] = r.value;
   }
-  return (await LOOPStore.set(BACKUP_PREFIX + fromVersion,
-    JSON.stringify({ takenAt: new Date().toISOString(), data: snapshot }))) === true;
+  const text = JSON.stringify({ takenAt: new Date().toISOString(), data: snapshot });
+  if((await LOOPStore.set(BACKUP_PREFIX + fromVersion, text)) !== true) return false;
+  /* D94 — and it must read back as written: a net that cannot be read is not a
+     net. A copy that landed wrong is removed rather than left for nobody. */
+  const back = await LOOPStore.get(BACKUP_PREFIX + fromVersion);
+  if(back && back.value === text) return true;
+  try{ await LOOPStore.remove(BACKUP_PREFIX + fromVersion); }catch(e){}
+  return false;
 }
 
-async function restoreBackup(fromVersion){
+async function restoreBackup(fromVersion, onlyKeys){
   const r = await LOOPStore.get(BACKUP_PREFIX + fromVersion);
   if(!r || !r.value) return false;
   try{
     const parsed = JSON.parse(r.value);
     if(!parsed || !parsed.data) return false;
-    for(const k of Object.keys(parsed.data)) await LOOPStore.set(k, parsed.data[k]);
-    return true;
+    /* D94 — `onlyKeys` puts back exactly what an interrupted write touched: each
+       key to what it held, and a key the write CREATED back to absent, because
+       leaving it is the partial import this exists to undo. Removals go first,
+       since they free the space a refused write lacked. Every write is checked;
+       this used to return true whatever the store said. */
+    const had = k => Object.prototype.hasOwnProperty.call(parsed.data, k);
+    const keys = onlyKeys || Object.keys(parsed.data);
+    let ok = true;
+    for(const k of keys) if(!had(k) && (await LOOPStore.remove(k)) !== true) ok = false;
+    for(const k of keys) if(had(k) && (await LOOPStore.set(k, parsed.data[k])) !== true) ok = false;
+    return ok;
   }catch(e){ return false; }
 }
 
@@ -13048,95 +13063,250 @@ async function exportAllData(){
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function importAllData(input){
-  const file = input.files && input.files[0];
-  input.value = '';
-  if(!file) return;
+/* =========================================================
+   D94 — IMPORT, ONE VERSION AT A TIME
+   ---------------------------------------------------------
+   A backup file is untrusted input, and an import is all of a backup or none
+   of it. It runs in one direction:
+
+     read → parse → identify the version → check the envelope
+     → migrate in memory → validate the current-schema result
+     → select the restorable keys → prepare the complete next state
+     → safety copy, read back → commit, every write checked
+     → read every write back → success, and the reload
+
+   Nothing is written until everything up to the safety copy has passed. A
+   write that is refused, or that does not read back as written, is undone from
+   the safety copy — a key the import created goes back to absent rather than
+   being left behind — and the undo is read back too before LOOP says a word
+   about it.
+
+   Compatibility is decided by the backup's own schemaVersion, never by an app
+   or cache version: the same schema takes the current path; an older one must
+   climb the migration chain one step at a time, all of it or none of it; a
+   newer one is refused; anything that is not a positive whole number is not a
+   version at all. Before D94 every one of those except "newer" was accepted as
+   current and written straight in (D88 E8).
+   ========================================================= */
+const IMPORT_ERROR = Object.freeze({
+  INVALID: 'invalid-backup',
+  OLDER: 'unsupported-older-backup',
+  NEWER: 'backup-from-newer-loop',
+  MIGRATION: 'migration-failed',
+  SAFETY: 'safety-backup-failed',
+  RESTORE: 'restore-failed',
+  VERIFY: 'verification-failed'
+});
+
+/* Upgrades a backup's data FROM the version it is keyed by TO the next one.
+   A step is pure: it gets its own copy of the data map (key → the stored
+   string, exactly as a file of that version holds it), returns the next
+   version's map, and reads nothing else — no clock, no storage, no random
+   ids — so one file always becomes the same data.
+   Empty on purpose. Every backup LOOP has written is schema 1: the version and
+   the envelope are unchanged since the first commit, and no older format was
+   ever committed. There is nothing to upgrade, and no step is invented to make
+   an unknown file fit. */
+const BACKUP_MIGRATIONS = Object.freeze({
+  // 1: function(data){ ...return data as schema 2 stores it... }
+});
+
+/* Deeper than any LOOP value nests — the deepest the whole test suite ever
+   writes is a program store, nine levels — and far short of the few thousand
+   where JSON.stringify gives up, so a planted value can never become one that
+   is restored once and can then never be saved again. */
+const BACKUP_MAX_DEPTH = 64;
+
+let importInFlight = false;
+
+/* A schema version is a positive whole JSON number. Nothing is coerced: "1",
+   1.5, true, [1], null and a missing field are not versions. */
+function backupSchemaVersion(v){
+  return (typeof v === 'number' && Number.isInteger(v) && v >= 1) ? v : null;
+}
+
+function isPlainRecord(v){
+  return v !== null && typeof v === 'object' && Object.prototype.toString.call(v) === '[object Object]';
+}
+
+/* Credentials never travel in a backup, in either direction, whatever a file
+   or a migration step says. Checked before the allowlist, not instead of it. */
+function isCredentialKey(k){ return k === SOCIAL_STORE_KEY || k === SOCIAL_INVITE_KEY; }
+
+/* Runs the chain from `fromVersion` up to the current schema, in order, on
+   copies, and returns a candidate only when every step has run. A missing step
+   refuses the file — it is never skipped — and a step that throws, or returns
+   anything but a data map, refuses it too. Writes nothing. `registry` and
+   `toVersion` are for Contract 195's synthetic chains; production passes
+   neither. */
+function migrateBackupToCurrent(data, fromVersion, registry, toVersion){
+  const steps = registry || BACKUP_MIGRATIONS;
+  const target = toVersion === undefined ? DATA_SCHEMA_VERSION : toVersion;
+  if(backupSchemaVersion(fromVersion) === null || !isPlainRecord(data)) return { ok:false, error: IMPORT_ERROR.INVALID, reason:'version' };
+  if(fromVersion > target) return { ok:false, error: IMPORT_ERROR.NEWER };
+  let out = data;
+  for(let v = fromVersion; v < target; v++){
+    const step = Object.prototype.hasOwnProperty.call(steps, v) ? steps[v] : null;
+    if(typeof step !== 'function') return { ok:false, error: IMPORT_ERROR.OLDER, at: v };
+    let next;
+    try{ next = step(JSON.parse(JSON.stringify(out))); }
+    catch(e){ return { ok:false, error: IMPORT_ERROR.MIGRATION, at: v }; }
+    if(!isPlainRecord(next)) return { ok:false, error: IMPORT_ERROR.MIGRATION, at: v };
+    out = next;
+  }
+  return { ok:true, data: out, version: target };
+}
+
+/* What each key's loader reads, and nothing more: the stored JSON must parse,
+   and to the shape LOOP keeps under that key. `null` is how LOOP stores
+   "nothing here", so it fits every key. */
+function backupValueFits(key, v){
+  if(v === null) return true;
+  switch(key){
+    case 'workoutLog': case 'dismissedMissed': case 'cardioLog': return Array.isArray(v);
+    case 'lastSeenUpdateId': case 'selectedPlan': return typeof v === 'string';
+    case 'trainerLog': return isPlainRecord(v) && Array.isArray(v.entries);
+    case 'exerciseNotes': return isPlainRecord(v) && Array.isArray(v.notes);
+    case 'programs': return isPlainRecord(v) && Array.isArray(v.programs);
+  }
+  return key.startsWith('planStart:') ? typeof v === 'string' : isPlainRecord(v);
+}
+
+/* No own "__proto__" key anywhere — LOOP's own objects cannot produce one, and
+   copying one lands on a prototype instead of in the data — and no nesting past
+   BACKUP_MAX_DEPTH. Walked with a stack rather than recursion, so the check
+   cannot itself overflow on the input it exists to refuse. */
+function backupValueIsSafe(value){
+  const stack = [value], depth = [0];
+  while(stack.length){
+    const v = stack.pop(), d = depth.pop();
+    if(v === null || typeof v !== 'object') continue;
+    if(d >= BACKUP_MAX_DEPTH) return false;
+    if(Array.isArray(v)){
+      for(let i = 0; i < v.length; i++){ stack.push(v[i]); depth.push(d + 1); }
+      continue;
+    }
+    const keys = Object.keys(v);
+    for(let i = 0; i < keys.length; i++){
+      if(keys[i] === '__proto__') return false;
+      stack.push(v[keys[i]]); depth.push(d + 1);
+    }
+  }
+  return true;
+}
+
+/* History is merged by id, compared as a string. An id that names a property
+   every object already has ("__proto__", "constructor", "toString") is not one
+   LOOP makes — its ids are timestamps and prefixed tokens — and anywhere the
+   app keeps a plain map of ids it would read as already there. */
+function hasInheritedId(list){
+  return Array.isArray(list) && list.some(x => x && x.id && (String(x.id) in Object.prototype));
+}
+
+/* VALIDATE + SELECT, on data already at the current schema — which is why it
+   runs after migration, so a step can never add what this refuses. Only a key
+   this build exports is read out of the file, credentials never, and each
+   value must be what its loader reads. One damaged value refuses the whole
+   file: nothing is restored from a backup LOOP has only partly understood. */
+function selectRestorableData(data){
+  const entries = [];
+  for(const k of Object.keys(data)){
+    if(isCredentialKey(k)) continue;
+    /* D88 — a backup may only restore keys LOOP itself exports. `socialSession`
+       once rode in on a hand-edited file and planted a stranger's access and
+       refresh tokens on a signed-out phone, and unknown names were written
+       verbatim, then never exported, wiped or read again: storage nobody owns.
+       Unknown keys are skipped, not fatal — they are simply not LOOP's. */
+    if(!isRestorableDataKey(k)) continue;
+    const raw = data[k];
+    if(typeof raw !== 'string') return { ok:false, error: IMPORT_ERROR.INVALID, reason:'value', key:k };
+    let value;
+    try{ value = JSON.parse(raw); }catch(e){ return { ok:false, error: IMPORT_ERROR.INVALID, reason:'value', key:k }; }
+    if(!backupValueFits(k, value) || !backupValueIsSafe(value)
+      || hasInheritedId(k === 'programs' ? value && value.programs : (k === 'workoutLog' || k === 'cardioLog') ? value : null))
+      return { ok:false, error: IMPORT_ERROR.INVALID, reason:'value', key:k };
+    entries.push({ key:k, raw, value });
+  }
+  return { ok:true, entries };
+}
+
+/* Everything before the first write, and none of it writes: parse, version,
+   envelope, migration, validation, selection. `opts` exists for Contract 195
+   alone — a synthetic registry and target version, so the chain can be proven
+   while production has no step at all. */
+function readBackupFile(text, opts){
+  const o = opts || {};
+  const current = o.schemaVersion === undefined ? DATA_SCHEMA_VERSION : o.schemaVersion;
   let payload;
-  try{
-    payload = JSON.parse(await file.text());
-  }catch(e){
-    alert("That file couldn't be read as a LOOP backup. Nothing was changed.");
-    return;
-  }
-  if(!payload || payload.app !== 'LOOP' || !payload.data){
-    alert("That doesn't look like a LOOP backup file. Nothing was changed.");
-    return;
-  }
-  if(payload.schemaVersion > DATA_SCHEMA_VERSION){
-    alert("That backup was made by a newer version of LOOP. Update this copy first — nothing was changed.");
-    return;
-  }
-  if(!confirm('Import this backup? Your existing workouts are kept — imported sessions are merged in alongside them.')) return;
+  try{ payload = JSON.parse(text); }catch(e){ return { ok:false, error: IMPORT_ERROR.INVALID, reason:'unreadable' }; }
+  if(!isPlainRecord(payload) || payload.app !== 'LOOP') return { ok:false, error: IMPORT_ERROR.INVALID, reason:'envelope' };
+  const version = backupSchemaVersion(payload.schemaVersion);
+  if(version === null) return { ok:false, error: IMPORT_ERROR.INVALID, reason:'version' };
+  /* A newer file's envelope may not be this one, so it is refused on its
+     version alone, before anything else about it is read. */
+  if(version > current) return { ok:false, error: IMPORT_ERROR.NEWER, version };
+  if(!isPlainRecord(payload.data)) return { ok:false, error: IMPORT_ERROR.INVALID, reason:'envelope' };
+  const migrated = migrateBackupToCurrent(payload.data, version, o.migrations, current);
+  if(!migrated.ok) return migrated;
+  return selectRestorableData(migrated.data);
+}
 
-  /* Safety net before touching anything. D88 — the result used to be discarded.
-     This is the largest single write LOOP ever makes, so it is also the most
-     likely to be refused by a store that is nearly full, and every later promise
-     that "your original data has been restored" is only worth the net existing.
-     If it cannot be taken, nothing is touched and the athlete is told why. */
-  if(!(await backupAllData('preimport'))){
-    alert("LOOP couldn't set aside a safety copy of your current data, so the import was stopped before it began. Nothing was changed. Free up some space on this device and try again.");
-    return;
-  }
-
-  try{
-    const incoming = payload.data;
-
-    // Workout history merges by id so neither side loses sessions. A backup
-    // legitimately has no workoutLog key at all if it came from a device that
-    // never logged a strength workout (cardio-only use, for instance) — that
-    // is not an error, just nothing to merge here.
-    const hasWorkoutLog = !!incoming.workoutLog;
-    let added = 0;
-    if(hasWorkoutLog){
-      const theirs = JSON.parse(incoming.workoutLog) || [];
-      const mineRaw = await LOOPStore.get('workoutLog');
-      const mine = mineRaw && mineRaw.value ? (JSON.parse(mineRaw.value) || []) : [];
-      const byId = {};
-      mine.forEach(w => { if(w && w.id) byId[w.id] = w; });
-      theirs.forEach(w => { if(w && w.id && !byId[w.id]){ byId[w.id] = w; added++; } });
-      const merged = Object.keys(byId).map(k => byId[k]);
-      await LOOPStore.set('workoutLog', JSON.stringify(merged));
-    }
-
-    // Cardio history is history too, and merges by id on the same terms. A
-    // measured run carries its route and splits, so losing one to a
-    // fill-only rule would lose the only copy of where the athlete went.
-    const hasCardioLog = !!incoming.cardioLog;
-    let addedCardio = 0, addedActivities = 0;
-    if(hasCardioLog){
-      const theirs = JSON.parse(incoming.cardioLog) || [];
-      const mineRaw = await LOOPStore.get('cardioLog');
-      const mine = mineRaw && mineRaw.value ? (JSON.parse(mineRaw.value) || []) : [];
-      const byId = {};
-      mine.forEach(c => { if(c && c.id) byId[c.id] = c; });
-      theirs.forEach(c => {
-        if(c && c.id && !byId[c.id]){
-          byId[c.id] = c;
-          if(isActivityRecord(c)) addedActivities++; else addedCardio++;
-        }
-      });
-      const merged = Object.keys(byId).map(k => byId[k]);
-      await LOOPStore.set('cardioLog', JSON.stringify(merged));
-    }
-
-    // Programs are training history too: a finished program records weeks the
-    // athlete actually trained. Merged by id, and the device's own active
-    // program is never displaced by an imported one.
-    const hasPrograms = !!incoming.programs;
-    let addedPrograms = 0;
-    if(hasPrograms){
-      let theirs = null, mine = null;
-      try{ theirs = JSON.parse(incoming.programs); }catch(e){ theirs = null; }
-      const mineRaw = await LOOPStore.get('programs');
-      try{ mine = mineRaw && mineRaw.value ? JSON.parse(mineRaw.value) : null; }catch(e){ mine = null; }
-      if(theirs && Array.isArray(theirs.programs)){
+/* PREPARE — the complete next state, worked out in memory from the validated
+   backup and what this device holds now. Nothing here writes. The rules are the
+   ones import has always had: history — workouts, cardio, programs — merges by
+   id with the device's own copy winning; everything else only fills a slot that
+   is empty, exactly as the file stored it. Two sharpenings: ids are compared as
+   strings in a Set, so one no plain object can hold as a key ("__proto__",
+   "constructor") is merged like any other instead of silently lost; and the
+   device's own records are kept as they are — the old map dropped any that
+   lacked an id, which is not what "nothing is overwritten" promises. */
+async function prepareImportState(entries){
+  const prior = new Map(), writes = new Map();
+  const n = { workouts:null, cardio:null, activities:0, programs:null, filled:0 };
+  const held = async k => {
+    const r = await LOOPStore.get(k);
+    return r && r.value !== undefined && r.value !== null ? r.value : null;
+  };
+  /* The device's own history must be readable, or there is nothing to merge
+     into — LOOP refuses rather than write over a copy it cannot read. */
+  const deviceList = raw => {
+    const v = raw === null ? null : JSON.parse(raw);
+    if(v === null) return [];
+    if(!Array.isArray(v)) throw new Error('device history is not a list');
+    return v;
+  };
+  const mergeById = (mine, theirs, onAdd) => {
+    const have = new Set();
+    mine.forEach(x => { if(x && x.id) have.add(String(x.id)); });
+    const added = [];
+    (theirs || []).forEach(x => {
+      if(x && x.id && !have.has(String(x.id))){ have.add(String(x.id)); added.push(x); onAdd(x); }
+    });
+    return mine.concat(added);
+  };
+  for(const e of entries){
+    const k = e.key, now = await held(k);
+    let next = now;
+    if(k === 'workoutLog'){
+      // A backup may legitimately have no workouts at all (cardio-only use).
+      n.workouts = 0;
+      next = JSON.stringify(mergeById(deviceList(now), e.value, () => { n.workouts++; }));
+    } else if(k === 'cardioLog'){
+      /* Cardio history is history too, and merges on the same terms: a measured
+         run carries its route and splits, the only copy of where it went.
+         Activities share the store but are not cardio sessions, and the report
+         says which is which. */
+      n.cardio = 0;
+      next = JSON.stringify(mergeById(deviceList(now), e.value, x => { if(isActivityRecord(x)) n.activities++; else n.cardio++; }));
+    } else if(k === 'programs'){
+      /* A finished program records weeks the athlete actually trained. Merged by
+         id, and the device's own active program is never displaced. */
+      n.programs = 0;
+      const theirs = e.value;
+      if(theirs){
+        let mine = null;
+        try{ mine = now === null ? null : JSON.parse(now); }catch(err){ mine = null; }
         const base = (mine && Array.isArray(mine.programs)) ? mine : defaultProgramsStore();
-        const byId = {};
-        (base.programs || []).forEach(x => { if(x && x.id) byId[x.id] = x; });
-        theirs.programs.forEach(x => {
-          if(x && x.id && !byId[x.id]){ byId[x.id] = x; addedPrograms++; }
-        });
         /* D51C — REBUILT FROM `base`, NOT FROM A FIELD LIST. This was written
            as a fresh object literal naming three fields, so anything else the
            store carried was dropped by an import that then reported success.
@@ -13148,65 +13318,163 @@ async function importAllData(input){
           /* Whatever this device is training now stays active; an imported
              active id is only adopted when there is nothing to displace. */
           activeProgramId: base.activeProgramId || theirs.activeProgramId || null,
-          programs: Object.keys(byId).map(k => byId[k])
+          programs: mergeById(base.programs || [], theirs.programs, () => { n.programs++; })
         });
         /* The device's own unfinished draft always wins; an imported one is
            adopted only when there is nothing here to overwrite. */
         if(!base.draft && theirs.draft) merged.draft = theirs.draft;
-        await LOOPStore.set('programs', JSON.stringify(merged));
+        next = JSON.stringify(merged);
       }
+    } else {
+      /* Everything else is per-plan config or app state — it only fills a gap,
+         and a backup's own "nothing here" fills nothing. */
+      const isEmpty = now === null || now === '' || now === 'null';
+      if(isEmpty && e.value !== null){ next = e.raw; n.filled++; }
     }
-
-    // Everything else is per-plan config or app state — only fill gaps. This
-    // runs regardless of whether the backup had a workoutLog, so a
-    // cardio-only or trainer-only backup still restores what it actually has
-    // instead of silently importing nothing.
-    let filled = 0;
-    for(const k of Object.keys(incoming)){
-      if(k === 'workoutLog' || k === 'cardioLog' || k === 'programs' || k === SCHEMA_KEY
-        || k.startsWith(BACKUP_PREFIX)) continue;
-      /* D88 — a backup may only restore keys LOOP itself exports. The skip list
-         above is not the same thing as an allowlist: `socialSession` is not in
-         it, so a hand-edited backup opened on a signed-out phone wrote a
-         stranger's access and refresh tokens straight into the Friends session.
-         That is the mirror image of the rule this app already states on the
-         export side — credentials have no business in a backup file, in either
-         direction. Unknown key names were written verbatim too, and then never
-         exported, wiped or read again: storage nobody owns. */
-      if(!isRestorableDataKey(k)) continue;
-      const existing = await LOOPStore.get(k);
-      const isEmpty = !existing || !existing.value || existing.value === 'null';
-      if(isEmpty){ await LOOPStore.set(k, incoming[k]); filled++; }
-    }
-
-    // Success handling no longer depends on workoutLog being present — every
-    // completed import reports what actually happened, never silently.
-    const parts = [];
-    if(hasWorkoutLog) parts.push(`${added} new workout${added===1?'':'s'} added`);
-    /* Activities share the store but are not cardio sessions, and a restore
-       report that called them sessions would be the first place LOOP said so. */
-    if(hasCardioLog && (addedCardio || !addedActivities))
-      parts.push(`${addedCardio} new cardio session${addedCardio===1?'':'s'} added`);
-    if(addedActivities) parts.push(`${addedActivities} new activit${addedActivities===1?'y':'ies'} added`);
-    if(hasPrograms) parts.push(`${addedPrograms} new program${addedPrograms===1?'':'s'} added`);
-    if(filled) parts.push(`${filled} setting${filled===1?'':'s'} restored`);
-    const summary = parts.length ? parts.join(', ') : 'nothing new to import — you already have this data';
-    /* D88 — the import succeeded, so the safety copy has nothing left to undo.
-       It was never removed before, which left a second verbatim copy of every
-       key sitting in storage for good: roughly double the space, on the same
-       device whose fullness is what makes a refused write possible at all. */
-    try{ await LOOPStore.remove(BACKUP_PREFIX + 'preimport'); }catch(e){}
-    alert(`Import complete — ${summary}. LOOP will reload.`);
-    location.reload();
-  }catch(e){
-    /* D88 — say what actually happened. restoreBackup returns false when there
-       was nothing to restore from, and claiming "nothing was lost" in that case
-       is the one message an athlete must be able to trust. */
-    const restored = await restoreBackup('preimport');
-    alert(restored
-      ? 'The import ran into a problem. Your original data has been restored — nothing was lost.'
-      : "The import ran into a problem, and LOOP could not read back the safety copy it made. Please check your data before logging anything else, and re-import your backup if something is missing.");
+    if(next !== now){ writes.set(k, next); prior.set(k, now); }
   }
+  const parts = [];
+  if(n.workouts !== null) parts.push(`${n.workouts} new workout${n.workouts===1?'':'s'} added`);
+  if(n.cardio !== null && (n.cardio || !n.activities)) parts.push(`${n.cardio} new cardio session${n.cardio===1?'':'s'} added`);
+  if(n.activities) parts.push(`${n.activities} new activit${n.activities===1?'y':'ies'} added`);
+  if(n.programs !== null) parts.push(`${n.programs} new program${n.programs===1?'':'s'} added`);
+  if(n.filled) parts.push(`${n.filled} setting${n.filled===1?'':'s'} restored`);
+  return { prior, writes, summary: parts.join(', ') };
+}
+
+/* True when every key reads back exactly as expected. `null` expects absent —
+   or LOOP's stored 'null', which is what a refused delete leaves and what every
+   loader reads as absent. */
+async function storeHolds(expected){
+  for(const [k, v] of expected){
+    const r = await LOOPStore.get(k);
+    const now = r && r.value !== undefined && r.value !== null ? r.value : null;
+    if(v === null ? (now !== null && now !== 'null') : now !== v) return false;
+  }
+  return true;
+}
+
+/* The net must hold, for every key about to be written, exactly what the
+   device holds now; otherwise the undo it promises is not the undo it does. */
+async function safetyCopyHolds(prior){
+  try{
+    const r = await LOOPStore.get(BACKUP_PREFIX + 'preimport');
+    const data = JSON.parse(r.value).data;
+    for(const [k, v] of prior){
+      const has = Object.prototype.hasOwnProperty.call(data, k);
+      if(v === null ? has : !(has && data[k] === v)) return false;
+    }
+    return true;
+  }catch(e){ return false; }
+}
+
+/* PREPARE → SAFETY COPY → COMMIT → VERIFY, or the undo. */
+async function restoreBackupData(entries){
+  let prep;
+  try{ prep = await prepareImportState(entries); }
+  catch(e){ return { ok:false, error: IMPORT_ERROR.RESTORE, reason:'device' }; }
+  if(!prep.writes.size) return { ok:true, nothingNew:true };
+
+  /* Safety net before touching anything. D88 — the result used to be discarded.
+     This is the largest single write LOOP ever makes, so it is also the most
+     likely to be refused by a store that is nearly full, and every later promise
+     that "your original data has been restored" is only worth the net existing.
+     If it cannot be taken, nothing is touched and the athlete is told why. D94 —
+     it is read back, and must hold what every key about to change holds now. */
+  if(!(await backupAllData('preimport'))){
+    return { ok:false, error: IMPORT_ERROR.SAFETY };
+  }
+  if(!(await safetyCopyHolds(prep.prior))){
+    try{ await LOOPStore.remove(BACKUP_PREFIX + 'preimport'); }catch(e){}
+    return { ok:false, error: IMPORT_ERROR.SAFETY };
+  }
+
+  /* COMMIT — every write checked. LOOPStore.set() reports a refused write by
+     returning false and never throws, so before D94 a full store took half an
+     import and LOOP called it complete. The first refusal stops the rest. */
+  const touched = [];
+  let error = null;
+  for(const [k, v] of prep.writes){
+    touched.push(k);
+    if((await LOOPStore.set(k, v)) !== true){ error = IMPORT_ERROR.RESTORE; break; }
+  }
+  // VERIFY — what the store now holds is what was meant, key by key.
+  if(!error && !(await storeHolds(prep.writes))) error = IMPORT_ERROR.VERIFY;
+
+  if(error){
+    /* D88 — say what actually happened. The undo is judged by what the store
+       reads back, not by what the undo reports: a refused write that never
+       landed needs no undoing, and an undo that "worked" proves nothing until
+       it is read. Only when every key the import touched reads back as it was
+       is it called a success; then the safety copy has nothing left to protect
+       and goes too. If it cannot be proven, the copy stays and LOOP says so. */
+    await restoreBackup('preimport', touched);
+    const restored = await storeHolds(new Map(touched.map(k => [k, prep.prior.get(k)])));
+    if(restored){ try{ await LOOPStore.remove(BACKUP_PREFIX + 'preimport'); }catch(e){} }
+    return { ok:false, error, restored };
+  }
+  /* D88 — the import succeeded, so the safety copy has nothing left to undo.
+     It was never removed before, which left a second verbatim copy of every
+     key sitting in storage for good: roughly double the space, on the same
+     device whose fullness is what makes a refused write possible at all. */
+  try{ await LOOPStore.remove(BACKUP_PREFIX + 'preimport'); }catch(e){}
+  return { ok:true, summary: prep.summary, written: touched.length };
+}
+
+/* One short sentence for each way an import stops. None reads as a success,
+   and "nothing was lost" is said only after the undo has been read back. */
+function importFailureCopy(r){
+  switch(r.error){
+    case IMPORT_ERROR.NEWER: return 'This backup was created by a newer version of LOOP. Update LOOP, then import it again. Nothing was changed.';
+    case IMPORT_ERROR.OLDER: return "This backup is from an older version of LOOP that this version can't import. Nothing was changed.";
+    case IMPORT_ERROR.MIGRATION: return "LOOP couldn't update this older backup, so none of it was imported. Nothing was changed.";
+    case IMPORT_ERROR.SAFETY: return "LOOP couldn't set aside a safety copy of your current data, so the import was stopped before it began. Nothing was changed. Free up some space on this device and try again.";
+    case IMPORT_ERROR.RESTORE:
+    case IMPORT_ERROR.VERIFY:
+      if(r.reason === 'device') return "LOOP couldn't read the history already on this device, so it didn't import over it. Nothing was changed.";
+      if(!r.restored) return "The import couldn't be finished, and LOOP couldn't confirm your data was put back exactly as it was. Check your history before logging anything else.";
+      return r.error === IMPORT_ERROR.VERIFY
+        ? "LOOP couldn't confirm the import saved correctly, so it put your data back exactly as it was. Nothing was lost."
+        : "The import couldn't be saved on this device, so LOOP put your data back exactly as it was. Nothing was lost. Free up some space and try again.";
+  }
+  if(r.reason === 'unreadable') return "That file couldn't be read as a LOOP backup. Nothing was changed.";
+  if(r.reason === 'version') return "LOOP can't tell which version made this backup, so it wasn't imported. Nothing was changed.";
+  if(r.reason === 'value') return 'Part of this backup is damaged, so none of it was imported. Nothing was changed.';
+  return "That doesn't look like a LOOP backup file. Nothing was changed.";
+}
+
+async function importAllData(input, opts){
+  /* One import at a time: a second file chosen while the first is still being
+     read must never interleave its writes with it. */
+  if(importInFlight) return { ok:false, error:'busy' };
+  const file = input && input.files && input.files[0];
+  if(input) input.value = '';
+  if(!file) return { ok:false, error:'no-file' };
+  importInFlight = true;
+  try{
+    let text;
+    try{ text = await file.text(); }catch(e){ text = undefined; }
+    const read = readBackupFile(text, opts);
+    if(!read.ok){ alert(importFailureCopy(read)); return read; }
+    /* A valid backup with nothing LOOP restores in it is not a damaged one. */
+    if(!read.entries.length){
+      alert('That backup has nothing in it to import. Nothing was changed.');
+      return { ok:true, empty:true };
+    }
+    if(!confirm('Import this backup? Your existing workouts are kept — imported sessions are merged in alongside them.')) return { ok:false, error:'cancelled' };
+    const done = await restoreBackupData(read.entries);
+    if(!done.ok){ alert(importFailureCopy(done)); return done; }
+    if(done.nothingNew){
+      alert('Nothing new to import — you already have everything in that backup. Nothing was changed.');
+      return done;
+    }
+    /* The reload is the cache reset: every derived cache — PRs, Mastery, the
+       program, cardio, and D93's day-keyed ones — starts empty from what was
+       just written, and nothing computed before the import survives it. */
+    alert(`Import complete — ${done.summary}. LOOP will reload.`);
+    location.reload();
+    return done;
+  }finally{ importInFlight = false; }
 }
 
 async function runMigrations(){
@@ -16200,6 +16468,25 @@ const LOOP_UPDATES = [
       'Left open past midnight, parts of LOOP stayed on yesterday — your week, consistency, recovery, cardio totals and Mastery caught up only after you logged something or reopened the app',
       'Around the spring and autumn clock changes, “Last done” could be a day off: a session two days ago read “yesterday” just after midnight, and one three days ago read “4d ago” late at night',
       'Just after the clocks went forward, your XP history labeled the day before as “Today”'
+    ],
+    changes: []
+  },
+  {
+    id: 'v9-6',
+    version: 'LOOP 9.6',
+    title: 'Safer Backup Imports',
+    date: '2026-09-19',
+    swVersion: 'loop-v173',
+    summary: 'Importing a backup is now all or nothing: LOOP checks the whole file first, and if anything goes wrong, your data is put back exactly as it was.',
+    newFeatures: [],
+    improvements: [
+      'LOOP now checks which version of LOOP made a backup before importing it, and turns away a file it can’t read safely instead of guessing'
+    ],
+    bugFixes: [
+      'If your phone ran out of space partway through an import, LOOP could say “Import complete” when only part of the backup was saved',
+      'When an import failed partway, anything it had already added stayed behind — even though LOOP said your data had been restored',
+      'A backup with no version number was imported as if this version of LOOP had made it',
+      'A backup with a damaged setting could still be imported, leaving a setting LOOP couldn’t read'
     ],
     changes: []
   }

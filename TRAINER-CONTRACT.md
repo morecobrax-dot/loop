@@ -12257,3 +12257,162 @@ in any of this: every run is headless Edge.
 code — their renderers are never called and their elements are not in the
 markup. Their day counts were corrected with the rest, so a later phase that
 wires them back gets the rule, but they are not claimed as fixes anyone saw.
+
+## §116 — D94: Backup compatibility
+
+Closes D88 finding E8, and the import defects that were found next to it.
+
+**The rule.** A backup is restored whole or not at all, and whether it can be
+restored is decided by the data format it declares — its own `schemaVersion` —
+never by an app, build or cache version. The same schema takes the current path;
+an older one must climb the migration chain one step at a time, every step or
+none; a newer one is refused; anything that is not a positive whole number is
+not a version. A file is untrusted input throughout.
+
+**E8, as it really was.** D88 found by reading that an older schema would be
+written straight in. Reproduced on the shipped 9.5: schema 0, a missing
+`schemaVersion`, `null`, the string `"1"`, `"NaN"`, -1, 0.5 and `true` were all
+imported as current, with no migration and "Import complete". The loose `>`
+also refused `"2"` and `[2]` only by coercion. Beside it, on the same build:
+
+- a write the store refused was ignored, so a full phone took part of a backup
+  and LOOP said "Import complete";
+- when an import did fail partway, the undo put back only the keys the safety
+  copy held, so a key the import had created stayed behind while LOOP said
+  "Your original data has been restored — nothing was lost";
+- values were written without checking what they were: an object where the
+  stored string belongs, a number, text that is not JSON — each counted as
+  "1 setting restored", and LOOP could not read it afterwards;
+- a `data` that was a string or a list reported "you already have this data";
+- workouts whose id was `__proto__` or `constructor` were silently dropped by
+  the merge, which still counted them.
+
+**Legacy backups — the decision, from repository truth.** `DATA_SCHEMA_VERSION`
+has been 1, and the `{ app, schemaVersion, exportedAt, data }` envelope
+unchanged, since the first commit; across all 187 commits no other export format
+and no backup fixture was ever committed. So there is nothing older than schema
+1 to identify, and nothing to migrate without guessing. The production registry
+`BACKUP_MIGRATIONS` is empty and frozen. A file with no version, or a version
+below 1, is refused as unrecognised ("LOOP can't tell which version made this
+backup"); it is never assumed to be schema 1.
+
+**One direction.** Read → parse → identify the version → check the envelope →
+migrate in memory → validate the current-schema result → select the restorable
+keys → prepare the complete next state → safety copy, read back → commit, every
+write checked → read every write back → success, and the reload. Nothing is
+written before the safety copy, and nothing before the confirm. A newer file is
+refused on its version alone, before anything else about it is read, because a
+newer envelope need not be this one.
+
+**The chain.** `migrateBackupToCurrent(data, fromVersion, registry, toVersion)`
+runs each step on its own copy of the data map (key → the stored string, as a
+file of that version holds it), in order, and returns a candidate only when
+every step has run. A missing step refuses the file — it is never skipped — and
+so does a step that throws or returns anything but a data map, a promise
+included. It writes nothing and reads no clock, storage or randomness.
+`registry` and `toVersion` exist for Contract 195, whose synthetic chains prove
+order, refusal and purity while production has no step.
+
+**What is restorable, and in what form.** Validation runs on the migrated
+result, so a step can never add what it refuses. Credentials first: the Friends
+session and the pending invite are refused by name, before the D88 allowlist is
+even asked, and the allowlist then decides every other key — unknown keys are
+skipped, not fatal. Each value must be the string LOOP stores, parse as JSON,
+and have the shape its loader reads: a list for `workoutLog`, `cardioLog` and
+`dismissedMissed`; a string for `selectedPlan`, `lastSeenUpdateId` and
+`planStart:*`; an object with its list for `trainerLog`, `exerciseNotes` and
+`programs`; an object for everything else. `null` — LOOP's own "nothing here" —
+fits every key and fills nothing. One damaged value refuses the whole file.
+
+**Untrusted input.** An own `__proto__` key anywhere in a value refuses the
+file: LOOP's objects cannot produce one, and copying one lands on a prototype.
+So does a record id that names a property every object already has
+(`constructor`, `toString`) — LOOP's ids are timestamps and prefixed tokens,
+and the app keeps plain maps of ids elsewhere. `constructor` and `prototype` as
+ordinary data keys restore as data and pollute nothing. Nesting stops at 64
+levels: the deepest value the whole suite ever writes is a program store, nine
+levels, and JSON.stringify gives up at a few thousand, so a planted value can
+never become one that restores once and can then never be saved. The walk is a
+stack, not recursion, so the check survives the input it refuses. An HTML title
+is data: it restores as written and renders escaped. No message ever repeats
+anything from the file.
+
+**The transaction.** The complete next state is prepared in memory from the
+validated backup and what the device holds now; a key whose next value equals
+its current one is not written. The safety copy is taken, read back, and must
+hold exactly what every key about to change holds now — a copy refused, read
+back altered, or missing a key is no copy, and the import never begins. Every
+commit write is checked, and the first refusal stops the rest; then every
+written key is read back. On a refusal or a mismatch the touched keys are put
+back from the safety copy — a key the import created goes back to absent — and
+the undo is judged by reading the store, never by what the undo reported. Only a
+proven undo says "Nothing was lost", and then the safety copy goes; an unproven
+one keeps the copy and says LOOP could not confirm. One import runs at a time.
+The import never touches the running app's memory, so after any failure the app
+on screen is already the truth; success is the reload, which is the cache reset
+for PRs, Mastery, the program, cardio and D93's day-keyed caches alike.
+
+**Merge semantics, kept.** Workouts, cardio and programs merge by id with the
+device first; every other key only fills an empty slot, verbatim; the device's
+active program and program draft win (D51C). Three sharpenings, all toward
+"nothing is overwritten": ids are compared as strings in a Set; the device's
+own records are kept as they are, where the old map dropped any without an id;
+and a backup with nothing new writes nothing and does not reload. A device whose
+own history LOOP cannot read is not imported over (as 9.5, now said plainly).
+
+**What the athlete reads.** One sentence per outcome: a file that is not a
+backup; another app's file; a newer LOOP's ("Update LOOP, then import it
+again"); an unrecognised version; a damaged backup ("none of it was imported");
+an older one with no chain ("that this version can't import" — unreachable in
+production while the schema is 1); a migration that failed; no safety copy
+("Free up some space"); a refused write, put back ("Nothing was lost"); a write
+that did not read back, put back; an undo that could not be proven ("Check your
+history before logging anything else"); a valid backup with nothing in it; a
+backup with nothing new. Every refusal before the commit ends "Nothing was
+changed"; every undo says whether it was proven.
+
+**Size and cost.** No size cap: the costs are linear and were measured instead.
+In one process, 9.5 against 9.6, median of five, whole import onto an empty
+device: 0.8 MB 5 → 8 ms; 10 MB 65 → 85 ms; 41 MB 246 → 341 ms. A realistic
+backup is bounded by the browser's storage quota, about 5 MB. Hostile files: a
+million levels of nesting is refused in 92 ms; a newer 40 MB file is refused in
+15 ms on its version; a 40 MB unknown key costs only the outer parse (16 ms)
+because unknown keys are never parsed again.
+
+**Data safety.** `DATA_KEYS` remains 15, the schema 1, `MIGRATIONS` and
+`BACKUP_MIGRATIONS` empty, the trainer `0.1.1-shadow`. Export is unchanged and
+still carries `schemaVersion`. `backupAllData` now reads its copy back, and
+`restoreBackup` checks its writes and can restore exactly the keys a failed
+write touched — boot-time `runMigrations` calls both unchanged in shape.
+
+**Verification.** Contract 195 adds 163 assertions: the version model; every
+malformed envelope and version; newer, older, missing and synthetic chains;
+the allowlist, credentials above it, and a migration that tries to add them;
+prototype keys, inherited ids, depth, type substitution and HTML; a valid empty
+backup; a full import checked key by key against a hand-written oracle, then
+reloaded — PRs, Mastery, the program, cardio and consistency equal to the oracle
+and different from before; the first, a middle and the last write refused, and
+LOOPStore returning false; a write that does not read back; an undo that cannot
+be proven; the safety copy refused, altered, incomplete, or stale; a reload
+after failure; a double import; a cancel; and export → clear or alter → import.
+Nine older assertions named importAllData's old body or its old failure
+wording — seven source pins, the activities tripwire list and Contract 31's
+failure alert; each now reads where the code lives, its claim unchanged, and
+the whole suite passes. Contract 195 alone kills
+45 of 45 mutants; two survived its first draft, each because the other
+safety-copy check covered for it, and each now has a case that tells them
+apart. In a real browser at 320, 375, 390 and 430, through the real Import
+Backup button, file chooser and native dialogs: 96/96 — and at every size the
+browser's own storage quota, filled to leave room for the safety copy but not
+the import, refused a write mid-commit, and the import was put back and said
+so. Every line of the What's New entry was proven on the shipped 9.5
+and proven gone on 9.6: 15/15. There is no physical-iPhone evidence in any of
+this: every run is headless Edge.
+
+**Deliberately left.** Records inside a correctly shaped list are merged as the
+merge always has — by a truthy id — and are not validated field by field: what
+a valid workout is, is a product decision no import should guess. Local storage
+has no multi-key transaction: a tab killed in the middle of a commit leaves the
+verified safety copy in storage, but nothing yet offers it back. Boot-time
+`runMigrations` still skips a missing step silently; it is unreachable while the
+schema is 1 and must be fixed by whichever phase adds the first real step.

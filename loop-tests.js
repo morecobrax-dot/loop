@@ -1316,7 +1316,10 @@ async function testBackupImportFlow(){
       trainerLog: JSON.stringify({ version:1, entries:[{ id:'from_bad_backup' }] })
     };
     await ctx.importAllData(mkImportFile(mkBackupPayload(incoming)));
-    T('failure alert shown', /problem/i.test(lastAlert || ''));
+    /* D94 — a value that does not parse is now refused before anything is
+       written, so the store is untouched without the net ever being needed;
+       what matters here is that the athlete is told, and not told "complete". */
+    T('failure alert shown', !!lastAlert && !/Import complete/.test(lastAlert));
     T("trainerLog restored to its pre-import value, not the bad backup's",
       app.store.trainerLog === originalTrainerLog);
     T('workoutLog restored to its pre-import value',
@@ -16279,13 +16282,14 @@ async function testProgramLifecycle(){
   /* The D32 cardio defect, repeated for programs: they fell through to the
      fill-only rule, so importing onto a device that already had any program
      silently discarded every program in the backup. */
+  /* D94 — the merge is prepared in memory by prepareImportState now, and
+     committed only after the whole next state is known; the rules are these. */
   T('programs merge by id like the other histories',
-    src.indexOf('const hasPrograms = !!incoming.programs;') !== -1
-    && /theirs\.programs\.forEach[\s\S]{0,200}addedPrograms\+\+/.test(src));
+    /programs: mergeById\(base\.programs \|\| \[\], theirs\.programs, \(\) => \{ n\.programs\+\+; \}\)/.test(fnSrc(src, 'prepareImportState')));
   T('and they are excluded from the fill-only branch',
-    src.indexOf("k === 'workoutLog' || k === 'cardioLog' || k === 'programs'") !== -1);
+    /if\(k === 'workoutLog'\)\{[\s\S]*\} else if\(k === 'cardioLog'\)\{[\s\S]*\} else if\(k === 'programs'\)\{[\s\S]*\} else \{/.test(fnSrc(src, 'prepareImportState')));
   T('the import reports what it restored',
-    src.indexOf('new program${addedPrograms===1') !== -1);
+    src.indexOf('new program${n.programs===1') !== -1);
   T('the device keeps its own active program',
     src.indexOf('activeProgramId: base.activeProgramId || theirs.activeProgramId') !== -1);
 
@@ -19588,9 +19592,9 @@ async function testDurablePrograms(){
   sub('backup carries the draft and the revisions');
   {
     T('the programs merge is not a fixed field list',
-      /Object\.assign\(\{\}, theirs, base/.test(fnSrc(src, 'importAllData')));
+      /Object\.assign\(\{\}, theirs, base/.test(fnSrc(src, 'prepareImportState')));
     T('and a draft is preserved rather than silently dropped',
-      /merged\.draft = theirs\.draft/.test(fnSrc(src, 'importAllData')));
+      /merged\.draft = theirs\.draft/.test(fnSrc(src, 'prepareImportState')));
     const ctx = stub((await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx);
     const prog = { id:'rt', name:'RT', goal:'hypertrophy', status:'active', durationWeeks:8,
       startDate: START, schedule: JSON.parse(JSON.stringify(PLAN_1)) };
@@ -21744,9 +21748,12 @@ async function testActivityLogging(){
        listed, and each is storage, backup, record editing or display. Anything
        that DERIVES from cardio — XP, streaks, stats, records, the launcher —
        reads legacyCardioRecords() and is deliberately absent from this list.
-       A new direct reader fails here and has to be decided about. */
-    const ALLOWED = ['CARDIO_KEY','DATA_KEYS','activityRecords()','cardioLog','computeCardioStats()',
-      'deleteActivity()','deleteCardioSession()','editCardioSession()','historyEntries()','importAllData()',
+       A new direct reader fails here and has to be decided about.
+       D94 — the import's three are backup: the stored shape (backupValueFits),
+       the ids (selectRestorableData) and the merge, which counts activities
+       apart from sessions exactly as importAllData did (prepareImportState). */
+    const ALLOWED = ['CARDIO_KEY','DATA_KEYS','activityRecords()','backupValueFits()','cardioLog','computeCardioStats()',
+      'deleteActivity()','deleteCardioSession()','editCardioSession()','historyEntries()','prepareImportState()','selectRestorableData()',
       'legacyCardioRecords()','loadCardioLog()','openActivityLogger()','openCardioDetail()','persistCardioLog()',
       'renderCardioLogger()','renderLogPage()','saveActivity()','saveCardioSession()','saveCardioSessionFromSummary()'];
     const script = [...src.matchAll(/<script>([\s\S]*?)<\/script>/g)].reduce((x, y) => (y[1].length > x[1].length ? y : x))[1];
@@ -30274,7 +30281,7 @@ async function testWorkoutIdentity(){
     T('  the backup is the stored plan, so its identity is in it', (await withId.ctx.allDataKeys()).indexOf('planData:balanced') !== -1 &&
       /"identity":\{"iconId":"chest","colorId":"rose"\}/.test(withId.store['planData:balanced']));
     T('  export writes stored values as they are, and import fills an empty plan from them',
-      /data\[k\] = r\.value;/.test(fnSrc(src, 'exportAllData')) && /if\(isEmpty\)\{ await LOOPStore\.set\(k, incoming\[k\]\); filled\+\+; \}/.test(fnSrc(src, 'importAllData')));
+      /data\[k\] = r\.value;/.test(fnSrc(src, 'exportAllData')) && /if\(isEmpty && e\.value !== null\)\{ next = e\.raw; n\.filled\+\+; \}/.test(fnSrc(src, 'prepareImportState')));
     const old = JSON.parse(JSON.stringify(H.loadApp().ctx.DEFAULT_PLANS.balanced.templates));
     const raw = JSON.stringify(old);
     const legacy = await H.loadAppBooted({ workoutLog: '[]', 'planData:balanced': raw }, 300);
@@ -31991,9 +31998,12 @@ async function testStabilization(){
       /if\(!\(await backupAllData\('preimport'\)\)\)\{/.test(src));
     T('a successful import prunes the safety copy instead of leaving it for good',
       /LOOPStore\.remove\(BACKUP_PREFIX \+ 'preimport'\)/.test(src));
+    /* D94 — the undo is judged by reading every touched key back, not by what
+       the undo reports, and only a proven undo may say "nothing was lost";
+       Contract 195 holds the behaviour. */
     T('a failed restore is reported honestly rather than as "nothing was lost"',
-      /const restored = await restoreBackup\('preimport'\);/.test(src)
-      && /restored\s*\?/.test(src));
+      /await restoreBackup\('preimport', touched\);\s*const restored = await storeHolds\(/.test(src)
+      && /if\(!r\.restored\) return "The import couldn't be finished/.test(src));
     T('"permanently deletes" also removes the verbatim backup copies',
       /k\.startsWith\(BACKUP_PREFIX\) && keys\.indexOf\(k\) === -1/.test(src));
   }
@@ -34157,6 +34167,629 @@ async function testLocalDayTruth(){
   }
 }
 
+/* =========================================================
+   CONTRACT 195 — BACKUP COMPATIBILITY  (D94, closes D88 E8)
+   ---------------------------------------------------------
+   One version truth, and all of a backup or none of it. The file's own
+   schemaVersion decides the path: the current schema restores; an older one
+   climbs the migration chain whole or not at all; a newer one, a missing one,
+   or anything that is not a positive whole number is refused before a byte is
+   written. Validation runs on the migrated result, so a step can never add
+   what the allowlist refuses — credentials above all. The commit checks every
+   write, reads every write back, and undoes a failure from a verified safety
+   copy — keys it created included — before it says a word; success is the
+   reload, which is the cache reset. Synthetic registries, injected, prove the
+   chain (order, a missing step, a throwing step, purity) while production has
+   no step at all, because no LOOP ever wrote an older backup.
+   ========================================================= */
+async function testBackupCompatibility(){
+  section('CONTRACT 195 — backup compatibility: one version truth, all of a backup or none (D94)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const file = p => ({ value: '', files: [{ text: async () => (typeof p === 'string' ? p : JSON.stringify(p)) }] });
+  const env = (v, data) => { const o = { app: 'LOOP', exportedAt: '2026-09-19T10:00:00.000Z' }; if(v !== undefined) o.schemaVersion = v; if(data !== undefined) o.data = data; return o; };
+  const SET = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const W = (id, date, name, w, r, title) => ({ id, date, category: 'push', title: title || 'Push', notes: '',
+    exercises: [{ name: name || 'Bench Press', bodyweight: false, sets: [SET(w || 185, r || 8), SET(w || 185, r || 8)] }] });
+  /* The athlete's data in a store: everything but the safety copy, key-sorted. */
+  const user = store => JSON.stringify(Object.keys(store).filter(k => !k.startsWith('backup_v') && store[k] !== undefined).sort().map(k => [k, store[k]]));
+  const nets = store => Object.keys(store).filter(k => k.startsWith('backup_v') && store[k] !== undefined);
+  const setStore = (app, obj) => { Object.keys(app.store).forEach(k => { delete app.store[k]; }); Object.assign(app.store, JSON.parse(JSON.stringify(obj))); };
+  const boot = store => H.loadAppBooted(Object.assign({ dataSchemaVersion: '1' }, JSON.parse(JSON.stringify(store))));
+  /* Every write and delete the app makes, every word it says, every confirm
+     and every reload, in one ordered log; and faults on demand. */
+  function rig(app){
+    const c = app.ctx, s = c.window.storage;
+    const real = { get: s.get, set: s.set, del: s.delete, list: s.list };
+    const R = {};
+    R.clear = () => { R.log = []; R.said = []; R.asked = 0; R.reloads = 0; R.refuse = null; R.refuseDelete = null; R.onGet = null; R.answer = true; R.listFails = false; };
+    R.clear();
+    s.set = async (k, v) => { R.log.push('w:' + k); if(R.refuse && R.refuse(k)) throw new Error('QuotaExceededError'); return real.set(k, v); };
+    s.delete = async k => { R.log.push('d:' + k); if(R.refuseDelete && R.refuseDelete(k)) throw new Error('refused'); return real.del(k); };
+    s.get = async k => { const r = await real.get(k); return R.onGet ? R.onGet(k, r) : r; };
+    s.list = async () => { if(R.listFails) throw new Error('list refused'); return real.list(); };
+    c.alert = m => { R.said.push(String(m)); R.log.push('alert'); };
+    c.confirm = () => { R.asked++; R.log.push('confirm'); return R.answer; };
+    c.location.reload = () => { R.reloads++; R.log.push('reload'); };
+    R.userWrites = () => R.log.filter(e => /^[wd]:/.test(e) && !/^[wd]:backup_v/.test(e));
+    R.anyWrites = () => R.log.filter(e => /^[wd]:/.test(e));
+    R.last = () => R.said[R.said.length - 1] || '';
+    return R;
+  }
+  const probe = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const today = probe.ctx.localDateStr();
+  const day = n => { const [y, m, d] = today.split('-').map(Number); const t = new Date(y, m - 1, d + n);
+    return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
+  const monday = probe.ctx.weekStartKey(today);
+  const E = probe.ctx.IMPORT_ERROR || {};
+  const sess = (cat, name, ex) => ({ type: 'workout', planId: 'ul', category: cat, templateId: 'ul-' + cat, name, exercises: ex });
+  const PROGRAM = (id, status, draft) => { const s = { version: 1, activeProgramId: id, programs: [{ id, name: 'Block ' + id, goal: 'hypertrophy', status: status || 'active',
+    durationWeeks: 8, startDate: monday, schedule: { mon: sess('upper', 'Upper A', [{ name: 'Bench Press', sets: 3, reps: '8-10', effort: '8' }]),
+      thu: sess('lower', 'Lower A', [{ name: 'Barbell Squat', sets: 3, reps: '8-10', effort: '8' }]) } }] }; if(draft) s.draft = draft; return s; };
+  const D1 = W('d1', day(-10)), D2 = W('d2', day(-7), 'Barbell Squat', 225, 5);
+  const B1 = W('b1', day(-3), 'Bench Press', 205, 6), B2 = W('b2', today, 'Overhead Press', 115, 8);
+  const CARDIO = { id: 'cardio_b1', activityId: 'run_outdoor', activityName: 'Outdoor Run', date: today, duration: '30', distance: '5.0', rpe: '6',
+    createdAt: today + 'T07:00:00.000Z', updatedAt: today + 'T07:00:00.000Z' };
+  const DEVICE = () => ({
+    dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), dismissedMissed: '[]',
+    workoutLog: JSON.stringify([D1, D2]),
+    athleteProfile: JSON.stringify({ goal: 'strength', experience: 'intermediate' }),
+    trainerLog: JSON.stringify({ version: 1, entries: [{ id: 't1' }] }),
+    socialSession: JSON.stringify({ access_token: 'MINE', refresh_token: 'MINE_R', user: { id: 'me' } })
+  });
+  const BACKUP = () => ({
+    // the device's d1 wins over this heavier copy of it: merged by id, device first
+    workoutLog: JSON.stringify([W('d1', day(-10), 'Bench Press', 999, 1), B1, B2]),
+    cardioLog: JSON.stringify([CARDIO]),
+    programs: JSON.stringify(PROGRAM('p_imp')),
+    exerciseNotes: JSON.stringify({ version: 1, notes: [{ id: 'n_b1', exercise: 'Bench Press', text: 'elbows in', createdAt: '2026-09-01T10:00:00.000Z' }] }),
+    gymProfile: JSON.stringify({ version: 1, configuredAt: '2026-09-01T00:00:00.000Z', equipment: { barbell: true }, custom: [] }),
+    dailyReadiness: JSON.stringify({ [today]: { energy: 4 } }),
+    athleteProfile: JSON.stringify({ goal: 'hypertrophy' })       // the device has one: not filled
+  });
+  /* The oracle: the merged store written out by hand from the rules, not read
+     back from what the import did. */
+  const EXPECTED = () => Object.assign(DEVICE(), {
+    workoutLog: JSON.stringify([D1, D2, B1, B2]), cardioLog: JSON.stringify([CARDIO]), programs: JSON.stringify(PROGRAM('p_imp')),
+    exerciseNotes: BACKUP().exerciseNotes, gymProfile: BACKUP().gymProfile, dailyReadiness: BACKUP().dailyReadiness });
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const truth = c => ({
+    workouts: c.workoutLog.length,
+    prs: c.computeAllPREvents().length,
+    prCount: c.getCurrentProgression().prCount,
+    xp: c.getCurrentProgression().lifetimeXP,
+    mastery: JSON.stringify(c.getMasteryProgress()),
+    program: (c.getActiveProgram() || {}).id || null,
+    programs: c.programsStore.programs.length,
+    cardio: JSON.stringify(c.computeCardioStats()),
+    cardioXP: c.computeCardioXPTotal(),
+    consistency: JSON.stringify(c.computeConsistencyData())
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('the version model: data format, not release numbers');
+  await guard('model', async () => {
+    const c = probe.ctx;
+    T('DATA_SCHEMA_VERSION is still 1, DATA_KEYS still 15', c.DATA_SCHEMA_VERSION === 1 && c.DATA_KEYS.length === 15);
+    T('the production backup-migration registry is empty and frozen — nothing invented',
+      !!c.BACKUP_MIGRATIONS && Object.keys(c.BACKUP_MIGRATIONS).length === 0 && Object.isFrozen(c.BACKUP_MIGRATIONS));
+    T('and so is the boot-time store registry', !!c.MIGRATIONS && Object.keys(c.MIGRATIONS).length === 0);
+    T('seven failure categories, all distinct', Object.values(E).length === 7 && new Set(Object.values(E)).size === 7,
+      JSON.stringify(E));
+    T('a version is a positive whole JSON number, nothing coerced',
+      c.backupSchemaVersion(1) === 1 && c.backupSchemaVersion(7) === 7 &&
+      [undefined, null, '1', '2', 'NaN', NaN, Infinity, -1, 0, 0.5, 1.5, true, false, [1], {}, ''].every(v => c.backupSchemaVersion(v) === null));
+    T('compatibility reads the file\'s schemaVersion — never the app, build or cache version',
+      !/LOOP_BUILD|CACHE_VERSION|swVersion|APP_VERSION/.test(fnSrc(src, 'readBackupFile') + fnSrc(src, 'migrateBackupToCurrent')));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('C — a malformed file is refused before anything is written');
+  const P = await boot(DEVICE());
+  const RP = rig(P);
+  const before = user(P.store);
+  await guard('malformed', async () => {
+    const cases = [['text that is not JSON', '{not valid json'], ['an empty file', ''], ['a JSON array', '[{"app":"LOOP","schemaVersion":1,"data":{}}]'],
+      ['JSON null', 'null'], ['a JSON string', '"LOOP"'], ['another app', { app: 'NOT_LOOP', schemaVersion: 1, data: {} }],
+      ['no app field', { schemaVersion: 1, data: {} }], ['no data', env(1)], ['data is null', env(1, null)],
+      ['data is a string', env(1, 'abc')], ['data is an array', env(1, [BACKUP().workoutLog])]];
+    for(const [label, f] of cases){
+      RP.clear();
+      const res = await P.ctx.importAllData(file(f));
+      T('C — ' + label + ': INVALID BACKUP, no write, no confirm, no reload',
+        res.error === E.INVALID && RP.anyWrites().length === 0 && RP.asked === 0 && RP.reloads === 0 && user(P.store) === before
+        && RP.said.length === 1 && !/complete/i.test(RP.last()), JSON.stringify(res) + ' ' + RP.log.join(','));
+    }
+    T('C — and says what it is, without claiming anything happened',
+      /doesn't look like a LOOP backup|couldn't be read as a LOOP backup/.test(RP.last()) && /Nothing was changed/.test(RP.last()));
+  });
+
+  sub('D–H — a missing or malformed version is not a version');
+  await guard('versions', async () => {
+    const v = [['D missing', undefined], ['E null', null], ['F the string "1"', '1'], ['F the string "2"', '2'], ['G "NaN"', 'NaN'],
+      ['H negative', -1], ['zero', 0], ['a fraction', 0.5], ['true', true], ['[1]', [1]], ['{}', {}]];
+    for(const [label, ver] of v){
+      RP.clear();
+      const res = await P.ctx.importAllData(file(env(ver, BACKUP())));
+      T(label + ': refused as an unrecognised version — never treated as current',
+        res.error === E.INVALID && res.reason === 'version' && RP.anyWrites().length === 0 && RP.asked === 0 && user(P.store) === before,
+        JSON.stringify(res));
+    }
+    RP.clear();
+    const inf = await P.ctx.importAllData(file('{"app":"LOOP","schemaVersion":1e999,"data":' + JSON.stringify(BACKUP()) + '}'));
+    T('G — 1e999 parses to Infinity, which is not a whole number: refused', inf.error === E.INVALID && RP.anyWrites().length === 0);
+    T('the athlete is told LOOP cannot tell the version — and that nothing changed',
+      /can't tell which version made this backup/.test(RP.last()) && /Nothing was changed/.test(RP.last()));
+  });
+
+  sub('L — a newer backup is refused, whole');
+  await guard('newer', async () => {
+    for(const ver of [2, 3, 99, 1e21]){
+      RP.clear();
+      const res = await P.ctx.importAllData(file(env(ver, BACKUP())));
+      T('L — schemaVersion ' + ver + ': BACKUP FROM NEWER LOOP, nothing written, no confirm',
+        res.error === E.NEWER && RP.anyWrites().length === 0 && RP.asked === 0 && RP.reloads === 0 && user(P.store) === before, JSON.stringify(res));
+    }
+    T('L — the copy names it', /created by a newer version of LOOP/.test(RP.last()) && /Nothing was changed/.test(RP.last()), RP.last());
+    RP.clear();
+    const odd = await P.ctx.importAllData(file(env(2, 'not even an object')));
+    T('L — refused on its version alone: a newer envelope is never read', odd.error === E.NEWER && RP.anyWrites().length === 0);
+  });
+
+  sub('I — an older backup: migrated, or refused; never passed off as current');
+  await guard('older', async () => {
+    RP.clear();
+    const zero = await P.ctx.importAllData(file(env(0, BACKUP())));
+    T('I — production: schema 0 was never written by any LOOP, and is not schema 1',
+      zero.error === E.INVALID && RP.anyWrites().length === 0 && user(P.store) === before);
+    /* A synthetic world where the current schema is 2, and 1 → 2 moved the
+       profile from a retired key into athleteProfile. */
+    const calls = [];
+    const REG = { 1: d => { calls.push(1); d.athleteProfile = d.legacyProfile; delete d.legacyProfile; return d; } };
+    const fresh = await boot({ workoutLog: '[]' });
+    const RF = rig(fresh);
+    const res = await fresh.ctx.importAllData(file(env(1, { legacyProfile: JSON.stringify({ goal: 'power' }), workoutLog: JSON.stringify([B1]) })),
+      { migrations: REG, schemaVersion: 2 });
+    T('I — synthetic: a schema-1 file climbs 1 → 2 and restores the MIGRATED data',
+      res.ok && calls.join() === '1' && fresh.store.athleteProfile === JSON.stringify({ goal: 'power' }) && JSON.parse(fresh.store.workoutLog)[0].id === 'b1', JSON.stringify(res));
+    T('I — the retired key the step consumed is not restored as it was', fresh.store.legacyProfile === undefined);
+    T('I — success is reported and the reload follows', /Import complete/.test(RF.last()) && RF.reloads === 1);
+    RF.clear();
+    const cur = await fresh.ctx.importAllData(file(env(2, { cardioLog: JSON.stringify([CARDIO]) })), { migrations: REG, schemaVersion: 2 });
+    T('I — in that world a schema-2 file takes the current path: no step runs', cur.ok && calls.length === 1);
+  });
+
+  sub('J / AF — a missing step refuses the chain; it is never skipped');
+  await guard('missing step', async () => {
+    const ran = [];
+    const REG = { 1: d => { ran.push(1); return d; }, 3: d => { ran.push(3); return d; } };
+    RP.clear();
+    const res = await P.ctx.importAllData(file(env(1, BACKUP())), { migrations: REG, schemaVersion: 4 });
+    T('J — 1 → 4 with no step 2: UNSUPPORTED OLDER BACKUP, at 2', res.error === E.OLDER && res.at === 2, JSON.stringify(res));
+    T('AF — step 3 never ran: the gap cannot be jumped', ran.join() === '1');
+    T('J — nothing was written and nothing was asked', RP.anyWrites().length === 0 && RP.asked === 0 && user(P.store) === before);
+    T('J — the copy says it is older, and unchanged', /older version of LOOP/.test(RP.last()) && /Nothing was changed/.test(RP.last()));
+    const direct = P.ctx.migrateBackupToCurrent({ a: '1' }, 1, { 1: d => d, 2: d => d }, 4);
+    T('AF — direct: a chain that ends early returns no candidate', direct.ok === false && direct.error === E.OLDER && direct.at === 3 && direct.data === undefined);
+  });
+
+  sub('K — a step that throws, or returns no data map, refuses the file');
+  await guard('throwing step', async () => {
+    for(const [label, step] of [['throws', () => { throw new Error('boom'); }], ['returns a promise', async d => d],
+      ['returns an array', () => []], ['returns nothing', () => undefined]]){
+      RP.clear();
+      const res = await P.ctx.importAllData(file(env(1, BACKUP())), { migrations: { 1: step }, schemaVersion: 2 });
+      T('K — a step that ' + label + ': MIGRATION FAILED, no storage change', res.error === E.MIGRATION && RP.anyWrites().length === 0
+        && RP.asked === 0 && user(P.store) === before, JSON.stringify(res));
+    }
+    T('K — the copy is a failure, not a success', /couldn't update this older backup/.test(RP.last()) && !/complete/i.test(RP.last()));
+  });
+
+  sub('final validation runs on what the chain produced');
+  await guard('post-migration validation', async () => {
+    RP.clear();
+    const res = await P.ctx.importAllData(file(env(1, { workoutLog: JSON.stringify([B1]) })),
+      { migrations: { 1: d => { d.gymProfile = 'not json at all'; return d; } }, schemaVersion: 2 });
+    T('a step that produces a damaged value is refused by the current-schema check', res.error === E.INVALID && res.key === 'gymProfile'
+      && RP.anyWrites().length === 0, JSON.stringify(res));
+  });
+
+  sub('AD / AE — pure, ordered, deterministic, and writes nothing');
+  await guard('purity', async () => {
+    const c = P.ctx;
+    const order = [];
+    const REG = {
+      1: d => { order.push(1); d.trail = JSON.stringify(JSON.parse(d.trail) + 'a'); d.mutatedInput = '1'; return d; },
+      2: d => { order.push(2); d.trail = JSON.stringify(JSON.parse(d.trail) + 'b'); return d; },
+      3: d => { order.push(3); d.trail = JSON.stringify(JSON.parse(d.trail) + 'c'); return d; }
+    };
+    const input = { trail: JSON.stringify('x'), workoutLog: JSON.stringify([B1]) };
+    const frozen = JSON.stringify(input);
+    RP.clear();
+    const one = c.migrateBackupToCurrent(input, 1, REG, 4);
+    const two = c.migrateBackupToCurrent(input, 1, REG, 4);
+    T('AE — steps run in order, each once per run', order.join() === '1,2,3,1,2,3');
+    T('AE — sequential: each step sees the previous one\'s output', one.ok && JSON.parse(one.data.trail) === 'xabc' && one.version === 4);
+    T('AE — from 2 the chain starts at 2', JSON.parse(c.migrateBackupToCurrent(input, 2, REG, 4).data.trail) === 'xbc');
+    T('AD — the same file migrated twice is identical', same(one, two));
+    T('AD — the caller\'s data is never mutated: every step gets a copy', JSON.stringify(input) === frozen);
+    T('no storage write happens during migration', RP.anyWrites().length === 0);
+    T('the machinery reads no clock, no randomness, no storage',
+      !/Date|Math\.random|LOOPStore|localStorage/.test(fnSrc(src, 'migrateBackupToCurrent')));
+    /* The whole order, in a successful synthetic import: every step, then the
+       safety copy, then the commit. */
+    const fresh = await boot({ workoutLog: '[]' });
+    const RF = rig(fresh);
+    const REG2 = { 1: d => { RF.log.push('step1'); return d; }, 2: d => { RF.log.push('step2'); return d; } };
+    const ok = await fresh.ctx.importAllData(file(env(1, { workoutLog: JSON.stringify([B1]) })), { migrations: REG2, schemaVersion: 3 });
+    const firstWrite = RF.log.findIndex(e => /^[wd]:/.test(e));
+    T('no write happens before the last step has run', ok.ok && RF.log.indexOf('step2') !== -1 && RF.log.indexOf('step2') < firstWrite
+      && RF.log.indexOf('confirm') < firstWrite, RF.log.join(','));
+  });
+
+  sub('M / N / O — the allowlist decides, after migration; credentials never');
+  await guard('keys', async () => {
+    const dev = await boot({ workoutLog: '[]' });
+    const RD = rig(dev);
+    const was = JSON.stringify(dev.store);
+    const res = await dev.ctx.importAllData(file(env(1, {
+      gymProfile: BACKUP().gymProfile, madeUp: '"x"', '../evil': '"x"', 'planData:': '{}', backup_vpreimport: '{}', dataSchemaVersion: '"7"',
+      constructor: '{}', socialSession: JSON.stringify({ access_token: 'STRANGER', refresh_token: 'S' }), socialPendingInvite: '"tok"' })));
+    const added = Object.keys(dev.store).filter(k => JSON.parse(was)[k] === undefined && !k.startsWith('backup_v'));
+    T('M — only the known key is restored; every invented one is left out', res.ok && added.join() === 'gymProfile', added.join());
+    T('M — the schema marker is not writable from a file', dev.store.dataSchemaVersion === '1');
+    T('N — socialSession and the invite capability are never imported', dev.store.socialSession === undefined && dev.store.socialPendingInvite === undefined);
+    RD.clear();
+    const mine = await P.ctx.importAllData(file(env(1, { socialSession: JSON.stringify({ access_token: 'STRANGER' }) })));
+    T('N — a signed-in device keeps its own session untouched', mine.ok && mine.empty && P.store.socialSession === DEVICE().socialSession);
+    /* A rule ABOVE the allowlist: even with the allowlist forced open,
+       credentials stay out. */
+    const openAll = await boot({ workoutLog: '[]' });
+    rig(openAll);
+    const realAllow = openAll.ctx.isRestorableDataKey;
+    openAll.ctx.isRestorableDataKey = () => true;
+    try{
+      await openAll.ctx.importAllData(file(env(1, { socialSession: JSON.stringify({ access_token: 'X' }), socialPendingInvite: '"t"', gymProfile: BACKUP().gymProfile })));
+    }finally{ openAll.ctx.isRestorableDataKey = realAllow; }
+    T('N — credentials are refused before the allowlist is even asked', openAll.store.socialSession === undefined
+      && openAll.store.socialPendingInvite === undefined && openAll.store.gymProfile === BACKUP().gymProfile);
+    const viaStep = await boot({ workoutLog: '[]' });
+    rig(viaStep);
+    const o = await viaStep.ctx.importAllData(file(env(1, { gymProfile: BACKUP().gymProfile })), { schemaVersion: 2, migrations: {
+      1: d => { d.socialSession = JSON.stringify({ access_token: 'FROM_A_STEP' }); d.socialPendingInvite = '"t"'; d.madeUp = '"y"'; return d; } } });
+    T('O — a migration that produces an auth key still cannot restore it', o.ok && viaStep.store.socialSession === undefined
+      && viaStep.store.socialPendingInvite === undefined && viaStep.store.madeUp === undefined && viaStep.store.gymProfile === BACKUP().gymProfile);
+  });
+
+  sub('P — prototype keys and hostile shapes: harmless or refused');
+  await guard('prototype', async () => {
+    const hostProto = Object.getOwnPropertyNames(Object.prototype).sort().join();
+    const refuse = async (label, text) => {
+      RP.clear();
+      const res = await P.ctx.importAllData(file(text));
+      T('P — ' + label + ': refused whole, nothing written', res.error === E.INVALID && res.reason === 'value' && RP.anyWrites().length === 0
+        && user(P.store) === before, JSON.stringify(res));
+    };
+    const wrap = data => '{"app":"LOOP","schemaVersion":1,"data":' + data + '}';
+    await refuse('an own "__proto__" key in a value', wrap(JSON.stringify({ gymProfile: '{"version":1,"__proto__":{"polluted":true}}' })));
+    await refuse('a "__proto__" key deep inside a workout', wrap(JSON.stringify({ workoutLog: '[{"id":"z1","exercises":[],"meta":{"a":[{"__proto__":{"polluted":1}}]}}]' })));
+    for(const id of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']){
+      await refuse('a workout whose id is "' + id + '"', wrap(JSON.stringify({ workoutLog: JSON.stringify([W(id, day(-1))]) })));
+    }
+    await refuse('a cardio session whose id is "constructor"', wrap(JSON.stringify({ cardioLog: JSON.stringify([Object.assign({}, CARDIO, { id: 'constructor' })]) })));
+    await refuse('a program whose id is "__proto__"', wrap(JSON.stringify({ programs: JSON.stringify(PROGRAM('__proto__')) })));
+    T('P — nothing reached any prototype', ({}).polluted === undefined && Object.getOwnPropertyNames(Object.prototype).sort().join() === hostProto);
+    /* constructor / prototype as KEYS are ordinary data: JSON.parse makes them
+       own properties, and a name an athlete can type must not sink a backup. */
+    const fresh = await boot({ workoutLog: '[]' });
+    rig(fresh);
+    const prof = '{"goal":"x","constructor":{"prototype":{"polluted":true}},"prototype":{"polluted":true}}';
+    const res = await fresh.ctx.importAllData(file(env(1, { athleteProfile: prof })));
+    const after = await boot(fresh.store);
+    const ctxProto = Object.getPrototypeOf(after.ctx.defaultProgramsStore());
+    T('P — "constructor" and "prototype" as data keys restore as data', res.ok && fresh.store.athleteProfile === prof && after.ctx.athleteProfile.goal === 'x');
+    T('P — and pollute nothing, in this realm or the app\'s', ({}).polluted === undefined && ctxProto.polluted === undefined
+      && Object.getOwnPropertyNames(Object.prototype).sort().join() === hostProto && after.errors.length === 0, after.errors.join(' | '));
+  });
+
+  sub('depth, types and HTML: untrusted input, read as data');
+  await guard('hostile', async () => {
+    const c = P.ctx;
+    const nest = n => { let v = 0; for(let i = 0; i < n; i++) v = [v]; return v; };
+    T('a value nested ' + c.BACKUP_MAX_DEPTH + ' deep is accepted', c.BACKUP_MAX_DEPTH === 64 && c.backupValueIsSafe(nest(64)));
+    T('one level deeper is refused', !c.backupValueIsSafe(nest(65)));
+    let threw = false, deep = true;
+    try{ deep = c.backupValueIsSafe(JSON.parse('['.repeat(200000) + ']'.repeat(200000))); }catch(e){ threw = true; }
+    T('200,000 levels are refused without the check itself overflowing', !threw && deep === false);
+    RP.clear();
+    const dres = await c.importAllData(file(env(1, { gymProfile: JSON.stringify({ version: 1, deep: nest(80) }) })));
+    T('a planted deep value is refused, whole', dres.error === E.INVALID && RP.anyWrites().length === 0);
+    const types = [['an object where the stored string belongs', { gymProfile: { version: 1 } }], ['a number', { trainerLog: 5 }],
+      ['a list whose text form happens to be valid JSON', { gymProfile: ['{"version":1}'] }],
+      ['text that is not JSON', { exerciseNotes: 'hello' }], ['workoutLog that is an object', { workoutLog: '{"a":1}' }],
+      ['trainerLog without entries', { trainerLog: '{"version":1}' }], ['programs without a list', { programs: '{"version":1}' }],
+      ['exerciseNotes without notes', { exerciseNotes: '{"version":1}' }], ['a plan that is a list', { 'planData:balanced': '[]' }],
+      ['a plan start that is a number', { 'planStart:balanced': '20260901' }], ['selectedPlan that is an object', { selectedPlan: '{"id":"x"}' }]];
+    for(const [label, data] of types){
+      RP.clear();
+      const res = await c.importAllData(file(env(1, Object.assign({ gymProfile: BACKUP().gymProfile }, data))));
+      T('type substitution — ' + label + ': INVALID, nothing written', res.error === E.INVALID && RP.anyWrites().length === 0 && user(P.store) === before,
+        JSON.stringify(res));
+    }
+    T('the copy for a damaged file', /Part of this backup is damaged, so none of it was imported/.test(RP.last()));
+    const nul = await boot({ workoutLog: '[]' });
+    rig(nul);
+    const nres = await nul.ctx.importAllData(file(env(1, { athleteProfile: 'null', cardioDraft: 'null', gymProfile: BACKUP().gymProfile })));
+    T('"null" is how LOOP stores "nothing here": accepted, and fills nothing', nres.ok && nul.store.athleteProfile === undefined
+      && nul.store.cardioDraft === undefined && nul.store.gymProfile === BACKUP().gymProfile && /1 setting restored/.test(nres.summary || ''), JSON.stringify(nres));
+    const evil = '<img src=x onerror="window.__pwned=1">';
+    const h = await boot({ workoutLog: '[]' });
+    const RH = rig(h);
+    await h.ctx.importAllData(file(env(1, { workoutLog: JSON.stringify([W('h1', day(-1), 'Bench Press', 135, 5, evil)]) })));
+    const hb = await boot(h.store);
+    const html = hb.ctx.recentWorkoutsHtml(10);
+    T('an HTML-laden title restores as data and renders escaped', html.indexOf('<img src=x') === -1 && html.indexOf('&lt;img src=x') !== -1);
+    T('no import message ever repeats file content', !RH.said.some(m => /<img|onerror/.test(m)));
+  });
+
+  sub('B — a valid empty backup is not a damaged one');
+  await guard('empty', async () => {
+    RP.clear();
+    const res = await P.ctx.importAllData(file(env(1, {})));
+    T('B — ok and empty: no confirm, no safety copy, no write, no reload', res.ok && res.empty && RP.asked === 0 && RP.anyWrites().length === 0
+      && RP.reloads === 0 && user(P.store) === before, JSON.stringify(res));
+    T('B — said plainly, not as an error and not as an import', /nothing in it to import/.test(RP.last()) && !/damaged|doesn't look like/.test(RP.last()));
+    RP.clear();
+    const only = await P.ctx.importAllData(file(env(1, { madeUp: '"x"', socialSession: '{}' })));
+    T('B — a file with nothing LOOP restores in it is empty too', only.ok && only.empty && RP.anyWrites().length === 0);
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('A / V / W–AA / AB — a full import: merged as always, then the reload rebuilds every derived truth');
+  let pre = null;
+  await guard('full import', async () => {
+    pre = truth(P.ctx);
+    const preStore = JSON.parse(JSON.stringify(P.store));
+    RP.clear();
+    const res = await P.ctx.importAllData(file(env(1, BACKUP())));
+    T('the import succeeds and confirms once', res.ok && !res.empty && !res.nothingNew && RP.asked === 1, JSON.stringify(res));
+    const changed = Object.keys(P.store).filter(k => !k.startsWith('backup_v') && P.store[k] !== preStore[k]).sort();
+    T('exactly the six keys the rules say change, change', changed.join() === 'cardioLog,dailyReadiness,exerciseNotes,gymProfile,programs,workoutLog',
+      changed.join());
+    T('and each now holds exactly the merge the rules describe', changed.every(k => same(JSON.parse(EXPECTED()[k]), JSON.parse(P.store[k]))));
+    T('merge by id, device first: its own d1 survives, the backup\'s heavier copy does not',
+      JSON.parse(P.store.workoutLog).filter(w => w.id === 'd1').length === 1 && JSON.parse(P.store.workoutLog)[0].exercises[0].sets[0].weight === '185');
+    T('fill-only: the device\'s own profile and trainer log are not overwritten',
+      P.store.athleteProfile === DEVICE().athleteProfile && P.store.trainerLog === DEVICE().trainerLog);
+    T('the report names what was added', /2 new workouts added/.test(RP.last()) && /1 new cardio session added/.test(RP.last())
+      && /1 new program added/.test(RP.last()) && /3 settings restored/.test(RP.last()), RP.last());
+    T('V — success is followed by exactly one reload, after the message', RP.reloads === 1 && RP.log.indexOf('alert') < RP.log.indexOf('reload'));
+    T('V — and only after every write has landed and been read back', RP.log.lastIndexOf('reload') === RP.log.length - 1
+      && RP.log.filter(e => /^w:(?!backup_v)/.test(e)).length === 6);
+    T('no safety copy is left behind', nets(P.store).length === 0);
+    T('the session on this device is untouched', P.store.socialSession === DEVICE().socialSession);
+    T('without the reload the running app is still the old truth — which is why it reloads', same(truth(P.ctx), pre));
+    const B = await boot(P.store);                          // the reload
+    const R = await boot(EXPECTED());                       // the oracle
+    const tb = truth(B.ctx), tr = truth(R.ctx);
+    T('W — PRs: the reloaded app counts the imported records, as the oracle does', tb.prs === tr.prs && tb.prCount === tr.prCount && tb.prs > pre.prs,
+      tb.prs + ' / ' + tr.prs + ' / was ' + pre.prs);
+    T('X — Mastery: rebuilt from the merged history', tb.mastery === tr.mastery && tb.mastery !== pre.mastery && tb.xp === tr.xp);
+    T('Y — Program: the imported program is active on a device that had none', tb.program === 'p_imp' && tr.program === 'p_imp' && pre.program === null);
+    T('Z — cardio: stats and cardio XP include the imported run', tb.cardio === tr.cardio && tb.cardioXP === tr.cardioXP && tb.cardio !== pre.cardio);
+    T('AA — D93\'s day-keyed caches rebuild for today from the merged history', tb.consistency === tr.consistency && tb.consistency !== pre.consistency);
+    T('the reloaded app reports no errors', B.errors.length === 0, B.errors.join(' | '));
+    const B2 = await boot(B.store);                         // AB — and again
+    T('AB — reloading after success gives the same truth, and nothing rewrites the import', same(truth(B2.ctx), tb) && user(B2.store) === user(B.store));
+    RP.clear();
+    const again = await P.ctx.importAllData(file(env(1, BACKUP())));
+    T('importing the same file again adds nothing, writes nothing, and does not reload',
+      again.ok && again.nothingNew && RP.anyWrites().length === 0 && RP.reloads === 0 && /Nothing new to import/.test(RP.last()), JSON.stringify(again));
+  });
+
+  sub('merge semantics kept exactly: programs, drafts, records without ids');
+  await guard('merge', async () => {
+    const devDraft = { name: 'my draft', step: 3 }, theirDraft = { name: 'their draft' };
+    const withProg = await boot(Object.assign(DEVICE(), { programs: JSON.stringify(PROGRAM('p_dev', 'active', devDraft)),
+      workoutLog: JSON.stringify([D1, { date: day(-20), exercises: [], note: 'a record with no id' }]) }));
+    rig(withProg);
+    const res = await withProg.ctx.importAllData(file(env(1, { programs: JSON.stringify(PROGRAM('p_imp', 'active', theirDraft)), workoutLog: JSON.stringify([B1]) })));
+    const ps = JSON.parse(withProg.store.programs), wl = JSON.parse(withProg.store.workoutLog);
+    T('both programs are kept, and the device\'s active program stays active', res.ok && ps.programs.map(p => p.id).join() === 'p_dev,p_imp' && ps.activeProgramId === 'p_dev');
+    T('the device\'s own draft wins over the imported one (D51C)', same(ps.draft, devDraft));
+    T('a device record without an id is kept, not dropped by the merge', wl.length === 3 && wl.some(w => w.note === 'a record with no id'));
+    /* History LOOP cannot read on this device is not imported over: the one copy
+       of it stays exactly as it is, and the athlete is told why. */
+    const broken = await boot(Object.assign(DEVICE(), { workoutLog: '{"not":"a list"}' }));
+    const RB = rig(broken);
+    const br = await broken.ctx.importAllData(file(env(1, { workoutLog: JSON.stringify([B1]) })));
+    T('a device whose own history is unreadable is not written over — RESTORE FAILED, nothing written',
+      br.error === E.RESTORE && br.reason === 'device' && RB.anyWrites().length === 0 && broken.store.workoutLog === '{"not":"a list"}'
+      && /couldn't read the history already on this device/.test(RB.last()) && RB.reloads === 0, JSON.stringify(br));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('Q / R / S — a refused write undoes the whole import, created keys included');
+  const TX_DEVICE = () => ({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), dismissedMissed: '[]',
+    workoutLog: JSON.stringify([D1, D2]), athleteProfile: DEVICE().athleteProfile });
+  const TX = () => env(1, { workoutLog: JSON.stringify([B1, B2]), cardioLog: JSON.stringify([CARDIO]), gymProfile: BACKUP().gymProfile,
+    trainerLog: JSON.stringify({ version: 1, entries: [{ id: 'imp' }] }) });
+  const T0 = await boot(TX_DEVICE());
+  const RT = rig(T0);
+  const t0 = JSON.parse(JSON.stringify(T0.store)), tUser = user(T0.store), tTruth = truth(T0.ctx);
+  await guard('transaction', async () => {
+    for(const [label, key] of [['Q — the first write (workoutLog)', 'workoutLog'], ['R — a middle write (gymProfile)', 'gymProfile'],
+      ['S — the last write (trainerLog)', 'trainerLog']]){
+      setStore(T0, t0); RT.clear();
+      RT.refuse = k => k === key;
+      const res = await T0.ctx.importAllData(file(TX()));
+      T(label + ' refused: RESTORE FAILED, undone and proven', res.error === E.RESTORE && res.restored === true, JSON.stringify(res));
+      T(label + ': the store is exactly as it was — created keys removed, not left behind', user(T0.store) === tUser,
+        Object.keys(T0.store).filter(k => t0[k] === undefined).join());
+      T(label + ': no success, no reload, and the safety copy is gone', !RT.said.some(m => /complete/i.test(m)) && RT.reloads === 0 && nets(T0.store).length === 0);
+      T(label + ': told the truth', /couldn't be saved on this device, so LOOP put your data back exactly as it was/.test(RT.last()));
+    }
+    /* The store refusing by RETURNING false, which is LOOPStore's own contract. */
+    setStore(T0, t0); RT.clear();
+    const realSet = T0.ctx.LOOPStore.set;
+    T0.ctx.LOOPStore.set = async (k, v) => (k === 'gymProfile' ? false : realSet(k, v));
+    let res;
+    try{ res = await T0.ctx.importAllData(file(TX())); }finally{ T0.ctx.LOOPStore.set = realSet; }
+    T('LOOPStore returning false is a refusal, not a save: RESTORE FAILED, undone', res.error === E.RESTORE && res.restored === true && user(T0.store) === tUser,
+      JSON.stringify(res));
+  });
+
+  sub('U — a write that does not read back is undone');
+  await guard('verification', async () => {
+    setStore(T0, t0); RT.clear();
+    let lied = false;
+    RT.onGet = (k, r) => (k === 'workoutLog' && r && /"b2"/.test(r.value) && !lied) ? (lied = true, { value: r.value.slice(0, 40) }) : r;
+    const res = await T0.ctx.importAllData(file(TX()));
+    T('U — VERIFICATION FAILED, then rolled back and proven', lied && res.error === E.VERIFY && res.restored === true, JSON.stringify(res));
+    T('U — the store is exactly as it was, with no safety copy left', user(T0.store) === tUser && nets(T0.store).length === 0);
+    T('U — no success and no reload; the athlete is told', RT.reloads === 0 && !RT.said.some(m => /complete/i.test(m))
+      && /couldn't confirm the import saved correctly/.test(RT.last()));
+  });
+
+  sub('an undo that cannot be proven is never called one');
+  await guard('failed undo', async () => {
+    setStore(T0, t0); RT.clear();
+    let stop = false;
+    RT.refuse = k => { if(k === 'gymProfile') stop = true; return stop && !k.startsWith('backup_v'); };
+    const res = await T0.ctx.importAllData(file(TX()));
+    T('the undo could not put workoutLog back: reported as unproven', res.error === E.RESTORE && res.restored === false, JSON.stringify(res));
+    T('no "nothing was lost", no success, no reload', !/Nothing was lost/.test(RT.last()) && !/complete/i.test(RT.last()) && RT.reloads === 0
+      && /couldn't confirm your data was put back/.test(RT.last()), RT.last());
+    const net = T0.store.backup_vpreimport && JSON.parse(T0.store.backup_vpreimport).data;
+    T('the safety copy is KEPT, holding the original history', !!net && net.workoutLog === t0.workoutLog);
+  });
+
+  sub('T — no safety copy, no import');
+  await guard('safety', async () => {
+    setStore(T0, t0); RT.clear();
+    RT.refuse = k => k.startsWith('backup_v');
+    let res = await T0.ctx.importAllData(file(TX()));
+    T('T — the copy is refused: SAFETY BACKUP FAILED and the import never begins', res.error === E.SAFETY && RT.userWrites().length === 0
+      && user(T0.store) === tUser && RT.reloads === 0, JSON.stringify(res) + ' ' + RT.log.join(','));
+    T('T — and says so, without "nothing was lost"', /couldn't set aside a safety copy/.test(RT.last()) && !/Nothing was lost/.test(RT.last()));
+    setStore(T0, t0); RT.clear();
+    RT.onGet = (k, r) => (k === 'backup_vpreimport' && r ? { value: r.value.slice(0, 10) } : r);
+    res = await T0.ctx.importAllData(file(TX()));
+    T('T — a copy that lands but does not read back is no copy: refused, and removed', res.error === E.SAFETY
+      && RT.userWrites().length === 0 && nets(T0.store).length === 0 && user(T0.store) === tUser);
+    /* Altered anywhere — even in a key this import leaves alone — it is not the
+       copy that was written, and not a truthful record of the device. */
+    setStore(T0, t0); RT.clear();
+    RT.onGet = (k, r) => {
+      if(k !== 'backup_vpreimport' || !r) return r;
+      const o = JSON.parse(r.value); o.data.selectedPlan = JSON.stringify('altered'); return { value: JSON.stringify(o) };
+    };
+    res = await T0.ctx.importAllData(file(TX()));
+    T('T — a copy that reads back altered in any key is refused, and removed', res.error === E.SAFETY
+      && RT.userWrites().length === 0 && nets(T0.store).length === 0 && user(T0.store) === tUser, JSON.stringify(res));
+    /* A copy left by an import that never finished is not this import's net:
+       when this one's own copy is refused, the import stops, however well the
+       old one happens to match. */
+    const snap = {};
+    Object.keys(t0).filter(k => T0.ctx.isRestorableDataKey(k)).forEach(k => { snap[k] = t0[k]; });
+    setStore(T0, Object.assign({}, t0, { backup_vpreimport: JSON.stringify({ takenAt: '2026-09-01T00:00:00.000Z', data: snap }) })); RT.clear();
+    RT.refuse = k => k.startsWith('backup_v');
+    res = await T0.ctx.importAllData(file(TX()));
+    T('T — a refused copy stops the import even with an older one lingering', res.error === E.SAFETY && RT.userWrites().length === 0
+      && user(T0.store) === tUser, JSON.stringify(res));
+    /* A copy that reads back but misses a key the import would change: here
+       the store cannot list its keys, so a per-plan key is not in it. */
+    const planned = Object.assign({}, t0, { 'planData:custom': 'null' });
+    setStore(T0, planned); RT.clear();
+    RT.listFails = true;
+    res = await T0.ctx.importAllData(file(env(1, { 'planData:custom': '{"push":[]}' })));
+    T('T — a copy that does not hold what is about to change is refused too', res.error === E.SAFETY && RT.userWrites().length === 0
+      && T0.store['planData:custom'] === 'null' && nets(T0.store).length === 0, JSON.stringify(res));
+  });
+
+  sub('AC — reload after a failure: the original truth');
+  await guard('reload after failure', async () => {
+    setStore(T0, t0); RT.clear();
+    RT.refuse = k => k === 'trainerLog';
+    await T0.ctx.importAllData(file(TX()));
+    const again = await boot(T0.store);
+    T('AC — a reload after a rolled-back import derives exactly what it did before', same(truth(again.ctx), tTruth) && user(again.store) === user(T0.store));
+    T('AC — and the app is usable: the next import works', await (async () => {
+      RT.clear();
+      const ok = await T0.ctx.importAllData(file(TX()));
+      return ok.ok && RT.reloads === 1;
+    })());
+  });
+
+  sub('one import at a time; a cancel changes nothing');
+  await guard('double submit', async () => {
+    setStore(T0, t0); RT.clear();
+    const first = T0.ctx.importAllData(file(TX()));
+    const second = await T0.ctx.importAllData(file(TX()));
+    const one = await first;
+    T('a second import while one runs is turned away, not interleaved', second.error === 'busy' && one.ok && RT.asked === 1
+      && RT.log.filter(e => e === 'w:backup_vpreimport').length === 1);
+    setStore(T0, t0); RT.clear();
+    RT.refuse = k => k === 'gymProfile';
+    await T0.ctx.importAllData(file(TX()));
+    RT.refuse = null;
+    const after = await T0.ctx.importAllData(file(TX()));
+    T('the guard clears after a failure too', after.ok);
+    setStore(T0, t0); RT.clear();
+    RT.answer = false;
+    const no = await T0.ctx.importAllData(file(TX()));
+    T('cancelling the confirm writes nothing — not even the safety copy', no.error === 'cancelled' && RT.anyWrites().length === 0 && user(T0.store) === tUser);
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('A — export → clear or alter → import: the same restorable data, and the session stays local');
+  await guard('round trip', async () => {
+    const rich = Object.assign(EXPECTED(), { cardioDraft: 'null', onboarding: JSON.stringify({ version: 1, completed: true, hintsSeen: {} }),
+      lastSeenUpdateId: JSON.stringify('v9-5'), socialPendingInvite: JSON.stringify('tok') });
+    const X = await boot(rich);
+    const RX = rig(X);
+    let exported = null;
+    X.ctx.Blob = class { constructor(parts){ exported = parts.join(''); } };
+    await X.ctx.exportAllData();
+    const payload = JSON.parse(exported);
+    T('A — the export carries app, schemaVersion and exportedAt', payload.app === 'LOOP' && payload.schemaVersion === X.ctx.DATA_SCHEMA_VERSION
+      && payload.schemaVersion === 1 && typeof payload.exportedAt === 'string');
+    T('A — and carries no credential, schema marker or safety copy', ['socialSession', 'socialPendingInvite', 'dataSchemaVersion']
+      .every(k => !(k in payload.data)) && !Object.keys(payload.data).some(k => k.startsWith('backup_v')));
+    T('A — every key it carries is one a restore accepts', Object.keys(payload.data).every(k => X.ctx.isRestorableDataKey(k)));
+    const restorable = s => { const o = {}; Object.keys(s).filter(k => X.ctx.isRestorableDataKey(k)).sort()
+      .forEach(k => { const v = JSON.parse(s[k]); if(v !== null) o[k] = v; }); return JSON.stringify(o); };
+    const was = restorable(X.store), wasTruth = truth((await boot(X.store)).ctx);
+    Object.keys(X.store).filter(k => X.ctx.isRestorableDataKey(k)).forEach(k => { delete X.store[k]; });
+    RX.clear();
+    const res = await X.ctx.importAllData(file(exported));
+    T('A — cleared, then imported: the same restorable data, key by key', res.ok && restorable(X.store) === was);
+    T('A — the session never left the device, and is still its own', X.store.socialSession === rich.socialSession && X.store.socialPendingInvite === rich.socialPendingInvite);
+    T('A — and the reload derives the same truth as before the export', same(truth((await boot(X.store)).ctx), wasTruth));
+    const wl = JSON.parse(X.store.workoutLog);
+    X.store.workoutLog = JSON.stringify(wl.filter(w => w.id !== 'b1'));
+    X.store.athleteProfile = JSON.stringify({ goal: 'altered' });
+    RX.clear();
+    const res2 = await X.ctx.importAllData(file(exported));
+    T('A — altered, then imported: the deleted session comes back, the edited profile stays (merge, not replace)',
+      res2.ok && JSON.parse(X.store.workoutLog).length === wl.length && JSON.parse(X.store.workoutLog).some(w => w.id === 'b1')
+      && X.store.athleteProfile === JSON.stringify({ goal: 'altered' }));
+  });
+
+  sub('protected baselines');
+  await guard('baselines', async () => {
+    const c = probe.ctx;
+    T('trainer 0.1.1-shadow; DATA_KEYS 15; schema 1; the allowlist is unchanged',
+      c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 15 && c.DATA_SCHEMA_VERSION === 1
+      && c.DYNAMIC_KEY_PREFIXES.join() === 'planData:,schedule:,planStart:' && !c.isRestorableDataKey(c.SOCIAL_STORE_KEY));
+    T('export still writes stored values exactly as they are', /data\[k\] = r\.value;/.test(fnSrc(src, 'exportAllData'))
+      && /schemaVersion: DATA_SCHEMA_VERSION/.test(fnSrc(src, 'exportAllData')));
+    T('D93\'s day and D92\'s update code are not touched by the import', !/currentDayKey|trainerDayKey|armDayBoundary|appUpdate/.test(
+      ['readBackupFile', 'migrateBackupToCurrent', 'selectRestorableData', 'prepareImportState', 'restoreBackupData', 'importAllData'].map(n => fnSrc(src, n)).join('\n')));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -34312,6 +34945,7 @@ async function main(){
   await testPRModeConsistency();
   await testNetworkAndUpdates();
   await testLocalDayTruth();
+  await testBackupCompatibility();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

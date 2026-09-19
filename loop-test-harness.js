@@ -261,7 +261,10 @@ function loadApp(initialStore){
     /* D92 — the update notice's config, this page's build and the update state */
     'APP_UPDATE_CONFIG','LOOP_BUILD','appRegistration','appUpdateRequested','appUpdateReloading','appUpdateLastCheck',
     'appUpdateReady','appUpdateDismissed','appUpdateAnnounced','appUpdateGiveUp',
-    'loopDay','loopDayTimer'];
+    'loopDay','loopDayTimer',
+    /* D94 — the import's failure categories, its migration registries, the depth
+       bound and the one-import-at-a-time guard */
+    'IMPORT_ERROR','BACKUP_MIGRATIONS','MIGRATIONS','BACKUP_MAX_DEPTH','importInFlight'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

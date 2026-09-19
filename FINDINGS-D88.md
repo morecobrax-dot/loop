@@ -289,7 +289,22 @@ exponential, so it stays below display precision — not a defect.
 
 ---
 
-## E8 — Import accepts an older schema and never migrates it · P2 · PROVEN by inspection
+## E8 — Import accepts an older schema and never migrates it · P2 · PROVEN by inspection · **CLOSED in D94 (LOOP 9.6)**
+
+> **Closed, and it was wider.** Reproduced on 9.5 by running it, not only by
+> reading: schema 0, a missing `schemaVersion`, `null`, `"1"`, `"NaN"`, -1,
+> 0.5 and `true` were all imported as current, with "Import complete". Beside
+> it on the same build: a write the store refused was ignored, so a full phone
+> took part of a backup and LOOP said "Import complete"; a failed import's undo
+> left behind keys the import had created while saying nothing was lost; values
+> were written without checking their type; and workouts whose id was
+> `__proto__` or `constructor` were dropped by the merge. No LOOP ever wrote
+> a backup older than schema 1, so there was no migration to add and none was
+> invented: the file's own version now decides the path, a missing or
+> unrecognised one is refused, a pure migration chain stands ready (empty) for
+> the first real step, and the import is all or nothing — a verified safety
+> copy, every write checked and read back, and an undo judged by reading the
+> store. See TRAINER-CONTRACT.md §116 and Contract 195. Original analysis below.
 
 `importAllData` handles `payload.schemaVersion > DATA_SCHEMA_VERSION` and
 returns. An *older* schema is written straight into storage; the reload then runs
