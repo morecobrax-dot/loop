@@ -12640,3 +12640,73 @@ by "the sheet is gone" and "the list is complete in the page".
 
 **Deliberately left.** Swipe stays as a trigger, not a drag-follow. The D86.1 place
 medals remain unused on disk (§117).
+
+## §120 — D96: The eight final rank emblems
+
+(Numbered §120 because D95's record, §119, lives on its own unmerged branch.)
+
+A direct asset replacement. Rank calculation, thresholds, XP, names, the achieved /
+current / locked logic, the progress rail and the swipe are untouched.
+
+**The art is the owner's, used as given.** The final sheet ("Rank 1" to "Rank 8",
+1536 × 1024 RGBA, sha256 79e781b6…) has real transparency. Each emblem is cropped
+pixel for pixel — never redrawn, resampled, sharpened, recoloured or given a border
+— from its own cell onto ONE common transparent 376 × 376 canvas, centred on its own
+bounding box, so every call site's square layout is unchanged and no emblem is
+distorted. Nothing outside a cell is read, so the sheet's "Rank N" labels are not in
+the files. Measured before cropping: Rank 8's tip fades to alpha 6 one row above its
+label's own glow, so its cell ends there and keeps every visible pixel of the tip;
+its halo (above the emblem) is inside its file. The eight files are pixel-identical
+to their source region (checked by an independent script) and pinned by sha256 in
+Contract 199. Rank N of the sheet is the Nth rank of `RANKS`: `rank-1.png` ROOKIE …
+`rank-8.png` LEGEND. New names, so no phone keeps an old emblem cached under a name
+it knows; the eight D87 files are deleted. Relative sizes are the sheet's own (no
+per-rank scaling): Rank 8, the most elaborate, is the largest.
+
+**One renderer, unchanged names.** `rankMedalSvg` and `RANK_EMBLEM_FILE` keep their
+names, so the nine call sites (Friends, Home, the showcase, Profile, level-up) draw
+the new art with no edits. Only the showcase emblem changed shape: it sits in
+`.rank-emblem-box` with a `.rank-sheen` layer above the image, masked to the
+emblem's own silhouette by the same file (`mask-size: contain`, set inline). Locked,
+achieved and current still use the existing restrained filters on the same image.
+
+**How an emblem arrives.** `rankArrive`: the emblem settles (opacity 0.55 → 1, scale
+0.96 → 1, 240 ms) and one pass of light crosses it (680 ms, from 140 ms in,
+transform and opacity on the layer above, 0.92-alpha core), then it is completely
+still: no loop, no pulse, no held state. The image's own pixels are never touched.
+It plays when the ladder ARRIVES at a rank and when the showcase opens on the
+athlete's rank; re-centring and landing where a gesture started stay quiet. The
+previous arrival is cancelled first and again the moment the next gesture starts
+(`rankStopAnimation`), so only the emblem the athlete stops on finishes it and
+nothing queues. Reduce Motion: nothing plays; the emblem is simply there (D87 kept a
+160 ms fade; the brief for these emblems is stricter).
+
+**Warmed, not lazy.** `rankWarmAssets` fetches and decodes all eight while the phone
+is idle after boot (like the Mastery art) and again on opening; no `loading="lazy"`
+(the carousel keeps all eight panels in the DOM). They stay out of the precache.
+The light waits for `rankAssetsReady()` — an unloaded mask would draw a plain bar —
+so on a cold first open the emblem settles and the light is held back.
+
+**Found while building it.** (1) Unmasked, the light is a plain rectangle, and a
+first, faint band was nearly invisible on the already-bright emblems; both were only
+visible by freezing the animation at 30/50/70% and looking. The band is now crisper
+(0.92 core) and reads as a glint inside the facet, nowhere outside the silhouette.
+(2) The QA counted the eight CSS mask lookups as new image fetches; they are cached
+(0 bytes) and resolve in about 2 ms, long before the light starts at 140 ms.
+(3) A live-count of resource entries needs `initiatorType === 'img'`.
+
+**Tests.** Contract 199 (46): the eight files (real RGBA PNG, canvas, sha256, distinct,
+transparent corners, one emblem and no glyph-sized fragment, centred, Rank 8's halo,
+Rank 1 silver / Rank 5 gold), the mapping, the markup, the states, the arrival (two
+animations; 240 ms and 680 ms; only transform and opacity; once; nine landings leave
+one; the next gesture cancels; held back until loaded; Reduce Motion nothing), the
+warm-up (eight images, once, decoded; light held until all loaded). Six Contract 162
+assertions that pinned D87's hash and the small-lift arrival were restated, claims
+kept or honestly replaced. 17 of 17 mutants killed. Real Edge at 320, 375, 390 and
+430: 160 checks (every rank, its state, the mask, centring, no clipping, no
+overflow; opening; eight fast real-touch swipes; only the final emblem plays and
+nothing is running after; no stale emblem; nothing fetched during the session; no
+console errors; Reduce Motion). No physical iPhone.
+
+**Not changed.** DATA_KEYS 15, schema 1, trainer 0.1.1-shadow; Mastery, Progress,
+Program, Friends, storage.

@@ -22421,12 +22421,18 @@ async function testRankShowcaseMotion(){
        a bypass of it: LOOP 8.9's build (see the D87 commit) replaced the
        D54-approved generated emblems with the owner's own supplied art,
        used exactly as given. A change here again is still a redesign and
-       still needs a new approval, not a quiet new hash. */
-    return h === '8a3ca26391d8390afeba13d90a224dbeeae5ef675b9d72607242b9dcb893e7b5' ? true : h;
+       still needs a new approval, not a quiet new hash.
+       D96 — and so it has: this hash moved because the owner supplied a NEW final
+       sheet (Rank 1 to Rank 8), cropped pixel for pixel into rank-1..8.png, and
+       because the showcase emblem now sits in a box that also holds the layer one
+       pass of light crosses. The supplied art is the approval; Contract 199 pins
+       the eight files themselves. */
+    return h === '22649f9a3f78b16714d201d34b591989865699b295bd680932b5d6e21891883a' ? true : h;
   })() === true);
-  T('motion lives outside the emblem: the track, the panel, and the emblem\'s own box',
+  T('motion lives outside the emblem: the track, the panel, the emblem\'s own image and the one layer above it',
     !/animate|animation/i.test(fnSrc(src, 'rankMedalSvg')) &&
-    /panel\.querySelector\(flat \? '\.rank-medal-wrap' : '\.rank-medal-wrap img'\)/.test(src) &&
+    /panel\.querySelector\('\.rank-medal-wrap img'\)/.test(fnSrc(src, 'rankArrive')) &&
+    /panel\.querySelector\('\.rank-sheen b'\)/.test(fnSrc(src, 'rankArrive')) &&
     !/rankMedalSvg|<svg/.test(fnSrc(src, 'rankRender')));
 
   sub('a touch is a scroll until it is sideways');
@@ -22711,33 +22717,40 @@ async function testRankShowcaseMotion(){
   sub('the ceremony is small, and happens once');
   reset(4);
   ctx.rankLanded(5);
-  const tick = geo.panels[5].child.anims[0];
-  T('a new rank lands with one lift of under 3%, over well under half a second, on the emblem', (() => {
+  const tick = geo.panels[5].child.anims[0], shine = geo.panels[5].child.anims[1];
+  /* D96 — restated. D87's ceremony was one 1.8% lift over 380 ms and no light. The
+     brief for the final emblems asks for a settle (opacity and scale, ~180-260 ms)
+     and ONE pass of light (~500-800 ms), then stillness. The promises that carry
+     over are unchanged: small, once, on the emblem, nothing stacks. */
+  T('a new rank settles in — under 260 ms, opacity and a small scale only, on the emblem', (() => {
     if(!tick) return 'no arrival';
-    const peaks = tick.frames.map(k => +((/scale\(([\d.]+)\)/.exec(k.transform || '') || [])[1] || 1));
-    const peak = Math.max(...peaks);
-    // D87: the arrival lift now targets the real emblem <img>, not a generated <svg>.
-    return peak > 1.005 && peak <= 1.03 && tick.timing.duration <= 450 && !tick.timing.iterations &&
-      geo.panels[5].child.asked.indexOf('.rank-medal-wrap img') !== -1 &&
+    const scales = tick.frames.map(k => +((/scale\(([\d.]+)\)/.exec(k.transform || '') || [])[1] || 1));
+    return scales[0] < 1 && scales[0] >= 0.9 && scales[scales.length - 1] === 1 && tick.timing.duration >= 180 && tick.timing.duration <= 260 &&
+      !tick.timing.iterations && geo.panels[5].child.asked.indexOf('.rank-medal-wrap img') !== -1 &&
+      tick.frames.every(k => Object.keys(k).every(p => ['opacity', 'transform', 'offset'].indexOf(p) !== -1)) &&
       !tick.frames.some(k => /rotate/.test(k.transform || ''));
   })());
+  T('and one pass of light crosses it, once — 500 to 800 ms, on the layer above, never looping', (() => {
+    if(!shine) return 'no sheen';
+    return shine.timing.duration >= 500 && shine.timing.duration <= 800 && !shine.timing.iterations &&
+      geo.panels[5].child.asked.indexOf('.rank-sheen b') !== -1 &&
+      shine.frames.every(k => Object.keys(k).every(p => ['opacity', 'transform', 'offset'].indexOf(p) !== -1));
+  })());
   ctx.rankLanded(5);
-  T('landing again on the same rank adds nothing', geo.panels[5].child.anims.length === 1);
+  T('landing again on the same rank adds nothing', geo.panels[5].child.anims.length === 2);
   ctx.rankLanded(6);
-  T('the next arrival cancels the last, so nothing stacks', tick && tick.cancelled && geo.panels[6].child.anims.length === 1);
+  T('the next arrival cancels the last, so nothing stacks', tick && tick.cancelled && shine && shine.cancelled && geo.panels[6].child.anims.length === 2);
   reset(4);
   ctx.rankLanded(4, true);
   T('opening and re-centring are quiet', geo.panels[4].child.anims.length === 0);
   /* D87 — repointed. The generated shine lived INSIDE the SVG's own outline
-     clip, which is exactly why it cannot exist on a raster emblem: there is
-     no equivalent "clip to the image's own silhouette" mechanism for an
-     <img>, and the brief that replaced the art explicitly asked to let the
-     supplied art carry the style rather than add a decorative pass over it.
-     The two properties that mattered — the landing plays once, not a loop —
-     are still proven above, on the lift itself (duration <= 450,
-     !tick.timing.iterations); there is no separate shine left to time. */
-  T('no shine layer survives the emblem becoming real art',
-    !/rank-shine/.test(css) && !/@keyframes rankShine/.test(css));
+     clip, which is why it could not survive the art becoming a raster image.
+     D96 — a light pass returns, built the way a raster allows: a SEPARATE layer
+     above the image, masked to the emblem's own silhouette by the same file, moved
+     by transform and opacity only. The D30.6 generated shine (rank-shine,
+     rankShine) is still gone; the new layer is proven above, and by Contract 199. */
+  T('the D30.6 generated shine is still gone — the D96 light is a separate, masked layer',
+    !/rank-shine/.test(css) && !/@keyframes rankShine/.test(css) && /\.rank-sheen\{[^}]*mask-size: contain/.test(css));
 
   sub('reduced motion keeps every state and loses the choreography');
   { const realRM = ctx.rankReducedMotion;
@@ -22747,10 +22760,10 @@ async function testRankShowcaseMotion(){
       T('depth is kept as light, never as size', geo.panels.every(p => p.style.transform === 'none') && geo.panels[3].style.opacity === '0.340');
       ctx.rankGoTo(0);
       T('a far rank is reached at once — no fade, no glide, no timer', car.pos === 0 && ctx.rankShowcaseIndex === 0 && !car.jumpTimer && !car.raf);
-      const flatTick = geo.panels[0].child.anims[0];
-      T('and it arrives with a short fade on the emblem, not a lift',
-        !!flatTick && flatTick.timing.duration <= 200 && flatTick.frames.every(k => k.transform === undefined && k.opacity !== undefined) &&
-        geo.panels[0].child.asked.indexOf('.rank-medal-wrap') !== -1);
+      /* D96 — restated: D87 kept a 160 ms fade under Reduce Motion. The brief for the
+         final emblems is stricter: no sheen, no scale, the emblem is simply there. */
+      T('and it arrives with nothing at all — no settle, no light, no fade: the emblem is simply there',
+        geo.panels[0].child.anims.length === 0 && geo.panels.every(p => p.child.anims.length === 0));
     } finally { ctx.rankReducedMotion = realRM; } }
   T('the media query is the one the app reads, and the CSS agrees',
     /window\.matchMedia\('\(prefers-reduced-motion: reduce\)'\)/.test(fnSrc(src, 'rankReducedMotion')) &&
@@ -35448,6 +35461,224 @@ async function testMasteryOneSystem(){
   });
 }
 
+/* =========================================================
+   CONTRACT 199 — THE EIGHT FINAL RANK EMBLEMS  (D96)
+   ---------------------------------------------------------
+   The owner's final sheet, "Rank 1" to "Rank 8", is the source of truth. Each
+   emblem is cropped pixel for pixel onto one transparent 376 x 376 canvas — never
+   redrawn, resampled, recoloured or given a new border — with the sheet's own
+   labels left behind. Rank N of the sheet is the Nth rank of RANKS. Nothing about
+   rank itself moved: names, ranges, XP, state and the ladder are as they were.
+
+   What is new is how an emblem arrives: it settles in (opacity and a small scale,
+   240 ms) and one pass of light crosses it (680 ms, a separate layer masked to the
+   emblem's own silhouette), and then it is completely still. Only the emblem the
+   athlete stops on finishes it; Reduce Motion gets the emblem, immediately.
+   ========================================================= */
+async function testRankEmblemsD96(){
+  section('CONTRACT 199 — the eight final rank emblems: the owner’s art as given, and how each arrives (D96)');
+  const fs = require('fs'), zlib = require('zlib'), crypto = require('crypto');
+  const root = H.APP_PATH.replace(/index\.html$/, '');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx;
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+
+  /* A small PNG reader: RGBA, 8-bit, non-interlaced — enough to look inside the files. */
+  function png(file){
+    const b = fs.readFileSync(root + file);
+    if(b.readUInt32BE(0) !== 0x89504E47) return null;
+    let p = 8, w = 0, h = 0, ct = 0, depth = 0; const idat = [];
+    while(p < b.length){
+      const len = b.readUInt32BE(p), type = b.toString('ascii', p + 4, p + 8), d = b.subarray(p + 8, p + 8 + len);
+      if(type === 'IHDR'){ w = d.readUInt32BE(0); h = d.readUInt32BE(4); depth = d[8]; ct = d[9]; } else if(type === 'IDAT') idat.push(d);
+      p += 12 + len;
+    }
+    const raw = zlib.inflateSync(Buffer.concat(idat)), stride = w * 4, out = Buffer.alloc(w * h * 4), prev = Buffer.alloc(stride), cur = Buffer.alloc(stride);
+    for(let y = 0; y < h; y++){
+      const f = raw[y * (stride + 1)]; raw.copy(cur, 0, y * (stride + 1) + 1, y * (stride + 1) + 1 + stride);
+      for(let i = 0; i < stride; i++){
+        const a = i >= 4 ? cur[i - 4] : 0, up = prev[i], c = i >= 4 ? prev[i - 4] : 0; let v = cur[i];
+        if(f === 1) v += a; else if(f === 2) v += up; else if(f === 3) v += (a + up) >> 1;
+        else if(f === 4){ const pa = Math.abs(up - c), pb = Math.abs(a - c), pc = Math.abs(a + up - 2 * c); v += (pa <= pb && pa <= pc) ? a : pb <= pc ? up : c; }
+        cur[i] = v & 255;
+      }
+      cur.copy(out, y * stride); cur.copy(prev);
+    }
+    return { w, h, ct, depth, data: out, bytes: b };
+  }
+  /* components of alpha > 8, 8-connected */
+  function comps(im){
+    const { w, h, data } = im, seen = new Uint8Array(w * h), out = [];
+    for(let s = 0; s < w * h; s++){
+      if(seen[s] || data[s * 4 + 3] <= 8) continue;
+      let n = 0, x0 = w, y0 = h, x1 = 0, y1 = 0; const st = [s]; seen[s] = 1;
+      while(st.length){
+        const q = st.pop(), x = q % w, y = (q / w) | 0; n++; if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+        for(let dy = -1; dy <= 1; dy++) for(let dx = -1; dx <= 1; dx++){
+          const nx = x + dx, ny = y + dy; if(nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const r = ny * w + nx; if(seen[r] || data[r * 4 + 3] <= 8) continue; seen[r] = 1; st.push(r);
+        }
+      }
+      out.push({ n, x0, y0, x1, y1, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+    }
+    return out;
+  }
+  const RANK_NAMES = ['ROOKIE', 'TRAINEE', 'ATHLETE', 'COMPETITOR', 'ELITE', 'VETERAN', 'MASTER', 'LEGEND'];
+  /* The approval receipt for the eight files. They are the owner's sheet
+     (sha256 79e781b6…) cropped as described above; a different hash here is a
+     different emblem, and needs the owner's approval, not a quiet new value. */
+  const HASH = ['5154dea2e326643f2645d19ba962ce822103d238f69dc2bf0d480b7fc50a3b84', 'f84a2207ed5b793af0cb840e3b5642ed80d23d205b0b43beecf19786f9711344',
+    '61cdcf66e59a91f30d88cd88a66882f60573d12f6a3eaf2020fed15c585b5c59', '64c8cb4afd8b405b17e6506d106f67455933c724c85dd5e49a0c242ae40b2bac',
+    '61e20f579ba32790d21ca7652902719306a5e31e252306543b304cdf6360f28f', '2994c1d658007f2910e14eb86614357aad3c43e36f553863d7b7d7e20125351a',
+    '4a9e79d6d158a462d58f13daa6fe1d54179a1a006c191be8751a7f70a3ba5c4c', '6a48832aa49a559d58e4fe0d65dbabff0cd947eb2ebefa703615c02917c0aa08'];
+
+  /* ------------------------------------------------------------------ */
+  sub('the eight files are the owner’s art, and Rank N is the Nth rank');
+  await guard('files', () => {
+    T('the ranks are exactly the eight, in order — thresholds and names untouched', ctx.RANKS.map(r => r.name).join() === RANK_NAMES.join() &&
+      ctx.RANKS[0].min === 1 && ctx.RANKS[1].min === 5 && ctx.RANKS[2].min === 10 && ctx.RANKS[3].min === 15 && ctx.RANKS[4].min === 20 && ctx.RANKS[5].min === 30 && ctx.RANKS[6].min === 40 && ctx.RANKS[7].min === 50 && ctx.RANKS[7].max === Infinity);
+    T('Rank 1 to Rank 8 of the sheet are ROOKIE to LEGEND, in RANKS order, one file each: rank-1.png … rank-8.png',
+      RANK_NAMES.every((n, i) => ctx.RANK_EMBLEM_FILE[n] === 'rank-' + (i + 1) + '.png') && Object.keys(ctx.RANK_EMBLEM_FILE).length === 8);
+    T('the eight files exist and the eight they replace are gone', [1, 2, 3, 4, 5, 6, 7, 8].every(n => fs.existsSync(root + 'rank-' + n + '.png')) &&
+      ['rookie', 'trainee', 'athlete', 'competitor', 'elite', 'veteran', 'master', 'legend'].every(n => !fs.existsSync(root + 'rank-emblem-' + n + '.png')));
+    const ims = [1, 2, 3, 4, 5, 6, 7, 8].map(n => png('rank-' + n + '.png'));
+    T('each is a real 8-bit RGBA PNG on one common 376 × 376 canvas, of a sane delivered size', ims.every(im => im && im.ct === 6 && im.depth === 8 && im.w === 376 && im.h === 376 && im.bytes.length > 40000 && im.bytes.length < 200000),
+      ims.map(im => im && [im.w, im.h, im.ct, im.bytes.length]));
+    T('each is byte-for-byte the approved crop (sha256 receipt)', ims.every((im, i) => crypto.createHash('sha256').update(im.bytes).digest('hex') === HASH[i]));
+    T('the eight are distinct', new Set(HASH).size === 8 && new Set(ims.map(im => crypto.createHash('sha256').update(im.data).digest('hex'))).size === 8);
+    T('the background is transparent: the four corners are fully clear and most of the canvas is', ims.every(im => [0, (im.w - 1) * 4, (im.h - 1) * im.w * 4, ((im.h - 1) * im.w + im.w - 1) * 4].every(o => im.data[o + 3] === 0) &&
+      (() => { let z = 0; for(let i = 3; i < im.data.length; i += 4) if(im.data[i] <= 8) z++; return z / (im.w * im.h) > 0.5; })()));
+    const cs = ims.map(comps);
+    T('each holds ONE emblem and none of the sheet’s "Rank N" text: no glyph-sized fragment survives', cs.every(c => c.filter(x => x.n > 40).length >= 1 &&
+      c.filter(x => x.n > 40).every(x => !(x.h >= 22 && x.h <= 34 && x.w <= 100 && x.n < 3000))), cs.map(c => c.filter(x => x.n > 40).map(x => x.w + 'x' + x.h)));
+    T('the art is centred on its canvas, to a pixel', ims.map((im, i) => { const b = cs[i].reduce((a, x) => ({ x0: Math.min(a.x0, x.x0), x1: Math.max(a.x1, x.x1), y0: Math.min(a.y0, x.y0), y1: Math.max(a.y1, x.y1) }), { x0: 1e9, x1: 0, y0: 1e9, y1: 0 });
+      return Math.abs((b.x0 + b.x1) / 2 - 187.5) <= 3 && Math.abs((b.y0 + b.y1) / 2 - 187.5) <= 3; }).every(Boolean));
+    const bb = cs.map(c => c.reduce((a, x) => ({ y0: Math.min(a.y0, x.y0), y1: Math.max(a.y1, x.y1) }), { y0: 1e9, y1: 0 }));
+    T('Rank 8’s halo is above the emblem, inside its file: the tallest of the eight, with light in its top rows', (bb[7].y1 - bb[7].y0) > (bb[6].y1 - bb[6].y0) && (bb[7].y1 - bb[7].y0) >= 355 && bb[7].y0 <= 12);
+    T('Rank 5 is the gold one and Rank 1 the silver one — the sheet’s order, not a reinterpretation', (() => {
+      const mean = im => { let r = 0, g = 0, b = 0, n = 0; for(let i = 0; i < im.data.length; i += 4) if(im.data[i + 3] > 200){ r += im.data[i]; g += im.data[i + 1]; b += im.data[i + 2]; n++; } return [r / n, g / n, b / n]; };
+      const s = mean(ims[0]), g = mean(ims[4]);
+      return Math.abs(s[0] - s[2]) < 30 && g[0] > g[2] + 60;
+    })());
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('every place a rank is shown draws the new art through the one renderer');
+  await guard('render', () => {
+    const big = ctx.rankMedalSvg('ELITE', 208, { showcase: true }), small = ctx.rankMedalSvg('ELITE', 28);
+    T('the showcase emblem: its own file, decorative, in a box with the light layer masked by the same file', /^<span class="rank-emblem-box"><img class="rank-medal rank-medal-lg" src="rank-5\.png" width="208" height="208" alt="" decoding="async"><i class="rank-sheen" aria-hidden="true" style="-webkit-mask-image:url\(rank-5\.png\);mask-image:url\(rank-5\.png\)"><b><\/b><\/i><\/span>$/.test(big), big);
+    T('every other size is the bare image, exactly as the nine call sites already lay it out', /^<img class="rank-medal" src="rank-5\.png" width="28" height="28" alt="" decoding="async">$/.test(small), small);
+    T('an unknown rank falls back to Rank 1, never to a broken image', /src="rank-1\.png"/.test(ctx.rankMedalSvg('NOT_A_RANK', 40)));
+    T('there is still exactly one renderer, and the nine call sites still use it', (src.match(/function rankMedalSvg\(/g) || []).length === 1 && (src.match(/rankMedalSvg\(/g) || []).length >= 10);
+    T('each rank’s page carries its own emblem, in order', ctx.RANKS.every((r, i) => { const p = ctx.getCurrentProgression(); const h = ctx.rankCardHtml(r, i, p); return h.indexOf('src="rank-' + (i + 1) + '.png"') !== -1 && (h.match(/rank-\d\.png/g) || []).every(f => f === 'rank-' + (i + 1) + '.png'); }));
+    T('locked, achieved and current keep the states they had: the same art, dimmed only by the existing restrained filters', /\.rank-locked \.rank-medal-wrap\{ filter: saturate\(0\.62\) brightness\(0\.78\); \}/.test(css) &&
+      /\.rank-achieved \.rank-medal-wrap\{ filter: saturate\(0\.95\) brightness\(0\.96\); \}/.test(css) && /\.rank-current \.rank-medal-wrap\{ filter: brightness\(1\.04\); \}/.test(css));
+    const pr = (lv) => { const c = ctx.getCurrentProgression; return lv; };
+    T('and a page states exactly one of locked, achieved or current, by comparison with the athlete’s rank', (() => {
+      const p = { rank: 'ATHLETE', level: 12, currentXP: 10, xpForNext: 100 };
+      const s = ctx.RANKS.map((r, i) => (ctx.rankCardHtml(r, i, p).match(/rank-(locked|achieved|current)/) || [])[1]);
+      return s.join() === 'achieved,achieved,current,locked,locked,locked,locked,locked';
+    })());
+    const layer = cssBlock('.rank-sheen'), band = cssBlock('.rank-sheen b');
+    T('the light layer is invisible and inert until it is played: masked to the silhouette, above the image, no pointer, opacity 0 at rest',
+      /position: absolute; inset: 0;/.test(layer) && /pointer-events: none;/.test(layer) && /mask-size: contain;/.test(layer) && /overflow: hidden;/.test(layer) && /opacity: 0;/.test(band) && /translate3d\(-130%, 0, 0\)/.test(band));
+    T('nothing on it runs by itself: no keyframes, no infinite animation, no always-on compositor layer, no animated filter', !/@keyframes rank(Sheen|Settle|Arrive)/i.test(css) && !/rank-(sheen|emblem-box|medal)[^{]*\{[^}]*(animation|will-change|transition)/.test(css));
+    function cssBlock(sel){ const i = css.indexOf(sel + '{'); return i === -1 ? '' : css.slice(i, css.indexOf('}', i) + 1); }
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('the arrival: settle, one pass of light, then still');
+  await guard('arrival', async () => {
+    /* per-selector stand-ins, so the emblem and the light are told apart */
+    const mkPanel = () => {
+      const mk = () => ({ anims: [], animate(frames, timing){ const a = { frames, timing, cancelled: false, cancel(){ this.cancelled = true; } }; this.anims.push(a); return a; } });
+      const img = mk(), band = mk();
+      return { img, band, asked: [], querySelector(sel){ this.asked.push(sel); return sel === '.rank-medal-wrap img' ? img : sel === '.rank-sheen b' ? band : null; } };
+    };
+    const car = ctx._rankCar;
+    const live = ps => ps.reduce((n, p) => n + p.img.anims.filter(a => !a.cancelled).length + p.band.anims.filter(a => !a.cancelled).length, 0);
+    const realRM = ctx.rankReducedMotion, realReady = ctx.rankAssetsReady;
+    ctx.rankReducedMotion = () => false; ctx.rankAssetsReady = () => true;
+    try{
+      ctx.rankCancel('arrival');
+      const p = mkPanel(); ctx.rankArrive(p);
+      const s = p.img.anims[0], l = p.band.anims[0];
+      T('one arrival is exactly two animations: the emblem settling and the light', p.img.anims.length === 1 && p.band.anims.length === 1);
+      T('settle: 240 ms, 0.96 → 1 in scale and 0.55 → 1 in opacity, on the image, once',
+        s.timing.duration === 240 && !s.timing.iterations && s.frames.length === 2 && /scale\(0\.96\)/.test(s.frames[0].transform) && s.frames[0].opacity === 0.55 && s.frames[1].opacity === 1 && s.frames[1].transform === 'scale(1)');
+      T('the light: 680 ms starting 140 ms in, one sweep across the emblem, once', l.timing.duration === 680 && l.timing.delay === 140 && !l.timing.iterations && l.timing.fill === 'backwards' &&
+        /-130%/.test(l.frames[0].transform) && /240%/.test(l.frames[l.frames.length - 1].transform) && l.frames[0].opacity === 0 && l.frames[l.frames.length - 1].opacity === 0);
+      T('both are inside the brief: settle 180–260 ms, light 500–800 ms, all over in under a second', s.timing.duration >= 180 && s.timing.duration <= 260 && l.timing.duration >= 500 && l.timing.duration <= 800 && l.timing.delay + l.timing.duration < 1000);
+      T('only transform and opacity ever move — nothing that repaints or reflows', [s, l].every(a => a.frames.every(k => Object.keys(k).every(pn => ['opacity', 'transform', 'offset'].indexOf(pn) !== -1))));
+      T('the image’s own pixels are never touched (no filter, no canvas, no drawImage in the arrival)', !/filter|canvas|drawImage|putImageData/.test(fnSrc(src, 'rankArrive')));
+      T('nothing lasts: no infinite iterations, no fill that holds a state after the end', !/Infinity|iterations|fill: 'forwards'|fill: 'both'/.test(fnSrc(src, 'rankArrive')));
+
+      /* rapid swiping */
+      ctx.rankCancel('arrival');
+      const ps = [0, 1, 2, 3, 4, 5, 6, 7].map(mkPanel);
+      [1, 2, 3, 4, 5, 4, 3, 2, 3].forEach(i => ctx.rankArrive(ps[i]));
+      const lastP = ps[3];
+      T('nine landings in a row: only the last panel’s emblem is still playing, and it is one settle and one light — nothing queued',
+        live(ps) === 2 && live([lastP]) === 2 && ps.filter(x => x !== lastP).every(x => live([x]) === 0), ps.map(x => live([x])));
+      T('so a run of swipes can never stack shines', ps.every(x => x.band.anims.filter(a => !a.cancelled).length <= 1));
+      /* the next gesture ends the last arrival */
+      const g = mkPanel(); ctx.rankArrive(g);
+      ctx.rankStopAnimation();
+      T('the moment the ladder moves on (a new drag or travel), the emblem’s light is cancelled — only the rank the athlete stops on finishes it', live([g]) === 0 && g.img.anims[0].cancelled && g.band.anims[0].cancelled);
+      /* one arrival replaces the last on the same panel too */
+      const twice = mkPanel(); ctx.rankArrive(twice); ctx.rankArrive(twice);
+      T('an arrival on a panel that is already arriving replaces it', live([twice]) === 2 && twice.img.anims.length === 2 && twice.img.anims[0].cancelled);
+
+      /* the light waits for the art */
+      ctx.rankCancel('arrival'); ctx.rankAssetsReady = () => false;
+      const cold = mkPanel(); ctx.rankArrive(cold);
+      T('until all eight emblems are in, the emblem still settles but the light is held back (an unloaded mask would draw a plain bar)', cold.img.anims.length === 1 && cold.band.anims.length === 0);
+      ctx.rankAssetsReady = () => true;
+
+      /* Reduce Motion */
+      ctx.rankCancel('arrival'); ctx.rankReducedMotion = () => true;
+      const rm = mkPanel(); ctx.rankArrive(rm);
+      T('Reduce Motion: no settle, no scale, no light, no fade — the emblem is simply there', rm.img.anims.length === 0 && rm.band.anims.length === 0 && rm.asked.length === 0);
+      ctx.rankReducedMotion = () => false;
+      T('a panel with nothing to animate is safe', (() => { try{ ctx.rankArrive(null); ctx.rankArrive({}); ctx.rankArrive({ querySelector: () => null }); return true; }catch(e){ return false; } })());
+    } finally { ctx.rankReducedMotion = realRM; ctx.rankAssetsReady = realReady; ctx.rankCancel('arrival'); }
+
+    T('landing is what plays it: a rank the ladder ARRIVES at, and the rank the showcase opens on — re-centring stays quiet', /rankArrive\(g \? g\.panels\[i\] : null\)/.test(fnSrc(src, 'rankLanded')) && /if\(!arrived\) return;/.test(fnSrc(src, 'rankLanded')) &&
+      /rankArrive\(_rankCar\.geom\.panels\[rankShowcaseIndex\]\)/.test(fnSrc(src, 'openRankShowcase')));
+    T('closing the showcase cancels it', /rankCancel\('arrival'\)/.test(fnSrc(src, 'closeRankShowcase')));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('all eight are in before the first swipe, and never decoded twice');
+  await guard('warm', async () => {
+    const made = [];
+    const Real = ctx.Image;
+    class FakeImage { constructor(){ this.complete = false; this.naturalWidth = 0; this.decodes = 0; made.push(this); } decode(){ this.decodes++; return Promise.resolve(); } set src(v){ this._src = v; } get src(){ return this._src; } }
+    ctx.Image = FakeImage;
+    for(const k of Object.keys(ctx._rankWarm || {})) delete ctx._rankWarm[k];
+    try{
+      ctx.rankWarmAssets(); ctx.rankWarmAssets(); ctx.rankWarmAssets();
+      T('eight images are created, one per emblem, however often it is called — no element is recreated', made.length === 8 && made.map(m => m.src).sort().join() === [1, 2, 3, 4, 5, 6, 7, 8].map(n => 'rank-' + n + '.png').join());
+      T('each is asked to decode ahead of time, asynchronously', made.every(m => m.decodes === 1 && m.decoding === 'async'));
+      T('the light is not allowed until every one has loaded', ctx.rankAssetsReady() === false && (made.slice(0, 7).forEach(m => { m.complete = true; m.naturalWidth = 376; }), ctx.rankAssetsReady() === false));
+      made[7].complete = true; made[7].naturalWidth = 376;
+      T('… and is, once they all have', ctx.rankAssetsReady() === true);
+    } finally { ctx.Image = Real; }
+    T('the emblems are warmed while the phone is idle after boot, and again when the showcase opens', /requestIdleCallback[^\n]*rankWarmAssets\(\)/.test(src) && /rankWarmAssets\(\);\s*\n\s*if\(_rankCar\.geom\) rankArrive/.test(src));
+    T('they are not lazy-loaded: the carousel keeps all eight panels in the DOM', !/loading="lazy"/.test(fnSrc(src, 'rankMedalSvg')));
+    T('and they stay out of the precache: the app shell is unchanged', /ASSETS = \[\s*'\.\/',\s*'\.\/index\.html',\s*'\.\/manifest\.webmanifest'\s*\]/.test(fs.readFileSync(root + 'sw.js', 'utf8')));
+  });
+
+  sub('nothing else moved');
+  await guard('safety', () => {
+    T('DATA_KEYS 15, schema 1, trainer 0.1.1-shadow — no rank rule, threshold or XP was touched', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('the Mastery badges are the Mastery badges, unchanged', [1, 2, 3, 4, 5, 6].every(n => fs.existsSync(root + 'mastery-badge-' + n + '.png')) && /const MASTERY_BADGE_TIERS = \[/.test(src));
+    T('the rank atmosphere and the rail still read RANK_VISUALS, and the level-up flow still renders through the same function', /RANK_VISUALS\[r\.name\]/.test(fnSrc(src, 'rankNearestChanged')) && /rankMedalSvg\(rank, 88\)/.test(src));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -35606,6 +35837,7 @@ async function main(){
   await testBackupCompatibility();
   await testMasteryView();
   await testMasteryOneSystem();
+  await testRankEmblemsD96();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

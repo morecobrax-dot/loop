@@ -842,6 +842,21 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
 /* The emblem is the hero of the page now that nothing frames it. */
 .rank-medal-wrap{ display: flex; justify-content: center; padding: 14px 0 10px; }
 .rank-medal-wrap img{ display: block; }
+/* D96 — the showcase emblem's box holds the image and the layer one pass of
+   light crosses it. The layer is masked to the emblem's own silhouette (the
+   same file, set inline), sits above the image, and is invisible until the
+   arrival plays it. Nothing here runs on its own: the arrival drives it. */
+.rank-emblem-box{ position: relative; display: block; line-height: 0; }
+.rank-sheen{
+  position: absolute; inset: 0; display: block; overflow: hidden; pointer-events: none;
+  -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+}
+.rank-sheen b{
+  position: absolute; top: -8%; bottom: -8%; left: 0; width: 55%; display: block; opacity: 0;
+  background: linear-gradient(105deg, transparent 26%, rgba(255,255,255,0.32) 40%, rgba(255,255,255,0.92) 50%, rgba(255,255,255,0.32) 60%, transparent 74%);
+  transform: translate3d(-130%, 0, 0);
+}
 /* Not yet reached: still fully visible and still desirable — the athlete is
    browsing a ladder they want to climb — just holding less light. */
 .rank-locked .rank-medal-wrap{ filter: saturate(0.62) brightness(0.78); }
@@ -16653,6 +16668,24 @@ const LOOP_UPDATES = [
     changes: [
       'The full muscle list is now right in the Muscle panel, instead of a separate sheet'
     ]
+  },
+  {
+    id: 'v9-9',
+    version: 'LOOP 9.9',
+    title: 'New Rank Emblems',
+    date: '2026-09-19',
+    swVersion: 'loop-v176',
+    summary: 'All eight rank emblems are now the new artwork, and each one settles in with a single soft pass of light when you reach it.',
+    newFeatures: [
+      'Eight new rank emblems, Rookie to Legend, everywhere your rank is shown',
+      'Each rank settles in with one soft pass of light when it appears, then holds perfectly still'
+    ],
+    improvements: [
+      'The emblems load ahead of time, so swiping between ranks never waits on one',
+      'With Reduce Motion on, each emblem simply appears — no fade, no shine'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -19350,6 +19383,7 @@ async function boot(){
   /* D94A — the Mastery art is fetched and decoded while the phone is idle, so it
      is already there when the tab is opened. */
   try{ (typeof requestIdleCallback === 'function' ? requestIdleCallback : (f => setTimeout(f, 2500)))(() => masteryWarmAssets()); }catch(e){}
+  try{ (typeof requestIdleCallback === 'function' ? requestIdleCallback : (f => setTimeout(f, 3000)))(() => rankWarmAssets()); }catch(e){}
 }
 
 /* Honest surfacing: if storage can't persist, or a migration needed attention,
@@ -29587,15 +29621,20 @@ function mixHex(a, b, t){
    across Friends, Home, Profile, the showcase and the level-up
    flow already call it — but it now names a file and returns an
    <img>, not a generator. */
+/* D96 — the owner's eight final emblems (one sheet, "Rank 1" to "Rank 8"),
+   cropped pixel for pixel onto one transparent 376 x 376 canvas each — the art
+   is never redrawn, resampled or recoloured, and the sheet's labels are not in
+   the files. Rank N of the sheet is the Nth rank of RANKS, in order. New names,
+   so no phone keeps an old emblem cached under a file it thinks it knows. */
 const RANK_EMBLEM_FILE = {
-  ROOKIE:     'rank-emblem-rookie.png',
-  TRAINEE:    'rank-emblem-trainee.png',
-  ATHLETE:    'rank-emblem-athlete.png',
-  COMPETITOR: 'rank-emblem-competitor.png',
-  ELITE:      'rank-emblem-elite.png',
-  VETERAN:    'rank-emblem-veteran.png',
-  MASTER:     'rank-emblem-master.png',
-  LEGEND:     'rank-emblem-legend.png'
+  ROOKIE:     'rank-1.png',
+  TRAINEE:    'rank-2.png',
+  ATHLETE:    'rank-3.png',
+  COMPETITOR: 'rank-4.png',
+  ELITE:      'rank-5.png',
+  VETERAN:    'rank-6.png',
+  MASTER:     'rank-7.png',
+  LEGEND:     'rank-8.png'
 };
 /* Decorative everywhere: every call site already states the athlete's rank
    and level as real text, in its own aria-label or as adjacent visible
@@ -29611,8 +29650,42 @@ const RANK_EMBLEM_FILE = {
 function rankMedalSvg(rankName, size, opts){
   const o = opts || {};
   const file = RANK_EMBLEM_FILE[rankName] || RANK_EMBLEM_FILE.ROOKIE;
-  return '<img class="rank-medal' + (o.showcase ? ' rank-medal-lg' : '') +
-    '" src="' + file + '" width="' + size + '" height="' + size + '" alt="">';
+  const img = '<img class="rank-medal' + (o.showcase ? ' rank-medal-lg' : '') +
+    '" src="' + file + '" width="' + size + '" height="' + size + '" alt="" decoding="async">';
+  if(!o.showcase) return img;
+  /* D96 — the showcase emblem sits in a box that also holds the layer one pass
+     of light crosses. The layer is masked to the emblem's own silhouette by the
+     same file, so the light only ever crosses the art. Idle, it is invisible. */
+  return '<span class="rank-emblem-box">' + img +
+    '<i class="rank-sheen" aria-hidden="true" style="-webkit-mask-image:url(' + file + ');mask-image:url(' + file + ')"><b></b></i></span>';
+}
+
+/* All eight are fetched and decoded before the showcase is opened, so an emblem
+   never arrives after the text beside it and a swipe never waits on one.
+   Idempotent; a no-op where there is no Image. */
+const _rankWarm = {};
+function rankWarmAssets(){
+  if(typeof Image !== 'function') return;
+  Object.keys(RANK_EMBLEM_FILE).forEach(k => {
+    const f = RANK_EMBLEM_FILE[k];
+    if(_rankWarm[f]) return;
+    try{
+      const im = new Image();
+      im.decoding = 'async';
+      im.src = f;
+      _rankWarm[f] = im;
+      if(im.decode) im.decode().catch(() => {});
+    }catch(e){}
+  });
+}
+/* The shine is masked by the emblem's own file, and a mask that has not loaded
+   would draw as a plain bar. So it plays only once every emblem is in. */
+function rankAssetsReady(){
+  if(typeof Image !== 'function') return true;
+  return Object.keys(RANK_EMBLEM_FILE).every(k => {
+    const im = _rankWarm[RANK_EMBLEM_FILE[k]];
+    return !!(im && im.complete && im.naturalWidth > 0);
+  });
 }
 
 /* ---------- the showcase ---------- */
@@ -29946,25 +30019,37 @@ function rankLanded(i, quiet){
     (i === car.mine ? 'your rank' : i < car.mine ? 'achieved' : 'not yet reached');
 }
 
-/* The emblem locks in: 1.8% up and back, on the emblem's own box, so it
-   scales about the centre of its ring. Reduced motion keeps a short fade.
-   The previous arrival is always cancelled first, so a run of swipes can
-   never stack them. */
+/* D96 — THE EMBLEM ARRIVES. It settles in (0.96 -> 1 in scale, 0.55 -> 1 in
+   opacity, 240 ms), and one pass of light crosses it (680 ms, starting 140 ms
+   in), and then it is completely still: nothing pulses, loops or glows on.
+   Both are transform and opacity — the emblem's own pixels are never touched,
+   and the light is a separate layer above it. The previous arrival is always
+   cancelled first, and again the moment the next gesture starts, so a run of
+   swipes can stack nothing and only the emblem the athlete stops on finishes.
+   Reduce Motion: the emblem is simply there. */
+const RANK_ARRIVE = { settleMs: 240, scaleFrom: 0.96, fadeFrom: 0.55, sheenMs: 680, sheenDelayMs: 140 };
 function rankArrive(panel){
   rankCancel('arrival');
   if(!panel || typeof panel.querySelector !== 'function') return;
-  const flat = rankReducedMotion();
-  const el = panel.querySelector(flat ? '.rank-medal-wrap' : '.rank-medal-wrap img');
+  if(rankReducedMotion()) return;
+  const el = panel.querySelector('.rank-medal-wrap img');
   if(!el || typeof el.animate !== 'function') return;
+  const A = RANK_ARRIVE, made = [];
   try{
-    _rankCar.arrival = flat
-      ? el.animate([{ opacity: 0.7 }, { opacity: 1 }], { duration: 160, easing: 'linear' })
-      : el.animate([
-          { transform: 'scale(1)' },
-          { transform: 'scale(1.018)', offset: 0.35 },
-          { transform: 'scale(1)' }
-        ], { duration: 380, easing: 'cubic-bezier(0.3, 0, 0.2, 1)' });
-  }catch(e){ _rankCar.arrival = null; }
+    made.push(el.animate([
+      { opacity: A.fadeFrom, transform: 'scale(' + A.scaleFrom + ')' },
+      { opacity: 1, transform: 'scale(1)' }
+    ], { duration: A.settleMs, easing: 'cubic-bezier(0.2, 0, 0, 1)' }));
+    const band = rankAssetsReady() ? panel.querySelector('.rank-sheen b') : null;
+    if(band && typeof band.animate === 'function'){
+      made.push(band.animate([
+        { transform: 'translate3d(-130%, 0, 0)', opacity: 0 },
+        { opacity: 1, offset: 0.22 },
+        { transform: 'translate3d(240%, 0, 0)', opacity: 0 }
+      ], { duration: A.sheenMs, delay: A.sheenDelayMs, easing: 'ease-in-out', fill: 'backwards' }));
+    }
+  }catch(e){}
+  _rankCar.arrival = made.length ? made : null;
 }
 function rankCancel(key){
   const a = _rankCar[key];
@@ -29982,6 +30067,7 @@ function rankStopAnimation(keepFade){
   clearTimeout(car.jumpTimer);
   car.jumpTimer = 0;
   if(!keepFade) rankCancel('fades');
+  rankCancel('arrival');   // D96 — the ladder moving on ends the last emblem's shine
 }
 
 /* Travel to a rank on the spring. `vIndex` is the ladder's velocity in ranks
@@ -30137,6 +30223,9 @@ function openRankShowcase(){
   positionRankTrack(false);
   rankUpdateReturn(rankShowcaseIndex);
   wireRankCarousel();
+  /* D96 — the rank the athlete opened onto arrives like any other. */
+  rankWarmAssets();
+  if(_rankCar.geom) rankArrive(_rankCar.geom.panels[rankShowcaseIndex]);
 }
 function closeRankShowcase(){
   rankStopAnimation();
