@@ -12710,3 +12710,91 @@ console errors; Reduce Motion). No physical iPhone.
 
 **Not changed.** DATA_KEYS 15, schema 1, trainer 0.1.1-shadow; Mastery, Progress,
 Program, Friends, storage.
+
+## §121 — D97: How ranks work — the tour's rank page
+
+(Numbered §121: D95's record, §119, still lives on its own unmerged branch; §120 is D96.)
+
+One tour page and one button. No rank rule, threshold, XP formula, storage key, schema
+or trainer code moved.
+
+**The page.** The tour's eighth and last step, `ranks` — "Climb the ranks" — straight
+after `progress`: all eight ranks in `RANKS` order as a 4 × 2 ladder, each drawn by
+the one renderer (`rankMedalSvg(name, 64, { sheen: true })`) with the level it begins
+at ("Level N", `RANKS[i].min`), on a faint, static pool of its own gem colour. The
+athlete's rank (`getCurrentProgression().rank`; Rookie if it cannot be read) wears the
+selected-tile treatment and a YOU tag, with `aria-current`; the list is an `<ol>` with
+a name and the emblems stay decorative. The copy is only what the engine does:
+"Workouts, personal records and weekly streaks earn XP, and XP raises your level. Keep
+training and you climb eight ranks, from Rookie to Legend." Caption: "Earned by
+training — not by how much you lift." No timescale: reading the real curve (120,800
+XP to Level 50) against the per-session caps showed an extreme athlete could reach
+Legend in about a year, so "Legend takes years" would not be true and the page makes
+no time claim at all. `{ sheen: true }` gives the showcase's box and light layer
+without its size class; every existing output of `rankMedalSvg` is byte-identical
+(Contracts 162 and 199).
+
+**How ranks work.** The Rank screen's top bar holds an info button — 44 px, accent,
+where the spacer was, across from the back control — that opens the same step on its
+own (`openRankExplainer`, `onboardingSolo`): over the Rank screen (D33 open order),
+labelled "How ranks work" where the dots were, one full-width Done, no Back, no Skip.
+It records nothing: Done, Skip and close leave `onboardingState` and storage
+byte-identical. `closeOnboarding` now releases `page-locked` only when no other overlay
+is open, so Done returns to the Rank screen still locked, with focus back on the
+button. Starting the tour always starts the tour, even if the explainer is up.
+`ONBOARDING_VERSION` stays 1 on purpose: an athlete who finished the tour is not sent
+through all eight pages again for one new one; the button and Settings → Getting
+Started both reach it. Escape does not close it — the sheet declares no Escape exit,
+exactly as the tour never has; Done is focusable and is the way out.
+
+**Motion.** The cells rise in once (0.36 s, opacity and transform, 45 ms apart by
+rank); then one pass of the Rank screen's own light (`RANK_ARRIVE.sheenMs`, 680 ms)
+climbs the ladder, Rookie first, 70 ms apart from 640 ms; all still by about 1.8 s,
+and still after. The light is script on the D96 `.rank-sheen` layer, tracked in
+`onboardingAnims` and cancelled by `clearOnboardingAnimations` on every step change,
+skip, finish, close and Done; it waits for `rankAssetsReady()`, and the tour warms the
+art when it starts. Reduce Motion: no rise, no light. No CSS animation on any `rank-*`
+selector — Contract 199's rule holds with the ladder's styles in.
+
+**Fit.** The widest name, COMPETITOR — ten monospace capitals, 66 px at the 11 px
+floor — touched its own tile's border at 320 and 360 in the first build (1.4 px after
+a first fix, which passed a check and still read as cramped). The budget was re-cut:
+every tile reaches 4 px past its column (an unselected tile draws nothing); 10 px card
+padding and a 2 px gap from 360; 8 px, no gap and −0.02em tracking below it. The name
+now clears the border by 3.8 px or more at every width. Short phones keep the page on
+one screen: at 640 px tall or less the spacing tightens (never the type); under 600 px
+the emblems are 36 px — the Home chip's size. The caption is one line at 320.
+
+**Home.** The Home chip's emblem is 36 px (was 30): the chip is 64 px tall before and
+after — the emblem spans the two text rows beside it — and 6 px wider.
+
+**Found while building it.** (1) The first 320 × 568 layout left 47 px of the page
+under the footer. (2) A first capture of the step was a stale compositor tile;
+captures now wait two real frames. (3) A contract regex read the FIRST
+`@media (max-width: 359px)` block, another component's; both readers are anchored to
+the ladder's own rule, and an absent declaration now reads as the CSS default, so the
+budget mutants die on real numbers (−0.15 px, 2.75 px), not on NaN. (4) Two existing
+tour steps overflow short phones (tools by 131 px and progress by 7 px at 320 × 568;
+tools by 40 px at 360 × 640 and 9 px at 375 × 667) — they scroll, as they did; not
+changed here.
+
+**Tests.** Contract 200 (71): position and version; every clause of the copy against
+the engine, including a property test that half, the same and triple the load earn
+identical XP, records and level; no timescale, no hype; eight cells in order through
+the one renderer; YOU for a new athlete, for each of the eight, for a real 14-week
+history and when progression is unreadable; the rise and the light (count, timing,
+once, tracked, cancelled, Reduce Motion, unloaded art, failures); the explainer (opens,
+label, Done only, records nothing, keeps the Rank screen's lock, a start while it is
+open, a replay after it); the Rank screen's button; the Home chip and the short-phone
+tier; the width budget, modelled from the stylesheet (it agrees with the browser to
+0.01 px); nothing else moved. Contract 99's "progress is the last thing it shows" is
+restated: progress is the last thing the tour teaches, and the ranks it builds toward
+close it. 28 of 29 mutants killed; the survivor drops `escapeHtml` from the rank names
+— equivalent, since `RANKS` names are constant capitals, and the escape stays by the
+house rule. Real Edge: every step at eight sizes plus 375 × 553 (Safari with its bars);
+the page, the Home chip, the Rank screen and the explainer at 320, 375, 390 and 430;
+14 motion checks on real frames; the six What's New claims proven against 9.9. No
+physical iPhone.
+
+**Not changed.** DATA_KEYS 15, schema 1, trainer 0.1.1-shadow; XP, thresholds and rank
+logic; storage; the other seven tour steps.

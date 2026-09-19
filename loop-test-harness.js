@@ -269,7 +269,10 @@ function loadApp(initialStore){
        outlive a draw */
     'MASTERY_BADGE_TIERS','MASTERY_ICONS','masteryMode','masteryPlay',
     /* D94B — how long a Mastery mode switch takes */
-    'MASTERY_SWITCH_MS'];
+    'MASTERY_SWITCH_MS',
+    /* D97 — the rank page opened on its own, the light it tracks, and the Rank
+       screen's arrival timing it shares */
+    'onboardingSolo','onboardingAnims','RANK_ARRIVE'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

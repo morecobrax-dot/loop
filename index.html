@@ -7948,6 +7948,87 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 @media (prefers-reduced-motion: reduce){
   .ob-rotator{ transition: none; }
 }
+
+/* ---------- D97: THE RANK LADDER — the tour's closing step ----------
+   All eight ranks in rank order, drawn by the one rank renderer, each with the
+   level it begins at. The card is the tour's own surface with the hero's accent
+   pool; each emblem sits on a faint pool of its own gem colour (static — no
+   filter, no blur). The athlete's rank wears the selected-tile treatment Today
+   and Mastery use, and a YOU tag in the Rank screen's own pill language.
+   Motion: the cells rise in once; one pass of light then climbs the ladder
+   (script, the Rank screen's band). Reduce Motion: everything is simply there. */
+.ob-ranks{ position: relative; overflow: hidden; padding: 16px 10px 14px; }
+.ob-ranks::after{ content: ''; position: absolute; inset: 0; pointer-events: none; background: var(--pool-accent); }
+.ob-ranks > *{ position: relative; z-index: 1; }
+.obr-grid{ list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 2px; }
+/* A tile reaches 4px past its column on each side (into the gap), so the widest
+   name has room inside the athlete's tile; an unselected tile draws nothing. */
+.obr-cell{
+  position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  margin: 0 -4px; padding: 8px 0; border: 1px solid transparent; border-radius: var(--radius-lg); text-align: center;
+  animation: obrIn 0.36s var(--ease) backwards; animation-delay: calc(80ms + var(--i, 0) * 45ms);
+}
+.obr-cell.is-you{ background: var(--accent-soft); border-color: rgba(76,194,255,0.55); }
+.obr-emb{ position: relative; display: block; width: clamp(50px, 15.5vw, 64px); margin-bottom: 2px; }
+.obr-emb::before{
+  content: ''; position: absolute; inset: 6%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, var(--obr-glow, transparent), transparent);
+}
+.obr-emb .rank-medal{ display: block; width: 100%; height: auto; }
+.obr-name{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.02em; line-height: 1.3; color: var(--text); white-space: nowrap;
+}
+.obr-lvl{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); line-height: 1.3; color: var(--text-faint); white-space: nowrap; }
+.obr-you{
+  position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+  padding: 0 7px; border-radius: 999px; background: #0B1422; border: 1px solid rgba(76,194,255,0.55);
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.12em; line-height: 16px; color: var(--accent);
+}
+.ob-ranks .ob-note{ text-align: center; margin-top: 14px; }
+@keyframes obrIn{ from{ opacity: 0; transform: translate3d(0, 8px, 0) scale(0.94); } to{ opacity: 1; transform: none; } }
+/* The widest name, COMPETITOR — ten monospace capitals, 66px at the type floor —
+   has to sit clear of its own tile's border wherever it is the athlete's rank.
+   From 360 up the budget above does it; a 320 phone closes the column gap and
+   tracks the names in slightly. Contract 200 measures it at every width. */
+@media (max-width: 359px){
+  .ob-ranks{ padding-left: 8px; padding-right: 8px; }
+  .obr-grid{ column-gap: 0; }
+  .obr-name{ letter-spacing: -0.02em; }
+}
+/* A short phone keeps the whole step on one screen: the emblems step down in
+   size, never in design. */
+@media (max-height: 640px){
+  .ob-ranks{ padding-top: 13px; padding-bottom: 12px; }
+  .obr-cell{ padding: 4px 0; }
+  .obr-grid{ row-gap: 10px; }
+  .ob-ranks .ob-note{ margin-top: 10px; }
+}
+/* Under 600px tall (a 320x568 phone, or a small phone with the browser's bars
+   showing) the emblems take the Home chip's size. */
+@media (max-height: 600px){
+  .obr-emb{ width: 36px; }
+  .obr-cell{ gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce){ .obr-cell{ animation: none; } }
+
+/* On its own (from the Rank screen) the page names itself where the tour shows
+   its dots — the Rank screen's own mono, accent, tracked label. */
+.ob-solo-label{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+}
+
+/* How ranks work — the Rank screen's top bar holds its own info button, the same
+   size and tint as the back control across from it. */
+.rank-about{
+  width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: 50%; color: var(--accent); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rank-about:active{ opacity: 0.6; }
+.rank-about:focus-visible{ outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
 </style>
 </head>
 <body>
@@ -8632,7 +8713,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   <div class="sheet sheet-page ob-sheet">
     <div class="ob-top">
       <div class="ob-dots" id="onboardingDots"></div>
-      <button class="ob-skip" onclick="skipOnboarding()">Skip</button>
+      <button class="ob-skip" id="onboardingSkip" onclick="skipOnboarding()">Skip</button>
     </div>
     <div class="ob-scroll" id="onboardingBody"></div>
     <div class="ob-actions">
@@ -8988,7 +9069,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="workout-topbar">
       <button class="workout-back" onclick="closeRankShowcase()" aria-label="Close ranks">‹</button>
       <div class="workout-topbar-title">Rank</div>
-      <span class="workout-topbar-spacer"></span>
+      <!-- D97 — how ranks work: the tour's rank page, on its own -->
+      <button type="button" class="rank-about" onclick="openRankExplainer()" aria-label="How ranks work" title="How ranks work"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 9.2v4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="6.3" r="1.05" fill="currentColor"/></svg></button>
     </div>
     <!-- D30.5: the page itself carries the rank's atmosphere. Painted behind
          everything, driven by the rank's own material. Phase C: two layers, so
@@ -16686,6 +16768,26 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-0',
+    version: 'LOOP 10.0',
+    title: 'How Ranks Work',
+    date: '2026-09-19',
+    swVersion: 'loop-v177',
+    summary: 'The tour now ends on all eight ranks — what earns them, and which one is yours — and the Rank screen shows the same page whenever you want it.',
+    newFeatures: [
+      'The tour’s last page shows every rank, Rookie to Legend, with the level each one starts at and yours marked',
+      'An info button on the Rank screen opens that page any time'
+    ],
+    improvements: [
+      'The rank emblem on Home is a little larger, so it reads at a glance',
+      'With Reduce Motion on, the rank page simply appears — no rise, no shine'
+    ],
+    bugFixes: [],
+    changes: [
+      'If you’ve already finished the tour you won’t be sent through it again — the new page is behind the Rank screen’s info button, or replay the tour from Settings → Getting Started'
+    ]
   }
 ];
 
@@ -27484,7 +27586,7 @@ function renderToday(){
     levelChip =
       `<button type="button" class="hdr-level" onclick="openRankShowcase()"
         aria-label="${escapeAttr(p.rank)}, level ${p.level}, ${pct}% to level ${p.level + 1}. Opens rank showcase.">
-        ${rankMedalSvg(p.rank, 30)}
+        ${rankMedalSvg(p.rank, 36)}
         <span class="hdr-level-n">${p.level}</span>
         <span class="hdr-level-r">${escapeHtml(p.rank)}</span>
         <span class="hdr-level-bar"><span style="width:${pct}%"></span></span>
@@ -29652,10 +29754,12 @@ function rankMedalSvg(rankName, size, opts){
   const file = RANK_EMBLEM_FILE[rankName] || RANK_EMBLEM_FILE.ROOKIE;
   const img = '<img class="rank-medal' + (o.showcase ? ' rank-medal-lg' : '') +
     '" src="' + file + '" width="' + size + '" height="' + size + '" alt="" decoding="async">';
-  if(!o.showcase) return img;
+  if(!o.showcase && !o.sheen) return img;
   /* D96 — the showcase emblem sits in a box that also holds the layer one pass
      of light crosses. The layer is masked to the emblem's own silhouette by the
-     same file, so the light only ever crosses the art. Idle, it is invisible. */
+     same file, so the light only ever crosses the art. Idle, it is invisible.
+     D97 — the tour's rank ladder asks for the same layer ({ sheen: true }),
+     without the showcase's size class. */
   return '<span class="rank-emblem-box">' + img +
     '<i class="rank-sheen" aria-hidden="true" style="-webkit-mask-image:url(' + file + ');mask-image:url(' + file + ')"><b></b></i></span>';
 }
@@ -35246,6 +35350,15 @@ const ONBOARDING_STEPS = [
         <div class="ob-muscles">${onboardingMuscleBars()}</div>
         <div class="ob-note">Built from the sessions you log. LOOP is observing, not deciding — every weight on the bar stays yours.</div>
       </div>`
+  },
+  {
+    /* D97 — the tour closes on where training leads: every rank, what earns it,
+       and where the athlete stands. Every word here is what the XP engine does:
+       workouts, records and weekly streaks earn XP, and load is never scored. */
+    id: 'ranks',
+    title: 'Climb the ranks',
+    body: 'Workouts, personal records and weekly streaks earn XP, and XP raises your level. Keep training and you climb eight ranks, from Rookie to Legend.',
+    visual: () => onboardingRankLadderHtml()
   }
 ];
 
@@ -35257,9 +35370,12 @@ const ONBOARDING_STEPS = [
    finish or close. Nothing can outlive the sheet, and a step cannot stack a
    second interval on top of its own. */
 let onboardingTimers = [];
+let onboardingAnims = [];      // D97 — the ladder's light; cancelled with the timers
 function clearOnboardingAnimations(){
   onboardingTimers.forEach(id => clearInterval(id));
   onboardingTimers = [];
+  onboardingAnims.forEach(a => { try{ a.cancel(); }catch(e){} });
+  onboardingAnims = [];
 }
 function onboardingReducedMotion(){
   try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
@@ -35284,6 +35400,53 @@ function onboardingMuscleBars(){
       <span class="ob-mus-name">${r.label}</span>
       <span class="ob-mus-bar"><span class="ob-mus-fill" style="width:${r.pct}%"></span></span>
     </div>`).join('');
+}
+
+/* D97 — THE RANK LADDER. All eight ranks in rank order, each drawn by the one
+   rank renderer with the level it begins at, and the athlete's own rank marked
+   YOU: a first-time athlete is a Rookie, and a replay marks wherever they
+   actually stand. Each emblem sits on a faint pool of its own gem colour.
+   Read-only — nothing here computes, scores or stores anything. */
+function onboardingRankNow(){
+  try{ return getCurrentProgression().rank; }catch(e){ return RANKS[0].name; }
+}
+function onboardingRankLadderHtml(){
+  const mine = onboardingRankNow();
+  const cells = RANKS.map((r, i) => {
+    const you = r.name === mine;
+    const v = RANK_VISUALS[r.name] || RANK_VISUALS.ROOKIE;
+    return '<li class="obr-cell' + (you ? ' is-you' : '') + '" style="--i:' + i + ';--obr-glow:' + hexA(v.gem[0], 0.3) + '"' +
+        (you ? ' aria-current="true"' : '') + '>' +
+      '<span class="obr-emb">' + rankMedalSvg(r.name, 64, { sheen: true }) + '</span>' +
+      '<span class="obr-name">' + escapeHtml(r.name) + '</span>' +
+      '<span class="obr-lvl">Level ' + r.min + '</span>' +
+      (you ? '<span class="obr-you">YOU</span>' : '') +
+    '</li>';
+  }).join('');
+  return '<div class="ob-mock ob-ranks">' +
+      '<ol class="obr-grid" aria-label="The eight ranks, from Rookie to Legend">' + cells + '</ol>' +
+      '<div class="ob-note">Earned by training — not by how much you lift.</div>' +
+    '</div>';
+}
+/* One pass of light up the ladder, rank by rank, after the cells have risen in:
+   the Rank screen's own band and timing (RANK_ARRIVE), so a rank catches the
+   light the same way here as it does there. Once, then still. Held back until
+   every emblem has loaded — the band is masked by the emblem's own file, and an
+   unloaded mask would draw a plain bar — and off under Reduce Motion. */
+function startRankLadderLight(){
+  if(onboardingReducedMotion()) return;
+  try{ if(!rankAssetsReady()) return; }catch(e){ return; }
+  const bands = document.querySelectorAll('#onboardingBody .obr-grid .rank-sheen b');
+  [].forEach.call(bands, (band, i) => {
+    if(typeof band.animate !== 'function') return;
+    try{
+      onboardingAnims.push(band.animate([
+        { transform: 'translate3d(-130%, 0, 0)', opacity: 0 },
+        { opacity: 1, offset: 0.22 },
+        { transform: 'translate3d(240%, 0, 0)', opacity: 0 }
+      ], { duration: RANK_ARRIVE.sheenMs, delay: 640 + i * 70, easing: 'ease-in-out', fill: 'backwards' }));
+    }catch(e){}
+  });
 }
 
 function onboardingWorkoutSamples(){
@@ -35353,12 +35516,19 @@ function startTimerDemo(){
 
 /* ---------- RUNNER ---------- */
 let onboardingIndex = 0;
+/* D97 — true while the rank page is open on its own, from the Rank screen: the
+   same page with no tour around it. Nothing is recorded in solo mode. */
+let onboardingSolo = false;
 /* Set when a first-run training setup has been held back so it will not stack
    on the tutorial. closeOnboarding() is the only thing that consumes it. */
 let pendingTrainingSetupPlan = null;
 
 function startOnboarding(){
+  onboardingSolo = false;
   onboardingIndex = 0;
+  /* D97 — the tour ends on the rank ladder; its art is fetched now so it is in
+     long before the last step. */
+  try{ rankWarmAssets(); }catch(e){}
   renderOnboardingStep();
   const ov = document.getElementById('onboardingOverlay');
   if(ov) ov.classList.add('open');
@@ -35366,6 +35536,7 @@ function startOnboarding(){
 }
 /* Skip exits immediately — no confirmation, no second chance prompt. */
 function skipOnboarding(){
+  if(onboardingSolo){ closeOnboarding(); return; }   // D97 — not the tour: nothing to record
   onboardingState.skipped = true;
   persistOnboarding();
   closeOnboarding();
@@ -35381,9 +35552,12 @@ function closeOnboarding(){
   // Single exit path, so no demonstration interval can outlive the sheet —
   // skip, finish and close all route through here.
   clearOnboardingAnimations();
+  onboardingSolo = false;
   const ov = document.getElementById('onboardingOverlay');
   if(ov) ov.classList.remove('open');
-  document.body.classList.remove('page-locked');
+  /* D97 — only released if nothing else holds the page: the rank explainer
+     opens on top of the Rank screen, which stays open beneath it. */
+  if(!document.querySelectorAll('.overlay.open').length) document.body.classList.remove('page-locked');
   /* The setup this athlete would have got had the tutorial not been running.
      Skip and finish both land here, so it is offered either way. */
   if(pendingTrainingSetupPlan){
@@ -35393,12 +35567,13 @@ function closeOnboarding(){
   }
 }
 function onboardingNext(){
+  if(onboardingSolo){ closeOnboarding(); return; }   // D97 — "Done"
   if(onboardingIndex >= ONBOARDING_STEPS.length - 1){ finishOnboarding(); return; }
   onboardingIndex++;
   renderOnboardingStep();
 }
 function onboardingBack(){
-  if(onboardingIndex === 0) return;
+  if(onboardingSolo || onboardingIndex === 0) return;
   onboardingIndex--;
   renderOnboardingStep();
 }
@@ -35422,15 +35597,23 @@ function renderOnboardingStep(){
     </div>`;
 
   const dotsEl = document.getElementById('onboardingDots');
-  if(dotsEl) dotsEl.innerHTML = dots;
+  /* D97 — on its own the page has no place in a tour to show; it says what it is. */
+  if(dotsEl) dotsEl.innerHTML = onboardingSolo ? '<span class="ob-solo-label">How ranks work</span>' : dots;
   const backBtn = document.getElementById('onboardingBack');
-  if(backBtn) backBtn.style.visibility = onboardingIndex === 0 ? 'hidden' : 'visible';
+  if(backBtn){
+    backBtn.style.visibility = (onboardingSolo || onboardingIndex === 0) ? 'hidden' : 'visible';
+    backBtn.style.display = onboardingSolo ? 'none' : '';   // D97 — Done takes the whole row
+  }
   const nextBtn = document.getElementById('onboardingNext');
-  if(nextBtn) nextBtn.textContent = isLast ? 'Start training' : 'Continue';
+  if(nextBtn) nextBtn.textContent = onboardingSolo ? 'Done' : (isLast ? 'Start training' : 'Continue');
+  /* D97 — the explainer has one way out, Done; Skip belongs to the tour. */
+  const skipBtn = document.getElementById('onboardingSkip');
+  if(skipBtn) skipBtn.style.visibility = onboardingSolo ? 'hidden' : 'visible';
 
-  // Ambient demonstrations for the two steps that have them.
+  // Ambient demonstrations for the steps that have them.
   if(step.id === 'today') startWorkoutCarousel();
   if(step.id === 'tools') startTimerDemo();
+  if(step.id === 'ranks') startRankLadderLight();
 }
 
 /* ---------- CONTEXTUAL HINTS ----------
@@ -35477,6 +35660,22 @@ function showHintIn(containerId, hintId){
 function replayOnboarding(){
   closeSettings();
   startOnboarding();
+}
+
+/* D97 — HOW RANKS WORK. The tour's rank page, opened on its own from the Rank
+   screen, over it (overlays stack in the order they open, D33), so Done returns
+   the athlete to the rank they were looking at. It is not the tour: nothing is
+   recorded, and the tour's state is left exactly as it was. */
+function openRankExplainer(){
+  const i = ONBOARDING_STEPS.findIndex(s => s.id === 'ranks');
+  if(i < 0) return;
+  onboardingSolo = true;
+  onboardingIndex = i;
+  try{ rankWarmAssets(); }catch(e){}
+  renderOnboardingStep();
+  const ov = document.getElementById('onboardingOverlay');
+  if(ov) ov.classList.add('open');
+  document.body.classList.add('page-locked');
 }
 
 /* =========================================================

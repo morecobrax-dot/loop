@@ -10540,7 +10540,10 @@ function testTutorialD16(app){
   T('Today comes before the workout', ids.indexOf('today') < ids.indexOf('start'));
   T('the workout comes before logging', ids.indexOf('start') < ids.indexOf('logging'));
   T('logging comes before how you feel', ids.indexOf('logging') < ids.indexOf('readiness'));
-  T('progress is the last thing it shows', ids[ids.length - 1] === 'progress');
+  /* D97 — progress is still the last thing the tour TEACHES; the page after it
+     is where progress leads (the rank ladder), and closes the tour. */
+  T('progress is the last thing it teaches, and the ranks it builds toward close the tour',
+    ids[ids.length - 2] === 'progress' && ids[ids.length - 1] === 'ranks', ids.join());
 
   sub('it stopped explaining how LOOP is built');
   /* These were the exact phrases that pulled a first-time athlete out of the
@@ -35679,6 +35682,238 @@ async function testRankEmblemsD96(){
   });
 }
 
+/* =========================================================
+   CONTRACT 200 — THE RANK TOUR  (D97)
+   ---------------------------------------------------------
+   The tour closes on where training leads: all eight ranks in rank order, each
+   drawn by the one rank renderer with the level it begins at, and the athlete's
+   own rank marked YOU. Every word on the page is something the XP engine does —
+   workouts, records and weekly streaks earn XP, XP raises the level, and load is
+   never scored — and nothing promises a timescale. The same page opens on its
+   own from the Rank screen ("How ranks work"), over it, and records nothing.
+
+   Motion is the Rank screen's own: the cells rise in once, one pass of light
+   climbs the ladder, then everything is still; Reduce Motion gets the ladder,
+   immediately. The Home chip draws its emblem at 36px — the size a short phone's
+   ladder uses — without growing.
+   ========================================================= */
+async function testRankTourD97(){
+  section('CONTRACT 200 — the rank tour: every rank, what earns it, where you stand, and how ranks work (D97)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const cssNC = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const cssBlock = sel => { const i = cssNC.indexOf(sel + '{'); return i === -1 ? '' : cssNC.slice(i, cssNC.indexOf('}', i) + 1); };
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx;
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const step = () => ctx.ONBOARDING_STEPS.find(s => s.id === 'ranks');
+  const el = id => ctx.document.getElementById(id);
+  /* the rank a rendering marks YOU, read from its markup */
+  const youOf = h => (h.match(/<li class="obr-cell is-you"[^>]*aria-current="true"[^>]*>[\s\S]*?<span class="obr-name">([A-Z]+)<\/span>[\s\S]*?<span class="obr-you">YOU<\/span><\/li>/) || [])[1];
+
+  /* ------------------------------------------------------------------ */
+  sub('the tour closes on the rank ladder');
+  await guard('position', () => {
+    const ids = ctx.ONBOARDING_STEPS.map(s => s.id);
+    T('eight steps — still inside Contract 61’s six to eight', ids.length === 8, String(ids.length));
+    T('the rank page is the last step, straight after progress', ids[7] === 'ranks' && ids[6] === 'progress', ids.join());
+    T('titled for what the athlete does: "Climb the ranks"', step().title === 'Climb the ranks');
+    T('one short paragraph (Contract 61 allows 260 characters; this is under 160)', step().body.length <= 160, String(step().body.length));
+    T('the tour’s version is unchanged, so an athlete who finished it is not sent through it again for one new page', ctx.ONBOARDING_VERSION === 1);
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('every word is what the XP engine does');
+  await guard('honesty', async () => {
+    const s = step(), words = s.title + ' ' + s.body + ' ' + s.visual().replace(/<[^>]*>/g, ' ');
+    T('"Workouts … earn XP" — a logged workout earns XP for finishing it and for its sets', /^Workouts/.test(s.body) && ctx.calculateWorkoutXP(1) > 0 && ctx.calculateSetXP(1) > 0);
+    T('"personal records … earn XP" — every kind of record is worth XP', /personal records/.test(s.body) && ['weight', 'reps_at_weight', '1rm', 'volume', 'reps'].every(k => ctx.calculatePRXP(k) > 0));
+    T('"weekly streaks earn XP" — each streak tier is worth XP', /weekly streaks earn XP/.test(s.body) && [3, 4, 8, 12].every(w => ctx.calculateStreakXP(w) > 0));
+    T('"XP raises your level" — more XP is never a lower level, and 2,300 XP is Level 5', /XP raises your level/.test(s.body) &&
+      ctx.calculateLevelFromXP(0).level === 1 && ctx.calculateLevelFromXP(2299).level === 4 && ctx.calculateLevelFromXP(2300).level === 5 &&
+      [0, 500, 2300, 9000, 40000, 120800].every((x, i, a) => i === 0 || ctx.calculateLevelFromXP(x).level >= ctx.calculateLevelFromXP(a[i - 1]).level));
+    T('"eight ranks, from Rookie to Legend" — RANKS says exactly that', /eight ranks, from Rookie to Legend/.test(s.body) &&
+      ctx.RANKS.length === 8 && ctx.RANKS[0].name === 'ROOKIE' && ctx.RANKS[7].name === 'LEGEND');
+    T('the caption says rank is earned by training, not load', /Earned by training — not by how much you lift\./.test(s.visual()));
+    /* ...and the engine agrees: the same training at a third, the same, or three
+       times the load earns exactly the same XP and the same records. */
+    const log = k => [0, 1, 2, 3, 4, 5].map(i => WK('d97-' + i, 42 - i * 7, 'push', [
+      EX('Bench Press', [S(k * (60 + i * 2.5), 8), S(k * (60 + i * 2.5), 7), S(k * 50, 10 + i)]),
+      EX('Push-Up', [S('', 12 + i), S('', 10 + i)], true)
+    ]));
+    const xp = async k => { const a = await H.loadAppBooted({ dataSchemaVersion: '1', workoutLog: JSON.stringify(log(k)) }); const p = a.ctx.getCurrentProgression(); const t = a.ctx.computeXPTimeline(); return { xp: p.lifetimeXP, prs: t.prCount, level: p.level }; };
+    const light = await xp(0.5), same = await xp(1), heavy = await xp(3);
+    T('"not by how much you lift" — half, the same or triple the load: identical XP, records and level', same.xp > 0 && same.prs > 0 &&
+      light.xp === same.xp && heavy.xp === same.xp && light.prs === same.prs && heavy.prs === same.prs && light.level === same.level && heavy.level === same.level, JSON.stringify([light, same, heavy]));
+    T('no timescale is promised — no days, months, years or "quickly"', !/\b(days?|months?|years?|hours?|minutes?|quick(ly)?|soon|fast(er)?)\b/i.test(words) && !/\d+\s*weeks?/i.test(words));
+    T('no hype: no exclamation, no emoji, no gaming superlatives', !/!/.test(words) && !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(words) && !/\b(epic|legendary|beast|crush|insane|ultimate|elite athletes?)\b/i.test(words));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('the ladder: all eight, in order, through the one renderer');
+  await guard('ladder', () => {
+    const html = step().visual();
+    const cells = html.match(/<li class="obr-cell[^"]*"[\s\S]*?<\/li>/g) || [];
+    T('eight cells, one per rank', cells.length === 8, String(cells.length));
+    T('in rank order, each with its own emblem file and its own name', ctx.RANKS.every((r, i) => cells[i].indexOf('src="rank-' + (i + 1) + '.png"') !== -1 && cells[i].indexOf('<span class="obr-name">' + r.name + '</span>') !== -1));
+    T('each shows the level it begins at — the engine’s own threshold', ctx.RANKS.every((r, i) => cells[i].indexOf('<span class="obr-lvl">Level ' + r.min + '</span>') !== -1));
+    T('each emblem is the one renderer’s, with the light layer masked by its own file', cells.every((c, i) => c.indexOf(ctx.rankMedalSvg(ctx.RANKS[i].name, 64, { sheen: true })) !== -1));
+    T('that layer is exactly the showcase’s, without the showcase’s size class', ctx.rankMedalSvg('ELITE', 64, { sheen: true }) === ctx.rankMedalSvg('ELITE', 64, { showcase: true }).replace(' rank-medal-lg', ''));
+    T('every other call is still the bare image — Contract 199’s outputs are untouched', ctx.rankMedalSvg('ELITE', 28) === '<img class="rank-medal" src="rank-5.png" width="28" height="28" alt="" decoding="async">');
+    T('a list a screen reader can count: an ordered list with a name', /^<div class="ob-mock ob-ranks"><ol class="obr-grid" aria-label="The eight ranks, from Rookie to Legend">/.test(html));
+    T('the emblems stay decorative — the name beside each is the text', cells.every(c => /alt=""/.test(c) && /class="rank-sheen" aria-hidden="true"/.test(c)));
+    T('each emblem sits on a pool of its own gem colour', ctx.RANKS.every((r, i) => cells[i].indexOf('--obr-glow:' + ctx.hexA(ctx.RANK_VISUALS[r.name].gem[0], 0.3)) !== -1));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('YOU: the athlete’s own rank, wherever they stand');
+  await guard('you', async () => {
+    T('a first-time athlete is a Rookie', youOf(step().visual()) === 'ROOKIE');
+    T('exactly one rank is marked, and it carries aria-current', (step().visual().match(/is-you/g) || []).length === 1 && (step().visual().match(/aria-current="true"/g) || []).length === 1 && (step().visual().match(/>YOU</g) || []).length === 1);
+    const real = ctx.getCurrentProgression;
+    try{
+      T('a replay marks wherever the athlete stands — each of the eight in turn', ctx.RANKS.every(r => { ctx.getCurrentProgression = () => ({ rank: r.name, level: r.min }); return youOf(step().visual()) === r.name; }));
+      ctx.getCurrentProgression = () => { throw new Error('unreadable'); };
+      T('if progression cannot be read, the page still draws, marking Rookie', youOf(step().visual()) === 'ROOKIE');
+    } finally { ctx.getCurrentProgression = real; }
+    /* and against a real history: whatever the engine says, the ladder says */
+    const hist = [];
+    for(let i = 0; i < 14; i++) hist.push(WK('d97h-' + i, 98 - i * 7, 'push', [EX('Bench Press', Array.from({ length: 20 }, () => S(80 + i, 8)))]));
+    const a2 = await H.loadAppBooted({ dataSchemaVersion: '1', workoutLog: JSON.stringify(hist) });
+    const p2 = a2.ctx.getCurrentProgression();
+    T('fourteen weeks of real training: the ladder marks the engine’s own rank (' + p2.rank + ', level ' + p2.level + ')',
+      p2.rank !== 'ROOKIE' && youOf(a2.ctx.ONBOARDING_STEPS.find(s => s.id === 'ranks').visual()) === p2.rank);
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('motion: the cells rise in once, one pass of light, then still');
+  await guard('motion', () => {
+    const cell = cssBlock('.obr-cell');
+    T('the cells rise in once: one 0.36 s animation, staggered by rank, never repeating', /animation: obrIn 0\.36s var\(--ease\) backwards;/.test(cell) && /animation-delay: calc\(80ms \+ var\(--i, 0\) \* 45ms\);/.test(cell) && !/infinite|iteration/.test(cell));
+    const kf = (cssNC.match(/@keyframes obrIn\{[^{]*\{[^}]*\}[^{]*\{[^}]*\}\s*\}/) || [''])[0];
+    T('the rise moves only opacity and transform', /opacity/.test(kf) && /transform/.test(kf) && !/(filter|width|height|top|left|margin|padding|box-shadow)\s*:/.test(kf), kf);
+    T('Reduce Motion removes the rise', /@media \(prefers-reduced-motion: reduce\)\{ \.obr-cell\{ animation: none; \} \}/.test(cssNC));
+    T('nothing rank-* runs by itself in CSS — Contract 199’s rule holds with the ladder’s styles in', !/@keyframes rank(Sheen|Settle|Arrive)/i.test(css) && !/rank-(sheen|emblem-box|medal)[^{]*\{[^}]*(animation|will-change|transition)/.test(css));
+
+    const mkBand = () => ({ made: [], animate(frames, timing){ const a = { frames, timing, cancelled: false, cancel(){ this.cancelled = true; } }; this.made.push(a); return a; } });
+    const bands = [0, 1, 2, 3, 4, 5, 6, 7].map(mkBand);
+    const realQSA = ctx.document.querySelectorAll, realRM = ctx.onboardingReducedMotion, realReady = ctx.rankAssetsReady;
+    ctx.document.querySelectorAll = sel => sel === '#onboardingBody .obr-grid .rank-sheen b' ? bands : realQSA(sel);
+    try{
+      ctx.onboardingReducedMotion = () => false; ctx.rankAssetsReady = () => true;
+      ctx.clearOnboardingAnimations();
+      ctx.startRankLadderLight();
+      const a = bands.map(b => b.made[0]);
+      T('one pass of light per emblem — eight — each tracked so it can be cancelled', a.every(Boolean) && bands.every(b => b.made.length === 1) && ctx.onboardingAnims.length === 8);
+      T('the Rank screen’s own band and timing (RANK_ARRIVE.sheenMs), the same sweep, played once', a.every(x => x.timing.duration === ctx.RANK_ARRIVE.sheenMs && !x.timing.iterations && x.timing.fill === 'backwards' &&
+        /-130%/.test(x.frames[0].transform) && /240%/.test(x.frames[x.frames.length - 1].transform) && x.frames[0].opacity === 0 && x.frames[x.frames.length - 1].opacity === 0));
+      T('it climbs: Rookie first, each rank 70 ms after the one below, once the cells have risen', a.every((x, i) => x.timing.delay === 640 + i * 70));
+      T('all of it over in under two seconds', a[7].timing.delay + a[7].timing.duration < 2000);
+      T('only transform and opacity move', a.every(x => x.frames.every(k => Object.keys(k).every(pn => ['transform', 'opacity', 'offset'].indexOf(pn) !== -1))));
+      ctx.clearOnboardingAnimations();
+      T('leaving the page (any step change, skip, finish or close) cancels every one', a.every(x => x.cancelled) && ctx.onboardingAnims.length === 0);
+      bands.forEach(b => { b.made.length = 0; });
+      ctx.onboardingReducedMotion = () => true; ctx.startRankLadderLight();
+      T('Reduce Motion: no light at all', bands.every(b => b.made.length === 0) && ctx.onboardingAnims.length === 0);
+      ctx.onboardingReducedMotion = () => false; ctx.rankAssetsReady = () => false; ctx.startRankLadderLight();
+      T('until every emblem has loaded, no light (an unloaded mask would draw a plain bar)', bands.every(b => b.made.length === 0));
+      ctx.rankAssetsReady = () => { throw new Error('unreadable'); };
+      T('a failure reading the art is no light, never an error', (() => { try{ ctx.startRankLadderLight(); return bands.every(b => b.made.length === 0); }catch(e){ return false; } })());
+    } finally { ctx.document.querySelectorAll = realQSA; ctx.onboardingReducedMotion = realRM; ctx.rankAssetsReady = realReady; ctx.clearOnboardingAnimations(); }
+    T('the light plays only on the rank page, and every step change clears the last one first', /if\(step\.id === 'ranks'\) startRankLadderLight\(\);/.test(fnSrc(src, 'renderOnboardingStep')) &&
+      /clearOnboardingAnimations\(\);/.test(fnSrc(src, 'renderOnboardingStep')) && /onboardingAnims\.forEach\(a => \{ try\{ a\.cancel\(\); \}catch\(e\)\{\} \}\);/.test(fnSrc(src, 'clearOnboardingAnimations')));
+    T('the art is fetched when the tour starts, long before its last page', /rankWarmAssets\(\)/.test(fnSrc(src, 'startOnboarding')));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('How ranks work: the same page, on its own, over the Rank screen, recording nothing');
+  await guard('explainer', () => {
+    ctx.closeOnboarding();
+    const stateBefore = JSON.stringify(ctx.onboardingState), storeBefore = JSON.stringify(app.store);
+    ctx.openRankExplainer();
+    T('it opens the rank page itself — the tour’s own last step, not a copy', ctx.onboardingSolo === true && ctx.ONBOARDING_STEPS[ctx.onboardingIndex].id === 'ranks' && /class="obr-grid"/.test(el('onboardingBody').innerHTML));
+    T('the sheet opens and holds the page', el('onboardingOverlay').classList.contains('open') && ctx.document.body.classList.contains('page-locked'));
+    T('it says what it is where the tour shows its dots', el('onboardingDots').innerHTML === '<span class="ob-solo-label">How ranks work</span>');
+    T('one way out, across the whole row — Done; no Back, no Skip', el('onboardingNext').textContent === 'Done' && el('onboardingBack').style.display === 'none' && el('onboardingSkip').style.visibility === 'hidden');
+    ctx.onboardingBack();
+    T('Back does nothing on its own', ctx.onboardingSolo === true && ctx.ONBOARDING_STEPS[ctx.onboardingIndex].id === 'ranks' && el('onboardingOverlay').classList.contains('open'));
+    /* the Rank screen is still open beneath it */
+    const realQSA = ctx.document.querySelectorAll;
+    ctx.document.querySelectorAll = sel => sel === '.overlay.open' ? [{ id: 'rankOverlay' }] : realQSA(sel);
+    try{ ctx.onboardingNext(); } finally { ctx.document.querySelectorAll = realQSA; }
+    T('Done closes it and only it: the Rank screen beneath still holds the page', !el('onboardingOverlay').classList.contains('open') && ctx.document.body.classList.contains('page-locked') && ctx.onboardingSolo === false);
+    T('nothing was recorded: the tour’s state and every stored key are byte-identical', JSON.stringify(ctx.onboardingState) === stateBefore && JSON.stringify(app.store) === storeBefore);
+    ctx.openRankExplainer(); ctx.skipOnboarding();
+    T('its close path, if Skip is ever reached, records nothing either', JSON.stringify(ctx.onboardingState) === stateBefore && JSON.stringify(app.store) === storeBefore && ctx.onboardingSolo === false);
+    T('with nothing open beneath, closing releases the page', !ctx.document.body.classList.contains('page-locked'));
+    ctx.openRankExplainer(); ctx.startOnboarding();
+    T('a tour started while the page is open on its own starts as the tour, not as the explainer', ctx.onboardingSolo === false && ctx.onboardingIndex === 0 &&
+      el('onboardingNext').textContent === 'Continue' && (el('onboardingDots').innerHTML.match(/class="ob-dot/g) || []).length === 8);
+    ctx.closeOnboarding();
+    /* then the tour, replayed from Settings */
+    ctx.openRankExplainer(); ctx.onboardingNext();
+    ctx.startOnboarding();
+    T('a replay afterwards is the tour again: eight dots, Continue, Skip, and Back hidden only on page one', ctx.onboardingSolo === false && ctx.onboardingIndex === 0 &&
+      (el('onboardingDots').innerHTML.match(/class="ob-dot/g) || []).length === 8 && el('onboardingNext').textContent === 'Continue' &&
+      el('onboardingSkip').style.visibility === 'visible' && el('onboardingBack').style.display === '' && el('onboardingBack').style.visibility === 'hidden');
+    for(let i = 0; i < 7; i++) ctx.onboardingNext();
+    T('… ending on the rank page, with Back and "Start training"', ctx.ONBOARDING_STEPS[ctx.onboardingIndex].id === 'ranks' && el('onboardingNext').textContent === 'Start training' && el('onboardingBack').style.visibility === 'visible');
+    ctx.onboardingNext();
+    T('and finishing there completes the tour, as it always has', ctx.onboardingState.completedVersion === ctx.ONBOARDING_VERSION && !el('onboardingOverlay').classList.contains('open'));
+    T('the Rank screen holds the way in: a real button, named, in the top bar across from the back control', (() => {
+      const at = src.indexOf('<div class="overlay overlay-page" id="rankOverlay">');
+      const bar = src.slice(at, src.indexOf('</div>', src.indexOf('workout-topbar-title', at) + 40) + 6 + 600);
+      return /<button class="workout-back" onclick="closeRankShowcase\(\)"[\s\S]*?workout-topbar-title[\s\S]*?<button type="button" class="rank-about" onclick="openRankExplainer\(\)" aria-label="How ranks work"/.test(bar) && !/workout-topbar-spacer/.test(bar.slice(0, bar.indexOf('rank-about')));
+    })());
+    T('the same 44 px target and accent as the back control, with a visible keyboard focus', /width: 44px; height: 44px;/.test(cssBlock('.rank-about')) && /color: var\(--accent\);/.test(cssBlock('.rank-about')) && /box-shadow: inset 0 0 0 2px var\(--accent\)/.test(cssBlock('.rank-about:focus-visible')));
+    T('the explainer’s label is the Rank screen’s own type: mono, accent, tracked, at the floor', /font-family: 'JetBrains Mono', monospace; font-size: var\(--fs-micro\);/.test(cssBlock('.ob-solo-label')) && /color: var\(--accent\);/.test(cssBlock('.ob-solo-label')) && /letter-spacing: 0\.14em;/.test(cssBlock('.ob-solo-label')));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('one size, one look: the Home chip, and a short phone’s ladder');
+  await guard('consistency', () => {
+    T('the Home chip draws its emblem at 36 px through the one renderer (it was 30)', /\$\{rankMedalSvg\(p\.rank, 36\)\}/.test(fnSrc(src, 'renderToday')) && !/rankMedalSvg\(p\.rank, 30\)/.test(src));
+    T('…without growing: the emblem spans the two text rows beside it, and the chip keeps its 44 px floor', /grid-row: 1 \/ span 2; align-self: center;/.test(cssBlock('.hdr-level .rank-medal')) && /min-height: 44px;/.test(cssBlock('.hdr-level')));
+    T('a phone under 600 px tall draws the ladder’s emblems at that same 36 px', /@media \(max-height: 600px\)\{\s*\.obr-emb\{ width: 36px; \}/.test(cssNC));
+    T('a phone under 640 px tall tightens the ladder’s spacing, never its type', (() => { const m = (cssNC.match(/@media \(max-height: 640px\)\{(\s*\.ob-ranks\{[\s\S]*?)\n\}/) || [])[1] || ''; return /\.obr-cell\{ padding: 4px 0; \}/.test(m) && /row-gap: 10px/.test(m) && !/font-size/.test(m); })());
+    T('every word on the ladder is at the type floor or above', ['.obr-name', '.obr-lvl', '.obr-you'].every(sel => /font-size: var\(--fs-micro\)/.test(cssBlock(sel))));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('it fits: the widest name clears its tile at every width');
+  await guard('fit', () => {
+    /* The browser sweep measured this; the model below reads the same numbers out
+       of the stylesheet, so an edit that breaks the budget fails here. JetBrains
+       Mono advances 0.6em a glyph; the tour's gutter is 20px a side; the card's
+       border 1px. At 320/360/375 it agrees with the browser to 0.01 px. */
+    /* an absent declaration is the CSS default; a present one must parse */
+    const num = (block, re, dflt) => { const m = block.match(re); return m ? parseFloat(m[1]) : dflt; };
+    const base = { pad: num(cssBlock('.ob-ranks'), /padding: 16px (\d+)px 14px/, NaN), gap: num(cssBlock('.obr-grid'), /gap: 14px (\d+)px/, NaN),
+      reach: num(cssBlock('.obr-cell'), /margin: 0 -(\d+)px/, 0), track: num(cssBlock('.obr-name'), /letter-spacing: (-?[\d.]+)(?:em)?;/, 0) };
+    const narrowCss = (cssNC.match(/@media \(max-width: 359px\)\{(\s*\.ob-ranks\{[\s\S]*?)\n\}/) || [])[1] || '';
+    const narrow = { pad: num(narrowCss, /\.ob-ranks\{ padding-left: (\d+)px/, base.pad), gap: num(narrowCss, /column-gap: (\d+)/, base.gap), track: num(narrowCss, /letter-spacing: (-?[\d.]+)(?:em)?;/, base.track) };
+    const gutter = /\.ob-scroll\{[^}]*padding: 0 var\(--space-5\)/.test(cssNC) ? 20 : NaN;
+    const clearance = W => { const n = W < 360 ? Object.assign({}, base, narrow) : base;
+      const tile = (W - 2 * gutter - 2 - 2 * n.pad - 3 * n.gap) / 4 + 2 * n.reach; const text = 10 * 11 * (0.6 + n.track); return (tile - text) / 2 - 1; };
+    const widths = [320, 360, 375, 390, 430];
+    T('COMPETITOR — ten monospace capitals — clears its own tile’s border by 3 px or more at 320, 360, 375, 390 and 430',
+      widths.every(W => clearance(W) >= 3), widths.map(W => W + ':' + clearance(W).toFixed(2)).join(' '));
+    T('the tiles never reach the card’s edge: at least 4 px of card inside every tile', widths.every(W => (W < 360 ? narrow.pad : base.pad) - base.reach >= 4));
+  });
+
+  /* ------------------------------------------------------------------ */
+  sub('nothing else moved');
+  await guard('safety', () => {
+    T('DATA_KEYS 15, schema 1, trainer 0.1.1-shadow', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('the ranks and their thresholds are as they were', ctx.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50');
+    T('the XP curve is as it was: 120,800 XP to reach Level 50', (() => { let s = 0; for(let l = 1; l < 50; l++) s += ctx.calculateRequiredXP(l); return s === 120800; })());
+    T('the session formulas are as they were: min(175, 50 + 5n) and min(60, 3n)', Array.from({ length: 41 }, (_, n) => n).every(n =>
+      ctx.calculateWorkoutXP(n) === (n <= 0 ? 0 : Math.min(175, 50 + 5 * n)) && ctx.calculateSetXP(n) === (n <= 0 ? 0 : Math.min(60, 3 * n))));
+    T('the rank page computes, scores and stores nothing: it only reads the progression', !/LOOPStore|persist|calculate[A-Z]|workoutLog/.test(fnSrc(src, 'onboardingRankLadderHtml') + fnSrc(src, 'onboardingRankNow') + fnSrc(src, 'startRankLadderLight') + fnSrc(src, 'openRankExplainer')));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -35838,6 +36073,7 @@ async function main(){
   await testMasteryView();
   await testMasteryOneSystem();
   await testRankEmblemsD96();
+  await testRankTourD97();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
