@@ -318,14 +318,35 @@ nobody will be looking at the importer.
 
 ---
 
-## E9 — Supabase policy notes · P2 · for owner-applied SQL
+## E9 — Supabase policy notes · P2 · **CLOSED in D95 (production migration 0005, applied 2026-09-20)**
 
-> **D95: fix prepared, NOT closed — OWNER ACTION REQUIRED.** All four notes
-> were re-verified against the migrations on a real PostgreSQL (and the live
-> project's anonymous surface re-probed), and are fixed by
-> `supabase/migrations/0005_e9_security_closure.sql`; no client change. E9 stays
-> open until 0005 is confirmed applied on the live project (see SOCIAL-SETUP.md,
-> "Applying 0005"). D95 also found the notes were slightly short: a friend could
+> **Closed: the database itself now says no.** The owner applied
+> `supabase/migrations/0005_e9_security_closure.sql` as committed on 2026-09-20,
+> and it was verified live the same day. From outside, with nothing but the
+> publishable key: `invite_code_misses` answers 401 `42501` where it answered
+> 404 `PGRST205` before, so the migration is live and PostgREST has re-read the
+> schema; all nine tables and all twenty functions the client calls still answer
+> an anonymous caller `42501`. From inside, the four catalog queries returned
+> the marker `csprng-v1`, `profiles_select` as `(user_id = auth.uid())`, exactly
+> five tables holding anything for `authenticated` (profiles SELECT;
+> social_stats and social_weekly INSERT,SELECT,UPDATE; friend_requests and
+> friendships DELETE,SELECT — no TRUNCATE, REFERENCES or TRIGGER anywhere), and
+> `loop_request_between`, `loop_touch_updated_at` and `loop_profiles_guard` all
+> non-executable. Those four answers were checked against the committed
+> migration statement by statement, and reproduced exactly on a real PostgreSQL
+> carrying the same chain; the pre-0005 chain produces different answers (the
+> wide policy, and TRUNCATE still held), so they are distinctive of 0005.
+> Behaviour behind the door — every attack run as the athlete who would make it
+> — is proven by `supabase/tests/e9-security.js` (168 checks: invite-code
+> capability 17, privileges 41, codes 22, oracles 16, definer safety 10, invite
+> links 15, friendships 11, weekly 10, shared workouts 14, anonymous 10) and by
+> LOOP 10.0's own client driven against the same chain (528 checks). No client
+> release was needed. **Known limitation:** 0005's new `rate_limited` status is
+> unknown to the 10.0 client, which shows its generic "That did not send." A
+> signed-in probe was not run against the live project, because that would mean
+> creating a production account; the authenticated boundary is evidenced by
+> production's own catalog state plus the real-PostgreSQL replica above.
+> D95 also found the notes were slightly short: a friend could
 > read `invite_code` because `profiles_select` allowed it, `authenticated` also
 > held `TRUNCATE` (which bypasses row level security) on four tables, an athlete
 > could insert a profile with a chosen `invite_code` (a code-existence oracle),

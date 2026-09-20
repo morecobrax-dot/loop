@@ -12641,11 +12641,12 @@ by "the sheet is gone" and "the list is complete in the page".
 **Deliberately left.** Swipe stays as a trigger, not a drag-follow. The D86.1 place
 medals remain unused on disk (§117).
 
-## §119 — D95: Supabase security closure (D88 E9) — prepared, NOT closed until 0005 is live
+## §119 — D95: Supabase security closure (D88 E9) — applied to production 2026-09-20, CLOSED
 
 A focused security phase: no Friends redesign, no feature, no client change.
-Migration `supabase/migrations/0005_e9_security_closure.sql` is **owner-applied**;
-E9 is not closed until it is confirmed live (SOCIAL-SETUP.md, "Applying 0005").
+Migration `supabase/migrations/0005_e9_security_closure.sql` was applied to the
+live project by the owner on 2026-09-20, as committed, and verified the same day
+(see "Closed", at the end of this section). E9 is closed.
 
 **Measured first, not assumed.** The live project answers an anonymous caller
 holding only the publishable key with `42501` on every table and every function
@@ -12763,8 +12764,30 @@ them, and all 21 are killed on a CRLF checkout.
 **Protected.** DATA_KEYS 15, local schema 1, trainer 0.1.1-shadow; no client
 change, so no PWA version was bumped. D80A session behaviour untouched.
 
-**Owed.** Apply 0005, then verify live (SOCIAL-SETUP.md). Two-account physical
-QA of Friends remains the owner's, as since D80A.
+**Closed — 2026-09-20.** The owner applied 0005 unedited and pasted back the four
+catalog queries from SOCIAL-SETUP.md. Each answer was checked against the
+migration statement by statement and then reproduced on a real PostgreSQL running
+the same chain, which is what makes them evidence rather than a report: marker
+`csprng-v1`; `profiles_select` = `(user_id = auth.uid())`; exactly five tables
+hold anything for `authenticated` (profiles SELECT — its INSERT/UPDATE are column
+grants and do not appear here; social_stats and social_weekly
+INSERT,SELECT,UPDATE; friend_requests and friendships DELETE,SELECT), with no
+TRUNCATE, REFERENCES or TRIGGER left anywhere; and `loop_request_between`,
+`loop_touch_updated_at` and `loop_profiles_guard` all false. The same chain
+without 0005 answers differently (the wide `profiles_select`, TRUNCATE still
+held), so these answers belong to 0005 and to nothing earlier. From outside, with
+the publishable key alone, `invite_code_misses` turned 404 `PGRST205` into 401
+`42501` — the migration is live and the schema cache has re-read it — while all
+nine tables and the twenty functions the client calls still answer an anonymous
+caller `42501`. The shipped client needed no change: LOOP 10.0 drives the whole
+Friends and shared-workout surface against this chain in 528 checks. A signed-in
+probe against the live project was deliberately not run: it would have meant
+creating a production account, and the authenticated boundary is already
+evidenced by production's own catalog state and by the replica.
+
+**Owed.** Nothing for E9. Two-account physical QA of Friends remains the owner's,
+as since D80A, and the client still maps 0005's new `rate_limited` status to its
+generic "That did not send." — a copy nicety, not a security gap.
 
 ## §120 — D96: The eight final rank emblems
 
