@@ -17137,6 +17137,23 @@ const LOOP_UPDATES = [
     changes: [
       'Nothing already saved was rewritten \u2014 your history is exactly as you logged it, and only the numbers derived from it were corrected'
     ]
+  },
+  {
+    id: 'v10-6',
+    version: 'LOOP 10.6',
+    title: 'One Lift, Counted Once',
+    date: '2026-09-20',
+    swVersion: 'loop-v183',
+    summary: 'A lift you logged as "Bench Press" one day and "bench press" another is now one lift everywhere it is listed, so its records are counted once.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'A lift logged under spellings that differ only in capital letters or stray spaces was listed once per spelling, which counted its records two or three times on Progress and in Mastery, and showed it more than once in Personal Best Timeline and the exercise pickers. It is now one lift, and its records are counted once',
+      'Mastery points for such a lift no longer include the repeated records, so they may read lower than before \u2014 they now match the records you actually set'
+    ],
+    changes: [
+      'Only spellings that differ by capitals or surrounding spaces are treated as the same lift. "Bench Press" and "Barbell Bench Press" remain two, and nothing you logged was renamed or merged'
+    ]
   }
 ];
 
@@ -29640,10 +29657,76 @@ function saveWorkoutEdits(btn){
 }
 
 /* ---------- EXERCISE HISTORY ---------- */
+/* =========================================================
+   ONE ENTRY PER LOGGED EXERCISE  (Phase D96B, closes D88 finding E13)
+   ---------------------------------------------------------
+   Every engine that reads a lift groups its history by the SAME key:
+   name.trim().toLowerCase(). computeExercisePREvents, exerciseSessionHistory,
+   getExerciseFullHistory, compute1RMTrend, computeExerciseCapability and
+   prModeOf all do. This list did not: it was a Set of RAW spellings, so
+   "Bench Press", "bench press" and " Bench Press " were three entries, and
+   every caller then invoked an engine that already knew they were ONE history
+   three times. Measured on 10.5 with three real records: computeAllPREvents
+   returned 9, Personal Best Timeline offered the lift three times, Mastery
+   counted 9 records, and the history and PR dropdowns listed it three times -
+   while Profile (the XP timeline, which groups by key) said 3.
+
+   THE KEY IS NOT NEW, AND IT IS DELIBERATELY NOT normalizeExerciseName. That
+   helper also strips punctuation and collapses whitespace, which would merge
+   "Row (machine)" with "Row machine". The boundary is exactly what the
+   engines already use and nothing looser: no aliases, no registry ids, no
+   fuzzy matching, no synonym table. "Bench Press" and "Barbell Bench Press"
+   stay two exercises (Contract 172, section 95: records are read by the
+   name logged).
+
+   This is a READ-TIME enumeration. Nothing stored is renamed, merged or
+   migrated. The pinned callers (computeAllPREvents, computePBTCandidates) are
+   byte-for-byte as they were; their INPUT is now distinct. ========================================================= */
+function loggedExerciseKey(name){
+  /* Anything that is not a string keeps its own identity, exactly as the
+     engines treat it (they would throw on it), so this can never make a
+     malformed name look like a valid one. */
+  return typeof name === 'string' ? name.trim().toLowerCase() : name;
+}
+
+/* Which of one exercise's logged spellings is shown. It has to be a spelling the
+   athlete actually logged, deterministic, and independent of the order history
+   happens to be stored in - so it is decided by three facts about the spellings
+   themselves, in this order:
+     1. one with no stray leading or trailing space,
+     2. then the one used on the most rows (the athlete's own habit, which is
+        also the one least likely to change as more is logged),
+     3. then plain code-point order, a total order that no locale can tie.
+   A lift logged under ONE spelling shows that spelling untouched, so an
+   ordinary history reads exactly as it did. Nothing is title-cased or tidied. */
+function chooseLoggedSpelling(spellings){
+  let best = null;
+  spellings.forEach((rows, name) => {
+    const clean = typeof name === 'string' && name === name.trim();
+    if(best === null) { best = { name, rows, clean }; return; }
+    if(clean !== best.clean ? clean : (rows !== best.rows ? rows > best.rows : name < best.name)) best = { name, rows, clean };
+  });
+  return best.name;
+}
+
 function getAllLoggedExerciseNames(){
-  const set = new Set();
-  workoutLog.forEach(l => l.exercises.forEach(ex => set.add(ex.name)));
-  return Array.from(set).sort((a,b) => a.localeCompare(b));
+  /* One pass over the log, costing what the old Set did: a count per RAW
+     spelling. The key is then taken once per DISTINCT spelling (a few dozen)
+     rather than once per row (thousands), and the log is never rescanned. */
+  const rawRows = new Map();
+  workoutLog.forEach(l => l.exercises.forEach(ex => rawRows.set(ex.name, (rawRows.get(ex.name) || 0) + 1)));
+  const groups = new Map();
+  rawRows.forEach((rows, name) => {
+    const key = loggedExerciseKey(name);
+    let spellings = groups.get(key);
+    if(!spellings){ spellings = new Map(); groups.set(key, spellings); }
+    spellings.set(name, rows);
+  });
+  const out = [];
+  groups.forEach(spellings => out.push(chooseLoggedSpelling(spellings)));
+  /* Alphabetical by the shown spelling, as it always was, so an ordinary
+     history is listed in exactly the order it was. */
+  return out.sort((a,b) => a.localeCompare(b));
 }
 function getExerciseFullHistory(exerciseName){
   const key = exerciseName.trim().toLowerCase();

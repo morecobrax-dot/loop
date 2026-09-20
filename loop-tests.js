@@ -38049,6 +38049,278 @@ async function testFiniteLoadsD96A(){
   });
 }
 
+/* =========================================================
+   CONTRACT 206 — ONE ENTRY PER LOGGED EXERCISE  (D96B, closes E13)
+   ---------------------------------------------------------
+   Every engine that reads a lift groups its history by
+   name.trim().toLowerCase(). getAllLoggedExerciseNames did not: it
+   listed RAW spellings, so "Bench Press", "bench press" and
+   " Bench Press " were three entries and every caller invoked an
+   engine that already knew they were one history three times.
+   Measured on 10.5 with three real records: computeAllPREvents 9,
+   the Personal Best Timeline offering the lift three times,
+   Mastery counting 9 records, both dropdowns listing it three
+   times — while Profile said 3.
+
+   What is held here:
+     · the key is exactly the engines' key, and NOT the looser
+       normalizeExerciseName (which strips punctuation)
+     · aliases, punctuation variants and inner-space variants stay
+       separate exercises; custom names are never merged by meaning
+     · one entry per key, showing a spelling the athlete really
+       logged, chosen deterministically and independent of order
+     · an ordinary history is enumerated exactly as it was
+     · nothing stored is renamed, merged or migrated
+     · XP, level and rank do not move; the pinned engines are
+       byte-identical; E11/E12/E15(a)/E16 are untouched
+   ========================================================= */
+async function testExerciseIdentityD96B(){
+  section('CONTRACT 206 — one entry per logged exercise (D96B, closes E13)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const EX = (n, sets, bw) => ({ name: n, effort: '', bodyweight: !!bw, sets });
+  const WK = (id, daysAgo, exs) => ({ id, date: D(daysAgo), category: 'push', title: 'Push', notes: '', exercises: exs });
+  const boot = async log => (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+    workoutLog: JSON.stringify(log) })).ctx;
+  /* The brief's own history: one lift, three spellings, real progression. */
+  const three = () => [ WK('a', 21, [EX('Bench Press', [S(135, 8)])]),
+                        WK('b', 14, [EX('bench press', [S(145, 8)])]),
+                        WK('c', 7,  [EX(' Bench Press ', [S(155, 6)])]) ];
+  const one = () => three().map(w => { const x = JSON.parse(JSON.stringify(w)); x.exercises[0].name = 'Bench Press'; return x; });
+
+  /* ---------------------------------------------------------- the key */
+  sub('the key is the engines’ key, and nothing looser');
+  await guard('key', async () => {
+    const c = (await H.loadAppBooted({ dataSchemaVersion: '1' })).ctx;
+    const K = c.loggedExerciseKey;
+    T('case and surrounding space are one identity',
+      ['Bench Press', 'bench press', ' BENCH PRESS ', 'Bench Press   ', '\tBench Press\n'].every(n => K(n) === 'bench press'));
+    T('and it is exactly the expression every engine uses',
+      ['Bench Press', ' Row (machine) ', 'MY PRESS', '', 'a  b'].every(n => K(n) === n.trim().toLowerCase()));
+    T('inner whitespace is NOT collapsed', K('Bench  Press') !== K('Bench Press'));
+    T('punctuation is NOT stripped: "Row (machine)", "Row machine" and "Row - machine" are three exercises',
+      new Set([K('Row (machine)'), K('Row machine'), K('Row - machine')]).size === 3);
+    T('it is deliberately not normalizeExerciseName, which would have merged them',
+      c.normalizeExerciseName('Row (machine)') === c.normalizeExerciseName('Row machine') && K('Row (machine)') !== K('Row machine'));
+    T('registry aliases are NOT merged: the contracted pairs stay apart',
+      [['Close-Grip Push-up', 'Diamond Push-Up'], ['Bench Dips', 'Chair Triceps Dips'], ['Band Lateral Walk', 'Lateral Band Walk'],
+       ['Bench Press', 'Barbell Bench Press']].every(([a, b]) => K(a) !== K(b)));
+    T('anything that is not a string keeps its own identity, as the engines would treat it',
+      K(undefined) === undefined && K(null) === null && K(5) === 5);
+    const kf = fnSrc(src, 'loggedExerciseKey');
+    T('the helper reads no registry, no alias table and no fuzzy rule',
+      !/resolveExerciseId|getCanonicalExercise|normalizeExerciseName|replace\(|match\(|levenshtein|synonym/i.test(kf) &&
+      /name\.trim\(\)\.toLowerCase\(\)/.test(kf));
+    /* The engines' own inline key, asserted in their comment-stripped source, so
+       the helper cannot drift away from what they group by. */
+    T('every engine still groups by that same inline expression',
+      ['computeExercisePREvents', 'getExerciseFullHistory', 'exerciseSessionHistory', 'compute1RMTrend', 'computeExerciseCapability']
+        .every(f => /trim\(\)\.toLowerCase\(\)/.test(fnSrc(src, f))));
+  });
+
+  /* ------------------------------------------------------ enumeration */
+  sub('one entry per key, showing a spelling the athlete logged');
+  await guard('enumeration', async () => {
+    const list = async (names) => (await boot(names.map((n, i) => WK('e' + i, 30 - i, [EX(n, [S(100, 5)])])))).getAllLoggedExerciseNames();
+    T('A/B/C  each spelling alone is listed as itself',
+      (await list(['Bench Press'])).join() === 'Bench Press' && (await list(['bench press'])).join() === 'bench press' &&
+      (await list([' BENCH PRESS '])).join() === ' BENCH PRESS ');
+    const d = await list(['Bench Press', 'bench press', ' BENCH PRESS ']);
+    T('D  all three together are ONE entry', d.length === 1, JSON.stringify(d));
+    T('E/F  trailing and leading whitespace variants are one entry',
+      (await list(['Bench Press', 'Bench Press   ', '   Bench Press'])).length === 1);
+    T('the entry shown is a spelling that really was logged',
+      ['Bench Press', 'bench press', ' BENCH PRESS '].indexOf(d[0]) !== -1);
+    T('G  a mixed-case custom exercise is one entry',
+      (await list(['My Press', 'my press', ' My Press '])).length === 1);
+    T('H  two genuinely different custom names stay two',
+      (await list(['My Press', 'My Press 2'])).length === 2);
+    T('I  "Bench Press" and "Barbell Bench Press" stay two',
+      (await list(['Bench Press', 'Barbell Bench Press'])).length === 2);
+    T('J  every contracted alias pair stays two',
+      (await list(['Close-Grip Push-up', 'Diamond Push-Up'])).length === 2 &&
+      (await list(['Bench Dips', 'Chair Triceps Dips'])).length === 2 &&
+      (await list(['Band Lateral Walk', 'Lateral Band Walk'])).length === 2);
+    T('punctuation and inner-space variants stay separate',
+      (await list(['Row (machine)', 'Row machine', 'Row - machine', 'Row  machine'])).length === 4);
+    T('a case variant of an alias pair is still only the pair',
+      (await list(['Bench Press', 'BENCH PRESS', 'Barbell Bench Press', 'barbell bench press'])).length === 2);
+    T('K  the same lift over many workouts is one entry',
+      (await boot(Array.from({ length: 30 }, (_, i) => WK('k' + i, 60 - i, [EX(i % 2 ? 'Bench Press' : 'bench press', [S(100 + i, 5)])])))).getAllLoggedExerciseNames().length === 1);
+
+    /* THE SHOWN SPELLING: deterministic, from real data, and independent of order. */
+    const spell = async (rows) => (await boot(rows.map((n, i) => WK('s' + i, 40 - i, [EX(n, [S(100, 5)])])))).getAllLoggedExerciseNames()[0];
+    T('a spelling with no stray space beats one with',
+      (await spell([' Bench Press ', ' Bench Press ', ' Bench Press ', 'Bench Press'])) === 'Bench Press');
+    T('then the one used on the most rows wins, whatever its case',
+      (await spell(['bench press', 'bench press', 'bench press', 'Bench Press'])) === 'bench press' &&
+      (await spell(['Bench Press', 'Bench Press', 'bench press'])) === 'Bench Press');
+    T('a tie is broken by code-point order, a total order no locale can tie',
+      (await spell(['bench press', 'Bench Press'])) === 'Bench Press' && (await spell(['Bench Press', 'bench press'])) === 'Bench Press');
+    const A = ['Bench Press', 'bench press', 'BENCH PRESS', 'Bench Press', ' bench press'];
+    T('the spelling shown never depends on the order history is stored or logged in',
+      (await spell(A)) === (await spell(A.slice().reverse())) &&
+      (await spell(A)) === (await spell(['bench press', 'Bench Press', ' bench press', 'BENCH PRESS', 'Bench Press'])));
+    T('the same history always shows the same spelling', (await spell(A)) === (await spell(A)));
+
+    /* ORDER: an ordinary history reads exactly as it did. */
+    const V = ['Overhead Press', 'Bench Press', 'Leg Press', 'Barbell Squat', 'Pull-Up', 'Cable Row'];
+    const ordinary = await list(V);
+    T('V  unrelated exercises keep the alphabetical order they always had',
+      JSON.stringify(ordinary) === JSON.stringify(V.slice().sort((a, b) => a.localeCompare(b))));
+    T('an ordinary history is the raw distinct list, unchanged', ordinary.length === V.length && new Set(ordinary).size === V.length);
+    T('a lone untrimmed spelling is listed untouched, not tidied',
+      (await list([' Cable Row ', 'Bench Press'])).indexOf(' Cable Row ') !== -1);
+    T('nothing is title-cased', (await list(['my custom lift'])).join() === 'my custom lift');
+  });
+
+  /* --------------------------------------------- what the surfaces read */
+  sub('every surface reads one lift once');
+  await guard('downstream', async () => {
+    const c3 = await boot(three()), c1 = await boot(one());
+    const sansName = e => JSON.stringify(Object.assign({}, e, { exerciseName: '' }));
+    T('N  the per-exercise engine was always right: three real records',
+      c3.computeExercisePREvents('Bench Press').length === 3 && c3.computeExercisePREvents('bench press').length === 3);
+    T('computeAllPREvents returns the true stream ONCE: 3, not 9',
+      c3.computeAllPREvents().length === 3, String(c3.computeAllPREvents().length));
+    T('and it is the very same events a single-spelling history produces',
+      c3.computeAllPREvents().map(sansName).join('|') === c1.computeAllPREvents().map(sansName).join('|'));
+    T('the Progress Records card counts the true number: 3, not 9',
+      /3 records in the last 30 days/.test(c3.progPRCardHtml()) && /3 records in the last 30 days/.test(c1.progPRCardHtml()),
+      c3.progPRCardHtml().replace(/\s+/g, ' ').slice(0, 220));
+    T('R/S  the Personal Best Timeline offers the lift ONCE: one candidate, one page',
+      c3.computePBTCandidates().length === 1 && c3.pbtDisplaySetFor(c3.rankPBTCandidates(c3.computePBTCandidates()), c3.pickDefaultPBTExercise()).length === 1);
+    T('T  the picker and the carousel hold one logical lift',
+      (() => { const ranked = c3.rankPBTCandidates(c3.computePBTCandidates());
+        const set = c3.pbtDisplaySetFor(ranked, ranked[0].exerciseName);
+        return new Set(set.map(n => c3.loggedExerciseKey(n))).size === set.length && ranked.length === 1; })());
+    T('the PBT ranking itself is unchanged: it ranks one candidate per lift, by the same keys',
+      /milestones\.length/.test(fnSrc(src, 'rankPBTCandidates')) && fnSrc(src, 'rankPBTCandidates').length > 100);
+    const mid = 'bench_press_barbell';
+    T('U  Mastery counts the records once', c3.masteryPRCounts()[mid] === 3 && c1.masteryPRCounts()[mid] === 3, JSON.stringify(c3.masteryPRCounts()));
+    T('and gives the points a single-spelling history gives',
+      c3.getExerciseMastery(mid).points === c1.getExerciseMastery(mid).points &&
+      c3.getExerciseMastery(mid).level === c1.getExerciseMastery(mid).level,
+      c3.getExerciseMastery(mid).points + ' vs ' + c1.getExerciseMastery(mid).points);
+    T('Profile and Progress agree for this case: the XP timeline says 3 and so does the event stream',
+      c3.getCurrentProgression().prCount === 3 && c3.computeAllPREvents().length === 3);
+    T('XP, level and rank are exactly what a single-spelling history earns',
+      c3.getCurrentProgression().lifetimeXP === c1.getCurrentProgression().lifetimeXP &&
+      c3.getCurrentProgression().level === c1.getCurrentProgression().level &&
+      c3.getCurrentProgression().rank === c1.getCurrentProgression().rank);
+    T('the dropdowns list one lift, not three', (() => {
+      c3.renderExerciseHistorySelect();
+      const h = c3.document.getElementById('exHistorySelect').innerHTML;
+      c3.renderPRHistory();
+      const p = c3.document.getElementById('prHistoryFilter').innerHTML;
+      return (h.match(/<option value="[^"]+">/g) || []).filter(o => !/value=""/.test(o)).length === 1 &&
+        (p.match(/<option value="/g) || []).length === 2; })());
+    T('a lift with no PR history is still enumerated once, and simply has no records',
+      (await boot([WK('n1', 5, [EX('Face Pull', [S(30, 12)])]), WK('n2', 3, [EX('face pull', [S(30, 12)])])])).getAllLoggedExerciseNames().length === 1);
+    T('the exercise-history picker for a lift with variants still finds the WHOLE history',
+      c3.getExerciseFullHistory(c3.getAllLoggedExerciseNames()[0]).length === 3);
+    T('drawing the lists writes nothing and alters no record', (() => {
+      const before = JSON.stringify(c3.workoutLog);
+      c3.getAllLoggedExerciseNames(); c3.computeAllPREvents(); c3.computePBTCandidates();
+      return JSON.stringify(c3.workoutLog) === before && JSON.stringify(c3.workoutLog) === JSON.stringify(three()); })());
+  });
+
+  /* ------------------------------------------- bodyweight, loaded, unknown */
+  sub('every mode, with spelling variants');
+  await guard('modes', async () => {
+    const BW = (n, i) => WK('bw' + i, 30 - i * 3, [EX(n, [{ weight: 'BW', reps: String(6 + i), rir: '2', type: 'working', completed: true }], true)]);
+    const cb = await boot([BW('Pull-Up', 0), BW('pull-up', 1), BW(' PULL-UP ', 2), BW('Pull-Up', 3)]);
+    const cb1 = await boot([BW('Pull-Up', 0), BW('Pull-Up', 1), BW('Pull-Up', 2), BW('Pull-Up', 3)]);
+    T('M  a bodyweight lift with variants is one entry with the same records',
+      cb.getAllLoggedExerciseNames().length === 1 && cb.computeAllPREvents().length === cb1.computeAllPREvents().length &&
+      cb.computeAllPREvents().length > 0 && cb.prModeOf('pull-up') === cb.PR_MODE.BODYWEIGHT);
+    const cl = await boot(three());
+    T('N  a loaded lift with variants is one entry in LOADED mode', cl.prModeOf('Bench Press') === cl.PR_MODE.LOADED);
+    const NOLOAD = (n, i) => WK('u' + i, 20 - i, [EX(n, [{ weight: '', reps: '20', rir: '2', type: 'working', completed: true }])]);
+    /* A loaded machine lift with no load ever written: D91 calls that UNKNOWN. (A crunch would
+       be a registry bodyweight movement, and correctly classed as one.) */
+    const cu = await boot([NOLOAD('Seated Cable Row', 0), NOLOAD('seated cable row', 1)]);
+    T('O  an UNKNOWN-mode history is one entry and still invents no record',
+      cu.getAllLoggedExerciseNames().length === 1 && cu.computeAllPREvents().length === 0 && cu.prModeOf('Seated Cable Row') === cu.PR_MODE.UNKNOWN);
+  });
+
+  /* --------------------------------------------- E15(a): untouched */
+  sub('E15(a) is untouched: one workout that holds the lift twice');
+  await guard('e15a', async () => {
+    const twice = [WK('t1', 14, [EX('Bench Press', [S(135, 8)])]),
+      WK('t2', 7, [EX('Bench Press', [S(145, 8)]), EX('bench press', [S(315, 5)])])];
+    const first = [WK('t1', 14, [EX('Bench Press', [S(135, 8)])]), WK('t2', 7, [EX('Bench Press', [S(145, 8)])])];
+    const ct = await boot(twice), cf = await boot(first);
+    const sansName = e => JSON.stringify(Object.assign({}, e, { exerciseName: '' }));
+    T('L  the second row in one workout still does not count toward a record, exactly as before',
+      ct.computeExercisePREvents('Bench Press').map(sansName).join('|') === cf.computeExercisePREvents('Bench Press').map(sansName).join('|') &&
+      ct.computeAllPREvents().length === cf.computeAllPREvents().length);
+    T('and the lift is enumerated once', ct.getAllLoggedExerciseNames().length === 1);
+    T('the engines that decide that are byte-identical to LOOP 10.0',
+      (() => { const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+        return pin('computeExercisePREvents') === '45ea0d06bd7b9167' && pin('computeXPTimeline') === '8c298b498a14c04d' &&
+          pin('computePRs') === 'a8541afeb6205e1c' && pin('prModesByLift') === '7aa68bbd9de95dbb'; })());
+  });
+
+  /* ------------------------------------------------- normal is identical */
+  sub('an ordinary history is untouched');
+  await guard('normal', async () => {
+    const V = ['Overhead Press', 'Bench Press', 'Leg Press', 'Barbell Squat', 'Pull-Up'];
+    const log = []; for(let i = 0; i < 12; i++) log.push(WK('o' + i, 60 - i * 4, V.map((n, k) => EX(n, [S(100 + k * 20 + i * 5, 6)], n === 'Pull-Up'))));
+    const c = await boot(log);
+    T('the list is the distinct raw names, alphabetically, as it was',
+      JSON.stringify(c.getAllLoggedExerciseNames()) === JSON.stringify(V.slice().sort((a, b) => a.localeCompare(b))));
+    T('records, candidates and Mastery counts are one per lift', c.computePBTCandidates().length === c.getAllLoggedExerciseNames().length);
+    T('stored history is byte-identical', JSON.stringify(c.workoutLog) === JSON.stringify(log));
+  });
+
+  /* ----------------------------------------------------- by construction */
+  sub('by construction');
+  const fn = fnSrc(src, 'getAllLoggedExerciseNames');
+  T('one pass over the log, one entry per key, no engine called from the enumerator',
+    (fn.match(/workoutLog\.forEach/g) || []).length === 1 &&
+    !/computeExercisePREvents|sortedLog|exerciseSessionHistory|getExerciseFullHistory|resolveExerciseId/.test(fn) &&
+    /loggedExerciseKey\(name\)/.test(fn));
+  T('nothing is written, renamed or migrated by enumerating',
+    !/LOOPStore|persist\w*\(|\.name\s*=[^=]|localStorage/.test(fn + fnSrc(src, 'chooseLoggedSpelling') + fnSrc(src, 'loggedExerciseKey')));
+  T('the shown spelling is a real one: it is read from the log, never built or lower-cased',
+    /out\.push\(chooseLoggedSpelling\(spellings\)\)/.test(fn) && !/toLowerCase|toUpperCase|charAt|slice\(/.test(fn + fnSrc(src, 'chooseLoggedSpelling')));
+  T('both pinned callers are byte-for-byte as they were: only their input changed', (() => {
+    const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    return pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computePBTCandidates') === 'ba795fd4ab772a63' &&
+      pin('rankPBTCandidates') === '5e5f609ad9a2053a' && pin('computePersonalBestTimeline') === 'e41926dcb1cfa844' &&
+      pin('masteryPRCounts') === 'f77664c53b2ea14a' && pin('masteryPointsFor') === '0c704c40a853d991' &&
+      pin('pbtPageModel') === 'df6ca87cd50e2a81'; })());
+
+  /* --------------------------------------------------- nothing else moved */
+  sub('nothing protected moved');
+  await guard('protected', async () => {
+    const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') })).ctx;
+    const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    T('D91’s modes, the XP engine, Session Score, the capability model and D96A’s rule are byte-identical',
+      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('prModeOf') === 'a0ac7f761228372f' &&
+      pin('deriveExercisePRMode') === '262d3ed985632762' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f' &&
+      pin('wasSessionPR') === 'b719ca9d07d1ae30' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
+      pin('computeExerciseCapability') === '6f6542c0b0232089' &&
+      /function performedLoad\(/.test(src) && /function normalizePerformedWeight\(/.test(src));
+    T('the trends list is deliberately NOT changed here: capability and Exercise Detail look a trend up by the exact name it lists',
+      /set\.add\(ex\.name\)/.test(fnSrc(src, 'getLoggedExerciseNames')) &&
+      /computeExerciseTrends\(\)\.find\(t => t\.name === name\)/.test(fnSrc(src, 'computeExerciseCapability')));
+    T('rank thresholds, the XP curve and the Session Score weights are as they were',
+      c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50' &&
+      (() => { let s = 0; for(let l = 1; l < 50; l++) s += c.calculateRequiredXP(l); return s === 120800; })() &&
+      /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+    T('no storage key, schema, migration or trainer change',
+      c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 &&
+      c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('D99 objectives, D99A’s ring, portfolio and recovery map, and D96A’s finite rule are all still here',
+      /function evaluateObjectives\(/.test(src) && /function setRingProgress\(/.test(src) &&
+      /function programPortfolioCard\(/.test(src) && /function performedLoad\(/.test(src));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -38215,6 +38487,7 @@ async function main(){
   await testPlanProgramTimerRecoveryD99A();
   await testPortfolioMetadataD99A1();
   await testFiniteLoadsD96A();
+  await testExerciseIdentityD96B();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

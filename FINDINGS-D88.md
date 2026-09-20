@@ -460,7 +460,7 @@ bodyweight and do not depend on storage order, so E6 itself does not occur here.
 (Session Score) and the D44 consistency view, both protected in D91. Moving them
 onto the shared mode and the event engine is a Session Score / D44 decision.
 
-## E13 — Case variants of one name are counted twice by `computeAllPREvents` · P3 · PROVEN
+## E13 — Case variants of one name are counted twice by `computeAllPREvents` · P3 · **CLOSED in D96B (LOOP 10.6)**
 
 Found by the D91 mapping. Every PR engine groups by the trimmed, lower-cased
 name, but `getAllLoggedExerciseNames` lists raw spellings. So "Bench Press" and
@@ -474,6 +474,31 @@ contracted (Contract 172, §95: records are read by the name logged).
 **Why it was not fixed in D91.** De-duplicating changes Mastery scoring, which
 D91 was told not to touch, and the name-versus-identity question is the
 exercise-identity phase D91 was told not to open.
+
+**Closed in D96B (LOOP 10.6, Contract 206, §127).** Reproduced on 10.5 with three
+real records logged as "Bench Press", "bench press" and " Bench Press ":
+`computeAllPREvents` returned **9**, the Personal Best Timeline offered the lift
+**three times**, Mastery counted **9** records, and the History and All-records
+dropdowns listed it three times — while Profile, which groups by key, said 3.
+
+The defect was one function. `getAllLoggedExerciseNames` returned a Set of RAW
+spellings, and every caller then invoked an engine that already grouped by
+`name.trim().toLowerCase()`. It now returns one entry per key: `loggedExerciseKey`
+is exactly the engines' expression and deliberately NOT `normalizeExerciseName`,
+which also strips punctuation and would have merged "Row (machine)" with "Row
+machine". No aliases, no registry ids, no fuzzy matching. "Bench Press" and
+"Barbell Bench Press" stay two exercises (Contract 172, §95). The spelling shown is
+one the athlete really logged: no stray space, then the most-used, then
+code-point order — deterministic and independent of storage order.
+
+`computeAllPREvents` and `computePBTCandidates` are hash-pinned and were NOT edited:
+only their input changed. Read-time only; nothing stored was renamed, merged or
+migrated. Ordinary histories are byte-identical; XP, level, rank and Profile
+Records do not move. Mastery points for an athlete who had duplicate spellings
+readjust DOWN to the records they really set, which is expected and not
+grandfathered.
+
+**Found while closing it, and NOT fixed here — see E17.**
 
 ## E14 — "1e999" or "Infinity" typed as a weight is read as an infinite load outside the PR engines · P3 · **CLOSED in D96A (LOOP 10.5)**
 
@@ -546,6 +571,18 @@ moves what a session's best IS.
 newest session. It names no record and is not a PR surface, but it is a fifth
 answer to the same question. The trainer is 0.1.1-shadow and was protected in
 D91; a later trainer phase should read `prModeOf`.
+
+## E17 — Strength → All exercises still lists case variants of one lift as separate rows · P4 · PROVEN
+
+`getLoggedExerciseNames` has the same raw-`Set` shape as the helper D96B fixed, and
+feeds `computeExerciseTrends`, so "Bench Press" and "bench press" appear as two
+rows on Strength → All exercises. It was left alone on purpose: the trends list is
+looked up BY EXACT NAME in two places — `computeExerciseCapability`
+(`legacyTrend`, which becomes the capability's `trend` and `trendPct`, and so the
+trainer's input) and Exercise Detail — so de-duplicating the list would make a
+lookup by a non-displayed spelling return nothing, a silent capability change in
+a system D96B was told not to touch. The right fix reads the trend by KEY at those
+two sites, which is E16-adjacent capability work.
 
 ---
 

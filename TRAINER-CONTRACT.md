@@ -13389,3 +13389,83 @@ PR surfaces D91 owns and this phase was told not to move PR semantics. Recorded 
 altered. DATA_KEYS 16, schema 1, no migration, trainer 0.1.1-shadow; the PR engines, XP, rank thresholds,
 the XP curve, Mastery, Session Score, D44, D49's logic, D50B, programs, D99 Objectives and D99A's ring,
 portfolio and recovery map are all untouched. E11, E12, E13, E15(a) and E16 remain open and unimplemented.
+
+---
+
+## §127 — ONE ENTRY PER LOGGED EXERCISE (D96B · LOOP 10.6 · loop-v183)
+
+Closes D88 finding E13 without opening alias merging. One function, one rule.
+
+**The defect.** Every engine that reads a lift groups its history by `name.trim().toLowerCase()`:
+`computeExercisePREvents`, `exerciseSessionHistory`, `getExerciseFullHistory`, `compute1RMTrend`,
+`computeExerciseCapability` and `prModeOf`. `getAllLoggedExerciseNames` did not: it returned a Set of
+RAW spellings, so "Bench Press", "bench press" and " Bench Press " were three entries and every caller
+then invoked an engine that already knew they were one history three times. Measured on 10.5 with three
+real records: `computeAllPREvents` **9**, the Personal Best Timeline offering the lift **three times**,
+Mastery counting **9** records, and both dropdowns listing it three times — while Profile (the XP
+timeline, which groups by key) said **3**. It also fed Today's "Worth knowing" (a duplicate spent one of
+its 40 slots), the progression buckets (the same lift twice in "Ready to progress") and the trainer
+context (whose "Progressing: N exercises" was inflated).
+
+**The key is not new, and is deliberately not `normalizeExerciseName`.** That helper also strips
+punctuation and collapses whitespace, so reusing it would have merged "Row (machine)" with "Row machine".
+`loggedExerciseKey` is exactly the engines' expression and nothing looser: no aliases, no registry ids,
+no fuzzy matching, no synonym table. "Bench Press" and "Barbell Bench Press", "Close-Grip Push-up" and
+"Diamond Push-Up", "Bench Dips" and "Chair Triceps Dips" stay separate exercises (Contract 172, §95:
+records are read by the name logged). Custom names are never merged by meaning: "My Press" and
+"My Press 2" stay two.
+
+**The spelling shown** is one the athlete really logged, chosen by three facts about the spellings
+themselves: one with no stray space, then the one used on the most rows, then code-point order. That is
+deterministic and independent of the order history is stored in. A lift logged under ONE spelling shows
+that spelling untouched and an ordinary history is listed in exactly the order it was. Nothing is
+title-cased or tidied. **Known edge:** in an exact tie the code-point rule can pick an all-capitals
+spelling over a title-case one (it is still a spelling the athlete typed); ties are rare against a
+habitual spelling, which the usage count decides.
+
+**Where it lands.** Only `getAllLoggedExerciseNames` changed (plus the two small helpers beside it).
+`computeAllPREvents` and `computePBTCandidates` are hash-pinned and were NOT edited — their INPUT is now
+distinct, so a pinned function fixed itself without being touched. It is a READ-TIME enumeration: nothing
+stored was renamed, merged, migrated or written.
+
+**Drift, measured.** Ordinary histories are byte-identical to 10.5 across PR events, Records, Profile
+Records, XP, level, rank, Mastery counts, PBT candidates, Exercise Detail, trends, Session Score and
+recovery (three datasets, including a lone untrimmed spelling and an alias pair kept apart). On
+deliberately duplicated histories the ONLY fields that moved were the duplicated enumeration and what
+reads it: spellings 17 → 5, PR events 202 → 61 (the true stream), PBT candidates 17 → 5, Mastery
+record counts 56 → 14. **XP, level, rank, Profile Records, Session Score, recovery and stored history did not
+move.** Mastery points for an athlete with duplicate spellings readjust DOWN to the records they really
+set; that is expected and is not grandfathered.
+
+**Performance.** Ordinary histories cost the same (60 lifts, 400 workouts: enumeration 0.1 → 0.1 ms,
+Records / PBT / Mastery unchanged). Duplicated histories are ×3.8 cheaper: Records 68 → 18 ms, PBT
+50 → 14 ms, Mastery 71 → 20 ms, because the engines now run once per lift instead of once per spelling.
+The log is scanned once and the key is taken once per DISTINCT spelling, not per row.
+
+**Deliberately NOT changed, and recorded as E17.** `getLoggedExerciseNames` has the same raw-Set shape and
+feeds Strength → All exercises, so a case-variant lift is still two rows there. It was left alone because
+the trends list is looked up BY EXACT NAME in `computeExerciseCapability` (`legacyTrend` becomes the
+capability's `trend` and `trendPct`, and so the trainer's input) and in Exercise Detail: de-duplicating it
+would make a lookup by a non-displayed spelling return nothing — a silent capability change in a system this
+phase was told not to touch. The right fix reads the trend by key at those two sites, which is
+E16-adjacent. `mostTrainedExercises` already merges by registry id and was not touched.
+
+**Tests.** Contract 206 (62 checks): the key against the engines' expression and against the looser
+normalizer; every case of the brief's A—V matrix (case, leading and trailing whitespace, custom names, alias
+pairs, punctuation and inner-space variants, many workouts, bodyweight / loaded / UNKNOWN, first-five and
+outside-five, picker selection, ordering); the shown spelling under every ordering of the log; every
+surface reading one lift once; Profile and Progress agreeing for this case; **E15(a) unchanged** (a second
+row of the lift inside ONE workout still does not count, byte-identical engines); and the protected pins.
+**25 of 25 mutants killed**, including no trim, no lowercase, raw-spelling dedupe, registry merging, the
+looser normalizer, collapsed whitespace, custom-name merging, the lower-cased key as the label, enumerating a
+key twice, the original bug, all three spelling-choice rules, a re-ordered ordinary history, a tidied or
+title-cased name, stored history rewritten in place (two ways), an engine called per row, a lost row count,
+a doubled record, a moved rank threshold, a changed first-row rule, and the trends list being de-duplicated.
+Real Edge at 320, 375, 390 and 430 over a history of 11 spellings for 5 lifts: 64/64 — one picker option
+per lift, pages and dots agreeing, D98's per-page synchronisation intact, Records counted once, Mastery
+counted once, Profile and Progress agreeing.
+
+**Not changed.** `computeXPTimeline`, `getSessionPRs`, `wasSessionPR`, D91's modes, D96A's finite-load rule,
+the capability model, Session Score (40/30/18/12), D44, D49, D50B, recovery, readiness, programs, Friends,
+shared workouts, rank thresholds, DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, D99 and D99A. E11, E12,
+E15(a) and E16 remain open and untouched.
