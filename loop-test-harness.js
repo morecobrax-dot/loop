@@ -280,7 +280,10 @@ function loadApp(initialStore){
     'OBJECTIVES_KEY','OBJECTIVE_RULES_VERSION','OBJECTIVE_REWARD','OBJECTIVE_WEEKLY_XP_CAP',
     'OBJECTIVE_ACTIVE_LIMIT','OBJECTIVE_KEEP','OBJECTIVE_MATCH_MAX_AGE_DAYS','OBJECTIVE_RETURN_GAP_DAYS',
     'OBJECTIVE_TYPE_ORDER','objectivesStore','objectivesLoaded','objectivesJustCompleted','profileTab','profileAchTab',
-    'PROFILE_XP_ROWS','MILESTONES','STREAK_XP_TIERS'];
+    'PROFILE_XP_ROWS','MILESTONES','STREAK_XP_TIERS',
+    /* D99A — the recovery figure's three presentation bands and their words */
+    'RECOVERY_TINT_BANDS','RECOVERY_BAND_LABEL','RECOVERY_CONFIG','RECOVERY_STATE_LABEL',
+    'REST_RING_R','trainingTab','MUSCLE_BAND_OPACITY'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

@@ -13183,3 +13183,91 @@ modes, rank thresholds, the XP curve, the fourteen milestones, Session Score (40
 capability, D44, D49's logic, D50B, the D39 evidence engine, program semantics, Friends, Supabase, the trend
 system D98 shipped. Objectives are never published, shared or uploaded. E11–E16 remain open, unimplemented
 and paused.
+
+---
+
+## §124 — PLAN AND PROGRAM TOLD APART, A RING THAT TELLS THE TIME, AND RECOVERY YOU CAN SEE (D99A · LOOP 10.3 · loop-v180)
+
+Three things an athlete met on a real phone. None of them changed a calculation.
+
+**1. PLAN AND PROGRAM WERE THE SAME WORD.** Repository truth was never confused: a PLAN is one of six
+code-authored `DEFAULT_PLANS` plus the athlete's own edits under `planData:`/`schedule:`/`planStart:` — no
+dates, no status, no phases, no history; a PROGRAM is a record in the `programs` key with a start date, a
+duration, a status, blocks, forward-only revisions and a cycle. The **product** was confused. Four sheets
+held them, **two of which nothing linked to** — `#plansOverlay` and `#programsOverlay` each rendered a
+"‹ Settings" back button pointing at a parent that never linked to them — while Settings' single Training
+row led to a page called "My Training", and **"Build my own" sat at the foot of every list of PLANS and
+opened the PROGRAM builder**. That one card is what made the two ideas look like the same kind of thing.
+
+They are now two tabs of one surface titled **Training**, one tap from the header plan chip on every
+screen. PLAN lists the six premade plans, marks the running one and switches through `choosePlan`,
+and **nothing on it creates, edits, activates or deletes a program** (asserted). PROGRAM lists every
+program the athlete has saved, marks the running one CURRENT, opens one without starting it, and offers
+the one builder; with none built it explains what a program is instead of showing an empty page. The
+existing `renderMyTraining()` is **untouched** and renders below the portfolio — this is where the
+functions live, not a reimplementation. `openMyTraining()` is now `openTraining('program')`, so every
+caller that asked for the program view still gets it.
+
+Nothing underneath moved: one `createProgram`, one builder, one plan chooser; `choosePlan` still cannot
+touch a program record; every program write still goes through `commitProgramChange`; D51 revisions, D90
+pauses and the block cycle are as they were. No storage structure was renamed to make a label read better.
+
+**2. EVERY REST RING WAS FULL FOR THE WHOLE COUNTDOWN.** The number was always right — `endsAt` is a
+timestamp, `tickRestPanel` subtracts the clock from it, pause re-anchors it and +15 s extends it — so the
+timing truth needed no work at all. The ring was drawn with an inline `style="stroke-dashoffset:0"` and
+updated with `setAttribute`, and **an inline style declaration beats a presentation attribute**, so the
+computed offset never moved. Measured in a real browser on a 75-second rest: the attribute read 1.0 while
+the computed value read 0px, unchanged across fourteen seconds; 10 of 14 samples more than five points
+adrift. The athlete's screenshot of a full ring at 0:43 is exactly this.
+
+Deleting the inline style would have fixed it until the next markup change put one back. Instead there is
+**one helper, `setRingProgress(el, frac, radius)`, that writes through the channel that holds the value**,
+and every ring in LOOP calls it — the rest panel, the live activity ring (**the same bug, the same cause: a
+second hand that never moved**), the prep timer and the onboarding demo. `setAttribute('stroke-dashoffset'`
+now appears zero times in the source. After: 0 of 14 samples adrift, and 60/45/30/15/0 of 60 draw exactly
+100/75/50/25/0 % in closed form.
+
+**3. RECOVERY WAS THREE PERCENTAGES.** The engine already answered more than that: `computeMuscleRecovery`
+names a state per muscle against `RECOVERY_CONFIG.thresholds` (90/75/50/25), and **none of that is
+touched** — no load model, no decay, no confidence, no readiness, no trainer behaviour.
+
+The obstacle was the figure. `bodyDiagramSvg` lights a muscle by drawing that group's own artwork over the
+neutral body; the colour is baked into the atlas, so the only free variable was **opacity** and every lit
+muscle was the same blue. Drawing a second body to get a second colour would be a different product wearing
+LOOP's colours. So the tiles are unchanged — same atlas, same geometry, same silhouettes — and the drawn
+pixels are recoloured **in place** by a filter **inside the tile's own viewport** (`feFlood` + `feComposite
+operator="in"`). Put on the viewport instead of inside it, the filter region becomes the whole atlas sheet
+and the entire thing leaks across the body; that was measured, not guessed. The colours come from the
+stylesheet, so they are LOOP's own tokens and follow the theme rather than hexes frozen into markup.
+
+Five engine states become **three presentation bands** in one named helper: `ready` (high, well),
+`recovering` (moderate), `low` (low, verylow). `--accent` is deliberately not among them — on this figure
+blue already means "trained", and a recovering muscle is not a trained one. **`unknown` has no band**, so a
+muscle LOOP has no evidence for is left as the neutral body: unknown is not ready. Both sides of the card
+come from **one call** to the engine, and the list is a subset of the map, so a percentage and its muscle
+cannot disagree. Side by side at every phone width from 320 up, the figure yielding width before a name is
+allowed to clip.
+
+**Found while building it.** Today asked "How are you feeling today?" on launch to an athlete who had
+already checked in, and hid the recovery card entirely, because `loadReadiness()` runs after
+`showMainApp()` — the same shape of late-load bug D99 found with objectives, and without fixing it the new
+card would never have been seen on a cold launch. One presentation-only redraw at the end of boot. Also:
+Contract 190 caught this phase writing a stored program id into an inline handler with `escapeAttr` alone —
+exactly the rule D88 wrote — and it now uses `onclickArg`.
+
+**Tests.** Contract 203 (58 checks): the two tabs and what each may do; that PLAN cannot write a program
+and PROGRAM cannot silently start one; one engine, one builder, one chooser; the ring's maths in closed
+form against the brief's own worked example, clamping, the deadline-not-a-tally rule, +15 s, pause/resume,
+complete-once, reduced motion, and that the animation touches one element rather than redrawing the sheet;
+the recovery model byte-for-byte, the five-to-three mapping, unknown having no band, one derivation for both
+sides, no second anatomy, the tint living inside the viewport, and that calling the figure the old way draws
+exactly what it drew. Contract 180's caller count and D76.5's figure pin were restated with their reasons,
+as was Contract 16's "offered everywhere plans are listed" — the guarantee it protected is now stronger:
+building is not offered as a plan because it is half the surface. verify 9,499/0, five audits green. Real
+Edge at 320, 360, 375, 390, 393, 414 and 430: Plan/Program 91/91, the recovery card side-by-side with no
+overflow at every size, the ring 0 of 14 samples adrift, D99's objectives 24/24 unchanged. No physical
+iPhone.
+
+**Not changed.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow; recovery and readiness maths, D49, D50B,
+D43, D44, D51, D89, D90, blocks and deload, the muscle registry and atlas, XP, Rank, Mastery, Session
+Score, D99's objectives. D96's E11–E16 remain open, unimplemented and paused.

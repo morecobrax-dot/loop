@@ -1421,6 +1421,44 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
 .rec-moderate{ background: var(--accent); }
 .rec-low{ background: var(--warning); }
 .rec-verylow{ background: var(--error); }
+/* D99A — the three presentation bands, used by the bar AND, through
+   flood-color, by the figure beside it. One declaration per band, so the muscle
+   and its percentage cannot be given different colours. --accent is
+   deliberately not among them: on this figure blue already means "trained", and
+   a recovering muscle is not a trained one. */
+.rec-b-ready{ background: var(--success); }
+.rec-b-recovering{ background: var(--warning); }
+.rec-b-low{ background: var(--error); }
+.rec-flood-ready{ flood-color: var(--success); }
+.rec-flood-recovering{ flood-color: var(--warning); }
+.rec-flood-low{ flood-color: var(--error); }
+/* The composed card: the figure reads at a glance, the numbers answer it. */
+.rec-card{
+  margin-top: 8px; padding: 12px 14px; border-radius: var(--radius-md);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.rec-body{ display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.rec-fig{ flex: 0 0 44%; max-width: 150px; min-width: 96px; }
+.rec-fig .muscle-fig{ max-width: 100%; }
+.rec-rows{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+.rec-card .rec-item{ gap: 8px; }
+.rec-card .rec-name{ width: auto; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-card .rec-bar{ flex: 0 0 34%; }
+/* The figure settles into its colours once, and the bars grow to where they
+   already are. Nothing pulses and nothing loops. */
+.rec-card .muscle-svg, .rec-card .rec-fill{ animation: recSettle 0.42s var(--ease) both; }
+@keyframes recSettle{ from{ opacity: 0.55; } to{ opacity: 1; } }
+@media (prefers-reduced-motion: reduce){
+  .rec-card .muscle-svg, .rec-card .rec-fill{ animation: none; }
+}
+/* 320px: the two columns still hold — the figure gives up width first, and the
+   bar shortens before the muscle name is allowed to clip. */
+@media (max-width: 359px){
+  .rec-card{ padding: 11px 11px; }
+  .rec-body{ gap: 9px; }
+  .rec-fig{ flex-basis: 38%; min-width: 84px; }
+  .rec-card .rec-bar{ flex-basis: 28%; }
+}
 .rec-pct{ width: 34px; flex-shrink: 0; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text-faint); }
 @media (prefers-reduced-motion: reduce){ .rec-fill{ transition: none; } }
 
@@ -2604,6 +2642,54 @@ body.first-use{ padding-bottom: 0; }
 .xp-history-title{ font-size: 12.5px; font-weight: 600; color: var(--text); }
 .xp-history-detail{ font-size: var(--fs-micro); color: var(--text-faint); margin-top: 2px; }
 .xp-history-xp{ font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+
+/* ---- D99A: PLAN | PROGRAM ----
+   The tabs use the app's existing segmented control; only the two panels'
+   own content needs describing. */
+#trSeg{ margin-top: 4px; }
+.tr-lede{ font-size: 12.5px; color: var(--text-dim); line-height: 1.55; margin: 14px 0 4px; }
+.tr-lede b{ color: var(--text); font-weight: 700; }
+.tr-foot{ font-size: 12px; color: var(--text-faint); margin-top: 16px; line-height: 1.6; }
+.tr-link{
+  background: none; border: none; padding: 0; cursor: pointer; font-family: 'Inter', sans-serif;
+  font-size: 12px; font-weight: 700; color: var(--accent); min-height: 24px;
+}
+.tr-empty{
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 20px 16px; margin-top: 16px; text-align: center;
+}
+.tr-empty-t{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; color: var(--text); }
+.tr-empty-s{ font-size: 12.5px; color: var(--text-faint); line-height: 1.6; margin-top: 8px; }
+.tr-cta{
+  margin-top: 16px; min-height: 44px; width: 100%; border: none; border-radius: var(--radius-md);
+  background: var(--accent); color: #0C0E12; font-family: 'Inter', sans-serif;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.tr-prog{
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 13px 14px; margin-top: 8px; min-height: 44px; font-family: 'Inter', sans-serif;
+}
+.tr-prog-on{ border-color: var(--accent); background: var(--accent-soft); }
+.tr-prog-main{ flex: 1; min-width: 0; }
+.tr-prog-top{ display: flex; align-items: center; gap: 8px; }
+.tr-prog-n{ font-size: 13.5px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-prog-badge{
+  flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; color: var(--accent);
+}
+.tr-prog-st{ flex-shrink: 0; font-size: 11px; color: var(--text-faint); }
+.tr-prog-m{ display: block; font-size: 11.5px; color: var(--text-faint); margin-top: 3px; }
+.tr-prog-go{ flex-shrink: 0; color: var(--text-faint); display: flex; }
+.tr-add{
+  width: 100%; min-height: 44px; margin-top: 12px; cursor: pointer;
+  background: none; border: 1px dashed var(--border); border-radius: var(--radius-md);
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+}
+@media (max-width: 359px){
+  .tr-prog{ padding: 12px 11px; }
+  .tr-prog-n{ font-size: 12.5px; }
+}
 
 /* ---- D99: OBJECTIVES ON HOME ----
    Quiet by construction. The accent appears once, on the progress a row has
@@ -8163,7 +8249,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div class="header-row">
       <h1>LOOP<span class="dot">.</span></h1>
       <div class="header-actions">
-        <button class="plan-chip" onclick="openPlanSwitcher()" title="Switch plan">
+        <button class="plan-chip" onclick="openTraining('plan')" title="Plan and program">
           <span class="plan-chip-label">Plan</span>
           <span class="plan-chip-name" id="currentPlanLabel">Plan</span>
         </button>
@@ -8702,8 +8788,8 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       </button>
       <button class="settings-row-btn" onclick="openMyTraining()">
         <span class="settings-row-main">
-          <span class="settings-row-title">My Training</span>
-          <span class="settings-row-desc" id="settingsProgramSub">Your program, schedule and workouts</span>
+          <span class="settings-row-title">Plan &amp; Program</span>
+          <span class="settings-row-desc" id="settingsProgramSub">The plan you follow and the programs you build</span>
         </span>
         <span class="settings-row-arrow">›</span>
       </button>
@@ -8887,14 +8973,31 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 </div>
 
+<!-- D99A — ONE SURFACE, TWO QUESTIONS.
+     PLAN answers "what structure do I want to follow?" — LOOP's six premade
+     plans and which one is running. PROGRAM answers "what have I built and
+     what am I running?" — the athlete's own programs and the one in progress.
+     They were four separate sheets, two of them reachable from nowhere, with
+     "Build my own" sitting among the premade plans while routing into the
+     program builder. Same functions underneath; this is where they are. -->
 <div class="overlay overlay-page" id="myTrainingOverlay">
   <div class="sheet sheet-page">
     <div class="workout-topbar">
       <button class="workout-back" onclick="closeMyTraining()" aria-label="Back">‹</button>
-      <div class="workout-topbar-title">My Training</div>
+      <div class="workout-topbar-title">Training</div>
       <span class="workout-topbar-spacer"></span>
     </div>
-    <div class="sheet-scroll"><div id="myTrainingBody"></div></div>
+    <div class="sheet-scroll">
+      <div class="seg" id="trSeg">
+        <button class="seg-btn" data-tr="plan" onclick="switchTrainingTab('plan')">Plan</button>
+        <button class="seg-btn active" data-tr="program" onclick="switchTrainingTab('program')">Program</button>
+      </div>
+      <div class="seg-panel" id="trpanel-plan" style="display:none"><div id="trainingPlanBody"></div></div>
+      <div class="seg-panel" id="trpanel-program">
+        <div id="trainingProgramBody"></div>
+        <div id="myTrainingBody"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -16944,6 +17047,30 @@ const LOOP_UPDATES = [
     changes: [
       'Missing an objective costs nothing: no XP, no streak, no failed state. It simply ends when the day or the week does'
     ]
+  },
+  {
+    id: 'v10-3',
+    version: 'LOOP 10.3',
+    title: 'Plan, Program, Recovery',
+    date: '2026-09-20',
+    swVersion: 'loop-v180',
+    summary: 'Your plan and your programs are now two tabs of one screen you can reach from any tab, every rest timer\u2019s ring finally matches its countdown, and recovery is something you can read at a glance on the muscle map.',
+    newFeatures: [
+      'Training now has two tabs: PLAN, for the structure you follow, and PROGRAM, for the programs you have built and the one you are running',
+      'Est. recovery draws your recovery on the body map \u2014 green for ready, amber for recovering, orange for recently worked \u2014 beside the same percentages'
+    ],
+    improvements: [
+      'The plan button in the header opens both tabs, so your programs are no longer behind Settings',
+      'PROGRAM lists every program you have saved and marks the one running; opening one shows it without starting it',
+      'Building your own is no longer offered as if it were one of the premade plans \u2014 it lives under PROGRAM, where the rest of your programs are'
+    ],
+    bugFixes: [
+      'Every rest timer showed a full ring for the whole countdown, however much time was left. The ring now empties with the clock \u2014 and so does the ring on a live activity',
+      'Today asked "How are you feeling today?" on launch even when you had already checked in, and hid your recovery until you switched tabs'
+    ],
+    changes: [
+      'A muscle LOOP has no recent evidence for is left unpainted rather than shown as recovered'
+    ]
   }
 ];
 
@@ -19628,6 +19755,13 @@ async function boot(){
      rather than on whatever redraws next. Wrapped: an objective can never stop
      LOOP from finishing its launch. */
   try{ syncObjectives(); renderTodayObjectives(); }catch(e){}
+  /* D99A — and the readiness card, for the same reason and with the same shape
+     of bug: loadReadiness() runs AFTER showMainApp(), so the first paint asked
+     "How are you feeling today?" of an athlete who had already answered, and the
+     recovery map underneath it did not exist until something else redrew Today.
+     A tab switch fixed it, which is why it survived. Presentation only — nothing
+     here reads, writes or recomputes a readiness or recovery number. */
+  try{ renderReadinessCard(); }catch(e){}
 
   renderStorageNotice(migrationResult);
 
@@ -20203,7 +20337,10 @@ function openPlanSwitcher(){
     const p = DEFAULT_PLANS[id];
     const active = id === selectedPlanId;
     return `<div class="plan-card ${active?'plan-card-active':''}" onclick="choosePlan('${id}')">${planCardBody(id, p, active)}</div>`;
-  }).join('') + customPlanCardHtml();
+  }).join('');
+  /* D99A — "Build my own" is not a plan. It used to sit at the foot of this
+     grid and open the PROGRAM builder, which is the one card that made the two
+     ideas look like the same kind of thing. Building lives under Program. */
   document.getElementById('planSwitchOverlay').classList.add('open');
 }
 function closePlanSwitcher(){ document.getElementById('planSwitchOverlay').classList.remove('open'); }
@@ -20253,7 +20390,8 @@ function openPlansManager(){
     const p = DEFAULT_PLANS[id];
     const active = id === selectedPlanId;
     return `<div class="plan-card ${active?'plan-card-active':''}" onclick="choosePlan('${id}')">${planCardBody(id, p, active)}</div>`;
-  }).join('') + customPlanCardHtml();
+  }).join('');
+  /* D99A — same reason as the switcher: a plan library lists plans. */
 
   // Points at the real, existing editing surfaces rather than duplicating them
   document.getElementById('plansCustomize').innerHTML = `
@@ -20605,14 +20743,54 @@ function muscleBand(value, maxVal){
   const r = value / maxVal;
   return r < 0.34 ? 1 : (r < 0.7 ? 2 : 3);
 }
-function bodyDiagramSvg(t, totalsOverride){
+/* D99A — THE SAME FIGURE, SAYING A DIFFERENT THING.
+   The atlas lights a muscle by drawing that group's own artwork over the
+   neutral body; the colour is baked into the image, so before this the only
+   free variable was opacity and every lit muscle was the same blue. A recovery
+   map needs a colour PER MUSCLE, and drawing a second body to get one would be
+   a different product wearing LOOP's colours (see the contract above).
+
+   So the tiles are unchanged — same atlas, same geometry, same overlay
+   architecture, same approved silhouettes — and the drawn pixels are recoloured
+   in place by a filter INSIDE the tile's own viewport: feFlood fills with the
+   state's colour, feComposite keeps only where the artwork already was. The
+   shape an athlete sees is the illustrator's, to the pixel; only the hue is
+   LOOP's to decide. Put on the viewport instead of inside it, the filter region
+   becomes the whole atlas sheet and the entire thing leaks across the figure —
+   which is why the group carries it, not the <svg>.
+
+   The colours come from the stylesheet (`.rec-flood-*`), so they are LOOP's own
+   tokens and follow the theme rather than being hexes frozen into markup. */
+const RECOVERY_TINT_BANDS = ['ready', 'recovering', 'low'];
+function recoveryTintDefs(){
+  return '<defs>' + RECOVERY_TINT_BANDS.map(b =>
+    `<filter id="loopRecTint-${b}" filterUnits="objectBoundingBox" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">` +
+    `<feFlood class="rec-flood-${b}" result="c"/><feComposite in="c" in2="SourceGraphic" operator="in"/></filter>`).join('') + '</defs>';
+}
+
+function bodyDiagramSvg(t, totalsOverride, stateOverride){
   const totals = totalsOverride || computeMuscleTotals(t);
   const maxVal = Math.max(1, ...Object.values(totals));
   const A = MUSCLE_ATLAS;
   const layer = (x, y, w, h, ax, ay, op) =>
     `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${ax} ${ay} ${w} ${h}"${op < 1 ? ` opacity="${op}"` : ''}><image href="${A.src}" width="${A.w}" height="${A.h}"/></svg>`;
+  /* The same viewport, with the artwork recoloured where it is drawn. */
+  const tinted = (x, y, w, h, ax, ay, band) =>
+    `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${ax} ${ay} ${w} ${h}">` +
+    `<g filter="url(#loopRecTint-${band})"><image href="${A.src}" width="${A.w}" height="${A.h}"/></g></svg>`;
   const worked = [];
   let lit = '';
+  /* STATE MODE. Only the muscles the caller names are lit, each in its band's
+     colour. A muscle the caller does not name is not "ready" — it is unknown,
+     and unknown is the neutral body underneath. */
+  if(stateOverride){
+    Object.keys(A.tiles).forEach(g => {
+      const band = stateOverride[g];
+      if(!band || RECOVERY_TINT_BANDS.indexOf(band) === -1) return;
+      worked.push({ g, band: RECOVERY_TINT_BANDS.length - RECOVERY_TINT_BANDS.indexOf(band) });
+      A.tiles[g].forEach(r => { lit += tinted(r[0], r[1], r[2], r[3], r[4], r[5], band); });
+    });
+  } else
   Object.keys(A.tiles).forEach(g => {
     const band = muscleBand(totals[g], maxVal);
     if(!band) return;
@@ -20622,6 +20800,7 @@ function bodyDiagramSvg(t, totalsOverride){
   const named = worked.sort((a, b) => b.band - a.band).map(w => (MUSCLE_LABELS[w.g] || w.g).toLowerCase());
   const label = 'Front and back muscle map' + (named.length ? ', highlighting ' + named.join(', ') : '');
   return `<span class="muscle-fig"><svg class="muscle-svg" viewBox="0 0 ${A.baseW} ${A.baseH}" role="img" aria-label="${label}">` +
+    (lit.indexOf('loopRecTint-') !== -1 ? recoveryTintDefs() : '') +
     layer(0, 0, A.baseW, A.baseH, 0, 0, 1) + lit +
     `</svg><span class="muscle-fig-labels"><span>Front</span><span>Back</span></span></span>`;
 }
@@ -24813,8 +24992,9 @@ function updateCardioRing(){
   if(!fill) return;
   const ms = cardioElapsedMs();
   const frac = (ms % 60000) / 60000;
-  const circ = 2 * Math.PI * 76;
-  fill.setAttribute('stroke-dashoffset', String((circ * (1 - frac)).toFixed(1)));
+  /* D99A — this ring carried the same inline dash offset as the rest ring and
+     was frozen for the same reason: a second hand that never moved. */
+  setRingProgress(fill, frac, 76);
 }
 
 /* ---------- persistence ----------
@@ -33082,18 +33262,62 @@ function renderReadinessCard(){
 /* Minimal recovery preview — a single line inside the existing readiness
    card, showing only the three muscles carrying the most recent load.
    Deliberately small: the full model is for future systems, not this view. */
+/* D99A — THE ONE PLACE FIVE ENGINE STATES BECOME THREE COLOURS.
+   computeMuscleRecovery() already names a state per muscle against
+   RECOVERY_CONFIG.thresholds (90 / 75 / 50 / 25) and none of that is touched
+   here. This is presentation: five states read as five colours, which on a
+   figure the size of a thumbnail is not a reading, it is a palette. Three bands
+   an athlete can act on:
+
+     ready       high, well        recovered enough to train hard
+     recovering  moderate          usable, not fresh
+     low         low, verylow      recently worked, still under it
+
+   `unknown` is deliberately absent. A muscle with no evidence is not ready; it
+   is unknown, and it stays the neutral body. */
+function recoveryBandOf(state){
+  if(state === 'high' || state === 'well') return 'ready';
+  if(state === 'moderate') return 'recovering';
+  if(state === 'low' || state === 'verylow') return 'low';
+  return null;
+}
+const RECOVERY_BAND_LABEL = { ready:'Ready', recovering:'Recovering', low:'Low' };
+
+/* Every muscle with real evidence is on the figure; the three furthest from
+   recovered are also written out beside it. The list is a SUBSET of the map,
+   from one derivation, so a percentage and its muscle can never disagree. */
 function recoveryStripHtml(){
-  const fatigued = getMostFatiguedMuscles(3).filter(r => r.lastTrainedDays !== null && r.lastTrainedDays <= RECOVERY_CONFIG.windowDays);
-  if(!fatigued.length) return '';
-  return `
-    <div class="rec-strip">
-      <span class="rec-strip-label">Est. recovery</span>
-      ${fatigued.map(r => `
-        <span class="rec-item">
-          <span class="rec-name">${r.label}</span>
-          <span class="rec-bar"><span class="rec-fill rec-${r.state}" style="width:${r.score}%"></span></span>
+  let all = {};
+  try{ all = computeMuscleRecovery(); }catch(e){ return ''; }
+  const fresh = r => r && r.score !== null && r.lastTrainedDays !== null &&
+    r.lastTrainedDays <= RECOVERY_CONFIG.windowDays;
+  const states = {};
+  Object.keys(all).forEach(m => {
+    if(!fresh(all[m])) return;
+    const band = recoveryBandOf(all[m].state);
+    if(band) states[m] = band;
+  });
+  const listed = Object.keys(states).map(m => all[m])
+    .sort((a, b) => a.score - b.score || a.muscle.localeCompare(b.muscle))
+    .slice(0, 3);
+  if(!listed.length) return '';
+
+  const rows = listed.map(r => `
+        <div class="rec-item">
+          <span class="rec-name">${escapeHtml(r.label)}</span>
+          <span class="rec-bar"><span class="rec-fill rec-b-${recoveryBandOf(r.state)}" style="width:${r.score}%"></span></span>
           <span class="rec-pct">${r.score}%</span>
-        </span>`).join('')}
+        </div>`).join('');
+  /* Said once, in words, for anyone who cannot use the colour at all. */
+  const spoken = listed.map(r => r.label + ' ' + r.score + '%, ' +
+    (RECOVERY_BAND_LABEL[recoveryBandOf(r.state)] || '')).join('. ');
+  return `
+    <div class="rec-card">
+      <span class="rec-strip-label">Est. recovery</span>
+      <div class="rec-body" role="img" aria-label="Estimated recovery. ${escapeAttr(spoken)}">
+        <div class="rec-fig">${bodyDiagramSvg(null, {}, states)}</div>
+        <div class="rec-rows">${rows}</div>
+      </div>
     </div>`;
 }
 
@@ -36700,7 +36924,7 @@ function startTimerDemo(){
   const paint = left => {
     const m = Math.floor(left / 60), s = left % 60;
     metric.textContent = m + ':' + String(s).padStart(2, '0');
-    fill.setAttribute('stroke-dashoffset', String((circ * (1 - left / TOTAL)).toFixed(1)));
+    setRingProgress(fill, left / TOTAL, 54);
   };
   paint(TOTAL);
   if(onboardingReducedMotion()) return;            // static, fully drawn ring
@@ -46308,12 +46532,118 @@ function pbScrollToSession(dayKey){
 }
 
 /* ---------- THE DASHBOARD ---------- */
-function openMyTraining(){
+/* D99A — which of the two questions the surface is currently answering. Session
+   local: opening it from the plan chip asks about the plan, opening it from a
+   program card asks about the program, and neither is a setting to remember. */
+let trainingTab = 'program';
+
+function openTraining(tab){
   try{ closeSettings(); }catch(e){}
-  renderMyTraining();
+  try{ closePlanSwitcher(); }catch(e){}
+  if(tab === 'plan' || tab === 'program') trainingTab = tab;
+  renderTraining();
   document.getElementById('myTrainingOverlay').classList.add('open');
 }
+/* Every existing caller — Settings, the Progress program card, Today's
+   finished-program row — asked for the program view and still gets it. */
+function openMyTraining(){ openTraining('program'); }
 function closeMyTraining(){ document.getElementById('myTrainingOverlay').classList.remove('open'); }
+
+function applyTrainingTabs(){
+  document.querySelectorAll('#trSeg .seg-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tr === trainingTab));
+  ['plan', 'program'].forEach(k => {
+    const p = document.getElementById('trpanel-' + k);
+    if(p) p.style.display = (k === trainingTab) ? 'block' : 'none';
+  });
+}
+function switchTrainingTab(tab){
+  trainingTab = tab;
+  renderTraining();
+  const sc = document.querySelector('#myTrainingOverlay .sheet-scroll');
+  if(sc && sc.scrollTo) sc.scrollTo({ top: 0, behavior: 'instant' });
+}
+function renderTraining(){
+  applyTrainingTabs();
+  try{ renderTrainingPlanTab(); }catch(e){}
+  try{ renderTrainingProgramTab(); }catch(e){}
+}
+
+/* ---------- PLAN: what structure do I want to follow? ----------
+   The six premade plans and which one is running. Nothing here creates or
+   edits a program — "Build my own" used to sit in this grid and route into the
+   program builder, which is exactly the blur this splits apart. */
+function renderTrainingPlanTab(){
+  const el = document.getElementById('trainingPlanBody');
+  if(!el) return;
+  const ids = Object.keys(DEFAULT_PLANS);
+  const cards = ids.map(id => {
+    const p = DEFAULT_PLANS[id];
+    const active = id === selectedPlanId;
+    return `<div class="plan-card ${active ? 'plan-card-active' : ''}" onclick="choosePlan('${id}')">${planCardBody(id, p, active)}</div>`;
+  }).join('');
+  const current = (selectedPlanId && DEFAULT_PLANS[selectedPlanId]) ? DEFAULT_PLANS[selectedPlanId].name : null;
+  el.innerHTML = `
+    <div class="tr-lede">${current
+      ? `You are following <b>${escapeHtml(current)}</b>. Switching keeps your history and each plan’s own edits, so you can switch back at any time.`
+      : 'Choose the structure you want to follow. Your history is kept whichever you pick.'}</div>
+    <div class="plan-grid">${cards}</div>
+    <div class="tr-foot">Want your own weeks, phases and exercises instead?
+      <button type="button" class="tr-link" onclick="switchTrainingTab('program')">Build a program</button></div>`;
+}
+
+/* ---------- PROGRAM: what have I built, and what am I running? ----------
+   The portfolio sits above the running program's own detail, which is what
+   this page already drew. Opening one shows it; it does not start it. */
+function renderTrainingProgramTab(){
+  const el = document.getElementById('trainingProgramBody');
+  const detail = document.getElementById('myTrainingBody');
+  if(!el) return;
+  let list = [];
+  try{ list = getPrograms(); }catch(e){ list = []; }
+  let activeId = null;
+  try{ activeId = programsStore.activeProgramId; }catch(e){}
+
+  if(!list.length){
+    /* Not an empty screen: what a program is, and one way to make one. */
+    el.innerHTML = `
+      <div class="tr-empty">
+        <div class="tr-empty-t">No programs yet</div>
+        <div class="tr-empty-s">A program runs your training for a set number of weeks, with its own schedule, its own exercises and phases that build and then deload. Your plan already works without one — nothing you have logged is affected either way.</div>
+        <button type="button" class="tr-cta" onclick="openProgramBuilderFlow('create')">Create Program</button>
+      </div>`;
+    if(detail) detail.innerHTML = '';
+    return;
+  }
+
+  const rows = list.map(p => {
+    const isActive = p.id === activeId;
+    let days = 0;
+    try{ days = programTrainingDayCount(p) || 0; }catch(e){}
+    const bits = [];
+    if(days) bits.push(days + ' day' + (days === 1 ? '' : 's') + ' a week');
+    if(p.durationWeeks) bits.push(p.durationWeeks + ' week' + (p.durationWeeks === 1 ? '' : 's'));
+    let status = '';
+    try{ status = programStatusLabel(p) || ''; }catch(e){}
+    return `
+      <button type="button" class="tr-prog${isActive ? ' tr-prog-on' : ''}" onclick="openProgramDetail('${onclickArg(p.id)}')">
+        <span class="tr-prog-main">
+          <span class="tr-prog-top">
+            <span class="tr-prog-n">${escapeHtml(p.name || 'Program')}</span>
+            ${isActive ? '<span class="tr-prog-badge">CURRENT</span>' : (status ? `<span class="tr-prog-st">${escapeHtml(status)}</span>` : '')}
+          </span>
+          ${bits.length ? `<span class="tr-prog-m">${escapeHtml(bits.join(' · '))}</span>` : ''}
+        </span>
+        <span class="tr-prog-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </button>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="section-label" style="margin-top:0">My programs</div>
+    ${rows}
+    <button type="button" class="tr-add" onclick="openProgramBuilderFlow('create')">+ Create Program</button>`;
+  try{ renderMyTraining(); }catch(e){}
+}
 
 /* Session-local: whether the how-it-works rows are open. Not persisted — a
    fresh visit starts closed, which is the right default for a disclosure. */
@@ -46322,6 +46652,9 @@ function toggleMtExplain(){
   mtExplainOpen = !mtExplainOpen;
   renderMyTraining();
 }
+/* D99A — the plan lives on its own tab now, so the Adjust row goes there
+   instead of stacking a second sheet on top of this one. */
+function mtChangePlan(){ switchTrainingTab('plan'); }
 
 function renderMyTraining(){
   const el = document.getElementById('myTrainingBody');
@@ -46448,7 +46781,7 @@ function renderMyTraining(){
         <span class="mt-act-sub">Training days and how often</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
       </button>
-      <button type="button" class="mt-act" onclick="closeMyTraining(); openPlanSwitcher();">
+      <button type="button" class="mt-act" onclick="mtChangePlan()">
         <span class="mt-act-main">Change plan</span>
         <span class="mt-act-sub">${escapeHtml(t.planName || 'Pick a starting point')}</span>
         <span class="mt-act-go">${chevronRightSvg()}</span>
@@ -49197,9 +49530,10 @@ function tickPrep(){
   // The ring sweeps every tick; the number only redraws on a whole second.
   const ring = document.getElementById('prepRingFill');
   if(ring && prepState.totalForRing){
-    const frac = Math.max(0, Math.min(1, (prepState.endsAt - Date.now()) / (prepState.totalForRing * 1000)));
-    const circ = 2 * Math.PI * 54;
-    ring.setAttribute('stroke-dashoffset', String((circ * (1 - frac)).toFixed(1)));
+    /* Drawn with attributes rather than an inline style, so this one was never
+       frozen — it goes through the shared helper so there is one way to move a
+       ring and no second implementation to drift. */
+    setRingProgress(ring, (prepState.endsAt - Date.now()) / (prepState.totalForRing * 1000), 54);
   }
   if(left === prepState.remaining) return;   // only touch the DOM on a real change
   prepState.remaining = left;
@@ -51595,6 +51929,32 @@ function loopHaptic(){
 }
 
 /* ---- the timer ---- */
+/* ONE WAY TO DRAW A COUNTDOWN RING  (Phase D99A)
+   -------------------------------------------------
+   Every ring in LOOP is one circle whose stroke dash offset says how much is
+   left. Four of them wrote that offset with setAttribute() — and two of those
+   also carried an inline `style="stroke-dashoffset:0"` from the markup that
+   drew them. AN INLINE STYLE DECLARATION BEATS A PRESENTATION ATTRIBUTE, so on
+   those two the computed offset stayed 0 for the whole countdown: the number
+   ticked down correctly and THE RING SAT AT 100% until the moment it vanished.
+   Measured in a real browser on a 75-second rest: the attribute read 1.0 while
+   the computed value read 0px, unchanged across fourteen seconds.
+
+   The fix is not to delete the inline style — the next markup change would put
+   it back and the bug would return silently. It is to write the offset through
+   the SAME CHANNEL that holds it, from one helper every ring calls. A ring that
+   is drawn with an inline dash offset is now also updated through one, so the
+   cascade cannot decide the outcome either way. */
+function setRingProgress(el, frac, radius){
+  if(!el) return;
+  const f = Math.max(0, Math.min(1, isFinite(frac) ? frac : 0));
+  const circ = 2 * Math.PI * radius;
+  /* style, not setAttribute: see above. The dash array is written too, so the
+     circumference the offset is measured against can never be a stale one left
+     by different markup. */
+  el.style.strokeDasharray = circ.toFixed(2);
+  el.style.strokeDashoffset = (circ * (1 - f)).toFixed(1);
+}
 /* One radius, read by both the drawing and the update, so the two can never
    disagree about the circumference they are dividing. */
 const REST_RING_R = 30;
@@ -51706,12 +52066,15 @@ function updateRestRing(panel){
   const total = parseInt(panel.dataset.total, 10) || 1;
   const endsAt = parseInt(panel.dataset.endsAt, 10) || 0;
   const done = panel.classList.contains('done');
+  /* The same three readings the NUMBER is derived from, in the same order, so
+     the ring cannot describe a different countdown from the one beside it.
+     Never a frame count and never a decrementing tally: a deadline minus the
+     clock, which is still right after the screen has been off. */
   let frac;
   if(done) frac = 0;
   else if(panel.dataset.paused === 'true') frac = (parseInt(panel.dataset.remaining, 10) || 0) / total;
-  else frac = Math.max(0, Math.min(1, (endsAt - Date.now()) / (total * 1000)));
-  const circ = 2 * Math.PI * REST_RING_R;
-  fill.setAttribute('stroke-dashoffset', String((circ * (1 - frac)).toFixed(1)));
+  else frac = (endsAt - Date.now()) / (total * 1000);
+  setRingProgress(fill, frac, REST_RING_R);
 }
 
 function updateRestPanelDisplay(panel){

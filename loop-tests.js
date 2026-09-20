@@ -7135,8 +7135,23 @@ function testD11Consolidation(app){
        person on their first ever screen should not be authoring a program. */
     T('offered on the first-run chooser', /customPlanCardHtml\(\)/.test(fnSrc(src, 'renderFirstUsePlans')));
     T('and reachable there without leaving the chooser', /function togglePlanMore\(\)/.test(src));
-    T('offered in the plan switcher', /customPlanCardHtml\(\)/.test(fnSrc(src, 'openPlanSwitcher')));
-    T('offered in the plans manager', /plansGrid'\)\.innerHTML[\s\S]{0,400}customPlanCardHtml\(\)/.test(src));
+    /* D99A — the guarantee changes, and it gets STRONGER. "Build my own" was
+       offered at the foot of every list of PLANS, which is what made the two
+       ideas look like the same kind of thing: a card among six premade plans
+       that opened the program builder. Building is not a plan. It now has its
+       own primary tab beside Plan, one tap from the header on every screen, so
+       it is not merely offered — it is half the surface. The first-run chooser
+       keeps its card, because a first-ever screen has no Program tab yet. */
+    T('building is no longer offered as a plan, in either plan list',
+      !/customPlanCardHtml\(\)/.test(fnSrc(src, 'openPlanSwitcher')) &&
+      !/plansGrid'\)\.innerHTML[\s\S]{0,400}customPlanCardHtml\(\)/.test(src) &&
+      !/customPlanCardHtml\(\)/.test(fnSrc(src, 'renderTrainingPlanTab')));
+    T('it is a tab of its own instead, reachable without Settings',
+      /data-tr="plan"[\s\S]{0,200}data-tr="program"/.test(src) &&
+      /class="plan-chip" onclick="openTraining\('plan'\)"/.test(src) &&
+      /function openTraining\(/.test(src));
+    T('and that tab is where a program is created, from the same one builder',
+      /openProgramBuilderFlow\('create'\)/.test(fnSrc(src, 'renderTrainingProgramTab')));
     T('the program architecture was not duplicated',
       (src.match(/function createProgram\(/g) || []).length === 1);
     T('programs remain reachable from Settings', /openPrograms\(\)/.test(src));
@@ -26031,8 +26046,20 @@ async function testTrainLauncher(){
      muscle-map-atlas.webp so each group lights from the week's own totals
      again (Contract 180 holds this one). radarSvg is untouched and keeps
      its original pin. */
-  T('the muscle figure is the approved illustration lit per group, on purpose (D76.5); the profile radar was not',
-    sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === '633c2c8292948a13' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
+  /* D99A moved it on purpose once more, and moved nothing about the drawing:
+     the same approved illustration, the same atlas, the same tiles, the same
+     geometry. What is added is an OPTIONAL third argument — a state per muscle
+     — which recolours the artwork WHERE IT IS ALREADY DRAWN, by a filter inside
+     the tile's own viewport. Called the way it always was, with one or two
+     arguments, it produces exactly what it produced before, which the call-site
+     and band assertions below still prove. radarSvg is untouched and keeps its
+     original pin. */
+  T('the muscle figure is the approved illustration lit per group, on purpose (D76.5, recoloured per state in D99A); the profile radar was not',
+    sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === '61fc283039c1dbf3' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
+  T('no second anatomy was drawn for it: one atlas, one tile table, one figure',
+    (src.match(/MUSCLE_ATLAS\s*=/g) || []).length === 1 &&
+    /const A = MUSCLE_ATLAS;/.test(fnSpan(src, 'bodyDiagramSvg')) &&
+    !/<path[^>]*muscle|new Path2D|drawBody|bodyOutline/i.test(fnSpan(src, 'recoveryStripHtml')));
   T('the art exporter stays development tooling: the app and its worker never reference it',
     !/export-exercise-art|artifacts\/exercise-art-export/.test(src) && !/export-exercise-art|artifacts\//.test(fs.readFileSync(path.join(repo, 'sw.js'), 'utf8')));
   T('no history, storage key, schema or trainer change', JSON.stringify(ctx.workoutLog) === logRaw && ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 &&
@@ -27324,8 +27351,12 @@ async function testMuscleMapOverlays(){
 
   sub('every call site still draws its own muscle set');
   await guard('call sites', () => {
-    T('seven callers, each passing exactly what it always passed',
-      (src.match(/bodyDiagramSvg\(/g) || []).length === 8 &&
+    /* D99A — an eighth caller: the Today recovery map, the only one that passes
+       a state map instead of totals. Every one of the seven still passes what
+       it always passed, which the clauses below check one at a time. */
+    T('eight callers, each passing exactly what it always passed',
+      (src.match(/bodyDiagramSvg\(/g) || []).length === 9 &&
+      /bodyDiagramSvg\(null, \{\}, states\)/.test(fnSrc(src, 'recoveryStripHtml')) &&
       /const diagram = bodyDiagramSvg\(planAggregateTemplate\(planDef\)\);/.test(fnSrc(src, 'planCardBody')) &&
       /bodyDiagramSvg\(null, data\.totals\)/.test(fnSrc(src, 'renderTodayMuscles')) &&
       /bodyDiagramSvg\(t\)/.test(fnSrc(src, 'templateCardHtml')) &&
@@ -37319,6 +37350,227 @@ async function testObjectivesD99(){
   });
 }
 
+/* =========================================================
+   CONTRACT 203 — PLAN vs PROGRAM, A RING THAT TELLS THE TIME,
+   AND RECOVERY YOU CAN SEE  (Phase D99A)
+   ---------------------------------------------------------
+   Three things an athlete met on a real phone.
+
+   1. PLAN AND PROGRAM WERE THE SAME WORD. Four sheets held them —
+      two of which nothing linked to — and "Build my own" sat at
+      the foot of every list of PLANS while opening the PROGRAM
+      builder. They are now two tabs of one surface, one tap from
+      the header: PLAN is "what structure do I follow", PROGRAM is
+      "what have I built and what am I running". Presentation only;
+      no storage structure was renamed and no program logic moved.
+   2. EVERY REST RING WAS FULL FOR THE WHOLE COUNTDOWN. The number
+      was always right. The ring was drawn with an inline
+      style="stroke-dashoffset:0" and updated with setAttribute —
+      and an inline style beats a presentation attribute, so the
+      computed offset never moved. One helper now writes it through
+      the channel that holds it, and every ring calls it.
+   3. RECOVERY WAS THREE PERCENTAGES. It is the approved figure,
+      the same atlas and the same tiles, recoloured where the
+      artwork already is — beside the same three numbers.
+
+   The recovery MATHS, the progression engine, program semantics
+   and the muscle registry are untouched.
+   ========================================================= */
+async function testPlanProgramTimerRecoveryD99A(){
+  section('CONTRACT 203 — plan and program told apart, a ring that tells the time, recovery you can see (D99A)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+
+  /* ---------------------------------------------------- 1. PLAN vs PROGRAM */
+  sub('two questions, two tabs, one surface');
+  await guard('tabs', async () => {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+    const c = app.ctx;
+    T('the surface asks both questions and names them',
+      /data-tr="plan"[^>]*>Plan</.test(src) && /data-tr="program"[^>]*>Program</.test(src) &&
+      /<div class="workout-topbar-title">Training<\/div>/.test(src));
+    T('it is one tap from the header, on every screen',
+      /class="plan-chip" onclick="openTraining\('plan'\)"/.test(src));
+    T('Settings is no longer the way in, and no longer claims to be a program page',
+      /<span class="settings-row-title">Plan &amp; Program<\/span>/.test(src));
+    T('every caller that asked for the program view still gets it',
+      /function openMyTraining\(\)\{ openTraining\('program'\); \}/.test(src));
+    T('the tab is session state, not a stored setting',
+      /^let trainingTab = 'program';$/m.test(src) && !/objectives|LOOPStore/.test(fnSrc(src, 'switchTrainingTab')));
+    /* PLAN lists plans. Nothing on it creates or edits a program. */
+    const plan = fnSrc(src, 'renderTrainingPlanTab');
+    T('PLAN offers the premade library and the switch LOOP already had',
+      /Object\.keys\(DEFAULT_PLANS\)/.test(plan) && /choosePlan\('\$\{id\}'\)/.test(plan) && /planCardBody\(/.test(plan));
+    T('and nothing on PLAN builds, edits, activates or deletes a program',
+      !/createProgram|updateProgram|setActiveProgram|deleteProgram|openProgramBuilderFlow/.test(plan));
+    /* PROGRAM is the portfolio. */
+    const prog = fnSrc(src, 'renderTrainingProgramTab');
+    T('PROGRAM lists what the athlete built, and says which one is running',
+      /getPrograms\(\)/.test(prog) && /programsStore\.activeProgramId/.test(prog) && /CURRENT/.test(prog));
+    T('with none built it explains what one is instead of showing an empty page',
+      /tr-empty/.test(prog) && /Create Program/.test(prog));
+    T('opening one shows it and cannot start it',
+      /openProgramDetail\(/.test(prog) && !/setActiveProgram|activateProgram/.test(prog) &&
+      !/setActiveProgram/.test(fnSrc(src, 'openProgramDetail')));
+    T('a stored id in a handler is escaped for the JS string, not the attribute alone',
+      /openProgramDetail\('\$\{onclickArg\(p\.id\)\}'\)/.test(prog) && !/openProgramDetail\('\$\{escapeAttr\(/.test(prog));
+    T('reading either tab writes nothing',
+      !/LOOPStore|persist\w*\(|localStorage/.test(plan + prog + fnSrc(src, 'renderTraining') + fnSrc(src, 'applyTrainingTabs')));
+    /* The engine underneath is the one that was there. */
+    T('one program engine, one builder, one plan chooser',
+      (src.match(/function createProgram\(/g) || []).length === 1 &&
+      (src.match(/function openProgramBuilderFlow\(/g) || []).length === 1 &&
+      (src.match(/function choosePlan\(/g) || []).length === 1);
+    T('switching a plan still cannot touch a program record',
+      !/programsStore|createProgram|updateProgram|setActiveProgram/.test(fnSrc(src, 'choosePlan')));
+    T('every program write still goes through the one commit path',
+      ['createProgram', 'updateProgram', 'setActiveProgram', 'pauseProgram', 'resumeProgram', 'completeProgram', 'deleteProgram']
+        .every(f => /commitProgramChange\(/.test(fnSrc(src, f))));
+    T('D51 revisions, D90 pauses and the block cycle were not touched',
+      /function addProgramRevision\(/.test(src) && /function programPlanOn\(/.test(src) &&
+      /function pauseSpansOf\(/.test(src) && /function cycleOf\(/.test(src));
+    T('no storage key, schema or trainer change for any of it',
+      c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('and no navigation tab was added', (src.match(/class="tab-btn"|class="tab-btn active"/g) || []).length === NAV_TAB_COUNT);
+  });
+
+  /* ------------------------------------------------------------ 2. THE RING */
+  sub('a ring that says what the number says');
+  await guard('ring', async () => {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+    const c = app.ctx;
+    /* THE BUG, AS A RULE. An inline style beats a presentation attribute, so a
+       ring drawn with one and updated through the other can never move. */
+    T('no ring is updated by setAttribute any more',
+      (src.match(/setAttribute\('stroke-dashoffset'/g) || []).length === 0);
+    T('there is ONE way to move a ring, and every ring uses it',
+      /function setRingProgress\(el, frac, radius\)\{/.test(src) &&
+      ['updateRestRing', 'updateCardioRing'].every(f => /setRingProgress\(/.test(fnSrc(src, f))) &&
+      /setRingProgress\(ring,/.test(fnSrc(src, 'tickPrep')) &&
+      /setRingProgress\(fill, left \/ TOTAL, 54\)/.test(fnSrc(src, 'startTimerDemo')));
+    T('it writes through the channel that holds the value',
+      /el\.style\.strokeDashoffset =/.test(fnSrc(src, 'setRingProgress')) &&
+      /el\.style\.strokeDasharray =/.test(fnSrc(src, 'setRingProgress')));
+    /* THE MATHS, in closed form, against the brief's own worked example. */
+    const R = c.REST_RING_R, CIRC = 2 * Math.PI * R;
+    const el = () => ({ style: {} });
+    const drawn = (frac) => { const e = el(); c.setRingProgress(e, frac, R);
+      return 1 - parseFloat(e.style.strokeDashoffset) / parseFloat(e.style.strokeDasharray); };
+    T('60s of 60 draws the whole ring', Math.abs(drawn(60 / 60) - 1) < 0.002);
+    T('45s of 60 draws three quarters', Math.abs(drawn(45 / 60) - 0.75) < 0.002);
+    T('30s of 60 draws a half', Math.abs(drawn(30 / 60) - 0.5) < 0.002);
+    T('15s of 60 draws a quarter', Math.abs(drawn(15 / 60) - 0.25) < 0.002);
+    T('0s draws nothing', Math.abs(drawn(0)) < 0.002);
+    T('the circumference is the one the circle is drawn with',
+      Math.abs(parseFloat((() => { const e = el(); c.setRingProgress(e, 1, R); return e.style.strokeDasharray; })()) - CIRC) < 0.01);
+    T('a nonsense fraction is clamped rather than drawn',
+      Math.abs(drawn(4) - 1) < 0.002 && Math.abs(drawn(-3)) < 0.002 && Math.abs(drawn(NaN)) < 0.002);
+    /* TIME IS A DEADLINE, NEVER A TALLY. */
+    const rest = fnSrc(src, 'updateRestRing') + fnSrc(src, 'tickRestPanel') + fnSrc(src, 'startRestPanel') +
+      fnSrc(src, 'addRestTime') + fnSrc(src, 'pauseResumeRest');
+    T('every reading is a deadline minus the clock, so a sleeping screen cannot lose time',
+      /endsAt - Date\.now\(\)/.test(rest) && !/remaining\s*-[-=]\s*1|--\s*remaining/.test(rest));
+    T('the ring reads the same three values the number does',
+      /panel\.dataset\.total/.test(fnSrc(src, 'updateRestRing')) &&
+      /panel\.dataset\.endsAt/.test(fnSrc(src, 'updateRestRing')) &&
+      /panel\.dataset\.paused/.test(fnSrc(src, 'updateRestRing')));
+    T('+15s moves the deadline AND the total, so the ring cannot exceed itself',
+      /dataset\.total = \(parseInt\(panel\.dataset\.total, 10\) \|\| 0\) \+ Math\.round\(add \/ 1000\)/.test(fnSrc(src, 'addRestTime')));
+    T('pausing freezes what is left and resuming re-anchors the deadline to it',
+      /dataset\.remaining = Math\.max\(0, Math\.ceil\(\(endsAt - Date\.now\(\)\) \/ 1000\)\)/.test(fnSrc(src, 'pauseResumeRest')) &&
+      /dataset\.endsAt = String\(Date\.now\(\) \+ \(parseInt\(panel\.dataset\.remaining, 10\) \|\| 0\) \* 1000\)/.test(fnSrc(src, 'pauseResumeRest')));
+    T('a rest completes once, whatever fires it',
+      /if\(!panel \|\| panel\.dataset\.completed === 'true'\) return;/.test(fnSrc(src, 'completeRestPanel')));
+    T('reduced motion keeps the ring honest and only drops the interpolation',
+      /\.rest-ring-fill\{ transition: none; \}/.test(css) && !/prefers-reduced-motion[\s\S]{0,400}setRingProgress/.test(src));
+    T('the animation does not redraw the sheet: one element, per tick',
+      !/renderAll|renderLogSheet|innerHTML/.test(fnSrc(src, 'setRingProgress') + fnSrc(src, 'updateRestRing')));
+  });
+
+  /* -------------------------------------------------------- 3. RECOVERY */
+  sub('the same figure, saying how recovered you are');
+  await guard('recovery', async () => {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+    const c = app.ctx;
+    /* THE MATHS DID NOT MOVE. */
+    T('the recovery model is exactly what it was',
+      c.RECOVERY_CONFIG.halfLifeDays === 2.0 && c.RECOVERY_CONFIG.windowDays === 14 &&
+      c.RECOVERY_CONFIG.saturationSets === 18 && c.RECOVERY_CONFIG.primaryWeight === 1.0 &&
+      c.RECOVERY_CONFIG.secondaryWeight === 0.4 &&
+      JSON.stringify(c.RECOVERY_CONFIG.thresholds) === JSON.stringify({ high: 90, well: 75, moderate: 50, low: 25 }));
+    T('nothing in the new surface computes a recovery number',
+      !/halfLife|saturation|recencyDecay|setLoadFactor|Math\.pow/.test(fnSrc(src, 'recoveryStripHtml') + fnSrc(src, 'recoveryBandOf')));
+    /* FIVE STATES BECOME THREE COLOURS, IN ONE NAMED PLACE. */
+    T('the mapping is one helper, and it is total over the engine’s own states',
+      c.recoveryBandOf('high') === 'ready' && c.recoveryBandOf('well') === 'ready' &&
+      c.recoveryBandOf('moderate') === 'recovering' &&
+      c.recoveryBandOf('low') === 'low' && c.recoveryBandOf('verylow') === 'low');
+    T('UNKNOWN IS NOT READY: it has no band, so it is never painted',
+      c.recoveryBandOf('unknown') === null && c.recoveryBandOf(null) === null && c.recoveryBandOf('nonsense') === null);
+    T('the three bands are the only ones there are', JSON.stringify(c.RECOVERY_TINT_BANDS) === JSON.stringify(['ready', 'recovering', 'low']));
+    T('a band colours the bar and the muscle from ONE declaration each',
+      /\.rec-b-ready\{ background: var\(--success\); \}/.test(css) && /\.rec-flood-ready\{ flood-color: var\(--success\); \}/.test(css) &&
+      /\.rec-b-recovering\{ background: var\(--warning\); \}/.test(css) && /\.rec-flood-recovering\{ flood-color: var\(--warning\); \}/.test(css) &&
+      /\.rec-b-low\{ background: var\(--error\); \}/.test(css) && /\.rec-flood-low\{ flood-color: var\(--error\); \}/.test(css));
+    T('the colours are LOOP’s own tokens, not hexes frozen into the figure',
+      !/flood-color:\s*#/.test(css) && !/flood-color="#/.test(src));
+    T('--accent is deliberately not a recovery colour: blue already means trained',
+      !/\.rec-(b|flood)-\w+\{ (background|flood-color): var\(--accent\)/.test(css));
+    /* THE FIGURE IS THE APPROVED ONE. */
+    T('no second anatomy, no second mapping, no new asset',
+      (src.match(/MUSCLE_ATLAS\s*=/g) || []).length === 1 &&
+      /const A = MUSCLE_ATLAS;/.test(fnSrc(src, 'bodyDiagramSvg')) &&
+      /bodyDiagramSvg\(null, \{\}, states\)/.test(fnSrc(src, 'recoveryStripHtml')));
+    T('the tint is applied INSIDE the tile’s viewport, or the atlas leaks across the body',
+      /<g filter="url\(#loopRecTint-\$\{band\}\)"><image/.test(fnSrc(src, 'bodyDiagramSvg')));
+    T('called the way it always was, it draws what it always drew',
+      (() => { const t = { exercises: [{ name: 'Bench Press', sets: 3 }, { name: 'Barbell Squat', sets: 3 }] };
+        const a = c.bodyDiagramSvg(t), b = c.bodyDiagramSvg(t, null);
+        return a === b && a.indexOf('loopRecTint') === -1 && a.indexOf('muscle-fig') !== -1; })());
+    /* Counted by what is DRAWN, not by what is defined: the three filters are
+       declared together once, and only a named muscle wears one. */
+    const worn = html => html.match(/<g filter="url\(#loopRecTint-(\w+)\)"/g) || [];
+    T('a state map lights only what it names, in that state’s colour', (() => {
+      const w = worn(c.bodyDiagramSvg(null, {}, { chest: 'ready', back: 'low' }));
+      return w.length === 2 && w.filter(x => /ready/.test(x)).length === 1 &&
+        w.filter(x => /-low\)/.test(x)).length === 1 && w.filter(x => /recovering/.test(x)).length === 0; })());
+    T('a band it does not recognise lights nothing, and defines nothing either',
+      worn(c.bodyDiagramSvg(null, {}, { chest: 'sort-of' })).length === 0 &&
+      c.bodyDiagramSvg(null, {}, { chest: 'sort-of' }).indexOf('loopRecTint') === -1);
+    T('the filters are declared only on a figure that uses one',
+      c.bodyDiagramSvg({ exercises: [{ name: 'Bench Press', sets: 3 }] }).indexOf('loopRecTint') === -1);
+    T('drawing it stores nothing and alters nothing it was given', (() => {
+      const given = { chest: 'ready' }, before = JSON.stringify(given);
+      c.bodyDiagramSvg(null, {}, given); c.bodyDiagramSvg(null, {}, given);
+      return JSON.stringify(given) === before &&
+        !/LOOPStore|persist\w*\(/.test(fnSrc(src, 'bodyDiagramSvg') + fnSrc(src, 'recoveryStripHtml')); })());
+    /* THE MAP AND THE NUMBERS ARE ONE DERIVATION. */
+    const strip = fnSrc(src, 'recoveryStripHtml');
+    T('both sides come from ONE call to the engine, so they cannot disagree',
+      (strip.match(/computeMuscleRecovery\(\)/g) || []).length === 1 &&
+      /const listed = Object\.keys\(states\)/.test(strip));
+    T('a muscle with no evidence, or evidence older than the window, is on neither side',
+      /r\.score !== null && r\.lastTrainedDays !== null/.test(strip) &&
+      /r\.lastTrainedDays <= RECOVERY_CONFIG\.windowDays/.test(strip));
+    T('the list is still the three furthest from recovered, deterministically',
+      /\.sort\(\(a, b\) => a\.score - b\.score \|\| a\.muscle\.localeCompare\(b\.muscle\)\)/.test(strip) && /\.slice\(0, 3\)/.test(strip));
+    T('with nothing to say it draws nothing', c.recoveryStripHtml() === '');
+    T('the colour is never the only carrier: the states are spoken too',
+      /aria-label="Estimated recovery\./.test(strip) && /RECOVERY_BAND_LABEL/.test(strip));
+    T('two columns at a phone width, and the figure yields before the name clips',
+      /\.rec-body\{ display: flex;/.test(css) && /\.rec-fig\{ flex: 0 0 44%;/.test(css) &&
+      /@media \(max-width: 359px\)\{[\s\S]{0,320}\.rec-fig\{ flex-basis: 38%;/.test(css));
+    T('one settle, no pulse, no loop, and none of it under reduced motion',
+      /@keyframes recSettle\{ from\{ opacity: 0\.55; \} to\{ opacity: 1; \} \}/.test(css) &&
+      !/recSettle[^}]*infinite/.test(css) &&
+      /@media \(prefers-reduced-motion: reduce\)\{\s*\.rec-card \.muscle-svg, \.rec-card \.rec-fill\{ animation: none; \}/.test(css));
+    T('the card is drawn on the first launch, not only after a tab switch',
+      /try\{ renderReadinessCard\(\); \}catch\(e\)\{\}/.test(fnSrc(src, 'boot')));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -37482,6 +37734,7 @@ async function main(){
   await testRankTourD97();
   await testRealUseUxD98();
   await testObjectivesD99();
+  await testPlanProgramTimerRecoveryD99A();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
