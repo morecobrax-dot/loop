@@ -13271,3 +13271,51 @@ iPhone.
 **Not changed.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow; recovery and readiness maths, D49, D50B,
 D43, D44, D51, D89, D90, blocks and deload, the muscle registry and atlas, XP, Rank, Mastery, Session
 Score, D99's objectives. D96's E11–E16 remain open, unimplemented and paused.
+
+---
+
+## §125 — A PORTFOLIO CARD SAYS WHAT ITS OWN PROGRAM SAYS (D99A.1 · LOOP 10.4 · loop-v181)
+
+A correctness follow-up to D99A, opened by a screenshot of the Program tab reading "4-Day Muscle Growth ·
+3 days a week". **The screenshot was correct and was not the bug.** It is a file from this project's own QA
+folder (`pp-prog-390.png`): the fixture in `pp-qa.js` deliberately created both programs from one 3-workout-day
+schedule and named the first one "4-Day Muscle Growth". The card reported the fixture's real schedule. Days a
+week is **never inferred from a title**, and nothing was changed to make the number match the name.
+
+**What was suspected — cross-program leakage — is disproved.** Each card's name, length and CURRENT badge were
+already read off the record being drawn: `p.name`, `p.durationWeeks`, `activeProgramId === p.id`. Eight programs
+that differ in days, weeks, status, schedule and name honesty (a program named "4-Day" that schedules three;
+a five-day; a two-day; self-owning custom sessions; plan-template references; a revision in force; a revision
+not yet in force; paused; completed) each draw their own line, and making another program current, switching
+the selected plan, opening a different program's detail and rewriting the plan's own weekly schedule change no
+card's text.
+
+**What the audit did find — two narrow defects, both real, both proven on shipped 10.3:**
+
+1. **Days a week read `program.schedule`, not the plan in force.** `addProgramRevision` keeps `schedule` on the
+   NEWEST plan and history in `revisions`, so a change the athlete was told "applies next week" (D51C) already
+   sits in `schedule` while it is not yet in force. On 10.3 a program with a revision starting tomorrow drew
+   **5 days a week** on its card above a detail that — correctly — said **3**. (A revision already in force
+   was always right.)
+2. **A paused program that was also the current one said CURRENT and nothing else.**
+
+**Fix.** One explicit helper, `programPortfolioCard(p, activeId)`, takes the program being drawn and the id of
+the current one (a fact about the store, not the card) and derives everything else from that record and the
+clock. Days are `programPlanOn(p, today)` — the same question My Training asks. Status words are said whatever
+else is true: Paused, Completed; a completed program is never badged current even when told it is.
+`renderTrainingProgramTab` computes nothing itself. **`programTrainingDayCount` is unchanged** and its other two
+callers (progress ratio, program completion) are byte-for-byte as they were.
+
+**Not touched.** No program record was migrated, renamed, revised, activated or written: drawing the list
+leaves `programsStore` byte-identical (asserted). D51 revisions, D89 chronology, D90 pauses, the block cycle,
+program activation, DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, D96, D99 Objectives.
+
+**Tests.** Contract 204 (36 checks) over a fixture in which every program differs; **12 of 12 mutants killed**
+— including the exact pre-fix behaviour, days taken from the active program, from the selected plan's schedule
+and from a digit in the title, weeks or name taken from the active program, every card current, a completed
+program current, a paused program not called paused, the latest-revision-regardless-of-date read, the list
+bypassing the helper, and the helper writing to the store. One survivor was found (the completed-is-never-current
+guard is unreachable through the real API because `completeProgram` already clears the active id) and killed by
+asking the helper directly. Contract 203's handler-escaping assertion was restated for the card's own `c.id`;
+the rule it holds (a stored id is escaped for the JS string, never by `escapeAttr` alone) is unchanged.
+verify 9,535/0; five audits green. Real Edge at 320, 375, 390 and 430: 36/36 with six programs that all differ.

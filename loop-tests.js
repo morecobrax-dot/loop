@@ -37415,7 +37415,10 @@ async function testPlanProgramTimerRecoveryD99A(){
       /openProgramDetail\(/.test(prog) && !/setActiveProgram|activateProgram/.test(prog) &&
       !/setActiveProgram/.test(fnSrc(src, 'openProgramDetail')));
     T('a stored id in a handler is escaped for the JS string, not the attribute alone',
-      /openProgramDetail\('\$\{onclickArg\(p\.id\)\}'\)/.test(prog) && !/openProgramDetail\('\$\{escapeAttr\(/.test(prog));
+      /* D99A.1 — the row is drawn from programPortfolioCard now, so the id is the
+         card's own (c.id, copied from the record). The rule is unchanged: a
+         stored id is escaped for the JS string, never by escapeAttr alone. */
+      /openProgramDetail\('\$\{onclickArg\(c\.id\)\}'\)/.test(prog) && !/openProgramDetail\('\$\{escapeAttr\(/.test(prog));
     T('reading either tab writes nothing',
       !/LOOPStore|persist\w*\(|localStorage/.test(plan + prog + fnSrc(src, 'renderTraining') + fnSrc(src, 'applyTrainingTabs')));
     /* The engine underneath is the one that was there. */
@@ -37568,6 +37571,152 @@ async function testPlanProgramTimerRecoveryD99A(){
       /@media \(prefers-reduced-motion: reduce\)\{\s*\.rec-card \.muscle-svg, \.rec-card \.rec-fill\{ animation: none; \}/.test(css));
     T('the card is drawn on the first launch, not only after a tab switch',
       /try\{ renderReadinessCard\(\); \}catch\(e\)\{\}/.test(fnSrc(src, 'boot')));
+  });
+}
+
+/* =========================================================
+   CONTRACT 204 — A PORTFOLIO CARD SAYS WHAT ITS OWN PROGRAM SAYS  (D99A.1)
+   ---------------------------------------------------------
+   The Program tab lists every saved program. Each card's name,
+   days a week, length and status must come from THAT record and
+   nothing else: not the selected plan, not the current program,
+   not the card beside it, not the detail open beneath the list,
+   and never the title ("4-Day" on a program that schedules three).
+
+   What was wrong: days a week read `program.schedule`, which
+   addProgramRevision keeps on the NEWEST plan — so a change the
+   athlete was told "applies next week" (D51C) sat in `schedule`
+   while not yet in force, and the card said 5 days a week above a
+   detail that correctly said 3. Cards now ask the plan IN FORCE
+   TODAY, one explicit helper taking the program being drawn.
+   Also: a paused current program said CURRENT and nothing else.
+   ========================================================= */
+async function testPortfolioMetadataD99A1(){
+  section('CONTRACT 204 — a portfolio card says what its own program says (D99A.1)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+
+  const W = (cat, tpl) => ({ type: 'workout', planId: 'balanced', category: cat, templateId: tpl || 'd1' });
+  const REST = { type: 'rest' };
+  const KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], CATS = ['push', 'pull', 'legs', 'push', 'pull', 'legs', 'push'];
+  const plan = n => { const s = {}; KEYS.forEach((k, i) => { s[k] = i < n ? W(CATS[i]) : REST; }); return s; };
+  const OWN = n => { const s = {}; KEYS.forEach((k, i) => { s[k] = i < n ? { type: 'workout', category: CATS[i], name: 'Mine ' + i,
+    exercises: [{ name: 'Bench Press', sets: 3, reps: '8', effort: '8', recommended: '—' }] } : REST; }); return s; };
+
+  await guard('multi', async () => {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+    const c = app.ctx;
+    const today = c.localDateStr(), past = n => c.addDaysISO(today, -n);
+    const mk = async (name, sched, weeks, start) =>
+      (await c.createProgram({ name, goal: 'hypertrophy', durationWeeks: weeks, schedule: sched, startDate: start })).program.id;
+
+    /* every program differs in days, weeks, status, schedule AND name honesty */
+    const ID = {};
+    ID.liar     = await mk('4-Day Muscle Growth', plan(3), 6, past(21));       // the title lies; the schedule says 3
+    ID.five     = await mk('Five day', plan(5), 10, past(14));
+    ID.two      = await mk('Two day', plan(2), 4, past(28));
+    ID.custom   = await mk('Custom own sessions', OWN(4), 12, past(7));       // self-owning entries, no plan template
+    ID.pastRev  = await mk('Revised 3 to 5', plan(3), 8, past(21));
+    ID.futRev   = await mk('Goes to 5 next week', plan(3), 8, past(21));
+    ID.paused   = await mk('Paused one', plan(4), 6, past(21));
+    ID.done     = await mk('Finished one', plan(6), 3, past(60));
+    c.addProgramRevision(c.getProgram(ID.pastRev), plan(5), past(7));          // in force since a week ago
+    c.addProgramRevision(c.getProgram(ID.futRev), plan(5), c.programRevisionDate('next'));  // NOT yet in force
+    await c.setActiveProgram(ID.paused); await c.pauseProgram(ID.paused);
+    await c.completeProgram(ID.done);
+    await c.setActiveProgram(ID.five);
+
+    const cardOf = id => c.programPortfolioCard(c.getProgram(id), c.programsStore.activeProgramId);
+    const inForce = id => Object.values(c.programPlanOn(c.getProgram(id), today)).filter(e => e.type === 'workout').length;
+    const WANT = { liar: 3, five: 5, two: 2, custom: 4, pastRev: 5, futRev: 3, paused: 4, done: 6 };
+    const WEEKS = { liar: 6, five: 10, two: 4, custom: 12, pastRev: 8, futRev: 8, paused: 6, done: 3 };
+
+    sub('every card is that program’s own truth');
+    Object.keys(WANT).forEach(k => {
+      T(k + ': ' + WANT[k] + ' days and ' + WEEKS[k] + ' weeks, from its own record',
+        cardOf(ID[k]).days === WANT[k] && cardOf(ID[k]).weeks === WEEKS[k] &&
+        cardOf(ID[k]).meta === WANT[k] + ' day' + (WANT[k] === 1 ? '' : 's') + ' a week · ' + WEEKS[k] + ' weeks', JSON.stringify(cardOf(ID[k])));
+    });
+    T('the days a card shows are the plan in force today, for every program', Object.keys(WANT).every(k => cardOf(ID[k]).days === inForce(ID[k])));
+    T('a title does not decide a count: "4-Day Muscle Growth" that schedules three has three',
+      cardOf(ID.liar).name === '4-Day Muscle Growth' && cardOf(ID.liar).days === 3);
+    T('cards that differ in every field really are different cards',
+      new Set(Object.keys(WANT).map(k => cardOf(ID[k]).meta)).size >= 6);
+
+    sub('revisions and schedules that changed over time');
+    T('a revision already in force counts',  cardOf(ID.pastRev).days === 5);
+    T('a revision NOT yet in force does not — the card agrees with the detail beneath it',
+      cardOf(ID.futRev).days === 3 && c.programTrainingDayCount(c.getProgram(ID.futRev)) === 5,
+      'card ' + cardOf(ID.futRev).days + ' vs schedule field ' + c.programTrainingDayCount(c.getProgram(ID.futRev)));
+    T('the program’s own record was not touched to make the card read right',
+      (c.getProgram(ID.futRev).revisions || []).length === 2 && c.programTrainingDayCount(c.getProgram(ID.futRev)) === 5);
+    T('custom programs whose sessions are their own count the same way',  cardOf(ID.custom).days === 4);
+    T('programs that reference plan templates count the same way',        cardOf(ID.five).days === 5);
+
+    sub('status, said in words, per program');
+    T('the running program is CURRENT and no other is', Object.keys(ID).filter(k => cardOf(ID[k]).current).join() === 'five');
+    T('a paused program says so, current or not', cardOf(ID.paused).status === 'Paused');
+    T('a completed program says so and is never current', cardOf(ID.done).status === 'Completed' && !cardOf(ID.done).current);
+    /* completeProgram already clears activeProgramId, so the store alone never
+       reaches this guard. Asked directly: even told a completed program IS the
+       current one, the card refuses to badge it. */
+    T('and the card does not badge a completed program even when told it is current',
+      c.programPortfolioCard(c.getProgram(ID.done), ID.done).current === false);
+    T('an inactive program says nothing it did not earn', cardOf(ID.two).status === '' && !cardOf(ID.two).current);
+    T('a PAUSED program that is also the current one is both',
+      (() => { const r = c.programPortfolioCard(c.getProgram(ID.paused), ID.paused); return r.current && r.status === 'Paused'; })());
+
+    sub('switching, opening and re-planning cannot rewrite another card');
+    const before = JSON.stringify(Object.keys(ID).map(k => cardOf(ID[k])).map(x => [x.id, x.name, x.days, x.weeks, x.meta]));
+    await c.setActiveProgram(ID.two);
+    const afterSwitch = Object.keys(ID).map(k => cardOf(ID[k]));
+    T('making another program current changes only WHO is current',
+      JSON.stringify(afterSwitch.map(x => [x.id, x.name, x.days, x.weeks, x.meta])) === before &&
+      afterSwitch.filter(x => x.current).map(x => x.id).join() === ID.two);
+    await c.choosePlan('strength');
+    T('switching the selected PLAN changes no card',
+      JSON.stringify(Object.keys(ID).map(k => cardOf(ID[k])).map(x => [x.id, x.name, x.days, x.weeks, x.meta])) === before);
+    c.detailProgramId = ID.done;
+    T('the program open in the detail changes no card',
+      JSON.stringify(Object.keys(ID).map(k => cardOf(ID[k])).map(x => [x.id, x.name, x.days, x.weeks, x.meta])) === before);
+    c.schedule = { mon: 'rest', tue: 'rest', wed: 'rest', thu: 'rest', fri: 'rest', sat: 'rest', sun: 'push' };
+    T('the plan’s own weekly schedule changes no card',
+      JSON.stringify(Object.keys(ID).map(k => cardOf(ID[k])).map(x => [x.id, x.name, x.days, x.weeks, x.meta])) === before);
+
+    sub('what is actually drawn');
+    c.renderTrainingProgramTab();
+    const html = c.document.getElementById('trainingProgramBody').innerHTML;
+    const drawn = [...html.matchAll(/tr-prog-n">([^<]*)<[\s\S]*?tr-prog-m">([^<]*)</g)].map(m => [c.unescapeHtmlForTest ? m[1] : m[1], m[2]]);
+    T('all eight programs are drawn, each with its own line', drawn.length === 8, drawn.length);
+    T('the drawn line for each is its card’s line, in order',
+      c.getPrograms().every((p, i) => drawn[i] && drawn[i][1] === c.programPortfolioCard(p, c.programsStore.activeProgramId).meta));
+    T('exactly one CURRENT is drawn', (html.match(/tr-prog-badge/g) || []).length === 1);
+
+    sub('by construction');
+    const helper = fnSrc(src, 'programPortfolioCard');
+    T('the helper takes the program being drawn and reads nothing else that varies',
+      /function programPortfolioCard\(p, activeId\)/.test(helper) && /programPlanOn\(p, localDateStr\(\)\)/.test(helper) &&
+      !/getActiveProgram|selectedPlanId|planData|schedule\b(?!:)|detailProgramId|myTrainingState|programsStore\.programs/.test(helper.replace(/program\.schedule/g, '')));
+    T('the count is never taken from the title', !/\.name\b[^;]*\d|match\(\/\\d/.test(helper.replace(/name: p\.name \|\| 'Program'/, '')));
+    T('the list draws every card through the helper and computes nothing itself',
+      /programPortfolioCard\(p, activeId\)/.test(fnSrc(src, 'renderTrainingProgramTab')) &&
+      !/programTrainingDayCount|programStatusLabel|p\.durationWeeks/.test(fnSrc(src, 'renderTrainingProgramTab')));
+    T('the helper writes nothing', !/LOOPStore|persist\w*\(|programsStore\.\w+ =/.test(helper));
+  });
+
+  sub('nothing protected moved');
+  await guard('protected', async () => {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+    const c = app.ctx;
+    T('programTrainingDayCount, the other two callers and D51/D89/D90 are as they were',
+      /return PROGRAM_DAY_KEYS\.filter\(k => s\[k\] && s\[k\]\.type === 'workout'\)\.length;/.test(fnSrc(src, 'programTrainingDayCount')) &&
+      (src.match(/programTrainingDayCount\(/g) || []).length === 3 &&
+      /function programPlanOn\(/.test(src) && /function addProgramRevision\(/.test(src) && /function pauseSpansOf\(/.test(src));
+    T('no program is created, renamed, revised, activated or migrated by drawing the list', (() => {
+      const before = JSON.stringify(c.programsStore); c.renderTrainingProgramTab(); c.renderTrainingProgramTab();
+      return JSON.stringify(c.programsStore) === before; })());
+    T('no storage key, schema or trainer change', c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   });
 }
 
@@ -37735,6 +37884,7 @@ async function main(){
   await testRealUseUxD98();
   await testObjectivesD99();
   await testPlanProgramTimerRecoveryD99A();
+  await testPortfolioMetadataD99A1();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

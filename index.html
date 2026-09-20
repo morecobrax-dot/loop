@@ -17071,6 +17071,22 @@ const LOOP_UPDATES = [
     changes: [
       'A muscle LOOP has no recent evidence for is left unpainted rather than shown as recovered'
     ]
+  },
+  {
+    id: 'v10-4',
+    version: 'LOOP 10.4',
+    title: 'Program Cards',
+    date: '2026-09-20',
+    swVersion: 'loop-v181',
+    summary: 'Each program on the Program tab now says what it is running today, and a paused program says it is paused.',
+    newFeatures: [],
+    improvements: [
+      'A paused program is labelled Paused on the Program tab, even when it is your current one'
+    ],
+    bugFixes: [
+      'A program with a change scheduled to start next week showed next week’s days on its card while the program itself, right below, showed this week’s. The card now shows the plan in force today'
+    ],
+    changes: []
   }
 ];
 
@@ -46592,6 +46608,37 @@ function renderTrainingPlanTab(){
       <button type="button" class="tr-link" onclick="switchTrainingTab('program')">Build a program</button></div>`;
 }
 
+/* D99A.1 — WHAT ONE PORTFOLIO CARD SAYS, FROM THAT PROGRAM ALONE.
+   Every field is read off the record being drawn, and the only other inputs are
+   the clock and WHICH program is current (a fact about the store, not about this
+   card). Nothing reads the selected plan, the active program's metadata, another
+   card, or whatever detail is open beneath the list.
+
+   Days a week is the plan IN FORCE TODAY, not `program.schedule`. addProgramRevision
+   keeps `schedule` on the NEWEST plan, so a change the athlete was told "applies
+   next week" (D51C) already sits in `schedule` while it is not yet in force; the
+   card then said 5 days a week above a detail that — correctly — said 3. The count
+   is asked of programPlanOn(program, today), the same question My Training asks.
+   It is never inferred from the name: a program called "4-Day" that schedules
+   three sessions has three. */
+function programPortfolioCard(p, activeId){
+  if(!p || typeof p !== 'object') return null;
+  let days = 0;
+  try{
+    const plan = programPlanOn(p, localDateStr()) || {};
+    days = PROGRAM_DAY_KEYS.filter(k => plan[k] && plan[k].type === 'workout').length;
+  }catch(e){ days = 0; }
+  const weeks = parseInt(p.durationWeeks, 10) || 0;
+  const bits = [];
+  if(days) bits.push(days + ' day' + (days === 1 ? '' : 's') + ' a week');
+  if(weeks) bits.push(weeks + ' week' + (weeks === 1 ? '' : 's'));
+  /* Said in words whatever else is true of the card: a current program that is
+     paused is still paused. Completed programs are never current. */
+  const status = p.status === 'paused' ? 'Paused' : (p.status === 'completed' ? 'Completed' : '');
+  return { id: p.id, name: p.name || 'Program', days, weeks, meta: bits.join(' \u00b7 '),
+    status, current: activeId === p.id && p.status !== 'completed' };
+}
+
 /* ---------- PROGRAM: what have I built, and what am I running? ----------
    The portfolio sits above the running program's own detail, which is what
    this page already drew. Opening one shows it; it does not start it. */
@@ -46617,22 +46664,17 @@ function renderTrainingProgramTab(){
   }
 
   const rows = list.map(p => {
-    const isActive = p.id === activeId;
-    let days = 0;
-    try{ days = programTrainingDayCount(p) || 0; }catch(e){}
-    const bits = [];
-    if(days) bits.push(days + ' day' + (days === 1 ? '' : 's') + ' a week');
-    if(p.durationWeeks) bits.push(p.durationWeeks + ' week' + (p.durationWeeks === 1 ? '' : 's'));
-    let status = '';
-    try{ status = programStatusLabel(p) || ''; }catch(e){}
+    const c = programPortfolioCard(p, activeId);
+    if(!c) return '';
     return `
-      <button type="button" class="tr-prog${isActive ? ' tr-prog-on' : ''}" onclick="openProgramDetail('${onclickArg(p.id)}')">
+      <button type="button" class="tr-prog${c.current ? ' tr-prog-on' : ''}" onclick="openProgramDetail('${onclickArg(c.id)}')">
         <span class="tr-prog-main">
           <span class="tr-prog-top">
-            <span class="tr-prog-n">${escapeHtml(p.name || 'Program')}</span>
-            ${isActive ? '<span class="tr-prog-badge">CURRENT</span>' : (status ? `<span class="tr-prog-st">${escapeHtml(status)}</span>` : '')}
+            <span class="tr-prog-n">${escapeHtml(c.name)}</span>
+            ${c.current ? '<span class="tr-prog-badge">CURRENT</span>' : ''}
+            ${c.status ? `<span class="tr-prog-st">${escapeHtml(c.status)}</span>` : ''}
           </span>
-          ${bits.length ? `<span class="tr-prog-m">${escapeHtml(bits.join(' · '))}</span>` : ''}
+          ${c.meta ? `<span class="tr-prog-m">${escapeHtml(c.meta)}</span>` : ''}
         </span>
         <span class="tr-prog-go" aria-hidden="true">${chevronRightSvg()}</span>
       </button>`;
