@@ -13062,3 +13062,124 @@ every size — PBT 14/14, Rank 0 wrong gestures of 18, motion 6/6, Train + Overv
 **Not changed.** DATA_KEYS 15, schema 1, trainer 0.1.1-shadow; XP, rank thresholds, Mastery, PR modes,
 Session Score (40/30/18/12), D44; the D39 evidence engine; program semantics; Friends; Supabase; storage.
 E11–E16 remain open, unimplemented and paused.
+
+---
+
+## §123 — OBJECTIVES, AND ONE XP TRUTH TO SHOW FOR THEM (D99 · LOOP 10.2 · loop-v179)
+
+LOOP now names, at most once a day and twice a week, **an opportunity the athlete already has**. Not a
+challenge, not a streak, not a reason to train more. The rule the whole system is built to keep is that an
+objective describes work the plan or the program **already scheduled**, or a number the athlete has
+**already hit** — and where there is no trustworthy evidence for either, nothing is generated at all. An
+empty Objectives surface is a correct answer.
+
+**Where an objective comes from.** Six families, each carrying its own evidence: today's planned session
+(`session_today`), repeating the last performance of a lift in it (`match_lift`), the load D49 already
+recommends for one (`progress_lift`), the first session back after a break (`return_session`), finishing the
+week the athlete planned (`week_sessions`), and closing the week's remaining work in one category
+(`week_category`). `weekOverview()` is the only source of what is planned, so Objectives and This Week can
+never disagree; `exerciseSessionHistory` is the only source of what was performed, so an objective can never
+be completed by a warm-up the progression engine would not count.
+
+**The only load LOOP may name is D49's.** `progress_lift` reads `progressionFor()` and copies its weight and
+its own evidence sentence. If the engine says hold, plateau, reduce or "not enough evidence", there is no
+progression objective — and inside a deload `applyPhaseProgressionPolicy` has already turned every increase
+into a hold, so the family is unreachable there by construction. The engine's gate is not the only one: the
+generator refuses independently (tested by handing it an engine made to say increase anyway), and it requires
+two sessions of evidence, not one, and nothing older than 45 days.
+
+**Frozen, then measured.** The first evaluation on or after the first eligible moment of a civil day writes
+that day's instance; the first inside a civil week writes the week's. From then on the **target never moves**
+— a plan edited on Wednesday lunchtime does not silently make Wednesday harder — while **progress is
+recomputed from `workoutLog` on every read**, so an edited or deleted session is reflected at once. The
+instance id is a function of the period and the type, so a period cannot hold two copies of the same
+objective however often anything evaluates.
+
+**Nothing is punished.** An instance that expires uncompleted simply ends: no XP is lost, no streak is
+touched, nothing turns red, and there is no failure state anywhere in the source or the stylesheet. It stays
+on record, uncompleted, and yesterday's objective cannot be completed today.
+
+**Forward only.** D99 begins when D99 ships. No instance is generated for a past day or a past week, no old
+workout earns objective XP, and every XP figure from before this release is exactly what it was.
+
+**One reward, once.** Completion is derived and then **latched**: `completedAt` is written once, inside one
+awaited commit modelled on D89's `commitProgramChange`, and a device that refuses the write gets the snapshot
+back whole rather than an objective LOOP would show but could not keep. A reload, a restart, an import, five
+re-evaluations, an edit to the session that completed it, deleting that session and logging it again all pay
+exactly once — and the moment it was earned never moves. The reward paid is the number **frozen on the
+record**, not the constant of the day, so changing the economy later cannot restate what was already earned.
+
+**The economy, measured rather than assumed.** A daily is 15 XP and a weekly 40, flat: a reward that varied
+by type would be something to steer toward, and steering is the one thing an objective must never cause. The
+ceiling is 150 XP per civil week, enforced at **generation**, so an objective is never shown that would
+complete for nothing; two weeklies and four dailies is 140, and a fifth daily cannot fit. Twelve simulated
+weeks for five athletes (2, 3, 3, 4 and 5 sessions a week, 8 to 26 sets): objective XP is a median **15%** of
+lifetime XP (range 8.5%–18.1%), the worst single week is **140** and no week ever crossed the ceiling. A
+single 20-set session is 210 XP before records, so a week of objectives is worth less than one workout.
+
+**Where it lives, and why it is a new key.** `objectives` is the sixteenth `DATA_KEY` and the first added
+since D43's `programs`. Nothing that already exists describes what it holds: `workoutLog` is what the athlete
+DID, `programs` is what was PRESCRIBED, and an objective instance is neither — it is a forward-only record of
+an opportunity that was offered, on what evidence, for what reward, and whether that reward has been paid. It
+is also **the only XP in LOOP that cannot be recomputed from evidence**, which is precisely why it must be
+stored properly rather than wedged into a neighbour to keep the list at fifteen. Export walks it, a restore
+may write it, `backupValueFits` states its shape, a wrong shape is treated as absent and an instance that is
+not an instance is dropped on load. The schema is still 1 and no migration was invented.
+
+**How objective XP enters lifetime XP.** Exactly the way cardio XP has since it existed: derived
+independently and ADDED in `getCurrentProgression()`. `computeXPTimeline()` is **byte-identical to LOOP
+10.0** and is pinned twice — so a bug in this engine cannot move one point of training XP. One of the
+thirty-four functions pinned by Contract 201 changed, `getCurrentProgression`, and it changed by three lines.
+
+**One canonical XP feed.** `computeXPEvents()` is a **union** of the engines that already exist — strength
+entries, cardio sessions, objective completions — each row carrying the number its own engine produced, and
+it recalculates nothing. Its total is the Lifetime XP shown at the top of the same sheet. One part of
+lifetime XP has no date: cardio streak tiers belong to a run of weeks rather than any one of them, which is
+why `socialWeekRows` has always left them out of a week; they are reported separately rather than pinned to a
+day they did not happen on, so the arithmetic on screen is complete — **dated + carried = lifetime**.
+
+**What the screens show.** Home gains one calm block between the day and the week: a header with *View all*,
+a TODAY row and a THIS WEEK row, each answering what it is, why it counts, how close the athlete is and what
+it is worth. There is no button to claim anything and no countdown. A day with nothing to offer says "You're
+on track today." — but only beside a week that has something; with nothing at all to say the block is not
+drawn. Completion is a check, a green figure and one 0.42 s settle, cancelled under Reduce Motion. The
+profile keeps its identity header and four stats and replaces the long mixed page with **two tabs**:
+Achievements (Milestones / Daily / Weekly) and XP History, grouped by date, with a footer that reconciles to
+the Lifetime XP above it.
+
+**Found while building it — a bug browser QA caught and the node suite could not.** `showMainApp()` renders
+Today, and rendering Today is the first evaluation of the day. `loadObjectives()` ran after it, so the
+evaluation saw an empty store, froze a second copy of an objective that already existed and wrote it over the
+completed one underneath: **a reward the athlete had earned, gone on the next launch.** It looked fine
+whenever the evidence was still on the device, because the fresh copy completed again immediately. Two things
+hold it now and both are asserted: `objectivesLoaded` means nothing is decided at all until the device has
+been asked, whatever order a caller arrives in, and `boot()` evaluates once at the end, after every store an
+objective reads has been read. Moving the load earlier instead was tried and **reverted**: an extra await
+before `showMainApp()` shifted an unrelated in-flight `loadPrograms()` and let it overwrite a program edit —
+a pre-existing race this phase does not own and must not disturb.
+
+**Also found.** D49 appends its PR aside after a full stop with an em dash (" — this would match or beat your
+best"), which is right on a workout card's one line and reads as a broken sentence in a paragraph; the row
+shows the engine's first sentence, whole and unreworded — a prefix of what the engine wrote, never a
+paraphrase. A finished row states what was done ("105 lb x 12 today") rather than reciting the rule it was
+measured by. A load and its unit are one word, or "105 lb" breaks across two lines at 320 px.
+
+**Tests.** Contract 202 (128 checks): the sixteenth key by name and what may be restored under it; restraint
+on a rest day, a day already trained and an athlete with no history; D49 owning every load, twice over;
+deload; a week only ever asked for what it can still hold; freezing against a plan change; completion,
+latching and every farming path; expiry; forward-only over seventeen back-dated sessions; the canonical feed
+against the header with cardio present; a refused write; thin and stale evidence; ranking as evidence rather
+than arrival order, and that nothing in the engine rolls a die; what Home draws and what it refuses to draw;
+the two tabs, the three kinds of achievement and the reconciled footer; and what did not move. Seventy-three
+`DATA_KEYS` assertions across thirty phases restated from 15 to 16 with one reason recorded at the top of the
+suite, plus Contract 181's list by name, D93's midnight redraw (the one key it may now create), and two
+whole-store snapshots that now exclude `objectives` by name. Mutation testing: **37 of 38 mutants killed**;
+the one survivor removes a defence-in-depth guard (an objective already satisfied at the moment of freezing)
+that every current family already makes unreachable upstream, and is equivalent. Real Edge at 320, 360, 375,
+390, 393, 414 and 430: **168/168** checks at every size, plus 6/6 for Reduce Motion. No physical iPhone.
+
+**Not changed.** Schema 1, trainer 0.1.1-shadow; `computeXPTimeline`, every XP constant, PR events and
+modes, rank thresholds, the XP curve, the fourteen milestones, Session Score (40/30/18/12), Mastery,
+capability, D44, D49's logic, D50B, the D39 evidence engine, program semantics, Friends, Supabase, the trend
+system D98 shipped. Objectives are never published, shared or uploaded. E11–E16 remain open, unimplemented
+and paused.

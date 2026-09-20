@@ -90,6 +90,17 @@ function withClockOn(ctx, iso, fn){
    reason attached, not eight literals to hunt down. */
 const NAV_TAB_COUNT = 4;
 
+/* THERE ARE SIXTEEN STORAGE KEYS.
+   Seventy-three assertions across thirty phases hold the size of DATA_KEYS,
+   each of them meaning "MY phase introduced no key of its own", and each of
+   them written against the literal 15. D99 added 'objectives' — deliberately,
+   with its reason recorded in the app beside the list and pinned by NAME in
+   Contract 202 — so every one of them now reads 16. They still assert strict
+   equality, so the next key added by accident fails all seventy-three; what
+   moved is what the number IS, not how hard it is held. Contract 202 is the
+   one place that names the keys, so a future phase that swaps a key for
+   another of its own cannot pass by keeping the count the same. */
+
 function stripComments(text){
   return String(text || '')
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -6398,7 +6409,13 @@ async function testMasterySafety(){
     JSON.stringify(ctx.getExerciseCapability('Bench Press')) === capBefore);
 
   sub('no new storage');
-  T('no storage key was created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
+  /* D99 — 'objectives' is excluded by NAME, because Home evaluating the day is
+     what creates it and every flow that renders Today now can. What this
+     assertion exists to prove is that MASTERY stores nothing, which the line
+     below states directly and which the exclusion cannot weaken. */
+  const noObj = keys => keys.filter(k => k !== 'objectives').sort().join(',');
+  T('no storage key was created for mastery',
+    noObj(Object.keys(app.store)) === noObj(storeKeysBefore.split(',').filter(Boolean)));
   T('mastery is absent from DATA_KEYS',
     !ctx.DATA_KEYS.some(k => /mastery/i.test(k)), ctx.DATA_KEYS.join(','));
   T('schema version untouched', ctx.DATA_SCHEMA_VERSION === before.schemaVersion ||
@@ -6781,7 +6798,7 @@ async function testD10Safety(){
 
   sub('no storage was added or migrated');
   T('no storage key created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
-  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('DATA_KEYS unchanged at 16', ctx.DATA_KEYS.length === 16);
   T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
   T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
 
@@ -6906,7 +6923,7 @@ async function testD101Safety(){
   T('PRs unchanged', after.prCount === before.prCount);
   T('mastery unchanged', JSON.stringify(ctx.getTopExerciseMastery()) === masteryBefore);
   T('no storage key created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
-  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('DATA_KEYS unchanged at 16', ctx.DATA_KEYS.length === 16);
   T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
 
   sub('trainer untouched');
@@ -7232,7 +7249,7 @@ async function testD11Safety(){
 
   sub('no migration, no new storage');
   T('no storage key created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
-  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('DATA_KEYS unchanged at 16', ctx.DATA_KEYS.length === 16);
   T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
   T('no migration introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
   T('an existing athlete is never auto-migrated into a program',
@@ -7593,7 +7610,7 @@ async function testLogSafety(){
   T('no storage key created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
   T('the selected day is memory-only — Log does not remember a date across launches',
     !ctx.DATA_KEYS.some(k => /history|selectedDate|calendar/i.test(k)));
-  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('DATA_KEYS unchanged at 16', ctx.DATA_KEYS.length === 16);
   T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
 
   sub('trainer untouched');
@@ -8007,7 +8024,7 @@ async function testProgressSafety(){
 
   sub('no storage, no migration');
   T('no storage key created', Object.keys(app.store).sort().join(',') === storeKeysBefore);
-  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('DATA_KEYS unchanged at 16', ctx.DATA_KEYS.length === 16);
   T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
   T('no progress score was stored', !ctx.DATA_KEYS.some(k => /score/i.test(k)));
 
@@ -8277,7 +8294,7 @@ async function testMyTrainingSafety(){
     T('and it is a key that already existed in DATA_KEYS',
       ctx.DATA_KEYS.indexOf('programs') !== -1);
   }
-  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('DATA_KEYS unchanged at 16', ctx.DATA_KEYS.length === 16);
   T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
 
   sub('trainer isolation');
@@ -8578,7 +8595,7 @@ async function testD14Safety(){
   T('an unfinished workout is preserved', app.store.activeWorkoutDraft === draftBefore);
 
   sub('no new storage, no migration');
-  T('DATA_KEYS unchanged at 15', ctx.DATA_KEYS.length === 15);
+  T('DATA_KEYS unchanged at 16', ctx.DATA_KEYS.length === 16);
   T('schema still v1', ctx.DATA_SCHEMA_VERSION === 1);
   T('no timer or navigation key was introduced',
     !ctx.DATA_KEYS.some(k => /timer|rest|page|overlay/i.test(k)));
@@ -8727,7 +8744,7 @@ function testCardio2(app){
     return /rec\.paceUnit = eff\.unit/.test(region);
   })());
   T('cardio storage was not rewritten to make the split work',
-    ctx.DATA_KEYS.indexOf('cardioLog') !== -1 && ctx.DATA_KEYS.length === 15);
+    ctx.DATA_KEYS.indexOf('cardioLog') !== -1 && ctx.DATA_KEYS.length === 16);
 
   sub('calories are an estimate with a published model behind them');
   ctx.athleteProfile.bodyWeightLb = null;
@@ -9302,7 +9319,7 @@ async function testCardio2Safety(){
   sub('backup and restore still carry cardio');
   T('cardioLog is still a backed-up key', ctx.DATA_KEYS.indexOf('cardioLog') !== -1);
   T('the cardio draft is still a backed-up key', ctx.DATA_KEYS.indexOf('cardioDraft') !== -1);
-  T('no new storage key was introduced for cardio', ctx.DATA_KEYS.length === 15);
+  T('no new storage key was introduced for cardio', ctx.DATA_KEYS.length === 16);
   T('there is no second stopwatch store',
     ctx.DATA_KEYS.filter(k => /timer|stopwatch|session/i.test(k)).length === 0);
 }
@@ -9466,7 +9483,7 @@ function testWeekDrag(app){
   T('it calls swapScheduledDays, not a second scheduler',
     /try\{ swapScheduledDays\(fromKey, toKey\); \}/.test(src));
   T('no new schedule storage was introduced',
-    ctx.DATA_KEYS.length === 15 && ctx.DATA_KEYS.indexOf('selectedPlan') !== -1);
+    ctx.DATA_KEYS.length === 16 && ctx.DATA_KEYS.indexOf('selectedPlan') !== -1);
 
   sub('undo restores the exact week, and withdraws itself');
   T('the snapshot covers both schedule layers', (() => {
@@ -10081,7 +10098,7 @@ function testTrajectory(app){
   const before = JSON.stringify(ctx.workoutLog);
   ctx.trainingTrajectory(); ctx.trajectoryHtml();
   T('workoutLog is untouched', JSON.stringify(ctx.workoutLog) === before);
-  T('no storage key was added for it', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added for it', ctx.DATA_KEYS.length === 16);
   T('the trainer is not involved',
     !/trainerLog|proposeTrainerState|TRAINER_CONFIG/.test(
       src.slice(src.indexOf('TRAINING TRAJECTORY'), src.indexOf('function myTrainingVariantsHtml'))));
@@ -10237,7 +10254,7 @@ function testProgressDashboardD14(app){
   ctx.renderProgDashboard();
   ctx.progLevelHtml(); ctx.progHeroHtml(); ctx.progWeekMuscleHtml();
   T('rendering Progress does not write history', JSON.stringify(ctx.workoutLog) === before);
-  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added', ctx.DATA_KEYS.length === 16);
   T('the trainer is not involved', (() => {
     const mod = src.slice(src.indexOf('PROGRESS OVERVIEW  (Phase D46B)'), src.indexOf('function renderProgDashboard'));
     return !/trainerLog|proposeTrainerState|TRAINER_CONFIG/.test(mod);
@@ -10507,7 +10524,7 @@ async function testEvidenceSafety(){
   T('the trainer log itself is untouched', JSON.stringify(ctx2.trainerLog) === trainerBefore);
   T('no storage key was written', Object.keys(app2.store).every(k =>
     JSON.stringify(app2.store[k]) === JSON.stringify(storeBefore[k])));
-  T('no new storage key exists', ctx2.DATA_KEYS.length === 15);
+  T('no new storage key exists', ctx2.DATA_KEYS.length === 16);
   T('trainerLog is still exported', ctx2.DATA_KEYS.indexOf('trainerLog') !== -1);
 
   sub('the engine itself was not touched');
@@ -11060,7 +11077,7 @@ function testFirstRunRefinement(app){
 
   sub('nothing new was stored, and nothing existing was touched');
   T('no new storage key', (src.match(/const DATA_KEYS = /g) || []).length === 1);
-  T('DATA_KEYS still holds fifteen entries', ctx.DATA_KEYS.length === 15);
+  T('DATA_KEYS still holds sixteen entries', ctx.DATA_KEYS.length === 16);
   T('the goal is written to the profile that already existed',
     /athleteProfile\.goal = g;[\s\S]{0,120}persistAthleteProfile\(\)/.test(src));
   T('and only when the athlete has none', /if\(!g \|\| !athleteProfile \|\| athleteProfile\.goal\) return false;/.test(src));
@@ -11234,7 +11251,7 @@ function testReliability(app){
   T('outcome vocabulary', /OUTCOME_MATCH = \{ MATCHED:'matched', DIVERGED:'diverged' \}/.test(src));
   T('no trainer symbol appears in anything D17 added',
     !/function (switchTab|syncSheetAccessibility|initSheetKeyboard|sheetCloser|focusIntoSheet|topOpenSheet)\([\s\S]{0,900}(trainerLog|TRAINER_CONFIG|proposeTrainerState)/.test(src));
-  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no new storage key', ctx.DATA_KEYS.length === 16);
 }
 
 /* =========================================================
@@ -11358,7 +11375,7 @@ function testDesignSystem(app){
     /\.set-chip-pr\{[\s\S]{0,200}font-size: var\(--fs-micro\)/.test(css));
 
   sub('nothing about the product changed');
-  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no new storage key', ctx.DATA_KEYS.length === 16);
   T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
   T('shadow evidence retention is untouched', /TRAINER_LOG_MAX = 2000/.test(src));
   T('the schedule engine was not touched by a visual pass',
@@ -11405,7 +11422,11 @@ function testComposition(app){
      what remained in rendered UI: a warning sign on Train, a tick and a ring
      on every achievement row, and a caret on the cardio disclosure. */
   T('the plateau notice draws its warning', /\$\{warnIconSvg\(\)\}/.test(src));
-  T('achievements draw their state', /a\.unlocked \? checkIconSvg\(14\) : ringIconSvg\(14\)/.test(src));
+  /* D99 — the row moved into achievementRowHtml(), which the Daily and Weekly
+     objective lists draw through as well. The rule this protects is unchanged:
+     an achievement's state is a tick or a ring drawn as SVG, never a character. */
+  T('achievements draw their state', /unlocked \? checkIconSvg\(14\) : ringIconSvg\(14\)/.test(src) &&
+    /function achievementRowHtml\(/.test(src));
   T('the cardio disclosure turns one chevron rather than swapping two characters',
     /class="cd-more-caret\$\{cardioAdvancedOpen \? ' open' : ''\}">\$\{chevronDownSvg\(13\)\}/.test(src));
   T('and it turns, rather than redrawing', /\.cd-more-caret\.open\{ transform: rotate\(180deg\); \}/.test(css));
@@ -11481,7 +11502,7 @@ function testComposition(app){
     /\.pr-callout-fresh\{ animation: prFreshIn 0\.3s var\(--ease\) both, prFreshGlow/.test(css));
 
   sub('nothing about the product changed');
-  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no new storage key', ctx.DATA_KEYS.length === 16);
   T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
   T('shadow retention is untouched', /TRAINER_LOG_MAX = 2000/.test(src));
   T('D17 accessibility survived',
@@ -11589,7 +11610,7 @@ function testMomentum(app){
   T('the lift signal still comes from one shared trend engine',
     (src.match(/function computeExerciseTrends\(/g) || []).length === 1 &&
     /const trends = computeExerciseTrends\(\)/.test(src));
-  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no new storage key', ctx.DATA_KEYS.length === 16);
   T('no second definition of a streak, a week or a PR',
     (src.match(/function computeWeekStreak\(/g) || []).length === 1 &&
     (src.match(/function computeConsistencyData\(/g) || []).length === 1 &&
@@ -11796,7 +11817,7 @@ function testWorkoutStepper(app){
   sub('nothing protected was touched');
   T('the trainer', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
   T('shadow retention', /TRAINER_LOG_MAX = 2000/.test(src));
-  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no new storage key', ctx.DATA_KEYS.length === 16);
   T('the warm-up engine is untouched',
     /function buildPrepSequence\(/.test(src) && /function enterPrepStep\(\)\{\s*clearPrepTimer\(\);/.test(src));
   T('the rest timer architecture is untouched',
@@ -11865,7 +11886,7 @@ function testWarmupAndRest(app){
     /warmupDone: warmupStagePassed\(\),/.test(src));
   T('a restored workout reads it back',
     /warmupDoneForDraft = draft\.warmupDone \? pendingDraftId : warmupDoneForDraft;/.test(src));
-  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no new storage key', ctx.DATA_KEYS.length === 16);
   T('and workoutLog was not given a new field', (() => {
     const fn = src.slice(src.indexOf('function saveLog(btn)'), src.indexOf('const priorSetsSnapshot'));
     return !/warmupDone/.test(fn);
@@ -12015,7 +12036,7 @@ function testWarmupEntry(app){
   T('and still survives a reload inside the draft',
     /warmupDone: warmupStagePassed\(\),/.test(src));
   T('the compact rest readout is still there', /id="wsRest"/.test(src));
-  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no new storage key', ctx.DATA_KEYS.length === 16);
   T('the warm-up library is untouched',
     /function buildPrepSequence\(/.test(src) && /function enterPrepStep\(\)\{\s*clearPrepTimer\(\);/.test(src));
   T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
@@ -12101,7 +12122,7 @@ function testOrientationScale(app){
   })() === true);
 
   sub('this was presentation only');
-  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no new storage key', ctx.DATA_KEYS.length === 16);
   T('the trainer is untouched', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(src));
   T('shadow retention is untouched', /TRAINER_LOG_MAX = 2000/.test(src));
   T('autosave is untouched',
@@ -12435,7 +12456,7 @@ function testMovementAnimation(app){
   sub('the animation touches no data and no trainer');
   T('the renderer never writes to storage', !/LOOPStore|localStorage|\.setItem\(/.test(vendoredCode));
   T('it defines no data key', !/DATA_KEYS/.test(vendoredCode));
-  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15, String((ctx.DATA_KEYS||[]).length));
+  T('DATA_KEYS is still exactly 16', (ctx.DATA_KEYS || []).length === 16, String((ctx.DATA_KEYS||[]).length));
   T('no movement or animation key was added',
     !(ctx.DATA_KEYS || []).some(k => /anim|movement|figure|prep/i.test(k)));
   T('the trainer engine version is untouched',
@@ -12900,7 +12921,7 @@ function testWorkoutNavStates(app){
     const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
     return !/LOOPStore|DATA_KEYS|setItem/.test(fn);
   })());
-  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15, String((ctx.DATA_KEYS||[]).length));
+  T('DATA_KEYS is still exactly 16', (ctx.DATA_KEYS || []).length === 16, String((ctx.DATA_KEYS||[]).length));
   T('skip is not a trainer signal', (() => {
     const i = src.indexOf('function skipWorkoutStep');
     const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
@@ -12994,7 +13015,7 @@ function testWorkoutEditor(app){
     return !/renderWorkoutEditor/.test(fn);
   })());
   T('no new storage key was invented for the edit',
-    !/editDraft|workoutEditKey|EDIT_KEY/.test(src) && (ctx.DATA_KEYS || []).length === 15);
+    !/editDraft|workoutEditKey|EDIT_KEY/.test(src) && (ctx.DATA_KEYS || []).length === 16);
   T('cancelling writes nothing at all', (() => {
     const i = src.indexOf('function closeWorkoutEditor');
     const fn = src.slice(i, src.indexOf('\nfunction ', i + 10));
@@ -13509,7 +13530,7 @@ function testHomeAndTouch(app){
     const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
     return !/LOOPStore|setItem|persist/.test(body);
   })());
-  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15);
+  T('DATA_KEYS is still exactly 16', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer engine is untouched',
     ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
 }
@@ -13699,7 +13720,7 @@ function testRankIdentity(app){
   })());
   T('no remembered carousel position exists',
     !/rankShowcaseIndex/.test(src.match(/DATA_KEYS[\s\S]{0,400}\]/)[0]));
-  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15);
+  T('DATA_KEYS is still exactly 16', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched',
     ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
 }
@@ -13844,7 +13865,7 @@ function testSurfaceConsolidation(app){
       return !/LOOPStore\.set|localStorage|setItem/.test(fn);
     });
   })());
-  T('DATA_KEYS is still exactly 15', (ctx.DATA_KEYS || []).length === 15);
+  T('DATA_KEYS is still exactly 16', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched',
     ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', String(ctx.TRAINER_ENGINE_VERSION));
 }
@@ -14075,7 +14096,7 @@ async function testProgressExperience(){
     T('rendering all four sections writes no history',
       JSON.stringify({ w: ctx.workoutLog, t: ctx.trainerLog }) === snap);
   }
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
     String(ctx.TRAINER_ENGINE_VERSION));
   T('the new Progress code never mentions a trainer symbol', (() => {
@@ -14227,7 +14248,7 @@ async function testOverlayIntegrity(){
   T('and it still reaches 44px', /\.rank-profile-link\{[\s\S]{0,120}min-height: 44px/.test(css));
 
   sub('this pass is layout only');
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
     String(ctx.TRAINER_ENGINE_VERSION));
   T('the band is pure CSS — no listener, no measurement, no blur', (() => {
@@ -14479,7 +14500,7 @@ async function testTodayAndHistoryTruth(){
     ctx.logConsistencyStripHtml(); ctx.recentWorkoutsHtml(8);
     T('rendering Today and Log leaves training data untouched',
       JSON.stringify({ w: ctx.workoutLog, t: ctx.trainerLog, s: ctx.schedule }) === before);
-    T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+    T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
     T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
       String(ctx.TRAINER_ENGINE_VERSION));
     T('the consistency engine never calls the trainer', (() => {
@@ -14597,7 +14618,7 @@ async function testLuminousDepth(){
   T('safe-area systems untouched',
     /\.top-scrim\{/.test(css) && /\.sheet\.sheet-page::before\{/.test(css) &&
     (css.match(/padding-left: (calc\(20px \+ )?env\(safe-area-inset-left/g) || []).length === 4);
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
     String(ctx.TRAINER_ENGINE_VERSION));
 }
@@ -14712,7 +14733,7 @@ async function testVisualSystemLock(){
   T('D28 pools unchanged in kind', /--pool-accent:/.test(css) && /--pool-rest:/.test(css));
   T('reduced motion is still honoured broadly',
     (css.match(/prefers-reduced-motion/g) || []).length >= 6);
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
     String(ctx.TRAINER_ENGINE_VERSION));
 }
@@ -14805,7 +14826,7 @@ async function testProductionIntegrity(){
     /\.set-complete-btn\{\s*width: 44px; height: 44px/.test(src));
 
   sub('nothing protected moved');
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
     String(ctx.TRAINER_ENGINE_VERSION));
   T('switchTab still writes nothing', (() => {
@@ -14963,7 +14984,7 @@ async function testRankShowcaseExperience(){
     const region = src.slice(src.indexOf('const RANK_VISUALS'), src.indexOf('function wireRankCarousel'));
     return !/LOOPStore|localStorage|setItem/.test(region);
   })());
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
     String(ctx.TRAINER_ENGINE_VERSION));
 }
@@ -15116,7 +15137,7 @@ async function testDataIntegrityD31(){
     const sw = fs.readFileSync(require('path').join(require('path').dirname(H.APP_PATH), 'sw.js'), 'utf8');
     return !/loop-audit|loop-evaluate/.test(sw);
   })());
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
     String(ctx.TRAINER_ENGINE_VERSION));
 }
@@ -15427,7 +15448,7 @@ async function testProgramExperience(){
     return ['proposeTrainerState','computeShadowRecommendation','logRecommendation',
       'persistTrainerLog','computeMuscleRecovery('].every(f => mod.indexOf(f) === -1);
   })());
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
 
   sub('every exercise is a canonical one');
   {
@@ -15562,7 +15583,7 @@ async function testProgramExplainability(){
       stored.indexOf('"emphasis":"chest"') !== -1
       && stored.indexOf('headline') === -1 && stored.indexOf('rationale') === -1
       && stored.indexOf('Extra chest') === -1);
-    T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+    T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
 
     sub('the edit round-trip is the identity');
     const regen = ctx.generateProgram({ goal: res.program.goal, weeks: res.program.durationWeeks,
@@ -16136,7 +16157,7 @@ async function testTemporalProgramming(){
     T('a block with no prescription resolves exactly as before',
       JSON.stringify(ctx.builderTemplateOf(legacyEntry, null))
       === JSON.stringify(ctx.builderBaseTemplateOf(legacyEntry)));
-    T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+    T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   }
 
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
@@ -16293,7 +16314,7 @@ async function testProgramLifecycle(){
   T('completion is derived, never stored',
     (src.match(/function deriveProgramCompletion\(/g) || []).length === 1
     && !/completionSummary\s*[:=]|programSummary\s*[:=]/.test(src));
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 
   sub('program history survives a backup round-trip');
@@ -16444,7 +16465,7 @@ async function testTrainedThisWeek(){
     !/function muscleBodyHtml\(/.test(src));
   T('nothing about it is persisted',
     !/LOOPStore\.set\([^)]*muscle/i.test(src));
-  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 16);
 
   sub('an empty week renders nothing at all');
   {
@@ -16653,7 +16674,7 @@ async function testProgressCommandCentre(){
   }
 
   sub('it stays derived');
-  T('no new storage key', ctx.DATA_KEYS.length === 15);
+  T('no new storage key', ctx.DATA_KEYS.length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   T('nothing about the Overview is persisted',
     !/topProgressMetric|weeklyMuscleSummary|overviewCards|programEmptyState/.test(src));
@@ -16909,7 +16930,7 @@ async function testExecutionIntelligence(){
          it deliberately does not keep, and an assertion that matched that
          would be failing on the sentence describing the rule it enforces. */
       const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
-      return !/warmedMuscles/.test(code) && ctx.DATA_KEYS.length === 15;
+      return !/warmedMuscles/.test(code) && ctx.DATA_KEYS.length === 16;
     })());
   }
 
@@ -17213,7 +17234,7 @@ async function testMuscleRegistry(){
 
   sub('nothing is stored, and no history is rewritten');
   {
-    T('no new storage key', ctx.DATA_KEYS.length === 15);
+    T('no new storage key', ctx.DATA_KEYS.length === 16);
     T('the trainer engine is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('the resolver writes nothing', (() => {
       const i = src.indexOf('function musclesForExercise');
@@ -17453,7 +17474,7 @@ async function testProgressionEvidence(){
       !/function progressionConfidenceEngine|function smartRepTargetEngine|function nextSessionRecommendationV2/.test(src));
     T('evidence is derived, never stored',
       !/progressionConfidence|recommendationEvidence|nextRepConfidence/.test(src));
-    T('no new storage key', ctx.DATA_KEYS.length === 15);
+    T('no new storage key', ctx.DATA_KEYS.length === 16);
     T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('no invented confidence percentage is shown',
       !/[Cc]onfidence: ?\$\{|[Cc]onfidence \d+%/.test(src));
@@ -17704,7 +17725,7 @@ async function testLiveSetCoach(){
       const body = src.slice(i, src.indexOf('function fmtRir', i));
       return !/workoutLog|LOOPStore|sortedLog|dailyReadiness|exerciseSessionHistory/.test(body);
     })());
-    T('no new storage key', ctx.DATA_KEYS.length === 15);
+    T('no new storage key', ctx.DATA_KEYS.length === 16);
     T('nothing about a recommendation is persisted',
       !/coachRecommendation|nextSetSuggestion|liveCoachState/.test(src));
   }
@@ -17886,7 +17907,7 @@ async function testProgramRevisions(){
       const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       return !/migrate[A-Za-z]*Revision|revisions\s*=\s*\[\s*\]\s*;?\s*\/\/\s*migrat/i.test(code);
     })());
-    T('no new storage key was added', ctx.DATA_KEYS.length === 15);
+    T('no new storage key was added', ctx.DATA_KEYS.length === 16);
   }
 
   sub('revisions round-trip through backup');
@@ -18017,7 +18038,7 @@ async function testSocialFoundation(){
   sub('the local boundary holds');
   {
     const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
-    T('DATA_KEYS is unchanged at 15', ctx.DATA_KEYS.length === 15, String(ctx.DATA_KEYS.length));
+    T('DATA_KEYS is unchanged at 16', ctx.DATA_KEYS.length === 16, String(ctx.DATA_KEYS.length));
     T('the social store is not one of them',
       ctx.DATA_KEYS.indexOf('socialSession') === -1);
     T('so backup and export never see it',
@@ -18794,7 +18815,7 @@ async function testSplitOwnership(){
     const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
     T('the trainer is still shadowed', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
       ctx.TRAINER_ENGINE_VERSION);
-    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15, String(ctx.DATA_KEYS.length));
+    T('DATA_KEYS is still 16', ctx.DATA_KEYS.length === 16, String(ctx.DATA_KEYS.length));
     T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
     T('Session Score weights are untouched',
       /completion:\s*0\.40/.test(code) && /reps:\s*0\.30/.test(code) &&
@@ -19120,7 +19141,7 @@ async function testProgramOwnership(){
     const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
     T('the trainer is still shadowed', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
       ctx.TRAINER_ENGINE_VERSION);
-    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15, String(ctx.DATA_KEYS.length));
+    T('DATA_KEYS is still 16', ctx.DATA_KEYS.length === 16, String(ctx.DATA_KEYS.length));
     T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
     T('Session Score weights are untouched',
       /completion:\s*0\.40/.test(code) && /reps:\s*0\.30/.test(code) &&
@@ -19436,7 +19457,7 @@ async function testDurablePrograms(){
     const raw = await ctx.LOOPStore.get('programs');
     stored = raw && raw.value ? raw.value : null;
     T('the draft is stored', !!stored && /"draft"/.test(stored));
-    T('inside the programs key, adding no DATA_KEY', ctx.DATA_KEYS.length === 15,
+    T('inside the programs key, adding no DATA_KEY', ctx.DATA_KEYS.length === 16,
       String(ctx.DATA_KEYS.length));
     T('no screen state is persisted with it',
       !/scroll|pbOpenSession|accordion/.test(fnSrc(src, 'pbPersistDraft')));
@@ -19646,7 +19667,7 @@ async function testDurablePrograms(){
     const ctx = (await H.loadAppBooted({ dataSchemaVersion:'1' })).ctx;
     T('the engine is still shadowed', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
       ctx.TRAINER_ENGINE_VERSION);
-    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15, String(ctx.DATA_KEYS.length));
+    T('DATA_KEYS is still 16', ctx.DATA_KEYS.length === 16, String(ctx.DATA_KEYS.length));
     T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
   }
 }
@@ -19880,7 +19901,7 @@ async function testProgramDraft(){
     T('a draft has no planned slots until it is a program',
       ctx.programPlannedSlots(def).length === 0 || !def.id,
       'draft id: ' + def.id);
-    T('no new storage key', ctx.DATA_KEYS.length === 15);
+    T('no new storage key', ctx.DATA_KEYS.length === 16);
     T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('no second program engine',
       !/function customProgramBuilder|function templateProgramBuilder|function aiProgramBuilder/.test(code));
@@ -20106,7 +20127,7 @@ async function testPlanConsistency(){
   sub('nothing else moved');
   T('consistency is never persisted',
     !/LOOPStore\.set\([^)]*consistency/i.test(src));
-  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   T('the trainer does not read consistency', (() => {
     const i = src.indexOf('SHADOW ADAPTIVE TRAINING ENGINE');
@@ -20290,7 +20311,7 @@ async function testPlannedVsPerformed(){
   })());
 
   sub('the phases underneath are untouched');
-  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   T('D39 evidence gates are unchanged',
     ctx.PERF_CONFIG.minSessions === 4 && ctx.PERF_CONFIG.minSessionsNumeric === 6);
@@ -20462,7 +20483,7 @@ async function testNextProgramContinuity(){
     ctx.OUTCOME_CONFIG.minEvidencedLifts === 3 && ctx.OUTCOME_CONFIG.dominance === 3);
   T('D39 evidence gates are unchanged',
     ctx.PERF_CONFIG.minSessions === 4 && ctx.PERF_CONFIG.minSessionsNumeric === 6);
-  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 16);
 
   sub('the finished program stays finished');
   T('deriving and rendering never mutates it', (() => {
@@ -20700,7 +20721,7 @@ async function testWorkoutProvenance(){
   })());
 
   sub('nothing else moved');
-  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('no new storage key', Object.keys(ctx.DATA_KEYS).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   T('D39 evidence gates are unchanged',
     ctx.PERF_CONFIG.minSessions === 4 && ctx.PERF_CONFIG.minSessionsNumeric === 6);
@@ -20883,7 +20904,7 @@ async function testProgramOutcomes(){
     for(let i=0;i<20;i++) ctx.programOutcomeHtml(ctx.deriveProgramOutcome(PROG, log));
     return JSON.stringify(app.store) === before && JSON.stringify(log) === logBefore;
   })());
-  T('no new storage key was introduced', Object.keys(ctx.DATA_KEYS).length === 15);
+  T('no new storage key was introduced', Object.keys(ctx.DATA_KEYS).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 
   sub('what LOOP may say');
@@ -21049,7 +21070,7 @@ async function testPerformanceProgress(){
     && (src.match(/function performanceHighlightsHtml\(/g) || []).length === 1);
   T('nothing derived is persisted',
     !/performanceSnapshot|trendCache|progressSnapshot|_perfCache/.test(src));
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
 
   sub('language stays factual');
   {
@@ -21227,7 +21248,7 @@ async function testDateBoundaries(){
     const sw = fs.readFileSync(path.join(path.dirname(H.APP_PATH), 'sw.js'), 'utf8');
     return !/loop-date-audit/.test(sw);
   })());
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow',
     String(ctx.TRAINER_ENGINE_VERSION));
 }
@@ -21484,7 +21505,7 @@ async function testActivityLogging(){
     const inFile = JSON.parse(((payload.data || {}).cardioLog) || '[]');
     T('the backup file carries both activities and both legacy sessions',
       inFile.length === 4 && inFile.filter(r => r.kind === 'activity').length === 2);
-    T('carried in the store that already existed — no new key', a.DATA_KEYS.length === 15);
+    T('carried in the store that already existed — no new key', a.DATA_KEYS.length === 16);
 
     const to = await H.loadAppBooted({ dataSchemaVersion:'1' });
     let said = null; to.ctx.alert = m => { said = m; };
@@ -21733,7 +21754,12 @@ async function testActivityLogging(){
       T('workoutLog byte-identical', JSON.stringify(ctx.workoutLog) === rawWorkouts);
       T('legacy records byte-identical in storage',
         JSON.stringify(JSON.parse(app.store.cardioLog).filter(r => r.kind !== 'activity')) === JSON.stringify(cardio));
-      T('no storage key was created', Object.keys(app.store).sort().join(',') === keysBefore);
+      /* D99 — same exclusion, same reason: an activity still stores nothing of
+         its own, and 'objectives' is created by Home evaluating the day rather
+         than by anything in this flow. */
+      T('no storage key was created for an activity',
+        Object.keys(app.store).filter(k => k !== 'objectives').sort().join(',') ===
+        keysBefore.split(',').filter(k => k && k !== 'objectives').sort().join(','));
     }finally{ release(); }
 
     const only = await H.loadAppBooted({ dataSchemaVersion:'1' });
@@ -21847,7 +21873,7 @@ async function testActivityLogging(){
         !doc.getElementById('cardioDetailOverlay').classList.contains('open'));
       ctx.closeActivityLogger();
     }finally{ release(); }
-    T('no storage key was added', ctx.DATA_KEYS.length === 15 && ctx.DATA_KEYS.indexOf('cardioLog') !== -1);
+    T('no storage key was added', ctx.DATA_KEYS.length === 16 && ctx.DATA_KEYS.indexOf('cardioLog') !== -1);
     T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   }
 }
@@ -22026,7 +22052,7 @@ async function testArmsSessions(){
   T('the role select lists every role, Arms included', /SPLIT_ROLES\.map\(r => '<option value="' \+ r\.id \+ '"'/.test(src));
   T('changing a role rebuilds from that role\'s own templates', /function pbSetSessionRole\(dayKey, roleId\)\{/.test(src));
 
-  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added', ctx.DATA_KEYS.length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
@@ -22239,7 +22265,7 @@ async function testExerciseSwaps(){
 
   sub('nothing protected moved');
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
-  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added', ctx.DATA_KEYS.length === 16);
   T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
 }
 
@@ -22370,7 +22396,7 @@ async function testExerciseVisuals(){
     return !unknown && known;
   })());
 
-  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added', ctx.DATA_KEYS.length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
@@ -22852,7 +22878,7 @@ async function testRankShowcaseMotion(){
     return !/LOOPStore|localStorage|sessionStorage|setItem|indexedDB/.test(stripComments(region)) &&
       !/LOOPStore|localStorage|setItem/.test(fnSrc(src, 'wireRankCarousel'));
   })());
-  T('no storage key was added', (ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
@@ -23109,7 +23135,7 @@ async function testBrandMark(){
   T('the service worker still caches only the app shell',
     /ASSETS = \[\s*'\.\/',\s*'\.\/index\.html',\s*'\.\/manifest\.webmanifest'\s*\]/.test(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8')));
   T('the header wordmark is untouched', /<h1>LOOP<span class="dot">\.<\/span><\/h1>/.test(src));
-  T('no storage key was added', (app.ctx.DATA_KEYS || []).length === 15);
+  T('no storage key was added', (app.ctx.DATA_KEYS || []).length === 16);
   T('the trainer is untouched', app.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
@@ -23360,7 +23386,7 @@ async function testExerciseVisualTruth(){
   T('drawings still render the same way twice', XA.render(defs.leg_press, { size:'full' }) === XA.render(defs.leg_press, { size:'full' }));
   T('every drawing still inlines small (thumb ≤ 8000, full ≤ 10000 chars)',
     keys.every(k => XA.render(defs[k], { size:'thumb' }).length <= 8000 && XA.render(defs[k], { size:'full' }).length <= 10000));
-  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added', ctx.DATA_KEYS.length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 
   /* A definition drawn with only one of its two positions, for reading back
@@ -23608,7 +23634,7 @@ async function testWorkoutDockAndFigure(){
     const n = keys.reduce((s, k) => s + (renders[k].thumb.match(/<(path|circle|rect)/g) || []).length, 0);
     return n < 3200 ? true : n;
   })() === true);
-  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added', ctx.DATA_KEYS.length === 16);
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 
   /* Points along every subpath of an absolute M/L/Q/T path. */
@@ -24635,7 +24661,7 @@ async function testBuildMyOwnContinue(){
     const rec = ctx.getStoredProgramDraft();
     T('closing keeps the work in the draft LOOP already stores, under no new key',
       !!rec && JSON.stringify(rec.answers.split) === JSON.stringify(['upper', 'lower', 'legs', 'lower']) && rec.draft.schedule.thu.name === 'Leg Day' &&
-      ctx.DATA_KEYS.length === 15);
+      ctx.DATA_KEYS.length === 16);
     ctx.openProgramBuilderFlow('create');
     T('opening the builder again offers it back', ctx.pbState.resume === true && /Continue where you left off/.test(foot()));
     ctx.pbResumeContinue();
@@ -24971,7 +24997,7 @@ async function testMachineCoverage(){
 
   sub('nothing protected moved');
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
-  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added', ctx.DATA_KEYS.length === 16);
   T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
   T('the progression engine still reads history by the name that was logged', /const ex = l\.exercises\.find\(e => e\.name\.trim\(\)\.toLowerCase\(\) === key\);/.test(fnSrc(src, 'getExerciseFullHistory')));
 }
@@ -25214,7 +25240,7 @@ async function testMachineIntegrity(){
 
   sub('nothing protected moved');
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
-  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added', ctx.DATA_KEYS.length === 16);
   T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
   /* D64 — repointed: D64 added 21 bodyweight identities and two drawings. The
      seated back extension D63 held back is still held. */
@@ -25578,7 +25604,7 @@ async function testBodyweightCoverage(){
 
   sub('nothing protected moved');
   T('the trainer is untouched', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
-  T('no storage key was added', ctx.DATA_KEYS.length === 15);
+  T('no storage key was added', ctx.DATA_KEYS.length === 16);
   T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
   T('the D63 machines are the identities they were', ['lateral_raise_machine', 'shoulder_press_machine', 'reverse_pec_deck', 'curl_machine', 'leg_curl_seated', 'calf_raise_seated',
     'calf_raise_leg_press', 'hip_thrust_machine', 'crunch_machine', 'dip_machine', 'triceps_extension_machine', 'incline_press_machine', 'bench_press_incline_smith', 'shoulder_press_smith']
@@ -26009,7 +26035,7 @@ async function testTrainLauncher(){
     sha(norm(fnSpan(src, 'bodyDiagramSvg'))) === '633c2c8292948a13' && sha(norm(fnSpan(src, 'radarSvg'))) === '3d2a874826d95ec1');
   T('the art exporter stays development tooling: the app and its worker never reference it',
     !/export-exercise-art|artifacts\/exercise-art-export/.test(src) && !/export-exercise-art|artifacts\//.test(fs.readFileSync(path.join(repo, 'sw.js'), 'utf8')));
-  T('no history, storage key, schema or trainer change', JSON.stringify(ctx.workoutLog) === logRaw && ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 &&
+  T('no history, storage key, schema or trainer change', JSON.stringify(ctx.workoutLog) === logRaw && ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 &&
     ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && Object.keys(app.store).filter(k => storeKeys.split(',').indexOf(k) === -1).every(k => /^programs|^planData:|^schedule:|^planStart:/.test(k)),
     Object.keys(app.store).filter(k => storeKeys.split(',').indexOf(k) === -1).join(','));
   T('Session Score weights are unchanged', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
@@ -26262,7 +26288,7 @@ async function testWeekHoldToSlide(){
         ident(q.schedule.wed) === monEntry && ident(q.schedule.mon) === wedEntry && monEntry !== 'rest', ctx.schedule.mon + '/' + ctx.schedule.wed + ' ' + ident(q.schedule.wed));
       T('as one revision of the program, with no workout, template or history touched',
         decisions() === revisions + 1 && JSON.stringify(ctx.planData) === planBefore && JSON.stringify(ctx.workoutLog) === logBefore &&
-        ctx.DATA_KEYS.length === 15 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', decisions() + ' decisions');
+        ctx.DATA_KEYS.length === 16 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow', decisions() + ' decisions');
     });
   } finally {
     Object.assign(ctx, { setTimeout: keep.setTimeout, clearTimeout: keep.clearTimeout, loopHaptic: keep.loopHaptic, swapScheduledDays: keep.swapScheduledDays,
@@ -26456,7 +26482,7 @@ async function testRussianTwistArt(){
     T('this drawing\'s own cues are unchanged; the weighted twist\'s are D68\'s, checked by Contract 176',
       JSON.stringify(ctx.EXERCISE_ART.howTo.russian_twist) === '["Lean back, feet off the floor","Rotate the hands side to side","Turn from the ribs"]');
     T('the thumbnail budget holds', Object.keys(defs).reduce((s, k) => s + (XA.render(defs[k], { size:'thumb' }).match(/<(path|circle|rect)/g) || []).length, 0) < 3200);
-    T('no history, storage key, schema or trainer change', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
+    T('no history, storage key, schema or trainer change', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
       /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
   });
 }
@@ -26581,7 +26607,7 @@ async function testWeightedRussianTwistArt(){
     T('vSit was removed along with its one caller, not left as dead code', !/function vSit\(/.test(lib) && !/\bvSit\(/.test(lib));
     T('the bodyweight twist itself renders exactly as D67 shipped it',
       sha(XA.render(sibling, { size:'full' })) === 'fd6674e49c315758' && sha(XA.render(sibling, { size:'thumb' })) === '70fa0def322bc3b7');
-    T('no history, storage key, schema or trainer change', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
+    T('no history, storage key, schema or trainer change', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
       /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
   });
 }
@@ -26890,7 +26916,7 @@ async function testSmartSuggestions(){
       ['scoreExerciseForContext', 'rankExerciseSuggestions', 'xsDiversify', 'exSuggestionContext', 'exPickerSuggested']
       .every(fn => !/LOOPStore|addLogExerciseRow|pbAddExercise|pbReplaceExercise|saveLog|\.splice\(|persist|localStorage/.test(fnSrc(src, fn))));
     T('no storage key, schema, migration or trainer weight moved for any of it',
-      ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
+      ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
       !/XS_STORAGE|SUGGESTION_KEY|suggestionState/.test(src) &&
       /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
   });
@@ -27360,7 +27386,7 @@ async function testMuscleMapOverlays(){
       /const maxVal = Math\.max\(1, \.\.\.Object\.values\(totals\)\);/.test(fnSrc(src, 'bodyDiagramSvg')));
     T('drawing the figure stores nothing', !/LOOPStore|localStorage|persist|save[A-Z(]/.test(fnSrc(src, 'bodyDiagramSvg') + fnSrc(src, 'muscleBand')));
     T('no new storage key, schema, migration or trainer change for a figure that only draws differently',
-      ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
+      ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
       /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
   });
 }
@@ -28045,9 +28071,14 @@ async function testTrainingFoundation(){
       const p = await make();
       for(let i = 0; i < 6; i++) trainWeek(p, W(i));
       await H.settle(20);
-      T('DATA_KEYS is unchanged: the block needs no store of its own', same(ctx.DATA_KEYS, ['workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan',
+      /* D99 — the list gained 'objectives', which is not a block key: the block
+         still lives on the program record and still needs no store of its own,
+         which is what this assertion is for. Restated by NAME rather than by
+         count so a future phase cannot satisfy it by swapping one key for
+         another. */
+      T('DATA_KEYS holds no key for the block: the list is the fifteen it was, plus D99\u2019s objectives', same(ctx.DATA_KEYS, ['workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan',
         'activeWorkoutDraft', 'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog', 'cardioLog', 'cardioDraft', 'gymProfile',
-        'exerciseNotes', 'programs', 'onboarding']) && ctx.DATA_SCHEMA_VERSION === 1);
+        'exerciseNotes', 'programs', 'onboarding', 'objectives']) && ctx.DATA_SCHEMA_VERSION === 1);
       T('no foundation, deload or mesocycle key exists anywhere in the source',
         !/LOOPStore\.(get|set)\(\s*'(trainingFoundation|deloadState|mesocycle|blocks?|cycle)/.test(src));
       const storeBefore = JSON.stringify(app.store);
@@ -28491,7 +28522,7 @@ async function testMuscleFocusChips(){
 
   sub('data safety: nothing is stored, nothing protected changes, no input is mutated');
   await guard('data safety', () => {
-    T('no new storage key and no schema change', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1);
+    T('no new storage key and no schema change', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1);
     const before = H.snapshot(ctx);
     const t = tpl([['Leg Press', 3], ['Machine Shoulder Press', 3], ['Lat Pulldown', 3], ['Hip Thrust', 3], ['Cable Woodchop', 3], ['Side Plank', 3]]);
     const beforeTpl = JSON.stringify(t);
@@ -29800,7 +29831,7 @@ async function testWorkoutSharing(){
     T('  a known id takes this LOOP\'s name; an unknown exercise is kept exactly as written', copy &&
       copy.exercises[1].name === 'Bench Press' && copy.exercises[2].name === 'Future Move' && c.resolveExerciseId('Future Move').indexOf('unmapped:') === 0);
     T('  written to the plan\'s own storage, no new storage key', JSON.parse(L.store['planData:' + c.selectedPlanId]).push.some(t => t.id === copy.id) &&
-      c.DATA_KEYS.length === 15);
+      c.DATA_KEYS.length === 16);
     T('Friends says where it went, and the share leaves the inbox', /Saved to My Workouts as “Push — Chest Focus 2”\./.test(text(html(c, 'socialBody'))) &&
       c.socialView.pane === 'hub' && c.socialState.shares.length === 0);
     const rm = s.rpcCalls('loop_remove_shared_workout');
@@ -29868,7 +29899,7 @@ async function testWorkoutSharing(){
     T('no email is shown anywhere in sharing', !/\.email/.test(block));
     T('no vibration', !/vibrate|loopHaptic/.test(block));
     T('no new local storage: the only write is the plan\'s own, through persistPlanData', !/LOOPStore\.(set|remove)|localStorage/.test(block) && /await persistPlanData\(\)/.test(block));
-    T('DATA_KEYS is unchanged at 15', H.loadApp().ctx.DATA_KEYS.length === 15);
+    T('DATA_KEYS is unchanged at 16', H.loadApp().ctx.DATA_KEYS.length === 16);
     T('no service-role or secret credential', !/service_role|sb_secret_/.test(code));
     T('no user search or directory', !/search_users|find_user|username=ilike|loop_search/i.test(code));
   }
@@ -30450,7 +30481,7 @@ async function testWorkoutIdentity(){
   {
     const app = H.loadApp({ workoutLog: '[]' });
     const c = app.ctx;
-    T('DATA_KEYS is unchanged at 15, and no key names identity', c.DATA_KEYS.length === 15 && !c.DATA_KEYS.some(k => /identity|icon|colou?r/i.test(k)));
+    T('DATA_KEYS is unchanged at 16, and no key names identity', c.DATA_KEYS.length === 16 && !c.DATA_KEYS.some(k => /identity|icon|colou?r/i.test(k)));
     T('identity is stored on the workout it describes: a template, a draft or a session (and copied into a share)', (code.match(/\.identity = /g) || []).length === 5 &&
       /if\(snapshot\.identity\) out\.identity = snapshot\.identity;/.test(fnSrc(src, 'shareSnapshotWithNote')) &&
       /next\.identity = identity;/.test(src) && /tpl\.identity = identity;/.test(fnSrc(src, 'saveTemplate')) && /tpl\.identity = identity;/.test(fnSrc(src, 'importSharedWorkout')) &&
@@ -30795,7 +30826,7 @@ async function testPersonalBestTimeline(){
     c.computePBTCandidates(); c.pickDefaultPBTExercise(); c.renderPersonalBestTimeline();
     c.pbtChooseExercise('Barbell Row'); c.renderPersonalBestTimeline();
     T('V — nothing here ever rewrites workoutLog: it reads exactly what it was given, byte for byte', JSON.stringify(c.workoutLog) === before);
-    T('DATA_KEYS is unchanged at 15, and no key names this feature', c.DATA_KEYS.length === 15 &&
+    T('DATA_KEYS is unchanged at 16, and no key names this feature', c.DATA_KEYS.length === 16 &&
       !c.DATA_KEYS.some(k => /personalBest|pbTimeline|\bpbt\b/i.test(k)));
     T('no local schema or migration was added for it', c.DATA_SCHEMA_VERSION === 1 && !/personalBest|pbTimeline/i.test(fnSrc(src, 'runMigrations')));
     const pbtBlock = src.slice(src.indexOf('PERSONAL BEST TIMELINE  (Phase D82)'), src.indexOf('LOOP PROGRESSION ENGINE — Level, Rank, XP, Milestones'));
@@ -30858,7 +30889,7 @@ async function testPersonalBestTimeline(){
     T('  no lift appears twice, and nothing is appended as a sixth',
       new Set(withOff.carousel.map(t=>t.exerciseName)).size === withOff.carousel.length && withOff.pages.length === c.PBT_CONFIG.maxCarouselExercises);
     T('  nothing was written anywhere to remember this — it is a property of pbtSelectedExercise alone',
-      c.DATA_KEYS.length === 15);
+      c.DATA_KEYS.length === 16);
 
     c.pbtChooseExercise(ranked[0].exerciseName);
     const backToTop = c.buildPersonalBestTimelineModel();
@@ -31372,7 +31403,7 @@ async function testPhasePrescription(){
   /* ---------------------------------------------------------------- */
   sub('nothing about storage, dates or the block lifecycle moved');
   await guard('data and dates', async () => {
-    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('DATA_KEYS is still 16', ctx.DATA_KEYS.length === 16);
     T('the schema is not bumped for a prescription overlay', String(ctx.DATA_SCHEMA_VERSION) === '1');
     T('the deload threshold is still six training weeks', ctx.BLOCK_RULES.deloadAfterWeeks === 6);
     T('the moves a block can make are unchanged',
@@ -31819,7 +31850,7 @@ async function testMasteryPodium(){
     T('rendering the whole redesigned tab changes no mastery value',
       JSON.stringify(ctx.getTopExerciseMastery()) === before &&
       JSON.stringify(ctx.getTopMuscleMastery()) === beforeMuscle);
-    T('DATA_KEYS is still exactly 15', ctx.DATA_KEYS.length === 15);
+    T('DATA_KEYS is still exactly 16', ctx.DATA_KEYS.length === 16);
     T('MASTERY_CONFIG is untouched by the presentation layer',
       ctx.MASTERY_CONFIG.curve.exerciseBase === 60 && ctx.MASTERY_CONFIG.maxLevel === 10);
     T('the trainer is unaffected', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
@@ -32173,7 +32204,7 @@ async function testStabilization(){
   {
     const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
     const ctx = app.ctx;
-    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('DATA_KEYS is still 16', ctx.DATA_KEYS.length === 16);
     T('the local schema is still 1', ctx.DATA_SCHEMA_VERSION === 1);
     T('the trainer is still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('no migration was introduced', Object.keys(ctx.MIGRATIONS || {}).length === 0);
@@ -32511,7 +32542,7 @@ async function testProgramChronology(){
   /* ---------------------------------------------------------------- */
   sub('nothing protected moved');
   await guard('protected', async () => {
-    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('DATA_KEYS is still 16', ctx.DATA_KEYS.length === 16);
     T('the local schema is still 1, with no migration',
       ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
     T('the trainer is still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
@@ -32875,7 +32906,7 @@ async function testPauseSuspension(){
   /* ---------------------------------------------------------------- */
   sub('nothing protected moved');
   await guard('protected', async () => {
-    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('DATA_KEYS is still 16', ctx.DATA_KEYS.length === 16);
     T('the local schema is still 1, with no migration',
       ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
     T('pause truth lives on the program, not in a key of its own',
@@ -33267,7 +33298,7 @@ async function testPRModeConsistency(){
 
   sub('nothing protected moved');
   await guard('protected', async () => {
-    T('DATA_KEYS is still 15', ctx.DATA_KEYS.length === 15);
+    T('DATA_KEYS is still 16', ctx.DATA_KEYS.length === 16);
     T('the local schema is still 1, with no migration',
       ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
     T('the trainer is still 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
@@ -33800,8 +33831,8 @@ async function testNetworkAndUpdates(){
     !/\.catch\(\(\) => self\.skipWaiting\(\)\)/.test(swSrc) && /keys\.filter\(k => k !== CACHE_VERSION\)\.map\(k => caches\.delete\(k\)\)/.test(swSrc)
     && /req\.mode === 'navigate'/.test(swSrc) && /return Response\.error\(\);/.test(swSrc));
   T('the precache is still the app shell only', /ASSETS = \[\s*'\.\/',\s*'\.\/index\.html',\s*'\.\/manifest\.webmanifest'\s*\]/.test(swSrc));
-  T('DATA_KEYS is still 15, the schema 1, the trainer 0.1.1-shadow',
-    c.DATA_KEYS.length === 15 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  T('DATA_KEYS is still 16, the schema 1, the trainer 0.1.1-shadow',
+    c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
 /* =========================================================
@@ -34182,8 +34213,20 @@ async function testLocalDayTruth(){
       c.loopDay = '2026-03-02';
       at('2026-03-03T00:00:02');
       const redrew = c.noticeNewDay();
-      T('a workout open at midnight is left open, and the redraw writes nothing',
-        redrew === true && overlay.classList.contains('open') && JSON.stringify(c.__store) === storeBefore);
+      /* D99 — the rollover redraw is also the first evaluation of the new civil
+         day, so the ONE key it may now create or change is 'objectives': the
+         day's offer is made when the day begins. Everything the athlete
+         authored — the open sheet, the draft, history, the plan, every other
+         key — must still be byte-identical, which is what this has always been
+         protecting and is asserted here directly rather than by a whole-store
+         comparison that would hide it. */
+      const afterKeys = JSON.parse(JSON.stringify(c.__store));
+      const beforeKeys = JSON.parse(storeBefore);
+      const movedKeys = Array.from(new Set(Object.keys(beforeKeys).concat(Object.keys(afterKeys))))
+        .filter(k => beforeKeys[k] !== afterKeys[k]);
+      T('a workout open at midnight is left open, and the redraw rewrites nothing the athlete authored',
+        redrew === true && overlay.classList.contains('open') &&
+        movedKeys.every(k => k === 'objectives'), movedKeys.join());
       overlay.classList.remove('open');
       const redraw = fnSrc(src, 'renderAll') + fnSrc(src, 'noticeNewDay');
       T('   the redraw is the tabs alone: no sheet is opened, closed or saved, and no cache is cleared',
@@ -34238,8 +34281,8 @@ async function testLocalDayTruth(){
 
     /* ---------------------------------------------------------------- */
     sub('nothing protected moved');
-    T('DATA_KEYS is still 15, the schema 1 with no migration, the trainer 0.1.1-shadow',
-      c.DATA_KEYS.length === 15 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('DATA_KEYS is still 16, the schema 1 with no migration, the trainer 0.1.1-shadow',
+      c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('no new stored key: the day a cache belongs to lives in memory only', !c.DATA_KEYS.some(k => /day|clock|rollover/i.test(k)));
     T('recovery, capability and trainer thresholds are unchanged', c.RECOVERY_CONFIG.halfLifeDays === 2 && c.RECOVERY_CONFIG.windowDays === 14
       && c.CAPABILITY_CONFIG.staleDays === 45 && c.CAPABILITY_CONFIG.recentDays === 60 && c.TRAINER_CONFIG.evidence.staleDays === 45);
@@ -34353,7 +34396,7 @@ async function testBackupCompatibility(){
   sub('the version model: data format, not release numbers');
   await guard('model', async () => {
     const c = probe.ctx;
-    T('DATA_SCHEMA_VERSION is still 1, DATA_KEYS still 15', c.DATA_SCHEMA_VERSION === 1 && c.DATA_KEYS.length === 15);
+    T('DATA_SCHEMA_VERSION is still 1, DATA_KEYS still 16', c.DATA_SCHEMA_VERSION === 1 && c.DATA_KEYS.length === 16);
     T('the production backup-migration registry is empty and frozen — nothing invented',
       !!c.BACKUP_MIGRATIONS && Object.keys(c.BACKUP_MIGRATIONS).length === 0 && Object.isFrozen(c.BACKUP_MIGRATIONS));
     T('and so is the boot-time store registry', !!c.MIGRATIONS && Object.keys(c.MIGRATIONS).length === 0);
@@ -34862,8 +34905,8 @@ async function testBackupCompatibility(){
   sub('protected baselines');
   await guard('baselines', async () => {
     const c = probe.ctx;
-    T('trainer 0.1.1-shadow; DATA_KEYS 15; schema 1; the allowlist is unchanged',
-      c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 15 && c.DATA_SCHEMA_VERSION === 1
+    T('trainer 0.1.1-shadow; DATA_KEYS 16; schema 1; the allowlist is unchanged',
+      c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1
       && c.DYNAMIC_KEY_PREFIXES.join() === 'planData:,schedule:,planStart:' && !c.isRestorableDataKey(c.SOCIAL_STORE_KEY));
     T('export still writes stored values exactly as they are', /data\[k\] = r\.value;/.test(fnSrc(src, 'exportAllData'))
       && /schemaVersion: DATA_SCHEMA_VERSION/.test(fnSrc(src, 'exportAllData')));
@@ -35140,8 +35183,8 @@ async function testMasteryView(){
       ctx.MASTERY_CONFIG.session.points === 10 && ctx.MASTERY_CONFIG.muscle.primaryWeight === 1 && ctx.MASTERY_CONFIG.muscle.secondaryWeight === 0.35);
     T('the ranking the leaders read is untouched: one sort, no second model, no combined score',
       /podium:\s*ex\.slice\(0, MASTERY_UI_CONFIG\.podiumSize\)/.test(fnSrc(src, 'getMasteryProgress')) && !/mastery score|mastery xp|overall mastery/i.test(render()));
-    T('DATA_KEYS 15, schema 1, trainer 0.1.1-shadow, and no new key names this view',
-      ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && !ctx.DATA_KEYS.some(k => /mastery|badge/i.test(k)));
+    T('DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, and no new key names this view',
+      ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && !ctx.DATA_KEYS.some(k => /mastery|badge/i.test(k)));
     T('nothing else in Progress was redrawn: the 12-week sections, the other tabs and their functions are as they were',
       /function renderProgDashboard\(/.test(src) && /function renderProgStrength\(/.test(src) && /function renderProgVolume\(/.test(src) && /Muscle volume<span class="sec-hint">sets · last 12 weeks/.test(src));
     T('D86’s muscle sheet is gone with its list — its markup, its three functions — not left as dead code beside the list that replaced it',
@@ -35513,7 +35556,7 @@ async function testMasteryOneSystem(){
     T('Overview, Strength and Volume still draw without a single error', drawn.every(Boolean) && app.errors.length === errs, app.errors.slice(errs));
     T('and no Mastery code reaches them — their renderers name nothing from this view',
       !/mastery(Mode|View|Apply|ListHtml|RankRow|LevelPill)|MASTERY_BADGE_TIERS|setMasteryMode/.test(fnSrc(src, 'renderProgDashboard') + fnSrc(src, 'renderProgStrength') + fnSrc(src, 'renderProgVolume')));
-    T('DATA_KEYS 15, schema 1, trainer 0.1.1-shadow', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('DATA_KEYS 16, schema 1, trainer 0.1.1-shadow', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     ctx.masteryMode = 'exercise'; ctx.masteryPlay = false;
   });
 }
@@ -35781,7 +35824,7 @@ async function testSocialSecurityClosure(){
   await guard('baselines', async () => {
     const app = H.loadApp({ dataSchemaVersion: '1' }); await H.settle(150);
     const ctx = app.ctx;
-    T('DATA_KEYS is 15, the local schema is 1, and the trainer is 0.1.1-shadow — this phase touched none of them', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('DATA_KEYS is 16, the local schema is 1, and the trainer is 0.1.1-shadow — this phase touched none of them', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('the app’s Supabase configuration is the same project and the same publishable key', /url: 'https:\/\/hqjrzkmtjduhknlvhprf\.supabase\.co'/.test(src) && /anonKey: 'sb_publishable_hX1EfcElCEg3Vmo6UlSpnQ_uNA8e_65'/.test(src));
     const setup = fs.readFileSync(root + 'SOCIAL-SETUP.md', 'utf8');
     T('SOCIAL-SETUP.md tells the owner to apply 0005, after 0004, and how to check it from outside and inside', /0005_e9_security_closure\.sql/.test(setup) && /after 0004|runs 0004|needs 0001 and 0002/i.test(setup) && /csprng-v1/.test(setup) && /loop_request_between/.test(setup));
@@ -36003,7 +36046,7 @@ async function testRankEmblemsD96(){
 
   sub('nothing else moved');
   await guard('safety', () => {
-    T('DATA_KEYS 15, schema 1, trainer 0.1.1-shadow — no rank rule, threshold or XP was touched', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('DATA_KEYS 16, schema 1, trainer 0.1.1-shadow — no rank rule, threshold or XP was touched', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('the Mastery badges are the Mastery badges, unchanged', [1, 2, 3, 4, 5, 6].every(n => fs.existsSync(root + 'mastery-badge-' + n + '.png')) && /const MASTERY_BADGE_TIERS = \[/.test(src));
     T('the rank atmosphere and the rail still read RANK_VISUALS, and the level-up flow still renders through the same function', /RANK_VISUALS\[r\.name\]/.test(fnSrc(src, 'rankNearestChanged')) && /rankMedalSvg\(rank, 88\)/.test(src));
   });
@@ -36232,7 +36275,7 @@ async function testRankTourD97(){
   /* ------------------------------------------------------------------ */
   sub('nothing else moved');
   await guard('safety', () => {
-    T('DATA_KEYS 15, schema 1, trainer 0.1.1-shadow', ctx.DATA_KEYS.length === 15 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('DATA_KEYS 16, schema 1, trainer 0.1.1-shadow', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('the ranks and their thresholds are as they were', ctx.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50');
     T('the XP curve is as it was: 120,800 XP to reach Level 50', (() => { let s = 0; for(let l = 1; l < 50; l++) s += ctx.calculateRequiredXP(l); return s === 120800; })());
     T('the session formulas are as they were: min(175, 50 + 5n) and min(60, 3n)', Array.from({ length: 41 }, (_, n) => n).every(n =>
@@ -36563,7 +36606,13 @@ async function testRealUseUxD98(){
       'calculatePRXP': 'ba20ebe522acc1a3',
       'calculateRequiredXP': '5a74d3aad961c629',
       'calculateLevelFromXP': '9418f2e5934245da',
-      'getCurrentProgression': '668ef1cd59eb2930',
+      /* D99 — the ONE pin of the thirty-four that moved, and it moved by three
+         lines: objective XP is read and added exactly as cardio XP already was,
+         and objectiveXP joins the returned record. computeXPTimeline, every XP
+         constant, every PR engine, Session Score, Mastery and the trainer are
+         still byte-identical to 10.0 above and below it, which is the point of
+         pinning them one function at a time. */
+      'getCurrentProgression': 'bf3a7572296c620c',
       'computeExercisePREvents': '45ea0d06bd7b9167',
       'computeAllPREvents': '94af217dbcf1f9ed',
       'computePRs': 'a8541afeb6205e1c',
@@ -36595,12 +36644,678 @@ async function testRealUseUxD98(){
     const bad = Object.keys(PINS).filter(n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) !== PINS[n]);
     T('XP, level, PR events and modes, Session Score, the legacy quality score, Mastery points, capability, the trainer proposal, the PBT ranking and every D39 evidence function are byte-identical to LOOP 10.0 (' + Object.keys(PINS).length + ' pinned by the hash of their source)',
       bad.length === 0, bad.join());
-    T('DATA_KEYS 15, schema 1, trainer 0.1.1-shadow', c.DATA_KEYS.length === 15 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('DATA_KEYS 16, schema 1, trainer 0.1.1-shadow', c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('the ranks and their thresholds are as they were', c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50');
+    /* D99 — the strength timeline is where every point of training XP is made,
+       and it is the one thing objective XP is forbidden to touch. Pinned again
+       here, beside the function that adds to it, so the two can never drift. */
+    T('computeXPTimeline is byte-identical to LOOP 10.0, so objective XP was added beside training XP and not inside it',
+      crypto.createHash('sha256').update(fnSrc(src, 'computeXPTimeline').replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === '8c298b498a14c04d');
     T('the XP curve is as it was: 120,800 XP to reach Level 50', (() => { let s = 0; for(let l = 1; l < 50; l++) s += c.calculateRequiredXP(l); return s === 120800; })());
     T('the Session Score weights are as they were: 40 / 30 / 18 / 12', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
     T('D91’s PR mode model is as it was: LOADED, BODYWEIGHT, UNKNOWN', Object.keys(c.PR_MODE).sort().join() === 'BODYWEIGHT,LOADED,UNKNOWN');
     T('the LOOP 10.0 rank tour is intact (Contract 200 still runs)', /await testRankTourD97\(\);/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'loop-tests.js'), 'utf8')));
+  });
+}
+
+/* =========================================================
+   CONTRACT 202 — OBJECTIVES + XP PROFILE 2.0  (Phase D99)
+   ---------------------------------------------------------
+   LOOP now names, at most once a day and twice a week, an
+   opportunity the athlete ALREADY HAS. What is held here:
+
+     · RESTRAINT. One daily, two weeklies, and nothing at all
+       when the evidence is thin. A rest day, a day already
+       trained, a week with no room left and an athlete with no
+       history all produce NOTHING rather than something generic.
+     · NO EXTRA WORK. Every objective is measured against work
+       the plan or the program already scheduled, or against a
+       number the athlete has already hit. The only load LOOP
+       may name is the one D49 recommends, which a deload turns
+       into a hold before this engine ever sees it.
+     · FORWARD ONLY. No instance for a past day or week, no XP
+       for an old workout, and every XP figure before D99 is
+       exactly what it was.
+     · FROZEN, THEN MEASURED. Once shown, the target never moves;
+       progress is recomputed from workoutLog every read.
+     · NO PUNISHMENT. Expiry costs no XP, no streak and no state.
+     · ONE REWARD PER INSTANCE. The id is a function of the
+       period and the type, the latch is one-way, and the write
+       is awaited — so a reload, a restart, an import, an edit,
+       a delete, a re-log or five re-evaluations pay once.
+     · ONE CANONICAL XP TRUTH. computeXPEvents() is a UNION of
+       the engines that already exist, never a fourth XP rule,
+       and its total is the Lifetime XP on the same sheet.
+     · THE SIXTEENTH KEY, by name.
+   ========================================================= */
+async function testObjectivesD99(){
+  section('CONTRACT 202 — objectives that are worth doing, and one XP truth to show for them (D99)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+
+  /* A Friday push day on the balanced plan, with two prior sessions of the
+     same work. The seed decides what D49 will say: 12 reps at the top of an
+     8-12 range with 3 in reserve is an increase; 10 reps is not. */
+  const OBJ_DAY = '2026-09-18T09:00:00', OBJ_DATE = '2026-09-18', OBJ_WEEK = '2026-09-14';
+  const oS = (w, r, rir) => ({ weight: String(w), reps: String(r), rir: String(rir) });
+  const oEX = (n, sets) => ({ name: n, effort: '', bodyweight: false, sets });
+  const oWK = (id, date, cat, exs) => ({ id, title: cat + ' day', category: cat, date, notes: '', exercises: exs });
+  async function athlete(){
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+    return app;
+  }
+  function seed(c, reps, rir){
+    const sess = c.objectiveTodaySession(OBJ_DATE);
+    const names = sess.template.exercises.slice(0, 3).map(e => e.name);
+    c.workoutLog.push(
+      oWK('h1', '2026-09-04', 'push', names.map(n => oEX(n, [oS(100, reps, rir), oS(100, reps, rir), oS(100, reps, rir)]))),
+      oWK('h2', '2026-09-11', 'push', names.map(n => oEX(n, [oS(100, reps, rir), oS(100, reps, rir), oS(100, reps, rir)]))));
+    clearCaches(c);
+    return { sess, names };
+  }
+
+  /* ------------------------------------------------------ the store itself */
+  sub('the sixteenth key, and what it is allowed to hold');
+  await guard('store', async () => {
+    const app = await athlete(); const c = app.ctx;
+    T('DATA_KEYS is exactly these sixteen, named', c.DATA_KEYS.join() ===
+      ['workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',
+       'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog', 'cardioLog', 'cardioDraft',
+       'gymProfile', 'exerciseNotes', 'programs', 'onboarding', 'objectives'].join(), c.DATA_KEYS.join());
+    T('the schema did not move, and no migration was invented for it',
+      c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 &&
+      Object.keys(c.BACKUP_MIGRATIONS || {}).length === 0);
+    T('a backup may restore it, and export walks it', c.isRestorableDataKey('objectives') === true);
+    T('a restored value must be the shape the loader reads',
+      c.backupValueFits('objectives', { version: 1, instances: [] }) === true &&
+      c.backupValueFits('objectives', { version: 1 }) === false &&
+      c.backupValueFits('objectives', []) === false &&
+      c.backupValueFits('objectives', null) === true);
+    T('a stored value of the wrong shape is treated as absent, never repaired', await (async () => {
+      const bad = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+        objectives: JSON.stringify({ version: 1, instances: 'nope' }) });
+      return Array.isArray(bad.ctx.objectivesStore.instances) && bad.ctx.objectivesStore.instances.length === 0;
+    })());
+    T('an instance that is not an instance is dropped on load', await (async () => {
+      const bad = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+        objectives: JSON.stringify({ version: 1, instances: [null, { id: 'x' }, 7,
+          { id: 'ok', kind: 'daily', objectiveType: 't', periodKey: '2026-01-01', rewardXP: 15 }] }) });
+      return bad.ctx.objectivesStore.instances.length === 1 && bad.ctx.objectivesStore.instances[0].id === 'ok';
+    })());
+    /* THE BUG BROWSER QA FOUND. showMainApp() renders Today, and rendering
+       Today is the first evaluation of the day. loadObjectives() ran after it,
+       so the evaluation saw an empty store, froze a second copy of an objective
+       that already existed, and wrote it over the completed one underneath — a
+       reward the athlete had earned, gone on the next launch. Two things hold
+       it now, and both are asserted: the read happens before the first paint,
+       and nothing may be decided at all until the device has been asked. */
+    T('boot evaluates once, after every store an objective reads has been read',
+      /await loadTrainerData\(\);[\s\S]{0,900}try\{ syncObjectives\(\); renderTodayObjectives\(\); \}catch\(e\)\{\}/.test(fnSrc(src, 'boot')) &&
+      /await loadPrograms\(\);[\s\S]{0,900}await loadObjectives\(\);/.test(fnSrc(src, 'loadTrainerData')));
+    T('and nothing is decided at all until the device has been asked',
+      /if\(!objectivesLoaded\) return/.test(fnSrc(src, 'evaluateObjectives')) &&
+      /objectivesLoaded = true;/.test(fnSrc(src, 'loadObjectives')));
+    T('an unread store generates nothing and latches nothing', (() => {
+      const wasLoaded = c.objectivesLoaded;
+      c.objectivesLoaded = false;
+      const before = JSON.stringify(c.objectivesStore);
+      const r = c.evaluateObjectives('2026-09-18');
+      c.objectivesLoaded = wasLoaded;
+      return r.unread === true && r.created.length === 0 && r.completed.length === 0 &&
+        JSON.stringify(c.objectivesStore) === before;
+    })());
+    T('the economy is stated once, as constants, not scattered as literals',
+      c.OBJECTIVE_REWARD.daily === 15 && c.OBJECTIVE_REWARD.weekly === 40 &&
+      c.OBJECTIVE_WEEKLY_XP_CAP === 150 && c.OBJECTIVE_ACTIVE_LIMIT.daily === 1 && c.OBJECTIVE_ACTIVE_LIMIT.weekly === 2);
+    T('an ordinary full week cannot exceed the ceiling, and the ceiling is a bonus beside a session',
+      2 * c.OBJECTIVE_REWARD.weekly + 4 * c.OBJECTIVE_REWARD.daily <= c.OBJECTIVE_WEEKLY_XP_CAP &&
+      2 * c.OBJECTIVE_REWARD.weekly + 5 * c.OBJECTIVE_REWARD.daily > c.OBJECTIVE_WEEKLY_XP_CAP &&
+      c.OBJECTIVE_WEEKLY_XP_CAP < c.calculateWorkoutXP(20) + c.calculateSetXP(20));
+  });
+
+  /* ------------------------------------------------------------- restraint */
+  sub('nothing is invented where there is nothing to say');
+  await guard('restraint', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, '2026-09-16T09:00:00', async () => {          // Wednesday: a rest day
+      T('premise: the plan rests today', c.objectiveTodaySession('2026-09-16').cat === 'rest');
+      T('a rest day generates no daily objective', c.objectiveDailyCandidates(c.objectiveEvidence()).length === 0);
+    });
+    await withClockOn(c, OBJ_DAY, async () => {
+      T('an athlete with no history is offered only their own planned session',
+        c.objectiveDailyCandidates(c.objectiveEvidence()).map(x => x.objectiveType).join() === 'session_today');
+      seed(c, 10, 2);
+      c.workoutLog.push(oWK('today', OBJ_DATE, 'push', [oEX('Machine Chest Press', [oS(100, 10, 2)])]));
+      clearCaches(c);
+      T('a day already trained generates nothing new', c.objectiveDailyCandidates(c.objectiveEvidence()).length === 0);
+    });
+  });
+
+  /* --------------------------------------------------------- D49 owns load */
+  sub('the only load LOOP may name is the one its progression engine recommends');
+  await guard('d49', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      const { sess, names } = seed(c, 12, 3);
+      const rec = c.progressionFor(names[0], sess.template.exercises[0].reps, sess.template.exercises[0].recommended);
+      const ranked = c.objectiveRank(c.objectiveDailyCandidates(c.objectiveEvidence()));
+      T('premise: the engine says increase', rec.tag === 'increase', rec.tag);
+      T('the objective offered is the progression', ranked[0].objectiveType === 'progress_lift');
+      /* D49 may append an aside after its evidence sentence (" — this would
+         match or beat your best"), which is a third line in a row budgeted for
+         two. The row shows the engine's FIRST SENTENCE, whole and unreworded —
+         a prefix of what the engine wrote, never a paraphrase of it. */
+      T('at exactly the engine’s weight, carrying the engine’s own words',
+        ranked[0].target.weight === rec.weight && rec.why.indexOf(ranked[0].reason) === 0 &&
+        /\.$/.test(ranked[0].reason), ranked[0].reason);
+      T('and nothing in the row is LOOP’s own paraphrase of the evidence',
+        /const stop = s\.indexOf\('\. '\)/.test(fnSrc(src, 'objectiveReasonText')) &&
+        /reason: objectiveReasonText\(rec\.why\),/.test(fnSrc(src, 'objectiveDailyCandidates')));
+      T('and it names the session’s primary lift, not whichever sorts first',
+        ranked[0].target.exercise === names[0], ranked[0].target.exercise);
+      T('no progression objective exists for a lift the engine is not increasing',
+        ranked.filter(x => x.objectiveType === 'progress_lift')
+          .every(x => c.progressionFor(x.target.exercise, '8–12', undefined).tag === 'increase'));
+    });
+  });
+  await guard('d49-hold', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      seed(c, 10, 2);                                   // mid-range: the engine holds
+      const ranked = c.objectiveRank(c.objectiveDailyCandidates(c.objectiveEvidence()));
+      T('premise: the engine is not increasing', c.progressionFor(ranked[0].target.exercise, '8–12', undefined).tag !== 'increase');
+      T('LOOP asks the athlete to match what they already did, never to add weight',
+        ranked[0].objectiveType === 'match_lift' && ranked.every(x => x.objectiveType !== 'progress_lift'));
+      T('the target IS the last performance, so it needs no new evidence to be achievable',
+        ranked[0].target.weight === ranked[0].baseline.weight && ranked[0].target.reps === ranked[0].baseline.reps);
+    });
+  });
+  await guard('deload', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      seed(c, 12, 3);
+      const real = c.deloadActiveToday;
+      c.deloadActiveToday = () => true;
+      const ranked = c.objectiveRank(c.objectiveDailyCandidates(c.objectiveEvidence()));
+      c.deloadActiveToday = real;
+      T('inside a deload nothing asks for more load', ranked.every(x => x.objectiveType !== 'progress_lift'),
+        ranked.map(x => x.objectiveType).join());
+      T('and the day is not left empty: matching is still offered',
+        ranked.some(x => x.objectiveType === 'match_lift'));
+      /* Belt AND braces, tested separately. D49's own phase policy turns an
+         increase into a hold inside a deload, so the engine would already be
+         safe if it asked; this proves it ALSO refuses on its own, by handing it
+         an engine that has been made to say increase anyway. */
+      const realProg = c.progressionFor;
+      c.deloadActiveToday = () => true;
+      c.progressionFor = (n, reps) => ({ weight: 500, headline: '', why: 'forced', tag: 'increase' });
+      const forced = c.objectiveDailyCandidates(c.objectiveEvidence());
+      c.progressionFor = realProg; c.deloadActiveToday = real;
+      T('and it refuses on its own, even handed an engine that says increase',
+        forced.every(x => x.objectiveType !== 'progress_lift'), forced.map(x => x.objectiveType).join());
+    });
+  });
+
+  /* ----------------------------------------------------------- the week */
+  sub('a week is only ever asked for what it can still hold');
+  await guard('week', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {                        // Friday, nothing logged
+      const wk = c.objectiveWeeklyCandidates(c.objectiveEvidence());
+      T('premise: four sessions were planned and none was trained', c.objectiveEvidence().week.planned === 4);
+      T('a week that can no longer be finished is not offered as one',
+        wk.every(x => x.objectiveType !== 'week_sessions'), wk.map(x => x.objectiveType).join());
+    });
+    await withClockOn(c, '2026-09-14T09:00:00', async () => {          // Monday, the week intact
+      const wk = c.objectiveWeeklyCandidates(c.objectiveEvidence());
+      const full = wk.find(x => x.objectiveType === 'week_sessions');
+      T('on Monday the whole week is still possible, and is offered once', !!full && full.target.count === 4);
+      T('at most two weekly objectives exist at all', c.OBJECTIVE_ACTIVE_LIMIT.weekly === 2 && wk.length <= 2);
+      const cat = wk.find(x => x.objectiveType === 'week_category');
+      T('a category objective never asks for more than the week planned or can still reach',
+        !cat || cat.target.count <= c.objectiveEvidence().week.days.filter(d => d.cat === cat.target.category).length);
+      /* One instance per type per period, whatever the room left. A store that
+         already holds one weekly must not gain a second copy of it. */
+      c.objectivesStore.instances = [];
+      await c.syncObjectives();
+      const first = c.objectivesStore.instances.slice();
+      c.objectivesStore.instances = first.slice(0, 1);      // one weekly, room for one more
+      await c.syncObjectives();
+      const perType = {};
+      c.objectivesStore.instances.forEach(i => { perType[i.kind + i.objectiveType] = (perType[i.kind + i.objectiveType] || 0) + 1; });
+      T('a period never holds two objectives of the same type',
+        Object.keys(perType).every(k => perType[k] === 1), JSON.stringify(perType));
+      T('the copy is about finishing what is planned, not adding to it',
+        wk.every(x => !/add|extra|another|more /i.test(x.title + ' ' + x.detail)), wk.map(x => x.title).join(' | '));
+    });
+  });
+
+  /* ------------------------------------------------------------ freezing */
+  sub('once shown, the target does not move');
+  await guard('freeze', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      seed(c, 12, 3);
+      const made = (await c.syncObjectives()).created;
+      T('exactly one daily was frozen', made.filter(i => i.kind === 'daily').length === 1);
+      const inst = made.find(i => i.kind === 'daily');
+      T('it carries everything a reader needs and nothing it must recompute',
+        ['id', 'kind', 'objectiveType', 'periodKey', 'createdAt', 'expiresAt', 'title', 'detail', 'reason',
+         'metric', 'baseline', 'target', 'rewardXP', 'sourceContext', 'confidence', 'rulesVersion',
+         'completedAt', 'completionEvidence'].every(k => k in inst), Object.keys(inst).join());
+      T('its id is a function of the period and the type, so a period cannot hold two',
+        inst.id === 'obj_daily_' + OBJ_DATE + '_' + inst.objectiveType);
+      T('it expires at the end of its own day, and a weekly at the end of its week',
+        inst.expiresAt === OBJ_DATE &&
+        (made.filter(i => i.kind === 'weekly').every(i => i.expiresAt === '2026-09-20')));
+      const frozen = JSON.stringify([inst.target, inst.baseline, inst.title, inst.rewardXP, inst.reason]);
+      c.schedule.fri = 'pull';                       // the athlete rewrites their week underneath it
+      c.workoutLog.push(oWK('mid', OBJ_DATE, 'push', [oEX(inst.target.exercise || 'Machine Chest Press', [oS(5, 1, 5)])]));
+      clearCaches(c);
+      for(let i = 0; i < 4; i++) await c.syncObjectives();
+      const now = c.objectivesStore.instances.find(x => x.id === inst.id);
+      T('a plan change does not restate the target', JSON.stringify([now.target, now.baseline, now.title, now.rewardXP, now.reason]) === frozen);
+      T('and no second daily appears beside it',
+        c.objectivesStore.instances.filter(x => x.kind === 'daily' && x.periodKey === OBJ_DATE).length === 1);
+    });
+  });
+
+  /* ------------------------------------------------- completion, once only */
+  sub('completion is automatic, derived, and paid exactly once');
+  await guard('award', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      const { names } = seed(c, 12, 3);
+      const inst = (await c.syncObjectives()).created.find(i => i.kind === 'daily');
+      T('no reward before it is done', c.computeObjectiveXPTotal() === 0 && !inst.completedAt);
+      T('nothing in the app marks one complete by hand',
+        !/objectiveMarkComplete|markObjectiveDone|completeObjective\s*\(/.test(src));
+      const xpBefore = c.getCurrentProgression().lifetimeXP;
+      c.workoutLog.push(oWK('now', OBJ_DATE, 'push',
+        names.map(n => oEX(n, [oS(inst.target.weight, 12, 2), oS(inst.target.weight, 12, 2), oS(inst.target.weight, 12, 2)]))));
+      clearCaches(c);
+      const done = (await c.syncObjectives()).completed;
+      T('training it completed it, with no button', done.length === 1 && done[0].id === inst.id);
+      T('the evidence names the session that did it', done[0].completionEvidence.workoutId === 'now');
+      const paid = c.computeObjectiveXPTotal();
+      T('the reward paid is the one that was frozen', paid === inst.rewardXP);
+      T('lifetime XP is training plus exactly that', c.getCurrentProgression().objectiveXP === paid &&
+        c.getCurrentProgression().lifetimeXP - xpBefore > paid);
+      for(let i = 0; i < 5; i++) await c.syncObjectives();
+      c.invalidateXPTimelineCache(); clearCaches(c);
+      T('five re-evaluations and a cache clear pay nothing more', c.computeObjectiveXPTotal() === paid);
+      const reopened = c.workoutLog.find(l => l.id === 'now');
+      reopened.notes = 'edited later'; clearCaches(c); await c.syncObjectives();
+      T('editing the session pays nothing more', c.computeObjectiveXPTotal() === paid);
+      const stored = JSON.parse((await c.LOOPStore.get('objectives')).value);
+      T('the latch is on the device, not only in memory',
+        stored.instances.filter(x => x.id === inst.id && x.completedAt).length === 1);
+      c.workoutLog = c.workoutLog.filter(l => l.id !== 'now'); clearCaches(c); await c.syncObjectives();
+      T('deleting the evidence does not claw the reward back', c.computeObjectiveXPTotal() === paid);
+      c.workoutLog.push(oWK('again', OBJ_DATE, 'push', names.map(n => oEX(n, [oS(inst.target.weight, 12, 2)]))));
+      clearCaches(c); await c.syncObjectives();
+      T('and re-logging it cannot be paid a second time', c.computeObjectiveXPTotal() === paid);
+      T('one instance, one reward, forever',
+        c.objectivesStore.instances.filter(x => x.id === inst.id).length === 1);
+      /* The moment it was earned is a fact about the past. Re-evaluating must
+         not restamp it, or XP history would quietly move an old row forward. */
+      const stamp = c.objectivesStore.instances.find(x => x.id === inst.id).completedAt;
+      const ev0 = JSON.stringify(c.objectivesStore.instances.find(x => x.id === inst.id).completionEvidence);
+      /* Later the same day, with the evidence still there. A latch that looked
+         at progress again would restamp it, and XP history would quietly move
+         the row it had already printed. */
+      await withClockOn(c, OBJ_DATE + 'T21:30:00', async () => {
+        for(let i = 0; i < 3; i++) await c.syncObjectives();
+      });
+      const after3 = c.objectivesStore.instances.find(x => x.id === inst.id);
+      T('the moment it was earned never moves, however often the day is re-read',
+        after3.completedAt === stamp && JSON.stringify(after3.completionEvidence) === ev0,
+        after3.completedAt + ' vs ' + stamp);
+      /* The reward is the number ON the record, not the constant of the day. */
+      c.objectivesStore.instances.push({ id: 'legacy', kind: 'daily', objectiveType: 'match_lift',
+        periodKey: '2026-09-17', expiresAt: '2026-09-17', rewardXP: 7, title: 'An older objective',
+        detail: 'd', reason: 'r', metric: 'top_set', target: { exercise: 'x', weight: 1, reps: 1 },
+        completedAt: '2026-09-17T12:00:00.000Z', completionEvidence: { date: '2026-09-17' } });
+      T('an instance frozen at a different reward is paid that reward, not today’s constant',
+        c.computeObjectiveXPTotal() === paid + 7 &&
+        c.computeObjectiveXPTimeline().timeline.find(r => r.id === 'legacy').xp === 7);
+    });
+  });
+
+  /* --------------------------------------------------- expiry and rollover */
+  sub('an objective that ends costs nothing');
+  await guard('expiry', async () => {
+    const app = await athlete(); const c = app.ctx;
+    let inst;
+    await withClockOn(c, OBJ_DAY, async () => {
+      seed(c, 12, 3);
+      inst = (await c.syncObjectives()).created.find(i => i.kind === 'daily');
+    });
+    await withClockOn(c, '2026-09-19T09:00:00', async () => {
+      const before = c.getCurrentProgression();
+      await c.syncObjectives();
+      const after = c.getCurrentProgression();
+      T('no XP was lost', after.lifetimeXP === before.lifetimeXP && after.objectiveXP === 0);
+      T('no streak, level or rank moved',
+        after.currentStreakWeeks === before.currentStreakWeeks && after.level === before.level && after.rank === before.rank);
+      T('it is no longer offered', c.objectivesForPeriod().daily.every(x => x.id !== inst.id));
+      T('it is still on record, uncompleted', !!c.objectivesStore.instances.find(x => x.id === inst.id && !x.completedAt));
+      c.workoutLog.push(oWK('late', OBJ_DATE, 'push', [oEX(inst.target.exercise, [oS(500, 20, 0)])]));
+      clearCaches(c); await c.syncObjectives();
+      T('yesterday’s objective cannot be completed today',
+        !c.objectivesStore.instances.find(x => x.id === inst.id).completedAt);
+      T('nothing in the app renders a failure for it',
+        !/obj-row-(failed|missed|expired)|objectiveFailed/.test(src + css));
+    });
+    await withClockOn(c, '2026-09-21T09:00:00', async () => {          // the next Monday
+      await c.syncObjectives();
+      T('a new week opens a new period, never a second copy of the old one',
+        c.objectivesStore.instances.filter(x => x.kind === 'weekly' && x.periodKey === OBJ_WEEK).length <= 2 &&
+        c.objectivesStore.instances.filter(x => x.kind === 'weekly').every(x => x.periodKey === OBJ_WEEK || x.periodKey === '2026-09-21'));
+    });
+  });
+
+  /* ------------------------------------------------------------ forward only */
+  sub('D99 begins when D99 ships');
+  await guard('forward', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      for(let d = 1; d <= 17; d++)
+        c.workoutLog.push(oWK('old' + d, '2026-09-' + String(d).padStart(2, '0'), 'push',
+          [oEX('Machine Chest Press', [oS(100, 10, 2), oS(100, 10, 2)])]));
+      clearCaches(c);
+      const xpBefore = c.getCurrentProgression().lifetimeXP;
+      await c.syncObjectives();
+      T('no instance was invented for a past day',
+        c.objectivesStore.instances.every(i => i.kind !== 'daily' || i.periodKey === OBJ_DATE));
+      T('no instance was invented for a past week',
+        c.objectivesStore.instances.every(i => i.kind !== 'weekly' || i.periodKey === OBJ_WEEK));
+      T('seventeen old sessions earned no objective XP', c.computeObjectiveXPTotal() === 0);
+      T('and lifetime XP is exactly what it was before objectives existed',
+        c.getCurrentProgression().lifetimeXP === xpBefore);
+    });
+  });
+
+  /* --------------------------------------------------------- one XP truth */
+  sub('one canonical XP feed, and it totals the header');
+  await guard('feed', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      const { names } = seed(c, 12, 3);
+      const inst = (await c.syncObjectives()).created.find(i => i.kind === 'daily');
+      c.workoutLog.push(oWK('now', OBJ_DATE, 'push',
+        names.map(n => oEX(n, [oS(inst.target.weight, 12, 2), oS(inst.target.weight, 12, 2), oS(inst.target.weight, 12, 2)]))));
+      clearCaches(c); await c.syncObjectives();
+      const feed = c.computeXPEvents(), p = c.getCurrentProgression();
+      T('dated events plus what no date can carry is lifetime XP exactly',
+        feed.datedXP + feed.carriedXP === feed.lifetimeXP && feed.lifetimeXP === p.lifetimeXP,
+        feed.lifetimeXP + ' vs ' + p.lifetimeXP);
+      T('the strength rows total the strength timeline exactly',
+        feed.events.filter(e => e.type === 'workout').reduce((n, e) => n + e.xp, 0) === p.strengthXP);
+      T('the objective rows total objective XP exactly',
+        feed.events.filter(e => e.type === 'objective').reduce((n, e) => n + e.xp, 0) === p.objectiveXP);
+      T('an objective is ONE event, typed as its own kind',
+        feed.events.filter(e => e.type === 'objective').length === 1);
+      T('the feed is newest first and total-ordered',
+        feed.events.every((e, i) => i === 0 || feed.events[i - 1].date >= e.date));
+      T('the feed recalculates nothing: it only reads the engines',
+        !/calculateWorkoutXP|calculateSetXP|calculatePRXP|estimate1RM/.test(fnSrc(src, 'computeXPEvents')));
+      T('objective XP is added beside training XP, never inside it',
+        /const objectiveXP = \(typeof computeObjectiveXPTotal/.test(fnSrc(src, 'getCurrentProgression')) &&
+        !/objective/i.test(fnSrc(src, 'computeXPTimeline')));
+      /* The one part of lifetime XP that belongs to no single day: cardio
+         streak tiers, which socialWeekRows has always left out of a week for
+         the same reason. It is reported, not pinned to a date it did not
+         happen on, so the arithmetic on screen is still complete. */
+      const cardio = [];
+      for(let w = 0; w < 5; w++) for(let d = 0; d < 2; d++)
+        cardio.push({ id: 'c' + w + d, date: c.addDaysISO('2026-08-10', w * 7 + d),
+          activityName: 'Run', duration: '40', rpe: '6', createdAt: '2026-08-10T10:00:00.000Z' });
+      const cApp = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+        cardioLog: JSON.stringify(cardio) });
+      const cc = cApp.ctx;
+      const withCardio = cc.computeXPEvents(), pc = cc.getCurrentProgression();
+      T('premise: this athlete has earned a cardio streak bonus', withCardio.carriedXP > 0, String(withCardio.carriedXP));
+      T('dated plus carried is still exactly lifetime XP',
+        withCardio.datedXP + withCardio.carriedXP === withCardio.lifetimeXP && withCardio.lifetimeXP === pc.lifetimeXP,
+        withCardio.lifetimeXP + ' vs ' + pc.lifetimeXP);
+      T('and every activity is a dated row of its own',
+        withCardio.events.filter(e => e.type === 'activity').length === 10);
+    });
+  });
+
+  /* ------------------------------------------------ a refused write is a refusal */
+  sub('nothing is offered that the device would not keep');
+  await guard('refused', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      seed(c, 12, 3);
+      const realSet = c.LOOPStore.set;
+      c.LOOPStore.set = async (k, v) => (k === 'objectives' ? false : realSet(k, v));
+      const r = await c.syncObjectives();
+      c.LOOPStore.set = realSet;
+      T('a store that refuses the write leaves nothing behind in memory',
+        c.objectivesStore.instances.length === 0 && r.ok === false, JSON.stringify(c.objectivesStore.instances.map(i => i.id)));
+      T('and nothing is drawn for it', (c.renderTodayObjectives(),
+        c.document.getElementById('todayObjectives').innerHTML === ''));
+      const ok = await c.syncObjectives();
+      T('once the device accepts it, it is offered exactly once',
+        ok.created.length >= 1 && c.objectivesStore.instances.filter(i => i.kind === 'daily').length === 1);
+    });
+  });
+
+  /* ------------------------------------------------------ evidence gates */
+  sub('thin evidence is not evidence');
+  await guard('evidence', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      const sess = c.objectiveTodaySession(OBJ_DATE);
+      const names = sess.template.exercises.slice(0, 3).map(e => e.name);
+      c.workoutLog.push(oWK('only', '2026-09-11', 'push',
+        names.map(n => oEX(n, [oS(100, 12, 3), oS(100, 12, 3), oS(100, 12, 3)]))));
+      clearCaches(c);
+      const one = c.objectiveDailyCandidates(c.objectiveEvidence());
+      T('one session is never enough to ask for more weight',
+        one.every(x => x.objectiveType !== 'progress_lift'), one.map(x => x.objectiveType).join());
+      T('but it is enough to ask for a repeat', one.some(x => x.objectiveType === 'match_lift'));
+    });
+    const stale = await athlete(); const s = stale.ctx;
+    await withClockOn(s, OBJ_DAY, async () => {
+      const sess = s.objectiveTodaySession(OBJ_DATE);
+      const names = sess.template.exercises.slice(0, 3).map(e => e.name);
+      ['2026-06-01', '2026-06-08'].forEach((d, i) => s.workoutLog.push(oWK('old' + i, d, 'push',
+        names.map(n => oEX(n, [oS(100, 12, 3), oS(100, 12, 3), oS(100, 12, 3)])))));
+      clearCaches(s);
+      const old = s.objectiveDailyCandidates(s.objectiveEvidence());
+      T('a number from three months ago is not offered as a target',
+        old.every(x => x.objectiveType !== 'match_lift' && x.objectiveType !== 'progress_lift'),
+        old.map(x => x.objectiveType).join());
+      T('what is offered instead asks for one session and no number',
+        old.some(x => x.objectiveType === 'return_session') && old.every(x => !x.target.weight));
+      T('the horizon is stated once, as a constant', s.OBJECTIVE_MATCH_MAX_AGE_DAYS === 45);
+    });
+  });
+
+  /* --------------------------------------------------------- ranking */
+  sub('the ranking is evidence, not arrival order');
+  await guard('ranking', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      const sess = c.objectiveTodaySession(OBJ_DATE);
+      const names = sess.template.exercises.slice(0, 3).map(e => e.name);
+      /* The FIRST lift is mid-range (a match); the SECOND has earned an
+         increase. Arrival order puts the match first; evidence does not. */
+      const rows = n => n === names[1] ? [oS(100, 12, 3), oS(100, 12, 3), oS(100, 12, 3)]
+                                       : [oS(100, 10, 2), oS(100, 10, 2), oS(100, 10, 2)];
+      c.workoutLog.push(
+        oWK('r1', '2026-09-04', 'push', names.map(n => oEX(n, rows(n)))),
+        oWK('r2', '2026-09-11', 'push', names.map(n => oEX(n, rows(n)))));
+      clearCaches(c);
+      const raw = c.objectiveDailyCandidates(c.objectiveEvidence());
+      const ranked = c.objectiveRank(raw);
+      T('premise: the match arrives first and the progression second',
+        raw[0].objectiveType === 'match_lift' && raw.some(x => x.objectiveType === 'progress_lift'),
+        raw.map(x => x.objectiveType).join());
+      T('the progression is chosen, because its evidence is the most specific',
+        ranked[0].objectiveType === 'progress_lift' && ranked[0].target.exercise === names[1]);
+      T('the order is total: the same candidates always rank the same way',
+        JSON.stringify(c.objectiveRank(raw.slice().reverse()).map(x => x.title)) ===
+        JSON.stringify(ranked.map(x => x.title)));
+      T('and nothing in the engine ever rolls a die',
+        !/Math\.random/.test(fnSrc(src, 'objectiveDailyCandidates') + fnSrc(src, 'objectiveWeeklyCandidates') +
+          fnSrc(src, 'objectiveRank') + fnSrc(src, 'objectiveRankKey') + fnSrc(src, 'evaluateObjectives') +
+          fnSrc(src, 'objectiveFreeze')));
+    });
+  });
+
+  /* ------------------------------------------------------- what Home draws */
+  sub('the surface says what, why, how close and what for');
+  await guard('home', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      seed(c, 12, 3);
+      await c.syncObjectives();
+      c.renderTodayObjectives();
+      const html = c.document.getElementById('todayObjectives').innerHTML;
+      const inst = c.objectivesForPeriod().daily[0];
+      T('the block exists and names itself', /class="obj-card"/.test(html) && /Objectives<\/span>/.test(html));
+      T('it groups today and this week', /obj-gl">Today</.test(html) && /obj-gl">This week</.test(html));
+      T('the row states WHAT', html.indexOf(c.escapeHtml(inst.title)) !== -1);
+      T('the row states WHY it counts', html.indexOf(c.escapeHtml(inst.reason)) !== -1);
+      T('the row states HOW CLOSE', html.indexOf(c.escapeHtml(inst.progress.detail)) !== -1);
+      T('the row states WHAT IT EARNS', html.indexOf('+' + inst.rewardXP + ' XP') !== -1);
+      T('there is one way to the rest of them', /openProfile\('achievements'\)/.test(html));
+      T('nothing on it can be tapped to claim a reward', !/onclick="[^"]*[Oo]bjective[^"]*"/.test(html));
+      /* Once it is done, the rule it was measured by is the wrong tense. A
+         finished row says what the athlete actually did. */
+      T('a finished row states what was done, not the rule it was measured by', (() => {
+        const i = c.objectivesStore.instances.find(x => x.kind === 'daily' && x.periodKey === OBJ_DATE);
+        i.completedAt = new Date().toISOString();
+        i.completionEvidence = { date: OBJ_DATE, workoutId: 'x', weight: 105, reps: 12 };
+        c.renderTodayObjectives();
+        const h = c.document.getElementById('todayObjectives').innerHTML;
+        i.completedAt = null; i.completionEvidence = null;
+        return /105&nbsp;lb x 12 today|105 lb x 12 today/.test(h) && h.indexOf(c.escapeHtml(i.detail)) === -1;
+      })());
+      T('the copy is concrete: no motivational filler anywhere in the engine or the surface',
+        !/(Push your limits|Stay motivated|Crush|Smash|You’ve got this|Let’s go|Keep grinding)/i
+          .test(fnSrc(src, 'objectiveDailyCandidates') + fnSrc(src, 'objectiveWeeklyCandidates') +
+                fnSrc(src, 'renderTodayObjectives') + fnSrc(src, 'objectiveRowHtml')));
+      /* Nothing at all, rather than a card explaining its own emptiness. */
+      c.objectivesStore.instances = [];
+      c.renderTodayObjectives();
+      T('with nothing to say it draws nothing at all', c.document.getElementById('todayObjectives').innerHTML === '');
+    });
+  });
+  await guard('home-empty-states', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      c.objectivesStore.instances = [{ id: 'w1', kind: 'weekly', objectiveType: 'week_sessions', periodKey: OBJ_WEEK,
+        expiresAt: '2026-09-20', title: 'Finish your 4 sessions this week', detail: 'd', reason: 'r',
+        metric: 'sessions', target: { count: 4 }, rewardXP: 40, completedAt: null, completionEvidence: null }];
+      c.renderTodayObjectives();
+      const html = c.document.getElementById('todayObjectives').innerHTML;
+      T('a day with nothing to offer says so kindly, and only beside a week that has something',
+        /You’re on track today\./.test(html));
+      T('and the reverse reads the same way', /Your week is on track\.|Finish your 4 sessions/.test(html));
+      T('neither line is a failure', !/missed|behind|failed|lost/i.test(html));
+    });
+  });
+
+  /* ----------------------------------------------------------- the profile */
+  sub('one identity, two tabs, three kinds of achievement');
+  await guard('profile', async () => {
+    const app = await athlete(); const c = app.ctx;
+    await withClockOn(c, OBJ_DAY, async () => {
+      const { names } = seed(c, 12, 3);
+      const inst = (await c.syncObjectives()).created.find(i => i.kind === 'daily');
+      c.workoutLog.push(oWK('now', OBJ_DATE, 'push',
+        names.map(n => oEX(n, [oS(inst.target.weight, 12, 2), oS(inst.target.weight, 12, 2), oS(inst.target.weight, 12, 2)]))));
+      clearCaches(c); await c.syncObjectives();
+      T('the identity section is still the identity section',
+        /id="profileHeader"/.test(src) && /id="profileStats"/.test(src) &&
+        /LEVEL \$\{p\.level\}/.test(fnSrc(src, 'renderProfile')) && /levelBarHtml\(p\)/.test(fnSrc(src, 'renderProfile')));
+      T('the two tabs exist, achievements first',
+        /data-pt="achievements"[^>]*>Achievements/.test(src) && /data-pt="xp"[^>]*>XP History/.test(src) &&
+        /class="seg-btn active" data-pt="achievements"/.test(src));
+      T('achievements are organised into milestones, daily and weekly',
+        /data-pa="milestones"/.test(src) && /data-pa="daily"/.test(src) && /data-pa="weekly"/.test(src));
+      c.renderProfile();
+      T('milestones are the default view and still draw their fourteen',
+        c.profileAchTab === 'milestones' &&
+        (c.document.getElementById('profileAchievements').innerHTML.match(/achievement-row/g) || []).length === c.MILESTONES.length);
+      c.switchProfileAchTab('daily');
+      const daily = c.document.getElementById('profileAchievements').innerHTML;
+      T('the daily tab shows what was earned, dated, with its reward',
+        /EARNED/.test(daily) && daily.indexOf(c.escapeHtml(inst.title)) !== -1 && daily.indexOf('+' + inst.rewardXP) !== -1);
+      c.switchProfileAchTab('weekly');
+      T('the weekly tab is its own list, not a copy of the daily one',
+        c.document.getElementById('profileAchievements').innerHTML.indexOf(c.escapeHtml(inst.title)) === -1);
+      c.switchProfileTab('xp');
+      const xp = c.document.getElementById('profileXPHistory').innerHTML;
+      const p = c.getCurrentProgression();
+      T('XP history is its own tab, grouped by date', /xp-history-date-label/.test(xp) && /TODAY/.test(xp));
+      T('it reconciles to the Lifetime XP in the header above it',
+        xp.indexOf('Lifetime XP') !== -1 && xp.indexOf(p.lifetimeXP.toLocaleString()) !== -1, String(p.lifetimeXP));
+      T('the objective is one row there, named', xp.indexOf(c.escapeHtml(inst.title)) !== -1 &&
+        (xp.match(/xp-src-objective/g) || []).length === 1);
+      T('a workout row still reads as its own breakdown', /xp-src-workout/.test(xp) && /working sets/.test(xp));
+      c.switchProfileAchTab('milestones'); c.switchProfileTab('achievements');
+      T('switching back and forth changes nothing about what was earned',
+        c.computeObjectiveXPTotal() === inst.rewardXP);
+      T('Home and the profile read the same instance, never two copies of it',
+        !/getXPTimelineCached\(\)\.timeline/.test(fnSrc(src, 'renderProfileXPHistory')));
+    });
+  });
+
+  /* ---------------------------------------------------- nothing else moved */
+  sub('nothing protected moved');
+  await guard('protected', async () => {
+    const app = await athlete(); const c = app.ctx;
+    T('the XP constants are as they were', c.calculateWorkoutXP(20) === 150 && c.calculateSetXP(20) === 60 &&
+      c.calculatePRXP('weight') === 15 && c.calculatePRXP('1rm') === 10 && c.calculatePRXP('volume') === 5);
+    T('the ranks and their thresholds are as they were',
+      c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50');
+    T('the XP curve is as it was: 120,800 XP to reach Level 50',
+      (() => { let s = 0; for(let l = 1; l < 50; l++) s += c.calculateRequiredXP(l); return s === 120800; })());
+    T('the fourteen milestones and their rewards are as they were',
+      c.MILESTONES.length === 14 && c.MILESTONES.reduce((n, m) => n + m.xp, 0) === 2085);
+    T('the Session Score weights are as they were',
+      /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+    T('the trainer did not move', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('objectives are never published, shared or uploaded',
+      !/objective/i.test(fnSrc(src, 'socialWeekRows') + fnSrc(src, 'socialPublishWeeks') + fnSrc(src, 'buildShareSnapshot')));
+    T('nothing about an objective is written into history',
+      !/objective/i.test(fnSrc(src, 'saveLog').replace(/syncObjectives\(\)/g, '')) === false ||
+      !/newEntry\.objective|entry\.objective/.test(src));
+    T('the engine reads the clock through the same helpers as everything else',
+      !/getTime\(\)\s*[-/]|86400000/.test(fnSrc(src, 'objectiveEvidence') + fnSrc(src, 'objectiveProgress') +
+        fnSrc(src, 'evaluateObjectives')));
+    T('motion is one arrival, and Reduce Motion turns it off',
+      /\.obj-row-new\{ animation: objArrive/.test(css) &&
+      /@media \(prefers-reduced-motion: reduce\)\{ \.obj-row-new\{ animation: none; \} \}/.test(css));
+  });
+
+  /* --------------------------------------------------------- the economy */
+  sub('what a week of objectives is actually worth beside a week of training');
+  await guard('economy', async () => {
+    const app = await athlete(); const c = app.ctx;
+    const session = c.calculateWorkoutXP(20) + c.calculateSetXP(20);
+    const weeks = [
+      ['a new athlete, two sessions', 2], ['a casual athlete, three sessions', 3],
+      ['a four-day athlete', 4], ['a five-day athlete', 5]
+    ];
+    weeks.forEach(([label, n]) => {
+      const training = session * n;
+      const ceiling = Math.min(c.OBJECTIVE_WEEKLY_XP_CAP,
+        2 * c.OBJECTIVE_REWARD.weekly + Math.min(n, 4) * c.OBJECTIVE_REWARD.daily);
+      T(label + ': objectives are at most ' + Math.round((ceiling / (training + ceiling)) * 100) + '% of the week',
+        ceiling / (training + ceiling) < 0.25, ceiling + ' of ' + (training + ceiling));
+    });
+    T('a whole year at the ceiling is under one level at Level 20',
+      52 * c.OBJECTIVE_WEEKLY_XP_CAP < 52 * session * 3);
   });
 }
 
@@ -36766,6 +37481,7 @@ async function main(){
   await testRankEmblemsD96();
   await testRankTourD97();
   await testRealUseUxD98();
+  await testObjectivesD99();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -2605,6 +2605,91 @@ body.first-use{ padding-bottom: 0; }
 .xp-history-detail{ font-size: var(--fs-micro); color: var(--text-faint); margin-top: 2px; }
 .xp-history-xp{ font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
 
+/* ---- D99: OBJECTIVES ON HOME ----
+   Quiet by construction. The accent appears once, on the progress a row has
+   actually made; completion is the app's success colour and a small check, and
+   nothing here ever turns red — an objective that ends has no failure state to
+   draw. */
+.obj-card{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 14px 14px 12px; margin-top: var(--space-3);
+}
+.obj-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.obj-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
+.obj-all{
+  background: none; border: none; padding: 0; cursor: pointer; font-family: 'Inter', sans-serif;
+  font-size: 12px; font-weight: 600; color: var(--accent); min-height: 24px;
+}
+.obj-gl{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-faint); margin: 14px 0 6px;
+}
+.obj-row{
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 11px 12px; margin-top: 6px;
+}
+.obj-mark{
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-3); color: var(--text-faint);
+}
+.obj-row-done .obj-mark{ background: var(--success-soft); color: var(--success); }
+.obj-body{ flex: 1; min-width: 0; display: block; }
+.obj-t{ display: block; font-size: 13px; font-weight: 700; color: var(--text); }
+/* Two lines, so one long engine sentence cannot make a row twice the height of
+   the one beside it. The whole sentence is still in the record and in the
+   profile; what is bounded is the block on Home. */
+.obj-w{
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  font-size: 11.5px; color: var(--text-faint); margin-top: 2px;
+}
+.obj-bar{ display: block; height: 3px; border-radius: 2px; background: var(--surface-3); margin-top: 8px; overflow: hidden; }
+.obj-bar > span{ display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.obj-row-done .obj-bar > span{ background: var(--success); }
+.obj-p{ display: block; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); color: var(--text-dim); margin-top: 6px; }
+.obj-row-done .obj-p{ color: var(--success); }
+.obj-xp{
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  color: var(--text-faint); flex-shrink: 0; margin-top: 2px;
+}
+.obj-row-done .obj-xp{ color: var(--success); }
+.obj-none{ font-size: 12.5px; color: var(--text-faint); padding: 4px 2px 2px; }
+/* The whole of the completion feedback: one settle, once, on the pass that
+   completed it. No confetti, no modal, nothing that has to be dismissed. */
+.obj-row-new{ animation: objArrive 0.42s var(--ease) both; }
+@keyframes objArrive{
+  from{ opacity: 0.4; transform: translateY(3px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce){ .obj-row-new{ animation: none; } }
+/* 320px: the reward keeps its column, the title wraps rather than the row
+   scrolling sideways. */
+@media (max-width: 359px){
+  .obj-row{ padding: 10px 10px; gap: 8px; }
+  .obj-t{ font-size: 12.5px; }
+  .obj-xp{ font-size: 11px; }
+}
+
+/* ---- D99: PROFILE 2.0 ----
+   The secondary control sits inside the Achievements panel and is deliberately
+   lighter than the one above it, so the sheet reads as one level of choice
+   followed by a filter, not as two competing tab bars. */
+#profileSeg{ margin-top: 20px; }
+#profileAchSeg{ margin-top: 12px; background: none; padding: 0; gap: 6px; }
+#profileAchSeg .seg-btn{
+  min-height: 34px; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  border: 1px solid var(--border); border-radius: 999px; color: var(--text-faint);
+}
+#profileAchSeg .seg-btn.active{ background: var(--surface-3); border-color: var(--text-faint); color: var(--text); }
+.xp-foot{ margin-top: 14px; border-top: 1px solid var(--border); padding-top: 8px; }
+.xp-foot-row{
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: 12px; color: var(--text-faint); padding: 5px 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.xp-foot-total{ color: var(--text); font-weight: 700; border-top: 1px solid var(--border); margin-top: 4px; padding-top: 9px; }
+
 /* ---- Workout summary: XP breakdown ---- */
 .xp-breakdown-card{ background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 4px 14px; margin-top: 8px; }
 .xp-breakdown-row{ display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text-dim); padding: 9px 0; border-bottom: 1px solid var(--border); }
@@ -8100,6 +8185,10 @@ html, body{ max-width: 100%; overflow-x: hidden; }
          above on purpose: an activity is never the workout. -->
     <div id="todayActivity"></div>
 
+    <!-- 1c — what is worth doing, given what is already planned. After the day
+         it belongs to, before the week it reports against. -->
+    <div id="todayObjectives"></div>
+
     <!-- 2 — how is my week going -->
     <div id="weekCard"></div>
 
@@ -9022,10 +9111,21 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <div id="profileHeader"></div>
       <div class="section-label" style="margin-top:20px">Stats</div>
       <div class="stats-grid-2" id="profileStats"></div>
-      <div class="section-label" style="margin-top:20px">Achievements</div>
-      <div id="profileAchievements"></div>
-      <div class="section-label" style="margin-top:20px">XP History</div>
-      <div id="profileXPHistory"></div>
+      <div class="seg" id="profileSeg">
+        <button class="seg-btn active" data-pt="achievements" onclick="switchProfileTab('achievements')">Achievements</button>
+        <button class="seg-btn" data-pt="xp" onclick="switchProfileTab('xp')">XP History</button>
+      </div>
+      <div class="seg-panel" id="pfpanel-achievements">
+        <div class="seg" id="profileAchSeg">
+          <button class="seg-btn active" data-pa="milestones" onclick="switchProfileAchTab('milestones')">Milestones</button>
+          <button class="seg-btn" data-pa="daily" onclick="switchProfileAchTab('daily')">Daily</button>
+          <button class="seg-btn" data-pa="weekly" onclick="switchProfileAchTab('weekly')">Weekly</button>
+        </div>
+        <div id="profileAchievements"></div>
+      </div>
+      <div class="seg-panel" id="pfpanel-xp" style="display:none">
+        <div id="profileXPHistory"></div>
+      </div>
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeProfile()">Close</button>
@@ -13172,10 +13272,19 @@ const DATA_SCHEMA_VERSION = 1;
 const SCHEMA_KEY = 'dataSchemaVersion';
 const BACKUP_PREFIX = 'backup_v';
 
+/* D99 — 'objectives' is the sixteenth, and the first key added since D43's
+   'programs'. It is a store of its own because nothing that already exists
+   describes what it holds: workoutLog is what the athlete DID, programs is what
+   was PRESCRIBED, and an objective instance is neither — it is a forward-only
+   record of an opportunity that was offered, on what evidence, for what reward,
+   and whether that reward has been paid. It is also the only XP in LOOP that
+   cannot be recomputed from evidence, which is exactly why it must be stored
+   properly rather than wedged into a neighbour to keep this list at fifteen. */
 const DATA_KEYS = [
   'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',
   'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog',
-  'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes', 'programs', 'onboarding'
+  'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes', 'programs', 'onboarding',
+  'objectives'
 ];
 
 /* Migrations upgrade FROM the keyed version TO the next one.
@@ -13389,6 +13498,7 @@ function backupValueFits(key, v){
     case 'trainerLog': return isPlainRecord(v) && Array.isArray(v.entries);
     case 'exerciseNotes': return isPlainRecord(v) && Array.isArray(v.notes);
     case 'programs': return isPlainRecord(v) && Array.isArray(v.programs);
+    case 'objectives': return isPlainRecord(v) && Array.isArray(v.instances);
   }
   return key.startsWith('planStart:') ? typeof v === 'string' : isPlainRecord(v);
 }
@@ -16812,6 +16922,28 @@ const LOOP_UPDATES = [
     changes: [
       'The Overview footer now says what the percentage is: estimated strength from the first session to the latest, the same as the Strength tab'
     ]
+  },
+  {
+    id: 'v10-2',
+    version: 'LOOP 10.2',
+    title: 'Objectives',
+    date: '2026-09-20',
+    swVersion: 'loop-v179',
+    summary: 'Home can now name one thing worth doing today and up to two worth finishing this week \u2014 drawn from the sessions your plan already has and the numbers you have already hit \u2014 and your profile separates what you have achieved from how you earned it.',
+    newFeatures: [
+      'OBJECTIVES on Home: at most one for today and two for the week, each saying what it is, why it counts, how close you are and what it is worth',
+      'Objectives complete on their own from the workouts you log \u2014 there is nothing to tick, and each one can only be earned once',
+      'Your profile now has two tabs: Achievements, split into Milestones, Daily and Weekly, and XP History on its own'
+    ],
+    improvements: [
+      'An objective only appears when your own plan and your own history support one \u2014 a rest day, a day already trained or a week that can no longer be finished is left alone',
+      'The weight an objective names is the one LOOP\u2019s progression engine already recommends, and during a deload it never asks for more',
+      'XP History now shows every way you earn XP \u2014 workouts, activities and objectives \u2014 and adds up to the Lifetime XP above it'
+    ],
+    bugFixes: [],
+    changes: [
+      'Missing an objective costs nothing: no XP, no streak, no failed state. It simply ends when the day or the week does'
+    ]
   }
 ];
 
@@ -19489,6 +19621,13 @@ async function boot(){
   /* A cardio session that was running when the app went away is picked back
      up here. The log it will be saved into was loaded before the first paint. */
   await resumeCardioDraft();
+
+  /* D99 — the first evaluation of the day, now that history, the plan, the
+     schedule, the program and the objectives store have all been read. Today is
+     drawn again with its answer, so the day's objective appears on this launch
+     rather than on whatever redraws next. Wrapped: an objective can never stop
+     LOOP from finishing its launch. */
+  try{ syncObjectives(); renderTodayObjectives(); }catch(e){}
 
   renderStorageNotice(migrationResult);
 
@@ -27634,6 +27773,13 @@ function renderToday(){
   renderMissedBanner();
   renderReadinessCard();
   renderTodayWorkout();
+  /* D99 — evaluated before it is drawn. syncObjectives() runs its whole
+     decision synchronously before its first await, so the block below shows
+     what was just decided; only the STORE WRITE is asynchronous, and a device
+     that refuses it rolls the decision back rather than leaving XP nobody can
+     account for. Wrapped so an objective can never take Home down. */
+  try{ syncObjectives(); }catch(e){}
+  try{ renderTodayObjectives(); }catch(e){}
   renderWeekCard();
   try{ renderTrainingFoundation(); }catch(e){}
   renderTodayInsights();
@@ -30930,18 +31076,803 @@ function getCurrentProgression(){
      strength timeline above is not modified in any way — strengthXP remains
      separately inspectable, and a cardio bug cannot corrupt it. */
   const cardioXP = (typeof computeCardioXPTotal === 'function') ? computeCardioXPTotal() : 0;
-  const lifetimeXP = result.lifetimeXP + cardioXP;
+  /* D99 — objective XP is a THIRD independent source, added here in exactly the
+     same shape and for exactly the same reason: the strength timeline above is
+     not modified, objectiveXP stays separately inspectable, and a bug in the
+     objectives engine cannot move one point of training XP. */
+  const objectiveXP = (typeof computeObjectiveXPTotal === 'function') ? computeObjectiveXPTotal() : 0;
+  const lifetimeXP = result.lifetimeXP + cardioXP + objectiveXP;
   const lv = calculateLevelFromXP(lifetimeXP);
   return {
     level: lv.level, rank: calculateRankFromLevel(lv.level),
     currentXP: lv.currentXP, xpForNext: lv.xpForNext, lifetimeXP,
-    strengthXP: result.lifetimeXP, cardioXP,
+    strengthXP: result.lifetimeXP, cardioXP, objectiveXP,
     workoutCount: result.workoutCount, prCount: result.prCount,
     currentStreakWeeks: computeWeekStreak(), maxStreakEver: result.maxStreakEver
   };
 }
 function getWorkoutXPEntry(entryId){
   return getXPTimelineCached().timeline.find(t => t.id === entryId) || null;
+}
+
+/* =========================================================
+   OBJECTIVES  (Phase D99)
+   ---------------------------------------------------------
+   "What is worth doing today, given what this athlete has
+   already planned and already proved?"
+
+   THE RULE THIS WHOLE SECTION EXISTS TO KEEP: an objective is
+   an OPPORTUNITY THE ATHLETE ALREADY HAS, named out loud. It
+   never asks for a session the plan did not schedule, a set the
+   program did not prescribe, or a load the progression engine
+   did not already recommend. Where there is no trustworthy
+   evidence, nothing is generated — an empty Objectives surface
+   is a correct answer, not a failure.
+
+   FORWARD-ONLY. An instance exists only from the moment it is
+   frozen. Nothing is generated for a past day or a past week,
+   no old workout completes one, and XP earned before D99 is
+   exactly what it was.
+
+   FROZEN, THEN MEASURED. The first evaluation on or after the
+   first eligible moment of a civil day writes the day's
+   instance; the first evaluation inside a civil week writes the
+   week's. From then on the TARGET NEVER MOVES — only progress
+   does. An athlete who edits their plan at Wednesday lunchtime
+   is not quietly given a harder Wednesday.
+
+   NO PUNISHMENT. An instance that expires uncompleted simply
+   ends. No XP is lost, no streak is touched, nothing turns red.
+
+   COMPLETION IS DERIVED AND LATCHED. Progress is recomputed
+   from workoutLog on every read, so an edited or deleted
+   session is reflected immediately. The AWARD is a one-way
+   latch: `completedAt` is written once, inside one awaited
+   commit, and is never written twice and never withdrawn.
+   Because exactly one instance can exist per (period, type) —
+   the id says so — a reload, a restart, an import, reopening a
+   workout or replaying the same save path cannot mint a second
+   reward.
+
+   WHERE THE XP GOES. computeObjectiveXPTimeline() is derived
+   independently from this store and ADDED in
+   getCurrentProgression(), exactly as cardio XP has always
+   been. computeXPTimeline() is not modified in any way: a bug
+   here cannot corrupt a single point of training XP.
+   ========================================================= */
+const OBJECTIVES_KEY = 'objectives';
+const OBJECTIVE_RULES_VERSION = 1;
+
+/* ONE NUMBER PER PERIOD, on purpose. A reward that varied by type would be
+   something to steer toward, and steering is the one thing an objective must
+   never cause. Measured against the engine beside it: an ordinary 20-set
+   session is 210 XP before records, so a four-session week earns roughly
+   840-1,080 XP from training. The ceiling below is ~15% of that — a bonus
+   that is felt and can never dominate. */
+const OBJECTIVE_REWARD = Object.freeze({ daily: 15, weekly: 40 });
+/* The whole week's objective XP, enforced at GENERATION so an athlete is never
+   shown an objective that completes for nothing. Two weeklies (80) leave room
+   for four dailies (60): 140 in a full week, 150 unreachable by construction. */
+const OBJECTIVE_WEEKLY_XP_CAP = 150;
+const OBJECTIVE_ACTIVE_LIMIT = Object.freeze({ daily: 1, weekly: 2 });
+/* Roughly a year of instances. Beyond this the oldest COMPLETED ones are kept
+   and the oldest expired-uncompleted ones are dropped: a reward that was
+   earned is history, an opportunity that passed is not. */
+const OBJECTIVE_KEEP = 400;
+/* A baseline older than this is not evidence of what the athlete can do today. */
+const OBJECTIVE_MATCH_MAX_AGE_DAYS = 45;
+/* What counts as "back", rather than "training". */
+const OBJECTIVE_RETURN_GAP_DAYS = 10;
+/* Deterministic tie-break of last resort, most specific evidence first. */
+const OBJECTIVE_TYPE_ORDER = ['progress_lift', 'match_lift', 'return_session', 'session_today',
+  'week_sessions', 'week_category'];
+
+function defaultObjectivesStore(){ return { version:1, instances:[] }; }
+let objectivesStore = defaultObjectivesStore();
+/* Until the device has been ASKED, "no objectives" is not an answer. Nothing is
+   generated and nothing is latched while this is false, so an evaluation that
+   runs before the read cannot mint a duplicate or write over a completed one. */
+let objectivesLoaded = false;
+
+async function loadObjectives(){
+  try{
+    const r = await LOOPStore.get(OBJECTIVES_KEY);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      /* Wrong shape is treated as absent, as every loader here does: an athlete
+         with no objectives is a valid state and is never "repaired". */
+      if(parsed && typeof parsed === 'object' && Array.isArray(parsed.instances)){
+        objectivesStore = Object.assign(defaultObjectivesStore(), parsed);
+        objectivesStore.instances = objectivesStore.instances.filter(objectiveInstanceIsSane);
+      }
+    }
+  }catch(e){ objectivesStore = defaultObjectivesStore(); }
+  /* Set whatever the answer was: a refused read, a missing key and an empty
+     store are all "this device has been asked", and only an unasked device
+     must stay silent. */
+  objectivesLoaded = true;
+}
+async function persistObjectives(){
+  try{ return (await LOOPStore.set(OBJECTIVES_KEY, JSON.stringify(objectivesStore))) === true; }
+  catch(e){ return false; }
+}
+
+/* The commit path programs already follow (D89): snapshot, apply in memory,
+   AWAIT the write, put the snapshot back whole if the device refused it. A
+   latch that is not on the device is not a latch, and leaving it in memory
+   would mean XP the next launch cannot account for. */
+async function commitObjectivesChange(apply){
+  const snapshot = JSON.stringify(objectivesStore);
+  let outcome;
+  try{ outcome = apply(); }
+  catch(e){ try{ objectivesStore = JSON.parse(snapshot); }catch(e2){} return { ok:false, error:'threw' }; }
+  if(outcome === false) return { ok:false, error:'declined' };
+  if(JSON.stringify(objectivesStore) === snapshot) return { ok:true, unchanged:true, result: outcome };
+  const wrote = await persistObjectives();
+  if(!wrote){
+    try{ objectivesStore = JSON.parse(snapshot); }catch(e){}
+    return { ok:false, error:'refused' };
+  }
+  return { ok:true, result: outcome };
+}
+
+function objectiveInstanceIsSane(i){
+  return !!i && typeof i === 'object' && typeof i.id === 'string' && !!i.id &&
+    (i.kind === 'daily' || i.kind === 'weekly') &&
+    typeof i.objectiveType === 'string' && typeof i.periodKey === 'string' &&
+    typeof i.rewardXP === 'number' && i.rewardXP >= 0 && isFinite(i.rewardXP);
+}
+
+/* ---------- EVIDENCE ----------
+   Gathered once per evaluation, from the systems that already own each fact.
+   Nothing here decides anything; it only reports what is true. */
+function objectiveEntryHasWork(entry){
+  if(!entry || !Array.isArray(entry.exercises)) return false;
+  return entry.exercises.some(ex => (ex.sets || []).some(s => parseFloat(s && s.reps) > 0));
+}
+
+/* Today's prescribed session, with the SAME precedence Today and This Week
+   use: an active program owns the day if it has one for that date, otherwise
+   the plan schedule does. A suspended date has no program slot, so a paused
+   program falls back exactly as This Week already shows it. */
+function objectiveTodaySession(dateStr){
+  const out = { cat:'rest', template:null, source:'plan' };
+  let programDay = null;
+  try{ programDay = hasActiveProgram() ? getProgramWorkoutForDate(dateStr) : null; }catch(e){ programDay = null; }
+  if(programDay){
+    out.source = 'program';
+    if(!programDay.entry || programDay.entry.type !== 'workout') return out;
+    out.cat = programDay.category;
+    out.template = programDay.template || null;
+    return out;
+  }
+  const d = new Date(dateStr + 'T00:00:00');
+  if(isNaN(d)) return out;
+  const key = DAY_ORDER[(d.getDay() + 6) % 7];
+  const cat = (schedule && schedule[key]) || 'rest';
+  if(cat === 'rest') return out;
+  out.cat = cat;
+  try{ out.template = (getTemplates(cat) || [])[0] || null; }catch(e){ out.template = null; }
+  return out;
+}
+
+function objectiveEvidence(dateStr){
+  const today = dateStr || localDateStr();
+  const weekKey = weekStartKey(today);
+  const ev = { today, weekKey, weekEnd: addDaysISO(weekKey, 6), deload:false,
+    programActive:false, programId:null, week:null, session:null,
+    loggedToday:0, weekDates:[], weekByCategory:{}, lastSessionDate:null, gapDays:null };
+  try{ ev.deload = deloadActiveToday(); }catch(e){}
+  try{
+    ev.programActive = hasActiveProgram();
+    if(ev.programActive){ const p = getActiveProgram(); ev.programId = p ? p.id : null; }
+  }catch(e){}
+  try{ ev.week = weekOverview(); }catch(e){ ev.week = null; }
+  try{ ev.session = objectiveTodaySession(today); }catch(e){ ev.session = null; }
+
+  const dates = new Set();
+  let last = null;
+  (workoutLog || []).forEach(l => {
+    if(!l || !l.date || !objectiveEntryHasWork(l)) return;
+    if(l.date === today) ev.loggedToday++;
+    if(l.date >= ev.weekKey && l.date <= ev.weekEnd && l.date <= today){
+      dates.add(l.date);
+      const c = l.category || 'unknown';
+      ev.weekByCategory[c] = (ev.weekByCategory[c] || 0) + 1;
+    }
+    if(l.date < today && (last === null || l.date > last)) last = l.date;
+  });
+  ev.weekDates = Array.from(dates).sort();
+  ev.lastSessionDate = last;
+  ev.gapDays = last ? daysBetweenDates(last, today) : null;
+  return ev;
+}
+
+/* The best WORKING set for one lift on one date: the same predicate the
+   progression engine reads, so an objective can never be completed by a
+   warm-up the engine would not count. */
+function objectiveBestSetOn(exerciseName, dateStr){
+  const key = String(exerciseName || '').trim().toLowerCase();
+  if(!key) return null;
+  let best = null;
+  (workoutLog || []).forEach(l => {
+    if(!l || l.date !== dateStr || !Array.isArray(l.exercises)) return;
+    l.exercises.forEach(ex => {
+      if(String(ex.name || '').trim().toLowerCase() !== key || ex.bodyweight) return;
+      (ex.sets || []).forEach(s => {
+        if(isWorkingSet(s) === false) return;
+        if(s && s.completed === false) return;
+        const w = parseFloat(s && s.weight), r = parseFloat(s && s.reps);
+        if(!isFinite(w) || !isFinite(r) || r <= 0) return;
+        /* Heaviest first, then the most reps at that weight — the same order
+           the record engine reads a session in. */
+        if(!best || w > best.weight || (w === best.weight && r > best.reps)) best = { weight:w, reps:r };
+      });
+    });
+  });
+  return best;
+}
+
+/* ---------- PROGRESS ----------
+   Derived from workoutLog and the FROZEN target, every time. Never stored,
+   never accumulated. */
+function objectiveProgress(inst){
+  const out = { current:0, target:1, ratio:0, done:false, detail:'', evidence:null };
+  if(!inst) return out;
+  const t = inst.target || {};
+  switch(inst.objectiveType){
+    case 'session_today':
+    case 'return_session': {
+      const hits = (workoutLog || []).filter(l => l && l.date === inst.periodKey && objectiveEntryHasWork(l));
+      out.target = 1;
+      out.current = Math.min(1, hits.length);
+      out.detail = hits.length ? 'Logged' : 'Not logged yet';
+      if(hits.length) out.evidence = { workoutId: hits[0].id, date: hits[0].date };
+      break;
+    }
+    case 'match_lift':
+    case 'progress_lift': {
+      const best = objectiveBestSetOn(t.exercise, inst.periodKey);
+      out.target = 1;
+      out.current = (best && best.weight >= t.weight && best.reps >= t.reps) ? 1 : 0;
+      out.detail = best ? ('Today: ' + fmtLoadShort(best.weight) + ' x ' + best.reps)
+                        : 'Not trained yet today';
+      if(out.current){
+        const hit = (workoutLog || []).find(l => l && l.date === inst.periodKey &&
+          (l.exercises || []).some(ex => String(ex.name||'').trim().toLowerCase() === String(t.exercise||'').trim().toLowerCase()));
+        out.evidence = { workoutId: hit ? hit.id : null, date: inst.periodKey, weight: best.weight, reps: best.reps };
+      }
+      break;
+    }
+    case 'week_sessions': {
+      const end = addDaysISO(inst.periodKey, 6);
+      const dates = new Set();
+      (workoutLog || []).forEach(l => {
+        if(l && l.date >= inst.periodKey && l.date <= end && objectiveEntryHasWork(l)) dates.add(l.date);
+      });
+      out.target = Math.max(1, t.count || 1);
+      out.current = dates.size;
+      out.detail = dates.size + ' of ' + out.target + ' logged';
+      if(dates.size >= out.target) out.evidence = { date: Array.from(dates).sort().pop(), sessions: dates.size };
+      break;
+    }
+    case 'week_category': {
+      const end = addDaysISO(inst.periodKey, 6);
+      let n = 0, lastDate = null;
+      (workoutLog || []).forEach(l => {
+        if(!l || l.date < inst.periodKey || l.date > end || !objectiveEntryHasWork(l)) return;
+        if((l.category || '') !== t.category) return;
+        n++; if(!lastDate || l.date > lastDate) lastDate = l.date;
+      });
+      out.target = Math.max(1, t.count || 1);
+      out.current = n;
+      out.detail = n + ' of ' + out.target + ' logged';
+      if(n >= out.target) out.evidence = { date: lastDate, sessions: n };
+      break;
+    }
+    default: return out;
+  }
+  out.done = out.current >= out.target;
+  out.ratio = out.target > 0 ? Math.max(0, Math.min(1, out.current / out.target)) : 0;
+  return out;
+}
+
+/* A load and its unit are one word. Without this "105 lb" breaks across two
+   lines at 320px and the row reads as though the number ended early. */
+const OBJ_NBSP = String.fromCharCode(160);
+function fmtWeightShort(w){
+  const n = parseFloat(w);
+  if(!isFinite(n)) return '0';
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
+}
+function fmtLoadShort(w){ return fmtWeightShort(w) + OBJ_NBSP + 'lb'; }
+
+/* The progression engine's OWN evidence sentence — the first one, whole. D49
+   may append an aside after it (" — this would match or beat your best"), which
+   is right on a workout card's single line and is a third line here, where two
+   is the budget. Nothing is reworded and nothing is summarised: the sentence
+   the engine wrote is the sentence the row shows, and the full text stays on
+   the record. */
+function objectiveReasonText(why){
+  const s = String(why || '').trim();
+  const stop = s.indexOf('. ');
+  return stop === -1 ? s : s.slice(0, stop + 1);
+}
+
+/* ---------- CANDIDATES ----------
+   Every candidate must carry its own evidence. A family with nothing to point
+   at produces nothing; it never produces something generic instead. */
+function objectiveDailyCandidates(ev){
+  const out = [];
+  if(!ev || !ev.session) return out;
+  /* A rest day is a plan, not a gap. Nothing is generated, and nothing is
+     suggested for "a bit extra" — that is the whole thing this must not do. */
+  if(ev.session.cat === 'rest') return out;
+  /* The day's session is already logged. An objective written after the fact
+     is not an opportunity, it is a score. */
+  if(ev.loggedToday > 0) return out;
+
+  const cat = ev.session.cat;
+  const catName = CAT_LABEL[cat] || 'training';
+  const tpl = ev.session.template;
+  const tplName = (tpl && tpl.name) ? String(tpl.name) : catName;
+  const exercises = (tpl && Array.isArray(tpl.exercises)) ? tpl.exercises : [];
+
+  exercises.forEach((tex, slot) => {
+    const name = tex && tex.name ? String(tex.name) : '';
+    if(!name) return;
+    const reps = tex.reps || '';
+    const range = parseRepRange(reps);
+    if(!range) return;                        // a timed or unparseable target is not a load target
+    const hist = exerciseSessionHistory(name, 5);
+    if(!hist.length) return;                  // no evidence, no objective
+    const lastAge = daysBetweenDates(hist[0].date, ev.today);
+    if(lastAge === null || lastAge > OBJECTIVE_MATCH_MAX_AGE_DAYS) return;
+    if(!(hist[0].weight > 0) || !(hist[0].topReps > 0)) return;
+
+    /* FAMILY C — progression. The load comes from D49 AND NOWHERE ELSE. If the
+       engine says hold, plateau, reduce or "not enough evidence", there is no
+       objective: LOOP may not ask for a jump its own progression engine will
+       not recommend. During a deload the phase policy has already turned every
+       increase into a hold, so this family cannot fire inside one. */
+    let rec = null;
+    try{ rec = progressionFor(name, reps, tex.recommended); }catch(e){ rec = null; }
+    if(rec && rec.tag === 'increase' && rec.weight > 0 && hist.length >= 2 && !ev.deload){
+      out.push({
+        objectiveType:'progress_lift', kind:'daily',
+        title: 'Take ' + name + ' to ' + fmtLoadShort(rec.weight),
+        detail: 'Counts when one working set today is ' + fmtLoadShort(rec.weight) +
+                ' for at least ' + range.min + ' reps.',
+        reason: objectiveReasonText(rec.why),
+        metric:'top_set',
+        baseline: { weight: hist[0].weight, reps: hist[0].topReps, date: hist[0].date },
+        target: { exercise: name, weight: rec.weight, reps: range.min },
+        sourceContext: { exercise: name, category: cat, template: tplName, source: ev.session.source },
+        confidence: 'high',
+        evidenceStrength: Math.min(5, hist.length),
+        specificity: 3, slot
+      });
+      return;                                  // one lift makes one offer, never two
+    }
+
+    /* FAMILY D — match. Repeating what the athlete already did is achievable by
+       definition, asks for no extra work, and is the honest offer on a day the
+       progression engine is not recommending more. */
+    out.push({
+      objectiveType:'match_lift', kind:'daily',
+      title: 'Match your last ' + name,
+      detail: 'Counts when one working set today is ' + fmtLoadShort(hist[0].weight) +
+              ' for ' + hist[0].topReps + ' reps or better.',
+      reason: 'Last ' + name + ': ' + fmtLoadShort(hist[0].weight) + ' x ' + hist[0].topReps +
+              ' on ' + formatDateShort(hist[0].date) + '.',
+      metric:'top_set',
+      baseline: { weight: hist[0].weight, reps: hist[0].topReps, date: hist[0].date },
+      target: { exercise: name, weight: hist[0].weight, reps: hist[0].topReps },
+      sourceContext: { exercise: name, category: cat, template: tplName, source: ev.session.source },
+      confidence: hist.length >= 2 ? 'high' : 'medium',
+      evidenceStrength: Math.min(5, hist.length),
+      specificity: 2, slot
+    });
+  });
+
+  /* FAMILY F — the first session back. Softer than every other offer: one
+     session, no target, no mention of what was missed. */
+  if(ev.gapDays !== null && ev.gapDays >= OBJECTIVE_RETURN_GAP_DAYS){
+    out.push({
+      objectiveType:'return_session', kind:'daily',
+      title: 'Log your first session back',
+      detail: 'Counts when any workout is logged today.',
+      reason: 'Your last session was ' + ev.gapDays + ' days ago. One session starts it again.',
+      metric:'sessions',
+      baseline: { lastSession: ev.lastSessionDate },
+      target: { count: 1 },
+      sourceContext: { category: cat, template: tplName, source: ev.session.source },
+      confidence: 'high', evidenceStrength: 1, specificity: 2
+    });
+  }
+
+  /* FAMILY A/E — the session the plan already has. The fallback, and only ever
+     about work that is already scheduled. */
+  out.push({
+    objectiveType:'session_today', kind:'daily',
+    title: 'Train today’s ' + tplName,
+    detail: 'Counts when today’s workout is logged.',
+    reason: (ev.session.source === 'program' ? 'Your program has ' : 'Your week has ') +
+            tplName + ' scheduled today.',
+    metric:'sessions',
+    baseline: null,
+    target: { count: 1 },
+    sourceContext: { category: cat, template: tplName, source: ev.session.source,
+      programId: ev.session.source === 'program' ? ev.programId : null },
+    confidence: 'high', evidenceStrength: 1, specificity: 1
+  });
+
+  return out;
+}
+
+function objectiveWeeklyCandidates(ev){
+  const out = [];
+  if(!ev || !ev.week) return out;
+  const wk = ev.week;
+  const planned = wk.planned || 0;
+  if(planned < 2) return out;                  // one planned session is a day, not a week
+
+  const done = ev.weekDates.length;
+  /* What is still POSSIBLE, which is not the same as what is unfinished: a day
+     already gone cannot be trained, and a rest day is not an opportunity. This
+     is the number every gate below is measured against, so an objective can
+     never ask for a session the week has no room left for. */
+  const remaining = wk.days.filter(d => d.cat !== 'rest' && (d.state === 'today' || d.state === 'upcoming')).length;
+
+  /* FAMILY A/E — finish the week the athlete already planned. Only while it is
+     still POSSIBLE: on a Friday with two sessions left and no days remaining
+     this is not an opportunity, and offering it would be asking for extra. */
+  if(done < planned && remaining >= (planned - done)){
+    out.push({
+      objectiveType:'week_sessions', kind:'weekly',
+      title: 'Finish your ' + planned + ' sessions this week',
+      detail: 'Counts every workout logged Monday to Sunday.',
+      reason: 'Your week has ' + planned + ' sessions planned' + (done ? (' and ' + done + ' logged so far') : '') + '.',
+      metric:'sessions',
+      baseline: { loggedAtStart: done },
+      target: { count: planned },
+      sourceContext: { source: ev.programActive ? 'program' : 'plan', programId: ev.programId },
+      confidence: 'high', evidenceStrength: Math.min(5, planned), specificity: 1
+    });
+  }
+
+  /* FAMILY B — close the gap to the athlete's OWN planned work, by category.
+     Never "more volume": the target is what the week already asks for. */
+  const byCat = {};
+  wk.days.forEach(d => {
+    if(!d || d.cat === 'rest') return;
+    byCat[d.cat] = byCat[d.cat] || { planned:0, remaining:0 };
+    byCat[d.cat].planned++;
+    if(d.state === 'today' || d.state === 'upcoming') byCat[d.cat].remaining++;
+  });
+  const openCats = Object.keys(byCat).filter(c => {
+    const logged = ev.weekByCategory[c] || 0;
+    return byCat[c].remaining > 0 && logged < byCat[c].planned;
+  }).sort();
+  /* Only when the week still has MORE THAN ONE kind of work outstanding: with
+     a single category left, "finish the week" already says this, and saying it
+     twice is noise dressed up as two objectives. */
+  if(openCats.length >= 2){
+    const pick = openCats.slice().sort((a, b) => {
+      const ra = byCat[b].remaining - byCat[a].remaining;
+      if(ra) return ra;
+      return a.localeCompare(b);
+    })[0];
+    const label = CAT_LABEL[pick] || pick;
+    const loggedNow = ev.weekByCategory[pick] || 0;
+    /* What is already done plus what the week can still hold, never more than
+       it planned. A week that planned two Push days and has one left cannot be
+       asked for two, and this is where that is made impossible rather than
+       hoped for. */
+    const reach = Math.min(byCat[pick].planned, loggedNow + byCat[pick].remaining);
+    if(reach > loggedNow) out.push({
+      objectiveType:'week_category', kind:'weekly',
+      title: 'Complete your remaining ' + label + ' work this week',
+      detail: 'Counts ' + label + ' sessions logged Monday to Sunday.',
+      reason: byCat[pick].remaining + ' ' + label + ' session' + (byCat[pick].remaining === 1 ? '' : 's') +
+              ' remain' + (byCat[pick].remaining === 1 ? 's' : '') + ' in this week’s plan.',
+      metric:'sessions',
+      baseline: { loggedAtStart: loggedNow },
+      target: { category: pick, count: reach },
+      sourceContext: { category: pick, source: ev.programActive ? 'program' : 'plan', programId: ev.programId },
+      confidence: 'high', evidenceStrength: byCat[pick].planned, specificity: 2
+    });
+  }
+
+  return out;
+}
+
+/* ---------- RANKING ----------
+   Explicit factors, in order, and a total order at the end. There is no random
+   selection anywhere in this file and no tie can be decided by the order data
+   happened to arrive in. */
+function objectiveRankKey(c){
+  return [
+    9 - Math.min(9, c.specificity || 0),                   // the most specific evidence first
+    9 - Math.min(9, c.evidenceStrength || 0),              // then the best-supported
+    c.confidence === 'high' ? 0 : 1,                       // then the surest
+    /* Then the session's OWN order. A plan puts its primary lift first, so when
+       two lifts are equally well evidenced the one the session is built around
+       is the one worth naming — and an alphabetical tiebreak would otherwise
+       hand the day to whichever accessory happened to sort earliest. */
+    String(Math.min(99, c.slot === undefined ? 99 : c.slot)).padStart(2, '0'),
+    String(OBJECTIVE_TYPE_ORDER.indexOf(c.objectiveType) + 1).padStart(2, '0'),
+    String((c.sourceContext && c.sourceContext.exercise) || c.title || '')
+  ].join('|');
+}
+function objectiveRank(list){
+  return list.slice().sort((a, b) => objectiveRankKey(a).localeCompare(objectiveRankKey(b)));
+}
+
+/* ---------- FREEZING ----------
+   An id is a deterministic function of the period and the type, so the same
+   period can never hold two copies of the same objective — whatever calls this,
+   however often. */
+function objectiveInstanceId(kind, periodKey, objectiveType){
+  return 'obj_' + kind + '_' + periodKey + '_' + objectiveType;
+}
+function objectiveInstanceFor(kind, periodKey, store){
+  const s = store || objectivesStore;
+  return (s.instances || []).filter(i => i.kind === kind && i.periodKey === periodKey);
+}
+function objectiveExpiryFor(kind, periodKey){
+  return kind === 'daily' ? periodKey : addDaysISO(periodKey, 6);
+}
+/* Objective XP already committed to this civil week: what is banked plus what
+   is still live. Pending counts, so the ceiling can never be crossed by
+   finishing something the athlete was already shown. */
+function objectiveWeekXPCommitted(weekKey, store){
+  const s = store || objectivesStore;
+  let total = 0;
+  (s.instances || []).forEach(i => {
+    if(!objectiveInstanceIsSane(i)) return;
+    const wk = i.kind === 'weekly' ? i.periodKey : weekStartKey(i.periodKey);
+    if(wk !== weekKey) return;
+    total += i.rewardXP || 0;
+  });
+  return total;
+}
+
+function objectiveFreeze(candidate, ev, nowISO){
+  const kind = candidate.kind;
+  const periodKey = kind === 'daily' ? ev.today : ev.weekKey;
+  return {
+    id: objectiveInstanceId(kind, periodKey, candidate.objectiveType),
+    kind, objectiveType: candidate.objectiveType, periodKey,
+    createdAt: nowISO, expiresAt: objectiveExpiryFor(kind, periodKey),
+    title: candidate.title, detail: candidate.detail, reason: candidate.reason,
+    metric: candidate.metric, baseline: candidate.baseline || null, target: candidate.target,
+    rewardXP: OBJECTIVE_REWARD[kind], sourceContext: candidate.sourceContext || null,
+    confidence: candidate.confidence, rulesVersion: OBJECTIVE_RULES_VERSION,
+    completedAt: null, completionEvidence: null
+  };
+}
+
+/* ---------- THE ONE EVALUATION ----------
+   Decides, in memory, what the store SHOULD contain, and reports what changed.
+   Called on every render and after every change to history; it writes nothing
+   itself, so a render can never cost a store write it did not need. */
+function evaluateObjectives(dateStr, nowISO){
+  const ev = objectiveEvidence(dateStr);
+  const now = nowISO || new Date().toISOString();
+  const created = [], completed = [];
+  /* The store has not been read yet. Deciding anything now would be deciding it
+     against an empty store. */
+  if(!objectivesLoaded) return { created, completed, evidence: ev, unread: true };
+
+  /* 1. COMPLETION, for everything still live. Derived, then latched. */
+  (objectivesStore.instances || []).forEach(inst => {
+    if(!objectiveInstanceIsSane(inst) || inst.completedAt) return;
+    if(inst.expiresAt && ev.today > inst.expiresAt) return;   // expired: it simply ended
+    const p = objectiveProgress(inst);
+    if(!p.done) return;
+    inst.completedAt = now;
+    inst.completionEvidence = Object.assign({ date: ev.today }, p.evidence || {});
+    completed.push(inst);
+  });
+
+  /* 2. GENERATION. Only for the period the athlete is standing in, and only up
+     to the limits. An instance that already exists is never replaced — that is
+     what "the target stays stable" means in code. */
+  ['weekly', 'daily'].forEach(kind => {
+    const periodKey = kind === 'daily' ? ev.today : ev.weekKey;
+    const existing = objectiveInstanceFor(kind, periodKey);
+    let room = OBJECTIVE_ACTIVE_LIMIT[kind] - existing.length;
+    if(room <= 0) return;
+    const cands = objectiveRank(kind === 'daily' ? objectiveDailyCandidates(ev) : objectiveWeeklyCandidates(ev));
+    const haveTypes = new Set(existing.map(i => i.objectiveType));
+    for(const c of cands){
+      if(room <= 0) break;
+      if(haveTypes.has(c.objectiveType)) continue;
+      /* THE CEILING. Checked against what this week has already committed, so
+         an objective is never shown that would complete for nothing. */
+      if(objectiveWeekXPCommitted(ev.weekKey) + OBJECTIVE_REWARD[kind] > OBJECTIVE_WEEKLY_XP_CAP) break;
+      const inst = objectiveFreeze(c, ev, now);
+      /* A daily objective already satisfied at the moment it would be frozen is
+         not an objective. Nothing is generated to be instantly ticked. */
+      if(objectiveProgress(inst).done) continue;
+      objectivesStore.instances.push(inst);
+      haveTypes.add(c.objectiveType);
+      created.push(inst);
+      room--;
+    }
+  });
+
+  /* 3. PRUNE. Completed instances are history and are kept; expired ones that
+     were never completed are dropped oldest-first once the store is long. */
+  if((objectivesStore.instances || []).length > OBJECTIVE_KEEP){
+    const keep = [], drop = [];
+    objectivesStore.instances.forEach(i => {
+      (i.completedAt || !i.expiresAt || ev.today <= i.expiresAt ? keep : drop).push(i);
+    });
+    drop.sort((a, b) => String(a.periodKey).localeCompare(String(b.periodKey)));
+    const over = objectivesStore.instances.length - OBJECTIVE_KEEP;
+    const dropped = new Set(drop.slice(0, Math.max(0, over)).map(i => i.id));
+    if(dropped.size) objectivesStore.instances = objectivesStore.instances.filter(i => !dropped.has(i.id));
+  }
+
+  return { created, completed, evidence: ev };
+}
+
+/* What a caller runs. Nothing is written unless something actually changed. */
+let objectivesJustCompleted = [];
+async function syncObjectives(dateStr){
+  let result = { created: [], completed: [] };
+  const commit = await commitObjectivesChange(() => { result = evaluateObjectives(dateStr); return result; });
+  if(!commit.ok) return { created: [], completed: [], ok:false };
+  if(result.completed.length) objectivesJustCompleted = result.completed.map(i => i.id);
+  return { created: result.created, completed: result.completed, ok:true };
+}
+
+/* ---------- WHAT THE SCREENS READ ---------- */
+function objectivesForPeriod(dateStr){
+  const today = dateStr || localDateStr();
+  const weekKey = weekStartKey(today);
+  const live = (objectivesStore.instances || []).filter(i => objectiveInstanceIsSane(i) &&
+    ((i.kind === 'daily' && i.periodKey === today) || (i.kind === 'weekly' && i.periodKey === weekKey)));
+  const decorate = i => Object.assign({}, i, { progress: objectiveProgress(i) });
+  return {
+    daily: live.filter(i => i.kind === 'daily').map(decorate),
+    weekly: live.filter(i => i.kind === 'weekly').map(decorate)
+  };
+}
+function objectiveHistory(kind){
+  return (objectivesStore.instances || [])
+    .filter(i => objectiveInstanceIsSane(i) && i.kind === kind && i.completedAt)
+    .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)) || b.id.localeCompare(a.id));
+}
+
+/* ---------- OBJECTIVE XP ----------
+   Derived from the store and ADDED to lifetime XP, exactly as cardio XP is.
+   computeXPTimeline() is untouched: a bug here cannot move one point of
+   training XP. Every completed instance carries the reward it was FROZEN with,
+   so changing OBJECTIVE_REWARD later can never restate what was already
+   earned. */
+function computeObjectiveXPTimeline(){
+  const rows = (objectivesStore.instances || [])
+    .filter(i => objectiveInstanceIsSane(i) && i.completedAt && i.rewardXP > 0)
+    .map(i => ({
+      id: i.id, kind: i.kind, objectiveType: i.objectiveType,
+      date: (i.completionEvidence && i.completionEvidence.date) || i.periodKey,
+      title: i.title, xp: i.rewardXP
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  return { timeline: rows, lifetimeXP: rows.reduce((s, r) => s + r.xp, 0) };
+}
+function computeObjectiveXPTotal(){ return computeObjectiveXPTimeline().lifetimeXP; }
+
+/* ---------- ONE CANONICAL XP FEED ----------
+   The three sources of earned XP, in one dated list, each row taken from the
+   engine that produced it. NOTHING IS RECALCULATED HERE — this is a union, not
+   a fourth XP rule, which is why the total it reports is the same number the
+   header shows.
+
+   One part of lifetime XP has no date: cardio streak tiers belong to a RUN of
+   weeks rather than to any one of them, which is exactly why socialWeekRows
+   already leaves them out of a week. It is reported separately rather than
+   pinned to a day it did not happen on, so the arithmetic on screen is
+   complete: dated + carried === lifetime. */
+function computeXPEvents(){
+  const s = getXPTimelineCached();
+  let c = { timeline: [], streakXP: 0 };
+  try{ c = computeCardioXPTimeline(); }catch(e){}
+  const o = computeObjectiveXPTimeline();
+  const events = [];
+  s.timeline.forEach(t => {
+    if(!(t.xpTotal > 0)) return;
+    events.push({ type:'workout', id:t.id, date:t.date, xp:t.xpTotal,
+      title: t.title || CAT_LABEL[t.category] || 'Workout',
+      detail: (t.breakdown || []).map(b => b.label).join(' · ') });
+  });
+  (c.timeline || []).forEach(t => {
+    if(!(t.xp > 0)) return;
+    events.push({ type:'activity', id:'c_' + t.id, date:t.date, xp:t.xp,
+      title: t.activity || 'Activity',
+      detail: t.capped ? 'Weekly activity cap reached' : (t.bonus ? 'First activity logged' : 'Activity') });
+  });
+  o.timeline.forEach(t => {
+    events.push({ type:'objective', id:t.id, date:t.date, xp:t.xp,
+      title: t.title, detail: (t.kind === 'daily' ? 'Daily objective' : 'Weekly objective') });
+  });
+  const ORDER = { workout:0, activity:1, objective:2 };
+  events.sort((a, b) => b.date.localeCompare(a.date) || (ORDER[a.type] - ORDER[b.type]) || a.id.localeCompare(b.id));
+  const datedXP = events.reduce((n, e) => n + e.xp, 0);
+  const carriedXP = c.streakXP || 0;
+  return { events, datedXP, carriedXP, lifetimeXP: datedXP + carriedXP };
+}
+/* ---------- OBJECTIVES ON HOME ----------
+   One calm block between the workout and the week. Every row answers four
+   questions and nothing else: what it is, what actually counts, how close the
+   athlete is, and what it is worth. No countdowns, no streaks, no red.
+
+   It is drawn only when there is something true to say. An athlete with no
+   plan, on a rest day, with nothing frozen, sees nothing at all rather than an
+   empty card explaining its own emptiness. */
+/* What a finished row says instead of the rule it was measured by. Once it is
+   done, "counts when a working set today is 105 lb" is the past tense of
+   nothing useful; what the athlete did is. Read from the evidence that was
+   recorded with the latch, never recomputed. */
+function objectiveDoneText(inst, today){
+  const e = (inst && inst.completionEvidence) || {};
+  if(e.weight > 0 && e.reps > 0) return fmtLoadShort(e.weight) + ' x ' + e.reps + (today ? ' today' : '');
+  if(e.sessions > 0) return e.sessions + ' session' + (e.sessions === 1 ? '' : 's') + ' logged that week';
+  return today ? 'Logged today' : 'Logged';
+}
+
+function objectiveRowHtml(inst){
+  const p = inst.progress || objectiveProgress(inst);
+  const done = !!inst.completedAt;
+  const just = done && objectivesJustCompleted.indexOf(inst.id) !== -1;
+  const bar = (!done && p.target > 1)
+    ? '<span class="obj-bar" aria-hidden="true"><span style="width:' + Math.round(p.ratio * 100) + '%"></span></span>'
+    : '';
+  const line = done ? 'Complete' : escapeHtml(p.detail || '');
+  return '' +
+    '<div class="obj-row' + (done ? ' obj-row-done' : '') + (just ? ' obj-row-new' : '') + '">' +
+      '<span class="obj-mark" aria-hidden="true">' + (done ? checkIconSvg(13) : ringIconSvg(13)) + '</span>' +
+      '<span class="obj-body">' +
+        '<span class="obj-t">' + escapeHtml(inst.title) + '</span>' +
+        '<span class="obj-w">' + escapeHtml(done ? objectiveDoneText(inst, true) : inst.reason) + '</span>' +
+        bar +
+        '<span class="obj-p">' + line + '</span>' +
+      '</span>' +
+      '<span class="obj-xp">+' + inst.rewardXP + ' XP</span>' +
+    '</div>';
+}
+
+function renderTodayObjectives(){
+  const el = document.getElementById('todayObjectives');
+  if(!el) return;
+  let sets = { daily: [], weekly: [] };
+  try{ sets = objectivesForPeriod(); }catch(e){ el.innerHTML = ''; return; }
+  if(!sets.daily.length && !sets.weekly.length){ el.innerHTML = ''; return; }
+
+  /* Absence is allowed to be positive. These lines appear only beside a row
+     that does exist, so the card never exists just to say nothing is here. */
+  const todayBody = sets.daily.length
+    ? sets.daily.map(objectiveRowHtml).join('')
+    : '<div class="obj-none">You’re on track today.</div>';
+  const weekBody = sets.weekly.length
+    ? sets.weekly.map(objectiveRowHtml).join('')
+    : '<div class="obj-none">Your week is on track.</div>';
+
+  el.innerHTML = '' +
+    '<div class="obj-card">' +
+      '<div class="obj-top">' +
+        '<span class="obj-title">Objectives</span>' +
+        '<button type="button" class="obj-all" onclick="openProfile(\'achievements\')">View all</button>' +
+      '</div>' +
+      '<div class="obj-gl">Today</div>' + todayBody +
+      '<div class="obj-gl">This week</div>' + weekBody +
+    '</div>';
+  /* The one-shot arrival plays once, for the objectives that completed on this
+     pass, and then never again on any later render. */
+  objectivesJustCompleted = [];
 }
 function getUnlockedAchievements(){
   const result = getXPTimelineCached();
@@ -30968,11 +31899,130 @@ function xpHistoryDateLabel(dateStr){
   return formatDateShort(dateStr);
 }
 
-function openProfile(){
+function openProfile(tab){
+  if(tab === 'achievements' || tab === 'xp') profileTab = tab;
   renderProfile();
   document.getElementById('profileOverlay').classList.add('open');
 }
 function closeProfile(){ document.getElementById('profileOverlay').classList.remove('open'); }
+
+/* D99 — the page below Stats used to be one long scroll of every achievement
+   followed by every XP line, so the two things an athlete opens this sheet for
+   were never both reachable. They are now two tabs over the same identity
+   header, and the achievements tab names WHICH KIND of achievement it is
+   showing rather than mixing three of them into one list. */
+let profileTab = 'achievements';
+let profileAchTab = 'milestones';
+
+function applyProfileTabs(){
+  document.querySelectorAll('#profileSeg .seg-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.pt === profileTab));
+  document.querySelectorAll('#profileAchSeg .seg-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.pa === profileAchTab));
+  ['achievements', 'xp'].forEach(k => {
+    const p = document.getElementById('pfpanel-' + k);
+    if(p) p.style.display = (k === profileTab) ? 'block' : 'none';
+  });
+}
+function switchProfileTab(t){
+  profileTab = t;
+  applyProfileTabs();
+  if(t === 'xp') renderProfileXPHistory(); else renderProfileAchievements();
+  const sc = document.querySelector('#profileOverlay .sheet-scroll');
+  if(sc && sc.scrollTo) sc.scrollTo({ top: 0, behavior: 'instant' });
+}
+function switchProfileAchTab(t){
+  profileAchTab = t;
+  applyProfileTabs();
+  renderProfileAchievements();
+}
+
+function achievementRowHtml(unlocked, name, desc, xp, meta){
+  return '' +
+    '<div class="achievement-row ' + (unlocked ? 'unlocked' : '') + '">' +
+      '<div class="achievement-mark">' + (unlocked ? checkIconSvg(14) : ringIconSvg(14)) + '</div>' +
+      '<div class="achievement-body">' +
+        '<div class="achievement-name">' + escapeHtml(name) + '</div>' +
+        '<div class="achievement-desc">' + escapeHtml(desc) + (meta ? ' · ' + escapeHtml(meta) : '') + '</div>' +
+      '</div>' +
+      '<div class="achievement-xp">+' + xp + '</div>' +
+    '</div>';
+}
+
+function renderProfileAchievements(){
+  const el = document.getElementById('profileAchievements');
+  if(!el) return;
+  if(profileAchTab === 'milestones'){
+    el.innerHTML = getUnlockedAchievements().map(a =>
+      achievementRowHtml(a.unlocked, a.name, a.desc + (!a.unlocked ? ' (' + a.progress + '/' + a.threshold + ')' : ''), a.xp, '')
+    ).join('');
+    return;
+  }
+  const kind = profileAchTab === 'weekly' ? 'weekly' : 'daily';
+  let live = [];
+  try{
+    const sets = objectivesForPeriod();
+    live = (kind === 'daily' ? sets.daily : sets.weekly).filter(i => !i.completedAt);
+  }catch(e){ live = []; }
+  const past = objectiveHistory(kind);
+  if(!live.length && !past.length){
+    el.innerHTML = '<div class="empty"><div class="mark">○</div><h3>No ' + kind +
+      ' objectives yet</h3><div>' + (kind === 'daily'
+        ? 'One appears on a training day when your plan and your history give LOOP something useful to offer.'
+        : 'One appears at the start of a week your plan has real work left in.') + '</div></div>';
+    return;
+  }
+  const rows = [];
+  if(live.length){
+    rows.push('<div class="xp-history-date-label">ACTIVE</div>');
+    live.forEach(i => rows.push(achievementRowHtml(false, i.title, i.reason, i.rewardXP,
+      (i.progress && i.progress.detail) || '')));
+  }
+  if(past.length){
+    rows.push('<div class="xp-history-date-label">EARNED</div>');
+    /* What was done, not the rule it was measured by: "counts when one working
+       set today is 105 lb" is the wrong tense for something already earned. */
+    past.slice(0, 40).forEach(i => rows.push(achievementRowHtml(true, i.title, objectiveDoneText(i, false), i.rewardXP,
+      formatDateShort((i.completionEvidence && i.completionEvidence.date) || i.periodKey))));
+  }
+  el.innerHTML = rows.join('');
+}
+
+/* D99 — one canonical feed, not a second XP rule. Every row here is a number
+   an engine already produced; the footer reconciles the visible rows with the
+   Lifetime XP at the top of this same sheet, so the two can never disagree. */
+const PROFILE_XP_ROWS = 60;
+function renderProfileXPHistory(){
+  const el = document.getElementById('profileXPHistory');
+  if(!el) return;
+  const feed = computeXPEvents();
+  if(!feed.events.length && !feed.carriedXP){
+    el.innerHTML = '<div class="empty"><div class="mark">○</div>' +
+      '<h3>No XP yet</h3><div>Complete a workout to start earning XP.</div></div>';
+    return;
+  }
+  const shown = feed.events.slice(0, PROFILE_XP_ROWS);
+  const earlier = feed.events.slice(PROFILE_XP_ROWS).reduce((n, e) => n + e.xp, 0);
+  let lastLabel = null;
+  const rows = shown.map(e => {
+    const label = xpHistoryDateLabel(e.date);
+    const header = label !== lastLabel ? '<div class="xp-history-date-label">' + label + '</div>' : '';
+    lastLabel = label;
+    return header +
+      '<div class="xp-history-row xp-src-' + e.type + '">' +
+        '<div class="xp-history-body">' +
+          '<div class="xp-history-title">' + escapeHtml(e.title) + '</div>' +
+          '<div class="xp-history-detail">' + escapeHtml(e.detail || '') + '</div>' +
+        '</div>' +
+        '<div class="xp-history-xp">+' + e.xp + '</div>' +
+      '</div>';
+  }).join('');
+  const foot = [];
+  if(earlier > 0) foot.push('<div class="xp-foot-row"><span>Earned earlier</span><span>+' + earlier.toLocaleString() + '</span></div>');
+  if(feed.carriedXP > 0) foot.push('<div class="xp-foot-row"><span>Activity streak bonuses</span><span>+' + feed.carriedXP.toLocaleString() + '</span></div>');
+  foot.push('<div class="xp-foot-row xp-foot-total"><span>Lifetime XP</span><span>' + feed.lifetimeXP.toLocaleString() + '</span></div>');
+  el.innerHTML = rows + '<div class="xp-foot">' + foot.join('') + '</div>';
+}
 
 function renderProfile(){
   const p = getCurrentProgression();
@@ -30991,41 +32041,9 @@ function renderProfile(){
     <div class="stat"><div class="stat-num">${p.currentStreakWeeks}</div><div class="stat-label">Week Streak</div></div>
   `;
 
-  const achievements = getUnlockedAchievements();
-  document.getElementById('profileAchievements').innerHTML = achievements.map(a => `
-    <div class="achievement-row ${a.unlocked ? 'unlocked' : ''}">
-      <div class="achievement-mark">${a.unlocked ? checkIconSvg(14) : ringIconSvg(14)}</div>
-      <div class="achievement-body">
-        <div class="achievement-name">${escapeHtml(a.name)}</div>
-        <div class="achievement-desc">${escapeHtml(a.desc)}${!a.unlocked ? ` (${a.progress}/${a.threshold})` : ''}</div>
-      </div>
-      <div class="achievement-xp">+${a.xp}</div>
-    </div>
-  `).join('');
-
-  const entries = getXPTimelineCached().timeline.slice().reverse().slice(0, 30);
-  const historyEl = document.getElementById('profileXPHistory');
-  if(!entries.length){
-    historyEl.innerHTML = `<div class="empty"><div class="mark">○</div><h3>No XP yet</h3><div>Complete a workout to start earning XP.</div></div>`;
-  } else {
-    let lastLabel = null;
-    historyEl.innerHTML = entries.map(t => {
-      const label = xpHistoryDateLabel(t.date);
-      const header = label !== lastLabel ? `<div class="xp-history-date-label">${label}</div>` : '';
-      lastLabel = label;
-      const breakdownLine = t.breakdown.map(b => b.label).join(' · ');
-      return `
-        ${header}
-        <div class="xp-history-row">
-          <div class="xp-history-body">
-            <div class="xp-history-title">${escapeHtml(t.title)}</div>
-            <div class="xp-history-detail">${escapeHtml(breakdownLine)}</div>
-          </div>
-          <div class="xp-history-xp">+${t.xpTotal}</div>
-        </div>
-      `;
-    }).join('');
-  }
+  applyProfileTabs();
+  renderProfileAchievements();
+  renderProfileXPHistory();
 }
 
 
@@ -32143,6 +33161,17 @@ async function loadTrainerData(){
   await loadExerciseNotes();
   // Programs. Absent = an athlete using plans directly, which stays valid.
   await loadPrograms();
+  /* Objectives. Absent = an athlete who has not been offered one yet, which is
+     every athlete before D99 and is a valid state, never "repaired".
+     ORDER MATTERS, AND IS NOT DEFENDED BY THIS LINE. showMainApp() has already
+     drawn Today by now, and drawing Today is also the first EVALUATION of the
+     day — which against an unread store would freeze a second copy of an
+     objective that already exists and write it over the completed one
+     underneath. Browser QA caught exactly that. What prevents it is
+     objectivesLoaded: nothing is decided at all until this has run, whatever
+     order a caller happens to arrive in. boot() then evaluates once, here,
+     where every store an objective reads has been read. */
+  await loadObjectives();
   /* Onboarding state is deliberately NOT read here. boot() reads it before
      showMainApp(), because that is where the offer decision is made — reading
      it at this point is too late and is what made the tour replay forever. */
@@ -51285,6 +52314,10 @@ function saveLog(btn){
          athlete a session, so publishing happens after the write succeeded and
          its failure is nobody's problem. */
       socialPublishSoon();
+      /* D99 — the workout is already on the device; this only reads it. An
+         objective completed by this session is latched now so the summary is
+         followed by a Home that already shows it. */
+      try{ syncObjectives(); }catch(e){}
       showWorkoutSummary(newEntry, newPREvents, matchedNames, volumeInsight);
     } else {
       const idx = workoutLog.findIndex(l => l.id === newEntry.id);

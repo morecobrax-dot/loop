@@ -274,7 +274,13 @@ function loadApp(initialStore){
        screen's arrival timing it shares */
     'onboardingSolo','onboardingAnims','RANK_ARRIVE',
     /* D98 — the Personal Best Timeline's one display set, and the Overview line's scale floor */
-    'pbtDisplaySet','pbtTempSet','pbtActiveIndex','SPARK_MIN_SPAN'];
+    'pbtDisplaySet','pbtTempSet','pbtActiveIndex','SPARK_MIN_SPAN',
+    /* D99 — the objectives store, its economy and limits, and the two bits of
+       screen state the Profile sheet's tabs keep between draws */
+    'OBJECTIVES_KEY','OBJECTIVE_RULES_VERSION','OBJECTIVE_REWARD','OBJECTIVE_WEEKLY_XP_CAP',
+    'OBJECTIVE_ACTIVE_LIMIT','OBJECTIVE_KEEP','OBJECTIVE_MATCH_MAX_AGE_DAYS','OBJECTIVE_RETURN_GAP_DAYS',
+    'OBJECTIVE_TYPE_ORDER','objectivesStore','objectivesLoaded','objectivesJustCompleted','profileTab','profileAchTab',
+    'PROFILE_XP_ROWS','MILESTONES','STREAK_XP_TIERS'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +
