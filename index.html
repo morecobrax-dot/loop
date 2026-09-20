@@ -13718,13 +13718,14 @@ async function prepareImportState(entries){
     });
     return mine.concat(added);
   };
+  /* D96A — importSafeWorkouts is a top-level function, declared above. */
   for(const e of entries){
     const k = e.key, now = await held(k);
     let next = now;
     if(k === 'workoutLog'){
       // A backup may legitimately have no workouts at all (cardio-only use).
       n.workouts = 0;
-      next = JSON.stringify(mergeById(deviceList(now), e.value, () => { n.workouts++; }));
+      next = JSON.stringify(mergeById(deviceList(now), importSafeWorkouts(e.value), () => { n.workouts++; }));
     } else if(k === 'cardioLog'){
       /* Cardio history is history too, and merges on the same terms: a measured
          run carries its route and splits, the only copy of where it went.
@@ -13875,6 +13876,36 @@ function importFailureCopy(r){
   if(r.reason === 'version') return "LOOP can't tell which version made this backup, so it wasn't imported. Nothing was changed.";
   if(r.reason === 'value') return 'Part of this backup is damaged, so none of it was imported. Nothing was changed.';
   return "That doesn't look like a LOOP backup file. Nothing was changed.";
+}
+
+/* D96A — a backup written before this release can carry a malformed load, so the
+   import boundary applies the same rule the save boundary does. ONLY the
+   performed weight of a record being ADDED is touched: the session, its
+   exercises, its reps, its RIR, its notes and every record already on the device
+   are passed through untouched, and a malformed value costs the athlete the load
+   alone, never the set, the exercise or the workout. A record that is already
+   clean is returned as the very same object, so an untouched import allocates
+   nothing and can be proven to have changed nothing. */
+function importSafeWorkouts(list){
+  return (list || []).map(w => {
+    if(!w || !Array.isArray(w.exercises)) return w;
+    let touched = false;
+    const exercises = w.exercises.map(ex => {
+      if(!ex || !Array.isArray(ex.sets)) return ex;
+      let exTouched = false;
+      const sets = ex.sets.map(s => {
+        if(!s || typeof s !== 'object' || !('weight' in s)) return s;
+        const clean = normalizePerformedWeight(s.weight);
+        if(clean === s.weight) return s;
+        exTouched = true;
+        return Object.assign({}, s, { weight: clean });
+      });
+      if(!exTouched) return ex;
+      touched = true;
+      return Object.assign({}, ex, { sets });
+    });
+    return touched ? Object.assign({}, w, { exercises }) : w;
+  });
 }
 
 async function importAllData(input, opts){
@@ -17087,6 +17118,25 @@ const LOOP_UPDATES = [
       'A program with a change scheduled to start next week showed next week’s days on its card while the program itself, right below, showed this week’s. The card now shows the plan in force today'
     ],
     changes: []
+  },
+  {
+    id: 'v10-5',
+    version: 'LOOP 10.5',
+    title: 'Weight Values',
+    date: '2026-09-20',
+    swVersion: 'loop-v182',
+    summary: 'A weight that is not a real number is now treated as a blank rather than as an enormous one, and Exercise Detail\u2019s best ever always describes a set you actually performed.',
+    newFeatures: [],
+    improvements: [
+      'A weight that cannot be a real number \u2014 typed, pasted, or already sitting in an old backup \u2014 is kept as blank instead of being read as an infinite load'
+    ],
+    bugFixes: [
+      'A weight like "1e999" could make your training load, your estimated strength and your best set read as infinite, and could make the next-session suggestion ask for an impossible weight. Those all read your real sets now',
+      'Exercise Detail\u2019s "Best ever" could show a weight from one set beside the reps from another, or a weight with no reps at all. It now always describes one set you actually performed, and says nothing when there is none'
+    ],
+    changes: [
+      'Nothing already saved was rewritten \u2014 your history is exactly as you logged it, and only the numbers derived from it were corrected'
+    ]
   }
 ];
 
@@ -21050,7 +21100,10 @@ function exerciseSessionHistory(exerciseName, limit){
         return parseFloat(st && st.reps) > 0;
       });
       if(!perf.length) continue;
-      const weights = perf.map(s => parseFloat(s.weight)).filter(w => !isNaN(w));
+      /* D96A — the load evidence D49 and the trainer read. A malformed value is
+         dropped here, so a set beside it is still ordinary evidence and no
+         engine downstream is handed a finite-looking Infinity. */
+      const weights = perf.map(s => performedLoad(s.weight)).filter(w => w !== null);
       const reps = perf.map(s => parseFloat(s.reps)).filter(r => !isNaN(r));
       const rirs = perf.map(s => parseFloat(s.rir)).filter(r => !isNaN(r));
       if(!weights.length || !reps.length) continue;
@@ -21743,8 +21796,12 @@ function rirToEffort(rir){
 
 /* Estimated 1-rep max (Epley formula) */
 function estimate1RM(weight, reps){
-  const w = parseFloat(weight), r = parseFloat(reps);
-  if(isNaN(w) || isNaN(r) || r <= 0) return 0;
+  /* D96A — `!isNaN(Infinity)` is true, so "1e999" used to estimate an infinite
+     one-rep max. A load that is not a finite number is not a load — and neither
+     is a rep count: "225 lb x 1e999" is the same defect wearing the other
+     field, and it reached this and the capability best set the same way. */
+  const w = performedLoad(weight), r = performedReps(reps);
+  if(w === null || r === null) return 0;
   return w * (1 + r / 30);
 }
 function getLoggedExerciseNames(){
@@ -21762,9 +21819,9 @@ function computeMonthSummary(){
       (ex.sets || []).forEach(s => {
         sets++;
         const r = parseFloat(s.reps);
-        if(!isNaN(r)) reps += r;
-        const w = parseFloat(s.weight);
-        if(!isNaN(w) && !isNaN(r)) volume += w * r;
+        if(Number.isFinite(r)) reps += r;                     // D96A
+        const w = performedLoad(s.weight);
+        if(w !== null && Number.isFinite(r)) volume += w * r;
       });
     });
   });
@@ -21837,7 +21894,7 @@ function detectPlateau(exerciseName){
   sortedLog().slice().reverse().forEach(l => {
     l.exercises.forEach(ex => {
       if(ex.name.trim().toLowerCase() !== key || ex.bodyweight) return;
-      const weights = (ex.sets || []).map(s => parseFloat(s.weight)).filter(w => !isNaN(w));
+      const weights = (ex.sets || []).map(s => performedLoad(s.weight)).filter(w => w !== null);   // D96A
       if(weights.length) occurrences.push({ date: l.date, weight: Math.max(...weights) });
     });
   });
@@ -21914,8 +21971,11 @@ function sessionVolume(entry){
   let v = 0;
   entry.exercises.forEach(ex => {
     (ex.sets || []).forEach(s => {
-      const w = parseFloat(s.weight), r = parseFloat(s.reps);
-      if(!isNaN(w) && !isNaN(r)) v += w*r;
+      /* D96A — the formula is unchanged; only a load that is genuinely a number
+         may enter it. A malformed value contributes nothing, exactly as a blank
+         one always has, and the valid sets beside it still count. */
+      const w = performedLoad(s.weight), r = parseFloat(s.reps);
+      if(w !== null && Number.isFinite(r)) v += w*r;
     });
   });
   return Math.round(v);
@@ -22853,7 +22913,7 @@ function resolveTrainerNumbers(state, cap, meta, targetRange, confidence, perf){
     for(const s of history){
       const w = (s.sets || [])
         .filter(x => setTypeOf(x) !== SET_TYPES.WARMUP)
-        .map(x => parseFloat(x.weight)).filter(v => !isNaN(v) && v > 0);
+        .map(x => performedLoad(x.weight)).filter(v => v !== null && v > 0);   // D96A — the trainer's load boundary
       if(w.length) return Math.max(...w);
     }
     return null;
@@ -23554,10 +23614,11 @@ function withHistoricalContext(cutoffDate, fn){
 /* What the athlete actually did for one exercise in one session. */
 function actualPerformance(exercise){
   const valid = (exercise.sets || [])
-    .map(s => ({ w: parseFloat(s.weight), r: parseFloat(s.reps), rir: parseFloat(s.rir), type: setTypeOf(s) }))
+    .map(s => ({ w: performedLoad(s.weight), r: parseFloat(s.reps), rir: parseFloat(s.rir), type: setTypeOf(s) }))
     .filter(x => !isNaN(x.r) && x.r > 0 && x.type !== SET_TYPES.WARMUP);
   if(!valid.length) return null;
-  const weighted = valid.filter(x => !isNaN(x.w) && x.w > 0);
+  /* D96A — what the shadow replay compares a prediction against. */
+  const weighted = valid.filter(x => x.w !== null && x.w > 0);
   const rirs = valid.map(x => x.rir).filter(v => !isNaN(v));
   return {
     topWeight: weighted.length ? Math.max(...weighted.map(x => x.w)) : null,
@@ -29474,7 +29535,7 @@ function saveWorkoutEdits(btn){
     const sets = [];
     const rirValues = [];
     (ex.sets || []).forEach(s => {
-      const weight = bodyweight ? 'BW' : String(s.weight == null ? '' : s.weight).trim();
+      const weight = bodyweight ? 'BW' : normalizePerformedWeight(s.weight);   // D96A
       const reps = String(s.reps == null ? '' : s.reps).trim();
       const rirRaw = String(s.rir == null ? '' : s.rir).trim();
       if(weight || reps){
@@ -29695,6 +29756,55 @@ function loadEvidenceOf(weight){
   const n = parseFloat(s);
   if(!Number.isFinite(n)) return LOAD_EVIDENCE.NONE;
   return n > 0 ? LOAD_EVIDENCE.LOAD : LOAD_EVIDENCE.ZERO;
+}
+
+/* =========================================================
+   A LOAD IS A FINITE NUMBER  (Phase D96A — D88 finding E14)
+   ---------------------------------------------------------
+   The weight field is text. `parseFloat` turns "1e999", "Infinity" and
+   "-Infinity" into a non-finite number, and `!isNaN(Infinity)` is TRUE — so
+   every guard written as `!isNaN(w)` waved it through. D91 hardened the PR
+   engines, the timeline and Exercise Detail; it deliberately left the rest,
+   because the root repair is a LOGGING change, not a PR one. Measured on 10.4
+   with one "1e999" set between two ordinary ones: session volume Infinity,
+   capability bestWeight / bestSet / estimated1RM / recentBestWeight /
+   recentBest1RM / typicalWeight all Infinity, and the trainer reading that
+   capability as if it were evidence.
+
+   THE RULE, IN ONE PLACE. A performed load is a finite number or it is nothing.
+   Not zero, not bodyweight, not a record, not a performance. These two helpers
+   are the only way the rest of the app should read one, and they agree with
+   loadEvidenceOf above by construction: a set can never be classified as
+   carrying a load and then read as a number that is not one.
+
+   `normalizePerformedWeight` is the WRITE boundary — what may be stored.
+   `performedLoad` is the READ boundary — what a derivation may use.
+   Nothing here rewrites history: old stored values keep whatever they hold,
+   and every derivation simply refuses to read them as loads. */
+function normalizePerformedWeight(weight){
+  if(weight === null || weight === undefined) return '';
+  const s = String(weight).trim();
+  if(!s) return '';
+  /* The bodyweight sentinel is not a number and is preserved exactly as the
+     row wrote it — D91's whole PR-mode model rests on it. */
+  if(s.toUpperCase() === 'BW') return s;
+  return Number.isFinite(parseFloat(s)) ? s : '';
+}
+/* The number, or null when there is none to read. Zero is a number and keeps
+   the meaning D91 gave it; 'BW' is not a load; blank and malformed are the
+   same absence. */
+function performedLoad(weight){
+  if(weight === null || weight === undefined) return null;
+  const s = String(weight).trim();
+  if(!s || s.toUpperCase() === 'BW') return null;
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+/* Performed reps, or null. Finite and positive — the same bar computeXPTimeline
+   counts a meaningful set by. */
+function performedReps(reps){
+  const n = parseFloat(reps);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /* What one session of a lift declares, or null when it declares nothing. A
@@ -32324,9 +32434,12 @@ function computeWeeklyVolume(weeksBack){
       if(d >= weekStart && d <= weekEnd){
         l.exercises.forEach(ex => {
           (ex.sets||[]).forEach(s => {
-            const w = parseFloat(s.weight);
+            /* D96A — same rule as sessionVolume: this is what printed
+               "+Infinity% vs the first half of this window". The percentage
+               formula below is untouched. */
+            const w = performedLoad(s.weight);
             const r = parseFloat(s.reps);
-            if(!isNaN(w) && !isNaN(r)) vol += w*r;
+            if(w !== null && Number.isFinite(r)) vol += w*r;
           });
         });
       }
@@ -32996,8 +33109,8 @@ function setLoadFactor(setObj, topWeight, isBodyweight){
   }
 
   if(isBodyweight || !topWeight) return 1;
-  const w = parseFloat(setObj.weight);
-  if(isNaN(w) || w <= 0) return 1;
+  const w = performedLoad(setObj.weight);   // D96A
+  if(w === null || w <= 0) return 1;
   return (w / topWeight) < RECOVERY_CONFIG.warmupRatio
     ? RECOVERY_CONFIG.warmupWeight : 1;
 }
@@ -33046,7 +33159,7 @@ function computeMuscleRecovery(){
       if(!primary.length && !secondary.length) return;
 
       const sets = ex.sets || [];
-      const weights = sets.map(s => parseFloat(s.weight)).filter(v => !isNaN(v) && v > 0);
+      const weights = sets.map(s => performedLoad(s.weight)).filter(v => v !== null && v > 0);   // D96A
       const topWeight = weights.length ? Math.max(...weights) : null;
 
       let sessionLoad = 0, working = 0;
@@ -33546,11 +33659,12 @@ function equipmentFor(type){
 /* Per-session summary: the best single working effort in that session. */
 function summarizeCapabilitySession(session, use1RM){
   const valid = (session.sets || [])
-    .map(s => ({ w: parseFloat(s.weight), r: parseFloat(s.reps), rir: parseFloat(s.rir) }))
+    .map(s => ({ w: performedLoad(s.weight), r: parseFloat(s.reps), rir: parseFloat(s.rir) }))
     .filter(x => !isNaN(x.r) && x.r > 0);
   if(!valid.length) return null;
 
-  const weighted = valid.filter(x => !isNaN(x.w) && x.w > 0);
+  /* D96A — capability's per-session summary, on the same rule. */
+  const weighted = valid.filter(x => x.w !== null && x.w > 0);
   const topWeight = weighted.length ? Math.max(...weighted.map(x => x.w)) : null;
   const topReps = Math.max(...valid.map(x => x.r));
 
@@ -33635,10 +33749,16 @@ function computeExerciseCapability(name){
   // ---- LIFETIME (all history) ----
   let lifetimeWeight = 0, lifetimeReps = 0, lifetimePair = null, lifetime1RM = 0;
   sessions.forEach(s => (s.sets || []).forEach(st => {
-    const w = parseFloat(st.weight), r = parseFloat(st.reps);
-    if(isNaN(r) || r <= 0) return;
+    /* D96A — a load that is not a finite number is not a load. This is what made
+       bestWeight, bestSet, estimated1RM, recentBestWeight, recentBest1RM and
+       typicalWeight read Infinity, and what the shadow trainer then consumed as
+       capability truth. CAPABILITY_CONFIG, the confidence rules, staleness, the
+       ranges and every trend rule are untouched: only which numbers may enter
+       them. */
+    const w = performedLoad(st.weight), r = parseFloat(st.reps);
+    if(!Number.isFinite(r) || r <= 0) return;                 // D96A — reps too
     if(r > lifetimeReps) lifetimeReps = r;
-    if(!isNaN(w) && w > 0){
+    if(w !== null && w > 0){
       if(w > lifetimeWeight){ lifetimeWeight = w; lifetimePair = { w, r }; }
       if(use1RM && r <= CAPABILITY_CONFIG.maxRepsFor1RM){
         const e = estimate1RM(w, r);
@@ -33716,9 +33836,9 @@ function computeExerciseCapability(name){
   // Preserved from the earlier averages (unchanged fields below depend on them)
   const rw = [], rr = [], rirs = [];
   pool.forEach(s => (s.sets || []).forEach(st => {
-    const w = parseFloat(st.weight), r = parseFloat(st.reps), q = parseFloat(st.rir);
-    if(!isBW && !isNaN(w)) rw.push(w);
-    if(!isNaN(r)) rr.push(r);
+    const w = performedLoad(st.weight), r = parseFloat(st.reps), q = parseFloat(st.rir);   // D96A
+    if(!isBW && w !== null) rw.push(w);
+    if(Number.isFinite(r)) rr.push(r);
     if(!isNaN(q)) rirs.push(q);
   }));
   const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
@@ -36212,11 +36332,27 @@ function renderExDetail(){
      can become "Infinity lb". */
   const num = x => { const n = parseFloat(x); return Number.isFinite(n) ? n : NaN; };
   const isBW = prMode === PR_MODE.BODYWEIGHT;
+  /* D96A — D88 finding E15(b). "Best ever" is ONE set the athlete actually
+     performed. The loaded branch used to need only a weight: a row logged with
+     315 and no reps became the best, and `best.r = r || best.r` then printed
+     the reps of a DIFFERENT set beside it — "315 lb x 5" where the 5 came from
+     a 225 lb set, or "315 lb x 0" where nothing was performed at all. Both are
+     records of a performance that never happened.
+
+     A loaded candidate now needs a finite load AND finite positive reps ON THE
+     SAME SET, and the pair that wins is written together. WHICH set wins is
+     unchanged — heaviest, then most reps at that weight — so no record moves
+     except one that was never a real set. `haveBest` distinguishes "nothing
+     valid" from "a genuine zero", so an unknown stays an em dash rather than
+     becoming 0 lb x 0. The bodyweight branch is D91's and is untouched. */
   const best = { w:0, r:0 };
+  let haveBest = false;
   sessions.forEach(s => s.sets.forEach(st => {
     const w = num(st.weight), r = num(st.reps);
-    if(isBW){ if(!isNaN(r) && r > best.r){ best.r = r; } }
-    else if(!isNaN(w) && (w > best.w || (w === best.w && r > best.r))){ best.w = w; best.r = r || best.r; }
+    if(isBW){ if(!isNaN(r) && r > best.r){ best.r = r; haveBest = true; } }
+    else if(!isNaN(w) && !isNaN(r) && r > 0 && (!haveBest || w > best.w || (w === best.w && r > best.r))){
+      best.w = w; best.r = r; haveBest = true;
+    }
   }));
   const topSet = s => {
     const valid = s.sets.map(x => ({w:num(x.weight), r:num(x.reps)})).filter(x => !isNaN(x.r));
@@ -36249,7 +36385,7 @@ function renderExDetail(){
         /* D91 — a lift whose history declares no mode has no best to state. It
            used to fall into the loaded branch and print "0 lb × 0": a record of a
            load never recorded. */
-        prMode === PR_MODE.UNKNOWN ? '—' : (isBW ? best.r + ' reps' : best.w + ' lb × ' + best.r)}</div></div>
+        prMode === PR_MODE.UNKNOWN || !haveBest ? '—' : (isBW ? best.r + ' reps' : best.w + ' lb × ' + best.r)}</div></div>
       <div class="snap-item"><div class="snap-label">Sessions</div><div class="snap-num">${sessions.length}</div></div>
     </div>` + exerciseMasteryHtml(name);
 
@@ -45246,8 +45382,8 @@ function perfSessionObservation(exercise){
   (exercise.sets || []).forEach(st => {
     if(isWorkingSet(st) === false) return;              // an explicit warm-up
     if(st && st.completed === false) return;            // logged but not performed
-    const w = parseFloat(st && st.weight), r = parseFloat(st && st.reps);
-    if(!(w > 0) || !(r > 0) || r > PERF_CONFIG.maxReps) return;
+    const w = performedLoad(st && st.weight), r = parseFloat(st && st.reps);   // D96A
+    if(w === null || !(w > 0) || !(r > 0) || r > PERF_CONFIG.maxReps) return;
     const e = estimate1RM(w, r);
     if(e > best) best = e;
   });
@@ -52538,7 +52674,9 @@ function saveLog(btn){
     const rirValues = [];
     row.querySelectorAll('.set-row').forEach(sr => {
       if(wasSkipped && !sr.classList.contains('completed')) return;
-      const weight = bodyweight ? 'BW' : sr.querySelector('.set-weight-in').value.trim();
+      /* D96A — the write boundary. A value that is not a finite number is stored
+         as the absence it is, never as zero and never as bodyweight. */
+      const weight = bodyweight ? 'BW' : normalizePerformedWeight(sr.querySelector('.set-weight-in').value);
       const reps = sr.querySelector('.set-reps-in').value.trim();
       const rirRaw = sr.querySelector('.set-rir-in').value.trim();
       if(weight || reps){

@@ -283,7 +283,11 @@ function loadApp(initialStore){
     'PROFILE_XP_ROWS','MILESTONES','STREAK_XP_TIERS',
     /* D99A — the recovery figure's three presentation bands and their words */
     'RECOVERY_TINT_BANDS','RECOVERY_BAND_LABEL','RECOVERY_CONFIG','RECOVERY_STATE_LABEL',
-    'REST_RING_R','trainingTab','MUSCLE_BAND_OPACITY'];
+    'REST_RING_R','trainingTab','MUSCLE_BAND_OPACITY',
+    /* D96A — the Exercise Detail sheet's own subject and metric */
+    'exDetailName','exDetailMetric','PR_MODE',
+    /* D96A — the finite-load rule and D91's classifier it agrees with */
+    'LOAD_EVIDENCE','CAPABILITY_CONFIG'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

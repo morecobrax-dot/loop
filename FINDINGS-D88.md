@@ -475,7 +475,7 @@ contracted (Contract 172, §95: records are read by the name logged).
 D91 was told not to touch, and the name-versus-identity question is the
 exercise-identity phase D91 was told not to open.
 
-## E14 — "1e999" or "Infinity" typed as a weight is read as an infinite load outside the PR engines · P3 · PROVEN
+## E14 — "1e999" or "Infinity" typed as a weight is read as an infinite load outside the PR engines · P3 · **CLOSED in D96A (LOOP 10.5)**
 
 The weight field is text, and `parseFloat` turns both into `Infinity`. On 9.2 that
 produced "Weight PR: Infinity lb", +15 XP, an "Infinity lb" timeline hero and a
@@ -487,7 +487,32 @@ volume and trainer code reads the same value.
 **Why it was not fixed in D91.** The root repair is validating the field when a
 set is saved — a logging change, not a PR one.
 
-## E15 — Two value details still differ between PR surfaces · P4 · PROVEN
+**Closed in D96A (LOOP 10.5, Contract 205, §126).** Measured on 10.4 first: one
+"1e999" set between two ordinary ones gave session volume Infinity; capability
+`bestWeight`, `bestSet` ("Infinity lb × 5"), `estimated1RM`, `recentBestWeight`,
+`recentBest1RM` and `typicalWeight` all Infinity; and D49 telling the athlete to
+"aim for 9 reps at Infinity lb". The same defect wearing the other field —
+`"225 lb × 1e999"` — was found during the phase and closed with it.
+
+One rule, in one place, beside D91's `loadEvidenceOf` and agreeing with it by
+construction: `normalizePerformedWeight` at the WRITE boundary (`saveLog`,
+`saveWorkoutEdits`, and `importSafeWorkouts` at the import boundary) and
+`performedLoad` / `performedReps` at the READ boundary (14 call sites: session
+volume, the weekly volume series, the month summary, `estimate1RM`,
+`computeExerciseCapability` ×3, `summarizeCapabilitySession`,
+`exerciseSessionHistory`, `detectPlateau`, `resolveTrainerNumbers`,
+`actualPerformance`, `perfSessionObservation`, `computeMuscleRecovery`,
+`setLoadFactor`). A malformed value is the absence it always was — never zero,
+never bodyweight — and the valid sets beside it are still ordinary evidence.
+
+**No history was rewritten.** Existing records keep whatever they hold; the
+derivations simply refuse to read them as loads. Legitimate histories are
+byte-identical to 10.4 across XP, level, rank, PRs, PR events, PR modes,
+Mastery, Session Score, volume, capability, 1RM trend, history, progression and
+recovery — verified over six clean fixtures. `"abc"` and `"NaN"` were already
+rejected by the old `!isNaN` guards, so only genuinely non-finite values moved.
+
+## E15 — Two value details still differ between PR surfaces · P4 · (a) OPEN · **(b) CLOSED in D96A (LOOP 10.5)**
 
 Found by the D91 mapping; D91 changed WHICH kind applies, not these values.
 (a) Every PR engine reads only the FIRST row of a name in a workout, so a lift
@@ -500,6 +525,20 @@ needs reps beside a load before it is a record.
 
 **Why it was not fixed in D91.** Both change what a session's best IS — PR
 definitions D91 was told not to recalibrate.
+
+**(b) closed in D96A (LOOP 10.5, Contract 205, §126).** Reproduced through the
+real renderer on 10.4: sets `[315 lb × (blank), 225 lb × 5]` printed
+**"315 lb × 0"**, and in the other order **"315 lb × 5"** — the 5 borrowed from
+the 225 lb set by `best.r = r || best.r`. A loaded candidate now needs a finite
+load AND finite positive reps ON THE SAME SET, and the winning pair is written
+together. **WHICH set wins is unchanged** — heaviest, then most reps at that
+weight — so no real record moved; `haveBest` separates "nothing valid" from a
+genuine zero, so an unknown is an em dash rather than "0 lb × 0". The bodyweight
+branch is D91's and is untouched.
+
+**(a) remains OPEN.** Every PR engine still reads only the first row of a name
+in a workout. It is a PR definition, not a validity defect, and changing it
+moves what a session's best IS.
 
 ## E16 — The trainer's capability model still reads the latest session's box · P4 · HIGH
 

@@ -13319,3 +13319,73 @@ guard is unreachable through the real API because `completeProgram` already clea
 asking the helper directly. Contract 203's handler-escaping assertion was restated for the card's own `c.id`;
 the rule it holds (a stored id is escaped for the JS string, never by `escapeAttr` alone) is unchanged.
 verify 9,535/0; five audits green. Real Edge at 320, 375, 390 and 430: 36/36 with six programs that all differ.
+
+---
+
+## §126 — A LOAD IS A FINITE NUMBER, AND A BEST IS ONE REAL SET (D96A · LOOP 10.5 · loop-v182)
+
+Two D88 findings, closed. No surface was redesigned; no definition was recalibrated.
+
+**E14 — the weight field is text.** `parseFloat` turns `"1e999"`, `"Infinity"` and `"-Infinity"` into a
+non-finite number, and **`!isNaN(Infinity)` is TRUE** — so every guard written that way waved it through.
+D91 hardened the PR engines, the timeline and Exercise Detail and deliberately stopped, because the root
+repair is a LOGGING change. Measured on 10.4 before a line was edited: one `"1e999"` set between two
+ordinary ones gave session volume `Infinity`; capability `bestWeight`, `bestSet` ("Infinity lb × 5"),
+`estimated1RM`, `recentBestWeight`, `recentBest1RM` and `typicalWeight` all `Infinity`; and **D49 telling
+the athlete to "aim for 9 reps at Infinity lb"**. The mirror — `"225 lb × 1e999"`, the defect wearing the
+reps field — was found by the phase's own matrix and closed with it.
+
+**The rule, in one place.** Beside D91's `loadEvidenceOf`, agreeing with it by construction so a set can
+never be classified as carrying a load and then read as a number that is not one:
+`normalizePerformedWeight` is the WRITE boundary, `performedLoad` / `performedReps` the READ boundary.
+A malformed value is **the absence it always was — never zero, never bodyweight, never a record**. Zero
+keeps the distinct meaning D91 gave it and `'BW'` survives in any case.
+
+**Where it is applied.** Writes: `saveLog`, `saveWorkoutEdits`, and `importSafeWorkouts` at the import
+boundary. Reads, 14 sites: session volume, the weekly volume series the Training Load card divides,
+the month summary, `estimate1RM`, `computeExerciseCapability` (×3), `summarizeCapabilitySession`,
+`exerciseSessionHistory`, `detectPlateau`, `resolveTrainerNumbers`, `actualPerformance`,
+`perfSessionObservation`, `computeMuscleRecovery`, `setLoadFactor`. The Training Load percentage formula
+is untouched — only the numbers allowed to enter it. `CAPABILITY_CONFIG`, the confidence rules,
+staleness, the ranges and every trend rule are untouched for the same reason.
+
+**No history is rewritten, and none is hidden.** Existing records keep whatever they hold; the
+derivations refuse to read them as loads. A malformed set costs the athlete **the load alone** — never
+the set, the exercise or the workout — and the valid sets around it stay ordinary evidence: with
+`135 / 1e999 / 145`, capability now reports **145 lb × 6**, not zero and not infinity.
+
+**E15(b) — Best ever was not one set.** Reproduced through the real renderer: `[315 lb × (blank),
+225 lb × 5]` printed **"315 lb × 0"**, and in the other order **"315 lb × 5"** — the 5 borrowed from the
+225 lb set by `best.r = r || best.r`. A loaded candidate now needs a finite load AND finite positive reps
+**on the same set**, and the winning pair is written together. **WHICH set wins is unchanged** — heaviest,
+then most reps at that weight — so no real record moved. `haveBest` separates "nothing valid" from a
+genuine zero, so an unknown is an em dash rather than `0 lb × 0`. The bodyweight branch is D91's,
+untouched, and a bodyweight lift still reports its most reps.
+
+**Drift.** Six entirely legitimate histories — progression, the BW sentinel, zero weights, decimals, blank
+weights with valid reps, finite scientific notation — are **byte-identical to 10.4** across XP, level,
+rank, PRs, PR events, PR modes, Mastery, Session Score, volume, capability, 1RM trend, session history,
+progression and recovery. `"abc"` and `"NaN"` were already rejected by the old `!isNaN` guards, so only
+genuinely non-finite values changed anything, and every change is a number that was previously infinite.
+
+**Tests.** Contract 205 (52 checks): the rule itself over every kind of value; the write, import and
+no-rewrite boundaries; that no derivation, and no rendered surface, can say Infinity or NaN; that the valid
+sets around a malformed one are still used; Best ever as one real set, including which set wins and the
+bodyweight branch; and the brief's own A–R matrix end to end. **23 of 24 mutants killed.** The survivor
+removes the `'BW'` early return from `performedLoad` and is **proven equivalent over 38 inputs**
+(`parseFloat('BW')` is `NaN`, which the finite check already rejects); it is kept because it refuses the
+sentinel by NAME rather than by the accident that its letters do not parse. Contract 201's
+`computeExerciseCapability` pin was restated with its reason — the second of the thirty-four to move, and
+only in which numbers may enter it. Real Edge at 320, 375, 390 and 430 over a history riddled with
+malformed loads: 32/32, Best ever reading "128 lb × 8". Export → import round trip: a clean backup returns
+the very same objects.
+
+**Found while writing the tests.** A negative assertion (`the old pattern is gone`) was reading the raw
+file and matching **its own explanatory comment**, which quotes the old line verbatim — the inverse of the
+trap this suite's preamble records. Both clauses now read the comment-stripped function.
+
+**Not changed.** `wasSessionPR` and `getSessionPRs` are NaN-only and were left alone deliberately: they are
+PR surfaces D91 owns and this phase was told not to move PR semantics. Recorded here rather than silently
+altered. DATA_KEYS 16, schema 1, no migration, trainer 0.1.1-shadow; the PR engines, XP, rank thresholds,
+the XP curve, Mastery, Session Score, D44, D49's logic, D50B, programs, D99 Objectives and D99A's ring,
+portfolio and recovery map are all untouched. E11, E12, E13, E15(a) and E16 remain open and unimplemented.

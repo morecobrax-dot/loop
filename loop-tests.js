@@ -36657,7 +36657,15 @@ async function testRealUseUxD98(){
       'sessionScore': '842e5699f8ac0835',
       'masteryPointsFor': '0c704c40a853d991',
       'masteryPRCounts': 'f77664c53b2ea14a',
-      'computeExerciseCapability': 'c5d483414a1628ca',
+      /* D96A — the second of the thirty-four to move, and it moved by the same
+         three words in three places: a performed load is read through
+         performedLoad() instead of parseFloat(), because `!isNaN(Infinity)` is
+         true and "1e999" was making bestWeight, bestSet, estimated1RM,
+         recentBestWeight, recentBest1RM and typicalWeight infinite — which the
+         shadow trainer then read as capability truth. CAPABILITY_CONFIG, the
+         confidence rules, staleness, the ranges, the working range and every
+         trend rule are untouched; the assertions below still hold them. */
+      'computeExerciseCapability': '6f6542c0b0232089',
       'proposeTrainerState': '34899e0f53f1d235',
       'rankPBTCandidates': '5e5f609ad9a2053a',
       'computePersonalBestTimeline': 'e41926dcb1cfa844',
@@ -37720,6 +37728,327 @@ async function testPortfolioMetadataD99A1(){
   });
 }
 
+/* =========================================================
+   CONTRACT 205 — A LOAD IS A FINITE NUMBER, AND A BEST IS ONE
+   REAL SET  (Phase D96A — closes D88 findings E14 and E15(b))
+   ---------------------------------------------------------
+   E14. The weight field is text. parseFloat turns "1e999",
+   "Infinity" and "-Infinity" into a non-finite number, and
+   `!isNaN(Infinity)` is TRUE — so every guard written that way
+   waved it through. D91 hardened the PR engines, the timeline
+   and Exercise Detail and deliberately stopped there, because
+   the root repair is a LOGGING change. Measured on 10.4 with one
+   "1e999" set between two ordinary ones: session volume
+   Infinity; capability bestWeight, bestSet, estimated1RM,
+   recentBestWeight, recentBest1RM and typicalWeight all
+   Infinity; and D49 telling the athlete to "aim for 9 reps at
+   Infinity lb".
+
+   E15(b). "Best ever" needed only a weight, and then printed
+   `r || best.r` — so a row logged with 315 and no reps became
+   the best and borrowed the reps of a DIFFERENT, lighter set.
+
+   THE RULE: a performed load is a finite number or it is
+   nothing. Not zero, not bodyweight, not a record. One helper
+   at the write boundary, one at the read boundary, agreeing
+   with D91's loadEvidenceOf by construction.
+   NOTHING HISTORICAL IS REWRITTEN: old values keep whatever
+   they hold and every derivation simply refuses to read them.
+   ========================================================= */
+async function testFiniteLoadsD96A(){
+  section('CONTRACT 205 — a load is a finite number, and a best is one real set (D96A, closes E14 + E15(b))');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const S = (w, r, rir) => ({ weight: String(w), reps: String(r), rir: String(rir === undefined ? 2 : rir), type: 'working', completed: true });
+  const EX = (n, sets, bw) => ({ name: n, effort: '', bodyweight: !!bw, sets });
+  const WK = (id, daysAgo, cat, exs) => ({ id, date: D(daysAgo), category: cat, title: cat + ' day', notes: '', exercises: exs });
+  const BAD = ['abc', 'NaN', 'Infinity', '-Infinity', '1e999', '1e400', ' Infinity ', 'infinity'];
+  const GOOD = ['135', '0', '22.5', '1.35e2', '-10', ' 140 '];
+
+  /* ---------------------------------------------------- the rule itself */
+  sub('one rule, in one place');
+  await guard('helpers', async () => {
+    const c = (await H.loadAppBooted({ dataSchemaVersion: '1' })).ctx;
+    T('a malformed load is nothing at all — not zero, not bodyweight',
+      BAD.every(v => c.normalizePerformedWeight(v) === '' && c.performedLoad(v) === null), BAD.join());
+    T('blank and whitespace are the absence they already were',
+      ['', '   ', null, undefined].every(v => c.normalizePerformedWeight(v) === '' && c.performedLoad(v) === null));
+    T('a finite number is kept exactly as the athlete wrote it, trimmed',
+      GOOD.every(v => c.normalizePerformedWeight(v) === String(v).trim()) &&
+      c.performedLoad('135') === 135 && c.performedLoad('22.5') === 22.5 && c.performedLoad('1.35e2') === 135);
+    T('zero keeps the meaning D91 gave it, distinct from blank and from bodyweight',
+      c.normalizePerformedWeight('0') === '0' && c.performedLoad('0') === 0 &&
+      c.loadEvidenceOf('0') === c.LOAD_EVIDENCE.ZERO && c.loadEvidenceOf('') === c.LOAD_EVIDENCE.NONE);
+    T('the bodyweight sentinel survives untouched, in any case',
+      c.normalizePerformedWeight('BW') === 'BW' && c.normalizePerformedWeight(' bw ') === 'bw' &&
+      c.performedLoad('BW') === null && c.loadEvidenceOf('BW') === c.LOAD_EVIDENCE.BW);
+    T('the write rule and D91’s classifier agree on every value, by construction',
+      BAD.concat(GOOD, ['', 'BW', 'bw']).every(v =>
+        (c.performedLoad(v) === null) === (c.loadEvidenceOf(v) === c.LOAD_EVIDENCE.NONE || c.loadEvidenceOf(v) === c.LOAD_EVIDENCE.BW)));
+    T('reps are finite and positive, the bar a meaningful set already had',
+      c.performedReps('8') === 8 && c.performedReps('0') === null && c.performedReps('') === null &&
+      c.performedReps('Infinity') === null && c.performedReps('abc') === null);
+    T('the helpers are cheap and local: no log walk, no store, no cache',
+      !/workoutLog|LOOPStore|forEach|sortedLog/.test(fnSrc(src, 'performedLoad') + fnSrc(src, 'normalizePerformedWeight') + fnSrc(src, 'performedReps')));
+  });
+
+  /* ------------------------------------------------------ the boundaries */
+  sub('bad numeric data stops at the boundary');
+  await guard('write', async () => {
+    T('the workout save normalises the typed load',
+      /const weight = bodyweight \? 'BW' : normalizePerformedWeight\(sr\.querySelector\('\.set-weight-in'\)\.value\)/.test(fnSrc(src, 'saveLog')));
+    T('the history editor normalises it too',
+      /const weight = bodyweight \? 'BW' : normalizePerformedWeight\(s\.weight\)/.test(fnSrc(src, 'saveWorkoutEdits')));
+    T('no write path still trims a raw weight straight into a set',
+      !/weight = bodyweight \? 'BW' : (sr\.querySelector|String\(s\.weight)/.test(src));
+  });
+  await guard('import', async () => {
+    const c = (await H.loadAppBooted({ dataSchemaVersion: '1' })).ctx;
+    const dirty = [{ id: 'i1', date: D(3), category: 'push', title: 'T', notes: 'keep me',
+      exercises: [{ name: 'Bench Press', effort: '7', bodyweight: false, skipped: false,
+        sets: [S('1e999', 5), S(135, 8), { weight: 'BW', reps: '10' }, { reps: '12' }] }] }];
+    const clean = c.importSafeWorkouts ? c.importSafeWorkouts(dirty) : null;
+    T('the import boundary is applied to incoming history',
+      /importSafeWorkouts\(e\.value\)/.test(src) && /function importSafeWorkouts\(list\)\{/.test(src));
+    if(clean){
+      const sets = clean[0].exercises[0].sets;
+      T('a malformed load arrives as the absence it is', sets[0].weight === '');
+      T('every other field of that same set is untouched',
+        sets[0].reps === '5' && sets[0].rir === '2' && sets[0].type === 'working' && sets[0].completed === true);
+      T('valid loads, the bodyweight marker and a set with no weight key are passed through',
+        sets[1].weight === '135' && sets[2].weight === 'BW' && !('weight' in sets[3]));
+      T('the record keeps its id, date, category, title, notes and exercise',
+        clean[0].id === 'i1' && clean[0].notes === 'keep me' && clean[0].exercises[0].name === 'Bench Press' &&
+        clean[0].exercises[0].effort === '7');
+      T('a backup with one bad load is not refused: the workout is still imported', clean.length === 1);
+      T('an entirely clean backup is returned unchanged, object for object', (() => {
+        const ok = [{ id: 'k', date: D(2), category: 'push', title: 'T', notes: '',
+          exercises: [{ name: 'X', bodyweight: false, sets: [S(100, 5)] }] }];
+        const out = c.importSafeWorkouts(ok);
+        return out[0] === ok[0] && out[0].exercises[0] === ok[0].exercises[0]; })());
+      T('a malformed record shape is passed through rather than dropped',
+        c.importSafeWorkouts([{ id: 'z' }, null, { id: 'y', exercises: 'nope' }]).length === 3);
+    } else T('importSafeWorkouts is reachable', false);
+  });
+  await guard('no rewrite', async () => {
+    const log = [WK('h1', 5, 'push', [EX('Bench Press', [S('1e999', 5), S(135, 8)])])];
+    const raw = JSON.stringify(log);
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: raw });
+    const c = app.ctx;
+    c.computeExerciseCapability('Bench Press'); c.sessionVolume(c.workoutLog[0]);
+    c.computePRs(); c.getCurrentProgression(); c.exerciseSessionHistory('Bench Press', 5);
+    /* The import helper is on the same page: it returns a NEW list and must not
+       reach back into the athlete's stored history to "clean" it. */
+    try{ c.importSafeWorkouts([{ id: 'other', date: D(2), category: 'push', title: 'T', notes: '',
+      exercises: [{ name: 'Bench Press', bodyweight: false, sets: [S('1e999', 5)] }] }]); }catch(e){}
+    T('reading malformed history never rewrites it, in memory or on the device',
+      JSON.stringify(c.workoutLog) === raw && app.store.workoutLog === raw);
+    T('and nothing migrates it on load',
+      Object.keys(c.MIGRATIONS || {}).length === 0 && c.DATA_SCHEMA_VERSION === 1);
+  });
+
+  /* ------------------------------------------------- nothing reads Infinity */
+  sub('no surface can say Infinity');
+  await guard('derivations', async () => {
+    const log = [
+      WK('v1', 21, 'push', [EX('Bench Press', [S(135, 8)])]),
+      WK('v2', 14, 'push', [EX('Bench Press', [S('1e999', 5)])]),
+      WK('v3', 7,  'push', [EX('Bench Press', [S(145, 6)])])
+    ];
+    const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+      workoutLog: JSON.stringify(log) })).ctx;
+    const fin = v => v === null || v === undefined || (typeof v === 'number' ? Number.isFinite(v) : true);
+    T('session volume refuses it', c.sessionVolume(c.workoutLog[1]) === 0 &&
+      [0, 1, 2].every(i => Number.isFinite(c.sessionVolume(c.workoutLog[i]))));
+    T('the estimated one-rep max refuses it',
+      c.estimate1RM('1e999', 5) === 0 && c.estimate1RM('Infinity', 5) === 0 && c.estimate1RM(135, 8) > 0);
+    const cap = c.computeExerciseCapability('Bench Press');
+    T('capability refuses it everywhere it used to be infinite',
+      [cap.bestWeight, cap.estimated1RM, cap.typicalWeight, cap.recentBestWeight, cap.recentBest1RM].every(fin) &&
+      !/Infinity|NaN/.test(String(cap.bestSet)) && !/Infinity|NaN/.test(JSON.stringify(cap.workingRange)));
+    T('and it uses the VALID sets either side instead of being poisoned',
+      cap.bestWeight === 145 && cap.bestSet === '145 lb × 6', cap.bestWeight + ' / ' + cap.bestSet);
+    T('the trainer is handed no finite-looking Infinity',
+      c.exerciseSessionHistory('Bench Press', 5).every(s => Number.isFinite(s.weight)) &&
+      !/Infinity|NaN/.test(JSON.stringify(c.progressionFor('Bench Press', '8–12', undefined))));
+    /* The trainer's own load reader, asked directly: it decides every proposed
+       weight, and one malformed row used to become the number it proposed. */
+    T('the load the trainer resolves is finite, or it is nothing', (() => {
+      if(typeof c.resolveTrainerNumbers !== 'function') return true;
+      const cap = c.computeExerciseCapability('Bench Press');
+      let out = null;
+      try{ out = c.resolveTrainerNumbers('MAINTAIN', cap, {}, { min: 8, max: 12 }, 'low', null); }
+      catch(e){ return true; }   /* a signature this test cannot satisfy proves nothing either way */
+      return !/Infinity|NaN/.test(JSON.stringify(out === undefined ? null : out)); })());
+    /* By construction, because the trainer's own reader is reached through a
+       signature this suite cannot assemble: EVERY place that turns a stored
+       weight into a number for the trainer goes through the one rule. */
+    T('every trainer-facing load reader goes through the one rule',
+      /\.map\(x => performedLoad\(x\.weight\)\)\.filter\(v => v !== null && v > 0\)/.test(fnSrc(src, 'resolveTrainerNumbers')) &&
+      !/parseFloat\(x\.weight\)/.test(fnSrc(src, 'resolveTrainerNumbers')) &&
+      /performedLoad\(/.test(fnSrc(src, 'actualPerformance')) &&
+      /performedLoad\(/.test(fnSrc(src, 'summarizeCapabilitySession')));
+    /* The malformed set as the LATEST session, which is the window capability
+       summarises separately from the lifetime best. */
+    T('the recent window refuses it too, and still uses the valid sets', (() => {
+      const later = [
+        WK('r1', 14, 'push', [EX('Bench Press', [S(135, 8)])]),
+        WK('r2', 7,  'push', [EX('Bench Press', [S(145, 6)])]),
+        WK('r3', 1,  'push', [EX('Bench Press', [S('1e999', 5), S(150, 4)])])
+      ];
+      const ctx2 = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') }).ctx;
+      /* loadApp does not boot, so the log is placed on the global directly —
+         the same state boot() would have produced. */
+      ctx2.workoutLog = later;
+      try{ ctx2.invalidateSortedLogCache(); ctx2.invalidateCapabilityCache(); }catch(e){}
+      const k = ctx2.computeExerciseCapability('Bench Press') || {};
+      return !/Infinity|NaN/.test(JSON.stringify([k.recentBestWeight, k.recentBest1RM, k.typicalWeight,
+        k.typicalReps, k.bestSet, k.workingRange, k.variability, k.currentCapability])) &&
+        k.recentBestWeight === 150 &&
+        /* and no phantom zero is admitted in its place: a dropped load is
+           absent from the window, never a nought averaged into it. */
+        Number.isFinite(k.typicalWeight) && k.typicalWeight >= 135; })());
+    T('recovery refuses it', !/Infinity|NaN/.test(JSON.stringify(c.computeMuscleRecovery())));
+    T('the weekly volume series the Training Load card divides is finite',
+      (c.knownWeeklyBuckets ? c.knownWeeklyBuckets(12).buckets : []).every(b => Number.isFinite(b.volume)));
+    T('no rendered surface anywhere prints Infinity or NaN', (() => {
+      const bad = [];
+      [['progStrengthCardHtml'], ['renderTodayInsights'], ['renderProgTab']].forEach(([fn]) => {
+        if(typeof c[fn] !== 'function') return;
+        try{ const h = String(c[fn]() || ''); if(/Infinity|NaN/.test(h)) bad.push(fn); }catch(e){}
+      });
+      const dom = String(c.document.body && c.document.body.innerHTML || '');
+      if(/Infinity|NaN/.test(dom)) bad.push('document');
+      return bad.length === 0 ? true : bad; })() === true);
+    T('one bad set never hides the valid history around it',
+      c.computePRs().some(p => p.name === 'Bench Press' && p.weight === 145) &&
+      Number.isFinite(c.getCurrentProgression().lifetimeXP));
+  });
+
+  /* --------------------------------------------------------- E15(b) */
+  sub('a best ever is one set the athlete actually performed');
+  await guard('best', async () => {
+    const bestOf = async sets => {
+      const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+        workoutLog: JSON.stringify([WK('b1', 4, 'push', [EX('Bench Press', sets)])]) })).ctx;
+      c.exDetailName = 'Bench Press';
+      c.renderExDetail();
+      const m = c.document.getElementById('exDetailStats').innerHTML.match(/Best ever<\/div><div class="snap-num">([^<]*)</);
+      return m ? m[1] : '?';
+    };
+    const noReps = w => ({ weight: String(w), reps: '', rir: '', type: 'working', completed: true });
+    T('a weight-only set cannot be the best, and the valid set is used instead',
+      (await bestOf([noReps(315), S(225, 5)])) === '225 lb × 5');
+    T('and it cannot borrow the reps of another set — the old "315 lb × 5"',
+      (await bestOf([S(225, 5), noReps(315)])) === '225 lb × 5');
+    T('with nothing complete to show it says so, rather than "315 lb × 0"',
+      (await bestOf([noReps(315)])) === '—');
+    T('zero reps beside a load is not a performance either',
+      (await bestOf([S(315, 0), S(225, 5)])) === '225 lb × 5');
+    T('a non-finite load is not a best either',
+      (await bestOf([S('1e999', 5), S(225, 5)])) === '225 lb × 5');
+    T('which set wins is unchanged: heaviest, then most reps at that weight',
+      (await bestOf([S(225, 5), S(315, 3), S(200, 12)])) === '315 lb × 3' &&
+      (await bestOf([S(225, 5), S(225, 9), S(200, 12)])) === '225 lb × 9');
+    T('an ordinary history is untouched', (await bestOf([S(225, 5)])) === '225 lb × 5');
+    T('the weight and the reps are written together, from the one winning set',
+      /* Both clauses read the COMMENT-STRIPPED function, not the file: the
+         comment above the fix quotes the old line verbatim, and prose about a
+         rule is not the rule. */
+      /best\.w = w; best\.r = r; haveBest = true;/.test(fnSrc(src, 'renderExDetail')) &&
+      !/best\.r = r \|\| best\.r/.test(fnSrc(src, 'renderExDetail')));
+    T('a loaded candidate needs a finite load AND finite positive reps on that same set',
+      /!isNaN\(w\) && !isNaN\(r\) && r > 0 &&/.test(fnSrc(src, 'renderExDetail')));
+    T('the bodyweight branch is D91’s, unchanged',
+      /if\(isBW\)\{ if\(!isNaN\(r\) && r > best\.r\)\{ best\.r = r; haveBest = true; \} \}/.test(fnSrc(src, 'renderExDetail')));
+  });
+  await guard('bodyweight best', async () => {
+    const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+      workoutLog: JSON.stringify([
+        WK('p1', 10, 'pull', [EX('Pull-Up', [S('BW', 8), S('BW', 11)], true)]),
+        WK('p2', 3,  'pull', [EX('Pull-Up', [S('BW', 9)], true)])]) })).ctx;
+    c.exDetailName = 'Pull-Up'; c.renderExDetail();
+    const m = c.document.getElementById('exDetailStats').innerHTML.match(/Best ever<\/div><div class="snap-num">([^<]*)</);
+    T('a bodyweight lift still reports its most reps, in reps', m && m[1] === '11 reps', m && m[1]);
+    T('and its PR mode is still D91’s', c.prModeOf('Pull-Up') === c.PR_MODE.BODYWEIGHT);
+  });
+
+  /* ------------------------------------------------- nothing else moved */
+  sub('nothing protected moved');
+  await guard('protected', async () => {
+    const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') })).ctx;
+    const crypto = require('crypto');
+    const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    /* Every PR engine D91 hardened, byte-for-byte — D96A changed none of them. */
+    T('the PR engines, XP and Session Score are byte-identical to 10.0',
+      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('computePRs') === 'a8541afeb6205e1c' &&
+      pin('computeExercisePREvents') === '45ea0d06bd7b9167' && pin('wasSessionPR') === 'b719ca9d07d1ae30' &&
+      pin('getSessionPRs') === 'b7bbfa2f0f33ba3f' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
+      pin('masteryPointsFor') === '0c704c40a853d991' && pin('prModeOf') === 'a0ac7f761228372f' &&
+      pin('deriveExercisePRMode') === '262d3ed985632762');
+    T('D91’s classifier itself is untouched',
+      /if\(!Number\.isFinite\(n\)\) return LOAD_EVIDENCE\.NONE;/.test(fnSrc(src, 'loadEvidenceOf')) &&
+      JSON.stringify(c.LOAD_EVIDENCE) === JSON.stringify({ LOAD: 'load', ZERO: 'zero', BW: 'bw', NONE: 'none' }) &&
+      JSON.stringify(c.PR_MODE) === JSON.stringify({ LOADED: 'loaded', BODYWEIGHT: 'bodyweight', UNKNOWN: 'unknown' }));
+    T('the capability model itself is untouched: only which numbers may enter it',
+      /maxRepsFor1RM/.test(src) && !/CAPABILITY_CONFIG = \{\s*\}/.test(src) &&
+      /confidence/.test(fnSrc(src, 'computeExerciseCapability')));
+    T('the Session Score weights, rank thresholds and the XP curve are as they were',
+      /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src) &&
+      c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50' &&
+      (() => { let s = 0; for(let l = 1; l < 50; l++) s += c.calculateRequiredXP(l); return s === 120800; })());
+    T('no storage key, schema, migration or trainer change',
+      c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 &&
+      Object.keys(c.MIGRATIONS || {}).length === 0 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('D99 objectives and D99A’s ring and portfolio helper are still here',
+      /function programPortfolioCard\(/.test(src) && /function setRingProgress\(/.test(src) &&
+      /function evaluateObjectives\(/.test(src) && c.OBJECTIVE_REWARD.daily === 15);
+  });
+
+  /* ------------------------------------------- the matrix, end to end */
+  sub('the matrix');
+  await guard('matrix', async () => {
+    const CASES = [
+      ['A blank weight + valid reps', [{ weight: '', reps: '10', rir: '2' }]],
+      ['B whitespace + valid reps',   [{ weight: '   ', reps: '10', rir: '2' }]],
+      ['C abc',                       [S('abc', 8)]],
+      ['D NaN',                       [S('NaN', 8)]],
+      ['E Infinity',                  [S('Infinity', 8)]],
+      ['F -Infinity',                 [S('-Infinity', 8)]],
+      ['G 1e999',                     [S('1e999', 8)]],
+      ['H decimal',                   [S('22.5', 10)]],
+      ['I finite scientific',         [S('1.35e2', 8)]],
+      ['J zero',                      [S('0', 30)]],
+      ['K bodyweight',                [S('BW', 12)]],
+      ['L malformed between valid',   [S(135, 8), S('1e999', 5), S(145, 6)]],
+      ['M malformed first',           [S('1e999', 5), S(145, 6)]],
+      ['N malformed last',            [S(145, 6), S('1e999', 5)]],
+      ['O all malformed',             [S('1e999', 8), S('-Infinity', 6)]],
+      ['P valid weight blank reps',   [{ weight: '225', reps: '', rir: '' }]],
+      ['Q valid weight infinite reps',[{ weight: '225', reps: '1e999', rir: '' }]],
+      ['R weight-only then valid',    [{ weight: '315', reps: '', rir: '' }, S(225, 5)]]
+    ];
+    let clean = 0;
+    for(const [label, sets] of CASES){
+      const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+        workoutLog: JSON.stringify([WK('m', 4, 'push', [EX('Bench Press', sets)])]) })).ctx;
+      c.exDetailName = 'Bench Press';
+      let threw = null;
+      try{ c.renderExDetail(); }catch(e){ threw = e.message; }
+      const probe = JSON.stringify([
+        c.sessionVolume(c.workoutLog[0]), c.computeExerciseCapability('Bench Press'),
+        c.computePRs(), c.getCurrentProgression(), c.exerciseSessionHistory('Bench Press', 5),
+        c.progressionFor('Bench Press', '8–12', undefined), c.computeMuscleRecovery(),
+        c.document.getElementById('exDetailStats').innerHTML
+      ]);
+      const ok = !threw && !/Infinity|NaN/.test(probe);
+      if(ok) clean++; else T(label + ' produces no Infinity, no NaN and does not throw', false, threw || probe.slice(0, 200));
+    }
+    T('all ' + CASES.length + ' weight cases derive cleanly end to end', clean === CASES.length, clean + '/' + CASES.length);
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -37885,6 +38214,7 @@ async function main(){
   await testObjectivesD99();
   await testPlanProgramTimerRecoveryD99A();
   await testPortfolioMetadataD99A1();
+  await testFiniteLoadsD96A();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
