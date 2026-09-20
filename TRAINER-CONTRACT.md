@@ -12946,3 +12946,119 @@ physical iPhone.
 
 **Not changed.** DATA_KEYS 15, schema 1, trainer 0.1.1-shadow; XP, thresholds and rank
 logic; storage; the other seven tour steps.
+
+## §122 — D98: Real-use UX integrity — Personal Best, the Rank swipe, Train's order, the Overview's number
+
+(Numbered §122: §119 is D95, §120 D96's emblems, §121 D97. D96's E11–E16 audit was a
+decision report, not a section, and stays paused.)
+
+Four things the owner found in a few minutes on a real phone, each with a screenshot,
+fixed in one release (LOOP 10.1). Every one was reproduced against the shipped 10.0
+BEFORE any code changed. No XP, rank, Mastery, PR, Session Score, D44, trainer, program,
+Friends, Supabase, storage or schema code moved (34 protected functions are pinned by
+hash of their source in Contract 201); E11–E16 are untouched and unimplemented.
+
+**1. Personal Best could put one lift's title over another lift's numbers.** Reproduced in
+real headless Edge with real scroll events: of a 14-step sequence (pick a lift outside the
+top five, swipe to every page, away and back, pick again, a bodyweight lift, three quick
+picks) 12 steps were inconsistent, and step 5 produced the screenshot exactly —
+`page="Machine Shoulder Press" title="Deadlift" counter="3 of 5"` with six dots. The
+cause was not a text node; it was two arrays. D83 built the strip as
+`ranked.filter(i < 5 || name === selected)` inside `buildPersonalBestTimelineModel()`, and
+`pbtSettleCarousel` called that function again on EVERY settle and read `carousel[index]`
+from the result. That list depends on the mutable selection, so the moment a swipe changed
+the selection it shrank from six pages to five while the DOM still held six slides: the
+index taken from the DOM's scroll position was read against a different list, the picker
+(which is the title) took its name from one, and the counter its total from the other. Fixed
+at the root, not by patching text: there is ONE display set, `pbtDisplaySet` (with
+`pbtTempSet` and `pbtActiveIndex`), at most five pages. A lift in the natural top five gets
+the natural five at its real place; a lift outside them becomes PAGE 1 of the same five
+followed by the top four others — "1 of 5", never a sixth. The set is kept, so swiping away
+and back finds the lift again, until a picker choice not in it builds a new one. A swipe reads
+the slide's own `data-exercise` and never rebuilds anything; a card whose slides are not the
+set it says it shows is redrawn, not labelled. The chrome (title, counter, dots, live region)
+is updated once per animation frame instead of on a 120 ms debounce, so it changes as the next
+slide crosses the middle, in step with the dots (measured: never more than one frame of lag).
+Ranking is untouched. Real Edge after: 14/14 at all six sizes; every frame of a smooth jump and
+of three real finger swipes checked; a vertical swipe that starts on the strip scrolls the page
+and leaves the lift alone.
+
+**2. The Rank ladder wanted an aggressive swipe.** Reproduced with real touch events and
+realistic finger paths at 390 px (one rank = 318 px): 9 of 15 ordinary gestures did nothing —
+every deliberate 70–100 px swipe, a light 60 px drag, a short quick flick, the reverse
+swipe, both diagonals and a thumb that arcs upward first; only a 180 px drag or a hard flick
+moved a rank. Three causes, all in the gesture, none in the animation: (a) a slow drag needed a
+third of a panel (106 px) and a throw needed 0.35 px/ms, which a decelerating thumb never
+reaches; (b) the 10 px slop travel did not count toward the distance, so a 38 px flick measured
+19 px; (c) the first pixel past the slop in EITHER direction locked a scroll for good. Now:
+distance AND speed decide together (`rankSettleTarget` — travel plus a 160 ms look-ahead at the
+release speed must reach a sixth of a rank, floor 36 px; a flick is 0.18 px/ms over 22 px from
+touch-down); the whole finger travel counts (`lead`); and a touch stays undecided until it is
+clearly sideways (leads the vertical travel) or clearly vertical (22 px and 1.5x), so an arc is
+not thrown away and a tie never becomes a swipe by itself. A throw back against the drag still
+cancels it (only at 0.30 px/ms, so a gentle drift back moves nothing). One swipe still advances
+exactly one rank at any speed (asserted over 4 widths x 170 distances x 81 speeds, left and right
+mirrored); a slow drag past half a panel still follows the finger. The spring is unchanged
+(omega 17): measured on every animation frame a landing is within 0.03 of a rank in 266–308 ms,
+monotonic, and a second swipe 120 ms later while the first is still landing advances a second
+rank. Real Edge after: 18/18 gestures at all six sizes; vertical and 65-degree gestures stay
+vertical; the edges resist; four quick swipes advance four ranks; Reduce Motion moves one rank
+and leaves nothing running. No physical iPhone was used, and the owner's own thumb remains the
+final judge of the feel.
+
+**3. The Train chips followed the week.** `trainPlanCategories()` sorted the plan's categories
+by the order the athlete's week happens to schedule them — Push, Pull, Full Body, Core, Legs,
+Upper on the owner's phone. They now follow `CATEGORY_DISPLAY_ORDER`, the presentation order the
+file already held: Full Body, Upper, Lower, Push, Pull, Legs, Arms, Core, with only the categories
+the plan has workouts for (the plan decides which, no longer where). An active category the plan
+has nothing in takes its place in the order rather than the end of the row. `ORDER` (which
+`nextCategory()` rotates through), every workout inside a category, the remembered choice and the
+scroll-active-chip-into-view behaviour are untouched; the groups under All follow the chips.
+
+**4. "Trending up" hid a number.** The Overview's hero reads D39's evidence (a direction needs four
+sessions, a NUMBER six — D46B chose that on purpose, replacing the older first-against-last
+calculator), so a lift with four or five sessions showed a word beside a +21% the Strength tab
+prints for the same lift. Each Overview lift now states the Strength tab's own percentage and draws
+a line of its own sessions. One definition, `exerciseTrendFromPoints`, is used by both
+`computeExerciseTrends` (byte-identical results) and the Overview; the line has exactly one vertex per
+session from `compute1RMTrend`, nothing smoothed or invented, scaled to a minimum 12% span so a 1%
+wobble is not drawn as a 25% climb. Positive is the success colour, negative the warning colour with
+a true minus sign, near-flat a neutral real figure ("+1%", "0%"); a lift with fewer than two sessions
+under its own name says its direction in words and draws nothing. **The tension is disclosed, not
+hidden:** the headline sentence is still D39's median evidence (last 12 weeks), while each row's
+figure is the Strength tab's first-session-to-latest percentage, and the footer now says exactly that
+("Estimated strength, first session to latest — the same as Strength"). The two can disagree on a
+lift (a high first session), which the line makes visible; D39's numeric gate still governs every
+program summary. Whether the Strength list itself should move to the median definition is a product
+decision, left for the owner.
+
+**Found while building it.** (1) My first sparkline stretched a 1% wobble to full height and
+read as volatility; it now has a scale floor. (2) The write tool converts `\uXXXX` escapes into
+literal characters, which put a raw control character into a string in the first PBT patch
+(replaced by an exact comparison; every edited file is now scanned for stray control characters).
+(3) Chrome hands a gesture that begins steeply vertical to the browser (`touch-action: pan-y`)
+before any script sees it; a real arc that starts at about 35 degrees is a swipe, one that starts
+at 70 degrees is a scroll, by design. (4) A first assertion (`-webkit-line-clamp: 2`) matched two
+unrelated rules and let a mutant survive; it now reads the `.po-lift-n` rule itself. (5) The
+Overview only ever lists 1RM-comparable lifts with a canonical identity (Seated Cable Row and Lat
+Pulldown are on the Strength list but never on the Overview).
+
+**Tests.** Contract 201 (84 checks): PBT — every one of nine lifts picked in turn gives at most five
+pages, none twice, the lift on its own page, and the picker, slide, own hero number and copy, dot,
+counter and live region all name it; a swipe sequence over every page, away and back, in any order,
+with the set and the card unchanged; the staged six-slides-over-five-names failure is redrawn, never
+labelled; single-PR copy and bodyweight lifts; empty and vanished lifts; by-construction checks that no
+handler rebuilds the list. Rank — the pure rule over 4 widths (a deliberate 64 px swipe, a light flick, a
+short quick flick, the slop counted, speed adding to distance, twitches and the ends, one rank at any speed,
+mirror symmetry, throw-back), the handler's intent rules and lead, and the landing time from the spring in
+closed form. Train — the order under differently scheduled weeks. Overview — every number against the
+Strength list, one vertex per session, sign and colour, the scale floor, insufficient history, cost, layout.
+Thirty-four protected functions pinned by hash. Contract 99's and Contracts 61/100/162/194's rank, Overview,
+PBT and Train assertions were restated (15 places, each with its reason in the comment): the appended
+sixth page, the third-of-a-panel rule, the first-pixel intent lock, the week-ordered chips, the bar mark and
+the D39-only percentage. Mutation testing: 43 of 44 mutants killed (the one survivor removes the pending-phase speed samples and is equivalent: the release speed reads only the last 100 ms, and every quick gesture where it would differ lands the same rank by the flick or the distance rule); the survivor found in this phase, a too-loose line-clamp assertion, was fixed and its mutant is now killed. Real Edge at 320, 360, 375, 390, 393 and 430:
+every size — PBT 14/14, Rank 0 wrong gestures of 18, motion 6/6, Train + Overview 102/102, Rank landing 241–308 ms, no console errors; all seven What’s New lines proven against the shipped 10.0 in the browser. No physical iPhone..
+
+**Not changed.** DATA_KEYS 15, schema 1, trainer 0.1.1-shadow; XP, rank thresholds, Mastery, PR modes,
+Session Score (40/30/18/12), D44; the D39 evidence engine; program semantics; Friends; Supabase; storage.
+E11–E16 remain open, unimplemented and paused.

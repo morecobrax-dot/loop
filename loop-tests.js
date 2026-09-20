@@ -7750,7 +7750,7 @@ function testProgressDashboard(app){
        the bar draws the size. What the contract forbids — punctuation
        standing in for meaning — is asserted directly. */
     T('the reading carries a drawn mark and a word, not a character',
-      /po-lift-track/.test(html) && !/[\u2197\u2192\u2198\u2191\u2193]/.test(html));
+      /po-spark/.test(html) && !/[\u2197\u2192\u2198\u2191\u2193]/.test(html));
     /* Still exactly three supporting indicators, and still capped so the
        hero cannot grow into a list. They are lifts now rather than tiles. */
     /* D46B — three tiles were three because the layout had three slots; the
@@ -7913,7 +7913,7 @@ function testProgressDashboard(app){
     const html = render(longHistory());
     T('no arrow or tick characters', !/[✓✗→←↑↓★]/.test(html.replace(/<[^>]*>/g, '')));
     T('no emoji', !/[\u{1F300}-\u{1FAFF}]/u.test(html));
-    T('trend direction is drawn, not typed', /po-lift-track/.test(html));
+    T('trend direction is drawn, not typed', /po-spark/.test(html));
   }
 
   sub('layout and touch targets');
@@ -10215,11 +10215,13 @@ function testProgressDashboardD14(app){
      and the hero's evidence rows took its place. Every property is
      re-asserted against those rows, which carry BETTER evidence: medians
      of two disjoint windows rather than first-against-last. */
-  T('each evidence row carries a drawn mark', /po-lift-track/.test(html));
+  /* D98 — the mark is now the lift's own line (po-spark: one vertex per session)
+     beside a stated percentage, instead of a bar that only echoed the number. */
+  T('each evidence row carries a drawn mark', /po-spark/.test(html));
   T('and the value in words or a signed number',
     /class="po-lift-v[^"]*">(\+|−|Improving|Steady|Declining)/.test(html));
   T('and an accessible label naming the lift and its evidence',
-    /aria-label="[^"]*comparable sessions/.test(html));
+    /aria-label="[^"]*\d+ sessions/.test(html));
   T('no arrow characters are used for trend', !/[↗→↘]/.test(html));
   T('the list is capped, not every lift', (html.match(/class="po-lift"/g) || []).length <= 3);
   T('the row opens the surface that explains it', /switchProgTab\('strength'\)/.test(html));
@@ -13582,11 +13584,17 @@ function testRankIdentity(app){
      function, rankSettleTarget(), so the guarantee is asserted by calling it
      rather than by matching the line that used to hold it: past a third of a
      panel, or a flick, moves exactly one rank; anything less settles back. */
-  T('release settles deterministically — a third of a card or a flick, one step', (() => {
-    const f = ctx.rankSettleTarget, s = 300;
+  /* D98 — restated on purpose. The old rule needed a third of a panel (106px on a
+     390px phone) or a throw of 0.35 px/ms, which an ordinary thumb does not make:
+     on a real phone every deliberate 70-100px swipe was refused. The guarantee is
+     the same in kind — one rank, decided by what the finger did — and the
+     numbers are now distance AND speed together (RANK_MOTION.commitFraction,
+     commitMin, flickVelocity, projectMs). */
+  T('release settles deterministically — distance and speed together (about a sixth of a card, or a flick), one step', (() => {
+    const f = ctx.rankSettleTarget, s = 300, need = Math.max(ctx.RANK_MOTION.commitMin, ctx.RANK_MOTION.commitFraction * s);
     if(typeof f !== 'function') return false;
-    return f(4, -(s / 3 + 2), 0, s) === 5 && f(4, s / 3 + 2, 0, s) === 3 &&
-      f(4, -(s / 3 - 2), 0, s) === 4 && f(4, -40, -0.8, s) === 5 && f(4, 40, 0.8, s) === 3 &&
+    return f(4, -(need + 2), 0, s) === 5 && f(4, need + 2, 0, s) === 3 &&
+      f(4, -(need - 2), 0, s) === 4 && f(4, -40, -0.8, s) === 5 && f(4, 40, 0.8, s) === 3 &&
       f(4, -200, -5, s) === 5 && f(4, 0, 0, s) === 4;
   })());
   T('the index can never leave the taxonomy',
@@ -14843,9 +14851,9 @@ async function testRankShowcaseExperience(){
     const travel = (M.intentSlop || 0) + (M.flickDistance || 0);   // tap slop is ~10-16px
     return travel >= 32 && ctx.rankSettleTarget(4, -(M.flickDistance - 4), -1.5, 318) === 4;
   })());
-  T('the settle rule itself is unchanged: a third of a panel, or a flick', (() => {
-    const f = ctx.rankSettleTarget, s = 318;
-    return f(4, -(s / 3 + 1), 0, s) === 5 && f(4, -(s / 3 - 1), 0, s) === 4 && f(4, -30, -0.6, s) === 5;
+  T('the settle rule: distance and speed together — about a sixth of a panel, or a flick (D98; it was a third)', (() => {
+    const f = ctx.rankSettleTarget, s = 318, need = Math.max(ctx.RANK_MOTION.commitMin, ctx.RANK_MOTION.commitFraction * s);
+    return f(4, -(need + 1), 0, s) === 5 && f(4, -(need - 1), 0, s) === 4 && f(4, -30, -0.6, s) === 5;
   })());
   T('the ends resist rather than dead-stop', (() => {
     const r = ctx.rankRubber, d = 318;
@@ -16479,7 +16487,7 @@ async function testProgressCommandCentre(){
   const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay()+6)%7));
   const dd = n => fmt(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate()+n));
 
-  sub('the headline is D39 evidence, never a first-against-last guess');
+  sub('the headline is D39 evidence; each lift under it states the Strength tab’s own percentage (D98)');
   {
     const i = src.indexOf('function progHeroHtml');
     const body = src.slice(i, src.indexOf('function progProgramCardHtml', i));
@@ -16491,8 +16499,19 @@ async function testProgressCommandCentre(){
     /* The rule that made D39 necessary: a direction needs four sessions and
        a NUMBER needs six. The hero must not print a percentage the engine
        declined to certify. */
-    T('a percentage is printed only where D39 marked it numeric',
-      /r\.numeric && r\.pct != null/.test(body));
+    /* D98 — CHANGED ON PURPOSE, and stated plainly. D46B held a number back until
+       D39 certified it (six sessions), so a lift with four or five sessions showed
+       "Trending up" beside a +21% that the Strength tab prints for the same lift —
+       on a real phone, at the moment an athlete most wants the figure. The rows now
+       print the Strength tab's own percentage (exerciseTrendFromPoints over
+       compute1RMTrend, the one definition computeExerciseTrends also uses) and the
+       card's footer says what it is. The HEADLINE is still D39 evidence, and D39's
+       own gate still governs every program summary (perfDeltaText,
+       performanceHighlightsHtml), untouched — Contract 201 pins those. */
+    T('a percentage is printed only from the Strength tab’s own trend definition, and the card says what it is',
+      /exerciseTrendFromPoints\(points\)/.test(body) && /first session to latest/.test(body) && !/r\.numeric && r\.pct != null/.test(body));
+    T('D39’s own numeric gate still governs the program summaries',
+      /if\(!r \|\| !r\.numeric\) return null;/.test(src.slice(src.indexOf('function perfDeltaText'), src.indexOf('function performanceHighlightsHtml'))));
   }
 
   sub('no aggregate score is invented anywhere on Progress');
@@ -22438,11 +22457,11 @@ async function testRankShowcaseMotion(){
     /panel\.querySelector\('\.rank-sheen b'\)/.test(fnSrc(src, 'rankArrive')) &&
     !/rankMedalSvg|<svg/.test(fnSrc(src, 'rankRender')));
 
-  sub('a touch is a scroll until it is sideways');
-  T('it must travel past a slop, and sideways must lead',
-    M.intentSlop >= 8 && M.intentRatio > 1 &&
-    /if\(Math\.abs\(dx\) < RANK_MOTION\.intentSlop && Math\.abs\(dy\) < RANK_MOTION\.intentSlop\) return;/.test(src) &&
-    /if\(Math\.abs\(dx\) < Math\.abs\(dy\) \* RANK_MOTION\.intentRatio\)\{\s*d\.mode = 'scroll';/.test(src));
+  sub('a touch is undecided until it is sideways or clearly vertical (D98 — it used to be a scroll on the first pixel that said otherwise)');
+  T('it must travel past a slop, and sideways must lead; vertical needs its own distance and lead — and until one of the two is clear it keeps watching',
+    M.intentSlop >= 8 && M.intentRatio >= 1 && M.verticalSlop > M.intentSlop && M.verticalRatio >= 1.25 &&
+    /if\(ax < RANK_MOTION\.intentSlop \|\| ax <= ay \* RANK_MOTION\.intentRatio\)\{/.test(src) &&
+    /if\(ay >= RANK_MOTION\.verticalSlop && ay >= ax \* RANK_MOTION\.verticalRatio\)\{\s*d\.mode = 'scroll';/.test(src));
   T('the finger is captured only once the gesture is a swipe', (() => {
     const w = fnSrc(src, 'wireRankCarousel');
     const down = w.slice(w.indexOf("'pointerdown'"), w.indexOf("'pointermove'"));
@@ -22477,6 +22496,22 @@ async function testRankShowcaseMotion(){
   reset(4); captured.length = 0;
   run([[0, 'pointerdown', 200, 400], [30, 'pointermove', 206, 404], [30, 'pointerup', 207, 403]]);
   T('a tap that wanders a few pixels changes nothing', car.pos === 4 && ctx.rankShowcaseIndex === 4 && captured.length === 0);
+  /* D98 — the gestures a real thumb makes, driven through the real handlers. */
+  reset(4); captured.length = 0;
+  run([[0, 'pointerdown', 300, 400], [16, 'pointermove', 298, 392], [16, 'pointermove', 290, 382], [16, 'pointermove', 270, 376], [16, 'pointermove', 230, 372], [16, 'pointermove', 190, 372], [40, 'pointerup', 190, 372]]);
+  T('D98 — a thumb that arcs upward before it sweeps sideways is still a swipe: it moves one rank (the first pixels no longer decide)', ctx.rankShowcaseIndex === 5 && car.pos === 5,
+    'idx ' + ctx.rankShowcaseIndex + ' pos ' + car.pos);
+  reset(4); captured.length = 0;
+  run([[0, 'pointerdown', 300, 400], [16, 'pointermove', 290, 400], [16, 'pointermove', 270, 400], [16, 'pointermove', 262, 400], [10, 'pointerup', 262, 400]]);
+  T('D98 — a short quick flick (38px) counts the travel before the ladder took the gesture, so it lands', ctx.rankShowcaseIndex === 5 && car.pos === 5,
+    'idx ' + ctx.rankShowcaseIndex + ' pos ' + car.pos);
+  reset(4); captured.length = 0;
+  run([[0, 'pointerdown', 300, 400], [60, 'pointermove', 290, 400], [60, 'pointermove', 270, 400], [60, 'pointermove', 250, 400], [60, 'pointermove', 240, 400], [90, 'pointerup', 240, 400]]);
+  T('D98 — a light, slow 60px drag that came to rest before the finger lifted still moves one rank (distance alone is enough)', ctx.rankShowcaseIndex === 5 && car.pos === 5,
+    'idx ' + ctx.rankShowcaseIndex + ' pos ' + car.pos);
+  reset(4); captured.length = 0;
+  run([[0, 'pointerdown', 200, 400], [16, 'pointermove', 196, 396], [16, 'pointermove', 192, 388], [16, 'pointermove', 190, 372], [16, 'pointermove', 189, 350], [16, 'pointerup', 189, 350]]);
+  T('D98 — a steep, mostly vertical drag is still a scroll and never a swipe', car.pos === 4 && ctx.rankShowcaseIndex === 4 && captured.length === 0);
 
   sub('the ladder follows the finger, and the release decides');
   reset(4); captured.length = 0;
@@ -22498,12 +22533,18 @@ async function testRankShowcaseMotion(){
     steps.push([0, 'pointerup', 230, 400]);
     run(steps); }
   T('a throw back against the drag cancels it', ctx.rankShowcaseIndex === 4 && car.pos === 4);
+  /* D98 — the same claim, asserted against the outcome WITHOUT the second finger:
+     a 100px drag is a swipe now, so the question is not "does it stay" but "does
+     the second finger change anything". It must not. */
+  reset(4);
+  run([[0, 'pointerdown', 300, 400], [16, 'pointermove', 280, 400], [16, 'pointermove', 200, 400], [200, 'pointerup', 200, 400]]);
+  const aloneIdx = ctx.rankShowcaseIndex, alonePos = car.pos;
   reset(4);
   run([[0, 'pointerdown', 300, 400], [16, 'pointermove', 280, 400], [16, 'pointermove', 200, 400],
        [0, 'pointerdown', 100, 420, { pointerId: 2 }], [16, 'pointermove', 20, 420, { pointerId: 2 }],
        [200, 'pointerup', 200, 400]]);
-  T('a second finger is not a second gesture', ctx.rankShowcaseIndex === 4 && car.pos === 4,
-    'idx ' + ctx.rankShowcaseIndex + ' pos ' + car.pos);
+  T('a second finger is not a second gesture: the same swipe lands exactly where it does without one', ctx.rankShowcaseIndex === aloneIdx && car.pos === alonePos && aloneIdx === 5,
+    'idx ' + ctx.rankShowcaseIndex + ' pos ' + car.pos + ' alone ' + aloneIdx);
   reset(4);
   run([[0, 'pointerdown', 300, 400], [16, 'pointermove', 280, 400], [16, 'pointermove', 60, 400], [16, 'pointercancel', 60, 400]]);
   T('a gesture the browser takes settles on the nearest rank, with no throw', ctx.rankShowcaseIndex === 5 && car.pos === 5);
@@ -22534,8 +22575,12 @@ async function testRankShowcaseMotion(){
 
   sub('the release rule, asserted directly');
   const f = ctx.rankSettleTarget, s = STEP;
-  T('a tap, a small drag, and exactly a third all stay', f(4, 0, 0, s) === 4 && f(4, -60, 0, s) === 4 && f(4, -(s / 3), 0, s) === 4);
-  T('just past a third moves one, either way', f(4, -(s / 3 + 1), 0, s) === 5 && f(4, s / 3 + 1, 0, s) === 3);
+  /* D98 — restated: a third of a panel became distance-and-speed together. */
+  const need = Math.max(M.commitMin, M.commitFraction * s);
+  T('a tap, a wobble, and a drag just short of the distance all stay', f(4, 0, 0, s) === 4 && f(4, -(M.flickDistance - 4), 0, s) === 4 && f(4, -(need - 1), 0, s) === 4);
+  T('just past that distance moves one, either way', f(4, -(need + 1), 0, s) === 5 && f(4, need + 1, 0, s) === 3);
+  T('speed and distance add up: a light drag still moving at lift-off lands, the same drag at rest does not',
+    f(4, -0.8 * need, -0.12, s) === 5 && f(4, -0.8 * need, 0, s) === 4);
   T('a flick moves one, either way; a twitch shorter than a flick does not',
     f(4, -30, -0.6, s) === 5 && f(4, 30, 0.6, s) === 3 && f(4, -(M.flickDistance - 4), -1.5, s) === 4);
   T('however hard the throw, one rank', f(4, -120, -6, s) === 5);
@@ -25744,8 +25789,12 @@ async function testTrainLauncher(){
       T('My workouts is not filtered', html('trainMine') === mineBefore);
       ctx.setTrainCategory('all');
       d = { plan: rows(html('trainPlan')), chips: html('trainChips'), groups: (html('trainPlan').match(/<h3 class="tl-group-k">([^<]+)<\/h3>/g) || []).map(g => g.replace(/<[^>]+>/g, '')) };
-      T('All lists every plan workout, grouped by kind, the week\'s kinds first',
-        d.plan.length === 32 && d.groups.join() === 'Push,Pull,Legs,Upper Body,Lower Body,Core,Full Body,Arms' &&
+      /* D98 — restated: the chips, and the groups under All, follow ONE order
+         (CATEGORY_DISPLAY_ORDER), not the order this athlete's week schedules them. */
+      T('the chips read in that one order',
+        (d.chips.match(/>([^<]+)<\/button>/g) || []).map(m => m.slice(1, -9)).join() === 'All,Full Body,Upper Body,Lower Body,Push,Pull,Legs,Arms,Core', d.chips.replace(/<[^>]+>/g, '|').slice(0, 160));
+      T('All lists every plan workout, grouped by kind, in the chips\' own order',
+        d.plan.length === 32 && d.groups.join() === 'Full Body,Upper Body,Lower Body,Push,Pull,Legs,Arms,Core' &&
         /^<button type="button" class="filter-chip active" aria-pressed="true" onclick="setTrainCategory\('all'\)">All<\/button>/.test(d.chips.trim()), d.groups.join());
       ctx.setTrainCategory('nonsense');
       T('a kind that does not exist changes nothing', ctx.activeTrainCategory === 'all');
@@ -30797,20 +30846,25 @@ async function testPersonalBestTimeline(){
     const offList = ranked[ranked.length - 1].exerciseName; // the lowest-ranked, definitely outside the cap
     c.pbtSelectedExercise = offList;
     const withOff = c.buildPersonalBestTimelineModel();
-    T('Y — choosing an exercise outside the top set adds it, without dropping any of the top-ranked ones',
-      withOff.carousel.length === c.PBT_CONFIG.maxCarouselExercises + 1 &&
-      ranked.slice(0, c.PBT_CONFIG.maxCarouselExercises).every(t => withOff.carousel.some(p => p.exerciseName === t.exerciseName)) &&
-      withOff.carousel.some(p => p.exerciseName === offList));
-    const expectedWithOff = ranked.filter((t, i) => i < c.PBT_CONFIG.maxCarouselExercises || t.exerciseName === offList);
-    T('  it sits at its own rank position, not just appended — the carousel stays in one consistent order',
-      JSON.stringify(withOff.carousel.map(t=>t.exerciseName)) === JSON.stringify(expectedWithOff.map(t=>t.exerciseName)));
+    /* D98 — CHANGED ON PURPOSE. D83 appended the picked lift as a sixth page at its
+       rank position: on a real phone that read "6 of 6", and because the page set
+       was rebuilt from the selection on every settle, the title of one lift could
+       sit over another lift's numbers. The strip is five, always: the picked lift
+       is page 1, then the top ranked others. Contract 201 holds the rest. */
+    T('Y — choosing an exercise outside the top set makes it page 1 of the SAME five: itself, then the top four ranked others',
+      withOff.carousel.length === c.PBT_CONFIG.maxCarouselExercises && withOff.carousel[0].exerciseName === offList &&
+      JSON.stringify(withOff.carousel.slice(1).map(t=>t.exerciseName)) ===
+        JSON.stringify(ranked.filter(t => t.exerciseName !== offList).slice(0, c.PBT_CONFIG.maxCarouselExercises - 1).map(t=>t.exerciseName)));
+    T('  no lift appears twice, and nothing is appended as a sixth',
+      new Set(withOff.carousel.map(t=>t.exerciseName)).size === withOff.carousel.length && withOff.pages.length === c.PBT_CONFIG.maxCarouselExercises);
     T('  nothing was written anywhere to remember this — it is a property of pbtSelectedExercise alone',
       c.DATA_KEYS.length === 15);
 
-    c.pbtSelectedExercise = ranked[0].exerciseName;
+    c.pbtChooseExercise(ranked[0].exerciseName);
     const backToTop = c.buildPersonalBestTimelineModel();
-    T('Z — choosing a top-ranked exercise again shrinks the carousel back to just the top set',
-      backToTop.carousel.length === c.PBT_CONFIG.maxCarouselExercises);
+    T('Z — picking a top-ranked exercise again returns the natural five, in rank order, on that lift\'s real page',
+      JSON.stringify(backToTop.carousel.map(t=>t.exerciseName)) === JSON.stringify(ranked.slice(0, c.PBT_CONFIG.maxCarouselExercises).map(t=>t.exerciseName)) &&
+      backToTop.activeIndex === 0);
 
     c.renderPersonalBestTimeline();
     const html = c.document.getElementById('progPBTimeline').innerHTML;
@@ -36187,6 +36241,369 @@ async function testRankTourD97(){
   });
 }
 
+/* =========================================================
+   CONTRACT 201 — REAL-USE UX INTEGRITY  (D98)
+   ---------------------------------------------------------
+   Four things an athlete found in a few minutes on a real phone.
+
+   1. THE PERSONAL BEST CARD COULD SHOW ONE LIFT'S TITLE OVER ANOTHER'S
+      NUMBERS. Cause, measured in a real browser: the page set was rebuilt from
+      the mutable selection on every settle, so the slides the DOM held (six,
+      with the picked lift appended) and the list the settle then read (five)
+      were two different arrays. Now there is ONE display set (pbtDisplaySet),
+      at most five pages, the picked lift first; a swipe reads the slide's own
+      data-exercise and never rebuilds anything; a card whose slides are not the
+      set it says it shows is redrawn, not labelled.
+   2. THE RANK LADDER WANTED AN AGGRESSIVE SWIPE. Cause, measured with real touch
+      events: a slow drag needed a third of a panel (106px at 390) and a throw
+      needed 0.35 px/ms, so every deliberate 70-100px swipe was refused; the
+      slop travel did not count; and the first pixel past the slop in EITHER
+      direction locked a scroll for good. Now distance and speed decide
+      together, the whole finger travel counts, and a touch stays undecided until
+      it is clearly sideways or clearly vertical.
+   3. THE TRAIN CHIPS FOLLOWED THE ORDER THE WEEK SCHEDULES THEM in (Push, Pull,
+      Full Body, Core, Legs, Upper on one real phone). They follow one order.
+   4. "TRENDING UP" HID A NUMBER THE STRENGTH TAB ALREADY PRINTS. Each Overview
+      lift states that percentage and draws its own sessions.
+
+   NOTHING PROTECTED MOVED: the XP, PR, Session Score, Mastery, capability,
+   trainer, ranking and D39 evidence functions are pinned below by hash of their
+   source, against LOOP 10.0.
+   ========================================================= */
+async function testRealUseUxD98(){
+  section('CONTRACT 201 — real-use UX integrity: one Personal Best card, a Rank swipe a thumb can make, Train in order, the Overview with its number (D98)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const MINUS = String.fromCharCode(0x2212);
+
+  /* ------------------------------------------------------------------ 1. PBT */
+  const PB = [['Bench Press', 9, 135, false], ['Barbell Squat', 8, 185, false], ['Deadlift', 7, 225, false], ['Overhead Press', 6, 75, false],
+    ['Barbell Row', 5, 115, false], ['Lat Pulldown', 4, 100, false], ['Triceps Dips', 3, 60, false], ['Machine Shoulder Press', 2, 150, false], ['Pull-Up', 3, 5, true]];
+  const pbLog = [];
+  for(let s = 0; s < 9; s++) pbLog.push(WK('pb' + s, (9 - s) * 4, 'push', PB.filter(p => s < p[1]).map(p => EX(p[0], [p[3] ? S('BW', p[2] + s) : S(p[2] + s * 5, 5)], p[3]))));
+
+  await guard('pbt', async () => {
+    const app = H.loadApp({ workoutLog: '[]' }); const c = app.ctx;
+    c.workoutLog = pbLog; clearCaches(c);
+    const logBefore = JSON.stringify(c.workoutLog);
+    const ranked = c.rankPBTCandidates(c.computePBTCandidates()).map(t => t.exerciseName);
+    const MAX = c.PBT_CONFIG.maxCarouselExercises, natural = ranked.slice(0, MAX);
+
+    sub('one display set: never more than five pages, the picked lift first, nothing appended');
+    T('the fixture ranks as expected: nine eligible lifts, and the natural five are the five with the most personal bests',
+      ranked.length === 9 && natural.join() === 'Bench Press,Barbell Squat,Deadlift,Overhead Press,Barbell Row', ranked.join());
+    T('the strip is capped at five', MAX === 5);
+    const bad = [];
+    ranked.forEach(n => {
+      c.pbtChooseExercise(n);
+      const m = c.buildPersonalBestTimelineModel();
+      const names = m.carousel.map(t => t.exerciseName);
+      const want = natural.indexOf(n) !== -1 ? natural : [n].concat(ranked.filter(x => x !== n).slice(0, MAX - 1));
+      if(names.length > MAX || new Set(names).size !== names.length || names.join() !== want.join() || names[m.activeIndex] !== n ||
+         m.pages.length !== names.length || m.pages.some((p, i) => p.exerciseName !== names[i])) bad.push(n);
+    });
+    T('picking ANY of the nine lifts: at most five pages, none twice, the lift on its own page — a top-five lift in the natural five at its real place, any other as page 1 of five',
+      bad.length === 0, bad.join());
+    c.pbtChooseExercise('Machine Shoulder Press');
+    let html = c.document.getElementById('progPBTimeline').innerHTML;
+    T('the searched lift is "1 of 5", five slides and five dots — never a sixth page',
+      (html.match(/class="pbt-page"/g) || []).length === 5 && />1 of 5</.test(html) && !/of 6</.test(html) && (html.match(/class="pbt-dot( active)?"/g) || []).length === 5);
+    c.pbtChooseExercise('Bench Press');
+    T('a lift in the natural five gets the natural five, on its real page (no reordering)', c.pbtDisplaySet.join() === natural.join() && c.pbtActiveIndex === 0 && c.pbtTempSet === false);
+    c.pbtChooseExercise('Barbell Row');
+    T('  …and Barbell Row is page 5 of the natural five, not page 1 of something new', c.pbtDisplaySet.join() === natural.join() && c.pbtActiveIndex === 4);
+
+    sub('title, slide, numbers, copy, dots, counter and live region always describe the same lift');
+    const consistent = name => {
+      const h = c.document.getElementById('progPBTimeline').innerHTML;
+      const m = c.buildPersonalBestTimelineModel();
+      const names = m.carousel.map(t => t.exerciseName), i = names.indexOf(name), N = names.length;
+      let at = -1, ok = true;
+      m.pages.forEach((p, k) => {
+        const ph = c.pbtPageHtml(p, k), pos = h.indexOf(ph);
+        if(pos <= at) ok = false; at = pos;
+        if(ph.indexOf('data-exercise="' + c.escapeAttr(p.exerciseName) + '"') === -1) ok = false;
+        const hero = /pbt-hero-num">([\d.]+)/.exec(ph);
+        if(!hero || +hero[1] !== p.current.value) ok = false;
+        const note = /Log (.+?) again and beat it/.exec(ph);
+        if(note && note[1] !== c.escapeHtml(p.exerciseName)) ok = false;
+      });
+      const sel = h.match(/<option value="[^"]*" selected>/g) || [];
+      const dots = [...h.matchAll(/<button type="button" class="pbt-dot( active)?"/g)];
+      const cnt = /id="pbtPageNum"[^>]*>(\d+) of (\d+)</.exec(h), live = /id="pbtLive"[^>]*>([^<]*)</.exec(h);
+      return ok && i > -1 && sel.length === 1 && sel[0].indexOf('value="' + c.escapeAttr(name) + '"') !== -1 &&
+        dots.length === N && dots.findIndex(x => x[1]) === i && !!cnt && +cnt[1] === i + 1 && +cnt[2] === N &&
+        !!live && live[1].indexOf(c.escapeHtml(name) + ', ' + (i + 1) + ' of ' + N) === 0 && (h.match(/class="pbt-page"/g) || []).length === N;
+    };
+    T('for each of the nine lifts, picked in turn: the picker, the slide, its own hero number and copy, its dot, the counter and the live region all name that lift',
+      ranked.every(n => { c.pbtChooseExercise(n); return consistent(n); }));
+    c.pbtChooseExercise('Pull-Up');
+    const pu = c.buildPersonalBestTimelineModel();
+    T('a bodyweight lift outside the five: page 1, its own unit and its own best (7 reps), never a load',
+      pu.carousel[0].exerciseName === 'Pull-Up' && pu.pages[0].isBW === true && pu.pages[0].unit === 'reps' && pu.pages[0].current.value === 7 && /reps/.test(c.pbtPageHtml(pu.pages[0], 0)) && !/ lb</.test(c.pbtPageHtml(pu.pages[0], 0)) && consistent('Pull-Up'));
+
+    sub('swiping: the slide in front is the truth, and nothing rebuilds under the finger');
+    const realById = c.document.getElementById, realQSA = c.document.querySelectorAll;
+    const st = { car: { scrollLeft: 0, clientWidth: 300, pages: [], querySelectorAll(sel){ return sel === '.pbt-page' ? this.pages : []; } }, sel: { value: '' }, num: { textContent: '' }, live: { textContent: '' }, dots: [] };
+    try{
+      c.document.getElementById = id => id === 'pbtCarousel' ? st.car : id === 'pbtExerciseSelect' ? st.sel : id === 'pbtPageNum' ? st.num : id === 'pbtLive' ? st.live : realById(id);
+      c.document.querySelectorAll = s => s === '#pbtDots .pbt-dot' ? st.dots : realQSA(s);
+      const attach = () => {
+        const h = realById('progPBTimeline').innerHTML;
+        st.car.pages = [...h.matchAll(/class="pbt-page" data-exercise="([^"]*)"/g)].map(m => ({ dataset: { exercise: m[1] } }));
+        st.dots = st.car.pages.map((p, i) => { const d = { active: i === c.pbtActiveIndex, classList: { toggle(cl, f){ d.active = !!f; } }, setAttribute(){} }; return d; });
+        st.sel.value = c.pbtSelectedExercise; st.num.textContent = (c.pbtActiveIndex + 1) + ' of ' + st.car.pages.length;
+        st.live.textContent = c.pbtSelectedExercise + ', ' + (c.pbtActiveIndex + 1) + ' of ' + st.car.pages.length;
+      };
+      const swipe = i => { st.car.scrollLeft = i * st.car.clientWidth; c.pbtOnCarouselScroll(); };
+      const view = () => {
+        const idx = Math.round(st.car.scrollLeft / st.car.clientWidth), n = st.car.pages.length, name = st.car.pages[idx].dataset.exercise;
+        return { idx, name, title: st.sel.value === name, counter: st.num.textContent === (idx + 1) + ' of ' + n,
+          dot: st.dots.length === n && st.dots.every((d, k) => d.active === (k === idx)), live: st.live.textContent.indexOf(name + ', ' + (idx + 1) + ' of ' + n) === 0, sel: c.pbtSelectedExercise === name };
+      };
+      c.pbtChooseExercise('Machine Shoulder Press'); attach();
+      const setBefore = c.pbtDisplaySet.join(), htmlBefore = realById('progPBTimeline').innerHTML;
+      const badSteps = [];
+      [0, 1, 2, 4, 0, 3, 0, 4, 2, 1, 0, 4, 4, 0].forEach(i => { swipe(i); const v = view(); if(!(v.title && v.counter && v.dot && v.live && v.sel)) badSteps.push(JSON.stringify(v)); });
+      T('a picked lift, then swipes to every page, away and back, in any order: the title, counter, dots, live region and selection always name the slide in front',
+        badSteps.length === 0, badSteps.slice(0, 2).join(' | '));
+      T('  the display set is the same array throughout, and no swipe redrew the card', c.pbtDisplaySet.join() === setBefore && realById('progPBTimeline').innerHTML === htmlBefore);
+      swipe(3); swipe(0);
+      T('  the searched lift is still page 1: swipe away and back finds it, with all of its own content', view().name === 'Machine Shoulder Press' && c.pbtSelectedExercise === 'Machine Shoulder Press' && consistent('Machine Shoulder Press'));
+      /* the D83 failure, staged: a slide the set does not hold */
+      st.car.pages = st.car.pages.concat([{ dataset: { exercise: 'Pull-Up' } }]);
+      swipe(5);
+      const h6 = realById('progPBTimeline').innerHTML;
+      T('a card whose slides are not the set it says it shows (six slides, five names) is redrawn — never labelled from another list',
+        (h6.match(/class="pbt-page"/g) || []).length === 5 && consistent('Machine Shoulder Press') && st.sel.value !== 'Pull-Up' && c.pbtSelectedExercise === 'Machine Shoulder Press');
+      /* a re-render (coming back to the tab) keeps what the athlete was looking at */
+      c.pbtChooseExercise('Triceps Dips'); attach(); swipe(2);
+      const looked = c.pbtSelectedExercise;
+      c.renderPersonalBestTimeline();
+      T('coming back to the card (a re-render) shows the lift they had swiped to, in the same set', c.pbtSelectedExercise === looked && c.pbtDisplaySet[0] === 'Triceps Dips' && c.pbtDisplaySet.length === 5 && consistent(looked));
+    } finally { c.document.getElementById = realById; c.document.querySelectorAll = realQSA; }
+    T('nothing here wrote to the log: byte-identical after every pick and every swipe', JSON.stringify(c.workoutLog) === logBefore);
+
+    sub('copy and numbers cannot go stale: a single-PR lift carries its own note, and only its own');
+    {
+      const cf = [WK('cf1', 20, 'push', [EX('Bench Press', [S(135, 5)]), EX('Cable Fly', [S(40, 10)])]), WK('cf2', 12, 'push', [EX('Bench Press', [S(140, 5)]), EX('Cable Fly', [S(40, 10)])]), WK('cf3', 4, 'push', [EX('Bench Press', [S(145, 5)])])];
+      c.workoutLog = cf; clearCaches(c); c.pbtSelectedExercise = null; c.pbtDisplaySet = null; c.pbtTempSet = false;
+      c.pbtChooseExercise('Cable Fly');
+      const m = c.buildPersonalBestTimelineModel();
+      const fly = c.pbtPageHtml(m.pages.find(p => p.exerciseName === 'Cable Fly'), 0), bench = c.pbtPageHtml(m.pages.find(p => p.exerciseName === 'Bench Press'), 1);
+      T('Cable Fly (one PR, 40 lb) says "Log Cable Fly again…" and shows 40 lb; Bench Press shows its own three-PR climb and never that note',
+        /Log Cable Fly again and beat it/.test(fly) && /pbt-hero-num">40/.test(fly) && !/Log /.test(bench) && /pbt-hero-num">145/.test(bench) && consistent('Cable Fly') && (c.pbtChooseExercise('Bench Press'), consistent('Bench Press')));
+      /* a lift that stops being eligible is not left on the strip */
+      c.workoutLog = cf.map(w => Object.assign({}, w, { exercises: w.exercises.filter(e => e.name !== 'Cable Fly') })); clearCaches(c);
+      c.pbtChooseExercise('Cable Fly');
+      const gone = c.buildPersonalBestTimelineModel();
+      T('a picked lift that no longer has a record falls back to the top pick — no empty or stale slide', gone.carousel.every(t => t.exerciseName !== 'Cable Fly') && gone.activeExercise === 'Bench Press' && c.pbtSelectedExercise === 'Bench Press');
+      c.workoutLog = []; clearCaches(c);
+      const none = c.buildPersonalBestTimelineModel();
+      T('an empty log clears the selection, the set and the index', none.pages.length === 0 && c.pbtSelectedExercise === null && c.pbtDisplaySet === null && c.pbtActiveIndex === -1 && c.pbtTempSet === false);
+    }
+
+    sub('by construction: the swipe handlers cannot rebuild the list, and ranking is untouched');
+    const settle = fnSrc(src, 'pbtSettleCarousel'), sync = fnSrc(src, 'pbtSyncCarouselChrome'), onScroll = fnSrc(src, 'pbtOnCarouselScroll');
+    T('no swipe handler rebuilds the page list from the selection (D83’s second array), and the slide’s own data-exercise is what is read',
+      !/buildPersonalBestTimelineModel\(|pbtDisplaySetFor\(|computePBTCandidates\(/.test(settle + sync + onScroll) && /p\.dataset\.exercise/.test(settle));
+    T('a swipe never assigns the display set; a picker choice always rebuilds it',
+      !/pbtDisplaySet\s*=[^=]/.test(settle + sync + onScroll) && /pbtDisplaySet = null; pbtTempSet = false;/.test(fnSrc(src, 'pbtChooseExercise')));
+    T('the strip is read once per animation frame, so the title changes with the dots — not on a 120ms debounce that lets it trail the slide',
+      /requestAnimationFrame/.test(onScroll) && !/_pbtScrollTimer/.test(src) && !/setTimeout\(pbtSettleCarousel/.test(src));
+  });
+
+  /* ----------------------------------------------------------------- 2. RANK */
+  await guard('rank', async () => {
+    const app = H.loadApp({ workoutLog: '[]' }); const c = app.ctx, M = c.RANK_MOTION, f = c.rankSettleTarget;
+    sub('the swipe: a thumb, not a throw — distance and speed decide together');
+    const WIDTHS = [250, 300, 318, 350];
+    T('the thresholds are ones a phone can meet: a sixth of a rank, a 180 px/s flick, a 36px floor, a 22px minimum travel',
+      M.commitFraction <= 0.2 && M.flickVelocity <= 0.25 && M.commitMin <= 40 && M.flickDistance <= 26 && M.throwBackVelocity > M.flickVelocity);
+    T('a deliberate swipe — 64px of finger travel (54px + 10px of slop), at rest — moves one rank on every phone width', WIDTHS.every(s => f(4, -54, 0, s, undefined, -10) === 5 && f(4, 54, 0, s, undefined, 10) === 3));
+    T('a light flick (30px at 0.25 px/ms) moves one rank; so does a 24px flick at exactly the flick speed', WIDTHS.every(s => f(4, -30, -0.25, s) === 5 && f(4, -24, -M.flickVelocity, s) === 5));
+    T('a flick is never ignored for being short of the old distance: 38px at 0.63 px/ms moves one rank, either way', WIDTHS.every(s => f(4, -38, -0.63, s) === 5 && f(4, 38, 0.63, s) === 3));
+    T('the travel before the ladder took the gesture counts: 19px + 19px of slop flicks, 19px alone does not', WIDTHS.every(s => f(4, -19, -0.63, s, undefined, -19) === 5 && f(4, -19, -0.63, s) === 4));
+    T('speed adds to distance: 42px of travel still moving at lift-off lands, the same 42px at rest does not', f(4, -30, -0.12, 300, undefined, -12) === 5 && f(4, -30, 0, 300, undefined, -12) === 4);
+    T('a tap, a wobble and a twitch move nothing', WIDTHS.every(s => f(4, 0, 0, s) === 4 && f(4, -8, 0, s) === 4 && f(4, -14, -0.1, s) === 4 && f(4, 6, 0.05, s) === 4));
+    T('the ends stay put: pulling past the first or last rank stays on it', f(0, 100, 0, 300) === 0 && f(7, -100, 0, 300) === 7 && f(0, 100, 2, 300) === 0 && f(7, -100, -2, 300) === 7);
+    /* exactly one rank from a normal swipe, however hard */
+    let many = 0, sym = 0;
+    for(const s of WIDTHS) for(let dx = -(s - 1); dx <= s - 1; dx += 7) for(let v = -6; v <= 6; v += 0.15){
+      const up = f(4, dx, v, s), down = f(4, -dx, -v, s);
+      if(Math.abs(up - 4) > 1) many++;
+      if(up - 4 !== 4 - down) sym++;
+    }
+    T('one swipe that stays inside one panel never advances more than one rank, at any speed', many === 0, many + ' outliers');
+    T('left and right are mirror images at every distance and speed', sym === 0, sym + ' asymmetric');
+    T('a throw back against the drag cancels it; a gentle drift back is not a throw and does not flick the wrong way',
+      WIDTHS.every(s => f(4, -100, 0.35, s) === 4 && f(4, 100, -0.35, s) === 4 && f(4, -100, 0.2, s) === 5 && f(4, 100, -0.2, s) === 3));
+    T('a long slow drag follows the finger: half a panel moves one, one and a half panels move two', f(4, -160, 0, 318) === 5 && f(4, -500, 0, 318) === 6);
+
+    sub('the gesture: undecided until it is clear, and the whole travel is kept');
+    const w = fnSrc(src, 'wireRankCarousel');
+    T('intent: sideways must LEAD (a tie stays undecided), vertical needs its own distance and lead, and neither is decided on the first pixel',
+      M.intentRatio >= 1 && M.verticalSlop > M.intentSlop && M.verticalRatio >= 1.25 && /ax <= ay \* RANK_MOTION\.intentRatio/.test(w) && /ay >= RANK_MOTION\.verticalSlop && ay >= ax \* RANK_MOTION\.verticalRatio/.test(w));
+    T('the touch-down point and its first sample are kept, so the finger’s speed and travel are read from its first movement', /xDown: e\.clientX/.test(w) && /samples: \[\{ t: rankNow\(\), x: e\.clientX \}\]/.test(w));
+    T('the release hands the slop travel (lead) to the one settle rule', /rankSettleTarget\(d\.startPos, d\.dx, v, step, d\.heading, d\.lead\)/.test(w) && /d\.lead = dx;/.test(w));
+    T('a finger put on a moving ladder still holds it, and a second finger is still ignored', /if\(moving\) rankStopAnimation\(\);/.test(w) && /_rankDrag && _rankDrag\.mode === 'drag'\) return;/.test(w));
+
+    sub('the landing: 250-320 ms, on a critically damped spring, no queue');
+    const landMs = (x0, v0) => { for(let t = 0; t < 1; t += 0.002){ const s = c.rankSpringAt(x0, v0, t, M.omega); if(Math.abs(s.x) < M.commitDistance) return Math.round(t * 1000); } return 9999; };
+    const times = [[0.4, 0], [0.7, 0], [1, 0], [1, -1.5], [0.85, 2]].map(a => landMs(a[0], a[1]));
+    T('a landing from a light, a normal and a full-panel travel takes between 230 and 330 ms', times.every(t => t >= 230 && t <= 330), times.join(','));
+    T('the spring never overshoots from rest, so the ladder is monotonic into its rank', [0.4, 0.7, 1].every(x0 => { let prev = x0; for(let t = 0.01; t < 0.6; t += 0.01){ const s = c.rankSpringAt(x0, 0, t, M.omega); if(s.x > prev + 1e-9 || s.x < -1e-9) return false; prev = s.x; } return true; }));
+    T('Reduce Motion is still respected by the landing and the arrival', /rankReducedMotion\(\)/.test(fnSrc(src, 'rankGoTo')) || /rankReducedMotion\(\)/.test(fnSrc(src, 'rankArrive')));
+  });
+
+  /* ---------------------------------------------------------------- 3. TRAIN */
+  await guard('train', async () => {
+    const app = H.loadApp({ workoutLog: '[]' }); const c = app.ctx;
+    const realT = c.getTemplates, realS = c.schedule;
+    try{
+      const have = list => { c.getTemplates = cat => list.indexOf(cat) !== -1 ? [{ id: cat + '1' }] : []; };
+      sub('the chips: one intentional order, whatever the week schedules');
+      c.schedule = { mon: 'legs', tue: 'push', wed: 'core', thu: 'pull', fri: 'fullbody', sat: 'upper', sun: 'rest' };
+      have(['legs', 'push', 'core', 'pull', 'fullbody', 'upper']);
+      T('a week scheduled Legs, Push, Core, Pull, Full Body, Upper (the order on a real phone) still reads Full Body, Upper, Push, Pull, Legs, Core', c.trainPlanCategories().join() === 'fullbody,upper,push,pull,legs,core', c.trainPlanCategories().join());
+      c.schedule = { mon: 'core', tue: 'upper', wed: 'fullbody', thu: 'pull', fri: 'legs', sat: 'push', sun: 'rest' };
+      T('a differently ordered week gives the identical order', c.trainPlanCategories().join() === 'fullbody,upper,push,pull,legs,core');
+      have(['arms', 'core', 'push', 'lower', 'upper', 'fullbody', 'legs', 'pull']);
+      T('with every category present: Full Body, Upper, Lower, Push, Pull, Legs, Arms, Core', c.trainPlanCategories().join() === 'fullbody,upper,lower,push,pull,legs,arms,core');
+      T('Push, Pull and Legs are one group, adjacent and in that order', (() => { const l = c.trainPlanCategories(); const i = l.indexOf('push'); return l[i + 1] === 'pull' && l[i + 2] === 'legs'; })());
+      T('Full Body, Upper and Lower (the broad structures) come before the split families, and Core is last', (() => { const l = c.trainPlanCategories(); return l.indexOf('lower') < l.indexOf('push') && l.indexOf('fullbody') < l.indexOf('upper') && l[l.length - 1] === 'core'; })());
+      have(['pull', 'push']);
+      T('a plan with two categories shows those two, in order, and none that is empty', c.trainPlanCategories().join() === 'push,pull');
+      have([]);
+      T('a plan with no workouts has no category', c.trainPlanCategories().length === 0);
+      have(['upper', 'upper', 'push']);
+      T('no category appears twice', new Set(c.trainPlanCategories()).size === c.trainPlanCategories().length);
+      sub('by construction');
+      T('CATEGORY_DISPLAY_ORDER is exactly the order the chips read, and holds every category once',
+        c.CATEGORY_DISPLAY_ORDER.join() === 'fullbody,upper,lower,push,pull,legs,arms,core' && c.CATEGORY_DISPLAY_ORDER.length === c.ORDER.length && c.ORDER.every(k => c.CATEGORY_DISPLAY_ORDER.indexOf(k) !== -1));
+      T('the rotation nextCategory() walks (ORDER) is untouched', c.ORDER.join() === 'push,pull,legs,upper,lower,core,fullbody,arms');
+      const fn = fnSrc(src, 'trainPlanCategories');
+      T('nothing here follows the week, insertion order or the alphabet', /CATEGORY_DISPLAY_ORDER\.filter\(/.test(fn) && !/scheduledTrainCategories|localeCompare|\.sort\(/.test(fn));
+      T('an active category the plan has nothing in takes its place in the order, not the end of the row', /chipCats\.sort\(\(a, b\) => CATEGORY_DISPLAY_ORDER\.indexOf\(a\) - CATEGORY_DISPLAY_ORDER\.indexOf\(b\)\)/.test(fnSrc(src, 'renderTrainPlan')));
+      T('the chosen chip is scrolled into view on every draw, and the choice is kept', /trainRevealActiveChip\(\)/.test(fnSrc(src, 'renderTrainPlan')) && /trainCategoryChosen = true;/.test(fnSrc(src, 'setTrainCategory')));
+      T('workouts inside a category are untouched: trainPlanWorkouts still reads the templates as stored', /return list\.filter\(t => t && !isSavedWorkoutId\(t\.id\)\);/.test(fnSrc(src, 'trainPlanWorkouts')));
+    } finally { c.getTemplates = realT; c.schedule = realS; }
+  });
+
+  /* ------------------------------------------------------------- 4. OVERVIEW */
+  await guard('overview', async () => {
+    const app = H.loadApp({ workoutLog: '[]' }); const c = app.ctx;
+    const OV = [['Incline DB Press', [40, 42, 44, 46, 48, 50]], ['Machine Chest Press', [100, 100, 101, 100, 100, 101]], ['Machine Shoulder Press', [100, 106, 104, 103, 102, 95]], ['Seated Cable Row', [100, 100, 98, 96, 96, 94]]];
+    const ovLog = [0, 1, 2, 3, 4, 5].map(s => WK('ov' + s, (6 - s) * 9, 'push', OV.map(o => EX(o[0], [S(o[1][s], 8)]))));
+    c.workoutLog = ovLog; clearCaches(c);
+    const rowsOf = h => h.split('<div class="po-lift">').slice(1).map(r => ({ name: (/po-lift-n">([^<]*)</.exec(r) || [])[1], cls: (/po-lift-v ([^"]*)">/.exec(r) || [])[1] || '',
+      val: (/po-lift-v [^"]*">([^<]*)</.exec(r) || [])[1], d: (/<path d="([^"]*)"/.exec(r) || [])[1], sparkCls: (/po-spark ([^"]*)"/.exec(r) || [])[1] || '', aria: r }));
+    const html = c.progHeroHtml(), rows = rowsOf(html);
+    const strength = c.computeExerciseTrends();
+    const pctOf = n => strength.find(t => t.name === n).pct;
+
+    sub('each lift states a number and draws its own line');
+    T('three lifts, best-evidenced first, and Seated Cable Row (not 1RM-comparable) never appears', rows.map(r => r.name).join() === 'Incline DB Press,Machine Chest Press,Machine Shoulder Press', rows.map(r => r.name).join());
+    T('no row says "Trending up" or "Steady" where a number exists', !/Trending|Steady/.test(html));
+    T('every printed number is the one Strength → All exercises prints for that lift', rows.every(r => r.val === c.progTrendPctText(pctOf(r.name))), rows.map(r => r.name + '=' + r.val).join('; '));
+    T('and it is the SAME definition: computeExerciseTrends is exerciseTrendFromPoints over compute1RMTrend, for every logged lift',
+      strength.every(t => { const p = c.exerciseTrendFromPoints(c.compute1RMTrend(t.name)); return !!p && p.pct === t.pct && p.dir === t.dir && p.sessions === t.sessions; }) &&
+      /exerciseTrendFromPoints\(compute1RMTrend\(name\)\)/.test(fnSrc(src, 'computeExerciseTrends')));
+    T('the trend’s thresholds are the Strength list’s own, unchanged: +5% and over is up, −5% and under is down, between is flat; fewer than two points is no trend',
+      (() => { const p = v => c.exerciseTrendFromPoints([{ value: 100 }, { value: v }]); return p(105.5).dir === 'up' && p(104.5).dir === 'flat' && p(94.5).dir === 'down' && p(95.5).dir === 'flat' &&
+        Math.abs(p(121).pct - 21) < 1e-9 && c.exerciseTrendFromPoints([{ value: 100 }]) === null && c.exerciseTrendFromPoints(null) === null && c.exerciseTrendFromPoints([{ value: 0 }, { value: 5 }]).pct === 0; })());
+    T('the climb reads positive, in the success colour, on the number and on the line', /^\+\d+%$/.test(rows[0].val) && rows[0].cls.indexOf('po-improving') !== -1 && rows[0].sparkCls.indexOf('po-improving') !== -1, rows[0].val + ' ' + rows[0].cls);
+    T('a lift that ended lower reads NEGATIVE (a true minus sign), in the warning colour — never as a positive', rows[2].val.charCodeAt(0) === 0x2212 && /^\D\d+%$/.test(rows[2].val) && rows[2].cls.indexOf('po-declining') !== -1 && rows[2].sparkCls.indexOf('po-declining') !== -1 && pctOf('Machine Shoulder Press') < 0, rows[2].val);
+    T('a near-flat lift shows its real figure, neutral (not "Steady")', /^[+−]?[01]%$/.test(rows[1].val.replace(MINUS, '−')) && rows[1].cls.indexOf('po-improving') === -1 && rows[1].cls.indexOf('po-declining') === -1, rows[1].val);
+    T('a figure that rounds to nothing reads "0%", with no sign', c.progTrendPctText(0.4) === '0%' && c.progTrendPctText(-0.4) === '0%' && c.progTrendPctText(20.6) === '+21%' && c.progTrendPctText(-6.2) === MINUS + '6%');
+    T('one vertex per session: each line has exactly the lift’s real session count', rows.every(r => r.d.split(/[ML]/).filter(Boolean).length === strength.find(t => t.name === r.name).sessions));
+    T('the spoken label names the lift, the direction, the size and the sessions', /Incline DB Press: estimated strength up \d+ percent, first session to latest, from 6 sessions/.test(html) && /Machine Shoulder Press: estimated strength down \d+ percent/.test(html));
+    T('the footer says what the number is, and no longer claims a median comparison the number is not', /Estimated strength, first session to latest/.test(html) && !/Median of your early sessions/.test(html));
+    T('the headline is still D39 evidence: the sentence and the lifts it picks are the engine’s', /Your training is moving/.test(html) && /1 of your 3 tracked lifts is stronger/.test(html));
+
+    sub('the line is the lift’s own data — nothing fabricated, nothing exaggerated');
+    const pts = [{ value: 100 }, { value: 110 }, { value: 105 }, { value: 130 }];
+    const m = c.overviewSparkModel(pts, 68, 22);
+    T('one vertex per point, left to right, no extra points', m.verts.length === 4 && m.verts.every((v, i) => i === 0 || v.x > m.verts[i - 1].x) && m.d.split(/[ML]/).filter(Boolean).length === 4);
+    T('higher strength is higher on the line: the order of the y values is exactly the reverse of the order of the values',
+      pts.every((a, i) => pts.every((b, j) => (a.value < b.value) === (m.verts[i].y > m.verts[j].y) || a.value === b.value)));
+    T('a real climb fills the box; a fall ends lower than it began; a rise ends higher', (Math.max.apply(null, m.verts.map(v => v.y)) - Math.min.apply(null, m.verts.map(v => v.y))) >= 13.9 &&
+      m.verts[3].y < m.verts[0].y && c.overviewSparkModel([{ value: 130 }, { value: 100 }], 68, 22).verts[1].y > c.overviewSparkModel([{ value: 130 }, { value: 100 }], 68, 22).verts[0].y);
+    const flat = c.overviewSparkModel([{ value: 100 }, { value: 101 }, { value: 100 }, { value: 101 }], 68, 22);
+    T('a lift that moved 1% draws nearly flat (the scale floor), not a zigzag as dramatic as a 25% climb', (Math.max.apply(null, flat.verts.map(v => v.y)) - Math.min.apply(null, flat.verts.map(v => v.y))) < 3 && c.SPARK_MIN_SPAN === 0.12);
+    T('sessions that all match draw a level line at mid-height; fewer than two sessions draws nothing',
+      c.overviewSparkModel([{ value: 5 }, { value: 5 }, { value: 5 }], 68, 22).verts.every(v => v.y === 11) && c.overviewSparkModel([{ value: 1 }], 68, 22) === null && c.overviewSparkSvg([]) === '' && c.overviewSparkModel(null, 68, 22) === null);
+    T('the svg is decorative (hidden from assistive tech: the row carries the words) and uses currentColor, so it takes the row’s semantic colour', /aria-hidden="true"/.test(c.overviewSparkSvg(pts)) && /stroke="currentColor"/.test(c.overviewSparkSvg(pts)));
+
+    sub('insufficient history says so — no fake chart');
+    const realTrend = c.compute1RMTrend;
+    c.compute1RMTrend = () => [];
+    const h0 = c.progHeroHtml(), r0 = rowsOf(h0);
+    c.compute1RMTrend = realTrend;
+    T('a lift with fewer than two sessions of its own under its name draws nothing and states its direction in words', r0.length === 3 && r0.every(r => r.d === undefined && /Trending up|Steady/.test(r.val) && r.cls.indexOf('po-none') !== -1 && r.sparkCls.indexOf('po-none') !== -1), r0.map(r => r.val).join());
+    T('…and its spoken label says the chart is missing, not that the lift is flat', /not enough sessions under this name to chart/.test(h0));
+    let calls = 0;
+    c.compute1RMTrend = (...a) => { calls++; return realTrend.apply(null, a); };
+    c.progHeroHtml();
+    c.compute1RMTrend = realTrend;
+    T('cost: one pass per shown lift — the Overview reads the log at most three times for its rows, and never derives the full Strength list', calls <= 3 && !/computeExerciseTrends/.test(fnSrc(src, 'progHeroHtml')), 'calls ' + calls);
+    T('long names wrap to at most two lines and never push the line or the number off the row', /\.po-lift-n\{[^}]*-webkit-line-clamp: 2;[^}]*line-clamp: 2;/.test(src) && /\.po-spark\{ flex: 0 0 68px; height: 22px;/.test(src) && /\.po-lift-v\{\s*flex: 0 0 auto; min-width: 46px;/.test(src));
+    T('the 320px layout gives the line less room, not the number', /@media \(max-width: 359px\)\{ \.po-spark\{ flex-basis: 52px; \} \.po-spark svg\{ width: 52px; \} \}/.test(src));
+  });
+
+  /* ------------------------------------------------------ 5. NOTHING PROTECTED */
+  await guard('protected', async () => {
+    const app = H.loadApp({ workoutLog: '[]' }); const c = app.ctx;
+    sub('nothing protected moved');
+    const PINS = {
+    'computeXPTimeline': '8c298b498a14c04d',
+      'calculateWorkoutXP': '91b8fca789942c50',
+      'calculateSetXP': '625722a99a04e30f',
+      'calculatePRXP': 'ba20ebe522acc1a3',
+      'calculateRequiredXP': '5a74d3aad961c629',
+      'calculateLevelFromXP': '9418f2e5934245da',
+      'getCurrentProgression': '668ef1cd59eb2930',
+      'computeExercisePREvents': '45ea0d06bd7b9167',
+      'computeAllPREvents': '94af217dbcf1f9ed',
+      'computePRs': 'a8541afeb6205e1c',
+      'prModeOf': 'a0ac7f761228372f',
+      'prModesByLift': '7aa68bbd9de95dbb',
+      'deriveExercisePRMode': '262d3ed985632762',
+      'wasSessionPR': 'b719ca9d07d1ae30',
+      'getSessionPRs': 'b7bbfa2f0f33ba3f',
+      'computeWorkoutQuality': '30f1165dd94654eb',
+      'deriveSessionExecution': '0498f3f2c0dd3c2c',
+      'sessionScore': '842e5699f8ac0835',
+      'masteryPointsFor': '0c704c40a853d991',
+      'masteryPRCounts': 'f77664c53b2ea14a',
+      'computeExerciseCapability': 'c5d483414a1628ca',
+      'proposeTrainerState': '34899e0f53f1d235',
+      'rankPBTCandidates': '5e5f609ad9a2053a',
+      'computePersonalBestTimeline': 'e41926dcb1cfa844',
+      'computePBTCandidates': 'ba795fd4ab772a63',
+      'pbtPageModel': 'df6ca87cd50e2a81',
+      'derivePerformanceProgress': 'd6af496a3247110d',
+      'perfTrendFor': 'aa44a933e4839a3d',
+      'perfDeltaText': '71abfda3ac1c4c8f',
+      'perfObservations': '4642fb526562088e',
+      'compute1RMTrend': '2df090764cbc13fe',
+      'rankIndexOf': '821cfe82a1a7cb79',
+      'rankMedalSvg': 'a98a7999ea912349',
+      'rankArrive': '280a7fed106a907b'
+    };
+    const bad = Object.keys(PINS).filter(n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) !== PINS[n]);
+    T('XP, level, PR events and modes, Session Score, the legacy quality score, Mastery points, capability, the trainer proposal, the PBT ranking and every D39 evidence function are byte-identical to LOOP 10.0 (' + Object.keys(PINS).length + ' pinned by the hash of their source)',
+      bad.length === 0, bad.join());
+    T('DATA_KEYS 15, schema 1, trainer 0.1.1-shadow', c.DATA_KEYS.length === 15 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('the ranks and their thresholds are as they were', c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50');
+    T('the XP curve is as it was: 120,800 XP to reach Level 50', (() => { let s = 0; for(let l = 1; l < 50; l++) s += c.calculateRequiredXP(l); return s === 120800; })());
+    T('the Session Score weights are as they were: 40 / 30 / 18 / 12', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+    T('D91’s PR mode model is as it was: LOADED, BODYWEIGHT, UNKNOWN', Object.keys(c.PR_MODE).sort().join() === 'BODYWEIGHT,LOADED,UNKNOWN');
+    T('the LOOP 10.0 rank tour is intact (Contract 200 still runs)', /await testRankTourD97\(\);/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'loop-tests.js'), 'utf8')));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -36348,6 +36765,7 @@ async function main(){
   await testSocialSecurityClosure();
   await testRankEmblemsD96();
   await testRankTourD97();
+  await testRealUseUxD98();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

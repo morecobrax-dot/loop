@@ -272,7 +272,9 @@ function loadApp(initialStore){
     'MASTERY_SWITCH_MS',
     /* D97 — the rank page opened on its own, the light it tracks, and the Rank
        screen's arrival timing it shares */
-    'onboardingSolo','onboardingAnims','RANK_ARRIVE'];
+    'onboardingSolo','onboardingAnims','RANK_ARRIVE',
+    /* D98 — the Personal Best Timeline's one display set, and the Overview line's scale floor */
+    'pbtDisplaySet','pbtTempSet','pbtActiveIndex','SPARK_MIN_SPAN'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +
     '__N.forEach(function(n){try{' +
     'var probe=eval(n);' +

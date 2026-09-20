@@ -3676,26 +3676,28 @@ body.first-use{ padding-bottom: 0; }
 }
 .po-hero-quiet .po-head{ color: var(--text-dim); }
 
-/* The evidence under the headline. Each row is one lift: name, a bar for the
-   size of the movement, and the number the bar encodes. */
+/* The evidence under the headline. Each row is one lift: its name, the line its
+   own sessions drew, and the number that line ends on. D98 — the line replaces a
+   bar that only echoed the number, so the row shows the climb and states it. */
 .po-lifts{ display: flex; flex-direction: column; gap: 9px; margin-top: 15px; }
 .po-lift{ display: flex; align-items: center; gap: 10px; }
 .po-lift-n{
-  flex: 0 0 40%; min-width: 0; font-size: var(--fs-support); font-weight: 600;
-  color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1 1 0; min-width: 0; font-size: var(--fs-support); font-weight: 600; line-height: 1.25;
+  color: var(--text); overflow: hidden; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
 }
-.po-lift-track{
-  flex: 1; min-width: 0; height: 7px; border-radius: 99px;
-  background: var(--surface-3); overflow: hidden;
-}
-.po-lift-track i{ display: block; height: 100%; border-radius: 99px; background: var(--text-faint); }
-.po-lift-track i.po-improving{ background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+.po-spark{ flex: 0 0 68px; height: 22px; display: block; color: var(--text-faint); }
+.po-spark svg{ display: block; width: 68px; height: 22px; }
+.po-spark.po-improving{ color: var(--success); }
+.po-spark.po-declining{ color: var(--warning); }
 .po-lift-v{
-  flex: 0 0 auto; min-width: 44px; text-align: right; font-family: 'JetBrains Mono', monospace;
+  flex: 0 0 auto; min-width: 46px; text-align: right; font-family: 'JetBrains Mono', monospace;
   font-size: var(--fs-meta); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-dim);
 }
 .po-lift-v.po-improving{ color: var(--success); }
 .po-lift-v.po-declining{ color: var(--warning); }
+.po-lift-v.po-none{ font-weight: 600; font-size: var(--fs-micro); letter-spacing: 0.02em; }
+@media (max-width: 359px){ .po-spark{ flex-basis: 52px; } .po-spark svg{ width: 52px; } }
 .po-foot{
   display: block; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
   font-size: var(--fs-micro); color: var(--text-faint); line-height: 1.4;
@@ -16788,6 +16790,28 @@ const LOOP_UPDATES = [
     changes: [
       'If you’ve already finished the tour you won’t be sent through it again — the new page is behind the Rank screen’s info button, or replay the tour from Settings → Getting Started'
     ]
+  },
+  {
+    id: 'v10-1',
+    version: 'LOOP 10.1',
+    title: 'Real-Use Fixes',
+    date: '2026-09-20',
+    swVersion: 'loop-v178',
+    summary: 'Personal Best stays in sync as you search and swipe, the Rank ladder answers a light swipe, Train’s workout tabs read in a sensible order, and each lift on Overview shows its percentage and a line of its own sessions.',
+    newFeatures: [
+      'Each lift on Overview shows its percentage change and a small line drawn from its own sessions'
+    ],
+    improvements: [
+      'The Rank ladder moves on an ordinary swipe or a light flick — no need to drag across the screen',
+      'Train’s workout tabs read in one fixed order — Full Body, Upper, Lower, Push, Pull, Legs, Arms, Core — instead of the order your week happens to use',
+      'A lift you pick on Personal Best now opens as page 1 of the same five, instead of a sixth page'
+    ],
+    bugFixes: [
+      'Personal Best could show one exercise’s name above another’s numbers after you searched and swiped — every part of the card now follows the same exercise'
+    ],
+    changes: [
+      'The Overview footer now says what the percentage is: estimated strength from the first session to the latest, the same as the Strength tab'
+    ]
   }
 ];
 
@@ -21431,19 +21455,27 @@ function computeMuscleGroupBreakdown(){
   return { totals, sum };
 }
 
+/* D98 — the one definition of an exercise's trend, so the Strength list and the
+   Overview cannot state different numbers for the same lift: first session's
+   estimated strength against the latest, as a percentage, and up / flat / down
+   at five percent. Two points is the least there is to compare. */
+function exerciseTrendFromPoints(points){
+  if(!points || points.length < 2) return null;
+  const first = points[0].value;
+  const last = points[points.length - 1].value;
+  const pct = first > 0 ? ((last - first) / first) * 100 : 0;
+  let dir = 'flat';
+  if(pct >= 5) dir = 'up';
+  else if(pct <= -5) dir = 'down';
+  return { sessions: points.length, pct, dir };
+}
 function computeExerciseTrends(){
   const names = getLoggedExerciseNames();
   const trends = [];
   names.forEach(name => {
-    const points = compute1RMTrend(name);
-    if(points.length < 2) return;
-    const first = points[0].value;
-    const last = points[points.length - 1].value;
-    const pct = first > 0 ? ((last - first) / first) * 100 : 0;
-    let dir = 'flat';
-    if(pct >= 5) dir = 'up';
-    else if(pct <= -5) dir = 'down';
-    trends.push({ name, sessions: points.length, pct, dir });
+    const t = exerciseTrendFromPoints(compute1RMTrend(name));
+    if(!t) return;
+    trends.push({ name, sessions: t.sessions, pct: t.pct, dir: t.dir });
   });
   trends.sort((a,b) => b.sessions - a.sessions);
   return trends;
@@ -27867,17 +27899,17 @@ function trainPlanWorkouts(cat){
   try{ list = getTemplates(cat) || []; }catch(e){ list = []; }
   return list.filter(t => t && !isSavedWorkoutId(t.id));
 }
-/* The kinds of session the plan has workouts for: the week's own first, in the
-   order it runs, then the rest of the plan. */
+/* The kinds of session the plan has workouts for, in the ONE order the chips
+   read: CATEGORY_DISPLAY_ORDER — the broadest structures first (Full Body,
+   Upper, Lower), then the split families together (Push, Pull, Legs), then the
+   specialised ones (Arms, Core). D98 — this used to follow the order the
+   athlete's week happened to schedule them in (Push, Pull, Full Body, Core,
+   Legs, Upper on one real phone), which reads as no order at all. The plan
+   still decides WHICH categories appear (only those with a workout); the week
+   no longer decides where. Presentation only: ORDER, nextCategory() and every
+   workout inside a category are untouched. */
 function trainPlanCategories(){
-  const inPlan = scheduledTrainCategories();
-  return ORDER.filter(c => trainPlanWorkouts(c).length).sort((a, b) => {
-    const ai = inPlan.indexOf(a), bi = inPlan.indexOf(b);
-    if(ai !== -1 && bi !== -1) return ai - bi;
-    if(ai !== -1) return -1;
-    if(bi !== -1) return 1;
-    return ORDER.indexOf(a) - ORDER.indexOf(b);
-  });
+  return CATEGORY_DISPLAY_ORDER.filter(c => trainPlanWorkouts(c).length);
 }
 
 /* The session LOOP trains on a date, resolved the way Today's hero resolves
@@ -28060,6 +28092,9 @@ function renderTrainPlan(view){
     const hadFocus = !!(focused && focused.closest && focused.closest('#trainChips'));
     const chipCats = cats.slice();
     if(active !== 'all' && CAT_LABEL[active] && chipCats.indexOf(active) === -1) chipCats.push(active);
+    /* An active category the plan has nothing in still takes its place in the
+       order, not the end of the row. */
+    chipCats.sort((a, b) => CATEGORY_DISPLAY_ORDER.indexOf(a) - CATEGORY_DISPLAY_ORDER.indexOf(b));
     chipsEl.innerHTML = ['all'].concat(chipCats).map(c => {
       const on = c === active;
       const empty = c !== 'all' && !trainPlanWorkouts(c).length;
@@ -29603,23 +29638,47 @@ function pbtPageModel(t){
   return { exerciseName, isBW, unit, milestones, displayMilestones: pbtDisplayMilestones(milestones),
     current, first, gain, gainPercent, firstDate: first.date, latestDate: current.date };
 }
+/* D98 — THE ONE DISPLAY SET. The strip is never more than
+   PBT_CONFIG.maxCarouselExercises pages:
+     · the lift is among the top ranked few  -> those few, in rank order, and the
+       strip opens on that lift's real place in them;
+     · it is outside them (picked from the picker) -> that lift FIRST, then the
+       highest ranked others: "1 of 5", not a sixth page tacked on.
+   Once made, the set is KEPT. Swiping between its pages never rebuilds it, so
+   a swipe away and back finds the same lift where it was; only picking a lift
+   that is not in it (see pbtChooseExercise) makes a new one. D83 rebuilt the set
+   from the current selection on every settle, so the list the slides were drawn
+   from and the list the settle then read could be two different arrays — the
+   title of one lift over the numbers of another. Ranking is untouched. */
+function pbtDisplaySetFor(ranked, selected){
+  const max = PBT_CONFIG.maxCarouselExercises;
+  const names = ranked.map(t => t.exerciseName);
+  if(pbtTempSet && pbtDisplaySet && pbtDisplaySet.length <= max &&
+     new Set(pbtDisplaySet).size === pbtDisplaySet.length &&
+     pbtDisplaySet.every(n => names.indexOf(n) !== -1) && pbtDisplaySet.indexOf(selected) !== -1) return pbtDisplaySet;
+  const natural = names.slice(0, max);
+  if(natural.indexOf(selected) !== -1){ pbtTempSet = false; pbtDisplaySet = natural; return natural; }
+  pbtTempSet = true;
+  pbtDisplaySet = [selected].concat(names.filter(n => n !== selected).slice(0, max - 1));
+  return pbtDisplaySet;
+}
 function buildPersonalBestTimelineModel(){
   const candidates = computePBTCandidates();
-  if(!candidates.length){ pbtSelectedExercise = null; return { candidates, ranked:[], carousel:[], activeExercise:null, pages:[] }; }
+  if(!candidates.length){
+    pbtSelectedExercise = null; pbtDisplaySet = null; pbtTempSet = false; pbtActiveIndex = -1;
+    return { candidates, ranked:[], carousel:[], activeExercise:null, activeIndex:-1, pages:[] };
+  }
   const ranked = rankPBTCandidates(candidates);
   if(!pbtSelectedExercise || !candidates.some(t => t.exerciseName === pbtSelectedExercise)){
     pbtSelectedExercise = ranked[0].exerciseName;
   }
   const activeExercise = pbtSelectedExercise;
-  /* The swipe set is the top-ranked few, in rank order — restrained on
-     purpose. If the athlete's own pick (via the picker) sits outside that
-     set, it is included too, wherever it naturally ranks, so nothing the
-     athlete is actually looking at ever falls off the strip; it is not
-     stored anywhere and reverts to just the top set the moment a
-     top-ranked exercise is chosen again. */
-  const carousel = ranked.filter((t, i) => i < PBT_CONFIG.maxCarouselExercises || t.exerciseName === activeExercise);
+  const set = pbtDisplaySetFor(ranked, activeExercise);
+  const carousel = set.map(n => candidates.find(t => t.exerciseName === n));
   const pages = carousel.map(pbtPageModel);
-  return { candidates, ranked, carousel, activeExercise, pages };
+  const activeIndex = set.indexOf(activeExercise);
+  pbtActiveIndex = activeIndex;
+  return { candidates, ranked, carousel, activeExercise, activeIndex, pages, temporary: pbtTempSet };
 }
 
 /* VERY LONG HISTORY: the dots actually drawn are capped so the card stays
@@ -29848,15 +29907,21 @@ function rankCardHtml(r, i, p){
    while the ladder moves, so no part of the page can disagree
    with another about where it is.
 
-   THE GESTURE is a scroll until it has shown it is sideways
-   (intentSlop, intentRatio). From then the ladder follows the
+   THE GESTURE is undecided until it has shown which way it goes:
+   sideways (intentSlop, intentRatio) or clearly vertical
+   (verticalSlop, verticalRatio). An arc that starts upward is
+   still a swipe if it ends up sideways, so nothing is thrown away
+   on the first few pixels. From then the ladder follows the
    finger 1:1, and past either end it resists harder the
    further it is pulled.
 
    THE RELEASE is decided by rankSettleTarget() from what the
-   finger said last: a slow drag moves past a third of a panel;
-   a flick moves exactly one rank; a throw back against the
-   drag cancels it. The ladder then travels on a critically
+   finger said last, DISTANCE AND SPEED TOGETHER: a light flick,
+   or a drag of about a sixth of a panel, or a mix of the two,
+   moves exactly one rank (D98 — it used to take a third of a
+   panel, or a throw of 0.35 px/ms, which a real thumb does not
+   make); a throw back against the drag cancels it. The ladder
+   then travels on a critically
    damped spring that starts at the finger's own speed, so a
    release continues the gesture instead of restarting it, and
    a finger put on a moving ladder holds it where it is.
@@ -29874,10 +29939,16 @@ function rankCardHtml(r, i, p){
    nothing about where the ladder is.
    ========================================================= */
 const RANK_MOTION = {
-  intentSlop: 10,         // px a touch travels before it can be anything but a tap
-  intentRatio: 1.15,      // ...and sideways must lead vertical by this much to be a swipe
-  flickVelocity: 0.35,    // px/ms at release
-  flickDistance: 24,      // px after the slop: 34px of finger travel, clear of tap wander
+  intentSlop: 10,         // px a touch travels sideways before it can be a swipe...
+  intentRatio: 1.0,       // ...and sideways must LEAD the vertical travel by this much (a tie stays undecided, so it never becomes a swipe by itself)
+  verticalSlop: 22,       // a touch is a scroll only after this much vertical travel...
+  verticalRatio: 1.5,     // ...that leads the sideways travel by this much. Until one of the two is clear it is still deciding
+  flickVelocity: 0.18,    // px/ms at release: 180 px/s, an ordinary thumb, not a throw (was 0.35)
+  flickDistance: 22,      // px of finger travel FROM TOUCH-DOWN, clear of tap wander
+  throwBackVelocity: 0.30, // a throw back against the drag cancels it only this fast
+  commitFraction: 0.16,   // distance and speed together must reach this share of a rank (was a third)
+  commitMin: 36,          // ...and never less than this many px: a wobble is not a swipe
+  projectMs: 160,         // the look ahead: speed counts as this many ms of further travel
   velocityWindowMs: 100,  // release speed is read over the last 100ms of movement
   restMs: 60,             // a finger that rested this long before lifting threw nothing
   rubber: 0.55,           // resistance past either end
@@ -29917,21 +29988,33 @@ function rankRubber(overshoot, dimension){
                (negative = toward the higher ranks)
      vPx       release velocity in px/ms, same sign
      step      one panel, in px
-     heading   the rank the ladder was travelling to when the finger landed */
-function rankSettleTarget(startPos, dragPx, vPx, step, heading){
+     heading   the rank the ladder was travelling to when the finger landed
+     lead      optional: the sideways travel BEFORE the ladder took the gesture
+               (the slop), same sign as dragPx. It is real finger travel, so it
+               counts toward whether the swipe was long enough; the ladder
+               itself only moved from where the gesture became a swipe. */
+function rankSettleTarget(startPos, dragPx, vPx, step, heading, lead){
   const M = RANK_MOTION, last = RANKS.length - 1;
   const s = Math.max(1, step || 1);
   const clamp = i => Math.max(0, Math.min(last, i));
   const start = clamp(Math.round(startPos));
   const home = heading === undefined ? start : clamp(heading);
   const dx = dragPx || 0, v = vPx || 0;
+  const travel = dx + (lead || 0);                    // everything the finger moved sideways
   const at = startPos - dx / s;                       // the ladder under the finger
-  const dragDir = dx < 0 ? 1 : -1, throwDir = v < 0 ? 1 : -1;
+  const dragDir = travel < 0 ? 1 : -1, throwDir = v < 0 ? 1 : -1;
+  /* DISTANCE AND SPEED TOGETHER. A swipe is judged by how far the finger went
+     plus a short look ahead at how fast it was still going: a light flick and a
+     longer, slower drag both land, and neither has to be exaggerated. */
+  const ahead = v * travel > 0 ? v * M.projectMs : 0;
+  const far = Math.abs(travel) >= M.flickDistance && Math.abs(travel + ahead) >= Math.max(M.commitMin, M.commitFraction * s);
   if(Math.abs(v) >= M.flickVelocity){
-    /* The last thing the finger said wins: a throw back against the drag
-       cancels it, whatever distance came first. */
-    if(dx !== 0 && throwDir !== dragDir) return home;
-    if(Math.abs(dx) >= M.flickDistance){
+    if(travel !== 0 && throwDir !== dragDir){
+      /* The last thing the finger said wins: a throw back against the drag
+         cancels it, whatever distance came first. A gentler drift back is not
+         a throw, and moves nothing either way. */
+      if(Math.abs(v) >= M.throwBackVelocity) return home;
+    } else if(Math.abs(travel) >= M.flickDistance){
       /* One rank past the further of where the ladder is and where it was
          already going. A throw on a ladder still arriving counts from its
          destination, so a run of quick flicks never spends one of them
@@ -29942,7 +30025,7 @@ function rankSettleTarget(startPos, dragPx, vPx, step, heading){
   }
   /* Grabbed in flight and let go slowly: the rank it is nearest. */
   if(Math.abs(startPos - start) > 0.02) return clamp(Math.round(at));
-  if(Math.abs(dx) > s / 3) return clamp(start + dragDir * Math.max(1, Math.round(Math.abs(dx) / s)));
+  if(far) return clamp(start + dragDir * Math.max(1, Math.round(Math.abs(travel) / s)));
   return start;
 }
 
@@ -30379,22 +30462,36 @@ function wireRankCarousel(){
     const moving = !!(_rankCar.raf || _rankCar.jumpTimer);
     /* A finger on a moving ladder holds it exactly where it is. */
     if(moving) rankStopAnimation();
-    _rankDrag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, t0: rankNow(), dx: 0,
-      mode: 'pending', startPos: _rankCar.pos, heading: rankShowcaseIndex, moving, samples: [] };
+    /* The touch-down point is kept (xDown) because x0 moves to where the ladder
+       takes the gesture; the samples start here so the finger's speed is read
+       from its first movement, not only from the moment it became a swipe. */
+    _rankDrag = { id: e.pointerId, x0: e.clientX, xDown: e.clientX, y0: e.clientY, t0: rankNow(), dx: 0, lead: 0,
+      mode: 'pending', startPos: _rankCar.pos, heading: rankShowcaseIndex, moving, samples: [{ t: rankNow(), x: e.clientX }] };
   });
   wrap.addEventListener('pointermove', e => {
     const d = _rankDrag;
     if(!d || e.pointerId !== d.id || d.mode === 'scroll') return;
     if(d.mode === 'pending'){
-      const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
-      if(Math.abs(dx) < RANK_MOTION.intentSlop && Math.abs(dy) < RANK_MOTION.intentSlop) return;
-      if(Math.abs(dx) < Math.abs(dy) * RANK_MOTION.intentRatio){
-        d.mode = 'scroll';                         // vertical intent: a scroll, and it stays one
+      const dx = e.clientX - d.xDown, dy = e.clientY - d.y0, ax = Math.abs(dx), ay = Math.abs(dy);
+      if(ay >= RANK_MOTION.verticalSlop && ay >= ax * RANK_MOTION.verticalRatio){
+        d.mode = 'scroll';                         // clearly vertical: a scroll, and it stays one
+        return;
+      }
+      if(ax < RANK_MOTION.intentSlop || ax <= ay * RANK_MOTION.intentRatio){
+        /* Not clear yet. D98 — this used to decide on the very first pixel past
+           the slop in EITHER direction and lock a scroll for good, so a thumb
+           that arcs upward before it sweeps sideways was refused a swipe it was
+           plainly making. It keeps watching instead, and what it sees still
+           counts toward the finger's speed. */
+        d.samples.push({ t: rankNow(), x: e.clientX });
+        if(d.samples.length > 16) d.samples.shift();
         return;
       }
       /* Sideways intent. The ladder takes the gesture from this point, so it
-         starts moving without jumping the slop. */
+         starts moving without jumping the slop — and the slop travel still
+         counts toward how far the swipe went (lead). */
       d.mode = 'drag';
+      d.lead = dx;
       d.x0 = e.clientX;
       wrap.classList.add('is-dragging');
       try{ wrap.setPointerCapture(e.pointerId); }catch(err){}
@@ -30433,7 +30530,7 @@ function wireRankCarousel(){
       d.dx = e.clientX - d.x0;
     }
     const v = rankReleaseVelocity(d.samples, now);
-    rankGoTo(rankSettleTarget(d.startPos, d.dx, v, step, d.heading), -v / step, true);
+    rankGoTo(rankSettleTarget(d.startPos, d.dx, v, step, d.heading, d.lead), -v / step, true);
   };
   wrap.addEventListener('pointerup', release);
   wrap.addEventListener('pointercancel', release);
@@ -31217,6 +31314,14 @@ let progRange = 12;
    (no DATA_KEY): it starts at the automatic pick every fresh load, and only
    remembers a manual choice for as long as this session stays open. */
 let pbtSelectedExercise = null;
+/* D98 — the pages the card is showing, by name, in order. ONE array: the slides,
+   the dots, the counter, the picker and the title are all read from it (or from
+   the slides it built), never from a second list worked out again from the
+   selection. Presentation only, like the selection — never stored, and a fresh
+   load starts without it. */
+let pbtDisplaySet = null;
+let pbtTempSet = false;        // true while the strip is "the lift the athlete asked for, then the top ranked others"
+let pbtActiveIndex = -1;       // the slide in front, read from the strip's own scroll position
 let progSelectedWeek = null;
 let exDetailName = null;
 let exDetailMetric = '1rm';
@@ -33229,6 +33334,43 @@ function progRecentWorkouts(){
   return (workoutLog || []).filter(w => w && w.date && w.date >= key);
 }
 
+/* D98 — the number beside each Overview lift, from the trend's own percentage:
+   "+21%", "−6%" (a true minus sign), "0%" when it rounds to nothing. */
+function progTrendPctText(pct){
+  const r = Math.round(pct);
+  if(!Number.isFinite(r) || r === 0) return '0%';
+  return (r > 0 ? '+' : '−') + Math.abs(r) + '%';
+}
+
+/* D98 — the small line beside each lift: ONE vertex per session, oldest to
+   newest, each at that session's own estimated strength (compute1RMTrend — the
+   series the percentage is read from), scaled to the box. Nothing is smoothed,
+   resampled or invented; a lift whose sessions all match draws a level line.
+   The scale never shows less than a 12% span (SPARK_MIN_SPAN), centred: without
+   that floor a lift that moved 1% is stretched to the full height and looks as
+   dramatic as one that moved 25%. A real climb or fall still fills the box. */
+const SPARK_MIN_SPAN = 0.12;
+function overviewSparkModel(points, w, h){
+  const n = points ? points.length : 0;
+  if(n < 2) return null;
+  const vals = points.map(p => p.value);
+  const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  const span = Math.max(hi - lo, SPARK_MIN_SPAN * hi), mid = (hi + lo) / 2;
+  const padX = 3, padY = 4, iw = w - 2 * padX, ih = h - 2 * padY;
+  const verts = vals.map((v, i) => ({
+    x: +(padX + (i / (n - 1)) * iw).toFixed(2),
+    y: +(hi === lo ? h / 2 : h / 2 - ((v - mid) / span) * ih).toFixed(2)
+  }));
+  return { verts, last: verts[n - 1], d: verts.map((p, i) => (i ? 'L' : 'M') + p.x + ' ' + p.y).join(' ') };
+}
+function overviewSparkSvg(points){
+  const m = overviewSparkModel(points, 68, 22);
+  if(!m) return '';
+  return '<svg viewBox="0 0 68 22" width="68" height="22" focusable="false" aria-hidden="true">' +
+    '<path d="' + m.d + '" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<circle cx="' + m.last.x + '" cy="' + m.last.y + '" r="2.1" fill="currentColor"/></svg>';
+}
+
 /* The dominant answer. States what the evidence supports and stops there. */
 function progHeroHtml(){
   let perf = null;
@@ -33253,30 +33395,44 @@ function progHeroHtml(){
     ? `${improving.length} of your ${perf.evidencedExercises} tracked lift${perf.evidencedExercises===1?'':'s'} ${improving.length===1?'is':'are'} stronger than earlier in the last 12 weeks.`
     : `${perf.evidencedExercises} lift${perf.evidencedExercises===1?' is':'s are'} holding their level over the last 12 weeks. Steady is not stalled — it is the same work, repeated.`;
 
-  /* The evidence itself, largest first. Each row is a real median-to-median
-     comparison; a lift without enough sessions for a number shows its
-     direction in words rather than an invented percentage. */
+  /* The lifts the evidence engine puts first (D39: improving before steady, the
+     best-evidenced first). D98 — each row now states its number and draws its
+     line from the SAME place the Strength tab's "All exercises" reads them:
+     exerciseTrendFromPoints over compute1RMTrend, the lift's own best set from
+     every session it was logged. The old row printed a word ("Trending up")
+     whenever D39 held a number back for want of six sessions, which is exactly
+     when an athlete with four or five sessions most wants to see one. A lift
+     under a spelling with fewer than two of its own sessions has nothing to
+     draw or state, so it says so in words and draws nothing. */
   const shown = rows.slice(0, 3);
-  const bars = shown.map(r => {
-    const delta = perfDeltaText(r);
-    const word = perfTrendWord(r);
-    const pct = (r.numeric && r.pct != null) ? Math.abs(Math.round(r.pct)) : null;
-    /* Bar length is capped so one outsized gain cannot flatten the others
-       into invisibility. It encodes the same number the label states. */
-    const w = pct == null ? 0 : Math.max(8, Math.min(100, Math.round((pct / 25) * 100)));
-    return `
+  const items = shown.map(r => {
+    const name = programShortName(r.name);
+    const points = compute1RMTrend(r.name);
+    const tr = exerciseTrendFromPoints(points);
+    if(!tr){
+      const word = perfTrendWord(r);
+      return { spoken: name + ': ' + word.toLowerCase() + ', not enough sessions under this name to chart',
+        html: `
       <div class="po-lift">
-        <span class="po-lift-n">${escapeHtml(programShortName(r.name))}</span>
-        <span class="po-lift-track" aria-hidden="true"><i class="po-${r.direction}" style="width:${w}%"></i></span>
-        <span class="po-lift-v po-${r.direction}">${escapeHtml(delta ? (r.pct >= 0 ? '+' : '−') + pct + '%' : word)}</span>
-      </div>`;
-  }).join('');
-
-  const spoken = shown.map(r => {
-    const d = perfDeltaText(r);
-    return programShortName(r.name) + ': ' + (d || perfTrendWord(r).toLowerCase())
-      + ', from ' + r.sessions + ' comparable sessions';
-  }).join('. ');
+        <span class="po-lift-n">${escapeHtml(name)}</span>
+        <span class="po-spark po-none" aria-hidden="true"></span>
+        <span class="po-lift-v po-none">${escapeHtml(word)}</span>
+      </div>` };
+    }
+    const cls = tr.dir === 'up' ? 'po-improving' : tr.dir === 'down' ? 'po-declining' : 'po-flat';
+    const text = progTrendPctText(tr.pct);
+    const rounded = Math.round(tr.pct);
+    return { spoken: name + ': estimated strength ' + (rounded === 0 ? 'unchanged' : (rounded > 0 ? 'up ' : 'down ') + Math.abs(rounded) + ' percent')
+        + ', first session to latest, from ' + tr.sessions + ' sessions',
+      html: `
+      <div class="po-lift">
+        <span class="po-lift-n">${escapeHtml(name)}</span>
+        <span class="po-spark ${cls}" aria-hidden="true">${overviewSparkSvg(points)}</span>
+        <span class="po-lift-v ${cls}">${text}</span>
+      </div>` };
+  });
+  const bars = items.map(i => i.html).join('');
+  const spoken = items.map(i => i.spoken).join('. ');
 
   return `
     <button type="button" class="po-hero po-hero-tap" onclick="switchProgTab('strength')"
@@ -33288,7 +33444,7 @@ function progHeroHtml(){
       <span class="po-head">${head}</span>
       <span class="po-line">${line}</span>
       <span class="po-lifts" aria-hidden="true">${bars}</span>
-      <span class="po-foot">Median of your early sessions against your recent ones</span>
+      <span class="po-foot">Estimated strength, first session to latest — the same as Strength</span>
     </button>`;
 }
 
@@ -33618,7 +33774,12 @@ function pbtPageHtml(p, index){
 }
 
 function pbtChooseExercise(name){
+  /* D98 — a pick is a fresh decision and always rebuilds the set: a lift in the
+     natural top few gets the natural strip at its real place; any other lift
+     becomes page 1 of a strip of the same size. Swiping never comes through
+     here, so it never reorders anything. */
   pbtSelectedExercise = name;
+  pbtDisplaySet = null; pbtTempSet = false;
   renderPersonalBestTimeline();
 }
 
@@ -33633,40 +33794,50 @@ function pbtGoToPage(index){
   el.scrollTo({ left: index * el.clientWidth, behavior: pbtReducedMotion() ? 'auto' : 'smooth' });
 }
 
-/* SWIPE. Native scroll does the moving; this only notices, once scrolling
-   settles, which page is now in front, and — without touching the
-   carousel's own DOM or its scroll position — updates the picker, the dots
-   and the live region to match. Debounced so a single flick updates once,
-   not on every pixel of momentum. */
-let _pbtScrollTimer = null;
+/* SWIPE. Native scroll does the moving; this only notices which slide is in
+   front and moves the chrome — the picker (the title), the dots, the counter and
+   the live region — to match it. It reads the slide's OWN data-exercise, never a
+   page list worked out again from the selection (D83's second array), and it
+   never touches the slides or the scroll position. One read per frame, so the
+   title changes as the next slide crosses the middle, in step with the dots,
+   not a moment after the strip has come to rest. */
+let _pbtScrollFrame = 0;
 function pbtOnCarouselScroll(){
-  clearTimeout(_pbtScrollTimer);
-  _pbtScrollTimer = setTimeout(pbtSettleCarousel, 120);
+  if(_pbtScrollFrame) return;
+  const run = () => { _pbtScrollFrame = 0; pbtSettleCarousel(); };
+  _pbtScrollFrame = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame(run) : setTimeout(run, 16);
 }
 function pbtSettleCarousel(){
   const el = document.getElementById('pbtCarousel');
   if(!el) return;
-  const count = el.querySelectorAll('.pbt-page').length;
+  const pages = el.querySelectorAll('.pbt-page');
+  const count = pages.length;
   if(!count) return;
+  const names = Array.prototype.map.call(pages, p => p && p.dataset ? p.dataset.exercise : null);
+  /* The slides on the page are not the set this module says it is showing (the
+     log changed underneath the card): draw it again rather than label slides
+     from a list they were not made from. */
+  if(pbtDisplaySet && JSON.stringify(names) !== JSON.stringify(pbtDisplaySet)){ renderPersonalBestTimeline(); return; }
   const w = el.clientWidth || 1;
   const index = Math.max(0, Math.min(count - 1, Math.round(el.scrollLeft / w)));
-  const model = buildPersonalBestTimelineModel();
-  const page = model.carousel[index];
-  if(!page || page.exerciseName === pbtSelectedExercise) return;
-  pbtSelectedExercise = page.exerciseName;
-  pbtSyncCarouselChrome(model.carousel, index);
+  const name = names[index];
+  if(!name) return;
+  if(name === pbtSelectedExercise && index === pbtActiveIndex) return;
+  pbtSelectedExercise = name;
+  pbtActiveIndex = index;
+  pbtSyncCarouselChrome(names, index);
 }
-function pbtSyncCarouselChrome(carousel, index){
+function pbtSyncCarouselChrome(names, index){
   const sel = document.getElementById('pbtExerciseSelect');
-  if(sel) sel.value = carousel[index].exerciseName;
+  if(sel) sel.value = names[index];
   document.querySelectorAll('#pbtDots .pbt-dot').forEach((d, i) => {
     d.classList.toggle('active', i === index);
     d.setAttribute('aria-current', i === index ? 'true' : 'false');
   });
   const num = document.getElementById('pbtPageNum');
-  if(num) num.textContent = (index + 1) + ' of ' + carousel.length;
+  if(num) num.textContent = (index + 1) + ' of ' + names.length;
   const live = document.getElementById('pbtLive');
-  if(live) live.textContent = carousel[index].exerciseName + ', ' + (index + 1) + ' of ' + carousel.length;
+  if(live) live.textContent = names[index] + ', ' + (index + 1) + ' of ' + names.length;
 }
 
 /* D82/D83 — the Personal Best Timeline card: a swipeable strip of the
@@ -33688,8 +33859,7 @@ function renderPersonalBestTimeline(){
     return;
   }
 
-  const { candidates, carousel, pages, activeExercise } = model;
-  const activeIndex = Math.max(0, carousel.findIndex(t => t.exerciseName === activeExercise));
+  const { candidates, pages, activeExercise, activeIndex } = model;
 
   /* computePBTCandidates() already lists exercises in getAllLoggedExerciseNames'
      alphabetical order (map/filter preserve it), so the picker needs no sort
