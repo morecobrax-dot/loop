@@ -13680,3 +13680,56 @@ dropped from it, today treated as completed, MISSED drawn for today, a suspended
 planned, both Day Detail wordings, today removed from the matching pool, a stored flag, an hour
 shifted by arithmetic, and objectives reading the state. Three of those first survived and were
 test gaps, now closed. Real Edge at 320, 375, 390 and 430: 60/60.
+
+---
+
+## §131 — THE CALENDAR NEVER ACCUSES, AND ITS KEY EXPLAINS ITSELF (D99.3 · LOOP 10.9 · loop-v186)
+
+Closes the two calendar findings D99.2 recorded and asserted as-is (Contract 208 G). Presentation
+only; D43, D44, D89 and D90 are unchanged.
+
+**Finding 1 — a passed day inside a pause drew MISSED.** `computeConsistencyData` has always known
+a day the athlete suspended was never owed (`suspendedDay`, D90) and leaves it as `rest`. The calendar
+cell never asked, so it fell through to `cal-missed`, and Day Detail said "was planned — nothing
+logged". Reproduced on 10.8: `dateIsSuspended` true, D44 state `rest`, cell `cal-missed`, mark
+`cal-mark-missed`.
+
+**One question, one place.** `planDayIsSuspended(dateStr)` is `dateIsSuspended` against the active
+program, guarded, and it is now the ONLY thing that asks: the engine (which used an inline copy of the
+same expression) and the calendar both call it. A mutant that reintroduces a second, direct
+`dateIsSuspended` call in the calendar is killed by a structural assertion. The engine change is a
+pure extraction: D44 weeks, D43 fulfilment, objectives and XP compared IDENTICAL to 10.8 in 5 of 5
+pause fixtures.
+
+**The rule.** MISSED = a real planned opportunity existed, it passed, and it was not fulfilled. A past
+day that was suspended, a rest day and a day before the schedule was known are none of those. Such a
+suspended day renders as the existing quiet rest cell (`cal-rest`, plus a `cal-paused` hook), with NO
+mark, and Day Detail reads "Program paused — nothing was due". A workout actually logged inside a
+pause is still a completed day. Today (D99.2) is unchanged, except that a suspended today now says so.
+
+**The key.** It listed Completed and Planned while the grid drew a third mark. It now lists Completed,
+Planned and Missed, and each key marker is the grid's own: `.cal-lg-missed` is the same declaration as
+`.cal-mark-missed`, asserted equal to it. It is a labelled list (`role="list"`, `aria-label="Calendar
+key"`) instead of `aria-hidden`, with the coloured dots hidden and the words read. A paused cell has no
+mark, so it needs no key entry. At 320px the three items sit on one line.
+
+**Not by colour alone.** Every selectable cell's accessible name now carries its state in words:
+completed, planned today, missed, rest day, program paused. Future cells remain the inert
+`aria-hidden` divs they always were.
+
+**Tests.** Contract 209 (38 checks) under fixed instants and four set time zones: A—H, pause begins
+midweek, ends midweek, two spans, open-ended, revision overlapping a pause, month, year and both DST
+changes, navigation, and **every date D44 classifies** (105 dates across three fixtures) compared with
+what the calendar draws in both directions. Contract 208 G was rewritten to the new truth.
+**16 of 16 mutants killed**, including shipped 10.8's defect, a helper that always says no, a boundary
+shifted by a day, a completed day losing its state inside a pause, a MISSED mark on a paused cell, the
+key losing Missed or drawing it in the Planned colour, the key hidden again, state words dropped, Day
+Detail unchanged, a suspended today marked planned, D44 ignoring suspension, a UTC date, the rest branch
+removed, a competing pause calculation, and the cell spoken as missed. Real Edge at 320, 375, 390 and
+430 over a historical month with a real miss AND a paused planned day: 88/88.
+
+**Found, NOT changed.** `momentumWeek` (the Today tab's week) defaults every planned day that is not
+done, today or upcoming to `missed`, so a paused day THIS week reads missed there while D44 says `rest`
+(measured: `missed=2` for two paused, unlogged days). It is the same defect on a different surface and
+a candidate for its own phase; this one was scoped to the calendar. Program progress still counts
+slots up to and including today (D89, §66) and was deliberately left alone.

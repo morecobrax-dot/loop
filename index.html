@@ -4327,6 +4327,8 @@ button.cal-cell:active{ transform: scale(0.92); }
 .cal-legend i{ width: 6px; height: 6px; border-radius: 50%; display: block; }
 .cal-lg-done{ background: var(--success); }
 .cal-lg-planned{ border: 1px solid var(--text-faint); }
+/* D99.3 - the same marker the missed cell draws (.cal-mark-missed), so the key says what the grid shows. */
+.cal-lg-missed{ border: 1px solid var(--warning); }
 /* Upper and Lower had no category colour at all — the default plan's own two
    categories rendered as plain cells. */
 .cal-cat-upper{ background: var(--upper-soft); border-color: var(--upper); }
@@ -8420,9 +8422,10 @@ html, body{ max-width: 100%; overflow-x: hidden; }
           <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
         </div>
         <div class="cal-grid" id="historyCalGrid"></div>
-        <div class="cal-legend" aria-hidden="true">
-          <span><i class="cal-lg-done"></i>Completed</span>
-          <span><i class="cal-lg-planned"></i>Planned</span>
+        <div class="cal-legend" role="list" aria-label="Calendar key">
+          <span role="listitem"><i class="cal-lg-done" aria-hidden="true"></i>Completed</span>
+          <span role="listitem"><i class="cal-lg-planned" aria-hidden="true"></i>Planned</span>
+          <span role="listitem"><i class="cal-lg-missed" aria-hidden="true"></i>Missed</span>
         </div>
       </div>
 
@@ -17189,6 +17192,24 @@ const LOOP_UPDATES = [
     changes: [
       'Days that have already passed, rest days and paused days are unchanged, and nothing you logged was touched'
     ]
+  },
+  {
+    id: 'v10-9',
+    version: 'LOOP 10.9',
+    title: 'A Calendar That Tells the Truth',
+    date: '2026-09-21',
+    swVersion: 'loop-v186',
+    summary: 'Log no longer marks days you paused as missed, and its key now explains the missed mark too.',
+    newFeatures: [],
+    improvements: [
+      'The calendar key now names all three marks: Completed, Planned and Missed'
+    ],
+    bugFixes: [
+      'A planned day that fell inside a program pause was drawn as missed in Log, although nothing was due that day. It now shows as a quiet paused day, and its detail says so'
+    ],
+    changes: [
+      'Days you really missed still show as missed, and nothing you logged was touched'
+    ]
   }
 ];
 
@@ -22659,7 +22680,7 @@ function computeConsistencyData(){
          change than fixing a denominator, and it is written up rather than
          guessed at. */
       const suspendedDay = wasPlanned && !beforeHistory && !isFuture
-        && (() => { try{ return dateIsSuspended(getActiveProgram(), key); }catch(e){ return false; } })();
+        && planDayIsSuspended(key);
       if(wasPlanned && !beforeHistory && !isFuture && !suspendedDay){
         plannedKnown++;
         /* D99.2 - `open` marks today's slot while nothing is logged for it. It stays
@@ -28935,9 +28956,12 @@ function renderHistoryCalendar(){
        plan existed on days LOOP knew nothing about. */
     let cls = 'cal-cell';
     let mark = '';
+    /* D99.3 - the state in WORDS, so no state rests on colour or a 5px mark alone. */
+    let stateWord = '';
     if(entry){
       cls += ' cal-has-log cal-cat-' + entry.category;
       mark = `<span class="cal-mark cal-mark-done"></span>`;
+      stateWord = 'completed';
       if(getSessionPRs(entry).length) mark += `<span class="cal-pr-dot" aria-hidden="true"></span>`;
     } else if(isFuture){
       cls += ' cal-future';
@@ -28946,15 +28970,23 @@ function renderHistoryCalendar(){
       cls += ' cal-unknown';
     } else if(scheduledCat === 'rest'){
       cls += ' cal-rest';
+      stateWord = 'rest day';
     } else if(isToday){
       /* D99.2 - today is still available to train: the hollow PLANNED mark, never
          MISSED. A day the athlete suspended shows no mark at all. */
       cls += ' cal-due-today';
-      let held = false; try{ held = !!dateIsSuspended(getActiveProgram(), dateStr); }catch(e){}
-      if(!held) mark = `<span class="cal-mark cal-mark-planned"></span>`;
+      if(planDayIsSuspended(dateStr)) stateWord = 'program paused';
+      else { mark = `<span class="cal-mark cal-mark-planned"></span>`; stateWord = 'planned today'; }
+    } else if(planDayIsSuspended(dateStr)){
+      /* D99.3 - a passed day the athlete had suspended was never owed, so it cannot be
+         MISSED. It reads as the quiet rest cell, with no mark - the same truth D44 has
+         always applied when it counts what the athlete is measured against. */
+      cls += ' cal-rest cal-paused';
+      stateWord = 'program paused';
     } else {
       cls += ' cal-missed';
       mark = `<span class="cal-mark cal-mark-missed"></span>`;
+      stateWord = 'missed';
     }
     if(isToday) cls += ' cal-today';
     if(dateStr === historySelectedDate) cls += ' cal-selected';
@@ -28962,7 +28994,7 @@ function renderHistoryCalendar(){
     // Future days stay inert; everything up to today is answerable.
     const selectable = !isFuture;
     cells += `<${selectable ? 'button type="button"' : 'div'} class="${cls}"
-      ${selectable ? `onclick="selectHistoryDay('${dateStr}')" aria-label="${escapeAttr(dt.toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'}))}"` : 'aria-hidden="true"'}
+      ${selectable ? `onclick="selectHistoryDay('${dateStr}')" aria-label="${escapeAttr(dt.toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'}) + (stateWord ? ', ' + stateWord : ''))}"` : 'aria-hidden="true"'}
       ><span class="cal-daynum">${d}</span>${mark}</${selectable ? 'button' : 'div'}>`;
   }
 
@@ -29026,7 +29058,10 @@ function renderSelectedDay(){
   const isFuture = dateStr >= localDateStr();
 
   let line;
-  if(scheduledCat && scheduledCat !== 'rest' && !beforeHistory && !isFuture){
+  if(scheduledCat && scheduledCat !== 'rest' && !beforeHistory && dateStr <= localDateStr() && planDayIsSuspended(dateStr)){
+    /* D99.3 - nothing was owed, so nothing is "missed" or "not logged". */
+    line = 'Program paused — nothing was due.';
+  } else if(scheduledCat && scheduledCat !== 'rest' && !beforeHistory && !isFuture){
     line = `${CAT_LABEL[scheduledCat]} was planned — nothing logged.`;
   } else if(scheduledCat && scheduledCat !== 'rest'){
     line = `${CAT_LABEL[scheduledCat]} is planned.`;
@@ -37734,6 +37769,16 @@ function dateIsSuspended(program, dateStr, todayStr){
     if(dateStr >= s.from && dateStr < end) return true;
   }
   return false;
+}
+
+/* D99.3 - was nothing owed on this date because the athlete had suspended the
+   program? The ONE place that asks. computeConsistencyData (D44) asked it inline
+   and the calendar did not ask at all, so a past planned day inside a pause was
+   "nothing owed" in the engine and MISSED on the calendar. Both call this now; it
+   is dateIsSuspended against the program that is active NOW, exactly as D44 has
+   always asked it (D90's known boundary is unchanged), and never throws. */
+function planDayIsSuspended(dateStr){
+  try{ return !!dateIsSuspended(getActiveProgram(), dateStr); }catch(e){ return false; }
 }
 
 /* Whole days spent paused, from the spans rather than from the banked total.

@@ -39006,8 +39006,11 @@ async function testTodayNotMissedD992(){
     T('F  a suspended today carries no mark at all: nothing was owed', F1.state === 'rest' && F1.mark === '' && /cal-due-today/.test(F1.cls), F1.state + ' [' + F1.mark + ']');
     const past = await at(NOW, HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }) });
     const G1 = probe(past.ctx, NOW, '2026-09-15');
-    T('G  a PAST suspended day keeps its existing semantics: the engine owes nothing, the calendar cell is as it was',
-      G1.state === 'rest' && /cal-missed/.test(G1.cls), G1.state + ' ' + G1.cls);
+    /* D99.2 asserted this cell was still MISSED because the brief asked to preserve it and
+       the contradiction was written up. D99.3 closed it (Contract 209): the engine owes
+       nothing on that day, so the calendar no longer accuses the athlete either. */
+    T('G  a PAST suspended day: the engine owes nothing, and (D99.3) the calendar no longer calls it missed',
+      G1.state === 'rest' && !/cal-missed/.test(G1.cls) && G1.mark !== 'cal-mark-missed' && /cal-paused/.test(G1.cls), G1.state + ' ' + G1.cls);
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
     T('D43 fulfilment, the D89/D90 grid and the D44 matching are byte-identical to 10.7',
       pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
@@ -39072,6 +39075,238 @@ async function testTodayNotMissedD992(){
       (n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16))('computeXPTimeline') === '8c298b498a14c04d' &&
       (n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16))('getSessionPRs') === 'b7bbfa2f0f33ba3f' &&
       c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  });
+}
+
+/* =========================================================
+   CONTRACT 209 — THE CALENDAR NEVER ACCUSES, AND ITS KEY EXPLAINS ITSELF  (D99.3)
+   ---------------------------------------------------------
+   MISSED means: a real planned opportunity existed, it passed, and it was
+   not fulfilled. computeConsistencyData (D44) has always known a day the
+   athlete had suspended was never owed; the calendar cell did not ask, so
+   a passed planned day inside a pause was "nothing owed" in the engine and
+   MISSED on the grid, and Day Detail said "nothing logged". The key also
+   explained only Completed and Planned while the grid drew a third mark.
+
+   What is held here:
+     · one question, planDayIsSuspended, asked by the engine AND the calendar
+     · for every date D44 classifies, the calendar draws the matching state
+       (the calendar follows the truth; D44 was not altered to make it so)
+     · a suspended past day: no marker, spoken as "program paused"
+     · genuinely missed, completed, today, future and rest days are unchanged
+     · the key names all three marks, and each key marker is the grid’s own
+     · every state is also in WORDS on the cell’s accessible name
+   ========================================================= */
+async function testCalendarStateD993(){
+  section('CONTRACT 209 — the calendar never accuses, and its key explains itself (D99.3)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const homeTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const S1 = () => ({ weight: '100', reps: '8', rir: '2', type: 'working', completed: true });
+  const WKD = (id, date, cat) => ({ id, date, category: cat || 'push', title: cat || 'push', notes: '',
+    exercises: [{ name: 'Bench Press', effort: '', bodyweight: false, sets: [S1()] }] });
+  const plus = (d, n) => { const [y, m, dd] = d.split('-').map(Number); const x = new Date(Date.UTC(y, m - 1, dd + n));
+    return x.getUTCFullYear() + '-' + String(x.getUTCMonth() + 1).padStart(2, '0') + '-' + String(x.getUTCDate()).padStart(2, '0'); };
+  /* the balanced plan trains Mon push, Tue pull, Thu legs, Fri push; two Mondays of history precede the probe */
+  const HIST = upTo => [WKD('h1', plus(upTo, -14), 'push'), WKD('h2', plus(upTo, -7), 'push')];
+  const PSESS = (cat, name) => ({ type: 'workout', planId: 'ul', category: cat, templateId: 'ul-' + cat, name,
+    exercises: [{ name: 'Bench Press', sets: 3, reps: '8-10', effort: '8' }] });
+  const PROG = o => JSON.stringify({ version: 1, activeProgramId: 'p1', programs: [Object.assign({
+    id: 'p1', name: 'Block', goal: 'hypertrophy', status: 'active', durationWeeks: 52, startDate: '2026-09-07',
+    schedule: { mon: PSESS('push', 'Push'), tue: PSESS('pull', 'Pull'), thu: PSESS('legs', 'Legs'), fri: PSESS('push', 'Push 2') } }, o || {})] });
+  async function at(iso, log, store, tz){
+    if(tz) process.env.TZ = tz;
+    const app = H.loadApp(Object.assign({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+      workoutLog: JSON.stringify(log) }, store || {}));
+    const release = pinClock(app.ctx, iso);
+    try{ await H.settle(); } finally { release(); }
+    return app;
+  }
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  /* the calendar cell for a date: class, mark, accessible name and the Day Detail line, with the month walked to */
+  function cell(c, iso, date){
+    return withClockOn(c, iso, () => {
+      c.invalidateConsistencyCache();
+      c.renderHistoryCalendar();
+      const label = () => { const m = (c.document.getElementById('historyCalLabel').textContent || '').match(/([A-Za-z]+) (\d{4})/);
+        return m ? Number(m[2]) * 12 + MONTHS.indexOf(m[1]) : null; };
+      const [y, mo] = date.split('-').map(Number);
+      const diff = (y * 12 + (mo - 1)) - label();
+      for(let i = 0; i < Math.abs(diff); i++) c.shiftHistoryMonth(diff > 0 ? 1 : -1);
+      const grid = c.document.getElementById('historyCalGrid').innerHTML;
+      const m1 = grid.match(new RegExp('class="(cal-cell[^"]*)"[^>]*>\\s*<span class="cal-daynum">' + Number(date.slice(8)) + '</span>(<span class="cal-mark ([^"]*)")?')) || [];
+      const m2 = grid.match(new RegExp("selectHistoryDay\\('" + date + "'\\)\" aria-label=\"([^\"]*)\"")) || [];
+      c.historySelectedDate = date; c.renderSelectedDay();
+      const detail = c.document.getElementById('historySelectedDay').textContent.replace(/\s+/g, ' ').trim();
+      for(let i = 0; i < Math.abs(diff); i++) c.shiftHistoryMonth(diff > 0 ? -1 : 1);
+      return { cls: m1[1] || '', mark: m1[3] || '', aria: m2[1] || '', detail };
+    });
+  }
+  const engine = (c, iso, date) => withClockOn(c, iso, () => { c.invalidateConsistencyCache(); let d = null;
+    c.computeConsistencyData().weeks.forEach(w => w.days.forEach(x => { if(x.date === date) d = x; })); return d; });
+  const isMissed = k => /cal-missed/.test(k.cls) || k.mark === 'cal-mark-missed' || /was planned/.test(k.detail) || /, missed/.test(k.aria);
+
+  /* ------------------------------------------------------------- A..H */
+  sub('A—H  what each kind of day looks like');
+  await guard('states', async () => {
+    const NOW = '2026-09-22T09:00:00';
+    const app = await at(NOW, HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }) }); const c = app.ctx;
+    const A = cell(c, NOW, '2026-09-21');
+    T('A  a past planned day, unlogged, not suspended: MISSED', /cal-missed/.test(A.cls) && A.mark === 'cal-mark-missed' && /, missed$/.test(A.aria) && /was planned/.test(A.detail), A.cls + ' | ' + A.aria);
+    const B = cell(c, NOW, '2026-09-14');
+    T('B  a past completed day: completed', /cal-has-log/.test(B.cls) && B.mark === 'cal-mark-done' && /, completed$/.test(B.aria), B.cls + ' | ' + B.aria);
+    const Cc = cell(c, NOW, '2026-09-15');
+    T('C  a past planned day inside a pause: NOT missed, no marker, spoken as paused',
+      !isMissed(Cc) && Cc.mark === '' && /cal-paused/.test(Cc.cls) && /, program paused$/.test(Cc.aria) && /Program paused/.test(Cc.detail), Cc.cls + ' | ' + Cc.aria + ' | ' + Cc.detail);
+    const Ds = cell(c, NOW, '2026-09-20');
+    T('D  a past rest day: NOT missed, no marker, spoken as a rest day', !isMissed(Ds) && Ds.mark === '' && /cal-rest/.test(Ds.cls) && !/cal-paused/.test(Ds.cls) && /, rest day$/.test(Ds.aria) && /Rest day/.test(Ds.detail), Ds.cls + ' | ' + Ds.aria);
+    const E = cell(c, NOW, '2026-09-01');
+    T('E  a day before the schedule was known: NOT missed', !isMissed(E) && /cal-unknown/.test(E.cls) && E.mark === '', E.cls);
+    const Fc = cell(c, NOW, '2026-09-22');
+    T('F  today, planned and unlogged: planned, never missed (D99.2)', !isMissed(Fc) && /cal-due-today/.test(Fc.cls) && Fc.mark === 'cal-mark-planned' && /, planned today$/.test(Fc.aria) && /is planned/.test(Fc.detail), Fc.cls + ' | ' + Fc.aria);
+    const Hh = cell(c, NOW, '2026-09-24');
+    T('H  a future planned day: planned, upcoming', /cal-future/.test(Hh.cls) && Hh.mark === 'cal-mark-planned' && !isMissed(Hh) && /is planned/.test(Hh.detail), Hh.cls);
+    const held = await at(NOW, HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-21', to: null }] }) });
+    const G = cell(held.ctx, NOW, '2026-09-22');
+    T('G  today, suspended: no missed and no planned marker, spoken as paused', !isMissed(G) && G.mark === '' && /cal-due-today/.test(G.cls) && /, program paused$/.test(G.aria) && /Program paused/.test(G.detail), G.cls + ' | ' + G.aria);
+    const logged = await at(NOW, HIST('2026-09-21').concat([WKD('p', '2026-09-16', 'pull')]), { programs: PROG({ pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }) });
+    const Lg = cell(logged.ctx, NOW, '2026-09-16');
+    T('a workout logged INSIDE a pause is still a completed day', /cal-has-log/.test(Lg.cls) && Lg.mark === 'cal-mark-done' && !/cal-paused/.test(Lg.cls), Lg.cls);
+    const noProg = await at(NOW, HIST('2026-09-21'));
+    T('with no program at all, a passed planned day is missed exactly as before', isMissed(cell(noProg.ctx, NOW, '2026-09-15')));
+  });
+
+  /* ------------------------------------------------------------- I..M: pauses */
+  sub('I—M  where a pause starts, ends, repeats, stays open, and overlaps a revision');
+  await guard('pauses', async () => {
+    const CASES = [
+      ['I   a pause begins midweek (Wed 09-16 on)', '2026-09-22T09:00:00', { pauses: [{ from: '2026-09-16', to: '2026-09-21' }] },
+        { '2026-09-15': 'missed', '2026-09-17': 'paused', '2026-09-18': 'paused', '2026-09-21': 'missed' }],
+      ['J   a pause ends midweek (resumes Wed 09-16)', '2026-09-25T09:00:00', { pauses: [{ from: '2026-09-08', to: '2026-09-16' }] },
+        { '2026-09-08': 'paused', '2026-09-10': 'paused', '2026-09-11': 'paused', '2026-09-15': 'paused', '2026-09-17': 'missed' }],
+      ['K   two spans', '2026-09-22T09:00:00', { pauses: [{ from: '2026-09-08', to: '2026-09-10' }, { from: '2026-09-15', to: '2026-09-17' }] },
+        { '2026-09-08': 'paused', '2026-09-10': 'missed', '2026-09-15': 'paused', '2026-09-17': 'missed' }],
+      ['L   an open-ended pause', '2026-09-22T09:00:00', { pauses: [{ from: '2026-09-17', to: null }] },
+        { '2026-09-15': 'missed', '2026-09-17': 'paused', '2026-09-18': 'paused', '2026-09-21': 'paused' }],
+      ['M   a revision overlapping the pause', '2026-09-22T09:00:00', { pauses: [{ from: '2026-09-15', to: '2026-09-19' }],
+        revisions: [{ effectiveFrom: '2026-09-16', schedule: { mon: PSESS('push', 'Push'), tue: PSESS('legs', 'Legs'), thu: PSESS('pull', 'Pull'), fri: PSESS('push', 'Push 2') } }] },
+        { '2026-09-15': 'paused', '2026-09-17': 'paused', '2026-09-21': 'missed' }]
+    ];
+    for(const [label, iso, over, expect] of CASES){
+      const app = await at(iso, HIST('2026-09-21'), { programs: PROG(over) });
+      const bad = [];
+      Object.keys(expect).forEach(d => { const k = cell(app.ctx, iso, d);
+        const got = isMissed(k) ? 'missed' : (/cal-paused/.test(k.cls) ? 'paused' : 'other'); if(got !== expect[d]) bad.push(d + ':' + got + '!=' + expect[d]); });
+      T(label + ': every date is what the spans say, and the resume day is a training day again', bad.length === 0, bad.join());
+    }
+  });
+
+  /* ------------------------------------------------------------- N, O, P */
+  sub('N / O / P  a month, a year and both DST changes');
+  await guard('boundaries', async () => {
+    const B = [
+      ['N month: Thu 2026-10-01, pause 09-28..10-01', '2026-10-01T09:00:00', HIST('2026-09-28'), { pauses: [{ from: '2026-09-28', to: '2026-10-01' }] },
+        { '2026-09-29': 'paused', '2026-10-01': 'planned' }],
+      ['O year: Fri 2027-01-01, pause 12-28..01-01', '2027-01-01T09:00:00', HIST('2026-12-28'), { pauses: [{ from: '2026-12-28', to: '2027-01-01' }] },
+        { '2026-12-29': 'paused', '2026-12-31': 'paused', '2027-01-01': 'planned' }],
+      ['P DST spring: Tue 2027-03-16, pause 03-14..03-16', '2027-03-16T09:00:00', HIST('2027-03-15'), { pauses: [{ from: '2027-03-14', to: '2027-03-16' }] },
+        { '2027-03-15': 'paused', '2027-03-16': 'planned' }],
+      ['P DST fall: Tue 2026-11-03, pause 11-01..11-03', '2026-11-03T09:00:00', HIST('2026-11-02'), { pauses: [{ from: '2026-11-01', to: '2026-11-03' }] },
+        { '2026-11-02': 'paused', '2026-11-03': 'planned' }]
+    ];
+    for(const [label, iso, log, over, expect] of B){
+      const app = await at(iso, log, { programs: PROG(Object.assign({ startDate: '2026-09-07' }, over) ) });
+      const bad = [];
+      Object.keys(expect).forEach(d => { const k = cell(app.ctx, iso, d);
+        const got = isMissed(k) ? 'missed' : (/cal-paused/.test(k.cls) ? 'paused' : (k.mark === 'cal-mark-planned' ? 'planned' : 'other')); if(got !== expect[d]) bad.push(d + ':' + got + '!=' + expect[d]); });
+      T(label, bad.length === 0, bad.join());
+    }
+    const nav = await at('2026-10-01T09:00:00', HIST('2026-09-28'), { programs: PROG({ pauses: [{ from: '2026-09-28', to: '2026-10-01' }] }) });
+    const before = cell(nav.ctx, '2026-10-01T09:00:00', '2026-09-29').cls;
+    cell(nav.ctx, '2026-10-01T09:00:00', '2026-08-25'); cell(nav.ctx, '2026-10-01T09:00:00', '2026-11-05');
+    T('navigation: a date’s state does not change with the month on screen', cell(nav.ctx, '2026-10-01T09:00:00', '2026-09-29').cls === before && /cal-paused/.test(before));
+  });
+
+  /* ------------------------------------------------------------- zones */
+  sub('the same civil date derives the same state in every zone');
+  await guard('zones', async () => {
+    try{
+      for(const tz of ['America/New_York', 'UTC', 'Pacific/Pago_Pago', 'Pacific/Kiritimati']){
+        const iso = '2026-09-22T09:00:00';
+        const app = await at(iso, HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }) }, tz);
+        const paused = cell(app.ctx, iso, '2026-09-15'), missed = cell(app.ctx, iso, '2026-09-21'), today = cell(app.ctx, iso, '2026-09-22');
+        T(tz + ': the paused day is not missed, the resumed unlogged day is, today is planned',
+          !isMissed(paused) && /cal-paused/.test(paused.cls) && isMissed(missed) && !isMissed(today) && today.mark === 'cal-mark-planned', [paused.cls, missed.cls, today.cls].join(' | '));
+      }
+    } finally { process.env.TZ = homeTZ; }
+  });
+
+  /* ------------------------------------------------------------- the engine, followed */
+  sub('for every date D44 classifies, the calendar draws the same truth');
+  await guard('agreement', async () => {
+    const FIX = [
+      ['a closed pause', '2026-09-22T09:00:00', { pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }],
+      ['two spans and an open one', '2026-09-24T21:00:00', { pauses: [{ from: '2026-09-08', to: '2026-09-10' }, { from: '2026-09-22', to: null }] }],
+      ['no pause', '2026-09-23T12:00:00', {}]
+    ];
+    let checked = 0; const wrong = [];
+    for(const [label, iso, over] of FIX){
+      const log = []; const dow = { 1: 'push', 2: 'pull', 4: 'legs', 5: 'push' }; let seed = 11; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+      for(let i = 42; i >= 1; i--){ const d = plus(iso.slice(0, 10), -i); const w = new Date(d + 'T12:00:00Z').getUTCDay(); if(dow[w] && rnd() > 0.35) log.push(WKD('g' + i, d, dow[w])); }
+      const app = await at(iso, log, { programs: PROG(over) }); const c = app.ctx;
+      const k = withClockOn(c, iso, () => { c.invalidateConsistencyCache(); return c.computeConsistencyData(); });
+      k.weeks.slice(-5).forEach(w => w.days.forEach(d => {
+        const cl = cell(c, iso, d.date); checked++;
+        const want = d.state === 'missed' ? m => isMissed(m)
+          : (d.state === 'trained' || d.state === 'pr') ? m => /cal-has-log/.test(m.cls)
+          : d.state === 'today' ? m => !isMissed(m) && /cal-due-today/.test(m.cls)
+          : d.state === 'future' ? m => !isMissed(m) && /cal-future/.test(m.cls)
+          : m => !isMissed(m);                              // 'rest': rest, paused, unscheduled - never missed
+        if(!want(cl)) wrong.push(label + ' ' + d.date + ' D44=' + d.state + ' cell=' + cl.cls);
+      }));
+    }
+    T('all ' + checked + ' dates in three fixtures: nothing the engine says was not owed is drawn MISSED, and every real miss is', wrong.length === 0, wrong.slice(0, 3).join(' ; '));
+    T('and the calendar and the engine ask the same question, in one place',
+      /function planDayIsSuspended\(/.test(src) && (src.match(/function planDayIsSuspended\(/g) || []).length === 1 &&
+      /planDayIsSuspended\(key\)/.test(fnSrc(src, 'computeConsistencyData')) && /planDayIsSuspended\(dateStr\)/.test(fnSrc(src, 'renderHistoryCalendar')) &&
+      !/dateIsSuspended/.test(fnSrc(src, 'renderHistoryCalendar')) && !/dateIsSuspended/.test(fnSrc(src, 'computeConsistencyData')));
+  });
+
+  /* ------------------------------------------------------------- the key */
+  sub('the key explains every mark the grid draws');
+  await guard('legend', async () => {
+    const html = src.slice(src.indexOf('<div class="cal-legend"'), src.indexOf('</div>', src.indexOf('<div class="cal-legend"')) + 6);
+    const items = [...html.matchAll(/<span role="listitem"><i class="(cal-lg-[a-z]+)" aria-hidden="true"><\/i>([^<]+)<\/span>/g)].map(m => [m[1], m[2]]);
+    T('the key names Completed, Planned and Missed, once each, in that order',
+      JSON.stringify(items) === JSON.stringify([['cal-lg-done', 'Completed'], ['cal-lg-planned', 'Planned'], ['cal-lg-missed', 'Missed']]), JSON.stringify(items));
+    T('it is a labelled list for assistive technology, no longer hidden from it', /role="list" aria-label="Calendar key"/.test(html) && !/aria-hidden="true">\s*<span/.test(html) && !/cal-legend" aria-hidden/.test(html));
+    const decl = sel => { const m = css.match(new RegExp('(?:^|\\n)' + sel.replace(/[.]/g, '\\.') + '\\{([^}]*)\\}')); return m ? m[1].replace(/\s+/g, ' ').trim() : null; };
+    T('completed key === completed mark', decl('.cal-lg-done') === 'background: var(--success);' && decl('.cal-mark-done') === 'background: var(--success);', decl('.cal-lg-done'));
+    T('planned key === planned mark', decl('.cal-lg-planned') === decl('.cal-mark-planned') && /var\(--text-faint\)/.test(decl('.cal-lg-planned')), decl('.cal-lg-planned'));
+    T('missed key === missed mark', decl('.cal-lg-missed') === decl('.cal-mark-missed') && /var\(--warning\)/.test(decl('.cal-lg-missed')), decl('.cal-lg-missed') + ' vs ' + decl('.cal-mark-missed'));
+    T('the three markers are pairwise different', new Set([decl('.cal-lg-done'), decl('.cal-lg-planned'), decl('.cal-lg-missed')]).size === 3);
+    T('a paused cell has NO key entry and needs none: it draws no mark at all', !/cal-lg-paused/.test(css) && !/cal-mark-paused/.test(css));
+  });
+
+  /* ------------------------------------------------------------- protected */
+  sub('nothing else moved');
+  await guard('protected', async () => {
+    const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    T('D43, the D89/D90 program grid, the pause arithmetic and PR/XP are byte-identical to 10.8',
+      pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
+      pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
+      pin('dateIsSuspended') === '0e8f48036cced387' && pin('pauseSpansOf') === '00f0412bae612770' && pin('programDateFor') === 'f4181c72c9c3ab8f' &&
+      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f');
+    const app = await at('2026-09-22T09:00:00', HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }) }); const c = app.ctx;
+    const before = JSON.stringify(app.store); const writes = [];
+    const rs = c.LOOPStore.set; c.LOOPStore.set = async (k, v) => { writes.push(k); return rs(k, v); };
+    try{ cell(c, '2026-09-22T09:00:00', '2026-09-15'); await H.settle(60); } finally { c.LOOPStore.set = rs; }
+    T('reading the calendar writes nothing, and DATA_KEYS 16, schema 1, no migration', JSON.stringify(app.store) === before && writes.length === 0 && c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
+    T('rollover and every date comparison stay civil: no millisecond day arithmetic in the calendar', !/86400000/.test(fnSrc(src, 'renderHistoryCalendar')) && !/toISOString/.test(fnSrc(src, 'renderHistoryCalendar')));
+    T('program progress still counts slots up to and including today (D89, section 66)', /x\.date <= today/.test(src));
+    T('D96C is unstarted and E16 is held: trainer 0.1.1-shadow', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   });
 }
 
@@ -39244,6 +39479,7 @@ async function main(){
   await testExerciseIdentityD96B();
   await testIdentityLookupD96B1();
   await testTodayNotMissedD992();
+  await testCalendarStateD993();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
