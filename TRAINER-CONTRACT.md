@@ -13469,3 +13469,81 @@ counted once, Profile and Progress agreeing.
 the capability model, Session Score (40/30/18/12), D44, D49, D50B, recovery, readiness, programs, Friends,
 shared workouts, rank thresholds, DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, D99 and D99A. E11, E12,
 E15(a) and E16 remain open and untouched.
+
+---
+
+## §128 — COMPLETE EXERCISE IDENTITY LOOKUP (D96B.1 · LOOP 10.7 · loop-v184)
+
+Closes D88 finding E17. Finishes the boundary §127 drew, and does not widen it.
+
+**What was left.** D96B gave the app one identity rule and one display spelling, but
+`getLoggedExerciseNames` — the list behind Progress → Strength → All exercises — was still a Set
+of RAW spellings. Measured on 10.6 with four spellings of one lift: **five rows for two
+lifts**, and because `compute1RMTrend` already groups by key, every one of those rows
+printed the same merged history and the same percentage.
+
+**The half that was already live.** `computeExerciseCapability` caches by `trim+lowercase`
+but looked its trend up by the EXACT name. The same lift with the same history therefore
+answered **"up +22%" or "unknown" depending on which spelling asked first that day**, and
+that answer is the shadow trainer's input. A capability asked for a program's spelling of
+a lift logged in lower case lost its trend while its history was complete. Fixing the list
+without fixing the lookup would have made that permanent, which is why D96B held E17 open.
+
+**One helper, one rule.** D96B's grouping was extracted into `oneNamePerLoggedExercise`,
+which takes a count per raw spelling and returns one real spelling per key. Both enumerators
+call it; neither repeats the rule, and there is no second display-name algorithm. The trend
+is read through `exerciseTrendFor`, which matches by `loggedExerciseKey` — the engines' own
+key, still NOT `normalizeExerciseName`. Two call sites read it: capability and Exercise Detail.
+
+**What deliberately did NOT change.** Which ROWS are eligible for the Strength list: loaded
+rows only, so a lift logged both ways is still named by the spelling on its loaded rows, and
+a bodyweight movement still has no row. The capability MODE rule is still the newest session's
+execution — that is **E16, and it stays open**; a mutant that swaps it for `prModeOf` is killed.
+D98's trend formula, the five-percent threshold, the sparkline, Overview, `CAPABILITY_CONFIG`,
+confidence, staleness, the working range and the best-set rules are untouched. **E15(a) is
+untouched**: a second row of the same lift inside ONE workout still does not count, and
+`getExerciseFullHistory` is byte-identical.
+
+**One pin moved, by one line.** `computeExerciseCapability` — the third of the thirty-four —
+from `6f6542c0b0232089` to `3a283e02ebdad568`: `const legacyTrend = exerciseTrendFor(name);`.
+Every other pinned engine is byte-identical, including `compute1RMTrend`, `computeAllPREvents`,
+`computePBTCandidates`, `masteryPRCounts` and `proposeTrainerState`.
+
+**Drift, measured against 10.6 over 20 derived truths.** Normal histories, a lift logged only
+ever untrimmed, alias pairs and custom names: **IDENTICAL**, all four. Variant histories moved
+only in the enumeration and what reads it (24 spellings → 6 lifts). XP, level, rank, PR events,
+Records, PBT, Mastery, Session Score, recovery, readiness and stored history did not move.
+
+**Trainer.** On variant histories the shadow trainer's output differs in exactly one field,
+`exerciseName`, and only for the lifts whose display spelling differs from the one 10.6's first
+caller happened to use " capability's `name` is the spelling that asked, and there is now one
+spelling per lift instead of an order-dependent pick among several. **No state, weight, rep
+target, range or confidence changes.** Version stays `0.1.1-shadow`; no recalibration.
+
+**Performance.** Variant histories are far cheaper because the engines run once per lift, not
+once per spelling: capability over ten lifts 248 → 62 ms (×4.0), the trends list 23 → 6 ms,
+Exercise Detail 51 → 14 ms, the Strength tab 60 → 40 ms. Normal histories are unchanged within
+noise; the enumerator itself costs 0.2 ms more on 4,800 rows (a Set became a counted Map), which
+is disclosed rather than hidden and is invisible inside a 37 ms render.
+
+**Tests.** Contract 207 (65 checks): the brief's A—T matrix; every surface reading one lift once;
+every raw spelling resolving to the same trend; several lifts each keeping their OWN trend (a
+one-lift fixture cannot catch a lookup that returns the first row — that survivor is why this
+assertion exists); the display spelling under four orderings; the cache answering the same in
+either call order; E16's newest-session rule; E15(a); and the pins. **30 of 30 mutants killed**,
+including both lookups reverting to the exact name, the list reverting to a raw Set, the first-row
+lookup, a one-sided key, the looser normalizer, registry merging, custom-name merging, collapsed
+whitespace, the key as a label, a title-cased label, all three spelling rules, two lists choosing
+differently, both bodyweight filters, the cache splitting variants, `prModeOf` as the mode, E15(a),
+the trend threshold, a one-spelling trend, a stored rewrite, a doubled XP record and a moved rank.
+Real Edge at 320, 375, 390 and 430 over 11 loaded spellings of 5 lifts: **88/88**.
+
+**Known and reported, not fixed.** On one screen a lift can carry two labels: "Most trained" uses
+the registry's canonical name (D86, merged by exercise id) while "All exercises" uses the spelling
+the athlete logged. They differ only when the chosen spelling is not title case, which needs a tie
+that a habitual spelling breaks. Reconciling them is a display-name decision about D86, not an
+identity one, and was out of scope here.
+
+**Not changed.** E11, E12, E15(a) and E16 remain open and untouched. XP, Rank, Mastery scoring,
+Session Score, D44, D49, D50B, D91 PR modes, D98 PBT state, D99 objectives, D99A, programs,
+recovery, Friends, Supabase, DATA_KEYS 16, schema 1.

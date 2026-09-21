@@ -17154,6 +17154,25 @@ const LOOP_UPDATES = [
     changes: [
       'Only spellings that differ by capitals or surrounding spaces are treated as the same lift. "Bench Press" and "Barbell Bench Press" remain two, and nothing you logged was renamed or merged'
     ]
+  },
+  {
+    id: 'v10-7',
+    version: 'LOOP 10.7',
+    title: 'One Lift, Everywhere',
+    date: '2026-09-20',
+    swVersion: 'loop-v184',
+    summary: 'The last list that still split a lift by how you spelled it now shows it once, and its whole history follows it into every screen.',
+    newFeatures: [],
+    improvements: [
+      'Progress \u2192 Strength \u2192 All exercises lists each lift once instead of once per spelling, and each row now covers every session you logged for it'
+    ],
+    bugFixes: [
+      'A lift could show the same progress percentage on several rows, one per spelling. It is one row now, and tapping it opens the whole history',
+      'A lift you logged one way and your program names another could show no trend at all, or a different one depending on which screen you opened first. It is the same answer everywhere now'
+    ],
+    changes: [
+      'The rule is still only capitals and surrounding spaces. Nothing you logged was renamed, merged or moved'
+    ]
   }
 ];
 
@@ -21821,10 +21840,20 @@ function estimate1RM(weight, reps){
   if(w === null || r === null) return 0;
   return w * (1 + r / 30);
 }
+/* D96B.1 (closes D88 finding E17) - the list behind Progress -> Strength ->
+   All exercises. It was still a Set of RAW spellings after D96B fixed its
+   sibling, so "Bench Press", "bench press" and " Bench Press " were four rows
+   of one lift, and because compute1RMTrend already groups by key every one of
+   those rows printed the SAME merged history and the same percentage. Same key,
+   same display spelling, same helper as every other enumeration.
+
+   WHICH ROWS ARE ELIGIBLE IS UNCHANGED: loaded rows only, as this list always
+   did, because an estimated-strength trend needs a load. A lift logged both ways
+   is therefore still named by the spelling on its LOADED rows. */
 function getLoggedExerciseNames(){
-  const set = new Set();
-  workoutLog.forEach(l => l.exercises.forEach(ex => { if(!ex.bodyweight) set.add(ex.name); }));
-  return Array.from(set).sort((a,b) => a.localeCompare(b));
+  const rawRows = new Map();
+  workoutLog.forEach(l => l.exercises.forEach(ex => { if(!ex.bodyweight) rawRows.set(ex.name, (rawRows.get(ex.name) || 0) + 1); }));
+  return oneNamePerLoggedExercise(rawRows);
 }
 
 function computeMonthSummary(){
@@ -21887,6 +21916,20 @@ function computeExerciseTrends(){
   });
   trends.sort((a,b) => b.sessions - a.sessions);
   return trends;
+}
+/* D96B.1 - one lift's row in that list, found the way every engine finds its
+   history: by key, not by the exact spelling the caller happened to hold. The
+   list now carries ONE spelling per lift, and callers arrive with whichever the
+   athlete logged (Mastery and Most trained pass a raw loggedName) or whichever a
+   program prescribes - so an exact-name match would drop the trend for a lift it
+   has the whole history for. That was E17's real danger, and it was already
+   happening inside computeExerciseCapability: its cache key is trim+lowercase
+   while its trend lookup was exact, so one lift's trend depended on WHICH
+   SPELLING ASKED FIRST. Same list, same formula, same rows - only the lookup
+   changed. */
+function exerciseTrendFor(name){
+  const key = loggedExerciseKey(name);
+  return computeExerciseTrends().find(t => loggedExerciseKey(t.name) === key) || null;
 }
 function compute1RMTrend(exerciseName){
   const key = exerciseName.trim().toLowerCase();
@@ -29709,12 +29752,12 @@ function chooseLoggedSpelling(spellings){
   return best.name;
 }
 
-function getAllLoggedExerciseNames(){
-  /* One pass over the log, costing what the old Set did: a count per RAW
-     spelling. The key is then taken once per DISTINCT spelling (a few dozen)
-     rather than once per row (thousands), and the log is never rescanned. */
-  const rawRows = new Map();
-  workoutLog.forEach(l => l.exercises.forEach(ex => rawRows.set(ex.name, (rawRows.get(ex.name) || 0) + 1)));
+/* D96B.1 - the one place a list of logged exercises becomes a list of logical
+   lifts. It takes a count per RAW spelling and returns one real spelling per key,
+   so every enumeration in the app shares this rule and this display name instead
+   of growing a second one. The caller decides which ROWS are eligible; this
+   decides what counts as the same lift. */
+function oneNamePerLoggedExercise(rawRows){
   const groups = new Map();
   rawRows.forEach((rows, name) => {
     const key = loggedExerciseKey(name);
@@ -29727,6 +29770,15 @@ function getAllLoggedExerciseNames(){
   /* Alphabetical by the shown spelling, as it always was, so an ordinary
      history is listed in exactly the order it was. */
   return out.sort((a,b) => a.localeCompare(b));
+}
+
+function getAllLoggedExerciseNames(){
+  /* One pass over the log, costing what the old Set did: a count per RAW
+     spelling. The key is then taken once per DISTINCT spelling (a few dozen)
+     rather than once per row (thousands), and the log is never rescanned. */
+  const rawRows = new Map();
+  workoutLog.forEach(l => l.exercises.forEach(ex => rawRows.set(ex.name, (rawRows.get(ex.name) || 0) + 1)));
+  return oneNamePerLoggedExercise(rawRows);
 }
 function getExerciseFullHistory(exerciseName){
   const key = exerciseName.trim().toLowerCase();
@@ -33925,7 +33977,9 @@ function computeExerciseCapability(name){
     if(!isNaN(q)) rirs.push(q);
   }));
   const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
-  const legacyTrend = computeExerciseTrends().find(t => t.name === name) || null;
+  /* D96B.1 - by key, so this can no longer depend on which spelling asked
+     first (the cache below is keyed by trim+lowercase). */
+  const legacyTrend = exerciseTrendFor(name);
   const plateau = detectPlateau(name);
 
   const cap = {
@@ -36452,7 +36506,9 @@ function renderExDetail(){
   };
   const cur = topSet(sessions[0]);
   const prev = sessions[1] ? topSet(sessions[1]) : null;
-  const trends = computeExerciseTrends().find(t => t.name === name);
+  /* D96B.1 - by key: this sheet is opened with a raw loggedName from Mastery
+     and Most trained, not with the spelling the Strength list shows. */
+  const trends = exerciseTrendFor(name);
   const A = { up:'Improving', down:'Declining', flat:'Holding' };
 
   document.getElementById('exDetailTrend').innerHTML = trends

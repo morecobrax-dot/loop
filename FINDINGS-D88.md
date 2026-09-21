@@ -572,7 +572,7 @@ newest session. It names no record and is not a PR surface, but it is a fifth
 answer to the same question. The trainer is 0.1.1-shadow and was protected in
 D91; a later trainer phase should read `prModeOf`.
 
-## E17 — Strength → All exercises still lists case variants of one lift as separate rows · P4 · PROVEN
+## E17 — Strength → All exercises still lists case variants of one lift as separate rows · P4 · **CLOSED in D96B.1 (LOOP 10.7)**
 
 `getLoggedExerciseNames` has the same raw-`Set` shape as the helper D96B fixed, and
 feeds `computeExerciseTrends`, so "Bench Press" and "bench press" appear as two
@@ -583,6 +583,29 @@ trainer's input) and Exercise Detail — so de-duplicating the list would make a
 lookup by a non-displayed spelling return nothing, a silent capability change in
 a system D96B was told not to touch. The right fix reads the trend by KEY at those
 two sites, which is E16-adjacent capability work.
+
+**Closed in D96B.1 (LOOP 10.7, Contract 207, §128).** Reproduced on 10.6 with four
+spellings of one lift: **five rows for two lifts**, and because `compute1RMTrend`
+already groups by key, every one of those rows printed the SAME merged history and
+the same percentage.
+
+The second half was worse than recorded, and already live. `computeExerciseCapability`
+caches by `trim+lowercase` but looked its trend up by the EXACT name, so the same
+lift with the same history answered **"up +22%" or "unknown" depending on which
+spelling asked first that day** — and that answer is the shadow trainer's input.
+Asking for a program's spelling of a lift logged in lower case lost the trend
+entirely, while the history beside it was complete.
+
+`getLoggedExerciseNames` now calls the same `oneNamePerLoggedExercise` helper as
+`getAllLoggedExerciseNames` (extracted from D96B's code, not a second copy), and the
+trend is read through `exerciseTrendFor`, which matches by `loggedExerciseKey` at
+both call sites. Which ROWS are eligible is unchanged: loaded rows only. The
+capability MODE rule is untouched — still the newest session's execution, which is
+E16 and stays open. Aliases, punctuation, inner spaces and custom names stay apart.
+
+Ordinary, alias and custom histories are identical to 10.6 across 20 derived truths.
+The shadow trainer's only movement on variant histories is the `exerciseName` it
+echoes back; no state, weight, rep or confidence changes. Read-time only.
 
 ---
 

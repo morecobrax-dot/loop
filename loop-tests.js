@@ -36665,7 +36665,16 @@ async function testRealUseUxD98(){
          shadow trainer then read as capability truth. CAPABILITY_CONFIG, the
          confidence rules, staleness, the ranges, the working range and every
          trend rule are untouched; the assertions below still hold them. */
-      'computeExerciseCapability': '6f6542c0b0232089',
+      /* D96B.1 - the THIRD of the thirty-four to move, and it moved by one
+         line. The trend beside the capability was looked up by the EXACT name
+         the caller held, while the cache two lines above is keyed by
+         trim+lowercase - so one lift's trend depended on which spelling asked
+         first, and after D96B.1 de-duplicated the Strength list an exact match
+         would have found nothing at all. It reads exerciseTrendFor(name) now:
+         same list, same formula, same rows. CAPABILITY_CONFIG, the mode rule
+         (still the newest session's execution, E16 untouched), confidence,
+         staleness, the ranges and every trend rule are unchanged. */
+      'computeExerciseCapability': '3a283e02ebdad568',
       'proposeTrainerState': '34899e0f53f1d235',
       'rankPBTCandidates': '5e5f609ad9a2053a',
       'computePersonalBestTimeline': 'e41926dcb1cfa844',
@@ -38279,14 +38288,18 @@ async function testExerciseIdentityD96B(){
   /* ----------------------------------------------------- by construction */
   sub('by construction');
   const fn = fnSrc(src, 'getAllLoggedExerciseNames');
+  /* D96B.1 - the grouping moved into oneNamePerLoggedExercise so the Strength
+     list could share it rather than grow a second copy. Every claim below is the
+     one D96B made, restated over both halves. */
+  const grp = fnSrc(src, 'oneNamePerLoggedExercise');
   T('one pass over the log, one entry per key, no engine called from the enumerator',
-    (fn.match(/workoutLog\.forEach/g) || []).length === 1 &&
-    !/computeExercisePREvents|sortedLog|exerciseSessionHistory|getExerciseFullHistory|resolveExerciseId/.test(fn) &&
-    /loggedExerciseKey\(name\)/.test(fn));
+    (fn.match(/workoutLog\.forEach/g) || []).length === 1 && !/workoutLog/.test(grp) &&
+    !/computeExercisePREvents|sortedLog|exerciseSessionHistory|getExerciseFullHistory|resolveExerciseId/.test(fn + grp) &&
+    /loggedExerciseKey\(name\)/.test(grp));
   T('nothing is written, renamed or migrated by enumerating',
-    !/LOOPStore|persist\w*\(|\.name\s*=[^=]|localStorage/.test(fn + fnSrc(src, 'chooseLoggedSpelling') + fnSrc(src, 'loggedExerciseKey')));
+    !/LOOPStore|persist\w*\(|\.name\s*=[^=]|localStorage/.test(fn + grp + fnSrc(src, 'chooseLoggedSpelling') + fnSrc(src, 'loggedExerciseKey')));
   T('the shown spelling is a real one: it is read from the log, never built or lower-cased',
-    /out\.push\(chooseLoggedSpelling\(spellings\)\)/.test(fn) && !/toLowerCase|toUpperCase|charAt|slice\(/.test(fn + fnSrc(src, 'chooseLoggedSpelling')));
+    /out\.push\(chooseLoggedSpelling\(spellings\)\)/.test(grp) && !/toLowerCase|toUpperCase|charAt|slice\(/.test(fn + grp + fnSrc(src, 'chooseLoggedSpelling')));
   T('both pinned callers are byte-for-byte as they were: only their input changed', (() => {
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
     return pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computePBTCandidates') === 'ba795fd4ab772a63' &&
@@ -38303,11 +38316,17 @@ async function testExerciseIdentityD96B(){
       pin('computeXPTimeline') === '8c298b498a14c04d' && pin('prModeOf') === 'a0ac7f761228372f' &&
       pin('deriveExercisePRMode') === '262d3ed985632762' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f' &&
       pin('wasSessionPR') === 'b719ca9d07d1ae30' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
-      pin('computeExerciseCapability') === '6f6542c0b0232089' &&
+      pin('computeExerciseCapability') === '3a283e02ebdad568' &&   /* D96B.1 - one line, see the pin block */
       /function performedLoad\(/.test(src) && /function normalizePerformedWeight\(/.test(src));
-    T('the trends list is deliberately NOT changed here: capability and Exercise Detail look a trend up by the exact name it lists',
-      /set\.add\(ex\.name\)/.test(fnSrc(src, 'getLoggedExerciseNames')) &&
-      /computeExerciseTrends\(\)\.find\(t => t\.name === name\)/.test(fnSrc(src, 'computeExerciseCapability')));
+    /* D96B held E17 open on purpose and asserted it was still open. D96B.1
+       closed it, so the assertion is its opposite: same two call sites, now by
+       key. Contract 207 holds the behaviour. */
+    T('E17 is closed: the Strength list enumerates by key and both trend lookups read by key',
+      /oneNamePerLoggedExercise\(rawRows\)/.test(fnSrc(src, 'getLoggedExerciseNames')) &&
+      !/set\.add\(ex\.name\)/.test(fnSrc(src, 'getLoggedExerciseNames')) &&
+      /exerciseTrendFor\(name\)/.test(fnSrc(src, 'computeExerciseCapability')) &&
+      /exerciseTrendFor\(name\)/.test(fnSrc(src, 'renderExDetail')) &&
+      !/computeExerciseTrends\(\)\.find\(t => t\.name === name\)/.test(src));
     T('rank thresholds, the XP curve and the Session Score weights are as they were',
       c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50' &&
       (() => { let s = 0; for(let l = 1; l < 50; l++) s += c.calculateRequiredXP(l); return s === 120800; })() &&
@@ -38318,6 +38337,351 @@ async function testExerciseIdentityD96B(){
     T('D99 objectives, D99A’s ring, portfolio and recovery map, and D96A’s finite rule are all still here',
       /function evaluateObjectives\(/.test(src) && /function setRingProgress\(/.test(src) &&
       /function programPortfolioCard\(/.test(src) && /function performedLoad\(/.test(src));
+  });
+}
+
+/* =========================================================
+   CONTRACT 207 — COMPLETE EXERCISE IDENTITY LOOKUP  (D96B.1, closes E17)
+   ---------------------------------------------------------
+   D96B gave the app one identity rule — loggedExerciseKey, which is
+   exactly name.trim().toLowerCase() — and one display spelling. One
+   list was still outside it: getLoggedExerciseNames, a Set of RAW
+   spellings feeding Progress → Strength → All exercises. Measured on
+   10.6 with four spellings of one lift: FIVE rows for TWO lifts, and
+   because compute1RMTrend already grouped by key, every one of those
+   rows printed the same merged history and the same percentage.
+
+   The second half of E17 was already live, not just a hazard:
+   computeExerciseCapability caches by trim+lowercase but looked its
+   trend up by the EXACT name, so the same lift with the same history
+   answered "up +22%" or "unknown" depending on WHICH SPELLING ASKED
+   FIRST that day — and that answer is the shadow trainer's input.
+
+   What is held here:
+     · one Strength row per logical lift, with D96B's display spelling,
+       from the ONE shared helper — not a second copy of the rule
+     · the eligible ROWS are unchanged: loaded rows only
+     · capability, Exercise Detail and the trend all read one lift's
+       whole history, whichever real spelling the caller holds
+     · the trend answer no longer depends on call order
+     · capability MODE is still the newest session's execution (E16
+       is NOT closed here), and the trend formula is D98's
+     · aliases, punctuation, inner spaces and custom names stay apart
+     · D96B's own surfaces are unmoved; E15(a) is untouched; nothing
+       stored is renamed, merged or migrated; trainer stays 0.1.1-shadow
+   ========================================================= */
+async function testIdentityLookupD96B1(){
+  section('CONTRACT 207 — complete exercise identity lookup (D96B.1, closes E17)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const BW = r => ({ weight: '', reps: String(r), rir: '2', type: 'working', completed: true });
+  const EX = (n, sets, bw) => ({ name: n, effort: '', bodyweight: !!bw, sets });
+  const WK = (id, daysAgo, exs) => ({ id, date: D(daysAgo), category: 'push', title: 'Push', notes: '', exercises: exs });
+  const boot = async log => (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+    workoutLog: JSON.stringify(log) })).ctx;
+  /* One lift, a real progression. The spellings are supplied per case. */
+  const hist = (names, bw) => names.map((n, i) => WK('h' + i, (names.length - i) * 7,
+    [EX(n, [bw ? BW(6 + i) : S(135 + i * 10, 8)], bw)]));
+  const strengthRows = c => { c.renderProgStrength();
+    return [...c.document.getElementById('progExercises').innerHTML.matchAll(/class="rank-name">([^<]*)</g)].map(m => m[1]); };
+  const detail = (c, name) => { c.exDetailName = name; c.renderExDetail();
+    return { trend: c.document.getElementById('exDetailTrend').innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+             title: c.document.getElementById('exDetailName').textContent,
+             stats: c.document.getElementById('exDetailStats').innerHTML,
+             chart: c.document.getElementById('exDetailChart').innerHTML }; };
+
+  /* ------------------------------------------------- A—D  the Strength list */
+  sub('Strength → All exercises: one row per logical lift');
+  await guard('strength list', async () => {
+    const A = await boot(hist(['Bench Press', 'Bench Press', 'Bench Press']));
+    T('A  one spelling is unchanged: one row, that exact spelling',
+      JSON.stringify(strengthRows(A)) === JSON.stringify(['Bench Press']));
+    const B = await boot(hist(['Bench Press', 'bench press', 'Bench Press']));
+    T('B  a case variant is one row', strengthRows(B).length === 1);
+    const Cw = await boot(hist(['Bench Press', ' Bench Press', 'Bench Press  ']));
+    T('C  leading and trailing whitespace is one row', strengthRows(Cw).length === 1);
+    const Dv = await boot(hist(['Bench Press', 'bench press', ' Bench Press ', 'BENCH PRESS']));
+    const rows = strengthRows(Dv);
+    T('D  all four spellings are ONE row (10.6 rendered four)', rows.length === 1, JSON.stringify(rows));
+    T('D  and the row is a spelling the athlete really logged',
+      ['Bench Press', 'bench press', ' Bench Press ', 'BENCH PRESS'].includes(rows[0]));
+    T('D  the trends list itself is one entry per key',
+      Dv.computeExerciseTrends().length === 1 && Dv.getLoggedExerciseNames().length === 1);
+    /* two sessions each: a lift with one session has no trend and no row, which
+       is D98's rule and not this phase's business. */
+    const mixed = await boot([...hist(['Bench Press', 'bench press']),
+      WK('z1', 5, [EX('Leg Press', [S(200, 10)]), EX('Squat', [S(225, 5)])]),
+      WK('z2', 3, [EX('Leg Press', [S(210, 10)]), EX('Squat', [S(235, 5)])])]);
+    T('two other lifts are still two other rows', strengthRows(mixed).length === 3, JSON.stringify(strengthRows(mixed)));
+  });
+
+  /* ------------------------------------------------- E—G  the whole history */
+  sub('capability, Exercise Detail and the trend read the WHOLE lift');
+  await guard('lookup', async () => {
+    const V = ['Bench Press', 'bench press', ' Bench Press ', 'BENCH PRESS'];
+    const c = await boot(hist(V));
+    const shown = c.getLoggedExerciseNames()[0];
+    V.concat(shown).forEach(n => {
+      const cap = c.computeExerciseCapability(n);
+      T('E  capability("' + n + '") sees all four sessions and a real trend',
+        !!cap && cap.sessions === 4 && cap.trend !== 'unknown' && cap.trendPct !== null);
+    });
+    V.forEach(n => {
+      const d = detail(c, n);
+      T('F  Exercise Detail("' + n + '") shows the whole merged history',
+        /4 sessions logged/.test(d.trend) && />4</.test(d.stats) && d.chart.length > 0 && d.title === n);
+    });
+    T('F  and no spelling loses the trend line', V.every(n => /Improving|Declining|Holding/.test(detail(c, n).trend)));
+    const tr = c.computeExerciseTrends()[0];
+    T('G  the trend uses all four sessions, not one spelling’s share',
+      tr.sessions === 4 && tr.pct > 0 && tr.dir === 'up');
+    T('G  and it is still D98’s formula over the same points',
+      (() => { const p = c.exerciseTrendFromPoints(c.compute1RMTrend(shown));
+        return p.sessions === tr.sessions && p.pct === tr.pct && p.dir === tr.dir; })() &&
+      /exerciseTrendFromPoints\(compute1RMTrend\(name\)\)/.test(fnSrc(src, 'computeExerciseTrends')));
+    T('G  every raw spelling reaches the same trend object',
+      V.every(n => JSON.stringify(c.exerciseTrendFor(n)) === JSON.stringify(c.exerciseTrendFor(shown))));
+    /* Several lifts, each with its OWN number of sessions and its own direction:
+       a lookup that returns whichever row comes first would give every lift the
+       same trend, and a one-lift fixture could never tell. */
+    const many = await boot([
+      WK('m1', 40, [EX('Bench Press', [S(100, 8)]), EX('Barbell Squat', [S(200, 5)]), EX('Deadlift', [S(300, 3)])]),
+      WK('m2', 33, [EX('Bench Press', [S(110, 8)]), EX('Barbell Squat', [S(190, 5)])]),
+      WK('m3', 26, [EX('bench press', [S(120, 8)]), EX('barbell squat', [S(180, 5)])]),
+      WK('m4', 19, [EX('BENCH PRESS', [S(130, 8)])]),
+      WK('m5', 12, [EX('Deadlift', [S(303, 3)])])]);
+    const byName = Object.fromEntries(many.computeExerciseTrends().map(x => [many.loggedExerciseKey(x.name), x]));
+    T('G  each lift gets ITS OWN trend, not the first row in the list',
+      byName['bench press'].sessions === 4 && byName['bench press'].dir === 'up' &&
+      byName['barbell squat'].sessions === 3 && byName['barbell squat'].dir === 'down' &&
+      byName['deadlift'].sessions === 2 && byName['deadlift'].dir === 'flat',
+      JSON.stringify(byName));
+    T('G  and every spelling of every lift resolves to that lift',
+      ['Bench Press', 'bench press', 'BENCH PRESS'].every(n => many.exerciseTrendFor(n).sessions === 4) &&
+      ['Barbell Squat', 'barbell squat'].every(n => many.exerciseTrendFor(n).sessions === 3) &&
+      many.exerciseTrendFor('Deadlift').sessions === 2 &&
+      many.exerciseTrendFor('Leg Press') === null);
+    T('G  and each lift carries its own direction into its capability',
+      many.computeExerciseCapability('bench press').trend === 'up' &&
+      many.computeExerciseCapability('BARBELL SQUAT').trend === 'down');
+    /* D98's own thresholds, stated literally, so moving them cannot move both
+       sides of the comparison above together. */
+    T('G  the five-percent threshold D98 set is unchanged',
+      (() => { const p = v => c.exerciseTrendFromPoints([{ value: 100 }, { value: v }]);
+        return p(105.5).dir === 'up' && p(104.5).dir === 'flat' && p(94.5).dir === 'down' &&
+          p(95.5).dir === 'flat' && c.exerciseTrendFromPoints([{ value: 100 }]) === null; })());
+  });
+
+  /* ------------------------------------------------- the cache, and call order */
+  sub('the answer cannot depend on which spelling asked first');
+  await guard('cache', async () => {
+    const log = hist(['bench press', 'bench press', 'bench press', 'bench press']);
+    const a = await boot(log), b = await boot(log);
+    const first = a.computeExerciseCapability('Bench Press');     /* a program spelling */
+    const second = a.computeExerciseCapability('bench press');    /* the logged spelling */
+    const firstB = b.computeExerciseCapability('bench press');
+    const secondB = b.computeExerciseCapability('Bench Press');
+    T('one lift answers the same in either order (10.6: "unknown" vs "up")',
+      first.trend === firstB.trend && first.trendPct === firstB.trendPct && first.trend !== 'unknown',
+      JSON.stringify([first.trend, first.trendPct, firstB.trend, firstB.trendPct]));
+    T('and the cache still returns one object per key, as it did',
+      second === first && secondB === firstB && /_capabilityCache\[key\]/.test(fnSrc(src, 'computeExerciseCapability')));
+    T('the cache key is the identity key', /const key = \(name \|\| ''\)\.trim\(\)\.toLowerCase\(\);/.test(fnSrc(src, 'computeExerciseCapability')));
+  });
+
+  /* ------------------------------------------------- H  the display spelling */
+  sub('the display spelling is D96B’s, not a second rule');
+  await guard('spelling', async () => {
+    const V = ['Bench Press', 'bench press', ' Bench Press ', 'BENCH PRESS'];
+    const perms = [[0,1,2,3],[3,2,1,0],[1,3,0,2],[2,0,3,1]];
+    const picks = [];
+    for(const p of perms){ const c = await boot(hist(p.map(i => V[i]))); picks.push(c.getLoggedExerciseNames()[0]); }
+    T('H  the same history in any order shows the same spelling', new Set(picks).size === 1, JSON.stringify(picks));
+    T('H  and it is never the lower-cased key unless that IS a logged spelling',
+      picks.every(n => V.includes(n)));
+    const c2 = await boot(hist(['bench press', 'bench press', 'Bench Press']));
+    T('H  the habitual spelling wins on row count', c2.getLoggedExerciseNames()[0] === 'bench press');
+    const c3 = await boot(hist([' Bench Press ', ' Bench Press ', 'Bench Press']));
+    T('H  a spelling with no stray space wins over a more common untrimmed one',
+      c3.getLoggedExerciseNames()[0] === 'Bench Press');
+    T('H  and both lists answer with the SAME spelling for the same lift',
+      c3.getLoggedExerciseNames()[0] === c3.getAllLoggedExerciseNames()[0]);
+    T('one helper, not two: both enumerators call it and neither repeats the rule',
+      /oneNamePerLoggedExercise\(rawRows\)/.test(fnSrc(src, 'getLoggedExerciseNames')) &&
+      /oneNamePerLoggedExercise\(rawRows\)/.test(fnSrc(src, 'getAllLoggedExerciseNames')) &&
+      (src.match(/function oneNamePerLoggedExercise\(/g) || []).length === 1 &&
+      (src.match(/function chooseLoggedSpelling\(/g) || []).length === 1 &&
+      !/chooseLoggedSpelling/.test(fnSrc(src, 'getLoggedExerciseNames') + fnSrc(src, 'getAllLoggedExerciseNames')));
+    T('the eligible ROWS are unchanged: this list is still loaded rows only',
+      /if\(!ex\.bodyweight\)/.test(fnSrc(src, 'getLoggedExerciseNames')) &&
+      !/bodyweight/.test(fnSrc(src, 'getAllLoggedExerciseNames')));
+  });
+
+  /* ------------------------------------------------- I  one identity, every screen */
+  sub('I  the same lift across screens');
+  await guard('screens', async () => {
+    const c = await boot(hist(['Bench Press', 'bench press', ' Bench Press ', 'BENCH PRESS']));
+    const shown = c.getLoggedExerciseNames()[0];
+    const k = c.loggedExerciseKey;
+    T('I  Strength, the dropdowns, PBT and Mastery all name ONE lift',
+      k(strengthRows(c)[0]) === k(shown) && c.getAllLoggedExerciseNames().length === 1 &&
+      c.computePBTCandidates().length === 1 && Object.keys(c.masteryPRCounts()).length === 1);
+    T('I  and the detail sheet opened from any of them shows the same history',
+      [shown, 'bench press', 'BENCH PRESS'].every(n => /4 sessions logged/.test(detail(c, n).trend)));
+  });
+
+  /* ------------------------------------------------- J—L  D96B stays closed */
+  sub('J—L  D96B’s own surfaces do not move');
+  await guard('d96b', async () => {
+    const c = await boot(hist(['Bench Press', 'bench press', ' Bench Press ', 'BENCH PRESS']));
+    T('J  PBT is one page for the lift', c.computePBTCandidates().length === 1 &&
+      c.loggedExerciseKey(c.computePBTCandidates()[0].exerciseName) === 'bench press' &&
+      c.computePersonalBestTimeline(c.computePBTCandidates()[0].exerciseName).milestones.length === 4);
+    T('K  records are one stream', c.computeAllPREvents().length === c.computeExercisePREvents(c.getAllLoggedExerciseNames()[0]).length);
+    T('L  Mastery counts the lift once', Object.values(c.masteryPRCounts()).length === 1);
+    const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    T('and the PR, PBT and Mastery engines are byte-identical to 10.6',
+      pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computePBTCandidates') === 'ba795fd4ab772a63' &&
+      pin('masteryPRCounts') === 'f77664c53b2ea14a' && pin('masteryPointsFor') === '0c704c40a853d991' &&
+      pin('computeExercisePREvents') === '45ea0d06bd7b9167' && pin('compute1RMTrend') === '2df090764cbc13fe' &&
+      pin('rankPBTCandidates') === '5e5f609ad9a2053a' && pin('computePersonalBestTimeline') === 'e41926dcb1cfa844');
+  });
+
+  /* ------------------------------------------------- M—O  the boundary holds */
+  sub('M—O  aliases, punctuation and custom names stay apart');
+  await guard('boundary', async () => {
+    /* each name twice, so each has a trend of its own to lose if they merged */
+    const pair = async (a, b) => { const c = await boot([
+      WK('x1', 28, [EX(a, [S(135, 8)])]), WK('x2', 21, [EX(a, [S(145, 8)])]),
+      WK('y1', 14, [EX(b, [S(155, 8)])]), WK('y2', 7,  [EX(b, [S(165, 8)])])]);
+      return { rows: strengthRows(c).length, all: c.getAllLoggedExerciseNames().length,
+               trends: c.computeExerciseTrends().length, cap: c.computeExerciseCapability(a).sessions,
+               names: strengthRows(c) }; };
+    const M = await pair('Bench Press', 'Barbell Bench Press');
+    T('M  Bench Press and Barbell Bench Press remain two rows and two histories',
+      M.rows === 2 && M.all === 2 && M.trends === 2 && M.cap === 2, JSON.stringify(M));
+    const N1 = await pair('Row (machine)', 'Row machine');
+    const N2 = await pair('Row - machine', 'Row  machine');
+    T('N  punctuation and inner spacing are NOT normalized away',
+      N1.rows === 2 && N2.rows === 2 && N1.all === 2 && N2.all === 2, JSON.stringify([N1.names, N2.names]));
+    const O1 = await pair('My Press', 'My Press 2');
+    const O2 = await pair('Jake' + String.fromCharCode(0x2019) + 's Curl', 'Jakes Curl');
+    T('O  distinct custom names stay distinct', O1.rows === 2 && O2.rows === 2 && O1.all === 2 && O2.all === 2,
+      JSON.stringify([O1.names, O2.names]));
+    T('the looser normalizer is not what any of this uses',
+      !/normalizeExerciseName/.test(fnSrc(src, 'getLoggedExerciseNames') + fnSrc(src, 'oneNamePerLoggedExercise') +
+        fnSrc(src, 'exerciseTrendFor') + fnSrc(src, 'loggedExerciseKey')));
+    T('and no registry id, alias table or fuzzy match reaches the lookup',
+      !/resolveExerciseId|EXERCISE_ALIAS|levenshtein|startsWith|includes\(/.test(
+        fnSrc(src, 'exerciseTrendFor') + fnSrc(src, 'oneNamePerLoggedExercise') + fnSrc(src, 'getLoggedExerciseNames')));
+  });
+
+  /* ------------------------------------------------- P—R  modes */
+  sub('P—R  bodyweight, loaded, and the mode rule E16 still owns');
+  await guard('modes', async () => {
+    const P = await boot(hist(['Pull-Up', 'pull-up', 'Pull-Up'], true));
+    T('P  a bodyweight lift is one lift everywhere it is listed',
+      P.getAllLoggedExerciseNames().length === 1 && P.prModeOf('Pull-Up') === P.PR_MODE.BODYWEIGHT);
+    T('P  and it is still absent from the loaded-only Strength list',
+      P.getLoggedExerciseNames().length === 0 && P.computeExerciseTrends().length === 0);
+    const Q = await boot(hist(['Bench Press', 'bench press', 'BENCH PRESS']));
+    T('Q  a loaded case variant is one row with a loaded mode',
+      Q.getLoggedExerciseNames().length === 1 && Q.prModeOf('bench press') === Q.PR_MODE.LOADED);
+    /* R - the newest session decides the capability's mode. That is E16, held. */
+    const R = await boot([WK('r1', 21, [EX('Dip', [S(25, 8)])]), WK('r2', 14, [EX('dip', [S(35, 8)])]),
+                          WK('r3', 7,  [EX('Dip', [BW(12)], true)])]);
+    const capR = R.computeExerciseCapability('Dip');
+    T('R  capability mode still follows the NEWEST session, not the history’s PR mode',
+      capR.isBodyweight === true && R.prModeOf('Dip') === R.PR_MODE.LOADED,
+      JSON.stringify([capR.isBodyweight, R.prModeOf('Dip')]));
+    T('R  the newest-session rule is still the literal code E16 owns',
+      /const isBW = !!sessions\[0\]\.bodyweight;/.test(fnSrc(src, 'computeExerciseCapability')) &&
+      !/prModeOf/.test(fnSrc(src, 'computeExerciseCapability')));
+    T('R  and it still sees every spelling’s sessions', capR.sessions === 3);
+  });
+
+  /* ------------------------------------------------- S—T  the edges */
+  sub('S—T  no history, and a large one');
+  await guard('edges', async () => {
+    const S0 = await boot([]);
+    T('S  no history: empty lists, no capability, no throw',
+      S0.getLoggedExerciseNames().length === 0 && S0.computeExerciseTrends().length === 0 &&
+      S0.computeExerciseCapability('Bench Press') === null && S0.exerciseTrendFor('Bench Press') === null &&
+      JSON.stringify(strengthRows(S0)).indexOf('rank-name') === -1);
+    const NAMES = ['Bench Press', 'Barbell Squat', 'Deadlift', 'Overhead Press', 'Barbell Row',
+                   'Leg Press', 'Lat Pulldown', 'Seated Cable Row', 'Leg Curl', 'Calf Raise'];
+    const big = [];
+    for(let i = 0; i < 120; i++){
+      const n = NAMES[i % NAMES.length];
+      const spell = i % 3 === 0 ? n : (i % 3 === 1 ? n.toLowerCase() : ' ' + n + ' ');
+      big.push(WK('b' + i, 200 - i, [EX(spell, [S(100 + i, 8)])]));
+    }
+    const Tb = await boot(big);
+    T('T  120 workouts, three spellings each: ten lifts, ten rows',
+      Tb.getLoggedExerciseNames().length === 10 && strengthRows(Tb).length === 10 &&
+      Tb.computeExerciseTrends().length === 10);
+    T('T  and every row carries the whole lift',
+      Tb.computeExerciseTrends().every(x => x.sessions === 12));
+  });
+
+  /* ------------------------------------------------- ordinary histories */
+  sub('an ordinary history is untouched');
+  await guard('ordinary', async () => {
+    const NAMES = ['Bench Press', 'Barbell Squat', 'Deadlift', 'Overhead Press', 'Barbell Row'];
+    const log = [];
+    for(let i = 0; i < 20; i++) log.push(WK('o' + i, 100 - i * 3, [EX(NAMES[i % 5], [S(100 + i * 5, 8)]), EX('Plank', [BW(60)], true)]));
+    const c = await boot(log);
+    T('the list is exactly the spellings logged, in the order it always was',
+      JSON.stringify(c.getLoggedExerciseNames()) === JSON.stringify(NAMES.slice().sort((a, b) => a.localeCompare(b))));
+    T('every lift keeps its own trend, capability and detail',
+      c.computeExerciseTrends().length === 5 && NAMES.every(n => c.computeExerciseCapability(n).sessions === 4) &&
+      NAMES.every(n => /4 sessions logged/.test(detail(c, n).trend)));
+    T('a bodyweight movement is still not in this list, and still has a capability',
+      !c.getLoggedExerciseNames().includes('Plank') && c.computeExerciseCapability('Plank').sessions === 20);
+  });
+
+  /* ------------------------------------------------- E15(a), and stored data */
+  sub('E15(a) and stored history are untouched');
+  await guard('protected', async () => {
+    const dup = [WK('d1', 14, [EX('Bench Press', [S(135, 8)]), EX('bench press', [S(225, 8)])]),
+                 WK('d2', 7,  [EX('Bench Press', [S(140, 8)])])];
+    const raw = JSON.stringify(dup);
+    const c = await boot(dup);
+    T('E15(a)  a second row of the lift INSIDE one workout is still not collected',
+      c.getExerciseFullHistory('Bench Press').length === 2 &&
+      c.getExerciseFullHistory('Bench Press')[0].sets[0].weight === '140' &&
+      /const ex = l\.exercises\.find\(e => e\.name\.trim\(\)\.toLowerCase\(\) === key\);/.test(fnSrc(src, 'getExerciseFullHistory')));
+    T('E15(a)  and the 225 row is still invisible to capability, exactly as in 10.6',
+      c.computeExerciseCapability('Bench Press').bestWeight === 140);
+    c.getLoggedExerciseNames(); c.computeExerciseTrends(); c.computeExerciseCapability('bench press');
+    strengthRows(c); detail(c, 'bench press');
+    T('nothing stored is renamed, merged or migrated by any of it', JSON.stringify(c.workoutLog) === raw);
+    T('and no lookup writes', !/LOOPStore|persist\w*\(|localStorage|\.name\s*=[^=]/.test(
+      fnSrc(src, 'exerciseTrendFor') + fnSrc(src, 'oneNamePerLoggedExercise') + fnSrc(src, 'getLoggedExerciseNames')));
+  });
+
+  /* ------------------------------------------------- nothing else moved */
+  sub('nothing protected moved');
+  await guard('pins', async () => {
+    const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') })).ctx;
+    const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    T('ONE pinned function moved, and by one line: capability’s trend lookup',
+      pin('computeExerciseCapability') === '3a283e02ebdad568' &&
+      /const legacyTrend = exerciseTrendFor\(name\);/.test(fnSrc(src, 'computeExerciseCapability')));
+    T('XP, PR modes, Session Score, the trainer proposal and D96A’s rule are byte-identical',
+      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('prModeOf') === 'a0ac7f761228372f' &&
+      pin('deriveExercisePRMode') === '262d3ed985632762' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f' &&
+      pin('wasSessionPR') === 'b719ca9d07d1ae30' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
+      pin('proposeTrainerState') === '34899e0f53f1d235' && /function performedLoad\(/.test(src));
+    T('CAPABILITY_CONFIG, the rank thresholds and the Session Score weights are as they were',
+      JSON.stringify(c.CAPABILITY_CONFIG) === '{"recentSessions":6,"recentDays":60,"halfLifeSessions":3,"minSessionsForTrend":4,"trendThresholdPct":3,"maxRepsFor1RM":15,"variability":{"low":8,"moderate":18},"staleDays":45}' &&
+      c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50' &&
+      /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
+    T('no storage key, schema, migration or trainer change',
+      c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 &&
+      c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   });
 }
 
@@ -38488,6 +38852,7 @@ async function main(){
   await testPortfolioMetadataD99A1();
   await testFiniteLoadsD96A();
   await testExerciseIdentityD96B();
+  await testIdentityLookupD96B1();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
