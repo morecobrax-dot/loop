@@ -38815,6 +38815,266 @@ async function testIdentityLookupD96B1(){
   });
 }
 
+/* =========================================================
+   CONTRACT 208 — TODAY IS NOT MISSED  (D99.2)
+   ---------------------------------------------------------
+   MISSED describes an opportunity that PASSED. It must not mean "not
+   completed yet". computeConsistencyData (D44) compares a day's MIDNIGHT
+   with the current instant, so today was never "future" from 00:00 on, and
+   an unlogged planned session read as missed at breakfast — on the
+   calendar cell, in Day Detail ("was planned — nothing logged"), in the
+   week's missed count and in its denominator. The Today strip and the
+   program grid already special-cased today; the engine did not.
+
+   What is held here (every instant is FIXED and every zone is set, so the
+   answer cannot depend on when or where the suite runs):
+     · today, planned and unlogged: state 'today', hollow PLANNED mark,
+       "is planned", and not yet part of what the athlete is measured against
+     · the day rolls over on the LOCAL civil date, never on UTC midnight
+     · yesterday, tomorrow, rest days, completed days and suspended days
+       are exactly what they were; D43 fulfilment, D89/D90 program grid and
+       the D44 matching are byte-identical
+     · no DATA_KEY, no stored flag: derived state only
+     · D99 Objectives do not read this state at all
+   ========================================================= */
+async function testTodayNotMissedD992(){
+  section('CONTRACT 208 — today is not missed (D99.2)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const homeTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const S1 = () => ({ weight: '100', reps: '8', rir: '2', type: 'working', completed: true });
+  const WKD = (id, date, cat) => ({ id, date, category: cat || 'push', title: cat || 'push', notes: '',
+    exercises: [{ name: 'Bench Press', effort: '', bodyweight: false, sets: [S1()] }] });
+  const plus = (d, n) => { const [y, m, dd] = d.split('-').map(Number); const x = new Date(Date.UTC(y, m - 1, dd + n));
+    return x.getUTCFullYear() + '-' + String(x.getUTCMonth() + 1).padStart(2, '0') + '-' + String(x.getUTCDate()).padStart(2, '0'); };
+  /* the balanced plan trains Mon push, Tue pull, Thu legs, Fri push; two weeks of history precede the probe */
+  const HIST = upTo => [WKD('h1', plus(upTo, -14), 'push'), WKD('h2', plus(upTo, -7), 'push')];
+  const PSESS = (cat, name) => ({ type: 'workout', planId: 'ul', category: cat, templateId: 'ul-' + cat, name,
+    exercises: [{ name: 'Bench Press', sets: 3, reps: '8-10', effort: '8' }] });
+  const PROG = o => JSON.stringify({ version: 1, activeProgramId: 'p1', programs: [Object.assign({
+    id: 'p1', name: 'Block', goal: 'hypertrophy', status: 'active', durationWeeks: 8, startDate: '2026-09-07',
+    schedule: { mon: PSESS('push', 'Push'), tue: PSESS('pull', 'Pull'), thu: PSESS('legs', 'Legs'), fri: PSESS('push', 'Push 2') } }, o || {})] });
+
+  /* boot with the clock pinned across the WHOLE boot (D99.1), then read under the same pin */
+  async function at(iso, log, store, tz){
+    if(tz) process.env.TZ = tz;
+    const app = H.loadApp(Object.assign({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+      workoutLog: JSON.stringify(log) }, store || {}));
+    const release = pinClock(app.ctx, iso);
+    try{ await H.settle(); } finally { release(); }
+    return app;
+  }
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  /* every surface a date appears on, read under the pinned clock */
+  function probe(c, iso, date){
+    return withClockOn(c, iso, () => {
+      c.invalidateConsistencyCache();
+      const k = c.computeConsistencyData();
+      let day = null, wk = null;
+      k.weeks.forEach(w => w.days.forEach(d => { if(d.date === date){ day = d; wk = w; } }));
+      c.renderHistoryCalendar();
+      const label = () => { const m = (c.document.getElementById('historyCalLabel').textContent || '').match(/([A-Za-z]+) (\d{4})/);
+        return m ? Number(m[2]) * 12 + MONTHS.indexOf(m[1]) : null; };
+      const [y, mo] = date.split('-').map(Number);
+      const diff = (y * 12 + (mo - 1)) - label();
+      for(let i = 0; i < Math.abs(diff); i++) c.shiftHistoryMonth(diff > 0 ? 1 : -1);
+      const grid = c.document.getElementById('historyCalGrid').innerHTML;
+      const cell = (grid.match(new RegExp('class="(cal-cell[^"]*)"[^>]*>\\s*<span class="cal-daynum">' + Number(date.slice(8)) + '</span>(<span class="cal-mark ([^"]*)")?')) || []);
+      c.historySelectedDate = date; c.renderSelectedDay();
+      const detail = c.document.getElementById('historySelectedDay').textContent.replace(/\s+/g, ' ').trim();
+      for(let i = 0; i < Math.abs(diff); i++) c.shiftHistoryMonth(diff > 0 ? -1 : 1);   // leave the calendar where it was found
+      return { state: day && day.state, planned: day && day.planned, wkPlanned: wk && wk.plannedKnown, wkMissed: wk && wk.missed,
+        cls: cell[1] || '', mark: cell[3] || '', detail };
+    });
+  }
+  const notMissed = p => p.state !== 'missed' && !/cal-missed/.test(p.cls) && p.mark !== 'cal-mark-missed' && !/was planned/.test(p.detail);
+
+  /* ------------------------------------------------------------- A..E */
+  sub('A—E  the day the athlete is standing in');
+  await guard('states', async () => {
+    const MON = '2026-09-21';
+    const app = await at(MON + 'T09:00:00', HIST(MON)); const c = app.ctx;
+    const A = probe(c, MON + 'T09:00:00', MON);
+    T('A  today planned and unlogged: state is today, never missed', A.state === 'today' && A.planned === true, A.state);
+    T('A  the calendar shows the hollow PLANNED mark and no MISSED mark',
+      /cal-due-today/.test(A.cls) && A.mark === 'cal-mark-planned' && !/cal-missed/.test(A.cls) && A.mark !== 'cal-mark-missed', A.cls + ' [' + A.mark + ']');
+    T('A  Day Detail says it is planned, not that it was', /Push is planned\./.test(A.detail) && !/nothing logged/.test(A.detail), A.detail);
+    T('A  it is not yet a session the athlete has failed: no missed count, not in the denominator', A.wkMissed === 0 && A.wkPlanned === 0, A.wkMissed + '/' + A.wkPlanned);
+    const done = await at(MON + 'T09:00:00', HIST(MON).concat([WKD('t', MON, 'push')]));
+    const B = probe(done.ctx, MON + 'T09:00:00', MON);
+    T('B  today planned and completed: the existing completed state, counted as before',
+      B.state === 'trained' && /cal-has-log/.test(B.cls) && B.mark === 'cal-mark-done' && B.wkPlanned === 1, B.state + ' ' + B.wkPlanned);
+    const tue = await at('2026-09-22T09:00:00', HIST(MON)); const cT = tue.ctx;
+    const Cc = probe(cT, '2026-09-22T09:00:00', MON);
+    T('C  yesterday planned and unlogged: missed, exactly as before',
+      Cc.state === 'missed' && /cal-missed/.test(Cc.cls) && Cc.mark === 'cal-mark-missed' && /was planned/.test(Cc.detail) && Cc.wkMissed >= 1, Cc.state + ' ' + Cc.cls);
+    const D_ = probe(c, MON + 'T09:00:00', '2026-09-22');
+    T('D  tomorrow planned: upcoming, not missed', D_.state === 'future' && notMissed(D_) && /is planned/.test(D_.detail), D_.state);
+    const wed = await at('2026-09-23T09:00:00', HIST(MON));
+    const E = probe(wed.ctx, '2026-09-23T09:00:00', '2026-09-23');
+    T('E  a rest day is not missed, and says so', E.state === 'rest' && notMissed(E) && /Rest day/.test(E.detail), E.state);
+    const un = await at(MON + 'T09:00:00', HIST(MON)); un.ctx.schedule = null;
+    T('an unscheduled day is not missed either', (() => { const q = probe(wed.ctx, '2026-09-23T09:00:00', '2026-09-27');
+      return q.state !== 'missed' && !/cal-missed/.test(q.cls); })());
+  });
+
+  /* ------------------------------------------------------------- H, I, L, M, N: rollover */
+  sub('H / I  rollover is the LOCAL civil date, on either side of the instant');
+  await guard('rollover', async () => {
+    const PAIRS = [
+      ['Mon 23:59 -> Tue 00:00', '2026-09-21T23:59:00', '2026-09-22T00:00:00', '2026-09-21'],
+      ['year: Thu 23:59 -> Fri 00:00', '2026-12-31T23:59:00', '2027-01-01T00:00:00', '2026-12-31'],
+      ['DST spring: Mon 23:59 -> Tue 00:00', '2027-03-15T23:59:00', '2027-03-16T00:00:00', '2027-03-15'],
+      ['DST fall: Mon 23:59 -> Tue 00:00', '2026-11-02T23:59:00', '2026-11-03T00:00:00', '2026-11-02']
+    ];
+    for(const [label, before, after, date] of PAIRS){
+      const b = await at(before, HIST(date)); const p1 = probe(b.ctx, before, date);
+      const a = await at(after, HIST(date)); const p2 = probe(a.ctx, after, date);
+      T('H  ' + label + ': the last minute of the day is still today, not missed', p1.state === 'today' && notMissed(p1), p1.state);
+      T('I  ' + label + ': the first instant after rollover makes it missed', p2.state === 'missed' && /cal-missed/.test(p2.cls) && /was planned/.test(p2.detail), p2.state);
+    }
+    T('rollover is a date comparison, not millisecond arithmetic', !/86400000/.test(fnSrc(src, 'computeConsistencyData')) &&
+      /const todayKey = localDateStr\(now\);/.test(fnSrc(src, 'computeConsistencyData')));
+  });
+
+  /* ------------------------------------------------------------- J, K */
+  sub('J / K  the first of a month, and which month is being viewed');
+  await guard('month', async () => {
+    const OCT1 = '2026-10-01', at1 = OCT1 + 'T09:00:00';
+    const app = await at(at1, HIST('2026-09-28')); const c = app.ctx;
+    const J = probe(c, at1, OCT1);
+    T('J  the 1st of a month (a planned Thursday): today, not missed', J.state === 'today' && notMissed(J), J.state + ' ' + J.cls);
+    const K = probe(c, at1, '2026-09-29');
+    T('K  stepping to the previous month reveals the genuinely missed day', K.state === 'missed' && /cal-missed/.test(K.cls) && K.mark === 'cal-mark-missed', K.state + ' ' + K.cls);
+    const before = withClockOn(c, at1, () => JSON.stringify(c.computeConsistencyData().weeks.map(w => w.days.map(d => d.state))));
+    probe(c, at1, '2026-08-25'); probe(c, at1, '2026-11-05');
+    const after = withClockOn(c, at1, () => { c.invalidateConsistencyCache(); return JSON.stringify(c.computeConsistencyData().weeks.map(w => w.days.map(d => d.state))); });
+    T('K  the month on screen never changes what a date IS', before === after);
+    T('K  and today is still today after viewing another month', probe(c, at1, OCT1).state === 'today');
+    const y = await at('2027-01-01T09:00:00', HIST('2026-12-28'));
+    const L = probe(y.ctx, '2027-01-01T09:00:00', '2027-01-01'), L2 = probe(y.ctx, '2027-01-01T09:00:00', '2026-12-31');
+    T('L  Jan 1 planned and unlogged is today; Dec 31, the day before, is missed', L.state === 'today' && notMissed(L) && L2.state === 'missed', L.state + '/' + L2.state);
+  });
+
+  /* ------------------------------------------------------------- the zones */
+  sub('the state follows the LOCAL civil date in every zone');
+  await guard('zones', async () => {
+    const ZONES = ['America/New_York', 'UTC', 'Pacific/Pago_Pago', 'Pacific/Kiritimati'];
+    try{
+      for(const tz of ZONES){
+        const iso = '2026-09-22T09:00:00', app = await at(iso, HIST('2026-09-21'), null, tz);
+        const cur = probe(app.ctx, iso, '2026-09-22'), prev = probe(app.ctx, iso, '2026-09-21'), next = probe(app.ctx, iso, '2026-09-24');
+        T(tz + ': today (Tue) is today, yesterday (Mon) is missed, the next planned day (Thu) is upcoming',
+          cur.state === 'today' && notMissed(cur) && prev.state === 'missed' && next.state === 'future' && notMissed(next),
+          [cur.state, prev.state, next.state].join());
+        const late = await at('2026-09-22T23:59:00', HIST('2026-09-21'), null, tz);
+        const roll = await at('2026-09-23T00:00:00', HIST('2026-09-21'), null, tz);
+        T(tz + ': 23:59 is still Tuesday, 00:00 makes it missed',
+          probe(late.ctx, '2026-09-22T23:59:00', '2026-09-22').state === 'today' && probe(roll.ctx, '2026-09-23T00:00:00', '2026-09-22').state === 'missed');
+      }
+    } finally { process.env.TZ = homeTZ; }
+  });
+
+  /* ------------------------------------------------------------- F, G, O..R: programs */
+  sub('F / G / O—R  programs, pauses and revisions are as they were');
+  await guard('programs', async () => {
+    const NOW = '2026-09-22T09:00:00';
+    const grid = (c, prog) => withClockOn(c, NOW, () => ['mon', 'tue', 'thu', 'fri'].map(k => [1, 2, 3, 4].map(w => c.programDayState(prog, k, w))));
+    const todayIsNeverMissed = (c, prog) => withClockOn(c, NOW, () => {
+      let bad = 0;
+      [1, 2, 3, 4, 5, 6, 7, 8].forEach(w => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(k => {
+        if(c.programDateFor(prog, w, k) === '2026-09-22' && c.programDayState(prog, k, w) === 'missed') bad++; }));
+      return bad === 0; });
+    const CASES = [
+      ['F  today suspended by an open pause', '2026-09-22', { pauses: [{ from: '2026-09-21', to: null }] }],
+      ['O  a revision taking effect today', '2026-09-22', { revisions: [{ effectiveFrom: '2026-09-22', schedule:
+          { mon: PSESS('push', 'Push'), tue: PSESS('legs', 'Legs now'), thu: PSESS('pull', 'Pull'), fri: PSESS('push', 'Push 2') } }] }],
+      ['P  a program that starts today', '2026-09-22', { startDate: '2026-09-22' }],
+      ['Q  a program that begins in the future', '2026-09-22', { startDate: '2026-09-28' }],
+      ['R  a program completed previously', '2026-09-22', { startDate: '2026-07-06', status: 'completed', durationWeeks: 6 }]
+    ];
+    for(const [label, date, over] of CASES){
+      const app = await at(NOW, HIST('2026-09-21'), { programs: PROG(over) }); const c = app.ctx;
+      const prog = c.programsStore.programs[0];
+      const p = probe(c, NOW, date);
+      T(label + ': today is never missed on any surface', p.state !== 'missed' && !/cal-missed/.test(p.cls) && p.mark !== 'cal-mark-missed' && !/was planned/.test(p.detail) && todayIsNeverMissed(c, prog),
+        p.state + ' ' + p.cls);
+    }
+    const susp = await at(NOW, HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-21', to: null }] }) });
+    const F1 = probe(susp.ctx, NOW, '2026-09-22');
+    T('F  a suspended today carries no mark at all: nothing was owed', F1.state === 'rest' && F1.mark === '' && /cal-due-today/.test(F1.cls), F1.state + ' [' + F1.mark + ']');
+    const past = await at(NOW, HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }) });
+    const G1 = probe(past.ctx, NOW, '2026-09-15');
+    T('G  a PAST suspended day keeps its existing semantics: the engine owes nothing, the calendar cell is as it was',
+      G1.state === 'rest' && /cal-missed/.test(G1.cls), G1.state + ' ' + G1.cls);
+    const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    T('D43 fulfilment, the D89/D90 grid and the D44 matching are byte-identical to 10.7',
+      pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
+      pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
+      pin('dateIsSuspended') === '0e8f48036cced387' && pin('programDateFor') === 'f4181c72c9c3ab8f' && pin('pauseSpansOf') === '00f0412bae612770');
+  });
+
+  /* ------------------------------------------------------------- the past does not move */
+  sub('nothing about a day that has passed moves');
+  await guard('past', async () => {
+    const iso = '2026-09-24T09:00:00', today = '2026-09-24';
+    const log = []; let seed = 7; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const planDow = { 1: 'push', 2: 'pull', 4: 'legs', 5: 'push' };
+    for(let i = 84; i >= 1; i--){ const d = plus(today, -i); const dow = new Date(d + 'T12:00:00Z').getUTCDay(); if(planDow[dow] && rnd() > 0.25) log.push(WKD('a' + i, d, planDow[dow])); }
+    const app = await at(iso, log); const c = app.ctx;
+    const k = withClockOn(c, iso, () => { c.invalidateConsistencyCache(); return c.computeConsistencyData(); });
+    const cur = k.weeks[k.weeks.length - 1];
+    T('every unlogged planned day BEFORE today is still missed, and counted', cur.days.filter(d => d.date < today && d.planned && !d.entry).every(d => d.state === 'missed'));
+    T('today, unlogged and planned, is the only day that reads today', k.weeks.every(w => w.days.every(d => (d.state === 'today') === (d.date === today && d.planned && !d.entry))));
+    T('the count of missed days equals the number of PAST unlogged planned days', cur.missed === cur.days.filter(d => d.date < today && d.planned && !d.entry).length);
+    T('fulfilled can still never exceed the target', k.weeks.every(w => w.target === null ? w.fulfilled === 0 : w.fulfilled <= w.target));
+    /* A pull session on the unplanned-for-pull Monday claims Tuesday's pull slot in D43's
+       shift pass, so today's slot is FULFILLED before the day has been trained. It is a
+       real, met opportunity and must stay in both numerator and denominator. */
+    const early = await at('2026-09-22T09:00:00', HIST('2026-09-21').concat([WKD('e', '2026-09-21', 'pull')]));
+    const ke = withClockOn(early.ctx, '2026-09-22T09:00:00', () => { early.ctx.invalidateConsistencyCache(); return early.ctx.computeConsistencyData(); });
+    const we = ke.weeks[ke.weeks.length - 1];
+    T('an open today already met by an earlier session still counts, on both sides', we.target === 2 && we.fulfilled === 1, we.target + '/' + we.fulfilled);
+    const late = await at('2026-09-24T21:00:00', log.concat([WKD('t', today, 'legs')]));
+    const k2 = withClockOn(late.ctx, '2026-09-24T21:00:00', () => { late.ctx.invalidateConsistencyCache(); return late.ctx.computeConsistencyData(); });
+    const c2 = k2.weeks[k2.weeks.length - 1];
+    T('once today is done it is counted in both numerator and denominator, as before', c2.target === cur.target + 1 && c2.fulfilled === cur.fulfilled + 1, cur.target + '/' + c2.target);
+  });
+
+  /* ------------------------------------------------------------- data model, objectives */
+  sub('no data model, and D99 Objectives never read this state');
+  await guard('protected', async () => {
+    const app = await at('2026-09-21T09:00:00', HIST('2026-09-21')); const c = app.ctx;
+    const before = JSON.stringify(app.store);
+    /* Count the CALLS, not only the result: the store layer may refuse or filter a key,
+       and a write it turned away is still a write the code tried to make. */
+    const writes = []; const realSet = c.LOOPStore.set, realDel = c.LOOPStore.delete;
+    c.LOOPStore.set = async (k, v) => { writes.push('set:' + k); return realSet(k, v); };
+    c.LOOPStore.delete = async k => { writes.push('del:' + k); return realDel(k); };
+    try{
+      withClockOn(c, '2026-09-21T09:00:00', () => { c.invalidateConsistencyCache(); c.computeConsistencyData(); c.renderHistoryCalendar(); c.historySelectedDate = '2026-09-21'; c.renderSelectedDay(); });
+      await H.settle(60);              /* a write is asynchronous: give any of them time to land */
+    } finally { c.LOOPStore.set = realSet; c.LOOPStore.delete = realDel; }
+    T('rendering and computing it writes nothing: no stored calendar flag', JSON.stringify(app.store) === before && writes.length === 0, writes.join());
+    T('DATA_KEYS 16, schema 1, no migration', c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
+    const OBJ = ['objectiveProgress', 'evaluateObjectives', 'objectiveBestSetOn', 'objectiveEntryHasWork', 'objectiveDailyCandidates',
+      'objectiveWeeklyCandidates', 'objectiveFreeze', 'objectiveRank', 'commitObjectivesChange', 'syncObjectives'];
+    T('no objective function reads the consistency engine, the day states or the week strip',
+      OBJ.every(n => !/computeConsistencyData|momentumWeek|renderHistoryCalendar|getSessionPRs/.test(fnSrc(src, n))));
+    const realK = c.computeConsistencyData;
+    let out = null, threw = null;
+    c.computeConsistencyData = () => { throw new Error('objectives must not ask'); };
+    try{ out = await withClockOn(c, '2026-09-21T09:00:00', async () => c.syncObjectives()); }catch(e){ threw = e.message; }
+    finally { c.computeConsistencyData = realK; }
+    T('objectives still evaluate when the consistency engine is unavailable', threw === null && out && out.ok === true, threw);
+    T('D96C is unstarted: PR XP, PR definitions and E16 are byte-identical',
+      (n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16))('computeXPTimeline') === '8c298b498a14c04d' &&
+      (n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16))('getSessionPRs') === 'b7bbfa2f0f33ba3f' &&
+      c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -38983,6 +39243,7 @@ async function main(){
   await testFiniteLoadsD96A();
   await testExerciseIdentityD96B();
   await testIdentityLookupD96B1();
+  await testTodayNotMissedD992();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

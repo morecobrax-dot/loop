@@ -13622,3 +13622,61 @@ blocked the gate on roughly five days a year.
 
 **No client release.** `index.html` and `sw.js` are byte-identical to 10.7; LOOP stays
 10.7 / loop-v184. A test-only defect does not earn a version bump.
+
+---
+
+## §130 — TODAY IS NOT MISSED (D99.2 · LOOP 10.8 · loop-v185)
+
+MISSED describes an opportunity that PASSED. It must not mean "not completed yet".
+
+**Presentation or engine? The engine.** `computeConsistencyData` (D44) decides whether a day is
+"future" with `dt > now`, where `dt` is that day's MIDNIGHT. Today's midnight is never after the
+current instant, so from 00:00 onward today was never future, and a planned unlogged session
+became `state: 'missed'`, was counted in `missed`, and sat in the week's denominator — at 09:00.
+The calendar cell and Day Detail ("was planned — nothing logged") simply read that. The Today
+strip (`momentumWeek`, the week-strip builder) and the program grid (`programDayState`) had each
+been given their own `today` special case; the engine underneath had not, which is why the
+calendar was the surface that exposed it. `momentumWeek`'s own comment records the same bug
+being patched around once already.
+
+**The rule.** Only a PRIOR civil day is eligible to be missed. Today stays an opportunity until
+the local civil date rolls over — no clock-time deadline was invented, and nothing compares
+milliseconds. `todayKey = localDateStr(now)` is the single anchor.
+
+**What changed, and only this.** (1) The engine gives an unlogged planned today the derived state
+`today` instead of `missed`. (2) The slot for today keeps its place in D43's matching pool, so no
+PAST slot can change owner; it is only left out of `plannedKnown`/`target` afterwards if it is
+still unfulfilled. A today already met by an earlier unplanned session, or logged today, still
+counts on both sides. (3) The calendar cell shows the existing hollow PLANNED mark with a
+`cal-due-today` class (no new CSS, no new colour) — and no mark at all when today is suspended,
+because nothing was owed. (4) Day Detail says "is planned" for a day that has not ended.
+
+**Untouched, and proven byte-identical by hash:** `assignWorkoutsToPlannedSlots`,
+`deriveProgramPlanFulfillment`, `programDayState`, `programPlannedSlots`, `dateIsSuspended`,
+`programDateFor`, `pauseSpansOf`. No DATA_KEY, no schema, no migration, and nothing is stored:
+"missed" is still derived, never persisted. D99 Objectives read none of this state (asserted
+per function, and behaviourally with the consistency engine made to throw).
+
+**Drift, measured against shipped 10.7.** Over a 12-week athlete at six instants, every PAST week
+is byte-identical (0 of 6 moved). Only the current week moves, and only while today is planned
+and unlogged: Monday 09:00 the week denominator 1 → 0 (overall 67 → 68), Thursday 09:00 the
+week 33 → 50% (overall 68 → 70). The effect is one-directional and small by construction: an outstanding day was being
+scored as a failure a day early; once it is done it is counted exactly as before. Objective
+state was identical at all six instants.
+
+**Known and NOT changed here.** (a) On a PAST day inside a pause the D44 engine owes nothing
+(`rest`) but the calendar cell still draws MISSED, because the cell does not consult suspension;
+this pre-dates D99.2 and G asked for existing semantics to be preserved. (b) Program progress
+("N of M planned sessions") counts slots dated up to and INCLUDING today (D89/§66), so an
+unlogged today is in its denominator. That is a to-date count, not the word missed, and it is a
+documented contract of its own.
+
+**Tests.** Contract 208 (50 checks) under fixed instants and four set time zones — scenarios
+A—R, the Monday/Tuesday, year, DST-spring and DST-fall rollovers on either side of midnight, the
+first of a month with previous-month navigation, and the past-does-not-move properties.
+**15 of 15 mutants killed**, including the original defect, a UTC key, today stretching to
+yesterday, a passed day never missing, the open slot left in the denominator, a FULFILLED today
+dropped from it, today treated as completed, MISSED drawn for today, a suspended today marked
+planned, both Day Detail wordings, today removed from the matching pool, a stored flag, an hour
+shifted by arithmetic, and objectives reading the state. Three of those first survived and were
+test gaps, now closed. Real Edge at 320, 375, 390 and 430: 60/60.

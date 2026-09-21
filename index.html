@@ -17173,6 +17173,22 @@ const LOOP_UPDATES = [
     changes: [
       'The rule is still only capitals and surrounding spaces. Nothing you logged was renamed, merged or moved'
     ]
+  },
+  {
+    id: 'v10-8',
+    version: 'LOOP 10.8',
+    title: 'Today Is Not Missed',
+    date: '2026-09-21',
+    swVersion: 'loop-v185',
+    summary: 'A workout planned for today is no longer marked missed while the day is still open.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'A planned session you had not logged yet was marked missed in Log and counted against your consistency from the first minute of the day. It now reads as planned until the day ends, and only a day that has passed can be missed'
+    ],
+    changes: [
+      'Days that have already passed, rest days and paused days are unchanged, and nothing you logged was touched'
+    ]
   }
 ];
 
@@ -22577,6 +22593,11 @@ function computeConsistencyData(){
   if(_consistencyCache && _consistencyDay === day) return _consistencyCache;
 
   const now = new Date();
+  /* D99.2 - the civil day the athlete is standing in. `dt > now` below compares a
+     day's MIDNIGHT with the current instant, so today is never "future" from
+     00:00 onward - which used to make an unlogged planned session read as missed
+     at breakfast. Today is still an opportunity until the day rolls over. */
+  const todayKey = localDateStr(now);
   const dayOffset = (now.getDay() + 6) % 7;
   const thisMonday = new Date(now); thisMonday.setHours(0,0,0,0);
   thisMonday.setDate(now.getDate() - dayOffset);
@@ -22641,8 +22662,12 @@ function computeConsistencyData(){
         && (() => { try{ return dateIsSuspended(getActiveProgram(), key); }catch(e){ return false; } })();
       if(wasPlanned && !beforeHistory && !isFuture && !suspendedDay){
         plannedKnown++;
+        /* D99.2 - `open` marks today's slot while nothing is logged for it. It stays
+           in the pool so D43's matching sees exactly what it always saw (no past slot
+           can change owner); it is only left out of the counts below if it is still
+           unfulfilled once matching is done. */
         planSlots.push({ date: key, category: schedule ? schedule[dayKey] : null,
-          week: CONSISTENCY_WEEKS - 1 - w, workoutId: null });
+          week: CONSISTENCY_WEEKS - 1 - w, workoutId: null, open: key === todayKey && !entry });
       }
 
       let state = 'rest', dayPRs = 0, dayScore = null, daySets = 0, dayVol = 0;
@@ -22659,7 +22684,10 @@ function computeConsistencyData(){
       } else if(isFuture){
         state = 'future';
       } else if(wasPlanned && !beforeHistory && !suspendedDay){
-        state = 'missed'; missed++;
+        /* D99.2 - MISSED means the opportunity PASSED. Today has not. It is a
+           truthful state between completed and missed, derived like the others. */
+        if(key === todayKey) state = 'today';
+        else { state = 'missed'; missed++; }
       }
 
       days.push({ date: key, state, entry: entry || null, prs: dayPRs, score: dayScore, sets: daySets, volume: dayVol, planned: wasPlanned });
@@ -22705,6 +22733,16 @@ function computeConsistencyData(){
   const fulfilledByWeek = {};
   planSlots.forEach(sl => { if(sl.workoutId)
     fulfilledByWeek[sl.week] = (fulfilledByWeek[sl.week] || 0) + 1; });
+  /* D99.2 - a planned session that is still open today has not been failed, so it
+     is not yet part of what the athlete is measured against; it enters the count
+     when it is done, or when the day rolls over. Matching above is untouched. */
+  planSlots.forEach(sl => {
+    if(!sl.open || sl.workoutId) return;
+    const wk = weeks[sl.week];
+    wk.plannedKnown--;
+    wk.target = wk.plannedKnown || null;
+    wk.known = wk.plannedKnown > 0 || wk.workouts > 0;
+  });
   weeks.forEach(wk => {
     wk.fulfilled = fulfilledByWeek[wk.weekSlot] || 0;
     /* fulfilled can never exceed target: there is one slot per planned day
@@ -28908,6 +28946,12 @@ function renderHistoryCalendar(){
       cls += ' cal-unknown';
     } else if(scheduledCat === 'rest'){
       cls += ' cal-rest';
+    } else if(isToday){
+      /* D99.2 - today is still available to train: the hollow PLANNED mark, never
+         MISSED. A day the athlete suspended shows no mark at all. */
+      cls += ' cal-due-today';
+      let held = false; try{ held = !!dateIsSuspended(getActiveProgram(), dateStr); }catch(e){}
+      if(!held) mark = `<span class="cal-mark cal-mark-planned"></span>`;
     } else {
       cls += ' cal-missed';
       mark = `<span class="cal-mark cal-mark-missed"></span>`;
@@ -28977,7 +29021,9 @@ function renderSelectedDay(){
   let firstLogDate = null;
   workoutLog.forEach(l => { if(!firstLogDate || l.date < firstLogDate) firstLogDate = l.date; });
   const beforeHistory = !firstLogDate || dateStr < firstLogDate;
-  const isFuture = dateStr > localDateStr();
+  /* D99.2 - a day that has not ended is still ahead of the athlete: today reads
+     "is planned", not "was planned - nothing logged". */
+  const isFuture = dateStr >= localDateStr();
 
   let line;
   if(scheduledCat && scheduledCat !== 'rest' && !beforeHistory && !isFuture){
