@@ -13547,3 +13547,78 @@ identity one, and was out of scope here.
 **Not changed.** E11, E12, E15(a) and E16 remain open and untouched. XP, Rank, Mastery scoring,
 Session Score, D44, D49, D50B, D91 PR modes, D98 PBT state, D99 objectives, D99A, programs,
 recovery, Friends, Supabase, DATA_KEYS 16, schema 1.
+
+---
+
+## §129 — THE SUITE MUST NOT DEPEND ON THE DAY IT RUNS (D99.1 · no client change)
+
+On Monday 2026-09-21 the shipped 10.7 baseline failed seven checks that had been
+green the day before, from a pristine `git archive` of beb8f3f. Six were in Contract
+202 (D99 Objectives) and one in Contract 195 (D94 import). **No production code was
+wrong, and none was changed.** Production was re-verified against the real function
+paths under fixed clocks on seven weekdays, across the Sunday→Monday boundary and in
+four time zones: 32/32 and 24/24.
+
+**The D99 cause, one sentence.** The fixtures called `H.loadAppBooted(...)`, which boots
+against the REAL wall clock, and D99 legitimately evaluates once at the end of boot and
+generates the CURRENT period's objectives. Every Contract 202 fixture therefore started
+with real-today instances in the store and then asserted as though the store were
+untouched. It stayed invisible for a week because until that Monday the real week start
+happened to equal the fixture's `OBJ_WEEK` (2026-09-14) and the real day was a rest day
+that generates nothing. On Monday both coincidences ended at once: a new week key, and a
+training day that generates.
+
+**The fix.** `loadApp()` returns before the boot's async tail runs, so the fixtures pin
+the clock BETWEEN load and settle. The default is a day the plan RESTS, so every test
+below starts from an empty store and creates what it needs under its own clock — which is
+how they were written. The two loader tests are pinned to that rest day deliberately,
+with the premise asserted rather than assumed, so a future plan change explains itself
+instead of failing mysteriously. The refused-write test resets the store first, because
+it asserts the TRANSACTION boundary, not what boot generated.
+
+**The distinction the contract turns on**, now asserted explicitly: dropping an invalid
+persisted record leaves the athlete with no objective, which the CURRENT period may then
+legitimately fill. That is generation, not repair. "Never repaired" is also stated more
+strongly than before — a wrong-shaped store must not be adopted at all, proven with a
+foreign field that must not survive the load.
+
+**The D94 cause.** `X — Mastery: rebuilt from the merged history` also compared lifetime
+XP, and lifetime XP includes OBJECTIVE XP — device-local state that a backup does not carry
+and the hand-built oracle deliberately does not model. The imported device had an
+objectives key and completed one (+15); the oracle had none (0). That asymmetry only
+appears on a day an objective exists to complete. Mastery itself was never wrong: it
+matched the oracle and changed from the pre-import value on every weekday tested. The
+assertion now compares the XP an import can actually carry (training + cardio) and leaves
+objective XP to its own contract.
+
+**Held, and proven still held.** One active daily and two active weeklies; the target
+freezes once offered; no retroactive generation and no retroactive objective XP; no
+reroll on refresh; malformed records ignored safely; a refused write leaves nothing in
+memory; an accepted one is offered exactly once; the period key is the LOCAL civil day and
+its Monday. Contract 202 now asserts all of these under nine fixed instants spanning every
+weekday and the week boundary, so the suite can never again be green because of the day it
+happened to run.
+
+**Mutation.** 8 of 9 killed against Contracts 195 + 202 alone: a Monday treated as a past
+week, a UTC period key, a backfilled past day, a malformed record accepted, a wrong-shaped
+store repaired, a failed write leaving an instance behind, a blind existing-instance guard,
+and a second active daily. The ninth (Mastery cache invalidation disabled) is not
+observable from these two contracts — both compare fresh boots — and the full suite kills it.
+
+**An eighth, found by the matrix and fixed with them.** Running the whole suite under a
+faked clock also failed `a planned day skipped AFTER training began is still shown as
+missed` on 2026-11-01. Not DST and not the weekday: the history calendar renders only the
+CURRENT month, that fixture began training 20 days ago, and on the 1st of a month there is
+no earlier day in that month to be missed — so when the 1st is also a rest day there is no
+missed cell anywhere on screen. The calendar was RIGHT. The fixture now steps back a
+month with the app’s own shiftHistoryMonth(-1), giving a month wholly past whatever
+today is, with training begun before it, and steps forward again so the next block finds
+the calendar where it left it. Worth recording for the next phase: the month CANNOT be set
+from a test. historyCalMonth is a binding inside the app, and assigning ctx.historyCalMonth
+only writes an unread property on the sandbox object — the first attempt at this fix was a
+silent no-op that looked right and changed nothing. It
+reproduced identically on pristine 10.7, so it too pre-dates this phase, and it would have
+blocked the gate on roughly five days a year.
+
+**No client release.** `index.html` and `sw.js` are byte-identical to 10.7; LOOP stays
+10.7 / loop-v184. A test-only defect does not earn a version bump.

@@ -7394,13 +7394,23 @@ function testLogRedesign(app){
   }
   {
     // ...but a real gap after training began is still surfaced honestly.
-    ctx.workoutLog = [mk(0,'upper',20)];
+    /* D99.1 - this rendered the CURRENT month with training begun 20 days ago, so
+       it needed a past-or-today planned day to exist INSIDE this month. On the 1st
+       there are none, and when that 1st is also a rest day the calendar shows no
+       missed cell at all - which is the calendar being RIGHT. It failed on
+       2026-11-01 and on any month opening on a rest day, about five days a year.
+       Stepping back one month with the app's own control gives a month that is
+       wholly past whatever today is, with training begun before it. Note the month
+       cannot be set from here: historyCalMonth is a binding inside the app, and
+       assigning ctx.historyCalMonth only writes an unread property on the sandbox. */
+    ctx.workoutLog = [mk(0,'upper',70)];
     clearCaches(ctx);
-    ctx.historyCalMonth = null;
     ctx.renderHistoryCalendar();
+    ctx.shiftHistoryMonth(-1);
     const grid = doc.getElementById('historyCalGrid').innerHTML;
     T('a planned day skipped AFTER training began is still shown as missed',
       (grid.match(/cal-missed/g) || []).length > 0);
+    ctx.shiftHistoryMonth(1);            /* leave the calendar where it was found */
   }
 
   sub('selecting a day answers it inline');
@@ -34731,7 +34741,16 @@ async function testBackupCompatibility(){
     const tb = truth(B.ctx), tr = truth(R.ctx);
     T('W — PRs: the reloaded app counts the imported records, as the oracle does', tb.prs === tr.prs && tb.prCount === tr.prCount && tb.prs > pre.prs,
       tb.prs + ' / ' + tr.prs + ' / was ' + pre.prs);
-    T('X — Mastery: rebuilt from the merged history', tb.mastery === tr.mastery && tb.mastery !== pre.mastery && tb.xp === tr.xp);
+    /* D99.1 - lifetime XP includes OBJECTIVE XP, which is device-local state a
+       backup does not carry and the hand-built oracle deliberately does not model:
+       the imported device had an objectives key and completed one (+15), the oracle
+       had none. That asymmetry only shows on a day an objective exists to complete,
+       which is why this passed until a Monday. The import can move training and
+       cardio XP, so that is what is compared; objective XP has its own contract. */
+    const importableXP = (t2, c2) => t2.xp - c2.computeObjectiveXPTotal();
+    T('X — Mastery: rebuilt from the merged history', tb.mastery === tr.mastery && tb.mastery !== pre.mastery
+      && importableXP(tb, B.ctx) === importableXP(tr, R.ctx),
+      tb.mastery === tr.mastery ? importableXP(tb, B.ctx) + ' vs ' + importableXP(tr, R.ctx) : 'mastery differs');
     T('Y — Program: the imported program is active on a device that had none', tb.program === 'p_imp' && tr.program === 'p_imp' && pre.program === null);
     T('Z — cardio: stats and cardio XP include the imported run', tb.cardio === tr.cardio && tb.cardioXP === tr.cardioXP && tb.cardio !== pre.cardio);
     T('AA — D93\'s day-keyed caches rebuild for today from the merged history', tb.consistency === tr.consistency && tb.consistency !== pre.consistency);
@@ -36750,10 +36769,33 @@ async function testObjectivesD99(){
   const oS = (w, r, rir) => ({ weight: String(w), reps: String(r), rir: String(rir) });
   const oEX = (n, sets) => ({ name: n, effort: '', bodyweight: false, sets });
   const oWK = (id, date, cat, exs) => ({ id, title: cat + ' day', category: cat, date, notes: '', exercises: exs });
-  async function athlete(){
-    const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  /* D99.1 - the clock must be pinned across the WHOLE boot, not just after it.
+     D99 evaluates once at the end of boot and legitimately generates the CURRENT
+     period's objectives; booting against the real wall clock therefore seeded
+     every fixture below with real-today instances. That was invisible until a
+     Monday, because until then the real week start happened to equal OBJ_WEEK and
+     the real day was a rest day that generates nothing. loadApp() returns before
+     the async tail runs, so the pin goes on between load and settle. */
+  const OBJ_REST_DAY = '2026-09-20T09:00:00', OBJ_REST_DATE = '2026-09-20';
+  async function athlete(iso){
+    const app = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+    /* Default to a day the plan RESTS: every test below then starts from an
+       empty objectives store and creates what it needs under its own clock,
+       which is how they are written. A caller that wants boot-time generation
+       passes its own instant. */
+    const release = pinClock(app.ctx, iso || OBJ_REST_DAY);
+    try{ await H.settle(); } finally { release(); }
     return app;
   }
+  /* The same, for the fixtures that need a store of their own. */
+  async function bootObjectivesAt(iso, store){
+    const app = H.loadApp(Object.assign({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') }, store || {}));
+    const release = pinClock(app.ctx, iso);
+    try{ await H.settle(); } finally { release(); }
+    return app;
+  }
+  /* A day the plan rests: nothing is generated, so a loader can be observed on
+     its own. The premise is asserted, not assumed. */
   function seed(c, reps, rir){
     const sess = c.objectiveTodaySession(OBJ_DATE);
     const names = sess.template.exercises.slice(0, 3).map(e => e.name);
@@ -36781,16 +36823,34 @@ async function testObjectivesD99(){
       c.backupValueFits('objectives', { version: 1 }) === false &&
       c.backupValueFits('objectives', []) === false &&
       c.backupValueFits('objectives', null) === true);
+    /* D99.1 - both of these watch the LOADER, so they are pinned to a day the
+       plan rests: an evaluation that generates the current period's objectives is
+       correct behaviour and would otherwise be mistaken for repair. The premise
+       is asserted first, so a future plan change explains itself. */
+    T('premise: the pinned rest day generates nothing to confuse a loader test',
+      (await bootObjectivesAt(OBJ_REST_DAY)).ctx.objectivesStore.instances.length === 0);
     T('a stored value of the wrong shape is treated as absent, never repaired', await (async () => {
-      const bad = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
-        objectives: JSON.stringify({ version: 1, instances: 'nope' }) });
-      return Array.isArray(bad.ctx.objectivesStore.instances) && bad.ctx.objectivesStore.instances.length === 0;
+      /* D99.1 - 'never repaired' means the bad object is not adopted AT ALL, not
+         merely that instances ends up empty: a default store is empty too. The
+         foreign field proves the object was ignored rather than patched up. */
+      const bad = await bootObjectivesAt(OBJ_REST_DAY, { objectives: JSON.stringify({ version: 1,
+        instances: 'nope', smuggled: 'should not survive' }) });
+      const s = bad.ctx.objectivesStore;
+      return Array.isArray(s.instances) && s.instances.length === 0 && s.smuggled === undefined &&
+        JSON.stringify(s) === JSON.stringify({ version: 1, instances: [] });
     })());
     T('an instance that is not an instance is dropped on load', await (async () => {
-      const bad = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
-        objectives: JSON.stringify({ version: 1, instances: [null, { id: 'x' }, 7,
+      const bad = await bootObjectivesAt(OBJ_REST_DAY, { objectives: JSON.stringify({ version: 1, instances: [null, { id: 'x' }, 7,
           { id: 'ok', kind: 'daily', objectiveType: 't', periodKey: '2026-01-01', rewardXP: 15 }] }) });
       return bad.ctx.objectivesStore.instances.length === 1 && bad.ctx.objectivesStore.instances[0].id === 'ok';
+    })());
+    /* And the distinction the contract turns on: dropping an invalid record
+       leaves the athlete with no objective, which the CURRENT period may then
+       legitimately fill - that is generation, not repair. */
+    T('dropping an invalid record does not resurrect it, and the current period may still generate', await (async () => {
+      const bad = await bootObjectivesAt(OBJ_DAY, { objectives: JSON.stringify({ version: 1, instances: [{ id: 'x' }] }) });
+      const inst = bad.ctx.objectivesStore.instances;
+      return inst.every(i => i.id !== 'x') && inst.every(i => i.kind !== 'daily' || i.periodKey === OBJ_DATE);
     })());
     /* THE BUG BROWSER QA FOUND. showMainApp() renders Today, and rendering
        Today is the first evaluation of the day. loadObjectives() ran after it,
@@ -37140,6 +37200,9 @@ async function testObjectivesD99(){
     const app = await athlete(); const c = app.ctx;
     await withClockOn(c, OBJ_DAY, async () => {
       seed(c, 12, 3);
+      /* D99.1 - this asserts the TRANSACTION boundary, so it starts from a known
+         store rather than from whatever boot legitimately generated. */
+      c.objectivesStore = { version: 1, instances: [] };
       const realSet = c.LOOPStore.set;
       c.LOOPStore.set = async (k, v) => (k === 'objectives' ? false : realSet(k, v));
       const r = await c.syncObjectives();
@@ -37364,6 +37427,73 @@ async function testObjectivesD99(){
     });
     T('a whole year at the ceiling is under one level at Level 20',
       52 * c.OBJECTIVE_WEEKLY_XP_CAP < 52 * session * 3);
+  });
+  /* --------------------------------------------- the same answer on any day */
+  /* D99.1 - seven checks in Contract 202 and one in Contract 195 were green
+     every day until Monday 2026-09-21, because the fixtures booted against the
+     real wall clock and D99 legitimately generates the CURRENT period at the end
+     of boot. Until that Monday the real week start happened to equal OBJ_WEEK and
+     the real day was a rest day that generates nothing, so the leak was silent.
+     Production was never wrong. This section pins the clock and asserts the
+     invariants on every weekday, so the suite can never again be green only
+     because of the day it happened to run. */
+  sub('the same answer whatever day the suite runs');
+  await guard('weekday matrix', async () => {
+    const DAYS = [
+      ['Wed', '2026-09-16T09:00:00', '2026-09-16', '2026-09-14'],
+      ['Thu', '2026-09-17T09:00:00', '2026-09-17', '2026-09-14'],
+      ['Fri', '2026-09-18T09:00:00', '2026-09-18', '2026-09-14'],
+      ['Sat', '2026-09-19T09:00:00', '2026-09-19', '2026-09-14'],
+      ['Sun 23:59', '2026-09-20T23:59:00', '2026-09-20', '2026-09-14'],
+      ['Mon 00:00', '2026-09-21T00:00:00', '2026-09-21', '2026-09-21'],
+      ['Mon 00:01', '2026-09-21T00:01:00', '2026-09-21', '2026-09-21'],
+      ['Mon midday', '2026-09-21T12:00:00', '2026-09-21', '2026-09-21'],
+      ['Tue', '2026-09-22T09:00:00', '2026-09-22', '2026-09-21']
+    ];
+    let forward = 0, past = 0, limits = 0, dropped = 0, refused = 0;
+    for(const [label, iso, date, week] of DAYS){
+      const app = await bootObjectivesAt(iso); const c = app.ctx;
+      /* seventeen sessions strictly BEFORE this instant: a session logged ON the
+         day would legitimately complete that day's objective, which is not what
+         'no backfill' means. */
+      for(let d = 1; d <= 17; d++){
+        const [yy, mm, dd] = date.split('-').map(Number);
+        const p = new Date(yy, mm - 1, dd - d);
+        c.workoutLog.push(oWK('m' + d, p.getFullYear() + '-' + String(p.getMonth() + 1).padStart(2, '0') +
+          '-' + String(p.getDate()).padStart(2, '0'), 'push',
+          [oEX('Machine Chest Press', [oS(100, 10, 2), oS(100, 10, 2)])]));
+      }
+      clearCaches(c);
+      await withClockOn(c, iso, async () => { await c.syncObjectives(); });
+      const inst = c.objectivesStore.instances || [];
+      /* the period key is the LOCAL civil day, and its Monday */
+      if(inst.every(i => i.kind !== 'daily' || i.periodKey === date) &&
+         inst.every(i => i.kind !== 'weekly' || i.periodKey === week)) forward++;
+      /* seventeen past sessions never backfill an objective or its XP */
+      if(c.computeObjectiveXPTotal() === 0) past++;
+      /* the shipped ceilings hold on every day, including the week boundary */
+      if(inst.filter(i => i.kind === 'daily' && i.periodKey === date).length <= 1 &&
+         inst.filter(i => i.kind === 'weekly' && i.periodKey === week).length <= 2) limits++;
+      /* a malformed record is dropped whatever day it is read on */
+      const bad = await bootObjectivesAt(iso, { objectives: JSON.stringify({ version: 1,
+        instances: [null, 7, { id: 'x' }] }) });
+      if((bad.ctx.objectivesStore.instances || []).every(i => i && i.id !== 'x')) dropped++;
+      /* and a refused write still leaves the store exactly as it was */
+      const r = await bootObjectivesAt(iso); const rc = r.ctx;
+      rc.objectivesStore = { version: 1, instances: [] };
+      const snap = JSON.stringify(rc.objectivesStore);
+      const realSet = rc.LOOPStore.set;
+      rc.LOOPStore.set = async (k, v) => (k === 'objectives' ? false : realSet(k, v));
+      await withClockOn(rc, iso, async () => { seed(rc, 12, 3); await rc.syncObjectives(); });
+      rc.LOOPStore.set = realSet;
+      if(JSON.stringify(rc.objectivesStore) === snap) refused++;
+    }
+    T('the period key is the local civil day and its Monday, on all ' + DAYS.length + ' instants', forward === DAYS.length, forward);
+    T('a current Monday is never mistaken for a past week, and a past week never for current',
+      forward === DAYS.length && past === DAYS.length, forward + '/' + past);
+    T('the daily and weekly ceilings hold across the week boundary', limits === DAYS.length, limits);
+    T('a malformed record is dropped on every one of them', dropped === DAYS.length, dropped);
+    T('a refused write leaves nothing behind on every one of them', refused === DAYS.length, refused);
   });
 }
 
