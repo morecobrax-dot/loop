@@ -467,7 +467,7 @@ A loaded candidate now needs a positive finite load and positive finite reps,
 through D96A's own boundary, in both walks. Zero is not globally converted to
 missing: it stays distinct from blank, `BW` and malformed everywhere else.
 
-## E12 — The Log's PR marks judge each session inside its own box · P3 · PROVEN
+## E12 — The Log's PR marks judge each session inside its own box · P3 · **CLOSED in D96C-2 (LOOP 10.12)**
 
 Found in D91. `getSessionPRs` / `wasSessionPR` — the Log calendar's PR dot, a
 day's "N new records", the Recent list's chip, the Day Detail callout and the
@@ -481,6 +481,26 @@ bodyweight and do not depend on storage order, so E6 itself does not occur here.
 **Why it was not fixed in D91.** Their count feeds `computeWorkoutQuality`
 (Session Score) and the D44 consistency view, both protected in D91. Moving them
 onto the shared mode and the event engine is a Session Score / D44 decision.
+
+**Closed in D96C-2 (LOOP 10.12, §134, Contract 212).** D96C-DECISION took that
+decision: what LOOP labels PR means "this workout created a canonical personal
+record", and a separate idea such as "session best" would need different words.
+Measured first on shipped 10.11, per WORKOUT rather than per date, over 39
+histories: the marker disagreed with the canonical stream on 29 of them. Both
+engines now read one derived index of the canonical events, keyed by the workout
+that produced each record, built once per change to the log and cleared by the
+same `invalidatePRCaches()` every history mutation already reaches.
+
+It was also the fear that kept it open, measured rather than assumed. **Session
+Score changed in 0 of 631 workouts** (it has no PR input at all). The legacy day
+score changed in 186, every one because the record COUNT it is handed changed;
+its weighting is byte-identical. D44's own function is byte-identical, and so are
+XP, level, rank, Mastery, PBT and the Friends snapshot in all 39 histories.
+**Both real owner backups drift by nothing.**
+
+It is also much faster, because five separate walks of the log became one: on a
+two-year history, every workout's marker went 16.4 → 0.20 ms and a warm D44 pass
+7.77 → 1.67 ms.
 
 ## E13 — Case variants of one name are counted twice by `computeAllPREvents` · P3 · **CLOSED in D96B (LOOP 10.6)**
 
@@ -631,7 +651,7 @@ echoes back; no state, weight, rep or confidence changes. Read-time only.
 
 ---
 
-## E18 — A workout summary only shows a record that is still the lift's LATEST one · P4 · PROVEN
+## E18 — A workout summary only shows a record that is still the lift's LATEST one · P4 · **CLOSED in D96C-2 (LOOP 10.12)**
 
 Found by D96C-DECISION, recorded here by D96C-1 so the register matches the
 reports that cite it. `prEventsForEntry(entry)` — the "New records" list on the
@@ -648,11 +668,20 @@ record for it, because a later session has since taken the lead. It also reports
 at most one record per lift per session, which matches the headline-only rule XP
 uses and is not itself a defect.
 
-**Why it is still open.** It is the same question as E12 — what is the indexed,
-canonical answer to "did this session set a record" — and belongs with it in
-D96C-2 rather than in a second walk written beside it.
+**Closed in D96C-2 (LOOP 10.12).** It was the same question as E12 — what is the
+indexed, canonical answer to "did this session set a record" — and it is answered
+by the same index rather than by a second walk written beside it. Measured on
+10.11: **38 of 39 histories** had at least one workout that set a record and
+reported none, including the owner's own 2026-08-29 backup, where three older
+sessions' summaries came back. `saveLog` held a second copy of the newest-only
+rule; it reads `prEventsForEntry` now. Proven through the REAL editor, in the
+browser: open an older workout, change its set, press Save, and the record, the
+marker and the summary go together.
 
-## E19 — `computePRs` still reads a loaded set with no reps as a lift's best · P4 · PROVEN
+Reading the whole log per lift was also what made the old shape slow: over a
+two-year history, asking every workout for its records went **262.9 ms → 0.21 ms**.
+
+## E19 — `computePRs` still reads a loaded set with no reps as a lift's best · P4 · **CLOSED in D96C-2 (LOOP 10.12)**
 
 Found in D96C-1, measured and deliberately not fixed there. D96C-1 removed
 `315 lb × 0 reps` from the canonical record stream, from PR XP, from Mastery's
@@ -672,11 +701,14 @@ does not appear when it should. Exercise Detail's "Best ever" (230 lb × 5) and 
 capability model already read real sets after D96A closed E15(b), and neither is
 affected.
 
-**Why it was not fixed in D96C-1.** That phase was scoped to the canonical record
-engine and PR XP, and named the two protected functions it expected to move.
-`computePRs` is a third, and its one consumer is D49/D50B progression code the
-brief protects. It belongs with E12 in the next indexed-canonical phase, where
-the question "which walk is the authority for a lift's best" is answered once.
+**Closed in D96C-2 (LOOP 10.12).** Both branches now ask the question D96C-1 gave
+the record engines: `loadedPRPerformance` for a loaded set, `performedReps` for a
+bodyweight one. What `computePRs` SELECTS is unchanged — the heaviest set with its
+OWN reps, the most reps for a bodyweight lift, the first set to reach a value, one
+row per name per workout (E15(a) untouched) — and `buildProgressionRecommendation`
+is byte-identical by hash, with its output identical on **39 of 39** histories.
+Seen on screen before the fix: "Best ever 320 lb", and Day Detail announcing
+"2 new records: Barbell Squat, Overhead Press" for a session that set one.
 
 ## Not findings — checked and clean
 

@@ -13884,3 +13884,85 @@ would match or beat your best" appears — D49/D50B are protected here, so it is
 `calculateRequiredXP`, `calculateLevelFromXP`, `getCurrentProgression`. Exactly TWO pins moved,
 restated in place with their reason. verify 9,905/0, five audits green, real Edge at 320/375/390/430
 on Progress → All records and Profile → XP History: 52/52. DATA_KEYS 16, schema 1, no migration.
+
+---
+
+## §134 — ONE ANSWER TO "DID THIS WORKOUT SET A RECORD?" (D96C-2 · LOOP 10.12 · loop-v189)
+
+D88 findings **E12, E18 and E19**, closed. D96C-1 made the canonical Records screen and PR XP agree
+with each other. Every OTHER surface that says PR did not.
+
+`getSessionPRs` / `wasSessionPR` were a FIFTH definition of a record: a session's heaviest set (most
+reps if the row was ticked) compared only against earlier sessions logged with the SAME box, blind to
+reps-at-weight, estimated-1RM and volume records. Measured on shipped 10.11 across 39 histories, per
+WORKOUT and not per date, they disagreed with the canonical stream on **29 of them**. An athlete could
+open Log and see PR on a workout Records called ordinary, and nothing on the workout that set it.
+
+**E18**: `prEventsForEntry` asked the record engine for a lift's whole history and kept `events[0]` —
+the lift's NEWEST record — only when its date matched, so a workout that genuinely set a record
+reported none as soon as a later session beat it. **38 of 39 histories**, including both real owner
+backups. `saveLog` held a second copy of the same rule.
+
+**E19**: `computePRs` required a positive LOAD but only a FINITE rep count, so `315 lb × 0` stayed a
+lift's best ever — proven on screen in real Edge: "Best ever 320 lb", and Day Detail announcing
+"2 new records: Barbell Squat, Overhead Press" for a session with one.
+
+**The fix is one index, not a fifth algorithm.** The canonical events already existed; they now carry
+the id of the WORKOUT that produced them, and `canonicalPRIndex()` groups them once per change to the
+log — beside the modes and records caches, cleared by the same `invalidatePRCaches()` that every
+history mutation already reaches through `invalidateSortedLogCache()` (and import and reset reload the
+page, which is where the app itself says the reset happens). `getSessionPRs`, `wasSessionPR`,
+`prEventsForEntry`, `sessionPRSets` and `saveLog`'s summary all read it. Five walks became one.
+
+**Keyed by the WORKOUT, not the day.** Two sessions on one civil date is ordinary — the owner's own
+2026-08-30 backup has two — and a date-keyed index hands each of them the other's records. Proven
+both ways round, for the marker, the summary and the per-set badges. `byDate` remains for the one
+question that is genuinely about a day (`wasSessionPR`, whose signature is given a date, not a
+workout); `prEventsOfEntry` tries the entry OBJECT before its id, so even a duplicated id in imported
+history cannot cross the streams.
+
+**Faster, not slower.** D96C-DECISION measured the naive shape at 6—8× slower and required the
+indexed one. Measured, 10.11 → 10.12, on a two-year history: `computeConsistencyData` cold
+8.12 → 5.45 ms (—33%), warm 7.77 → 1.67 ms (—79%); every workout's marker 16.4 → 0.20 ms
+(—99%); every workout's summary **262.9 → 0.21 ms** (—99.9%); Day Detail's per-set badges
+1.69 → 0.007 ms. `computeAllPREvents` itself is unchanged (±1.5%, noise). A structural test
+asserts the record stream is walked ONCE for 60 workouts of markers plus a full D44 pass.
+
+**Drift, 39 histories.** 13 entirely identical; 26 moved ONLY in values derived from the PR marker.
+**Nothing this phase must not touch moved anywhere**: canonical events, the PR-XP set, lifetime XP,
+level, rank, Mastery, PBT, the Friends snapshot and the stored log are byte-identical in all 39, and
+**Session Score changed in 0 of 631 workouts**. D49 output is byte-identical in **39 of 39** — and
+`buildProgressionRecommendation` itself is byte-identical by hash. The legacy day score moved in 186
+workouts, every one of them because the record COUNT it is handed changed; its weighting is untouched.
+
+**Both real owner backups.** Hashes verified before and after, files read-only. 2026-08-29: every
+value identical — markers, PR days, day scores, XP, level, rank, Mastery, PBT, Session Score, Friends,
+D49 — with the ONLY change being E18 restoring three older workouts' own record summaries.
+2026-08-30 (the two-workouts-in-a-day history): byte-identical in every product value. Exactly the
+no-E12-drift result D96C-DECISION predicted.
+
+**Tests.** Contract 212 (**60 checks**): the architecture; a lift that changes kind (10.11 marked all
+five sessions, two are records); a rep record at an unchanged load (10.11 marked one, three are);
+two workouts on one date, both ways round, including per-set badges; four record-setting workouts
+each keeping its own summary; the REAL edit flow (`workoutEditState` → `saveWorkoutEdits` →
+`persistLog`) removing a record and its marker together; add and delete; the index's own freshness
+guard tested directly; "N new records" still counting lifts, not record types; both mixed-box cases
+end to end; E19 including reps taken from the heaviest SET and the first-to-reach tie rule; and what
+must not have moved. **20 of 20 mutants killed** — the twenty the brief names.
+
+One of them survived the first run and was a real gap: neutering the index's freshness guard changed
+nothing, because every path in the app clears the cache anyway. The guard is the second line and
+nothing tested it; a test that swaps the log with no invalidation at all now does.
+
+**Still open, on purpose.** **E15(a)**: the record engine still reads the FIRST row of a name per
+workout, asserted structurally AND behaviourally (a lift in two rows is one performance, the first).
+**E16**: capability still reads the newest session's execution; trainer 0.1.1-shadow.
+
+**Untouched, proven by hash:** `computeXPTimeline`, `computeAllPREvents`, `calculatePRXP`,
+`getCurrentProgression`, `prModeOf`, `prModesByLift`, `deriveExercisePRMode`, `performedLoad`,
+`performedReps`, `loadedPRPerformance`, `computeWorkoutQuality`, `deriveSessionExecution`,
+`sessionScore`, `masteryPointsFor`, `masteryPRCounts`, `computePBTCandidates`, `rankPBTCandidates`,
+`computeExerciseCapability`, `proposeTrainerState`, `computeConsistencyData`,
+`buildProgressionRecommendation`, and the whole D43/D89/D90 grid. FOUR pins moved, restated in place
+with their reasons. verify 9,967/0, five audits green, real Edge at 320/375/390/430 on the Log
+calendar, Day Detail and the real workout editor: 64/64. DATA_KEYS 16, schema 1, no migration.

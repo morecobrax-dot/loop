@@ -17240,6 +17240,23 @@ const LOOP_UPDATES = [
       'A set carrying no load sets no loaded record'
     ],
     changes: []
+  },
+  {
+    id: 'v10-12',
+    version: 'LOOP 10.12',
+    title: 'One Answer About Your Records',
+    date: '2026-09-22',
+    swVersion: 'loop-v189',
+    summary: 'PR markers now match your actual record history, including older workouts.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'A PR mark in Log, on the calendar and in a day’s detail now means the same thing as your Records screen. Marks appeared on workouts that set no record, and were missing from workouts that did',
+      'Opening an older workout shows the records it set, even after you have beaten them since',
+      'Two workouts logged on the same day no longer share each other’s records',
+      'A weight saved against 0 reps is no longer shown as a lift’s best ever'
+    ],
+    changes: []
   }
 ];
 
@@ -28821,37 +28838,29 @@ function setHistorySubView(sv){
   if(sv === 'exercise') renderExerciseHistorySelect();
 }
 
-/* Retrospective PR check: was this exercise's best set in THIS session better than every prior session? */
+/* D96C-2 — did this lift set a canonical personal record on this DAY?
+
+   Until 10.11 this compared the session's heaviest set against earlier
+   sessions logged with the same bodyweight box, and knew nothing of
+   reps-at-weight, 1RM or volume records — a private definition that marked
+   workouts the Records screen called ordinary and stayed silent on records it
+   showed. It now reads the one canonical stream.
+
+   The question this signature can ask is about a DAY: it is given a date, not
+   a workout. getSessionPRs below asks the sharper question, per workout, which
+   is what every PR-labelled surface actually wants. `sessionSets` and `isBW`
+   are no longer read — a record is a fact about the lift's history, not about
+   how this one row was ticked — and are kept so existing callers still work. */
 function wasSessionPR(dateStr, exerciseName, sessionSets, isBW){
-  const key = exerciseName.trim().toLowerCase();
-  let priorBest = 0;
-  workoutLog.forEach(l => {
-    if(l.date >= dateStr) return;
-    l.exercises.forEach(ex => {
-      if(ex.name.trim().toLowerCase() !== key || !!ex.bodyweight !== isBW) return;
-      (ex.sets || []).forEach(s => {
-        const v = isBW ? parseFloat(s.reps) : parseFloat(s.weight);
-        if(!isNaN(v) && v > priorBest) priorBest = v;
-      });
-    });
-  });
-  let sessionBest = 0;
-  sessionSets.forEach(s => {
-    const v = isBW ? parseFloat(s.reps) : parseFloat(s.weight);
-    if(!isNaN(v) && v > sessionBest) sessionBest = v;
-  });
-  return sessionBest > 0 && sessionBest > priorBest;
+  const key = loggedExerciseKey(exerciseName);
+  return (canonicalPRIndex().byDate[dateStr] || []).some(ev => loggedExerciseKey(ev.exerciseName) === key);
 }
+/* Which logical exercises in THIS workout set a canonical personal record.
+   One name per lift, in the order the workout lists them, which is the shape
+   every caller already expects. */
 function getSessionPRs(entry){
-  const names = [];
-  const seen = new Set();
-  entry.exercises.forEach(ex => {
-    const key = ex.name.trim().toLowerCase();
-    if(seen.has(key)) return;
-    seen.add(key);
-    if(wasSessionPR(entry.date, ex.name, ex.sets || [], !!ex.bodyweight)) names.push(ex.name);
-  });
-  return names;
+  if(!entry || !entry.exercises) return [];
+  return prEventsForEntryOrdered(entry).map(ev => ev.exerciseName);
 }
 
 /* Estimated duration from what was actually logged, using the same rest-time model as planned workouts */
@@ -29679,18 +29688,17 @@ function renderWorkoutEditor(opts){
    exercise's newest PR event counts when it falls on this workout's date. If
    an edit removed the lift that earned a record, the record stops being shown
    because it stopped being true — no snapshot is persisted to paper over it. */
+/* D96C-2 — D88 finding E18. This asked the record engine for a lift's whole
+   history and then kept events[0] — the lift's NEWEST record — only when its
+   date matched. So a workout that genuinely set a record reported none as soon
+   as a later session beat it: measured on 10.11, that was 38 of 39 histories,
+   including both real owner backups. Re-opening the summary of last month's
+   best session showed nothing at all.
+
+   It reads the index now, which knows which workout each record belongs to,
+   and it is no longer a per-lift scan of the whole log. */
 function prEventsForEntry(entry){
-  const out = [];
-  const seen = new Set();
-  (entry.exercises || []).forEach(ex => {
-    const key = (ex.name || '').trim().toLowerCase();
-    if(!key || seen.has(key)) return;
-    seen.add(key);
-    let events = [];
-    try{ events = computeExercisePREvents(ex.name); }catch(e){ events = []; }
-    if(events.length && events[0].date === entry.date) out.push(events[0]);
-  });
-  return out;
+  return prEventsForEntryOrdered(entry);
 }
 
 function saveWorkoutEdits(btn){
@@ -30141,8 +30149,8 @@ function deriveExercisePRMode(entries, exerciseName){
    prModeOf, so they cannot disagree — and Progress, which asks once per lift,
    never re-derives it. Cleared with the log's other derived caches; the identity
    and length check is a second guard, not the first. */
-let _prModesCache = null, _prRecordsCache = null;
-function invalidatePRCaches(){ _prModesCache = null; _prRecordsCache = null; }
+let _prModesCache = null, _prRecordsCache = null, _prIndexCache = null;
+function invalidatePRCaches(){ _prModesCache = null; _prRecordsCache = null; _prIndexCache = null; }
 function prModesByLift(){
   if(_prModesCache && _prModesCache.log === workoutLog && _prModesCache.n === workoutLog.length) return _prModesCache.modes;
   /* Keyed by what athletes type, so no prototype: a lift called "toString" is a lift. */
@@ -30243,11 +30251,90 @@ function computeExercisePREvents(exerciseName){
     }
     if(hits.length){
       hits.sort((a,b) => PR_PRIORITY.indexOf(a.type) - PR_PRIORITY.indexOf(b.type));
-      events.push({ date: s.date, exerciseName, isBW, hits, headline: hits[0] });
+      /* D96C-2 — the event now names the WORKOUT it came from, not only the day.
+         Derived, never stored: it is the id that workout already carries. Two
+         sessions can share a civil date, and every surface that says "this
+         workout set a record" needs to know which of them did. */
+      events.push({ date: s.date, id: s.id, exerciseName, isBW, hits, headline: hits[0] });
     }
   });
 
   return events.reverse();
+}
+
+/* =========================================================
+   ONE ANSWER TO "DID THIS WORKOUT SET A RECORD?"  (Phase D96C-2 — D88 E12/E18)
+   ---------------------------------------------------------
+   Everything LOOP labels PR — the calendar dot, the Log's "N new records", Day
+   Detail, the Recent chips, D44's pr day, the post-workout and post-edit
+   summaries — used to ask getSessionPRs, which compared a session's heaviest
+   set only against earlier sessions logged with the SAME bodyweight box and
+   knew nothing of reps-at-weight, estimated 1RM or volume records. It was a
+   fifth definition of a record, and it disagreed with the canonical stream on
+   29 of 39 measured histories.
+
+   There is now one definition and many consumers. This index is derived from
+   the canonical events themselves — no second walk, no second rule — and it is
+   built ONCE per change to the log, beside the modes and records caches, and
+   cleared by the same invalidatePRCaches() every history mutation already
+   reaches through invalidateSortedLogCache().
+
+   It is keyed by the WORKOUT, not the day. Two sessions on one civil date is
+   ordinary (the owner's own 2026-08-30 backup has two), and a date-keyed index
+   would hand each of them the other's records. byDate remains for the one
+   question that is genuinely about a day. */
+function canonicalPRIndex(){
+  if(_prIndexCache && _prIndexCache.log === workoutLog && _prIndexCache.n === workoutLog.length) return _prIndexCache.index;
+  /* Keyed by what the log holds, so no prototype: a workout whose id is the
+     string "constructor" is a workout. */
+  const byId = Object.create(null), byDate = Object.create(null);
+  computeAllPREvents().forEach(ev => {
+    if(ev.id !== null && ev.id !== undefined){
+      const k = String(ev.id);
+      (byId[k] = byId[k] || []).push(ev);
+    }
+    (byDate[ev.date] = byDate[ev.date] || []).push(ev);
+  });
+  /* Object identity as well as id, so a duplicated id in imported history can
+     never hand one workout another's record. */
+  const byEntry = new Map();
+  workoutLog.forEach(l => {
+    if(!l || l.id === null || l.id === undefined) return;
+    const evs = byId[String(l.id)];
+    if(evs && !byEntry.has(l)) byEntry.set(l, evs);
+  });
+  const index = { byId, byDate, byEntry };
+  _prIndexCache = { log: workoutLog, n: workoutLog.length, index };
+  return index;
+}
+
+/* The canonical PR events that belong to ONE workout, newest record type first
+   within each lift exactly as the engine ordered them. The entry object is
+   tried before its id, so a workout that shares an id with another still gets
+   its own records. */
+function prEventsOfEntry(entry){
+  if(!entry) return [];
+  const idx = canonicalPRIndex();
+  const byObj = idx.byEntry.get(entry);
+  if(byObj) return byObj;
+  if(entry.id === null || entry.id === undefined) return [];
+  return idx.byId[String(entry.id)] || [];
+}
+
+/* The same events, in the order the workout lists its exercises — which is the
+   order every PR surface has always shown them in, and one per logical lift
+   because the canonical engine emits one event per session per lift. */
+function prEventsForEntryOrdered(entry){
+  const evs = prEventsOfEntry(entry);
+  if(!evs.length || !entry || !entry.exercises) return evs.slice();
+  const pos = Object.create(null);
+  entry.exercises.forEach((ex, i) => {
+    if(!ex || !ex.name) return;
+    const k = loggedExerciseKey(ex.name);
+    if(pos[k] === undefined) pos[k] = i;
+  });
+  const at = ev => { const p = pos[loggedExerciseKey(ev.exerciseName)]; return p === undefined ? 1e9 : p; };
+  return evs.slice().sort((a, b) => at(a) - at(b));
 }
 
 function computeAllPREvents(){
@@ -31390,10 +31477,16 @@ function sessionPRSets(entry){
 
   const bySet = {};
   const sessionOnly = [];
+  /* D96C-2 — this filtered the lift's events by DATE, so on a day with two
+     workouts the badges of one could land on the sets of the other; and it
+     walked the whole log once per exercise. Both are answered by the index. */
+  const hereByKey = Object.create(null);
+  prEventsOfEntry(entry).forEach(ev => {
+    const k = loggedExerciseKey(ev.exerciseName);
+    (hereByKey[k] = hereByKey[k] || []).push(ev);
+  });
   (entry.exercises || []).forEach((ex, exIdx) => {
-    let events = [];
-    try{ events = computeExercisePREvents(ex.name) || []; }catch(e){ return; }
-    const here = events.filter(e => e.date === entry.date);
+    const here = hereByKey[loggedExerciseKey(ex.name)] || [];
     if(!here.length) return;
     here.forEach(ev => {
       (ev.hits || [ev]).forEach(h => {
@@ -32689,15 +32782,23 @@ function computePRs(){
       if(!mode || mode === PR_MODE.UNKNOWN || !(ex.sets && ex.sets.length)) continue;
       const isBW = mode === PR_MODE.BODYWEIGHT;
       let topW = null, topR = null;                 // this session's best set, the first to reach it
+      /* D96C-2 — D88 finding E19. The loaded branch required a positive weight
+         but only a FINITE rep count, so 315 lb typed against 0 reps was this
+         lift's best ever here long after D96C-1 removed it from the record
+         stream. Both branches now ask the same question D96C-1 gave the record
+         engines: is this set a performance at all. Nothing else moves — the
+         loaded best is still the heaviest set with its OWN reps, the bodyweight
+         best is still the most reps, and the first set to reach a value still
+         keeps it. */
       for(let k = 0; k < ex.sets.length; k++){
         const st = ex.sets[k];
         if(!st) continue;
-        const r = parseFloat(st.reps);
-        if(!Number.isFinite(r)) continue;
-        if(isBW){ if(r > 0 && (topR === null || r > topR)) topR = r; }
-        else {
-          const w = parseFloat(st.weight);
-          if(Number.isFinite(w) && w > 0 && (topW === null || w > topW)){ topW = w; topR = r; }
+        if(isBW){
+          const r = performedReps(st.reps);
+          if(r !== null && (topR === null || r > topR)) topR = r;
+        } else {
+          const perf = loadedPRPerformance(st);
+          if(perf && (topW === null || perf.load > topW)){ topW = perf.load; topR = perf.reps; }
         }
       }
       if(topR === null) continue;
@@ -53101,15 +53202,9 @@ function saveLog(btn){
   invalidateXPTimelineCache();
   invalidateConsistencyCache();
 
-  const newPREvents = [];
-  const seen = new Set();
-  newEntry.exercises.forEach(ex => {
-    const key = ex.name.trim().toLowerCase();
-    if(seen.has(key)) return;
-    seen.add(key);
-    const events = computeExercisePREvents(ex.name);
-    if(events.length && events[0].date === newEntry.date) newPREvents.push(events[0]);
-  });
+  /* D96C-2 — this was a second copy of prEventsForEntry's newest-record-only
+     rule (E18), written out again here. One question, one answer, one index. */
+  const newPREvents = prEventsForEntry(newEntry);
 
   const matchedNames = [];
   const prSeen = new Set(newPREvents.map(e => e.exerciseName.trim().toLowerCase()));
