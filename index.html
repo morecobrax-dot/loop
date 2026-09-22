@@ -17210,6 +17210,20 @@ const LOOP_UPDATES = [
     changes: [
       'Days you really missed still show as missed, and nothing you logged was touched'
     ]
+  },
+  {
+    id: 'v10-10',
+    version: 'LOOP 10.10',
+    title: 'A Small Internal Correction',
+    date: '2026-09-22',
+    swVersion: 'loop-v187',
+    summary: 'A week-status calculation not used by anything you see could still disagree with your calendar. It now agrees.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [],
+    changes: [
+      'An internal helper, not read by This Week, Log or your objectives, could still call a paused day missed. It now reads the same truth those do'
+    ]
   }
 ];
 
@@ -28081,9 +28095,17 @@ function momentumWeek(){
     if(d.state === 'trained' || d.state === 'pr') return { state:'done', pr: d.state === 'pr' };
     if(d.date === tKey) return { state:'today', pr:false };
     if(d.state === 'future') return { state:'upcoming', pr:false };
+    /* D99.4 - a day the athlete suspended was never owed, so it is not a day they
+       can have missed. planDayIsSuspended is the SAME helper D44 and the calendar
+       already read (D99.3) - one pause question, asked a third time rather than
+       re-derived. The neutral 'rest' state already exists in this vocabulary
+       (weekOverview uses it for exactly this); nothing new was invented. */
+    if(planDayIsSuspended(d.date)) return { state:'rest', pr:false };
     return { state:'missed', pr:false };
   });
-  const planned = days.length;
+  /* A suspended day is excluded from the denominator too, matching D44's own
+     plannedKnown: it was never an opportunity the athlete is measured against. */
+  const planned = days.filter(d => d.state !== 'rest').length;
   const done = days.filter(d => d.state === 'done').length;
   return {
     planned, done, days,

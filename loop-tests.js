@@ -39310,6 +39310,285 @@ async function testCalendarStateD993(){
   });
 }
 
+/* =========================================================
+   CONTRACT 210 — momentumWeek AGREES WITH ITS OWN TRUTH  (D99.4)
+   ---------------------------------------------------------
+   D99.3 measured momentumWeek() defaulting a paused day to 'missed' and
+   recorded it as found-not-fixed. Tracing every caller first (the ROOT-CAUSE
+   REQUIREMENT this phase set) found something the brief did not assume:
+   momentumWeek() has NO caller anywhere in the shipped app. "This Week" is
+   rendered by renderWeekCard(), which reads weekOverview() - a SEPARATE day-
+   state deriver that already reads D44's state directly and was therefore
+   ALREADY CORRECT for a suspended day, unaffected by this phase. Objectives'
+   week evidence also reads weekOverview(), never momentumWeek. Both findings
+   are proven below, not assumed: a structural absence-of-call assertion for
+   momentumWeek, and a same-fixture agreement assertion for weekOverview.
+
+   momentumWeek() is still real, named, contract-governed code (this suite
+   already asserted its behaviour before this phase) with a real bug, so it is
+   fixed the same way the calendar was in D99.3: by reusing planDayIsSuspended,
+   the one shared question, rather than defaulting every unrecognised day to
+   missed.
+
+   What is held here:
+     · momentumWeek: a past suspended day is 'rest', never 'missed'
+     · a genuine past miss is untouched; today and future are untouched
+     · the denominator excludes a suspended day, matching D44's own rule
+     · weekOverview (the real "This Week" card, and Objectives' evidence)
+       was ALREADY correct, proven by an explicit before/after-style check
+     · momentumWeek still has no caller; Objectives still never read it
+     · D43, D44, D89, D90, Program progress and the pause arithmetic are
+       untouched
+   ========================================================= */
+async function testMomentumWeekPauseD994(){
+  section('CONTRACT 210 — momentumWeek agrees with its own truth (D99.4)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const homeTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const S1 = () => ({ weight: '100', reps: '8', rir: '2', type: 'working', completed: true });
+  const WKD = (id, date, cat) => ({ id, date, category: cat || 'push', title: cat || 'push', notes: '',
+    exercises: [{ name: 'Bench Press', effort: '', bodyweight: false, sets: [S1()] }] });
+  const PSESS = (cat, name) => ({ type: 'workout', planId: 'ul', category: cat, templateId: 'ul-' + cat, name,
+    exercises: [{ name: 'Bench Press', sets: 3, reps: '8-10', effort: '8' }] });
+  const PROG = o => JSON.stringify({ version: 1, activeProgramId: 'p1', programs: [Object.assign({
+    id: 'p1', name: 'Block', goal: 'hypertrophy', status: 'active', durationWeeks: 52, startDate: '2026-08-24',
+    schedule: { mon: PSESS('push', 'Push'), tue: PSESS('pull', 'Pull'), thu: PSESS('legs', 'Legs'), fri: PSESS('push', 'Push 2') } }, o || {})] });
+  async function at(iso, log, store, tz){
+    if(tz) process.env.TZ = tz;
+    const app = H.loadApp(Object.assign({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+      workoutLog: JSON.stringify(log || []) }, store || {}));
+    const release = pinClock(app.ctx, iso);
+    try{ await H.settle(); } finally { release(); }
+    app.ctx.invalidateConsistencyCache();
+    return app;
+  }
+  const HIST = () => [WKD('h1', '2026-09-07', 'push'), WKD('h2', '2026-09-14', 'push')];
+
+  /* ------------------------------------------------------------- root cause, proven */
+  sub('root cause: momentumWeek has no caller; weekOverview already agreed with D44');
+  await guard('root cause', async () => {
+    T('momentumWeek() has no caller anywhere: every occurrence of the literal text is its own definition or the comment above it, never a call site',
+      (src.match(/momentumWeek\(\)/g) || []).length === 2 && (stripComments(src).match(/momentumWeek\(\)/g) || []).length === 1);
+    T('renderWeekCard, the real "This Week" renderer, reads weekOverview, not momentumWeek',
+      /const wk = weekOverview\(\);/.test(fnSrc(src, 'renderWeekCard')) && !/momentumWeek/.test(fnSrc(src, 'renderWeekCard')));
+    T('objectiveEvidence, D99’s week evidence, also reads weekOverview, not momentumWeek',
+      /ev\.week = weekOverview\(\);/.test(fnSrc(src, 'objectiveEvidence')) && !/momentumWeek/.test(fnSrc(src, 'objectiveEvidence')));
+    const app = await at('2026-09-23T09:00:00', HIST(), { programs: PROG({ pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }) });
+    const c = app.ctx;
+    const wo = withClockOn(c, '2026-09-23T09:00:00', () => c.weekOverview());
+    const mon = wo.days.find(d => d.key === 'mon'), tue = wo.days.find(d => d.key === 'tue');
+    T('weekOverview already called a suspended day rest, not missed — UNCHANGED by this phase',
+      mon.state === 'rest' && tue.state === 'rest' && mon.date === '2026-09-21' && tue.date === '2026-09-22');
+    withClockOn(c, '2026-09-23T09:00:00', () => c.renderWeekCard());
+    const html = c.document.getElementById('weekCard').innerHTML;
+    const cells = [...html.matchAll(/wk-day wk-([a-z-]+)[^"]*"[^>]*data-key="([a-z]+)"/g)].map(m => [m[2], m[1]]);
+    T('the ACTUAL rendered "This Week" card never showed a paused day as missed',
+      cells.find(x => x[0] === 'mon')[1] === 'rest' && cells.find(x => x[0] === 'tue')[1] === 'rest' &&
+      !cells.some(x => x[1] === 'missed'));
+  });
+
+  /* ------------------------------------------------------------- A..I: the map itself */
+  sub('A—I  what momentumWeek reports for each kind of day');
+  await guard('states', async () => {
+    const app = await at('2026-09-25T09:00:00', HIST().concat([WKD('h3', '2026-09-14', 'pull')]),
+      { programs: PROG({ pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }) });
+    const c = app.ctx;
+    const mw = withClockOn(c, '2026-09-25T09:00:00', () => c.momentumWeek());
+    const byDate = {}; const cons = withClockOn(c, '2026-09-25T09:00:00', () => c.computeConsistencyData());
+    const plannedDates = cons.weeks[cons.weeks.length - 1].days.filter(d => d.planned).map(d => d.date);
+    plannedDates.forEach((d, i) => byDate[d] = mw.days[i]);
+    T('A  a genuine past planned unlogged day is missed', byDate['2026-09-24'].state === 'missed');
+    T('C  a past suspended day is not missed (rest)', byDate['2026-09-21'].state === 'rest' && byDate['2026-09-22'].state === 'rest');
+    T('E  today, planned and unlogged, is not missed', byDate['2026-09-25'].state === 'today');
+    /* Wed 09-23 as "today": Thu 09-24 and Fri 09-25 are still ahead in the SAME week, and free of the pause. */
+    const wedToday = await at('2026-09-23T09:00:00', HIST(), { programs: PROG({ pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }) });
+    const mwH = withClockOn(wedToday.ctx, '2026-09-23T09:00:00', () => wedToday.ctx.momentumWeek());
+    const cH = withClockOn(wedToday.ctx, '2026-09-23T09:00:00', () => wedToday.ctx.computeConsistencyData());
+    const hDates = cH.weeks.slice(-1)[0].days.filter(d => d.planned).map(d => d.date);
+    T('H  a future planned day is upcoming, not missed', mwH.days[hDates.indexOf('2026-09-24')].state === 'upcoming', mwH.days[hDates.indexOf('2026-09-24')]);
+    const done = await at('2026-09-25T09:00:00', HIST().concat([WKD('t', '2026-09-25', 'pull')]),
+      { programs: PROG({ pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }) });
+    const mwB = withClockOn(done.ctx, '2026-09-25T09:00:00', () => done.ctx.momentumWeek());
+    T('B / F  a completed day (including today) is done', mwB.days.some(d => d.state === 'done'));
+    const susToday = await at('2026-09-22T09:00:00', HIST(), { programs: PROG({ pauses: [{ from: '2026-09-21', to: null }] }) });
+    const mwG = withClockOn(susToday.ctx, '2026-09-22T09:00:00', () => susToday.ctx.momentumWeek());
+    const cG = withClockOn(susToday.ctx, '2026-09-22T09:00:00', () => susToday.ctx.computeConsistencyData());
+    const todayIdx = cG.weeks.slice(-1)[0].days.filter(d => d.planned).map(d => d.date).indexOf('2026-09-22');
+    T('G  today, suspended, is still not missed (the pre-existing today branch, preserved)',
+      mwG.days[todayIdx].state === 'today');
+    const future = await at('2026-09-21T09:00:00', HIST(), { programs: PROG({ pauses: [{ from: '2026-09-24', to: '2026-09-26' }] }) });
+    const mwI = withClockOn(future.ctx, '2026-09-21T09:00:00', () => future.ctx.momentumWeek());
+    const cI = withClockOn(future.ctx, '2026-09-21T09:00:00', () => future.ctx.computeConsistencyData());
+    const iDates = cI.weeks.slice(-1)[0].days.filter(d => d.planned).map(d => d.date);
+    T('I  a future suspended day is upcoming, not missed', mwI.days[iDates.indexOf('2026-09-24')].state === 'upcoming');
+    const O_ = await at('2026-09-25T09:00:00', HIST().concat([WKD('o', '2026-09-21', 'push')]), { programs: PROG({ pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }) });
+    const mwO = withClockOn(O_.ctx, '2026-09-25T09:00:00', () => O_.ctx.momentumWeek());
+    const cO = withClockOn(O_.ctx, '2026-09-25T09:00:00', () => O_.ctx.computeConsistencyData());
+    const oDates = cO.weeks.slice(-1)[0].days.filter(d => d.planned).map(d => d.date);
+    T('O  a workout logged INSIDE a pause is still done', mwO.days[oDates.indexOf('2026-09-21')].state === 'done');
+  });
+
+  /* ------------------------------------------------------------- the counter, exactly as specified */
+  sub('the counter: two paused days do not become one, and one real miss is not hidden');
+  await guard('counter', async () => {
+    const before = await at('2026-09-23T09:00:00', HIST(), { programs: PROG({ pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }) });
+    const mwBefore = withClockOn(before.ctx, '2026-09-23T09:00:00', () => before.ctx.momentumWeek());
+    T('two paused, unlogged days: missed excludes both', mwBefore.missed === 0, mwBefore.missed);
+    const after = await at('2026-09-25T09:00:00', HIST(), { programs: PROG({ pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }) });
+    const mwAfter = withClockOn(after.ctx, '2026-09-25T09:00:00', () => after.ctx.momentumWeek());
+    T('adding one real missed day (Thu, unpaused, unlogged, past): missed becomes exactly 1',
+      mwAfter.missed === 1, mwAfter.missed);
+    T('the denominator excludes the two paused days, matching D44’s own plannedKnown rule',
+      mwAfter.planned === 2, mwAfter.planned);
+    T('this is not "all misses suppressed": a genuinely missed day still counts', mwAfter.days.some(d => d.state === 'missed'));
+  });
+
+  /* ------------------------------------------------------------- J..N: the pause shapes */
+  sub('J—N  where a pause starts, ends, repeats, stays open, and overlaps a revision');
+  await guard('pauses', async () => {
+    const CASES = [
+      ['J  a pause begins midweek', '2026-09-25T09:00:00', { pauses: [{ from: '2026-09-22', to: '2026-09-25' }] },
+        { '2026-09-21': 'missed', '2026-09-22': 'rest', '2026-09-24': 'rest' }],
+      /* `to` is exclusive (D90): the resume date is a training day again, so 09-22 here
+         is free, not suspended - genuinely missed, same as any other unpaused past day. */
+      ['K  a pause ends midweek', '2026-09-25T09:00:00', { pauses: [{ from: '2026-09-07', to: '2026-09-22' }] },
+        { '2026-09-21': 'rest', '2026-09-22': 'missed', '2026-09-24': 'missed' }],
+      ['L  two spans', '2026-09-25T09:00:00', { pauses: [{ from: '2026-09-21', to: '2026-09-22' }, { from: '2026-09-24', to: '2026-09-25' }] },
+        { '2026-09-21': 'rest', '2026-09-22': 'missed', '2026-09-24': 'rest' }],
+      ['M  an open-ended pause', '2026-09-25T09:00:00', { pauses: [{ from: '2026-09-22', to: null }] },
+        { '2026-09-21': 'missed', '2026-09-22': 'rest', '2026-09-24': 'rest' }],
+      ['N  a revision overlapping the pause', '2026-09-25T09:00:00', { pauses: [{ from: '2026-09-21', to: '2026-09-23' }],
+        revisions: [{ effectiveFrom: '2026-09-22', schedule: { mon: PSESS('push', 'Push'), tue: PSESS('legs', 'Legs'), thu: PSESS('pull', 'Pull'), fri: PSESS('push', 'Push 2') } }] },
+        { '2026-09-21': 'rest', '2026-09-22': 'rest', '2026-09-24': 'missed' }]
+    ];
+    for(const [label, iso, over, expect] of CASES){
+      const app = await at(iso, HIST(), { programs: PROG(over) });
+      const c = app.ctx;
+      const mw = withClockOn(c, iso, () => c.momentumWeek());
+      const cons = withClockOn(c, iso, () => c.computeConsistencyData());
+      const dates = cons.weeks.slice(-1)[0].days.filter(d => d.planned).map(d => d.date);
+      const bad = [];
+      Object.keys(expect).forEach(d => { const i = dates.indexOf(d);
+        if(i < 0 || mw.days[i].state !== expect[d]) bad.push(d + ':' + (i < 0 ? 'absent' : mw.days[i].state) + '!=' + expect[d]); });
+      T(label, bad.length === 0, bad.join());
+    }
+  });
+
+  /* ------------------------------------------------------------- P, Q, R: boundaries */
+  sub('P / Q / R  a week crossing a month, a year, and both DST changes');
+  await guard('boundaries', async () => {
+    const B = [
+      ['P month: week of Sep 28→Oct 4, pause 09-28..10-01', '2026-10-01T09:00:00',
+        { pauses: [{ from: '2026-09-28', to: '2026-10-01' }] }, { '2026-09-29': 'rest', '2026-10-01': 'today' }],
+      ['Q year: week of Dec 28→Jan 3, pause 12-28..01-01', '2027-01-01T09:00:00',
+        { pauses: [{ from: '2026-12-28', to: '2027-01-01' }] }, { '2026-12-29': 'rest', '2027-01-01': 'today' }],
+      /* `to` is exclusive, so the suspended dates are [from, to) - here 03-14 and 03-15,
+         not 03-16 itself, which is why 03-16 is free to be today. */
+      ['R DST spring: week of Mar 15→21, pause 03-14..03-16', '2027-03-16T09:00:00',
+        { pauses: [{ from: '2027-03-14', to: '2027-03-16' }] }, { '2027-03-15': 'rest', '2027-03-16': 'today' }],
+      ['R DST fall: week of Nov 2→8, pause 11-01..11-03', '2026-11-03T09:00:00',
+        { pauses: [{ from: '2026-11-01', to: '2026-11-03' }] }, { '2026-11-02': 'rest', '2026-11-03': 'today' }]
+    ];
+    for(const [label, iso, over, expect] of B){
+      const app = await at(iso, HIST(), { programs: PROG(Object.assign({ startDate: '2026-08-24' }, over)) });
+      const c = app.ctx;
+      const mw = withClockOn(c, iso, () => c.momentumWeek());
+      const cons = withClockOn(c, iso, () => c.computeConsistencyData());
+      const dates = cons.weeks.slice(-1)[0].days.filter(d => d.planned).map(d => d.date);
+      const bad = [];
+      Object.keys(expect).forEach(d => { const i = dates.indexOf(d);
+        if(i < 0 || mw.days[i].state !== expect[d]) bad.push(d + ':' + (i < 0 ? 'absent' : mw.days[i].state) + '!=' + expect[d]); });
+      T(label, bad.length === 0, bad.join());
+    }
+  });
+
+  /* ------------------------------------------------------------- zones */
+  sub('the same civil date derives the same momentumWeek state in every zone');
+  await guard('zones', async () => {
+    try{
+      for(const tz of ['America/New_York', 'UTC', 'Pacific/Pago_Pago', 'Pacific/Kiritimati']){
+        const iso = '2026-09-25T09:00:00';
+        const app = await at(iso, HIST(), { programs: PROG({ pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }) }, tz);
+        const c = app.ctx;
+        const mw = withClockOn(c, iso, () => c.momentumWeek());
+        const cons = withClockOn(c, iso, () => c.computeConsistencyData());
+        const dates = cons.weeks.slice(-1)[0].days.filter(d => d.planned).map(d => d.date);
+        T(tz + ': paused days rest, the real miss is missed, today is today',
+          mw.days[dates.indexOf('2026-09-21')].state === 'rest' && mw.days[dates.indexOf('2026-09-24')].state === 'missed' &&
+          mw.days[dates.indexOf('2026-09-25')].state === 'today');
+      }
+    } finally { process.env.TZ = homeTZ; }
+  });
+
+  /* ------------------------------------------------------------- cross-surface, D43/D44/momentumWeek agreement */
+  sub('for every date D44 classifies, momentumWeek agrees, and never invents a stricter truth');
+  await guard('agreement', async () => {
+    const FIX = [
+      ['a closed pause', '2026-09-25T09:00:00', { pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }],
+      ['two spans and an open one', '2026-09-25T21:00:00', { pauses: [{ from: '2026-09-08', to: '2026-09-10' }, { from: '2026-09-22', to: null }] }],
+      ['no pause', '2026-09-23T12:00:00', {}]
+    ];
+    let checked = 0; const wrong = [];
+    for(const [label, iso, over] of FIX){
+      const log = []; let seed = 13; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+      const dow = { 1: 'push', 2: 'pull', 4: 'legs', 5: 'push' };
+      const plusUTC = (dstr, n) => { const [y, m, dd] = dstr.split('-').map(Number);
+        const x = new Date(Date.UTC(y, m - 1, dd + n)); return x.getUTCFullYear() + '-' + String(x.getUTCMonth() + 1).padStart(2, '0') + '-' + String(x.getUTCDate()).padStart(2, '0'); };
+      for(let i = 42; i >= 1; i--){ const d = plusUTC(iso.slice(0, 10), -i); const w = new Date(d + 'T12:00:00Z').getUTCDay();
+        if(dow[w] && rnd() > 0.35) log.push(WKD('g' + i, d, dow[w])); }
+      const app = await at(iso, log, { programs: PROG(Object.assign({ startDate: '2026-08-24' }, over)) });
+      const c = app.ctx;
+      const cons = withClockOn(c, iso, () => c.computeConsistencyData());
+      const mw = withClockOn(c, iso, () => c.momentumWeek());
+      const dates = cons.weeks.slice(-1)[0].days.filter(d => d.planned).map(d => d.date);
+      const d44 = cons.weeks.slice(-1)[0].days.filter(d => d.planned);
+      d44.forEach((d, i) => { checked++;
+        const mws = mw.days[i].state;
+        /* D44 never says 'missed' for a day it also owed nothing on, and momentumWeek must never say
+           missed where D44 does not, nor stay silent where D44 genuinely says missed. */
+        const want = d.state === 'missed' ? mws === 'missed'
+          : (d.state === 'trained' || d.state === 'pr') ? mws === 'done'
+          : d.state === 'today' ? mws === 'today'
+          : d.state === 'future' ? mws === 'upcoming'
+          : mws !== 'missed';                          // 'rest' (suspended or before history): never missed
+        if(!want) wrong.push(label + ' ' + d.date + ' D44=' + d.state + ' momentumWeek=' + mws);
+      });
+    }
+    T('all ' + checked + ' dates in three fixtures: momentumWeek never disagrees with D44 about what was owed', wrong.length === 0, wrong.slice(0, 3).join(' ; '));
+  });
+
+  /* ------------------------------------------------------------- protected */
+  sub('nothing else moved');
+  await guard('protected', async () => {
+    const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    T('D43, D44, the D89/D90 program grid and PR/XP are byte-identical to 10.9',
+      pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
+      pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
+      pin('dateIsSuspended') === '0e8f48036cced387' && pin('pauseSpansOf') === '00f0412bae612770' && pin('programDateFor') === 'f4181c72c9c3ab8f' &&
+      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f');
+    T('computeConsistencyData and weekOverview are byte-identical to 10.9 too: only momentumWeek changed',
+      /* the exact D99.2/D99.3 source, unedited */
+      /const todayKey = localDateStr\(now\);/.test(fnSrc(src, 'computeConsistencyData')) &&
+      /let cat = \(schedule && schedule\[key\]\) \|\| 'rest';/.test(fnSrc(src, 'weekOverview')));
+    T('momentumWeek calls planDayIsSuspended — the ONE shared helper — and no second pause calculation',
+      /planDayIsSuspended\(d\.date\)/.test(fnSrc(src, 'momentumWeek')) && !/dateIsSuspended|pauseSpansOf|getActiveProgram/.test(fnSrc(src, 'momentumWeek')));
+    T('Program progress ("N of M planned") still counts slots up to and including today (D89, section 66) — untouched',
+      /const completed = _fulfil\.planningKnown\s*\n\s*\? \(_fulfil\.slots \|\| \[\]\)\.filter\(x => x\.workoutId && x\.date <= today/.test(fnSrc(src, 'getProgramProgress')) &&
+      /const plannedToDate = _fulfil\.planningKnown\s*\n\s*\? \(_fulfil\.slots \|\| \[\]\)\.filter\(x => x\.date <= today/.test(fnSrc(src, 'getProgramProgress')));
+    T('Objectives still never read momentumWeek, computeConsistencyData or the calendar',
+      ['objectiveProgress', 'evaluateObjectives', 'objectiveBestSetOn', 'objectiveEntryHasWork', 'objectiveDailyCandidates',
+       'objectiveWeeklyCandidates', 'objectiveFreeze', 'objectiveRank', 'commitObjectivesChange', 'syncObjectives']
+        .every(n => !/momentumWeek|computeConsistencyData|renderHistoryCalendar/.test(fnSrc(src, n))));
+    const app = await at('2026-09-25T09:00:00', HIST(), { programs: PROG({ pauses: [{ from: '2026-09-21', to: '2026-09-23' }] }) }); const c = app.ctx;
+    const before = JSON.stringify(app.store); const writes = [];
+    const rs = c.LOOPStore.set; c.LOOPStore.set = async (k, v) => { writes.push(k); return rs(k, v); };
+    try{ withClockOn(c, '2026-09-25T09:00:00', () => c.momentumWeek()); await H.settle(60); } finally { c.LOOPStore.set = rs; }
+    T('calling momentumWeek writes nothing, and DATA_KEYS 16, schema 1, no migration', JSON.stringify(app.store) === before && writes.length === 0 && c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
+    T('D96C is unstarted and E16 is held: trainer 0.1.1-shadow', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -39480,6 +39759,7 @@ async function main(){
   await testIdentityLookupD96B1();
   await testTodayNotMissedD992();
   await testCalendarStateD993();
+  await testMomentumWeekPauseD994();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

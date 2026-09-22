@@ -13733,3 +13733,68 @@ done, today or upcoming to `missed`, so a paused day THIS week reads missed ther
 (measured: `missed=2` for two paused, unlogged days). It is the same defect on a different surface and
 a candidate for its own phase; this one was scoped to the calendar. Program progress still counts
 slots up to and including today (D89, §66) and was deliberately left alone.
+
+---
+
+## §132 — momentumWeek AGREES WITH ITS OWN TRUTH (D99.4 · LOOP 10.10 · loop-v187)
+
+D99.3 measured `momentumWeek()` defaulting a paused day to `missed` and recorded it as found-not-
+fixed. This phase's own ROOT-CAUSE REQUIREMENT ("trace every helper... do not patch the number
+alone") led somewhere the brief did not assume.
+
+**momentumWeek() has no caller anywhere in the shipped app.** Traced exhaustively: a repo-wide
+search finds exactly two occurrences of the literal text `momentumWeek()` — its own `function`
+declaration and the prose comment above it (itself a relic: "This Week reads it" was true in the
+D45B era the comment describes, before `weekOverview()` existed). "This Week" is rendered by
+`renderWeekCard()`, which reads `weekOverview()` — a separate day-state deriver that reads D44's
+`state` directly and was **already correct** for a suspended day, unaffected by D99.3 or this
+phase. `objectiveEvidence()` (D99's week evidence) also reads `weekOverview()`, never
+`momentumWeek`. Both claims are proven structurally (fnSrc-scoped source checks) and
+behaviourally: the same pause fixture rendered through the REAL DOM (`renderWeekCard` — `#weekCard`)
+shows Mon/Tue as `wk-rest`, never `wk-missed`, both before and after this phase.
+
+**Reproducing this took a false start worth recording.** The first attempt booted the app, pinned
+the clock, and read the DOM — and still saw `missed` for the paused days. The cause was the rig, not
+the product: `computeConsistencyData` caches by `currentDayKey()`, boot runs its own render
+synchronously under the REAL wall clock before a pinned clock takes effect, and `switchTab` no-ops
+when the tab is already active — so a stale, real-clock render survived the pin untouched. The same
+D99.1 lesson (pin the clock, then invalidate the cache) applies here at the RENDER call, not only at
+boot.
+
+**Fixed anyway.** `momentumWeek()` is real, named, contract-governed code — this suite already
+asserted its behaviour in two places before this phase — and a known, undocumented-as-such bug left
+sitting in it is a landmine for whoever wires it up next. It now calls `planDayIsSuspended`, the SAME
+helper D44 and the calendar already share (D99.3), a third consumer of one function rather than a
+second pause calculation. A suspended day reads `rest` (the vocabulary `weekOverview` already uses,
+nothing invented) and is excluded from the denominator, matching D44's own `plannedKnown` rule. The
+pre-existing `today` branch — which already returned `today` regardless of suspension, correctly — is
+untouched.
+
+**The counter, exactly as specified.** Two paused, unlogged days: `missed` excludes both (0, not 2).
+Adding one genuinely missed day (unpaused, planned, past, unlogged): `missed` becomes exactly 1, and
+`planned` is 2 — proving this is not "suppress everything," but "exclude only what was never owed."
+
+**Tests.** Contract 210 (38 checks): the root-cause proof above; A—I; the counter; a pause
+beginning midweek, ending midweek (`to` is exclusive — the resume date is free, and getting this
+backwards was the actual bug in my own first draft of these fixtures, caught by re-deriving every
+weekday by machine rather than by hand); two spans; open-ended; a revision overlapping the pause; a
+month, a year and both DST changes; four time zones; and a full cross-surface agreement check (every
+date across three generated fixtures, momentumWeek vs D44, in both directions). **11 of 11 mutants
+killed**, including shipped 10.9's defect, the today-branch removed, every miss suppressed, a
+completed-inside-a-pause day disappearing, the exclusive boundary shifted by a day, a second local
+pause calculation, the missed filter widened or emptied, the denominator un-excluding a paused day,
+Objectives reading momentumWeek, and Program progress's own denominator moved.
+
+**No release-worthy user impact, and the release copy says so.** The athlete never saw this bug: not
+in Log (D99.3), not in This Week, not in Objectives. What shipped, index.html's bytes did change (a
+few lines inside an unreachable function), so the cache version moves for the same reason any change
+to the shipped file does — but the change entry does not claim a visible fix, because there was none
+to claim.
+
+**Untouched, and proven byte-identical by hash:** `assignWorkoutsToPlannedSlots`,
+`deriveProgramPlanFulfillment`, `programDayState`, `programPlannedSlots`, `dateIsSuspended`,
+`pauseSpansOf`, `programDateFor`, `computeXPTimeline`, `getSessionPRs`. `computeConsistencyData` and
+`weekOverview` are asserted unchanged from 10.9 too — only `momentumWeek` moved. Program progress
+("N of M planned") still counts slots up to and including today (D89, §66), asserted against the
+exact source of both its `completed` and `plannedToDate` denominators. D96C remains unstarted; E11,
+E12, E15(a) untouched; E16 held; trainer 0.1.1-shadow.
