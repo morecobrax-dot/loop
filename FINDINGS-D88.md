@@ -420,7 +420,7 @@ Both change what a program *is*, which is why it is written down here instead.
 
 ---
 
-## E11 — Within a lift's kind, the XP engine and the records count different sessions · P3 · PROVEN
+## E11 — Within a lift's kind, the XP engine and the records count different sessions · P3 · **CLOSED in D96C-1 (LOOP 10.11)**
 
 Found in D91. The event engine — records, the timeline, the summary's New
 Records — counts reps from EVERY session of a bodyweight lift, including a
@@ -444,6 +444,28 @@ The same phase should give the XP engine's `prTrackers` a null prototype, as D91
 gave the PR engines' maps: keyed by what athletes type, a lift named
 "constructor" or "__proto__" finds an inherited value there and never earns PR
 XP. (On 9.2 `computePRs` dropped those names too; it no longer does.)
+
+**Closed in D96C-1 (LOOP 10.11, §133, Contract 211).** The decision phase D96C-DECISION
+settled which rule is right, and D96C-1 implemented it: the lift's canonical PR
+mode decides the XP record walk, and the row's own checkbox no longer vetoes a
+session. Reproduced first on shipped 10.10 by IDENTITY (date + lift) rather than
+by count — CASE A and CASE B each produced 4 records and 4 PR-XP lines with ONE of
+them a week apart, which is how equal totals hid this. Over 32 histories the two
+streams now agree as SETS, including both real owner backups, which drift by
+nothing at all. No level and no rank moved in any history.
+
+The null-prototype half closed with it, and removing the row gate is what made it
+urgent rather than tidy: the gate used to return early on the inherited value, so
+a lift called "constructor" merely earned nothing; without it the walk reads
+`t.bestRepsAtWeight` off `Object` itself and THROWS, taking every XP read in the
+app with it. `prTrackers` is `Object.create(null)`.
+
+The same phase fixed the record-validity defect D96C measured beside it: a stored
+315 lb × 0 reps became a weight record AND raised the bar every later session was
+judged against, so the next real 230 × 5 was reported as an estimated-1RM record.
+A loaded candidate now needs a positive finite load and positive finite reps,
+through D96A's own boundary, in both walks. Zero is not globally converted to
+missing: it stays distinct from blank, `BW` and malformed everywhere else.
 
 ## E12 — The Log's PR marks judge each session inside its own box · P3 · PROVEN
 
@@ -608,6 +630,53 @@ The shadow trainer's only movement on variant histories is the `exerciseName` it
 echoes back; no state, weight, rep or confidence changes. Read-time only.
 
 ---
+
+## E18 — A workout summary only shows a record that is still the lift's LATEST one · P4 · PROVEN
+
+Found by D96C-DECISION, recorded here by D96C-1 so the register matches the
+reports that cite it. `prEventsForEntry(entry)` — the "New records" list on the
+workout summary — asks the record engine for a lift's whole history and then keeps
+`events[0]`, which is the MOST RECENT record, only when its date equals the
+entry's:
+
+```
+if(events.length && events[0].date === entry.date) out.push(events[0]);
+```
+
+So editing or re-saving an older workout that genuinely set a record shows no
+record for it, because a later session has since taken the lead. It also reports
+at most one record per lift per session, which matches the headline-only rule XP
+uses and is not itself a defect.
+
+**Why it is still open.** It is the same question as E12 — what is the indexed,
+canonical answer to "did this session set a record" — and belongs with it in
+D96C-2 rather than in a second walk written beside it.
+
+## E19 — `computePRs` still reads a loaded set with no reps as a lift's best · P4 · PROVEN
+
+Found in D96C-1, measured and deliberately not fixed there. D96C-1 removed
+`315 lb × 0 reps` from the canonical record stream, from PR XP, from Mastery's
+record count and from the Personal Best Timeline. `computePRs()` — a separate
+all-time-best walk with its own `seenIn` rule — still returns it:
+
+```
+log:      225 × 5  |  315 × 0  |  230 × 5
+records:  2026-08-31 weight 225,  2026-09-14 weight 230      (correct after D96C-1)
+computePRs:  { weight: 315, reps: 0, date: '2026-09-07' }    (unchanged)
+```
+
+**User-visible effect, traced rather than assumed.** `computePRs()` has exactly one
+consumer: `buildProgressionRecommendation`'s `prPeak`, used for one optional note
+("— this would match or beat your best"). With an inflated peak the note simply
+does not appear when it should. Exercise Detail's "Best ever" (230 lb × 5) and the
+capability model already read real sets after D96A closed E15(b), and neither is
+affected.
+
+**Why it was not fixed in D96C-1.** That phase was scoped to the canonical record
+engine and PR XP, and named the two protected functions it expected to move.
+`computePRs` is a third, and its one consumer is D49/D50B progression code the
+brief protects. It belongs with E12 in the next indexed-canonical phase, where
+the question "which walk is the authority for a lift's best" is answered once.
 
 ## Not findings — checked and clean
 

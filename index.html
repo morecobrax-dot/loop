@@ -17224,6 +17224,22 @@ const LOOP_UPDATES = [
     changes: [
       'An internal helper, not read by This Week, Log or your objectives, could still call a paused day missed. It now reads the same truth those do'
     ]
+  },
+  {
+    id: 'v10-11',
+    version: 'LOOP 10.11',
+    title: 'Records And Their XP Agree',
+    date: '2026-09-22',
+    swVersion: 'loop-v188',
+    summary: 'Personal-record XP now matches the records LOOP actually recognises, and a weight typed against no reps is no longer treated as a lift.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Personal-record XP now lands on the same workout as the record itself. A session logged with the bodyweight box set differently from the rest of that lift could earn its XP on a later date, or earn none at all',
+      'A weight saved against 0 reps is no longer counted as a personal record. It also no longer raised the bar afterwards, which could make your next real lift look like a smaller kind of record than it was',
+      'A set carrying no load sets no loaded record'
+    ],
+    changes: []
   }
 ];
 
@@ -30045,6 +30061,29 @@ function performedReps(reps){
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/* What one LOADED set contributes to a personal record, or null when it is not
+   a performance at all  (Phase D96C-1 - D88 finding E11's companion defect).
+
+   A weight typed against no reps is missing data, not a lift: 10.10 turned a
+   stored 315 x 0 into a weight record, and worse, raised the bar every later
+   session was judged against, so the next real 230 x 5 was reported as an
+   estimated-1RM record instead of the weight record it was. A load of 0 or
+   less is the same kind of absence on the other axis.
+
+   This is a PR-ELIGIBILITY rule and nothing else. It does not reinterpret what
+   a stored weight MEANS: zero stays distinct from blank, from 'BW' and from
+   malformed everywhere D96A and D91 keep that distinction, and prModeOf still
+   reads a zero-load history as LOADED. It answers one question - may this set
+   establish a loaded record - and the canonical record walk and the XP record
+   walk both ask it here, so neither can hold a private definition of one. */
+function loadedPRPerformance(set){
+  const load = performedLoad(set && set.weight);
+  if(load === null || load <= 0) return null;
+  const reps = performedReps(set && set.reps);
+  if(reps === null) return null;
+  return { load, reps };
+}
+
 /* What one session of a lift declares, or null when it declares nothing. A
    ticked row is bodyweight whatever else it holds — a ticked row always stores
    'BW', so a number there is malformed, and that is the guard against the mirror
@@ -30159,7 +30198,9 @@ function computeExercisePREvents(exerciseName){
     const hits = [];
     if(isBW){
       let sessionMaxReps = 0;
-      s.sets.forEach(set => { const r = parseFloat(set.reps); if(Number.isFinite(r) && r > sessionMaxReps) sessionMaxReps = r; });
+      /* D96C-1 - a bodyweight performance is finite POSITIVE reps, said once,
+         through the same D96A boundary the loaded side reads. */
+      s.sets.forEach(set => { const r = performedReps(set && set.reps); if(r !== null && r > sessionMaxReps) sessionMaxReps = r; });
       if(sessionMaxReps > bestReps){
         hits.push({ type:'reps', prev: bestReps, next: sessionMaxReps });
         bestReps = sessionMaxReps;
@@ -30168,8 +30209,11 @@ function computeExercisePREvents(exerciseName){
       let sessionMaxWeight = 0, sessionVolume = 0, session1RM = 0;
       const repsAtW = {};
       s.sets.forEach(set => {
-        const w = parseFloat(set.weight), r = parseFloat(set.reps);
-        if(!Number.isFinite(w) || !Number.isFinite(r)) return;
+        /* D96C-1 - see loadedPRPerformance: no real load or no real reps is not
+           a performance, so it sets no record and moves no best. */
+        const perf = loadedPRPerformance(set);
+        if(!perf) return;
+        const w = perf.load, r = perf.reps;
         sessionVolume += w * r;
         if(w > sessionMaxWeight) sessionMaxWeight = w;
         const e1 = estimate1RM(w, r);
@@ -31483,7 +31527,11 @@ function computeXPTimeline(){
 
   const timeline = [];
   let lifetimeXP = 0, workoutCount = 0, prCount = 0, maxStreakEver = 0;
-  const prTrackers = {};
+  /* D96C-1 — keyed by what athletes type, so no prototype, exactly as D91 keyed
+     the PR maps: a lift called "constructor" or "__proto__" used to find an
+     inherited value here and earn no PR XP for records the record engine gave
+     it. FINDINGS-D88 recorded that under E11 and it is closed with it. */
+  const prTrackers = Object.create(null);
   const milestonesAwarded = new Set();
   let streakThresholdsThisRun = new Set();
   let lastTrainedWeekKey = null;
@@ -31522,22 +31570,34 @@ function computeXPTimeline(){
            exactly as before. */
         const mode = prModes[key];
         if(!mode || mode === PR_MODE.UNKNOWN) return;
-        const isBW = !!ex.bodyweight;
-        if(!prTrackers[key]) prTrackers[key] = { isBW: mode === PR_MODE.BODYWEIGHT, bestWeight:0, bestReps:0, best1RM:0, bestVolume:0, bestRepsAtWeight:{} };
+        /* D96C-1 - D88 finding E11. The lift's kind came from the shared rule
+           (D91), and then THIS ROW'S OWN CHECKBOX had to agree with it or the
+           session was skipped entirely - a second, private definition of a
+           record living inside the XP walk. Measured on 10.10: a bodyweight
+           lift with one session logged unticked, and a loaded lift with one
+           session logged ticked, each produced a record on one date and its PR
+           XP on a LATER date, because the skipped session left the XP walk's
+           running bests behind the record engine's. One lift has one kind and
+           one record stream; the checkbox on a single row does not create a
+           second one. What COUNTS as a record, and what it pays, are untouched. */
+        const isBW = mode === PR_MODE.BODYWEIGHT;
+        if(!prTrackers[key]) prTrackers[key] = { isBW, bestWeight:0, bestReps:0, best1RM:0, bestVolume:0, bestRepsAtWeight:{} };
         const t = prTrackers[key];
-        if(t.isBW !== isBW) return;
 
         const hits = [];
         if(isBW){
           let sessionMaxReps = 0;
-          (ex.sets||[]).forEach(s => { const r = parseFloat(s.reps); if(Number.isFinite(r) && r > sessionMaxReps) sessionMaxReps = r; });
+          (ex.sets||[]).forEach(s => { const r = performedReps(s && s.reps); if(r !== null && r > sessionMaxReps) sessionMaxReps = r; });
           if(sessionMaxReps > t.bestReps){ hits.push('reps'); t.bestReps = sessionMaxReps; }
         } else {
           let sessionMaxWeight = 0, sessionVolume = 0, session1RM = 0;
           const repsAtW = {};
           (ex.sets||[]).forEach(s => {
-            const w = parseFloat(s.weight), r = parseFloat(s.reps);
-            if(!Number.isFinite(w) || !Number.isFinite(r)) return;
+            /* D96C-1 - the same performance rule the record walk reads, so a
+               set that cannot set a record cannot earn PR XP either. */
+            const perf = loadedPRPerformance(s);
+            if(!perf) return;
+            const w = perf.load, r = perf.reps;
             sessionVolume += w * r;
             if(w > sessionMaxWeight) sessionMaxWeight = w;
             const e1 = estimate1RM(w, r);

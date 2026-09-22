@@ -33155,11 +33155,18 @@ async function testPRModeConsistency(){
     T('an undeclared first session does not make a push-up loaded', mode('Push-Up') === 'bodyweight' && agree('Push-Up'));
     T('its bodyweight records are all there again', evLines('Push-Up') === '2026-08-03:Rep PR 2026-08-10:Rep PR 2026-08-17:Rep PR',
       evLines('Push-Up'));
-    T('and the ticked sessions earn their XP again — 9.2 locked the XP engine to "loaded" and awarded none',
-      xpLines('Push-Up') === '2026-08-10:Rep PR 2026-08-17:Rep PR', xpLines('Push-Up'));
-    T('the XP engine takes the lift\'s kind from the shared rule, and counts sessions within it exactly as before',
-      /prModesByLift\(\)/.test(fnSrc(src, 'computeXPTimeline')) && /isBW: mode === PR_MODE\.BODYWEIGHT/.test(fnSrc(src, 'computeXPTimeline'))
-      && /if\(t\.isBW !== isBW\) return;/.test(fnSrc(src, 'computeXPTimeline')));
+    /* D91 restored the RECORDS on all three dates but left XP two of the three:
+       the unticked session was skipped by the XP walk's own row gate, so the
+       record on 08-03 earned nothing and every later XP line was measured from
+       a lower running best. D96C-1 removed that gate; the line below is the one
+       D91 wrote, with the third date it always should have had. */
+    T('and every ticked and unticked session earns the XP its record earned — 9.2 locked the XP engine to "loaded" and awarded none',
+      xpLines('Push-Up') === '2026-08-03:Rep PR 2026-08-10:Rep PR 2026-08-17:Rep PR', xpLines('Push-Up'));
+    T('and XP now names the same three sessions the record engine does',
+      xpLines('Push-Up') === evLines('Push-Up'), xpLines('Push-Up') + ' / ' + evLines('Push-Up'));
+    T('the XP engine takes the lift\'s kind from the shared rule, and the row\'s own box no longer vetoes a session',
+      /prModesByLift\(\)/.test(fnSrc(src, 'computeXPTimeline')) && /const isBW = mode === PR_MODE\.BODYWEIGHT;/.test(fnSrc(src, 'computeXPTimeline'))
+      && !/t\.isBW !== isBW/.test(fnSrc(src, 'computeXPTimeline')) && !/const isBW = !!ex\.bodyweight;/.test(fnSrc(src, 'computeXPTimeline')));
   });
 
   /* ---------------------------------------------------------------- */
@@ -33187,10 +33194,25 @@ async function testPRModeConsistency(){
       W('2026-08-17', [E('Pull-Up', [S('BW', 12)], true)])]);
     T('a zero typed once cannot outweigh the ticks that follow it', mode('Pull-Up') === 'bodyweight' && agree('Pull-Up'));
     seed([W('2026-08-03', [E('Mystery Hold', [S('0', 10)])]), W('2026-08-10', [E('Mystery Hold', [S('0', 12)])])]);
-    T('a lift whose only loads are zeros stays the loaded lift it was recorded as, with the records it always had',
-      mode('Mystery Hold') === 'loaded' && evLines('Mystery Hold') === '2026-08-10:Rep PR'
-      && xpLines('Mystery Hold') === evLines('Mystery Hold') && detailBest('Mystery Hold') === '0 lb × 12',
-      evLines('Mystery Hold') + ' / ' + detailBest('Mystery Hold'));
+    /* D91 kept the 0 lb "rep PR at 0 lb" this history used to produce, and D96C-1
+       removed it: a set carrying no load is not a loaded performance and cannot
+       establish a loaded record. The MODE is untouched — the lift is still the
+       loaded lift its history recorded — and so is what a stored zero MEANS
+       everywhere else: Exercise Detail still shows the athlete the 0 lb × 12 they
+       logged. D96A's boundary is not redefined; only PR eligibility is. */
+    T('a lift whose only loads are zeros stays the loaded lift it was recorded as, and every engine says so',
+      mode('Mystery Hold') === 'loaded' && ctx.prModesByLift()['mystery hold'] === 'loaded'
+      && ctx.prModeOf('Mystery Hold') === 'loaded',
+      mode('Mystery Hold') + '/' + ctx.prModeOf('Mystery Hold'));
+    T('…and having a kind is not the same as having a record: nothing invents one for it',
+      !pr('Mystery Hold') && !ev('Mystery Hold').length && !pbt('Mystery Hold').milestones.length,
+      JSON.stringify([!!pr('Mystery Hold'), ev('Mystery Hold').length, pbt('Mystery Hold').milestones.length]));
+    T('but a set carrying no load sets no loaded record, and earns no PR XP',
+      evLines('Mystery Hold') === '' && xpLines('Mystery Hold') === '',
+      evLines('Mystery Hold') + ' / ' + xpLines('Mystery Hold'));
+    T('and what a stored zero MEANS is unchanged: Exercise Detail still shows the 0 lb × 12 that was logged',
+      detailBest('Mystery Hold') === '0 lb × 12' && ctx.performedLoad('0') === 0 && ctx.loadEvidenceOf('0') === 'zero',
+      detailBest('Mystery Hold'));
     T('and zero is never the heaviest load: there is no weight record at 0 lb', !pr('Mystery Hold'));
   });
 
@@ -33226,9 +33248,17 @@ async function testPRModeConsistency(){
       ['exDetailStats', 'exDetailTrend', 'exDetailChart'].forEach(id => shown.push(ctx.document.getElementById(id).innerHTML));
     }
     T('and Exercise Detail never prints Infinity or draws NaN, on any chart', !/Infinity|NaN/.test(shown.join(' ')));
-    T('every PR engine refuses a non-finite value, not merely NaN',
-      (fnSrc(src, 'computeExercisePREvents').match(/Number\.isFinite\(/g) || []).length >= 3
-      && (fnSrc(src, 'computeXPTimeline').match(/Number\.isFinite\(/g) || []).length >= 3
+    /* D96A asserted the finite check by counting Number.isFinite inside each
+       record walk. D96C-1 did not remove those checks — it moved them into one
+       named rule both walks call, which is strictly harder to break: a walk that
+       reached for parseFloat again would now fail this. */
+    T('every PR engine refuses a non-finite value, not merely NaN — through one named rule, not three copies',
+      /Number\.isFinite\(n\)/.test(fnSrc(src, 'performedLoad')) && /Number\.isFinite\(n\)/.test(fnSrc(src, 'performedReps'))
+      && /performedLoad\(/.test(fnSrc(src, 'loadedPRPerformance')) && /performedReps\(/.test(fnSrc(src, 'loadedPRPerformance'))
+      && /loadedPRPerformance\(set\)/.test(fnSrc(src, 'computeExercisePREvents'))
+      && /loadedPRPerformance\(s\)/.test(fnSrc(src, 'computeXPTimeline'))
+      && !/parseFloat\(set\.weight\)|parseFloat\(set\.reps\)/.test(fnSrc(src, 'computeExercisePREvents'))
+      && !/parseFloat\(s\.weight\)/.test(fnSrc(src, 'computeXPTimeline'))
       && (fnSrc(src, 'computePRs').match(/Number\.isFinite\(/g) || []).length >= 2 && !/isNaN\(/.test(fnSrc(src, 'computePRs')));
   });
 
@@ -36650,7 +36680,23 @@ async function testRealUseUxD98(){
     const app = H.loadApp({ workoutLog: '[]' }); const c = app.ctx;
     sub('nothing protected moved');
     const PINS = {
-    'computeXPTimeline': '8c298b498a14c04d',
+      /* D96C-1 — the FOURTH of the thirty-four to move, and the first of this
+         phase's two. The XP walk asked the shared rule for the lift's kind and
+         then required THIS ROW'S OWN bodyweight box to agree with it, skipping
+         the session when it did not — a second, private definition of a record
+         inside the XP engine (D88 finding E11). Four lines: the row gate is
+         gone, the tracker is seeded from the mode it already read, and the two
+         set loops read the same performance rule the record engine reads. What
+         counts as a record, the headline-only rule, every PR XP amount, the
+         level curve and every other XP source are untouched — the constants
+         below are still pinned at their 10.0 values. One more line, recorded
+         under the same finding: the running-bests map is keyed by what
+         athletes type, so it is Object.create(null) like every PR map D91
+         built. Removing the row gate made that urgent rather than tidy — the
+         gate used to return early on an inherited value, and without it a
+         lift called "constructor" threw and took the progression system
+         with it. */
+      'computeXPTimeline': '7a46d4dab3c42d30',
       'calculateWorkoutXP': '91b8fca789942c50',
       'calculateSetXP': '625722a99a04e30f',
       'calculatePRXP': 'ba20ebe522acc1a3',
@@ -36663,7 +36709,15 @@ async function testRealUseUxD98(){
          still byte-identical to 10.0 above and below it, which is the point of
          pinning them one function at a time. */
       'getCurrentProgression': 'bf3a7572296c620c',
-      'computeExercisePREvents': '45ea0d06bd7b9167',
+      /* D96C-1 — the FIFTH to move, by the same rule in the same phase. A
+         stored 315 lb × 0 reps became a weight record on 10.10 and raised the
+         bar every later session was judged against, so the next real 230 × 5
+         was reported as an estimated-1RM record instead of the weight record it
+         was. A loaded candidate now reads loadedPRPerformance (a positive load
+         and positive reps, through D96A's own boundary) and a bodyweight one
+         reads performedReps. Mode derivation, session selection, the record
+         types, their priority and the first-performance rule are unchanged. */
+      'computeExercisePREvents': '452a6d8e1fb56e60',
       'computeAllPREvents': '94af217dbcf1f9ed',
       'computePRs': 'a8541afeb6205e1c',
       'prModeOf': 'a0ac7f761228372f',
@@ -36709,15 +36763,15 @@ async function testRealUseUxD98(){
       'rankArrive': '280a7fed106a907b'
     };
     const bad = Object.keys(PINS).filter(n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) !== PINS[n]);
-    T('XP, level, PR events and modes, Session Score, the legacy quality score, Mastery points, capability, the trainer proposal, the PBT ranking and every D39 evidence function are byte-identical to LOOP 10.0 (' + Object.keys(PINS).length + ' pinned by the hash of their source)',
+    T('XP, level, PR events and modes, Session Score, the legacy quality score, Mastery points, capability, the trainer proposal, the PBT ranking and every D39 evidence function are byte-identical to their pinned source — LOOP 10.0, save the four restated in place with the reason beside them (' + Object.keys(PINS).length + ' pinned by the hash of their source)',
       bad.length === 0, bad.join());
     T('DATA_KEYS 16, schema 1, trainer 0.1.1-shadow', c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('the ranks and their thresholds are as they were', c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50');
     /* D99 — the strength timeline is where every point of training XP is made,
        and it is the one thing objective XP is forbidden to touch. Pinned again
        here, beside the function that adds to it, so the two can never drift. */
-    T('computeXPTimeline is byte-identical to LOOP 10.0, so objective XP was added beside training XP and not inside it',
-      crypto.createHash('sha256').update(fnSrc(src, 'computeXPTimeline').replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === '8c298b498a14c04d');
+    T('computeXPTimeline is byte-identical to its D96C-1 source, so objective XP was added beside training XP and not inside it — D99 did not reach in, and neither did D96C-1',
+      crypto.createHash('sha256').update(fnSrc(src, 'computeXPTimeline').replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === '7a46d4dab3c42d30');
     T('the XP curve is as it was: 120,800 XP to reach Level 50', (() => { let s = 0; for(let l = 1; l < 50; l++) s += c.calculateRequiredXP(l); return s === 120800; })());
     T('the Session Score weights are as they were: 40 / 30 / 18 / 12', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
     T('D91’s PR mode model is as it was: LOADED, BODYWEIGHT, UNKNOWN', Object.keys(c.PR_MODE).sort().join() === 'BODYWEIGHT,LOADED,UNKNOWN');
@@ -38120,9 +38174,9 @@ async function testFiniteLoadsD96A(){
     const crypto = require('crypto');
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
     /* Every PR engine D91 hardened, byte-for-byte — D96A changed none of them. */
-    T('the PR engines, XP and Session Score are byte-identical to 10.0',
-      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('computePRs') === 'a8541afeb6205e1c' &&
-      pin('computeExercisePREvents') === '45ea0d06bd7b9167' && pin('wasSessionPR') === 'b719ca9d07d1ae30' &&
+    T('the PR engines, XP and Session Score are byte-identical to 10.0, save the two D96C-1 restated beside their reasons',
+      pin('computeXPTimeline') === '7a46d4dab3c42d30' && pin('computePRs') === 'a8541afeb6205e1c' &&
+      pin('computeExercisePREvents') === '452a6d8e1fb56e60' && pin('wasSessionPR') === 'b719ca9d07d1ae30' &&
       pin('getSessionPRs') === 'b7bbfa2f0f33ba3f' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
       pin('masteryPointsFor') === '0c704c40a853d991' && pin('prModeOf') === 'a0ac7f761228372f' &&
       pin('deriveExercisePRMode') === '262d3ed985632762');
@@ -38397,9 +38451,9 @@ async function testExerciseIdentityD96B(){
       ct.computeExercisePREvents('Bench Press').map(sansName).join('|') === cf.computeExercisePREvents('Bench Press').map(sansName).join('|') &&
       ct.computeAllPREvents().length === cf.computeAllPREvents().length);
     T('and the lift is enumerated once', ct.getAllLoggedExerciseNames().length === 1);
-    T('the engines that decide that are byte-identical to LOOP 10.0',
+    T('the engines that decide that are byte-identical to LOOP 10.0, save the two D96C-1 restated beside their reasons',
       (() => { const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
-        return pin('computeExercisePREvents') === '45ea0d06bd7b9167' && pin('computeXPTimeline') === '8c298b498a14c04d' &&
+        return pin('computeExercisePREvents') === '452a6d8e1fb56e60' && pin('computeXPTimeline') === '7a46d4dab3c42d30' &&
           pin('computePRs') === 'a8541afeb6205e1c' && pin('prModesByLift') === '7aa68bbd9de95dbb'; })());
   });
 
@@ -38442,8 +38496,8 @@ async function testExerciseIdentityD96B(){
   await guard('protected', async () => {
     const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') })).ctx;
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
-    T('D91’s modes, the XP engine, Session Score, the capability model and D96A’s rule are byte-identical',
-      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('prModeOf') === 'a0ac7f761228372f' &&
+    T('D91’s modes, the XP engine, Session Score, the capability model and D96A’s rule are byte-identical (XP at its D96C-1 restatement)',
+      pin('computeXPTimeline') === '7a46d4dab3c42d30' && pin('prModeOf') === 'a0ac7f761228372f' &&
       pin('deriveExercisePRMode') === '262d3ed985632762' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f' &&
       pin('wasSessionPR') === 'b719ca9d07d1ae30' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
       pin('computeExerciseCapability') === '3a283e02ebdad568' &&   /* D96B.1 - one line, see the pin block */
@@ -38672,10 +38726,10 @@ async function testIdentityLookupD96B1(){
     T('K  records are one stream', c.computeAllPREvents().length === c.computeExercisePREvents(c.getAllLoggedExerciseNames()[0]).length);
     T('L  Mastery counts the lift once', Object.values(c.masteryPRCounts()).length === 1);
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
-    T('and the PR, PBT and Mastery engines are byte-identical to 10.6',
+    T('and the PR, PBT and Mastery engines are byte-identical to 10.6 (the record engine at its D96C-1 restatement)',
       pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computePBTCandidates') === 'ba795fd4ab772a63' &&
       pin('masteryPRCounts') === 'f77664c53b2ea14a' && pin('masteryPointsFor') === '0c704c40a853d991' &&
-      pin('computeExercisePREvents') === '45ea0d06bd7b9167' && pin('compute1RMTrend') === '2df090764cbc13fe' &&
+      pin('computeExercisePREvents') === '452a6d8e1fb56e60' && pin('compute1RMTrend') === '2df090764cbc13fe' &&
       pin('rankPBTCandidates') === '5e5f609ad9a2053a' && pin('computePersonalBestTimeline') === 'e41926dcb1cfa844');
   });
 
@@ -38800,8 +38854,8 @@ async function testIdentityLookupD96B1(){
     T('ONE pinned function moved, and by one line: capability’s trend lookup',
       pin('computeExerciseCapability') === '3a283e02ebdad568' &&
       /const legacyTrend = exerciseTrendFor\(name\);/.test(fnSrc(src, 'computeExerciseCapability')));
-    T('XP, PR modes, Session Score, the trainer proposal and D96A’s rule are byte-identical',
-      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('prModeOf') === 'a0ac7f761228372f' &&
+    T('XP, PR modes, Session Score, the trainer proposal and D96A’s rule are byte-identical (XP at its D96C-1 restatement)',
+      pin('computeXPTimeline') === '7a46d4dab3c42d30' && pin('prModeOf') === 'a0ac7f761228372f' &&
       pin('deriveExercisePRMode') === '262d3ed985632762' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f' &&
       pin('wasSessionPR') === 'b719ca9d07d1ae30' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
       pin('proposeTrainerState') === '34899e0f53f1d235' && /function performedLoad\(/.test(src));
@@ -39071,8 +39125,12 @@ async function testTodayNotMissedD992(){
     try{ out = await withClockOn(c, '2026-09-21T09:00:00', async () => c.syncObjectives()); }catch(e){ threw = e.message; }
     finally { c.computeConsistencyData = realK; }
     T('objectives still evaluate when the consistency engine is unavailable', threw === null && out && out.ok === true, threw);
-    T('D96C is unstarted: PR XP, PR definitions and E16 are byte-identical',
-      (n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16))('computeXPTimeline') === '8c298b498a14c04d' &&
+    /* D99 asserted D96C was unstarted. D96C-1 started it, and this assertion is
+       now its opposite where E11 is concerned and unchanged everywhere else:
+       PR XP is at its D96C-1 restatement, the E12 session marker is untouched,
+       and E16 is still held. */
+    T('of D96C only E11 landed: PR XP is at its D96C-1 restatement, the session PR marker (E12) and E16 are byte-identical',
+      (n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16))('computeXPTimeline') === '7a46d4dab3c42d30' &&
       (n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16))('getSessionPRs') === 'b7bbfa2f0f33ba3f' &&
       c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   });
@@ -39294,11 +39352,11 @@ async function testCalendarStateD993(){
   sub('nothing else moved');
   await guard('protected', async () => {
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
-    T('D43, the D89/D90 program grid, the pause arithmetic and PR/XP are byte-identical to 10.8',
+    T('D43, the D89/D90 program grid and the pause arithmetic are byte-identical to 10.8, and PR/XP to their D96C-1 restatement',
       pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
       pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
       pin('dateIsSuspended') === '0e8f48036cced387' && pin('pauseSpansOf') === '00f0412bae612770' && pin('programDateFor') === 'f4181c72c9c3ab8f' &&
-      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f');
+      pin('computeXPTimeline') === '7a46d4dab3c42d30' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f');
     const app = await at('2026-09-22T09:00:00', HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }) }); const c = app.ctx;
     const before = JSON.stringify(app.store); const writes = [];
     const rs = c.LOOPStore.set; c.LOOPStore.set = async (k, v) => { writes.push(k); return rs(k, v); };
@@ -39306,7 +39364,7 @@ async function testCalendarStateD993(){
     T('reading the calendar writes nothing, and DATA_KEYS 16, schema 1, no migration', JSON.stringify(app.store) === before && writes.length === 0 && c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
     T('rollover and every date comparison stay civil: no millisecond day arithmetic in the calendar', !/86400000/.test(fnSrc(src, 'renderHistoryCalendar')) && !/toISOString/.test(fnSrc(src, 'renderHistoryCalendar')));
     T('program progress still counts slots up to and including today (D89, section 66)', /x\.date <= today/.test(src));
-    T('D96C is unstarted and E16 is held: trainer 0.1.1-shadow', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('of D96C only E11 landed (Contract 211), E16 is held, trainer 0.1.1-shadow', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   });
 }
 
@@ -39562,11 +39620,11 @@ async function testMomentumWeekPauseD994(){
   sub('nothing else moved');
   await guard('protected', async () => {
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
-    T('D43, D44, the D89/D90 program grid and PR/XP are byte-identical to 10.9',
+    T('D43, D44 and the D89/D90 program grid are byte-identical to 10.9, and PR/XP to their D96C-1 restatement',
       pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
       pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
       pin('dateIsSuspended') === '0e8f48036cced387' && pin('pauseSpansOf') === '00f0412bae612770' && pin('programDateFor') === 'f4181c72c9c3ab8f' &&
-      pin('computeXPTimeline') === '8c298b498a14c04d' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f');
+      pin('computeXPTimeline') === '7a46d4dab3c42d30' && pin('getSessionPRs') === 'b7bbfa2f0f33ba3f');
     T('computeConsistencyData and weekOverview are byte-identical to 10.9 too: only momentumWeek changed',
       /* the exact D99.2/D99.3 source, unedited */
       /const todayKey = localDateStr\(now\);/.test(fnSrc(src, 'computeConsistencyData')) &&
@@ -39585,7 +39643,362 @@ async function testMomentumWeekPauseD994(){
     const rs = c.LOOPStore.set; c.LOOPStore.set = async (k, v) => { writes.push(k); return rs(k, v); };
     try{ withClockOn(c, '2026-09-25T09:00:00', () => c.momentumWeek()); await H.settle(60); } finally { c.LOOPStore.set = rs; }
     T('calling momentumWeek writes nothing, and DATA_KEYS 16, schema 1, no migration', JSON.stringify(app.store) === before && writes.length === 0 && c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
-    T('D96C is unstarted and E16 is held: trainer 0.1.1-shadow', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('of D96C only E11 landed (Contract 211), E16 is held, trainer 0.1.1-shadow', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  });
+}
+
+/* =========================================================
+   CONTRACT 211 — A RECORD AND ITS XP ARE THE SAME EVENT  (D96C-1)
+   ---------------------------------------------------------
+   D88 finding E11. LOOP had two definitions of a personal record. The canonical
+   engine (computeExercisePREvents) judged a lift's whole history by the lift's
+   PR MODE, the one shared rule D91 built. The XP engine read that same mode and
+   then applied a SECOND gate of its own: this row's bodyweight checkbox had to
+   agree with it, or the session was skipped entirely. The two engines therefore
+   walked different histories, and their running bests drifted apart.
+
+   Measured on shipped 10.10, by IDENTITY (date + exercise) and not by count —
+   the counts were often equal, which is exactly how this survived:
+
+     CASE A  a bodyweight-mode lift with one session logged unticked:
+             record on 2026-08-31, PR XP on 2026-09-07.
+     CASE B  a loaded-mode lift with one session logged ticked:
+             record on 2026-08-31, PR XP on 2026-09-07.
+
+   The companion defect, same phase: a stored 315 lb × 0 reps became a WEIGHT
+   record, and then raised the bar every later session was judged against, so
+   the next real 230 × 5 was reported as an estimated-1RM record instead of the
+   weight record it was. A weight typed against no reps is missing data, not a
+   lift; a load of zero or less is the same absence on the other axis.
+
+   What is held here:
+     · the lift's canonical PR mode decides the XP record walk; the row's own
+       box no longer vetoes a session
+     · for every history without repeated rows (E15(a), still open), the
+       canonical record set and the PR XP set are the SAME SET of
+       date+exercise identities — compared as sets, never as totals
+     · a loaded candidate needs a positive finite load AND positive finite
+       reps, through D96A's own boundary, in both engines
+     · a bodyweight candidate needs positive finite reps and NO load
+     · 315 × 0 sets no record, earns no PR XP, contributes no Mastery point
+       and no PBT event — and does not poison the sessions after it
+     · zero stays distinct from blank, 'BW' and malformed everywhere else
+     · PR XP amounts, the headline-only rule, the level curve, the rank
+       thresholds and every other XP source are untouched
+     · E12 (getSessionPRs / wasSessionPR) is untouched and may still disagree
+       with the canonical stream — asserted here as the open debt it is
+     · E15(a)'s first-row-per-workout rule and E16's capability mode are
+       untouched
+   ========================================================= */
+async function testCanonicalPRXPD96C1(){
+  section('CONTRACT 211 — a record and its XP are the same event (D96C-1)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx;
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const BWS = r => ({ weight: 'BW', reps: String(r), rir: '2', type: 'working', completed: true });
+  const E = (name, sets, bw) => ({ name, bodyweight: !!bw, sets });
+  let idn = 0;
+  const W = (date, exs) => ({ id: 'c211-' + String(++idn).padStart(3, '0'), date, category: 'push', title: 'x', notes: '', exercises: exs });
+  const seed = log => { idn = 0; ctx.workoutLog = log; ctx.invalidateSortedLogCache(); };
+
+  /* The two streams, as SETS of identities. The XP label cannot tell
+     reps_at_weight from reps (both read "Rep PR"), so the unit is date|lift —
+     which is precisely the unit E11 broke. */
+  const PR_LABEL = /^(Weight PR|Rep PR|Est\. 1RM PR|Volume PR) — (.+)$/;
+  const canonSet = () => Array.from(new Set(ctx.computeAllPREvents()
+    .map(e => e.date + '|' + String(e.exerciseName).trim().toLowerCase()))).sort();
+  const xpSet = () => { const out = [];
+    ctx.computeXPTimeline().timeline.forEach(t => t.breakdown.forEach(b => {
+      const m = PR_LABEL.exec(String(b.label));
+      if(m) out.push(t.date + '|' + m[2].trim().toLowerCase());
+    })); return Array.from(new Set(out)).sort(); };
+  const xpLines = () => { const out = [];
+    ctx.computeXPTimeline().timeline.forEach(t => t.breakdown.forEach(b => {
+      const m = PR_LABEL.exec(String(b.label));
+      if(m) out.push(t.date + '|' + m[2].trim().toLowerCase() + '|' + m[1] + '|' + b.xp);
+    })); return out.sort(); };
+  const canonLines = () => ctx.computeAllPREvents()
+    .map(e => e.date + '|' + String(e.exerciseName).trim().toLowerCase() + '|' + e.headline.type).sort();
+  const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const only = (a, b) => a.filter(x => b.indexOf(x) === -1);
+
+  /* ---------------------------------------------------------------- */
+  sub('one lift, one kind, one record stream');
+  await guard('rule', async () => {
+    T('the XP walk reads the shared rule, and nothing else decides a session’s kind',
+      /const prModes = prModesByLift\(\);/.test(fnSrc(src, 'computeXPTimeline'))
+      && /const isBW = mode === PR_MODE\.BODYWEIGHT;/.test(fnSrc(src, 'computeXPTimeline')));
+    T('the row’s own box is gone from the XP record walk: no second PR identity',
+      !/t\.isBW !== isBW/.test(fnSrc(src, 'computeXPTimeline'))
+      && !/const isBW = !!ex\.bodyweight;/.test(fnSrc(src, 'computeXPTimeline')));
+    T('the record engine still decides by the lift’s mode, exactly as it did',
+      /const prMode = prModeOf\(exerciseName\);/.test(fnSrc(src, 'computeExercisePREvents'))
+      && /const isBW = prMode === PR_MODE\.BODYWEIGHT;/.test(fnSrc(src, 'computeExercisePREvents'))
+      && /if\(prMode === PR_MODE\.UNKNOWN\) return \[\];/.test(fnSrc(src, 'computeExercisePREvents')));
+    T('and agreement costs nothing: the XP walk still makes ONE pass and never calls the record engine',
+      !/computeExercisePREvents|computeAllPREvents/.test(fnSrc(src, 'computeXPTimeline')));
+    /* The other half of E11 as FINDINGS-D88 recorded it. On 10.10 the row gate
+       hid this: an inherited value made t.isBW undefined, the gate returned, and
+       the lift merely earned nothing. Remove the gate and the same walk reads
+       t.bestRepsAtWeight off Object itself and THROWS, which would take every
+       XP read in the app with it. Both halves close together. */
+    T('the XP walk’s running bests are keyed by what athletes type, with no prototype',
+      /const prTrackers = Object\.create\(null\);/.test(fnSrc(src, 'computeXPTimeline')));
+    T('a lift called "constructor" or "__proto__" earns the XP its records earned, and nothing throws',
+      ['constructor', '__proto__', 'toString', 'valueOf'].every(n => {
+        seed([W('2026-08-31', [E(n, [S(100, 8)])]), W('2026-09-07', [E(n, [S(120, 8)])])]);
+        return eq(canonSet(), xpSet()) && canonSet().length === 2; }),
+      (() => { seed([W('2026-08-31', [E('constructor', [S(100, 8)])]), W('2026-09-07', [E('constructor', [S(120, 8)])])]);
+        return JSON.stringify(canonSet()) + ' / ' + JSON.stringify(xpSet()); })());
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('CASE A — a bodyweight lift with one session logged unticked');
+  await guard('case A', async () => {
+    seed([W('2026-08-24', [E('Pull-Up', [BWS(8)], true)]),
+          W('2026-08-31', [E('Pull-Up', [S('', 10)]), E('Barbell Row', [S(95, 10)])]),
+          W('2026-09-07', [E('Pull-Up', [BWS(12)], true)])]);
+    T('the lift is bodyweight, and the unticked session does not change that', ctx.prModeOf('Pull-Up') === 'bodyweight');
+    T('10 reps on 2026-08-31 is a record — the record engine always said so',
+      canonLines().indexOf('2026-08-31|pull-up|reps') !== -1, JSON.stringify(canonLines()));
+    T('and 10.10 paid its PR XP on 2026-09-07 instead; now the two streams are the same set',
+      eq(canonSet(), xpSet()), JSON.stringify(only(canonSet(), xpSet())) + ' / ' + JSON.stringify(only(xpSet(), canonSet())));
+    T('every one of the three pull-up records earns exactly one PR XP line, on its own date',
+      xpLines().filter(x => /pull-up/.test(x)).join(' ') === '2026-08-24|pull-up|Rep PR|10 2026-08-31|pull-up|Rep PR|10 2026-09-07|pull-up|Rep PR|10',
+      xpLines().filter(x => /pull-up/.test(x)).join(' '));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('CASE B — a loaded lift with one session logged ticked');
+  await guard('case B', async () => {
+    seed([W('2026-08-24', [E('Dip', [S(25, 8)])]),
+          W('2026-08-31', [E('Dip', [S(45, 8)], true), E('Bench Press', [S(135, 8)])]),
+          W('2026-09-07', [E('Dip', [S(35, 8)])])]);
+    T('the lift is loaded, and the ticked session does not change that', ctx.prModeOf('Dip') === 'loaded');
+    T('45 lb on 2026-08-31 is a weight record',
+      canonLines().indexOf('2026-08-31|dip|weight') !== -1, JSON.stringify(canonLines()));
+    T('10.10 moved that XP to 2026-09-07 — a date the record engine calls no record at all; now they agree',
+      eq(canonSet(), xpSet()) && xpSet().indexOf('2026-09-07|dip') === -1,
+      JSON.stringify(only(canonSet(), xpSet())) + ' / ' + JSON.stringify(only(xpSet(), canonSet())));
+    T('and the 35 lb session after it is not a record in either engine',
+      canonLines().indexOf('2026-09-07|dip|weight') === -1 && xpSet().indexOf('2026-09-07|dip') === -1);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a weight typed against no reps is not a lift');
+  await guard('zero reps', async () => {
+    /* the brief's fixture: a real 225, a 315 with no reps, a real 230. The
+       middle entry carries a second lift with real reps, so the XP walk's
+       entry-level gate (meaningfulSetCount) is NOT what is being tested. */
+    seed([W('2026-08-31', [E('Barbell Squat', [S(225, 5)])]),
+          W('2026-09-07', [E('Barbell Squat', [S(315, 0)]), E('Barbell Row', [S(95, 10)])]),
+          W('2026-09-14', [E('Barbell Squat', [S(230, 5)])])]);
+    T('315 × 0 sets no record', canonLines().indexOf('2026-09-07|barbell squat|weight') === -1, JSON.stringify(canonLines()));
+    T('315 × 0 earns no PR XP', xpSet().indexOf('2026-09-07|barbell squat') === -1, JSON.stringify(xpSet()));
+    T('315 × 0 contributes no Mastery record point', ctx.masteryPRCounts()['squat_back'] === 2, JSON.stringify(ctx.masteryPRCounts()));
+    T('315 × 0 is not on the Personal Best Timeline',
+      ctx.computePersonalBestTimeline('Barbell Squat').milestones.map(m => m.value).join() === '225,230',
+      ctx.computePersonalBestTimeline('Barbell Squat').milestones.map(m => m.value).join());
+    T('and it does not poison what follows: the real 230 is a WEIGHT record, not the 1RM record 10.10 reported',
+      canonLines().indexOf('2026-09-14|barbell squat|weight') !== -1 && canonLines().indexOf('2026-09-14|barbell squat|1rm') === -1,
+      JSON.stringify(canonLines()));
+    T('the two streams agree, by identity', eq(canonSet(), xpSet()), JSON.stringify(canonSet()) + ' / ' + JSON.stringify(xpSet()));
+    /* the same three sessions with nothing else in the middle entry: 10.10's XP
+       walk skipped that entry for an unrelated reason (no meaningful set in it
+       at all), which HID the disagreement rather than preventing it. */
+    seed([W('2026-08-31', [E('Barbell Squat', [S(225, 5)])]),
+          W('2026-09-07', [E('Barbell Squat', [S(315, 0)])]),
+          W('2026-09-14', [E('Barbell Squat', [S(230, 5)])])]);
+    T('alone in its entry, the same set is refused for the same reason — not by the entry gate',
+      eq(canonSet(), xpSet()) && canonLines().join(' ') === '2026-08-31|barbell squat|weight 2026-09-14|barbell squat|weight',
+      canonLines().join(' '));
+    T('negative reps and negative loads are refused on the same rule',
+      (() => { seed([W('2026-08-31', [E('Bench Press', [S(135, 8)])]),
+                     W('2026-09-07', [E('Bench Press', [S(-50, 8), S(200, -3)]), E('Barbell Row', [S(95, 10)])]),
+                     W('2026-09-14', [E('Bench Press', [S(145, 8)])])]);
+        return eq(canonSet(), xpSet()) && canonSet().indexOf('2026-09-07|bench press') === -1
+          && canonLines().indexOf('2026-09-14|bench press|weight') !== -1; })(),
+      JSON.stringify(canonLines()));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('a set carrying no load is not a loaded performance');
+  await guard('zero load', async () => {
+    seed([W('2026-08-31', [E('Cable Fly', [S(0, 8)]), E('Bench Press', [S(135, 8)])]),
+          W('2026-09-07', [E('Cable Fly', [S(0, 12)]), E('Bench Press', [S(140, 8)])]),
+          W('2026-09-14', [E('Cable Fly', [S(0, 15)]), E('Bench Press', [S(145, 8)])])]);
+    T('a history of zeros is still a LOADED lift — D91’s mode rule is not touched', ctx.prModeOf('Cable Fly') === 'loaded');
+    T('but 0 lb establishes no loaded record, at any rep count',
+      canonLines().filter(x => /cable fly/.test(x)).length === 0, JSON.stringify(canonLines()));
+    T('and earns no PR XP', xpSet().filter(x => /cable fly/.test(x)).length === 0, JSON.stringify(xpSet()));
+    T('the loaded lift beside it is entirely unaffected',
+      canonLines().join(' ') === '2026-08-31|bench press|weight 2026-09-07|bench press|weight 2026-09-14|bench press|weight'
+      && eq(canonSet(), xpSet()), canonLines().join(' '));
+    T('D96A’s stored-weight semantics are NOT redefined: zero is still a number, and still not blank, BW or malformed',
+      ctx.performedLoad('0') === 0 && ctx.loadEvidenceOf('0') === 'zero' && ctx.loadEvidenceOf('') === 'none'
+      && ctx.loadEvidenceOf('BW') === 'bw' && ctx.loadEvidenceOf('abc') === 'none' && ctx.performedLoad('') === null
+      && ctx.normalizePerformedWeight('0') === '0');
+    T('the PR-eligibility rule is one named function both walks read, and it is the only thing that changed',
+      /function loadedPRPerformance\(set\)/.test(src)
+      && /if\(load === null \|\| load <= 0\) return null;/.test(fnSrc(src, 'loadedPRPerformance'))
+      && /if\(reps === null\) return null;/.test(fnSrc(src, 'loadedPRPerformance'))
+      && /loadedPRPerformance\(set\)/.test(fnSrc(src, 'computeExercisePREvents'))
+      && /loadedPRPerformance\(s\)/.test(fnSrc(src, 'computeXPTimeline')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('legitimate records are exactly as they were');
+  await guard('valid', async () => {
+    seed([W('2026-08-31', [E('Bench Press', [S(135, 8)]), E('Push-Up', [BWS(20)], true)]),
+          W('2026-09-07', [E('Bench Press', [S(145, 8)]), E('Push-Up', [BWS(24)], true)]),
+          W('2026-09-14', [E('Bench Press', [S(155, 6)]), E('Push-Up', [BWS(28)], true)])]);
+    T('135 × 8, 145 × 8, 155 × 6: three weight records, on their own three dates',
+      canonLines().filter(x => /bench press/.test(x)).join(' ')
+      === '2026-08-31|bench press|weight 2026-09-07|bench press|weight 2026-09-14|bench press|weight',
+      canonLines().filter(x => /bench press/.test(x)).join(' '));
+    T('an ordinary bodyweight climb keeps its rep records',
+      canonLines().filter(x => /push-up/.test(x)).join(' ')
+      === '2026-08-31|push-up|reps 2026-09-07|push-up|reps 2026-09-14|push-up|reps');
+    T('and every one of the six is paid once, on its own date', eq(canonSet(), xpSet()) && xpSet().length === 6,
+      JSON.stringify(xpSet()));
+    T('a bodyweight performance needs positive reps and no load — a blank and a zero are both nothing',
+      (() => { seed([W('2026-08-31', [E('Push-Up', [BWS(20)], true)]),
+                     W('2026-09-07', [E('Push-Up', [BWS(0), { weight:'BW', reps:'', rir:'', type:'working', completed:true }], true)]),
+                     W('2026-09-14', [E('Push-Up', [BWS(25)], true)])]);
+        return canonLines().join(' ') === '2026-08-31|push-up|reps 2026-09-14|push-up|reps' && eq(canonSet(), xpSet()); })(),
+      canonLines().join(' '));
+    T('and no load requirement was invented for it: a ticked row with no weight still records',
+      ctx.computeExercisePREvents('Push-Up').length === 2);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the same set, whatever the history');
+  await guard('agreement', async () => {
+    /* Every shape that does not involve E15(a)'s repeated rows. Compared as
+       SETS: equal totals hid this defect for two releases. */
+    const HISTS = {
+      'plain loaded': (() => { const l = []; for(let i = 0; i < 12; i++)
+        l.push(W('2026-0' + (6 + Math.floor(i / 4)) + '-' + String(1 + (i % 4) * 7).padStart(2, '0'),
+          [E('Bench Press', [S(100 + i * 5, 8), S(95 + i * 5, 6)]), E('Barbell Row', [S(80 + i * 2, 10)])])); return l; })(),
+      'bodyweight only': (() => { const l = []; for(let i = 0; i < 10; i++)
+        l.push(W('2026-0' + (6 + Math.floor(i / 5)) + '-' + String(1 + (i % 5) * 5).padStart(2, '0'),
+          [E('Push-Up', [BWS(15 + i)], true), E('Pull-Up', [BWS(5 + Math.floor(i / 2))], true)])); return l; })(),
+      'mixed boxes both ways': [
+        W('2026-06-01', [E('Dip', [BWS(12)], true)]), W('2026-06-08', [E('Dip', [S(25, 8)])]),
+        W('2026-06-15', [E('Dip', [BWS(15)], true)]), W('2026-06-22', [E('Dip', [S(35, 6)], true)]),
+        W('2026-06-29', [E('Dip', [BWS(18)], true)])],
+      'zeros and blanks throughout': [
+        W('2026-06-01', [E('Bench Press', [S(135, 8), S(0, 5)])]),
+        W('2026-06-08', [E('Bench Press', [S('', 12), S(140, 8)])]),
+        W('2026-06-15', [E('Bench Press', [S(405, 0), S(145, 8)])]),
+        W('2026-06-22', [E('Bench Press', [S('abc', 8), S(150, 8)])])],
+      'case and whitespace variants': [
+        W('2026-06-01', [E('Bench Press', [S(135, 8)])]), W('2026-06-08', [E('bench press', [S(140, 8)])]),
+        W('2026-06-15', [E(' BENCH PRESS ', [S(145, 8)])])],
+      'unknown mode': [W('2026-06-01', [E('Mystery Move', [S('', 10)])]), W('2026-06-08', [E('Mystery Move', [S('', 14)])])]
+    };
+    const bad = [];
+    Object.keys(HISTS).forEach(k => { seed(HISTS[k]);
+      const c = canonSet(), x = xpSet();
+      if(!eq(c, x)) bad.push(k + ': record-only ' + JSON.stringify(only(c, x)) + ' xp-only ' + JSON.stringify(only(x, c)));
+    });
+    T('six histories: the canonical record set and the PR XP set are the SAME SET of date+lift identities',
+      bad.length === 0, bad.join(' ; '));
+    seed(HISTS['unknown mode']);
+    T('UNKNOWN stays unknown: no record stream, no PR XP, and no mode invented to award one',
+      ctx.prModeOf('Mystery Move') === 'unknown' && canonSet().length === 0 && xpSet().length === 0);
+    seed(HISTS['case and whitespace variants']);
+    T('D96B’s identity still holds underneath it: three spellings are one lift with three records',
+      canonSet().length === 3 && eq(canonSet(), xpSet()), JSON.stringify(canonSet()));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('which event earns XP moved; what it is worth did not');
+  await guard('amounts', async () => {
+    T('the PR XP table is as it was: weight 15, rep 10, 1RM 10, volume 5, reps 10',
+      /const PR_XP = \{ weight:15, reps_at_weight:10, '1rm':10, volume:5, reps:10 \};/.test(src)
+      && pin('calculatePRXP') === 'ba20ebe522acc1a3');
+    T('one canonical event still pays ONE headline type, not one line per hit',
+      /const headlineType = hits\[0\];/.test(fnSrc(src, 'computeXPTimeline'))
+      && (fnSrc(src, 'computeXPTimeline').match(/calculatePRXP\(/g) || []).length === 1
+      && /hits\.sort\(\(a,b\) => PR_PRIORITY\.indexOf\(a\) - PR_PRIORITY\.indexOf\(b\)\);/.test(fnSrc(src, 'computeXPTimeline')));
+    /* a session that hits weight, 1RM and volume at once pays the weight rate once */
+    seed([W('2026-08-31', [E('Bench Press', [S(100, 8), S(100, 8)])]),
+          W('2026-09-07', [E('Bench Press', [S(120, 10), S(120, 10)])])]);
+    const ev = ctx.computeExercisePREvents('Bench Press').find(e => e.date === '2026-09-07');
+    T('a session hitting several record types is still one line at the headline rate',
+      ev && ev.hits.length >= 3 && xpLines().filter(x => /2026-09-07/.test(x)).join(' ') === '2026-09-07|bench press|Weight PR|15',
+      (ev ? ev.hits.map(h => h.type).join('+') : 'no event') + ' -> ' + xpLines().filter(x => /2026-09-07/.test(x)).join(' '));
+    T('the base XP sources, the level curve and the rank thresholds are byte-identical',
+      pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('calculateSetXP') === '625722a99a04e30f'
+      && pin('calculateRequiredXP') === '5a74d3aad961c629' && pin('calculateLevelFromXP') === '9418f2e5934245da'
+      && pin('getCurrentProgression') === 'bf3a7572296c620c'
+      && ctx.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50');
+    T('an ordinary history earns exactly what it earned on shipped 10.10 — 12 weeks, 24 records, 1,758 XP',
+      (() => { const l = []; for(let i = 0; i < 12; i++)
+          l.push(W('2026-0' + (6 + Math.floor(i / 4)) + '-' + String(1 + (i % 4) * 7).padStart(2, '0'),
+            [E('Bench Press', [S(100 + i * 5, 8), S(95 + i * 5, 6)]), E('Barbell Row', [S(80 + i * 2, 10)])]));
+        seed(l); const xp = ctx.computeXPTimeline();
+        return xp.lifetimeXP === 1758 && xp.prCount === 24 && ctx.computeAllPREvents().length === 24; })(),
+      (() => { const xp = ctx.computeXPTimeline(); return xp.lifetimeXP + '/' + xp.prCount; })());
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('what this phase deliberately did NOT do');
+  await guard('open findings', async () => {
+    T('E12 is untouched: the session PR marker is byte-identical',
+      pin('getSessionPRs') === 'b7bbfa2f0f33ba3f' && pin('wasSessionPR') === 'b719ca9d07d1ae30');
+    /* Asserted as the open debt it is, the way D99.2 asserted the calendar it
+       later fixed: the marker on 2026-09-07 is a session-local judgement with
+       its own definition, and D96C-2 is where it becomes the canonical one. */
+    seed([W('2026-08-31', [E('Barbell Squat', [S(225, 5)])]),
+          W('2026-09-07', [E('Barbell Squat', [S(315, 0)]), E('Barbell Row', [S(95, 10)])]),
+          W('2026-09-14', [E('Barbell Squat', [S(230, 5)])])]);
+    T('E12 STILL OPEN, stated plainly: the legacy session marker calls 2026-09-07 a PR day although no record and no XP exist there',
+      ctx.getSessionPRs(ctx.workoutLog[1]).map(n => n.toLowerCase()).indexOf('barbell squat') !== -1
+      && canonSet().indexOf('2026-09-07|barbell squat') === -1 && xpSet().indexOf('2026-09-07|barbell squat') === -1,
+      JSON.stringify(ctx.getSessionPRs(ctx.workoutLog[1])));
+    T('E15(a) is untouched: both engines still read the FIRST row of a name in a workout',
+      /const ex = l\.exercises\.find\(e => e\.name\.trim\(\)\.toLowerCase\(\) === key\);/.test(fnSrc(src, 'computeExercisePREvents'))
+      && /if\(seenThisEntry\.has\(key\)\) return;/.test(fnSrc(src, 'computeXPTimeline')));
+    T('E16 is untouched: capability still reads the newest session’s execution, and the trainer is 0.1.1-shadow',
+      pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('proposeTrainerState') === '34899e0f53f1d235'
+      && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('D96A’s boundary functions are byte-identical — this phase reused them, it did not edit them',
+      pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('performedReps') === '0436ff32a1b6eaf1');
+    T('D91’s mode rule is byte-identical: which lift is which kind did not move',
+      pin('prModeOf') === 'a0ac7f761228372f' && pin('prModesByLift') === '7aa68bbd9de95dbb'
+      && pin('deriveExercisePRMode') === '262d3ed985632762');
+    T('Mastery weighting, the PBT ranking and Session Score are byte-identical',
+      pin('masteryPointsFor') === '0c704c40a853d991' && pin('masteryPRCounts') === 'f77664c53b2ea14a'
+      && pin('rankPBTCandidates') === '5e5f609ad9a2053a' && pin('sessionScore') === '842e5699f8ac0835'
+      && pin('computeWorkoutQuality') === '30f1165dd94654eb' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c');
+    T('exactly two functions moved in this phase, and both are restated with their reason',
+      pin('computeXPTimeline') === '7a46d4dab3c42d30' && pin('computeExercisePREvents') === '452a6d8e1fb56e60'
+      && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computePRs') === 'a8541afeb6205e1c');
+    T('DATA_KEYS 16, schema 1, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1
+      && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('reading history changes nothing, and costs no more than it did');
+  await guard('safety', async () => {
+    const l = []; for(let i = 0; i < 40; i++)
+      l.push(W('2026-0' + (3 + Math.floor(i / 10)) + '-' + String(1 + (i % 10) * 3).padStart(2, '0'),
+        [E('Bench Press', [S(100 + i, 8), S(95 + i, 6), S(90 + i, 10)]),
+         E('Barbell Squat', [S(150 + i * 2, 5)]), E('Pull-Up', [BWS(6 + Math.floor(i / 4))], true)]));
+    seed(l);
+    const before = JSON.stringify(ctx.workoutLog);
+    const t0 = Date.now(); for(let i = 0; i < 5; i++){ ctx.computeXPTimeline(); } const dt = Date.now() - t0;
+    T('deriving XP never edits the history it reads', JSON.stringify(ctx.workoutLog) === before);
+    T('120 sessions, five full XP passes, well inside a second', dt < 4000, dt + 'ms');
+    T('and the record engine is still the only full-log PR walk the XP pass does not make',
+      !/computeAllPREvents\(\)/.test(fnSrc(src, 'computeXPTimeline')));
   });
 }
 
@@ -39760,6 +40173,7 @@ async function main(){
   await testTodayNotMissedD992();
   await testCalendarStateD993();
   await testMomentumWeekPauseD994();
+  await testCanonicalPRXPD96C1();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -13798,3 +13798,89 @@ to claim.
 ("N of M planned") still counts slots up to and including today (D89, §66), asserted against the
 exact source of both its `completed` and `plannedToDate` denominators. D96C remains unstarted; E11,
 E12, E15(a) untouched; E16 held; trainer 0.1.1-shadow.
+
+---
+
+## §133 — A RECORD AND ITS XP ARE THE SAME EVENT (D96C-1 · LOOP 10.11 · loop-v188)
+
+D88 finding **E11**, closed. LOOP had two definitions of a personal record. The canonical engine
+(`computeExercisePREvents`) judged a lift's whole history by the lift's PR MODE — D91's one shared
+rule. The XP engine read that same mode and then applied a SECOND gate of its own: this row's
+bodyweight checkbox had to agree with it, or the session was skipped entirely. The two engines
+therefore walked different histories, and their running bests drifted apart.
+
+**Reproduced on shipped 10.10 by IDENTITY (date + lift), never by count** — the counts were often
+equal, which is how this survived two releases:
+
+```
+CASE A  bodyweight-mode lift, one session logged unticked
+          records  2026-08-17, 2026-08-24, 2026-08-31, 2026-09-14
+          PR XP    2026-08-17, 2026-08-24, 2026-09-07, 2026-09-14     4 vs 4, one date apart
+CASE B  loaded-mode lift, one session logged ticked — the same shape, mirrored
+```
+
+**The companion defect, same phase.** A stored 315 lb × 0 reps became a WEIGHT record, and then
+raised the bar every later session was judged against: the next real 230 × 5 was reported as an
+*estimated-1RM* record instead of the weight record it was. Proven on screen in real Edge, before and
+after, on one seeded history. A weight typed against no reps is missing data, not a lift; a load of
+zero or less is the same absence on the other axis.
+
+**The rule.** A lift has one kind and one record stream. Once the shared rule has decided that kind,
+a single row's checkbox does not create a second PR identity inside the XP walk. For the same
+logical exercise, CANONICAL RECORD DATE = PR XP DATE.
+
+**The change, in four places and one new function.** `loadedPRPerformance(set)` answers one question
+— may this set establish a loaded record — by reading D96A's own boundary (`performedLoad`,
+`performedReps`), and both record walks call it; both bodyweight branches call `performedReps`. The
+XP walk's row gate is gone and its tracker is seeded from the mode it already read. **This is a
+PR-ELIGIBILITY rule and nothing else:** zero stays distinct from blank, from `BW` and from malformed
+everywhere D96A and D91 keep that distinction, `prModeOf` still reads a zero-load history as LOADED,
+and Exercise Detail still shows the athlete the `0 lb × 12` they logged.
+
+**E11's second half, closed with it.** FINDINGS-D88 recorded under the same finding that the XP
+walk's `prTrackers` needed the null prototype D91 gave every PR map. Removing the row gate turned
+that from tidy to urgent: the gate used to return early on an inherited value, so a lift called
+"constructor" merely earned nothing; without it the walk reads `t.bestRepsAtWeight` off `Object`
+itself and THROWS, taking every XP read in the app with it. Caught by the phase's own repro, not by
+a test written afterwards.
+
+**Drift, measured over 32 histories.** 23 byte-identical, 9 moved, and every one of the 9 carries a
+defect this phase fixed. **Both real owner backups: zero drift**, on lifetime XP, level, rank, the
+canonical record set, the PR-XP set, Mastery, PBT, the Friends snapshot, D44 and the session PR
+markers — hashes verified before and after, files read-only. No level and no rank moved in ANY
+history. XP moves in both directions and only where a defect was: up where a record earned nothing
+(CASE A, +10), down where an invalid set was paid (zero-rep, zero-load, negative values, —10 to
+—20). D44, Session Score, the trainer proposal and Objectives are untouched everywhere.
+
+**Cost, measured and disclosed.** E11 itself is free: applied ALONE to 10.10 it is within noise on
+every history (—3.5% to +1.2%). The positive-performance guard costs 8—18% per call, because it
+reads through D96A's boundary instead of re-parsing — 3.41 → 3.87 ms for a full XP pass over a
+two-year history, 2.51 → 2.97 ms for every PR event in it, both behind existing caches. An inline
+guard duplicated in both walks measured free and was REJECTED: a second private copy of the rule is
+the defect class this phase exists to remove, and 0.4 ms is not worth it. The XP walk still makes
+ONE pass and never calls the record engine (asserted).
+
+**Tests.** Contract 211 (**51 checks**): the rule; CASE A and CASE B; the zero-rep fixture both
+inside a mixed entry and alone (10.10's entry gate HID the disagreement rather than preventing it);
+zero load; negative load and negative reps; the valid progression; a bodyweight climb with a 0-rep
+and a blank-rep set; six histories compared as SETS; UNKNOWN; the prototype names; PR XP amounts and
+the headline-only rule; and what this phase deliberately did not do. **20 of 20 mutants killed** — the
+fifteen the brief names plus the guard deleted, the two walks un-shared, D96A's meaning redefined,
+and the tracker returned to a plain object.
+
+**Left open, on purpose, and asserted as open.** **E12** (`getSessionPRs` / `wasSessionPR`) is
+byte-identical, so the legacy session PR marker still calls 2026-09-07 a PR day where no record and
+no XP exist — Contract 211 states that in a passing assertion rather than hiding it. **E15(a)**'s
+first-row-per-workout rule and **E16**'s capability mode are byte-identical; trainer 0.1.1-shadow.
+**E19 is new** (see FINDINGS-D88): `computePRs()` still reads 315 × 0 as a lift's best. Its one
+consumer is `buildProgressionRecommendation`'s `prPeak`, whose only effect is whether the note "this
+would match or beat your best" appears — D49/D50B are protected here, so it is recorded, not fixed.
+
+**Untouched, proven by hash:** `computeAllPREvents`, `computePRs`, `prModeOf`, `prModesByLift`,
+`deriveExercisePRMode`, `wasSessionPR`, `getSessionPRs`, `performedLoad`, `performedReps`,
+`computeWorkoutQuality`, `deriveSessionExecution`, `sessionScore`, `masteryPointsFor`,
+`masteryPRCounts`, `computeExerciseCapability`, `proposeTrainerState`, `rankPBTCandidates`,
+`computePBTCandidates`, `calculatePRXP`, `calculateWorkoutXP`, `calculateSetXP`,
+`calculateRequiredXP`, `calculateLevelFromXP`, `getCurrentProgression`. Exactly TWO pins moved,
+restated in place with their reason. verify 9,905/0, five audits green, real Edge at 320/375/390/430
+on Progress → All records and Profile → XP History: 52/52. DATA_KEYS 16, schema 1, no migration.
