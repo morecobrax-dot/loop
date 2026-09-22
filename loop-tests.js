@@ -6681,8 +6681,12 @@ function testD10Consolidation(app){
      12-week muscle volume comes after both. */
   T('the leaders lead the mastery content',
     src.indexOf('${masteryViewHtml(mas)}') !== -1 && src.indexOf('${masteryViewHtml(mas)}') < src.indexOf('${masteryBadgeSystemHtml()}'));
+  /* D100 — it cannot outrank it from another tab. Muscle volume was never a
+     mastery measure and now lives on Progress → Volume (Contract 213), so the
+     claim is the stronger one: Mastery carries no muscle-volume section at all. */
   T('the muscle diagram does not outrank exercise mastery',
-    src.indexOf('${masteryViewHtml(mas)}') !== -1 && src.indexOf('${masteryViewHtml(mas)}') < src.indexOf('Muscle volume<span class="sec-hint">sets'));
+    src.indexOf('${masteryViewHtml(mas)}') !== -1 && !/Muscle volume<span class="sec-hint">sets/.test(fnSrc(src, 'renderProgMuscles'))
+    && /Muscle volume<span class="sec-hint">sets/.test(fnSrc(src, 'renderVolMuscleHistory')));
   T('the most-trained summary leads the tab',
     src.indexOf('Most trained<span class="sec-hint">sessions logged') < src.indexOf('${masteryViewHtml(mas)}'));
   T('two different things are not both called "Most trained"',
@@ -7891,19 +7895,22 @@ function testProgressDashboard(app){
        information twice — a hero repeating the list's top row. They are now
        ONE section: the body figure, the top muscle named with its share, and
        the full ranked bars, in a single card. */
-    T('the full ranking IS this tab, so there is nothing to route to',
-      /Muscle volume/.test(html) && /muscle-bar-list/.test(html));
-    T('the consolidation kept the body figure', /muscle-svg/.test(html));
+    /* D100 — the card is the same single component D25 consolidated; it renders
+       on Volume now. Its shape is asserted here against the source that builds
+       it, and against the real rendered tab in Contract 213. */
+    const mvSrc = fnSrc(src, 'renderVolMuscleHistory');
+    T('the full ranking IS one card, so there is nothing to route to',
+      /Muscle volume/.test(mvSrc) && /muscleBarsHtml\(mv\.totals\)/.test(mvSrc));
+    T('the consolidation kept the body figure', /bodyDiagramSvg\(null, mv\.totals\)/.test(mvSrc));
     T('the hero and the ranking are one component, not two sections',
-      /mv-card/.test(html) && (html.match(/mv-card/g) || []).length === 1 &&
-      /mv-card[\s\S]*?muscle-svg[\s\S]*?muscle-bar-list/.test(html));
+      (mvSrc.match(/mv-card/g) || []).length === 1 &&
+      /mv-card[\s\S]*?bodyDiagramSvg[\s\S]*?mv-bars/.test(mvSrc));
     T('the top muscle value is not printed twice',
       (() => {
-        /* The hero names the leader and its share; only the bar list carries
-           its set count. */
-        const hero = html.slice(html.indexOf('mv-top'), html.indexOf('mv-bars'));
-        return /mv-name/.test(hero) && /of your logged sets/.test(hero) && !/\d+\s*sets?</.test(hero);
+        const hero = mvSrc.slice(mvSrc.indexOf('mv-top'), mvSrc.indexOf('mv-bars'));
+        return /mv-name/.test(hero) && /of your \$\{mv\.setsLogged\} logged sets/.test(hero) && !/\d+\s*sets?</.test(hero);
       })());
+    T('and Mastery keeps none of it', !/mv-card/.test(html));
   }
 
   sub('consistency and records read as achievement, not analytics');
@@ -11374,9 +11381,14 @@ function testDesignSystem(app){
   /* D46B — the section gained a hint and the figure that Today's summary
      shows, so the heading is matched by its opening rather than its exact
      closing tag. The rule is unchanged: this section carries a .sec-head. */
-  T('the breakdown has a heading', /<div class="sec-head">Sets this week by muscle/.test(src));
+  /* D100 — the heading is chosen now, because the block can describe a week
+     other than this one. Both branches are headings, and the current-week one is
+     the exact words it has always been. */
+  T('the breakdown has a heading', /<div class="sec-head">\$\{wkHead\}<\/div>/.test(src)
+    && /Sets this week by muscle<span class="sec-hint">working sets<\/span>/.test(src)
+    && /Sets by muscle<span class="sec-hint">week of /.test(src));
   T('the heading comes before the data, not after',
-    src.indexOf('Sets this week by muscle') < src.indexOf("muscleBarsHtml(wk.totals)"));
+    src.indexOf('${wkHead}') < src.indexOf("muscleBarsHtml(wk.totals)"));
   T('and the trailing caption is gone rather than repeated',
     /muscleBarsHtml\(wk\.totals\)/.test(src));
   /* The element name is a variable now so the same component can sit inside
@@ -11385,9 +11397,10 @@ function testDesignSystem(app){
     /\(caption \? `<\$\{E\} class="muscle-foot">/.test(src));
   /* D25: the Mastery tab's copy consolidated into the single Muscle volume
      card — still labelled, still the same one component. */
-  T('the Mastery tab still labels its own copy of the same component',
+  /* D100 — the labelled copy is on Volume. Same label, same one component. */
+  T('the long-range block still labels its own copy of the same component',
     /<div class="sec-head">Muscle volume<span class="sec-hint">/.test(src) &&
-    /mv-bars">\$\{muscleBarsHtml\(totals\)\}/.test(src));
+    /mv-bars">\$\{muscleBarsHtml\(mv\.totals\)\}/.test(src));
   T('one bar component serves both, not two',
     (src.match(/function muscleBarsHtml\(/g) || []).length === 1);
 
@@ -13649,8 +13662,15 @@ function testRankIdentity(app){
   })());
   T('the index can never leave the taxonomy',
     /Math\.max\(0, Math\.min\(RANKS\.length - 1, rankShowcaseIndex \+ delta\)\)/.test(src));
-  T('vertical stays the browser\'s: the wrap declares pan-y',
-    /\.rank-trackwrap\{[\s\S]{0,120}touch-action: pan-y;/.test(css));
+  /* D100 — it no longer does, and that WAS the bug. `pan-y` handed every
+     vertical pixel to a browser with nothing to scroll, which panned the page
+     and left it displaced. Vertical intent is still recognised — in the engine,
+     where it always was decided — and still moves the ladder nowhere. */
+  T('vertical moves nothing: the wrap owns its gestures, and the engine still calls a vertical one a scroll',
+    /touch-action: none;/.test(cssRule(css, '.rank-trackwrap{'))
+    && !/touch-action: pan-y/.test(cssRule(css, '.rank-trackwrap{'))
+    && /d\.mode = 'scroll';/.test(fnSrc(src, 'wireRankCarousel'))
+    && /if\(!d \|\| e\.pointerId !== d\.id \|\| d\.mode === 'scroll'\) return;/.test(fnSrc(src, 'wireRankCarousel')));
   /* D30.5: the arrow buttons are gone — the gesture IS the navigation on a
      phone, and two chrome buttons under the card were the least premium thing
      on the screen. The guarantee that mattered was never "arrows exist"; it
@@ -14071,8 +14091,10 @@ async function testProgressExperience(){
     T('history depth shares the meta line instead of echoing on every row',
       /session[s]? · \d+% to Level |session[s]? · max level/.test(mHtml) ||
       /\d+ sessions? · /.test(mHtml));
-    T('exactly one body figure serves the whole tab',
-      (mHtml.match(/class="muscle-svg"/g) || []).length === 1);
+    /* D100 — the figure went with the block it belonged to. Mastery draws none,
+       which is the same rule as before (never two) at its limit. */
+    T('no body figure is drawn twice, and Mastery now draws none',
+      (mHtml.match(/class="muscle-svg"/g) || []).length === 0);
     T('the distribution is one segmented whole with a counted legend',
       /distseg/.test(mHtml) && /dl-row/.test(mHtml) && /%/.test(mHtml));
     T('its shares sum to one whole', (() => {
@@ -16415,8 +16437,11 @@ async function testTrainedThisWeek(){
   /* D46B — bounded by the next function rather than a character count. The
      count broke the moment the derivation grew, which is a property of the
      ruler and not of the code being measured. */
+  /* D100 — the body moved into deriveMuscleSetsBetween, which takes the span as
+     an argument; deriveWeekMuscleSets is the this-week call of it. The rule is
+     unchanged and there is still exactly one of it. */
   const dwmsBody = (() => {
-    const i = src.indexOf('function deriveWeekMuscleSets');
+    const i = src.indexOf('function deriveMuscleSetsBetween');
     return src.slice(i, src.indexOf('function openMuscleVolume', i));
   })();
   T('the derivation reads that registry', dwmsBody.indexOf('musclesForExercise(') !== -1);
@@ -16624,8 +16649,12 @@ async function testProgressCommandCentre(){
     T('because there is one week-by-muscle derivation, read twice', (() => {
       const i = src.indexOf('function renderProgVolume');
       const body = src.slice(i, src.indexOf('function muscleBarsHtml', i));
-      return body.indexOf('deriveWeekMuscleSets()') !== -1
-        && body.indexOf('computeMuscleVolumeSince(currentWeekStart())') === -1;
+      /* D100 — still one derivation, read twice; the week it is asked for is now
+         the week the chart has selected. */
+      /* The old derivation is named in a comment here explaining why it is no
+         longer used, so the absence is asserted against stripped source. */
+      return body.indexOf('deriveWeekMuscleSets(sel ? sel.start : undefined)') !== -1
+        && stripComments(body).indexOf('computeMuscleVolumeSince(') === -1;
     })());
 
     sub('the summary opens the Muscle Volume surface the athlete knows');
@@ -22524,7 +22553,10 @@ async function testRankShowcaseMotion(){
     return !/setPointerCapture/.test(down) && move.indexOf("d.mode = 'drag';") !== -1 &&
       move.indexOf("d.mode = 'drag';") < move.indexOf('setPointerCapture');
   })());
-  T('vertical stays the browser\'s', /\.rank-trackwrap\{[\s\S]{0,120}touch-action: pan-y;/.test(css));
+  /* D100 — see Contract 213: the stage keeps its own gestures now, and a
+     vertical finger moves neither the ladder nor the page. */
+  T('vertical moves nothing', /touch-action: none;/.test(cssRule(css, '.rank-trackwrap{'))
+    && /d\.mode = 'scroll';/.test(fnSrc(src, 'wireRankCarousel')));
 
   /* The real handlers, driven by a clock the test owns. */
   const wrap = ctx.document.getElementById('rankTrackWrap');
@@ -24223,7 +24255,8 @@ async function testWorkoutBuilder(){
 
   sub('the picker is built for a phone');
   T('its sheet reaches the bottom edge the way the workout\'s does, its foot owning the inset',
-    /#logOverlay \.sheet\.sheet-page,\s*#exPickerOverlay \.sheet\.sheet-page\{ max-height: 100%; \}/.test(css) &&
+    /* D100 — Rank joined the same rule, for the same reason. */
+    /#logOverlay \.sheet\.sheet-page,\s*#rankOverlay \.sheet\.sheet-page,\s*#exPickerOverlay \.sheet\.sheet-page\{ max-height: 100%; \}/.test(css) &&
     /class="ws-nav xp-dock" id="exPickerDock" hidden/.test(src) && /\.xp-dock\[hidden\]\{ display: none; \}/.test(css) &&
     /#exPickerOverlay \.sheet-scroll\{ padding-top: var\(--space-2\); padding-bottom: calc\(16px \+ env\(safe-area-inset-bottom, 0px\)\); \}/.test(css) &&
     /#exPickerOverlay\.xp-picking \.sheet-scroll\{ padding-bottom: 16px; \}/.test(css));
@@ -27377,7 +27410,7 @@ async function testMuscleMapOverlays(){
       /bodyDiagramSvg\(shown\)/.test(fnSrc(src, 'renderTrainDetail')) &&
       /bodyDiagramSvg\(null, data\.totals\)/.test(fnSrc(src, 'progWeekMuscleHtml')) &&
       /bodyDiagramSvg\(null, wk\.totals\)/.test(fnSrc(src, 'renderProgVolume')) &&
-      /bodyDiagramSvg\(synthetic\)/.test(fnSrc(src, 'renderProgMuscles')));
+      /bodyDiagramSvg\(null, mv\.totals\)/.test(fnSrc(src, 'renderVolMuscleHistory')));
     const plans = Object.keys(ctx.DEFAULT_PLANS);
     T('a plan preview lights what that plan trains, for every plan',
       plans.length > 0 && plans.every(id => drawsExactly(ctx.planCardBody(id, ctx.DEFAULT_PLANS[id], false), expectedBands(ctx.computeMuscleTotals(ctx.planAggregateTemplate(ctx.DEFAULT_PLANS[id]))))));
@@ -27406,7 +27439,15 @@ async function testMuscleMapOverlays(){
     /* each function's own body, from its declaration to its closing brace, hashed against 7.6 */
     const body = name => { const t = src.split('\r\n').join('\n'); const i = t.indexOf('\nfunction ' + name + '('); const j = t.indexOf('\n}\n', i + 1); return i < 0 || j < 0 ? '' : t.slice(i + 1, j + 2); };
     const pin = name => crypto.createHash('sha256').update(body(name)).digest('hex').slice(0, 16);
-    const PINS = { computeMuscleTotals: 'd024a1d1c92503d5', musclesForExercise: 'bef4dd42e500bbdf', deriveWeekMuscleSets: '68fad1c28a5b366a',
+    /* D100 — deriveWeekMuscleSets moved, by becoming one line: the windowed
+       derivation underneath it takes the span as an argument so a selected week
+       and a 52-week view can ask the identical question, and this is the
+       this-week call of it. WHAT is counted did not move — working sets only,
+       primary muscles from the canonical registry, one count per set per muscle
+       — and deriveMuscleSetsBetween is pinned here beside it so the rule cannot
+       drift out from under either caller. Every other entry is at its 7.6 value. */
+    const PINS = { computeMuscleTotals: 'd024a1d1c92503d5', musclesForExercise: 'bef4dd42e500bbdf',
+      deriveWeekMuscleSets: '9e8e342f4f997037', deriveMuscleSetsBetween: '0fcf700cb6632caa',
       muscleBarsHtml: 'f62dbfffc016e97a', muscleFocusHtml: 'bb716a3d4cb78d9b', computeMuscleGroupBreakdown: 'fc9459aa0dd6ab76', computeMuscleVolumeSince: 'bda470d98246eb8a',
       progWeekMuscleHtml: 'd00a47b7078675f5', renderTodayMuscles: 'ab3aaccac840c85d', planAggregateTemplate: '147fc2f34f2972ad', planCardBody: 'f323be10f180e055' };
     const moved = Object.keys(PINS).filter(n => pin(n) !== PINS[n]);
@@ -31848,8 +31889,12 @@ async function testMasteryPodium(){
       /class="mpod mpod-n1"/.test(html) && /Bench Press/.test(html));
     T('Exercise Mastery still lists it too',
       /Exercise mastery/.test(html) && /mastery-row-tap/.test(html));
-    T('Muscle Volume degrades on its OWN empty state, not the whole tab’s',
-      /Log a few sets in the last 12 weeks/.test(html));
+    /* D100 — Muscle Volume left this tab; the property it proved — one section's
+       emptiness never blanks the others — is now carried by Training distribution
+       alone here, and by the moved block's own empty state on Volume. */
+    T('Muscle Volume is no longer this tab’s to degrade',
+      !/Log a few sets in the last 12 weeks/.test(html) && !/Muscle volume/.test(html)
+      && /Log working sets to see what your training has added up to\./.test(fnSrc(src, 'renderVolMuscleHistory')));
     T('Training Distribution degrades gracefully too',
       /No sets logged in this range yet/.test(html));
     T('this was a genuine gap, not a hypothetical: the podium’s own empty branch '
@@ -35169,8 +35214,11 @@ async function testMasteryView(){
       /Level 6\+/.test(guide) && ctx.MASTERY_CONFIG.maxLevel === 10);
     T('the notes describe history, never strength — this app’s own rule for mastery',
       ctx.MASTERY_BADGE_TIERS.every(t => !/strong performance|top performance|peak execution|max strength/i.test(t.note)) && /Training history, not a measure of strength\./.test(html));
-    T('the guide follows the view, and the 12-week sections come after it, unchanged',
-      html.indexOf('id="mst"') < html.indexOf('The mastery badge system') && html.indexOf('The mastery badge system') < html.indexOf('Muscle volume<span') && /Training distribution/.test(html));
+    /* D100 — Muscle volume moved to Volume; Training distribution keeps its place
+       after the guide, and its numbers are untouched. */
+    T('the guide follows the view, and Training distribution comes after it, unchanged',
+      html.indexOf('id="mst"') < html.indexOf('The mastery badge system')
+      && html.indexOf('The mastery badge system') < html.indexOf('Training distribution') && /Training distribution/.test(html));
   });
 
   /* ------------------------------------------------------------------ */
@@ -35271,7 +35319,10 @@ async function testMasteryView(){
     T('DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, and no new key names this view',
       ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && !ctx.DATA_KEYS.some(k => /mastery|badge/i.test(k)));
     T('nothing else in Progress was redrawn: the 12-week sections, the other tabs and their functions are as they were',
-      /function renderProgDashboard\(/.test(src) && /function renderProgStrength\(/.test(src) && /function renderProgVolume\(/.test(src) && /Muscle volume<span class="sec-hint">sets · last 12 weeks/.test(src));
+      /function renderProgDashboard\(/.test(src) && /function renderProgStrength\(/.test(src) && /function renderProgVolume\(/.test(src)
+      /* D100 — Muscle volume is a Volume section now, and no longer locked to
+         twelve weeks; Training distribution is the 12-week section that stayed. */
+      && /function renderVolMuscleHistory\(/.test(src) && /Training distribution/.test(fnSrc(src, 'renderProgMuscles')));
     T('D86’s muscle sheet is gone with its list — its markup, its three functions — not left as dead code beside the list that replaced it',
       !/allMuscleMasteryOverlay|allMuscleMasteryBody|function openAllMuscleMastery|function closeAllMuscleMastery|function renderMuscleMasterySheet|function allMuscleMasteryHtml/.test(src));
     T('the D86 podium’s place medals and Top Muscle control are gone, not left as dead code',
@@ -36064,8 +36115,16 @@ async function testRankEmblemsD96(){
       const p = mkPanel(); ctx.rankArrive(p);
       const s = p.img.anims[0], l = p.band.anims[0];
       T('one arrival is exactly two animations: the emblem settling and the light', p.img.anims.length === 1 && p.band.anims.length === 1);
-      T('settle: 240 ms, 0.96 → 1 in scale and 0.55 → 1 in opacity, on the image, once',
-        s.timing.duration === 240 && !s.timing.iterations && s.frames.length === 2 && /scale\(0\.96\)/.test(s.frames[0].transform) && s.frames[0].opacity === 0.55 && s.frames[1].opacity === 1 && s.frames[1].transform === 'scale(1)');
+      /* D100 — the fade belongs to the ENTRANCE. Swiping to a rank settles it in
+         scale and crosses it with light, but never fades it up from dark: the
+         emblem is already on screen, and replaying an entrance on it is what
+         made it look dim as it arrived. Both arrivals are asserted. */
+      T('settle: 240 ms, 0.96 → 1 in scale, on the image, once',
+        s.timing.duration === 240 && !s.timing.iterations && s.frames.length === 2 && /scale\(0\.96\)/.test(s.frames[0].transform) && s.frames[1].opacity === 1 && s.frames[1].transform === 'scale(1)');
+      T('a swipe arrival does not fade the emblem up from dark', s.frames[0].opacity === 1);
+      T('the page opening does, because that emblem was not there a moment ago',
+        (() => { const q = mkPanel(); ctx.rankArrive(q, true); const e = q.img.anims[0];
+          return e && e.frames[0].opacity === 0.55 && e.frames[1].opacity === 1; })());
       T('the light: 680 ms starting 140 ms in, one sweep across the emblem, once', l.timing.duration === 680 && l.timing.delay === 140 && !l.timing.iterations && l.timing.fill === 'backwards' &&
         /-130%/.test(l.frames[0].transform) && /240%/.test(l.frames[l.frames.length - 1].transform) && l.frames[0].opacity === 0 && l.frames[l.frames.length - 1].opacity === 0);
       T('both are inside the brief: settle 180–260 ms, light 500–800 ms, all over in under a second', s.timing.duration >= 180 && s.timing.duration <= 260 && l.timing.duration >= 500 && l.timing.duration <= 800 && l.timing.delay + l.timing.duration < 1000);
@@ -36104,7 +36163,8 @@ async function testRankEmblemsD96(){
     } finally { ctx.rankReducedMotion = realRM; ctx.rankAssetsReady = realReady; ctx.rankCancel('arrival'); }
 
     T('landing is what plays it: a rank the ladder ARRIVES at, and the rank the showcase opens on — re-centring stays quiet', /rankArrive\(g \? g\.panels\[i\] : null\)/.test(fnSrc(src, 'rankLanded')) && /if\(!arrived\) return;/.test(fnSrc(src, 'rankLanded')) &&
-      /rankArrive\(_rankCar\.geom\.panels\[rankShowcaseIndex\]\)/.test(fnSrc(src, 'openRankShowcase')));
+      /* D100 — and only the opening one is told it is an entrance. */
+      /rankArrive\(_rankCar\.geom\.panels\[rankShowcaseIndex\], true\)/.test(fnSrc(src, 'openRankShowcase')));
     T('closing the showcase cancels it', /rankCancel\('arrival'\)/.test(fnSrc(src, 'closeRankShowcase')));
   });
 
@@ -36785,7 +36845,14 @@ async function testRealUseUxD98(){
       'compute1RMTrend': '2df090764cbc13fe',
       'rankIndexOf': '821cfe82a1a7cb79',
       'rankMedalSvg': 'a98a7999ea912349',
-      'rankArrive': '280a7fed106a907b'
+      /* D100 — rankArrive moved by one expression. The 0.55 fade is the page
+         OPENING; a swipe arrival now starts at full opacity, because the emblem
+         is already on screen and travelling under the finger, and replaying an
+         entrance on it is what made it look dark as it arrived — worse because
+         rankLanded fires while the spring is still visibly moving. The settle in
+         scale, the single pass of light, the durations and Reduce Motion are all
+         unchanged, and the emblem PNGs are untouched. */
+      'rankArrive': '1ff56bc7722b7572'
     };
     const bad = Object.keys(PINS).filter(n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) !== PINS[n]);
     T('XP, level, PR events and modes, Session Score, the legacy quality score, Mastery points, capability, the trainer proposal, the PBT ranking and every D39 evidence function are byte-identical to their pinned source — LOOP 10.0, save the seven restated in place with the reason beside them (' + Object.keys(PINS).length + ' pinned by the hash of their source)',
@@ -40411,6 +40478,417 @@ async function testCanonicalSessionPRD96C2(){
   });
 }
 
+/* =========================================================
+   CONTRACT 213 — THE WEEK, THE HISTORY, AND A FULL-SCREEN RANK  (D100)
+   ---------------------------------------------------------
+   A real-use pass over three surfaces, from the owner's own screenshots.
+
+   HOME. Objectives sat above This Week, so the first thing Home said was
+   "here are some challenges" and the second was "here is your actual week".
+   That is backwards: Objectives are optional guidance about a week that has
+   to exist first. Presentation order only — two blocks swapped in the markup,
+   not one line of objective generation, selection, completion, XP or history.
+
+   VOLUME. The weekly bars were a picture. They are a control now: every week
+   owns a full-height column of the chart, and the muscle breakdown beneath
+   reads the week the chart has selected, from ONE piece of state both read.
+
+   MUSCLE VOLUME. It was at the bottom of Mastery, locked to twelve weeks. It
+   was in the wrong tab — Mastery describes mastery — and asked the wrong
+   question of the data: a rolling window meant an athlete's first year simply
+   stopped existing. It moved to Volume and gained 12W / 26W / 52W / ALL, with
+   ALL derived from the whole retained history rather than a stored total that
+   could drift away from it. LOOP prunes no workout, so that is truthful.
+
+   RANK. Three interaction defects, each traced before it was touched:
+     · an emblem looked DARK as it arrived, because rankLanded fires while the
+       spring is still visibly moving and rankArrive replayed the page's
+       ENTRANCE fade (0.55 → 1) on an emblem already on screen;
+     · the page drifted vertically, because the stage declared touch-action
+       pan-y and handed every vertical pixel to a browser with nothing to
+       scroll, which panned the page instead;
+     · a dead band sat under the footer, because the sheet is capped at 100dvh
+       inside an overlay that is `position: fixed; inset: 0` — wherever the
+       dynamic viewport is shorter than the page, the sheet stops short. That
+       is why scrolling (which collapses the browser chrome) made it look
+       right: the scrolled state was the correct one.
+   ========================================================= */
+async function testRealUseD100(){
+  section('CONTRACT 213 — the week, the history, and a full-screen rank (D100)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = (src.match(/<style>([\s\S]*?)<\/style>/) || ['', ''])[1];
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx, doc = ctx.document;
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const E = (n, sets) => ({ name: n, bodyweight: false, sets });
+  const WK = (id, date, exs, cat) => ({ id, date, category: cat || 'push', title: 'x', notes: '', exercises: exs });
+  const D = n => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - n); return ctx.localDateStr(d); };
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateConsistencyCache(); ctx.invalidateXPTimelineCache(); };
+  /* one workout a week for n weeks: 2 chest sets and 1 back set each, so every
+     window has an arithmetic that can be checked by multiplication. */
+  const weekly = n => { const l = []; for(let i = 0; i < n; i++)
+    l.push(WK('w' + i, D(i * 7 + 1), [E('Bench Press', [S(100, 8), S(100, 8)]), E('Lat Pulldown', [S(90, 10)])])); return l; };
+  /* The same shape, but no two adjacent weeks train the same amount: a
+     breakdown that showed the wrong week would otherwise print the right
+     numbers, which is exactly how a mutant survived this contract once. */
+  const weeklyVaried = n => { const l = []; for(let i = 0; i < n; i++){
+    const chest = (i % 4) + 1, back = (i % 3) + 1;
+    l.push(WK('v' + i, D(i * 7 + 1), [E('Bench Press', Array.from({ length: chest }, () => S(100, 8))),
+                                      E('Lat Pulldown', Array.from({ length: back }, () => S(90, 10)))])); }
+    return l; };
+  const volTab = async () => { ctx.switchTab('progress'); ctx.switchProgTab('volume'); await H.settle(60);
+    return { chart: doc.getElementById('progVolChart').innerHTML,
+             week: doc.getElementById('progVolMuscle').innerHTML,
+             long: doc.getElementById('progVolLong').innerHTML }; };
+  const masteryTab = async () => { ctx.switchTab('progress'); ctx.switchProgTab('muscles'); await H.settle(60);
+    return doc.getElementById('progMuscles').innerHTML; };
+  const weekKeys = chart => (chart.match(/selectVolWeek\('([^']+)'\)/g) || []).map(s => s.match(/'([^']+)'/)[1]);
+  const headOf = html => (html.match(/<div class="sec-head">[\s\S]*?<\/div>/) || [''])[0];
+  const subOf = html => ((html.match(/mv-sub">([\s\S]*?)<\/div>/) || [])[1] || '').replace(/<[^>]*>/g, '');
+  const nameOf = html => ((html.match(/mv-name">([^<]*)/) || [])[1] || '');
+
+  /* ---------------------------------------------------------------- */
+  sub('Home: the week the athlete has, then what LOOP suggests');
+  await guard('home order', async () => {
+    const view = src.slice(src.indexOf('<div class="view active" id="view-today"'), src.indexOf('<div class="view" id="view-train"'));
+    T('This Week comes before Objectives in the Today view',
+      view.indexOf('id="weekCard"') !== -1 && view.indexOf('id="todayObjectives"') !== -1
+      && view.indexOf('id="weekCard"') < view.indexOf('id="todayObjectives"'),
+      'week@' + view.indexOf('id="weekCard"') + ' obj@' + view.indexOf('id="todayObjectives"'));
+    T('Objectives sits immediately below it, with nothing wedged between',
+      /id="weekCard"><\/div>[\s\S]{0,400}id="todayObjectives"><\/div>/.test(view));
+    T('each block appears exactly once — nothing was duplicated to reorder it',
+      (view.match(/id="weekCard"/g) || []).length === 1 && (view.match(/id="todayObjectives"/g) || []).length === 1);
+    T('the day still leads: today’s workout is above both',
+      view.indexOf('id="todayWorkout"') < view.indexOf('id="weekCard"'));
+    T('and the program comes after the week, where it always did',
+      view.indexOf('id="weekCard"') < view.indexOf('id="todayFoundation"'));
+    T('Objectives themselves are byte-identical: generation, XP, the latch and history',
+      !/todayObjectives|weekCard/.test(fnSrc(src, 'syncObjectives'))
+      && ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1);
+    T('nothing about the reorder is conditional: no code decides the order at runtime',
+      !/insertBefore|appendChild\(.*weekCard|order:\s*-?\d/.test(fnSrc(src, 'renderWeekCard')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Volume: every week on the chart can be asked what it trained');
+  await guard('week selection', async () => {
+    seed(weeklyVaried(30));
+    const v = await volTab();
+    const keys = weekKeys(v.chart);
+    T('every visible week has its own tap zone, one per bar',
+      keys.length === 12 && (v.chart.match(/vbar-hit/g) || []).length === 12, keys.length + ' zones');
+    T('the zones are full-height, so a week is chosen by its column and not by a 6px bar',
+      /class="vbar-hit"[^>]*y="0" width="[\d.]+" height="140"/.test(v.chart));
+    T('every zone names a real week start, in order, one week apart', (() => {
+      if(keys.length < 2) return false;
+      for(let i = 1; i < keys.length; i++){
+        if(ctx.daysBetweenDates(keys[i-1], keys[i]) !== 7) return false;
+      }
+      return true;
+    })(), JSON.stringify(keys.slice(0, 3)));
+    T('it opens on the latest week, and says so in this week’s words',
+      /Sets this week by muscle/.test(headOf(v.week)));
+    /* tap a week in the middle of the chart */
+    ctx.selectVolWeek(keys[2]);
+    await H.settle(60);
+    const v2 = await volTab();
+    T('tapping a historical week retitles the breakdown for THAT week, not "this week"',
+      /Sets by muscle/.test(headOf(v2.week)) && !/this week/.test(headOf(v2.week))
+      && headOf(v2.week).indexOf('week of') !== -1, headOf(v2.week));
+    T('and the chart marks the week it is describing',
+      /rx="1" fill="var\(--accent\)"/.test(v2.chart));
+    T('the breakdown, the figure, most-worked and the counts are all that same week',
+      (() => { const b = ctx.computeWeeklyVolume(30).filter(x => x.start === keys[2])[0];
+        const wk = ctx.deriveMuscleSetsBetween(keys[2], b.end);
+        const now = ctx.deriveWeekMuscleSets();
+        /* and the week it is showing is demonstrably NOT the current one */
+        return wk.setsLogged !== now.setsLogged
+          && nameOf(v2.week) === wk.muscles[0].label
+          && subOf(v2.week).indexOf(String(wk.setsLogged) + ' logged') !== -1
+          && subOf(v2.week).indexOf(String(now.setsLogged) + ' logged') === -1
+          && v2.week.indexOf('muscle-bar') !== -1; })(),
+      nameOf(v2.week) + ' | ' + subOf(v2.week));
+    T('one state drives both: the chart and the breakdown cannot describe different weeks',
+      /const sel = volSelectedBucket\(buckets\);/.test(fnSrc(src, 'renderProgVolume'))
+      && /volumeBarSvg\(buckets, \{ selectKey: sel \? sel\.start : '' \}\)/.test(fnSrc(src, 'renderProgVolume'))
+      && (fnSrc(src, 'renderProgVolume').match(/volSelectedBucket\(/g) || []).length === 1);
+    T('tapping the selected week again returns to the latest one',
+      (() => { ctx.selectVolWeek(keys[3]);          // keys[2] is already the selection
+        const on = /week of/.test(headOf(doc.getElementById('progVolMuscle').innerHTML));
+        ctx.selectVolWeek(keys[3]);
+        return on && /Sets this week by muscle/.test(headOf(doc.getElementById('progVolMuscle').innerHTML)); })(),
+      headOf(doc.getElementById('progVolMuscle').innerHTML));
+    T('selection is presentation only: no DATA_KEY, nothing written, no workout touched',
+      !ctx.DATA_KEYS.some(k => /vol|week|muscle/i.test(k)) && ctx.DATA_KEYS.length === 16
+      && !/LOOPStore|persist/.test(fnSrc(src, 'selectVolWeek')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('changing the range never leaves an invisible week selected');
+  await guard('range', async () => {
+    seed(weekly(30));
+    let v = await volTab();
+    const keys12 = weekKeys(v.chart);
+    ctx.selectVolWeek(keys12[0]);            // the oldest week 12W shows
+    await H.settle(40);
+    T('a week 12W shows is selected', /week of/.test(headOf(doc.getElementById('progVolMuscle').innerHTML)));
+    ctx.setProgRange(4);
+    await H.settle(40);
+    v = await volTab();
+    T('narrowing to 4W drops a selection that week no longer exists in, back to the latest',
+      /Sets this week by muscle/.test(headOf(v.week)) && weekKeys(v.chart).length === 4, headOf(v.week));
+    const keys4 = weekKeys(v.chart);
+    ctx.selectVolWeek(keys4[1]);
+    await H.settle(40);
+    ctx.setProgRange(12);
+    await H.settle(40);
+    v = await volTab();
+    T('widening keeps a selection that still exists',
+      headOf(v.week).indexOf('week of') !== -1 && weekKeys(v.chart).length === 12, headOf(v.week));
+    /* The property a narrowed range must actually have: the dropped week is
+       CLEARED, not merely hidden. Hiding it looks identical until the range
+       widens again and a week the athlete never chose comes back. */
+    ctx.selectVolWeek(null); ctx.setProgRange(12); await H.settle(40);
+    v = await volTab();
+    const old12 = weekKeys(v.chart)[0];
+    ctx.selectVolWeek(old12); await H.settle(40);
+    ctx.setProgRange(4); await H.settle(40);
+    ctx.setProgRange(12); await H.settle(40);
+    v = await volTab();
+    T('and a week dropped by a narrower range does not come back when it widens',
+      /Sets this week by muscle/.test(headOf(v.week)), headOf(v.week));
+    ctx.setProgRange(12); ctx.selectVolWeek(null);
+    T('the 4W / 8W / 12W buttons still do what they always did',
+      /onclick="setProgRange\(\$\{w\}\)"/.test(fnSrc(src, 'rangeBtns')) && /\[4,8,12\]/.test(fnSrc(src, 'rangeBtns')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Muscle Volume left Mastery, and took its figure with it');
+  await guard('the move', async () => {
+    seed(weekly(30));
+    const m = await masteryTab();
+    T('Mastery draws no muscle-volume section, no card and no body figure',
+      !/Muscle volume/.test(m) && !/mv-card/.test(m) && (m.match(/muscle-svg/g) || []).length === 0);
+    T('and nothing was left behind as a hole: the badge rail meets Training distribution',
+      m.indexOf('The mastery badge system') < m.indexOf('Training distribution')
+      && !/sec-head"><\/div>/.test(m) && /Distribution of logged sets/.test(m));
+    T('Training distribution stayed, with its own numbers',
+      /distseg/.test(m) && /dl-row/.test(m));
+    T('Mastery’s own engines are byte-identical: levels, points, ranking, badges',
+      /function getMasteryProgress/.test(src) && pin('masteryPointsFor') === '0c704c40a853d991'
+      && pin('masteryPRCounts') === 'f77664c53b2ea14a'
+      && /function masteryBadgeSystemHtml/.test(src) && /function masteryViewHtml/.test(src));
+    const v = await volTab();
+    T('Volume carries exactly one Muscle volume block, and one only',
+      (v.long.match(/sec-head">Muscle volume/g) || []).length === 1 && (v.long.match(/mv-card/g) || []).length === 1
+      && !/sec-head">Muscle volume/.test(v.week) && !/sec-head">Muscle volume/.test(v.chart));
+    T('the two muscle blocks on Volume are different questions, not the same one twice',
+      /Sets (this week|by muscle)/.test(headOf(v.week)) && /Muscle volume/.test(headOf(v.long))
+      && headOf(v.week) !== headOf(v.long));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('and it can see further back than twelve weeks');
+  await guard('ranges', async () => {
+    seed(weekly(80));
+    const v = await volTab();
+    T('all four periods are offered, none of them hidden in a menu',
+      /setVolMusclePeriod\(12\)/.test(v.long) && /setVolMusclePeriod\(26\)/.test(v.long)
+      && /setVolMusclePeriod\(52\)/.test(v.long) && /setVolMusclePeriod\(0\)/.test(v.long)
+      && />ALL</.test(v.long));
+    const at = w => { const win = ctx.volMuscleWindow(w); return ctx.deriveMuscleSetsBetween(win.from, null); };
+    const n = w => at(w).setsLogged;
+    T('12W, 26W and 52W are three different windows, each the size it says',
+      n(12) === 36 && n(26) === 78 && n(52) === 156, [n(12), n(26), n(52)].join('/'));
+    T('ALL is the whole retained history, and is NOT capped at 52 weeks',
+      n(0) === 240 && n(0) > n(52), n(0) + ' vs ' + n(52));
+    T('ALL starts at the first workout, not at a zero-filled year before it',
+      ctx.volMuscleWindow(0).from === ctx.progressCoverage().firstDate,
+      ctx.volMuscleWindow(0).from + ' / ' + ctx.progressCoverage().firstDate);
+    T('a window longer than the history is the history, not padding',
+      ctx.volMuscleWindow(52).from === ctx.progressCoverage().firstDate
+      || ctx.volMuscleWindow(52).from > ctx.progressCoverage().firstDate);
+    T('one formula serves every window — the same one the week above uses',
+      (fnSrc(src, 'renderVolMuscleHistory').match(/deriveMuscleSetsBetween\(/g) || []).length === 1
+      && /deriveMuscleSetsBetween\(win\.from, null\)/.test(fnSrc(src, 'renderVolMuscleHistory'))
+      && /return deriveMuscleSetsBetween\(fromKey \|\| localDateStr\(mon\), null\);/.test(fnSrc(src, 'deriveWeekMuscleSets')));
+    T('the rendered block reports the window its control says, not a derivation of its own',
+      subOf(v.long).indexOf(String(at(12).setsLogged) + ' logged sets') !== -1,
+      subOf(v.long));
+    T('switching to ALL re-renders it with the whole history behind it',
+      (() => { ctx.setVolMusclePeriod(0);
+        const html = doc.getElementById('progVolLong').innerHTML;
+        const ok = subOf(html).indexOf(String(at(0).setsLogged) + ' logged sets') !== -1
+          && /sets · since /.test(html);
+        ctx.setVolMusclePeriod(12);
+        return ok; })(),
+      subOf(doc.getElementById('progVolLong').innerHTML));
+    T('and the period it is showing is the one marked active',
+      (() => { ctx.setVolMusclePeriod(26);
+        const html = doc.getElementById('progVolLong').innerHTML;
+        const ok = /class="range-btn active"[^>]*onclick="setVolMusclePeriod\(26\)"/.test(html)
+          && subOf(html).indexOf(String(at(26).setsLogged) + ' logged sets') !== -1;
+        ctx.setVolMusclePeriod(12);
+        return ok; })());
+    T('with six weeks of history, ALL means those six weeks',
+      (() => { seed(weekly(6)); return ctx.volMuscleWindow(0).from === ctx.workoutLog[5].date
+        && ctx.deriveMuscleSetsBetween(ctx.volMuscleWindow(0).from, null).setsLogged === 18; })(),
+      String(ctx.deriveMuscleSetsBetween(ctx.volMuscleWindow(0).from, null).setsLogged));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('ALL follows the history, because it IS the history');
+  await guard('history truth', async () => {
+    seed(weekly(80));
+    const before = ctx.deriveMuscleSetsBetween(ctx.volMuscleWindow(0).from, null).setsLogged;
+    T('no counter is kept: nothing persists a running muscle total',
+      !ctx.DATA_KEYS.some(k => /muscle|volume/i.test(k))
+      && !/LOOPStore|persist/.test(fnSrc(src, 'deriveMuscleSetsBetween') + fnSrc(src, 'volMuscleWindow') + fnSrc(src, 'renderVolMuscleHistory')));
+    /* editing the OLDEST workout, through the same funnel every edit uses */
+    const oldest = ctx.workoutLog[ctx.workoutLog.length - 1];
+    oldest.exercises[0].sets = [S(100, 8)];
+    ctx.invalidateSortedLogCache();
+    T('editing a workout from 80 weeks ago changes ALL immediately',
+      ctx.deriveMuscleSetsBetween(ctx.volMuscleWindow(0).from, null).setsLogged === before - 1,
+      before + ' -> ' + ctx.deriveMuscleSetsBetween(ctx.volMuscleWindow(0).from, null).setsLogged);
+    /* deleting it moves the start of history, and ALL with it */
+    const firstDate = oldest.date;
+    ctx.workoutLog = ctx.workoutLog.filter(l => l.id !== oldest.id);
+    ctx.invalidateSortedLogCache();
+    T('deleting it removes its sets AND moves the beginning of ALL',
+      ctx.progressCoverage().firstDate !== firstDate
+      && ctx.deriveMuscleSetsBetween(ctx.volMuscleWindow(0).from, null).setsLogged === before - 3,
+      ctx.progressCoverage().firstDate);
+    /* importing older history extends it backwards */
+    ctx.workoutLog.push(WK('imp', D(900), [E('Bench Press', [S(100, 5)])]));
+    ctx.invalidateSortedLogCache();
+    T('importing older history extends ALL backwards, with no window to escape',
+      ctx.volMuscleWindow(0).from === D(900)
+      && ctx.deriveMuscleSetsBetween(ctx.volMuscleWindow(0).from, null).setsLogged === before - 2,
+      ctx.volMuscleWindow(0).from);
+    T('a restore or import resets every derived cache by reloading, which is where this resets too',
+      /location\.reload\(\);/.test(fnSrc(src, 'importAllData')) && /every derived cache/.test(src));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Rank fills the device');
+  await guard('rank viewport', async () => {
+    T('its sheet takes its height from the page, not from a viewport unit that falls short',
+      /#logOverlay \.sheet\.sheet-page,\s*#rankOverlay \.sheet\.sheet-page,\s*#exPickerOverlay \.sheet\.sheet-page\{ max-height: 100%; \}/.test(css));
+    T('the page it takes that height from is the whole viewport',
+      /\.overlay\{[\s\S]{0,200}position: fixed; inset: 0;/.test(css)
+      && /\.sheet\.sheet-page\{[\s\S]{0,80}height: 100%;/.test(css));
+    T('the footer owns the bottom inset inside its own painted band',
+      /\.rank-profile-link\{[\s\S]{0,200}env\(safe-area-inset-bottom, 0px\)/.test(css)
+      && /background: linear-gradient\(180deg, transparent, rgba\(0,0,0,0\.28\)\)/.test(cssRule(css, '.rank-footer{')));
+    T('the stage takes every pixel between the header and that band',
+      /flex: 1 1 auto; min-height: 0;/.test(cssRule(css, '.rank-trackwrap{'))
+      && /flex: 1; min-height: 0;/.test(cssRule(css, '.rank-stagearea{')));
+    T('no hardcoded pixel height fights the browser chrome',
+      !/height:\s*\d{3,}px/.test(cssRule(css, '.rank-sheet{') + cssRule(css, '.rank-stagearea{') + cssRule(css, '.rank-trackwrap{')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Rank does not move vertically, and does not fade under a finger');
+  await guard('rank interaction', async () => {
+    /* The comment above the rule explains what pan-y used to do, so the absence
+       is read from stripped source rather than from the prose about it. */
+    T('the stage keeps its own gestures: nothing is handed to a browser with nothing to scroll',
+      /touch-action: none;/.test(cssRule(css, '.rank-trackwrap{'))
+      && !/pan-y/.test(stripComments(cssRule(css, '.rank-trackwrap{'))));
+    T('vertical intent is still recognised, in the engine, and still moves nothing',
+      /if\(ay >= RANK_MOTION\.verticalSlop && ay >= ax \* RANK_MOTION\.verticalRatio\)/.test(fnSrc(src, 'wireRankCarousel'))
+      && /d\.mode = 'scroll';/.test(fnSrc(src, 'wireRankCarousel')));
+    T('a flick that runs out of ladder stops at the sheet',
+      /overscroll-behavior: none;/.test(cssRule(css, '.rank-sheet{')));
+    T('the drag still tracks the finger directly, one render per move, on a transform',
+      /rankRender\(d\.startPos - d\.dx \/ rankStep\(\)\)/.test(fnSrc(src, 'wireRankCarousel'))
+      && /translate3d\(/.test(fnSrc(src, 'rankRender')));
+    /* the arrival, on a panel built for the purpose */
+    const mk = () => { const anims = { img: [], band: [] };
+      const img = { animate: (frames, timing) => { const a = { frames, timing, cancel(){} }; anims.img.push(a); return a; } };
+      const band = { animate: (frames, timing) => { const a = { frames, timing, cancel(){} }; anims.band.push(a); return a; } };
+      return { anims, querySelector: s => s.indexOf('img') !== -1 ? img : band }; };
+    const realRM = ctx.rankReducedMotion, realReady = ctx.rankAssetsReady;
+    ctx.rankReducedMotion = () => false; ctx.rankAssetsReady = () => true;
+    try{
+      const swipe = mk(); ctx.rankArrive(swipe);
+      const open = mk(); ctx.rankArrive(open, true);
+      T('a SWIPE arrival never fades the emblem up from dark',
+        swipe.anims.img[0].frames[0].opacity === 1 && swipe.anims.img[0].frames[1].opacity === 1,
+        JSON.stringify(swipe.anims.img[0].frames.map(f => f.opacity)));
+      T('it still settles in scale, and the light still crosses it once',
+        /scale\(0\.96\)/.test(swipe.anims.img[0].frames[0].transform)
+        && swipe.anims.img[0].frames[1].transform === 'scale(1)'
+        && swipe.anims.band.length === 1 && swipe.anims.img[0].timing.duration === 240);
+      T('the page OPENING does fade in, because that emblem was not there a moment ago',
+        open.anims.img[0].frames[0].opacity === 0.55 && open.anims.img[0].frames[1].opacity === 1);
+      T('and only the opening is told it is an entrance',
+        /rankArrive\(_rankCar\.geom\.panels\[rankShowcaseIndex\], true\)/.test(fnSrc(src, 'openRankShowcase'))
+        && /rankArrive\(g \? g\.panels\[i\] : null\)/.test(fnSrc(src, 'rankLanded')));
+    } finally { ctx.rankReducedMotion = realRM; ctx.rankAssetsReady = realReady; try{ ctx.rankCancel('arrival'); }catch(e){} }
+    T('Reduce Motion still ends the arrival before it starts',
+      /if\(rankReducedMotion\(\)\) return;/.test(fnSrc(src, 'rankArrive')));
+    T('all eight emblems are still fetched and decoded before the first swipe',
+      /im\.decode\(\)/.test(fnSrc(src, 'rankWarmAssets')) && /rankWarmAssets\(\);/.test(fnSrc(src, 'openRankShowcase')));
+    T('the emblem files themselves are untouched',
+      /RANK_EMBLEM_FILE/.test(src) && (src.match(/rank-[1-8]\.png/g) || []).length >= 8);
+    T('Rank CALCULATION is untouched: the thresholds, the index and the medal are byte-identical',
+      pin('rankIndexOf') === '821cfe82a1a7cb79' && pin('rankMedalSvg') === 'a98a7999ea912349'
+      && ctx.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('what this phase must not have moved');
+  await guard('protected', async () => {
+    seed(weekly(20));
+    T('the weekly volume arithmetic is unchanged: same weeks, same totals, now carrying their dates',
+      (() => { const b = ctx.computeWeeklyVolume(6);
+        return b.length === 6 && b.every(x => typeof x.volume === 'number' && /^\d{4}-\d\d-\d\d$/.test(x.start)
+          && ctx.daysBetweenDates(x.start, x.end) === 6); })());
+    T('what a working set is, and which muscles it trains, did not move',
+      pin('musclesForExercise') === 'd364752e499a2ade' && /isWorkingSet\(st\) === false/.test(fnSrc(src, 'deriveMuscleSetsBetween'))
+      && /parseFloat\(st && st\.reps\) > 0/.test(fnSrc(src, 'deriveMuscleSetsBetween'))
+      && /m\.primary \|\| \[\]/.test(fnSrc(src, 'deriveMuscleSetsBetween')));
+    T('XP, PR and Session Score engines are byte-identical',
+      pin('computeXPTimeline') === '7a46d4dab3c42d30' && pin('computeExercisePREvents') === 'b250b57d965822f0'
+      && pin('computePRs') === 'd8f82aa49c4ce459' && pin('getSessionPRs') === '2a121bed25bfa6ab'
+      && pin('sessionScore') === '842e5699f8ac0835' && pin('computeConsistencyData') === '4f03435af47cfdb9');
+    T('D96C-1 and D96C-2 are preserved, and D96C-3 has not begun',
+      /function canonicalPRIndex/.test(src) && /function loadedPRPerformance/.test(src)
+      && /const ex = l\.exercises\.find\(e => e\.name\.trim\(\)\.toLowerCase\(\) === key\);/.test(fnSrc(src, 'computeExercisePREvents')));
+    T('E16 is still held and the trainer is still 0.1.1-shadow',
+      pin('computeExerciseCapability') === '3a283e02ebdad568' && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('DATA_KEYS 16, schema 1, no migration, and no new stored preference',
+      ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('reading any of it writes nothing',
+      (() => { const before = JSON.stringify(ctx.workoutLog);
+        ctx.volMuscleWindow(0); ctx.deriveMuscleSetsBetween('2000-01-01', null); ctx.computeWeeklyVolume(12);
+        return JSON.stringify(ctx.workoutLog) === before; })());
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('and none of it is slow');
+  await guard('cost', async () => {
+    seed(weekly(150));
+    const t0 = Date.now();
+    for(let i = 0; i < 20; i++){ ctx.volMuscleWindow(0); ctx.deriveMuscleSetsBetween(ctx.volMuscleWindow(0).from, null); }
+    const all20 = Date.now() - t0;
+    T('twenty full ALL-TIME aggregations over three years of history stay well inside a second',
+      all20 < 3000, all20 + 'ms for 20');
+    const t1 = Date.now(); await volTab(); const render = Date.now() - t1;
+    T('and a whole Volume render — chart, week breakdown and the long view — is one pass over the log each',
+      render < 3000, render + 'ms');
+    T('the long view derives once per render, not once per period button',
+      (fnSrc(src, 'renderVolMuscleHistory').match(/deriveMuscleSetsBetween\(/g) || []).length === 1);
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -40584,6 +41062,7 @@ async function main(){
   await testMomentumWeekPauseD994();
   await testCanonicalPRXPD96C1();
   await testCanonicalSessionPRD96C2();
+  await testRealUseD100();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -13966,3 +13966,99 @@ workout, asserted structurally AND behaviourally (a lift in two rows is one perf
 `buildProgressionRecommendation`, and the whole D43/D89/D90 grid. FOUR pins moved, restated in place
 with their reasons. verify 9,967/0, five audits green, real Edge at 320/375/390/430 on the Log
 calendar, Day Detail and the real workout editor: 64/64. DATA_KEYS 16, schema 1, no migration.
+
+---
+
+## §135 — THE WEEK, THE HISTORY, AND A FULL-SCREEN RANK (D100 · LOOP 10.13 · loop-v190)
+
+A real-use pass over three surfaces, from the owner's own screenshots. No training system changed.
+
+**HOME.** Objectives sat above This Week, so Home opened with "here are some challenges" and only
+then said "here is your actual week". Presentation order only: two blocks swapped in the Today
+markup. Nothing about objective generation, selection, completion, XP, limits, persistence, history
+or `rulesVersion` was touched, and the reorder is static — no code decides it at runtime.
+
+**VOLUME: the chart became a control.** Each weekly bucket now carries the week it IS (`start` /
+`end` civil date keys) rather than only the words it prints, because a label cannot tell the muscle
+breakdown which seven days to read. `volWeekKey` is the ONE selected week; the chart and the
+breakdown both read it through `volSelectedBucket`, so they cannot describe different weeks. It is a
+week KEY and not an index, because changing the range changes every index and would silently move
+the selection to another week; a selection the new range does not contain is CLEARED, not hidden —
+hiding it looks identical until the range widens again and a week the athlete never chose comes back.
+
+Every week owns a transparent hit area one slot wide and the full height of the chart, so a week is
+chosen by the column the thumb is in. Measured: at 4W the column is 86px, at 8W 43px, at 12W 29px on
+a 390px screen, and 100px+ tall in every case. 44px in both axes is not reachable for twelve bars on
+a phone, and the brief's "where practical" is answered by making the column, not the bar, the target.
+
+A historical week is never called "this week": the heading becomes `Sets by muscle · week of Jul 27`.
+
+**MUSCLE VOLUME left Mastery.** Mastery describes mastery. The block also asked the wrong question of
+the data — a rolling 12-week window meant an athlete's first year stopped existing — so it moved to
+Volume and gained **12W / 26W / 52W / ALL**.
+
+**ALL is the history, not a total kept beside it.** Audited first: LOOP prunes no workout. The log is
+written whole by `persistLog()` and shortened only by a delete the athlete asked for; the only
+retention cap in the file belongs to the shadow trainer's own log. So ALL is derived from
+`progressCoverage().firstDate` over the full retained history, and it follows an edit, a delete, an
+import and a restore because it IS that history. Proven: editing a workout 80 weeks old changes it
+immediately, deleting it moves the beginning of ALL, and importing older history extends it backwards.
+No cumulative counter exists to drift away from the source.
+
+**One muscle-set rule, not two on one screen.** The moved block used `computeMuscleVolumeSince`,
+which counts EVERY logged set including warm-ups and unperformed ones; the week block above it uses
+D46B's canonical working-set arithmetic. Two muscle counts that disagree on one screen is the exact
+defect D46B existed to remove, so the moved block reads the canonical one. Its numbers therefore
+differ from the old Mastery card's, and that is the point. `deriveWeekMuscleSets` became the
+this-week call of `deriveMuscleSetsBetween(fromKey, toKey)` — the span is an argument now, and WHAT
+is counted did not move. `computeMuscleVolumeSince` is untouched and still serves its other caller.
+
+**RANK: three defects, each traced before it was touched.**
+
+1. **The dark emblem.** `rankLanded` fires the moment the spring is CLOSE to its rank, not when it
+   stops, and it called `rankArrive`, which animates the emblem `opacity 0.55 → 1`. So the emblem
+   faded up from dark while the ladder was still visibly moving, on top of the depth dimming a
+   travelling panel already carries. Measured on shipped 10.12 at 390px: **26 of 199 animation frames
+   below full opacity, lowest exactly 0.55** — the constant itself. The fade now belongs to the page
+   ENTRANCE alone; a swipe arrival starts at full opacity and still settles in scale and takes its one
+   pass of light. After: **0 of 197 frames**. The eight PNGs are untouched.
+2. **The vertical drift.** `.rank-trackwrap` declared `touch-action: pan-y`, handing every vertical
+   pixel to a browser with nothing to scroll, which panned the page instead. The stage is a
+   horizontal control; it owns its gestures now (`touch-action: none`), scoped to the stage alone.
+   Vertical intent is still recognised where it always was decided — in the engine, which marks the
+   gesture `scroll` and moves nothing.
+3. **The dead band.** `.overlay` is `position: fixed; inset: 0` and the sheet asks for `height: 100%`,
+   but `.overlay .sheet` is capped at `100dvh`. Wherever the dynamic viewport is shorter than the
+   fixed overlay — an iPhone with the address bar shown — the sheet stops short and the overlay's
+   own ground shows under the footer. Scrolling collapsed the chrome, dvh grew, and it looked right:
+   that is exactly the report, and why the correct-looking state was the SCROLLED one. Rank joins the
+   rule D60 already proved for the log and picker overlays: `max-height: 100%`. Measured with the page
+   120px taller than the viewport: shipped leaves a **120px gap**, D100 leaves **0**.
+
+**Tests.** Contract 213 (**70 checks**): Home order and Objectives untouched; twelve tap zones and
+their week keys; the selected week driving figure, most-worked, bars and counts, on a fixture whose
+weeks deliberately differ; range switching in both directions including the widen-back case; the
+move out of Mastery and the single block on Volume; 12/26/52/ALL as four distinct windows with ALL
+uncapped; ALL following an edit, a delete and an import; the rank viewport, gestures, arrival and
+protected calculations. **20 of 20 mutants killed** — the seventeen the brief names plus three more.
+
+Two survived the first run and were real gaps: every week in the fixture trained identically, so a
+breakdown showing the WRONG week printed the right numbers; and a narrowed range hid a stale
+selection rather than clearing it, which only shows when the range widens again. Both are tested now.
+
+**Mobile QA.** Real headless Edge with real touch at 320×568, 360×640, 375×667, 390×844, 393×852,
+414×896 and 430×932: **224/224**. Every animation frame of a swipe is sampled for the emblem's
+computed opacity and filter, and for the page's scroll position.
+
+**Cost.** ALL-TIME aggregation over three years: **0.6 ms**. The Volume tab render grows 11-13%
+(5.2 → 5.8 ms on three years) because it draws a fourth block; the Mastery render falls **31-45%**
+because it lost one. Week selection is 4.8 ms for two full renders; a period switch is 0.5 ms.
+
+**Untouched, proven by hash:** `computeXPTimeline`, `computeExercisePREvents`, `computePRs`,
+`getSessionPRs`, `sessionScore`, `computeConsistencyData`, `musclesForExercise`, `computeMuscleTotals`,
+`muscleBarsHtml`, `computeMuscleVolumeSince`, `rankIndexOf`, `rankMedalSvg`, `computeExerciseCapability`
+and the rest of D24's muscle table. TWO pins moved, restated in place with their reasons:
+`deriveWeekMuscleSets` (it became one line over the windowed derivation, which is pinned beside it)
+and `rankArrive` (one expression). D96C is paused exactly where it was: D96C-1 and D96C-2 shipped,
+D96C-3 unstarted, E15(a) open, E16 held, trainer 0.1.1-shadow. verify 10,040/0, five audits green.
+DATA_KEYS 16, schema 1, no migration, no new stored preference.

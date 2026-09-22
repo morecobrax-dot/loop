@@ -754,7 +754,23 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
    Dark space is the design: the sheet is the deepest surface in the app so
    each card's own gradient and metal reads against near-black, the way the
    references let their medals breathe. */
-.rank-sheet{ background: #05070C; position: relative; overflow: hidden; }
+/* D100 — the weekly chart is a control. Each week owns a full-height column
+   of the chart as its tap zone, so a week is chosen by the column the thumb is
+   in rather than by hitting a bar that may be six pixels wide. */
+.vbar-hit{ cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.vbar-hit:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+/* The long-range period control. It reuses the chart range buttons' own
+   treatment, so Volume has one kind of segmented control, and scrolls rather
+   than wrapping or shrinking when four of them meet a 320px screen. */
+.vol-periods{
+  display: flex; gap: 6px; margin: 0 0 var(--space-3);
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.vol-periods::-webkit-scrollbar{ display: none; }
+.vol-periods .range-btn{ flex: 0 0 auto; min-width: 54px; }
+/* D100 — a flick that runs out of ladder stops here rather than becoming a
+   page gesture behind the overlay. */
+.rank-sheet{ background: #05070C; position: relative; overflow: hidden; overscroll-behavior: none; }
 /* D30.5 — PER-RANK PAGE ATMOSPHERE
    The whole page transforms by rank, not just the card. Three pooled layers
    drawn from the rank's OWN material (--rk-gem / --rk-metal / --rk-deep) so the
@@ -782,7 +798,15 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
 .rank-stagearea{ flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center;
   position: relative; z-index: 1; }
 .rank-trackwrap{
-  overflow: hidden; touch-action: pan-y; cursor: grab; outline: none;
+  /* D100 — `pan-y` handed every vertical pixel to the browser, which had
+     nothing to scroll and panned the page instead: a thumb that drifted while
+     swiping left the whole screen displaced, and it stayed there. The stage is
+     a horizontal control with nothing scrollable inside it, so it keeps its
+     own gestures. Vertical intent is still recognised — the engine marks the
+     gesture `scroll` and moves nothing — it simply no longer drags the page
+     with it. Scoped to the stage alone: the header, the rail, the footer and
+     the rest of the app keep every browser gesture they had. */
+  overflow: hidden; touch-action: none; cursor: grab; outline: none;
   padding: var(--space-4) 0;
   /* Phase C — the ladder takes every pixel between the header and the rail,
      with the rank centred in it: the whole stage is the swipe surface, and
@@ -7879,7 +7903,20 @@ header{
    their last row off the home indicator. D61 adds the exercise picker, whose
    foot now owns the inset too — its dock, or its list's bottom padding when
    nothing is ticked. Outranks both viewport caps, rotated or not. */
+/* D100 — Rank joins them, for the same reason and with the same one-line fix.
+   Measured: the overlay is `position: fixed; inset: 0`, so it is exactly as
+   tall as the page; the sheet inside it asks for `height: 100%` but is capped
+   by the rule above at 100dvh. Wherever the browser's dynamic viewport is
+   shorter than the fixed overlay — an iPhone with the address bar shown, an
+   installed app with a translucent status bar — the sheet stops short and the
+   overlay's own ground shows below the rank footer as a dead band. Scrolling
+   the page collapsed the chrome, dvh grew, and it looked right again: that is
+   exactly the report, and why the correct-looking state was the scrolled one.
+   Taking the height from the page rather than from a viewport unit makes that
+   state the default. The footer already carries the bottom inset inside its
+   own painted band, so the surface reaches the device edge. */
 #logOverlay .sheet.sheet-page,
+#rankOverlay .sheet.sheet-page,
 #exPickerOverlay .sheet.sheet-page{ max-height: 100%; }
 .sheet-scroll{ overscroll-behavior: contain; }
 
@@ -8273,12 +8310,14 @@ html, body{ max-width: 100%; overflow-x: hidden; }
          above on purpose: an activity is never the workout. -->
     <div id="todayActivity"></div>
 
-    <!-- 1c — what is worth doing, given what is already planned. After the day
-         it belongs to, before the week it reports against. -->
-    <div id="todayObjectives"></div>
-
-    <!-- 2 — how is my week going -->
+    <!-- 2 — how is my week going. D100: the athlete's real week comes before
+         anything LOOP suggests. Objectives are optional guidance; the week is
+         the training that actually exists. -->
     <div id="weekCard"></div>
+
+    <!-- 2b — what is worth doing, given what is already planned. It reads as
+         a suggestion because it sits after the week it is measured against. -->
+    <div id="todayObjectives"></div>
 
     <!-- 2b — what am I training toward: the program, its phase and block.
          After the day and the week, never above them. -->
@@ -8362,6 +8401,9 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <div id="progVolCompare"></div>
       <div id="progVolChart"></div>
       <div id="progVolMuscle"></div>
+      <!-- D100 — what the training has added up to, over a window the athlete
+           chooses. Moved here from Mastery, where it never belonged. -->
+      <div id="progVolLong"></div>
     </div>
 
     <div class="seg-panel" id="ppanel-muscles" style="display:none">
@@ -17255,6 +17297,27 @@ const LOOP_UPDATES = [
       'Opening an older workout shows the records it set, even after you have beaten them since',
       'Two workouts logged on the same day no longer share each other’s records',
       'A weight saved against 0 reps is no longer shown as a lift’s best ever'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-13',
+    version: 'LOOP 10.13',
+    title: 'Your Week First, And Your Whole History',
+    date: '2026-09-22',
+    swVersion: 'loop-v190',
+    summary: 'Home leads with your week, every bar on the volume chart can be tapped, and Muscle Volume now goes back as far as you have trained.',
+    newFeatures: [
+      'Tap any week on the volume chart to see exactly what that week trained — the body map, the muscles and the counts all follow it',
+      'Muscle Volume moved to Progress → Volume and can now show 12, 26 or 52 weeks, or all of your training'
+    ],
+    improvements: [
+      'Home shows This Week before Objectives: your real week first, then what is worth doing in it',
+      'The Rank screen fills the whole phone, with no empty strip under it'
+    ],
+    bugFixes: [
+      'Swiping between ranks no longer makes an emblem flash dark as it arrives',
+      'The Rank screen no longer drifts up or down when your thumb moves while swiping'
     ],
     changes: []
   }
@@ -27835,7 +27898,18 @@ function pickerGridHtml(cat){
    copy never implies otherwise. Shading is relative to the athlete's own
    busiest muscle this week and means only "more sets went here".
    ========================================================= */
-function deriveWeekMuscleSets(fromKey){
+/* D100 — THE SAME QUESTION OVER ANY WINDOW.
+   D46B established one muscle-set arithmetic so that Today's summary and the
+   Volume surface it opens could not disagree. A selected week and a 52-week
+   view ask that identical question of a different span of days, so the span
+   became an argument rather than a second function: `fromKey` and `toKey` are
+   inclusive civil date keys, and `toKey` null means "up to now", which is what
+   the week view always meant.
+
+   Nothing about WHAT is counted moved: working sets only, a set with no reps
+   was never performed, primary muscles from the canonical registry, one count
+   per set per muscle. */
+function deriveMuscleSetsBetween(fromKey, toKey){
   /* setsLogged is the real number of sets performed. The per-muscle counts
      deliberately do NOT sum to it: a Romanian Deadlift primarily trains back,
      hamstrings and glutes, so its sets are counted toward each. Summing them
@@ -27848,13 +27922,12 @@ function deriveWeekMuscleSets(fromKey){
      an athlete who taps through to check a number must find that number. */
   const out = { muscles: [], total: 0, setsLogged: 0, weekStart: null, totals: {} };
   Object.keys(MUSCLE_MAP).forEach(k => { out.totals[k] = 0; });
-  const now = new Date(); now.setHours(0,0,0,0);
-  const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  const startKey = fromKey || localDateStr(mon);
+  const startKey = fromKey || '0000-00-00';
   out.weekStart = startKey;
   const acc = {};
   (workoutLog || []).forEach(entry => {
     if(!entry || !entry.date || entry.date < startKey) return;
+    if(toKey && entry.date > toKey) return;
     (entry.exercises || []).forEach(ex => {
       if(!ex || ex.skipped) return;
       /* The same set filter D39 uses: warm-ups are excluded where the type
@@ -27880,6 +27953,13 @@ function deriveWeekMuscleSets(fromKey){
     .sort((a, b) => b.sets - a.sets || a.label.localeCompare(b.label));
   out.total = out.muscles.reduce((n, x) => n + x.sets, 0);
   return out;
+}
+/* This week, which is the window every caller before D100 asked for: from the
+   Monday of the current week, with no upper bound. */
+function deriveWeekMuscleSets(fromKey){
+  const now = new Date(); now.setHours(0,0,0,0);
+  const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  return deriveMuscleSetsBetween(fromKey || localDateStr(mon), null);
 }
 
 /* D46B — the destination for every "what did I train" tap. The owner's
@@ -31036,7 +31116,17 @@ function rankLanded(i, quiet){
    swipes can stack nothing and only the emblem the athlete stops on finishes.
    Reduce Motion: the emblem is simply there. */
 const RANK_ARRIVE = { settleMs: 240, scaleFrom: 0.96, fadeFrom: 0.55, sheenMs: 680, sheenDelayMs: 140 };
-function rankArrive(panel){
+/* D100 — OPENING IS NOT SWIPING, AND ONLY ONE OF THEM MAY FADE.
+   The fade from 0.55 belongs to the screen opening: the emblem is not there,
+   and then it is. A swipe is the opposite — the emblem is already on screen,
+   travelling under the finger — and replaying the fade on it is what made an
+   emblem look dark, dim or half-hidden as it arrived. It is worse than it
+   sounds, because `rankLanded` fires the moment the spring is CLOSE to its
+   rank, not when it stops: the fade began while the ladder was still visibly
+   moving, on top of the depth dimming a travelling panel already carries.
+   The settle in scale and the one pass of light are the arrival's character
+   and both stay. Only the opacity is now the entrance's alone. */
+function rankArrive(panel, entrance){
   rankCancel('arrival');
   if(!panel || typeof panel.querySelector !== 'function') return;
   if(rankReducedMotion()) return;
@@ -31045,7 +31135,7 @@ function rankArrive(panel){
   const A = RANK_ARRIVE, made = [];
   try{
     made.push(el.animate([
-      { opacity: A.fadeFrom, transform: 'scale(' + A.scaleFrom + ')' },
+      { opacity: entrance ? A.fadeFrom : 1, transform: 'scale(' + A.scaleFrom + ')' },
       { opacity: 1, transform: 'scale(1)' }
     ], { duration: A.settleMs, easing: 'cubic-bezier(0.2, 0, 0, 1)' }));
     const band = rankAssetsReady() ? panel.querySelector('.rank-sheen b') : null;
@@ -31231,9 +31321,11 @@ function openRankShowcase(){
   positionRankTrack(false);
   rankUpdateReturn(rankShowcaseIndex);
   wireRankCarousel();
-  /* D96 — the rank the athlete opened onto arrives like any other. */
+  /* D96 — the rank the athlete opened onto arrives like any other.
+     D100 — and it is the ONE arrival that fades in, because it is the only one
+     the athlete did not watch travel there. */
   rankWarmAssets();
-  if(_rankCar.geom) rankArrive(_rankCar.geom.panels[rankShowcaseIndex]);
+  if(_rankCar.geom) rankArrive(_rankCar.geom.panels[rankShowcaseIndex], true);
 }
 function closeRankShowcase(){
   rankStopAnimation();
@@ -32843,7 +32935,11 @@ function computeWeeklyVolume(weeksBack){
         });
       }
     });
-    buckets.push({ label: weekStart.toLocaleDateString('en-US', {month:'short', day:'numeric'}), volume: Math.round(vol) });
+    /* D100 — the bucket carries the week it IS, not only the words it prints.
+       Tapping a bar has to ask the muscle breakdown for exactly the same seven
+       days this volume was summed over, and a label cannot answer that. */
+    buckets.push({ label: weekStart.toLocaleDateString('en-US', {month:'short', day:'numeric'}), volume: Math.round(vol),
+      start: localDateStr(weekStart), end: localDateStr(weekEnd) });
   }
   return buckets;
 }
@@ -32853,10 +32949,16 @@ function fmtAxisNum(n){
   return n >= 10000 ? (n/1000).toFixed(1).replace(/\.0$/, '') + 'k' : n.toLocaleString();
 }
 
-function volumeBarSvg(buckets){
+/* D100 — `opts.selectKey` turns the chart into a control: the bar for that
+   week is the emphasized one, and every week gets a full-height transparent
+   hit area a slot wide, so a tap lands on the week it is nearest rather than
+   on the painted rectangle. The Strength tab calls this with no options and
+   gets exactly the chart it had. */
+function volumeBarSvg(buckets, opts){
   /* D25: height follows data density — two known weeks do not get 150px of
      air. The current week is the emphasized bar; earlier weeks recede; a
      tracked week with nothing logged keeps its faint stub (a real zero). */
+  const o = opts || {};
   const w=320, h=(buckets.length <= 4 ? 104 : 140), padBottom=26, padTop=16, padLeft=6, padRight=6;
   const max = Math.max(1, ...buckets.map(b => b.volume));
   const slot = (w - padLeft - padRight) / buckets.length;
@@ -32894,8 +32996,11 @@ function volumeBarSvg(buckets){
     const x = padLeft + i*slot + (slot-barW)/2;
     const barH = max > 0 ? (b.volume/max) * (h-padTop-padBottom) : 0;
     const y = h - padBottom - barH;
-    const isNow = i === buckets.length - 1;
+    const isNow = o.selectKey ? (b.start === o.selectKey) : (i === buckets.length - 1);
     bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(1,barH)}" rx="3" fill="${isNow ? 'url(#vbarg)' : 'var(--accent)'}" opacity="${b.volume>0 ? (isNow ? 1 : 0.55) : 0.15}"/>`;
+    /* The selected week is named under the axis as well as lit, so the chart
+       says which week it is showing without the breakdown below being read. */
+    if(isNow && o.selectKey) bars += `<rect x="${(x + barW/2 - 7).toFixed(1)}" y="${h - padBottom + 3}" width="14" height="2" rx="1" fill="var(--accent)"/>`;
     if(labelled(i)){
       /* The first and last labels hug their edge; the ones between stay
          centred on their bar. Otherwise half of an outer label falls outside
@@ -32906,6 +33011,17 @@ function volumeBarSvg(buckets){
       bars += `<text x="${lx}" y="${h-6}" font-size="11" fill="var(--text-faint)" text-anchor="${anchor}" font-family="JetBrains Mono, monospace">${b.label}</text>`;
     }
   });
+  /* The tap zones are drawn last so nothing paints over them, and they are the
+     full height of the chart: a week is chosen by which column the thumb is in,
+     never by hitting a 6px bar. */
+  if(o.selectKey !== undefined){
+    buckets.forEach((b, i) => {
+      if(!b.start) return;
+      bars += `<rect class="vbar-hit" x="${(padLeft + i*slot).toFixed(2)}" y="0" width="${slot.toFixed(2)}" height="${h}"`
+        + ` fill="transparent" role="button" tabindex="0" onclick="selectVolWeek('${b.start}')"`
+        + ` aria-label="Week of ${escapeAttr(b.label)}${b.start === o.selectKey ? ', selected' : ''}"></rect>`;
+    });
+  }
   return `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:${h + 8}px; display:block;">${bars}</svg>`;
 }
 
@@ -33036,6 +33152,20 @@ function computeMuscleVolumeSince(fromDate){
    ========================================================= */
 let progTab = 'overview';
 let progRange = 12;
+/* D100 — WHICH WEEK THE VOLUME TAB IS TALKING ABOUT.
+   One value, read by the chart and by the breakdown beneath it, so the two can
+   never describe different weeks. It is the selected week's Monday as a civil
+   date key rather than an index, because changing the range changes every
+   index and would silently move the selection to another week.
+   null means the latest week the chart is showing, which is where it starts
+   and where it returns whenever the selected week leaves the range.
+   Presentation only: no DATA_KEY, nothing persisted, no workout touched.
+   (progSelectedWeek below is a different thing entirely — the Overview tab's
+   session-score dot — and the two are deliberately not shared.) */
+let volWeekKey = null;
+/* D100 — the long-range Muscle Volume window: 12, 26 or 52 weeks, or 0 for
+   all of the athlete's retained history. */
+let volMusclePeriod = 12;
 /* D82 — which exercise the Personal Best Timeline shows. Ephemeral by design
    (no DATA_KEY): it starts at the automatic pick every fresh load, and only
    remembers a manual choice for as long as this session stays open. */
@@ -33066,7 +33196,29 @@ function switchProgTab(t){
      put the athlete halfway down a screen they had just asked to see. */
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
-function setProgRange(w){ progRange = w; progSelectedWeek = null; renderProgTab(); }
+function setProgRange(w){
+  progRange = w; progSelectedWeek = null;
+  /* D100 — a selected week that the new range no longer shows would be an
+     invisible selection driving a visible breakdown. It is kept when it
+     survives the change and dropped to the latest week when it does not. */
+  if(volWeekKey && !knownWeeklyBuckets(progRange).buckets.some(b => b.start === volWeekKey)) volWeekKey = null;
+  renderProgTab();
+}
+/* D100 — the one place the selected week moves. Tapping the week already
+   selected returns to the latest, so the chart is never a trap. */
+function selectVolWeek(key){
+  const bs = knownWeeklyBuckets(progRange).buckets;
+  const latest = bs.length ? bs[bs.length - 1].start : null;
+  volWeekKey = (!key || key === latest || key === volWeekKey) ? null : key;
+  renderProgTab();
+}
+/* The week the Volume tab is describing, resolved against what is on screen. */
+function volSelectedBucket(buckets){
+  if(!buckets || !buckets.length) return null;
+  const hit = volWeekKey ? buckets.filter(b => b.start === volWeekKey)[0] : null;
+  return hit || buckets[buckets.length - 1];
+}
+function setVolMusclePeriod(w){ volMusclePeriod = w; renderProgTab(); }
 
 /* P1 FIX: the progression engine's "ready to increase" tier requires a rep
    range, so passing null made that tier unreachable — "Ready to progress" was
@@ -35775,10 +35927,15 @@ function renderProgVolume(){
 
   const { buckets, clamped, known } = knownWeeklyBuckets(progRange);
   const hasAny = buckets.some(b => b.volume > 0);
+  /* D100 — ONE selected week, resolved once, read by the chart and by the
+     breakdown beneath it. Neither infers it for itself. */
+  const sel = volSelectedBucket(buckets);
+  const isLatest = !sel || !buckets.length || sel.start === buckets[buckets.length - 1].start;
   document.getElementById('progVolChart').innerHTML = `
     <div class="sec-head">Weekly volume${rangeBtns()}</div>
-    ${hasAny ? volumeBarSvg(buckets) +
-      (clamped ? `<div class="pd-chart-cov">Showing all ${known} week${known===1?'':'s'} LOOP has tracked</div>` : '')
+    ${hasAny ? volumeBarSvg(buckets, { selectKey: sel ? sel.start : '' }) +
+      (clamped ? `<div class="pd-chart-cov">Showing all ${known} week${known===1?'':'s'} LOOP has tracked</div>` : '') +
+      `<div class="pd-chart-cov">Tap a week to see what it trained.</div>`
     : `<div class="mini-empty">Log weighted sets to see your volume trend.</div>`}`;
 
   /* D46B — the SAME derivation Today's summary uses, which is the surface that
@@ -35787,12 +35944,19 @@ function renderProgVolume(){
      names by raw keyword rather than the canonical registry. The two disagreed,
      so tapping through to check a number found a different one. There is now
      one week-by-muscle calculation, and this reads it. */
-  const wk = deriveWeekMuscleSets();
-  /* Volume shows how this week's sets are distributed. Muscle DEVELOPMENT —
-     levels, mastery, long-term profile — lives in the Mastery tab and is not
-     previewed here. */
+  /* D100 — the SELECTED week, over exactly the seven days its bar summed. A
+     historical week is bounded on both sides; the current week is open-ended,
+     which is what it has always been. Volume shows how a week's sets are
+     distributed. Muscle DEVELOPMENT — levels, mastery — lives in Mastery. */
+  const wk = isLatest ? deriveWeekMuscleSets(sel ? sel.start : undefined)
+                      : deriveMuscleSetsBetween(sel.start, sel.end);
+  /* Truthful copy: only the latest week on the chart is "this week". */
+  const wkHead = isLatest
+    ? `Sets this week by muscle<span class="sec-hint">working sets</span>`
+    : `Sets by muscle<span class="sec-hint">week of ${escapeHtml(sel.label)}</span>`;
+  const wkEmpty = isLatest ? 'No working sets logged yet this week' : 'No working sets logged that week';
   document.getElementById('progVolMuscle').innerHTML =
-    `<div class="sec-head">Sets this week by muscle<span class="sec-hint">working sets</span></div>
+    `<div class="sec-head">${wkHead}</div>
      <div class="mv-card">
        <div class="mv-top">
          <div class="mv-body">${bodyDiagramSvg(null, wk.totals)}</div>
@@ -35801,11 +35965,76 @@ function renderProgVolume(){
            <div class="mv-name">${wk.muscles.length ? escapeHtml(wk.muscles[0].label) : '—'}</div>
            <div class="mv-sub">${wk.muscles.length
              ? `<b>${wk.muscles[0].sets}</b> set${wk.muscles[0].sets===1?'':'s'} of ${wk.setsLogged} logged`
-             : 'No working sets logged yet this week'}</div>
+             : wkEmpty}</div>
          </div>
        </div>
        <div class="mv-bars">${muscleBarsHtml(wk.totals)}</div>
      </div>`;
+  renderVolMuscleHistory();
+}
+
+/* =========================================================
+   MUSCLE VOLUME — WHAT THE TRAINING HAS ADDED UP TO  (Phase D100)
+   ---------------------------------------------------------
+   This block used to sit at the bottom of Mastery, locked to the last 12
+   weeks. It was in the wrong place — Mastery describes mastery — and it asked
+   the wrong question of the data: a rolling 12-week window meant an athlete's
+   first year of training simply stopped existing.
+
+   It lives on Volume now, beside the week it complements, and it answers a
+   different question from the block above it. That one is "what did I train
+   in that week"; this one is "what has my training accumulated toward".
+
+   ALL is the whole retained history. LOOP prunes no workout, ever — the log is
+   written whole by persistLog() and shortened only by a delete the athlete
+   asked for — so this is derived from source truth rather than from a stored
+   running total that could drift away from it. Edit a workout from last year
+   and this changes; delete it and it changes back. There is no counter to
+   disagree with the history.
+
+   The numbers are D46B's: the same working-set arithmetic as the week above,
+   which the old Mastery card did not use — it counted every logged set
+   including warm-ups and unperformed ones. Two muscle counts on one screen
+   that disagree is the exact defect D46B existed to remove. */
+const VOL_PERIODS = [{ w: 12, label: '12W' }, { w: 26, label: '26W' }, { w: 52, label: '52W' }, { w: 0, label: 'ALL' }];
+function volMuscleWindow(weeks){
+  const wks = weeks === undefined ? volMusclePeriod : weeks;
+  const cov = progressCoverage();
+  if(!wks) return { from: cov.firstDate || null, all: true, first: cov.firstDate };
+  const d = new Date(); d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - (wks * 7 - 1));
+  const from = localDateStr(d);
+  /* A window that reaches further back than the athlete's first workout is
+     simply their whole history; it is not padded with weeks that never were. */
+  return { from: (cov.firstDate && cov.firstDate > from) ? cov.firstDate : from, all: false, first: cov.firstDate, weeks: wks };
+}
+function renderVolMuscleHistory(){
+  const el = document.getElementById('progVolLong');
+  if(!el) return;
+  const win = volMuscleWindow();
+  const mv = deriveMuscleSetsBetween(win.from, null);
+  const chips = VOL_PERIODS.map(p =>
+    `<button type="button" class="range-btn${volMusclePeriod === p.w ? ' active' : ''}"
+      onclick="setVolMusclePeriod(${p.w})" aria-pressed="${volMusclePeriod === p.w}">${p.label}</button>`).join('');
+  const since = win.first ? new Date(win.first + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '';
+  const hint = win.all ? (since ? `since ${escapeHtml(since)}` : 'all of your history')
+    : `last ${volMusclePeriod} weeks`;
+  const top = mv.muscles[0];
+  const pct = top && mv.setsLogged ? Math.round((top.sets / mv.setsLogged) * 100) : 0;
+  el.innerHTML = `
+    <div class="sec-head">Muscle volume<span class="sec-hint">sets · ${hint}</span></div>
+    <div class="vol-periods" role="group" aria-label="Muscle volume period">${chips}</div>
+    ${top ? `<div class="mv-card">
+      <div class="mv-top">
+        <div class="mv-body">${bodyDiagramSvg(null, mv.totals)}</div>
+        <div class="mv-info">
+          <div class="mas-sum-k">Most worked</div>
+          <div class="mv-name">${escapeHtml(top.label)}</div>
+          <div class="mv-sub"><b>${pct}%</b> of your ${mv.setsLogged} logged sets</div>
+        </div>
+      </div>
+      <div class="mv-bars">${muscleBarsHtml(mv.totals)}</div>
+    </div>` : `<div class="mini-empty">Log working sets to see what your training has added up to.</div>`}`;
 }
 
 /* The one muscle ranking in LOOP. `opts.limit` trims it for a summary that
@@ -35841,9 +36070,11 @@ function renderProgMuscles(){
      of them — see the note above `sum` for why that used to matter. */
   const mas = getMasteryProgress();
 
+  /* D100 — the 12-week Muscle volume block that used to be derived here now
+     lives on Progress → Volume, with real history behind it. Mastery
+     describes mastery; the cutoff below still serves Training distribution,
+     which is staying exactly where it is. */
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 84);
-  const totals = computeMuscleVolumeSince(cutoff);
-  const sum = Object.keys(totals).reduce((n,k) => n + totals[k], 0);
   /* D86 — found while wiring the podium's own empty state: this whole
      function used to return here, before drawing anything, whenever the last
      12 weeks had no volume. Mastery is LIFETIME history, so an athlete who
@@ -35851,33 +36082,9 @@ function renderProgMuscles(){
      as you repeat a movement" — false for them — and the podium's own empty
      state could never be reached at all, since any recent volume already
      guarantees a mastery entry to show. Mastery Leaders and Exercise Mastery
-     below now always render from `mas`; only the two genuinely 12-week
-     sections — Muscle volume and Training distribution — degrade on `sum`,
-     each on its own. */
-  let volumeHtml = `<div class="mini-empty">Log a few sets in the last 12 weeks to see which muscles you have worked most recently.</div>`;
-  if(sum){
-    const rows = Object.keys(totals).map(k => ({ k, label: MUSCLE_LABELS[k], val: totals[k] }))
-      .filter(r => r.val > 0).sort((a,b) => b.val - a.val);
-    const top = rows[0];
-    // Reuses the existing anatomy renderer via a synthetic template shaped like
-    // the last 12 weeks of training, so there is only ever one body system.
-    const synthetic = { exercises: [] };
-    workoutLog.forEach(l => {
-      if(new Date(l.date + 'T00:00:00') < cutoff) return;
-      l.exercises.forEach(ex => synthetic.exercises.push({ name: ex.name, sets: (ex.sets||[]).length || 1 }));
-    });
-    volumeHtml = `<div class="mv-card">
-      <div class="mv-top">
-        <div class="mv-body">${bodyDiagramSvg(synthetic)}</div>
-        <div class="mv-info">
-          <div class="mas-sum-k">Most worked</div>
-          <div class="mv-name">${top.label}</div>
-          <div class="mv-sub"><b>${Math.round((top.val/sum)*100)}%</b> of your logged sets</div>
-        </div>
-      </div>
-      <div class="mv-bars">${muscleBarsHtml(totals)}</div>
-    </div>`;
-  }
+     below always render from `mas`; D100 moved the other 12-week section
+     (Muscle volume) to Progress → Volume, so Training distribution is now the
+     only one here, and it degrades on its own count. */
 
   // Push / pull / legs distribution from logged categories. distributionHtml
   // already degrades gracefully to its own empty line when nothing qualifies.
@@ -35890,13 +36097,14 @@ function renderProgMuscles(){
   const catTotal = Object.values(catSets).reduce((a,b)=>a+b,0) || 1;
 
   /* D94A/D94B — Exercise and Muscle Mastery are one control over one card
-     (masteryViewHtml); the badge rail follows, carrying the trust line under it,
-     and the two 12-week sections below are unchanged. */
+     (masteryViewHtml); the badge rail follows, carrying the trust line under it.
+     D100 — Muscle volume used to sit between the rail and Training distribution.
+     It was never a mastery measure, and it now has a home on Volume where its
+     history is not thrown away every twelve weeks. Training distribution keeps
+     its place and its numbers; the rail simply meets it directly. */
   el.innerHTML = `
     ${masteryViewHtml(mas)}
     ${masteryBadgeSystemHtml()}
-    <div class="sec-head">Muscle volume<span class="sec-hint">sets · last 12 weeks</span></div>
-    ${volumeHtml}
     <div class="sec-head">Training distribution</div>
     ${distributionHtml(catSets, catTotal)}
     <div class="muscle-foot">Distribution of logged sets, not a judgement about balance.</div>`;
