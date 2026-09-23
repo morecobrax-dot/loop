@@ -17408,6 +17408,22 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-15',
+    version: 'LOOP 10.15',
+    title: 'Every Set Counts, However You Log It',
+    date: '2026-09-23',
+    swVersion: 'loop-v192',
+    summary: 'Logging the same exercise more than once in a workout now counts as one complete performance, so later sets are no longer ignored.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Your heaviest set now counts even when you logged it further down the workout, in a second entry for the same exercise: your records, XP, Exercise Detail and next targets all see it',
+      'An exercise logged in two or more entries in one workout now counts as one session on your strength trend, not one per entry',
+      'The same training earns the same XP and records however many entries you split it into'
+    ],
+    changes: []
   }
 ];
 
@@ -21313,6 +21329,8 @@ function invalidateSortedLogCache(){
   if(typeof invalidateAllMasteryCaches === 'function') invalidateAllMasteryCaches();
   // D91 — every lift's PR mode, and its record, are derived from the same log, once.
   if(typeof invalidatePRCaches === 'function') invalidatePRCaches();
+  // D96C-3 — each workout's grouping into one performance per lift.
+  if(typeof invalidateWorkoutGroups === 'function') invalidateWorkoutGroups();
 }
 
 function getNextCategory(){
@@ -21356,8 +21374,14 @@ function exerciseSessionHistory(exerciseName, limit){
   const sessions = [];
   const deloaded = [];                 // D85 — kept only as a last resort, below
   for(const l of sortedLog()){
-    const ex = l.exercises.find(e => e.name.trim().toLowerCase() === key);
-    if(ex && !ex.bodyweight && ex.sets && ex.sets.length){
+    /* D96C-3 — D88 finding E15(a). Every LOADED row of this lift in the workout,
+       as one session. D49 reads loaded work only, as it always has: a ticked row
+       was never its evidence, and it no longer hides a loaded row logged after
+       it; a second loaded row is the same session's work, not invisible. */
+    const rows = (workoutExerciseRows(l, key) || []).filter(r => !r.bodyweight);
+    const ex = rows.length === 1 ? rows[0] : null;
+    const sets = ex ? ex.sets : [].concat(...rows.map(r => r.sets));
+    if(rows.length){
       /* D49 — WORKING SETS ONLY. This used to read every set on the exercise,
          so a warm-up counted as performance: 95 lb × 10 at 5 RIR beside three
          working sets of 135 × 6 at 1 RIR reported topReps 10 and avgRir 2, and
@@ -21365,7 +21389,7 @@ function exerciseSessionHistory(exerciseName, limit){
          and added weight. The athlete had actually ground out the BOTTOM of
          the range. Same predicate the rest of the app uses: a set whose type
          was never recorded still counts, because unknown is not a warm-up. */
-      const perf = ex.sets.filter(st => {
+      const perf = sets.filter(st => {
         if(isWorkingSet(st) === false) return false;
         if(st && st.completed === false) return false;
         return parseFloat(st && st.reps) > 0;
@@ -21382,7 +21406,19 @@ function exerciseSessionHistory(exerciseName, limit){
          depends on how much of the prescription was actually performed and
          how much of it carried an effort reading, so both travel with the
          session rather than being re-derived by every caller. */
-      const rx = ex.rx || null;
+      const rx = ex ? (ex.rx || null) : null;
+      let prescribedSets = (rx && rx.sets > 0) ? rx.sets : null;
+      let targetRir = (rx && rx.effort != null) ? effortToRir(rx.effort) : null;
+      let prescribedLoad = (rx && rx.load > 0) ? rx.load : null;
+      /* D96C-3 — across several rows, what was prescribed is the lift's whole
+         prescription in this workout: every prescribed set of every row, with the
+         first row's effort and load targets. A lone row reads exactly as it did. */
+      if(!ex) rows.forEach(r => {
+        const x = r.rx || null;
+        if(x && x.sets > 0) prescribedSets = (prescribedSets || 0) + Number(x.sets);
+        if(targetRir === null && x && x.effort != null) targetRir = effortToRir(x.effort);
+        if(prescribedLoad === null && x && x.load > 0) prescribedLoad = x.load;
+      });
       /* D85 — a session trained inside an approved deload is training that
          happened, but it is not evidence of what this exercise can carry: it
          was PRESCRIBED to be easy. Judging the next exposure against it reads
@@ -21394,12 +21430,12 @@ function exerciseSessionHistory(exerciseName, limit){
         date: l.date,
         weight: Math.max(...weights),
         topReps: Math.max(...reps),
-        setsLogged: ex.sets.length,
+        setsLogged: sets.length,
         workingSets: perf.length,
         rirSets: rirs.length,
-        prescribedSets: (rx && rx.sets > 0) ? rx.sets : null,
-        targetRir: (rx && rx.effort != null) ? effortToRir(rx.effort) : null,
-        prescribedLoad: (rx && rx.load > 0) ? rx.load : null,
+        prescribedSets,
+        targetRir,
+        prescribedLoad,
         avgRir: rirs.length ? (rirs.reduce((a,b)=>a+b,0) / rirs.length) : null,
         phase: l.phase || null
       });
@@ -22045,8 +22081,10 @@ function getPreviousSets(exerciseName){
   const key = exerciseName.trim().toLowerCase();
   const logs = sortedLog();
   for(const l of logs){
-    const ex = l.exercises.find(e => e.name.trim().toLowerCase() === key);
-    if(ex && ex.sets && ex.sets.length) return { sets: ex.sets, bodyweight: !!ex.bodyweight };
+    /* D96C-3 — the last workout's whole performance of this lift, read exactly as
+       the capability history reads a session, not its first row. */
+    const lift = workoutExercisePerformance(l, key);
+    if(lift){ const s = exerciseHistorySession(lift); return { sets: s.sets, bodyweight: s.bodyweight }; }
   }
   return null;
 }
@@ -22170,14 +22208,20 @@ function compute1RMTrend(exerciseName){
   const key = exerciseName.trim().toLowerCase();
   const points = [];
   sortedLog().slice().reverse().forEach(l => {
-    l.exercises.forEach(ex => {
-      if(ex.name.trim().toLowerCase() !== key || ex.bodyweight) return;
-      let best = 0;
+    /* D96C-3 — D88 finding E15(a), the other way round: this added a point per
+       ROW, so a lift logged in two rows of one workout became two sessions on
+       the trend line, the Strength list and capability's trend. One point per
+       workout now, from every loaded row of the lift in it. */
+    const rows = workoutExerciseRows(l, key);
+    if(!rows) return;
+    let best = 0;
+    rows.forEach(ex => {
+      if(ex.bodyweight) return;
       /* D91 — a weight typed as "1e999" parses to Infinity; it is not a lift, and
          it used to break Exercise Detail's chart. */
       (ex.sets || []).forEach(s => { const e1 = estimate1RM(s.weight, s.reps); if(Number.isFinite(e1) && e1 > best) best = e1; });
-      if(best > 0) points.push({ date: l.date, value: Math.round(best) });
     });
+    if(best > 0) points.push({ date: l.date, value: Math.round(best) });
   });
   return points;
 }
@@ -22187,11 +22231,16 @@ function detectPlateau(exerciseName){
   const key = exerciseName.trim().toLowerCase();
   const occurrences = [];
   sortedLog().slice().reverse().forEach(l => {
-    l.exercises.forEach(ex => {
-      if(ex.name.trim().toLowerCase() !== key || ex.bodyweight) return;
-      const weights = (ex.sets || []).map(s => performedLoad(s.weight)).filter(w => w !== null);   // D96A
-      if(weights.length) occurrences.push({ date: l.date, weight: Math.max(...weights) });
+    /* D96C-3 — one occurrence per WORKOUT, from every loaded row of the lift in
+       it. Per row, one workout could fill most of the four-session window. */
+    const rows = workoutExerciseRows(l, key);
+    if(!rows) return;
+    const weights = [];
+    rows.forEach(ex => {
+      if(ex.bodyweight) return;
+      (ex.sets || []).forEach(s => { const w = performedLoad(s.weight); if(w !== null) weights.push(w); });   // D96A
     });
+    if(weights.length) occurrences.push({ date: l.date, weight: Math.max(...weights) });
   });
   if(occurrences.length < 4) return null;
   const last4 = occurrences.slice(-4);
@@ -30092,6 +30141,158 @@ function oneNamePerLoggedExercise(rawRows){
   return out.sort((a,b) => a.localeCompare(b));
 }
 
+/* =========================================================
+   ONE EXERCISE PERFORMANCE PER WORKOUT  (Phase D96C-3 — D88 finding E15(a))
+   ---------------------------------------------------------
+   An athlete may log one lift more than once in a workout: the ramp in one
+   row and the heavy set added later in another, or a block split around a
+   different movement. Every engine that asked "what did I do for this
+   exercise in this workout?" answered with the FIRST matching row and ignored
+   the rest. Measured on 10.14: 135 x 8 in row 1 and 175 x 5 in row 2 recorded
+   a volume PR off row 1 and never the 175, computePRs and Exercise Detail kept
+   the old 150 as the best, and the same six sets split into rows differently
+   earned different XP. A few readers had the opposite defect and counted every
+   ROW as a session.
+
+   One answer now. Every row of one logical lift inside ONE workout is one
+   performance: its rows in logged order, and their sets in row order, then set
+   order. "One lift" is loggedExerciseKey and nothing looser — no aliases, no
+   registry merge, no fuzzy matching. A row with no sets carries no
+   performance. It never reaches across workouts: a morning and an evening
+   session on one date stay two.
+
+   Derived at read time and never stored; no history is rewritten. Grouping is
+   identity, not de-duplication: every set is still counted wherever sets are
+   counted. A lone row is exactly the row it always was — the same object and
+   the same sets array — so a history with no repeated rows reads as it did. */
+function exercisePerformanceOf(entry, key, rows){
+  if(rows.length === 1){
+    const row = rows[0];
+    return { key, name: row.name, date: entry.date, id: entry.id, rows, sets: row.sets };
+  }
+  const sets = [];
+  let oneSpelling = true;
+  for(let i = 0; i < rows.length; i++){
+    const row = rows[i];
+    for(let j = 0; j < row.sets.length; j++) sets.push(row.sets[j]);
+    if(row.name !== rows[0].name) oneSpelling = false;
+  }
+  if(oneSpelling) return { key, name: rows[0].name, date: entry.date, id: entry.id, rows, sets };
+  /* Spelled more than one way: the spelling shown is the D96B rule's, asked of
+     this workout's own rows. */
+  const spellings = new Map();
+  rows.forEach(row => spellings.set(row.name, (spellings.get(row.name) || 0) + 1));
+  return { key, name: chooseLoggedSpelling(spellings), date: entry.date, id: entry.id, rows, sets };
+}
+function performanceRowLogged(ex){
+  return !!(ex && typeof ex.name === 'string' && ex.sets && ex.sets.length);
+}
+/* Each workout is grouped ONCE and the answer shared. Every per-lift engine asks
+   the same workouts the same question — a Progress render asks each workout of
+   a long history about every lift, several times over — and re-grouping them
+   was, measured, the largest cost this phase added (12% of a cold Exercise
+   Detail on an ordinary two-year history). Keyed by the workout object, so
+   nothing outlives it and an edit (which replaces the object) is a new key;
+   cleared with the log's other derived caches; and checked against what it
+   describes on every read — the same exercises array, the same rows, names and
+   sets arrays, and for a lift held in several rows the same set objects — so a
+   workout changed in place is regrouped, never answered stale. Set values are
+   never copied: every engine reads the athlete's own set objects. */
+let _workoutGroups = typeof WeakMap === 'function' ? new WeakMap() : null;
+function invalidateWorkoutGroups(){ _workoutGroups = typeof WeakMap === 'function' ? new WeakMap() : null; }
+function workoutGroupsFresh(g, exs){
+  if(g.exs !== exs || g.n !== exs.length) return false;
+  for(let i = 0; i < exs.length; i++){
+    const ex = exs[i], r = g.seen[i];
+    if(ex !== r.ex) return false;
+    if(ex && (ex.name !== r.name || ex.sets !== r.sets || (ex.sets ? ex.sets.length : -1) !== r.len)) return false;
+  }
+  for(let m = 0; m < g.multi.length; m++){
+    const p = g.multi[m];
+    let k = 0;
+    for(let i = 0; i < p.rows.length; i++){
+      const ss = p.rows[i].sets;
+      for(let j = 0; j < ss.length; j++) if(p.sets[k++] !== ss[j]) return false;
+    }
+  }
+  return true;
+}
+function workoutGroupsOf(entry){
+  const exs = (entry && entry.exercises) || [];
+  const cache = _workoutGroups && entry && typeof entry === 'object' ? _workoutGroups : null;
+  let g = cache ? cache.get(entry) : null;
+  if(g && workoutGroupsFresh(g, exs)) return g;
+  const byRows = new Map(), seen = [];
+  for(let i = 0; i < exs.length; i++){
+    const ex = exs[i];
+    seen.push({ ex, name: ex && ex.name, sets: ex && ex.sets, len: ex && ex.sets ? ex.sets.length : -1 });
+    if(!performanceRowLogged(ex)) continue;
+    const key = loggedExerciseKey(ex.name);
+    const rows = byRows.get(key);
+    if(rows) rows.push(ex); else byRows.set(key, [ex]);
+  }
+  const list = [], byKey = new Map(), multi = [];
+  byRows.forEach((rows, key) => {
+    const p = exercisePerformanceOf(entry, key, rows);
+    list.push(p); byKey.set(key, p);
+    if(rows.length > 1) multi.push(p);
+  });
+  g = { exs, n: exs.length, seen, list, byKey, multi };
+  if(cache) cache.set(entry, g);
+  return g;
+}
+/* Every lift in one workout, in the order each first appears. */
+function workoutExercisePerformances(entry){
+  return workoutGroupsOf(entry).list;
+}
+/* One lift in one workout, as one performance, or null when that workout logged
+   none of it. */
+function workoutExercisePerformance(entry, key){
+  return workoutGroupsOf(entry).byKey.get(key) || null;
+}
+/* The same lift's rows in logged order, for engines that only walk rows. */
+function workoutExerciseRows(entry, key){
+  const p = workoutExercisePerformance(entry, key);
+  return p ? p.rows : null;
+}
+
+/* How a workout EXECUTED a lift, for the capability history — E16, HELD. This
+   is deliberately not prModeOf: capability asks what the athlete did in the
+   newest session, D91 asks what kind of lift the whole history is, and D96C-3
+   keeps them apart. A row says "bodyweight" with its tick and "loaded" with a
+   load written on an unticked row; a row that says neither says nothing. A
+   workout executes as its FIRST row that says anything, and when none does it
+   is the unticked lift it always read as — so a lone row answers exactly as its
+   tick always did. Only rows that agree with that execution, or say nothing,
+   are that session's evidence: a bodyweight row's reps are never blended into a
+   loaded session's numbers, or the reverse. Exercise Detail and the History
+   list keep every row (`allSets`, `rows`): they describe the workout, not one
+   execution of it. */
+function rowExecutionDeclaration(row){
+  if(!row) return null;
+  if(row.bodyweight) return PR_MODE.BODYWEIGHT;
+  const sets = row.sets || [];
+  for(let i = 0; i < sets.length; i++){
+    if(loadEvidenceOf(sets[i] && sets[i].weight) === LOAD_EVIDENCE.LOAD) return PR_MODE.LOADED;
+  }
+  return null;
+}
+function exerciseHistorySession(perf){
+  if(perf.rows.length === 1){
+    const row = perf.rows[0];
+    return { date: perf.date, id: perf.id, sets: row.sets, bodyweight: !!row.bodyweight, rows: perf.rows, allSets: row.sets };
+  }
+  let mode = null;
+  for(let i = 0; i < perf.rows.length && !mode; i++) mode = rowExecutionDeclaration(perf.rows[i]);
+  const sets = [];
+  perf.rows.forEach(row => {
+    const said = rowExecutionDeclaration(row);
+    if(said && said !== mode) return;
+    row.sets.forEach(s => sets.push(s));
+  });
+  return { date: perf.date, id: perf.id, sets, bodyweight: mode === PR_MODE.BODYWEIGHT, rows: perf.rows, allSets: perf.sets };
+}
+
 function getAllLoggedExerciseNames(){
   /* One pass over the log, costing what the old Set did: a count per RAW
      spelling. The key is then taken once per DISTINCT spelling (a few dozen)
@@ -30103,9 +30304,10 @@ function getAllLoggedExerciseNames(){
 function getExerciseFullHistory(exerciseName){
   const key = exerciseName.trim().toLowerCase();
   const sessions = [];
+  /* D96C-3 — one session per workout, from every row of the lift in it. */
   sortedLog().forEach(l => {
-    const ex = l.exercises.find(e => e.name.trim().toLowerCase() === key);
-    if(ex && ex.sets && ex.sets.length) sessions.push({ date: l.date, id: l.id, sets: ex.sets, bodyweight: !!ex.bodyweight });
+    const perf = workoutExercisePerformance(l, key);
+    if(perf) sessions.push(exerciseHistorySession(perf));
   });
   return sessions;
 }
@@ -30139,7 +30341,7 @@ function renderExerciseHistoryList(){
     <div class="ex-history-session">
       <div class="ex-history-date">${formatDateShort(s.date)}</div>
       <div class="ex-history-sets">
-        ${s.sets.map(set => setChipHtml(set, s.bodyweight)).join('')}
+        ${s.rows.map(r => r.sets.map(set => setChipHtml(set, !!r.bodyweight)).join('')).join('')}
       </div>
     </div>
   `).join('');
@@ -30291,6 +30493,20 @@ function loadedPRPerformance(set){
    image of E6: a stray value turning a push-up into a loaded lift. */
 function sessionPRDeclaration(entry){
   if(!entry) return null;
+  /* D96C-3 — one workout's performance of a lift can span several rows. It
+     declares what its FIRST DECLARING row declares, in logged order: a row that
+     says nothing is passed over, the first that says something decides, and no
+     row after it can overrule it. There is no mixed mode. Each row is asked
+     exactly as a lone row always was. Across workouts nothing changes: the
+     earliest declaring workout still decides the lift (deriveExercisePRMode). */
+  if(Array.isArray(entry.rows)){
+    for(let i = 0; i < entry.rows.length; i++){
+      const row = entry.rows[i];
+      const said = sessionPRDeclaration({ bodyweight: !!(row && row.bodyweight), sets: row && row.sets });
+      if(said) return said;
+    }
+    return null;
+  }
   if(entry.bodyweight === true || entry.isBW === true) return PR_MODE.BODYWEIGHT;
   const sets = entry.sets || [];
   let marker = false;
@@ -30317,9 +30533,9 @@ function prSessionBefore(a, b, ta, tb){
 }
 
 /* The one answer. `entries` is one lift's history as the caller already holds
-   it — { date, id, bodyweight | isBW, sets }, one per workout, the first row of
-   that name, which is how every PR engine reads a workout — so nothing here
-   re-scans the log. */
+   it — one per workout, { date, id, rows, sets }: every row of that name in the
+   workout (D96C-3), which is how every PR engine reads a workout — so nothing
+   here re-scans the log. */
 function deriveExercisePRMode(entries, exerciseName){
   let first = null, firstAt = 0, mode = null, zeroLoad = false;
   (entries || []).forEach(e => {
@@ -30337,7 +30553,7 @@ function deriveExercisePRMode(entries, exerciseName){
 }
 
 /* Every logged lift's mode in one pass, from exactly the sessions each PR engine
-   reads: the first row of that name in each workout, when that row logged sets.
+   reads: one per workout, every row of that name in it that logged sets (D96C-3).
    Computed once per change to the log and read by every engine through
    prModeOf, so they cannot disagree — and Progress, which asks once per lift,
    never re-derives it. Cleared with the log's other derived caches; the identity
@@ -30349,15 +30565,11 @@ function prModesByLift(){
   /* Keyed by what athletes type, so no prototype: a lift called "toString" is a lift. */
   const byKey = Object.create(null), nameOf = Object.create(null);
   workoutLog.forEach(l => {
-    const seen = Object.create(null);
-    (l.exercises || []).forEach(ex => {
-      if(!ex || !ex.name) return;
-      const key = ex.name.trim().toLowerCase();
-      if(seen[key]) return;
-      seen[key] = true;
-      if(!(ex.sets && ex.sets.length)) return;
-      (byKey[key] = byKey[key] || []).push({ date: l.date, id: l.id, bodyweight: !!ex.bodyweight, sets: ex.sets });
-      if(!nameOf[key]) nameOf[key] = ex.name;
+    /* D96C-3 — one performance per lift per workout, every row of it; what it
+       declares is its first declaring row's (sessionPRDeclaration). */
+    workoutExercisePerformances(l).forEach(perf => {
+      (byKey[perf.key] = byKey[perf.key] || []).push(perf);
+      if(!nameOf[perf.key]) nameOf[perf.key] = perf.name;
     });
   });
   const out = Object.create(null);
@@ -30375,9 +30587,14 @@ function prModeOf(exerciseName){
 function computeExercisePREvents(exerciseName){
   const key = exerciseName.trim().toLowerCase();
   const sessions = [];
+  /* D96C-3 — D88 finding E15(a). Every row of this lift in the workout is ONE
+     session: a later row's sets are the same workout's work. It still yields at
+     most one event per workout, exactly as a single row always did — a heavy set
+     logged in a third row raises the one record, it does not add records. Which
+     sets count, and what counts as a record, are untouched below. */
   workoutLog.forEach(l => {
-    const ex = l.exercises.find(e => e.name.trim().toLowerCase() === key);
-    if(ex && ex.sets && ex.sets.length) sessions.push({ date: l.date, id: l.id, sets: ex.sets, isBW: !!ex.bodyweight });
+    const perf = workoutExercisePerformance(l, key);
+    if(perf) sessions.push({ date: l.date, id: l.id, sets: perf.sets });
   });
   if(!sessions.length) return [];
   sessions.sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -31690,9 +31907,21 @@ function sessionPRSets(entry){
     const k = loggedExerciseKey(ev.exerciseName);
     (hereByKey[k] = hereByKey[k] || []).push(ev);
   });
+  /* D96C-3 — a record belongs to ONE set of the workout's performance of that
+     lift, found across every row of it: the first set, in logged order, to hold
+     the best value. Asked row by row, each row's own best set was badged, so a
+     record set in row 2 also put a badge on row 1's heaviest set. */
+  const rowsOf = new Map();
   (entry.exercises || []).forEach((ex, exIdx) => {
-    const here = hereByKey[loggedExerciseKey(ex.name)] || [];
-    if(!here.length) return;
+    if(!ex || !(hereByKey[loggedExerciseKey(ex.name)] || []).length) return;
+    const k = loggedExerciseKey(ex.name);
+    if(!rowsOf.has(k)) rowsOf.set(k, []);
+    rowsOf.get(k).push(exIdx);
+  });
+  rowsOf.forEach((rowIdxs, k) => {
+    const here = hereByKey[k];
+    const flat = [], owner = [];
+    rowIdxs.forEach(exIdx => (entry.exercises[exIdx].sets || []).forEach((s, setIdx) => { flat.push(s); owner.push([exIdx, setIdx]); }));
     here.forEach(ev => {
       (ev.hits || [ev]).forEach(h => {
         const type = h && h.type;
@@ -31703,8 +31932,9 @@ function sessionPRSets(entry){
         }
         /* D91 — the lift's own kind, as the event that holds this hit says, not
            this row's box: a hit is always read in the mode that produced it. */
-        const idx = prSetIndexFor(ex.sets, h, ev.isBW === true);
-        if(idx < 0) return;
+        const at = prSetIndexFor(flat, h, ev.isBW === true);
+        if(at < 0) return;
+        const exIdx = owner[at][0], idx = owner[at][1];
         bySet[exIdx] = bySet[exIdx] || {};
         /* One badge per set, and the strongest claim wins — PR_PRIORITY is
            the existing ranking, so the label matches what the rest of LOOP
@@ -31856,11 +32086,14 @@ function computeXPTimeline(){
 
       workoutCount++;
 
-      const seenThisEntry = new Set();
-      entry.exercises.forEach(ex => {
-        const key = ex.name.trim().toLowerCase();
-        if(seenThisEntry.has(key)) return;
-        seenThisEntry.add(key);
+      /* D96C-3 — D88 finding E15(a). One performance per lift per workout —
+         every row of it, not the first — so the sets that decide a record here
+         are exactly the sets the record engine reads, and identical work pays the
+         same whichever rows it was logged in. Which sets count, what a record
+         pays and the headline-only rule are untouched. The working-set XP above
+         still counts every set of every row. */
+      workoutExercisePerformances(entry).forEach(lift => {
+        const key = lift.key;
         /* D91 — the lift's kind used to be this first entry's box, locked, so a
            first row left unticked with no load written made a bodyweight lift
            "loaded" here for ever and none of its records ever earned XP. The kind
@@ -31885,12 +32118,12 @@ function computeXPTimeline(){
         const hits = [];
         if(isBW){
           let sessionMaxReps = 0;
-          (ex.sets||[]).forEach(s => { const r = performedReps(s && s.reps); if(r !== null && r > sessionMaxReps) sessionMaxReps = r; });
+          (lift.sets||[]).forEach(s => { const r = performedReps(s && s.reps); if(r !== null && r > sessionMaxReps) sessionMaxReps = r; });
           if(sessionMaxReps > t.bestReps){ hits.push('reps'); t.bestReps = sessionMaxReps; }
         } else {
           let sessionMaxWeight = 0, sessionVolume = 0, session1RM = 0;
           const repsAtW = {};
-          (ex.sets||[]).forEach(s => {
+          (lift.sets||[]).forEach(s => {
             /* D96C-1 - the same performance rule the record walk reads, so a
                set that cannot set a record cannot earn PR XP either. */
             const perf = loadedPRPerformance(s);
@@ -31918,7 +32151,7 @@ function computeXPTimeline(){
           hits.sort((a,b) => PR_PRIORITY.indexOf(a) - PR_PRIORITY.indexOf(b));
           const headlineType = hits[0];
           const xp = calculatePRXP(headlineType);
-          if(xp > 0){ breakdown.push({ label:`${PR_TYPE_LABEL[headlineType]} — ${ex.name}`, xp }); entryXP += xp; }
+          if(xp > 0){ breakdown.push({ label:`${PR_TYPE_LABEL[headlineType]} — ${lift.name}`, xp }); entryXP += xp; }
           prCount++;
         }
       });
@@ -32956,8 +33189,8 @@ function renderProfile(){
    order. So one blank-weight set could make a loaded lift bodyweight for ever,
    and identical facts stored in a different order gave a different answer.
 
-   Now it reads exactly the sessions the PR event engine reads — the first row
-   of each name in each workout — takes each lift's mode from the one shared map,
+   Now it reads exactly the sessions the PR event engine reads — one performance
+   per lift per workout, every row of it (D96C-3) — takes each lift's mode from the one shared map,
    and counts exactly the sets that engine counts toward the same record: the
    heaviest load above zero with reps logged beside it, or the most reps. A tie
    goes to the earliest session to reach the best, by date and then id — the
@@ -32970,21 +33203,22 @@ function computePRs(){
   const fresh = c => c && c.log === workoutLog && c.n === workoutLog.length;
   if(fresh(_prRecordsCache)) return _prRecordsCache.records.map(r => Object.assign({}, r));
   const modes = prModesByLift();
-  const rec = Object.create(null), at = Object.create(null), seenIn = Object.create(null);
+  const rec = Object.create(null), at = Object.create(null);
   for(let i = 0; i < workoutLog.length; i++){
     const l = workoutLog[i];
-    const exs = (l && l.exercises) || [];
-    for(let j = 0; j < exs.length; j++){
-      const ex = exs[j];
-      if(!ex || !ex.name) continue;
-      const key = ex.name.trim().toLowerCase();
-      if(seenIn[key] === i) continue;               // the first row of that name in a workout
-      seenIn[key] = i;
+    /* D96C-3 — D88 finding E15(a). One performance per lift per workout, every
+       row of it: a heavier set logged in a later row is this workout's best, not
+       invisible. The first set to reach a value, in logged row-then-set order,
+       still keeps it. */
+    const lifts = workoutExercisePerformances(l);
+    for(let j = 0; j < lifts.length; j++){
+      const lift = lifts[j];
+      const key = lift.key;
       const mode = modes[key];
       /* UNKNOWN: nothing in the history says what kind of lift this is, so there
          is no record to report — a load nobody wrote down is not a personal best
          of anything. */
-      if(!mode || mode === PR_MODE.UNKNOWN || !(ex.sets && ex.sets.length)) continue;
+      if(!mode || mode === PR_MODE.UNKNOWN) continue;
       const isBW = mode === PR_MODE.BODYWEIGHT;
       let topW = null, topR = null;                 // this session's best set, the first to reach it
       /* D96C-2 — D88 finding E19. The loaded branch required a positive weight
@@ -32995,8 +33229,8 @@ function computePRs(){
          loaded best is still the heaviest set with its OWN reps, the bodyweight
          best is still the most reps, and the first set to reach a value still
          keeps it. */
-      for(let k = 0; k < ex.sets.length; k++){
-        const st = ex.sets[k];
+      for(let k = 0; k < lift.sets.length; k++){
+        const st = lift.sets[k];
         if(!st) continue;
         if(isBW){
           const r = performedReps(st.reps);
@@ -33011,7 +33245,7 @@ function computePRs(){
       const cur = rec[key];
       const best = cur ? (isBW ? cur.reps : cur.weight) : null;
       if(!cur || v > best || (v === best && prSessionBefore(l, at[key]))){
-        rec[key] = { name: ex.name, isBW, weight: isBW ? null : topW, reps: topR, date: l.date };
+        rec[key] = { name: lift.name, isBW, weight: isBW ? null : topW, reps: topR, date: l.date };
         at[key] = l;
       }
     }
@@ -36360,6 +36594,11 @@ function buildMasteryIndex(){
     if(!date) return;
     // A session counts ONCE per exercise per workout, however many sets it had.
     const seenThisWorkout = {};
+    /* D96C-3 — and so does its set cap. It was applied per ROW, so twelve sets
+       logged six and six in two rows counted twelve against an anti-farm cap of
+       six for one session. It is kept per logged lift (loggedExerciseKey), so two
+       differently named rows are counted exactly as before. */
+    const cappedThisWorkout = Object.create(null);
     (entry.exercises || []).forEach(ex => {
       let id = null;
       try{ id = resolveExerciseId(ex.name); }catch(e){}
@@ -36391,7 +36630,9 @@ function buildMasteryIndex(){
       }
       /* Only sets that actually happened, warm-ups excluded, and capped per
          session so a 40-set afternoon cannot outrun months of training. */
-      let counted = 0;
+      const capKey = loggedExerciseKey(ex.name);
+      const already = cappedThisWorkout[capKey] || 0;
+      let counted = already;
       (ex.sets || []).forEach(s => {
         if(counted >= MASTERY_CONFIG.session.maxSetsCounted) return;
         const reps = parseFloat(s && s.reps);
@@ -36401,7 +36642,8 @@ function buildMasteryIndex(){
         if(setTypeOf(s) === SET_TYPES.WARMUP) return;
         counted++;
       });
-      rec.countedSets += counted;
+      cappedThisWorkout[capKey] = counted;
+      rec.countedSets += counted - already;
     });
   });
 
@@ -37076,7 +37318,10 @@ function renderExDetail(){
      becoming 0 lb x 0. The bodyweight branch is D91's and is untouched. */
   const best = { w:0, r:0 };
   let haveBest = false;
-  sessions.forEach(s => s.sets.forEach(st => {
+  /* D96C-3 — this sheet describes the WORKOUT, as the records do: every row of
+     the lift in it (`allSets`), so a heavier set logged in a later row is the
+     best it shows, and the session count is one per workout. */
+  sessions.forEach(s => s.allSets.forEach(st => {
     const w = num(st.weight), r = num(st.reps);
     if(isBW){ if(!isNaN(r) && r > best.r){ best.r = r; haveBest = true; } }
     else if(!isNaN(w) && !isNaN(r) && r > 0 && (!haveBest || w > best.w || (w === best.w && r > best.r))){
@@ -37084,7 +37329,7 @@ function renderExDetail(){
     }
   }));
   const topSet = s => {
-    const valid = s.sets.map(x => ({w:num(x.weight), r:num(x.reps)})).filter(x => !isNaN(x.r));
+    const valid = s.allSets.map(x => ({w:num(x.weight), r:num(x.reps)})).filter(x => !isNaN(x.r));
     if(!valid.length) return null;
     if(isBW) return valid.reduce((a,b)=>b.r>a.r?b:a);
     /* D88 — the seed has to come from the FILTERED list. Seeding from valid[0]
@@ -37127,7 +37372,7 @@ function renderExDetail(){
     points = compute1RMTrend(name);
   } else {
     points = chrono.map(s => {
-      const valid = s.sets.map(x => ({w:num(x.weight), r:num(x.reps)})).filter(x => !isNaN(x.r));
+      const valid = s.allSets.map(x => ({w:num(x.weight), r:num(x.reps)})).filter(x => !isNaN(x.r));
       if(!valid.length) return null;
       let v;
       if(exDetailMetric === 'volume') v = valid.reduce((n,x) => n + ((isNaN(x.w)?0:x.w) * x.r), 0);
@@ -37143,8 +37388,8 @@ function renderExDetail(){
     <div class="mini-label">Session history</div>` + sessions.slice(0, 12).map(s => `
     <div class="ex-history-session">
       <div class="ex-history-date">${formatDateShort(s.date)}</div>
-      <div class="ex-history-sets">${s.sets.map(set =>
-        setChipHtml(set, s.bodyweight)).join('')}</div>
+      <div class="ex-history-sets">${s.rows.map(r => r.sets.map(set =>
+        setChipHtml(set, !!r.bodyweight)).join('')).join('')}</div>
     </div>`).join('');
 }
 
@@ -46138,14 +46383,18 @@ function perfObservations(workouts){
   (workouts || []).slice()
     .sort((a, b) => String(a.date).localeCompare(String(b.date)))
     .forEach(w => {
-      (w.exercises || []).forEach(ex => {
-        if(!ex || ex.skipped) return;
-        if(!perfComparable(ex.name, !!ex.bodyweight)) return;
-        const id = perfCanonicalId(ex.name);
+      /* D96C-3 — "one observation per exercise per session", as the comment
+         above has always said: every comparable row of a lift in this workout is
+         one session's evidence. It used to add one observation per ROW, so a
+         lift logged twice in a workout counted as two sessions of the trend. */
+      workoutExercisePerformances(w).forEach(lift => {
+        const rows = lift.rows.filter(ex => !ex.skipped && perfComparable(ex.name, !!ex.bodyweight));
+        if(!rows.length) return;
+        const id = perfCanonicalId(lift.name);
         if(!id) return;
-        const obs = perfSessionObservation(ex);
+        const obs = perfSessionObservation(rows.length === 1 ? rows[0] : { sets: [].concat(...rows.map(r => r.sets)) });
         if(obs === null) return;
-        (byId[id] = byId[id] || { id, name: ex.name, points: [] })
+        (byId[id] = byId[id] || { id, name: lift.name, points: [] })
           .points.push({ date: w.date, e1rm: obs });
       });
     });
@@ -53536,8 +53785,12 @@ function saveLog(btn){
 
   const matchedNames = [];
   const prSeen = new Set(newPREvents.map(e => e.exerciseName.trim().toLowerCase()));
-  newEntry.exercises.forEach(ex => {
-    const key = ex.name.trim().toLowerCase();
+  /* D96C-3 — one comparison per lift, from the workout's whole performance of it,
+     read the way its "last time" is read. Row by row, a lift logged twice could
+     be named twice here, or judged on half of what was done. */
+  workoutExercisePerformances(newEntry).forEach(lift => {
+    const key = lift.key;
+    const ex = exerciseHistorySession(lift);
     if(prSeen.has(key) || ex.bodyweight) return;
     const prev = priorSetsSnapshot[key];
     if(!prev || prev.bodyweight) return;
@@ -53555,7 +53808,7 @@ function saveLog(btn){
     if(!newReps.length || !prevReps.length) return;
     const sameWeight = Math.max(...newWeights) === Math.max(...prevWeights);
     const sameReps = Math.max(...newReps) === Math.max(...prevReps);
-    if(sameWeight && sameReps) matchedNames.push(ex.name);
+    if(sameWeight && sameReps) matchedNames.push(lift.name);
   });
 
   const volumeInsight = computeSessionVolumeInsight(newEntry);

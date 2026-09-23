@@ -579,7 +579,7 @@ Mastery, Session Score, volume, capability, 1RM trend, history, progression and
 recovery — verified over six clean fixtures. `"abc"` and `"NaN"` were already
 rejected by the old `!isNaN` guards, so only genuinely non-finite values moved.
 
-## E15 — Two value details still differ between PR surfaces · P4 · (a) OPEN · **(b) CLOSED in D96A (LOOP 10.5)**
+## E15 — Two value details still differ between PR surfaces · P4 · **(a) CLOSED in D96C-3 (LOOP 10.15)** · **(b) CLOSED in D96A (LOOP 10.5)**
 
 Found by the D91 mapping; D91 changed WHICH kind applies, not these values.
 (a) Every PR engine reads only the FIRST row of a name in a workout, so a lift
@@ -607,12 +607,59 @@ branch is D91's and is untouched.
 in a workout. It is a PR definition, not a validity defect, and changing it
 moves what a session's best IS.
 
-## E16 — The trainer's capability model still reads the latest session's box · P4 · HIGH
+**(a) closed in D96C-3 (LOOP 10.15, Contract 215, §137).** D96C-DECISION chose
+model C: every row of one logical lift inside ONE workout is one performance.
+Reproduced first on shipped 10.14: 135 × 8 in row 1 and 175 × 5 in row 2
+recorded a *volume* PR off row 1 (5 XP) and never the 175 (a weight record,
+15 XP); `computePRs` and Exercise Detail's Best ever kept the old 150; D49 said
+"only one set logged"; a row with no sets hid a real 160 × 5 after it entirely;
+and the SAME six sets split into rows differently moved up to 30 derived truths,
+lifetime XP among them. The mapping found the opposite defect too: the 1RM trend,
+plateau detection and the program-performance trend added one point per ROW, so a
+lift logged twice counted as two sessions; Day Detail badged each row's own best
+set; Mastery's per-session set cap (6) was applied per row.
+
+One primitive now (`workoutGroupsOf`, grouped once per workout, keyed by
+`loggedExerciseKey`, verified on every read and cleared with the log's other
+derived caches) is asked by every engine that answers "what did I do for this
+exercise in this workout?" — 17 functions, from the canonical record stream,
+PR XP, `computePRs` and D91's mode map to the capability history, D49's evidence,
+"Last time", the trends, Day Detail's badges and Mastery's cap. D91 stays
+historical: within a workout the FIRST DECLARING row decides, across workouts
+the earliest declaring workout still does. E16 is held: capability reads the
+newest workout's execution (its first row that says anything), never
+`prModeOf`, and takes only that execution's rows as evidence.
+
+Identical physical work now produces identical progression truth in every row
+layout — 8 layouts of one fixture and 13 generated repeated-row histories against
+their one-row equivalents. Histories without repeated rows drift by nothing in 7
+of 7 generated histories and in both real owner backups. XP moved only where a
+record was corrected (−80 to +70 per history), and no level or rank moved.
+Read-time only: nothing stored was renamed, merged or migrated.
+
+Deliberately still per row, and why: Session Score judges each prescribed row
+against its own prescription; the live logger's rows each carry their own shadow
+recommendation; and the offline evaluation replay (`runHistoricalReplay`, not
+user-facing) replays per logged row — shadow logic this phase was told to leave.
+Found while closing it and NOT fixed here: E20, E21 and E22 below.
+
+## E16 — The trainer's capability model still reads the latest session's box · P4 · HIGH · **HELD — intentional current policy**
 
 `computeExerciseCapability` classifies a lift from `sessions[0].bodyweight`, the
 newest session. It names no record and is not a PR surface, but it is a fifth
 answer to the same question. The trainer is 0.1.1-shadow and was protected in
 D91; a later trainer phase should read `prModeOf`.
+
+**Held, deliberately, through D96C-3 (LOOP 10.15).** Capability answers a
+different question from D91 — what the athlete can do NOW, not what kind of
+lift the history is — and D96C decided to keep them apart. D96C-3 extended the
+newest-execution rule to a workout that logs a lift in several rows without
+changing it: the workout executes as its FIRST row that says anything (a tick
+says bodyweight, a load on an unticked row says loaded), a lone row answers
+exactly as its tick always did, and only rows that agree with that execution
+(or say nothing) are its evidence, so bodyweight reps are never blended into a
+loaded session's numbers. `computeExerciseCapability` is byte-identical;
+Contract 215 kills a `prModeOf` mutant to hold it.
 
 ## E17 — Strength → All exercises still lists case variants of one lift as separate rows · P4 · **CLOSED in D96B.1 (LOOP 10.7)**
 
@@ -709,6 +756,51 @@ row per name per workout (E15(a) untouched) — and `buildProgressionRecommendat
 is byte-identical by hash, with its output identical on **39 of 39** histories.
 Seen on screen before the fix: "Best ever 320 lb", and Day Detail announcing
 "2 new records: Barbell Squat, Overhead Press" for a session that set one.
+
+## E20 — Recovery's warm-up heuristic judges a set against its own ROW's top weight · P4 · PROVEN · OPEN
+
+Found by D96C-3's reader map. For a set with no recorded type (all history before
+set types), `computeMuscleRecovery` asks `setLoadFactor` whether it was a warm-up
+by comparing its load with the top weight of the ROW it sits in. So the same
+squat sets change the recovery model when split across rows — measured on 10.15:
+135 / 225 / 315 × 5 in one row gives quads load **1.8**, the 135 in its own row
+and the rest in a second gives **2.4** (the 135 is now "the heaviest set of its
+row", so it counts as working).
+
+**Why it was not fixed in D96C-3.** Recovery was explicitly protected, and it is
+not a record, XP, or progression surface; the right unit is almost certainly the
+workout's performance of the lift (the same primitive), but that is a recovery
+change with its own drift to measure. Typed sets (anything logged since D5) are
+unaffected: a declared type always wins over the heuristic.
+
+## E21 — D49's session evidence pairs the heaviest load with reps from another set · P4 · PROVEN · OPEN
+
+Found while measuring D96C-3's mixed-mode fixtures, and PRE-EXISTING on a single
+row: `exerciseSessionHistory` reports a session's `weight` as its heaviest load
+and `topReps` as its most reps, taken independently. A row of
+`[blank × 10, blank × 10, 175 × 5]` — reps logged with no load, then a loaded
+set — reads as "175 lb × 10" and D49 recommends 180, on shipped 10.14 as on
+10.15. D96C-3 only made a later row reachable by the same rule; it reproduces
+the single-row reading exactly. The mirror of E15(b), which fixed the same
+pairing in Exercise Detail's Best ever.
+
+**Why it was not fixed in D96C-3.** D49 must not be tuned in that phase, and
+which set's reps belong with which load is a progression-evidence definition.
+
+## E22 — Duplicated physical work still counts twice · P4 · PROVEN · OPEN (a separate question, by design)
+
+D96C-3 made SPLITTING the same work across rows earn nothing extra. It
+deliberately did not detect work logged twice. On 10.15, a row of 135 × 8 and
+145 × 8 duplicated into a second identical row raises that workout from 66 XP to
+87 — workout completion +10, set XP +6 (4 working sets instead of 2) and a Volume
+PR (+5) from the doubled session volume — and counts the sets twice in D100's
+muscle volume and in Mastery's set points (still capped at 6 per lift per
+workout). Records other than volume cannot be farmed this way: duplicate sets
+never exceed a maximum.
+
+**Why it was not fixed in D96C-3.** The brief named it a non-goal: telling an
+accidental duplicate from genuinely repeated sets is a product decision (an
+athlete really can do 135 × 8 twice), not a grouping defect.
 
 ## Not findings — checked and clean
 

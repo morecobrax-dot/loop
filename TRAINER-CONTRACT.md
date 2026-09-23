@@ -14177,3 +14177,117 @@ Mastery-scoring/Session-Score/Objectives/program/recovery function this phase's 
 off-limits. D96C is paused exactly where it was: D96C-1 and D96C-2 shipped, D96C-3 unstarted, E15(a)
 open, E16 held, trainer 0.1.1-shadow. verify 10,091/0 (Contract 214: 49/49), five audits green.
 DATA_KEYS 16, schema 1, no migration, no new stored preference.
+
+## §137 — ONE EXERCISE PERFORMANCE PER WORKOUT (D96C-3 · LOOP 10.15 · loop-v192)
+
+The last actionable D96 finding, E15(a). An athlete may log one lift in more than one row of a
+workout — the ramp in one row, the heavy set added later in another, a block split around a
+different movement. Every engine that asked "what did I do for this exercise in this workout?"
+answered with the FIRST matching row and ignored the rest.
+
+**Measured on shipped 10.14 first.** 135 × 8 in row 1 and 175 × 5 in row 2 (best before: 150 × 5)
+recorded a VOLUME record off row 1 (5 XP) and never the 175 (a weight record, 15 XP); `computePRs`
+and Exercise Detail's Best ever kept 150; capability's best was 150; D49 said "only one set logged
+last time — keep 135". A row with no sets hid a real 160 × 5 logged after it. A blank first row made
+a loaded lift UNKNOWN — no mode and no records at all. And the SAME six sets split into rows
+differently moved up to 30 derived truths, lifetime XP among them. The reader map found the opposite
+defect as well: the 1RM trend, plateau detection and the program-performance trend added one point
+per ROW (a lift in two rows was two sessions), Day Detail badged each row's own best set, and
+Mastery's anti-farm cap (six sets per session) was applied per row.
+
+**One answer now (D96C-DECISION model C).** Every row of one logical lift inside ONE workout is one
+performance: `loggedExerciseKey` (trim, lower-case — no aliases, no registry merge), its rows in
+logged order, their sets in row-then-set order; a row with no sets carries nothing; nothing reaches
+across workouts. One primitive holds it — `workoutGroupsOf`, with `workoutExercisePerformances`,
+`workoutExercisePerformance` and `workoutExerciseRows` as its three readings — and 17 functions ask
+it: `computeExercisePREvents`, `computeXPTimeline`, `computePRs`, `prModesByLift`,
+`sessionPRDeclaration`, `getExerciseFullHistory`, `exerciseSessionHistory`, `getPreviousSets`,
+`compute1RMTrend`, `detectPlateau`, `perfObservations`, `sessionPRSets`, `buildMasteryIndex`,
+`renderExDetail`, `renderExerciseHistoryList`, `saveLog`'s "matched last session" and the central
+invalidation. A lone row is exactly the row it always was — the same object and sets array — which is
+why a history with no repeated rows cannot drift.
+
+**Classification, not a blanket replace.** WORKOUT PERFORMANCE readers were grouped (above). ROW
+readers stayed per row, each for a stated reason: Session Score judges every prescribed row against
+its own prescription; the live logger's rows each carry their own shadow recommendation and warm-up
+load; `runHistoricalReplay` (offline evaluation, not user-facing) replays per logged row — shadow
+logic left alone. SET-COUNT readers keep counting every set: working-set and workout XP, session and
+weekly volume, D100's selected-week and long-range muscle volume (which already read every row — the
+D100-era worry that it inherited first-row semantics is not true), recovery's set counts and the
+Objectives' best set of a date.
+
+**D91 stays historical.** Across workouts the earliest DECLARING workout still decides a lift's mode
+(`deriveExercisePRMode` byte-identical). Within a workout, the performance declares what its FIRST
+DECLARING row declares — a row that says nothing is passed over, and no later row overrules the first
+that speaks. There is no mixed mode.
+
+**E16 is HELD.** Capability still reads the newest workout's EXECUTION, never `prModeOf`
+(`computeExerciseCapability` byte-identical). A workout executes as its first row that says anything
+— a tick says bodyweight, a load on an unticked row says loaded — and a lone row answers exactly as
+its tick always did. Only rows that agree with that execution, or say nothing, are its evidence, so a
+bodyweight row's reps are never blended into a loaded session's numbers. Exercise Detail and the
+History list describe the workout, so they keep every row (`allSets`, `rows`), each chip labelled by
+its own row's tick.
+
+**Records.** One event and one PR-XP line per workout per lift, however many rows: three improving
+rows are ONE record at the workout's final state, not three. D96C-1's `loadedPRPerformance` is still
+the only loaded rule, in both walks; the bodyweight walk reads positive reps across every row, exactly
+as D96C-1 reads a session. The D96C-2 index (`canonicalPRIndex`, `getSessionPRs`, `wasSessionPR`) is
+byte-identical and simply inherits the corrected events; Day Detail's badge lands on the one set that
+holds the record (`prSetIndexFor` reused unchanged over the whole performance).
+
+**D49 and the trainer.** `buildProgressionRecommendation`, `progressionEvidence`, the trainer, its
+confidence model and D50B's `deriveNextSetCoach` are byte-identical. D49's evidence is every LOADED
+row of the lift in the workout (its own loaded-only rule, applied per row); a prescription spread over
+several rows is the lift's whole prescription (every prescribed set, the first row's effort target).
+With no repeated rows, D49 and the trainer answer exactly as before; with repeated rows they change
+only because a later row's work is now visible. Trainer 0.1.1-shadow.
+
+**Mastery.** Formulas byte-identical. The per-session set cap now belongs to the session of a lift
+(per `loggedExerciseKey`), not each row: twelve sets split six and six counted twelve against a cap of
+six. Two differently named rows keep their own caps, exactly as before. Record counts move only where
+a record was corrected.
+
+**Proof.** Layout invariance: one fixture's six sets in eight layouts (1, 2, 3 and 6 rows, four
+partitions, and case/whitespace spellings) are IDENTICAL across 21 families of truth — canonical
+events by identity, PR XP, lifetime XP/level/rank, session marks, `computePRs`, Exercise Detail,
+trend, PBT, Mastery, D44, Session Score, legacy quality, capability, D49, the trainer, working sets,
+volume, D100 week and ALL, Friends. Thirteen generated repeated-row histories equal their merged
+one-row equivalents on 10.15 (13/13; on 10.14 layout moved truth in 13/13). Seven generated histories
+without repeated rows — including a 300-workout two-year athlete — drift by nothing, and both real
+owner backups drift by nothing in any truth (hashes verified before and after, read-only). No level
+or rank moved in any history; XP moved only where a record was corrected.
+
+**Cost.** Grouping is done once per workout and shared: a WeakMap keyed by the workout object,
+checked on every read against the rows, names and sets it describes (so an in-place change is
+regrouped, never answered stale) and cleared with the log's other derived caches. Measured before it
+existed, re-grouping was 12% of a cold Exercise Detail on an ordinary two-year history. Cold screens
+on ordinary histories are now +2 to +9% over 10.14 (at most about 2 ms on two years); a history with
+every set in its own row is +27 to +60%, most of it the sets 10.14 never read.
+
+**Tests.** Contract 215 (**80 checks**). Against shipped 10.14 the first 77 fail 39 times and throw in
+two blocks. The deliberate "E15(a) still open" assertions in Contracts 206, 207, 211 and
+212 are inverted on their own fixtures, and every moved pin is restated in place with its reason:
+`computeXPTimeline`, `computeExercisePREvents`, `computePRs`, `prModesByLift`, `compute1RMTrend`,
+`perfObservations`. **Mutation: 34 of 34 killed** — the brief's 27 plus seven of this phase's own.
+One survived the first run and was a real gap: "Last time" reading only the previous workout's first
+row passed the whole suite, because every fixture's NEWEST workout held the lift in one row; three
+checks now hold it ("Last time", D64's starting state, the legacy score). One is killed structurally
+on purpose: dropping the grouping from the central invalidation changes no answer, because every
+read is verified; it would only hold memory longer.
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844 and 430×932 on one real
+repeated-row history — Strength, Personal Best Timeline, Records, Volume's selected week, Mastery,
+Exercise Detail, Log / Day Detail and Profile XP: **105/105**, no overflow, no console errors. The same
+rig on shipped 10.14 lists Bench Press with 9 sessions for 5 workouts, shows Best ever 170 when 175
+was lifted, and records a volume PR where the weight record was.
+
+**Found, recorded, not fixed** (FINDINGS-D88.md): **E20** recovery's warm-up heuristic judges an
+untyped set against its own ROW's top weight (recovery protected); **E21** D49's session evidence
+pairs the heaviest load with reps from another set (pre-existing on one row; D49 not to be tuned);
+**E22** duplicated physical work still counts twice (the brief's explicit non-goal).
+
+**Status.** E11, E12, E13, E14, E15(a), E15(b), E17, E18, E19 CLOSED; E16 HELD as intentional
+current policy. D96's actionable correctness sequence is complete. Read-time only: no history
+rewritten, no migration, DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. verify 10,171/0, five audits
+green, all three What's New lines proven false on 10.14 and true on 10.15.
