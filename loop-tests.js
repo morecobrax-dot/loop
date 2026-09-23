@@ -31682,19 +31682,29 @@ async function testMasteryPodium(){
   });
 
   /* ---------------------------------------------------------------- */
-  /* D94A — the stage order (1st in the middle) is gone: the leaders read in rank
-     order, left to right, as the eye reads a list, at one shared scale. */
-  sub('leaders read in rank order, left to right, at one restrained size');
+  /* D94A read the leaders left to right at one shared scale, on purpose, and
+     this suite asserted that. D101 reverses that call deliberately: the top
+     three become a real podium, 2nd/1st/3rd, because that is what a podium
+     reads as before a number is even noticed. DOM order stays rank order —
+     1st, 2nd, 3rd — so reading order, tab order and the screen-reader list
+     are exactly what they were; only the CSS `order` that places them on
+     screen is new. */
+  sub('leaders read in rank order in the DOM; the podium is what the eye sees');
   await guard('geometry and scale', () => {
-    T('no card is reordered by CSS — 1st is simply first, then 2nd, then 3rd',
-      !/\.mpod-p\d\{[^}]*order:/.test(css) && !/\.mmc-p\d\{[^}]*order:/.test(css));
+    T('1st sits centre, 2nd left, 3rd right — visual order only, the DOM stays rank order',
+      /\.mpod-p1, \.mmc-p1\{ order: 2; \}/.test(css) && /\.mpod-p2, \.mmc-p2\{ order: 1; \}/.test(css)
+      && /\.mpod-p3, \.mmc-p3\{ order: 3; \}/.test(css)
+      && (() => { const html = ctx.masteryPodiumHtml([1, 2, 3].map(place =>
+        ({ displayName:'x'+place, loggedName:'x'+place, level:1, percent:0, isMax:false, sessions:1 })));
+        return html.indexOf('mpod-p1') < html.indexOf('mpod-p2') && html.indexOf('mpod-p2') < html.indexOf('mpod-p3'); })());
     T('three equal columns, in one grid shared by exercise and muscle leaders',
       /\.mpod, \.mmc\{ display: grid; grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/.test(css));
-    T('every card carries the same badge size — 1st is not enlarged',
-      /\.mbadge\{[^}]*width: clamp\(54px, 19vw, 72px\)/.test(css) && !/mpod-p1[^{]*\.(mbadge|mpod-medal)/.test(css));
+    T('1st carries a modestly larger badge — the one place a card’s OWN size differs',
+      /\.mbadge\{[^}]*width: clamp\(54px, 19vw, 72px\)/.test(css)
+      && /\.mpod-p1 \.mbadge, \.mmc-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css));
     const sizes = [1, 2, 3].map(l => parseInt(/width="(\d+)"/.exec(ctx.masteryBadgeHtml(l, 72))[1], 10));
-    T('the badge size the app requests stays inside the 48–72px range, the same for all', sizes.every(s => s === 72) &&
-      /masteryBadgeHtml\(o\.level, 72\)/.test(fnSrc(src, 'masteryLeaderCardHtml')));
+    T('the badge size the app REQUESTS is still one value for every level — the CSS override is what enlarges 1st, not the markup',
+      sizes.every(s => s === 72) && /masteryBadgeHtml\(o\.level, 72\)/.test(fnSrc(src, 'masteryLeaderCardHtml')));
   });
 
   sub('podium edge cases: zero, one, two, three or more');
@@ -35293,8 +35303,28 @@ async function testMasteryView(){
       !/mastery-(badge|icon)/.test(fs.readFileSync(dir + 'sw.js', 'utf8')));
     T('no per-tier CSS art: the badges are never drawn, filtered or recoloured', !/mbt\d[^{]*\{[^}]*(filter|hue-rotate|background)/.test(css) &&
       !/filter|mix-blend|hue-rotate/.test(rule('.mpod-medal') + rule('.mbadge') + rule('.mst-ico')));
-    T('1st is not enlarged: no rule sizes a card, badge or pill by place — the place colour is the only difference',
-      !/\.(mpod|mmc)-p\d[^{]*\.(mbadge|mpod-medal|mpod-card|mmc-card|mastery-lvl-chip|mcb)/.test(css) && !/\.(mpod|mmc)-p\d\{[^}]*(width|height|padding|font-size|transform)/.test(css));
+    /* D101 restated (see the geometry sub earlier in this file): 1st IS
+       deliberately enlarged now, by exactly one rule, and nothing else about a
+       card's shape moves by place — the level pill, the progress bar and the
+       card's own width and padding are untouched for all three; only the
+       badge (1st only) and the pedestal step beneath the card (all three, by
+       design) differ. The border/box-shadow rules use a COMPOUND selector
+       (.mpod-card.mpod-p1, not .mpod-p1 alone) on purpose: a later, general
+       "quiet embedded border" rule targets .mpod-card/.mmc-card at the same
+       specificity, so a same-specificity override would lose to source order
+       — this is asserted directly rather than by a broad selector-text scan,
+       which a legitimate compound selector would otherwise trip. */
+    T('exactly one rule enlarges anything by place — the 1st-place badge — and nothing else does',
+      /\.mpod-p1 \.mbadge, \.mmc-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css)
+      && !/\.(mpod|mmc)-p\d[^{]*\.(mpod-medal|mastery-lvl-chip|mcb)/.test(css)
+      && !/\.(mpod|mmc)-card\.(mpod|mmc)-p\d\{[^}]*(width|padding|font-size|transform):/.test(css)
+      && !/\.(mpod|mmc)-p\d\{[^}]*(width|padding|font-size|transform):/.test(css));
+    T('the border/shadow-by-place rules touch ONLY border-color and box-shadow, never size',
+      ['1', '2', '3'].every(n =>
+        new RegExp('\\.mpod-card\\.mpod-p' + n + ', \\.mmc-card\\.mmc-p' + n + '\\{ border-color: rgba\\([\\d, .]+\\); box-shadow: inset 0 0 0 1px rgba\\([\\d, .]+\\); \\}').test(css)));
+    T('the podium step is decorative pedestal height only, not a resize of the card itself',
+      /\.mpod-p1 \.mpod-step\{ height: 20px;/.test(css) && /\.mpod-p2 \.mpod-step\{ height: 13px;/.test(css)
+      && /\.mpod-p3 \.mpod-step\{ height: 9px;/.test(css) && /<span class="mpod-step" aria-hidden="true"><\/span>/.test(src));
     T('the leader cards, the toggle segments and both lists’ "View all" all meet the 44px floor', ['.mpod-card, .mmc-card', '.mst-seg', '.mastery-more'].every(sel => /min-height: 44px/.test(rule(sel))));
     T('the narrowest-phone overrides come after the rules they override, or they would never apply',
       css.indexOf('.mpod-card, .mmc-card{ padding-left: 3px') > css.indexOf('.mpod-card, .mmc-card{\n') && css.indexOf('.mst-card{ padding-left: 10px') > css.indexOf('.mst-card{\n'));
@@ -40889,6 +40919,280 @@ async function testRealUseD100(){
   });
 }
 
+/* =========================================================
+   CONTRACT 214 — DIRECTION AT A GLANCE, A REAL PREVIEW, A REAL PODIUM  (D101)
+   ---------------------------------------------------------
+   A fast, surgical UX pass on real physical-device feedback. Three surfaces,
+   each already close, each finished the way the owner asked.
+
+   THIS WEEK SO FAR. Four comparison cells stated a delta in words already; the
+   colour is a second channel on top of the sign that was already there, never
+   the only one. Direction is arithmetic, never a verdict — up/down/same, not
+   good/bad — because more volume is not "better" than less: a deload or a
+   recovery week can deliberately mean less. One renderer builds all four cells,
+   so the colour can never be hardcoded per cell and drift out of step.
+
+   TODAY'S WORKOUT. A "View workout" action reuses the Train tab's own preview
+   overlay — openTrainDetail / renderTrainDetail, unchanged in shape — rather
+   than a second implementation. Auditing it first found a real gap: a custom
+   program session (no plan template behind it) has an id getTemplates(cat)
+   never contains, which startTemplateLog already works around by asking the
+   program for today's own session. openTrainDetail gained the identical
+   fallback, so View Workout can never silently do nothing for a session Start
+   Workout can already train. Change time and Change workout keep their exact
+   existing toggle behaviour; only their layout changed.
+
+   MASTERY. The top three become a real podium — 2nd/1st/3rd, 1st centred and
+   taller — entirely through the ONE card component both Exercise and Muscle
+   mastery already shared. DOM order stays rank order (1st, 2nd, 3rd); only the
+   CSS `order` that places them on screen is new, so reading order, tab order
+   and the screen-reader list are exactly what they were. The metal border
+   reuses the EXACT gold/silver/bronze already assigned to the place label —
+   one palette, not a second one invented for this phase.
+   ========================================================= */
+async function testFastUxD101(){
+  section('CONTRACT 214 — direction at a glance, a real preview, a real podium (D101)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = (src.match(/<style>([\s\S]*?)<\/style>/) || ['', ''])[1];
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const E = (n, sets, bw) => ({ name: n, bodyweight: !!bw, sets });
+  const W = (id, date, exs, cat) => ({ id, date, category: cat || 'push', title: 'x', notes: '', exercises: exs });
+  const D = n => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - n); return ctx.localDateStr(d); };
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache(); ctx.invalidateConsistencyCache(); };
+
+  /* ---------------------------------------------------------------- */
+  sub('the week comparison signals direction, never a verdict');
+  await guard('week signals', async () => {
+    T('one renderer builds all four cells — the colour can never be hardcoded per cell',
+      (fnSrc(src, 'renderProgVolume').match(/const cell = \(k, nowV, prevV, fmt\) =>/g) || []).length === 1
+      && (fnSrc(src, 'renderProgVolume').match(/\${cell\(/g) || []).length === 4);
+    T('direction is the sign of the delta, named up/down/same — never good/bad/better/worse',
+      /const dir = d > 0 \? 'up' : d < 0 \? 'down' : 'same';/.test(fnSrc(src, 'renderProgVolume'))
+      && !/better|worse|good|bad/i.test(fnSrc(src, 'renderProgVolume')));
+    T('an equal delta renders no colour span at all — neutral means absent, not a third colour',
+      /const delta = d === 0 \? ''/.test(fnSrc(src, 'renderProgVolume')));
+    T('the sign is still text, with or without colour — a screen reader hears + or ' + String.fromCharCode(0x2212) + ' either way',
+      /\${d > 0 \? '\+' : '−'}/.test(fnSrc(src, 'renderProgVolume')));
+    T('up is success, down is warning — LOOP’s own existing tokens, no new palette',
+      /\.vw-d-up\{ color: var\(--success\); \}/.test(css) && /\.vw-d-down\{ color: var\(--warning\); \}/.test(css));
+    T('the primary number (.vw-v) carries no direction rule of its own',
+      !/\.vw-v\{[^}]*(--success|--warning)/.test(css));
+
+    /* behaviourally, on real numbers */
+    seed([W('lw1', D(9), [E('Bench Press', [S(100, 8)])]),
+          W('tw1', D(2), [E('Bench Press', [S(100, 8), S(100, 8)])])]);
+    ctx.switchTab('progress'); ctx.switchProgTab('volume'); await H.settle(60);
+    const html = doc.getElementById('progVolCompare').innerHTML;
+    const volCell = html.slice(html.indexOf('Volume'), html.indexOf('Sets'));
+    T('a real positive delta renders the up class and the + sign', /vw-d vw-d-up/.test(volCell) && /\+800/.test(volCell), volCell.slice(0, 200));
+    seed([W('lw2', D(9), [E('Bench Press', [S(100, 8), S(100, 8), S(100, 8)])]),
+          W('tw2', D(2), [E('Bench Press', [S(100, 8)])])]);
+    ctx.renderProgTab(); await H.settle(60);
+    const html2 = doc.getElementById('progVolCompare').innerHTML;
+    const setsCell = html2.slice(html2.indexOf('Sets'), html2.indexOf('Records'));
+    T('a real negative delta renders the down class and a true minus sign', /vw-d vw-d-down/.test(setsCell) && /−2/.test(setsCell), setsCell.slice(0, 200));
+    seed([W('lw3', D(9), [E('Bench Press', [S(100, 8)])]),
+          W('tw3', D(2), [E('Bench Press', [S(100, 8)])])]);
+    ctx.renderProgTab(); await H.settle(60);
+    const html3 = doc.getElementById('progVolCompare').innerHTML;
+    const wkCell3 = html3.slice(html3.indexOf('Workouts'), html3.indexOf('Volume'));
+    T('an equal delta renders no vw-d span at all', !/vw-d/.test(wkCell3), wkCell3.slice(0, 160));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Today: a real preview, reusing the real surface');
+  await guard('today actions', async () => {
+    T('View workout, Change time and Change workout sit in one control group',
+      /<div class="tw-actions">/.test(fnSrc(src, 'renderTodayWorkout')));
+    T('Start Workout is still built first and stays outside that group — the dominant action',
+      fnSrc(src, 'renderTodayWorkout').indexOf('\${cta}') < fnSrc(src, 'renderTodayWorkout').indexOf('tw-actions'));
+    T('View workout calls the SAME openTrainDetail the Train tab already uses — no second implementation',
+      /onclick="openTrainDetail\('\${cat}','\${first\.id}'\)"/.test(fnSrc(src, 'renderTodayWorkout'))
+      && /function openTrainDetail\(/.test(src));
+    T('Change time and Change workout still call the exact functions they always called',
+      /onclick="toggleTimePicker\(\)"/.test(fnSrc(src, 'renderTodayWorkout'))
+      && /onclick="toggleTodayPicker\(\)"/.test(fnSrc(src, 'renderTodayWorkout')));
+    T('every action still meets the 44px floor — the shared .tw-change rule, not a new one',
+      /\.tw-change\{ min-height: 44px/.test(css));
+    T('full labels and a compact pair exist, and the compact one is hidden until the width that genuinely needs it',
+      /function twActionLabel\(full, compact\)/.test(src) && /\.tw-action-compact\{ display: none; \}/.test(css)
+      && /@media \(max-width: 419px\)\{\s*\.tw-action-full\{ display: none; \}\s*\.tw-action-compact\{ display: inline; \}\s*\}/.test(css));
+    T('display:none removes the hidden label from the accessibility tree too — never both read at once',
+      !/aria-hidden/.test(fnSrc(src, 'twActionLabel')));
+
+    /* the architecture gap this phase closed: a custom program session */
+    T('openTrainDetail resolves a program-day CUSTOM session (no plan template) the same way startTemplateLog already does',
+      /function trainDetailTemplateOf\(cat, id\)/.test(src)
+      && /const fromList = \(getTemplates\(cat\) \|\| \[\]\)\.find\(x => x && x\.id === id\);/.test(fnSrc(src, 'trainDetailTemplateOf'))
+      && /trainTodayProgram\(\)/.test(fnSrc(src, 'trainDetailTemplateOf'))
+      && /trainDetailTemplateOf\(cat, id\)/.test(fnSrc(src, 'openTrainDetail'))
+      && /trainDetailTemplateOf\(key\.cat, key\.id\)/.test(fnSrc(src, 'renderTrainDetail')));
+
+    /* behaviourally: a real program day, a real custom session */
+    const prog = (over) => ({ version: 1, activeProgramId: 'p1', programs: [Object.assign({
+      id: 'p1', name: 'x', planId: 'balanced', status: 'active', startDate: D(60), goal: 'hypertrophy', durationWeeks: 52,
+      schedule: { mon:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
+        tue:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
+        wed:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
+        thu:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
+        fri:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
+        sat:{type:'rest'}, sun:{type:'rest'} } }, over || {})] });
+    ctx.programsStore = Object.assign(ctx.defaultProgramsStore(), prog());
+    ctx.invalidateProgramCache();
+    ctx.switchTab('today'); ctx.renderTodayWorkout();
+    const twHtml = doc.getElementById('todayWorkout').innerHTML;
+    T('the planned card renders View workout, Change time and Change workout',
+      /openTrainDetail\('push','[^']+'\)/.test(twHtml) && /toggleTimePicker\(\)/.test(twHtml) && /toggleTodayPicker\(\)/.test(twHtml));
+    const m = twHtml.match(/openTrainDetail\('([^']+)','([^']+)'\)/);
+    const realId = m && m[2];
+    const before = ctx.hasActiveDraftNow;
+    ctx.openTrainDetail(m[1], realId);
+    T('View Workout opens the preview overlay for the REAL planned session, and does not start it',
+      doc.getElementById('trainDetailOverlay').classList.contains('open') === true
+      && /tpl-ex-row/.test(doc.getElementById('trainDetailBody').innerHTML)
+      && ctx.hasActiveDraftNow === before);
+    ctx.closeTrainDetail();
+
+    /* a custom program session: the id is NOT in getTemplates(cat) */
+    const customSchedule = {};
+    ['mon','tue','wed','thu','fri'].forEach(k => customSchedule[k] =
+      { type: 'workout', planId: null, category: 'push', exercises: [{ name: 'Cable Crossover', sets: 3, reps: '10-12' }] });
+    ctx.programsStore = Object.assign(ctx.defaultProgramsStore(), prog({ schedule: Object.assign({}, customSchedule, { sat:{type:'rest'}, sun:{type:'rest'} }) }));
+    ctx.invalidateProgramCache();
+    ctx.renderTodayWorkout();
+    const custHtml = doc.getElementById('todayWorkout').innerHTML;
+    const cm = custHtml.match(/openTrainDetail\('([^']+)','([^']+)'\)/);
+    T('the custom session’s id is genuinely absent from getTemplates — this is the real gap, not a hypothetical one',
+      cm && !(ctx.getTemplates('push') || []).some(t => t.id === cm[2]), cm && cm[2]);
+    if(cm){
+      ctx.openTrainDetail(cm[1], cm[2]);
+      T('and View Workout still opens it, with the session the athlete will actually train',
+        doc.getElementById('trainDetailOverlay').classList.contains('open') === true
+        && /Cable Crossover/.test(doc.getElementById('trainDetailBody').innerHTML));
+      ctx.closeTrainDetail();
+    }
+    T('starting still works for the same custom session — View Workout did not have to change what Start trains',
+      /const prog = getProgramWorkoutForDate\(localDateStr\(\)\);/.test(fnSrc(src, 'startTemplateLog'))
+      && /if\(prog && prog\.template && prog\.category === cat && prog\.template\.id === tplId\)/.test(fnSrc(src, 'startTemplateLog')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Mastery: a real podium, one component, rank untouched');
+  await guard('podium', async () => {
+    T('1st sits visually centred: order 2/1/3 on the place classes, DOM order left exactly as rank order',
+      /\.mpod-p1, \.mmc-p1\{ order: 2; \}/.test(css) && /\.mpod-p2, \.mmc-p2\{ order: 1; \}/.test(css)
+      && /\.mpod-p3, \.mmc-p3\{ order: 3; \}/.test(css));
+    T('and the DOM itself is still built 1st, 2nd, 3rd in that order — order is presentation only',
+      (() => { const html = ctx.masteryPodiumHtml([1,2,3].map(place =>
+        ({ displayName:'x'+place, loggedName:'x'+place, level:1, percent:0, isMax:false, sessions:1 })));
+        return html.indexOf('mpod-p1') < html.indexOf('mpod-p2') && html.indexOf('mpod-p2') < html.indexOf('mpod-p3'); })());
+    T('a pedestal step carries the height hierarchy — 20 / 13 / 9px — not a resize of the card',
+      /\.mpod-p1 \.mpod-step\{ height: 20px;/.test(css) && /\.mpod-p2 \.mpod-step\{ height: 13px;/.test(css)
+      && /\.mpod-p3 \.mpod-step\{ height: 9px;/.test(css));
+    T('the grid bottom-aligns its items, so a shorter pedestal sits lower — the podium silhouette',
+      /\.mpod, \.mmc\{ align-items: end; \}/.test(css));
+    T('the metal border reuses the EXACT gold/silver/bronze already on the place label, not a new palette',
+      /\.mpod-p1 \.mpod-place, \.mmc-p1 \.mpod-place\{ color: #E0B45C; \}/.test(css) && /rgba\(224,180,92,0\.5\)/.test(css)
+      && /\.mpod-p2 \.mpod-place, \.mmc-p2 \.mpod-place\{ color: #9FA9D6; \}/.test(css) && /rgba\(159,169,214,0\.4\)/.test(css)
+      && /\.mpod-p3 \.mpod-place, \.mmc-p3 \.mpod-place\{ color: #C4906A; \}/.test(css) && /rgba\(196,144,106,0\.4\)/.test(css));
+    T('the border rule uses a compound selector so it beats the later, general "quiet embedded border" rule on specificity, not source order',
+      /\.mpod-card\.mpod-p1, \.mmc-card\.mmc-p1\{ border-color:/.test(css));
+    T('no glow, no shimmer, no gradient sweep was added — restrained: a tinted border and a faint inset highlight only',
+      !/mpod-p\d[^{]*(animation|@keyframes|drop-shadow)/.test(css));
+    T('1st carries a modestly larger badge, and it is the only size difference by place',
+      /\.mpod-p1 \.mbadge, \.mmc-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css));
+    T('long names still reserve two lines of fixed height — the SAME rule from before this phase, untouched',
+      /\.mpod-name\{[^}]*-webkit-line-clamp: 2;[^}]*min-height: 2\.5em;/.test(css.replace(/\n\s*/g, ' ')));
+    T('one component builds every card: Exercise Mastery and Muscle Mastery both call masteryLeaderCardHtml',
+      /return masteryLeaderCardHtml\(/.test(fnSrc(src, 'masteryPodiumCardHtml'))
+      && /return masteryLeaderCardHtml\(/.test(fnSrc(src, 'masteryMuscleCardHtml')));
+    T('the pedestal is drawn once, in that one shared component, not duplicated per mode',
+      (fnSrc(src, 'masteryLeaderCardHtml').match(/mpod-step/g) || []).length === 1);
+
+    /* edge cases: 0 / 1 / 2 / 3+ results, the exact property this session must
+       not move */
+    const mkHist = (n, kinds) => { const l = []; for(let i = 0; i < n; i++)
+      l.push(W('h'+i, D(i*3+1), kinds.map(k => E(k, [S(100,8)])))); return l; };
+    seed([]);
+    ctx.switchTab('progress'); ctx.switchProgTab('muscles'); await H.settle(60);
+    T('zero results: the empty state, never a bare podium container', (() => {
+      const html = doc.getElementById('progMuscles').innerHTML;
+      return /mpod-empty/.test(html) && !/class="mpod mpod-n/.test(html);
+    })());
+    seed(mkHist(6, ['Bench Press']));
+    ctx.renderProgTab(); await H.settle(60);
+    T('one result: a single centred card, no empty 2nd/3rd slot rendered', (() => {
+      const html = doc.getElementById('progMuscles').innerHTML;
+      return /mpod mpod-n1/.test(html) && !/mpod-p2/.test(html) && !/mpod-p3/.test(html);
+    })());
+    seed(mkHist(6, ['Bench Press', 'Lateral Raise']));
+    ctx.renderProgTab(); await H.settle(60);
+    T('two results: 1st and 2nd only, no fabricated bronze', (() => {
+      const html = doc.getElementById('progMuscles').innerHTML;
+      return /mpod mpod-n2/.test(html) && /mpod-p1/.test(html) && /mpod-p2/.test(html) && !/mpod-p3/.test(html);
+    })());
+    seed(mkHist(8, ['Bench Press', 'Lateral Raise', 'Pec Deck', 'Dip']));
+    ctx.renderProgTab(); await H.settle(60);
+    T('four or more real results still cap the podium at three, unchanged by this phase', (() => {
+      const html = doc.getElementById('progMuscles').innerHTML;
+      return /mpod mpod-n3/.test(html) && (html.match(/mpod-card/g) || []).length === 3;
+    })());
+    T('the podium is still exactly getMasteryProgress().podium, in the same order — no second sort introduced',
+      (() => { const ranked = ctx.getTopExerciseMastery(); const podium = ctx.getMasteryProgress().podium;
+        return podium.every((m, i) => m.exerciseId === ranked[i].exerciseId && m.points === ranked[i].points)
+          && !/\.sort\(/.test(fnSrc(src, 'getMasteryProgress')); })());
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('performance: no new full-history work for a colour, a preview or a border');
+  await guard('cost', async () => {
+    const l = []; for(let i = 0; i < 60; i++)
+      l.push(W('p'+i, D(i*3+1), [E('Bench Press', [S(100+i,8)]), E('Lat Pulldown', [S(90+i,10)])]));
+    seed(l);
+    let calls = 0;
+    const real = ctx.computeWeeklyVolume;
+    ctx.computeWeeklyVolume = function(){ calls++; return real.apply(this, arguments); };
+    try{ ctx.switchTab('progress'); ctx.switchProgTab('volume'); ctx.renderProgTab(); }
+    finally { ctx.computeWeeklyVolume = real; }
+    T('the comparison cells and the chart share the SAME weekly-volume pass, not a second one for the colour',
+      calls <= 2, 'calls ' + calls);
+    T('the podium reuses the already-computed top three — no extra ranking pass in the card component',
+      !/getTopExerciseMastery\(\)|getTopMuscleMastery\(\)/.test(fnSrc(src, 'masteryLeaderCardHtml') + fnSrc(src, 'masteryPodiumCardHtml') + fnSrc(src, 'masteryMuscleCardHtml')));
+    const t0 = Date.now(); ctx.switchTab('today'); ctx.renderTodayWorkout(); const dt = Date.now() - t0;
+    T('rendering Today with the new action row stays well under a second', dt < 1000, dt + 'ms');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('what this phase must not have moved');
+  await guard('protected', async () => {
+    T('D96C-1 and D96C-2 are untouched: the canonical index and the loaded-performance rule are intact',
+      /function canonicalPRIndex/.test(src) && /function loadedPRPerformance/.test(src));
+    T('D100 is untouched: This Week still comes before Objectives in the Today view',
+      (() => { const view = src.slice(src.indexOf('<div class="view active" id="view-today"'), src.indexOf('<div class="view" id="view-train"'));
+        return view.indexOf('id="weekCard"') < view.indexOf('id="todayObjectives"'); })());
+    T('D100 is untouched: the weekly chart is still selectable and Muscle Volume is still on Volume, not Mastery',
+      /function selectVolWeek\(key\)/.test(src) && /function renderVolMuscleHistory\(\)/.test(src)
+      && !/Muscle volume<span class="sec-hint">sets/.test(fnSrc(src, 'renderProgMuscles')));
+    T('D100 is untouched: Rank still fills the sheet and the stage still owns its own gestures',
+      /#rankOverlay \.sheet\.sheet-page,/.test(css) && /touch-action: none;/.test(cssRule(css, '.rank-trackwrap{')));
+    T('Mastery calculation and weighting are byte-identical to before this phase (only presentation moved)',
+      pin('getMasteryProgress') === '77aca2558d11f3d5');
+    T('XP, PR and Session Score engines are untouched', pin('computeXPTimeline') === '7a46d4dab3c42d30'
+      && pin('sessionScore') === '842e5699f8ac0835' && pin('computeConsistencyData') === '4f03435af47cfdb9');
+    T('D43/D44/D49/D50B, trainer and Objectives are untouched',
+      ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && /function syncObjectives/.test(src));
+    T('DATA_KEYS 16, schema 1, no migration, no new stored preference',
+      ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0
+      && !ctx.DATA_KEYS.some(k => /volweek|podium|action/i.test(k)));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -41063,6 +41367,7 @@ async function main(){
   await testCanonicalPRXPD96C1();
   await testCanonicalSessionPRD96C2();
   await testRealUseD100();
+  await testFastUxD101();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

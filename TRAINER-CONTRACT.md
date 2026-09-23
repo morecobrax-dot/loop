@@ -14062,3 +14062,118 @@ and the rest of D24's muscle table. TWO pins moved, restated in place with their
 and `rankArrive` (one expression). D96C is paused exactly where it was: D96C-1 and D96C-2 shipped,
 D96C-3 unstarted, E15(a) open, E16 held, trainer 0.1.1-shadow. verify 10,040/0, five audits green.
 DATA_KEYS 16, schema 1, no migration, no new stored preference.
+
+## §136 — A WEEK YOU CAN READ AT A GLANCE (D101 · LOOP 10.14 · loop-v191)
+
+A fast, surgical UX pass from real physical-device feedback, over three surfaces. No training,
+progression, PR, XP, Rank, Mastery-scoring, Session Score, Objectives, program or recovery
+calculation changed — every one of them is hash-pinned unmoved below.
+
+**WEEK COMPARISON: direction, not a verdict.** "This Week So Far" already computed a signed delta
+per cell; the brief was to make direction legible at a glance without ever writing a judgement.
+`renderProgVolume`'s `cell(k, nowV, prevV, fmt)` is the ONE renderer for all four cells — colour can
+never be hardcoded per cell, because there is no second place a colour is set. It derives
+`dir = d > 0 ? 'up' : d < 0 ? 'down' : 'same'`: a direction word, never `better`/`worse`/`good`/`bad`.
+An equal delta (`d === 0`) renders no `.vw-d` span at all — neutral is the ABSENCE of a colour, not a
+third colour competing with the other two. The existing `+`/`−` sign is untouched and still renders
+inside the span, so colour is never the only signal (`.vw-d-up{ color: var(--success); }`,
+`.vw-d-down{ color: var(--warning); }` — LOOP's own existing tokens, no new palette introduced). The
+primary number, `.vw-v`, carries no direction rule of its own; only the delta half of the sentence
+is coloured. Proven behaviourally, not just by source pattern: a real positive delta renders
+`vw-d-up` and `+800`, a real negative delta renders `vw-d-down` and a true minus sign (U+2212, the
+same character a screen reader distinguishes from a hyphen) and `−2`, and a real equal delta renders
+no `.vw-d` span in that cell at all.
+
+**TODAY: a real preview, reusing the real surface.** Start Workout is still built first and stays
+the dominant, unboxed primary action; `View workout`, `Change time` and `Change workout` now sit
+together in one `.tw-actions` control group below it — one border, one radius, equal segments, a
+hairline divider between them, not three stray links. `View workout` calls `openTrainDetail(cat,
+first.id)` — the SAME detail surface `trainRowHtml`'s existing "Details" affordance already opens for
+every other workout row in the app, not a second implementation. Its own audit found a real gap
+before writing anything: a program day composed inline (`entry.exercises`, no plan template behind
+it) resolves to an id absent from `getTemplates(cat)`, so `openTrainDetail` would silently do nothing
+for exactly the session `startTemplateLog` can already start. Fixed by mirroring
+`startTemplateLog`'s own existing today-program fallback into one shared `trainDetailTemplateOf(cat,
+id)`, called from both `openTrainDetail` and `renderTrainDetail` — reuse, not a parallel lookup.
+`Change time` and `Change workout` keep their exact prior `onclick`s (`toggleTimePicker`,
+`toggleTodayPicker`); nothing about their behaviour moved, only where they sit visually.
+
+At 320-414px — the exact widths most iPhones actually are — three full labels in one row do not fit
+without an ugly wrap or an ellipsis. Measured, not assumed: `Change workout` (the longest of the
+three) needs roughly 104px, and the three-way split only clears that above ~420px. `twActionLabel(full,
+compact)` renders BOTH a `.tw-action-full` and a `.tw-action-compact` span for every action; a single
+`@media (max-width: 419px)` rule swaps which one is visible, so the same markup serves both sizes with
+no layout shift and no JS branch. A first pass guessed the breakpoint at 359px and shipped a visible
+ellipsis on real iPhone widths (320-414px) in a screenshot review — caught before it shipped, the
+breakpoint corrected to the measured 419px.
+
+**MASTERY: a real podium, one component, rank untouched.** `getMasteryProgress().podium` and
+`getTopExerciseMastery()` are completely unmoved — no second sort was introduced anywhere in this
+phase, proven both by source (no new `.sort(` in `getMasteryProgress`) and behaviourally (the
+rendered podium is still exactly that ranking, in that order). Only PRESENTATION order changed:
+`.mpod-p1, .mmc-p1{ order: 2; }` / `.mpod-p2{ order: 1; }` / `.mpod-p3{ order: 3; }` puts 1st visually
+centred while the DOM is still built 1st, 2nd, 3rd — proven by `masteryPodiumHtml`'s own card order,
+independent of the CSS. A pedestal (`.mpod-step`) carries a real but restrained height hierarchy —
+20px / 13px / 9px, not a resize of the card itself — under `align-items: end` so the grid's own bottom
+alignment draws the podium silhouette. The medal treatment reuses the EXACT gold/silver/bronze already
+on the place label (`#E0B45C` / `#9FA9D6` / `#C4906A`) as a 1px tinted border plus a faint inset
+highlight — no glow, no shimmer, no animation, no gradient sweep. The border rule is a COMPOUND
+selector (`.mpod-card.mpod-p1, .mmc-card.mmc-p1{ border-color: ...; }`), not `.mpod-p1` alone: a
+later, equal-specificity general rule already set `border-color` on every card, and a lower-specificity
+place rule silently lost to source order — raising specificity, not reordering the stylesheet, is what
+makes the place colour actually win. The mastery PNGs themselves are untouched; 1st carries a modestly
+larger badge (`clamp(58px, 20.5vw, 78px)`) and that is the only size difference by place. `mpod-name`
+keeps its pre-existing two-line-clamp, fixed-height rule exactly as it was, so a long exercise name
+("Machine Chest Press") still reserves predictable title space rather than reflowing the podium.
+`masteryLeaderCardHtml` is confirmed the ONE shared card component both `masteryPodiumCardHtml`
+(Exercise Mastery) and `masteryMuscleCardHtml` (Muscle Mastery) already called before this phase —
+the "one system" requirement was already true architecturally; the pedestal is drawn once, inside it,
+never duplicated per mode. Zero results still render the pre-existing empty state, never a bare podium
+container. One and two real results render exactly that many cards — no fabricated second or third
+slot — and four or more still cap at exactly three, unchanged from before this phase.
+
+**Tests.** Contract 214 (**49 checks**): one renderer for all four comparison cells; direction naming
+and the absence of judgement words; the neutral-is-absent rule; the sign renders with or without
+colour; the up/down token colours; the primary number's non-involvement; behavioural positive,
+negative and equal deltas on real seeded history; the `.tw-actions` group and Start Workout's
+continued primacy; `View workout`'s real-detail-surface call, proven against both a plan template and
+a program-composed custom session with no template behind it; `Change time`/`Change workout`
+untouched; the 320-419px compact-label swap; podium presentation order vs DOM build order; the
+pedestal height hierarchy and bottom alignment; the metal border's exact palette and its
+compound-selector specificity fix; no glow/shimmer/animation; the enlarged 1st badge; the long-name
+line-clamp; one shared card component for both Mastery modes; the pedestal drawn once; and the
+zero/one/two/three-or-more result counts, each proven against `progMuscles`'s actual rendered markup.
+
+Two categories of defect were caught by real evidence rather than by the regex checks alone. The
+320-419px ellipsis was visible in an actual rendered screenshot at common phone widths while the
+row-level `scrollWidth` check still passed, because the container itself never overflowed even though
+the button's OWN text was being clipped inside it — the fix (measured, not guessed) is above. And the
+first draft of the 1/2/3-result edge-case tests re-seeded history and re-entered the Progress/Muscles
+tab WITHOUT an explicit re-render; because the tab was already active from the prior seed in the same
+test, `switchTab`/`switchProgTab` correctly no-op on an already-active tab (the same class of trap
+D99.4 found), so the assertions were reading stale markup from the PREVIOUS seed. This was a test
+bug, not a product bug: `ctx.renderProgTab()` added explicitly after each re-seed exposed the podium
+already handling 0/1/2/3+ correctly, with nothing to fix in `index.html` for those three cases.
+
+**Mutation testing.** Eighteen targeted mutations against a clean, fully-green baseline, each on a
+scratch copy of the repository, each confirmed to fail Contract 214 before being reverted: dropping
+the direction class from the delta span; recolouring the primary number; `View workout` starting the
+session instead of previewing it; `View workout` opening a hardcoded wrong id; breaking `Change
+time`/`Change workout`'s own handlers; forcing the compact label off at narrow widths; flattening the
+podium's height hierarchy; un-centring 1st place; introducing a second sort into ranking; swapping the
+gold/silver palette; recolouring the badge itself with a filter; shrinking the long-name line-clamp;
+padding a 1/2-result podium with a fabricated card; adding a glow/animation to the metal border;
+writing `better`/`worse` into the direction wording; demoting Start Workout inside the actions group;
+and reverting the border rule to the lower-specificity selector it beat. All eighteen killed.
+
+**Mobile QA.** Real headless Edge, real touch emulation, at 320, 360, 375, 390, 393, 414 and
+430px — the matrix D100 already used. Today's actions, the week-comparison colours and the podium at
+1/2/3 results were all captured as real rendered screenshots, not only DOM measurements; the ellipsis
+regression above was caught this way after the automated check had already passed.
+
+**Untouched, proven by hash:** `startTemplateLog`, `getMasteryProgress`, `masteryPodiumHtml`,
+`masteryMusclePodiumHtml`, `masteryPodiumCardHtml`, `masteryMuscleCardHtml`, and every PR/XP/Rank/
+Mastery-scoring/Session-Score/Objectives/program/recovery function this phase's brief named as
+off-limits. D96C is paused exactly where it was: D96C-1 and D96C-2 shipped, D96C-3 unstarted, E15(a)
+open, E16 held, trainer 0.1.1-shadow. verify 10,091/0 (Contract 214: 49/49), five audits green.
+DATA_KEYS 16, schema 1, no migration, no new stored preference.

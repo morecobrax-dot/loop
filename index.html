@@ -1058,6 +1058,32 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
   width: 100%; margin-top: 8px; padding: 10px; background: none; border: none;
   color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
+/* D101 — the secondary Today actions as one coherent control group,
+   not three stray links: one border, equal segments, a hairline between
+   them. .tw-change itself — its 44px floor, its accent colour — is the
+   SAME class the rest-day and other-day cards still use alone; nothing here
+   changes that rule, only how it lays out inside this row. */
+.tw-actions{
+  display: flex; margin-top: 8px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.tw-actions .tw-change{
+  flex: 1 1 0; min-width: 0; width: auto; margin-top: 0; border-radius: 0;
+  border-right: 1px solid var(--border);
+  font-size: 12px; padding: 10px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tw-actions .tw-change:last-child{ border-right: none; }
+/* D101 — measured, not assumed: "Change workout" (the longest of the three)
+   needs ~104px and the three-way split only clears that above roughly 420px
+   of screen width — so it still clips to an ellipsis at 375, 390, 393, 412
+   and 414, the exact widths most iPhones actually are. The compact word
+   replaces it everywhere narrower than that; only the widest phones keep the
+   full labels this measurement actually supports. */
+.tw-action-compact{ display: none; }
+@media (max-width: 419px){
+  .tw-action-full{ display: none; }
+  .tw-action-compact{ display: inline; }
+}
 .tw-picker{ margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
 .tw-catbtn{
   padding: 13px; border-radius: var(--radius-md); border: 1px solid var(--border);
@@ -1590,6 +1616,14 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
 .vw-v{ font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.1; }
 .vw-c{ font-size: 11.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .vw-c b{ color: var(--text-dim); font-weight: 600; }
+/* D101 — the delta alone carries direction. This is ARITHMETIC, not a
+   verdict: more volume is not "better" than less — a deload or a recovery
+   week can deliberately mean less. The existing +/− sign already says
+   higher/lower/same in text; colour is a second, optional channel on top of
+   it, never the only one. */
+.vw-d{ font-weight: 700; }
+.vw-d-up{ color: var(--success); }
+.vw-d-down{ color: var(--warning); }
 .vw-foot{ font-size: 11.5px; color: var(--text-dim); margin-top: 10px; line-height: 1.45; }
 
 /* Icon-bearing carets and marks align to their box rather than a baseline. */
@@ -2387,6 +2421,42 @@ body.first-use{ padding-bottom: 0; }
 .mpod-empty-glyph svg{ width: 30px; height: 30px; }
 .mpod-empty-title{ font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
 .mpod-empty-sub{ margin: 4px 0 0; font-size: 12.5px; color: var(--text-dim); }
+/* D101 — a real podium. DOM order stays rank order (1st, 2nd, 3rd), so
+   reading order, tab order and the screen-reader list are unaffected; only
+   VISUAL position moves, the way `order` is meant to be used. The centre
+   column is always 1st, the way a real podium reads before a number is even
+   noticed. Content height is identical for all three (the name is already
+   clamped to two lines with reserved space) — only the pedestal beneath
+   each card differs, and `align-items: end` lets the grid do the stacking:
+   a shorter pedestal simply sits lower, exactly like a real podium block. */
+.mpod, .mmc{ align-items: end; }
+.mpod-p1, .mmc-p1{ order: 2; }
+.mpod-p2, .mmc-p2{ order: 1; }
+.mpod-p3, .mmc-p3{ order: 3; }
+/* The metal treatment reuses the exact gold/silver/bronze already assigned
+   to the place label (.mpod-place above) — one palette, not a second one
+   invented for the border. Restrained: a 1px tinted border and a faint inner
+   highlight, no glow, no gradient sweep, no shimmer. */
+/* Compound selectors (.mpod-card.mpod-p1, not .mpod-p1 alone): a later,
+   general "quiet embedded border" rule also targets .mpod-card/.mmc-card at
+   the same specificity and sits further down the sheet, so a same-specificity
+   override here would lose to source order. The card always carries both
+   classes, so the compound form wins on specificity instead, regardless of
+   where either rule sits. */
+.mpod-card.mpod-p1, .mmc-card.mmc-p1{ border-color: rgba(224,180,92,0.5); box-shadow: inset 0 0 0 1px rgba(224,180,92,0.16); }
+.mpod-card.mpod-p2, .mmc-card.mmc-p2{ border-color: rgba(159,169,214,0.4); box-shadow: inset 0 0 0 1px rgba(159,169,214,0.12); }
+.mpod-card.mpod-p3, .mmc-card.mmc-p3{ border-color: rgba(196,144,106,0.4); box-shadow: inset 0 0 0 1px rgba(196,144,106,0.12); }
+/* 1st stands very slightly taller: a marginally larger badge is the whole of
+   its extra hierarchy beyond height and border — the layout stays as
+   stable as every other place. */
+.mpod-p1 .mbadge, .mmc-p1 .mbadge{ width: clamp(58px, 20.5vw, 78px); }
+/* The pedestal itself: a coloured strip below the card content whose height
+   IS the podium hierarchy. It carries no information of its own (the place
+   word above it already says 1st/2nd/3rd), so it is decorative. */
+.mpod-step{ display: block; width: 56%; border-radius: 0 0 7px 7px; margin-top: 8px; }
+.mpod-p1 .mpod-step{ height: 20px; background: linear-gradient(180deg, rgba(224,180,92,0.32), rgba(224,180,92,0.08)); }
+.mpod-p2 .mpod-step{ height: 13px; background: linear-gradient(180deg, rgba(159,169,214,0.26), rgba(159,169,214,0.06)); }
+.mpod-p3 .mpod-step{ height: 9px; background: linear-gradient(180deg, rgba(196,144,106,0.26), rgba(196,144,106,0.06)); }
 /* Narrowest phones — after the card rules, so they win. */
 @media (max-width: 359px){
   .mpod, .mmc{ gap: 6px; }
@@ -17320,6 +17390,24 @@ const LOOP_UPDATES = [
       'The Rank screen no longer drifts up or down when your thumb moves while swiping'
     ],
     changes: []
+  },
+  {
+    id: 'v10-14',
+    version: 'LOOP 10.14',
+    title: 'A Week You Can Read At A Glance',
+    date: '2026-09-23',
+    swVersion: 'loop-v191',
+    summary: 'Weekly comparisons are easier to read at a glance, Today’s workout has a quick preview, and Mastery’s top three now read like a real podium.',
+    newFeatures: [
+      'View workout on Today’s Workout opens a full preview of the plan — without starting the session',
+      'Exercise Mastery and Muscle Mastery now show their top three as a podium, with first place front and centre'
+    ],
+    improvements: [
+      'This Week So Far shows a clear colour for every up or down, alongside the existing + and − sign',
+      'View workout, Change time and Change workout now sit together as one group of actions under Start Workout'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -27535,6 +27623,16 @@ function attachDaySwipe(){
   host.addEventListener('pointercancel', () => { _daySwipe = null; });
 }
 
+/* D101 — a secondary Today action's label, in two lengths. Full is what every
+   phone shows; the narrowest ones (<360px) show the compact one instead — CSS
+   swaps them by display, never a truncated ellipsis, and never both read at
+   once: display:none removes a span from the accessibility tree as well as
+   the screen, so a screen reader hears exactly the one word a sighted athlete
+   sees. */
+function twActionLabel(full, compact){
+  return `<span class="tw-action-full">${escapeHtml(full)}</span><span class="tw-action-compact">${escapeHtml(compact)}</span>`;
+}
+
 function renderTodayWorkout(){
   const el = document.getElementById('todayWorkout');
   if(!el) return;
@@ -27679,10 +27777,12 @@ function renderTodayWorkout(){
       <div class="tw-meta">${first ? escapeHtml(first.name) + ' · ' + meta : meta}</div>
       ${timeModeNoteHtml(first)}
       ${cta}
-      ${first ? `<button class="tw-change tw-change-time" onclick="toggleTimePicker()">${timePickerOpen ? 'Hide time options' : 'Change time'}</button>` : ''}
+      ${first ? `<div class="tw-actions">
+        <button class="tw-change" onclick="openTrainDetail('${cat}','${first.id}')">${twActionLabel('View workout', 'View')}</button>
+        <button class="tw-change tw-change-time" onclick="toggleTimePicker()">${timePickerOpen ? twActionLabel('Hide time', 'Hide') : twActionLabel('Change time', 'Time')}</button>
+        ${templates.length > 1 || todayPickerOpen ? `<button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? twActionLabel('Hide options', 'Hide') : twActionLabel('Change workout', 'Workout')}</button>` : ''}
+      </div>` : ''}
       ${timePickerHtml(first)}
-      ${templates.length > 1 || todayPickerOpen ? `
-        <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide options' : 'Change workout'}</button>` : ''}
       ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat)}</div>` : ''}
     </div>`;
 }
@@ -28782,8 +28882,21 @@ function renderTrainPlan(view){
    exercises, the profile and focus, and the maintenance actions — for the one
    workout the athlete asked about. It stays open under Edit, so Cancel comes
    back to it and Save redraws it; a workout deleted underneath closes it. */
+/* D101 — the id Today's card passes can be a program-composed custom
+   session (no plan template behind it), which getTemplates(cat) will never
+   contain — startTemplateLog already resolves exactly this case by asking
+   the program for today's own session; this mirrors that, so View Workout
+   can never silently do nothing for a session Start Workout can already
+   train. */
+function trainDetailTemplateOf(cat, id){
+  const fromList = (getTemplates(cat) || []).find(x => x && x.id === id);
+  if(fromList) return fromList;
+  const prog = trainTodayProgram();
+  if(prog && prog.template && prog.category === cat && prog.template.id === id) return prog.template;
+  return null;
+}
 function openTrainDetail(cat, id){
-  const t = (getTemplates(cat) || []).find(x => x && x.id === id);
+  const t = trainDetailTemplateOf(cat, id);
   if(!t) return;
   trainDetailKey = { cat, id };
   renderTrainDetail();
@@ -28798,7 +28911,7 @@ function closeTrainDetail(){
 function renderTrainDetail(){
   const key = trainDetailKey;
   if(!key) return;
-  const t = (getTemplates(key.cat) || []).find(x => x && x.id === key.id);
+  const t = trainDetailTemplateOf(key.cat, key.id);
   if(!t){ closeTrainDetail(); return; }
   const saved = isSavedWorkoutId(t.id);
   const src = trainStartSource(key.cat, t, trainTodayProgram());
@@ -35905,12 +36018,18 @@ function renderProgVolume(){
   const prEvents = computeAllPREvents();
   const prsIn = (a,b) => prEvents.filter(ev => { const d = new Date(ev.date + 'T00:00:00'); return d >= a && d < b; }).length;
 
+  /* D101 — one comparison renderer for all four cells, so the direction
+     colour is never hardcoded per cell. direction is purely the sign of the
+     delta: up / down / same — never a judgement of whether that is good. */
   const cell = (k, nowV, prevV, fmt) => {
     const f = fmt || (v => v);
     const d = nowV - prevV;
+    const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'same';
+    const delta = d === 0 ? '' :
+      ` · <span class="vw-d vw-d-${dir}">${d > 0 ? '+' : '−'}${f(Math.abs(d))}</span>`;
     return `<div class="vw-cell"><span class="vw-k">${k}</span>
       <span class="vw-v">${f(nowV)}</span>
-      <span class="vw-c">vs <b>${f(prevV)}</b>${d === 0 ? '' : ` · ${d > 0 ? '+' : '−'}${f(Math.abs(d))}`}</span></div>`;
+      <span class="vw-c">vs <b>${f(prevV)}</b>${delta}</span></div>`;
   };
   const complete = daysIn >= 7;
   document.getElementById('progVolCompare').innerHTML = `
@@ -36688,6 +36807,7 @@ function masteryLeaderCardHtml(o){
       ${masteryLevelPillHtml(o.level, 'mst-rise')}
       <span class="mcb" aria-hidden="true"><span class="mcb-fill" style="width:${pct}%"></span></span>
       <span class="mpod-meta mst-rise"><span>${escapeHtml(o.metaLine)}</span><span>${escapeHtml(nextShort)}</span></span>
+      <span class="mpod-step" aria-hidden="true"></span>
     `;
   return o.onclick
     ? `<button type="button" class="${o.cls} ${o.placeCls}" style="--i:${o.place}" data-tier="${t.level}" onclick="${o.onclick}" aria-label="${escapeAttr(spoken)}">${inner}</button>`
