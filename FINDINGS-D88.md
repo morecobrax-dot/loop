@@ -802,6 +802,31 @@ never exceed a maximum.
 accidental duplicate from genuinely repeated sets is a product decision (an
 athlete really can do 135 × 8 twice), not a grouping defect.
 
+## E23 — A custom program day's id collides with any other day sharing its category · P4 · PROVEN · OPEN
+
+Found by D102's pre-implementation probe while mapping the future-day card's
+read path, and reproduced on both read and write. `composeProgramSession`'s
+custom-session branch (a day whose schedule entry carries its own
+`entry.exercises` array rather than a base template id) builds
+`id: 'own_' + entry.category` — not date-scoped. Two different weekdays that
+both schedule, say, `push` with different custom exercise lists produce the
+same session id. `trainDetailTemplateOf`/`openTrainDetail` take a `date` now
+(D102) and resolve correctly for VIEWING, because they build the session fresh
+from the requested date's program day. `startTemplateLog(cat, tplId)` does
+not: its provenance lookup is `getProgramWorkoutForDate(localDateStr())` —
+always TODAY — so starting a FUTURE custom day whose category matches today's
+schedule silently starts TODAY's session content instead, keyed by the
+colliding id.
+
+**Why it was not fixed in D102.** `startTemplateLog`'s provenance logic is
+training-engine write-path code, out of scope for a card/summary phase. The
+brief's Part 1 fix only touches the VIEW path (`View workout`), which D102
+made date-aware and is not affected by the collision. The real fix belongs
+with whatever phase next touches `composeProgramSession`'s id generation
+(date-scope the custom-session id) or `startTemplateLog`'s provenance
+resolution (accept a date instead of assuming today) — a training-engine
+change, deliberately deferred.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

@@ -14291,3 +14291,135 @@ pairs the heaviest load with reps from another set (pre-existing on one row; D49
 current policy. D96's actionable correctness sequence is complete. Read-time only: no history
 rewritten, no migration, DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. verify 10,171/0, five audits
 green, all three What's New lines proven false on 10.14 and true on 10.15.
+
+## §138 — ONE CARD, A SUMMARY THAT STAYS (D102 · LOOP 10.16 · loop-v193)
+
+Two things an athlete actually hits on a phone. Today and a future scheduled day were different
+components wearing similar colors — Today's D101 card (Start dominant, View/Change grouped
+beneath) beside an older future-day layout ("Start Full Body A — Strength / Choose a different
+workout / Change this day") with its own spacing, its own hierarchy, its own exercise-chip preview.
+And the post-workout Summary — PRs, XP, Session Score, the workout's own record — existed for
+exactly as long as the completion sheet stayed open. Close it and the only way back was the full
+workout sheet's raw set list. Both were named directly from physical-device use, not a code smell.
+
+**One card, three states.** `renderOtherDayCard` (any day that is not today) was rewritten to share
+Today's surface, spacing, type scale, action row and workout-identity system (`tw-wi`, the sprite
+and color registry D81 built) — never a second component pretending to match. Three states, all
+truthful about what the day actually is: LOGGED (a past or already-worked day) offers `View workout`
++ `Change day`; PLANNED offers `Start Workout` — the identical CTA wording Today uses, not a second
+verb — with `View workout` / `Change day` / `Change workout` beneath it, `Change workout` appearing
+only where an alternative template exists or the picker is already open (Today's own rule, reused
+verbatim); REST reads "Rest Day" plainly, offers `Train anyway` as a quiet secondary link, and still
+carries `Change day` — the same navigation every other state has. DAY NAVIGATION (prev/next/Today)
+sits above the card as its own strip, separate from WORKOUT ACTIONS inside it, so paging to another
+day is never itself a different component. The exercise-chip preview list the old future card carried
+is gone: the D101-style card communicates the workout (name, icon, exercise count, duration) without
+it, and it was not kept merely because the old card had one. `twActionLabel`'s full/compact split
+(D101, measured: `Change workout` cannot fit before ~420px, so every case is fixed by trimming
+whichever compact word wins) is inherited unchanged, `Today keeps its own branch (active / done /
+rest / planned)` unchanged and returns before any browsing state is reached.
+
+**A found collision, fixed on the read path, recorded on the write path.** Mapping the future card's
+`View workout` before writing it surfaced E23: `composeProgramSession`'s custom-session id
+(`'own_' + entry.category`) is not date-scoped, so two different weekdays scheduling the same
+category with different custom exercises collide. `trainDetailTemplateOf` and `openTrainDetail` now
+take an optional `date`, so `View workout` composes the session fresh from the DAY THE CARD IS
+SHOWING, closing the collision for the one thing this phase touches. `startTemplateLog`'s provenance
+(`getProgramWorkoutForDate(localDateStr())` — always today) is training-engine write-path logic, out
+of scope, and still collides; recorded as E23, OPEN, not fixed.
+
+**One summary model, a live flag, nothing invented.** `showWorkoutSummary(entry, newPREvents,
+matchedNames, volumeInsight, live)` gained a fifth parameter, `live`, defaulting `true` — every
+existing call site (the completion moment, the post-edit re-render) omits it and is byte-identical.
+`openWorkoutSummary(entryId)` is new: it looks a workout up by ID — never by date, so two workouts on
+one date can never resolve to each other — reads its PRs and Session Score through the exact
+canonical functions every other historical surface already uses (`prEventsForEntry`,
+`getWorkoutXPEntry`, `computeSessionVolumeInsight`'s renderer, `computeWorkoutQuality` itself
+untouched), and calls `showWorkoutSummary(entry, events, [], null, false)`. No second PR or XP logic
+exists anywhere in this phase. What is gated behind `live` is exactly what is honestly only true
+*right now*: the live streak and current-progress bar (the historically-correct `levelAfter`/rank
+always shows instead), Next Time (a recommendation using CURRENT progression, not a fact about that
+workout), Coach (comparisons only correct when the entry is the newest thing in the log) and Cooldown
+(a prompt to do something now). Session Score is NOT gated — it is a fact about that workout,
+answered the same way for any entry, live or not. Reopening the SAME workout later — from Today's own
+"done" card — deliberately renders historical, not a second completion moment; the true live moment
+already happened once, at `finishWorkout`'s own call.
+
+**Historical truth rule honored.** Nothing new is persisted. The audit asked, for every input to the
+completion summary, whether it could be honestly reconstructed from the stored workout and the
+existing derived systems — PRs, XP, Session Score, muscle/workload all could, through functions that
+already existed; Coach/Next Time/Cooldown/live streak could not, because they are forward-facing and
+about now, so they are gated off rather than faked. No new DATA_KEY, no schema change, no history
+rewritten.
+
+**Access points, not five copies of one button.** Today's completed card's CTA changed from
+`View Summary` → `openDayDetail` to `Workout summary` → `openWorkoutSummary`. The Log tab's
+selected-day card is a restrained two-action row (`Workout summary` / `Full workout`), replacing the
+old single whole-card tap. The full workout sheet gained one `Workout summary` link near its top,
+wired per-entry (`closeDayDetail(); openWorkoutSummary(entry.id);`), and the reverse link back
+(`Full workout` from the historical Summary) reopens Day Detail and closes the Summary first — no two
+overlays open at once. Recent stays lightweight: no summary button was added to its rows; a tap
+already reaches the full session, and Summary is available from there. Edit and delete use their
+existing paths unmodified — the pre-existing `origin:'summary'` re-render on save, and the ordinary
+delete path — so a stale or orphaned summary was never a new risk this phase introduced.
+
+**A bug the test suite could not see.** `.sheet-actions{ display:flex }` and `.summary-danger{
+display:block }` both out-rank the browser's own `[hidden]{ display:none }` default, because
+author-origin CSS always beats user-agent-origin CSS regardless of selector specificity. The live/
+historical footer toggle and the Delete button's `hidden` toggle were therefore both correct in the
+DOM and invisible on screen — both footers rendered at once, Delete stayed visible in historical
+mode — found only by reading `getComputedStyle` in a real browser, not by the 52-check contract
+(string/DOM assertions on the `hidden` property never exercise the CSS cascade). Fixed with two
+explicit rules, `.sheet-actions[hidden]{ display:none }` and `.summary-danger[hidden]{ display:none
+}`. Physical evidence first, again.
+
+**Tests.** Contract 216, `testCardsAndSummaryD102` (**52 checks**): the shared-card assertions, the
+E23 collision proven on the fixture before the fix and closed after it, day-browsing writes nothing,
+the one-summary-model and live/historical gating assertions, behavioral proof against a live fixture
+(the selected old entry, not latest; a workout with zero real PR events renders zero callouts, never
+a fabricated one; exactly as many PR callouts render as `prEventsForEntry` returns, never
+duplicated), edit/delete through the real save/delete paths, every access point wired, and a
+Protected Systems block re-pinning D96C-1/2/3, D91, D44, Session Score, the trainer, D100, D101,
+Objectives and Mastery byte-identical. Eight pre-existing assertions invalidated by the deliberate
+redesign were restated in place, each with its reason, never silently deleted.
+
+**Mutation: 20 of 20 killed.** Two survived the first pass and were real gaps, not phrasing: a
+mutant that fabricated a PR record when a workout genuinely set none, and one that rendered a
+duplicated PR list — neither was checked because the suite only ever confirmed the RIGHT record
+showed, never that a WRONG one couldn't. Two behavioral assertions closed both (a zero-PR fixture
+renders zero callouts; the rendered callout count is checked against a fresh, independent call to
+the canonical `prEventsForEntry`, so a duplicated array can no longer pass). A third mutant
+(Objectives' rest-day branch, a negative control D102 should never trip) reported a harness parsing
+artifact on a concurrent run and was confirmed KILLED (5 failing) on an isolated re-run.
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844 and 430×932, one seeded
+history spanning a done Today, a future custom program day, a future rest day and a past logged
+workout: Today's card, the future card's full shared-architecture check (Start/View/Change
+day/no chip list/workout-identity), the rest day card, the Log selected-day two-action row, the full
+workout sheet's `Workout summary` link, the historical Summary's gated sections, and the
+cross-link back to Full workout — **130/130**, no sideways overflow, no console errors, at every
+width. The compact single-word action labels below 420px (`View` / `Day` / `Workout`) are D101's own
+measured breakpoint, confirmed still correct, not a new regression.
+
+**Found, recorded, not fixed** (FINDINGS-D88.md): **E23** a custom program day's id collides with
+any other day sharing its category, closed on the VIEW path this phase touches, open on
+`startTemplateLog`'s write-path provenance (training-engine scope).
+
+**Consistency audit (report only, per the brief).** (A) The "Rest complete" chip that survives
+navigating to another exercise is BY DESIGN, not stale: `syncWorkoutRestChip`'s own comment states
+the reason — a rest that finished on another exercise still deserves a presence, or the athlete who
+stepped away learns nothing when the chime fired once and the evidence vanished with the hidden row;
+the chip is tappable and jumps back to the resting exercise. Nothing changed. (B) A rest-day Daily
+Objective that reads like a workout day's is explained by `evaluateObjectives`'s own documented
+guarantee — "an instance that already exists is never replaced… the target stays stable" — a daily
+objective frozen earlier is not regenerated when the day's schedule is edited afterward. By design,
+D99 territory, not touched. (C) PR terminology was already consistent: compact badges say "PRs",
+fuller contexts say "records" or "new record(s)" — no change made. (D) Action-affordance language
+converged as a side effect of the `View Summary` → `Workout summary` rename; `View workout` / `Full
+workout` / `Change day` / `Change workout` are now the complete, consistent vocabulary across Today,
+the future card, Log and the full workout sheet.
+
+**Status.** Both deliverables shipped: one card system for Today/Future/Rest, and a Summary that
+survives closing it. E23 recorded, OPEN, training-engine scope, deliberately not fixed. E16, E20,
+E21, E22 unchanged from D96C-3. No progression/training-engine logic reopened. Read-time only:
+DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration. verify 10,223/0, five audits green.

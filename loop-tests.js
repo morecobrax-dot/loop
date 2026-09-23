@@ -9435,10 +9435,13 @@ function testSharedSelectedDay(app){
     const fn = src.slice(src.indexOf('function renderOtherDayCard'), src.indexOf('const DAY_SWIPE'));
     return /Rest Day/.test(fn) && /Train anyway/.test(fn);
   })());
-  T('a planned day names the workout it has', (() => {
-    const fn = src.slice(src.indexOf('function renderOtherDayCard'), src.indexOf('const DAY_SWIPE'));
-    return /workoutName \|\| CAT_LABEL\[cat\]/.test(fn);
-  })());
+  /* D102 — restated on purpose: the card now names the workout the way Today's
+     own planned card always has (category as the icon+title, the workout's own
+     name in the meta line beside it), instead of a second title rule of its
+     own. dayTemplateFor is the SAME program-over-plan resolver the precedence
+     check below already exercises. */
+  T('a planned day names the workout it has, the same way Today does',
+    /\$\{CAT_LABEL\[cat\]\}<\/span><\/div>\s*<div class="tw-meta">\$\{tpl \? escapeHtml\(tpl\.name\)/.test(src));
   T('opening another day does not rewrite the schedule', (() => {
     const before = JSON.stringify(ctx.schedule);
     ctx.setSelectedDay(ctx.DAY_ORDER[(ti + 2) % 7]);
@@ -9903,8 +9906,14 @@ function testD13Interaction(app){
   sub('a scheduled day is not a rest day');
   const fn = src.slice(src.indexOf('function renderOtherDayCard'), src.indexOf('function dayTemplateFor'));
   T('a planned day starts its own workout', /startTemplateLog\('\$\{escapeAttr\(cat\)\}'/.test(fn));
-  T('a planned day names the workout it will run', /Start \$\{escapeHtml\(tpl\.name\)\}/.test(fn));
-  T('a planned day shows what is in it', /tw-exlist/.test(fn));
+  /* D102 restated both of these on purpose, one card system: the CTA now
+     reads exactly "Start Workout" as Today's always has (the workout's own
+     name moved to the meta line, checked above) instead of a second CTA
+     wording of its own; and the exercise-chip preview is gone rather than
+     kept merely because the old card had one — the meta line and the View
+     workout action (asserted below) communicate it without a second list. */
+  T('a planned day starts with the same CTA wording Today uses', /class="tw-cta" onclick="startTemplateLog/.test(fn) && /Start Workout<\/button>/.test(fn));
+  T('the exercise-chip preview is gone, not merely unused', !/tw-exlist/.test(fn) && !/tw-exlist/.test(css));
   T('"Train anyway" belongs to rest days only', (() => {
     /* It must appear exactly once in this renderer, inside the rest branch. */
     const restBranch = fn.slice(fn.indexOf("if(cat === 'rest')"), fn.indexOf('/* A planned day'));
@@ -13809,10 +13818,16 @@ function testSurfaceConsolidation(app){
     const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
     return body.indexOf('if(hasActiveDraftNow){') < body.indexOf("if(cat === 'rest'){");
   })());
+  /* D102 restated the label: the button now actually opens the real
+     post-workout Summary (openWorkoutSummary), not Day Detail — "View
+     Summary" promised the summary and delivered the full workout instead
+     (Part 3's own action-affordance audit). "Workout summary" is what every
+     other summary-opening action in the app now says too. */
   T('a completed day says complete and offers the summary, never Resume', (() => {
     const i = src.indexOf('function renderTodayWorkout');
     const body = src.slice(i, src.indexOf('\nfunction ', i + 10));
-    return /tw-done-hero[\s\S]{0,600}View Summary/.test(body) &&
+    return /tw-done-hero[\s\S]{0,600}Workout summary/.test(body) &&
+           /openWorkoutSummary\('\$\{doneToday\.id\}'\)/.test(body) &&
            /Workout complete/.test(body);
   })());
   T('the planned branch can no longer offer Resume — those states returned above', (() => {
@@ -13861,8 +13876,11 @@ function testSurfaceConsolidation(app){
   sub('Workout Complete: accomplishment first');
   T('delete no longer sits beside the celebration',
     !/summary-close-x/.test(src));
+  /* D102 restated: the button gained an id (summaryDeleteBtn) so a historical
+     review can hide it — live-only, since a review reaches Edit/Delete through
+     Full workout instead. Its class, onclick and styling are untouched. */
   T('it waits at the quiet foot instead, same confirmation',
-    /class="summary-danger" onclick="deleteJustLoggedWorkout\(\)"/.test(src) &&
+    /class="summary-danger" id="summaryDeleteBtn" onclick="deleteJustLoggedWorkout\(\)"/.test(src) &&
     /\.summary-danger\{[\s\S]{0,240}background: none; border: none;/.test(css));
   /* D45B removed a score that could not be earned: its completion term was
      100% for every saved session, its rep term compared reps against the last
@@ -30415,7 +30433,11 @@ async function testWorkoutIdentity(){
       !/rw-accent cat-/.test(fnSrc(src, 'recentWorkoutsHtml')) && /rw-accent rw-accent-other/.test(fnSrc(src, 'historyOtherRowHtml')) && !!legacy);
     T('  and the selected day\'s card leads with it', /sd-title has-wi">\$\{workoutIdentityHtml\(entry, entry\.category, 'sm'\)\}/.test(fnSrc(src, 'renderSelectedDay')));
     T('Shared workouts: the preview leads with the snapshot\'s identity', /workoutIdentityHtml\(p, p\.category, 'md', \{ tile: true \}\)/.test(fnSrc(src, 'socialSharedPreviewHtml')));
-    T('no surface recolours a card: the colour classes sit on icons and on the hero\'s edge only', (code.match(/wi-c-\$\{/g) || []).length === 3 &&
+    /* D102 restated the count on purpose: renderOtherDayCard's logged and
+       planned branches now carry the SAME wi-c-${wid.colorId} treatment as
+       Today's own hero, so a browsed day reads as one card system with it —
+       two more legitimate uses of the exact existing rule, not a new one. */
+    T('no surface recolours a card: the colour classes sit on icons and on the hero\'s edge only', (code.match(/wi-c-\$\{/g) || []).length === 5 &&
       (code.match(/' wi-c-' \+/g) || []).length === 1);
   });
 
@@ -41094,13 +41116,17 @@ async function testFastUxD101(){
     T('display:none removes the hidden label from the accessibility tree too — never both read at once',
       !/aria-hidden/.test(fnSrc(src, 'twActionLabel')));
 
-    /* the architecture gap this phase closed: a custom program session */
+    /* the architecture gap this phase closed: a custom program session.
+       D102 restated this in place: trainDetailTemplateOf gained an optional
+       DATE (Contract 216 proves what that closes for a future day's own View
+       workout); every call below still omits it, so Today's own resolution —
+       "today's program, no date needed" — is exactly what it was. */
     T('openTrainDetail resolves a program-day CUSTOM session (no plan template) the same way startTemplateLog already does',
-      /function trainDetailTemplateOf\(cat, id\)/.test(src)
+      /function trainDetailTemplateOf\(cat, id, date\)/.test(src)
       && /const fromList = \(getTemplates\(cat\) \|\| \[\]\)\.find\(x => x && x\.id === id\);/.test(fnSrc(src, 'trainDetailTemplateOf'))
-      && /trainTodayProgram\(\)/.test(fnSrc(src, 'trainDetailTemplateOf'))
-      && /trainDetailTemplateOf\(cat, id\)/.test(fnSrc(src, 'openTrainDetail'))
-      && /trainDetailTemplateOf\(key\.cat, key\.id\)/.test(fnSrc(src, 'renderTrainDetail')));
+      && /date \? trainProgramDayFor\(date\) : trainTodayProgram\(\)/.test(fnSrc(src, 'trainDetailTemplateOf'))
+      && /trainDetailTemplateOf\(cat, id, date\)/.test(fnSrc(src, 'openTrainDetail'))
+      && /trainDetailTemplateOf\(key\.cat, key\.id, key\.date\)/.test(fnSrc(src, 'renderTrainDetail')));
 
     /* behaviourally: a real program day, a real custom session */
     const prog = (over) => ({ version: 1, activeProgramId: 'p1', programs: [Object.assign({
@@ -41635,8 +41661,13 @@ async function testWorkoutPerformanceD96C3(){
       && pin('rankPBTCandidates') === '5e5f609ad9a2053a' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e');
     T('recovery is byte-identical (FINDINGS E20 records its per-row warm-up heuristic, deliberately not changed here)',
       pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd');
-    T('D101’s podium ranking and View Workout are byte-identical', pin('getMasteryProgress') === '77aca2558d11f3d5'
-      && pin('trainDetailTemplateOf') === '48ab876f72e7a143' && pin('openTrainDetail') === '22380ee43f3f5732');
+    /* D102 restated the second half of this pin: trainDetailTemplateOf and
+       openTrainDetail gained an optional DATE (Contract 216), so a future
+       day's own View workout can resolve THAT day's program session instead
+       of always today's — every existing caller still omits it and reads
+       exactly as before. The podium ranking itself did not move. */
+    T('D101’s podium ranking is byte-identical, and View Workout at its D102 restatement', pin('getMasteryProgress') === '77aca2558d11f3d5'
+      && pin('trainDetailTemplateOf') === 'dd1789c48b3ec972' && pin('openTrainDetail') === '44d496315aa6e6ca');
     T('Objectives read the whole date and one best set: nothing to double-count', pin('objectiveBestSetOn') === '3cf2c88926b6d461'
       && pin('objectiveProgress') === 'e0889920b620163e');
     T('DATA_KEYS 16, schema 1, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
@@ -41697,6 +41728,314 @@ async function testWorkoutPerformanceD96C3(){
     T('and a set object replaced in place inside a multi-row lift', ctx.workoutExercisePerformance(ctx.workoutLog[1], 'bench press').sets.some(s => s.weight === '230'));
     T('the grouping is cleared with every other derived cache', /invalidateWorkoutGroups\(\)/.test(fnSrc(src, 'invalidateSortedLogCache'))
       && /invalidateSortedLogCache\(\)/.test(fnSrc(src, 'persistLog')));
+  });
+}
+
+/* =========================================================
+   CONTRACT 216 — ONE SCHEDULED-WORKOUT CARD, ONE WORKOUT SUMMARY  (D102)
+   ---------------------------------------------------------
+   Two real-device requests. LOOP's Today card was modernised in D101; every
+   OTHER day in the week still used an older, stacked-link card with its own
+   exercise-chip preview — browsing Tomorrow looked like a different app from
+   viewing Today. And the post-workout Summary — records, XP, Session Score —
+   was reachable exactly once, at completion, then gone: the Log kept the raw
+   facts but never the readable summary of them.
+
+   PART 1 — ONE CARD FAMILY. renderOtherDayCard now shares Today's D101
+   surface: the same workout-identity icon+colour, the same grouped
+   .tw-actions row (View workout / Change day / Change workout), the same
+   "Start Workout" CTA wording — with day NAVIGATION (the strip above) kept
+   separate from workout ACTIONS (inside the card), so paging to another day
+   is never a different component. The exercise-chip preview is gone, not
+   kept merely because the old card had one. A real gap was found and closed
+   in the process: trainDetailTemplateOf assumed "today" for a program's own
+   composed session, so a future day whose custom session shares a category
+   with today's could show or start TODAY's exercises instead of its own
+   (proven: 'own_push' collides across two different custom Push days).
+   trainDetailTemplateOf/openTrainDetail/renderTrainDetail now take an
+   optional DATE; every existing caller still omits it and reads exactly as
+   before. Start itself is untouched — startTemplateLog's own provenance
+   resolution is training-engine scope this phase does not reopen, and it is
+   called with the exact same (cat, id) either card already used (E23,
+   FINDINGS-D88.md).
+
+   PART 2 — ONE SUMMARY MODEL. showWorkoutSummary gained one optional `live`
+   flag (default true, so the real completion call and the post-edit
+   re-render are byte-identical to before). Records (prEventsForEntry),
+   XP (getWorkoutXPEntry) and Session Score (sessionScore) are canonical for
+   ANY entry and always shown. What is gated is only what is honestly about
+   RIGHT NOW rather than about the workout itself: the heading, the live
+   streak/current-level bar, Next Time (reads CURRENT progression), Coach and
+   the legacy "vs prior" quality read (both compare against whatever is most
+   recent in the log RIGHT NOW, correct only when the entry IS the newest
+   thing in it), and Cooldown (a live prompt). openWorkoutSummary(id) is the
+   new historical entry point — by ID, never by date, so two workouts sharing
+   a civil date can never resolve to each other. Wired from Today's completed
+   card, the Log's selected-day card (now a two-action row: Workout summary /
+   Full workout) and the full workout sheet (a new "Workout summary" button
+   near the top) — cross-linked both ways, no fourth place added.
+   ========================================================= */
+async function testCardsAndSummaryD102(){
+  section('CONTRACT 216 — one scheduled-workout card, one workout summary (D102)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const pad = n => String(n).padStart(2, '0');
+  const D = n => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const WK = (id, n, cat, exs) => ({ id, date: D(n), category: cat || 'push', title: cat || 'push', notes: '', exercises: exs });
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
+    ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); };
+
+  /* ================================================================
+     PART 1 — ONE SCHEDULED-WORKOUT CARD
+     ================================================================ */
+
+  sub('shared architecture: Today unchanged, every other day now the same family');
+  await guard('architecture', async () => {
+    T('Today keeps its own branch (active / done / rest / planned) unchanged — never a browsing state',
+      /if\(!selectedDayIsToday\(\)\)\{ renderOtherDayCard\(el\); attachDaySwipe\(\); return; \}/.test(fnSrc(src, 'renderTodayWorkout')));
+    const other = fnSrc(src, 'renderOtherDayCard');
+    T('day navigation is a separate block from workout actions, in every branch',
+      /const nav = `/.test(other) && (other.match(/\$\{nav\}/g) || []).length === 3);
+    T('every branch shares Today\'s grouped .tw-actions row instead of stacked standalone links',
+      /* logged (1) + rest (1) + planned's two-way ternary (2, tpl vs no-tpl) = 4 */
+      (other.match(/class="tw-actions"/g) || []).length === 4 && !/class="tw-change" onclick="openDayEdit/.test(other.replace(/const changeDay[\s\S]*?`;/, '')));
+    T('the logged and planned branches carry Today\'s own workout-identity treatment, not a plain title',
+      (other.match(/tw-wi wi-c-\$\{wid\.colorId\}/g) || []).length === 2 && (other.match(/tw-title has-wi/g) || []).length === 2);
+    T('the exercise-chip preview is gone, not merely unused', !/tw-exlist/.test(other) && !/tw-exlist/.test(css) && !/tw-ex-more/.test(css));
+    T('a planned day\'s CTA reads exactly "Start Workout", the same wording Today uses — not a second CTA rule',
+      /<button class="tw-cta" onclick="startTemplateLog\('\$\{escapeAttr\(cat\)\}','\$\{onclickArg\(tpl\.id\)\}'\)">Start Workout<\/button>/.test(other));
+    T('"Change day" reuses the existing reschedule sheet — no new scheduling action',
+      /onclick="openDayEdit\('\$\{key\}'\)"/.test(other) && /function openDayEdit\(key\)/.test(src));
+    T('"Change workout" only appears where an alternative exists or the picker is already open — same rule as Today',
+      /alts\.length \|\| todayPickerOpen/.test(other));
+  });
+
+  sub('the future-day View Workout gap: a program\'s own composed session, resolved by date');
+  await guard('future view workout', async () => {
+    T('trainDetailTemplateOf takes an optional date; every caller that omits it reads exactly as before',
+      /function trainDetailTemplateOf\(cat, id, date\)/.test(src)
+      && /const prog = date \? trainProgramDayFor\(date\) : trainTodayProgram\(\);/.test(fnSrc(src, 'trainDetailTemplateOf'))
+      && /function trainProgramDayFor\(dateStr\)/.test(src)
+      && /function trainTodayProgram\(\)\{\s*return trainProgramDayFor\(localDateStr\(\)\);\s*\}/.test(src));
+    T('openTrainDetail and renderTrainDetail thread the same date through, so Detail\'s own "shown" composition agrees with what View workout resolved',
+      /function openTrainDetail\(cat, id, date\)/.test(src) && /trainDetailKey = \{ cat, id, date \};/.test(fnSrc(src, 'openTrainDetail'))
+      && /trainDetailTemplateOf\(key\.cat, key\.id, key\.date\)/.test(fnSrc(src, 'renderTrainDetail'))
+      && /key\.date \? trainProgramDayFor\(key\.date\) : trainTodayProgram\(\)/.test(fnSrc(src, 'renderTrainDetail')));
+
+    /* behaviourally: two custom program days, same category, different exercises,
+       same generated id ('own_' + category) — the exact collision D102 found.
+       The clock is pinned to a known Monday so this does not depend on which
+       real weekday the suite happens to run on (D99.1). */
+    const PSESS = (cat, exName) => ({ type: 'workout', planId: null, category: cat, name: cat, exercises: [{ name: exName, sets: 3, reps: '8-10', effort: '8' }] });
+    ctx.programsStore = Object.assign(ctx.defaultProgramsStore(), { version: 1, activeProgramId: 'p1', programs: [{
+      id: 'p1', name: 'x', goal: 'hypertrophy', status: 'active', durationWeeks: 8, startDate: '2026-08-03',
+      schedule: { mon: PSESS('push', 'Incline Bench Press'), tue: { type: 'rest' }, wed: PSESS('push', 'Overhead Press'),
+        thu: { type: 'rest' }, fri: { type: 'rest' }, sat: { type: 'rest' }, sun: { type: 'rest' } } }] });
+    ctx.invalidateProgramCache();
+    const releaseClock = pinClock(ctx, '2026-09-21T09:00:00');   // a Monday
+    try{
+      const mon = ctx.getProgramWorkoutForDate(ctx.localDateStr());
+      T('the fixture itself really does collide before the fix would matter: two different custom Push sessions share one id',
+        mon.template.id === 'own_push' && mon.template.exercises[0].name !== 'Overhead Press', JSON.stringify(mon.template));
+      ctx.switchTab('today'); ctx.setSelectedDay('wed'); ctx.renderTodayWorkout();
+      const otherHtml = doc.getElementById('todayWorkout').innerHTML;
+      const m = otherHtml.match(/openTrainDetail\('([^']+)','([^']+)','([^']+)'\)/);
+      T('Wednesday\'s own card asks View workout for WEDNESDAY\'s date, not today\'s', !!m, otherHtml.slice(0, 200));
+      if(m){
+        ctx.openTrainDetail(m[1], m[2], m[3]);
+        const body = doc.getElementById('trainDetailBody').innerHTML;
+        T('and Detail shows WEDNESDAY\'s own exercise, not Monday\'s (the collision, closed)',
+          /Overhead Press/.test(body) && !/Incline Bench Press/.test(body));
+        ctx.closeTrainDetail();
+      }
+      ctx.setSelectedDay(ctx.todayKey());
+    } finally{ releaseClock(); }
+    T('E23 recorded, not fixed: Start\'s own provenance check still asks about TODAY only — training-engine scope, out of D102',
+      /const prog = getProgramWorkoutForDate\(localDateStr\(\)\);/.test(fnSrc(src, 'startTemplateLog'))
+      && /if\(prog && prog\.template && prog\.category === cat && prog\.template\.id === tplId\)/.test(fnSrc(src, 'startTemplateLog')));
+  });
+
+  sub('browsing another day writes nothing, and Start still starts the SAME workout the card named');
+  await guard('day browsing safety', async () => {
+    const before = JSON.stringify(ctx.schedule);
+    const otherKey = ctx.DAY_ORDER.find(k => k !== ctx.todayKey());
+    ctx.setSelectedDay(otherKey); ctx.renderTodayWorkout();
+    const html = doc.getElementById('todayWorkout').innerHTML;
+    T('looking at another day changes nothing about the schedule', JSON.stringify(ctx.schedule) === before);
+    const startMatch = html.match(/startTemplateLog\('([^']+)','([^']+)'\)/);
+    const viewMatch = html.match(/openTrainDetail\('([^']+)','([^']+)','([^']+)'\)/);
+    if(startMatch && viewMatch){
+      T('Start and View workout name the exact same (category, id) pair for this day\'s card',
+        startMatch[1] === viewMatch[1] && startMatch[2] === viewMatch[2]);
+    }
+    ctx.setSelectedDay(ctx.todayKey());
+  });
+
+  /* ================================================================
+     PART 2 — ONE WORKOUT SUMMARY, PERMANENTLY REACHABLE
+     ================================================================ */
+
+  sub('one model: canonical for any entry, never "latest"');
+  await guard('summary model', async () => {
+    T('showWorkoutSummary takes a live flag defaulting true — every existing caller is unchanged',
+      /function showWorkoutSummary\(entry, newPREvents, matchedNames, volumeInsight, live\)\{/.test(src)
+      && /if\(live === undefined\) live = true;/.test(fnSrc(src, 'showWorkoutSummary')));
+    T('the live completion call site still omits the flag, byte for byte',
+      /showWorkoutSummary\(newEntry, newPREvents, matchedNames, volumeInsight\);/.test(src));
+    T('the post-edit re-render (origin: summary) still omits it too — unchanged since before D102',
+      /showWorkoutSummary\(updated, prEventsForEntry\(updated\), \[\], computeSessionVolumeInsight\(updated\)\)/.test(src));
+    T('openWorkoutSummary looks a workout up by ID, never by date — two workouts on one date can never resolve to each other',
+      /function openWorkoutSummary\(entryId\)\{/.test(src) && /workoutLog\.find\(l => l\.id === entryId\)/.test(fnSrc(src, 'openWorkoutSummary'))
+      && /if\(!entry\) return;/.test(fnSrc(src, 'openWorkoutSummary')));
+    T('records and XP are read through the exact canonical functions every other historical surface uses — no second PR or XP logic',
+      /prEventsForEntry\(entry\)/.test(fnSrc(src, 'openWorkoutSummary')) && /getWorkoutXPEntry\(entry\.id\)/.test(fnSrc(src, 'showWorkoutSummary')));
+    T('Session Score is untouched and always shown for any entry — no live gate on it',
+      /renderSummaryScore\(entry\)/.test(fnSrc(src, 'showWorkoutSummary')) && !/if\(live\)\{ try\{ renderSummaryScore/.test(fnSrc(src, 'showWorkoutSummary')));
+  });
+
+  sub('what is gated, and why: only what is honestly about right now');
+  await guard('gating', async () => {
+    const fn = fnSrc(src, 'showWorkoutSummary');
+    T('the heading and footer swap with live', /heading\.textContent = live \? 'Workout Complete' : 'Workout Summary'/.test(fn)
+      && /if\(liveActions\) liveActions\.hidden = !live;/.test(fn) && /if\(histActions\) histActions\.hidden = live;/.test(fn)
+      && /if\(deleteBtn\) deleteBtn\.hidden = !live;/.test(fn));
+    T('the live streak and current-level bar never appear for a review — the historically-correct levelAfter/rank always does',
+      /const streak = live \? computeWeekStreak\(\) : 0;/.test(fn) && /if\(live\)\{\s*try\{\s*const pNow = getCurrentProgression/.test(fn)
+      && (fn.match(/LEVEL \$\{xpEntry\.levelAfter\} · \$\{calculateRankFromLevel\(xpEntry\.levelAfter\)\}/g) || []).length === 2);
+    T('Next Time is live-only — it recommends a target using CURRENT progression, not a fact about that workout',
+      /const notes = live \? computeNextTimeNotes\(entry\) : \[\];/.test(fn));
+    T('Coach is live-only — its comparisons are only correct when entry is the newest thing in the log',
+      /if\(live\)\{\s*if\(volumeInsight\) coachLines\.push/.test(fn));
+    T('Cooldown is live-only — a prompt to do something now, not a fact about the past',
+      /if\(live\)\{ try\{ renderCooldownCard\(entry\); \}catch\(e\)\{\} \}/.test(fn));
+    T('the legacy "vs prior" quality read is live-only for the same reason as Coach — computeWorkoutQuality itself is untouched',
+      /const quality = live \? computeWorkoutQuality\(entry, newPREvents\) : null;/.test(fn) && pin('computeWorkoutQuality') === '30f1165dd94654eb');
+  });
+
+  sub('behaviourally: the right entry, canonical truth, the right sections');
+  await guard('behaviour', async () => {
+    seed([WK('old1', 90, 'push', [E('Bench Press', [S(100, 8)])]),
+          WK('old2', 60, 'push', [E('Bench Press', [S(120, 8)])]),
+          WK('latest', 1, 'push', [E('Bench Press', [S(200, 5)])])]);
+    ctx.openWorkoutSummary('old2');
+    T('the summary shown is the SELECTED entry, not the latest workout in the log',
+      doc.getElementById('summaryOverlay').classList.contains('open')
+      && doc.getElementById('summaryPRs').innerHTML.indexOf('120') !== -1
+      && doc.getElementById('summaryPRs').innerHTML.indexOf('200') === -1);
+    T('the heading says Summary, not Complete', doc.getElementById('summaryHeading').textContent === 'Workout Summary');
+    T('records for old2 are canonical: the 120 weight PR it actually set', /Bench Press/.test(doc.getElementById('summaryPRs').innerHTML)
+      && ctx.computeAllPREvents().some(e => e.id === 'old2' && e.headline.type === 'weight' && e.headline.next === 120));
+    T('exactly as many PR callouts render as prEventsForEntry actually returns — never duplicated',
+      (doc.getElementById('summaryPRs').innerHTML.match(/pr-callout-fresh/g) || []).length
+      === ctx.prEventsForEntry(ctx.workoutLog.find(l => l.id === 'old2')).length);
+    T('XP for old2 is canonical: the same Weight PR line computeXPTimeline gives it',
+      ctx.getWorkoutXPEntry('old2').breakdown.some(b => /^Weight PR/.test(b.label)));
+    T('the XP block shows LEVEL (historical), not the live streak/progress bar',
+      /xp-breakdown-level/.test(doc.getElementById('summaryXP').innerHTML) && !/xp-identity/.test(doc.getElementById('summaryXP').innerHTML));
+    T('Next Time, Coach and Cooldown are all empty for a review',
+      doc.getElementById('summaryNextTime').innerHTML === '' && doc.getElementById('summaryCoach').innerHTML === ''
+      && doc.getElementById('summaryCooldown').innerHTML === '');
+    T('the historical footer shows, the live one and Delete do not',
+      doc.getElementById('summaryActionsHistorical').hidden === false && doc.getElementById('summaryActionsLive').hidden === true
+      && doc.getElementById('summaryDeleteBtn').hidden === true);
+    ctx.closeSummary();
+
+    /* a workout that genuinely set no record must never show one, even a fabricated
+       one — the New Records section is driven ENTIRELY by prEventsForEntry's own answer */
+    seed([WK('old1', 90, 'push', [E('Bench Press', [S(100, 8)])]),
+          WK('noPR', 45, 'push', [E('Bench Press', [S(90, 5)])])]);
+    ctx.openWorkoutSummary('noPR');
+    T('a workout with zero real PR events shows zero PR callouts, never a fabricated one',
+      ctx.prEventsForEntry(ctx.workoutLog.find(l => l.id === 'noPR')).length === 0
+      && doc.getElementById('summaryPRs').innerHTML === '');
+    ctx.closeSummary();
+  });
+
+  sub('edit and delete: normal cache invalidation, no orphaned summary');
+  await guard('edit delete', async () => {
+    seed([WK('e1', 30, 'push', [E('Bench Press', [S(100, 8)])])]);
+    ctx.openWorkoutSummary('e1');
+    T('opening it once more first: the pre-edit record is what it actually set',
+      ctx.computeAllPREvents().some(e => e.id === 'e1' && e.headline.next === 100));
+    ctx.closeSummary();
+    /* the REAL editor path, exactly as Contract 215 exercises it */
+    const target = ctx.workoutLog.find(l => l.id === 'e1');
+    const draft = JSON.parse(JSON.stringify(target));
+    draft.exercises[0].sets = [S(140, 8)];
+    ctx.workoutEditState = { id: target.id, origin: 'day', draft, baseline: JSON.stringify(target), dirty: true, saving: false };
+    ctx.saveWorkoutEdits();
+    await H.settle(1200);
+    ctx.workoutEditState = null;
+    ctx.openWorkoutSummary('e1');
+    T('after a real edit, the summary reflects the corrected workout through normal invalidation — no stale record',
+      /Bench Press/.test(doc.getElementById('summaryPRs').innerHTML)
+      && ctx.computeAllPREvents().some(e => e.id === 'e1' && e.headline.next === 140));
+    ctx.closeSummary();
+    ctx.deleteLog('e1');
+    T('deleting it removes the summary\'s only subject: opening it again finds nothing and does not throw',
+      (() => { let threw = false; try{ ctx.openWorkoutSummary('e1'); }catch(x){ threw = true; } return !threw && !ctx.workoutLog.some(l => l.id === 'e1'); })());
+  });
+
+  sub('access points: Today, the Log selected-day card, and the full workout sheet');
+  await guard('access points', async () => {
+    seed([WK('d1', 0, 'push', [E('Bench Press', [S(100, 8)])])]);
+    ctx.switchTab('today'); ctx.setSelectedDay(ctx.todayKey()); ctx.renderTodayWorkout();
+    const todayHtml = doc.getElementById('todayWorkout').innerHTML;
+    T('Today\'s completed card offers "Workout summary" and calls the real summary, not Day Detail',
+      /Workout summary/.test(todayHtml) && /onclick="openWorkoutSummary\('d1'\)"/.test(todayHtml));
+    T('the Log\'s selected-day card is a two-action row: Workout summary and Full workout, not one whole-card tap',
+      /class="tw-actions sd-actions"/.test(fnSrc(src, 'renderSelectedDay'))
+      && /openWorkoutSummary\('\$\{onclickArg\(entry\.id\)\}'\)/.test(fnSrc(src, 'renderSelectedDay'))
+      && /openDayDetail\('\$\{dateStr\}'\)/.test(fnSrc(src, 'renderSelectedDay'))
+      && !/<button type="button" class="sd-card"/.test(src));
+    T('the full workout sheet offers "Workout summary" near the top, wired per-entry',
+      /id="dayDetailSummaryBtn"/.test(src) && /summaryBtn\.onclick = \(\) => \{ closeDayDetail\(\); openWorkoutSummary\(entry\.id\); \};/.test(fnSrc(src, 'openDayDetail')));
+    T('Recent stays lightweight: no summary button added to its rows', !/openWorkoutSummary/.test(fnSrc(src, 'recentWorkoutsHtml')));
+    ctx.openDayDetail(ctx.workoutLog[0].date);
+    T('and tapping it from there reaches the same summary, cross-linked back to Full workout',
+      (() => { const btn = doc.getElementById('dayDetailSummaryBtn'); if(!btn || !btn.onclick) return false;
+        btn.onclick(); const open = doc.getElementById('summaryOverlay').classList.contains('open');
+        const fullBtn = doc.getElementById('summaryFullWorkoutBtn');
+        return open && !!fullBtn && !!fullBtn.onclick; })());
+    ctx.closeSummary();
+  });
+
+  /* ================================================================
+     PROTECTED SYSTEMS
+     ================================================================ */
+  sub('everything else is untouched');
+  await guard('protected', async () => {
+    T('D96C-3\'s workout-performance grouping is byte-identical', pin('workoutGroupsOf') === 'f346201c58363ccb');
+    T('D91, D96C-1/2/3\'s record and XP engines are byte-identical',
+      pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
+      && pin('computePRs') === '51bd020b4aa2a8a3' && pin('prModesByLift') === '1580d63cbcff4bfb');
+    T('D44, Session Score and the trainer are byte-identical',
+      pin('computeConsistencyData') === '4f03435af47cfdb9' && pin('sessionScore') === '842e5699f8ac0835'
+      && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' && pin('proposeTrainerState') === '34899e0f53f1d235'
+      && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('D100 and D101 are byte-identical', pin('deriveMuscleSetsBetween') === '6443a76e769a229e'
+      && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('twActionLabel') === '21824852a16e4df2');
+    T('Objectives, Mastery scoring and rank thresholds are byte-identical',
+      pin('objectiveProgress') === 'e0889920b620163e' && pin('masteryPointsFor') === '0c704c40a853d991'
+      && pin('rankIndexOf') === '821cfe82a1a7cb79');
+    T('DATA_KEYS 16, schema 1, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1
+      && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('no history is rewritten by any of Part 1 or Part 2', (() => {
+      const log = [WK('z1', 0, 'push', [E('Bench Press', [S(100, 8)])])];
+      const raw = JSON.stringify(log); seed(log);
+      ctx.setSelectedDay(ctx.DAY_ORDER.find(k => k !== ctx.todayKey())); ctx.renderTodayWorkout(); ctx.setSelectedDay(ctx.todayKey());
+      ctx.openWorkoutSummary('z1'); ctx.closeSummary();
+      return JSON.stringify(ctx.workoutLog) === raw;
+    })());
   });
 }
 
@@ -41876,6 +42215,7 @@ async function main(){
   await testRealUseD100();
   await testFastUxD101();
   await testWorkoutPerformanceD96C3();
+  await testCardsAndSummaryD102();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

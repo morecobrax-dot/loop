@@ -2590,6 +2590,9 @@ body.first-use{ padding-bottom: 0; }
   font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-faint);
 }
 .summary-danger:hover{ color: var(--danger); }
+/* D102 — same trap as .sheet-actions above: this rule's own display: block
+   otherwise beats the browser's default [hidden] rule. */
+.summary-danger[hidden]{ display: none; }
 
 /* ---- Next time notes ---- */
 #summaryNextTime:empty{ display: none; }
@@ -4319,19 +4322,18 @@ body.first-use{ padding-bottom: 0; }
 .sd-card{
   display: block; width: 100%; text-align: left; margin-top: 12px; padding: 14px;
   background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg);
-  cursor: pointer; font-family: 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
   animation: sdIn 0.18s var(--ease) both;
 }
 @keyframes sdIn{ from{ opacity: 0; transform: translateY(-4px); } to{ opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce){ .sd-card{ animation: none; } }
-.sd-card-empty{ border-color: var(--border); border-style: dashed; cursor: default; }
+.sd-card-empty{ border-color: var(--border); border-style: dashed; }
 .sd-head{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sd-date{ font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
 .sd-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; color: var(--text); margin-top: 8px; }
 .sd-meta{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; }
 .sd-prs{ display: inline-block; margin-top: 10px; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.05em;
   color: var(--success); background: var(--success-soft); padding: 3px 8px; border-radius: var(--radius-sm); }
-.sd-go{ display: flex; align-items: center; gap: 5px; margin-top: 12px; font-size: 12.5px; font-weight: 600; color: var(--accent); }
 
 /* Recent sessions: one scannable row each, detail one tap away. */
 .rw-list{ display: flex; flex-direction: column; margin-top: 4px; }
@@ -4606,12 +4608,6 @@ button.cal-cell:active{ transform: scale(0.92); }
   color: var(--accent); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
 }
 .tw-other{ touch-action: pan-y; }
-.tw-exlist{ display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
-.tw-ex{
-  font-size: 11px; color: var(--text-dim); background: var(--surface-2);
-  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 3px 7px;
-}
-.tw-ex-more{ color: var(--text-faint); background: none; border-style: dashed; }
 
 @media (prefers-reduced-motion: reduce){
   .wk-day:not(.wk-dragging){ transition: none; }
@@ -6867,6 +6863,11 @@ body.page-locked{ overflow: hidden; }
   padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border); background: var(--surface);
 }
+/* D102 — the summary sheet toggles between its live and historical footer with
+   the `hidden` attribute; this class's own `display: flex` above otherwise
+   beats the browser's default [hidden] rule (an author rule always outranks a
+   UA one, whatever the specificity), so a "hidden" footer still rendered. */
+.sheet-actions[hidden]{ display: none; }
 .btn-secondary, .btn-primary{
   flex: 1; min-height: 44px; padding: 13px; border-radius: var(--radius-md); font-weight: 700; font-size: 14px; cursor: pointer; border: none;
   transition: transform 0.12s var(--ease), opacity 0.15s var(--ease), box-shadow 0.18s var(--ease);
@@ -8566,6 +8567,9 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <div class="sheet-scroll">
         <h2 id="dayDetailTitle">Workout</h2>
         <div class="sheet-sub" id="dayDetailSub"></div>
+        <!-- D102 — reachable from here too, not only the calendar's own card,
+             so arriving through Recent still finds it without a trip back. -->
+        <button type="button" class="tw-change" id="dayDetailSummaryBtn" aria-label="View workout summary">Workout summary</button>
         <div id="dayDetailPRs"></div>
         <div id="dayDetailExercises"></div>
         <div id="dayDetailNotes"></div>
@@ -9423,11 +9427,19 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 </div>
 
+<!-- D102 — ONE summary sheet, ONE model (showWorkoutSummary), reused for
+     both the just-finished celebration and a permanent historical review of
+     any completed workout. Only what genuinely differs between "just now" and
+     "reviewing the past" is data-driven: the heading, the now-relative asides
+     (streak, current-level bar, Next Time, Coach, Cooldown — see the D102
+     note beside showWorkoutSummary for why each is live-only), and the
+     footer. Everything else — score, stats, records, XP, level-up — is the
+     same markup, the same ids, the same canonical data for any entry. -->
 <div class="overlay" id="summaryOverlay" onclick="backdropDismiss(event, closeSummary)">
   <div class="sheet summary-sheet">
     <div class="sheet-scroll">
     <div class="summary-mark" id="summaryMark"></div>
-    <h2 style="text-align:center">Workout Complete</h2>
+    <h2 style="text-align:center" id="summaryHeading">Workout Complete</h2>
     <div class="sheet-sub" id="summaryTitle" style="text-align:center"></div>
     <!-- D47 — the score anchors the page, above everything it is a summary of. -->
     <div id="summaryScore"></div>
@@ -9440,12 +9452,21 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     <div id="summaryCooldown"></div>
     <!-- Destructive maintenance, out of the celebration (D24): the same
          confirmed delete it always was, at the quiet foot of the scroll
-         instead of beside "Workout Complete". -->
-    <button type="button" class="summary-danger" onclick="deleteJustLoggedWorkout()">Delete this workout</button>
+         instead of beside "Workout Complete". Live only — a historical
+         review reaches Edit/Delete through Full workout instead, so this
+         sheet never offers the same action twice. -->
+    <button type="button" class="summary-danger" id="summaryDeleteBtn" onclick="deleteJustLoggedWorkout()">Delete this workout</button>
     </div>
-    <div class="sheet-actions">
+    <div class="sheet-actions" id="summaryActionsLive">
       <button class="btn-secondary" onclick="editJustLoggedWorkout()" aria-label="Edit workout">Edit</button>
       <button class="btn-primary" onclick="closeSummary()">Done</button>
+    </div>
+    <!-- Reviewing the past: no Edit/Delete here (Full workout already has
+         them), so tapping into a review never adds a second place to change
+         history from. -->
+    <div class="sheet-actions" id="summaryActionsHistorical" hidden>
+      <button class="btn-secondary" id="summaryFullWorkoutBtn" aria-label="Open full workout">Full workout</button>
+      <button class="btn-primary" onclick="closeSummary()">Close</button>
     </div>
   </div>
 </div>
@@ -17423,6 +17444,23 @@ const LOOP_UPDATES = [
       'An exercise logged in two or more entries in one workout now counts as one session on your strength trend, not one per entry',
       'The same training earns the same XP and records however many entries you split it into'
     ],
+    changes: []
+  },
+  {
+    id: 'v10-16',
+    version: 'LOOP 10.16',
+    title: 'A Workout Card That Stays Consistent, A Summary That Stays With You',
+    date: '2026-09-23',
+    swVersion: 'loop-v193',
+    summary: 'Your workout card now stays consistent throughout the week, and every completed workout’s summary can be reopened from your Log.',
+    newFeatures: [
+      'Open any past workout’s summary again from Log, or from its full workout screen — records, XP and Session Score, not just the raw set list'
+    ],
+    improvements: [
+      'Today’s workout card and any other day’s scheduled workout now share the same look, spacing and actions',
+      'A rest day shown from the schedule now matches that same card, with Train anyway kept as an optional, secondary action'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];
@@ -27537,6 +27575,14 @@ function attachWeekGestures(){
    the workout picker and the cardio link, and it is the screen the app opens
    on. Another day answers a smaller question — what is planned, and can I do
    it — so it gets its own card rather than making today's carry two jobs. */
+/* D102 — ONE scheduled-workout card family. Today keeps its own branch above
+   (active / done / rest / planned) because an active or just-finished session
+   is never a browsing state; every OTHER day in the week — yesterday not yet
+   logged, tomorrow, a day further out — is a browsing state, and now shares
+   Today's D101 surface, identity treatment and grouped `.tw-actions` row
+   instead of the older stacked-link card and its exercise-chip preview. Day
+   NAVIGATION (the strip above) stays separate from WORKOUT ACTIONS (inside
+   the card), so paging to another day is never a different component. */
 function renderOtherDayCard(el){
   const key = effectiveSelectedKey();
   const dateStr = selectedDayDate();
@@ -27545,19 +27591,12 @@ function renderOtherDayCard(el){
 
   /* Same precedence Today uses: an active program owns the day if it has one. */
   let cat = (schedule && schedule[key]) || 'rest';
-  let workoutName = null;
   try{
     if(hasActiveProgram()){
       const pd = getProgramWorkoutForDate(dateStr);
-      if(pd){
-        cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
-        if(pd.template && pd.template.name) workoutName = pd.template.name;
-      }
+      if(pd) cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
     }
   }catch(e){}
-  if(!workoutName && cat !== 'rest'){
-    try{ const t = (getTemplates(cat) || [])[0]; if(t && t.name) workoutName = t.name; }catch(e){}
-  }
 
   const nav = `
     <div class="tw-daynav">
@@ -27568,16 +27607,21 @@ function renderOtherDayCard(el){
         aria-label="Next day">${chevronRightSvg()}</button>
       <button type="button" class="tw-daynav-today" onclick="setSelectedDay(todayKey())">Today</button>
     </div>`;
+  const changeDay = `<button class="tw-change" onclick="openDayEdit('${key}')">${twActionLabel('Change day', 'Day')}</button>`;
 
   if(logged){
-    /* A day that already happened shows what happened, not what was planned. */
+    /* A day that already happened shows what happened, not what was planned —
+       the same identity treatment Today's own completed state uses. */
+    const wid = workoutIdentity(logged, logged.category);
     el.innerHTML = `
-      <div class="tw tw-other">
+      <div class="tw tw-${logged.category} tw-other tw-wi wi-c-${wid.colorId}">
         ${nav}
-        <div class="tw-title">${escapeHtml(logged.title)}</div>
+        <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(logged.title)}</span></div>
         <div class="tw-meta">Logged · ${(logged.exercises||[]).length} exercise${(logged.exercises||[]).length===1?'':'s'}</div>
-        <button class="tw-cta tw-cta-ghost" onclick="openDayDetail('${dateStr}')">View workout</button>
-      <button type="button" class="tw-change" onclick="openDayEdit('${key}')">Change this day</button>
+        <div class="tw-actions">
+          <button class="tw-change" onclick="openDayDetail('${dateStr}')">${twActionLabel('View workout', 'View')}</button>
+          ${changeDay}
+        </div>
       </div>`;
     return;
   }
@@ -27588,16 +27632,17 @@ function renderOtherDayCard(el){
         ${nav}
         <div class="tw-title">Rest Day</div>
         <div class="tw-meta">Nothing scheduled for ${escapeHtml(DAY_LABEL_FULL[key])}.</div>
-        <button class="tw-cta tw-cta-ghost" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
+        <button class="tw-change tw-override" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
         ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(null)}</div>` : ''}
-      <button type="button" class="tw-change" onclick="openDayEdit('${key}')">Change this day</button>
+        <div class="tw-actions">${changeDay}</div>
       </div>`;
     return;
   }
 
   /* A planned day behaves like a planned day: it names its workout, says what
      is in it, and starts it. The schedule is not rewritten just because the
-     athlete looked ahead. */
+     athlete looked ahead — starting early is the same freeform-training path
+     Start Workout has always used, just reached from a different day's card. */
   const tpl = dayTemplateFor(cat, dateStr);
   const shown = tpl ? applyTimeModeToTemplate(tpl) : null;
   const dur = shown ? computeWorkoutDuration(shown) : null;
@@ -27607,20 +27652,20 @@ function renderOtherDayCard(el){
     dur ? '~' + dur + ' min' : null
   ].filter(Boolean).join(' · ');
   const alts = (getTemplates(cat) || []).filter(t => !tpl || t.id !== tpl.id);
+  const wid = workoutIdentity(tpl, cat);
 
   el.innerHTML = `
-    <div class="tw tw-other">
+    <div class="tw tw-${cat} tw-other tw-wi wi-c-${wid.colorId}">
       ${nav}
-      <span class="cat-chip ${cat}">${CAT_LABEL[cat]}</span>
-      <div class="tw-title">${escapeHtml(workoutName || CAT_LABEL[cat])}</div>
-      <div class="tw-meta">${meta ? escapeHtml(meta) : 'Planned for ' + escapeHtml(DAY_LABEL_FULL[key])}</div>
-      ${shown ? `<div class="tw-exlist">${shown.exercises.slice(0, 4).map(e =>
-        `<span class="tw-ex">${escapeHtml(e.name)}</span>`).join('')}${
-        shown.exercises.length > 4 ? `<span class="tw-ex tw-ex-more">+${shown.exercises.length - 4} more</span>` : ''}</div>` : ''}
-      ${tpl ? `<button class="tw-cta" onclick="startTemplateLog('${escapeAttr(cat)}','${onclickArg(tpl.id)}')">Start ${escapeHtml(tpl.name)}</button>` : ''}
-      ${alts.length ? `<button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide other workouts' : 'Choose a different workout'}</button>` : ''}
+      <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${CAT_LABEL[cat]}</span></div>
+      <div class="tw-meta">${tpl ? escapeHtml(tpl.name) + (meta ? ' · ' + escapeHtml(meta) : '') : 'Planned for ' + escapeHtml(DAY_LABEL_FULL[key])}</div>
+      ${tpl ? `<button class="tw-cta" onclick="startTemplateLog('${escapeAttr(cat)}','${onclickArg(tpl.id)}')">Start Workout</button>` : ''}
+      ${tpl ? `<div class="tw-actions">
+        <button class="tw-change" onclick="openTrainDetail('${escapeAttr(cat)}','${onclickArg(tpl.id)}','${dateStr}')">${twActionLabel('View workout', 'View')}</button>
+        ${changeDay}
+        ${alts.length || todayPickerOpen ? `<button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? twActionLabel('Hide options', 'Hide') : twActionLabel('Change workout', 'Workout')}</button>` : ''}
+      </div>` : `<div class="tw-actions">${changeDay}</div>`}
       ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat)}</div>` : ''}
-      <button type="button" class="tw-change" onclick="openDayEdit('${key}')">Change this day</button>
     </div>`;
 }
 
@@ -27740,7 +27785,7 @@ function renderTodayWorkout(){
         <div class="tw-label">Workout complete</div>
         <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(doneToday.title || CAT_LABEL[doneToday.category] || 'Workout')}</span></div>
         <div class="tw-meta">Completed today · ${doneToday.exercises.length} exercise${doneToday.exercises.length===1?'':'s'} · ${sessionVolume(doneToday).toLocaleString()} lb</div>
-        <button class="tw-cta tw-cta-done" onclick="openDayDetail('${todayStr}')">View Summary</button>
+        <button class="tw-cta tw-cta-done" onclick="openWorkoutSummary('${doneToday.id}')">Workout summary</button>
         <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train again'}</button>
         ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat === 'rest' ? null : cat)}</div>` : ''}
       </div>`;
@@ -28762,8 +28807,17 @@ function trainWeekDays(){
   }
   return out;
 }
+/* D102 — the program's resolution for ANY date, wrapped exactly as
+   trainTodayProgram always wrapped it. trainTodayProgram is now the "today"
+   case of this, so callers that preview a FUTURE day (View workout on a
+   scheduled-but-not-yet-trained day) can resolve that day's own program
+   session — including a custom, no-library-template one — instead of always
+   asking about today. */
+function trainProgramDayFor(dateStr){
+  try{ return getProgramWorkoutForDate(dateStr); }catch(e){ return null; }
+}
 function trainTodayProgram(){
-  try{ return getProgramWorkoutForDate(localDateStr()); }catch(e){ return null; }
+  return trainProgramDayFor(localDateStr());
 }
 /* What Start trains for a workout: startTemplateLog's own choice — the program's
    composed session when it scheduled exactly this workout today — then the
@@ -28937,17 +28991,22 @@ function renderTrainPlan(view){
    the program for today's own session; this mirrors that, so View Workout
    can never silently do nothing for a session Start Workout can already
    train. */
-function trainDetailTemplateOf(cat, id){
+/* D102 — `date` lets a FUTURE day's own View workout resolve that day's own
+   program session (a custom one included) instead of today's. Omitted, this
+   is byte-identical to before: every existing caller (Today's card, every
+   Train tab row) passes no date and gets exactly the old trainTodayProgram()
+   answer. */
+function trainDetailTemplateOf(cat, id, date){
   const fromList = (getTemplates(cat) || []).find(x => x && x.id === id);
   if(fromList) return fromList;
-  const prog = trainTodayProgram();
+  const prog = date ? trainProgramDayFor(date) : trainTodayProgram();
   if(prog && prog.template && prog.category === cat && prog.template.id === id) return prog.template;
   return null;
 }
-function openTrainDetail(cat, id){
-  const t = trainDetailTemplateOf(cat, id);
+function openTrainDetail(cat, id, date){
+  const t = trainDetailTemplateOf(cat, id, date);
   if(!t) return;
-  trainDetailKey = { cat, id };
+  trainDetailKey = { cat, id, date };
   renderTrainDetail();
   const ov = document.getElementById('trainDetailOverlay');
   if(ov) ov.classList.add('open');
@@ -28960,10 +29019,13 @@ function closeTrainDetail(){
 function renderTrainDetail(){
   const key = trainDetailKey;
   if(!key) return;
-  const t = trainDetailTemplateOf(key.cat, key.id);
+  const t = trainDetailTemplateOf(key.cat, key.id, key.date);
   if(!t){ closeTrainDetail(); return; }
   const saved = isSavedWorkoutId(t.id);
-  const src = trainStartSource(key.cat, t, trainTodayProgram());
+  /* D102 — the SAME date drives what "shown" reflects, so a future day's
+     Detail can never show a different composition from what its own View
+     workout resolved above. */
+  const src = trainStartSource(key.cat, t, key.date ? trainProgramDayFor(key.date) : trainTodayProgram());
   const shown = trainShown(src);
   const exercises = shown.exercises || [];
   let dur = null;
@@ -29322,8 +29384,13 @@ function renderSelectedDay(){
       mins ? '~' + mins + ' min' : null
     ].filter(Boolean).join(' · ');
 
+    /* D102 — a restrained two-action row replaces one whole-card tap, so
+       DAY NAVIGATION (the calendar above) never has to guess which surface a
+       tap on this card meant. Workout summary and Full workout are the same
+       two ways to read a past session that Today's own completed-hero already
+       cross-links, kept to exactly two so this never grows a third. */
     el.innerHTML = `
-      <button type="button" class="sd-card" onclick="openDayDetail('${dateStr}')">
+      <div class="sd-card">
         <div class="sd-head">
           <span class="sd-date">${escapeHtml(nice)}</span>
           <span class="cat-chip ${entry.category}">${CAT_LABEL[entry.category]}</span>
@@ -29331,8 +29398,11 @@ function renderSelectedDay(){
         <div class="sd-title has-wi">${workoutIdentityHtml(entry, entry.category, 'sm')}<span>${escapeHtml(entry.title)}</span></div>
         <div class="sd-meta">${escapeHtml(meta)}</div>
         ${prs.length ? `<div class="sd-prs">${prs.length} new record${prs.length === 1 ? '' : 's'}</div>` : ''}
-        <span class="sd-go">View full workout ${chevronRightSvg()}</span>
-      </button>`;
+        <div class="tw-actions sd-actions">
+          <button type="button" class="tw-change" onclick="openWorkoutSummary('${onclickArg(entry.id)}')">${twActionLabel('Workout summary', 'Summary')}</button>
+          <button type="button" class="tw-change" onclick="openDayDetail('${dateStr}')">${twActionLabel('Full workout', 'Full')}</button>
+        </div>
+      </div>`;
     return;
   }
 
@@ -29528,6 +29598,9 @@ function openDayDetail(dateStr){
   }).join('');
 
   document.getElementById('dayDetailNotes').innerHTML = entry.notes ? `<div class="log-notes">"${escapeHtml(entry.notes)}"</div>` : '';
+
+  const summaryBtn = document.getElementById('dayDetailSummaryBtn');
+  if(summaryBtn) summaryBtn.onclick = () => { closeDayDetail(); openWorkoutSummary(entry.id); };
 
   const editBtn = document.getElementById('dayDetailEditBtn');
   if(editBtn) editBtn.onclick = () => { closeDayDetail(); openWorkoutEditor(entry.id, 'day'); };
@@ -54043,12 +54116,58 @@ function computeNextTimeNotes(entry){
   return notes.slice(0, 4);
 }
 
-function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
+/* =========================================================
+   ONE WORKOUT SUMMARY MODEL  (Phase D102)
+   ---------------------------------------------------------
+   Every fact this sheet shows is derived from ONE entry — never "the current
+   workout", never "the latest one" — through the same canonical systems every
+   other historical surface already reads: prEventsForEntry / getSessionPRs
+   (D96C-2/D96C-3) for records, getWorkoutXPEntry (computeXPTimeline) for XP
+   and level-ups, sessionScore for the score. That is what makes reviewing an
+   OLD workout's summary safe: the same call, any entry, always the canonical
+   answer for THAT workout.
+
+   `live` (default true, so every existing call — the real completion path,
+   and the "origin: summary" re-render after an edit — is byte-identical to
+   before D102) is the one thing that changes what gets shown, and only for
+   sections that are honestly about RIGHT NOW rather than about the workout
+   itself:
+     · the heading ("Workout Complete" vs a plain review)
+     · the current week streak and the live level/XP-to-next bar beside XP
+       Earned — both are facts about today, not about an old session, so a
+       review shows the LEVEL THAT WORKOUT REACHED instead (xpEntry.levelAfter
+       is already on the canonical timeline entry — no new derivation)
+     · Next Time (computeNextTimeNotes reads CURRENT progression to recommend
+       a target for NEXT time — the wrong thing to show while looking back)
+     · Coach (matchedNames / volumeInsight both compare against "whatever is
+       most recent in the WHOLE log right now", not against what was actually
+       most recent AS OF that workout — correct for a live completion, where
+       the entry IS the newest thing in the log, but not a safe general-purpose
+       comparison to run against an arbitrary past entry)
+     · Cooldown — a live prompt to go do something now, not a fact about a
+       workout already finished
+   Score, stats, Planned vs Actual, Records and XP-earned (the number, not the
+   decoration) are ALWAYS shown and always correct for any entry — nothing
+   about them is gated. */
+function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, live){
+  if(live === undefined) live = true;
   lastLoggedEntryId = entry.id;
   newPREvents = newPREvents || [];
   matchedNames = matchedNames || [];
   const vol = sessionVolume(entry);
-  const streak = computeWeekStreak();
+  const streak = live ? computeWeekStreak() : 0;
+  const heading = document.getElementById('summaryHeading');
+  if(heading) heading.textContent = live ? 'Workout Complete' : 'Workout Summary';
+  const deleteBtn = document.getElementById('summaryDeleteBtn');
+  if(deleteBtn) deleteBtn.hidden = !live;
+  const liveActions = document.getElementById('summaryActionsLive');
+  const histActions = document.getElementById('summaryActionsHistorical');
+  if(liveActions) liveActions.hidden = !live;
+  if(histActions) histActions.hidden = live;
+  if(!live){
+    const fullBtn = document.getElementById('summaryFullWorkoutBtn');
+    if(fullBtn) fullBtn.onclick = () => { closeSummary(); openDayDetail(entry.date); };
+  }
 
   const xpEntry = getWorkoutXPEntry(entry.id);
   const levelUpEl = document.getElementById('summaryLevelUp');
@@ -54076,9 +54195,19 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
     const el = document.getElementById('summaryScore'); if(el) el.innerHTML = '';
   }
   /* Optional cooldown. Reads only the category already on the saved entry and
-     writes nothing; wrapped so it can never interfere with the summary. */
-  try{ renderCooldownCard(entry); }catch(e){}
-  const quality = computeWorkoutQuality(entry, newPREvents);
+     writes nothing; wrapped so it can never interfere with the summary. A live
+     prompt to go do something now — not a fact about a workout already in the
+     past, so a review never offers it. */
+  if(live){ try{ renderCooldownCard(entry); }catch(e){} }
+  else { const cd = document.getElementById('summaryCooldown'); if(cd) cd.innerHTML = ''; }
+  /* computeWorkoutQuality itself is untouched and stays exactly what D44 reads
+     (protected, pinned). Its two "vs prior" readLines below compare against
+     whatever is most recently OTHER in the log right now, which is only ever
+     correct when entry IS the newest thing in the log — true at live
+     completion, not guaranteed for an arbitrary past entry — so a review reads
+     the stats without that comparison rather than risk describing the past
+     against the wrong "prior" session. */
+  const quality = live ? computeWorkoutQuality(entry, newPREvents) : null;
   const durationMin = estimateLoggedDuration(entry);
   const totalSets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
 
@@ -54149,20 +54278,32 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
        The same medal renderer and the same progression read as everywhere;
        the week streak rides here as a small reward line instead of holding a
        stat card the size of the volume it sat beside. */
+    /* LIVE shows where the athlete stands RIGHT NOW (current level, XP toward
+       the next one, this week's streak) — all facts about today, not about
+       this workout. A review shows the level THAT WORKOUT reached instead:
+       xpEntry.levelAfter is already on the canonical timeline entry, the same
+       number Profile XP History shows beside it — no current-progression call,
+       no streak, because neither describes a session from the past. This was
+       already the function's own fallback for when getCurrentProgression
+       throws; a review simply always takes it. */
     let identity = '';
-    try{
-      const pNow = getCurrentProgression();
-      const pctNow = pNow.xpForNext > 0 ? Math.min(100, Math.round((pNow.currentXP / pNow.xpForNext) * 100)) : 0;
-      identity = `
-      <div class="xp-identity">
-        ${rankMedalSvg(pNow.rank, 40)}
-        <div class="xp-identity-txt">
-          <span class="xp-identity-lvl">LEVEL ${pNow.level} · ${escapeHtml(pNow.rank)}</span>
-          <span class="hdr-level-bar"><span style="width:${pctNow}%"></span></span>
-        </div>
-        ${streak >= 2 ? `<span class="xp-streak">${streak}-week streak</span>` : ''}
-      </div>`;
-    }catch(e){
+    if(live){
+      try{
+        const pNow = getCurrentProgression();
+        const pctNow = pNow.xpForNext > 0 ? Math.min(100, Math.round((pNow.currentXP / pNow.xpForNext) * 100)) : 0;
+        identity = `
+        <div class="xp-identity">
+          ${rankMedalSvg(pNow.rank, 40)}
+          <div class="xp-identity-txt">
+            <span class="xp-identity-lvl">LEVEL ${pNow.level} · ${escapeHtml(pNow.rank)}</span>
+            <span class="hdr-level-bar"><span style="width:${pctNow}%"></span></span>
+          </div>
+          ${streak >= 2 ? `<span class="xp-streak">${streak}-week streak</span>` : ''}
+        </div>`;
+      }catch(e){
+        identity = `<div class="xp-breakdown-level">LEVEL ${xpEntry.levelAfter} · ${calculateRankFromLevel(xpEntry.levelAfter)}</div>`;
+      }
+    } else {
       identity = `<div class="xp-breakdown-level">LEVEL ${xpEntry.levelAfter} · ${calculateRankFromLevel(xpEntry.levelAfter)}</div>`;
     }
     xpEl.innerHTML = `
@@ -54177,9 +54318,14 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
     xpEl.innerHTML = '';
   }
 
+  /* Next Time reads CURRENT progression (progressionFor) to recommend a target
+     for the NEXT session of each exercise — the right thing to say right after
+     finishing, and the wrong thing to say while looking back at an old one:
+     today's recommendation for a lift last touched months ago is not a fact
+     about that workout. Live only. */
   const nextEl = document.getElementById('summaryNextTime');
   if(nextEl){
-    const notes = computeNextTimeNotes(entry);
+    const notes = live ? computeNextTimeNotes(entry) : [];
     nextEl.innerHTML = notes.length ? `
       <div class="section-label" style="margin-top:18px">Next Time</div>
       <div class="nexttime-card">
@@ -54192,13 +54338,19 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
       </div>` : '';
   }
 
+  /* Coach compares this session's volume, and its matched-previous-performance
+     read, against whatever the log holds right now — correct when entry is the
+     newest thing in it (live), not a safe comparison to run against an
+     arbitrary past entry (see the note above showWorkoutSummary). Live only. */
   const coachEl = document.getElementById('summaryCoach');
   const coachLines = [];
-  if(volumeInsight) coachLines.push(volumeInsight);
-  if(matchedNames.length === 1){
-    coachLines.push({ text: `${matchedNames[0]} matched your previous performance.`, detail: 'Same weight, same reps as last session — consistent effort.', tag: 'neutral' });
-  } else if(matchedNames.length > 1){
-    coachLines.push({ text: `${matchedNames.length} exercises matched your previous performance.`, detail: matchedNames.join(', '), tag: 'neutral' });
+  if(live){
+    if(volumeInsight) coachLines.push(volumeInsight);
+    if(matchedNames.length === 1){
+      coachLines.push({ text: `${matchedNames[0]} matched your previous performance.`, detail: 'Same weight, same reps as last session — consistent effort.', tag: 'neutral' });
+    } else if(matchedNames.length > 1){
+      coachLines.push({ text: `${matchedNames.length} exercises matched your previous performance.`, detail: matchedNames.join(', '), tag: 'neutral' });
+    }
   }
   if(coachEl){
     coachEl.innerHTML = coachLines.length
@@ -54217,6 +54369,21 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight){
 function closeSummary(){
   document.getElementById('summaryOverlay').classList.remove('open');
   renderAll();
+}
+
+/* D102 — permanent access to any completed workout's summary, from history.
+   Takes an ID (never a date): two workouts can share a civil date, and this
+   is the one summary entry point that cannot land on the wrong one because of
+   it. Looked up fresh every time, so it works after a reload and reflects the
+   entry exactly as it stands now — an edit or a delete is just workoutLog
+   changing under it, nothing cached here to go stale. If the workout is gone
+   (deleted), there is nothing to show and nothing opens. */
+function openWorkoutSummary(entryId){
+  const entry = workoutLog.find(l => l.id === entryId);
+  if(!entry) return;
+  let events = [];
+  try{ events = prEventsForEntry(entry); }catch(e){}
+  showWorkoutSummary(entry, events, [], null, false);
 }
 
 function deleteJustLoggedWorkout(){
