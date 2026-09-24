@@ -42575,9 +42575,11 @@ async function testStartProvenanceD103(){
       && pin('showWorkoutSummary') === 'ae01827f9c112f92' && pin('openDayDetail') === 'ca6c95625a470a7e');
     T('D96: grouping, records, PR XP and the session index are byte-identical', pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
-    T('E16 capability, E20 recovery, E21 D49 evidence and E22 XP/Mastery are untouched',
+    /* D109 restated: exerciseSessionHistory changed on purpose, for E21 — Contract 224 proves it
+       differs from 10.23 in its load/reps pairing and nothing else. The rest of the line is unchanged. */
+    T('E16 capability, E20 recovery, D49 evidence (as D109 left it) and E22 XP/Mastery are untouched',
       pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd'
-      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('exerciseSessionHistory') === '43ab1de84479d05c' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
+      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('exerciseSessionHistory') === '7ebd60c21c542e80' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
       && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('masteryPointsFor') === '0c704c40a853d991');
     T('D100/D101 are byte-identical', pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('getMasteryProgress') === '77aca2558d11f3d5'
@@ -42741,11 +42743,12 @@ async function testExerciseCardD104(){
       pin('openSubstitutions') === 'a57e36b26c5a4285' && pin('swapLogExercise') === '53e0f712db604c13' && pin('exerciseNoteBlockHtml') === '4cd4699fde7d8b5f'
       && pin('refreshExerciseNoteBlock') === 'b7affb26cc68f860' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('maybeRefreshWarmup') === 'c8ae17b3ef832173'
       && pin('lastTimeHtml') === '7fbccabf7dc8ca7f' && pin('refreshSetCoach') === '5c84cf297638cae2');
+    /* D109 restated: exerciseSessionHistory changed on purpose, for E21 — see Contract 224. */
     T('progression, records, XP, capability, recovery, Mastery and D100/D101 are byte-identical',
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd'
-      && pin('exerciseSessionHistory') === '43ab1de84479d05c' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
+      && pin('exerciseSessionHistory') === '7ebd60c21c542e80' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('twActionLabel') === '21824852a16e4df2');
     T('trainer 0.1.1-shadow, DATA_KEYS 16, schema 1, no migration', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 16
       && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
@@ -43910,6 +43913,277 @@ async function testCalendarDayTruthD108(){
   });
 }
 
+/* =========================================================
+   CONTRACT 224 — A PERFORMANCE PAIR COMES FROM ONE REAL SET  (D109, E21)
+   ---------------------------------------------------------
+   exerciseSessionHistory reported a session's `weight` as its heaviest
+   working load and `topReps` as the most reps of ANY working set, taken
+   independently: 225 × 8 then 245 × 3 read as "245 lb × 8", a set nobody
+   lifted, and D49 recommended adding weight to it. The session is still
+   represented by its heaviest working load; its reps are the most reps
+   logged AT that load. Which sets count is unchanged, and so is every
+   threshold D49 reads.
+   ========================================================= */
+async function testRealSetPairingD109(){
+  section('CONTRACT 224 — a performance pair comes from one real set (D109, E21)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const pad = n => String(n).padStart(2, '0');
+  const S = (w, r, o) => Object.assign({ weight: w === null ? '' : String(w), reps: r === null ? '' : String(r), rir: '2', completed: true }, o || {});
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  const D = n => { const d = new ctx.Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
+    ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); };
+  const ROW = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const WK = (id, n, rows) => ({ id, date: D(n), category: 'push', title: 'Push', notes: '', exercises: rows });
+  /* the session D49 reads, for one workout holding these rows */
+  const ev = (rows, name) => { seed([WK('w1', 2, rows)]); return ctx.exerciseSessionHistory(name || 'Bench Press', 5)[0] || null; };
+  const one = sets => ev([ROW('Bench Press', sets)]);
+  const pair = h => h ? h.weight + ' x ' + h.topReps : 'none';
+  /* the rule, stated independently of the app: the eligible sets are the
+     working, completed ones with reps; of those with a readable load, the
+     heaviest load, then the most reps AT that load. */
+  const load = w => { const s = String(w == null ? '' : w).trim(); if(!s || s.toUpperCase() === 'BW') return null;
+    const n = parseFloat(s); return Number.isFinite(n) ? n : null; };
+  const eligible = sets => sets.filter(s => s.type !== 'warmup' && s.completed !== false && parseFloat(s.reps) > 0);
+  const oracle = sets => {
+    const got = eligible(sets).map(s => ({ w: load(s.weight), r: parseFloat(s.reps) })).filter(x => x.w !== null);
+    if(!got.length) return 'none';
+    const w = Math.max(...got.map(x => x.w));
+    return w + ' x ' + Math.max(...got.filter(x => x.w === w).map(x => x.r));
+  };
+  /* the pre-D109 reading, for proving what did NOT move */
+  const oldPair = sets => {
+    const el = eligible(sets), ws = el.map(s => load(s.weight)).filter(w => w !== null);
+    return ws.length ? Math.max(...ws) + ' x ' + Math.max(...el.map(s => parseFloat(s.reps))) : 'none';
+  };
+  const isRealSet = (sets, h) => !!h && eligible(sets).some(s => load(s.weight) === h.weight && parseFloat(s.reps) === h.topReps);
+
+  sub('the literal impossible pair: 225 × 8 then 245 × 3 is never "245 × 8"');
+  await guard('impossible pair', async () => {
+    const sets = [S(225, 8), S(245, 3)];
+    const h = one(sets);
+    T('1 — D49\'s evidence is the real set 245 × 3, not the manufactured 245 × 8', pair(h) === '245 x 3' && isRealSet(sets, h), pair(h));
+    T('   and everything else about the session is exactly as before: 2 working sets, both counted, same effort',
+      h.workingSets === 2 && h.setsLogged === 2 && h.rirSets === 2 && h.avgRir === 2);
+    const rec = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    T('2 — D49 no longer recommends a jump to 255 from a set that never happened: it holds 245 and builds toward the range',
+      rec.tag === 'build' && rec.weight === 245 && /aim for 4 reps at 245 lb/.test(rec.why), [rec.tag, rec.weight, rec.why]);
+    /* every D49-derived object and every surface that prints one */
+    const entry = ctx.workoutLog[0];
+    const evd = { session: { cat: 'push', source: 'plan', template: { name: 'Push', exercises: [{ name: 'Bench Press', reps: '6-8', recommended: '' }] } },
+      loggedToday: 0, today: D(0), deload: false, gapDays: 2, lastSessionDate: D(2) };
+    const surfaces = {
+      evidence: ctx.exerciseSessionHistory('Bench Press', 5), rec, forScreen: ctx.progressionFor('Bench Press', '6-8', null),
+      objectives: ctx.objectiveDailyCandidates(evd), nextTime: ctx.computeNextTimeNotes(entry),
+      buckets: ctx.computeProgressionBuckets(), insights: (() => { ctx.renderTodayInsights(); return doc.getElementById('todayInsights').innerHTML; })()
+    };
+    const text = JSON.stringify(surfaces);
+    const objPairs = [];
+    const walk = o => { if(!o || typeof o !== 'object') return; if(o.weight === 245 && (o.reps === 8 || o.topReps === 8)) objPairs.push(o); Object.values(o).forEach(walk); };
+    walk(surfaces);
+    T('3 — NO D49-derived object, recommendation, explanation or displayed evidence contains 245 × 8 (evidence, D49, progressionFor, objectives, next-time notes, Progress buckets, Today insights)',
+      !/245(?:\.0+)?\s*(?:lb\s*)?[×x]\s*8(?![\d\-–])/i.test(text) && !objPairs.length && !/255 lb/.test(text), text.match(/.{0,40}245.{0,20}8.{0,20}/g));
+    const match = surfaces.objectives.find(c => c.objectiveType === 'match_lift');
+    T('4 — "Match your last" now asks for the set the athlete actually lifted: 245 × 3',
+      !!match && match.target.weight === 245 && match.target.reps === 3 && /245\s+lb x 3/.test(match.reason), match && [JSON.stringify(match.target), match.reason]);
+    seed([WK('w1', 2, [ROW('Bench Press', sets)]), WK('again', 0, [ROW('Bench Press', sets.map(s => Object.assign({}, s)))])]);
+    const p = ctx.objectiveProgress({ objectiveType: 'match_lift', periodKey: D(0), target: match.target });
+    T('   and repeating exactly the same session completes it — the evaluator (objectiveBestSetOn) reads it by the same rule', p.current === 1, p.detail);
+  });
+
+  sub('order, ties and several loads: always one real set, the heaviest, then the most reps there');
+  await guard('order ties', async () => {
+    T('5 — B: 245 × 3 then 225 × 8 — set order manufactures nothing: the same real 245 × 3', pair(one([S(245, 3), S(225, 8)])) === '245 x 3');
+    T('6 — C: 245 × 3 then 245 × 5 — both at the selected load: the reps of a real 245 set, 5', pair(one([S(245, 3), S(245, 5)])) === '245 x 5');
+    T('7 — D: 245 × 5 then 245 × 3 — the tie is deterministic, not order: 5 again', pair(one([S(245, 5), S(245, 3)])) === '245 x 5');
+    const pyr = [S(185, 10), S(205, 8), S(225, 6), S(245, 4), S(225, 7)];
+    T('8 — E: a pyramid of five loads reads its top set, 245 × 4 — not 245 × 10', pair(one(pyr)) === '245 x 4' && isRealSet(pyr, one(pyr)));
+    T('9 — N: a single valid set is read exactly as before', pair(one([S(245, 5)])) === '245 x 5' && oldPair([S(245, 5)]) === '245 x 5');
+  });
+
+  sub('eligibility is untouched: warm-ups, drop / failure / AMRAP, blanks and malformed values');
+  await guard('eligibility', async () => {
+    const typed = one([S(135, 10, { type: 'warmup' }), S(225, 5, { type: 'working' }), S(225, 5, { type: 'working' })]);
+    T('10 — F: a TYPED warm-up is still excluded, as D49 always excluded it: 225 × 5, 2 working sets', pair(typed) === '225 x 5' && typed.workingSets === 2);
+    const untyped = one([S(135, 10), S(225, 5), S(225, 5)]);
+    T('11 — an UNTYPED first set still counts as working (unknown is not a warm-up) — but its 10 reps no longer ride on 225',
+      pair(untyped) === '225 x 5' && untyped.workingSets === 3);
+    const drop = one([S(245, 3), S(185, 10, { type: 'drop' })]);
+    T('12 — G: a drop set still counts as working — its reps never attach to the top load: 245 × 3, 2 working sets', pair(drop) === '245 x 3' && drop.workingSets === 2);
+    T('13 — AMRAP and failure sets AT the top load are real sets of it and are read: 245 × 7',
+      pair(one([S(245, 5), S(245, 7, { type: 'amrap' })])) === '245 x 7' && pair(one([S(245, 5), S(245, 6, { type: 'failure' }), S(205, 9)])) === '245 x 6');
+    T('14 — H: a set with blank reps is not a performance and cannot be the top set: 225 × 8', pair(one([S(245, null), S(225, 8)])) === '225 x 8');
+    const e21 = one([S(null, 10), S(null, 10), S(175, 5)]);
+    T('15 — I: the recorded E21 shape — reps logged with no load, then 175 × 5 — reads 175 × 5, not 175 × 10 (and still 3 working sets)',
+      pair(e21) === '175 x 5' && e21.workingSets === 3);
+    T('16 — J: a malformed or non-finite LOAD is the absence D96A made it, and can never lend its reps: 200 × 5',
+      pair(one([S('abc', 12), S(200, 5)])) === '200 x 5' && pair(one([S('1e999', 12), S(200, 5)])) === '200 x 5' && pair(one([S('-Infinity', 12), S(200, 5)])) === '200 x 5');
+    T('17 — a malformed REP count on a LIGHTER set can no longer win the session either: 245 × 3',
+      pair(one([S(225, '1e999'), S(245, 3)])) === '245 x 3');
+    T('18 — zero, negative and unreadable reps stay ineligible; a zero-load session reads as before',
+      pair(one([S(245, 0), S(245, -3), S(245, 'x'), S(225, 6)])) === '225 x 6' && pair(one([S(0, 10), S(0, 12)])) === '0 x 12');
+    T('19 — a set left unticked is still not a performance: 245 × 9 unticked, 245 × 4 ticked -> 245 × 4',
+      pair(one([S(245, 9, { completed: false }), S(245, 4)])) === '245 x 4');
+  });
+
+  sub('one workout, one performance: repeated rows, spellings and bodyweight');
+  await guard('rows names bw', async () => {
+    T('20 — K: a heavier set logged in a LATER row is the session\'s top set, with that set\'s own reps: 245 × 3',
+      pair(ev([ROW('Bench Press', [S(225, 8)]), ROW('Bench Press', [S(245, 3)])])) === '245 x 3');
+    T('21 — K: more reps at the top load in a later row are read from that later row: 245 × 6',
+      pair(ev([ROW('Bench Press', [S(245, 3)]), ROW('Bench Press', [S(245, 6)])])) === '245 x 6');
+    T('22 — L: one lift under three spellings is one session, asked for by any of them',
+      pair(ev([ROW('Bench Press', [S(225, 8)]), ROW(' bench press ', [S(245, 3)]), ROW('BENCH PRESS', [S(245, 2)])], 'bench PRESS')) === '245 x 3');
+    const dip = ev([ROW('Dip', [S('BW', 20)], true), ROW('Dip', [S(100, 5)])], 'Dip');
+    T('23 — M: a bodyweight row is not loaded evidence — not counted, and its reps never pair with a loaded row\'s load: Dip 100 × 5, 1 working set',
+      pair(dip) === '100 x 5' && dip.workingSets === 1 && dip.setsLogged === 1, dip && [pair(dip), dip.workingSets, dip.setsLogged]);
+    seed([WK('bw', 2, [ROW('Pull-Up', [S('BW', 12), S('BW', 10)], true)])]);
+    T('   and a bodyweight-only lift still gives D49 no loaded history at all, exactly as before',
+      ctx.exerciseSessionHistory('Pull-Up', 5).length === 0 && ctx.buildProgressionRecommendation('Pull-Up', '6-10', null).tag === 'new');
+  });
+
+  sub('four hundred generated sessions: the rule, the real set, and nothing moved outside E21');
+  await guard('generated', async () => {
+    const rnd = H.mulberry32(109);
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const LOADS = [135, 155, 185, 205, 225, 245, 245, 225, '', 'abc', '1e999', 0];
+    const REPS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 5, 8, '', 0];
+    const TYPES = [undefined, undefined, 'working', 'working', 'warmup', 'drop', 'failure', 'amrap'];
+    let n = 0, agree = 0, real = 0, withEv = 0, e21 = 0, sameOutside = 0, outside = 0, objAgree = 0, objN = 0;
+    const bad = [];
+    for(let i = 0; i < 400; i++){
+      const sets = Array.from({ length: 1 + Math.floor(rnd() * 6) }, () => {
+        const o = {}; const t = pick(TYPES); if(t) o.type = t; if(rnd() < 0.08) o.completed = false;
+        return S(pick(LOADS), pick(REPS), o);
+      });
+      const h = one(sets);
+      const want = oracle(sets);
+      n++;
+      if(pair(h) === want) agree++; else if(bad.length < 3) bad.push({ sets, got: pair(h), want });
+      if(h){ withEv++; if(isRealSet(sets, h)) real++; }
+      const old = oldPair(sets);
+      const oldReal = old !== 'none' && eligible(sets).some(s => load(s.weight) + ' x ' + parseFloat(s.reps) === old);
+      if(old !== 'none' && !oldReal) e21++;
+      if(old === 'none' || oldReal){ outside++; if(pair(h) === old) sameOutside++; }
+      /* the objective evaluator reads a session by the same rule — they now agree */
+      if(h && !sets.some(s => String(s.reps) === '1e999')){
+        objN++;
+        const b = ctx.objectiveBestSetOn('Bench Press', D(2));
+        if(b && b.weight === h.weight && b.reps === h.topReps) objAgree++;
+      }
+    }
+    T('24 — all 400: D49\'s pair is exactly "heaviest eligible load, then the most reps at it"', agree === n, bad);
+    T('25 — every session with evidence reads a pair that is ONE real, eligible set: ' + real + ' of ' + withEv, real === withEv && withEv > 200, [real, withEv]);
+    T('26 — the corpus really exercises E21 (the old reading invented a set) — ' + e21 + ' of 400 sessions', e21 >= 40, e21);
+    T('27 — everywhere the old reading WAS a real set, nothing moved: ' + sameOutside + ' of ' + outside + ' identical', sameOutside === outside, [sameOutside, outside]);
+    T('28 — D49 and the objective evaluator (objectiveBestSetOn) now name the same set in every finite session: ' + objAgree + ' of ' + objN, objAgree === objN && objN > 100, [objAgree, objN]);
+  });
+
+  sub('D49\'s policy is untouched — it only ever sees real sets now');
+  await guard('policy', async () => {
+    seed([WK('t1', 2, [ROW('Bench Press', [S(245, 8), S(245, 8)])])]);
+    const top = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    T('29 — a genuine top-of-range session with effort to spare still earns exactly the same increase: 245 -> 255',
+      top.tag === 'increase' && top.weight === 255 && /You hit 8 reps last session with ~2 RIR/.test(top.why), [top.tag, top.weight, top.why]);
+    /* the impossible pair used to HIDE a grind: a lighter back-off set's reps
+       lifted both sessions over the bottom of the range, so D47 could never fire */
+    const grind = () => [S(245, 4, { rir: '0' }), S(205, 9, { rir: '0' })];
+    seed([WK('g1', 9, [ROW('Bench Press', grind())]), WK('g2', 2, [ROW('Bench Press', grind())])]);
+    const red = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    T('30 — two sessions grinding 245 × 4 at 0 RIR now reach D47\'s reduction; the back-off set\'s 9 reps used to hide it',
+      red.tag === 'reduce' && red.weight === 235, [red.tag, red.weight, red.why]);
+    T('31 — D49\'s thresholds are the same values: 2 sets without a prescription, +1 over target, 1.5 absolute, 1 settle',
+      /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(code));
+    T('32 — D50B\'s coach constants are the same values', /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(code));
+    T('33 — the policy, the evidence judge, the phase policy, the increment ladder and plateau detection are byte-identical',
+      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
+      && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e' && pin('detectPlateau') === '5328b907ce3432c7'
+      && pin('parseRepRange') === '4e2721b469db24ef' && pin('effortToRir') === '60ad26f861c0c426');
+  });
+
+  sub('the change is the pairing and nothing else');
+  await guard('single hop', async () => {
+    const now = fnSrc(src, 'exerciseSessionHistory');
+    const reversed = now
+      .replace(/\s*const topLoad = Math\.max\(\.\.\.weights\);/, '')
+      .replace(/\s*const topReps = Math\.max\(\.\.\.perf\.filter\(s => performedLoad\(s\.weight\) === topLoad\)\.map\(s => parseFloat\(s\.reps\)\)\);/, '')
+      .replace('weight: topLoad,', 'weight: Math.max(...weights),')
+      .replace(/topReps,\s*setsLogged/, 'topReps: Math.max(...reps), setsLogged');
+    const reversedPin = crypto.createHash('sha256').update(reversed.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    T('34 — undoing exactly the D109 lines gives back 10.23\'s own exerciseSessionHistory, byte for byte (43ab1de84479d05c)',
+      reversedPin === '43ab1de84479d05c' && pin('exerciseSessionHistory') === '7ebd60c21c542e80', reversedPin);
+    T('35 — the pair is chosen from the session\'s own sets while they are already in hand — no second history walk',
+      (now.match(/sortedLog\(\)/g) || []).length === 1 && !/workoutLog/.test(now) && /perf\.filter\(s => performedLoad\(s\.weight\) === topLoad\)/.test(now));
+  });
+
+  sub('protected systems: trainer, D50B, capability, records, XP, Session Score, Mastery, Objectives');
+  await guard('protected', async () => {
+    const trainerFns = ['computeShadowRecommendation', 'extractPerformanceSignal', 'resolveTrainerNumbers', 'computeExerciseCapability', 'actualPerformance', 'deriveNextSetCoach'];
+    T('36 — the trainer, the live coach and capability never read D49\'s session evidence, so its correction cannot reach them',
+      trainerFns.every(f => !/exerciseSessionHistory|buildProgressionRecommendation|progressionFor/.test(fnSrc(src, f))), trainerFns.filter(f => /exerciseSessionHistory|progressionFor/.test(fnSrc(src, f))));
+    T('37 — trainer 0.1.1-shadow is byte-identical: signal, numbers, proposal, recommendation and the replay judge',
+      ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && pin('extractPerformanceSignal') === '87c2d1fc6b7b9285' && pin('resolveTrainerNumbers') === '93d4930c803c6e2b'
+      && pin('proposeTrainerState') === '34899e0f53f1d235' && pin('computeShadowRecommendation') === 'cd53ea889ad5c92b'
+      && pin('actualPerformance') === '3c4eb71b6eda0414' && pin('classifyOutcome') === '53ada3a09318928b' && pin('computeExerciseCapability') === '3a283e02ebdad568');
+    T('38 — D50B is byte-identical: the coach, and how a row hands it the prescribed load',
+      pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('capturedPrescription') === '4b741af98b989695' && pin('effectiveWorkingLoad') === 'c0d91327f6ac9f76');
+    T('39 — records, PR XP and the session index are byte-identical', pin('computeExercisePREvents') === '4339cc543585bded'
+      && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('workoutGroupsOf') === 'f346201c58363ccb');
+    T('40 — Session Score reads each workout\'s STORED prescription, never live D49 — byte-identical',
+      pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c'
+      && !/progressionFor|buildProgressionRecommendation|exerciseSessionHistory/.test(fnSrc(src, 'deriveSessionExecution')));
+    T('41 — Mastery and the Objectives engine are byte-identical (objectives change only because the evidence they read became real)',
+      pin('buildMasteryIndex') === 'f6c1b50e7bd04b79' && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('objectiveDailyCandidates') === '9772175df2535484'
+      && pin('objectiveBestSetOn') === '3cf2c88926b6d461' && pin('objectiveProgress') === 'e0889920b620163e' && pin('computeNextTimeNotes') === '16d50e35392c9180');
+    T('42 — the read boundaries D96A drew are byte-identical', pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('performedReps') === '0436ff32a1b6eaf1'
+      && pin('isWorkingSet') === '1517c2a5dffcdc55' && pin('workoutExerciseRows') === 'aeed5b89c9644126');
+  });
+
+  sub('the protected systems, by behaviour at their own boundaries');
+  await guard('boundaries', async () => {
+    T('45 — a load is a number, not its spelling: 245 and 245.0 are one load, so [245 × 3, 245.0 × 5] reads 245 × 5',
+      pair(one([S(245, 3), S('245.0', 5)])) === '245 x 5' && pair(one([S(' 245 ', 6), S(245, 4)])) === '245 x 6');
+    seed([WK('a', 2, [ROW('Bench Press', [S(245, 8, { rir: '3' })])])]);
+    const lone = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    seed([WK('b', 2, [ROW('Bench Press', [S(245, 8, { rir: '1.2' }), S(245, 8, { rir: '1.2' })])])]);
+    const tight = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    T('46 — D49\'s thresholds, by behaviour: one set is never a prescription (insufficient), and 1.2 RIR is under the 1.5 headroom bar (hold)',
+      lone.tag === 'insufficient' && tight.tag === 'hold', [lone.tag, tight.tag]);
+    const t = ctx.effortToRir(8), rx = { sets: 3, reps: '8-10', effort: 8, load: 200 };
+    const coach = (w, rir) => ctx.deriveNextSetCoach({ exerciseName: 'Bench Press', rx, performed: [{ weight: w, reps: 10, rir }] });
+    const up = coach(200, t + 2), stay = coach(200, t + 1), bound = coach(205, t + 2);
+    T('47 — D50B, by behaviour: +2 RIR over target adds weight (205), +1 holds, and it never moves more than one increment from the prescription',
+      up.action === 'increase' && up.load === 205 && stay.action === 'hold' && bound.action === 'hold' && bound.load === 205, [up.action, up.load, stay.action, bound.action, bound.load]);
+    seed([WK('p1', 9, [ROW('Bench Press', [S(185, 5)])]), WK('p2', 2, [ROW('Bench Press', [S(185, 5)])])]);
+    T('48 — the PR rule, by behaviour: matching a weight is not a weight record — one event, the first time only',
+      ctx.computeExercisePREvents('Bench Press').length === 1);
+    const scored = { id: 'sc', date: D(2), category: 'push', title: 'Push', notes: '', exercises: [{ name: 'Bench Press', effort: '', bodyweight: false,
+      sets: [S(200, 10, { rir: '3' }), S(200, 7, { rir: '1' }), S(195, 8, { rir: '0' })], rx: { sets: 3, reps: '8-10', effort: 8, load: 200 } }] };
+    seed([scored]);
+    const ss = ctx.sessionScore(scored);
+    T('49 — Session Score, by behaviour: this exact session still scores 92 (its unrounded 91.87 rounds to nearest)', ss.available && ss.score === 92, ss.score);
+  });
+
+  sub('reading is all it does: no history is rewritten');
+  await guard('read only', async () => {
+    const log = [WK('r1', 9, [ROW('Bench Press', [S(225, 8), S(245, 3)]), ROW('Bench Press', [S(null, 10)])]),
+      WK('r2', 2, [ROW('Bench Press', [S(245, 3), S(185, 10, { type: 'drop' })])])];
+    seed(JSON.parse(JSON.stringify(log)));
+    const before = JSON.stringify(ctx.workoutLog);
+    ctx.exerciseSessionHistory('Bench Press', 5); ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    ctx.progressionFor('Bench Press', '6-8', null); ctx.computeProgressionBuckets(); ctx.computeNextTimeNotes(ctx.workoutLog[1]);
+    T('43 — every stored set is byte-identical after D49, the Progress buckets and the next-time notes all read it', JSON.stringify(ctx.workoutLog) === before && before === JSON.stringify(log));
+    T('44 — no new data key, no schema change, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -44094,6 +44368,7 @@ async function main(){
   await testMasteryTourD106();
   await testWorkoutIdentityD107();
   await testCalendarDayTruthD108();
+  await testRealSetPairingD109();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

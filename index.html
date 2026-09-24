@@ -17750,6 +17750,21 @@ const LOOP_UPDATES = [
       'A record set by your second workout of the day now lights the calendar’s record dot, even when your first workout of the day didn’t set one'
     ],
     changes: []
+  },
+  {
+    id: 'v10-24',
+    version: 'LOOP 10.24',
+    title: 'Progress From Sets You Actually Lifted',
+    date: '2026-09-24',
+    swVersion: 'loop-v201',
+    summary: 'Progression now keeps weight and reps from the same set, so every suggestion builds on a set you really did.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Progression now keeps weight and reps from the same set: after sets like 225 × 8 and 245 × 3, LOOP no longer reads them as 245 × 8 and suggests adding weight you haven’t earned',
+      'A “Match your last” objective now asks for the set you actually lifted, so repeating that session completes it'
+    ],
+    changes: []
   }
 ];
 
@@ -21736,6 +21751,14 @@ function exerciseSessionHistory(exerciseName, limit){
       const reps = perf.map(s => parseFloat(s.reps)).filter(r => !isNaN(r));
       const rirs = perf.map(s => parseFloat(s.rir)).filter(r => !isNaN(r));
       if(!weights.length || !reps.length) continue;
+      /* D109 — D88 finding E21. A performance is ONE set. The session is still
+         represented by its heaviest working load; its reps are now the most reps
+         logged AT that load, never the most reps of any set — 225 × 8 then
+         245 × 3 read as "245 lb × 8", a set nobody lifted. Heaviest, then most
+         reps at that weight: the rule D96A's Best ever and objectiveBestSetOn
+         already read a session by. Which sets count is unchanged. */
+      const topLoad = Math.max(...weights);
+      const topReps = Math.max(...perf.filter(s => performedLoad(s.weight) === topLoad).map(s => parseFloat(s.reps)));
       /* D49 — evidence, alongside the measurements. What LOOP may CONCLUDE
          depends on how much of the prescription was actually performed and
          how much of it carried an effort reading, so both travel with the
@@ -21762,8 +21785,8 @@ function exerciseSessionHistory(exerciseName, limit){
          are ordinary evidence, exactly as they have always been. */
       (l.phase === 'deload' ? deloaded : sessions).push({
         date: l.date,
-        weight: Math.max(...weights),
-        topReps: Math.max(...reps),
+        weight: topLoad,
+        topReps,
         setsLogged: sets.length,
         workingSets: perf.length,
         rirSets: rirs.length,

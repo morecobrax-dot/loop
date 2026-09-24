@@ -15086,3 +15086,99 @@ both sessions, each its own card, exactly as D107 left it. 5/5 locally and live;
 **Status.** E30 CLOSED (D107). E31 CLOSED (D107). E32 CLOSED. E16 HELD; E20–E22, E25–E27 OPEN and
 untouched. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration. verify 10,493/0, five audits
 green.
+
+## §146 — A PERFORMANCE PAIR COMES FROM ONE REAL SET (D109 · LOOP 10.24 · loop-v201)
+
+D88 finding E21, recorded in D96C-3 and held there because which set's reps belong with which load is a
+progression-evidence definition. Closed without retuning progression.
+
+### E21 — the load and the reps of one set, never two
+
+**Reproduced first, on shipped 10.23.** `exerciseSessionHistory` reported a session's `weight` as its
+heaviest working load and `topReps` as the most reps of ANY working set — two independent maxima.
+`225 × 8` then `245 × 3` read as "245 lb × 8", a set nobody lifted, and D49 answered it: "You hit 8 reps
+last session — ready for a small increase", 255 lb. The recorded shape, reps logged with no load and
+then `175 × 5`, read "175 × 10" and recommended 180, exactly as FINDINGS had it. A drop set (`245 × 3`,
+`185 × 10`), an untyped warm-up (`135 × 10` before `225 × 5`) and plain ramping sets all did the same.
+
+**It fed decisions, not only words.** The impossible pair reached every D49 tier — the increase gate
+(`atTop`), D47's reduction, the decline check and the build target — and through D49 it reached the
+weight a started workout is pre-filled with, the live card's warm-up ramp, the Workout Summary's
+next-time notes, Today's insights, Progress → Strength's "Ready to progress" list and new Objectives.
+The last is the sharpest: "Match your last Bench Press — 245 lb for 8 reps" was judged by
+`objectiveBestSetOn`, which already reads a session as one real set, so repeating the exact session could
+never complete it. The owner's own 2026-08-29 backup carries the shape on three lifts (ramping working
+sets such as `120 × 10, 120 × 10, 125 × 8`); 10.23 told the owner to add weight to all three.
+
+**The fix is two lines.** The session is still represented by its heaviest working load — the existing
+D49 rule, unchanged. Its reps are now the most reps logged AT that load: heaviest, then most reps at that
+weight, the rule D96A's Best ever (E15(b)) and `objectiveBestSetOn` already read a session by. Which sets
+count at all (working, completed, reps > 0, loaded rows only, every row of the lift in the workout, by
+trim + lowercase identity) is untouched, and so are `setsLogged`, `workingSets`, `rirSets` and `avgRir`.
+The tie at the top load is deterministic — the most reps there — whatever the set order. The pair is
+chosen from the session's own sets while they are already in hand: no second history walk.
+
+**What did not move.** `buildProgressionRecommendation`, `progressionEvidence`, `progressionFor`, the
+phase policy, the increment ladder, plateau detection and `PROGRESSION_EVIDENCE` are byte-identical: D49's
+policy only ever sees real sets now. The trainer (0.1.1-shadow), D50B's coach, capability, PR events, PR
+XP, Session Score, Mastery and the Objectives engine never read this evidence and are byte-identical. Two
+things downstream DO change in E21 histories, both forward-only: the prescription a newly started
+workout carries (`data-rx-load`, then the saved `ex.rx.load`) is D49's real-set answer, so D50B's bounds
+and the next workout's Session Score are judged against it — while every workout already saved keeps the
+prescription it was saved with, and Session Score reads that stored `rx`, never live D49. No history is
+rewritten; an Objective already issued keeps its frozen target until its day ends.
+
+### Evidence
+
+**Tests.** Contract 224 (**52 checks**): the literal regression — `225 × 8`, `245 × 3` reads `245 × 3`,
+and no D49-derived object, recommendation, explanation or displayed evidence (evidence, D49,
+`progressionFor`, Objectives, next-time notes, Progress buckets, Today insights) contains "245 × 8";
+order, ties and a five-load pyramid; typed and untyped warm-ups, drop / failure / AMRAP, blank and
+malformed loads and reps, zero loads, unticked sets; repeated rows, spellings and bodyweight rows; 400
+seeded sessions checked against an independent statement of the rule (153 of them E21 shapes — every one
+now a real set, and all 247 where the old reading was already real unchanged), agreeing with
+`objectiveBestSetOn` in all 338 finite sessions; D49's policy and D47's reduction (a grind the back-off
+set's reps used to hide); a single-hop reversal proving the only change to `exerciseSessionHistory` is
+the pairing; and the protected systems by pin and by behaviour at their own boundaries. Two existing pins
+of `exerciseSessionHistory` (Contracts 217 and 218) were restated in place with their reason.
+
+**Mutation: 19 of 19 killed**, every one by Contract 224 alone and every one by at least one behavioural
+assertion: reps taken independently (E21 itself), from the first set, from the last set, from the lightest
+load, or from a load-less set; the heaviest set ignored; a warm-up admitted; a repeated row's later set
+ignored; spellings split; bodyweight rows read as loaded; a D49 threshold, a D50B constant, the PR rule or
+Session Score's rounding changed; the stored sets written to; the tie reading the fewest reps; loads
+compared as text. The first sweep showed five of those were caught only by value or pin checks; each got a
+behavioural check at its own boundary before the sweep that counts.
+
+**Drift.** Both owner backups, measured whole on 10.23 and on the fix: nothing outside D49 moved; the
+2026-08-29 backup's three E21 lifts moved from "increase" to "build at the same weight", each traced to
+the session that caused it; backups byte-identical afterwards. 31 generated and targeted histories
+(ordinary, two-year, high-volume, bodyweight, mixed, case variants, repeated rows, supersets, malformed
+values, and the E21 shapes themselves): in every one, only D49-derived fields moved, and only for lifts
+whose own evidence held an E21 session; XP, level, rank, records, PR XP, Session Score, Mastery, D44,
+D100, capability, the trainer and the Friends snapshot never moved; and each history's E21-free variant
+(every set of a lift in a workout carrying that session's top reps) was byte-identical in every field.
+Cost: a full evidence pass over every lift rose from about 0.24 to 0.31 ms, a full recommendation pass by
+about 0.05–0.08 ms, the 300-workout history included.
+
+**Mobile QA.** Real headless Edge at 320×568, 375×667, 390×844 and 430×932 against a history holding the
+shape on two lifts, one with a long name and a four-digit load: Today's objective, Today's insights, the
+started workout's pre-filled weight (read on the card the athlete sees) and its warm-up ramp, the
+Workout Summary's next-time notes and Progress → Strength. 48/48 on the fix — the real set everywhere,
+nothing sideways, no field clipped, no console errors — and 48/48 of the opposite expectations on shipped
+10.23 (255 pre-filled, "Take Bench Press to 255 lb", "Ready to progress"), so every surface is proven to
+have changed.
+
+**Found, recorded:** **E33** — the shadow trainer's own evidence has the same shape: `actualPerformance`
+(the historical replay's judge) takes its top weight and top reps independently, and
+`extractPerformanceSignal` judges "hit the top of the range" from the most reps of any working set while
+`resolveTrainerNumbers` steps from the heaviest load. The trainer is non-enforcing (0.1.1-shadow: a data
+attribute and `trainerLog`, never an input) and protected, so nothing the athlete sees depends on it.
+**E34** — D49 still reads a non-finite rep count as a performance: a heaviest set of "245 × 1e999" says
+"You hit Infinity reps". E14's reps side reached `estimate1RM` and capability but never
+`exerciseSessionHistory`'s reps, although §126 lists it as a read site; after D109 only the heaviest
+set's own malformed count can reach D49 — one on a lighter set no longer can. Both OPEN. Noted, not a
+finding: `repProgressToward` reads this evidence and has no caller.
+
+**Status.** E21 CLOSED. E33, E34 OPEN. E16 HELD; E20, E22, E25–E27 OPEN and untouched. DATA_KEYS 16,
+schema 1, trainer 0.1.1-shadow, no migration. verify 10,545/0, five audits green.

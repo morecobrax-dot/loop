@@ -773,7 +773,7 @@ workout's performance of the lift (the same primitive), but that is a recovery
 change with its own drift to measure. Typed sets (anything logged since D5) are
 unaffected: a declared type always wins over the heuristic.
 
-## E21 — D49's session evidence pairs the heaviest load with reps from another set · P4 · PROVEN · OPEN
+## E21 — D49's session evidence pairs the heaviest load with reps from another set · P4 · PROVEN · **CLOSED in D109 (LOOP 10.24)**
 
 Found while measuring D96C-3's mixed-mode fixtures, and PRE-EXISTING on a single
 row: `exerciseSessionHistory` reports a session's `weight` as its heaviest load
@@ -786,6 +786,17 @@ pairing in Exercise Detail's Best ever.
 
 **Why it was not fixed in D96C-3.** D49 must not be tuned in that phase, and
 which set's reps belong with which load is a progression-evidence definition.
+
+> **Closed.** A performance is one set. The session is still represented by its
+> heaviest working load — D49's existing rule — and its reps are now the most reps
+> logged AT that load, the rule Best ever (E15(b)) and `objectiveBestSetOn` already
+> read a session by. Which sets count, and every D49 threshold, are unchanged.
+> Wider than recorded, measured on 10.23: the invented pair reached the weight a
+> started workout is pre-filled with, the next-time notes, Today's insights,
+> Progress → Strength and new Objectives — a "Match your last" target that
+> repeating the session could never complete — and the owner's own backup, where
+> ordinary ramping sets made 10.23 suggest adding weight on three lifts. No history
+> is rewritten. See TRAINER-CONTRACT.md §146 and Contract 224.
 
 ## E22 — Duplicated physical work still counts twice · P4 · PROVEN · OPEN (a separate question, by design)
 
@@ -1041,6 +1052,44 @@ to stay small and contained.
 > never colour or a 5px dot alone. Order of `workoutLog` cannot change any of
 > it — proven by a permutation sweep placing a record on none, one, several
 > or every session of a three-workout day. Contract 223.
+
+## E33 — The shadow trainer's own evidence pairs a heavy load with reps from another set · P4 · PROVEN · OPEN
+
+Found by D109's map of every consumer of a load/reps pair, alongside E21. The
+trainer never read `exerciseSessionHistory`, so closing E21 did not reach it,
+but it has the same shape in its own code. `actualPerformance` — what the
+historical replay (`runHistoricalReplay`) compares a prediction against —
+returns `topWeight` and `topReps` as two independent maxima, so `225 × 8`,
+`245 × 3` is graded as if 245 lb met a 6–8 target ("load matched and reps
+met"). And the live shadow proposal splits the same question across two
+functions: `extractPerformanceSignal` decides "hit the top of the range" from
+the most reps of ANY working set, while `resolveTrainerNumbers` steps from the
+session's heaviest load.
+
+**Why it was not fixed in D109.** The trainer is 0.1.1-shadow and protected:
+its recommendation is a data attribute on the row and a `trainerLog` entry,
+never an input value, and `runHistoricalReplay` has no caller outside the test
+suite — so nothing the athlete sees depends on it today. Correcting it changes
+the trainer's own evidence definition, which D109 was told not to touch.
+
+## E34 — D49 still reads a non-finite rep count as a performance · P4 · PROVEN · OPEN
+
+Found by D109's boundary probes. D96A (§126) lists `exerciseSessionHistory`
+among the read sites of `performedLoad` / `performedReps`, and its loads do read
+through `performedLoad` — but its reps are still a bare `parseFloat(...) > 0`,
+which `Infinity` passes. On 10.23 a session of `245 × 1e999` beside `225 × 8`
+read "245 × Infinity" and D49 said "You hit Infinity reps last session". Reps
+are stored as the raw text typed (there is no write boundary for them), and an
+import can carry anything.
+
+After D109 the reach is narrower: a malformed count on a LIGHTER set can no
+longer attach to the top load, because the pair now comes from the heaviest set
+itself. A malformed count ON the heaviest set still reaches D49.
+
+**Why it was not fixed in D109.** Refusing a non-finite rep count changes which
+sets are eligible D49 evidence — `workingSets`, and with it whether a
+prescription was completed — which is an eligibility decision, not the pairing
+D109 was scoped to.
 
 ## Not findings — checked and clean
 
