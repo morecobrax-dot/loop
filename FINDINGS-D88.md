@@ -1008,7 +1008,7 @@ the narrowest phones.
 > instead of what a third sibling left over. "Resting" stays "Resting."
 > Contract 222.
 
-## E32 — The Log calendar's PR dot and category colour reflect only the first-saved workout of a multi-workout day · P4 · PROVEN · OPEN
+## E32 — The Log calendar's PR dot and category colour reflect only the first-saved workout of a multi-workout day · P4 · PROVEN · **CLOSED in D108 (LOOP 10.23)**
 
 Found by D107's audit of every date-keyed lookup, alongside E30. The
 calendar's own day map (`renderHistoryCalendar`) builds `dayMap[l.date] = l`
@@ -1028,6 +1028,19 @@ answers a tap on the day), and aggregating two sessions' categories and PRs
 into one cell's mark is a small presentation decision on its own, not an
 identity bug — recorded here rather than folded into a phase that was asked
 to stay small and contained.
+
+> **Closed.** The day map now groups every session under its date
+> (`dayMap[l.date] = [...]`, one `forEach`, still once per render) instead of
+> keeping the first; a new pure `calendarDayState(dayEntries)` reads that
+> group and answers three things about the WHOLE day: one shared category
+> keeps its colour, several different ones fall back to the existing neutral
+> `cal-has-log` treatment rather than naming one at random, and the PR dot
+> reads the canonical `byDate` index D96C-2 already built for exactly this
+> question — a record from ANY session that date, not one entry's own. A
+> multi-workout day also says so in words ("2 workouts", "personal record"),
+> never colour or a 5px dot alone. Order of `workoutLog` cannot change any of
+> it — proven by a permutation sweep placing a record on none, one, several
+> or every session of a three-workout day. Contract 223.
 
 ## Not findings — checked and clean
 

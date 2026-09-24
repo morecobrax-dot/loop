@@ -43691,6 +43691,225 @@ async function testWorkoutIdentityD107(){
   });
 }
 
+async function testCalendarDayTruthD108(){
+  section('CONTRACT 223 — the calendar cell tells the truth about the whole day (D108, E32)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pad = n => String(n).padStart(2, '0');
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const E = (name, sets) => ({ name, effort: '', bodyweight: false, sets });
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  const D = n => { const d = new ctx.Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  const at = (day, h, m, s) => new ctx.Date(day + 'T' + pad(h) + ':' + pad(m) + ':' + pad(s || 0)).toISOString();
+  const WK = (id, day, cat, timing, exs) => Object.assign({ id, date: day, category: cat, title: 'Session ' + id, notes: '', exercises: exs }, timing || {});
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
+    ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); };
+  const setMonth = dateStr => { ctx.historyCalMonth = dateStr.slice(0, 7); };
+
+  /* one whole month of distinguishable days: a prior baseline so later PRs
+     are real records, then a solo day, a same-category pair, a mixed-category
+     pair (one of them a record), a mixed trio, and a same-category trio with
+     no record at all. */
+  const zeroDate = D(2), soloDate = D(22), sameCatDate = D(19), mixedDate = D(16), trioDate = D(13), noPrDate = D(9);
+  const priorBench = WK('priorBench', D(28), 'push', {}, [E('Bench Press', [S(185, 8), S(185, 8), S(185, 8)])]);
+  const priorSquat = WK('priorSquat', D(28), 'legs', {}, [E('Back Squat', [S(315, 5), S(315, 5), S(315, 5)])]);
+  const solo = WK('solo', soloDate, 'pull', { startedAt: at(soloDate, 18, 0, 0), endedAt: at(soloDate, 18, 40, 0) },
+    [E('Lat Pulldown', [S(125, 8)])]);
+  /* same category, no PR either way — the day's colour is that one category, and no dot */
+  const sameA = WK('sameA', sameCatDate, 'pull', { startedAt: at(sameCatDate, 7, 0, 0), endedAt: at(sameCatDate, 7, 20, 0) },
+    [E('Lat Pulldown', [S(100, 8)])]);
+  const sameB = WK('sameB', sameCatDate, 'pull', { startedAt: at(sameCatDate, 18, 0, 0), endedAt: at(sameCatDate, 18, 20, 0) },
+    [E('Lat Pulldown', [S(105, 8)])]);
+  /* different categories, only the SECOND-trained one is a record — proves
+     the dot is a day fact, not the first entry's own, and the colour must
+     not pretend one category owns a two-category day */
+  const mixA = WK('mixA', mixedDate, 'legs', { startedAt: at(mixedDate, 6, 0, 0), endedAt: at(mixedDate, 6, 30, 0) },
+    [E('Back Squat', [S(200, 5)])]);
+  const mixB = WK('mixB', mixedDate, 'push', { startedAt: at(mixedDate, 19, 0, 0), endedAt: at(mixedDate, 19, 45, 0) },
+    [E('Bench Press', [S(225, 5)])]);
+  /* three categories, one trio */
+  const trioA = WK('trioA', trioDate, 'push', { startedAt: at(trioDate, 6, 0, 0), endedAt: at(trioDate, 6, 20, 0) }, [E('Overhead Press', [S(95, 8)])]);
+  const trioB = WK('trioB', trioDate, 'pull', { startedAt: at(trioDate, 12, 0, 0), endedAt: at(trioDate, 12, 20, 0) }, [E('Lat Pulldown', [S(110, 8)])]);
+  const trioC = WK('trioC', trioDate, 'legs', { startedAt: at(trioDate, 19, 0, 0), endedAt: at(trioDate, 19, 45, 0) }, [E('Back Squat', [S(230, 5)])]);
+  /* same category, two sessions, neither a record — a prior baseline heavier
+     than both, since the canonical engine treats a lift's very first-ever
+     session as its own record (0 -> anything positive), which a "no PR"
+     fixture must sit under, not merely be the first of the day. */
+  const priorPlank = WK('priorPlank', D(28), 'core', {}, [E('Plank', [S('BW', 40)])]);
+  const noPrA = WK('noPrA', noPrDate, 'core', { startedAt: at(noPrDate, 7, 0, 0), endedAt: at(noPrDate, 7, 15, 0) }, [E('Plank', [S('BW', 30)])]);
+  const noPrB = WK('noPrB', noPrDate, 'core', { startedAt: at(noPrDate, 18, 0, 0), endedAt: at(noPrDate, 18, 15, 0) }, [E('Plank', [S('BW', 25)])]);
+  const LOG = () => [priorBench, priorSquat, priorPlank, solo, sameA, sameB, mixA, mixB, trioA, trioB, trioC, noPrA, noPrB].map(x => JSON.parse(JSON.stringify(x)));
+
+  /* the exact rendered cell for a date. The harness's DOM stub only tracks
+     innerHTML as a string (querySelector/getAttribute on an element are
+     no-ops here) — the same reason D107's own tests read historySelectedDay
+     as a string rather than traversing it. Every cell's markup begins with
+     one of exactly two literal prefixes (a selectable day is a button with
+     type="button" first, an inert one a plain div — never `class=` right
+     after the tag name), so splitting the grid's raw HTML on that boundary
+     yields one chunk per cell; the target day's chunk is the one whose own
+     daynum span matches exactly. */
+  const cell = dateStr => {
+    setMonth(dateStr); ctx.renderHistoryCalendar();
+    const gridHtml = doc.getElementById('historyCalGrid').innerHTML;
+    const d = Number(dateStr.slice(8, 10));
+    const chunks = gridHtml.split(/(?=<button type="button" class="cal-cell|<div class="cal-cell)/);
+    const daynumRe = new RegExp('<span class="cal-daynum">' + d + '</span>');
+    const chunk = chunks.find(c => daynumRe.test(c));
+    if(!chunk) return null;
+    return { className: (chunk.match(/class="([^"]*)"/) || [])[1] || '',
+      aria: (chunk.match(/aria-label="([^"]*)"/) || [])[1] || '',
+      hasPrDot: /cal-pr-dot/.test(chunk), hasDoneMark: /cal-mark-done/.test(chunk) };
+  };
+
+
+  sub('zero, one and many: the cell reflects the whole day, never just the first entry found');
+  await guard('zero one many', async () => {
+    seed(LOG());
+    const zero = cell(zeroDate);
+    T('0 — a day with nothing logged stays untouched: no cal-has-log, no mark, no PR dot',
+      zero && !/cal-has-log/.test(zero.className) && !zero.hasDoneMark && !zero.hasPrDot, zero);
+    const one = cell(soloDate);
+    T('1 — one workout: pixel-equivalent to before — its own category colour, no workout count in the label',
+      one && /cal-has-log/.test(one.className) && /cal-cat-pull/.test(one.className) && !/workouts/.test(one.aria), one);
+  });
+
+  sub('same category, multiple workouts: the existing category treatment is preserved, not dropped');
+  await guard('same category', async () => {
+    seed(LOG());
+    const same = cell(sameCatDate);
+    T('2 — two same-category workouts: still that one category\'s colour, not the neutral fallback',
+      same && /cal-cat-pull/.test(same.className), same);
+    T('3 — the label truthfully says how many, in the Log\'s own "N workouts" wording',
+      same && /2 workouts/.test(same.aria), same);
+    T('4 — neither session set a record: no dot, and the label never claims one',
+      same && !same.hasPrDot && !/personal record/.test(same.aria), same);
+  });
+
+  sub('mixed category: never the first workout\'s colour, and the PR dot is a day fact');
+  await guard('mixed category', async () => {
+    seed(LOG());
+    const mix = cell(mixedDate);
+    T('5 — two different categories trained the same day: no cal-cat-* class chosen for either — the existing neutral completed look, not a guessed colour',
+      mix && /cal-has-log/.test(mix.className) && !/cal-cat-(push|pull|legs|core|fullbody|upper|lower|arms)/.test(mix.className), mix);
+    T('6 — the SECOND-trained workout (push, a real bench PR) still lights the dot even though it was not the day map\'s first entry',
+      mix && mix.hasPrDot, mix);
+    T('7 — the label says so in words, not colour alone: "2 workouts" and "personal record" both present',
+      mix && /2 workouts/.test(mix.aria) && /personal record/.test(mix.aria), mix);
+  });
+
+  sub('three categories, three workouts: bounded by what is actually logged');
+  await guard('trio', async () => {
+    seed(LOG());
+    const trio = cell(trioDate);
+    T('8 — three different categories: still the neutral completed look, not the first (push) or any other guess',
+      trio && !/cal-cat-(push|pull|legs|core|fullbody|upper|lower|arms)/.test(trio.className), trio);
+    T('9 — the label counts all three',
+      trio && /3 workouts/.test(trio.aria), trio);
+  });
+
+  sub('no false positives: a day with two workouts and zero records shows no dot');
+  await guard('no false positive', async () => {
+    seed(LOG());
+    const np = cell(noPrDate);
+    T('10 — same category, two sessions, neither a record: category colour kept, no dot, no "personal record" in the label',
+      np && /cal-cat-core/.test(np.className) && !np.hasPrDot && !/personal record/.test(np.aria), np);
+  });
+
+  sub('order invariance: calendarDayState never depends on array order, permuted every way');
+  await guard('order invariance', async () => {
+    const dateStr = mixedDate;
+    const perms = [
+      [mixA, mixB], [mixB, mixA]
+    ];
+    const results = perms.map(pair => {
+      seed([priorBench, priorSquat, ...LOG().filter(x => x.id !== 'mixA' && x.id !== 'mixB'), ...pair.map(x => JSON.parse(JSON.stringify(x)))]);
+      return ctx.calendarDayState(ctx.workoutLog.filter(l => l.date === dateStr));
+    });
+    T('11 — category and count are identical for both orderings of the same two entries',
+      results[0].category === results[1].category && results[0].count === results[1].count, results);
+    T('12 — hasPR is identical for both orderings (existence of a record that day cannot depend on which entry the day map met first)',
+      results[0].hasPR === results[1].hasPR && results[0].hasPR === true, results);
+
+    /* a three-way permutation sweep on the trio fixture, PR placed on none,
+       first, middle, last and multiple. Isolated from every other fixture:
+       exactly one prior baseline per lift (push/pull/legs), each strictly
+       above the "no PR" weight and strictly below the "has PR" weight, so
+       no unrelated entry (solo's own Lat Pulldown, mixA/mixB's squat/bench)
+       can leak into this sweep's running bests. */
+    const priorOverhead = WK('priorOverhead', D(28), 'push', {}, [E('Overhead Press', [S(90, 8)])]);
+    const priorPulldown = WK('priorPulldown', D(28), 'pull', {}, [E('Lat Pulldown', [S(100, 8)])]);
+    const priorTrioSquat = WK('priorTrioSquat', D(28), 'legs', {}, [E('Back Squat', [S(315, 5)])]);
+    const trioBase = [priorOverhead, priorPulldown, priorTrioSquat];
+    const variant = (weights) => [
+      WK('trioA', trioDate, 'push', { startedAt: at(trioDate, 6, 0, 0), endedAt: at(trioDate, 6, 20, 0) }, [E('Overhead Press', [S(weights[0], 8)])]),
+      WK('trioB', trioDate, 'pull', { startedAt: at(trioDate, 12, 0, 0), endedAt: at(trioDate, 12, 20, 0) }, [E('Lat Pulldown', [S(weights[1], 8)])]),
+      WK('trioC', trioDate, 'legs', { startedAt: at(trioDate, 19, 0, 0), endedAt: at(trioDate, 19, 45, 0) }, [E('Back Squat', [S(weights[2], 5)])])
+    ];
+    const cases = {
+      none:   variant([85, 95, 300]),
+      first:  variant([100, 95, 300]),
+      middle: variant([85, 110, 300]),
+      last:   variant([85, 95, 320]),
+      multi:  variant([100, 110, 320])
+    };
+    let orderOk = true, presenceByCase = {};
+    Object.keys(cases).forEach(name => {
+      const entries = cases[name];
+      const orderings = [entries, entries.slice().reverse(), [entries[1], entries[2], entries[0]]];
+      const perCaseResults = orderings.map(ord => {
+        seed(trioBase.concat(ord.map(x => JSON.parse(JSON.stringify(x)))));
+        return ctx.calendarDayState(ctx.workoutLog.filter(l => l.date === trioDate)).hasPR;
+      });
+      presenceByCase[name] = perCaseResults[0];
+      if(new Set(perCaseResults).size !== 1) orderOk = false;
+    });
+    T('13 — PR presence is order-invariant across none/first/middle/last/multiple record placements',
+      orderOk, presenceByCase);
+    T('14 — the "none" case truthfully shows no record, and every case with at least one real PR shows one',
+      presenceByCase.none === false && presenceByCase.first && presenceByCase.middle && presenceByCase.last && presenceByCase.multi, presenceByCase);
+  });
+
+  sub('zero/one/many are exactly D107\'s workoutsOnDate reused, never a second date-grouping rule');
+  await guard('shared architecture', async () => {
+    T('15 — calendarDayState is a pure function of the entries it is given, not a re-filter of the whole log',
+      !/workoutLog\.filter/.test(fnSrc(src, 'calendarDayState')) && !/workoutLog\.forEach/.test(fnSrc(src, 'calendarDayState')));
+    T('16 — the calendar groups the whole log ONCE per render, not once per cell — a single forEach builds dayMap, no filter lives inside the day loop',
+      (fnSrc(src, 'renderHistoryCalendar').match(/workoutLog\.forEach/g) || []).length === 1
+      && !/for\(let d=1[\s\S]*workoutLog\.filter/.test(fnSrc(src, 'renderHistoryCalendar')));
+    T('17 — the PR truth reuses the canonical byDate index D96C-2 already built for this exact question, not a second definition of a record',
+      /canonicalPRIndex\(\)\.byDate/.test(fnSrc(src, 'calendarDayState')));
+  });
+
+  sub('D107 is untouched: the selected-day stack, id-based navigation and edit/delete are exactly as shipped');
+  await guard('D107 protection', async () => {
+    seed(LOG());
+    setMonth(mixedDate); ctx.historyCalMonth = mixedDate.slice(0, 7);
+    ctx.historySelectedDate = mixedDate; ctx.renderSelectedDay();
+    const html = doc.getElementById('historySelectedDay').innerHTML;
+    T('18 — a calendar tap still opens the DAY, not one arbitrary workout: both mixA and mixB are individually listed and openable',
+      /openDayDetail\('mixA'\)/.test(html) && /openDayDetail\('mixB'\)/.test(html));
+    ctx.historySelectedDate = null;
+    T('19 — workoutsOnDate, sdCardHtml, openDayDetail and openWorkoutSummary are exactly the D107 functions — protected, source-verified untouched by name',
+      typeof ctx.workoutsOnDate === 'function' && typeof ctx.sdCardHtml === 'function'
+      && /function openDayDetail\(entryId\)/.test(fnSrc(src, 'openDayDetail')) && /function openWorkoutSummary/.test(src));
+  });
+
+  sub('accessibility: colour is never the only signal, and the legend is untouched');
+  await guard('accessibility', async () => {
+    seed(LOG());
+    const mix = cell(mixedDate);
+    T('20 — the mixed-category, multi-workout, PR day is fully described in words alone, with no reliance on the cal-cat-* colour that this cell deliberately does not set',
+      mix && /completed/.test(mix.aria) && /2 workouts/.test(mix.aria) && /personal record/.test(mix.aria));
+    T('21 — the calendar legend is unchanged (still three keyed marks, no new legend entry invented for this phase)',
+      /cal-lg-done/.test(src) && /cal-lg-planned/.test(src) && /cal-lg-missed/.test(src));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -43874,6 +44093,7 @@ async function main(){
   await testWorkoutTimeTruthD1051();
   await testMasteryTourD106();
   await testWorkoutIdentityD107();
+  await testCalendarDayTruthD108();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

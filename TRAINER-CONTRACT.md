@@ -15004,3 +15004,85 @@ answers a tap — recorded rather than folded into a phase asked to stay small. 
 
 **Status.** E30 CLOSED. E31 CLOSED. E32 OPEN. E16 HELD; E20–E22, E25–E27 OPEN and untouched. DATA_KEYS
 16, schema 1, trainer 0.1.1-shadow, no migration. verify 10,471/0, five audits green.
+
+## §145 — THE CALENDAR CELL TELLS THE TRUTH ABOUT THE WHOLE DAY (D108 · LOOP 10.23 · loop-v200)
+
+D107's own found finding, closed on its own terms.
+
+### E32 — a calendar cell is one day, not one entry
+
+**Reproduced first, on shipped 10.22.** `renderHistoryCalendar`'s day map kept only the first workout
+it met for each date — `workoutLog.forEach(l => { if(!dayMap[l.date]) dayMap[l.date] = l; });` — so a
+date with two sessions was decorated entirely from whichever one happened to sit first in
+`workoutLog`, never from the day as a whole. Two observable lies followed: a day trained in two
+categories showed only the first one's outline colour, and a day whose SECOND session set a real
+record could show no dot at all, because the PR check (`getSessionPRs(entry).length`) asked only that
+one entry. Reversing `workoutLog`'s own array order was enough to change a day's rendered colour with
+the athlete's training completely unchanged — proof the bug was about array position, not the day.
+
+**The aggregate was already sitting right there.** D96C-2 had already built `canonicalPRIndex().byDate`
+for exactly this question — "the one question that is genuinely about a day," in its own comment — but
+the calendar had never read it, asking each entry's own records instead. E32 is that index finally
+reaching the one caller it was written for.
+
+**One grouped day map, one pure day-state function.** `renderHistoryCalendar` now groups every session
+under its date in a single pass (`dayMap[l.date] = [...]`, still one `forEach`, still once per render,
+never a per-cell filter) and hands the group to a new pure `calendarDayState(dayEntries)`. It answers
+three things about the day as a whole: a `Set` of categories decides the colour — one shared category
+keeps its existing outline, two or more fall back to the calendar's own existing neutral completed look
+(`cal-has-log` alone, no `cal-cat-*`) rather than naming one at random; `hasPR` reads
+`canonicalPRIndex().byDate[dateStr]` directly, a record from ANY session that date, not one entry's
+own; and `count` is simply how many. None of the three can depend on `workoutLog`'s array order — a
+permutation sweep (both orderings of a two-workout day, and every ordering of a three-workout day with
+a record on none, one, several or all three) proves it, in Contract 223.
+
+**The label carries what the mark alone cannot.** D99.3's own rule — no state rests on colour or a 5px
+mark alone — already covered completed/missed/rest/paused; it had never covered "how many" or "was
+there a record," because those were never askable of one entry before. The spoken label for a
+multi-workout day now says so directly: `"Tuesday, September 22, completed, 2 workouts, personal
+record"`, reusing the Log's own "N workouts" wording (`sd-count`) rather than inventing new phrasing,
+and the same "personal record" vocabulary the app already uses everywhere else a record is named aloud.
+
+**What the calendar tap answers was already right.** A calendar cell has never opened one workout — it
+opens `renderSelectedDay`, which D107 already made correct for every session of a day. E32 was purely
+about the cell's own decoration; the tap target, `selectHistoryDay`, `workoutsOnDate`, `sdCardHtml` and
+every D107 identity path are read, never rewritten, by this phase.
+
+### Evidence
+
+**Tests.** Contract 223 (**22 checks**): a nothing-logged day untouched; a one-workout day pixel-
+equivalent to before; a same-category multi-workout day keeping its colour and truthfully counting;
+a mixed-category multi-workout day falling back to the neutral look with the record dot lit from
+whichever entry actually earned it; a three-category trio bounded by what is actually logged; a
+same-category pair with a real "no PR" prior baseline showing no false dot; the order-invariance
+permutation sweep (11 sub-checks: two orderings of a two-workout day, and five record-placement cases
+— none, first, middle, last, multiple — each checked under three orderings); source checks proving
+`calendarDayState` is a pure function of the entries it is given (no re-filter, no re-walk of the log)
+and that the calendar still groups the whole log exactly once per render; proof that `calendarDayState`
+reuses D96C-2's own `byDate` index rather than a second definition of a record; and D107 protection —
+a calendar tap still opens every session of the day, and `workoutsOnDate`/`sdCardHtml`/`openDayDetail`/
+`openWorkoutSummary` are read by name, untouched. Against shipped 10.22 the colour and PR-dot checks
+fail exactly where the bug lived; every other surface (Log, Summary, Full workout, edit/delete) was
+already correct and stays untested-for-regression only by the D107-protection sub-section, not
+reproven from scratch.
+
+**Mutation: 10 of 11 killed**, every one by Contract 223 alone or the full suite: the day map reverting
+to first-wins; a mixed day naming the first or the last entry's colour instead of the neutral fallback;
+a same-category day losing its own colour to a forced neutral; the PR dot reading one entry instead of
+the day, or hard-wired to always/never light; the workout count or "personal record" wording dropped
+from the label; and the calendar tap regressing to a single-id open. The eleventh mutant — reading the
+day's LAST entry's date and category instead of the first inside the `cats.size === 1` branch — is
+EQUIVALENT, not a gap: every entry in a grouped day already shares one date by construction, and every
+entry already shares one category when the Set's size is 1, so first and last read the identical value.
+Recorded rather than deleted, the same way earlier releases have recorded an equivalent mutant instead
+of discarding evidence that the test suite already covers the actual behaviour.
+
+**Mobile QA.** Real headless Edge at 390×844 (the calendar's own layout does not change by width — this
+phase touches decoration, not geometry): a mixed-category, multi-workout, record day rendered with the
+neutral completed look, its record dot lit from the correct entry, and its spoken label stating the
+count and the record in words; a real press on that day's own calendar cell opening the whole day with
+both sessions, each its own card, exactly as D107 left it. 5/5 locally and live; no console errors.
+
+**Status.** E30 CLOSED (D107). E31 CLOSED (D107). E32 CLOSED. E16 HELD; E20–E22, E25–E27 OPEN and
+untouched. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration. verify 10,493/0, five audits
+green.

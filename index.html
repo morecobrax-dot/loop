@@ -17735,6 +17735,21 @@ const LOOP_UPDATES = [
       'Opening a second workout logged on the same day as another no longer opened the wrong one'
     ],
     changes: []
+  },
+  {
+    id: 'v10-23',
+    version: 'LOOP 10.23',
+    title: 'The Calendar Shows Your Whole Day',
+    date: '2026-09-24',
+    swVersion: 'loop-v200',
+    summary: 'A day you trained more than once now marks the calendar truthfully — every category you trained that day, and any record you set.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'A day you trained in more than one category no longer showed only the first workout’s colour on the calendar',
+      'A record set by your second workout of the day now lights the calendar’s record dot, even when your first workout of the day didn’t set one'
+    ],
+    changes: []
   }
 ];
 
@@ -29625,8 +29640,11 @@ function renderHistoryCalendar(){
   const daysInMonth = new Date(y, m, 0).getDate();
   const todayStr = localDateStr();
 
+  /* D108 (E32) — every workout logged that date, not just the first one
+     encountered. Order of workoutLog can never change which sessions a date
+     holds. */
   const dayMap = {};
-  workoutLog.forEach(l => { if(!dayMap[l.date]) dayMap[l.date] = l; });
+  workoutLog.forEach(l => { (dayMap[l.date] = dayMap[l.date] || []).push(l); });
 
   /* A day before this athlete's first ever workout was not "missed" — they had
      not started yet. computeConsistencyData() has always applied this rule;
@@ -29646,7 +29664,7 @@ function renderHistoryCalendar(){
     const dateStr = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
     const isToday = dateStr === todayStr;
     const isFuture = dateStr > todayStr;
-    const entry = dayMap[dateStr];
+    const dayEntries = dayMap[dateStr] || [];
     const dayKey = JS_DAY_TO_KEY[dt.getDay()];
     const scheduledCat = schedule ? schedule[dayKey] : 'rest';
     const beforeHistory = !trackingStart || dateStr < trackingStart;
@@ -29663,11 +29681,13 @@ function renderHistoryCalendar(){
     let mark = '';
     /* D99.3 - the state in WORDS, so no state rests on colour or a 5px mark alone. */
     let stateWord = '';
-    if(entry){
-      cls += ' cal-has-log cal-cat-' + entry.category;
+    if(dayEntries.length){
+      const day = calendarDayState(dayEntries);
+      cls += ' cal-has-log' + (day.category ? ' cal-cat-' + day.category : '');
       mark = `<span class="cal-mark cal-mark-done"></span>`;
       stateWord = 'completed';
-      if(getSessionPRs(entry).length) mark += `<span class="cal-pr-dot" aria-hidden="true"></span>`;
+      if(day.count > 1) stateWord += ', ' + day.count + ' workouts';
+      if(day.hasPR){ mark += `<span class="cal-pr-dot" aria-hidden="true"></span>`; stateWord += ', personal record'; }
     } else if(isFuture){
       cls += ' cal-future';
       if(scheduledCat && scheduledCat !== 'rest') mark = `<span class="cal-mark cal-mark-planned"></span>`;
@@ -29748,6 +29768,25 @@ function sdCardHtml(entry, nice, showDate){
         <button type="button" class="tw-change" onclick="openDayDetail('${onclickArg(entry.id)}')">${twActionLabel('Full workout', 'Full')}</button>
       </div>
     </div>`;
+}
+/* D108 (E32) — a calendar CELL's own completed-day truth, built from every
+   workout logged that date, never just the one a first-wins day map kept.
+   category is a Set, never an array-position pick: one unique category
+   keeps its existing colour, several different ones fall back to the
+   existing neutral completed treatment (cal-has-log alone, no cal-cat-*)
+   rather than naming only whichever entry came first. hasPR reads the
+   canonical byDate index D96C-2 already built for exactly this question —
+   any workout's record that date, not one entry's own. Order of
+   workoutLog, or of dayEntries itself, can never change the result. */
+function calendarDayState(dayEntries){
+  if(!dayEntries || !dayEntries.length) return null;
+  const cats = new Set(dayEntries.map(e => e.category));
+  const dateStr = dayEntries[0].date;
+  return {
+    category: cats.size === 1 ? dayEntries[0].category : null,
+    count: dayEntries.length,
+    hasPR: (canonicalPRIndex().byDate[dateStr] || []).length > 0
+  };
 }
 function workoutsOnDate(dateStr){
   const key = entry => {
