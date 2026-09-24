@@ -17462,6 +17462,22 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-17',
+    version: 'LOOP 10.17',
+    title: 'Every Program Day Starts Its Own Workout',
+    date: '2026-09-23',
+    swVersion: 'loop-v194',
+    summary: 'Program workouts now stay tied to the exact day you chose, even when multiple days use the same workout type.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Start Workout on any day’s card now starts exactly the workout that day shows. When several days in your Program shared a workout type, it could start another day’s workout, or nothing at all',
+      'A workout you built for a Program day now counts toward your Program when you do it',
+      'Today shows your Program’s workout from the moment LOOP opens — it could open on your plan’s workout instead'
+    ],
+    changes: []
   }
 ];
 
@@ -20139,6 +20155,14 @@ async function boot(){
   /* A cardio session that was running when the app went away is picked back
      up here. The log it will be saved into was loaded before the first paint. */
   await resumeCardioDraft();
+
+  /* D103 — the same shape of bug as D99's and D99A's below, one level up:
+     loadPrograms() runs inside loadTrainerData(), AFTER showMainApp() drew every
+     tab, and no tab is drawn again when it is shown. A Program athlete opened
+     LOOP to the plan's workout on Today and in Train, and Start trained that
+     instead of the Program's session. Every screen is drawn once more, now that
+     every store is read, before the launch intro lifts. */
+  if(selectedPlanId && DEFAULT_PLANS[selectedPlanId]){ try{ renderAll(); }catch(e){} }
 
   /* D99 — the first evaluation of the day, now that history, the plan, the
      schedule, the program and the objectives store have all been read. Today is
@@ -27659,7 +27683,7 @@ function renderOtherDayCard(el){
       ${nav}
       <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${CAT_LABEL[cat]}</span></div>
       <div class="tw-meta">${tpl ? escapeHtml(tpl.name) + (meta ? ' · ' + escapeHtml(meta) : '') : 'Planned for ' + escapeHtml(DAY_LABEL_FULL[key])}</div>
-      ${tpl ? `<button class="tw-cta" onclick="startTemplateLog('${escapeAttr(cat)}','${onclickArg(tpl.id)}')">Start Workout</button>` : ''}
+      ${tpl ? `<button class="tw-cta" onclick="startTemplateLog('${escapeAttr(cat)}','${onclickArg(tpl.id)}','${dateStr}')">Start Workout</button>` : ''}
       ${tpl ? `<div class="tw-actions">
         <button class="tw-change" onclick="openTrainDetail('${escapeAttr(cat)}','${onclickArg(tpl.id)}','${dateStr}')">${twActionLabel('View workout', 'View')}</button>
         ${changeDay}
@@ -27858,9 +27882,11 @@ function renderTodayWorkout(){
     daysAgo === null ? 'First time' : daysAgo === 0 ? 'Done today' : daysAgo === 1 ? 'Last done yesterday' : `Last done ${daysAgo}d ago`
   ].filter(Boolean).join(' · ');
 
-  /* Active and completed returned above — this branch only ever plans. */
+  /* Active and completed returned above — this branch only ever plans.
+     D103 — Start and View name TODAY'S date: this card is an occurrence, and
+     the resolver never has to assume which day the athlete meant. */
   const cta = first
-    ? `<button class="tw-cta" onclick="startTemplateLog('${cat}','${first.id}')">Start Workout</button>`
+    ? `<button class="tw-cta" onclick="startTemplateLog('${cat}','${first.id}','${todayStr}')">Start Workout</button>`
     : `<button class="tw-cta tw-cta-ghost" onclick="goToTrainCategory('${cat}')">Add a ${CAT_LABEL[cat]} workout</button>`;
 
   const wid = workoutIdentity(first, cat);
@@ -27872,7 +27898,7 @@ function renderTodayWorkout(){
       ${timeModeNoteHtml(first)}
       ${cta}
       ${first ? `<div class="tw-actions">
-        <button class="tw-change" onclick="openTrainDetail('${cat}','${first.id}')">${twActionLabel('View workout', 'View')}</button>
+        <button class="tw-change" onclick="openTrainDetail('${cat}','${first.id}','${todayStr}')">${twActionLabel('View workout', 'View')}</button>
         <button class="tw-change tw-change-time" onclick="toggleTimePicker()">${timePickerOpen ? twActionLabel('Hide time', 'Hide') : twActionLabel('Change time', 'Time')}</button>
         ${templates.length > 1 || todayPickerOpen ? `<button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? twActionLabel('Hide options', 'Hide') : twActionLabel('Change workout', 'Workout')}</button>` : ''}
       </div>` : ''}
@@ -28993,13 +29019,19 @@ function renderTrainPlan(view){
    train. */
 /* D102 — `date` lets a FUTURE day's own View workout resolve that day's own
    program session (a custom one included) instead of today's. Omitted, this
-   is byte-identical to before: every existing caller (Today's card, every
-   Train tab row) passes no date and gets exactly the old trainTodayProgram()
-   answer. */
+   is byte-identical to before: every Train tab row passes no date and gets
+   exactly the old trainTodayProgram() answer. D103 — Today's card and the
+   week's day cards pass their date. */
 function trainDetailTemplateOf(cat, id, date){
+  /* D103 — a dated view is an occurrence, read through the resolver Start
+     uses, so the title and exercises it shows are the session Start trains. */
+  if(date){
+    const pick = resolveStartWorkout(cat, id, date);
+    return pick ? pick.template : null;
+  }
   const fromList = (getTemplates(cat) || []).find(x => x && x.id === id);
   if(fromList) return fromList;
-  const prog = date ? trainProgramDayFor(date) : trainTodayProgram();
+  const prog = trainTodayProgram();
   if(prog && prog.template && prog.category === cat && prog.template.id === id) return prog.template;
   return null;
 }
@@ -29019,13 +29051,19 @@ function closeTrainDetail(){
 function renderTrainDetail(){
   const key = trainDetailKey;
   if(!key) return;
-  const t = trainDetailTemplateOf(key.cat, key.id, key.date);
+  const pick = key.date ? resolveStartWorkout(key.cat, key.id, key.date) : null;
+  const t = key.date ? (pick && pick.template) : trainDetailTemplateOf(key.cat, key.id);
   if(!t){ closeTrainDetail(); return; }
   const saved = isSavedWorkoutId(t.id);
   /* D102 — the SAME date drives what "shown" reflects, so a future day's
      Detail can never show a different composition from what its own View
      workout resolved above. */
-  const src = trainStartSource(key.cat, t, key.date ? trainProgramDayFor(key.date) : trainTodayProgram());
+  /* D103 — a dated view IS that occurrence, resolved once above: the session
+     Start trains, never a second reading of the program. Its note names its
+     own day; it used to say "Today's" on every future day. */
+  const src = key.date ? t : trainStartSource(key.cat, t, trainTodayProgram());
+  const noteDay = key.date ? relativeDayLabel(JS_DAY_TO_KEY[new Date(key.date + 'T00:00:00').getDay()]) : 'Today';
+  const programNote = key.date ? !!(pick && pick.scheduled) : src !== t;
   const shown = trainShown(src);
   const exercises = shown.exercises || [];
   let dur = null;
@@ -29050,7 +29088,7 @@ function renderTrainDetail(){
   let profile = null;
   try{ profile = computeWorkoutProfile(shown); }catch(e){ profile = null; }
   body.innerHTML = `
-    ${src !== t ? `<div class="td-note">Today's session, as your program sets it.</div>` : ''}
+    ${programNote ? `<div class="td-note">${escapeHtml(noteDay)}'s session, as your program sets it.</div>` : ''}
     ${timeModeNoteHtml(src)}
     ${plateaus.length ? `<div class="plateau-flag">${warnIconSvg()} ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}</div>` : ''}
     <div class="td-figure">${bodyDiagramSvg(shown)}</div>
@@ -29065,7 +29103,7 @@ function trainDetailStart(){
   const key = trainDetailKey;
   if(!key) return;
   closeTrainDetail();
-  startTemplateLog(key.cat, key.id);
+  startTemplateLog(key.cat, key.id, key.date);
 }
 function trainDetailEdit(){
   const key = trainDetailKey;
@@ -51974,26 +52012,56 @@ async function confirmOverwriteDraft(){
   return confirm(`You have "${label}" already in progress (${done} set${done===1?'':'s'} logged).\n\nStarting a new workout will discard it. Continue?`);
 }
 
-async function startTemplateLog(cat, tplId){
+/* D103 — WHICH WORKOUT DOES THIS START MEAN? ONE ANSWER, FOR VIEW AND START.
+   A program's schedule is a weekday grid with one entry per day, resolved per
+   date against the plan in force then (D51C). So the DATE, within the running
+   program, is the occurrence: it fixes the day's entry, the revision, the week
+   and its phase. A template id is only a label — a custom session composes to
+   'own_<category>', a Studio-edited one keeps its library id — so two
+   same-category days share it. Start used to find the session by that label
+   against TODAY, and trained today's session, the library copy, or nothing.
+
+   `date`, when given, is the occurrence the caller showed, and nothing here
+   replaces it with today. Omitted, this is a library start (a Train row, a
+   picker card), with D35's rule as before: today's composed session when the
+   program scheduled exactly this workout today, the library's otherwise. */
+function resolveStartWorkout(cat, tplId, date){
+  const day = date || localDateStr();
+  let prog = null, programId = null;
+  try{
+    /* A named day reads the program exactly as its card did: only while one
+       is running. A library start keeps D35's reading of today unchanged, as
+       the Train row it came from draws it. Only a running program owns work. */
+    const running = hasActiveProgram();
+    prog = (running || !date) ? getProgramWorkoutForDate(day) : null;
+    if(running) programId = getActiveProgram().id || null;
+  }catch(e){ prog = null; }
+  if(prog && prog.template && prog.category === cat && prog.template.id === tplId){
+    return { template: prog.template, scheduled: true, date: day, programId, phase: prog.phase || null };
+  }
+  /* A named day the program now answers differently is a stale card, never
+     permission to start another session. The one exception is the card's own
+     fallback: a program workout whose reference no longer resolves is drawn
+     from the library, so it starts from the library too. */
+  const unresolved = !!(prog && prog.entry && prog.entry.type === 'workout' && !prog.template);
+  if(date && prog && !unresolved) return null;
+  const lib = (getTemplates(cat) || []).find(t => t && t.id === tplId) || null;
+  return lib ? { template: lib, scheduled: false, date: null, programId: null, phase: null } : null;
+}
+
+async function startTemplateLog(cat, tplId, date){
   if(!(await confirmOverwriteDraft())) return;
 
-  let planned = getTemplates(cat).find(t => t.id === tplId);
-  /* D35 \u2014 if the active program scheduled exactly this workout today, the
-     session it composed (base + any depth recipe) is the one to train.
-     Shown and trained can never disagree. Picking a different template from
-     the picker still starts the plain library version, as before. */
-  let plannedPhase = null;
-  try{
-    const prog = getProgramWorkoutForDate(localDateStr());
-    if(prog && prog.template && prog.category === cat && prog.template.id === tplId){
-      planned = prog.template;
-      /* D85 \u2014 the phase that composed it, taken from the same resolution
-         rather than asked again, so the session and its record cannot
-         describe different phases. */
-      plannedPhase = prog.phase || null;
-    }
-  }catch(e){}
-  if(!planned) return;
+  /* D35 — the program's composed session (base + any depth recipe) is the one
+     to train when the program scheduled it; picking a different template from
+     the picker still starts the plain library version. D103 — for the day the
+     caller named, through the same resolver View workout reads. */
+  const pick = resolveStartWorkout(cat, tplId, date);
+  if(!pick){
+    if(date){ try{ renderTodayWorkout(); }catch(e){} }
+    return;
+  }
+  const planned = pick.template;
   /* D41 — provenance is decided here, from whether the running program
      actually prescribes this session, and never from the fact that a
      program exists. Picking an unrelated workout from the library, or
@@ -52001,16 +52069,25 @@ async function startTemplateLog(cat, tplId){
   pendingWorkoutOrigin = 'freeform';
   pendingWorkoutProgramId = null;
   pendingWorkoutPhase = null;
-  try{
-    const _op = hasActiveProgram() ? getActiveProgram() : null;
-    if(_op && _op.id && programPrescribesTemplate(_op, cat, tplId)){
-      pendingWorkoutOrigin = 'program';
-      pendingWorkoutProgramId = _op.id;
-      /* Only the program's own work carries a phase: a phase is a property of
-         the plan, and training the athlete chose independently has none. */
-      pendingWorkoutPhase = plannedPhase;
-    }
-  }catch(e){}
+  if(pick.scheduled && pick.programId){
+    /* D103 — a session the program scheduled is its work, whatever its id.
+       A custom session has no library templateId, so asking the program
+       whether it prescribes one called its own session freeform. D85 — the
+       phase is the one that composed it, from the same resolution. */
+    pendingWorkoutOrigin = 'program';
+    pendingWorkoutProgramId = pick.programId;
+    pendingWorkoutPhase = pick.phase;
+  } else {
+    try{
+      const _op = hasActiveProgram() ? getActiveProgram() : null;
+      if(_op && _op.id && programPrescribesTemplate(_op, cat, tplId)){
+        pendingWorkoutOrigin = 'program';
+        pendingWorkoutProgramId = _op.id;
+        /* Only a session the program composed carries a phase: training the
+           athlete chose from the library has none. */
+      }
+    }catch(e){}
+  }
   pendingWorkoutIdentity = workoutIdentityRecordOf(planned, cat);
   /* Time Mode works on a COPY. The saved template keeps every exercise and
      set it was programmed with, whatever the athlete picked for today. */

@@ -15820,8 +15820,11 @@ async function testSessionDepth(){
   }
 
   sub('what is shown is what is trained');
+  /* D103 restated: Start reads resolveStartWorkout, the resolver View workout
+     also reads, and that resolver is what asks the program day. */
   T('the start path resolves through the program day',
-    /getProgramWorkoutForDate/.test(fnSrc(src, 'startTemplateLog')));
+    /resolveStartWorkout\(cat, tplId, date\)/.test(fnSrc(src, 'startTemplateLog'))
+    && /getProgramWorkoutForDate\(day\)/.test(fnSrc(src, 'resolveStartWorkout')));
   T('every resolver composes the recipe',
     /composeProgramSession/.test(fnSrc(src, 'resolveProgramWorkout'))
     && /composeProgramSession/.test(fnSrc(src, 'builderTemplateOf')));
@@ -16009,8 +16012,11 @@ async function testTrainingPrescription(){
     /* This boundary already existed: startTemplateLog passes the template's
        reps through, and the engine records targetSource 'program'. D36 makes
        the range goal-aware, so the pin matters more, not less. */
+    /* D103 restated: bounded by the function rather than 3,400 characters from
+       its name — the window broke when the function's header comment grew,
+       which says nothing about the rows. */
     T('the log path hands the program prescription to each row',
-      /startTemplateLog[\s\S]{0,3400}targetSets: ex\.sets, targetReps: ex\.reps/.test(src));
+      /targetSets: ex\.sets, targetReps: ex\.reps/.test(fnSrc(src, 'startTemplateLog')));
     T('the engine treats a supplied range as program-owned',
       /targetSource = opts\.targetReps \? 'program'/.test(src));
     T('planned effort never overwrites recorded effort',
@@ -25763,8 +25769,9 @@ async function testTrainLauncher(){
   T('a workout starting or ending redraws Train, and a link into one kind keeps its chip in sight',
     /renderTodayWorkout\(\);\s*try\{ renderTrainView\(\); \}catch\(e\)\{\}/.test(fnSrc(src, 'renderResumeBanner')) &&
     /setTrainCategory\(cat\);\s*switchTab\('train'\);\s*try\{ trainRevealActiveChip\(\); \}catch\(e\)\{\}/.test(fnSrc(src, 'goToTrainCategory')));
+  /* D103 restated: the hero's Start now names today's date as a third argument. */
   T('Today keeps its own picker and its own Start: the card still serves pickerGridHtml, and the hero still calls startTemplateLog',
-    /templateCardHtml\(t, cat, lw\)/.test(fnSrc(src, 'pickerGridHtml')) && /startTemplateLog\('\$\{cat\}','\$\{first\.id\}'\)/.test(fnSrc(src, 'renderTodayWorkout')));
+    /templateCardHtml\(t, cat, lw\)/.test(fnSrc(src, 'pickerGridHtml')) && /startTemplateLog\('\$\{cat\}','\$\{first\.id\}','\$\{todayStr\}'\)/.test(fnSrc(src, 'renderTodayWorkout')));
 
   const app = await H.loadAppBooted({ selectedPlan: JSON.stringify('balanced'), dataSchemaVersion:'1' });
   const ctx = app.ctx, doc = ctx.document;
@@ -25851,15 +25858,21 @@ async function testTrainLauncher(){
         today.template !== tpl('push', 'd1') && shown.exercises.length === tpl('push', 'd1').exercises.length + 1 &&
         d.plan[0].meta === 'Today · ' + shown.exercises.length + ' exercises · ~' + ctx.computeWorkoutDuration(shown) + ' min', d.plan[0].meta);
       ctx.renderTodayWorkout();
+      /* D103 restated: Today's Start names today's date; a Train row names none
+         (a library start reads today by D35's rule). The literal calls differ by
+         that field, so the check is the one that mattered: the same workout,
+         resolved to the same session. */
       T('Train\'s Start for that row is the exact call Today\'s Start makes',
-        html('todayWorkout').indexOf("onclick=\"startTemplateLog('" + d.plan[0].cat + "','" + d.plan[0].id + "')\"") !== -1);
+        html('todayWorkout').indexOf("onclick=\"startTemplateLog('" + d.plan[0].cat + "','" + d.plan[0].id + "','2026-09-14')\"") !== -1
+        && JSON.stringify(ctx.resolveStartWorkout(d.plan[0].cat, d.plan[0].id).template)
+           === JSON.stringify(ctx.resolveStartWorkout(d.plan[0].cat, d.plan[0].id, '2026-09-14').template));
       {
         /* Today reads a running program's day before the plan's schedule; so does Train. */
         const keepSchedule = ctx.schedule;
         ctx.schedule = { mon:'rest', tue:'rest', wed:'rest', thu:'rest', fri:'rest', sat:'rest', sun:'rest' };
         const owned = ctx.trainNextUp();
         ctx.renderTodayWorkout();
-        const todayStarts = html('todayWorkout').indexOf("onclick=\"startTemplateLog('push','d1')\"") !== -1;
+        const todayStarts = html('todayWorkout').indexOf("onclick=\"startTemplateLog('push','d1','2026-09-14')\"") !== -1;   /* D103 — names today */
         ctx.schedule = keepSchedule;
         ctx.renderTodayWorkout();
         T('while a program runs, its week decides — as it does on Today — even where the plan\'s own schedule says rest',
@@ -25982,7 +25995,10 @@ async function testTrainLauncher(){
         T('Edit and Delete act on that workout through the existing sheet and the existing confirmation', calls.join() === 'edit:push/d1,delete:push/d1' && ov.classList.contains('open'), calls.join());
         calls.length = 0;
         ctx.trainDetailStart();
-        T('Start closes Details and starts that workout', calls.join() === 'start:push/d1' && !ov.classList.contains('open') && ctx.trainDetailKey === null, calls.join());
+        /* D103 restated: Start forwards the Details' date. These Details came
+           from a Train row, which names no day — the trailing empty field is
+           that absent date, so this stays a library start. */
+        T('Start closes Details and starts that workout', calls.join() === 'start:push/d1/' && !ov.classList.contains('open') && ctx.trainDetailKey === null, calls.join());
         calls.length = 0;
         ctx.openTrainDetail('arms', 'c-1758000000000');
         ctx.trainDetailRename();
@@ -32198,8 +32214,11 @@ async function testStabilization(){
     /* startTemplateLog takes a category AND a template id. The category is an
        ORDER enum and stays on escapeAttr; only the id can arrive from a plan a
        backup restored, so only the id needs the stronger escape. */
+    /* D103 restated: the day card's Start now also names its date — a
+       localDateStr() value LOOP computed, never stored text, so it needs no
+       escape of its own. */
     T('startTemplateLog escapes its template id for the JS string',
-      /startTemplateLog\('\$\{escapeAttr\(cat\)\}','\$\{onclickArg\(tpl\.id\)\}'\)/.test(src));
+      /startTemplateLog\('\$\{escapeAttr\(cat\)\}','\$\{onclickArg\(tpl\.id\)\}','\$\{dateStr\}'\)/.test(src));
     T('every id that can arrive from a backup goes through onclickArg',
       (src.match(/onclickArg\(/g) || []).length >= 19);
   }
@@ -41102,8 +41121,11 @@ async function testFastUxD101(){
       /<div class="tw-actions">/.test(fnSrc(src, 'renderTodayWorkout')));
     T('Start Workout is still built first and stays outside that group — the dominant action',
       fnSrc(src, 'renderTodayWorkout').indexOf('\${cta}') < fnSrc(src, 'renderTodayWorkout').indexOf('tw-actions'));
+    /* D103 restated: the card now names TODAY's date as its third argument, so
+       View and Start both read today's occurrence explicitly; it is still the
+       one openTrainDetail the Train tab uses. */
     T('View workout calls the SAME openTrainDetail the Train tab already uses — no second implementation',
-      /onclick="openTrainDetail\('\${cat}','\${first\.id}'\)"/.test(fnSrc(src, 'renderTodayWorkout'))
+      /onclick="openTrainDetail\('\${cat}','\${first\.id}','\${todayStr}'\)"/.test(fnSrc(src, 'renderTodayWorkout'))
       && /function openTrainDetail\(/.test(src));
     T('Change time and Change workout still call the exact functions they always called',
       /onclick="toggleTimePicker\(\)"/.test(fnSrc(src, 'renderTodayWorkout'))
@@ -41119,14 +41141,16 @@ async function testFastUxD101(){
     /* the architecture gap this phase closed: a custom program session.
        D102 restated this in place: trainDetailTemplateOf gained an optional
        DATE (Contract 216 proves what that closes for a future day's own View
-       workout); every call below still omits it, so Today's own resolution —
-       "today's program, no date needed" — is exactly what it was. */
+       workout). D103 restated it again: a dated call now reads the ONE start
+       resolver (Contract 217), so View and Start cannot resolve two different
+       sessions; an undated call (a Train row) is exactly what it was. */
     T('openTrainDetail resolves a program-day CUSTOM session (no plan template) the same way startTemplateLog already does',
       /function trainDetailTemplateOf\(cat, id, date\)/.test(src)
+      && /const pick = resolveStartWorkout\(cat, id, date\);/.test(fnSrc(src, 'trainDetailTemplateOf'))
       && /const fromList = \(getTemplates\(cat\) \|\| \[\]\)\.find\(x => x && x\.id === id\);/.test(fnSrc(src, 'trainDetailTemplateOf'))
-      && /date \? trainProgramDayFor\(date\) : trainTodayProgram\(\)/.test(fnSrc(src, 'trainDetailTemplateOf'))
+      && /const prog = trainTodayProgram\(\);/.test(fnSrc(src, 'trainDetailTemplateOf'))
       && /trainDetailTemplateOf\(cat, id, date\)/.test(fnSrc(src, 'openTrainDetail'))
-      && /trainDetailTemplateOf\(key\.cat, key\.id, key\.date\)/.test(fnSrc(src, 'renderTrainDetail')));
+      && /resolveStartWorkout\(cat, tplId, date\)/.test(fnSrc(src, 'startTemplateLog')));
 
     /* behaviourally: a real program day, a real custom session */
     const prog = (over) => ({ version: 1, activeProgramId: 'p1', programs: [Object.assign({
@@ -41141,12 +41165,13 @@ async function testFastUxD101(){
     ctx.invalidateProgramCache();
     ctx.switchTab('today'); ctx.renderTodayWorkout();
     const twHtml = doc.getElementById('todayWorkout').innerHTML;
+    /* D103 — the card's View workout names today's date as a third argument. */
     T('the planned card renders View workout, Change time and Change workout',
-      /openTrainDetail\('push','[^']+'\)/.test(twHtml) && /toggleTimePicker\(\)/.test(twHtml) && /toggleTodayPicker\(\)/.test(twHtml));
-    const m = twHtml.match(/openTrainDetail\('([^']+)','([^']+)'\)/);
+      /openTrainDetail\('push','[^']+','\d{4}-\d{2}-\d{2}'\)/.test(twHtml) && /toggleTimePicker\(\)/.test(twHtml) && /toggleTodayPicker\(\)/.test(twHtml));
+    const m = twHtml.match(/openTrainDetail\('([^']+)','([^']+)','([^']+)'\)/);
     const realId = m && m[2];
     const before = ctx.hasActiveDraftNow;
-    ctx.openTrainDetail(m[1], realId);
+    ctx.openTrainDetail(m[1], realId, m[3]);
     T('View Workout opens the preview overlay for the REAL planned session, and does not start it',
       doc.getElementById('trainDetailOverlay').classList.contains('open') === true
       && /tpl-ex-row/.test(doc.getElementById('trainDetailBody').innerHTML)
@@ -41161,19 +41186,22 @@ async function testFastUxD101(){
     ctx.invalidateProgramCache();
     ctx.renderTodayWorkout();
     const custHtml = doc.getElementById('todayWorkout').innerHTML;
-    const cm = custHtml.match(/openTrainDetail\('([^']+)','([^']+)'\)/);
+    const cm = custHtml.match(/openTrainDetail\('([^']+)','([^']+)','([^']+)'\)/);
     T('the custom session’s id is genuinely absent from getTemplates — this is the real gap, not a hypothetical one',
       cm && !(ctx.getTemplates('push') || []).some(t => t.id === cm[2]), cm && cm[2]);
     if(cm){
-      ctx.openTrainDetail(cm[1], cm[2]);
+      ctx.openTrainDetail(cm[1], cm[2], cm[3]);
       T('and View Workout still opens it, with the session the athlete will actually train',
         doc.getElementById('trainDetailOverlay').classList.contains('open') === true
         && /Cable Crossover/.test(doc.getElementById('trainDetailBody').innerHTML));
       ctx.closeTrainDetail();
     }
+    /* D103 restated: Start no longer asks the program about today itself — it
+       reads the resolver View reads, which takes the program's own session
+       when the program scheduled exactly this workout on the named day. */
     T('starting still works for the same custom session — View Workout did not have to change what Start trains',
-      /const prog = getProgramWorkoutForDate\(localDateStr\(\)\);/.test(fnSrc(src, 'startTemplateLog'))
-      && /if\(prog && prog\.template && prog\.category === cat && prog\.template\.id === tplId\)/.test(fnSrc(src, 'startTemplateLog')));
+      /const pick = resolveStartWorkout\(cat, tplId, date\);/.test(fnSrc(src, 'startTemplateLog'))
+      && /if\(prog && prog\.template && prog\.category === cat && prog\.template\.id === tplId\)/.test(fnSrc(src, 'resolveStartWorkout')));
   });
 
   /* ---------------------------------------------------------------- */
@@ -41665,9 +41693,12 @@ async function testWorkoutPerformanceD96C3(){
        openTrainDetail gained an optional DATE (Contract 216), so a future
        day's own View workout can resolve THAT day's program session instead
        of always today's — every existing caller still omits it and reads
-       exactly as before. The podium ranking itself did not move. */
-    T('D101’s podium ranking is byte-identical, and View Workout at its D102 restatement', pin('getMasteryProgress') === '77aca2558d11f3d5'
-      && pin('trainDetailTemplateOf') === 'dd1789c48b3ec972' && pin('openTrainDetail') === '44d496315aa6e6ca');
+       exactly as before. The podium ranking itself did not move.
+       D103 restated trainDetailTemplateOf again (was dd1789c48b3ec972): a
+       dated call now reads the ONE start resolver Start reads (Contract 217).
+       openTrainDetail itself did not change. */
+    T('D101’s podium ranking is byte-identical, and View Workout at its D103 restatement', pin('getMasteryProgress') === '77aca2558d11f3d5'
+      && pin('trainDetailTemplateOf') === '9a09520ba1bb41f5' && pin('openTrainDetail') === '44d496315aa6e6ca');
     T('Objectives read the whole date and one best set: nothing to double-count', pin('objectiveBestSetOn') === '3cf2c88926b6d461'
       && pin('objectiveProgress') === 'e0889920b620163e');
     T('DATA_KEYS 16, schema 1, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
@@ -41811,8 +41842,9 @@ async function testCardsAndSummaryD102(){
     T('the logged and planned branches carry Today\'s own workout-identity treatment, not a plain title',
       (other.match(/tw-wi wi-c-\$\{wid\.colorId\}/g) || []).length === 2 && (other.match(/tw-title has-wi/g) || []).length === 2);
     T('the exercise-chip preview is gone, not merely unused', !/tw-exlist/.test(other) && !/tw-exlist/.test(css) && !/tw-ex-more/.test(css));
+    /* D103 restated: Start now names the card's own date, as View already did. */
     T('a planned day\'s CTA reads exactly "Start Workout", the same wording Today uses — not a second CTA rule',
-      /<button class="tw-cta" onclick="startTemplateLog\('\$\{escapeAttr\(cat\)\}','\$\{onclickArg\(tpl\.id\)\}'\)">Start Workout<\/button>/.test(other));
+      /<button class="tw-cta" onclick="startTemplateLog\('\$\{escapeAttr\(cat\)\}','\$\{onclickArg\(tpl\.id\)\}','\$\{dateStr\}'\)">Start Workout<\/button>/.test(other));
     T('"Change day" reuses the existing reschedule sheet — no new scheduling action',
       /onclick="openDayEdit\('\$\{key\}'\)"/.test(other) && /function openDayEdit\(key\)/.test(src));
     T('"Change workout" only appears where an alternative exists or the picker is already open — same rule as Today',
@@ -41821,15 +41853,20 @@ async function testCardsAndSummaryD102(){
 
   sub('the future-day View Workout gap: a program\'s own composed session, resolved by date');
   await guard('future view workout', async () => {
+    /* D103 restated both: a dated call reads the ONE start resolver (Contract
+       217) instead of a second reading of the program day, so the Detail View
+       shows and the session Start trains cannot come from two resolutions. An
+       undated call (a Train row) reads exactly as before. */
     T('trainDetailTemplateOf takes an optional date; every caller that omits it reads exactly as before',
       /function trainDetailTemplateOf\(cat, id, date\)/.test(src)
-      && /const prog = date \? trainProgramDayFor\(date\) : trainTodayProgram\(\);/.test(fnSrc(src, 'trainDetailTemplateOf'))
+      && /if\(date\)\{\s*const pick = resolveStartWorkout\(cat, id, date\);\s*return pick \? pick\.template : null;\s*\}/.test(fnSrc(src, 'trainDetailTemplateOf'))
+      && /const prog = trainTodayProgram\(\);/.test(fnSrc(src, 'trainDetailTemplateOf'))
       && /function trainProgramDayFor\(dateStr\)/.test(src)
       && /function trainTodayProgram\(\)\{\s*return trainProgramDayFor\(localDateStr\(\)\);\s*\}/.test(src));
     T('openTrainDetail and renderTrainDetail thread the same date through, so Detail\'s own "shown" composition agrees with what View workout resolved',
       /function openTrainDetail\(cat, id, date\)/.test(src) && /trainDetailKey = \{ cat, id, date \};/.test(fnSrc(src, 'openTrainDetail'))
-      && /trainDetailTemplateOf\(key\.cat, key\.id, key\.date\)/.test(fnSrc(src, 'renderTrainDetail'))
-      && /key\.date \? trainProgramDayFor\(key\.date\) : trainTodayProgram\(\)/.test(fnSrc(src, 'renderTrainDetail')));
+      && /const pick = key\.date \? resolveStartWorkout\(key\.cat, key\.id, key\.date\) : null;/.test(fnSrc(src, 'renderTrainDetail'))
+      && /const src = key\.date \? t : trainStartSource\(key\.cat, t, trainTodayProgram\(\)\);/.test(fnSrc(src, 'renderTrainDetail')));
 
     /* behaviourally: two custom program days, same category, different exercises,
        same generated id ('own_' + category) — the exact collision D102 found.
@@ -41859,9 +41896,14 @@ async function testCardsAndSummaryD102(){
       }
       ctx.setSelectedDay(ctx.todayKey());
     } finally{ releaseClock(); }
-    T('E23 recorded, not fixed: Start\'s own provenance check still asks about TODAY only — training-engine scope, out of D102',
-      /const prog = getProgramWorkoutForDate\(localDateStr\(\)\);/.test(fnSrc(src, 'startTemplateLog'))
-      && /if\(prog && prog\.template && prog\.category === cat && prog\.template\.id === tplId\)/.test(fnSrc(src, 'startTemplateLog')));
+    /* D103 INVERTED this marker. It held E23 open on purpose; D103 closed it
+       (Contract 217 proves the behaviour): Start no longer asks the program
+       about TODAY itself — it resolves the day the card named, through the
+       resolver View workout reads. */
+    T('E23 closed: Start resolves the day the card named, through the same resolver as View — never TODAY by assumption',
+      !/getProgramWorkoutForDate\(localDateStr\(\)\)/.test(fnSrc(src, 'startTemplateLog'))
+      && /const pick = resolveStartWorkout\(cat, tplId, date\);/.test(fnSrc(src, 'startTemplateLog'))
+      && /const pick = resolveStartWorkout\(cat, id, date\);/.test(fnSrc(src, 'trainDetailTemplateOf')));
   });
 
   sub('browsing another day writes nothing, and Start still starts the SAME workout the card named');
@@ -41871,11 +41913,14 @@ async function testCardsAndSummaryD102(){
     ctx.setSelectedDay(otherKey); ctx.renderTodayWorkout();
     const html = doc.getElementById('todayWorkout').innerHTML;
     T('looking at another day changes nothing about the schedule', JSON.stringify(ctx.schedule) === before);
-    const startMatch = html.match(/startTemplateLog\('([^']+)','([^']+)'\)/);
+    /* D103 restated: Start carries the day's date too, and it must be the SAME
+       date View names — without the third field this match found nothing and
+       the check below was silently skipped. */
+    const startMatch = html.match(/startTemplateLog\('([^']+)','([^']+)','([^']+)'\)/);
     const viewMatch = html.match(/openTrainDetail\('([^']+)','([^']+)','([^']+)'\)/);
     if(startMatch && viewMatch){
-      T('Start and View workout name the exact same (category, id) pair for this day\'s card',
-        startMatch[1] === viewMatch[1] && startMatch[2] === viewMatch[2]);
+      T('Start and View workout name the exact same (category, id, date) for this day\'s card',
+        startMatch[1] === viewMatch[1] && startMatch[2] === viewMatch[2] && startMatch[3] === viewMatch[3]);
     }
     ctx.setSelectedDay(ctx.todayKey());
   });
@@ -42037,6 +42082,475 @@ async function testCardsAndSummaryD102(){
       return JSON.stringify(ctx.workoutLog) === raw;
     })());
   });
+}
+
+/* =========================================================
+   CONTRACT 217 — THE WORKOUT I VIEW IS THE WORKOUT I START (D103)
+   ---------------------------------------------------------
+   "The workout I view is the workout I start."
+   "The workout I start is the workout that history remembers."
+
+   E23. A program's schedule is a weekday grid: one entry per day,
+   resolved per date against the plan in force then (D51C). Start
+   found the session by a template id against TODAY — and a template
+   id is a label, not an identity: a custom session composes to
+   'own_<category>', and a session edited in Program Studio keeps its
+   library id, so two same-category days share one. Measured on 10.16,
+   Thursday's card showed Pull B and Start trained Monday's Pull A;
+   from a rest day the same tap started nothing; a Studio-edited
+   Thursday started the plain library workout; three Pull days all
+   started the first; and the program's own custom session was saved
+   as freeform, outside its program.
+
+   THE IDENTITY WAS ALREADY THERE. Within the running program, the
+   civil DATE is the occurrence: it fixes the weekday entry, the
+   revision in force, the week and its phase — the same key D43's
+   planned slots and D102's View already used. Nothing new is stored
+   and no id is minted: resolveStartWorkout(cat, id, date) is the one
+   answer to "which workout does this start mean", and View reads it
+   too, so they cannot disagree. Every day card names its date; a
+   library start (a Train row, a picker card) names none and keeps
+   D35's reading of today, exactly as before.
+   ========================================================= */
+async function testStartProvenanceD103(){
+  section('CONTRACT 217 — the workout I view is the workout I start (D103)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+
+  const app = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  let release = pinClock(ctx, '2026-09-21T09:00:00');   // a Monday; every fixture names its own clock
+  await H.settle(300);
+  const clock = iso => { release(); release = pinClock(ctx, iso); ctx.invalidateProgramCache(); };
+
+  const ex = n => ({ name: n, sets: 3, reps: '8-10', effort: '8' });
+  const OWN = (cat, names, name) => ({ type: 'workout', planId: null, category: cat, name: name || (cat + ': ' + names[0]), exercises: names.map(ex) });
+  const REST = { type: 'rest' };
+  const A = ['Lat Pulldown', 'Cable Row', 'Curl'], B = ['Pull-Up', 'Chest-Supported Row', 'Hammer Curl'], C = ['Rack Pull', 'Face Pull', 'Reverse Curl'];
+  const T0 = ctx.DEFAULT_PLANS.balanced.templates.pull[0];
+  const BASED = (names, name) => ({ type: 'workout', planId: 'balanced', category: 'pull', templateId: T0.id, name, exercises: names.map(ex) });
+  const REF = x => Object.assign({ type: 'workout', planId: 'balanced', category: 'pull', templateId: T0.id }, x || {});
+  const useProgram = (schedule, extra) => {
+    const sched = Object.assign({ mon: REST, tue: REST, wed: REST, thu: REST, fri: REST, sat: REST, sun: REST }, schedule);
+    ctx.programsStore = Object.assign(ctx.defaultProgramsStore(), { version: 1, activeProgramId: 'p1', programs: [Object.assign({
+      id: 'p1', name: 'Program A', goal: 'hypertrophy', status: 'active', durationWeeks: 8, startDate: '2026-09-14',
+      schedule: JSON.parse(JSON.stringify(sched)) }, extra ? JSON.parse(JSON.stringify(extra)) : {})] });
+    ctx.workoutLog = []; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
+    ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); ctx.invalidateProgramCache();
+    ctx.trainDetailKey = null;
+  };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const bare = list => (list || []).map(s => s.replace(/ \S+ × .*$/, ''));
+  /* Whole names in their rows: "Curl" is inside "Hammer Curl", so a substring
+     test cannot say which workout a sheet shows. */
+  const rowsOf = html => [...String(html).matchAll(/<div class="log-ex-name-line"><span>([^<]*)<\/span>/g)].map(x => x[1]);
+
+  /* What Start actually opened: the rows it handed the logger, its title and its provenance. */
+  const startCapture = async go => {
+    const keep = {}; ['addLogExerciseRow', 'openLogSheet', 'confirmOverwriteDraft', 'persistDraftNow'].forEach(k => { keep[k] = ctx[k]; });
+    const rows = [];
+    Object.assign(ctx, { addLogExerciseRow: (...a) => rows.push(a), openLogSheet(){}, confirmOverwriteDraft: async () => true, persistDraftNow(){} });
+    ctx.pendingWorkoutOrigin = '(untouched)'; doc.getElementById('logTitle').value = '(untouched)';
+    try{ await go(); } finally { Object.assign(ctx, keep); }
+    return { rows, exercises: rows.map(a => a[0] + ' ' + a[6].targetSets + ' × ' + a[6].targetReps), title: doc.getElementById('logTitle').value,
+      date: doc.getElementById('logDate').value, category: ctx.pendingLogCategory, origin: ctx.pendingWorkoutOrigin,
+      programId: ctx.pendingWorkoutProgramId, phase: ctx.pendingWorkoutPhase };
+  };
+  /* One day, end to end: what its card says, what View shows, what both Starts train. */
+  const journey = async dayKey => {
+    ctx.setSelectedDay(dayKey); ctx.renderTodayWorkout();
+    const card = doc.getElementById('todayWorkout').innerHTML;
+    const s = card.match(/startTemplateLog\('([^']*)','([^']*)'(?:,'([^']*)')?\)/);
+    const v = card.match(/openTrainDetail\('([^']*)','([^']*)'(?:,'([^']*)')?\)/);
+    const out = { card, meta: (card.match(/<div class="tw-meta">([^<]*)<\/div>/) || [])[1] || '', startArgs: s ? s.slice(1) : null, viewArgs: v ? v.slice(1) : null };
+    if(v){
+      ctx.openTrainDetail(v[1], v[2], v[3]);
+      const body = doc.getElementById('trainDetailBody').innerHTML;
+      out.view = { title: doc.getElementById('trainDetailTitle').textContent,
+        exercises: [...body.matchAll(/<div class="tpl-ex-row"><span>([^<]*)<\/span><span>([^<]*)<\/span>/g)].map(x => x[1] + ' ' + x[2]),
+        note: (body.match(/<div class="td-note">([^<]*)<\/div>/) || [])[1] || '' };
+      ctx.closeTrainDetail();
+    }
+    out.started = s ? await startCapture(() => ctx.startTemplateLog(s[1], s[2], s[3])) : null;
+    if(v){ ctx.openTrainDetail(v[1], v[2], v[3]); out.viewStarted = await startCapture(async () => { ctx.trainDetailStart(); await H.settle(20); }); }
+    ctx.setSelectedDay(ctx.todayKey());
+    return out;
+  };
+  /* The REAL save path, from exactly the rows Start opened. */
+  const liveRow = (name, sets, dataset) => {
+    const inp = v => ({ value: String(v == null ? '' : v), checked: false, disabled: false, dataset: {} });
+    const nameIn = inp(name), bwIn = inp(''), effortIn = inp('8');
+    const setRows = sets.map(st => {
+      const cls = new Set(); if(st.done) cls.add('completed');
+      const q = { '.set-weight-in': inp(st.w), '.set-reps-in': inp(st.r), '.set-rir-in': inp(2) };
+      return { dataset: {}, classList: { add: c => cls.add(c), remove: c => cls.delete(c), toggle(){}, contains: c => cls.has(c) },
+        querySelector: sel => q[sel] || null, querySelectorAll: () => [] };
+    });
+    const row = { dataset: Object.assign({}, dataset || {}), querySelector: sel => ({ '.ex-name-in': nameIn, '.ex-bw-in': bwIn, '.ex-effort-in': effortIn })[sel] || null,
+      querySelectorAll: sel => sel === '.set-row' ? setRows : [], closest: () => row, _sets: setRows };
+    return row;
+  };
+  const performAndSave = async started => {
+    app.dom.setRows(started.rows.map(a => liveRow(a[0], a[3].map(() => ({ w: 100, r: 8, done: true })),
+      { targetSets: String(a[6].targetSets), targetReps: String(a[6].targetReps) })));
+    doc.getElementById('logOverlay').classList.add('open');
+    doc.getElementById('logTitle').value = started.title;
+    doc.getElementById('logDate').value = started.date;
+    const n0 = ctx.workoutLog.length;
+    ctx.saveLog();
+    await H.settle(300);
+    app.dom.setRows([]);
+    try{ ctx.closeSummary(); }catch(e){}
+    return ctx.workoutLog.length === n0 + 1 ? ctx.workoutLog[ctx.workoutLog.length - 1] : null;
+  };
+
+  sub('one resolver: View and Start read the same answer, and every day card names its day');
+  await guard('structure', async () => {
+    T('resolveStartWorkout is the one start resolver, and it asks the program for the NAMED day',
+      /function resolveStartWorkout\(cat, tplId, date\)\{/.test(src) && /const day = date \|\| localDateStr\(\);/.test(fnSrc(src, 'resolveStartWorkout'))
+      && /getProgramWorkoutForDate\(day\)/.test(fnSrc(src, 'resolveStartWorkout')));
+    T('Start reads it, and never asks the program about today by itself',
+      /const pick = resolveStartWorkout\(cat, tplId, date\);/.test(fnSrc(src, 'startTemplateLog'))
+      && !/getProgramWorkoutForDate/.test(fnSrc(src, 'startTemplateLog')) && !/getTemplates\(/.test(fnSrc(src, 'startTemplateLog')));
+    T('a dated View reads the same resolver — the Detail sheet and its Start included',
+      /const pick = resolveStartWorkout\(cat, id, date\);/.test(fnSrc(src, 'trainDetailTemplateOf'))
+      && /const pick = key\.date \? resolveStartWorkout\(key\.cat, key\.id, key\.date\) : null;/.test(fnSrc(src, 'renderTrainDetail'))
+      && /startTemplateLog\(key\.cat, key\.id, key\.date\);/.test(fnSrc(src, 'trainDetailStart')));
+    T('Today\'s card names today for Start AND View; every other day\'s card names its own date for both',
+      /startTemplateLog\('\$\{cat\}','\$\{first\.id\}','\$\{todayStr\}'\)/.test(fnSrc(src, 'renderTodayWorkout'))
+      && /openTrainDetail\('\$\{cat\}','\$\{first\.id\}','\$\{todayStr\}'\)/.test(fnSrc(src, 'renderTodayWorkout'))
+      && /startTemplateLog\('\$\{escapeAttr\(cat\)\}','\$\{onclickArg\(tpl\.id\)\}','\$\{dateStr\}'\)/.test(fnSrc(src, 'renderOtherDayCard'))
+      && /openTrainDetail\('\$\{escapeAttr\(cat\)\}','\$\{onclickArg\(tpl\.id\)\}','\$\{dateStr\}'\)/.test(fnSrc(src, 'renderOtherDayCard')));
+    T('library starts name no day: a Train row and a picker card are unchanged',
+      /onclick="startTemplateLog\('\$\{c\}','\$\{id\}'\)"/.test(fnSrc(src, 'trainRowHtml')) && pin('trainRowHtml') === '6cff2aba148f8a14'
+      && pin('templateCardHtml') === '43178b8aeb27a2aa' && pin('trainStartSource') === '6eb3373170cd978a');
+    T('no template id is minted: the composer and the program day are byte-identical',
+      pin('composeProgramSession') === '0d2f614d7c751d9a' && pin('getProgramWorkoutForDate') === '496d8572d640dc24'
+      && pin('dayTemplateFor') === 'b398c8adf2af13fd');
+  });
+
+  sub('E23: two custom Pull days — the collision, closed');
+  await guard('collision', async () => {
+    useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-21T09:00:00');
+    const fx = ctx.getProgramWorkoutForDate('2026-09-21').template, fy = ctx.getProgramWorkoutForDate('2026-09-24').template;
+    T('the fixture really collides: Monday and Thursday compose to one id with different exercises',
+      fx.id === 'own_pull' && fy.id === 'own_pull' && fx.exercises[0].name !== fy.exercises[0].name, fx.id + '/' + fy.id);
+    const j = await journey('thu');
+    T('Thursday\'s card, View and both Starts all name Thursday',
+      j.startArgs && j.startArgs[2] === '2026-09-24' && j.viewArgs && j.viewArgs[2] === '2026-09-24', JSON.stringify([j.startArgs, j.viewArgs]));
+    T('View shows Thursday\'s Pull B', same(bare(j.view.exercises), B), JSON.stringify(j.view));
+    T('the card\'s Start trains Pull B — not Monday\'s Pull A', same(bare(j.started.exercises), B), JSON.stringify(j.started.exercises));
+    T('the View sheet\'s Start trains Pull B too', same(bare(j.viewStarted.exercises), B), JSON.stringify(j.viewStarted.exercises));
+    T('the title is the occurrence\'s on the card, in View and in the started workout',
+      j.meta.indexOf('pull: Pull-Up') === 0 && j.view.title === 'pull: Pull-Up' && j.started.title === 'pull: Pull-Up', j.meta + ' | ' + j.view.title + ' | ' + j.started.title);
+    T('performed today, as the program\'s work', j.started.date === '2026-09-21' && j.started.origin === 'program' && j.started.programId === 'p1' && j.started.category === 'pull');
+    T('View\'s note names Thursday — it used to say "Today\'s" on every future day', /^Thursday's session, as your program sets it\.$/.test(j.view.note), j.view.note);
+    const m = await journey('mon');
+    T('and Monday is still Monday\'s Pull A, with Today\'s own note', same(bare(m.started.exercises), A) && same(bare(m.view.exercises), A)
+      && m.view.note === "Today's session, as your program sets it.", JSON.stringify([m.started.exercises, m.view.note]));
+  });
+
+  sub('the realistic collision: two sessions edited in Program Studio on one library template');
+  await guard('studio', async () => {
+    useProgram({ mon: BASED(A, 'Pull Day 1'), thu: BASED(B, 'Pull Day 2') }); clock('2026-09-21T09:00:00');
+    T('both compose to the LIBRARY id — appending a date to own_<category> would never have reached this',
+      ctx.getProgramWorkoutForDate('2026-09-21').template.id === T0.id && ctx.getProgramWorkoutForDate('2026-09-24').template.id === T0.id);
+    let j = await journey('thu');
+    T('from Monday, Thursday starts its own edited session', same(bare(j.started.exercises), B) && j.started.title === 'Pull Day 2', JSON.stringify(j.started));
+    T('View\'s title is the session\'s own name, the one its card shows — not the library\'s',
+      j.view.title === 'Pull Day 2' && j.meta.indexOf('Pull Day 2') === 0, j.view.title);
+    clock('2026-09-23T09:00:00');
+    j = await journey('thu');
+    T('from a rest day, Thursday still starts its edited session — not the plain library workout',
+      same(bare(j.started.exercises), B) && j.started.rows.length === 3, JSON.stringify(j.started.exercises));
+  });
+
+  sub('a future day from a rest day, three Pull days, and identical content');
+  await guard('matrix', async () => {
+    useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-23T09:00:00');
+    let j = await journey('thu');
+    T('from a rest day, Thursday\'s Start trains Pull B — on 10.16 the same tap started nothing', same(bare(j.started.exercises), B), JSON.stringify(j.started));
+    useProgram({ mon: OWN('pull', A), wed: OWN('pull', B), sat: OWN('pull', C) }); clock('2026-09-21T09:00:00');
+    const got = {}; for(const k of ['mon', 'wed', 'sat']) got[k] = bare((await journey(k)).started.exercises);
+    T('three Pull days: Monday A, Wednesday B, Saturday C — none borrows another\'s', same(got.mon, A) && same(got.wed, B) && same(got.sat, C), JSON.stringify(got));
+    useProgram({ mon: OWN('pull', A, 'Pull (Mon)'), thu: OWN('pull', A, 'Pull (Thu)') }); clock('2026-09-21T09:00:00');
+    const gm = await journey('mon'), gt = await journey('thu');
+    T('identical content stays two occurrences: each starts as its own day, under its own name',
+      gm.startArgs[2] === '2026-09-21' && gt.startArgs[2] === '2026-09-24' && gm.started.title === 'Pull (Mon)' && gt.started.title === 'Pull (Thu)',
+      gm.started.title + ' / ' + gt.started.title);
+    T('identity never comes from the exercises: the resolver takes no content', !/exercises/.test(fnSrc(src, 'resolveStartWorkout').replace(/prog\.template/g, '')));
+  });
+
+  sub('plan-template sessions and library starts are unchanged');
+  await guard('templates', async () => {
+    useProgram({ mon: REF(), thu: REF({ lead: 2 }) }); clock('2026-09-21T09:00:00');
+    let j = await journey('mon');
+    T('Today\'s plan-template session starts exactly the library workout, as the program\'s work',
+      same(bare(j.started.exercises), T0.exercises.map(e => e.name)) && same(j.view.exercises, j.started.exercises) && j.started.origin === 'program', JSON.stringify(j.started.exercises));
+    j = await journey('thu');
+    const led = [T0.exercises[2]].concat(T0.exercises.slice(0, 2), T0.exercises.slice(3)).map(e => e.name);
+    T('Thursday\'s recipe (its own lead) reaches Start — it used to train Monday\'s order', same(bare(j.started.exercises), led) && same(j.view.exercises, j.started.exercises), JSON.stringify(j.started.exercises));
+    const lib = ctx.resolveStartWorkout('pull', T0.id);
+    T('a library start still takes today\'s composed session when today scheduled exactly it (D35)',
+      lib && lib.scheduled === true && lib.template.id === T0.id && lib.date === '2026-09-21');
+    clock('2026-09-23T09:00:00');
+    const off = ctx.resolveStartWorkout('pull', T0.id);
+    T('and the plain library workout on a day that did not', off && off.scheduled === false && off.programId === null && off.template.id === T0.id
+      && same(off.template.exercises.map(e => e.name), T0.exercises.map(e => e.name)));
+    const saved = await startCapture(() => ctx.startTemplateLog('pull', T0.id));
+    T('which the program still counts as its work by structure (D41), with no phase of its own',
+      saved.origin === 'program' && saved.programId === 'p1' && saved.phase === null, JSON.stringify(saved));
+    const extra = await startCapture(() => ctx.startTemplateLog('legs', (ctx.getTemplates('legs') || [])[0].id));
+    T('a workout the program never prescribes is still extra training', extra.origin === 'freeform' && extra.programId === null);
+    const mine = { id: 'c-1758000000103', name: 'My Pull', exercises: [ex('Seal Row'), ex('Preacher Curl')] };
+    const keepPull = ctx.planData.pull;
+    ctx.planData.pull = (keepPull || []).concat([mine]);
+    let own;
+    try{ own = await startCapture(() => ctx.startTemplateLog('pull', mine.id)); } finally { ctx.planData.pull = keepPull; }
+    T('a saved My Workout starts as itself, under its own name, as extra training',
+      same(bare(own.exercises), ['Seal Row', 'Preacher Curl']) && own.title === 'My Pull' && own.origin === 'freeform' && own.programId === null, JSON.stringify(own));
+  });
+
+  sub('the program\'s own session is the program\'s work');
+  await guard('provenance', async () => {
+    useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-21T09:00:00');
+    const j = await journey('mon');
+    T('Today\'s custom session is saved to its program — on 10.16 it was freeform, outside it',
+      j.started.origin === 'program' && j.started.programId === 'p1', JSON.stringify(j.started));
+    T('a custom session has no library templateId, which is why asking "does the program prescribe it" could never say yes',
+      ctx.programPrescribesTemplate(ctx.getActiveProgram(), 'pull', 'own_pull') === false && pin('programPrescribesTemplate') === '6ceef36653a115d6');
+  });
+
+  sub('ambient today never overrides a day the athlete named');
+  await guard('ambient', async () => {
+    useProgram({ mon: OWN('pull', A), tue: OWN('pull', B) }); clock('2026-09-21T23:58:00');
+    ctx.setSelectedDay('mon'); ctx.renderTodayWorkout();
+    const s = doc.getElementById('todayWorkout').innerHTML.match(/startTemplateLog\('([^']*)','([^']*)','([^']*)'\)/);
+    clock('2026-09-22T00:03:00');   // the card is still up; midnight has passed
+    const late = await startCapture(() => ctx.startTemplateLog(s[1], s[2], s[3]));
+    T('a card drawn on Monday starts Monday\'s session when tapped after midnight — the day it showed, not the new today',
+      s[3] === '2026-09-21' && same(bare(late.exercises), A), JSON.stringify(late.exercises));
+    const named = await startCapture(() => ctx.startTemplateLog('pull', 'own_pull', '2026-09-22'));
+    T('and a named Tuesday is Tuesday\'s', same(bare(named.exercises), B));
+    ctx.setSelectedDay(ctx.todayKey());
+  });
+
+  sub('a stale card starts nothing else');
+  await guard('stale', async () => {
+    /* A Studio-edited Thursday carries a LIBRARY id, so a missing guard would
+       quietly start the plain library workout — a custom one could not show it. */
+    useProgram({ mon: BASED(A, 'Pull Day 1'), thu: BASED(B, 'Pull Day 2') }); clock('2026-09-21T09:00:00');
+    ctx.setSelectedDay('thu'); ctx.renderTodayWorkout();
+    const s = doc.getElementById('todayWorkout').innerHTML.match(/startTemplateLog\('([^']*)','([^']*)','([^']*)'\)/);
+    ctx.getActiveProgram().schedule.thu = OWN('push', ['Bench Press']); ctx.invalidateProgramCache();
+    let redrew = false;
+    const keep = ctx.renderTodayWorkout; ctx.renderTodayWorkout = () => { redrew = true; };
+    let got;
+    try{ got = await startCapture(() => ctx.startTemplateLog(s[1], s[2], s[3])); } finally { ctx.renderTodayWorkout = keep; }
+    T('Thursday changed under a drawn card: nothing starts — not Monday\'s Pull, not the library Pull, not the new Push — and the card redraws',
+      s && s[2] === T0.id && got.rows.length === 0 && got.origin === '(untouched)' && redrew, JSON.stringify(got));
+    ctx.setSelectedDay(ctx.todayKey());
+  });
+
+  sub('a session started early is remembered as the session started');
+  await guard('early', async () => {
+    useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-21T18:00:00');
+    const early = (await journey('thu')).started;
+    T('Thursday\'s Pull B started on Monday is Pull B — performed Monday, the program\'s work, in the phase its own day composed it in',
+      same(bare(early.exercises), B) && early.date === '2026-09-21' && early.origin === 'program'
+      && !!early.phase && early.phase === ctx.getProgramWorkoutForDate('2026-09-24').phase, JSON.stringify([early.exercises, early.phase]));
+    const saved = await performAndSave(early);
+    T('saved as Pull B on Monday — not as Monday\'s planned Pull A', saved && same(saved.exercises.map(e => e.name), B)
+      && saved.title === 'pull: Pull-Up' && saved.date === '2026-09-21' && saved.programId === 'p1', JSON.stringify(saved && saved.exercises.map(e => e.name)));
+    ctx.openDayDetail('2026-09-21');
+    const full = rowsOf(doc.getElementById('dayDetailExercises').innerHTML);
+    ctx.closeDayDetail();
+    ctx.openWorkoutSummary(saved.id);
+    const sum = doc.getElementById('summaryTitle').textContent + '|' + doc.getElementById('summaryPRs').innerHTML;
+    ctx.closeSummary();
+    T('its Full workout and its Workout Summary are the Pull B that was done — never read back from the plan for that date',
+      same(full, B) && sum.indexOf('pull: Pull-Up|') === 0 && B.every(n => sum.indexOf(n) !== -1) && sum.indexOf('Lat Pulldown') === -1, JSON.stringify([full, sum.slice(0, 80)]));
+  });
+
+  sub('forward-only revisions');
+  await guard('revisions', async () => {
+    const week = s => Object.assign({ mon: REST, tue: REST, wed: REST, thu: REST, fri: REST, sat: REST, sun: REST }, s);
+    useProgram({ mon: OWN('pull', B) }, { revisions: [{ effectiveFrom: '2026-09-14', baseline: true, schedule: week({ mon: OWN('pull', A) }) },
+      { effectiveFrom: '2026-09-28', schedule: week({ mon: OWN('pull', B) }) }] });
+    clock('2026-09-21T09:00:00');
+    const before = await journey('mon');
+    T('before the revision takes effect, Monday starts A', same(bare(before.started.exercises), A), JSON.stringify(before.started.exercises));
+    const kept = await performAndSave(before.started);
+    const ahead = await startCapture(() => ctx.startTemplateLog('pull', 'own_pull', '2026-09-28'));
+    T('a day inside the revision starts the plan in force THEN (B), even asked from before it', same(bare(ahead.exercises), B));
+    clock('2026-09-28T09:00:00');
+    const after = await journey('mon');
+    T('on its effective date, Monday starts B', same(bare(after.started.exercises), B), JSON.stringify(after.started.exercises));
+    ctx.openDayDetail('2026-09-21');
+    const dd = doc.getElementById('dayDetailExercises').innerHTML;
+    ctx.closeDayDetail();
+    const ddRows = [...dd.matchAll(/<div class="log-ex-name-line"><span>([^<]*)<\/span>/g)].map(x => x[1]);
+    T('last week\'s workout is still A — nothing retroactive', kept && same(kept.exercises.map(e => e.name), A) && same(ddRows, A), JSON.stringify(ddRows));
+  });
+
+  sub('a moved day moves its session, once');
+  await guard('move', async () => {
+    useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-21T09:00:00');
+    await ctx.swapScheduledDays('thu', 'fri'); await H.settle(150); ctx.invalidateProgramCache();
+    const p = ctx.getActiveProgram();
+    T('a move on a running program is a forward revision (the scheduler\'s own rule): this Thursday is still B',
+      Array.isArray(p.revisions) && p.revisions.length === 2 && same(bare((await journey('thu')).started.exercises), B));
+    const fri = await startCapture(() => ctx.startTemplateLog('pull', 'own_pull', '2026-10-02'));
+    T('from its effective date Friday holds B and starts B', same(bare(fri.exercises), B), JSON.stringify(fri.exercises));
+    T('and Thursday holds nothing — the session moved, it was not copied',
+      ctx.getProgramWorkoutForDate('2026-10-01').category === 'rest' && ctx.resolveStartWorkout('pull', 'own_pull', '2026-10-01') === null);
+  });
+
+  sub('pause and resume');
+  await guard('pause', async () => {
+    useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-21T09:00:00');
+    /* The plan itself trains Pull on Thursday, so a paused Thursday has a card
+       to start — a rest day there would let a dead tap pass unnoticed. */
+    const keepSchedule = ctx.schedule;
+    ctx.schedule = Object.assign({}, keepSchedule, { thu: 'pull' });
+    try{
+      await ctx.pauseProgram('p1'); await H.settle(100);
+      const paused = await journey('thu');
+      const ps = paused.started ? bare(paused.started.exercises) : [];
+      T('while paused, a day resolves no program session — neither Pull A nor Pull B, and nothing is program work',
+        !same(ps, A) && !same(ps, B) && (!paused.started || paused.started.origin !== 'program'), JSON.stringify(paused.started));
+      T('it is the plan\'s own day: its card starts exactly the plan workout its View shows, as extra training',
+        paused.started && paused.startArgs[1] === T0.id && same(bare(paused.started.exercises), T0.exercises.map(e => e.name))
+        && same(paused.view.exercises, paused.started.exercises) && paused.started.origin === 'freeform', JSON.stringify([paused.startArgs, paused.started && paused.started.exercises]));
+    } finally { ctx.schedule = keepSchedule; }
+    clock('2026-09-23T09:00:00');
+    await ctx.resumeProgram('p1'); await H.settle(100); ctx.invalidateProgramCache();
+    const back = await journey('thu');
+    T('resumed, Thursday is Thursday\'s own session again', same(bare(back.started.exercises), B) && back.started.origin === 'program');
+    T('pause arithmetic is untouched', pin('pauseSpansOf') === '00f0412bae612770' && pin('dateIsSuspended') === '0e8f48036cced387'
+      && pin('programPlannedSlots') === 'e09703bacb6d628a');
+  });
+
+  sub('a running workout is its own');
+  await guard('active', async () => {
+    useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-21T09:00:00');
+    const j = await journey('thu');
+    const draft = { version: 1, id: 'draft_d103', category: 'pull', title: j.started.title, date: j.started.date, notes: '', showCategoryPicker: false,
+      origin: j.started.origin, originProgramId: j.started.programId, phase: j.started.phase,
+      exercises: j.started.rows.map(a => ({ name: a[0], effort: '', bodyweight: false,
+        sets: a[3].map(st => ({ weight: '', reps: String(st.reps), rir: '', completed: false })),
+        meta: { targetSets: String(a[6].targetSets), targetReps: String(a[6].targetReps) } })) };
+    await ctx.updateProgram('p1', { schedule: Object.assign({}, ctx.getActiveProgram().schedule, { thu: OWN('pull', C) }), applyFrom: 'next' });
+    await H.settle(100); ctx.invalidateProgramCache();
+    const resumed = await startCapture(async () => { ctx.restoreDraftToSheet(draft); });
+    T('a Program edit after Start leaves the running workout exactly as it was started (Pull B, not the new Pull C)',
+      same(resumed.rows.map(a => a[0]), B) && resumed.title === j.started.title && resumed.origin === 'program' && resumed.programId === 'p1', JSON.stringify(resumed));
+    T('the draft never asks the program: captured and restored from its own rows',
+      !/getProgramWorkoutForDate|resolveStartWorkout/.test(fnSrc(src, 'captureActiveDraft') + fnSrc(src, 'restoreDraftToSheet'))
+      && pin('captureActiveDraft') === '442c8c89a288ef0d' && pin('restoreDraftToSheet') === '3d1b7cf79f71d591');
+  });
+
+  sub('history remembers what was started — and reads it back without the program');
+  await guard('history', async () => {
+    useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-21T18:00:00');
+    const savedA = await performAndSave((await journey('mon')).started);
+    clock('2026-09-24T18:00:00');
+    const savedB = await performAndSave((await journey('thu')).started);
+    T('Monday saved Pull A and Thursday saved Pull B, each dated its day and each the program\'s work',
+      savedA && savedB && same(savedA.exercises.map(e => e.name), A) && same(savedB.exercises.map(e => e.name), B)
+      && savedA.date === '2026-09-21' && savedB.date === '2026-09-24' && savedA.programId === 'p1' && savedB.programId === 'p1'
+      && savedA.title === 'pull: Lat Pulldown' && savedB.title === 'pull: Pull-Up');
+    const read = () => { const o = {};
+      ctx.openDayDetail('2026-09-21'); o.fullA = doc.getElementById('dayDetailExercises').innerHTML; ctx.closeDayDetail();
+      ctx.openDayDetail('2026-09-24'); o.fullB = doc.getElementById('dayDetailExercises').innerHTML; ctx.closeDayDetail();
+      ctx.openWorkoutSummary(savedA.id); o.sumA = doc.getElementById('summaryTitle').textContent + '|' + doc.getElementById('summaryPRs').innerHTML; ctx.closeSummary();
+      ctx.openWorkoutSummary(savedB.id); o.sumB = doc.getElementById('summaryTitle').textContent + '|' + doc.getElementById('summaryPRs').innerHTML; ctx.closeSummary();
+      return o; };
+    const was = read();
+    /* Whole names in their rows: "Curl" is inside "Hammer Curl", so a substring
+       test cannot say which workout a sheet shows. */
+    const rowsOf = html => [...html.matchAll(/<div class="log-ex-name-line"><span>([^<]*)<\/span>/g)].map(x => x[1]);
+    T('Full workout: Monday is Pull A, Thursday is Pull B', same(rowsOf(was.fullA), A) && same(rowsOf(was.fullB), B),
+      JSON.stringify([rowsOf(was.fullA), rowsOf(was.fullB)]));
+    T('Workout Summary: each reopens its own saved workout (D102)', was.sumA.indexOf(savedA.title + '|') === 0 && was.sumB.indexOf(savedB.title + '|') === 0
+      && A.every(n => was.sumA.indexOf(n) !== -1) && B.every(n => was.sumB.indexOf(n) !== -1));
+    await ctx.updateProgram('p1', { schedule: { mon: OWN('pull', C), tue: REST, wed: REST, thu: OWN('pull', C), fri: REST, sat: REST, sun: REST }, applyFrom: 'next' });
+    await H.settle(100);
+    ctx.programsStore.programs = []; ctx.programsStore.activeProgramId = null; ctx.invalidateProgramCache();
+    T('with the Program edited and then gone, history reads exactly the same', same(read(), was));
+  });
+
+  sub('launch: Today names the Program\'s session from the first paint');
+  await guard('launch', async () => {
+    /* A fresh boot with the Program already in storage. loadPrograms() runs
+       after the first paint, so this is exactly what an athlete opens to. */
+    const stored = { version: 1, activeProgramId: 'p1', programs: [{ id: 'p1', name: 'Program A', goal: 'hypertrophy', status: 'active',
+      durationWeeks: 8, startDate: '2026-09-14', schedule: { mon: OWN('pull', A), tue: REST, wed: REST, thu: OWN('pull', B), fri: REST, sat: REST, sun: REST } }] };
+    const boot = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), programs: JSON.stringify(stored) });
+    const bootRelease = pinClock(boot.ctx, '2026-09-21T09:00:00');
+    try{
+      await H.settle(400);
+      const card = boot.ctx.document.getElementById('todayWorkout').innerHTML;
+      T('the Today card a Program athlete opens to starts the Program\'s session — not the plan\'s workout',
+        boot.ctx.hasActiveProgram() && /startTemplateLog\('pull','own_pull','2026-09-21'\)/.test(card) && /pull: Lat Pulldown/.test(card), card.slice(0, 220));
+      T('because boot draws every screen again once every store is read, before the launch intro lifts',
+        /await resumeCardioDraft\(\);[\s\S]*?if\(selectedPlanId && DEFAULT_PLANS\[selectedPlanId\]\)\{ try\{ renderAll\(\); \}catch\(e\)\{\} \}[\s\S]*?markAppReady\(\);/.test(fnSrc(src, 'boot')));
+    } finally { bootRelease(); }
+  });
+
+  sub('the parity gate: every startable card in a mixed week');
+  await guard('parity', async () => {
+    useProgram({ mon: OWN('pull', A), tue: REF(), wed: BASED(B, 'Pull Day 2'), thu: REF({ lead: 2 }), fri: OWN('pull', C), sat: OWN('push', ['Bench Press', 'Incline DB Press']) });
+    /* Wednesday is today once: a Studio-edited session on TODAY's card, where
+       an undated View would title it from the library. */
+    for(const today of ['2026-09-21T09:00:00', '2026-09-23T09:00:00', '2026-09-24T09:00:00', '2026-09-27T09:00:00']){
+      clock(today);
+      const bad = [];
+      let n = 0;
+      for(const k of ctx.DAY_ORDER){
+        const j = await journey(k);
+        if(!j.started) continue;
+        n++;
+        const want = ctx.resolveStartWorkout(j.startArgs[0], j.startArgs[1], j.startArgs[2]);
+        const wantEx = ctx.applyTimeModeToTemplate(want.template).exercises.map(e => e.name + ' ' + e.sets + ' × ' + e.reps);
+        if(!(same(j.view.exercises, j.started.exercises) && same(j.started.exercises, j.viewStarted.exercises) && same(j.started.exercises, wantEx)
+          && j.view.title === j.started.title && j.started.category === j.startArgs[0] && j.startArgs[2] === j.viewArgs[2])) bad.push(k);
+      }
+      T('today ' + today.slice(0, 10) + ': for all ' + n + ' startable cards, View = card Start = View-sheet Start (name, category, exercises, order, sets × reps)',
+        n >= 6 && !bad.length, bad.join());
+    }
+  });
+
+  sub('everything else is untouched');
+  await guard('protected', async () => {
+    T('D43 and D41 read exactly as before: the planned slots, the matcher, membership and fulfilment',
+      pin('programPlanOn') === '035c98b8fc53aa5e' && pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5'
+      && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' && pin('workoutBelongsToProgram') === '018fcf9c294a3a41');
+    T('D51 revisions and the move writer are byte-identical', pin('materializeProgramPlan') === 'f92e59a226b1b4b6'
+      && pin('addProgramRevision') === '551132a15c639918' && pin('updateProgramInMemory') === '6078239ad623aa33' && pin('swapScheduledDays') === 'b460198e9e2cdb5b');
+    T('the save path and D102\'s Summary are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
+      && pin('showWorkoutSummary') === 'f2d459d5e5106057' && pin('openDayDetail') === '3e9975e617040dd2');
+    T('D96: grouping, records, PR XP and the session index are byte-identical', pin('workoutGroupsOf') === 'f346201c58363ccb'
+      && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
+    T('E16 capability, E20 recovery, E21 D49 evidence and E22 XP/Mastery are untouched',
+      pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd'
+      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('exerciseSessionHistory') === '43ab1de84479d05c' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
+      && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
+      && pin('masteryPointsFor') === '0c704c40a853d991');
+    T('D100/D101 are byte-identical', pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('getMasteryProgress') === '77aca2558d11f3d5'
+      && pin('twActionLabel') === '21824852a16e4df2');
+    T('trainer 0.1.1-shadow, DATA_KEYS 16, schema 1, no migration', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && ctx.DATA_KEYS.length === 16
+      && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('no program is rewritten by resolving or starting: the store is byte-identical after a full journey', await (async () => {
+      useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-21T09:00:00');
+      const raw = JSON.stringify(ctx.programsStore);
+      await journey('mon'); await journey('thu');
+      return JSON.stringify(ctx.programsStore) === raw;
+    })());
+  });
+  release();
 }
 
 async function main(){
@@ -42216,6 +42730,7 @@ async function main(){
   await testFastUxD101();
   await testWorkoutPerformanceD96C3();
   await testCardsAndSummaryD102();
+  await testStartProvenanceD103();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -802,7 +802,28 @@ never exceed a maximum.
 accidental duplicate from genuinely repeated sets is a product decision (an
 athlete really can do 135 × 8 twice), not a grouping defect.
 
-## E23 — A custom program day's id collides with any other day sharing its category · P4 · PROVEN · OPEN
+## E23 — A custom program day's id collides with any other day sharing its category · P4 · PROVEN · **CLOSED in D103 (LOOP 10.17)**
+
+> **Closed.** The id was never the identity, so D103 did not mint a new one.
+> Within the running program the civil DATE is the occurrence — it fixes the
+> weekday entry, the revision in force, the week and its phase — and every day
+> card now names its date. One resolver, `resolveStartWorkout(cat, id, date)`,
+> answers "which workout does this start mean" for Start AND for a dated View,
+> so the two cannot resolve different sessions; a library start (a Train row, a
+> picker card) names no date and keeps D35's reading of today unchanged. See
+> TRAINER-CONTRACT.md §139 and Contract 217.
+>
+> **Wider than recorded, measured on 10.16 before the fix:** Thursday's card
+> showed Pull B and Start trained Monday's Pull A; from a rest day the same tap
+> started nothing at all; a session edited in Program Studio keeps its LIBRARY
+> id (`d3`, not `own_pull`), so it collided just the same and, from a rest day,
+> started the plain library workout — date-scoping `own_<category>` would never
+> have reached it; three Pull days all started the first; a recipe (a lead) on
+> Thursday was dropped; the View sheet's own Start dropped its date; and the
+> program's own custom session was saved `origin: 'freeform'`, outside its
+> program, because `programPrescribesTemplate` asks about library template ids
+> it can never carry. All closed. Nothing is persisted, nothing migrated,
+> DATA_KEYS 16, schema 1. The original record follows.
 
 Found by D102's pre-implementation probe while mapping the future-day card's
 read path, and reproduced on both read and write. `composeProgramSession`'s
@@ -826,6 +847,72 @@ with whatever phase next touches `composeProgramSession`'s id generation
 (date-scope the custom-session id) or `startTemplateLog`'s provenance
 resolution (accept a date instead of assuming today) — a training-engine
 change, deliberately deferred.
+
+## E24 — The first paint ignored the running Program · P2 · PROVEN · **CLOSED in D103 (LOOP 10.17)**
+
+Found by D103's real-browser QA, not by the suite: the first tap on Today's
+card was refused by D103's new stale-card guard, because the card had been
+drawn from the PLAN. `boot()` calls `showMainApp()` — which draws every tab —
+before `loadTrainerData()` runs `loadPrograms()`, and no tab is drawn again when
+it is shown (`switchTab` only toggles visibility). Measured on 10.16 with a
+running Program whose Monday is a custom Pull A: the app opened to "Push A —
+Chest Focus · 8 exercises", and Start trained `push/d1` — the plan's workout,
+freeform — until something else happened to redraw Today. D99 and D99A had
+already fixed this exact shape for the Objectives and readiness cards, one card
+at a time.
+
+> **Closed.** `boot()` draws every screen once more after every store is read,
+> before the launch intro lifts (`markAppReady`). Contract 217 boots a fresh app
+> with the Program already in storage and requires Today's card to start the
+> Program's session; on 10.16 it fails.
+
+## E25 — A program day's Details sheet edits and shares the library workout, not the session it shows · P4 · PROVEN · OPEN
+
+Found by D103's audit of the View sheet's actions. D103 made a dated Details
+sheet show exactly the occurrence Start trains (title and exercises), but its
+other two actions still address the LIBRARY by id. Measured on 10.17: Edit on a
+Thursday session edited in Program Studio ("Pull B (edited)", two exercises)
+opens the plan's library editor for "Pull A — Back Width" — saving there would
+change the shared library workout and not the Program's Thursday at all; Edit on
+a custom session (`own_pull`) opens nothing. Share (`shareSourceForDetail`)
+shares the library's eight exercises, or nothing for a custom session.
+
+**Why it was not fixed in D103.** Neither is the start path. Editing a program
+session belongs to Program Studio for that day, which is a product decision
+about where that action should lead, and Share is Friends' surface (protected).
+
+## E26 — Train tags a library workout with a day whose session was edited away from it · P4 · PROVEN · OPEN
+
+Found alongside E25. `trainSessionOn` tags a Train row by the day's composed
+template id, and a session edited in Program Studio keeps its library id. So
+the library row "Pull A — Back Width" (8 exercises) is tagged "Next · THU"
+while Thursday's session is the athlete's own two-exercise edit. The row and its
+Start agree with each other — both are the library workout, a library start —
+but the tag claims it is Thursday's session.
+
+**Why it was not fixed in D103.** Train rows are library starts by design (D65)
+and D103 left them unchanged; whether a tag should follow the occurrence or be
+dropped when the day owns its exercises is a Train-tab presentation decision.
+
+## E27 — "Change day" on a running Program moves nothing this week · P3 · PROVEN · OPEN
+
+Found by D103's audit of the move path, which the brief asked to be followed on
+the scheduler's own terms. `swapScheduledDays` writes BOTH layers, but they do
+not take effect together: the plan layer (`schedule`, which Today's header reads)
+changes at once, while the Program's change goes through `updateProgram`, which
+on a program that has begun records a forward-only revision effective NEXT
+MONDAY (D51). Measured on 10.17 through the athlete's own actions — activate a
+Program with custom Pull on Monday and Thursday, then Change day Thursday →
+Friday: on Thursday the header reads "Rest" while the card still offers Pull B,
+and Friday this week holds nothing. Card, View and Start agree with each other
+(D103 follows the plan in force for each date, so the moved session appears on
+Friday from next week, once, never copied), but the athlete asked to move THIS
+week's workout.
+
+**Why it was not fixed in D103.** Whether a move of a single day should reach
+the current week is a product decision about D51's forward-only rule (which
+exists to protect weeks already trained); D103 was told not to redesign
+Programs or reschedule semantics.
 
 ## Not findings — checked and clean
 

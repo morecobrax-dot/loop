@@ -14423,3 +14423,104 @@ the future card, Log and the full workout sheet.
 survives closing it. E23 recorded, OPEN, training-engine scope, deliberately not fixed. E16, E20,
 E21, E22 unchanged from D96C-3. No progression/training-engine logic reopened. Read-time only:
 DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration. verify 10,223/0, five audits green.
+
+## §139 — THE WORKOUT YOU VIEW IS THE WORKOUT YOU START (D103 · LOOP 10.17 · loop-v194)
+
+E23, closed. D102 made a future day's View workout resolve that day's own program session; Start still
+found the session by a template id asked of TODAY. A template id is a label, not an identity: a custom
+session composes to `own_<category>`, and a session edited in Program Studio keeps its LIBRARY id — so
+two same-category days share one either way. Program Studio's own "Add session" creates every new
+session as `fullbody` with no library workout behind it, so two added sessions collide on
+`own_fullbody` by default.
+
+**Measured on shipped 10.16 first.** With Monday's custom Pull A and Thursday's custom Pull B, Thursday's
+card showed Pull B and its Start trained Monday's Pull A; from a rest day the same tap started nothing
+at all; Studio-edited sessions on one library template (`d3`, not `own_pull`) collided the same way and,
+from a rest day, started the plain eight-exercise library workout; three Pull days all started the
+first; a recipe (Thursday's own lead) was dropped; the View sheet's own Start dropped its date; and the
+program's own custom session was saved `origin: 'freeform'`, `programId: null` — outside its program,
+contradicting Program Studio's promise of "same adherence", because `programPrescribesTemplate` asks
+about library template ids such a session can never carry.
+
+**The identity was already there.** A program's schedule is a weekday grid with one entry per day,
+resolved per date against the plan in force then (D51C). So within the running program the civil DATE
+is the occurrence: it fixes the weekday entry, the revision, the week and its phase — the key D43's
+planned slots and D102's View already used. A pause removes dates without moving the grid (D90); a
+move is a schedule change the scheduler records as a forward revision (D51), and the date resolves
+whatever the plan in force then says, so a moved session's content follows its entry, once, never
+copied. Two days with identical exercises are still two occurrences, because identity never reads
+content. Date-scoping `own_<category>` was rejected: it would have minted a second, ad-hoc identity
+system and still missed every Studio-edited session. No id changed; nothing is persisted; no
+migration; DATA_KEYS 16, schema 1.
+
+**One resolver.** `resolveStartWorkout(cat, id, date)` answers "which workout does this start mean".
+A NAMED date reads the program for that date exactly as its card did — only while a program runs — and
+never substitutes today; the program's own composed session is taken when it scheduled exactly this
+workout that day. With no date it is a library start (a Train row, a picker card, a saved workout),
+and D35's rule is unchanged: today's composed session when today scheduled exactly it, the library's
+otherwise. A named day the program now answers differently is a stale card: nothing starts, Today is
+redrawn — never another session; the one exception is the card's own fallback, a program workout whose
+reference no longer resolves, which starts from the library as the card was drawn from it.
+
+**Every day card names its day.** Today's Start and View pass today's date; every other day's Start
+passes its date (View already did); the Details sheet's Start forwards the date it was opened with. A
+dated View reads the same resolver, so its title and exercises are the occurrence's — a Studio-edited
+Thursday is titled with its own name, not the library's — and its note names the day ("Thursday's
+session, as your program sets it"; it used to say "Today's" on every future day). The session is
+performed today and logged today, as the program's work: a scheduled start records `origin 'program'`,
+the program's id, and the phase from the SAME resolution that composed it (D85). A library start keeps
+D41's structural rule and carries no phase.
+
+**The first paint (E24, found by real-browser QA, closed).** The new stale guard refused the very first
+tap on Today, because the card had been drawn from the PLAN: `boot()` calls `showMainApp()`, which
+draws every tab, before `loadTrainerData()` reads the Program, and no tab is drawn again when shown.
+On 10.16 a Program athlete opened LOOP to "Push A — Chest Focus · 8 exercises" and Start trained it,
+freeform, until something else redrew Today. D99 and D99A had fixed this exact shape for the
+Objectives and readiness cards one at a time; `boot()` now draws every screen once more after every
+store is read, before the launch intro lifts.
+
+**What did not change.** `getProgramWorkoutForDate`, `composeProgramSession`, `programPlanOn`, the
+revision writer, `swapScheduledDays`, pause arithmetic, D43's slots and matcher, `saveLog`, draft
+capture and restore, and D102's Summary are byte-identical (pinned). A running workout is its own: it
+is captured from its rows at Start and restored from its draft, and a Program edit after Start leaves it
+exactly as started. History is the performed workout: Full workout and Workout Summary read the saved
+entry and read exactly the same after the Program is edited and then removed. D43 still credits a
+session by date and category: a session started a day early fulfils whichever same-category slot its
+own rule pairs it with — the documented D43 behaviour, not a D103 decision.
+
+**Tests.** Contract 217 (**69 checks**), stating the invariant in plain words — "The workout I view
+is the workout I start" and "The workout I start is the workout that history remembers" — through the
+real paths: card → View → Start (the card's and the Details sheet's) → the running workout → `saveLog`
+→ Full workout → Workout Summary. Fixtures A–O from the brief, a launch boot with the Program in
+storage, a stale card, an early start, and a parity gate that compares View, the card's Start and the
+Details sheet's Start (name, category, exercises, order, sets × reps) for every startable card of a
+mixed week, on four different todays. Against shipped 10.16 it fails 34 times, five of its blocks
+throwing outright. Seventeen existing assertions pinned the old call shapes (D65, D101, D102) and were
+restated in place with their reason, one of them D102's deliberate "E23 recorded, not fixed" marker,
+inverted.
+
+**Mutation: 32 of 32 killed** — the brief's 24 and eight of this phase's own. Three gaps were found by designing the sweep before running it (an early-started
+session, so save and Summary could not be rebuilt from the plan unseen; a saved My Workout; a
+Studio-edited stale card) and one by running it: a paused day resolving the paused program's session
+turned the paused card's Start into a dead tap that the first pause check accepted — the check now
+requires that Start trains exactly the plan workout its View shows.
+
+**Performance.** One program-day resolution per start, as before; no history is scanned. On a
+300-workout history: Today card ≈0.04 ms, a future card ≈0.06 ms, View ≈0.73 ms, Start ≈0.69 ms — within
+run-to-run noise of 10.16 on all four.
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844 and 430×932, every button pressed
+with a real CDP mouse event at its on-screen centre: Today's Pull A viewed and started; Thursday's Pull B
+viewed, started from its card and from the Details sheet, performed and saved; Log → Full workout and
+Workout summary (again after a reload); Saturday's third Pull; Wednesday's Studio-edited Pull —
+**100/100**, no overflow, no dead taps, no console errors.
+
+**Found, recorded** (FINDINGS-D88.md): **E24** the first paint ignored the running Program (closed
+here); **E25** a program day's Details sheet edits and shares the LIBRARY workout, not the session it
+shows (Edit on a custom session is a dead tap); **E26** Train tags a library workout with a day whose
+session was edited away from it; **E27** "Change day" on a running Program moves nothing this week —
+the header changes at once, the session from next Monday.
+
+**Status.** E23 CLOSED. E16 HELD; E20, E21, E22 unchanged and untouched (pinned); E25, E26, E27 OPEN.
+Trainer 0.1.1-shadow. verify 10,292/0, five audits green, every What's New line proven false on 10.16
+and true on 10.17.
