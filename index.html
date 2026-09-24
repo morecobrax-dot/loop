@@ -2368,25 +2368,31 @@ body.first-use{ padding-bottom: 0; }
 .mastery-row[data-tier] .mastery-bar span{ background: var(--tier); }
 
 /* The leaders — three cards in rank order, left to right, one component for
-   exercises and muscles. */
-.mpod, .mmc{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-.mpod-n2, .mmc-n2{ grid-template-columns: repeat(2, minmax(0, 140px)); justify-content: center; }
-.mpod-n1, .mmc-n1{ grid-template-columns: minmax(0, 160px); justify-content: center; }
-.mpod-card, .mmc-card{
+   exercises and muscles.
+   D106 — ONE namespace. The muscle leaders used to carry their own .mmc
+   classes, so every podium rule had to be written twice, and the one that was
+   written once (the pedestal, .mpod-step) never reached Muscle Mastery: its
+   cards stood level with no steps beneath them. Both modes now render .mpod,
+   .mpod-card and .mpod-pN through masteryLeadersHtml and differ only in their
+   data and in whether a card opens something — a <button> only when it does. */
+.mpod{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.mpod-n2{ grid-template-columns: repeat(2, minmax(0, 140px)); justify-content: center; }
+.mpod-n1{ grid-template-columns: minmax(0, 160px); justify-content: center; }
+.mpod-card{
   display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; min-height: 44px;
   padding: 12px 6px 12px; background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius-lg); font-family: 'Inter', sans-serif; text-align: center;
 }
-.mpod-card{ cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.mpod-card:active{ background: var(--surface-3); transform: scale(0.98); }
-.mpod-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+button.mpod-card{ cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button.mpod-card:active{ background: var(--surface-3); transform: scale(0.98); }
+button.mpod-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
 .mpod-place{
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint);
 }
-.mpod-p1 .mpod-place, .mmc-p1 .mpod-place{ color: #E0B45C; }
-.mpod-p2 .mpod-place, .mmc-p2 .mpod-place{ color: #9FA9D6; }
-.mpod-p3 .mpod-place, .mmc-p3 .mpod-place{ color: #C4906A; }
+.mpod-p1 .mpod-place{ color: #E0B45C; }
+.mpod-p2 .mpod-place{ color: #9FA9D6; }
+.mpod-p3 .mpod-place{ color: #C4906A; }
 .mst-badgewrap{ display: flex; }
 /* The badge. object-fit guards against the browser ever stretching the art;
    pointer-events:none removes the image from hit-testing, so a long press lands
@@ -2429,27 +2435,27 @@ body.first-use{ padding-bottom: 0; }
    clamped to two lines with reserved space) — only the pedestal beneath
    each card differs, and `align-items: end` lets the grid do the stacking:
    a shorter pedestal simply sits lower, exactly like a real podium block. */
-.mpod, .mmc{ align-items: end; }
-.mpod-p1, .mmc-p1{ order: 2; }
-.mpod-p2, .mmc-p2{ order: 1; }
-.mpod-p3, .mmc-p3{ order: 3; }
+.mpod{ align-items: end; }
+.mpod-p1{ order: 2; }
+.mpod-p2{ order: 1; }
+.mpod-p3{ order: 3; }
 /* The metal treatment reuses the exact gold/silver/bronze already assigned
    to the place label (.mpod-place above) — one palette, not a second one
    invented for the border. Restrained: a 1px tinted border and a faint inner
    highlight, no glow, no gradient sweep, no shimmer. */
 /* Compound selectors (.mpod-card.mpod-p1, not .mpod-p1 alone): a later,
-   general "quiet embedded border" rule also targets .mpod-card/.mmc-card at
+   general "quiet embedded border" rule also targets .mpod-card at
    the same specificity and sits further down the sheet, so a same-specificity
    override here would lose to source order. The card always carries both
    classes, so the compound form wins on specificity instead, regardless of
    where either rule sits. */
-.mpod-card.mpod-p1, .mmc-card.mmc-p1{ border-color: rgba(224,180,92,0.5); box-shadow: inset 0 0 0 1px rgba(224,180,92,0.16); }
-.mpod-card.mpod-p2, .mmc-card.mmc-p2{ border-color: rgba(159,169,214,0.4); box-shadow: inset 0 0 0 1px rgba(159,169,214,0.12); }
-.mpod-card.mpod-p3, .mmc-card.mmc-p3{ border-color: rgba(196,144,106,0.4); box-shadow: inset 0 0 0 1px rgba(196,144,106,0.12); }
+.mpod-card.mpod-p1{ border-color: rgba(224,180,92,0.5); box-shadow: inset 0 0 0 1px rgba(224,180,92,0.16); }
+.mpod-card.mpod-p2{ border-color: rgba(159,169,214,0.4); box-shadow: inset 0 0 0 1px rgba(159,169,214,0.12); }
+.mpod-card.mpod-p3{ border-color: rgba(196,144,106,0.4); box-shadow: inset 0 0 0 1px rgba(196,144,106,0.12); }
 /* 1st stands very slightly taller: a marginally larger badge is the whole of
    its extra hierarchy beyond height and border — the layout stays as
    stable as every other place. */
-.mpod-p1 .mbadge, .mmc-p1 .mbadge{ width: clamp(58px, 20.5vw, 78px); }
+.mpod-p1 .mbadge{ width: clamp(58px, 20.5vw, 78px); }
 /* The pedestal itself: a coloured strip below the card content whose height
    IS the podium hierarchy. It carries no information of its own (the place
    word above it already says 1st/2nd/3rd), so it is decorative. */
@@ -2459,8 +2465,8 @@ body.first-use{ padding-bottom: 0; }
 .mpod-p3 .mpod-step{ height: 9px; background: linear-gradient(180deg, rgba(196,144,106,0.26), rgba(196,144,106,0.06)); }
 /* Narrowest phones — after the card rules, so they win. */
 @media (max-width: 359px){
-  .mpod, .mmc{ gap: 6px; }
-  .mpod-card, .mmc-card{ padding-left: 3px; padding-right: 3px; }
+  .mpod{ gap: 6px; }
+  .mpod-card{ padding-left: 3px; padding-right: 3px; }
 }
 
 /* The entrance — played once when the tab is opened, on the mode that is
@@ -2474,8 +2480,8 @@ body.first-use{ padding-bottom: 0; }
   100%{ transform: translate3d(260%, 0, 0); opacity: 0; }
 }
 .mst-panel.is-anim .mst-rise{ animation: mstRise 0.42s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
-.mst-panel.is-anim .mpod-card, .mst-panel.is-anim .mmc-card{ --d: calc(var(--i, 0) * 70ms); }
-.mst-panel.is-anim .mpod-card .mst-rise, .mst-panel.is-anim .mmc-card .mst-rise{ animation-delay: var(--d); }
+.mst-panel.is-anim .mpod-card{ --d: calc(var(--i, 0) * 70ms); }
+.mst-panel.is-anim .mpod-card .mst-rise{ animation-delay: var(--d); }
 .mst-panel.is-anim .mcb-fill{ animation: mstFill 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--d, 0ms) + 180ms); }
 .mst-panel.is-anim .msheen::before{ animation: mstSheen 0.9s ease-out 1 backwards; animation-delay: calc(var(--d, 0ms) + 420ms); }
 
@@ -2514,7 +2520,7 @@ body.first-use{ padding-bottom: 0; }
   .mst-panel.is-anim .mst-rise, .mst-panel.is-anim .mcb-fill, .mst-panel.is-anim .msheen::before{ animation: none; }
   .mst-panel, .mst-panel:not(.is-on), .mst-thumb, .mst-stage.is-sizing, .mst-seg, .mst-ico{ transition: none; }
   #mstPanel-exercise:not(.is-on), #mstPanel-muscle:not(.is-on){ transform: none; }
-  .mpod-card:active{ transform: none; }
+  button.mpod-card:active{ transform: none; }
 }
 
 /* Push/pull/legs distribution. D25: the categories are shares of one whole,
@@ -7864,7 +7870,7 @@ button.ex-thumb:focus-visible{ outline: 2px solid var(--accent); outline-offset:
    ========================================================= */
 .pd-card, .lc-card, .cal-card, .mv-card, .tpl-card, .ob-mock, .ob-hero,
 .vw-grid, .pd-tiles, .cl-tile, .tm-card, .settings-row-btn,
-.po-hero, .po-card, .mpod-card, .mmc-card, .mst-toggle, .mst-card,
+.po-hero, .po-card, .mpod-card, .mst-toggle, .mst-card,
 .prog-jump, .hdr-level, .plan-card, .mt-stat, .sub-card{
   border-color: var(--border-quiet);
   box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient);
@@ -8204,8 +8210,11 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 }
 .ob-skip:active{ color: var(--text-dim); }
 
-.ob-scroll{ flex: 1; overflow-y: auto; padding: 0 var(--space-5); min-height: 0; -webkit-overflow-scrolling: touch; }
-.ob-step{ animation: obIn 0.28s var(--ease) both; }
+.ob-scroll{ flex: 1; overflow-y: auto; padding: 0 var(--space-5); min-height: 0; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; }
+/* D106 — a page is composed in the middle of the space it has: auto margins
+   centre it when it is shorter, and collapse to nothing when it scrolls. */
+.ob-step{ animation: obIn 0.28s var(--ease) both; margin: auto 0; padding-bottom: var(--space-2); }
 @keyframes obIn{ from{ opacity: 0; transform: translateY(8px); } to{ opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce){ .ob-step{ animation: none; } }
 
@@ -8290,6 +8299,71 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 /* Today's empty-program row: names the feature and offers the way in. */
 .tw-program-empty .tw-program-name{ color: var(--text-faint); }
 .tw-program-empty .tw-program-meta{ color: var(--accent); }
+
+/* ---------- D106 — TUTORIAL 2.0: THE REAL SCREENS, IN MINIATURE ----------
+   Each copy wears the real component's own classes (see OB_DEMO); these rules
+   only frame it for the sheet and keep it still. Nothing here restyles what a
+   component looks like. */
+.ob-demo{ position: relative; pointer-events: none; }
+.ob-demo-live{ pointer-events: auto; }
+.ob-demo-live *{ pointer-events: none; }
+.ob-demo-live .ob-live{ pointer-events: auto; }
+.ob-demo .tw{ margin: 0; }
+.ob-demo-workout > .stepper-on{
+  padding: 14px 14px 10px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+}
+.ob-demo-workout .ws-title{ margin-top: 0; }
+/* Narrow phones: the frame gives back its padding so the steppers keep the real screen width. */
+@media (max-width: 360px){ .ob-demo-workout > .stepper-on{ padding: 4px 0 4px 12px; border: none; background: none; } }
+/* The next set waits: its line, dimmed, without its controls. */
+.ob-demo-workout .set-row + .set-row{ opacity: 0.5; }
+.ob-demo-workout .set-row + .set-row .set-row-controls{ display: none; }
+/* In place, not pinned: the stepper's solid shelf beneath a pinned panel (D59) has nothing to hide here, so only the card's own shadow stays. */
+.ob-demo .stepper-on .ws-current .rest-panel{ position: static; margin-top: 10px; box-shadow: var(--shadow-md); }
+.ob-try{ text-align: center; margin-top: 10px; }
+.ob-saved{ display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px;
+  font-size: 12.5px; font-weight: 600; color: var(--success); }
+.ob-saved svg{ width: 14px; height: 14px; }
+.ob-tools{ display: flex; flex-direction: column; gap: 8px; }
+.ob-tools .prep-card{ margin: 0; padding: 12px 14px; }
+.ob-tools .time-picker{ margin: 0; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.ob-tools .sub-option{ width: 100%; margin: 0; }
+.ob-tools .time-chips{ flex-wrap: nowrap; }
+.ob-tools .time-chip{ flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; }
+.ob-rr{ display: flex; flex-direction: column; gap: 12px; }
+.ob-rr-row{ display: flex; flex-direction: column; gap: 6px; }
+.ob-rr-k, .ob-example{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.ob-rr .ready-summary{ cursor: default; }
+.ob-rr-body{ display: flex; align-items: center; gap: 16px; }
+.ob-rr-fig .muscle-svg{ width: 96px; }
+.ob-legend{ display: flex; flex-direction: column; gap: 6px; }
+.ob-leg{ display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-dim); }
+.ob-leg-dot{ width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.ob-rr .ob-example, .ob-prog .ob-example{ position: absolute; top: 12px; right: 14px; }
+.ob-prog-head{ display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.ob-prog .ob-example{ position: static; }
+.ob-welcome{ padding-bottom: var(--space-5); }
+.ob-loop{ list-style: none; margin: 18px 0 0; padding: 0 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ob-loop li{ display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.ob-loop-art{ height: 40px; display: flex; align-items: center; justify-content: center; max-width: 100%; }
+.ob-loop-art .set-chip{ white-space: nowrap; }
+.ob-loop-bars{ align-items: flex-end; gap: 4px; padding-top: 8px; box-sizing: border-box; }
+.ob-loop-bars i{ display: block; width: 8px; border-radius: 2px 2px 0 0; background: var(--accent); }
+.ob-loop-k{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); }
+/* Short phones (the tour's own ≤640px tier, as D97's rank page): the examples
+   give up detail, never the part they teach. */
+@media (max-height: 640px){
+  .ob-demo-workout .ws-chips{ display: none; }
+  .ob-demo-live .ws-title{ display: none; }
+  .ob-demo-workout .ws-title .ex-thumb-lg{ width: 48px; height: 48px; }
+  .ob-demo-workout > .stepper-on{ padding-top: 10px; padding-bottom: 6px; }
+  .ob-visual{ margin: 6px 0 14px; }
+  .ob-rr{ gap: 6px; }
+  .ob-rr-row{ gap: 4px; }
+  .ob-rr-fig .muscle-svg{ width: 70px; }
+  .ob-tools .prep-card-sub{ display: none; }
+  .ob-welcome{ padding-top: var(--space-5); padding-bottom: var(--space-4); }
+}
 
 /* ---------- ONBOARDING DEMONSTRATIONS (Phase D8.1) ---------- */
 /* Carousel: a short cross-fade, nothing that draws attention to itself. */
@@ -17612,6 +17686,22 @@ const LOOP_UPDATES = [
       'A workout you build from scratch after discarding or replacing another no longer picks up that workout’s planned time',
       'A workout you resume after closing the app keeps its planned time'
     ],
+    changes: []
+  },
+  {
+    id: 'v10-21',
+    version: 'LOOP 10.21',
+    title: 'A Clearer First Workout',
+    date: '2026-09-24',
+    swVersion: 'loop-v198',
+    summary: 'The Getting Started tour now walks you through the real screens you will train with, and Muscle Mastery stands on the same podium as Exercise Mastery.',
+    newFeatures: [
+      'The Getting Started tour shows the real app: where today’s workout starts, how a set is logged, what finishing one does (you can try it), and how your training adds up. Replay it any time from Settings → Getting Started'
+    ],
+    improvements: [
+      'Muscle Mastery now stands on the same podium as Exercise Mastery, with gold, silver and bronze steps beneath the top three'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];
@@ -37364,7 +37454,7 @@ function masteryPodiumCardHtml(m, place){
 function masteryMuscleCardHtml(m, place){
   const n = m.exercises + ' exercise' + (m.exercises === 1 ? '' : 's');
   return masteryLeaderCardHtml({
-    cls: 'mmc-card', placeCls: 'mmc-p' + place, place,
+    cls: 'mpod-card', placeCls: 'mpod-p' + place, place,
     name: m.label, level: m.level, percent: m.percent, isMax: m.isMax,
     metaLine: n, metaSpoken: n
   });
@@ -37372,29 +37462,30 @@ function masteryMuscleCardHtml(m, place){
 
 /* Leaders in RANK order, left to right — 1st, 2nd, 3rd, as the eye reads them.
    Zero leaders is an empty state, one is centred alone, two are a centred pair:
-   never a broken empty third slot. */
-function masteryPodiumHtml(podium){
-  if(!podium.length){
+   never a broken empty third slot.
+   D106 — ONE podium for both modes. Everything that is presentation (the grid,
+   its count class, the place classes, the empty state, the list semantics) is
+   decided here, once; a mode supplies only its words and its card's DATA
+   (masteryPodiumCardHtml / masteryMuscleCardHtml both call the one
+   masteryLeaderCardHtml with the same class names). */
+const MASTERY_LEADER_MODES = {
+  exercise: { label: 'Exercise mastery leaders', empty: 'Exercises appear here as you train them over time.', card: (m, place) => masteryPodiumCardHtml(m, place) },
+  muscle:   { label: 'Muscle mastery leaders',   empty: 'Muscles appear here as you log training.',            card: (m, place) => masteryMuscleCardHtml(m, place) }
+};
+function masteryLeadersHtml(mode, items){
+  const M = MASTERY_LEADER_MODES[mode] || MASTERY_LEADER_MODES.exercise;
+  if(!items.length){
     return `<div class="mpod-empty">
       <span class="mpod-empty-glyph" aria-hidden="true">${trophyIconSvg()}</span>
       <div class="mpod-empty-title">Build your mastery.</div>
-      <p class="mpod-empty-sub">Exercises appear here as you train them over time.</p>
+      <p class="mpod-empty-sub">${M.empty}</p>
     </div>`;
   }
-  const cards = podium.map((m, i) => masteryPodiumCardHtml(m, i + 1)).join('');
-  return `<div class="mpod mpod-n${podium.length}" role="list" aria-label="Exercise mastery leaders">${cards}</div>`;
+  const cards = items.map((m, i) => M.card(m, i + 1)).join('');
+  return `<div class="mpod mpod-n${items.length}" role="list" data-mode="${mode}" aria-label="${M.label}">${cards}</div>`;
 }
-function masteryMusclePodiumHtml(list){
-  if(!list.length){
-    return `<div class="mpod-empty">
-      <span class="mpod-empty-glyph" aria-hidden="true">${trophyIconSvg()}</span>
-      <div class="mpod-empty-title">Build your mastery.</div>
-      <p class="mpod-empty-sub">Muscles appear here as you log training.</p>
-    </div>`;
-  }
-  const cards = list.map((m, i) => masteryMuscleCardHtml(m, i + 1)).join('');
-  return `<div class="mmc mmc-n${list.length}" role="list" aria-label="Muscle mastery leaders">${cards}</div>`;
-}
+function masteryPodiumHtml(podium){ return masteryLeadersHtml('exercise', podium); }
+function masteryMusclePodiumHtml(list){ return masteryLeadersHtml('muscle', list); }
 
 /* ---------- THE VIEW: one control, one card, two states of it ----------
    D94B — the two modes are two states of the SAME surface. One card holds both
@@ -38101,97 +38192,52 @@ const ONBOARDING_STEPS = [
   {
     id: 'welcome',
     title: 'Welcome to LOOP',
-    body: 'Your personal training system. Log what you actually do, and LOOP builds a picture of your training over time.',
-    visual: () => `
-      <div class="ob-hero">
-        <div class="ob-hero-mark">LOOP<span class="ob-hero-dot">.</span></div>
-        <div class="ob-hero-sub">Train · Log · Progress</div>
-      </div>`
+    body: 'Train. Log what actually happened. LOOP builds your training picture from it.',
+    visual: () => obWelcomeHtml()
   },
   {
     id: 'today',
-    title: 'Today',
-    body: 'What should I do today? Today opens on the session you have scheduled, ready to start.',
-    visual: () => {
-      const first = onboardingWorkoutSamples()[0];
-      return `
-      <div class="ob-mock">
-        <div class="ob-mock-label">TODAY'S WORKOUT</div>
-        <div class="ob-mock-title ob-rotator" id="obCarouselTitle">${escapeHtml(first.cat)}</div>
-        <div class="ob-mock-meta ob-rotator" id="obCarouselMeta">${escapeHtml(first.name)}</div>
-        <div class="ob-mock-cta ob-spot">Start Workout</div>
-      </div>`;
-    }
-  },
-  {
-    id: 'start',
-    title: 'Start a workout',
-    body: 'One tap opens the session. LOOP saves every set as you go, so locking your phone mid-set never loses anything.',
-    visual: () => `
-      <div class="ob-mock">
-        <div class="ob-mock-row"><span class="ob-mock-key">Autosaved</span><span class="ob-mock-val">every set</span></div>
-        <div class="ob-mock-row"><span class="ob-mock-key">Phone locks</span><span class="ob-mock-val">nothing lost</span></div>
-        <div class="ob-mock-row"><span class="ob-mock-key">Come back later</span><span class="ob-mock-val">resume where you left</span></div>
-      </div>`
+    title: 'Start from Today',
+    body: 'Today opens on the workout your plan or program has scheduled. Start Workout begins it.',
+    visual: () => obTodayDemoHtml()
   },
   {
     id: 'logging',
-    title: 'Logging a set',
-    body: 'Set the weight and reps, then mark the set complete. Set Type records how the set was performed — working, warm-up, drop, failure or AMRAP.',
-    visual: () => `
-      <div class="ob-mock">
-        <div class="ob-mock-controls">
-          <div class="ob-mock-ctrl"><span class="ob-mock-unit">LB</span><span class="ob-mock-stepper">– 225 +</span></div>
-          <div class="ob-mock-ctrl"><span class="ob-mock-unit">REPS</span><span class="ob-mock-stepper">– 8 +</span></div>
-        </div>
-        <div class="ob-mock-ctrl ob-spot" style="margin-top:8px">
-          <span class="ob-mock-unit">SET TYPE</span><span class="ob-mock-select">Working ${chevronDownSvg(10)}</span>
-        </div>
-      </div>`
+    title: 'Log each set',
+    body: 'Enter the weight and reps you actually did. The set type and RIR sit right beside them.',
+    visual: () => obWorkoutDemoHtml(false)
+  },
+  {
+    /* D106 — the one page you can touch: completing the example set shows what
+       completing a real one does. It changes only the example on screen. */
+    id: 'rest',
+    title: 'Finish a set, then rest',
+    body: 'Tap the circle when a set is done. LOOP saves it and starts your rest timer.',
+    visual: () => obWorkoutDemoHtml(true)
+  },
+  {
+    id: 'saved',
+    title: 'Your workout is safe',
+    body: 'Every set is saved as you go. Lock your phone or close LOOP, and Today brings the workout back where you left it.',
+    visual: () => obResumeDemoHtml()
   },
   {
     id: 'tools',
-    title: 'Tools while you train',
-    body: 'Warm-up prepares you for the session. Short on time? Change the time and LOOP trims today’s workout. Machine taken? Replace swaps in a sensible alternative.',
-    visual: () => `
-      <div class="ob-mock">
-        <div class="ob-timer-demo">
-          <div class="prep-ring ob-timer-ring">
-            <svg class="prep-ring-svg" viewBox="0 0 120 120" aria-hidden="true">
-              <circle class="prep-ring-track" cx="60" cy="60" r="54"/>
-              <circle class="prep-ring-fill" id="obTimerFill" cx="60" cy="60" r="54"
-                stroke-dasharray="339.3" stroke-dashoffset="0"/>
-            </svg>
-            <div class="prep-metric" id="obTimerMetric">1:42</div>
-          </div>
-          <div class="ob-timer-cap">Built-in timing while you train</div>
-        </div>
-        <div class="ob-tool"><span class="ob-tool-name">Warm-up</span><span class="ob-tool-desc">3–5 min, built for today’s session</span></div>
-        <div class="ob-tool"><span class="ob-tool-name">Change time</span><span class="ob-tool-desc">Fit the session into 15–90 min</span></div>
-        <div class="ob-tool"><span class="ob-tool-name">Replace exercise</span><span class="ob-tool-desc">Ranked alternatives that keep the intent</span></div>
-      </div>`
+    title: 'Adapt the session',
+    body: 'Warm up first, fit the workout to the time you have, or replace an exercise when the machine is taken.',
+    visual: () => obToolsDemoHtml()
   },
   {
     id: 'readiness',
     title: 'Readiness and recovery',
-    body: 'Tell LOOP how you feel before you train. Readiness is yours to set; recovery is worked out from the sessions you have logged.',
-    visual: () => `
-      <div class="ob-mock">
-        <div class="ob-mock-row"><span class="ob-mock-key">Readiness</span><span class="ob-mock-val">what you report</span></div>
-        <div class="ob-mock-row"><span class="ob-mock-key">Recovery</span><span class="ob-mock-val">estimated from your logs</span></div>
-        <div class="ob-note">Both are training context, not medical advice.</div>
-      </div>`
+    body: 'Readiness is how you say you feel. Recovery is estimated from the training you log. Both are context, not medical advice.',
+    visual: () => obReadinessDemoHtml()
   },
   {
     id: 'progress',
     title: 'Watch it add up',
-    body: 'Every set feeds your progress — what you train most, which lifts are moving, and how the weeks stack up. Run your plan as a program when you want a start and an end date.',
-    visual: () => `
-      <div class="ob-mock">
-        <div class="ob-mock-label">MUSCLE GROUPS TRAINED</div>
-        <div class="ob-muscles">${onboardingMuscleBars()}</div>
-        <div class="ob-note">Built from the sessions you log. LOOP is observing, not deciding — every weight on the bar stays yours.</div>
-      </div>`
+    body: 'Every set you log becomes your history: weekly volume, strength trends and records, all in Progress.',
+    visual: () => obProgressDemoHtml()
   },
   {
     /* D97 — the tour closes on where training leads: every rank, what earns it,
@@ -38205,8 +38251,9 @@ const ONBOARDING_STEPS = [
 ];
 
 /* ---------- STEP ANIMATIONS ----------
-   Two ambient demonstrations, both living inside existing steps so the tour
-   gains no extra slides and no extra time.
+   D106 — two, both short and both once: the example rest timer that starts
+   when the example set is completed (only while that page is showing), and
+   the rank ladder's one pass of light (D97). No autoplay loop anywhere.
 
    Every interval is registered here and cleared on ANY step change, skip,
    finish or close. Nothing can outlive the sheet, and a step cannot stack a
@@ -38222,26 +38269,6 @@ function clearOnboardingAnimations(){
 function onboardingReducedMotion(){
   try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
   catch(e){ return false; }
-}
-
-/* Representative REAL workouts, read from the plan the athlete is actually
-   on — never a hard-coded list that could go stale. */
-/* Sample proportions for the tour only. A first-time athlete has no history,
-   so this shows the SHAPE of the read-out rather than pretending to be their
-   data — the real one is built from logged sessions. */
-function onboardingMuscleBars(){
-  const rows = [
-    { label:'Chest',     pct: 82 },
-    { label:'Back',      pct: 74 },
-    { label:'Legs',      pct: 91 },
-    { label:'Shoulders', pct: 58 },
-    { label:'Arms',      pct: 47 }
-  ];
-  return rows.map(r => `
-    <div class="ob-mus-row">
-      <span class="ob-mus-name">${r.label}</span>
-      <span class="ob-mus-bar"><span class="ob-mus-fill" style="width:${r.pct}%"></span></span>
-    </div>`).join('');
 }
 
 /* D97 — THE RANK LADDER. All eight ranks in rank order, each drawn by the one
@@ -38291,69 +38318,212 @@ function startRankLadderLight(){
   });
 }
 
-function onboardingWorkoutSamples(){
-  const out = [];
+/* ---------- TUTORIAL 2.0 (D106): TEACH LOOP USING LOOP ----------
+   Every page shows a small copy of the real screen it describes, drawn with the
+   app's own classes and, wherever a builder is pure, the real builder itself:
+   the set rows come from appendSetRow, the art from exerciseThumbHtml and
+   workoutIconHtml, the muscle chips from workoutStepMusclesHtml, the rest ring
+   from restRingSvg, the swap row from substitutionOptionHtml, the recovery
+   figure from bodyDiagramSvg and the chart from volumeBarSvg. So a change to
+   the real screen reaches its example.
+
+   DEMONSTRATIONS, NOT DATA. Every value is a constant in OB_DEMO: nothing here
+   reads the athlete's history, readiness, recovery or plan (only the rank
+   page's YOU marker reads where they stand, D97), data-shaped examples say
+   "Example", and nothing here writes anything. Every copy is inert except the
+   one example set on the rest page, whose only handler changes that example. */
+const OB_DEMO = {
+  category: 'push', workout: 'Push A — Chest Focus', meta: '6 exercises · ~45 min',
+  exercise: 'Bench Press',
+  sets: [{ w: '225', r: '8', rir: '2' }, { w: '225', r: '8', rir: '' }],
+  restSec: 90,
+  swapTo: 'Dumbbell Bench Press', swapWhy: 'Same movement, free weights',
+  readiness: 78,
+  recovery: { chest: 'recovering', triceps: 'recovering', shoulders: 'low', back: 'ready', biceps: 'ready',
+    abs: 'ready', quads: 'ready', hamstrings: 'ready', glutes: 'ready', calves: 'ready' },
+  volume: [9800, 11200, 10400, 12100, 12900, 13600]
+};
+
+function obWelcomeHtml(){
+  const wid = workoutIdentity(null, OB_DEMO.category);
+  return `<div class="ob-hero ob-welcome">
+      <div class="ob-hero-mark">LOOP<span class="ob-hero-dot">.</span></div>
+      <ol class="ob-loop" aria-hidden="true">
+        <li><span class="ob-loop-art">${workoutIconHtml(wid, 'md')}</span><span class="ob-loop-k">Train</span></li>
+        <li><span class="ob-loop-art">${setChipHtml({ weight: OB_DEMO.sets[0].w, reps: OB_DEMO.sets[0].r }, false, null)}</span><span class="ob-loop-k">Log</span></li>
+        <li><span class="ob-loop-art ob-loop-bars">${OB_DEMO.volume.slice(-4).map(v => '<i style="height:' + Math.round(v / 13600 * 100) + '%"></i>').join('')}</span><span class="ob-loop-k">Progress</span></li>
+      </ol>
+    </div>`;
+}
+
+/* The Today card exactly as renderTodayWorkout draws a planned day. */
+function obTodayDemoHtml(){
+  const wid = workoutIdentity(null, OB_DEMO.category);
+  return `<div class="ob-demo" inert aria-hidden="true">
+    <div class="tw tw-${OB_DEMO.category} tw-wi wi-c-${wid.colorId}">
+      <div class="tw-label">Today's Workout</div>
+      <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(CAT_LABEL[OB_DEMO.category])}</span></div>
+      <div class="tw-meta">${escapeHtml(OB_DEMO.workout + ' · ' + OB_DEMO.meta)}</div>
+      <button type="button" class="tw-cta ob-spot" tabindex="-1">Start Workout</button>
+      <div class="tw-actions">
+        <button type="button" class="tw-change" tabindex="-1">${twActionLabel('View workout', 'View')}</button>
+        <button type="button" class="tw-change tw-change-time" tabindex="-1">${twActionLabel('Change time', 'Time')}</button>
+        <button type="button" class="tw-change" tabindex="-1">${twActionLabel('Change workout', 'Workout')}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* The workout's own set rows, built by appendSetRow itself into a detached list
+   and then disarmed: every handler removed, every control out of the tab order.
+   On the rest page the first set's circle is the one live control, and its only
+   handler is obDemoToggleSet. Outside a real document (the test harness) it
+   draws nothing rather than guess. */
+function obDemoSetsHtml(live){
   try{
-    const plan = DEFAULT_PLANS[selectedPlanId] || DEFAULT_PLANS.upperlower || null;
-    const templates = (plan && plan.templates) || {};
-    ORDER.forEach(cat => {
-      const list = templates[cat];
-      if(list && list.length) out.push({ cat: CAT_LABEL[cat] || cat, name: list[0].name });
+    const list = document.createElement('div');
+    list.className = 'sets-list';
+    /* The logging page shows the next set waiting; the rest page only the set
+       being completed, so the rest panel has the room it needs. */
+    (live ? OB_DEMO.sets.slice(0, 1) : OB_DEMO.sets).forEach(s => appendSetRow(list, s.w, s.r, false, s.rir));
+    [].forEach.call(list.querySelectorAll('*'), el => {
+      ['onclick', 'oninput', 'onchange', 'onkeydown'].forEach(a => el.removeAttribute(a));
+      if(el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+      if(el.tagName === 'INPUT') el.setAttribute('readonly', '');
     });
-  }catch(e){}
-  if(!out.length) out.push({ cat:'Full Body', name:'Full Body A' });
-  /* Workouts only. Cardio sat here as "a real LOOP mode" until the Cardio tab
-     was retired; a tour that offered it would be promising a screen that is
-     no longer there. */
-  return out.slice(0, 4);
+    if(live){
+      const b = list.querySelector('.set-complete-btn');
+      if(b){
+        b.removeAttribute('tabindex');
+        b.classList.add('ob-live', 'ob-spot');
+        b.setAttribute('onclick', 'obDemoToggleSet(this)');
+        b.setAttribute('aria-label', 'Complete the example set');
+      }
+    }
+    return list.outerHTML || '';
+  }catch(e){ return ''; }
 }
-
-/* Step 2 — cycles through real workouts so "multiple ways to train" is shown
-   rather than stated. Ambient: it costs the athlete no extra time. */
-function startWorkoutCarousel(){
-  const titleEl = document.getElementById('obCarouselTitle');
-  const metaEl = document.getElementById('obCarouselMeta');
-  if(!titleEl || !metaEl) return;
-  const samples = onboardingWorkoutSamples();
-  if(onboardingReducedMotion() || samples.length < 2) return;   // static first frame
-  let i = 0;
-  const id = setInterval(() => {
-    if(!document.getElementById('obCarouselTitle')){ clearInterval(id); return; }
-    i = (i + 1) % samples.length;
-    titleEl.classList.add('ob-fade');
-    metaEl.classList.add('ob-fade');
-    setTimeout(() => {
-      titleEl.textContent = samples[i].cat;
-      metaEl.textContent = samples[i].name;
-      titleEl.classList.remove('ob-fade');
-      metaEl.classList.remove('ob-fade');
-    }, 180);
-  }, 1900);
-  onboardingTimers.push(id);
+/* The rest panel exactly as addLogExerciseRow draws it, hidden until the
+   example set is completed. */
+function obRestPanelHtml(){
+  return `<div class="rest-panel" id="obRest" hidden>
+      <div class="rest-dial">${restRingSvg()}<span class="rest-dial-time rest-panel-time" id="obRestTime">${formatMMSS(OB_DEMO.restSec)}</span><span class="rest-dial-check">${checkIconSvg()}</span></div>
+      <div class="rest-panel-info"><div class="rest-panel-label">Resting</div><div class="rest-panel-sub">${escapeHtml(OB_DEMO.exercise)}</div></div>
+      <div class="rest-panel-controls" aria-hidden="true">
+        <button type="button" class="rest-panel-btn" tabindex="-1">+15s</button>
+        <button type="button" class="rest-panel-btn rest-pause-btn" tabindex="-1">${pauseIconSvg()}</button>
+        <button type="button" class="rest-panel-btn rest-skip-btn" tabindex="-1">Skip</button>
+      </div>
+    </div>`;
 }
-
-/* Step 5 — a real countdown in the same ring the warm-up runner uses, so the
-   timer reads as the actual app rather than an illustration. */
-function startTimerDemo(){
-  const metric = document.getElementById('obTimerMetric');
-  const fill = document.getElementById('obTimerFill');
-  if(!metric || !fill) return;
-  const TOTAL = 102;                               // 1:42
-  const circ = 2 * Math.PI * 54;
-  const paint = left => {
-    const m = Math.floor(left / 60), s = left % 60;
-    metric.textContent = m + ':' + String(s).padStart(2, '0');
-    setRingProgress(fill, left / TOTAL, 54);
-  };
-  paint(TOTAL);
-  if(onboardingReducedMotion()) return;            // static, fully drawn ring
-  let left = TOTAL;
+/* The exercise as the workout shows it: the stepper's own head and set rows,
+   inside the stepper's own scope so every stepper rule applies. */
+function obWorkoutDemoHtml(live){
+  const name = OB_DEMO.exercise;
+  return `<div class="ob-demo ob-demo-workout${live ? ' ob-demo-live' : ''}"${live ? '' : ' inert aria-hidden="true"'}>
+    <div class="stepper-on"><div class="ex-log-row ws-current">
+      <div class="ws-title">${exerciseThumbHtml(name, { static: true, size: 'lg' })}<div class="ws-title-main"><h3 class="ws-name">${escapeHtml(name)}</h3>${workoutStepMusclesHtml(name)}</div></div>
+      ${obDemoSetsHtml(live)}
+      ${live ? obRestPanelHtml() : ''}
+    </div></div>
+    ${live ? '<div class="ob-note ob-try" id="obTry">Try it — tap the circle.</div>' : ''}
+  </div>`;
+}
+/* Completing the example set: the real completed state and the real rest panel,
+   on the example only. Tapping again undoes it. Writes nothing. */
+function obDemoToggleSet(btn){
+  const row = btn && btn.closest ? btn.closest('.set-row') : null;
+  const rest = document.getElementById('obRest');
+  if(!row || !rest) return;
+  const done = !row.classList.contains('completed');
+  row.classList.toggle('completed', done);
+  btn.setAttribute('aria-pressed', done ? 'true' : 'false');
+  clearOnboardingAnimations();
+  const tip = document.getElementById('obTry');
+  if(!done){
+    rest.hidden = true; rest.style.display = '';
+    if(tip) tip.textContent = 'Try it — tap the circle.';
+    return;
+  }
+  rest.hidden = false; rest.style.display = 'flex';
+  if(tip) tip.textContent = 'Set saved. Your rest has started.';
+  obRestDemoRun(rest);
+}
+/* The example rest counts down only while its page is showing: its interval is
+   one of onboardingTimers, which every page change clears. Reduce Motion shows
+   the full ring and the time, still. */
+function obRestDemoRun(panel){
+  const total = OB_DEMO.restSec;
+  const time = document.getElementById('obRestTime'), fill = panel.querySelector('.rest-ring-fill');
+  const paint = left => { if(time) time.textContent = formatMMSS(left); if(fill) setRingProgress(fill, left / total, REST_RING_R); };
+  paint(total);
+  if(onboardingReducedMotion()) return;
+  let left = total;
   const id = setInterval(() => {
-    if(!document.getElementById('obTimerMetric')){ clearInterval(id); return; }
-    left = left <= 0 ? TOTAL : left - 1;           // loops cleanly
+    if(!document.getElementById('obRestTime')){ clearInterval(id); return; }
+    left = Math.max(0, left - 1);
     paint(left);
+    if(!left) clearInterval(id);
   }, 1000);
   onboardingTimers.push(id);
+}
+
+/* The Today card as it looks with a workout in progress (renderTodayWorkout's
+   active state), with the meta line draftSummaryLine writes. */
+function obResumeDemoHtml(){
+  const wid = workoutIdentity(null, OB_DEMO.category);
+  return `<div class="ob-demo" inert aria-hidden="true">
+    <div class="tw tw-wi wi-c-${wid.colorId} tw-${OB_DEMO.category} tw-active">
+      <div class="tw-label">Workout in progress</div>
+      <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(OB_DEMO.workout)}</span></div>
+      <div class="tw-meta">18 min · ${escapeHtml(OB_DEMO.exercise)} · 4/18 sets completed</div>
+      <button type="button" class="tw-cta ob-spot" tabindex="-1">Resume</button>
+    </div>
+    <div class="ob-saved">${checkIconSvg()}<span>Saved after every set</span></div>
+  </div>`;
+}
+
+/* The three tools as the workout shows them: the warm-up card, the time chips
+   and one row of the replace sheet. */
+function obToolsDemoHtml(){
+  const chips = TIME_MODE_CONFIG.options.map(m => `<button type="button" class="time-chip${m === 45 ? ' on' : ''}" tabindex="-1">${m}</button>`).join('') +
+    '<button type="button" class="time-chip time-chip-full" tabindex="-1">Full</button>';
+  const swap = substitutionOptionHtml(OB_DEMO.swapTo, OB_DEMO.swapWhy, 'void', OB_DEMO.swapTo).replace(/ onclick="[^"]*"/, ' tabindex="-1"');
+  return `<div class="ob-demo ob-tools" inert aria-hidden="true">
+    <div class="prep-card"><div class="prep-card-head"><span class="prep-card-label">WARM-UP</span><span class="prep-card-time">~3 MIN</span></div>
+      <div class="prep-card-sub">Prepare your body for today's workout.</div></div>
+    <div class="time-picker"><div class="time-picker-label">How much time do you have?</div><div class="time-chips">${chips}</div></div>
+    ${swap}
+  </div>`;
+}
+
+/* Readiness (what the athlete reports) beside recovery (estimated from logs),
+   each in the real app's own form, from example values. */
+function obReadinessDemoHtml(){
+  const state = readinessStateFromScore(OB_DEMO.readiness);
+  const legend = ['ready', 'recovering', 'low'].map(b =>
+    `<span class="ob-leg"><span class="ob-leg-dot rec-b-${b}"></span>${RECOVERY_BAND_LABEL[b]}</span>`).join('');
+  return `<div class="ob-demo ob-mock ob-rr" inert aria-hidden="true">
+    <div class="ob-rr-row">
+      <span class="ob-rr-k">Readiness · you report</span>
+      <div class="ready-summary"><span class="ready-dot ready-dot-${state}"></span><span class="ready-summary-text">${READINESS_STATE_LABEL[state]} <span class="ready-summary-score">${OB_DEMO.readiness}</span></span></div>
+    </div>
+    <div class="ob-rr-row ob-rr-rec">
+      <span class="ob-rr-k">Recovery · estimated from your logs</span>
+      <div class="ob-rr-body"><div class="ob-rr-fig">${bodyDiagramSvg(null, {}, OB_DEMO.recovery)}</div><div class="ob-legend">${legend}</div></div>
+    </div>
+    <span class="ob-example">Example</span>
+  </div>`;
+}
+
+/* The Progress volume chart, drawn by its own renderer from example weeks. */
+function obProgressDemoHtml(){
+  const weeks = OB_DEMO.volume.map((v, i) => ({ label: 'Wk ' + (i + 1), volume: v, start: 'ob-' + i }));
+  return `<div class="ob-demo ob-mock ob-prog" inert aria-hidden="true">
+    <div class="ob-prog-head"><span class="ob-mock-label">Weekly volume</span><span class="ob-example">Example</span></div>
+    ${volumeBarSvg(weeks)}
+  </div>
+  <p class="ob-note ob-honest">LOOP is observing, not deciding — every weight on the bar stays yours.</p>`;
 }
 
 /* ---------- RUNNER ---------- */
@@ -38452,9 +38622,8 @@ function renderOnboardingStep(){
   const skipBtn = document.getElementById('onboardingSkip');
   if(skipBtn) skipBtn.style.visibility = onboardingSolo ? 'hidden' : 'visible';
 
-  // Ambient demonstrations for the steps that have them.
-  if(step.id === 'today') startWorkoutCarousel();
-  if(step.id === 'tools') startTimerDemo();
+  /* D106 — the only thing a page starts by itself is the ladder's light (D97).
+     The example rest starts when, and only if, the example set is completed. */
   if(step.id === 'ranks') startRankLadderLight();
 }
 

@@ -977,6 +977,21 @@ reached from Log at all.
 open the Full workout sheet by id (as the summary is) and to list every
 workout of a selected day, which changes D102's Log architecture.
 
+## E31 — On a 320px phone the workout's rest panel squeezes out its label · P4 · PROVEN · OPEN
+
+Found by D106's comparison of the tour's rest example with the real rest panel.
+At 320px wide the running rest panel (`.rest-panel` in `addLogExerciseRow`)
+gives its label column what is left after the 72px dial and the three 44px
+controls (+15s, pause, Skip): about 14px. "Resting" and the exercise name are
+clipped to "REST" and "B…" (measured in real Edge at 320×568, D104's own
+capture). Nothing is lost — the dial and the controls say what is happening —
+but the words are unreadable there. The tour's copy shows the same.
+
+**Why it was not fixed in D106.** It is the live workout's rest panel (D104's
+card), outside a presentation-and-onboarding phase told not to change the
+workout UI; the fix is a one-line decision about what the panel drops first on
+the narrowest phones.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

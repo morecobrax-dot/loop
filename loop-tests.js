@@ -5819,8 +5819,9 @@ function testOnboarding(app){
   T('schema version untouched', ctx.DATA_SCHEMA_VERSION === 1);
 
   sub('the tour is short and teaches a mental model');
-  T('between 6 and 8 steps',
-    ctx.ONBOARDING_STEPS.length >= 6 && ctx.ONBOARDING_STEPS.length <= 8,
+  /* D106 restated: Tutorial 2.0 — nine pages, one question each, each a copy of the real screen (Contract 221). */
+  T('between 7 and 9 steps',
+    ctx.ONBOARDING_STEPS.length >= 7 && ctx.ONBOARDING_STEPS.length <= 9,
     String(ctx.ONBOARDING_STEPS.length));
   T('every step has a title', ctx.ONBOARDING_STEPS.every(s => !!s.title));
   T('every step has one concise explanation',
@@ -5848,8 +5849,9 @@ function testOnboarding(app){
   /* Membership, not order — the copy lists them in reading order
      ("working, warm-up, drop, failure or AMRAP"), which is a writing choice,
      not a contract. What matters is that all five real types are named. */
+  /* D106 restated: the tour names the set type where it sits; the five are named when they become relevant, by the setType hint beside the control. */
   T('the set types named are the real five',
-    ['warm-up','working','drop','failure','AMRAP'].every(t => new RegExp(t, 'i').test(all)));
+    /set type/i.test(all) && ['warm-up','working','drop','failure','AMRAP'].every(t => new RegExp(t, 'i').test(ctx.ONBOARDING_HINTS.setType)));
 
   sub('it is honest about the trainer');
   T('never claims LOOP picks weights for you',
@@ -6695,8 +6697,9 @@ function testD10Consolidation(app){
     src.indexOf('Most trained<span class="sec-hint">sessions logged') < src.indexOf('${masteryViewHtml(mas)}'));
   T('two different things are not both called "Most trained"',
     (src.match(/>Most trained</g) || []).length <= 1);
+  /* D106 restated: one podium — both modes render the .mpod namespace through masteryLeadersHtml (Contract 221). */
   T('muscle mastery is a panel of three leaders beside exercise mastery, not a second directory',
-    /function masteryMusclePodiumHtml/.test(src) && /class="mmc mmc-n/.test(src) && !/function topMuscleControlHtml/.test(src));
+    /function masteryMusclePodiumHtml/.test(src) && /return masteryLeadersHtml\('muscle', list\);/.test(src) && !/function topMuscleControlHtml/.test(src));
   /* D94B — the full ranked list is inline again, but as ONE list component
      shared with Exercise Mastery, and only one of the two panels is live. */
   T('the full muscle list is the same list component as the exercise list, not a second directory',
@@ -7885,7 +7888,8 @@ function testProgressDashboard(app){
     /* D86 — repointed: muscle development's home in this tab is now the
        compact Top Muscle control (it opens the full ranked list rather than
        showing it inline), not a literal "Muscle mastery" section heading. */
-    T('it lives in the Mastery tab', /class="mmc mmc-n\d"/.test(html));
+    /* D106 restated: one podium — both modes render the .mpod namespace through masteryLeadersHtml (Contract 221). */
+    T('it lives in the Mastery tab', /class="mpod mpod-n\d" role="list" data-mode="muscle"/.test(html));
     T('it is not previewed under Volume',
       !/Muscle development/.test(doc.getElementById('progVolMuscle').innerHTML));
     T('it is not on the landing view either',
@@ -10599,10 +10603,11 @@ function testTutorialD16(app){
 
   sub('it follows the order the questions arrive in');
   const ids = ctx.ONBOARDING_STEPS.map(s => s.id);
+  /* D106 restated: Tutorial 2.0 — nine pages, one question each, each a copy of the real screen (Contract 221). */
   T('it is short enough to finish',
-    ctx.ONBOARDING_STEPS.length >= 6 && ctx.ONBOARDING_STEPS.length <= 8, String(ids.length));
-  T('Today comes before the workout', ids.indexOf('today') < ids.indexOf('start'));
-  T('the workout comes before logging', ids.indexOf('start') < ids.indexOf('logging'));
+    ctx.ONBOARDING_STEPS.length >= 7 && ctx.ONBOARDING_STEPS.length <= 9, String(ids.length));
+  T('Today comes before the workout', ids.indexOf('today') !== -1 && ids.indexOf('today') < ids.indexOf('logging'));
+  T('the workout comes before logging', ids.indexOf('logging') !== -1 && ids.indexOf('logging') < ids.indexOf('rest') && ids.indexOf('rest') < ids.indexOf('saved'));
   T('logging comes before how you feel', ids.indexOf('logging') < ids.indexOf('readiness'));
   /* D97 — progress is still the last thing the tour TEACHES; the page after it
      is where progress leads (the rank ladder), and closes the tour. */
@@ -10630,17 +10635,20 @@ function testTutorialD16(app){
   ['set type','warm-up','replace','readiness','program'].forEach(k =>
     T('mentions ' + k, new RegExp(k, 'i').test(all)));
   T('mentions autosave', /saves|autosaved/i.test(all));
+  /* D106 restated: named where they become relevant (the setType hint), not listed before the athlete has seen the control. */
   T('still names the five real set types',
-    ['warm-up','working','drop','failure','AMRAP'].every(t => new RegExp(t, 'i').test(all)));
+    /set type/i.test(all) && ['warm-up','working','drop','failure','AMRAP'].every(t => new RegExp(t, 'i').test(ctx.ONBOARDING_HINTS.setType)));
   T('still avoids the retired word "cycle"', !/\bcycles?\b/i.test(all));
 
   sub('the progress moment shows training, not prose');
-  T('it draws a muscle read-out', /ob-mus-row/.test(all));
-  T('with more than one group', (all.match(/ob-mus-row/g) || []).length >= 4);
+  /* D106 restated: Tutorial 2.0 — nine pages, one question each, each a copy of the real screen (Contract 221). */
+  T('it draws a muscle read-out', /class="muscle-svg"/.test(all));
+  T('with more than one group', (() => { const at = src.indexOf('recovery: { chest:'); return at !== -1 && (src.slice(at, src.indexOf('}', at)).match(/\w+: '/g) || []).length >= 4; })());
+  /* D106 restated: every example is a constant, and the data-shaped ones say so on screen. */
   T('the sample is labelled as a shape, not the athlete\'s data', (() => {
-    const at = src.indexOf('function onboardingMuscleBars');
-    /* The comment explaining it sits above the declaration. */
-    return /Sample proportions for the tour only/.test(src.slice(Math.max(0, at - 400), at));
+    const at = src.indexOf('const OB_DEMO = {');
+    return at !== -1 && /DEMONSTRATIONS, NOT DATA/.test(src.slice(Math.max(0, at - 1200), at)) && /Example/.test(ctx.ONBOARDING_STEPS.find(s => s.id === 'progress').visual())
+      && /Example/.test(ctx.ONBOARDING_STEPS.find(s => s.id === 'readiness').visual());
   })());
   T('the bars animate in once, not forever',
     /animation: obMusIn 0\.5s var\(--ease\) both/.test(src) && !/obMusIn[^;]*infinite/.test(src));
@@ -14098,7 +14106,8 @@ async function testProgressExperience(){
        exercise, now with its level and progress rather than just its name)
        plus the compact Top Muscle control beside it. */
     T('the leaders lead: exercise leaders and muscle leaders under one segmented control',
-      /class="mst" id="mst"/.test(mHtml) && /class="mpod mpod-n\d"/.test(mHtml) && /class="mmc mmc-n\d"/.test(mHtml) &&
+      /* D106 restated: one podium — both modes render the .mpod namespace through masteryLeadersHtml (Contract 221). */
+      /class="mst" id="mst"/.test(mHtml) && /class="mpod mpod-n\d" role="list" data-mode="exercise"/.test(mHtml) && /class="mpod mpod-n\d" role="list" data-mode="muscle"/.test(mHtml) &&
       /Exercise Mastery/.test(mHtml) && /Muscle Mastery/.test(mHtml));
     T('no combined mastery score or mastery XP is invented',
       !/mastery score|mastery xp|overall mastery/i.test(mHtml));
@@ -14142,7 +14151,7 @@ async function testProgressExperience(){
         && /toggleAllMastery/.test(fnSrc(src, 'masteryListHtml'));
     })());
     T('and the tab holds one muscle leaders block and one muscle list, in the Muscle panel, never a second copy',
-      (mHtml.match(/class="mmc mmc-n/g) || []).length === 1 &&
+      (mHtml.match(/role="list" data-mode="muscle"/g) || []).length === 1 &&   /* D106 restated: the muscle leaders are the one podium in muscle mode */
       (mHtml.match(/id="mstPanel-muscle"/g) || []).length === 1 &&
       !/Primary and secondary work, ranked by training history/.test(mHtml));
   }
@@ -14682,8 +14691,9 @@ async function testLuminousDepth(){
   T('its hero pools like production', /\.ob-hero::after\{[\s\S]{0,80}var\(--pool-accent\)/.test(css));
   T('its micro-label obeys the type floor',
     /\.ob-mock-label\{[^}]*font-size: var\(--fs-micro\)/.test(css) && !/font-size: 9\.5px/.test(css));
+  /* D106 restated: the timer example is now the production rest panel's own ring. */
   T('its timer demo is the production ring, not a mock',
-    /class="prep-ring ob-timer-ring"/.test(src) && /prep-ring-fill/.test(src));
+    /restRingSvg\(\)/.test(fnSrc(src, 'obRestPanelHtml')) && /class="rest-ring"/.test(ctx.ONBOARDING_STEPS.find(s => s.id === 'rest').visual()));
 
   sub('nothing else moved');
   T('reduced motion still honoured everywhere it was',
@@ -27452,7 +27462,8 @@ async function testMuscleMapOverlays(){
        a state map instead of totals. Every one of the seven still passes what
        it always passed, which the clauses below check one at a time. */
     T('eight callers, each passing exactly what it always passed',
-      (src.match(/bodyDiagramSvg\(/g) || []).length === 9 &&
+      /* D106 restated: a ninth caller, the tour's recovery example, passing example states the same way recoveryStripHtml passes real ones */
+      (src.match(/bodyDiagramSvg\(/g) || []).length === 10 && /bodyDiagramSvg\(null, \{\}, OB_DEMO\.recovery\)/.test(fnSrc(src, 'obReadinessDemoHtml')) &&
       /bodyDiagramSvg\(null, \{\}, states\)/.test(fnSrc(src, 'recoveryStripHtml')) &&
       /const diagram = bodyDiagramSvg\(planAggregateTemplate\(planDef\)\);/.test(fnSrc(src, 'planCardBody')) &&
       /bodyDiagramSvg\(null, data\.totals\)/.test(fnSrc(src, 'renderTodayMuscles')) &&
@@ -30461,7 +30472,9 @@ async function testWorkoutIdentity(){
        planned branches now carry the SAME wi-c-${wid.colorId} treatment as
        Today's own hero, so a browsed day reads as one card system with it —
        two more legitimate uses of the exact existing rule, not a new one. */
-    T('no surface recolours a card: the colour classes sit on icons and on the hero\'s edge only', (code.match(/wi-c-\$\{/g) || []).length === 5 &&
+    /* D106 restated: two more, both on the tour's copies of the Today hero (.tw), whose edge is exactly where the rule allows them */
+    T('no surface recolours a card: the colour classes sit on icons and on the hero\'s edge only', (code.match(/wi-c-\$\{/g) || []).length === 7 &&
+      (fnSrc(src, 'obTodayDemoHtml') + fnSrc(src, 'obResumeDemoHtml')).match(/<div class="tw [^"]*wi-c-\$\{wid\.colorId\}/g).length === 2 &&
       (code.match(/' wi-c-' \+/g) || []).length === 1);
   });
 
@@ -31746,16 +31759,17 @@ async function testMasteryPodium(){
   sub('leaders read in rank order in the DOM; the podium is what the eye sees');
   await guard('geometry and scale', () => {
     T('1st sits centre, 2nd left, 3rd right — visual order only, the DOM stays rank order',
-      /\.mpod-p1, \.mmc-p1\{ order: 2; \}/.test(css) && /\.mpod-p2, \.mmc-p2\{ order: 1; \}/.test(css)
-      && /\.mpod-p3, \.mmc-p3\{ order: 3; \}/.test(css)
+      /* D106 restated: one podium — both modes render the .mpod namespace through masteryLeadersHtml (Contract 221). */
+      /\.mpod-p1\{ order: 2; \}/.test(css) && /\.mpod-p2\{ order: 1; \}/.test(css)
+      && /\.mpod-p3\{ order: 3; \}/.test(css)
       && (() => { const html = ctx.masteryPodiumHtml([1, 2, 3].map(place =>
         ({ displayName:'x'+place, loggedName:'x'+place, level:1, percent:0, isMax:false, sessions:1 })));
         return html.indexOf('mpod-p1') < html.indexOf('mpod-p2') && html.indexOf('mpod-p2') < html.indexOf('mpod-p3'); })());
     T('three equal columns, in one grid shared by exercise and muscle leaders',
-      /\.mpod, \.mmc\{ display: grid; grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/.test(css));
+      /\.mpod\{ display: grid; grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/.test(css));   /* D106 restated: one grid, one namespace */
     T('1st carries a modestly larger badge — the one place a card’s OWN size differs',
       /\.mbadge\{[^}]*width: clamp\(54px, 19vw, 72px\)/.test(css)
-      && /\.mpod-p1 \.mbadge, \.mmc-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css));
+      && /\.mpod-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css));   /* D106 restated: one namespace */
     const sizes = [1, 2, 3].map(l => parseInt(/width="(\d+)"/.exec(ctx.masteryBadgeHtml(l, 72))[1], 10));
     T('the badge size the app REQUESTS is still one value for every level — the CSS override is what enlarges 1st, not the markup',
       sizes.every(s => s === 72) && /masteryBadgeHtml\(o\.level, 72\)/.test(fnSrc(src, 'masteryLeaderCardHtml')));
@@ -31770,7 +31784,7 @@ async function testMasteryPodium(){
     T('and never a bare podium container with nothing in it',
       !/class="mpod mpod-n/.test(html));
     T('the muscle leaders say so plainly too — no fabricated leaders, no Top Muscle control',
-      /Muscles appear here/.test(html) && !/class="mmc mmc-n/.test(html) && !/mtm-control/.test(html));
+      /Muscles appear here/.test(html) && !/role="list" data-mode="muscle"/.test(html) && !/mtm-control/.test(html));   /* D106 restated: the muscle podium, by its mode */
   });
   await guard('one', () => {
     seed([session(D(0), 'Solo Lift', 100, 8)]);
@@ -31898,12 +31912,13 @@ async function testMasteryPodium(){
       session(D(0), 'Back Squat', 225, 5, 'legs')
     ]);
     const html = render();
-    T('exactly one muscle leaders block appears', (html.match(/class="mmc mmc-n\d"/g) || []).length === 1);
+    /* D106 restated: one podium — both modes render the .mpod namespace through masteryLeadersHtml (Contract 221). */
+    T('exactly one muscle leaders block appears', (html.match(/role="list" data-mode="muscle"/g) || []).length === 1);
     T('and no Top Muscle control survives it', !/mtm-control|Top Muscle/.test(html));
     // Scoped to the first muscle card — every card shows a "Level N" chip, so
     // checking the whole panel could pass on a level that belongs to another row.
     // D94B — muscle cards are read-only now (a div each), and the list follows them.
-    const leaders = html.slice(html.indexOf('class="mmc mmc-n'), html.indexOf('mst-list-head', html.indexOf('class="mmc mmc-n')));
+    const leaders = html.slice(html.indexOf('role="list" data-mode="muscle"'), html.indexOf('mst-list-head', html.indexOf('role="list" data-mode="muscle"')));   /* D106 restated: the muscle podium, by its mode */
     const cards = leaders.split('role="listitem"').slice(1);
     const realTop = ctx.getTopMuscleMastery(1)[0];
     T('the first card names the real top muscle, as 1st', cards[0].indexOf(realTop.label) !== -1 && />1st</.test(cards[0]));
@@ -31934,7 +31949,7 @@ async function testMasteryPodium(){
     const html = render();
     T('exercise mastery still shows real data', /Some Made Up Machine/.test(html));
     T('but no muscle leaders and no muscle rows are shown for data that does not exist',
-      !/class="mmc mmc-n/.test(html) && /Muscles appear here/.test(html) && (() => {
+      !/role="list" data-mode="muscle"/.test(html) && /Muscles appear here/.test(html) && (() => {   /* D106 restated: the muscle podium, by its mode */
         const at = html.indexOf('id="mstPanel-muscle"'), panel = html.slice(at, html.indexOf('</section>', at));
         return at !== -1 && !/class="mastery-row/.test(panel) && !/mastery-more/.test(panel);
       })());
@@ -31982,8 +31997,9 @@ async function testMasteryPodium(){
       /class="mpod-place[^"]*"[^>]*>1st</.test(html) &&
       /\.mpod-place\{[^}]*text-transform: uppercase/.test(css));
     T('a muscle leader card, where there is one, is a labelled list item — read-only, so it names no destination',
-      !/class="mmc-card/.test(html) || /class="mmc-card[^"]*" role="listitem"[^>]*aria-label="1st[^"]*Level \d/.test(html));
-    T('leader cards, the toggle segments and "View all" all meet the 44px floor', ['.mpod-card, .mmc-card{', '.mst-seg{', '.mastery-more{']
+      !/<div class="mpod-card/.test(html) || /<div class="mpod-card[^"]*" role="listitem"[^>]*aria-label="1st[^"]*Level \d/.test(html));   /* D106 restated: a muscle card is the podium's div */
+    /* D106 restated: one podium — both modes render the .mpod namespace through masteryLeadersHtml (Contract 221). */
+    T('leader cards, the toggle segments and "View all" all meet the 44px floor', ['.mpod-card{', '.mst-seg{', '.mastery-more{']
       .every(sel => css.indexOf(sel) !== -1 && /min-height: 44px/.test(css.slice(css.indexOf(sel), css.indexOf(sel) + 400))));
   });
   await guard('reduce motion', () => {
@@ -35210,7 +35226,8 @@ async function testMasteryView(){
     });
     T('a card opens Exercise Detail by the LOGGED name, through onclickArg', /onclick="openExDetail\('Bench Press'\)"/.test(ex));
     T('the full exercise list still follows the leaders, unchanged', ex.indexOf('mst-list-head') > ex.indexOf('mpod-card') && /class="mastery-row mastery-row-tap"/.test(ex));
-    T('leaders sit in a labelled list, in rank order, in one grid', /class="mpod mpod-n3" role="list" aria-label="Exercise mastery leaders"/.test(ex));
+    /* D106 restated: one podium — both modes render the .mpod namespace through masteryLeadersHtml (Contract 221). */
+    T('leaders sit in a labelled list, in rank order, in one grid', /class="mpod mpod-n3" role="list" data-mode="exercise" aria-label="Exercise mastery leaders"/.test(ex));
   });
   await guard('card details', () => {
     const fake = (o) => Object.assign({ displayName: 'Bench Press', loggedName: 'Bench Press', level: 3, percent: 40, isMax: false, sessions: 9 }, o);
@@ -35233,10 +35250,11 @@ async function testMasteryView(){
     const html = render();
     const mu = panel(html, 'muscle');
     const ranked = ctx.getTopMuscleMastery().filter(m => m.hasHistory).slice(0, 3);
-    T('three leaders, in the ranking muscle mastery already has', ranked.length === 3 && tags(/class="mmc-card /g, mu).length === 3 &&
+    /* D106 restated: one podium — both modes render the .mpod namespace through masteryLeadersHtml (Contract 221). */
+    T('three leaders, in the ranking muscle mastery already has', ranked.length === 3 && tags(/class="mpod-card /g, mu).length === 3 &&
       ranked.every(m => mu.indexOf(m.label) !== -1) && mu.indexOf(ranked[0].label) < mu.indexOf(ranked[1].label) && mu.indexOf(ranked[1].label) < mu.indexOf(ranked[2].label));
-    const cards = mu.split('<div class="mmc-card ').slice(1).map(c => c.slice(0, c.indexOf('</div>\n')));
-    T('three muscle cards, and none of them a button — a muscle has no detail screen to open', cards.length === 3 && !/<button type="button" class="mmc-card/.test(mu));
+    const cards = mu.split('<div class="mpod-card ').slice(1).map(c => c.slice(0, c.indexOf('</div>\n')));   /* D106 restated: one namespace */
+    T('three muscle cards, and none of them a button — a muscle has no detail screen to open', cards.length === 3 && !/<button type="button" class="mpod-card/.test(mu));   /* D106 restated: one namespace; no button at all */
     cards.forEach((c, i) => {
       const m = ranked[i], t = ctx.masteryTier(m.level);
       T('muscle card ' + (i + 1) + ' (' + m.label + ', Level ' + m.level + '): its own badge, level, place and progress',
@@ -35249,7 +35267,7 @@ async function testMasteryView(){
     });
     T('exercise and muscle cards are one component: same builder, same inside, only the wrapper differs',
       /return masteryLeaderCardHtml\(/.test(fnSrc(src, 'masteryPodiumCardHtml')) && /return masteryLeaderCardHtml\(/.test(fnSrc(src, 'masteryMuscleCardHtml')) &&
-      tags(/<button type="button" class="mpod-card /g, html).length === 3 && tags(/<div class="mmc-card [^"]*" role="listitem"/g, html).length === 3);
+      tags(/<button type="button" class="mpod-card /g, html).length === 3 && tags(/<div class="mpod-card [^"]*" role="listitem"/g, html).length === 3);   /* D106 restated: same classes, the element alone differs */
   });
 
   /* ------------------------------------------------------------------ */
@@ -35259,13 +35277,13 @@ async function testMasteryView(){
     const html = render();
     T('no history: both panels are mounted, each with its own plain empty state and no leaders',
       tags(/class="mst-panel/g, html).length === 2 && /Exercises appear here as you train them/.test(html) && /Muscles appear here as you log training/.test(html) &&
-      !/class="mpod mpod-n/.test(html) && !/class="mmc mmc-n/.test(html) && !/mastery-list/.test(html) && !/mst-list-head/.test(html));
+      !/class="mpod mpod-n/.test(html) && !/mastery-list/.test(html) && !/mst-list-head/.test(html));   /* D106 restated: one podium class covers both modes */
     T('the toggle and the badge rail are still there — the ladder is explained before anything is earned', /role="tablist"/.test(html) && tags(/class="mtl-step"/g, html).length === 6);
     seed([session(D(0), 'Solo Lift')]);
     const one = render();
-    T('one leader is centred alone, in the same grid', /class="mpod mpod-n1"/.test(one) && /\.mpod-n1, \.mmc-n1\{[^}]*minmax\(0, 160px\)/.test(css));
+    T('one leader is centred alone, in the same grid', /class="mpod mpod-n1"/.test(one) && /\.mpod-n1\{[^}]*minmax\(0, 160px\)/.test(css));   /* D106 restated: one namespace */
     seed([session(D(0), 'Lift A'), session(D(1), 'Lift B')]);
-    T('two are a centred pair — never a broken empty third slot', /class="mpod mpod-n2"/.test(render()) && /\.mpod-n2, \.mmc-n2\{[^}]*repeat\(2, minmax\(0, 140px\)\)/.test(css));
+    T('two are a centred pair — never a broken empty third slot', /class="mpod mpod-n2"/.test(render()) && /\.mpod-n2\{[^}]*repeat\(2, minmax\(0, 140px\)\)/.test(css));   /* D106 restated: one namespace */
   });
 
   /* ------------------------------------------------------------------ */
@@ -35375,19 +35393,19 @@ async function testMasteryView(){
        — this is asserted directly rather than by a broad selector-text scan,
        which a legitimate compound selector would otherwise trip. */
     T('exactly one rule enlarges anything by place — the 1st-place badge — and nothing else does',
-      /\.mpod-p1 \.mbadge, \.mmc-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css)
+      /\.mpod-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css)   /* D106 restated: one namespace */
       && !/\.(mpod|mmc)-p\d[^{]*\.(mpod-medal|mastery-lvl-chip|mcb)/.test(css)
       && !/\.(mpod|mmc)-card\.(mpod|mmc)-p\d\{[^}]*(width|padding|font-size|transform):/.test(css)
       && !/\.(mpod|mmc)-p\d\{[^}]*(width|padding|font-size|transform):/.test(css));
     T('the border/shadow-by-place rules touch ONLY border-color and box-shadow, never size',
       ['1', '2', '3'].every(n =>
-        new RegExp('\\.mpod-card\\.mpod-p' + n + ', \\.mmc-card\\.mmc-p' + n + '\\{ border-color: rgba\\([\\d, .]+\\); box-shadow: inset 0 0 0 1px rgba\\([\\d, .]+\\); \\}').test(css)));
+        new RegExp('\\.mpod-card\\.mpod-p' + n + '\\{ border-color: rgba\\([\\d, .]+\\); box-shadow: inset 0 0 0 1px rgba\\([\\d, .]+\\); \\}').test(css)));   /* D106 restated: one namespace */
     T('the podium step is decorative pedestal height only, not a resize of the card itself',
       /\.mpod-p1 \.mpod-step\{ height: 20px;/.test(css) && /\.mpod-p2 \.mpod-step\{ height: 13px;/.test(css)
       && /\.mpod-p3 \.mpod-step\{ height: 9px;/.test(css) && /<span class="mpod-step" aria-hidden="true"><\/span>/.test(src));
-    T('the leader cards, the toggle segments and both lists’ "View all" all meet the 44px floor', ['.mpod-card, .mmc-card', '.mst-seg', '.mastery-more'].every(sel => /min-height: 44px/.test(rule(sel))));
+    T('the leader cards, the toggle segments and both lists’ "View all" all meet the 44px floor', ['.mpod-card', '.mst-seg', '.mastery-more'].every(sel => /min-height: 44px/.test(rule(sel))));   /* D106 restated: one namespace */
     T('the narrowest-phone overrides come after the rules they override, or they would never apply',
-      css.indexOf('.mpod-card, .mmc-card{ padding-left: 3px') > css.indexOf('.mpod-card, .mmc-card{\n') && css.indexOf('.mst-card{ padding-left: 10px') > css.indexOf('.mst-card{\n'));
+      css.indexOf('.mpod-card{ padding-left: 3px') > css.search(/\.mpod-card\{\r?\n/) && css.search(/\.mpod-card\{\r?\n/) !== -1 && css.indexOf('.mst-card{ padding-left: 10px') > css.indexOf('.mst-card{\n'));   /* D106 restated: one namespace */
   });
 
   /* ------------------------------------------------------------------ */
@@ -35506,7 +35524,7 @@ async function testMasteryOneSystem(){
     const tg = rule('.mst-toggle'), th = rule('.mst-thumb'), seg = rule('.mst-seg'), card = rule('.mst-card');
     T('one contained surface with two equal halves', /display: grid; grid-template-columns: 1fr 1fr/.test(tg) && /background: var\(--surface\)/.test(tg));
     T('the same surface, border and corner radius as the Mastery card below it', /border: 1px solid var\(--border-quiet\)/.test(tg) && /border: 1px solid var\(--border-quiet\)/.test(card) &&
-      /border-radius: var\(--radius-xl\)/.test(tg) && /border-radius: var\(--radius-xl\)/.test(card) && /\.mpod-card, \.mmc-card, \.mst-toggle, \.mst-card,/.test(css));
+      /border-radius: var\(--radius-xl\)/.test(tg) && /border-radius: var\(--radius-xl\)/.test(card) && /\.mpod-card, \.mst-toggle, \.mst-card,/.test(css));   /* D106 restated: one namespace */
     T('the chosen half is Today’s selected-day treatment — a tint of the accent and a thin accent edge', /background: var\(--accent-soft\)/.test(th) && /border: 1px solid rgba\(76,194,255,0\.55\)/.test(th));
     T('no glow anywhere on it: no shadow on the tile, the halves or the surface’s own rule', !/box-shadow|filter|text-shadow/.test(th + seg + tg));
     T('the tile slides between the halves on transform alone', /transition: transform 0\.22s var\(--ease\)/.test(th) && /\.mst-toggle\.is-muscle \.mst-thumb\{ transform: translate3d\(100%, 0, 0\); \}/.test(viewCss));
@@ -35660,7 +35678,7 @@ async function testMasteryOneSystem(){
     const mu = panel(html, 'muscle'), ex = panel(html, 'exercise');
     const ranked = ctx.getTopMuscleMastery().filter(m => m.hasHistory);
     const rows = mu.slice(mu.indexOf('mst-list-head')).split('<div class="mastery-row" data-tier="').slice(1);
-    T('after the top three comes ALL MUSCLES, as ALL EXERCISES comes after theirs', /<div class="mst-list-head">All muscles<\/div>/.test(mu) && mu.indexOf('mmc-card') < mu.indexOf('All muscles') &&
+    T('after the top three comes ALL MUSCLES, as ALL EXERCISES comes after theirs', /<div class="mst-list-head">All muscles<\/div>/.test(mu) && mu.indexOf('mpod-card') !== -1 && mu.indexOf('mpod-card') < mu.indexOf('All muscles') &&   /* D106 restated, and no longer vacuous */
       /<div class="mst-list-head">All exercises<\/div>/.test(ex));
     T('every muscle with history is a row — ' + ranked.length + ' of them — none invented', ranked.length >= 7 && rows.length === ranked.length);
     T('in muscle mastery’s own order, the top three included, first', rows.every((r, i) => r.indexOf('<span class="mastery-row-name">' + ranked[i].label + '</span>') !== -1));
@@ -35680,7 +35698,9 @@ async function testMasteryOneSystem(){
     const one = (() => { seed([session(D(0), 'Bench Press')]); return panel(render(), 'muscle'); })();
     T('few muscles: every one listed, no "View all" for nothing', !/mastery-more/.test(one) && tags(/<div class="mastery-row" data-tier=/g, one).length === ctx.getTopMuscleMastery().filter(m => m.hasHistory).length);
     T('the muscle leader cards do not look tappable either: no pointer, no press state',
-      !/\.mmc-card[^{}]*\{[^}]*cursor: pointer/.test(viewCss) && !/\.mmc-card:active/.test(viewCss) && /\.mpod-card\{ cursor: pointer;/.test(viewCss));
+      /* D106 restated: one class for both — the pointer and the press belong to button.mpod-card only, so a muscle card (a div) has neither */
+      /button\.mpod-card\{ cursor: pointer;/.test(viewCss) && /button\.mpod-card:active\{/.test(viewCss)
+      && !/(^|[\s,}])\.mpod-card\{[^}]*cursor: pointer/.test(viewCss) && !/(^|[\s,}])\.mpod-card:active/.test(viewCss));
   });
   await guard('a typed name in a row', () => {
     /* Exercise names are typed by the athlete (or arrive on a shared workout),
@@ -36321,8 +36341,9 @@ async function testRankTourD97(){
   sub('the tour closes on the rank ladder');
   await guard('position', () => {
     const ids = ctx.ONBOARDING_STEPS.map(s => s.id);
-    T('eight steps — still inside Contract 61’s six to eight', ids.length === 8, String(ids.length));
-    T('the rank page is the last step, straight after progress', ids[7] === 'ranks' && ids[6] === 'progress', ids.join());
+    /* D106 restated: Tutorial 2.0 — nine pages, one question each, each a copy of the real screen (Contract 221). */
+    T('nine steps — inside Contract 61’s seven to nine', ids.length === 9, String(ids.length));
+    T('the rank page is the last step, straight after progress', ids[ids.length - 1] === 'ranks' && ids[ids.length - 2] === 'progress', ids.join());
     T('titled for what the athlete does: "Climb the ranks"', step().title === 'Climb the ranks');
     T('one short paragraph (Contract 61 allows 260 characters; this is under 160)', step().body.length <= 160, String(step().body.length));
     T('the tour’s version is unchanged, so an athlete who finished it is not sent through it again for one new page', ctx.ONBOARDING_VERSION === 1);
@@ -36454,15 +36475,15 @@ async function testRankTourD97(){
     T('with nothing open beneath, closing releases the page', !ctx.document.body.classList.contains('page-locked'));
     ctx.openRankExplainer(); ctx.startOnboarding();
     T('a tour started while the page is open on its own starts as the tour, not as the explainer', ctx.onboardingSolo === false && ctx.onboardingIndex === 0 &&
-      el('onboardingNext').textContent === 'Continue' && (el('onboardingDots').innerHTML.match(/class="ob-dot/g) || []).length === 8);
+      el('onboardingNext').textContent === 'Continue' && (el('onboardingDots').innerHTML.match(/class="ob-dot/g) || []).length === ctx.ONBOARDING_STEPS.length);   /* D106 restated: one dot per page */
     ctx.closeOnboarding();
     /* then the tour, replayed from Settings */
     ctx.openRankExplainer(); ctx.onboardingNext();
     ctx.startOnboarding();
     T('a replay afterwards is the tour again: eight dots, Continue, Skip, and Back hidden only on page one', ctx.onboardingSolo === false && ctx.onboardingIndex === 0 &&
-      (el('onboardingDots').innerHTML.match(/class="ob-dot/g) || []).length === 8 && el('onboardingNext').textContent === 'Continue' &&
+      (el('onboardingDots').innerHTML.match(/class="ob-dot/g) || []).length === ctx.ONBOARDING_STEPS.length && el('onboardingNext').textContent === 'Continue' &&   /* D106 restated */
       el('onboardingSkip').style.visibility === 'visible' && el('onboardingBack').style.display === '' && el('onboardingBack').style.visibility === 'hidden');
-    for(let i = 0; i < 7; i++) ctx.onboardingNext();
+    for(let i = 0; i < ctx.ONBOARDING_STEPS.length - 1; i++) ctx.onboardingNext();   /* D106 restated: to the last page, however many there are */
     T('… ending on the rank page, with Back and "Start training"', ctx.ONBOARDING_STEPS[ctx.onboardingIndex].id === 'ranks' && el('onboardingNext').textContent === 'Start training' && el('onboardingBack').style.visibility === 'visible');
     ctx.onboardingNext();
     T('and finishing there completes the tour, as it always has', ctx.onboardingState.completedVersion === ctx.ONBOARDING_VERSION && !el('onboardingOverlay').classList.contains('open'));
@@ -37862,7 +37883,7 @@ async function testPlanProgramTimerRecoveryD99A(){
       /function setRingProgress\(el, frac, radius\)\{/.test(src) &&
       ['updateRestRing', 'updateCardioRing'].every(f => /setRingProgress\(/.test(fnSrc(src, f))) &&
       /setRingProgress\(ring,/.test(fnSrc(src, 'tickPrep')) &&
-      /setRingProgress\(fill, left \/ TOTAL, 54\)/.test(fnSrc(src, 'startTimerDemo')));
+      /setRingProgress\(fill, left \/ total, REST_RING_R\)/.test(fnSrc(src, 'obRestDemoRun')));   /* D106 restated: the tour's rest example replaced its timer demo, and moves its ring the same one way */
     T('it writes through the channel that holds the value',
       /el\.style\.strokeDashoffset =/.test(fnSrc(src, 'setRingProgress')) &&
       /el\.style\.strokeDasharray =/.test(fnSrc(src, 'setRingProgress')));
@@ -41216,8 +41237,8 @@ async function testFastUxD101(){
   sub('Mastery: a real podium, one component, rank untouched');
   await guard('podium', async () => {
     T('1st sits visually centred: order 2/1/3 on the place classes, DOM order left exactly as rank order',
-      /\.mpod-p1, \.mmc-p1\{ order: 2; \}/.test(css) && /\.mpod-p2, \.mmc-p2\{ order: 1; \}/.test(css)
-      && /\.mpod-p3, \.mmc-p3\{ order: 3; \}/.test(css));
+      /\.mpod-p1\{ order: 2; \}/.test(css) && /\.mpod-p2\{ order: 1; \}/.test(css)
+      && /\.mpod-p3\{ order: 3; \}/.test(css));   /* D106 restated: one namespace */
     T('and the DOM itself is still built 1st, 2nd, 3rd in that order — order is presentation only',
       (() => { const html = ctx.masteryPodiumHtml([1,2,3].map(place =>
         ({ displayName:'x'+place, loggedName:'x'+place, level:1, percent:0, isMax:false, sessions:1 })));
@@ -41226,17 +41247,17 @@ async function testFastUxD101(){
       /\.mpod-p1 \.mpod-step\{ height: 20px;/.test(css) && /\.mpod-p2 \.mpod-step\{ height: 13px;/.test(css)
       && /\.mpod-p3 \.mpod-step\{ height: 9px;/.test(css));
     T('the grid bottom-aligns its items, so a shorter pedestal sits lower — the podium silhouette',
-      /\.mpod, \.mmc\{ align-items: end; \}/.test(css));
+      /\.mpod\{ align-items: end; \}/.test(css));   /* D106 restated: one namespace */
     T('the metal border reuses the EXACT gold/silver/bronze already on the place label, not a new palette',
-      /\.mpod-p1 \.mpod-place, \.mmc-p1 \.mpod-place\{ color: #E0B45C; \}/.test(css) && /rgba\(224,180,92,0\.5\)/.test(css)
-      && /\.mpod-p2 \.mpod-place, \.mmc-p2 \.mpod-place\{ color: #9FA9D6; \}/.test(css) && /rgba\(159,169,214,0\.4\)/.test(css)
-      && /\.mpod-p3 \.mpod-place, \.mmc-p3 \.mpod-place\{ color: #C4906A; \}/.test(css) && /rgba\(196,144,106,0\.4\)/.test(css));
+      /\.mpod-p1 \.mpod-place\{ color: #E0B45C; \}/.test(css) && /rgba\(224,180,92,0\.5\)/.test(css)
+      && /\.mpod-p2 \.mpod-place\{ color: #9FA9D6; \}/.test(css) && /rgba\(159,169,214,0\.4\)/.test(css)
+      && /\.mpod-p3 \.mpod-place\{ color: #C4906A; \}/.test(css) && /rgba\(196,144,106,0\.4\)/.test(css));   /* D106 restated: one namespace */
     T('the border rule uses a compound selector so it beats the later, general "quiet embedded border" rule on specificity, not source order',
-      /\.mpod-card\.mpod-p1, \.mmc-card\.mmc-p1\{ border-color:/.test(css));
+      /\.mpod-card\.mpod-p1\{ border-color:/.test(css));   /* D106 restated: one namespace */
     T('no glow, no shimmer, no gradient sweep was added — restrained: a tinted border and a faint inset highlight only',
       !/mpod-p\d[^{]*(animation|@keyframes|drop-shadow)/.test(css));
     T('1st carries a modestly larger badge, and it is the only size difference by place',
-      /\.mpod-p1 \.mbadge, \.mmc-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css));
+      /\.mpod-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css));   /* D106 restated: one namespace */
     T('long names still reserve two lines of fixed height — the SAME rule from before this phase, untouched',
       /\.mpod-name\{[^}]*-webkit-line-clamp: 2;[^}]*min-height: 2\.5em;/.test(css.replace(/\n\s*/g, ' ')));
     T('one component builds every card: Exercise Mastery and Muscle Mastery both call masteryLeaderCardHtml',
@@ -41258,19 +41279,19 @@ async function testFastUxD101(){
     seed(mkHist(6, ['Bench Press']));
     ctx.renderProgTab(); await H.settle(60);
     T('one result: a single centred card, no empty 2nd/3rd slot rendered', (() => {
-      const html = doc.getElementById('progMuscles').innerHTML;
+      const html = (h => h.slice(h.indexOf('id="mstPanel-exercise"'), h.indexOf('id="mstPanel-muscle"')))(doc.getElementById('progMuscles').innerHTML);   /* D106 restated: the Exercise panel, as written */
       return /mpod mpod-n1/.test(html) && !/mpod-p2/.test(html) && !/mpod-p3/.test(html);
     })());
     seed(mkHist(6, ['Bench Press', 'Lateral Raise']));
     ctx.renderProgTab(); await H.settle(60);
     T('two results: 1st and 2nd only, no fabricated bronze', (() => {
-      const html = doc.getElementById('progMuscles').innerHTML;
+      const html = (h => h.slice(h.indexOf('id="mstPanel-exercise"'), h.indexOf('id="mstPanel-muscle"')))(doc.getElementById('progMuscles').innerHTML);   /* D106 restated: the Exercise panel, as written */
       return /mpod mpod-n2/.test(html) && /mpod-p1/.test(html) && /mpod-p2/.test(html) && !/mpod-p3/.test(html);
     })());
     seed(mkHist(8, ['Bench Press', 'Lateral Raise', 'Pec Deck', 'Dip']));
     ctx.renderProgTab(); await H.settle(60);
     T('four or more real results still cap the podium at three, unchanged by this phase', (() => {
-      const html = doc.getElementById('progMuscles').innerHTML;
+      const html = (h => h.slice(h.indexOf('id="mstPanel-exercise"'), h.indexOf('id="mstPanel-muscle"')))(doc.getElementById('progMuscles').innerHTML);   /* D106 restated: the Exercise panel, as written */
       return /mpod mpod-n3/.test(html) && (html.match(/mpod-card/g) || []).length === 3;
     })());
     T('the podium is still exactly getMasteryProgress().podium, in the same order — no second sort introduced',
@@ -43212,6 +43233,182 @@ async function testWorkoutTimeTruthD1051(){
   });
 }
 
+/* =========================================================
+   CONTRACT 221 — ONE MASTERY PODIUM; A TOUR THAT SHOWS LOOP  (D106)
+   ---------------------------------------------------------
+   MASTERY. Exercise and Muscle Mastery shared one card template but not its
+   class names: muscle leaders wore .mmc, so every podium rule was written
+   twice — and the one written once, the pedestal, never reached them (their
+   cards stood level, 2nd and 3rd the same height). Both modes now render the
+   .mpod namespace through one shell, masteryLeadersHtml, and differ only in
+   data and in whether a card opens something. This contract holds the modes
+   to one skeleton and the stylesheet to one podium.
+
+   THE TOUR. Nine pages, each a small copy of the real screen it teaches, built
+   from the app's own builders where they are pure, from constants (OB_DEMO),
+   inert, writing nothing; the one live control completes an example set.
+   Existing athletes are not sent through it again (ONBOARDING_VERSION 1).
+   ========================================================= */
+async function testMasteryTourD106(){
+  section('CONTRACT 221 — one Mastery podium; a tour that shows LOOP (D106)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const code = stripComments(src);
+  const cssNC = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx;
+
+  /* ---------------- MASTERY ---------------- */
+  const EX = (i, level, percent) => ({ displayName: 'Lift ' + i, loggedName: 'Lift ' + i, level, percent, isMax: false, sessions: 12 });
+  const MU = (i, level, percent) => ({ label: 'Muscle ' + i, level, percent, isMax: false, exercises: 3 });
+  const LV = [[3, 40], [2, 90], [2, 10]];
+  /* the element skeleton: every tag and class, in order, with an element's type
+     (button/div) and its data-only attributes set aside */
+  const skeleton = html => html.replace(/<button type="button" /g, '<el ').replace(/<div /g, '<el ').replace(/<\/button>|<\/div>/g, '</el>')
+    .replace(/ (onclick|aria-label|data-mode|role)="[^"]*"/g, '').replace(/>[^<]*</g, '><');
+
+  sub('Exercise and Muscle Mastery are one podium');
+  await guard('mastery', async () => {
+    const ex = ctx.masteryPodiumHtml(LV.map(([l, p], i) => EX(i + 1, l, p)));
+    const mu = ctx.masteryMusclePodiumHtml(LV.map(([l, p], i) => MU(i + 1, l, p)));
+    T('1 — both modes go through one shell, masteryLeadersHtml, which alone decides the grid, the place classes, the empty state and the list',
+      /return masteryLeadersHtml\('exercise', podium\);/.test(fnSrc(src, 'masteryPodiumHtml')) && /return masteryLeadersHtml\('muscle', list\);/.test(fnSrc(src, 'masteryMusclePodiumHtml'))
+      && /class="mpod mpod-n\$\{items\.length\}" role="list"/.test(fnSrc(src, 'masteryLeadersHtml')));
+    T('with the same levels, the two podiums have the SAME element skeleton — tags, classes, order, badge, pill, bar, pedestal',
+      skeleton(ex) === skeleton(mu) && /mpod-step/.test(skeleton(ex)) && /mpill|mastery-lvl-chip/.test(skeleton(ex)), [skeleton(ex).slice(0, 300), skeleton(mu).slice(0, 300)]);
+    T('both wear the one class system (.mpod, .mpod-card, .mpod-pN); the .mmc namespace is gone from the markup and the stylesheet',
+      /class="mpod mpod-n3"/.test(ex) && /class="mpod mpod-n3"/.test(mu) && (mu.match(/class="mpod-card mpod-p\d"/g) || []).length === 3
+      && !/\.mmc|mmc-/.test(cssNC) && !/mmc-card|mmc-p\d|"mmc /.test(code));
+    T('only data differs: an exercise card opens its detail (a button), a muscle card opens nothing (a list item)',
+      (ex.match(/<button type="button" class="mpod-card /g) || []).length === 3 && (mu.match(/<div class="mpod-card [^"]*" role="listitem"/g) || []).length === 3
+      && !/<button/.test(mu) && /openExDetail\(/.test(ex));
+    T('2 — 1st sits in the centre, 2nd left, 3rd right, in both (visual order only; the DOM keeps rank order)',
+      /\.mpod-p1\{ order: 2; \}/.test(css) && /\.mpod-p2\{ order: 1; \}/.test(css) && /\.mpod-p3\{ order: 3; \}/.test(css) && /\.mpod\{ align-items: end; \}/.test(css)
+      && ex.indexOf('mpod-p1') < ex.indexOf('mpod-p2') && ex.indexOf('mpod-p2') < ex.indexOf('mpod-p3'));
+    const step = n => ((css.match(new RegExp('\\.mpod-p' + n + ' \\.mpod-step\\{ height: (\\d+)px;')) || [])[1] | 0);
+    T('3 — one pedestal hierarchy for both: 1st tallest, then 2nd, then 3rd', step(1) > step(2) && step(2) > step(3) && step(3) > 0, [step(1), step(2), step(3)]);
+    T('4 — one grid geometry for both: three equal columns, a centred pair, a centred single',
+      /\.mpod\{ display: grid; grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/.test(css) && /\.mpod-n2\{ grid-template-columns: repeat\(2, minmax\(0, 140px\)\)/.test(css)
+      && /\.mpod-n1\{ grid-template-columns: minmax\(0, 160px\)/.test(css));
+    T('5 — one metal border system: gold, silver, bronze on .mpod-card.mpod-pN, and nothing else by mode',
+      [1, 2, 3].every(n => new RegExp('\\.mpod-card\\.mpod-p' + n + '\\{ border-color: rgba\\(').test(css)) && !/data-mode=/.test(css));
+    T('6 — one emblem rule: a base badge and a modestly larger 1st, for both', /\.mbadge\{[^}]*width: clamp\(54px, 19vw, 72px\)/.test(css) && /\.mpod-p1 \.mbadge\{ width: clamp\(58px, 20\.5vw, 78px\); \}/.test(css));
+    T('7 — one level pill: both cards take it from masteryLeaderCardHtml, the one builder both call',
+      /return masteryLeaderCardHtml\(/.test(fnSrc(src, 'masteryPodiumCardHtml')) && /return masteryLeaderCardHtml\(/.test(fnSrc(src, 'masteryMuscleCardHtml'))
+      && /cls: 'mpod-card', placeCls: 'mpod-p' \+ place/.test(fnSrc(src, 'masteryMuscleCardHtml')) && /masteryLevelPillHtml\(o\.level/.test(fnSrc(src, 'masteryLeaderCardHtml')));
+    T('8 — one responsive rule for both, and a press state only on a card that presses',
+      /@media \(max-width: 359px\)\{\s*\.mpod\{ gap: 6px; \}\s*\.mpod-card\{ padding-left: 3px; padding-right: 3px; \}/.test(css)
+      && /button\.mpod-card\{ cursor: pointer;/.test(css) && /button\.mpod-card:active\{/.test(css) && !/(^|[\s,}])\.mpod-card\{ cursor/.test(css) && !/(^|[\s,}])\.mpod-card:active/.test(css));
+    T('9 — the rankings themselves are untouched: the mastery index, the leaders, the tiers and the shared card are byte-identical',
+      pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('getTopMuscleMastery') === 'c4dce29d533ae04a' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
+      && pin('masteryTier') === '832957c9e6eb7eb0' && pin('masteryLeaderCardHtml') === 'dcbeb8d56e3daf33' && pin('masteryPodiumCardHtml') === '95b83d9571fa9fd9');
+    const n = (mode, k) => mode === 'exercise' ? ctx.masteryPodiumHtml(LV.slice(0, k).map(([l, p], i) => EX(i + 1, l, p))) : ctx.masteryMusclePodiumHtml(LV.slice(0, k).map(([l, p], i) => MU(i + 1, l, p)));
+    T('10 — 0, 1, 2 and 3 leaders read truthfully in both modes: an empty state in its own words, then one, two and three cards',
+      ['exercise', 'muscle'].every(m => /mpod-empty/.test(n(m, 0)) && !/mpod-card/.test(n(m, 0))
+        && /class="mpod mpod-n1"/.test(n(m, 1)) && (n(m, 1).match(/mpod-card /g) || []).length === 1
+        && /class="mpod mpod-n2"/.test(n(m, 2)) && (n(m, 2).match(/mpod-card /g) || []).length === 2 && !/mpod-p3/.test(n(m, 2))
+        && /class="mpod mpod-n3"/.test(n(m, 3)))
+      && /Exercises appear here/.test(n('exercise', 0)) && /Muscles appear here/.test(n('muscle', 0)));
+  });
+
+  /* ---------------- THE TOUR ---------------- */
+  const IDS = ['welcome', 'today', 'logging', 'rest', 'saved', 'tools', 'readiness', 'progress', 'ranks'];
+  const step = id => ctx.ONBOARDING_STEPS.find(s => s.id === id);
+  const vis = id => step(id).visual();
+
+  sub('nine pages, each answering one question with a copy of the real screen');
+  await guard('pages', async () => {
+    T('11 — nine pages in the order a first workout happens, each with one short title and one short line',
+      ctx.ONBOARDING_STEPS.map(s => s.id).join() === IDS.join()
+      && ctx.ONBOARDING_STEPS.every(s => s.title && s.title.length <= 26 && s.body && s.body.length <= 160 && typeof s.visual === 'function' && /^\s*</.test(s.visual())),
+      ctx.ONBOARDING_STEPS.map(s => s.id + ':' + s.title.length + '/' + s.body.length).join(' '));
+    const today = vis('today');
+    T('12 — Today: the real Today card, as renderTodayWorkout draws a planned day — label, icon, workout, Start Workout, and the three actions',
+      /<div class="tw tw-push tw-wi wi-c-\w+">/.test(today) && /<div class="tw-label">Today's Workout<\/div>/.test(today) && /class="tw-title has-wi"><span class="wi wi-md/.test(today)
+      && />Start Workout<\/button>/.test(today) && (today.match(/class="tw-change/g) || []).length === 3 && /tw-action-compact/.test(today) && / inert /.test(today + ' '));
+    T('13 — the set demo is the workout\'s own: appendSetRow builds the rows, inside the stepper\'s own scope, with the real art and muscle chips — and every handler stripped',
+      /appendSetRow\(list, s\.w, s\.r, false, s\.rir\)/.test(fnSrc(src, 'obDemoSetsHtml')) && /removeAttribute\(a\)/.test(fnSrc(src, 'obDemoSetsHtml'))
+      && /\['onclick', 'oninput', 'onchange', 'onkeydown'\]/.test(fnSrc(src, 'obDemoSetsHtml'))
+      && /<div class="stepper-on"><div class="ex-log-row ws-current">/.test(fnSrc(src, 'obWorkoutDemoHtml'))
+      && /exerciseThumbHtml\(name, \{ static: true, size: 'lg' \}\)/.test(fnSrc(src, 'obWorkoutDemoHtml')) && /workoutStepMusclesHtml\(name\)/.test(fnSrc(src, 'obWorkoutDemoHtml'))
+      && /<h3 class="ws-name">Bench Press<\/h3>/.test(vis('logging')));
+    const rest = vis('rest');
+    T('14 — the rest page carries the real rest panel (ring, Resting, +15s, pause, Skip), hidden until the example set is completed',
+      /<div class="rest-panel" id="obRest" hidden>/.test(rest) && /class="rest-ring"/.test(rest) && />Resting</.test(rest) && />\+15s</.test(rest) && />Skip</.test(rest)
+      && /Try it/.test(rest) && /b\.setAttribute\('onclick', 'obDemoToggleSet\(this\)'\)/.test(fnSrc(src, 'obDemoSetsHtml'))
+      /* in place, not pinned: without the pinned panel's solid shelf, which covered the line beneath it */
+      && /\.ob-demo \.stepper-on \.ws-current \.rest-panel\{ position: static; margin-top: 10px; box-shadow: var\(--shadow-md\); \}/.test(css));
+    const saved = vis('saved');
+    T('15 — your workout is safe: the real in-progress card (Workout in progress, the set count, Resume) and "Saved after every set"',
+      /class="tw tw-wi wi-c-\w+ tw-push tw-active"/.test(saved) && />Workout in progress</.test(saved) && /sets completed/.test(saved) && />Resume<\/button>/.test(saved) && /Saved after every set/.test(saved));
+    const tools = vis('tools');
+    T('16 — the tools as the workout shows them: the warm-up card, all six time chips, one real replace row with its art',
+      /class="prep-card"/.test(tools) && /WARM-UP/.test(tools) && (tools.match(/class="time-chip[ "]/g) || []).length === 6 && /class="sub-option"/.test(tools)
+      && /Dumbbell Bench Press/.test(tools) && !/onclick=/.test(tools));
+    const rr = vis('readiness');
+    T('17 — readiness and recovery are told apart: "you report" beside "estimated from your logs", the real recovery figure and its three bands',
+      /Readiness · you report/.test(rr) && /Recovery · estimated from your logs/.test(rr) && /class="muscle-svg"/.test(rr) && /ready-summary/.test(rr)
+      && ['Ready', 'Recovering', 'Low'].every(w => rr.indexOf('>' + w + '<') !== -1) && /not medical advice/.test(step('readiness').body));
+    T('18 — progress is the real volume chart, drawn by volumeBarSvg from example weeks, and says Example', /volumeBarSvg\(weeks\)/.test(fnSrc(src, 'obProgressDemoHtml')) && /<svg/.test(vis('progress')) && />Example</.test(vis('progress')));
+    T('19 — the rank page is D97\'s, unchanged and factual: what earns XP, eight ranks, earned by training not load',
+      step('ranks').body === 'Workouts, personal records and weekly streaks earn XP, and XP raises your level. Keep training and you climb eight ranks, from Rookie to Legend.'
+      && pin('onboardingRankLadderHtml') === 'fd9b731b25c509e1');
+    T('every example is a constant: no page reads the athlete\'s history, readiness, recovery, plan or volume',
+      ['obWelcomeHtml', 'obTodayDemoHtml', 'obDemoSetsHtml', 'obRestPanelHtml', 'obWorkoutDemoHtml', 'obResumeDemoHtml', 'obToolsDemoHtml', 'obReadinessDemoHtml', 'obProgressDemoHtml']
+        .every(f => !/workoutLog|sortedLog|getTodayReadiness|computeMuscleRecovery|computeWeeklyVolume|\bschedule\b|planData|selectedPlanId|DEFAULT_PLANS|loadActiveDraft/.test(fnSrc(src, f))));
+  });
+
+  sub('the tour writes nothing, and moves the way it should');
+  await guard('flow', async () => {
+    const snap = () => JSON.stringify(app.store) + '|' + JSON.stringify(ctx.workoutLog);
+    const before = snap();
+    ctx.startOnboarding();
+    for(let i = 0; i < IDS.length - 1; i++) ctx.onboardingNext();
+    T('22 — Continue walks to the last page, which says Start training', ctx.onboardingIndex === IDS.length - 1 && ctx.document.getElementById('onboardingNext').textContent === 'Start training');
+    for(let i = 0; i < IDS.length - 1; i++) ctx.onboardingBack();
+    T('and Back walks all the way home', ctx.onboardingIndex === 0);
+    const writers = ['obWelcomeHtml', 'obTodayDemoHtml', 'obDemoSetsHtml', 'obRestPanelHtml', 'obWorkoutDemoHtml', 'obDemoToggleSet', 'obRestDemoRun', 'obResumeDemoHtml', 'obToolsDemoHtml', 'obReadinessDemoHtml', 'obProgressDemoHtml'];
+    T('20 — no demo can write: none of them reaches storage, the log, a draft, readiness or a save',
+      writers.every(f => fnSrc(src, f) && !/LOOPStore|persist[A-Z]\w*\(|workoutLog|scheduleDraftSave|saveLog|captureActiveDraft|dailyReadiness|objectives|programsStore/.test(fnSrc(src, f))));
+    ctx.onboardingState.completedVersion = 1;
+    ctx.replayOnboarding();
+    for(let i = 0; i < IDS.length; i++) ctx.onboardingNext();
+    await H.settle(50);
+    const after = JSON.stringify(Object.assign({}, app.store, { onboarding: undefined })) + '|' + JSON.stringify(ctx.workoutLog);
+    T('21 — a replay, walked to the end, leaves every athlete store and the log exactly as they were', after === JSON.stringify(Object.assign({}, JSON.parse(before.split('|')[0]), { onboarding: undefined })) + '|' + before.split('|')[1]);
+    ctx.startOnboarding(); ctx.onboardingNext(); ctx.onboardingNext();
+    ctx.skipOnboarding();
+    T('Skip closes it from anywhere and remembers it', !ctx.document.getElementById('onboardingOverlay').classList.contains('open') && ctx.onboardingState.skipped === true);
+    T('23 — no forced replay: the version is still 1, and an athlete who finished it is never offered it again',
+      ctx.ONBOARDING_VERSION === 1 && (() => { const keep = ctx.onboardingState; ctx.onboardingState = Object.assign(ctx.defaultOnboardingState(), { completedVersion: 1 }); const r = ctx.shouldOfferOnboarding(); ctx.onboardingState = keep; return r === false; })()
+      && pin('shouldOfferOnboarding') === '7938085bdaaac992' && pin('finishOnboarding') === 'a3446bdb61839bf9' && pin('replayOnboarding') === 'c98993e0ba2ca345');
+    T('24 — Reduce Motion: the example rest never ticks, and pages do not animate in', /paint\(total\);\s*if\(onboardingReducedMotion\(\)\) return;\s*let left = total;\s*const id = setInterval/.test(fnSrc(src, 'obRestDemoRun'))
+      && /@media \(prefers-reduced-motion: reduce\)\{ \.ob-step\{ animation: none; \} \}/.test(css));
+    T('no autoplay: a page starts nothing by itself but D97\'s ladder light; the only timer is the example rest, cleared with every page change',
+      !/setInterval|startWorkoutCarousel|startTimerDemo|obRestDemoRun|obDemoToggleSet/.test(fnSrc(src, 'renderOnboardingStep')) && /onboardingTimers\.push\(id\)/.test(fnSrc(src, 'obRestDemoRun'))
+      && (fnSrc(src, 'renderOnboardingStep').match(/if\(step\.id === '\w+'\) \w+\(/g) || []).join() === "if(step.id === 'ranks') startRankLadderLight("
+      && (stripComments(src).match(/obRestDemoRun\(/g) || []).length === 2 && /obRestDemoRun\(rest\);/.test(fnSrc(src, 'obDemoToggleSet'))
+      && !/function startWorkoutCarousel|function startTimerDemo|function onboardingMuscleBars|function onboardingWorkoutSamples/.test(src)
+      && /clearOnboardingAnimations\(\);/.test(fnSrc(src, 'obDemoToggleSet')));
+    T('25 — the buttons sit outside the scrolling page, so no page can push Continue off a short phone; short phones get their own tier',
+      /<div class="ob-scroll" id="onboardingBody"><\/div>\s*<div class="ob-actions">/.test(src) && /\.ob-actions\{[^}]*flex-shrink: 0;/.test(css) && /@media \(max-height: 640px\)\{\s*\.ob-demo-workout \.ws-chips\{ display: none; \}/.test(css)
+      && /\.ob-step\{[^}]*margin: auto 0;/.test(css));
+  });
+
+  sub('everything else is untouched');
+  await guard('protected', async () => {
+    T('the builders the tour borrows are byte-identical — so the examples change only when the real screens do', pin('appendSetRow') === '15d160342d105b97' && pin('refreshSetMeta') === '938470e0460c3c58'
+      && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('workoutIconHtml') === 'c95dabd80b455c5b' && pin('workoutIdentity') === '9196e8f108a3a7ad' && pin('restRingSvg') === '830b35d31e01d2b4'
+      && pin('substitutionOptionHtml') === '36c7820f98b0491b' && pin('bodyDiagramSvg') === '50d44084806369ae' && pin('volumeBarSvg') === 'e4c8f5df157fb24a' && pin('setChipHtml') === '350b4e34eb582056');
+    T('XP, rank, readiness and recovery maths are byte-identical', pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898'
+      && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('readinessStateFromScore') === '736f5c750f322973' && pin('computeMuscleRecovery') === '6d079e205ec35afb');
+    T('the real Today card, the stepper and logging are byte-identical', pin('renderTodayWorkout') === '1379e92ab91902ab' && pin('renderWorkoutStep') === 'f92999bce55ec36b' && pin('toggleSetComplete') === '46059f0d3306793b');
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -43393,6 +43590,7 @@ async function main(){
   await testExerciseCardD104();
   await testSummaryTimeD105();
   await testWorkoutTimeTruthD1051();
+  await testMasteryTourD106();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

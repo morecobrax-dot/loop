@@ -14753,3 +14753,150 @@ Full workout sheet and every Recent row find a workout by date. Pressing "Evenin
 
 **Status.** E29 CLOSED. E30 OPEN. E16 HELD; E20, E21, E22, E25, E26, E27 OPEN and untouched. DATA_KEYS 16,
 schema 1, trainer 0.1.1-shadow. verify 10,391/0, five audits green.
+
+## §143 — ONE MASTERY PODIUM; A TOUR THAT SHOWS LOOP (D106 · LOOP 10.21 · loop-v198)
+
+Two pieces of owner feedback: Muscle Mastery should be the same feature as Exercise Mastery in a
+different mode, and the first-run tour should show the athlete the app rather than describe it.
+
+### Mastery — one podium
+
+**Why the modes drifted.** Both modes already built their cards with one template,
+`masteryLeaderCardHtml` (D101). But the muscle leaders passed their own class names — `.mmc`,
+`.mmc-card`, `.mmc-pN` — so every podium rule had to be written twice. The one written once, the
+pedestal (`.mpod-pN .mpod-step`, D101), never reached Muscle Mastery. Measured on 10.20 in real Edge
+at 375 px:
+- Exercise cards stood 269 / 256 / 252 px on 20 / 13 / 9 px steps.
+- Muscle cards stood 249 / 243 / 243 px with no step at all, so 2nd and 3rd were the same height and
+  the podium hierarchy was gone.
+
+**One system.**
+- `masteryLeadersHtml(mode, items)` is now the one shell. It alone decides the grid, the count class,
+  the place classes, the empty state and the list semantics.
+- A mode supplies only its words (`MASTERY_LEADER_MODES`) and its card's data.
+- Both modes render `.mpod`, `.mpod-card` and `.mpod-pN`, and the `.mmc` namespace is gone from the
+  markup and the stylesheet. Nothing can be written for one mode any more.
+- The one genuine difference is behavioural. An exercise card opens its detail, so it is a `<button>`,
+  and only `button.mpod-card` gets the pointer and the press. A muscle card opens nothing and stays a
+  list item.
+- Measured after, at 320 and 375 px: the two podiums are identical cell for cell — position, size,
+  pedestal, metal border and badge.
+- The rankings are untouched: `getMasteryProgress`, `getTopMuscleMastery`, `buildMasteryIndex`,
+  `masteryTier` and the card template are byte-identical.
+
+### The tour — teach LOOP using LOOP
+
+**The old flow.** Eight pages, each a small mock card plus a paragraph:
+- Welcome.
+- Today: a rotating label carousel.
+- Start: a three-row text table about autosave.
+- Logging: generic LB / REPS / SET TYPE boxes.
+- Tools: a looping 1:42 warm-up ring and three lines of text.
+- Readiness: two text rows.
+- Progress: sample muscle bars.
+- Ranks (D97).
+
+Measured on 10.20, the text-to-Continue gap was 115–180 px at 320 × 568 and 391–456 px at 390 × 844,
+and the Tools page ran 94 px past Continue at 320 × 568. None of the pages showed what a set, its
+completion or the rest timer actually look like.
+
+**The new flow — nine pages, one question each.**
+1. Welcome — what LOOP is.
+2. Start from Today — the Today card exactly as `renderTodayWorkout` draws a planned day.
+3. Log each set — the stepper's own head and set rows, built by `appendSetRow` itself.
+4. Finish a set, then rest — the one live control. Completing the example set completes it and starts
+   the real rest panel.
+5. Your workout is safe — the in-progress Today card and "Saved after every set".
+6. Adapt the session — the warm-up card, the time chips and a real replace row.
+7. Readiness and recovery — "you report" beside "estimated from your logs", with the real body figure
+   and bands.
+8. Watch it add up — the real volume chart and D97's honesty line: "LOOP is observing, not deciding —
+   every weight on the bar stays yours."
+9. Climb the ranks — D97's page, unchanged.
+
+Nine rather than eight: at 320 × 568 the budget is about 240 px of example per page, and readiness,
+recovery and progress together did not fit without crowding.
+
+**Visual truth without coupling.**
+- Wherever a builder is pure, the example is drawn by the real builder: `appendSetRow`,
+  `exerciseThumbHtml`, `workoutIconHtml`, `workoutStepMusclesHtml`, `restRingSvg`,
+  `substitutionOptionHtml`, `bodyDiagramSvg`, `volumeBarSvg` and `setChipHtml`. Where the real
+  renderer reads live state (the Today card, the resume card), its template is copied with the same
+  classes.
+- The set rows are built into a detached list and disarmed: every handler is removed and every control
+  leaves the tab order.
+- Only the rest page's first circle stays live, and its one handler (`obDemoToggleSet`) changes the
+  example.
+- Every value is a constant in `OB_DEMO`. No page reads the athlete's history, readiness, recovery,
+  plan or volume; only D97's YOU marker reads their rank.
+- Data-shaped examples say "Example". Nothing writes: the demos reach no store, draft, log or save.
+
+**Motion and fit.**
+- No autoplay loop. The carousel and the looping timer are gone. The only timer is the example rest,
+  started by the athlete's own press and cleared with every page change. Under Reduce Motion it shows
+  the full ring, still.
+- Pages centre in the space they have (auto margins, which collapse when a page scrolls).
+- Short phones (≤640 px tall) get a tier that gives up detail, never the lesson.
+- At ≤360 px wide the workout example drops its frame, as the real stepper draws the exercise with no
+  card around it.
+- Two traps were found only in the browser:
+  - The stepper's `.stepper-on .ws-current .rest-panel` (D59) outranked the tour's own override. The
+    pinned panel's solid 28 px shelf covered the line beneath it until the override matched the same
+    scope.
+  - The tour's `user-select: none` broke the rule that only drag surfaces suppress selection; it was
+    removed.
+
+**First run and replay.**
+- `ONBOARDING_VERSION` stays 1, so no existing athlete is sent through the tour again.
+- Replay (Settings → Getting Started), Skip, Back and Start training are byte-identical in their state
+  handling. Only `renderOnboardingStep`'s starter lines changed.
+- A replay walked to the end, with the example pressed, leaves every stored key exactly as it was.
+
+### Evidence
+
+**Tests.** Contract 221 (**35 checks**):
+- The two podiums share one element skeleton, one grid, one pedestal hierarchy, one metal system, one
+  emblem rule and one pill. 1st is centred; 0 / 1 / 2 / 3 leaders read truthfully; the rankings are
+  pinned.
+- Every tour page is the real component. No demo reads athlete data or writes anything.
+- Continue, Back, Skip and replay work, there is no forced replay, and Reduce Motion is honoured.
+- There is no autoplay: the page runner starts exactly one thing, and the example rest is started only
+  by the press.
+- The CTA sits outside the scroller.
+
+Older assertions were restated in place at 50 marked sites, each carrying a "D106 restated" comment with its reason:
+- the `.mmc` pins in D86, D94A, D94B and D101;
+- the tour's length, order, dots and walk;
+- the removed muscle bars and timer demo;
+- three code-wide audits (the `bodyDiagramSvg` callers, the `wi-c-` colour sites, the one
+  ring-moving function), each naming the new site.
+
+One pre-existing vacuous check was found and fixed: D94B's narrow-phone ordering compared against an LF search in a CRLF file, so it could never fail. Every check that the unification or the new tour would have made vacuous (a missing step id, a vanished .mmc class) was restated to keep its meaning.
+
+The five set types are still named, where they become relevant, by the setType hint; programs are
+still named, on the Today page.
+
+**Mutation: 27 of 27 killed.** 25 by Contract 221 alone, and two by older contracts: a ranking shift
+by D86's real-top-muscle check, and the dropped honesty line by the trainer-honesty contract. The
+27th, added after the browser caught it, puts the pinned shelf back over the example line.
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844, 393×852, 414×896 and 430×932,
+with real CDP presses:
+- the first launch;
+- every page's real components;
+- the example Start Workout pressed (starts nothing);
+- the example set completed and undone, with the rest ticking and stopping when its page closes;
+- the panel's line uncovered, and the page still fitting with the panel showing;
+- Back through every page, Skip from pages 2, 5 and 8, and Start training;
+- an established athlete never shown the tour, and replay from Settings changing no stored key;
+- both podiums identical cell for cell after a real press on the Muscle tab;
+- 44 px controls, nothing sideways, no console errors.
+
+Every What's New line was measured false on 10.20 and true on 10.21.
+
+**Found, recorded:** **E31** — on a 320 px phone the live rest panel squeezes its "Resting" label to
+"REST" (the dial and three 44 px controls leave about 14 px). This is the live workout's panel, outside
+this phase. OPEN.
+
+**Status.** Presentation and onboarding only. No DATA_KEY, no schema change, trainer 0.1.1-shadow.
+E16 HELD; E20–E22, E25–E27, E30 OPEN and untouched. verify 10,426/0, five audits green.
