@@ -15182,3 +15182,96 @@ finding: `repProgressToward` reads this evidence and has no caller.
 
 **Status.** E21 CLOSED. E33, E34 OPEN. E16 HELD; E20, E22, E25–E27 OPEN and untouched. DATA_KEYS 16,
 schema 1, trainer 0.1.1-shadow, no migration. verify 10,545/0, five audits green.
+
+## §147 — A REP COUNT IS FINITE OR IT IS NOTHING (D110 · LOOP 10.25 · loop-v202)
+
+D88 finding E34, found and recorded during D109. Closed without retuning progression.
+
+### E34 — the read boundary D96A already drew, reused where D109 left it unread
+
+**Reproduced first, on shipped 10.24.** `exerciseSessionHistory`'s eligibility test was a bare
+`parseFloat(reps) > 0`, which "1e999" and the literal word "Infinity" both pass — `!isNaN(Infinity)`
+is true, and D96A's own §126 note about this exact trap named the load side, not this one. D109 paired
+a session's reps with its heaviest load; once a malformed count sat on THAT set, it reached D49 whole:
+"You hit Infinity reps last session — ready for a small increase," a jump to 255 from a set that never
+happened. Blank, zero, negative and non-numeric text were already excluded by the old test's own `> 0`
+— only the two non-finite shapes leaked through.
+
+**Reused, not reinvented.** `performedReps` already existed — D96A's finite-and-positive rep boundary,
+already used at Best ever, PR eligibility and the Personal Best Timeline. `exerciseSessionHistory` is
+now one more reader of it: the eligibility test calls `performedReps(reps) !== null` instead of the bare
+comparison, and the top-load reps selection calls `performedReps` instead of `parseFloat` for the same
+reason. No new rule, no new threshold — the same boundary, at the one site that had never been routed
+through it.
+
+**Which sets count, precisely.** A malformed rep count now means the SET contributes nothing — not a
+zero, not a reduced session, an absence, the same way a malformed load already meant nothing under
+`performedLoad`. A session made of nothing but malformed sets contributes NO evidence at all, and D49
+falls back to its own existing answer for a lift with no history — never a manufactured number. `SET
+EXISTS` (the row was logged) and `SET IS VALID D49 EVIDENCE` (it may decide a recommendation) stay two
+different questions, exactly as `setsLogged` and `workingSets` already kept them apart.
+
+**What did not move.** `buildProgressionRecommendation`, `progressionEvidence`, `progressionFor`, the
+phase policy, the increment ladder and `PROGRESSION_EVIDENCE` are byte-identical. D50B's coach, its own
+constants, capability, the trainer (0.1.1-shadow), PR events, PR XP, Session Score and Mastery never
+read this evidence and are byte-identical. The Objectives engine is byte-identical; a candidate changes
+only because the evidence it reads became real, the same forward-only shape D109 established.
+
+**E33, left exactly as found.** The trainer's `actualPerformance` and `extractPerformanceSignal` still
+read reps by their own bare `parseFloat`, independently of this boundary — proven by source, not merely
+left alone by omission. The trainer stays 0.1.1-shadow.
+
+### Evidence
+
+**Tests.** Contract 225 (**42 checks**): the literal regression (a malformed count on the heaviest set
+can never reach D49; no D49-derived object, recommendation, Objective, next-time note or displayed
+evidence contains "Infinity" or "NaN"); the mirror cases (blank, zero, negative, text, "NaN" text — all
+already excluded before D110 and proven byte-identical to a control session without the bad set at all);
+valid finite reps kept valid, however unusual (scientific notation, an unusually large but genuine
+count); order and ties (a malformed lighter set never contaminates the selected reps; a malformed
+same-load set never beats a real one, either order); repeated rows (a later row's real set is read past
+an earlier malformed one, and the reverse); bodyweight, proven by the row's OWN flag rather than by "BW"
+merely failing `performedLoad` (a stray numeric weight on a bodyweight-flagged row still gives no loaded
+history); a single valid set unchanged; an all-invalid session contributing no evidence at all, falling
+back to D49's own "no history" answer; 300 generated sessions checked against an independent statement
+of the rule; D49's policy untouched (a genuine top-of-range session still earns the same increase; the
+thresholds are the same values); E33 proven untouched by source and by pin; the protected systems by
+pin, including D50B's own constants (a separate top-level object a function-body pin alone would not
+catch); a single-hop reversal proving the only change is the boundary, against D109's own shipped pin;
+and a read-only proof. Three existing checks in Contract 224 were restated in place with their reason —
+two pins, and its own single-hop reversal retired the same way D107 retired an earlier two-phase chain
+rather than compound a third.
+
+Mutation testing caught one real gap in the contract itself before the sweep that counts: a bodyweight
+fixture that happened to pass for the wrong reason (a "BW" weight always fails `performedLoad`
+regardless of the row-level exclusion, so a mutant removing that exclusion still produced no loaded
+history) — strengthened with a stray-numeric-weight fixture that actually exercises the row's own flag.
+
+**Mutation: 15 of 15 killed**, every one by Contract 225 alone: the eligibility test reverted outright,
+or partially (finite dropped, positive dropped); valid finite reps wrongly capped; a repeated row's
+later set ignored; bodyweight rows read by the loaded path; a D49 threshold, the Objectives engine,
+D50B's constants, Session Score's rounding or PR semantics changed; the stored sets written to; E33
+silently fixed here; and the topLoad selection made order-sensitive again.
+
+**Drift.** Both owner backups (read-only, hashes matching `ORIGINALS.sha256` before and after) carry no
+Infinity/NaN-shaped rep value — checked directly before measuring — and showed zero drift in every field,
+exactly as expected. 44 generated and targeted histories (16 datasets clean and E34-sprinkled, 5 hand
+shapes, 4 targeted E34 constructions including a dense-malformed 2-year history and a repeated-row
+shape): every one attributed — only D49-derived fields moved, only for lifts whose own evidence held a
+real E34 set; every other family (records, PR XP, XP, level, rank, capability, trainer, Session Score,
+Mastery, D44, D100) stayed byte-identical. The 28 histories carrying no E34 shape showed zero drift in
+every field. Cost: a full evidence pass over every lift and a full recommendation pass were within
+measurement noise of D109's own shipped 10.24 (differences under 0.02 ms), the 300-workout history
+included.
+
+**Mobile QA.** Real headless Edge at 320×568, 375×667, 390×844 and 430×932 against a history holding an
+Infinity-shaped rep count on two lifts' heaviest sets, one with a long name and a four-digit load: Today's
+objective and insights, the started workout's pre-filled weight and warm-up ramp (read on the card the
+athlete sees), the Workout Summary's next-time notes, and Progress → Strength — none ever showing
+"Infinity" or "NaN," nothing sideways, no field clipped, no console errors. 48/48 on the fix, live 48/48,
+and the same rig against shipped 10.24 reproduced the exact symptom text at all four widths ("You hit
+Infinity reps last session," a pre-fill of 255, "Ready to progress" at 255).
+
+**Status.** E21 CLOSED (D109). E34 CLOSED. E33 OPEN, proven untouched. E16 HELD; E20, E22, E25–E27 OPEN
+and untouched. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration. verify 10,587/0, five
+audits green.

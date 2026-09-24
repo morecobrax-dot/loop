@@ -17765,6 +17765,20 @@ const LOOP_UPDATES = [
       'A “Match your last” objective now asks for the set you actually lifted, so repeating that session completes it'
     ],
     changes: []
+  },
+  {
+    id: 'v10-25',
+    version: 'LOOP 10.25',
+    title: 'Progression Ignores What Was Never Really Logged',
+    date: '2026-09-24',
+    swVersion: 'loop-v202',
+    summary: 'Progression now ignores invalid rep values instead of treating them as a real performance.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'A workout with an invalid rep count on its heaviest set no longer confuses progression into suggesting an unearned jump in weight'
+    ],
+    changes: []
   }
 ];
 
@@ -21738,19 +21752,26 @@ function exerciseSessionHistory(exerciseName, limit){
          and added weight. The athlete had actually ground out the BOTTOM of
          the range. Same predicate the rest of the app uses: a set whose type
          was never recorded still counts, because unknown is not a warm-up. */
+      /* D110 — D88 finding E34. A working set is only D49 evidence when its
+         reps are a real performance: performedReps refuses blank, zero,
+         negative and non-finite text the same way performedLoad already
+         refuses a malformed load, on the read boundary D96A drew for exactly
+         this. The bare `parseFloat(...) > 0` this replaced let "1e999" and
+         "Infinity" through — both are > 0 — so a set with no real rep count
+         could still count as worked, and once it carried the session's
+         heaviest load (D109) its Infinity became the session's own topReps. */
       const perf = sets.filter(st => {
         if(isWorkingSet(st) === false) return false;
         if(st && st.completed === false) return false;
-        return parseFloat(st && st.reps) > 0;
+        return performedReps(st && st.reps) !== null;
       });
       if(!perf.length) continue;
       /* D96A — the load evidence D49 and the trainer read. A malformed value is
          dropped here, so a set beside it is still ordinary evidence and no
          engine downstream is handed a finite-looking Infinity. */
       const weights = perf.map(s => performedLoad(s.weight)).filter(w => w !== null);
-      const reps = perf.map(s => parseFloat(s.reps)).filter(r => !isNaN(r));
       const rirs = perf.map(s => parseFloat(s.rir)).filter(r => !isNaN(r));
-      if(!weights.length || !reps.length) continue;
+      if(!weights.length) continue;
       /* D109 — D88 finding E21. A performance is ONE set. The session is still
          represented by its heaviest working load; its reps are now the most reps
          logged AT that load, never the most reps of any set — 225 × 8 then
@@ -21758,7 +21779,7 @@ function exerciseSessionHistory(exerciseName, limit){
          reps at that weight: the rule D96A's Best ever and objectiveBestSetOn
          already read a session by. Which sets count is unchanged. */
       const topLoad = Math.max(...weights);
-      const topReps = Math.max(...perf.filter(s => performedLoad(s.weight) === topLoad).map(s => parseFloat(s.reps)));
+      const topReps = Math.max(...perf.filter(s => performedLoad(s.weight) === topLoad).map(s => performedReps(s.reps)));
       /* D49 — evidence, alongside the measurements. What LOOP may CONCLUDE
          depends on how much of the prescription was actually performed and
          how much of it carried an effort reading, so both travel with the

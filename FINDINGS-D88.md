@@ -1072,7 +1072,7 @@ never an input value, and `runHistoricalReplay` has no caller outside the test
 suite — so nothing the athlete sees depends on it today. Correcting it changes
 the trainer's own evidence definition, which D109 was told not to touch.
 
-## E34 — D49 still reads a non-finite rep count as a performance · P4 · PROVEN · OPEN
+## E34 — D49 still reads a non-finite rep count as a performance · P4 · PROVEN · **CLOSED in D110 (LOOP 10.25)**
 
 Found by D109's boundary probes. D96A (§126) lists `exerciseSessionHistory`
 among the read sites of `performedLoad` / `performedReps`, and its loads do read
@@ -1090,6 +1090,14 @@ itself. A malformed count ON the heaviest set still reaches D49.
 sets are eligible D49 evidence — `workingSets`, and with it whether a
 prescription was completed — which is an eligibility decision, not the pairing
 D109 was scoped to.
+
+> **Closed.** `exerciseSessionHistory`'s eligibility test and its top-load reps selection now both call
+> `performedReps` — D96A's own finite-and-positive boundary, already used at Best ever and PR
+> eligibility, reused rather than re-invented. A malformed rep count means the set contributes nothing,
+> the same way a malformed load already did; a session made of nothing else contributes no evidence at
+> all, and D49 falls back to its own existing "no history" answer, never a manufactured number. E33 (the
+> trainer's own independent-maxima shape) is proven untouched by source and by pin. See
+> TRAINER-CONTRACT.md §147 and Contract 225.
 
 ## Not findings — checked and clean
 

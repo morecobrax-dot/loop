@@ -42575,11 +42575,11 @@ async function testStartProvenanceD103(){
       && pin('showWorkoutSummary') === 'ae01827f9c112f92' && pin('openDayDetail') === 'ca6c95625a470a7e');
     T('D96: grouping, records, PR XP and the session index are byte-identical', pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
-    /* D109 restated: exerciseSessionHistory changed on purpose, for E21 — Contract 224 proves it
-       differs from 10.23 in its load/reps pairing and nothing else. The rest of the line is unchanged. */
-    T('E16 capability, E20 recovery, D49 evidence (as D109 left it) and E22 XP/Mastery are untouched',
+    /* D110 restated: exerciseSessionHistory changed again, for E34 — Contract 225 proves it
+       differs from 10.24 in its rep-validity boundary and nothing else. The rest of the line is unchanged. */
+    T('E16 capability, E20 recovery, D49 evidence (as D110 left it) and E22 XP/Mastery are untouched',
       pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd'
-      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('exerciseSessionHistory') === '7ebd60c21c542e80' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
+      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
       && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('masteryPointsFor') === '0c704c40a853d991');
     T('D100/D101 are byte-identical', pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('getMasteryProgress') === '77aca2558d11f3d5'
@@ -42743,12 +42743,12 @@ async function testExerciseCardD104(){
       pin('openSubstitutions') === 'a57e36b26c5a4285' && pin('swapLogExercise') === '53e0f712db604c13' && pin('exerciseNoteBlockHtml') === '4cd4699fde7d8b5f'
       && pin('refreshExerciseNoteBlock') === 'b7affb26cc68f860' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('maybeRefreshWarmup') === 'c8ae17b3ef832173'
       && pin('lastTimeHtml') === '7fbccabf7dc8ca7f' && pin('refreshSetCoach') === '5c84cf297638cae2');
-    /* D109 restated: exerciseSessionHistory changed on purpose, for E21 — see Contract 224. */
+    /* D110 restated: exerciseSessionHistory changed again, for E34 — see Contract 225. */
     T('progression, records, XP, capability, recovery, Mastery and D100/D101 are byte-identical',
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd'
-      && pin('exerciseSessionHistory') === '7ebd60c21c542e80' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
+      && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('twActionLabel') === '21824852a16e4df2');
     T('trainer 0.1.1-shadow, DATA_KEYS 16, schema 1, no migration', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 16
       && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
@@ -44117,8 +44117,8 @@ async function testRealSetPairingD109(){
       .replace('weight: topLoad,', 'weight: Math.max(...weights),')
       .replace(/topReps,\s*setsLogged/, 'topReps: Math.max(...reps), setsLogged');
     const reversedPin = crypto.createHash('sha256').update(reversed.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
-    T('34 — undoing exactly the D109 lines gives back 10.23\'s own exerciseSessionHistory, byte for byte (43ab1de84479d05c)',
-      reversedPin === '43ab1de84479d05c' && pin('exerciseSessionHistory') === '7ebd60c21c542e80', reversedPin);
+    T('34 — retired: D110 rewrote the lines this reversal targets (see Contract 225\'s own single-hop reversal against D109\'s pin instead)',
+      pin('exerciseSessionHistory') === 'ffef0621fac8e613', reversedPin);
     T('35 — the pair is chosen from the session\'s own sets while they are already in hand — no second history walk',
       (now.match(/sortedLog\(\)/g) || []).length === 1 && !/workoutLog/.test(now) && /perf\.filter\(s => performedLoad\(s\.weight\) === topLoad\)/.test(now));
   });
@@ -44181,6 +44181,258 @@ async function testRealSetPairingD109(){
     ctx.progressionFor('Bench Press', '6-8', null); ctx.computeProgressionBuckets(); ctx.computeNextTimeNotes(ctx.workoutLog[1]);
     T('43 — every stored set is byte-identical after D49, the Progress buckets and the next-time notes all read it', JSON.stringify(ctx.workoutLog) === before && before === JSON.stringify(log));
     T('44 — no new data key, no schema change, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+  });
+}
+
+/* =========================================================
+   CONTRACT 225 — A REP COUNT IS FINITE OR IT IS NOTHING  (D110, E34)
+   ---------------------------------------------------------
+   exerciseSessionHistory's eligibility test was a bare
+   `parseFloat(reps) > 0`, which "1e999" and "Infinity" both pass. Once
+   D109 paired reps with the heaviest load, a malformed count sitting on
+   THAT set could still reach D49: "You hit Infinity reps last session."
+   The eligibility test, and the top-load reps it selects, now both read
+   performedReps — the same finite-and-positive boundary D96A already
+   drew for exactly this, reused rather than re-invented. Which sets
+   count otherwise, and every D49 threshold, are unchanged.
+   ========================================================= */
+async function testFiniteRepEligibilityD110(){
+  section('CONTRACT 225 — a rep count is finite or it is nothing (D110, E34)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const pad = n => String(n).padStart(2, '0');
+  const S = (w, r, o) => Object.assign({ weight: w === null ? '' : String(w), reps: r === null ? '' : String(r), rir: '2', completed: true }, o || {});
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  const D = n => { const d = new ctx.Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
+    ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); };
+  const ROW = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const WK = (id, n, rows) => ({ id, date: D(n), category: 'push', title: 'Push', notes: '', exercises: rows });
+  const ev = (rows, name) => { seed([WK('w1', 2, rows)]); return ctx.exerciseSessionHistory(name || 'Bench Press', 5)[0] || null; };
+  const one = sets => ev([ROW('Bench Press', sets)]);
+  const pair = h => h ? h.weight + ' x ' + h.topReps + ' (ws ' + h.workingSets + ')' : 'none';
+
+  /* the rule, stated independently of the app: eligible = working,
+     completed, a finite positive rep count; of those with a readable
+     load, the heaviest load, then the most reps AT that load. */
+  const load = w => { const s = String(w == null ? '' : w).trim(); if(!s || s.toUpperCase() === 'BW') return null;
+    const n = parseFloat(s); return Number.isFinite(n) ? n : null; };
+  const reps = r => { const n = parseFloat(r); return Number.isFinite(n) && n > 0 ? n : null; };
+  const eligible = sets => sets.filter(s => s.type !== 'warmup' && s.completed !== false && reps(s.reps) !== null);
+  const oracle = sets => {
+    /* exerciseSessionHistory only counts a session's working sets (and keeps
+       it at all) once AT LEAST ONE eligible set also carries a readable
+       load — a session with real reps everywhere but no real load anywhere
+       is not evidence, the same "if(!weights.length) continue" rule below
+       applies to the oracle: no valid load, no session, no working-set count. */
+    const el = eligible(sets), got = el.map(s => ({ w: load(s.weight), r: reps(s.reps) })).filter(x => x.w !== null);
+    if(!got.length) return { pair: 'none', ws: 0 };
+    const w = Math.max(...got.map(x => x.w));
+    return { pair: w + ' x ' + Math.max(...got.filter(x => x.w === w).map(x => x.r)), ws: el.length };
+  };
+
+  sub('the literal impossible reading: a malformed count on the heaviest set can never reach D49');
+  await guard('impossible reps', async () => {
+    const A = one([S(225, 8), S(245, '1e999')]);
+    T('1 — A: 225 × 8, 245 × 1e999 — the malformed set is not evidence at all: 225 × 8, one working set',
+      pair(A) === '225 x 8 (ws 1)', pair(A));
+    const A2 = one([S(225, 8), S(245, 'Infinity')]);
+    T('2 — the literal word "Infinity" is refused the same way: 225 × 8, one working set',
+      pair(A2) === '225 x 8 (ws 1)', pair(A2));
+    const rec = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    T('3 — D49 no longer says "You hit Infinity reps": one set logged, insufficient evidence, hold 225',
+      rec.tag === 'insufficient' && rec.weight === 225 && !/Infinity/.test(rec.why), rec);
+    /* every D49-derived object and every surface that prints one */
+    const entry = ctx.workoutLog[0];
+    const evd = { session: { cat: 'push', source: 'plan', template: { name: 'Push', exercises: [{ name: 'Bench Press', reps: '6-8', recommended: '' }] } },
+      loggedToday: 0, today: D(0), deload: false, gapDays: 2, lastSessionDate: D(2) };
+    const surfaces = {
+      evidence: ctx.exerciseSessionHistory('Bench Press', 5), rec, forScreen: ctx.progressionFor('Bench Press', '6-8', null),
+      objectives: ctx.objectiveDailyCandidates(evd), nextTime: ctx.computeNextTimeNotes(entry),
+      buckets: ctx.computeProgressionBuckets(), insights: (() => { ctx.renderTodayInsights(); return doc.getElementById('todayInsights').innerHTML; })()
+    };
+    const text = JSON.stringify(surfaces);
+    T('4 — NO D49-derived object, recommendation, Objective candidate, next-time note or displayed evidence contains Infinity or NaN as a rep count',
+      !/Infinity/.test(text) && !/\bNaN\b/.test(text), text.match(/.{0,30}(Infinity|NaN).{0,30}/gi));
+  });
+
+  sub('mirror cases: blank, zero, negative and text reps were already excluded, and remain so — no regression');
+  await guard('mirror cases', async () => {
+    const alone = one([S(225, 8)]);
+    const cases = { 'B blank': S(245, null), 'C zero': S(245, 0), 'D negative': S(245, -3), 'E text': S(245, 'abc'), 'F NaN-text': S(245, 'NaN') };
+    Object.entries(cases).forEach(([label, bad], i) => {
+      const h = one([S(225, 8), bad]);
+      T((5 + i) + ' — ' + label + ': excluded exactly as on 10.24 — identical to the set never having existed',
+        pair(h) === pair(alone) && h.weight === alone.weight && h.topReps === alone.topReps && h.workingSets === alone.workingSets, [label, pair(h), pair(alone)]);
+    });
+  });
+
+  sub('valid finite reps remain valid, however unusual — nothing new is rejected');
+  await guard('valid finite', async () => {
+    const G = one([S(225, 8), S(245, 3)]);
+    T('10 — G control: 245 × 3 is untouched', pair(G) === '245 x 3 (ws 2)', pair(G));
+    const sci = one([S(225, 8), S(245, '1e2')]);
+    T('11 — scientific notation that parses to a finite number (1e2 = 100) is accepted, not rejected for looking strange',
+      pair(sci) === '245 x 100 (ws 2)', pair(sci));
+    const big = one([S(225, 8), S(245, 500)]);
+    T('12 — an unusually large but genuinely finite rep count (500) is accepted — D110 is not a plausibility filter',
+      pair(big) === '245 x 500 (ws 2)', pair(big));
+  });
+
+  sub('order, ties: a malformed set never contaminates or beats a real one');
+  await guard('order ties', async () => {
+    const H_ = one([S(245, 3), S(225, '1e999')]);
+    T('13 — H: 245 × 3 (valid), 225 × 1e999 (malformed) — the malformed LIGHTER set never touches the selected reps: 245 × 3, one working set',
+      pair(H_) === '245 x 3 (ws 1)', pair(H_));
+    const I = one([S(245, '1e999'), S(245, 5)]);
+    T('14 — I: 245 × malformed, 245 × 5 (same load) — the valid set wins: 245 × 5, one working set',
+      pair(I) === '245 x 5 (ws 1)', pair(I));
+    const J = one([S(245, 5), S(245, '1e999')]);
+    T('15 — J: reversed order — the same real set wins regardless: 245 × 5, one working set', pair(J) === '245 x 5 (ws 1)', pair(J));
+  });
+
+  sub('repeated rows: a later row\'s valid set is still read; a malformed one is simply not counted');
+  await guard('repeated rows', async () => {
+    const K1 = ev([ROW('Bench Press', [S(245, '1e999')]), ROW('Bench Press', [S(245, 6)])]);
+    T('16 — K: malformed in the FIRST row, valid in a LATER row — the later row\'s real set is read: 245 × 6',
+      pair(K1) === '245 x 6 (ws 1)', pair(K1));
+    const K2 = ev([ROW('Bench Press', [S(245, 6)]), ROW('Bench Press', [S(245, '1e999')])]);
+    T('   and the reverse: a later row\'s malformed set does not erase an earlier valid one: 245 × 6',
+      pair(K2) === '245 x 6 (ws 1)', pair(K2));
+  });
+
+  sub('bodyweight is untouched: a malformed rep on a bodyweight row never reaches loaded evidence');
+  await guard('bodyweight', async () => {
+    seed([WK('bw', 2, [ROW('Pull-Up', [S('BW', '1e999'), S('BW', 8)], true)])]);
+    T('17 — L: a bodyweight row with a malformed rep count gives D49 no LOADED history at all, exactly as on 10.24',
+      ctx.exerciseSessionHistory('Pull-Up', 5).length === 0 && ctx.buildProgressionRecommendation('Pull-Up', '6-10', null).tag === 'new');
+    /* the row's own bodyweight flag is what excludes it — not merely 'BW'
+       failing performedLoad, which a stray numeric weight would sidestep */
+    seed([WK('bw2', 2, [ROW('Pull-Up', [S(135, 8)], true)])]);
+    T('   and a bodyweight row is excluded by its OWN flag, not only because "BW" fails performedLoad: a stray numeric weight on a bodyweight-flagged row still gives no loaded history',
+      ctx.exerciseSessionHistory('Pull-Up', 5).length === 0);
+  });
+
+  sub('a single valid set, and a history with no E34 shape, read exactly as on 10.24');
+  await guard('single valid', async () => {
+    const M = one([S(245, 5)]);
+    T('18 — M: a single valid set is untouched: 245 × 5, one working set', pair(M) === '245 x 5 (ws 1)', pair(M));
+  });
+
+  sub('all sets invalid: D49\'s EXISTING insufficient-evidence policy, nothing invented');
+  await guard('all invalid', async () => {
+    const N = one([S(245, '1e999'), S(225, 'abc')]);
+    T('19 — N: every set has invalid reps — the session contributes NO evidence at all', N === null, N);
+    const rec = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    T('   and D49 falls back to its own existing "no history" answer — a specific number is never invented',
+      rec.tag === 'new' && /No history yet/.test(rec.why), rec);
+  });
+
+  sub('300 generated sessions: the rule, against an independent oracle');
+  await guard('generated', async () => {
+    const rnd = H.mulberry32(110);
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const LOADS = [135, 185, 225, 245, 245, 225, '', 'abc', 0];
+    const REPS = [1, 3, 5, 6, 8, 10, '', 0, -2, 'abc', 'NaN', '1e999', 'Infinity', '-Infinity', '1e2'];
+    const TYPES = [undefined, undefined, 'working', 'working', 'warmup', 'drop', 'failure', 'amrap'];
+    let n = 0, agree = 0, bad = [], e34 = 0, sameOutside = 0, outside = 0;
+    for(let i = 0; i < 300; i++){
+      const sets = Array.from({ length: 1 + Math.floor(rnd() * 6) }, () => {
+        const o = {}; const t = pick(TYPES); if(t) o.type = t; if(rnd() < 0.08) o.completed = false;
+        return S(pick(LOADS), pick(REPS), o);
+      });
+      const h = one(sets);
+      const want = oracle(sets);
+      n++;
+      const got = h ? { pair: h.weight + ' x ' + h.topReps, ws: h.workingSets } : { pair: 'none', ws: 0 };
+      if(got.pair === want.pair && got.ws === want.ws) agree++; else if(bad.length < 3) bad.push({ sets, got, want });
+      const wasBad = sets.some(s => /1e999|Infinity/i.test(String(s.reps)));
+      if(wasBad) e34++; else { outside++; if(got.pair === want.pair && got.ws === want.ws) sameOutside++; }
+    }
+    T('20 — all 300: D49\'s pair and working-set count exactly match an independent statement of the rule', agree === n, bad);
+    T('21 — the corpus really exercises E34 — ' + e34 + ' of 300 sessions carried an Infinity-shaped rep value', e34 >= 20, e34);
+    T('22 — every session with no E34 shape reads identically to the oracle: ' + sameOutside + ' of ' + outside, sameOutside === outside, [sameOutside, outside]);
+  });
+
+  sub('D49\'s policy is untouched — it only ever sees finite, positive reps now');
+  await guard('policy', async () => {
+    seed([WK('t1', 2, [ROW('Bench Press', [S(245, 8), S(245, 8)])])]);
+    const top = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    T('23 — a genuine top-of-range session with effort to spare still earns exactly the same increase: 245 -> 255',
+      top.tag === 'increase' && top.weight === 255, [top.tag, top.weight]);
+    T('24 — D49\'s thresholds are the same values: 2 sets without a prescription, +1 over target, 1.5 absolute, 1 settle',
+      /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(stripComments(src)));
+    T('25 — the policy, the evidence judge, the phase policy, the increment ladder and plateau detection are byte-identical',
+      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
+      && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e' && pin('detectPlateau') === '5328b907ce3432c7'
+      && pin('parseRepRange') === '4e2721b469db24ef' && pin('effortToRir') === '60ad26f861c0c426');
+  });
+
+  sub('E33 is untouched: the trainer\'s own independent-maxima shape is left exactly as D109 found it');
+  await guard('e33 untouched', async () => {
+    const trainerSrc = fnSrc(src, 'actualPerformance') + fnSrc(src, 'extractPerformanceSignal');
+    T('26 — actualPerformance and extractPerformanceSignal still read reps by their OWN raw parseFloat — E33 was not silently fixed here',
+      /r: parseFloat\(s\.reps\)/.test(fnSrc(src, 'actualPerformance')) && /r: parseFloat\(x\.reps\)/.test(fnSrc(src, 'extractPerformanceSignal'))
+      && !/performedReps/.test(trainerSrc) && !/exerciseSessionHistory/.test(trainerSrc));
+    T('27 — the trainer, the live coach and capability never read D49\'s session evidence, so D110\'s fix cannot reach them',
+      pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('extractPerformanceSignal') === '87c2d1fc6b7b9285' && pin('resolveTrainerNumbers') === '93d4930c803c6e2b'
+      && pin('actualPerformance') === '3c4eb71b6eda0414' && pin('classifyOutcome') === '53ada3a09318928b' && pin('computeShadowRecommendation') === 'cd53ea889ad5c92b'
+      && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5');
+    T('28 — trainer 0.1.1-shadow', ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  });
+
+  sub('protected systems: D50B, Objectives, PR, XP, Session Score, Mastery');
+  await guard('protected', async () => {
+    T('29 — D50B is byte-identical: the coach, and how a row hands it the prescribed load',
+      pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('capturedPrescription') === '4b741af98b989695' && pin('effectiveWorkingLoad') === 'c0d91327f6ac9f76');
+    T('   its own constants are the same values (a separate top-level object a function pin alone would not catch)',
+      /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(stripComments(src)));
+    T('30 — the Objectives engine is byte-identical (a candidate changes only because the evidence it reads became real)',
+      pin('objectiveDailyCandidates') === '9772175df2535484' && pin('objectiveBestSetOn') === '3cf2c88926b6d461' && pin('objectiveProgress') === 'e0889920b620163e'
+      && pin('computeNextTimeNotes') === '16d50e35392c9180');
+    T('31 — records, PR XP and the session index are byte-identical', pin('computeExercisePREvents') === '4339cc543585bded'
+      && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('workoutGroupsOf') === 'f346201c58363ccb');
+    T('32 — Session Score reads each workout\'s STORED prescription, never live D49 — byte-identical',
+      pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c'
+      && !/progressionFor|buildProgressionRecommendation|exerciseSessionHistory/.test(fnSrc(src, 'deriveSessionExecution')));
+    T('33 — Mastery is byte-identical', pin('buildMasteryIndex') === 'f6c1b50e7bd04b79' && pin('getMasteryProgress') === '77aca2558d11f3d5');
+    T('34 — the read boundaries D96A drew are byte-identical: performedLoad, performedReps itself, isWorkingSet, the row grouping',
+      pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('performedReps') === '0436ff32a1b6eaf1' && pin('isWorkingSet') === '1517c2a5dffcdc55'
+      && pin('workoutExerciseRows') === 'aeed5b89c9644126');
+  });
+
+  sub('the change is the boundary and nothing else');
+  await guard('single hop', async () => {
+    const now = fnSrc(src, 'exerciseSessionHistory');
+    let reversed = now;
+    const undo = (a, b, label) => { const n = reversed.split(a).length - 1; if(n !== 1) throw new Error(label + ': anchor x' + n); reversed = reversed.split(a).join(b); };
+    undo('return performedReps(st && st.reps) !== null;', 'return parseFloat(st && st.reps) > 0;', 'eligibility');
+    undo("const weights = perf.map(s => performedLoad(s.weight)).filter(w => w !== null);\r\n",
+      "const weights = perf.map(s => performedLoad(s.weight)).filter(w => w !== null);\r\n      const reps = perf.map(s => parseFloat(s.reps)).filter(r => !isNaN(r));\r\n", 'reinsert reps');
+    undo('if(!weights.length) continue;', 'if(!weights.length || !reps.length) continue;', 'guard');
+    undo('.map(s => performedReps(s.reps)));', '.map(s => parseFloat(s.reps)));', 'topReps map');
+    const reversedPin = crypto.createHash('sha256').update(reversed.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+    T('35 — undoing exactly the D110 lines gives back D109\'s own exerciseSessionHistory, byte for byte (7ebd60c21c542e80)',
+      reversedPin === '7ebd60c21c542e80' && pin('exerciseSessionHistory') === 'ffef0621fac8e613', reversedPin);
+    T('36 — the boundary is checked while the session\'s own sets are already in hand — no second history walk',
+      (now.match(/sortedLog\(\)/g) || []).length === 1 && !/workoutLog/.test(now));
+  });
+
+  sub('reading is all it does: no history is rewritten');
+  await guard('read only', async () => {
+    const log = [WK('r1', 9, [ROW('Bench Press', [S(225, 8), S(245, '1e999')]), ROW('Bench Press', [S(null, 10)])]),
+      WK('r2', 2, [ROW('Bench Press', [S(245, 3), S(185, 'abc')])])];
+    seed(JSON.parse(JSON.stringify(log)));
+    const before = JSON.stringify(ctx.workoutLog);
+    ctx.exerciseSessionHistory('Bench Press', 5); ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    ctx.progressionFor('Bench Press', '6-8', null); ctx.computeProgressionBuckets(); ctx.computeNextTimeNotes(ctx.workoutLog[1]);
+    T('37 — every stored set is byte-identical after D49, the Progress buckets and the next-time notes all read it', JSON.stringify(ctx.workoutLog) === before && before === JSON.stringify(log));
+    T('38 — no new data key, no schema change, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
   });
 }
 
@@ -44369,6 +44621,7 @@ async function main(){
   await testWorkoutIdentityD107();
   await testCalendarDayTruthD108();
   await testRealSetPairingD109();
+  await testFiniteRepEligibilityD110();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
