@@ -959,7 +959,7 @@ no plan.
 > template kept its own, and a template resumed after reopening the app kept
 > its plan (it used to lose it). Contract 220.
 
-## E30 — The second workout on a date opens the first one from Log · P3 · PROVEN · OPEN
+## E30 — The second workout on a date opens the first one from Log · P3 · PROVEN · **CLOSED in D107 (LOOP 10.22)**
 
 Found by D105.1's same-date audit. The Log's selected-day card
 (`renderSelectedDay`), the Full workout sheet (`openDayDetail(dateStr)`) and
@@ -977,7 +977,16 @@ reached from Log at all.
 open the Full workout sheet by id (as the summary is) and to list every
 workout of a selected day, which changes D102's Log architecture.
 
-## E31 — On a 320px phone the workout's rest panel squeezes out its label · P4 · PROVEN · OPEN
+> **Closed.** The date still groups a day's sessions (`workoutsOnDate`); a
+> session's own id is what a card, a Summary or a Full workout sheet is
+> actually about. One card component, `sdCardHtml`, draws every session of a
+> day — one when there is one, several when there are more, each independently
+> openable. Recent, the edited-entry reopen, the summary's own Full-workout
+> cross-link, and Today's two single-slot cards (the "other day" card and the
+> "Workout complete" hero) were all the same shape and are all fixed the same
+> way. Contract 222.
+
+## E31 — On a 320px phone the workout's rest panel squeezes out its label · P4 · PROVEN · **CLOSED in D107 (LOOP 10.22)**
 
 Found by D106's comparison of the tour's rest example with the real rest panel.
 At 320px wide the running rest panel (`.rest-panel` in `addLogExerciseRow`)
@@ -991,6 +1000,34 @@ but the words are unreadable there. The tour's copy shows the same.
 card), outside a presentation-and-onboarding phase told not to change the
 workout UI; the fix is a one-line decision about what the panel drops first on
 the narrowest phones.
+
+> **Closed.** The dial and the three controls keep their exact size — the
+> countdown and the 44px targets were never the thing asked to give. Only the
+> row does: at LOOP's own existing ≤359px tier, the controls wrap onto a line
+> of their own, so the label and the exercise name get the row's full width
+> instead of what a third sibling left over. "Resting" stays "Resting."
+> Contract 222.
+
+## E32 — The Log calendar's PR dot and category colour reflect only the first-saved workout of a multi-workout day · P4 · PROVEN · OPEN
+
+Found by D107's audit of every date-keyed lookup, alongside E30. The
+calendar's own day map (`renderHistoryCalendar`) builds `dayMap[l.date] = l`
+only when the slot is still empty — `workoutLog.forEach(l => { if(!dayMap[l.date])
+dayMap[l.date] = l; });` — so a date with two sessions is decorated from
+whichever was SAVED first, in array order, never from all of them. Two
+observable consequences: the day's outline colour (`cal-cat-${entry.category}`)
+can name only one of two different categories trained that day, and the PR
+dot (`getSessionPRs(entry).length`) can read zero and hide the dot even when
+the OTHER session set a real record.
+
+**Why it was not fixed in D107.** The brief scoped E30 to the Log's
+selected-day card, the Full workout sheet, Recent and the two Today-tab
+cards — all of which are fixed. The calendar cell is decorative only (it
+never opens the wrong workout; `renderSelectedDay`, fixed by D107, is what
+answers a tap on the day), and aggregating two sessions' categories and PRs
+into one cell's mark is a small presentation decision on its own, not an
+identity bug — recorded here rather than folded into a phase that was asked
+to stay small and contained.
 
 ## Not findings — checked and clean
 

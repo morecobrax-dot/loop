@@ -4334,6 +4334,9 @@ button.mpod-card:focus-visible{ outline: 2px solid var(--accent); outline-offset
 @keyframes sdIn{ from{ opacity: 0; transform: translateY(-4px); } to{ opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce){ .sd-card{ animation: none; } }
 .sd-card-empty{ border-color: var(--border); border-style: dashed; }
+/* D107 — the shared header above a stacked day: the date once, and how many, in the same quiet key/value rhythm as the head inside each card below it. */
+.sd-multi-head{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 0 2px; }
+.sd-count{ font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
 .sd-head{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sd-date{ font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
 .sd-title{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; color: var(--text); margin-top: 8px; }
@@ -6732,6 +6735,18 @@ body.page-locked{ overflow: hidden; }
 }
 .rest-skip-btn{ width: auto; padding: 0 12px; font-size: 11.5px; }
 .rest-panel-btn:active{ background: var(--surface-3); }
+/* D107 (E31) — at 320px the dial (64px, fixed) and the three 44px controls
+   left the label column under 20px wide, so "Resting" rendered behind the
+   first control instead of beside it. The dial and the controls keep their
+   size (the countdown and the 44px targets are never the thing that gives);
+   only the ROW does: the controls move to a line of their own, so the label
+   and the exercise name get the row's full width instead of what a third
+   sibling left over. Untouched from 360px up, where the one-row layout
+   already had room. */
+@media (max-width: 359px){
+  .rest-panel{ flex-wrap: wrap; row-gap: 8px; }
+  .rest-panel-controls{ flex: 0 0 100%; justify-content: flex-end; }
+}
 
 .ex-grid{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .ex-grid div{ display: flex; flex-direction: column; }
@@ -17703,6 +17718,23 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-22',
+    version: 'LOOP 10.22',
+    title: 'Every Workout You Log Has Its Own Place',
+    date: '2026-09-24',
+    swVersion: 'loop-v199',
+    summary: 'A day with two workouts now shows both of them in your Log, each fully its own — and the rest timer reads clearly on the smallest phones.',
+    newFeatures: [],
+    improvements: [
+      'A day you trained more than once now shows every workout in your Log, each with its own summary and full workout view',
+      'The rest timer reads clearly on the smallest phones: "Resting" and every control now have the room they need'
+    ],
+    bugFixes: [
+      'Opening a second workout logged on the same day as another no longer opened the wrong one'
+    ],
+    changes: []
   }
 ];
 
@@ -27836,7 +27868,11 @@ function renderOtherDayCard(el){
   const key = effectiveSelectedKey();
   const dateStr = selectedDayDate();
   const rel = relativeDayLabel(key);
-  const logged = workoutLog.find(l => l.date === dateStr);
+  /* D107 (E30) — the day's canonical first session; "View workout" opens
+     THIS entry by id, never the date (a second session that day is never
+     silently hidden behind the wrong one). */
+  const dayEntries = workoutsOnDate(dateStr);
+  const logged = dayEntries[0] || null;
 
   /* Same precedence Today uses: an active program owns the day if it has one. */
   let cat = (schedule && schedule[key]) || 'rest';
@@ -27866,9 +27902,9 @@ function renderOtherDayCard(el){
       <div class="tw tw-${logged.category} tw-other tw-wi wi-c-${wid.colorId}">
         ${nav}
         <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(logged.title)}</span></div>
-        <div class="tw-meta">Logged · ${(logged.exercises||[]).length} exercise${(logged.exercises||[]).length===1?'':'s'}</div>
+        <div class="tw-meta">Logged · ${(logged.exercises||[]).length} exercise${(logged.exercises||[]).length===1?'':'s'}${dayEntries.length > 1 ? ' · +' + (dayEntries.length - 1) + ' more' : ''}</div>
         <div class="tw-actions">
-          <button class="tw-change" onclick="openDayDetail('${dateStr}')">${twActionLabel('View workout', 'View')}</button>
+          <button class="tw-change" onclick="openDayDetail('${onclickArg(logged.id)}')">${twActionLabel('View workout', 'View')}</button>
           ${changeDay}
         </div>
       </div>`;
@@ -27989,7 +28025,10 @@ function renderTodayWorkout(){
   attachDaySwipe();
   const tKey = todayKey();
   const todayStr = localDateStr();
-  const doneToday = workoutLog.find(l => l.date === todayStr);
+  /* D107 (E30) — the day's own last session: "Workout complete" reflects
+     what the athlete just finished, never a stale first-of-the-day entry
+     left behind once a second session that day is also logged. */
+  const doneToday = workoutsOnDate(todayStr).slice(-1)[0] || null;
 
   /* An ACTIVE program owns today's slot; without one, the existing plan
      schedule is used exactly as before. Wrapped so a malformed program can
@@ -29676,6 +29715,48 @@ function selectHistoryDay(dateStr){
   renderHistoryCalendar();
 }
 
+/* D107 (E30) — the DATE groups a day's sessions; each session's own id stays
+   its identity. Ordered the way the athlete trained them: by when a timed
+   session ended, or — for one with no timer — by its id, which is a save
+   time (the same rule historyEntryTime already uses for Recent). */
+/* D107 — one workout's own card: identity, meta, records and the two ways to
+   read it, both keyed by THIS entry's id. Byte-identical to the single-day
+   card D102 always drew, now reusable for a stacked day. showDate is false
+   only when a shared header above already states the day once. */
+function sdCardHtml(entry, nice, showDate){
+  const exCount = (entry.exercises || []).length;
+  const setCount = (entry.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
+  const time = workoutTimeShort(entry);
+  let prs = [];
+  try{ prs = getSessionPRs(entry); }catch(e){}
+  const meta = [
+    exCount + ' exercise' + (exCount === 1 ? '' : 's'),
+    setCount + ' set' + (setCount === 1 ? '' : 's'),
+    time || null
+  ].filter(Boolean).join(' · ');
+  return `
+    <div class="sd-card">
+      <div class="sd-head">
+        ${showDate === false ? '' : `<span class="sd-date">${escapeHtml(nice)}</span>`}
+        <span class="cat-chip ${entry.category}">${CAT_LABEL[entry.category]}</span>
+      </div>
+      <div class="sd-title has-wi">${workoutIdentityHtml(entry, entry.category, 'sm')}<span>${escapeHtml(entry.title)}</span></div>
+      <div class="sd-meta">${escapeHtml(meta)}</div>
+      ${prs.length ? `<div class="sd-prs">${prs.length} new record${prs.length === 1 ? '' : 's'}</div>` : ''}
+      <div class="tw-actions sd-actions">
+        <button type="button" class="tw-change" onclick="openWorkoutSummary('${onclickArg(entry.id)}')">${twActionLabel('Workout summary', 'Summary')}</button>
+        <button type="button" class="tw-change" onclick="openDayDetail('${onclickArg(entry.id)}')">${twActionLabel('Full workout', 'Full')}</button>
+      </div>
+    </div>`;
+}
+function workoutsOnDate(dateStr){
+  const key = entry => {
+    const ended = Date.parse(entry.endedAt || '');
+    if(Number.isFinite(ended)) return ended;
+    return /^\d{12,}$/.test(String(entry.id)) ? Number(entry.id) : 0;
+  };
+  return workoutLog.filter(l => l.date === dateStr).sort((a, b) => key(a) - key(b));
+}
 function renderSelectedDay(){
   const el = document.getElementById('historySelectedDay');
   if(!el) return;
@@ -29684,39 +29765,23 @@ function renderSelectedDay(){
   const dateStr = historySelectedDate;
   const dt = new Date(dateStr + 'T00:00:00');
   const nice = dt.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-  const entry = workoutLog.find(l => l.date === dateStr);
+  const entries = workoutsOnDate(dateStr);
 
-  if(entry){
-    const exCount = (entry.exercises || []).length;
-    const setCount = (entry.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
-    const time = workoutTimeShort(entry);
-    let prs = [];
-    try{ prs = getSessionPRs(entry); }catch(e){}
-    const meta = [
-      exCount + ' exercise' + (exCount === 1 ? '' : 's'),
-      setCount + ' set' + (setCount === 1 ? '' : 's'),
-      time || null
-    ].filter(Boolean).join(' · ');
-
-    /* D102 — a restrained two-action row replaces one whole-card tap, so
-       DAY NAVIGATION (the calendar above) never has to guess which surface a
-       tap on this card meant. Workout summary and Full workout are the same
-       two ways to read a past session that Today's own completed-hero already
-       cross-links, kept to exactly two so this never grows a third. */
-    el.innerHTML = `
-      <div class="sd-card">
-        <div class="sd-head">
-          <span class="sd-date">${escapeHtml(nice)}</span>
-          <span class="cat-chip ${entry.category}">${CAT_LABEL[entry.category]}</span>
-        </div>
-        <div class="sd-title has-wi">${workoutIdentityHtml(entry, entry.category, 'sm')}<span>${escapeHtml(entry.title)}</span></div>
-        <div class="sd-meta">${escapeHtml(meta)}</div>
-        ${prs.length ? `<div class="sd-prs">${prs.length} new record${prs.length === 1 ? '' : 's'}</div>` : ''}
-        <div class="tw-actions sd-actions">
-          <button type="button" class="tw-change" onclick="openWorkoutSummary('${onclickArg(entry.id)}')">${twActionLabel('Workout summary', 'Summary')}</button>
-          <button type="button" class="tw-change" onclick="openDayDetail('${dateStr}')">${twActionLabel('Full workout', 'Full')}</button>
-        </div>
-      </div>`;
+  if(entries.length){
+    /* D102's one card, factored so it is the same component whether the day
+       trained once or more than once — a second session is never a smaller
+       or lesser card than the first. showDate is left true only when it is
+       the day's one card; a stacked day states its date once, in the shared
+       head above the cards, never once per card. */
+    if(entries.length === 1){
+      el.innerHTML = sdCardHtml(entries[0], nice, true);
+      return;
+    }
+    /* D107 (E30) — every session that day, each openable by its OWN id.
+       Never "latest wins": two workouts on one date are two cards, never
+       merged because they share a date, a category or a title. */
+    el.innerHTML = `<div class="sd-multi-head"><span class="sd-date">${escapeHtml(nice)}</span><span class="sd-count">${entries.length} workouts</span></div>` +
+      entries.map(en => sdCardHtml(en, nice, false)).join('');
     return;
   }
 
@@ -29812,7 +29877,7 @@ function recentWorkoutsHtml(limit){
     let prs = 0;
     try{ prs = getSessionPRs(l).length; }catch(e){}
     return `
-      <button type="button" class="rw-row" onclick="openDayDetail('${l.date}')">
+      <button type="button" class="rw-row" onclick="openDayDetail('${onclickArg(l.id)}')">
         ${workoutIdentityHtml(l, l.category, 'sm')}
         <span class="rw-body">
           <span class="rw-title">${escapeHtml(l.title)}</span>
@@ -29873,12 +29938,15 @@ function shiftHistoryMonth(delta){
   renderHistoryCalendar();
 }
 
-function openDayDetail(dateStr){
-  const entry = workoutLog.find(l => l.date === dateStr);
+/* D107 (E30) — opened by the workout's own id, exactly as its Summary
+   already was (D102). A date can hold more than one session; only the id
+   says which one this sheet is. */
+function openDayDetail(entryId){
+  const entry = workoutLog.find(l => l.id === entryId);
   if(!entry) return;
   const prNames = getSessionPRs(entry);
   const time = workoutTimeShort(entry);
-  const dt = new Date(dateStr + 'T00:00:00');
+  const dt = new Date(entry.date + 'T00:00:00');
 
   document.getElementById('dayDetailTitle').textContent = entry.title;
   document.getElementById('dayDetailSub').innerHTML = `
@@ -30449,7 +30517,7 @@ function saveWorkoutEdits(btn){
           showWorkoutSummary(updated, prEventsForEntry(updated), [], computeSessionVolumeInsight(updated));
         }catch(e){}
       } else {
-        try{ openDayDetail(updated.date); }catch(e){}
+        try{ openDayDetail(updated.id); }catch(e){}
       }
     }, 420);
   });
@@ -54647,7 +54715,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
   if(histActions) histActions.hidden = live;
   if(!live){
     const fullBtn = document.getElementById('summaryFullWorkoutBtn');
-    if(fullBtn) fullBtn.onclick = () => { closeSummary(); openDayDetail(entry.date); };
+    if(fullBtn) fullBtn.onclick = () => { closeSummary(); openDayDetail(entry.id); };
   }
 
   const xpEntry = getWorkoutXPEntry(entry.id);

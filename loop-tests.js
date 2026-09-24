@@ -30466,7 +30466,8 @@ async function testWorkoutIdentity(){
     const legacy = { id: 'cardio_1', date: '2026-09-10', activityName: 'Run', duration: 30 };
     T('History: a workout row\'s icon replaces the category bar; cardio keeps its neutral mark', /workoutIdentityHtml\(l, l\.category, 'sm'\)/.test(fnSrc(src, 'recentWorkoutsHtml')) &&
       !/rw-accent cat-/.test(fnSrc(src, 'recentWorkoutsHtml')) && /rw-accent rw-accent-other/.test(fnSrc(src, 'historyOtherRowHtml')) && !!legacy);
-    T('  and the selected day\'s card leads with it', /sd-title has-wi">\$\{workoutIdentityHtml\(entry, entry\.category, 'sm'\)\}/.test(fnSrc(src, 'renderSelectedDay')));
+    /* D107 restated: the card itself is sdCardHtml now; renderSelectedDay only decides how many. */
+    T('  and the selected day\'s card leads with it', /sd-title has-wi">\$\{workoutIdentityHtml\(entry, entry\.category, 'sm'\)\}/.test(fnSrc(src, 'sdCardHtml')));
     T('Shared workouts: the preview leads with the snapshot\'s identity', /workoutIdentityHtml\(p, p\.category, 'md', \{ tile: true \}\)/.test(fnSrc(src, 'socialSharedPreviewHtml')));
     /* D102 restated the count on purpose: renderOtherDayCard's logged and
        planned branches now carry the SAME wi-c-${wid.colorId} treatment as
@@ -42067,14 +42068,18 @@ async function testCardsAndSummaryD102(){
     T('Today\'s completed card offers "Workout summary" and calls the real summary, not Day Detail',
       /Workout summary/.test(todayHtml) && /onclick="openWorkoutSummary\('d1'\)"/.test(todayHtml));
     T('the Log\'s selected-day card is a two-action row: Workout summary and Full workout, not one whole-card tap',
-      /class="tw-actions sd-actions"/.test(fnSrc(src, 'renderSelectedDay'))
-      && /openWorkoutSummary\('\$\{onclickArg\(entry\.id\)\}'\)/.test(fnSrc(src, 'renderSelectedDay'))
-      && /openDayDetail\('\$\{dateStr\}'\)/.test(fnSrc(src, 'renderSelectedDay'))
+/* D107 restated: the two-action row is sdCardHtml's own now (D107, E30) — one card
+       component for a day that trained once or more than once — and Full
+       workout opens the card's OWN id, never the day's. */
+      /class="tw-actions sd-actions"/.test(fnSrc(src, 'sdCardHtml'))
+      && /openWorkoutSummary\('\$\{onclickArg\(entry\.id\)\}'\)/.test(fnSrc(src, 'sdCardHtml'))
+      && /openDayDetail\('\$\{onclickArg\(entry\.id\)\}'\)/.test(fnSrc(src, 'sdCardHtml'))
       && !/<button type="button" class="sd-card"/.test(src));
     T('the full workout sheet offers "Workout summary" near the top, wired per-entry',
       /id="dayDetailSummaryBtn"/.test(src) && /summaryBtn\.onclick = \(\) => \{ closeDayDetail\(\); openWorkoutSummary\(entry\.id\); \};/.test(fnSrc(src, 'openDayDetail')));
     T('Recent stays lightweight: no summary button added to its rows', !/openWorkoutSummary/.test(fnSrc(src, 'recentWorkoutsHtml')));
-    ctx.openDayDetail(ctx.workoutLog[0].date);
+    /* D107 restated: Full workout opens by id now (E30). */
+    ctx.openDayDetail(ctx.workoutLog[0].id);
     T('and tapping it from there reaches the same summary, cross-linked back to Full workout',
       (() => { const btn = doc.getElementById('dayDetailSummaryBtn'); if(!btn || !btn.onclick) return false;
         btn.onclick(); const open = doc.getElementById('summaryOverlay').classList.contains('open');
@@ -42393,7 +42398,8 @@ async function testStartProvenanceD103(){
     const saved = await performAndSave(early);
     T('saved as Pull B on Monday — not as Monday\'s planned Pull A', saved && same(saved.exercises.map(e => e.name), B)
       && saved.title === 'pull: Pull-Up' && saved.date === '2026-09-21' && saved.programId === 'p1', JSON.stringify(saved && saved.exercises.map(e => e.name)));
-    ctx.openDayDetail('2026-09-21');
+    /* D107 restated: opened by the entry it just saved, not its date (E30). */
+    ctx.openDayDetail(saved.id);
     const full = rowsOf(doc.getElementById('dayDetailExercises').innerHTML);
     ctx.closeDayDetail();
     ctx.openWorkoutSummary(saved.id);
@@ -42417,7 +42423,8 @@ async function testStartProvenanceD103(){
     clock('2026-09-28T09:00:00');
     const after = await journey('mon');
     T('on its effective date, Monday starts B', same(bare(after.started.exercises), B), JSON.stringify(after.started.exercises));
-    ctx.openDayDetail('2026-09-21');
+    /* D107 restated: opened by the entry that week actually saved, not its date (E30). */
+    ctx.openDayDetail(kept.id);
     const dd = doc.getElementById('dayDetailExercises').innerHTML;
     ctx.closeDayDetail();
     const ddRows = [...dd.matchAll(/<div class="log-ex-name-line"><span>([^<]*)<\/span>/g)].map(x => x[1]);
@@ -42492,9 +42499,10 @@ async function testStartProvenanceD103(){
       savedA && savedB && same(savedA.exercises.map(e => e.name), A) && same(savedB.exercises.map(e => e.name), B)
       && savedA.date === '2026-09-21' && savedB.date === '2026-09-24' && savedA.programId === 'p1' && savedB.programId === 'p1'
       && savedA.title === 'pull: Lat Pulldown' && savedB.title === 'pull: Pull-Up');
+    /* D107 restated: each opened by its own saved id, not its date (E30). */
     const read = () => { const o = {};
-      ctx.openDayDetail('2026-09-21'); o.fullA = doc.getElementById('dayDetailExercises').innerHTML; ctx.closeDayDetail();
-      ctx.openDayDetail('2026-09-24'); o.fullB = doc.getElementById('dayDetailExercises').innerHTML; ctx.closeDayDetail();
+      ctx.openDayDetail(savedA.id); o.fullA = doc.getElementById('dayDetailExercises').innerHTML; ctx.closeDayDetail();
+      ctx.openDayDetail(savedB.id); o.fullB = doc.getElementById('dayDetailExercises').innerHTML; ctx.closeDayDetail();
       ctx.openWorkoutSummary(savedA.id); o.sumA = doc.getElementById('summaryTitle').textContent + '|' + doc.getElementById('summaryPRs').innerHTML; ctx.closeSummary();
       ctx.openWorkoutSummary(savedB.id); o.sumB = doc.getElementById('summaryTitle').textContent + '|' + doc.getElementById('summaryPRs').innerHTML; ctx.closeSummary();
       return o; };
@@ -42562,8 +42570,9 @@ async function testStartProvenanceD103(){
       && pin('addProgramRevision') === '551132a15c639918' && pin('updateProgramInMemory') === '6078239ad623aa33' && pin('swapScheduledDays') === 'b460198e9e2cdb5b');
     /* D105 restated: showWorkoutSummary's time figure changed on purpose; Contract
        219 proves it differs from this pin in those two lines and nothing else. */
+    /* D107 restated: both changed on purpose, for E30 — see Contract 222. */
     T('the save path and D102\'s Summary are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
-      && pin('showWorkoutSummary') === '6b049d341b375282' && pin('openDayDetail') === 'e3ba76d93f64b9fd');   /* D105.1 restated: its time line reads workoutTimeShort (Contract 220) */
+      && pin('showWorkoutSummary') === 'ae01827f9c112f92' && pin('openDayDetail') === 'ca6c95625a470a7e');
     T('D96: grouping, records, PR XP and the session index are byte-identical', pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
     T('E16 capability, E20 recovery, E21 D49 evidence and E22 XP/Mastery are untouched',
@@ -42920,11 +42929,15 @@ async function testSummaryTimeD105(){
       /workoutTimeOf\(entry\)/.test(fnSrc(src, 'summaryTimeStat')) && /workoutElapsedSeconds\(entry\)/.test(fnSrc(src, 'workoutTimeOf')) && /formatClock\(sec\)/.test(fnSrc(src, 'workoutTimeOf'))
       && !/startedAt|endedAt|padStart|>Actual</.test(fnSrc(src, 'plannedVsActualHtml')));
     T('the timer only counts on the day the workout is dated', /localDateStr\(start\) !== entry\.date/.test(fnSrc(src, 'workoutElapsedSeconds')));
-    const restored = sum.replace('const time = summaryTimeStat(entry);', 'const durationMin = estimateLoggedDuration(entry);')
-      .replace('<div class="stat-num">${time.num}</div><div class="stat-label">${time.label}</div>',
-        "<div class=\"stat-num\">${durationMin ? '~'+durationMin : '—'}</div><div class=\"stat-label\">Minutes</div>");
-    T('showWorkoutSummary differs from 10.18 in its time figure and nothing else (with the two old lines put back, it hashes to 10.18\'s pin)',
-      crypto.createHash('sha256').update(restored.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === 'f2d459d5e5106057');
+    /* D107 restated: showWorkoutSummary's Full-workout cross-link opens by
+       id now (E30), so the 10.18 reversal above no longer reconstructs one
+       real function two phases back — that lineage is recorded in
+       TRAINER-CONTRACT. A fresh, single-hop reversal proves the SAME thing
+       for D107's own real diff: put the one line back, and it hashes to
+       D105.1's own pin (the change is that line, and nothing else). */
+    const restoredD107 = sum.replace("openDayDetail(entry.id)", "openDayDetail(entry.date)");
+    T('showWorkoutSummary differs from D105.1 only in its Full-workout link\'s identity (the old line back → D105.1\'s pin)',
+      crypto.createHash('sha256').update(restoredD107.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === '6b049d341b375282');
     T('the plan spans the whole strip as one line, and the old two-cell block is gone',
       /\.dur-planned\{ grid-column: 1 \/ -1; text-align: center;/.test(css) && !/\.dur-compare|\.dur-cell/.test(css) && !/dur-compare/.test(src));
   });
@@ -42933,15 +42946,18 @@ async function testSummaryTimeD105(){
   await guard('protected', async () => {
     T('the estimate, the formatter and the plan figure are byte-identical', pin('estimateLoggedDuration') === '9827ffd0e63e6737'
       && pin('formatClock') === '0b1eb2d13865199b' && pin('computeWorkoutDuration') === '2ea2a0c3c72b7941');
+    /* D107 restated: saveWorkoutEdits reopens the edited entry's OWN id now (E30). */
     T('saving, starting, editing and reopening a workout are byte-identical', pin('saveLog') === '66c63714822ef5ee'
-      && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('saveWorkoutEdits') === 'f000241efb7e25fa' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
-      && pin('captureActiveDraft') === '664cdceb553301b7' && pin('restoreDraftToSheet') === '2bbd08f689e23bc0');   /* D105.1 restated: the draft now carries its own plan (E29); Contract 220 proves that one line is the only change. */
+      && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('saveWorkoutEdits') === 'cd9cf93070dfd4a0' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
+      && pin('captureActiveDraft') === '664cdceb553301b7' && pin('restoreDraftToSheet') === '2bbd08f689e23bc0');
     T('Session Score, quality, XP and records are byte-identical', pin('renderSummaryScore') === 'be7971b69696ae40'
       && pin('computeWorkoutQuality') === '30f1165dd94654eb' && pin('getWorkoutXPEntry') === 'f3cd1b21875f5d65' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('prEventsForEntry') === 'afda7994a51f7b09' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
     /* D105.1 restated: D105's "recorded, not changed here" marker, inverted — both now read the summary's time (Contract 220). */
+    /* D107 restated: both restructured for E30 — every entry of a day its own card, opened
+       by id; the time reading itself is unchanged (proven below). */
     T('the Log card and Full workout sheet read the same time as the summary',
-      pin('renderSelectedDay') === '89ccb78a27b36b0e' && pin('openDayDetail') === 'e3ba76d93f64b9fd');
+      pin('renderSelectedDay') === '9e110fef6f7db12a' && pin('openDayDetail') === 'ca6c95625a470a7e');
     T('no stored field: the summary adds no key and no entry field',
       !/entry\.(durationSec|actualMinutes|elapsed)\s*=/.test(src) && !/newEntry\.(durationSec|actualMinutes|elapsed)\s*=/.test(src));
   });
@@ -43005,7 +43021,10 @@ async function testWorkoutTimeTruthD1051(){
     const meta = (card.match(/<div class="sd-meta">([^<]*)<\/div>/) || [])[1] || '';
     const cardId = (card.match(/openWorkoutSummary\('([^']*)'\)/) || [])[1] || null;
     ctx.historySelectedDate = null;
-    ctx.openDayDetail(e.date);
+    /* D107 (E30) — the exact entry this read is about, not whichever the date
+       resolves to; a date can now hold more than one, and read3 must never
+       silently drift to a sibling's. */
+    ctx.openDayDetail(e.id);
     const sub = doc.getElementById('dayDetailSub').innerHTML.replace(/<[^>]*>/g, ' ');
     ctx.closeDayDetail();
     return { summary, log: kindOf(meta), full: kindOf(sub), planned, meta, sub, cardId, summaryHtml: html };
@@ -43062,9 +43081,23 @@ async function testWorkoutTimeTruthD1051(){
     const a = read3(byId('twinA'));
     ctx.openWorkoutSummary('twinB');
     const bHtml = doc.getElementById('summaryStats').innerHTML; ctx.closeSummary();
-    T('H — the Log card and Full workout show the workout they display (the date\'s first, twinA): its 38:05, and the card\'s summary button opens that same workout',
+    T('H — the Log card and Full workout each open the exact workout they show: twinA\'s own 38:05, opened by its own id (D107, E30)',
       agree(a) && a.log.value === '38:05' && a.cardId === 'twinA', [a.summary, a.log, a.full, a.cardId]);
     T('and the other workout that day keeps its own 1:12:44 and plan in its summary', /1:12:44/.test(bHtml) && /~70 min/.test(bHtml) && !/38:05/.test(bHtml));
+    /* D107 (E30) — the Log now shows BOTH sessions that day, each its own
+       card: twinA's is first (it trained earlier), twinB's second, each with
+       its own working "Full workout" and "Workout summary". */
+    ctx.historySelectedDate = byId('twinA').date; ctx.renderSelectedDay();
+    const day = doc.getElementById('historySelectedDay').innerHTML;
+    T('the day states it once, then both sessions, never merged into one card',
+      /2 workouts/.test(day) && (day.match(/class="sd-card"/g) || []).length === 2 && day.indexOf('twinA') < day.indexOf('twinB'));
+    const bBtn = [...day.matchAll(/openDayDetail\('([^']*)'\)/g)].map(m => m[1]);
+    T('twinB\'s own Full workout is independently reachable — the whole point of E30', bBtn.indexOf('twinB') !== -1);
+    ctx.openDayDetail('twinB');
+    const subB = doc.getElementById('dayDetailSub').innerHTML;
+    ctx.closeDayDetail();
+    T('and it opens twinB itself, not twinA — 1:12:44, never 38:05', /1:12:44/.test(subB) && !/38:05/.test(subB));
+    ctx.historySelectedDate = null;
   });
 
   sub('an edited workout keeps one time everywhere');
@@ -43198,9 +43231,10 @@ async function testWorkoutTimeTruthD1051(){
       calls('estimateLoggedDuration') === 1 && calls('workoutElapsedSeconds') === 1
       && /estimateLoggedDuration\(entry\)/.test(fnSrc(src, 'workoutTimeOf')) && /workoutElapsedSeconds\(entry\)/.test(fnSrc(src, 'workoutTimeOf'))
       && /formatClock\(sec\)/.test(fnSrc(src, 'workoutTimeOf')), [calls('estimateLoggedDuration'), calls('workoutElapsedSeconds')]);
+    /* D107 restated: the card's own time line is sdCardHtml's now. */
     T('the summary, the Log card and the Full workout sheet all read it',
       /workoutTimeOf\(entry\)/.test(fnSrc(src, 'summaryTimeStat')) && /workoutTimeOf\(entry\)/.test(fnSrc(src, 'workoutTimeShort'))
-      && /const time = workoutTimeShort\(entry\);/.test(fnSrc(src, 'renderSelectedDay')) && /const time = workoutTimeShort\(entry\);/.test(fnSrc(src, 'openDayDetail')));
+      && /const time = workoutTimeShort\(entry\);/.test(fnSrc(src, 'sdCardHtml')) && /const time = workoutTimeShort\(entry\);/.test(fnSrc(src, 'openDayDetail')));
     T('per entry only: the reading never walks the workout log', !/workoutLog/.test(fnSrc(src, 'workoutTimeOf') + fnSrc(src, 'workoutTimeShort') + fnSrc(src, 'workoutElapsedSeconds')));
     T('every session boundary owns the plan: template sets it, blank and end clear it, the draft carries and restores it',
       /pendingPlannedMinutes = duration;/.test(fnSrc(src, 'startTemplateLog')) && /pendingPlannedMinutes = null;/.test(fnSrc(src, 'openFreeformLog'))
@@ -43208,9 +43242,16 @@ async function testWorkoutTimeTruthD1051(){
       && /pendingPlannedMinutes = \(typeof draft\.plannedMinutes === 'number' && draft\.plannedMinutes > 0\) \? draft\.plannedMinutes : null;/.test(fnSrc(src, 'restoreDraftToSheet')));
     /* each changed function differs from 10.19 in the lines above and nothing else */
     const back = (name, pairs) => pairs.reduce((s, [a, b]) => s.replace(a, b), fnSrc(src, name));
-    T('the Log card and Full workout sheet changed only their time line (old lines back → 10.19\'s pins)',
-      hash(back('renderSelectedDay', [['const time = workoutTimeShort(entry);', 'let mins = null; try{ mins = estimateLoggedDuration(entry); }catch(e){}'], ['time || null', "mins ? '~' + mins + ' min' : null"]])) === '43c4d5b7faa85a8c'
-      && hash(back('openDayDetail', [['const time = workoutTimeShort(entry);', 'const duration = estimateLoggedDuration(entry);'], ['${time ? ` · ${time}` : \'\'}', '${duration ? ` · ~${duration} min` : \'\'}']])) === '3e9975e617040dd2');
+    /* D107 restated: renderSelectedDay was restructured for E30 (its card is
+       sdCardHtml now), so reversing it back to a single 10.19 pin no longer
+       reconstructs one real historical function. What the reversal proved —
+       that D105's diff from 10.19 was the time line and nothing else — is
+       recorded for good in TRAINER-CONTRACT §141/§142; what stays checkable
+       here is that the CURRENT card and openDayDetail still read time through
+       the one shared reading D105 gave every surface. */
+    T('sdCardHtml and openDayDetail keep D105\'s exact time reading, inside D107\'s restructure for E30',
+      /const time = workoutTimeShort\(entry\);/.test(fnSrc(src, 'sdCardHtml')) && /const time = workoutTimeShort\(entry\);/.test(fnSrc(src, 'openDayDetail'))
+      && pin('workoutTimeShort') === 'c97db5fead27b9ec' && pin('workoutTimeOf') === '58233330914cd18f');
     T('the four session functions changed only by their plan line (removed → 10.19\'s pins)',
       hash(back('openFreeformLog', [['pendingPlannedMinutes = null;', '']])) === '5997c307f4c24a7c'
       && hash(back('clearActiveDraft', [['pendingPlannedMinutes = null;', '']])) === 'c9885654fce10f35'
@@ -43220,10 +43261,12 @@ async function testWorkoutTimeTruthD1051(){
 
   sub('everything else is untouched');
   await guard('protected', async () => {
+    /* D107 restated: saveWorkoutEdits reopens by id now (E30). */
     T('saving, starting, discarding, resuming and editing are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('startTemplateLog') === '5c14f8e6f7f41f52'
       && pin('discardActiveWorkout') === '020dca77235709c7' && pin('resumeActiveWorkout') === 'a6b29b4389ef77c8' && pin('loadActiveDraft') === '4bf204a7626c45ec'
-      && pin('persistDraftNow') === '029fa02a38c64331' && pin('confirmOverwriteDraft') === 'ac92b2b2509c9d60' && pin('saveWorkoutEdits') === 'f000241efb7e25fa');
-    T('D105\'s summary is byte-identical: its renderer, the plan line, the estimate, the formatter', pin('showWorkoutSummary') === '6b049d341b375282'
+      && pin('persistDraftNow') === '029fa02a38c64331' && pin('confirmOverwriteDraft') === 'ac92b2b2509c9d60' && pin('saveWorkoutEdits') === 'cd9cf93070dfd4a0');
+    /* D107 restated: its Full-workout link opens by id now (E30). */
+    T('D105\'s summary is byte-identical: its renderer, the plan line, the estimate, the formatter', pin('showWorkoutSummary') === 'ae01827f9c112f92'
       && pin('plannedVsActualHtml') === 'a86c34bd2d9b22be' && pin('estimateLoggedDuration') === '9827ffd0e63e6737' && pin('formatClock') === '0b1eb2d13865199b'
       && pin('openWorkoutSummary') === '58c0ec576bb1bad2' && pin('computeWorkoutDuration') === '2ea2a0c3c72b7941');
     T('Session Score, XP, records and D96 grouping are byte-identical', pin('renderSummaryScore') === 'be7971b69696ae40' && pin('computeWorkoutQuality') === '30f1165dd94654eb'
@@ -43405,7 +43448,246 @@ async function testMasteryTourD106(){
       && pin('substitutionOptionHtml') === '36c7820f98b0491b' && pin('bodyDiagramSvg') === '50d44084806369ae' && pin('volumeBarSvg') === 'e4c8f5df157fb24a' && pin('setChipHtml') === '350b4e34eb582056');
     T('XP, rank, readiness and recovery maths are byte-identical', pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898'
       && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('readinessStateFromScore') === '736f5c750f322973' && pin('computeMuscleRecovery') === '6d079e205ec35afb');
-    T('the real Today card, the stepper and logging are byte-identical', pin('renderTodayWorkout') === '1379e92ab91902ab' && pin('renderWorkoutStep') === 'f92999bce55ec36b' && pin('toggleSetComplete') === '46059f0d3306793b');
+    /* D107 restated: renderTodayWorkout's own hero shows the day's LAST
+       session now (E30) — never a stale first-of-the-day entry left behind
+       once a second session that day is also logged. */
+    T('the real Today card, the stepper and logging are byte-identical', pin('renderTodayWorkout') === '7957f591c99febed' && pin('renderWorkoutStep') === 'f92999bce55ec36b' && pin('toggleSetComplete') === '46059f0d3306793b');
+  });
+}
+
+/* =========================================================
+   CONTRACT 222 — A WORKOUT'S IDENTITY IS ITS ID; THE REST PANEL FITS AT 320PX  (D107)
+   ---------------------------------------------------------
+   E30. The Log's selected-day card, the Full workout sheet and every Recent
+   row found a workout by its DATE — workoutLog.find(l => l.date === dateStr)
+   — so a date with two workouts only ever showed the first, and the second
+   could not be reached at all. The date still groups a day's sessions
+   (workoutsOnDate); a session's own id is what a card, a Summary or a Full
+   workout sheet is actually about. One card component, sdCardHtml, draws
+   every session of a day — one when there is one, several when there are
+   more — and nothing ever collapses two sessions into one because they
+   share a date, a title or a category.
+
+   E31. At 320px the rest panel's label column had under 20px once the fixed
+   64px dial and the three 44px controls took their share, so "Resting"
+   rendered behind the first control instead of beside it. The dial and the
+   controls keep their size; only the row does, wrapping the controls onto
+   their own line at LOOP's existing ≤359px tier so the label (and the
+   exercise name) get the row they no longer have to share.
+   ========================================================= */
+async function testWorkoutIdentityD107(){
+  section('CONTRACT 222 — a workout\'s identity is its id; the rest panel fits at 320px (D107)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const pad = n => String(n).padStart(2, '0');
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const E = (name, sets) => ({ name, effort: '', bodyweight: false, sets });
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  ctx.confirm = () => true;
+  const D = n => { const d = new ctx.Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  const at = (day, h, m, s) => new ctx.Date(day + 'T' + pad(h) + ':' + pad(m) + ':' + pad(s || 0)).toISOString();
+  const WK = (id, day, timing, exs) => Object.assign({ id, date: day, category: 'pull', title: 'Session ' + id, notes: '', exercises: exs }, timing || {});
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
+    ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); };
+  const byId = id => ctx.workoutLog.find(l => l.id === id);
+
+  /* ---------------- the fixture: a whole month of real, distinguishable days ---------------- */
+  const zeroDate = D(2), soloDate = D(15), twoDate = D(5), triDate = D(10), dupDate = D(8);
+  const priorBench = WK('priorBench', D(20), {}, [E('Bench Press', [S(185, 8), S(185, 8), S(185, 8)])]);
+  const priorSquat = WK('priorSquat', D(20), {}, [E('Back Squat', [S(315, 5), S(315, 5), S(315, 5)])]);
+  const solo = WK('solo', soloDate, { startedAt: at(soloDate, 18, 0, 0), endedAt: at(soloDate, 18, 47, 12) },
+    [E('Overhead Press', [S(95, 8), S(95, 8)])]);
+  /* two on one date: different duration, different PR count (A is a real
+     weight PR on Bench Press; B is a lighter Squat than the prior session,
+     no PR), different set count. */
+  const twoA = WK('twoA', twoDate, { startedAt: at(twoDate, 7, 0, 0), endedAt: at(twoDate, 7, 38, 5) },
+    [E('Bench Press', [S(225, 5), S(225, 5), S(225, 5)])]);
+  const twoB = WK('twoB', twoDate, { startedAt: at(twoDate, 18, 0, 0), endedAt: at(twoDate, 19, 12, 44) },
+    [E('Back Squat', [S(275, 5), S(275, 5)])]);
+  /* three on one date */
+  const triA = WK('triA', triDate, { startedAt: at(triDate, 6, 0, 0), endedAt: at(triDate, 6, 30, 0) }, [E('Overhead Press', [S(95, 8)])]);
+  const triB = WK('triB', triDate, { startedAt: at(triDate, 12, 0, 0), endedAt: at(triDate, 12, 20, 0) }, [E('Bench Press', [S(185, 8)])]);
+  const triC = WK('triC', triDate, { startedAt: at(triDate, 19, 0, 0), endedAt: at(triDate, 19, 45, 0) }, [E('Back Squat', [S(225, 5)])]);
+  /* same title AND same category, same date — must still be two cards */
+  const dupA = WK('dupA', dupDate, { title: 'Push A', category: 'push' }, [E('Bench Press', [S(185, 8)])]);
+  const dupB = WK('dupB', dupDate, { title: 'Push A', category: 'push' }, [E('Overhead Press', [S(95, 8)])]);
+  const LOG = () => [priorBench, priorSquat, solo, twoA, twoB, triA, triB, triC, dupA, dupB].map(x => JSON.parse(JSON.stringify(x)));
+
+  /* the exact card(s) a date renders, read straight from the DOM */
+  const dayCards = dateStr => {
+    ctx.historySelectedDate = dateStr; ctx.renderSelectedDay();
+    const html = doc.getElementById('historySelectedDay').innerHTML;
+    const ids = [...html.matchAll(/openWorkoutSummary\('([^']*)'\)/g)].map(m => m[1]);
+    const fullIds = [...html.matchAll(/openDayDetail\('([^']*)'\)/g)].map(m => m[1]);
+    ctx.historySelectedDate = null;
+    return { html, count: (html.match(/<div class="sd-card">/g) || []).length, ids, fullIds,
+      hasMultiHead: /sd-multi-head/.test(html), countWord: (html.match(/(\d+) workouts/) || [])[1] || null };
+  };
+
+  sub('grouping: zero, one, two and three workouts on a date');
+  await guard('grouping', async () => {
+    seed(LOG());
+    T('0 — a day with nothing logged still answers truthfully, and nothing there is openable',
+      dayCards(zeroDate).count === 0 && !/openDayDetail\(/.test(dayCards(zeroDate).html) && /sd-card-empty/.test(dayCards(zeroDate).html));
+    const one = dayCards(soloDate);
+    T('1 — one workout: one card, unchanged in shape — no multi-day header for a day that trained once',
+      one.count === 1 && !one.hasMultiHead && one.ids[0] === 'solo' && one.fullIds[0] === 'solo');
+    const two = dayCards(twoDate);
+    T('2 — two workouts on one date: both render, each its own card', two.count === 2 && two.countWord === '2');
+    T('each keeps its OWN id, in both its Summary and its Full workout link — never the other\'s',
+      two.ids.join() === 'twoA,twoB' && two.fullIds.join() === 'twoA,twoB');
+    const three = dayCards(triDate);
+    T('3+ — three workouts on one date: the architecture is bounded by what is actually logged, not capped at two',
+      three.count === 3 && three.countWord === '3' && three.ids.join() === 'triA,triB,triC');
+    T('4 — no session merges because it shares a date with another: workoutsOnDate is a lookup, never a second derivation over the whole log',
+      !/for\(.*workoutLog\.length/.test(fnSrc(src, 'workoutsOnDate')) && /workoutLog\.filter\(l => l\.date === dateStr\)/.test(fnSrc(src, 'workoutsOnDate')));
+  });
+
+  sub('identity: each session is openable by its own id, never merged or substituted');
+  await guard('identity', async () => {
+    seed(LOG());
+    T('5 — each of the day\'s entries carries a distinct id', new Set([twoA.id, twoB.id]).size === 2 && new Set([triA.id, triB.id, triC.id]).size === 3);
+    T('6 — opening A\'s Full workout opens A', (() => { ctx.openDayDetail('twoA'); const t = doc.getElementById('dayDetailTitle').textContent; ctx.closeDayDetail(); return t === twoA.title; })());
+    T('7 — opening B\'s Full workout opens B, not A', (() => { ctx.openDayDetail('twoB'); const t = doc.getElementById('dayDetailTitle').textContent; ctx.closeDayDetail(); return t === twoB.title; })());
+    T('8 — A\'s Workout Summary is A', (() => { ctx.openWorkoutSummary('twoA'); const t = doc.getElementById('summaryTitle').textContent; ctx.closeSummary(); return t === twoA.title; })());
+    T('9 — B\'s Workout Summary is B, not A', (() => { ctx.openWorkoutSummary('twoB'); const t = doc.getElementById('summaryTitle').textContent; ctx.closeSummary(); return t === twoB.title; })());
+    const durA = () => { ctx.openDayDetail('twoA'); const s = doc.getElementById('dayDetailSub').innerHTML; ctx.closeDayDetail(); return s; };
+    const durB = () => { ctx.openDayDetail('twoB'); const s = doc.getElementById('dayDetailSub').innerHTML; ctx.closeDayDetail(); return s; };
+    T('10 — different durations remain different, each on its own sheet', /38:05/.test(durA()) && /1:12:44/.test(durB()) && !/1:12:44/.test(durA()) && !/38:05/.test(durB()));
+    const prA = ctx.getSessionPRs(twoA), prB = ctx.getSessionPRs(twoB);
+    T('11 — different PR counts remain different: A\'s heavier bench is a real record, B\'s lighter squat is not',
+      prA.length > 0 && prB.length === 0, [prA, prB]);
+    const xpA = ctx.getWorkoutXPEntry('twoA'), xpB = ctx.getWorkoutXPEntry('twoB');
+    T('12 — different XP remains different, each entry\'s own', !!xpA && !!xpB && xpA.xpTotal !== xpB.xpTotal && xpA.id === 'twoA' && xpB.id === 'twoB', [xpA && xpA.xpTotal, xpB && xpB.xpTotal]);
+  });
+
+  sub('edit and delete: one entry never touches its sibling');
+  await guard('edit delete', async () => {
+    seed(LOG());
+    const beforeA = JSON.stringify(byId('twoA'));
+    const draft = JSON.parse(JSON.stringify(byId('twoB')));
+    draft.exercises[0].sets = draft.exercises[0].sets.concat([S(280, 4)]);
+    ctx.workoutEditState = { id: 'twoB', origin: 'day', draft, baseline: JSON.stringify(byId('twoB')), dirty: true, saving: false };
+    ctx.saveWorkoutEdits(); await H.settle(1200); ctx.workoutEditState = null;
+    T('13 — editing B changes B, and leaves A byte-for-byte unchanged', byId('twoA') && JSON.stringify(byId('twoA')) === beforeA
+      && byId('twoB').exercises[0].sets.length === 3, [byId('twoA') && byId('twoA').exercises[0].sets.length, byId('twoB').exercises[0].sets.length]);
+    const before = ctx.workoutLog.length;
+    ctx.deleteLog('twoA');
+    T('14 — deleting A leaves B in the log, and the Log\'s own selected-day view updates to show B alone',
+      ctx.workoutLog.length === before - 1 && !byId('twoA') && !!byId('twoB') && dayCards(twoDate).count === 1 && dayCards(twoDate).ids[0] === 'twoB');
+    T('and B\'s Full workout still opens correctly after A is gone', (() => { ctx.openDayDetail('twoB'); const t = doc.getElementById('dayDetailTitle').textContent; ctx.closeDayDetail(); return t === twoB.title; })());
+  });
+
+  sub('never merged: not by title, not by category, not by "latest wins"');
+  await guard('never merged', async () => {
+    seed(LOG());
+    const dup = dayCards(dupDate);
+    T('15 — same title, same date: still two cards, not one', dup.count === 2 && dup.ids.join() === 'dupA,dupB');
+    T('16 — same category, same date: still two cards, each opening to its OWN distinct exercises',
+      (() => { ctx.openDayDetail('dupA'); const a = doc.getElementById('dayDetailExercises').innerHTML; ctx.closeDayDetail();
+        ctx.openDayDetail('dupB'); const b = doc.getElementById('dayDetailExercises').innerHTML; ctx.closeDayDetail();
+        return /Bench Press/.test(a) && !/Overhead Press/.test(a) && /Overhead Press/.test(b) && !/Bench Press/.test(b); })());
+    T('no "latest wins": the FIRST-trained session of the day leads, the Log never silently drops one for the other',
+      dayCards(twoDate).ids[0] === 'twoA');
+  });
+
+  sub('Recent, Today\'s hero and the other-day card: id-based, and truthful about more than one');
+  await guard('other surfaces', async () => {
+    seed(LOG());
+    const rec = ctx.recentWorkoutsHtml(20);
+    T('17a — Recent already held the exact entry; it opens by that entry\'s id, not the shared date',
+      /openDayDetail\('twoA'\)/.test(rec) && /openDayDetail\('twoB'\)/.test(rec) && !/openDayDetail\('\$\{l\.date\}'\)/.test(fnSrc(src, 'recentWorkoutsHtml')));
+    /* Today's own hero: the day's LAST session, so "Workout complete" never
+       reflects a stale first-of-the-day entry once a second is also logged. */
+    const todayStr = ctx.localDateStr();
+    seed([WK('am', todayStr, { startedAt: at(todayStr, 7, 0, 0), endedAt: at(todayStr, 7, 20, 0) }, [E('Bench Press', [S(100, 8)])]),
+          WK('pm', todayStr, { startedAt: at(todayStr, 18, 0, 0), endedAt: at(todayStr, 18, 20, 0) }, [E('Back Squat', [S(200, 5)])])]);
+    ctx.renderTodayWorkout();
+    const hero = doc.getElementById('todayWorkout').innerHTML;
+    T('17b — a second workout logged today updates the hero to what was just finished, not the morning\'s stale first',
+      /Session pm/.test(hero) && /openWorkoutSummary\('pm'\)/.test(hero) && !/Session am/.test(hero));
+    /* Today's compact "other day" card only ever browses WITHIN the current
+       week (setSelectedDay takes a weekday key, never an arbitrary date), so
+       the fixture has to be a day of THIS week, not an arbitrary past date. */
+    seed([]);
+    const otherKey = ctx.todayKey() === 'mon' ? 'tue' : 'mon';
+    ctx.setSelectedDay(otherKey);
+    const otherDate = ctx.selectedDayDate();
+    const wA = WK('wA', otherDate, { startedAt: at(otherDate, 7, 0, 0), endedAt: at(otherDate, 7, 20, 0) }, [E('Bench Press', [S(185, 8)])]);
+    const wB = WK('wB', otherDate, { startedAt: at(otherDate, 18, 0, 0), endedAt: at(otherDate, 18, 30, 0) }, [E('Back Squat', [S(225, 5)])]);
+    seed([wA, wB]);
+    ctx.setSelectedDay(otherKey, { force: true });
+    const other = doc.getElementById('todayWorkout').innerHTML;
+    T('17c — the other-day card leads with the day\'s first session, opens it by id, and says there is more',
+      /openDayDetail\('wA'\)/.test(other) && /\+1 more/.test(other) && !/openDayDetail\('\$\{dateStr\}'\)/.test(fnSrc(src, 'renderOtherDayCard')));
+    ctx.setSelectedDay(ctx.todayKey());
+  });
+
+  sub('reading writes nothing');
+  await guard('read-only', async () => {
+    seed(LOG());
+    const before = JSON.stringify(app.store), logBefore = JSON.stringify(ctx.workoutLog);
+    [zeroDate, soloDate, twoDate, triDate, dupDate].forEach(dayCards);
+    ['twoA', 'twoB', 'triA', 'triB', 'triC', 'dupA', 'dupB', 'solo'].forEach(id => {
+      ctx.openDayDetail(id); ctx.closeDayDetail();
+      ctx.openWorkoutSummary(id); ctx.closeSummary();
+    });
+    T('18 — opening every day, every card and every sheet leaves storage and the log exactly as they were',
+      JSON.stringify(app.store) === before && JSON.stringify(ctx.workoutLog) === logBefore);
+  });
+
+  sub('one card component, one identity source');
+  await guard('source', async () => {
+    T('sdCardHtml is the ONE builder for a day\'s card, called for one entry or for many — never a second, simpler copy for the single-day case',
+      /function sdCardHtml\(entry, nice, showDate\)/.test(src) && (fnSrc(src, 'renderSelectedDay').match(/sdCardHtml\(/g) || []).length === 2);
+    T('openWorkoutSummary and openDayDetail both resolve by id — the one identity a workout actually has',
+      /workoutLog\.find\(l => l\.id === entryId\)/.test(fnSrc(src, 'openDayDetail')) && /workoutLog\.find\(l => l\.id === entryId\)/.test(fnSrc(src, 'openWorkoutSummary')));
+    T('workoutsOnDate orders a day\'s sessions the way they were trained, the same rule Recent already used for one entry',
+      /Date\.parse\(entry\.endedAt \|\| ''\)/.test(fnSrc(src, 'workoutsOnDate')) && /Number\(entry\.id\)/.test(fnSrc(src, 'workoutsOnDate')));
+    T('the shared header above a stacked day is styled, not left to the page\'s own font — the date and the count in the same quiet key/value rhythm every other head on this card already uses',
+      /\.sd-multi-head\{ display: flex; align-items: center; justify-content: space-between;/.test(css) && /\.sd-count\{ font-size: 11px; font-weight: 700;/.test(css));
+  });
+
+  /* ================= E31 — the rest panel at 320px ================= */
+  sub('E31 — the countdown, the state and the controls each keep their own room');
+  await guard('rest panel', async () => {
+    T('19/20 — the dial (the countdown) is untouched: still 64px, still first in the row',
+      /\.rest-dial\{[^}]*width: 64px; height: 64px;/.test(css) && src.indexOf('rest-dial') < src.indexOf('rest-panel-info', src.indexOf('class="rest-panel"')));
+    T('21/22 — all three controls keep their real size: +15s and pause at 44×44, Skip auto-width beside them, never shrunk to make room for the label',
+      /\.rest-panel-btn\{[^}]*width: 44px; height: 44px;/.test(css) && !/@media \(max-width: 359px\)\{[^}]*\.rest-panel-btn\{[^}]*width:/.test(css));
+    T('the row wraps at LOOP\'s own ≤359px tier — untouched from 360px up, where the label already had room',
+      /@media \(max-width: 359px\)\{\s*\.rest-panel\{ flex-wrap: wrap; row-gap: 8px; \}\s*\.rest-panel-controls\{ flex: 0 0 100%; justify-content: flex-end; \}\s*\}/.test(css));
+    T('the controls are the thing that moves — flex-basis 100% forces them onto their own line, never the dial or the label',
+      /\.rest-panel-controls\{ flex: 0 0 100%;/.test(css) && !/\.rest-dial\{[^}]*flex:/.test(css));
+    T('23 — the wrap is scoped to the ≤359px tier only, never a second, unscoped copy that would force wrapping at every width',
+      (css.match(/\.rest-panel-controls\{ flex: 0 0 100%;/g) || []).length === 1);
+    T('25/26 — the deadline clock, the tick, pause/resume and background truth are untouched (D99A\'s own rule, byte-identical)',
+      pin('startRestPanel') === '22468c2156bf9eef' && pin('setRingProgress') === 'acec2daca1dc32de' && pin('formatMMSS') === 'af1e4313b8f3e4cb' && pin('restRingSvg') === '830b35d31e01d2b4'
+      && pin('tickRestPanel') === 'f0e7ffe235dec3bb' && pin('updateRestPanelDisplay') === 'c1c4d404bc7295ce' && pin('clearRestTimer') === 'c5933d0e891efdcc');
+    T('24 — +15s, pause and Skip are still the same three named handlers, byte-identical',
+      /onclick="addRestTime\(this,15\)"/.test(src) && /onclick="pauseResumeRest\(this\)"/.test(src) && /onclick="skipRest\(this\)"/.test(src)
+      && pin('pauseResumeRest') === '0566b1a229d9ba6f' && pin('addRestTime') === 'f2efc5ce099b7438' && pin('skipRest') === '8ec2e0f8cd8b8f77');
+    T('27 — reduced motion is still the ring\'s own rule, never touched by the wrap', /@media \(prefers-reduced-motion: reduce\)\{[\s\S]*?\.rest-ring-fill\{ transition: none; \}/.test(css));
+    T('no cryptic abbreviation: the label is still the real word "Resting", never shortened in source', /<div class="rest-panel-label">Resting<\/div>/.test(src) && !/REST</.test(src));
+  });
+
+  sub('everything else is untouched');
+  await guard('protected', async () => {
+    T('saving, starting and the summary chain are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('startTemplateLog') === '5c14f8e6f7f41f52'
+      && pin('openWorkoutEditor') === 'b3bd3af59344624b' && pin('deleteLog') === 'c285ece4eae2315d');
+    T('time, PR and XP engines are byte-identical', pin('workoutTimeShort') === 'c97db5fead27b9ec' && pin('workoutTimeOf') === '58233330914cd18f'
+      && pin('getSessionPRs') === '2a121bed25bfa6ab' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
+      && pin('computeExercisePREvents') === '4339cc543585bded');
+    T('workout identity, the shared action label and the category table are byte-identical',
+      pin('workoutIdentity') === '9196e8f108a3a7ad' && pin('workoutIdentityHtml') === 'be3b1b8c56ceb888' && pin('twActionLabel') === '21824852a16e4df2' && pin('CAT_LABEL') === 'e3b0c44298fc1c14');
+    T('the stepper and logging are untouched', pin('renderWorkoutStep') === 'f92999bce55ec36b' && pin('toggleSetComplete') === '46059f0d3306793b' && pin('appendSetRow') === '15d160342d105b97');
+    T('no new data key and no schema change', !/DATA_SCHEMA_VERSION = 2/.test(src) && /DATA_SCHEMA_VERSION = 1;/.test(src));
   });
 }
 
@@ -43591,6 +43873,7 @@ async function main(){
   await testSummaryTimeD105();
   await testWorkoutTimeTruthD1051();
   await testMasteryTourD106();
+  await testWorkoutIdentityD107();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

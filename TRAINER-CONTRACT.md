@@ -14900,3 +14900,107 @@ this phase. OPEN.
 
 **Status.** Presentation and onboarding only. No DATA_KEY, no schema change, trainer 0.1.1-shadow.
 E16 HELD; E20–E22, E25–E27, E30 OPEN and untouched. verify 10,426/0, five audits green.
+
+## §144 — A WORKOUT'S IDENTITY IS ITS ID; THE REST PANEL FITS AT 320PX (D107 · LOOP 10.22 · loop-v199)
+
+Two of D105.1's own recorded findings, closed on their own terms.
+
+### E30 — a date groups a day; an id is a workout
+
+**Reproduced first, on shipped 10.21.** The Log's selected-day card (`renderSelectedDay`), the Full
+workout sheet (`openDayDetail(dateStr)`) and every Recent row all found a workout by
+`workoutLog.find(l => l.date === dateStr)`, so a date with two sessions only ever showed the first —
+the second could not be reached at all. Two more sites shared the same shape, found by auditing every
+date-keyed lookup: Today's own "other day" card (`renderOtherDayCard`) showed and linked only the
+first-by-array-order session of a browsed day, and Today's own "Workout complete" hero
+(`renderTodayWorkout`) could keep showing the MORNING's session after an athlete trained again in the
+evening, because it too found "today's workout" by date rather than by which one was actually last.
+
+**The identity was already right next door.** D102 (10.16) had already made the Workout Summary open
+by id, for exactly this reason — "a date can hold more than one workout" is recorded in its own
+comment. E30 is that same fix reaching the rest of the day's surfaces. The date still GROUPS a day's
+sessions (`workoutsOnDate(dateStr)`, ordered by when each was actually trained — the ended timestamp,
+or its id, which is a save time — the same rule Recent's own ordering already used for one entry); a
+session's own id is what a card, a Summary or a Full workout sheet is actually ABOUT.
+
+**One card component.** `sdCardHtml(entry, nice, showDate)` is the one builder for a day's card, now
+called once for a day that trained once (byte-identical markup to what `renderSelectedDay` drew
+inline before) and once per session, stacked, for a day that trained more than once — a shared header
+states the date and the count ("2 workouts") once, each card beneath it its own title, category,
+meta, PRs and two actions, each wired to that card's own id. Nothing merges because two sessions
+share a date, a title or a category: a day that trained the same "Push A" twice is still two cards,
+each opening to its own exercises.
+
+**Recent already had the right entry in hand** — its bug was smaller: `onclick="openDayDetail('${l.date}')"`
+discarded the exact entry it was already iterating and asked for it back by date. It now opens
+`l.id`.
+
+**Today's two cards, decided deliberately, not uniformly.** The "other day" card only ever browses
+within the current week (it takes a weekday key, never an arbitrary date) and has room for one
+workout's identity; it now leads with the day's canonical FIRST session, opens it by id, and — rather
+than silently going quiet about the second — says so ("+1 more"). The "Workout complete" hero shows
+the day's LAST session, so it always reflects what the athlete just finished. Two different, correct
+answers for two different single-slot surfaces; the Log is where every session of a day is listed.
+
+**Edit and delete were already safe** — `openWorkoutEditor` and `deleteLog` were already keyed by id,
+byte-identical — but reaching them safely for a specific entry needed the surfaces above fixed first.
+`saveWorkoutEdits` reopens the edited entry's own id (was: its date); a workout's own summary cross-links
+Full workout by id (was: by date, `entry.date`).
+
+### E31 — the rest panel at 320px
+
+**Reproduced first, on shipped 10.21, in real Edge.** The rest panel is one flex row: the 64px dial,
+the label column, the three controls (44×44, 44×44, an auto-width Skip). At 320px wide, with the
+card's own padding and the row's own gaps subtracted, the label column measured under 20px — "Resting"
+rendered in full (nothing was ever clipped or ellipsised; there is no such rule on `.rest-panel-label`)
+but the tail of the word painted UNDER the opaque background of the first control beside it, reading
+as "REST" cut off mid-word. Measured from 360px up, the same column already had 59px or more — the
+defect is 320px only.
+
+**The decision, in the brief's own priority order.** The countdown (1) and the controls (3) keep
+their exact size — no shrinking the dial, no control under 44px. What moves is the ROW: at LOOP's own
+existing ≤359px tier, the controls wrap onto a line of their own (`flex: 0 0 100%`), giving the dial
+and the label column the row's full width on the line above. "Resting" stays "Resting" — the label
+was never the thing forced to change.
+
+**What did not move.** The deadline clock, the tick, pause/resume, +15s and Skip, and D99A's own
+`setRingProgress` are byte-identical. The wrap is CSS only, scoped to the one existing breakpoint;
+nothing above 359px changed.
+
+### Evidence
+
+**Tests.** Contract 222 (**42 checks**): 0/1/2/3-workout days; each session openable by its own id for
+both Summary and Full workout; different durations, PR counts and XP staying different, each on its
+own entry; editing one entry leaving its sibling byte-for-byte unchanged; deleting one leaving the
+other reachable; same title, same category, same date — still two cards; Recent, the hero and the
+other-day card, each proven by source and by real behaviour; reading every day, card and sheet writing
+nothing; the rest panel's dial, label, controls, scoping, named handlers and reduced-motion rule.
+Against shipped 10.21 it fails at every touched call site. 17 existing assertions were restated in
+place with their reason — the pins on `showWorkoutSummary`, `saveWorkoutEdits`, `renderSelectedDay`,
+`openDayDetail` and `renderTodayWorkout`, two markup patterns whose card moved into `sdCardHtml`, a
+two-phase historical hash-reversal retired in favour of a fresh single-hop one (recorded here, once,
+rather than compounded a third time), and D105.1's own "twins" test — whose label had read "(the
+date's first, twinA)" — extended to prove the second workout is now independently reachable too, the
+whole point of the fix.
+
+**Mutation: 16 of 16 killed**, every one by Contract 222 alone: date used as identity again (five call
+sites), the Log or Today's hero substituting or hiding a second session, sessions losing their trained
+order, `workoutsOnDate` stripped of its own date filter, the rest panel's wrap removed or unscoped,
+a control shrunk below 44px, and the countdown's deadline turned into a tally.
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844, 393×852, 414×896 and
+430×932, real CDP presses at each control's centre: a two-workout day showing both cards with nothing
+sideways; a real press on the SECOND card's Full workout opening that workout and not the first; a
+real press on the FIRST card's Summary opening that one and not the second; the countdown, the label
+and every control measured and pressed on the real rest panel — +15s adding real time, Skip really
+dismissing it; no console errors. 84/84 locally and live (a first draft of the Skip check asserted the
+wrong post-Skip state — `.done`, which Skip explicitly does not set, only clears — corrected before
+the run above).
+
+**Found, recorded:** **E32** — the Log calendar's own day map decorates a cell (its category outline,
+its PR dot) from whichever session of a multi-workout day was saved first, never all of them.
+Decorative only — the calendar never opens the wrong workout, `renderSelectedDay` (fixed here) is what
+answers a tap — recorded rather than folded into a phase asked to stay small. OPEN.
+
+**Status.** E30 CLOSED. E31 CLOSED. E32 OPEN. E16 HELD; E20–E22, E25–E27 OPEN and untouched. DATA_KEYS
+16, schema 1, trainer 0.1.1-shadow, no migration. verify 10,471/0, five audits green.
