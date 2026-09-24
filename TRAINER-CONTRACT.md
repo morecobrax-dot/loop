@@ -14680,3 +14680,76 @@ the Full workout sheet still show the set estimate as "~N min".
 
 **Status.** UI only. E29 OPEN. E16 HELD; E20, E21, E22, E25, E26, E27 OPEN and untouched.
 verify 10,352/0, five audits green.
+
+## §142 — ONE WORKOUT, ONE TIME; A PLAN BELONGS TO ITS OWN WORKOUT (D105.1 · LOOP 10.20 · loop-v197)
+
+A small follow-up to §141. Two things were wrong, and both were measured on shipped 10.19 in real Edge
+before anything was edited.
+
+**E29, reproduced and mapped.** `pendingPlannedMinutes` had four sites: its declaration, one write
+(`startTemplateLog` → `computeWorkoutDuration` of what was started), one read (`saveLog` → the entry's
+`plannedMinutes`) and one clear — after a successful save, and nowhere else. Every workout begins in one of
+three places (`startTemplateLog`, `openFreeformLog`, `restoreDraftToSheet`; every card, row, picker and
+"Log it now" routes through them) and ends in one (`clearActiveDraft`, reached by a save and by discard).
+The draft already carried every other piece of session provenance (origin, program, phase, identity) and
+`clearActiveDraft` already cleared them; the plan was the one value that was neither carried nor cleared.
+On 10.19: a template discarded, then a blank workout → saved with the template's 40 minutes; a template
+left open (sheet closed, not discarded) and replaced by a blank workout → the same, a second path the
+brief did not name; a template resumed after the app was reopened → its own plan lost. A template saved
+as itself, and a template started after a discarded one, were already right.
+
+**The fix is ownership at the boundaries**, not a save-time special case: a blank start clears it, the end
+of every session clears it, the draft carries it (`plannedMinutes`, inside the existing
+`activeWorkoutDraft` key — no new key), and a resume restores the draft's own value or none, never what
+memory held. A draft written before 10.20 has no field and resumes with an unknown plan. `saveLog`,
+`startTemplateLog`, discard, resume and autosave are byte-identical; the four session functions differ from
+10.19 by their one plan line each (proven by hash).
+
+**One time reading.** The only surfaces that show a logged workout's time are the Workout Summary, the
+Log's selected-day card and the Full workout sheet; every other "~N min" in LOOP describes a plan, a
+template, a program day, cardio or the warm-up. The Log card and the Full workout sheet each ran
+`estimateLoggedDuration` themselves, so on 10.19 one workout read "~15 min", "1:00:53", "~15 min".
+`workoutTimeOf(entry)` is now the one reading — the measured duration when D105's timer can be trusted,
+else the set estimate, else nothing — and each surface only chooses its room: the summary's labelled stat
+(`summaryTimeStat`), and one compact form (`workoutTimeShort`) for the Log card and the Full workout
+sheet — the same clock ("1:00:53"), or "~N min", or nothing. The plan stays the summary's secondary line
+and is never shown as the time. Per entry only: no pass over the log, no second duration rule (the
+estimate and the timer are each read in exactly one place).
+
+**The trust boundary is unchanged.** D105's rule — the timer counts only if it started on the day the
+workout is dated — is untouched. The one edge closed here is formatting, not trust: a timer under half a
+second rounded to 0 seconds and would have read "0:00"; it is now no duration, and the estimate shows.
+The limitation "a same-day workout entered after the fact through Log Workout times the entering" stays:
+LOOP has no reliable signal that separates a workout performed with the sheet open from one typed in
+afterwards (both are freeform, both have a start and an end), so nothing was inferred. A timer left running
+past a day (a draft resumed the next evening) still reads as measured, e.g. 26:13:02 — rendered safely
+and identically everywhere; whether to cap it is a trust decision left to the owner.
+
+**Tests.** Contract 220 (**39 checks**): A–J from the brief on all three surfaces (timer + plan, timer
+only, estimate only, plan without timer, a missed day logged later, over an hour, over a day, two workouts
+on one date, an edited workout, a restored draft), the sub-second and no-evidence cases, reading every
+surface writing nothing; E29 through the real start, discard, blank start, autosave, capture, restore and
+save paths; reuse and the hash proofs. Against 10.19 it fails 20 times. Six existing assertions were
+restated in place with their reason — the draft pins in Contracts 217, 218 and 219, Contract 217's
+`openDayDetail` pin, Contract 219's reader check, and D105's deliberate "recorded, not changed here" marker,
+inverted.
+
+**Mutation: 17 of 17 killed**, every one by Contract 220 alone: a discarded workout keeping its plan, a
+blank workout inheriting one, the plan cleared by its own autosave, a resumed template losing its plan, the
+draft not carrying it, a plan-less draft keeping memory's, the Log card or the Full workout sheet still
+forcing the estimate, the plan shown as the time, an estimate shown as a clock, the Full workout sheet
+reading another workout, same-date workouts colliding, the minutes-only clock, a sub-second 0:00, a
+no-evidence 0:00, reading writing into the entry, and a second duration rule on the Full workout sheet.
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844 and 430×932, real presses on the
+Log calendar, the day card's Summary and Full buttons: six workouts (timer + plan, a day-long timer, a
+missed day, a plan without a timer, no timer, the first of two on one date) agree on all three surfaces,
+the plan only on the summary, nothing clipped or sideways, no 0:00, no console errors — **70/70**; on 10.19
+the same run fails wherever a timer exists. E29's five real sequences, before and after.
+
+**Found, recorded:** **E30** — the second workout on a date opens the first from Log: the day card, the
+Full workout sheet and every Recent row find a workout by date. Pressing "Evening Legs" in Recent opens
+"Morning Pull". Navigation, not time; OPEN.
+
+**Status.** E29 CLOSED. E30 OPEN. E16 HELD; E20, E21, E22, E25, E26, E27 OPEN and untouched. DATA_KEYS 16,
+schema 1, trainer 0.1.1-shadow. verify 10,391/0, five audits green.

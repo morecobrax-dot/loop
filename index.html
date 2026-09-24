@@ -17596,6 +17596,23 @@ const LOOP_UPDATES = [
       'A workout logged later for a missed day no longer shows the minutes you spent logging it as its actual time'
     ],
     changes: []
+  },
+  {
+    id: 'v10-20',
+    version: 'LOOP 10.20',
+    title: 'One Time for Every Workout',
+    date: '2026-09-24',
+    swVersion: 'loop-v197',
+    summary: 'A workout now shows the same time in its summary, on the Log and in its full workout view.',
+    newFeatures: [],
+    improvements: [
+      'The Log and a workout’s full view now show how long the workout actually took, the same time its summary shows'
+    ],
+    bugFixes: [
+      'A workout you build from scratch after discarding or replacing another no longer picks up that workout’s planned time',
+      'A workout you resume after closing the app keeps its planned time'
+    ],
+    changes: []
   }
 ];
 
@@ -29350,7 +29367,32 @@ function workoutElapsedSeconds(entry){
   const ms = end - start;
   if(!isFinite(ms) || ms <= 0) return null;
   if(entry.date && localDateStr(start) !== entry.date) return null;
-  return Math.round(ms / 1000);
+  /* D105.1 — under half a second rounds to nothing, and nothing is not a
+     duration: it would read 0:00. */
+  const sec = Math.round(ms / 1000);
+  return sec >= 1 ? sec : null;
+}
+
+/* D105.1 — the ONE reading of a logged workout's time, for every surface that
+   shows it: the measured duration when the timer can be trusted
+   (workoutElapsedSeconds), else the estimate from the logged sets, else
+   nothing. Surfaces only choose how much room to give it, so the same workout
+   can never read as measured in one place and estimated in another. */
+function workoutTimeOf(entry){
+  const sec = workoutElapsedSeconds(entry);
+  if(sec !== null) return { kind: 'actual', sec, clock: formatClock(sec) };
+  let est = null;
+  try{ est = estimateLoggedDuration(entry); }catch(e){ est = null; }
+  return est ? { kind: 'estimate', min: est } : { kind: 'none' };
+}
+
+/* The compact form, for a line that already lists what the workout was (the
+   Log's day card, the Full workout sheet): the measured clock exactly as the
+   summary shows it, or "~N min" (the tilde is LOOP's estimate mark), or
+   nothing at all. Never the plan — that is the summary's secondary line. */
+function workoutTimeShort(entry){
+  const t = workoutTimeOf(entry);
+  return t.kind === 'actual' ? t.clock : t.kind === 'estimate' ? '~' + t.min + ' min' : '';
 }
 
 /* D105 — the Workout Summary's time figure. The actual duration when it is
@@ -29358,10 +29400,10 @@ function workoutElapsedSeconds(entry){
    (formatClock). When it is not, the estimate from the logged sets — and the
    label says so; an estimate never wears the Duration label. */
 function summaryTimeStat(entry){
-  const sec = workoutElapsedSeconds(entry);
-  if(sec !== null) return { num: formatClock(sec), label: 'Duration' };
-  const est = estimateLoggedDuration(entry);
-  return est ? { num: '~' + est, label: 'Est. minutes' } : { num: '—', label: 'Duration' };
+  const t = workoutTimeOf(entry);
+  if(t.kind === 'actual') return { num: t.clock, label: 'Duration' };
+  if(t.kind === 'estimate') return { num: '~' + t.min, label: 'Est. minutes' };
+  return { num: '—', label: 'Duration' };
 }
 
 /* =========================================================
@@ -29557,14 +29599,13 @@ function renderSelectedDay(){
   if(entry){
     const exCount = (entry.exercises || []).length;
     const setCount = (entry.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
-    let mins = null;
-    try{ mins = estimateLoggedDuration(entry); }catch(e){}
+    const time = workoutTimeShort(entry);
     let prs = [];
     try{ prs = getSessionPRs(entry); }catch(e){}
     const meta = [
       exCount + ' exercise' + (exCount === 1 ? '' : 's'),
       setCount + ' set' + (setCount === 1 ? '' : 's'),
-      mins ? '~' + mins + ' min' : null
+      time || null
     ].filter(Boolean).join(' · ');
 
     /* D102 — a restrained two-action row replaces one whole-card tap, so
@@ -29746,14 +29787,14 @@ function openDayDetail(dateStr){
   const entry = workoutLog.find(l => l.date === dateStr);
   if(!entry) return;
   const prNames = getSessionPRs(entry);
-  const duration = estimateLoggedDuration(entry);
+  const time = workoutTimeShort(entry);
   const dt = new Date(dateStr + 'T00:00:00');
 
   document.getElementById('dayDetailTitle').textContent = entry.title;
   document.getElementById('dayDetailSub').innerHTML = `
     ${dt.toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'})}
     <span class="cat-chip ${entry.category}" style="margin-left:8px;">${CAT_LABEL[entry.category]}</span>
-    ${duration ? ` · ~${duration} min` : ''}
+    ${time ? ` · ${time}` : ''}
   `;
 
   const prsEl = document.getElementById('dayDetailPRs');
@@ -51242,7 +51283,12 @@ function dismissCooldownCard(){
    ========================================================= */
 const DRAFT_KEY = 'activeWorkoutDraft';
 /* Planned duration of the session that was started, in minutes. Used only to
-   show PLANNED vs ACTUAL on the summary; null whenever it isn't known. */
+   show PLANNED vs ACTUAL on the summary; null whenever it isn't known.
+   D105.1 (E29) — it belongs to the session that set it, like the provenance
+   below: a template start sets it, a blank start clears it, the draft carries
+   it so a resumed workout keeps its own, and the end of every session
+   (clearActiveDraft) clears it. It used to be cleared only by a save, so a
+   discarded or abandoned template lent its plan to the next blank workout. */
 let pendingPlannedMinutes = null;
 let draftSaveTimer = null;
 let draftRestoring = false;
@@ -51337,6 +51383,9 @@ function captureActiveDraft(){
     originProgramId: pendingWorkoutProgramId || null,
     phase: pendingWorkoutPhase || null,
     identity: pendingWorkoutIdentity || null,
+    /* D105.1 (E29) — the plan it was started with, so a workout resumed after
+       the app was closed still compares against its own plan. */
+    plannedMinutes: pendingPlannedMinutes || null,
     /* Whether this workout is past its warm-up. Purely presentational — no
        reader of a saved workout has ever looked at it, and workoutLog is not
        involved. */
@@ -51368,6 +51417,7 @@ async function clearActiveDraft(){
   pendingWorkoutProgramId = null;
   pendingWorkoutPhase = null;
   pendingWorkoutIdentity = null;
+  pendingPlannedMinutes = null;
   try{ await LOOPStore.set(DRAFT_KEY, 'null'); }catch(e){}
   renderResumeBanner();
 }
@@ -51403,6 +51453,9 @@ function restoreDraftToSheet(draft){
      ordinary training. */
   pendingWorkoutPhase = draft.phase || null;
   pendingWorkoutIdentity = workoutIdentityRecordOf(draft, draft.category);
+  /* D105.1 (E29) — the resumed workout's own plan, never whatever was left in
+     memory; a draft written before 10.20 carries none and stays unknown. */
+  pendingPlannedMinutes = (typeof draft.plannedMinutes === 'number' && draft.plannedMinutes > 0) ? draft.plannedMinutes : null;
   /* A resumed workout does not warm up again. Older drafts have no flag, so
      the started-check below still covers them. */
   warmupDoneForDraft = draft.warmupDone ? pendingDraftId : warmupDoneForDraft;
@@ -52267,6 +52320,8 @@ async function openFreeformLog(){
   pendingWorkoutProgramId = null;
   pendingWorkoutPhase = null;
   pendingWorkoutIdentity = null;
+  /* D105.1 (E29) — a workout built from nothing has no plan. */
+  pendingPlannedMinutes = null;
   /* D62 — a workout built from nothing is not a Push workout. It has no
      category until the athlete picks one on the review step, where LOOP may
      suggest one from what is in it. The warm-up it offers is the general one. */

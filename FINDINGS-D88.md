@@ -930,7 +930,7 @@ The logged type was never wrong — only what the athlete was shown.
 > working sets and requires it to keep its label; the real-browser claims check
 > reproduced both paths on 10.17 and neither on 10.18.
 
-## E29 — A discarded template start leaves its planned minutes on the next blank workout · P4 · PROVEN · OPEN
+## E29 — A discarded template start leaves its planned minutes on the next blank workout · P4 · PROVEN · **CLOSED in D105.1 (LOOP 10.20)**
 
 Found by D105's audit of where the summary's "Planned" figure comes from.
 `startTemplateLog` sets `pendingPlannedMinutes` to the started template's
@@ -948,6 +948,34 @@ read-time, UI-only phase told not to change what workouts store. The fix is
 one reset where a workout that is not a template start begins (and on
 discard), with a contract that a freeform save after a discarded start carries
 no plan.
+
+> **Closed.** The plan belongs to its session like the rest of the provenance:
+> a template start sets it, a blank start (`openFreeformLog`) and the end of
+> every session (`clearActiveDraft`) clear it, and the draft carries it, so a
+> resumed workout restores its own and never a leftover. A second path was
+> found while closing it: a template left open (sheet closed, not discarded)
+> and replaced by a blank workout leaked the same way. Measured on 10.19 in
+> real Edge before the fix and on 10.20 after: both leaks saved no plan, a
+> template kept its own, and a template resumed after reopening the app kept
+> its plan (it used to lose it). Contract 220.
+
+## E30 — The second workout on a date opens the first one from Log · P3 · PROVEN · OPEN
+
+Found by D105.1's same-date audit. The Log's selected-day card
+(`renderSelectedDay`), the Full workout sheet (`openDayDetail(dateStr)`) and
+every Recent row (`openDayDetail('${l.date}')`) find a workout by its DATE —
+`workoutLog.find(l => l.date === dateStr)` — so a date with two workouts only
+ever shows the first. Measured on 10.19 and 10.20 in real Edge: with "Morning
+Pull" and "Evening Legs" logged on September 18, pressing Evening Legs' own row
+in Recent opens Morning Pull's Full workout sheet, its sets and its time. The
+Workout Summary is not affected (it is opened by id, D102), and each surface
+shows the time of the workout it displays (Contract 220), so no workout ever
+shows another's time — but the second workout's Full workout sheet cannot be
+reached from Log at all.
+
+**Why it was not fixed in D105.1.** It is navigation, not time: the fix is to
+open the Full workout sheet by id (as the summary is) and to list every
+workout of a selected day, which changes D102's Log architecture.
 
 ## Not findings — checked and clean
 
