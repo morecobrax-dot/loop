@@ -7438,16 +7438,11 @@ button.ex-thumb:focus-visible{ outline: 2px solid var(--accent); outline-offset:
 .time-note{
   font-size: 11.5px; color: var(--accent); font-weight: 600; margin-top: 6px;
 }
-.dur-compare{
-  display: flex; gap: var(--space-3); margin-top: var(--space-3);
-  padding-top: var(--space-3); border-top: 1px solid var(--border);
-}
-.dur-cell{ flex: 1; text-align: center; }
-.dur-label{
-  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--text-faint); margin-bottom: 3px;
-}
-.dur-val{ font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; color: var(--text); }
+/* D105 — the plan, beneath the Duration it is compared with: one quiet line
+   across the whole strip (the old two-cell block sat in the grid's first
+   column and wrapped), never a second figure competing with the actual. */
+.dur-planned{ grid-column: 1 / -1; text-align: center; font-size: 12px; color: var(--text-faint); }
+.dur-planned-val{ font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-dim); }
 
 /* ---------- ADVANCED SET TYPES (Phase D5) ----------
    Subtle by design: a thin left accent on the row and a small badge in
@@ -17581,6 +17576,24 @@ const LOOP_UPDATES = [
     bugFixes: [
       'A warm-up set keeps its warm-up mark after you remove a set or swap an exercise part-way through. It could show a set number while still counting as a warm-up',
       'On the narrowest phones, your saved note no longer runs past the edge of the exercise card'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-19',
+    version: 'LOOP 10.19',
+    title: 'Workout Time You Can Read at a Glance',
+    date: '2026-09-24',
+    swVersion: 'loop-v196',
+    summary: 'Your workout summary now shows how long the workout actually took, with the planned time as a quiet note beneath it.',
+    newFeatures: [],
+    improvements: [
+      'Your workout summary now shows how long the workout actually took, labelled Duration. The time it showed before was an estimate worked out from your sets',
+      'The planned time sits on one quiet line beneath it, and the actual time is no longer shown twice',
+      'A workout with no recorded time shows an estimate, labelled Est. minutes'
+    ],
+    bugFixes: [
+      'A workout logged later for a missed day no longer shows the minutes you spent logging it as its actual time'
     ],
     changes: []
   }
@@ -29324,6 +29337,33 @@ function estimateLoggedDuration(entry){
   return Math.max(10, Math.round(totalSec / 60 / 5) * 5);
 }
 
+/* D105 — how long a workout actually took, in seconds, or null when that is
+   not known. The only truth for it is the pair saveLog writes for a workout
+   logged live (Phase D3): startedAt when the sheet opened, endedAt when it was
+   saved. The pair describes THIS workout only when the timer ran on the day
+   the workout is dated: "Log it now" for a missed day, or a date changed on
+   the review step, times the logging, not the training. Every entry logged
+   before D3 has neither, and nothing here guesses. */
+function workoutElapsedSeconds(entry){
+  if(!entry || !entry.startedAt || !entry.endedAt) return null;
+  const start = new Date(entry.startedAt), end = new Date(entry.endedAt);
+  const ms = end - start;
+  if(!isFinite(ms) || ms <= 0) return null;
+  if(entry.date && localDateStr(start) !== entry.date) return null;
+  return Math.round(ms / 1000);
+}
+
+/* D105 — the Workout Summary's time figure. The actual duration when it is
+   known, in the stopwatch shape LOOP already reads every elapsed time in
+   (formatClock). When it is not, the estimate from the logged sets — and the
+   label says so; an estimate never wears the Duration label. */
+function summaryTimeStat(entry){
+  const sec = workoutElapsedSeconds(entry);
+  if(sec !== null) return { num: formatClock(sec), label: 'Duration' };
+  const est = estimateLoggedDuration(entry);
+  return est ? { num: '~' + est, label: 'Est. minutes' } : { num: '—', label: 'Duration' };
+}
+
 /* =========================================================
    LOG  (Phase D12)
    ---------------------------------------------------------
@@ -37912,21 +37952,15 @@ function timeModeSummary(tpl, minutes){
   };
 }
 
-/* PLANNED vs ACTUAL. Shown only when both are genuinely known — an entry
-   without the optional timing fields simply renders nothing, which is every
-   workout logged before this phase. The estimate is always marked as one. */
+/* PLANNED vs ACTUAL. D105: the actual is the summary's Duration stat
+   (summaryTimeStat), so this is only the planned side of the comparison and
+   never repeats it. plannedMinutes is written only when a workout was started
+   from a template; an entry without it renders nothing. The figure is an
+   estimate and is always marked as one. */
 function plannedVsActualHtml(entry){
-  if(!entry || !entry.startedAt || !entry.endedAt) return '';
-  const ms = new Date(entry.endedAt) - new Date(entry.startedAt);
-  if(!(ms > 0)) return '';
-  const totalSec = Math.round(ms / 1000);
-  const mm = Math.floor(totalSec / 60), ss = totalSec % 60;
-  const actual = mm + ':' + String(ss).padStart(2, '0');
-  return `
-    <div class="dur-compare">
-      ${entry.plannedMinutes ? `<div class="dur-cell"><div class="dur-label">Planned</div><div class="dur-val">~${entry.plannedMinutes} min</div></div>` : ''}
-      <div class="dur-cell"><div class="dur-label">Actual</div><div class="dur-val">${actual}</div></div>
-    </div>`;
+  const planned = entry ? Number(entry.plannedMinutes) : NaN;
+  if(!isFinite(planned) || planned <= 0) return '';
+  return '<div class="dur-planned">Planned <span class="dur-planned-val">~' + Math.round(planned) + ' min</span></div>';
 }
 
 /* ---------- UI ---------- */
@@ -54431,7 +54465,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
      the stats without that comparison rather than risk describing the past
      against the wrong "prior" session. */
   const quality = live ? computeWorkoutQuality(entry, newPREvents) : null;
-  const durationMin = estimateLoggedDuration(entry);
+  const time = summaryTimeStat(entry);
   const totalSets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
 
   /* D45B — the /100 score is gone, and this is the reason.
@@ -54474,7 +54508,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
     </div>` : ''}
     <div class="stat"><div class="stat-num">${vol.toLocaleString()}</div><div class="stat-label">Volume (lb)</div></div>
     <div class="stat"><div class="stat-num">${totalSets}</div><div class="stat-label">Sets</div></div>
-    <div class="stat"><div class="stat-num">${durationMin ? '~'+durationMin : '—'}</div><div class="stat-label">Minutes</div></div>
+    <div class="stat"><div class="stat-num">${time.num}</div><div class="stat-label">${time.label}</div></div>
   ` + plannedVsActualHtml(entry);
   const prsEl = document.getElementById('summaryPRs');
   if(newPREvents.length){

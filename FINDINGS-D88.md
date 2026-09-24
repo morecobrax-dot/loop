@@ -930,6 +930,25 @@ The logged type was never wrong — only what the athlete was shown.
 > working sets and requires it to keep its label; the real-browser claims check
 > reproduced both paths on 10.17 and neither on 10.18.
 
+## E29 — A discarded template start leaves its planned minutes on the next blank workout · P4 · PROVEN · OPEN
+
+Found by D105's audit of where the summary's "Planned" figure comes from.
+`startTemplateLog` sets `pendingPlannedMinutes` to the started template's
+`computeWorkoutDuration`; `saveLog` writes it onto the entry and only then
+clears it. Nothing else clears it: `discardActiveWorkout` → `clearActiveDraft`
+does not, and `openFreeformLog` does not. Measured on 10.18 in real Edge:
+start Push A — Chest Focus (~40 min), discard it, then log "Bench only" from
+Log Workout. It is saved `origin: 'freeform'` with `plannedMinutes: 40`, and
+its Workout Summary says "Planned ~40 min" for a workout that had no plan.
+The value lives in memory only: a reload clears it, and a draft does not
+store it (so a template workout restored after a reload loses its plan).
+
+**Why it was not fixed in D105.** The defect is on the save path; D105 was a
+read-time, UI-only phase told not to change what workouts store. The fix is
+one reset where a workout that is not a template start begins (and on
+discard), with a contract that a freeform save after a discarded start carries
+no plan.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

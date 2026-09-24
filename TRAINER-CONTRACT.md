@@ -14605,3 +14605,78 @@ errors — **120/120**. Every What's New line was measured false on 10.17 and tr
 
 **Status.** UI only. E28 found and CLOSED. E16 HELD; E20, E21, E22, E25, E26, E27 OPEN and untouched.
 verify 10,322/0, five audits green.
+
+## §141 — THE WORKOUT SUMMARY SAYS HOW LONG IT TOOK (D105 · LOOP 10.19 · loop-v196)
+
+Owner feedback: the Workout Summary showed a large "~40 MINUTES" and, beneath it, "PLANNED ~45 min" and
+"ACTUAL 60:53". They could not tell what ~40 meant, and wanted the main time to be the actual time.
+
+**What each figure was, read from source.**
+- "~40 MINUTES" was `estimateLoggedDuration(entry)`: an estimate made after the fact from the logged sets —
+  40 s a set, plus the rest `restSecondsForReps` gives for the sets' average reps, plus 50 s per exercise,
+  rounded to 5 min and never under 10. It was neither the plan nor the clock. The brief took it for the
+  template estimate; it is not. The Log's day card and the Full workout sheet show the same estimate as "~40 min".
+- "PLANNED" is `entry.plannedMinutes`, written by `saveLog` from `pendingPlannedMinutes`, which
+  `startTemplateLog` sets to `computeWorkoutDuration(template)` when a template is started.
+- "ACTUAL" was `endedAt − startedAt`: the timestamps `saveLog` writes (Phase D3) from `pendingDraftStartedAt`,
+  set when a workout starts and carried through a restored draft. It had its own mm:ss rule that never
+  rolled into hours, hence "60:53". The pair was a separate item in `#summaryStats`, a three-column grid,
+  so it sat in the first column only — 74 px tall at 375 px, "~45 min" wrapped.
+- Editing a logged workout keeps all three fields (`saveWorkoutEdits` merges onto the previous entry), so a
+  reopened summary reads what the completion summary read.
+
+**The decision.**
+- The main slot is the ACTUAL duration, labelled Duration. `workoutElapsedSeconds(entry)` is the one reader
+  of the timestamps; `formatClock` — the stopwatch shape cardio already uses (M:SS, H:MM:SS past an hour) — is
+  the one formatter. `summaryTimeStat(entry)` hands the summary its figure and label.
+- The timer counts only when it started on the civil date the workout is dated. "Log it now" for a missed
+  day (`logMissedWorkout`) and a date changed on the review step both time the logging, not the training:
+  on 10.18 a missed day logged the next morning read "ACTUAL 3:12". A workout that runs past midnight still
+  counts, because its timer started on its own day.
+- When the actual is not known — every entry before D3, the case above, an end before its start — the slot
+  shows the set estimate labelled "Est. minutes". The estimate never wears the Duration label. With no sets
+  either, a dash.
+- The plan is one quiet line across the whole strip, "Planned ~45 min", whenever it is known — also when the
+  actual is not. The actual is never shown twice.
+- The completion summary and a reopened one agree by construction: one renderer reading one entry.
+
+**What did not change.** `saveLog`, `startTemplateLog`, `saveWorkoutEdits`, `openWorkoutSummary`, the estimate,
+`formatClock`, `computeWorkoutDuration`, draft capture and restore, Session Score, workout quality, XP, the
+record engines, the Log card and the Full workout sheet are byte-identical (pinned). `showWorkoutSummary`
+changed in its time figure and nothing else: with the two old lines put back it hashes to 10.18's pin. No
+stored field, no migration; DATA_KEYS 16, schema 1, trainer 0.1.1-shadow.
+
+**Tests.** Contract 219 (**30 checks**): planned + actual, actual only, planned only, neither, a missed day
+logged later, an end before its start, a workout past midnight, two workouts on one date, a real template
+start → save → completion summary → the same workout reopened, opening every summary writing nothing, the
+source (one reader, one formatter, the diff proof, the style) and the pins. Against shipped 10.18 it fails 19
+times, two of its blocks throwing outright. Two existing assertions were restated in place with their reason:
+Contract 42's "plannedVsActualHtml renders when timing is known" now requires the plan and forbids the actual,
+and Contract 217's pin of `showWorkoutSummary` moved to the new hash, the change proven by Contract 219.
+
+**Mutation: 16 of 16 killed**, every one by Contract 219 alone — the plan in the main slot, the estimate back
+in it, the actual repeated, the plan hidden without a timer (the old gate), the plan unmarked as an estimate,
+a reopened summary reading the newest workout, the fallback labelled Duration or without its "~", a missed
+day's logging time counted, the timer judged by the day it ended, an end before its start counted, a
+minutes-only clock, the line back in one grid column, an invented zero, reading a summary writing into the
+entry, and the label lost.
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844 and 430×932, real CDP presses at each
+control's centre: Log → Workout summary; Duration 1:00:53; the plan on one line across the strip; the actual
+once, no "Actual"; nothing clipped, nothing sideways; Close; a 26:13:02 timer beside 125,000 lb fitting at
+320 px (the grid widens those columns and narrows Sets; the text never spills); no timer → Est. minutes; a real
+Start → complete a set → Finish Workout → Workout Complete with Duration and the plan, the same workout
+reopened reading identically; the saved entry gaining no field; no console errors — **70/70**. Every What's
+New line was measured false on 10.18 and true on 10.19.
+
+**Found, recorded** (FINDINGS-D88.md): **E29** — a discarded template start leaves its planned minutes on the
+next blank workout, because `pendingPlannedMinutes` is cleared only after a save. On 10.18: start Push A
+(~40 min), discard it, log "Bench only" from Log Workout — it is saved `origin: 'freeform'` with
+`plannedMinutes: 40`, and its summary says "Planned ~40 min". A write-path defect; not fixed in this UI phase.
+
+**Limitations.** A workout resumed from its draft later counts the whole gap — strength workouts record no
+pauses. A same-day workout entered after the fact through Log Workout times the entering. The Log card and
+the Full workout sheet still show the set estimate as "~N min".
+
+**Status.** UI only. E29 OPEN. E16 HELD; E20, E21, E22, E25, E26, E27 OPEN and untouched.
+verify 10,352/0, five audits green.

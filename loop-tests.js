@@ -3536,8 +3536,12 @@ async function testTimeModeSafety(){
     ctx.workoutLog.every(w => w.startedAt === undefined));
   T('plannedVsActualHtml renders nothing without timing',
     ctx.plannedVsActualHtml({ id:'x' }) === '');
+  /* D105 restated: the actual is the Workout Summary's Duration stat now
+     (Contract 219), so this line carries only the plan and never repeats it. */
   T('plannedVsActualHtml renders when timing is known',
     ctx.plannedVsActualHtml({ id:'y', startedAt:'2026-08-24T10:00:00.000Z',
+      endedAt:'2026-08-24T10:51:14.000Z', plannedMinutes:47 }).includes('~47 min') &&
+    !ctx.plannedVsActualHtml({ id:'y', startedAt:'2026-08-24T10:00:00.000Z',
       endedAt:'2026-08-24T10:51:14.000Z', plannedMinutes:47 }).includes('51:14'));
   T('planned figure is marked as an estimate',
     ctx.plannedVsActualHtml({ id:'y', startedAt:'2026-08-24T10:00:00.000Z',
@@ -42534,8 +42538,10 @@ async function testStartProvenanceD103(){
       && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' && pin('workoutBelongsToProgram') === '018fcf9c294a3a41');
     T('D51 revisions and the move writer are byte-identical', pin('materializeProgramPlan') === 'f92e59a226b1b4b6'
       && pin('addProgramRevision') === '551132a15c639918' && pin('updateProgramInMemory') === '6078239ad623aa33' && pin('swapScheduledDays') === 'b460198e9e2cdb5b');
+    /* D105 restated: showWorkoutSummary's time figure changed on purpose; Contract
+       219 proves it differs from this pin in those two lines and nothing else. */
     T('the save path and D102\'s Summary are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
-      && pin('showWorkoutSummary') === 'f2d459d5e5106057' && pin('openDayDetail') === '3e9975e617040dd2');
+      && pin('showWorkoutSummary') === '6b049d341b375282' && pin('openDayDetail') === '3e9975e617040dd2');
     T('D96: grouping, records, PR XP and the session index are byte-identical', pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
     T('E16 capability, E20 recovery, E21 D49 evidence and E22 XP/Mastery are untouched',
@@ -42711,6 +42717,208 @@ async function testExerciseCardD104(){
       && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('twActionLabel') === '21824852a16e4df2');
     T('trainer 0.1.1-shadow, DATA_KEYS 16, schema 1, no migration', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 16
       && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
+  });
+}
+
+/* =========================================================
+   CONTRACT 219 — THE WORKOUT SUMMARY SAYS HOW LONG IT TOOK  (D105)
+   ---------------------------------------------------------
+   The summary's large time figure was estimateLoggedDuration: a guess from
+   the logged sets (40 s a set, rest by average reps, 50 s between
+   exercises, rounded to 5 min), shown as "~40 MINUTES". Beneath it a
+   Planned/Actual pair repeated the time a second way ("ACTUAL 60:53", its
+   own mm:ss rule that never rolled into hours), sitting in the grid's first
+   column where "~45 min" wrapped. The owner could not tell what ~40 meant.
+
+   Now: the main slot is the ACTUAL duration, read from the timestamps
+   saveLog writes (one reader, workoutElapsedSeconds; formatClock, LOOP's
+   stopwatch shape), labelled Duration. Planned is one quiet line beneath,
+   only when known. The actual is never shown twice. When the actual is not
+   known — every entry before Phase D3, or a timer that ran on a different
+   day from the workout's date ("Log it now" for a missed day) — the slot
+   falls back to the set estimate and its label says Est. minutes.
+   ========================================================= */
+async function testSummaryTimeD105(){
+  section('CONTRACT 219 — the Workout Summary says how long the workout took (D105)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const pad = n => String(n).padStart(2, '0');
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const E = (name, sets) => ({ name, effort: '', bodyweight: false, sets });
+  const EXS = [E('Lat Pulldown', [S(125, 8), S(125, 10), S(140, 11)]), E('Seated Cable Row', [S(115, 8), S(125, 8), S(125, 8)])];
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  const D = n => { const d = new ctx.Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  /* a LOCAL wall-clock time on a civil date, as the ISO string saveLog would have written */
+  const at = (day, h, m, s) => new ctx.Date(day + 'T' + pad(h) + ':' + pad(m) + ':' + pad(s || 0)).toISOString();
+  const WK = (id, day, timing) => Object.assign({ id, date: day, category: 'pull', title: 'Pull A', notes: '',
+    exercises: JSON.parse(JSON.stringify(EXS)) }, timing || {});
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
+    ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); };
+  const readStats = () => {
+    const html = doc.getElementById('summaryStats').innerHTML;
+    const stats = [...html.matchAll(/<div class="stat"><div class="stat-num">([^<]*)<\/div><div class="stat-label">([^<]*)<\/div><\/div>/g)]
+      .map(m => ({ num: m[1], label: m[2] }));
+    const planned = (html.match(/<div class="dur-planned">Planned <span class="dur-planned-val">([^<]*)<\/span><\/div>/) || [])[1] || null;
+    return { html, stats, time: stats[2] || null, planned, heading: doc.getElementById('summaryHeading').textContent };
+  };
+  const open = id => { ctx.openWorkoutSummary(id); const r = readStats(); ctx.closeSummary(); return r; };
+
+  const d1 = D(1), d3 = D(3), d4 = D(4), d5 = D(5), d6 = D(6), d7 = D(7), d8 = D(8), d9 = D(9), d10 = D(10);
+  const LOG = [
+    WK('both', d3, { startedAt: at(d3, 18, 0, 0), endedAt: at(d3, 19, 0, 53), plannedMinutes: 45 }),
+    WK('actual', d4, { startedAt: at(d4, 18, 0, 0), endedAt: at(d4, 18, 47, 12) }),
+    WK('planned', d5, { plannedMinutes: 45 }),
+    WK('neither', d6),
+    /* "Log it now" for a missed day: logged a day later, in three minutes */
+    WK('backdated', d7, { startedAt: at(d1, 20, 5, 0), endedAt: at(d1, 20, 8, 12), plannedMinutes: 45 }),
+    WK('backwards', d8, { startedAt: at(d8, 19, 0, 0), endedAt: at(d8, 18, 0, 0) }),
+    /* started before midnight on the day it is dated, saved after it */
+    WK('late', d9, { startedAt: at(d9, 23, 30, 0), endedAt: at(d8, 0, 40, 0) }),
+    WK('twinA', d10, { startedAt: at(d10, 7, 0, 0), endedAt: at(d10, 7, 38, 5), plannedMinutes: 40 }),
+    WK('twinB', d10, { startedAt: at(d10, 18, 0, 0), endedAt: at(d10, 19, 12, 44), plannedMinutes: 70 })
+  ];
+  const ALL = LOG.map(w => w.id);
+
+  sub('the main time figure is the ACTUAL duration, and the plan is secondary');
+  await guard('both', async () => {
+    seed(JSON.parse(JSON.stringify(LOG)));
+    const r = open('both');
+    T('planned + actual: the third stat reads 1:00:53, labelled Duration — the real length of THIS workout',
+      r.stats.length === 3 && r.time.num === '1:00:53' && r.time.label === 'Duration', r.stats);
+    T('and the plan is one quiet line beneath it: Planned ~45 min', r.planned === '~45 min', r.planned);
+    T('the actual is not repeated: 1:00:53 appears once, and no "Actual" cell or 60:53 is left',
+      r.html.split('1:00:53').length === 2 && !/Actual/.test(r.html) && !/60:53/.test(r.html), r.html);
+    T('Volume and Sets are unchanged beside it', r.stats[0].label === 'Volume (lb)' && r.stats[1].label === 'Sets' && r.stats[1].num === '6', r.stats);
+    const a = open('actual');
+    T('actual only: 47:12, Duration, and no planned line at all',
+      a.time.num === '47:12' && a.time.label === 'Duration' && a.planned === null && !/dur-planned/.test(a.html), a.time);
+    const late = open('late');
+    T('a workout that ran past midnight keeps its whole duration (the timer started on the day it is dated)',
+      late.time.num === '1:10:00' && late.time.label === 'Duration', late.time);
+  });
+
+  sub('when the actual is not known, nothing pretends it is');
+  await guard('fallback', async () => {
+    seed(JSON.parse(JSON.stringify(LOG)));
+    const est = id => '~' + ctx.estimateLoggedDuration(ctx.workoutLog.find(l => l.id === id));
+    const p = open('planned');
+    T('planned only: the slot shows the set estimate and is labelled Est. minutes, never Duration',
+      p.time.num === est('planned') && p.time.label === 'Est. minutes', p.time);
+    T('and the plan still shows beneath it', p.planned === '~45 min', p.planned);
+    const n = open('neither');
+    T('neither known (every workout before Phase D3): the estimate, labelled as one, and no planned line',
+      n.time.num === est('neither') && n.time.label === 'Est. minutes' && n.planned === null, n.time);
+    const b = open('backdated');
+    T('logged for a missed day a day later: the three minutes of logging are never presented as the workout\'s duration',
+      b.time.label === 'Est. minutes' && b.time.num === est('backdated') && !/3:12/.test(b.html), b.time);
+    const w = open('backwards');
+    T('an end before its start is not a duration', w.time.label === 'Est. minutes', w.time);
+    const every = ALL.map(open);
+    T('Duration is only ever a measured clock; an estimate always carries "~" and its own label',
+      every.every(x => x.time.label === 'Duration' ? /^\d+(:\d\d){1,2}$/.test(x.time.num) : (x.time.label === 'Est. minutes' && /^~\d+$/.test(x.time.num))),
+      every.map(x => x.time));
+    T('the old ambiguous "Minutes" stat is gone from every summary', every.every(x => x.stats.length === 3 && x.stats.every(s => s.label !== 'Minutes')));
+    const empty = ctx.summaryTimeStat({ id: 'z', date: d3, exercises: [] });
+    T('no sets and no timer: a dash under Duration, not an invented number', empty.num === '—' && empty.label === 'Duration', empty);
+  });
+
+  sub('a reopened summary reads its own entry, and opening it writes nothing');
+  await guard('historical', async () => {
+    seed(JSON.parse(JSON.stringify(LOG)));
+    const storeBefore = JSON.stringify(app.store), logBefore = JSON.stringify(ctx.workoutLog);
+    const A = open('twinA'), B = open('twinB');
+    T('two workouts on one date each show their own time and plan (looked up by id, never by date)',
+      A.time.num === '38:05' && A.planned === '~40 min' && B.time.num === '1:12:44' && B.planned === '~70 min', [A.time, A.planned, B.time, B.planned]);
+    T('a review is titled Workout Summary', A.heading === 'Workout Summary');
+    ALL.forEach(open);
+    T('opening every summary writes nothing: storage and the log are byte-identical',
+      JSON.stringify(app.store) === storeBefore && JSON.stringify(ctx.workoutLog) === logBefore);
+  });
+
+  sub('the moment a workout is finished, and the same workout reopened later');
+  await guard('live', async () => {
+    seed([]);
+    const tpl = (ctx.getTemplates('push') || [])[0];
+    const t = new ctx.Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0);   /* forward only */
+    const t0 = t.toISOString(), t1 = new ctx.Date(t.getTime() + (52 * 60 + 7) * 1000).toISOString();
+    let release = pinClock(ctx, t0);
+    let live = null, saved = null, plannedAtStart = null;
+    try{
+      const keep = {}; ['addLogExerciseRow', 'openLogSheet', 'confirmOverwriteDraft', 'persistDraftNow'].forEach(k => { keep[k] = ctx[k]; });
+      Object.assign(ctx, { addLogExerciseRow(){}, openLogSheet(){}, confirmOverwriteDraft: async () => true, persistDraftNow(){} });
+      try{ await ctx.startTemplateLog('push', tpl.id); } finally { Object.assign(ctx, keep); }
+      plannedAtStart = ctx.pendingPlannedMinutes;
+      release(); release = pinClock(ctx, t1);
+      /* the row saveLog reads, effort field included (as Contract 217's performAndSave) */
+      const inp = v => ({ value: String(v == null ? '' : v), checked: false, disabled: false, dataset: {} });
+      const setRows = [[185, 8], [185, 7]].map(([w, r]) => { const cls = new Set(['completed']);
+        const q = { '.set-weight-in': inp(w), '.set-reps-in': inp(r), '.set-rir-in': inp(2) };
+        return { dataset: {}, classList: { add: c => cls.add(c), remove: c => cls.delete(c), toggle(){}, contains: c => cls.has(c) },
+          querySelector: sel => q[sel] || null, querySelectorAll: () => [] }; });
+      const q = { '.ex-name-in': inp('Bench Press'), '.ex-bw-in': inp(''), '.ex-effort-in': inp('8') };
+      const row = { dataset: {}, querySelector: sel => q[sel] || null, querySelectorAll: sel => sel === '.set-row' ? setRows : [], closest: () => row };
+      app.dom.setRows([row]);
+      doc.getElementById('logOverlay').classList.add('open');
+      doc.getElementById('logTitle').value = tpl.name;
+      const n0 = ctx.workoutLog.length;
+      ctx.saveLog();
+      await H.settle(300);
+      live = readStats();
+      saved = ctx.workoutLog.length === n0 + 1 ? ctx.workoutLog[ctx.workoutLog.length - 1] : null;
+      try{ ctx.closeSummary(); }catch(e){}
+      app.dom.setRows([]);
+    } finally { release(); }
+    T('a real template start then save: the entry carries the timer and the plan it was started with',
+      !!saved && ctx.workoutElapsedSeconds(saved) === 52 * 60 + 7 && saved.plannedMinutes === plannedAtStart && plannedAtStart === ctx.computeWorkoutDuration(tpl),
+      saved && { startedAt: saved.startedAt, endedAt: saved.endedAt, plannedMinutes: saved.plannedMinutes, plannedAtStart });
+    T('the completion summary says so: Workout Complete, Duration 52:07, and the plan beneath it',
+      !!live && live.heading === 'Workout Complete' && !!live.time && live.time.num === '52:07' && live.time.label === 'Duration'
+      && live.planned === '~' + plannedAtStart + ' min', live && [live.heading, live.time, live.planned]);
+    const later = saved ? open(saved.id) : null;
+    T('reopened from history it reads exactly the same time and plan',
+      !!later && !!live && later.heading === 'Workout Summary' && later.time.num === live.time.num && later.time.label === live.time.label && later.planned === live.planned,
+      later && [later.time, later.planned]);
+  });
+
+  sub('one truth, one formatter, one line of style');
+  await guard('source', async () => {
+    const sum = fnSrc(src, 'showWorkoutSummary');
+    T('the summary reads the time through summaryTimeStat, and no longer calls the estimate itself',
+      /const time = summaryTimeStat\(entry\);/.test(sum) && !/estimateLoggedDuration/.test(sum)
+      && /<div class="stat"><div class="stat-num">\$\{time\.num\}<\/div><div class="stat-label">\$\{time\.label\}<\/div><\/div>/.test(sum));
+    T('the actual has one reader (workoutElapsedSeconds) and LOOP\'s one stopwatch formatter (formatClock)',
+      /workoutElapsedSeconds\(entry\)/.test(fnSrc(src, 'summaryTimeStat')) && /formatClock\(sec\)/.test(fnSrc(src, 'summaryTimeStat'))
+      && !/startedAt|endedAt|padStart|>Actual</.test(fnSrc(src, 'plannedVsActualHtml')));
+    T('the timer only counts on the day the workout is dated', /localDateStr\(start\) !== entry\.date/.test(fnSrc(src, 'workoutElapsedSeconds')));
+    const restored = sum.replace('const time = summaryTimeStat(entry);', 'const durationMin = estimateLoggedDuration(entry);')
+      .replace('<div class="stat-num">${time.num}</div><div class="stat-label">${time.label}</div>',
+        "<div class=\"stat-num\">${durationMin ? '~'+durationMin : '—'}</div><div class=\"stat-label\">Minutes</div>");
+    T('showWorkoutSummary differs from 10.18 in its time figure and nothing else (with the two old lines put back, it hashes to 10.18\'s pin)',
+      crypto.createHash('sha256').update(restored.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === 'f2d459d5e5106057');
+    T('the plan spans the whole strip as one line, and the old two-cell block is gone',
+      /\.dur-planned\{ grid-column: 1 \/ -1; text-align: center;/.test(css) && !/\.dur-compare|\.dur-cell/.test(css) && !/dur-compare/.test(src));
+  });
+
+  sub('everything else is untouched');
+  await guard('protected', async () => {
+    T('the estimate, the formatter and the plan figure are byte-identical', pin('estimateLoggedDuration') === '9827ffd0e63e6737'
+      && pin('formatClock') === '0b1eb2d13865199b' && pin('computeWorkoutDuration') === '2ea2a0c3c72b7941');
+    T('saving, starting, editing and reopening a workout are byte-identical', pin('saveLog') === '66c63714822ef5ee'
+      && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('saveWorkoutEdits') === 'f000241efb7e25fa' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
+      && pin('captureActiveDraft') === '442c8c89a288ef0d' && pin('restoreDraftToSheet') === '3d1b7cf79f71d591');
+    T('Session Score, quality, XP and records are byte-identical', pin('renderSummaryScore') === 'be7971b69696ae40'
+      && pin('computeWorkoutQuality') === '30f1165dd94654eb' && pin('getWorkoutXPEntry') === 'f3cd1b21875f5d65' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
+      && pin('computeExercisePREvents') === '4339cc543585bded' && pin('prEventsForEntry') === 'afda7994a51f7b09' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
+    T('the Log card and Full workout sheet are untouched (they still show the set estimate — recorded, not changed here)',
+      pin('renderSelectedDay') === '43c4d5b7faa85a8c' && pin('openDayDetail') === '3e9975e617040dd2');
+    T('no stored field: the summary adds no key and no entry field',
+      !/entry\.(durationSec|actualMinutes|elapsed)\s*=/.test(src) && !/newEntry\.(durationSec|actualMinutes|elapsed)\s*=/.test(src));
   });
 }
 
@@ -42893,6 +43101,7 @@ async function main(){
   await testCardsAndSummaryD102();
   await testStartProvenanceD103();
   await testExerciseCardD104();
+  await testSummaryTimeD105();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
