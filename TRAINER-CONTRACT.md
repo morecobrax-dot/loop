@@ -14524,3 +14524,84 @@ the header changes at once, the session from next Monday.
 **Status.** E23 CLOSED. E16 HELD; E20, E21, E22 unchanged and untouched (pinned); E25, E26, E27 OPEN.
 Trainer 0.1.1-shadow. verify 10,292/0, five audits green, every What's New line proven false on 10.16
 and true on 10.17.
+
+## §140 — A CLEARER EXERCISE CARD (D104 · LOOP 10.18 · loop-v195)
+
+The brief was headed D103; the repository already held D103 (10.17's start provenance, §139), so this
+is D104. It named the Edit Workout card and listed what to keep on it: last time, the suggested
+warm-up, Bodyweight, Swap and the note. One surface carries all of those — the LIVE exercise card the
+workout stepper shows, built by `addLogExerciseRow`. D20's saved-workout editor (`addTplExerciseRow`)
+has none of them and was left alone. The owner's mock showed a finished workout; its direction was
+taken (the exercise's picture leading its name, reference grouped, each set's number in a badge) and
+its "⋯" menus were not: D10 names every action.
+
+**Measured on shipped 10.17 first**, in real Edge. The exercise was named twice, one under the other:
+the stepper head (`#wsHead`: art and `h3.ws-name`) and the row's own name field. The actions wrapped —
+Swap, then the note block, then Bodyweight on a line of its own — 193 px tall at 320 and 375 px (141 at
+430). Last time and the warm-up were two separate boxes and the note sat among the actions. Each set
+read "Set 1". At 320 px the saved note ran 22.5 px past the card and the sheet scrolled sideways by
+3 px; the note's "View ›" was a 39 px target at every width. And removing a set, or swapping an
+exercise part-way through, relabelled a warm-up "Set 1" while it still counted as a warm-up (E28).
+
+**One order, top to bottom.** Name field (behind Edit in the stepper) → actions (Swap · Edit) → the
+coach, unchanged → the brief panel (Last time · warm-up · note) → the Sets bar (SETS · Bodyweight) →
+sets → footer → rest. The actions are one 44 px line at every width.
+
+- **The exercise, once.** The head already names it with its art (now 60 px, was 52), so in the
+  stepper the row's field waits behind Edit, a named action. Edit → Done shows the field and its
+  remove control; a row built with no name opens with it showing (`.ex-naming`), so a blank exercise
+  can always be named. `toggleExerciseEdit` changes only that class and the button's own state.
+- **The brief panel.** Last time, the warm-up and the note are rows of one surface, divided by the
+  panel's own ground through a 1 px gap, so a row that is not there (no history, no warm-up) takes no
+  hairline with it. The last-time row carries its label, so its summary is just the value
+  (`refreshExContext` no longer prefixes "Last "). The note's View is a 44 px target.
+- **The Sets bar.** Bodyweight sits beside the sets it switches, as a control: the generic `label`
+  rule's capitals and tracking are undone there.
+- **The badge.** One writer, `setIdxHtml`, for building a set, renumbering and changing a set's type
+  (three hand-written copies before). In the stepper the number, or W for a warm-up, sits in a 30 px
+  circle inside the kept 44 px target: soft green once the set is done, the warm-up tint for a
+  warm-up, and no colour of its own, so set-type colours still reach the number. The words stay in the
+  accessible name ("Set 2", "Warm-up"). D18's plain form, the fallback if the stepper cannot start,
+  still reads "Set 2" and "Warm-up" exactly as 10.17 drew it.
+
+**The art is LOOP's own, from one place.** `exerciseThumbHtml(name, opts)` → `exerciseVisualKey(name)`
+→ `exerciseArtUse(key)`, which draws `exerciseArtSvg(key, 'thumb')` once into `#exerciseArtSprite` as
+`<symbol id="exart-KEY">` and returns a `<use href="#exart-KEY">`. The Add-exercises picker
+(`exPickerRowHtml`), the swap sheet, Program Studio, Exercise Detail and the card's head all call it,
+so the card shows the picker's drawing from the same symbol. Nothing new was drawn and nothing is a
+placeholder: a name that reaches no drawing (one the athlete typed) shows no picture, as before.
+Contract 218 fails if the card draws an SVG of its own.
+
+**What did not change.** Forty-two functions are byte-identical and pinned: every logging handler
+(`stepValue`, `toggleSetComplete`, `toggleBW`, `addSetRow`, `removeSetRow`, `toggleSetType`,
+`toggleSetMore`), rename and remove (`onExerciseNameEdited`, `removeLogExerciseRow`), swap, notes,
+warm-up and last time, draft capture and restore, `saveLog`, `startTemplateLog`,
+`resolveStartWorkout`, `renderWorkoutStep`, the art helpers, and the progression, PR, XP, capability,
+recovery and Mastery engines. Five changed on purpose: `addLogExerciseRow` (the order above),
+`appendSetRow`, `renumberSets` and `applySetTypeToRow` (the one label writer), and `refreshExContext`
+(the duplicate "Last "). No stored field and no migration; DATA_KEYS 16, schema 1, trainer
+0.1.1-shadow.
+
+**Tests.** Contract 218 (**30 checks**): the order, the art, Edit and Done, the badge through every
+path, the panel, the targets, and the pins. Against shipped 10.17 it fails 14 times, two of its blocks
+throwing outright. One existing assertion, Contract 165's "Swap, Note and Bodyweight sit on one centre
+line" (D59), was restated in place with its reason: the note became a row of the panel and Bodyweight
+heads the sets, while what it protected, the actions sharing one line with no margin pushing one out,
+still holds.
+
+**Mutation: 20 of 20 killed**, every one by Contract 218 alone — among them the name shown twice, a
+bare "⋯" menu, a card-drawn SVG, the head losing its art, the badge painting over set-type colours, a
+warm-up relabelled by renumbering, the plain form showing W, and a protected behaviour (Bodyweight
+keeping its weights).
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844 and 430×932, every control
+pressed with a real CDP mouse event at its on-screen centre: the art drawn from the shared sprite, the
+name on screen once, Edit and Done, a rename, the swap sheet, the note's View, last time opening to
+every set, one panel, Bodyweight off and on, the badge through a warm-up and a removal, the plain
+form's words, completion and rest, Add Set, 28 controls each at least 44 × 44 with none clipped, no
+sideways scroll, the draft holding the warm-up type and the completed set, Edit → remove, no console
+errors — **120/120**. Every What's New line was measured false on 10.17 and true on 10.18, at 320 and
+375 px.
+
+**Status.** UI only. E28 found and CLOSED. E16 HELD; E20, E21, E22, E25, E26, E27 OPEN and untouched.
+verify 10,322/0, five audits green.

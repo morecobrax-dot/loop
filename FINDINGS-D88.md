@@ -914,6 +914,22 @@ the current week is a product decision about D51's forward-only rule (which
 exists to protect weeks already trained); D103 was told not to redesign
 Programs or reschedule semantics.
 
+## E28 — Renumbering relabelled a warm-up set as a working set · P4 · PROVEN · **CLOSED in D104 (LOOP 10.18)**
+
+Found by D104's audit of the set label, which three functions wrote by hand.
+`renumberSets` — run when a set is removed, when a swap part-way through splits
+an exercise, and when that swap is undone — wrote `'Set ' + n` over every row's
+label, warm-ups included. Measured on 10.17 in real Edge: mark Bench Press's
+first set a warm-up (it reads "Warm-up") and remove the second set, and the
+first reads "Set 1" while its type is still `warmup`; complete that warm-up and
+swap the exercise, and the finished row left behind reads "Set 1" the same way.
+The logged type was never wrong — only what the athlete was shown.
+
+> **Closed.** One writer, `setIdxHtml(n, warm)`, for building a set, renumbering
+> and changing a set's type. Contract 218 renumbers a warm-up followed by two
+> working sets and requires it to keep its label; the real-browser claims check
+> reproduced both paths on 10.17 and neither on 10.18.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

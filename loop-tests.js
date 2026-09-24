@@ -23587,9 +23587,13 @@ async function testWorkoutDockAndFigure(){
     /-webkit-appearance: none; appearance: none;/.test(ruleAt(css, '.bw-toggle input[type="checkbox"]')) &&
     /background-color: var\(--accent\); border-color: var\(--accent\);/.test(ruleAt(css, '.bw-toggle input[type="checkbox"]:checked')) &&
     /\.bw-toggle input\{ width: 20px; height: 20px; \}/.test(css));
+  /* D104 restated: the note moved into the brief panel beside last time and the
+     warm-up (it is something to know, not something to do), and Bodyweight moved
+     into the sets bar it governs. What this protected still holds — the
+     exercise's actions share one line, with no margin pushing one out of it. */
   T('Swap, Note and Bodyweight sit on one centre line',
-    /\.ex-actions \.ex-act\{ margin-top: 0; \}/.test(css) && /\.ex-actions \.ex-note-btn\{ vertical-align: top; \}/.test(css) &&
-    /\.ex-actions \.bw-toggle\{[^}]*margin-top: 0; margin-bottom: 0; \}/.test(css));
+    /\.ex-actions \.ex-act\{ margin-top: 0; \}/.test(css) && /\.ex-brief \.ex-note-btn\{/.test(css) &&
+    /\.ex-sets-bar \.bw-toggle\{[^}]*margin: 0;/.test(css));
   T('the remove control takes the radius of the field beside it', /border-radius: var\(--radius-md\);/.test(ruleAt(css, '.rm-ex')));
   T('the pinned rest card leaves no slot for the set beneath it to show through',
     /box-shadow: var\(--shadow-md\), 0 28px 0 4px var\(--surface\);/.test(ruleAt(css, '.stepper-on .ws-current .rest-panel')));
@@ -42553,6 +42557,163 @@ async function testStartProvenanceD103(){
   release();
 }
 
+/* =========================================================
+   CONTRACT 218 — THE EXERCISE CARD, GROUPED (D104)
+   ---------------------------------------------------------
+   The live exercise card read as a form: the stepper head named
+   the exercise and the row named it again in a full-size field
+   with a boxed remove beside it; Swap, the note and Bodyweight
+   landed on three separate lines once a note existed; last time,
+   the warm-up and the note were three boxes in three styles; a
+   set's number was a tiny "Set 1" in monospace.
+
+   One exercise, read in the order it is used: what it is (the
+   head — LOOP's own exercise art, the name once, its muscles),
+   what can be done to it (Swap, Edit — named actions, never a
+   glyph, D10), today's plan (the coach, D50B), what to know
+   before lifting (last time, warm-up, note — rows of ONE panel),
+   then the work (a Sets bar that owns the Bodyweight switch it
+   governs, and each set's number as a badge).
+
+   UI only. Every function the card CALLS is byte-identical; the
+   five it changed are the row builder, the set builder, the one
+   label writer's two callers and the last-time summary.
+   ========================================================= */
+async function testExerciseCardD104(){
+  section('CONTRACT 218 — the exercise card, grouped (D104)');
+  const fs = require('fs'), crypto = require('crypto');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const css = src.slice(src.indexOf('<style>'), src.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const row = fnSrc(src, 'addLogExerciseRow').replace(/<!--[\s\S]*?-->/g, ' ');
+  const at = s => row.indexOf(s);
+  const ruleAt = (text, sel) => { const i = text.indexOf(String.fromCharCode(10) + sel + '{'); return i < 0 ? '' : text.slice(i + 1, text.indexOf('}', i)); };
+  const app = H.loadApp({ dataSchemaVersion: '1' });
+  await H.settle(250);
+  const c = app.ctx;
+
+  sub('one exercise, read in the order it is used');
+  await guard('order', async () => {
+    T('name field → actions → coach → the brief panel → the sets bar → sets → footer → rest',
+      at('class="ex-log-name-row"') < at('class="ex-actions"') && at('class="ex-actions"') < at('class="recommend-wrap"')
+      && at('class="recommend-wrap"') < at('class="ex-brief"') && at('class="ex-brief"') < at('class="ex-sets-bar"')
+      && at('class="ex-sets-bar"') < at('class="sets-head"') && at('class="sets-head"') < at('class="sets-list"')
+      && at('class="sets-list"') < at('class="ex-log-foot"') && at('class="ex-log-foot"') < at('class="rest-panel"'));
+    T('last time, the warm-up and the note are rows of ONE panel, in that order',
+      /<div class="ex-brief">\s*<div class="ex-context">[\s\S]*?<\/div>\s*<\/div>\s*<div class="warmup-wrap">\$\{warmupBoxHtml\(name \|\| '', initialWeight\)\}<\/div>\s*<div class="ex-note-wrap">\$\{name \? exerciseNoteBlockHtml\(name\) : ''\}<\/div>\s*<\/div>/.test(row));
+    T('Bodyweight heads the sets it switches, not the exercise actions',
+      /<div class="ex-sets-bar">\s*<span class="ex-sets-k">Sets<\/span>\s*<label class="bw-toggle"[^>]*><input type="checkbox" class="ex-bw-in"[^>]*onchange="toggleBW\(this\)"> Bodyweight<\/label>\s*<\/div>/.test(row)
+      && !/class="ex-actions">[\s\S]*?bw-toggle[\s\S]*?class="recommend-wrap"/.test(row));
+    T('the exercise actions are named — Swap and Edit — and never a bare glyph (D10)',
+      />Swap<\/button>/.test(row) && /<span class="ex-edit-label">\$\{name \? 'Edit' : 'Done'\}<\/span>/.test(row)
+      && /aria-label="Rename or remove this exercise"/.test(row) && row.indexOf('⋯') === -1 && row.indexOf('…') === -1);
+    T('the last-time row carries its own label, so the summary is just the value',
+      /<span class="exc-k">Last time<\/span><span class="exc-summary"><\/span>/.test(row)
+      && /parts\.push\(lastChip\.textContent\.trim\(\)\);/.test(fnSrc(src, 'refreshExContext')) && !/'Last ' \+/.test(fnSrc(src, 'refreshExContext')));
+  });
+
+  sub('LOOP\'s own exercise art, and the name once');
+  await guard('identity', async () => {
+    T('the head still draws the exercise with exerciseThumbHtml — the picker\'s drawing, through the one sprite',
+      /exerciseThumbHtml\(name, \{ size: 'lg' \}\)/.test(fnSrc(src, 'renderWorkoutStep')) && /exerciseArtUse\(key\)/.test(fnSrc(src, 'exerciseThumbHtml'))
+      && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('exerciseArtUse') === 'cd513498f55c104b' && pin('exerciseArtSvg') === 'b25e593b5b75b19f'
+      && pin('exerciseVisualKey') === 'eeeaad5194ff7779');
+    T('no new illustration: the card draws no SVG of its own, only through LOOP\'s existing icon helpers',
+      row.indexOf('<svg') === -1 && /\$\{closeIconSvg\(13\)\}/.test(row) && /\$\{chevronDownSvg\(12\)\}/.test(row));
+    T('the picture leads the name a little larger, in the tile it already had',
+      /\.ws-title \.ex-thumb-lg\{ width: 60px; height: 60px; padding: 3px; border-radius: var\(--radius-lg\); \}/.test(css));
+    T('in the stepper the row\'s own name field waits behind Edit; the plain form still shows it',
+      /\.stepper-on \.ws-current \.ex-log-name-row\{ display: none; \}/.test(css)
+      && /\.stepper-on \.ws-current\.ex-naming \.ex-log-name-row\{ display: flex;/.test(css)
+      && /\.ex-actions \.ex-edit-btn\{ display: none; \}/.test(css) && /\.stepper-on \.ex-actions \.ex-edit-btn\{ display: inline-flex; \}/.test(css));
+    T('a row built with no name opens with its field showing, so it can always be named',
+      /if\(!name\) row\.classList\.add\('ex-naming'\);/.test(fnSrc(src, 'addLogExerciseRow'))
+      && /aria-expanded="\$\{name \? 'false' : 'true'\}"/.test(row));
+    T('rename and remove are the SAME field and control as before — only where they wait moved',
+      /class="ex-name-in" value="\$\{name \? escapeAttr\(name\) : ''\}" onchange="onExerciseNameEdited\(this\)"/.test(row)
+      && /<button class="rm-ex" onclick="removeLogExerciseRow\(this\)" aria-label="Remove exercise">/.test(row)
+      && pin('onExerciseNameEdited') === '044bb110a3fab1e0' && pin('removeLogExerciseRow') === '62f01fc7ef2a6d0c');
+  });
+
+  sub('Edit, by behaviour');
+  await guard('edit', async () => {
+    const cls = new Set(), attrs = {}, label = { textContent: 'Edit' };
+    const r = { classList: { toggle: k => { cls.has(k) ? cls.delete(k) : cls.add(k); return cls.has(k); }, contains: k => cls.has(k) } };
+    const btn = { closest: () => r, setAttribute: (k, v) => { attrs[k] = v; }, querySelector: () => label };
+    c.toggleExerciseEdit(btn);
+    const opened = cls.has('ex-naming') && label.textContent === 'Done' && attrs['aria-expanded'] === 'true';
+    c.toggleExerciseEdit(btn);
+    T('Edit opens the name field ("Done", expanded) and Done puts it away ("Edit", collapsed)',
+      opened && !cls.has('ex-naming') && label.textContent === 'Edit' && attrs['aria-expanded'] === 'false');
+    T('and it touches nothing but that state — no store write, no workout change', !/LOOPStore|persist|workoutLog|scheduleDraftSave/.test(fnSrc(src, 'toggleExerciseEdit')));
+  });
+
+  sub('a set\'s number, as a badge that still says what it is');
+  await guard('badge', async () => {
+    T('the badge shows the number and is named "Set N"', c.setIdxHtml(3, false) === '<span class="set-idx-word">Set </span>3');
+    T('a warm-up shows W and is named "Warm-up"', c.setIdxHtml(1, true) === '<span class="set-idx-w" aria-hidden="true">W</span><span class="set-idx-word">Warm-up</span>');
+    T('only the stepper badge trades the words for the number: the plain form still reads "Set 2" and "Warm-up" (D18)',
+      /(^|\n)\.set-idx-w\{ display: none; \}/.test(css) && /\.stepper-on \.ws-current \.set-idx-w\{ display: inline; \}/.test(css)
+      && /\.stepper-on \.ws-current \.set-idx-word\{[^}]*position: absolute;[^}]*clip: rect\(0 0 0 0\);/.test(css));
+    T('one writer for every path: building, renumbering and changing a set\'s type',
+      /\$\{setIdxHtml\(idx\)\}/.test(fnSrc(src, 'appendSetRow')) && /setIdxHtml\(i \+ 1, r\.dataset\.setType === SET_TYPES\.WARMUP\)/.test(fnSrc(src, 'renumberSets'))
+      && /idxEl\.innerHTML = setIdxHtml\(idx, typeId === SET_TYPES\.WARMUP\);/.test(fnSrc(src, 'applySetTypeToRow'))
+      && !/textContent = 'Set '/.test(fnSrc(src, 'renumberSets') + fnSrc(src, 'applySetTypeToRow')));
+    /* renumbering used to write "Set N" over a warm-up's label */
+    const mk = type => { const idx = { innerHTML: '' }; return { dataset: type ? { setType: type } : {}, querySelector: () => idx, idx }; };
+    const rows = [mk('warmup'), mk(null), mk(null)];
+    c.renumberSets({ querySelectorAll: () => rows });
+    T('removing a set no longer turns a warm-up into "Set 1"',
+      /Warm-up/.test(rows[0].idx.innerHTML) && rows[1].idx.innerHTML === '<span class="set-idx-word">Set </span>2' && rows[2].idx.innerHTML === '<span class="set-idx-word">Set </span>3');
+    T('the badge keeps the 44px target and draws a 30px circle inside it, in no colour of its own',
+      /\.stepper-on \.ws-current \.set-idx\{[^}]*width: 44px;/.test(css) && !/\.stepper-on \.ws-current \.set-idx\{[^}]*color:/.test(css)
+      && /\.stepper-on \.ws-current \.set-idx::before\{[^}]*width: 30px; height: 30px;/.test(css));
+    T('set types keep their colours on the number (warm-up, drop, failure, AMRAP)',
+      /\.set-row\.set-warmup \.set-idx\{ color: var\(--warning\);/.test(css) && /\.set-row\.set-type-failure \.set-idx\{ color: var\(--error\); \}/.test(css));
+  });
+
+  sub('the grouped panel, the sets bar and the targets');
+  await guard('css', async () => {
+    T('the panel\'s hairlines are its own ground through a 1px gap, so a missing row takes no line with it',
+      /\.ex-brief\{[^}]*display: flex; flex-direction: column; gap: 1px;[^}]*background: var\(--border\);[^}]*overflow: hidden;/.test(css)
+      && /\.ex-brief > \*\{ background: var\(--surface-2\); \}/.test(css));
+    T('the sections share one label style', /\.exc-k, \.ex-sets-k,\s*\.ex-brief \.warmup-label, \.ex-brief \.ex-note-label\{/.test(css));
+    T('Bodyweight reads as a control, not a field caption (the generic label rule\'s caps are undone)',
+      /\.ex-sets-bar \.bw-toggle\{[^}]*text-transform: none;/.test(css));
+    T('every control keeps its 44px: actions, last time, the note, Bodyweight, the set controls',
+      /\.ex-actions \.ex-act\{\s*height: 44px;/.test(css) && /\.ex-brief \.ex-context-btn\{\s*min-height: 48px;/.test(css)
+      && /\.ex-brief \.ex-note-btn\{\s*width: 100%; min-height: 44px;/.test(css) && /\.ex-brief \.ex-note-view\{ min-width: 44px;/.test(css)
+      && /\.bw-toggle\{[\s\S]{0,200}min-height: 44px/.test(css) && /\.set-meta-btn\{[\s\S]{0,220}height: 44px/.test(css)
+      && /\.set-complete-btn\{\s*width: 44px; height: 44px/.test(css) && /\.stepper button\{[^}]*width: 44px; height: 44px;/.test(css));
+    T('the stepper keeps its unboxed sets and gutter mark (D18, D59)',
+      /\.stepper-on \.ws-current \.set-row\{\s*background: none; border: none;/.test(css) && /left: -10px;/.test(ruleAt(css, '.stepper-on .ws-current .set-row.completed::before')));
+  });
+
+  sub('everything the card calls is untouched');
+  await guard('protected', async () => {
+    T('logging: steppers, completion, Bodyweight, add/remove set, set type, set menu',
+      pin('stepValue') === '9ddfa0cf6ccb8b02' && pin('toggleSetComplete') === '46059f0d3306793b' && pin('toggleBW') === '8299f1c082c1e68d'
+      && pin('addSetRow') === '1b220d04e378d96a' && pin('removeSetRow') === 'd32b19dbde88600b' && pin('toggleSetType') === 'b4fdb34aa3514a5c'
+      && pin('toggleSetMore') === '806e551bdbf2c377');
+    T('the workout: draft capture and restore, save, start, the stepper',
+      pin('captureActiveDraft') === '442c8c89a288ef0d' && pin('restoreDraftToSheet') === '3d1b7cf79f71d591' && pin('saveLog') === '66c63714822ef5ee'
+      && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('resolveStartWorkout') === '47700a2badbc9e2e' && pin('renderWorkoutStep') === 'f92999bce55ec36b');
+    T('what the card shows: swap, notes, warm-up, last time, the coach',
+      pin('openSubstitutions') === 'a57e36b26c5a4285' && pin('swapLogExercise') === '53e0f712db604c13' && pin('exerciseNoteBlockHtml') === '4cd4699fde7d8b5f'
+      && pin('refreshExerciseNoteBlock') === 'b7affb26cc68f860' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('maybeRefreshWarmup') === 'c8ae17b3ef832173'
+      && pin('lastTimeHtml') === '7fbccabf7dc8ca7f' && pin('refreshSetCoach') === '5c84cf297638cae2');
+    T('progression, records, XP, capability, recovery, Mastery and D100/D101 are byte-identical',
+      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('workoutGroupsOf') === 'f346201c58363ccb'
+      && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
+      && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd'
+      && pin('exerciseSessionHistory') === '43ab1de84479d05c' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
+      && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('twActionLabel') === '21824852a16e4df2');
+    T('trainer 0.1.1-shadow, DATA_KEYS 16, schema 1, no migration', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 16
+      && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -42731,6 +42892,7 @@ async function main(){
   await testWorkoutPerformanceD96C3();
   await testCardsAndSummaryD102();
   await testStartProvenanceD103();
+  await testExerciseCardD104();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
