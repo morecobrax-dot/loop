@@ -757,7 +757,7 @@ is byte-identical by hash, with its output identical on **39 of 39** histories.
 Seen on screen before the fix: "Best ever 320 lb", and Day Detail announcing
 "2 new records: Barbell Squat, Overhead Press" for a session that set one.
 
-## E20 — Recovery's warm-up heuristic judges a set against its own ROW's top weight · P4 · PROVEN · OPEN
+## E20 — Recovery's warm-up heuristic judges a set against its own ROW's top weight · P4 · PROVEN · **CLOSED in D111 (LOOP 10.26)**
 
 Found by D96C-3's reader map. For a set with no recorded type (all history before
 set types), `computeMuscleRecovery` asks `setLoadFactor` whether it was a warm-up
@@ -772,6 +772,18 @@ not a record, XP, or progression surface; the right unit is almost certainly the
 workout's performance of the lift (the same primitive), but that is a recovery
 change with its own drift to measure. Typed sets (anything logged since D5) are
 unaffected: a declared type always wins over the heuristic.
+
+> **Closed.** For every lift in a workout, the load an untyped set is judged against is now the
+> heaviest load of that lift across all of its loaded rows — D96C-3's one performance per workout, by
+> the same trim + lowercase identity — not the row the set happens to sit in. Nothing else about
+> recovery moved: which sets count toward the reference is exactly what one row always admitted, and
+> the 55% line, the 0.25 discount, a declared type always winning, decay, weights, saturation, the
+> window, thresholds, bands and the body map are byte-identical. One-row histories read exactly as
+> before — every one-row layout of 240 generated lifts and a generated two-year history, proven against
+> 10.25's own function. In real Edge on live 10.25 a split squat day read quads 69% "Recovering" where
+> the same sets in one row read 79% "Ready"; it now reads 79% either way. Neither owner backup holds a
+> repeated row at all (zero drift). E22 is untouched: work logged twice still counts twice. Found while
+> auditing this: E35. See TRAINER-CONTRACT.md §148 and Contract 226.
 
 ## E21 — D49's session evidence pairs the heaviest load with reps from another set · P4 · PROVEN · **CLOSED in D109 (LOOP 10.24)**
 
@@ -1098,6 +1110,25 @@ D109 was scoped to.
 > all, and D49 falls back to its own existing "no history" answer, never a manufactured number. E33 (the
 > trainer's own independent-maxima shape) is proven untouched by source and by pin. See
 > TRAINER-CONTRACT.md §147 and Contract 225.
+
+## E35 — Recovery's own set eligibility never learned D96A's rep boundary · P4 · PROVEN · OPEN
+
+Found by D111's audit; pre-existing on a single row and independent of layout. `setLoadFactor` reads a
+set's reps with a bare `parseFloat` and refuses only `NaN` and non-positive counts, so "1e999" or
+"Infinity" is a full set of stress: two 225 × 8 sets of squats read 1.2 on quads a day and a half later,
+and a third 225 × 1e999 set makes it 1.8 and three sets. And the warm-up reference admits every set that
+carries a load, performed or not: a 500 × (no reps) left beside the same two real 225 × 8 sets makes
+them warm-ups — 0.3 instead of 1.2. On one row both readings are exactly what they were on 10.25. D111
+made the reference span a lift's rows, so since 10.26 an unperformed heavier set in ANOTHER row of the
+same lift does what it always did inside one row — the layout invariance E20 asked for, carrying this
+reading with it (Contract 226 pins both halves as they stand, so the fix will restate them on purpose).
+
+**Why it was not fixed in D111.** Which sets count as recovery evidence is an eligibility decision —
+the question E34 answered for D49 — and D111 was scoped to the reference alone, with every one-row
+reading required to stay identical. The reuse is obvious (`performedReps`, D96A's own boundary, for the
+factor and for which sets may set the reference), but it changes recovery on any history that holds
+such a set, which is its own drift to measure. Neither owner backup contains either shape: no
+non-finite rep count, and no unperformed set heavier than the performed work of its lift.
 
 ## Not findings — checked and clean
 

@@ -41722,8 +41722,11 @@ async function testWorkoutPerformanceD96C3(){
       pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('getSessionPRs') === '2a121bed25bfa6ab' && pin('wasSessionPR') === 'dcc45f803751dc53');
     T('PBT and the D100 muscle derivations are byte-identical', pin('computePBTCandidates') === 'ba795fd4ab772a63'
       && pin('rankPBTCandidates') === '5e5f609ad9a2053a' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e');
-    T('recovery is byte-identical (FINDINGS E20 records its per-row warm-up heuristic, deliberately not changed here)',
-      pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd');
+    /* D111 restated: computeMuscleRecovery changed on purpose, for E20 — its untyped warm-up
+       reference is now the lift's top load across the workout, not the row's. Contract 226 proves
+       that is the only change; setLoadFactor, the heuristic itself, is still byte-identical. */
+    T('recovery is byte-identical (as D111 left it: E20 closed, the per-row reference replaced by the workout\'s)',
+      pin('computeMuscleRecovery') === 'afb9fc63110ae478' && pin('setLoadFactor') === '82bd966e1694c6dd');
     /* D102 restated the second half of this pin: trainDetailTemplateOf and
        openTrainDetail gained an optional DATE (Contract 216), so a future
        day's own View workout can resolve THAT day's program session instead
@@ -42582,8 +42585,9 @@ async function testStartProvenanceD103(){
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
     /* D110 restated: exerciseSessionHistory changed again, for E34 — Contract 225 proves it
        differs from 10.24 in its rep-validity boundary and nothing else. The rest of the line is unchanged. */
-    T('E16 capability, E20 recovery, D49 evidence (as D110 left it) and E22 XP/Mastery are untouched',
-      pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd'
+    /* D111 restated: computeMuscleRecovery changed on purpose, for E20 — see Contract 226. */
+    T('E16 capability, recovery (as D111 left it), D49 evidence (as D110 left it) and E22 XP/Mastery are untouched',
+      pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'afb9fc63110ae478' && pin('setLoadFactor') === '82bd966e1694c6dd'
       && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
       && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('masteryPointsFor') === '0c704c40a853d991');
@@ -42749,10 +42753,11 @@ async function testExerciseCardD104(){
       && pin('refreshExerciseNoteBlock') === 'b7affb26cc68f860' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('maybeRefreshWarmup') === 'c8ae17b3ef832173'
       && pin('lastTimeHtml') === '7fbccabf7dc8ca7f' && pin('refreshSetCoach') === '5c84cf297638cae2');
     /* D110 restated: exerciseSessionHistory changed again, for E34 — see Contract 225. */
+    /* D111 restated: computeMuscleRecovery changed on purpose, for E20 — see Contract 226. */
     T('progression, records, XP, capability, recovery, Mastery and D100/D101 are byte-identical',
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
-      && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === '6d079e205ec35afb' && pin('setLoadFactor') === '82bd966e1694c6dd'
+      && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'afb9fc63110ae478' && pin('setLoadFactor') === '82bd966e1694c6dd'
       && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('twActionLabel') === '21824852a16e4df2');
     T('trainer 0.1.1-shadow, DATA_KEYS 16, schema 1, no migration', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 16
@@ -43454,8 +43459,9 @@ async function testMasteryTourD106(){
     T('the builders the tour borrows are byte-identical — so the examples change only when the real screens do', pin('appendSetRow') === '15d160342d105b97' && pin('refreshSetMeta') === '938470e0460c3c58'
       && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('workoutIconHtml') === 'c95dabd80b455c5b' && pin('workoutIdentity') === '9196e8f108a3a7ad' && pin('restRingSvg') === '830b35d31e01d2b4'
       && pin('substitutionOptionHtml') === '36c7820f98b0491b' && pin('bodyDiagramSvg') === '50d44084806369ae' && pin('volumeBarSvg') === 'e4c8f5df157fb24a' && pin('setChipHtml') === '350b4e34eb582056');
+    /* D111 restated: computeMuscleRecovery changed on purpose, for E20 — see Contract 226. */
     T('XP, rank, readiness and recovery maths are byte-identical', pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898'
-      && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('readinessStateFromScore') === '736f5c750f322973' && pin('computeMuscleRecovery') === '6d079e205ec35afb');
+      && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('readinessStateFromScore') === '736f5c750f322973' && pin('computeMuscleRecovery') === 'afb9fc63110ae478');
     /* D107 restated: renderTodayWorkout's own hero shows the day's LAST
        session now (E30) — never a stale first-of-the-day entry left behind
        once a second session that day is also logged. */
@@ -44441,6 +44447,588 @@ async function testFiniteRepEligibilityD110(){
   });
 }
 
+/* =========================================================
+   CONTRACT 226 — RECOVERY READS THE WORKOUT, NOT THE ROW  (D111, E20)
+   ---------------------------------------------------------
+   A set with no recorded type is a warm-up to recovery when its load
+   is under 55% of a reference load — and that reference was the top
+   load of the set's own ROW. Split the same squats across two rows
+   and a light set became "the heaviest set of its row" and counted in
+   full, so the same physical work read as more fatigue. The reference
+   is now the heaviest load across every loaded row of that lift in
+   that workout — D96C-3's one performance per workout, by the same
+   trim + lowercase identity — and nothing else about recovery moved:
+   which sets count toward the reference, the 55% line, the 0.25
+   discount, typed sets, decay, weights, saturation, thresholds and
+   bands. The baseline is not described here, it is RUN: 10.25's own
+   function is rebuilt by undoing exactly the D111 lines.
+   ========================================================= */
+async function testRecoveryLayoutD111(){
+  section('CONTRACT 226 — recovery reads the workout, not the row (D111, E20)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const hash = s => crypto.createHash('sha256').update(s.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const pin = n => hash(fnSrc(src, n));
+  const pad = n => String(n).padStart(2, '0');
+  const S = (w, r, o) => Object.assign({ weight: w === null ? '' : String(w), reps: r === null ? '' : String(r), rir: '2', completed: true }, o || {});
+  const ROW = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const J = o => JSON.stringify(o);
+  const clone = o => JSON.parse(J(o));
+  const Q = 'Back Squat';
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  const MUSCLES = Object.keys(ctx.MUSCLE_MAP);
+  /* One fixed instant, so every number below is exact: a workout dated the day
+     before is 1.5 days old, so one full set weighs 0.5^(1.5 / 2) = 0.5946. */
+  const NOW = '2026-09-10T12:00:00', DAY = '2026-09-09';
+  const DECAY = Math.pow(0.5, 1.5 / 2);
+  const units = u => Math.round(u * DECAY * 10) / 10;   // a primary muscle's load for u set-equivalents, 1.5 days old
+  const WK = (id, exs, date) => ({ id, date: date || DAY, category: 'legs', title: 'Legs', notes: '', exercises: exs });
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
+    ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); ctx.invalidateShadowCache(); ctx.invalidateRecoveryCache(); };
+  const atTime = (now, fn) => { ctx._simulatedNow = now; ctx.invalidateRecoveryCache(); ctx.invalidateShadowCache();
+    try{ return fn(); }finally{ ctx._simulatedNow = null; ctx.invalidateRecoveryCache(); ctx.invalidateShadowCache(); } };
+  const at = fn => atTime(NOW, fn);
+  const recOf = log => { seed(log); return at(() => ctx.computeMuscleRecovery()); };
+  const rec = exs => recOf([WK('w1', exs)]);
+
+  /* 10.25's computeMuscleRecovery, frozen here verbatim (comments stripped) and
+     run inside this same app, so every "as on 10.25" below is a reading of the
+     baseline, not a description of it. Check 1 proves it is 10.25's by pin, and
+     that undoing exactly the D111 lines of today's function gives it back. It
+     shares the app's recovery cache, so every read below clears that cache
+     before and after. */
+  const BASELINE_10_25 = `
+    function computeMuscleRecovery(){
+      const day = trainerDayKey();
+      if(_recoveryCache && _recoveryDay === day) return _recoveryCache;
+
+      const now = trainerNow();
+      const muscles = Object.keys(MUSCLE_MAP);
+      const acc = {};
+      muscles.forEach(m => { acc[m] = { load: 0, rawSets: 0, sessions: 0, lastTrainedDays: null, lastTrainedDate: null }; });
+
+      const cutoff = new Date(now); cutoff.setDate(now.getDate() - RECOVERY_CONFIG.windowDays);
+
+      workoutLog.forEach(entry => {
+        const d = new Date(entry.date + 'T00:00:00');
+        if(isNaN(d)) return;
+
+        const daysAgo = Math.max(0, (now - d) / 86400000);
+        const inWindow = d >= cutoff;
+        const decay = recencyDecay(daysAgo);
+        const touched = {};
+
+        (entry.exercises || []).forEach(ex => {
+          const { primary, secondary } = musclesForExercise(ex.name);
+          if(!primary.length && !secondary.length) return;
+
+          const sets = ex.sets || [];
+          const weights = sets.map(s => performedLoad(s.weight)).filter(v => v !== null && v > 0);
+          const topWeight = weights.length ? Math.max(...weights) : null;
+
+          let sessionLoad = 0, working = 0;
+          sets.forEach(s => {
+            const f = setLoadFactor(s, topWeight, !!ex.bodyweight);
+            if(f > 0){ sessionLoad += f; working += 1; }
+          });
+          if(sessionLoad === 0) return;
+
+          const applyTo = (list, weight) => list.forEach(m => {
+            if(inWindow) acc[m].load += sessionLoad * weight * decay;
+            acc[m].rawSets += working * weight;
+            touched[m] = true;
+            if(acc[m].lastTrainedDays === null || daysAgo < acc[m].lastTrainedDays){
+              acc[m].lastTrainedDays = daysAgo;
+              acc[m].lastTrainedDate = entry.date;
+            }
+          });
+          applyTo(primary,   RECOVERY_CONFIG.primaryWeight);
+          applyTo(secondary, RECOVERY_CONFIG.secondaryWeight);
+        });
+
+        Object.keys(touched).forEach(m => { if(inWindow) acc[m].sessions += 1; });
+      });
+
+      const out = {};
+      muscles.forEach(m => {
+        const a = acc[m];
+        const saturation = Math.min(1, a.load / RECOVERY_CONFIG.saturationSets);
+        const score = a.lastTrainedDays === null ? null : Math.round(100 * (1 - saturation));
+        out[m] = {
+          muscle: m,
+          label: MUSCLE_LABELS[m] || m,
+          score,
+          state: recoveryStateFromScore(score),
+          load: Math.round(a.load * 10) / 10,
+          recentSets: Math.round(a.rawSets),
+          sessions: a.sessions,
+          lastTrainedDays: a.lastTrainedDays === null ? null : Math.round(a.lastTrainedDays * 10) / 10,
+          lastTrainedDate: a.lastTrainedDate,
+          confidence: recoveryConfidence(a.sessions, a.lastTrainedDays)
+        };
+      });
+      _recoveryCache = out;
+      _recoveryDay = day;
+      return out;
+    }
+`;
+  const nowSrc = fnSrc(src, 'computeMuscleRecovery');
+  let reversal = '';
+  try{
+    let r = nowSrc;
+    const undo = (re, to, label) => { const n = (r.match(new RegExp(re.source, 'g')) || []).length;
+      if(n !== 1) throw new Error('reversal anchor ' + label + ' x' + n); r = r.replace(re, to); };
+    undo(/\s*const refs = recoveryReferenceLoads\(entry\);/, '', 'refs');
+    undo(/let topWeight = refs\.get\(loggedExerciseKey\(ex\.name\)\);\s*if\(topWeight === undefined\)\{\s*const own = sets\.map\(/, 'const weights = sets.map(', 'own');
+    undo(/topWeight = own\.length \? Math\.max\(\.\.\.own\) : null;\s*\}/, 'const topWeight = weights.length ? Math.max(...weights) : null;', 'top');
+    reversal = r;
+  }catch(e){ reversal = String(e); }
+  const baseFn = vm.runInContext('(' + BASELINE_10_25.trim() + ')', ctx);
+  const baseOf = log => { seed(log); return at(() => baseFn()); };
+  const base = exs => baseOf([WK('w1', exs)]);
+  /* The whole app reading 10.25's recovery, for surfaces that call it by name. */
+  const withBase = fn => { const real = ctx.computeMuscleRecovery; ctx.computeMuscleRecovery = baseFn; ctx.invalidateRecoveryCache();
+    try{ return fn(); }finally{ ctx.computeMuscleRecovery = real; ctx.invalidateRecoveryCache(); } };
+
+  /* The rule, stated independently of the app. A set whose reps do not parse
+     to a positive number adds nothing; a declared type wins (warm-up 0.25, any
+     working type 1); otherwise a bodyweight row, a lift with no reference, or
+     a set with no readable positive load counts 1; under 55% of the reference
+     counts 0.25. The reference is the heaviest readable positive load over
+     every set of the lift's non-bodyweight rows in that workout, the lift
+     being its name trimmed and lowercased — or, with rowLocal, 10.25's: the
+     row's own. Muscles are whatever the registry says the name trains. */
+  const LOADN = w => { if(w === null || w === undefined) return null; const s = String(w).trim();
+    if(!s || s.toUpperCase() === 'BW') return null; const n = parseFloat(s); return Number.isFinite(n) ? n : null; };
+  const WORKING_TYPES = ['working', 'drop', 'failure', 'amrap'];
+  const factorOf = (s, ref, bw) => {
+    const r = parseFloat(s.reps);
+    if(isNaN(r) || r <= 0) return 0;
+    if(s.type === 'warmup') return 0.25;
+    if(WORKING_TYPES.indexOf(s.type) !== -1) return 1;
+    if(bw || !ref) return 1;
+    const w = LOADN(s.weight);
+    if(w === null || w <= 0) return 1;
+    return w / ref < 0.55 ? 0.25 : 1;
+  };
+  const topOf = sets => { let t = null; sets.forEach(s => { const w = LOADN(s.weight); if(w !== null && w > 0 && (t === null || w > t)) t = w; }); return t; };
+  const stateOf = s => s === null ? 'unknown' : s >= 90 ? 'high' : s >= 75 ? 'well' : s >= 50 ? 'moderate' : s >= 25 ? 'low' : 'verylow';
+  const oracle = (log, rowLocal) => {
+    const now = new Date(NOW), cutoff = new Date(now); cutoff.setDate(now.getDate() - 14);
+    const acc = {}; MUSCLES.forEach(m => { acc[m] = { load: 0, raw: 0, sessions: 0, days: null }; });
+    log.forEach(entry => {
+      const d = new Date(entry.date + 'T00:00:00'), days = Math.max(0, (now - d) / 86400000);
+      const decay = Math.pow(0.5, days / 2), inWindow = d >= cutoff;
+      const refs = {};
+      entry.exercises.forEach(ex => {
+        if(typeof ex.name !== 'string' || !ex.sets.length || ex.bodyweight) return;
+        const k = ex.name.trim().toLowerCase(), t = topOf(ex.sets);
+        if(t !== null && (!(k in refs) || t > refs[k])) refs[k] = t;
+      });
+      const touched = {};
+      entry.exercises.forEach(ex => {
+        const mus = ctx.musclesForExercise(ex.name);
+        if(!mus.primary.length && !mus.secondary.length) return;
+        const k = ex.name.trim().toLowerCase();
+        const ref = rowLocal ? topOf(ex.sets) : (k in refs ? refs[k] : null);
+        let load = 0, working = 0;
+        ex.sets.forEach(s => { const f = factorOf(s, ref, !!ex.bodyweight); if(f > 0){ load += f; working += 1; } });
+        if(load === 0) return;
+        const apply = (list, wt) => list.forEach(m => {
+          if(inWindow) acc[m].load += load * wt * decay;
+          acc[m].raw += working * wt; touched[m] = true;
+          if(acc[m].days === null || days < acc[m].days) acc[m].days = days;
+        });
+        apply(mus.primary, 1.0); apply(mus.secondary, 0.4);
+      });
+      Object.keys(touched).forEach(m => { if(inWindow) acc[m].sessions += 1; });
+    });
+    const out = {};
+    MUSCLES.forEach(m => { const a = acc[m], score = a.days === null ? null : Math.round(100 * (1 - Math.min(1, a.load / 18)));
+      out[m] = { score, state: stateOf(score), load: Math.round(a.load * 10) / 10, recentSets: Math.round(a.raw), sessions: a.sessions }; });
+    return out;
+  };
+  const slim = r => { const o = {}; MUSCLES.forEach(m => { o[m] = { score: r[m].score, state: r[m].state, load: r[m].load, recentSets: r[m].recentSets, sessions: r[m].sessions }; }); return o; };
+
+  const E20 = [S(95, 10), S(225, 8), S(225, 8)];
+  const LAY = {
+    A: () => [ROW(Q, clone(E20))],
+    B: () => [ROW(Q, [S(95, 10)]), ROW(Q, [S(225, 8), S(225, 8)])],
+    C: () => [ROW(Q, [S(225, 8), S(225, 8)]), ROW(Q, [S(95, 10)])],
+    D: () => [ROW(Q, [S(95, 10)]), ROW(Q, [S(225, 8)]), ROW(Q, [S(225, 8)])]
+  };
+
+  sub('E20, reproduced on 10.25\'s own function — and closed');
+  await guard('e20', async () => {
+    T('1 — the baseline really is 10.25: the frozen function carries computeMuscleRecovery\'s 10.25 pin (6d079e205ec35afb), and undoing exactly the D111 lines of today\'s (afb9fc63110ae478) gives the same',
+      hash(BASELINE_10_25) === '6d079e205ec35afb' && hash(reversal) === '6d079e205ec35afb' && pin('computeMuscleRecovery') === 'afb9fc63110ae478', [hash(BASELINE_10_25), hash(reversal), reversal.slice(0, 80)]);
+    const bA = base(LAY.A()), bB = base(LAY.B()), bC = base(LAY.C()), bD = base(LAY.D());
+    T('2 — E20 reproduces on 10.25: 95 × 10, 225 × 8, 225 × 8 reads quads ' + bA.quads.load + ' (2.25 set-equivalents) in one row but ' + bB.quads.load + ' (3.0) split, reversed or in three rows — the 95 became "the heaviest set of its row"',
+      bA.quads.load === units(2.25) && bA.quads.score === 93 && [bB, bC, bD].every(b => b.quads.load === units(3) && b.quads.score === 90), [bA.quads, bB.quads, bC.quads, bD.quads]);
+    const rs = [S(135, 5), S(225, 5), S(315, 5)];
+    const rOne = base([ROW(Q, clone(rs))]), rTwo = base([ROW(Q, [S(135, 5)]), ROW(Q, [S(225, 5), S(315, 5)])]);
+    T('3 — and the shape FINDINGS recorded, 135 / 225 / 315 × 5: ' + rOne.quads.load + ' in one row, ' + rTwo.quads.load + ' with the 135 in its own row (2.25 vs 3.0)',
+      rOne.quads.load === units(2.25) && rTwo.quads.load === units(3), [rOne.quads.load, rTwo.quads.load]);
+    const a = rec(LAY.A()), b = rec(LAY.B()), c = rec(LAY.C()), d = rec(LAY.D());
+    T('4 — A and B now read identically — every muscle, every field — and exactly as one row always did: quads ' + a.quads.load + ', score ' + a.quads.score,
+      J(a) === J(b) && J(a) === J(bA) && a.quads.load === units(2.25) && a.quads.score === 93, [a.quads, b.quads]);
+    T('5 — C, the same rows reversed: identical', J(c) === J(a), c.quads);
+    T('6 — D, three rows: identical', J(d) === J(a), d.quads);
+    const i1 = rec([ROW(Q, [S(95, 10)]), ROW('Bench Press', [S(185, 5)]), ROW(Q, [S(225, 8), S(225, 8)])]);
+    const i2 = rec([ROW('Bench Press', [S(185, 5)]), ROW(Q, clone(E20))]);
+    const i3 = rec([ROW(Q, clone(E20)), ROW('Bench Press', [S(185, 5)])]);
+    T('7 — Q: split around another lift, or before / after it — identical, and the other lift is untouched',
+      J(i1) === J(i2) && J(i2) === J(i3) && i1.quads.load === units(2.25) && i1.chest.load === units(1), [i1.quads, i2.quads, i1.chest]);
+    const r1 = rec([ROW(Q, clone(rs))]), r2 = rec([ROW(Q, [S(135, 5)]), ROW(Q, [S(225, 5), S(315, 5)])]), r3 = rec([ROW(Q, [S(315, 5)]), ROW(Q, [S(225, 5)]), ROW(Q, [S(135, 5)])]);
+    T('8 — the recorded shape now reads 2.25 set-equivalents however it is stored', J(r1) === J(r2) && J(r2) === J(r3) && r1.quads.load === units(2.25), [r1.quads.load, r2.quads.load, r3.quads.load]);
+    const brief = [S(135, 10), S(225, 8), S(225, 8)];
+    const k = [[ROW(Q, clone(brief))], [ROW(Q, [S(135, 10)]), ROW(Q, [S(225, 8), S(225, 8)])], [ROW(Q, [S(225, 8), S(225, 8)]), ROW(Q, [S(135, 10)])]];
+    const kr = k.map(x => rec(x)), kb = k.map(x => base(x));
+    T('9 — the brief\'s own 135 × 10 is 60% of 225, above the 55% line, so it was never E20: 3.0 set-equivalents in every layout on both builds',
+      kr.concat(kb).every(r => r.quads.load === units(3)) && kr.every(r => J(r) === J(kr[0])), kr.concat(kb).map(r => r.quads.load));
+  });
+
+  sub('the reference is the lift\'s, wherever its heaviest set sits (E, G)');
+  await guard('reference', async () => {
+    const first = rec([ROW(Q, [S(315, 3)]), ROW(Q, [S(135, 8)]), ROW(Q, [S(225, 5)])]);
+    T('10 — top load in the FIRST row: the 135 in the middle row is 43% of 315 and counts 0.25 (2.25 set-equivalents)', first.quads.load === units(2.25), first.quads.load);
+    const last = rec([ROW(Q, [S(135, 8)]), ROW(Q, [S(225, 5)]), ROW(Q, [S(315, 3)])]);
+    T('11 — top load in the LAST row: the same 2.25', last.quads.load === units(2.25), last.quads.load);
+    const mid = rec([ROW(Q, [S(135, 8)]), ROW(Q, [S(315, 3)]), ROW(Q, [S(225, 5)])]);
+    T('12 — top load in the MIDDLE row: the same 2.25', mid.quads.load === units(2.25), mid.quads.load);
+    const firstSet = rec([ROW(Q, [S(135, 8), S(315, 3), S(225, 5)])]), firstSetSplit = rec([ROW(Q, [S(135, 8), S(225, 5)]), ROW(Q, [S(315, 3)])]);
+    T('13 — the first set is not the reference, in one row or split: 2.25 both ways', firstSet.quads.load === units(2.25) && J(firstSetSplit) === J(firstSet), [firstSet.quads.load, firstSetSplit.quads.load]);
+    const tie1 = rec([ROW(Q, [S(315, 3), S(135, 8)]), ROW(Q, [S(315, 3)])]), tie2 = rec([ROW(Q, [S(315, 3)]), ROW(Q, [S(315, 3), S(135, 8)])]);
+    T('14 — E: the same top load in two rows is deterministic — a reference is a load, not a set: identical, 2.25', J(tie1) === J(tie2) && tie1.quads.load === units(2.25), [tie1.quads.load, tie2.quads.load]);
+    const g = rec([ROW(Q, [S(95, 10)]), ROW(Q, [S(225, 8), S(225, 8)])]);
+    T('15 — G: an untyped light set alone in its row is judged against the lift, 95 of 225, and counts 0.25', g.quads.load === units(2.25) && g.quads.recentSets === 3, g.quads);
+  });
+
+  sub('set types keep their meaning (F, H, I)');
+  await guard('types', async () => {
+    const lone = rec([ROW(Q, [S(135, 10, { type: 'warmup' })])]);
+    const tSplit = [ROW(Q, [S(135, 10, { type: 'warmup' })]), ROW(Q, [S(225, 8, { type: 'working' }), S(225, 8, { type: 'working' })])];
+    const tOne = [ROW(Q, [S(135, 10, { type: 'warmup' }), S(225, 8, { type: 'working' }), S(225, 8, { type: 'working' })])];
+    const ts = rec(tSplit), to = rec(tOne), tb = base(tSplit);
+    T('16 — F: a typed warm-up counts 0.25 wherever it sits — even as the only, and so the heaviest, set — and typed work reads the same on 10.25 and now',
+      lone.quads.load === units(0.25) && ts.quads.load === units(2.25) && J(ts) === J(to) && J(tb) === J(ts), [lone.quads.load, ts.quads.load, tb.quads.load]);
+    const w = rec([ROW(Q, [S(95, 10, { type: 'working' })]), ROW(Q, [S(225, 8, { type: 'working' }), S(225, 8, { type: 'working' })])]);
+    T('17 — a declared working set counts in full however light it is: 3.0', w.quads.load === units(3), w.quads.load);
+    const drop = rec([ROW(Q, [S(225, 8), S(225, 8)]), ROW(Q, [S(95, 12, { type: 'drop' })])]);
+    T('18 — H: a drop set at 42% of the top counts in full, as a working set always did: 3.0', drop.quads.load === units(3), drop.quads.load);
+    const fa = rec([ROW(Q, [S(225, 8)]), ROW(Q, [S(95, 15, { type: 'failure' })]), ROW(Q, [S(95, 20, { type: 'amrap' })])]);
+    const faOne = rec([ROW(Q, [S(225, 8), S(95, 15, { type: 'failure' }), S(95, 20, { type: 'amrap' })])]);
+    T('19 — I: failure and AMRAP sets count in full in any row: 3.0 split and in one row', fa.quads.load === units(3) && J(fa) === J(faOne), [fa.quads.load, faOne.quads.load]);
+    const wu = [S(315, 1, { type: 'warmup' }), S(135, 5), S(135, 5)];
+    const wOne = rec([ROW(Q, clone(wu))]), wOneBase = base([ROW(Q, clone(wu))]);
+    const wSplit = rec([ROW(Q, [S(315, 1, { type: 'warmup' })]), ROW(Q, [S(135, 5), S(135, 5)])]), wSplitBase = base([ROW(Q, [S(315, 1, { type: 'warmup' })]), ROW(Q, [S(135, 5), S(135, 5)])]);
+    T('20 — which sets the reference admits is exactly what one row always admitted: a typed warm-up\'s load is part of it (one row 0.75 on both builds; split now 0.75, was ' + wSplitBase.quads.load + ')',
+      wOne.quads.load === units(0.75) && J(wOneBase) === J(wOne) && J(wSplit) === J(wOne) && wSplitBase.quads.load === units(2.25), [wOne.quads.load, wOneBase.quads.load, wSplit.quads.load, wSplitBase.quads.load]);
+  });
+
+  sub('malformed values and bodyweight (J, K, L)');
+  await guard('malformed', async () => {
+    const bads = ['1e999', 'Infinity', '-Infinity', 'abc', '-500', ''];
+    const loads = bads.map(v => rec([ROW(Q, [S(v, 5)]), ROW(Q, [S(225, 8), S(225, 8)])]).quads.load);
+    const loadsOne = bads.map(v => rec([ROW(Q, [S(v, 5), S(225, 8), S(225, 8)])]).quads.load);
+    T('21 — J: a malformed, infinite or negative load is never the reference: the 225s count in full and the unreadable set counts 1, as it always did (3.0) — split and in one row',
+      loads.every(l => l === units(3)) && J(loads) === J(loadsOne), [loads, loadsOne]);
+    const badReps = ['', '0', '-3', 'abc'];
+    const rr = badReps.map(v => rec([ROW(Q, [S(225, v)]), ROW(Q, [S(225, 8), S(225, 8)])]));
+    const rrBase = badReps.map(v => base([ROW(Q, [S(225, v)]), ROW(Q, [S(225, 8), S(225, 8)])]));
+    const inf = rec([ROW(Q, [S(225, '1e999')]), ROW(Q, [S(225, 8), S(225, 8)])]), infBase = base([ROW(Q, [S(225, '1e999')]), ROW(Q, [S(225, 8), S(225, 8)])]);
+    T('22 — K: recovery reads reps exactly as 10.25 did: blank, zero, negative and text add nothing (2.0, 2 sets); "1e999" still counts (3.0, 3 sets — pre-existing, recorded as E35, not changed here)',
+      rr.every(r => r.quads.load === units(2) && r.quads.recentSets === 2) && J(rr) === J(rrBase) && inf.quads.load === units(3) && inf.quads.recentSets === 3 && J(inf) === J(infBase),
+      [rr.map(r => r.quads.load), inf.quads]);
+    const unperf = [S(500, ''), S(225, 8), S(225, 8)];
+    const uOne = rec([ROW(Q, clone(unperf))]), uOneBase = base([ROW(Q, clone(unperf))]);
+    const uSplit = rec([ROW(Q, [S(500, '')]), ROW(Q, [S(225, 8), S(225, 8)])]), uSplitBase = base([ROW(Q, [S(500, '')]), ROW(Q, [S(225, 8), S(225, 8)])]);
+    T('23 — K: a set with a load and no reps sets the reference in any row, exactly as it always did inside one row (0.5 either way; split was ' + uSplitBase.quads.load + ' on 10.25) — recorded as E35, not changed here',
+      uOne.quads.load === units(0.5) && J(uOneBase) === J(uOne) && J(uSplit) === J(uOne) && uSplitBase.quads.load === units(2), [uOne.quads.load, uSplit.quads.load, uSplitBase.quads.load]);
+    const now = new ctx.Date(); now.setHours(12, 0, 0, 0); now.setDate(now.getDate() - 2);
+    const dd = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+    seed([{ id: 'd110', date: dd, category: 'push', title: 'Push', notes: '', exercises: [ROW('Bench Press', [S(225, 8), S(245, '1e999')])] }]);
+    const h = ctx.exerciseSessionHistory('Bench Press', 5)[0];
+    T('24 — D110\'s boundary for D49 is intact: 225 × 8 beside 245 × 1e999 is still 225 × 8, one working set', !!h && h.weight === 225 && h.topReps === 8 && h.workingSets === 1, h);
+    const stray = rec([ROW(Q, [S(500, 5)], true), ROW(Q, [S(225, 8), S(225, 8)])]), strayBase = base([ROW(Q, [S(500, 5)], true), ROW(Q, [S(225, 8), S(225, 8)])]);
+    T('25 — L: a bodyweight row is never loaded reference evidence: a stray 500 on a bodyweight-ticked row leaves the loaded 225s in full (3.0, as on 10.25)',
+      stray.quads.load === units(3) && J(stray) === J(strayBase), [stray.quads.load, strayBase.quads.load]);
+    const dip = [ROW('Dip', [S(25, 8), S(100, 5)], true)], dipSplit = [ROW('Dip', [S(25, 8)], true), ROW('Dip', [S(100, 5)], true)];
+    const dr = rec(dip), drs = rec(dipSplit), drb = base(dip);
+    const mixed = [ROW('Dip', [S(25, 8)], true), ROW('Dip', [S(100, 5)])], dm = rec(mixed), dmb = base(mixed);
+    T('26 — L: a bodyweight row is never judged by its loads: Dip 25 × 8 and 100 × 5 ticked bodyweight are 2 full sets however stored — and a bodyweight row beside a LOADED row of the same lift keeps its own rule, its stray 25 never judged against the loaded 100 (2 full sets, as on 10.25)',
+      dr.triceps.load === units(2) && J(drs) === J(dr) && J(drb) === J(dr) && dm.triceps.load === units(2) && J(dm) === J(dmb), [dr.triceps.load, drs.triceps.load, drb.triceps.load, dm.triceps.load, dmb.triceps.load]);
+    const pu = rec([ROW('Pull-Up', [S('BW', 8)], true), ROW('Pull-Up', [S('BW', 8), S('BW', 6)], true)]), puOne = rec([ROW('Pull-Up', [S('BW', 8), S('BW', 8), S('BW', 6)], true)]);
+    T('27 — L: a bodyweight-only lift reads 3 full sets split or not', pu.back.load === units(3) && J(pu) === J(puOne), [pu.back.load, puOne.back.load]);
+  });
+
+  sub('identity: one lift is one lift, and nothing else is (M, N, O, P)');
+  await guard('identity', async () => {
+    const bi = [ROW('Bench Press', [S(225, 5), S(225, 5)]), ROW('Incline Press', [S(95, 10)])];
+    const bir = rec(bi), bib = base(bi);
+    T('28 — M: Bench Press and Incline Press both train chest and stay two lifts: the incline\'s 95 × 10 (42% of the bench) counts in full — 3.0, as on 10.25',
+      bir.chest.load === units(3) && J(bir) === J(bib), [bir.chest.load, bib.chest.load]);
+    const sl = rec([ROW(Q, [S(315, 5), S(315, 5)]), ROW('Leg Press', [S(135, 12)])]);
+    T('29 — M: Back Squat and Leg Press both train quads and stay two lifts: 3.0', sl.quads.load === units(3), sl.quads.load);
+    const v = rec([ROW(Q, [S(225, 8), S(225, 8)]), ROW(' back squat ', [S(95, 10)]), ROW('BACK SQUAT', [S(225, 8)])]);
+    const vOne = rec([ROW(Q, [S(225, 8), S(225, 8), S(95, 10), S(225, 8)])]);
+    const vBase = base([ROW(Q, [S(225, 8), S(225, 8)]), ROW(' back squat ', [S(95, 10)]), ROW('BACK SQUAT', [S(225, 8)])]);
+    T('30 — N: D96B\'s identity — " back squat " and "BACK SQUAT" are Back Squat, so their 95 is judged against 225: 3.25, exactly the one-row reading (10.25 read ' + vBase.quads.load + ')',
+      v.quads.load === units(3.25) && J(v) === J(vOne) && vBase.quads.load === units(4), [v.quads.load, vOne.quads.load, vBase.quads.load]);
+    const fz = ['Back  Squat', 'Barbell Back Squat'].map(n => rec([ROW(Q, [S(225, 8), S(225, 8)]), ROW(n, [S(95, 10)])]));
+    T('31 — N: no fuzzy matching and no aliases — "Back  Squat" (two spaces) and "Barbell Back Squat", which the registry even resolves to the same squat, are logged as their own lifts: their 95 counts in full (3.0)',
+      fz.every(r => r.quads.load === units(3)) && ctx.resolveExerciseId('Barbell Back Squat') === ctx.resolveExerciseId(Q), fz.map(r => r.quads.load));
+    const names = [Q, ' back squat ', 'BACK SQUAT', 'back squat '];
+    const withMeta = rec([Object.assign(ROW(Q, [S(225, 8), S(225, 8)]), { muscles: ['chest'], primary: ['chest'] }), ROW('BACK SQUAT', [S(95, 10)])]);
+    const without = rec([ROW(Q, [S(225, 8), S(225, 8)]), ROW('BACK SQUAT', [S(95, 10)])]);
+    T('32 — O: every row of one lift resolves the same muscles (the registry reads the name, normalized) and a stray muscle field on a row is never read',
+      names.every(n => J(ctx.musclesForExercise(n)) === J(ctx.musclesForExercise(Q))) && withMeta.chest.score === null && J(withMeta) === J(without), [withMeta.chest, withMeta.quads.load]);
+    const twoLog = [WK('a', [ROW(Q, [S(95, 10)])]), WK('b', [ROW(Q, [S(225, 8), S(225, 8)])])];
+    const two = recOf(twoLog), twoBase = baseOf(clone(twoLog));
+    T('33 — P: two workouts on one date are two performances, never merged: the 95 is its own workout\'s top — 3.0 set-equivalents, 2 sessions, as on 10.25',
+      two.quads.load === units(3) && two.quads.sessions === 2 && J(two) === J(twoBase), [two.quads, twoBase.quads]);
+    const same = recOf([WK('x', clone(LAY.A())), WK('y', clone(LAY.A()))]);
+    T('34 — P: two identical workouts on one date are each read on their own: 4.5, 2 sessions', same.quads.load === units(4.5) && same.quads.sessions === 2, same.quads);
+  });
+
+  sub('the same sets, stored every way: a seeded property test (a permanent guard against E20 returning)');
+  await guard('property', async () => {
+    const rnd = H.mulberry32(111);
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const LOADS = [45, 95, 95, 135, 135, 185, 225, 225, 275, 315, 405, '', 'abc', '1e999', 0, '-20', 'BW', ' 225 '];
+    const REPS = [1, 3, 5, 5, 8, 8, 10, 12, 15, '', 0, 'abc'];
+    const TYPES = [undefined, undefined, undefined, undefined, undefined, 'working', 'warmup', 'drop', 'failure', 'amrap'];
+    const SPELL = [Q, ' back squat ', 'BACK SQUAT', 'back squat '];
+    const others = () => [ROW('Bench Press', [S(185, 5), S(185, 5)]), ROW('Leg Press', [S(360, 10), S(180, 12)]), ROW('Pull-Up', [S('BW', 8)], true)];
+    const part = (sets, k) => { for(let t = 0; t < 60; t++){ const p = Array.from({ length: k }, () => []);
+      sets.forEach(s => p[Math.floor(rnd() * k)].push(clone(s))); if(p.every(x => x.length)) return p; } return null; };
+    let cases = 0, layouts = 0, same = 0, e20 = 0, oneRow = 0, rule = 0, local = 0;
+    const bad = [];
+    for(let i = 0; i < 240; i++){
+      const n = 1 + Math.floor(rnd() * 7), bw = rnd() < 0.12;
+      const sets = Array.from({ length: n }, () => { const o = {}; const t = pick(TYPES); if(t) o.type = t; return S(pick(LOADS), pick(REPS), o); });
+      const L = [{ label: 'one row, first', exs: [ROW(Q, clone(sets), bw)].concat(others()) },
+        { label: 'one row, last', exs: others().concat([ROW(Q, clone(sets), bw)]) }];
+      const two = n >= 2 ? part(sets, 2) : null, three = n >= 3 ? part(sets, 3) : null;
+      if(two){
+        L.push({ label: 'two rows around the others', exs: [ROW(Q, clone(two[0]), bw)].concat(others(), [ROW(Q, clone(two[1]), bw)]) });
+        L.push({ label: 'two rows reversed', exs: [ROW(Q, clone(two[1]), bw), ROW(Q, clone(two[0]), bw)].concat(others()) });
+      }
+      if(three){
+        const o = others();
+        L.push({ label: 'three rows interleaved, spellings mixed', exs: [ROW(pick(SPELL), clone(three[0]), bw), o[0], ROW(pick(SPELL), clone(three[1]), bw), o[1], ROW(pick(SPELL), clone(three[2]), bw), o[2]] });
+        L.push({ label: 'three rows reversed', exs: [ROW(Q, clone(three[2]), bw), ROW(Q, clone(three[1]), bw), ROW(Q, clone(three[0]), bw)].concat(others()) });
+      }
+      cases++;
+      const want = J(rec(L[0].exs)), baseOne = J(base(L[0].exs));
+      if(want === baseOne) oneRow++;
+      let differs = false;
+      L.forEach(lay => {
+        layouts++;
+        const got = rec(lay.exs);
+        if(J(got) === want) same++; else if(bad.length < 3) bad.push({ i, layout: lay.label, sets, got: got.quads, want: JSON.parse(want).quads });
+        if(J(slim(got)) === J(oracle([WK('w1', lay.exs)], false))) rule++;
+        const b = base(lay.exs);
+        if(J(slim(b)) === J(oracle([WK('w1', lay.exs)], true))) local++;
+        if(J(b) !== baseOne) differs = true;
+      });
+      if(differs) e20++;
+    }
+    T('35 — all ' + layouts + ' layouts of ' + cases + ' generated lifts (one row first or last, two rows, reversed, three rows interleaved with mixed spellings) read identical recovery — every muscle, every field',
+      same === layouts && layouts > 1000, bad);
+    T('36 — the corpus really exercises E20: on 10.25, ' + e20 + ' of ' + cases + ' lifts read differently depending on the layout', e20 >= 40, e20);
+    T('37 — R: every one-row layout reads exactly as it did on 10.25: ' + oneRow + ' of ' + cases, oneRow === cases, [oneRow, cases]);
+    T('38 — the app matches an independent statement of the rule in every layout: ' + rule + ' of ' + layouts, rule === layouts, [rule, layouts]);
+    T('39 — and the same statement with the ROW\'s reference reproduces 10.25 in every layout (' + local + ' of ' + layouts + ') — so the row-local reference is the whole of E20',
+      local === layouts, [local, layouts]);
+  });
+
+  sub('ordinary single-row histories are untouched (R)');
+  await guard('ordinary', async () => {
+    const rnd = H.mulberry32(1111);
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const LIFTS = [[Q, false, 225], ['Bench Press', false, 185], ['Deadlift', false, 315], ['Overhead Press', false, 115], ['Barbell Row', false, 155],
+      ['Incline Bench Press', false, 155], ['Leg Press', false, 360], ['Pull-Up', true, 0], ['Dip', true, 0], ['Bulgarian Split Squat', false, 50], ['Treadmill', false, 0]];
+    const log = [];
+    const start = new Date('2024-09-12T00:00:00');
+    for(let i = 0; i < 300; i++){
+      const d = new Date(start); d.setDate(start.getDate() + Math.floor(i * 2.425));
+      const date = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      const typed = rnd() < 0.6;
+      const exs = Array.from({ length: 2 + Math.floor(rnd() * 3) }, () => pick(LIFTS)).filter((x, j, a) => a.indexOf(x) === j).map(([name, bw, top]) => {
+        const sets = [];
+        if(!bw && top && rnd() < 0.7) sets.push(S(Math.round(top * 0.45), 10, typed ? { type: 'warmup' } : {}));
+        for(let s = 0; s < 2 + Math.floor(rnd() * 3); s++) sets.push(S(bw ? 'BW' : top, 5 + Math.floor(rnd() * 6), typed ? { type: pick(['working', 'working', 'drop']) } : {}));
+        return ROW(name, sets, bw);
+      });
+      log.push(WK('o' + i, exs, date));
+      if(rnd() < 0.05) log.push(WK('o' + i + 'b', [ROW(Q, [S(135, 10), S(185, 8)])], date));
+    }
+    const now = recOf(clone(log)), was = baseOf(clone(log));
+    T('40 — a generated two-year history of ' + log.length + ' single-row workouts (typed and untyped, bodyweight, cardio rows, second workouts on a date) reads exactly as on 10.25 — every muscle, every field',
+      J(now) === J(was) && MUSCLES.some(m => now[m].sessions > 0), MUSCLES.filter(m => J(now[m]) !== J(was[m])));
+    seed(clone(log));
+    const stripNow = at(() => ctx.recoveryStripHtml()), stripWas = at(() => withBase(() => ctx.recoveryStripHtml()));
+    T('41 — and the Today strip it draws — figure, bars, percentages and the words read aloud — is byte-identical', stripNow === stripWas && /rec-card/.test(stripNow), stripNow.length);
+    const strips = ['A', 'B', 'C', 'D'].map(k => { seed([WK('w1', LAY[k]())]); return [at(() => ctx.recoveryStripHtml()), at(() => withBase(() => ctx.recoveryStripHtml()))]; });
+    T('42 — the Today strip for the E20 workout is now the same drawing in all four layouts (on 10.25 the split layouts drew a different one)',
+      strips.every(s => s[0] === strips[0][0]) && strips[0][0] === strips[0][1] && strips.slice(1).every(s => s[1] !== strips[0][1]), strips.map(s => s[0].length + '/' + s[1].length));
+  });
+
+  sub('the recovery model itself is untouched: constants, decay, weights, saturation, states, bands');
+  await guard('model', async () => {
+    T('43 — RECOVERY_CONFIG is the same values: half-life 2.0 days, 14-day window, primary 1.0, secondary 0.4, the 55% line, the 0.25 discount, saturation at 18, thresholds 90 / 75 / 50 / 25',
+      /const RECOVERY_CONFIG = \{\s*halfLifeDays: 2\.0,\s*windowDays: 14,\s*primaryWeight: 1\.0,\s*secondaryWeight: 0\.4,\s*warmupRatio: 0\.55,\s*warmupWeight: 0\.25,\s*saturationSets: 18,\s*thresholds: \{ high: 90, well: 75, moderate: 50, low: 25 \}\s*\};/.test(code));
+    const at55 = rec([ROW(Q, [S(200, 5), S(110, 5)])]), at54 = rec([ROW(Q, [S(200, 5), S(108, 5)])]);
+    T('44 — the 55% line, by behaviour: 110 of 200 counts in full (2.0), 108 of 200 counts 0.25 (1.25)', at55.quads.load === units(2) && at54.quads.load === units(1.25), [at55.quads.load, at54.quads.load]);
+    const nine = Array.from({ length: 9 }, () => S(225, 5));
+    const today = atTime('2026-09-10T00:00:00', () => { seed([WK('t', [ROW(Q, clone(nine))], '2026-09-10')]); return ctx.computeMuscleRecovery(); });
+    const twoDays = atTime('2026-09-10T00:00:00', () => { seed([WK('t', [ROW(Q, clone(nine))], '2026-09-08')]); return ctx.computeMuscleRecovery(); });
+    const full = atTime('2026-09-10T00:00:00', () => { seed([WK('t', [ROW(Q, clone(nine).concat(clone(nine)))], '2026-09-10')]); return ctx.computeMuscleRecovery(); });
+    T('45 — decay and saturation, by behaviour: 9 sets today read 9.0 (score 50), the same 9 two days ago read 4.5 (score 75), 18 sets today saturate (score 0)',
+      today.quads.load === 9 && today.quads.score === 50 && twoDays.quads.load === 4.5 && twoDays.quads.score === 75 && full.quads.score === 0 && full.quads.state === 'verylow',
+      [today.quads, twoDays.quads.load, full.quads.score]);
+    T('46 — secondary muscles weigh 0.4, by behaviour: the 9 squat sets put 3.6 on glutes and hamstrings (score 80)',
+      today.glutes.load === 3.6 && today.hamstrings.load === 3.6 && today.glutes.score === 80, [today.glutes, today.hamstrings.load]);
+    const st = [90, 89, 75, 74, 50, 49, 25, 24, null].map(s => ctx.recoveryStateFromScore(s));
+    const bands = ['high', 'well', 'moderate', 'low', 'verylow', 'unknown'].map(s => ctx.recoveryBandOf(s));
+    T('47 — the states at every boundary, and the three bands they become, are unchanged',
+      J(st) === J(['high', 'well', 'well', 'moderate', 'moderate', 'low', 'low', 'verylow', 'unknown'])
+      && J(bands) === J(['ready', 'ready', 'recovering', 'low', 'low', null])
+      && J(ctx.RECOVERY_BAND_LABEL) === J({ ready: 'Ready', recovering: 'Recovering', low: 'Low' }), [st, bands]);
+    T('48 — the heuristic, decay, states, bands, confidence, the strip and figure, and muscle resolution are byte-identical',
+      pin('setLoadFactor') === '82bd966e1694c6dd' && pin('recencyDecay') === '88dae9bd898c1461' && pin('recoveryStateFromScore') === 'b40f039036c16098'
+      && pin('recoveryConfidence') === 'c8f7f223cff10e5b' && pin('recoveryBandOf') === 'e0eb1ee1635b3427' && pin('recoveryStripHtml') === '6eb427476c25e796'
+      && pin('bodyDiagramSvg') === '50d44084806369ae' && pin('musclesForExercise') === 'd364752e499a2ade' && pin('normalizeExerciseName') === '5c4bafdefad4e7cd'
+      && pin('getMuscleRecovery') === 'eeac0fca7e370571' && pin('getAllMuscleRecovery') === '8cca5c5a7cd42a56' && pin('getMostFatiguedMuscles') === 'f33264b89e08df60'
+      && pin('trainerNow') === 'b2c2f10b140ae2c8' && pin('trainerDayKey') === '9cfe6f7a412665d5');
+  });
+
+  sub('readiness is not recovery, and is untouched');
+  await guard('readiness', async () => {
+    T('49 — readiness scoring is byte-identical, and never reads recovery',
+      pin('calculateReadinessScore') === 'c9611ef5e47bc086' && pin('readinessStateFromScore') === '736f5c750f322973' && pin('extractReadinessSignal') === '291005e5c26ae6b3'
+      && pin('renderReadinessCard') === '1bb0fbb460310570'
+      && /const READINESS_WEIGHTS = \{ sleep:0\.25, energy:0\.25, soreness:0\.20, stress:0\.15, trainingFeel:0\.15 \};/.test(code)
+      && !/ecovery/.test(fnSrc(src, 'calculateReadinessScore')));
+    const check = { sleep: 'good', energy: 'normal', soreness: 'moderate', stress: 'low', trainingFeel: 'push' };
+    const part = { sleep: 'poor', energy: 'high' };
+    const key = ctx.localDateStr();
+    ctx.dailyReadiness = {}; ctx.dailyReadiness[key] = clone(check);
+    const card = () => { const el = doc.getElementById('readinessCard'); ctx.renderReadinessCard(); return el ? el.innerHTML : ''; };
+    seed([]);
+    const empty = at(() => card());
+    seed([WK('w1', LAY.B())]);
+    const e20Now = at(() => card()), e20Was = at(() => withBase(() => card()));
+    seed([WK('w1', LAY.A())]);
+    const oneNow = at(() => card());
+    const head = h => (h.match(/<div class="ready-summary"[\s\S]*?<\/div>/) || [''])[0];
+    T('50 — a check-in still scores exactly as before (78, High; 50, Normal) with or without training, on either build — only the Est. recovery strip beneath it follows recovery',
+      ctx.calculateReadinessScore(check) === 78 && ctx.readinessStateFromScore(78) === 'high' && ctx.calculateReadinessScore(part) === 50 && ctx.readinessStateFromScore(50) === 'normal'
+      && /High Readiness/.test(empty) && /78/.test(empty) && head(e20Now) === head(e20Was) && head(e20Now) === head(empty)
+      && e20Now === oneNow && e20Was !== e20Now, [head(e20Now).length, e20Now.length, e20Was.length]);
+    ctx.dailyReadiness = {};
+  });
+
+  sub('D49, D50B, records and Session Score (item by item, by behaviour)');
+  await guard('protected', async () => {
+    const D = n => { const d = new ctx.Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+    const WR = (id, n, exs) => ({ id, date: D(n), category: 'push', title: 'Push', notes: '', exercises: exs });
+    seed([WR('t1', 2, [ROW('Bench Press', [S(245, 8), S(245, 8)])])]);
+    const top = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    const ev = k => { seed([WR('s', 2, LAY[k]())]); return J(ctx.exerciseSessionHistory(Q, 5)); };
+    const evA = ev('A'), evB = ev('B');
+    seed([WR('s', 2, LAY.B())]);
+    const evBBase = withBase(() => J(ctx.exerciseSessionHistory(Q, 5)));
+    T('51 — D49, by behaviour: 245 × 8 × 2 with effort to spare still earns 245 -> 255, and the E20 layouts give D49 the same evidence on either build (it never read recovery)',
+      top.tag === 'increase' && top.weight === 255 && evA === evB && evB === evBBase, [top.tag, top.weight]);
+    T('52 — D49 and D50B are byte-identical, and their constants are the same values',
+      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
+      && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('capturedPrescription') === '4b741af98b989695'
+      && pin('effectiveWorkingLoad') === 'c0d91327f6ac9f76'
+      && /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(code)
+      && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(code));
+    const t = ctx.effortToRir(8), rx = { sets: 3, reps: '8-10', effort: 8, load: 200 };
+    const coach = (w, rir) => ctx.deriveNextSetCoach({ exerciseName: 'Bench Press', rx, performed: [{ weight: w, reps: 10, rir }] });
+    const up = coach(200, t + 2), stay = coach(200, t + 1);
+    T('53 — D50B, by behaviour: +2 RIR over target adds weight (205), +1 holds', up.action === 'increase' && up.load === 205 && stay.action === 'hold', [up.action, up.load, stay.action]);
+    seed([WR('p1', 9, [ROW('Bench Press', [S(185, 5)])]), WR('p2', 2, [ROW('Bench Press', [S(185, 5)])])]);
+    const eq = ctx.computeExercisePREvents('Bench Press').length;
+    const prOf = k => { seed([WR('s', 2, LAY[k]())]); return J(ctx.computeExercisePREvents(Q)); };
+    T('54 — records, by behaviour: matching a weight is one event, the first time only; the E20 layouts give identical records', eq === 1 && prOf('A') === prOf('B'), eq);
+    const scored = { id: 'sc', date: D(2), category: 'push', title: 'Push', notes: '', exercises: [{ name: 'Bench Press', effort: '', bodyweight: false,
+      sets: [S(200, 10, { rir: '3' }), S(200, 7, { rir: '1' }), S(195, 8, { rir: '0' })], rx: { sets: 3, reps: '8-10', effort: 8, load: 200 } }] };
+    seed([scored]);
+    const ss = ctx.sessionScore(scored);
+    T('55 — Session Score, by behaviour: the same session still scores 92', ss.available && ss.score === 92, ss.score);
+    T('56 — records, XP, rank, Mastery, Objectives and Session Score are byte-identical',
+      pin('computeExercisePREvents') === '4339cc543585bded' && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
+      && pin('calculateRankFromLevel') === '868fd909074da898' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79' && pin('getMasteryProgress') === '77aca2558d11f3d5'
+      && pin('objectiveDailyCandidates') === '9772175df2535484' && pin('objectiveBestSetOn') === '3cf2c88926b6d461' && pin('objectiveProgress') === 'e0889920b620163e'
+      && pin('computeNextTimeNotes') === '16d50e35392c9180' && pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c');
+  });
+
+  sub('the trainer: unchanged code, untouched evidence, E33 left as found');
+  await guard('trainer', async () => {
+    T('57 — trainer 0.1.1-shadow, byte-identical: its recovery and readiness signals, its evidence, its numbers, its constraints and its proposal',
+      ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && pin('extractRecoverySignal') === '884e24e7c40c5da2' && pin('extractReadinessSignal') === '291005e5c26ae6b3'
+      && pin('extractPerformanceSignal') === '87c2d1fc6b7b9285' && pin('resolveTrainerNumbers') === '93d4930c803c6e2b' && pin('proposeTrainerState') === '34899e0f53f1d235'
+      && pin('applyTrainerConstraints') === 'e014eaa09312c503' && pin('computeTrainerConfidence') === 'e6c534695955aa4f' && pin('buildTrainerExplanation') === 'aa2e815713e28953'
+      && pin('computeShadowRecommendation') === 'cd53ea889ad5c92b' && pin('actualPerformance') === '3c4eb71b6eda0414' && pin('classifyOutcome') === '53ada3a09318928b'
+      && pin('computeExerciseCapability') === '3a283e02ebdad568');
+    T('58 — E33 is untouched: actualPerformance and extractPerformanceSignal still read reps by their own raw parseFloat',
+      /r: parseFloat\(s\.reps\)/.test(fnSrc(src, 'actualPerformance')) && /r: parseFloat\(x\.reps\)/.test(fnSrc(src, 'extractPerformanceSignal'))
+      && !/performedReps|recoveryReferenceLoads/.test(fnSrc(src, 'actualPerformance') + fnSrc(src, 'extractPerformanceSignal')));
+    const e33 = ctx.actualPerformance({ sets: [S(225, 8), S(245, 3)] }), e33raw = ctx.actualPerformance({ sets: [S(225, 8), S(245, '1e999')] });
+    T('65 — E33, by behaviour: the replay judge still reads 225 × 8, 245 × 3 as two independent maxima (245 lb, 8 reps) and still parses reps its own raw way (245 × 1e999 is Infinity reps) — exactly as D109 recorded it; D111 did not touch it',
+      !!e33 && e33.topWeight === 245 && e33.topReps === 8 && e33.sets === 2 && !!e33raw && e33raw.topWeight === 245 && e33raw.topReps === Infinity, [e33, e33raw]);
+    const hist = [WK('h1', [ROW(Q, [S(95, 10), S(225, 5), S(225, 5), S(225, 5)])], '2026-09-03'),
+      WK('h2', [ROW(Q, [S(95, 10), S(95, 10)]), ROW(Q, [S(230, 5), S(230, 5), S(230, 5), S(230, 5)])], DAY)];
+    seed(clone(hist));
+    const capNow = at(() => J(ctx.computeExerciseCapability(Q))), capWas = at(() => withBase(() => J(ctx.computeExerciseCapability(Q))));
+    T('59 — the trainer\'s own evidence never reads recovery: Back Squat\'s capability is identical on either build', capNow === capWas && capNow !== 'null', capNow.length);
+    const shadowNow = at(() => ctx.computeShadowRecommendation(Q, { targetReps: '5-8' }));
+    const recNow = at(() => ctx.computeMuscleRecovery().quads.score);
+    const shadowWas = at(() => withBase(() => ctx.computeShadowRecommendation(Q, { targetReps: '5-8' })));
+    const recWas = at(() => withBase(() => ctx.computeMuscleRecovery().quads.score));
+    const minus = r => { const c = clone(r); delete c.trace.recoveryScore; return J(c); };
+    T('60 — the shadow proposal for an E20 history is identical in every field but the recovery score it reads (' + (shadowWas && shadowWas.trace.recoveryScore) + ' on 10.25, ' + (shadowNow && shadowNow.trace.recoveryScore) + ' now) — the trainer consumes the corrected recovery; nothing of its own moved',
+      !!shadowNow && !!shadowWas && minus(shadowNow) === minus(shadowWas) && shadowNow.trace.recoveryScore === recNow && shadowWas.trace.recoveryScore === recWas && recNow > recWas,
+      shadowNow && shadowWas && [shadowNow.trace.recoveryScore, shadowWas.trace.recoveryScore, recNow, recWas]);
+  });
+
+  sub('E22 is not solved here: duplicated work still counts twice');
+  await guard('e22', async () => {
+    const dup = rec([ROW(Q, [S(225, 8), S(225, 8)]), ROW(Q, [S(225, 8), S(225, 8)])]), four = rec([ROW(Q, [S(225, 8), S(225, 8), S(225, 8), S(225, 8)])]);
+    T('61 — the same two sets logged twice are four sets (4.0, 4 sets) — exactly one row of four; nothing is deduplicated',
+      dup.quads.load === units(4) && dup.quads.recentSets === 4 && J(dup) === J(four), [dup.quads.load, dup.quads.recentSets]);
+  });
+
+  sub('reading is all it does: no history written, no storage change, one grouping per workout');
+  await guard('read only', async () => {
+    const log = [WK('r1', [ROW(Q, [S(95, 10)]), ROW('Bench Press', [S(185, 5)], false), ROW(Q, [S(225, 8, { type: 'working' }), S(500, '')]), ROW('Dip', [S(25, 8)], true)]),
+      WK('r2', [ROW(' back squat ', [S('1e999', 5), S(225, 'abc')]), ROW('Pull-Up', [S('BW', 8)], true)])];
+    seed(clone(log));
+    const before = J(ctx.workoutLog);
+    at(() => { ctx.computeMuscleRecovery(); ctx.recoveryStripHtml(); ctx.getMostFatiguedMuscles(3); ctx.computeTrainingContext();
+      ctx.computeShadowRecommendation(Q, { targetReps: '5-8' }); ctx.renderReadinessCard(); });
+    T('62 — every stored set is byte-identical after recovery, the strip, the training context and the trainer all read it', J(ctx.workoutLog) === before && before === J(log));
+    T('63 — no new data key, no schema change, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    const helper = fnSrc(src, 'recoveryReferenceLoads');
+    T('64 — one grouping per workout, and it is D96C-3\'s: the reference comes from workoutExercisePerformances (cached per workout), with no identity rule and no history walk of its own',
+      (helper.match(/workoutExercisePerformances\(entry\)/g) || []).length === 1 && !/workoutLog|sortedLog|toLowerCase|trim\(|loggedExerciseKey/.test(helper)
+      && (nowSrc.match(/recoveryReferenceLoads\(entry\)/g) || []).length === 1 && (nowSrc.match(/workoutLog\./g) || []).length === 1
+      && pin('recoveryReferenceLoads') === '253a1aed73ddb0f6' && pin('workoutGroupsOf') === 'f346201c58363ccb' && pin('workoutExercisePerformances') === '4f897211e0c6aef9'
+      && pin('exercisePerformanceOf') === '7da3b6c706dbdea3' && pin('performanceRowLogged') === '9211156a0d0404d8' && pin('loggedExerciseKey') === '6b82060295b52da0'
+      && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('performedReps') === '0436ff32a1b6eaf1');
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -44627,6 +45215,7 @@ async function main(){
   await testCalendarDayTruthD108();
   await testRealSetPairingD109();
   await testFiniteRepEligibilityD110();
+  await testRecoveryLayoutD111();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

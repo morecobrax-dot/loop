@@ -17779,6 +17779,20 @@ const LOOP_UPDATES = [
       'A workout with an invalid rep count on its heaviest set no longer confuses progression into suggesting an unearned jump in weight'
     ],
     changes: []
+  },
+  {
+    id: 'v10-26',
+    version: 'LOOP 10.26',
+    title: 'Recovery Reads Your Whole Workout',
+    date: '2026-09-27',
+    swVersion: 'loop-v203',
+    summary: 'Recovery now reads the same workout consistently even when an exercise is split across multiple logged rows.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'An exercise logged across several rows now counts toward your estimated recovery exactly as it would in one row'
+    ],
+    changes: []
   }
 ];
 
@@ -34551,6 +34565,27 @@ function setLoadFactor(setObj, topWeight, isBodyweight){
     ? RECOVERY_CONFIG.warmupWeight : 1;
 }
 
+/* D111 — D88 finding E20. The load an untyped set is judged against, for every
+   lift in one workout: the heaviest load across ALL of that lift's loaded rows —
+   D96C-3's one performance per workout, by the same trim + lowercase identity —
+   not the row the set happens to sit in. Split the same squats across two rows
+   and the light one used to become "the heaviest set of its row" and count in
+   full. Which sets count toward the reference is exactly what one row always
+   counted; a bodyweight row is never loaded reference evidence (it never reads
+   the reference anyway). Grouped once per workout, from the cached grouping. */
+function recoveryReferenceLoads(entry){
+  const refs = new Map();
+  workoutExercisePerformances(entry).forEach(p => {
+    let top = null;
+    p.rows.forEach(row => {
+      if(row.bodyweight) return;
+      row.sets.forEach(s => { const w = performedLoad(s.weight); if(w !== null && w > 0 && (top === null || w > top)) top = w; });   // D96A
+    });
+    refs.set(p.key, top);
+  });
+  return refs;
+}
+
 /* Exponential decay: a session yesterday counts far more than one last week.
    Deterministic, no randomness. */
 function recencyDecay(daysAgo){
@@ -34589,14 +34624,20 @@ function computeMuscleRecovery(){
     const inWindow = d >= cutoff;
     const decay = recencyDecay(daysAgo);
     const touched = {};
+    const refs = recoveryReferenceLoads(entry);   // D111 (E20)
 
     (entry.exercises || []).forEach(ex => {
       const { primary, secondary } = musclesForExercise(ex.name);
       if(!primary.length && !secondary.length) return;
 
       const sets = ex.sets || [];
-      const weights = sets.map(s => performedLoad(s.weight)).filter(v => v !== null && v > 0);   // D96A
-      const topWeight = weights.length ? Math.max(...weights) : null;
+      /* D111 (E20) — the lift's reference across the workout. A row outside every
+         performance (no sets, or no name) keeps its own, as it always did. */
+      let topWeight = refs.get(loggedExerciseKey(ex.name));
+      if(topWeight === undefined){
+        const own = sets.map(s => performedLoad(s.weight)).filter(v => v !== null && v > 0);   // D96A
+        topWeight = own.length ? Math.max(...own) : null;
+      }
 
       let sessionLoad = 0, working = 0;
       sets.forEach(s => {

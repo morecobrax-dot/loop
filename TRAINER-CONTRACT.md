@@ -15275,3 +15275,141 @@ Infinity reps last session," a pre-fill of 255, "Ready to progress" at 255).
 **Status.** E21 CLOSED (D109). E34 CLOSED. E33 OPEN, proven untouched. E16 HELD; E20, E22, E25–E27 OPEN
 and untouched. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration. verify 10,587/0, five
 audits green.
+
+## §148 — RECOVERY READS THE WORKOUT, NOT THE ROW (D111 · LOOP 10.26 · loop-v203)
+
+D88 finding E20, found by D96C-3's reader map. Closed without retuning recovery.
+
+### E20 — the reference load of D96C-3's one performance, not the row's
+
+**Reproduced first, on shipped 10.25.** A set with no recorded type — all history from before set
+types — is a warm-up to recovery when its load is under 55% of a reference load, and then counts 0.25 of
+a set. `computeMuscleRecovery` took that reference from the top load of the set's own ROW, so the same
+squats split across rows read as different fatigue: 95 × 10, 225 × 8, 225 × 8 in one row is 2.25
+set-equivalents on quads (1.3 load, score 93 a day and a half later); with the 95 alone in its own row it
+became "the heaviest set of its row" and counted in full — 3.0 (1.8, score 90). Reversed rows and three
+rows read the same 3.0. The shape FINDINGS recorded (135 / 225 / 315 × 5) reproduced exactly: 2.25 in one
+row, 3.0 with the 135 alone. In real Edge on live 10.25, a split squat day showed quads 69%
+"Recovering" on Today where the same sets in one row read 79% "Ready". The brief's own example (135 ×
+10 before two 225s) was never E20 — 135 is 60% of 225, above the line — and reads 3.0 in every layout on
+both builds.
+
+**Only the reference moved.** `recoveryReferenceLoads(entry)` asks D96C-3's
+`workoutExercisePerformances` — the per-workout grouping, cached per workout object, by the same trim +
+lowercase identity — for each lift's rows, and takes the heaviest readable positive load over the sets of
+its non-bodyweight rows. `computeMuscleRecovery` reads it once per workout; a row's own top load is
+worked out only for a row outside every performance (no sets, or a name that is not text), which keeps
+its own reference exactly as before. Which sets count toward the reference is precisely what one row
+always admitted — every set of the row with a readable load, whatever its type or reps — only no longer
+bounded by the row. `setLoadFactor` (the 55% line, the 0.25 discount, a declared type always winning),
+`recencyDecay`, the primary and secondary weights, saturation, the 14-day window, the thresholds, the
+three bands, the body map and muscle resolution are byte-identical; `RECOVERY_CONFIG` is the same values.
+
+**Bodyweight.** A bodyweight row is never loaded reference evidence: a stray number on a
+bodyweight-ticked row can no longer turn the loaded rows' work into warm-ups, and a bodyweight row is
+still never judged by load, even beside a loaded row of the same lift.
+
+**Identity.** D96B's rule, not a new one. "Back Squat", " back squat " and "BACK SQUAT" are one lift;
+"Back  Squat" (two spaces) and "Barbell Back Squat" — which the registry even resolves to the same squat
+— stay their own lifts, and lifts that merely share a muscle (Bench Press and Incline Press, Back Squat
+and Leg Press) are never merged. The registry is asked only which muscles a name trains; every row of one
+lift resolves the same muscles because that lookup normalizes the name more coarsely than the identity
+does. Two workouts on one date are two performances (D107/D108).
+
+**What recovery reaches.** The Today card's Est. recovery strip — the figure, the three bars, their
+percentages and the words read aloud — and the shadow trainer's recovery input (`extractRecoverySignal`,
+byte-identical). Readiness scoring never read recovery and is byte-identical; the strip sits beneath the
+readiness line, which does not change. `computeTrainingContext`'s recovery fields have no reader.
+
+**E22 and E33, left exactly as found.** Work logged twice still counts twice — the same two sets in two
+identical rows are four sets, exactly one row of four; no duplicate heuristic. The trainer's code is
+byte-identical and its own evidence (capability, the performance signal, the replay judge's independent
+maxima and raw rep parse) never reads recovery — proven by behaviour, not only by pin. What it does read
+is recovery itself: in an E20-shaped history the shadow proposal carries the corrected reading (79 on
+10.25, 84 now, in Contract 226's fixture) and nothing else of its own moves; measured over generated E20
+histories, a handful of proposals change state where that reading crosses the trainer's own 50 / 25
+lines. The trainer stays 0.1.1-shadow.
+
+### Evidence
+
+**Tests.** Contract 226 (**65 checks**) runs 10.25's own `computeMuscleRecovery` — frozen verbatim in the
+contract, its pin checked, and rebuilt independently by undoing exactly the D111 lines of today's — so
+every "as on 10.25" is a reading, not a description: E20 reproduced on the baseline (layouts A–D and the
+recorded shape); A, B, C, D, interleaving and order all identical now, and equal to the one-row reading;
+the reference found wherever the top set sits (first, middle, last row; not the first set; ties); typed
+warm-ups, declared working, drop, failure and AMRAP sets unchanged; malformed and infinite loads never the
+reference; reps read exactly as 10.25 read them (E35 pinned as it stands); D110's D49 boundary intact;
+bodyweight rows never reference evidence and never judged by load; identity by D96B, never by muscle or
+alias; same-date workouts separate; a seeded property test — 240 generated lifts stored 1,240 ways (one
+row first or last, two rows, reversed, three rows interleaved with mixed spellings), every layout
+identical, every one-row layout identical to 10.25, the app equal to an independent statement of the
+rule in every layout, and the same statement with the row's reference reproducing 10.25 in every layout
+(52 of the 240 lifts read differently by layout on 10.25 — the corpus exercises E20); a generated
+two-year single-row history and the Today strip it draws byte-identical to 10.25; the model's constants
+by value and by behaviour (the 55% line, decay, saturation, the 0.4 weight, every state boundary and
+band); readiness by behaviour; D49, D50B, records and Session Score by behaviour; the trainer by pin,
+behaviour and E33's recorded shape; E22 by behaviour; read-only; storage. Four existing pins of
+`computeMuscleRecovery` (Contracts 215, 217, 218, 221) were restated in place with their reason.
+
+Separately, and first: the untouched 10.25 suite failed two checks in Contract 214 on a Saturday or
+Sunday — its fixture week left the weekend without a program day, so "today" had no session to act on.
+Fixed in the fixture alone (every day of the week now trains), in its own commit before D111.
+
+**Mutation: 29 of 29 killed, every one by a check that runs the app** (none by a pin alone): the
+row-local reference restored; the first row's, the last row's or the first set's load as the reference;
+lifts merged by muscle, by registry alias or split by exact spelling; two same-date workouts merged; a
+later row ignored; a typed warm-up admitted as working; the reference admitting different sets (typed
+warm-ups excluded); a malformed load as the reference; a bodyweight row as reference evidence, or
+bodyweight sets judged by load; a threshold, the 55% line, saturation, the decay constant or the
+secondary weight changed; readiness's formula or weights changed; D49's headroom or D110's boundary
+changed; D50B, PR semantics or Session Score changed; E22-style deduplication introduced; history
+written; E33 silently fixed. Two mutants first survived to pin checks only — bodyweight sets judged by
+load (D111's own reference makes a bodyweight-only lift safe twice over, so only a bodyweight row beside
+a loaded row of the same lift shows it) and E33 fixed here — and the contract gained the behaviour
+checks that kill them.
+
+**Drift.** 38 generated histories, attributed rather than counted: every engine at the real now
+(records, PR XP, XP, level, rank, capability, D49 at two ranges, Objectives, next-time notes, Progress,
+Session Score, Mastery, D44, D100, Friends, the stored log) byte-identical in every one; recovery read
+the evening of every workout date and now. The 20 histories as generated (typed sets, 13 of them with
+repeated rows, up to six rows a lift) and three controls (untyped warm-ups in the SAME row; TYPED
+warm-ups in their own row): zero drift. Eight untyped histories: zero drift, except one weighted
+pull-up logged +29 / +25 and then +15 in its own row — the +15 now reads as the 52% set it is: at most 3
+points on back and biceps while that workout stayed in the window, no band change. Seven E20
+constructions (untyped ramp sets in their own row, before or after the work, under another spelling,
+across 3-day, 4-day, high-volume, two-year and mixed histories): recovery moved only in load, score and
+state, only for the lifts' own muscles, only while an affected workout was in the window — by up to 40
+points, often across a band — and every one of them now reads
+EXACTLY as its merged single-row twin, which 10.25 reads the same way. The strip, the most-fatigued list
+and the training context moved only where recovery did; readiness's score, state and line never; D50B
+never; a trainer proposal only when its recovery reading moved.
+
+**Owner backups.** Both read-only, hashes matching `ORIGINALS.sha256` before and after. Neither holds a
+repeated row (0 E20-shaped sets, 0 E35 shapes); zero drift in every engine and every recovery reading —
+9 instants, the strips, the trainer, readiness.
+
+**Cost.** A full recovery derivation — the model walks the whole history once, as before; no new pass —
+measured against shipped 10.25 (median of 5 × 40): ordinary 0.71 → 0.70 ms, high-volume 3.74 → 3.62 ms,
+two-year 7.11 → 7.10 ms, six rows a lift 1.51 → 1.44 ms, a two-year history of split untyped ramps 12.12
+→ 11.81 ms — with D96C-3's grouping already cached; +3–11% when recovery is the very first reader to
+group every workout. The first draft computed each row's own top load even when its lift already had a
+reference — measured at +14–20% — and was changed to work it out only where it can be used. Recovery is
+still cached per day.
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844 and 430×932, live 10.25 against
+the fix, with an untyped split squat day and the same sets in one row: 10.25 drew quads 69–70%
+"Recovering" (amber) for the split day and 79% "Ready" for one row; the fix draws 79% "Ready" for both.
+Every bar, percentage, band colour, lit figure tile and spoken word matched its own model; only quads,
+glutes and hamstrings differed between builds; the readiness line, the card and every row the same size;
+nothing sideways, no console errors — 70/70 across the five sizes, before this commit was pushed.
+"Hamstrings" ellipsizes at 320, 360, 375 and 390 on both builds — the strip's own designed truncation,
+unchanged.
+
+### E35 — recorded, not fixed
+
+Found by this audit, pre-existing on a single row: recovery reads reps with a bare `parseFloat` (a
+"1e999" count is a full set) and lets a set with a load and no reps set the warm-up reference. D111 kept
+both exactly as one row reads them; see FINDINGS E35.
+
+**Status.** E20 CLOSED. E35 OPEN (new). E16 HELD; E22, E25–E27 and E33 OPEN and untouched. DATA_KEYS
+16, schema 1, trainer 0.1.1-shadow, no migration, no stored field. verify 10,651/0, five audits green.
