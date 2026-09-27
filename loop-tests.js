@@ -41183,6 +41183,10 @@ async function testFastUxD101(){
       && /resolveStartWorkout\(cat, tplId, date\)/.test(fnSrc(src, 'startTemplateLog')));
 
     /* behaviourally: a real program day, a real custom session */
+    /* D111 restated: every day of the fixture week trains. The Mon–Fri program this used
+       made a Saturday or Sunday run draw today's REST card, so the planned-card match
+       found nothing and this block threw before its last four checks — a calendar-day
+       dependence (D99.1's class), not a product change. No assertion below changed. */
     const prog = (over) => ({ version: 1, activeProgramId: 'p1', programs: [Object.assign({
       id: 'p1', name: 'x', planId: 'balanced', status: 'active', startDate: D(60), goal: 'hypertrophy', durationWeeks: 52,
       schedule: { mon:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
@@ -41190,7 +41194,8 @@ async function testFastUxD101(){
         wed:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
         thu:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
         fri:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
-        sat:{type:'rest'}, sun:{type:'rest'} } }, over || {})] });
+        sat:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id},
+        sun:{type:'workout',planId:'balanced',category:'push',templateId:(ctx.getTemplates('push')||[])[0].id} } }, over || {})] });
     ctx.programsStore = Object.assign(ctx.defaultProgramsStore(), prog());
     ctx.invalidateProgramCache();
     ctx.switchTab('today'); ctx.renderTodayWorkout();
@@ -41210,9 +41215,9 @@ async function testFastUxD101(){
 
     /* a custom program session: the id is NOT in getTemplates(cat) */
     const customSchedule = {};
-    ['mon','tue','wed','thu','fri'].forEach(k => customSchedule[k] =
+    ['mon','tue','wed','thu','fri','sat','sun'].forEach(k => customSchedule[k] =
       { type: 'workout', planId: null, category: 'push', exercises: [{ name: 'Cable Crossover', sets: 3, reps: '10-12' }] });
-    ctx.programsStore = Object.assign(ctx.defaultProgramsStore(), prog({ schedule: Object.assign({}, customSchedule, { sat:{type:'rest'}, sun:{type:'rest'} }) }));
+    ctx.programsStore = Object.assign(ctx.defaultProgramsStore(), prog({ schedule: customSchedule }));
     ctx.invalidateProgramCache();
     ctx.renderTodayWorkout();
     const custHtml = doc.getElementById('todayWorkout').innerHTML;
