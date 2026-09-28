@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "appId": "loop",
+  "version": "10.27",
+  "phase": null,
+  "status": "stable",
+  "needsQa": false,
+  "needsDecision": false,
+  "currentTask": null,
+  "nextAction": null,
+  "blocker": null,
+  "updatedAt": "2026-09-28T17:25:46Z"
+}
