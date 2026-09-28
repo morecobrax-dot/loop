@@ -15413,3 +15413,150 @@ both exactly as one row reads them; see FINDINGS E35.
 
 **Status.** E20 CLOSED. E35 OPEN (new). E16 HELD; E22, E25–E27 and E33 OPEN and untouched. DATA_KEYS
 16, schema 1, trainer 0.1.1-shadow, no migration, no stored field. verify 10,651/0, five audits green.
+
+## §149 — A SET IS EVIDENCE ONLY WHEN IT WAS PERFORMED (D112 · LOOP 10.27 · loop-v204)
+
+D88 finding E35, found by D111's own audit. Closed without retuning recovery.
+
+### E35 — the same finite-and-positive boundary D96A drew and D110 already reused, recovery never checked
+
+**Reproduced first, on shipped 10.26.** Two gaps in the same place, both upstream of `setLoadFactor`'s
+55% heuristic. E35-A: `setLoadFactor` read a set's reps with a bare `parseFloat`, refusing only `NaN` and
+non-positive counts — the same trap D96A's §126 note and D110's own fix already named for D49, never
+reused here. Two real 225 × 8 squat sets read quads 1.2 (2 set-equivalents, a day and a half later); a
+third 225 × "1e999" set made it 1.8 (3) — a non-finite rep count was a full set of stress. E35-B:
+`recoveryReferenceLoads` (D111) read every row's WEIGHT to find a lift's reference load but never
+inspected reps at all — an unperformed set, a load typed with no reps, could set the reference a real
+set is then judged against. The same two real sets alone read 1.2; a 500 lb set with NO reps beside them
+made it 0.3 — the false 500 reference discounted both real 225s to 0.25 each, as if they'd been warm-ups.
+On 10.26 only the two *positive* non-finite shapes (`Infinity`, "1e999") differed from blank, zero,
+negative, text and `-Infinity` — those were already excluded by the same `<= 0` clause; the gap was the
+finite boundary, on the positive side only.
+
+**Reused, not reinvented.** `performedReps` already existed — D96A's finite-and-positive rep boundary,
+D110 already routed `exerciseSessionHistory` through it. `setLoadFactor` now calls
+`performedReps(setObj.reps) === null` in place of the bare `parseFloat`/`isNaN` pair; `recoveryReferenceLoads`
+gates each candidate set with the same call before reading its load. No new rule, no new threshold — the
+same boundary, at two sites that had never been routed through it. A third, effectively unreachable line
+(`computeMuscleRecovery`'s own row-local fallback, for a row D96C-3 never grouped) received the identical
+gate for consistency, though no fixture in the whole suite can reach it — every row with sets and a
+recognised name is always grouped, so the fallback it guards can never fire.
+
+**A type never rescues an unperformed set.** The gate runs BEFORE the declared-type check in both
+functions, so a typed warm-up, working, drop, failure or AMRAP set with invalid reps contributes nothing
+— the type answers "what kind of set was this," never "was it performed." On 10.26 a typed warm-up with
+`"1e999"` reps still counted its full 0.25; now it counts nothing, same as an untyped invalid set.
+
+**Which sets a VALID reference admits is unchanged.** Once a set passes the gate, everything downstream is
+exactly what it always was: any set with a readable positive load may still set the reference — typed
+warm-ups' and drop/failure/AMRAP sets' loads still count, a bodyweight row is still never reference
+evidence, a malformed LOAD with valid reps still defaults to counting in full (D111's own rule,
+untouched) — E35 narrowed WHICH sets reach that rule, not what the rule does with them. `RECOVERY_CONFIG`,
+`setLoadFactor`'s 55% line and 0.25 discount, `recencyDecay`, the primary/secondary weights, saturation,
+the window, the thresholds and the three bands are byte-identical. D111's per-workout reference
+(`workoutExercisePerformances`, D96C-3) and its row-layout invariance hold exactly as before, with E35
+shapes mixed into the same generated corpus.
+
+**`recentSets` is not windowed — a pre-existing property, not a D112 change.** `computeMuscleRecovery`'s
+one set-counting field accumulates from the WHOLE `workoutLog`, not the 14-day window `load`/`score` are
+bounded by (documented first in D111's own report). A fix on a workout months outside the window can
+still move a muscle's `recentSets` if that workout carried an E35 shape — the drift study measured this
+directly and attributes it correctly; it is not new behaviour, only newly visible because D112 corrects
+what `recentSets` counts.
+
+**E22, left exactly as found.** Duplicated real work still counts twice — the same two valid sets logged
+in two identical rows are four sets, exactly one row of four. D112 excludes only evidence that was never
+performed; it invents no de-duplication.
+
+**E33, left exactly as found.** The trainer's `actualPerformance` and `extractPerformanceSignal` still
+read reps by their own bare `parseFloat`, independently of `performedReps` — proven by source and by
+pin. What legitimately changes is the trainer's recovery INPUT: `extractRecoverySignal` reads
+`getMuscleRecovery`, so an E35-shaped history now feeds it the corrected score; the trainer's own code,
+and everything about it apart from that one number, is untouched.
+
+### Evidence
+
+**Tests.** Contract 227 (**63 checks**): both 10.26 functions (`setLoadFactor`, `recoveryReferenceLoads`)
+frozen verbatim and swapped into the live app for the length of one call — every "on 10.26" a reading,
+not a description; single-hop reversals for both, plus the third line's reversal, back to their 10.26
+pins; E35-A and E35-B reproduced then closed; every invalid rep shape (blank, zero, negative, text,
+"NaN", "-Infinity", "1e999", "Infinity") proven to exclude a set identically, and proven that only the
+two positive-non-finite shapes differed on 10.26; a genuinely large-but-finite count (500 reps) and
+scientific notation (1e2) proven still valid; typed warm-up/working/drop/failure/AMRAP sets proven
+unchanged when valid and proven to contribute nothing when invalid, with the 10.26 comparison showing the
+type used to rescue them; a malformed load with valid reps proven unchanged (D111's rule); a set with
+BOTH a malformed load and malformed reps proven to now contribute nothing, where 10.26 counted it in
+full via the load-unreadable-defaults-to-working rule (reps were never checked first); bodyweight sets
+proven waived when valid and excluded when invalid, and the waiver proven to be the row's OWN flag — not
+merely "BW" failing `performedLoad` — via a stray NUMERIC weight on a bodyweight-flagged row (D110's own
+lesson, reused); D111's row-layout invariance proven intact with E35 shapes mixed into both a targeted
+fixture and a 200-case, seven-way seeded property test (one row first/last, two rows, reversed, three
+rows interleaved, mixing valid and invalid-reps sets and declared types); a second, independent no-op
+property (inserting one invalid-reps set anywhere in an otherwise-valid workout changes nothing, 200 of
+200 generated cases); two workouts on one date proven to stay separate, including the case where one has
+no valid evidence at all and correctly counts as no session; a row of nothing but invalid reps proven to
+contribute NO evidence, not a manufactured zero; the model's own constants proven by value and by
+behaviour; readiness, D49, D50B, records, Session Score, Mastery, XP and E22 proven unchanged by pin and
+by behaviour; the trainer proven unchanged by pin, E33 proven untouched by source and by behaviour, and
+the shadow proposal for an E35 history proven identical in every field but the recovery score it reads;
+read-only; one grouping pass, one `performedReps` call per set, no loop inside either function. Four
+existing `computeMuscleRecovery` pins (Contracts 215, 217, 218, 221) and Contract 226's own reversal,
+E35-pinned checks (22, 23) and property-test oracle (checks 37, 38) were restated in place with their
+reason — the oracle's workout-wide reference path is now gated, matching the live app; its row-local
+path is untouched, since `base()` there is still 10.25's own frozen, ungated text.
+
+Separately, and first: the untouched 10.26 suite failed two checks in Contract 214 on Monday
+2026-09-28 — its "week comparison" fixture dated its two workouts by fixed day-offsets that only land in
+the intended week when today falls roughly mid-week. Fixed in the fixture alone (anchored to the week
+Mondays `renderProgVolume` itself compares, which are always inside their own window whatever day the
+suite runs), together with a second, related fix the same anchoring exposed: the anchored "this week"
+fixture can land on today itself, which collided with the unrelated "today actions" sub-block's own
+assumption that nothing is logged today yet — given its own explicit reset. Proven 49/49 on the same
+Monday; shipped as its own commit, before D112.
+
+**Mutation: 21 of 21 killed, all 21 by a check that runs the app.** Reverting `setLoadFactor` to raw
+`parseFloat`; a narrower, wrong gate that admits `Infinity` but excludes negative reps a different way;
+reverting `recoveryReferenceLoads` to load-only; blank, zero or negative reps individually carved back
+into reference-eligibility; an invalid typed set counting because its type is checked first; a valid,
+large-but-finite rep count wrongly rejected (a plausibility filter); a valid heavy set barred from ever
+setting the reference; the bodyweight waiver removed (caught only by a fixture using a stray NUMERIC
+weight — a literal `'BW'` weight is an equivalent mutant for this specific change, since it already fails
+`performedLoad` regardless of the waiver, the same trap D110 hit); D111's logical grouping removed;
+row-local regression (first row's top load used as the reference); valid duplicate sets silently
+de-duplicated (an E22-style fix smuggled in); the 55% threshold, the decay constant or a muscle weight
+changed; readiness or D49 or D50B changed; E33 silently fixed; history written.
+
+**Drift.** 31 generated histories, attributed rather than counted: 20 clean (no E35 shape, 12 with
+repeated rows) and 3 hand-built shapes: zero drift in all 23. Seven E35-A constructions (sprinkled
+non-finite reps at various densities, including a dense 2-year history and a repeated-row history): moved
+only in load / score / state / sessions, only for the muscles the E35-carrying lift trains, only while
+that lift was logged by the instant read (load/score/sessions respecting the 14-day window;
+`recentSets`, being unwindowed, respecting only "logged by then" — see above). Four E35-B constructions
+(an unperformed heavier set at various densities, including one where the carrying lift is bodyweight and
+correctly never moves anything): same attribution. Two combined E35-A+E35-B constructions, one of them
+also carrying D111's own repeated-row/split shapes: same attribution, D111's invariance undisturbed. The
+strip, the most-fatigued list and the training context moved only where recovery did; readiness's score,
+state and line never; D50B never; a trainer proposal only when its recovery reading moved.
+
+**Owner backups.** Both read-only, hashes matching `ORIGINALS.sha256` before and after. Neither holds an
+E35 shape (0 non-finite rep counts, 0 unperformed-set references, in row or across rows) — zero drift in
+every engine and every recovery reading.
+
+**Cost.** A full recovery derivation, measured against shipped 10.26 (median of 5 × 40): ordinary 0.67 →
+0.77 ms (+15%), high-volume 3.36 → 3.95 ms (+18%), two-year 6.89 → 8.01 ms (+16%), repeated-row-heavy
+1.52 → 1.65 ms (+9%), an E35-heavy two-year history (non-finite reps and unperformed sets sprinkled
+throughout) 7.27 → 7.38 ms (+1%, within noise — more sets are gated OUT before the rest of the
+computation runs on them). Still one pass over the history per derivation — no new full-history pass,
+still cached per day — the cost is one `performedReps` call per set in each of the two functions, which
+cannot be made lazy the way D111's own "own top load" computation could, since every set's reps must be
+read to decide both its own factor and its reference eligibility.
+
+**Mobile QA.** Real headless Edge at 320×568, 360×640, 375×667, 390×844 and 430×932, live 10.26 against
+the fix, with a clean control and both E35 fixtures (a non-finite rep count; an unperformed heavier set):
+85 / 85. 10.26 read the two E35 fixtures differently from the clean control on every width; the fix reads
+all three identically. Every bar, %, band colour, lit figure tile and spoken word matched its own model;
+only quads, glutes and hamstrings ever differed between builds; the readiness line, card and row sizes
+identical; nothing sideways; no console errors.
+
+**Status.** E35 CLOSED. E16 HELD; E22, E25–E27, E33 OPEN and untouched. DATA_KEYS 16, schema 1, trainer
+0.1.1-shadow, no migration, no stored field. verify 10,713/0, five audits green.

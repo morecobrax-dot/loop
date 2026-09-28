@@ -17793,6 +17793,20 @@ const LOOP_UPDATES = [
       'An exercise logged across several rows now counts toward your estimated recovery exactly as it would in one row'
     ],
     changes: []
+  },
+  {
+    id: 'v10-27',
+    version: 'LOOP 10.27',
+    title: 'Recovery Ignores What Was Never Completed',
+    date: '2026-09-28',
+    swVersion: 'loop-v204',
+    summary: 'Recovery now ignores sets that were never actually completed.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'An unfinished heavy set can no longer make lighter completed sets look like warm-ups'
+    ],
+    changes: []
   }
 ];
 
@@ -34542,8 +34556,7 @@ function musclesForExercise(name){
    a ramp-up and contributes only fractionally. This is a heuristic, not a
    fact about the set, and it deliberately errs toward counting sets fully. */
 function setLoadFactor(setObj, topWeight, isBodyweight){
-  const reps = parseFloat(setObj.reps);
-  if(isNaN(reps) || reps <= 0) return 0;            // unlogged set = no stress
+  if(performedReps(setObj.reps) === null) return 0;   // unlogged/invalid set = no stress — D96A's boundary (D112, E35-A)
 
   /* Phase 5B: an EXPLICIT set type is ground truth and always wins. Only when
      the type is unknown (all historical data) do we fall back to the relative-
@@ -34579,7 +34592,10 @@ function recoveryReferenceLoads(entry){
     let top = null;
     p.rows.forEach(row => {
       if(row.bodyweight) return;
-      row.sets.forEach(s => { const w = performedLoad(s.weight); if(w !== null && w > 0 && (top === null || w > top)) top = w; });   // D96A
+      row.sets.forEach(s => {   // D112 (E35-B) — an unperformed set (no valid reps) may never set the reference
+        if(performedReps(s.reps) === null) return;
+        const w = performedLoad(s.weight); if(w !== null && w > 0 && (top === null || w > top)) top = w;   // D96A
+      });
     });
     refs.set(p.key, top);
   });
@@ -34635,7 +34651,7 @@ function computeMuscleRecovery(){
          performance (no sets, or no name) keeps its own, as it always did. */
       let topWeight = refs.get(loggedExerciseKey(ex.name));
       if(topWeight === undefined){
-        const own = sets.map(s => performedLoad(s.weight)).filter(v => v !== null && v > 0);   // D96A
+        const own = sets.filter(s => performedReps(s.reps) !== null).map(s => performedLoad(s.weight)).filter(v => v !== null && v > 0);   // D96A / D112 (E35-B)
         topWeight = own.length ? Math.max(...own) : null;
       }
 

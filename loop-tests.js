@@ -41731,11 +41731,11 @@ async function testWorkoutPerformanceD96C3(){
       pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('getSessionPRs') === '2a121bed25bfa6ab' && pin('wasSessionPR') === 'dcc45f803751dc53');
     T('PBT and the D100 muscle derivations are byte-identical', pin('computePBTCandidates') === 'ba795fd4ab772a63'
       && pin('rankPBTCandidates') === '5e5f609ad9a2053a' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e');
-    /* D111 restated: computeMuscleRecovery changed on purpose, for E20 — its untyped warm-up
-       reference is now the lift's top load across the workout, not the row's. Contract 226 proves
-       that is the only change; setLoadFactor, the heuristic itself, is still byte-identical. */
-    T('recovery is byte-identical (as D111 left it: E20 closed, the per-row reference replaced by the workout\'s)',
-      pin('computeMuscleRecovery') === 'afb9fc63110ae478' && pin('setLoadFactor') === '82bd966e1694c6dd');
+    /* D112 restated: computeMuscleRecovery changed again, for E35 — Contract 227 proves
+       the only change is which sets may be evidence; setLoadFactor's OWN pin moved too (E35-A),
+       proved there rather than duplicated here. */
+    T('recovery is byte-identical (as D112 left it: E35 closed, a set is evidence only when it was performed)',
+      pin('computeMuscleRecovery') === 'd3589033bdb54c67');
     /* D102 restated the second half of this pin: trainDetailTemplateOf and
        openTrainDetail gained an optional DATE (Contract 216), so a future
        day's own View workout can resolve THAT day's program session instead
@@ -42594,9 +42594,9 @@ async function testStartProvenanceD103(){
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
     /* D110 restated: exerciseSessionHistory changed again, for E34 — Contract 225 proves it
        differs from 10.24 in its rep-validity boundary and nothing else. The rest of the line is unchanged. */
-    /* D111 restated: computeMuscleRecovery changed on purpose, for E20 — see Contract 226. */
-    T('E16 capability, recovery (as D111 left it), D49 evidence (as D110 left it) and E22 XP/Mastery are untouched',
-      pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'afb9fc63110ae478' && pin('setLoadFactor') === '82bd966e1694c6dd'
+    /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
+    T('E16 capability, recovery (as D112 left it), D49 evidence (as D110 left it) and E22 XP/Mastery are untouched',
+      pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'd3589033bdb54c67'
       && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
       && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('masteryPointsFor') === '0c704c40a853d991');
@@ -42762,11 +42762,11 @@ async function testExerciseCardD104(){
       && pin('refreshExerciseNoteBlock') === 'b7affb26cc68f860' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('maybeRefreshWarmup') === 'c8ae17b3ef832173'
       && pin('lastTimeHtml') === '7fbccabf7dc8ca7f' && pin('refreshSetCoach') === '5c84cf297638cae2');
     /* D110 restated: exerciseSessionHistory changed again, for E34 — see Contract 225. */
-    /* D111 restated: computeMuscleRecovery changed on purpose, for E20 — see Contract 226. */
+    /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
     T('progression, records, XP, capability, recovery, Mastery and D100/D101 are byte-identical',
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
-      && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'afb9fc63110ae478' && pin('setLoadFactor') === '82bd966e1694c6dd'
+      && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'd3589033bdb54c67'
       && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('twActionLabel') === '21824852a16e4df2');
     T('trainer 0.1.1-shadow, DATA_KEYS 16, schema 1, no migration', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 16
@@ -43468,9 +43468,9 @@ async function testMasteryTourD106(){
     T('the builders the tour borrows are byte-identical — so the examples change only when the real screens do', pin('appendSetRow') === '15d160342d105b97' && pin('refreshSetMeta') === '938470e0460c3c58'
       && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('workoutIconHtml') === 'c95dabd80b455c5b' && pin('workoutIdentity') === '9196e8f108a3a7ad' && pin('restRingSvg') === '830b35d31e01d2b4'
       && pin('substitutionOptionHtml') === '36c7820f98b0491b' && pin('bodyDiagramSvg') === '50d44084806369ae' && pin('volumeBarSvg') === 'e4c8f5df157fb24a' && pin('setChipHtml') === '350b4e34eb582056');
-    /* D111 restated: computeMuscleRecovery changed on purpose, for E20 — see Contract 226. */
+    /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
     T('XP, rank, readiness and recovery maths are byte-identical', pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898'
-      && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('readinessStateFromScore') === '736f5c750f322973' && pin('computeMuscleRecovery') === 'afb9fc63110ae478');
+      && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('readinessStateFromScore') === '736f5c750f322973' && pin('computeMuscleRecovery') === 'd3589033bdb54c67');
     /* D107 restated: renderTodayWorkout's own hero shows the day's LAST
        session now (E30) — never a stale first-of-the-day entry left behind
        once a second session that day is also logged. */
@@ -44592,7 +44592,10 @@ async function testRecoveryLayoutD111(){
     const undo = (re, to, label) => { const n = (r.match(new RegExp(re.source, 'g')) || []).length;
       if(n !== 1) throw new Error('reversal anchor ' + label + ' x' + n); r = r.replace(re, to); };
     undo(/\s*const refs = recoveryReferenceLoads\(entry\);/, '', 'refs');
-    undo(/let topWeight = refs\.get\(loggedExerciseKey\(ex\.name\)\);\s*if\(topWeight === undefined\)\{\s*const own = sets\.map\(/, 'const weights = sets.map(', 'own');
+    /* D112 restated: the anchor now also consumes D112's own added line
+       (the reps-validity filter) inside this same fallback block, so the
+       combined reversal still lands on 10.25's original pin in one step. */
+    undo(/let topWeight = refs\.get\(loggedExerciseKey\(ex\.name\)\);\s*if\(topWeight === undefined\)\{\s*const own = sets\.filter\(s => performedReps\(s\.reps\) !== null\)\.map\(/, 'const weights = sets.map(', 'own');
     undo(/topWeight = own\.length \? Math\.max\(\.\.\.own\) : null;\s*\}/, 'const topWeight = weights.length ? Math.max(...weights) : null;', 'top');
     reversal = r;
   }catch(e){ reversal = String(e); }
@@ -44613,6 +44616,7 @@ async function testRecoveryLayoutD111(){
      row's own. Muscles are whatever the registry says the name trains. */
   const LOADN = w => { if(w === null || w === undefined) return null; const s = String(w).trim();
     if(!s || s.toUpperCase() === 'BW') return null; const n = parseFloat(s); return Number.isFinite(n) ? n : null; };
+  const REPN = r => { const n = parseFloat(r); return Number.isFinite(n) && n > 0 ? n : null; };   // D112 (E35) — performedReps, restated independently
   const WORKING_TYPES = ['working', 'drop', 'failure', 'amrap'];
   const factorOf = (s, ref, bw) => {
     const r = parseFloat(s.reps);
@@ -44625,6 +44629,11 @@ async function testRecoveryLayoutD111(){
     return w / ref < 0.55 ? 0.25 : 1;
   };
   const topOf = sets => { let t = null; sets.forEach(s => { const w = LOADN(s.weight); if(w !== null && w > 0 && (t === null || w > t)) t = w; }); return t; };
+  /* D112 restated (E35-B) — the workout-wide reference this oracle states
+     independently now requires performedReps too, matching recoveryReferenceLoads.
+     The row-local path is untouched: base()'s own frozen 10.25 text never gained
+     this gate, so check 39 keeps comparing ungated to ungated. */
+  const topOfValid = sets => { let t = null; sets.forEach(s => { if(REPN(s.reps) === null) return; const w = LOADN(s.weight); if(w !== null && w > 0 && (t === null || w > t)) t = w; }); return t; };
   const stateOf = s => s === null ? 'unknown' : s >= 90 ? 'high' : s >= 75 ? 'well' : s >= 50 ? 'moderate' : s >= 25 ? 'low' : 'verylow';
   const oracle = (log, rowLocal) => {
     const now = new Date(NOW), cutoff = new Date(now); cutoff.setDate(now.getDate() - 14);
@@ -44634,8 +44643,8 @@ async function testRecoveryLayoutD111(){
       const decay = Math.pow(0.5, days / 2), inWindow = d >= cutoff;
       const refs = {};
       entry.exercises.forEach(ex => {
-        if(typeof ex.name !== 'string' || !ex.sets.length || ex.bodyweight) return;
-        const k = ex.name.trim().toLowerCase(), t = topOf(ex.sets);
+        if(typeof ex.name !== 'string' || !ex.sets.length || ex.bodyweight || rowLocal) return;   // D112 restated: only the workout-wide path needs this map
+        const k = ex.name.trim().toLowerCase(), t = topOfValid(ex.sets);
         if(t !== null && (!(k in refs) || t > refs[k])) refs[k] = t;
       });
       const touched = {};
@@ -44673,8 +44682,10 @@ async function testRecoveryLayoutD111(){
 
   sub('E20, reproduced on 10.25\'s own function — and closed');
   await guard('e20', async () => {
-    T('1 — the baseline really is 10.25: the frozen function carries computeMuscleRecovery\'s 10.25 pin (6d079e205ec35afb), and undoing exactly the D111 lines of today\'s (afb9fc63110ae478) gives the same',
-      hash(BASELINE_10_25) === '6d079e205ec35afb' && hash(reversal) === '6d079e205ec35afb' && pin('computeMuscleRecovery') === 'afb9fc63110ae478', [hash(BASELINE_10_25), hash(reversal), reversal.slice(0, 80)]);
+    /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227's
+       own single-hop reversal against this pin instead. */
+    T('1 — the baseline really is 10.25: the frozen function carries computeMuscleRecovery\'s 10.25 pin (6d079e205ec35afb), and undoing exactly the D111+D112 lines of today\'s (d3589033bdb54c67) gives the same',
+      hash(BASELINE_10_25) === '6d079e205ec35afb' && hash(reversal) === '6d079e205ec35afb' && pin('computeMuscleRecovery') === 'd3589033bdb54c67', [hash(BASELINE_10_25), hash(reversal), reversal.slice(0, 80)]);
     const bA = base(LAY.A()), bB = base(LAY.B()), bC = base(LAY.C()), bD = base(LAY.D());
     T('2 — E20 reproduces on 10.25: 95 × 10, 225 × 8, 225 × 8 reads quads ' + bA.quads.load + ' (2.25 set-equivalents) in one row but ' + bB.quads.load + ' (3.0) split, reversed or in three rows — the 95 became "the heaviest set of its row"',
       bA.quads.load === units(2.25) && bA.quads.score === 93 && [bB, bC, bD].every(b => b.quads.load === units(3) && b.quads.score === 90), [bA.quads, bB.quads, bC.quads, bD.quads]);
@@ -44746,18 +44757,20 @@ async function testRecoveryLayoutD111(){
     const loadsOne = bads.map(v => rec([ROW(Q, [S(v, 5), S(225, 8), S(225, 8)])]).quads.load);
     T('21 — J: a malformed, infinite or negative load is never the reference: the 225s count in full and the unreadable set counts 1, as it always did (3.0) — split and in one row',
       loads.every(l => l === units(3)) && J(loads) === J(loadsOne), [loads, loadsOne]);
-    const badReps = ['', '0', '-3', 'abc'];
+    const badReps = ['', '0', '-3', 'abc', '1e999'];
+    /* D112 restated: E35-A closed — every malformed rep shape, including the non-finite
+       ones, now excludes the set exactly alike. See Contract 227. */
     const rr = badReps.map(v => rec([ROW(Q, [S(225, v)]), ROW(Q, [S(225, 8), S(225, 8)])]));
-    const rrBase = badReps.map(v => base([ROW(Q, [S(225, v)]), ROW(Q, [S(225, 8), S(225, 8)])]));
-    const inf = rec([ROW(Q, [S(225, '1e999')]), ROW(Q, [S(225, 8), S(225, 8)])]), infBase = base([ROW(Q, [S(225, '1e999')]), ROW(Q, [S(225, 8), S(225, 8)])]);
-    T('22 — K: recovery reads reps exactly as 10.25 did: blank, zero, negative and text add nothing (2.0, 2 sets); "1e999" still counts (3.0, 3 sets — pre-existing, recorded as E35, not changed here)',
-      rr.every(r => r.quads.load === units(2) && r.quads.recentSets === 2) && J(rr) === J(rrBase) && inf.quads.load === units(3) && inf.quads.recentSets === 3 && J(inf) === J(infBase),
-      [rr.map(r => r.quads.load), inf.quads]);
+    T('22 — K: every malformed rep shape, including the non-finite ones, now excludes the set exactly alike: 2.0, 2 sets (closed by D112, E35-A)',
+      rr.every(r => r.quads.load === units(2) && r.quads.recentSets === 2), rr.map(r => r.quads));
+    /* D112 restated: E35-B closed — an unperformed set can no longer set the reference.
+       See Contract 227. */
     const unperf = [S(500, ''), S(225, 8), S(225, 8)];
-    const uOne = rec([ROW(Q, clone(unperf))]), uOneBase = base([ROW(Q, clone(unperf))]);
-    const uSplit = rec([ROW(Q, [S(500, '')]), ROW(Q, [S(225, 8), S(225, 8)])]), uSplitBase = base([ROW(Q, [S(500, '')]), ROW(Q, [S(225, 8), S(225, 8)])]);
-    T('23 — K: a set with a load and no reps sets the reference in any row, exactly as it always did inside one row (0.5 either way; split was ' + uSplitBase.quads.load + ' on 10.25) — recorded as E35, not changed here',
-      uOne.quads.load === units(0.5) && J(uOneBase) === J(uOne) && J(uSplit) === J(uOne) && uSplitBase.quads.load === units(2), [uOne.quads.load, uSplit.quads.load, uSplitBase.quads.load]);
+    const uOne = rec([ROW(Q, clone(unperf))]);
+    const uSplit = rec([ROW(Q, [S(500, '')]), ROW(Q, [S(225, 8), S(225, 8)])]);
+    const uControl = rec([ROW(Q, [S(225, 8), S(225, 8)])]);
+    T('23 — K: an unperformed set can no longer set the reference: 2.0, identical to the same two real sets alone, in one row or split (closed by D112, E35-B)',
+      uOne.quads.load === units(2) && J(uOne) === J(uControl) && J(uSplit) === J(uOne), [uOne.quads.load, uControl.quads.load, uSplit.quads.load]);
     const now = new ctx.Date(); now.setHours(12, 0, 0, 0); now.setDate(now.getDate() - 2);
     const dd = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
     seed([{ id: 'd110', date: dd, category: 'push', title: 'Push', notes: '', exercises: [ROW('Bench Press', [S(225, 8), S(245, '1e999')])] }]);
@@ -44834,7 +44847,11 @@ async function testRecoveryLayoutD111(){
       }
       cases++;
       const want = J(rec(L[0].exs)), baseOne = J(base(L[0].exs));
-      if(want === baseOne) oneRow++;
+      /* D112 restated (E35): a one-row layout matches an independent, CORRECTED
+         statement of the rule now, not bare base() — base() itself is still
+         ungated by design (10.25's own frozen text), so it is no longer "10.25
+         exactly" whenever the row also carries an E35 shape. */
+      if(J(slim(JSON.parse(want))) === J(oracle([WK('w1', L[0].exs)], false))) oneRow++;
       let differs = false;
       L.forEach(lay => {
         layouts++;
@@ -44850,7 +44867,7 @@ async function testRecoveryLayoutD111(){
     T('35 — all ' + layouts + ' layouts of ' + cases + ' generated lifts (one row first or last, two rows, reversed, three rows interleaved with mixed spellings) read identical recovery — every muscle, every field',
       same === layouts && layouts > 1000, bad);
     T('36 — the corpus really exercises E20: on 10.25, ' + e20 + ' of ' + cases + ' lifts read differently depending on the layout', e20 >= 40, e20);
-    T('37 — R: every one-row layout reads exactly as it did on 10.25: ' + oneRow + ' of ' + cases, oneRow === cases, [oneRow, cases]);
+    T('37 — R: every one-row layout matches an independent, D112-corrected statement of the rule: ' + oneRow + ' of ' + cases, oneRow === cases, [oneRow, cases]);
     T('38 — the app matches an independent statement of the rule in every layout: ' + rule + ' of ' + layouts, rule === layouts, [rule, layouts]);
     T('39 — and the same statement with the ROW\'s reference reproduces 10.25 in every layout (' + local + ' of ' + layouts + ') — so the row-local reference is the whole of E20',
       local === layouts, [local, layouts]);
@@ -44910,7 +44927,7 @@ async function testRecoveryLayoutD111(){
       && J(bands) === J(['ready', 'ready', 'recovering', 'low', 'low', null])
       && J(ctx.RECOVERY_BAND_LABEL) === J({ ready: 'Ready', recovering: 'Recovering', low: 'Low' }), [st, bands]);
     T('48 — the heuristic, decay, states, bands, confidence, the strip and figure, and muscle resolution are byte-identical',
-      pin('setLoadFactor') === '82bd966e1694c6dd' && pin('recencyDecay') === '88dae9bd898c1461' && pin('recoveryStateFromScore') === 'b40f039036c16098'
+      pin('setLoadFactor') === 'e466970c1c585aeb' /* D112 restated (E35-A) */ && pin('recencyDecay') === '88dae9bd898c1461' && pin('recoveryStateFromScore') === 'b40f039036c16098'
       && pin('recoveryConfidence') === 'c8f7f223cff10e5b' && pin('recoveryBandOf') === 'e0eb1ee1635b3427' && pin('recoveryStripHtml') === '6eb427476c25e796'
       && pin('bodyDiagramSvg') === '50d44084806369ae' && pin('musclesForExercise') === 'd364752e499a2ade' && pin('normalizeExerciseName') === '5c4bafdefad4e7cd'
       && pin('getMuscleRecovery') === 'eeac0fca7e370571' && pin('getAllMuscleRecovery') === '8cca5c5a7cd42a56' && pin('getMostFatiguedMuscles') === 'f33264b89e08df60'
@@ -45032,9 +45049,564 @@ async function testRecoveryLayoutD111(){
     T('64 — one grouping per workout, and it is D96C-3\'s: the reference comes from workoutExercisePerformances (cached per workout), with no identity rule and no history walk of its own',
       (helper.match(/workoutExercisePerformances\(entry\)/g) || []).length === 1 && !/workoutLog|sortedLog|toLowerCase|trim\(|loggedExerciseKey/.test(helper)
       && (nowSrc.match(/recoveryReferenceLoads\(entry\)/g) || []).length === 1 && (nowSrc.match(/workoutLog\./g) || []).length === 1
-      && pin('recoveryReferenceLoads') === '253a1aed73ddb0f6' && pin('workoutGroupsOf') === 'f346201c58363ccb' && pin('workoutExercisePerformances') === '4f897211e0c6aef9'
+      && pin('recoveryReferenceLoads') === 'f6ec394e400f59f5' /* D112 restated (E35-B) */ && pin('workoutGroupsOf') === 'f346201c58363ccb' && pin('workoutExercisePerformances') === '4f897211e0c6aef9'
       && pin('exercisePerformanceOf') === '7da3b6c706dbdea3' && pin('performanceRowLogged') === '9211156a0d0404d8' && pin('loggedExerciseKey') === '6b82060295b52da0'
       && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('performedReps') === '0436ff32a1b6eaf1');
+  });
+}
+
+/* =========================================================
+   CONTRACT 227 — A SET IS EVIDENCE ONLY WHEN IT WAS PERFORMED  (D112, E35)
+   ---------------------------------------------------------
+   Two gaps in the SAME boundary D96A already drew and D110 already reused
+   for D49: recovery itself never checked it. setLoadFactor read a set's
+   reps with a bare parseFloat, so "1e999" or "Infinity" was a full set of
+   stress (E35-A). recoveryReferenceLoads read every row's WEIGHT to find a
+   lift's reference load but never looked at reps at all, so an unperformed
+   set — a load typed with no reps, or reps that don't parse — could set the
+   reference a real set is then judged against (E35-B). Both are now gated
+   by performedReps, exactly where D96A/D110 already put it: the factor
+   gate, and the reference-eligibility gate. Nothing else about recovery
+   moved — which sets a VALID reference admits, the 55% line, the 0.25
+   discount, a declared type still winning, decay, weights, saturation,
+   thresholds, bands, D111's per-workout reference and row-layout
+   invariance are all byte-identical or behaviourally unchanged. The
+   baseline is not described here, it is RUN: 10.26's own two functions are
+   frozen in and swapped into the live app for the length of one call.
+   ========================================================= */
+async function testRecoveryValidityD112(){
+  section('CONTRACT 227 — a set is evidence only when it was performed (D112, E35)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const code = stripComments(src);
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const hash = s => crypto.createHash('sha256').update(s.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const pin = n => hash(fnSrc(src, n));
+  const pad = n => String(n).padStart(2, '0');
+  const S = (w, r, o) => Object.assign({ weight: w === null ? '' : String(w), reps: r === null ? '' : String(r), rir: '2', completed: true }, o || {});
+  const ROW = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const J = o => JSON.stringify(o);
+  const clone = o => JSON.parse(J(o));
+  const Q = 'Back Squat';
+
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') });
+  const ctx = app.ctx, doc = ctx.document;
+  const MUSCLES = Object.keys(ctx.MUSCLE_MAP);
+  /* One fixed instant, so every number below is exact: a workout dated the day
+     before is 1.5 days old, so one full set weighs 0.5^(1.5 / 2) = 0.5946. */
+  const NOW = '2026-09-10T12:00:00', DAY = '2026-09-09';
+  const DECAY = Math.pow(0.5, 1.5 / 2);
+  const units = u => Math.round(u * DECAY * 10) / 10;   // a primary muscle's load for u set-equivalents, 1.5 days old
+  const WK = (id, exs, date) => ({ id, date: date || DAY, category: 'legs', title: 'Legs', notes: '', exercises: exs });
+  const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
+    ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); ctx.invalidateShadowCache(); ctx.invalidateRecoveryCache(); };
+  const atTime = (now, fn) => { ctx._simulatedNow = now; ctx.invalidateRecoveryCache(); ctx.invalidateShadowCache();
+    try{ return fn(); }finally{ ctx._simulatedNow = null; ctx.invalidateRecoveryCache(); ctx.invalidateShadowCache(); } };
+  const at = fn => atTime(NOW, fn);
+  const recOf = log => { seed(log); return at(() => ctx.computeMuscleRecovery()); };
+  const rec = exs => recOf([WK('w1', exs)]);
+
+  /* 10.26's own setLoadFactor and recoveryReferenceLoads, frozen here verbatim
+     and swapped into the live app (as globalThis properties — the same
+     mechanism D111's Contract 226 used for computeMuscleRecovery) for the
+     length of one call, so every "as on 10.26" below is a reading of the
+     baseline, not a description of it. Check 1 proves each frozen text
+     carries its 10.26 pin, and that undoing exactly the D112 lines of
+     today's functions gives the same pins back. computeMuscleRecovery's own
+     text is UNCHANGED in behaviour for any reachable input (see check 2's
+     source proof) — only setLoadFactor and recoveryReferenceLoads move, so
+     freezing those two is sufficient to reconstruct 10.26's full behaviour;
+     computeMuscleRecovery itself is used LIVE (today's copy) throughout. */
+  const BASELINE_setLoadFactor = `
+    function setLoadFactor(setObj, topWeight, isBodyweight){
+      const reps = parseFloat(setObj.reps);
+      if(isNaN(reps) || reps <= 0) return 0;
+      const declared = typeof setTypeOf === 'function' ? setTypeOf(setObj) : null;
+      if(declared === 'warmup') return RECOVERY_CONFIG.warmupWeight;
+      if(declared !== null){
+        const meta = typeof getSetTypeMeta === 'function' ? getSetTypeMeta(declared) : null;
+        if(meta && meta.countsAsWorking) return 1;
+      }
+      if(isBodyweight || !topWeight) return 1;
+      const w = performedLoad(setObj.weight);
+      if(w === null || w <= 0) return 1;
+      return (w / topWeight) < RECOVERY_CONFIG.warmupRatio
+        ? RECOVERY_CONFIG.warmupWeight : 1;
+    }
+  `;
+  const BASELINE_recoveryReferenceLoads = `
+    function recoveryReferenceLoads(entry){
+      const refs = new Map();
+      workoutExercisePerformances(entry).forEach(p => {
+        let top = null;
+        p.rows.forEach(row => {
+          if(row.bodyweight) return;
+          row.sets.forEach(s => { const w = performedLoad(s.weight); if(w !== null && w > 0 && (top === null || w > top)) top = w; });
+        });
+        refs.set(p.key, top);
+      });
+      return refs;
+    }
+  `;
+  const undoOne = (name, frozenPin) => {
+    const now = fnSrc(src, name);
+    let r = now, err = '';
+    try{
+      if(name === 'setLoadFactor'){
+        const n1 = (r.match(/if\(performedReps\(setObj\.reps\) === null\) return 0;\s*\n/g) || []).length;
+        if(n1 !== 1) throw new Error('anchor x' + n1);
+        r = r.replace(/if\(performedReps\(setObj\.reps\) === null\) return 0;\s*\n/,
+          "const reps = parseFloat(setObj.reps);\n  if(isNaN(reps) || reps <= 0) return 0;\n");
+      } else {
+        const n1 = (r.match(/row\.sets\.forEach\(s => \{\s*\n\s*if\(performedReps\(s\.reps\) === null\) return;\s*\n\s*const w = performedLoad\(s\.weight\); if\(w !== null && w > 0 && \(top === null \|\| w > top\)\) top = w;\s*\n\s*\}\);/g) || []).length;
+        if(n1 !== 1) throw new Error('anchor x' + n1);
+        r = r.replace(/row\.sets\.forEach\(s => \{\s*\n\s*if\(performedReps\(s\.reps\) === null\) return;\s*\n\s*const w = performedLoad\(s\.weight\); if\(w !== null && w > 0 && \(top === null \|\| w > top\)\) top = w;\s*\n\s*\}\);/,
+          "row.sets.forEach(s => { const w = performedLoad(s.weight); if(w !== null && w > 0 && (top === null || w > top)) top = w; });");
+      }
+    }catch(e){ err = String(e); }
+    return { now: hash(now), reversed: err || hash(r), ok: !err && hash(r) === frozenPin };
+  };
+  const revSLF = undoOne('setLoadFactor', '82bd966e1694c6dd');
+  const revRRL = undoOne('recoveryReferenceLoads', '253a1aed73ddb0f6');
+
+  const slfFn = vm.runInContext('(' + BASELINE_setLoadFactor.trim() + ')', ctx);
+  const rrlFn = vm.runInContext('(' + BASELINE_recoveryReferenceLoads.trim() + ')', ctx);
+  const withBase = fn => {
+    const realSLF = ctx.setLoadFactor, realRRL = ctx.recoveryReferenceLoads;
+    ctx.setLoadFactor = slfFn; ctx.recoveryReferenceLoads = rrlFn; ctx.invalidateRecoveryCache();
+    try{ return fn(); }finally{ ctx.setLoadFactor = realSLF; ctx.recoveryReferenceLoads = realRRL; ctx.invalidateRecoveryCache(); }
+  };
+  const baseOf = log => { seed(log); return at(() => withBase(() => ctx.computeMuscleRecovery())); };
+  const base = exs => baseOf([WK('w1', exs)]);
+
+  /* The rule, stated independently of the app. A set whose reps do not parse
+     to a finite positive number adds nothing and may never set the
+     reference (D112); a declared type wins for a VALID set (warm-up 0.25,
+     any working type 1); otherwise a bodyweight row, a lift with no
+     reference, or a set with no readable positive load counts 1; under 55%
+     of the reference counts 0.25. The reference is the heaviest readable
+     positive load over every VALID (performed-reps) set of the lift's
+     non-bodyweight rows in that workout. Muscles are whatever the registry
+     says the name trains. With old=true, neither gate applies — 10.26's own
+     rule, for measuring exactly what E35 was. */
+  const LOADN = w => { if(w === null || w === undefined) return null; const s = String(w).trim();
+    if(!s || s.toUpperCase() === 'BW') return null; const n = parseFloat(s); return Number.isFinite(n) ? n : null; };
+  const REPN = r => { const n = parseFloat(r); return Number.isFinite(n) && n > 0 ? n : null; };
+  const REPN_OLD = r => { const n = parseFloat(r); return (isNaN(n) || n <= 0) ? null : n; };
+  const WORKING_TYPES = ['working', 'drop', 'failure', 'amrap'];
+  const factorOf = (s, ref, bw, old) => {
+    if((old ? REPN_OLD : REPN)(s.reps) === null) return 0;
+    if(s.type === 'warmup') return 0.25;
+    if(WORKING_TYPES.indexOf(s.type) !== -1) return 1;
+    if(bw || !ref) return 1;
+    const w = LOADN(s.weight);
+    if(w === null || w <= 0) return 1;
+    return w / ref < 0.55 ? 0.25 : 1;
+  };
+  const topOf = (sets, old) => { let t = null; sets.forEach(s => { if(!old && REPN(s.reps) === null) return;
+    const w = LOADN(s.weight); if(w !== null && w > 0 && (t === null || w > t)) t = w; }); return t; };
+  const stateOf = s => s === null ? 'unknown' : s >= 90 ? 'high' : s >= 75 ? 'well' : s >= 50 ? 'moderate' : s >= 25 ? 'low' : 'verylow';
+  const oracle = (log, old) => {
+    const now = new Date(NOW), cutoff = new Date(now); cutoff.setDate(now.getDate() - 14);
+    const acc = {}; MUSCLES.forEach(m => { acc[m] = { load: 0, raw: 0, sessions: 0, days: null }; });
+    log.forEach(entry => {
+      const d = new Date(entry.date + 'T00:00:00'), days = Math.max(0, (now - d) / 86400000);
+      const decay = Math.pow(0.5, days / 2), inWindow = d >= cutoff;
+      const refs = {};
+      entry.exercises.forEach(ex => {
+        if(typeof ex.name !== 'string' || !ex.sets.length || ex.bodyweight) return;
+        const k = ex.name.trim().toLowerCase(), t = topOf(ex.sets, old);
+        if(t !== null && (!(k in refs) || t > refs[k])) refs[k] = t;
+      });
+      const touched = {};
+      entry.exercises.forEach(ex => {
+        const mus = ctx.musclesForExercise(ex.name);
+        if(!mus.primary.length && !mus.secondary.length) return;
+        const k = ex.name.trim().toLowerCase();
+        const ref = k in refs ? refs[k] : null;
+        let load = 0, working = 0;
+        ex.sets.forEach(s => { const f = factorOf(s, ref, !!ex.bodyweight, old); if(f > 0){ load += f; working += 1; } });
+        if(load === 0) return;
+        const apply = (list, wt) => list.forEach(m => {
+          if(inWindow) acc[m].load += load * wt * decay;
+          acc[m].raw += working * wt; touched[m] = true;
+          if(acc[m].days === null || days < acc[m].days) acc[m].days = days;
+        });
+        apply(mus.primary, 1.0); apply(mus.secondary, 0.4);
+      });
+      Object.keys(touched).forEach(m => { if(inWindow) acc[m].sessions += 1; });
+    });
+    const out = {};
+    MUSCLES.forEach(m => { const a = acc[m], score = a.days === null ? null : Math.round(100 * (1 - Math.min(1, a.load / 18)));
+      out[m] = { score, state: stateOf(score), load: Math.round(a.load * 10) / 10, recentSets: Math.round(a.raw), sessions: a.sessions }; });
+    return out;
+  };
+  const slim = r => { const o = {}; MUSCLES.forEach(m => { o[m] = { score: r[m].score, state: r[m].state, load: r[m].load, recentSets: r[m].recentSets, sessions: r[m].sessions }; }); return o; };
+
+  sub('E35-A/B, reproduced on 10.26 — and closed');
+  await guard('e35 closed', async () => {
+    T('1 — the baseline really is 10.26: setLoadFactor\'s frozen text carries its 10.26 pin (82bd966e1694c6dd) and undoing exactly the D112 line of today\'s (e466970c1c585aeb) gives the same; recoveryReferenceLoads likewise (253a1aed73ddb0f6 / f6ec394e400f59f5)',
+      hash(BASELINE_setLoadFactor) === '82bd966e1694c6dd' && revSLF.ok && pin('setLoadFactor') === 'e466970c1c585aeb'
+      && hash(BASELINE_recoveryReferenceLoads) === '253a1aed73ddb0f6' && revRRL.ok && pin('recoveryReferenceLoads') === 'f6ec394e400f59f5',
+      [hash(BASELINE_setLoadFactor), revSLF, hash(BASELINE_recoveryReferenceLoads), revRRL]);
+    T('2 — the change is confined to those two functions and one now-dead-code line of computeMuscleRecovery: pin d3589033bdb54c67, and undoing that one line (the same fallback D111\'s own reversal already targets) gives back D111\'s own pin (afb9fc63110ae478)',
+      pin('computeMuscleRecovery') === 'd3589033bdb54c67'
+      && (() => { const n = fnSrc(src, 'computeMuscleRecovery'); const m = n.match(/const own = sets\.filter\(s => performedReps\(s\.reps\) !== null\)\.map\(/g);
+        return m && m.length === 1 && hash(n.replace('sets.filter(s => performedReps(s.reps) !== null).map(', 'sets.map(')) === 'afb9fc63110ae478'; })());
+
+    /* E35-A: non-finite reps counted as real recovery work */
+    const a2r = base([ROW(Q, [S(225, 8), S(225, 8)])]);
+    const a3rInf = base([ROW(Q, [S(225, 8), S(225, 8), S(225, '1e999')])]);
+    T('3 — E35-A reproduces on 10.26: two real 225 × 8 sets read quads ' + a2r.quads.load + ' (2 set-equivalents); a third 225 × "1e999" makes it ' + a3rInf.quads.load + ' (3) — a non-finite rep count was a full set of stress',
+      a2r.quads.load === units(2) && a2r.quads.recentSets === 2 && a3rInf.quads.load === units(3) && a3rInf.quads.recentSets === 3, [a2r.quads, a3rInf.quads]);
+    const f3rInf = rec([ROW(Q, [S(225, 8), S(225, 8), S(225, '1e999')])]);
+    T('4 — closed: the same workout now reads exactly like the two real sets alone — ' + f3rInf.quads.load + ' (2), the "1e999" set contributing nothing',
+      f3rInf.quads.load === units(2) && f3rInf.quads.recentSets === 2 && J(f3rInf) === J(rec([ROW(Q, [S(225, 8), S(225, 8)])])));
+
+    /* E35-B: an unperformed set establishing the reference */
+    const b2r = base([ROW(Q, [S(225, 8), S(225, 8)])]);
+    const bUnperf = base([ROW(Q, [S(500, ''), S(225, 8), S(225, 8)])]);
+    T('5 — E35-B reproduces on 10.26: the same two real sets alone read ' + b2r.quads.load + ' (2); a 500 lb set with NO reps beside them makes it ' + bUnperf.quads.load + ' (0.5 set-equivalents — each real 225 discounted to 0.25 against the false 500 reference) — the unperformed 500 became the reference and turned the real sets into warm-ups',
+      b2r.quads.load === units(2) && bUnperf.quads.load === units(0.5), [b2r.quads, bUnperf.quads]);
+    const fUnperf = rec([ROW(Q, [S(500, ''), S(225, 8), S(225, 8)])]);
+    T('6 — closed: the same workout now reads exactly like the two real sets alone — ' + fUnperf.quads.load + ' (2), the unperformed 500 never sets the reference and never counts itself',
+      fUnperf.quads.load === units(2) && fUnperf.quads.recentSets === 2 && J(fUnperf) === J(rec([ROW(Q, [S(225, 8), S(225, 8)])])));
+  });
+
+  sub('the validity gate, by value: blank, zero, negative, NaN-text and non-finite all exclude a set the same way');
+  await guard('validity gate', async () => {
+    /* -Infinity was ALREADY excluded on 10.26: the old test was a bare
+       `reps <= 0`, and -Infinity <= 0 is true. Only a POSITIVE non-finite
+       value (Infinity, or "1e999" which parses to it) ever passed it. */
+    const bads = ['', '0', '-3', 'abc', 'NaN', '-Infinity', '1e999', 'Infinity'];
+    const readings = bads.map(v => rec([ROW(Q, [S(225, v)]), ROW(Q, [S(225, 8), S(225, 8)])]).quads);
+    T('7 — every invalid rep shape (blank, zero, negative, text, "NaN", "-Infinity", and now the two positive-non-finite ones too) excludes its own set identically: 2.0, 2 sets — ' + bads.join(', '),
+      readings.every(r => r.load === units(2) && r.recentSets === 2), readings);
+    const oldReadings = bads.map(v => base([ROW(Q, [S(225, v)]), ROW(Q, [S(225, 8), S(225, 8)])]).quads);
+    T('8 — and on 10.26, only the two POSITIVE non-finite shapes ("1e999", "Infinity") differed from the rest — -Infinity was already excluded there too, by the same `<= 0` clause — proving the gap was exactly the finite boundary on the positive side, nothing wider',
+      J(oldReadings.slice(0, 6)) === J(readings.slice(0, 6)) && oldReadings.slice(6).every(r => r.load !== units(2)), oldReadings);
+    T('9 — a genuinely valid, unusual rep count is untouched: scientific notation (1e2 = 100 reps) and a large-but-finite count (500) both still count in full',
+      rec([ROW(Q, [S(225, '1e2')]), ROW(Q, [S(225, 8), S(225, 8)])]).quads.load === units(3)
+      && rec([ROW(Q, [S(225, 500)]), ROW(Q, [S(225, 8), S(225, 8)])]).quads.load === units(3));
+  });
+
+  sub('set types do not bypass the validity gate (J, K, L, M)');
+  await guard('types', async () => {
+    T('10 — J: a typed warm-up with VALID reps keeps its 0.25 factor unchanged, even alone: ' + rec([ROW(Q, [S(135, 10, { type: 'warmup' })])]).quads.load,
+      rec([ROW(Q, [S(135, 10, { type: 'warmup' })])]).quads.load === units(0.25));
+    const kBlank = rec([ROW(Q, [S(135, '', { type: 'warmup' })])]);
+    const kInf = rec([ROW(Q, [S(135, '1e999', { type: 'warmup' })])]);
+    T('11 — K: a typed warm-up with INVALID reps contributes nothing — blank and "1e999" both read null, exactly like an untyped invalid set; the type never rescues it',
+      kBlank.quads.score === null && kBlank.quads.recentSets === 0 && kInf.quads.score === null && kInf.quads.recentSets === 0, [kBlank.quads, kInf.quads]);
+    const oldKInf = base([ROW(Q, [S(135, '1e999', { type: 'warmup' })])]);
+    T('   and on 10.26 that same typed warm-up DID contribute (a full 0.25, since the reps gate never ran) — the type check happens after the (old) reps check, not instead of it',
+      oldKInf.quads.load === units(0.25) && oldKInf.quads.score !== null, oldKInf.quads);
+
+    T('12 — L: working/drop/failure/AMRAP with VALID reps keep their factor of 1, unchanged — working alone: ' + rec([ROW(Q, [S(225, 8, { type: 'working' })])]).quads.load,
+      rec([ROW(Q, [S(225, 8, { type: 'working' })])]).quads.load === units(1));
+    const dropValid = rec([ROW(Q, [S(225, 8), S(95, 8, { type: 'drop' })])]);
+    T('   a valid drop set beside a real one: both count, 2.0', dropValid.quads.load === units(2) && dropValid.quads.recentSets === 2);
+    const mWork = rec([ROW(Q, [S(225, '1e999', { type: 'working' })])]);
+    const mDrop = rec([ROW(Q, [S(225, 8), S(95, '1e999', { type: 'drop' })])]);
+    const mAmrap = rec([ROW(Q, [S(225, 8), S(225, 8), S(225, '1e999', { type: 'amrap' })])]);
+    T('13 — M: working/drop/failure/AMRAP with INVALID reps contribute nothing — a lone invalid working set trains nothing at all (score null); an invalid drop beside a real set reads as if the drop were never logged (1.0); an invalid AMRAP beside two real sets reads as if it were never logged (2.0)',
+      mWork.quads.score === null && mWork.quads.recentSets === 0
+      && mDrop.quads.load === units(1) && mDrop.quads.recentSets === 1 && J(mDrop) === J(rec([ROW(Q, [S(225, 8)])]))
+      && mAmrap.quads.load === units(2) && mAmrap.quads.recentSets === 2 && J(mAmrap) === J(rec([ROW(Q, [S(225, 8), S(225, 8)])])),
+      [mWork.quads, mDrop.quads, mAmrap.quads]);
+    const oldMDrop = base([ROW(Q, [S(225, 8), S(95, '1e999', { type: 'drop' })])]);
+    T('   on 10.26 that same invalid drop counted in full (2.0, ws 2) — the declared type won regardless of whether the set happened', oldMDrop.quads.load === units(2) && oldMDrop.quads.recentSets === 2);
+  });
+
+  sub('malformed LOAD is untouched — D96A/D111\'s own exclusion, not widened (N)');
+  await guard('malformed load', async () => {
+    const loadBad = rec([ROW(Q, [S(225, 8), S(225, 8), S('abc', 5)])]);
+    T('14 — N: a malformed load with VALID reps still counts in full (D111\'s own rule, byte-identical): 3.0, 3 sets',
+      loadBad.quads.load === units(3) && loadBad.quads.recentSets === 3);
+    const bothBad = rec([ROW(Q, [S(225, 8), S(225, 8), S('abc', '1e999')])]);
+    const bothBadOld = base([ROW(Q, [S(225, 8), S(225, 8), S('abc', '1e999')])]);
+    T('15 — a set with BOTH a malformed load AND malformed reps now contributes nothing (2.0, 2 sets) — on 10.26 it counted in full (3.0, 3) via the same "unreadable load defaults to working" rule, since reps were never checked first',
+      bothBad.quads.load === units(2) && bothBad.quads.recentSets === 2 && bothBadOld.quads.load === units(3) && bothBadOld.quads.recentSets === 3,
+      [bothBad.quads, bothBadOld.quads]);
+  });
+
+  sub('bodyweight (O, P, Q)');
+  await guard('bodyweight', async () => {
+    const bwValid = rec([ROW('Pull-Up', [S('BW', 10)], true)]).back;
+    T('16 — O: a bodyweight set with valid reps is unchanged: 1 full set', bwValid.load === units(1) && bwValid.recentSets === 1);
+    const bwInf = rec([ROW('Pull-Up', [S('BW', '1e999')], true)]).back;
+    const bwInfOld = base([ROW('Pull-Up', [S('BW', '1e999')], true)]).back;
+    T('17 — P: a bodyweight set with INVALID reps contributes nothing (score null) — on 10.26 it counted in full (1.0), since bodyweight only ever waived the LOAD check, never the reps one',
+      bwInf.score === null && bwInf.recentSets === 0 && bwInfOld.load === units(1) && bwInfOld.recentSets === 1, [bwInf, bwInfOld]);
+    const bwBlank = rec([ROW('Pull-Up', [S('BW', '')], true)]).back;
+    T('   a blank-reps bodyweight set was ALREADY excluded before D112 (unchanged): score null', bwBlank.score === null);
+
+    const dipControl = rec([ROW('Dip', [S('BW', 8), S(25, 8)], true)]).triceps;
+    T('18 — Q: loaded-bodyweight, both sets valid (control) — unchanged: 2 full sets', dipControl.load === units(2) && dipControl.recentSets === 2);
+    const dipInv = rec([ROW('Dip', [S('BW', 8), S(25, '1e999')], true)]).triceps;
+    const dipInvOld = base([ROW('Dip', [S('BW', 8), S(25, '1e999')], true)]).triceps;
+    T('   the added-weight set with invalid reps contributes nothing — only the bodyweight set counts (1.0); on 10.26 both counted (2.0) — the 55% interpretation itself is untouched, only which sets may reach it',
+      dipInv.load === units(1) && dipInv.recentSets === 1 && dipInvOld.load === units(2) && dipInvOld.recentSets === 2, [dipInv, dipInvOld]);
+
+    /* the bodyweight WAIVER itself, not merely 'BW' failing performedLoad
+       (D110's own lesson, reused): a bodyweight-flagged row with a stray
+       NUMERIC weight, valid reps, beside a loaded row of the same lift that
+       sets a high reference. Only the waiver — not the reps gate — decides
+       this one. */
+    const strayNum = rec([ROW('Dip', [S(100, 8)], false), ROW('Dip', [S(10, 8)], true)]).triceps;
+    T('   a bodyweight row is waived by its OWN flag, not merely because \'BW\' fails performedLoad: a stray NUMERIC weight (10, 10% of the loaded row\'s reference 100) on a bodyweight-flagged row still counts in full (2.0 total), never discounted to 0.25',
+      strayNum.load === units(2) && strayNum.recentSets === 2, strayNum);
+  });
+
+  sub('D111 row-layout invariance remains, with E35 shapes mixed in (R, S)');
+  await guard('layout invariance', async () => {
+    const e35bOne = rec([ROW(Q, [S(500, ''), S(225, 8), S(225, 8)])]);
+    const e35bSplit = rec([ROW(Q, [S(500, '')]), ROW(Q, [S(225, 8), S(225, 8)])]);
+    const e35bReversed = rec([ROW(Q, [S(225, 8), S(225, 8)]), ROW(Q, [S(500, '')])]);
+    T('19 — R: E35-B\'s unperformed set reads identically whatever row it sits in — one row, split, or the split reversed: all ' + e35bOne.quads.load,
+      J(e35bOne) === J(e35bSplit) && J(e35bSplit) === J(e35bReversed) && e35bOne.quads.load === units(2), [e35bOne.quads, e35bSplit.quads, e35bReversed.quads]);
+    const e35aOne = rec([ROW(Q, [S(225, 8), S(225, 8), S(225, '1e999')])]);
+    const e35aSplit = rec([ROW(Q, [S(225, 8)]), ROW(Q, [S(225, 8), S(225, '1e999')])]);
+    T('   E35-A\'s non-finite-rep set reads identically one row or split: both ' + e35aOne.quads.load, J(e35aOne) === J(e35aSplit) && e35aOne.quads.load === units(2));
+
+    const sameDate = recOf([WK('a', [ROW(Q, [S(500, '')])]), WK('b', [ROW(Q, [S(225, 8), S(225, 8)])])]);
+    T('20 — S: two workouts on one date stay separate — workout "a" has NO valid evidence at all (its only set is unperformed) and correctly counts as no session; workout "b"\'s real sets read exactly as they would alone: 2.0, 1 session',
+      sameDate.quads.load === units(2) && sameDate.quads.sessions === 1 && J(sameDate) === J(rec([ROW(Q, [S(225, 8), S(225, 8)])])), sameDate.quads);
+    const sameDateBoth = recOf([WK('a', [ROW(Q, [S(500, ''), S(95, 10)])]), WK('b', [ROW(Q, [S(225, 8), S(225, 8)])])]);
+    T('   and workout "a"\'s own reference is never corrupted by workout "b"\'s sets, nor the reverse: "a" reads its own 95 × 10 at full factor (95 is its own workout\'s only valid load), "b" still reads 225 as its reference — 2 sessions, 3.0 total',
+      sameDateBoth.quads.sessions === 2 && sameDateBoth.quads.load === units(3), sameDateBoth.quads);
+  });
+
+  sub('a single ordinary valid row, and a generated two-year history, are untouched (T)');
+  await guard('ordinary', async () => {
+    const rnd = H.mulberry32(112);
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const LIFTS = [[Q, false, 225], ['Bench Press', false, 185], ['Deadlift', false, 315], ['Overhead Press', false, 115], ['Barbell Row', false, 155],
+      ['Incline Bench Press', false, 155], ['Leg Press', false, 360], ['Pull-Up', true, 0], ['Dip', true, 0], ['Bulgarian Split Squat', false, 50], ['Treadmill', false, 0]];
+    const log = [];
+    const start = new Date('2024-09-12T00:00:00');
+    for(let i = 0; i < 300; i++){
+      const d = new Date(start); d.setDate(start.getDate() + Math.floor(i * 2.425));
+      const date = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      const typed = rnd() < 0.6;
+      const exs = Array.from({ length: 2 + Math.floor(rnd() * 3) }, () => pick(LIFTS)).filter((x, j, a) => a.indexOf(x) === j).map(([name, bw, top]) => {
+        const sets = [];
+        if(!bw && top && rnd() < 0.7) sets.push(S(Math.round(top * 0.45), 10, typed ? { type: 'warmup' } : {}));
+        for(let s = 0; s < 2 + Math.floor(rnd() * 3); s++) sets.push(S(bw ? 'BW' : top, 5 + Math.floor(rnd() * 6), typed ? { type: pick(['working', 'working', 'drop']) } : {}));
+        return ROW(name, sets, bw);
+      });
+      log.push({ id: 'o' + i, date, category: 'legs', title: 'Legs', notes: '', exercises: exs });
+    }
+    const now = recOf(clone(log)), was = baseOf(clone(log));
+    T('21 — T: a generated two-year history with no E35 shape at all reads exactly as on 10.26 — every muscle, every field',
+      J(now) === J(was) && MUSCLES.some(m => now[m].sessions > 0), MUSCLES.filter(m => J(now[m]) !== J(was[m])));
+    const single = rec([ROW(Q, [S(225, 5), S(225, 5), S(225, 5)])]);
+    T('   and a single ordinary valid row reads the plain sum it always did: 3.0, 3 sets', single.quads.load === units(3) && single.quads.recentSets === 3);
+  });
+
+  sub('all-invalid sets fabricate no evidence (U)');
+  await guard('all invalid', async () => {
+    const allBad = rec([ROW(Q, [S(225, ''), S(225, 0), S(225, -3), S(225, 'abc'), S(225, '1e999')])]);
+    T('22 — U: a row of nothing but invalid reps contributes NO evidence at all — never trained, not a manufactured zero',
+      allBad.quads.score === null && allBad.quads.load === 0 && allBad.quads.recentSets === 0 && allBad.quads.sessions === 0, allBad.quads);
+    const allBadOld = base([ROW(Q, [S(225, ''), S(225, 0), S(225, -3), S(225, 'abc'), S(225, '1e999')])]);
+    T('   on 10.26 the same row was NOT all-invalid — the "1e999" set alone gave it a real (wrong) reading: score ' + allBadOld.quads.score,
+      allBadOld.quads.score !== null && allBadOld.quads.recentSets === 1, allBadOld.quads);
+  });
+
+  sub('raw sets vs performed sets: exactly what each counter means, before and after');
+  await guard('counters', async () => {
+    /* computeMuscleRecovery has ONE set-counting field — rawSets, surfaced as
+       recentSets. It has never meant "rows logged"; it has always meant
+       "sets that contributed recovery work" (working += 1 only when
+       setLoadFactor(...) > 0). D112 narrows what counts as contributing —
+       it does not invent a second meaning or a second field. */
+    T('23 — recentSets already excluded blank/zero/negative/text reps before D112 (unchanged): a row of one valid + one blank set reads 1, not 2',
+      rec([ROW(Q, [S(225, 8), S(225, '')])]).quads.recentSets === 1);
+    T('   D112 only WIDENS the same exclusion to the two non-finite shapes: a row of one valid + one "1e999" set now also reads 1, not 2 (was 2 on 10.26)',
+      rec([ROW(Q, [S(225, 8), S(225, '1e999')])]).quads.recentSets === 1 && base([ROW(Q, [S(225, 8), S(225, '1e999')])]).quads.recentSets === 2);
+    T('24 — a set excluded from recentSets is also excluded from load and from ever being the reference — one rule, not two: the three fields never disagree on the same set',
+      (() => { const withInf = rec([ROW(Q, [S(225, 8), S(225, '1e999')])]).quads, withoutInf = rec([ROW(Q, [S(225, 8)])]).quads;
+        return J(withInf) === J(withoutInf); })());
+  });
+
+  sub('the same sets, with an invalid one sprinkled in: a permanent no-op property, and D111\'s row-layout property extended with E35 shapes (seeded)');
+  await guard('property', async () => {
+    const rnd = H.mulberry32(112);
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const LOADS = [45, 95, 95, 135, 185, 225, 225, 275, 315, 405, 500, '', 'abc', 0];
+    const VALID_REPS = [1, 3, 5, 5, 8, 8, 10, 12, 15];
+    const INVALID_REPS = ['', '0', '-3', 'abc', 'NaN', '1e999', 'Infinity', '-Infinity'];
+    const TYPES = [undefined, undefined, undefined, undefined, undefined, 'working', 'warmup', 'drop', 'failure', 'amrap'];
+    const others = () => [ROW('Bench Press', [S(185, 5), S(185, 5)]), ROW('Leg Press', [S(360, 10), S(180, 12)]), ROW('Pull-Up', [S('BW', 8)], true)];
+
+    /* no-op property: adding ANY invalid-reps set to an otherwise-valid
+       workout must not change the reading in any field, for any muscle,
+       whatever row it lands in, whatever load it carries, whatever type it
+       is declared — since it was never eligible evidence either way. */
+    let noopCases = 0, noopSame = 0;
+    for(let i = 0; i < 200; i++){
+      const n = 1 + Math.floor(rnd() * 5), bw = rnd() < 0.15;
+      const validSets = Array.from({ length: n }, () => S(pick(LOADS.filter(v => v !== '' && v !== 'abc')), pick(VALID_REPS)));
+      const before = rec([ROW(Q, clone(validSets), bw)].concat(others()));
+      const badSet = S(pick(LOADS), pick(INVALID_REPS), (() => { const t = pick(TYPES); return t ? { type: t } : {}; })());
+      const at_ = Math.floor(rnd() * (n + 1));
+      const withBad = validSets.slice(0, at_).concat([badSet], validSets.slice(at_));
+      const after = rec([ROW(Q, withBad, bw)].concat(others()));
+      noopCases++;
+      if(J(before) === J(after)) noopSame++;
+    }
+    T('25 — no-op property: inserting one invalid-reps set (any load, any position, any declared type) into 200 otherwise-valid generated workouts never changes the reading — ' + noopSame + ' of ' + noopCases,
+      noopSame === noopCases, [noopCases, noopSame]);
+
+    /* row-layout property, D111's own, extended: partitions built from a mix
+       of valid AND invalid sets must still read identically to each other —
+       AND must match an independent, gated oracle — regardless of layout. */
+    const part = (sets, k) => { for(let t = 0; t < 60; t++){ const p = Array.from({ length: k }, () => []);
+      sets.forEach(s => p[Math.floor(rnd() * k)].push(clone(s))); if(p.every(x => x.length)) return p; } return null; };
+    let cases = 0, layouts = 0, same = 0, rule = 0, e35 = 0;
+    const bad = [];
+    for(let i = 0; i < 200; i++){
+      const n = 2 + Math.floor(rnd() * 6), bw = rnd() < 0.12;
+      const sets = Array.from({ length: n }, () => { const o = {}; const t = pick(TYPES); if(t) o.type = t;
+        return rnd() < 0.3 ? S(pick(LOADS), pick(INVALID_REPS), o) : S(pick(LOADS), pick(VALID_REPS), o); });
+      const L = [{ label: 'one row, first', exs: [ROW(Q, clone(sets), bw)].concat(others()) },
+        { label: 'one row, last', exs: others().concat([ROW(Q, clone(sets), bw)]) }];
+      const two = part(sets, 2), three = n >= 3 ? part(sets, 3) : null;
+      if(two){
+        L.push({ label: 'two rows', exs: [ROW(Q, clone(two[0]), bw)].concat(others(), [ROW(Q, clone(two[1]), bw)]) });
+        L.push({ label: 'two rows reversed', exs: [ROW(Q, clone(two[1]), bw), ROW(Q, clone(two[0]), bw)].concat(others()) });
+      }
+      if(three){ const o = others(); L.push({ label: 'three rows interleaved', exs: [ROW(Q, clone(three[0]), bw), o[0], ROW(Q, clone(three[1]), bw), o[1], ROW(Q, clone(three[2]), bw), o[2]] }); }
+      cases++;
+      const want = J(rec(L[0].exs));
+      /* E35 is a VALIDITY bug, not a layout bug — it shows up by comparing the
+         OLD reading to the FIXED one for the SAME storage, not across layouts
+         (10.26's reference was already layout-invariant, D111 having fixed
+         that; only which sets may SET it was still wrong). */
+      if(J(base(L[0].exs)) !== want) e35++;
+      L.forEach(lay => {
+        layouts++;
+        const got = rec(lay.exs);
+        if(J(got) === want) same++; else if(bad.length < 3) bad.push({ i, layout: lay.label, sets, got: got.quads });
+        if(J(slim(got)) === J(oracle([WK('w1', lay.exs)], false))) rule++;
+      });
+    }
+    T('26 — every layout of ' + cases + ' generated lifts (mixing valid AND invalid-reps sets, one/two/three rows, reversed, interleaved with other lifts) reads identical recovery: ' + same + ' of ' + layouts,
+      same === layouts && layouts > 700, bad);
+    T('27 — every layout matches an independent, gated statement of the rule: ' + rule + ' of ' + layouts, rule === layouts, [rule, layouts]);
+    T('28 — the corpus really exercises E35 on 10.26 — ' + e35 + ' of ' + cases + ' lifts read differently by layout there (the SAME physical work, split differently, hit a different set with the reference bug)', e35 >= 20, e35);
+  });
+
+  sub('the recovery model itself is untouched: constants, decay, weights, saturation, states, bands');
+  await guard('model', async () => {
+    T('29 — RECOVERY_CONFIG is the same values: half-life 2.0 days, 14-day window, primary 1.0, secondary 0.4, the 55% line, the 0.25 discount, saturation at 18, thresholds 90 / 75 / 50 / 25',
+      /const RECOVERY_CONFIG = \{\s*halfLifeDays: 2\.0,\s*windowDays: 14,\s*primaryWeight: 1\.0,\s*secondaryWeight: 0\.4,\s*warmupRatio: 0\.55,\s*warmupWeight: 0\.25,\s*saturationSets: 18,\s*thresholds: \{ high: 90, well: 75, moderate: 50, low: 25 \}\s*\};/.test(code));
+    const at55 = rec([ROW(Q, [S(200, 5), S(110, 5)])]), at54 = rec([ROW(Q, [S(200, 5), S(108, 5)])]);
+    T('30 — the 55% line, by behaviour, unchanged: 110 of 200 counts in full (2.0), 108 of 200 counts 0.25 (1.25)', at55.quads.load === units(2) && at54.quads.load === units(1.25));
+    const nine = Array.from({ length: 9 }, () => S(225, 5));
+    const today = atTime('2026-09-10T00:00:00', () => { seed([WK('t', [ROW(Q, clone(nine))], '2026-09-10')]); return ctx.computeMuscleRecovery(); });
+    const twoDays = atTime('2026-09-10T00:00:00', () => { seed([WK('t', [ROW(Q, clone(nine))], '2026-09-08')]); return ctx.computeMuscleRecovery(); });
+    T('31 — decay and saturation, by behaviour, unchanged: 9 sets today read 9.0 (score 50), the same 9 two days ago read 4.5 (score 75)',
+      today.quads.load === 9 && today.quads.score === 50 && twoDays.quads.load === 4.5 && twoDays.quads.score === 75);
+    T('   secondary muscles weigh 0.4, unchanged: the 9 squat sets put 3.6 on glutes and hamstrings', today.glutes.load === 3.6 && today.hamstrings.load === 3.6);
+    const st = [90, 89, 75, 74, 50, 49, 25, 24, null].map(s => ctx.recoveryStateFromScore(s));
+    T('32 — the states at every boundary are unchanged', J(st) === J(['high', 'well', 'well', 'moderate', 'moderate', 'low', 'low', 'verylow', 'unknown']));
+    T('33 — decay, states, confidence, bands, the strip and figure, and muscle resolution are byte-identical',
+      pin('recencyDecay') === '88dae9bd898c1461' && pin('recoveryStateFromScore') === 'b40f039036c16098' && pin('recoveryConfidence') === 'c8f7f223cff10e5b'
+      && pin('recoveryBandOf') === 'e0eb1ee1635b3427' && pin('recoveryStripHtml') === '6eb427476c25e796' && pin('musclesForExercise') === 'd364752e499a2ade'
+      && pin('workoutGroupsOf') === 'f346201c58363ccb' && pin('workoutExercisePerformances') === '4f897211e0c6aef9' && pin('loggedExerciseKey') === '6b82060295b52da0'
+      && pin('performedLoad') === 'e0c1ed8aeba460d7');
+    T('34 — performedReps itself is byte-identical: D112 reuses D110\'s boundary, it does not touch it', pin('performedReps') === '0436ff32a1b6eaf1');
+  });
+
+  sub('readiness is not recovery, and is untouched');
+  await guard('readiness', async () => {
+    T('35 — readiness scoring is byte-identical, and never reads recovery',
+      pin('calculateReadinessScore') === 'c9611ef5e47bc086' && pin('readinessStateFromScore') === '736f5c750f322973' && pin('renderReadinessCard') === '1bb0fbb460310570'
+      && !/ecovery/.test(fnSrc(src, 'calculateReadinessScore')));
+    const check = { sleep: 'good', energy: 'normal', soreness: 'moderate', stress: 'low', trainingFeel: 'push' };
+    const key = ctx.localDateStr();
+    ctx.dailyReadiness = {}; ctx.dailyReadiness[key] = clone(check);
+    seed([WK('w1', [ROW(Q, [S(500, ''), S(225, 8), S(225, 8)])])]);
+    const el = doc.getElementById('readinessCard'); at(() => ctx.renderReadinessCard());
+    const summary = (el.innerHTML.match(/<div class="ready-summary"[\s\S]*?<\/div>/) || [''])[0];
+    T('36 — a check-in still scores exactly as before (78, High) whether or not the day\'s history holds an E35 shape',
+      ctx.calculateReadinessScore(check) === 78 && /High Readiness/.test(summary) && /78/.test(summary));
+    ctx.dailyReadiness = {};
+  });
+
+  sub('D49, D50B, records, Session Score, Mastery, XP — unchanged; E22 (duplicate work) is unchanged too');
+  await guard('protected', async () => {
+    const D = n => { const d = new ctx.Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n);
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+    const WR = (id, n, exs) => ({ id, date: D(n), category: 'push', title: 'Push', notes: '', exercises: exs });
+    seed([WR('t1', 2, [ROW('Bench Press', [S(245, 8), S(245, 8)])])]);
+    const top = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
+    T('37 — D49, by behaviour: 245 × 8 × 2 with effort to spare still earns 245 -> 255 — recovery never fed this', top.tag === 'increase' && top.weight === 255);
+    T('38 — D49, D50B, records and their own constants are byte-identical',
+      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('exerciseSessionHistory') === 'ffef0621fac8e613'
+      && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('computeExercisePREvents') === '4339cc543585bded' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
+      && /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(code));
+    const t = ctx.effortToRir(8), rx = { sets: 3, reps: '8-10', effort: 8, load: 200 };
+    const up = ctx.deriveNextSetCoach({ exerciseName: 'Bench Press', rx, performed: [{ weight: 200, reps: 10, rir: t + 2 }] });
+    T('39 — D50B, by behaviour: +2 RIR over target still adds weight (205)', up.action === 'increase' && up.load === 205);
+    const scored = { id: 'sc', date: D(2), category: 'push', title: 'Push', notes: '', exercises: [{ name: 'Bench Press', effort: '', bodyweight: false,
+      sets: [S(200, 10, { rir: '3' }), S(200, 7, { rir: '1' }), S(195, 8, { rir: '0' })], rx: { sets: 3, reps: '8-10', effort: 8, load: 200 } }] };
+    seed([scored]);
+    const ss = ctx.sessionScore(scored);
+    T('40 — Session Score, by behaviour: the same session still scores 92', ss.available && ss.score === 92);
+    T('41 — XP, rank, Mastery and Objectives are byte-identical',
+      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
+      && pin('objectiveDailyCandidates') === '9772175df2535484' && pin('objectiveBestSetOn') === '3cf2c88926b6d461' && pin('sessionScore') === '842e5699f8ac0835');
+    const dup = rec([ROW(Q, [S(225, 8), S(225, 8)]), ROW(Q, [S(225, 8), S(225, 8)])]), four = rec([ROW(Q, [S(225, 8), S(225, 8), S(225, 8), S(225, 8)])]);
+    T('42 — E22 is untouched: the same two sets logged twice are four VALID sets and count four times (4.0, 4 sets) — D112 excludes only INVALID evidence, never de-duplicates real, repeated work',
+      dup.quads.load === units(4) && dup.quads.recentSets === 4 && J(dup) === J(four));
+  });
+
+  sub('the trainer: unchanged code, untouched evidence — its recovery INPUT changes only where recovery itself changed');
+  await guard('trainer', async () => {
+    T('43 — trainer 0.1.1-shadow, byte-identical: its recovery/readiness signals, its evidence, numbers, constraints and proposal',
+      ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && pin('extractRecoverySignal') === '884e24e7c40c5da2' && pin('extractReadinessSignal') === '291005e5c26ae6b3'
+      && pin('extractPerformanceSignal') === '87c2d1fc6b7b9285' && pin('resolveTrainerNumbers') === '93d4930c803c6e2b' && pin('proposeTrainerState') === '34899e0f53f1d235'
+      && pin('applyTrainerConstraints') === 'e014eaa09312c503' && pin('computeTrainerConfidence') === 'e6c534695955aa4f' && pin('computeShadowRecommendation') === 'cd53ea889ad5c92b'
+      && pin('actualPerformance') === '3c4eb71b6eda0414' && pin('classifyOutcome') === '53ada3a09318928b' && pin('computeExerciseCapability') === '3a283e02ebdad568');
+    T('44 — E33 is untouched: actualPerformance and extractPerformanceSignal still read reps by their own raw parseFloat — an E35-shaped rep count still reaches the trainer\'s OWN evidence exactly as it always did',
+      /r: parseFloat\(s\.reps\)/.test(fnSrc(src, 'actualPerformance')) && /r: parseFloat\(x\.reps\)/.test(fnSrc(src, 'extractPerformanceSignal'))
+      && !/performedReps/.test(fnSrc(src, 'actualPerformance') + fnSrc(src, 'extractPerformanceSignal')));
+    const e33 = ctx.actualPerformance({ sets: [S(225, 8), S(245, '1e999')] });
+    T('   by behaviour: the replay judge still reads an E35-shaped set as Infinity reps (225 x 8, 245 x Infinity) — D112 did not touch it',
+      !!e33 && e33.topWeight === 245 && e33.topReps === Infinity);
+
+    seed([WK('h1', [ROW(Q, [S(225, 8), S(225, 8), S(225, '1e999')])], '2026-09-03'), WK('h2', [ROW(Q, [S(230, 5), S(230, 5)])], DAY)]);
+    const capNow = at(() => J(ctx.computeExerciseCapability(Q))), capWas = at(() => withBase(() => J(ctx.computeExerciseCapability(Q))));
+    T('45 — the trainer\'s own evidence never reads recovery: Back Squat\'s capability is identical on either build', capNow === capWas && capNow !== 'null');
+    const shadowNow = at(() => ctx.computeShadowRecommendation(Q, { targetReps: '5-8' }));
+    const recNow = at(() => ctx.computeMuscleRecovery().quads.score);
+    const shadowWas = at(() => withBase(() => ctx.computeShadowRecommendation(Q, { targetReps: '5-8' })));
+    const recWas = at(() => withBase(() => ctx.computeMuscleRecovery().quads.score));
+    const minus = r => { const c = clone(r); delete c.trace.recoveryScore; return J(c); };
+    T('46 — the shadow proposal for an E35 history is identical in every field but the recovery score it reads (' + (shadowWas && shadowWas.trace.recoveryScore) + ' on 10.26, ' + (shadowNow && shadowNow.trace.recoveryScore) + ' now) — the trainer consumes the corrected recovery; nothing of its own moved',
+      !!shadowNow && !!shadowWas && minus(shadowNow) === minus(shadowWas) && shadowNow.trace.recoveryScore === recNow && shadowWas.trace.recoveryScore === recWas,
+      shadowNow && shadowWas && [shadowNow.trace.recoveryScore, shadowWas.trace.recoveryScore]);
+  });
+
+  sub('reading is all it does: no history written, no storage change, no new grouping pass');
+  await guard('read only', async () => {
+    const log = [WK('r1', [ROW(Q, [S(95, 10)]), ROW('Bench Press', [S(185, 5)], false), ROW(Q, [S(225, 8, { type: 'working' }), S(500, '')]), ROW('Dip', [S(25, 8)], true)]),
+      WK('r2', [ROW(' back squat ', [S('1e999', 5), S(225, 'abc')]), ROW('Pull-Up', [S('BW', 8)], true)])];
+    seed(clone(log));
+    const before = J(ctx.workoutLog);
+    at(() => { ctx.computeMuscleRecovery(); ctx.recoveryStripHtml(); ctx.getMostFatiguedMuscles(3); ctx.computeTrainingContext();
+      ctx.computeShadowRecommendation(Q, { targetReps: '5-8' }); ctx.renderReadinessCard(); });
+    T('47 — every stored set is byte-identical after recovery, the strip, the training context and the trainer all read it', J(ctx.workoutLog) === before && before === J(log));
+    T('48 — no new data key, no schema change, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    const rrl = fnSrc(src, 'recoveryReferenceLoads');
+    T('49 — the reference is still grouped once per workout, from D96C-3\'s own cache — one call to workoutExercisePerformances, no history walk of its own, no second identity rule',
+      (rrl.match(/workoutExercisePerformances\(entry\)/g) || []).length === 1 && !/workoutLog|sortedLog|toLowerCase|trim\(|loggedExerciseKey/.test(rrl));
+    const slf = fnSrc(src, 'setLoadFactor');
+    T('50 — setLoadFactor reads one set, once — no loop, no second pass, performedReps called exactly once',
+      (slf.match(/performedReps\(/g) || []).length === 1 && !/for\s*\(|\.forEach\(|\.map\(|\.filter\(/.test(slf));
   });
 }
 
@@ -45225,6 +45797,7 @@ async function main(){
   await testRealSetPairingD109();
   await testFiniteRepEligibilityD110();
   await testRecoveryLayoutD111();
+  await testRecoveryValidityD112();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

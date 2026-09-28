@@ -1111,7 +1111,7 @@ D109 was scoped to.
 > trainer's own independent-maxima shape) is proven untouched by source and by pin. See
 > TRAINER-CONTRACT.md §147 and Contract 225.
 
-## E35 — Recovery's own set eligibility never learned D96A's rep boundary · P4 · PROVEN · OPEN
+## E35 — Recovery's own set eligibility never learned D96A's rep boundary · P4 · PROVEN · **CLOSED in D112 (LOOP 10.27)**
 
 Found by D111's audit; pre-existing on a single row and independent of layout. `setLoadFactor` reads a
 set's reps with a bare `parseFloat` and refuses only `NaN` and non-positive counts, so "1e999" or
@@ -1129,6 +1129,25 @@ reading required to stay identical. The reuse is obvious (`performedReps`, D96A'
 factor and for which sets may set the reference), but it changes recovery on any history that holds
 such a set, which is its own drift to measure. Neither owner backup contains either shape: no
 non-finite rep count, and no unperformed set heavier than the performed work of its lift.
+
+> **Closed.** `setLoadFactor` and `recoveryReferenceLoads` both now read a set's reps through `performedReps`
+> — D96A's own finite-and-positive boundary, already used at Best ever, PR eligibility and D110's D49
+> reuse of it — instead of a bare `parseFloat`, or no reps check at all. A non-finite rep count ("1e999",
+> "Infinity") contributes no recovery work, exactly as blank, zero, negative and text already did not; an
+> unperformed set — a load with no valid reps — can no longer set the lift's reference and turn real,
+> completed sets into warm-ups. Which sets a VALID reference admits, the 55% line, the 0.25 discount, a
+> declared type still winning, decay, weights, saturation, thresholds and bands are unchanged; D111's
+> per-workout reference and row-layout invariance hold with E35 shapes mixed in. Measured on 10.26: two
+> real 225 × 8 sets read 1.2 (2 set-equivalents); an unperformed 500 beside them read 0.3 (the real sets
+> discounted to warm-ups); a third 225 × "1e999" set read 1.8 (3, the non-finite rep count a full set of
+> stress). All three now read 1.2. Neither owner backup carried either shape (zero drift there); 11
+> generated E35 histories moved only in load / score / state / sessions, only for the muscles the
+> E35-carrying lift trains, only while that lift's own workout was in the 14-day window or (for the
+> unwindowed `recentSets` field) logged by that instant. E22 (duplicated real work) is untouched — a set
+> logged twice is still evidence twice; D112 excludes only evidence that was never performed. The trainer
+> reads the corrected recovery as its input; its own code, E33's independent-maxima shape and raw
+> `parseFloat` reps are proven untouched by source and by pin. See TRAINER-CONTRACT.md §149 and Contract
+> 227.
 
 ## Not findings — checked and clean
 
