@@ -5,7 +5,7 @@
   "description": "LOOP — development tooling. The app itself is a single index.html with no build step and no dependencies.",
   "scripts": {
     "test": "node loop-tests.js quick",
-    "verify": "node loop-tests.js verify",
+    "verify": "node scripts/project-status.js verify && node loop-tests.js verify",
     "test:quick": "node loop-tests.js quick",
     "test:contract": "node loop-tests.js contract",
     "test:full": "node loop-tests.js full",
@@ -17,9 +17,19 @@
     "audit:gps": "node loop-gps-audit.js",
     "audit:cardio": "node loop-cardio-stress.js",
     "audit:program": "node loop-program-audit.js",
-    "test:sql": "node supabase/tests/e9-security.js"
+    "test:sql": "node supabase/tests/e9-security.js",
+    "status": "node scripts/project-status.js verify"
   },
   "engines": {
     "node": ">=18"
+  },
+  "projectStatus": {
+    "appId": "loop",
+    "version": {
+      "file": "index.html",
+      "list": "const LOOP_UPDATES = [",
+      "pick": "last",
+      "prefix": "LOOP "
+    }
   }
 }

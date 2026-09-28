@@ -114,7 +114,7 @@ Ground-truth decision scenarios, monotonicity (improving performance never yield
 5. Re-run.
 6. Bump `CACHE_VERSION` in `sw.js`.
 7. Deploy.
-8. Update `PROJECT-STATUS.json` when a milestone changed (see below), and commit it with the work.
+8. Review `PROJECT-STATUS.json` at the milestone (see *Mission Control status* below). A release changes its `version`; `npm run verify` fails until it does.
 
 ---
 
@@ -122,32 +122,55 @@ Ground-truth decision scenarios, monotonicity (improving performance never yield
 
 `PROJECT-STATUS.json` at the repository root is this project's public status.
 Mission Control reads it from `main` on GitHub (raw.githubusercontent.com) and
-shows it on its hub. Update the file, and commit it with the work, at each of
-these milestones:
+shows it on its hub. Only pushed commits reach it: work that is not committed
+and pushed does not appear there, whatever the file says locally.
 
-- implementation completed
-- QA required
-- a decision or a blocker identified, or cleared
-- release verified — only after production has been checked, never on the
-  push alone
+**What `version` means.** It is this repository's release version on the same
+commit — the number in the newest `LOOP_UPDATES` entry in `index.html` (the last entry, the one whose `swVersion` is `sw.js`'s `CACHE_VERSION`: `LOOP 10.27` means `10.27`) — and nothing more. It changes in the commit that
+changes the release version, and only then. An equal version never means the
+release is deployed, that QA passed or that the project is stable: production
+verification stays part of the release workflow, and the other fields say
+what you declare.
 
-Only pushed commits reach Mission Control. Work that is not committed and
-pushed does not appear there, whatever the file says locally.
+**Reviewing it is part of completing work.** At each milestone — implementation
+completed, QA required, a decision or a blocker identified or cleared, a
+release cut, a release verified (only after production has been checked, never
+on a push alone) — review every field: `status`, `needsQa`, `needsDecision`,
+`currentTask`, `nextAction`, `blocker`, `version` and `phase`. Change what is
+no longer true, set `updatedAt` to the time you reviewed it, and commit it with
+the work. Leave a fact `null` when it is not known; never infer a status from
+commit counts, tests or a version number. A commit that reaches no milestone
+needs no status edit.
+
+**Report it.** Every paste-back report for a phase or a release says
+"Mission Control status reviewed and published" with the commit that
+published it — or which milestone was reached and why no field changed.
+
+**The gate.** `npm run verify` runs `scripts/project-status.js` first. It fails,
+with the reason and what to do, when the file breaks Mission Control's status
+contract (schema 1: every key, the types and limits, an ISO 8601 time with a
+zone), names another project, carries a key beyond the contract or anything
+private (a conversation or session link, a credential, a local path), or when
+`version` is not the release version. It only reads: it never edits the file,
+clears a flag or picks a status. It cannot tell whether the words are still
+true or whether unpublished work exists — that review is yours. It runs on
+this machine only; nothing enforces it on GitHub. `npm run status` runs it
+alone. The checker is Mission Control's, identical in every publishing
+repository: never edit it here — change it in Mission Control, then copy it
+unchanged.
 
 The file is public. Write short, plain summaries only: never a conversation or
 session link, a credential, a local path, private details or anything from a
-private repository. Write what the repository shows, leave a fact `null` when it
-is not known, and never infer a status from commit counts, tests or a version
-number.
+private repository.
 
 Schema 1, every key present: `schemaVersion` 1; `appId` `"loop"`;
 `version` and `phase` (text or null); `status`, one of `planning`, `building`,
 `release_ready`, `stable`, `paused`; `needsQa` and `needsDecision` (true or
 false); `currentTask`, `nextAction` and `blocker` (text or null — a blocker
-means the project is blocked); `updatedAt` (ISO 8601 UTC, the moment you
-changed the file). Limits: version 24 characters, phase 48, currentTask 280,
-nextAction 200, blocker 200. Mission Control refuses a file that breaks any
-rule and keeps showing the last valid one.
+means the project is blocked); `updatedAt` (ISO 8601 UTC, when you reviewed
+it). Limits: version 24 characters, phase 48, currentTask 280, nextAction 200,
+blocker 200. Mission Control refuses a file that breaks any rule and keeps
+showing the last valid one.
 
 ---
 
