@@ -15560,3 +15560,148 @@ identical; nothing sideways; no console errors.
 
 **Status.** E35 CLOSED. E16 HELD; E22, E25–E27, E33 OPEN and untouched. DATA_KEYS 16, schema 1, trainer
 0.1.1-shadow, no migration, no stored field. verify 10,713/0, five audits green.
+
+## §150 — A HALO, A LABEL, A NUMBER (D113 · LOOP 10.28 · loop-v205)
+
+Requested as "Rank Experience 2.0" — a full-screen progression stage, swipe/morph
+transitions, per-rank atmosphere, a redesigned rail. The alignment audit the brief
+itself required found that stage already built, across Phase C and D96–D101:
+one continuous full-screen carousel (not eight cards), a physics-based swipe
+(distance-and-speed commit, rubber banding, a critically damped spring), a
+two-layer atmosphere that already recolours the whole page per rank from
+`RANK_VISUALS`, an eight-segment rail with its own YOU marker, actual-rank vs
+viewed-rank already held apart (`_rankCar.mine` vs `_rankCar.pos`/
+`rankShowcaseIndex`), Reduce Motion and keyboard navigation already wired.
+Repository truth wins: rebuilding an already-correct, already-approved engine
+was not the work. D113 is three narrow, additive things the live screen was
+still missing, each read-time and each provably outside the physics/state
+machine/asset/progression layers the brief protects.
+
+### What changed
+
+**A per-panel halo.** `rankHaloStyle(r)`, called once when a panel's HTML is
+built, radiates that rank's own approved gem colour behind its emblem —
+`RANK_VISUALS[r.name].gem[0]`, at an alpha floored so ROOKIE (glow 0) still
+shows something and ceilinged so LEGEND (glow .38) is the richest. A second,
+distinct tone appears only where a rank's two gem shades are genuinely two
+different colours, not a light/dark pair — decided by `rankHueDistance`, a
+small hue-only measurement added beside the showcase's existing `mixHex`,
+never by naming a rank. Measured against the approved palette: every rank's
+own two gem tones are 0.8–15.2 degrees apart except LEGEND's, at 140.3 —
+today the rule fires for LEGEND alone, but it is the data that decides, not
+a name in an if-statement.
+
+**YOU vs VIEWING.** The rail caption (`rankNearestChanged`) named only the
+rank in view — "RANK 5 OF 8" whether or not it was the athlete's own. It now
+reads `_rankCar.mine` (untouched — the same field the rail's YOU marker and
+`rankUpdateReturn`'s "My rank" pill already read) and says YOU on the
+athlete's actual rank, VIEWING on every other rank they browse to.
+
+**A truthful percentage.** The current rank's footer already computed a
+level-and-XP-aware fraction of its own span — `frac`, the exact number
+`rank-bar`'s width has always drawn — and stated only the next rank's name
+("ATHLETE at 10"). It now also states `Math.round(frac * 100)` as a percent
+("48% to ATHLETE"), the identical rounded number the bar already draws, read
+once, never a second computation.
+
+### What did not change
+
+The gesture engine (`RANK_MOTION`, `rankSettleTarget`, `rankSpringAt`,
+`rankRubber`, `rankRender`'s per-frame writes, `wireRankCarousel`), the
+arrival ceremony (`rankLanded`, `rankArrive`, `RANK_ARRIVE`), the atmosphere
+(`rankAtmosphereAt`, `paintRankAtmosphere` — D113 reads the same
+`RANK_VISUALS` table but never touches this function), the rail's own
+structure and YOU-marks-the-actual-rank rule (`rankRailHtml`), keyboard nav,
+Reduce Motion (`rankReducedMotion`, threaded through render/arrive/goTo
+exactly as before), `openRankShowcase`'s own rule that browsing always
+resets to the athlete's real rank on reopen, and the state separation
+itself (`_rankCar.mine` is the athlete's real rank; `_rankCar.pos` /
+`rankShowcaseIndex` is wherever the ladder is being browsed; nothing in
+D113 assigns one to the other) are all byte-identical to 10.27. So is every
+protected system beneath the showcase: `RANKS`, `RANK_VISUALS`,
+`RANK_EMBLEM_FILE`, `rankMedalSvg`, `calculateRankFromLevel`,
+`calculateLevelFromXP`, `getCurrentProgression`, D96's XP/PR/Session Score
+engines, Objectives, Programs, recovery (D111/D112), Friends/Supabase, the
+trainer (0.1.1-shadow). The D106 tutorial's own rank ladder
+(`onboardingRankLadderHtml`) is a separate renderer that never calls
+`rankHaloStyle` or `rankCardHtml` — untouched, and correctly so; the brief
+asked only that it be audited, not rebuilt.
+
+### Evidence
+
+**Tests.** Contract 228 (**61 checks**): `rankHueDistance` proven symmetric,
+zero for a colour against itself, and correctly separating LEGEND (140.3°)
+from every other rank (all under 16°); `rankHaloStyle` proven floored,
+ceilinged, gem[0]-only, and two-tone for LEGEND alone; the current rank's
+percentage proven to match the bar's own width exactly, using a
+deliberately non-round fraction (46.6% → 47%) so a text/bar rounding drift
+cannot hide behind a coincidental whole number; achieved and locked panels
+proven to show no bar and no percentage, only a truthful "Reached at" or
+"Begins at" line; the final, open-ended rank proven to say "Final rank"
+and never "N% to" anything, while still reporting its own truthful
+in-level fraction when it has one; across the whole ladder exactly one
+panel proven CURRENT and the panel immediately before it proven ACHIEVED
+(not a second CURRENT); the YOU/VIEWING caption proven for the athlete's
+own rank, a rank ahead, a rank behind, and at both the Rookie and Legend
+ends; `rankRailHtml`'s YOU marker proven to track the athlete's real rank
+at every one of the eight ranks regardless of any browsed position; a run
+of eighteen browsing moves (`rankGoTo`/`rankGo`) proven to leave
+`getCurrentProgression()`, `_rankCar.mine` and `workoutLog` byte-identical,
+with `LOOPStore.set` proven never called while opening, browsing every
+rank, or closing the showcase; the lower and upper clamps proven to hold
+under both a jump and a walk; the release rule's boundary re-asserted
+against the untouched engine; keyboard wiring, Reduce Motion's synchronous
+landing and live-region announcement, the D106 tutorial's independence, and
+the halo's blast radius (all nine other `rankMedalSvg` call sites proven to
+carry no halo wrapper) all proven directly. Contracts 120, 162, 199, 200,
+201 and 213 — which already hold the physics, the assets, the tour, the
+real-use swipe and the full-screen model — are unmodified and still pass;
+Contract 228 restates only the corner of that surface D113 could plausibly
+have moved.
+
+**Mutation: 17 of 17 killed, all by Contract 228 alone.** Reverting
+`rankHueDistance` to always report zero; inverting its threshold at the
+call site; removing the halo's floor; reading the wrong gem tone; the
+caption never saying YOU; the caption always saying YOU; the caption
+reading `_rankCar.nearest` instead of `_rankCar.mine`; an unrounded
+percentage (caught only once the test fixture's own fraction was made
+deliberately non-round); a percentage fabricated from rank position instead
+of the real level/XP fraction; an achieved rank mislabelled current and a
+locked rank mislabelled achieved (each an off-by-one on `rankCardHtml`'s
+own state comparison); both of `rankGoTo`'s clamps removed individually; the
+rail's YOU marker reading the browsed position instead of the athlete's
+real rank; a rank emblem file quietly swapped; a storage write added to the
+browsing path; the keyboard wiring for ArrowRight removed.
+
+**Mobile QA.** Real headless Edge, real single-finger touch drags (not JS
+calls to the swipe handlers), at all seven widths the brief named — 320,
+360, 375, 390, 393, 414, 430 — every one of the eight ranks, against a
+seeded 60-workout history: no horizontal page overflow, the approved emblem
+loaded and rendered at every width, title/range/state text unclipped, the
+rail's eight segments fit without overflow, the Profile and Info controls
+on-screen and at least 24px, no dead zone below the rail, the Info control
+still opening the D106 tutorial's rank step, zero console errors — 350/350.
+A separate real-gesture pass at 390×844: a clean sideways drag committed
+exactly one rank, a return drag landed exactly back where it started, a
+mostly-vertical drag committed nothing, and a wobble well under the commit
+distance stayed put — 4/4.
+
+**Performance.** `rankHaloStyle` and `rankHueDistance` run once per panel,
+when the showcase's HTML is built — never per frame, never inside
+`rankRender`'s animation loop, and neither calls `requestAnimationFrame` or
+touches any listener. No new colour literal: every value the halo draws
+comes from the same `RANK_VISUALS` table the atmosphere already reads.
+
+**Visual consistency audit.** The other nine `rankMedalSvg` call sites
+(Friends' own identity medal and friend-row medals, the level-up promotion
+banner, the Profile header medal, the Mastery `pl-row`'s own medal, the
+D106 tutorial's ladder) are unmodified and carry no halo. `pl-row`
+(Progress → Strength) already states its own percentage — "X% of the way
+to level Y" — a level-progress number, not the showcase's rank-span
+percentage; the two are related but not identical facts, computed
+separately, and neither was touched. No inconsistency found worth fixing;
+none of the audited surfaces needed a change.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
+new persistent key — browsing state (`rankShowcaseIndex`, `_rankCar`) was
+already, and remains, in-memory only. verify 10,774/0, five audits green.

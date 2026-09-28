@@ -22776,7 +22776,7 @@ async function testRankShowcaseMotion(){
   reset(4);
   T('the gem sits on the rank in view, and the caption names its place',
     geo.thumb.style.transform === 'translate3d(' + (RAIL * 4.5 / 8).toFixed(2) + 'px,0,0)' &&
-    ctx.document.getElementById('rankRailPos').textContent === 'RANK 5 OF 8' &&
+    ctx.document.getElementById('rankRailPos').textContent === 'YOU · RANK 5 OF 8' &&
     /^#[0-9a-f]{6}$/i.test(geo.thumb.style['--thumb-hi'] || ''));
   T('nothing that is not a number reaches the page', (() => { ctx.rankRender(NaN); return car.pos === 4; })());
   T('ranks leave through a soft edge that moves nothing and leaves the focus ring whole', (() => {
@@ -45610,6 +45610,219 @@ async function testRecoveryValidityD112(){
   });
 }
 
+/* =========================================================
+   CONTRACT 228 — A HALO, A LABEL, A NUMBER — AND THE LADDER
+   STILL HOLDS ITSELF APART FROM WHAT IT SHOWS  (D113)
+   ---------------------------------------------------------
+   D113 added three read-time, decorative-or-copy things to the
+   showcase already built across Phase C/D96/D97/D98/D100: a per-
+   panel halo (rankHaloStyle, from a hue distance measured in the
+   approved gem data, never named), a YOU/VIEWING rail caption,
+   and the current rank's already-computed progress fraction
+   spoken as a percentage. Nothing about the ladder's physics,
+   its actual/viewed separation, its assets, or the progression
+   engine underneath it changed — Contracts 120, 162, 199, 200,
+   201 and 213 already hold those, and are restated here only
+   where D113 could plausibly have touched them.
+   ========================================================= */
+async function testRankExperience2D113(){
+  section('CONTRACT 228 — a halo, a label, a number — and the ladder still holds itself apart from what it shows (D113)');
+  const fs = require('fs');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8');
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx;
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const NAMES = ['ROOKIE','TRAINEE','ATHLETE','COMPETITOR','ELITE','VETERAN','MASTER','LEGEND'];
+
+  sub('rankHueDistance: measured, not named — LEGEND alone clears the line');
+  await guard('hue', () => {
+    const dist = NAMES.map(n => ctx.rankHueDistance(ctx.RANK_VISUALS[n].gem[0], ctx.RANK_VISUALS[n].gem[1]));
+    T('every rank but LEGEND is under 60 degrees apart in its own two gem tones', NAMES.every((n, i) => n === 'LEGEND' || dist[i] < 60), JSON.stringify(dist));
+    T('LEGEND alone is a genuinely different colour, not a shade — 140.3 degrees apart', Math.abs(dist[NAMES.indexOf('LEGEND')] - 140.3) < 0.1, String(dist[NAMES.indexOf('LEGEND')]));
+    T('symmetric — the order of the two hexes never changes the distance', dist.every((d, i) => Math.abs(d - ctx.rankHueDistance(ctx.RANK_VISUALS[NAMES[i]].gem[1], ctx.RANK_VISUALS[NAMES[i]].gem[0])) < 1e-9));
+    T('a colour compared with itself is zero degrees apart', ctx.rankHueDistance('#4CC2FF', '#4CC2FF') === 0);
+    T('the two reds at the wrap point (0 and 360) read as adjacent, not opposite', ctx.rankHueDistance('#FF0000', '#FE0004') < 2);
+    T('pure grey has no hue to measure, and is read as zero rather than thrown', ctx.rankHueDistance('#808080', '#4CC2FF') >= 0);
+  });
+
+  sub('rankHaloStyle: floored so ROOKIE still glows, ceilinged so LEGEND is unmistakable, one tone unless the data itself is two');
+  await guard('halo', () => {
+    const parse = css => { const m = { halo: /--rk-halo:([^;]+);/.exec(css), halo2: /--rk-halo2:([^;)]+)\)?/.exec(css) };
+      return { halo: m.halo && m.halo[1], halo2: m.halo2 && (m.halo2[1] + (m.halo2[1].indexOf('rgba') !== -1 && m.halo2[1].split('(').length > m.halo2[1].split(')').length ? ')' : '')) }; };
+    const styles = NAMES.map(n => ctx.rankHaloStyle(ctx.RANKS[NAMES.indexOf(n)]));
+    T('every rank gets a --rk-halo custom property, none empty', styles.every(s => /--rk-halo:rgba\(/.test(s)));
+    T('only LEGEND gets a real second tone — every other rank\'s --rk-halo2 is transparent', styles.every((s, i) => NAMES[i] === 'LEGEND' ? !/--rk-halo2:transparent/.test(s) : /--rk-halo2:transparent/.test(s)));
+    const alphaOf = (s, key) => { const m = new RegExp(key + ':rgba\\([^,]+,[^,]+,[^,]+,([\\d.]+)\\)').exec(s); return m ? parseFloat(m[1]) : null; };
+    const rookieA = alphaOf(styles[0], '--rk-halo'), legendA = alphaOf(styles[7], '--rk-halo');
+    T('ROOKIE (glow 0) still shows a halo — the floor, not zero', rookieA !== null && rookieA > 0);
+    T('LEGEND (glow .38) is the richest single tone in the set', NAMES.every((n, i) => alphaOf(styles[i], '--rk-halo') <= legendA + 1e-9));
+    T('the halo alpha rises with the rank\'s own approved glow, monotonically', ctx.RANKS.every((r, i) => i === 0 || alphaOf(styles[i], '--rk-halo') >= alphaOf(styles[i - 1], '--rk-halo') - 1e-9));
+    T('the colour itself is always that rank\'s own gem[0] — never a literal, never another rank\'s', NAMES.every((n, i) => styles[i].indexOf(ctx.hexA(ctx.RANK_VISUALS[n].gem[0], alphaOf(styles[i], '--rk-halo')).match(/rgba\([^)]+\)/)[0].split(',').slice(0, 3).join(',')) !== -1));
+    T('reads once, per panel, from data already approved for the atmosphere — no new colour literal, no per-frame cost', !/#[0-9a-fA-F]{6}/.test(fnSrc(src, 'rankHaloStyle')) && !/requestAnimationFrame|addEventListener/.test(fnSrc(src, 'rankHaloStyle')));
+  });
+
+  sub('the current rank speaks the same fraction it already draws — never a second, looser number');
+  await guard('percentage', () => {
+    const p = (level, currentXP, xpForNext) => ({ rank: ctx.calculateRankFromLevel(level), level, currentXP, xpForNext, lifetimeXP: 0 });
+    /* ATHLETE spans levels 10-14 (RANKS[2]); Level 12, 33% into the next level's XP: 2 whole levels + .33, over a span of 5 — deliberately NOT a round number, so a text/bar rounding drift cannot hide behind a coincidental whole percentage. */
+    const prog = p(12, 33, 100);
+    const html = ctx.rankCardHtml(ctx.RANKS[2], 2, prog);
+    const frac = ((12 - 10) + 33 / 100) / 5;
+    const pct = Math.round(frac * 100);
+    T('the current panel states "' + pct + '% to COMPETITOR" — the exact rounded fraction the bar already draws, not the raw unrounded one (' + (frac * 100) + ')', html.indexOf('>' + pct + '% to COMPETITOR</span>') !== -1, html);
+    T('the bar\'s own width uses the identical rounded number, not a second computation', html.indexOf('width:' + pct + '%') !== -1);
+    T('an achieved rank states where it was reached — no bar, no percentage, no invented number', (() => {
+      const h = ctx.rankCardHtml(ctx.RANKS[0], 0, prog);
+      return h.indexOf('Reached at Level 1') !== -1 && !/%/.test(h) && !/rank-bar/.test(h);
+    })());
+    T('a future rank states its truthful unlock level — no bar, no percentage, no fabricated reward', (() => {
+      const h = ctx.rankCardHtml(ctx.RANKS[4], 4, prog);
+      return h.indexOf('Begins at Level ' + ctx.RANKS[4].min) !== -1 && !/%/.test(h) && !/rank-bar/.test(h);
+    })());
+    T('the final rank (no next) says so plainly, never "N% to" anything', (() => {
+      const legend = p(55, 10, 200);
+      const h = ctx.rankCardHtml(ctx.RANKS[7], 7, legend);
+      return h.indexOf('Final rank') !== -1 && !/% to /.test(h);
+    })());
+    T('an open-ended rank\'s own current panel still reports a truthful fraction (xpForNext progress alone, no span to divide by)', (() => {
+      const legend = p(55, 30, 200);
+      const h = ctx.rankCardHtml(ctx.RANKS[7], 7, legend);
+      return h.indexOf('Final rank') !== -1 && h.indexOf('width:15%') !== -1;
+    })());
+    T('across the whole ladder exactly one panel is CURRENT — the athlete\'s own rank — and the one just before it is ACHIEVED, not a second CURRENT', (() => {
+      const cards = ctx.RANKS.map((r, i) => ctx.rankCardHtml(r, i, prog));
+      const curCount = cards.filter(c => c.indexOf('CURRENT RANK') !== -1).length;
+      return curCount === 1 && cards[2].indexOf('CURRENT RANK') !== -1 && cards[1].indexOf('ACHIEVED') !== -1 && cards[1].indexOf('CURRENT RANK') === -1;
+    })());
+  });
+
+  sub('YOU names the athlete\'s real rank; VIEWING names wherever the ladder is looking — never the other way round');
+  await guard('caption', () => {
+    const cap = () => (ctx.document.getElementById('rankRailPos') || {}).textContent;
+    ctx._rankCar.mine = 2;
+    ctx.rankNearestChanged(2);
+    T('viewing your own rank says YOU', cap() === 'YOU · RANK 3 OF 8', cap());
+    ctx.rankNearestChanged(6);
+    T('viewing a rank ahead of you says VIEWING, not YOU', cap() === 'VIEWING · RANK 7 OF 8', cap());
+    ctx.rankNearestChanged(0);
+    T('viewing a rank behind you also says VIEWING', cap() === 'VIEWING · RANK 1 OF 8', cap());
+    ctx._rankCar.mine = 0;
+    ctx.rankNearestChanged(0);
+    T('a Rookie viewing their own rank still says YOU, not VIEWING', cap() === 'YOU · RANK 1 OF 8', cap());
+    ctx._rankCar.mine = 7;
+    ctx.rankNearestChanged(7);
+    T('a Legend viewing their own rank still says YOU', cap() === 'YOU · RANK 8 OF 8', cap());
+  });
+
+  sub('the rail\'s YOU marker is the athlete\'s actual rank, whatever the ladder is showing — Contract 162\'s own separation, restated');
+  await guard('rail-you', () => {
+    NAMES.forEach((n, i) => {
+      const html = ctx.rankRailHtml({ rank: n });
+      const youSeg = (html.match(/<button[^>]*is-current[^>]*>[\s\S]*?<\/button>/) || [])[0] || '';
+      T('rankRailHtml marks ' + n + ' — the progression engine\'s own rank — as current, regardless of any browsed position', youSeg.indexOf('rank-rail-you') !== -1 && new RegExp('aria-label="' + n).test(youSeg), html);
+    });
+  });
+
+  sub('browsing the ladder never moves the athlete\'s actual rank, level, XP, or workout history');
+  await guard('viewed-vs-actual', () => {
+    const before = ctx.getCurrentProgression(), mineBefore = ctx._rankCar.mine, logBefore = JSON.stringify(ctx.workoutLog);
+    const realReduced = ctx.rankReducedMotion;
+    ctx.rankReducedMotion = () => true;   // settle synchronously, no rAF needed
+    try{
+      [7, 3, 0, 5, 1, 7].forEach(i => ctx.rankGoTo(i));
+      ctx.rankGo(-2); ctx.rankGo(1); ctx.rankGo(1); ctx.rankGo(1); ctx.rankGo(1); ctx.rankGo(1); ctx.rankGo(1); ctx.rankGo(1);
+    } finally { ctx.rankReducedMotion = realReduced; }
+    const after = ctx.getCurrentProgression();
+    T('the progression engine reports the identical rank, level and XP after a run of browsing', JSON.stringify(before) === JSON.stringify(after));
+    T('_rankCar.mine (the actual rank) never moved, only the viewed position did', ctx._rankCar.mine === mineBefore);
+    T('workoutLog is byte-identical — browsing reads, it never writes', JSON.stringify(ctx.workoutLog) === logBefore);
+    T('no storage key, schema or migration changed', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+  });
+
+  sub('not one write reaches the store while the ladder is being browsed');
+  await guard('no-write', async () => {
+    const realSet = ctx.LOOPStore.set;
+    let calls = 0;
+    ctx.LOOPStore.set = async (...a) => { calls++; return realSet.apply(ctx.LOOPStore, a); };
+    const realReduced = ctx.rankReducedMotion;
+    ctx.rankReducedMotion = () => true;
+    try{
+      ctx.openRankShowcase();
+      [3, 6, 1, 4, 0, 7, 2].forEach(i => ctx.rankGoTo(i));
+      ctx.closeRankShowcase();
+    } finally { ctx.rankReducedMotion = realReduced; ctx.LOOPStore.set = realSet; }
+    T('LOOPStore.set was never called by opening, browsing every rank, or closing the showcase', calls === 0, String(calls));
+  });
+
+  sub('the clamp holds at both ends — a swipe (or a jump) past Rookie or past Legend goes nowhere further');
+  await guard('clamp', () => {
+    const realReduced = ctx.rankReducedMotion;
+    ctx.rankReducedMotion = () => true;
+    try{
+      ctx.rankGoTo(-5);
+      T('below Rookie clamps to Rookie (index 0)', ctx.rankShowcaseIndex === 0 && ctx._rankCar.pos === 0, String(ctx.rankShowcaseIndex));
+      ctx.rankGoTo(99);
+      T('past Legend clamps to Legend (index 7)', ctx.rankShowcaseIndex === 7 && ctx._rankCar.pos === 7, String(ctx.rankShowcaseIndex));
+      ctx.rankGoTo(0); ctx.rankGo(-3);
+      T('rankGo cannot walk below Rookie either', ctx.rankShowcaseIndex === 0);
+      ctx.rankGoTo(7); ctx.rankGo(3);
+      T('rankGo cannot walk past Legend either', ctx.rankShowcaseIndex === 7);
+    } finally { ctx.rankReducedMotion = realReduced; }
+  });
+
+  sub('one swipe settles one rank, either way — the release rule itself, D98\'s own physics, restated as a boundary check for D113\'s untouched engine');
+  await guard('one-rank', () => {
+    const f = ctx.rankSettleTarget, M = ctx.RANK_MOTION, s = 318;
+    const need = Math.max(M.commitMin, M.commitFraction * s);
+    T('just past the commit distance moves exactly one rank forward', f(4, -(need + 1), 0, s) === 5);
+    T('just past it moves exactly one rank back', f(4, (need + 1), 0, s) === 3);
+    T('a strong flick within one panel still lands exactly one rank forward (Contract 162\'s own boundary, restated)', f(4, -120, -6, s) === 5);
+  });
+
+  sub('keyboard navigation reaches the ladder — a swipe is not the only way in');
+  await guard('keyboard', () => {
+    T('ArrowRight/ArrowLeft are wired to rankGo, the same function a swipe commits to', /rankGo\(1\)/.test(fnSrc(src, 'wireRankCarousel')) && /rankGo\(-1\)/.test(fnSrc(src, 'wireRankCarousel')));
+  });
+
+  sub('Reduce Motion: no rAF, no spring, no arrival ceremony — the ladder still lands exactly where asked');
+  await guard('reduced-motion', () => {
+    const realReduced = ctx.rankReducedMotion;
+    ctx.rankReducedMotion = () => true;
+    try{
+      ctx.rankGoTo(5);
+      T('under Reduce Motion the ladder is simply at the requested rank — no animation frame left running', ctx._rankCar.pos === 5 && !ctx._rankCar.raf);
+      const before = ctx.document.getElementById('rankLive').textContent;
+      ctx.rankGoTo(6);
+      T('the live region still speaks the arrival — Reduce Motion removes the animation, not the announcement', ctx.document.getElementById('rankLive').textContent !== before || ctx.document.getElementById('rankLive').textContent.indexOf(ctx.RANKS[6].name) !== -1);
+    } finally { ctx.rankReducedMotion = realReduced; }
+  });
+
+  sub('the D106 tutorial\'s own ladder is untouched — a separate renderer, never routed through the halo, the caption, or the new percentage');
+  await guard('tutorial', () => {
+    T('onboardingRankLadderHtml never calls rankHaloStyle or rankCardHtml', !/rankHaloStyle|rankCardHtml/.test(fnSrc(src, 'onboardingRankLadderHtml')));
+    T('the tutorial keeps its own "Level N" caption, untouched by the showcase\'s new percentage', fnSrc(src, 'onboardingRankLadderHtml').indexOf('<span class="obr-lvl">Level \' + r.min + \'</span>') !== -1);
+  });
+
+  sub('the halo is scoped to the showcase panel alone — every other medal on the page is exactly as it was');
+  await guard('blast-radius', () => {
+    const other = ['soc-idn-medal','soc-fr-medal','profile-medal','pl-medal','obr-emb','levelup-medal'];
+    other.forEach(cls => {
+      const region = (() => { const i = src.indexOf('class="' + cls); return i === -1 ? '' : src.slice(Math.max(0, i - 40), i + 200); })();
+      T('the "' + cls + '" medal call carries no halo wrapper', !/rankHaloStyle/.test(region));
+    });
+    T('rankMedalSvg itself — the approved emblem renderer — is untouched by D113', fnSrc(src, 'rankMedalSvg').indexOf('rankHaloStyle') === -1 && fnSrc(src, 'rankMedalSvg').indexOf('rankHueDistance') === -1);
+  });
+
+  sub('nothing protected moved: the emblem files, the thresholds, and the rank the athlete actually holds');
+  await guard('protected', () => {
+    T('calculateRankFromLevel is byte-identical to before',
+      /function calculateRankFromLevel\(level\)\{\s*return \(RANKS\.find\(r => level >= r\.min && level <= r\.max\) \|\| RANKS\[RANKS\.length-1\]\)\.name;\s*\}/.test(src));
+    T('RANK_EMBLEM_FILE still names exactly the eight approved PNGs, in rank order', NAMES.every((n, i) => ctx.RANK_EMBLEM_FILE[n] === 'rank-' + (i + 1) + '.png'));
+    T('RANK_VISUALS carries exactly the eight approved ranks, no rank invented or dropped', Object.keys(ctx.RANK_VISUALS).length === 8 && NAMES.every(n => ctx.RANK_VISUALS[n]));
+    T('the medal renderer draws only the approved file, byte for byte, at every size D113 touches', ctx.rankMedalSvg('LEGEND', 208, { showcase: true }).indexOf('src="rank-8.png"') !== -1);
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -45798,6 +46011,7 @@ async function main(){
   await testFiniteRepEligibilityD110();
   await testRecoveryLayoutD111();
   await testRecoveryValidityD112();
+  await testRankExperience2D113();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

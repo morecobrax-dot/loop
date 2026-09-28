@@ -864,8 +864,22 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
   font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint);
 }
 /* The emblem is the hero of the page now that nothing frames it. */
-.rank-medal-wrap{ display: flex; justify-content: center; padding: 14px 0 10px; }
+.rank-medal-wrap{ position: relative; display: flex; justify-content: center; padding: 14px 0 10px; }
 .rank-medal-wrap img{ display: block; }
+/* D113 — the emblem's own halo: two radial pools of its rank's own approved
+   gem colour (rankHaloStyle, read once into --rk-halo/--rk-halo2), painted
+   BEHIND the image by paint order alone — no z-index, so it can never drift
+   in front of anything the atmosphere or the depth loop stacks. A second,
+   offset pool only ever holds a colour on LEGEND (rankHueDistance), so every
+   other rank draws one soft light and LEGEND alone reads as two. Static: it
+   costs nothing per frame, and dims/fades with the panel it is drawn inside,
+   exactly as the emblem does, through the SAME opacity and filter. */
+.rank-medal-wrap::before{
+  content: ''; position: absolute; inset: -18% -8%; pointer-events: none;
+  background:
+    radial-gradient(closest-side at 41% 44%, var(--rk-halo, transparent), transparent 72%),
+    radial-gradient(closest-side at 61% 58%, var(--rk-halo2, transparent), transparent 72%);
+}
 /* D96 — the showcase emblem's box holds the image and the layer one pass of
    light crosses it. The layer is masked to the emblem's own silhouette (the
    same file, set inline), sits above the image, and is invisible until the
@@ -17807,6 +17821,22 @@ const LOOP_UPDATES = [
       'An unfinished heavy set can no longer make lighter completed sets look like warm-ups'
     ],
     changes: []
+  },
+  {
+    id: 'v10-28',
+    version: 'LOOP 10.28',
+    title: 'Every Rank Has Its Own Light',
+    date: '2026-09-28',
+    swVersion: 'loop-v205',
+    summary: 'Each rank now carries its own soft glow, the rank rail is clearer about what you\'re looking at, and your current rank states exactly how close you are to the next one.',
+    newFeatures: [],
+    improvements: [
+      'Each rank panel now glows with a soft light in that rank\'s own colour',
+      'The rank rail now says YOU on your own rank and VIEWING on any other rank you browse to',
+      'Your current rank now states the exact percentage of progress to the next rank'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -31563,6 +31593,20 @@ function mixHex(a, b, t){
   const A = p(a), B = p(b);
   return '#' + A.map((c,i) => Math.round(c + (B[i] - c) * t).toString(16).padStart(2,'0')).join('');
 }
+/* D113 — how far apart two hex colours are in hue, 0-180. Used once, to
+   decide whether a rank's two gem tones are a light/dark shade of one
+   colour (every rank but one) or genuinely two different colours — which,
+   measured this way rather than named, is true only of LEGEND's approved
+   gem pair (140 degrees apart; every other rank is under 16). */
+function rankHueDistance(hexA_, hexB_){
+  const hue = h => { const r = parseInt(h.substr(1,2),16)/255, g = parseInt(h.substr(3,2),16)/255, b = parseInt(h.substr(5,2),16)/255;
+    const mx = Math.max(r,g,b), mn = Math.min(r,g,b); if(mx === mn) return 0;
+    const d = mx - mn;
+    const deg = mx === r ? ((g - b) / d + (g < b ? 6 : 0)) : mx === g ? ((b - r) / d + 2) : ((r - g) / d + 4);
+    return deg * 60; };
+  const diff = Math.abs(hue(hexA_) - hue(hexB_));
+  return Math.min(diff, 360 - diff);
+}
 
 /* =========================================================
    THE RANK EMBLEM  (real art, D87)
@@ -31655,6 +31699,17 @@ let _rankDrag = null;
 /* One rank, composed directly on the page. There is no card: the state, the
    name, the range, the emblem and the progression are laid out with spacing
    and type, and the PAGE carries the rank's atmosphere behind them. */
+/* D113 — the halo two rank-panel-building call sites (the showcase, the
+   D106 tutorial's own condensed ladder) can each ask for: one or two radial
+   tones of the rank's own approved gem colour, floored so ROOKIE (glow 0)
+   still shows something and ceilinged so LEGEND (glow .38) is unmistakably
+   the richest. Nothing here runs on its own — it is read once, into an
+   inline style, when the HTML is built. */
+function rankHaloStyle(r){
+  const v = RANK_VISUALS[r.name] || RANK_VISUALS.ROOKIE, g = v.glow || 0;
+  const two = rankHueDistance(v.gem[0], v.gem[1]) >= 60;
+  return '--rk-halo:' + hexA(v.gem[0], 0.22 + g * 0.5) + ';--rk-halo2:' + (two ? hexA(v.gem[1], 0.16 + g * 0.34) : 'transparent');
+}
 function rankCardHtml(r, i, p){
   const curIdx = rankIndexOf(p.rank);
   const state = i < curIdx ? 'achieved' : i === curIdx ? 'current' : 'locked';
@@ -31670,7 +31725,7 @@ function rankCardHtml(r, i, p){
     footer =
       '<div class="rank-progress">' +
         '<div class="rank-progress-top"><span>Level ' + p.level + '</span>' +
-          (next ? '<span>' + escapeHtml(next.name) + ' at ' + next.min + '</span>' : '<span>Final rank</span>') + '</div>' +
+          (next ? '<span>' + Math.round(frac * 100) + '% to ' + escapeHtml(next.name) + '</span>' : '<span>Final rank</span>') + '</div>' +
         '<div class="rank-bar"><span style="width:' + Math.round(frac * 100) + '%"></span></div>' +
       '</div>';
   } else {
@@ -31690,7 +31745,7 @@ function rankCardHtml(r, i, p){
     '<div class="rank-state">' + stateLabel + '</div>' +
     '<h3 class="rank-title">' + escapeHtml(r.name) + '</h3>' +
     '<div class="rank-range">' + escapeHtml(range) + '</div>' +
-    '<div class="rank-medal-wrap">' + rankMedalSvg(r.name, 208, { showcase: true }) + '</div>' +
+    '<div class="rank-medal-wrap" style="' + rankHaloStyle(r) + '">' + rankMedalSvg(r.name, 208, { showcase: true }) + '</div>' +
     '<div class="rank-foot">' + footer + '</div>' +
   '</article>';
 }
@@ -31958,7 +32013,7 @@ function rankNearestChanged(i){
   const r = RANKS[i];
   if(!r) return;
   const cap = document.getElementById('rankRailPos');
-  if(cap) cap.textContent = 'RANK ' + (i + 1) + ' OF ' + RANKS.length;
+  if(cap) cap.textContent = (i === _rankCar.mine ? 'YOU' : 'VIEWING') + ' · RANK ' + (i + 1) + ' OF ' + RANKS.length;
   const thumb = _rankCar.geom && _rankCar.geom.thumb;
   if(thumb && thumb.style && typeof thumb.style.setProperty === 'function'){
     const v = RANK_VISUALS[r.name] || RANK_VISUALS.ROOKIE;
