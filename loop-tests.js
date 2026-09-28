@@ -41103,6 +41103,11 @@ async function testFastUxD101(){
   const E = (n, sets, bw) => ({ name: n, bodyweight: !!bw, sets });
   const W = (id, date, exs, cat) => ({ id, date, category: cat || 'push', title: 'x', notes: '', exercises: exs });
   const D = n => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - n); return ctx.localDateStr(d); };
+  /* D112 restated: anchored to the week Mondays renderProgVolume itself compares (this
+     week's Monday, last week's Monday) rather than a fixed day-count, so the fixture
+     lands inside its own window whatever day of the week the suite runs — a calendar-day
+     dependence (D99.1's class), not a product change. No assertion below changed. */
+  const WM = n => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - n * 7); return ctx.localDateStr(d); };
   const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache(); ctx.invalidateConsistencyCache(); };
 
   /* ---------------------------------------------------------------- */
@@ -41124,20 +41129,20 @@ async function testFastUxD101(){
       !/\.vw-v\{[^}]*(--success|--warning)/.test(css));
 
     /* behaviourally, on real numbers */
-    seed([W('lw1', D(9), [E('Bench Press', [S(100, 8)])]),
-          W('tw1', D(2), [E('Bench Press', [S(100, 8), S(100, 8)])])]);
+    seed([W('lw1', WM(1), [E('Bench Press', [S(100, 8)])]),
+          W('tw1', WM(0), [E('Bench Press', [S(100, 8), S(100, 8)])])]);
     ctx.switchTab('progress'); ctx.switchProgTab('volume'); await H.settle(60);
     const html = doc.getElementById('progVolCompare').innerHTML;
     const volCell = html.slice(html.indexOf('Volume'), html.indexOf('Sets'));
     T('a real positive delta renders the up class and the + sign', /vw-d vw-d-up/.test(volCell) && /\+800/.test(volCell), volCell.slice(0, 200));
-    seed([W('lw2', D(9), [E('Bench Press', [S(100, 8), S(100, 8), S(100, 8)])]),
-          W('tw2', D(2), [E('Bench Press', [S(100, 8)])])]);
+    seed([W('lw2', WM(1), [E('Bench Press', [S(100, 8), S(100, 8), S(100, 8)])]),
+          W('tw2', WM(0), [E('Bench Press', [S(100, 8)])])]);
     ctx.renderProgTab(); await H.settle(60);
     const html2 = doc.getElementById('progVolCompare').innerHTML;
     const setsCell = html2.slice(html2.indexOf('Sets'), html2.indexOf('Records'));
     T('a real negative delta renders the down class and a true minus sign', /vw-d vw-d-down/.test(setsCell) && /−2/.test(setsCell), setsCell.slice(0, 200));
-    seed([W('lw3', D(9), [E('Bench Press', [S(100, 8)])]),
-          W('tw3', D(2), [E('Bench Press', [S(100, 8)])])]);
+    seed([W('lw3', WM(1), [E('Bench Press', [S(100, 8)])]),
+          W('tw3', WM(0), [E('Bench Press', [S(100, 8)])])]);
     ctx.renderProgTab(); await H.settle(60);
     const html3 = doc.getElementById('progVolCompare').innerHTML;
     const wkCell3 = html3.slice(html3.indexOf('Workouts'), html3.indexOf('Volume'));
@@ -41147,6 +41152,10 @@ async function testFastUxD101(){
   /* ---------------------------------------------------------------- */
   sub('Today: a real preview, reusing the real surface');
   await guard('today actions', async () => {
+    /* D112 — 'this week' above can land exactly on today (e.g. today IS this week's
+       Monday), and that leftover workoutLog entry would make 'today' read as already
+       logged here. This block was never meant to depend on the previous one's log. */
+    seed([]);
     T('View workout, Change time and Change workout sit in one control group',
       /<div class="tw-actions">/.test(fnSrc(src, 'renderTodayWorkout')));
     T('Start Workout is still built first and stays outside that group — the dominant action',
