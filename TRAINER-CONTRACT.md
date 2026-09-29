@@ -15872,3 +15872,92 @@ touches `rankRender`'s per-frame loop.
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
 new persistent key. verify 10,887/0, five audits green.
+
+## §152 — RANK STAGE POLISH: CENTERING + LIGHT CONTINUITY (D113.2 · LOOP 10.30 · loop-v207)
+
+The owner reviewed D113.1 (10.29) on a device: a locked MASTER, viewed by a
+TRAINEE athlete, showed "Begins at Level 40" floating in an empty band under
+a hard-edged lighter rectangle. Two real defects, one polish pass, no rank
+logic touched.
+
+### Root causes (probe-measured, not guessed)
+
+**Vertical imbalance.** D113.1 gave the CURRENT rank a tall level module
+(panel 464px at 393x852, emblem top y=254). Achieved and locked ranks kept a
+short one-line note (panel 375px, emblem y=298.5). The track centred each
+panel with `align-items: center`, so the emblem sat about 44px higher on your
+own rank than on any other, jumped when you swiped, and the short panels left
+an empty band under their note.
+
+**Light cutoff.** The ground-light under the emblem was a floor ellipse
+centred at 94% of a halo box that ended at 118% of the emblem row; the box
+edge cut the ellipse flat, which read as a hard lighter rectangle. A full-
+width `border-top` on the rail footer added a second seam.
+
+### What changed (`index.html` only, plus the release files)
+
+- `.rank-track` now `align-items: stretch`; `.rank-panel` is a flex column
+  and `.rank-foot` grows (`flex: 1 1 auto`), so every rank has the same panel
+  height, the same emblem y and the same foot bottom (463px on 393x852;
+  445px with a LEGEND athlete, whose current panel has no NEXT row).
+- Achieved and locked ranks render one framed `.rank-milestone` module that
+  shares the current rank's frame and fills to the same bottom: "Reached at
+  Level N" + STATUS / Earned, or "Begins at Level N" + TO UNLOCK / "X levels
+  away" (`Math.max(1, r.min - p.level)`, singular at 1). Only numbers LOOP
+  already knows — no reward, perk or date is invented. The old `.rank-note`
+  CSS is deleted. The current rank branch is byte-identical to D113.1.
+- `.rank-medal-wrap::before`: box `inset: -18% -8% -46%`; the floor ellipse
+  moved to 72% with a 10% radius so it fades to nothing inside the box.
+  The two halo pools are re-anchored to the emblem's own centre.
+- `.rank-footer`: hard `border-top` removed; a fading 1px hairline
+  (`::before`) instead. `#rankOverlay.overlay-page` gets an explicit ground
+  (`#05070C`) so the sheet can never fall back to the app page colour.
+- Compact (<=640px tall) and landscape (<=500px tall) tiers for the module.
+
+Deliberately NOT touched: `rankCardHtml`'s current branch, `paintRankAtmosphere`,
+`rankHaloStyle`, `rankRailHtml` (all frozen in `rank-d1131-baseline.json`,
+a new committed baseline beside D113's), the swipe/settle engine, D106's
+tutorial ladder, rank assets, storage.
+
+### Contract 230 (84 checks) proves
+
+1. current vs non-current: one panel wrapper, one foot, current branch
+   unchanged; non-current branch is a module, not a raw note;
+2. the message is intentional: exact wording, distance maths incl. the 1-
+   level singular, no bar / percentage / NEXT row / reward text;
+3. lower-stage atmosphere: box room below the emblem, floor centre and
+   radius, no clipping, fading footer hairline, explicit overlay ground;
+4. protected systems byte-identical to the D113/D113.1 frozen baselines;
+5. browsing does not mutate rank or storage (every rank visited, snapshot
+   compared before/after);
+6. D113.1 gains hold (Contract 229 keeps passing; its "unchanged plain note"
+   title was restated because the note is now a framed module).
+
+**Mutation: 20 of 20 real mutants killed by Contract 230 alone**, plus 1
+recorded equivalent: stretch reverted to centre; floor back at 94%; box room
+removed; floor radius 10% -> 40%; hard footer border returned; hairline
+un-faded; overlay ground dropped; milestone flex fill removed; foot growth
+removed; distance off by one; distance row dropped; a fabricated "+500 XP"
+on an achieved rank; bare floating note returned; a CSS animation on the
+milestone; a halo pool drifting off the emblem; `rankHaloStyle` floor alpha
+changed; progress percentage rounding changed; "1 levels away" grammar; a
+bar drawn in a non-current panel; a shadow drawing an edge into the light.
+The equivalent mutant (floor radius 10% -> 22%) still fades out inside the
+box at 89%, so nothing visible changes — recorded, not deleted.
+
+**Mobile QA.** Real headless Edge, seven widths (320x568, 360x640, 375x667,
+390x844, 393x852, 414x896, 430x932) x all eight ranks, seeded history,
+with and without the CDP safe-area override: 486/486 each way, plus real
+touch swipes. Emblem y, panel height and foot bottom have a spread <= 1px
+across all eight ranks at every size.
+
+### Limitations
+
+The CDP safe-area emulation paints a strip at the top of a headless shot;
+that is an emulation artefact, so the visual shots use SAFE=0. The owner's
+device also showed a band at the bottom of the sheet that could not be
+reproduced headless; the explicit overlay ground is kept as a hedge, and the
+cause of the original cutoff (the clipped floor ellipse) is fixed in source.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
+new persistent key.

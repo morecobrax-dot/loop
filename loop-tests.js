@@ -45929,7 +45929,7 @@ async function testRankStageD1131(){
       const h3 = ctx.rankCardHtml(ctx.RANKS[7], 7, p(55, 10, 200));
       return h3.indexOf('Final rank') !== -1 && h3.indexOf('rank-next') === -1 && h3.indexOf('NEXT') === -1;
     })());
-    T('achieved and locked panels are unchanged — a plain truthful note, no module, no bar, no percentage, no NEXT row', (() => {
+    T('achieved and locked panels carry no progress module — no bar, no percentage, no NEXT row (D113.2 frames their one line as a milestone)', (() => {
       const achieved = ctx.rankCardHtml(ctx.RANKS[0], 0, prog), locked = ctx.rankCardHtml(ctx.RANKS[4], 4, prog);
       return achieved.indexOf('Reached at Level 1') !== -1 && !/rank-progress|rank-next|%/.test(achieved) &&
         locked.indexOf('Begins at Level 20') !== -1 && !/rank-progress|rank-next|%/.test(locked);
@@ -46031,6 +46031,199 @@ async function testRankStageD1131(){
     const tut = fnSrc(src, 'onboardingRankLadderHtml');
     T('onboardingRankLadderHtml never references the stage\'s new classes or tokens', !/rank-next|rank-progress|rk-floor|rk-field|rk-ring|rankHaloStyle/.test(tut));
     T('and it is byte-identical to the pre-D113.1 build', tut === BASELINE.onboardingRankLadderHtml);
+  });
+}
+
+/* =========================================================
+   CONTRACT 230 — ONE CENTRED STAGE, ONE CONTINUOUS LIGHT  (D113.2)
+   ---------------------------------------------------------
+   D113.1 gave the athlete's own rank a tall level module and every
+   other rank a single line, then let each panel centre itself at its
+   own height: the emblem sat 44px higher on the athlete's rank than
+   on any other, and the short panels left an empty band under a
+   floating line. Its ground-light ellipse also ran past the box it
+   was painted in and was cut flat — a hard, lighter rectangle. D113.2
+   is a presentation-only correction: every rank is one height and one
+   family of module, the light is unclipped and the band's edge fades.
+   This contract proves the structure, the copy's truthfulness, the
+   light's geometry, and that nothing D113/D113.1 protected moved.
+   ========================================================= */
+async function testRankStageD1132(){
+  section('CONTRACT 230 — one centred stage, one continuous light (D113.2)');
+  const fs = require('fs'), path = require('path');
+  const src = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const B13 = JSON.parse(fs.readFileSync(path.join(__dirname, 'rank-d113-baseline.json'), 'utf8'));
+  const B131 = JSON.parse(fs.readFileSync(path.join(__dirname, 'rank-d1131-baseline.json'), 'utf8'));
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx;
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const NAMES = ['ROOKIE','TRAINEE','ATHLETE','COMPETITOR','ELITE','VETERAN','MASTER','LEGEND'];
+  const constSrc = (text, name) => {
+    const open = text.indexOf('const ' + name + ' = ');
+    if(open === -1) return '';
+    let i = open, depth = 0, started = false;
+    for(; i < text.length; i++){
+      const c = text[i];
+      if(c === '{' || c === '['){ depth++; started = true; }
+      else if(c === '}' || c === ']'){ depth--; if(started && depth === 0) break; }
+    }
+    return text.slice(open, i + 2);
+  };
+  const prog = (level, cx, nx) => ({ rank: ctx.calculateRankFromLevel(level), level, currentXP: cx == null ? 20 : cx, xpForNext: nx == null ? 100 : nx, lifetimeXP: 0 });
+  const text = h => h.replace(/<[^>]*>/g, '|').replace(/\|+/g, '|').replace(/^\||\|$/g, '');
+  const panels = p => ctx.RANKS.map((r, i) => ctx.rankCardHtml(r, i, p));
+  const foot = h => { const m = /<div class="rank-foot">([\s\S]*)<\/div><\/article>$/.exec(h); return m ? m[1] : null; };
+
+  sub('structure: every panel is the same shape — one foot holding exactly one module — and only the athlete\'s own rank carries the progress one');
+  await guard('structure', () => {
+    const LEVELS = [1, 4, 5, 10, 14, 15, 19, 20, 29, 30, 39, 40, 49, 50, 77];
+    const bad = { one: [], mod: [], start: [], order: [], nonCur: [] };
+    LEVELS.forEach(lv => {
+      const p = prog(lv), curIdx = ctx.rankIndexOf(p.rank), hs = panels(p);
+      if(!(hs.filter(h => /rank-panel rank-current/.test(h)).length === 1 && /rank-panel rank-current/.test(hs[curIdx]))) bad.one.push(lv);
+      hs.forEach((h, i) => {
+        const f = foot(h), cur = i === curIdx;
+        const mods = f === null ? [] : (f.match(/class="rank-(progress|milestone)"/g) || []);
+        if(!(f !== null && mods.length === 1 && (cur ? mods[0] === 'class="rank-progress"' : mods[0] === 'class="rank-milestone"'))) bad.mod.push(lv + '/' + NAMES[i]);
+        if(!(f !== null && /^<div class="rank-(progress|milestone)">/.test(f) && /<\/div>$/.test(f))) bad.start.push(lv + '/' + NAMES[i]);
+        if(!/^<article[^>]*><div class="rank-state">[^<]+<\/div><h3 class="rank-title">[^<]+<\/h3><div class="rank-range">[^<]+<\/div><div class="rank-medal-wrap"/.test(h)) bad.order.push(lv + '/' + NAMES[i]);
+        if(!cur && /rank-bar|rank-progress|rank-next|%|NEXT/.test(h)) bad.nonCur.push(lv + '/' + NAMES[i]);
+      });
+    });
+    T('at 15 different levels there is exactly one CURRENT panel and it is the athlete\'s own rank', bad.one.length === 0, bad.one);
+    T('every one of 120 panels has one foot with exactly one module: progress for the athlete\'s rank, milestone for every other', bad.mod.length === 0, bad.mod.slice(0, 4));
+    T('every foot starts with its module — no bare text or stray node beside it', bad.start.length === 0, bad.start.slice(0, 4));
+    T('the chip, title, range and emblem sit in the same order in every state', bad.order.length === 0, bad.order.slice(0, 4));
+    T('a non-current panel draws no bar, no percentage and no NEXT row', bad.nonCur.length === 0, bad.nonCur.slice(0, 4));
+    T('no orphan .rank-note is left anywhere — the line it drew is now inside a module', !/rank-note/.test(src));
+  });
+
+  sub('the non-current message is intentional, framed, and says only what is true');
+  await guard('copy', () => {
+    const bad = []; let n = 0;
+    for(let lv = 1; lv <= 60; lv += 1){
+      const p = prog(lv), curIdx = ctx.rankIndexOf(p.rank), hs = panels(p);
+      hs.forEach((h, i) => {
+        if(i === curIdx) return;
+        n++;
+        const r = ctx.RANKS[i], t = text(foot(h));
+        const want = i < curIdx
+          ? 'Reached at Level ' + r.min + '|STATUS|Earned'
+          : 'Begins at Level ' + r.min + '|TO UNLOCK|' + (r.min - lv) + (r.min - lv === 1 ? ' level away' : ' levels away');
+        if(t !== want) bad.push('L' + lv + ' ' + NAMES[i] + ': "' + t + '" != "' + want + '"');
+      });
+    }
+    T('at every level 1-60 (' + n + ' non-current panels) the module reads exactly its own start level, its state, and the true distance', n === 60 * 7 && bad.length === 0, bad.slice(0, 3));
+    const h = ctx.rankCardHtml(ctx.RANKS[6], 6, prog(39));
+    T('one level short says "1 level away", never "1 levels away"', text(foot(h)).indexOf('1 level away') !== -1 && text(foot(h)).indexOf('1 levels') === -1);
+    const ach = ctx.rankCardHtml(ctx.RANKS[0], 0, prog(30));
+    T('an achieved rank never claims a distance, a date, a reward or a perk', !/away|unlock|reward|perk|bonus|xp|20\d\d/i.test(text(foot(ach)).replace('Reached at', '')));
+    T('the two sentences live in the source exactly once each, in one conditional — not scattered strings', (src.match(/'Reached at Level '/g) || []).length === 1 && (src.match(/'Begins at Level '/g) || []).length === 1);
+    T('the module adds no second live region — the panel\'s own aria-label still announces it', !/aria-live/.test(fnSrc(src, 'rankCardHtml')));
+  });
+
+  sub('layout: one height for every panel, so the emblem cannot move between ranks (structure jsdom can prove; the browser QA measures the pixels)');
+  await guard('layout-css', () => {
+    T('the track STRETCHES its panels to one height instead of centring each at its own', /\.rank-track\{ display: flex; gap: 22px; align-items: stretch;/.test(src) && !/\.rank-track\{[^}]*align-items: center/.test(src));
+    T('a panel is a column, and its foot takes the room the tallest module needs', /\.rank-panel\{[^}]*display: flex; flex-direction: column;/.test(src) && /\.rank-panel > \.rank-foot\{ flex: 1 1 auto; display: flex; flex-direction: column; \}/.test(src));
+    T('the chip stays centred in the column rather than stretching edge to edge', /\.rank-state\{[^}]*align-self: center;/.test(src));
+    T('the milestone fills the foot and centres its two rows, so it ends where the progress module ends', /\.rank-milestone\{[^}]*flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center;/.test(src));
+    T('it is the progress module\'s own frame — same radius and the same padding — only quieter', /\.rank-milestone\{[^}]*padding: var\(--space-3\) var\(--space-4\);[^}]*border-radius: var\(--radius-lg\)/.test(src) && /\.rank-progress\{[^}]*padding: var\(--space-3\) var\(--space-4\);[^}]*border-radius: var\(--radius-lg\)/.test(src));
+    T('both short-screen tiers compact the milestone with the module it mirrors', /\.rank-milestone\{ margin-top: 10px; padding: var\(--space-2\) var\(--space-3\); \}/.test(src) && /\.rank-milestone\{ margin-top: 6px; padding: 6px 10px; \}/.test(src));
+    T('the D113 rule that every panel reserves one footer height is still in place', /\.rank-foot\{ display: flow-root; min-height: \d+px; \}/.test(src) && /'<div class="rank-foot">' \+ footer \+ '<\/div>'/.test(src));
+  });
+
+  sub('light: the ground-light is drawn wholly inside its own box, so it can no longer be cut into a rectangle');
+  await guard('floor-geometry', () => {
+    const rule = cssRule(src, '.rank-medal-wrap::before{');
+    const inset = /inset: (-?\d+)% (-?\d+)% (-?\d+)%;/.exec(rule);
+    const floor = /radial-gradient\(ellipse (\d+(?:\.\d+)?)% (\d+(?:\.\d+)?)% at (\d+(?:\.\d+)?)% (\d+(?:\.\d+)?)%, var\(--rk-floor, transparent\), transparent (\d+)%\)/.exec(rule);
+    T('the floor ellipse and the box inset are both parseable', !!inset && !!floor);
+    if(!inset || !floor) return;
+    const rx = +floor[1], ry = +floor[2], cx = +floor[3], cy = +floor[4], stop = +floor[5];
+    T('the ellipse\'s bottom extent (centre + radius to its fade-out) is inside the box with room to spare', cy + ry * stop / 100 <= 92, cy + ' + ' + ry + '*' + stop);
+    T('its top extent stays inside the box', cy - ry * stop / 100 >= 0);
+    T('its horizontal extent stays inside the box on both sides', cx + rx * stop / 100 <= 100 && cx - rx * stop / 100 >= 0);
+    T('the box reaches BELOW the emblem row (a negative bottom inset), which is what gives the ellipse room', +inset[3] <= -30, inset[3]);
+    const box = 1 + (-(+inset[1]) - +inset[3]) / 100, top = +inset[1] / 100;
+    const yAt = pct => top + pct / 100 * box;
+    T('the floor sits at the emblem\'s foot: its centre is within 3% of the row\'s own bottom edge, measured in the wrap\'s own height', Math.abs(yAt(cy) - 1) < 0.03, String(yAt(cy)));
+    const h1 = /closest-side at (\d+(?:\.\d+)?)% (\d+(?:\.\d+)?)%, var\(--rk-halo, /.exec(rule), h2 = /closest-side at (\d+(?:\.\d+)?)% (\d+(?:\.\d+)?)%, var\(--rk-halo2, /.exec(rule);
+    T('the two halo pools stay exactly where D113.1 put them on the emblem (0.418 and 0.609 of the row\'s height, at 41% and 61% across)', !!h1 && !!h2 && Math.abs(yAt(+h1[2]) - 0.4184) < 0.01 && Math.abs(yAt(+h2[2]) - 0.6088) < 0.01 && +h1[1] === 41 && +h2[1] === 61);
+    T('the box is still non-interactive and painted by nothing but the three token gradients', /pointer-events: none;/.test(rule) && (rule.match(/radial-gradient\(/g) || []).length === 3);
+  });
+
+  sub('light: the atmosphere reaches the lower stage, and the band under it fades instead of drawing a seam');
+  await guard('lower-stage', () => {
+    const layer = cssRule(src, '.rank-atmos-layer{');
+    T('the lower field pool is still painted, low on the screen, from --rk-field', /radial-gradient\(70% 26% at 50% 90%, var\(--rk-field, transparent\), transparent 78%\)/.test(layer));
+    T('the broad field pool still sits behind the emblem\'s own height', /radial-gradient\(58% 44% at 50% 40%, var\(--rk-field, transparent\), transparent 75%\)/.test(layer));
+    T('the atmosphere\'s last colour is the stage ground #05070C', /transparent 46%\),\s*#05070C;/.test(layer));
+    const ov = /#rankOverlay\.overlay-page\{ background: (#[0-9A-Fa-f]{6}); \}/.exec(src);
+    T('the overlay\'s own ground is that same colour, so a strip the sheet does not reach can never be the app\'s lighter page ground', !!ov && ov[1].toUpperCase() === '#05070C' && /\.rank-sheet\{ background: #05070C;/.test(src));
+    const fr = cssRule(src, '.rank-footer{');
+    T('the footer band no longer draws a full-width hard border across the atmosphere', fr !== '' && !/border-top/.test(fr));
+    T('and keeps the D30.5 fade to shade at its foot', /background: linear-gradient\(180deg, transparent, rgba\(0,0,0,0\.28\)\)/.test(fr));
+    const hr = cssRule(src, '.rank-footer::before{');
+    T('its edge is a hairline that fades to nothing at BOTH ends', /linear-gradient\(90deg, transparent, [^;]*, transparent\)/.test(hr) && /height: 1px;/.test(hr) && /pointer-events: none;/.test(hr));
+    T('the module frames carry no shadow or filter that would draw an edge into the light', cssRule(src, '.rank-milestone{') !== '' && !/box-shadow|filter|backdrop/.test(cssRule(src, '.rank-milestone{')) && !/box-shadow|filter|backdrop/.test(cssRule(src, '.rank-progress{')));
+  });
+
+  sub('protected: the engine, the atmosphere painter, the halo, the rail and the current module are byte-identical to what shipped');
+  await guard('pins', () => {
+    const CONSTS = ['RANK_MOTION', '_rankCar', 'RANK_ARRIVE'];
+    const PROTECT = ['RANK_MOTION','_rankCar','rankNow','rankReducedMotion','rankRubber','rankSettleTarget',
+      'rankStep','rankRender','rankAtmosphereAt','rankNearestChanged','rankLanded','RANK_ARRIVE',
+      'rankArrive','rankCancel','rankStopAnimation','rankAnimateTo','rankGoTo','rankGo','rankUpdateReturn',
+      'rankReturnToMine','positionRankTrack','openRankShowcase','closeRankShowcase','wireRankCarousel',
+      'rankIndexOf','rankLevelRangeLabel','calculateRankFromLevel','onboardingRankNow','onboardingRankLadderHtml','rankMedalSvg'];
+    PROTECT.forEach(name => {
+      const now = (CONSTS.indexOf(name) !== -1 ? constSrc : fnSrc)(src, name);
+      T(name + ' is byte-identical to the D113 baseline', now === B13[name] && now !== '', name);
+    });
+    T('RANKS, RANK_VISUALS and RANK_EMBLEM_FILE are byte-identical', constSrc(src, 'RANKS') === B13.RANKS && constSrc(src, 'RANKS') !== '' && constSrc(src, 'RANK_VISUALS') === B13.RANK_VISUALS && constSrc(src, 'RANK_EMBLEM_FILE') === B13.RANK_EMBLEM_FILE);
+    ['paintRankAtmosphere', 'rankHaloStyle', 'rankRailHtml'].forEach(name => {
+      const now = fnSrc(src, name);
+      T(name + ' is byte-identical to the D113.1 build that shipped (10.29)', now === B131[name] && now !== '', name);
+    });
+    const card = fnSrc(src, 'rankCardHtml');
+    const i = card.indexOf("if(state === 'current'){"), j = card.indexOf('} else {\n', i);
+    T('rankCardHtml: the head (state, range) is byte-identical to 10.29', i > 0 && card.slice(0, i) === B131.rankCardHead);
+    T('rankCardHtml: the athlete\'s own module — LEVEL, the real percentage, the bar, NEXT, Final rank — is byte-identical to 10.29', i > 0 && j > i && card.slice(i, j) === B131.rankCardCurrent);
+    T('rankCardHtml: the aria label and the panel wrapper (chip, title, range, emblem, foot) are byte-identical to 10.29', card.indexOf('const stateLabel') > 0 && card.slice(card.indexOf('const stateLabel')) === B131.rankCardTail);
+  });
+
+  sub('browsing cannot move the athlete\'s real rank, level, XP or history, and the new markup is read-only');
+  await guard('no-mutation', () => {
+    const before = ctx.getCurrentProgression(), mine = ctx._rankCar.mine, log = JSON.stringify(ctx.workoutLog);
+    const realSet = ctx.LOOPStore.set; let calls = 0;
+    ctx.LOOPStore.set = async (...a) => { calls++; return realSet.apply(ctx.LOOPStore, a); };
+    const rr = ctx.rankReducedMotion; ctx.rankReducedMotion = () => true;
+    let lo = null, hi = null;
+    try{
+      for(let lv = 1; lv <= 60; lv += 7) panels(prog(lv));
+      ctx.openRankShowcase(); [7, 3, 0, 5, 1, 6, 2, 4].forEach(i => ctx.rankGoTo(i));
+      ctx.rankGoTo(-5); lo = ctx.rankShowcaseIndex; ctx.rankGoTo(99); hi = ctx.rankShowcaseIndex;
+      ctx.closeRankShowcase();
+    } finally { ctx.rankReducedMotion = rr; ctx.LOOPStore.set = realSet; }
+    T('the progression engine is unchanged after building every panel at 9 levels and browsing every rank', JSON.stringify(before) === JSON.stringify(ctx.getCurrentProgression()));
+    T('_rankCar.mine never moved and workoutLog is byte-identical', ctx._rankCar.mine === mine && JSON.stringify(ctx.workoutLog) === log);
+    T('LOOPStore.set was never called', calls === 0, String(calls));
+    T('no storage key, schema or migration changed', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    T('both clamps still hold: the first and last rank cannot be passed', lo === 0 && hi === 7, lo + '/' + hi);
+  });
+
+  sub('D113.1\'s gains still hold: the environment, the halo and floor, the next-rank preview, the rail path, the caption fix, the framed profile row');
+  await guard('d1131-gains', () => {
+    const html = ctx.rankCardHtml(ctx.RANKS[2], 2, prog(12, 33, 100));
+    T('the athlete\'s module still shows LEVEL, the percentage and the NEXT row naming COMPETITOR and its distance', html.indexOf('LEVEL 12') !== -1 && html.indexOf('rank-progress-pct') !== -1 && html.indexOf('NEXT · COMPETITOR') !== -1 && html.indexOf('3 levels to go') !== -1);
+    T('the final rank still says "Final rank" with no NEXT row', (() => { const h = ctx.rankCardHtml(ctx.RANKS[7], 7, prog(55)); return h.indexOf('Final rank') !== -1 && h.indexOf('rank-next') === -1; })());
+    T('every rank still carries the halo, second halo and floor tokens', NAMES.every((n, i) => /--rk-halo:rgba\([^)]+\);--rk-halo2:(rgba\([^)]+\)|transparent);--rk-floor:rgba\(/.test(ctx.rankHaloStyle(ctx.RANKS[i]))));
+    T('the rail still has one node per segment', (ctx.rankRailHtml({ rank: 'ATHLETE' }).match(/rank-rail-node/g) || []).length === 8);
+    T('the caption/pill collision fix survives in both directions', src.indexOf(".rank-rail-head:has(.rank-return.is-shown:not(.is-left)) .rank-rail-pos{ margin-right: 96px; }") !== -1 && src.indexOf(".rank-rail-head:has(.rank-return.is-shown.is-left) .rank-rail-pos{ margin-left: 96px; }") !== -1);
+    T('neither the halo nor the milestone carries a CSS animation (Contract 199)', !/rank-medal-wrap[^{]*\{[^}]*animation/.test(src) && !/rank-milestone[^{]*\{[^}]*animation/.test(src));
+    T('the transparent top bar and the framed profile row are still there', /\.rank-sheet \.workout-topbar\{ background: transparent;/.test(src) && /\.rank-profile-chev\{/.test(src));
+    T('the D106 tutorial ladder never references the new module or its classes', !/rank-milestone|rank-foot/.test(fnSrc(src, 'onboardingRankLadderHtml')));
   });
 }
 
@@ -46224,6 +46417,7 @@ async function main(){
   await testRecoveryValidityD112();
   await testRankExperience2D113();
   await testRankStageD1131();
+  await testRankStageD1132();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

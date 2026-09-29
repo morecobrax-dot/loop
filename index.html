@@ -791,6 +791,10 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
 .rank-atmos{
   position: absolute; inset: 0; pointer-events: none; z-index: 0;
 }
+/* D113.2 — the overlay's own ground is the stage's ground, so any strip the sheet
+   does not reach (a browser bar collapsing, a safe-area) is the same colour
+   the atmosphere already ends in, never the app's lighter page ground. */
+#rankOverlay.overlay-page{ background: #05070C; }
 .rank-atmos-layer{
   position: absolute; inset: 0;
   /* D113.1 — two more pools on the SAME layer, crossfading exactly as the
@@ -847,7 +851,11 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
   mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
 }
-.rank-track{ display: flex; gap: 22px; align-items: center; will-change: transform; }
+/* D113.2 — panels STRETCH to one height (the tallest, the current rank's level
+   module) instead of being centred at their own: with unequal heights the
+   emblem sat 44px higher on the athlete's own rank than on every other one,
+   and the shorter panels left an empty band under their one-line note. */
+.rank-track{ display: flex; gap: 22px; align-items: stretch; will-change: transform; }
 /* D30.6 — NO CARD. Each rank is a full-page composition: the panel is a
    transparent column of type and emblem, and the PAGE behind it carries the
    rank's atmosphere. The old bordered rectangle — mostly empty space with a
@@ -862,6 +870,7 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
      selection or a native image drag. Scoped to the carousel, exactly as the
      week strip scopes its own. */
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  display: flex; flex-direction: column;
   -webkit-tap-highlight-color: transparent;
   /* Phase C — a panel's depth (its size and its light) is written by the
      ladder from its own position every frame, so the panel carries no
@@ -870,7 +879,7 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
   will-change: transform, opacity;
 }
 .rank-state{
-  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  display: inline-block; align-self: center; padding: 3px 10px; border-radius: 999px;
   font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
   letter-spacing: 0.12em; color: var(--text-dim);
   background: rgba(255,255,255,0.04); border: 1px solid rgba(140,170,220,0.14);
@@ -895,12 +904,18 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
    other rank draws one soft light and LEGEND alone reads as two. Static: it
    costs nothing per frame, and dims/fades with the panel it is drawn inside,
    exactly as the emblem does, through the SAME opacity and filter. */
+/* D113.2 — the ground-light used to sit at 94% of a box that ended at 118% of
+   the emblem's row, so its ellipse (94% + 12%) ran past the box's own bottom
+   edge and was cut flat: the hard-edged lighter rectangle above the level line.
+   The box now extends well below the emblem and the floor is centred inside it
+   (72% ± 8%), so it fades to nothing before any edge. The two halo pools keep
+   their exact place on the emblem: their percentages were rebased for the taller box. */
 .rank-medal-wrap::before{
-  content: ''; position: absolute; inset: -18% -8%; pointer-events: none;
+  content: ''; position: absolute; inset: -18% -8% -46%; pointer-events: none;
   background:
-    radial-gradient(closest-side at 41% 44%, var(--rk-halo, transparent), transparent 72%),
-    radial-gradient(closest-side at 61% 58%, var(--rk-halo2, transparent), transparent 72%),
-    radial-gradient(ellipse 68% 16% at 50% 94%, var(--rk-floor, transparent), transparent 78%);
+    radial-gradient(closest-side at 41% 36.5%, var(--rk-halo, transparent), transparent 72%),
+    radial-gradient(closest-side at 61% 48%, var(--rk-halo2, transparent), transparent 72%),
+    radial-gradient(ellipse 62% 10% at 50% 72%, var(--rk-floor, transparent), transparent 78%);
 }
 /* D96 — the showcase emblem's box holds the image and the layer one pass of
    light crosses it. The layer is masked to the emblem's own silhouette (the
@@ -924,14 +939,34 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
 /* A past rank keeps nearly all its material and yields only the emphasis. */
 .rank-achieved .rank-medal-wrap{ filter: saturate(0.95) brightness(0.96); }
 .rank-current .rank-medal-wrap{ filter: brightness(1.04); }
-.rank-note{
-  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
-  font-weight: 700; letter-spacing: 0.06em; color: var(--text-faint); margin-top: 14px;
-}
 /* Phase C — one footer height for every rank. The progress block is taller
    than a note, and panels of two heights centred in the track put every
    emblem on a different line, so the ladder bobbed as it moved. */
 .rank-foot{ display: flow-root; min-height: 40px; }
+.rank-panel > .rank-foot{ flex: 1 1 auto; display: flex; flex-direction: column; }
+/* D113.2 — every rank's footer is a module of the same family. The athlete's own
+   rank carries LEVEL, the real percentage and the way forward; a rank behind or
+   ahead carries the one true fact it has (where it starts) and its distance
+   from the athlete, in the same frame, the same padding and the same two-row
+   rhythm, only quieter. No bar, no percentage: there is no number for those. */
+.rank-milestone{
+  flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center;
+  margin-top: 14px; padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg); background: rgba(6,10,18,0.30);
+  border: 1px solid rgba(140,170,220,0.09); text-align: left;
+}
+.rank-milestone-top{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.06em; color: var(--text-dim);
+}
+.rank-milestone-row{
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(140,170,220,0.10);
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint);
+}
+.rank-milestone-val{ color: var(--text-dim); letter-spacing: 0.04em; white-space: nowrap; }
+.rank-achieved .rank-milestone-val, .rank-achieved .rank-milestone-top{ color: var(--text); }
 
 /* D113.1 — a light module rather than a bare line: current level and the
    real percentage sit as two named stats, the bar between them, and (unless
@@ -977,9 +1012,14 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
    are gone — the gesture is the navigation. */
 .rank-footer{
   flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
-  gap: var(--space-2); padding-top: var(--space-3);
-  border-top: 1px solid rgba(140,170,220,0.10);
+  gap: var(--space-2); padding-top: var(--space-3); position: relative;
   background: linear-gradient(180deg, transparent, rgba(0,0,0,0.28));
+}
+/* D113.2 — the band's edge used to be a full-width hard line across the
+   atmosphere; it now fades out at both ends, so the light runs on through it. */
+.rank-footer::before{
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(140,170,220,0.12) 30%, rgba(140,170,220,0.12) 70%, transparent);
 }
 /* Phase C — THE RAIL replaces the dots. Eight identical circles said "there is
    a list" and nothing about it. The rail is the ladder drawn as a control: one
@@ -1121,6 +1161,8 @@ body:has(#appUpdate:not([hidden])){ padding-bottom: calc(136px + env(safe-area-i
      screen tightens it rather than letting it crowd the rail. */
   .rank-progress{ margin-top: 10px; padding: var(--space-2) var(--space-3); }
   .rank-progress-top{ margin-bottom: 6px; }
+  .rank-milestone{ margin-top: 10px; padding: var(--space-2) var(--space-3); }
+  .rank-milestone-row{ margin-top: 6px; padding-top: 6px; }
   .rank-next{ margin-top: 8px; padding-top: 8px; gap: 8px; }
   .rank-next-medal img{ width: 24px; height: 24px; }
 }
@@ -8231,6 +8273,8 @@ header{
      gives way first. */
   .rank-progress{ margin-top: 6px; padding: 6px 10px; }
   .rank-progress-top{ margin-bottom: 4px; }
+  .rank-milestone{ margin-top: 6px; padding: 6px 10px; }
+  .rank-milestone-row{ margin-top: 4px; padding-top: 4px; }
   .rank-bar{ height: 3px; }
   /* Landscape here is already the tightest tier LOOP supports for this
      screen — medal down to 84px, title to 19px. The NEXT row is the one
@@ -17962,6 +18006,22 @@ const LOOP_UPDATES = [
       'Each rank now has its own atmosphere, richer the higher you climb',
       'Your current rank shows the next rank\'s emblem, level and how far you have to go',
       'The rank rail now reads as one connected path instead of separate marks'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v10-30',
+    version: 'LOOP 10.30',
+    title: 'Rank, Centred',
+    date: '2026-09-29',
+    swVersion: 'loop-v207',
+    summary: 'The Rank stage is now one centred stack for every rank, with lighting that carries all the way down to the rail.',
+    newFeatures: [],
+    improvements: [
+      'Every rank now sits at the same height, so swiping no longer makes the emblem jump',
+      'Ranks you have earned or not yet reached show their level in a framed module instead of a loose line of text',
+      'The light under each emblem now fades out smoothly instead of ending in a hard edge'
     ],
     bugFixes: [],
     changes: []
@@ -31875,8 +31935,17 @@ function rankCardHtml(r, i, p){
         : '<div class="rank-progress-final">Final rank</div>') +
       '</div>';
   } else {
-    footer = '<div class="rank-note">' +
-      (state === 'achieved' ? 'Reached at Level ' + r.min : 'Begins at Level ' + r.min) + '</div>';
+    /* D113.2 — the same framed module as the athlete's own rank, in its quieter
+       form: the one fact this rank has (where it starts) and its truthful
+       distance from the athlete (r.min and p.level, nothing else). */
+    const away = Math.max(1, r.min - p.level);
+    footer = '<div class="rank-milestone">' +
+      '<div class="rank-milestone-top">' + (state === 'achieved' ? 'Reached at Level ' + r.min : 'Begins at Level ' + r.min) + '</div>' +
+      '<div class="rank-milestone-row">' +
+        (state === 'achieved'
+          ? '<span class="rank-milestone-lbl">STATUS</span><span class="rank-milestone-val">Earned</span>'
+          : '<span class="rank-milestone-lbl">TO UNLOCK</span><span class="rank-milestone-val">' + away + (away === 1 ? ' level away' : ' levels away') + '</span>') +
+      '</div></div>';
   }
   const stateLabel = state === 'current' ? 'CURRENT RANK' : state === 'achieved' ? 'ACHIEVED' : 'LOCKED';
   const aria = r.name + ', rank ' + (i + 1) + ' of ' + RANKS.length + ', ' +
