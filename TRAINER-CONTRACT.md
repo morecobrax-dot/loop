@@ -15705,3 +15705,170 @@ none of the audited surfaces needed a change.
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
 new persistent key — browsing state (`rankShowcaseIndex`, `_rankCar`) was
 already, and remains, in-memory only. verify 10,774/0, five audits green.
+
+## §151 — EVERY RANK IS ITS OWN WORLD (D113.1 · LOOP 10.29 · loop-v206)
+
+Requested as a full visual redesign of the Rank screen ("premium game-like
+progression"), on top of D113's own already-narrow scope. The owner reviewed
+D113 (10.28) and found it still read as "the same screen" — correct: D113
+added a halo, a caption word and a percentage, all real, none of them
+visually loud enough on their own to change the screen's overall impression.
+D113.1 is the redesign pass D113 deliberately deferred: the protected swipe
+engine, arrival ceremony and actual/viewed separation are untouched, but the
+STAGE around them — the environment, the level module, the rail, the
+secondary action — is visibly, materially different.
+
+### What changed
+
+**A richer, per-rank environment.** `paintRankAtmosphere` (D30.5/D113, its
+crossfade logic in `rankAtmosphereAt` untouched) now paints two more pools
+from the same `RANK_VISUALS` row it already reads: `--rk-field`, a broad
+soft glow centred on the emblem's own height (D113's atmosphere only lit the
+top and bottom edges, leaving the middle of the screen empty — the owner's
+central complaint), and `--rk-ring`, a faint concentric depth structure at
+the same centre. Both ride the same floor/ceiling curve as the existing
+three pools — richer at LEGEND, still present but restrained at ROOKIE — and
+both are still painted by the SAME two full-bleed layers that already
+crossfade smoothly during a drag, so the environment now visibly changes as
+you swipe, with no new JS and no new per-frame cost.
+
+**A ground-light under the emblem.** `rankHaloStyle` (D113) gained one more
+static token, `--rk-floor`, a thin elliptical glow beneath the emblem in the
+rank's own gem colour — so the emblem reads as standing on something, not
+floating in empty space. An arrival "breathe" pulse on this halo was tried
+and deliberately dropped: Contract 199 already holds, permanently, that
+nothing under `.rank-medal-wrap` animates via CSS outside the JS-driven
+ceremony (`rankArrive`'s own cancellable `Element.animate` calls) — a
+`@keyframes` on the halo would have been a second, uncoordinated animation
+system, and the existing protection caught it immediately. The halo stays
+static; the emblem's own JS-driven sheen (D96) is unchanged.
+
+**A level module that names the destination.** `rankCardHtml`'s current-rank
+footer restructured the old single "N% to NAME" line into two named stats
+(LEVEL, the real percentage) plus a NEW row: the next rank's own small
+emblem (`rankMedalSvg`, the same approved renderer, no halo), its name, its
+starting level, and how many whole levels stand between them
+(`next.min - p.level`, a second truthful reading of the same real numbers,
+never a second engine). The final, open-ended rank (LEGEND) still says
+"Final rank" and gets no NEXT row — no fabricated destination.
+
+**The rail as a connected path.** `rankRailHtml` gained one addition per
+segment — a small node, achieved/current/locked coloured exactly as the
+existing bar already was — so the rail reads as a path with stops on it
+rather than eight short disconnected lines. The gem "thumb" (the VIEWING
+indicator, already a separate element from the YOU node) was restyled
+larger and given a short stem down to the line, reading more clearly as the
+one thing riding above a fixed path. Both remain exactly what they were:
+YOU marks the athlete's real rank (D113's own `_rankCar.mine`), the gem
+marks wherever the ladder is being browsed — never the same field, never
+confused.
+
+**A finished secondary action.** `.rank-profile-link` — a plain text link
+since D26 — is now a quiet framed row with a chevron, the same low-emphasis
+surface language the level module and the environment now share, so the
+screen ends with a deliberate close instead of an appended line.
+
+**The stage reaches the header.** `.rank-sheet .workout-topbar` is made
+transparent, scoped to this one overlay only (every other sheet's shared
+top bar is untouched) — the atmosphere already paints behind it at the same
+z-index order, so the environment now visibly continues under the back
+button and title instead of stopping at a hard, opaque bar.
+
+**A real bug found and fixed along the way.** The rail's VIEWING/YOU caption
+and the "My rank" return pill can occupy the same horizontal space at
+narrow widths — a genuine collision, not present in D113's own testing
+because its own caption text was shorter before D113.1 lengthened nothing
+new here, but the pill and caption were never checked together at 320-375px.
+Fixed with a `:has()`-gated margin on whichever side the pill occupies,
+mirrored for both the default (right) and reversed (left, when the
+athlete's own rank lies to the left of the viewed one) cases.
+
+### What did not change
+
+Everything Contract 228 already pinned for D113 remains pinned: `RANK_MOTION`,
+`_rankCar`, `rankSettleTarget`, `rankSpringAt` (accessed via `rankAnimateTo`),
+`rankRubber`, `rankRender`, `rankAtmosphereAt`, `rankNearestChanged`,
+`rankLanded`, `RANK_ARRIVE`, `rankArrive`, `rankGoTo`, `rankGo`,
+`rankUpdateReturn`, `rankReturnToMine`, `positionRankTrack`,
+`openRankShowcase`, `closeRankShowcase`, `wireRankCarousel`, `rankIndexOf`,
+`rankLevelRangeLabel`, `calculateRankFromLevel`, `rankMedalSvg`, the D106
+tutorial's own separate ladder renderer, `RANKS`, `RANK_VISUALS`,
+`RANK_EMBLEM_FILE` — all confirmed byte-identical to the pre-D113.1 build by
+a committed baseline (`rank-d113-baseline.json`, extracted once from the
+D113-shipped commit). `rankRailHtml` is the one function on that list
+D113.1 legitimately touches — one line, the new node span — restated in
+place with its reason. No rank calculation, threshold, XP formula or level
+curve was touched.
+
+### Evidence
+
+**Tests.** Contract 229 — "THE STAGE, NOT THE ENGINE" (**112 checks**):
+`--rk-floor`'s own floor/ceiling curve and its genuine (not flat) variation
+between ROOKIE and LEGEND; `--rk-field`/`--rk-ring` proven painted with the
+exact formula, for every rank, by intercepting `paintRankAtmosphere`'s own
+`setProperty` calls; the level module's LEVEL/percentage/NEXT truthfulness
+(a deliberately non-round fixture so a rounding drift cannot hide), the
+next rank's real name/level/distance, achieved and locked panels proven to
+still carry no module at all, the final rank proven to carry no NEXT row
+and no fabricated destination, and — across the whole ladder at once —
+exactly one CURRENT panel; the rail's node on all eight segments at every
+rank, the YOU tag still exactly one segment; the caption/pill margin fix
+present for both sides in source; the profile link's handler byte-identical;
+the halo's blast radius (all nine OTHER `rankMedalSvg` call sites still
+carry no halo/floor/field/ring); 28 protected functions and 6 protected
+constants pinned byte-identical against the committed pre-D113.1 baseline;
+18 browsing moves proven to leave `getCurrentProgression()`, `_rankCar.mine`
+and `workoutLog` untouched, `LOOPStore.set` proven never called across a
+full open/browse/close cycle; both clamps re-asserted; the halo's absence of
+any CSS `animation` property (Contract 199's own rule, restated as a
+positive assertion here too); the D106 tutorial proven untouched by source
+and by pin. Two pre-existing contracts needed restating in place, both for
+the SAME reason (D113.1 legitimately changed what they were checking, not a
+regression): Contract 199's "each rank's page carries its own emblem" now
+also permits the current rank's truthful NEXT preview of one other file (the
+next rank's, never any other); Contract 228's own percentage fixture, which
+asserted the OLD single-span "N% to NAME" text, now asserts the NEW
+two-stat-plus-NEXT-row markup carries the identical rounded number. verify
+10,887/0 (up from 10,774 — Contract 229's 112 new checks, 2 repointed,
+count otherwise additive). Five standing audits green.
+
+**Mutation: 11 of 11 killed, all by Contract 229 alone.** Dropping the
+emblem floor; silently dropping `--rk-field`; silently dropping `--rk-ring`;
+the NEXT row naming the current rank instead of the next one; an off-by-one
+in "levels to go"; a fabricated NEXT row on the final, open-ended rank; the
+rail losing its node; a CSS animation added to the halo (caught the same way
+Contract 199's own existing rule would have caught it — proving the two
+protections agree); the halo's alpha flattened to a constant instead of
+rising with glow (caught only once the test was strengthened past a
+same-or-increasing check to a genuine-variation one — the same non-strict-
+inequality trap D112's memory already named); the caption/pill fix losing
+its left-side mirror; the NEXT level line losing its no-wrap guard.
+
+**Mobile QA.** Real headless Edge, real single-finger touch drags, at all
+seven required widths — 320, 360, 375, 390, 393, 414, 430 — every rank,
+against a seeded 60-workout history: no horizontal overflow, the approved
+emblem loading, no title/range/state clipping, the level module and its
+NEXT row fully on-screen and never wrapping into the rail, all eight rail
+nodes present, Profile and Info controls on-screen and ≥24px, no dead zone,
+the VIEWING/pill overlap specifically checked and clear (after a fixture-
+timing fix: the pill's own CSS fade-out transition needs ~260ms to settle
+before judging overlap — the collision itself was fixed by reverting an
+attempted margin-transition, which traded a fade-OUT overlap for a
+fade-IN one; the simpler instant-snap margin, already correct for the
+static case, was kept): 350/350. A separate real-gesture pass at 390×844:
+one clean drag committed exactly one rank each direction, a vertical drag
+committed nothing: 4/4. Total 416/416 local, 416/416 live (see below).
+Eight full-page screenshots, one per rank, visually confirm materially
+different environments end to end — silver/graphite through violet, gold,
+ice-blue and LEGEND's prismatic two-tone — not a palette swap on one
+gradient.
+
+**Performance.** `--rk-field`/`--rk-ring` are painted by the exact same two
+calls `rankAtmosphereAt` already made (source-counted: 3 occurrences total,
+matching the pre-D113.1 build precisely — the function's own declaration
+plus its two call sites, no new call site added). `--rk-floor` is read once
+per panel, at build time, inside the already-static `rankHaloStyle`. Neither
+touches `rankRender`'s per-frame loop.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
+new persistent key. verify 10,887/0, five audits green.

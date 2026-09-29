@@ -36192,7 +36192,16 @@ async function testRankEmblemsD96(){
     T('every other size is the bare image, exactly as the nine call sites already lay it out', /^<img class="rank-medal" src="rank-5\.png" width="28" height="28" alt="" decoding="async">$/.test(small), small);
     T('an unknown rank falls back to Rank 1, never to a broken image', /src="rank-1\.png"/.test(ctx.rankMedalSvg('NOT_A_RANK', 40)));
     T('there is still exactly one renderer, and the nine call sites still use it', (src.match(/function rankMedalSvg\(/g) || []).length === 1 && (src.match(/rankMedalSvg\(/g) || []).length >= 10);
-    T('each rank’s page carries its own emblem, in order', ctx.RANKS.every((r, i) => { const p = ctx.getCurrentProgression(); const h = ctx.rankCardHtml(r, i, p); return h.indexOf('src="rank-' + (i + 1) + '.png"') !== -1 && (h.match(/rank-\d\.png/g) || []).every(f => f === 'rank-' + (i + 1) + '.png'); }));
+    /* D113.1 — restated: the current rank's own panel now also carries a
+       small, truthful preview of the NEXT rank's own file (never any other
+       rank's) — the "one file per panel" rule Contract 199 first wrote here
+       now reads "the panel's own file, plus at most the one truthful next
+       file", not "any file at all". */
+    T('each rank’s page carries its own emblem, in order — the current rank’s panel may also carry the next rank’s own file as a truthful preview, never any other', ctx.RANKS.every((r, i) => {
+      const p = ctx.getCurrentProgression(); const h = ctx.rankCardHtml(r, i, p);
+      const own = 'rank-' + (i + 1) + '.png', next = ctx.RANKS[i + 1] ? 'rank-' + (i + 2) + '.png' : null;
+      return h.indexOf('src="' + own + '"') !== -1 && (h.match(/rank-\d\.png/g) || []).every(f => f === own || f === next);
+    }));
     T('locked, achieved and current keep the states they had: the same art, dimmed only by the existing restrained filters', /\.rank-locked \.rank-medal-wrap\{ filter: saturate\(0\.62\) brightness\(0\.78\); \}/.test(css) &&
       /\.rank-achieved \.rank-medal-wrap\{ filter: saturate\(0\.95\) brightness\(0\.96\); \}/.test(css) && /\.rank-current \.rank-medal-wrap\{ filter: brightness\(1\.04\); \}/.test(css));
     const pr = (lv) => { const c = ctx.getCurrentProgression; return lv; };
@@ -45669,7 +45678,12 @@ async function testRankExperience2D113(){
     const html = ctx.rankCardHtml(ctx.RANKS[2], 2, prog);
     const frac = ((12 - 10) + 33 / 100) / 5;
     const pct = Math.round(frac * 100);
-    T('the current panel states "' + pct + '% to COMPETITOR" — the exact rounded fraction the bar already draws, not the raw unrounded one (' + (frac * 100) + ')', html.indexOf('>' + pct + '% to COMPETITOR</span>') !== -1, html);
+    /* D113.1 — restated: the combined "N% to NAME" span became two named
+       stats (LEVEL, the percentage) plus a separate NEXT row naming the same
+       rank. Contract 229 owns the deeper truthfulness proofs for that new
+       module; this assertion is kept only so this contract's own fixture
+       still exercises the real markup rather than a stale pattern. */
+    T('the current panel states the exact rounded fraction the bar already draws, not the raw unrounded one (' + (frac * 100) + '), and names the real next rank', html.indexOf('<span class="rank-progress-pct">' + pct + '%</span>') !== -1 && html.indexOf('NEXT · COMPETITOR') !== -1, html);
     T('the bar\'s own width uses the identical rounded number, not a second computation', html.indexOf('width:' + pct + '%') !== -1);
     T('an achieved rank states where it was reached — no bar, no percentage, no invented number', (() => {
       const h = ctx.rankCardHtml(ctx.RANKS[0], 0, prog);
@@ -45820,6 +45834,203 @@ async function testRankExperience2D113(){
     T('RANK_EMBLEM_FILE still names exactly the eight approved PNGs, in rank order', NAMES.every((n, i) => ctx.RANK_EMBLEM_FILE[n] === 'rank-' + (i + 1) + '.png'));
     T('RANK_VISUALS carries exactly the eight approved ranks, no rank invented or dropped', Object.keys(ctx.RANK_VISUALS).length === 8 && NAMES.every(n => ctx.RANK_VISUALS[n]));
     T('the medal renderer draws only the approved file, byte for byte, at every size D113 touches', ctx.rankMedalSvg('LEGEND', 208, { showcase: true }).indexOf('src="rank-8.png"') !== -1);
+  });
+}
+
+/* =========================================================
+   CONTRACT 229 — THE STAGE, NOT THE ENGINE  (D113.1)
+   ---------------------------------------------------------
+   D113.1 redesigned the rank showcase's PRESENTATION — a
+   richer per-rank environment, a level module that names the
+   next rank, a rail redesigned as a connected path, a boxed
+   profile action — while the engine underneath it (the swipe
+   physics, the arrival ceremony, the actual/viewed separation,
+   keyboard nav, Reduce Motion, and every progression number)
+   is provably the same code Contract 228 already proved. This
+   contract proves the new surface is correct and truthful, and
+   restates — by PIN, not by re-deriving — that nothing D113.1
+   touches ever reaches the protected engine underneath it.
+   ========================================================= */
+async function testRankStageD1131(){
+  section('CONTRACT 229 — the stage, not the engine (D113.1)');
+  const fs = require('fs'), path = require('path');
+  /* LF: the working copy is CRLF (this project's own convention); the
+     pre-D113.1 baseline (rank-d113-baseline.json, committed beside this
+     suite) was extracted from the LF git blob at the D113 commit, once,
+     the same way pins.js baselines already work elsewhere in this repo. */
+  const src = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const BASELINE = JSON.parse(fs.readFileSync(path.join(__dirname, 'rank-d113-baseline.json'), 'utf8'));
+  const app = await H.loadAppBooted({ dataSchemaVersion: '1' });
+  const ctx = app.ctx;
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const NAMES = ['ROOKIE','TRAINEE','ATHLETE','COMPETITOR','ELITE','VETERAN','MASTER','LEGEND'];
+  /* A const object/array literal, by matching brackets rather than by
+     guessing where its own closing line happens to sit — RANK_ARRIVE and
+     _rankCar both close on the SAME line they end their last property on,
+     which a fixed "\n};" anchor would run straight past. */
+  const constSrc = (text, name) => {
+    const open = text.indexOf('const ' + name + ' = ');
+    if(open === -1) return '';
+    let i = open, depth = 0, started = false;
+    for(; i < text.length; i++){
+      const c = text[i];
+      if(c === '{' || c === '['){ depth++; started = true; }
+      else if(c === '}' || c === ']'){ depth--; if(started && depth === 0) break; }
+    }
+    return text.slice(open, i + 2);   // through the closing bracket and ';'
+  };
+
+  sub('the NEXT row\'s level line never wraps to a second line and clips against the rail below it (found live, at 320x568)');
+  await guard('no-wrap-clip', () => {
+    T('.rank-next-lvl stays on one line and ellipses rather than wrapping', /\.rank-next-lvl\{[^}]*white-space: nowrap;[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;/.test(src));
+  });
+
+  sub('rankHaloStyle: the same halo D113 pinned, now with one more truthful token — a floor under the emblem, the rank\'s own gem tone');
+  await guard('floor-token', () => {
+    const styles = NAMES.map(n => ctx.rankHaloStyle(ctx.RANKS[NAMES.indexOf(n)]));
+    T('every rank\'s style carries --rk-floor', styles.every(s => /--rk-floor:rgba\(/.test(s)));
+    const alphaOf = (s, key) => { const m = new RegExp(key + ':rgba\\([^,]+,[^,]+,[^,]+,([\\d.]+)\\)').exec(s); return m ? parseFloat(m[1]) : null; };
+    T('the floor rises with the rank\'s own glow, exactly as the halo does — ROOKIE lowest, LEGEND highest', NAMES.every((n, i) => i === 0 || alphaOf(styles[i], '--rk-floor') >= alphaOf(styles[i - 1], '--rk-floor') - 1e-9));
+    T('and it genuinely varies — LEGEND\'s floor is strictly brighter than ROOKIE\'s, not a flat constant', alphaOf(styles[7], '--rk-floor') > alphaOf(styles[0], '--rk-floor') + 0.01);
+    T('the floor is always that rank\'s own gem[0] — the same colour the halo itself uses, never a new one', NAMES.every((n, i) => { const hex = ctx.RANK_VISUALS[n].gem[0]; const rgb = [1,3,5].map(k => parseInt(hex.substr(k,2),16)).join(','); return styles[i].indexOf('--rk-floor:rgba(' + rgb + ',') !== -1; }));
+    T('D113\'s own halo/two-tone rule is untouched — --rk-halo and --rk-halo2 are byte-identical in shape to 10.28', styles.every(s => /--rk-halo:rgba\([^)]+\);--rk-halo2:(rgba\([^)]+\)|transparent);--rk-floor:/.test(s)));
+  });
+
+  sub('paintRankAtmosphere: the same three pools D30.5/D113 pinned, now with two more read by the rewritten background — never a fourth colour');
+  await guard('atmosphere-tokens', () => {
+    const calls = [];
+    const el = { style: { setProperty(k, v){ calls.push([k, v]); } } };
+    NAMES.forEach((n, i) => { calls.length = 0; ctx.paintRankAtmosphere(i, el);
+      const keys = calls.map(c => c[0]);
+      T(n + ': still paints --rk-gem, --rk-metal and --rk-deep (D30.5/D113, untouched)', ['--rk-gem','--rk-metal','--rk-deep'].every(k => keys.indexOf(k) !== -1));
+      T(n + ': now also paints --rk-field and --rk-ring, from the SAME RANK_VISUALS row', keys.indexOf('--rk-field') !== -1 && keys.indexOf('--rk-ring') !== -1);
+      const v = ctx.RANK_VISUALS[n], g = v.glow || 0;
+      const get = k => (calls.find(c => c[0] === k) || [])[1];
+      T(n + ': --rk-field is gem[0] at the field\'s own floor/ceiling curve', get('--rk-field') === ctx.hexA(v.gem[0], 0.05 + g * 0.11));
+      T(n + ': --rk-ring is metal[0] at the ring\'s own floor/ceiling curve', get('--rk-ring') === ctx.hexA(v.metal[0], 0.05 + g * 0.13));
+    });
+  });
+
+  sub('the level module: the same truthful percentage D113 proved, now naming the next rank truthfully beside it');
+  await guard('next-module', () => {
+    const p = (level, currentXP, xpForNext) => ({ rank: ctx.calculateRankFromLevel(level), level, currentXP, xpForNext, lifetimeXP: 0 });
+    const prog = p(12, 33, 100);
+    const html = ctx.rankCardHtml(ctx.RANKS[2], 2, prog);
+    const pct = Math.round((((12 - 10) + 33 / 100) / 5) * 100);
+    T('LEVEL and the percentage are still the exact rounded fraction, just two named stats instead of one line', html.indexOf('<span class="rank-progress-lvl">LEVEL 12</span>') !== -1 && html.indexOf('<span class="rank-progress-pct">' + pct + '%</span>') !== -1);
+    T('the bar width is still the identical rounded number', html.indexOf('width:' + pct + '%') !== -1);
+    T('the NEXT row names the real next rank, its real starting level, and how many whole levels stand between them — 3 levels short of Level 15 is 3, not a guess', html.indexOf('NEXT · COMPETITOR') !== -1 && html.indexOf('Level 15') !== -1 && html.indexOf('3 levels to go') !== -1, html);
+    T('the next rank\'s own small emblem is the SAME renderer, the SAME approved file, no showcase halo on it', html.indexOf(ctx.rankMedalSvg('COMPETITOR', 32)) !== -1 && html.indexOf('rank-4.png') !== -1);
+    T('one level short says "1 level to go", not "1 levels to go"', (() => {
+      const h2 = ctx.rankCardHtml(ctx.RANKS[2], 2, p(14, 0, 100));
+      return h2.indexOf('1 level to go') !== -1 && h2.indexOf('1 levels to go') === -1;
+    })());
+    T('the final, open-ended rank still says "Final rank" and nothing else — no NEXT row, no fabricated destination', (() => {
+      const h3 = ctx.rankCardHtml(ctx.RANKS[7], 7, p(55, 10, 200));
+      return h3.indexOf('Final rank') !== -1 && h3.indexOf('rank-next') === -1 && h3.indexOf('NEXT') === -1;
+    })());
+    T('achieved and locked panels are unchanged — a plain truthful note, no module, no bar, no percentage, no NEXT row', (() => {
+      const achieved = ctx.rankCardHtml(ctx.RANKS[0], 0, prog), locked = ctx.rankCardHtml(ctx.RANKS[4], 4, prog);
+      return achieved.indexOf('Reached at Level 1') !== -1 && !/rank-progress|rank-next|%/.test(achieved) &&
+        locked.indexOf('Begins at Level 20') !== -1 && !/rank-progress|rank-next|%/.test(locked);
+    })());
+  });
+
+  sub('the rail: one node per rank on a path, the YOU node and the VIEWING gem still two different, truthful markers');
+  await guard('rail-nodes', () => {
+    NAMES.forEach((n, i) => {
+      const html = ctx.rankRailHtml({ rank: n });
+      const segs = html.match(/<button[^>]*class="rank-rail-seg is-\w+"[\s\S]*?<\/button>/g) || [];
+      T(n + ': all eight segments carry a node, in addition to the existing bar', segs.length === 8 && segs.every(s => s.indexOf('rank-rail-node') !== -1 && s.indexOf('rank-rail-bar') !== -1));
+      const youSeg = segs.find(s => s.indexOf('is-current') !== -1);
+      T(n + ': exactly the athlete\'s real rank carries the YOU tag, still only one', youSeg && youSeg.indexOf('rank-rail-you') !== -1 && (html.match(/rank-rail-you/g) || []).length === 1);
+    });
+    T('the gem thumb (the VIEWING marker) is still the one moving element — same id, same anchor markup shape', /<span class="rank-rail-thumb" id="rankRailThumb" aria-hidden="true"><\/span>$/.test(ctx.rankRailHtml({ rank: 'ROOKIE' })));
+  });
+
+  sub('the caption/pill overlap fix reserves room on whichever side the pill actually took — both directions present in source');
+  await guard('caption-fix', () => {
+    T('a rule reserves room when the pill sits on the right (the default side)', src.indexOf(".rank-rail-head:has(.rank-return.is-shown:not(.is-left)) .rank-rail-pos{ margin-right: 96px; }") !== -1);
+    T('and a mirrored rule when the pill has moved to the left', src.indexOf(".rank-rail-head:has(.rank-return.is-shown.is-left) .rank-rail-pos{ margin-left: 96px; }") !== -1);
+  });
+
+  sub('the profile action still opens the same screen, and the halo still reaches no other medal on the page');
+  await guard('profile-and-blast-radius', () => {
+    T('the profile button\'s handler is byte-identical: close the showcase, then open the profile', src.indexOf('onclick="closeRankShowcase(); openProfile()"') !== -1);
+    const other = ['soc-idn-medal','soc-fr-medal','profile-medal','pl-medal','obr-emb','levelup-medal'];
+    other.forEach(cls => {
+      const i = src.indexOf('class="' + cls);
+      const region = i === -1 ? '' : src.slice(Math.max(0, i - 40), i + 200);
+      T('the "' + cls + '" medal call still carries no halo, no floor, no D113.1 stage wrapper', !/rankHaloStyle|rk-floor|rk-field|rk-ring/.test(region));
+    });
+  });
+
+  sub('nothing protected moved: the gesture engine, the ceremony, and the actual/viewed split are pinned against the pre-D113.1 build');
+  await guard('protected-pins', () => {
+    const CONSTS = ['RANK_MOTION', '_rankCar', 'RANK_ARRIVE'];
+    const PROTECT = ['RANK_MOTION','_rankCar','rankNow','rankReducedMotion','rankRubber','rankSettleTarget',
+      'rankStep','rankRender','rankAtmosphereAt','rankNearestChanged','rankRailHtml','rankLanded','RANK_ARRIVE',
+      'rankArrive','rankCancel','rankStopAnimation','rankAnimateTo','rankGoTo','rankGo','rankUpdateReturn',
+      'rankReturnToMine','positionRankTrack','openRankShowcase','closeRankShowcase','wireRankCarousel',
+      'rankIndexOf','rankLevelRangeLabel','calculateRankFromLevel','onboardingRankNow','onboardingRankLadderHtml'];
+    PROTECT.forEach(name => {
+      const extract = CONSTS.indexOf(name) !== -1 ? constSrc : fnSrc;
+      const now = extract(src, name), was = BASELINE[name];
+      if(name === 'rankRailHtml'){
+        /* This is the one function on the list D113.1 DOES touch — one line
+           adding the node span. Every other line must still match. */
+        const stripNode = t => t.replace("      '<span class=\"rank-rail-node\" aria-hidden=\"true\"></span>' +\n", '');
+        T('rankRailHtml: the node span is the ONLY change — everything else byte-identical to 10.28', stripNode(now) === was, [now, was]);
+        return;
+      }
+      T(name + ' is byte-identical to the pre-D113.1 build', now === was && now !== '', name);
+    });
+    T('RANKS, RANK_VISUALS and RANK_EMBLEM_FILE are byte-identical to the pre-D113.1 build',
+      constSrc(src, 'RANKS') === BASELINE.RANKS && constSrc(src, 'RANKS') !== '' &&
+      constSrc(src, 'RANK_VISUALS') === BASELINE.RANK_VISUALS && constSrc(src, 'RANK_VISUALS') !== '' &&
+      constSrc(src, 'RANK_EMBLEM_FILE') === BASELINE.RANK_EMBLEM_FILE && constSrc(src, 'RANK_EMBLEM_FILE') !== '' &&
+      NAMES.every((n, i) => ctx.RANK_EMBLEM_FILE[n] === 'rank-' + (i + 1) + '.png'));
+    T('rankMedalSvg itself is untouched — no halo, no floor, no ring logic inside the approved renderer', fnSrc(src, 'rankMedalSvg') === BASELINE.rankMedalSvg && fnSrc(src, 'rankMedalSvg') !== '');
+  });
+
+  sub('browsing still cannot move the athlete\'s real rank, level, XP or history — the new stage reads the same state, nothing more');
+  await guard('viewed-vs-actual', () => {
+    const before = ctx.getCurrentProgression(), mineBefore = ctx._rankCar.mine, logBefore = JSON.stringify(ctx.workoutLog);
+    const realReduced = ctx.rankReducedMotion;
+    ctx.rankReducedMotion = () => true;
+    try{ [7, 3, 0, 5, 1, 7, 2, 6].forEach(i => ctx.rankGoTo(i)); } finally { ctx.rankReducedMotion = realReduced; }
+    T('the progression engine is unchanged after browsing every rank', JSON.stringify(before) === JSON.stringify(ctx.getCurrentProgression()));
+    T('_rankCar.mine never moved', ctx._rankCar.mine === mineBefore);
+    T('workoutLog is byte-identical', JSON.stringify(ctx.workoutLog) === logBefore);
+    T('no storage key, schema or migration changed', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1 && Object.keys(ctx.MIGRATIONS || {}).length === 0);
+    const realSet = ctx.LOOPStore.set; let calls = 0;
+    ctx.LOOPStore.set = async (...a) => { calls++; return realSet.apply(ctx.LOOPStore, a); };
+    const realReduced2 = ctx.rankReducedMotion; ctx.rankReducedMotion = () => true;
+    try{ ctx.openRankShowcase(); [3,6,1,4,0,7,2].forEach(i => ctx.rankGoTo(i)); ctx.closeRankShowcase(); }
+    finally{ ctx.rankReducedMotion = realReduced2; ctx.LOOPStore.set = realSet; }
+    T('LOOPStore.set was never called opening, browsing every rank, or closing the new stage', calls === 0, String(calls));
+  });
+
+  sub('performance: the new tokens are painted once per panel/layer build, never inside the per-frame render or the drag loop');
+  await guard('performance', () => {
+    T('rankHaloStyle still has no requestAnimationFrame, no listener, no per-frame call', !/requestAnimationFrame|addEventListener/.test(fnSrc(src, 'rankHaloStyle')));
+    /* 3 occurrences in the pre-D113.1 build: the function's own declaration
+       plus its two call sites inside rankAtmosphereAt. */
+    T('paintRankAtmosphere is still called from exactly the same two sites rankAtmosphereAt already had (D113.1 added no new call site)', (src.match(/paintRankAtmosphere\(/g) || []).length === 3);
+    /* An arrival "breathe" on the halo was tried and dropped: Contract 199
+       already holds, permanently, that nothing under rank-medal ever animates
+       outside the JS-driven ceremony (rankArrive's own Element.animate calls,
+       cancelled and sequenced together) — a CSS @keyframes on the halo would
+       have been a second, uncoordinated animation system. The halo stays
+       static, appearing and fading with the panel exactly as before. */
+    T('the halo carries no CSS animation of its own — Contract 199\'s "nothing under rank-medal animates outside the JS ceremony" rule still holds', !/@keyframes rankHaloBreathe/.test(src) && !/rank-medal-wrap[^{]*\{[^}]*animation/.test(src));
+  });
+
+  sub('the D106 tutorial ladder is still a separate renderer, untouched by any D113.1 class or token');
+  await guard('tutorial-untouched', () => {
+    const tut = fnSrc(src, 'onboardingRankLadderHtml');
+    T('onboardingRankLadderHtml never references the stage\'s new classes or tokens', !/rank-next|rank-progress|rk-floor|rk-field|rk-ring|rankHaloStyle/.test(tut));
+    T('and it is byte-identical to the pre-D113.1 build', tut === BASELINE.onboardingRankLadderHtml);
   });
 }
 
@@ -46012,6 +46223,7 @@ async function main(){
   await testRecoveryLayoutD111();
   await testRecoveryValidityD112();
   await testRankExperience2D113();
+  await testRankStageD1131();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
