@@ -23217,16 +23217,16 @@ async function testBrandMark(){
   sub('the opening screen is the same mark, briefly');
   T('the launch shows the mark, not the old wordmark and ring',
     /<div id="introOverlay" aria-hidden="true">\s*<div class="intro-stage">\s*<!-- LOOP-MARK-BEGIN --><svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="112" height="112" viewBox="192 192 640 640" class="intro-mark" aria-hidden="true" focusable="false">/.test(src));
-  T('it rises in a third of a second and never loops', (() => {
+  T('it rises in under a third of a second and never loops (D114: 0.96 -> 1 in 0.28s)', (() => {
     const rule = cssRule(css, '.intro-mark{');
     const m = rule.match(/animation: introMark ([\d.]+)s/);
-    return !!m && +m[1] <= 0.4 && !/infinite/.test(rule) && /@keyframes introMark\{\s*from\{ opacity: 0; transform: scale\(0\.92\); \}/.test(css);
+    return !!m && +m[1] <= 0.4 && !/infinite/.test(rule) && /@keyframes introMark\{\s*from\{ opacity: 0; transform: scale\(0\.96\); \}/.test(css);
   })());
-  T('and the app takes over as soon as it is ready: the hold is short, the failsafe unchanged',
-    /reduced \? 260 : 560\);/.test(src) && /introAppReady = true; introAnimationDone = true; maybeDismissIntro\(\); \}, 6000\);/.test(src) &&
-    /sessionStorage\.setItem\(INTRO_SESSION_KEY, '1'\)/.test(src));
-  T('reduced motion keeps the mark and drops the scale',
-    /@media \(prefers-reduced-motion: reduce\)\{\s*\.intro-mark\{ animation: introMarkFade 0\.18s ease both; \}/.test(css));
+  T('and the app takes over as soon as it is ready: no fixed hold, the failsafe unchanged (D114: the motion itself is the only wait, and no per-tab flag)',
+    !/reduced \? 260 : 560\);/.test(src) && /introAppReady = true; introMotionDone = true; maybeDismissIntro\(\); \}, 6000\);/.test(src) &&
+    !/INTRO_SESSION_KEY|loop_intro_shown/.test(src));
+  T('reduced motion keeps the mark and drops the scale (D114: the mark is simply there, the bloom is dropped)',
+    /@media \(prefers-reduced-motion: reduce\)\{\s*\.intro-mark\{ animation: none; opacity: 1; transform: none; \}/.test(css));
   T('the launch ground is the app\'s own, with the icon\'s faint bloom',
     /#introOverlay\{[\s\S]{0,200}rgba\(76,194,255,0\.07\)[\s\S]{0,60}var\(--bg\)/.test(css));
 
@@ -46227,6 +46227,235 @@ async function testRankStageD1132(){
   });
 }
 
+async function testStartupRevealD114(){
+  section('CONTRACT 231 — LOOP opens: a fast reveal over the real app (D114)');
+  const fs = require('fs'), path = require('path'), vm = require('vm'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const css = (raw.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
+  const script = stripComments(raw);
+  const js = stripComments([...raw.matchAll(/<script>([\s\S]*?)<\/script>/g)].reduce((a, b) => (b[1].length > a[1].length ? b : a))[1]);
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+
+  /* The controller exactly as it ships: from its header to its one top-level call. */
+  const cA = raw.indexOf('/* ---------- LAUNCH INTRO CONTROLLER');
+  const cB = raw.indexOf('\ninitIntro();\n', cA);
+  const controller = cA !== -1 && cB !== -1 ? raw.slice(cA, cB + '\ninitIntro();\n'.length) : '';
+  const ctrl = stripComments(controller);
+  const cssBlock = (() => { const a = css.indexOf('LAUNCH  (Phase D, D114)'), b = css.indexOf('.header-actions{', a); return a !== -1 && b !== -1 ? css.slice(a, b) : ''; })();
+  const keyframes = name => { const m = new RegExp('@keyframes ' + name + '\\{([\\s\\S]*?)\\n\\}').exec(cssBlock); return m ? m[1] : ''; };
+  const secs = (rule, name) => { const m = new RegExp('animation: ' + name + ' ([\\d.]+)s').exec(rule); return m ? +m[1] : NaN; };
+
+  /* A tiny world for the controller: a manual clock, a fake overlay whose
+     animations the test finishes by hand, and trip-wires on everything the
+     launch must never touch (routing, storage, sound, haptics). */
+  const flush = () => new Promise(r => setImmediate(r));
+  const deferred = () => { let res; const p = new Promise(r => { res = r; }); return { p, res }; };
+  const storageTrap = (log, name) => new Proxy({}, { get(o, k){ log.touched.push(name + '.' + String(k)); return () => null; } });
+  function world(opts){
+    opts = opts || {};
+    const log = { animate: [], removed: 0, ids: [], touched: [], getAnimationsCalls: 0 };
+    let now = 0; const timers = [];
+    const setTimeoutFake = (fn, ms) => { timers.push({ at: now + (ms || 0), fn, done: false }); return timers.length; };
+    const markAnim = deferred(), bloomAnim = deferred(), lift = deferred();
+    const mark = { getAnimations(){ log.getAnimationsCalls++; return [{ finished: markAnim.p }]; },
+      animate(kf, o){ log.animate.push({ who: 'mark', kf, o, at: now }); return { finished: new Promise(() => {}) }; } };
+    const bloom = { getAnimations(){ log.getAnimationsCalls++; return [{ finished: bloomAnim.p }]; } };
+    const overlay = { dataset: {}, style: {}, parentNode: {},
+      remove(){ log.removed++; overlay.parentNode = null; },
+      querySelectorAll(sel){ return /intro-mark/.test(sel) && /intro-bloom/.test(sel) ? [mark, bloom] : []; },
+      querySelector(sel){ return sel === '.intro-mark' ? mark : null; },
+      animate(kf, o){ log.animate.push({ who: 'overlay', kf, o, at: now }); if(opts.noWaapi) throw new TypeError('animate is not a function'); return { finished: lift.p }; } };
+    const trip = name => () => { log.touched.push(name); };
+    const sandbox = {
+      document: { getElementById(id){ log.ids.push(id); return id === 'introOverlay' && !opts.noOverlay ? overlay : null; } },
+      window: { matchMedia: q => ({ matches: !!opts.reduced && /prefers-reduced-motion: reduce/.test(q) }) },
+      setTimeout: setTimeoutFake, Promise, console: { log(){}, warn(){}, error(){} },
+      sessionStorage: storageTrap(log, 'sessionStorage'), localStorage: storageTrap(log, 'localStorage'),
+      LOOPStore: storageTrap(log, 'LOOPStore'), indexedDB: storageTrap(log, 'indexedDB'),
+      navigator: { vibrate: trip('vibrate') }, Audio: function(){ log.touched.push('Audio'); },
+      showMainApp: trip('showMainApp'), showOnboarding: trip('showOnboarding'), switchTab: trip('switchTab'),
+      renderAll: trip('renderAll'), startOnboarding: trip('startOnboarding'), closeOnboarding: trip('closeOnboarding'),
+      fetch: trip('fetch'), location: { reload: trip('reload') }
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(controller + '\n;globalThis.__phase = () => introPhase;', sandbox);
+    const advance = async ms => {
+      const end = now + ms;
+      for(;;){
+        const due = timers.filter(x => !x.done && x.at <= end).sort((a, b) => a.at - b.at)[0];
+        if(!due) break;
+        now = due.at; due.done = true; due.fn(); await flush();
+      }
+      now = end; await flush();
+    };
+    return { log, sb: sandbox, overlay, markAnim, bloomAnim, lift, advance, phase: () => sandbox.__phase(),
+      motion: async () => { markAnim.res(); bloomAnim.res(); await flush(); await flush(); } };
+  }
+  const props = kf => [].concat.apply([], kf.map(f => Object.keys(f)));
+  const cheap = kf => props(kf).every(p => p === 'opacity' || p === 'transform');
+
+  sub('1 — the layer exists only during startup, over an app that is already being built');
+  T('the launch overlay is written into the document once, as the first thing the body paints, before #mainApp and #planOnboard',
+    (() => { const o = raw.indexOf('<div id="introOverlay" aria-hidden="true">'), b = raw.indexOf('<body>');
+      return o > b && o < raw.indexOf('<div id="planOnboard"') && o < raw.indexOf('<div id="mainApp"') && raw.split('id="introOverlay"').length === 2 &&
+        (raw.match(/id="intro[^"]*"/g) || []).length === 1 && (raw.match(/class="intro-(?:stage|mark|bloom)"/g) || []).length === 3 &&
+        raw.split('<!-- LOOP-MARK-BEGIN -->').length === 2; })());
+  T('the app is not held for it: boot() is started in the same turn as initIntro(), never after it, never awaited',
+    /\ninitIntro\(\);\n[\s\S]{0,200}\nboot\(\)\.catch\(/.test(raw) && !/await\s+initIntro|introPhase|introMotionDone/.test(fnSrc(script, 'boot')));
+  await guard('world: app ready first', async () => {
+    const w = world();
+    T('it begins in the ENTER phase, marked on the overlay', w.phase() === 'enter' && w.overlay.dataset.phase === 'enter');
+    w.sb.markAppReady(); await flush();
+    T('an app that is ready before the ~0.4s motion ends waits only for that motion — nothing has lifted yet', w.phase() === 'enter' && w.log.animate.length === 0);
+    await w.motion();
+    T('the moment the motion ends, the handoff begins (no extra timer, no hold)', w.phase() === 'handoff' && w.overlay.dataset.phase === 'handoff' && w.log.animate.length === 2);
+    T('from the first frame of the handoff, touches pass through to the real app (pointer-events none)', w.overlay.style.pointerEvents === 'none');
+    w.lift.res(); await flush(); await flush();
+    T('when the ground has lifted, the overlay is removed from the document and the phase is DONE', w.log.removed === 1 && w.phase() === 'done');
+    T('nothing it did touched routing, storage, sound or haptics', w.log.touched.length === 0 && w.log.ids.every(id => id === 'introOverlay'), w.log.touched.concat(w.log.ids));
+  });
+  await guard('world: app slower than the motion', async () => {
+    const w = world();
+    await w.motion();
+    await w.advance(5000);
+    T('if the app is slower, the mark simply holds: no handoff, no second animation, no loop, however long boot takes (up to the failsafe)', w.phase() === 'enter' && w.log.animate.length === 0);
+    w.sb.markAppReady(); await flush();
+    T('and it lifts the moment the app says it is ready', w.phase() === 'handoff' && w.log.animate.length === 2);
+  });
+
+  sub('2 — never a route: the launch only reveals whatever boot chose');
+  T('the controller calls no screen, tab, onboarding or navigation function and reads no element but its own',
+    !/showMainApp|showOnboarding|switchTab|renderAll|renderToday|startOnboarding|closeOnboarding|openTraining|firstUse|location\./.test(ctrl) &&
+    (ctrl.match(/getElementById\('([^']+)'\)/g) || []).every(s => s === "getElementById('introOverlay')"));
+  T('boot() still decides the destination itself — plan chosen -> showMainApp(), none -> showOnboarding() — and releases the launch only at its end',
+    /showMainApp\(\);\s*\} else \{\s*showOnboarding\(\);\s*\}/.test(fnSrc(script, 'boot')) && /markAppReady\(\);/.test(fnSrc(script, 'boot')));
+  await guard('in-app: established athlete', async () => {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1', onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) });
+    const els = app.dom.els;
+    T('[in app] an established athlete boots to the main app and boot itself releases the launch (phase reached handoff)',
+      els.mainApp && els.mainApp.style.display === 'block' && els.introOverlay && els.introOverlay.dataset.phase === 'handoff' && !app.errors.length, app.errors);
+  });
+  await guard('in-app: first run', async () => {
+    const app = await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: undefined });
+    const els = app.dom.els;
+    T('[in app] a first run still boots to first-use (planOnboard shown, main app not), and the launch is released over it',
+      els.planOnboard && els.planOnboard.style.display === 'flex' && (!els.mainApp || els.mainApp.style.display !== 'block') && els.introOverlay.dataset.phase === 'handoff', { po: els.planOnboard && els.planOnboard.style.display });
+  });
+
+  sub('3 — once per document; a warm return is not a launch');
+  T('initIntro is called exactly once, at the top level — no listener, timer or route can call it again',
+    (js.match(/initIntro\(/g) || []).length === 2 && !/addEventListener\([^;]*(?:initIntro|maybeDismissIntro|markAppReady)/.test(js));
+  T('the overlay is only ever looked up by the controller (no code can re-show it on visibilitychange / pageshow / focus)',
+    (js.match(/introOverlay/g) || []).length === (ctrl.match(/introOverlay/g) || []).length && (ctrl.match(/introOverlay/g) || []).length === 2);
+  T('markAppReady is called only by boot (its end, and its error path)', (js.match(/markAppReady\(\)/g) || []).length === 3 && /catch\(err => \{ console\.error\('LOOP boot error:', err\); markAppReady\(\); \}\)/.test(js));
+  await guard('world: once', async () => {
+    const w = world();
+    w.sb.markAppReady(); await w.motion(); w.lift.res(); await flush(); await flush();
+    const n = w.log.animate.length;
+    w.sb.markAppReady(); w.sb.maybeDismissIntro(); await w.advance(8000);
+    T('after DONE, readiness signals and every timer firing again change nothing: one handoff, one removal per document', w.log.animate.length === n && w.log.removed === 1 && w.phase() === 'done');
+  });
+  T('no per-tab or persistent "already shown" flag exists any more (the D-phase sessionStorage key and its pre-paint script are gone)',
+    !/loop_intro_shown|intro-skip|INTRO_SESSION_KEY/.test(raw) && !/sessionStorage|localStorage|LOOPStore|indexedDB/.test(ctrl));
+
+  sub('4 — Reduce Motion');
+  await guard('world: reduced', async () => {
+    const w = world({ reduced: true });
+    T('[reduced] the motion is not waited for at all (the entry animations are never even read)', w.log.getAnimationsCalls === 0);
+    w.sb.markAppReady(); await flush();
+    T('[reduced] the ground dissolves as soon as the app is ready', w.phase() === 'handoff');
+    const ov = w.log.animate.find(a => a.who === 'overlay'), mk = w.log.animate.find(a => a.who === 'mark');
+    T('[reduced] a short dissolve (180ms) with no travel: opacity only, on the ground and the mark', ov && ov.o.duration === 180 && props(ov.kf).every(p => p === 'opacity') && mk && props(mk.kf).every(p => p === 'opacity'));
+  });
+  T('[reduced] the stylesheet stills the mark and drops the bloom',
+    /@media \(prefers-reduced-motion: reduce\)\{\s*\.intro-mark\{ animation: none; opacity: 1; transform: none; \}\s*\.intro-bloom\{ display: none; \}/.test(cssBlock));
+
+  sub('5 — timing: short by construction');
+  const markRule = cssRule(cssBlock, '.intro-mark{'), bloomRule = cssRule(cssBlock, '.intro-bloom{');
+  const tMark = secs(markRule, 'introMark'), tBloom = secs(bloomRule, 'introBloom');
+  const HAND = +((/const INTRO_HANDOFF_MS = (\d+);/.exec(ctrl) || [])[1]), BACK = +((/const INTRO_MOTION_BACKSTOP_MS = (\d+);/.exec(ctrl) || [])[1]);
+  T('the mark arrives in <= 0.3s from 0.96 to 1 (no bounce: two keyframes, no overshoot)', tMark <= 0.3 && /from\{ opacity: 0; transform: scale\(0\.96\); \}\s*to\{ opacity: 1; transform: scale\(1\); \}/.test(keyframes('introMark')), tMark);
+  T('the one signature beat (the L\'s own bloom) is over in <= 0.4s and never repeats', tBloom <= 0.4 && !/infinite|alternate/.test(cssBlock) && !/animation-iteration-count/.test(cssBlock), tBloom);
+  T('the whole reveal fits the envelope: longest entry animation + handoff <= 650ms', Math.max(tMark, tBloom) * 1000 + HAND <= 650 && HAND >= 150 && HAND <= 300, { tMark, tBloom, HAND });
+  T('the hidden-launch backstop never pre-empts a visible motion but stays inside the envelope (entry <= backstop <= 650ms)', BACK >= Math.max(tMark, tBloom) * 1000 && BACK <= 650, BACK);
+  await guard('world: hidden launch', async () => {
+    const w = world();
+    w.sb.markAppReady(); await flush();
+    await w.advance(BACK - 1);
+    T('a document launched hidden (no animation frames, the motion never "finishes") is not held past the backstop', w.phase() === 'enter');
+    await w.advance(1);
+    T('... and hands off exactly at it', w.phase() === 'handoff');
+    await w.advance(HAND + 400);
+    T('... and is removed even though its lift never reports finished', w.log.removed === 1 && w.phase() === 'done');
+  });
+  await guard('world: failsafe', async () => {
+    const w = world();
+    await w.advance(5999);
+    const beforeReady = w.phase();
+    await w.advance(1);
+    T('the 6s failsafe is unchanged: if boot never reports, nothing lifts before 6s and at 6s the overlay lifts regardless, so it can never trap anyone', beforeReady === 'enter' && w.phase() === 'handoff', beforeReady);
+  });
+
+  sub('6 — compositor-friendly, local, silent');
+  T('every launch keyframe (CSS) animates only opacity and transform',
+    ['introMark', 'introBloom'].every(n => { const k = keyframes(n); return k && (k.match(/([a-z-]+):/g) || []).every(p => p === 'opacity:' || p === 'transform:'); }));
+  await guard('world: keyframes', async () => {
+    const w = world();
+    w.sb.markAppReady(); await w.motion();
+    T('every handoff animation (Web Animations) touches only opacity and transform, 240ms on the ground and half that on the mark',
+      w.log.animate.length === 2 && w.log.animate.every(a => cheap(a.kf)) &&
+      w.log.animate.find(a => a.who === 'overlay').o.duration === HAND && w.log.animate.find(a => a.who === 'mark').o.duration === Math.round(HAND * 0.5));
+    T('the mark lifts a SMALL amount (8px) as it leaves; nothing flies, spins or bounces',
+      JSON.stringify(w.log.animate.find(a => a.who === 'mark').kf) === JSON.stringify([{ opacity: 1, transform: 'translateY(0) scale(1)' }, { opacity: 0, transform: 'translateY(-8px) scale(0.985)' }]));
+  });
+  await guard('world: no WAAPI', async () => {
+    const w = world({ noWaapi: true });
+    w.sb.markAppReady(); await w.motion();
+    T('a browser without element.animate() still gets the app immediately: the overlay is simply removed', w.log.removed === 1 && w.phase() === 'done');
+  });
+  await guard('world: no overlay', async () => {
+    const w = world({ noOverlay: true });
+    w.sb.markAppReady(); await flush();
+    T('a document without the overlay is a no-op, never an error', w.phase() === 'done' && w.log.removed === 0);
+  });
+  const overlayMarkup = (() => { const a = raw.indexOf('<div id="introOverlay"'), b = raw.indexOf('<div id="planOnboard"', a); return raw.slice(a, b); })();
+  T('the overlay carries no video, canvas, image, audio or iframe, and nothing it shows is fetched (no url() in its CSS)',
+    !/<(?:video|canvas|img|audio|iframe|picture|object)\b/.test(overlayMarkup) && !/url\(/.test(cssBlock) && !/https?:/.test(cssBlock + overlayMarkup.replace(/xmlns="http:\/\/www\.w3\.org\/2000\/svg"/g, '')));
+  T('the signature bloom is a plain element after the brand marker, behind the mark, and never takes a touch',
+    /<!-- LOOP-MARK-END -->\s*<div class="intro-bloom"><\/div>\s*<\/div>\s*<\/div>/.test(overlayMarkup) && /pointer-events: none;/.test(bloomRule) && /z-index: 0;/.test(bloomRule) && /z-index: 1;/.test(markRule));
+  T('the mark is LOOP\'s canonical one: the launch SVG between build-brand\'s markers hashes to build-brand\'s own record', (() => {
+    let rec = null; try{ rec = JSON.parse(fs.readFileSync(path.join(path.dirname(H.APP_PATH), 'brand', 'icons.json'), 'utf8')); }catch(e){}
+    const O = '<!-- LOOP-MARK-BEGIN -->', C = '<!-- LOOP-MARK-END -->', a = raw.indexOf(O), b = raw.indexOf(C);
+    return !!rec && a !== -1 && b > a && rec.outputs['index.html#launch'].sha256 === crypto.createHash('sha256').update(raw.slice(a + O.length, b)).digest('hex');
+  })());
+  T('it sits on the icon\'s own bloom colour at the icon\'s own strength (#4CC2FF at 0.16) — no new colour, no new logo',
+    /rgba\(76,194,255,0\.16\)/.test(bloomRule) && (overlayMarkup.match(/<svg/g) || []).length === 1);
+  T('the launch makes no sound and no vibration, and fetches nothing', !/vibrate|AudioContext|new Audio|\.play\(|fetch\(|XMLHttpRequest|import\(/.test(ctrl));
+  T('it is purely visual to assistive tech (aria-hidden) and above everything (z-index 999, fixed, full-bleed)',
+    /<div id="introOverlay" aria-hidden="true">/.test(raw) && /#introOverlay\{\s*position: fixed; inset: 0; z-index: 999;/.test(cssBlock));
+
+  sub('7 — one ground from the OS launch surface to the app');
+  let manifest = null; try{ manifest = JSON.parse(fs.readFileSync(path.join(path.dirname(H.APP_PATH), 'manifest.webmanifest'), 'utf8')); }catch(e){}
+  T('manifest background/theme, the theme-color meta, --bg, the body and the launch ground are all #070B12 — no white frame anywhere',
+    !!manifest && manifest.background_color === '#070B12' && manifest.theme_color === '#070B12' && /<meta name="theme-color" content="#070B12">/.test(raw) &&
+    /--bg: #070B12;/.test(css) && /body\{\s*background:[\s\S]{0,140}var\(--bg\);/.test(css) && /#introOverlay\{[\s\S]{0,200}var\(--bg\);/.test(cssBlock));
+  T('the stylesheet (and so the ground) is inline in <head>, ahead of the body — the first frame is never unstyled',
+    raw.indexOf('<style>') < raw.indexOf('</head>') && raw.indexOf('</head>') < raw.indexOf('<body>') && !/<link rel="stylesheet" href="(?!https:\/\/fonts\.googleapis)/.test(raw));
+  T('the mark is SVG — no web font can arrive late and reflow it', /<!-- LOOP-MARK-BEGIN --><svg /.test(overlayMarkup) && !/font-family/.test(cssBlock));
+
+  sub('8 — protected: routing, onboarding, the draft, updates, navigation (byte-identical to LOOP 10.30)');
+  const PINS = {"boot":"df1e1925fc3531b8","showMainApp":"38a1960155d6d0ef","showOnboarding":"445132739539fb62","renderFirstUse":"af90ba8f72c56856","shouldOfferOnboarding":"996246c4aeb2a2b1","startOnboarding":"51e97131e1e18524","loadOnboarding":"34770de5e1bb41db","loadActiveDraft":"a0f90fec479e5332","restoreDraftToSheet":"192266c0260e11ca","renderResumeBanner":"620925f54e711dfe","persistDraftNow":"0f08badd4771eb1a","reloadForAppUpdate":"e495823fbe4084a9","switchTab":"6003bf3d0475219a","renderAll":"1041cce8d472fc24","renderToday":"a10918d4ae72ab73","renderTodayWorkout":"64196275a8ddd837","initPageIsolation":"0709ef48e0c50a37","renderUpdateIndicator":"e0c02b96ecc176f9"};
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const moved = Object.keys(PINS).filter(n => sha(fnSrc(raw, n)) !== PINS[n]);
+  T('all 18 startup-adjacent functions are unchanged: boot, both screens, the D106 tour decision and start, the draft load/restore/banner/flush, the update reload, tabs, Today',
+    moved.length === 0, moved);
+  T('storage is untouched: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow', (() => {
+    const app = H.loadApp(); return app.ctx.DATA_KEYS.length === 16 && app.ctx.DATA_SCHEMA_VERSION === 1 && app.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow';
+  })());
+  T('the service worker still precaches only the app shell (the launch needs no asset of its own)',
+    /ASSETS = \[\s*'\.\/',\s*'\.\/index\.html',\s*'\.\/manifest\.webmanifest'\s*\]/.test(fs.readFileSync(path.join(path.dirname(H.APP_PATH), 'sw.js'), 'utf8')));
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -46418,6 +46647,7 @@ async function main(){
   await testRankExperience2D113();
   await testRankStageD1131();
   await testRankStageD1132();
+  await testStartupRevealD114();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -11,11 +11,6 @@
 <meta name="theme-color" content="#070B12">
 <meta name="description" content="LOOP — training log, progression and personal records.">
 <link rel="manifest" href="manifest.webmanifest">
-<script>
-/* Runs before first paint: if the intro already played this session, hide it
-   immediately so a refresh never flashes the launch mark. Touches no user data. */
-try{ if(sessionStorage.getItem('loop_intro_shown')) document.documentElement.classList.add('intro-skip'); }catch(e){}
-</script>
 <!-- Phase D: every icon is derived from brand/loop-mark.svg by build-brand.js. -->
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -235,15 +230,16 @@ h1{
 h1 .dot{ color: var(--accent); }
 
 /* =========================================================
-   LAUNCH  (Phase D)
+   LAUNCH  (Phase D, D114)
    The opening screen is the app icon's own mark on the app's
-   own ground. It rises into place in a third of a second, and
-   the app takes over the moment it has loaded. The mark is
-   derived from brand/loop-mark.svg by build-brand.js, so the
-   icon and the opening screen cannot drift apart. Transform
-   and opacity only; nothing loops.
+   own ground (derived from brand/loop-mark.svg by
+   build-brand.js, so the icon and the opening screen cannot
+   drift apart). D114: it is a reveal, not a splash. The app
+   builds underneath from the first frame; the mark arrives,
+   the L's own light blooms once, and the ground lifts off the
+   real screen in a quarter of a second. Transform and opacity
+   only, all of it on the compositor; nothing loops.
    ========================================================= */
-html.intro-skip #introOverlay{ display: none !important; }
 #introOverlay{
   position: fixed; inset: 0; z-index: 999;
   /* The icon's own bloom, barely there, on the app's ground. */
@@ -252,32 +248,43 @@ html.intro-skip #introOverlay{ display: none !important; }
   overflow: hidden;
   will-change: opacity;
 }
-#introOverlay.intro-done{
-  opacity: 0;
-  transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
-}
 .intro-stage{
+  position: relative;
   display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100%;
 }
 .intro-mark{
+  position: relative; z-index: 1;
   display: block; width: 112px; height: 112px;
-  animation: introMark 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: introMark 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 @keyframes introMark{
-  from{ opacity: 0; transform: scale(0.92); }
+  from{ opacity: 0; transform: scale(0.96); }
   to{ opacity: 1; transform: scale(1); }
 }
-/* Reduced motion: the same mark, a short fade in and out, no scale. */
-@media (prefers-reduced-motion: reduce){
-  .intro-mark{ animation: introMarkFade 0.18s ease both; }
-  #introOverlay.intro-done{ transition: opacity 0.2s ease; }
+/* The one signature beat: the icon's own bloom (loop-bloom, centred on the
+   L's corner at 360,664 of the 1024 grid, i.e. 27px left and 27px below the
+   mark's centre at launch size) lights once and settles. Nothing else moves. */
+.intro-bloom{
+  position: absolute; left: 50%; top: 50%; z-index: 0;
+  width: 300px; height: 300px; margin: -123px 0 0 -177px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(76,194,255,0.16), rgba(76,194,255,0.05) 55%, rgba(76,194,255,0) 100%);
+  pointer-events: none;
+  animation: introBloom 0.38s cubic-bezier(0.33, 0, 0.2, 1) both;
+  will-change: transform, opacity;
 }
-@keyframes introMarkFade{
-  from{ opacity: 0; }
-  to{ opacity: 1; }
+@keyframes introBloom{
+  0%, 22%{ opacity: 0; transform: scale(0.82); }
+  62%{ opacity: 1; transform: scale(1); }
+  100%{ opacity: 0.6; transform: scale(1.03); }
+}
+/* Reduced motion: the mark is simply there, nothing blooms, and the ground
+   dissolves off the app as soon as it is ready (initIntro skips the beat). */
+@media (prefers-reduced-motion: reduce){
+  .intro-mark{ animation: none; opacity: 1; transform: none; }
+  .intro-bloom{ display: none; }
 }
 .header-actions{ display: flex; align-items: center; gap: 8px; }
 .plan-chip{
@@ -8684,6 +8691,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 <path id="l" fill="url(#loop-lit)" d="M224 408 V616 A184 184 0 0 0 408 800 H616 V672 H408 A56 56 0 0 1 352 616 V408 Z"/>
 <rect mask="url(#loop-edge-mask)" x="224" y="408" width="30" height="208" fill="url(#loop-edge)"/>
 </g></svg><!-- LOOP-MARK-END -->
+    <div class="intro-bloom"></div>
   </div>
 </div>
 
@@ -18022,6 +18030,21 @@ const LOOP_UPDATES = [
       'Every rank now sits at the same height, so swiping no longer makes the emblem jump',
       'Ranks you have earned or not yet reached show their level in a framed module instead of a loose line of text',
       'The light under each emblem now fades out smoothly instead of ending in a hard edge'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v10-31',
+    version: 'LOOP 10.31',
+    title: 'A Quicker Start',
+    date: '2026-09-30',
+    swVersion: 'loop-v208',
+    summary: 'LOOP now opens with a faster, more polished transition into your training.',
+    newFeatures: [],
+    improvements: [
+      'The opening LOOP mark now clears in about half a second, and your screen is already ready underneath it',
+      'With Reduce Motion on, LOOP opens with a short fade and no movement'
     ],
     bugFixes: [],
     changes: []
@@ -55696,54 +55719,86 @@ window.addEventListener('visibilitychange', () => { if(document.visibilityState 
 window.addEventListener('visibilitychange', cardioVisibilityChanged);
 window.addEventListener('pagehide', () => { persistDraftNow(); });
 
-/* ---------- LAUNCH INTRO CONTROLLER ----------
-   Visual only — writes one sessionStorage flag and nothing else. It never
-   reads, writes, or initializes user data.
+/* ---------- LAUNCH INTRO CONTROLLER  (Phase D, D114) ----------
+   Visual only. It reads and writes nothing — no user data and, since D114, not
+   even sessionStorage: the overlay is written into the document once, so it can
+   only ever play once per document, and a tab or app returning from the
+   background is the same document with the overlay already gone. A genuine new
+   launch (iOS killing the app, a reload, the update reload) is a new document,
+   and plays it again.
 
-   The intro and boot() run concurrently. The overlay lifts only once BOTH the
-   animation has finished AND the app has finished loading, so the user never
-   sees the animation end into a loading state. A failsafe guarantees the
-   overlay can never trap the user regardless of what boot does. */
-const INTRO_SESSION_KEY = 'loop_intro_shown';
-let introAnimationDone = false;
+   The app is never held for it. boot() runs underneath from the first frame;
+   the overlay lifts when BOTH the entry motion has finished (its own CSS
+   animations, timed from the first frame they painted, ~0.4s) AND the app has
+   drawn its real first screen (markAppReady). If the app is ready first, the
+   motion is the only wait; if the app is slower, the mark simply holds still,
+   it never loops. A failsafe guarantees the overlay can never trap anyone. */
+const INTRO_HANDOFF_MS = 240;
+const INTRO_HANDOFF_REDUCED_MS = 180;
+const INTRO_MOTION_BACKSTOP_MS = 600;
+let introPhase = 'enter';          // enter | handoff | done — in memory, per document
+let introMotionDone = false;
 let introAppReady = false;
-let introDismissed = false;
+
+function introReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; }
+}
 
 function initIntro(){
   const el = document.getElementById('introOverlay');
-  if(!el) return;
-
-  let alreadyShown = false;
-  try{ alreadyShown = !!sessionStorage.getItem(INTRO_SESSION_KEY); }catch(e){}
-
-  if(alreadyShown){
-    introDismissed = true;
-    introAnimationDone = true;
-    if(el.parentNode) el.remove();
-    return;
+  if(!el){ introPhase = 'done'; return; }
+  el.dataset.phase = 'enter';
+  const motionDone = () => { if(introMotionDone) return; introMotionDone = true; maybeDismissIntro(); };
+  let anims = [];
+  if(!introReducedMotion()){
+    try{
+      el.querySelectorAll('.intro-mark, .intro-bloom').forEach(n => {
+        if(typeof n.getAnimations === 'function') anims = anims.concat(n.getAnimations());
+      });
+    }catch(e){ anims = []; }
   }
-  try{ sessionStorage.setItem(INTRO_SESSION_KEY, '1'); }catch(e){}
-
-  const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  /* Phase D: the mark rises in 0.36s and holds briefly; the overlay then lifts
-     as soon as the app is ready too. */
-  setTimeout(() => { introAnimationDone = true; maybeDismissIntro(); }, reduced ? 260 : 560);
-
+  if(anims.length) Promise.all(anims.map(an => an.finished.catch(() => {}))).then(motionDone);
+  else motionDone();
+  /* A document launched hidden runs no animation frames, so its motion would
+     never "finish"; nobody is watching it, so it must not wait to be shown. */
+  setTimeout(motionDone, INTRO_MOTION_BACKSTOP_MS);
   // Failsafe: if boot stalls for any reason, never leave the user stuck.
-  setTimeout(() => { introAppReady = true; introAnimationDone = true; maybeDismissIntro(); }, 6000);
+  setTimeout(() => { introAppReady = true; introMotionDone = true; maybeDismissIntro(); }, 6000);
 }
 
 function markAppReady(){ introAppReady = true; maybeDismissIntro(); }
 
 function maybeDismissIntro(){
-  if(introDismissed) return;
-  if(!introAnimationDone || !introAppReady) return;
-  introDismissed = true;
+  if(introPhase !== 'enter') return;
+  if(!introMotionDone || !introAppReady) return;
+  introPhase = 'handoff';
   const el = document.getElementById('introOverlay');
-  if(!el) return;
-  el.classList.add('intro-done');
-  // Fully removed so it can never intercept a touch or cost a frame.
-  setTimeout(() => { if(el.parentNode) el.remove(); }, 340);
+  if(!el){ introPhase = 'done'; return; }
+  el.dataset.phase = 'handoff';
+  /* From the first frame of the handoff every touch reaches the real app. */
+  el.style.pointerEvents = 'none';
+  const finish = () => {
+    if(introPhase === 'done') return;
+    introPhase = 'done';
+    // Fully removed so it can never intercept a touch or cost a frame.
+    if(el.parentNode) el.remove();
+  };
+  const reduced = introReducedMotion();
+  const ms = reduced ? INTRO_HANDOFF_REDUCED_MS : INTRO_HANDOFF_MS;
+  try{
+    const lift = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' });
+    /* The mark leaves in the first half of the handoff, ahead of the ground,
+       so no ghost of it is ever left over the real screen. With motion it
+       also lifts 8px; with Reduce Motion it only fades. */
+    const mark = el.querySelector('.intro-mark');
+    if(mark) mark.animate(reduced
+      ? [{ opacity: 1 }, { opacity: 0 }]
+      : [{ opacity: 1, transform: 'translateY(0) scale(1)' }, { opacity: 0, transform: 'translateY(-8px) scale(0.985)' }],
+      { duration: Math.round(ms * 0.5), easing: 'cubic-bezier(0.2, 0, 0, 1)', fill: 'forwards' });
+    lift.finished.then(finish, finish);
+  }catch(e){ finish(); return; }
+  /* A page hidden mid-launch may not finish an animation until it is shown. */
+  setTimeout(finish, ms + 400);
 }
 
 initIntro();

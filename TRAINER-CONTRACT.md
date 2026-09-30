@@ -15961,3 +15961,165 @@ cause of the original cutoff (the clipped floor ellipse) is fixed in source.
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
 new persistent key.
+
+## §153 — STARTUP REVEAL: LOOP OPENS, IT DOES NOT WAIT (D114 · LOOP 10.31 · loop-v208)
+
+Requested as a new startup motion system. The audit found one already shipped
+(Phase D's launch intro: the app icon's own mark on the app's own ground,
+derived from `brand/loop-mark.svg` by `build-brand.js`), so D114 rebuilt
+its timing and lifecycle rather than adding a second system. The mark, its
+markers and the build-brand record are untouched.
+
+### What the audit measured (headless Edge, 390x844, established athlete)
+
+The old intro was never slow because of the app. Home was fully built
+underneath at ~65–85ms (first paint ~45–70ms), yet the overlay did not begin
+to lift until ~615–635ms and was gone at ~955–975ms. The wait was a fixed
+560ms timer started when the script ran, plus a 280ms CSS fade and a 340ms
+removal timer. At a 6x CPU throttle the same timer started late (after a
+300–400ms script-compile long task), so it lifted at ~0.94–1.01s and cleared
+at ~1.28–1.36s.
+
+Two further findings. A per-tab `sessionStorage` flag (`loop_intro_shown`,
+with a pre-paint script and `html.intro-skip`) suppressed the intro on any
+reload in the same tab, so "once per launch" was really "once per tab". And
+the reduced-motion "fade" the stylesheet described could never run: the
+global `@media (prefers-reduced-motion: reduce){ *{ animation: none
+!important; transition: none !important; } }` rule killed it, so the overlay
+simply cut away after its hold.
+
+### What changed
+
+- **Timed from the first painted frame, not a timer.** `initIntro` reads the
+  mark's and the bloom's own CSS animations (`getAnimations()`) and waits on
+  their `finished`. The handoff begins when BOTH that motion (~0.38s after
+  first paint) AND `markAppReady()` (the unchanged end of `boot()`) have
+  happened. If the app is ready first, the motion is the only wait; if the
+  app is slower, the mark holds still and never loops.
+- **Entry:** the mark goes 0.96 → 1 and 0 → 1 in 0.28s (it was 0.92 → 1 in
+  0.36s). **One signature beat:** a new `.intro-bloom` element, the icon's
+  own `loop-bloom` (#4CC2FF at 0.16, centred on the L's corner: 27px left and
+  27px below the mark's centre) lights once in 0.38s and settles at 0.6.
+  **Handoff:** Web Animations, not a class + transition. The ground fades in
+  240ms, and the mark lifts 8px and fades in the first 120ms, so no ghost of
+  it is left over Home. `pointer-events: none` is set on the handoff's first
+  frame, and the overlay is removed when the fade finishes. Transform and
+  opacity only.
+- **Once per document, in memory.** `introPhase` (enter → handoff → done)
+  replaces the sessionStorage flag, which is deleted along with its pre-paint
+  script and `html.intro-skip`. A return from the background is the same
+  document with the overlay already gone. A reload, the update reload or iOS
+  relaunching a killed app is a genuine new document and plays it again.
+- **Reduce Motion:** the mark is static, there is no bloom, the entry
+  animations are never waited on, and there is a 180ms opacity-only dissolve
+  as soon as the app is ready.
+- **Hidden launches:** a document launched hidden runs no animation frames,
+  so its motion never reports finished. A 600ms backstop (at least the
+  longest entry animation, so it never pre-empts a visible one) lets it hand
+  off anyway. A removal fallback (handoff + 400ms) covers a lift that never
+  reports finished. The 6s failsafe is unchanged.
+
+### Measured after (same rig)
+
+- **Full speed:** first paint 44–52ms; Home built at 63–87ms; handoff at
+  411–428ms; overlay removed at 653–671ms. That is ≈ first paint + 0.61s,
+  down from ≈ + 0.91s. CLS 0; no long task during the motion.
+- **6x CPU:** the entry motion kept producing frames (on the compositor)
+  straight through a 406ms main-thread long task. The handoff begins at real
+  readiness (580–913ms), and the overlay clears 240ms after the handoff
+  actually starts. A handoff created during a long task stays pending and
+  then runs its full 240ms (Animation API: ready 836 → finished 1080). It
+  clears at 884–1236ms, down from 1282–1359ms.
+- **Reduced:** handoff at 87ms, gone at 274ms.
+- **No new network request, asset, font, video, canvas or storage.**
+
+### Destinations are boot's, never the launch's
+
+`boot()`, `showMainApp`, `showOnboarding`, `renderFirstUse`, D106's
+`shouldOfferOnboarding`/`startOnboarding`/`loadOnboarding`, the draft's
+`loadActiveDraft`/`restoreDraftToSheet`/`renderResumeBanner`/
+`persistDraftNow`, `reloadForAppUpdate`, `switchTab`, `renderAll`,
+`renderToday`, `renderTodayWorkout`, `initPageIsolation` and
+`renderUpdateIndicator` are byte-identical to 10.30 (18 hash pins). One
+visible consequence, left as D106 designed it: when the tour is due at
+launch, Home is now visible for ~0.1s before the tour's sheet arrives (the
+tour is offered 450ms after `showMainApp`, "after the real app is on
+screen — never as a gate"). The old 0.96s intro had hidden that order.
+
+### Contract 231 (48 checks) proves
+
+It runs the controller exactly as it ships, extracted from index.html, in
+its own vm with a manual clock and a fake overlay whose animations the test
+finishes by hand. It covers:
+- motion-then-app and app-then-motion;
+- once per document;
+- Reduce Motion;
+- hidden-launch backstop and failsafe;
+- no element.animate();
+- no overlay.
+
+Trip-wires on routing, storage, sound, haptics and fetch sit around every
+scenario. The static checks cover:
+- keyframes are opacity/transform only;
+- the timing envelope (entry + handoff ≤ 650ms);
+- one launch layer and one mark, the canonical mark hashing to build-brand's
+  record;
+- one #070B12 ground from the manifest to the overlay;
+- no video, canvas, image, audio or url().
+
+In-app boots confirm that the real `boot()` releases the launch over both
+Home and first-use. Phase D's launch contract was restated in three places,
+where D114 deliberately changed what it pinned (0.92 → 0.96; the 560ms hold
+and the sessionStorage flag gone; the reduced-motion rule).
+
+**Mutation: 38 of 38 killed by Contract 231 alone.** They cover every
+mutant the brief listed:
+- the app waits (boot sleeps; Home drawn late; splash-then-boot);
+- replays on visibilitychange or pageshow;
+- >1s entry, bloom or handoff, and a looping bloom;
+- forced Home or Today, a hidden tour, a hidden first-use;
+- a broken resume banner, a suppressed tour;
+- Reduce Motion ignored in JS or CSS;
+- a white ground or theme-color;
+- a remote asset;
+- sessionStorage or localStorage keys;
+- an overlay never removed, a pointer blocker left behind;
+- a haptic, a sound;
+- a width/height keyframe, a blur filter;
+- the mark recoloured, or a wordmark added.
+
+It also kills these D114-specific mutants:
+- the motion gate dropped;
+- the backstop, the removal fallback or the failsafe dropped;
+- the bloom removed;
+- a ghosting mark;
+- an 80px fly-away;
+- a duplicate launch layer. The first sweep missed this one; the contract
+  was strengthened and the mutant now dies.
+
+**Real-browser QA (headless Edge over CDP).** 79/79, and 79/79 again under a
+59/34px safe-area override. It covers:
+- home, first-use, D106 tour and saved-draft destinations;
+- a synthetic background return, a real page freeze/resume, in-app
+  navigation, a reload, Back from another page, and a launch in a hidden
+  document;
+- Reduce Motion;
+- an offline launch from the service-worker cache;
+- a 6x CPU launch;
+- the mark optically centred (±1px) at 320x568, 360x640, 375x667, 390x844,
+  393x852, 414x896, 430x932, 768x1024 and 1280x800.
+
+### Limitations
+
+The OS launch surface itself (iOS Home Screen launch, the Android splash)
+cannot be exercised headless. Its colour is proven equal to the app's
+(#070B12 in the manifest, theme-color, `--bg`, the body and the overlay),
+not observed. Headless screencast timestamps compress under CPU throttling;
+the Animation API's own timings are the authority for the 6x handoff.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
+new persistent key. Also corrected here: PROJECT-STATUS.json had been left
+at 10.27 through 10.28–10.30, because those releases ran `node loop-tests.js
+verify` directly instead of `npm run verify`, which runs the Mission Control
+status gate first. It now says 10.31, and this release was verified with
+`npm run verify`.
