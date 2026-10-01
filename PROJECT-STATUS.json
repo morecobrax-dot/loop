@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.31",
+  "version": "10.32",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner check on iPhone: open LOOP from the Home Screen and confirm the launch flows into Today with no flash.",
+  "nextAction": "Owner check on iPhone: open Progress, then Weekly Review, and confirm last week matches your Log.",
   "blocker": null,
-  "updatedAt": "2026-09-30T17:43:44Z"
+  "updatedAt": "2026-10-01T00:33:51Z"
 }

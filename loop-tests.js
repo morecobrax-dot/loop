@@ -32209,7 +32209,8 @@ async function testStabilization(){
       attr.indexOf("x\\');globalThis") !== -1);
     // Every handler that carries a name an athlete typed — or that arrived on a
     // shared workout from another athlete — goes through onclickArg.
-    [['openExDetail', 2], ['deleteCustomEquipment', 1], ['toggleGymEquipment', 1],
+    /* D115 — the Weekly Review's progression rows are the third openExDetail site, through onclickArg like the rest. */
+    [['openExDetail', 3], ['deleteCustomEquipment', 1], ['toggleGymEquipment', 1],
      ['beginEditExerciseNote', 1], ['removeExerciseNote', 1]].forEach(([fn, n]) => {
       const re = new RegExp("onclick=\"" + fn + "\\('\\$\\{onclickArg\\(", 'g');
       /* D94A — the Mastery leader card builds its handler in masteryPodiumCardHtml
@@ -46456,6 +46457,412 @@ async function testStartupRevealD114(){
     /ASSETS = \[\s*'\.\/',\s*'\.\/index\.html',\s*'\.\/manifest\.webmanifest'\s*\]/.test(fs.readFileSync(path.join(path.dirname(H.APP_PATH), 'sw.js'), 'utf8')));
 }
 
+async function testWeeklyReviewD115(){
+  section('CONTRACT 232 — the Weekly Review reads a finished week, and only a finished week (D115)');
+  const fs = require('fs');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const js = stripComments([...raw.matchAll(/<script>([\s\S]*?)<\/script>/g)].reduce((a, b) => (b[1].length > a[1].length ? b : a))[1]);
+  const css = (raw.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
+  const modA = raw.indexOf('WEEKLY REVIEW  (Phase D115)'), modB = raw.indexOf('\nfunction renderProgTab(){', modA);
+  const mod = modA !== -1 && modB !== -1 ? stripComments(raw.slice(modA, modB)) : '';
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const homeTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  /* ---------- fixtures: absolute dates; the clock is pinned to a Wednesday ---------- */
+  const NOW = '2026-09-30T12:00:00';                 // Wed — last completed week is Sep 21–27
+  const S = (w, r, type, rir) => ({ weight: String(w), reps: String(r), rir: String(rir == null ? 2 : rir), type: type || 'working', completed: true });
+  const EX = (name, sets, rx) => Object.assign({ name, bodyweight: false, effort: '', sets }, rx ? { rx } : {});
+  const WK = (id, date, cat, title, exercises, timer) => Object.assign({ id, date, category: cat, title, notes: '', exercises },
+    timer ? { startedAt: new Date(timer[0]).toISOString(), endedAt: new Date(timer[1]).toISOString() } : {});
+  const RX = (sets, reps) => ({ sets, reps, effort: '8' });
+  const FB = '1799999999999';                       // the second Friday session: a real save-time id, saved after the first
+  const ORDER = { increase: 0, reduce: 1, build: 2, plateau: 3 };
+  function RICH(){
+    const log = [];
+    const MON = ['2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21'];
+    const plus = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n);
+      return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+    const row = [150, 155, 165, 165];
+    MON.forEach((m, k) => {
+      log.push(WK('m' + k, m, 'push', 'Push A', [
+        EX('Bench Press', [S(135, 8, 'warmup', 4), S(200 + 5 * k, 5), S(200 + 5 * k, 5), S(200 + 5 * k, 5)], RX(3, '5-8')),
+        EX('Overhead Press', [S(100 + 5 * k, 8), S(100 + 5 * k, 8)], RX(2, '6-10')),
+        EX('Pec Deck', [S(90 + 5 * k, 13, 'working', 3), S(90 + 5 * k, 13, 'working', 3)], RX(2, '12-15'))
+      ], k === 3 ? ['2026-09-21T18:05:00', '2026-09-21T19:03:12'] : null));
+      log.push(WK('t' + k, plus(m, 1), 'pull', 'Pull A', [EX('Barbell Row', [S(row[k], 8), S(row[k], 8), S(row[k], 8)], RX(3, '6-10'))],
+        k === 3 ? ['2026-09-22T18:30:00', '2026-09-22T19:21:40'] : null));
+      if(k !== 2) log.push(WK('h' + k, plus(m, 3), 'legs', 'Legs A', [EX('Back Squat', [S(250 + 10 * k, 5), S(250 + 10 * k, 5), S(250 + 10 * k, 5)], RX(3, '4-6'))]));
+      log.push(WK('f' + k, plus(m, 4), 'push', 'Push B', [EX('Incline Dumbbell Press', [S(60 + 5 * k, 10), S(60 + 5 * k, 10)], RX(2, '8-12'))],
+        k === 3 ? ['2026-09-25T17:00:00', '2026-09-25T17:41:03'] : null));
+    });
+    /* a second session on Friday Sep 25, saved later */
+    log.push(WK(FB, '2026-09-25', 'push', 'Arms', [EX('Barbell Curl', [S(60, 10), S(60, 10)])]));
+    /* Sunday of the reviewed week: inside it; its timer started on another day, so it is not a duration */
+    log.push(WK('s3', '2026-09-27', 'pull', 'Deadlift day', [EX('Deadlift', [S(315, 5), S(315, 5)])], ['2026-09-29T08:00:00', '2026-09-29T08:40:00']));
+    /* Sunday of the week before, and Monday of the week in progress: both outside it */
+    log.push(WK('s2', '2026-09-20', 'legs', 'Front squats', [EX('Front Squat', [S(185, 5), S(185, 5)])]));
+    log.push(WK('m4', '2026-09-28', 'push', 'Push A', [EX('Bench Press', [S(225, 5), S(225, 5), S(225, 5)], RX(3, '5-8'))]));
+    return log;
+  }
+  const STORE = (log, extra) => Object.assign({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+    'planStart:balanced': JSON.stringify('2026-08-31'), workoutLog: JSON.stringify(log),
+    onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) }, extra || {});
+  async function at(iso, store, tz){
+    if(tz) process.env.TZ = tz;
+    const app = H.loadApp(store);
+    const release = pinClock(app.ctx, iso);
+    try{ await H.settle(400); } finally { release(); }
+    return app;
+  }
+  const on = (c, iso, fn) => withClockOn(c, iso, () => { c.invalidateConsistencyCache(); return fn(); });
+  const ids = list => list.map(e => e.id);
+
+  /* ---------- 1–3: completed weeks only, chosen and bounded correctly ---------- */
+  sub('1–3  completed weeks only: chosen right, bounded Monday to Sunday');
+  await guard('weeks', async () => {
+    const app = await at(NOW, STORE(RICH())); const c = app.ctx;
+    const weeks = on(c, NOW, () => c.weeklyReviewWeeks());
+    T('1  the week in progress (Sep 28) is never offered; the four completed tracked weeks are',
+      JSON.stringify(weeks) === JSON.stringify(['2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21']), weeks);
+    const asked = on(c, NOW, () => c.deriveWeeklyReview('2026-09-28'));
+    T('1  asking for the unfinished week by name still answers with the latest COMPLETED one', asked && asked.weekKey === '2026-09-21', asked && asked.weekKey);
+    const r = on(c, NOW, () => c.deriveWeeklyReview(null));
+    T('2  on a Wednesday the review defaults to last Monday–Sunday', r.weekKey === '2026-09-21' && r.start === '2026-09-21' && r.end === '2026-09-27' && r.isLatest, r.weekKey);
+    T('2  …and just after midnight on Monday, to the week that has just ended',
+      on(c, '2026-09-28T00:05:00', () => c.deriveWeeklyReview(null).weekKey) === '2026-09-21');
+    T('2  …but late on Sunday, that week is still running, so the one before it is reviewed',
+      on(c, '2026-09-27T23:55:00', () => c.deriveWeeklyReview(null).weekKey) === '2026-09-14');
+    T('3  Sunday belongs to its week: the Sep 27 workout is in Sep 21–27', ids(r.sessions).indexOf('s3') !== -1);
+    T('3  Monday starts the next: the Sep 28 workout is not', ids(r.sessions).indexOf('m4') === -1);
+    T('3  and the Sunday before belongs to the week before', ids(r.sessions).indexOf('s2') === -1 &&
+      ids(on(c, NOW, () => c.deriveWeeklyReview('2026-09-14')).sessions).indexOf('s2') !== -1);
+    T('3  the strip is exactly seven consecutive civil days, Monday first',
+      JSON.stringify(r.timeline.map(d => d.date)) === JSON.stringify(['2026-09-21','2026-09-22','2026-09-23','2026-09-24','2026-09-25','2026-09-26','2026-09-27']));
+    T('3  the label names the same seven days', r.label === 'Sep 21–27' && r.spoken === 'September 21 to 27' &&
+      c.weeklyReviewRangeLabel('2026-09-28') === 'Sep 28 – Oct 4');
+  });
+
+  /* ---------- 4: DST, in two hemispheres ---------- */
+  sub('4  a week that holds a clock change is still seven civil days');
+  await guard('dst', async () => {
+    const cases = [
+      ['America/New_York', 'fall back', '2026-11-04T12:00:00', '2026-10-19', '2026-10-26', '2026-11-01', '2026-11-02'],
+      ['America/New_York', 'spring forward', '2026-03-11T12:00:00', '2026-02-23', '2026-03-02', '2026-03-08', '2026-03-09'],
+      ['Australia/Sydney', 'spring forward (south)', '2026-10-07T12:00:00', '2026-09-21', '2026-09-28', '2026-10-04', '2026-10-05']
+    ];
+    for(const [tz, what, now, planStart, mon, sun, nextMon] of cases){
+      try{
+        const log = [WK('a', mon, 'push', 'Push A', [EX('Bench Press', [S(200, 5)])]), WK('b', sun, 'pull', 'Sunday', [EX('Barbell Row', [S(150, 8)])]),
+          WK('c', nextMon, 'push', 'Push A', [EX('Bench Press', [S(205, 5)])])];
+        const app = await at(now, STORE(log, { 'planStart:balanced': JSON.stringify(planStart) }), tz); const c = app.ctx;
+        const r = on(c, now, () => c.deriveWeeklyReview(null));
+        T('4  [' + tz + ', ' + what + '] the review is ' + mon + '–' + sun + ', its Sunday inside, the next Monday outside',
+          r && r.start === mon && r.end === sun && r.timeline.length === 7 && new Set(r.timeline.map(d => d.date)).size === 7 &&
+          ids(r.sessions).join() === 'a,b', r && { s: r.start, e: r.end, ids: ids(r.sessions) });
+      } finally { process.env.TZ = homeTZ; }
+    }
+  });
+
+  /* ---------- 5–6, 25: empty, first, partial and pre-history weeks ---------- */
+  sub('5–6, 25  no history, the first week, and the edge of tracked history');
+  await guard('early', async () => {
+    const none = await at(NOW, { dataSchemaVersion: '1' }); const c0 = none.ctx;
+    on(c0, NOW, () => c0.renderProgDashboard());
+    T('5  with no history there is no review, no week to offer, and Progress shows no review entry',
+      on(c0, NOW, () => c0.weeklyReviewWeeks()).length === 0 && on(c0, NOW, () => c0.deriveWeeklyReview(null)) === null &&
+      !/wr-entry/.test(c0.document.getElementById('progPerf').innerHTML) && /Your Progress/.test(c0.document.getElementById('progPerf').innerHTML));
+    on(c0, NOW, () => c0.renderWeeklyReview());
+    T('5  opened anyway, it says when the first review comes rather than drawing zeroes',
+      /first review appears after a full training week/.test(c0.document.getElementById('weeklyReviewBody').innerHTML));
+    const fresh = await at(NOW, STORE([WK('x', '2026-09-30', 'push', 'Push A', [EX('Bench Press', [S(185, 6)])])], { 'planStart:balanced': JSON.stringify('2026-09-30') }));
+    const c1 = fresh.ctx;
+    const e1 = on(c1, NOW, () => c1.weeklyReviewEntryHtml());
+    T('5  training that began this week has no completed week yet: the entry names the Monday the first review arrives, and opens nothing',
+      on(c1, NOW, () => c1.weeklyReviewWeeks()).length === 0 && /first review arrives Monday, Oct 5/.test(e1) && !/onclick/.test(e1), e1.replace(/\s+/g, ' ').slice(0, 200));
+    const one = await at(NOW, STORE([WK('y', '2026-09-22', 'pull', 'Pull A', [EX('Barbell Row', [S(155, 8), S(155, 8)])])], { 'planStart:balanced': JSON.stringify('2026-09-22') }));
+    const c2 = one.ctx;
+    const r2 = on(c2, NOW, () => c2.deriveWeeklyReview(null));
+    T('6  one completed week: it is reviewed, with no comparison claimed', r2 && r2.weekKey === '2026-09-21' && r2.weeks.length === 1 && r2.previous === null);
+    T('25  a day before tracking began is unknown, never rest or missed', r2.timeline[0].state === 'unknown' && r2.trackingBeganMidWeek === true);
+    T('25  and the review says where tracking began', /tracked history begins Tuesday of this week/.test(on(c2, NOW, () => c2.weeklyReviewBodyHtml(r2))));
+    /* tracking began on the Wednesday of Sep 14–20: that week is reviewable, but it is not a fair baseline for the next */
+    const log3 = [WK('p', '2026-09-16', 'push', 'Push A', [EX('Bench Press', [S(185, 6)])]), WK('q', '2026-09-21', 'push', 'Push A', [EX('Bench Press', [S(190, 6)])])];
+    const part = await at(NOW, STORE(log3, { 'planStart:balanced': JSON.stringify('2026-09-16') })); const c3 = part.ctx;
+    const r3 = on(c3, NOW, () => c3.deriveWeeklyReview(null));
+    T('25  a previous week only partly inside the tracked history is not compared against',
+      r3 && r3.weekKey === '2026-09-21' && r3.weeks.indexOf('2026-09-14') !== -1 && r3.previous === null, r3 && r3.previous);
+    T('25  and no week wholly before tracking began is offered', on(c3, NOW, () => c3.weeklyReviewWeeks()).every(k => k >= '2026-09-14'));
+  });
+
+  /* ---------- 7–17: every figure is read from the system that owns it ---------- */
+  sub('7–17  every figure comes from the system that owns it');
+  await guard('figures', async () => {
+    const app = await at(NOW, STORE(RICH())); const c = app.ctx;
+    const r = on(c, NOW, () => c.deriveWeeklyReview(null));
+    const cons = on(c, NOW, () => c.computeConsistencyData());
+    const wk = cons.weeks.find(w => c.localDateStr(w.start) === '2026-09-21');
+    T('10  planned and fulfilled are D44’s own numbers for that week (D43 matching)',
+      r.plan.planned === wk.plannedKnown && r.plan.fulfilled === wk.fulfilled && r.plan.planned === 4 && r.plan.fulfilled === 4, r.plan);
+    T('10  every reviewable week agrees with D44, including one with a missed day', on(c, NOW, () => r.weeks.every(k => {
+      const rr = c.deriveWeeklyReview(k), w = c.computeConsistencyData().weeks.find(x => c.localDateStr(x.start) === k);
+      return rr.plan.planned === w.plannedKnown && rr.plan.fulfilled === w.fulfilled;
+    })) && on(c, NOW, () => c.deriveWeeklyReview('2026-09-14')).timeline[3].state === 'missed');
+    T('8  two workouts on one Friday stay two: both listed, in the order trained, the day counted twice',
+      ids(r.sessions).join() === ['m3','t3','h3','f3',FB,'s3'].join() && r.timeline[4].count === 2 && r.workouts === 6 && r.daysTrained === 5, ids(r.sessions));
+    T('9  each row opens its OWN workout by id', ['m3','t3','h3','f3',FB,'s3'].every(id => on(c, NOW, () => c.weeklyReviewBodyHtml(r)).indexOf("openWorkoutSummary('" + id + "')") !== -1));
+    T('12  records are the canonical index’s, for exactly these seven dates, each once', (() => {
+      const idx = c.canonicalPRIndex();
+      const expect = r.timeline.reduce((n, d) => n + ((idx.byDate[d.date] || []).length), 0);
+      const all = new Set(); r.timeline.forEach(d => (idx.byDate[d.date] || []).forEach(ev => all.add(ev)));
+      return r.records.length === expect && r.records.every(x => all.has(x.ev)) && new Set(r.records.map(x => x.ev)).size === r.records.length;
+    })());
+    T('13  a record set on the Monday after (Sep 28) does not leak in, nor one from the Sunday before (Sep 20)',
+      !r.records.some(x => x.ev.date === '2026-09-28' || x.ev.date === '2026-09-20') &&
+      r.records.some(x => x.ev.date === '2026-09-27' && x.ev.exerciseName === 'Deadlift') &&
+      on(c, NOW, () => c.deriveWeeklyReview('2026-09-14')).records.some(x => x.ev.date === '2026-09-20'));
+    T('12  each workout’s record count is the one its Log card shows', on(c, NOW, () => r.workoutsList.every(w =>
+      w.prs === c.getSessionPRs(c.workoutLog.find(l => l.id === w.id)).length)));
+    T('14  measured time is D105.1’s: only timers that ran on the workout’s date, summed', (() => {
+      const want = r.sessions.map(e => c.workoutElapsedSeconds(e)).filter(x => x !== null);
+      return r.timed.count === 3 && r.timed.sec === want.reduce((a, b) => a + b, 0) && r.timed.sec === (58 * 60 + 12) + (51 * 60 + 40) + (41 * 60 + 3);
+    })(), r.timed);
+    const html = on(c, NOW, () => c.weeklyReviewBodyHtml(r));
+    T('15  no estimate is ever added to a clock: the total is the measured stopwatch figure and names its coverage',
+      html.indexOf('Timed training ' + c.formatClock(r.timed.sec) + ' · 3 of 6 workouts timed') !== -1);
+    T('15  an untimed workout reads as LOOP’s estimate (~), never as a duration', /Legs A<\/span>\s*<span class="wr-row-m">~\d+ min/.test(html));
+    const mv = c.deriveMuscleSetsBetween('2026-09-21', '2026-09-27');
+    T('16  working sets and the muscle split are D100’s own arithmetic for those seven days (warm-ups out)',
+      r.workingSets === mv.setsLogged && JSON.stringify(r.muscles.totals) === JSON.stringify(mv.totals) && r.workingSets === 19, r.workingSets);
+    const buckets = on(c, NOW, () => c.computeWeeklyVolume(12));
+    const vb = k => buckets.find(b => b.start === k).volume;
+    T('7  the comparison is with Sep 14–20, from the same D100 buckets the Volume tab draws',
+      r.previous && r.previous.weekKey === '2026-09-14' && r.volume === vb('2026-09-21') &&
+      r.previous.volumePct === Math.round(((vb('2026-09-21') - vb('2026-09-14')) / vb('2026-09-14')) * 100) &&
+      r.previous.workouts === c.workoutLog.filter(l => l.date >= '2026-09-14' && l.date <= '2026-09-20').length &&
+      r.previous.workingSets === c.deriveMuscleSetsBetween('2026-09-14', '2026-09-20').setsLogged, r.previous);
+    T('7  changes are stated with their sign and their old value, never coloured',
+      /Workouts<\/span><span class="wr-vs-v"><b>6<\/b> · was \d+/.test(html) && !/wr-vs[^"]*(up|down|good|bad)/.test(html));
+    T('17  the review’s list is exactly D49’s answer for every lift the week trained, asked as Progress asks it', on(c, NOW, () => {
+      const keys = new Set(); r.sessions.forEach(e => (e.exercises || []).forEach(ex => keys.add(c.loggedExerciseKey(ex.name))));
+      const want = c.getAllLoggedExerciseNames().filter(n => keys.has(c.loggedExerciseKey(n)))
+        .map(n => ({ n, rec: c.progressionFor(n, c.repRangeForExercise(n), null) })).filter(x => x.rec && ORDER[x.rec.tag] !== undefined)
+        .map(x => x.n + '|' + x.rec.tag + '|' + x.rec.headline + '|' + x.rec.why).sort();
+      const got = r.progressionAll.map(p => p.name + '|' + p.tag + '|' + p.headline + '|' + p.why).sort();
+      return got.length > 0 && JSON.stringify(got) === JSON.stringify(want);
+    }), r.progressionAll.map(p => p.name + ' ' + p.tag));
+    T('17  and only lifts the week actually trained are considered', r.progressionAll.every(p => r.sessions.some(e =>
+      (e.exercises || []).some(ex => c.loggedExerciseKey(ex.name) === c.loggedExerciseKey(p.name)))));
+    T('17  at most three are shown, increases first', r.progression.length <= 3 &&
+      r.progression.every((p, i, a) => !i || ORDER[a[i - 1].tag] <= ORDER[p.tag]));
+    T('17  Pec Deck is judged against its own 12–15 range, not a default', on(c, NOW, () => / × 12–15$/.test(c.progressionFor('Pec Deck', c.repRangeForExercise('Pec Deck'), null).headline)) &&
+      r.progressionAll.every(p => p.name !== 'Pec Deck' || / × 12–15$/.test(p.headline)));
+    T('20  a Session Score is shown per workout exactly as sessionScore gives it, and absent where it has none', on(c, NOW, () => r.workoutsList.every(w => {
+      const s = c.sessionScore(c.workoutLog.find(l => l.id === w.id));
+      return s.available ? (w.score && w.score.value === s.score) : w.score === null;
+    })) && r.workoutsList.some(w => w.score === null));
+  });
+
+  /* ---------- 11: a paused week ---------- */
+  sub('11  a planned day inside a pause was never owed');
+  await guard('paused', async () => {
+    const PS = (cat, name) => ({ type: 'workout', planId: 'balanced', category: cat, templateId: 'x-' + cat, name,
+      exercises: [{ name: 'Bench Press', sets: 3, reps: '8-10', effort: '8' }] });
+    const PROG = JSON.stringify({ version: 1, activeProgramId: 'p1', programs: [{ id: 'p1', name: 'Block', goal: 'hypertrophy', status: 'active',
+      durationWeeks: 52, startDate: '2026-08-31', pauses: [{ from: '2026-09-21', to: '2026-09-25' }],
+      schedule: { mon: PS('push', 'Push'), tue: PS('pull', 'Pull'), thu: PS('legs', 'Legs'), fri: PS('push', 'Push 2') } }] });
+    const log = [WK('a', '2026-09-14', 'push', 'Push A', [EX('Bench Press', [S(200, 5)])]), WK('b', '2026-09-25', 'push', 'Push B', [EX('Bench Press', [S(205, 5)])])];
+    const app = await at(NOW, STORE(log, { programs: PROG })); const c = app.ctx;
+    const r = on(c, NOW, () => c.deriveWeeklyReview(null));
+    const states = r.timeline.map(d => d.state).join();
+    T('11  Monday, Tuesday and Thursday were paused, not missed; Friday trained', states === 'paused,paused,rest,paused,pr,rest,rest', states);
+    const cw = on(c, NOW, () => c.computeConsistencyData().weeks.find(w => c.localDateStr(w.start) === '2026-09-21'));
+    T('11  so the plan owed one session, and D44 agrees', r.plan.planned === 1 && r.plan.fulfilled === 1 && cw.plannedKnown === 1 && r.paused === 3, r.plan);
+    T('11  and says so in words', /The planned session was completed · program paused 3 days/.test(on(c, NOW, () => c.weeklyReviewBodyHtml(r))));
+  });
+
+  /* ---------- 18–19: now is labelled now; nothing is reconstructed ---------- */
+  sub('18–19  current context is current, and only on the latest week');
+  await guard('now', async () => {
+    const app = await at(NOW, STORE(RICH())); const c = app.ctx;
+    const latest = on(c, NOW, () => c.deriveWeeklyReview(null)), older = on(c, NOW, () => c.deriveWeeklyReview('2026-09-14'));
+    T('18  an older week carries no progression and no context: nothing is rebuilt for a past date',
+      older.progression.length === 0 && older.progressionAll.length === 0 && older.context === null && latest.context !== null);
+    T('18  current recovery is read in exactly one place, and it is the reading Today lists', (() => {
+      const listed = (on(c, NOW, () => c.recoveryStripHtml()).match(/<span class="rec-name">([^<]*)<\/span>/g) || []).map(s => s.replace(/<[^>]+>/g, ''));
+      const mine = on(c, NOW, () => c.weeklyReviewRecoveryNow()).map(x => x.label);
+      return listed.length > 0 && JSON.stringify(listed) === JSON.stringify(mine) && (mod.match(/computeMuscleRecovery\(/g) || []).length === 1;
+    })());
+    const html = on(c, NOW, () => c.weeklyReviewBodyHtml(latest)), oldHtml = on(c, NOW, () => c.weeklyReviewBodyHtml(older));
+    T('19  the latest week labels its current sections as current', /Progression · now/.test(html) && /Est\. recovery now/.test(html) && /Going into this week/.test(html));
+    T('19  an older week shows none of them, and says where they live', !/Progression · now|Est\. recovery now|Going into this week/.test(oldHtml) &&
+      /appear on last week's review/.test(oldHtml));
+  });
+
+  /* ---------- 20–21: no verdicts ---------- */
+  sub('20–21  facts, no verdicts');
+  await guard('verdicts', async () => {
+    const app = await at(NOW, STORE(RICH())); const c = app.ctx;
+    const html = on(c, NOW, () => c.weeklyReviewBodyHtml(c.deriveWeeklyReview(null)) + c.weeklyReviewEntryHtml());
+    const text = html.replace(/<[^>]+>/g, ' ');
+    T('20  there is no weekly score, grade or average of Session Scores',
+      !/weekly score|week score|grade|average/i.test(text) && !/avgScore|overallScore|weekScore|weeklyScore/.test(mod));
+    T('21  and no praise the data cannot prove', !/great|crush|amazing|awesome|excellent|keep it up|well done|nice work|stronger|proud|smash/i.test(text));
+    T('21  the plan line is one of D44’s plain forms', /class="wr-plan">(All \d+ planned sessions completed|\d+ of \d+ planned sessions? completed|The planned session was completed|No sessions were planned)( · program paused \d+ days?)?</.test(html));
+  });
+
+  /* ---------- 22–24, 26–27: read-only, bounded navigation, the right workout ---------- */
+  sub('22–24, 26–27  it writes nothing, cannot reach the unfinished week, and opens the right workout');
+  await guard('readonly', async () => {
+    const app = await at(NOW, STORE(RICH())); const c = app.ctx;
+    const before = JSON.stringify(c.workoutLog), storeBefore = JSON.stringify(app.store);
+    const writes = [];
+    const origSet = c.LOOPStore.set, origRemove = c.LOOPStore.remove;
+    c.LOOPStore.set = function(k){ writes.push('LOOPStore.set ' + k); return origSet.apply(this, arguments); };
+    c.LOOPStore.remove = function(k){ writes.push('LOOPStore.remove ' + k); return origRemove.apply(this, arguments); };
+    const trap = name => new Proxy({}, { get: (o, k) => { if(k === 'setItem' || k === 'removeItem' || k === 'clear') return (...a) => writes.push(name + '.' + String(k) + ' ' + a[0]);
+      if(k === 'getItem') return () => null; return undefined; } });
+    c.localStorage = trap('localStorage'); c.sessionStorage = trap('sessionStorage');
+    try{
+      on(c, NOW, () => {
+        c.weeklyReviewEntryHtml();
+        c.openWeeklyReview();
+        T('24  the latest week is the newest one on screen; the next arrow is disabled',
+          /id="wrRange"[^>]*>Sep 21–27</.test(c.document.getElementById('weeklyReviewBody').innerHTML) &&
+          /shiftWeeklyReview\(1\)" disabled/.test(c.document.getElementById('weeklyReviewBody').innerHTML));
+        c.shiftWeeklyReview(1);
+        T('24  pressing on past it stays on the latest completed week', c.deriveWeeklyReview(null).weekKey === '2026-09-21' &&
+          /id="wrRange"[^>]*>Sep 21–27</.test(c.document.getElementById('weeklyReviewBody').innerHTML));
+        c.shiftWeeklyReview(-1);
+        T('24  back one week is Sep 14–20', /id="wrRange"[^>]*>Sep 14–20</.test(c.document.getElementById('weeklyReviewBody').innerHTML));
+        c.shiftWeeklyReview(-5);
+        c.shiftWeeklyReview(-1); c.shiftWeeklyReview(-1); c.shiftWeeklyReview(-1);
+        T('24  and it stops at the oldest week it can answer for', /id="wrRange"[^>]*>Aug 31 – Sep 6</.test(c.document.getElementById('weeklyReviewBody').innerHTML) &&
+          /shiftWeeklyReview\(-1\)" disabled/.test(c.document.getElementById('weeklyReviewBody').innerHTML));
+        for(let i = 0; i < 6; i++) c.shiftWeeklyReview(1);
+        c.closeWeeklyReview();
+      });
+      T('22  opening, browsing and closing the review leaves the history byte-identical', JSON.stringify(c.workoutLog) === before && JSON.stringify(app.store) === storeBefore);
+      T('26  and makes no write of any kind (store, localStorage, sessionStorage)', writes.length === 0, writes);
+    } finally { c.LOOPStore.set = origSet; c.LOOPStore.remove = origRemove; delete c.localStorage; delete c.sessionStorage; }
+    let got = null; const origShow = c.showWorkoutSummary;
+    c.showWorkoutSummary = entry => { got = entry; };
+    try{ c.openWorkoutSummary(FB); }finally{ c.showWorkoutSummary = origShow; }
+    T('27  the second Friday workout’s row opens the second Friday workout', got && got.id === FB && got.title === 'Arms');
+    T('23  no storage key was added', c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1);
+  });
+
+  /* ---------- order invariance ---------- */
+  sub('8  the order the history is stored in changes nothing');
+  await guard('order', async () => {
+    const log = RICH();
+    const a = await at(NOW, STORE(log)), b = await at(NOW, STORE(log.slice().reverse()));
+    const pick = (c) => on(c, NOW, () => { const r = c.deriveWeeklyReview(null);
+      return JSON.stringify({ s: ids(r.sessions), t: r.timeline, w: r.workingSets, rec: r.records.map(x => x.ev.exerciseName + x.ev.date), p: r.plan, prev: r.previous }); });
+    T('8  reversing workoutLog leaves the review identical', pick(a.ctx) === pick(b.ctx));
+  });
+
+  /* ---------- level and rank: only a provable crossing ---------- */
+  sub('wins  a level is claimed only when the week provably crossed it');
+  await guard('level', async () => {
+    const app = await at(NOW, STORE(RICH())); const c = app.ctx;
+    const L = xp => c.calculateLevelFromXP(xp).level;
+    const first = lv => { let x = 0; while(L(x) < lv) x++; return x; };
+    const lo3 = first(3), lo4 = first(4);
+    const orig = c.computeXPEvents;
+    const run = (before, during, carried) => {
+      c.computeXPEvents = () => ({ events: [{ date: '2026-09-10', xp: before }, { date: '2026-09-23', xp: during }], carriedXP: carried, datedXP: before + during, lifetimeXP: before + during + carried });
+      try{ const r = on(c, NOW, () => c.deriveWeeklyReview(null)); return { level: r.level, rank: r.rank }; } finally { c.computeXPEvents = orig; }
+    };
+    const exact = run(lo3 - 1, 1, 0);
+    T('with no undated XP, a crossing is stated exactly', exact.level && exact.level.from === L(lo3 - 1) && exact.level.to === 3, exact);
+    const bounded = run(lo3 - 1, lo4 - lo3 + 1, 1);
+    T('with undated streak XP, a crossing that survives the worst case is stated as "reached", without a starting level',
+      bounded.level && bounded.level.from === null && bounded.level.to === 4, bounded);
+    const unprovable = run(lo3 - 1, 1, 1);
+    T('and one the undated XP could explain is not claimed at all', unprovable.level === null, unprovable);
+    let rl = 2; while(rl < 60 && c.calculateRankFromLevel(rl) === c.calculateRankFromLevel(rl - 1)) rl++;
+    const loR = first(rl);
+    const ranked = run(loR - 1, 1, 0);
+    T('a rank is named only with the level that reached it', ranked.rank && ranked.rank.to === c.calculateRankFromLevel(rl) &&
+      run(lo3 - 1, 1, 0).rank === null, ranked);
+  });
+
+  /* ---------- the entry and the review agree ---------- */
+  sub('the Progress entry and the review say the same thing');
+  await guard('entry', async () => {
+    const app = await at(NOW, STORE(RICH())); const c = app.ctx;
+    const e = on(c, NOW, () => c.weeklyReviewEntryHtml()), r = on(c, NOW, () => c.deriveWeeklyReview(null));
+    T('the entry states the review’s own counts for the same week', e.indexOf('Sep 21–27') !== -1 && e.indexOf(c.weeklyReviewCountLine(r)) !== -1 &&
+      c.weeklyReviewCountLine(r) === '6 workouts · 19 working sets · 7 records');
+    T('it sits on Progress → Overview, right after the hero, and nowhere else',
+      /\$\{progHeroHtml\(\)\}\s*\$\{weeklyReviewEntryHtml\(\)\}/.test(fnSrc(raw, 'renderProgDashboard')) && (js.match(/weeklyReviewEntryHtml\(/g) || []).length === 2);
+    T('an open review is redrawn with the screen beneath it', /if\(weeklyReviewIsOpen\(\)\) renderWeeklyReview\(\);/.test(fnSrc(raw, 'renderProgDashboard')));
+    on(c, NOW, () => {
+      c.openWeeklyReview();
+      const body = () => c.document.getElementById('weeklyReviewBody').innerHTML;
+      const had = /6 workouts|<b>6<\/b><span>workouts<\/span>/.test(body()) && /Arms/.test(body());
+      c.workoutLog = c.workoutLog.filter(l => l.id !== FB);
+      c.invalidateSortedLogCache(); c.invalidateConsistencyCache();
+      c.renderProgDashboard();
+      T('so a workout deleted from a summary opened inside it leaves the open review at once', had &&
+        /<b>5<\/b><span>workouts<\/span>/.test(body()) && !/Arms/.test(body()), body().replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 200));
+      c.closeWeeklyReview();
+    });
+  });
+
+  /* ---------- accessibility ---------- */
+  sub('accessibility  every state is said in words, and every target is reachable');
+  await guard('a11y', async () => {
+    const app = await at(NOW, STORE(RICH())); const c = app.ctx;
+    const html = on(c, NOW, () => c.weeklyReviewBodyHtml(c.deriveWeeklyReview('2026-09-14')));
+    const items = html.match(/role="listitem" aria-label="[^"]+"/g) || [];
+    T('the strip is a list of seven days, each named with its state', /class="wr-strip" role="list" aria-label="The week, day by day"/.test(html) && items.length === 7 &&
+      items.some(s => /Thursday, September 17: planned, missed/.test(s)) && items.some(s => /: rest day"/.test(s)) && items.some(s => /: trained/.test(s)), items);
+    T('the week arrows say which week they go to', /aria-label="Previous week, September 7 to 13"/.test(html) && /aria-label="Next week, September 21 to 27"/.test(html));
+    T('the week is the page heading, named in full, and takes focus when the week changes',
+      /<h2 class="wr-nav-range" id="wrRange" tabindex="-1" aria-label="Week of September 14 to 20">Sep 14–20<\/h2>/.test(html) &&
+      /range\.focus\(\{ preventScroll: true \}\)/.test(fnSrc(raw, 'shiftWeeklyReview')));
+    T('every section has a real heading', ['wrGlanceH', 'wrTrainH'].every(id => html.indexOf('id="' + id + '"') !== -1 && html.indexOf('aria-labelledby="' + id + '"') !== -1));
+    T('the legend is decoration (each day is already spoken)', /class="wr-legend" aria-hidden="true"/.test(html));
+    T('touch targets: the arrows are 44px and the rows at least 52px', /width: 44px; height: 44px;/.test(cssRule(css, '.wr-nav-btn{')) && /min-height: 52px/.test(cssRule(css, '.wr-row{')));
+    T('the overlay closes through its own Back button, so Escape and the back gesture find it',
+      /<button class="workout-back" onclick="closeWeeklyReview\(\)" aria-label="Back">/.test(raw));
+  });
+
+  /* ---------- 28: long histories ---------- */
+  sub('28  a two-year, high-volume history stays fast');
+  await guard('perf', async () => {
+    const log = [];
+    const LIFTS = ['Bench Press', 'Back Squat', 'Barbell Row', 'Overhead Press', 'Romanian Deadlift', 'Lat Pulldown', 'Leg Press', 'Incline Dumbbell Press'];
+    const start = new Date('2024-10-07T12:00:00');
+    for(let w = 0; w < 104; w++) [0, 1, 3, 4].forEach((d, j) => {
+      const x = new Date(start); x.setDate(start.getDate() + w * 7 + d);
+      const date = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+      log.push(WK('p' + w + '_' + j, date, ['push', 'pull', 'legs', 'push'][j], 'S' + j,
+        LIFTS.map((n, i) => EX(n, [S(100 + w + i * 10, 8), S(100 + w + i * 10, 8), S(100 + w + i * 10, 7), S(100 + w + i * 10, 6)]))));
+    });
+    const app = await at(NOW, STORE(log, { 'planStart:balanced': JSON.stringify('2024-10-07') })); const c = app.ctx;
+    const t = fn => { const a = Date.now(); fn(); return Date.now() - a; };
+    on(c, NOW, () => c.deriveWeeklyReview(null));                  // the app's own caches warm, as Progress would have them
+    const tReview = on(c, NOW, () => t(() => c.weeklyReviewBodyHtml(c.deriveWeeklyReview(null))));
+    const tEntry = on(c, NOW, () => t(() => c.weeklyReviewEntryHtml()));
+    const tBrowse = on(c, NOW, () => t(() => { const ws = c.weeklyReviewWeeks(); ws.forEach(k => c.weeklyReviewBodyHtml(c.deriveWeeklyReview(k))); }));
+    console.log('    two-year history (' + log.length + ' workouts, ' + log.length * 32 + ' sets): review ' + tReview + ' ms, entry ' + tEntry + ' ms, all 11 weeks ' + tBrowse + ' ms');
+    T('28  the latest review derives and renders in under 400 ms', tReview < 400, tReview);
+    T('28  the Progress entry costs under 60 ms', tEntry < 60, tEntry);
+    T('28  browsing every reviewable week costs under 1.5 s in total', tBrowse < 1500, tBrowse);
+  });
+
+  sub('nothing else moved');
+  T('the module reads; it never writes, persists or stores', mod.length > 0 &&
+    !/LOOPStore|localStorage|sessionStorage|indexedDB|persist[A-Z]\w*\(|workoutLog\s*=[^=]|\.sort\(\)|workoutLog\.(push|splice|sort|reverse)/.test(mod));
+  T('the timer is read only through D105.1’s workoutTimeOf, never directly', !/workoutElapsedSeconds\(|estimateLoggedDuration\(/.test(mod));
+  T('it reuses, never re-derives: D44, D46B/D100, the canonical index, D105.1, sessionScore, D49, D107, D108',
+    ['computeConsistencyData(', 'deriveMuscleSetsBetween(', 'computeWeeklyVolume(', 'canonicalPRIndex(', 'prEventsForEntryOrdered(',
+     'workoutTimeOf(', 'sessionScore(', 'progressionFor(', 'workoutsOnDate(', 'calendarDayState(', 'planDayIsSuspended('].every(f => mod.indexOf(f) !== -1));
+  T('the trainer is untouched', H.loadApp().ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -46648,6 +47055,7 @@ async function main(){
   await testRankStageD1131();
   await testRankStageD1132();
   await testStartupRevealD114();
+  await testWeeklyReviewD115();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

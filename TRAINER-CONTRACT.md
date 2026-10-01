@@ -16123,3 +16123,205 @@ at 10.27 through 10.28–10.30, because those releases ran `node loop-tests.js
 verify` directly instead of `npm run verify`, which runs the Mission Control
 status gate first. It now says 10.31, and this release was verified with
 `npm run verify`.
+
+## §154 — WEEKLY REVIEW: A FINISHED WEEK, READ FROM WHAT LOOP ALREADY TRUSTS (D115 · LOOP 10.32 · loop-v209)
+
+A product-intelligence phase: one concise recap of the athlete's most recently
+completed training week. It is deterministic and local. There is no LLM, no
+backend, no stored review and no new engine: every figure is read from the
+system that already owns it.
+
+### Where it lives
+
+Progress → Overview gains one block directly under the hero: WEEKLY REVIEW,
+the week's range, "N workouts · N working sets · N records", and a compact
+seven-day strip. Tapping it opens a full page (`#weeklyReviewOverlay`, the
+standard `.overlay-page` + `workout-topbar` pattern; Escape and Back close it
+through `closeWeeklyReview()`). There is no Home entry: Progress is the
+review's canonical home, and Home stays the workout surface.
+
+### Which weeks (the completed-week rule)
+
+`weeklyReviewWeeks()` offers only weeks that are over. Each is a
+Monday–Sunday civil week under the `weekStartKey` convention, strictly before
+this week's Monday. The week in progress is never offered, and asking for it
+by name returns the latest completed week. The span is D44's own twelve-week
+window, so up to 11 completed weeks are reviewable. A week is offered only if
+its Sunday is on or after D27's `trackingStart`: a week wholly before tracked
+history is unknown, not empty. Navigation (‹ ›) steps one completed week at a
+time and stops at both ends.
+
+### Every figure, and its owner
+
+- **Planned / fulfilled:** D44 `computeConsistencyData`, that week's own
+  `plannedKnown` and `fulfilled`. This means D43 matching, the D90/D99.3
+  pause rule and the D27 tracking boundary.
+- **Day strip:** the Log calendar's own state rule. Days with training are
+  completed (D107 `workoutsOnDate`, D108 `calendarDayState`, records via the
+  canonical `byDate`). Days before tracking are unknown. Unplanned days are
+  rest. Planned days inside a pause are paused (`planDayIsSuspended`).
+  Otherwise D44's `missed`. Same-day workouts show a count.
+- **Workouts:** every workout, distinct by id, in trained order (D107). Each
+  row opens `openWorkoutSummary(id)`.
+- **Working sets and muscles:** D46B/D100 `deriveMuscleSetsBetween(Mon, Sun)`.
+  This is the Volume tab's arithmetic: warm-ups and unperformed sets are
+  excluded, primary muscles only.
+- **Volume load:** D100's `computeWeeklyVolume` buckets.
+- **Records:** the canonical index (D96C-2), per workout through
+  `prEventsForEntryOrdered`, plus id-less events from `byDate`, each exactly
+  once. A record whose event has no earlier best (`prev` 0) is labelled
+  "first logged". It is still a record, exactly as on every other surface.
+- **Time:** D105.1's measured time only (`workoutTimeOf`'s `actual` kind), summed and
+  shown in the one stopwatch shape (`formatClock`) with its coverage ("3 of 5
+  workouts timed"). An estimate is never added to a clock; rows show `~N min`
+  for untimed workouts.
+- **Session Score:** `sessionScore(entry)` per workout, absent where the
+  workout has none. It is never averaged.
+- **Level and rank:** from `computeXPEvents`, and only when the week provably
+  crossed. Undated cardio streak XP is placed against the claim (start read
+  high, end read low). A crossing that survives is stated exactly ("Level
+  7 → 8") when no XP is undated, otherwise as "Reached Level N".
+- **Objectives:** completions dated inside the week (`computeObjectiveXPTimeline`).
+- **Progression (latest week only, labelled "now"):** D49 `progressionFor(name,
+  repRangeForExercise(name), null)`, asked exactly as Progress asks it, for
+  the lifts the week trained. Increase, then reduce, then building, then hold.
+  At most three, each opening Exercise Detail.
+- **Going into this week (latest week only):**
+  - program week and phase (`getRunningProgram`, `getProgramProgress`,
+    `getBlockForWeek`);
+  - up next (`weekOverview().next`, else `myTrainingNextSession`, exactly as
+    My Training);
+  - estimated recovery now, the same three muscles Today's strip lists, by
+    band;
+  - this week's weekly objectives.
+
+### Comparison
+
+The previous week is compared only when it is completed, inside the window,
+and wholly inside tracked history. Otherwise nothing is claimed. The
+comparison states values ("6 · was 4"), the volume change with its sign, and
+the three biggest per-muscle set changes. None of it is coloured: more
+training is not automatically better.
+
+### What is deliberately not here
+
+- **No weekly score, grade or praise.** Contract 232 checks for this.
+- **No historical recovery or readiness reconstruction.** Recovery appears
+  only as current context, labelled "now".
+- **No mastery events:** a past threshold crossing is not provable from the
+  current derivation.
+- **No readiness summary:** low signal.
+- **No sharing or export.**
+- **No storage:** DATA_KEYS 16, schema 1, no migration. The week on screen is
+  held in memory (`weeklyReviewKey`).
+
+### Existing contracts that met D115
+
+Three earlier contracts flagged the first build, and each was right:
+- **D105.1's single-timer rule.** The review called `workoutElapsedSeconds`
+  directly. It now reads `workoutTimeOf(e)` and takes its `actual` seconds.
+- **The retired "judged rows" pattern.** A contract forbids the substring
+  `cmp-row`, which the comparison classes used. They are now `wr-vs-*`.
+- **The `onclickArg` handler census.** It counts `openExDetail` sites, and
+  the progression rows are a third site through `onclickArg`. The count was
+  restated from 2 to 3, with a D115 note beside it.
+
+### Contract 232 (80 checks)
+
+Behavioural, on a clock pinned to Wednesday 2026-09-30. It covers:
+- completed weeks only (the week in progress is refused even by name);
+- the Monday and Sunday boundaries, and DST weeks in New York (fall and
+  spring) and Sydney;
+- no-history, first-week, one-week and partly-tracked states;
+- D44 equality for every reviewable week, the paused week, and two workouts on
+  one Friday;
+- order invariance;
+- canonical records attributed to the exact week, with neighbouring weeks'
+  records excluded;
+- measured time only;
+- D100 equality, D49 equality for every trained lift, Session Score per
+  workout;
+- current context only on the latest week, and recovery equal to Today's;
+- no verdicts;
+- byte-identical history, and zero writes to the store, localStorage or
+  sessionStorage, while opening, browsing and closing;
+- the second Friday workout's row opens the second Friday workout;
+- the redraw when a workout is deleted from inside the review;
+- provable level and rank crossings;
+- accessibility;
+- a 2-year, 13,312-set history (review 19 ms, entry 7 ms, all 11 weeks
+  68 ms).
+
+**Mutation: all 31 real mutants are killed by Contract 232 alone**, plus 1
+recorded equivalent. They cover every mutant the brief listed:
+- the week in progress accepted;
+- Sunday and Monday off-by-one (three ways);
+- a paused day turned missed;
+- workouts and records attributed to the wrong day or week;
+- an estimate added to measured time;
+- recovery or progression rebuilt for a past week;
+- sets diverging from D100;
+- D49 asked with a default range, and without its phase policy;
+- two same-day workouts collapsed;
+- a comparison against the week in progress, and against a partly tracked
+  week;
+- an invented weekly score;
+- the history re-sorted in place;
+- localStorage and store writes;
+- an unprovable level;
+- pre-tracking days read as rest;
+- workouts used in place of D44 fulfilment;
+- duplicate records;
+- a recovery order different from Today's;
+- untrained lifts recommended;
+- the entry dropped;
+- the redraw hook removed;
+- praise;
+- averaged scores;
+- unspoken strip days;
+- the derivation's completed-week guard removed.
+
+The redraw hook survived the first sweep: a structural check had matched the
+empty-state branch's copy of it. It was replaced by a behavioural test that
+deletes a workout under an open review, and the mutant now dies. The
+equivalent mutant widens the arrows' clamp: `deriveWeeklyReview` still
+refuses any week that is not completed, so the screen cannot leave last week.
+Mutant 23b removes that guard instead and dies.
+
+**Real-browser QA (headless Edge, real touch).** 66/66, and 66/66 again under
+a 59/34px safe-area override. It covers:
+- 320x568, 360x640, 375x667, 390x844, 393x852, 414x896, 430x932, 768x1024
+  and 1280x800: no overflow, no clipping, every button at least 44px, seven
+  non-overlapping strip days;
+- the "Arms" row opening ITS summary above the review;
+- the arrows stopping at last week;
+- a progression row opening its Exercise Detail above the review;
+- Escape and Back;
+- localStorage byte-identical before and after;
+- the first-week, one-week and no-history states;
+- no console errors.
+
+### Owner history
+
+Both read-only backups were replayed, with hashes checked before and after:
+- **2026-08-29 backup at Monday 2026-08-31 (Aug 24–30):** 2 workouts,
+  10 working sets, 4 records, 2 of 4 planned sessions completed, Level 1 → 2,
+  compared fairly with Aug 17–23.
+- **The same backup at its export time:** reviews Aug 17–23, with no
+  comparison, because Aug 10–16 was only partly tracked.
+- **2026-08-30 backup at 2026-08-31:** 2 workouts on Sunday,
+  27 working sets, 9 records, each a lift's first logged best. Timed training
+  0:22 (the owner's own 19 s and 3 s timers). Days before tracking are shown
+  as not tracked. Program week 2 of 8 · Foundation.
+- **The same backup at its export time:** no completed week, so the entry
+  says the first review arrives Monday, Aug 31.
+
+### Found, not fixed — E36
+
+D44's per-week `workouts`, `sets`, `volume`, `prs` and `avgScore` (and the
+per-day `entry`) keep only the first workout of each date
+(`byDate[l.date] = l`, first wins). The owner's real Aug 24–30 week therefore
+reads 1 workout, 26 sets and 8 records in D44, against the true 2, 27 and 9.
+The Overview's "Sessions per week" consistency card inherits it. D44 was
+protected in D115; the review takes its counts from the canonical readers
+instead, and only D44's plan matching, which already sees every workout.

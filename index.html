@@ -4179,6 +4179,153 @@ button.mpod-card:focus-visible{ outline: 2px solid var(--accent); outline-offset
 .po-mus-sub b{ color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
 .po-mus-bars{ display: block; margin-top: 14px; }
 
+/* ---------- WEEKLY REVIEW (Phase D115) ----------
+   A finished week, read in one pass: three numbers, the plan, the week's
+   shape, then the evidence. One surface for the facts, plain sections for
+   the rest; colour is used only where LOOP already gives it a meaning
+   (the calendar's done and missed marks, D49's increase and reduce). */
+.wr-entry-week{
+  display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  font-size: 21px; line-height: 1.15; color: var(--text); margin-top: 9px;
+}
+.wr-entry-line{ display: block; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-dim); margin-top: 4px; }
+.wr-entry-wait .wr-entry-line{ margin-top: 8px; }
+.wr-strip{ display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin: 16px 0 4px; }
+.wr-strip-compact{ margin: 13px 0 0; max-width: 260px; }
+.wr-day{ display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
+.wr-day-l{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.04em; color: var(--text-faint); line-height: 1;
+}
+.wr-day-m{ position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 22px; }
+.wr-dot{ display: block; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; }
+.wr-dot-done{ background: var(--success); }
+/* A record is a ring around the day it was set on. */
+.wr-dot-pr{
+  position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+  border-radius: 50%; border: 1.5px solid var(--success); box-sizing: border-box; pointer-events: none;
+}
+.wr-dot-missed{ border: 1.5px solid var(--warning); }
+.wr-dot-unknown{ border: 1px dotted var(--text-faint); opacity: 0.6; }
+.wr-dash{ display: block; width: 10px; height: 2px; border-radius: 1px; background: var(--text-faint); opacity: 0.7; }
+.wr-dash-paused{ background: none; border-top: 2px dotted var(--text-faint); height: 0; }
+.wr-count{
+  position: absolute; left: calc(50% + 11px); top: -3px;
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  color: var(--text-dim); line-height: 1; font-variant-numeric: tabular-nums;
+}
+.wr-legend{ display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; margin: 2px 0 6px; }
+.wr-legend-i{ display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-micro); color: var(--text-faint); }
+.wr-legend .wr-dot{ width: 8px; height: 8px; }
+.wr-legend .wr-dash{ width: 8px; }
+.wr-legend-pr{ box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--success); }
+.wr-strip-compact .wr-day{ gap: 5px; }
+.wr-strip-compact .wr-day-m{ height: 16px; }
+.wr-strip-compact .wr-dot{ width: 9px; height: 9px; }
+.wr-strip-compact .wr-dot-pr{ width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; }
+.wr-strip-compact .wr-count{ left: calc(50% + 8px); }
+
+.wr-nav{ display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; margin: 2px 0 16px; }
+.wr-nav-btn{
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); cursor: pointer; padding: 0;
+}
+.wr-nav-btn:disabled{ opacity: 0.35; cursor: default; }
+.wr-nav-btn:not(:disabled):active{ background: var(--surface-2); }
+.wr-nav-mid{ display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
+.wr-nav-range{
+  margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: var(--fs-title);
+  line-height: 1.15; color: var(--text); outline: none;
+}
+.wr-nav-sub{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.11em; text-transform: uppercase; color: var(--text-faint);
+}
+
+.wr-k{
+  margin: 0; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.11em; text-transform: uppercase; color: var(--text-faint);
+}
+.wr-hero{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px 16px 6px;
+}
+.wr-stats{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.wr-stat{ display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wr-stat b{
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: var(--fs-metric);
+  line-height: 1; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.wr-stat span{ font-size: var(--fs-meta); line-height: 1.3; color: var(--text-dim); }
+.wr-plan{ margin: 14px 0 0; font-size: var(--fs-support); font-weight: 600; line-height: 1.45; color: var(--text); }
+.wr-time{ margin: 4px 0 0; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-dim); }
+.wr-note{ margin: 10px 0 8px; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-faint); }
+.wr-rows{ display: flex; flex-direction: column; margin-top: 8px; }
+.wr-row{
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 9px 0;
+  background: none; border: 0; border-top: 1px solid var(--border); color: var(--text);
+  font-family: inherit; text-align: left; cursor: pointer;
+}
+.wr-row:active{ background: var(--surface-2); }
+.wr-row:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.wr-row-day{
+  flex: 0 0 34px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.06em; color: var(--text-faint);
+}
+.wr-row-main{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.wr-row-t{ font-size: var(--fs-body); font-weight: 600; line-height: 1.3; color: var(--text); overflow-wrap: anywhere; }
+.wr-row-m{ font-size: var(--fs-meta); line-height: 1.4; color: var(--text-dim); overflow-wrap: anywhere; }
+.wr-row-score{ flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.wr-row-score b{ font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.wr-row-score span{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); color: var(--text-faint); line-height: 1; }
+
+.wr-sec{ margin-top: 28px; }
+.wr-sub{ margin: 5px 0 12px; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-dim); }
+.wr-win{ display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.wr-win:first-of-type{ margin-top: 6px; }
+.wr-win-t{ font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; line-height: 1.25; color: var(--text); }
+.wr-win-s{ font-size: var(--fs-meta); color: var(--text-dim); }
+.wr-list{ list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.wr-list li{ display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: var(--fs-support); line-height: 1.35; }
+.wr-li-t{ min-width: 0; color: var(--text); overflow-wrap: anywhere; }
+.wr-li-s{ display: block; margin-top: 2px; font-size: var(--fs-meta); color: var(--text-faint); }
+.wr-li-v{ flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta); color: var(--text-dim); text-align: right; }
+.wr-li-more{ color: var(--text-faint); font-size: var(--fs-meta) !important; }
+.wr-vs{ margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.wr-vs-h{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+}
+.wr-vs-row{ display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: var(--fs-support); line-height: 1.4; }
+.wr-vs-l{ flex: 0 0 auto; color: var(--text-dim); }
+.wr-vs-v{ min-width: 0; text-align: right; color: var(--text-dim); overflow-wrap: anywhere; }
+.wr-vs-v b{ color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.wr-prog{ align-items: flex-start; }
+.wr-prog-tag{
+  flex: 0 0 76px; margin-top: 2px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim);
+}
+.wr-prog-increase{ color: var(--success); }
+.wr-prog-reduce{ color: var(--warning); }
+.wr-prog-load{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta); font-weight: 700; color: var(--text-dim); white-space: nowrap; }
+.wr-prog .po-go{ margin-top: 2px; }
+.wr-ctx{ margin: 10px 0 0; display: flex; flex-direction: column; }
+.wr-ctx-row{ display: flex; gap: 14px; padding: 10px 0; border-top: 1px solid var(--border); }
+.wr-ctx-row dt{
+  flex: 0 0 104px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); line-height: 1.5;
+}
+.wr-ctx-row dd{ margin: 0; min-width: 0; font-size: var(--fs-support); line-height: 1.45; color: var(--text); overflow-wrap: anywhere; }
+.wr-foot{ margin: 24px 0 8px; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-faint); }
+.wr-empty{ padding: 8px 0; }
+@media (max-width: 359px){
+  .wr-stats{ gap: 6px; }
+  .wr-stat b{ font-size: 24px; }
+  .wr-prog-tag{ flex-basis: 64px; }
+  .wr-ctx-row dt{ flex-basis: 84px; }
+}
+
 /* ---------- PROGRESS DASHBOARD (Phase D12.1) ----------
    One reading, three indicators, then five cards of equal weight. Colour is
    reserved for state — improving, on target, attention — and is never used to
@@ -8824,6 +8971,18 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 
     <div class="seg-panel" id="ppanel-muscles" style="display:none">
       <div id="progMuscles"></div>
+    </div>
+  </div>
+
+  <!-- WEEKLY REVIEW (D115) — one completed week, read-only. -->
+  <div class="overlay overlay-page" id="weeklyReviewOverlay" onclick="backdropDismiss(event, closeWeeklyReview)">
+    <div class="sheet sheet-page">
+      <div class="workout-topbar">
+        <button class="workout-back" onclick="closeWeeklyReview()" aria-label="Back">‹</button>
+        <div class="workout-topbar-title">Weekly review</div>
+        <span class="workout-topbar-spacer"></span>
+      </div>
+      <div class="sheet-scroll" id="weeklyReviewBody"></div>
     </div>
   </div>
 
@@ -18046,6 +18205,21 @@ const LOOP_UPDATES = [
       'The opening LOOP mark now clears in about half a second, and your screen is already ready underneath it',
       'With Reduce Motion on, LOOP opens with a short fade and no movement'
     ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v10-32',
+    version: 'LOOP 10.32',
+    title: 'Weekly Review',
+    date: '2026-09-30',
+    swVersion: 'loop-v209',
+    summary: 'Weekly Review turns your last completed training week into one clear recap — workouts, records, what you trained and what is ready to progress.',
+    newFeatures: [
+      'Progress → Overview now opens a review of last week: your workouts day by day, planned sessions completed, records and working sets by muscle',
+      'Step back through your recent completed weeks, each compared with the week before it'
+    ],
+    improvements: [],
     bugFixes: [],
     changes: []
   }
@@ -36721,6 +36895,7 @@ function renderProgDashboard(){
         <div class="pd-empty-card"><span class="pd-empty-t">Muscle development</span><span class="pd-empty-s">Train consistently to build your profile.</span></div>
         <div class="pd-empty-card"><span class="pd-empty-t">Exercise mastery</span><span class="pd-empty-s">Levels grow as you repeat exercises.</span></div>
       </div>`;
+    if(weeklyReviewIsOpen()) renderWeeklyReview();
     return;
   }
 
@@ -36729,10 +36904,14 @@ function renderProgDashboard(){
      is one tap from that surface. */
   host.innerHTML = `
     ${progHeroHtml()}
+    ${weeklyReviewEntryHtml()}
     ${progProgramCardHtml()}
     ${progWeekMuscleHtml()}
     ${progConsistencyCardHtml()}
     ${progLevelHtml()}`;
+  /* D115 — an open review is redrawn with the screen beneath it, so a workout
+     opened from it, then edited or deleted, is never shown as it was. */
+  if(weeklyReviewIsOpen()) renderWeeklyReview();
 }
 
 /* UNKNOWN ≠ ZERO (D25, guardian rule). A 12-week chart over a 2-week-old log
@@ -37375,6 +37554,588 @@ function distributionHtml(catSets, catTotal){
         <span class="dl-name">${CAT_LABEL[c]}</span>
         <span class="dl-n">${catSets[c]}</span>
         <span class="dl-pct">${pct(c)}%</span></div>`).join('')}</div>`;
+}
+
+/* =========================================================
+   WEEKLY REVIEW  (Phase D115)
+   ---------------------------------------------------------
+   "What did last week look like?" — answered once, for a week
+   that is OVER, from the systems that already own each fact.
+
+   COMPLETED WEEKS ONLY. A week is Monday to Sunday, the
+   weekStartKey convention every week in LOOP shares. The week in
+   progress is never offered: three days of it measured against a
+   finished week would be a comparison the athlete cannot trust.
+
+   WHICH WEEKS. D44 measures planned training over twelve weeks
+   ending with this one, so the eleven before it are the weeks
+   whose plan LOOP can answer for. Older weeks are not offered
+   rather than offered without their plan, and a week entirely
+   before the athlete's tracked history (D27's trackingStart) is
+   unknown, not empty.
+
+   EVERY FIGURE IS READ, NOT RE-DERIVED:
+     planned, fulfilled, day states   D44 computeConsistencyData
+                                      (its D43 matching, its pause
+                                      rule, its tracking boundary)
+     a day's sessions and records     D107 workoutsOnDate,
+                                      D108 calendarDayState
+     working sets, muscles            D46B/D100 deriveMuscleSetsBetween
+     volume load                      D100 computeWeeklyVolume
+     records                          D96C-2 canonicalPRIndex
+     time                             D105.1 — measured time only
+     session quality                  sessionScore, one per workout
+     level and rank                   computeXPEvents
+     ready to progress                D49 progressionFor
+     what comes next                  weekOverview, myTrainingNextSession
+     recovery                         computeMuscleRecovery
+
+   NOW IS LABELLED NOW. Progression, recovery, the program and
+   what is next describe the athlete today. They appear only on
+   the latest completed week, and say they are current. Nothing is
+   reconstructed for a past date.
+
+   NO VERDICT. There is no weekly score, grade or praise: the
+   facts are shown and the athlete judges them. Changes against
+   the previous week are stated with their sign and never
+   coloured, because more training is not automatically better.
+
+   READ-ONLY. No DATA_KEY, no cache that outlives the screen, no
+   write of any kind. The week on screen is held in memory.
+   ========================================================= */
+let weeklyReviewKey = null;   // the Monday on screen; null is the latest completed week
+
+/* The completed weeks this review can answer for, oldest first. */
+function weeklyReviewWeeks(){
+  let cons = null;
+  try{ cons = computeConsistencyData(); }catch(e){ return []; }
+  const ts = cons && cons.trackingStart;
+  if(!ts) return [];
+  const thisMonday = weekStartKey(localDateStr());
+  return (cons.weeks || [])
+    .map(w => localDateStr(w.start))
+    .filter(k => k < thisMonday && addDaysISO(k, 6) >= ts);
+}
+
+function weeklyReviewRangeLabel(startKey){
+  const a = new Date(startKey + 'T00:00:00'), b = new Date(addDaysISO(startKey, 6) + 'T00:00:00');
+  const mo = d => d.toLocaleDateString('en-US', { month: 'short' });
+  return a.getMonth() === b.getMonth()
+    ? mo(a) + ' ' + a.getDate() + '–' + b.getDate()
+    : mo(a) + ' ' + a.getDate() + ' – ' + mo(b) + ' ' + b.getDate();
+}
+function weeklyReviewRangeSpoken(startKey){
+  const a = new Date(startKey + 'T00:00:00'), b = new Date(addDaysISO(startKey, 6) + 'T00:00:00');
+  const mo = d => d.toLocaleDateString('en-US', { month: 'long' });
+  return mo(a) + ' ' + a.getDate() + ' to ' + (a.getMonth() === b.getMonth() ? '' : mo(b) + ' ') + b.getDate();
+}
+
+/* One day of the week in the Log calendar's own words: a day with training is
+   completed whatever was planned; otherwise a day before the athlete's tracked
+   history is unknown, an unplanned day is rest, a planned day inside a pause was
+   never owed, and a planned, knowable day with nothing logged was missed. */
+function weeklyReviewDay(dateStr, entries, consDay, trackingStart){
+  const dt = new Date(dateStr + 'T00:00:00');
+  const name = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  if(entries.length){
+    const ds = calendarDayState(entries);
+    return { date: dateStr, state: ds.hasPR ? 'pr' : 'done', count: ds.count, ids: entries.map(e => e.id),
+      spoken: name + ': trained' + (ds.count > 1 ? ', ' + ds.count + ' workouts' : '') + (ds.hasPR ? ', personal record' : '') };
+  }
+  let state = 'rest', word = 'rest day';
+  if(!trackingStart || dateStr < trackingStart){ state = 'unknown'; word = 'before tracking began'; }
+  else if(consDay && consDay.state === 'missed'){ state = 'missed'; word = 'planned, missed'; }
+  else if(consDay && consDay.planned && planDayIsSuspended(dateStr)){ state = 'paused'; word = 'program paused'; }
+  return { date: dateStr, state, count: 0, ids: [], spoken: name + ': ' + word };
+}
+
+/* What the week contained, and nothing that needs today: the part the Progress
+   entry shows, and the head of the full review, so the two cannot disagree. */
+function weeklyReviewGlance(weekKey){
+  const weeks = weeklyReviewWeeks();
+  if(!weeks.length) return null;
+  const key = weeks.indexOf(weekKey) !== -1 ? weekKey : weeks[weeks.length - 1];
+  const start = key, end = addDaysISO(key, 6);
+  const cons = computeConsistencyData();
+  const cw = (cons.weeks || []).find(w => localDateStr(w.start) === key) || null;
+
+  const days = [];
+  for(let i = 0; i < 7; i++) days.push(addDaysISO(start, i));
+  /* Every workout, each its own: two on one date are two sessions, in the order
+     they were trained (D107). Read once per day, for the strip and the list. */
+  const byDay = days.map(d => workoutsOnDate(d));
+  const timeline = days.map((d, i) => weeklyReviewDay(d, byDay[i], cw && cw.days ? cw.days[i] : null, cons.trackingStart));
+  const sessions = [];
+  byDay.forEach(list => list.forEach(e => sessions.push(e)));
+
+  const idx = canonicalPRIndex();
+  const records = [];
+  const seen = new Set();
+  sessions.forEach(e => prEventsForEntryOrdered(e).forEach(ev => {
+    if(!seen.has(ev)){ seen.add(ev); records.push({ ev, entryId: e.id }); }
+  }));
+  /* A record whose workout carries no id still happened on its date. */
+  days.forEach(d => (idx.byDate[d] || []).forEach(ev => {
+    if(!seen.has(ev)){ seen.add(ev); records.push({ ev, entryId: null }); }
+  }));
+
+  const mv = deriveMuscleSetsBetween(start, end);
+  const daysTrained = timeline.filter(d => d.count > 0).length;
+
+  return {
+    weekKey: key, start, end, weeks, index: weeks.indexOf(key),
+    isLatest: key === weeks[weeks.length - 1],
+    label: weeklyReviewRangeLabel(key), spoken: weeklyReviewRangeSpoken(key),
+    trackingStart: cons.trackingStart,
+    trackingBeganMidWeek: !!(cons.trackingStart && cons.trackingStart > start),
+    timeline, sessions, records,
+    workouts: sessions.length, daysTrained,
+    workingSets: mv.setsLogged, muscles: mv,
+    plan: cw ? { planned: cw.plannedKnown || 0, fulfilled: cw.fulfilled || 0 } : null,
+    paused: timeline.filter(d => d.state === 'paused').length
+  };
+}
+
+/* The ONE current-recovery reading Today's figure lists: muscles with fresh
+   evidence, least recovered first, three at most, in the same bands. */
+function weeklyReviewRecoveryNow(){
+  const all = computeMuscleRecovery();
+  const fresh = r => r && r.score !== null && r.lastTrainedDays !== null &&
+    r.lastTrainedDays <= RECOVERY_CONFIG.windowDays;
+  return Object.keys(all).filter(m => fresh(all[m]) && recoveryBandOf(all[m].state))
+    .map(m => all[m])
+    .sort((a, b) => a.score - b.score || a.muscle.localeCompare(b.muscle))
+    .slice(0, 3)
+    .map(r => ({ muscle: r.muscle, label: r.label, score: r.score, band: recoveryBandOf(r.state) }));
+}
+
+const WEEKLY_REVIEW_PROGRESSION_ORDER = { increase: 0, reduce: 1, build: 2, plateau: 3 };
+const WEEKLY_REVIEW_PROGRESSION_WORD = { increase: 'Increase', reduce: 'Reduce', build: 'Building', plateau: 'Hold' };
+
+function deriveWeeklyReview(weekKey){
+  const g = weeklyReviewGlance(weekKey);
+  if(!g) return null;
+  const r = Object.assign({}, g);
+
+  r.workoutsList = g.sessions.map(e => {
+    let score = null;
+    try{ const s = sessionScore(e); if(s && s.available) score = { value: s.score, word: s.word }; }catch(x){}
+    let prs = 0;
+    try{ prs = getSessionPRs(e).length; }catch(x){}
+    /* D105.1 — the one reading of a workout's time; its measured kind is the only clock. */
+    const time = workoutTimeOf(e);
+    return { id: e.id, date: e.date, title: e.title || CAT_LABEL[e.category] || 'Workout', category: e.category,
+      time, elapsedSec: time.kind === 'actual' ? time.sec : null, prs, score };
+  });
+  /* Measured time only (D105.1). An estimate is never added to a clock. */
+  const timed = r.workoutsList.filter(w => w.elapsedSec !== null);
+  r.timed = { count: timed.length, sec: timed.reduce((n, w) => n + w.elapsedSec, 0) };
+
+  /* D100's own weekly buckets: the week IS the bucket the Volume tab draws. */
+  let buckets = [];
+  try{ buckets = computeWeeklyVolume(CONSISTENCY_WEEKS); }catch(x){ buckets = []; }
+  const volOf = k => { const b = buckets.find(x => x.start === k); return b ? b.volume : null; };
+  r.volume = volOf(g.start);
+
+  /* The previous week is compared only when it is completed, inside the window,
+     and wholly inside the tracked history; otherwise there is nothing fair to
+     compare against and no change is stated. */
+  r.previous = null;
+  const prevKey = addDaysISO(g.start, -7);
+  if(g.weeks.indexOf(prevKey) !== -1 && g.trackingStart && prevKey >= g.trackingStart){
+    const pEnd = addDaysISO(prevKey, 6);
+    const pmv = deriveMuscleSetsBetween(prevKey, pEnd);
+    const pWorkouts = (workoutLog || []).filter(l => l && l.date >= prevKey && l.date <= pEnd).length;
+    const muscles = Object.keys(MUSCLE_MAP).map(k => ({ id: k, label: MUSCLE_LABELS[k] || k,
+      now: g.muscles.totals[k] || 0, before: pmv.totals[k] || 0 }))
+      .map(m => Object.assign(m, { delta: m.now - m.before }))
+      .filter(m => m.delta !== 0)
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || a.label.localeCompare(b.label))
+      .slice(0, 3);
+    const pVol = volOf(prevKey);
+    r.previous = { weekKey: prevKey, label: weeklyReviewRangeLabel(prevKey), workouts: pWorkouts,
+      workingSets: pmv.setsLogged, volume: pVol,
+      volumePct: (pVol > 0 && r.volume > 0) ? Math.round(((r.volume - pVol) / pVol) * 100) : null,
+      muscles };
+  }
+
+  /* Level and rank, only when the week provably crossed one. Cardio streak XP has
+     no date, so the start is read as high as it could have been and the end as
+     low: a crossing that survives both is certain. */
+  r.level = null; r.rank = null;
+  try{
+    const xp = computeXPEvents();
+    let before = 0, through = 0;
+    xp.events.forEach(e => { if(e.date < g.start) before += e.xp; if(e.date <= g.end) through += e.xp; });
+    const carried = xp.carriedXP || 0;
+    const lowEnd = calculateLevelFromXP(through).level;
+    const highStart = calculateLevelFromXP(before + carried).level;
+    if(lowEnd > highStart){
+      r.level = { to: lowEnd, from: carried ? null : highStart };
+      const r0 = calculateRankFromLevel(highStart), r1 = calculateRankFromLevel(lowEnd);
+      if(r0 !== r1) r.rank = { to: r1 };
+    }
+  }catch(x){ r.level = null; r.rank = null; }
+
+  r.objectivesDone = 0;
+  try{ r.objectivesDone = computeObjectiveXPTimeline().timeline.filter(t => t.date >= g.start && t.date <= g.end).length; }catch(x){}
+
+  r.progression = [];
+  r.progressionAll = [];
+  r.progressionCount = 0;
+  r.context = null;
+  if(g.isLatest){
+    /* D49, asked exactly as Progress asks it, for the lifts this week trained. */
+    const trained = {};
+    g.sessions.forEach(e => (e.exercises || []).forEach(ex => {
+      if(!ex || !ex.name || ex.skipped) return;
+      const n = (ex.sets || []).filter(st => parseFloat(st && st.reps) > 0).length;
+      if(!n) return;
+      const k = loggedExerciseKey(ex.name);
+      trained[k] = (trained[k] || 0) + n;
+    }));
+    const items = [];
+    getAllLoggedExerciseNames().forEach(name => {
+      const k = loggedExerciseKey(name);
+      if(!trained[k]) return;
+      let rec = null;
+      try{ rec = progressionFor(name, repRangeForExercise(name), null); }catch(x){ rec = null; }
+      if(!rec || WEEKLY_REVIEW_PROGRESSION_ORDER[rec.tag] === undefined) return;
+      let from = null;
+      try{ const h = exerciseSessionHistory(name, 1); from = h.length ? h[0].weight : null; }catch(x){}
+      items.push({ name, tag: rec.tag, word: WEEKLY_REVIEW_PROGRESSION_WORD[rec.tag], weight: rec.weight, from,
+        headline: rec.headline, why: rec.why, sets: trained[k] });
+    });
+    items.sort((a, b) => WEEKLY_REVIEW_PROGRESSION_ORDER[a.tag] - WEEKLY_REVIEW_PROGRESSION_ORDER[b.tag]
+      || b.sets - a.sets || a.name.localeCompare(b.name));
+    r.progressionAll = items;
+    r.progressionCount = items.length;
+    r.progression = items.slice(0, 3);
+
+    const ctx = { program: null, next: null, recovery: [], objectives: null };
+    try{
+      const rp = getRunningProgram();
+      const pp = rp ? getProgramProgress(rp) : null;
+      if(pp && pp.totalWeeks && pp.week){
+        const block = getBlockForWeek(rp, pp.week);
+        ctx.program = { name: rp.name || 'Program', week: pp.week, totalWeeks: pp.totalWeeks,
+          phase: block ? (block.name || phaseTypeLabel(block)) : null };
+      }
+    }catch(x){ ctx.program = null; }
+    try{
+      const wk = weekOverview();
+      const n = (wk.next && wk.next.cat !== 'rest') ? wk.next : myTrainingNextSession();
+      if(n) ctx.next = { name: n.workoutName || CAT_LABEL[n.cat] || null, when: n.isToday ? 'Today' : n.fullLabel };
+    }catch(x){ ctx.next = null; }
+    try{ ctx.recovery = weeklyReviewRecoveryNow(); }catch(x){ ctx.recovery = []; }
+    try{
+      const op = objectivesForPeriod();
+      if(op.weekly.length) ctx.objectives = { count: op.weekly.length, done: op.weekly.filter(i => i.completedAt).length };
+    }catch(x){ ctx.objectives = null; }
+    r.context = ctx;
+  }
+  return r;
+}
+
+/* ---------- PRESENTATION ---------- */
+function weeklyReviewStripHtml(timeline, compact){
+  const cells = timeline.map((d, i) => {
+    let mark;
+    if(d.state === 'done' || d.state === 'pr'){
+      mark = '<span class="wr-dot wr-dot-done"></span>' + (d.state === 'pr' ? '<span class="wr-dot-pr"></span>' : '');
+    } else if(d.state === 'missed') mark = '<span class="wr-dot wr-dot-missed"></span>';
+    else if(d.state === 'unknown') mark = '<span class="wr-dot wr-dot-unknown"></span>';
+    else mark = '<span class="wr-dash' + (d.state === 'paused' ? ' wr-dash-paused' : '') + '"></span>';
+    const count = d.count > 1 ? '<span class="wr-count">' + d.count + '</span>' : '';
+    return '<span class="wr-day wr-day-' + d.state + '"' + (compact ? '' : ' role="listitem" aria-label="' + escapeAttr(d.spoken) + '"') + '>' +
+      '<span class="wr-day-l" aria-hidden="true">' + DAY_LABEL[DAY_ORDER[i]].slice(0, 1) + '</span>' +
+      '<span class="wr-day-m" aria-hidden="true">' + mark + count + '</span>' +
+    '</span>';
+  }).join('');
+  return compact
+    ? '<span class="wr-strip wr-strip-compact" aria-hidden="true">' + cells + '</span>'
+    : '<div class="wr-strip" role="list" aria-label="The week, day by day">' + cells + '</div>';
+}
+
+/* The canonical record walk starts every lift's best at nothing, so a lift's first
+   logged session is a record by definition (D96C-2). That stays a record here, as it
+   is on every other surface; the review only says which ones had no earlier best,
+   read from the event itself. */
+function weeklyReviewRecordIsFirst(ev){
+  const h = ev && ev.headline;
+  return !!(h && (h.type === 'weight' || h.type === 'reps') && !(h.prev > 0));
+}
+
+function weeklyReviewLegendHtml(timeline){
+  const has = st => timeline.some(d => d.state === st);
+  const keys = [];
+  if(has('done') || has('pr')) keys.push(['<span class="wr-dot wr-dot-done"></span>', 'trained']);
+  if(has('pr')) keys.push(['<span class="wr-dot wr-dot-done wr-legend-pr"></span>', 'record']);
+  if(has('missed')) keys.push(['<span class="wr-dot wr-dot-missed"></span>', 'missed']);
+  if(has('paused')) keys.push(['<span class="wr-dash wr-dash-paused"></span>', 'paused']);
+  if(has('rest')) keys.push(['<span class="wr-dash"></span>', 'rest']);
+  if(has('unknown')) keys.push(['<span class="wr-dot wr-dot-unknown"></span>', 'not tracked']);
+  if(!keys.length) return '';
+  return '<div class="wr-legend" aria-hidden="true">' + keys.map(k => '<span class="wr-legend-i">' + k[0] + k[1] + '</span>').join('') + '</div>';
+}
+
+function weeklyReviewCountLine(g){
+  return [
+    g.workouts + ' workout' + (g.workouts === 1 ? '' : 's'),
+    g.workingSets + ' working set' + (g.workingSets === 1 ? '' : 's'),
+    g.records.length + ' record' + (g.records.length === 1 ? '' : 's')
+  ].join(' · ');
+}
+
+/* What the plan asked of the week, in D44's terms: planned days that were knowable
+   and not paused, and how many of them training fulfilled. */
+function weeklyReviewPlanLine(r){
+  const parts = [];
+  if(r.plan && r.plan.planned){
+    const p = r.plan.planned, f = r.plan.fulfilled;
+    parts.push(f >= p
+      ? (p === 1 ? 'The planned session was completed' : 'All ' + p + ' planned sessions completed')
+      : f + ' of ' + p + ' planned session' + (p === 1 ? '' : 's') + ' completed');
+  } else {
+    parts.push('No sessions were planned');
+  }
+  if(r.paused) parts.push('program paused ' + r.paused + ' day' + (r.paused === 1 ? '' : 's'));
+  return parts.join(' · ');
+}
+
+function weeklyReviewEntryHtml(){
+  let g = null;
+  try{ g = weeklyReviewGlance(null); }catch(e){ g = null; }
+  if(!g){
+    let ts = null;
+    try{ ts = computeConsistencyData().trackingStart; }catch(e){}
+    if(!ts) return '';
+    const first = addDaysISO(weekStartKey(ts), 7);
+    const when = new Date(first + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    return `
+    <div class="po-card wr-entry wr-entry-wait">
+      <span class="po-k">Weekly review</span>
+      <span class="wr-entry-line">Your first review arrives ${escapeHtml(when)}, after your first full week.</span>
+    </div>`;
+  }
+  return `
+    <button type="button" class="po-card po-card-tap wr-entry" onclick="openWeeklyReview()"
+      aria-label="${escapeAttr('Weekly review, ' + g.spoken + ': ' + weeklyReviewCountLine(g) + '. Open the review.')}">
+      <span class="po-card-top">
+        <span class="po-k">Weekly review</span>
+        <span class="po-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </span>
+      <span class="wr-entry-row">
+        <span class="wr-entry-info">
+          <span class="wr-entry-week">${escapeHtml(g.label)}</span>
+          <span class="wr-entry-line">${escapeHtml(weeklyReviewCountLine(g))}</span>
+        </span>
+        ${weeklyReviewStripHtml(g.timeline, true)}
+      </span>
+    </button>`;
+}
+
+function weeklyReviewSigned(n){ return n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '0'; }
+
+function weeklyReviewBodyHtml(r){
+  const weeks = r.weeks, i = r.index;
+  const prevKey = i > 0 ? weeks[i - 1] : null;
+  const nextKey = i < weeks.length - 1 ? weeks[i + 1] : null;
+  const ago = weeks.length - 1 - i;
+  const sub = ago === 0 ? 'Last week' : (ago + 1) + ' weeks ago';
+  const nav = `
+    <div class="wr-nav">
+      <button type="button" class="wr-nav-btn" onclick="shiftWeeklyReview(-1)" ${prevKey ? '' : 'disabled'}
+        aria-label="${escapeAttr(prevKey ? 'Previous week, ' + weeklyReviewRangeSpoken(prevKey) : 'No earlier week to review')}">${chevronLeftSvg()}</button>
+      <div class="wr-nav-mid">
+        <h2 class="wr-nav-range" id="wrRange" tabindex="-1" aria-label="${escapeAttr('Week of ' + r.spoken)}">${escapeHtml(r.label)}</h2>
+        <span class="wr-nav-sub">${escapeHtml(sub)}</span>
+      </div>
+      <button type="button" class="wr-nav-btn" onclick="shiftWeeklyReview(1)" ${nextKey ? '' : 'disabled'}
+        aria-label="${escapeAttr(nextKey ? 'Next week, ' + weeklyReviewRangeSpoken(nextKey) : 'This week is still in progress')}">${chevronRightSvg()}</button>
+    </div>`;
+
+  const stat = (n, label) => `<div class="wr-stat"><b>${n}</b><span>${label}</span></div>`;
+  const timedLine = r.timed.count
+    ? 'Timed training ' + formatClock(r.timed.sec) + (r.timed.count < r.workouts ? ' · ' + r.timed.count + ' of ' + r.workouts + ' workouts timed' : '')
+    : '';
+  const rows = r.workoutsList.map(w => {
+    const day = DAY_LABEL[JS_DAY_TO_KEY[new Date(w.date + 'T00:00:00').getDay()]];
+    const time = w.time.kind === 'actual' ? w.time.clock : w.time.kind === 'estimate' ? '~' + w.time.min + ' min' : '';
+    const meta = [time || null, w.prs ? w.prs + ' record' + (w.prs === 1 ? '' : 's') : null].filter(Boolean).join(' · ');
+    const spokenTime = w.time.kind === 'actual' ? 'took ' + w.time.clock : w.time.kind === 'estimate' ? 'about ' + w.time.min + ' minutes, estimated' : '';
+    const spoken = [w.title, DAY_LABEL_FULL[JS_DAY_TO_KEY[new Date(w.date + 'T00:00:00').getDay()]], spokenTime || null,
+      w.prs ? w.prs + ' record' + (w.prs === 1 ? '' : 's') : null,
+      w.score ? 'session score ' + w.score.value : null].filter(Boolean).join(', ');
+    return `
+      <button type="button" class="wr-row" onclick="openWorkoutSummary('${onclickArg(w.id)}')"
+        aria-label="${escapeAttr(spoken + '. Open the workout summary.')}">
+        <span class="wr-row-day" aria-hidden="true">${day}</span>
+        <span class="wr-row-main" aria-hidden="true">
+          <span class="wr-row-t">${escapeHtml(w.title)}</span>
+          ${meta ? `<span class="wr-row-m">${escapeHtml(meta)}</span>` : ''}
+        </span>
+        ${w.score ? `<span class="wr-row-score" aria-hidden="true"><b>${w.score.value}</b><span>score</span></span>` : ''}
+        <span class="po-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </button>`;
+  }).join('');
+
+  const glance = `
+    <section class="wr-hero" aria-labelledby="wrGlanceH">
+      <h3 class="wr-k" id="wrGlanceH">Week at a glance</h3>
+      <div class="wr-stats">
+        ${stat(r.workouts, 'workout' + (r.workouts === 1 ? '' : 's'))}
+        ${stat(r.workingSets, 'working set' + (r.workingSets === 1 ? '' : 's'))}
+        ${stat(r.records.length, 'record' + (r.records.length === 1 ? '' : 's'))}
+      </div>
+      <p class="wr-plan">${escapeHtml(weeklyReviewPlanLine(r))}</p>
+      ${timedLine ? `<p class="wr-time">${escapeHtml(timedLine)}</p>` : ''}
+      ${weeklyReviewStripHtml(r.timeline, false)}
+      ${weeklyReviewLegendHtml(r.timeline)}
+      ${r.trackingBeganMidWeek ? `<p class="wr-note">Your tracked history begins ${escapeHtml(new Date(r.trackingStart + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }))} of this week.</p>` : ''}
+      ${rows ? `<div class="wr-rows">${rows}</div>` : `<p class="wr-note">No workouts were logged this week.</p>`}
+    </section>`;
+
+  /* Wins: only what the week can prove. */
+  const wins = [];
+  if(r.records.length){
+    const shown = r.records.slice(0, 3).map(x => {
+      const f = formatPREventHeadline(x.ev);
+      const was = weeklyReviewRecordIsFirst(x.ev) ? 'first logged' : (f ? 'was ' + f.previous : '');
+      return `<li><span class="wr-li-t">${escapeHtml(x.ev.exerciseName)}<span class="wr-li-s">${escapeHtml((f ? f.label : 'Record') + (was ? ' · ' + was : ''))}</span></span><span class="wr-li-v">${escapeHtml(f ? f.current : '')}</span></li>`;
+    }).join('');
+    const more = r.records.length > 3 ? `<li class="wr-li-more">and ${r.records.length - 3} more</li>` : '';
+    const firsts = r.records.filter(x => weeklyReviewRecordIsFirst(x.ev)).length;
+    const firstNote = firsts ? (firsts === r.records.length
+      ? (firsts === 1 ? 'A lift\'s first logged best' : 'Each one a lift\'s first logged best')
+      : firsts + ' of them a lift\'s first logged best') : '';
+    wins.push(`<div class="wr-win"><span class="wr-win-t">${r.records.length} new record${r.records.length === 1 ? '' : 's'}</span>${firstNote ? `<span class="wr-win-s">${escapeHtml(firstNote)}</span>` : ''}<ul class="wr-list">${shown}${more}</ul></div>`);
+  }
+  if(r.level){
+    wins.push(`<div class="wr-win"><span class="wr-win-t">${r.level.from !== null ? 'Level ' + r.level.from + ' → ' + r.level.to : 'Reached Level ' + r.level.to}</span>${r.rank ? `<span class="wr-win-s">New rank: ${escapeHtml(r.rank.to)}</span>` : ''}</div>`);
+  }
+  if(r.objectivesDone){
+    wins.push(`<div class="wr-win"><span class="wr-win-t">${r.objectivesDone} objective${r.objectivesDone === 1 ? '' : 's'} completed</span></div>`);
+  }
+  const winsHtml = wins.length ? `
+    <section class="wr-sec" aria-labelledby="wrWinsH">
+      <h3 class="wr-k" id="wrWinsH">Wins</h3>
+      ${wins.join('')}
+    </section>` : '';
+
+  let trainingHtml = '';
+  if(r.workingSets > 0 || r.previous){
+    let cmp = '';
+    if(r.previous){
+      const p = r.previous;
+      const line = (label, now, text) => `<div class="wr-vs-row"><span class="wr-vs-l">${label}</span><span class="wr-vs-v"><b>${now}</b> · ${escapeHtml(text)}</span></div>`;
+      cmp = `
+        <div class="wr-vs" aria-label="Compared with ${escapeAttr(weeklyReviewRangeSpoken(p.weekKey))}">
+          <span class="wr-vs-h">Compared with ${escapeHtml(p.label)}</span>
+          ${line('Workouts', r.workouts, 'was ' + p.workouts)}
+          ${line('Working sets', r.workingSets, 'was ' + p.workingSets)}
+          ${p.volumePct !== null ? line('Volume load', (r.volume || 0).toLocaleString() + ' lb', weeklyReviewSigned(p.volumePct) + '%') : ''}
+          ${p.muscles.length ? `<div class="wr-vs-row"><span class="wr-vs-l">Sets by muscle</span><span class="wr-vs-v">${escapeHtml(p.muscles.map(m => m.label + ' ' + weeklyReviewSigned(m.delta)).join(' · '))}</span></div>` : ''}
+        </div>`;
+    }
+    trainingHtml = `
+    <section class="wr-sec" aria-labelledby="wrTrainH">
+      <h3 class="wr-k" id="wrTrainH">Training</h3>
+      ${r.workingSets > 0 ? `<p class="wr-sub">Working sets by muscle trained</p>${muscleBarsHtml(r.muscles.totals, null, { limit: 5 })}` : ''}
+      ${cmp}
+    </section>`;
+  }
+
+  let progressionHtml = '';
+  if(r.isLatest && r.progression.length){
+    progressionHtml = `
+    <section class="wr-sec" aria-labelledby="wrProgH">
+      <h3 class="wr-k" id="wrProgH">Progression · now</h3>
+      <p class="wr-sub">Where last week's lifts stand today</p>
+      <div class="wr-rows">${r.progression.map(p => {
+        const target = (p.tag === 'increase' || p.tag === 'reduce') && p.from !== null && p.weight !== null ? p.from + ' → ' + p.weight + ' lb' : p.headline;
+        return `
+        <button type="button" class="wr-row wr-prog" onclick="openExDetail('${onclickArg(p.name)}')"
+          aria-label="${escapeAttr(p.name + ': ' + p.word + ', ' + target + '. ' + p.why + ' Open exercise detail.')}">
+          <span class="wr-prog-tag wr-prog-${p.tag}" aria-hidden="true">${escapeHtml(p.word)}</span>
+          <span class="wr-row-main" aria-hidden="true">
+            <span class="wr-row-t">${escapeHtml(p.name)} <span class="wr-prog-load">${escapeHtml(target)}</span></span>
+            <span class="wr-row-m">${escapeHtml(p.why)}</span>
+          </span>
+          <span class="po-go" aria-hidden="true">${chevronRightSvg()}</span>
+        </button>`;
+      }).join('')}</div>
+      ${r.progressionCount > r.progression.length ? `<p class="wr-note">Showing ${r.progression.length} of the ${r.progressionCount} lifts with a recommendation.</p>` : ''}
+    </section>`;
+  }
+
+  let contextHtml = '';
+  if(r.isLatest && r.context){
+    const c = r.context, items = [];
+    if(c.program) items.push(['Program', c.program.name + ' · week ' + c.program.week + ' of ' + c.program.totalWeeks + (c.program.phase ? ' · ' + c.program.phase : '')]);
+    if(c.next && c.next.name) items.push(['Up next', c.next.name + ' · ' + c.next.when]);
+    if(c.recovery.length){
+      const groups = [];
+      c.recovery.forEach(x => {
+        const last = groups[groups.length - 1];
+        if(last && last.band === x.band) last.items.push(x); else groups.push({ band: x.band, items: [x] });
+      });
+      items.push(['Est. recovery now', groups.map(g => (RECOVERY_BAND_LABEL[g.band] || '') + ': ' + g.items.map(x => x.label + ' ' + x.score + '%').join(', ')).join(' · ')]);
+    }
+    if(c.objectives) items.push(['Objectives', c.objectives.count + ' weekly objective' + (c.objectives.count === 1 ? '' : 's') + (c.objectives.done ? ' · ' + c.objectives.done + ' done' : '')]);
+    if(items.length) contextHtml = `
+    <section class="wr-sec" aria-labelledby="wrNextH">
+      <h3 class="wr-k" id="wrNextH">Going into this week</h3>
+      <dl class="wr-ctx">${items.map(([k, v]) => `<div class="wr-ctx-row"><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join('')}</dl>
+    </section>`;
+  }
+
+  const foot = r.isLatest ? '' : `<p class="wr-foot">Progression and current context appear on last week's review.</p>`;
+  const oldest = (i === 0 && r.trackingStart && r.trackingStart < weeks[0]) ? `<p class="wr-foot">Reviews go back ${weeks.length} completed weeks — the span LOOP measures planned training over.</p>` : '';
+  return nav + glance + winsHtml + trainingHtml + progressionHtml + contextHtml + foot + oldest;
+}
+
+function renderWeeklyReview(){
+  const body = document.getElementById('weeklyReviewBody');
+  if(!body) return;
+  let r = null;
+  try{ r = deriveWeeklyReview(weeklyReviewKey); }catch(e){ console.error('LOOP render error in renderWeeklyReview:', e); r = null; }
+  if(!r){
+    body.innerHTML = `<div class="wr-empty"><h3 class="wr-k">Weekly review</h3><p class="wr-note">Your first review appears after a full training week.</p></div>`;
+    return;
+  }
+  weeklyReviewKey = r.isLatest ? null : r.weekKey;
+  body.innerHTML = weeklyReviewBodyHtml(r);
+}
+function weeklyReviewIsOpen(){
+  const ov = document.getElementById('weeklyReviewOverlay');
+  return !!(ov && ov.classList.contains('open'));
+}
+function openWeeklyReview(weekKey){
+  weeklyReviewKey = weekKey || null;
+  renderWeeklyReview();
+  const ov = document.getElementById('weeklyReviewOverlay');
+  if(ov) ov.classList.add('open');
+  const body = document.getElementById('weeklyReviewBody');
+  if(body) body.scrollTop = 0;
+}
+function closeWeeklyReview(){
+  const ov = document.getElementById('weeklyReviewOverlay');
+  if(ov) ov.classList.remove('open');
+}
+/* One completed week at a time, never past the newest completed one. */
+function shiftWeeklyReview(dir){
+  const weeks = weeklyReviewWeeks();
+  if(!weeks.length) return;
+  const cur = weeks.indexOf(weeklyReviewKey) !== -1 ? weeks.indexOf(weeklyReviewKey) : weeks.length - 1;
+  const to = Math.max(0, Math.min(weeks.length - 1, cur + dir));
+  if(to === cur) return;
+  weeklyReviewKey = to === weeks.length - 1 ? null : weeks[to];
+  renderWeeklyReview();
+  const body = document.getElementById('weeklyReviewBody');
+  if(body) body.scrollTop = 0;
+  const range = document.getElementById('wrRange');
+  if(range && range.focus) try{ range.focus({ preventScroll: true }); }catch(e){}
 }
 
 function renderProgTab(){

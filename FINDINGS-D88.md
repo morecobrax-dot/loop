@@ -1149,6 +1149,34 @@ non-finite rep count, and no unperformed set heavier than the performed work of 
 > `parseFloat` reps are proven untouched by source and by pin. See TRAINER-CONTRACT.md §149 and Contract
 > 227.
 
+## E36 — D44's weekly counts keep only the first workout of each date · P3 · PROVEN · OPEN
+
+Found by D115 (Weekly Review), on the owner's real 2026-08-30 backup. That
+backup has two workouts on one Sunday, and D44 read the week as 1 workout,
+26 sets and 8 records. The truth is 2 workouts, 27 working sets and
+9 records: the second workout's work is invisible to D44's counts.
+
+**What is wrong.** `computeConsistencyData` builds its day map with
+`workoutLog.forEach(l => { if(!byDate[l.date]) byDate[l.date] = l; })`, so
+first wins. Each day's `entry`, `prs`, `score`, `sets` and `volume`, and each
+week's `workouts`, `sets`, `volume`, `prs` and `avgScore`, are summed from
+that one entry per date. This is E30/E32's shape inside the consistency
+engine itself. Its plan MATCHING is not affected: `assignWorkoutsToPlannedSlots`
+is given every in-window workout, so `fulfilled` and `consistency` already see
+both sessions.
+
+**What the athlete sees.** Progress → Overview's Consistency card ("Sessions
+per week, last 12 weeks" and its "N sessions" total) undercounts any week
+containing a multi-workout day. Since D115 the Weekly Review sits just above
+it with the true count, so the two can disagree on one screen. The review
+counts with D107's `workoutsOnDate` and D100's `deriveMuscleSetsBetween`, and
+reads D44 only for planned/fulfilled and day states.
+
+**Why it was not fixed in D115.** D44 was on that phase's protected list.
+Fixing it changes the consistency card, the weekly Session Score line
+(`avgScore`) and `computeTrainingContext.workoutsLast12Weeks`. That deserves
+its own phase, with an attributed drift measurement.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.
