@@ -18222,6 +18222,21 @@ const LOOP_UPDATES = [
     improvements: [],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-33',
+    version: 'LOOP 10.33',
+    title: 'Every Workout Counts',
+    date: '2026-09-30',
+    swVersion: 'loop-v210',
+    summary: 'Progress now counts every workout when you train more than once in a day.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Weekly sessions, sets, volume and records no longer stop at the first workout of the day',
+      'A week on the Progress consistency chart is marked on target only when the sessions you planned were done, however many extra you trained'
+    ],
+    changes: []
   }
 ];
 
@@ -23691,8 +23706,21 @@ function computeConsistencyData(){
   const thisMonday = new Date(now); thisMonday.setHours(0,0,0,0);
   thisMonday.setDate(now.getDate() - dayOffset);
 
+  /* D116 (E36) — a date GROUPS a day's workouts; each workout stays its own.
+     This map used to keep only the first workout logged on each date, so a day
+     trained twice counted as one workout, and that one workout's sets, volume,
+     records and score stood in for the whole day. Every workout on the date is
+     kept now, in the same single pass, ordered the way D43's matcher already
+     walks a pool (date, then id) so the order history happens to be stored in
+     decides nothing. The day keeps its one state; only the sums move.
+     Fulfilment never read this map: it has always been matched against every
+     workout in the window, so it cannot move. */
   const byDate = {};
-  workoutLog.forEach(l => { if(!byDate[l.date]) byDate[l.date] = l; });
+  workoutLog.forEach(l => { (byDate[l.date] = byDate[l.date] || []).push(l); });
+  Object.keys(byDate).forEach(k => { if(byDate[k].length > 1) byDate[k].sort((a, b) => String(a.id).localeCompare(String(b.id))); });
+  /* A record is a fact about the day it was set on: D96C-2 built byDate for
+     exactly that question, and it holds every workout's records once. */
+  const prByDate = canonicalPRIndex().byDate;
   /* D44 — the planned opportunities this window can fairly measure, gathered
      once and matched once. Consistency asks how reliably the athlete met the
      training they planned, so its numerator has to be fulfilled PLANS. It
@@ -23722,7 +23750,7 @@ function computeConsistencyData(){
   for(let w = CONSISTENCY_WEEKS - 1; w >= 0; w--){
     const weekStart = new Date(thisMonday); weekStart.setDate(thisMonday.getDate() - w*7);
     const days = [];
-    let workouts = 0, sets = 0, volume = 0, prs = 0, scoreSum = 0, scored = 0, missed = 0;
+    let workouts = 0, daysTrained = 0, sets = 0, volume = 0, prs = 0, scoreSum = 0, scored = 0, missed = 0;
     let plannedKnown = 0;
 
     for(let d = 0; d < 7; d++){
@@ -23730,7 +23758,10 @@ function computeConsistencyData(){
       const key = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
       const isFuture = dt > now;
       const beforeHistory = trackingStart && key < trackingStart;
-      const entry = byDate[key];
+      const dayEntries = byDate[key] || [];
+      /* Kept for the questions that are about the DAY ("was anything logged?").
+         Which workout it names carries no meaning; entries holds them all. */
+      const entry = dayEntries.length ? dayEntries[0] : null;
       const dayKey = JS_DAY_TO_KEY[dt.getDay()];
       const wasPlanned = plannedDayKeys.indexOf(dayKey) !== -1;
       /* Planned AND knowable AND already due — the only sessions the athlete
@@ -23760,15 +23791,23 @@ function computeConsistencyData(){
       }
 
       let state = 'rest', dayPRs = 0, dayScore = null, daySets = 0, dayVol = 0;
-      if(entry){
-        workouts++;
-        daySets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
-        dayVol = sessionVolume(entry);
-        dayPRs = getSessionPRs(entry).length;
-        const q = computeWorkoutQuality(entry, new Array(dayPRs));
-        dayScore = q ? q.score : null;
+      if(dayEntries.length){
+        /* Every workout that day counts as the workout it was: its logged sets,
+           its volume load, and its own score, which the week averages across
+           WORKOUTS (an unscored one is left out, never read as zero). */
+        let dayScoreSum = 0, dayScored = 0;
+        dayEntries.forEach(e => {
+          workouts++;
+          daySets += e.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
+          dayVol += sessionVolume(e);
+          const q = computeWorkoutQuality(e, new Array(getSessionPRs(e).length));
+          const sc = q ? q.score : null;
+          if(sc !== null){ dayScoreSum += sc; dayScored++; scoreSum += sc; scored++; }
+        });
+        daysTrained++;
+        dayPRs = (prByDate[key] || []).length;
+        dayScore = dayScored ? Math.round(dayScoreSum / dayScored) : null;
         sets += daySets; volume += dayVol; prs += dayPRs;
-        if(dayScore !== null){ scoreSum += dayScore; scored++; }
         state = dayPRs > 0 ? 'pr' : 'trained';
       } else if(isFuture){
         state = 'future';
@@ -23779,7 +23818,7 @@ function computeConsistencyData(){
         else { state = 'missed'; missed++; }
       }
 
-      days.push({ date: key, state, entry: entry || null, prs: dayPRs, score: dayScore, sets: daySets, volume: dayVol, planned: wasPlanned });
+      days.push({ date: key, state, entry, entries: dayEntries, workouts: dayEntries.length, prs: dayPRs, score: dayScore, sets: daySets, volume: dayVol, planned: wasPlanned });
     }
 
     /* The target is what was genuinely knowable, not the plan's shape applied
@@ -23790,7 +23829,7 @@ function computeConsistencyData(){
       index: CONSISTENCY_WEEKS - w,
       weekSlot: CONSISTENCY_WEEKS - 1 - w,
       start: weekStart,
-      days, workouts, sets, volume, prs, missed,
+      days, workouts, daysTrained, sets, volume, prs, missed,
       plannedKnown, known: plannedKnown > 0 || workouts > 0,
       avgScore: scored ? Math.round(scoreSum / scored) : null,
       target,
@@ -36967,9 +37006,13 @@ function progConsistencyCardHtml(){
   if(!weeks.length) return '';
   const peak = Math.max(1, ...weeks.map(w => Math.max(w.workouts, w.target || 0)));
   const cells = weeks.map(w => {
-    const onTarget = w.target ? w.workouts >= w.target : w.workouts > 0;
+    /* D116 — the bar's height is the work done; its colour is the plan kept.
+       Compared with workouts, a week with an extra session (or, now that every
+       same-day workout counts, a double day) read as on target with a planned
+       day still unfulfilled. The Log strip has used this rule since D45B. */
+    const onTarget = w.target ? (w.fulfilled || 0) >= w.target : w.workouts > 0;
     const h = Math.round((w.workouts / peak) * 100);
-    return `<span class="pd-wk${onTarget ? ' on' : ''}" role="img" aria-label="${w.workouts} session${w.workouts===1?'':'s'}"><span style="height:${Math.max(h, w.workouts?14:5)}%"></span></span>`;
+    return `<span class="pd-wk${onTarget ? ' on' : ''}" role="img" aria-label="${w.workouts} session${w.workouts===1?'':'s'}${w.target ? ', ' + (w.fulfilled || 0) + ' of ' + w.target + ' planned' : ''}"><span style="height:${Math.max(h, w.workouts?14:5)}%"></span></span>`;
   }).join('');
   return `
     <section class="pd-card pd-card-tap" onclick="switchTab('history')" role="button" tabindex="0">

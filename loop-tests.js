@@ -121,6 +121,55 @@ function fnSrc(src, name){
   return stripComments(src.slice(i, end));
 }
 
+/* D116 (E36) — computeConsistencyData changed ON PURPOSE, in exactly the six
+   places below, so a day trained twice counts both workouts (sets, volume,
+   records, the legacy score) while its state, its plan matching, targets,
+   missed and pause rules stay as they were. Six contracts held D44
+   byte-identical to 10.32; they now hold THIS: today's function with exactly
+   these six D116 statements put back as they were must hash to 10.32's pin.
+   Any other change to D44 — or any change inside these statements — still
+   fails every one of them. Each pair is [now, as of 10.32], comment-free and
+   whitespace-collapsed exactly as the pins are. */
+const D44_PIN_10_32 = '4f03435af47cfdb9';
+const D116_D44_EDITS = [
+  [
+    "const byDate = {}; workoutLog.forEach(l => { (byDate[l.date] = byDate[l.date] || []).push(l); }); Object.keys(byDate).forEach(k => { if(byDate[k].length > 1) byDate[k].sort((a, b) => String(a.id).localeCompare(String(b.id))); }); const prByDate = canonicalPRIndex().byDate;",
+    "const byDate = {}; workoutLog.forEach(l => { if(!byDate[l.date]) byDate[l.date] = l; });"
+  ],
+  [
+    "let workouts = 0, daysTrained = 0, sets = 0,",
+    "let workouts = 0, sets = 0,"
+  ],
+  [
+    "const dayEntries = byDate[key] || []; const entry = dayEntries.length ? dayEntries[0] : null;",
+    "const entry = byDate[key];"
+  ],
+  [
+    "if(dayEntries.length){ let dayScoreSum = 0, dayScored = 0; dayEntries.forEach(e => { workouts++; daySets += e.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0); dayVol += sessionVolume(e); const q = computeWorkoutQuality(e, new Array(getSessionPRs(e).length)); const sc = q ? q.score : null; if(sc !== null){ dayScoreSum += sc; dayScored++; scoreSum += sc; scored++; } }); daysTrained++; dayPRs = (prByDate[key] || []).length; dayScore = dayScored ? Math.round(dayScoreSum / dayScored) : null; sets += daySets; volume += dayVol; prs += dayPRs; state = dayPRs > 0 ? 'pr' : 'trained'; }",
+    "if(entry){ workouts++; daySets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0); dayVol = sessionVolume(entry); dayPRs = getSessionPRs(entry).length; const q = computeWorkoutQuality(entry, new Array(dayPRs)); dayScore = q ? q.score : null; sets += daySets; volume += dayVol; prs += dayPRs; if(dayScore !== null){ scoreSum += dayScore; scored++; } state = dayPRs > 0 ? 'pr' : 'trained'; }"
+  ],
+  [
+    "days.push({ date: key, state, entry, entries: dayEntries, workouts: dayEntries.length, prs: dayPRs,",
+    "days.push({ date: key, state, entry: entry || null, prs: dayPRs,"
+  ],
+  [
+    "days, workouts, daysTrained, sets, volume, prs, missed,",
+    "days, workouts, sets, volume, prs, missed,"
+  ]
+];
+function d44AsOf1032(src){
+  let t = fnSrc(src, 'computeConsistencyData').replace(/\s+/g, ' ').trim();
+  for(const [now, then] of D116_D44_EDITS){
+    if(t.split(now).length !== 2) return null;           // a D116 statement itself moved
+    t = t.split(now).join(then);
+  }
+  return t;
+}
+function d44PinAsOf1032(src){
+  const t = d44AsOf1032(src);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+
 /* A CSS rule's body, bounded by its own closing brace rather than by a
    character count that a new declaration pushes a property out of. */
 function cssRule(css, selector){
@@ -40588,12 +40637,13 @@ async function testCanonicalSessionPRD96C2(){
       !/getSessionPRs|prEvents|canonicalPRIndex|computeAllPREvents/.test(fnSrc(src, 'sessionScore') + fnSrc(src, 'deriveSessionExecution'))
       && pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c'
       && /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
-    T('the legacy day score keeps its weighting — only the record count it is handed changed',
+    /* D116 restated: the legacy score is still handed each workout's OWN record
+       count, now for every workout of the day rather than the first. */
+    T('the legacy day score keeps its weighting — only the record count it is handed changed (D116: per workout, every workout of the day)',
       pin('computeWorkoutQuality') === '30f1165dd94654eb'
-      && /dayPRs = getSessionPRs\(entry\)\.length;/.test(fnSrc(src, 'computeConsistencyData'))
-      && /const q = computeWorkoutQuality\(entry, new Array\(dayPRs\)\);/.test(fnSrc(src, 'computeConsistencyData')));
-    T('D44 itself is byte-identical: targets, planned, missed, today and pause rules untouched',
-      pin('computeConsistencyData') === '4f03435af47cfdb9'
+      && /const q = computeWorkoutQuality\(e, new Array\(getSessionPRs\(e\)\.length\)\);/.test(fnSrc(src, 'computeConsistencyData')));
+    T('D44 itself is byte-identical apart from D116’s multi-workout sums: targets, planned, missed, today and pause rules untouched',
+      d44PinAsOf1032(src) === D44_PIN_10_32
       && /planDayIsSuspended\(key\)/.test(fnSrc(src, 'computeConsistencyData')));
     /* D96C-3 restated the XP pin (one performance per lift per workout); what a
        record is worth — calculatePRXP — is still byte-identical. */
@@ -41037,7 +41087,7 @@ async function testRealUseD100(){
     T('XP, PR and Session Score engines are byte-identical (XP and the record engines at their D96C-3 restatements)',
       pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('computeExercisePREvents') === '4339cc543585bded'
       && pin('computePRs') === '51bd020b4aa2a8a3' && pin('getSessionPRs') === '2a121bed25bfa6ab'
-      && pin('sessionScore') === '842e5699f8ac0835' && pin('computeConsistencyData') === '4f03435af47cfdb9');
+      && pin('sessionScore') === '842e5699f8ac0835' && d44PinAsOf1032(src) === D44_PIN_10_32);   /* D116: D44 at its multi-workout restatement */
     T('D96C-1 and D96C-2 are preserved, and D96C-3 landed after this phase (Contract 215)',
       /function canonicalPRIndex/.test(src) && /function loadedPRPerformance/.test(src)
       && /workoutExercisePerformance\(l, key\)/.test(fnSrc(src, 'computeExercisePREvents')));
@@ -41361,8 +41411,8 @@ async function testFastUxD101(){
       pin('getMasteryProgress') === '77aca2558d11f3d5');
     /* D96C-3, a later phase, restated the XP pin (one performance per lift per
        workout); D101 itself touched none of these. */
-    T('XP, PR and Session Score engines are untouched (XP at its D96C-3 restatement)', pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
-      && pin('sessionScore') === '842e5699f8ac0835' && pin('computeConsistencyData') === '4f03435af47cfdb9');
+    T('XP, PR and Session Score engines are untouched (XP at its D96C-3 restatement, D44 at D116’s)', pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
+      && pin('sessionScore') === '842e5699f8ac0835' && d44PinAsOf1032(src) === D44_PIN_10_32);
     T('D43/D44/D49/D50B, trainer and Objectives are untouched',
       ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && /function syncObjectives/.test(src));
     T('DATA_KEYS 16, schema 1, no migration, no new stored preference',
@@ -41733,7 +41783,7 @@ async function testWorkoutPerformanceD96C3(){
     T('D50B’s Live Set Coach is byte-identical (it reads no history)', pin('deriveNextSetCoach') === '24da0e0f2d99a2c5');
     T('Session Score is byte-identical, and still judges each prescribed row as it was prescribed',
       pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c');
-    T('D44 is byte-identical', pin('computeConsistencyData') === '4f03435af47cfdb9');
+    T('D44 is byte-identical (with D116’s multi-workout sums put back, it is 10.32’s)', d44PinAsOf1032(src) === D44_PIN_10_32);
     T('XP rates, the level curve and Rank thresholds are byte-identical',
       pin('calculatePRXP') === 'ba20ebe522acc1a3' && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50'
       && pin('calculateLevelFromXP') === '9418f2e5934245da' && pin('rankIndexOf') === '821cfe82a1a7cb79');
@@ -42124,8 +42174,8 @@ async function testCardsAndSummaryD102(){
     T('D91, D96C-1/2/3\'s record and XP engines are byte-identical',
       pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
       && pin('computePRs') === '51bd020b4aa2a8a3' && pin('prModesByLift') === '1580d63cbcff4bfb');
-    T('D44, Session Score and the trainer are byte-identical',
-      pin('computeConsistencyData') === '4f03435af47cfdb9' && pin('sessionScore') === '842e5699f8ac0835'
+    T('D44, Session Score and the trainer are byte-identical (D44 at D116’s multi-workout restatement)',
+      d44PinAsOf1032(src) === D44_PIN_10_32 && pin('sessionScore') === '842e5699f8ac0835'
       && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' && pin('proposeTrainerState') === '34899e0f53f1d235'
       && ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
     T('D100 and D101 are byte-identical', pin('deriveMuscleSetsBetween') === '6443a76e769a229e'
@@ -46863,6 +46913,296 @@ async function testWeeklyReviewD115(){
   T('the trainer is untouched', H.loadApp().ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
 }
 
+async function testMultiWorkoutWeekD116(){
+  section('CONTRACT 233 — a day trained twice counts both workouts; the plan is still the plan (D116)');
+  const fs = require('fs'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const homeTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const NOW = '2026-09-30T12:00:00';                 // Wednesday; the probed week is Mon Sep 21 .. Sun Sep 27
+  const MON = '2026-09-21', TUE = '2026-09-22', WED = '2026-09-23', THU = '2026-09-24', FRI = '2026-09-25', SAT = '2026-09-26', SUN = '2026-09-27';
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const EX = (name, sets) => ({ name, bodyweight: false, effort: '', sets });
+  const WK = (id, date, cat, title, exercises) => ({ id, date, category: cat, title, notes: '', exercises });
+  const lifts = (n) => Array.from({ length: n }, (_, i) => EX('Lift ' + (i + 1), [S(100 + i, 8)]));
+  const HIST = [WK('h1', '2026-09-14', 'push', 'Push A', [EX('Bench Press', [S(200, 5), S(200, 5)])]),
+                WK('h2', '2026-09-15', 'pull', 'Pull A', [EX('Barbell Row', [S(150, 8)])])];
+  const PUSH = (id, date) => WK(id, date, 'push', 'Push A', [EX('Bench Press', [S(205, 5)])]);
+  const ARMS = (id, date) => WK(id, date, 'arms', 'Arms', [EX('Barbell Curl', [S(60, 10)])]);
+  const STORE = (log, extra) => Object.assign({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+    'planStart:balanced': JSON.stringify('2026-09-07'), workoutLog: JSON.stringify(log),
+    onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) }, extra || {});
+  async function at(iso, store, tz){
+    if(tz) process.env.TZ = tz;
+    const app = H.loadApp(store);
+    const release = pinClock(app.ctx, iso);
+    try{ await H.settle(300); } finally { release(); }
+    return app;
+  }
+  const on = (c, iso, fn) => withClockOn(c, iso, () => { c.invalidateConsistencyCache(); return fn(); });
+  const weekOf = (c, iso, mon) => on(c, iso, () => c.computeConsistencyData().weeks.find(w => c.localDateStr(w.start) === mon));
+  const PLAN = w => ({ plannedKnown: w.plannedKnown, target: w.target, fulfilled: w.fulfilled, missed: w.missed, consistency: w.consistency, known: w.known,
+    states: w.days.map(d => d.planned + ':' + (d.state === 'pr' ? 'trained' : d.state)).join() });
+  /* the oracle never asks D44: every workout of the week, read with the app's own per-workout primitives */
+  function oracle(c, mon){
+    const end = c.addDaysISO(mon, 6);
+    const inWeek = c.workoutLog.filter(l => l.date >= mon && l.date <= end);
+    const idx = c.canonicalPRIndex();
+    const days = []; for(let i = 0; i < 7; i++) days.push(c.addDaysISO(mon, i));
+    const q = inWeek.map(e => { const r = c.computeWorkoutQuality(e, new Array(c.getSessionPRs(e).length)); return r ? r.score : null; }).filter(x => x !== null);
+    return { workouts: inWeek.length, daysTrained: new Set(inWeek.map(e => e.date)).size,
+      sets: inWeek.reduce((n, e) => n + e.exercises.reduce((m, ex) => m + (ex.sets || []).length, 0), 0),
+      volume: inWeek.reduce((n, e) => n + c.sessionVolume(e), 0),
+      prs: days.reduce((n, d) => n + (idx.byDate[d] || []).length, 0),
+      avgScore: q.length ? Math.round(q.reduce((a, b) => a + b, 0) / q.length) : null };
+  }
+  const ACT = w => ({ workouts: w.workouts, daysTrained: w.daysTrained, sets: w.sets, volume: w.volume, prs: w.prs, avgScore: w.avgScore });
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  /* ---------- 1: the defect, on 10.32's own code ---------- */
+  sub('1  E36 reproduces on the 10.32 code, and is gone now');
+  await guard('repro', async () => {
+    const app = await at(NOW, STORE(HIST.concat([PUSH('b1', MON), ARMS('b2', MON)]))); const c = app.ctx;
+    const old = d44AsOf1032(raw);
+    T('the 10.32 function can be rebuilt exactly from today’s (Contract 233 and six earlier contracts rely on it)', old !== null && d44PinAsOf1032(raw) === D44_PIN_10_32);
+    const old1032 = vm.runInContext('(' + old.replace(/^function computeConsistencyData\(/, 'function computeConsistencyData1032(') + ')', c);
+    const then = withClockOn(c, NOW, () => { c.invalidateConsistencyCache(); const w = old1032().weeks.find(x => c.localDateStr(x.start) === MON); c.invalidateConsistencyCache(); return w; });
+    const now = weekOf(c, NOW, MON);
+    T('1  on 10.32 a Monday trained twice read as ONE workout, one set, one record', then.workouts === 1 && then.sets === 1 && then.prs === 1, ACT(then));
+    T('1  now it reads two, two and two — and the plan reads exactly as it did', now.workouts === 2 && now.sets === 2 && now.prs === 2 && same(PLAN(then), PLAN(now)), { now: ACT(now), plan: [PLAN(then), PLAN(now)] });
+  });
+
+  /* ---------- 2–9, 18–20: every workout counts, as itself ---------- */
+  sub('2–9, 18–20  every workout of a day counts, as the workout it was');
+  const SHAPES = [
+    ['2  one workout on a day stays one', [PUSH('a1', MON)], { workouts: 1, daysTrained: 1 }],
+    ['3  two workouts on a day count two', [PUSH('b1', MON), ARMS('b2', MON)], { workouts: 2, daysTrained: 1 }],
+    ['4  three on a day count three', [PUSH('g1', MON), ARMS('g2', MON), WK('g3', MON, 'core', 'Core', [EX('Cable Crunch', [S(80, 15)])])], { workouts: 3, daysTrained: 1 }],
+    ['5  sets add across workouts (10 + 1 = 11, every logged set as before)', [WK('c1', MON, 'push', 'Push A', [EX('Bench Press', Array.from({ length: 10 }, () => S(185, 5)))]), ARMS('c2', MON)], { sets: 11 }],
+    ['6  volume adds across workouts', [WK('e1', MON, 'push', 'Push A', [EX('Bench Press', [S(205, 5), S(205, 5)])]), WK('e2', MON, 'legs', 'Legs', [EX('Back Squat', [S(315, 5), S(315, 5), S(315, 5)])])], { volume: 2050 + 4725 }],
+    ['7  records add across workouts (8 + 1 = 9), each counted once', [WK('d1', MON, 'push', 'Upper A', lifts(8)), ARMS('d2', MON)], { prs: 9 }],
+    ['18  two workouts with the same title stay two (and a repeat sets no second record)', [PUSH('i1', MON), PUSH('i2', MON)], { workouts: 2, prs: 1 }],
+    ['19  two workouts of the same category stay two', [WK('s1', MON, 'push', 'Push A', [EX('Bench Press', [S(205, 5)])]), WK('s2', MON, 'push', 'Push B', [EX('Incline Dumbbell Press', [S(70, 10)])])], { workouts: 2 }],
+    ['H  a double day beside ordinary days', [PUSH('k1', MON), ARMS('k2', MON), WK('k3', TUE, 'pull', 'Pull A', [EX('Barbell Row', [S(155, 8)])]), WK('k4', THU, 'legs', 'Legs A', [EX('Back Squat', [S(315, 5)])])], { workouts: 4, daysTrained: 3 }]
+  ];
+  for(const [label, extra, want] of SHAPES){
+    await guard(label, async () => {
+      const app = await at(NOW, STORE(HIST.concat(extra))); const c = app.ctx;
+      const w = weekOf(c, NOW, MON), o = on(c, NOW, () => oracle(c, MON));
+      const got = ACT(w);
+      T(label, same(got, o) && Object.keys(want).every(k => got[k] === want[k]), { got, oracle: o });
+    });
+  }
+  await guard('8-9', async () => {
+    const app = await at(NOW, STORE(HIST.concat([PUSH('f1', MON), WK('f2', MON, 'arms', 'Arms', [EX('Barbell Curl', [S(60, 10), S(60, 12)])]),
+      WK('f3', MON, 'core', 'Notes only', [EX('Plank', [])])]))); const c = app.ctx;
+    const w = weekOf(c, NOW, MON);
+    const scores = ['f1', 'f2', 'f3'].map(id => { const e = c.workoutLog.find(l => l.id === id); const r = c.computeWorkoutQuality(e, new Array(c.getSessionPRs(e).length)); return r ? r.score : null; });
+    const scored = scores.filter(x => x !== null);
+    T('8  every scorable workout of the day enters the week’s average score', scored.length === 2 && w.avgScore === Math.round((scored[0] + scored[1]) / 2), { scores, avg: w.avgScore });
+    T('9  a workout with nothing to score is left out, never averaged in as a zero', scores[2] === null && w.workouts === 3 && w.days[0].score === Math.round((scored[0] + scored[1]) / 2));
+  });
+  await guard('dup-id', async () => {
+    /* An import can bring the same workout in twice under one id. Each entry is
+       counted as an entry, but a record is a fact about the day: D96C-2's byDate
+       holds it once, where a per-entry sum would hand both copies the same list. */
+    const app = await at(NOW, STORE(HIST.concat([PUSH('dup', MON), PUSH('dup', MON)]))); const c = app.ctx;
+    const w = weekOf(c, NOW, MON);
+    const byDay = (c.canonicalPRIndex().byDate[MON] || []).length;
+    T('7  an imported duplicate (two entries, one id) adds no phantom record: the day’s records are counted once',
+      byDay === 1 && w.prs === 1 && w.days[0].prs === 1 && w.workouts === 2, { prs: w.prs, byDay });
+  });
+  await guard('20', async () => {
+    const app = await at(NOW, STORE(HIST.concat([PUSH('i1', MON), PUSH('i2', MON), ARMS('i3', MON)]))); const c = app.ctx;
+    const d = weekOf(c, NOW, MON).days[0];
+    T('20  a day lists every workout by its own id, once each', d.workouts === 3 && same(d.entries.map(e => e.id), ['i1', 'i2', 'i3']) && d.entry && d.entry.id === 'i1');
+  });
+
+  /* ---------- 10–17: the plan is still the plan ---------- */
+  sub('10–17  sessions and planned fulfilment stay two different counts');
+  await guard('plan', async () => {
+    const single = await at(NOW, STORE(HIST.concat([PUSH('a1', MON)])));
+    const double = await at(NOW, STORE(HIST.concat([PUSH('a1', MON), ARMS('a2', MON)])));
+    const ws = weekOf(single.ctx, NOW, MON), wd = weekOf(double.ctx, NOW, MON);
+    T('10  a second workout on a trained day is still ONE trained day', ws.daysTrained === 1 && wd.daysTrained === 1 && wd.days[0].workouts === 2);
+    T('11–13  planned, fulfilled and missed are exactly what one workout gave', same(PLAN(ws), PLAN(wd)), [PLAN(ws), PLAN(wd)]);
+    T('17  the extra workout fills no planned slot (Monday’s one slot, one claim)', wd.fulfilled === 1 && wd.workouts === 2);
+    const full = await at(NOW, STORE(HIST.concat([PUSH('p1', MON), WK('p2', TUE, 'pull', 'Pull A', [EX('Barbell Row', [S(155, 8)])]),
+      WK('p3', THU, 'legs', 'Legs A', [EX('Back Squat', [S(315, 5)])]), WK('p4', FRI, 'push', 'Push B', [EX('Incline Dumbbell Press', [S(70, 10)])]), ARMS('p5', FRI)])));
+    const wf = weekOf(full.ctx, NOW, MON);
+    T('15  actual workouts may exceed the plan: five workouts against four planned', wf.workouts === 5 && wf.target === 4 && wf.fulfilled === 4, ACT(wf));
+    T('16  and the percentage is fulfilment, never workouts: 100%, not 125%', wf.consistency === 100 &&
+      on(full.ctx, NOW, () => full.ctx.computeConsistencyData()).weeks.every(w => w.consistency === null || w.consistency <= 100));
+    const j =await at(NOW, STORE(HIST.concat([PUSH('j1', MON), ARMS('j2', MON), WK('j3', FRI, 'push', 'Push B', [EX('Incline Dumbbell Press', [S(70, 10)])])])));
+    const wj = weekOf(j.ctx, NOW, MON);
+    T('J  the critical shape reads 3 workouts on 2 days, 2 of 4 planned, 50%', wj.workouts === 3 && wj.daysTrained === 2 && wj.fulfilled === 2 && wj.target === 4 && wj.consistency === 50, { a: ACT(wj), p: PLAN(wj) });
+  });
+  await guard('shift', async () => {
+    /* Monday's push trained on Tuesday as the SECOND workout of that day: the matcher has always seen every workout */
+    const app = await at(NOW, STORE(HIST.concat([WK('sa', TUE, 'pull', 'Pull A', [EX('Barbell Row', [S(155, 8)])]), WK('sb', TUE, 'push', 'Push A', [EX('Bench Press', [S(205, 5)])])]))); const c = app.ctx;
+    const w = weekOf(c, NOW, MON);
+    T('O  a shifted session that is the second workout of its day still fulfils the day it was planned for', w.fulfilled === 2 && w.workouts === 2 && w.daysTrained === 1, PLAN(w));
+  });
+  await guard('paused', async () => {
+    const PS = (cat, name) => ({ type: 'workout', planId: 'balanced', category: cat, templateId: 'x-' + cat, name, exercises: [{ name: 'Bench Press', sets: 3, reps: '8-10', effort: '8' }] });
+    const PROG = JSON.stringify({ version: 1, activeProgramId: 'p1', programs: [{ id: 'p1', name: 'Block', goal: 'hypertrophy', status: 'active', durationWeeks: 52, startDate: '2026-09-07',
+      pauses: [{ from: MON, to: FRI }], schedule: { mon: PS('push', 'Push'), tue: PS('pull', 'Pull'), thu: PS('legs', 'Legs'), fri: PS('push', 'Push 2') } }] });
+    const one = await at(NOW, STORE(HIST.concat([PUSH('q1', TUE)]), { programs: PROG }));
+    const two = await at(NOW, STORE(HIST.concat([PUSH('q1', TUE), ARMS('q2', TUE)]), { programs: PROG }));
+    const w1 = weekOf(one.ctx, NOW, MON), w2 = weekOf(two.ctx, NOW, MON);
+    T('14  M/N  inside a pause nothing is owed, trained twice or once: the plan reads identically; the paused Monday and Thursday are not missed, Friday (outside the pause) is',
+      same(PLAN(w1), PLAN(w2)) && w2.workouts === 2 && w2.daysTrained === 1 && w2.plannedKnown === 1 && w2.missed === 1 &&
+      w2.days[0].state === 'rest' && w2.days[3].state === 'rest' && w2.days[4].state === 'missed', JSON.stringify([PLAN(w1), PLAN(w2)]));
+  });
+
+  /* ---------- 21: deleting one of two ---------- */
+  sub('21  deleting one of two same-day workouts takes away exactly that one');
+  await guard('delete', async () => {
+    const app = await at(NOW, STORE(HIST.concat([PUSH('v1', MON), ARMS('v2', MON)]))); const c = app.ctx;
+    const before = weekOf(c, NOW, MON);
+    await withClockOn(c, NOW, async () => { c.deleteLog('v2'); await H.settle(300); });
+    const after = weekOf(c, NOW, MON);
+    T('21  the count drops by one and the sibling remains, by its own id', before.workouts === 2 && after.workouts === 1 && after.days[0].workouts === 1 &&
+      after.days[0].entries[0].id === 'v1' && after.days[0].state !== 'missed' && c.workoutLog.some(l => l.id === 'v1') && !c.workoutLog.some(l => l.id === 'v2'),
+      { before: ACT(before), after: ACT(after) });
+  });
+
+  /* ---------- 22: Weekly Review and D44 now answer the shared questions alike ---------- */
+  sub('22  the Weekly Review and Progress agree wherever they share a label');
+  await guard('d115', async () => {
+    const log = HIST.concat([PUSH('w1', MON), ARMS('w2', MON), WK('w3', THU, 'legs', 'Legs A', [EX('Back Squat', [S(315, 5)])]),
+      WK('w4', SUN, 'pull', 'Pull A', [EX('Barbell Row', [S(160, 8)])]), ARMS('w5', SUN), WK('w6', '2026-09-16', 'core', 'Core', [EX('Cable Crunch', [S(80, 15)])]), ARMS('w7', '2026-09-16')]);
+    const app = await at(NOW, STORE(log)); const c = app.ctx;
+    const weeks = on(c, NOW, () => c.weeklyReviewWeeks());
+    const bad = on(c, NOW, () => weeks.filter(k => { const r = c.deriveWeeklyReview(k), w = c.computeConsistencyData().weeks.find(x => c.localDateStr(x.start) === k);
+      return !(r.workouts === w.workouts && r.daysTrained === w.daysTrained && r.records.length === w.prs && r.plan.planned === w.plannedKnown && r.plan.fulfilled === w.fulfilled); }));
+    T('22  for every reviewable week: workouts, days trained, records, planned and fulfilled are the same numbers', weeks.length >= 2 && bad.length === 0, bad);
+    T('22  the review still counts working sets (its own label), D44 still counts every logged set (its own field)', on(c, NOW, () => {
+      const r = c.deriveWeeklyReview(MON), w = c.computeConsistencyData().weeks.find(x => c.localDateStr(x.start) === MON);
+      return r.workingSets === c.deriveMuscleSetsBetween(MON, SUN).setsLogged && w.sets === oracle(c, MON).sets;
+    }));
+  });
+
+  /* ---------- 23–26: week, day, tracking and clock rules are unchanged ---------- */
+  sub('23–26  the week in progress, tracking, the week boundary and DST are as they were');
+  await guard('today', async () => {
+    const MONNOW = '2026-09-28T10:00:00', TODAY = '2026-09-28';
+    const one = await at(MONNOW, STORE(HIST.concat([PUSH('t1', TODAY)])));
+    const two = await at(MONNOW, STORE(HIST.concat([PUSH('t1', TODAY), ARMS('t2', TODAY)])));
+    const none = await at(MONNOW, STORE(HIST.slice()));
+    const w1 = weekOf(one.ctx, MONNOW, TODAY), w2 = weekOf(two.ctx, MONNOW, TODAY), w0 = weekOf(none.ctx, MONNOW, TODAY);
+    T('23  a planned today trained twice is fulfilled once, exactly as trained once', same(PLAN(w1), PLAN(w2)) && w2.workouts === 2 && w2.days[0].state !== 'today');
+    T('23  and an untrained today is still open, not missed and not counted', w0.days[0].state === 'today' && w0.missed === 0 && w0.plannedKnown === 0);
+  });
+  await guard('tracking', async () => {
+    const app = await at(NOW, STORE([PUSH('x1', WED), ARMS('x2', WED), PUSH('x3', FRI)], { 'planStart:balanced': JSON.stringify('2026-09-23') })); const c = app.ctx;
+    const k = on(c, NOW, () => c.computeConsistencyData()), w = k.weeks.find(x => c.localDateStr(x.start) === MON);
+    T('24  tracking still begins at the earlier of the plan start and the first workout, whatever that day held', k.trackingStart === WED);
+    T('24  days before it are not missed, the first day’s two workouts both count, and the plan is measured from Wednesday on (Thursday missed, Friday kept)',
+      w.days[0].state === 'rest' && w.days[1].state === 'rest' && w.workouts === 3 && w.daysTrained === 2 && w.plannedKnown === 2 && w.fulfilled === 1 && w.missed === 1, PLAN(w));
+  });
+  await guard('boundary', async () => {
+    const app = await at(NOW, STORE(HIST.concat([PUSH('y1', SUN), ARMS('y2', SUN), PUSH('y3', '2026-09-28'), ARMS('y4', '2026-09-28')]))); const c = app.ctx;
+    const last = weekOf(c, NOW, MON), cur = weekOf(c, NOW, '2026-09-28');
+    T('25  Sunday’s two workouts stay in their week, and Monday’s two start the next', last.workouts === 2 && last.days[6].workouts === 2 && cur.workouts === 2 && cur.days[0].workouts === 2);
+  });
+  await guard('dst', async () => {
+    try{
+      const log = [PUSH('z0', '2026-10-19'), PUSH('z1', '2026-11-01'), ARMS('z2', '2026-11-01'), PUSH('z3', '2026-11-02')];
+      const app = await at('2026-11-04T12:00:00', STORE(log, { 'planStart:balanced': JSON.stringify('2026-10-19') }), 'America/New_York'); const c = app.ctx;
+      const w = weekOf(c, '2026-11-04T12:00:00', '2026-10-26');
+      T('26  [America/New_York] the fall-back Sunday’s two workouts are in Oct 26 – Nov 1, the Monday after is not',
+        w && w.days.length === 7 && w.days[6].date === '2026-11-01' && w.days[6].workouts === 2 && w.workouts === 2, w && ACT(w));
+    } finally { process.env.TZ = homeTZ; }
+  });
+
+  /* ---------- order invariance ---------- */
+  sub('the order history is stored in decides nothing');
+  await guard('order', async () => {
+    const log = HIST.concat([PUSH('o1', MON), ARMS('o2', MON), WK('o3', MON, 'core', 'Core', [EX('Cable Crunch', [S(80, 15)])]), PUSH('o4', FRI)]);
+    const a = await at(NOW, STORE(log)), b = await at(NOW, STORE(log.slice().reverse()));
+    const pick = c => on(c, NOW, () => JSON.stringify(c.computeConsistencyData().weeks.map(w => [ACT(w), PLAN(w), w.days.map(d => (d.entries || []).map(e => e.id).join('+'))])));
+    T('reversing the history leaves every week, every sum and every day’s workout list identical', pick(a.ctx) === pick(b.ctx));
+  });
+
+  /* ---------- the Progress card and the Log strip ---------- */
+  sub('Progress → Consistency: the bar is the work done, its colour the plan kept');
+  await guard('card', async () => {
+    /* a week with five sessions on unplanned or doubled days, but Thursday's planned legs never trained */
+    const log = HIST.concat([PUSH('c1', MON), ARMS('c2', MON), WK('c3', TUE, 'pull', 'Pull A', [EX('Barbell Row', [S(155, 8)])]), WK('c4', FRI, 'push', 'Push B', [EX('Incline Dumbbell Press', [S(70, 10)])]),
+      WK('c5', SAT, 'core', 'Core', [EX('Cable Crunch', [S(80, 15)])])]);
+    const app = await at(NOW, STORE(log)); const c = app.ctx;
+    const html = on(c, NOW, () => c.progConsistencyCardHtml());
+    const w = weekOf(c, NOW, MON);
+    const cells = html.match(/<span class="pd-wk[^"]*" role="img" aria-label="[^"]*">/g) || [];
+    const cell = cells.find(x => /aria-label="5 sessions, 3 of 4 planned"/.test(x));
+    T('the week reads 5 sessions with 3 of 4 planned, and is NOT on target', w.workouts === 5 && w.fulfilled === 3 && w.target === 4 && !!cell && !/pd-wk on/.test(cell), cells);
+    T('its height still counts all five sessions', /pd-wk[^"]*" role="img" aria-label="5 sessions/.test(html));
+    const lc = on(c, NOW, () => c.logConsistencyStripHtml());
+    const onCard = (html.match(/<span class="pd-wk[^"]*"/g) || []).slice(-8).map(x => / on"/.test(x));
+    const onLog = (lc.match(/<span class="lc-col[^"]*"/g) || []).map(x => /lc-col on| on /.test(x) || /\bon\b/.test(x.replace('lc-col', '')));
+    T('the Progress card and the Log strip now mark the same weeks on target', onCard.length === 8 && same(onCard, onLog), { onCard, onLog });
+    T('the session total is every workout of the twelve weeks', new RegExp('<b>' + on(c, NOW, () => c.computeConsistencyData().totalWorkouts) + '</b> sessions').test(html) &&
+      on(c, NOW, () => c.computeConsistencyData().totalWorkouts) === c.workoutLog.length);
+    T('the rule is the Log strip’s, in both places', (raw.match(/const onTarget = w\.target \? \(w\.fulfilled \|\| 0\) >= w\.target : w\.workouts > 0;/g) || []).length === 2 &&
+      !/const onTarget = w\.target \? w\.workouts >= w\.target/.test(raw));
+  });
+
+  /* ---------- 27–28: reads only ---------- */
+  sub('27–28  Progress reads; it writes nothing and stores nothing new');
+  await guard('writes', async () => {
+    const app = await at(NOW, STORE(HIST.concat([PUSH('r1', MON), ARMS('r2', MON)]))); const c = app.ctx;
+    const before = JSON.stringify(c.workoutLog), storeBefore = JSON.stringify(app.store);
+    const writes = [];
+    const o1 = c.LOOPStore.set, o2 = c.LOOPStore.remove;
+    c.LOOPStore.set = function(k){ writes.push('set ' + k); return o1.apply(this, arguments); };
+    c.LOOPStore.remove = function(k){ writes.push('remove ' + k); return o2.apply(this, arguments); };
+    const trap = name => new Proxy({}, { get: (o, k) => (k === 'setItem' || k === 'removeItem' || k === 'clear') ? ((...a) => writes.push(name + '.' + String(k) + ' ' + a[0])) : (k === 'getItem' ? () => null : undefined) });
+    c.localStorage = trap('localStorage'); c.sessionStorage = trap('sessionStorage');
+    try{
+      on(c, NOW, () => { c.computeConsistencyData(); c.renderProgDashboard(); c.logConsistencyStripHtml(); c.weekOverview(); c.computeTrainingContext(); });
+    } finally { c.LOOPStore.set = o1; c.LOOPStore.remove = o2; delete c.localStorage; delete c.sessionStorage; }
+    T('27  computing D44 and drawing Progress, the Log strip, This Week and the context write nothing', writes.length === 0 && JSON.stringify(c.workoutLog) === before && JSON.stringify(app.store) === storeBefore, writes);
+    T('28  DATA_KEYS 16, schema 1, no migration, the trainer untouched', c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 &&
+      Object.keys(c.MIGRATIONS || {}).length === 0 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+  });
+
+  /* ---------- D43 untouched ---------- */
+  sub('D43 is untouched: the matcher, the slots and program fulfilment');
+  const pin = n => require('crypto').createHash('sha256').update(fnSrc(raw, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  T('D43’s matcher, slot grid and program fulfilment are byte-identical to 10.32',
+    pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('programPlannedSlots') === 'e09703bacb6d628a' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d');
+  T('the pause rule, the legacy score, records, Session Score and D107/D108 are byte-identical to 10.32',
+    pin('planDayIsSuspended') === 'd7a606a74a953e51' && pin('dateIsSuspended') === '0e8f48036cced387' && pin('computeWorkoutQuality') === '30f1165dd94654eb' &&
+    pin('sessionVolume') === '4ddcaadccc1dfa80' && pin('getSessionPRs') === '2a121bed25bfa6ab' && pin('canonicalPRIndex') === 'b30db7e31fad5051' &&
+    pin('sessionScore') === '842e5699f8ac0835' && pin('workoutsOnDate') === 'ef3f604250a79627' && pin('calendarDayState') === 'fd0a0c59ac9ee634' && pin('deleteLog') === 'c285ece4eae2315d');
+  T('the Weekly Review (D115), the Log strip and This Week are byte-identical to 10.32',
+    pin('deriveWeeklyReview') === '54cedeb502954944' && pin('weeklyReviewGlance') === 'eb9378482576fb6e' && pin('logConsistencyStripHtml') === '4ebcaa5f9fdd6d23' && pin('weekOverview') === '27d03c8274a4d69d');
+  T('D44 still hands the matcher every workout in the window, never a per-day pick', /const inWindow = \(workoutLog \|\| \[\]\)\.filter\(l => l && l\.date/.test(fnSrc(raw, 'computeConsistencyData')) &&
+    /assignWorkoutsToPlannedSlots\(planSlots, inWindow, slotWeekOf, \{ requireCategory: false \}\);/.test(fnSrc(raw, 'computeConsistencyData')));
+
+  /* ---------- 29: long histories ---------- */
+  sub('29  a two-year, multi-workout-heavy history stays fast');
+  await guard('perf', async () => {
+    const log = []; let n = 0;
+    const start = new Date('2024-10-07T12:00:00');
+    for(let d = 0; d < 104 * 7; d++){
+      const x = new Date(start); x.setDate(start.getDate() + d); const dow = x.getDay();
+      if(![1, 2, 4, 5].includes(dow)) continue;
+      const date = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+      for(let k = 0; k < 1 + (d % 3); k++) log.push(WK('p' + (n++), date, ['push', 'pull', 'legs', 'push'][k % 4], 'S' + k,
+        ['Bench Press', 'Back Squat', 'Barbell Row', 'Overhead Press', 'Romanian Deadlift', 'Lat Pulldown'].map((nm, i) => EX(nm, [S(100 + i * 10 + Math.floor(d / 7), 8), S(100 + i * 10 + Math.floor(d / 7), 7), S(100 + i * 10, 6), S(100 + i * 10, 6)]))));
+    }
+    const app = await at(NOW, STORE(log, { 'planStart:balanced': JSON.stringify('2024-10-07') })); const c = app.ctx;
+    const t = fn => { const a = Date.now(); fn(); return Date.now() - a; };
+    on(c, NOW, () => c.computeConsistencyData());
+    const cold = withClockOn(c, NOW, () => { const xs = []; for(let i = 0; i < 5; i++){ c.invalidateConsistencyCache(); xs.push(t(() => c.computeConsistencyData())); } return xs.sort((a, b) => a - b)[2]; });
+    const cached = withClockOn(c, NOW, () => t(() => { for(let i = 0; i < 100; i++) c.computeConsistencyData(); }));
+    console.log('    ' + log.length + ' workouts over two years: D44 recomputed in ' + cold + ' ms (median of 5); 100 cached reads ' + cached + ' ms');
+    T('29  recomputing D44 takes under 150 ms, and a cached read is free', cold < 150 && cached < 20, { cold, cached });
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -47056,6 +47396,7 @@ async function main(){
   await testRankStageD1132();
   await testStartupRevealD114();
   await testWeeklyReviewD115();
+  await testMultiWorkoutWeekD116();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

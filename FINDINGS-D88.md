@@ -1149,12 +1149,13 @@ non-finite rep count, and no unperformed set heavier than the performed work of 
 > `parseFloat` reps are proven untouched by source and by pin. See TRAINER-CONTRACT.md §149 and Contract
 > 227.
 
-## E36 — D44's weekly counts keep only the first workout of each date · P3 · PROVEN · OPEN
+## E36 — D44's weekly counts keep only the first workout of each date · P3 · PROVEN · **CLOSED in D116 (LOOP 10.33)**
 
 Found by D115 (Weekly Review), on the owner's real 2026-08-30 backup. That
 backup has two workouts on one Sunday, and D44 read the week as 1 workout,
-26 sets and 8 records. The truth is 2 workouts, 27 working sets and
-9 records: the second workout's work is invisible to D44's counts.
+26 sets and 8 records. The truth is 2 workouts, 27 sets and 9 records
+(D44 counts every logged set; on that backup the 27 are also its working
+sets): the second workout's work is invisible to D44's counts.
 
 **What is wrong.** `computeConsistencyData` builds its day map with
 `workoutLog.forEach(l => { if(!byDate[l.date]) byDate[l.date] = l; })`, so
@@ -1176,6 +1177,56 @@ reads D44 only for planned/fulfilled and day states.
 Fixing it changes the consistency card, the weekly Session Score line
 (`avgScore`) and `computeTrainingContext.workoutsLast12Weeks`. That deserves
 its own phase, with an attributed drift measurement.
+
+**Closed in D116 (LOOP 10.33).** D44 groups every workout on a date in its one
+pass, in the D43 matcher's own order (date, then id). It sums sets, volume and
+the legacy score across all of them, and takes a day's records from the
+canonical `byDate` index. The day keeps its single state, and plan matching,
+targets, missed and pause rules are untouched. The owner's Aug 24–30 week now
+reads 2 workouts, 27 sets, 9 records, 41,000 lb and score 92, and
+single-workout histories are byte-identical. Progress → Consistency also now
+colours a week by plans fulfilled (D45B's rule), not by workouts.
+Contract 233, §155.
+
+## E37 — D44 is memoised at first paint, before the running program and its pause load · P2 · PROVEN · OPEN
+
+Found by D116's browser QA. A paused-week fixture read the pause correctly in
+the harness and ignored it in the real app.
+
+**What is wrong.**
+- `computeConsistencyData` keeps its answer for the civil day
+  (`_consistencyDay`).
+- Boot draws every tab in `showMainApp()`, which computes D44, BEFORE
+  `loadTrainerData()` runs `loadPrograms()`.
+- `loadPrograms()` clears only the program caches (`invalidateProgramCache`),
+  never D44's.
+- So for the rest of that day, D44 is the answer computed with no program
+  loaded. A planned day inside a pause is planned and missed, and D103's
+  post-load `renderAll()` redraws every tab from that same stale answer.
+
+**Measured, identical on 10.32 and 10.33.** A paused week (Monday to Thursday
+paused, Friday trained):
+- as launched: 4 planned, 3 missed, 25%;
+- recomputed: 1 planned, 0 missed, 100%.
+
+In real headless Edge, Progress's cell read "3 sessions, 2 of 4 planned" as
+launched and "3 sessions, 1 of 1 planned" after a recompute.
+
+**What the athlete sees.** With a paused program, after every launch these
+count suspended days as missed:
+- Progress → Consistency (bar colours, "% of planned");
+- the Log strip;
+- This Week's missed marks;
+- the Weekly Review's day states.
+
+Meanwhile the Log calendar asks `planDayIsSuspended` live and shows the same
+days as paused, so two screens disagree. It corrects itself at the first
+workout save (`persistLog` clears D44) or at midnight.
+
+**Why it was not fixed in D116.** D116's brief: record newly discovered
+unrelated findings only. The likely fix is small: clear the consistency
+cache when programs load, before D103's redraw. It still deserves its own
+phase, with a measured before/after on the surfaces above.
 
 ## Not findings — checked and clean
 

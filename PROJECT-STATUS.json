@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.32",
+  "version": "10.33",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner check on iPhone: open Progress, then Weekly Review, and confirm last week matches your Log.",
+  "nextAction": "Owner check on iPhone: a day trained twice shows 2 sessions on Progress and in Weekly Review.",
   "blocker": null,
-  "updatedAt": "2026-10-01T00:33:51Z"
+  "updatedAt": "2026-10-01T02:15:17Z"
 }

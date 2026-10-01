@@ -16325,3 +16325,150 @@ reads 1 workout, 26 sets and 8 records in D44, against the true 2, 27 and 9.
 The Overview's "Sessions per week" consistency card inherits it. D44 was
 protected in D115; the review takes its counts from the canonical readers
 instead, and only D44's plan matching, which already sees every workout.
+
+## §155 — A DAY TRAINED TWICE COUNTS BOTH WORKOUTS; THE PLAN IS STILL THE PLAN (D116 · LOOP 10.33 · loop-v210)
+
+Closes E36. A narrow correctness phase: D44 (`computeConsistencyData`) kept
+only the first workout of each civil date, so a day trained twice counted
+one workout, and that workout's sets, volume, records and score stood in for
+the day.
+
+### The defect, reproduced before any edit
+
+On the frozen 10.32 build, the owner's real 2026-08-30 backup (two workouts
+on Sunday Aug 30) read the week as 1 workout, 26 sets, 8 records, 38,480 lb
+and an average score of 95. Every workout of that week, read with the app's
+own per-workout primitives, gives 2 workouts, 27 sets, 9 records, 41,000 lb
+and 92.
+
+Nine synthetic shapes (A–J) showed the same pattern:
+- A day with one workout was right.
+- Every multi-workout day undercounted.
+- Planned, fulfilled, missed and consistency were already right, because
+  D43's `assignWorkoutsToPlannedSlots` has always been handed every workout
+  in the window.
+
+### Root cause
+
+`const byDate = {}; workoutLog.forEach(l => { if(!byDate[l.date])
+byDate[l.date] = l; });` dates from the original consistency engine
+(66e818c, 2026-08-21). That engine was a per-day calendar model: one entry
+was enough to colour a day, and the weekly sums were accumulated inside the
+same day loop.
+
+### D44, field by field
+
+| Field | Level | Before | After |
+|---|---|---|---|
+| `day.state` | day | one per day | unchanged: `pr` now comes from the day's canonical records, so a record set in the 2nd workout counts |
+| `day.planned` | day | — | unchanged |
+| `day.entry` | day | pointer to the first workout | kept as the "something was logged" pointer (Contract 208 reads it that way) |
+| `day.entries` | day | — | new: every workout, in D43's pool order (date, then id) |
+| `day.workouts` | day | — | new: how many |
+| `day.sets` | workout-level, summed | first workout only | every logged set of every workout (still ALL logged sets, as before) |
+| `day.volume` | workout-level, summed | first workout only | Σ `sessionVolume` |
+| `day.prs` | day | first workout's `getSessionPRs` | canonical `byDate[date]`: every workout's records, each once (an imported duplicate id can no longer double them) |
+| `day.score` | workout-level | first workout's legacy score | mean of the day's scorable workouts |
+| `week.workouts` | workout-level | trained DAYS | every workout |
+| `week.daysTrained` | day | — | new |
+| `week.sets`, `week.volume`, `week.prs` | workout-level, summed | first workout per day | Σ over every workout |
+| `week.avgScore` | workout-level | first workout per day | mean over every scorable WORKOUT (unscored left out, never zero) |
+| `plannedKnown`, `target`, `fulfilled`, `missed`, `consistency`, `known` | plan | — | unchanged: slot-based (D43), day-based (missed) |
+| `totalWorkouts`, `overallScore`, `trend`, `hasEnoughData` | follow the weeks | — | follow the weeks |
+| `totalFulfilled`, `totalPlanned`, `overallConsistency`, `trackingStart` | plan | — | unchanged |
+
+### Sessions and planned fulfilment stay two counts
+
+Two workouts on Monday against one planned Monday read "2 workouts, 1 of 1
+planned". Five workouts against four planned, all fulfilled, read 100%,
+never 125%. The percentage is `fulfilled / target` exactly as before, and an
+extra workout fills no slot.
+
+### The one presentation change
+
+Progress → Overview's Consistency card coloured a week "on target" with
+`w.workouts >= w.target`. Counting every workout made that worse: a double
+day could turn a week green with a planned day unfulfilled. It now uses the
+Log strip's D45B rule, `(w.fulfilled || 0) >= w.target`. The bar's height is
+still sessions trained, and its aria-label now names the plan too ("5
+sessions, 3 of 4 planned"). On the generated histories this re-coloured 0–5
+of 12 weeks even without double days: those were weeks where extra sessions
+had masked an unfulfilled planned day, which the Log strip already showed.
+The two cards now agree.
+
+### Untouched
+
+These are byte-identical to 10.32 (hash-pinned in Contract 233):
+- D43's matcher, slot grid and program fulfilment;
+- the pause rule;
+- the legacy score, `sessionVolume`, `getSessionPRs`, the canonical PR index
+  and Session Score;
+- D107's `workoutsOnDate`, D108's `calendarDayState` and `deleteLog`;
+- D115's Weekly Review, the Log strip and This Week.
+
+Six earlier contracts held `computeConsistencyData` byte-identical to 10.32.
+They now hold a shared restatement, `d44PinAsOf1032`: today's function with
+D116's six statements put back must hash to 10.32's pin `4f03435af47cfdb9`,
+and it does, byte for byte. Any other change to D44 still fails all six.
+
+### Drift, attributed
+
+14 generated 12-week histories were compared field by field against the
+frozen 10.32 build:
+- **Single-workout histories, paused ones included:** IDENTICAL on every D44
+  field.
+- **Multi-workout histories:** only the actual-work fields moved (plus
+  `trained → pr` where the record came from a later workout of the day).
+  Plan fields are identical.
+- **Unexplained differences:** 0.
+- **The owner's 2026-08-29 backup** (no double days): identical.
+
+### Contract 233 (46 checks)
+
+It covers:
+- E36 reproduced on 10.32's own code: rebuilt from today's function and run
+  in the same app;
+- one, two and three workouts on a day;
+- sets, volume and records across workouts;
+- an imported duplicate id;
+- scored and unscored workouts;
+- same titles, same categories, distinct ids;
+- days trained;
+- planned, fulfilled and missed against a single-workout control;
+- five workouts against four planned (100%);
+- the critical J shape: 3 workouts, 2 of 4 planned;
+- a shifted session that is the second workout of its day;
+- a paused week;
+- deleting one of two (the sibling stays);
+- D115 agreement on every reviewable week;
+- the week in progress, the tracking boundary, the Sunday/Monday split, DST
+  in New York;
+- order invariance;
+- the Progress card and Log strip agreeing on the on-target weeks;
+- zero writes;
+- a 2-year, 832-workout history (D44 recomputed in about 19 ms).
+
+**Mutation: 24 of 24 killed by Contract 233 alone.**
+
+**Performance** (frozen 10.32 against D116, median):
+
+| History | Cold | Fully cold |
+|---|---|---|
+| Single-workout | unchanged (normal 2.9 → 3.0 ms, two-year 10.7 → 10.8 ms) | — |
+| Multi-workout-heavy two-year (832 workouts) | 11.4 → 18.8 ms | 46.9 → 55.8 ms |
+
+The cost is scoring the workouts that used to be skipped, and D44 stays
+memoised per day.
+
+### Found, not fixed — E37
+
+D44 is memoised for the civil day at first paint, before `loadPrograms()`
+runs, and `loadPrograms()` clears only the program caches. After every
+launch, a paused program's suspended days read as planned and missed in
+D44 (Progress, the Log strip, This Week, the Weekly Review's day states),
+while the Log calendar, which asks the pause live, shows them as paused.
+This is identical on 10.32. It is recorded in FINDINGS-D88.md; D116's brief
+forbids fixing unrelated findings.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
+new key, no history rewritten.
