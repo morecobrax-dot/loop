@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.36",
+  "version": "10.37",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner check on iPhone: log a ticked Pull-Up workout, then open Pull-Up's Exercise Detail (Log → Browse by exercise); Next session shows last reps and a rep target.",
+  "nextAction": "Owner check on iPhone: log a ticked Pull-Up workout with a warm-up set above your working sets; Exercise Detail's Best ever, trend and bold set come from the working sets.",
   "blocker": null,
-  "updatedAt": "2026-10-02T13:23:16Z"
+  "updatedAt": "2026-10-02T15:32:55Z"
 }

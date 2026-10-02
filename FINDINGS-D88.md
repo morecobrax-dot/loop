@@ -1278,7 +1278,7 @@ substitution and the swap list share. D119 reuses the one rule and adds no list
 of its own. The likely fix is a `timed` flag the athlete can set on a custom
 lift, read by `substitutionIsHold`, in its own phase.
 
-## E40 — A bodyweight warm-up set can be the lift's record and its trend point · P4 · PROVEN · OPEN
+## E40 — A bodyweight warm-up set can be the lift's record and its trend point · P4 · PROVEN · **CLOSED in D120 (LOOP 10.37)**
 
 Found by D119 while lining up its rep target with Best ever, the personal
 bests and the trend.
@@ -1304,6 +1304,65 @@ not redefine a record. For loaded lifts a warm-up is lighter, so it almost
 never decides a record; for bodyweight lifts it can. The likely fix is the
 working-set predicate in the PR and best-ever readers, with its PR XP and
 history drift measured, in its own phase.
+
+**Closed in D120 (LOOP 10.37).** One rule now decides what may stand as a
+bodyweight performance: `bodyweightPerformanceReps` for a set and
+`bodyweightPerformanceOf` for a workout. A set counts when it is a performed
+working set (`isWorkingSet`, not marked uncompleted) with real reps
+(`performedReps`). Every reader asks it:
+- the canonical record walk and the XP walk;
+- the Records card;
+- Best ever, and the set it names;
+- the trend;
+- the PR badge;
+- D119's evidence.
+
+A warm-up stays in the history, dimmed. It is never the record, the best, a
+trend point, the bold set or the badge.
+
+Measured on frozen 10.36 vs 10.37:
+- **Loaded histories:** 90 generated and both owner backups, 0 moved.
+- **Bodyweight, no warm-up above the work:** 90 histories. No record, best,
+  trend or XP moved. The only change: the bold left a warm-up that tied the
+  best.
+- **Bodyweight, a warm-up out-reps the work:** 90 histories, all moved, only in
+  their records. Record counts went up in 54 and down in 26. Lifetime XP moved
+  −105 to +125. Four levels and one rank changed, each from the corrected
+  record XP alone.
+
+Contract 237, §159.
+
+## E41 — A typed loaded warm-up can set a record and earn its PR XP · P4 · PROVEN · OPEN
+
+Found by D120 while asking whether E40 was a bodyweight-only defect. It is not.
+
+**What is wrong.** The loaded record walks never ask a set's type, so a typed
+warm-up is weighed like a working set. The walks are `computeExercisePREvents`,
+the XP walk and `computePRs`, all through `loadedPRPerformance`. Load is a loaded
+record's main axis and a warm-up is lighter, so it rarely takes the weight
+record. It can still take the others.
+
+**Measured on 10.36, unchanged in 10.37.** Bench Press, with working sets of
+185 × 5 every time:
+- a 95 lb warm-up done for 8, then for 10: "Rep PR 95 × 10", +10 XP;
+- a 155 × 12 warm-up: an estimated-1RM record (217 > 216), +10 XP;
+- two warm-ups adding 1,625 lb: a volume record, +5 XP.
+
+**Why it was not fixed in D120.** D120 was told to keep loaded records at
+zero drift unless the root audit proved the same defect. It did prove it, but
+the loaded fix needs its own decision:
+- **Volume.** LOOP's session volume counts warm-up tonnage everywhere
+  (`sessionVolume`, the Volume tab, Weekly Review). A volume record that counts
+  it is consistent with that metric.
+- **Estimated 1RM and reps at a weight.** Taken from a warm-up, these are false
+  claims.
+
+The likely fix:
+- `loadedPRPerformance` refuses a typed warm-up for the weight, 1RM and
+  reps-at-weight records;
+- volume is decided explicitly;
+- loaded PR XP drift is measured;
+- in its own phase.
 
 ## Not findings — checked and clean
 

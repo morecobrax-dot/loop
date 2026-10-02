@@ -170,6 +170,58 @@ function d44PinAsOf1032(src){
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
 }
 
+/* D120 (E40) — the bodyweight record readers changed ON PURPOSE, each in the one
+   statement that took "the most reps in any set": they now ask one rule,
+   bodyweightPerformanceReps / bodyweightPerformanceOf, so a typed warm-up can no
+   longer stand as a bodyweight performance. Every contract that held one of these
+   functions byte-identical now holds THIS: the function with exactly these D120
+   statements put back as they were must hash to its 10.36 pin. Any other change to
+   these functions — or inside these statements — still fails every one of them.
+   Each pair is [now, as of 10.36], comment-free and whitespace-collapsed exactly
+   as the pins are. The loaded branches are not among them: no loaded rule moved. */
+const D120_EDITS = {
+  computeExercisePREvents: [[
+    "const sessionMaxReps = bodyweightPerformanceOf(s.sets) || 0;",
+    "let sessionMaxReps = 0; s.sets.forEach(set => { const r = performedReps(set && set.reps); if(r !== null && r > sessionMaxReps) sessionMaxReps = r; });"]],
+  computeXPTimeline: [[
+    "const sessionMaxReps = bodyweightPerformanceOf(lift.sets) || 0;",
+    "let sessionMaxReps = 0; (lift.sets||[]).forEach(s => { const r = performedReps(s && s.reps); if(r !== null && r > sessionMaxReps) sessionMaxReps = r; });"]],
+  computePRs: [[
+    "const r = bodyweightPerformanceReps(st);",
+    "const r = performedReps(st.reps);"]],
+  prSetIndexFor: [[
+    "if(isBW && (type === 'reps' || type === 'weight')) v = bodyweightPerformanceReps(s); else if(type === 'reps') v = r; else if(type === 'weight') v = w;",
+    "if(type === 'reps') v = r; else if(type === 'weight') v = isBW ? r : w;"]],
+  exerciseBestSet: [[
+    "const rb = bodyweightPerformanceReps(st); if(rb !== null && rb > best.r){ best.r = rb; haveBest = true; }",
+    "if(!isNaN(r) && r > best.r){ best.r = r; haveBest = true; }"], [
+    "const same = st => isBW ? bodyweightPerformanceReps(st) === best.r : num(st.reps) === best.r && num(st.weight) === best.w;",
+    "const same = st => num(st.reps) === best.r && (isBW || num(st.weight) === best.w);"]],
+  exerciseRepPoints: [[
+    "const v = bodyweightPerformanceOf(sessions[i].allSets); if(v) points.push({ date: sessions[i].date, value: v });",
+    "let v = 0; sessions[i].allSets.forEach(st => { const r = performedReps(st && st.reps); if(r !== null && r > v) v = r; }); if(v > 0) points.push({ date: sessions[i].date, value: v });"]],
+  exDetailSessionRowHtml: [[
+    "(top ? 'best set ' + headline : s.bodyweight && s.sets.some(st => performedReps(st && st.reps) !== null) ? 'no working set' : 'no complete set')",
+    "(top ? 'best set ' + headline : 'no complete set')"]],
+  bodyweightSessionHistory: [[
+    "const perf = sets.filter(st => bodyweightPerformanceReps(st) !== null);",
+    "const perf = sets.filter(st => isWorkingSet(st) !== false && !(st && st.completed === false) && performedReps(st && st.reps) !== null);"]]
+};
+let _d120Src = null;
+function asOf1036(name){
+  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
+  for(const [now, then] of (D120_EDITS[name] || [])){
+    if(t.split(now).length !== 2) return null;           // a D120 statement itself moved
+    t = t.split(now).join(then);
+  }
+  return t;
+}
+function pinAsOf1036(name){
+  const t = asOf1036(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+
 /* A CSS rule's body, bounded by its own closing brace rather than by a
    character count that a new declaration pushes a property out of. */
 function cssRule(css, selector){
@@ -33448,7 +33500,11 @@ async function testPRModeConsistency(){
       && /loadedPRPerformance\(s\)/.test(fnSrc(src, 'computeXPTimeline'))
       && !/parseFloat\(set\.weight\)|parseFloat\(set\.reps\)/.test(fnSrc(src, 'computeExercisePREvents'))
       && !/parseFloat\(s\.weight\)/.test(fnSrc(src, 'computeXPTimeline'))
-      && /loadedPRPerformance\(st\)/.test(fnSrc(src, 'computePRs')) && /performedReps\(st\.reps\)/.test(fnSrc(src, 'computePRs'))
+      /* D120 restated (E40): the bodyweight side of every record walk reads one named rule too,
+         bodyweightPerformanceReps / bodyweightPerformanceOf, and that rule reads performedReps. */
+      && /loadedPRPerformance\(st\)/.test(fnSrc(src, 'computePRs')) && /bodyweightPerformanceReps\(st\)/.test(fnSrc(src, 'computePRs'))
+      && /performedReps\(set\.reps\)/.test(fnSrc(src, 'bodyweightPerformanceReps'))
+      && /bodyweightPerformanceOf\(s\.sets\)/.test(fnSrc(src, 'computeExercisePREvents')) && /bodyweightPerformanceOf\(lift\.sets\)/.test(fnSrc(src, 'computeXPTimeline'))
       && !/isNaN\(/.test(fnSrc(src, 'computePRs')) && !/parseFloat\(st\./.test(fnSrc(src, 'computePRs')));
   });
 
@@ -37059,7 +37115,8 @@ async function testRealUseUxD98(){
          unchanged, and the emblem PNGs are untouched. */
       'rankArrive': '1ff56bc7722b7572'
     };
-    const bad = Object.keys(PINS).filter(n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) !== PINS[n]);
+    /* D120 restated: the record engines that D120 moved are held at their 10.36 pins by reversal (D120_EDITS). */
+    const bad = Object.keys(PINS).filter(n => (D120_EDITS[n] ? pinAsOf1036(n) : crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16)) !== PINS[n]);
     T('XP, level, PR events and modes, Session Score, the legacy quality score, Mastery points, capability, the trainer proposal, the PBT ranking and every D39 evidence function are byte-identical to their pinned source — LOOP 10.0, save those restated in place with the reason beside each (' + Object.keys(PINS).length + ' pinned by the hash of their source)',
       bad.length === 0, bad.join());
     T('DATA_KEYS 16, schema 1, trainer 0.1.1-shadow', c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
@@ -37070,7 +37127,7 @@ async function testRealUseUxD98(){
     /* D96C-3 restated this pin: the timeline now reads one performance per lift
        per workout (E15(a)). Objective XP is still added beside it, never inside. */
     T('computeXPTimeline is byte-identical to its D96C-3 source, so objective XP was added beside training XP and not inside it — D99 did not reach in, and neither did D96C-1 or D96C-3',
-      crypto.createHash('sha256').update(fnSrc(src, 'computeXPTimeline').replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === 'c4bf2e0f636c3f20'
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20'
       && !/objective/i.test(fnSrc(src, 'computeXPTimeline')));
     T('the XP curve is as it was: 120,800 XP to reach Level 50', (() => { let s = 0; for(let l = 1; l < 50; l++) s += c.calculateRequiredXP(l); return s === 120800; })());
     T('the Session Score weights are as they were: 40 / 30 / 18 / 12', /weights: \{ completion: 0\.40, reps: 0\.30, effort: 0\.18, load: 0\.12 \}/.test(src));
@@ -38455,8 +38512,10 @@ async function testFiniteLoadsD96A(){
       !/best\.r = r \|\| best\.r/.test(fnSrc(src, 'exerciseBestSet')) && /exerciseBestSet\(sessions, isBW\)/.test(fnSrc(src, 'deriveExerciseDetail')));
     T('a loaded candidate needs a finite load AND finite positive reps on that same set',
       /!isNaN\(w\) && !isNaN\(r\) && r > 0 &&/.test(fnSrc(src, 'exerciseBestSet')));
-    T('the bodyweight branch is D91’s, unchanged',
-      /if\(isBW\)\{ if\(!isNaN\(r\) && r > best\.r\)\{ best\.r = r; haveBest = true; \} \}/.test(fnSrc(src, 'exerciseBestSet')));
+    /* D120 restated (E40): still the most reps in one set, now only from a set that is a
+       performance — bodyweightPerformanceReps: a typed warm-up is preparation. */
+    T('the bodyweight branch is D91’s, reading only a set that is a performance (D120)',
+      /if\(isBW\)\{ const rb = bodyweightPerformanceReps\(st\); if\(rb !== null && rb > best\.r\)\{ best\.r = rb; haveBest = true; \} \}/.test(fnSrc(src, 'exerciseBestSet')));
   });
   await guard('bodyweight best', async () => {
     const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
@@ -38479,8 +38538,8 @@ async function testFiniteLoadsD96A(){
     /* D96C-3 restated three of these (E15(a): one performance per lift per
        workout, every row of it); Contract 215 holds why, and what did not move. */
     T('the PR engines, XP and Session Score are byte-identical to 10.0, save the D96C-1, D96C-2 and D96C-3 restatements beside their reasons',
-      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('computePRs') === '51bd020b4aa2a8a3' &&
-      pin('computeExercisePREvents') === '4339cc543585bded' && pin('wasSessionPR') === 'dcc45f803751dc53' &&
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pinAsOf1036('computePRs') === '51bd020b4aa2a8a3' &&
+      pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pin('wasSessionPR') === 'dcc45f803751dc53' &&
       pin('getSessionPRs') === '2a121bed25bfa6ab' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
       pin('masteryPointsFor') === '0c704c40a853d991' && pin('prModeOf') === 'a0ac7f761228372f' &&
       pin('deriveExercisePRMode') === '262d3ed985632762');
@@ -38761,8 +38820,8 @@ async function testExerciseIdentityD96B(){
     T('and the lift is enumerated once', ct.getAllLoggedExerciseNames().length === 1);
     T('the engines that decide that are byte-identical to LOOP 10.0, save the D96C-1, D96C-2 and D96C-3 restatements beside their reasons',
       (() => { const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
-        return pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' &&
-          pin('computePRs') === '51bd020b4aa2a8a3' && pin('prModesByLift') === '1580d63cbcff4bfb'; })());
+        return pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' &&
+          pinAsOf1036('computePRs') === '51bd020b4aa2a8a3' && pin('prModesByLift') === '1580d63cbcff4bfb'; })());
   });
 
   /* ------------------------------------------------- normal is identical */
@@ -38805,7 +38864,7 @@ async function testExerciseIdentityD96B(){
     const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') })).ctx;
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
     T('D91’s modes, the XP engine, Session Score, the capability model and D96A’s rule are byte-identical (XP at its D96C-3 restatement: one performance per lift per workout)',
-      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('prModeOf') === 'a0ac7f761228372f' &&
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('prModeOf') === 'a0ac7f761228372f' &&
       pin('deriveExercisePRMode') === '262d3ed985632762' && pin('getSessionPRs') === '2a121bed25bfa6ab' &&
       pin('wasSessionPR') === 'dcc45f803751dc53' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
       pin('computeExerciseCapability') === '3a283e02ebdad568' &&   /* D96B.1 - one line, see the pin block */
@@ -39047,7 +39106,7 @@ async function testIdentityLookupD96B1(){
     T('and the PR, PBT and Mastery engines are byte-identical to 10.6 (the record engine and the 1RM trend at their D96C-3 restatements)',
       pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computePBTCandidates') === 'ba795fd4ab772a63' &&
       pin('masteryPRCounts') === 'f77664c53b2ea14a' && pin('masteryPointsFor') === '0c704c40a853d991' &&
-      pin('computeExercisePREvents') === '4339cc543585bded' && pin('compute1RMTrend') === '1dd2dafa4e4c5d06' &&
+      pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pin('compute1RMTrend') === '1dd2dafa4e4c5d06' &&
       pin('rankPBTCandidates') === '5e5f609ad9a2053a' && pin('computePersonalBestTimeline') === 'e41926dcb1cfa844');
   });
 
@@ -39177,7 +39236,7 @@ async function testIdentityLookupD96B1(){
       pin('computeExerciseCapability') === '3a283e02ebdad568' &&
       /const legacyTrend = exerciseTrendFor\(name\);/.test(fnSrc(src, 'computeExerciseCapability')));
     T('XP, PR modes, Session Score, the trainer proposal and D96A’s rule are byte-identical (XP at its D96C-3 restatement: one performance per lift per workout)',
-      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('prModeOf') === 'a0ac7f761228372f' &&
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('prModeOf') === 'a0ac7f761228372f' &&
       pin('deriveExercisePRMode') === '262d3ed985632762' && pin('getSessionPRs') === '2a121bed25bfa6ab' &&
       pin('wasSessionPR') === 'dcc45f803751dc53' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
       pin('proposeTrainerState') === '34899e0f53f1d235' && /function performedLoad\(/.test(src));
@@ -39452,7 +39511,7 @@ async function testTodayNotMissedD992(){
        PR XP is at its D96C-1 restatement, the E12 session marker is untouched,
        and E16 is still held. */
     T('of D96C, E11, E12 and E15(a) landed: PR XP is at its D96C-3 restatement, the session marker at its D96C-2 one, and E16 is byte-identical',
-      (n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16))('computeXPTimeline') === 'c4bf2e0f636c3f20' &&
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' &&
       (n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16))('getSessionPRs') === '2a121bed25bfa6ab' &&
       c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   });
@@ -39678,7 +39737,7 @@ async function testCalendarStateD993(){
       pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
       pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
       pin('dateIsSuspended') === '0e8f48036cced387' && pin('pauseSpansOf') === '00f0412bae612770' && pin('programDateFor') === 'f4181c72c9c3ab8f' &&
-      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('getSessionPRs') === '2a121bed25bfa6ab');
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('getSessionPRs') === '2a121bed25bfa6ab');
     const app = await at('2026-09-22T09:00:00', HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }) }); const c = app.ctx;
     const before = JSON.stringify(app.store); const writes = [];
     const rs = c.LOOPStore.set; c.LOOPStore.set = async (k, v) => { writes.push(k); return rs(k, v); };
@@ -39946,7 +40005,7 @@ async function testMomentumWeekPauseD994(){
       pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
       pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
       pin('dateIsSuspended') === '0e8f48036cced387' && pin('pauseSpansOf') === '00f0412bae612770' && pin('programDateFor') === 'f4181c72c9c3ab8f' &&
-      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('getSessionPRs') === '2a121bed25bfa6ab');
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('getSessionPRs') === '2a121bed25bfa6ab');
     T('computeConsistencyData and weekOverview are byte-identical to 10.9 too: only momentumWeek changed',
       /* the exact D99.2/D99.3 source, unedited */
       /const todayKey = localDateStr\(now\);/.test(fnSrc(src, 'computeConsistencyData')) &&
@@ -40312,8 +40371,8 @@ async function testCanonicalPRXPD96C1(){
     /* D96C-3 restated three of these beside Contract 211's own: E15(a), one
        performance per lift per workout. Stated in Contract 215, none silent. */
     T('every pin this contract holds is at a stated restatement, none of them silent',
-      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('computeExercisePREvents') === '4339cc543585bded'
-      && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computePRs') === '51bd020b4aa2a8a3');
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded'
+      && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pinAsOf1036('computePRs') === '51bd020b4aa2a8a3');
     T('DATA_KEYS 16, schema 1, no migration', ctx.DATA_KEYS.length === 16 && ctx.DATA_SCHEMA_VERSION === 1
       && Object.keys(ctx.MIGRATIONS || {}).length === 0);
   });
@@ -40667,7 +40726,7 @@ async function testCanonicalSessionPRD96C2(){
     /* D96C-3 restated the XP pin (one performance per lift per workout); what a
        record is worth — calculatePRXP — is still byte-identical. */
     T('XP is byte-identical: this phase does not touch what a record is worth',
-      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculatePRXP') === 'ba20ebe522acc1a3'
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculatePRXP') === 'ba20ebe522acc1a3'
       && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('computeAllPREvents') === '94af217dbcf1f9ed');
     T('Mastery, PBT and the trainer are byte-identical',
       pin('masteryPRCounts') === 'f77664c53b2ea14a' && pin('masteryPointsFor') === '0c704c40a853d991'
@@ -41104,8 +41163,8 @@ async function testRealUseD100(){
        performance per lift per workout) and closed the D96C sequence this
        contract held paused. Session Score and D44 are still byte-identical. */
     T('XP, PR and Session Score engines are byte-identical (XP and the record engines at their D96C-3 restatements)',
-      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('computeExercisePREvents') === '4339cc543585bded'
-      && pin('computePRs') === '51bd020b4aa2a8a3' && pin('getSessionPRs') === '2a121bed25bfa6ab'
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded'
+      && pinAsOf1036('computePRs') === '51bd020b4aa2a8a3' && pin('getSessionPRs') === '2a121bed25bfa6ab'
       && pin('sessionScore') === '842e5699f8ac0835' && d44PinAsOf1032(src) === D44_PIN_10_32);   /* D116: D44 at its multi-workout restatement */
     T('D96C-1 and D96C-2 are preserved, and D96C-3 landed after this phase (Contract 215)',
       /function canonicalPRIndex/.test(src) && /function loadedPRPerformance/.test(src)
@@ -41430,7 +41489,7 @@ async function testFastUxD101(){
       pin('getMasteryProgress') === '77aca2558d11f3d5');
     /* D96C-3, a later phase, restated the XP pin (one performance per lift per
        workout); D101 itself touched none of these. */
-    T('XP, PR and Session Score engines are untouched (XP at its D96C-3 restatement, D44 at D116’s)', pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
+    T('XP, PR and Session Score engines are untouched (XP at its D96C-3 restatement, D44 at D116’s)', pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20'
       && pin('sessionScore') === '842e5699f8ac0835' && d44PinAsOf1032(src) === D44_PIN_10_32);
     T('D43/D44/D49/D50B, trainer and Objectives are untouched',
       ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && /function syncObjectives/.test(src));
@@ -41568,7 +41627,7 @@ async function testWorkoutPerformanceD96C3(){
       !/exercises\.find\(e => e\.name/.test(src) && !/seenThisEntry|seenIn\[/.test(src.replace(/\/\*[\s\S]*?\*\//g, '')));
     T('the per-set PR badges search the whole performance, reusing prSetIndexFor unchanged',
       /prSetIndexFor\(flat, h, ev\.isBW === true\)/.test(fnSrc(src, 'sessionPRSets'))
-      && pin('prSetIndexFor') === '19e7e73710d8c49b');
+      && pinAsOf1036('prSetIndexFor') === '19e7e73710d8c49b');
     T('D96C-1’s record rule is still the one both walks read',
       /loadedPRPerformance\(set\)/.test(fnSrc(src, 'computeExercisePREvents')) && /loadedPRPerformance\(s\)/.test(fnSrc(src, 'computeXPTimeline'))
       && pin('loadedPRPerformance') === 'aa54b32db5122a2e');
@@ -42196,8 +42255,8 @@ async function testCardsAndSummaryD102(){
   await guard('protected', async () => {
     T('D96C-3\'s workout-performance grouping is byte-identical', pin('workoutGroupsOf') === 'f346201c58363ccb');
     T('D91, D96C-1/2/3\'s record and XP engines are byte-identical',
-      pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
-      && pin('computePRs') === '51bd020b4aa2a8a3' && pin('prModesByLift') === '1580d63cbcff4bfb');
+      pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20'
+      && pinAsOf1036('computePRs') === '51bd020b4aa2a8a3' && pin('prModesByLift') === '1580d63cbcff4bfb');
     T('D44, Session Score and the trainer are byte-identical (D44 at D116’s multi-workout restatement)',
       d44PinAsOf1032(src) === D44_PIN_10_32 && pin('sessionScore') === '842e5699f8ac0835'
       && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' && pin('proposeTrainerState') === '34899e0f53f1d235'
@@ -42675,7 +42734,7 @@ async function testStartProvenanceD103(){
     T('the save path and D102\'s Summary are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
       && pin('showWorkoutSummary') === 'ae01827f9c112f92' && pin('openDayDetail') === 'ca6c95625a470a7e');
     T('D96: grouping, records, PR XP and the session index are byte-identical', pin('workoutGroupsOf') === 'f346201c58363ccb'
-      && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
+      && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
     /* D110 restated: exerciseSessionHistory changed again, for E34 — Contract 225 proves it
        differs from 10.24 in its rep-validity boundary and nothing else. The rest of the line is unchanged. */
     /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
@@ -42849,7 +42908,7 @@ async function testExerciseCardD104(){
     /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
     T('progression, records, XP, capability, recovery, Mastery and D100/D101 are byte-identical',
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('workoutGroupsOf') === 'f346201c58363ccb'
-      && pin('computeExercisePREvents') === '4339cc543585bded' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
+      && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'd3589033bdb54c67'
       && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('twActionLabel') === '21824852a16e4df2');
@@ -43057,8 +43116,8 @@ async function testSummaryTimeD105(){
       && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('saveWorkoutEdits') === 'cd9cf93070dfd4a0' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
       && pin('captureActiveDraft') === '664cdceb553301b7' && pin('restoreDraftToSheet') === '2bbd08f689e23bc0');
     T('Session Score, quality, XP and records are byte-identical', pin('renderSummaryScore') === 'be7971b69696ae40'
-      && pin('computeWorkoutQuality') === '30f1165dd94654eb' && pin('getWorkoutXPEntry') === 'f3cd1b21875f5d65' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
-      && pin('computeExercisePREvents') === '4339cc543585bded' && pin('prEventsForEntry') === 'afda7994a51f7b09' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
+      && pin('computeWorkoutQuality') === '30f1165dd94654eb' && pin('getWorkoutXPEntry') === 'f3cd1b21875f5d65' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20'
+      && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pin('prEventsForEntry') === 'afda7994a51f7b09' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
     /* D105.1 restated: D105's "recorded, not changed here" marker, inverted — both now read the summary's time (Contract 220). */
     /* D107 restated: both restructured for E30 — every entry of a day its own card, opened
        by id; the time reading itself is unchanged (proven below). */
@@ -43376,7 +43435,7 @@ async function testWorkoutTimeTruthD1051(){
       && pin('plannedVsActualHtml') === 'a86c34bd2d9b22be' && pin('estimateLoggedDuration') === '9827ffd0e63e6737' && pin('formatClock') === '0b1eb2d13865199b'
       && pin('openWorkoutSummary') === '58c0ec576bb1bad2' && pin('computeWorkoutDuration') === '2ea2a0c3c72b7941');
     T('Session Score, XP, records and D96 grouping are byte-identical', pin('renderSummaryScore') === 'be7971b69696ae40' && pin('computeWorkoutQuality') === '30f1165dd94654eb'
-      && pin('getWorkoutXPEntry') === 'f3cd1b21875f5d65' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('computeExercisePREvents') === '4339cc543585bded'
+      && pin('getWorkoutXPEntry') === 'f3cd1b21875f5d65' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded'
       && pin('prEventsForEntry') === 'afda7994a51f7b09' && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('workoutGroupsOf') === 'f346201c58363ccb');
     T('no new data key: the plan rides inside the draft that is already a key', /'activeWorkoutDraft',/.test(src) && !/'plannedMinutes'/.test(src.slice(src.indexOf('const DATA_KEYS'), src.indexOf('];', src.indexOf('const DATA_KEYS')))));
   });
@@ -43553,7 +43612,7 @@ async function testMasteryTourD106(){
       && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('workoutIconHtml') === 'c95dabd80b455c5b' && pin('workoutIdentity') === '9196e8f108a3a7ad' && pin('restRingSvg') === '830b35d31e01d2b4'
       && pin('substitutionOptionHtml') === '36c7820f98b0491b' && pin('bodyDiagramSvg') === '50d44084806369ae' && pin('volumeBarSvg') === 'e4c8f5df157fb24a' && pin('setChipHtml') === '350b4e34eb582056');
     /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
-    T('XP, rank, readiness and recovery maths are byte-identical', pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898'
+    T('XP, rank, readiness and recovery maths are byte-identical', pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898'
       && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('readinessStateFromScore') === '736f5c750f322973' && pin('computeMuscleRecovery') === 'd3589033bdb54c67');
     /* D107 restated: renderTodayWorkout's own hero shows the day's LAST
        session now (E30) — never a stale first-of-the-day entry left behind
@@ -43789,8 +43848,8 @@ async function testWorkoutIdentityD107(){
     T('saving, starting and the summary chain are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('startTemplateLog') === '5c14f8e6f7f41f52'
       && pin('openWorkoutEditor') === 'b3bd3af59344624b' && pin('deleteLog') === 'c285ece4eae2315d');
     T('time, PR and XP engines are byte-identical', pin('workoutTimeShort') === 'c97db5fead27b9ec' && pin('workoutTimeOf') === '58233330914cd18f'
-      && pin('getSessionPRs') === '2a121bed25bfa6ab' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
-      && pin('computeExercisePREvents') === '4339cc543585bded');
+      && pin('getSessionPRs') === '2a121bed25bfa6ab' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
+      && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded');
     T('workout identity, the shared action label and the category table are byte-identical',
       pin('workoutIdentity') === '9196e8f108a3a7ad' && pin('workoutIdentityHtml') === 'be3b1b8c56ceb888' && pin('twActionLabel') === '21824852a16e4df2' && pin('CAT_LABEL') === 'e3b0c44298fc1c14');
     T('the stepper and logging are untouched', pin('renderWorkoutStep') === 'f92999bce55ec36b' && pin('toggleSetComplete') === '46059f0d3306793b' && pin('appendSetRow') === '15d160342d105b97');
@@ -44245,8 +44304,8 @@ async function testRealSetPairingD109(){
       && pin('actualPerformance') === '3c4eb71b6eda0414' && pin('classifyOutcome') === '53ada3a09318928b' && pin('computeExerciseCapability') === '3a283e02ebdad568');
     T('38 — D50B is byte-identical: the coach, and how a row hands it the prescribed load',
       pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('capturedPrescription') === '4b741af98b989695' && pin('effectiveWorkingLoad') === 'c0d91327f6ac9f76');
-    T('39 — records, PR XP and the session index are byte-identical', pin('computeExercisePREvents') === '4339cc543585bded'
-      && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('workoutGroupsOf') === 'f346201c58363ccb');
+    T('39 — records, PR XP and the session index are byte-identical', pinAsOf1036('computeExercisePREvents') === '4339cc543585bded'
+      && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('workoutGroupsOf') === 'f346201c58363ccb');
     T('40 — Session Score reads each workout\'s STORED prescription, never live D49 — byte-identical',
       pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c'
       && !/progressionFor|buildProgressionRecommendation|exerciseSessionHistory/.test(fnSrc(src, 'deriveSessionExecution')));
@@ -44506,8 +44565,8 @@ async function testFiniteRepEligibilityD110(){
     T('30 — the Objectives engine is byte-identical (a candidate changes only because the evidence it reads became real)',
       pin('objectiveDailyCandidates') === '9772175df2535484' && pin('objectiveBestSetOn') === '3cf2c88926b6d461' && pin('objectiveProgress') === 'e0889920b620163e'
       && pin('computeNextTimeNotes') === '16d50e35392c9180');
-    T('31 — records, PR XP and the session index are byte-identical', pin('computeExercisePREvents') === '4339cc543585bded'
-      && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('workoutGroupsOf') === 'f346201c58363ccb');
+    T('31 — records, PR XP and the session index are byte-identical', pinAsOf1036('computeExercisePREvents') === '4339cc543585bded'
+      && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('workoutGroupsOf') === 'f346201c58363ccb');
     T('32 — Session Score reads each workout\'s STORED prescription, never live D49 — byte-identical',
       pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c'
       && !/progressionFor|buildProgressionRecommendation|exerciseSessionHistory/.test(fnSrc(src, 'deriveSessionExecution')));
@@ -45084,7 +45143,7 @@ async function testRecoveryLayoutD111(){
     const ss = ctx.sessionScore(scored);
     T('55 — Session Score, by behaviour: the same session still scores 92', ss.available && ss.score === 92, ss.score);
     T('56 — records, XP, rank, Mastery, Objectives and Session Score are byte-identical',
-      pin('computeExercisePREvents') === '4339cc543585bded' && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('computeXPTimeline') === 'c4bf2e0f636c3f20'
+      pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20'
       && pin('calculateRankFromLevel') === '868fd909074da898' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79' && pin('getMasteryProgress') === '77aca2558d11f3d5'
       && pin('objectiveDailyCandidates') === '9772175df2535484' && pin('objectiveBestSetOn') === '3cf2c88926b6d461' && pin('objectiveProgress') === 'e0889920b620163e'
       && pin('computeNextTimeNotes') === '16d50e35392c9180' && pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c');
@@ -45637,7 +45696,7 @@ async function testRecoveryValidityD112(){
     T('37 — D49, by behaviour: 245 × 8 × 2 with effort to spare still earns 245 -> 255 — recovery never fed this', top.tag === 'increase' && top.weight === 255);
     T('38 — D49, D50B, records and their own constants are byte-identical',
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('exerciseSessionHistory') === 'ffef0621fac8e613'
-      && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('computeExercisePREvents') === '4339cc543585bded' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
+      && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(code));
     const t = ctx.effortToRir(8), rx = { sets: 3, reps: '8-10', effort: 8, load: 200 };
     const up = ctx.deriveNextSetCoach({ exerciseName: 'Bench Press', rx, performed: [{ weight: 200, reps: 10, rir: t + 2 }] });
@@ -45648,7 +45707,7 @@ async function testRecoveryValidityD112(){
     const ss = ctx.sessionScore(scored);
     T('40 — Session Score, by behaviour: the same session still scores 92', ss.available && ss.score === 92);
     T('41 — XP, rank, Mastery and Objectives are byte-identical',
-      pin('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
+      pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('objectiveDailyCandidates') === '9772175df2535484' && pin('objectiveBestSetOn') === '3cf2c88926b6d461' && pin('sessionScore') === '842e5699f8ac0835');
     const dup = rec([ROW(Q, [S(225, 8), S(225, 8)]), ROW(Q, [S(225, 8), S(225, 8)])]), four = rec([ROW(Q, [S(225, 8), S(225, 8), S(225, 8), S(225, 8)])]);
     T('42 — E22 is untouched: the same two sets logged twice are four VALID sets and count four times (4.0, 4 sets) — D112 excludes only INVALID evidence, never de-duplicates real, repeated work',
@@ -48021,7 +48080,8 @@ async function testExerciseDetailD118(){
       sessionScore: '842e5699f8ac0835', computeMuscleRecovery: 'd3589033bdb54c67', computeXPTimeline: 'c4bf2e0f636c3f20', computeConsistencyData: '5bfe9ebbb27ff11e',
       computePRs: '51bd020b4aa2a8a3', getSessionPRs: '2a121bed25bfa6ab', deriveWeeklyReview: '54cedeb502954944', saveLog: '66c63714822ef5ee',
       persistLog: '060c04d3663271ab', deleteLog: 'c285ece4eae2315d' };
-    const moved = Object.keys(PINS).filter(n => pin(n) !== PINS[n]);
+    /* D120 restated: the record engines that D120 moved are held at their 10.36 pins by reversal (D120_EDITS). */
+    const moved = Object.keys(PINS).filter(n => (D120_EDITS[n] ? pinAsOf1036(n) : pin(n)) !== PINS[n]);
     T('16  ' + Object.keys(PINS).length + ' engines and routes the sheet reads are unchanged: PRs, timeline, trend, D49, history, identity, mastery, workouts, score, recovery, XP, D44, logging',
       moved.length === 0, moved);
   });
@@ -48161,7 +48221,9 @@ async function testBodyweightProgressionD119(){
     T('3  two workouts on one day are two sessions, in the log’s own order (date, then id)', dd.evidence.sessions === 3 && dd.lastReps === 11 && dd.evidence.previousReps === 10);
     const other = pulls([[10, 9, 8], [11, 10, 9]]); other[1].exercises.push(E('Chin-Up', [BW(20), BW(19)], true));
     T('3  another lift in the same workout never leaks in', same(bw(other), base));
-    T('3  reps are read through performedReps (D96A), never a second parser', /performedReps\(st && st\.reps\) !== null/.test(fnSrc(raw, 'bodyweightSessionHistory')) &&
+    /* D120 restated: D119's evidence reads the one bodyweight performance rule the records read, which reads performedReps. */
+    T('3  reps are read through the one bodyweight performance rule, which reads performedReps (D96A) — never a second parser',
+      /bodyweightPerformanceReps\(st\) !== null/.test(fnSrc(raw, 'bodyweightSessionHistory')) && /performedReps\(set\.reps\)/.test(fnSrc(raw, 'bodyweightPerformanceReps')) &&
       !/parseInt\(|Number\(st\.reps|parseFloat\(st\.reps|parseFloat\(st && st\.reps/.test(fnSrc(raw, 'bodyweightSessionHistory')));
   });
 
@@ -48396,8 +48458,8 @@ async function testBodyweightProgressionD119(){
     const mixed = await detail([W('m1', 24, 'Push', [E('Dip', [BW(10), BW(12)], true)]), W('m2', 17, 'Push', [E('Dip', [S(25, 8), S(25, 8)])]), W('m3', 10, 'Push', [E('Dip', [S(35, 8), S(35, 6)])])], 'Dip');
     T('8  a mixed history still shows D49’s loaded answer, as 10.35 did', /Next 35 lb × 8–12 reps/.test(mixed.next) && mixed.rec.mode === undefined, mixed.next);
     T('8  the trend, best ever and personal bests are untouched: the same D118 functions, byte-identical',
-      pin('exerciseBestSet') === '17533a157f13a7b0' && pin('exerciseRepPoints') === '208406f1635edca6' && pin('computePersonalBestTimeline') === 'e41926dcb1cfa844' &&
-      pin('computeExercisePREvents') === '4339cc543585bded' && pin('compute1RMTrend') === '1dd2dafa4e4c5d06' && pin('exerciseTrendFromPoints') === 'fc3309c25ba2c841');
+      pinAsOf1036('exerciseBestSet') === '17533a157f13a7b0' && pinAsOf1036('exerciseRepPoints') === '208406f1635edca6' && pin('computePersonalBestTimeline') === 'e41926dcb1cfa844' &&
+      pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pin('compute1RMTrend') === '1dd2dafa4e4c5d06' && pin('exerciseTrendFromPoints') === 'fc3309c25ba2c841');
     T('8  one story on one page: trend latest 12, best ever 12, last 12, next 13', v.model.repPoints[v.model.repPoints.length - 1].value === 12 &&
       v.model.best.r === 12 && v.model.rec.lastReps === 12 && v.model.rec.reps === 13);
     const rests = [v.rest, g.rest, (await detail(pulls([[10, 9, 8], [10, 9, BW(13, '', 'amrap')]]))).rest,
@@ -48454,6 +48516,441 @@ async function testBodyweightProgressionD119(){
     for(let i = 0; i < 9; i++){ c.invalidateSortedLogCache(); const t0 = process.hrtime.bigint(); at(() => c.bodyweightProgressionFor('Pull-Up')); times.push(Number(process.hrtime.bigint() - t0) / 1e6); }
     times.sort((x, y) => x - y);
     T('10  two years, 416 workouts of the lift (a third with a second row): the answer in ' + times[4].toFixed(2) + ' ms with every cache cleared, well under 50', times[4] < 50, JSON.stringify(times));
+  });
+}
+
+/* =========================================================
+   CONTRACT 237 — BODYWEIGHT PERFORMANCE COHERENCE  (Phase D120 — closes E40)
+   ---------------------------------------------------------
+   A typed warm-up is preparation. One rule, bodyweightPerformanceReps (and
+   bodyweightPerformanceOf for a workout), decides what may stand as a
+   bodyweight performance, and every reader of one asks it: the canonical
+   record walk, the XP record walk, the Records card, Best ever and the set it
+   names, the trend, the PR badge, and D119's evidence. Held here: the rule and
+   its single definition; E40 as 10.36 had it (the rule put back reproduces
+   10.36's record surfaces exactly, frozen as a digest) and gone now; every case
+   the brief lists; PR XP following the corrected records; the no-op property
+   (any typed warm-up, any count, any rep count, anywhere, changes no
+   performance); layout, order, casing and same-day identity; loaded histories
+   and D119 byte-for-byte as 10.36 (frozen digests); warm-ups still in the
+   history; and nothing protected moved.
+   ========================================================= */
+async function testBodyweightPerformanceD120(){
+  section('CONTRACT 237 — bodyweight performance coherence: warm-ups are preparation, not records (D120, E40)');
+  const fs = require('fs'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const pin = n => sha(fnSrc(raw, n).replace(/\s+/g, ' ').trim());
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-09-30T12:00:00';
+  const D = n => { const d = new Date(2026, 8, 30, 12); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const BW = (r, rir, type) => ({ weight: 'BW', reps: String(r), rir: rir == null ? '2' : String(rir), type: type || 'working' });
+  const WU = r => BW(r, '5', 'warmup');
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '2' : String(rir), type: type || 'working' });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const W = (id, n, title, exs, cat) => ({ id, date: D(n), category: cat || 'pull', title, notes: '', exercises: exs });
+  /* Weekly workouts of one lift, oldest first, the last on Sep 27; ids sort in date order. */
+  const pulls = (lists, name) => lists.map((sets, i) => W('w' + String(i + 1).padStart(2, '0'), 3 + (lists.length - 1 - i) * 7, 'Pull ' + (i + 1),
+    [E(name || 'Pull-Up', sets.map(r => typeof r === 'object' ? r : BW(r)), true)]));
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); } finally { rel(); }
+    return a;
+  };
+  /* Every surface a bodyweight record reaches, read as the athlete meets it — and only through
+     functions 10.36 already had, so the same reading runs on 10.36 to freeze what it said. */
+  const recordSurfaces = (c, lift) => withClockOn(c, NOW, () => {
+    c.openExDetail(lift);
+    const m = c.exDetailModel, html = c.document.getElementById('exDetailHistory').innerHTML;
+    const rows = html.split('class="rw-row exd-row"').slice(1).map(r => {
+      /* The row's sets are consecutive elements: read them one after another from where they start. */
+      const sets = [], one = /<b>([^<]*)<\/b>|<span( class="exd-warm")?>([^<]*)<\/span>/y;
+      one.lastIndex = r.indexOf('exd-row-sets">') + 'exd-row-sets">'.length;
+      for(let x = one.exec(r); x; x = one.exec(r)) sets.push((x[1] !== undefined ? '*' + x[1] : (x[2] ? 'w' : '') + x[3]).replace(/BW × /, ''));
+      return sets.join(' ') + ' | ' + ((r.match(/aria-label="[^:]*: (?:best set )?([^,]*),/) || [])[1] || '') + (/rw-pr exd-first/.test(r) ? ' | First' : /rw-pr/.test(r) ? ' | PR' : '');
+    });
+    const log = c.workoutLog.slice().sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id)));
+    const badges = log.map(e => { c.invalidatePRSetCache(); const ps = c.sessionPRSets(e), out = [];
+      Object.keys(ps.sets).forEach(xi => Object.keys(ps.sets[xi]).forEach(si => { const st = e.exercises[xi].sets[si]; out.push(e.id + ':' + st.reps + (st.type === 'warmup' ? 'w' : '')); }));
+      return out.join(','); }).filter(Boolean);
+    const rec = c.computePRs().find(p => p.name.trim().toLowerCase() === lift.trim().toLowerCase());
+    const tl = c.computeXPTimeline();
+    let id = null; try{ id = c.resolveExerciseId(lift); }catch(e){}
+    return {
+      best: m.best ? [m.best.r, m.best.date] : null,
+      trend: (m.repPoints || []).map(p => p.date.slice(5) + ':' + p.value),
+      pbt: (m.bests.milestones || []).map(x => x.date.slice(5) + ':' + x.value),
+      events: c.computeExercisePREvents(lift).slice().reverse().map(e => e.id + ' ' + e.hits.map(h => h.type + ' ' + h.prev + '>' + h.next).join('+')),
+      card: rec ? [rec.reps, rec.date] : null, rows, badges,
+      prXP: tl.timeline.map(t => t.id + ':' + t.breakdown.filter(b => / — /.test(b.label) && b.label.split(' — ')[1].trim().toLowerCase() === lift.trim().toLowerCase()).map(b => b.xp).join('+')).filter(x => !/:$/.test(x)),
+      prCount: tl.prCount, allEvents: c.computeAllPREvents().length, mastery: (c.masteryPRCounts() || {})[id] || 0,
+      review: (c.weeklyReviewGlance('2026-09-21') || { records: [] }).records.length
+    };
+  });
+  /* The fixtures: each brief case, a pure bodyweight Pull-Up history. */
+  const FX = {
+    single: pulls([[WU(15), 10, 8]]),
+    warmAbove: pulls([[WU(15), 8, 7], [WU(20), 10, 9], [WU(25), 12, 10]]),
+    warmEqual: pulls([[WU(10), 10, 8], [WU(12), 12, 10]]),
+    warmBelow: pulls([[WU(5), 10, 8], [WU(6), 12, 10]]),
+    multiWarm: pulls([[WU(15), WU(18), 10, 8], [WU(20), WU(22), 12, 9]]),
+    warmOnly: pulls([[WU(15)], [WU(12), 10, 9]]),
+    warmFailure: pulls([[WU(15), 10, 8], [WU(15), BW(11, 0, 'failure'), 9]]),
+    warmAmrap: pulls([[WU(15), 10, 8], [WU(15), 9, BW(13, '', 'amrap')]]),
+    rows: [W('w01', 10, 'Pull A', [E('Pull-Up', [WU(15)], true), E('Pull-Up', [BW(10), BW(8)], true)]),
+      W('w02', 3, 'Pull B', [E('Pull-Up', [WU(18), BW(9)], true), E('Lat Pulldown', [S(120, 10)]), E('Pull-Up', [BW(11)], true)])],
+    sameDay: [W('w01', 10, 'Pull', [E('Pull-Up', [BW(9), BW(8)], true)]),
+      W('w02-am', 3, 'Morning', [E('Pull-Up', [WU(15), BW(10), BW(9)], true)]), W('w03-pm', 3, 'Evening', [E('Pull-Up', [WU(16), BW(12), BW(9)], true)])],
+    warmInvalid: pulls([[BW('', '5', 'warmup'), BW('Infinity', '5', 'warmup'), 10, 8], [BW('1e999', '5', 'warmup'), 11, 9]]),
+    legacy: pulls([[{ weight: 'BW', reps: '9' }, { weight: 'BW', reps: '8' }], [WU(14), { weight: 'BW', reps: '11' }, BW(10, 2, 'drop')]]),
+    notDone: pulls([[WU(12), 10, 8], [Object.assign(BW(16), { completed: false }), 11, 9]])
+  };
+  const at = {};
+  for(const k of Object.keys(FX)){ const a = await boot(FX[k]); at[k] = { c: a.ctx, app: a, s: recordSurfaces(a.ctx, 'Pull-Up') }; }
+  const d119 = (c, lift) => withClockOn(c, NOW, () => c.bodyweightProgressionFor(lift || 'Pull-Up'));
+
+  /* ---------------------------------------------------------------- */
+  sub('1  one rule, defined once, read by every bodyweight reader');
+  await guard('rule', async () => {
+    T('1  the rule and the workout’s performance are each defined once',
+      ['bodyweightPerformanceReps', 'bodyweightPerformanceOf'].every(n => (raw.match(new RegExp('function ' + n + '\\(', 'g')) || []).length === 1));
+    T('1  the rule is a performed working set with real reps: isWorkingSet decides the type, a set marked not completed is out, performedReps reads the reps',
+      /if\(!set \|\| isWorkingSet\(set\) === false \|\| set\.completed === false\) return null;\s*return performedReps\(set\.reps\);/.test(fnSrc(raw, 'bodyweightPerformanceReps')) &&
+      /bodyweightPerformanceReps\(st\)/.test(fnSrc(raw, 'bodyweightPerformanceOf')) && !/warmup|'working'|'failure'|'amrap'|'drop'/.test(fnSrc(raw, 'bodyweightPerformanceReps')));
+    const READERS = { computeExercisePREvents: /bodyweightPerformanceOf\(s\.sets\)/, computeXPTimeline: /bodyweightPerformanceOf\(lift\.sets\)/,
+      computePRs: /bodyweightPerformanceReps\(st\)/, exerciseBestSet: /bodyweightPerformanceReps\(st\)[\s\S]*bodyweightPerformanceReps\(st\) === best\.r/,
+      exerciseRepPoints: /bodyweightPerformanceOf\(sessions\[i\]\.allSets\)/, prSetIndexFor: /if\(isBW && \(type === 'reps' \|\| type === 'weight'\)\) v = bodyweightPerformanceReps\(s\);/,
+      bodyweightSessionHistory: /sets\.filter\(st => bodyweightPerformanceReps\(st\) !== null\)/ };
+    T('1  every reader asks it: the record walk, the XP walk, the Records card, Best ever and the set it names, the trend, the badge, and D119’s evidence',
+      Object.keys(READERS).every(n => READERS[n].test(fnSrc(raw, n))), Object.keys(READERS).filter(n => !READERS[n].test(fnSrc(raw, n))).join());
+    T('1  and none of them still takes "the most reps in any set" on its own',
+      !/performedReps\(set && set\.reps\)/.test(fnSrc(raw, 'computeExercisePREvents')) && !/performedReps\(s && s\.reps\)/.test(fnSrc(raw, 'computeXPTimeline')) &&
+      !/performedReps\(st\.reps\)/.test(fnSrc(raw, 'computePRs')) && !/performedReps\(/.test(fnSrc(raw, 'exerciseRepPoints')) && !/isNaN\(r\) && r > best\.r\)\{ best\.r = r/.test(fnSrc(raw, 'exerciseBestSet')));
+    T('1  the eight functions D120 moved are 10.36 byte for byte once its statements are put back (D120_EDITS): nothing else in them moved',
+      pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pinAsOf1036('computePRs') === '51bd020b4aa2a8a3' &&
+      pinAsOf1036('prSetIndexFor') === '19e7e73710d8c49b' && pinAsOf1036('exerciseBestSet') === '17533a157f13a7b0' && pinAsOf1036('exerciseRepPoints') === '208406f1635edca6' &&
+      pinAsOf1036('exDetailSessionRowHtml') === '7702f83e615ad7d5' && pinAsOf1036('bodyweightSessionHistory') === 'ac4dc30c27e7aff5');
+    T('1  the loaded rule is untouched: loadedPRPerformance byte-identical, and no loaded branch reads the new rule',
+      pin('loadedPRPerformance') === 'aa54b32db5122a2e' && !/bodyweightPerformance/.test(fnSrc(raw, 'loadedPRPerformance')) &&
+      /loadedPRPerformance\(set\)/.test(fnSrc(raw, 'computeExercisePREvents')) && /loadedPRPerformance\(s\)/.test(fnSrc(raw, 'computeXPTimeline')) && /loadedPRPerformance\(st\)/.test(fnSrc(raw, 'computePRs')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('2  E40 as 10.36 had it, and gone');
+  await guard('e40', async () => {
+    /* The rule put back as 10.36 read it: any set with real reps. Every record surface must then say exactly what 10.36 said. */
+    const back = {};
+    for(const k of Object.keys(FX)){
+      const c = (await boot(FX[k])).ctx;
+      c.bodyweightPerformanceReps = st => c.performedReps(st && st.reps);
+      c.invalidateSortedLogCache(); c.invalidateXPTimelineCache();          // boot already cached the index with the real rule
+      back[k] = recordSurfaces(c, 'Pull-Up');
+    }
+    const digest = sha(JSON.stringify(back));
+    T('2  with the one rule put back as 10.36 read it, every record surface of all ' + Object.keys(FX).length + ' histories is 10.36’s, exactly (a digest frozen from 10.36)',
+      digest === 'c69981129224710e', digest);
+    T('2  10.36, the brief’s own workout (a 15-rep warm-up, then 10 and 8): Best ever 15, trend 15, record 0→15, the badge and the bold on the warm-up',
+      same(back.single.best, [15, D(3)]) && same(back.single.trend, ['09-27:15']) && same(back.single.events, ['w01 reps 0>15']) &&
+      same(back.single.badges, ['w01:15w']) && back.single.rows[0] === '*15 10 8 | 15 reps | First', JSON.stringify(back.single));
+    T('2  …while Next session said 10 → 11, from the working sets: one page, two stories', (r => r.lastReps === 10 && r.reps === 11)(d119(at.single.c)));
+    const s = at.single.s;
+    T('2  10.37: every surface tells the working sets’ story — Best ever 10, trend 10, first logged 10, the badge and the bold on the 10, the warm-up dimmed and listed',
+      same(s.best, [10, D(3)]) && same(s.trend, ['09-27:10']) && same(s.pbt, ['09-27:10']) && same(s.events, ['w01 reps 0>10']) && same(s.card, [10, D(3)]) &&
+      same(s.badges, ['w01:10']) && s.rows[0] === 'w15 *10 8 | 10 reps | First', JSON.stringify(s));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('3  every case: one story from Best ever to Next session');
+  await guard('cases', async () => {
+    const story = k => { const s = at[k].s, r = d119(at[k].c); return { s, r }; };
+    let x = story('warmAbove');
+    T('3  warm-ups above the work (15, 20, 25 before 8, 10, 12): trend 8 → 10 → 12, personal bests 8 → 10 → 12, Best ever 12, Last 12, Next 13',
+      same(x.s.trend.map(p => +p.split(':')[1]), [8, 10, 12]) && same(x.s.pbt.map(p => +p.split(':')[1]), [8, 10, 12]) && x.s.best[0] === 12 &&
+      same(x.s.events, ['w01 reps 0>8', 'w02 reps 8>10', 'w03 reps 10>12']) && x.r.lastReps === 12 && x.r.reps === 13 && x.s.card[0] === 12, JSON.stringify(x.s));
+    T('3  …and in every row the bold is the working set, the warm-up is dimmed, and the badge is on the work',
+      same(x.s.rows, ['w25 *12 10 | 12 reps | PR', 'w20 *10 9 | 10 reps | PR', 'w15 *8 7 | 8 reps | First']) && same(x.s.badges, ['w01:8', 'w02:10', 'w03:12']));
+    x = story('warmEqual');
+    T('3  a warm-up EQUAL to the best: the same numbers as 10.36, but the bold and the badge move from the warm-up to the working set',
+      same(x.s.events, ['w01 reps 0>10', 'w02 reps 10>12']) && x.s.best[0] === 12 && same(x.s.rows, ['w12 *12 10 | 12 reps | PR', 'w10 *10 8 | 10 reps | First']) &&
+      same(x.s.badges, ['w01:10', 'w02:12']), JSON.stringify(x.s));
+    x = story('warmBelow');
+    T('3  a warm-up BELOW the work (the usual case): nothing moves', same(x.s.events, ['w01 reps 0>10', 'w02 reps 10>12']) && x.s.best[0] === 12 &&
+      same(x.s.rows, ['w6 *12 10 | 12 reps | PR', 'w5 *10 8 | 10 reps | First']) && same(x.s.badges, ['w01:10', 'w02:12']));
+    x = story('multiWarm');
+    T('3  several warm-ups, all above the work: none of them counts — 10 → 12', same(x.s.events, ['w01 reps 0>10', 'w02 reps 10>12']) && x.s.best[0] === 12 &&
+      same(x.s.rows, ['w20 w22 *12 9 | 12 reps | PR', 'w15 w18 *10 8 | 10 reps | First']));
+    x = story('warmOnly');
+    T('3  a warm-up-only workout establishes nothing: no best, no record, no trend point — the first logged best is the next workout’s 10, never 15 and never 0',
+      same(x.s.events, ['w02 reps 0>10']) && same(x.s.best, [10, D(3)]) && same(x.s.trend, ['09-27:10']) && same(x.s.pbt, ['09-27:10']) &&
+      same(x.s.rows, ['w12 *10 9 | 10 reps | First', 'w15 | no working set']) && same(x.s.card, [10, D(3)]), JSON.stringify(x.s));
+    x = story('warmFailure');
+    T('3  a working set to failure counts: 10, then 11 to failure is a record (10.36 hid it behind the 15-rep warm-up)',
+      same(x.s.events, ['w01 reps 0>10', 'w02 reps 10>11']) && x.s.best[0] === 11 && x.r.lastReps === 11);
+    x = story('warmAmrap');
+    T('3  an AMRAP set counts: 10, then 13 is a record', same(x.s.events, ['w01 reps 0>10', 'w02 reps 10>13']) && x.s.best[0] === 13 && x.r.lastReps === 13);
+    x = story('legacy');
+    T('3  untyped legacy sets and drop sets count, as they always have: 9, then 11', same(x.s.events, ['w01 reps 0>9', 'w02 reps 9>11']) && x.s.best[0] === 11);
+    x = story('notDone');
+    T('3  a set marked not completed is not a performance (the rule D49 and D119 read): 10, then 11 — not 16',
+      same(x.s.events, ['w01 reps 0>10', 'w02 reps 10>11']) && x.s.best[0] === 11 && x.r.lastReps === 11);
+    const texty = (await boot(pulls([[WU(14), { weight: 'BW', reps: '9 reps', rir: '2', type: 'working' }, BW(8)], [WU(15), { weight: 'BW', reps: '11 reps', rir: '2', type: 'working' }, BW(9)]]))).ctx;
+    const tx = recordSurfaces(texty, 'Pull-Up'), tr = d119(texty);
+    T('3  reps stored with trailing text ("11 reps") read exactly as D96A’s performedReps reads them, in every reader at once: 9, then 11',
+      same(tx.events, ['w01 reps 0>9', 'w02 reps 9>11']) && tx.best[0] === 11 && same(tx.trend.map(p => +p.split(':')[1]), [9, 11]) && tx.card[0] === 11 &&
+      same(tx.badges, ['w01:9 reps', 'w02:11 reps']) && tr.lastReps === 11 && tr.reps === 12, JSON.stringify([tx, tr && [tr.lastReps, tr.reps]]));
+    x = story('warmInvalid');
+    T('3  unreadable warm-up reps were never evidence and still are not: 10, then 11', same(x.s.events, ['w01 reps 0>10', 'w02 reps 10>11']) && x.s.best[0] === 11);
+    x = story('rows');
+    T('3  the lift in two rows of one workout, the warm-up in a row of its own: one performance, 10, then 11',
+      same(x.s.events, ['w01 reps 0>10', 'w02 reps 10>11']) && x.s.best[0] === 11 && same(x.s.trend.map(p => +p.split(':')[1]), [10, 11]) && x.r.lastReps === 11);
+    x = story('sameDay');
+    T('3  two workouts on one date stay two: 9, then the morning’s 10, then the evening’s 12 — two trend points that day',
+      same(x.s.events, ['w01 reps 0>9', 'w02-am reps 9>10', 'w03-pm reps 10>12']) && same(x.s.trend, ['09-20:9', '09-27:10', '09-27:12']) && x.r.lastReps === 12);
+    const all = Object.keys(at).map(k => { const s = at[k].s, r = d119(at[k].c);
+      return !r || r.reps == null || (s.trend.length && +s.trend[s.trend.length - 1].split(':')[1] === r.lastReps); });
+    T('3  in every history D119’s LAST is the trend’s latest point: progression and records read one performance', all.every(Boolean), JSON.stringify(all));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4  PR XP follows the corrected records; no amount moved');
+  await guard('xp', async () => {
+    const ok = Object.keys(at).every(k => { const s = at[k].s;
+      return same(s.events.map(e => e.split(' ')[0]), s.prXP.map(p => p.split(':')[0])) && s.prCount === s.allEvents && s.mastery === s.events.length; });
+    T('4  in every history the XP walk pays a record exactly where the record walk finds one — the same workouts, the same count — and Mastery counts the same records', ok,
+      JSON.stringify(Object.keys(at).map(k => [k, at[k].s.events.length, at[k].s.prXP.length, at[k].s.prCount, at[k].s.allEvents, at[k].s.mastery])));
+    T('4  10 → 11 to failure behind a 15-rep warm-up: two records now, 20 PR XP (10.36: one, 10)', at.warmFailure.s.prCount === 2 && same(at.warmFailure.s.prXP, ['w01:10', 'w02:10']));
+    T('4  no XP amount, level curve, rank threshold or milestone moved', pin('calculatePRXP') === 'ba20ebe522acc1a3' && pin('calculateWorkoutXP') === '91b8fca789942c50' &&
+      pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateLevelFromXP') === '9418f2e5934245da' && pin('calculateRankFromLevel') === '868fd909074da898' &&
+      /const PR_XP = \{ weight:15, reps_at_weight:10, '1rm':10, volume:5, reps:10 \};/.test(raw) &&
+      at.single.c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50');
+    const c = at.warmFailure.c, p = withClockOn(c, NOW, () => c.getCurrentProgression());
+    T('4  level and rank are still what the corrected XP says they are — a function of XP, nothing else', p.level === c.calculateLevelFromXP(p.lifetimeXP).level);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('5  the no-op property: a typed warm-up never changes a bodyweight performance');
+  await guard('properties', async () => {
+    const c = at.single.c;
+    const seed = log => { c.workoutLog = JSON.parse(JSON.stringify(log)); c.invalidateSortedLogCache(); c.invalidateXPTimelineCache(); };
+    const read = (log, lift) => { seed(log); return withClockOn(c, NOW, () => {
+      const key = lift.trim().toLowerCase();
+      const perf = c.sortedLog().slice().reverse().map(l => { const p = c.workoutExercisePerformance(l, key); return p ? l.id + ':' + c.bodyweightPerformanceOf(p.sets) : null; }).filter(Boolean);
+      const d = c.deriveExerciseDetail(lift);
+      const tl = c.computeXPTimeline();
+      const rec = c.computePRs().find(x => x.name.trim().toLowerCase() === key);
+      return { perf, d119: c.bodyweightProgressionFor(lift), best: d.best ? [d.best.r, d.best.date] : null, trend: (d.repPoints || []).map(x => x.date + ':' + x.value),
+        pbt: d.bests.milestones.map(x => x.date + ':' + x.value), events: c.computeExercisePREvents(lift).map(e => e.id + ' ' + e.hits.map(h => h.prev + '>' + h.next).join()),
+        card: rec ? [rec.reps, rec.date] : null, prXP: tl.timeline.map(t => t.id + ':' + t.breakdown.filter(b => / — /.test(b.label)).map(b => b.xp).join('+')) }; }); };
+    let a = 0x2545F491 >>> 0;
+    const R = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const pick = xs => xs[Math.floor(R() * xs.length)];
+    const INVALID = ['', ' ', '0', '-3', 'NaN', 'Infinity', '1e999', 'abc'];
+    const num = x => { const v = parseFloat(x); return Number.isFinite(v) && v > 0 ? v : null; };
+    const oracle = sets => { let b = null; sets.forEach(x => { if(!x || x.type === 'warmup' || x.completed === false) return; const v = num(x.reps); if(v !== null && (b === null || v > b)) b = v; }); return b; };
+    let n = 0, real = 0, noop = 0, invalid = 0, layout = 0, order = 0, casing = 0, sameDayKept = 0, sameDayN = 0, records = 0;
+    for(let h = 0; h < 220; h++){
+      const k = 1 + Math.floor(R() * 7);
+      let reps = R() < 0.06 ? 80 + Math.floor(R() * 70) : 2 + Math.floor(R() * 14);
+      const log = [];
+      for(let i = 0; i < k; i++){
+        reps = Math.max(1, reps + pick([-3, -1, 0, 0, 1, 1, 2]));
+        let sets = [];
+        const m = 1 + Math.floor(R() * 4);
+        for(let j = 0; j < m; j++) sets.push(BW(Math.max(1, reps - j + pick([-1, 0, 0, 1])), pick(['', '0', '0.5', '1', '2', '3']), pick(['working', 'working', 'working', 'failure', 'amrap', 'drop'])));
+        const wu = pick([0, 0, 1, 1, 2, 3]);
+        for(let j = 0; j < wu; j++) sets.splice(Math.floor(R() * (sets.length + 1)), 0, WU(Math.max(1, reps + pick([-6, -2, 0, 3, 8, 20]))));
+        if(R() < 0.12) sets = sets.map(x => x.type === 'warmup' ? x : { weight: 'BW', reps: x.reps });            // legacy, untyped
+        if(R() < 0.08) sets.push(Object.assign(BW(reps + 9), { completed: false }));                             // logged, not done
+        if(R() < 0.07) sets = sets.filter(x => x.type === 'warmup').concat([WU(reps + 4)]);                       // warm-up only
+        const twin = R() < 0.15 && i > 0;                                                                          // a second workout that day
+        log.push(W('h' + String(h).padStart(3, '0') + '-' + String(i).padStart(2, '0'), (k - i) * 6 + (twin ? 6 : 0), 'S', [E('Pull-Up', sets, true)]));
+      }
+      const base = read(log, 'Pull-Up');
+      n++;
+      /* every workout's performance is the oracle's: the most reps in a performed working set */
+      const want = log.slice().sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id)).map(l => l.id + ':' + oracle(l.exercises[0].sets));
+      if(same(base.perf, want)) real++; else if(n - real <= 2) T('5  history ' + h + ' reads its performances by the rule', false, JSON.stringify([base.perf, want]));
+      /* and the records are the running best of those performances, in the record walk's order */
+      let best = 0; const wantEv = [];
+      log.slice().sort((x, y) => new Date(x.date) - new Date(y.date)).forEach(l => { const v = oracle(l.exercises[0].sets) || 0; if(v > best){ wantEv.push(l.id + ' ' + best + '>' + v); best = v; } });
+      if(same(base.events.slice().reverse(), wantEv)) records++; else if(n - records <= 2) T('5  history ' + h + ' records the running best', false, JSON.stringify([base.events, wantEv]));
+      /* NO-OP: any number of typed warm-ups, any finite positive reps, anywhere — in a row, in a row of their own, or a workout of their own */
+      const more = JSON.parse(JSON.stringify(log));
+      more.forEach(w => { const extra = Math.floor(R() * 4);
+        for(let j = 0; j < extra; j++){ const r = WU(1 + Math.floor(R() * 500)); if(R() < 0.3) w.exercises.push(E('Pull-Up', [r], true)); else { const s = w.exercises[0].sets; s.splice(Math.floor(R() * (s.length + 1)), 0, r); } } });
+      if(R() < 0.25) more.push(W('h' + String(h).padStart(3, '0') + '-zz', 1 + Math.floor(R() * 40), 'Warm-up only', [E('Pull-Up', [WU(1 + Math.floor(R() * 300))], true)]));
+      const after = read(more, 'Pull-Up');
+      const strip = x => Object.assign({}, x, { perf: x.perf.filter(p => !/-zz:/.test(p)), prXP: x.prXP.filter(p => !/-zz:/.test(p)) });
+      if(same(strip(after), base)) noop++; else if(n - noop <= 2) T('5  history ' + h + ': warm-ups change nothing', false, JSON.stringify([base, after]).slice(0, 900));
+      /* unreadable reps anywhere change nothing */
+      const noisy = JSON.parse(JSON.stringify(log));
+      noisy.forEach(w => { const s = w.exercises[0].sets; s.splice(Math.floor(R() * (s.length + 1)), 0, { weight: 'BW', reps: pick(INVALID), rir: '', type: pick(['working', 'warmup', 'failure']) }); });
+      if(same(read(noisy, 'Pull-Up'), base)) invalid++;
+      /* one, two or three interleaved rows, warm-ups and work distributed differently */
+      const split = JSON.parse(JSON.stringify(log));
+      split.forEach(w => { const sets = w.exercises[0].sets, p = 1 + Math.floor(R() * 3), parts = [[], [], []];
+        sets.forEach(s => parts[Math.floor(R() * p)].push(s));
+        const rws = parts.slice(0, p).filter(x => x.length).map(x => E('Pull-Up', x, true)); rws.splice(1, 0, E('Lat Pulldown', [S(120, 10)])); w.exercises = rws; });
+      const sp = read(split, 'Pull-Up');
+      if(same([sp.perf, sp.d119, sp.best, sp.trend, sp.pbt, sp.events, sp.card], [base.perf, base.d119, base.best, base.trend, base.pbt, base.events, base.card])) layout++;
+      /* another set order */
+      const shuffled = JSON.parse(JSON.stringify(log));
+      shuffled.forEach(w => { const s = w.exercises[0].sets; for(let i = s.length - 1; i > 0; i--){ const j = Math.floor(R() * (i + 1)); const t = s[i]; s[i] = s[j]; s[j] = t; } });
+      const sh = read(shuffled, 'Pull-Up');
+      if(same([sh.perf, sh.d119, sh.best, sh.trend, sh.pbt, sh.events, sh.card, sh.prXP], [base.perf, base.d119, base.best, base.trend, base.pbt, base.events, base.card, base.prXP])) order++;
+      /* the lift stored under other spellings */
+      const cased = JSON.parse(JSON.stringify(log));
+      cased.forEach((w, i) => { w.exercises[0].name = [' pull-up ', 'PULL-UP', 'Pull-up', 'Pull-Up'][i % 4]; });
+      const ca = read(cased, 'Pull-Up');
+      if(same([ca.perf, ca.d119, ca.best, ca.trend, ca.events, ca.card], [base.perf, base.d119, base.best, base.trend, base.events, base.card])) casing++;
+      /* two workouts on one date stay two performances */
+      const dates = {}; log.forEach(l => { dates[l.date] = (dates[l.date] || 0) + 1; });
+      if(Object.keys(dates).some(d => dates[d] > 1)){ sameDayN++; if(base.perf.length === log.length) sameDayKept++; }
+    }
+    T('5  ' + n + ' generated histories: every workout’s performance is the rule’s — the most reps in one performed working set', real === n, real);
+    T('5  and every record is the running best of those performances, nothing else', records === n, records);
+    T('5  NO-OP: typed warm-ups — any number, any rep count up to 500, in a row, in a row of their own or a workout of their own — change no performance, D119 answer, Best ever, trend, personal best, record, Records card or PR XP',
+      noop === n, noop);
+    T('5  unreadable reps added anywhere change nothing', invalid === n, invalid);
+    T('5  storage layout is not training meaning: one, two or three interleaved rows read the same', layout === n, layout);
+    T('5  set order never decides which set is the performance', order === n, order);
+    T('5  the same lift stored under four spellings reads the same (D96B)', casing === n, casing);
+    T('5  two workouts on one date stay two performances (' + sameDayN + ' histories had one)', sameDayN > 5 && sameDayKept === sameDayN, [sameDayKept, sameDayN]);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('6  loaded histories and D119 are 10.36’s, byte for byte');
+  await guard('drift', async () => {
+    let a = 0x1B873593 >>> 0;
+    const R = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const pick = xs => xs[Math.floor(R() * xs.length)];
+    const c = at.single.c;
+    const seed = log => { c.workoutLog = JSON.parse(JSON.stringify(log)); c.invalidateSortedLogCache(); c.invalidateXPTimelineCache(); };
+    const loadedOut = [], bwOut = [];
+    for(let h = 0; h < 40; h++){
+      /* loaded: typed warm-ups ramping up, failure/AMRAP, repeated rows — including warm-ups that set a record of their own (E41) */
+      const loads = { 'Bench Press': 135, 'Back Squat': 225, 'Lat Pulldown': 100, 'Dumbbell Curl': 25, 'T-Bar Row': 90 };
+      const log = [];
+      for(let i = 0; i < 5 + Math.floor(R() * 7); i++){
+        const exs = [];
+        Object.keys(loads).filter(() => R() < 0.6).forEach(nm => { loads[nm] += pick([0, 5, 5, -5]);
+          const sets = [];
+          for(let j = 0; j < pick([0, 1, 2, 3]); j++) sets.push(S(Math.round(loads[nm] * pick([0.4, 0.5, 0.6, 0.8]) / 5) * 5, pick([5, 8, 10, 12]), 5, 'warmup'));
+          for(let j = 0; j < 1 + Math.floor(R() * 3); j++) sets.push(S(loads[nm], Math.max(1, pick([5, 8, 10]) - j), pick(['', '0', '1', '2']), pick(['working', 'working', 'failure', 'amrap'])));
+          exs.push(E(nm, sets));
+          if(R() < 0.1) exs.push(E(nm, [S(loads[nm], 6)]));
+        });
+        if(exs.length) log.push(W('L' + h + '-' + i, 70 - i * 6, 'S', exs, 'push'));
+      }
+      seed(log);
+      withClockOn(c, NOW, () => c.getAllLoggedExerciseNames().forEach(nm => {
+        const d = c.deriveExerciseDetail(nm);
+        loadedOut.push(nm + '|' + JSON.stringify([c.computeExercisePREvents(nm).map(e => [e.id, e.hits]), d.best && [d.best.w, d.best.r, d.best.date], d.points, d.trend && d.trend.pct,
+          c.computePersonalBestTimeline(nm).milestones, c.progressionFor(nm, c.repRangeForExercise(nm), null)]));
+      }));
+      const tl = withClockOn(c, NOW, () => c.computeXPTimeline());
+      loadedOut.push(JSON.stringify([tl.prCount, tl.lifetimeXP, tl.timeline.map(t => t.xpTotal), c.computePRs()]));
+      /* bodyweight: D119's answer over histories full of warm-ups, legacy and unfinished sets */
+      const bl = [];
+      let reps = 4 + Math.floor(R() * 10);
+      for(let i = 0; i < 1 + Math.floor(R() * 7); i++){
+        reps = Math.max(1, reps + pick([-2, -1, 0, 1, 1, 2]));
+        const sets = [WU(reps + pick([-3, 0, 5, 12]))].concat(Array.from({ length: 1 + Math.floor(R() * 3) }, (_, j) => BW(Math.max(1, reps - j), pick(['', '0', '1', '2']), pick(['working', 'failure', 'amrap']))));
+        if(R() < 0.1) sets.push(Object.assign(BW(reps + 7), { completed: false }));
+        bl.push(W('B' + h + '-' + i, 50 - i * 7, 'Pull', [E('Pull-Up', R() < 0.15 ? sets.map(x => x.type === 'warmup' ? x : { weight: 'BW', reps: x.reps }) : sets, true)]));
+      }
+      seed(bl);
+      bwOut.push(JSON.stringify(withClockOn(c, NOW, () => c.progressionRecommendationFor('Pull-Up', c.repRangeForExercise('Pull-Up'), null))));
+    }
+    T('6  loaded: ' + (loadedOut.length - 40) + ' lifts in 40 histories full of typed warm-ups — records, PR XP, XP, Best ever, trend, personal bests, Records card and D49 — are 10.36’s exactly (a digest frozen from 10.36)',
+      sha(loadedOut.join('\n')) === 'c4bdb670306a3e88', sha(loadedOut.join('\n')));
+    T('6  D119: its answer over 40 bodyweight histories full of warm-ups is 10.36’s exactly — it always read working sets (a digest frozen from 10.36)',
+      sha(bwOut.join('\n')) === '6f56a46b6931633c', sha(bwOut.join('\n')));
+    T('6  D119’s policy and public question are byte-identical; only its evidence filter now names the shared rule',
+      pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('progressionRecommendationFor') === '4be672abd167121a' && pinAsOf1036('bodyweightSessionHistory') === 'ac4dc30c27e7aff5');
+    seed([W('x1', 10, 'Push A', [E('Bench Press', [S(95, 8, 5, 'warmup'), S(185, 5), S(185, 5)])], 'push'), W('x2', 3, 'Push B', [E('Bench Press', [S(95, 10, 5, 'warmup'), S(185, 5), S(185, 5)])], 'push')]);
+    const ev = withClockOn(c, NOW, () => c.computeExercisePREvents('Bench Press'));
+    T('6  a loaded warm-up still sets a reps-at-weight record exactly as on 10.36 — E41, recorded, not changed by this phase',
+      ev.length === 2 && ev[0].hits.some(hh => hh.type === 'reps_at_weight' && hh.weight === 95 && hh.next === 10));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('7  mixed history: D119 still answers nothing; its records follow the same rule');
+  await guard('mixed', async () => {
+    const log = [W('m1', 24, 'Push', [E('Dip', [WU(20), BW(10), BW(9)], true)], 'push'), W('m2', 17, 'Push', [E('Dip', [S(25, 8), S(25, 8)])], 'push'),
+      W('m3', 10, 'Push', [E('Dip', [S(35, 8), S(35, 6)])], 'push')];
+    const c = (await boot(log)).ctx;
+    T('7  D119 does not interpret it: no bodyweight answer, and the public question is D49’s own answer (35 lb)',
+      d119(c, 'Dip') === null && withClockOn(c, NOW, () => c.progressionRecommendationFor('Dip', '8-12', null)).weight === 35);
+    const ev = withClockOn(c, NOW, () => c.computeExercisePREvents('Dip'));
+    T('7  its record stream (a bodyweight lift by D91) reads the same rule: the first logged best is the working 10, not the 20-rep warm-up',
+      ev.length && ev[ev.length - 1].id === 'm1' && ev[ev.length - 1].hits[0].next === 10, JSON.stringify(ev.map(e => [e.id, e.hits])));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('8  warm-ups stay in the history');
+  await guard('history', async () => {
+    const c = at.warmAbove.c;
+    T('8  Exercise Detail still lists every warm-up, dimmed, in its own workout’s row', at.warmAbove.s.rows.every(r => /^w\d+ /.test(r)));
+    const day = withClockOn(c, NOW, () => { c.openDayDetail('w03'); return c.document.getElementById('dayDetailExercises').innerHTML; });
+    /* One chip per set: its class says its type and whether it carries the record. */
+    const chips = day.split('<span class="set-chip').slice(1).filter(x => x[0] !== '-')
+      .map(x => ({ cls: x.slice(0, x.indexOf('"')), txt: x.slice(x.indexOf('>') + 1, x.indexOf('<')).trim() }));
+    T('8  Day Detail still shows the warm-up set, and the one record badge sits on the working set, not the warm-up', chips.length === 3 &&
+      chips.some(x => /set-chip-warmup/.test(x.cls) && /× 25/.test(x.txt) && !/set-chip-record/.test(x.cls)) &&
+      chips.filter(x => /set-chip-record/.test(x.cls)).map(x => x.txt.split(' · ')[0]).join() === 'BW × 12', JSON.stringify(chips));
+    const tl = withClockOn(c, NOW, () => c.computeXPTimeline());
+    T('8  the workout’s set count still counts the warm-up (3 sets → "3 working sets" XP, exactly as before)', tl.timeline.every(t => t.breakdown.some(b => b.label === '3 working sets')));
+    T('8  set counts, volume and the muscle tallies read the log as before: sessionVolume, deriveMuscleSetsBetween and the set XP are byte-identical',
+      pin('sessionVolume') === '4ddcaadccc1dfa80' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('calculateSetXP') === '625722a99a04e30f');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('9  protected');
+  await guard('protected', async () => {
+    T('9  D49, D50B, D91 and D96A’s boundary are byte-identical', pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' &&
+      pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('prModeOf') === 'a0ac7f761228372f' &&
+      pin('performedReps') === '0436ff32a1b6eaf1' && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('isWorkingSet') === '1517c2a5dffcdc55' && pin('setTypeOf') === '6b8c6877109ed9e3');
+    T('9  Session Score, Mastery scoring, Recovery and Objectives are byte-identical', pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
+      pin('execWorkingSets') === 'c8a4d5ff56240272' && pin('masteryPointsFor') === '0c704c40a853d991' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79' && pin('masteryPRCounts') === 'f77664c53b2ea14a' &&
+      pin('computeMuscleRecovery') === 'd3589033bdb54c67' && pin('setLoadFactor') === 'e466970c1c585aeb' && pin('recoveryReferenceLoads') === 'f6ec394e400f59f5' &&
+      pin('objectiveDailyCandidates') === '9772175df2535484' && pin('objectiveEvidence') === 'b49414150ed34a2d' && pin('objectiveBestSetOn') === '3cf2c88926b6d461');
+    T('9  every record consumer reads the corrected stream, untouched itself: the index, the per-workout events, the personal bests, the badges’ owner',
+      pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('prEventsOfEntry') === '3483d8538463e017' &&
+      pin('prEventsForEntryOrdered') === '1290cedb48edf53e' && pin('computePersonalBestTimeline') === 'e41926dcb1cfa844' && pin('sessionPRSets') === '18b4d680fc08122f');
+    T('9  the trainer (0.1.1-shadow) and its capability model are byte-identical', at.single.c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && pin('computeExerciseCapability') === '3a283e02ebdad568');
+    const c = (await boot([W('e1', 5, 'Push', [E('Bench Press', [S(135, 8), S('Infinity', 6)])], 'push')])).ctx;
+    const chip = withClockOn(c, NOW, () => c.setChipHtml({ weight: 'Infinity', reps: '6', rir: '' }, false));
+    T('9  E38 is untouched: a stored non-finite weight still prints as a load on Day Detail’s chip', pin('setChipHtml') === '350b4e34eb582056' && /Infinity lb/.test(chip), chip);
+    const l = (await boot(pulls([[20, 18], [25, 20]], 'L-Sit'))).ctx;
+    T('9  E39 is untouched: a custom hold the name rule misses (L-Sit) still gets a rep target', pin('substitutionIsHold') === '049ba50329c76db3' &&
+      pin('classifyExerciseType') === 'd367c209f736cc3d' && d119(l, 'L-Sit').reps === 26);
+    const c2 = at.warmAmrap.c, app = at.warmAmrap.app;
+    const store0 = JSON.stringify(app.store), log0 = JSON.stringify(c2.workoutLog);
+    let sets = 0; const realSet = c2.LOOPStore.set; c2.LOOPStore.set = function(){ sets++; return realSet.apply(this, arguments); };
+    try{ recordSurfaces(c2, 'Pull-Up'); withClockOn(c2, NOW, () => { c2.computeAllPREvents(); c2.computeXPTimeline(); c2.computePRs(); c2.bodyweightProgressionFor('Pull-Up'); }); }
+    finally { c2.LOOPStore.set = realSet; }
+    T('9  reading every surface writes nothing: no store write, the log byte-identical', sets === 0 && JSON.stringify(app.store) === store0 && JSON.stringify(c2.workoutLog) === log0);
+    T('9  no key, schema, migration or trainer change', c2.DATA_KEYS.length === 16 && c2.DATA_SCHEMA_VERSION === 1 && Object.keys(c2.MIGRATIONS || {}).length === 0 &&
+      !/LOOPStore|localStorage/.test(fnSrc(raw, 'bodyweightPerformanceReps') + fnSrc(raw, 'bodyweightPerformanceOf')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('10  it is cheap');
+  await guard('perf', async () => {
+    const big = [];
+    for(let i = 0; i < 416; i++) big.push(W('b' + String(i).padStart(3, '0'), 730 - Math.floor(i * 1.75), 'S',
+      [E('Pull-Up', [WU(12 + i % 9), BW(5 + (i % 9)), BW(4 + (i % 9))], true), E('Bench Press', [S(95, 10, 5, 'warmup'), S(135 + i % 20, 8)])].concat(i % 3 ? [] : [E('Pull-Up', [WU(20), BW(6)], true)])));
+    const c = at.single.c;
+    c.workoutLog = big; c.invalidateSortedLogCache(); c.invalidateXPTimelineCache();
+    const times = [];
+    for(let i = 0; i < 7; i++){ c.invalidateSortedLogCache(); c.invalidateXPTimelineCache();
+      const t0 = process.hrtime.bigint(); withClockOn(c, NOW, () => { c.canonicalPRIndex(); c.computeXPTimeline(); c.computePRs(); }); times.push(Number(process.hrtime.bigint() - t0) / 1e6); }
+    times.sort((x, y) => x - y);
+    T('10  two years, 416 workouts with warm-ups: the record index, the XP walk and the Records card in ' + times[3].toFixed(1) + ' ms with every cache cleared, well under 250', times[3] < 250, JSON.stringify(times));
   });
 }
 
@@ -48654,6 +49151,7 @@ async function main(){
   await testProgramContextCacheD117();
   await testExerciseDetailD118();
   await testBodyweightProgressionD119();
+  await testBodyweightPerformanceD120();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
