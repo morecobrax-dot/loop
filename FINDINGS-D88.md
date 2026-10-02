@@ -1188,7 +1188,7 @@ single-workout histories are byte-identical. Progress → Consistency also now
 colours a week by plans fulfilled (D45B's rule), not by workouts.
 Contract 233, §155.
 
-## E37 — D44 is memoised at first paint, before the running program and its pause load · P2 · PROVEN · OPEN
+## E37 — D44 is memoised at first paint, before the running program and its pause load · P2 · PROVEN · **CLOSED in D117 (LOOP 10.34)**
 
 Found by D116's browser QA. A paused-week fixture read the pause correctly in
 the harness and ignored it in the real app.
@@ -1227,6 +1227,14 @@ workout save (`persistLog` clears D44) or at midnight.
 unrelated findings only. The likely fix is small: clear the consistency
 cache when programs load, before D103's redraw. It still deserves its own
 phase, with a measured before/after on the surfaces above.
+
+**Closed in D117 (LOOP 10.34).** `invalidateProgramCache()`, which
+`loadPrograms()` and every accepted or rolled-back `commitProgramChange` already
+call, now also drops D44's cache and then the training-context cache, before any
+redraw. D44's semantics are untouched; only when it is derived moved. A paused
+week launched with no forced recompute now reads 1 planned / 0 missed / 100%
+(10.33: 4 / 3 / 25%), in real headless Edge at seven phone widths. Cost: one
+extra derivation per launch, after first paint. Contract 234, §156.
 
 ## Not findings — checked and clean
 

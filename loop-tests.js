@@ -43791,7 +43791,14 @@ async function testCalendarDayTruthD108(){
   const WK = (id, day, cat, timing, exs) => Object.assign({ id, date: day, category: cat, title: 'Session ' + id, notes: '', exercises: exs }, timing || {});
   const seed = log => { ctx.workoutLog = log; ctx.invalidateSortedLogCache(); ctx.invalidateXPTimelineCache();
     ctx.invalidateConsistencyCache(); ctx.invalidateCapabilityCache(); };
-  const setMonth = dateStr => { ctx.historyCalMonth = dateStr.slice(0, 7); };
+  /* ctx.historyCalMonth is the app's own lexical binding — assigning it from here is a silent no-op, which
+     only held while every fixture date sat in the real current month (it failed on the 1st). Step the app's
+     own calendar to the month instead, from the month it opens on (this month). */
+  let shownMonth = (() => { const n = new ctx.Date(); return n.getFullYear() * 12 + n.getMonth(); })();
+  const setMonth = dateStr => {
+    const want = Number(dateStr.slice(0, 4)) * 12 + Number(dateStr.slice(5, 7)) - 1;
+    if(want !== shownMonth){ ctx.renderHistoryCalendar(); ctx.shiftHistoryMonth(want - shownMonth); shownMonth = want; }
+  };
 
   /* one whole month of distinguishable days: a prior baseline so later PRs
      are real records, then a solo day, a same-category pair, a mixed-category
@@ -47203,6 +47210,305 @@ async function testMultiWorkoutWeekD116(){
   });
 }
 
+/* =========================================================
+   CONTRACT 234 — D117: a program is known before D44 is asked (E37)
+   ---------------------------------------------------------
+   D44's answer is memoised for a civil day. It was first computed at first paint,
+   before loadPrograms() had run, so after every launch a paused program's days
+   read as planned and missed until the next workout save or midnight. The fix is
+   one rule: whatever makes a program available or changes it passes through
+   invalidateProgramCache(), and THAT now drops D44's memo (and the training
+   context that embeds it) before any caller redraws. D44 itself is untouched.
+   ========================================================= */
+async function testProgramContextCacheD117(){
+  section('CONTRACT 234 — a program is known before D44 is asked: at launch and after every change (D117)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const homeTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const pin = n => crypto.createHash('sha256').update(fnSrc(raw, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const addD = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working', completed: true });
+  const WK = (id, date, cat, title, ex) => ({ id, date, category: cat, title, notes: '', exercises: [{ name: ex || 'Bench Press', bodyweight: false, effort: '', sets: [S(185, 8)] }] });
+  const PS = (cat, name) => ({ type: 'workout', planId: 'balanced', category: cat, templateId: 'x-' + cat, name, exercises: [{ name: 'Bench Press', sets: 3, reps: '8-10', effort: '8' }] });
+  const SCHED = { mon: PS('push', 'Push'), tue: PS('pull', 'Pull'), thu: PS('legs', 'Legs'), fri: PS('push', 'Push 2') };
+  const PROG = (extra, id) => Object.assign({ id: id || 'p1', name: id || 'Block', goal: 'hypertrophy', status: 'active', durationWeeks: 52, startDate: '2026-09-07', schedule: SCHED }, extra || {});
+  const STORE = (log, programs, extra) => Object.assign({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
+    'planStart:balanced': JSON.stringify('2026-09-07'), workoutLog: JSON.stringify(log),
+    onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) },
+    programs ? { programs: typeof programs === 'string' ? programs : JSON.stringify(programs) } : {}, extra || {});
+  const PSTORE = (progs, active) => ({ version: 1, activeProgramId: active === undefined ? (progs[0] && progs[0].id) : active, programs: progs });
+  const MON = '2026-09-21', NOW = '2026-09-30T12:00:00';       // the paused week, and a Wednesday a week later
+  const LOGM = (m) => [WK('a', addD(m, -7), 'push', 'Push'), WK('b', addD(m, -6), 'pull', 'Pull'), WK('c', addD(m, 4), 'push', 'Push')];
+  const PAUSE = (m) => [{ from: m, to: addD(m, 4) }];            // Mon..Thu paused, Fri live
+  const LOG = LOGM(MON);
+
+  /* boot an app under a pinned clock. `pre` runs synchronously after the script has loaded and before
+     boot() reaches its first await, so a spy installed there sees the whole launch. */
+  async function boot(iso, store, pre, tz){
+    if(tz) process.env.TZ = tz;
+    try{
+      const app = H.loadApp(store);
+      const release = pinClock(app.ctx, iso);
+      try{ if(pre) pre(app.ctx); await H.settle(350); } finally { release(); }
+      return app;
+    } finally { if(tz) process.env.TZ = homeTZ; }
+  }
+  /* the launch as it was in 10.33: invalidateProgramCache clears only the program caches */
+  const OLD_BODY = (() => { const t = fnSrc(raw, 'invalidateProgramCache'); return t.replace(' invalidateConsistencyCache(); invalidateContextCache();', ''); })();
+  const asOld = c => { c.invalidateProgramCache = vm.runInContext('(' + OLD_BODY + ')', c); };
+  const asIs = (c, iso, fn) => withClockOn(c, iso, fn);                     /* a read: no invalidation of its own */
+  const fresh = (c, iso, fn) => withClockOn(c, iso, () => { c.invalidateConsistencyCache(); c.invalidateContextCache(); return fn(); });
+  const WEEKS = c => JSON.stringify(c.computeConsistencyData().weeks.map(w => [c.localDateStr(w.start), w.plannedKnown, w.fulfilled, w.missed, w.consistency, w.known, w.days.map(d => d.planned + ':' + d.state).join()]));
+  const SURF = c => ({ weeks: WEEKS(c), card: c.progConsistencyCardHtml(), strip: c.logConsistencyStripHtml(), wo: JSON.stringify(c.weekOverview()),
+    reviews: JSON.stringify(c.weeklyReviewWeeks().map(k => c.deriveWeeklyReview(k))), glance: JSON.stringify(c.weeklyReviewGlance()), ctx: c.computeTrainingContext().consistencyPct });
+  const wkOf = (c, m) => c.computeConsistencyData().weeks.find(w => c.localDateStr(w.start) === m);
+  const PLANOF = w => ({ plannedKnown: w.plannedKnown, fulfilled: w.fulfilled, missed: w.missed, consistency: w.consistency });
+  const FIXED = { plannedKnown: 1, fulfilled: 1, missed: 0, consistency: 100 };
+  const STALE = { plannedKnown: 4, fulfilled: 1, missed: 3, consistency: 25 };
+
+  /* ---------- 1: E37 reproduces on 10.33's own invalidateProgramCache, and is gone now ---------- */
+  sub('1  E37 reproduces with 10.33’s program-cache rule, and is gone with today’s');
+  await guard('repro', async () => {
+    T('10.33’s function is rebuilt exactly from today’s (today’s with exactly the two D117 calls taken out hashes to 10.33’s pin)',
+      OLD_BODY.length > 40 && !/invalidateConsistencyCache|invalidateContextCache/.test(OLD_BODY) &&
+      crypto.createHash('sha256').update(OLD_BODY.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === 'aaf753766d46370f');
+    const store = STORE(LOG, PSTORE([PROG({ pauses: PAUSE(MON) })]));
+    const was = await boot(NOW, store, asOld), now = await boot(NOW, store);
+    const a = asIs(was.ctx, NOW, () => PLANOF(wkOf(was.ctx, MON))), b = asIs(now.ctx, NOW, () => PLANOF(wkOf(now.ctx, MON)));
+    T('1  as launched on 10.33, the paused week read 4 planned, 3 missed, 25% — no recompute asked for', same(a, STALE), a);
+    T('1  as launched now it reads 1 planned, 0 missed, 100% — also with no recompute asked for', same(b, FIXED), b);
+    T('1  the as-launched answer is the answer a fresh derivation gives, today; on 10.33 it was not',
+      same(b, fresh(now.ctx, NOW, () => PLANOF(wkOf(now.ctx, MON)))) && !same(a, fresh(was.ctx, NOW, () => PLANOF(wkOf(was.ctx, MON)))));
+    T('1  the Log calendar already knew (it asks planDayIsSuspended live): Monday to Thursday were never owed, Friday was',
+      withClockOn(now.ctx, NOW, () => now.ctx.planDayIsSuspended(MON) === true && now.ctx.planDayIsSuspended(addD(MON, 3)) === true && !now.ctx.planDayIsSuspended(addD(MON, 4))));
+    T('1  and a launch raises nothing', was.ctx.__errors.length === 0 && now.ctx.__errors.length === 0, [was.ctx.__errors, now.ctx.__errors]);
+  });
+
+  /* ---------- 2–4: the launch timeline, observed ---------- */
+  sub('2–4  the launch: first paint is not held, the program is loaded, D44 is dropped BEFORE the redraw, once');
+  await guard('timeline', async () => {
+    const ev = [], seen = new Set();
+    const spy = (c, n) => { const f = c[n]; c[n] = function(){ ev.push(n); return f.apply(this, arguments); }; };
+    const store = STORE(LOG, PSTORE([PROG({ pauses: PAUSE(MON) })]));
+    const app = await boot(NOW, store, c => {
+      ['loadPrograms', 'invalidateProgramCache', 'invalidateConsistencyCache', 'invalidateContextCache', 'renderAll', 'showMainApp'].forEach(n => spy(c, n));
+      const d = c.computeConsistencyData;
+      c.computeConsistencyData = function(){ const r = d.apply(this, arguments); if(!seen.has(r)){ seen.add(r); ev.push('derive'); } return r; };
+    }), c = app.ctx;
+    const iLoad = ev.indexOf('loadPrograms');
+    const iInvP = ev.indexOf('invalidateProgramCache', iLoad);
+    const iInvC = ev.indexOf('invalidateConsistencyCache', iInvP);
+    const iRen = ev.indexOf('renderAll', iLoad);
+    const iDerive2 = ev.indexOf('derive', iInvC);
+    const firstDerive = ev.indexOf('derive');
+    T('2  the first paint did not wait for programs: D44 was derived, and the app drawn, before loadPrograms ran',
+      firstDerive !== -1 && firstDerive < iLoad && ev.indexOf('showMainApp') !== -1 && ev.indexOf('showMainApp') < iLoad, ev.join(' '));
+    T('3  loadPrograms → invalidateProgramCache → D44 dropped → context dropped → THEN renderAll',
+      iLoad !== -1 && iInvP > iLoad && iInvC > iInvP && ev.indexOf('invalidateContextCache', iInvP) > iInvP && iRen > iInvC, ev.join(' '));
+    T('3  the first derivation after the program loaded happens after the drop (and is the only one before the program’s redraw ends)',
+      iDerive2 > iInvC && ev.filter(x => x === 'derive').length === 2, ev.join(' '));
+    T('4  bounded: one program invalidation, one D44 invalidation, one derivation before and one after the program is known',
+      ev.filter(x => x === 'invalidateProgramCache').length === 1 && ev.filter(x => x === 'invalidateConsistencyCache').length === 1 && ev.filter(x => x === 'derive').length === 2, ev.join(' '));
+    const d1 = asIs(c, NOW, () => c.computeConsistencyData()), d2 = asIs(c, NOW, () => c.computeConsistencyData());
+    T('4  and D44 is cached again: the next read is the same object, with nothing recomputed', d1 === d2);
+    const before = ev.length;
+    withClockOn(c, NOW, () => { c.renderAll(); c.renderAll(); c.renderAll(); });
+    T('4  redrawing three more times derives nothing and invalidates nothing',
+      ev.slice(before).filter(x => x === 'derive' || /^invalidate/.test(x)).length === 0, ev.slice(before).join(' '));
+  });
+  await guard('store', async () => {
+    const store = STORE(LOG, PSTORE([PROG({ pauses: PAUSE(MON) })]));
+    const was = await boot(NOW, store, asOld), now = await boot(NOW, store);
+    T('4  the launch persists the same keys with the same values as under 10.33 (no storage key, no write, no schema change)',
+      same(was.ctx.__store, now.ctx.__store), Object.keys(now.ctx.__store).filter(k => was.ctx.__store[k] !== now.ctx.__store[k]));
+  });
+
+  /* ---------- 5–6: every surface converges at launch ---------- */
+  sub('5–6  Progress, Log, This Week, Weekly Review and the training context all read the paused week as paused');
+  await guard('surfaces', async () => {
+    const m = '2026-09-21';
+    const store = STORE(LOG, PSTORE([PROG({ pauses: [{ from: m, to: '2026-09-25' }, { from: '2026-09-28', to: '2026-09-30' }] })]));
+    const prime = c0 => { const f = c0.loadPrograms; c0.loadPrograms = function(){ try{ c0.computeTrainingContext(); }catch(e){} return f.apply(this, arguments); }; };
+    const app = await boot(NOW, store, prime);
+    const c = app.ctx;
+    const was = await boot(NOW, store, c0 => { asOld(c0); prime(c0); });
+    const a = asIs(c, NOW, () => SURF(c)), f = fresh(c, NOW, () => SURF(c));
+    T('5  every surface, as launched, equals the same surface after a forced recompute', same(a, f), Object.keys(a).filter(k => a[k] !== f[k]));
+    const o = asIs(was.ctx, NOW, () => SURF(was.ctx));
+    T('5  while on 10.33 the same launch left every one of them stale',
+      o.weeks !== a.weeks && o.card !== a.card && o.strip !== a.strip && o.wo !== a.wo && o.reviews !== a.reviews);
+    const card = a.card, strip = a.strip;
+    T('6  Progress cell and Log strip say 1 session, 1 of 1 planned for the paused week (never 4 planned)',
+      /aria-label="1 session, 1 of 1 planned"/.test(card) && /aria-label="1 session trained, 1 of 1 planned"/.test(strip) && !/1 of 4 planned/.test(card + strip), card.match(/aria-label="[^"]*planned"/g));
+    T('6  This Week: Monday and Tuesday of the current week are paused days (rest), not missed',
+      (() => { const d = JSON.parse(a.wo).days.map(x => (x && typeof x === 'object') ? (x.state || x.status) : x); return d[0] === 'rest' && d[1] === 'rest'; })(), JSON.parse(a.wo).days);
+    T('6  the Weekly Review of the paused week plans 1 and fulfils 1', asIs(c, NOW, () => same(c.deriveWeeklyReview(m).plan, { planned: 1, fulfilled: 1 })), asIs(c, NOW, () => c.deriveWeeklyReview(m).plan));
+    T('6  the training context holds the fresh consistency percentage, not the one computed before programs loaded', a.ctx === f.ctx && o.ctx !== a.ctx, [o.ctx, a.ctx, f.ctx]);
+    T('6  the Log calendar and D44 never disagree about a day: each paused planned day is suspended for the calendar and not missed in D44',
+      asIs(c, NOW, () => { const w = wkOf(c, MON); return [0, 1, 2, 3].every(i => c.planDayIsSuspended(addD(MON, i)) && w.days[i].state !== 'missed'); }));
+  });
+
+  /* ---------- 7–12: the fixture matrix — as launched === fresh, whatever the program is ---------- */
+  sub('7–12  one rule across every kind of history and program: as launched, D44 is what a fresh derivation says');
+  const MATRIX = [
+    ['A  no program at all', STORE(LOG), 'same'],
+    ['B  an active program that was never paused', STORE(LOG, PSTORE([PROG()])), 'same'],
+    ['C  a pause in a past week', STORE(LOG, PSTORE([PROG({ pauses: PAUSE(MON) })])), 'differs'],
+    ['D  paused right now (open span since Monday of that week)', STORE(LOG, PSTORE([PROG({ status: 'paused', pausedOnDate: MON, pauses: [{ from: MON, to: null }] })])), 'differs'],
+    ['E  a pause that has not happened yet', STORE(LOG, PSTORE([PROG({ pauses: [{ from: '2026-10-12', to: '2026-10-16' }] })])), 'same'],
+    ['F  several pauses, past and current', STORE(LOG, PSTORE([PROG({ pauses: [{ from: MON, to: addD(MON, 2) }, { from: addD(MON, 3), to: addD(MON, 4) }, { from: '2026-09-28', to: '2026-09-30' }] })])), 'differs'],
+    ['G  paused, with no history at all', STORE([], PSTORE([PROG({ pauses: PAUSE(MON) })])), 'any'],
+    ['H  paused, and a day trained twice (D116)', STORE(LOG.concat([WK('c2', addD(MON, 4), 'arms', 'Arms', 'Barbell Curl')]), PSTORE([PROG({ pauses: PAUSE(MON) })])), 'differs'],
+    ['I  paused, with a shifted session (D43 matching)', STORE([WK('a', addD(MON, -7), 'push', 'Push'), WK('s', addD(MON, 4), 'pull', 'Pull'), WK('t', addD(MON, 4), 'push', 'Push')], PSTORE([PROG({ pauses: PAUSE(MON) })])), 'differs'],
+    ['J  the programs store is corrupt (load fails)', STORE(LOG, '{ this is not json'), 'same'],
+    ['K  a completed program and nothing active', STORE(LOG, PSTORE([PROG({ status: 'completed', pauses: PAUSE(MON) })], null)), 'same'],
+    ['L  a program restarted after another was completed', STORE(LOG, PSTORE([PROG({ status: 'completed' }, 'p0'), PROG({ pauses: PAUSE(MON) }, 'p1')], 'p1')), 'differs'],
+    ['M  a pause that starts on the first planned day and ends today', STORE(LOG, PSTORE([PROG({ pauses: [{ from: '2026-09-28', to: '2026-09-30' }] })])), 'any']
+  ];
+  for(const [label, store, expect] of MATRIX){
+    await guard(label, async () => {
+      const app = await boot(NOW, store), was = await boot(NOW, store, asOld);
+      const a = asIs(app.ctx, NOW, () => SURF(app.ctx)), f = fresh(app.ctx, NOW, () => SURF(app.ctx));
+      const o = asIs(was.ctx, NOW, () => SURF(was.ctx));
+      const same10 = same(o.weeks, a.weeks);
+      T(label + ' — as launched equals a fresh derivation on every surface', same(a, f) && app.ctx.__errors.length === 0, Object.keys(a).filter(k => a[k] !== f[k]));
+      T(label + ' — ' + (expect === 'same' ? 'identical to 10.33 (nothing here was ever stale)' : expect === 'differs' ? 'differs from 10.33’s stale launch, as the defect required' : 'whatever 10.33 showed, now fresh'),
+        expect === 'same' ? same10 : expect === 'differs' ? !same10 : true, [o.weeks.slice(0, 120), a.weeks.slice(0, 120)]);
+    });
+  }
+  await guard('reload', async () => {
+    const store = STORE(LOG, PSTORE([PROG({ pauses: PAUSE(MON) })]));
+    const first = await boot(NOW, store);
+    const second = await boot(NOW, Object.assign({}, first.ctx.__store));
+    const a = asIs(first.ctx, NOW, () => SURF(first.ctx)), b = asIs(second.ctx, NOW, () => SURF(second.ctx));
+    T('N  a reload from what the first launch persisted reads the same, with no recompute asked for', same(a, b) && same(PLANOF(asIs(second.ctx, NOW, () => wkOf(second.ctx, MON))), FIXED));
+  });
+
+  /* ---------- 13–18: a program changed inside one document ---------- */
+  sub('13–18  every in-app program change drops D44 itself, before anything redraws');
+  async function change(label, progs, op, expectChange){
+    await guard(label, async () => {
+      const app = await boot(NOW, STORE(LOG, progs)), c = app.ctx;
+      const ev = [];
+      ['invalidateProgramCache', 'invalidateConsistencyCache', 'renderAll'].forEach(n => { const f = c[n]; c[n] = function(){ ev.push(n); return f.apply(this, arguments); }; });
+      const before = asIs(c, NOW, () => WEEKS(c)), ctxBefore = asIs(c, NOW, () => c.computeTrainingContext().consistencyPct);
+      const n0 = ev.length;
+      const r = await withClockOn(c, NOW, async () => { const out = await op(c); return out; });
+      const evOp = ev.slice(n0);
+      const after = asIs(c, NOW, () => WEEKS(c)), f = fresh(c, NOW, () => WEEKS(c));
+      T(label + ' — D44 right after the change is what a fresh derivation says, with no recompute asked for', after === f, [after.slice(0, 160), f.slice(0, 160)]);
+      T(label + ' — and the training context follows', asIs(c, NOW, () => c.computeTrainingContext().consistencyPct) === fresh(c, NOW, () => c.computeTrainingContext().consistencyPct));
+      if(expectChange) T(label + ' — the change is visible (D44 moved), so this proof can fail', before !== after, before.slice(0, 120));
+      T(label + ' — one program invalidation per change, one D44 invalidation, no loop', evOp.filter(x => x === 'invalidateProgramCache').length === 1 && evOp.filter(x => x === 'invalidateConsistencyCache').length === 1 && !evOp.includes('renderAll'), evOp.join(' '));
+      T(label + ' — and the change itself was accepted', r !== false && !(r && r.ok === false), r);
+    });
+  }
+  const PAUSED = PROG({ status: 'paused', pausedOnDate: MON, pauses: [{ from: MON, to: null }] });
+  await change('13  complete a paused program', PSTORE([PAUSED]), c => c.completeProgram('p1'), true);
+  await change('14  delete a paused program', PSTORE([PAUSED]), c => c.deleteProgram('p1'), true);
+  await change('15  switch to another program', PSTORE([PAUSED, PROG({ schedule: { mon: PS('push', 'X') } }, 'p2')], 'p1'), c => c.setActiveProgram('p2'), true);
+  await change('16  complete an active program that was paused in the past', PSTORE([PROG({ pauses: PAUSE(MON) })]), c => c.completeProgram('p1'), true);
+  await change('17  resume a paused program', PSTORE([PAUSED]), c => c.resumeProgram('p1'), false);
+  await change('18  pause today', PSTORE([PROG({ pauses: PAUSE(MON), schedule: Object.assign({}, SCHED, { wed: PS('core', 'Core') }) })]), c => c.pauseProgram('p1'), false);
+  await change('19  edit the schedule', PSTORE([PROG({ pauses: PAUSE(MON) })]), c => c.updateProgram('p1', { schedule: { mon: PS('push', 'Push'), tue: PS('pull', 'Pull') } }), false);
+  await guard('refused', async () => {
+    const app = await boot(NOW, STORE(LOG, PSTORE([PAUSED]))), c = app.ctx;
+    c.persistPrograms = async () => false;
+    const before = asIs(c, NOW, () => WEEKS(c));
+    const r = await withClockOn(c, NOW, async () => c.completeProgram('p1'));
+    T('20  a change the device refuses is rolled back, and D44 reads the program as it was (not as the refused change left it)',
+      r && r.saved === false || r === false ? asIs(c, NOW, () => WEEKS(c)) === before && before === fresh(c, NOW, () => WEEKS(c)) : false, r);
+  });
+  await guard('refused mid-read', async () => {
+    /* a redraw can read D44 while the write is in flight (the change is already applied in memory); when the device then
+       refuses, the rollback must drop what that read cached, or D44 keeps answering for a program that was never saved */
+    const app = await boot(NOW, STORE(LOG, PSTORE([PAUSED]))), c = app.ctx;
+    const before = asIs(c, NOW, () => WEEKS(c));
+    let during = null;
+    c.persistPrograms = async () => { during = withClockOn(c, NOW, () => WEEKS(c)); return false; };
+    const r = await withClockOn(c, NOW, async () => c.completeProgram('p1'));
+    T('20  a read taken while the refused write was in flight saw the changed program (so this proof can fail)', during !== null && during !== before, [before.slice(0, 80), during && during.slice(0, 80)]);
+    T('20  and after the rollback D44 reads the program as it was — what the in-flight read cached is dropped',
+      (r && r.saved === false || r === false) && asIs(c, NOW, () => WEEKS(c)) === before && before === fresh(c, NOW, () => WEEKS(c)), r);
+  });
+  await guard('warm', async () => {
+    const app = await boot(NOW, STORE(LOG, PSTORE([PROG({ pauses: PAUSE(MON) })]))), c = app.ctx;
+    const ev = [];
+    ['invalidateProgramCache', 'invalidateConsistencyCache'].forEach(n => { const f = c[n]; c[n] = function(){ ev.push(n); return f.apply(this, arguments); }; });
+    const d1 = asIs(c, NOW, () => c.computeConsistencyData());
+    withClockOn(c, NOW, () => { c.noticeNewDay(); c.noticeNewDay(); });
+    const d2 = asIs(c, NOW, () => c.computeConsistencyData());
+    T('21  coming back to the app the same day recomputes nothing: D44 is the same object and nothing was invalidated', d1 === d2 && ev.length === 0, ev);
+    const next = '2026-10-01T09:00:00';
+    const d3 = withClockOn(c, next, () => { c.noticeNewDay(); return c.computeConsistencyData(); });
+    T('21  a new day still recomputes (D93’s day key), and the paused week is still paused', d3 !== d1 && same(PLANOF(wkOf(c, MON) ? withClockOn(c, next, () => wkOf(c, MON)) : {}), FIXED));
+  });
+
+  /* ---------- 22–24: date, DST and clock rules ---------- */
+  sub('22–24  New York across a DST change, Auckland the week it changed, and the clock never moves backwards');
+  const WEEKCASES = [['America/New_York', '2026-10-26', '2026-11-04T12:00:00'], ['America/New_York', '2026-03-02', '2026-03-11T12:00:00'], ['Pacific/Auckland', MON, NOW], ['Europe/London', '2026-10-19', '2026-10-28T12:00:00']];
+  for(const [tz, m, now] of WEEKCASES){
+    await guard('tz ' + tz + m, async () => {
+      const store = STORE(LOGM(m), PSTORE([PROG({ startDate: addD(m, -14), pauses: PAUSE(m) })]), { 'planStart:balanced': JSON.stringify(addD(m, -14)) });
+      const app = await boot(now, store, null, tz), was = await boot(now, store, asOld, tz);
+      process.env.TZ = tz;
+      try{
+        const b = asIs(app.ctx, now, () => PLANOF(wkOf(app.ctx, m))), a = asIs(was.ctx, now, () => PLANOF(wkOf(was.ctx, m)));
+        const f = fresh(app.ctx, now, () => PLANOF(wkOf(app.ctx, m)));
+        T('22  ' + tz + ' week of ' + m + ': as launched = fresh = 1 planned, 0 missed; 10.33 read ' + a.missed + ' missed', same(b, FIXED) && same(b, f) && a.missed === 3, [b, f, a]);
+      } finally { process.env.TZ = homeTZ; }
+    });
+  }
+
+  /* ---------- 25: performance ---------- */
+  sub('25  one extra derivation per launch, measured; cached reads stay free');
+  await guard('perf', async () => {
+    const big = []; let d = '2024-10-07';
+    for(let i = 0; i < 360; i++){ big.push(WK('w' + i, addD('2024-10-07', Math.floor(i * 1.8)), ['push', 'pull', 'legs', 'arms'][i % 4], 'Day ' + i)); }
+    const app = await boot(NOW, STORE(big, PSTORE([PROG({ startDate: '2024-10-07', pauses: [{ from: '2025-03-03', to: '2025-03-10' }] })]), { 'planStart:balanced': JSON.stringify('2024-10-07') })), c = app.ctx;
+    const t = fn => { const a = process.hrtime.bigint(); fn(); return Number(process.hrtime.bigint() - a) / 1e6; };
+    const cold = withClockOn(c, NOW, () => { const xs = []; for(let i = 0; i < 5; i++){ c.invalidateProgramCache(); xs.push(t(() => c.computeConsistencyData())); } return xs.sort((a, b) => a - b)[2]; });
+    const cached = withClockOn(c, NOW, () => t(() => { for(let i = 0; i < 100; i++) c.computeConsistencyData(); }));
+    console.log('    ' + big.length + ' workouts: invalidateProgramCache + D44 rederivation ' + cold.toFixed(3) + ' ms (median of 5); 100 cached reads ' + cached.toFixed(3) + ' ms');
+    T('25  the program-driven rederivation is the same cost as any D44 recompute (<150 ms) and cached reads are free (<20 ms)', cold < 150 && cached < 20, { cold, cached });
+  });
+
+  /* ---------- 26–30: what must not move ---------- */
+  sub('26–30  D44 itself, D43, the pause rules, D114, D115, D116 and the stores are exactly as they were');
+  await guard('pins', async () => {
+    T('26  computeConsistencyData is byte-identical to 10.33’s (D116’s function), and to 10.32’s with D116’s six edits put back',
+      pin('computeConsistencyData') === '5bfe9ebbb27ff11e' && d44PinAsOf1032(raw) === D44_PIN_10_32);
+    T('26  invalidateConsistencyCache and invalidateContextCache are unchanged; invalidateProgramCache is the one function that changed',
+      pin('invalidateConsistencyCache') === '5ea7d52741df54b2' && pin('invalidateContextCache') === 'ed2199f79076df2f' && pin('invalidateProgramCache') === 'bb3bd546cc97b27e');
+    T('26  and it still clears the four program caches, then D44’s, then the context’s — in that order, with nothing after',
+      /^function invalidateProgramCache\(\)\{ _programProgressCache = null; _planFulfillCache = null; _blockStateCache = null; _phaseRxCache = null; invalidateConsistencyCache\(\); invalidateContextCache\(\); \}$/.test(fnSrc(raw, 'invalidateProgramCache').replace(/\s+/g, ' ').trim()));
+    T('27  D43 is untouched: the matcher, the slots, program fulfilment',
+      pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('programPlannedSlots') === 'e09703bacb6d628a' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d');
+    T('27  the pause rules are untouched',
+      pin('planDayIsSuspended') === 'd7a606a74a953e51' && pin('dateIsSuspended') === '0e8f48036cced387' &&
+      pin('pauseProgram') === '139e08ab67f68c57' && pin('resumeProgram') === '85a03e2c113a4bcb' && pin('setActiveProgram') === 'eb382e207e39918c' &&
+      pin('completeProgram') === '46e62a270ce4f6aa' && pin('deleteProgram') === 'fa66468005312253' && pin('updateProgram') === 'd360600ac23ad116');
+    T('28  the program load and commit paths are untouched (only what they call changed)',
+      pin('loadPrograms') === 'b26b34b558669853' && pin('commitProgramChange') === 'fafae47ea53f2c86' && pin('loadTrainerData') === '90e34bf91fa9c3b2');
+    T('28  D114’s launch path is untouched: boot and showMainApp are byte-identical, and the first paint still comes before the trainer data',
+      pin('boot') === 'f4ea71c076136126' && pin('showMainApp') === 'acf6ce3565ebf9da' &&
+      fnSrc(raw, 'boot').indexOf('showMainApp()') !== -1 && fnSrc(raw, 'boot').indexOf('showMainApp()') < fnSrc(raw, 'boot').indexOf('await loadTrainerData()'));
+    T('29  D115 is untouched: the review, its glance, the strip and This Week',
+      pin('deriveWeeklyReview') === '54cedeb502954944' && pin('weeklyReviewGlance') === 'eb9378482576fb6e' && pin('logConsistencyStripHtml') === '4ebcaa5f9fdd6d23' &&
+      pin('weekOverview') === '27d03c8274a4d69d' && pin('weeklyReviewWeeks') === '280f82fefdb5d884' && pin('progConsistencyCardHtml') === 'e85214e9fd8f3c35');
+    T('29  D116 is untouched: sessions per day, volume, records and the canonical index',
+      pin('computeWorkoutQuality') === '30f1165dd94654eb' && pin('sessionVolume') === '4ddcaadccc1dfa80' && pin('getSessionPRs') === '2a121bed25bfa6ab' &&
+      pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('workoutsOnDate') === 'ef3f604250a79627' && pin('calendarDayState') === 'fd0a0c59ac9ee634');
+    const keys = (raw.match(/const DATA_KEYS = \[([^\]]*)\]/) || [0, ''])[1].split(',').map(s => s.trim()).filter(Boolean);
+    T('30  still sixteen storage keys, nothing added; no new storage key is written by a program-driven invalidation',
+      keys.length === 16 && !/localStorage|LOOPStore\.set/.test(fnSrc(raw, 'invalidateProgramCache')), keys.length);
+    T('30  nothing is gated: the rule is synchronous, with no readiness flag, timer or new global',
+      !/programsReady|programsLoaded|_programContext|setTimeout|await /.test(fnSrc(raw, 'invalidateProgramCache')));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -47397,6 +47703,7 @@ async function main(){
   await testStartupRevealD114();
   await testWeeklyReviewD115();
   await testMultiWorkoutWeekD116();
+  await testProgramContextCacheD117();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

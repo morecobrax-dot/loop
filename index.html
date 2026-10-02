@@ -18237,6 +18237,20 @@ const LOOP_UPDATES = [
       'A week on the Progress consistency chart is marked on target only when the sessions you planned were done, however many extra you trained'
     ],
     changes: []
+  },
+  {
+    id: 'v10-34',
+    version: 'LOOP 10.34',
+    title: 'Paused Weeks Read Right',
+    date: '2026-10-01',
+    swVersion: 'loop-v211',
+    summary: 'A week you paused your program for no longer shows its paused days as missed when LOOP opens.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Progress, the Log strip and Weekly Review now count a paused program\'s days as paused from the moment LOOP opens, not as missed sessions'
+    ],
+    changes: []
   }
 ];
 
@@ -40691,7 +40705,12 @@ function programTrainingDayCount(program){
 let _programProgressCache = null;
 let _blockStateCache = null;   // D77A — deriveBlockState's memo, dropped with the rest
 let _phaseRxCache = null;      // D85 — the phase a date's prescription is resolved in
-function invalidateProgramCache(){ _programProgressCache = null; _planFulfillCache = null; _blockStateCache = null; _phaseRxCache = null; }
+/* D117 (E37) — the running program and its pause spans are an INPUT of D44's
+   consistency answer (planDayIsSuspended), and of the training context that
+   embeds it. Whatever makes a program available or changes it — loadPrograms()
+   after a launch, and every commitProgramChange() — passes through here, so the
+   two day-long memos are dropped HERE, before any caller redraws. */
+function invalidateProgramCache(){ _programProgressCache = null; _planFulfillCache = null; _blockStateCache = null; _phaseRxCache = null; invalidateConsistencyCache(); invalidateContextCache(); }
 
 function getProgramProgress(program, todayStr){
   const p = program || getActiveProgram();

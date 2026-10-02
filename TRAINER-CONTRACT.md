@@ -16472,3 +16472,89 @@ forbids fixing unrelated findings.
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
 new key, no history rewritten.
+
+## §156 — A PAUSED PROGRAM IS KNOWN BEFORE ITS CONSISTENCY IS READ (D117 · LOOP 10.34 · loop-v211)
+
+**Rule.** The answers that depend on the running program, D44's weekly
+consistency and the training context, are never kept from a moment when the
+program was not yet known. `invalidateProgramCache()` is the one place that
+says "the program changed". It clears the four program caches, then D44's
+cache, then the context cache, in that order, and nothing after. It runs when
+`loadPrograms()` finishes, on every `commitProgramChange` that is accepted,
+and when `commitProgramChange` rolls a refused write back. Each of those
+happens before any redraw, so the redraw reads the new program.
+
+**What was wrong (E37).** Boot draws every tab in `showMainApp()`, which
+computes D44, before `loadTrainerData()` runs `loadPrograms()`. D44 is kept
+for the civil day and `loadPrograms()` cleared only the program caches. So for
+the rest of that day D44 was the answer with no program loaded, and D103's
+post-load `renderAll()` redrew every tab from it. A paused week read
+"4 planned, 3 missed, 25%" where the pause says "1 planned, 0 missed, 100%".
+The Log calendar asks `planDayIsSuspended` live, so two screens disagreed
+until the first workout save or midnight.
+
+**What changed.** Two calls added to one function, `invalidateProgramCache()`
+(index.html, 7 diff lines including the comment). D44's semantics, the
+pause rules, day states, plan matching, targets and the context are
+unchanged: only when they are derived moved.
+
+**What did not change.**
+- First paint is still not gated on programs (D114). The extra derivation runs
+  after `loadPrograms()`, after the first draw.
+- No storage write, no new key, no schema change. `DATA_KEYS` 16, schema 1,
+  trainer 0.1.1-shadow.
+- D44 stays memoised for the civil day. A same-day return from the
+  background does not recompute.
+- Athletes with no program, or a program with no pause, read what they
+  read on 10.33.
+
+### Measured
+
+- A paused-week fixture, launched in real headless Edge with no forced
+  recompute: 10.33 reads 4 planned / 3 missed (Progress cell "1 session,
+  1 of 4 planned"); 10.34 reads 1 planned / 0 missed ("1 session, 1 of 1
+  planned"). An open (still paused) pause reads 0 planned / 0 missed, and
+  10.33 reads 4 / 3. Seven phone widths from 320 to 430, both fixtures: 112
+  of 112 checks on 10.34, and 98 of 98 checks on the frozen 10.33 confirming
+  it shows the stale answer.
+- Every in-app program operation (pause, resume, complete, delete, switch
+  program, edit the schedule) leaves D44 equal to a fresh derivation with no
+  recompute asked for.
+- Cost: one extra D44 derivation per launch, after first paint. Cold,
+  D44 is about 3 ms on a normal history, 11 ms on a two-year history and 19 ms
+  on a heavy two-year history (D116's measurement of the same function);
+  with the result cached a read is about 0.06 ms per 100 reads.
+- Owner backups, read-only and hashed before and after: D44 and the context
+  as launched are identical on 10.33 and 10.34.
+
+### Contract 234 (100 checks)
+
+It covers:
+- E37 reproduced on 10.33's own function, rebuilt from today's source and run
+  in the same app;
+- the launch timeline: program loaded, then D44 dropped, then context dropped,
+  then the redraw, bounded to one derivation before and one after;
+- Progress, the Log strip and the Weekly Review surfaces;
+- a matrix of past pause, open pause, no pause, two programs, pause today and
+  the current week;
+- every program operation, each against a fresh derivation;
+- a refused write mid-read, to prove the rollback invalidation;
+- a warm return the same day, a timezone and DST sweep and a 2-year history;
+- hash pins on the cache functions and on the load and commit paths.
+
+**Mutation: 19 of 19 killed by Contract 234 alone.** Fifteen are killed by
+behaviour, and four by a hash pin (7, 11, 14, 16). Mutant 11 (invalidate only
+when a program exists) is observationally equivalent, since an athlete with no
+program has nothing for the invalidation to change; the pin is what stops it.
+
+### Found while fixing it
+
+Contract 223 (D108) set the calendar month by assigning `ctx.historyCalMonth`.
+That is a silent no-op, because the variable is a lexical `let` in the app's
+vm. On the 1st of a month the fixture's day fell outside the visible month, so
+nine assertions failed with no app defect. It now steps the app's own calendar
+with `shiftHistoryMonth`. Test-only, with the baseline at 9 failures before
+and 0 after.
+
+**Status.** Closes E37. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no
+migration, no history rewritten.
