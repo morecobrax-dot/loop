@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.35",
+  "version": "10.36",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner check on iPhone: open a lift from Progress → Strength; the top shows its next target, and tapping a recent workout opens that workout.",
+  "nextAction": "Owner check on iPhone: log a ticked Pull-Up workout, then open Pull-Up's Exercise Detail (Log → Browse by exercise); Next session shows last reps and a rep target.",
   "blocker": null,
-  "updatedAt": "2026-10-02T06:11:25Z"
+  "updatedAt": "2026-10-02T13:23:16Z"
 }

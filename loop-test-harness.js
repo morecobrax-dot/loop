@@ -286,6 +286,8 @@ function loadApp(initialStore){
     'REST_RING_R','trainingTab','MUSCLE_BAND_OPACITY',
     /* D96A — the Exercise Detail sheet's own subject; D118 — its paging state, model and constants */
     'exDetailName','exDetailShown','exDetailAllBests','exDetailModel','EXERCISE_DETAIL','EXERCISE_REC_STATE','PR_MODE',
+    /* D119 — the bodyweight progression model's own config */
+    'BODYWEIGHT_PROGRESSION',
     /* D96A — the finite-load rule and D91's classifier it agrees with */
     'LOAD_EVIDENCE','CAPABILITY_CONFIG'];
   const bootstrap = '\n;(function(){var __N=' + JSON.stringify(BRIDGE) + ';' +

@@ -1256,6 +1256,55 @@ is shared with the logger's own chips. D118 renders its own rows through
 `performedLoad` and `performedReps` and leaves `setChipHtml` alone. The likely
 fix is the same boundary inside `setChipHtml`, in its own phase.
 
+## E39 — A custom timed hold the hold rule does not recognise is read as reps · P4 · PROVEN · OPEN
+
+Found by D119 while deciding which bodyweight lifts get a rep target.
+
+**What is wrong.** LOOP stores a hold's seconds in the set's reps field, and it
+knows a lift is a hold in one place: `substitutionIsHold`. That reads the
+registry's `timed` flag (Plank, Side Plank, Hollow Body Hold, Wall Sit) and,
+for a name the registry does not list, `classifyExerciseType`'s name rule
+(plank, hold, carry, farmer, dead hang, isometric). A custom hold named any
+other way (L-Sit, Front Lever) is not recognised, so its seconds are read as
+reps wherever LOOP reads reps.
+
+**Measured.** An L-Sit logged ticked, 20 and 25 "reps" (seconds):
+- Exercise Detail before D119: "Best ever 25 reps";
+- Exercise Detail in 10.36: also "Last 25 reps → Next 26 reps, +1 rep";
+- a Plank logged the same way gets no target and says why.
+
+**Why it was not fixed in D119.** The fix is the hold rule itself, which
+substitution and the swap list share. D119 reuses the one rule and adds no list
+of its own. The likely fix is a `timed` flag the athlete can set on a custom
+lift, read by `substitutionIsHold`, in its own phase.
+
+## E40 — A bodyweight warm-up set can be the lift's record and its trend point · P4 · PROVEN · OPEN
+
+Found by D119 while lining up its rep target with Best ever, the personal
+bests and the trend.
+
+**What is wrong.** For a bodyweight lift, LOOP's record figures count every
+performed set, a warm-up included: the PR events (`computeExercisePREvents`),
+Best ever (`exerciseBestSet`), the trend's per-workout points
+(`exerciseRepPoints`) and the bold best set in each history row. D49, and now
+D119, read working sets only, because a warm-up is preparation, not a
+performance. When a warm-up out-reps every working set of its workout, the two
+disagree.
+
+**Measured.** Pull-Up, 10 · 9 · 8, then a 15-rep warm-up before 11 · 10 · 9:
+- Best ever 15 reps; a rep PR of 15; trend latest 15; the history row bolds the
+  warm-up;
+- Next session: Last 11 reps → Next 12 reps.
+
+With no warm-up, or a warm-up with fewer reps than the working sets (the usual
+case), every figure agrees (Contract 236 §8: trend 12, best 12, last 12, next 13).
+
+**Why it was not fixed in D119.** Record semantics are protected, and D119 must
+not redefine a record. For loaded lifts a warm-up is lighter, so it almost
+never decides a record; for bodyweight lifts it can. The likely fix is the
+working-set predicate in the PR and best-ever readers, with its PR XP and
+history drift measured, in its own phase.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

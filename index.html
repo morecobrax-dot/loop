@@ -18417,6 +18417,23 @@ const LOOP_UPDATES = [
     changes: [
       'The Weight and Volume chart views on Exercise Detail were replaced by the strength trend'
     ]
+  },
+  {
+    id: 'v10-36',
+    version: 'LOOP 10.36',
+    title: 'Reps for Bodyweight Lifts',
+    date: '2026-10-02',
+    swVersion: 'loop-v213',
+    summary: 'Pull-Ups, Push-Ups, Dips and other bodyweight lifts now get their own next-session target, in reps.',
+    newFeatures: [
+      'Exercise Detail shows your best set from last time beside a rep target for next time, and why',
+      'After an off day, LOOP asks you to match your recent best before adding reps'
+    ],
+    improvements: [
+      'A timed hold like Plank now says why it has no rep target'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -22757,6 +22774,98 @@ function progressionFor(exerciseName, templateReps, templateRecommended){
   return applyPhaseProgressionPolicy(
     buildProgressionRecommendation(exerciseName, templateReps, templateRecommended),
     exerciseName, templateReps);
+}
+
+/* ---------- BODYWEIGHT PROGRESSION (Phase D119) ----------
+   D49 answers in load; a lift done against bodyweight moves in reps. One canonical
+   rep model beside D49, never inside it — every loaded answer is still D49's. */
+const BODYWEIGHT_PROGRESSION = {
+  window: 5,          // sessions read, as D49 reads five
+  repStep: 1,         // one more rep: D49's own "aim for one more" step
+  noReserveRir: 0.5   // nothing left in reserve: D49's grinding line
+};
+
+function repsWord(n){ return n + (n === 1 ? ' rep' : ' reps'); }
+
+/* The lift's bodyweight sessions, newest first, or null when any row of it in
+   any workout carries a load (a mixed history D119 does not interpret). */
+function bodyweightSessionHistory(exerciseName, limit){
+  const key = loggedExerciseKey(String(exerciseName == null ? '' : exerciseName));
+  const sessions = [], deloaded = [];
+  const rirOf = st => { const r = parseFloat(st && st.rir); return Number.isFinite(r) ? r : null; };
+  let mixed = false;
+  sortedLog().forEach(l => {
+    if(mixed) return;
+    const rows = workoutExerciseRows(l, key);
+    if(!rows) return;
+    if(rows.some(r => rowExecutionDeclaration(r) === PR_MODE.LOADED)){ mixed = true; return; }
+    if(sessions.length >= limit) return;
+    const sets = [].concat(...rows.map(r => r.sets || []));
+    const perf = sets.filter(st => isWorkingSet(st) !== false && !(st && st.completed === false) && performedReps(st && st.reps) !== null);
+    if(!perf.length) return;
+    const topReps = Math.max(...perf.map(st => performedReps(st.reps)));
+    const rirs = perf.map(rirOf).filter(r => r !== null);
+    /* Any set at the best count that had nothing left decides it — never the one stored first. */
+    const noReserve = perf.some(st => performedReps(st.reps) === topReps &&
+      (setTypeOf(st) === SET_TYPES.FAILURE || (rirOf(st) !== null && rirOf(st) <= BODYWEIGHT_PROGRESSION.noReserveRir)));
+    let prescribedSets = null, targetRir = null;
+    rows.forEach(r => {
+      const x = r.rx || null;
+      if(x && x.sets > 0) prescribedSets = (prescribedSets || 0) + Number(x.sets);
+      if(targetRir === null && x && x.effort != null) targetRir = effortToRir(x.effort);
+    });
+    (l.phase === 'deload' ? deloaded : sessions).push({
+      date: l.date, id: l.id, topReps, noReserve,
+      setsLogged: sets.length, workingSets: perf.length, rirSets: rirs.length,
+      avgRir: rirs.length ? rirs.reduce((a, b) => a + b, 0) / rirs.length : null,
+      prescribedSets, targetRir, phase: l.phase || null
+    });
+  });
+  if(mixed) return null;
+  return sessions.length ? sessions : deloaded.slice(0, limit);
+}
+
+/* The canonical bodyweight answer, or null when the lift is not a supported
+   pure bodyweight lift (D49 answers those, unchanged). */
+function bodyweightProgressionFor(exerciseName){
+  const raw = String(exerciseName == null ? '' : exerciseName);
+  if(!loggedExerciseKey(raw) || prModeOf(raw) !== PR_MODE.BODYWEIGHT) return null;
+  const lift = raw.trim();
+  let id = null;
+  try{ id = resolveExerciseId(raw); }catch(e){ id = null; }
+  const none = (tag, why, extra) => Object.assign({ mode: 'bodyweight', tag, reps: null, weight: null, headline: null, why }, extra || {});
+  if(substitutionIsHold(id, raw)) return none('unsupported', lift + ' is a timed hold, and LOOP’s rep targets are for lifts counted in reps.', { reason: 'hold' });
+  const sessions = bodyweightSessionHistory(raw, BODYWEIGHT_PROGRESSION.window);
+  if(sessions === null) return null;
+  if(!sessions.length) return none('new', 'LOOP sets a rep target once a working set of ' + lift + ' has been logged with its reps.');
+  const last = sessions[0], prev = sessions[1] || null;
+  const recentBest = Math.max(...sessions.map(s => s.topReps));
+  const complete = progressionEvidence(last, prev).complete;
+  const deload = deloadActiveToday();
+  const answer = (tag, reps, why) => ({
+    mode: 'bodyweight', tag, reps, weight: null, headline: repsWord(reps), why,
+    lastReps: last.topReps, lastDate: last.date, delta: reps - last.topReps,
+    evidence: { sessions: sessions.length, previousReps: prev ? prev.topReps : null, recentBest, complete, noReserve: last.noReserve, deload }
+  });
+  const n = last.topReps;
+  if(deload) return answer('hold', n, 'Deload week — match ' + repsWord(n) + ' and leave more in reserve.');
+  if(n < recentBest) return answer('regain', recentBest, 'Match your recent best of ' + repsWord(recentBest) + ' before adding reps.');
+  if(last.noReserve && (!prev || n <= prev.topReps)) return answer('hold', n, 'Nothing left in reserve at ' + repsWord(n) + ' — match it before adding more.');
+  if(!complete){
+    const shortfall = last.prescribedSets ? last.workingSets + ' of ' + last.prescribedSets + ' sets logged last time' : 'Only one working set logged last time';
+    return answer('insufficient', n, shortfall + ' — match ' + repsWord(n) + ' before adding more.');
+  }
+  const next = n + BODYWEIGHT_PROGRESSION.repStep;
+  const why = !prev ? 'Your best set so far is ' + repsWord(n) + ' — aim for ' + next + ' next time.'
+    : n === prev.topReps ? 'You matched ' + repsWord(n) + ' again — aim for ' + next + '.'
+    : 'Up from ' + prev.topReps + ' to ' + repsWord(n) + ' — aim for ' + next + ' next time.';
+  return answer('build', next, why);
+}
+
+/* THE ONE QUESTION. A supported pure bodyweight lift gets D119's rep answer;
+   every other lift gets D49's own answer object, untouched. */
+function progressionRecommendationFor(exerciseName, templateReps, templateRecommended){
+  return bodyweightProgressionFor(exerciseName) || progressionFor(exerciseName, templateReps, templateRecommended);
 }
 
 /* =========================================================
@@ -39146,7 +39255,7 @@ function masteryAfterRender(){
 const EXERCISE_DETAIL = { recent: 5, step: 20, bests: 3 };
 /* D49's own tags in words. 'increase' is named as Progress → Strength names that list. */
 const EXERCISE_REC_STATE = { increase: 'Ready to progress', build: 'Building', reduce: 'Reduce',
-  plateau: 'Hold', hold: 'Hold', decline: 'Hold', insufficient: 'Hold' };
+  plateau: 'Hold', hold: 'Hold', decline: 'Hold', insufficient: 'Hold', regain: 'Regain' };
 
 function openExDetail(name){
   exDetailName = name;
@@ -39221,8 +39330,10 @@ function deriveExerciseDetail(name){
   const recReps = repRangeForExercise(raw);
   let rec = null, last = null;
   if(sessions.length){
-    try{ rec = progressionFor(raw, recReps, null); }catch(e){ rec = null; }
-    try{ const h = exerciseSessionHistory(raw, 1); last = h.length ? h[0] : null; }catch(e){ last = null; }
+    try{ rec = progressionRecommendationFor(raw, recReps, null); }catch(e){ rec = null; }
+    if(!rec || rec.mode !== 'bodyweight'){
+      try{ const h = exerciseSessionHistory(raw, 1); last = h.length ? h[0] : null; }catch(e){ last = null; }
+    }
   }
 
   /* Strength's own row for this lift (D98), from the same points. */
@@ -39271,6 +39382,24 @@ function exDetailNextHtml(d){
   const lift = escapeHtml(d.name.trim() || 'this exercise');
   if(!d.sessionCount) return head + '<p class="exd-empty">Log ' + lift + ' once and LOOP will suggest what to lift next time.</p>';
   const rec = d.rec, last = d.last;
+  if(rec && rec.mode === 'bodyweight'){
+    if(rec.reps == null) return head + '<p class="exd-empty">' + escapeHtml(rec.why) + '</p>';
+    const bwCol = (k, reps, cls, extra) => '<div class="exd-ln-col' + (cls ? ' ' + cls : '') + '">'
+      + '<span class="exd-ln-k">' + k + '</span>'
+      + '<span class="exd-ln-v">' + reps + '<small> ' + (reps === 1 ? 'rep' : 'reps') + '</small></span>' + (extra || '') + '</div>';
+    const more = rec.delta > 0 ? '+' + repsWord(rec.delta) : 'Match';
+    /* Heard as one sentence; the columns are its picture, so they are not read twice. */
+    const said = 'Last session, ' + exdDate(rec.lastDate) + ', ' + repsWord(rec.lastReps) + '. Next target, ' + repsWord(rec.reps) + '. '
+      + (rec.delta > 0 ? 'Aim to add ' + repsWord(rec.delta) + '.' : 'Aim to match it.');
+    return head
+      + '<div class="exd-ln" aria-hidden="true">'
+      + bwCol('Last · ' + escapeHtml(exdDate(rec.lastDate)), rec.lastReps, '')
+      + '<span class="exd-ln-arrow">' + chevronRightSvg() + '</span>'
+      + bwCol('Next', rec.reps, 'exd-ln-to', '<span class="exd-delta exd-delta-' + (rec.delta > 0 ? 'up' : 'same') + '">' + more + '</span>')
+      + '</div>'
+      + '<p class="sr-only">' + escapeHtml(said) + '</p>'
+      + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>';
+  }
   if(!rec || rec.weight == null || !last){
     return head + '<p class="exd-empty">' + (d.isBW
       ? 'LOOP suggests loads for lifts done with added weight. For ' + lift + ', your reps and records are below.'
@@ -39453,7 +39582,7 @@ function renderExDetail(){
   document.getElementById('exDetailFacts').innerHTML = exDetailFactsHtml(d);
   const next = document.getElementById('exDetailNext');
   next.innerHTML = exDetailNextHtml(d);
-  next.classList.toggle('exd-next-quiet', !d.rec || d.rec.weight == null || !d.last);
+  next.classList.toggle('exd-next-quiet', !d.rec || (d.rec.mode === 'bodyweight' ? d.rec.reps == null : (d.rec.weight == null || !d.last)));
   document.getElementById('exDetailChart').innerHTML = exDetailTrendHtml(d);
   document.getElementById('exDetailStats').innerHTML = exDetailRecordsHtml(d);
   document.getElementById('exDetailHistory').innerHTML = exDetailHistoryHtml(d);

@@ -16702,3 +16702,165 @@ recorded in FINDINGS-D88.md.
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
 history rewritten.
+
+## §158 — BODYWEIGHT LIFTS PROGRESS IN REPS (D119 · LOOP 10.36 · loop-v213)
+
+**Rule.** One public question answers "what next" for a lift:
+`progressionRecommendationFor(name, templateReps, templateRecommended)`.
+A supported pure bodyweight lift gets the rep answer of `bodyweightProgressionFor(name)`.
+Every other lift gets `progressionFor(...)`: D49's own answer object, untouched.
+The rep model sits beside D49, never inside it. It reuses D49's evidence ideas
+(`progressionEvidence` for a complete session, five sessions read, D49's 0.5 RIR
+line for "nothing left", one rep as the step). It reuses none of D49's load
+policy: no increment, plateau, phase policy or loaded history.
+
+**Who gets a rep answer.**
+
+| History of the lift | Answer |
+|---|---|
+| Bodyweight by D91 (`prModeOf`), and no row in any workout carries a load | D119's rep answer |
+| A timed hold (`substitutionIsHold`: the registry's four, then the name rule) | No target, and the reason: "Plank is a timed hold…" |
+| Bodyweight first, then weighted rows (or the reverse) | Not interpreted. D49's answer, exactly as 10.35 gave it |
+| Loaded, or no declared mode | D49's answer, exactly as 10.35 gave it |
+
+D91 decides by declaration, not by a name list. A lift LOOP does not list,
+logged ticked (a Muscle-Up), gets a target too. The registry qualifies 24
+rep-counted bodyweight lifts. Its four timed holds do not, and each has art.
+
+**What counts.** One performance per workout: every row of the lift in it
+(D96C-3). Same-day workouts stay separate, in the log's own order (date, then
+id). Inside it:
+- working sets only: `isWorkingSet` is not false, so warm-ups never count and
+  drop, failure, AMRAP and untyped legacy sets do;
+- performed sets only (`completed === false` is out);
+- reps read through `performedReps` (D96A). Blank, 0, negative, NaN, Infinity,
+  1e999 and text are never evidence;
+- the session's performance is its best working set's reps;
+- a deload session is set aside, as D85 sets one aside, and read only when
+  nothing else exists.
+
+**The rule, in order.**
+1. A deload week: hold. Match the last best and leave more in reserve.
+2. Last best below the best of the last five sessions: regain that recent best.
+3. Nothing left at the best set (marked failure, or RIR ≤ 0.5 recorded at the
+   top count), and no improvement on the session before: hold. Match it.
+4. Not complete (fewer working sets than prescribed, or one set with no
+   prescription): match it, and say the shortfall ("2 of 3 sets logged last time").
+5. Otherwise: one more rep.
+
+With no readable working set there is no target, and the sheet says what would
+make one.
+
+**Decisions.**
+- **First session.** One more rep if complete. Match if only one set.
+- **Repeat or improvement.** One more rep: "You matched 12 reps again — aim for 13."
+- **Regression.** Never "one more than 9": match the recent best of 12.
+- **Failure and RIR.** The reserve of the best set decides, from any set at that
+  count, so storage order cannot change it. A failure on a lighter back-off set
+  does not hold the target. Failure while improving still builds.
+- **AMRAP.** Real work, not a report of zero reserve. With 0 RIR recorded and no
+  improvement, it holds.
+- **No RIR.** The rule still answers: one more rep when complete. D49's own rep
+  step needs no headroom reading either.
+- **No ceiling in V1, and no load advice.** At a plan range of 8–12, 12 becomes
+  13. The plan's range is not read. No added weight and no harder variation is
+  ever suggested.
+- **Mixed or weighted-bodyweight history.** Not interpreted. A load anywhere in
+  the lift's history keeps the 10.35 answer.
+
+**Exercise Detail.** The bodyweight Next session uses the loaded hierarchy:
+- LAST (dated) beside NEXT, in reps, with singular and plural right;
+- the change as a word: "+1 rep", "+3 reps" or "Match", never "+0";
+- the state chip: Building, Regain or Hold;
+- the reason last.
+
+It is heard as one sentence: "Last session, Sep 27, 12 reps. Next target, 13
+reps. Aim to add 1 rep." The columns are its picture and are hidden from a
+screen reader. No lb and no 0 lb. A no-target answer is one quiet sentence.
+
+**Held, after audit.** Progress → Strength, Weekly Review, Today, the live
+workout and the Summary still ask D49 directly. All are byte-identical to 10.35.
+D49 answers a pure bodyweight lift "new", so none of them lists one. That is why
+no surface gives a second, different answer. The live workout passes `null` for
+a ticked row (presentation first). Objectives are held. D50B is untouched.
+
+**Records.** Unchanged. Records count every performed set. Progression reads
+working sets (D49's rule). The two agree unless a warm-up out-reps the working
+sets (E40).
+
+### Measured
+
+- **Loaded zero drift**, frozen 10.35 vs 10.36, over 202 histories
+  (200 generated + 2 owner backups), 2,610 lifts:
+  - 1,777 lifts that are not pure bodyweight are identical: the answer object,
+    the Next zone and the hero. They are loaded, unknown, or the 163
+    bodyweight-mode lifts with a load somewhere in their history;
+  - 833 pure bodyweight lifts get a D119 answer (build 240, regain 443,
+    insufficient 133, hold 17);
+  - D49's own answer, and the trend, records and history zones, are
+    identical for all 2,610;
+  - Strength buckets, Weekly Review, Next-time notes, Objectives, Today and the
+    log: 0 moved.
+- **Owner backups**, read-only and hashed before and after. No bodyweight
+  history: 0 ticked rows and 0 BW sets. 15 of 15 lifts are identical to 10.35.
+- **Real headless Edge.** 18 fixtures (the brief's 15, plus failure-while-improving,
+  a Plank and 150 → 151 reps) at seven phone sizes, 320×568 to 430×932.
+  1,484 checks: LAST → NEXT side by side, words and plurals, the spoken sentence,
+  no lb, no 0 lb, no overflow or clipping, 44 px targets, no console error.
+- **Performance.** The model alone costs 0.07 ms (5 sessions) to 2.9 ms (two
+  years, every cache cleared). Opening the sheet, median of 15, 10.35 → 10.36:
+
+| History | Model (cold / warm) | Sheet cold | Sheet warm |
+|---|---|---|---|
+| 5 sessions | 0.07 / 0.03 ms | 1.46 → 1.62 ms | 1.16 → 1.22 ms |
+| 50 sessions | 0.22 / 0.04 ms | 2.69 → 2.80 ms | 1.44 → 1.53 ms |
+| Two years, 418 workouts (209 of the lift) | 2.86 / 0.16 ms | 21.4 → 21.2 ms | 2.60 → 2.86 ms |
+| 100 workouts × 3 rows of the lift | 0.44 / 0.10 ms | 5.13 → 4.93 ms | 2.40 → 2.51 ms |
+
+### Contract 236 (90 checks)
+
+It covers:
+- one model, one session reader and one public question, each defined once;
+- the public answer object-equal to D49's for every loaded and mixed lift;
+- eligibility: D91 mode, the four registry holds and an unlisted one, both
+  orders of mixed history, a load long before the five sessions read, a ticked
+  row with a stray number, rows that declare nothing, and an unlisted lift;
+- evidence: warm-ups, unperformed sets, set types, rows (each row can hold the
+  best), same-day workouts, and another lift in the workout;
+- every rule and every copy line, deloads, and the no-ceiling decision;
+- 160 generated histories checked against an oracle written from the rule.
+  Unreadable reps, row layout, set order and casing never change an answer;
+- D49's answers over 40 generated loaded histories (440 lifts, every
+  increment branch), frozen from 10.35 as a digest;
+- Exercise Detail: words, plurals, the spoken sentence, quiet states, and
+  mixed history;
+- the trend, records and history zones, byte-identical to 10.35 (a frozen
+  digest over four bodyweight histories);
+- D50B's edges, behaviourally;
+- Objectives not expanded, with a loaded control;
+- zero writes;
+- 28 protected pins.
+
+**Mutation: 44 of 44 killed by Contract 236 alone, all by behaviour.** This
+includes the brief's 20, the rule's edges, the copy, the a11y and the
+deload. Each mutant fails at least one assertion that runs the app.
+
+### Restated contracts
+
+Contract 235 described the old bodyweight placeholder in two places:
+- §6: the sheet now asks the public question once, and never D49 or the model
+  directly;
+- §9: the Pull-Up fixture (10 → 11 → 10) now reads "Regain, Next 11 reps", with
+  no lb.
+
+### Found, not fixed — E39, E40
+
+- **E39.** A custom timed hold the hold rule does not recognise (L-Sit) is read
+  as reps. Its "Best ever" was already "25 reps"; it now also gets a rep target.
+- **E40.** A bodyweight warm-up set can be the lift's record and its trend point,
+  while progression reads working sets.
+
+Both are recorded in FINDINGS-D88.md.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
+key, no stored answer, no history rewritten.

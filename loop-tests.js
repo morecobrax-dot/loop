@@ -47762,7 +47762,10 @@ async function testExerciseDetailD118(){
     }
     T('6  no second engine: the sheet never re-derives a target, a plateau, an increment or evidence',
       !/buildProgressionRecommendation\(|progressionIncrement\(|detectPlateau\(|progressionEvidence\(|topReps\s*[<>]=?|applyPhaseProgressionPolicy\(/.test(sheetSrc) &&
-      (sheetSrc.match(/progressionFor\(/g) || []).length === 1 && /progressionFor\(raw, recReps, null\)/.test(fnSrc(raw, 'deriveExerciseDetail')) &&
+      /* D119 restated: the sheet asks LOOP's one public question, which returns D49's own answer
+         for a loaded lift and the bodyweight model's for a pure bodyweight lift. */
+      (sheetSrc.match(/progressionRecommendationFor\(/g) || []).length === 1 && /progressionRecommendationFor\(raw, recReps, null\)/.test(fnSrc(raw, 'deriveExerciseDetail')) &&
+      !/progressionFor\(|bodyweightProgressionFor\(|bodyweightSessionHistory\(/.test(sheetSrc) &&
       /const recReps = repRangeForExercise\(raw\);/.test(fnSrc(raw, 'deriveExerciseDetail')));
   });
 
@@ -47829,9 +47832,12 @@ async function testExerciseDetailD118(){
     T('9  a bodyweight lift is D91’s bodyweight: best in reps, records in reps, never a load', d.prMode === 'bodyweight' && d.prMode === c.prModeOf('Pull-Up') &&
       /Best ever<\/div><div class="snap-num">11 reps</.test(html(c, 'exDetailStats')) && !/\b0 lb|lb × /.test(all) && d.bests.unit === 'reps');
     T('9  its sets read as LOOP logs them (BW × 10)', /BW × 10/.test(html(c, 'exDetailHistory')));
-    T('9  no load is suggested for it, and the sheet says why instead of “No history yet”',
-      d.rec.tag === 'new' && /LOOP suggests loads for lifts done with added weight\. For Pull-Up, your reps and records are below\./.test(text(c, 'exDetailNext')) &&
-      !/No history yet/.test(all) && !/exd-state/.test(html(c, 'exDetailFacts')));
+    /* D119 restated: a pure bodyweight lift now has its own rep answer (Contract 236 holds the model);
+       here it must still never be a load, and never D49's "No history yet". */
+    T('9  no load is suggested for it: its next session is a rep target, said in reps',
+      d.rec.mode === 'bodyweight' && d.rec.weight === null && d.rec.tag === 'regain' && d.rec.reps === 11 &&
+      /Next 11 reps/.test(text(c, 'exDetailNext')) && !/ lb|No history yet/.test(text(c, 'exDetailNext')) &&
+      /exd-state-regain">Regain</.test(html(c, 'exDetailFacts')));
     T('9  its trend is what this sheet always drew for one: the most reps in a set, per workout, and no percentage',
       same(d.repPoints.map(p => p.value), [10, 11, 10]) && !/%/.test(text(c, 'exDetailChart')) && /Most reps in a set/.test(text(c, 'exDetailChart')));
     const first = (await boot([W('f1', 24, 'Push', [E('Dip', [BW(10), BW(12)], true)]), W('f2', 17, 'Push', [E('Dip', [S(25, 8), S(25, 8)])]),
@@ -48018,6 +48024,436 @@ async function testExerciseDetailD118(){
     const moved = Object.keys(PINS).filter(n => pin(n) !== PINS[n]);
     T('16  ' + Object.keys(PINS).length + ' engines and routes the sheet reads are unchanged: PRs, timeline, trend, D49, history, identity, mastery, workouts, score, recovery, XP, D44, logging',
       moved.length === 0, moved);
+  });
+}
+
+/* =========================================================
+   CONTRACT 236 — BODYWEIGHT PROGRESSION V1  (Phase D119)
+   ---------------------------------------------------------
+   One canonical rep model for pure bodyweight lifts, beside D49 and never
+   inside it, behind one public question. Held here: who it is for (D91 mode,
+   no hold, no load anywhere in the history), what counts (working sets, real
+   reps, one performance per workout), the rule (deload, regain, nothing left,
+   incomplete, then one more rep), that every loaded and mixed answer is still
+   D49's own object and D49 still answers as 10.35 did, and that nothing else
+   moved. Two digests are frozen from 10.35 itself: D49's answers over forty
+   generated histories, and the bodyweight sheet's trend, records and history.
+   ========================================================= */
+async function testBodyweightProgressionD119(){
+  section('CONTRACT 236 — bodyweight progression V1: next-session rep targets for bodyweight lifts (D119)');
+  const fs = require('fs'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const pin = n => sha(fnSrc(raw, n).replace(/\s+/g, ' ').trim());
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-09-30T12:00:00';
+  const D = n => { const d = new Date(2026, 8, 30, 12); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const BW = (r, rir, type) => ({ weight: 'BW', reps: String(r), rir: rir == null ? '2' : String(rir), type: type || 'working', completed: true });
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '2' : String(rir), type: type || 'working', completed: true });
+  const E = (name, sets, bw, extra) => Object.assign({ name, effort: '', bodyweight: !!bw, sets }, extra || {});
+  const W = (id, n, title, exs, extra) => Object.assign({ id, date: D(n), category: 'pull', title, notes: '', exercises: exs }, extra || {});
+  /* Weekly sessions of one lift, oldest first, from each session's sets. */
+  const pulls = (lists, name, step) => lists.map((reps, i) => W('p' + i, 3 + (lists.length - 1 - i) * (step || 7), 'Pull ' + (i + 1),
+    [E(name || 'Pull-Up', reps.map(r => typeof r === 'object' ? r : BW(r)), true)]));
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); } finally { rel(); }
+    return a;
+  };
+  const app = await boot([]);
+  const c = app.ctx;
+  const at = fn => withClockOn(c, NOW, fn);
+  const seed = log => { c.workoutLog = JSON.parse(JSON.stringify(log)); c.invalidateSortedLogCache(); };
+  const bw = (log, name) => { seed(log); return at(() => c.bodyweightProgressionFor(name || 'Pull-Up')); };
+  const pub = (log, name) => { seed(log); const n = name || 'Pull-Up'; return at(() => c.progressionRecommendationFor(n, c.repRangeForExercise(n), null)); };
+  const d49 = (log, name) => { seed(log); return at(() => c.progressionFor(name, c.repRangeForExercise(name), null)); };
+  /* The sheet is read from an app booted with the history, as the athlete opens it. */
+  const detail = async (log, name) => { const cc = (await boot(log)).ctx; withClockOn(cc, NOW, () => cc.openExDetail(name || 'Pull-Up'));
+    const h = id => cc.document.getElementById(id).innerHTML;
+    return { next: h('exDetailNext').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), nextHtml: h('exDetailNext'), facts: h('exDetailFacts'),
+      quiet: cc.document.getElementById('exDetailNext').classList.contains('exd-next-quiet'), model: cc.exDetailModel,
+      rest: ['exDetailChart', 'exDetailStats', 'exDetailHistory'].map(h).join('\n'),
+      rec: withClockOn(cc, NOW, () => cc.progressionRecommendationFor(name || 'Pull-Up', cc.repRangeForExercise(name || 'Pull-Up'), null)) }; };
+  const DATE = '[A-Z][a-z]{2} \\d+(?:, \\d{4})?';
+
+  /* ---------------------------------------------------------------- */
+  sub('1  one canonical model, behind one public question, beside D49');
+  await guard('architecture', async () => {
+    T('1  one model, one session reader, one public question — each defined once',
+      ['bodyweightProgressionFor', 'bodyweightSessionHistory', 'progressionRecommendationFor', 'repsWord'].every(n => (raw.match(new RegExp('function ' + n + '\\(', 'g')) || []).length === 1));
+    T('1  the public question is the bodyweight answer when there is one, and otherwise D49’s own answer, untouched',
+      /return bodyweightProgressionFor\(exerciseName\) \|\| progressionFor\(exerciseName, templateReps, templateRecommended\);/.test(fnSrc(raw, 'progressionRecommendationFor')));
+    T('1  the model never reaches into D49’s load policy: no increment, plateau, phase policy or loaded history',
+      !/progressionIncrement\(|detectPlateau\(|applyPhaseProgressionPolicy\(|buildProgressionRecommendation\(|exerciseSessionHistory\(|computePRs\(/.test(fnSrc(raw, 'bodyweightProgressionFor') + fnSrc(raw, 'bodyweightSessionHistory')));
+    T('1  it shares D49’s evidence concept rather than copying it: completeness is progressionEvidence’s own answer',
+      /progressionEvidence\(last, prev\)\.complete/.test(fnSrc(raw, 'bodyweightProgressionFor')));
+    T('1  its numbers are named once: five sessions as D49 reads five, one rep, and D49’s 0.5 RIR line for nothing left',
+      JSON.stringify(c.BODYWEIGHT_PROGRESSION) === JSON.stringify({ window: 5, repStep: 1, noReserveRir: 0.5 }));
+    const r = bw(pulls([[8, 7, 6], [10, 9, 8], [12, 11, 10]]));
+    T('1  a pure bodyweight Pull-Up gets a rep answer: build, 12 → 13, no load anywhere', !!r && r.mode === 'bodyweight' && r.tag === 'build' &&
+      r.reps === 13 && r.lastReps === 12 && r.delta === 1 && r.weight === null && r.headline === '13 reps', JSON.stringify(r));
+    T('1  and the public question returns that same answer', same(pub(pulls([[8, 7, 6], [10, 9, 8], [12, 11, 10]])), r));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('2  who it is for: D91’s bodyweight lifts, not holds, never a history with load in it');
+  await guard('eligibility', async () => {
+    const loaded = [W('l1', 10, 'A', [E('Bench Press', [S(185, 10), S(185, 10), S(185, 9)])]), W('l2', 3, 'B', [E('Bench Press', [S(185, 12), S(185, 12), S(185, 12)])])];
+    const lp = pub(loaded, 'Bench Press');
+    T('2  a loaded lift is not the model’s: null, and the public answer IS D49’s — here, add 5 lb to 190',
+      bw(loaded, 'Bench Press') === null && same(lp, d49(loaded, 'Bench Press')) && lp.tag === 'increase' && lp.weight === 190 && lp.mode === undefined, JSON.stringify(lp));
+    const HOLDS = ['Plank', 'Side Plank', 'Hollow Body Hold', 'Wall Sit'];
+    const holds = HOLDS.map(n => bw(pulls([[45, 40], [60, 50]], n), n));
+    T('2  the registry’s four timed holds are refused (their "reps" are seconds), each saying why',
+      holds.every((h, i) => h && h.tag === 'unsupported' && h.reason === 'hold' && h.reps === null && h.weight === null && h.why === HOLDS[i] + ' is a timed hold, and LOOP’s rep targets are for lifts counted in reps.'),
+      JSON.stringify(holds.map(h => h && h.tag)));
+    const hang = bw(pulls([[30, 25], [35, 30]], 'Dead Hang'), 'Dead Hang');
+    T('2  a hold the registry does not list (Dead Hang) is refused too', !!hang && hang.tag === 'unsupported' && hang.reps === null, JSON.stringify(hang));
+    T('2  holds are decided by the one rule LOOP already uses for them (substitutionIsHold), not a list of its own',
+      /substitutionIsHold\(id, raw\)/.test(fnSrc(raw, 'bodyweightProgressionFor')) && !/plank|hang|wall sit|hollow/i.test(fnSrc(raw, 'bodyweightProgressionFor')));
+    const mixed = [W('m1', 24, 'Push', [E('Dip', [BW(10), BW(12)], true)]), W('m2', 17, 'Push', [E('Dip', [S(25, 8), S(25, 8)])]), W('m3', 10, 'Push', [E('Dip', [S(35, 8), S(35, 6)])])];
+    const mp = pub(mixed, 'Dip');
+    T('2  bodyweight first, then weighted rows: mixed — not reinterpreted; the public answer is D49’s, exactly as 10.35 gave it (35 lb)',
+      bw(mixed, 'Dip') === null && same(mp, d49(mixed, 'Dip')) && mp.weight === 35 && (seed(mixed), at(() => c.prModeOf('Dip'))) === 'bodyweight', JSON.stringify(mp));
+    const loadedFirst = [W('f1', 24, 'Push', [E('Dip', [S(25, 8), S(25, 8)])]), W('f2', 10, 'Push', [E('Dip', [BW(12), BW(12)], true)])];
+    T('2  loaded first, then bodyweight rows: a loaded lift by D91, so D49’s', bw(loadedFirst, 'Dip') === null && same(pub(loadedFirst, 'Dip'), d49(loadedFirst, 'Dip')));
+    const oldLoad = [W('o0', 80, 'Pull', [E('Pull-Up', [BW(6), BW(6)], true)]), W('o1', 70, 'Pull', [E('Pull-Up', [S(10, 5), S(10, 5)])])]
+      .concat(pulls([[8, 7], [9, 8], [10, 9], [10, 9], [11, 10], [12, 11]]));
+    T('2  a weighted row long before the five sessions read still makes the history mixed — the whole history is scanned', bw(oldLoad) === null);
+    const sameRow = pulls([[10, 9], [11, 10]]); sameRow[1].exercises.push(E('Pull-Up', [S(25, 5)]));
+    T('2  a weighted row inside a bodyweight workout makes it mixed too', bw(sameRow) === null);
+    const ticked = pulls([[10, 9], [{ weight: '25', reps: '11', rir: '2', type: 'working' }, BW(10)]]);
+    T('2  a number on a ticked row is malformed, not a load (D91): still pure bodyweight', !!bw(ticked) && bw(ticked).mode === 'bodyweight' && bw(ticked).lastReps === 11);
+    const undeclared = [W('u1', 10, 'A', [E('Push-Up', [{ weight: '', reps: '20', rir: '2' }, { weight: '', reps: '18', rir: '2' }])]),
+      W('u2', 3, 'B', [E('Push-Up', [{ weight: '', reps: '22', rir: '2' }, { weight: '', reps: '19', rir: '2' }])])];
+    T('2  rows that declare nothing, on a lift the registry calls bodyweight, are bodyweight work (D91’s own fallback)',
+      (seed(undeclared), at(() => c.prModeOf('Push-Up'))) === 'bodyweight' && bw(undeclared, 'Push-Up').reps === 23);
+    const custom = bw(pulls([[5, 4, 4], [6, 5, 5]], 'Muscle-Up'), 'Muscle-Up');
+    T('2  a lift LOOP does not list, logged ticked, is bodyweight by its own declaration (D91, not a name list): Muscle-Up 6 → aim for 7',
+      !!custom && custom.tag === 'build' && custom.reps === 7 && (seed(pulls([[5, 4, 4]], 'Muscle-Up')), at(() => c.exerciseIsBodyweight('Muscle-Up'))) === false);
+    const unknown = [W('k1', 5, 'A', [E('Mystery Move', [{ weight: '', reps: '10', rir: '' }])])];
+    T('2  a lift with no declared mode is not bodyweight: null, and D49 answers as before', bw(unknown, 'Mystery Move') === null && same(pub(unknown, 'Mystery Move'), d49(unknown, 'Mystery Move')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('3  what counts: one performance per workout, working sets, real reps');
+  await guard('evidence', async () => {
+    const base = bw(pulls([[10, 9, 8], [11, 10, 9]]));
+    T('3  a workout is represented by its best working set: 11', base.lastReps === 11 && base.evidence.previousReps === 10);
+    const warm = pulls([[10, 9, 8], [BW(15, 5, 'warmup'), 11, 10, 9]]);
+    T('3  a warm-up is preparation, not a performance — even with the most reps', bw(warm).lastReps === 11);
+    const notDone = pulls([[10, 9, 8], [Object.assign(BW(16), { completed: false }), 11, 10]]);
+    T('3  a set logged but not performed is not evidence', bw(notDone).lastReps === 11);
+    const types = pulls([[10, 9, 8], [BW(9, 2, 'drop'), BW(12, 2, 'amrap'), BW(8, 2, 'failure')]]);
+    T('3  drop, AMRAP and failure sets are working sets: the AMRAP 12 counts', bw(types).lastReps === 12);
+    const rows = [W('r1', 10, 'A', [E('Pull-Up', [BW(10), BW(9)], true)]),
+      W('r2', 3, 'B', [E('Pull-Up', [BW(10)], true), E('Lat Pulldown', [S(120, 10)]), E('Pull-Up', [BW(12), BW(9)], true)])];
+    const rr = bw(rows);
+    T('3  two rows of the lift in one workout are ONE performance (D96C-3): 12 from the second row, two sessions in all', rr.lastReps === 12 && rr.evidence.sessions === 2 && rr.evidence.previousReps === 10);
+    const rows2 = [W('s1', 10, 'A', [E('Pull-Up', [BW(10), BW(9)], true)]),
+      W('s2', 3, 'B', [E('Pull-Up', [BW(13)], true), E('Lat Pulldown', [S(120, 10)]), E('Pull-Up', [BW(10), BW(9)], true)])];
+    T('3  and from the first row when that is where the best set is: 13 — neither row "wins"', bw(rows2).lastReps === 13 && bw(rows2).tag === 'build' && bw(rows2).reps === 14);
+    const day = [W('d0', 10, 'Pull', [E('Pull-Up', [BW(9), BW(8)], true)]), W('zz-am-1', 3, 'Morning', [E('Pull-Up', [BW(10), BW(9)], true)]), W('zz-pm-2', 3, 'Evening', [E('Pull-Up', [BW(11), BW(9)], true)])];
+    const dd = bw(day);
+    T('3  two workouts on one day are two sessions, in the log’s own order (date, then id)', dd.evidence.sessions === 3 && dd.lastReps === 11 && dd.evidence.previousReps === 10);
+    const other = pulls([[10, 9, 8], [11, 10, 9]]); other[1].exercises.push(E('Chin-Up', [BW(20), BW(19)], true));
+    T('3  another lift in the same workout never leaks in', same(bw(other), base));
+    T('3  reps are read through performedReps (D96A), never a second parser', /performedReps\(st && st\.reps\) !== null/.test(fnSrc(raw, 'bodyweightSessionHistory')) &&
+      !/parseInt\(|Number\(st\.reps|parseFloat\(st\.reps|parseFloat\(st && st\.reps/.test(fnSrc(raw, 'bodyweightSessionHistory')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4  the rule: regain, nothing left, incomplete, then one more rep');
+  await guard('rule', async () => {
+    const first = bw(pulls([[8, 7, 6]]));
+    T('4  first session, complete: aim for one more rep than its best set', first.tag === 'build' && first.reps === 9 && first.why === 'Your best set so far is 8 reps — aim for 9 next time.');
+    const one = bw(pulls([[8]]));
+    T('4  first session, one set: not enough to personalise — match it (D49’s completeness rule)', one.tag === 'insufficient' && one.reps === 8 && one.why === 'Only one working set logged last time — match 8 reps before adding more.');
+    const rx = pulls([[10, 9, 8], [11, 10]]); rx[1].exercises[0].rx = { sets: 3, reps: '8-12', effort: '8' };
+    T('4  against a recorded prescription, the shortfall is said as it was: 2 of 3 sets', bw(rx).why === '2 of 3 sets logged last time — match 11 reps before adding more.' && bw(rx).tag === 'insufficient');
+    const rep = bw(pulls([[12, 11, 10], [12, 11, 11]]));
+    T('4  the same best again: aim for one more', rep.tag === 'build' && rep.reps === 13 && rep.why === 'You matched 12 reps again — aim for 13.');
+    const up = bw(pulls([[10, 9, 8], [12, 11, 10]]));
+    T('4  an improvement: aim for one more', up.tag === 'build' && up.reps === 13 && up.why === 'Up from 10 to 12 reps — aim for 13 next time.');
+    const down = bw(pulls([[12, 11, 10], [9, 8, 8]]));
+    T('4  a regression is never rewarded with "one more than 9": regain the recent best, 12', down.tag === 'regain' && down.reps === 12 && down.delta === 3 &&
+      down.why === 'Match your recent best of 12 reps before adding reps.');
+    const older = bw(pulls([[14, 12], [10, 9], [11, 10], [12, 11], [11, 10], [12, 10], [11, 10]]));
+    T('4  the recent best is the best of the last five sessions read (14 is older, so 12 is the target)', older.tag === 'regain' && older.reps === 12 && older.evidence.recentBest === 12);
+    const back = bw(pulls([[12, 11], [9, 8], [12, 10]]));
+    T('4  back at the recent best: no longer regaining — one more', back.tag === 'build' && back.reps === 13);
+    const fail = bw(pulls([[12, 11, 10], [BW(12, 0, 'failure'), 10, 9]]));
+    T('4  nothing left in reserve at the same best (failure, 0 RIR): match it, do not add', fail.tag === 'hold' && fail.reps === 12 && fail.delta === 0 &&
+      fail.why === 'Nothing left in reserve at 12 reps — match it before adding more.');
+    const failOnly = bw(pulls([[12, 11, 10], [BW(12, '', 'failure'), BW(10, ''), BW(9, '')]]));
+    T('4  a set marked failure is nothing left even with no RIR written', failOnly.tag === 'hold' && failOnly.reps === 12);
+    const rir0 = bw(pulls([[12, 11, 10], [BW(12, 0.5), BW(10, 2), BW(9, 2)]]));
+    T('4  a recorded 0.5 RIR at the best set is nothing left too (D49’s grinding line)', rir0.tag === 'hold');
+    const rir1 = bw(pulls([[12, 11, 10], [BW(12, 1), BW(10, 2), BW(9, 2)]]));
+    T('4  one rep in reserve is not "nothing left": one more', rir1.tag === 'build' && rir1.reps === 13);
+    const lowElsewhere = bw(pulls([[12, 11, 10], [BW(12, 2), BW(10, 0, 'failure'), BW(9, 0)]]));
+    T('4  only the best set’s reserve decides: failure on a lighter back-off set does not hold the target', lowElsewhere.tag === 'build' && lowElsewhere.reps === 13);
+    const failUp = bw(pulls([[10, 9, 8], [BW(12, 0, 'failure'), 10, 9]]));
+    T('4  failure while improving still builds: 10 → 12 to failure, aim for 13', failUp.tag === 'build' && failUp.reps === 13);
+    const failFirst = bw(pulls([[BW(8, 0, 'failure'), BW(7, 1), BW(6, 1)]]));
+    T('4  a first session ending in failure is matched, not raised', failFirst.tag === 'hold' && failFirst.reps === 8);
+    const amrap = bw(pulls([[10, 9, 8], [10, 9, BW(13, '', 'amrap')]]));
+    T('4  an AMRAP set is a performance, not a report of zero reserve: 13, aim for 14', amrap.tag === 'build' && amrap.reps === 14);
+    const amrap0 = bw(pulls([[13, 11, 10], [10, 9, BW(13, 0, 'amrap')]]));
+    T('4  an AMRAP with 0 RIR recorded and no improvement is nothing left: match 13', amrap0.tag === 'hold' && amrap0.reps === 13);
+    const tie = pulls([[12, 11, 10], [BW(12, 2), BW(12, 0, 'failure'), BW(10, 2)]]);
+    const tieRev = pulls([[12, 11, 10], [BW(12, 0, 'failure'), BW(12, 2), BW(10, 2)]]);
+    T('4  at a tied best, any set with nothing left decides — never whichever was stored first', bw(tie).tag === 'hold' && same(bw(tie), bw(tieRev)));
+    const noRir = bw(pulls([[BW(10, ''), BW(9, ''), BW(8, '')], [BW(11, ''), BW(10, ''), BW(9, '')]]));
+    T('4  no RIR anywhere: the rule still answers — one more (reps need no headroom reading, as D49’s own rep step does not)', noRir.tag === 'build' && noRir.reps === 12 && noRir.evidence.noReserve === false);
+    const high = bw(pulls([[50, 40, 35], [55, 42, 38]], 'Push-Up'), 'Push-Up');
+    T('4  no ceiling in this version: 55 push-ups, aim for 56 — and no load advice', high.reps === 56 && !/weight|load|lb/i.test(high.why));
+    const ranged = pulls([[12, 11, 10], [12, 12, 11]]); ranged.forEach(w => { w.exercises[0].rx = { sets: 3, reps: '8-12', effort: '8' }; });
+    T('4  past the top of a recorded 8–12 range it still asks for one more rep, never for load', bw(ranged).tag === 'build' && bw(ranged).reps === 13 && bw(ranged).weight === null);
+    T('4  the plan’s rep range is not read by the model', !/repRangeForExercise|parseRepRange|templateReps/.test(fnSrc(raw, 'bodyweightProgressionFor') + fnSrc(raw, 'bodyweightSessionHistory')));
+    const none = bw(pulls([[{ weight: 'BW', reps: '', rir: '' }, { weight: 'BW', reps: '0', rir: '' }]]));
+    T('4  no valid performance: no target, and the sheet says what would make one', none.tag === 'new' && none.reps === null && none.weight === null &&
+      none.why === 'LOOP sets a rep target once a working set of Pull-Up has been logged with its reps.');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('5  a deload week holds, as D85 holds a load');
+  await guard('deload', async () => {
+    const log = pulls([[10, 9, 8], [11, 10, 9]]).concat([W('dl', 1, 'Deload', [E('Pull-Up', [BW(6), BW(6)], true)], { phase: 'deload' })]);
+    T('5  a deload session is set aside, as D49 sets one aside: the last real session is still 11', bw(log).lastReps === 11);
+    const onlyDeload = bw([W('dl', 3, 'Deload', [E('Pull-Up', [BW(6), BW(6)], true)], { phase: 'deload' })]);
+    T('5  and is read only when nothing else exists', onlyDeload.lastReps === 6);
+    const real = c.deloadActiveToday;
+    c.deloadActiveToday = () => true;
+    let inDeload, inDeloadDown;
+    try{ inDeload = bw(pulls([[10, 9, 8], [11, 10, 9]])); inDeloadDown = bw(pulls([[12, 11, 10], [9, 8, 8]])); }
+    finally { c.deloadActiveToday = real; }
+    T('5  during a deload week the answer is hold — never one more, never a regain push', inDeload.tag === 'hold' && inDeload.reps === 11 &&
+      inDeload.why === 'Deload week — match 11 reps and leave more in reserve.' && inDeloadDown.tag === 'hold' && inDeloadDown.reps === 9);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('6  properties over generated bodyweight histories, against an oracle written from the rule');
+  await guard('properties', async () => {
+    let a = 0x9E3779B9 >>> 0;
+    const R = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const pick = xs => xs[Math.floor(R() * xs.length)];
+    const INVALID = ['', ' ', '0', '-3', 'NaN', 'Infinity', '1e999', 'abc'];
+    /* The rule as documented, sharing no code with the app. */
+    const num = x => { const v = parseFloat(x); return Number.isFinite(v) && v > 0 ? v : null; };
+    const oracle = lists => {
+      const s = lists.map(sets => {
+        const v = sets.filter(x => x && x.type !== 'warmup' && x.completed !== false && num(x.reps) !== null);
+        if(!v.length) return null;
+        const top = Math.max(...v.map(x => num(x.reps)));
+        const rir = x => { const q = parseFloat(x.rir); return Number.isFinite(q) ? q : null; };
+        return { top, n: v.length, spent: v.some(x => num(x.reps) === top && (x.type === 'failure' || (rir(x) !== null && rir(x) <= 0.5))) };
+      }).filter(Boolean).reverse().slice(0, 5);
+      if(!s.length) return ['new', null, null];
+      const last = s[0], prev = s[1], best = Math.max(...s.map(x => x.top));
+      if(last.top < best) return ['regain', best, last.top];
+      if(last.spent && (!prev || last.top <= prev.top)) return ['hold', last.top, last.top];
+      if(last.n < 2) return ['insufficient', last.top, last.top];
+      return ['build', last.top + 1, last.top];
+    };
+    const tags = {};
+    let n = 0, real = 0, invalid = 0, layout = 0, order = 0, casing = 0, noLoad = 0, determinism = 0;
+    for(let h = 0; h < 160; h++){
+      const k = 1 + Math.floor(R() * 8);
+      let reps = R() < 0.06 ? 80 + Math.floor(R() * 70) : 2 + Math.floor(R() * 14);
+      const lists = [];
+      for(let i = 0; i < k; i++){
+        reps = Math.max(1, reps + pick([-3, -1, 0, 0, 1, 1, 2]));
+        let sets = [];
+        const m = 1 + Math.floor(R() * 4);
+        for(let j = 0; j < m; j++) sets.push(BW(Math.max(1, reps - j + pick([-1, 0, 0, 1])), pick(['', '0', '0.5', '1', '2', '3']), pick(['working', 'working', 'working', 'failure', 'amrap', 'drop'])));
+        if(R() < 0.25) sets.unshift(BW(reps + 5, 5, 'warmup'));
+        /* legacy rows: no type, no completion flag, no RIR — unknown counts, as it always has */
+        if(R() < 0.15) sets = sets.map(x => x.type === 'warmup' ? x : { weight: 'BW', reps: x.reps });
+        /* a session whose only rows are unreadable: logged, but no evidence */
+        if(R() < 0.08) sets = [{ weight: 'BW', reps: pick(INVALID), rir: '' }];
+        lists.push(sets);
+      }
+      const log = pulls(lists);
+      const r = bw(log);
+      n++;
+      const want = oracle(lists), got = [r.tag, r.reps, r.lastReps === undefined ? null : r.lastReps];
+      tags[r.tag] = (tags[r.tag] || 0) + 1;
+      if(same(got, want)) real++; else if(n - real <= 3) T('6  history ' + h + ' answers as the rule says', false, JSON.stringify([lists.map(s => s.map(x => x.reps + '/' + (x.type || '?') + '/' + (x.rir == null ? '-' : x.rir))), got, want]));
+      /* adding unreadable sets anywhere changes nothing */
+      const noisy = JSON.parse(JSON.stringify(log));
+      noisy.forEach(w => { const s = w.exercises[0].sets; s.splice(Math.floor(R() * (s.length + 1)), 0, { weight: 'BW', reps: pick(INVALID), rir: pick(['', '0', '9']), type: 'working' }); });
+      if(same(bw(noisy), r)) invalid++;
+      /* the same sets in one, two or three interleaved rows, another lift between them */
+      const split = JSON.parse(JSON.stringify(log));
+      split.forEach(w => { const sets = w.exercises[0].sets, p = 1 + Math.floor(R() * 3), parts = [[], [], []];
+        sets.forEach((s, i) => parts[i % p].push(s));
+        const rws = parts.slice(0, p).filter(x => x.length).map(x => E('Pull-Up', x, true));
+        rws.splice(1, 0, E('Lat Pulldown', [S(120, 10)]));
+        w.exercises = rws; });
+      if(same(bw(split), r)) layout++;
+      /* the same sets in another order */
+      const shuffled = JSON.parse(JSON.stringify(log));
+      shuffled.forEach(w => { const s = w.exercises[0].sets; for(let i = s.length - 1; i > 0; i--){ const j = Math.floor(R() * (i + 1)); const t = s[i]; s[i] = s[j]; s[j] = t; } });
+      if(same(bw(shuffled), r)) order++;
+      /* the same lift stored under other spellings */
+      const cased = JSON.parse(JSON.stringify(log));
+      cased.forEach((w, i) => { w.exercises[0].name = [' pull-up ', 'PULL-UP', 'Pull-up', 'Pull-Up'][i % 4]; });
+      if(same(bw(cased), r)) casing++;
+      if(r.weight === null && (r.headline === null || /^\d+ reps?$/.test(r.headline)) && !/\blb\b/.test(r.why)) noLoad++;
+      if(same(bw(log), r)) determinism++;
+    }
+    T('6  ' + n + ' generated histories (' + JSON.stringify(tags) + '): every answer is the rule’s answer, from recorded work only', real === n, real);
+    T('6  unreadable reps (blank, 0, negative, NaN, Infinity, 1e999, text) added anywhere never change the answer', invalid === n, invalid);
+    T('6  storage layout is not training meaning: one, two or three interleaved rows give the same answer', layout === n, layout);
+    T('6  set order inside a workout never changes the answer', order === n, order);
+    T('6  the same lift stored under four spellings gives the same answer (D96B)', casing === n, casing);
+    T('6  no answer carries a load or says lb', noLoad === n, noLoad);
+    T('6  the same history always gives the same answer', determinism === n, determinism);
+    T('6  the histories exercise every outcome of the rule', ['new', 'insufficient', 'build', 'regain', 'hold'].every(t => tags[t] > 0), JSON.stringify(tags));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('7  every loaded and mixed answer is still D49’s own object, and D49 answers as 10.35 did');
+  await guard('zero drift', async () => {
+    let a = 0x85EBCA6B >>> 0;
+    const R = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const pick = xs => xs[Math.floor(R() * xs.length)];
+    let lifts = 0, same49 = 0, bwLifts = 0;
+    const answers = [];
+    for(let h = 0; h < 40; h++){
+      const log = [];
+      /* one lift for every branch of D49's increment: big lift either side of 225, cable either side of 120,
+         dumbbell either side of 60, light isolation, and the default either side of 150 */
+      const loads = { 'Bench Press': 135, 'Back Squat': 235, 'Lat Pulldown': 100, 'Leg Press': 300, 'Dumbbell Curl': 25,
+        'Dumbbell Bench Press': 70, 'Dumbbell Row': 45, 'T-Bar Row': 90, 'Sled Push': 200 };
+      const k = 6 + Math.floor(R() * 8);
+      for(let i = 0; i < k; i++){
+        const exs = Object.keys(loads).filter(() => R() < 0.6).map(nm => { loads[nm] += pick([0, 5, 5, -5]);
+          const ex = E(nm, Array.from({ length: 1 + Math.floor(R() * 3) }, (_, j) => S(loads[nm], Math.max(1, pick([5, 8, 10, 12]) - j), pick(['', '0', '1', '2', '3']), pick(['working', 'working', 'failure', 'amrap']))));
+          if(R() < 0.4) ex.rx = { sets: 3, reps: pick(['6-8', '8-12']), effort: '8' };
+          return ex; });
+        if(R() < 0.5) exs.push(E('Dip', R() < 0.3 ? [S(20, 8), S(20, 7)] : [BW(10), BW(9)], false));
+        if(R() < 0.5) exs.push(E('Chin-Up', [BW(8 + i % 3), BW(7)], true));
+        if(exs.length) log.push(W('z' + h + '-' + i, 80 - i * 6, 'S', exs, R() < 0.08 ? { phase: 'deload' } : {}));
+      }
+      seed(log);
+      at(() => c.getAllLoggedExerciseNames()).forEach(nm => {
+        lifts++;
+        const range = at(() => c.repRangeForExercise(nm));
+        const own = at(() => c.progressionFor(nm, range, null));
+        answers.push(nm + '|' + JSON.stringify(own));
+        const p = at(() => c.progressionRecommendationFor(nm, range, null));
+        if(p && p.mode === 'bodyweight'){ bwLifts++; return; }
+        if(same(p, own)) same49++;
+      });
+    }
+    T('7  ' + (lifts - bwLifts) + ' loaded and mixed lifts across 40 generated histories: the public answer IS progressionFor’s, every time', same49 === lifts - bwLifts && lifts - bwLifts > 100, JSON.stringify([same49, lifts, bwLifts]));
+    T('7  and D49 answers every one of those ' + answers.length + ' lifts exactly as 10.35 did — a digest of its answers, frozen from 10.35', sha(answers.join('\n')) === '098e5640fc20ade0', sha(answers.join('\n')));
+    T('7  D49 itself is byte-identical: its engine, evidence, phase policy, history reader, range and buckets',
+      pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' &&
+      pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('repRangeForExercise') === '07b3b26014a8e57f' &&
+      pin('computeProgressionBuckets') === '87e47e4a883cc140' && pin('detectPlateau') === '5328b907ce3432c7' && pin('progressionIncrement') === '3d77ad004234607e');
+    T('7  every other D49 consumer still asks D49 directly — Today, Objectives, Progress, Weekly Review, the live workout and the summary — and none asks the new question',
+      ['renderTodayInsights', 'objectiveDailyCandidates', 'computeProgressionBuckets', 'deriveWeeklyReview', 'restoreDraftToSheet', 'startTemplateLog', 'swapLogExercise', 'computeNextTimeNotes']
+        .every(nm => /progressionFor\(/.test(fnSrc(raw, nm)) && !/progressionRecommendationFor\(|bodyweightProgressionFor\(/.test(fnSrc(raw, nm))) &&
+      (raw.match(/progressionRecommendationFor\(/g) || []).length === 2);
+    T('7  and each of them is byte-identical to 10.35: the audit held them, so nothing there moved',
+      pin('renderTodayInsights') === '92cb86beae6038eb' && pin('deriveWeeklyReview') === '54cedeb502954944' && pin('computeNextTimeNotes') === '16d50e35392c9180' &&
+      pin('restoreDraftToSheet') === '2bbd08f689e23bc0' && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('swapLogExercise') === '53e0f712db604c13');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('8  Exercise Detail shows the canonical answer, in reps, heard as one sentence');
+  await guard('detail', async () => {
+    const IMPROVING = pulls([[8, 7, 6], [10, 9, 8], [12, 11, 10]]);
+    const v = await detail(IMPROVING);
+    T('8  the sheet’s answer is the public question’s answer, object for object', same(v.model.rec, v.rec) && v.model.rec.mode === 'bodyweight' && v.model.rec.reps === 13);
+    T('8  LAST → NEXT in reps, the change as a word and a sign, the reason last — and no lb anywhere in it',
+      new RegExp('^Next session Last · (' + DATE + ') 12 reps Next 13 reps \\+1 rep Last session, \\1, 12 reps\\. Next target, 13 reps\\. Aim to add 1 rep\\. Up from 10 to 12 reps — aim for 13 next time\\.$').test(v.next) &&
+      !/\blb\b/.test(v.next) && !v.quiet, v.next);
+    T('8  the same LAST → NEXT columns as a loaded lift: one visual system', /<div class="exd-ln" aria-hidden="true">/.test(v.nextHtml) &&
+      /class="exd-ln-col exd-ln-to"/.test(v.nextHtml) && /class="exd-delta exd-delta-up">\+1 rep</.test(v.nextHtml) && /class="exd-why">/.test(v.nextHtml));
+    T('8  heard once, as a sentence: the columns are its picture and are hidden from a screen reader, the sentence is not',
+      new RegExp('<p class="sr-only">Last session, ' + DATE + ', 12 reps\\. Next target, 13 reps\\. Aim to add 1 rep\\.</p>').test(v.nextHtml) &&
+      v.nextHtml.indexOf('aria-hidden="true"') < v.nextHtml.indexOf('sr-only') && v.nextHtml.indexOf('sr-only') < v.nextHtml.indexOf('exd-why'));
+    T('8  the hero names the state: Building', /exd-state-build">Building</.test(v.facts));
+    const g = await detail(pulls([[12, 11, 10], [9, 8, 8]]));
+    T('8  a regain reads as one: Next 12 reps, +3 reps, Regain', /Next 12 reps \+3 reps .*Aim to add 3 reps\. Match your recent best of 12 reps before adding reps\.$/.test(g.next) && /exd-state-regain">Regain</.test(g.facts), g.next);
+    const h = await detail(pulls([[12, 11, 10], [BW(12, 0, 'failure'), 10, 9]]));
+    T('8  a hold reads Match, never +0', /Next 12 reps Match .*Next target, 12 reps\. Aim to match it\. Nothing left in reserve/.test(h.next) && /exd-delta-same">Match</.test(h.nextHtml) && /exd-state-hold">Hold</.test(h.facts), h.next);
+    const one = await detail(pulls([[{ weight: 'BW', reps: '1', rir: '0', type: 'failure' }, { weight: 'BW', reps: '1', rir: '0', type: 'working' }]], 'Nordic Curl'), 'Nordic Curl');
+    T('8  one is singular, seen and heard: "1 rep", and its target "1 rep"', new RegExp('Last · ' + DATE + ' 1 rep Next 1 rep Match Last session, ' + DATE + ', 1 rep\\. Next target, 1 rep\\. Aim to match it\\.').test(one.next), one.next);
+    T('8  repsWord is right at 1, 2 and more', c.repsWord(1) === '1 rep' && c.repsWord(2) === '2 reps' && c.repsWord(13) === '13 reps');
+    const plank = await detail(pulls([[45, 40], [60, 50]], 'Plank'), 'Plank');
+    T('8  a hold says why it has no target, quietly, and names no state', plank.next === 'Next session Plank is a timed hold, and LOOP’s rep targets are for lifts counted in reps.' &&
+      plank.quiet && !/exd-state/.test(plank.facts), plank.next);
+    const none = await detail(pulls([[{ weight: 'BW', reps: '', rir: '' }]]));
+    T('8  no readable reps yet: the sheet says what would make a target, quietly', none.next === 'Next session LOOP sets a rep target once a working set of Pull-Up has been logged with its reps.' && none.quiet, none.next);
+    const mixed = await detail([W('m1', 24, 'Push', [E('Dip', [BW(10), BW(12)], true)]), W('m2', 17, 'Push', [E('Dip', [S(25, 8), S(25, 8)])]), W('m3', 10, 'Push', [E('Dip', [S(35, 8), S(35, 6)])])], 'Dip');
+    T('8  a mixed history still shows D49’s loaded answer, as 10.35 did', /Next 35 lb × 8–12 reps/.test(mixed.next) && mixed.rec.mode === undefined, mixed.next);
+    T('8  the trend, best ever and personal bests are untouched: the same D118 functions, byte-identical',
+      pin('exerciseBestSet') === '17533a157f13a7b0' && pin('exerciseRepPoints') === '208406f1635edca6' && pin('computePersonalBestTimeline') === 'e41926dcb1cfa844' &&
+      pin('computeExercisePREvents') === '4339cc543585bded' && pin('compute1RMTrend') === '1dd2dafa4e4c5d06' && pin('exerciseTrendFromPoints') === 'fc3309c25ba2c841');
+    T('8  one story on one page: trend latest 12, best ever 12, last 12, next 13', v.model.repPoints[v.model.repPoints.length - 1].value === 12 &&
+      v.model.best.r === 12 && v.model.rec.lastReps === 12 && v.model.rec.reps === 13);
+    const rests = [v.rest, g.rest, (await detail(pulls([[10, 9, 8], [10, 9, BW(13, '', 'amrap')]]))).rest,
+      (await detail([W('r1', 10, 'A', [E('Pull-Up', [BW(10), BW(9)], true)]), W('r2', 3, 'B', [E('Pull-Up', [BW(10)], true), E('Lat Pulldown', [S(120, 10)]), E('Pull-Up', [BW(12), BW(9)], true)])])).rest];
+    T('8  and what those zones draw — trend, records, history — is 10.35’s, byte for byte, for four bodyweight histories (a digest frozen from 10.35)',
+      sha(rests.join('\n--\n')) === 'f2f2dfbd74512e66', sha(rests.join('\n--\n')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('9  protected: D91, D50B, Objectives, storage');
+  await guard('protected', async () => {
+    T('9  D91’s mode rule is byte-identical', pin('prModeOf') === 'a0ac7f761228372f' && pin('deriveExercisePRMode') === '262d3ed985632762' &&
+      pin('sessionPRDeclaration') === '73ae62dfd184fca6' && pin('rowExecutionDeclaration') === '5acbe235df9c5bab');
+    T('9  D50B’s set coach is byte-identical and its constants are as they were', pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' &&
+      /easyOverTarget: 2,[\s\S]*hardMissWithoutRir: 2,[\s\S]*hardRir: 0\.5,[\s\S]*maxChangesPerExercise: 1,[\s\S]*maxIncrementsFromRx: 1/.test(raw.slice(raw.indexOf('const SET_COACH = {'), raw.indexOf('const SET_COACH = {') + 2600)));
+    const coach = (rx, performed) => c.deriveNextSetCoach({ exerciseName: 'Lat Pulldown', rx, performed, deload: false }).action;
+    const RX = { reps: '8-10', effort: '8' };
+    const coached = [coach(RX, [{ weight: 100, reps: 10, rir: 3 }]), coach(RX, [{ weight: 100, reps: 10, rir: 2 }]),
+      coach(RX, [{ weight: 100, reps: 6, rir: 0.5 }]), coach(RX, [{ weight: 100, reps: 6, rir: 1 }]),
+      coach(RX, [{ weight: 100, reps: 6 }]), coach(RX, [{ weight: 100, reps: 7 }]),
+      coach(RX, [{ weight: 100, reps: 10, rir: 3 }, { weight: 105, reps: 10, rir: 3 }]), coach(Object.assign({ load: 100 }, RX), [{ weight: 105, reps: 10, rir: 3 }])];
+    T('9  and it still coaches every one of its edges as it did: easy by two, not by one; grinding at 0.5, not 1; missed by two, not one; one change per lift; one step from the plan',
+      same(coached, ['increase', 'hold', 'reduce', 'hold', 'reduce', 'hold', 'hold', 'hold']), JSON.stringify(coached));
+    T('9  Objectives are byte-identical', pin('objectiveDailyCandidates') === '9772175df2535484' && pin('objectiveEvidence') === 'b49414150ed34a2d');
+    const day = tpl => ({ session: { cat: 'pull', template: tpl, source: 'plan' }, loggedToday: 0, today: '2026-09-30', deload: false });
+    seed(pulls([[10, 9, 8], [11, 10, 9]]));
+    const objs = at(() => c.objectiveDailyCandidates(day({ name: 'Pull Day', exercises: [{ name: 'Pull-Up', sets: 3, reps: '8-12', effort: '8' }] })));
+    seed([W('o1', 10, 'Pull', [E('Lat Pulldown', [S(120, 10), S(120, 10)])]), W('o2', 3, 'Pull', [E('Lat Pulldown', [S(120, 12), S(120, 12)])])]);
+    const control = at(() => c.objectiveDailyCandidates(day({ name: 'Pull Day', exercises: [{ name: 'Lat Pulldown', sets: 2, reps: '8-12', effort: '8' }] })));
+    const liftObjs = list => (list || []).filter(o => /_lift$/.test(o.objectiveType) || (o.target && o.target.exercise));
+    T('9  a bodyweight lift on today’s plan still makes no lift objective: Objectives are not expanded (the same plan with a loaded lift makes one)',
+      Array.isArray(objs) && liftObjs(objs).length === 0 && objs.every(o => !/pull-up/i.test(o.title)) &&
+      liftObjs(control).length === 1 && liftObjs(control)[0].objectiveType === 'progress_lift',
+      JSON.stringify([objs.map(o => o.objectiveType + ':' + o.title), control.map(o => o.objectiveType + ':' + o.title)]));
+    seed(pulls([[10, 9, 8], [11, 10, 9]]));
+    const store0 = JSON.stringify(app.store), log0 = JSON.stringify(c.workoutLog);
+    let sets = 0; const realSet = c.LOOPStore.set; c.LOOPStore.set = function(){ sets++; return realSet.apply(this, arguments); };
+    try{ at(() => { c.bodyweightProgressionFor('Pull-Up'); c.progressionRecommendationFor('Pull-Up', '8-12', null); c.openExDetail('Pull-Up'); }); }
+    finally { c.LOOPStore.set = realSet; }
+    T('9  asking writes nothing: no store write, the log byte-identical', sets === 0 && JSON.stringify(app.store) === store0 && JSON.stringify(c.workoutLog) === log0);
+    T('9  no key, schema, migration or trainer change', c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 &&
+      c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && !/LOOPStore|localStorage|sessionStorage|indexedDB/.test(fnSrc(raw, 'bodyweightProgressionFor') + fnSrc(raw, 'bodyweightSessionHistory') + fnSrc(raw, 'progressionRecommendationFor')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('10  it is cheap');
+  await guard('perf', async () => {
+    const big = [];
+    for(let i = 0; i < 416; i++) big.push(W('b' + String(i).padStart(3, '0'), 730 - Math.floor(i * 1.75), 'S',
+      [E('Pull-Up', [BW(5 + (i % 9)), BW(4 + (i % 9))], true), E('Bench Press', [S(135 + i % 20, 8)])].concat(i % 3 ? [] : [E('Pull-Up', [BW(6), BW(5)], true)])));
+    seed(big);
+    at(() => c.bodyweightProgressionFor('Pull-Up'));
+    const times = [];
+    for(let i = 0; i < 9; i++){ c.invalidateSortedLogCache(); const t0 = process.hrtime.bigint(); at(() => c.bodyweightProgressionFor('Pull-Up')); times.push(Number(process.hrtime.bigint() - t0) / 1e6); }
+    times.sort((x, y) => x - y);
+    T('10  two years, 416 workouts of the lift (a third with a second row): the answer in ' + times[4].toFixed(2) + ' ms with every cache cleared, well under 50', times[4] < 50, JSON.stringify(times));
   });
 }
 
@@ -48217,6 +48653,7 @@ async function main(){
   await testMultiWorkoutWeekD116();
   await testProgramContextCacheD117();
   await testExerciseDetailD118();
+  await testBodyweightProgressionD119();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
