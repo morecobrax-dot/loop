@@ -17026,3 +17026,219 @@ back. The restatements:
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
 key, no stored answer, no history rewritten. E40 closed; E41 recorded.
+
+## §160 — A WARM-UP IS TRAINING VOLUME, NOT A STRENGTH RECORD (D121 · LOOP 10.38 · loop-v215)
+
+**Rule.** One predicate decides which sets may stand behind a strength record:
+- `isPerformanceSet(set)`: a performed working set. `isWorkingSet` does not
+  call it a warm-up, and it is not marked uncompleted. Drop, failure, AMRAP and
+  untyped legacy sets count, exactly as `isWorkingSet` says.
+- `loadedStrengthPerformance(set)`: `isPerformanceSet`, then D96C-1's
+  `loadedPRPerformance` (a finite load and finite reps, both above zero).
+
+D120's bodyweight rule now reads the same predicate:
+`bodyweightPerformanceReps` = `isPerformanceSet(set) ? performedReps(set.reps) : null`.
+Every answer is the same as 10.37's (frozen digest).
+
+**The volume decision (Model A, from repository truth).** A volume record is
+"most total volume in a session" — the words the app shows, in pounds moved.
+LOOP's training volume counts warm-up work everywhere:
+- `sessionVolume` and `computeWeeklyVolume`;
+- the Volume tab, Weekly Review, the Today summary and D44.
+
+Muscle Volume and Mastery count working sets, but as set counts, not tonnage.
+So the volume record keeps every real loaded set, warm-ups included: it
+measures training volume and makes no performance claim. The strength records
+do make one: the heaviest weight, reps at a weight and the estimated 1RM. They
+read performed working sets only. In both record walks, a set's tonnage is
+added before the performance filter, and the strength values after it.
+
+| Reader | Was | Now |
+|---|---|---|
+| `computeExercisePREvents` (canonical records) | every real loaded set | volume: every real loaded set; weight, reps at a weight, 1RM: `isPerformanceSet` |
+| `computeXPTimeline` (PR XP) | every real loaded set | the same line, in the same place |
+| `computePRs` (the best D49's "your best" reads) | `loadedPRPerformance(st)` | `loadedStrengthPerformance(st)` |
+| `exerciseBestSet` (Best ever, the bold set, its date) | any set | `isPerformanceSet`, for the value and the match |
+| `compute1RMTrend` (trend, Strength list, capability's trend) | any loaded set | `isPerformanceSet` |
+| `prSetIndexFor` (which set wears the badge) | first set with the best value | the first performed working set |
+| `exDetailSessionRowHtml` (what is heard) | a loaded warm-up-only workout: "no complete set" | "no working set", as bodyweight already said |
+
+Everything downstream inherits the corrected stream untouched:
+- the index and per-workout events;
+- the Summary's New Records, and the Day Detail / Full workout badges;
+- calendar dots, D44's record days and weekly record count, and Weekly
+  Review's record count;
+- the personal-best timeline;
+- Mastery's record count;
+- PR XP, and through it lifetime XP, level and rank.
+
+**Why E41 existed.** D96C-1's loaded rule asks whether a set is real loaded
+work: a finite load and finite reps. It never asked the set's type. A warm-up
+is usually lighter, so the gap hid until:
+- a warm-up single went heavier than the work (a weight record);
+- a light warm-up went for more reps at a load the work also used (a
+  reps-at-weight record);
+- a high-rep warm-up out-estimated the work (a 1RM record).
+
+D49, D50B and D119 already read working sets, so one sheet told two stories.
+
+**Not changed.**
+- **Training volume.** Byte-identical: the `sessionVolume` and
+  `computeWeeklyVolume` pins, and Contract 238's tonnage digest frozen from
+  10.37. In the drift study, every history's session volume, weekly volume,
+  Weekly Review volume and D44 workouts, sets, volume and state are 10.37's.
+- **Other engines.** Byte-identical:
+  - D49 (`progressionFor`, `buildProgressionRecommendation`,
+    `exerciseSessionHistory`), D50B (`deriveNextSetCoach`) and D119;
+  - Session Score, the legacy quality score, Mastery scoring, Recovery and
+    Objectives;
+  - the capability model and trainer, D91 and D96A's boundary;
+  - every XP amount, the level curve and rank thresholds.
+- **D49's one phrase.** "— this would match or beat your best." reads
+  `computePRs`, so it now names the real best. It is the only D49 output that
+  moved: 14 lifts in 160 drift histories. A 245 lb warm-up single no longer
+  hides that an increase to 235 beats the working best of 225.
+- **Warm-ups in history.** They stay in every history and display:
+  - Exercise Detail rows, dimmed;
+  - Day Detail chips;
+  - set counts and the working-set XP line;
+  - volume and muscle tallies.
+- **E38 and E39.** Untouched. E42 was found: D49's plateau check reads warm-up
+  loads. It is recorded, not fixed. So is E43: the XP line labelled "N working
+  sets" counts warm-ups. That is an XP-economy question, not a record.
+
+**Warm-up-only workout.** It establishes no strength record: no first weight,
+no 1RM and no trend point. Its row says "no working set" and carries no
+record mark. Its tonnage is still training volume, so it is the baseline the
+next workout's volume record is measured against.
+
+**Repeated rows and same-day workouts.** Identity is unchanged. One
+performance per workout spans every row of the lift (D96C-3), and two
+workouts on one date stay two (D96C-2, D107).
+
+**Mixed histories.** A bodyweight-mode lift's loaded rows feed two things:
+- its estimated-1RM chart;
+- each loaded row's bold set.
+
+Those now read working sets. Its bodyweight records, rep trend and D119
+answers are untouched. A loaded-mode mixed lift follows the rule like any
+loaded lift.
+
+### Measured
+
+- **E41 on 10.37, reproduced with the shipped code.** The brief's cases A–L
+  (weight, reps at a weight, 1RM, volume, several warm-ups, warm-up only,
+  types, legacy, repeated rows, same-day, invalid values, bodyweight), plus a
+  not-completed set and a false record that hid a real one. With the
+  performance filter put back as 10.37 read loaded sets, every loaded record
+  surface of all 13 histories is 10.37's (a frozen digest).
+- **Drift, frozen 10.37 vs 10.38:**
+  - **Loaded, no warm-up above the work:** 80 generated histories, 559 lifts,
+    12,914 loaded warm-up sets. 0 moved, on every surface.
+  - **Loaded, warm-ups that out-perform the work:** 160 histories, 1,280 lifts
+    (e41 and mixed). 1,248 lifts moved, all on the record side.
+  - **Attribution by counterfactual.** Run frozen 10.37 on the same 160 logs
+    with all 17,562 typed warm-up sets removed (rows kept):
+    - 10.38's strength side (events, Best ever, trend, personal bests, Records
+      card) equals it for 1,280 of 1,280 lifts;
+    - 10.38's volume events equal 10.37's on the original logs, 1,280 of 1,280.
+
+    So every change is a warm-up's and nothing else's:
+    - gone: 2,685 rep, 903 weight and 21 1RM hits that a warm-up had set;
+    - changed value: 1,821 hits of the same family in the same workout;
+    - revealed: 1,852 weight, 7 reps-at-weight and 4 1RM records that a
+      warm-up's false record had been hiding, in 158 histories.
+  - **XP.** PR XP matches the record engine in all 160 histories: 3,752
+    workouts and 9,276 record XP lines. PR counts went up in 6 histories, down
+    in 144 and stayed the same in 10. Lifetime XP moved −445 to +180 in 150.
+    Twelve levels and three ranks changed, each from the corrected PR XP
+    alone: ATHLETE → TRAINEE twice, TRAINEE → ATHLETE once.
+  - **Mastery and D49.** Mastery moved on 403 lifts, every one with a changed
+    record-event count or capability input. D49 moved by its phrase alone (14
+    lifts), and its buckets carry that phrase (13 histories). The capability
+    model's trend input moved on 4 lifts.
+  - **Bodyweight-mode mixed lifts:** 77 moved, and only through their loaded
+    rows.
+  - **Bodyweight:** 40 histories full of warm-ups, 0 moved.
+  - **Owner backups:** read-only, hashed before and after. 0 loaded warm-up
+    sets; 15 of 15 lifts identical.
+- **Real headless Edge.** The brief's 16 fixtures at seven phone sizes, 320×568
+  to 430×932: 3,395 checks against an oracle that reads only the logged sets.
+  Each confirms:
+  - **Exercise Detail.** Best ever, the trend and personal bests are right.
+    In every recent row, each warm-up is listed and dimmed. The bold is the
+    workout's best performed set and is read aloud the same way. The record
+    mark appears only where a record is.
+  - **Day Detail / Full workout.** Badges sit exactly on the records' sets,
+    each read aloud by its title, and never on a warm-up.
+  - **Elsewhere.** The Summary's New Records, the Weekly Review's record
+    count, and the calendar's record dot and its spoken words are right.
+  - **Layout.** No overflow, clipping, small target or console error.
+
+  On frozen 10.37 the same rig fails 23 checks in the three E41 fixtures and
+  passes the controls.
+- **Performance, median of 15, 10.37 → 10.38:** cold clears every log cache.
+
+| History | Record index | XP walk | Exercise Detail derivation | Sheet cold | Sheet warm | Weekly Review |
+|---|---|---|---|---|---|---|
+| 50 loaded workouts | 1.08 → 1.23 ms | 1.20 → 1.39 ms | 2.68 → 3.18 ms | 5.3 → 5.8 ms | 2.2 → 2.4 ms | 4.1 → 4.2 ms |
+| 100 workouts × 4 warm-ups | 2.38 → 2.44 ms | 3.07 → 3.13 ms | 6.1 → 7.3 ms | 10.0 → 11.2 ms | 3.5 → 4.2 ms | 8.0 → 7.8 ms |
+| 100 workouts, a record every time | 2.13 → 2.22 ms | 2.88 → 2.97 ms | 5.1 → 6.1 ms | 8.7 → 9.8 ms | 3.0 → 3.6 ms | 6.7 → 6.9 ms |
+| Two years, 418 loaded workouts | 6.6 → 6.8 ms | 10.7 → 11.0 ms | 18.4 → 21.0 ms | 25.7 → 29.1 ms | 7.9 → 9.7 ms | 21.0 → 21.4 ms |
+| Two years, bodyweight (control) | 4.3 → 4.6 ms | 8.1 → 8.4 ms | 12.0 → 12.4 ms | 17.3 → 17.3 ms | 5.6 → 5.8 ms | 16.2 → 16.2 ms |
+
+  The cost is one type check per loaded set (`isWorkingSet`, an indexed
+  lookup). There is no new pass over the log, no cache and no stored answer.
+
+### Contract 238 (50 checks)
+
+It covers:
+- the volume decision, read from the app's own words and its
+  training-volume functions;
+- the one predicate, its single definition and every reader;
+- the eight changed functions, back to their 10.37 pins (and 10.36's) by
+  reversal, and the two new ones pinned;
+- E41 reproduced (frozen digest) and gone;
+- every case, including a false record that hid a real one, and a warm-up
+  equal to the best working set (never bold, never what Best ever is dated
+  by);
+- training volume (12,000 lb from 10,000 of work plus 2,000 of warm-up, the
+  weekly volume, a tonnage digest frozen from 10.37);
+- PR XP paying exactly where the record walk finds a record, with Mastery
+  counting the same, and level a function of XP;
+- the no-op property over 200 generated histories: typed warm-ups of any
+  number, load and reps, in a row, in their own row or in their own workout,
+  change no strength record, Best ever, trend or personal best. The training
+  volume that should move does;
+- order, casing and same-day identity;
+- the no-E41 and bodyweight digests frozen from 10.37;
+- D49's attributed phrase and D50B's edges;
+- the protected pins, E38 and E39 untouched, zero writes, keys and schema;
+- cost.
+
+**Mutation: 32 of 32 killed by Contract 238 alone, all by behaviour.** That
+covers the brief's 24 and 8 more on the readers' own edges. Two first died
+only to source checks, and each got a behavioural case:
+- **The bold set's match admitting a warm-up.** Added: a warm-up equal to the
+  best working set.
+- **A storage write behind the Records card's cache.** The zero-write check
+  now reads cold.
+
+### Restated contracts
+
+D116's technique again. `D121_EDITS` holds each D121 statement as [now, as of
+10.37]:
+- `pinAsOf1037(name)` puts them back;
+- `pinAsOf1036` now composes D121's reversal and then D120's.
+
+So D120's 45 restated sites hold at their 10.36 pins through both phases
+unchanged. Also restated:
+- `compute1RMTrend`'s two pins and the two pin maps;
+- D96C-1's "one named rule" check (the Records card reads
+  `loadedStrengthPerformance`, which reads `loadedPRPerformance`);
+- Contract 237 §1 (the rule now lives in `isPerformanceSet`);
+- Contract 237 §6: its loaded digest, by putting D121's filter back; and its
+  E41 witness, inverted, because E41 is closed.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
+key, no stored answer, no history rewritten. E41 closed; E42 and E43 recorded.

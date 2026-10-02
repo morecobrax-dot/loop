@@ -1332,7 +1332,7 @@ Measured on frozen 10.36 vs 10.37:
 
 Contract 237, §159.
 
-## E41 — A typed loaded warm-up can set a record and earn its PR XP · P4 · PROVEN · OPEN
+## E41 — A typed loaded warm-up can set a record and earn its PR XP · P4 · PROVEN · **CLOSED in D121 (LOOP 10.38)**
 
 Found by D120 while asking whether E40 was a bodyweight-only defect. It is not.
 
@@ -1363,6 +1363,95 @@ The likely fix:
 - volume is decided explicitly;
 - loaded PR XP drift is measured;
 - in its own phase.
+
+**Closed in D121 (LOOP 10.38).** The volume question was decided from
+repository truth. A volume record is "most total volume in a session" and
+LOOP's training volume counts warm-up work everywhere, so the volume record
+keeps every real set: it is training volume, not a performance claim.
+
+The strength records are performance claims, so they read one predicate,
+`isPerformanceSet` (a performed working set): the heaviest weight, reps at a
+weight and the estimated 1RM. `loadedStrengthPerformance` is that predicate
+on top of `loadedPRPerformance`. The readers:
+- both record walks, after the volume line;
+- the record D49's "your best" reads;
+- Best ever, its date and the bold set;
+- the trend;
+- the badge.
+
+D120's bodyweight rule now reads the same predicate. A warm-up stays in the
+history, dimmed, and in every training-volume figure.
+
+Measured on frozen 10.37 vs 10.38:
+- **Loaded, no warm-up above the work:** 80 histories, 0 moved.
+- **Warm-ups that out-perform the work:** 160 histories.
+  - Each one's strength side equals frozen 10.37 with its warm-ups removed:
+    1,280 of 1,280 lifts.
+  - Its volume records equal 10.37's.
+  - Gone: 3,609 hits a warm-up had set. Revealed: 1,863 real records a
+    warm-up's false record had hidden.
+  - Lifetime XP moved −445 to +180; 12 levels and 3 ranks changed, each from
+    the corrected PR XP alone.
+- **Bodyweight and both owner backups:** 0 moved.
+
+Contract 238, §160.
+
+## E42 — D49's plateau check reads a typed warm-up's load · P4 · PROVEN · OPEN
+
+Found by D121 while proving D49 has zero drift. D49 is unchanged and still
+has this.
+
+**What is wrong.** `detectPlateau` takes each workout's heaviest
+`performedLoad` from every set, warm-ups included. It then calls a lift stalled
+when the last four workouts never beat the first of them. Three readers use it:
+- D49's first tier, ahead of D49's own working-set evidence;
+- the workout card's plateau mark (`findPlateauedExercises`);
+- the capability model's plateau field.
+
+So a warm-up single heavier than the work can invent a stall, or hide a real
+one.
+
+**Measured, identical on 10.37 and 10.38.** Bench Press, working sets of 3 × 8:
+- 185 → 190 → 195 → 200 lb, with a 205 lb warm-up single in the first of the
+  four. `detectPlateau` answers {weight: 205, sessions: 4}, and D49 says
+  "Performance has stalled for 4 sessions — hold the weight, or switch to a
+  similar exercise." The athlete added 15 lb.
+- 185 lb four times, with a 195 lb warm-up single in the third. No plateau is
+  reported, so a real stall is hidden.
+
+**Why it was not fixed in D121.** D121 was told D49 must not drift.
+`detectPlateau` is D49's input, not a record. The likely fix is
+`isPerformanceSet` inside `detectPlateau`, with D49's drift measured, in its own
+phase.
+
+## E43 — The XP line labelled "N working sets" counts warm-ups too · P4 · PROVEN · OPEN
+
+Found by D121 while checking which figures still count warm-ups. Unrelated
+to the records; recorded, not fixed.
+
+**What is wrong.** `computeXPTimeline` counts a workout's "meaningful" sets as
+every set with reps above zero, warm-ups included. It pays both of these from
+that count:
+- workout completion, `calculateWorkoutXP`;
+- set XP, `calculateSetXP`.
+
+It then labels the set line "N working sets". The Workout Summary shows that
+label. D120 (§159) and D121 (§160) kept the count on purpose, because XP
+amounts are not retuned in a record phase. The label is still untrue whenever
+a workout has warm-ups.
+
+**Measured, identical on 10.37 and 10.38.** Bench Press, warm-ups 95 × 10 and
+135 × 5, then 185 × 5 three times:
+- the Summary's XP block reads "5 working sets +15 XP" and "Workout completion
+  +75 XP";
+- counting the three working sets would give +9 and +65.
+
+So the two warm-ups earn 16 XP under a "working sets" label.
+
+**Why it was not fixed in D121.** Either fix is a product decision for its own
+phase:
+- make the label true ("5 sets"): copy only, XP unchanged;
+- count working sets only: an XP-economy change with level and rank drift.
 
 ## Not findings — checked and clean
 

@@ -18451,6 +18451,25 @@ const LOOP_UPDATES = [
     changes: [
       'Bodyweight records and their XP are now counted from working sets only, so some past records and totals may change'
     ]
+  },
+  {
+    id: 'v10-38',
+    version: 'LOOP 10.38',
+    title: 'Strength Records From Working Sets',
+    date: '2026-10-02',
+    swVersion: 'loop-v215',
+    summary: 'Weight, rep and estimated 1RM records now come from your working sets, so a warm-up can no longer become a strength record. Volume still counts every set.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'A loaded warm-up no longer becomes a weight, rep or estimated 1RM record, your Best ever or a point on your strength trend',
+      'On a workout and in Recent workouts, the best set and the record badge now sit on a working set, never a warm-up',
+      'A real record that a heavier warm-up was hiding now counts'
+    ],
+    changes: [
+      'Volume records and training volume still include warm-ups, because they measure all the work you moved',
+      'Strength records and their XP are now counted from working sets only, so some past records, XP and levels may change'
+    ]
   }
 ];
 
@@ -23361,7 +23380,8 @@ function compute1RMTrend(exerciseName){
       if(ex.bodyweight) return;
       /* D91 — a weight typed as "1e999" parses to Infinity; it is not a lift, and
          it used to break Exercise Detail's chart. */
-      (ex.sets || []).forEach(s => { const e1 = estimate1RM(s.weight, s.reps); if(Number.isFinite(e1) && e1 > best) best = e1; });
+      /* D121 (E41) - a warm-up's estimate is not this workout's strength: performances only. */
+      (ex.sets || []).forEach(s => { if(!isPerformanceSet(s)) return; const e1 = estimate1RM(s.weight, s.reps); if(Number.isFinite(e1) && e1 > best) best = e1; });
     });
     if(best > 0) points.push({ date: l.date, value: Math.round(best) });
   });
@@ -31812,6 +31832,34 @@ function loadedPRPerformance(set){
   if(reps === null) return null;
   return { load, reps };
 }
+/* A set that may stand as a PERFORMANCE  (Phase D120/D121 - D88 findings E40, E41).
+
+   A performed working set: a typed warm-up is preparation, a set marked not
+   completed was not done, and drop, failure, AMRAP and untyped legacy sets
+   count, exactly as isWorkingSet says. It is the rule D49, D119, Session Score
+   and recovery already applied. It decides which sets may stand behind a
+   strength record, a best set or a trend point, and nothing else: every set
+   stays in the history, the set counts and the training volume. D120 drew it
+   for bodyweight lifts; D121 names it once, and the loaded strength records
+   read it too. */
+function isPerformanceSet(set){
+  return !!set && isWorkingSet(set) !== false && set.completed !== false;
+}
+/* What one LOADED set contributes to a STRENGTH record (the heaviest weight, reps
+   at a weight, an estimated 1RM), or null  (Phase D121 - D88 finding E41).
+
+   Real loaded work (loadedPRPerformance) that is also a performance. The loaded
+   record walks never asked a set's type, so a typed warm-up was weighed like a
+   working set: 95 x 10 before 95 x 8 was a rep record, a 155 x 12 warm-up an
+   estimated-1RM record, a 235 x 1 warm-up single the heaviest set and Best ever.
+
+   A volume record does not read this. It is the most total volume moved in one
+   workout, and LOOP's training volume counts warm-up work everywhere
+   (sessionVolume, the Volume tab, Weekly Review), so it reads every real loaded
+   set through loadedPRPerformance, as it always has. */
+function loadedStrengthPerformance(set){
+  return isPerformanceSet(set) ? loadedPRPerformance(set) : null;
+}
 
 /* What one BODYWEIGHT set contributes as strength performance, or null when it is
    not one  (Phase D120 - D88 finding E40).
@@ -31829,11 +31877,10 @@ function loadedPRPerformance(set){
    real (D96A). Every engine that reads a bodyweight performance asks here, so
    none holds a private definition of one. Warm-ups stay in the history, the
    set counts, volume and every display of what was done: this decides only
-   what may stand as a performance. The loaded rule is loadedPRPerformance
-   above, unchanged: load decides a loaded record, and its warm-ups are E41. */
+   what may stand as a performance. Since D121 the rule is isPerformanceSet
+   above, which the loaded strength records read too. */
 function bodyweightPerformanceReps(set){
-  if(!set || isWorkingSet(set) === false || set.completed === false) return null;
-  return performedReps(set.reps);
+  return isPerformanceSet(set) ? performedReps(set.reps) : null;
 }
 /* One workout's bodyweight performance of a lift: the most reps in one set that is
    a performance, or null when none is. Never a sum, never a mix of sets, and
@@ -31990,6 +32037,8 @@ function computeExercisePREvents(exerciseName){
         if(!perf) return;
         const w = perf.load, r = perf.reps;
         sessionVolume += w * r;
+        /* D121 (E41) - volume is every real set moved; the strength records are performances only. */
+        if(!isPerformanceSet(set)) return;
         if(w > sessionMaxWeight) sessionMaxWeight = w;
         const e1 = estimate1RM(w, r);
         if(e1 > session1RM) session1RM = e1;
@@ -33297,6 +33346,7 @@ function prSetIndexFor(sets, hit, isBW){
     let v = null;
     /* D120 (E40) - a bodyweight record is carried by a set that could set one, never a typed warm-up. */
     if(isBW && (type === 'reps' || type === 'weight')) v = bodyweightPerformanceReps(s);
+    else if(!isPerformanceSet(s)) return;        // D121 (E41) - nor a loaded one
     else if(type === 'reps') v = r;
     else if(type === 'weight') v = w;
     else if(type === '1rm') v = (!isNaN(w) && !isNaN(r)) ? estimate1RM(w, r) : null;
@@ -33548,6 +33598,7 @@ function computeXPTimeline(){
             if(!perf) return;
             const w = perf.load, r = perf.reps;
             sessionVolume += w * r;
+            if(!isPerformanceSet(s)) return;             // D121 (E41) - the record walk's own line
             if(w > sessionMaxWeight) sessionMaxWeight = w;
             const e1 = estimate1RM(w, r);
             if(e1 > session1RM) session1RM = e1;
@@ -34654,7 +34705,7 @@ function computePRs(){
           const r = bodyweightPerformanceReps(st);      // D120 (E40) - never a typed warm-up
           if(r !== null && (topR === null || r > topR)) topR = r;
         } else {
-          const perf = loadedPRPerformance(st);
+          const perf = loadedStrengthPerformance(st);   // D121 (E41) - never a typed warm-up
           if(perf && (topW === null || perf.load > topW)){ topW = perf.load; topR = perf.reps; }
         }
       }
@@ -39331,13 +39382,14 @@ function exerciseBestSet(sessions, isBW){
   sessions.forEach(s => s.allSets.forEach(st => {
     const w = num(st.weight), r = num(st.reps);
     if(isBW){ const rb = bodyweightPerformanceReps(st); if(rb !== null && rb > best.r){ best.r = rb; haveBest = true; } }
-    else if(!isNaN(w) && !isNaN(r) && r > 0 && (!haveBest || w > best.w || (w === best.w && r > best.r))){
+    else if(isPerformanceSet(st) && !isNaN(w) && !isNaN(r) && r > 0 && (!haveBest || w > best.w || (w === best.w && r > best.r))){
       best.w = w; best.r = r; haveBest = true;
     }
   }));
   if(!haveBest) return null;
   /* D120 (E40) - a bodyweight best is a set that is a performance: a warm-up with the same reps is not it. */
-  const same = st => isBW ? bodyweightPerformanceReps(st) === best.r : num(st.reps) === best.r && num(st.weight) === best.w;
+  /* D121 (E41) - and a loaded best is a performance too: a warm-up at the same load and reps is not it. */
+  const same = st => isBW ? bodyweightPerformanceReps(st) === best.r : isPerformanceSet(st) && num(st.reps) === best.r && num(st.weight) === best.w;
   /* Dated by the first workout that performed it (sessions arrive newest first). */
   let at = null;
   for(let i = sessions.length - 1; i >= 0 && !at; i--) if(sessions[i].allSets.some(same)) at = sessions[i];
@@ -39598,7 +39650,7 @@ function exDetailSessionRowHtml(s, d){
   const title = e.title || CAT_LABEL[e.category] || 'Workout';
   const headline = exerciseBestSetText(top, s.bodyweight);
   const mark = !evs.length ? '' : first ? '<span class="rw-pr exd-first">First</span>' : '<span class="rw-pr">PR</span>';
-  const spoken = exdDate(s.date) + ', ' + title + ': ' + (top ? 'best set ' + headline : s.bodyweight && s.sets.some(st => performedReps(st && st.reps) !== null) ? 'no working set' : 'no complete set') + ', '
+  const spoken = exdDate(s.date) + ', ' + title + ': ' + (top ? 'best set ' + headline : s.sets.some(st => s.bodyweight ? performedReps(st && st.reps) !== null : loadedPRPerformance(st) !== null) ? 'no working set' : 'no complete set') + ', '
     + sets.length + ' set' + (sets.length === 1 ? '' : 's') + (evs.length ? (first ? ', first logged best' : ', personal record') : '') + '. Open workout.';
   return '<button type="button" class="rw-row exd-row" onclick="openDayDetail(\'' + onclickArg(e.id) + '\')" aria-label="' + escapeAttr(spoken) + '">'
     + workoutIdentityHtml(e, e.category, 'sm')
