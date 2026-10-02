@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.34",
+  "version": "10.35",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner check on iPhone: with a paused program, Progress, the Log strip and Weekly Review show the paused days as paused right after opening LOOP.",
+  "nextAction": "Owner check on iPhone: open a lift from Progress → Strength; the top shows its next target, and tapping a recent workout opens that workout.",
   "blocker": null,
-  "updatedAt": "2026-10-02T02:20:20Z"
+  "updatedAt": "2026-10-02T06:11:25Z"
 }

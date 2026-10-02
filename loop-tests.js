@@ -14727,10 +14727,11 @@ async function testLuminousDepth(){
     /\.stat \+ \.stat\{ border-left: 1px solid var\(--border-quiet\); \}/.test(css));
 
   sub('charts carry the reference language honestly');
+  /* D118 restated: Exercise Detail's chart is exerciseTrendSvg now, in the same language. */
   T('the line chart underfills and lights its most recent point', (() => {
-    const fn = src.slice(src.indexOf('function e1rmLineSvg'), src.indexOf('function renderAll'));
-    return /url\(#e1fill\)/.test(fn) && /r="7" fill="rgba\(76,194,255,0\.22\)"/.test(fn) &&
-      /stop-opacity="0\.16"/.test(fn);
+    const fn = fnSrc(src, 'exerciseTrendSvg');
+    return /fill="url\(#exdFill\)"/.test(fn) && /class="exd-now-halo"[^>]*r="7\.5"/.test(fn) &&
+      /stop-opacity="0\.18"/.test(fn) && /\.exd-now-halo\{ fill: var\(--accent-soft\); \}/.test(src);
   })());
   T('the bar chart grounds its light under the current week', /url\(#vbase\)/.test(src));
   T('sparse-history truth is untouched by the new light',
@@ -32258,8 +32259,9 @@ async function testStabilization(){
       attr.indexOf("x\\');globalThis") !== -1);
     // Every handler that carries a name an athlete typed — or that arrived on a
     // shared workout from another athlete — goes through onclickArg.
-    /* D115 — the Weekly Review's progression rows are the third openExDetail site, through onclickArg like the rest. */
-    [['openExDetail', 3], ['deleteCustomEquipment', 1], ['toggleGymEquipment', 1],
+    /* D115 — the Weekly Review's progression rows are the third openExDetail site, through onclickArg like the rest.
+       D118 — Log → Browse by exercise is the fourth, the same way. */
+    [['openExDetail', 4], ['deleteCustomEquipment', 1], ['toggleGymEquipment', 1],
      ['beginEditExerciseNote', 1], ['removeExerciseNote', 1]].forEach(([fn, n]) => {
       const re = new RegExp("onclick=\"" + fn + "\\('\\$\\{onclickArg\\(", 'g');
       /* D94A — the Mastery leader card builds its handler in masteryPodiumCardHtml
@@ -32351,10 +32353,15 @@ async function testStabilization(){
     const ctx = app.ctx;
     /* The logger stores a set when EITHER field is filled, so a set with reps
        and a cleared weight is real data, not a corruption. */
-    T('a top set is never seeded from an unparseable weight',
-      /const weighed = valid\.filter\(x => !isNaN\(x\.w\)\);/.test(src));
-    T('and a session with no weighed set at all returns nothing to show',
-      /if\(!weighed\.length\) return null;/.test(src));
+    /* D118 restated: the "Most recent" top set is gone; a session's best set is D96A's
+       one-set rule (exerciseBestSet), held here by behaviour rather than by its old lines. */
+    {
+      const E = (w, r) => ({ weight: w, reps: r, rir: '' });
+      const one = sets => ctx.exerciseBestSet([{ date: '2026-08-01', id: 'x', allSets: sets }], false);
+      const b1 = one([E('', '12'), E('135', '8'), E('145', '6')]);
+      T('a top set is never seeded from an unparseable weight', !!b1 && b1.w === 145 && b1.r === 6, b1);
+      T('and a session with no weighed set at all returns nothing to show', one([E('', '12'), E('', '10')]) === null);
+    }
     T('"same reps" is not claimed from two sessions that logged no reps',
       /if\(!newReps\.length \|\| !prevReps\.length\) return;/.test(src));
     // Math.max of nothing is -Infinity, and -Infinity === -Infinity.
@@ -33425,12 +33432,11 @@ async function testPRModeConsistency(){
     T('no record, event or XP line is built from it', evLines('Bench Press') === '2026-08-03:Weight PR 2026-08-17:Weight PR'
       && xpLines('Bench Press') === evLines('Bench Press') && pr('Bench Press').weight === 140, evLines('Bench Press'));
     T('the timeline climbs through real loads only', pbt('Bench Press').milestones.map(m => m.value).join(',') === '135,140');
+    /* D118 restated: one chart now (the metric toggle is gone); every zone is read. */
     const shown = [];
-    for(const m of ['1rm', 'weight', 'volume', 'reps']){
-      ctx.openExDetail('Bench Press'); ctx.setExMetric(m);
-      ['exDetailStats', 'exDetailTrend', 'exDetailChart'].forEach(id => shown.push(ctx.document.getElementById(id).innerHTML));
-    }
-    T('and Exercise Detail never prints Infinity or draws NaN, on any chart', !/Infinity|NaN/.test(shown.join(' ')));
+    ctx.openExDetail('Bench Press');
+    ['exDetailFacts', 'exDetailNext', 'exDetailChart', 'exDetailStats', 'exDetailHistory'].forEach(id => shown.push(ctx.document.getElementById(id).innerHTML));
+    T('and Exercise Detail never prints Infinity or draws NaN, on any chart', !/Infinity|NaN/.test(shown.join(' ')) && /exd-chart-svg/.test(shown.join(' ')));
     /* D96A asserted the finite check by counting Number.isFinite inside each
        record walk. D96C-1 did not remove those checks — it moved them into one
        named rule both walks call, which is strictly harder to break: a walk that
@@ -33453,7 +33459,8 @@ async function testPRModeConsistency(){
       /deriveExercisePRMode\(/.test(fnSrc(src, 'prModesByLift')) && /prModesByLift\(\)/.test(fnSrc(src, 'prModeOf')));
     T('computePRs reads it', /prModesByLift\(\)/.test(fnSrc(src, 'computePRs')));
     T('computeExercisePREvents reads it', /prModeOf\(/.test(fnSrc(src, 'computeExercisePREvents')));
-    T('Exercise Detail reads it', /prModeOf\(/.test(fnSrc(src, 'renderExDetail')));
+    /* D118 restated: Exercise Detail derives in deriveExerciseDetail, and reads the one rule there. */
+    T('Exercise Detail reads it', /prModeOf\(raw\)/.test(fnSrc(src, 'deriveExerciseDetail')) && /deriveExerciseDetail\(name\)/.test(fnSrc(src, 'renderExDetail')));
     T('the XP engine reads it', /prModesByLift\(\)/.test(fnSrc(src, 'computeXPTimeline')));
     T('and it is cleared with the log\'s other derived caches', /invalidatePRCaches\(\)/.test(fnSrc(src, 'invalidateSortedLogCache'))
       && /_prModesCache = null/.test(fnSrc(src, 'invalidatePRCaches')) && /_prRecordsCache = null/.test(fnSrc(src, 'invalidatePRCaches')));
@@ -33468,7 +33475,7 @@ async function testPRModeConsistency(){
     T('there is exactly one mode classifier in the file', (src.match(/function deriveExercisePRMode\(/g) || []).length === 1);
     T('no engine reads a missing weight as bodyweight, or lets the first or last session decide by position',
       !/ex\.bodyweight \|\| isNaN\(w\)/.test(src)
-      && !/sessions\[0\]\.(isBW|bodyweight)/.test(fnSrc(src, 'computeExercisePREvents') + fnSrc(src, 'renderExDetail')));
+      && !/sessions\[0\]\.(isBW|bodyweight)/.test(fnSrc(src, 'computeExercisePREvents') + fnSrc(src, 'renderExDetail') + fnSrc(src, 'deriveExerciseDetail')));
   });
 
   await guard('cache', async () => {
@@ -35801,7 +35808,10 @@ async function testMasteryOneSystem(){
     const html = render();
     const cards = html.match(/<(button|div) [^>]*class="(mpod|mmc)-card [^"]*"[^>]*data-tier="\d"/g) || [];
     T('every leader card and every row carries its tier', cards.length === 6 && tags(/class="mastery-row[^"]*"[^>]*data-tier="[1-6]"/g, html).length >= 8);
-    T('Exercise Detail’s own mastery bar is untouched — no tier there, still the app accent', !/data-tier|mpill/.test(fnSrc(src, 'exerciseMasteryHtml')));
+    /* D118 restated: D94B left Exercise Detail's bar alone; D118 brings it into the one level language. */
+    T('Exercise Detail’s mastery wears the same tier: its badge, its pill and its bar colour',
+      /data-tier="\$\{t\.level\}"/.test(fnSrc(src, 'exerciseMasteryHtml')) && /masteryBadgeHtml\(m\.level, 38\)\}\$\{masteryLevelPillHtml\(m\.level\)\}/.test(fnSrc(src, 'exerciseMasteryHtml')) &&
+      /\.exd-mastery\[data-tier\] \.mastery-bar span\{ background: var\(--tier\); \}/.test(css));
     T('long names wrap to a second line instead of being cut, and never slide under the pill',
       /\.mst \.mastery-row-name\{ white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2;/.test(viewCss) && /\.mastery-lvl-chip\{[^}]*flex-shrink: 0/.test(css));
   });
@@ -38439,12 +38449,14 @@ async function testFiniteLoadsD96A(){
       /* Both clauses read the COMMENT-STRIPPED function, not the file: the
          comment above the fix quotes the old line verbatim, and prose about a
          rule is not the rule. */
-      /best\.w = w; best\.r = r; haveBest = true;/.test(fnSrc(src, 'renderExDetail')) &&
-      !/best\.r = r \|\| best\.r/.test(fnSrc(src, 'renderExDetail')));
+      /* D118 restated: the rule moved, verbatim, from renderExDetail into exerciseBestSet,
+         which the sheet's derivation calls; the lines are held where they now live. */
+      /best\.w = w; best\.r = r; haveBest = true;/.test(fnSrc(src, 'exerciseBestSet')) &&
+      !/best\.r = r \|\| best\.r/.test(fnSrc(src, 'exerciseBestSet')) && /exerciseBestSet\(sessions, isBW\)/.test(fnSrc(src, 'deriveExerciseDetail')));
     T('a loaded candidate needs a finite load AND finite positive reps on that same set',
-      /!isNaN\(w\) && !isNaN\(r\) && r > 0 &&/.test(fnSrc(src, 'renderExDetail')));
+      /!isNaN\(w\) && !isNaN\(r\) && r > 0 &&/.test(fnSrc(src, 'exerciseBestSet')));
     T('the bodyweight branch is D91’s, unchanged',
-      /if\(isBW\)\{ if\(!isNaN\(r\) && r > best\.r\)\{ best\.r = r; haveBest = true; \} \}/.test(fnSrc(src, 'renderExDetail')));
+      /if\(isBW\)\{ if\(!isNaN\(r\) && r > best\.r\)\{ best\.r = r; haveBest = true; \} \}/.test(fnSrc(src, 'exerciseBestSet')));
   });
   await guard('bodyweight best', async () => {
     const c = (await H.loadAppBooted({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'),
@@ -38805,7 +38817,11 @@ async function testExerciseIdentityD96B(){
       /oneNamePerLoggedExercise\(rawRows\)/.test(fnSrc(src, 'getLoggedExerciseNames')) &&
       !/set\.add\(ex\.name\)/.test(fnSrc(src, 'getLoggedExerciseNames')) &&
       /exerciseTrendFor\(name\)/.test(fnSrc(src, 'computeExerciseCapability')) &&
-      /exerciseTrendFor\(name\)/.test(fnSrc(src, 'renderExDetail')) &&
+      /* D118 restated: Exercise Detail computes the Strength row's own figure from the keyed
+         points (compute1RMTrend groups by key) rather than looking it up; Contract 235 holds
+         that it equals exerciseTrendFor for every spelling. */
+      /const points = sessions\.length \? compute1RMTrend\(raw\) : \[\];/.test(fnSrc(src, 'deriveExerciseDetail')) &&
+      /exerciseTrendFromPoints\(points\)/.test(fnSrc(src, 'deriveExerciseDetail')) &&
       !/computeExerciseTrends\(\)\.find\(t => t\.name === name\)/.test(src));
     T('rank thresholds, the XP curve and the Session Score weights are as they were',
       c.RANKS.map(r => r.name + ':' + r.min).join() === 'ROOKIE:1,TRAINEE:5,ATHLETE:10,COMPETITOR:15,ELITE:20,VETERAN:30,MASTER:40,LEGEND:50' &&
@@ -38866,10 +38882,13 @@ async function testIdentityLookupD96B1(){
     [EX(n, [bw ? BW(6 + i) : S(135 + i * 10, 8)], bw)]));
   const strengthRows = c => { c.renderProgStrength();
     return [...c.document.getElementById('progExercises').innerHTML.matchAll(/class="rank-name">([^<]*)</g)].map(m => m[1]); };
+  /* D118 restated: the session count now lives in the hero's facts (#exDetailFacts) and the
+     direction word in the trend zone (#exDetailChart); `trend` reads both, as one line did. */
   const detail = (c, name) => { c.exDetailName = name; c.renderExDetail();
-    return { trend: c.document.getElementById('exDetailTrend').innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+    const txt = id => c.document.getElementById(id).innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return { trend: txt('exDetailFacts') + ' · ' + txt('exDetailChart'),
              title: c.document.getElementById('exDetailName').textContent,
-             stats: c.document.getElementById('exDetailStats').innerHTML,
+             stats: c.document.getElementById('exDetailFacts').innerHTML,
              chart: c.document.getElementById('exDetailChart').innerHTML }; };
 
   /* ------------------------------------------------- A—D  the Strength list */
@@ -38911,7 +38930,7 @@ async function testIdentityLookupD96B1(){
     V.forEach(n => {
       const d = detail(c, n);
       T('F  Exercise Detail("' + n + '") shows the whole merged history',
-        /4 sessions logged/.test(d.trend) && />4</.test(d.stats) && d.chart.length > 0 && d.title === n);
+        /^4 sessions Last trained /.test(d.trend) && />4</.test(d.stats) && /exd-chart-svg/.test(d.chart) && d.title === n);
     });
     T('F  and no spelling loses the trend line', V.every(n => /Improving|Declining|Holding/.test(detail(c, n).trend)));
     const tr = c.computeExerciseTrends()[0];
@@ -39009,7 +39028,7 @@ async function testIdentityLookupD96B1(){
       k(strengthRows(c)[0]) === k(shown) && c.getAllLoggedExerciseNames().length === 1 &&
       c.computePBTCandidates().length === 1 && Object.keys(c.masteryPRCounts()).length === 1);
     T('I  and the detail sheet opened from any of them shows the same history',
-      [shown, 'bench press', 'BENCH PRESS'].every(n => /4 sessions logged/.test(detail(c, n).trend)));
+      [shown, 'bench press', 'BENCH PRESS'].every(n => /^4 sessions Last trained /.test(detail(c, n).trend)));
   });
 
   /* ------------------------------------------------- J—L  D96B stays closed */
@@ -39120,7 +39139,7 @@ async function testIdentityLookupD96B1(){
       JSON.stringify(c.getLoggedExerciseNames()) === JSON.stringify(NAMES.slice().sort((a, b) => a.localeCompare(b))));
     T('every lift keeps its own trend, capability and detail',
       c.computeExerciseTrends().length === 5 && NAMES.every(n => c.computeExerciseCapability(n).sessions === 4) &&
-      NAMES.every(n => /4 sessions logged/.test(detail(c, n).trend)));
+      NAMES.every(n => /^4 sessions Last trained /.test(detail(c, n).trend)));
     T('a bodyweight movement is still not in this list, and still has a capability',
       !c.getLoggedExerciseNames().includes('Plank') && c.computeExerciseCapability('Plank').sessions === 20);
   });
@@ -41499,7 +41518,9 @@ async function testWorkoutPerformanceD96C3(){
     t.marks = ctx.workoutLog.map(l => l.id + ':' + ctx.getSessionPRs(l).map(lc).sort().join('+')).join(' ');
     t.computePRs = JSON.stringify(ctx.computePRs().map(r => [lc(r.name), r.isBW, r.weight, r.reps, r.date]));
     t.detail = detail(L);
-    t.detailTrend = ctx.document.getElementById('exDetailTrend').textContent.replace(/\s+/g, ' ');
+    /* D118 restated: the sheet's other zones, which a row layout could also move. */
+    t.detailTrend = ['exDetailFacts', 'exDetailNext', 'exDetailChart', 'exDetailHistory']
+      .map(id => ctx.document.getElementById(id).textContent.replace(/\s+/g, ' ')).join(' | ');
     t.trend = JSON.stringify(ctx.compute1RMTrend(L));
     t.pbt = JSON.stringify(ctx.computePersonalBestTimeline(L));
     t.mastery = JSON.stringify(ctx.masteryPRCounts()) + JSON.stringify((ctx.getTopExerciseMastery() || []).map(m => [m.exerciseId, m.level, m.points]));
@@ -41572,8 +41593,11 @@ async function testWorkoutPerformanceD96C3(){
     T('computePRs: 175 x 5, on that workout',
       JSON.stringify(ctx.computePRs().map(r => [r.weight, r.reps, r.date])) === JSON.stringify([[175, 5, D(7)]]), JSON.stringify(ctx.computePRs()));
     const st = detail('Bench Press');
-    T('Exercise Detail: best ever and most recent include the 175; still two sessions',
-      /Best ever\s*175 lb × 5/.test(st) && /Most recent\s*175 lb × 5/.test(st) && /Sessions\s*2/.test(st), st);
+    /* D118 restated: "Most recent" became the workout's own row, whose best set is the bold one. */
+    const facts = ctx.document.getElementById('exDetailFacts').innerHTML;
+    const hist = ctx.document.getElementById('exDetailHistory').innerHTML;
+    T('Exercise Detail: best ever and the latest workout’s best set include the 175; still two sessions',
+      /Best ever\s*175 lb × 5/.test(st) && /<b>175 × 5<\/b>/.test(hist) && /^<span class="exd-fact"><b>2<\/b> sessions<\/span>/.test(facts) && (hist.match(/class="rw-row exd-row"/g) || []).length === 2, [st, facts, hist.slice(0, 400)]);
     const cap = ctx.computeExerciseCapability('Bench Press');
     T('capability sees the 175 (it was a loaded row, the same execution)',
       cap.bestWeight === 175 && cap.recentBestWeight === 175 && cap.sessions === 2 && cap.isBodyweight === false, JSON.stringify([cap.bestWeight, cap.recentBestWeight, cap.sessions]));
@@ -46504,7 +46528,11 @@ async function testStartupRevealD114(){
   sub('8 — protected: routing, onboarding, the draft, updates, navigation (byte-identical to LOOP 10.30)');
   const PINS = {"boot":"df1e1925fc3531b8","showMainApp":"38a1960155d6d0ef","showOnboarding":"445132739539fb62","renderFirstUse":"af90ba8f72c56856","shouldOfferOnboarding":"996246c4aeb2a2b1","startOnboarding":"51e97131e1e18524","loadOnboarding":"34770de5e1bb41db","loadActiveDraft":"a0f90fec479e5332","restoreDraftToSheet":"192266c0260e11ca","renderResumeBanner":"620925f54e711dfe","persistDraftNow":"0f08badd4771eb1a","reloadForAppUpdate":"e495823fbe4084a9","switchTab":"6003bf3d0475219a","renderAll":"1041cce8d472fc24","renderToday":"a10918d4ae72ab73","renderTodayWorkout":"64196275a8ddd837","initPageIsolation":"0709ef48e0c50a37","renderUpdateIndicator":"e0c02b96ecc176f9"};
   const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
-  const moved = Object.keys(PINS).filter(n => sha(fnSrc(raw, n)) !== PINS[n]);
+  /* D118 restated by reversal: renderAll gained exactly one statement (an open Exercise Detail is
+     redrawn with the tabs). With that statement taken out it must still hash to 10.30's pin. */
+  const D118_RENDER_ALL = "  if(exDetailName && exDetailIsOpen()) renderSurface('renderExDetail', renderExDetail);\n";
+  T('renderAll carries the one D118 statement, once', fnSrc(raw, 'renderAll').split(D118_RENDER_ALL).length === 2);
+  const moved = Object.keys(PINS).filter(n => sha(n === 'renderAll' ? fnSrc(raw, n).replace(D118_RENDER_ALL, '') : fnSrc(raw, n)) !== PINS[n]);
   T('all 18 startup-adjacent functions are unchanged: boot, both screens, the D106 tour decision and start, the draft load/restore/banner/flush, the update reload, tabs, Today',
     moved.length === 0, moved);
   T('storage is untouched: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow', (() => {
@@ -47509,6 +47537,490 @@ async function testProgramContextCacheD117(){
   });
 }
 
+/* =========================================================
+   CONTRACT 235 — EXERCISE DETAIL 2.0: THE CANONICAL HOME FOR A LIFT  (Phase D118)
+   ---------------------------------------------------------
+   One derivation (deriveExerciseDetail) and five zones. Every figure on the
+   sheet is held against the engine that owns it, not against a copy of its
+   rule: identity (D96B), one performance per workout (D96C-3), best ever
+   (D96A), personal bests (D82), records per workout (D96C-2), the next session
+   (D49, asked as Progress asks it), the trend (D98, Strength's own row) and
+   mastery (D86/D94). Nothing is stored, nothing historical is reconstructed.
+   ========================================================= */
+async function testExerciseDetailD118(){
+  section('CONTRACT 235 — Exercise Detail 2.0: the canonical home for a lift (D118)');
+  const fs = require('fs'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const css = raw.slice(raw.indexOf('<style>'), raw.indexOf('</style>'));
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const pin = n => crypto.createHash('sha256').update(fnSrc(raw, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-09-30T12:00:00';
+  const D = n => { const d = new Date(2026, 8, 30, 12); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '2' : String(rir), type: type || 'working', completed: true });
+  const BW = r => ({ weight: 'BW', reps: String(r), rir: '2', type: 'working', completed: true });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const W = (id, n, title, exs, cat) => ({ id, date: D(n), category: cat || 'push', title, notes: '', exercises: exs });
+  async function boot(log, extra){
+    const app = H.loadApp(Object.assign({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) }, extra || {}));
+    const release = pinClock(app.ctx, NOW);
+    try{ await H.settle(300); } finally { release(); }
+    return app;
+  }
+  const at = (c, fn) => withClockOn(c, NOW, fn);
+  const open = (c, name) => at(c, () => { c.openExDetail(name); return c.exDetailModel; });
+  const html = (c, id) => c.document.getElementById(id).innerHTML;
+  const text = (c, id) => html(c, id).replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const rowsOf = c => html(c, 'exDetailHistory').split('class="rw-row exd-row"').slice(1);
+  const rowCall = r => (r.match(/onclick="([^"]*)"/) || [])[1] || '';
+  const runCall = (code, fnName) => { let got = null; new Function(fnName, code)(x => { got = x; }); return got; };
+  const modelOf = d => ({ name: d.name.trim().toLowerCase(), n: d.sessionCount, last: d.lastDate, ids: d.sessions.map(s => s.id), mode: d.prMode,
+    best: d.best && [d.best.w, d.best.r, d.best.date], rec: d.rec, recReps: d.recReps, lastRec: d.last, points: d.points, trend: d.trend,
+    reps: d.repPoints, bests: [d.bests.isBW, d.bests.unit, d.bests.milestones], mastery: d.mastery && [d.mastery.exerciseId, d.mastery.level, d.mastery.percent, d.mastery.sessions] });
+  const SRC_FNS = ['openExDetail', 'exerciseBestSet', 'exerciseBestSetText', 'exerciseRepPoints', 'deriveExerciseDetail', 'exDetailMetaHtml', 'exDetailFactsHtml',
+    'exDetailNextHtml', 'exerciseTrendSvg', 'exDetailTrendHtml', 'exDetailBestsHtml', 'exDetailRecordsHtml', 'exDetailSessionRowHtml', 'exDetailHistoryHtml',
+    'renderExDetail', 'exDetailShowMore', 'exDetailShowAllBests', 'exerciseMasteryHtml'];
+  const sheetSrc = SRC_FNS.map(n => fnSrc(raw, n)).join('\n');
+
+  /* A real climb: ten weekly sessions, a warm-up each, the latest at the top of its reps. */
+  const LOADS = [185, 185, 190, 195, 195, 200, 205, 205, 210, 215], REPS = [8, 9, 8, 8, 10, 8, 8, 9, 8, 10];
+  const BENCH = LOADS.map((w, i) => W('b' + i, 66 - i * 7, i % 2 ? 'Push B' : 'Push A',
+    [E('Bench Press', [S(Math.round(w / 10) * 5, 10, 5, 'warmup'), S(w, REPS[i], i === 9 ? 2 : 1), S(w, REPS[i] - 1, 1)])]));
+
+  /* ---------------------------------------------------------------- */
+  sub('1  one derivation, five zones, and the sheet opens the way it always did');
+  await guard('derivation', async () => {
+    T('1  one sheet, one opener, one renderer — and the renderer derives once and fills the five zones from it',
+      (raw.match(/function openExDetail\(/g) || []).length === 1 && (raw.match(/function renderExDetail\(/g) || []).length === 1 &&
+      (fnSrc(raw, 'renderExDetail').match(/deriveExerciseDetail\(/g) || []).length === 1 &&
+      ['exDetailFacts', 'exDetailNext', 'exDetailChart', 'exDetailStats', 'exDetailHistory'].every(id => fnSrc(raw, 'renderExDetail').indexOf("'" + id + "'") !== -1));
+    const at0 = raw.indexOf('id="exDetailOverlay"'), block = raw.slice(at0, raw.indexOf('\n  </div>\n', raw.indexOf('id="exDetailHistory"', at0)) + 10);
+    T('1  the page is still a page, titled by its own heading, with Back at the top and no second exit to lose',
+      /<div class="overlay overlay-page" id="exDetailOverlay" aria-labelledby="exDetailName" onclick="backdropDismiss\(event, closeExDetail\)">/.test(raw) &&
+      /<button class="workout-back" onclick="closeExDetail\(\)" aria-label="Back">/.test(block) && /<h2 id="exDetailName">/.test(block) &&
+      !/sheet-actions|<header/.test(block) && block.length > 400 && block.length < 3000);
+    const c = (await boot(BENCH)).ctx;
+    let derives = 0, recs = 0; const realD = c.deriveExerciseDetail, realP = c.progressionFor;
+    c.deriveExerciseDetail = function(){ derives++; return realD.apply(this, arguments); };
+    c.progressionFor = function(){ recs++; return realP.apply(this, arguments); };
+    open(c, 'Bench Press');
+    T('1  opening it derives once and asks D49 once — not once per zone, not once per workout', derives === 1 && recs === 1, [derives, recs]);
+    at(c, () => c.exDetailShowMore());
+    at(c, () => c.exDetailShowAllBests());
+    T('1  showing more, or every personal best, re-uses the derivation it already has', derives === 1 && recs === 1, [derives, recs]);
+    c.deriveExerciseDetail = realD; c.progressionFor = realP;
+    T('1  the name is the lift as it was asked for', c.document.getElementById('exDetailName').textContent === 'Bench Press');
+    T('1  every open starts at the top of the new lift, with five rows and three bests: the reset follows the sheet being shown (a hidden sheet has no scroll box)',
+      /exDetailShown = EXERCISE_DETAIL\.recent;\s*exDetailAllBests = false;\s*renderExDetail\(\);[\s\S]*ov\.classList\.add\('open'\);[\s\S]*scroller\.scrollTop = 0;/.test(fnSrc(raw, 'openExDetail')) &&
+      fnSrc(raw, 'openExDetail').indexOf("classList.add('open')") < fnSrc(raw, 'openExDetail').indexOf('scrollTop = 0'));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('2  identity: D96B’s key, and nothing fuzzier');
+  await guard('identity', async () => {
+    const heavy = [W('x1', 12, 'Push', [E('Barbell Bench Press', [S(300, 5), S(300, 5)])]), W('x2', 5, 'Push', [E('Barbell Bench Press', [S(305, 5)])])];
+    const c = (await boot(BENCH.concat(heavy))).ctx;
+    const base = modelOf(open(c, 'Bench Press'));
+    T('2  every spelling of the same key opens the same lift: same workouts, best, plan, trend, records and mastery',
+      ['bench press', ' Bench Press ', 'BENCH PRESS'].every(n => same(modelOf(open(c, n)), base)), base.n);
+    T('2  and it is the history getExerciseFullHistory reads, workout for workout',
+      same(base.ids, c.getExerciseFullHistory('Bench Press').map(s => s.id)) && base.n === 10);
+    const d = open(c, 'Bench Press');
+    T('2  a different name the registry happens to call the same movement is NOT merged in: no 300 anywhere in its sessions, best, plan, trend or records',
+      d.sessionCount === 10 && d.best.w === 215 && d.last.weight === 215 && d.points.every(p => p.value < 300) && d.bests.milestones.every(m => m.value <= 215) &&
+      !d.sessions.some(s => s.id === 'x1' || s.id === 'x2'));
+    T('2  the hero counts this name’s ten workouts', /^<span class="exd-fact"><b>10<\/b> sessions<\/span>/.test(html(c, 'exDetailFacts')));
+    T('2  mastery is the one system keyed by the registry’s movement — it is shown as it is, and the sheet says why its count differs',
+      d.mastery && d.mastery.sessions === 12 && /Mastery counts 12 sessions: every name LOOP recognises as this movement/.test(html(c, 'exDetailStats')));
+    const e = open(c, 'Barbell Bench Press');
+    T('2  the other name has its own page, its own history', e.sessionCount === 2 && e.best.w === 305 && e.sessions.every(s => /^x/.test(s.id)));
+    T('2  the derivation keys by loggedExerciseKey, the D96B rule — never normalizeExerciseName or the registry id',
+      /const key = loggedExerciseKey\(raw\);/.test(fnSrc(raw, 'deriveExerciseDetail')) && !/normalizeExerciseName|resolveExerciseId/.test(fnSrc(raw, 'deriveExerciseDetail')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('3  one performance per workout (D96C-3), in the order and by the ids the log holds');
+  await guard('performances', async () => {
+    const log = [W('r1', 10, 'Legs A', [E('Back Squat', [S(225, 5), S(225, 5)])], 'legs'),
+      W('r2', 3, 'Legs B', [E('Back Squat', [S(225, 5)]), E('Leg Press', [S(300, 10)]), E('Back Squat', [S(245, 3), S(235, 5)])], 'legs'),
+      W('am', 6, 'Morning', [E('Back Squat', [S(215, 5)])], 'legs'), W('pm', 6, 'Evening', [E('Back Squat', [S(220, 5)])], 'legs')];
+    const c = (await boot(log)).ctx;
+    const d = open(c, 'Back Squat');
+    T('3  two rows of one lift in one workout are ONE session, with all three sets, logged order kept', d.sessionCount === 4 &&
+      same(d.sessions.find(s => s.id === 'r2').allSets.map(s => s.weight + 'x' + s.reps), ['225x5', '245x3', '235x5']));
+    const rows = rowsOf(c);
+    const r2 = rows[0];
+    T('3  its row lists every set and bolds the one D96A would name — the 245 from the second row',
+      /<b>245 × 3<\/b>/.test(r2) && (r2.match(/<b>/g) || []).length === 1 && r2.indexOf('225 × 5') < r2.indexOf('245 × 3') && r2.indexOf('245 × 3') < r2.indexOf('235 × 5'));
+    T('3  two workouts on one day stay two rows, each its own', rows.length === 4 && rows.some(r => /Morning/.test(r)) && rows.some(r => /Evening/.test(r)));
+    const order = c.sortedLog().filter(l => l.exercises.some(x => x.name === 'Back Squat')).map(l => l.id);
+    T('3  rows run newest first, exactly as the log is sorted (date, then id)', same(d.sessions.map(s => s.id), order) &&
+      same(rows.map(r => runCall(rowCall(r), 'openDayDetail')), order.slice(0, 5)), [d.sessions.map(s => s.id), order]);
+    T('3  each row opens its own workout by that workout’s id — never by a date', rows.every(r => /^openDayDetail\('[^']+'\)$/.test(rowCall(r))) &&
+      runCall(rowCall(rows.find(r => /Morning/.test(r))), 'openDayDetail') === 'am' && runCall(rowCall(rows.find(r => /Evening/.test(r))), 'openDayDetail') === 'pm');
+    at(c, () => c.openDayDetail(runCall(rowCall(rows.find(r => /Morning/.test(r))), 'openDayDetail')));
+    T('3  and that opens the right workout, though another shares its date', c.document.getElementById('dayDetailTitle').textContent === 'Morning');
+    T('3  the last-trained date and the session count are the newest workout’s and the number of workouts',
+      d.lastDate === D(3) && /^<span class="exd-fact"><b>4<\/b> sessions<\/span>/.test(html(c, 'exDetailFacts')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4  best ever is D96A’s one set; personal bests are D82’s timeline');
+  await guard('records', async () => {
+    const oracle = (sessions) => { let b = null;
+      sessions.forEach(s => s.allSets.forEach(st => { const w = parseFloat(st.weight), r = parseFloat(st.reps);
+        if(!Number.isFinite(w) || !Number.isFinite(r) || r <= 0) return;
+        if(!b || w > b.w || (w === b.w && r > b.r)) b = { w, r }; })); return b; };
+    const c = (await boot(BENCH)).ctx;
+    const d = open(c, 'Bench Press');
+    T('4  the best ever is the heaviest set, then the most reps at that weight, from one real set', !!d.best && same([d.best.w, d.best.r], [215, 10]) &&
+      same([d.best.w, d.best.r], (o => [o.w, o.r])(oracle(d.sessions))) && /Best ever<\/div><div class="snap-num">215 lb × 10<\/div>/.test(html(c, 'exDetailStats')));
+    T('4  dated by the first workout that performed it', d.best.date === D(3));
+    const cases = [[[S(315, ''), S(225, 5)], '225 lb × 5'], [[S(225, 5), S(315, '')], '225 lb × 5'], [[S(315, 0), S(225, 5)], '225 lb × 5'],
+      [[S('1e999', 5), S(225, 5)], '225 lb × 5'], [[S(225, 5), S(315, 3), S(200, 12)], '315 lb × 3'], [[S(225, 5), S(225, 9)], '225 lb × 9']];
+    let ok = 0;
+    for(const [sets, want] of cases){
+      const cc = (await boot([W('q', 4, 'Push', [E('Bench Press', sets)])])).ctx;
+      open(cc, 'Bench Press');
+      const got = (html(cc, 'exDetailStats').match(/Best ever<\/div><div class="snap-num">([^<]*)</) || [])[1];
+      if(got === want) ok++; else T('4  ' + JSON.stringify(sets.map(s => s.weight + 'x' + s.reps)) + ' → ' + want, false, got);
+    }
+    T('4  a load is never paired with another set’s reps, a load with no reps is no best, and a non-finite load is no load (' + ok + '/' + cases.length + ')', ok === cases.length);
+    T('4  the personal bests are computePersonalBestTimeline’s own, untouched', same(d.bests, c.computePersonalBestTimeline('Bench Press')) && d.bests.milestones.length === 7);
+    const pbs = html(c, 'exDetailStats').split('<li class="exd-pb').slice(1);
+    const newest = d.bests.milestones.slice().reverse();
+    T('4  shown newest first, three before “Show all 7”, each with its own date', pbs.length === 3 &&
+      pbs.every((li, i) => li.indexOf('>' + newest[i].value + '<small> lb</small>') !== -1 && li.indexOf(c.formatDateShort(newest[i].date)) !== -1) &&
+      /Show all 7<\/button>/.test(html(c, 'exDetailStats')));
+    at(c, () => c.exDetailShowAllBests());
+    const all = html(c, 'exDetailStats').split('<li class="exd-pb').slice(1);
+    T('4  all seven on request; the newest is Current, the oldest is the first logged best, never a record over a previous lift',
+      all.length === 7 && /exd-pb-cur/.test(all[0].slice(0, 30)) && />Current</.test(all[0]) && />First logged</.test(all[6]) &&
+      all.slice(1, 6).every((li, i) => li.indexOf('>+' + (newest[i + 1].value - newest[i + 2].value) + ' lb<') !== -1));
+    T('4  the best ever and the current personal best agree on the weight', d.best.w === newest[0].value);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('5  record marks on workouts are the canonical events of THAT workout and THIS lift');
+  await guard('marks', async () => {
+    const log = [W('m1', 20, 'Push', [E('Bench Press', [S(185, 8)]), E('Overhead Press', [S(95, 8)])]),
+      W('m2', 13, 'Push', [E('Bench Press', [S(185, 8)]), E('Overhead Press', [S(105, 8)])]),
+      W('m3', 6, 'Push', [E('Bench Press', [S(195, 6)]), E('Overhead Press', [S(105, 8)])])];
+    const c = (await boot(log)).ctx;
+    open(c, 'Bench Press');
+    const rows = rowsOf(c);
+    const mark = r => /<span class="rw-pr exd-first">First<\/span>/.test(r) ? 'First' : /<span class="rw-pr">PR<\/span>/.test(r) ? 'PR' : '';
+    T('5  the first workout is the first logged best, the repeat is nothing, the heavier one is a record',
+      same(rows.map(mark), ['PR', '', 'First']), rows.map(mark));
+    T('5  another lift’s record in the same workout never marks this lift (Overhead Press set one on m2)',
+      c.prEventsOfEntry(c.workoutLog.find(l => l.id === 'm2')).some(ev => ev.exerciseName === 'Overhead Press') && mark(rows[1]) === '');
+    T('5  each mark is read from the canonical index for that workout', /prEventsOfEntry\(e\)\.filter\(ev => loggedExerciseKey\(ev\.exerciseName\) === d\.key\)/.test(fnSrc(raw, 'exDetailSessionRowHtml')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('6  next session: D49, asked exactly as Progress asks it, and nothing else');
+  await guard('d49', async () => {
+    const FX = {
+      increase: [W('i1', 10, 'A', [E('Bench Press', [S(185, 10, 2), S(185, 10, 2), S(185, 9, 2)])]), W('i2', 3, 'B', [E('Bench Press', [S(185, 12, 2), S(185, 12, 2), S(185, 12, 2)])])],
+      build: [W('u1', 10, 'A', [E('Bench Press', [S(185, 8, 2), S(185, 8, 2)])]), W('u2', 3, 'B', [E('Bench Press', [S(185, 9, 2), S(185, 9, 1), S(185, 8, 1)])])],
+      plateau: [31, 24, 17, 10, 3].map((k, i) => W('p' + i, k, 'S', [E('Bench Press', [S(185, 9, 1), S(185, 9, 1), S(185, 8, 1)])])),
+      reduce: [W('d1', 10, 'A', [E('Bench Press', [S(225, 5, 0), S(225, 4, 0)])]), W('d2', 3, 'B', [E('Bench Press', [S(225, 5, 0), S(225, 4, 0)])])],
+      insufficient: [W('n1', 10, 'A', [E('Bench Press', [S(185, 9, 2), S(185, 9, 2)])]), W('n2', 3, 'B', [E('Bench Press', [S(185, 10, 2)])])]
+    };
+    const WORD = { increase: 'Ready to progress', build: 'Building', plateau: 'Hold', reduce: 'Reduce', insufficient: 'Hold' };
+    for(const tag of Object.keys(FX)){
+      const c = (await boot(FX[tag])).ctx;
+      const d = open(c, 'Bench Press');
+      const want = at(c, () => c.progressionFor('Bench Press', c.repRangeForExercise('Bench Press'), null));
+      const last = at(c, () => c.exerciseSessionHistory('Bench Press', 1)[0]);
+      const nx = text(c, 'exDetailNext');
+      T('6  ' + tag + ': the recommendation IS progressionFor(name, repRangeForExercise(name), null), the tag the fixture was built for',
+        same(d.rec, want) && d.rec.tag === tag && d.recReps === c.repRangeForExercise('Bench Press'), [d.rec, want]);
+      T('6  ' + tag + ': LAST is the session D49 judged, NEXT is its load and range, WHY is its own sentence',
+        nx.indexOf('Last · ') !== -1 && nx.indexOf(last.weight + ' lb × ' + last.topReps + ' reps') !== -1 &&
+        nx.indexOf('Next ' + want.weight + ' lb × ' + c.exdRange(c.repRangeForExercise('Bench Press')) + ' reps') !== -1 &&
+        html(c, 'exDetailNext').indexOf('<p class="exd-why">' + c.escapeHtml(want.why) + '</p>') !== -1, nx);
+      const delta = want.weight - last.weight;
+      T('6  ' + tag + ': the change is D49’s two numbers apart, said as a word and a sign, never only a colour',
+        delta > 0 ? new RegExp('exd-delta-up">\\+' + delta + ' lb<').test(html(c, 'exDetailNext')) : delta < 0 ? new RegExp('exd-delta-down">−' + (-delta) + ' lb<').test(html(c, 'exDetailNext')) : /exd-delta-same">Same load</.test(html(c, 'exDetailNext')));
+      T('6  ' + tag + ': the hero’s state is that tag in words (' + WORD[tag] + ')', new RegExp('exd-state-' + tag + '">' + WORD[tag] + '<').test(html(c, 'exDetailFacts')));
+      if(tag === 'increase' || tag === 'plateau' || tag === 'build'){
+        const b = at(c, () => c.computeProgressionBuckets());
+        const inP = b.ready.concat(b.stalled, b.building).find(x => x.name === 'Bench Press');
+        T('6  ' + tag + ': and it is the very answer Progress → Strength holds for this lift', !!inP && same(inP.rec, d.rec));
+      }
+    }
+    {
+      const ohp = [W('h1', 10, 'A', [E('Barbell Overhead Press', [S(95, 9, 2), S(95, 9, 2)])]), W('h2', 3, 'B', [E('Barbell Overhead Press', [S(95, 10, 2), S(95, 10, 2), S(95, 10, 2)])])];
+      const c = (await boot(ohp)).ctx;
+      const d = open(c, 'Barbell Overhead Press');
+      T('6  the range is the plan’s own for the lift (6–10 here, not a default), so the answer is Progress’s for it too',
+        d.recReps === '6–10' && same(d.rec, at(c, () => c.progressionFor('Barbell Overhead Press', '6–10', null))) && d.rec.tag === 'increase' &&
+        /Next 97\.5 lb × 6–10 reps|Next 100 lb × 6–10 reps/.test(text(c, 'exDetailNext')), [d.recReps, d.rec, text(c, 'exDetailNext')]);
+    }
+    T('6  no second engine: the sheet never re-derives a target, a plateau, an increment or evidence',
+      !/buildProgressionRecommendation\(|progressionIncrement\(|detectPlateau\(|progressionEvidence\(|topReps\s*[<>]=?|applyPhaseProgressionPolicy\(/.test(sheetSrc) &&
+      (sheetSrc.match(/progressionFor\(/g) || []).length === 1 && /progressionFor\(raw, recReps, null\)/.test(fnSrc(raw, 'deriveExerciseDetail')) &&
+      /const recReps = repRangeForExercise\(raw\);/.test(fnSrc(raw, 'deriveExerciseDetail')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('7  the trend is Strength’s own figure, drawn from its own observations only');
+  await guard('trend', async () => {
+    const c = (await boot(BENCH.concat([W('o1', 40, 'Pull', [E('Barbell Row', [S(135, 8)])]), W('o2', 33, 'Pull', [E('Barbell Row', [S(125, 8)])]),
+      W('o3', 26, 'Pull', [E('Barbell Row', [S(130, 8)])])]))).ctx;
+    for(const n of ['Bench Press', 'bench press', 'Barbell Row']){
+      const d = open(c, n);
+      const s = c.exerciseTrendFor(n);
+      T('7  ' + n + ': the trend equals the Strength list’s row for this lift — sessions, percentage and direction', same(d.trend, { sessions: s.sessions, pct: s.pct, dir: s.dir }), [d.trend, s]);
+      const shown = (text(c, 'exDetailChart').match(/^Strength trend ([+−]?)(\d+)%/) || []);
+      T('7  ' + n + ': and states the number Strength states, rounded the same way, sign included',
+        Number(shown[2]) === Math.abs(Math.round(s.pct)) && (Math.round(s.pct) < 0 ? shown[1] === '−' : (s.pct >= 0 ? shown[1] === '+' : shown[1] === '')), shown[0]);
+    }
+    const d = open(c, 'Bench Press');
+    const svg = html(c, 'exDetailChart');
+    const path = (svg.match(/class="exd-line" d="([^"]+)"/) || [])[1] || '';
+    const xs = path.split(/[ML]/).filter(Boolean).map(p => parseFloat(p.split(',')[0]));
+    T('7  one vertex per observation, straight segments, nothing between — no smoothing, no invented points',
+      xs.length === d.points.length && !/[CSQTA]/.test(path) && xs.every((x, i) => i === 0 || x >= xs[i - 1]));
+    T('7  one dot per observation (the newest is the lit one), and nothing else on the line',
+      (svg.match(/class="exd-dot"/g) || []).length === d.points.length - 1 && (svg.match(/class="exd-now"/g) || []).length === 1);
+    T('7  the ends are the first and latest observations, and the chart says the whole trend in words',
+      text(c, 'exDetailChart').indexOf('First · ' + c.formatDateShort(d.points[0].date) + ' ' + d.points[0].value + ' lb') !== -1 &&
+      text(c, 'exDetailChart').indexOf('Latest · ' + c.formatDateShort(d.points[d.points.length - 1].date) + ' ' + d.points[d.points.length - 1].value + ' lb') !== -1 &&
+      /role="img" aria-label="Bench Press: estimated one-rep max across 10 workouts, from \d+ pounds on [A-Z][a-z]{2} \d+(, \d{4})? to \d+ pounds on [A-Z][a-z]{2} \d+(, \d{4})?, up \d+ percent\. Improving\."/.test(svg));
+    T('7  the points are compute1RMTrend’s, untouched', same(d.points, c.compute1RMTrend('Bench Press')));
+    T('7  no text inside the drawing — labels are page text, at full size', !/<text/.test(fnSrc(raw, 'exerciseTrendSvg')));
+    const one = (await boot([W('s1', 3, 'Push', [E('Bench Press', [S(185, 8)])])])).ctx;
+    open(one, 'Bench Press');
+    T('7  with one workout there is no trend and no chart, only what is true', !/<svg/.test(html(one, 'exDetailChart')) &&
+      /More history needed\. A trend appears once two workouts have a weight and reps logged for Bench Press \(so far: 1\)\./.test(text(one, 'exDetailChart')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('8  mastery is Progress → Mastery’s own, in its own level language');
+  await guard('mastery', async () => {
+    const c = (await boot(BENCH)).ctx;
+    const d = open(c, 'Bench Press');
+    const m = c.getExerciseMasteryByName('Bench Press');
+    const t = c.masteryTier(m.level);
+    const st = html(c, 'exDetailStats');
+    T('8  the same mastery object the Mastery view reads', same(d.mastery, m));
+    T('8  its badge, its level pill and its tier name', st.indexOf('src="mastery-badge-' + t.level + '.png"') !== -1 && st.indexOf('>Level ' + m.level + '<') !== -1 &&
+      st.indexOf('mpill mpt' + t.level) !== -1 && st.indexOf('>' + t.name + '<') !== -1 && st.indexOf('data-tier="' + t.level + '"') !== -1);
+    const row = c.masteryRowHtml(m);
+    const meta = (row.match(/class="mastery-row-meta">([^<]*)</) || [])[1];
+    T('8  its line says exactly what the Mastery view’s own row says', !!meta && st.indexOf('<div class="mastery-meta">' + meta + '</div>') !== -1, meta);
+    T('8  its bar is the Mastery view’s bar, at the same width', st.indexOf(c.masteryBarHtml(m)) !== -1);
+    T('8  and progress is said in words for a screen reader', new RegExp('aria-label="Mastery: Level ' + m.level + ', ' + t.name + '\\. ' + m.sessions + ' sessions, ').test(st));
+    T('8  mastery is read, never scored here', !/masteryPointsFor\(|masteryStanding\(|buildMasteryIndex\(|MASTERY_CONFIG/.test(sheetSrc));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('9  bodyweight and mixed history, by D91’s one rule');
+  await guard('bodyweight', async () => {
+    const bw = [W('w1', 24, 'Pull', [E('Pull-Up', [BW(8), BW(10)], true)], 'pull'), W('w2', 17, 'Pull', [E('Pull-Up', [BW(9), BW(11)], true)], 'pull'),
+      W('w3', 3, 'Pull', [E('Pull-Up', [BW(9), BW(10)], true)], 'pull')];
+    const c = (await boot(bw)).ctx;
+    const d = open(c, 'Pull-Up');
+    const all = ['exDetailFacts', 'exDetailNext', 'exDetailChart', 'exDetailStats', 'exDetailHistory'].map(id => text(c, id)).join(' | ');
+    T('9  a bodyweight lift is D91’s bodyweight: best in reps, records in reps, never a load', d.prMode === 'bodyweight' && d.prMode === c.prModeOf('Pull-Up') &&
+      /Best ever<\/div><div class="snap-num">11 reps</.test(html(c, 'exDetailStats')) && !/\b0 lb|lb × /.test(all) && d.bests.unit === 'reps');
+    T('9  its sets read as LOOP logs them (BW × 10)', /BW × 10/.test(html(c, 'exDetailHistory')));
+    T('9  no load is suggested for it, and the sheet says why instead of “No history yet”',
+      d.rec.tag === 'new' && /LOOP suggests loads for lifts done with added weight\. For Pull-Up, your reps and records are below\./.test(text(c, 'exDetailNext')) &&
+      !/No history yet/.test(all) && !/exd-state/.test(html(c, 'exDetailFacts')));
+    T('9  its trend is what this sheet always drew for one: the most reps in a set, per workout, and no percentage',
+      same(d.repPoints.map(p => p.value), [10, 11, 10]) && !/%/.test(text(c, 'exDetailChart')) && /Most reps in a set/.test(text(c, 'exDetailChart')));
+    const first = (await boot([W('f1', 24, 'Push', [E('Dip', [BW(10), BW(12)], true)]), W('f2', 17, 'Push', [E('Dip', [S(25, 8), S(25, 8)])]),
+      W('f3', 10, 'Push', [E('Dip', [S(35, 8), S(35, 6)])])])).ctx;
+    const df = open(first, 'Dip');
+    T('9  first declared bodyweight, later loaded: still a bodyweight lift — best 12 reps — while the loaded workouts read as loaded',
+      df.prMode === 'bodyweight' && df.prMode === first.prModeOf('Dip') && /snap-num">12 reps</.test(html(first, 'exDetailStats')) &&
+      /35 × 8/.test(html(first, 'exDetailHistory')) && /BW × 12/.test(html(first, 'exDetailHistory')));
+    const loadedFirst = (await boot([W('g1', 24, 'Push', [E('Dip', [S(25, 8), S(25, 8)])]), W('g2', 10, 'Push', [E('Dip', [BW(12), BW(12)], true)])])).ctx;
+    const dl = open(loadedFirst, 'Dip');
+    T('9  first declared loaded, later bodyweight: a loaded lift — best 25 lb × 8 — and D49’s last session is the loaded one, dated',
+      dl.prMode === 'loaded' && /snap-num">25 lb × 8</.test(html(loadedFirst, 'exDetailStats')) && dl.last.date === D(24) &&
+      text(loadedFirst, 'exDetailNext').indexOf('Last · ' + loadedFirst.exdDate(D(24))) !== -1);
+    T('9  the mode is never read from a row’s box or a session’s position', !/sessions\[0\]\.(bodyweight|isBW)|\.bodyweight \? PR_MODE/.test(fnSrc(raw, 'deriveExerciseDetail')) &&
+      /const isBW = prMode === PR_MODE\.BODYWEIGHT;/.test(fnSrc(raw, 'deriveExerciseDetail')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('10  current versus history: nothing past is reconstructed, nothing is borrowed from the workout');
+  await guard('time', async () => {
+    const c = (await boot(BENCH)).ctx;
+    let recs = 0; const realP = c.progressionFor;
+    c.progressionFor = function(){ recs++; return realP.apply(this, arguments); };
+    open(c, 'Bench Press'); at(c, () => c.exDetailShowMore());
+    c.progressionFor = realP;
+    const hist = text(c, 'exDetailHistory');
+    T('10  D49 is asked once, for now — never per past workout, and no past row carries a recommendation', recs === 1 &&
+      !/Ready to progress|Building|Hold|Reduce|Next|aim for/.test(hist));
+    T('10  no Session Score beside a lift: the sheet never asks for one', !/sessionScore\(|computeWorkoutQuality\(|deriveSessionExecution\(/.test(sheetSrc) && !/Score/.test(hist));
+    T('10  no recovery, readiness or historical mastery is fabricated', !/computeMuscleRecovery|Recovery|recovered|readiness|getExerciseMasteryLevel/i.test(sheetSrc.replace(/aria-label/g, '')) &&
+      (sheetSrc.match(/getExerciseMasteryByName\(/g) || []).length === 2);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('11  early and empty states say only what is true');
+  await guard('empty', async () => {
+    const c = (await boot([W('e1', 3, 'Push', [E('Overhead Press', [S(95, 8)])])])).ctx;
+    const d = open(c, 'Incline Bench Press');
+    const all = ['exDetailFacts', 'exDetailNext', 'exDetailChart', 'exDetailStats', 'exDetailHistory'].map(id => text(c, id)).join(' | ');
+    T('11  never trained: no numbers, no chart, no rows, no recommendation — and nothing undefined or NaN',
+      d.sessionCount === 0 && /^No sets logged yet$/.test(text(c, 'exDetailFacts')) && !/<svg/.test(html(c, 'exDetailChart')) && rowsOf(c).length === 0 &&
+      /Log Incline Bench Press once and LOOP will suggest what to lift next time\./.test(all) && /Best ever — /.test(all) && !/NaN|undefined|null|Infinity/.test(all), all);
+    const one = (await boot([W('o1', 3, 'Push A', [E('Bench Press', [S(185, 8), S(185, 8)])])])).ctx;
+    const d1 = open(one, 'Bench Press');
+    T('11  one workout: one session, its date, its best as the first logged best — not a record over anything',
+      /^1 session Last trained /.test(text(one, 'exDetailFacts')) && /First logged/.test(text(one, 'exDetailStats')) &&
+      /class="rw-pr exd-first">First</.test(html(one, 'exDetailHistory')) && !/class="rw-pr">PR</.test(html(one, 'exDetailHistory')) && d1.bests.milestones.length === 1 &&
+      />First logged</.test(html(one, 'exDetailStats')) && !/exd-pb-cur/.test(html(one, 'exDetailStats')));
+    const skipped = (await boot([W('k1', 4, 'Pull A', [E('Lat Pulldown', [S(120, 10)]), Object.assign(E('Face Pull', []), { skipped: true })], 'pull')])).ctx;
+    open(skipped, 'Face Pull');
+    T('11  an exercise only ever skipped (in a workout, no set) has no sets — said as that, never as a session', /^No sets logged yet$/.test(text(skipped, 'exDetailFacts')) && rowsOf(skipped).length === 0);
+    const blank = (await boot([W('u1', 5, 'Core', [E('Mystery Move', [{ weight: '', reps: '10', rir: '' }])], 'core')])).ctx;
+    open(blank, 'Mystery Move');
+    const b = ['exDetailNext', 'exDetailChart', 'exDetailStats', 'exDetailHistory'].map(id => text(blank, id)).join(' | ');
+    T('11  a legacy row that declares nothing: no best, no load target, no records — and no crash', /Best ever — /.test(b) &&
+      /LOOP suggests a load once a working set of Mystery Move has been logged with both a weight and reps\./.test(b) && !/NaN|undefined|Infinity|0 lb/.test(b), b);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('12  a long history stays fast, and the page grows only when asked');
+  await guard('long', async () => {
+    const LIFTS = ['Bench Press', 'Back Squat', 'Barbell Row', 'Overhead Press', 'Romanian Deadlift', 'Lat Pulldown'];
+    const big = [];
+    for(let wk = 104; wk >= 1; wk--) [0, 1, 3, 4].forEach((dd, k) => {
+      const prog = Math.floor((104 - wk) / 3);
+      big.push(W('L' + wk + '-' + k, wk * 7 - dd, ['Upper A', 'Lower A', 'Upper B', 'Lower B'][k],
+        LIFTS.filter((_, i) => (i + k) % 2 === 0).map(n => E(n, [S(95 + prog * 2.5, 8, 2), S(95 + prog * 2.5, 8, 1), S(95 + prog * 2.5, 7, 1)]))));
+    });
+    const c = (await boot(big)).ctx;
+    open(c, 'Bench Press');
+    const times = [];
+    for(let i = 0; i < 7; i++){
+      c.invalidateSortedLogCache();
+      const t0 = process.hrtime.bigint(); open(c, 'Bench Press'); times.push(Number(process.hrtime.bigint() - t0) / 1e6);
+    }
+    times.sort((a, b) => a - b);
+    const d = c.exDetailModel;
+    T('12  416 workouts, 208 of this lift: cold open (every log cache cleared) under 250 ms — median ' + times[3].toFixed(1) + ' ms', times[3] < 250, times);
+    T('12  five rows to start, twenty more per tap, never the whole history at once', d.sessionCount === 208 && rowsOf(c).length === 5 &&
+      /Show 20 more<\/button>/.test(html(c, 'exDetailHistory')) && (at(c, () => c.exDetailShowMore()), rowsOf(c).length === 25));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('13  opening it writes nothing, and keeps nothing');
+  await guard('writes', async () => {
+    const app = await boot(BENCH);
+    const c = app.ctx;
+    const store0 = JSON.stringify(app.store), log0 = JSON.stringify(c.workoutLog);
+    let sets = 0; const realSet = c.LOOPStore.set;
+    c.LOOPStore.set = function(){ sets++; return realSet.apply(this, arguments); };
+    open(c, 'Bench Press'); at(c, () => { c.exDetailShowMore(); c.exDetailShowAllBests(); c.renderAll(); c.closeExDetail(); });
+    c.LOOPStore.set = realSet;
+    T('13  no storage write, no store key, the log byte-identical', sets === 0 && JSON.stringify(app.store) === store0 && JSON.stringify(c.workoutLog) === log0);
+    T('13  no key, schema or trainer change: 16 DATA_KEYS, schema 1, 0.1.1-shadow, nothing named for this sheet',
+      c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' &&
+      !c.DATA_KEYS.some(k => /detail|exd/i.test(k)) && !/LOOPStore|localStorage|sessionStorage|indexedDB/.test(sheetSrc));
+    const a = c.deriveExerciseDetail('Bench Press'), b = c.deriveExerciseDetail('Bench Press');
+    T('13  every read derives afresh from the log — nothing is memoised by this sheet', a !== b && same(modelOf(a), modelOf(b)));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('14  every way in opens the same sheet, and an edit beneath it is never shown stale');
+  await guard('entry', async () => {
+    const log = [W('i1', 10, 'A', [E('Bench Press', [S(185, 10, 2), S(185, 10, 2), S(185, 9, 2)])]), W('i2', 3, 'B', [E('Bench Press', [S(185, 12, 2), S(185, 12, 2), S(185, 12, 2)])])];
+    const c = (await boot(log)).ctx;
+    const direct = modelOf(open(c, 'Bench Press'));
+    const viaHtml = (h, label) => { const m = h.match(new RegExp('onclick="(openExDetail\\(\'[^"]*\'\\))"[^>]*>[\\s\\S]{0,400}?' + label)) || h.match(/onclick="(openExDetail\('[^"]*'\))"/);
+      return m ? runCall(m[1].replace(/&#39;/g, "'"), 'openExDetail') : null; };
+    at(c, () => c.renderProgStrength());
+    const names = [viaHtml(html(c, 'progReady'), 'Bench Press'), viaHtml(html(c, 'progExercises'), 'Bench Press')];
+    names.push(viaHtml(at(c, () => c.weeklyReviewBodyHtml(c.deriveWeeklyReview(null))), 'Bench Press'));
+    const m = c.getExerciseMasteryByName('Bench Press');
+    names.push(viaHtml(c.masteryRowHtml(m), 'Bench Press'), viaHtml(c.masteryPodiumCardHtml(m, 1), 'Bench Press'));
+    c.document.getElementById('exHistorySelect').value = 'Bench Press';
+    at(c, () => c.renderExerciseHistoryList());
+    names.push(viaHtml(html(c, 'exHistoryList'), 'Exercise detail'));
+    T('14  Strength (ready and all), Weekly Review, the Mastery row and podium, and Log → Browse by exercise all open the detail, by the logged name',
+      names.length === 6 && names.every(n => n === 'Bench Press'), names);
+    T('14  and what opens is the one sheet, identical from every door', names.every(n => same(modelOf(open(c, n)), direct)));
+    {
+      const apos = "Farmer's Walk";
+      const f = (await boot([W('fw', 4, 'Carry', [E(apos, [S(70, 40)])], 'core')])).ctx;
+      f.document.getElementById('exHistorySelect').value = apos;
+      at(f, () => f.renderExerciseHistoryList());
+      T('14  a typed name with an apostrophe reaches the detail whole, through onclickArg', viaHtml(html(f, 'exHistoryList'), 'Exercise detail') === apos &&
+        /onclick="openExDetail\('\$\{onclickArg\(name\)\}'\)"/.test(fnSrc(raw, 'renderExerciseHistoryList')));
+    }
+    const code = stripComments(raw);
+    const DOORS = { renderProgStrength: 2, weeklyReviewBodyHtml: 1, masteryRowHtml: 1, masteryPodiumCardHtml: 1, renderExerciseHistoryList: 1 };
+    T('14  those six doors, in five renderers, are the only places that open the detail — no variant opener anywhere',
+      Object.keys(DOORS).every(n => (fnSrc(raw, n).match(/openExDetail\(/g) || []).length === DOORS[n]) &&
+      (code.match(/openExDetail\(/g) || []).length === 6 + 1, (code.match(/openExDetail\(/g) || []).length);
+    open(c, 'Bench Press');
+    const before = text(c, 'exDetailFacts');
+    c.workoutLog = c.workoutLog.filter(l => l.id !== 'i2'); c.invalidateSortedLogCache();
+    at(c, () => c.renderAll());
+    T('14  with the sheet open, a change beneath it (a workout deleted) redraws it with the tabs', /^2 sessions/.test(before) && /^1 session /.test(text(c, 'exDetailFacts')));
+    c.closeExDetail();
+    let renders = 0; const realR = c.renderExDetail; c.renderExDetail = function(){ renders++; return realR.apply(this, arguments); };
+    at(c, () => c.renderAll());
+    c.renderExDetail = realR;
+    T('14  closed, it costs the tabs nothing', renders === 0);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('15  motion, accessibility and the small screen, held in the stylesheet and the markup');
+  await guard('a11y', async () => {
+    const exdCss = css.slice(css.indexOf('/* ---------- Exercise Detail (D118) ----------'), css.indexOf('/* History: a swapped exercise says what it stood in for. */'));
+    T('15  the trend draws once and the area fades in; with Reduce Motion, neither moves',
+      /\.exd-line\{[^}]*animation: exdDraw 0\.7s/.test(exdCss) && /\.exd-area\{ animation: exdFade/.test(exdCss) &&
+      /@media \(prefers-reduced-motion: reduce\)\{\s*\.exd-line, \.exd-area\{ animation: none; \}\s*\}/.test(exdCss) &&
+      (exdCss.match(/animation:/g) || []).length === 3);
+    T('15  no looping or glowing motion anywhere on the sheet', !/infinite|filter:\s*drop-shadow|blur\(/.test(exdCss));
+    const c = (await boot(BENCH)).ctx;
+    open(c, 'Bench Press');
+    const rows = rowsOf(c);
+    T('15  every workout row names its date, workout, best set and record in words, and says what a tap does',
+      rows.length === 5 && rows.every(r => /aria-label="[A-Z][a-z]{2} \d{1,2}(, \d{4})?, Push [AB]: best set \d+ lb × \d+, \d+ sets(, personal record|, first logged best)?\. Open workout\."/.test(r)));
+    T('15  How to is a labelled control, the picture inside it decorative', /aria-label="How to do Bench Press"/.test(html(c, 'exDetailArt')) && /aria-hidden="true"/.test(html(c, 'exDetailArt')));
+    T('15  the records’ state and the change are words and signs, not colour alone', /exd-state-build">Building</.test(html(c, 'exDetailFacts')) && />Same load</.test(html(c, 'exDetailNext')));
+    T('15  touch targets: rows 60 px, show-more and links 44 px, the picture a 60 px control',
+      /\.rw-row\{\s*display: flex; align-items: center; gap: 11px; width: 100%; min-height: 60px;/.test(css) && /\.exd-link\{[^}]*min-height: 44px;/.test(exdCss) &&
+      /\.exd-art \.ex-thumb\{ width: 60px; height: 60px;/.test(exdCss) && /\.rw-more\{[^}]*min-height: 44px;/.test(css));
+    T('15  the small screen: every grid column can shrink, long names wrap, and the records stack below 360 px',
+      /\.exd-ln\{ display: grid; grid-template-columns: minmax\(0, 1fr\) 24px minmax\(0, 1fr\);/.test(exdCss) &&
+      /\.exd-hero-id h2\{[^}]*overflow-wrap: anywhere;/.test(exdCss) && /@media \(max-width: 359px\)\{\s*\.exd-rec-grid\{ grid-template-columns: minmax\(0, 1fr\); \}/.test(exdCss));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('16  protected systems are byte-identical (10.34)');
+  await guard('pins', async () => {
+    const PINS = { computeExercisePREvents: '4339cc543585bded', computePersonalBestTimeline: 'e41926dcb1cfa844', compute1RMTrend: '1dd2dafa4e4c5d06',
+      exerciseTrendFromPoints: 'fc3309c25ba2c841', computeExerciseTrends: 'e5be0c3559934ccb', exerciseTrendFor: '03ef0d992dc6b114', progressionFor: 'a992f11698e3e9e7',
+      buildProgressionRecommendation: 'e0cc59cfd773d37b', progressionEvidence: '8ecadbedf9efc0d9', exerciseSessionHistory: 'ffef0621fac8e613',
+      repRangeForExercise: '07b3b26014a8e57f', computeProgressionBuckets: '87e47e4a883cc140', getExerciseFullHistory: 'bafaa82dea8653a3',
+      exerciseHistorySession: 'c8302d9eb82a851a', workoutGroupsOf: 'f346201c58363ccb', prModeOf: 'a0ac7f761228372f', deriveExercisePRMode: '262d3ed985632762',
+      canonicalPRIndex: 'b30db7e31fad5051', prEventsOfEntry: '3483d8538463e017', sessionPRSets: '18b4d680fc08122f', getExerciseMastery: '5b22dba43d65ca1f',
+      getExerciseMasteryByName: 'f6d29e745f362ec4', buildMasteryIndex: 'f6c1b50e7bd04b79', masteryPointsFor: '0c704c40a853d991', masteryRankRowHtml: 'ab85b6b7047615aa',
+      masteryBadgeHtml: '3ec676f4777b644b', masteryLevelPillHtml: '5a84d2dfd1e2d419', masteryBarHtml: '8ff159ded75a682e', openDayDetail: 'ca6c95625a470a7e',
+      showWorkoutSummary: 'ae01827f9c112f92', musclesForExercise: 'd364752e499a2ade', exerciseThumbHtml: 'fe3dc90ec306b794', openHowTo: '35733ce07b9c2bb8',
+      sessionScore: '842e5699f8ac0835', computeMuscleRecovery: 'd3589033bdb54c67', computeXPTimeline: 'c4bf2e0f636c3f20', computeConsistencyData: '5bfe9ebbb27ff11e',
+      computePRs: '51bd020b4aa2a8a3', getSessionPRs: '2a121bed25bfa6ab', deriveWeeklyReview: '54cedeb502954944', saveLog: '66c63714822ef5ee',
+      persistLog: '060c04d3663271ab', deleteLog: 'c285ece4eae2315d' };
+    const moved = Object.keys(PINS).filter(n => pin(n) !== PINS[n]);
+    T('16  ' + Object.keys(PINS).length + ' engines and routes the sheet reads are unchanged: PRs, timeline, trend, D49, history, identity, mastery, workouts, score, recovery, XP, D44, logging',
+      moved.length === 0, moved);
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -47704,6 +48216,7 @@ async function main(){
   await testWeeklyReviewD115();
   await testMultiWorkoutWeekD116();
   await testProgramContextCacheD117();
+  await testExerciseDetailD118();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -7696,15 +7696,155 @@ button.ex-thumb:focus-visible{ outline: 2px solid var(--accent); outline-offset:
    Later keep the three columns they were designed for. */
 .ps-ex-acts .ps-ex-how{ grid-column: 1 / -1; }
 
-/* Exercise detail: one line into How To. */
-.ex-detail-how{
-  display: flex; align-items: center; gap: var(--space-3); width: 100%;
-  margin: 10px 0 2px; padding: 8px 10px; text-align: left; cursor: pointer;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
-  color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+/* ---------- Exercise Detail (D118) ----------
+   Summary first, detail second, history third. One strong surface (Next
+   session); everything else is section rhythm on the page's own ground. */
+.exd-hero-top{ display: flex; align-items: flex-start; gap: 14px; }
+.exd-hero-art:empty{ display: none; }
+.exd-art{
+  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0; min-width: 44px;
+  background: none; border: 0; cursor: pointer; color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; -webkit-tap-highlight-color: transparent;
 }
-.ex-detail-how:active{ border-color: var(--accent); }
-.ex-detail-how-go{ margin-left: auto; color: var(--text-faint); font-size: 18px; line-height: 1; }
+.exd-art .ex-thumb{ width: 60px; height: 60px; border-radius: var(--radius-md); transition: border-color 0.15s var(--ease); }
+.exd-art:active .ex-thumb{ border-color: var(--accent); }
+.exd-art:focus-visible{ outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-md); }
+.exd-hero-id{ flex: 1 1 auto; min-width: 0; padding-top: 2px; }
+.exd-hero-id h2{ margin: 0; font-size: var(--fs-title); line-height: 1.2; overflow-wrap: anywhere; text-wrap: balance; }
+.exd-meta-main{ display: block; margin-top: 6px; font-size: var(--fs-support); line-height: 1.4; color: var(--text-dim); }
+.exd-meta-also{ display: block; margin-top: 2px; font-size: var(--fs-meta); line-height: 1.4; color: var(--text-faint); }
+.exd-facts{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 16px; font-size: var(--fs-meta); color: var(--text-dim); }
+.exd-fact b{ font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.exd-state{
+  display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 999px;
+  border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap;
+}
+.exd-state-increase{ color: var(--success); border-color: rgba(75,156,129,0.5); background: var(--success-soft); }
+.exd-state-build{ color: var(--accent); border-color: rgba(76,194,255,0.4); background: var(--accent-soft); }
+.exd-state-reduce{ color: var(--warning); border-color: rgba(189,146,96,0.5); background: var(--warning-soft); }
+
+.exd-zone{ margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--border-quiet); }
+.exd-head{ display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.exd-k{
+  margin: 0; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.11em; text-transform: uppercase; color: var(--text-faint);
+}
+.exd-head-n{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); color: var(--text-faint); white-space: nowrap; }
+.exd-empty{ margin: 0; font-size: var(--fs-support); line-height: 1.5; color: var(--text-dim); }
+
+/* The one surface: what to do next. */
+.exd-zone.exd-next{
+  margin-top: 22px; padding: 16px 16px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--pool-accent), var(--surface); box-shadow: inset 0 1px 0 var(--edge-hi);
+}
+.exd-zone.exd-next.exd-next-quiet{ background: var(--surface); }
+.exd-ln{ display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); align-items: start; gap: 6px; }
+.exd-ln-col{ display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.exd-ln-k{
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.exd-ln-v{
+  font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-metric); font-weight: 700; line-height: 1.05;
+  color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.exd-ln-v small{ font-size: 15px; font-weight: 600; color: var(--text-faint); }
+.exd-ln-to .exd-ln-v{ color: var(--text); }
+.exd-ln-r{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta); color: var(--text-dim); }
+.exd-ln-to .exd-ln-r{ color: var(--text); }
+.exd-ln-arrow{ display: flex; justify-content: center; align-self: center; color: var(--text-faint); }
+.exd-delta{
+  display: inline-flex; align-self: flex-start; margin-top: 4px; padding: 3px 8px; border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.04em;
+  color: var(--text-dim); background: var(--surface-3);
+}
+.exd-delta-up{ color: var(--success); background: var(--success-soft); }
+.exd-delta-down{ color: var(--warning); background: var(--warning-soft); }
+.exd-why{ margin: 10px 0 0; font-size: var(--fs-support); line-height: 1.5; color: var(--text-dim); }
+
+/* The signature visual. */
+.exd-trend-top{ display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; }
+.exd-trend-pct{ font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-metric); font-weight: 700; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+.exd-trend-top .trend-pct{ display: inline-flex; align-items: center; gap: 5px; }
+.exd-sub{ margin: 6px 0 0; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-dim); }
+.exd-sub.exd-sub-lead{ margin-top: 0; }
+.exd-chart{ margin-top: 14px; }
+.exd-chart-svg{ display: block; width: 100%; height: auto; overflow: visible; }
+.exd-ref{ stroke: var(--text-faint); stroke-width: 1; stroke-dasharray: 3 4; opacity: 0.45; }
+.exd-line{ fill: none; stroke: var(--accent); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round;
+  stroke-dasharray: 1; stroke-dashoffset: 0; animation: exdDraw 0.7s var(--ease) both; }
+.exd-area{ animation: exdFade 0.5s 0.2s var(--ease) both; }
+.exd-dot{ fill: var(--accent); opacity: 0.5; }
+.exd-now-halo{ fill: var(--accent-soft); }
+.exd-now{ fill: var(--accent); }
+@keyframes exdDraw{ from{ stroke-dashoffset: 1; } to{ stroke-dashoffset: 0; } }
+@keyframes exdFade{ from{ opacity: 0; } to{ opacity: 1; } }
+.exd-ends{ display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.exd-end{ display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.exd-end:last-child{ align-items: flex-end; text-align: right; }
+.exd-end i{ font-style: normal; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); letter-spacing: 0.06em; color: var(--text-faint); white-space: nowrap; }
+.exd-end b{ font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.exd-end b small, .exd-pb-v small{ font-size: 12px; font-weight: 600; color: var(--text-faint); }
+
+/* Records and mastery: what was achieved beside how much history is built. */
+.exd-rec-grid{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.exd-best{ display: flex; flex-direction: column; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg); min-width: 0; }
+.exd-best-n{ margin-top: auto; padding-top: 10px; font-size: var(--fs-meta); line-height: 1.35; color: var(--text-dim); }
+.exd-note{ margin: 10px 0 0; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-faint); }
+.exd-best .snap-num{ font-family: 'Space Grotesk', sans-serif; font-size: 21px; line-height: 1.2; margin-top: 6px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.exd-best-d{ display: block; margin-top: 5px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); letter-spacing: 0.04em; color: var(--text-faint); }
+.exd-rec-grid .mastery-block{ margin-top: 0; padding: 12px 14px; background: var(--surface); border-color: var(--border-quiet); border-radius: var(--radius-lg); min-width: 0; }
+.exd-mastery-main{
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center;
+  column-gap: 9px; row-gap: 3px; margin: 8px 0 10px; min-width: 0;
+}
+.exd-mastery .mbadge{ width: 38px; grid-row: 1 / span 2; }
+.exd-mastery-main .mastery-lvl-chip{ justify-self: start; }
+.exd-mastery-tier{ font-size: var(--fs-meta); line-height: 1.3; color: var(--text-dim); min-width: 0; }
+.exd-mastery .mastery-meta{ text-wrap: balance; }
+.exd-mastery[data-tier] .mastery-bar span{ background: var(--tier); }
+.exd-rec-grid .mastery-label{ display: block; font-weight: 600; letter-spacing: 0.05em; line-height: 1.3; }
+.exd-pbs{ margin-top: 18px; }
+.exd-pbs-head{ display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.exd-pbs-t{ font-size: var(--fs-support); font-weight: 600; color: var(--text); }
+.exd-pb-list{ list-style: none; margin: 0; padding: 0; }
+.exd-pb{ display: grid; grid-template-columns: minmax(0, 1fr) auto 92px; align-items: baseline; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border-quiet); }
+.exd-pb-v{ font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.exd-pb-d{ font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); letter-spacing: 0.05em; color: var(--text-faint); white-space: nowrap; }
+.exd-pb-tag{ text-align: right; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.04em; color: var(--text-dim); white-space: nowrap; }
+.exd-pb-cur .exd-pb-tag{ color: var(--success); }
+.exd-link{
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0; background: none; border: 0; cursor: pointer;
+  color: var(--accent); font-family: 'Inter', sans-serif; font-size: var(--fs-support); font-weight: 600;
+}
+.exd-link:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Recent workouts: the Log's own row, one per workout. */
+.exd-rows{ display: flex; flex-direction: column; }
+.exd-row{ padding-left: 0; padding-right: 0; border-bottom: 0; border-top: 1px solid var(--border-quiet); color: var(--text); }
+.exd-row:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.exd-row-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+.exd-row-date{ flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.05em; color: var(--text-faint); }
+.exd-row-sets{ display: flex; flex-wrap: wrap; gap: 1px 10px; line-height: 1.5; }
+.exd-row-sets > *{ white-space: nowrap; }
+.exd-row-sets b{ color: var(--text); font-weight: 700; }
+.exd-warm{ opacity: 0.7; }
+.rw-pr.exd-first{ color: var(--text-dim); background: var(--surface-3); }
+
+@media (max-width: 359px){
+  .exd-rec-grid{ grid-template-columns: minmax(0, 1fr); }
+  .exd-ln-v{ font-size: 24px; }
+  .exd-pb{ gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce){
+  .exd-line, .exd-area{ animation: none; }
+}
+.exd-next + .exd-zone{ border-top: 0; padding-top: 0; }
+.ex-history-head{ display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.ex-history-head .ex-history-title{ margin-top: 0; min-width: 0; overflow-wrap: anywhere; }
+.ex-history-open{ flex-shrink: 0; gap: 4px; }
 
 /* History: a swapped exercise says what it stood in for. */
 .log-ex-planned{ font-size: 12px; line-height: 1.4; color: var(--text-faint); margin: -2px 0 6px; }
@@ -8986,24 +9126,29 @@ html, body{ max-width: 100%; overflow-x: hidden; }
     </div>
   </div>
 
-  <!-- EXERCISE DETAIL SHEET -->
-  <div class="overlay overlay-page" id="exDetailOverlay" onclick="backdropDismiss(event, closeExDetail)">
+  <!-- EXERCISE DETAIL (D118) — the canonical home for one lift. -->
+  <div class="overlay overlay-page" id="exDetailOverlay" aria-labelledby="exDetailName" onclick="backdropDismiss(event, closeExDetail)">
     <div class="sheet sheet-page">
-      <div class="sheet-scroll">
-        <h2 id="exDetailName">Exercise</h2>
-        <div class="sheet-sub" id="exDetailTrend"></div>
-        <div id="exDetailHowTo"></div>
-        <div id="exDetailStats"></div>
-        <div class="seg" id="exMetricSeg">
-          <button class="seg-btn active" data-m="1rm" onclick="setExMetric('1rm')">Est. 1RM</button>
-          <button class="seg-btn" data-m="weight" onclick="setExMetric('weight')">Weight</button>
-          <button class="seg-btn" data-m="volume" onclick="setExMetric('volume')">Volume</button>
-        </div>
-        <div id="exDetailChart"></div>
-        <div id="exDetailHistory"></div>
+      <div class="workout-topbar">
+        <button class="workout-back" onclick="closeExDetail()" aria-label="Back">‹</button>
+        <div class="workout-topbar-title">Exercise</div>
+        <span class="workout-topbar-spacer"></span>
       </div>
-      <div class="sheet-actions">
-        <button class="btn-secondary" onclick="closeExDetail()">Done</button>
+      <div class="sheet-scroll">
+        <div class="exd-hero">
+          <div class="exd-hero-top">
+            <div class="exd-hero-art" id="exDetailArt"></div>
+            <div class="exd-hero-id">
+              <h2 id="exDetailName">Exercise</h2>
+              <div id="exDetailMeta"></div>
+            </div>
+          </div>
+          <div class="exd-facts" id="exDetailFacts"></div>
+        </div>
+        <section class="exd-zone exd-next" id="exDetailNext" aria-labelledby="exdNextH"></section>
+        <section class="exd-zone" id="exDetailChart" aria-labelledby="exdTrendH"></section>
+        <section class="exd-zone" id="exDetailStats" aria-labelledby="exdRecH"></section>
+        <section class="exd-zone" id="exDetailHistory" aria-labelledby="exdHistH"></section>
       </div>
     </div>
   </div>
@@ -18251,6 +18396,27 @@ const LOOP_UPDATES = [
       'Progress, the Log strip and Weekly Review now count a paused program\'s days as paused from the moment LOOP opens, not as missed sessions'
     ],
     changes: []
+  },
+  {
+    id: 'v10-35',
+    version: 'LOOP 10.35',
+    title: 'Every Lift, One Page',
+    date: '2026-10-02',
+    swVersion: 'loop-v212',
+    summary: 'Exercise Detail now brings each lift’s next target, strength trend, records, mastery and recent workouts together in one place.',
+    newFeatures: [
+      'Next session at the top: the weight LOOP suggests for your next workout, beside what you lifted last time and why',
+      'One strength trend per lift, the same figure Progress → Strength shows, drawn from every workout you logged',
+      'Best ever, your personal-best climb and mastery side by side',
+      'Recent workouts one row each, with the best set in bold; tap one to open that workout'
+    ],
+    improvements: [
+      'Log → Browse by exercise now opens the lift’s Exercise Detail'
+    ],
+    bugFixes: [],
+    changes: [
+      'The Weight and Volume chart views on Exercise Detail were replaced by the strength trend'
+    ]
   }
 ];
 
@@ -31371,7 +31537,7 @@ function renderExerciseHistoryList(){
     wrap.innerHTML = `<div class="empty"><div class="mark">○</div><h3>No sessions yet</h3><div>Log ${escapeHtml(name)} to start its record.</div></div>`;
     return;
   }
-  wrap.innerHTML = `<div class="ex-history-title">${escapeHtml(name)}</div>` + sessions.map(s => `
+  wrap.innerHTML = `<div class="ex-history-head"><div class="ex-history-title">${escapeHtml(name)}</div><button type="button" class="exd-link ex-history-open" onclick="openExDetail('${onclickArg(name)}')">Exercise detail ${chevronRightSvg()}</button></div>` + sessions.map(s => `
     <div class="ex-history-session">
       <div class="ex-history-date">${formatDateShort(s.date)}</div>
       <div class="ex-history-sets">
@@ -34620,7 +34786,9 @@ let pbtTempSet = false;        // true while the strip is "the lift the athlete 
 let pbtActiveIndex = -1;       // the slide in front, read from the strip's own scroll position
 let progSelectedWeek = null;
 let exDetailName = null;
-let exDetailMetric = '1rm';
+let exDetailShown = 0;
+let exDetailAllBests = false;
+let exDetailModel = null;
 
 function switchProgTab(t){
   progTab = t;
@@ -38580,9 +38748,9 @@ function masteryBarHtml(standing){
   /* D25: Level 1 bars sit back; earned levels render at full strength. */
   return `<div class="mastery-bar${standing.level <= 1 ? ' mlb1' : ''}"><span style="width:${pct}%"></span></div>`;
 }
-/* Exercise Detail badge. */
-function exerciseMasteryHtml(name){
-  const m = getExerciseMasteryByName(name);
+/* Exercise Detail's mastery: the same data, badge and level pill as Progress → Mastery. */
+function exerciseMasteryHtml(name, known){
+  const m = known !== undefined ? known : getExerciseMasteryByName(name);
   if(!m) return '';
   if(!m.hasHistory){
     return `<div class="mastery-block mastery-empty">
@@ -38590,14 +38758,17 @@ function exerciseMasteryHtml(name){
       <div class="mastery-empty-text">Builds as you train this exercise.</div>
     </div>`;
   }
+  const t = masteryTier(m.level);
+  /* The words of the Mastery view's own row (masteryRankRowHtml). */
+  const next = m.isMax ? 'max level' : (m.percent + '% to Level ' + (m.level + 1));
+  const sessions = m.sessions + ' session' + (m.sessions === 1 ? '' : 's');
   return `
-    <div class="mastery-block">
-      <div class="mastery-head">
-        <span class="mastery-label">Mastery</span>
-        <span class="mastery-level">Level ${m.level}</span>
-      </div>
+    <div class="mastery-block exd-mastery" data-tier="${t.level}" role="group"
+      aria-label="${escapeAttr('Mastery: Level ' + m.level + ', ' + t.name + '. ' + sessions + ', ' + next + '.')}">
+      <span class="mastery-label">Mastery</span>
+      <div class="exd-mastery-main">${masteryBadgeHtml(m.level, 38)}${masteryLevelPillHtml(m.level)}<span class="exd-mastery-tier">${escapeHtml(t.name)}</span></div>
       ${masteryBarHtml(m)}
-      <div class="mastery-meta">${m.sessions} session${m.sessions===1?'':'s'} · ${m.months} month${m.months===1?'':'s'}${m.prs ? ' · ' + m.prs + ' record' + (m.prs===1?'':'s') : ''}</div>
+      <div class="mastery-meta">${sessions} · ${next}</div>
     </div>`;
 }
 /* =========================================================
@@ -38970,71 +39141,34 @@ function masteryAfterRender(){
 }
 
 /* ---------- EXERCISE DETAIL ---------- */
+/* D118 — the canonical home for one lift: one derivation, five zones. Every figure is
+   asked of the engine that already owns it; nothing here scores, recommends, ranks or stores. */
+const EXERCISE_DETAIL = { recent: 5, step: 20, bests: 3 };
+/* D49's own tags in words. 'increase' is named as Progress → Strength names that list. */
+const EXERCISE_REC_STATE = { increase: 'Ready to progress', build: 'Building', reduce: 'Reduce',
+  plateau: 'Hold', hold: 'Hold', decline: 'Hold', insufficient: 'Hold' };
+
 function openExDetail(name){
   exDetailName = name;
-  exDetailMetric = '1rm';
-  document.querySelectorAll('#exMetricSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.m === '1rm'));
+  exDetailShown = EXERCISE_DETAIL.recent;
+  exDetailAllBests = false;
   renderExDetail();
-  document.getElementById('exDetailOverlay').classList.add('open');
+  const ov = document.getElementById('exDetailOverlay');
+  ov.classList.add('open');
+  /* After it is shown: a hidden sheet has no scroll box, and would reopen where the last lift was left. */
+  const scroller = ov.querySelector('.sheet-scroll');
+  if(scroller) scroller.scrollTop = 0;
 }
 function closeExDetail(){ document.getElementById('exDetailOverlay').classList.remove('open'); }
-function setExMetric(m){
-  exDetailMetric = m;
-  document.querySelectorAll('#exMetricSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.m === m));
-  renderExDetail();
-}
+function exDetailIsOpen(){ return document.getElementById('exDetailOverlay').classList.contains('open'); }
 
-function renderExDetail(){
-  if(!exDetailName) return;
-  const name = exDetailName;
-  const sessions = getExerciseFullHistory(name);
-  document.getElementById('exDetailName').textContent = name;
-  /* Phase B — the way into How To, for an exercise that has a drawing. */
-  const howEl = document.getElementById('exDetailHowTo');
-  if(howEl){
-    const thumb = exerciseThumbHtml(name, { static: true });
-    howEl.innerHTML = thumb
-      ? '<button type="button" class="ex-detail-how" data-ex="' + escapeAttr(name) + '" onclick="openHowTo(this.dataset.ex)">' +
-          thumb + '<span>How to do it</span><span class="ex-detail-how-go" aria-hidden="true">›</span></button>'
-      : '';
-  }
-
-  if(!sessions.length){
-    document.getElementById('exDetailTrend').textContent = '';
-    document.getElementById('exDetailStats').innerHTML = `<div class="mini-empty">Not enough data yet. Complete a few sessions to see progression.</div>`;
-    document.getElementById('exDetailChart').innerHTML = '';
-    document.getElementById('exDetailHistory').innerHTML = '';
-    return;
-  }
-
-  /* D91 — this read `sessions[0].bodyweight`, and sessions come newest-first, so
-     the LATEST session decided, where the PR events and the timeline beside it
-     used the earliest. It asks the one shared rule now, so this sheet can never
-     describe a lift in a different unit from them. */
-  const prMode = prModeOf(name);
-  /* D91 — a value that parses to Infinity ("1e999", "Infinity") is no more a
-     number than a blank is, and is read the same way, so no figure on this sheet
-     can become "Infinity lb". */
+/* D96A — "Best ever" is ONE set the athlete actually performed: a finite load AND
+   finite positive reps on that same set, heaviest, then most reps at that weight.
+   The bodyweight branch is D91's. */
+function exerciseBestSet(sessions, isBW){
   const num = x => { const n = parseFloat(x); return Number.isFinite(n) ? n : NaN; };
-  const isBW = prMode === PR_MODE.BODYWEIGHT;
-  /* D96A — D88 finding E15(b). "Best ever" is ONE set the athlete actually
-     performed. The loaded branch used to need only a weight: a row logged with
-     315 and no reps became the best, and `best.r = r || best.r` then printed
-     the reps of a DIFFERENT set beside it — "315 lb x 5" where the 5 came from
-     a 225 lb set, or "315 lb x 0" where nothing was performed at all. Both are
-     records of a performance that never happened.
-
-     A loaded candidate now needs a finite load AND finite positive reps ON THE
-     SAME SET, and the pair that wins is written together. WHICH set wins is
-     unchanged — heaviest, then most reps at that weight — so no record moves
-     except one that was never a real set. `haveBest` distinguishes "nothing
-     valid" from "a genuine zero", so an unknown stays an em dash rather than
-     becoming 0 lb x 0. The bodyweight branch is D91's and is untouched. */
   const best = { w:0, r:0 };
   let haveBest = false;
-  /* D96C-3 — this sheet describes the WORKOUT, as the records do: every row of
-     the lift in it (`allSets`), so a heavier set logged in a later row is the
-     best it shows, and the session count is one per workout. */
   sessions.forEach(s => s.allSets.forEach(st => {
     const w = num(st.weight), r = num(st.reps);
     if(isBW){ if(!isNaN(r) && r > best.r){ best.r = r; haveBest = true; } }
@@ -39042,103 +39176,304 @@ function renderExDetail(){
       best.w = w; best.r = r; haveBest = true;
     }
   }));
-  const topSet = s => {
-    const valid = s.allSets.map(x => ({w:num(x.weight), r:num(x.reps)})).filter(x => !isNaN(x.r));
-    if(!valid.length) return null;
-    if(isBW) return valid.reduce((a,b)=>b.r>a.r?b:a);
-    /* D88 — the seed has to come from the FILTERED list. Seeding from valid[0]
-       meant one set logged with reps but a cleared weight (which saveLog stores,
-       by design) put NaN in the seed, and since every `b.w > NaN` is false the
-       seed was never replaced — the sheet printed "NaN lb x 12" for that lift on
-       every visit, even when later sets carried real weights. */
-    const weighed = valid.filter(x => !isNaN(x.w));
-    if(!weighed.length) return null;
-    return weighed.reduce((a,b)=>b.w>a.w?b:a);
-  };
-  const cur = topSet(sessions[0]);
-  const prev = sessions[1] ? topSet(sessions[1]) : null;
-  /* D96B.1 - by key: this sheet is opened with a raw loggedName from Mastery
-     and Most trained, not with the spelling the Strength list shows. */
-  const trends = exerciseTrendFor(name);
-  const A = { up:'Improving', down:'Declining', flat:'Holding' };
-
-  document.getElementById('exDetailTrend').innerHTML = trends
-    ? `<span class="trend-pct trend-${trends.dir}">${trendIconSvg(trendDirOf(trends.dir))} ${A[trends.dir]}</span> · ${sessions.length} sessions logged`
-    : `${sessions.length} session${sessions.length===1?'':'s'} logged`;
-
-  const fmtSet = s => !s ? '—' : (isBW ? `${s.r} reps` : `${s.w} lb × ${s.r}`);
-  document.getElementById('exDetailStats').innerHTML = `
-    <div class="snapshot" style="margin-top:14px">
-      <div class="snap-item"><div class="snap-label">Most recent</div><div class="snap-num">${fmtSet(cur)}</div></div>
-      <div class="snap-item"><div class="snap-label">Previous session</div><div class="snap-num">${fmtSet(prev)}</div></div>
-      <div class="snap-item"><div class="snap-label">Best ever</div><div class="snap-num">${
-        /* D91 — a lift whose history declares no mode has no best to state. It
-           used to fall into the loaded branch and print "0 lb × 0": a record of a
-           load never recorded. */
-        prMode === PR_MODE.UNKNOWN || !haveBest ? '—' : (isBW ? best.r + ' reps' : best.w + ' lb × ' + best.r)}</div></div>
-      <div class="snap-item"><div class="snap-label">Sessions</div><div class="snap-num">${sessions.length}</div></div>
-    </div>` + exerciseMasteryHtml(name);
-
-  // Chart: chronological, oldest first
-  const chrono = [...sessions].reverse();
-  let points = [];
-  if(exDetailMetric === '1rm' && !isBW){
-    points = compute1RMTrend(name);
-  } else {
-    points = chrono.map(s => {
-      const valid = s.allSets.map(x => ({w:num(x.weight), r:num(x.reps)})).filter(x => !isNaN(x.r));
-      if(!valid.length) return null;
-      let v;
-      if(exDetailMetric === 'volume') v = valid.reduce((n,x) => n + ((isNaN(x.w)?0:x.w) * x.r), 0);
-      else v = isBW ? Math.max(...valid.map(x=>x.r)) : Math.max(...valid.filter(x=>!isNaN(x.w)).map(x=>x.w), 0);
-      return v > 0 ? { date: s.date, value: v } : null;
-    }).filter(Boolean);
-  }
-  document.getElementById('exDetailChart').innerHTML = points.length >= 2
-    ? e1rmLineSvg(points)
-    : `<div class="mini-empty">Not enough sessions yet for a ${exDetailMetric === '1rm' ? '1RM' : exDetailMetric} trend.</div>`;
-
-  document.getElementById('exDetailHistory').innerHTML = `
-    <div class="mini-label">Session history</div>` + sessions.slice(0, 12).map(s => `
-    <div class="ex-history-session">
-      <div class="ex-history-date">${formatDateShort(s.date)}</div>
-      <div class="ex-history-sets">${s.rows.map(r => r.sets.map(set =>
-        setChipHtml(set, !!r.bodyweight)).join('')).join('')}</div>
-    </div>`).join('');
+  if(!haveBest) return null;
+  const same = st => num(st.reps) === best.r && (isBW || num(st.weight) === best.w);
+  /* Dated by the first workout that performed it (sessions arrive newest first). */
+  let at = null;
+  for(let i = sessions.length - 1; i >= 0 && !at; i--) if(sessions[i].allSets.some(same)) at = sessions[i];
+  return { w: best.w, r: best.r, date: at ? at.date : null, id: at ? at.id : null, same };
+}
+function exerciseBestSetText(best, isBW){
+  return !best ? '—' : (isBW ? best.r + (best.r === 1 ? ' rep' : ' reps') : best.w + ' lb × ' + best.r);
 }
 
+/* What this sheet has always drawn for a bodyweight lift: the most reps in a set,
+   one point per workout, oldest first. */
+function exerciseRepPoints(sessions){
+  const points = [];
+  for(let i = sessions.length - 1; i >= 0; i--){
+    let v = 0;
+    sessions[i].allSets.forEach(st => { const r = performedReps(st && st.reps); if(r !== null && r > v) v = r; });
+    if(v > 0) points.push({ date: sessions[i].date, value: v });
+  }
+  return points;
+}
 
-function e1rmLineSvg(points){
-  const w = 320, h = 140, padL = 34, padR = 12, padT = 16, padB = 22;
-  const values = points.map(p => p.value);
-  const min = Math.min(...values), max = Math.max(...values);
-  const range = Math.max(1, max - min);
-  const yFor = v => padT + (1 - (v - min) / range) * (h - padT - padB);
-  const xFor = i => points.length === 1 ? (padL + (w - padL - padR) / 2) : padL + (i / (points.length - 1)) * (w - padL - padR);
-  const pathD = points.map((p,i) => (i === 0 ? 'M' : 'L') + xFor(i).toFixed(1) + ',' + yFor(p.value).toFixed(1)).join(' ');
-  /* D28: the line is a luminous stroke on the dark ground — a gradient
-     underfill falls away beneath it, intermediate sessions recede to small
-     marks, and the MOST RECENT point is the one lit datum (a halo, not a
-     filter — two circles, zero cost). Every value drawn is still real. */
-  const lastX = xFor(points.length - 1).toFixed(1);
-  const lastY = yFor(points[points.length - 1].value).toFixed(1);
-  const fillD = pathD + ` L${xFor(points.length - 1).toFixed(1)},${h - padB} L${xFor(0).toFixed(1)},${h - padB} Z`;
-  const dots = points.slice(0, -1).map((p,i) => `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(p.value).toFixed(1)}" r="2.4" fill="var(--accent)" opacity="0.55"/>`).join('');
-  const nowDot = `<circle cx="${lastX}" cy="${lastY}" r="7" fill="rgba(76,194,255,0.22)"/>
-    <circle cx="${lastX}" cy="${lastY}" r="3.4" fill="var(--accent)"/>`;
-  const labelMax = `<text x="4" y="${padT+4}" font-size="11" fill="var(--text-faint)" font-family="JetBrains Mono, monospace">${max}</text>`;
-  const labelMin = `<text x="4" y="${h-padB}" font-size="11" fill="var(--text-faint)" font-family="JetBrains Mono, monospace">${min}</text>`;
-  const firstLabel = `<text x="${padL}" y="${h-5}" font-size="12" fill="var(--text-faint)" text-anchor="start" font-family="JetBrains Mono, monospace">${formatDateShort(points[0].date)}</text>`;
-  const lastLabel = `<text x="${w-padR}" y="${h-5}" font-size="12" fill="var(--text-faint)" text-anchor="end" font-family="JetBrains Mono, monospace">${formatDateShort(points[points.length-1].date)}</text>`;
-  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:150px; display:block;">
-    <defs><linearGradient id="e1fill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="var(--accent)" stop-opacity="0.16"/>
-      <stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
-    </linearGradient></defs>
-    <path d="${fillD}" fill="url(#e1fill)"/>
-    <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    ${dots}${nowDot}${labelMax}${labelMin}${firstLabel}${lastLabel}
-  </svg>`;
+function deriveExerciseDetail(name){
+  const raw = name == null ? '' : String(name);
+  const key = loggedExerciseKey(raw);
+  /* D96C-3 — one performance per workout, every row of it, newest first, each
+     carrying the workout it came from so a row opens that workout by its id. */
+  const sessions = [];
+  if(key) sortedLog().forEach(l => {
+    const perf = workoutExercisePerformance(l, key);
+    if(perf) sessions.push(Object.assign(exerciseHistorySession(perf), { entry: l }));
+  });
+  const prMode = prModeOf(raw);
+  const isBW = prMode === PR_MODE.BODYWEIGHT;
+  let muscles = { primary: [], secondary: [] }, equipment = null;
+  try{ muscles = musclesForExercise(raw) || muscles; }catch(e){}
+  try{ const m = getExerciseMetadata(raw); if(m && m.equipment && m.equipment !== 'Unknown') equipment = m.equipment; }catch(e){}
+
+  const best = prMode === PR_MODE.UNKNOWN ? null : exerciseBestSet(sessions, isBW);
+
+  /* D49, asked exactly as Progress asks it. `last` is the session it judged. */
+  const recReps = repRangeForExercise(raw);
+  let rec = null, last = null;
+  if(sessions.length){
+    try{ rec = progressionFor(raw, recReps, null); }catch(e){ rec = null; }
+    try{ const h = exerciseSessionHistory(raw, 1); last = h.length ? h[0] : null; }catch(e){ last = null; }
+  }
+
+  /* Strength's own row for this lift (D98), from the same points. */
+  const points = sessions.length ? compute1RMTrend(raw) : [];
+  const trend = exerciseTrendFromPoints(points);
+  const repPoints = !trend && isBW ? exerciseRepPoints(sessions) : null;
+
+  let bests = { milestones: [], isBW, unit: isBW ? 'reps' : 'lb' };
+  try{ if(sessions.length) bests = computePersonalBestTimeline(raw); }catch(e){}
+  let mastery = null;
+  try{ mastery = getExerciseMasteryByName(raw); }catch(e){ mastery = null; }
+
+  return { name: raw, key, sessions, sessionCount: sessions.length, lastDate: sessions.length ? sessions[0].date : null,
+    prMode, isBW, muscles, equipment, best, rec, recReps, last, points, trend, repPoints, bests, mastery };
+}
+
+function exdDate(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  if(isNaN(d.getTime())) return '';
+  const o = { month: 'short', day: 'numeric' };
+  if(d.getFullYear() !== new Date().getFullYear()) o.year = 'numeric';
+  return d.toLocaleDateString('en-US', o);
+}
+function exdRange(reps){ return String(reps == null ? '' : reps).replace(/(\d)\s*-\s*(\d)/, '$1–$2'); }
+function exdNum(n){ return String(Math.round(n * 10) / 10); }
+
+function exDetailMetaHtml(d){
+  const lbl = m => MUSCLE_LABELS[m] || m;
+  const main = d.muscles.primary.slice(0, 2).map(lbl).concat(d.equipment ? [d.equipment] : []);
+  const also = d.muscles.secondary.filter(m => d.muscles.primary.indexOf(m) === -1).slice(0, 3).map(m => lbl(m).toLowerCase());
+  return (main.length ? '<span class="exd-meta-main">' + escapeHtml(main.join(' · ')) + '</span>' : '')
+    + (also.length ? '<span class="exd-meta-also">Also works ' + escapeHtml(also.join(', ')) + '</span>' : '');
+}
+function exDetailFactsHtml(d){
+  /* A skipped row is in a workout but holds no set, so "no sets", not "never logged". */
+  if(!d.sessionCount) return '<span class="exd-fact">No sets logged yet</span>';
+  const state = d.rec ? EXERCISE_REC_STATE[d.rec.tag] : null;
+  return '<span class="exd-fact"><b>' + d.sessionCount + '</b> session' + (d.sessionCount === 1 ? '' : 's') + '</span>'
+    + '<span class="exd-fact">Last trained <b>' + escapeHtml(exdDate(d.lastDate)) + '</b></span>'
+    + (state ? '<span class="exd-state exd-state-' + d.rec.tag + '">' + escapeHtml(state) + '</span>' : '');
+}
+
+/* NEXT SESSION — D49's current answer: the session it judged, the load it suggests, and its reason. */
+function exDetailNextHtml(d){
+  const head = '<div class="exd-head"><h3 class="exd-k" id="exdNextH">Next session</h3></div>';
+  const lift = escapeHtml(d.name.trim() || 'this exercise');
+  if(!d.sessionCount) return head + '<p class="exd-empty">Log ' + lift + ' once and LOOP will suggest what to lift next time.</p>';
+  const rec = d.rec, last = d.last;
+  if(!rec || rec.weight == null || !last){
+    return head + '<p class="exd-empty">' + (d.isBW
+      ? 'LOOP suggests loads for lifts done with added weight. For ' + lift + ', your reps and records are below.'
+      : 'LOOP suggests a load once a working set of ' + lift + ' has been logged with both a weight and reps.') + '</p>';
+  }
+  const change = rec.weight - last.weight;
+  const delta = change > 0 ? '+' + exdNum(change) + ' lb' : change < 0 ? '−' + exdNum(-change) + ' lb' : 'Same load';
+  const dir = change > 0 ? 'up' : change < 0 ? 'down' : 'same';
+  const col = (k, w, reps, cls, extra) => '<div class="exd-ln-col' + (cls ? ' ' + cls : '') + '">'
+    + '<span class="exd-ln-k">' + k + '</span>'
+    + '<span class="exd-ln-v">' + exdNum(w) + '<small> lb</small></span>'
+    + '<span class="exd-ln-r">× ' + escapeHtml(reps) + ' reps</span>' + (extra || '') + '</div>';
+  return head
+    + '<div class="exd-ln">'
+    + col('Last · ' + escapeHtml(exdDate(last.date)), last.weight, String(last.topReps), '')
+    + '<span class="exd-ln-arrow" aria-hidden="true">' + chevronRightSvg() + '</span>'
+    + col('Next', rec.weight, exdRange(d.recReps), 'exd-ln-to', '<span class="exd-delta exd-delta-' + dir + '">' + delta + '</span>')
+    + '</div>'
+    + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>';
+}
+
+/* The one chart: actual observations only, on a date scale, no smoothing and no
+   text inside the drawing (labels live in the page, at full size). */
+function exerciseTrendSvg(points, label){
+  const W = 320, H = 128, PX = 8, PT = 12, PB = 10;
+  const n = points.length;
+  const days = points.map(p => civilDayNumber(p.date));
+  const d0 = days[0], span = days[n - 1] - d0;
+  const byDate = span > 0 && days.every(x => Number.isFinite(x));
+  const xFor = i => n === 1 ? W / 2 : PX + (byDate ? (days[i] - d0) / span : i / (n - 1)) * (W - 2 * PX);
+  const vals = points.map(p => p.value);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if(hi === lo){ lo -= 1; hi += 1; }
+  const yFor = v => PT + (1 - (v - lo) / (hi - lo)) * (H - PT - PB);
+  const xy = points.map((p, i) => [xFor(i), yFor(p.value)]);
+  const f = v => v.toFixed(1);
+  const line = xy.map((c, i) => (i ? 'L' : 'M') + f(c[0]) + ',' + f(c[1])).join(' ');
+  const area = line + ' L' + f(xy[n - 1][0]) + ',' + (H - PB) + ' L' + f(xy[0][0]) + ',' + (H - PB) + ' Z';
+  const r = n > 30 ? 1.6 : 2.6;
+  const dots = xy.slice(0, -1).map(c => '<circle class="exd-dot" cx="' + f(c[0]) + '" cy="' + f(c[1]) + '" r="' + r + '"/>').join('');
+  const L = xy[n - 1];
+  return '<svg class="exd-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escapeAttr(label) + '">'
+    + '<defs><linearGradient id="exdFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity="0.18"/>'
+    + '<stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>'
+    + '<line class="exd-ref" x1="' + PX + '" x2="' + (W - PX) + '" y1="' + f(xy[0][1]) + '" y2="' + f(xy[0][1]) + '"/>'
+    + '<path class="exd-area" d="' + area + '" fill="url(#exdFill)"/>'
+    + '<path class="exd-line" d="' + line + '" pathLength="1"/>'
+    + dots
+    + '<circle class="exd-now-halo" cx="' + f(L[0]) + '" cy="' + f(L[1]) + '" r="7.5"/>'
+    + '<circle class="exd-now" cx="' + f(L[0]) + '" cy="' + f(L[1]) + '" r="3.6"/>'
+    + '</svg>';
+}
+
+/* PERFORMANCE TREND — Strength's own figure for this lift (D98), drawn from the same points. */
+function exDetailTrendHtml(d){
+  const head = '<div class="exd-head"><h3 class="exd-k" id="exdTrendH">Strength trend</h3></div>';
+  const lift = d.name.trim();
+  const end = (k, p, unit) => '<span class="exd-end"><i>' + escapeHtml(k) + ' · ' + escapeHtml(formatDateShort(p.date)) + '</i>'
+    + '<b>' + p.value + '<small> ' + (unit === 'reps' && p.value === 1 ? 'rep' : unit) + '</small></b></span>';
+  if(d.trend){
+    const t = d.trend, pts = d.points, first = pts[0], lastP = pts[pts.length - 1];
+    /* Strength's own printing of this number: a sign only when it is not zero once rounded down. */
+    const pct = Math.round(t.pct);
+    const sign = t.pct >= 0 ? '+' : pct < 0 ? '−' : '';
+    const word = { up: 'Improving', down: 'Declining', flat: 'Holding' }[t.dir];
+    const label = lift + ': estimated one-rep max across ' + pts.length + ' workouts, from ' + first.value + ' pounds on '
+      + exdDate(first.date) + ' to ' + lastP.value + ' pounds on ' + exdDate(lastP.date) + ', '
+      + (pct === 0 ? 'no change' : (pct > 0 ? 'up ' : 'down ') + Math.abs(pct) + ' percent') + '. ' + word + '.';
+    return head
+      + '<div class="exd-trend-top"><span class="exd-trend-pct">' + sign + Math.abs(pct) + '%</span>'
+      + '<span class="trend-pct trend-' + t.dir + '">' + trendIconSvg(trendDirOf(t.dir)) + ' ' + word + '</span></div>'
+      + '<p class="exd-sub">Estimated 1RM, first workout to latest · ' + pts.length + ' workouts</p>'
+      + '<div class="exd-chart">' + exerciseTrendSvg(pts, label) + '</div>'
+      + '<div class="exd-ends">' + end('First', first, 'lb') + end('Latest', lastP, 'lb') + '</div>';
+  }
+  if(d.repPoints && d.repPoints.length >= 2){
+    const pts = d.repPoints, first = pts[0], lastP = pts[pts.length - 1];
+    const label = lift + ': most reps in a set across ' + pts.length + ' workouts, from ' + first.value + ' on '
+      + exdDate(first.date) + ' to ' + lastP.value + ' on ' + exdDate(lastP.date) + '.';
+    return head
+      + '<p class="exd-sub exd-sub-lead">Most reps in a set, each workout · ' + pts.length + ' workouts</p>'
+      + '<div class="exd-chart">' + exerciseTrendSvg(pts, label) + '</div>'
+      + '<div class="exd-ends">' + end('First', first, 'reps') + end('Latest', lastP, 'reps') + '</div>';
+  }
+  const have = d.repPoints ? d.repPoints.length : d.points.length;
+  return head + '<p class="exd-empty">' + (d.sessionCount
+    ? 'More history needed. A trend appears once two workouts have ' + (d.isBW ? 'reps' : 'a weight and reps') + ' logged for ' + escapeHtml(lift) + ' (so far: ' + have + ').'
+    : 'Your trend for ' + escapeHtml(lift || 'this exercise') + ' starts with your second workout.') + '</p>';
+}
+
+/* RECORDS + MASTERY — D96A's best ever, D82's personal bests, D86's mastery. */
+function exDetailBestsHtml(d){
+  const ms = d.bests.milestones || [];
+  if(!ms.length) return '';
+  const unit = v => d.bests.isBW ? (v === 1 ? 'rep' : 'reps') : 'lb';
+  const newest = ms.slice().reverse();
+  const shown = exDetailAllBests ? newest : newest.slice(0, EXERCISE_DETAIL.bests);
+  const rows = shown.map((m, i) => {
+    const prev = newest[i + 1];
+    const tag = i === newest.length - 1 ? 'First logged' : i === 0 ? 'Current' : '+' + exdNum(m.value - prev.value) + ' ' + unit(m.value - prev.value);
+    return '<li class="exd-pb' + (tag === 'Current' ? ' exd-pb-cur' : '') + '"><span class="exd-pb-v">' + m.value + '<small> ' + unit(m.value) + '</small></span>'
+      + '<span class="exd-pb-d">' + escapeHtml(formatDateShort(m.date)) + '</span><span class="exd-pb-tag">' + escapeHtml(tag) + '</span></li>';
+  }).join('');
+  const more = newest.length > shown.length
+    ? '<button type="button" class="exd-link" onclick="exDetailShowAllBests()">Show all ' + newest.length + '</button>' : '';
+  return '<div class="exd-pbs"><div class="exd-pbs-head"><span class="exd-pbs-t">Personal bests</span>'
+    + '<span class="exd-head-n">' + (d.bests.isBW ? 'most reps' : 'heaviest weight') + '</span></div>'
+    + '<ol class="exd-pb-list">' + rows + '</ol>' + more + '</div>';
+}
+function exDetailRecordsHtml(d){
+  const bestTxt = d.prMode === PR_MODE.UNKNOWN ? '—' : exerciseBestSetText(d.best, d.isBW);
+  const ms = d.bests.milestones || [];
+  const m = d.mastery;
+  /* Mastery is keyed by the registry's movement, the rest of this sheet by the name logged (D96B). */
+  const masteryNote = m && m.hasHistory && m.sessions !== d.sessionCount
+    ? '<p class="exd-note">Mastery counts ' + m.sessions + ' session' + (m.sessions === 1 ? '' : 's')
+      + ': every name LOOP recognises as this movement, with completed reps.</p>' : '';
+  return '<div class="exd-head"><h3 class="exd-k" id="exdRecH">Records &amp; mastery</h3></div>'
+    + '<div class="exd-rec-grid"><div class="exd-best">'
+    + '<div class="snap-label">Best ever</div><div class="snap-num">' + bestTxt + '</div>'
+    + (d.best && d.best.date && bestTxt !== '—' ? '<span class="exd-best-d">' + escapeHtml(exdDate(d.best.date)) + '</span>' : '')
+    + (ms.length > 1 ? '<span class="exd-best-n">' + ms.length + ' personal bests since ' + escapeHtml(exdDate(ms[0].date)) + '</span>' : '')
+    + '</div>' + exerciseMasteryHtml(d.name, m) + '</div>'
+    + masteryNote + exDetailBestsHtml(d);
+}
+
+/* RECENT HISTORY — one row per workout (D96C-3), opened by that workout's id (D107). */
+function exDetailSessionRowHtml(s, d){
+  const e = s.entry;
+  let evs = [];
+  try{ evs = prEventsOfEntry(e).filter(ev => loggedExerciseKey(ev.exerciseName) === d.key); }catch(x){ evs = []; }
+  const first = evs.length > 0 && evs.every(ev => ev.hits.every(h => (h.type === 'weight' || h.type === 'reps') && h.prev === 0));
+  const top = exerciseBestSet([{ date: s.date, id: s.id, allSets: s.sets }], s.bodyweight);
+  let bolded = false;
+  const sets = [];
+  /* D96A — a load or a rep count that is not a finite number is shown as the absence it is. */
+  const load = w => String(w == null ? '' : w).trim().toUpperCase() === 'BW' ? 'BW' : (performedLoad(w) === null ? '—' : exdNum(performedLoad(w)));
+  const reps = r => performedReps(r) === null ? '—' : exdNum(performedReps(r));
+  s.rows.forEach(row => (row.sets || []).forEach(st => {
+    const txt = escapeHtml(load(st.weight)) + ' × ' + escapeHtml(reps(st.reps));
+    const isTop = !bolded && top && s.sets.indexOf(st) !== -1 && top.same(st);
+    if(isTop) bolded = true;
+    const warm = setTypeOf(st) === SET_TYPES.WARMUP;
+    sets.push(isTop ? '<b>' + txt + '</b>' : '<span' + (warm ? ' class="exd-warm"' : '') + '>' + txt + '</span>');
+  }));
+  const title = e.title || CAT_LABEL[e.category] || 'Workout';
+  const headline = exerciseBestSetText(top, s.bodyweight);
+  const mark = !evs.length ? '' : first ? '<span class="rw-pr exd-first">First</span>' : '<span class="rw-pr">PR</span>';
+  const spoken = exdDate(s.date) + ', ' + title + ': ' + (top ? 'best set ' + headline : 'no complete set') + ', '
+    + sets.length + ' set' + (sets.length === 1 ? '' : 's') + (evs.length ? (first ? ', first logged best' : ', personal record') : '') + '. Open workout.';
+  return '<button type="button" class="rw-row exd-row" onclick="openDayDetail(\'' + onclickArg(e.id) + '\')" aria-label="' + escapeAttr(spoken) + '">'
+    + workoutIdentityHtml(e, e.category, 'sm')
+    + '<span class="rw-body"><span class="exd-row-top"><span class="rw-title">' + escapeHtml(title) + '</span>'
+    + '<span class="exd-row-date">' + escapeHtml(formatDateShort(s.date)) + '</span></span>'
+    + '<span class="rw-meta exd-row-sets">' + sets.join('') + '</span></span>'
+    + mark + '<span class="rw-go" aria-hidden="true">' + chevronRightSvg() + '</span></button>';
+}
+function exDetailHistoryHtml(d){
+  const head = '<div class="exd-head"><h3 class="exd-k" id="exdHistH">Recent workouts</h3>'
+    + (d.sessionCount ? '<span class="exd-head-n">' + d.sessionCount + ' logged</span>' : '') + '</div>';
+  if(!d.sessionCount) return head + '<p class="exd-empty">Every workout with ' + escapeHtml(d.name.trim() || 'this exercise') + ' will be listed here.</p>';
+  const shown = d.sessions.slice(0, exDetailShown);
+  const left = d.sessionCount - shown.length;
+  return head + '<div class="exd-rows">' + shown.map(s => exDetailSessionRowHtml(s, d)).join('') + '</div>'
+    + (left > 0 ? '<button type="button" class="rw-more" onclick="exDetailShowMore()">Show ' + Math.min(left, EXERCISE_DETAIL.step) + ' more</button>' : '');
+}
+
+function renderExDetail(){
+  if(!exDetailName) return;
+  const name = exDetailName;
+  const d = deriveExerciseDetail(name);
+  exDetailModel = d;
+  document.getElementById('exDetailName').textContent = name;
+  const art = exerciseThumbHtml(name, { static: true });
+  document.getElementById('exDetailArt').innerHTML = art
+    ? '<button type="button" class="exd-art" data-ex="' + escapeAttr(name) + '" onclick="openHowTo(this.dataset.ex)" aria-label="'
+      + escapeAttr('How to do ' + name.trim()) + '">' + art + '<span>How to</span></button>'
+    : '';
+  document.getElementById('exDetailMeta').innerHTML = exDetailMetaHtml(d);
+  document.getElementById('exDetailFacts').innerHTML = exDetailFactsHtml(d);
+  const next = document.getElementById('exDetailNext');
+  next.innerHTML = exDetailNextHtml(d);
+  next.classList.toggle('exd-next-quiet', !d.rec || d.rec.weight == null || !d.last);
+  document.getElementById('exDetailChart').innerHTML = exDetailTrendHtml(d);
+  document.getElementById('exDetailStats').innerHTML = exDetailRecordsHtml(d);
+  document.getElementById('exDetailHistory').innerHTML = exDetailHistoryHtml(d);
+}
+function exDetailShowMore(){
+  if(!exDetailModel) return;
+  const before = exDetailShown;
+  exDetailShown += EXERCISE_DETAIL.step;
+  const host = document.getElementById('exDetailHistory');
+  host.innerHTML = exDetailHistoryHtml(exDetailModel);
+  const rows = host.querySelectorAll('.exd-row');
+  if(rows[before] && rows[before].focus) rows[before].focus({ preventScroll: true });
+}
+function exDetailShowAllBests(){
+  if(!exDetailModel) return;
+  exDetailAllBests = true;
+  const host = document.getElementById('exDetailStats');
+  host.innerHTML = exDetailRecordsHtml(exDetailModel);
+  const list = host.querySelector('.exd-pb-list');
+  if(list && list.focus){ list.setAttribute('tabindex', '-1'); list.focus({ preventScroll: true }); }
 }
 
 
@@ -39174,6 +39509,7 @@ function renderAll(){
   if(historySubView === 'calendar') renderSurface('renderHistoryCalendar', renderHistoryCalendar);
   if(historySubView === 'exercise') renderSurface('renderExerciseHistorySelect', renderExerciseHistorySelect);
   renderSurface('renderProgress', renderProgress);
+  if(exDetailName && exDetailIsOpen()) renderSurface('renderExDetail', renderExDetail);
 }
 
 /* ---------- LOG SHEET ---------- */

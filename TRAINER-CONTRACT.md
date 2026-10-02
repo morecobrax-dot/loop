@@ -16558,3 +16558,147 @@ and 0 after.
 
 **Status.** Closes E37. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no
 migration, no history rewritten.
+
+## §157 — THE CANONICAL HOME FOR A LIFT (D118 · LOOP 10.35 · loop-v212)
+
+**Rule.** Exercise Detail is one derivation, `deriveExerciseDetail(name)`, and
+five zones drawn from it: the hero, Next session, Strength trend, Records &
+mastery, and Recent workouts. Every figure is asked of the system that owns it.
+The sheet scores, recommends, ranks and stores nothing of its own.
+
+| Zone | Figure | Owner |
+|---|---|---|
+| Hero | identity, sessions, last trained | `loggedExerciseKey` (D96B), one performance per workout (D96C-3) |
+| Hero | muscles, equipment, picture | `musclesForExercise`, the registry, `exerciseThumbHtml` |
+| Hero | state word | D49's tag (`EXERCISE_REC_STATE`) |
+| Next session | last, next, why | `progressionFor(name, repRangeForExercise(name), null)`, exactly as Progress, Today and Weekly Review ask; `exerciseSessionHistory(name, 1)` for the session it judged |
+| Strength trend | figure and chart | `compute1RMTrend` + `exerciseTrendFromPoints`: Strength's own row (D98) |
+| Records & mastery | best ever | D96A's one-set rule, moved verbatim into `exerciseBestSet` |
+| Records & mastery | personal bests | `computePersonalBestTimeline` (D82) |
+| Records & mastery | mastery | `getExerciseMasteryByName`, with Progress → Mastery's badge, pill, bar and words |
+| Recent workouts | rows and marks | the same performances, record marks from `prEventsOfEntry` for this lift (D96C-2), opened by `openDayDetail(id)` (D107) |
+
+**What changed for the athlete.**
+- The page leads with the answer to "what next": D49's current recommendation,
+  shown as LAST (the session D49 judged, dated) beside NEXT (its load and the
+  plan's range), the change as a word and sign, and D49's own sentence.
+- One strength trend: Strength's percentage for the lift, drawn from its own
+  observations on a date scale. Dots mark real workouts, segments are straight
+  and nothing is drawn between them. The labels are page text, not SVG text.
+- Best ever beside mastery, then the personal-best climb (newest first, the
+  oldest marked "First logged", never as a record over a previous lift).
+- Recent workouts as one row per workout. Each row shows the workout's
+  title, date and every set, with the best set in bold. A real record is
+  marked PR; a first logged best is marked First. Tapping a row opens that
+  workout by its id. The first five rows render, then 20 more per tap.
+- Removed: the Weight and Volume chart views (their per-session numbers were
+  computed only on this sheet), the "Most recent" and "Previous session"
+  stats (now Next session's LAST and the rows), and the bottom Done (Back now
+  sits at the top, as on Weekly Review).
+- Log → Browse by exercise links to the lift's Exercise Detail. An open
+  detail is redrawn with the tabs, so an edit or delete made from one of its
+  rows is never shown stale.
+
+**Current and historical.** Next session, the state word and mastery are
+current. Workouts and records are history. Nothing past is reconstructed:
+D49 is asked once, for now, and never per workout. There is no Session Score
+beside a lift, and no recovery or readiness figure.
+
+**Bodyweight and mixed history (D91).** A lift's mode is `prModeOf`, from its
+earliest declaring session.
+- A bodyweight lift shows its best and records in reps. No load is
+  suggested, and the sheet says why instead of D49's "No history yet".
+- Its trend is the most reps in a set per workout, with no percentage. If the
+  lift also has a Strength row, that row's figure is shown instead.
+- History rows show each workout as it was executed ("BW × 12", "35 × 8").
+- A non-finite stored load or rep count shows as "—" (D96A).
+
+**Not changed.** Every engine and route the sheet reads is byte-identical to
+10.34 (43 pinned in Contract 235): PR events, the timeline, the trend
+functions, D49, its evidence and history, identity and grouping, mastery,
+Day Detail, the Summary, muscles, the picture, Session Score, recovery, XP, D44
+and logging. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no
+new key and no stored snapshot.
+
+### Measured
+
+- **Real headless Edge.** 17 fixtures (the brief's list) at nine viewports,
+  from 320×568 to 1280×800, plus 19 interaction checks at 390 and at 320.
+  The interactions cover real taps on every entry point, a row opening its
+  own workout above the sheet, same-day workouts, Back, How to, Show more,
+  Reduce Motion, and a delete made from beneath the open sheet.
+  Results: 1,476 of 1,476 layout checks (no overflow, no clipped number,
+  44 px targets, no dead zones, no console error, chart in its box, rows
+  opening their own ids) and 19 of 19 interaction checks at each width.
+- **Owner backups**, read-only and hashed before and after. Every lift in both
+  backups (15) agrees with every engine: best ever, records, timeline, trend,
+  mastery, D49, row order and one row per workout. No store write. The
+  backups have no bodyweight or repeated-row history, so fixtures cover those.
+- **Performance**, frozen 10.34 → 10.35, median of nine:
+
+| History | Cold open | Warm open |
+|---|---|---|
+| 10 workouts | 1.8 → 2.6 ms | 1.2 → 1.9 ms |
+| Owner (6 workouts) | 0.4 → 1.2 ms | 0.3 → 0.9 ms |
+| Two years, 416 workouts (208 of the lift) | 21 → 31 ms | 4.9 → 4.6 ms |
+| A high-volume year, 260 workouts × 48 sets | 41 → 64 ms | 11.0 → 7.6 ms |
+
+  "Cold" clears every log cache first. Most of its added cost is the
+  app-wide record index, which Log and Progress usually already hold.
+
+### Contract 235 (106 checks)
+
+It covers:
+- one derivation, one D49 ask per open, re-used by Show more;
+- identity by key, and no merge of a registry alias: mastery alone is keyed
+  by movement, and the sheet says why its count differs;
+- repeated rows as one performance, the best set bolded across rows, same-day
+  workouts kept apart, row order and ids;
+- D96A best-ever cases;
+- the timeline untouched, newest first, with First logged;
+- record marks per workout and per lift, with no leak from another lift;
+- D49 for increase, build, plateau, reduce, insufficient and a plan range of
+  6–10, each equal to Progress's answer;
+- the trend equal to the Strength row for three lifts, with no invented or
+  curved points;
+- mastery equal to the Mastery view's own row;
+- bodyweight and both orders of mixed history;
+- no Session Score, recovery or historical D49;
+- the empty, skipped-only, one-workout and legacy-blank states;
+- a 2-year history;
+- zero writes, no key and no memo;
+- every entry point, the redraw with the tabs, and an apostrophe in a name;
+- Reduce Motion, accessible labels and touch targets;
+- 43 protected pins.
+
+**Mutation: 31 of 31 killed by Contract 235 alone.** Twenty-nine are killed by
+behaviour. Two die on a stylesheet or source check: Reduce Motion's rule (26) and
+the scroll reset following the sheet being shown (29). The real browser proves
+both behaviours (Reduce Motion emulated; a reopened lift starts at its top).
+
+### Restated contracts
+
+These read the old sheet's markup or source. Each now holds the same intent
+where it lives today:
+- Contract 63/64's module end marker is kept as it was.
+- D91's Infinity guard reads all five zones (the metric toggle is gone), and
+  "Exercise Detail reads prModeOf" now points at the derivation.
+- D96A's three source checks read `exerciseBestSet`.
+- D88's top-set seeding checks are now behavioural on `exerciseBestSet`.
+- E17's trend check reads the derivation's keyed points.
+- D96B.1's identity checks read the hero and trend zones.
+- D96C-3 reads the latest row's bold best set.
+- D94B's "no tier on Exercise Detail" became "the same tier".
+- The chart-language check reads `exerciseTrendSvg`.
+- The onclickArg count is now 4 (the Log link).
+- D114's `renderAll` pin is restated by reversal: with the one D118 statement
+  taken out, `renderAll` still hashes to 10.30's pin.
+
+### Found, not fixed — E38
+
+Day Detail and Log → Browse by exercise print a stored non-finite weight as a
+load ("Infinity lb × 6"). It shows only in legacy or imported history. It is
+recorded in FINDINGS-D88.md.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow, no migration, no
+history rewritten.

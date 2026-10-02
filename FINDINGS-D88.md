@@ -1236,6 +1236,26 @@ week launched with no forced recompute now reads 1 planned / 0 missed / 100%
 (10.33: 4 / 3 / 25%), in real headless Edge at seven phone widths. Cost: one
 extra derivation per launch, after first paint. Contract 234, §156.
 
+## E38 — Day Detail and Log → Browse by exercise print a stored non-finite weight as a load · P4 · PROVEN · OPEN
+
+Found by D118 while proving that the new Exercise Detail never prints Infinity.
+
+**What is wrong.** `setChipHtml` prints a set's stored weight text as it is:
+`escapeHtml(set.weight || '—')` + ` lb × ` + the reps. D96A's rule is that a
+performed load is a finite number or it is nothing. Saves since D96A normalise
+the weight on the way in, so this only shows in legacy or imported history.
+There, a set stored as "Infinity" or "1e999" reads as a load.
+
+**Measured.** One workout with sets 135 × 8, "Infinity" × 6 and "1e999" × 5:
+- Day Detail (Full workout): "135 lb × 8 · Infinity lb × 6 · 1e999 lb × 5";
+- Log → Browse by exercise: the same;
+- Exercise Detail (D118): "135 × 8 · — × 6 · — × 5".
+
+**Why it was not fixed in D118.** These are other surfaces, and `setChipHtml`
+is shared with the logger's own chips. D118 renders its own rows through
+`performedLoad` and `performedReps` and leaves `setChipHtml` alone. The likely
+fix is the same boundary inside `setChipHtml`, in its own phase.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.
