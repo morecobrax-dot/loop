@@ -266,6 +266,28 @@ function pinAsOf1036(name){
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
 }
 
+/* D122 (E42) — detectPlateau changed ON PURPOSE, in one statement: a workout's plateau
+   load is now its heaviest PERFORMED working set (isPerformanceSet, with performedReps),
+   read exactly as D49's own evidence reads it, so a typed warm-up, a set marked not
+   completed or a load with no performed reps can no longer invent or hide a stall. The
+   window and the stall test are the plateau policy and did not move. Every contract that
+   held detectPlateau byte-identical now holds it at its 10.38 pin with this statement put
+   back; any other change to it still fails them all. The pair is [now, as of 10.38]. */
+const D122_EDITS = {
+  detectPlateau: [[
+    "(ex.sets || []).forEach(s => { if(!isPerformanceSet(s) || performedReps(s.reps) === null) return; const w = performedLoad(s.weight); if(w !== null) weights.push(w); });",
+    "(ex.sets || []).forEach(s => { const w = performedLoad(s.weight); if(w !== null) weights.push(w); });"]]
+};
+function pinAsOf1038(name){
+  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
+  for(const [now, then] of (D122_EDITS[name] || [])){
+    if(t.split(now).length !== 2) return null;           // the D122 statement itself moved
+    t = t.split(now).join(then);
+  }
+  return require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+
 /* A CSS rule's body, bounded by its own closing brace rather than by a
    character count that a new declaration pushes a property out of. */
 function cssRule(css, selector){
@@ -44320,7 +44342,7 @@ async function testRealSetPairingD109(){
     T('32 — D50B\'s coach constants are the same values', /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(code));
     T('33 — the policy, the evidence judge, the phase policy, the increment ladder and plateau detection are byte-identical',
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
-      && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e' && pin('detectPlateau') === '5328b907ce3432c7'
+      && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7'
       && pin('parseRepRange') === '4e2721b469db24ef' && pin('effortToRir') === '60ad26f861c0c426');
   });
 
@@ -44585,7 +44607,7 @@ async function testFiniteRepEligibilityD110(){
       /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(stripComments(src)));
     T('25 — the policy, the evidence judge, the phase policy, the increment ladder and plateau detection are byte-identical',
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
-      && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e' && pin('detectPlateau') === '5328b907ce3432c7'
+      && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7'
       && pin('parseRepRange') === '4e2721b469db24ef' && pin('effortToRir') === '60ad26f861c0c426');
   });
 
@@ -48464,7 +48486,7 @@ async function testBodyweightProgressionD119(){
     T('7  D49 itself is byte-identical: its engine, evidence, phase policy, history reader, range and buckets',
       pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' &&
       pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('repRangeForExercise') === '07b3b26014a8e57f' &&
-      pin('computeProgressionBuckets') === '87e47e4a883cc140' && pin('detectPlateau') === '5328b907ce3432c7' && pin('progressionIncrement') === '3d77ad004234607e');
+      pin('computeProgressionBuckets') === '87e47e4a883cc140' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7' && pin('progressionIncrement') === '3d77ad004234607e');
     T('7  every other D49 consumer still asks D49 directly — Today, Objectives, Progress, Weekly Review, the live workout and the summary — and none asks the new question',
       ['renderTodayInsights', 'objectiveDailyCandidates', 'computeProgressionBuckets', 'deriveWeeklyReview', 'restoreDraftToSheet', 'startTemplateLog', 'swapLogExercise', 'computeNextTimeNotes']
         .every(nm => /progressionFor\(/.test(fnSrc(raw, nm)) && !/progressionRecommendationFor\(|bodyweightProgressionFor\(/.test(fnSrc(raw, nm))) &&
@@ -49407,6 +49429,416 @@ async function testLoadedRecordEligibilityD121(){
   });
 }
 
+/* =========================================================
+   CONTRACT 239 — PLATEAU EVIDENCE  (Phase D122 — closes E42)
+   ---------------------------------------------------------
+   A stall is a working load that stopped climbing. detectPlateau
+   took each workout's heaviest load from EVERY set, so a typed
+   warm-up single heavier than the work invented a stall
+   (185 → 200 read "Performance has stalled for 4 sessions"), and a
+   warm-up that climbed past the work hid a real one. It now reads
+   each workout's load exactly as D49's own evidence does: the
+   heaviest PERFORMED working set (isPerformanceSet, with
+   performedReps). Held here: the boundary and the untouched policy
+   (window, minimum evidence, stall test); E42 as 10.38 had it (the
+   10.38 function compiled back in reproduces every surface, frozen
+   as a digest) and gone; every case the brief lists; every reader
+   inheriting the corrected signal; the no-op warm-up property and
+   its opposite, working-evidence sensitivity; order, row-layout and
+   same-day identity; no-E42 and bodyweight output byte-for-byte as
+   10.38 (frozen digests); D49's tiers, D50B, D121's records and
+   volume, XP, E38/E39/E43 and storage untouched.
+   ========================================================= */
+async function testPlateauEvidenceD122(){
+  section('CONTRACT 239 — plateau evidence: a warm-up can neither invent a stall nor hide one (D122, E42)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const pin = n => sha(fnSrc(raw, n).replace(/\s+/g, ' ').trim());
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-09-30T12:00:00';
+  const D = n => { const d = new Date(2026, 8, 30, 12); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '2' : String(rir), type: type || 'working' });
+  const WU = (w, r) => S(w, r, '5', 'warmup');
+  const BW = (r, rir, type) => ({ weight: 'BW', reps: String(r), rir: rir == null ? '2' : String(rir), type: type || 'working' });
+  const L = (w, r) => ({ weight: String(w), reps: String(r), rir: '2' });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const W = (id, n, title, exs, extra) => Object.assign({ id, date: D(n), category: 'push', title, notes: '', exercises: exs }, extra || {});
+  const work = (w, r, rir) => [S(w, r || 8, rir), S(w, r || 8, rir), S(w, r || 8, rir)];
+  /* one Bench Press workout per list, oldest first, a week apart, the last on Sep 27 */
+  const weekly = (lists, name) => lists.map((sets, i) => W('w' + String(i + 1).padStart(2, '0'), 3 + (lists.length - 1 - i) * 7, 'Push ' + (i + 1), [E(name || 'Bench Press', sets)]));
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); } finally { rel(); }
+    return a;
+  };
+  const fresh = c => { c.invalidateSortedLogCache(); c.invalidateXPTimelineCache(); if(c.invalidateCapabilityCache) c.invalidateCapabilityCache(); if(c.invalidateContextCache) c.invalidateContextCache(); };
+  /* 10.38's detectPlateau, compiled from today's source with D122's one statement put back (a no-op on 10.38 itself) */
+  const plateau1038 = () => { let t = fnSrc(raw, 'detectPlateau').replace(/\s+/g, ' ').trim();
+    for(const [now, then] of (D122_EDITS.detectPlateau || [])) t = t.split(now).join(then);
+    return t; };
+  const asOf1038 = c => { c.detectPlateau = vm.runInContext('(' + plateau1038() + ')', c); fresh(c); };
+  /* Every surface the plateau signal reaches, read as the athlete meets it — only through functions 10.38 already had. */
+  const surfaces = (c, lift) => withClockOn(c, NOW, () => {
+    const txt = id => { const e = c.document.getElementById(id); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; };
+    const range = c.repRangeForExercise(lift);
+    const p = c.detectPlateau(lift);
+    const r = c.progressionFor(lift, range, null);
+    const pub = c.progressionRecommendationFor(lift, range, null);
+    const b = c.computeProgressionBuckets();
+    c.openExDetail(lift); const next = txt('exDetailNext'); c.closeExDetail();
+    c.renderTodayInsights(); const today = txt('todayInsights') || '';
+    const weeks = c.weeklyReviewWeeks() || [];
+    const wr = weeks.length ? c.deriveWeeklyReview(weeks[weeks.length - 1]) : null;
+    const item = wr && (wr.progressionAll || []).find(x => x.name === lift);
+    const notes = (c.computeNextTimeNotes(c.sortedLog()[0]) || []).filter(n => n.name === lift).map(n => n.tag + ': ' + n.text);
+    const card = c.templateCardHtml({ id: 'tq', name: 'Push Day', exercises: [{ name: lift, sets: 3, reps: '8-12' }] }, 'push', {});
+    const flag = (card.match(/<div class="plateau-flag">([\s\S]*?)<\/div>/) || [])[1];
+    const cap = c.computeExerciseCapability(lift);
+    return { plateau: p ? [p.weight, p.sessions] : null, d49: r ? [r.tag, r.weight, r.why] : null,
+      pub: pub ? [pub.tag, pub.mode === 'bodyweight' ? pub.reps : pub.weight] : null,
+      bucket: ['ready', 'stalled', 'building'].find(k => b[k].some(x => x.name === lift)) || '-',
+      next, today: (today.match(/(Stalled|Ready)[^]*$/) || ['-'])[0], review: item ? [item.tag, item.word, item.weight] : null, notes,
+      card: flag ? flag.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() : null, capPlateau: cap ? cap.plateauSessions : null,
+      prefill: r && r.weight != null ? r.weight : null };
+  });
+  /* The brief's cases, Bench Press unless named. */
+  const FX = {
+    falsePlateau: weekly([[WU(205, 1)].concat(work(185)), [WU(135, 8)].concat(work(190)), [WU(135, 8)].concat(work(195)), [WU(135, 8)].concat(work(200))]),
+    falsePlateauTop: weekly([[WU(205, 1)].concat(work(185)), [WU(135, 8)].concat(work(190)), [WU(135, 8)].concat(work(195)), [WU(135, 8)].concat(work(200, 12, 3))]),
+    hiddenPlateau: weekly([[WU(135, 8)].concat(work(185)), [WU(155, 5)].concat(work(185)), [WU(175, 3)].concat(work(185)), [WU(195, 1)].concat(work(185))]),
+    controlStall: weekly([work(185), work(185), work(185), work(185)]),
+    controlClimb: weekly([work(185), work(190), work(195), work(200)]),
+    rampClimb: weekly([185, 190, 195, 200].map(w => [WU(95, 10), WU(135, 5), WU(Math.round(w * 0.85 / 5) * 5, 3)].concat(work(w)))),
+    rampStall: weekly([185, 185, 185, 185].map(w => [WU(95, 10), WU(135, 5), WU(155, 3)].concat(work(w)))),
+    equalStall: weekly([185, 185, 185, 185].map(w => [WU(w, 3)].concat(work(w)))),
+    equalClimb: weekly([185, 190, 195, 200].map(w => [WU(w, 2)].concat(work(w)))),
+    severalWarmups: weekly([[WU(95, 10), WU(135, 5), WU(205, 1)].concat(work(185)), [WU(95, 10), WU(135, 5)].concat(work(190)),
+      [WU(95, 10), WU(135, 5)].concat(work(195)), [WU(95, 10), WU(135, 5)].concat(work(200))]),
+    heavyFirst: weekly([[WU(205, 1), WU(135, 5), WU(95, 10)].concat(work(185)), work(190), work(195), work(200)]),
+    failureLoad: weekly([work(185), work(185), work(185), [S(185, 8), S(185, 8), S(190, 5, 0, 'failure')]]),
+    amrapLoad: weekly([work(185), work(185), work(185), [S(185, 8), S(185, 8), S(190, 9, '', 'amrap')]]),
+    dropLoad: weekly([work(185), work(185), work(185), [S(185, 8), S(185, 8), S(190, 6, 0, 'drop')]]),
+    legacyClimb: weekly([[L(185, 8), L(185, 8)], [L(185, 8), L(185, 8)], [L(185, 8), L(185, 8)], [L(190, 5), L(190, 5)]]),
+    legacyStall: weekly([[L(185, 8), L(185, 8)], [L(185, 8), L(185, 8)], [L(185, 8), L(185, 8)], [L(185, 8), L(185, 8)]]),
+    rows: [W('w01', 24, 'Push 1', [E('Bench Press', [WU(205, 1)]), E('Overhead Press', [S(95, 8)]), E('Bench Press', work(185))]),
+      W('w02', 17, 'Push 2', [E('Bench Press', work(190))]), W('w03', 10, 'Push 3', [E('Bench Press', work(195))]), W('w04', 3, 'Push 4', [E('Bench Press', work(200))])],
+    /* the work of one workout split across rows: the heavier row decides it, never only the first */
+    splitRows: [W('w01', 24, 'Push 1', [E('Bench Press', work(185))]), W('w02', 17, 'Push 2', [E('Bench Press', work(185))]), W('w03', 10, 'Push 3', [E('Bench Press', work(185))]),
+      W('w04', 3, 'Push 4', [E('Bench Press', [S(185, 8)]), E('Overhead Press', [S(95, 8)]), E('Bench Press', [S(190, 5)])])],
+    /* two rows of one workout are ONE occurrence: split, the window would start at 185 instead of 200 */
+    oneOccurrence: [W('w01', 24, 'Push 1', [E('Bench Press', work(200))]), W('w02', 17, 'Push 2', [E('Bench Press', work(185))]), W('w03', 10, 'Push 3', [E('Bench Press', work(185))]),
+      W('w04', 3, 'Push 4', [E('Bench Press', [S(185, 8), S(185, 8)]), E('Overhead Press', [S(95, 8)]), E('Bench Press', [S(185, 8)])])],
+    sameDay: [W('w01', 17, 'Push', [E('Bench Press', work(185))]), W('w02', 10, 'Push', [E('Bench Press', work(185))]),
+      W('w03-am', 3, 'Morning', [E('Bench Press', [WU(195, 1)].concat(work(185)))]), W('w04-pm', 3, 'Evening', [E('Bench Press', work(185))])],
+    /* a row ticked bodyweight that carries a stray numeric load (legacy or imported): plateau detection never reads a bodyweight row */
+    bwRowStray: [W('w01', 24, 'Push 1', [E('Bench Press', work(185)), E('Bench Press', [S(205, 5)], true)]), W('w02', 17, 'Push 2', [E('Bench Press', work(190))]),
+      W('w03', 10, 'Push 3', [E('Bench Press', work(195))]), W('w04', 3, 'Push 4', [E('Bench Press', work(200))])],
+    invalidWarmups: weekly([[WU('1e999', 1), WU(250, 'Infinity'), WU('', 5)].concat(work(185)), work(190), work(195), work(200)]),
+    invalidWork: weekly([[S('Infinity', 5), S('1e999', 3)].concat(work(185)), work(190), work(195), work(200)]),
+    loadOnly: weekly([[S(205, '')].concat(work(185)), work(190), work(195), work(200)]),
+    notCompleted: weekly([[Object.assign(S(205, 5), { completed: false })].concat(work(185)), work(190), work(195), work(200)]),
+    threeOnly: weekly([[WU(205, 1)].concat(work(185)), work(190), work(195)]),
+    threeStall: weekly([work(185), work(185), work(185)]),
+    windowEdge: weekly([work(180), work(185), work(185), work(185)]),
+    windowFive: weekly([work(180), work(185), work(185), work(185), work(185)]),
+    windowFirst: weekly([work(200), work(185), work(185), work(185)]),
+    smallStep: weekly([work(185), work(185), work(185), work(187.5)]),
+    deload: weekly([work(185), work(185), [WU(205, 1)].concat(work(165)), work(185)]).map((w, i) => i === 2 ? Object.assign(w, { phase: 'deload' }) : w),
+    reduceAtHalf: weekly([work(185, 8), work(185, 5, '0.5'), work(185, 5, '0.5')]),
+    noReduceAtOne: weekly([work(185, 8), work(185, 5, '1'), work(185, 5, '1')]),
+    increaseEdge: weekly([work(190, 8), work(195, 10), work(200, 12, '1.5')]),
+    bodyweight: weekly([[BW(15, '5', 'warmup'), BW(10), BW(8)], [BW(16, '5', 'warmup'), BW(10), BW(9)], [BW(18, '5', 'warmup'), BW(11), BW(9)], [BW(20, '5', 'warmup'), BW(11), BW(10)]], 'Pull-Up')
+      .map(w => Object.assign(w, { category: 'pull' }))
+  };
+  const liftOf = k => k === 'bodyweight' ? 'Pull-Up' : 'Bench Press';
+  const at = {};
+  for(const k of Object.keys(FX)){ const a = await boot(FX[k]); at[k] = { c: a.ctx, app: a, s: surfaces(a.ctx, liftOf(k)) }; }
+  const STALL = 'Performance has stalled for 4 sessions — hold the weight, or switch to a similar exercise.';
+
+  /* ---------------------------------------------------------------- */
+  sub('1  the evidence boundary, and the policy it feeds');
+  await guard('boundary', async () => {
+    const dp = fnSrc(raw, 'detectPlateau');
+    T('1  a workout’s plateau load reads only a performed working set: isPerformanceSet, then performedReps, then performedLoad — D121’s and D96A’s names, no second definition',
+      /\(ex\.sets \|\| \[\]\)\.forEach\(s => \{ if\(!isPerformanceSet\(s\) \|\| performedReps\(s\.reps\) === null\) return; const w = performedLoad\(s\.weight\); if\(w !== null\) weights\.push\(w\); \}\);/.test(dp.replace(/\s+/g, ' '))
+      && !/warmup|'working'|'failure'|'amrap'|'drop'|completed|parseFloat/.test(dp));
+    T('1  it is exactly the per-set rule D49’s own evidence reads (exerciseSessionHistory): not a warm-up, not marked uncompleted, real reps, a real load',
+      /if\(isWorkingSet\(st\) === false\) return false; if\(st && st\.completed === false\) return false; return performedReps\(st && st\.reps\) !== null;/.test(fnSrc(raw, 'exerciseSessionHistory').replace(/\s+/g, ' '))
+      && /return !!set && isWorkingSet\(set\) !== false && set\.completed !== false;/.test(fnSrc(raw, 'isPerformanceSet')));
+    T('1  the plateau POLICY is word for word: one occurrence per workout, four needed, the last four, stalled when none beats the first',
+      /const rows = workoutExerciseRows\(l, key\); if\(!rows\) return;/.test(dp.replace(/\s+/g, ' ')) && /if\(weights\.length\) occurrences\.push\(\{ date: l\.date, weight: Math\.max\(\.\.\.weights\) \}\);/.test(dp.replace(/\s+/g, ' '))
+      && /if\(occurrences\.length < 4\) return null; const last4 = occurrences\.slice\(-4\); const first = last4\[0\]\.weight; const stuck = last4\.every\(o => o\.weight <= first\); return stuck \? \{ weight: first, sessions: last4\.length \} : null;/.test(dp.replace(/\s+/g, ' ')));
+    T('1  detectPlateau is 10.38 byte for byte once D122’s one statement is put back (D122_EDITS): nothing else in it moved',
+      pinAsOf1038('detectPlateau') === '5328b907ce3432c7' && pin('detectPlateau') === '569c8a0717b0aa42' && sha(plateau1038()) === '5328b907ce3432c7', [pinAsOf1038('detectPlateau'), pin('detectPlateau')]);
+    T('1  its readers are byte-identical and still ask it: D49’s first tier, the workout card, capability',
+      /const plateau = detectPlateau\(exerciseName\);/.test(fnSrc(raw, 'buildProgressionRecommendation')) && /plateau: detectPlateau\(ex\.name\)/.test(fnSrc(raw, 'findPlateauedExercises'))
+      && /const plateau = detectPlateau\(name\);/.test(fnSrc(raw, 'computeExerciseCapability')) && pin('findPlateauedExercises') === 'dd8083d950bf20eb');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('2  E42 as 10.38 had it, and gone');
+  await guard('e42', async () => {
+    const back = {};
+    const E42 = ['falsePlateau', 'falsePlateauTop', 'hiddenPlateau', 'severalWarmups', 'heavyFirst', 'rows', 'sameDay', 'invalidWarmups', 'loadOnly', 'notCompleted', 'deload'];
+    for(const k of E42){ const c = (await boot(FX[k])).ctx; asOf1038(c); back[k] = surfaces(c, liftOf(k)); }
+    const digest = sha(JSON.stringify(back));
+    T('2  with 10.38’s detectPlateau compiled back in, every plateau surface of all ' + E42.length + ' histories is 10.38’s, exactly (a digest frozen from 10.38)',
+      digest === '0df50f8a65055d6b', digest);
+    const f = back.falsePlateau, h = back.hiddenPlateau;
+    T('2  10.38: a 205 x 1 warm-up made 185 → 190 → 195 → 200 a stall — D49 "stalled", the Stalled bucket, Today’s "progress has flattened", Weekly Review’s Hold, Next time, and a card "stuck at 205lb", the warm-up’s own load',
+      same(f.plateau, [205, 4]) && same(f.d49, ['plateau', 200, STALL]) && f.bucket === 'stalled' && /^Stalled/.test(f.today) && same(f.review, ['plateau', 'Hold', 200])
+      && f.card === 'Bench Press stuck at 205lb for 4+ sessions — try the swap dropdown' && f.capPlateau === 4, JSON.stringify(f));
+    T('2  10.38: four workouts at 185 with warm-ups climbing to 195 read as building, not stalled',
+      h.plateau === null && same(h.d49, ['build', 185, 'Beat last session — aim for 9 reps at 185 lb.']) && h.bucket === 'building' && h.card === null && h.capPlateau === 0, JSON.stringify(h));
+    const F2 = at.falsePlateau.s, H2 = at.hiddenPlateau.s;
+    T('2  10.38+: the false stall is gone everywhere — no plateau, D49 builds at 200, the Building bucket, no Today state, Weekly Review "Building", no card',
+      F2.plateau === null && same(F2.d49, ['build', 200, 'Beat last session — aim for 9 reps at 200 lb.']) && F2.bucket === 'building' && F2.today === '-'
+      && same(F2.review, ['build', 'Building', 200]) && F2.card === null && F2.capPlateau === 0 && same(F2.notes, ['build: Beat last session — aim for 9 reps at 200 lb.']), JSON.stringify(F2));
+    T('2  10.38+: the hidden stall is found everywhere — plateau at 185, D49 "stalled", the Stalled bucket, Today, Weekly Review "Hold", Next time, a card "stuck at 185lb"',
+      same(H2.plateau, [185, 4]) && same(H2.d49, ['plateau', 185, STALL]) && H2.bucket === 'stalled' && /^Stalled/.test(H2.today) && same(H2.review, ['plateau', 'Hold', 185])
+      && same(H2.notes, ['plateau: ' + STALL]) && H2.card === 'Bench Press stuck at 185lb for 4+ sessions — try the swap dropdown' && H2.capPlateau === 4, JSON.stringify(H2));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('3  every case: the working sets decide, the existing policy answers');
+  await guard('cases', async () => {
+    const pl = k => at[k].s.plateau, tag = k => at[k].s.d49 && at[k].s.d49[0];
+    T('3  no warm-ups: a stall is a stall (185 x 4), a climb is a climb', same(pl('controlStall'), [185, 4]) && tag('controlStall') === 'plateau' && pl('controlClimb') === null && tag('controlClimb') === 'build');
+    T('3  ordinary ramps below the work change nothing: the climb builds, the stall stalls', pl('rampClimb') === null && same(pl('rampStall'), [185, 4]));
+    T('3  a warm-up AT the working load changes nothing either way', same(pl('equalStall'), [185, 4]) && pl('equalClimb') === null);
+    T('3  several warm-ups, the heavy one third or first: none of them is the workout’s load', pl('severalWarmups') === null && pl('heavyFirst') === null && tag('heavyFirst') === 'build');
+    T('3  failure, AMRAP and drop sets are performances: each carries its workout’s 190, so 185 → 190 is no stall',
+      pl('failureLoad') === null && pl('amrapLoad') === null && pl('dropLoad') === null
+      && same(at.failureLoad.s.d49.slice(0, 2), ['build', 190]) && same(at.amrapLoad.s.d49.slice(0, 2), ['build', 190]) && same(at.dropLoad.s.d49.slice(0, 2), ['build', 190]));
+    T('3  untyped legacy sets are performances, as they always were', pl('legacyClimb') === null && same(pl('legacyStall'), [185, 4]));
+    T('3  a warm-up in a row of its own is still the same workout: it no longer decides it', pl('rows') === null && tag('rows') === 'build');
+    T('3  the work of one workout split across rows is one performance: the heavier row decides it', pl('splitRows') === null && same(at.splitRows.s.d49.slice(0, 2), ['build', 190]));
+    T('3  two rows of one workout are ONE occurrence: the window still starts at 200', same(pl('oneOccurrence'), [200, 4]));
+    T('3  two workouts on one date are two performances: four at 185 is a stall, the morning’s 195 warm-up hides nothing', same(pl('sameDay'), [185, 4]) && tag('sameDay') === 'plateau');
+    T('3  unreadable loads and reps are never evidence — on a warm-up or on a working set', pl('invalidWarmups') === null && pl('invalidWork') === null && tag('invalidWork') === 'build');
+    T('3  a load with no performed reps, and a set marked not completed, are not performances', pl('loadOnly') === null && pl('notCompleted') === null);
+    T('3  a row ticked bodyweight is never plateau evidence, even carrying a stray numeric load', pl('bwRowStray') === null && tag('bwRowStray') === 'build');
+    T('3  three workouts are not enough to call a stall, as before', pl('threeOnly') === null && pl('threeStall') === null);
+    T('3  a deload week inside the window counts as it always has: 185, 185, 165 (deload), 185 is a stall once its 205 warm-up stops hiding it',
+      same(pl('deload'), [185, 4]) && tag('deload') === 'plateau');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4  the policy itself did not move');
+  await guard('policy', async () => {
+    const pl = k => at[k].s.plateau;
+    T('4  the window is four: 180, 185, 185, 185 is a climb; a fifth 185 makes the last four a stall', pl('windowEdge') === null && same(pl('windowFive'), [185, 4]));
+    T('4  the stall test is "none beats the first": equal loads stall, 200 then 185 x 3 stalls at 200, any increase — even 2.5 lb — is progress',
+      same(pl('controlStall'), [185, 4]) && same(pl('windowFirst'), [200, 4]) && pl('smallStep') === null);
+    T('4  D49 still holds the LAST working load on a stall, not the window’s first (185, not 200)', same(at.windowFirst.s.d49.slice(0, 2), ['plateau', 185]));
+    T('4  D47 still reduces after two grinding sessions below the range (RIR 0.5) and not at RIR 1',
+      same(at.reduceAtHalf.s.d49.slice(0, 2), ['reduce', 180]) && at.noReduceAtOne.s.d49[0] !== 'reduce', JSON.stringify([at.reduceAtHalf.s.d49, at.noReduceAtOne.s.d49]));
+    T('4  the increase still needs the top of the range with headroom: 200 x 12 at RIR 1.5 → 205', same(at.increaseEdge.s.d49.slice(0, 2), ['increase', 205]), JSON.stringify(at.increaseEdge.s.d49));
+    const c = at.increaseEdge.c, real = c.deloadActiveToday;
+    let held = null;
+    try{ c.deloadActiveToday = () => true; held = withClockOn(c, NOW, () => c.progressionFor('Bench Press', '8-12', null)); } finally { c.deloadActiveToday = real; }
+    T('4  the phase policy still turns an increase into a hold during a deload', held && held.tag === 'hold' && held.weight === 200 && /^Deload week — keep 200 lb/.test(held.why), JSON.stringify(held));
+    T('4  D49, D47, the phase policy and the evidence rules are byte-identical', pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7'
+      && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e'
+      && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('deloadActiveToday') === '700ccd9a7101c3d4' && /const PROGRESSION_EVIDENCE = \{[^}]*minSetsWithoutRx: 2,[^}]*headroomOverTarget: 1,[^}]*headroomAbsolute: 1\.5,[^}]*settleExposures: 1/.test(stripComments(raw).replace(/\s+/g, ' ')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('5  every reader inherits the corrected signal');
+  await guard('readers', async () => {
+    const t = at.falsePlateauTop.s;
+    T('5  a stall that was never real no longer blocks an earned increase: 200 x 12 at RIR 3 after 185 → 195 → 205, prefilled at 205 (10.38 held 200)',
+      t.plateau === null && same(t.d49.slice(0, 2), ['increase', 205]) && t.bucket === 'ready' && /^Ready/.test(t.today) && same(t.review, ['increase', 'Increase', 205]) && t.prefill === 205, JSON.stringify(t));
+    const n = at.hiddenPlateau.s;
+    T('5  Exercise Detail’s Next zone and the Summary’s Next time say the same thing D49 says', n.next.indexOf(STALL) !== -1 && same(n.notes, ['plateau: ' + STALL])
+      && at.falsePlateau.s.next.indexOf('Beat last session — aim for 9 reps at 200 lb.') !== -1);
+    T('5  the workout card names the working load it is stuck at, never a warm-up’s', Object.keys(at).every(k => !at[k].s.card || /stuck at (185|200)lb/.test(at[k].s.card)), Object.keys(at).map(k => at[k].s.card).filter(Boolean));
+    T('5  capability’s plateau field is the same signal (it has no other reader)', Object.keys(at).every(k => at[k].s.capPlateau === (at[k].s.plateau ? at[k].s.plateau[1] : 0)));
+    T('5  the readers themselves are byte-identical', pin('computeProgressionBuckets') === '87e47e4a883cc140' && pin('renderTodayInsights') === '92cb86beae6038eb'
+      && pin('computeNextTimeNotes') === '16d50e35392c9180' && pin('templateCardHtml') === '43178b8aeb27a2aa' && pin('computeExerciseCapability') === '3a283e02ebdad568'
+      && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('6  the no-op warm-up property, and its opposite');
+  await guard('properties', async () => {
+    const c = at.controlStall.c;
+    const seed = log => { c.workoutLog = JSON.parse(JSON.stringify(log)); fresh(c); };
+    const ask = lifts => withClockOn(c, NOW, () => lifts.map(n => [n, c.detectPlateau(n), c.progressionFor(n, '8-12', null)]));
+    let s = 2122;
+    const rnd = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const LIFTS = ['Bench Press', 'Back Squat', 'Barbell Row'];
+    const history = () => {
+      const log = [], loads = { 'Bench Press': 185, 'Back Squat': 225, 'Barbell Row': 135 };
+      const n = 4 + Math.floor(rnd() * 5);
+      for(let i = 0; i < n; i++){
+        const exs = [];
+        LIFTS.forEach(nm => { if(rnd() < 0.85){ loads[nm] += pick([0, 0, 0, 5, 5, -5, 10]); exs.push(E(nm, [S(loads[nm], pick([5, 6, 8, 10])), S(loads[nm], pick([5, 6, 8])), S(loads[nm] - pick([0, 0, 10]), pick([6, 8, 10]))])); } });
+        if(!exs.length) exs.push(E('Bench Press', work(loads['Bench Press'])));
+        log.push(W('h' + String(i).padStart(2, '0'), 3 + (n - 1 - i) * 3, 'S', exs));
+        if(rnd() < 0.12) log.push(W('h' + String(i).padStart(2, '0') + 'b', 3 + (n - 1 - i) * 3, 'S2', [E(pick(LIFTS), work(loads['Bench Press']))]));
+      }
+      return log;
+    };
+    const warmUp = () => WU(pick([20, 45, 95, 135, 185, 205, 225, 260, 315, 405, 999]), pick([1, 2, 3, 5, 8, 10, 15, 20]));
+    let props = 0, broken = [], volumeMoved = 0, sens = 0, sensBroken = [], answers = new Set();
+    for(let h = 0; h < 160; h++){
+      const base = history();
+      seed(base); const ans = ask(LIFTS); const vol = JSON.stringify(c.workoutLog.map(e => c.sessionVolume(e)));
+      const warmed = JSON.parse(JSON.stringify(base));
+      warmed.forEach(e => {
+        e.exercises.forEach(x => { for(let k = Math.floor(rnd() * 4); k > 0; k--) x.sets.splice(Math.floor(rnd() * (x.sets.length + 1)), 0, warmUp()); });
+        if(rnd() < 0.35){ const nm = pick(LIFTS); e.exercises.splice(Math.floor(rnd() * (e.exercises.length + 1)), 0, E(nm, [warmUp(), warmUp()])); }
+      });
+      if(rnd() < 0.3) warmed.push(W('wx' + h, 1, 'Warm-ups only', [E(pick(LIFTS), [warmUp(), warmUp()])]));
+      seed(warmed); const after = ask(LIFTS);
+      props++;
+      if(!same(ans, after)) broken.push(h);
+      if(JSON.stringify(warmed.slice(0, base.length).map(e => c.sessionVolume(e))) !== vol) volumeMoved++;
+      /* the opposite: the policy, applied to the WORKING loads alone, is what detectPlateau answers — so changing a working load can change it */
+      seed(base);
+      LIFTS.forEach(nm => {
+        const occ = c.workoutLog.slice().sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
+          .map(e => { const ws = [].concat(...e.exercises.filter(x => x.name === nm).map(x => x.sets)).filter(st => st.type !== 'warmup' && parseFloat(st.reps) > 0).map(st => parseFloat(st.weight)); return ws.length ? Math.max(...ws) : null; })
+          .filter(v => v !== null);
+        const want = occ.length < 4 ? null : (occ.slice(-4).every(v => v <= occ.slice(-4)[0]) ? [occ.slice(-4)[0], 4] : null);
+        const got = withClockOn(c, NOW, () => c.detectPlateau(nm));
+        sens++; answers.add(want ? 'stall' : 'none');
+        if(!same(want, got ? [got.weight, got.sessions] : null)) sensBroken.push(h + ':' + nm);
+      });
+    }
+    T('6  no-op property: ' + props + ' generated histories, each given typed warm-ups of any load (20–999 lb, below, at and above the work) and any reps, in any position of any row, in rows of their own and in warm-up-only workouts — every lift’s plateau and D49 answer are identical',
+      props === 160 && broken.length === 0, broken.slice(0, 5));
+    T('6  while the training volume they add moves, as it should (' + volumeMoved + ' of ' + props + ')', volumeMoved > 100, volumeMoved);
+    T('6  working-evidence sensitivity: across ' + sens + ' lifts, detectPlateau is exactly the existing stall test applied to the WORKING loads alone — stalls and climbs both occur, so the signal is alive, not frozen',
+      sensBroken.length === 0 && answers.has('stall') && answers.has('none'), sensBroken.slice(0, 5));
+    /* order and row layout: the same sets, shuffled within a workout and split across one to three rows, give the same answer */
+    let layouts = 0, layoutBroken = [];
+    for(let h = 0; h < 60; h++){
+      const base = history(); base[0].exercises[0].sets.unshift(WU(405, 1));
+      seed(base); const ans = ask(LIFTS);
+      const moved = JSON.parse(JSON.stringify(base));
+      moved.forEach(e => {
+        const out = [];
+        e.exercises.forEach(x => {
+          const sets = x.sets.slice().sort(() => rnd() - 0.5);
+          const parts = 1 + Math.floor(rnd() * 3), size = Math.ceil(sets.length / parts);
+          for(let p = 0; p < parts && p * size < sets.length; p++) out.push(E(x.name, sets.slice(p * size, (p + 1) * size)));
+        });
+        e.exercises = out.sort(() => rnd() - 0.5);
+      });
+      seed(moved); layouts++;
+      if(!same(ans.map(a => [a[0], a[1]]), ask(LIFTS).map(a => [a[0], a[1]]))) layoutBroken.push(h);
+    }
+    T('6  order and row layout: ' + layouts + ' histories with every set shuffled and every lift split over one to three interleaved rows — plateau identical', layoutBroken.length === 0, layoutBroken);
+    T('6  case and spacing of the name do not split a lift (D96B)', (() => { seed(FX.controlStall.map((e, i) => i === 1 ? Object.assign({}, e, { exercises: [E('  bench press ', work(185))] }) : e));
+      return same(withClockOn(c, NOW, () => c.detectPlateau('Bench Press')), { weight: 185, sessions: 4 }); })());
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('7  nothing else moved');
+  await guard('drift', async () => {
+    /* No-E42 histories: ramps below the work, no warm-ups, failure/AMRAP/drop, legacy, repeated rows, same-day, deload weeks, PR-heavy climbs. */
+    let s = 7122;
+    const rnd = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const out = [];
+    for(let h = 0; h < 36; h++){
+      const log = []; let load = 135 + Math.floor(rnd() * 10) * 5, ids = 0;
+      const n = 4 + Math.floor(rnd() * 6);
+      for(let i = 0; i < n; i++){
+        load += pick([0, 0, 5, 5, 10, -5]);
+        const ws = work(load, pick([6, 8, 10, 12]), pick(['', '1', '2', '3']));
+        if(rnd() < 0.2) ws[2] = S(load, pick([5, 7, 9]), '0', pick(['failure', 'amrap', 'drop']));
+        if(rnd() < 0.15) ws.forEach(x => { delete x.type; });
+        const warm = rnd() < 0.7 ? [WU(Math.max(45, load - 90), 10), WU(load - 40, 5)] : [];
+        const exs = rnd() < 0.2 ? [E('Bench Press', warm.concat(ws.slice(0, 1))), E('Lat Pulldown', work(100)), E('Bench Press', ws.slice(1))] : [E('Bench Press', warm.concat(ws))];
+        const e = W('n' + String(++ids).padStart(2, '0'), 3 + (n - 1 - i) * 7, 'S', exs);
+        if(rnd() < 0.1){ e.phase = 'deload'; e.exercises = [E('Bench Press', work(load - 30))]; }
+        log.push(e);
+        if(rnd() < 0.1) log.push(W('n' + String(ids).padStart(2, '0') + 'pm', 3 + (n - 1 - i) * 7, 'PM', [E('Bench Press', work(load))]));
+      }
+      const c = (await boot(log)).ctx;
+      out.push(JSON.stringify(surfaces(c, 'Bench Press')));
+    }
+    const digest = sha(JSON.stringify(out));
+    T('7  36 no-E42 histories (ramps below the work, none at all, failure/AMRAP/drop, legacy, repeated rows, same-day, deload weeks): every plateau surface is 10.38’s exactly (a digest frozen from 10.38)',
+      digest === 'f39f4136cf6c3b92', digest);
+    /* Bodyweight: D119's answers and D120's records, with warm-ups, Building / Hold / Regain. */
+    const bw = [];
+    for(const lists of [[[BW(14, '5', 'warmup'), BW(8), BW(7)], [BW(16, '5', 'warmup'), BW(10), BW(9)], [BW(18, '5', 'warmup'), BW(12), BW(10)]],
+      [[BW(16, '5', 'warmup'), BW(12), BW(11)], [BW(18, '5', 'warmup'), BW(12, 0, 'failure'), BW(10)]], [[BW(14, '5', 'warmup'), BW(12), BW(11)], [BW(20, '5', 'warmup'), BW(9), BW(8)]]]){
+      const c = (await boot(weekly(lists, 'Pull-Up').map(w => Object.assign(w, { category: 'pull' })))).ctx;
+      bw.push(withClockOn(c, NOW, () => [c.detectPlateau('Pull-Up'), c.bodyweightProgressionFor('Pull-Up'), c.computeExercisePREvents('Pull-Up').map(e => e.hits)]));
+    }
+    T('7  bodyweight lifts never reach plateau detection, and D119’s Building / Hold / Regain answers and D120’s records are 10.38’s exactly (a digest frozen from 10.38)',
+      bw.every(x => x[0] === null) && sha(JSON.stringify(bw)) === 'cea8051c5c8e9c19', sha(JSON.stringify(bw)));
+    T('7  D121’s strength-record and volume functions are byte-identical', pin('isPerformanceSet') === 'af02c77cf98e70ef' && pin('loadedStrengthPerformance') === 'd7e06508c3b1d0b5'
+      && pin('computeExercisePREvents') === '222267c3066ab2bf' && pin('computePRs') === 'ff1f540c2ae3b46a' && pin('exerciseBestSet') === 'db21dab40f5e0763' && pin('compute1RMTrend') === '5350b7aa13581ec8'
+      && pin('sessionVolume') === '4ddcaadccc1dfa80' && pin('computeWeeklyVolume') === '76aa0edd7abeb6f3');
+    T('7  and they still hold: the 205 warm-up is no strength record, while its tonnage is training volume (4,645 lb, and every volume record below counts the 135 warm-ups)',
+      same(withClockOn(at.falsePlateau.c, NOW, () => at.falsePlateau.c.computeExercisePREvents('Bench Press').reverse().map(e => e.hits.map(x => x.type + ':' + x.next))),
+        [['weight:185'], ['weight:190', '1rm:241', 'volume:5640'], ['weight:195', '1rm:247', 'volume:5760'], ['weight:200', '1rm:253', 'volume:5880']])
+      && at.falsePlateau.c.sessionVolume(FX.falsePlateau[0]) === 205 + 3 * 185 * 8);
+    T('7  XP, Session Score, Mastery, Recovery and Objectives are byte-identical', pin('computeXPTimeline') === '4eb287033499d612' && pin('calculatePRXP') === 'ba20ebe522acc1a3'
+      && pin('calculateLevelFromXP') === '9418f2e5934245da' && pin('calculateRankFromLevel') === '868fd909074da898' && pin('sessionScore') === '842e5699f8ac0835'
+      && pin('masteryPointsFor') === '0c704c40a853d991' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79' && pin('computeMuscleRecovery') === 'd3589033bdb54c67'
+      && pin('objectiveDailyCandidates') === '9772175df2535484' && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('bodyweightSessionHistory') === '107a63744acb4508');
+    const coach = (rx, performed) => at.controlStall.c.deriveNextSetCoach({ exerciseName: 'Lat Pulldown', rx, performed, deload: false }).action;
+    const RX = { reps: '8-10', effort: '8' };
+    T('7  D50B still coaches every edge as it did — its INPUT is the prescription, never the plateau',
+      same([coach(RX, [{ weight: 100, reps: 10, rir: 3 }]), coach(RX, [{ weight: 100, reps: 10, rir: 2 }]), coach(RX, [{ weight: 100, reps: 6, rir: 0.5 }]), coach(RX, [{ weight: 100, reps: 6, rir: 1 }]),
+        coach(RX, [{ weight: 100, reps: 6 }]), coach(RX, [{ weight: 100, reps: 7 }]), coach(RX, [{ weight: 100, reps: 10, rir: 3 }, { weight: 105, reps: 10, rir: 3 }]),
+        coach(Object.assign({ load: 100 }, RX), [{ weight: 105, reps: 10, rir: 3 }])], ['increase', 'hold', 'reduce', 'hold', 'reduce', 'hold', 'hold', 'hold']));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('8  protected');
+  await guard('protected', async () => {
+    T('8  the trainer (0.1.1-shadow) and capability are untouched; the trainer reads no plateau field', at.controlStall.c.TRAINER_ENGINE_VERSION === '0.1.1-shadow'
+      && pin('computeExerciseCapability') === '3a283e02ebdad568' && !/plateau/i.test(fnSrc(raw, 'extractPerformanceSignal') + fnSrc(raw, 'extractCapabilitySignal') + fnSrc(raw, 'computeTrainerConfidence') + fnSrc(raw, 'computeShadowRecommendation')));
+    const xc = (await boot([W('x1', 3, 'Push', [E('Bench Press', [WU(95, 10), WU(135, 5), S(185, 5), S(185, 5), S(185, 5)])])])).ctx;
+    const line = withClockOn(xc, NOW, () => xc.computeXPTimeline().timeline[0].breakdown.find(b => /working set/.test(b.label)));
+    T('8  E43 is untouched: two warm-ups and three working sets still read "5 working sets", +15 XP', line && line.label === '5 working sets' && line.xp === 15, JSON.stringify(line));
+    const chip = withClockOn(xc, NOW, () => xc.setChipHtml({ weight: 'Infinity', reps: '6', rir: '' }, false));
+    T('8  E38 is untouched: a stored non-finite weight still prints as a load on Day Detail’s chip', /Infinity lb/.test(chip), chip);
+    const l = (await boot([W('l1', 10, 'Core', [E('L-Sit', [BW(20), BW(18)], true)], { category: 'core' }), W('l2', 3, 'Core', [E('L-Sit', [BW(25), BW(20)], true)], { category: 'core' })])).ctx;
+    T('8  E39 is untouched: a custom hold the name rule misses (L-Sit) still gets a rep target', withClockOn(l, NOW, () => l.bodyweightProgressionFor('L-Sit')).reps === 26);
+    T('8  E38’s, E39’s and E43’s functions are byte-identical', pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3'
+      && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('calculateSetXP') === '625722a99a04e30f');
+    const c2 = at.falsePlateau.c, app = at.falsePlateau.app;
+    const store0 = JSON.stringify(app.store), log0 = JSON.stringify(c2.workoutLog);
+    c2.workoutLog = JSON.parse(log0); fresh(c2);
+    let writes = 0; const realSet = c2.LOOPStore.set; c2.LOOPStore.set = function(){ writes++; return realSet.apply(this, arguments); };
+    try{ surfaces(c2, 'Bench Press'); withClockOn(c2, NOW, () => { c2.detectPlateau('Bench Press'); c2.computeProgressionBuckets(); c2.computeExerciseCapability('Bench Press'); }); }
+    finally { c2.LOOPStore.set = realSet; }
+    T('8  reading every plateau surface writes nothing: no store write, the log byte-identical', writes === 0 && JSON.stringify(app.store) === store0 && JSON.stringify(c2.workoutLog) === log0);
+    T('8  no key, schema, migration or trainer change', c2.DATA_KEYS.length === 16 && c2.DATA_SCHEMA_VERSION === 1 && Object.keys(c2.MIGRATIONS || {}).length === 0
+      && !/LOOPStore|localStorage/.test(fnSrc(raw, 'detectPlateau')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('9  it is cheap');
+  await guard('perf', async () => {
+    const big = [];
+    for(let i = 0; i < 416; i++) big.push(W('b' + String(i).padStart(3, '0'), 730 - Math.floor(i * 1.75), 'S',
+      [E('Bench Press', [WU(95, 10), WU(135, 5), WU(165, 3), S(185 + (i % 20), 5), S(185 + (i % 20), 5)]), E('Back Squat', [WU(135, 5), S(225 + (i % 15), 5)])]));
+    const c = at.controlClimb.c;
+    c.workoutLog = big; fresh(c);
+    const times = [];
+    for(let i = 0; i < 7; i++){ fresh(c);
+      const t0 = process.hrtime.bigint(); withClockOn(c, NOW, () => { c.detectPlateau('Bench Press'); c.detectPlateau('Back Squat'); c.progressionFor('Bench Press', '8-12', null); c.computeProgressionBuckets(); });
+      times.push(Number(process.hrtime.bigint() - t0) / 1e6); }
+    times.sort((x, y) => x - y);
+    T('9  two years, 416 workouts with warm-ups: both plateaus, a D49 answer and the Progress buckets in ' + times[3].toFixed(1) + ' ms with every cache cleared, well under 250', times[3] < 250, JSON.stringify(times));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -49606,6 +50038,7 @@ async function main(){
   await testBodyweightProgressionD119();
   await testBodyweightPerformanceD120();
   await testLoadedRecordEligibilityD121();
+  await testPlateauEvidenceD122();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

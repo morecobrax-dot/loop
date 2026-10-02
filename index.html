@@ -18470,6 +18470,24 @@ const LOOP_UPDATES = [
       'Volume records and training volume still include warm-ups, because they measure all the work you moved',
       'Strength records and their XP are now counted from working sets only, so some past records, XP and levels may change'
     ]
+  },
+  {
+    id: 'v10-39',
+    version: 'LOOP 10.39',
+    title: 'Plateaus From Working Sets',
+    date: '2026-10-02',
+    swVersion: 'loop-v216',
+    summary: 'Plateau checks now follow your working sets, so a warm-up can no longer make progress look stalled or hide a real stall.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'A warm-up heavier than your working sets no longer makes steady progress look stalled',
+      'Warm-ups that climb past your working weight no longer hide a real stall',
+      'A workout’s “stuck at” note now shows your working weight, not a warm-up’s'
+    ],
+    changes: [
+      'Next-session advice may change for lifts with a heavy warm-up, because it now follows the sets you actually worked'
+    ]
   }
 ];
 
@@ -23400,7 +23418,11 @@ function detectPlateau(exerciseName){
     const weights = [];
     rows.forEach(ex => {
       if(ex.bodyweight) return;
-      (ex.sets || []).forEach(s => { const w = performedLoad(s.weight); if(w !== null) weights.push(w); });   // D96A
+      /* D122 (E42) - a workout's plateau load is its heaviest PERFORMED working set, read exactly as D49's own
+         evidence reads it (exerciseSessionHistory): a typed warm-up, a set marked not completed and a load with no
+         performed reps are not performance, so none of them can invent a stall or hide one. The window and the
+         test below are the plateau policy, and they are untouched. */
+      (ex.sets || []).forEach(s => { if(!isPerformanceSet(s) || performedReps(s.reps) === null) return; const w = performedLoad(s.weight); if(w !== null) weights.push(w); });   // D96A
     });
     if(weights.length) occurrences.push({ date: l.date, weight: Math.max(...weights) });
   });

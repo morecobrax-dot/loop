@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.38",
+  "version": "10.39",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner check on iPhone: log Bench Press with a warm-up heavier than your working sets; Best ever, trend and the bold set come from working sets, and the warm-up wears no record badge.",
+  "nextAction": "Owner check on iPhone: a lift whose working weight climbed after a heavy warm-up single reads Building, not Hold, and a real stall reads Hold whatever the warm-ups did.",
   "blocker": null,
-  "updatedAt": "2026-10-02T17:36:07Z"
+  "updatedAt": "2026-10-02T23:22:27Z"
 }

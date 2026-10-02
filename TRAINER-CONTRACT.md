@@ -17242,3 +17242,180 @@ unchanged. Also restated:
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
 key, no stored answer, no history rewritten. E41 closed; E42 and E43 recorded.
+
+## §161 — A STALL IS A WORKING LOAD THAT STOPPED CLIMBING (D122 · LOOP 10.39 · loop-v216)
+
+**Rule.** `detectPlateau` reads each workout's load exactly as D49's own
+evidence (`exerciseSessionHistory`) reads it: the heaviest set that is
+- a performed working set (`isPerformanceSet`: not a typed warm-up, not marked
+  uncompleted; failure, AMRAP, drop and untyped legacy sets count);
+- with performed reps (`performedReps`);
+- and a real load (`performedLoad`, D96A).
+
+These are D121's and D96A's names. No new definition was added. The one
+changed statement is the per-set filter.
+
+**The plateau policy did not move, word for word:**
+- one occurrence per workout, from every loaded row of the lift (D96C-3);
+  bodyweight rows are never read;
+- four workouts needed;
+- the last four;
+- stalled when none beats the first;
+- `{ weight: first, sessions: 4 }`.
+
+D49's tiers, D47, the phase policy and every threshold are byte-identical.
+
+**Why E42 existed.** D49 was rebuilt on working sets in D49/D109/D110, and
+D85 set deload sessions aside from its evidence. But its first tier,
+`detectPlateau`, still took each workout's heaviest load from every set.
+Three things went wrong:
+- **False stall.** A 205 warm-up single in the first of 185 → 190 → 195 → 200
+  read "Performance has stalled for 4 sessions".
+- **Hidden stall.** Four workouts at 185 with warm-ups climbing to 195 read
+  as building.
+- **Wrong weight.** A real 185 stall with a 195 warm-up in its first workout
+  was "stuck at 195lb", the warm-up's weight.
+
+**Readers.** All are byte-identical; each now reads the corrected signal:
+- D49's first tier, and through it every D49 reader: the Exercise Detail state
+  pill and Next session; Today's Stalled/Ready line; Progress → Strength's
+  Ready to progress list; Weekly Review's progression; the Summary's Next time;
+  the Profile's Stalling count; Objectives' progression family; a started
+  workout's prefill and its recorded prescription (rx);
+- the workout card and Train sheet flag (`findPlateauedExercises`);
+- capability's `plateauSessions` field, which nothing reads.
+
+The trainer reads no plateau field.
+
+**Not changed:**
+- D50B's code and constants (its input is the started workout's
+  prescription);
+- D121's strength-record boundary and volume decision;
+- D119/D120 bodyweight answers and records;
+- XP, levels, ranks, Session Score, Mastery, Recovery;
+- E38, E39 and E43.
+
+Two findings were recorded, not fixed:
+- **E44.** The plateau window counts a deload-phase workout although D85 set
+  deloads aside from D49's evidence. It is window policy, protected in D122.
+- **E45.** The browser QA measured the Personal Best carousel's dots at
+  30 × 30 px, although D83's CSS comment claims a 44 px target. It is
+  unrelated to plateau detection.
+
+### Measured
+
+- **E42 on 10.38, reproduced with the shipped code.** The brief's cases A–L
+  plus the boundary's edges: a load with no performed reps, a set marked not
+  completed, invalid loads, three-workout and deload histories. With 10.38's
+  `detectPlateau` compiled back in (today's source with the one statement put
+  back), every plateau surface of the 11 E42 histories is 10.38's (a frozen
+  digest).
+- **Drift, frozen 10.38 vs 10.39, 40 generated histories a class:**
+  - **No E42 (8 classes, 320 histories, 1,000 lifts):** ramps below the work,
+    no warm-ups, failure/AMRAP/drop, repeated rows, same-day doubles, deload
+    weeks, untyped legacy, PR-heavy climbs. 0 moved, on every surface
+    compared: plateau, D49, buckets, Next session, card, capability, Today,
+    Weekly Review, Next time, Profile, Objectives, records, XP, level, rank,
+    Session Score, Mastery, Recovery, volume.
+  - **Clean classes, 0 moved:** warm-ups at the working load (C);
+    insufficient history (J); bodyweight (40); both owner backups (read-only,
+    hashed; 15 lifts).
+  - **E42 classes (A, B, D–I, K):** 469 lifts moved, only on the plateau
+    side. Every one equals 10.38 run on the same log with its non-performance
+    sets removed.
+  - **Evidence removed from 10.38's windows:** 707 workouts whose load had
+    come from a typed warm-up; 26 from a set marked not completed; 29 from a
+    load with no performed reps.
+  - **D49 transitions:**
+
+    | From | To | Lifts |
+    |---|---|---|
+    | increase | plateau | 82 |
+    | decline | plateau | 79 |
+    | build | plateau | 62 |
+    | hold | plateau | 52 |
+    | plateau | increase | 28 |
+    | plateau | build | 27 |
+    | plateau | hold | 12 |
+    | plateau | decline | 5 |
+
+    No D49 answer moved without its plateau.
+- **Real headless Edge.** The brief's 17 fixtures, plus the false stall that
+  blocked an earned increase, at seven phone sizes from 320×568 to 430×932:
+  1,569 checks. Each confirms that every surface says what the working sets
+  say:
+  - the Exercise Detail state pill and Next session, seen and heard;
+  - Today's Stalled/Ready line and Progress → Strength's Ready to progress;
+  - the Train sheet's "stuck at" flag;
+  - the live Summary's Next time;
+  - Weekly Review's word and spoken label;
+  - a started workout's prefill and recorded prescription (205 where 10.38
+    held 200);
+  - no overflow, clipping, small target or console error.
+
+  On frozen 10.38 the same rig fails 17 checks, all in the three E42 fixtures,
+  and passes the controls. The first full run flagged the Personal Best
+  carousel in the two-lift fixture:
+  - its pages sit off-screen inside its own scroller, which is by design;
+  - its dots measure 30 px, which is E45.
+
+  The rig now treats the scroller as the scroller and reports E45 apart.
+- **Performance, median of 15, 10.38 → 10.39:** cold clears every log cache.
+
+| History | detectPlateau | progressionFor | Progress buckets | Exercise Detail |
+|---|---|---|---|---|
+| 12 weeks, 36 workouts | 0.15 → 0.22 ms | 1.05 → 1.11 ms | 1.3 → 1.6 ms | 4.9 → 4.8 ms |
+| 100 workouts × 5 warm-ups | 0.48 → 0.80 ms | 3.42 → 3.46 ms | 4.1 → 5.1 ms | 16.3 → 16.7 ms |
+| Two years, 416 workouts | 1.50 → 2.42 ms | 10.9 → 11.1 ms | 13.9 → 16.3 ms | 53.3 → 53.8 ms |
+| 100 workouts, 3 rows a lift | 0.67 → 0.88 ms | 3.41 → 3.44 ms | 4.1 → 4.8 ms | 16.1 → 15.4 ms |
+| Bodyweight control, 200 | 0.29 → 0.30 ms | 0.31 → 0.29 ms | 0.38 → 0.37 ms | 5.8 → 4.9 ms |
+
+  The cost is the type and reps check on each loaded set. There is no new
+  pass, no cache and no stored answer.
+
+### Contract 239 (56 checks)
+
+It covers:
+- the boundary, word for word, and the policy, word for word;
+- the reversal pin;
+- E42 reproduced (frozen digest) and gone on every surface;
+- every case, including a stray numeric load on a row ticked bodyweight;
+- the policy's own edges: window four, five sessions, a first-of-window 200,
+  a 2.5 lb step, D47 at RIR 0.5 and 1, the increase at RIR 1.5, the deload
+  phase policy;
+- every reader inheriting the signal; the increase a false stall blocked
+  (prefill 205);
+- three properties over generated histories:
+  - **No-op property, 160 histories.** Typed warm-ups of any load
+    (20–999 lb, below, at and above the work), any reps, any position, own
+    rows and warm-up-only workouts. Every plateau and D49 answer is
+    identical, while training volume moves.
+  - **Working-evidence sensitivity.** detectPlateau equals the stall test on
+    the working loads alone; stalls and climbs both occur.
+  - **Order and row layout, 60 histories.** Shuffled sets, one to three
+    interleaved rows.
+- no-E42 and bodyweight digests frozen from 10.38;
+- D50B's edges, D121's records and volume;
+- E38, E39 and E43 untouched, zero writes, keys and schema, cost.
+
+**Mutation: 35 mutants against Contract 239 alone.**
+- **34 killed by behaviour.** The brief's 30, plus a load without reps
+  admitted, a strict stall test, minimum evidence 5, a hardcoded D49 reason,
+  and the bodyweight-row guard. The last needed a legacy fixture: a row ticked
+  bodyweight that carries a numeric load.
+- **1 equivalent, proven.** "An equal-load warm-up admitted": a warm-up whose
+  load equals a performed working load in its row cannot change the
+  workout's maximum (max(S ∪ {x}) = max(S) when x is in S).
+
+### Restated contracts
+
+D116's technique:
+- `D122_EDITS` holds D122's one statement as [now, as of 10.38];
+- `pinAsOf1038(name)` hashes `detectPlateau` with it put back.
+
+The three contracts that held `detectPlateau` at `5328b907ce3432c7` now hold
+it there by reversal: 224 (D109), 225 (D110) and 236 (D119).
+Nothing else was restated.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
+key, no stored answer, no history rewritten. E42 closed; E44 and E45 recorded.

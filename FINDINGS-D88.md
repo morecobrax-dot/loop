@@ -1396,7 +1396,7 @@ Measured on frozen 10.37 vs 10.38:
 
 Contract 238, §160.
 
-## E42 — D49's plateau check reads a typed warm-up's load · P4 · PROVEN · OPEN
+## E42 — D49's plateau check reads a typed warm-up's load · P4 · PROVEN · **CLOSED in D122 (LOOP 10.39)**
 
 Found by D121 while proving D49 has zero drift. D49 is unchanged and still
 has this.
@@ -1423,6 +1423,26 @@ one.
 `detectPlateau` is D49's input, not a record. The likely fix is
 `isPerformanceSet` inside `detectPlateau`, with D49's drift measured, in its own
 phase.
+
+**Closed in D122 (LOOP 10.39).** `detectPlateau` now reads each workout's load
+exactly as D49's own evidence does: the heaviest set that is a performed working
+set (`isPerformanceSet`), with performed reps (`performedReps`) and a real load
+(`performedLoad`). A typed warm-up, a set marked not completed and a load with no
+performed reps can no longer invent a stall, hide one, or name the weight a lift
+is "stuck at".
+
+The plateau policy is word for word as it was: one occurrence per workout, four
+needed, the last four, stalled when none beats the first.
+
+Measured on frozen 10.38 vs 10.39:
+- **No change:** 320 generated no-E42 histories, warm-ups at the working load,
+  insufficient histories, bodyweight and both owner backups.
+- **E42 histories:** 469 lifts moved, only on the plateau side. Each equals
+  10.38 with its non-performance sets removed.
+- **Never moved:** records, XP, levels, ranks, Session Score, Mastery,
+  Recovery and volume.
+
+Contract 239, §161.
 
 ## E43 — The XP line labelled "N working sets" counts warm-ups too · P4 · PROVEN · OPEN
 
@@ -1452,6 +1472,54 @@ So the two warm-ups earn 16 XP under a "working sets" label.
 phase:
 - make the label true ("5 sets"): copy only, XP unchanged;
 - count working sets only: an XP-economy change with level and rank drift.
+
+## E44 — The plateau window counts a deload week as an ordinary workout · P4 · PROVEN · OPEN
+
+Found by D122 while proving the plateau policy unchanged. It is window policy,
+which D122 protected, so it is recorded, not fixed.
+
+**What is wrong.** D85 sets a deload-phase workout aside from D49's evidence:
+it was prescribed to be easy, so it says nothing about what the lift can carry.
+`detectPlateau`'s window does not. Its last four workouts include a deload, and
+a deload is lighter than the first of the four, so it always counts as "no
+increase".
+
+**Measured, identical on 10.38 and 10.39.** Bench Press 3 × 8, no warm-ups
+anywhere:
+- 180 → 185 → 185, a programmed deload at 165, then 185: "Performance has
+  stalled for 4 sessions — hold the weight, or switch to a similar exercise."
+- The same training with no deload week reads "Beat last session — aim for 9
+  reps at 185 lb."
+- D49's own sessions for the deload history are 185, 185, 185, 180. It already
+  set the deload aside.
+
+So the week after a planned deload, the moment progression is meant to resume,
+can be the week LOOP calls the lift stalled.
+
+**Why it was not fixed in D122.** D122 fixed what counts as plateau evidence
+and was told the plateau window is protected. The likely fix is the window
+setting deload-phase workouts aside as D85's history does, with D49's drift
+measured, in its own phase.
+
+## E45 — The Personal Best carousel's dots are 30 px targets, not the 44 px their own CSS claims · P4 · PROVEN · OPEN
+
+Found by D122's browser QA, in the one fixture with two lifts. It is unrelated
+to plateau detection and was not caused by D122. It is recorded, not fixed.
+
+**What is wrong.** The `.pbt-dot` page indicators under Progress → Strength's
+Personal Best carousel (D83, LOOP 8.5, 804dfd6) carry this comment: "A 44px
+tap target lives in the button's own padding; only the small visible mark is
+drawn." The padding is 12 px around a 6 px mark, so the button is 30 × 30 px.
+LOOP's own QA bar elsewhere is 44 px.
+
+**Measured.** Real headless Edge, 10.39, at all seven phone sizes from
+320 × 568 to 430 × 932: every dot measures 30 × 30. The CSS is unchanged since
+8.5. Swiping and the "N of M" text still work, so the dots are a secondary
+control. It is still a tap target 14 px short of the size the code says it is.
+
+**Why it was not fixed in D122.** It is a styling change to another feature.
+The likely fix is padding 19 px (or a 44 px min-width/min-height), with the
+D83 contract checking the measured size, in its own phase.
 
 ## Not findings — checked and clean
 
